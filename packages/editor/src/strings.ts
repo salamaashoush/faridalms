@@ -600,6 +600,10 @@ export interface EditorStrings extends LabelEditorStrings, ChartStrings {
   openFile: string;
   picture: string;
   fileRemoved: string;
+  previousPicture: string;
+  nextPicture: string;
+  /** Which picture of a gallery is open: "3 of 8". */
+  pictureOf: (at: number, total: number) => string;
   copyFileLink: string;
   fileLinkCopied: string;
   closeViewer: string;

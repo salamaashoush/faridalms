@@ -16,6 +16,10 @@ export function fileStrings(): FileStrings {
     fileLinkCopied: m.fileLinkCopied(),
     closeViewer: m.fileCloseViewer(),
     noPreview: m.fileNoPreview(),
+    previousPicture: m.filePreviousPicture(),
+    nextPicture: m.fileNextPicture(),
+    pictureOf: (at, total) =>
+      m.filePictureOf({ at: formatNumber(at), total: formatNumber(total) }),
     captions: m.editorCaptions(),
     transcript: m.editorTranscript(),
     transcriptSearch: m.editorTranscriptSearch(),
@@ -733,6 +737,10 @@ export function editorStrings(): EditorStrings {
     fileLinkCopied: m.fileLinkCopied(),
     closeViewer: m.fileCloseViewer(),
     noPreview: m.fileNoPreview(),
+    previousPicture: m.filePreviousPicture(),
+    nextPicture: m.fileNextPicture(),
+    pictureOf: (at, total) =>
+      m.filePictureOf({ at: formatNumber(at), total: formatNumber(total) }),
     fileDisplay: m.fileDisplay(),
     fileAsCard: m.fileAsCard(),
     fileAsPreview: m.fileAsPreview(),

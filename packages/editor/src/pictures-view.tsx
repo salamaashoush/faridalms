@@ -1,11 +1,11 @@
 import type { SetPicture } from "@faridalms/domain/content";
 import type { CSSProperties } from "react";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 import type { FileStrings } from "./files";
 
-import { PictureView, StoredImage } from "./files";
+import { FileViewer, PictureView, StoredImage } from "./files";
 
 export interface PicturesViewStrings {
   compareBefore: string;
@@ -13,7 +13,10 @@ export interface PicturesViewStrings {
   compareSlider: string;
 }
 
-/** A gallery's pictures in a grid, each opening large with its caption. */
+/**
+ * A gallery's pictures in a grid, each opening large with its caption in
+ * one viewer that steps through them, the next ones fetched ahead.
+ */
 export function GalleryView({
   pictures,
   url,
@@ -25,27 +28,64 @@ export function GalleryView({
   strings: FileStrings;
   locale: string;
 }) {
+  const [at, setAt] = useState<number | null>(null);
   const shown = pictures.flatMap((picture) => {
     const src = url(picture.fileId);
     return src ? [{ ...picture, src }] : [];
   });
+  const open = at === null ? null : shown[at];
+  const before = at === null ? undefined : shown[at - 1]?.src;
+  const after = at === null ? undefined : shown[at + 1]?.src;
+  useEffect(() => {
+    for (const near of [before, after]) if (near) new Image().src = near;
+  }, [before, after]);
   if (shown.length === 0) return null;
   return (
-    <ul className="fe-gallery">
-      {shown.map((picture) => (
-        <li key={picture.fileId}>
-          <PictureView
-            src={picture.src}
-            alt={picture.alt}
-            caption={picture.caption ?? ""}
-            className=""
-            strings={strings}
-            locale={locale}
-            cover
-          />
-        </li>
-      ))}
-    </ul>
+    <>
+      <ul className="fe-gallery">
+        {shown.map((picture, index) => (
+          <li key={picture.fileId}>
+            <PictureView
+              src={picture.src}
+              alt={picture.alt}
+              caption={picture.caption ?? ""}
+              className=""
+              strings={strings}
+              locale={locale}
+              cover
+              onOpen={() => setAt(index)}
+            />
+          </li>
+        ))}
+      </ul>
+      {open && at !== null ? (
+        <FileViewer
+          file={{
+            name: open.caption || open.alt || strings.picture,
+            mime: "image/*",
+          }}
+          url={open.src}
+          open
+          onOpenChange={(next) => {
+            if (!next) setAt(null);
+          }}
+          strings={strings}
+          locale={locale}
+          steps={{
+            at,
+            total: shown.length,
+            alt: open.alt,
+            caption: open.caption ?? "",
+            onStep: (by) =>
+              setAt((current) =>
+                current === null
+                  ? null
+                  : Math.min(shown.length - 1, Math.max(0, current + by)),
+              ),
+          }}
+        />
+      ) : null}
+    </>
   );
 }
 

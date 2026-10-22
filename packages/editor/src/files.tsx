@@ -8,6 +8,8 @@ import { Dialog } from "@base-ui/react/dialog";
 import { fileFamily, fileTypeLabel, previewable } from "@faridalms/domain/file";
 import {
   Check,
+  ChevronLeft,
+  ChevronRight,
   Download,
   File,
   FileArchive,
@@ -21,7 +23,13 @@ import {
   Presentation,
   X,
 } from "lucide-react";
-import { useCallback, useState, useSyncExternalStore } from "react";
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  useSyncExternalStore,
+} from "react";
 
 import type { EditorStrings } from "./strings";
 
@@ -106,7 +114,29 @@ export type FileStrings = Pick<
   | "descriptions"
   | "picture"
   | "fileRemoved"
+  | "previousPicture"
+  | "nextPicture"
+  | "pictureOf"
 >;
+
+/**
+ * A gallery's place in the viewer: which picture of how many, what it
+ * shows, and a way to the one before or after.
+ */
+export interface ViewerSteps {
+  at: number;
+  total: number;
+  alt: string;
+  caption: string;
+  onStep: (by: -1 | 1) => void;
+}
+
+/** How far a finger travels across a picture before it counts as a swipe. */
+const SWIPE = 48;
+
+/** Next lies the way the page reads: leftwards in Arabic. */
+const forward = (element: Element) =>
+  getComputedStyle(element).direction === "rtl" ? -1 : 1;
 
 export interface FileFacts {
   name: string;
@@ -160,7 +190,11 @@ export function CopyLinkButton({
   );
 }
 
-/** Opens a file over the page: pages, pictures and players, or a download. */
+/**
+ * Opens a file over the page: pages, pictures and players, or a download.
+ * A gallery's picture steps to the one before or after it by its buttons,
+ * the arrow keys or a swipe, each the way the page reads.
+ */
 export function FileViewer({
   file,
   url,
@@ -168,6 +202,7 @@ export function FileViewer({
   onOpenChange,
   strings,
   locale,
+  steps,
 }: {
   file: FileFacts;
   url: string;
@@ -175,9 +210,38 @@ export function FileViewer({
   onOpenChange: (open: boolean) => void;
   strings: FileStrings;
   locale: string;
+  steps?: ViewerSteps;
 }) {
   const family = fileFamily(file.name, file.mime);
   const Icon = ICON[family];
+  const pressed = useRef<number | null>(null);
+  const popup = useRef<HTMLDivElement>(null);
+  const step = useCallback(
+    (by: -1 | 1) => {
+      if (!steps) return;
+      const to = steps.at + by;
+      if (to >= 0 && to < steps.total) steps.onStep(by);
+    },
+    [steps],
+  );
+  // Arrow keys step wherever focus is, as a step to the last picture
+  // disables the button that held it; caught first, before the dialog's
+  // own parts can keep them.
+  useEffect(() => {
+    if (!open || !steps) return undefined;
+    const press = (event: KeyboardEvent) => {
+      if (event.key !== "ArrowLeft" && event.key !== "ArrowRight") return;
+      event.preventDefault();
+      const sign = event.key === "ArrowRight" ? 1 : -1;
+      step(
+        (sign * forward(popup.current ?? document.documentElement)) as -1 | 1,
+      );
+    };
+    document.addEventListener("keydown", press, true);
+    return () => document.removeEventListener("keydown", press, true);
+  }, [open, steps, step]);
+  const stepButton =
+    "absolute top-1/2 z-10 inline-flex size-11 -translate-y-1/2 items-center justify-center rounded-full border bg-background/90 shadow-sm hover:bg-accent disabled:pointer-events-none disabled:opacity-0 [&_svg]:size-5";
   const shown = previewable(file.mime);
   const action =
     "inline-flex h-9 items-center gap-1.5 rounded-md px-3 text-sm font-medium hover:bg-accent [&_svg]:size-4";
@@ -185,7 +249,10 @@ export function FileViewer({
     <Dialog.Root open={open} onOpenChange={onOpenChange}>
       <Dialog.Portal>
         <Dialog.Backdrop className="fixed inset-0 z-50 bg-black/60" />
-        <Dialog.Popup className="fixed inset-0 z-50 flex flex-col overflow-hidden bg-background outline-none sm:inset-6 sm:rounded-xl sm:border sm:shadow-2xl">
+        <Dialog.Popup
+          ref={popup}
+          className="fixed inset-0 z-50 flex flex-col overflow-hidden bg-background outline-none sm:inset-6 sm:rounded-xl sm:border sm:shadow-2xl"
+        >
           <div className="flex min-h-14 items-center gap-3 border-b px-4">
             <Icon
               className="size-5 shrink-0 text-muted-foreground"
@@ -195,8 +262,13 @@ export function FileViewer({
               <Dialog.Title className="truncate text-sm font-semibold">
                 <bdi>{file.name}</bdi>
               </Dialog.Title>
-              <Dialog.Description className="text-xs text-muted-foreground">
-                {fileMeta(file, locale)}
+              <Dialog.Description
+                className="text-xs text-muted-foreground"
+                aria-live={steps ? "polite" : undefined}
+              >
+                {steps
+                  ? strings.pictureOf(steps.at + 1, steps.total)
+                  : fileMeta(file, locale)}
               </Dialog.Description>
             </div>
             <a href={`${url}?download`} download={file.name} className={action}>
@@ -231,6 +303,56 @@ export function FileViewer({
                   {strings.downloadFile}
                 </a>
               </div>
+            ) : family === "image" && steps ? (
+              <figure
+                className="relative flex size-full min-h-0 touch-pan-y flex-col items-center justify-center gap-2 p-4"
+                onPointerDown={(event) => {
+                  pressed.current = event.clientX;
+                }}
+                onPointerUp={(event) => {
+                  const from = pressed.current;
+                  pressed.current = null;
+                  if (from === null) return;
+                  const moved = event.clientX - from;
+                  if (Math.abs(moved) < SWIPE) return;
+                  // A finger drawn against the reading way brings the next.
+                  const sign = moved < 0 ? 1 : -1;
+                  step((sign * forward(event.currentTarget)) as -1 | 1);
+                }}
+              >
+                <img
+                  src={url}
+                  alt={steps.alt}
+                  draggable={false}
+                  className="min-h-0 max-w-full flex-1 object-contain select-none"
+                />
+                {steps.caption ? (
+                  <figcaption
+                    dir="auto"
+                    className="text-center text-sm text-muted-foreground"
+                  >
+                    {steps.caption}
+                  </figcaption>
+                ) : null}
+                <button
+                  type="button"
+                  aria-label={strings.previousPicture}
+                  disabled={steps.at === 0}
+                  onClick={() => step(-1)}
+                  className={cx(stepButton, "start-3")}
+                >
+                  <ChevronLeft aria-hidden className="rtl:rotate-180" />
+                </button>
+                <button
+                  type="button"
+                  aria-label={strings.nextPicture}
+                  disabled={steps.at === steps.total - 1}
+                  onClick={() => step(1)}
+                  className={cx(stepButton, "end-3")}
+                >
+                  <ChevronRight aria-hidden className="rtl:rotate-180" />
+                </button>
+              </figure>
             ) : family === "image" ? (
               <img
                 src={url}
@@ -425,6 +547,7 @@ export function PictureView({
   locale,
   cover = false,
   credit,
+  onOpen,
 }: {
   src: string;
   alt: string;
@@ -435,6 +558,8 @@ export function PictureView({
   /** Cropped to one shape, as a gallery's pictures line up. */
   cover?: boolean;
   credit?: PictureCredit | undefined;
+  /** Opens the picture in a viewer the caller keeps, as a gallery does. */
+  onOpen?: () => void;
 }) {
   const [open, setOpen] = useState(false);
   const name = caption || alt || strings.picture;
@@ -443,7 +568,7 @@ export function PictureView({
       <button
         type="button"
         aria-label={`${strings.openFile}: ${name}`}
-        onClick={() => setOpen(true)}
+        onClick={() => (onOpen ? onOpen() : setOpen(true))}
         className="block w-full cursor-zoom-in rounded-lg outline-none focus-visible:ring-2 focus-visible:ring-ring/40"
       >
         <StoredImage
@@ -464,14 +589,16 @@ export function PictureView({
         </figcaption>
       ) : null}
       {credit ? <PictureCreditLine credit={credit} /> : null}
-      <FileViewer
-        file={{ name, mime: "image/*" }}
-        url={src}
-        open={open}
-        onOpenChange={setOpen}
-        strings={strings}
-        locale={locale}
-      />
+      {onOpen ? null : (
+        <FileViewer
+          file={{ name, mime: "image/*" }}
+          url={src}
+          open={open}
+          onOpenChange={setOpen}
+          strings={strings}
+          locale={locale}
+        />
+      )}
     </figure>
   );
 }
