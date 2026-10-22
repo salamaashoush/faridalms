@@ -334,6 +334,8 @@ export interface QuestionSettings {
   feedbackAt: FeedbackTime;
   /** Suggested from the document, and not yet kept by its teacher. */
   suggested: boolean;
+  /** Gaps filled from a word bank: its extra words; none when each gap is typed or chosen alone. */
+  bank: string[] | null;
   multiple: boolean;
   shuffle: boolean;
   caseSensitive: boolean;
@@ -402,6 +404,7 @@ export function defaultSettings(kind: QuestionKind): QuestionSettings {
     tries: null,
     feedbackAt: "now",
     suggested: false,
+    bank: null,
     multiple: false,
     shuffle: kind === "choice",
     caseSensitive: false,
@@ -466,6 +469,7 @@ function questionSettings(stored: StoredSettings): QuestionSettings {
     tries: stored.tries ?? null,
     feedbackAt: stored.feedbackAt ?? "now",
     suggested: stored.suggested ?? false,
+    bank: stored.bank ?? null,
     multiple: stored.multiple ?? base.multiple,
     shuffle: stored.shuffle ?? base.shuffle,
     caseSensitive: stored.caseSensitive ?? base.caseSensitive,
@@ -642,6 +646,7 @@ export class QuestionNode extends ElementNode {
       standards,
       feedbackAt,
       suggested,
+      bank,
       ...settings
     } = questionSettings(this.getLatest().__settings);
     return {
@@ -649,6 +654,7 @@ export class QuestionNode extends ElementNode {
       ...settings,
       ...(feedbackAt === "now" ? {} : { feedbackAt }),
       ...(suggested ? { suggested } : {}),
+      ...(settings.kind === "gaps" && bank !== null ? { bank } : {}),
       ...(recordSeconds === null ? {} : { recordSeconds }),
       ...(recordSeconds !== null && recordVideo ? { recordVideo } : {}),
       ...(answerWith === null ? {} : { answerWith }),

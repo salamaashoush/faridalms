@@ -422,6 +422,13 @@ export function questionBlock(node: ContentNode): LessonBlock | null {
         caseSensitive: node.caseSensitive ?? false,
         closeEnough: node.closeEnough ?? false,
         tehMarbuta: node.tehMarbuta ?? true,
+        ...(node.bank
+          ? {
+              bank: node.bank
+                .map((word) => word.trim())
+                .filter((word) => word !== ""),
+            }
+          : {}),
       };
     case "sorting": {
       const groups = parts.filter((part) => part.type === "question-group");
@@ -765,6 +772,7 @@ export function questionNode(block: LessonBlock): ContentNode | null {
       caseSensitive: block.caseSensitive,
       closeEnough: block.closeEnough,
       tehMarbuta: block.tehMarbuta,
+      ...(block.bank ? { bank: block.bank } : {}),
       children: [...(base.children ?? []), ...passagesOf(block.segments)],
     };
   if (block.type === "number")

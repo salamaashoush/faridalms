@@ -303,6 +303,8 @@ export interface ContentNode {
   requires?: GateWaits;
   /** A question suggested from the document, not yet kept by its teacher. */
   suggested?: boolean;
+  /** Gaps filled from a word bank: the extra words, which fit no gap. */
+  bank?: string[];
   multiple?: boolean;
   shuffle?: boolean;
   caseSensitive?: boolean;
@@ -617,6 +619,9 @@ const nodeSchema: v.GenericSchema<ContentNode> = v.lazy(() =>
       feedbackAt: v.optional(v.picklist(FEEDBACK_TIMES)),
       requires: v.optional(v.picklist(GATE_WAITS)),
       suggested: v.optional(v.boolean()),
+      bank: v.optional(
+        v.pipe(v.array(v.pipe(v.string(), v.maxLength(100))), v.maxLength(12)),
+      ),
       multiple: v.optional(v.boolean()),
       shuffle: v.optional(v.boolean()),
       caseSensitive: v.optional(v.boolean()),

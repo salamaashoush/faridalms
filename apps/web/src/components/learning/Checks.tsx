@@ -1045,6 +1045,41 @@ function GapsCheck({
         />
       }
     >
+      {block.bank ? (
+        <div className="grid gap-1.5">
+          <p className="text-[13px] leading-[18px] font-medium text-muted-foreground">
+            {m.lrnWordBank()}
+          </p>
+          <ul dir="auto" className="flex flex-wrap gap-1.5">
+            {block.bank.map((word) => {
+              const used = Object.values(answers).includes(word);
+              return (
+                <li key={word}>
+                  <button
+                    type="button"
+                    disabled={locked}
+                    aria-label={m.lrnWordBankUse({ word })}
+                    onClick={() => {
+                      const next = gaps.find((gap) => !answers[gap.id]);
+                      if (next)
+                        setAnswers((current) => ({
+                          ...current,
+                          [next.id]: word,
+                        }));
+                    }}
+                    className={cn(
+                      "rounded-md border px-2.5 py-1 text-sm leading-5 transition-colors hover:bg-muted disabled:pointer-events-none max-md:min-h-10",
+                      used && "border-dashed text-muted-foreground",
+                    )}
+                  >
+                    {word}
+                  </button>
+                </li>
+              );
+            })}
+          </ul>
+        </div>
+      ) : null}
       <div dir="auto" className="text-base leading-10 whitespace-pre-wrap">
         {joinedAroundGaps(block.segments).map((segment, index) => {
           if (segment.type === "text")
@@ -1061,7 +1096,7 @@ function GapsCheck({
               key={segment.id}
               className="mx-1 inline-flex items-center gap-1.5 align-middle"
             >
-              {segment.options.length > 0 ? (
+              {segment.options.length > 0 || block.bank ? (
                 <Select
                   value={answers[segment.id] ?? null}
                   onValueChange={(value) => {
@@ -1081,7 +1116,7 @@ function GapsCheck({
                     <SelectValue placeholder={m.lrnChooseWord()} />
                   </SelectTrigger>
                   <SelectContent>
-                    {segment.options.map((option) => (
+                    {(block.bank ?? segment.options).map((option) => (
                       <SelectItem key={option} value={option}>
                         {option}
                       </SelectItem>

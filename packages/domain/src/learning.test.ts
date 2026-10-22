@@ -517,6 +517,36 @@ describe("messages by score", () => {
   });
 });
 
+describe("a word bank", () => {
+  const banked: GapsBlock = {
+    ...gaps,
+    segments: gaps.segments.map((segment) =>
+      segment.type === "gap" ? { ...segment, options: [] } : segment,
+    ),
+    bank: ["50", "212"],
+  };
+
+  it("gives the student every gap's answer and the extra words in one shuffled bank", () => {
+    const [shown] = studentBlocks({ version: 2, blocks: [banked] }, "a");
+    if (shown?.type !== "gaps") throw new Error("not gaps");
+    expect(shown.bank?.toSorted()).toEqual(["0", "100", "212", "50"]);
+    expect(JSON.stringify(shown.segments)).not.toContain("answers");
+  });
+
+  it("refuses gaps that choose their own words as well", () => {
+    expect(
+      v.safeParse(lessonDocumentSchema, {
+        version: 2,
+        blocks: [{ ...gaps, bank: ["50"] }],
+      }).success,
+    ).toBe(false);
+    expect(
+      v.safeParse(lessonDocumentSchema, { version: 2, blocks: [banked] })
+        .success,
+    ).toBe(true);
+  });
+});
+
 describe("older lessons", () => {
   it("read a question's one hint as the first of its hints", () => {
     const { hints: _hints, ...saved } = typed;

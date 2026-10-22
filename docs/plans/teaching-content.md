@@ -228,6 +228,13 @@ Sources: [../research/course-design.md](../research/course-design.md),
    decision on help from one (section 11).
 10. **More question kinds**: word bank, poll, highlight words, label an
     image, number line, crossword and word search.
+    Done so far: a word bank. A gap question can be filled from a bank
+    (`bank` on gaps, its extra words that fit no gap), set from its bar;
+    the student sees every answer and extra word shuffled in one bank,
+    taps a word into the next blank or chooses it in each blank, and paper
+    prints the bank above the text.
+    Left: poll, highlight words, label an image, number line, crossword
+    and word search.
 
 ## 4. Standards, skills and planning
 

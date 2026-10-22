@@ -346,11 +346,27 @@ export const lessonBlockSchema = v.variant("type", [
       ...matching,
       type: v.literal("gaps"),
       segments: v.pipe(v.array(gapSegment), v.maxLength(MAX_GAPS * 2 + 1)),
+      /**
+       * The gaps are filled from a bank of words: every gap's answer and
+       * these extra ones, which fit none. Absent for gaps typed or chosen
+       * one by one.
+       */
+      bank: v.optional(
+        v.pipe(v.array(requiredText(100)), v.maxLength(MAX_CHOICE_OPTIONS)),
+      ),
     }),
     v.check((block) => {
       const gaps = block.segments.filter((segment) => segment.type === "gap");
       return gaps.length >= 1 && gaps.length <= MAX_GAPS;
     }, "learning.gaps_needed"),
+    v.check(
+      (block) =>
+        !block.bank ||
+        block.segments.every(
+          (segment) => segment.type === "text" || segment.options.length === 0,
+        ),
+      "learning.bank_options",
+    ),
   ),
   v.pipe(
     v.object({
@@ -1879,11 +1895,13 @@ export type StudentBlock =
     })
   | Omit<TextBlock, "answers" | "explanation" | "hints">
   | Omit<MathBlock, "answers" | "explanation" | "hints" | "tolerance">
-  | (Omit<GapsBlock, "explanation" | "hints" | "segments"> & {
+  | (Omit<GapsBlock, "explanation" | "hints" | "segments" | "bank"> & {
       segments: (
         | { type: "text"; text: string }
         | { type: "gap"; id: string; options: string[] }
       )[];
+      /** A word bank's words, every gap's answer and the extra ones, shuffled together. */
+      bank?: string[];
     })
   | Pick<
       NumberBlock,
@@ -2000,9 +2018,22 @@ export function studentBlocks(
         return rest;
       }
       case "gaps": {
-        const { explanation: _why, hints: _hints, ...rest } = block;
+        const { explanation: _why, hints: _hints, bank, ...rest } = block;
+        const words = bank
+          ? [
+              ...new Set([
+                ...block.segments.flatMap((segment) =>
+                  segment.type === "gap" ? (segment.answers[0] ?? []) : [],
+                ),
+                ...bank,
+              ]),
+            ]
+          : null;
         return {
           ...rest,
+          ...(words
+            ? { bank: shuffled(words, `${seed}:${block.id}:bank`) }
+            : {}),
           segments: block.segments.map((segment) =>
             segment.type === "text"
               ? segment

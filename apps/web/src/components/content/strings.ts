@@ -346,6 +346,8 @@ export function editorStrings(): EditorStrings {
     questionTries: m.editorQuestionTries(),
     questionTriesUntilRight: m.editorQuestionTriesUntilRight(),
     questionSuggested: m.editorQuestionSuggested(),
+    questionBank: m.editorQuestionBank(),
+    questionBankWords: m.editorQuestionBankWords(),
     questionKeep: m.editorQuestionKeep(),
     suggestTitle: m.editorSuggestTitle(),
     suggestHint: m.editorSuggestHint(),

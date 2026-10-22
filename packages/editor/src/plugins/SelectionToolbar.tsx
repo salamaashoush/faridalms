@@ -58,6 +58,7 @@ import {
   Baseline,
   BookmarkPlus,
   Bold,
+  Boxes,
   Captions,
   CaseSensitive,
   Check,
@@ -77,6 +78,7 @@ import {
   Images,
   Italic,
   Lightbulb,
+  ListPlus,
   Link,
   ListChecks,
   ListOrdered,
@@ -258,11 +260,13 @@ interface QuestionBarFacts {
   test: { key: NodeKey; hidden: boolean } | null;
 }
 
-type QuestionText = "explanation" | "feedback" | "alt";
+type QuestionText = "explanation" | "feedback" | "alt" | "bank";
 
 const POINTS = [0, 1, 2, 3, 4, 5, 6, 8, 10];
 const DRAW_COUNTS = [1, 2, 3, 4, 5, 6, 8, 10, 12, 15, 20];
 const TRIES = [null, 1, 2, 3, 5] as const;
+/** Extra words a word bank takes, as many as a choice has options. */
+const MAX_BANK_WORDS = 8;
 /** Questions answered in one go, whose feedback can wait. */
 const DEFERRABLE = new Set<QuestionKind>([
   "choice",
@@ -1396,7 +1400,9 @@ export function SelectionToolbarPlugin() {
           ? (question.option?.feedback ?? "")
           : field === "alt"
             ? (question.part?.picture?.alt ?? "")
-            : settings[field],
+            : field === "bank"
+              ? (settings.bank ?? []).join(", ")
+              : settings[field],
       );
       show("question-text");
     };
@@ -1836,6 +1842,26 @@ export function SelectionToolbarPlugin() {
           {settings.kind === "matching" && lessonActivities
             ? toggle("memory", strings.questionMemory, <Grid2x2 aria-hidden />)
             : null}
+          {settings.kind === "gaps" ? (
+            <ToolButton
+              label={strings.questionBank}
+              active={settings.bank !== null}
+              onClick={() =>
+                change({ bank: settings.bank === null ? [] : null })
+              }
+            >
+              <Boxes aria-hidden />
+            </ToolButton>
+          ) : null}
+          {settings.kind === "gaps" && settings.bank !== null ? (
+            <ToolButton
+              label={strings.questionBankWords}
+              active={settings.bank.length > 0}
+              onClick={() => write("bank")}
+            >
+              <ListPlus aria-hidden />
+            </ToolButton>
+          ) : null}
           {(settings.kind === "project" || settings.kind === "scratch") &&
           lessonActivities
             ? toggle("gallery", strings.questionGallery, <Images aria-hidden />)
@@ -2375,11 +2401,13 @@ export function SelectionToolbarPlugin() {
       explanation: strings.questionExplanation,
       feedback: strings.questionFeedback,
       alt: strings.questionPictureDescribe,
+      bank: strings.questionBankWords,
     };
     const limits: Record<QuestionText, number> = {
       explanation: 1000,
       feedback: 300,
       alt: 300,
+      bank: 800,
     };
     const done = () => {
       const value = draftText.trim();
@@ -2399,7 +2427,19 @@ export function SelectionToolbarPlugin() {
           return;
         }
         const node = $getNodeByKey(question.key);
-        if ($isQuestionNode(node)) node.setSettings({ [editing]: value });
+        if (!$isQuestionNode(node)) return;
+        if (editing === "bank")
+          node.setSettings({
+            bank: [
+              ...new Set(
+                value
+                  .split(/[,،\n]/u)
+                  .map((word) => word.trim())
+                  .filter((word) => word !== ""),
+              ),
+            ].slice(0, MAX_BANK_WORDS),
+          });
+        else node.setSettings({ [editing]: value });
       });
       show("question");
       focusText(editor);

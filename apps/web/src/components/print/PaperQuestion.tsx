@@ -498,35 +498,52 @@ export function PaperQuestion({
     }
     case "gaps":
       body = (
-        <p className="leading-[2.4]">
-          {placed(block.segments).map(({ segment, at }) =>
-            segment.type === "text" ? (
-              <span key={at}>
-                <TextWithMath text={segment.text} />
-              </span>
-            ) : (
-              <span key={segment.id} className="whitespace-nowrap">
-                <span
-                  className="mx-1 inline-block border-b border-neutral-600 text-center"
-                  style={{
-                    minWidth: `${Math.max(4, ...segment.answers.map((answer) => answer.length)) + 2}ch`,
-                  }}
-                >
-                  {answers ? (
-                    <span className={key}>{parts[segment.id]}</span>
-                  ) : (
-                    " "
-                  )}
+        <>
+          {block.bank ? (
+            <p className="mb-2 rounded border border-neutral-400 px-2 py-1">
+              {shuffled(
+                [
+                  ...new Set([
+                    ...block.segments.flatMap((segment) =>
+                      segment.type === "gap" ? (segment.answers[0] ?? []) : [],
+                    ),
+                    ...block.bank,
+                  ]),
+                ],
+                `paper:${block.id}`,
+              ).join(" · ")}
+            </p>
+          ) : null}
+          <p className="leading-[2.4]">
+            {placed(block.segments).map(({ segment, at }) =>
+              segment.type === "text" ? (
+                <span key={at}>
+                  <TextWithMath text={segment.text} />
                 </span>
-                {segment.options.length ? (
-                  <span className="text-[0.8em] text-neutral-600">
-                    ({segment.options.join(" / ")})
+              ) : (
+                <span key={segment.id} className="whitespace-nowrap">
+                  <span
+                    className="mx-1 inline-block border-b border-neutral-600 text-center"
+                    style={{
+                      minWidth: `${Math.max(4, ...segment.answers.map((answer) => answer.length)) + 2}ch`,
+                    }}
+                  >
+                    {answers ? (
+                      <span className={key}>{parts[segment.id]}</span>
+                    ) : (
+                      " "
+                    )}
                   </span>
-                ) : null}
-              </span>
-            ),
-          )}
-        </p>
+                  {segment.options.length ? (
+                    <span className="text-[0.8em] text-neutral-600">
+                      ({segment.options.join(" / ")})
+                    </span>
+                  ) : null}
+                </span>
+              ),
+            )}
+          </p>
+        </>
       );
       break;
     case "matching": {
