@@ -755,6 +755,11 @@ async function seedCoursework(
     const dueId = Bun.randomUUIDv7();
     const laterId = Bun.randomUUIDv7();
     const draftId = Bun.randomUUIDv7();
+    // Work still out stays out four weeks from whenever the seed runs; a
+    // fixed date passed and left a seeded school with nothing assigned.
+    const laterDue = new Date();
+    laterDue.setUTCDate(laterDue.getUTCDate() + 28);
+    laterDue.setUTCHours(12, 0, 0, 0);
     await tx.insert(assignments).values([
       {
         ...base,
@@ -773,7 +778,7 @@ async function seedCoursework(
         title: "Project: my neighbourhood",
         state: "published",
         availableFrom: new Date("2026-09-20T06:00:00Z"),
-        dueAt: new Date("2026-10-22T12:00:00Z"),
+        dueAt: laterDue,
         latePolicy: "deduct",
         lateDeductionPercent: 10,
         points: 20,
