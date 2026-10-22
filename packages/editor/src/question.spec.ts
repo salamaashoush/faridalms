@@ -644,8 +644,9 @@ describe("questions in a document", () => {
           correctOptionIds: [],
           multiple: false,
           shuffle: true,
+          feedbackAt: "end",
         },
-        { id: crypto.randomUUID(), type: "gate", requires: "above" },
+        { id: crypto.randomUUID(), type: "gate", requires: "last" },
         {
           id: crypto.randomUUID(),
           type: "gaps",
@@ -698,7 +699,9 @@ describe("questions in a document", () => {
     target.setEditorState(target.parseEditorState(JSON.stringify(document)));
     target.update(() => $getRoot().markDirty(), { discrete: true });
     const back = lessonOfContent(json(target)).blocks;
-    expect(back.filter((block) => block.type === "gate")).toHaveLength(1);
+    expect(back.filter((block) => block.type === "gate")).toEqual([
+      expect.objectContaining({ requires: "last" }),
+    ]);
     for (const block of [choice, gaps, sorting])
       expect(back.find((item) => item.id === block?.id)).toEqual(block);
     expect(json(target).root.children?.[0]).toMatchObject({

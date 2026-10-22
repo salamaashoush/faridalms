@@ -258,6 +258,12 @@ export interface EditorStrings extends LabelEditorStrings, ChartStrings {
   pageBreakHint: string;
   gate: string;
   gateHint: string;
+  gateHintLast: string;
+  gateHintNone: string;
+  gateWaits: string;
+  gateAbove: string;
+  gateLast: string;
+  gateNone: string;
   transcript: string;
   transcriptSearch: string;
   transcriptNoMatch: string;

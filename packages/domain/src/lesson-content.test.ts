@@ -287,6 +287,29 @@ describe("lessons written as one document", () => {
     expect(sameLesson(document, edited)).toBe(false);
   });
 
+  it("keeps what each continue gate waits for, and sees a change to it", () => {
+    const waits = (requires: "above" | "last" | "none") =>
+      contentOfLesson({
+        version: 2,
+        blocks: lesson.blocks.map((block) =>
+          block.type === "gate" ? { ...block, requires } : block,
+        ),
+      });
+    const last = waits("last");
+    const above = waits("above");
+    if (!last || !above) throw new Error("lesson could not become a document");
+    expect(
+      last.root.children?.find((node) => node.type === "gate"),
+    ).toMatchObject({ requires: "last" });
+    expect(
+      above.root.children?.find((node) => node.type === "gate"),
+    ).not.toHaveProperty("requires");
+    expect(
+      lessonOfContent(last).blocks.find((block) => block.type === "gate"),
+    ).toMatchObject({ requires: "last" });
+    expect(sameLesson(above, last)).toBe(false);
+  });
+
   it("leaves out options and items still empty", () => {
     const document = contentOfLesson(lesson);
     if (!document) throw new Error("lesson could not become a document");

@@ -15,6 +15,7 @@ import {
   contentDocumentSchema,
   contentPlainText,
   FEEDBACK_TIMES,
+  GATE_WAITS,
   MAX_LATEX,
   mathText,
   narrationWordsSchema,
@@ -284,7 +285,7 @@ export const lessonBlockSchema = v.variant("type", [
     id,
     type: v.literal("gate"),
     /** What opens the rest of the lesson; only work a student can finish alone. */
-    requires: v.picklist(["above"]),
+    requires: v.picklist(GATE_WAITS),
   }),
   v.object({
     id,

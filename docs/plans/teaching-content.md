@@ -176,6 +176,13 @@ Sources: [../research/course-design.md](../research/course-design.md),
    lesson, whose help ladder is its own.
 5. **A continue gate** that waits for the block directly above it, or for
    nothing, as well as for everything above.
+   Done: a continue gate in the editor says what it waits for: everything
+   above, the question or video just above it, or nothing but the student
+   choosing to go on, which splits a reading into parts (`requires` on the
+   gate). The student's page and the teacher's preview open it so. The
+   preview also keeps answers whose feedback waits, asks for hints, and
+   stands in for the teacher showing the class.
+   Left: a gate that waits for a share of the questions above, or a score.
 6. **Marking again when a key changes** after students answered: rescore
    or apply only to new answers, the teacher's choice at publish.
 7. **Quiz reveals and practice**: "which were wrong, with feedback" as a

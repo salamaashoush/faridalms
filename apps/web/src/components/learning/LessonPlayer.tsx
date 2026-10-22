@@ -1,6 +1,7 @@
 import type {
   VowelMarks,
   CheckView,
+  FeedbackShown,
   LessonCompletion,
   LessonResponse,
   ProgramRun,
@@ -98,7 +99,7 @@ import {
 import { formatNumber } from "~/utils/datetime";
 import { getMessageFromError } from "~/utils/error";
 
-import type { CheckDriver } from "./Checks";
+import type { CheckDriver, CheckStudentBlock } from "./Checks";
 
 import { CheckBlockView, isCheckBlock, isSettled } from "./Checks";
 import { YoungLesson } from "./young/YoungLesson";
@@ -261,10 +262,23 @@ function LessonBody({
     const view = question ? checks[question.id] : undefined;
     return !question || Boolean(view && (view.tries > 0 || view.revealed));
   };
-  const settledAbove = (index: number) => {
+  // What a gate waits for: everything above it, only the nearest question
+  // or video above it, or nothing but the student's word.
+  const waitedFor = (index: number) => {
+    const gate = blocks[index];
+    const requires = gate?.type === "gate" ? gate.requires : "above";
     const above = blocks.slice(0, index);
-    const questions = above.filter(isCheckBlock);
-    const media = watchables(above);
+    if (requires === "none") return { questions: [], media: [] };
+    if (requires === "last")
+      for (const block of above.toReversed()) {
+        if (isCheckBlock(block)) return { questions: [block], media: [] };
+        const video = watchables([block]).at(-1);
+        if (video) return { questions: [], media: [video] };
+      }
+    return { questions: above.filter(isCheckBlock), media: watchables(above) };
+  };
+  const settledAbove = (index: number) => {
+    const { questions, media } = waitedFor(index);
     const waits: GateWaits =
       questions.length === 0
         ? "media"
@@ -855,15 +869,7 @@ export function LessonPlayer({ lessonId }: { lessonId: string }) {
   const allSettled = auto.every((block) =>
     isSettled(block, data.checks[block.id]),
   );
-  // Questions still keeping how they went, for the end or the teacher.
-  const held = auto.flatMap((block) => {
-    const view = data.checks[block.id];
-    return view?.timing && !view.timing.open
-      ? [{ at: view.timing.at, answered: view.tries > 0 }]
-      : [];
-  });
-  const forEnd = held.filter((item) => item.at === "end");
-  const endAnswered = forEnd.filter((item) => item.answered).length;
+  const held = heldOf(auto, data.checks);
   const canRetry = auto.length > 0 && allSettled && held.length === 0;
   const hint = ruleText(data.completion, data.passScore);
   const place = m.lrnLessonOf({
@@ -1014,33 +1020,11 @@ export function LessonPlayer({ lessonId }: { lessonId: string }) {
           ))}
         </section>
       ) : null}
-      {forEnd.length > 0 ? (
-        <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg bg-muted/50 px-5 py-4">
-          <p className="text-sm leading-5 text-muted-foreground">
-            {endAnswered < forEnd.length
-              ? m.lrnResultsProgress({
-                  answered: formatNumber(endAnswered),
-                  total: formatNumber(forEnd.length),
-                })
-              : m.lrnResultsReady()}
-          </p>
-          <Button
-            type="button"
-            className="max-md:h-10"
-            disabled={endAnswered < forEnd.length || results.isPending}
-            onClick={() => results.mutate()}
-          >
-            <Eye aria-hidden />
-            {m.lrnSeeResults()}
-          </Button>
-        </div>
-      ) : null}
-      {held.some((item) => item.at === "teacher") ? (
-        <p className="flex items-start gap-2 rounded-lg bg-muted/50 px-5 py-4 text-sm leading-5 text-muted-foreground">
-          <Hourglass aria-hidden className="mt-0.5 size-4 shrink-0" />
-          {m.lrnResultsTeacher()}
-        </p>
-      ) : null}
+      <HeldResults
+        held={held}
+        pending={results.isPending}
+        onSee={() => results.mutate()}
+      />
       {data.completedAt ? (
         <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-success/30 bg-success/5 px-5 py-4">
           <p className="inline-flex items-center gap-2 text-sm leading-5 font-medium">
@@ -1087,6 +1071,88 @@ export function LessonPlayer({ lessonId }: { lessonId: string }) {
       <Footer data={data} />
       {printing.sheet}
     </article>
+  );
+}
+
+interface Held {
+  at: "end" | "teacher";
+  answered: boolean;
+}
+
+/** The questions still keeping how they went from their student, for the end or the teacher. */
+function heldOf(
+  blocks: readonly CheckStudentBlock[],
+  checks: Record<string, CheckView | undefined>,
+): Held[] {
+  return blocks.flatMap((block) => {
+    const view = checks[block.id];
+    return view?.timing && !view.timing.open
+      ? [{ at: view.timing.at, answered: view.tries > 0 }]
+      : [];
+  });
+}
+
+/**
+ * Where a lesson's questions that wait show how they went: those kept for
+ * the end once every one is answered and the student asks, those kept for
+ * the teacher when the class is shown. A preview stands in for the teacher.
+ */
+function HeldResults({
+  held,
+  pending,
+  onSee,
+  onShowClass,
+}: {
+  held: Held[];
+  pending: boolean;
+  onSee: () => void;
+  onShowClass?: () => void;
+}) {
+  const forEnd = held.filter((item) => item.at === "end");
+  const answered = forEnd.filter((item) => item.answered).length;
+  return (
+    <>
+      {forEnd.length > 0 ? (
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg bg-muted/50 px-5 py-4">
+          <p className="text-sm leading-5 text-muted-foreground">
+            {answered < forEnd.length
+              ? m.lrnResultsProgress({
+                  answered: formatNumber(answered),
+                  total: formatNumber(forEnd.length),
+                })
+              : m.lrnResultsReady()}
+          </p>
+          <Button
+            type="button"
+            className="max-md:h-10"
+            disabled={answered < forEnd.length || pending}
+            onClick={onSee}
+          >
+            <Eye aria-hidden />
+            {m.lrnSeeResults()}
+          </Button>
+        </div>
+      ) : null}
+      {held.some((item) => item.at === "teacher") ? (
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg bg-muted/50 px-5 py-4">
+          <p className="flex items-start gap-2 text-sm leading-5 text-muted-foreground">
+            <Hourglass aria-hidden className="mt-0.5 size-4 shrink-0" />
+            {m.lrnResultsTeacher()}
+          </p>
+          {onShowClass ? (
+            <Button
+              type="button"
+              variant="outline"
+              className="max-md:h-10"
+              onClick={onShowClass}
+            >
+              <Eye aria-hidden />
+              {m.lrnRelease()}
+            </Button>
+          ) : null}
+        </div>
+      ) : null}
+    </>
   );
 }
 
@@ -1139,6 +1205,10 @@ export function LessonPreview({
   const navigate = useNavigate();
   const [rows, setRows] = useState<StoredTry[]>([]);
   const [round, setRound] = useState(0);
+  const [shownFeedback, setShownFeedback] = useState<FeedbackShown>({
+    end: false,
+    teacher: false,
+  });
   const vowels = useVowelMarks(data.vowelMarks);
   const lesson = useMemo(
     () => vowels.strip(upgradeLesson(data.content)),
@@ -1153,10 +1223,10 @@ export function LessonPreview({
     return Object.fromEntries(
       checkBlocks(lesson).map((block) => [
         block.id,
-        describeCheck(block, rows, states[block.id]),
+        describeCheck(block, rows, states[block.id], shownFeedback),
       ]),
     );
-  }, [lesson, rows]);
+  }, [lesson, rows, shownFeedback]);
   const driver: CheckDriver = {
     respond: (blockId, response: LessonResponse) => {
       const block = checkBlocks(lesson).find((item) => item.id === blockId);
@@ -1197,6 +1267,20 @@ export function LessonPreview({
           try: 1,
           state: "revealed",
           fraction: 0,
+          response: {},
+          feedback: null,
+        },
+      ]);
+      return Promise.resolve();
+    },
+    hint: (blockId) => {
+      setRows((current) => [
+        ...current,
+        {
+          blockId,
+          try: 1,
+          state: "hint",
+          fraction: null,
           response: {},
           feedback: null,
         },
@@ -1246,6 +1330,7 @@ export function LessonPreview({
     icon: RotateCcw,
     onSelect: () => {
       setRows([]);
+      setShownFeedback({ end: false, teacher: false });
       setRound((current) => current + 1);
     },
   };
@@ -1330,6 +1415,16 @@ export function LessonPreview({
               />
             </ReaderContext.Provider>
           </YoungContext.Provider>
+          <HeldResults
+            held={heldOf(blocks.filter(isCheckBlock), checks)}
+            pending={false}
+            onSee={() =>
+              setShownFeedback((current) => ({ ...current, end: true }))
+            }
+            onShowClass={() =>
+              setShownFeedback((current) => ({ ...current, teacher: true }))
+            }
+          />
         </>
       )}
       {printing.sheet}

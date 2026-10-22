@@ -136,6 +136,13 @@ export type QuestionKind = (typeof questionKinds)[number];
  */
 export const FEEDBACK_TIMES = ["now", "end", "teacher"] as const;
 export type FeedbackTime = (typeof FEEDBACK_TIMES)[number];
+/**
+ * What a continue gate waits for: every question and video above it, only
+ * the question or video just above, or nothing but the student choosing to
+ * go on, which splits reading into parts.
+ */
+export const GATE_WAITS = ["above", "last", "none"] as const;
+export type GateWaits = (typeof GATE_WAITS)[number];
 export const calloutTones = [
   "neutral",
   "info",
@@ -292,6 +299,8 @@ export interface ContentNode {
   tries?: number | null;
   /** When the student learns how a question went; at once when absent. */
   feedbackAt?: FeedbackTime;
+  /** What a continue gate waits for; everything above when absent. */
+  requires?: GateWaits;
   multiple?: boolean;
   shuffle?: boolean;
   caseSensitive?: boolean;
@@ -604,6 +613,7 @@ const nodeSchema: v.GenericSchema<ContentNode> = v.lazy(() =>
       points: v.optional(integer(0, 100)),
       tries: v.optional(v.nullable(integer(1, 10))),
       feedbackAt: v.optional(v.picklist(FEEDBACK_TIMES)),
+      requires: v.optional(v.picklist(GATE_WAITS)),
       multiple: v.optional(v.boolean()),
       shuffle: v.optional(v.boolean()),
       caseSensitive: v.optional(v.boolean()),

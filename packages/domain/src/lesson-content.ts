@@ -469,7 +469,7 @@ export function lessonOfContent(document: ContentDocument): LessonDocument {
       blocks.push({
         id: runId(`gate:${JSON.stringify(child.$ ?? blocks.length)}`),
         type: "gate",
-        requires: "above",
+        requires: child.requires ?? "above",
       });
       continue;
     }
@@ -587,7 +587,8 @@ export function sameLesson(a: ContentDocument, b: ContentDocument): boolean {
         return (
           other?.type === "content" && sameContent(block.content, other.content)
         );
-      if (block.type === "gate") return other?.type === "gate";
+      if (block.type === "gate")
+        return other?.type === "gate" && other.requires === block.requires;
       return JSON.stringify(block) === JSON.stringify(other);
     })
   );
@@ -1008,7 +1009,11 @@ export function contentOfLesson(
       continue;
     }
     if (block.type === "gate") {
-      children.push({ type: "gate", version: 1 });
+      children.push({
+        type: "gate",
+        version: 1,
+        ...(block.requires === "above" ? {} : { requires: block.requires }),
+      });
       continue;
     }
     if (block.type === "draw") {
