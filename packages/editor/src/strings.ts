@@ -454,6 +454,18 @@ export interface EditorStrings extends LabelEditorStrings, ChartStrings {
   sharedCopy: string;
   sharedKeep: string;
   mention: string;
+  glossary: string;
+  glossaryHint: string;
+  glossaryEmpty: string;
+  termDefine: string;
+  termDefinition: string;
+  termDefinitionHint: string;
+  termGloss: string;
+  termGlossHint: string;
+  termPicture: string;
+  termPictureRemove: string;
+  termRemove: string;
+  termEdit: string;
   footnote: string;
   footnoteAdd: string;
   footnoteHint: string;

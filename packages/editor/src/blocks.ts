@@ -43,6 +43,7 @@ import {
 } from "lexical";
 import {
   ArrowDownUp,
+  BookA,
   CodeXml,
   FileCode,
   SquareTerminal,
@@ -150,6 +151,7 @@ import {
   $isStarterNode,
   DrawNode,
   GateNode,
+  GlossaryNode,
   PageBreakNode,
   StarterNode,
 } from "./nodes";
@@ -220,7 +222,8 @@ export type BlockType =
   | "bankQuestion"
   | "sharedBlock"
   | "bankDraw"
-  | "standards";
+  | "standards"
+  | "glossary";
 
 export type BlockGroup = "text" | "lists" | "media" | "layout" | "questions";
 
@@ -484,6 +487,24 @@ export const blockDefinitions: BlockDefinition[] = [
       "نواتج",
     ],
     standards: true,
+  },
+  {
+    type: "glossary",
+    group: "text",
+    icon: BookA,
+    label: (s) => s.glossary,
+    hint: (s) => s.glossaryHint,
+    keywords: [
+      "glossary",
+      "vocabulary",
+      "key words",
+      "terms",
+      "definitions",
+      "مسرد",
+      "مفردات",
+      "مصطلحات",
+      "كلمات مفتاحية",
+    ],
   },
   {
     type: "callout",
@@ -1471,6 +1492,7 @@ function $createStructure(type: BlockType): LexicalNode | null {
   if (type === "gate") return new GateNode();
   if (type === "bankDraw") return new DrawNode();
   if (type === "standards") return new StandardsNode();
+  if (type === "glossary") return new GlossaryNode();
   if (type === "pageBreak") return new PageBreakNode();
   if (type === "aiUse") return $createAiUseNode();
   if (type === "equation")

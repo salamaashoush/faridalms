@@ -22,7 +22,7 @@ import {
 } from "lucide-react";
 import { useEffect, useEffectEvent, useMemo, useRef, useState } from "react";
 
-import { ContentView } from "~/components/content/ContentView";
+import { ContentView, WholeDocument } from "~/components/content/ContentView";
 import * as m from "~/i18n/messages";
 import { formatNumber } from "~/utils/datetime";
 
@@ -483,205 +483,215 @@ export function YoungLesson({
     );
 
   return (
-    <FoundContext.Provider value={foundContext}>
-      <dialog
-        ref={stage}
-        open
-        aria-label={title}
-        className="fixed inset-0 z-50 m-0 flex size-full max-h-none max-w-none touch-manipulation flex-col bg-background p-0 text-foreground"
-      >
-        <header className="flex items-center gap-3 px-3 py-3 sm:px-6">
-          {/* Leaving takes a second tap, so a stray one does not end the lesson. */}
-          <Button
-            type="button"
-            variant={leaving ? "secondary" : "ghost"}
-            size={leaving ? "default" : "icon"}
-            className={cn(round, leaving && "w-auto px-5 text-base")}
-            aria-label={leaving ? undefined : m.lrnYoungClose()}
-            onClick={() => {
-              if (leaving) return onClose();
-              setLeaving(true);
-              clearTimeout(leaveTimer.current);
-              leaveTimer.current = setTimeout(() => setLeaving(false), 3000);
-            }}
-          >
-            <X aria-hidden className="size-6" />
-            {leaving ? m.lrnYoungLeave() : null}
-          </Button>
-          {typeof at === "number" ? (
-            <Track at={at} total={steps.length} />
-          ) : (
-            <span className="flex-1" />
-          )}
-          {badge ? (
-            <span className="shrink-0 rounded-full bg-info/10 px-3 py-1 text-sm font-medium text-info">
-              {badge}
-            </span>
-          ) : null}
-          {classSounds ? (
+    <WholeDocument parts={blocks}>
+      <FoundContext.Provider value={foundContext}>
+        <dialog
+          ref={stage}
+          open
+          aria-label={title}
+          className="fixed inset-0 z-50 m-0 flex size-full max-h-none max-w-none touch-manipulation flex-col bg-background p-0 text-foreground"
+        >
+          <header className="flex items-center gap-3 px-3 py-3 sm:px-6">
+            {/* Leaving takes a second tap, so a stray one does not end the lesson. */}
             <Button
               type="button"
-              variant="ghost"
-              size="icon"
-              className={round}
-              aria-pressed={!sounds}
-              aria-label={sounds ? m.lrnYoungSoundsOff() : m.lrnYoungSoundsOn()}
+              variant={leaving ? "secondary" : "ghost"}
+              size={leaving ? "default" : "icon"}
+              className={cn(round, leaving && "w-auto px-5 text-base")}
+              aria-label={leaving ? undefined : m.lrnYoungClose()}
               onClick={() => {
-                setSoundsOn(!sounds);
-                setSounds(!sounds);
+                if (leaving) return onClose();
+                setLeaving(true);
+                clearTimeout(leaveTimer.current);
+                leaveTimer.current = setTimeout(() => setLeaving(false), 3000);
               }}
             >
-              {sounds ? (
-                <Volume2 aria-hidden className="size-6" />
-              ) : (
-                <VolumeX aria-hidden className="size-6" />
-              )}
+              <X aria-hidden className="size-6" />
+              {leaving ? m.lrnYoungLeave() : null}
             </Button>
-          ) : null}
-        </header>
-
-        <div
-          ref={page}
-          tabIndex={-1}
-          className="min-h-0 flex-1 overflow-y-auto outline-none"
-          onClickCapture={(event) => {
-            if (performance.now() - opened.current < HOLDOVER_MS) {
-              event.stopPropagation();
-              event.preventDefault();
-            }
-          }}
-        >
-          {at === "start" ? (
-            <div className="mx-auto flex min-h-full max-w-xl flex-col items-center justify-center gap-8 px-6 py-10 text-center">
-              <h1
-                dir="auto"
-                className="text-3xl leading-tight font-bold text-balance sm:text-4xl"
-              >
-                {title}
-              </h1>
+            {typeof at === "number" ? (
+              <Track at={at} total={steps.length} />
+            ) : (
+              <span className="flex-1" />
+            )}
+            {badge ? (
+              <span className="shrink-0 rounded-full bg-info/10 px-3 py-1 text-sm font-medium text-info">
+                {badge}
+              </span>
+            ) : null}
+            {classSounds ? (
               <Button
                 type="button"
-                className="size-28 rounded-full shadow-lg"
-                aria-label={m.lrnYoungStart()}
-                // A tap before the page comes alive would do nothing at all.
-                disabled={!hydrated}
-                onClick={() => setAt(steps.length > 0 ? resumeAt : "end")}
+                variant="ghost"
+                size="icon"
+                className={round}
+                aria-pressed={!sounds}
+                aria-label={
+                  sounds ? m.lrnYoungSoundsOff() : m.lrnYoungSoundsOn()
+                }
+                onClick={() => {
+                  setSoundsOn(!sounds);
+                  setSounds(!sounds);
+                }}
               >
-                <Play
-                  aria-hidden
-                  className="size-12 translate-x-0.5 fill-current rtl:-scale-x-100"
-                />
+                {sounds ? (
+                  <Volume2 aria-hidden className="size-6" />
+                ) : (
+                  <VolumeX aria-hidden className="size-6" />
+                )}
               </Button>
-            </div>
-          ) : at === "end" ? (
-            <div className="mx-auto flex min-h-full max-w-xl flex-col items-center justify-center gap-8 px-6 py-10 text-center">
-              <span className="relative grid size-32 place-items-center rounded-full bg-success/15 text-success">
-                <Star aria-hidden className="size-16 fill-current" />
-                <Burst />
-              </span>
-              <h1 className="text-3xl leading-tight font-bold sm:text-4xl">
-                {m.lrnYoungDone()}
-              </h1>
-              <div className="flex flex-wrap items-center justify-center gap-3">
-                {retry ? (
-                  <Button
-                    type="button"
-                    variant="outline"
-                    className="h-14 rounded-full px-6 text-lg"
-                    disabled={retry.pending}
-                    onClick={() => {
-                      retry.onRetry();
-                      finished.current = false;
-                      setAt("start");
-                    }}
-                  >
-                    <RotateCcw aria-hidden className="size-5" />
-                    {m.lrnYoungAgain()}
-                  </Button>
-                ) : null}
+            ) : null}
+          </header>
+
+          <div
+            ref={page}
+            tabIndex={-1}
+            className="min-h-0 flex-1 overflow-y-auto outline-none"
+            onClickCapture={(event) => {
+              if (performance.now() - opened.current < HOLDOVER_MS) {
+                event.stopPropagation();
+                event.preventDefault();
+              }
+            }}
+          >
+            {at === "start" ? (
+              <div className="mx-auto flex min-h-full max-w-xl flex-col items-center justify-center gap-8 px-6 py-10 text-center">
+                <h1
+                  dir="auto"
+                  className="text-3xl leading-tight font-bold text-balance sm:text-4xl"
+                >
+                  {title}
+                </h1>
                 <Button
                   type="button"
-                  className="h-14 rounded-full px-8 text-lg"
-                  onClick={next ? next.onNext : onClose}
+                  className="size-28 rounded-full shadow-lg"
+                  aria-label={m.lrnYoungStart()}
+                  // A tap before the page comes alive would do nothing at all.
+                  disabled={!hydrated}
+                  onClick={() => setAt(steps.length > 0 ? resumeAt : "end")}
                 >
-                  {next ? next.label : m.lrnYoungAllLessons()}
-                  <ArrowRight aria-hidden className="size-5 rtl:-scale-x-100" />
+                  <Play
+                    aria-hidden
+                    className="size-12 translate-x-0.5 fill-current rtl:-scale-x-100"
+                  />
                 </Button>
               </div>
-            </div>
-          ) : (
-            <div
-              key={at}
-              className="mx-auto grid w-full max-w-3xl gap-6 px-4 py-4 sm:px-6 sm:py-6"
-            >
-              {step.map((block) => {
-                const pause =
-                  "videoAt" in block && typeof block.videoAt === "number";
-                // A pause question waits out of sight until the video stops for it.
-                if (pause && !stoppedFor.has(block.id) && !settled(block.id))
-                  return null;
-                return (
-                  <div
-                    key={block.id}
-                    data-pause={pause ? block.id : undefined}
-                    className="scroll-mt-4"
+            ) : at === "end" ? (
+              <div className="mx-auto flex min-h-full max-w-xl flex-col items-center justify-center gap-8 px-6 py-10 text-center">
+                <span className="relative grid size-32 place-items-center rounded-full bg-success/15 text-success">
+                  <Star aria-hidden className="size-16 fill-current" />
+                  <Burst />
+                </span>
+                <h1 className="text-3xl leading-tight font-bold sm:text-4xl">
+                  {m.lrnYoungDone()}
+                </h1>
+                <div className="flex flex-wrap items-center justify-center gap-3">
+                  {retry ? (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="h-14 rounded-full px-6 text-lg"
+                      disabled={retry.pending}
+                      onClick={() => {
+                        retry.onRetry();
+                        finished.current = false;
+                        setAt("start");
+                      }}
+                    >
+                      <RotateCcw aria-hidden className="size-5" />
+                      {m.lrnYoungAgain()}
+                    </Button>
+                  ) : null}
+                  <Button
+                    type="button"
+                    className="h-14 rounded-full px-8 text-lg"
+                    onClick={next ? next.onNext : onClose}
                   >
-                    <StepBlock
-                      block={block}
-                      view={checks[block.id]}
-                      driver={driver}
-                      watch={watching}
+                    {next ? next.label : m.lrnYoungAllLessons()}
+                    <ArrowRight
+                      aria-hidden
+                      className="size-5 rtl:-scale-x-100"
                     />
-                  </div>
-                );
-              })}
-            </div>
-          )}
-        </div>
+                  </Button>
+                </div>
+              </div>
+            ) : (
+              <div
+                key={at}
+                className="mx-auto grid w-full max-w-3xl gap-6 px-4 py-4 sm:px-6 sm:py-6"
+              >
+                {step.map((block) => {
+                  const pause =
+                    "videoAt" in block && typeof block.videoAt === "number";
+                  // A pause question waits out of sight until the video stops for it.
+                  if (pause && !stoppedFor.has(block.id) && !settled(block.id))
+                    return null;
+                  return (
+                    <div
+                      key={block.id}
+                      data-pause={pause ? block.id : undefined}
+                      className="scroll-mt-4"
+                    >
+                      <StepBlock
+                        block={block}
+                        view={checks[block.id]}
+                        driver={driver}
+                        watch={watching}
+                      />
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
 
-        {typeof at === "number" ? (
-          // Wrists rest on the bottom edge, so the arrows sit well above it:
-          // at the sides on wide screens, in a raised row on narrow ones.
-          <nav
-            aria-label={m.lrnLessonNav()}
-            className="mx-auto flex w-full max-w-4xl items-center justify-between gap-3 px-4 pt-3 pb-8 sm:pb-16 lg:pointer-events-none lg:absolute lg:inset-x-0 lg:top-1/2 lg:max-w-none lg:-translate-y-1/2 lg:px-8 lg:pb-0"
-          >
-            <Button
-              type="button"
-              variant="outline"
-              size="icon"
-              className={cn(
-                "size-20 rounded-full lg:pointer-events-auto",
-                at === 0 && "invisible",
-              )}
-              aria-label={m.lrnYoungPreviousStep()}
-              onClick={back}
+          {typeof at === "number" ? (
+            // Wrists rest on the bottom edge, so the arrows sit well above it:
+            // at the sides on wide screens, in a raised row on narrow ones.
+            <nav
+              aria-label={m.lrnLessonNav()}
+              className="mx-auto flex w-full max-w-4xl items-center justify-between gap-3 px-4 pt-3 pb-8 sm:pb-16 lg:pointer-events-none lg:absolute lg:inset-x-0 lg:top-1/2 lg:max-w-none lg:-translate-y-1/2 lg:px-8 lg:pb-0"
             >
-              <ArrowLeft aria-hidden className="size-8 rtl:-scale-x-100" />
-            </Button>
-            {/* The last screen hands the work in with a big green check,
+              <Button
+                type="button"
+                variant="outline"
+                size="icon"
+                className={cn(
+                  "size-20 rounded-full lg:pointer-events-auto",
+                  at === 0 && "invisible",
+                )}
+                aria-label={m.lrnYoungPreviousStep()}
+                onClick={back}
+              >
+                <ArrowLeft aria-hidden className="size-8 rtl:-scale-x-100" />
+              </Button>
+              {/* The last screen hands the work in with a big green check,
                 as Seesaw's students do, rather than one more arrow. */}
-            <Button
-              type="button"
-              size="icon"
-              className={cn(
-                "size-26 rounded-full shadow-md lg:pointer-events-auto",
-                last && "bg-success text-white hover:bg-success/90",
-                done && "motion-safe:animate-[pulse_1.6s_ease-in-out_2]",
-              )}
-              aria-label={last ? m.lrnYoungImDone() : m.lrnYoungNextStep()}
-              disabled={!done}
-              onClick={forward}
-            >
-              {last ? (
-                <Check aria-hidden className="size-12" strokeWidth={3} />
-              ) : (
-                <ArrowRight aria-hidden className="size-10 rtl:-scale-x-100" />
-              )}
-            </Button>
-          </nav>
-        ) : null}
-      </dialog>
-    </FoundContext.Provider>
+              <Button
+                type="button"
+                size="icon"
+                className={cn(
+                  "size-26 rounded-full shadow-md lg:pointer-events-auto",
+                  last && "bg-success text-white hover:bg-success/90",
+                  done && "motion-safe:animate-[pulse_1.6s_ease-in-out_2]",
+                )}
+                aria-label={last ? m.lrnYoungImDone() : m.lrnYoungNextStep()}
+                disabled={!done}
+                onClick={forward}
+              >
+                {last ? (
+                  <Check aria-hidden className="size-12" strokeWidth={3} />
+                ) : (
+                  <ArrowRight
+                    aria-hidden
+                    className="size-10 rtl:-scale-x-100"
+                  />
+                )}
+              </Button>
+            </nav>
+          ) : null}
+        </dialog>
+      </FoundContext.Provider>
+    </WholeDocument>
   );
 }

@@ -65,7 +65,9 @@ import {
   ALargeSmall,
   Asterisk,
   Baseline,
+  BookA,
   BookmarkPlus,
+  BookX,
   Bold,
   Boxes,
   Captions,
@@ -135,6 +137,7 @@ import type {
   QuestionOptionNode,
 } from "../nodes/question";
 import type { EmbedNode } from "../nodes/rich";
+import type { TermFacts } from "../nodes/term";
 import type { EditorColor } from "../strings";
 import type { TimedWords } from "./narration";
 
@@ -199,6 +202,7 @@ import {
   playerOf,
 } from "../nodes/rich";
 import { $isStandardsNode } from "../nodes/standards";
+import { $defineSelection, $isTermNode, $termOf } from "../nodes/term";
 import { focusText, textFocus, updateFromOutside } from "../outside";
 import { editorInSlot } from "../slots";
 import { editorColors } from "../strings";
@@ -217,6 +221,7 @@ import { NarrationPanel, OPEN_NARRATION_COMMAND } from "./narration";
 import { PictureLibrary, pictureFile } from "./picture-library";
 import { RegionPad } from "./regions";
 import { StandardsPad } from "./standards";
+import { TermPanel } from "./term-panel";
 import { TracePad } from "./trace";
 
 type Mode =
@@ -238,7 +243,9 @@ type Mode =
   | "picture"
   | "standards"
   | "standards-block"
-  | "footnote";
+  | "footnote"
+  | "term"
+  | "term-view";
 
 /** A chosen formula: what the bar writes and how it sits. */
 interface MathFacts {
@@ -253,6 +260,15 @@ interface FootnoteFacts {
   key: NodeKey;
   note: string;
   source: FootnoteSource | null;
+}
+
+/** The term the caret is in: its words and what they mean. */
+interface TermBarFacts {
+  key: NodeKey;
+  words: string;
+  facts: TermFacts;
+  /** Just defined, so its panel opens to write what it means. */
+  fresh: boolean;
 }
 
 /** A chosen standards block and the standards it names. */
@@ -513,6 +529,8 @@ interface Facts {
   color: string;
   background: string;
   size: TextSize | null;
+  /** The selection is in a defined term. */
+  term: boolean;
 }
 
 const empty: Facts = {
@@ -522,6 +540,7 @@ const empty: Facts = {
   color: "",
   background: "",
   size: null,
+  term: false,
 };
 
 export function SelectionToolbarPlugin() {
@@ -544,6 +563,7 @@ export function SelectionToolbarPlugin() {
   const [mode, setMode] = useState<Mode>("hidden");
   const [math, setMath] = useState<MathFacts | null>(null);
   const [footnote, setFootnote] = useState<FootnoteFacts | null>(null);
+  const [term, setTerm] = useState<TermBarFacts | null>(null);
   const [drawing, setDrawing] = useState<DrawFacts | null>(null);
   const [naming, setNaming] = useState<NamingFacts | null>(null);
   // The standards panel tags the question the caret is in, or names a block's.
@@ -669,7 +689,24 @@ export function SelectionToolbarPlugin() {
           link: $currentLinkUrl(),
           ...$selectionColors(),
           size: $selectionTextSize(),
+          term: $termOf(selection.anchor.getNode()) !== null,
         },
+      };
+    });
+
+  const readTerm = (key?: NodeKey) =>
+    editor.getEditorState().read((): Omit<TermBarFacts, "fresh"> | null => {
+      const selection = $getSelection();
+      const node = key
+        ? $getNodeByKey(key)
+        : $isRangeSelection(selection)
+          ? $termOf(selection.anchor.getNode())
+          : null;
+      if (!$isTermNode(node)) return null;
+      return {
+        key: node.getKey(),
+        words: node.getTextContent(),
+        facts: node.getFacts(),
       };
     });
 
@@ -833,7 +870,8 @@ export function SelectionToolbarPlugin() {
       modeRef.current === "picture" ||
       modeRef.current === "standards" ||
       modeRef.current === "math" ||
-      modeRef.current === "footnote"
+      modeRef.current === "footnote" ||
+      modeRef.current === "term"
     )
       return;
     const root = editor.getRootElement();
@@ -885,6 +923,12 @@ export function SelectionToolbarPlugin() {
       setReference(selectionReference(root));
       return show("format");
     }
+    const defined = state.collapsed && state.facts.term ? readTerm() : null;
+    if (defined) {
+      setTerm({ ...defined, fresh: false });
+      setReference(editor.getElementByKey(defined.key));
+      return show("term-view");
+    }
     if (state.collapsed && state.facts.link) {
       const anchor = window.getSelection()?.anchorNode;
       const element =
@@ -899,6 +943,22 @@ export function SelectionToolbarPlugin() {
       return show("question");
     }
     show("hidden");
+  };
+
+  /** Opens a term's panel, defining the selected words first when asked. */
+  const openTerm = (key: NodeKey | null, fresh: boolean) => {
+    const found = key ? readTerm(key) : null;
+    if (!found) return;
+    setTerm({ ...found, fresh });
+    setReference(editor.getElementByKey(found.key));
+    show("term");
+  };
+  const define = () => {
+    let key: NodeKey | null = null;
+    updateFromOutside(editor, () => {
+      key = $defineSelection()?.getKey() ?? null;
+    });
+    openTerm(key, true);
   };
 
   const openLinkEditor = () => {
@@ -1029,7 +1089,8 @@ export function SelectionToolbarPlugin() {
       mode === "picture" ||
       mode === "standards" ||
       mode === "math" ||
-      mode === "footnote"
+      mode === "footnote" ||
+      mode === "term"
     )
       return undefined;
     const onFocus = () => {
@@ -1047,7 +1108,8 @@ export function SelectionToolbarPlugin() {
         modeRef.current === "picture" ||
         modeRef.current === "standards" ||
         modeRef.current === "math" ||
-        modeRef.current === "footnote"
+        modeRef.current === "footnote" ||
+        modeRef.current === "term"
       )
         return;
       const active = document.activeElement;
@@ -1210,6 +1272,85 @@ export function SelectionToolbarPlugin() {
             }}
           />
         </div>
+      </Floating>
+    );
+  }
+
+  if (mode === "term" && term) {
+    const leave = (unwrap: boolean) => {
+      show("hidden");
+      updateFromOutside(editor, () => {
+        const node = $getNodeByKey(term.key);
+        if (!$isTermNode(node)) return;
+        // A term left without a meaning is only its words again.
+        if (unwrap || !node.getFacts().definition.trim()) {
+          const last = node.getLastDescendant();
+          node.unwrap();
+          last?.selectEnd();
+        } else node.selectNext(0, 0);
+      });
+    };
+    return (
+      <Floating
+        reference={reference}
+        placement="bottom-start"
+        boundary={boundary}
+        className="w-[26rem] max-w-[calc(100vw-1rem)] p-3"
+        keepInView
+        label={strings.termDefinition}
+      >
+        <div ref={toolbar} className="contents">
+          <TermPanel
+            key={term.key}
+            nodeKey={term.key}
+            words={term.words}
+            facts={term.facts}
+            fresh={term.fresh}
+            onClose={() => leave(false)}
+            onRemove={() => leave(true)}
+          />
+        </div>
+      </Floating>
+    );
+  }
+
+  if (mode === "term-view" && term) {
+    return (
+      <Floating
+        reference={reference}
+        placement="bottom-start"
+        className="flex max-w-[min(24rem,calc(100vw-1rem))] items-center gap-1 p-1"
+        keepFocus
+        role="toolbar"
+        label={strings.termDefinition}
+      >
+        <span className="flex min-w-0 items-center gap-1.5 px-2 py-1 text-sm">
+          <BookA
+            className="size-3.5 shrink-0 text-muted-foreground"
+            aria-hidden
+          />
+          <span dir="auto" className="truncate">
+            {term.facts.definition}
+          </span>
+        </span>
+        <ToolButton
+          label={strings.termEdit}
+          onClick={() => openTerm(term.key, true)}
+        >
+          <Pencil aria-hidden />
+        </ToolButton>
+        <ToolButton
+          label={strings.termRemove}
+          onClick={() => {
+            show("hidden");
+            updateFromOutside(editor, () => {
+              const node = $getNodeByKey(term.key);
+              if ($isTermNode(node)) node.unwrap();
+            });
+          }}
+        >
+          <BookX aria-hidden />
+        </ToolButton>
       </Floating>
     );
   }
@@ -3328,6 +3469,13 @@ export function SelectionToolbarPlugin() {
           onClick={() => editor.update(() => void $insertFootnote())}
         >
           <Asterisk aria-hidden />
+        </ToolButton>
+        <ToolButton
+          label={strings.termDefine}
+          active={facts.term}
+          onClick={define}
+        >
+          <BookA aria-hidden />
         </ToolButton>
         {separator}
         <ToolButton

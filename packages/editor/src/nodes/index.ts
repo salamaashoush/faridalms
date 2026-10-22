@@ -10,6 +10,7 @@ import { $isColumnNode, ColumnNode, ColumnsNode } from "./columns";
 import { DrawNode } from "./draw";
 import { FootnoteNode } from "./footnote";
 import { GateNode } from "./gate";
+import { GlossaryNode } from "./glossary";
 import { MathNode } from "./math";
 import { FileNode, ImageNode } from "./media";
 import { MentionNode } from "./mention";
@@ -37,6 +38,7 @@ import { DiagramNode, EmbedNode, MediaNode } from "./rich";
 import { SharedNode } from "./shared";
 import { StandardsNode } from "./standards";
 import { $isStarterNode, StarterNode } from "./starter";
+import { TermNode } from "./term";
 import {
   $isToggleContentNode,
   ToggleContentNode,
@@ -52,6 +54,7 @@ export * from "./columns";
 export * from "./draw";
 export * from "./footnote";
 export * from "./gate";
+export * from "./glossary";
 export * from "./math";
 export * from "./media";
 export * from "./mention";
@@ -63,6 +66,7 @@ export * from "./rich";
 export * from "./shared";
 export * from "./standards";
 export * from "./starter";
+export * from "./term";
 export * from "./toggle";
 
 export const blockNodes = [
@@ -103,6 +107,8 @@ export const blockNodes = [
   MathNode,
   FootnoteNode,
   MentionNode,
+  TermNode,
+  GlossaryNode,
 ];
 
 export const blockIdState = createState("id", {

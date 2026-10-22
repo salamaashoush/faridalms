@@ -3,6 +3,7 @@ import type {
   ContentNode,
   Mention,
 } from "@faridalms/domain/content";
+import type { GlossaryEntry } from "@faridalms/domain/glossary";
 import type {
   ComponentProps,
   ComponentType,
@@ -11,6 +12,7 @@ import type {
   ReactNode,
 } from "react";
 
+import { Popover } from "@base-ui/react/popover";
 import { parseChapters } from "@faridalms/domain/chapters";
 import { formatSource } from "@faridalms/domain/citations";
 import {
@@ -28,19 +30,27 @@ import {
   embedProviderNames,
   framedKey,
 } from "@faridalms/domain/embed";
+import {
+  documentTerms,
+  glossaryOf,
+  termEntry,
+} from "@faridalms/domain/glossary";
 import { isSafeContentUrl } from "@faridalms/domain/rich-text";
 import { ExternalLink, Target } from "lucide-react";
 import {
   cloneElement,
+  createContext,
   createElement,
   Fragment,
   isValidElement,
+  useContext,
   useId,
 } from "react";
 
 import type { AiUseViewStrings } from "./ai-use-view";
 import type { ChartStrings } from "./chart-view";
 import type { FileFacts } from "./files";
+import type { GlossaryViewStrings } from "./glossary-view";
 import type { PanelStrings } from "./panels-view";
 import type { LabelViewStrings } from "./picture-labels";
 import type { PicturesViewStrings } from "./pictures-view";
@@ -51,6 +61,7 @@ import { ChartView } from "./chart-view";
 import { useFileFacts } from "./file-facts";
 import { FileCard, PictureView, StoredImage } from "./files";
 import { blockAlignClass, diagramImageClass, imageSizeClass } from "./format";
+import { GlossaryList } from "./glossary-view";
 import { MathText } from "./math";
 import { EmbedFrame, MediaPlayer, MediaTranscript } from "./media-view";
 import { PanelsView } from "./panels-view";
@@ -66,7 +77,8 @@ export interface ViewStrings
     PanelStrings,
     LabelViewStrings,
     PicturesViewStrings,
-    ChartStrings {
+    ChartStrings,
+    GlossaryViewStrings {
   checklist: string;
   studentCopy: string;
   diagram: string;
@@ -125,6 +137,8 @@ interface Context {
   notes: ContentNode[];
   /** Keeps a footnote's links to its own document when several share a page. */
   scope: string;
+  /** The document's glossary, gathered when a glossary block first asks. */
+  glossary: () => GlossaryEntry[];
 }
 
 /**
@@ -718,6 +732,30 @@ function draw(
         </span>
       );
     }
+    case "term":
+      return node.definition ? (
+        <TermView key={key} node={node} context={context}>
+          {children}
+        </TermView>
+      ) : (
+        <Fragment key={key}>{children}</Fragment>
+      );
+    case "glossary": {
+      const entries = context.glossary();
+      return entries.length > 0 ? (
+        <section
+          key={key}
+          aria-label={context.strings.glossary}
+          className="fe-glossary"
+        >
+          <GlossaryList
+            entries={entries}
+            url={context.fileUrl}
+            strings={context.strings}
+          />
+        </section>
+      ) : null;
+    }
     case "footnote": {
       const number = context.notes.push(node);
       return (
@@ -1020,6 +1058,59 @@ function linked(text: string, key: string): ReactNode[] {
   );
 }
 
+/**
+ * Words the document defines, opened in place by a tap, or by resting the
+ * pointer on them, to what they mean.
+ */
+function TermView({
+  node,
+  context,
+  children,
+}: {
+  node: ContentNode;
+  context: Context;
+  children: ReactNode;
+}) {
+  const entry = termEntry(node);
+  const src = entry.fileId ? context.fileUrl?.(entry.fileId) : undefined;
+  return (
+    <Popover.Root>
+      <Popover.Trigger openOnHover delay={300} className="fe-term">
+        {children}
+      </Popover.Trigger>
+      <Popover.Portal>
+        <Popover.Positioner
+          sideOffset={6}
+          collisionPadding={8}
+          className="z-50"
+        >
+          <Popover.Popup className="grid w-72 max-w-[calc(100vw-1rem)] gap-1.5 rounded-lg border bg-popover p-3 text-sm text-popover-foreground shadow-lg outline-none">
+            {src ? (
+              <StoredImage
+                src={src}
+                alt={entry.alt ?? ""}
+                removed={context.strings.fileRemoved}
+                className="max-h-40 w-full rounded-md object-contain"
+              />
+            ) : null}
+            <Popover.Title dir="auto" className="font-semibold">
+              {entry.words}
+              {entry.gloss ? (
+                <span className="ms-2 font-normal text-muted-foreground">
+                  <bdi>{entry.gloss}</bdi>
+                </span>
+              ) : null}
+            </Popover.Title>
+            <Popover.Description dir="auto" className="leading-6">
+              {entry.definition}
+            </Popover.Description>
+          </Popover.Popup>
+        </Popover.Positioner>
+      </Popover.Portal>
+    </Popover.Root>
+  );
+}
+
 /** A document's footnotes in the order they stand, each linking back to its place. */
 function Notes({ notes, context }: { notes: ContentNode[]; context: Context }) {
   return (
@@ -1056,6 +1147,14 @@ function Notes({ notes, context }: { notes: ContentNode[]; context: Context }) {
     </section>
   );
 }
+
+const WholeTerms = createContext<readonly GlossaryEntry[] | null>(null);
+
+/**
+ * Gives each part of a document drawn apart, as a lesson's parts are, the
+ * terms of the whole, so a glossary in any part lists them all.
+ */
+export const DocumentTermsProvider = WholeTerms.Provider;
 
 export function ContentRenderer({
   document,
@@ -1102,6 +1201,8 @@ export function ContentRenderer({
     ? markingOf(document, marks, activeMark)
     : undefined;
   const scope = useId();
+  const whole = useContext(WholeTerms);
+  let gathered: GlossaryEntry[] | undefined;
   const context: Context = {
     strings,
     top: topHeadingLevel(document),
@@ -1116,6 +1217,10 @@ export function ContentRenderer({
     mentionHref,
     notes: [],
     scope,
+    glossary: () => {
+      gathered ??= glossaryOf(whole ?? documentTerms(document), locale);
+      return gathered;
+    },
   };
   const drawn = renderBlock
     ? document.root.children?.map((child, index) => (

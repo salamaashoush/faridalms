@@ -62,7 +62,7 @@ import {
   OwnCodeContext,
   OwnProjectsContext,
 } from "~/components/coding/own-code";
-import { ContentView } from "~/components/content/ContentView";
+import { ContentView, WholeDocument } from "~/components/content/ContentView";
 import { LOCALE_LABEL } from "~/components/content/languages";
 import { Media } from "~/components/learning/LessonMedia";
 import {
@@ -358,7 +358,7 @@ function LessonBody({
       : undefined;
 
   return (
-    <>
+    <WholeDocument parts={blocks}>
       {resumeAt ? (
         <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg bg-muted/50 px-5 py-3">
           <p className="text-sm leading-5 text-muted-foreground">
@@ -536,7 +536,7 @@ function LessonBody({
           </section>
         );
       })}
-    </>
+    </WholeDocument>
   );
 }
 

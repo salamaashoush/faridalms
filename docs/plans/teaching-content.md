@@ -473,6 +473,18 @@ Sources: [../research/course-design.md](../research/course-design.md),
    Left: telling a person they were mentioned; mentioning news and the
    school's pages; a name that follows its person when it changes.
 6. **Glossary terms** a reader can open in place.
+   Done: words chosen in the text are defined from the selection bar:
+   what they mean in words the class knows, the word in another language
+   (an Arabic gloss for an English-medium lesson, or the reverse), and a
+   picture from the open picture sets or the teacher's own, as glosses
+   joining a word to a picture help it stay learned. The words stay text,
+   marked with a dotted line; a reader taps them, or rests the pointer on
+   them, to open the meaning in place. Words defined once start defined
+   the same wherever else they are chosen. A Glossary block lists every
+   term the document defines, once each, in alphabetical order, as it is
+   written, and in a lesson it gathers the terms of every part.
+   Left: a module's glossary across its lessons; turning a glossary into
+   flash cards or a matching question; reading a term aloud.
 7. **A document's own language**: lessons record the language they teach
    in, may carry a translation, and digits follow a school setting.
 8. **Word import**: a `.docx` opens as a document, its pictures uploaded.

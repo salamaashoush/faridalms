@@ -107,6 +107,8 @@ const nodeTypes = [
   "shared",
   "footnote",
   "mention",
+  "term",
+  "glossary",
 ] as const;
 /**
  * The questions a document can ask, each marked by the server from the
@@ -320,6 +322,10 @@ export interface ContentNode {
   source?: FootnoteSource;
   /** Who or what a mention names, with the name as it was when written. */
   mention?: Mention;
+  /** What a glossary term means, which its reader opens in place. */
+  definition?: string;
+  /** A glossary term in another language, such as its reader's own. */
+  gloss?: string;
   /** The school's standards a question gives evidence of, by id. */
   standards?: string[];
   /**
@@ -645,6 +651,8 @@ const nodeSchema: v.GenericSchema<ContentNode> = v.lazy(() =>
       sharedId: v.optional(v.pipe(v.string(), v.uuid())),
       note: v.optional(v.pipe(v.string(), v.maxLength(2000))),
       mention: v.optional(mentionSchema),
+      definition: v.optional(v.pipe(v.string(), v.maxLength(1000))),
+      gloss: v.optional(v.pipe(v.string(), v.maxLength(200))),
       source: v.optional(footnoteSourceSchema),
       standards: v.optional(
         v.pipe(
@@ -781,9 +789,12 @@ const inline = (child: ContentNode) =>
     "autolink",
     "math",
   ].includes(child.type);
-/** What running text may hold: its words, footnotes on them, and mentions. */
+/** What running text may hold: its words, footnotes on them, mentions and terms. */
 const prose = (child: ContentNode) =>
-  inline(child) || child.type === "footnote" || child.type === "mention";
+  inline(child) ||
+  child.type === "footnote" ||
+  child.type === "mention" ||
+  child.type === "term";
 const blocks = new Set<string>([
   "paragraph",
   "heading",
@@ -812,6 +823,7 @@ const blocks = new Set<string>([
   "starter",
   "ai-use",
   "shared",
+  "glossary",
 ]);
 // Columns, sets of parts, questions, draws, gates, page breaks, each
 // student's copy and shared blocks stand only at the top of a document.
@@ -837,9 +849,14 @@ function validNode(node: ContentNode): boolean {
       typeof node.format === "number"
     );
   if (
-    ["linebreak", "horizontalrule", "pagebreak", "gate", "ai-use"].includes(
-      node.type,
-    )
+    [
+      "linebreak",
+      "horizontalrule",
+      "pagebreak",
+      "gate",
+      "ai-use",
+      "glossary",
+    ].includes(node.type)
   )
     return !node.children && node.text === undefined;
   if (node.type === "image")
@@ -982,6 +999,13 @@ function validNode(node: ContentNode): boolean {
       return children.every(inline);
     case "heading":
       return Boolean(node.tag?.startsWith("h")) && children.every(prose);
+    // A term is words alone, so it never holds a link, a mention or another term.
+    case "term":
+      return (
+        typeof node.definition === "string" &&
+        children.length > 0 &&
+        children.every((child) => child.type === "text")
+      );
     case "link":
     case "autolink":
       return (

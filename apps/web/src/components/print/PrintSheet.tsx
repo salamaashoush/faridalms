@@ -23,7 +23,7 @@ import { Fragment, useCallback, useId, useMemo, useRef, useState } from "react";
 
 import type { Locale } from "~/i18n/runtime";
 
-import { ContentView } from "~/components/content/ContentView";
+import { ContentView, WholeDocument } from "~/components/content/ContentView";
 import { CheckboxRow } from "~/components/people/fields";
 import { PanelGroup, Segmented } from "~/components/system/panel";
 import { useCurrentUser } from "~/hooks/useCurrentUser";
@@ -522,47 +522,49 @@ export function PrintSheet({
   };
 
   const body = lesson ? (
-    <div className="fe fe-paper grid gap-2">
-      {lesson.map((item) =>
-        item.type === "content" ? (
-          <ContentView
-            key={item.id}
-            document={{ root: opened(item.content.root) }}
-            fileUrl={fileUrl}
-            className="fe-paper"
-            replace={replace}
-            locale={locale}
-            runs={false}
-          />
-        ) : item.type === "media" ? (
-          <Fragment key={item.id}>
-            {paperForm(
-              {
-                type: "media",
-                version: 1,
-                fileId: item.fileId,
-                name: item.name,
-                mime: item.mediaType,
-                caption: item.caption,
-                transcript: item.transcript,
-              },
-              null,
-              forms,
-            )}
-          </Fragment>
-        ) : item.type === "gate" ? null : (
-          <PaperQuestion
-            key={item.id}
-            block={item}
-            number={lessonNumbers?.get(item.id) ?? 0}
-            answers={false}
-            rtl={rtl}
-            fileUrl={fileUrl}
-            online={online}
-          />
-        ),
-      )}
-    </div>
+    <WholeDocument parts={lesson}>
+      <div className="fe fe-paper grid gap-2">
+        {lesson.map((item) =>
+          item.type === "content" ? (
+            <ContentView
+              key={item.id}
+              document={{ root: opened(item.content.root) }}
+              fileUrl={fileUrl}
+              className="fe-paper"
+              replace={replace}
+              locale={locale}
+              runs={false}
+            />
+          ) : item.type === "media" ? (
+            <Fragment key={item.id}>
+              {paperForm(
+                {
+                  type: "media",
+                  version: 1,
+                  fileId: item.fileId,
+                  name: item.name,
+                  mime: item.mediaType,
+                  caption: item.caption,
+                  transcript: item.transcript,
+                },
+                null,
+                forms,
+              )}
+            </Fragment>
+          ) : item.type === "gate" ? null : (
+            <PaperQuestion
+              key={item.id}
+              block={item}
+              number={lessonNumbers?.get(item.id) ?? 0}
+              answers={false}
+              rtl={rtl}
+              fileUrl={fileUrl}
+              online={online}
+            />
+          ),
+        )}
+      </div>
+    </WholeDocument>
   ) : (
     <ContentView
       document={paperContent}

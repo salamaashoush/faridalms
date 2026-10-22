@@ -7,8 +7,10 @@ import type { MediaWatch } from "@faridalms/editor/player";
 import type { ContentMark, Replace } from "@faridalms/editor/view";
 import type { ReactNode } from "react";
 
-import { ContentRenderer } from "@faridalms/editor/view";
+import { partsTerms } from "@faridalms/domain/glossary";
+import { ContentRenderer, DocumentTermsProvider } from "@faridalms/editor/view";
 import { useQuery } from "@tanstack/react-query";
+import { useMemo } from "react";
 
 import type { Locale } from "~/i18n/runtime";
 
@@ -49,6 +51,23 @@ function mentionHref(mention: Mention): string | null {
     default:
       return null;
   }
+}
+
+/**
+ * A document handed out in parts, as a lesson's blocks are: each part drawn
+ * inside it lists the whole document's terms in its glossary.
+ */
+export function WholeDocument({
+  parts,
+  children,
+}: {
+  parts: readonly { type: string; content?: ContentDocument }[];
+  children: ReactNode;
+}) {
+  const terms = useMemo(() => partsTerms(parts), [parts]);
+  return (
+    <DocumentTermsProvider value={terms}>{children}</DocumentTermsProvider>
+  );
 }
 
 export function ContentView({
@@ -102,6 +121,7 @@ export function ContentView({
         drawNoTag: m.editorDrawNoTag({}, { locale }),
         standardsBlock: m.editorStandardsBlock({}, { locale }),
         footnotes: m.editorFootnotes({}, { locale }),
+        glossary: m.editorGlossary({}, { locale }),
         footnoteRef: (number) =>
           m.editorFootnoteRef({ number: String(number) }, { locale }),
         footnoteBack: (number) =>

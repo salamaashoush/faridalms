@@ -17,7 +17,7 @@ import { toast } from "sonner";
 
 import type { CheckDriver } from "~/components/learning/Checks";
 
-import { ContentView } from "~/components/content/ContentView";
+import { ContentView, WholeDocument } from "~/components/content/ContentView";
 import {
   CheckBlockView,
   CheckModeContext,
@@ -93,34 +93,36 @@ function QuizBlocks({
   practice?: { views: Record<string, CheckView>; driver: CheckDriver };
 }) {
   return (
-    <div className="grid gap-4">
-      {blocks.map((block) =>
-        block.type === "content" ? (
-          <ContentView
-            key={block.id}
-            document={block.content}
-            fileUrl={fileUrl}
-          />
-        ) : isCheckBlock(block) ? (
-          practice && block.id in practice.views ? (
-            <CheckModeContext.Provider key={block.id} value="practice">
-              <CheckBlockView
-                block={block}
-                view={practice.views[block.id]}
-                driver={practice.driver}
-              />
-            </CheckModeContext.Provider>
-          ) : (
-            <CheckBlockView
+    <WholeDocument parts={blocks}>
+      <div className="grid gap-4">
+        {blocks.map((block) =>
+          block.type === "content" ? (
+            <ContentView
               key={block.id}
-              block={block}
-              view={views[block.id]}
-              driver={driver}
+              document={block.content}
+              fileUrl={fileUrl}
             />
-          )
-        ) : null,
-      )}
-    </div>
+          ) : isCheckBlock(block) ? (
+            practice && block.id in practice.views ? (
+              <CheckModeContext.Provider key={block.id} value="practice">
+                <CheckBlockView
+                  block={block}
+                  view={practice.views[block.id]}
+                  driver={practice.driver}
+                />
+              </CheckModeContext.Provider>
+            ) : (
+              <CheckBlockView
+                key={block.id}
+                block={block}
+                view={views[block.id]}
+                driver={driver}
+              />
+            )
+          ) : null,
+        )}
+      </div>
+    </WholeDocument>
   );
 }
 
@@ -615,36 +617,45 @@ export function QuizAttempts({
       ) : null}
       <CheckModeContext.Provider value="review">
         <ReviewerContext.Provider value="teacher">
-          {attempt.blocks.map((block) => {
-            if (block.type === "content")
-              return (
-                <ContentView
-                  key={block.id}
-                  document={block.content}
-                  fileUrl={fileUrl}
-                />
-              );
-            if (!isCheckBlock(block)) return null;
-            const view = attempt.checks[block.id];
-            return (
-              <div key={`${attempt.number}-${block.id}`} className="grid gap-2">
-                <CheckBlockView block={block} view={view} driver={NO_ANSWERS} />
-                {(block.type === "written" ||
-                  block.type === "scratch" ||
-                  block.type === "project") &&
-                block.points > 0 &&
-                view?.tries ? (
-                  <MarkForm
-                    attemptId={attempt.attemptId}
-                    blockId={block.id}
-                    points={block.points}
-                    view={view}
-                    onMarked={onMarked}
+          <WholeDocument parts={attempt.blocks}>
+            {attempt.blocks.map((block) => {
+              if (block.type === "content")
+                return (
+                  <ContentView
+                    key={block.id}
+                    document={block.content}
+                    fileUrl={fileUrl}
                   />
-                ) : null}
-              </div>
-            );
-          })}
+                );
+              if (!isCheckBlock(block)) return null;
+              const view = attempt.checks[block.id];
+              return (
+                <div
+                  key={`${attempt.number}-${block.id}`}
+                  className="grid gap-2"
+                >
+                  <CheckBlockView
+                    block={block}
+                    view={view}
+                    driver={NO_ANSWERS}
+                  />
+                  {(block.type === "written" ||
+                    block.type === "scratch" ||
+                    block.type === "project") &&
+                  block.points > 0 &&
+                  view?.tries ? (
+                    <MarkForm
+                      attemptId={attempt.attemptId}
+                      blockId={block.id}
+                      points={block.points}
+                      view={view}
+                      onMarked={onMarked}
+                    />
+                  ) : null}
+                </div>
+              );
+            })}
+          </WholeDocument>
         </ReviewerContext.Provider>
       </CheckModeContext.Provider>
     </div>
