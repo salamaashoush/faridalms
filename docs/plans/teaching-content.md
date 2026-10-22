@@ -221,7 +221,15 @@ Sources: [../research/course-design.md](../research/course-design.md),
    unit planners and the newsletters, which news offered apart before.
    Left: events and consent forms.
 4. **Preview a lesson** at phone and desktop width, in either language, and
-   as a given group of students would meet it.
+   as a given group of students would meet it. Done: the teacher's preview
+   chooses the screen (desktop, tablet, phone), the students' language and
+   who (everyone, or a student with the computer reader). Another screen
+   or language shows the lesson in a frame drawn by the server at that
+   width and in that language (`/lesson-frame/$lessonId`, its language
+   from `ui` through a route-only Paraglide strategy so the teacher's own
+   stays); answering and the reader are tried in the teacher's own view.
+   Left: answering inside the frame, which needs scripts the sandbox keeps
+   out.
 5. **Module audiences** by group or named students, not only whole classes.
 6. **Paths**: release by score across modules, mastery paths and branching.
 7. **Live lesson**: the teacher paces a lesson for the class, as Nearpod and

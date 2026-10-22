@@ -46,6 +46,7 @@ import {
   Play,
   RotateCcw,
 } from "lucide-react";
+import { useTheme } from "next-themes";
 import { useContext, useEffect, useMemo, useRef, useState } from "react";
 import { flushSync } from "react-dom";
 import { toast } from "sonner";
@@ -58,6 +59,7 @@ import {
   OwnProjectsContext,
 } from "~/components/coding/own-code";
 import { ContentView } from "~/components/content/ContentView";
+import { LOCALE_LABEL } from "~/components/content/languages";
 import { Media } from "~/components/learning/LessonMedia";
 import {
   ReadAloud,
@@ -66,9 +68,11 @@ import {
 } from "~/components/learning/ReadAloud";
 import { paperBlock } from "~/components/print/paper-blocks";
 import { usePrint } from "~/components/print/usePrint";
+import { Segmented } from "~/components/system/panel";
 import { RecordHeader } from "~/components/system/RecordPage";
 import { useCurrentUser } from "~/hooks/useCurrentUser";
 import * as m from "~/i18n/messages";
+import { getLocale } from "~/i18n/runtime";
 import { lessonEditorQuery, lessonQuery } from "~/queries/learning";
 import {
   completeLesson,
@@ -995,8 +999,25 @@ function RetryButton({
  * A lesson as its students will meet it, answered and marked here in the
  * browser so the teacher can try every question; nothing is saved.
  */
-export function LessonPreview({ lessonId }: { lessonId: string }) {
+export function LessonPreview({
+  lessonId,
+  framed,
+}: {
+  lessonId: string;
+  /** Drawn inside a teacher's preview frame, at another width or language. */
+  framed?: boolean;
+}) {
   const data = useSuspenseQuery(lessonEditorQuery(lessonId)).data;
+  const own: PreviewLanguage = getLocale() === "ar" ? "ar" : "en";
+  const [screen, setScreen] = useState<PreviewScreen>("desktop");
+  const [language, setLanguage] = useState<PreviewLanguage>(own);
+  const [students, setStudents] = useState<PreviewStudents>("everyone");
+  // A frame runs no scripts, so it cannot read the theme; it is told.
+  const { resolvedTheme } = useTheme();
+  // Another screen or language is a frame of its own, as wide as the
+  // screen and in the language chosen; the computer reader speaks in the
+  // browser, so it is tried in the teacher's own view.
+  const elsewhere = !framed && (screen !== "desktop" || language !== own);
   const earlyYears = useCurrentUser().features.early_years;
   const navigate = useNavigate();
   const [rows, setRows] = useState<StoredTry[]>([]);
@@ -1103,6 +1124,14 @@ export function LessonPreview({ lessonId }: { lessonId: string }) {
         />
       </YoungContext.Provider>
     );
+  const startOver = {
+    label: m.lrnStartOver(),
+    icon: RotateCcw,
+    onSelect: () => {
+      setRows([]);
+      setRound((current) => current + 1);
+    },
+  };
   return (
     <article className="mx-auto grid w-full max-w-3xl gap-6">
       <RecordHeader
@@ -1114,34 +1143,90 @@ export function LessonPreview({ lessonId }: { lessonId: string }) {
             value: ruleText(data.completion, data.passScore) ?? m.lrnRuleView(),
           },
         ]}
-        alerts={[{ label: m.lrnPreviewHint(), tone: "info", icon: Eye }]}
-        action={{
-          label: m.lrnEditLesson(),
-          icon: Pencil,
-          onClick: edit,
-        }}
-        menu={[
-          ...(printing.action ? [printing.action] : []),
-          {
-            label: m.lrnStartOver(),
-            icon: RotateCcw,
-            onSelect: () => {
-              setRows([]);
-              setRound((current) => current + 1);
-            },
-          },
-        ]}
+        alerts={
+          framed ? [] : [{ label: m.lrnPreviewHint(), tone: "info", icon: Eye }]
+        }
+        action={
+          framed
+            ? undefined
+            : { label: m.lrnEditLesson(), icon: Pencil, onClick: edit }
+        }
+        menu={
+          framed
+            ? []
+            : [...(printing.action ? [printing.action] : []), startOver]
+        }
       />
-      {vowels.toggle}
-      <YoungContext.Provider value={data.young && earlyYears}>
-        <LessonBody
-          key={round}
-          blocks={blocks}
-          checks={checks}
-          driver={driver}
+      {framed ? null : (
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+          <Segmented
+            label={m.lrnPreviewScreen()}
+            value={screen}
+            onChange={setScreen}
+            options={[
+              { value: "desktop", label: m.lrnPreviewDesktop() },
+              { value: "tablet", label: m.lrnPreviewTablet() },
+              { value: "phone", label: m.lrnPreviewPhone() },
+            ]}
+          />
+          <Segmented
+            label={m.lrnPreviewLanguage()}
+            value={language}
+            onChange={setLanguage}
+            options={[
+              { value: "en", label: LOCALE_LABEL.en() },
+              { value: "ar", label: LOCALE_LABEL.ar() },
+            ]}
+          />
+          <Segmented
+            label={m.lrnPreviewStudents()}
+            value={students}
+            onChange={setStudents}
+            options={[
+              { value: "everyone", label: m.lrnPreviewEveryone() },
+              { value: "reader", label: m.lrnPreviewReader() },
+            ]}
+          />
+        </div>
+      )}
+      {elsewhere ? (
+        // The frame shows the page as the server draws it, with no scripts
+        // of its own: answering is tried in the teacher's own view.
+        <iframe
+          key={`${screen}:${language}`}
+          sandbox="allow-same-origin"
+          title={m.lrnPreviewFrame({ title: data.title })}
+          src={`/lesson-frame/${data.id}?ui=${language}&theme=${resolvedTheme === "dark" ? "dark" : "light"}`}
+          style={{ maxWidth: SCREEN_WIDTH[screen] }}
+          className="mx-auto h-[min(80dvh,900px)] w-full rounded-xl border bg-background shadow-sm"
         />
-      </YoungContext.Provider>
+      ) : (
+        <>
+          {vowels.toggle}
+          <YoungContext.Provider value={data.young && earlyYears}>
+            <ReaderContext.Provider value={!framed && students === "reader"}>
+              <LessonBody
+                key={round}
+                blocks={blocks}
+                checks={checks}
+                driver={driver}
+              />
+            </ReaderContext.Provider>
+          </YoungContext.Provider>
+        </>
+      )}
       {printing.sheet}
     </article>
   );
 }
+
+type PreviewScreen = "desktop" | "tablet" | "phone";
+type PreviewLanguage = "en" | "ar";
+type PreviewStudents = "everyone" | "reader";
+
+/** The width of the screen a lesson is previewed on, as common devices are. */
+const SCREEN_WIDTH: Record<PreviewScreen, string> = {
+  desktop: "100%",
+  tablet: "768px",
+  phone: "390px",
+};

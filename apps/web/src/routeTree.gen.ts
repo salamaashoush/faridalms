@@ -66,6 +66,7 @@ import { Route as AppFamilyGradesRouteImport } from './routes/_app/family/grades
 import { Route as AppFamilyMessagesRouteImport } from './routes/_app/family/messages'
 import { Route as AppFamilyModulesRouteImport } from './routes/_app/family/modules'
 import { Route as AppFamilyTimetableRouteImport } from './routes/_app/family/timetable'
+import { Route as AppLessonFrameLessonIdRouteImport } from './routes/_app/lesson-frame.$lessonId'
 import { Route as AppLessonsLessonIdRouteImport } from './routes/_app/lessons.$lessonId'
 import { Route as AppMeIndexRouteImport } from './routes/_app/me/index'
 import { Route as AppMeAssignmentsRouteImport } from './routes/_app/me/assignments'
@@ -398,6 +399,11 @@ const AppFamilyTimetableRoute = AppFamilyTimetableRouteImport.update({
   path: '/timetable',
   getParentRoute: () => AppFamilyRoute,
 } as any)
+const AppLessonFrameLessonIdRoute = AppLessonFrameLessonIdRouteImport.update({
+  id: '/lesson-frame/$lessonId',
+  path: '/lesson-frame/$lessonId',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppLessonsLessonIdRoute = AppLessonsLessonIdRouteImport.update({
   id: '/lessons/$lessonId',
   path: '/lessons/$lessonId',
@@ -664,6 +670,7 @@ export interface FileRoutesByFullPath {
   '/family/messages': typeof AppFamilyMessagesRoute
   '/family/modules': typeof AppFamilyModulesRoute
   '/family/timetable': typeof AppFamilyTimetableRoute
+  '/lesson-frame/$lessonId': typeof AppLessonFrameLessonIdRoute
   '/lessons/$lessonId': typeof AppLessonsLessonIdRoute
   '/me/assignments': typeof AppMeAssignmentsRoute
   '/me/attendance': typeof AppMeAttendanceRoute
@@ -758,6 +765,7 @@ export interface FileRoutesByTo {
   '/family/messages': typeof AppFamilyMessagesRoute
   '/family/modules': typeof AppFamilyModulesRoute
   '/family/timetable': typeof AppFamilyTimetableRoute
+  '/lesson-frame/$lessonId': typeof AppLessonFrameLessonIdRoute
   '/lessons/$lessonId': typeof AppLessonsLessonIdRoute
   '/me/assignments': typeof AppMeAssignmentsRoute
   '/me/attendance': typeof AppMeAttendanceRoute
@@ -860,6 +868,7 @@ export interface FileRoutesById {
   '/_app/family/messages': typeof AppFamilyMessagesRoute
   '/_app/family/modules': typeof AppFamilyModulesRoute
   '/_app/family/timetable': typeof AppFamilyTimetableRoute
+  '/_app/lesson-frame/$lessonId': typeof AppLessonFrameLessonIdRoute
   '/_app/lessons/$lessonId': typeof AppLessonsLessonIdRoute
   '/_app/me/assignments': typeof AppMeAssignmentsRoute
   '/_app/me/attendance': typeof AppMeAttendanceRoute
@@ -961,6 +970,7 @@ export interface FileRouteTypes {
     | '/family/messages'
     | '/family/modules'
     | '/family/timetable'
+    | '/lesson-frame/$lessonId'
     | '/lessons/$lessonId'
     | '/me/assignments'
     | '/me/attendance'
@@ -1055,6 +1065,7 @@ export interface FileRouteTypes {
     | '/family/messages'
     | '/family/modules'
     | '/family/timetable'
+    | '/lesson-frame/$lessonId'
     | '/lessons/$lessonId'
     | '/me/assignments'
     | '/me/attendance'
@@ -1156,6 +1167,7 @@ export interface FileRouteTypes {
     | '/_app/family/messages'
     | '/_app/family/modules'
     | '/_app/family/timetable'
+    | '/_app/lesson-frame/$lessonId'
     | '/_app/lessons/$lessonId'
     | '/_app/me/assignments'
     | '/_app/me/attendance'
@@ -1620,6 +1632,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppFamilyTimetableRouteImport
       parentRoute: typeof AppFamilyRoute
     }
+    '/_app/lesson-frame/$lessonId': {
+      id: '/_app/lesson-frame/$lessonId'
+      path: '/lesson-frame/$lessonId'
+      fullPath: '/lesson-frame/$lessonId'
+      preLoaderRoute: typeof AppLessonFrameLessonIdRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/_app/lessons/$lessonId': {
       id: '/_app/lessons/$lessonId'
       path: '/lessons/$lessonId'
@@ -2068,6 +2087,7 @@ interface AppRouteChildren {
   AppBadgesClassIdRoute: typeof AppBadgesClassIdRoute
   AppCalendarEventIdRoute: typeof AppCalendarEventIdRoute
   AppClassesClassIdRoute: typeof AppClassesClassIdRoute
+  AppLessonFrameLessonIdRoute: typeof AppLessonFrameLessonIdRoute
   AppLessonsLessonIdRoute: typeof AppLessonsLessonIdRoute
   AppModulesModuleIdRoute: typeof AppModulesModuleIdRoute
   AppNewsPostIdRoute: typeof AppNewsPostIdRoute
@@ -2104,6 +2124,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppBadgesClassIdRoute: AppBadgesClassIdRoute,
   AppCalendarEventIdRoute: AppCalendarEventIdRoute,
   AppClassesClassIdRoute: AppClassesClassIdRoute,
+  AppLessonFrameLessonIdRoute: AppLessonFrameLessonIdRoute,
   AppLessonsLessonIdRoute: AppLessonsLessonIdRoute,
   AppModulesModuleIdRoute: AppModulesModuleIdRoute,
   AppNewsPostIdRoute: AppNewsPostIdRoute,

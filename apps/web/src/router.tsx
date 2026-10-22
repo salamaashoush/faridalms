@@ -8,6 +8,7 @@ import { DefaultCatchBoundary } from "./components/DefaultCatchBoundary";
 import { NotFound } from "./components/NotFound";
 import { createQueryClient } from "./queryClient";
 import { routeTree } from "./routeTree.gen";
+import "./preview-locale";
 
 export function getRouter() {
   if (typeof document !== "undefined") {

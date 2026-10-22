@@ -1,6 +1,7 @@
 import handler, { createServerEntry } from "@tanstack/react-start/server-entry";
 
 import { paraglideMiddleware } from "~/i18n/server";
+import "~/preview-locale";
 
 // The environment is validated at server init by src/server/preflight.ts, a Nitro
 // app plugin -- doing it here would only fail per-request, once the process was
