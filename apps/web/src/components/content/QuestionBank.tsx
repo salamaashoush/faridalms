@@ -47,6 +47,7 @@ const KIND_LABEL: Record<QuestionKind, () => string> = {
   poll: m.editorQuestionPoll,
   labelling: m.editorQuestionLabelling,
   crossword: m.editorQuestionCrossword,
+  wordsearch: m.editorQuestionWordSearch,
   text: m.editorQuestionTyped,
   math: m.editorQuestionMath,
   written: m.editorQuestionWritten,

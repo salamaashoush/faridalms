@@ -19,6 +19,7 @@ import {
   MAX_RUN_OUTPUT,
   placeNumber,
 } from "@faridalms/domain/learning";
+import { spells, squaresBetween } from "@faridalms/domain/wordsearch";
 import { StoredImage } from "@faridalms/editor/files";
 import { TextWithMath, textOfMath } from "@faridalms/editor/math";
 import { MathInput } from "@faridalms/editor/math-input";
@@ -219,6 +220,7 @@ export type CheckStudentBlock =
   | Of<"hotspot">
   | Of<"labelling">
   | Of<"crossword">
+  | Of<"wordsearch">
   | Of<"written">
   | Of<"scratch">
   | Of<"project">
@@ -243,6 +245,7 @@ const CHECK_TYPES = new Set<StudentBlock["type"]>([
   "hotspot",
   "labelling",
   "crossword",
+  "wordsearch",
   "written",
   "scratch",
   "project",
@@ -1604,6 +1607,196 @@ function GapsCheck({
   );
 }
 
+type Stretch = [number, number, number, number];
+
+const SEARCH_STEPS: Record<string, [number, number]> = {
+  ArrowUp: [-1, 0],
+  ArrowDown: [1, 0],
+  ArrowLeft: [0, -1],
+  ArrowRight: [0, 1],
+};
+
+/**
+ * Words hidden in a grid of letters: a student presses a word's first
+ * letter, then its last, and a stretch that spells one of the words stays
+ * marked. The arrow keys move between letters and Enter presses one, so a
+ * keyboard finds words as a finger does; rows read from the right when
+ * the words are Arabic.
+ */
+function WordSearchCheck({
+  block,
+  view,
+  driver,
+}: {
+  block: Of<"wordsearch">;
+  view: CheckView | undefined;
+  driver: CheckDriver;
+}) {
+  const legend = useId();
+  const { editing, setEditing, respond, reveal } = useCheck(
+    block.id,
+    view,
+    driver,
+  );
+  const [found, setFound] = useState<Stretch[]>(
+    view?.response?.type === "wordsearch" ? view.response.found : [],
+  );
+  const [from, setFrom] = useState<[number, number] | null>(null);
+  const [cursor, setCursor] = useState<[number, number]>([0, 0]);
+  const [missed, setMissed] = useState(false);
+  const buttons = useRef(new Map<string, HTMLButtonElement>());
+  const settled = answerFinal(block, view);
+  const locked = !editing || settled;
+  const size = block.rows.length;
+  const wordIn = (stretch: Stretch) =>
+    block.words.find((word) => spells(block.rows, stretch, word.answer));
+  const foundIds = new Set(
+    found.flatMap((stretch) => wordIn(stretch)?.id ?? []),
+  );
+  // Once the answer is shown, the words not found are drawn where they hide.
+  const shown =
+    view?.partKey && !editing
+      ? Object.entries(view.partKey)
+          .filter(([wordId]) => !foundIds.has(wordId))
+          .map(([, line]) => line.split(",").map(Number))
+      : [];
+  const marks = new Map<string, "found" | "shown">();
+  for (const stretch of found)
+    for (const [row, col] of squaresBetween(stretch))
+      marks.set(squareKey(row, col), "found");
+  for (const stretch of shown)
+    for (const [row, col] of squaresBetween(stretch))
+      if (!marks.has(squareKey(row, col)))
+        marks.set(squareKey(row, col), "shown");
+  const press = (row: number, col: number) => {
+    if (!from) {
+      setFrom([row, col]);
+      setMissed(false);
+      return;
+    }
+    const stretch: Stretch = [from[0], from[1], row, col];
+    setFrom(null);
+    const word = wordIn(stretch);
+    if (!word) setMissed(true);
+    else if (!foundIds.has(word.id)) setFound((now) => [...now, stretch]);
+  };
+  const move = (row: number, col: number) => {
+    const next: [number, number] = [
+      Math.min(size - 1, Math.max(0, row)),
+      Math.min(size - 1, Math.max(0, col)),
+    ];
+    setCursor(next);
+    buttons.current.get(squareKey(...next))?.focus();
+  };
+  const check = () => {
+    if (found.length > 0) respond.mutate({ type: "wordsearch", found });
+  };
+  return (
+    <CheckCard
+      block={block}
+      legendId={legend}
+      onSubmit={check}
+      status={<CheckStatus view={view} editing={editing} />}
+      actions={
+        <Retry
+          view={view}
+          editing={editing}
+          settled={settled}
+          canCheck={found.length > 0}
+          pending={respond.isPending || reveal.isPending}
+          onTryAgain={() => setEditing(true)}
+          onReveal={() => reveal.mutate()}
+        />
+      }
+    >
+      <p className="text-[13px] leading-[18px] text-muted-foreground">
+        {m.lrnWordSearchHow()}
+      </p>
+      <div
+        dir={block.rtl ? "rtl" : "ltr"}
+        className="mx-auto grid w-full gap-0.5 rounded-lg bg-muted/40 p-1.5 select-none"
+        style={{
+          gridTemplateColumns: `repeat(${size}, minmax(0, 2.5rem))`,
+          maxWidth: `${size * 2.5}rem`,
+        }}
+      >
+        {block.rows.flatMap((letters, row) =>
+          letters.map((letter, col) => {
+            const key = squareKey(row, col);
+            const mark = marks.get(key);
+            const pressed = from?.[0] === row && from[1] === col;
+            return (
+              <button
+                key={key}
+                ref={(element) => {
+                  if (element) buttons.current.set(key, element);
+                  else buttons.current.delete(key);
+                }}
+                type="button"
+                disabled={locked}
+                tabIndex={cursor[0] === row && cursor[1] === col ? 0 : -1}
+                aria-pressed={pressed}
+                aria-label={m.lrnWordSearchSquare({
+                  row: formatNumber(row + 1),
+                  col: formatNumber(col + 1),
+                  letter,
+                })}
+                onFocus={() => setCursor([row, col])}
+                onClick={() => press(row, col)}
+                onKeyDown={(event) => {
+                  const by = SEARCH_STEPS[event.key];
+                  if (!by) return;
+                  event.preventDefault();
+                  // The grid is drawn from the right for Arabic words, so
+                  // left and right go the other way along a row.
+                  move(row + by[0], col + (block.rtl ? -by[1] : by[1]));
+                }}
+                className={cn(
+                  "grid aspect-square place-items-center rounded-md text-[clamp(0.75rem,3.6vw,1.125rem)] font-semibold outline-none hover:bg-muted focus-visible:ring-3 focus-visible:ring-ring/50 disabled:cursor-default disabled:hover:bg-transparent",
+                  mark === "found" && "bg-primary/20 text-primary",
+                  mark === "shown" && "bg-success/15 text-success",
+                  pressed && "bg-primary text-primary-foreground",
+                )}
+              >
+                {letter}
+              </button>
+            );
+          }),
+        )}
+      </div>
+      <output className="text-sm leading-5 text-muted-foreground">
+        {missed && editing
+          ? m.lrnWordSearchMissed()
+          : m.lrnWordSearchFound({
+              found: formatNumber(foundIds.size),
+              total: formatNumber(block.words.length),
+            })}
+      </output>
+      <div className="grid gap-1.5">
+        <p className="text-[13px] leading-[18px] font-medium text-muted-foreground">
+          {m.lrnWordSearchList()}
+        </p>
+        <ul dir="auto" className="flex flex-wrap gap-x-4 gap-y-1.5">
+          {block.words.map((word) => (
+            <li key={word.id} className="inline-flex items-center gap-1.5">
+              <span
+                className={cn(
+                  "text-sm leading-5",
+                  foundIds.has(word.id) &&
+                    "text-muted-foreground line-through decoration-2",
+                )}
+              >
+                {word.answer}
+              </span>
+              <MarkIcon mark={partMark(view, editing, word.id)} />
+            </li>
+          ))}
+        </ul>
+      </div>
+    </CheckCard>
+  );
+}
+
 type Entry = Of<"crossword">["entries"][number];
 
 const way = (entry: Pick<Entry, "across">) =>
@@ -1668,9 +1861,9 @@ function CrosswordCheck({
     if (editing || !view || view.tries === 0) return null;
     // A square in a word marked right holds the right letter, whatever the
     // other word through it.
-    const marks = new Set((owners.get(key) ?? []).map(
-      ({ entry }) => view.parts[entry.id],
-    ));
+    const marks = new Set(
+      (owners.get(key) ?? []).map(({ entry }) => view.parts[entry.id]),
+    );
     if (marks.has(true)) return "right";
     return marks.has(false) ? "wrong" : null;
   };
@@ -3361,6 +3554,8 @@ function CheckBody({
     return <LabellingCheck block={block} view={view} driver={driver} />;
   if (block.type === "crossword")
     return <CrosswordCheck block={block} view={view} driver={driver} />;
+  if (block.type === "wordsearch")
+    return <WordSearchCheck block={block} view={view} driver={driver} />;
   if (block.type === "written" && block.recordSeconds)
     return <SpokenCheck block={block} view={view} driver={driver} />;
   if (block.type === "written" && block.answerWith)

@@ -6,6 +6,7 @@ import {
   contentOfLesson,
   lessonOfContent,
 } from "@faridalms/domain/lesson-content";
+import { wordSearch } from "@faridalms/domain/wordsearch";
 import { blankProject, locked, lockOf } from "@faridalms/makecode/project";
 import { PACKS } from "@faridalms/puzzles/levels";
 import { describe, expect, test } from "bun:test";
@@ -1987,6 +1988,84 @@ describe("crosswords", () => {
       response: { type: "crossword", squares },
     });
     expect(done.check).toMatchObject({ correct: true, fraction: 1 });
+  });
+});
+
+describe("word searches", () => {
+  test("a student marks the words hidden in a grid and is marked word by word", async () => {
+    const { keeper } = await teachers();
+    const { rows } = await keeper.learning.modules({});
+    const source = rows.find((row) => row.title === TITLE);
+    if (!source) throw new Error("no module");
+    const saved = await keeper.learning.saveModule({
+      id: "",
+      expectedVersion: 0,
+      title: "Word searches",
+      summary: "",
+      classIds: source.classes.map((item) => item.id),
+      prerequisiteId: "",
+      sequential: false,
+    });
+    const asked = {
+      id: id(),
+      type: "wordsearch" as const,
+      prompt: "Find the planets.",
+      points: 2,
+      hints: [],
+      explanation: "",
+      tries: null,
+      words: [
+        { id: id(), answer: "Mars" },
+        { id: id(), answer: "Venus" },
+      ],
+    };
+    await keeper.learning.saveLesson({
+      id: "",
+      moduleId: saved.id,
+      expectedVersion: 0,
+      title: "Planets",
+      completion: "view",
+      passScore: null,
+      content: written([asked]),
+      publish: false,
+    });
+    await keeper.learning.publishModule({
+      id: saved.id,
+      expectedVersion: saved.version,
+    });
+
+    const pupil = await student();
+    const outline = await pupil.learning.play({ id: saved.id });
+    const lessonId = outline.lessons[0]?.id ?? "";
+    const shown = blockOf(
+      await pupil.learning.playLesson({ id: lessonId }),
+      "wordsearch",
+    );
+    const search = wordSearch(asked.words, asked.id);
+    if (!search) throw new Error("no grid");
+    expect(shown.rows).toEqual(search.rows);
+    const [mars] = asked.words;
+    const line = mars ? search.lines[mars.id] : undefined;
+    if (!mars || !line) throw new Error("not hidden");
+    const answered = await pupil.learning.respond({
+      lessonId,
+      blockId: asked.id,
+      response: {
+        type: "wordsearch",
+        found: [
+          [
+            line.row,
+            line.col,
+            line.row + line.down * (line.length - 1),
+            line.col + line.along * (line.length - 1),
+          ],
+        ],
+      },
+    });
+    expect(answered.check).toMatchObject({
+      correct: false,
+      parts: { [mars.id]: true },
+    });
   });
 });
 

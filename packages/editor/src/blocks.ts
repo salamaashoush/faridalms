@@ -56,6 +56,7 @@ import {
   Highlighter,
   Tags,
   Grid3x3,
+  TextSearch,
   Vote,
   ChevronRight,
   CircleCheck,
@@ -198,6 +199,7 @@ export type BlockType =
   | "hotspotQuestion"
   | "labellingQuestion"
   | "crosswordQuestion"
+  | "wordsearchQuestion"
   | "scratchQuestion"
   | "projectQuestion"
   | "sketchQuestion"
@@ -242,6 +244,7 @@ const QUESTION_KIND: Partial<Record<BlockType, QuestionKind>> = {
   hotspotQuestion: "hotspot",
   labellingQuestion: "labelling",
   crosswordQuestion: "crossword",
+  wordsearchQuestion: "wordsearch",
   scratchQuestion: "scratch",
   projectQuestion: "project",
   sketchQuestion: "project",
@@ -988,6 +991,24 @@ export const blockDefinitions: BlockDefinition[] = [
       "كلمات متقاطعة",
       "لغز",
       "مفردات",
+    ],
+    question: true,
+  },
+  {
+    type: "wordsearchQuestion",
+    group: "questions",
+    icon: TextSearch,
+    label: (s) => s.questionWordSearch,
+    hint: (s) => s.questionWordSearchHint,
+    keywords: [
+      "word search",
+      "wordsearch",
+      "find",
+      "hidden",
+      "letters",
+      "البحث عن الكلمات",
+      "كلمات",
+      "حروف",
     ],
     question: true,
   },

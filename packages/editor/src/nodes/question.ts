@@ -270,6 +270,8 @@ export interface QuestionLabels {
   /** A crossword's lines: the word, then its clue. */
   crosswordWord?: string;
   crosswordClue?: string;
+  /** A word search's lines, each a word to hide. */
+  hiddenWord?: string;
   /** A test run and counted but never shown to students. */
   hiddenTest?: string;
   extraTiles?: string;
@@ -1056,9 +1058,11 @@ export class QuestionAnswerNode extends ElementNode {
     dom.dataset.emptyLabel =
       (kind === "spelling"
         ? text?.wordTiles
-        : extra
-          ? text?.extra
-          : text?.answer) ?? "";
+        : kind === "wordsearch"
+          ? text?.hiddenWord
+          : extra
+            ? text?.extra
+            : text?.answer) ?? "";
     // Which line holds the word is its place, which can change after the
     // line is drawn, so the style picks this label for every line after it.
     if (kind === "spelling") dom.dataset.extraLabel = text?.extraTiles ?? "";
@@ -1593,6 +1597,12 @@ export function $createQuestionNode(kind: QuestionKind): QuestionNode {
     question.append(new QuestionPassageNode());
   if (kind === "spelling")
     question.append(new QuestionAnswerNode(), new QuestionAnswerNode());
+  if (kind === "wordsearch")
+    question.append(
+      new QuestionAnswerNode(),
+      new QuestionAnswerNode(),
+      new QuestionAnswerNode(),
+    );
   return question;
 }
 
@@ -1695,7 +1705,8 @@ export function $repairQuestion(question: QuestionNode) {
       ((kind === "text" ||
         kind === "math" ||
         kind === "matching" ||
-        kind === "spelling") &&
+        kind === "spelling" ||
+        kind === "wordsearch") &&
         $isQuestionAnswerNode(child)) ||
       ((kind === "matching" || kind === "crossword") &&
         $isQuestionPairNode(child)) ||

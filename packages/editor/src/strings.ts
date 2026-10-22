@@ -351,6 +351,9 @@ export interface EditorStrings extends LabelEditorStrings, ChartStrings {
   questionCrosswordHint: string;
   questionCrosswordWord: string;
   questionCrosswordClue: string;
+  questionWordSearch: string;
+  questionWordSearchHint: string;
+  questionHiddenWord: string;
   questionScratch: string;
   questionScratchHint: string;
   questionProject: string;

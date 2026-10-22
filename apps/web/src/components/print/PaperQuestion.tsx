@@ -2,7 +2,7 @@ import type { LessonBlock, Picture } from "@faridalms/domain/learning";
 import type { Level } from "@faridalms/puzzles/level";
 import type { ReactNode } from "react";
 
-import { mathText } from "@faridalms/domain/content";
+import { mathText, textDirection } from "@faridalms/domain/content";
 import {
   crosswordLayout,
   crosswordLetters,
@@ -17,6 +17,7 @@ import {
   shuffled,
 } from "@faridalms/domain/learning";
 import { programFile } from "@faridalms/domain/project";
+import { squaresAlong, wordSearch } from "@faridalms/domain/wordsearch";
 import { StoredImage } from "@faridalms/editor/files";
 import { mediaClock } from "@faridalms/editor/format";
 import { MathText, TextWithMath } from "@faridalms/editor/math";
@@ -303,6 +304,8 @@ export function keyOf(block: LessonBlock, rtl: boolean): string | null {
       return list(
         block.places.map((place, index) => `${index + 1} ${place.name}`),
       );
+    case "wordsearch":
+      return list(block.words.map((word) => word.answer));
     case "crossword":
       return list(
         (crosswordLayout(block.words)?.entries ?? []).map(
@@ -907,6 +910,50 @@ export function PaperQuestion({
         </div>
       ) : null;
       break;
+    case "wordsearch": {
+      const search = wordSearch(block.words, block.id);
+      if (!search) break;
+      const hidden = new Set(
+        Object.values(search.lines).flatMap((line) =>
+          squaresAlong(line).map(([row, col]) => squareKey(row, col)),
+        ),
+      );
+      body = (
+        <div className="grid gap-3">
+          <div
+            dir={
+              textDirection(
+                block.words.map((word) => word.answer).join(" "),
+              ) === "rtl"
+                ? "rtl"
+                : "ltr"
+            }
+            className="grid w-fit"
+            style={{
+              gridTemplateColumns: `repeat(${search.rows.length}, 1.6em)`,
+            }}
+          >
+            {search.rows.flatMap((letters, row) =>
+              letters.map((letter, col) => (
+                <span
+                  key={squareKey(row, col)}
+                  className={cn(
+                    "grid size-[1.6em] place-items-center font-semibold",
+                    answers &&
+                      hidden.has(squareKey(row, col)) &&
+                      "rounded-full bg-neutral-200",
+                  )}
+                >
+                  {letter}
+                </span>
+              )),
+            )}
+          </div>
+          <p dir="auto">{block.words.map((word) => word.answer).join(" · ")}</p>
+        </div>
+      );
+      break;
+    }
     case "crossword": {
       const { layout, rtl: rtlGrid } = paperGrid(block);
       if (!layout) break;

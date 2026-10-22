@@ -282,6 +282,17 @@ export function questionBlock(node: ContentNode): LessonBlock | null {
           }),
         ),
       };
+    case "wordsearch":
+      return {
+        ...check,
+        type: "wordsearch",
+        words: parts
+          .filter((part) => part.type === "question-answer" && written(part))
+          .map((word) => ({
+            id: word.optionId ?? "",
+            answer: textOf(word).trim(),
+          })),
+      };
     case "crossword":
       return {
         ...check,
@@ -789,6 +800,7 @@ export function questionNode(block: LessonBlock): ContentNode | null {
     block.type !== "hotspot" &&
     block.type !== "labelling" &&
     block.type !== "crossword" &&
+    block.type !== "wordsearch" &&
     block.type !== "scratch" &&
     block.type !== "project" &&
     block.type !== "puzzle" &&
@@ -1045,6 +1057,17 @@ export function questionNode(block: LessonBlock): ContentNode | null {
         name: place.name,
         correct: place.correct,
       })),
+    };
+  if (block.type === "wordsearch")
+    return {
+      ...base,
+      children: [
+        ...(base.children ?? []),
+        ...block.words.map((word) => ({
+          ...inlineOf("question-answer", word.answer),
+          optionId: word.id,
+        })),
+      ],
     };
   if (block.type === "crossword")
     return {

@@ -603,6 +603,8 @@ export function getMessageFromError(error: unknown): string {
         return m.lrnErrLabelsNeeded();
       case "learning.crossword_layout":
         return m.lrnErrCrosswordLayout();
+      case "learning.wordsearch_layout":
+        return m.lrnErrWordSearchLayout();
       case "learning.number_line":
         return m.lrnErrNumberLine();
       case "learning.number_line_answer":

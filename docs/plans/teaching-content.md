@@ -88,6 +88,14 @@ Sources: [../research/course-design.md](../research/course-design.md),
     layout closed the whole menu when opened, by key or pointer, as Base UI
     took each for a sibling of a menu with no trigger. Done: the grip is
     the menu's trigger, so its submenus open within it.
+11. **Text committed straight after Enter in a pair question.** In a
+    matching or crossword question, Enter from the prompt puts the caret
+    in the first pair's first side, yet text committed whole at once (as
+    the browser automation's insertText does, and as an input method may)
+    lands in the side after it; typed key by key it lands right. Found
+    while building the crossword in 3.10.
+    Left: reproduce with a phone keyboard and an input method, then fix
+    where the caret's DOM position is set for an empty side.
 
 ## 2. Maths and science
 
@@ -228,7 +236,7 @@ Sources: [../research/course-design.md](../research/course-design.md),
    decision on help from one (section 11).
 10. **More question kinds**: word bank, poll, highlight words, label an
     image, number line, crossword and word search.
-    Done so far: a word bank. A gap question can be filled from a bank
+    Done: a word bank. A gap question can be filled from a bank
     (`bank` on gaps, its extra words that fit no gap), set from its bar;
     the student sees every answer and extra word shuffled in one bank,
     taps a word into the next blank or chooses it in each blank, and paper
@@ -258,9 +266,16 @@ Sources: [../research/course-design.md](../research/course-design.md),
     it. Students type into the squares, moving on along the word, with
     the arrow keys, and by choosing a clue; Arabic words read from the
     right across. Each word filled rightly earns its share, and paper
-    prints the empty grid and its clues.
-    Left: word search; a poll's class results in a quiz, polls anonymous
-    to the teacher too, and dragging a label onto its place.
+    prints the empty grid and its clues. A word search: the teacher lists
+    the words, and they are hidden across, down and on the diagonal in a
+    grid made from them and the question, the same for the whole class,
+    the spare squares filled with the words' own letters. Students press
+    a word's first letter and then its last, by finger or the keyboard; a
+    stretch that spells a word stays marked, and each word found earns
+    its share. Paper prints the grid and the list.
+    Left: a poll's class results in a quiz, polls anonymous to the teacher
+    too, dragging a label onto its place, dragging across a word search,
+    and words hidden backwards for older students.
 
 ## 4. Standards, skills and planning
 

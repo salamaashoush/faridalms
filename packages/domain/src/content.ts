@@ -125,6 +125,7 @@ export const questionKinds = [
   "hotspot",
   "labelling",
   "crossword",
+  "wordsearch",
   "scratch",
   "parsons",
   "program",

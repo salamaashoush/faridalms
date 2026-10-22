@@ -19,6 +19,7 @@ import type {
   PuzzleBlock,
   SortingBlock,
   TextBlock,
+  WordSearchBlock,
 } from "./learning";
 
 import { crosswordLayout, crosswordLetters, squaresOf } from "./crossword";
@@ -52,6 +53,7 @@ import {
   upgradeLesson,
 } from "./learning";
 import { contentOfLesson, lessonOfContent } from "./lesson-content";
+import { squaresAlong, wordSearch } from "./wordsearch";
 
 const uuid = (n: number) =>
   `0192f0a4-7a1c-7b5a-9a2e-${String(n).padStart(12, "0")}`;
@@ -683,6 +685,78 @@ describe("polls", () => {
 /** Whether a lesson holding just this block may go to students. */
 const publishable = (block: LessonDocument["blocks"][number]) =>
   v.safeParse(lessonDocumentSchema, { version: 2, blocks: [block] }).success;
+
+describe("word searches", () => {
+  const planets: WordSearchBlock = {
+    ...common,
+    id: uuid(100),
+    type: "wordsearch",
+    prompt: "Find the planets.",
+    words: [
+      { id: uuid(101), answer: "Mars" },
+      { id: uuid(102), answer: "Venus" },
+      { id: uuid(103), answer: "Earth" },
+    ],
+  };
+  const search = wordSearch(planets.words, planets.id);
+  if (!search) throw new Error("no grid");
+  /** A word's two ends, as a student marks it, either way round. */
+  const ends = (wordId: string, backwards = false) => {
+    const line = search.lines[wordId];
+    if (!line) throw new Error("not hidden");
+    const squares = squaresAlong(line);
+    const [first = [0, 0], last = [0, 0]] = backwards
+      ? [squares.at(-1), squares[0]]
+      : [squares[0], squares.at(-1)];
+    return [...first, ...last] as [number, number, number, number];
+  };
+
+  it("shows every student of the class the same grid, with the words to find", () => {
+    const [first] = studentBlocks({ version: 2, blocks: [planets] }, "one");
+    const [second] = studentBlocks({ version: 2, blocks: [planets] }, "two");
+    if (first?.type !== "wordsearch") throw new Error("not a word search");
+    expect(first.rows).toEqual(search.rows);
+    expect(second).toEqual(first);
+  });
+
+  it("finds each word marked from either end, and nothing for a stretch that spells none", () => {
+    const [mars = "", venus = ""] = planets.words.map((word) => word.id);
+    expect(
+      markResponse(planets, {
+        type: "wordsearch",
+        found: [ends(mars), ends(venus, true)],
+      }),
+    ).toMatchObject({ correct: false, parts: { [mars]: true, [venus]: true } });
+    expect(
+      markResponse(planets, {
+        type: "wordsearch",
+        found: planets.words.map((word) => ends(word.id)),
+      }),
+    ).toMatchObject({ fraction: 1, correct: true });
+  });
+
+  it("takes only stretches in a line inside its grid", () => {
+    const size = search.rows.length;
+    expect(
+      responseIssue(planets, { type: "wordsearch", found: [[0, 0, 1, 2]] }),
+    ).toBe("learning.option");
+    expect(
+      responseIssue(planets, {
+        type: "wordsearch",
+        found: [[0, 0, 0, size]],
+      }),
+    ).toBe("learning.option");
+    expect(
+      responseIssue(planets, { type: "wordsearch", found: [[0, 0, 0, 1]] }),
+    ).toBeNull();
+  });
+
+  it("keeps its words through the document", () => {
+    const document = contentOfLesson({ version: 2, blocks: [planets] });
+    if (!document) throw new Error("no document");
+    expect(lessonOfContent(document).blocks[0]).toEqual(planets);
+  });
+});
 
 describe("crosswords", () => {
   const rivers: CrosswordBlock = {

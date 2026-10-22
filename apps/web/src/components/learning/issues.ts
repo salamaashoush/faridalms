@@ -1,12 +1,16 @@
 import type { LessonBlock } from "@faridalms/domain/learning";
 
-import { crosswordMisfits } from "@faridalms/domain/crossword";
+import {
+  crosswordLetters,
+  crosswordMisfits,
+} from "@faridalms/domain/crossword";
 import {
   MAX_GAPS,
   needsCaptions,
   needsTranscript,
   partName,
 } from "@faridalms/domain/learning";
+import { MAX_SEARCH_SIZE } from "@faridalms/domain/wordsearch";
 import { solves } from "@faridalms/puzzles/run";
 
 import * as m from "~/i18n/messages";
@@ -111,6 +115,13 @@ export function blockIssue(block: LessonBlock): string | null {
         return m.lrnHotspotPlaces();
       return block.places.some((place) => !place.name)
         ? m.lrnHotspotNames()
+        : null;
+    case "wordsearch":
+      if (block.words.length < 2) return m.lrnWordSearchWords();
+      return block.words.some(
+        (word) => crosswordLetters(word.answer).length > MAX_SEARCH_SIZE,
+      )
+        ? m.lrnWordSearchLong({ count: formatNumber(MAX_SEARCH_SIZE) })
         : null;
     case "crossword": {
       if (

@@ -101,6 +101,11 @@ export function paperBlock(block: StudentBlock): LessonBlock {
         })),
         correctOptionIds: [],
       };
+    case "wordsearch": {
+      // The grid is made again from the words and the question's id.
+      const { rows: _rows, rtl: _rtl, ...rest } = block;
+      return { ...rest, ...blank };
+    }
     case "crossword": {
       const { entries, width, height, rtl, ...rest } = block;
       const paper: PaperCrossword = {

@@ -61,6 +61,7 @@ function withQuestion(
     | "choiceQuestion"
     | "pollQuestion"
     | "crosswordQuestion"
+    | "wordsearchQuestion"
     | "typedQuestion"
     | "orderingQuestion"
     | "matchingQuestion"
@@ -196,6 +197,29 @@ describe("questions in a document", () => {
         { answer: "delta", clue: "Where a river fans out" },
         { answer: "sea", clue: "Salt water" },
       ],
+    });
+    expect(v.safeParse(lessonDocumentSchema, lesson).success).toBe(true);
+  });
+
+  it("starts a word search with three words to hide", () => {
+    const target = withQuestion("wordsearchQuestion");
+    target.update(
+      () => {
+        const question = $getRoot().getChildren().find($isQuestionNode);
+        const [prompt, ...words] = question?.getChildren() ?? [];
+        if (!$isQuestionPromptNode(prompt) || words.length !== 3)
+          throw new Error("word search has the wrong shape");
+        prompt.append($createTextNode("Find the planets."));
+        ["Mars", "Venus", "Earth"].forEach((word, index) =>
+          write(words[index] as ElementNode, word),
+        );
+      },
+      { discrete: true },
+    );
+    const lesson = lessonOfContent(json(target));
+    expect(lesson.blocks[0]).toMatchObject({
+      type: "wordsearch",
+      words: [{ answer: "Mars" }, { answer: "Venus" }, { answer: "Earth" }],
     });
     expect(v.safeParse(lessonDocumentSchema, lesson).success).toBe(true);
   });
@@ -937,6 +961,7 @@ describe("questions in a document", () => {
         poll: "",
         labelling: "",
         crossword: "",
+        wordsearch: "",
         text: "",
         math: "",
         written: "",

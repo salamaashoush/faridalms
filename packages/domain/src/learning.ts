@@ -45,8 +45,16 @@ import {
   starterFilesSchema,
 } from "./project";
 import { scratchChecksSchema, scratchNotesSchema } from "./scratch-project";
+import { seededRandom } from "./seeded";
 import { MAX_QUESTION_STANDARDS } from "./standards";
 import { MAX_STROKE_POINTS, MAX_STROKES, traceResults } from "./tracing";
+import {
+  lettersBetween,
+  MAX_SEARCH_SIZE,
+  MAX_SEARCH_WORDS,
+  spells,
+  wordSearch,
+} from "./wordsearch";
 
 export { gapsSource, parseGaps } from "./gaps";
 
@@ -646,6 +654,22 @@ export const lessonBlockSchema = v.variant("type", [
       "learning.crossword_layout",
     ),
   ),
+  v.pipe(
+    v.object({
+      ...checkFields,
+      type: v.literal("wordsearch"),
+      /** The words hidden in the grid, which is made from them and the question's id. */
+      words: v.pipe(
+        v.array(v.object({ id, answer: requiredText(40) })),
+        v.minLength(2, "learning.wordsearch_layout"),
+        v.maxLength(MAX_SEARCH_WORDS),
+      ),
+    }),
+    v.check(
+      (block) => wordSearch(block.words, block.id) !== null,
+      "learning.wordsearch_layout",
+    ),
+  ),
   v.object({
     ...checkFields,
     type: v.literal("spelling"),
@@ -787,6 +811,7 @@ export type SpellingBlock = Extract<LessonBlock, { type: "spelling" }>;
 export type HotspotBlock = Extract<LessonBlock, { type: "hotspot" }>;
 export type LabellingBlock = Extract<LessonBlock, { type: "labelling" }>;
 export type CrosswordBlock = Extract<LessonBlock, { type: "crossword" }>;
+export type WordSearchBlock = Extract<LessonBlock, { type: "wordsearch" }>;
 export type ScratchBlock = Extract<LessonBlock, { type: "scratch" }>;
 export type ProgramBlock = Extract<LessonBlock, { type: "program" }>;
 export type ProjectBlock = Extract<LessonBlock, { type: "project" }>;
@@ -811,6 +836,7 @@ export type AutoBlock =
   | HotspotBlock
   | LabellingBlock
   | CrosswordBlock
+  | WordSearchBlock
   | ProgramBlock
   | PuzzleBlock;
 /** A question its teacher marks: words, a recording or picture, or a project. */
@@ -835,6 +861,7 @@ const AUTO_TYPES = new Set<LessonBlockType>([
   "hotspot",
   "labelling",
   "crossword",
+  "wordsearch",
   "program",
   "puzzle",
 ]);
@@ -865,6 +892,7 @@ const DEFERRABLE_TYPES = new Set<LessonBlockType>([
   "sorting",
   "labelling",
   "crossword",
+  "wordsearch",
 ]);
 
 export { FEEDBACK_TIMES, type FeedbackTime };
@@ -1293,6 +1321,10 @@ export function lessonPlainText(document: LessonDocument): string {
             block.prompt,
             ...block.words.map((word) => `${word.answer}: ${word.clue}`),
           ].join("\n");
+        case "wordsearch":
+          return [block.prompt, ...block.words.map((word) => word.answer)].join(
+            "\n",
+          );
         case "matching":
           return [
             block.prompt,
@@ -1403,6 +1435,41 @@ export const responseSchema = v.variant("type", [
   v.object({
     type: v.literal("counting"),
     value: v.pipe(v.number(), v.integer(), v.minValue(0), v.maxValue(100)),
+  }),
+  v.object({
+    type: v.literal("wordsearch"),
+    /** Each stretch of squares the student marked: from row and column, to row and column. */
+    found: v.pipe(
+      v.array(
+        v.tuple([
+          v.pipe(
+            v.number(),
+            v.integer(),
+            v.minValue(0),
+            v.maxValue(MAX_SEARCH_SIZE),
+          ),
+          v.pipe(
+            v.number(),
+            v.integer(),
+            v.minValue(0),
+            v.maxValue(MAX_SEARCH_SIZE),
+          ),
+          v.pipe(
+            v.number(),
+            v.integer(),
+            v.minValue(0),
+            v.maxValue(MAX_SEARCH_SIZE),
+          ),
+          v.pipe(
+            v.number(),
+            v.integer(),
+            v.minValue(0),
+            v.maxValue(MAX_SEARCH_SIZE),
+          ),
+        ]),
+      ),
+      v.maxLength(MAX_SEARCH_WORDS),
+    ),
   }),
   v.object({
     type: v.literal("crossword"),
@@ -1877,6 +1944,21 @@ export function markResponse(
         ),
       );
     }
+    case "wordsearch": {
+      if (response.type !== "wordsearch") return none;
+      const search = wordSearch(block.words, block.id);
+      if (!search) return none;
+      return share(
+        Object.fromEntries(
+          block.words.map((word) => [
+            word.id,
+            response.found.some((stretch) =>
+              spells(search.rows, stretch, word.answer),
+            ),
+          ]),
+        ),
+      );
+    }
     case "spelling": {
       if (response.type !== "spelling") return none;
       const results = Object.fromEntries(
@@ -2207,6 +2289,12 @@ export type StudentBlock =
   | Omit<CountingBlock, "explanation" | "hints">
   | Omit<TracingBlock, "explanation" | "hints">
   | Omit<HotspotBlock, "explanation" | "hints">
+  | (Omit<WordSearchBlock, "explanation" | "hints"> & {
+      /** The grid's letters, row by row; where each word is, the student finds. */
+      rows: string[][];
+      /** Whether rows read from the right, as Arabic words do. */
+      rtl: boolean;
+    })
   | (Omit<CrosswordBlock, "explanation" | "hints" | "words"> & {
       width: number;
       height: number;
@@ -2238,13 +2326,7 @@ export type StudentBlock =
     });
 
 export function shuffled<T>(items: T[], seed: string): T[] {
-  let state = 0;
-  for (const char of seed)
-    state = (Math.imul(state, 31) + char.charCodeAt(0)) | 0;
-  const random = () => {
-    state = (Math.imul(state ^ (state >>> 15), 2246822507) + 0x9e3779b9) | 0;
-    return ((state >>> 0) % 100000) / 100000;
-  };
+  const random = seededRandom(seed);
   const copy = [...items];
   for (let index = copy.length - 1; index > 0; index--) {
     const other = Math.floor(random() * (index + 1));
@@ -2518,6 +2600,16 @@ export function studentBlocks(
         const { explanation: _why, hints: _hints, ...rest } = block;
         return rest;
       }
+      case "wordsearch": {
+        const { explanation: _why, hints: _hints, ...rest } = block;
+        return {
+          ...rest,
+          rows: wordSearch(block.words, block.id)?.rows ?? [],
+          rtl:
+            textDirection(block.words.map((word) => word.answer).join(" ")) ===
+            "rtl",
+        };
+      }
       case "crossword": {
         const { explanation: _why, hints: _hints, words, ...rest } = block;
         const layout = crosswordLayout(words);
@@ -2662,6 +2754,8 @@ export function answerKey(block: AutoBlock): string[] {
       return block.places.map(
         (place, index) => `${placeNumber(index)} ${place.name}`,
       );
+    case "wordsearch":
+      return block.words.map((word) => word.answer);
     case "crossword":
       return (crosswordLayout(block.words)?.entries ?? []).map(
         (entry) =>
@@ -2720,6 +2814,21 @@ export function partKey(block: AutoBlock): Record<string, string> {
           crosswordLetters(word.answer).join(""),
         ]),
       );
+    case "wordsearch": {
+      // Where each word is, as its two ends, so a student shown the answer sees it in the grid.
+      const lines = wordSearch(block.words, block.id)?.lines ?? {};
+      return Object.fromEntries(
+        Object.entries(lines).map(([wordId, line]) => [
+          wordId,
+          [
+            line.row,
+            line.col,
+            line.row + line.down * (line.length - 1),
+            line.col + line.along * (line.length - 1),
+          ].join(","),
+        ]),
+      );
+    }
     case "ordering":
       return Object.fromEntries(
         block.items.map((item, index) => [item.id, String(index + 1)]),
@@ -3536,6 +3645,17 @@ export function responseIssue(
         .map((token) => token.id),
     );
     if (response.chosen.some((token) => !words.has(token)))
+      return "learning.option";
+  }
+  if (block.type === "wordsearch" && response.type === "wordsearch") {
+    const rows = wordSearch(block.words, block.id)?.rows ?? [];
+    if (
+      response.found.some(
+        (stretch) =>
+          stretch.some((at) => at >= rows.length) ||
+          !lettersBetween(rows, stretch),
+      )
+    )
       return "learning.option";
   }
   if (block.type === "crossword" && response.type === "crossword") {

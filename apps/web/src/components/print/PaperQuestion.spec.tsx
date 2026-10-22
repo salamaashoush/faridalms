@@ -1,6 +1,7 @@
-import type { LessonBlock } from "@faridalms/domain/learning";
+import type { LessonBlock, WordSearchBlock } from "@faridalms/domain/learning";
 
 import { studentBlocks } from "@faridalms/domain/learning";
+import { squaresAlong, wordSearch } from "@faridalms/domain/wordsearch";
 import { blankProject } from "@faridalms/makecode/project";
 import { PACKS } from "@faridalms/puzzles/levels";
 import { renderToStaticMarkup } from "react-dom/server";
@@ -208,6 +209,38 @@ describe("a crossword on paper", () => {
   it("fills the teacher's grid and keys each word by its number", () => {
     expect(paper(rivers, true)).toContain(">R<");
     expect(keyOf(rivers, false)).toMatch(/^1 DELTA, 2 RIVER, 3 SEA$/u);
+  });
+});
+
+describe("a word search on paper", () => {
+  const planets: WordSearchBlock = {
+    ...base,
+    id: "q12",
+    type: "wordsearch",
+    prompt: "Find the planets.",
+    words: [
+      { id: "w1", answer: "Mars" },
+      { id: "w2", answer: "Venus" },
+    ],
+  };
+
+  it("prints the same grid a student's copy shows, and rings the words on the teacher's", () => {
+    const [shown] = studentBlocks({ version: 2, blocks: [planets] }, "seed");
+    if (shown?.type !== "wordsearch") throw new Error("no word search");
+    const copy = paper(paperBlock(shown), false);
+    expect(copy).toContain("Mars · Venus");
+    expect(copy).not.toContain("bg-neutral-200");
+    const letters = shown.rows.flat();
+    expect(copy.match(/size-\[1\.6em\]/g)).toHaveLength(letters.length);
+    const search = wordSearch(planets.words, planets.id);
+    const hidden = new Set(
+      Object.values(search?.lines ?? {}).flatMap((line) =>
+        squaresAlong(line).map(([row, col]) => `${row}-${col}`),
+      ),
+    );
+    expect(paper(planets, true).match(/bg-neutral-200/g)).toHaveLength(
+      hidden.size,
+    );
   });
 });
 
