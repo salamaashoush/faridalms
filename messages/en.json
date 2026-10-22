@@ -766,6 +766,27 @@
   "editorQuestionHintNumber": "Hint {number}",
   "editorQuestionHintAdd": "Add a hint",
   "editorQuestionHintRemove": "Remove hint {number}",
+  "editorQuestionStandards": "Standards",
+  "editorQuestionStandardsHelp": "What this question gives evidence of, from your school's frameworks.",
+  "editorQuestionStandardsChosen": "Tagged standards",
+  "editorQuestionStandardsResults": "Standards to tag",
+  "editorQuestionStandardsSearch": "Search by code or words",
+  "editorQuestionStandardsNone": "No standard matches.",
+  "editorQuestionStandardsEmpty": "Your school has no standards yet. School leaders add them under Standards.",
+  "editorQuestionStandardsFailed": "The standards could not be loaded. Try again.",
+  "editorQuestionStandardsGone": "A standard no longer in use",
+  "editorQuestionStandardsRemove": "Remove {standard}",
+  "editorQuestionStandardsFull": "A question takes up to {max} standards.",
+  "editorQuestionStandardsCount": [
+    {
+      "declarations": ["input count", "local countPlural = count: plural"],
+      "selectors": ["countPlural"],
+      "match": {
+        "countPlural=one": "{count} standard",
+        "countPlural=*": "{count} standards"
+      }
+    }
+  ],
   "editorQuestionExplanation": "Explanation after answering",
   "editorQuestionFeedback": "Feedback for this option",
   "editorQuestionRightAnswer": "Right answer",

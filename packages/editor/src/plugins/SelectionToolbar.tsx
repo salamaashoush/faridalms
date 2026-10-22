@@ -84,6 +84,7 @@ import {
   SpellCheck,
   Strikethrough,
   Subscript,
+  Target,
   Superscript,
   TextQuote,
   Trash2,
@@ -187,6 +188,7 @@ import {
 import { NarrationPanel, OPEN_NARRATION_COMMAND } from "./narration";
 import { PictureLibrary, pictureFile } from "./picture-library";
 import { RegionPad } from "./regions";
+import { StandardsPad } from "./standards";
 import { TracePad } from "./trace";
 
 type Mode =
@@ -205,7 +207,8 @@ type Mode =
   | "narration"
   | "trace"
   | "regions"
-  | "picture";
+  | "picture"
+  | "standards";
 
 /** A chosen formula: what the bar writes and how it sits. */
 interface MathFacts {
@@ -468,6 +471,7 @@ export function SelectionToolbarPlugin() {
     studio,
     puzzles,
     bank,
+    standards,
     lockQuestions,
     narration: narrates,
     lessonActivities,
@@ -730,6 +734,7 @@ export function SelectionToolbarPlugin() {
       modeRef.current === "trace" ||
       modeRef.current === "regions" ||
       modeRef.current === "picture" ||
+      modeRef.current === "standards" ||
       modeRef.current === "math"
     )
       return;
@@ -912,6 +917,7 @@ export function SelectionToolbarPlugin() {
       mode === "trace" ||
       mode === "regions" ||
       mode === "picture" ||
+      mode === "standards" ||
       mode === "math"
     )
       return undefined;
@@ -928,6 +934,7 @@ export function SelectionToolbarPlugin() {
         modeRef.current === "trace" ||
         modeRef.current === "regions" ||
         modeRef.current === "picture" ||
+        modeRef.current === "standards" ||
         modeRef.current === "math"
       )
         return;
@@ -1880,6 +1887,20 @@ export function SelectionToolbarPlugin() {
           >
             <MessageCircleQuestion aria-hidden />
           </ToolButton>
+          {standards ? (
+            <ToolButton
+              label={strings.questionStandards}
+              active={settings.standards.length > 0}
+              onClick={() => {
+                saved.current = editor
+                  .getEditorState()
+                  .read(() => $getSelection()?.clone() ?? null);
+                show("standards");
+              }}
+            >
+              <Target aria-hidden />
+            </ToolButton>
+          ) : null}
           {question.mark ? (
             <ToolButton
               label={
@@ -2077,6 +2098,37 @@ export function SelectionToolbarPlugin() {
               withSelection(() => {
                 const node = $getNodeByKey(question.key);
                 if ($isQuestionNode(node)) node.setSettings({ places });
+              });
+              close();
+            }}
+          />
+        </div>
+      </Floating>
+    );
+  }
+
+  if (mode === "standards" && question && standards) {
+    const close = () => {
+      show("question");
+      focusText(editor);
+    };
+    return (
+      <Floating
+        reference={reference}
+        placement="top-start"
+        boundary={boundary}
+        className="w-96 max-w-[calc(100vw-1rem)] p-2"
+        keepInView
+      >
+        <div ref={toolbar}>
+          <StandardsPad
+            standards={standards}
+            chosen={question.settings.standards}
+            onClose={close}
+            onDone={(ids) => {
+              withSelection(() => {
+                const node = $getNodeByKey(question.key);
+                if ($isQuestionNode(node)) node.setSettings({ standards: ids });
               });
               close();
             }}

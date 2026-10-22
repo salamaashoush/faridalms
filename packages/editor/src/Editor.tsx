@@ -30,6 +30,7 @@ import type {
   EditorBank,
   EditorMedia,
   EditorPuzzles,
+  EditorStandards,
   EditorStudio,
 } from "./context";
 import type { EditorStrings } from "./strings";
@@ -93,6 +94,8 @@ export interface EditorProps {
   puzzles?: EditorPuzzles;
   /** The question bank, to keep questions and ask kept ones. */
   bank?: EditorBank;
+  /** The school's standards, to tag questions with. */
+  standards?: EditorStandards;
   placeholder?: string;
   initialFocus?: boolean;
   locale?: string;
@@ -131,6 +134,7 @@ export default function Editor({
   studio,
   puzzles,
   bank,
+  standards,
   locale,
   value,
   collaboration,
@@ -168,6 +172,7 @@ export default function Editor({
       studio,
       puzzles,
       bank,
+      standards,
       locale:
         locale ??
         (typeof document === "undefined"
@@ -188,6 +193,7 @@ export default function Editor({
       studio,
       puzzles,
       bank,
+      standards,
       locale,
       questions,
       gates,
@@ -302,6 +308,7 @@ function Surface({
       microbitProject: strings.questionMicrobit,
       arrowsPuzzle: strings.questionArrows,
       videoAt: strings.questionVideoAt,
+      standards: strings.questionStandardsCount,
       codeLine: strings.questionCodeLine,
       distractor: strings.questionDistractor,
       testInput: strings.questionTestInput,

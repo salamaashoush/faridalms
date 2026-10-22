@@ -11,6 +11,7 @@ import { embedProviders, isEmbedId } from "./embed";
 import { projectLanguages, starterFilesSchema } from "./project";
 import { isSafeContentUrl } from "./rich-text";
 import { scratchChecksSchema } from "./scratch-project";
+import { MAX_QUESTION_STANDARDS } from "./standards";
 
 /** The longest piece of mathematics one node holds, in LaTeX. */
 export const MAX_LATEX = 4000;
@@ -204,6 +205,8 @@ export interface ContentNode {
   questionId?: string;
   /** The tag a quiz draws its questions from the bank by. */
   bankTag?: string;
+  /** The school's standards a question gives evidence of, by id. */
+  standards?: string[];
   optionId?: string;
   correct?: boolean;
   feedback?: string;
@@ -431,6 +434,12 @@ const nodeSchema: v.GenericSchema<ContentNode> = v.lazy(() =>
       kind: v.optional(v.picklist(questionKinds)),
       questionId: v.optional(v.pipe(v.string(), v.uuid())),
       bankTag: v.optional(v.pipe(v.string(), v.maxLength(40))),
+      standards: v.optional(
+        v.pipe(
+          v.array(v.pipe(v.string(), v.uuid())),
+          v.maxLength(MAX_QUESTION_STANDARDS),
+        ),
+      ),
       optionId: v.optional(v.pipe(v.string(), v.uuid())),
       correct: v.optional(v.boolean()),
       feedback: v.optional(v.pipe(v.string(), v.maxLength(300))),

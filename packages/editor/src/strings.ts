@@ -343,6 +343,19 @@ export interface EditorStrings {
   questionHintNumber: (number: number) => string;
   questionHintAdd: string;
   questionHintRemove: (number: number) => string;
+  questionStandards: string;
+  questionStandardsHelp: string;
+  questionStandardsChosen: string;
+  questionStandardsResults: string;
+  questionStandardsSearch: string;
+  questionStandardsNone: string;
+  questionStandardsEmpty: string;
+  questionStandardsFailed: string;
+  /** A tag whose standard the school has since taken out of use. */
+  questionStandardsGone: string;
+  questionStandardsRemove: (standard: string) => string;
+  questionStandardsFull: (max: number) => string;
+  questionStandardsCount: (count: number) => string;
   questionExplanation: string;
   questionFeedback: string;
   questionRightAnswer: string;

@@ -257,6 +257,8 @@ export interface QuestionLabels {
   arrowsPuzzle?: string;
   /** A question asked at a time in the video above it. */
   videoAt?: (time: string) => string;
+  /** A question tagged with some of the school's standards. */
+  standards?: (count: number) => string;
   /** A code puzzle's empty line, and a line marked as belonging nowhere. */
   codeLine?: string;
   distractor?: string;
@@ -368,6 +370,8 @@ export interface QuestionSettings {
   codeLanguage: "python" | "javascript" | "html" | "text";
   /** Shown in order, one more after each wrong try. */
   hints: string[];
+  /** The school's standards the question gives evidence of, by id. */
+  standards: string[];
   explanation: string;
   numberMode: "exact" | "range";
   answerValue: number;
@@ -415,6 +419,7 @@ export function defaultSettings(kind: QuestionKind): QuestionSettings {
     videoAt: null,
     codeLanguage: "python",
     hints: [],
+    standards: [],
     explanation: "",
     numberMode: "exact",
     answerValue: 0,
@@ -442,6 +447,7 @@ const NO_POINTS: number[][] = [];
 const NO_PLACES: PicturePlace[] = [];
 const NO_FILES: ProjectFile[] = [];
 const NO_CHECKS: ScratchFeature[] = [];
+const NO_STANDARDS: string[] = [];
 
 function questionSettings(stored: StoredSettings): QuestionSettings {
   const base = defaultSettings(stored.kind ?? "choice");
@@ -476,6 +482,7 @@ function questionSettings(stored: StoredSettings): QuestionSettings {
     videoAt: stored.videoAt ?? null,
     codeLanguage: stored.codeLanguage ?? base.codeLanguage,
     hints: hintsOf(stored),
+    standards: stored.standards ?? NO_STANDARDS,
     explanation: stored.explanation ?? "",
     numberMode: stored.numberMode ?? base.numberMode,
     answerValue: stored.answerValue ?? base.answerValue,
@@ -552,7 +559,11 @@ function label(editor: LexicalEditor, settings: QuestionSettings): string {
     settings.videoAt !== null && text.videoAt
       ? ` · ${text.videoAt(mediaClock(settings.videoAt))}`
       : "";
-  return `${kind}${starts}${held}${checked}${asked} · ${text.points(settings.points)}`;
+  const tagged =
+    settings.standards.length > 0 && text.standards
+      ? ` · ${text.standards(settings.standards.length)}`
+      : "";
+  return `${kind}${starts}${held}${checked}${asked}${tagged} · ${text.points(settings.points)}`;
 }
 
 /**
@@ -616,6 +627,7 @@ export class QuestionNode extends ElementNode {
       videoAt,
       codeLanguage,
       hints,
+      standards,
       ...settings
     } = questionSettings(this.getLatest().__settings);
     return {
@@ -652,6 +664,7 @@ export class QuestionNode extends ElementNode {
         ? { codeLanguage }
         : {}),
       ...(hints.length > 0 ? { hints } : {}),
+      ...(standards.length > 0 ? { standards } : {}),
     };
   }
 
@@ -712,9 +725,13 @@ export class QuestionNode extends ElementNode {
     if (before.multiple !== settings.multiple)
       dom.dataset.multiple = String(settings.multiple);
     // What a project is asked to do is ticked in a menu that stays open
-    // and hangs from this element, so its count is written on the label
-    // here rather than on an element drawn anew.
-    if (before.projectChecks !== settings.projectChecks)
+    // and hangs from this element, and the standards are chosen in a panel
+    // that does too, so their counts are written on the label here rather
+    // than on an element drawn anew.
+    if (
+      before.projectChecks !== settings.projectChecks ||
+      before.standards !== settings.standards
+    )
       dom.dataset.label = label($getEditor(), settings);
     return false;
   }

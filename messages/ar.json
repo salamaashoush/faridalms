@@ -789,6 +789,31 @@
   "editorQuestionHintNumber": "التلميح {number}",
   "editorQuestionHintAdd": "إضافة تلميح",
   "editorQuestionHintRemove": "حذف التلميح {number}",
+  "editorQuestionStandards": "المعايير",
+  "editorQuestionStandardsHelp": "ما يقدّم هذا السؤال دليلًا عليه، من أطر مدرستك.",
+  "editorQuestionStandardsChosen": "المعايير الموسومة",
+  "editorQuestionStandardsResults": "معايير للوسم",
+  "editorQuestionStandardsSearch": "ابحث بالرمز أو بالكلمات",
+  "editorQuestionStandardsNone": "لا معيار مطابق.",
+  "editorQuestionStandardsEmpty": "لا معايير في مدرستك بعد. يضيفها قادة المدرسة من صفحة المعايير.",
+  "editorQuestionStandardsFailed": "تعذّر تحميل المعايير. حاول مرة أخرى.",
+  "editorQuestionStandardsGone": "معيار لم يعد مستخدمًا",
+  "editorQuestionStandardsRemove": "إزالة {standard}",
+  "editorQuestionStandardsFull": "يحمل السؤال {max} معايير على الأكثر.",
+  "editorQuestionStandardsCount": [
+    {
+      "declarations": ["input count", "local countPlural = count: plural"],
+      "selectors": ["countPlural"],
+      "match": {
+        "countPlural=zero": "لا معايير",
+        "countPlural=one": "معيار واحد",
+        "countPlural=two": "معياران",
+        "countPlural=few": "{count} معايير",
+        "countPlural=many": "{count} معيارًا",
+        "countPlural=*": "{count} معيار"
+      }
+    }
+  ],
   "editorQuestionExplanation": "شرح بعد الإجابة",
   "editorQuestionFeedback": "تعليق على هذا الخيار",
   "editorQuestionRightAnswer": "إجابة صحيحة",

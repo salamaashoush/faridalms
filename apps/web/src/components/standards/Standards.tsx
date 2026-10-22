@@ -25,6 +25,7 @@ import { toast } from "sonner";
 import * as v from "valibot";
 
 import type { ActionItem } from "~/components/system/ActionMenu";
+import type { frameworkQuery } from "~/queries/standards";
 
 import { ActionMenu } from "~/components/system/ActionMenu";
 import { ComboboxField } from "~/components/system/ComboboxField";
@@ -35,7 +36,6 @@ import {
 } from "~/components/system/IndexPage";
 import { SheetForm } from "~/components/system/SheetForm";
 import * as m from "~/i18n/messages";
-import type { frameworkQuery } from "~/queries/standards";
 import {
   importCase,
   moveStandard,
@@ -516,9 +516,11 @@ export function StandardsTree({
                 )}
                 <p className="min-w-0 flex-1 pt-1 text-sm leading-5" dir="auto">
                   {row.code ? (
-                    <span className="me-2 font-mono text-[13px] font-medium text-muted-foreground">
-                      {row.code}
-                    </span>
+                    <>
+                      <span className="me-1 font-mono text-[13px] font-medium text-muted-foreground">
+                        {row.code}
+                      </span>{" "}
+                    </>
                   ) : null}
                   {row.statement}
                   {row.itemType ? (

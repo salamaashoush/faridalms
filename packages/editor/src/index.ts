@@ -6,7 +6,9 @@ export type {
   EditorEnvironment,
   EditorMedia,
   EditorPuzzles,
+  EditorStandards,
   EditorStudio,
+  StandardRef,
   UploadedFile,
   UploadOptions,
 } from "./context";

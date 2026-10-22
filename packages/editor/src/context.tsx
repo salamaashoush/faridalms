@@ -123,6 +123,23 @@ export interface EditorBank {
   tags: () => Promise<BankTag[]>;
 }
 
+/** One of the school's standards, as a question's tags show it. */
+export interface StandardRef {
+  id: string;
+  code: string;
+  statement: string;
+  frameworkTitle: string;
+}
+
+/**
+ * The school's standards a question may be tagged with: `search` finds them
+ * by code or words, and `describe` reads the ones a question carries.
+ */
+export interface EditorStandards {
+  search: (query: string) => Promise<StandardRef[]>;
+  describe: (ids: string[]) => Promise<StandardRef[]>;
+}
+
 export interface EditorEnvironment {
   strings: EditorStrings;
   media?: EditorMedia;
@@ -132,6 +149,8 @@ export interface EditorEnvironment {
   puzzles?: EditorPuzzles;
   /** Keeps questions to ask again and asks kept ones; absent where none are kept. */
   bank?: EditorBank;
+  /** Tags questions with the school's standards; absent where none are read. */
+  standards?: EditorStandards;
   locale: string;
   /** The document may ask questions, as a lesson or quiz does. */
   questions?: boolean;

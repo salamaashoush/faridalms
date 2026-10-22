@@ -740,6 +740,29 @@ describe("questions in a document", () => {
     expect(saved).not.toHaveProperty("videoAt");
   });
 
+  it("keeps the standards a question is tagged with, up to six", () => {
+    const target = withQuestion("choiceQuestion");
+    const tag = (standards: string[]) =>
+      target.update(
+        () => {
+          const question = $getRoot().getChildren().find($isQuestionNode);
+          question?.setSettings({ standards });
+        },
+        { discrete: true },
+      );
+    const question = () =>
+      json(target).root.children?.find((node) => node.type === "question");
+    tag([voice(1), voice(2)]);
+    expect(question()).toMatchObject({ standards: [voice(1), voice(2)] });
+    expect(v.safeParse(contentDocumentSchema, json(target)).success).toBe(true);
+    tag([1, 2, 3, 4, 5, 6, 7].map(voice));
+    expect(v.safeParse(contentDocumentSchema, json(target)).success).toBe(
+      false,
+    );
+    tag([]);
+    expect(question()).not.toHaveProperty("standards");
+  });
+
   it("inserts a gate only at the top of the document", () => {
     const target = buildContentEditor();
     target.update(

@@ -160,8 +160,12 @@ Sources: [../research/course-design.md](../research/course-design.md),
    capability `standards:manage`), writes its own or imports a CASE
    package, the 1EdTech format CASE editors and the CASE Network export.
    Importing again updates items in place by their CASE identifiers, so
-   tags hold. Authors search and read them (`standards.search`,
-   `standards.describe`). Left: tagging questions and lessons.
+   tags hold. A question carries up to six standards (`standards` on the
+   node), tagged from the question bar's Standards panel, which searches
+   every framework by code or words; its label counts them, and a question
+   kept in the bank keeps them. Left: a lesson's own standards, which unit
+   planning (4.3) brings, and naturally ordered codes ("RL.3.2" before
+   "RL.3.10") in the picker.
 2. **Skill progress**: "N of M skills secure" per student and per class,
    from the tagged checks.
 3. **Unit planning** with the fields a school's framework asks for (IB unit
