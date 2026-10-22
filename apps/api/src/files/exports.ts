@@ -5,10 +5,12 @@ import type {
   CcVersion,
 } from "@faridalms/domain/cartridge";
 import type { ContentDocument, ContentNode } from "@faridalms/domain/content";
+import type { LessonBlock } from "@faridalms/domain/learning";
 import type { XapiStatement } from "@faridalms/domain/xapi";
 
 import { writeAudit } from "@faridalms/database/audit";
 import { TenantUnavailableError } from "@faridalms/database/context";
+import { bankPool } from "@faridalms/database/stores/bank";
 import {
   classById,
   rosterOf,
@@ -36,12 +38,14 @@ import {
 } from "@faridalms/database/stores/learning";
 import { toolById } from "@faridalms/database/stores/lti";
 import { isVisibleStudent } from "@faridalms/database/stores/students";
+import { bankQuestionOf } from "@faridalms/domain/bank";
 import {
   canvasAssessment,
   canvasItem,
   canvasQtiManifest,
   canvasQuizMeta,
   ccAssignment,
+  ccBank,
   CC13_TYPES,
   CC_FILEBASE,
   ccAssessment,
@@ -61,7 +65,11 @@ import {
   safeFilename,
 } from "@faridalms/domain/file";
 import { lessonContentOf } from "@faridalms/domain/learning";
-import { lessonOfContent, quizOfBrief } from "@faridalms/domain/lesson-content";
+import {
+  lessonOfContent,
+  questionBlock,
+  quizOfBrief,
+} from "@faridalms/domain/lesson-content";
 import {
   qtiItem,
   qtiManifest,
@@ -87,7 +95,7 @@ import type {
 import { editableModule } from "../core/learning-access";
 import { nameUuid } from "../core/names";
 import { can, localeOf, openUnit, schoolOf } from "../core/procedure";
-import { publishedQuiz } from "../core/quiz";
+import { drawsOf, publishedQuiz } from "../core/quiz";
 
 const PATH = /^\/v1\/assignments\/([0-9a-f-]{36})\/work\.zip$/;
 const PORTFOLIO = /^\/v1\/students\/([0-9a-f-]{36})\/portfolio\.zip$/;
@@ -906,6 +914,14 @@ async function classCartridge(
   for (const each of units)
     modules.push({ ...each, lessons: await cartridgeLessons(unit, each.id) });
   const assignments = [];
+  // The questions each draw picks from, by its teacher and tag.
+  const pools = new Map<
+    string,
+    {
+      tag: string;
+      questions: { block: LessonBlock; content: ContentDocument }[];
+    }
+  >();
   for (const assignment of await classAssignments(
     unit.tx,
     unit.tenantId,
@@ -921,10 +937,34 @@ async function classCartridge(
       assignment.state === "draft"
         ? null
         : await publishedVersion(unit.tx, unit.tenantId, document.id);
-    assignments.push({
-      ...assignment,
-      brief: lessonContentOf((published ?? document).content),
-    });
+    const brief = lessonContentOf((published ?? document).content);
+    // A quiz may keep its questions apart from its brief once it is set.
+    const quiz =
+      assignment.submissionFormat === "quiz"
+        ? ((assignment.state === "draft"
+            ? null
+            : await publishedQuiz(unit, assignment.id)) ?? quizOfBrief(brief))
+        : null;
+    for (const draw of quiz ? drawsOf(quiz) : []) {
+      const key = `${assignment.authorUserId}:${draw.tag}`;
+      if (pools.has(key)) continue;
+      const rows = await bankPool(unit.tx, {
+        tenantId: unit.tenantId,
+        orgId: unit.schoolId,
+        authorUserId: assignment.authorUserId,
+        tag: draw.tag,
+      });
+      pools.set(key, {
+        tag: draw.tag,
+        questions: rows.flatMap((row) => {
+          const content = lessonContentOf(row.content);
+          const node = bankQuestionOf(content);
+          const block = node ? questionBlock(node) : null;
+          return block ? [{ block, content }] : [];
+        }),
+      });
+    }
+    assignments.push({ ...assignment, brief, quiz });
   }
   const entries: Entry[] = [];
   const shared = await sharedFiles(
@@ -934,6 +974,9 @@ async function classCartridge(
         module.lessons.flatMap((lesson) => contentFileIds(lesson.content)),
       ),
       ...assignments.flatMap((assignment) => contentFileIds(assignment.brief)),
+      ...[...pools.values()].flatMap((pool) =>
+        pool.questions.flatMap((question) => contentFileIds(question.content)),
+      ),
     ],
     entries,
   );
@@ -968,14 +1011,24 @@ async function classCartridge(
   const coursework: CcModule["items"] = [];
   for (const [index, assignment] of assignments.entries()) {
     const n = index + 1;
-    if (assignment.submissionFormat === "quiz") {
-      // A quiz may keep its questions apart from its brief once it is set.
-      const quiz =
-        (assignment.state === "draft"
-          ? null
-          : await publishedQuiz(unit, assignment.id)) ??
-        quizOfBrief(assignment.brief);
-      const items = quiz.blocks.flatMap((block, at) => {
+    if (assignment.quiz) {
+      // A draw asks as many of its pool as it would draw, worth what it
+      // gives each; the whole pool goes beside the quiz as a bank.
+      const asked = assignment.quiz.blocks.flatMap((block): LessonBlock[] =>
+        block.type === "draw"
+          ? (
+              pools.get(`${assignment.authorUserId}:${block.tag}`)?.questions ??
+              []
+            )
+              .slice(0, block.count)
+              .map(({ block: drawn }) =>
+                "points" in drawn && drawn.type !== "poll"
+                  ? { ...drawn, points: block.points }
+                  : drawn,
+              )
+          : [block],
+      );
+      const items = asked.flatMap((block, at) => {
         const xml = ccItem(block, {
           ident: `c${n}_q${at + 1}`,
           picture: fromDescriptor,
@@ -1065,6 +1118,33 @@ async function classCartridge(
       identifier: `item_c${n}`,
       title: assignment.title,
       resource: `c${n}`,
+    });
+  }
+  for (const [index, pool] of [...pools.values()].entries()) {
+    const identifier = `b${index + 1}`;
+    const items = pool.questions.flatMap((question, at) => {
+      const xml = ccItem(question.block, {
+        ident: `${identifier}_q${at + 1}`,
+        picture: fromDescriptor,
+      });
+      return xml ? [xml] : [];
+    });
+    if (items.length === 0) continue;
+    const path = `${identifier}/bank.xml`;
+    entries.push({
+      path,
+      text: ccBank({
+        ident: identifier,
+        title: pool.tag,
+        items,
+        version: "1.3",
+      }),
+    });
+    resources.push({
+      identifier,
+      type: types.bank,
+      files: [path],
+      dependencies: sharedDependency,
     });
   }
   if (coursework.length > 0)

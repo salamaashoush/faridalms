@@ -1,7 +1,10 @@
 import type { LessonBlock } from "@faridalms/domain/learning";
 
 import { plainContent } from "@faridalms/domain/content-conversion";
-import { contentOfLesson } from "@faridalms/domain/lesson-content";
+import {
+  briefWithQuiz,
+  contentOfLesson,
+} from "@faridalms/domain/lesson-content";
 import { describe, expect, test } from "bun:test";
 import { unzipSync } from "fflate";
 
@@ -360,6 +363,55 @@ describe("moving teaching between systems", () => {
       rubric: null,
       discussion: { postFirst: false, replies: 1 },
     });
+    const tag = `rivers-${crypto.randomUUID().slice(0, 6)}`;
+    for (const prompt of ["Is the Nile long?", "Is the Thames long?"]) {
+      const yes = crypto.randomUUID();
+      const content = contentOfLesson({
+        version: 2,
+        blocks: [
+          {
+            id: crypto.randomUUID(),
+            type: "choice",
+            prompt,
+            points: 1,
+            hints: [],
+            explanation: "",
+            tries: null,
+            options: [
+              { id: yes, text: "Yes", feedback: "" },
+              { id: crypto.randomUUID(), text: "No", feedback: "" },
+            ],
+            correctOptionIds: [yes],
+            multiple: false,
+            shuffle: false,
+          },
+        ],
+      });
+      if (!content) throw new Error("no question");
+      await teacher.api.bank.save({
+        id: "",
+        expectedVersion: 0,
+        scope: "mine",
+        tags: [tag],
+        content,
+      });
+    }
+    const drawn = await teacher.api.coursework.save({
+      classId,
+      title: "Drawn rivers quiz",
+      brief: briefWithQuiz(plainContent("Answer one."), {
+        version: 2,
+        blocks: [
+          { id: crypto.randomUUID(), type: "draw", tag, count: 1, points: 3 },
+        ],
+      }),
+      audience: "class",
+      latePolicy: "accept",
+      submissionFormat: "quiz",
+      points: null,
+      rubric: null,
+      quiz: { attempts: 1, keep: "highest", reveal: "answers", shuffle: false },
+    });
     const response = await raw(
       "northwind",
       teacher.token,
@@ -405,13 +457,34 @@ describe("moving teaching between systems", () => {
           String(files[name]).includes("Talk about floods"),
       ),
     ).toBe(true);
+    // A draw asks its count from the pool, worth its own points; the pool
+    // leaves beside it as a bank.
+    const quizPath = names.find(
+      (name) =>
+        name.endsWith("/assessment.xml") &&
+        String(files[name]).includes("Drawn rivers quiz"),
+    );
+    const quizXml = String(files[quizPath ?? ""]);
+    expect(quizXml.match(/<item /g)).toHaveLength(1);
+    expect(quizXml).toContain(
+      "<fieldlabel>cc_weighting</fieldlabel><fieldentry>3</fieldentry>",
+    );
+    const bankPath = names.find(
+      (name) => name.endsWith("/bank.xml") && String(files[name]).includes(tag),
+    );
+    const bankXml = String(files[bankPath ?? ""]);
+    expect(bankXml).toContain("Is the Nile long?");
+    expect(bankXml).toContain("Is the Thames long?");
+    expect(manifest).toContain(
+      `type="imsqti_xmlv1p2/imscc_xmlv1p3/question-bank"><file href="${bankPath}"/>`,
+    );
     // Only a teacher of the class takes it away.
     const pupil = await sessionFor("northwind", login("student"));
     expect(
       (await raw("northwind", pupil.token, `/v1/classes/${classId}/course.imscc`))
         .status,
     ).toBe(404);
-    for (const saved of [essay, talk])
+    for (const saved of [essay, talk, drawn])
       await teacher.api.coursework.archive({
         id: saved.id,
         expectedVersion: saved.version,

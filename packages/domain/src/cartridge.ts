@@ -60,6 +60,7 @@ export const CC_TYPES = {
   link: "imswl_xmlv1p1",
   tool: "imsbasiclti_xmlv1p0",
   topic: "imsdt_xmlv1p1",
+  bank: "imsqti_xmlv1p2/imscc_xmlv1p1/question-bank",
   kept: "associatedcontent/imscc_xmlv1p1/learning-application-resource",
 } as const;
 
@@ -73,6 +74,7 @@ export const CC13_TYPES = {
   link: "imswl_xmlv1p3",
   tool: "imsbasiclti_xmlv1p3",
   topic: "imsdt_xmlv1p3",
+  bank: "imsqti_xmlv1p2/imscc_xmlv1p3/question-bank",
   assignment: "assignment_xmlv1p0",
   kept: "associatedcontent/imscc_xmlv1p3/learning-application-resource",
 } as const;
@@ -438,6 +440,23 @@ export function ccAssessment(quiz: {
   const { profile, file } = namesOf(quiz.version ?? "1.1");
   return `<?xml version="1.0" encoding="UTF-8"?>
 <questestinterop xmlns="${QTI}" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="${QTI} ${profile}/${file}_qtiasiv1p2p1_v1p0.xsd"><assessment ident="${quiz.ident}" title="${escape(quiz.title)}"><qtimetadata>${field("cc_profile", "cc.exam.v0p1")}${field("qmd_assessmenttype", "Examination")}${field("qmd_scoretype", "Percentage")}${field("qmd_feedbackpermitted", "Yes")}${field("qmd_hintspermitted", "No")}${field("qmd_solutionspermitted", "Yes")}${field("cc_maxattempts", "unlimited")}</qtimetadata><section ident="${quiz.ident}_section">${quiz.items.join("")}</section></assessment></questestinterop>
+`;
+}
+
+/**
+ * A bank of questions in CC's profile, outside the course, which Canvas
+ * and Moodle each keep as a bank of their own; named in a field Canvas
+ * reads, as the profile allows the bank no title.
+ */
+export function ccBank(bank: {
+  ident: string;
+  title: string;
+  items: string[];
+  version?: CcVersion;
+}): string {
+  const { profile, file } = namesOf(bank.version ?? "1.1");
+  return `<?xml version="1.0" encoding="UTF-8"?>
+<questestinterop xmlns="${QTI}" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="${QTI} ${profile}/${file}_qtiasiv1p2p1_v1p0.xsd"><objectbank ident="${bank.ident}"><qtimetadata>${field("bank_title", bank.title)}</qtimetadata>${bank.items.join("")}</objectbank></questestinterop>
 `;
 }
 
