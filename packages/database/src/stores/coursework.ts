@@ -1744,6 +1744,19 @@ export async function saveRubric(
   return row?.id ?? null;
 }
 
+/** Takes a rubric out of its teacher's own; work using it keeps its copy. */
+export async function removeRubric(
+  tx: Tx,
+  input: { tenantId: string; id: string; ownerId: string },
+): Promise<boolean> {
+  const rows = await tx.execute<{ id: string }>(sql`
+    update core.rubrics set status = 'tobedeleted'
+    where tenant_id = ${input.tenantId}::uuid and id = ${input.id}::uuid
+      and owner_user_id = ${input.ownerId}::uuid and status = 'active'
+    returning id`);
+  return rows.length > 0;
+}
+
 /**
  * The class and student behind a coursework file host: an assignment's
  * resources, a draft or a handed-in attempt.

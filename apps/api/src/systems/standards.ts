@@ -494,7 +494,7 @@ export const classProgress = readProcedure
     };
     const [students, answered, observed] = await Promise.all([
       namesOf(context.tx, context.tenantId, roster),
-      evidenceOfStudents(context.tx, scope),
+      evidenceOfStudents(context.tx, { ...scope, released: false }),
       observationsOf(context.tx, scope),
     ]);
     const evidence = withObserved(answered, observed);
@@ -517,7 +517,11 @@ async function progressStudent(context: UnitContext, asked: string) {
   return studentId;
 }
 
-/** One student's mastery of every standard they have evidence on, from any class. */
+/**
+ * One student's mastery of every standard they have evidence on, from any
+ * class; to the student and their family, handed-in work counts once its
+ * grade is returned.
+ */
 export const studentProgress = readProcedure
   .input(studentProgressSchema)
   .handler(async ({ input, context }) => {
@@ -528,7 +532,11 @@ export const studentProgress = readProcedure
       studentIds: [studentId],
     };
     const [answered, observed, judged] = await Promise.all([
-      evidenceOfStudents(context.tx, { ...scope, classId: null }),
+      evidenceOfStudents(context.tx, {
+        ...scope,
+        classId: null,
+        released: !can(context, "submissions:grade"),
+      }),
       observationsOf(context.tx, { ...scope, classId: null }),
       // Judgements are for the child's teachers to read, not the child or
       // their family.
@@ -553,9 +561,10 @@ export const studentProgress = readProcedure
 
 /**
  * The sittings one student's mastery of a standard was worked out from:
- * each lesson or quiz attempt, its answers on the standard averaged, and
- * each thing a teacher saw, latest first, as the decaying average weighs
- * them.
+ * each lesson or quiz attempt and graded rubric, its answers or criteria
+ * on the standard averaged, and each thing a teacher saw, latest first, as
+ * the decaying average weighs them. A student and their family see handed-in
+ * work once its grade is returned, as mastery does for them.
  */
 export const sittings = readProcedure
   .input(sittingsSchema)
@@ -568,7 +577,10 @@ export const sittings = readProcedure
       standardId: input.standardId,
     };
     const [worked, observed] = await Promise.all([
-      sittingsOfStandard(context.tx, scope),
+      sittingsOfStandard(context.tx, {
+        ...scope,
+        released: !can(context, "submissions:grade"),
+      }),
       observationsOf(context.tx, {
         ...scope,
         studentIds: [studentId],

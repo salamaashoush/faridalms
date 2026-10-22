@@ -55,7 +55,6 @@ import {
 } from "@faridalms/domain/xapi";
 import { ORPCError } from "@orpc/server";
 import { Zip, ZipPassThrough } from "fflate";
-import { createHash } from "node:crypto";
 
 import type {
   RequestContext,
@@ -64,6 +63,7 @@ import type {
 } from "../core/context";
 
 import { editableModule } from "../core/learning-access";
+import { nameUuid } from "../core/names";
 import { can, localeOf, openUnit, schoolOf } from "../core/procedure";
 
 const PATH = /^\/v1\/assignments\/([0-9a-f-]{36})\/work\.zip$/;
@@ -664,17 +664,7 @@ const STATEMENT_NAMESPACE = Buffer.from(
   "hex",
 );
 
-/** A name-based (version 5) UUID, as RFC 4122 makes one. */
-function uuidFor(name: string): string {
-  const hash = createHash("sha1")
-    .update(STATEMENT_NAMESPACE)
-    .update(name)
-    .digest();
-  hash[6] = ((hash[6] ?? 0) & 0x0f) | 0x50;
-  hash[8] = ((hash[8] ?? 0) & 0x3f) | 0x80;
-  const hex = hash.subarray(0, 16).toString("hex");
-  return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`;
-}
+const uuidFor = (name: string) => nameUuid(STATEMENT_NAMESPACE, name);
 
 /** Seconds of a video seen, from the stretches watched. */
 const seenSeconds = (ranges: [number, number][]) =>

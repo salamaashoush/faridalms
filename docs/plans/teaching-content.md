@@ -367,10 +367,19 @@ Sources: [../research/course-design.md](../research/course-design.md),
    80% on two sittings or more, developing from 50%. A class's Skills tab
    shows each student against each standard its own work assessed, then
    each standard across the class; a student record's Skills tab shows
-   every framework. Erasing a student removes their evidence. Left: the
-   student's and family's own view, evidence a teacher records without a
-   question (an observation, a rubric criterion), and the sittings behind
-   a mark.
+   every framework. Erasing a student removes their evidence. Students
+   and families read the same Skills section on their grades, each
+   standard opening onto the lessons, quiz attempts, rubrics and
+   observations behind its mark. A teacher records an observation against
+   a standard (beginning, developing or secure, with a note), which counts
+   as one sitting and which they may take back. A rubric criterion carries
+   up to six standards, chosen in the rubric editor (back in the
+   assignment editor: criteria, levels with points and what work at each
+   looks like, kept among the teacher's own rubrics or taken out); the
+   level a grader gives counts as its share of the criterion's best, and
+   clearing it takes the evidence back. A student and their family see
+   handed-in work count as the work itself shows them: a quiz once its
+   results show, a rubric once the grade is returned.
 3. **Unit planning** with the fields a school's framework asks for (IB unit
    planner, backward design), linked to the modules that teach it. Done: a
    module's Plan tab holds its unit plan, one document its teachers write

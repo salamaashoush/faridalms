@@ -1,3 +1,4 @@
+import { plainContent } from "@faridalms/domain/content-conversion";
 import { contentOfLesson } from "@faridalms/domain/lesson-content";
 import { describe, expect, test } from "bun:test";
 
@@ -227,6 +228,135 @@ describe("standards", () => {
         (row) => row.standardId === explains.id,
       ),
     ).toBeUndefined();
+    await office.standards.removeFramework({ id: framework.id });
+  });
+
+  test("a rubric level counts toward its criterion's standards, and the student sees it once the work is returned", async () => {
+    const office = await principal();
+    const framework = await office.standards.saveFramework({
+      id: "",
+      expectedVersion: 0,
+      title: "Writing skills",
+      description: "",
+    });
+    const argues = await office.standards.saveStandard({
+      frameworkId: framework.id,
+      id: "",
+      expectedVersion: 0,
+      parentId: "",
+      code: "WS.1",
+      statement: "Argues a point with evidence.",
+      itemType: "",
+    });
+    const staff = await teacher();
+    const pupil = await signedIn("northwind", login("student"));
+    const me = await pupil.identity.currentUser();
+    const { classes } = await staff.coursework.options();
+    let classId = "";
+    for (const row of classes)
+      if (
+        (await staff.coursework.groups({ classId: row.id })).roster.some(
+          (student) => student.id === me.id,
+        )
+      )
+        classId = row.id;
+    const saved = await staff.coursework.save({
+      classId,
+      title: "Persuasive letter",
+      brief: plainContent("Persuade the head to plant a garden."),
+      audience: "class",
+      latePolicy: "accept",
+      submissionFormat: "both",
+      points: 4,
+      rubric: {
+        criteria: [
+          {
+            id: "argument",
+            title: "Argument",
+            standards: [argues.id],
+            levels: [
+              { id: "exceeds", title: "Exceeds", points: 4 },
+              {
+                id: "approaching",
+                title: "Approaching",
+                points: 2,
+                description: "A point is made, with little to back it.",
+              },
+            ],
+          },
+        ],
+      },
+    });
+    await staff.coursework.publish({
+      id: saved.id,
+      expectedVersion: saved.version,
+    });
+    const drafted = await pupil.coursework.saveDraft({
+      assignmentId: saved.id,
+      expectedVersion: 0,
+      content: plainContent("We should plant a garden."),
+    });
+    await pupil.coursework.handIn({
+      assignmentId: saved.id,
+      expectedVersion: drafted.version,
+    });
+    const [attempt] = (
+      await staff.coursework.grading({
+        assignmentId: saved.id,
+        studentId: me.id,
+      })
+    ).attempts;
+    await staff.coursework.assess({
+      attemptId: attempt?.id ?? "",
+      score: 2,
+      rubricScores: { argument: "approaching" },
+    });
+    const masteryOf = async (api: typeof staff, studentId = "") =>
+      (await api.standards.studentProgress({ studentId })).mastery.find(
+        (row) => row.standardId === argues.id,
+      );
+
+    // The teacher sees the draft grade count; the student not yet.
+    expect(await masteryOf(staff, me.id)).toMatchObject({
+      score: 0.5,
+      occasions: 1,
+    });
+    expect(await masteryOf(pupil)).toBeUndefined();
+    expect(await pupil.standards.sittings({ standardId: argues.id })).toEqual(
+      [],
+    );
+
+    await staff.coursework.act({
+      assignmentId: saved.id,
+      action: "return",
+      studentIds: [me.id],
+    });
+    expect(await masteryOf(pupil)).toMatchObject({ score: 0.5 });
+    expect(
+      await pupil.standards.sittings({ standardId: argues.id }),
+    ).toMatchObject([
+      {
+        source: "rubric",
+        workId: saved.id,
+        title: "Persuasive letter",
+        fraction: 0.5,
+        answers: 1,
+      },
+    ]);
+
+    // Graded again higher, the evidence changes; left unmarked, it goes.
+    await staff.coursework.assess({
+      attemptId: attempt?.id ?? "",
+      score: 4,
+      rubricScores: { argument: "exceeds" },
+    });
+    expect(await masteryOf(staff, me.id)).toMatchObject({ score: 1 });
+    await staff.coursework.assess({
+      attemptId: attempt?.id ?? "",
+      score: null,
+      rubricScores: {},
+    });
+    expect(await masteryOf(staff, me.id)).toBeUndefined();
     await office.standards.removeFramework({ id: framework.id });
   });
 

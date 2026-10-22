@@ -19,6 +19,7 @@ import {
   MAX_PROGRAM_CHARS,
   responseSchema,
 } from "./learning";
+import { MAX_QUESTION_STANDARDS } from "./standards";
 import { CONTENT_LOCALES } from "./translations";
 
 export const LATE_POLICIES = ["accept", "deduct", "refuse"] as const;
@@ -116,17 +117,34 @@ const instant = v.optional(
 );
 const points = v.pipe(v.number(), v.minValue(0), v.maxValue(10000));
 
+export const MAX_RUBRIC_CRITERIA = 20;
+export const MAX_RUBRIC_LEVELS = 10;
+export const MAX_LEVEL_DESCRIPTION = 500;
+
 export const rubricLevelSchema = v.object({
   id: v.pipe(v.string(), v.regex(/^[a-z0-9_-]{1,40}$/)),
   title: v.pipe(v.string(), v.trim(), v.minLength(1), v.maxLength(80)),
   points,
+  /** What work at this level looks like, which the student reads with their mark. */
+  description: v.optional(
+    v.pipe(v.string(), v.trim(), v.maxLength(MAX_LEVEL_DESCRIPTION)),
+  ),
 });
 
 export const rubricCriterionSchema = v.object({
   id: v.pipe(v.string(), v.regex(/^[a-z0-9_-]{1,40}$/)),
   title: v.pipe(v.string(), v.trim(), v.minLength(1), v.maxLength(120)),
-  levels: v.pipe(v.array(rubricLevelSchema), v.minLength(1), v.maxLength(10)),
+  levels: v.pipe(
+    v.array(rubricLevelSchema),
+    v.minLength(1),
+    v.maxLength(MAX_RUBRIC_LEVELS),
+  ),
+  /** The school's standards a level awarded here counts toward. */
+  standards: v.optional(
+    v.pipe(v.array(id), v.maxLength(MAX_QUESTION_STANDARDS)),
+  ),
 });
+export type RubricCriterion = v.InferOutput<typeof rubricCriterionSchema>;
 
 /** Criteria by levels, each level worth points; attached rubrics are copies. */
 export const rubricSchema = v.pipe(
@@ -134,7 +152,7 @@ export const rubricSchema = v.pipe(
     criteria: v.pipe(
       v.array(rubricCriterionSchema),
       v.minLength(1),
-      v.maxLength(20),
+      v.maxLength(MAX_RUBRIC_CRITERIA),
     ),
   }),
   v.check(
@@ -144,7 +162,8 @@ export const rubricSchema = v.pipe(
       rubric.criteria.every(
         (row) =>
           new Set(row.levels.map((level) => level.id)).size ===
-          row.levels.length,
+            row.levels.length &&
+          new Set(row.standards).size === (row.standards?.length ?? 0),
       ),
     "rubric.duplicate_ids",
   ),
@@ -157,6 +176,33 @@ export function rubricTotal(rubric: Rubric): number {
     (sum, row) => sum + Math.max(0, ...row.levels.map((level) => level.points)),
     0,
   );
+}
+
+/**
+ * What a graded rubric shows of each standard its criteria carry: the level
+ * awarded as a share of the criterion's best, as a question's mark is a
+ * share of its points. A criterion left unmarked, or worth nothing, shows
+ * nothing.
+ */
+export function rubricEvidence(
+  rubric: Rubric,
+  scores: Readonly<Record<string, unknown>>,
+): { criterionId: string; standards: string[]; fraction: number }[] {
+  return rubric.criteria.flatMap((criterion) => {
+    const level = criterion.levels.find(
+      (row) => row.id === scores[criterion.id],
+    );
+    const best = Math.max(0, ...criterion.levels.map((row) => row.points));
+    return level && best > 0 && criterion.standards?.length
+      ? [
+          {
+            criterionId: criterion.id,
+            standards: criterion.standards,
+            fraction: Math.min(1, Math.max(0, level.points / best)),
+          },
+        ]
+      : [];
+  });
 }
 
 export const quizSchema = v.object({

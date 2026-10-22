@@ -251,6 +251,10 @@ export const saveRubric = createServerFn({ method: "POST" })
   .validator(checked(saveRubricSchema))
   .handler(({ data }) => backend().coursework.saveTeacherRubric(data));
 
+export const removeRubric = createServerFn({ method: "POST" })
+  .validator(byId)
+  .handler(({ data }) => backend().coursework.removeTeacherRubric(data));
+
 export const getPeerOverview = createServerFn({ method: "GET" })
   .validator(checked(v.object({ assignmentId: uuid })))
   .handler(({ data }) => record(backend().peer.overview(data)));

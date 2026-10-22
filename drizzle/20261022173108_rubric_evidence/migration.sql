@@ -1,0 +1,1 @@
+ALTER TABLE "core"."standard_evidence" DROP CONSTRAINT "standard_evidence_source_check", ADD CONSTRAINT "standard_evidence_source_check" CHECK ((source = 'lesson' and lesson_id is not null and submission_id is null) or (source in ('quiz', 'rubric') and submission_id is not null and lesson_id is null));

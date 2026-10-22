@@ -12,6 +12,7 @@ import {
 import {
   BookOpen,
   ChevronDown,
+  ClipboardCheck,
   Eye,
   CircleCheck,
   CircleDashed,
@@ -345,9 +346,13 @@ export function ClassSkills({ classId }: { classId: string }) {
   );
 }
 
-const SOURCE_ICON: Record<"lesson" | "quiz" | "observation", LucideIcon> = {
+const SOURCE_ICON: Record<
+  "lesson" | "quiz" | "rubric" | "observation",
+  LucideIcon
+> = {
   lesson: BookOpen,
   quiz: ListChecks,
+  rubric: ClipboardCheck,
   observation: Eye,
 };
 
@@ -379,9 +384,9 @@ function TakeBack({ id }: { id: string }) {
 }
 
 /**
- * The lessons, quiz attempts and observations a mark was worked out from,
- * latest first, each its answers on the standard averaged, as the decaying
- * average reads them.
+ * The lessons, quiz attempts, graded rubrics and observations a mark was
+ * worked out from, latest first, each its answers on the standard averaged,
+ * as the decaying average reads them.
  */
 function Sittings({
   studentId,
@@ -430,7 +435,9 @@ function Sittings({
                         sitting.observation.byAr,
                       ),
                     })
-                  : m.skillsAnswers({ count: sitting.answers })}
+                  : sitting.source === "rubric"
+                    ? m.skillsCriteria({ count: sitting.answers })
+                    : m.skillsAnswers({ count: sitting.answers })}
                 {" · "}
                 {formatDate(sitting.at)}
               </span>

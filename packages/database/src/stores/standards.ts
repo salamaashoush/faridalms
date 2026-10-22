@@ -461,7 +461,7 @@ export async function recordEvidence(
     studentId: string;
     sitting:
       | { source: "lesson"; lessonId: string }
-      | { source: "quiz"; submissionId: string };
+      | { source: "quiz" | "rubric"; submissionId: string };
     marks: readonly EvidenceMark[];
     replace: boolean;
   },
@@ -476,7 +476,7 @@ export async function recordEvidence(
   const lesson =
     input.sitting.source === "lesson" ? input.sitting.lessonId : null;
   const submission =
-    input.sitting.source === "quiz" ? input.sitting.submissionId : null;
+    input.sitting.source === "lesson" ? null : input.sitting.submissionId;
   await tx.execute(sql`
     insert into core.standard_evidence (tenant_id, student_user_id, standard_id, source, lesson_id,
       submission_id, attempt, block_id, fraction, answered_at)
@@ -495,6 +495,63 @@ export async function recordEvidence(
         : sql`do nothing`
     }`);
 }
+
+/**
+ * Keeps what one graded attempt's rubric shows, in place of what it showed
+ * before: a criterion left unmarked, or no longer carrying a standard, takes
+ * its evidence back.
+ */
+export async function recordRubricEvidence(
+  tx: Tx,
+  input: {
+    tenantId: string;
+    studentId: string;
+    submissionId: string;
+    attempt: number;
+    marks: readonly Omit<EvidenceMark, "attempt">[];
+  },
+): Promise<void> {
+  const kept = input.marks.flatMap((mark) =>
+    mark.standards.map(
+      (standard) => sql`(${mark.blockId}::uuid, ${standard}::uuid)`,
+    ),
+  );
+  await tx.execute(sql`
+    update core.standard_evidence set status = 'tobedeleted'
+    where tenant_id = ${input.tenantId}::uuid and submission_id = ${input.submissionId}::uuid
+      and student_user_id = ${input.studentId}::uuid and source = 'rubric'
+      and attempt = ${input.attempt} and status = 'active'
+      ${
+        kept.length > 0
+          ? sql`and (block_id, standard_id) not in (values ${sql.join(kept, sql`, `)})`
+          : sql``
+      }`);
+  await recordEvidence(tx, {
+    tenantId: input.tenantId,
+    studentId: input.studentId,
+    sitting: { source: "rubric", submissionId: input.submissionId },
+    marks: input.marks.map((mark) => ({ ...mark, attempt: input.attempt })),
+    replace: true,
+  });
+}
+
+/**
+ * Evidence from handed-in work as its student and family may read it, by
+ * what the work itself shows them: a quiz's answers once its results show,
+ * which for most quizzes is at once and for some only once returned; a
+ * rubric once the grade is returned.
+ */
+const releasedOnly = sql`and (e.submission_id is null or (
+  e.source = 'quiz' and exists (
+    select 1 from core.submissions sb
+    join core.assignments a on a.tenant_id = sb.tenant_id and a.id = sb.assignment_id
+    where sb.tenant_id = e.tenant_id and sb.id = e.submission_id
+      and a.quiz_reveal is distinct from 'returned'))
+  or exists (
+    select 1 from core.assessments asm
+    join core.submission_attempts t on t.tenant_id = asm.tenant_id and t.id = asm.attempt_id
+    where asm.tenant_id = e.tenant_id and asm.submission_id = e.submission_id
+      and asm.status = 'active' and asm.released_at is not null and t.number = e.attempt))`;
 
 /** A piece of evidence as mastery is worked out from it. */
 export interface EvidenceRow {
@@ -533,6 +590,8 @@ export async function evidenceOfStudents(
     orgId: string;
     studentIds: readonly string[];
     classId: string | null;
+    /** Only what the student already knows of: grades returned to them. */
+    released: boolean;
   },
 ): Promise<EvidenceRow[]> {
   if (input.studentIds.length === 0) return [];
@@ -558,6 +617,7 @@ export async function evidenceOfStudents(
               where sb.tenant_id = e.tenant_id and sb.id = e.submission_id))`
           : sql``
       }
+      ${input.released ? releasedOnly : sql``}
     order by e.answered_at`);
   return rows.map(evidenceOf);
 }
@@ -583,6 +643,7 @@ export async function sittingsOfStandard(
     orgId: string;
     studentId: string;
     standardId: string;
+    released: boolean;
   },
 ): Promise<SittingRow[]> {
   const rows = await tx.execute<{
@@ -607,6 +668,7 @@ export async function sittingsOfStandard(
     where e.tenant_id = ${input.tenantId}::uuid and e.status = 'active'
       and e.student_user_id = ${input.studentId}::uuid and e.standard_id = ${input.standardId}::uuid
       and coalesce(l.id, a.id) is not null
+      ${input.released ? releasedOnly : sql``}
     group by e.source, e.sitting, e.attempt, l.id, l.title, a.id, a.title
     order by max(e.answered_at) desc`);
   return rows.map((row) => ({

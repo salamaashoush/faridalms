@@ -1,3 +1,4 @@
+import * as v from "valibot";
 import { describe, expect, it } from "vitest";
 
 import {
@@ -7,6 +8,8 @@ import {
   GRACE_MS,
   isLate,
   learnerState,
+  rubricEvidence,
+  rubricSchema,
   rubricTotal,
 } from "./coursework";
 
@@ -138,5 +141,62 @@ describe("rubricTotal", () => {
         ],
       }),
     ).toBe(10);
+  });
+});
+
+describe("rubricEvidence", () => {
+  const standard = "019a0000-0000-7000-8000-000000000001";
+  const other = "019a0000-0000-7000-8000-000000000002";
+  const argument = {
+    id: "argument",
+    title: "Argument",
+    standards: [standard, other],
+    levels: [
+      { id: "exceeds", title: "Exceeds", points: 4 },
+      { id: "approaching", title: "Approaching", points: 2 },
+      { id: "beginning", title: "Beginning", points: 0 },
+    ],
+  };
+  const rubric = {
+    criteria: [
+      argument,
+      {
+        id: "spelling",
+        title: "Spelling",
+        levels: [{ id: "ok", title: "OK", points: 2 }],
+      },
+      {
+        id: "effort",
+        title: "Effort",
+        standards: [standard],
+        levels: [{ id: "none", title: "None", points: 0 }],
+      },
+    ],
+  };
+
+  it("counts the level awarded as a share of the criterion's best", () => {
+    expect(
+      rubricEvidence(rubric, { argument: "approaching", spelling: "ok" }),
+    ).toEqual([
+      { criterionId: "argument", standards: [standard, other], fraction: 0.5 },
+    ]);
+    expect(rubricEvidence(rubric, { argument: "beginning" })).toEqual([
+      { criterionId: "argument", standards: [standard, other], fraction: 0 },
+    ]);
+  });
+
+  it("skips criteria left unmarked, untagged or worth nothing", () => {
+    expect(rubricEvidence(rubric, { spelling: "ok", effort: "none" })).toEqual(
+      [],
+    );
+    expect(rubricEvidence(rubric, { argument: "gone" })).toEqual([]);
+  });
+
+  it("refuses a criterion carrying a standard twice", () => {
+    const twice = {
+      criteria: [{ ...argument, standards: [standard, standard] }],
+    };
+    expect(v.safeParse(rubricSchema, twice).success).toBe(false);
+    expect(v.safeParse(rubricSchema, rubric).success).toBe(true);
   });
 });

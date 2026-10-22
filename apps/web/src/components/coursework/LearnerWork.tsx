@@ -109,6 +109,14 @@ function RubricResult({
                   .join(" · ")}
               </span>
             </div>
+            {level?.description ? (
+              <p
+                dir="auto"
+                className="text-[13px] leading-[18px] text-muted-foreground"
+              >
+                {level.description}
+              </p>
+            ) : null}
             {comments?.[criterion.id] ? (
               <p
                 dir="auto"

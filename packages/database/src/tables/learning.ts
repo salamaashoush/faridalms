@@ -1090,13 +1090,14 @@ export const standards = core.table.withRLS(
   ],
 );
 
-export type EvidenceSource = "lesson" | "quiz";
+export type EvidenceSource = "lesson" | "quiz" | "rubric";
 
 /**
- * A marked answer to a question tagged with a standard: what a student's
- * mastery of it is worked out from. One row per standard the question
- * carried when it was marked, kept by the sitting and question it answers,
- * so marking again changes the row rather than adding one.
+ * A marked answer to a question tagged with a standard, or a rubric level
+ * awarded on a criterion carrying one: what a student's mastery of it is
+ * worked out from. One row per standard the question or criterion carried
+ * when it was marked, kept by the sitting and question it answers, so
+ * marking again changes the row rather than adding one.
  */
 export const standardEvidence = core.table.withRLS(
   "standard_evidence",
@@ -1112,6 +1113,7 @@ export const standardEvidence = core.table.withRLS(
       .notNull()
       .generatedAlwaysAs(sql`coalesce(lesson_id, submission_id)`),
     attempt: smallint("attempt").notNull(),
+    /** The question, or for a rubric a name-based id of its criterion. */
     blockId: uuid("block_id").notNull(),
     fraction: numeric("fraction", {
       precision: 5,
@@ -1147,7 +1149,7 @@ export const standardEvidence = core.table.withRLS(
     ck(
       "standard_evidence",
       "source",
-      sql`(source = 'lesson' and lesson_id is not null and submission_id is null) or (source = 'quiz' and submission_id is not null and lesson_id is null)`,
+      sql`(source = 'lesson' and lesson_id is not null and submission_id is null) or (source in ('quiz', 'rubric') and submission_id is not null and lesson_id is null)`,
     ),
     ck("standard_evidence", "attempt", sql`attempt between 1 and 1000`),
     ck("standard_evidence", "fraction", sql`fraction between 0 and 1`),

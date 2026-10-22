@@ -35,13 +35,14 @@ import {
   otherLocale,
   translationState,
 } from "@faridalms/domain/translations";
+import { Button } from "@faridalms/ui/button";
 import { Tabs, TabsList, TabsTrigger } from "@faridalms/ui/tabs";
 import {
   useQuery,
   useQueryClient,
   useSuspenseQuery,
 } from "@tanstack/react-query";
-import { Archive, CalendarClock, Copy, Send } from "lucide-react";
+import { Archive, CalendarClock, ClipboardPen, Copy, Send } from "lucide-react";
 import { useCallback, useRef, useState } from "react";
 import { toast } from "sonner";
 
@@ -86,6 +87,7 @@ import { classTitle } from "../classes/format";
 import { FeedbackBands, keptBands } from "../learning/FeedbackBands";
 import { displayName } from "../people/format";
 import { formatInstant, PHASE_LABEL, PHASE_TONE } from "./format";
+import { RubricSheet } from "./RubricSheet";
 import { UseAgainSheet } from "./UseAgain";
 import { useDocumentMedia } from "./useDocumentMedia";
 
@@ -512,6 +514,7 @@ export function AssignmentEditor({
   const [refused, setRefused] = useState<Partial<Record<Field, string>>>({});
   const [detailsOpen, setDetailsOpen] = useState(false);
   const [reusing, setReusing] = useState({ key: 0, open: false });
+  const [writingRubric, setWritingRubric] = useState({ key: 0, open: false });
   const [pending, setPending] = useState<"assign" | "update" | null>(null);
   const [groupSearch, setGroupSearch] = useState("");
   const [studentSearch, setStudentSearch] = useState("");
@@ -1186,6 +1189,21 @@ export function AssignmentEditor({
                       }));
                     }}
                   />
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="w-fit max-md:h-10"
+                    onClick={() =>
+                      setWritingRubric((current) => ({
+                        key: current.key + 1,
+                        open: true,
+                      }))
+                    }
+                  >
+                    <ClipboardPen aria-hidden />
+                    {draft.rubric ? m.rubricEdit() : m.rubricWrite()}
+                  </Button>
                   <TextField
                     id="work-points"
                     label={m.courseworkPoints()}
@@ -1601,6 +1619,28 @@ export function AssignmentEditor({
           setRemoving(false);
         }}
       />
+      {writingRubric.key > 0 ? (
+        <RubricSheet
+          key={writingRubric.key}
+          open={writingRubric.open}
+          onOpenChange={(open) =>
+            setWritingRubric((current) => ({ ...current, open }))
+          }
+          rubric={draft.rubric}
+          kept={
+            options.rubrics.find((row) => row.id === draft.rubricId) ?? null
+          }
+          onUse={(rubric, keptId) =>
+            setDraft((current) => ({
+              ...current,
+              rubric,
+              rubricId: keptId,
+              points: String(rubricTotal(rubric)),
+            }))
+          }
+          onForget={() => set("rubricId", "")}
+        />
+      ) : null}
       {reusing.key > 0 && storedId ? (
         <UseAgainSheet
           key={reusing.key}

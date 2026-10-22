@@ -168,6 +168,86 @@ test("a teacher assigns work, a student hands it in, and the returned grade reac
   await studentContext.close();
 });
 
+test("a teacher writes a rubric, grades by its levels, and the student reads what the level means", async ({
+  browser,
+  page,
+}) => {
+  const title = `Essay ${crypto.randomUUID().slice(0, 6)}`;
+  const meaning = "Backs the point with one fitting example.";
+  await signInWith(page, TEACHER, PASSWORD, "/teach");
+  await page.goto("/teach/assignment-editor");
+  await untilHydrated(page);
+  await page.locator("#work-class").click();
+  await page.getByRole("option", { name: "8A Arabic", exact: true }).click();
+  await page.getByRole("textbox", { name: "Assignment title" }).fill(title);
+  await page.locator("[contenteditable=true]").first().click();
+  await page.keyboard.type("Argue for a longer break.");
+  await page.getByRole("button", { name: "Write a rubric" }).click();
+  const sheet = page.getByRole("dialog", { name: "Rubric" });
+  await sheet.getByRole("button", { name: "Use this rubric" }).click();
+  // Nothing is used while a criterion has no name.
+  await expect(
+    sheet.getByText("Name what this criterion judges."),
+  ).toBeVisible();
+  await sheet
+    .getByRole("textbox", { name: "Criterion 1" })
+    .fill("Use of evidence");
+  await sheet
+    .getByRole("textbox", { name: "What work at Meets looks like" })
+    .fill(meaning);
+  await sheet.getByRole("button", { name: "Use this rubric" }).click();
+  await expect(sheet).toBeHidden();
+  await expect(page.locator("#work-rubric")).toHaveText(/Attached rubric/);
+  await expect(page.locator("#work-points")).toHaveValue("4");
+  await page.getByRole("button", { name: "Assign", exact: true }).click();
+  await expect(page).toHaveURL(/\/assignments\/[a-f0-9-]+/);
+  const recordUrl = page.url().split("?")[0] ?? "";
+
+  const studentContext = await browser.newContext();
+  const student = await studentContext.newPage();
+  await signInWith(
+    student,
+    ACCOUNTS.student.email,
+    PASSWORD,
+    ACCOUNTS.student.home,
+  );
+  await student.goto("/me/assignments");
+  await untilHydrated(student);
+  await student.getByRole("link", { name: title }).click();
+  await student.locator("[contenteditable=true]").first().click();
+  await student.keyboard.type("A longer break lets us eat and rest.");
+  await student.getByRole("button", { name: "Hand in", exact: true }).click();
+  await student
+    .getByRole("dialog")
+    .getByRole("button", { name: "Hand in", exact: true })
+    .click();
+  await expect(student.getByText("Undo hand in")).toBeVisible();
+
+  await page.goto(`${recordUrl}?tab=work`);
+  await untilHydrated(page);
+  await page
+    .getByRole("tabpanel")
+    .getByRole("row", { name: /Yasmin Sabry/ })
+    .getByRole("button", { name: "Grade", exact: true })
+    .click();
+  await expect(page).toHaveURL(/\/teach\/grading/);
+  await untilHydrated(page);
+  await page.getByRole("button", { name: "Grade", exact: true }).click();
+  await page.getByRole("combobox", { name: /Use of evidence/ }).click();
+  await page.getByRole("option", { name: "Meets (3)" }).click();
+  // The grader reads what the level means as they choose it.
+  await expect(page.getByText(meaning)).toBeVisible();
+  await expect(page.locator("#grade-score")).toHaveValue("3");
+  await page.getByRole("button", { name: "Return and next" }).click();
+  await expect(page).toHaveURL(/tab=work/);
+
+  await student.reload();
+  await untilHydrated(student);
+  await expect(student.getByText("Meets (3)")).toBeVisible();
+  await expect(student.getByText(meaning)).toBeVisible();
+  await studentContext.close();
+});
+
 test("a teacher's gradebook shows the class's work and term grades", async ({
   page,
 }) => {

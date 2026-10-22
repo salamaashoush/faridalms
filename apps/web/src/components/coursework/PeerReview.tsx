@@ -323,6 +323,10 @@ function ReviewForm({
           key={criterion.id}
           id={`peer-${review.id}-${criterion.id}`}
           label={criterion.title}
+          hint={
+            criterion.levels.find((level) => level.id === levels[criterion.id])
+              ?.description || undefined
+          }
           value={levels[criterion.id] ?? "none"}
           options={[
             { value: "none", label: m.peerChooseLevel() },

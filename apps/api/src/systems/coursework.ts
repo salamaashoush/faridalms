@@ -57,6 +57,7 @@ import {
   releaseAssessments,
   releaseComments,
   removeBankComment,
+  removeRubric,
   removeComment,
   removeGroup,
   restoreComment,
@@ -120,6 +121,7 @@ import {
   pauseSitting,
   resumeSitting,
 } from "@faridalms/database/stores/quizzes";
+import { recordRubricEvidence } from "@faridalms/database/stores/standards";
 import { isVisibleStudent } from "@faridalms/database/stores/students";
 import {
   reviewTranslation,
@@ -168,6 +170,7 @@ import {
   replyToCommentSchema,
   restoreCommentSchema,
   publishSchema,
+  rubricEvidence,
   rubricTotal,
   saveAssignmentSchema,
   saveBankCommentSchema,
@@ -230,6 +233,7 @@ import {
   taughtAssignment,
 } from "../core/coursework-access";
 import { gradeReader } from "../core/grades";
+import { nameUuid } from "../core/names";
 import {
   audit,
   can,
@@ -1804,7 +1808,17 @@ function keptComments(comments: Record<string, string> | null) {
   return kept.length ? Object.fromEntries(kept) : null;
 }
 
-/** Saves the grader's judgement of an attempt as a draft; returning releases it. */
+/** The namespace a rubric criterion's evidence id is made in from its own id. */
+const CRITERION_NAMESPACE = Buffer.from(
+  "303db884d8604360a337d01e0dd6df49",
+  "hex",
+);
+
+/**
+ * Saves the grader's judgement of an attempt as a draft; returning releases
+ * it. Each level on a criterion carrying standards is evidence of them, which
+ * the student and their family see once the grade is returned.
+ */
 export const assess = writeProcedure
   .input(assessSchema)
   .handler(async ({ input, context }) => {
@@ -1833,6 +1847,20 @@ export const assess = writeProcedure
       privateNote: input.privateNote || null,
       userId: context.actor.userId,
       today: context.today,
+    });
+    const rubric = assignment.rubric as unknown as Rubric | null;
+    await recordRubricEvidence(tx, {
+      tenantId: context.tenantId,
+      studentId: attempt.studentId,
+      submissionId: attempt.submissionId,
+      attempt: attempt.number,
+      marks: rubric
+        ? rubricEvidence(rubric, input.rubricScores ?? {}).map((mark) => ({
+            blockId: nameUuid(CRITERION_NAMESPACE, mark.criterionId),
+            standards: mark.standards,
+            fraction: mark.fraction,
+          }))
+        : [],
     });
     return saved;
   });
@@ -2935,6 +2963,19 @@ export const saveTeacherRubric = writeProcedure
     });
     if (!saved) throw new ORPCError("NOT_FOUND");
     return { id: saved };
+  });
+
+export const removeTeacherRubric = writeProcedure
+  .input(v.object({ id }))
+  .handler(async ({ input, context }) => {
+    requireCapability(context, "assignments:author");
+    const removed = await removeRubric(context.tx, {
+      tenantId: context.tenantId,
+      id: input.id,
+      ownerId: context.actor.userId,
+    });
+    if (!removed) throw new ORPCError("NOT_FOUND");
+    return { removed };
   });
 
 /**

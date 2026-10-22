@@ -1264,6 +1264,7 @@ describe("quizzes", () => {
 
   async function quizFor(
     reveal: "answers" | "feedback" | "marks" | "returned",
+    standards: string[] = [],
   ) {
     const teacher = await arabicTeacher();
     const student = await sessionFor("northwind", login("student"));
@@ -1283,6 +1284,7 @@ describe("quizzes", () => {
       correctOptionIds: [right],
       multiple: false,
       shuffle: false,
+      ...(standards.length ? { standards } : {}),
     };
     const typed = {
       ...common,
@@ -2467,8 +2469,30 @@ describe("quizzes", () => {
   });
 
   test("a quiz shown only when returned keeps its results back until then", async () => {
-    const { teacher, student, me, saved, choice, right } =
-      await quizFor("returned");
+    const office = await signedIn("northwind", login("principal"));
+    const framework = await office.standards.saveFramework({
+      id: "",
+      expectedVersion: 0,
+      title: `Held back ${uuid()}`,
+      description: "",
+    });
+    const nouns = await office.standards.saveStandard({
+      frameworkId: framework.id,
+      id: "",
+      expectedVersion: 0,
+      parentId: "",
+      code: "HB.1",
+      statement: "Names a noun.",
+      itemType: "",
+    });
+    const { teacher, student, me, saved, choice, right } = await quizFor(
+      "returned",
+      [nouns.id],
+    );
+    const skill = async () =>
+      (await student.api.standards.studentProgress({})).mastery.find(
+        (row) => row.standardId === nouns.id,
+      );
     await student.api.coursework.saveQuizAnswer({
       assignmentId: saved.id,
       blockId: choice.id,
@@ -2484,6 +2508,8 @@ describe("quizzes", () => {
       score: null,
       checks: null,
     });
+    // Nor does the skill the question carries give the answer away.
+    expect(await skill()).toBeUndefined();
     await teacher.api.coursework.act({
       assignmentId: saved.id,
       action: "return",
@@ -2494,6 +2520,53 @@ describe("quizzes", () => {
     expect(shown.quiz?.results[0]?.checks?.[choice.id]).toMatchObject({
       correct: true,
     });
+    expect(await skill()).toMatchObject({ score: 1 });
+    await office.standards.removeFramework({ id: framework.id });
+  });
+});
+
+describe("a teacher's own rubrics", () => {
+  test("a rubric is kept to use again, changed in place, and taken out without touching work using it", async () => {
+    const teacher = await arabicTeacher();
+    const rubric = {
+      criteria: [
+        {
+          id: "clarity",
+          title: "Clarity",
+          levels: [
+            {
+              id: "clear",
+              title: "Clear",
+              points: 2,
+              description: "Every step follows from the one before.",
+            },
+            { id: "unclear", title: "Unclear", points: 0 },
+          ],
+        },
+      ],
+    };
+    const kept = await teacher.api.coursework.saveTeacherRubric({
+      title: `Clarity ${uuid()}`,
+      rubric,
+    });
+    const mine = async () =>
+      (await teacher.api.coursework.options()).rubrics.find(
+        (row) => row.id === kept.id,
+      );
+    expect((await mine())?.rubric).toEqual(rubric);
+    await teacher.api.coursework.saveTeacherRubric({
+      id: kept.id,
+      title: "Clarity, kept",
+      rubric,
+    });
+    expect(await mine()).toMatchObject({ title: "Clarity, kept" });
+    // Another teacher can neither change nor take it out.
+    const other = await englishTeacher();
+    expect(
+      await rejection(other.coursework.removeTeacherRubric({ id: kept.id })),
+    ).toMatchObject({ code: "NOT_FOUND" });
+    await teacher.api.coursework.removeTeacherRubric({ id: kept.id });
+    expect(await mine()).toBeUndefined();
   });
 });
 

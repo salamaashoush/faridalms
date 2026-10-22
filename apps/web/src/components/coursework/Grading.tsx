@@ -507,6 +507,11 @@ function GradeSheet({
                   <SelectField
                     id={`level-${criterion.id}`}
                     label={criterion.title}
+                    hint={
+                      criterion.levels.find(
+                        (level) => level.id === levels[criterion.id],
+                      )?.description || undefined
+                    }
                     value={levels[criterion.id] ?? "none"}
                     options={[
                       { value: "none", label: m.commonNotRecorded() },
