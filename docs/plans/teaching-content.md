@@ -137,10 +137,11 @@ Sources: [../research/course-design.md](../research/course-design.md),
    worked exactly over the rationals; and answers with units, compared in
    SI base units (US customary and temperature scales too) or only in the
    key's. A student whose answer meant the key is told the form or units
-   it lacked. Mixed numbers read as school writes them.
+   it lacked. Mixed numbers read as school writes them. Significant
+   figures and decimal places are forms too, marked as STACK's NumSigFigs
+   does, and a key its own form or units would refuse stops at publishing.
    Left: factorising beyond school algebra (quartics with no rational
-   root, three letters), significant figures and decimal places as a form,
-   and a key written in a form it asks students for, checked on publish.
+   root, three letters).
 3. **Embeds for teaching**: GeoGebra, Desmos, PhET, Wikimedia Commons and
    Microsoft 365 files beside today's YouTube, Vimeo, Loom, Google and Canva. Done:
    GeoGebra activities, Desmos graphs (calculator, geometry, 3D) and PhET
