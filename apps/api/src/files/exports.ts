@@ -96,6 +96,7 @@ import { editableModule } from "../core/learning-access";
 import { nameUuid } from "../core/names";
 import { can, localeOf, openUnit, schoolOf } from "../core/procedure";
 import { drawsOf, publishedQuiz } from "../core/quiz";
+import { sharedInliner } from "../core/shared";
 
 const PATH = /^\/v1\/assignments\/([0-9a-f-]{36})\/work\.zip$/;
 const PORTFOLIO = /^\/v1\/students\/([0-9a-f-]{36})\/portfolio\.zip$/;
@@ -616,7 +617,10 @@ type CartridgeLesson = {
   content: ContentDocument;
 };
 
-/** A module's lessons as they are stored, in their order. */
+/**
+ * A module's lessons as they are stored, in their order, each shared block
+ * written out, since the system they go to keeps none of the school's.
+ */
 async function cartridgeLessons(
   unit: UnitContext,
   moduleId: string,
@@ -631,7 +635,15 @@ async function cartridgeLessons(
     if (content)
       lessons.push({ title: lesson.title, language: lesson.language, content });
   }
-  return lessons;
+  const inline = await sharedInliner(
+    unit,
+    lessons.map((lesson) => lesson.content),
+  );
+  return lessons.map((lesson) => ({
+    title: lesson.title,
+    language: lesson.language,
+    content: inline(lesson.content),
+  }));
 }
 
 /**
@@ -966,6 +978,12 @@ async function classCartridge(
     }
     assignments.push({ ...assignment, brief, quiz });
   }
+  const inline = await sharedInliner(
+    unit,
+    assignments.map((assignment) => assignment.brief),
+  );
+  for (const assignment of assignments)
+    assignment.brief = inline(assignment.brief);
   const entries: Entry[] = [];
   const shared = await sharedFiles(
     unit,
