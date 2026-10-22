@@ -69,6 +69,7 @@ import {
   archiveModule,
   duplicateModule,
   moveLesson,
+  openForStudent,
   overrideLesson,
   publishModule,
   removeLesson,
@@ -645,17 +646,57 @@ function Matrix({ moduleId, classId }: { moduleId: string; classId: string }) {
     }
   };
   const doneText = (student: StudentRow) => doneOf(data, student);
+  const setOpen = async (
+    lessonId: string,
+    student: StudentRow,
+    open: boolean,
+  ) => {
+    try {
+      await openForStudent({
+        data: { lessonId, studentId: student.id, open },
+      });
+      await refresh();
+      toast.success(
+        (open ? m.lrnOpenedFor : m.lrnClosedFor)({
+          student: displayName(student),
+        }),
+      );
+    } catch (error) {
+      toast.error(getMessageFromError(error));
+    }
+  };
+  // A lesson a student's path leaves out, or waits to decide, a teacher can
+  // open for them; one they opened, take back.
   const rowActions = (row: StudentRow): RowAction[] =>
     data.lessons.flatMap((lesson, index) => {
-      if (pathOf(data, lesson.id, row.id) === "off") return [];
+      const number = formatNumber(index + 1);
+      const path = pathOf(data, lesson.id, row.id);
+      const opened = data.openings.some(
+        (item) => item.lessonId === lesson.id && item.studentId === row.id,
+      );
+      if (path)
+        return [
+          {
+            label: m.lrnOpenLessonFor({ number }),
+            onSelect: () => void setOpen(lesson.id, row, true),
+          },
+        ];
       const done = Boolean(cellOf(data.cells, lesson.id, row.id)?.completedAt);
       return [
         {
           label: done
-            ? m.lrnUndoLesson({ number: formatNumber(index + 1) })
-            : m.lrnMarkLesson({ number: formatNumber(index + 1) }),
+            ? m.lrnUndoLesson({ number })
+            : m.lrnMarkLesson({ number }),
           onSelect: () => flip(lesson.id, row, !done),
         },
+        ...(opened
+          ? [
+              {
+                label: m.lrnCloseLessonFor({ number }),
+                onSelect: () => void setOpen(lesson.id, row, false),
+              },
+            ]
+          : []),
       ];
     });
   return (

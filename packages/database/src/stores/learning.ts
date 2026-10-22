@@ -2,6 +2,7 @@ import type {
   FeedbackBand,
   FluencyMark,
   LessonCondition,
+  LessonResult,
 } from "@faridalms/domain/learning";
 import type { LiveProgress, LiveTry } from "@faridalms/domain/live";
 import type { ContentLocale } from "@faridalms/domain/translations";
@@ -1405,17 +1406,28 @@ export async function standingsIn(
   input: { tenantId: string; moduleIds: readonly string[]; studentId: string },
 ): Promise<Map<string, ModuleStanding>> {
   const lessons = await lessonsIn(tx, input.tenantId, input.moduleIds);
-  const progress = await progressIn(tx, {
+  const scope = {
     tenantId: input.tenantId,
     lessonIds: lessons.map((lesson) => lesson.id),
     studentIds: [input.studentId],
-  });
-  const results = new Map(
+  };
+  const [progress, openings] = await Promise.all([
+    progressIn(tx, scope),
+    openingsIn(tx, scope),
+  ]);
+  const results = new Map<string, LessonResult>(
     progress.map((row) => [
       row.lessonId,
       { completed: row.completedAt !== null, score: row.score },
     ]),
   );
+  for (const opening of openings)
+    results.set(opening.lessonId, {
+      completed: false,
+      score: null,
+      ...results.get(opening.lessonId),
+      opened: true,
+    });
   return new Map(
     input.moduleIds.map((moduleId) => [
       moduleId,
@@ -2199,6 +2211,54 @@ export async function pace(
       and status = 'active' and ended_at is null
     returning ${pacedColumns}`);
   return row ? pacedOf(row) : null;
+}
+
+/** The lessons teachers opened by hand for these students, whatever their paths say. */
+export async function openingsIn(
+  tx: Tx,
+  input: {
+    tenantId: string;
+    lessonIds: readonly string[];
+    studentIds: readonly string[];
+  },
+): Promise<{ lessonId: string; studentId: string }[]> {
+  if (input.lessonIds.length === 0 || input.studentIds.length === 0) return [];
+  const rows = await tx.execute<{
+    lesson_id: string;
+    student_user_id: string;
+  }>(sql`
+    select lesson_id, student_user_id from core.lesson_openings
+    where tenant_id = ${input.tenantId}::uuid and status = 'active'
+      and lesson_id = any(${uuidArray(input.lessonIds)})
+      and student_user_id = any(${uuidArray(input.studentIds)})`);
+  return rows.map((row) => ({
+    lessonId: row.lesson_id,
+    studentId: row.student_user_id,
+  }));
+}
+
+/** Opens a lesson for one student by hand, or takes that back. */
+export async function setOpening(
+  tx: Tx,
+  input: {
+    tenantId: string;
+    lessonId: string;
+    studentId: string;
+    userId: string;
+    open: boolean;
+  },
+): Promise<void> {
+  if (input.open)
+    await tx.execute(sql`
+      insert into core.lesson_openings (tenant_id, lesson_id, student_user_id, opened_by_user_id)
+      values (${input.tenantId}::uuid, ${input.lessonId}::uuid, ${input.studentId}::uuid,
+        ${input.userId}::uuid)
+      on conflict (tenant_id, lesson_id, student_user_id) where status = 'active' do nothing`);
+  else
+    await tx.execute(sql`
+      update core.lesson_openings set status = 'tobedeleted'
+      where tenant_id = ${input.tenantId}::uuid and lesson_id = ${input.lessonId}::uuid
+        and student_user_id = ${input.studentId}::uuid and status = 'active'`);
 }
 
 /** Marks a student's progress in a lesson as touched now, so a teacher leading it sees them there. */

@@ -524,6 +524,44 @@ export const programRemarks = core.table.withRLS(
 );
 
 /**
+ * A lesson a teacher opened for one student whatever their path through
+ * the module says, as Canvas lets a teacher release an item by hand.
+ */
+export const lessonOpenings = core.table.withRLS(
+  "lesson_openings",
+  {
+    ...tenantColumns(),
+    lessonId: uuid("lesson_id").notNull(),
+    studentUserId: uuid("student_user_id").notNull(),
+    openedByUserId: uuid("opened_by_user_id").notNull(),
+    ...entityColumns(),
+  },
+  (t): PgTableExtraConfigValue[] => [
+    pk("lesson_openings", t.tenantId, t.id),
+    ...baseConstraints("lesson_openings", t, tenants),
+    fk(
+      "lesson_openings",
+      [t.tenantId, t.lessonId],
+      [lessons.tenantId, lessons.id],
+    ),
+    fk(
+      "lesson_openings",
+      [t.tenantId, t.studentUserId],
+      [users.tenantId, users.id],
+    ),
+    fk(
+      "lesson_openings",
+      [t.tenantId, t.openedByUserId],
+      [users.tenantId, users.id],
+    ),
+    uniqueIndex("lesson_openings_key")
+      .on(t.tenantId, t.lessonId, t.studentUserId)
+      .where(sql`status = 'active'`),
+    ...entityProfile(),
+  ],
+);
+
+/**
  * Where a student is in a lesson: their score, where they stopped reading,
  * and whether it is done, by their own work or a teacher's override. Their
  * answers are the rows of `lesson_responses`.

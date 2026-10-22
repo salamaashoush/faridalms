@@ -11,6 +11,7 @@ import {
   moduleRefSchema,
   moveLessonSchema,
   overrideSchema,
+  openForStudentSchema,
   paceSchema,
   planSchema,
   positionSchema,
@@ -166,6 +167,10 @@ export const endPaced = createServerFn({ method: "POST" })
 export const getPacing = createServerFn({ method: "GET" })
   .validator(checked(v.object({ lessonId: v.pipe(v.string(), v.uuid()) })))
   .handler(({ data }) => backend().learning.pacing(data));
+
+export const openForStudent = createServerFn({ method: "POST" })
+  .validator(checked(openForStudentSchema))
+  .handler(({ data }) => backend().learning.openForStudent(data));
 
 export const overrideLesson = createServerFn({ method: "POST" })
   .validator(checked(overrideSchema))

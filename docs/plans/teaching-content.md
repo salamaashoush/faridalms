@@ -487,9 +487,11 @@ Sources: [../research/course-design.md](../research/course-design.md),
    on a path. A module's count and finish follow each student's path; the
    teacher's progress shows a lesson off a student's path, or waiting on a
    score, and the lessons table names each rule. A rule's lesson cannot be
-   moved after it or removed, and a copied module keeps its rules.
-   Left: a teacher releasing a lesson off a student's path by hand, and
-   routing across modules by a single lesson's score.
+   moved after it or removed, and a copied module keeps its rules. A
+   teacher opens a lesson off a student's path, or still waiting on a
+   score, for that student from the progress grid, and takes it back
+   there; a lesson after it then follows from it as from any other.
+   Left: routing across modules by a single lesson's score.
 7. **Live lesson**: the teacher paces a lesson for the class, as Nearpod and
    Pear Deck do, with answers gathered on the teacher's screen.
    Done: Teach live, on a lesson of an open module, leads one class

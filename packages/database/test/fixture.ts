@@ -77,6 +77,7 @@ import {
   moduleClasses,
   pacedLessons,
   lessonReleases,
+  lessonOpenings,
   programRemarks,
   discussionPosts,
   ltiKeys,
@@ -558,6 +559,12 @@ export async function completeFixture(
     lessonId: lesson.id,
     classId: setFor.classId,
     releasedByUserId: userId,
+  });
+  await tx.insert(lessonOpenings).values({
+    tenantId,
+    lessonId: lesson.id,
+    studentUserId: userId,
+    openedByUserId: userId,
   });
   const [snapshot] = await tx
     .select({ id: documentVersions.id })

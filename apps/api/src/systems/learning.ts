@@ -61,6 +61,8 @@ import {
   orderLessons,
   yearUnitsOf,
   progressIn,
+  openingsIn,
+  setOpening,
   lessonResponses,
   lessonReleased,
   releaseLesson,
@@ -156,6 +158,7 @@ import {
   moveLessonSchema,
   readLessonInSchema,
   overrideSchema,
+  openForStudentSchema,
   paceSchema,
   partOf,
   pathOf,
@@ -482,13 +485,45 @@ async function publishLessons(context: UnitContext, lessonIds: string[]) {
   }
 }
 
-const resultsOf = (cells: readonly ProgressRow[]) =>
-  new Map<string, LessonResult>(
+function resultsOf(
+  cells: readonly ProgressRow[],
+  opened: ReadonlySet<string> = new Set(),
+) {
+  const results = new Map<string, LessonResult>(
     cells.map((cell) => [
       cell.lessonId,
       { completed: cell.completedAt !== null, score: cell.score },
     ]),
   );
+  for (const lessonId of opened)
+    results.set(lessonId, {
+      completed: false,
+      score: null,
+      ...results.get(lessonId),
+      opened: true,
+    });
+  return results;
+}
+
+/** One student's progress through some lessons, and those their teacher opened for them. */
+async function pathFacts(
+  context: UnitContext,
+  lessonIds: readonly string[],
+  studentId: string,
+) {
+  const scope = {
+    tenantId: context.tenantId,
+    lessonIds,
+    studentIds: [studentId],
+  };
+  const [cells, openings] = await Promise.all([
+    progressIn(context.tx, scope),
+    openingsIn(context.tx, scope),
+  ]);
+  return { cells, opened: new Set(openings.map((row) => row.lessonId)) };
+}
+
+type PathFacts = Awaited<ReturnType<typeof pathFacts>>;
 
 /**
  * The lessons on a student's path through a module, each done, open, or
@@ -498,10 +533,10 @@ const resultsOf = (cells: readonly ProgressRow[]) =>
 function outline(
   row: ModuleRow,
   lessons: Awaited<ReturnType<typeof lessonsOf>>,
-  cells: readonly ProgressRow[],
+  { cells, opened }: PathFacts,
   locked: boolean,
 ) {
-  const results = resultsOf(cells);
+  const results = resultsOf(cells, opened);
   const path = pathOf(lessons, results);
   let blocked = locked;
   return lessons
@@ -1654,19 +1689,28 @@ export const progress = readProcedure
       lessonsOf(context.tx, context.tenantId, row.id),
       audienceOf(context, row.id, input.classId),
     ]);
-    const [students, cells] = await Promise.all([
+    const scope = {
+      tenantId: context.tenantId,
+      lessonIds: lessons.map((item) => item.id),
+      studentIds: roster,
+    };
+    const [students, cells, openings] = await Promise.all([
       namesOf(context.tx, context.tenantId, roster),
-      progressIn(context.tx, {
-        tenantId: context.tenantId,
-        lessonIds: lessons.map((item) => item.id),
-        studentIds: roster,
-      }),
+      progressIn(context.tx, scope),
+      openingsIn(context.tx, scope),
     ]);
     // Where each student's path leaves a lesson out, or waits to decide.
     const paths = roster.flatMap((studentId) => {
       const path = pathOf(
         lessons,
-        resultsOf(cells.filter((cell) => cell.studentUserId === studentId)),
+        resultsOf(
+          cells.filter((cell) => cell.studentUserId === studentId),
+          new Set(
+            openings
+              .filter((opening) => opening.studentId === studentId)
+              .map((opening) => opening.lessonId),
+          ),
+        ),
       );
       return lessons.flatMap((item) => {
         const state = path.get(item.id);
@@ -1690,6 +1734,7 @@ export const progress = readProcedure
       lessons,
       students,
       paths,
+      openings,
       tools: columns,
       toolScores: scores.flatMap((score) => {
         const column = columns.find((item) => item.id === score.lineItemId);
@@ -2141,6 +2186,46 @@ export const pacing = readProcedure
     };
   });
 
+/**
+ * A teacher opens a lesson for a student whose path leaves it out, or
+ * waits on an earlier score, or takes that back. Work already done in it
+ * stays theirs.
+ */
+export const openForStudent = writeProcedure
+  .input(openForStudentSchema)
+  .handler(async ({ input, context }) => {
+    const row = await lessonById(context.tx, context.tenantId, input.lessonId);
+    if (!row?.condition) throw new ORPCError("NOT_FOUND");
+    const owner = await editableModule(context, row.moduleId);
+    const classes = await classesOfModule(
+      context.tx,
+      context.tenantId,
+      owner.id,
+    );
+    let enrolled = false;
+    for (const item of classes)
+      if (
+        (await audienceOf(context, owner.id, item.id)).includes(input.studentId)
+      )
+        enrolled = true;
+    if (!enrolled) throw new ORPCError("NOT_FOUND");
+    await setOpening(context.tx, {
+      tenantId: context.tenantId,
+      lessonId: row.id,
+      studentId: input.studentId,
+      userId: context.actor.userId,
+      open: input.open,
+    });
+    await audit(context, {
+      action: input.open ? "lesson.open" : "lesson.open_undo",
+      objectType: "lesson",
+      objectId: row.id,
+      subjectUserId: input.studentId,
+      studentUserId: input.studentId,
+    });
+    return { open: input.open };
+  });
+
 /** A teacher marks a lesson done for a student, or takes that back. */
 export const override = writeProcedure
   .input(overrideSchema)
@@ -2232,14 +2317,14 @@ export const nextLessons = readProcedure.handler(async ({ context }) => {
   const lessons = await Promise.all(
     open.map((row) => studentLessons(context, row.id)),
   );
-  const cells = await progressIn(context.tx, {
-    tenantId: context.tenantId,
-    lessonIds: lessons.flat().map((item) => item.id),
-    studentIds: [studentId],
-  });
-  const begun = new Set(cells.map((cell) => cell.lessonId));
+  const facts = await pathFacts(
+    context,
+    lessons.flat().map((item) => item.id),
+    studentId,
+  );
+  const begun = new Set(facts.cells.map((cell) => cell.lessonId));
   const found = open.flatMap((row, index) => {
-    const next = outline(row, lessons[index] ?? [], cells, false).find(
+    const next = outline(row, lessons[index] ?? [], facts, false).find(
       (item) => item.state === "open",
     );
     return next
@@ -2411,17 +2496,17 @@ export const play = readProcedure
       studentId,
     );
     const lessons = await studentLessons(context, row.id);
-    const cells = await progressIn(context.tx, {
-      tenantId: context.tenantId,
-      lessonIds: lessons.map((item) => item.id),
-      studentIds: [studentId],
-    });
+    const facts = await pathFacts(
+      context,
+      lessons.map((item) => item.id),
+      studentId,
+    );
     return {
       ...row,
       locked,
       prerequisiteResult,
       own,
-      lessons: outline(row, lessons, cells, locked),
+      lessons: outline(row, lessons, facts, locked),
     };
   });
 
@@ -2448,12 +2533,16 @@ export const moduleGlossary = readProcedure
       const { studentId } = await learner(context, input.studentId);
       const { locked } = await openModule(context, row.id, studentId);
       const shown = await studentLessons(context, row.id);
-      const cells = await progressIn(context.tx, {
-        tenantId: context.tenantId,
-        lessonIds: shown.map((item) => item.id),
-        studentIds: [studentId],
-      });
-      lessons = outline(row, shown, cells, locked);
+      lessons = outline(
+        row,
+        shown,
+        await pathFacts(
+          context,
+          shown.map((item) => item.id),
+          studentId,
+        ),
+        locked,
+      );
     }
     const found = [];
     for (const part of lessons) {
@@ -2503,12 +2592,12 @@ async function playable(context: UnitContext, lessonId: string) {
   );
   const lessons = await studentLessons(context, owner.id);
   const classIds = await classesOfStudent(context, studentId);
-  const [cells, leading, released] = await Promise.all([
-    progressIn(context.tx, {
-      tenantId: context.tenantId,
-      lessonIds: lessons.map((item) => item.id),
-      studentIds: [studentId],
-    }),
+  const [facts, leading, released] = await Promise.all([
+    pathFacts(
+      context,
+      lessons.map((item) => item.id),
+      studentId,
+    ),
     pacingOf(context, row.id, classIds),
     lessonReleased(context.tx, {
       tenantId: context.tenantId,
@@ -2517,7 +2606,7 @@ async function playable(context: UnitContext, lessonId: string) {
       classIds,
     }),
   ]);
-  const states = outline(owner, lessons, cells, locked);
+  const states = outline(owner, lessons, facts, locked);
   const state = states.find((item) => item.id === row.id)?.state;
   // A lesson the teacher is leading the class through opens to all of it,
   // whatever each student's order or path would say.
@@ -2526,7 +2615,7 @@ async function playable(context: UnitContext, lessonId: string) {
     throw new ORPCError("CONFLICT", { message: "learning.locked" });
   const published = await publishedLesson(context, row.id);
   if (!published) throw new ORPCError("NOT_FOUND");
-  const own = cells.find((cell) => cell.lessonId === row.id) ?? null;
+  const own = facts.cells.find((cell) => cell.lessonId === row.id) ?? null;
   const attempt = own?.attempts ?? 1;
   // A student reads a translated lesson in the language they chose, else in
   // their own when the lesson has it. Its questions ask, and are marked, as
@@ -2728,11 +2817,11 @@ export const playLesson = writeProcedure
         ? outline(
             owner,
             played.lessons,
-            await progressIn(context.tx, {
-              tenantId: context.tenantId,
-              lessonIds: played.lessons.map((item) => item.id),
-              studentIds: [played.studentId],
-            }),
+            await pathFacts(
+              context,
+              played.lessons.map((item) => item.id),
+              played.studentId,
+            ),
             played.locked,
           )
         : states;

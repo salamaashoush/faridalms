@@ -1660,6 +1660,18 @@ describe("paths through a module", () => {
     expect(path.get(uuid(4))).toBe("on");
   });
 
+  it("puts a lesson its teacher opened on the path, the next waiting on it", () => {
+    const path = pathOf(
+      lessons,
+      new Map([
+        [uuid(1), { completed: true, score: 40 }],
+        [uuid(3), { completed: false, score: null, opened: true }],
+      ]),
+    );
+    expect(path.get(uuid(3))).toBe("on");
+    expect(path.get(uuid(4))).toBe("pending");
+  });
+
   it("keeps finished work on the path after a better score", () => {
     const path = pathOf(lessons, results([1, true, 90], [2, true, 70]));
     expect(path.get(uuid(2))).toBe("on");

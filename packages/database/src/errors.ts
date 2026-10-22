@@ -64,6 +64,7 @@ export const CONFLICTS: Record<string, string> = {
   lesson_releases_key: "learning.released",
   lesson_releases_student_key: "learning.released",
   program_remarks_pending_key: "conflict.version",
+  lesson_openings_key: "conflict.version",
   period_grades_key: "period_grade.exists",
   year_rollovers_years_key: "rollover.exists",
   attendance_settings_org_key: "attendance.stale",

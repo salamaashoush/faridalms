@@ -28,7 +28,7 @@ delete_allowed(name, role) as (values
   ('core.standard_evidence', 'retention'), ('core.goal_judgements', 'retention'),
   ('core.standard_observations', 'retention'),
   ('core.peer_reviews', 'retention'), ('core.lti_replays', 'retention'), ('core.lti_scores', 'retention'),
-  ('core.module_audiences', 'retention')),
+  ('core.module_audiences', 'retention'), ('core.lesson_openings', 'retention')),
 unversioned_update_allowed(name, role) as (values
   ('core.sessions', 'app'), ('core.sessions', 'worker'), ('core.auth_attempts', 'app'), ('core.auth_attempts', 'worker'),
   ('core.idempotency_keys', 'app'), ('core.idempotency_keys', 'worker'), ('core.tenant_keys', 'worker'),

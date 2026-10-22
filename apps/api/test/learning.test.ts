@@ -2878,6 +2878,11 @@ describe("templates", () => {
         stranger.learning.moduleFromLibrary({ id: shared.id, classId }),
       ),
     ).toMatchObject({ code: "NOT_FOUND" });
+    // The copy leaves the module lists the tests after this one read by title.
+    await stranger.learning.archiveModule({
+      id: copy.id,
+      expectedVersion: copy.version,
+    });
   });
 
   test("an event and a consent form are kept by those who write them", async () => {
@@ -5551,6 +5556,37 @@ describe("paths by score", () => {
     expect(matrix.paths.filter((row) => row.studentId === me.id)).toEqual([
       { lessonId: harder.id, studentId: me.id, state: "off" },
     ]);
+    // The teacher opens the harder step for the student by hand, and takes it back.
+    await keeper.learning.openForStudent({
+      lessonId: harder.id,
+      studentId: me.id,
+      open: true,
+    });
+    expect(await titles()).toEqual(["Check", "More practice", "A harder step"]);
+    const opened = await keeper.learning.progress({
+      moduleId: first.id,
+      classId,
+    });
+    expect(opened.paths.filter((row) => row.studentId === me.id)).toEqual([]);
+    expect(opened.openings).toContainEqual({
+      lessonId: harder.id,
+      studentId: me.id,
+    });
+    expect(
+      await rejection(
+        keeper.learning.openForStudent({
+          lessonId: check.id,
+          studentId: me.id,
+          open: true,
+        }),
+      ),
+    ).toMatchObject({ code: "NOT_FOUND" });
+    await keeper.learning.openForStudent({
+      lessonId: harder.id,
+      studentId: me.id,
+      open: false,
+    });
+    expect(await titles()).toEqual(["Check", "More practice"]);
     await pupil.learning.playLesson({ id: practice.id });
     const after = async () =>
       (await pupil.learning.mine({})).rows.find((row) => row.id === next.id);

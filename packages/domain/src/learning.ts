@@ -2221,6 +2221,8 @@ export interface LessonCondition {
 export interface LessonResult {
   completed: boolean;
   score: number | null;
+  /** Their teacher opened it for them, whatever their path says. */
+  opened?: boolean;
 }
 
 /**
@@ -2247,8 +2249,9 @@ export function meetsCondition(
  * once the lesson it depends on is finished with a score in range, off when
  * the score is out of range or that lesson is off the path itself, and
  * pending until then. A lesson the student has finished stays on their
- * path, so a better score later never hides work they did; a condition on
- * a lesson the module no longer has is void.
+ * path, so a better score later never hides work they did, and so does one
+ * their teacher opened for them; a condition on a lesson the module no
+ * longer has is void.
  */
 export function pathOf(
   lessons: readonly { id: string; condition: LessonCondition | null }[],
@@ -2264,6 +2267,7 @@ export function pathOf(
     if (
       condition &&
       !results.get(lessonId)?.completed &&
+      !results.get(lessonId)?.opened &&
       byId.has(condition.lessonId) &&
       depth < byId.size
     ) {
@@ -3379,6 +3383,13 @@ export const overrideSchema = v.object({
   lessonId: id,
   studentId: id,
   completed: v.boolean(),
+});
+
+/** A teacher opens a lesson off a student's path for them, or takes that back. */
+export const openForStudentSchema = v.object({
+  lessonId: id,
+  studentId: id,
+  open: v.boolean(),
 });
 
 export const progressQuerySchema = v.object({ moduleId: id, classId: id });
