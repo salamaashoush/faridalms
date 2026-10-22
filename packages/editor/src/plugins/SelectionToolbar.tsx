@@ -30,7 +30,11 @@ import {
   MAX_LABEL_EXTRAS,
   MAX_LINE_STEPS,
 } from "@faridalms/domain/learning";
-import { MATH_FORMS } from "@faridalms/domain/math-forms";
+import {
+  isWrittenForm,
+  MATH_FORMS,
+  PRECISION_FORMS,
+} from "@faridalms/domain/math-forms";
 import {
   blankOf,
   locked,
@@ -360,7 +364,18 @@ type AnswerBy = (typeof ANSWER_BY)[number];
 const COUNTS = Array.from({ length: 20 }, (_, index) => index + 1);
 // How far a maths answer's numbers may be from the key: exact, or to decimals.
 const MATH_TOLERANCES = [0, 0.001, 0.01, 0.1, 0.5, 1] as const;
-const MATH_FORM_CHOICES = [null, ...MATH_FORMS] as const;
+/** A form, or a precision with how many figures or places, as `figures:3`. */
+const MATH_FORM_CHOICES = [
+  null,
+  ...MATH_FORMS.filter(isWrittenForm),
+  "figures:2",
+  "figures:3",
+  "figures:4",
+  "places:0",
+  "places:1",
+  "places:2",
+  "places:3",
+] as const;
 const MATH_UNITS = [null, "convert", "same"] as const;
 const FLASH = [null, 2, 3, 5] as const;
 
@@ -1783,6 +1798,16 @@ export function SelectionToolbarPlugin() {
         : value === "frame"
           ? strings.questionCountFrame
           : strings.questionCountScatter;
+    const formText = (choice: string | null) => {
+      const [form = "any", places] = (choice ?? "any").split(":");
+      if (form === "figures")
+        return strings.questionMathFigures(Number(places));
+      if (form === "places") return strings.questionMathPlaces(Number(places));
+      const written = MATH_FORMS.find((each) => each === form);
+      return strings.questionMathForms[
+        written && isWrittenForm(written) ? written : "any"
+      ];
+    };
     const unitsText = (value: "convert" | "same" | null) =>
       value === "convert"
         ? strings.questionMathUnitsConvert
@@ -2149,10 +2174,22 @@ export function SelectionToolbarPlugin() {
               />
               <BarMenu
                 label={strings.questionMathForm}
-                current={strings.questionMathForms[settings.mathForm ?? "any"]}
+                current={formText(
+                  settings.mathForm && PRECISION_FORMS.has(settings.mathForm)
+                    ? `${settings.mathForm}:${settings.mathPlaces ?? 0}`
+                    : settings.mathForm,
+                )}
                 values={MATH_FORM_CHOICES}
-                text={(form) => strings.questionMathForms[form ?? "any"]}
-                onPick={(mathForm) => change({ mathForm })}
+                text={formText}
+                onPick={(choice) => {
+                  const [form, places] = (choice ?? "").split(":");
+                  const mathForm =
+                    MATH_FORMS.find((each) => each === form) ?? null;
+                  change({
+                    mathForm,
+                    mathPlaces: places === undefined ? null : Number(places),
+                  });
+                }}
                 onOpenChange={trackMenu}
                 finalFocus={textFocus(editor)}
               />

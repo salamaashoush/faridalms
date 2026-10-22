@@ -729,10 +729,31 @@
   "editorQuestionMathFormExpanded": "Expanded and simplified",
   "editorQuestionMathFormFraction": "A fraction in its simplest form",
   "editorQuestionMathFormStandard": "Standard form, a × 10ⁿ",
+  "editorQuestionMathWhole": "To a whole number",
+  "editorQuestionMathFigures": [
+    {
+      "declarations": ["input count", "local countPlural = count: plural"],
+      "selectors": ["countPlural"],
+      "match": {
+        "countPlural=one": "To {count} significant figure",
+        "countPlural=*": "To {count} significant figures"
+      }
+    }
+  ],
+  "editorQuestionMathPlaces": [
+    {
+      "declarations": ["input count", "local countPlural = count: plural"],
+      "selectors": ["countPlural"],
+      "match": {
+        "countPlural=one": "To {count} decimal place",
+        "countPlural=*": "To {count} decimal places"
+      }
+    }
+  ],
   "editorQuestionMathUnits": "Units",
   "editorQuestionMathUnitsNone": "No units",
-  "editorQuestionMathUnitsConvert": "With units, any that measure the same",
-  "editorQuestionMathUnitsSame": "With the units the answer is written in",
+  "editorQuestionMathUnitsConvert": "Units, any equivalent",
+  "editorQuestionMathUnitsSame": "Same units as the answer",
   "editorQuestionSeveral": "Several right answers",
   "editorQuestionShuffle": "Shuffle options",
   "editorQuestionPollSeveral": "Students may pick several",
@@ -3614,6 +3635,8 @@
   "lrnMathNoteExpanded": "That is the right value, but it is not expanded and simplified.",
   "lrnMathNoteFraction": "That is the right value, but not as a fraction in its simplest form.",
   "lrnMathNoteStandard": "That is the right value, but not in standard form.",
+  "lrnMathNoteFigures": "That is the right value, but not to the significant figures the question asks for.",
+  "lrnMathNotePlaces": "That is the right value, but not to the decimal places the question asks for.",
   "lrnMathNoteUnits": "That is the right amount, but give it in the units the question asks for.",
   "lrnMathNoteUnitless": "Give the units with your answer.",
   "lrnOptionsNeeded": "Give at least two options.",
@@ -5353,6 +5376,8 @@
   "lrnGapEmpty": "Every blank needs an answer inside its brackets.",
   "lrnGapChoices": "A blank to choose from needs at least two choices.",
   "lrnRangeOrder": "The lowest value must not be above the highest.",
+  "lrnMathKeyUnits": "A maths answer asked with units has an accepted answer without them. Write its units, or set the question to no units.",
+  "lrnMathKeyForm": "A maths answer has an accepted answer that is not written in the form it asks students for. Rewrite it, or choose another form.",
   "lrnTranscriptNeeded": "Audio needs a transcript or captions.",
   "lrnPractice": "Practice, no points",
   "lrnAnswersTab": "Answers",

@@ -1,4 +1,4 @@
-import type { MathForm } from "@faridalms/domain/math-forms";
+import type { WrittenForm } from "@faridalms/domain/math-forms";
 import type { ProjectLock } from "@faridalms/domain/project";
 import type { ScratchFeature } from "@faridalms/domain/scratch-project";
 
@@ -366,7 +366,9 @@ export interface EditorStrings extends LabelEditorStrings, ChartStrings {
   questionToleranceExact: string;
   questionToleranceWithin: (amount: string) => string;
   questionMathForm: string;
-  questionMathForms: Record<MathForm | "any", string>;
+  questionMathForms: Record<WrittenForm | "any", string>;
+  questionMathFigures: (count: number) => string;
+  questionMathPlaces: (count: number) => string;
   questionMathUnits: string;
   questionMathUnitsNone: string;
   questionMathUnitsConvert: string;

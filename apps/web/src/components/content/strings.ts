@@ -417,6 +417,11 @@ export function editorStrings(): EditorStrings {
       fraction: m.editorQuestionMathFormFraction(),
       standard: m.editorQuestionMathFormStandard(),
     },
+    questionMathFigures: (count) => m.editorQuestionMathFigures({ count }),
+    questionMathPlaces: (count) =>
+      count === 0
+        ? m.editorQuestionMathWhole()
+        : m.editorQuestionMathPlaces({ count }),
     questionMathUnits: m.editorQuestionMathUnits(),
     questionMathUnitsNone: m.editorQuestionMathUnitsNone(),
     questionMathUnitsConvert: m.editorQuestionMathUnitsConvert(),

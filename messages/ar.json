@@ -756,10 +756,35 @@
   "editorQuestionMathFormExpanded": "مفكوكة ومبسّطة",
   "editorQuestionMathFormFraction": "كسرًا في أبسط صورة",
   "editorQuestionMathFormStandard": "بالصيغة العلمية، a × 10ⁿ",
+  "editorQuestionMathWhole": "لأقرب عدد صحيح",
+  "editorQuestionMathFigures": [
+    {
+      "declarations": ["input count", "local countPlural = count: plural"],
+      "selectors": ["countPlural"],
+      "match": {
+        "countPlural=one": "لرقم معنوي واحد",
+        "countPlural=two": "لرقمين معنويين",
+        "countPlural=few": "لـ{count} أرقام معنوية",
+        "countPlural=*": "لـ{count} رقمًا معنويًا"
+      }
+    }
+  ],
+  "editorQuestionMathPlaces": [
+    {
+      "declarations": ["input count", "local countPlural = count: plural"],
+      "selectors": ["countPlural"],
+      "match": {
+        "countPlural=one": "لمنزلة عشرية واحدة",
+        "countPlural=two": "لمنزلتين عشريتين",
+        "countPlural=few": "لـ{count} منازل عشرية",
+        "countPlural=*": "لـ{count} منزلة عشرية"
+      }
+    }
+  ],
   "editorQuestionMathUnits": "الوحدات",
   "editorQuestionMathUnitsNone": "بلا وحدات",
-  "editorQuestionMathUnitsConvert": "بوحدات، أيّها يقيس الشيء نفسه",
-  "editorQuestionMathUnitsSame": "بالوحدات التي كُتبت بها الإجابة",
+  "editorQuestionMathUnitsConvert": "بوحدات مكافئة",
+  "editorQuestionMathUnitsSame": "بوحدات الإجابة نفسها",
   "editorQuestionSeveral": "أكثر من إجابة صحيحة",
   "editorQuestionShuffle": "ترتيب الخيارات عشوائيًا",
   "editorQuestionPollSeveral": "يمكن للطالب اختيار أكثر من خيار",
@@ -3787,6 +3812,8 @@
   "lrnMathNoteExpanded": "القيمة صحيحة، لكنها ليست مفكوكة ومبسّطة.",
   "lrnMathNoteFraction": "القيمة صحيحة، لكنها ليست كسرًا في أبسط صورة.",
   "lrnMathNoteStandard": "القيمة صحيحة، لكنها ليست بالصيغة العلمية.",
+  "lrnMathNoteFigures": "القيمة صحيحة، لكنها ليست بعدد الأرقام المعنوية الذي يطلبه السؤال.",
+  "lrnMathNotePlaces": "القيمة صحيحة، لكنها ليست بعدد المنازل العشرية الذي يطلبه السؤال.",
   "lrnMathNoteUnits": "المقدار صحيح، لكن اكتبه بالوحدات التي يطلبها السؤال.",
   "lrnMathNoteUnitless": "اكتب الوحدات مع إجابتك.",
   "lrnOptionsNeeded": "أدخل خيارين على الأقل.",
@@ -5626,6 +5653,8 @@
   "lrnGapEmpty": "يحتاج كل فراغ إلى إجابة بين قوسيه.",
   "lrnGapChoices": "يحتاج الفراغ الذي يُختار منه إلى خيارين على الأقل.",
   "lrnRangeOrder": "يجب ألّا تزيد القيمة الدنيا على العليا.",
+  "lrnMathKeyUnits": "في سؤال رياضيات يطلب الوحدات إجابةٌ مقبولة بلا وحدات. اكتب وحداتها، أو اجعل السؤال بلا وحدات.",
+  "lrnMathKeyForm": "في سؤال رياضيات إجابةٌ مقبولة ليست بالصورة التي يطلبها من الطلاب. أعد كتابتها، أو اختر صورة أخرى.",
   "lrnTranscriptNeeded": "يحتاج الصوت إلى نص مكتوب أو ترجمة مصاحبة.",
   "lrnPractice": "تدريب بلا درجات",
   "lrnAnswersTab": "الإجابات",

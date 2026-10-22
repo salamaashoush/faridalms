@@ -9,7 +9,7 @@ import * as v from "valibot";
 
 import type { ContentDocument, ContentNode, FeedbackTime } from "./content";
 import type { CrosswordEntry } from "./crossword";
-import type { MathForm } from "./math-forms";
+import type { MathNote } from "./math-marking";
 
 import { matchAnswer, parseNumber } from "./answers";
 import {
@@ -39,9 +39,8 @@ import {
   isContentDocument,
   lessonOfContent,
 } from "./lesson-content";
-import { sameLatex, sameMath } from "./math-answers";
-import { inMathForm, MATH_FORMS } from "./math-forms";
-import { compareQuantity, readQuantity } from "./math-units";
+import { MATH_FORMS } from "./math-forms";
+import { keyIssue, markMath } from "./math-marking";
 import {
   projectFilesSchema,
   projectLanguages,
@@ -379,25 +378,33 @@ export const lessonBlockSchema = v.variant("type", [
     type: v.literal("text"),
     answers: accepted,
   }),
-  v.object({
-    ...checkFields,
-    type: v.literal("math"),
-    /** The answers accepted, in LaTeX; one meaning the same as any is right. */
-    answers: v.pipe(
-      v.array(requiredText(MAX_LATEX)),
-      v.minLength(1),
-      v.maxLength(MAX_ACCEPTED_ANSWERS),
-    ),
-    /** How far a number may be from the key, for answers worked to decimals. */
-    tolerance: v.pipe(v.number(), v.minValue(0)),
-    /** How the answer must be written, beyond meaning the same as the key. */
-    form: v.optional(v.picklist(MATH_FORMS)),
-    /**
-     * The answers are quantities with units: the same quantity in any units
-     * is right, or only in the units the key is written in.
-     */
-    units: v.optional(v.picklist(["convert", "same"])),
-  }),
+  v.pipe(
+    v.object({
+      ...checkFields,
+      type: v.literal("math"),
+      /** The answers accepted, in LaTeX; one meaning the same as any is right. */
+      answers: v.pipe(
+        v.array(requiredText(MAX_LATEX)),
+        v.minLength(1),
+        v.maxLength(MAX_ACCEPTED_ANSWERS),
+      ),
+      /** How far a number may be from the key, for answers worked to decimals. */
+      tolerance: v.pipe(v.number(), v.minValue(0)),
+      /** How the answer must be written, beyond meaning the same as the key. */
+      form: v.optional(v.picklist(MATH_FORMS)),
+      /** For an answer asked to a precision: how many significant figures or decimal places. */
+      places: v.optional(
+        v.pipe(v.number(), v.integer(), v.minValue(0), v.maxValue(10)),
+      ),
+      /**
+       * The answers are quantities with units: the same quantity in any units
+       * is right, or only in the units the key is written in.
+       */
+      units: v.optional(v.picklist(["convert", "same"])),
+    }),
+    v.check((block) => keyIssue(block) !== "units", "learning.math_key_units"),
+    v.check((block) => keyIssue(block) !== "form", "learning.math_key_form"),
+  ),
   v.pipe(
     v.object({
       ...checkFields,
@@ -1657,12 +1664,7 @@ export function responseFiles(response: LessonResponse): string[] {
   return ids.filter((fileId) => fileId !== undefined);
 }
 
-/**
- * Why a maths answer that means the key was still not right: not in the
- * form asked for, named, or in other units where the key's were asked
- * for, or without its units.
- */
-export type MathNote = MathForm | "units" | "unitless";
+export type { MathNote } from "./math-marking";
 
 export interface Marked {
   /** From 0 to 1; partial credit where the question allows it. */
@@ -1762,40 +1764,7 @@ export function markResponse(
     }
     case "math": {
       if (response.type !== "math") return none;
-      const { latex } = response;
-      // What cannot be worked out is compared as written.
-      const outcomes = new Set(
-        block.answers.map(
-          (key) =>
-            (block.units
-              ? compareQuantity(
-                  latex,
-                  key,
-                  block.tolerance,
-                  block.units === "same",
-                )
-              : null) ??
-            ((sameMath(latex, key, block.tolerance) ?? sameLatex(latex, key))
-              ? "right"
-              : "wrong"),
-        ),
-      );
-      let correct = outcomes.has("right");
-      let note: MathNote | undefined = correct
-        ? undefined
-        : outcomes.has("units")
-          ? "units"
-          : outcomes.has("unitless")
-            ? "unitless"
-            : undefined;
-      // A form is asked of a quantity's number, not its units.
-      const written = block.units
-        ? (readQuantity(latex)?.number ?? latex)
-        : latex;
-      if (correct && block.form && inMathForm(written, block.form) === false) {
-        correct = false;
-        note = block.form;
-      }
+      const { correct, note } = markMath(block, response.latex);
       return {
         ...none,
         fraction: correct ? 1 : 0,

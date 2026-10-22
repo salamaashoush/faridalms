@@ -408,6 +408,8 @@ export interface QuestionSettings {
   scoring: "all" | "neighbours";
   /** How a maths answer must be written; none takes it in any form. */
   mathForm: MathForm | null;
+  /** For a maths answer asked to a precision: how many figures or places. */
+  mathPlaces: number | null;
   /** A maths answer with units: right in any units, or only in the key's. */
   mathUnits: "convert" | "same" | null;
 }
@@ -467,6 +469,7 @@ export function defaultSettings(kind: QuestionKind): QuestionSettings {
     rangeMax: 0,
     scoring: "all",
     mathForm: null,
+    mathPlaces: null,
     mathUnits: null,
   };
 }
@@ -538,6 +541,7 @@ function questionSettings(stored: StoredSettings): QuestionSettings {
     rangeMax: stored.rangeMax ?? base.rangeMax,
     scoring: stored.scoring ?? base.scoring,
     mathForm: stored.mathForm ?? null,
+    mathPlaces: stored.mathPlaces ?? null,
     mathUnits: stored.mathUnits ?? null,
   };
 }
@@ -691,6 +695,7 @@ export class QuestionNode extends ElementNode {
       line,
       classResults,
       mathForm,
+      mathPlaces,
       mathUnits,
       ...settings
     } = questionSettings(this.getLatest().__settings);
@@ -705,6 +710,9 @@ export class QuestionNode extends ElementNode {
         : {}),
       ...(settings.kind === "number" && line !== null ? { line } : {}),
       ...(settings.kind === "math" && mathForm ? { mathForm } : {}),
+      ...(settings.kind === "math" && mathForm && mathPlaces !== null
+        ? { mathPlaces }
+        : {}),
       ...(settings.kind === "math" && mathUnits ? { mathUnits } : {}),
       ...(settings.kind === "poll" ? { classResults } : {}),
       ...(recordSeconds === null ? {} : { recordSeconds }),

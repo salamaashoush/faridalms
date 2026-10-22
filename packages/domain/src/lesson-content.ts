@@ -241,6 +241,7 @@ export function questionBlock(node: ContentNode): LessonBlock | null {
           .filter(Boolean),
         tolerance: node.tolerance ?? 0,
         ...(node.mathForm ? { form: node.mathForm } : {}),
+        ...(node.mathPlaces === undefined ? {} : { places: node.mathPlaces }),
         ...(node.mathUnits ? { units: node.mathUnits } : {}),
       };
     case "tracing":
@@ -892,6 +893,7 @@ export function questionNode(block: LessonBlock): ContentNode | null {
       ...base,
       tolerance: block.tolerance,
       ...(block.form ? { mathForm: block.form } : {}),
+      ...(block.places === undefined ? {} : { mathPlaces: block.places }),
       ...(block.units ? { mathUnits: block.units } : {}),
       children: [
         ...(base.children ?? []),

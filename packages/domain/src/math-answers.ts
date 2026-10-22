@@ -667,3 +667,12 @@ export function sameLatex(a: string, b: string): boolean {
       .replace(/\s+/gu, "");
   return plain(a) === plain(b);
 }
+
+/** The value of an expression with no letters in it, or null where it has some or cannot be read. */
+export function numericValue(latex: string): number | null {
+  const read = readMath(latex);
+  if (!read || read.right || letters(read.left, new Set()).size > 0)
+    return null;
+  const value = evaluate(read.left, new Map());
+  return Number.isFinite(value) ? value : null;
+}

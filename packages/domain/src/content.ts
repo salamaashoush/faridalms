@@ -431,6 +431,8 @@ export interface ContentNode {
   scoring?: "all" | "neighbours";
   /** How a maths answer must be written. */
   mathForm?: MathForm;
+  /** For a maths answer asked to a precision: how many figures or places. */
+  mathPlaces?: number;
   /** A maths answer with units: right in any units, or only in the key's. */
   mathUnits?: "convert" | "same";
   aiTool?: string;
@@ -784,6 +786,9 @@ const nodeSchema: v.GenericSchema<ContentNode> = v.lazy(() =>
       rangeMax: v.optional(v.pipe(v.number(), v.finite())),
       scoring: v.optional(v.picklist(["all", "neighbours"])),
       mathForm: v.optional(v.picklist(MATH_FORMS)),
+      mathPlaces: v.optional(
+        v.pipe(v.number(), v.integer(), v.minValue(0), v.maxValue(10)),
+      ),
       mathUnits: v.optional(v.picklist(["convert", "same"])),
       aiTool: v.optional(v.pipe(v.string(), v.maxLength(200))),
       aiDate: v.optional(

@@ -340,6 +340,8 @@ const MATH_NOTES: Record<MathNote, () => string> = {
   expanded: m.lrnMathNoteExpanded,
   fraction: m.lrnMathNoteFraction,
   standard: m.lrnMathNoteStandard,
+  figures: m.lrnMathNoteFigures,
+  places: m.lrnMathNotePlaces,
   units: m.lrnMathNoteUnits,
   unitless: m.lrnMathNoteUnitless,
 };

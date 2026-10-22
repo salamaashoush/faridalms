@@ -687,6 +687,10 @@ export function getMessageFromError(error: unknown): string {
         return m.lrnGapsNeeded();
       case "learning.number_range":
         return m.lrnRangeOrder();
+      case "learning.math_key_units":
+        return m.lrnMathKeyUnits();
+      case "learning.math_key_form":
+        return m.lrnMathKeyForm();
       case "learning.duplicate_ids":
         return m.lrnErrDuplicateIds();
       case "learning.sort_group":

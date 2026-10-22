@@ -15,8 +15,18 @@ export const MATH_FORMS = [
   "expanded",
   "fraction",
   "standard",
+  "figures",
+  "places",
 ] as const;
 export type MathForm = (typeof MATH_FORMS)[number];
+
+/** Forms that are a number written to a precision, given with how many figures or places. */
+export const PRECISION_FORMS = new Set<MathForm>(["figures", "places"]);
+/** Forms the writing of an answer shows, rather than its precision. */
+export type WrittenForm = Exclude<MathForm, "figures" | "places">;
+
+export const isWrittenForm = (form: MathForm): form is WrittenForm =>
+  !PRECISION_FORMS.has(form);
 
 interface Rational {
   n: number;
@@ -459,7 +469,7 @@ function standardForm(expr: Expr): boolean {
   );
 }
 
-const CHECKS: Record<MathForm, (expr: Expr) => boolean> = {
+const CHECKS: Record<WrittenForm, (expr: Expr) => boolean> = {
   factorised,
   expanded,
   fraction: simplestFraction,
@@ -471,6 +481,7 @@ const CHECKS: Record<MathForm, (expr: Expr) => boolean> = {
  * side, else the expression. Null where the answer cannot be read.
  */
 export function inMathForm(latex: string, form: MathForm): boolean | null {
+  if (form === "figures" || form === "places") return null;
   const read = readMath(latex);
   if (!read) return null;
   const check = CHECKS[form];

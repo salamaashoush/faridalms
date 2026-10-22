@@ -11,7 +11,7 @@ import {
   mathText,
   sameContent,
 } from "./content";
-import { markResponse } from "./learning";
+import { lessonBlockSchema, markResponse } from "./learning";
 import { contentOfLesson, lessonOfContent } from "./lesson-content";
 
 const text = (value: string): ContentNode => ({
@@ -203,6 +203,20 @@ describe("a question answered with mathematics", () => {
     expect(
       markResponse(expand, { type: "math", latex: "2x+1" }).note,
     ).toBeUndefined();
+  });
+
+  it("will not publish a key that its own form or units would refuse", () => {
+    const issues = (extra: object) =>
+      v
+        .safeParse(lessonBlockSchema, { ...block, ...extra })
+        .issues?.map((issue) => issue.message) ?? [];
+    expect(issues({ form: "factorised", answers: ["x^2+5x+6"] })).toEqual([
+      "learning.math_key_form",
+    ]);
+    expect(issues({ units: "convert", answers: ["9.8"] })).toEqual([
+      "learning.math_key_units",
+    ]);
+    expect(issues({ form: "expanded" })).toEqual([]);
   });
 
   it("compares quantities in any units, or only the key's, and asks for units left off", () => {

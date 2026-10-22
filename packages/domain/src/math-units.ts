@@ -340,3 +340,35 @@ export function compareQuantity(
   if (!close(a.value, b.value, tolerance * b.scale)) return "wrong";
   return strict ? "units" : "right";
 }
+
+/**
+ * The key's value in the units an answer is written in, with the answer's
+ * number as written; null where the two measure different things or either
+ * has no units.
+ */
+export function keyInAnswerUnits(
+  answer: string,
+  key: string,
+): { written: string; value: number; sameUnits: boolean } | null {
+  const given = readQuantity(answer);
+  const wanted = readQuantity(key);
+  if (!given || !wanted || given.powers.size === 0 || wanted.powers.size === 0)
+    return null;
+  if (written(given.powers) === written(wanted.powers))
+    return { written: given.number, value: wanted.value, sameUnits: true };
+  const a = inBaseUnits(given);
+  const b = inBaseUnits(wanted);
+  if (
+    !a ||
+    !b ||
+    a.dimension.some((power, index) => power !== b.dimension[index])
+  )
+    return null;
+  // A temperature scale's zero is where its offset puts it.
+  const offset = a.value - given.value * a.scale;
+  return {
+    written: given.number,
+    value: (b.value - offset) / a.scale,
+    sameUnits: false,
+  };
+}
