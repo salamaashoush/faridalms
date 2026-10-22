@@ -334,6 +334,31 @@ describe("block content", () => {
   });
 });
 
+describe("audio description", () => {
+  it("is kept with a video, and its words are read as the document's", () => {
+    const video: ContentDocument = {
+      root: {
+        type: "root",
+        version: 1,
+        children: [
+          {
+            type: "media",
+            version: 1,
+            fileId: "0190a1b2-0000-7000-8000-0000000000d1",
+            mime: "video/mp4",
+            caption: "The Nile",
+            descriptions: "0:12 A map of Egypt\n1:05 Farmers lift water",
+          },
+        ],
+      },
+    };
+    expect(v.safeParse(contentDocumentSchema, video).success).toBe(true);
+    expect(contentPlainText(video)).toBe(
+      "The Nile\nA map of Egypt\nFarmers lift water",
+    );
+  });
+});
+
 describe("page breaks", () => {
   it("stand between the blocks of a document, never inside one", () => {
     const pageBreak = { type: "pagebreak", version: 1 } as ContentNode;

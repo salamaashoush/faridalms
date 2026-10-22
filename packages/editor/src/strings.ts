@@ -290,6 +290,12 @@ export interface EditorStrings extends LabelEditorStrings, ChartStrings {
   chaptersHint: string;
   chapterAddAt: (time: string) => string;
   chaptersSkipped: (count: number) => string;
+  descriptions: string;
+  descriptionsAdd: string;
+  descriptionsHelp: string;
+  descriptionsHint: string;
+  descriptionAddAt: (time: string) => string;
+  descriptionsSkipped: (count: number) => string;
   transcriptAdd: string;
   transcriptHint: string;
   questionNumber: string;

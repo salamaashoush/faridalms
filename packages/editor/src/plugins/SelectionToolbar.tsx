@@ -123,6 +123,7 @@ import {
   Volume2,
   WrapText,
   ArrowRightLeft,
+  AudioLines,
   X,
 } from "lucide-react";
 import { useEffect, useEffectEvent, useRef, useState } from "react";
@@ -364,6 +365,7 @@ interface BlockFacts {
     video: boolean;
     captions: boolean;
     chapters: boolean;
+    descriptions: boolean;
     transcript: boolean;
     noSkipping: boolean;
     /** A YouTube or Vimeo video, whose service keeps its captions. */
@@ -1479,6 +1481,24 @@ export function SelectionToolbarPlugin() {
                   }
                 >
                   <ListOrdered aria-hidden />
+                </ToolButton>
+              ) : null}
+              {layout.recording.video ? (
+                <ToolButton
+                  label={
+                    layout.recording.descriptions
+                      ? strings.descriptions
+                      : strings.descriptionsAdd
+                  }
+                  active={layout.recording.descriptions}
+                  onClick={() =>
+                    editor.dispatchCommand(OPEN_RECORDING_COMMAND, {
+                      key: layout.key,
+                      tab: "descriptions",
+                    })
+                  }
+                >
+                  <AudioLines aria-hidden />
                 </ToolButton>
               ) : null}
               {layout.recording.framed ? null : (

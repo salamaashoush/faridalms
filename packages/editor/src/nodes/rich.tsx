@@ -14,7 +14,7 @@ import type {
 } from "lexical";
 import type { JSX } from "react";
 
-import { parseChapters } from "@faridalms/domain/chapters";
+import { parseChapters, parseDescriptions } from "@faridalms/domain/chapters";
 import {
   embedPage,
   embedProviderNames,
@@ -175,6 +175,7 @@ function MediaBlock({
   captionsLang,
   transcript,
   chapters,
+  descriptions,
   caption,
   size,
 }: {
@@ -186,6 +187,7 @@ function MediaBlock({
   captionsLang: string;
   transcript: string;
   chapters: string;
+  descriptions: string;
   caption: string;
   size: ImageSize;
 }) {
@@ -246,6 +248,7 @@ function MediaBlock({
           captionsLabel={strings.captions}
           element={following}
           chapters={parseChapters(chapters)}
+          descriptions={parseDescriptions(descriptions)}
         />
         {editable ? (
           <>
@@ -276,6 +279,10 @@ function MediaBlock({
               }}
               chapters={chapters}
               onChapters={(text) => update((node) => node.setChapters(text))}
+              descriptions={descriptions}
+              onDescriptions={(text) =>
+                update((node) => node.setDescriptions(text))
+              }
               transcript={transcript}
               onTranscript={(text) =>
                 update((node) => node.setTranscript(text))
@@ -305,6 +312,7 @@ function EmbedBlock({
   caption,
   size,
   chapters,
+  descriptions,
 }: {
   nodeKey: NodeKey;
   format: ElementFormatType;
@@ -313,6 +321,7 @@ function EmbedBlock({
   caption: string;
   size: ImageSize;
   chapters: string;
+  descriptions: string;
 }) {
   const { strings, locale } = useEditorEnvironment();
   const [editor] = useLexicalComposerContext();
@@ -321,7 +330,7 @@ function EmbedBlock({
   useSelectOnClick(nodeKey);
   const name = embedProviderNames[provider];
   const { playing, follow } = usePlayerOf(nodeKey);
-  const [writing, setWriting] = useState(false);
+  const [writing, setWriting] = useState<RecordingTab | null>(null);
   const askHere = useEffectEvent(() => {
     const at = Math.floor(playing.current?.currentTime ?? 0);
     playing.current?.pause();
@@ -334,7 +343,7 @@ function EmbedBlock({
           OPEN_RECORDING_COMMAND,
           (asked) => {
             if (asked.key !== nodeKey) return false;
-            setWriting(true);
+            setWriting(asked.tab);
             return true;
           },
           COMMAND_PRIORITY_LOW,
@@ -367,15 +376,25 @@ function EmbedBlock({
           privacy={strings.embedPrivacy(name)}
           locale={locale}
           chapters={parseChapters(chapters)}
+          descriptions={parseDescriptions(descriptions)}
+          descriptionsLabel={editable ? undefined : strings.descriptions}
           element={follow}
         />
         {editable && framed(provider) ? (
           <FramedChaptersSheet
-            open={writing}
-            onOpenChange={setWriting}
+            open={writing !== null}
+            onOpenChange={(open) => {
+              if (!open) setWriting(null);
+            }}
+            tab={writing ?? "chapters"}
+            onTabChange={setWriting}
             source={{ provider, id: embedId }}
             chapters={chapters}
             onChapters={(text) => update((node) => node.setChapters(text))}
+            descriptions={descriptions}
+            onDescriptions={(text) =>
+              update((node) => node.setDescriptions(text))
+            }
           />
         ) : null}
         <div className="flex items-center justify-between gap-2">
@@ -460,6 +479,7 @@ export type SerializedMediaNode = Spread<
     captionsLang?: string;
     transcript?: string;
     chapters?: string;
+    descriptions?: string;
     caption: string;
     size?: ImageSize;
     /** Students may seek only as far as they have watched. */
@@ -475,6 +495,7 @@ export class MediaNode extends DecoratorBlockNode {
   __captionsLang = "";
   __transcript = "";
   __chapters = "";
+  __descriptions = "";
   __noSkipping = false;
   __caption: string;
   __size: ImageSize;
@@ -513,6 +534,7 @@ export class MediaNode extends DecoratorBlockNode {
     copy.__captionsLang = node.__captionsLang;
     copy.__transcript = node.__transcript;
     copy.__chapters = node.__chapters;
+    copy.__descriptions = node.__descriptions;
     copy.__noSkipping = node.__noSkipping;
     return copy;
   }
@@ -529,6 +551,7 @@ export class MediaNode extends DecoratorBlockNode {
     node.__captionsLang = json.captionsLang ?? "";
     node.__transcript = json.transcript ?? "";
     node.__chapters = json.chapters ?? "";
+    node.__descriptions = json.descriptions ?? "";
     node.__noSkipping = json.noSkipping ?? false;
     node.__caption = json.caption;
     node.__size = json.size ?? "full";
@@ -547,6 +570,9 @@ export class MediaNode extends DecoratorBlockNode {
       ...(node.__captionsLang ? { captionsLang: node.__captionsLang } : {}),
       ...(node.__transcript ? { transcript: node.__transcript } : {}),
       ...(node.__chapters ? { chapters: node.__chapters } : {}),
+      ...(node.__descriptions.trim()
+        ? { descriptions: node.__descriptions }
+        : {}),
       caption: node.__caption,
       size: node.__size,
       ...(node.__noSkipping ? { noSkipping: true } : {}),
@@ -593,11 +619,18 @@ export class MediaNode extends DecoratorBlockNode {
     return writable;
   }
 
+  setDescriptions(descriptions: string): this {
+    const writable = this.getWritable();
+    writable.__descriptions = descriptions;
+    return writable;
+  }
+
   /** What the editor's bar says about the recording, and offers to change. */
   getRecording(): {
     video: boolean;
     captions: boolean;
     chapters: boolean;
+    descriptions: boolean;
     transcript: boolean;
     noSkipping: boolean;
   } {
@@ -606,6 +639,7 @@ export class MediaNode extends DecoratorBlockNode {
       video: node.__mime.startsWith("video/"),
       captions: node.__captionsFileId !== "",
       chapters: node.__chapters.trim() !== "",
+      descriptions: node.__descriptions.trim() !== "",
       transcript: node.__transcript.trim() !== "",
       noSkipping: node.__noSkipping,
     };
@@ -638,6 +672,7 @@ export class MediaNode extends DecoratorBlockNode {
         captionsLang={this.__captionsLang}
         transcript={this.__transcript}
         chapters={this.__chapters}
+        descriptions={this.__descriptions}
         caption={this.__caption}
         size={this.__size}
       />
@@ -652,6 +687,7 @@ export type SerializedEmbedNode = Spread<
     caption: string;
     size?: ImageSize;
     chapters?: string;
+    descriptions?: string;
     noSkipping?: boolean;
   },
   SerializedDecoratorBlockNode
@@ -670,6 +706,7 @@ export class EmbedNode extends DecoratorBlockNode {
   __size: ImageSize;
   /** A YouTube or Vimeo video's chapters, as an upload's are written. */
   __chapters = "";
+  __descriptions = "";
   __noSkipping = false;
 
   constructor(
@@ -719,6 +756,7 @@ export class EmbedNode extends DecoratorBlockNode {
   afterCloneFrom(previous: this): void {
     super.afterCloneFrom(previous);
     this.__chapters = previous.__chapters;
+    this.__descriptions = previous.__descriptions;
     this.__noSkipping = previous.__noSkipping;
   }
 
@@ -733,6 +771,7 @@ export class EmbedNode extends DecoratorBlockNode {
     node.__caption = json.caption;
     node.__size = json.size ?? "full";
     node.__chapters = json.chapters ?? "";
+    node.__descriptions = json.descriptions ?? "";
     node.__noSkipping = json.noSkipping ?? false;
     return node;
   }
@@ -746,6 +785,9 @@ export class EmbedNode extends DecoratorBlockNode {
       caption: node.__caption,
       size: node.__size,
       ...(node.__chapters.trim() ? { chapters: node.__chapters } : {}),
+      ...(node.__descriptions.trim()
+        ? { descriptions: node.__descriptions }
+        : {}),
       ...(node.__noSkipping ? { noSkipping: true } : {}),
     };
   }
@@ -786,6 +828,7 @@ export class EmbedNode extends DecoratorBlockNode {
     video: boolean;
     captions: boolean;
     chapters: boolean;
+    descriptions: boolean;
     transcript: boolean;
     noSkipping: boolean;
   } | null {
@@ -795,6 +838,7 @@ export class EmbedNode extends DecoratorBlockNode {
       video: true,
       captions: false,
       chapters: node.__chapters.trim() !== "",
+      descriptions: node.__descriptions.trim() !== "",
       transcript: false,
       noSkipping: node.__noSkipping,
     };
@@ -803,6 +847,12 @@ export class EmbedNode extends DecoratorBlockNode {
   setChapters(chapters: string): this {
     const writable = this.getWritable();
     writable.__chapters = chapters;
+    return writable;
+  }
+
+  setDescriptions(descriptions: string): this {
+    const writable = this.getWritable();
+    writable.__descriptions = descriptions;
     return writable;
   }
 
@@ -822,6 +872,7 @@ export class EmbedNode extends DecoratorBlockNode {
         caption={this.__caption}
         size={this.__size}
         chapters={this.__chapters}
+        descriptions={this.__descriptions}
       />
     );
   }

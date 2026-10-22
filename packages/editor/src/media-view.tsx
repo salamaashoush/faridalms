@@ -1,4 +1,4 @@
-import type { Chapter } from "@faridalms/domain/chapters";
+import type { Chapter, Description } from "@faridalms/domain/chapters";
 import type { EmbedProvider } from "@faridalms/domain/embed";
 import type { Ref } from "react";
 
@@ -36,6 +36,7 @@ export function MediaPlayer({
   watch,
   strings,
   chapters,
+  descriptions,
 }: {
   src: string | undefined;
   captions: string | undefined;
@@ -52,6 +53,8 @@ export function MediaPlayer({
   strings?: TranscriptStrings | undefined;
   /** A video's chapters, on its timeline and in a list to play from. */
   chapters?: readonly Chapter[] | undefined;
+  /** A video's audio description, read out to students who turn it on. */
+  descriptions?: readonly Description[] | undefined;
 }) {
   if (!src) return null;
   const track = captions
@@ -66,6 +69,7 @@ export function MediaPlayer({
       watch={watch}
       strings={strings}
       chapters={chapters}
+      descriptions={descriptions}
     />
   ) : (
     <AudioBar
@@ -101,6 +105,7 @@ function StreamingVideo({
   watch,
   strings,
   chapters,
+  descriptions,
 }: {
   src: string;
   captions: PlayerCaptions | null;
@@ -109,6 +114,7 @@ function StreamingVideo({
   watch?: MediaWatch | undefined;
   strings?: TranscriptStrings | undefined;
   chapters?: readonly Chapter[] | undefined;
+  descriptions?: readonly Description[] | undefined;
 }) {
   const [source, setSource] = useState<
     { stream: Stream } | { upload: string } | null
@@ -163,6 +169,7 @@ function StreamingVideo({
       watch={watch}
       strings={strings}
       chapters={chapters}
+      descriptions={descriptions}
     />
   );
 }
@@ -202,6 +209,8 @@ export function EmbedFrame({
   watch,
   chapters,
   chaptersLabel,
+  descriptions,
+  descriptionsLabel,
   element,
 }: {
   provider: EmbedProvider;
@@ -212,6 +221,8 @@ export function EmbedFrame({
   watch?: MediaWatch | undefined;
   chapters?: readonly Chapter[] | undefined;
   chaptersLabel?: string | undefined;
+  descriptions?: readonly Description[] | undefined;
+  descriptionsLabel?: string | undefined;
   element?: ((clock: PlayerClock | null) => void) | undefined;
 }) {
   const [loaded, setLoaded] = useState(false);
@@ -224,6 +235,8 @@ export function EmbedFrame({
         watch={watch}
         chapters={chapters}
         label={chaptersLabel}
+        descriptions={descriptions}
+        descriptionsLabel={descriptionsLabel}
         element={element}
       />
     );

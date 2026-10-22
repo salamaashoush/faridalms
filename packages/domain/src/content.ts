@@ -8,6 +8,7 @@ import type { EmbedProvider } from "./embed";
 import type { ProjectFile, ProjectLanguage } from "./project";
 import type { ScratchFeature } from "./scratch-project";
 
+import { MAX_DESCRIPTION_TEXT, parseDescriptions } from "./chapters";
 import { footnoteSourceSchema } from "./citations";
 import { embedProviders, isEmbedId } from "./embed";
 import { projectLanguages, starterFilesSchema } from "./project";
@@ -305,6 +306,8 @@ export interface ContentNode {
   transcript?: string;
   /** A recording's chapters as its teacher writes them, a time and a name a line. */
   chapters?: string;
+  /** A video's audio description as its teacher writes it, a time and what is seen a line. */
+  descriptions?: string;
   /** A recording students may seek in only as far as they have played. */
   noSkipping?: boolean;
   provider?: EmbedProvider;
@@ -635,6 +638,9 @@ const nodeSchema: v.GenericSchema<ContentNode> = v.lazy(() =>
       ),
       transcript: v.optional(v.pipe(v.string(), v.maxLength(20000))),
       chapters: v.optional(v.pipe(v.string(), v.maxLength(4000))),
+      descriptions: v.optional(
+        v.pipe(v.string(), v.maxLength(MAX_DESCRIPTION_TEXT)),
+      ),
       noSkipping: v.optional(v.boolean()),
       provider: v.optional(v.picklist(embedProviders)),
       embedId: v.optional(v.pipe(v.string(), v.maxLength(200))),
@@ -1153,9 +1159,15 @@ const visit = (node: ContentNode): string => {
       .map((picture) => picture.caption || picture.alt)
       .filter(Boolean)
       .join("\n");
-  if (node.type === "media")
-    return [node.caption, node.transcript].filter(Boolean).join("\n");
-  if (node.type === "embed") return node.caption ?? "";
+  // What a video's audio description says of its picture is read as words too.
+  if (node.type === "media" || node.type === "embed")
+    return [
+      node.caption,
+      node.transcript,
+      ...parseDescriptions(node.descriptions ?? "").map((line) => line.text),
+    ]
+      .filter(Boolean)
+      .join("\n");
   if (node.type === "file") return node.name ?? "";
   if (node.type === "math") return mathText(node);
   // A footnote is read where it is listed, not in the line it marks.

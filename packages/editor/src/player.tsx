@@ -1,5 +1,5 @@
 import type { Cue } from "@faridalms/domain/captions";
-import type { Chapter } from "@faridalms/domain/chapters";
+import type { Chapter, Description } from "@faridalms/domain/chapters";
 import type { CommonMedia, Media } from "@videojs/react";
 import type { ReactElement, ReactNode, Ref } from "react";
 
@@ -7,6 +7,7 @@ import "@videojs/react/i18n/locales/ar/register";
 import { withoutVowelMarks } from "@faridalms/domain/arabic";
 import { parseVtt } from "@faridalms/domain/captions";
 import { chaptersVtt } from "@faridalms/domain/chapters";
+import { textDirection } from "@faridalms/domain/content";
 import { mapCuesToThumbnails } from "@videojs/core";
 import {
   BufferingIndicator,
@@ -44,6 +45,7 @@ import { I18nProvider, useTranslator } from "@videojs/react/i18n";
 import { speedText } from "@videojs/react/i18n/text/menu";
 import { usePlayer, Video, VideoPlayer } from "@videojs/react/video";
 import {
+  AudioLines,
   Check,
   Captions,
   CaptionsOff,
@@ -378,6 +380,8 @@ export interface TranscriptStrings {
   chapters: string;
   transcriptSearch: string;
   transcriptNoMatch: string;
+  /** Turns the video's audio description on and off. */
+  descriptions: string;
 }
 
 /** Leave the transcript where a student scrolled it for this long before following again. */
@@ -590,6 +594,139 @@ function VideoChapters(
       seek={(seconds) => player.seek(seconds)}
     />
   );
+}
+
+const NO_DESCRIPTIONS: readonly Description[] = [];
+
+/** How long a description shows where the browser has no voice to read it. */
+const readingTime = (text: string) => 1500 + text.split(/\s+/).length * 400;
+
+/**
+ * A video's audio description, read out as the video reaches each line:
+ * the video waits while it is read, as extended description does, so
+ * nothing said in it is talked over, then plays on. Going to another part
+ * of the video, or playing it again, stops what is being read.
+ */
+function Describing({
+  lines,
+  on,
+  onSay,
+}: {
+  lines: readonly Description[];
+  on: boolean;
+  onSay: (text: string | null) => void;
+}) {
+  const media = useMedia();
+  const latest = useRef({ lines, on, onSay });
+  useEffect(() => {
+    latest.current = { lines, on, onSay };
+  });
+  useEffect(() => {
+    if (!watchable(media)) return undefined;
+    const voice =
+      typeof speechSynthesis === "undefined" ? null : speechSynthesis;
+    let last = media.currentTime;
+    let saying = false;
+    let resume = false;
+    let timer = 0;
+    const done = () => {
+      if (!saying) return;
+      saying = false;
+      window.clearTimeout(timer);
+      latest.current.onSay(null);
+      if (resume) {
+        resume = false;
+        void media.play();
+      }
+    };
+    const stop = () => {
+      if (!saying) return;
+      resume = false;
+      voice?.cancel();
+      done();
+    };
+    const tick = () => {
+      const from = last;
+      last = media.currentTime;
+      if (!latest.current.on || saying || media.paused) return;
+      // Only lines played through are read, not ones a seek passes over.
+      if (last < from || last - from > 2) return;
+      const line = latest.current.lines.find(
+        (each) => each.at > from && each.at <= last,
+      );
+      if (!line) return;
+      saying = true;
+      resume = true;
+      media.pause();
+      latest.current.onSay(line.text);
+      const shown = () => {
+        timer = window.setTimeout(done, readingTime(line.text));
+      };
+      if (voice && typeof SpeechSynthesisUtterance !== "undefined") {
+        const utterance = new SpeechSynthesisUtterance(line.text);
+        utterance.lang = textDirection(line.text) === "rtl" ? "ar" : "en";
+        utterance.addEventListener("end", done);
+        // A browser with no voice for the language still shows the line,
+        // for as long as it takes to read.
+        utterance.addEventListener("error", shown);
+        voice.cancel();
+        voice.speak(utterance);
+      } else shown();
+    };
+    // The student played on before the line was read out; the video plays
+    // again only once a line is done, so a play while reading is theirs.
+    const played = () => stop();
+    const sought = () => {
+      last = media.currentTime;
+      stop();
+    };
+    media.addEventListener("timeupdate", tick);
+    media.addEventListener("seeking", sought);
+    media.addEventListener("play", played);
+    return () => {
+      media.removeEventListener("timeupdate", tick);
+      media.removeEventListener("seeking", sought);
+      media.removeEventListener("play", played);
+      stop();
+    };
+  }, [media]);
+  return null;
+}
+
+/** The control that turns a video's audio description on, and what it says now. */
+function useDescription(lines: readonly Description[], label?: string) {
+  const [on, setOn] = useState(false);
+  const [said, setSaid] = useState<string | null>(null);
+  const shown = lines.length > 0 && label !== undefined;
+  return {
+    button: shown ? (
+      <PlayerTip label={label}>
+        <button
+          type="button"
+          aria-label={label}
+          aria-pressed={on}
+          onClick={() => setOn((current) => !current)}
+          className={cx(control, on && "bg-foreground/15")}
+        >
+          <AudioLines aria-hidden />
+        </button>
+      </PlayerTip>
+    ) : null,
+    reader: shown ? <Describing lines={lines} on={on} onSay={setSaid} /> : null,
+    line:
+      on && said ? (
+        <p
+          dir="auto"
+          className="flex items-start gap-2 rounded-md bg-muted px-3 py-2 text-sm leading-6"
+        >
+          <AudioLines
+            aria-hidden
+            className="mt-1 size-4 shrink-0 text-muted-foreground"
+          />
+          {said}
+        </p>
+      ) : null,
+  };
 }
 
 /** The chapter playing, beside the time, so a student knows where they are. */
@@ -879,6 +1016,7 @@ export function VideoSurface({
   watch,
   strings,
   chapters = NO_CHAPTERS,
+  descriptions = NO_DESCRIPTIONS,
 }: {
   /** The upload as it is, played when there are no streams. */
   src: string | null;
@@ -892,8 +1030,10 @@ export function VideoSurface({
   watch?: MediaWatch | undefined;
   strings?: TranscriptStrings | undefined;
   chapters?: readonly Chapter[] | undefined;
+  descriptions?: readonly Description[] | undefined;
 }) {
   const dir = pageDirection(locale);
+  const description = useDescription(descriptions, strings?.descriptions);
   const tracks = (
     <>
       {chapters.length > 0 ? (
@@ -1008,6 +1148,7 @@ export function VideoSurface({
                     <ChapterNow chapters={chapters} />
                   ) : null}
                   <span className="flex-1" />
+                  {description.button}
                   <PlayerTip>
                     <CaptionsButton
                       className={control}
@@ -1054,6 +1195,7 @@ export function VideoSurface({
           <PlayerError />
           <PlaybackKeys video />
           {watch ? <VideoWatching watch={watch} /> : null}
+          {description.reader}
           <Gesture
             type="tap"
             action="togglePaused"
@@ -1076,6 +1218,7 @@ export function VideoSurface({
           />
           <StatusAnnouncer className={announcer} />
         </Container>
+        {description.line}
         {chapters.length > 0 && strings ? (
           <VideoChapters chapters={chapters} label={strings.chapters} />
         ) : null}
@@ -1117,6 +1260,8 @@ export function FramedVideo({
   watch,
   chapters = NO_CHAPTERS,
   label,
+  descriptions = NO_DESCRIPTIONS,
+  descriptionsLabel,
   element,
   autoplay = true,
 }: {
@@ -1126,11 +1271,15 @@ export function FramedVideo({
   chapters?: readonly Chapter[] | undefined;
   /** Names the chapter list beside the video. */
   label?: string | undefined;
+  descriptions?: readonly Description[] | undefined;
+  /** Names the control that reads the video's audio description. */
+  descriptionsLabel?: string | undefined;
   /** Hands the service's player to whoever needs its time. */
   element?: ((clock: PlayerClock | null) => void) | undefined;
   autoplay?: boolean;
 }) {
   const dir = pageDirection(locale);
+  const description = useDescription(descriptions, descriptionsLabel);
   return (
     <I18nProvider locale={locale}>
       <VideoPlayer>
@@ -1190,6 +1339,7 @@ export function FramedVideo({
                   <ChapterNow chapters={chapters} />
                 ) : null}
                 <span className="flex-1" />
+                {description.button}
                 <SpeedMenu dir={dir} />
                 <PlayerTip>
                   <FullscreenButton
@@ -1211,8 +1361,10 @@ export function FramedVideo({
           <PlayerError />
           <PlaybackKeys video />
           {watch ? <VideoWatching watch={watch} /> : null}
+          {description.reader}
           <StatusAnnouncer className={announcer} />
         </Container>
+        {description.line}
         {chapters.length > 0 && label ? (
           <VideoChapters chapters={chapters} label={label} />
         ) : null}

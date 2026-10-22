@@ -14,7 +14,7 @@ import type {
 } from "react";
 
 import { Popover } from "@base-ui/react/popover";
-import { parseChapters } from "@faridalms/domain/chapters";
+import { parseChapters, parseDescriptions } from "@faridalms/domain/chapters";
 import { formatSource } from "@faridalms/domain/citations";
 import {
   codeSource,
@@ -935,6 +935,7 @@ function draw(
             watch={watchOf(node, context)}
             strings={context.strings}
             chapters={parseChapters(node.chapters ?? "")}
+            descriptions={parseDescriptions(node.descriptions ?? "")}
           />
           {node.caption ? (
             <figcaption className="text-center text-sm text-muted-foreground">
@@ -965,6 +966,8 @@ function draw(
             watch={watchOf(node, context)}
             chapters={parseChapters(node.chapters ?? "")}
             chaptersLabel={context.strings.chapters}
+            descriptions={parseDescriptions(node.descriptions ?? "")}
+            descriptionsLabel={context.strings.descriptions}
           />
           <div className="flex items-center justify-between gap-2">
             {node.caption ? (

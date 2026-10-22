@@ -544,6 +544,17 @@ Sources: [../research/course-design.md](../research/course-design.md),
    Left: Vimeo playback could not be checked in the headless browser,
    which Vimeo refuses; check it in a desktop browser.
 2. **Audio description** as a track a teacher can add.
+   Done: a video's sheet, uploaded or YouTube and Vimeo alike, has an
+   Audio description tab where the teacher writes, a time a line, what
+   the picture shows that nobody says, adding a line where the video is
+   paused. Students turn it on from the player; at each line the video
+   waits while the browser's voice reads it, and shows it under the
+   video, then plays on, as extended description does, so nothing said
+   is talked over. A browser with no voice for the language shows the
+   line for as long as it takes to read. Its words are searched with the
+   document's.
+   Left: a recorded description track, or a described version of the
+   video, to choose instead; a student's choice of voice and speed.
 3. Hosted video adapters: an owner decision (section 11).
 
 ## 8. Early years

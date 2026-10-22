@@ -101,6 +101,7 @@ export type FileStrings = Pick<
   | "transcriptSearch"
   | "transcriptNoMatch"
   | "chapters"
+  | "descriptions"
   | "picture"
   | "fileRemoved"
 >;

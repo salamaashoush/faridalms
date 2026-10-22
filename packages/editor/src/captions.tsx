@@ -9,7 +9,12 @@ import {
   parseVtt,
   vttOf,
 } from "@faridalms/domain/captions";
-import { MAX_CHAPTER_TEXT, parseChapters } from "@faridalms/domain/chapters";
+import {
+  MAX_CHAPTER_TEXT,
+  MAX_DESCRIPTION_TEXT,
+  parseChapters,
+  parseDescriptions,
+} from "@faridalms/domain/chapters";
 import { SPEECH_LANGUAGES } from "@faridalms/domain/file";
 import {
   AudioLines,
@@ -30,7 +35,11 @@ import { MediaPlayer } from "./media-view";
 import { FramedVideo } from "./player";
 
 /** The parts of a recording a teacher writes beside it. */
-export type RecordingTab = "captions" | "chapters" | "transcript";
+export type RecordingTab =
+  | "captions"
+  | "chapters"
+  | "descriptions"
+  | "transcript";
 
 /** How often a draft under way is asked after. */
 const DRAFT_POLL_MS = 3000;
@@ -95,6 +104,8 @@ export function RecordingSheet({
   onSave: (file: File, language: string) => Promise<void>;
   chapters: string;
   onChapters: (text: string) => void;
+  descriptions: string;
+  onDescriptions: (text: string) => void;
   transcript: string;
   onTranscript: (text: string) => void;
 }) {
@@ -113,21 +124,24 @@ export function RecordingSheet({
 }
 
 /**
- * A YouTube or Vimeo video's chapters, written beside the video playing
- * through the school's player; the service keeps its own captions.
+ * A YouTube or Vimeo video's chapters and audio description, written beside
+ * the video playing through the school's player; the service keeps its own
+ * captions.
  */
 export function FramedChaptersSheet({
   open,
   onOpenChange,
-  source,
-  chapters,
-  onChapters,
+  ...sheet
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   source: FramedSource;
+  tab: RecordingTab;
+  onTabChange: (tab: RecordingTab) => void;
   chapters: string;
   onChapters: (text: string) => void;
+  descriptions: string;
+  onDescriptions: (text: string) => void;
 }) {
   return (
     <Dialog.Root open={open} onOpenChange={onOpenChange}>
@@ -135,12 +149,7 @@ export function FramedChaptersSheet({
         <Dialog.Backdrop className="fixed inset-0 z-50 bg-black/10 transition-opacity duration-150 data-ending-style:opacity-0 data-starting-style:opacity-0 supports-backdrop-filter:backdrop-blur-xs" />
         <Dialog.Popup className="fixed inset-y-0 end-0 z-50 flex w-full flex-col bg-background shadow-2xl outline-none sm:max-w-[520px] sm:border-s">
           {open ? (
-            <FramedChapters
-              source={source}
-              chapters={chapters}
-              onChapters={onChapters}
-              onDone={() => onOpenChange(false)}
-            />
+            <FramedChapters {...sheet} onDone={() => onOpenChange(false)} />
           ) : null}
         </Dialog.Popup>
       </Dialog.Portal>
@@ -150,23 +159,32 @@ export function FramedChaptersSheet({
 
 function FramedChapters({
   source,
+  tab,
+  onTabChange,
   chapters,
   onChapters,
+  descriptions,
+  onDescriptions,
   onDone,
 }: {
   source: FramedSource;
+  tab: RecordingTab;
+  onTabChange: (tab: RecordingTab) => void;
   chapters: string;
   onChapters: (text: string) => void;
+  descriptions: string;
+  onDescriptions: (text: string) => void;
   onDone: () => void;
 }) {
   const { strings, locale } = useEditorEnvironment();
   const [player, setPlayer] = useState<PlayerClock | null>(null);
   const [text, setText] = useState(chapters);
+  const [described, setDescribed] = useState(descriptions);
   return (
     <>
       <div className="flex min-h-14 items-center gap-3 border-b px-4">
         <Dialog.Title className="min-w-0 flex-1 truncate text-base font-semibold">
-          {strings.chapters}
+          {strings.recordingSheet}
         </Dialog.Title>
         <Dialog.Close
           aria-label={strings.captionsClose}
@@ -184,15 +202,52 @@ function FramedChapters({
           autoplay={false}
         />
       </div>
-      <ChaptersPanel
-        player={player}
-        text={text}
-        onText={(next) => {
-          setText(next);
-          onChapters(next);
-        }}
-        onDone={onDone}
-      />
+      <Tabs.Root
+        value={tab === "descriptions" ? "descriptions" : "chapters"}
+        onValueChange={(value: RecordingTab) => onTabChange(value)}
+        className="flex min-h-0 flex-1 flex-col"
+      >
+        <Tabs.List className="flex gap-5 border-b px-4">
+          <Tabs.Tab value="chapters" className={tabClass}>
+            {strings.chapters}
+          </Tabs.Tab>
+          <Tabs.Tab value="descriptions" className={tabClass}>
+            {strings.descriptions}
+          </Tabs.Tab>
+        </Tabs.List>
+        <Tabs.Panel
+          value="chapters"
+          keepMounted
+          className="flex min-h-0 flex-1 flex-col data-hidden:hidden"
+        >
+          <TimedLinesPanel
+            kind="chapters"
+            player={player}
+            text={text}
+            onText={(next) => {
+              setText(next);
+              onChapters(next);
+            }}
+            onDone={onDone}
+          />
+        </Tabs.Panel>
+        <Tabs.Panel
+          value="descriptions"
+          keepMounted
+          className="flex min-h-0 flex-1 flex-col data-hidden:hidden"
+        >
+          <TimedLinesPanel
+            kind="descriptions"
+            player={player}
+            text={described}
+            onText={(next) => {
+              setDescribed(next);
+              onDescriptions(next);
+            }}
+            onDone={onDone}
+          />
+        </Tabs.Panel>
+      </Tabs.Root>
     </>
   );
 }
@@ -216,6 +271,8 @@ function Sheet({
   onSave,
   chapters,
   onChapters,
+  descriptions,
+  onDescriptions,
   transcript,
   onTranscript,
   onDone,
@@ -230,6 +287,8 @@ function Sheet({
   onSave: (file: File, language: string) => Promise<void>;
   chapters: string;
   onChapters: (text: string) => void;
+  descriptions: string;
+  onDescriptions: (text: string) => void;
   transcript: string;
   onTranscript: (text: string) => void;
   onDone: () => void;
@@ -244,9 +303,15 @@ function Sheet({
   }, []);
   const [lang, setLang] = useState(language || locale);
   const [chapterText, setChapterText] = useState(chapters);
+  const [described, setDescribed] = useState(descriptions);
   const tabs: { value: RecordingTab; label: string }[] = [
     { value: "captions", label: strings.captions },
-    ...(video ? [{ value: "chapters" as const, label: strings.chapters }] : []),
+    ...(video
+      ? [
+          { value: "chapters" as const, label: strings.chapters },
+          { value: "descriptions" as const, label: strings.descriptions },
+        ]
+      : []),
     { value: "transcript", label: strings.transcript },
   ];
   return (
@@ -307,12 +372,31 @@ function Sheet({
             keepMounted
             className="flex min-h-0 flex-1 flex-col data-hidden:hidden"
           >
-            <ChaptersPanel
+            <TimedLinesPanel
+              kind="chapters"
               player={element}
               text={chapterText}
               onText={(text) => {
                 setChapterText(text);
                 onChapters(text);
+              }}
+              onDone={onDone}
+            />
+          </Tabs.Panel>
+        ) : null}
+        {video ? (
+          <Tabs.Panel
+            value="descriptions"
+            keepMounted
+            className="flex min-h-0 flex-1 flex-col data-hidden:hidden"
+          >
+            <TimedLinesPanel
+              kind="descriptions"
+              player={element}
+              text={described}
+              onText={(text) => {
+                setDescribed(text);
+                onDescriptions(text);
               }}
               onDone={onDone}
             />
@@ -351,15 +435,19 @@ function usePlayerSecond(player: PlayerClock | null) {
 }
 
 /**
- * A recording's chapters as video sites take them, a time and a name a
- * line; one is added where the recording above is paused.
+ * Lines a teacher writes against a recording's time, a time and the words
+ * a line: its chapters, as video sites take them, or its audio
+ * description, what the picture shows from then. One is added where the
+ * recording above is paused.
  */
-function ChaptersPanel({
+function TimedLinesPanel({
+  kind,
   player,
   text,
   onText,
   onDone,
 }: {
+  kind: "chapters" | "descriptions";
   player: PlayerClock | null;
   text: string;
   onText: (text: string) => void;
@@ -368,16 +456,16 @@ function ChaptersPanel({
   const { strings } = useEditorEnvironment();
   const input = useRef<HTMLTextAreaElement>(null);
   const second = usePlayerSecond(player);
+  const chapters = kind === "chapters";
+  const parse = chapters ? parseChapters : parseDescriptions;
   const skipped = text
     .split("\n")
-    .filter((line) => line.trim() && parseChapters(line).length === 0).length;
-  // A chapter goes where its time puts it, with its name left to write.
+    .filter((line) => line.trim() && parse(line).length === 0).length;
+  // A line goes where its time puts it, with its words left to write.
   const add = () => {
     const at = Math.floor(player?.currentTime ?? second);
     const lines = text ? text.split("\n") : [];
-    const later = lines.findIndex(
-      (line) => (parseChapters(line)[0]?.at ?? -1) > at,
-    );
+    const later = lines.findIndex((line) => (parse(line)[0]?.at ?? -1) > at);
     const place = later === -1 ? lines.length : later;
     const line = `${mediaClock(at)} `;
     const next = [...lines.slice(0, place), line, ...lines.slice(place)];
@@ -395,26 +483,32 @@ function ChaptersPanel({
       <div className="grid min-h-0 flex-1 content-start gap-3 overflow-y-auto p-4">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <p className="text-xs text-muted-foreground">
-            {strings.chaptersHelp}
+            {chapters ? strings.chaptersHelp : strings.descriptionsHelp}
           </p>
           <button type="button" onClick={add} className={`${action} border`}>
             <Plus aria-hidden />
-            {strings.chapterAddAt(mediaClock(second))}
+            {chapters
+              ? strings.chapterAddAt(mediaClock(second))
+              : strings.descriptionAddAt(mediaClock(second))}
           </button>
         </div>
         <textarea
           ref={input}
-          aria-label={strings.chapters}
+          aria-label={chapters ? strings.chapters : strings.descriptions}
           dir="auto"
           value={text}
-          maxLength={MAX_CHAPTER_TEXT}
-          placeholder={strings.chaptersHint}
+          maxLength={chapters ? MAX_CHAPTER_TEXT : MAX_DESCRIPTION_TEXT}
+          placeholder={
+            chapters ? strings.chaptersHint : strings.descriptionsHint
+          }
           onChange={(event) => onText(event.target.value)}
           className={`${field} field-sizing-content min-h-40 w-full resize-none leading-6`}
         />
         {skipped > 0 ? (
           <p className="text-xs text-warning-foreground dark:text-warning">
-            {strings.chaptersSkipped(skipped)}
+            {chapters
+              ? strings.chaptersSkipped(skipped)
+              : strings.descriptionsSkipped(skipped)}
           </p>
         ) : null}
       </div>

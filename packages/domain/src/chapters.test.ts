@@ -1,6 +1,11 @@
 import { describe, expect, it } from "vitest";
 
-import { chaptersVtt, parseChapters } from "./chapters";
+import {
+  chaptersVtt,
+  MAX_DESCRIPTION,
+  parseChapters,
+  parseDescriptions,
+} from "./chapters";
 
 describe("chapters a teacher writes", () => {
   it("reads a time and a name on each line, in time order", () => {
@@ -34,5 +39,20 @@ describe("chapters a teacher writes", () => {
     ).toBe(
       "WEBVTT\n\n00:00:00.000 --> 00:01:15.000\nIntro\n\n00:01:15.000 --> 99:00:00.000\nLoops -> more\n",
     );
+  });
+});
+
+describe("an audio description a teacher writes", () => {
+  it("reads a time and what is seen on each line, longer than a chapter's name", () => {
+    const long = "A map of Egypt fills the screen. ".repeat(10).trim();
+    expect(
+      parseDescriptions(`1:05 Farmers lift water\n٠:١٢ ${long}\nnot a line`),
+    ).toEqual([
+      { at: 12, text: long },
+      { at: 65, text: "Farmers lift water" },
+    ]);
+    expect(
+      parseDescriptions(`0:01 ${"x".repeat(MAX_DESCRIPTION + 10)}`)[0]?.text,
+    ).toHaveLength(MAX_DESCRIPTION);
   });
 });

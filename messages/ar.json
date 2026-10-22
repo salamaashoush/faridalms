@@ -1211,6 +1211,25 @@
     }
   ],
   "editorTranscriptAdd": "إضافة النص المكتوب",
+  "editorDescriptions": "الوصف الصوتي",
+  "editorDescriptionsAdd": "إضافة وصف صوتي",
+  "editorDescriptionsHelp": "سطر لكل وصف: وقت، ثم ما تُظهره الصورة من حينها ولا يُقال بصوت عالٍ. يسمع الطلاب الذين يشغّلونه كل سطر مقروءًا، والفيديو ينتظر.",
+  "editorDescriptionsHint": "0:12 خريطة مصر، والنيل بالأزرق\n1:05 فلاحون يرفعون الماء بالشادوف",
+  "editorDescriptionAddAt": "صف عند {time}",
+  "editorDescriptionsSkipped": [
+    {
+      "declarations": ["input count", "local countPlural = count: plural"],
+      "selectors": ["countPlural"],
+      "match": {
+        "countPlural=zero": "تُقرأ كل الأسطر.",
+        "countPlural=one": "سطر واحد لا يُقرأ بعد: ابدأه بوقت مثل 1:30.",
+        "countPlural=two": "سطران لا يُقرآن بعد: ابدأ كلًّا منهما بوقت مثل 1:30.",
+        "countPlural=few": "{count} أسطر لا تُقرأ بعد: ابدأ كلًّا منها بوقت مثل 1:30.",
+        "countPlural=many": "{count} سطرًا لا تُقرأ بعد: ابدأ كلًّا منها بوقت مثل 1:30.",
+        "countPlural=*": "{count} سطر لا تُقرأ بعد: ابدأ كلًّا منها بوقت مثل 1:30."
+      }
+    }
+  ],
   "editorTranscriptHint": "ما يُقال، للطلاب الذين لا يستطيعون السماع",
   "editorStudentCopy": "نسخة لكل طالب",
   "editorStudentCopyHint": "ورقة عمل يملؤها كل طالب كإجابته الخاصة",
@@ -1271,7 +1290,7 @@
   "editorMediaHint": "رفع مقطع فيديو أو صوت",
   "editorRecording": "تسجيل فيديو",
   "editorRecordingHint": "كاميرتك أو شاشتك أو كلتاهما، تُسجَّل هنا",
-  "editorRecordingSheet": "الترجمة النصية والفصول والنص المكتوب",
+  "editorRecordingSheet": "الترجمة النصية والفصول والوصف الصوتي والنص المكتوب",
   "editorCaptionsNeeded": "تحتاج إلى ترجمة نصية",
   "videoRecordHint": "سجّل نفسك أو شاشتك أو شاشتك وأنت في زاويتها. الفيديو القصير يُبقي الطلاب منتبهين: اجعله أقل من ست دقائق.",
   "videoRecordCamera": "الكاميرا",

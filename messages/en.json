@@ -1156,6 +1156,21 @@
     }
   ],
   "editorTranscriptAdd": "Add transcript",
+  "editorDescriptions": "Audio description",
+  "editorDescriptionsAdd": "Add audio description",
+  "editorDescriptionsHelp": "One a line: a time, then what the picture shows from then that nobody says aloud. Students who turn it on hear each line read out, the video waiting.",
+  "editorDescriptionsHint": "0:12 A map of Egypt, the Nile marked in blue\n1:05 Farmers lift water with a shaduf",
+  "editorDescriptionAddAt": "Describe at {time}",
+  "editorDescriptionsSkipped": [
+    {
+      "declarations": ["input count", "local countPlural = count: plural"],
+      "selectors": ["countPlural"],
+      "match": {
+        "countPlural=one": "{count} line is not read out yet: start it with a time such as 1:30.",
+        "countPlural=*": "{count} lines are not read out yet: start each with a time such as 1:30."
+      }
+    }
+  ],
   "editorTranscriptHint": "What is said, for students who cannot hear it",
   "editorStudentCopy": "Each student's copy",
   "editorStudentCopyHint": "A worksheet each student fills in as their own answer",
@@ -1212,7 +1227,7 @@
   "editorMediaHint": "Upload a video or a sound clip",
   "editorRecording": "Record a video",
   "editorRecordingHint": "Your camera, your screen, or both, recorded here",
-  "editorRecordingSheet": "Captions, chapters and transcript",
+  "editorRecordingSheet": "Captions, chapters, description and transcript",
   "editorCaptionsNeeded": "Captions needed",
   "videoRecordHint": "Record yourself, your screen, or your screen with you in a corner. Short videos keep students watching: aim for under six minutes.",
   "videoRecordCamera": "Camera",
