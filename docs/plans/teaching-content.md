@@ -170,7 +170,9 @@ Sources: [../research/course-design.md](../research/course-design.md),
    so it is answered, marked, shown and graded against those questions;
    a drawn question's id comes from the draw and the kept question, so
    marking by question gathers everyone who drew it. Assigning refuses a
-   draw the bank cannot fill. Left: printing each student's drawn paper.
+   draw the bank cannot fill. Done: named copies of such a quiz draw
+   each student's next attempt, as opening it would, and print their own
+   questions after the quiz's opening words, each with its own answer key.
 2. **Time limits and access arrangements.** A quiz time limit, extra time
    and other arrangements per student set once (extra time, read aloud,
    fewer choices, default extension days), as exam boards require. Done:
