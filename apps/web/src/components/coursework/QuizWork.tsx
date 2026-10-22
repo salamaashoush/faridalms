@@ -22,6 +22,7 @@ import {
   isCheckBlock,
   ReviewerContext,
 } from "~/components/learning/Checks";
+import { ReaderContext } from "~/components/learning/ReadAloud";
 import { FormField } from "~/components/system/field";
 import { RecordEmpty, RecordSection } from "~/components/system/RecordPage";
 import { SheetForm } from "~/components/system/SheetForm";
@@ -284,7 +285,7 @@ export function QuizWork({ data }: { data: Work }) {
       ? null
       : quiz.attemptsAllowed - quiz.attemptsUsed;
   return (
-    <>
+    <ReaderContext.Provider value={quiz.readAloud}>
       {quiz.results.length > 0 ? <Results quiz={quiz} /> : null}
       {quiz.open && quiz.timing && !quiz.timing.startedAt ? (
         <RecordSection
@@ -293,7 +294,9 @@ export function QuizWork({ data }: { data: Work }) {
         >
           <div className="grid justify-items-start gap-4">
             <p className="text-sm leading-5 text-muted-foreground">
-              {m.quizTimedBody({ time: formatMinutes(quiz.timing.minutes) })}
+              {(quiz.timing.extra ? m.quizTimedBodyExtra : m.quizTimedBody)({
+                time: formatMinutes(quiz.timing.minutes),
+              })}
             </p>
             {draw.error ? (
               <p role="alert" className="text-sm leading-5 text-destructive">
@@ -404,7 +407,7 @@ export function QuizWork({ data }: { data: Work }) {
           <RecordEmpty>{m.quizClosed()}</RecordEmpty>
         </RecordSection>
       ) : null}
-    </>
+    </ReaderContext.Provider>
   );
 }
 

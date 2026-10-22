@@ -1,3 +1,4 @@
+import type { AssignmentRow } from "@faridalms/database/stores/coursework";
 import type { Scope } from "@faridalms/database/stores/students";
 
 import { teachesClass } from "@faridalms/database/stores/classes";
@@ -69,5 +70,28 @@ export async function learnerAssignment(
   if (!assignment || assignment.state !== "published" || !recipient)
     throw new ORPCError("NOT_FOUND");
   await requireOpenYear(context, assignment.schoolYearId);
-  return { assignment, dueAt: recipient.dueAt ?? assignment.dueAt };
+  return ownSchedule(assignment, recipient);
+}
+
+/**
+ * An assignment as one student meets it: their own due time if they have
+ * one, and the same late window after it, so it closes for them that much
+ * later too.
+ */
+export function ownSchedule(
+  assignment: AssignmentRow,
+  recipient: { dueAt: string | null },
+) {
+  const later =
+    recipient.dueAt && assignment.dueAt
+      ? Date.parse(recipient.dueAt) - Date.parse(assignment.dueAt)
+      : 0;
+  const closesAt =
+    assignment.closesAt && later > 0
+      ? new Date(Date.parse(assignment.closesAt) + later).toISOString()
+      : assignment.closesAt;
+  return {
+    assignment: { ...assignment, closesAt },
+    dueAt: recipient.dueAt ?? assignment.dueAt,
+  };
 }

@@ -130,7 +130,13 @@ Sources: [../research/course-design.md](../research/course-design.md),
    the student begins it, runs on a clock kept in `core.quiz_sittings`,
    refuses answers once the clock and thirty seconds of grace have run
    out, and is handed in as it stood by the page or, if nobody is there,
-   by the API's worker. Left: the per-student arrangements.
+   by the API's worker. Done: access arrangements, kept on the student's
+   record under Support by whoever holds `support:manage`: extra time
+   (10%, 25%, 50%, double, or no clock at all), a computer reader for
+   questions and choices in quizzes and lessons, one wrong choice fewer in
+   quiz questions, and days added to due dates, which a teacher's own date
+   for the student overrides and which move the student's close time too.
+   Left: supervised rest breaks that pause the clock.
 3. **Feedback timing** per check: at once, at the end, or when the teacher
    returns the work.
 4. **Ask for a hint before answering**, not only after a wrong try.

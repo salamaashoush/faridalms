@@ -1,4 +1,8 @@
 import {
+  arrangementsRefSchema,
+  saveArrangementsSchema,
+} from "@faridalms/domain/arrangements";
+import {
   identifierRefSchema,
   saveIdentifierSchema,
 } from "@faridalms/domain/identifiers";
@@ -27,6 +31,14 @@ export const saveHealth = createServerFn({ method: "POST" })
 export const removeHealth = createServerFn({ method: "POST" })
   .validator(checked(removeHealthRecordSchema))
   .handler(({ data }) => backend().records.removeHealth(data));
+
+export const getArrangements = createServerFn({ method: "GET" })
+  .validator(checked(arrangementsRefSchema))
+  .handler(({ data }) => record(backend().records.arrangements(data)));
+
+export const saveArrangements = createServerFn({ method: "POST" })
+  .validator(checked(saveArrangementsSchema))
+  .handler(({ data }) => backend().records.saveArrangements(data));
 
 export const getDemographics = createServerFn({ method: "GET" })
   .validator(checked(v.object({ userId: v.pipe(v.string(), v.uuid()) })))

@@ -24,6 +24,7 @@ const DELETE_ALLOWED = new Set([
   "core.lesson_code",
   "core.lesson_projects",
   "core.lesson_shares",
+  "core.access_arrangements",
   "health.records",
   "audit.payloads",
 ]);

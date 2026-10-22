@@ -181,6 +181,9 @@ From [../research/early-years.md](../research/early-years.md).
   student begins an attempt, whose clock then runs whether or not they
   stay; answers sent after it ends are refused, and an attempt left open
   is handed in as it stood by the worker.
+- A student's access arrangements apply on their own: extra time or no
+  clock at all, a computer reader in quizzes and lessons, one wrong choice
+  fewer in quiz questions, and later due dates.
 - Once a student has started, or drawn, the questions and draws stay as
   they are; the settings can still change, and a clock already running
   keeps the time it began with.

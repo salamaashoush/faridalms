@@ -71,6 +71,7 @@ import {
   quizAnswers,
   quizDraws,
   quizSittings,
+  accessArrangements,
   submissions,
   privacyNotices,
   relationshipRestrictions,
@@ -526,6 +527,13 @@ export async function completeFixture(
     attempt: 1,
     blockId: id(),
     response: { type: "text", text: "Cairo" },
+  });
+  await tx.insert(accessArrangements).values({
+    tenantId,
+    orgId: schoolId,
+    studentUserId: submission.studentUserId,
+    extraTime: 25,
+    readAloud: true,
   });
   await tx.insert(quizSittings).values({
     tenantId,

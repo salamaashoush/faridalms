@@ -3,13 +3,19 @@ import { spokenWords, textDirection } from "@faridalms/domain/content";
 import { Button } from "@faridalms/ui/button";
 import { cn } from "@faridalms/ui/cn";
 import { Volume2 } from "lucide-react";
-import { createContext, useSyncExternalStore } from "react";
+import { createContext, useContext, useSyncExternalStore } from "react";
 
 import * as m from "~/i18n/messages";
 import { getLocale } from "~/i18n/runtime";
 
 /** A lesson set out for young children: text read aloud, larger answers. */
 export const YoungContext = createContext(false);
+
+/**
+ * A student whose access arrangements give them a computer reader: the
+ * browser's voice reads every question and choice that has no recording.
+ */
+export const ReaderContext = createContext(false);
 
 // One sound at a time, through one element, which iPad Safari lets play
 // again once a tap has started it.
@@ -238,7 +244,8 @@ export function ReadAloud({
     voiceLanguages,
     () => "",
   );
-  const spoken = !narration && voice && speakable(text, voices);
+  const reader = useContext(ReaderContext);
+  const spoken = !narration && (voice || reader) && speakable(text, voices);
   if (!narration && !spoken) return null;
   return (
     <Button

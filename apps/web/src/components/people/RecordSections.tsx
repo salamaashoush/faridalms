@@ -1,3 +1,10 @@
+import type { Arrangements } from "@faridalms/domain/arrangements";
+
+import {
+  EXTRA_TIMES,
+  hasArrangements,
+  MAX_EXTENSION_DAYS,
+} from "@faridalms/domain/arrangements";
 import { Button } from "@faridalms/ui/button";
 import {
   useMutation,
@@ -23,6 +30,7 @@ import { SheetForm } from "~/components/system/SheetForm";
 import { StatusBadge, StatusText } from "~/components/system/status";
 import * as m from "~/i18n/messages";
 import {
+  arrangementsQuery,
   custodyQuery,
   demographicsQuery,
   healthQuery,
@@ -30,11 +38,12 @@ import {
 import { peopleOptionsQuery } from "~/queries/students";
 import {
   removeHealth,
+  saveArrangements,
   saveCustody,
   saveDemographics,
   saveHealth,
 } from "~/server/records";
-import { formatList } from "~/utils/datetime";
+import { formatList, formatNumber } from "~/utils/datetime";
 import { getMessageFromError } from "~/utils/error";
 
 import { CheckboxRow } from "./fields";
@@ -532,6 +541,181 @@ export function DemographicsSection({ studentId }: { studentId: string }) {
       </RecordSection>
       {data.canWrite ? (
         <DemographicsSheet
+          key={sheet.key}
+          studentId={studentId}
+          data={data}
+          open={sheet.open}
+          onClose={() => setSheet((current) => ({ ...current, open: false }))}
+        />
+      ) : null}
+    </>
+  );
+}
+
+// --- access arrangements --------------------------------------------------------
+
+type ArrangementsData = Awaited<
+  ReturnType<NonNullable<ReturnType<typeof arrangementsQuery>["queryFn"]>>
+>;
+
+const EXTRA_TIME_CHOICES = [
+  "0",
+  ...EXTRA_TIMES.filter((value) => value > 0).map(String),
+  "unlimited",
+];
+
+function extraTimeLabel(value: string) {
+  if (value === "unlimited") return m.arrangementsUnlimited();
+  if (value === "0") return m.arrangementsNone();
+  return m.arrangementsExtraPercent({ percent: formatNumber(Number(value)) });
+}
+
+const extraTimeOf = (arrangements: Arrangements) =>
+  arrangements.unlimitedTime ? "unlimited" : String(arrangements.extraTime);
+
+const EXTENSION_CHOICES = Array.from(
+  { length: MAX_EXTENSION_DAYS + 1 },
+  (_, days) => String(days),
+);
+
+const yesOrNo = (on: boolean) => (on ? m.commonYes() : m.commonNo());
+
+const extensionLabel = (days: number) =>
+  days === 0
+    ? m.arrangementsNone()
+    : m.arrangementsExtensionDays({ count: days });
+
+function ArrangementsSheet({
+  studentId,
+  data,
+  open,
+  onClose,
+}: {
+  studentId: string;
+  data: ArrangementsData;
+  open: boolean;
+  onClose: () => void;
+}) {
+  const refresh = useRefresh(studentId);
+  const [value, setValue] = useState(data.arrangements);
+  const mutation = useMutation({
+    mutationFn: () =>
+      saveArrangements({
+        data: {
+          studentId,
+          expectedVersion: data.version,
+          arrangements: value,
+        },
+      }),
+    meta: { inlineError: true },
+  });
+  return (
+    <SheetForm
+      open={open}
+      onOpenChange={(next) => (next ? undefined : onClose())}
+      title={m.arrangementsEdit()}
+      pending={mutation.isPending}
+      error={mutation.error ? getMessageFromError(mutation.error) : null}
+      onSubmit={async () => {
+        await mutation.mutateAsync().then(
+          async () => {
+            await refresh();
+            toast.success(m.managementSaved());
+            onClose();
+          },
+          () => undefined,
+        );
+      }}
+    >
+      <SelectField
+        id="arrangements-extra-time"
+        label={m.arrangementsExtraTime()}
+        hint={m.arrangementsExtraTimeHint()}
+        value={extraTimeOf(value)}
+        options={EXTRA_TIME_CHOICES.map((choice) => ({
+          value: choice,
+          label: extraTimeLabel(choice),
+        }))}
+        onChange={(choice) =>
+          setValue({
+            ...value,
+            unlimitedTime: choice === "unlimited",
+            extraTime: EXTRA_TIMES.find((time) => String(time) === choice) ?? 0,
+          })
+        }
+        width="name"
+      />
+      <SelectField
+        id="arrangements-extension"
+        label={m.arrangementsExtension()}
+        hint={m.arrangementsExtensionHint()}
+        value={String(value.extensionDays)}
+        options={EXTENSION_CHOICES.map((choice) => ({
+          value: choice,
+          label: extensionLabel(Number(choice)),
+        }))}
+        onChange={(choice) =>
+          setValue({ ...value, extensionDays: Number(choice) })
+        }
+        width="name"
+      />
+      <CheckboxRow
+        label={m.arrangementsReadAloud()}
+        hint={m.arrangementsReadAloudHint()}
+        checked={value.readAloud}
+        onChange={(readAloud) => setValue({ ...value, readAloud })}
+      />
+      <CheckboxRow
+        label={m.arrangementsFewerChoices()}
+        hint={m.arrangementsFewerChoicesHint()}
+        checked={value.fewerChoices}
+        onChange={(fewerChoices) => setValue({ ...value, fewerChoices })}
+      />
+    </SheetForm>
+  );
+}
+
+/** A student's access arrangements, which their quizzes and due dates apply. */
+export function ArrangementsSection({ studentId }: { studentId: string }) {
+  const data = useSuspenseQuery(arrangementsQuery(studentId)).data;
+  const [sheet, setSheet] = useState({ open: false, key: 0 });
+  const value = data.arrangements;
+  return (
+    <>
+      <RecordSection
+        title={m.arrangementsTitle()}
+        description={m.arrangementsHint()}
+        edit={
+          data.canWrite
+            ? {
+                label: m.arrangementsEdit(),
+                onClick: () =>
+                  setSheet((current) => ({ open: true, key: current.key + 1 })),
+              }
+            : undefined
+        }
+      >
+        {hasArrangements(value) ? (
+          <Facts>
+            <Fact label={m.arrangementsExtraTime()}>
+              {extraTimeLabel(extraTimeOf(value))}
+            </Fact>
+            <Fact label={m.arrangementsExtension()}>
+              {extensionLabel(value.extensionDays)}
+            </Fact>
+            <Fact label={m.arrangementsReadAloud()}>
+              {yesOrNo(value.readAloud)}
+            </Fact>
+            <Fact label={m.arrangementsFewerChoices()}>
+              {yesOrNo(value.fewerChoices)}
+            </Fact>
+          </Facts>
+        ) : (
+          <RecordEmpty>{m.arrangementsEmpty()}</RecordEmpty>
+        )}
+      </RecordSection>
+      {data.canWrite ? (
+        <ArrangementsSheet
           key={sheet.key}
           studentId={studentId}
           data={data}

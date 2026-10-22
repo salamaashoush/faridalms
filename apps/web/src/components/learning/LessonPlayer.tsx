@@ -59,7 +59,11 @@ import {
 } from "~/components/coding/own-code";
 import { ContentView } from "~/components/content/ContentView";
 import { Media } from "~/components/learning/LessonMedia";
-import { ReadAloud, YoungContext } from "~/components/learning/ReadAloud";
+import {
+  ReadAloud,
+  ReaderContext,
+  YoungContext,
+} from "~/components/learning/ReadAloud";
 import { paperBlock } from "~/components/print/paper-blocks";
 import { usePrint } from "~/components/print/usePrint";
 import { RecordHeader } from "~/components/system/RecordPage";
@@ -876,20 +880,22 @@ export function LessonPlayer({ lessonId }: { lessonId: string }) {
       />
       {vowels.toggle}
       <YoungContext.Provider value={data.young && earlyYears}>
-        <OwnCodeContext.Provider value={ownCode}>
-          <OwnProjectsContext.Provider value={ownProjects}>
-            <LessonBody
-              key={data.attempt}
-              blocks={shown.blocks}
-              checks={shown.checks}
-              driver={driver}
-              position={data.position}
-              onReach={reach}
-              watch={watch}
-              watches={data.watches}
-            />
-          </OwnProjectsContext.Provider>
-        </OwnCodeContext.Provider>
+        <ReaderContext.Provider value={data.readAloud}>
+          <OwnCodeContext.Provider value={ownCode}>
+            <OwnProjectsContext.Provider value={ownProjects}>
+              <LessonBody
+                key={data.attempt}
+                blocks={shown.blocks}
+                checks={shown.checks}
+                driver={driver}
+                position={data.position}
+                onReach={reach}
+                watch={watch}
+                watches={data.watches}
+              />
+            </OwnProjectsContext.Provider>
+          </OwnCodeContext.Provider>
+        </ReaderContext.Provider>
       </YoungContext.Provider>
       {data.review ? (
         <section

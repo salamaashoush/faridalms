@@ -1285,6 +1285,7 @@
   "capContactsRead": "See phone numbers and emails",
   "capHealthRead": "Read health records",
   "capHealthWrite": "Edit health records",
+  "capSupportManage": "Set students' access arrangements",
   "capDemographicsRead": "Read nationality and religion",
   "capDemographicsWrite": "Edit nationality and religion",
   "capCustodyRead": "Read custody and pickup restrictions",
@@ -1404,6 +1405,32 @@
   "healthAlertShort": "Alert",
   "healthActions": "Actions for {record}",
   "studentTabHealth": "Health",
+  "studentTabSupport": "Support",
+  "arrangementsTitle": "Access arrangements",
+  "arrangementsHint": "What this student is given in timed quizzes, in questions and for due dates. Quizzes and due dates apply it for them, so their teachers need do nothing.",
+  "arrangementsEdit": "Edit arrangements",
+  "arrangementsEmpty": "No access arrangements.",
+  "arrangementsNone": "None",
+  "arrangementsExtraTime": "Extra time",
+  "arrangementsExtraTimeHint": "Added to the time limit of every timed quiz.",
+  "arrangementsExtraPercent": "{percent}% more time",
+  "arrangementsUnlimited": "As long as they need",
+  "arrangementsExtension": "Later due dates",
+  "arrangementsExtensionHint": "Added to the due date of work they are set from now on, and of work still to come due. A date a teacher sets for them stands.",
+  "arrangementsExtensionDays": [
+    {
+      "declarations": ["input count", "local countPlural = count: plural"],
+      "selectors": ["countPlural"],
+      "match": {
+        "countPlural=one": "{count} day later",
+        "countPlural=*": "{count} days later"
+      }
+    }
+  ],
+  "arrangementsReadAloud": "Computer reader",
+  "arrangementsReadAloudHint": "Questions and their choices can be read aloud by the browser.",
+  "arrangementsFewerChoices": "One wrong choice fewer",
+  "arrangementsFewerChoicesHint": "A choice question in a quiz with two or more wrong options shows one fewer.",
   "demographicsTitle": "Background",
   "demographicsHint": "Nationality, birthplace, religion and home languages. Each visit is recorded.",
   "demographicsEdit": "Edit background",
@@ -4577,6 +4604,7 @@
   "quizTimeLimitHint": "Each attempt runs from when the student begins it. When time runs out, the answers they kept are handed in.",
   "quizTimeLimitNone": "No time limit",
   "quizTimedBody": "You have {time} once you begin. The clock keeps running if you leave, and when time runs out the answers you kept are handed in.",
+  "quizTimedBodyExtra": "You have {time} once you begin, your extra time included. The clock keeps running if you leave, and when time runs out the answers you kept are handed in.",
   "quizBegin": "Begin the attempt",
   "quizTimeLeft": "Time left",
   "quizTimeWarning": [

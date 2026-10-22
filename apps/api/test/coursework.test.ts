@@ -1735,6 +1735,144 @@ describe("quizzes", () => {
     expect(done.quiz?.open).toBe(false);
   });
 
+  test("a student's access arrangements give them extra time, a reader, a choice fewer and later due dates", async () => {
+    const principal = await signedIn("northwind", login("principal"));
+    const teacher = await arabicTeacher();
+    const student = await sessionFor("northwind", login("student"));
+    const me = await student.api.identity.currentUser();
+    const target = await classOfStudent(teacher.api, me.id);
+    const none = await principal.records.arrangements({ studentId: me.id });
+    expect(none).toMatchObject({ version: 0, canWrite: true });
+    const arrange = (
+      expectedVersion: number,
+      changes: Partial<typeof none.arrangements>,
+    ) =>
+      principal.records.saveArrangements({
+        studentId: me.id,
+        expectedVersion,
+        arrangements: { ...none.arrangements, ...changes },
+      });
+    const first = await arrange(0, {
+      extraTime: 50,
+      readAloud: true,
+      fewerChoices: true,
+      extensionDays: 2,
+    });
+    const seen = await teacher.api.records.arrangements({ studentId: me.id });
+    expect(seen).toMatchObject({
+      canWrite: false,
+      arrangements: { extraTime: 50, readAloud: true, extensionDays: 2 },
+    });
+    expect(
+      await rejection(
+        teacher.api.records.saveArrangements({
+          studentId: me.id,
+          expectedVersion: first.version,
+          arrangements: seen.arrangements,
+        }),
+      ),
+    ).toMatchObject({ code: "FORBIDDEN" });
+
+    const right = uuid();
+    const choice = {
+      ...common,
+      id: uuid(),
+      type: "choice" as const,
+      prompt: "Which is a noun?",
+      points: 2,
+      options: [
+        { id: right, text: "Book", feedback: "" },
+        { id: uuid(), text: "Run", feedback: "" },
+        { id: uuid(), text: "Quickly", feedback: "" },
+      ],
+      correctOptionIds: [right],
+      multiple: false,
+      shuffle: false,
+    };
+    // Due times are kept to the second.
+    const due = new Date(
+      Math.floor(Date.now() / 1000) * 1000 + 7 * 86_400_000,
+    ).toISOString();
+    const saved = await teacher.api.coursework.save(
+      draft(target.id, "Arranged quiz", {
+        submissionFormat: "quiz",
+        points: null,
+        dueAt: due,
+        brief: briefWithQuiz(plainContent("Answer in time."), {
+          version: 2,
+          blocks: [choice],
+        }),
+        quiz: {
+          attempts: 2,
+          keep: "highest",
+          reveal: "answers",
+          shuffle: false,
+          timeLimit: 10,
+        },
+      }),
+    );
+    await teacher.api.coursework.publish({
+      id: saved.id,
+      expectedVersion: saved.version,
+    });
+    const before = await student.api.coursework.work({ id: saved.id });
+    expect(before.quiz).toMatchObject({
+      readAloud: true,
+      timing: { minutes: 15, extra: true },
+    });
+    // Their own due date is two days on from everyone else's.
+    expect(Date.parse(before.assignment.dueAt ?? "") - Date.parse(due)).toBe(
+      2 * 86_400_000,
+    );
+    await student.api.coursework.startQuiz({ assignmentId: saved.id });
+    const begun = await student.api.coursework.work({ id: saved.id });
+    const { startedAt, endsAt } = begun.quiz?.timing ?? {};
+    expect(Date.parse(endsAt ?? "") - Date.parse(startedAt ?? "")).toBe(
+      15 * 60_000,
+    );
+    const [asked] = begun.quiz?.blocks ?? [];
+    if (asked?.type !== "choice") throw new Error("no choice question");
+    expect(asked.options).toHaveLength(2);
+    expect(asked.options.map((option) => option.id)).toContain(right);
+
+    // A teacher's own date for the student stands; taking it back gives the
+    // arranged one again.
+    await teacher.api.coursework.extend({
+      assignmentId: saved.id,
+      studentIds: [me.id],
+      dueAt: new Date(Date.parse(due) + 5 * 86_400_000).toISOString(),
+    });
+    const extended = await student.api.coursework.work({ id: saved.id });
+    expect(Date.parse(extended.assignment.dueAt ?? "") - Date.parse(due)).toBe(
+      5 * 86_400_000,
+    );
+    await teacher.api.coursework.extend({
+      assignmentId: saved.id,
+      studentIds: [me.id],
+      dueAt: "",
+    });
+    const arranged = await student.api.coursework.work({ id: saved.id });
+    expect(Date.parse(arranged.assignment.dueAt ?? "") - Date.parse(due)).toBe(
+      2 * 86_400_000,
+    );
+
+    // As long as they need: the clock already running keeps its time, and
+    // the next attempt runs without one.
+    await arrange(first.version, { unlimitedTime: true });
+    const unlimited = await student.api.coursework.work({ id: saved.id });
+    expect(unlimited.quiz?.timing?.minutes).toBe(15);
+    expect(Date.parse(unlimited.assignment.dueAt ?? "") - Date.parse(due)).toBe(
+      0,
+    );
+    await student.api.coursework.handIn({
+      assignmentId: saved.id,
+      expectedVersion: unlimited.submission.version,
+    });
+    const next = await student.api.coursework.work({ id: saved.id });
+    expect(next.quiz?.timing).toBe(null);
+    expect(next.quiz?.blocks.map((block) => block.id)).toEqual([choice.id]);
+  });
+
   test("a quiz shown only when returned keeps its results back until then", async () => {
     const { teacher, student, me, saved, choice, right } =
       await quizFor("returned");

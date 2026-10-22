@@ -156,6 +156,9 @@ Rules that hold for every section:
    event participants.
 8. **Learning support.** Needs, plan type (IEP, ILP, BSP and the like),
    review dates, accommodations teachers see, exam access arrangements.
+   Done: the access arrangements quizzes and due dates apply, on a Support
+   tab any staff member who reads the student sees and `support:manage`
+   edits. Remaining: needs, plans and review dates.
 9. **Pastoral notes and safeguarding.** Pastoral notes teachers can add and
    read for their students; safeguarding concerns as a separate chronology
    seen only by the designated lead and team. Egypt bars using children's

@@ -75,6 +75,7 @@ import { LeaveSchool } from "./LeaveSchool";
 import { PhotoDialog } from "./PhotoDialog";
 import { Deferred, Email, HistorySection, Phone } from "./record-parts";
 import {
+  ArrangementsSection,
   CustodySection,
   DemographicsSection,
   HealthSection,
@@ -95,6 +96,7 @@ export const STUDENT_TABS = [
   "coursework",
   "attendance",
   "health",
+  "support",
   "account",
   "history",
 ] as const;
@@ -108,6 +110,7 @@ const TAB_LABEL: Record<StudentTab, () => string> = {
   coursework: m.courseworkRecordTab,
   attendance: m.attendanceTitle,
   health: m.studentTabHealth,
+  support: m.studentTabSupport,
   account: m.studentTabAccount,
   history: m.recordHistory,
 };
@@ -129,6 +132,7 @@ export function studentTabsFor(
     coursework: access.coursework,
     attendance: access.attendance,
     health: access.health,
+    support: access.support,
     account: access.manage,
     history: access.history,
   };
@@ -838,6 +842,17 @@ export function StudentRecord({
           main={
             <Deferred>
               <HealthSection studentId={studentId} />
+            </Deferred>
+          }
+        />
+      );
+      break;
+    case "support":
+      body = (
+        <RecordColumns
+          main={
+            <Deferred>
+              <ArrangementsSection studentId={studentId} />
             </Deferred>
           }
         />

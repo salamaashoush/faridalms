@@ -258,6 +258,51 @@ export const demographics = core.table.withRLS(
   ],
 );
 
+/**
+ * A student's access arrangements at one school: extra time on timed
+ * quizzes or none at all, a computer reader, one wrong choice fewer, and
+ * days added to every due date. One row a student, changed in place.
+ */
+export const accessArrangements = core.table.withRLS(
+  "access_arrangements",
+  {
+    ...tenantColumns(),
+    orgId: uuid("org_id").notNull(),
+    studentUserId: uuid("student_user_id").notNull(),
+    extraTime: smallint("extra_time").notNull().default(0),
+    unlimitedTime: boolean("unlimited_time").notNull().default(false),
+    readAloud: boolean("read_aloud").notNull().default(false),
+    fewerChoices: boolean("fewer_choices").notNull().default(false),
+    extensionDays: smallint("extension_days").notNull().default(0),
+    ...entityColumns(),
+  },
+  (t): PgTableExtraConfigValue[] => [
+    pk("access_arrangements", t.tenantId, t.id),
+    ...baseConstraints("access_arrangements", t, tenants),
+    fk("access_arrangements", [t.tenantId, t.orgId], [orgs.tenantId, orgs.id]),
+    fk(
+      "access_arrangements",
+      [t.tenantId, t.studentUserId],
+      [users.tenantId, users.id],
+    ),
+    ck(
+      "access_arrangements",
+      "extra_time",
+      sql`extra_time in (0, 10, 25, 50, 100)`,
+    ),
+    ck(
+      "access_arrangements",
+      "extension_days",
+      sql`extension_days between 0 and 14`,
+    ),
+    uniqueIndex("access_arrangements_key")
+      .on(t.tenantId, t.orgId, t.studentUserId)
+      .where(sql`status = 'active'`),
+    ...entityProfile(),
+    ...eraseAndDelete(erasureOf("student_user_id")),
+  ],
+);
+
 export const externalIds = core.table.withRLS(
   "external_ids",
   {

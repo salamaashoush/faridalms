@@ -17,6 +17,7 @@ import type {
   QuizAnswer,
 } from "@faridalms/domain/learning";
 
+import { arrangementsOf } from "@faridalms/database/stores/arrangements";
 import { bankTagCounts } from "@faridalms/database/stores/bank";
 import {
   classById,
@@ -108,6 +109,10 @@ import {
   workingYear,
 } from "@faridalms/database/stores/years";
 import {
+  allowedMinutes,
+  NO_ARRANGEMENTS,
+} from "@faridalms/domain/arrangements";
+import {
   contentFileIds,
   contentPlainText,
   starterOf,
@@ -178,6 +183,7 @@ import {
 } from "../core/assessed";
 import {
   learnerAssignment,
+  ownSchedule,
   requireOpenYear,
   scopeOf,
   taughtAssignment,
@@ -1631,21 +1637,18 @@ export const work = readProcedure
   .input(v.object({ id }))
   .handler(async ({ input, context }) => {
     requireCapability(context, "own-work:read");
-    const assignment = await assignmentById(
-      context.tx,
-      context.tenantId,
-      input.id,
-    );
-    const recipient = assignment
+    const stored = await assignmentById(context.tx, context.tenantId, input.id);
+    const recipient = stored
       ? await isRecipient(
           context.tx,
           context.tenantId,
-          assignment.id,
+          stored.id,
           context.actor.userId,
         )
       : null;
-    if (!assignment || assignment.state !== "published" || !recipient)
+    if (!stored || stored.state !== "published" || !recipient)
       throw new ORPCError("NOT_FOUND");
+    const { assignment, dueAt } = ownSchedule(stored, recipient);
     if (
       assignment.availableFrom &&
       Date.parse(assignment.availableFrom) > context.now.getTime()
@@ -1672,7 +1675,6 @@ export const work = readProcedure
     const attempts = row.submissionId
       ? await attemptsView(context, row.submissionId, false, assignment.points)
       : [];
-    const dueAt = recipient.dueAt ?? assignment.dueAt;
     const quiz =
       assignment.submissionFormat === "quiz"
         ? await learnerQuiz(context, { assignment, row, dueAt })
@@ -1758,7 +1760,7 @@ async function learnerQuiz(
   const { assignment, row } = input;
   const document = await publishedQuiz(context, assignment.id);
   if (!document) return null;
-  const [byAttempt, attempts, quizzes, sittings] = await Promise.all([
+  const [byAttempt, attempts, quizzes, sittings, arranged] = await Promise.all([
     row.submissionId
       ? answersByAttempt(context, row.submissionId)
       : new Map<number, QuizAnswer[]>(),
@@ -1772,10 +1774,20 @@ async function learnerQuiz(
           submissionId: row.submissionId,
         })
       : new Map<number, SittingRow>(),
+    ownArrangements(context, assignment.orgId),
   ]);
   const current = row.attempts + 1;
   const sitting = sittings.get(current) ?? null;
-  const minutes = assignment.quizTimeLimit;
+  const limit = assignment.quizTimeLimit;
+  // A running clock tells its own time; one not yet begun, the student's.
+  const minutes = sitting
+    ? sitting.endsAt &&
+      Math.round(
+        (sitting.endsAt.getTime() - sitting.startedAt.getTime()) / 60_000,
+      )
+    : limit === null
+      ? null
+      : allowedMinutes(limit, arranged);
   const seed = (attempt: number) => `${context.actor.userId}:${attempt}`;
   const results = await Promise.all(
     attempts.map(async (attempt) => {
@@ -1799,6 +1811,7 @@ async function learnerQuiz(
           asked,
           seed(attempt.number),
           assignment.quizShuffle,
+          arranged.fewerChoices,
         ),
         score: show
           ? attemptScore(
@@ -1832,6 +1845,7 @@ async function learnerQuiz(
             quizzes.of(current),
             seed(current),
             assignment.quizShuffle,
+            arranged.fewerChoices,
           ),
     total: quizPoints(document),
     /** Minutes an attempt runs, and when the one under way began and runs out. */
@@ -1840,10 +1854,14 @@ async function learnerQuiz(
         ? null
         : {
             minutes,
+            /** The student's extra time is counted in. */
+            extra: limit !== null && minutes > limit,
             startedAt: sitting?.startedAt.toISOString() ?? null,
             endsAt: sitting?.endsAt?.toISOString() ?? null,
             timeUp: sitting ? timeIsUp(sitting.endsAt, context.now) : false,
           },
+    /** The student's arrangements give them a computer reader. */
+    readAloud: arranged.readAloud,
     attempt: current,
     attemptsAllowed: assignment.quizAttempts,
     attemptsUsed: row.attempts,
@@ -2430,6 +2448,28 @@ export const saveQuizProgram = schoolProcedure
     );
   });
 
+/** The arrangements of the student taking a quiz, or none. */
+async function ownArrangements(context: UnitContext, orgId: string) {
+  const kept = await arrangementsOf(context.tx, {
+    tenantId: context.tenantId,
+    orgId,
+    studentId: context.actor.userId,
+  });
+  return kept?.arrangements ?? NO_ARRANGEMENTS;
+}
+
+/**
+ * The minutes a timed quiz gives the student taking it, their extra time
+ * counted; null when it is not timed for them.
+ */
+async function quizMinutes(context: UnitContext, assignment: AssignmentRow) {
+  if (assignment.quizTimeLimit === null) return null;
+  return allowedMinutes(
+    assignment.quizTimeLimit,
+    await ownArrangements(context, assignment.orgId),
+  );
+}
+
 /**
  * The attempt a student is on, open for answers: its clock begun if the
  * quiz is timed, and refused once that has run out; its questions drawn
@@ -2464,18 +2504,29 @@ async function openAttempt(context: UnitContext, assignmentId: string) {
   const document = await publishedQuiz(context, assignment.id);
   if (!document) throw new ORPCError("NOT_FOUND");
   const attempt = row.attempts + 1;
-  if (assignment.quizTimeLimit !== null) {
-    const sitting = await beginSitting(tx, {
+  // A clock already running keeps the time it began with, whatever has
+  // changed of the quiz or the student's arrangements since.
+  const running = (
+    await sittingsOf(tx, {
       tenantId: context.tenantId,
       submissionId: submission.id,
-      studentId: context.actor.userId,
-      attempt,
-      startedAt: context.now,
-      endsAt: sittingEnds(context.now, assignment.quizTimeLimit),
-    });
-    if (timeIsUp(sitting.endsAt, context.now))
-      throw new ORPCError("CONFLICT", { message: "coursework.time_up" });
-  }
+    })
+  ).get(attempt);
+  const minutes = running ? null : await quizMinutes(context, assignment);
+  const sitting =
+    running ??
+    (minutes === null
+      ? null
+      : await beginSitting(tx, {
+          tenantId: context.tenantId,
+          submissionId: submission.id,
+          studentId: context.actor.userId,
+          attempt,
+          startedAt: context.now,
+          endsAt: sittingEnds(context.now, minutes),
+        }));
+  if (sitting && timeIsUp(sitting.endsAt, context.now))
+    throw new ORPCError("CONFLICT", { message: "coursework.time_up" });
   await drawAttempt(context, {
     assignment,
     document,

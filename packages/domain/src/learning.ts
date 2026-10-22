@@ -2430,6 +2430,32 @@ export function describeCheck(
 const CHECK_TYPES = new Set<LessonBlockType>([...AUTO_TYPES, ...MARKED_TYPES]);
 
 /**
+ * A quiz with one wrong option fewer in each choice question that has two
+ * or more wrong ones, as a student's access arrangements may give them; the
+ * one left out is the same each time the student opens the attempt.
+ */
+function withFewerChoices(
+  document: LessonDocument,
+  seed: string,
+): LessonDocument {
+  return {
+    ...document,
+    blocks: document.blocks.map((block) => {
+      if (block.type !== "choice") return block;
+      const wrong = block.options.filter(
+        (option) => !block.correctOptionIds.includes(option.id),
+      );
+      if (wrong.length < 2) return block;
+      const [dropped] = shuffled(wrong, `${seed}:${block.id}:fewer`);
+      return {
+        ...block,
+        options: block.options.filter((option) => option !== dropped),
+      };
+    }),
+  };
+}
+
+/**
  * A quiz as its student sees it: a lesson's blocks, with the questions in the
  * student's own order when the teacher asks, text between them left where it
  * stands.
@@ -2438,8 +2464,12 @@ export function studentQuiz(
   document: LessonDocument,
   seed: string,
   shuffle: boolean,
+  fewerChoices = false,
 ): StudentBlock[] {
-  const blocks = studentBlocks(document, seed);
+  const blocks = studentBlocks(
+    fewerChoices ? withFewerChoices(document, seed) : document,
+    seed,
+  );
   if (!shuffle) return blocks;
   const slots = blocks.flatMap((block, index) =>
     CHECK_TYPES.has(block.type) ? [index] : [],

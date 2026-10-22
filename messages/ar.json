@@ -1320,6 +1320,7 @@
   "capContactsRead": "الاطلاع على أرقام الهواتف والبريد الإلكتروني",
   "capHealthRead": "قراءة السجلات الصحية",
   "capHealthWrite": "تعديل السجلات الصحية",
+  "capSupportManage": "تحديد ترتيبات الوصول للطلاب",
   "capDemographicsRead": "قراءة الجنسية والديانة",
   "capDemographicsWrite": "تعديل الجنسية والديانة",
   "capCustodyRead": "قراءة قيود الحضانة والاستلام",
@@ -1439,6 +1440,35 @@
   "healthAlertShort": "تنبيه",
   "healthActions": "إجراءات {record}",
   "studentTabHealth": "الصحة",
+  "studentTabSupport": "الدعم",
+  "arrangementsTitle": "ترتيبات الوصول",
+  "arrangementsHint": "ما يُمنح لهذا الطالب في الاختبارات المحددة بوقت وفي الأسئلة ومواعيد التسليم. تطبّقها الاختبارات والمواعيد تلقائيًا، فلا يحتاج معلموه إلى فعل شيء.",
+  "arrangementsEdit": "تعديل الترتيبات",
+  "arrangementsEmpty": "لا ترتيبات وصول.",
+  "arrangementsNone": "لا شيء",
+  "arrangementsExtraTime": "وقت إضافي",
+  "arrangementsExtraTimeHint": "يُضاف إلى المدة المحددة لكل اختبار محدد بوقت.",
+  "arrangementsExtraPercent": "وقت أطول بنسبة {percent}٪",
+  "arrangementsUnlimited": "ما يحتاجه من وقت",
+  "arrangementsExtension": "مواعيد تسليم لاحقة",
+  "arrangementsExtensionHint": "تُضاف إلى موعد تسليم ما يُكلَّف به من الآن، وما لم يحن موعده بعد. والموعد الذي يحدده المعلم له يبقى كما هو.",
+  "arrangementsExtensionDays": [
+    {
+      "declarations": ["input count", "local countPlural = count: plural"],
+      "selectors": ["countPlural"],
+      "match": {
+        "countPlural=one": "بعد يوم واحد",
+        "countPlural=two": "بعد يومين",
+        "countPlural=few": "بعد {count} أيام",
+        "countPlural=many": "بعد {count} يومًا",
+        "countPlural=*": "بعد {count} يوم"
+      }
+    }
+  ],
+  "arrangementsReadAloud": "قارئ حاسوبي",
+  "arrangementsReadAloudHint": "يمكن للمتصفح قراءة الأسئلة وخياراتها بصوت عالٍ.",
+  "arrangementsFewerChoices": "خيار خاطئ أقل",
+  "arrangementsFewerChoicesHint": "يظهر سؤال الاختيار في الاختبار الذي فيه خياران خاطئان أو أكثر بخيار خاطئ أقل.",
   "demographicsTitle": "الخلفية",
   "demographicsHint": "الجنسية ومكان الميلاد والديانة ولغات المنزل، ويُسجَّل كل اطلاع.",
   "demographicsEdit": "تعديل الخلفية",
@@ -4777,6 +4807,7 @@
   "quizTimeLimitHint": "تبدأ كل محاولة حين يبدأها الطالب. وعند انتهاء الوقت تُسلَّم الإجابات التي حفظها.",
   "quizTimeLimitNone": "بلا مدة محددة",
   "quizTimedBody": "لديك {time} بعد أن تبدأ. يستمر الوقت إن غادرت، وعند انتهائه تُسلَّم الإجابات التي حفظتها.",
+  "quizTimedBodyExtra": "لديك {time} بعد أن تبدأ، ومعها وقتك الإضافي. يستمر الوقت إن غادرت، وعند انتهائه تُسلَّم الإجابات التي حفظتها.",
   "quizBegin": "ابدأ المحاولة",
   "quizTimeLeft": "الوقت المتبقي",
   "quizTimeWarning": [

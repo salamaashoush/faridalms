@@ -607,6 +607,14 @@ describe("erasing a student's work", () => {
         await tx.execute(sql`
           insert into core.lesson_shares (tenant_id, lesson_id, student_user_id, block_id, response)
           values (${t}::uuid, ${lesson.id}::uuid, ${work.student}::uuid, ${block}::uuid, '{}')`);
+        // The time and the reader their school gave them.
+        await tx.execute(sql`
+          insert into core.access_arrangements (tenant_id, org_id, student_user_id, extra_time, read_aloud)
+          select ${t}::uuid, m.org_id, ${work.student}::uuid, 25, true
+          from core.lessons l
+          join core.learning_modules m on m.tenant_id = l.tenant_id and m.id = l.module_id
+          where l.tenant_id = ${t}::uuid and l.id = ${lesson.id}::uuid
+          on conflict do nothing`);
 
         const plan = await erasurePlan(tx, {
           tenantId: t,
@@ -687,6 +695,7 @@ describe("erasing a student's work", () => {
           shares: number;
           unread: number;
           quizzes: number;
+          arrangements: number;
         }>(sql`
           select (select count(*)::int from core.lesson_runs where tenant_id = ${t}::uuid
                    and student_user_id = ${work.student}::uuid) as runs,
@@ -700,7 +709,9 @@ describe("erasing a student's work", () => {
                    and student_user_id = ${work.student}::uuid and redacted_at is null) as unread,
                  (select count(*)::int from core.quiz_answers where tenant_id = ${t}::uuid
                    and student_user_id = ${work.student}::uuid
-                   and (status = 'active' or response <> '{}' or feedback is not null)) as quizzes`);
+                   and (status = 'active' or response <> '{}' or feedback is not null)) as quizzes,
+                 (select count(*)::int from core.access_arrangements where tenant_id = ${t}::uuid
+                   and student_user_id = ${work.student}::uuid) as arrangements`);
         expect(left).toEqual({
           runs: 0,
           code: 0,
@@ -708,6 +719,7 @@ describe("erasing a student's work", () => {
           shares: 0,
           unread: 0,
           quizzes: 0,
+          arrangements: 0,
         });
         checked = true;
         throw rollback;

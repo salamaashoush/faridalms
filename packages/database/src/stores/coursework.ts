@@ -456,11 +456,55 @@ export async function setRecipients(
       insert into core.assignment_recipients (tenant_id, assignment_id, student_user_id, source, group_id)
       values (${input.tenantId}::uuid, ${input.assignmentId}::uuid, ${studentId}::uuid,
         ${next.source}, ${next.groupId}::uuid)`);
+  await arrangeDue(tx, {
+    tenantId: input.tenantId,
+    assignmentId: input.assignmentId,
+  });
   const [count] = await tx.execute<{ n: number }>(sql`
     select count(*)::int as n from core.assignment_recipients
     where tenant_id = ${input.tenantId}::uuid and assignment_id = ${input.assignmentId}::uuid
       and status = 'active'`);
   return count?.n ?? 0;
+}
+
+/**
+ * Gives recipients whose access arrangements add days to every due date
+ * their own due time, the assignment's plus those days, and takes back one
+ * their arrangements no longer give; a due time a teacher set stands. For
+ * one assignment, or for some students' work due from `from` on, as their
+ * arrangements change. Returns how many recipients changed.
+ */
+export async function arrangeDue(
+  tx: Tx,
+  input: {
+    tenantId: string;
+    assignmentId?: string;
+    studentIds?: readonly string[];
+    from?: Date;
+  },
+): Promise<number> {
+  const rows = await tx.execute<{ id: string }>(sql`
+    with wanted as (
+      select r.id,
+        case when a.due_at is not null and x.extension_days > 0
+          then a.due_at + make_interval(days => x.extension_days::int) end as due_at
+      from core.assignment_recipients r
+      join core.assignments a on a.tenant_id = r.tenant_id and a.id = r.assignment_id
+      left join core.access_arrangements x on x.tenant_id = r.tenant_id and x.org_id = a.org_id
+        and x.student_user_id = r.student_user_id and x.status = 'active'
+      where r.tenant_id = ${input.tenantId}::uuid and r.status = 'active' and a.status = 'active'
+        and (r.due_at is null or r.due_arranged)
+        ${input.assignmentId ? sql`and r.assignment_id = ${input.assignmentId}::uuid` : sql``}
+        ${input.studentIds ? sql`and r.student_user_id = any(${uuidArray(input.studentIds)})` : sql``}
+        ${input.from ? sql`and a.due_at > ${input.from.toISOString()}::timestamptz` : sql``}
+    )
+    update core.assignment_recipients r
+    set due_at = w.due_at, due_arranged = w.due_at is not null
+    from wanted w
+    where r.tenant_id = ${input.tenantId}::uuid and r.id = w.id
+      and r.due_at is distinct from w.due_at
+    returning r.id`);
+  return rows.length;
 }
 
 /**
@@ -477,10 +521,19 @@ export async function setRecipientDue(
   },
 ): Promise<number> {
   const rows = await tx.execute<{ id: string }>(sql`
-    update core.assignment_recipients set due_at = ${input.dueAt}::timestamptz
+    update core.assignment_recipients set due_at = ${input.dueAt}::timestamptz,
+      due_arranged = false
     where tenant_id = ${input.tenantId}::uuid and assignment_id = ${input.assignmentId}::uuid
       and student_user_id = any(${uuidArray(input.studentIds)}) and status = 'active'
     returning id`);
+  // A student given back the assignment's due time keeps what their
+  // arrangements add to it.
+  if (input.dueAt === null)
+    await arrangeDue(tx, {
+      tenantId: input.tenantId,
+      assignmentId: input.assignmentId,
+      studentIds: input.studentIds,
+    });
   return rows.length;
 }
 
@@ -1396,7 +1449,8 @@ export async function learnerAssignments(
       c.title_ar as class_title_ar, c.code as class_code,
       to_char(a.available_from at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS"Z"') as available_from,
       to_char(coalesce(r.due_at, a.due_at) at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS"Z"') as due_at,
-      to_char(a.closes_at at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS"Z"') as closes_at,
+      to_char((a.closes_at + greatest(coalesce(r.due_at - a.due_at, interval '0'), interval '0'))
+        at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS"Z"') as closes_at,
       a.late_policy, a.submission_format, a.points::text as points,
       s.excused, s.needs_revision,
       exists (select 1 from core.documents d where d.tenant_id = r.tenant_id and d.host_type = 'submission'

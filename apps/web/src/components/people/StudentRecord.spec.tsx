@@ -116,6 +116,7 @@ const RECORD: StudentData = {
     identifiers: false,
     contacts: true,
     health: false,
+    support: false,
     demographics: false,
     custody: false,
     history: false,

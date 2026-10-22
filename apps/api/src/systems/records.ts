@@ -1,6 +1,11 @@
 import type { Scope } from "@faridalms/database/stores/students";
 
 import { decryptField, encryptField } from "@faridalms/database/crypto";
+import {
+  arrangementsOf,
+  keepArrangements,
+} from "@faridalms/database/stores/arrangements";
+import { arrangeDue } from "@faridalms/database/stores/coursework";
 import { descriptorsFor } from "@faridalms/database/stores/descriptors";
 import {
   demographicsOf,
@@ -20,6 +25,11 @@ import {
   refreshCustodyAlert,
 } from "@faridalms/database/stores/students";
 import {
+  arrangementsRefSchema,
+  NO_ARRANGEMENTS,
+  saveArrangementsSchema,
+} from "@faridalms/domain/arrangements";
+import {
   HEALTH_SEVERITIES,
   removeHealthRecordSchema,
   saveCustodySchema,
@@ -31,7 +41,7 @@ import * as v from "valibot";
 
 import type { UnitContext } from "../core/context";
 
-import { can, readProcedure, writeProcedure } from "../core/procedure";
+import { audit, can, readProcedure, writeProcedure } from "../core/procedure";
 import { withPurposeFor } from "../core/purpose";
 
 const id = v.pipe(v.string(), v.uuid());
@@ -347,4 +357,69 @@ export const saveCustody = writeProcedure
       },
     );
     return { saved: true };
+  });
+
+/**
+ * Whoever keeps arrangements sees every student of the school; others see
+ * the students they may read at all, whose arrangements they apply.
+ */
+async function requireArranged(context: UnitContext, studentId: string) {
+  const scope = {
+    ...scopeOf(context),
+    schoolWide: can(context, "people:manage") || can(context, "support:manage"),
+  };
+  if (!(await isVisibleStudent(context.tx, scope, studentId)))
+    throw new ORPCError("NOT_FOUND");
+}
+
+/** A student's access arrangements, for the staff who teach or support them. */
+export const arrangements = readProcedure
+  .input(arrangementsRefSchema)
+  .handler(async ({ input, context }) => {
+    if (!can(context, "people:read") && !can(context, "support:manage"))
+      throw new ORPCError("FORBIDDEN");
+    await requireArranged(context, input.studentId);
+    const kept = await arrangementsOf(context.tx, {
+      tenantId: context.tenantId,
+      orgId: context.schoolId,
+      studentId: input.studentId,
+    });
+    return {
+      arrangements: kept?.arrangements ?? NO_ARRANGEMENTS,
+      version: kept?.version ?? 0,
+      canWrite: can(context, "support:manage"),
+    };
+  });
+
+/**
+ * Keeps a student's access arrangements. Days added to due dates reach the
+ * work they are set from now on and work still to come due.
+ */
+export const saveArrangements = writeProcedure
+  .input(saveArrangementsSchema)
+  .handler(async ({ input, context }) => {
+    if (!can(context, "support:manage")) throw new ORPCError("FORBIDDEN");
+    await requireArranged(context, input.studentId);
+    const version = await keepArrangements(context.tx, {
+      tenantId: context.tenantId,
+      orgId: context.schoolId,
+      studentId: input.studentId,
+      expectedVersion: input.expectedVersion,
+      arrangements: input.arrangements,
+    });
+    if (version === null)
+      throw new ORPCError("CONFLICT", { message: "conflict.version" });
+    await arrangeDue(context.tx, {
+      tenantId: context.tenantId,
+      studentIds: [input.studentId],
+      from: context.now,
+    });
+    await audit(context, {
+      action: "student.arrangements",
+      objectType: "user",
+      objectId: input.studentId,
+      studentUserId: input.studentId,
+      details: { ...input.arrangements },
+    });
+    return { version };
   });

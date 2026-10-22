@@ -263,6 +263,12 @@ export const assignmentRecipients = core.table.withRLS(
     source: text("source").$type<RecipientSource>().notNull(),
     groupId: uuid("group_id"),
     dueAt: instant("due_at"),
+    /**
+     * The student's own due time comes from their access arrangements, and
+     * moves as the assignment's does; one a teacher set stands until they
+     * change it.
+     */
+    dueArranged: boolean("due_arranged").notNull().default(false),
     ...entityColumns(),
   },
   (t): PgTableExtraConfigValue[] => [
@@ -292,6 +298,11 @@ export const assignmentRecipients = core.table.withRLS(
       "assignment_recipients",
       "group",
       sql`(source = 'group') = (group_id is not null)`,
+    ),
+    ck(
+      "assignment_recipients",
+      "due_arranged",
+      sql`not due_arranged or due_at is not null`,
     ),
     uniqueIndex("assignment_recipients_key")
       .on(t.tenantId, t.assignmentId, t.studentUserId)

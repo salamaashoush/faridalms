@@ -15,6 +15,7 @@ export const CAPABILITIES = [
   "contacts:read",
   "health:read",
   "health:write",
+  "support:manage",
   "demographics:read",
   "demographics:write",
   "custody:read",
@@ -120,7 +121,7 @@ export const BUILTIN_CAPABILITIES: Record<
     "attendance:read",
     "learning:read",
   ],
-  counselor: [...TEACHING, "health:read", "custody:read"],
+  counselor: [...TEACHING, "health:read", "custody:read", "support:manage"],
   proctor: [...EVERYONE, "classes:read", "roster:read", "attendance:record"],
   staff: [
     ...EVERYONE,

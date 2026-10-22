@@ -71,7 +71,7 @@ import { formatList, formatNumber } from "~/utils/datetime";
 import { getMessageFromError } from "~/utils/error";
 
 import { PictureAnswer } from "./PictureAnswer";
-import { ReadAloud, YoungContext } from "./ReadAloud";
+import { ReadAloud, ReaderContext, YoungContext } from "./ReadAloud";
 import { useReorder } from "./reorder";
 import { SpokenRecorder, SpokenStatus } from "./SpokenAnswer";
 import { playSound } from "./young/sounds";
@@ -138,7 +138,8 @@ function Voiced({
   card: boolean;
   children: ReactNode;
 }) {
-  if (!part.narration) return children;
+  const reader = useContext(ReaderContext);
+  if (!part.narration && !reader) return children;
   return (
     <div className="relative">
       {children}

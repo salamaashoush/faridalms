@@ -433,6 +433,7 @@ export const student = readProcedure
           can(context, "people:manage") || can(context, "identifiers:read"),
         contacts: guardians !== null,
         health: can(context, "health:read"),
+        support: can(context, "people:read") || can(context, "support:manage"),
         demographics: can(context, "demographics:read"),
         custody: can(context, "custody:read"),
         history: can(context, "people:manage") || can(context, "audit:read"),

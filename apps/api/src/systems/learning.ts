@@ -7,6 +7,7 @@ import type {
 } from "@faridalms/domain/learning";
 import type { ScratchFeature } from "@faridalms/domain/scratch-project";
 
+import { arrangementsOf } from "@faridalms/database/stores/arrangements";
 import { reachOf } from "@faridalms/database/stores/audiences";
 import {
   classesTaughtBy,
@@ -1553,6 +1554,15 @@ export const playLesson = writeProcedure
         studentId: played.studentId,
         on: context.today,
       })),
+      /** The student's arrangements give them a computer reader. */
+      readAloud:
+        (
+          await arrangementsOf(context.tx, {
+            tenantId: context.tenantId,
+            orgId: context.schoolId,
+            studentId: played.studentId,
+          })
+        )?.arrangements.readAloud ?? false,
     };
   });
 
