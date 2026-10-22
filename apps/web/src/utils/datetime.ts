@@ -40,6 +40,14 @@ export function formatNumber(value: number): string {
   return new Intl.NumberFormat(getLocale()).format(value);
 }
 
+/** Takes a whole-number rate, 0 to 100. */
+export function formatPercent(value: number): string {
+  return new Intl.NumberFormat(getLocale(), {
+    style: "percent",
+    maximumFractionDigits: 0,
+  }).format(value / 100);
+}
+
 export function formatList(values: readonly string[]): string {
   return new Intl.ListFormat(getLocale(), { type: "conjunction" }).format(
     values,

@@ -10,7 +10,6 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { BellRing, Sun } from "lucide-react";
 import { toast } from "sonner";
 
-import { formatPercent } from "~/components/admin/format";
 import { eventTitle } from "~/components/calendar/format";
 import {
   HomeCard,
@@ -26,7 +25,7 @@ import { inLocale } from "~/hooks/useCurrentUser";
 import * as m from "~/i18n/messages";
 import { adminHomeQuery } from "~/queries/home";
 import { remindTeachers } from "~/server/attendance";
-import { formatDate, formatNumber } from "~/utils/datetime";
+import { formatDate, formatNumber, formatPercent } from "~/utils/datetime";
 import { getMessageFromError } from "~/utils/error";
 
 export const Route = createFileRoute("/_app/admin/")({
