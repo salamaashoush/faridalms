@@ -431,6 +431,18 @@ const color = v.pipe(
   v.string(),
   v.regex(/^(#[\da-fA-F]{3,8}|transparent|black|white|red|blue|green|yellow)$/),
 );
+/**
+ * The sizes a teacher gives text, as shares of the text around it, so words
+ * set large in a young lesson's larger type are larger again.
+ */
+export const TEXT_SIZES = {
+  small: "0.875em",
+  large: "1.25em",
+  huge: "1.75em",
+} as const;
+export type TextSize = keyof typeof TEXT_SIZES;
+const textSizeValues = new Set<string>(Object.values(TEXT_SIZES));
+
 export function validContentStyle(style: string): boolean {
   return style.split(";").every((entry) => {
     if (!entry.trim()) return true;
@@ -441,7 +453,9 @@ export function validContentStyle(style: string): boolean {
     if (property === "color" || property === "background-color")
       return v.safeParse(color, value).success;
     if (property === "font-size")
-      return /^(?:[89]|[1-8]\d|9[0-6])px$/.test(value);
+      return (
+        textSizeValues.has(value) || /^(?:[89]|[1-8]\d|9[0-6])px$/.test(value)
+      );
     if (property === "font-family")
       return ["Arial", "Georgia", "monospace", "sans-serif", "serif"].includes(
         value,

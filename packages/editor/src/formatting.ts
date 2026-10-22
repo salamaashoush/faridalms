@@ -1,5 +1,7 @@
+import type { TextSize } from "@faridalms/domain/content";
 import type { BaseSelection, LexicalEditor, TextFormatType } from "lexical";
 
+import { TEXT_SIZES } from "@faridalms/domain/content";
 import { isSafeContentUrl } from "@faridalms/domain/rich-text";
 import { $createLinkNode, $isLinkNode, $toggleLink } from "@lexical/link";
 import {
@@ -10,6 +12,7 @@ import {
   $createTextNode,
   $getSelection,
   $isRangeSelection,
+  $isTextNode,
   $setSelection,
   createCommand,
 } from "lexical";
@@ -45,6 +48,8 @@ export const backgroundColors: Record<EditorColor, string> = {
   pink: "#c14c8a33",
   red: "#cf4b4533",
 };
+
+export const textSizes = Object.keys(TEXT_SIZES) as TextSize[];
 
 export const markFormats = [
   "bold",
@@ -83,6 +88,42 @@ export function $applyColor(
   const selection = $getSelection();
   if ($isRangeSelection(selection))
     $patchStyleText(selection, { [property]: value });
+}
+
+/** The size of the selected text, when one of the sizes a teacher gives text. */
+export function $selectionTextSize(): TextSize | null {
+  const selection = $getSelection();
+  if (!$isRangeSelection(selection)) return null;
+  const value = $getSelectionStyleValueForProperty(selection, "font-size", "");
+  return textSizes.find((size) => TEXT_SIZES[size] === value) ?? null;
+}
+
+export function $applyTextSize(size: TextSize | null) {
+  const selection = $getSelection();
+  if ($isRangeSelection(selection))
+    $patchStyleText(selection, {
+      "font-size": size ? TEXT_SIZES[size] : null,
+    });
+}
+
+/**
+ * The selected text back to plain words: no bold or other marks, colour,
+ * highlight or size. Links stay, being where the words go rather than how
+ * they look.
+ */
+export function $clearFormatting() {
+  const selection = $getSelection();
+  if (!$isRangeSelection(selection)) return;
+  $patchStyleText(selection, {
+    color: null,
+    "background-color": null,
+    "font-size": null,
+    "font-family": null,
+  });
+  for (const node of selection.extract())
+    if ($isTextNode(node)) node.setFormat(0);
+  selection.setFormat(0);
+  selection.setStyle("");
 }
 
 export function normaliseUrl(input: string): string | null {

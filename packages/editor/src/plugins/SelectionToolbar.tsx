@@ -5,6 +5,7 @@ import type {
   ImageSize,
   QuestionKind,
   StandardTarget,
+  TextSize,
 } from "@faridalms/domain/content";
 import type { ReferenceElement } from "@floating-ui/dom";
 import type {
@@ -20,6 +21,7 @@ import {
   FEEDBACK_TIMES,
   fileDisplays,
   imageSizes,
+  TEXT_SIZES,
 } from "@faridalms/domain/content";
 import { fileFamily } from "@faridalms/domain/file";
 import {
@@ -59,6 +61,7 @@ import {
   AlignCenter,
   AlignLeft,
   AlignRight,
+  ALargeSmall,
   Baseline,
   BookmarkPlus,
   Bold,
@@ -108,6 +111,7 @@ import {
   Unlink,
   UsersRound,
   Grid2x2,
+  RemoveFormatting,
   ScanSearch,
   ScrollText,
   Signature,
@@ -146,8 +150,11 @@ import { mediaClock } from "../format";
 import {
   $activeFormats,
   $applyColor,
+  $applyTextSize,
+  $clearFormatting,
   $currentLinkUrl,
   $selectionColors,
+  $selectionTextSize,
   applyLink,
   backgroundColors,
   normaliseUrl,
@@ -493,6 +500,7 @@ interface Facts {
   link: string | null;
   color: string;
   background: string;
+  size: TextSize | null;
 }
 
 const empty: Facts = {
@@ -501,6 +509,7 @@ const empty: Facts = {
   link: null,
   color: "",
   background: "",
+  size: null,
 };
 
 export function SelectionToolbarPlugin() {
@@ -646,6 +655,7 @@ export function SelectionToolbarPlugin() {
           block: $blockTypeOf($anchorFor("paragraph")),
           link: $currentLinkUrl(),
           ...$selectionColors(),
+          size: $selectionTextSize(),
         },
       };
     });
@@ -3250,8 +3260,73 @@ export function SelectionToolbarPlugin() {
             withSelection(() => $applyColor(property, value))
           }
         />
+        <TextSizeMenu
+          size={facts.size}
+          onOpenChange={trackMenu}
+          onPick={(size) => withSelection(() => $applyTextSize(size))}
+        />
+        <ToolButton
+          label={strings.clearFormatting}
+          shortcut={shortcutLabel("Mod+\\")}
+          onClick={() => withSelection(() => $clearFormatting())}
+        >
+          <RemoveFormatting aria-hidden />
+        </ToolButton>
       </div>
     </Floating>
+  );
+}
+
+/** How big the selected words are, from small to huge, as shares of the text around them. */
+function TextSizeMenu({
+  size,
+  onOpenChange,
+  onPick,
+}: {
+  size: TextSize | null;
+  onOpenChange: (open: boolean) => void;
+  onPick: (size: TextSize | null) => void;
+}) {
+  const [editor] = useLexicalComposerContext();
+  const { strings } = useEditorEnvironment();
+  return (
+    <Menu.Root onOpenChange={onOpenChange}>
+      <Tip label={strings.textSize}>
+        <Menu.Trigger
+          aria-label={strings.textSize}
+          className="inline-flex h-8 items-center gap-0.5 rounded-md px-1.5 text-foreground/80 hover:bg-accent hover:text-foreground"
+        >
+          <ALargeSmall className="size-4" aria-hidden />
+          <ChevronDown className="size-3 opacity-60" aria-hidden />
+        </Menu.Trigger>
+      </Tip>
+      <Menu.Portal>
+        <Menu.Positioner className="z-50" sideOffset={6} align="start">
+          <Menu.Popup
+            className={cx(menuPopupClass, "w-44")}
+            finalFocus={textFocus(editor)}
+          >
+            {(["small", null, "large", "huge"] as const).map((each) => (
+              <Menu.Item
+                key={each ?? "normal"}
+                className={menuItemClass}
+                onClick={() => onPick(each)}
+              >
+                <span
+                  className="flex-1"
+                  style={each ? { fontSize: TEXT_SIZES[each] } : undefined}
+                >
+                  {strings.textSizes[each ?? "normal"]}
+                </span>
+                {size === each ? (
+                  <span className="size-1.5 rounded-full bg-primary" />
+                ) : null}
+              </Menu.Item>
+            ))}
+          </Menu.Popup>
+        </Menu.Positioner>
+      </Menu.Portal>
+    </Menu.Root>
   );
 }
 

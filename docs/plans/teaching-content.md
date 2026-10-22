@@ -425,6 +425,16 @@ Sources: [../research/course-design.md](../research/course-design.md),
    Left: a gallery's large view stepping to the next picture; pasting a
    chart's table from a spreadsheet.
 2. **Writing tools**: text size, clear formatting, find and replace.
+   Done: words take a size from small to huge in the selection bar, each a
+   share of the text around it so large words in a young lesson's larger
+   type are larger still; Clear formatting (Mod+\) takes marks, colour
+   and size off the words chosen and leaves their links. Find and replace
+   (Mod+F, by the key so an Arabic keyboard finds too) highlights every
+   match in place without touching the text, finds a word set half in
+   bold, and finds Arabic with or without its vowel marks and forms of
+   alef; Enter steps through the matches, Replace all replaces from the
+   last so none moves, and closing selects the match in hand.
+   Left: matches across a link's edge, and whole words only.
 3. **Reusable blocks** kept once and shown in many documents.
 4. **Footnotes and citations** for older students and universities.
 5. **Mentions** of people and documents.

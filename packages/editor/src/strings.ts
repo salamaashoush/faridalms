@@ -20,6 +20,16 @@ export interface EditorStrings extends LabelEditorStrings, ChartStrings {
   characters: (count: number) => string;
   formatting: string;
   moreTools: string;
+  findReplace: string;
+  findLabel: string;
+  findPrevious: string;
+  findNext: string;
+  findMatchCase: string;
+  findCount: (at: number, total: number) => string;
+  findNone: string;
+  replaceLabel: string;
+  replaceOne: string;
+  replaceAll: string;
   undo: string;
   redo: string;
   insert: string;
@@ -124,6 +134,9 @@ export interface EditorStrings extends LabelEditorStrings, ChartStrings {
   subscript: string;
   highlight: string;
   textColor: string;
+  textSize: string;
+  textSizes: Record<"normal" | "small" | "large" | "huge", string>;
+  clearFormatting: string;
   defaultColor: string;
   colors: Record<EditorColor, string>;
   link: string;

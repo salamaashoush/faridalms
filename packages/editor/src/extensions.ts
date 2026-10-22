@@ -6,7 +6,11 @@ import type {
   TextNode as TextNodeType,
 } from "lexical";
 
-import { MAX_PANELS, validContentStyle } from "@faridalms/domain/content";
+import {
+  MAX_PANELS,
+  TEXT_SIZES,
+  validContentStyle,
+} from "@faridalms/domain/content";
 import { isSafeContentUrl } from "@faridalms/domain/rich-text";
 import {
   $isLinkNode,
@@ -59,7 +63,7 @@ import {
   $turnInto,
 } from "./blocks";
 import { createBlockId } from "./format";
-import { backgroundColors } from "./formatting";
+import { $clearFormatting, backgroundColors } from "./formatting";
 import {
   $isBlockContainer,
   $isCalloutNode,
@@ -382,6 +386,7 @@ function sanitiseValue(property: string, value: string): string | null {
   if (property === "color" || property === "background-color")
     return normaliseColor(value);
   if (property === "font-size") {
+    if (Object.values(TEXT_SIZES).some((size) => size === value)) return value;
     const size = Number.parseFloat(value);
     return value.endsWith("px") && size >= 8 && size <= 96
       ? `${Math.round(size)}px`
@@ -775,6 +780,10 @@ function $shortcut(event: KeyboardEvent): boolean {
   if (!event.shiftKey && script) {
     const selection = $getSelection();
     if ($isRangeSelection(selection)) selection.formatText(script);
+    return true;
+  }
+  if (!event.shiftKey && (event.code === "Backslash" || key === "\\")) {
+    $clearFormatting();
     return true;
   }
   if (event.shiftKey && key === "s") {

@@ -1801,3 +1801,14 @@
   outline: 2px solid color-mix(in oklab, var(--ring) 40%, transparent);
   outline-offset: 0;
 }
+
+/* Find in the document: every match a soft marker, the one in hand a
+   stronger one. A highlight's colours come from the page, not the text it
+   lies on, so they are given whole. */
+::highlight(fe-find) {
+  background-color: oklch(0.88 0.12 90 / 0.55);
+}
+::highlight(fe-find-current) {
+  background-color: oklch(0.8 0.16 70);
+  color: oklch(0.2 0 0);
+}

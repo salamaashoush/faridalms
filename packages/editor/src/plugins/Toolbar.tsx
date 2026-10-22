@@ -28,6 +28,7 @@ import {
   CAN_UNDO_COMMAND,
   COMMAND_PRIORITY_LOW,
   FORMAT_TEXT_COMMAND,
+  KEY_DOWN_COMMAND,
   REDO_COMMAND,
   UNDO_COMMAND,
 } from "lexical";
@@ -47,6 +48,7 @@ import {
   Plus,
   Redo2,
   Repeat2,
+  Search,
   Strikethrough,
   Table,
   Underline,
@@ -77,6 +79,7 @@ import { $activeFormats, OPEN_LINK_EDITOR_COMMAND } from "../formatting";
 import { markdownTransformers } from "../markdown";
 import { textFocus, updateFromOutside } from "../outside";
 import { Tip, ToolButton, cx, menuItemClass, menuPopupClass } from "../ui";
+import { FindTool } from "./find";
 import { $runBlock } from "./insert";
 import { SuggestTool } from "./suggest";
 
@@ -218,6 +221,7 @@ export function ToolbarPlugin({ disabled }: { disabled: boolean }) {
   const [tableOpen, setTableOpen] = useState(false);
   const [markdownOpen, setMarkdownOpen] = useState(false);
   const [suggestOpen, setSuggestOpen] = useState(false);
+  const [findOpen, setFindOpen] = useState(false);
   const [more, setMore] = useState<HTMLElement | null>(null);
   const saved = useRef<BaseSelection | null>(null);
 
@@ -237,6 +241,23 @@ export function ToolbarPlugin({ disabled }: { disabled: boolean }) {
           (value) => {
             setRedo(value);
             return false;
+          },
+          COMMAND_PRIORITY_LOW,
+        ),
+        // The key, not the letter, so an Arabic keyboard finds too.
+        editor.registerCommand(
+          KEY_DOWN_COMMAND,
+          (event) => {
+            if (
+              !(event.metaKey || event.ctrlKey) ||
+              event.altKey ||
+              event.shiftKey ||
+              event.code !== "KeyF"
+            )
+              return false;
+            event.preventDefault();
+            setFindOpen(true);
+            return true;
           },
           COMMAND_PRIORITY_LOW,
         ),
@@ -569,6 +590,17 @@ export function ToolbarPlugin({ disabled }: { disabled: boolean }) {
         ]
       : []),
     {
+      key: "find",
+      group: true,
+      inline: <FindTool open={findOpen} onOpenChange={setFindOpen} />,
+      menu: (
+        <Menu.Item className={menuItemClass} onClick={() => setFindOpen(true)}>
+          <Search aria-hidden />
+          {strings.findReplace}
+        </Menu.Item>
+      ),
+    },
+    {
       key: "markdown",
       inline: (
         <MarkdownDialog open={markdownOpen} onOpenChange={setMarkdownOpen} />
@@ -586,6 +618,7 @@ export function ToolbarPlugin({ disabled }: { disabled: boolean }) {
   ];
   const { row, shown } = useFittingTools(tools.length);
   const hidden = tools.slice(shown);
+  const findHidden = hidden.some((tool) => tool.key === "find");
   const tableHidden = hidden.some((tool) => tool.key === "table");
   const suggestHidden = hidden.some((tool) => tool.key === "suggest");
   const markdownHidden = hidden.some((tool) => tool.key === "markdown");
@@ -659,6 +692,9 @@ export function ToolbarPlugin({ disabled }: { disabled: boolean }) {
           onOpenChange={setSuggestOpen}
           anchor={more}
         />
+      ) : null}
+      {findHidden ? (
+        <FindTool open={findOpen} onOpenChange={setFindOpen} anchor={more} />
       ) : null}
       {markdownHidden ? (
         <MarkdownDialog
