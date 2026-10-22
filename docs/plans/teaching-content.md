@@ -195,7 +195,14 @@ Sources: [../research/course-design.md](../research/course-design.md),
 1. **YouTube and Vimeo through our player.** They play in a bare frame
    (`media-view.tsx`), so they get no questions on the timeline, watch
    progress or chapters. Their player APIs drive our `VideoPlayer` instead,
-   with nothing drawn over the frame.
+   with nothing drawn over the frame. Done: Video.js's YouTube and Vimeo
+   providers drive our controls, which sit under the service's frame. A
+   watched video is keyed by upload or by `youtube:` or `vimeo:` and id
+   (`lesson_watches.video`), so timed questions, gates, the watch rule and
+   the class's viewing curves follow; the editor bar asks a question at
+   the moment, writes chapters and holds students to what they watched.
+   Left: Vimeo playback could not be checked in the headless browser,
+   which Vimeo refuses; check it in a desktop browser.
 2. **Audio description** as a track a teacher can add.
 3. Hosted video adapters: an owner decision (section 11).
 

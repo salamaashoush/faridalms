@@ -10,6 +10,11 @@ What modules and lessons do, built from
   blocks written in it, inserted from the slash menu or the toolbar and
   moved, copied or removed with the block handle; a block's settings live in
   the editor's floating bar.
+- A video, uploaded or from YouTube or Vimeo, can stop for a question at a
+  moment, carry chapters and hold students to what they have watched. A
+  YouTube or Vimeo video plays through the school's player once the reader
+  chooses to load it, with the controls under the service's frame, and its
+  watching counts like an upload's.
 - Questions come in seventeen kinds. Multiple choice has one or several
   right options, feedback per option and shuffling; true or false is its
   short form. A typed answer, blanks in a passage (typed or chosen from a
