@@ -58,6 +58,7 @@ import {
   CircuitBoard,
   Copy,
   Clapperboard,
+  ChartColumnBig,
   Code,
   Footprints,
   GitCommitVertical,
@@ -120,8 +121,10 @@ import {
   $createToggleNode,
   $createPanel,
   $createPanelsNode,
+  $createChartNode,
   $createCompareNode,
   $createGalleryNode,
+  $isChartNode,
   $isCompareNode,
   $isGalleryNode,
   $createToggleTitleNode,
@@ -169,6 +172,7 @@ export type BlockType =
   | "image"
   | "gallery"
   | "compare"
+  | "chart"
   | "file"
   | "media"
   | "recording"
@@ -512,6 +516,24 @@ export const blockDefinitions: BlockDefinition[] = [
     hint: (s) => s.galleryHint,
     keywords: ["gallery", "pictures", "photos", "album", "معرض", "صور"],
     media: true,
+  },
+  {
+    type: "chart",
+    group: "media",
+    icon: ChartColumnBig,
+    label: (s) => s.chart,
+    hint: (s) => s.chartHint,
+    keywords: [
+      "chart",
+      "graph",
+      "bar",
+      "line",
+      "pie",
+      "data",
+      "رسم بياني",
+      "مخطط",
+      "بيانات",
+    ],
   },
   {
     type: "compare",
@@ -1166,6 +1188,7 @@ export function $blockTypeOf(block: LexicalNode | null): BlockType | null {
   if ($isPanelsNode(block)) return block.getLayout();
   if ($isGalleryNode(block)) return "gallery";
   if ($isCompareNode(block)) return "compare";
+  if ($isChartNode(block)) return "chart";
   return null;
 }
 
@@ -1312,6 +1335,7 @@ function $createStructure(type: BlockType): LexicalNode | null {
     return $createPanelsNode(type).append($createPanel(), $createPanel());
   if (type === "gallery") return $createGalleryNode();
   if (type === "compare") return $createCompareNode();
+  if (type === "chart") return $createChartNode();
   if (type === "trueFalseQuestion") return $createTrueFalseQuestion();
   if (type === "whyQuestion") return $createWhyQuestion();
   if (type === "sketchQuestion") return $createSketchQuestion();

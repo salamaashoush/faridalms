@@ -443,6 +443,26 @@ describe("block operations", () => {
     expect(children[3]?.labels?.[0]?.title).toBe("Vein");
   });
 
+  it("starts a chart as an empty table of three rows that saves", () => {
+    const target = editor();
+    target.update(
+      () => {
+        $getRoot().clear().append(paragraph("Data"));
+        $getRoot().getFirstChild()?.selectEnd();
+        $insertBlock("chart");
+      },
+      { discrete: true },
+    );
+    expect(types(target)).toEqual(["paragraph", "chart", "paragraph"]);
+    const saved = v.safeParse(
+      contentDocumentSchema,
+      target.getEditorState().toJSON(),
+    );
+    expect(
+      saved.success && saved.output.root.children?.[1]?.chart?.labels,
+    ).toEqual(["", "", ""]);
+  });
+
   it("moves blocks up and down among their siblings", () => {
     const target = editor();
     target.update(

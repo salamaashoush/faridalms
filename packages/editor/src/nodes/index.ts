@@ -5,6 +5,7 @@ import { $isRootNode, createState } from "lexical";
 
 import { AiUseNode } from "./ai-use";
 import { $isCalloutNode, CalloutNode } from "./callout";
+import { ChartNode } from "./chart";
 import { $isColumnNode, ColumnNode, ColumnsNode } from "./columns";
 import { DrawNode } from "./draw";
 import { GateNode } from "./gate";
@@ -42,6 +43,7 @@ import {
 
 export * from "./ai-use";
 export * from "./callout";
+export * from "./chart";
 export * from "./code-run";
 export * from "./columns";
 export * from "./draw";
@@ -71,6 +73,7 @@ export const blockNodes = [
   ImageNode,
   GalleryNode,
   CompareNode,
+  ChartNode,
   FileNode,
   MediaNode,
   EmbedNode,

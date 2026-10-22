@@ -28,6 +28,7 @@ import { ExternalLink, Target } from "lucide-react";
 import { cloneElement, createElement, Fragment, isValidElement } from "react";
 
 import type { AiUseViewStrings } from "./ai-use-view";
+import type { ChartStrings } from "./chart-view";
 import type { FileFacts } from "./files";
 import type { PanelStrings } from "./panels-view";
 import type { LabelViewStrings } from "./picture-labels";
@@ -35,6 +36,7 @@ import type { PicturesViewStrings } from "./pictures-view";
 import type { MediaWatch } from "./player";
 
 import { AiUseView } from "./ai-use-view";
+import { ChartView } from "./chart-view";
 import { useFileFacts } from "./file-facts";
 import { FileCard, PictureView, StoredImage } from "./files";
 import { blockAlignClass, diagramImageClass, imageSizeClass } from "./format";
@@ -52,7 +54,8 @@ export interface ViewStrings
     AiUseViewStrings,
     PanelStrings,
     LabelViewStrings,
-    PicturesViewStrings {
+    PicturesViewStrings,
+    ChartStrings {
   checklist: string;
   studentCopy: string;
   diagram: string;
@@ -784,6 +787,16 @@ function draw(
         picture
       );
     }
+    case "chart":
+      return node.chart ? (
+        <ChartView
+          key={key}
+          chart={node.chart}
+          strings={context.strings}
+          locale={context.locale}
+          printed={node.open ?? false}
+        />
+      ) : null;
     case "gallery":
       return (
         <GalleryView

@@ -211,3 +211,28 @@ describe("pictures with places, galleries and before and after", () => {
     ).toEqual([file(1), file(2), file(3)]);
   });
 });
+
+describe("charts", () => {
+  const chart = {
+    kind: "line" as const,
+    title: "Temperature",
+    xTitle: "Hour",
+    yTitle: "°C",
+    labels: ["6", "12", "18"],
+    series: [{ name: "Aswan", values: [21, 38, null] }],
+  };
+
+  it("keeps a value, or none, for each category of every series", () => {
+    expect(valid({ type: "chart", version: 1, chart })).toBe(true);
+    expect(
+      valid({
+        type: "chart",
+        version: 1,
+        chart: { ...chart, series: [{ name: "Aswan", values: [21, 38] }] },
+      }),
+    ).toBe(false);
+    expect(contentPlainText(alone({ type: "chart", version: 1, chart }))).toBe(
+      "Temperature\nHour\n°C\n6, 12, 18\nAswan",
+    );
+  });
+});

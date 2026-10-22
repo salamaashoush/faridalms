@@ -82,6 +82,7 @@ const nodeTypes = [
   "image",
   "gallery",
   "compare",
+  "chart",
   "file",
   "media",
   "embed",
@@ -155,6 +156,25 @@ export interface PictureLabel {
   y: number;
   title: string;
   text: string;
+}
+
+export const chartKinds = ["bar", "line", "pie"] as const;
+export type ChartKind = (typeof chartKinds)[number];
+/** Categories along a chart's axis. */
+export const MAX_CHART_LABELS = 24;
+/** Series a chart tells apart by colour, as many as stay distinct to every reader. */
+export const MAX_CHART_SERIES = 4;
+/** Slices a pie shows before the rest fold into one. */
+export const MAX_PIE_SLICES = 6;
+
+/** A chart as its teacher enters it: categories, and a value of each series for each. */
+export interface ChartData {
+  kind: ChartKind;
+  title: string;
+  xTitle: string;
+  yTitle: string;
+  labels: string[];
+  series: { name: string; values: (number | null)[] }[];
 }
 
 /** One picture of a gallery, or one side of a before and after. */
@@ -231,6 +251,7 @@ export interface ContentNode {
   labels?: PictureLabel[];
   /** A gallery's pictures, or a before and after's two. */
   pictures?: SetPicture[];
+  chart?: ChartData;
   name?: string;
   mime?: string;
   bytes?: number;
@@ -480,6 +501,36 @@ const nodeSchema: v.GenericSchema<ContentNode> = v.lazy(() =>
           v.maxLength(MAX_PICTURE_LABELS),
         ),
       ),
+      chart: v.optional(
+        v.pipe(
+          v.object({
+            kind: v.picklist(chartKinds),
+            title: v.pipe(v.string(), v.maxLength(200)),
+            xTitle: v.pipe(v.string(), v.maxLength(80)),
+            yTitle: v.pipe(v.string(), v.maxLength(80)),
+            labels: v.pipe(
+              v.array(v.pipe(v.string(), v.maxLength(60))),
+              v.minLength(1),
+              v.maxLength(MAX_CHART_LABELS),
+            ),
+            series: v.pipe(
+              v.array(
+                v.object({
+                  name: v.pipe(v.string(), v.maxLength(60)),
+                  values: v.array(v.nullable(v.pipe(v.number(), v.finite()))),
+                }),
+              ),
+              v.minLength(1),
+              v.maxLength(MAX_CHART_SERIES),
+            ),
+          }),
+          v.check((chart) =>
+            chart.series.every(
+              (series) => series.values.length === chart.labels.length,
+            ),
+          ),
+        ),
+      ),
       pictures: v.optional(
         v.pipe(
           v.array(
@@ -656,6 +707,7 @@ const blocks = new Set<string>([
   "image",
   "gallery",
   "compare",
+  "chart",
   "file",
   "media",
   "embed",
@@ -699,6 +751,8 @@ function validNode(node: ContentNode): boolean {
     return !node.children && node.text === undefined && Boolean(node.fileId);
   // A gallery or a before and after may stand empty while it is written;
   // its reader sees nothing of it until it has pictures.
+  if (node.type === "chart")
+    return !node.children && node.text === undefined && Boolean(node.chart);
   if (node.type === "gallery" || node.type === "compare")
     return (
       !node.children &&
@@ -956,6 +1010,16 @@ const visit = (node: ContentNode): string => {
       .filter(Boolean)
       .join("\n");
   if (node.type === "diagram") return node.caption || node.alt || "";
+  if (node.type === "chart" && node.chart)
+    return [
+      node.chart.title,
+      node.chart.xTitle,
+      node.chart.yTitle,
+      node.chart.labels.join(", "),
+      node.chart.series.map((series) => series.name).join(", "),
+    ]
+      .filter((part) => part.trim())
+      .join("\n");
   if (node.type === "gallery" || node.type === "compare")
     return (node.pictures ?? [])
       .map((picture) => picture.caption || picture.alt)

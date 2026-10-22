@@ -1,11 +1,12 @@
 import type { ProjectLock } from "@faridalms/domain/project";
 import type { ScratchFeature } from "@faridalms/domain/scratch-project";
 
+import type { ChartStrings } from "./chart-view";
 import type { LabelEditorStrings } from "./picture-labels";
 import type { RecorderStrings } from "./recorder";
 import type { VideoRecorderStrings } from "./video-recorder";
 
-export interface EditorStrings extends LabelEditorStrings {
+export interface EditorStrings extends LabelEditorStrings, ChartStrings {
   placeholder: string;
   emptyPlaceholder: string;
   headingPlaceholder: string;
@@ -76,6 +77,21 @@ export interface EditorStrings extends LabelEditorStrings {
   pictureLater: string;
   pictureRemove: string;
   pictureAltMissing: string;
+  chart: string;
+  chartHint: string;
+  chartKindBar: string;
+  chartKindLine: string;
+  chartKindPie: string;
+  chartTitle: string;
+  chartXTitle: string;
+  chartYTitle: string;
+  chartLabel: string;
+  chartSeriesName: string;
+  chartAddRow: string;
+  chartAddSeries: string;
+  chartRemoveRow: (number: number) => string;
+  chartRemoveSeries: (number: number) => string;
+  chartValue: (row: string, series: string) => string;
   panelLayout: string;
   addTab: string;
   addStep: string;

@@ -10,6 +10,7 @@ export function opened(node: ContentNode): ContentNode {
     ...(node.type === "toggle" ||
     node.type === "panels" ||
     node.type === "compare" ||
+    node.type === "chart" ||
     (node.type === "image" && node.labels?.length)
       ? { open: true }
       : {}),

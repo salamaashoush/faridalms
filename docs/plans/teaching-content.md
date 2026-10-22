@@ -300,7 +300,15 @@ Sources: [../research/course-design.md](../research/course-design.md),
    after lays two pictures under a range slider, side by side on paper.
    Every picture in them needs a description before the document goes
    out, and their files travel with the document.
-   Left: chart; a gallery's large view stepping to the next picture.
+   A chart is a small table its teacher fills in (up to 24 categories and
+   four series) drawn as columns, lines or a pie, its colours a validated
+   categorical order stepped for light and dark. A legend shows whenever
+   more than one colour does; the keyboard moves one range control along
+   the categories, the readout naming every series' value there as a hover
+   does; the numbers sit in a table beneath, open on paper. A pie folds
+   anything past six slices into Other.
+   Left: a gallery's large view stepping to the next picture; pasting a
+   chart's table from a spreadsheet.
 2. **Writing tools**: text size, clear formatting, find and replace.
 3. **Reusable blocks** kept once and shown in many documents.
 4. **Footnotes and citations** for older students and universities.

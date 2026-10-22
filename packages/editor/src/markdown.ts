@@ -30,6 +30,7 @@ import {
   $isImageNode,
   $isToggleNode,
   $isPanelsNode,
+  $isChartNode,
   $isCompareNode,
   $isGalleryNode,
   CalloutNode,
@@ -40,6 +41,7 @@ import {
   MathNode,
   ToggleNode,
   PanelsNode,
+  ChartNode,
   CompareNode,
   GalleryNode,
 } from "./nodes";
@@ -152,12 +154,13 @@ const COLUMNS: ElementTransformer = {
 };
 
 const MEDIA: ElementTransformer = {
-  dependencies: [ImageNode, FileNode, GalleryNode, CompareNode],
+  dependencies: [ImageNode, FileNode, GalleryNode, CompareNode, ChartNode],
   export: (node) =>
     $isImageNode(node) ||
     $isFileNode(node) ||
     $isGalleryNode(node) ||
-    $isCompareNode(node)
+    $isCompareNode(node) ||
+    $isChartNode(node)
       ? node.getTextContent()
       : null,
   regExp: never,

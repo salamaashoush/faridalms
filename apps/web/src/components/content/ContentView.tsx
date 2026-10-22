@@ -71,6 +71,11 @@ export function ContentView({
         compareBefore: m.editorCompareBefore({}, { locale }),
         compareAfter: m.editorCompareAfter({}, { locale }),
         compareSlider: m.editorCompareSlider({}, { locale }),
+        chartData: m.editorChartData({}, { locale }),
+        chartSeries: m.editorChartSeries({}, { locale }),
+        chartCategory: m.editorChartCategory({}, { locale }),
+        chartOther: m.editorChartOther({}, { locale }),
+        chartEmpty: m.editorChartEmpty({}, { locale }),
       }}
       fileUrl={fileUrl}
       locale={locale}
