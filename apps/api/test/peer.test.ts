@@ -163,6 +163,16 @@ describe("peer review", () => {
     expect(overview.given).toHaveLength(2);
     expect(overview.given.every((review) => review.sentAt !== null)).toBe(true);
     expect(overview.students).toHaveLength(2);
+    // Marking a student, the teacher is told the work was peer reviewed.
+    const author = await first.api.identity.currentUser();
+    expect(
+      (
+        await teacher.api.coursework.grading({
+          assignmentId: saved.id,
+          studentId: author.id,
+        })
+      ).assignment.peer,
+    ).toBe(true);
     await teacher.api.peer.hide({ reviewId: back?.id ?? "", hidden: true });
     expect(
       (await second.api.peer.mine({ assignmentId: saved.id })).received,

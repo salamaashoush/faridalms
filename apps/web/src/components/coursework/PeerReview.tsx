@@ -264,6 +264,78 @@ export function PeerReviewPanel({ assignmentId }: { assignmentId: string }) {
   );
 }
 
+/**
+ * A student's part in peer review, for their teacher marking them: the
+ * reviews of their work and those they wrote, with names, as the teacher
+ * reads every review.
+ */
+export function StudentPeerReviews({
+  assignmentId,
+  studentId,
+}: {
+  assignmentId: string;
+  studentId: string;
+}) {
+  const user = useCurrentUser();
+  const data = useQuery(peerOverviewQuery(assignmentId)).data;
+  if (!data?.startedAt) return null;
+  const names = new Map(
+    data.students.map((student) => [student.id, displayName(student)]),
+  );
+  const parts = [
+    {
+      title: m.peerOfTheirWork(),
+      reviews: data.given.filter((review) => review.authorId === studentId),
+      who: (review: (typeof data.given)[number]) =>
+        names.get(review.reviewerId) ?? "",
+    },
+    {
+      title: m.peerTheyWrote(),
+      reviews: data.given.filter((review) => review.reviewerId === studentId),
+      who: (review: (typeof data.given)[number]) =>
+        m.peerOnWorkOf({ name: names.get(review.authorId) ?? "" }),
+    },
+  ];
+  return (
+    <>
+      {parts.map((part) => (
+        <RecordSection key={part.title} title={part.title}>
+          {part.reviews.length === 0 ? (
+            <RecordEmpty>{m.peerNoneYet()}</RecordEmpty>
+          ) : (
+            <RecordList>
+              {part.reviews.map((review) => (
+                <li key={review.id} className="grid gap-3 py-3">
+                  <div className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1">
+                    <span className="text-sm leading-5 font-medium">
+                      <bdi>{part.who(review)}</bdi>
+                    </span>
+                    {review.sentAt ? (
+                      <span className="text-[13px] leading-[18px] text-muted-foreground">
+                        {formatInstant(review.sentAt, user.school.timeZone)}
+                      </span>
+                    ) : (
+                      <StatusBadge tone="warning">
+                        {m.peerWaiting()}
+                      </StatusBadge>
+                    )}
+                    {review.hidden ? (
+                      <StatusBadge tone="neutral">{m.peerHidden()}</StatusBadge>
+                    ) : null}
+                  </div>
+                  {review.sentAt ? (
+                    <ReviewText rubric={data.rubric} review={review} />
+                  ) : null}
+                </li>
+              ))}
+            </RecordList>
+          )}
+        </RecordSection>
+      ))}
+    </>
+  );
+}
+
 type Mine = Awaited<
   ReturnType<NonNullable<ReturnType<typeof myPeerReviewsQuery>["queryFn"]>>
 >;

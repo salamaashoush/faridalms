@@ -1786,6 +1786,8 @@ export const grading = readProcedure
         rubric: assignment.rubric as unknown as Rubric | null,
         latePolicy: assignment.latePolicy,
         lateDeductionPercent: assignment.lateDeductionPercent,
+        /** Classmates review each other's work. */
+        peer: assignment.peerReviews !== null,
       },
       student: row,
       attempts: row.submissionId

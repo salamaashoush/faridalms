@@ -800,10 +800,12 @@ Scratch Text to Speech, Translate and tutorials.
    better if", both asked for. The teacher reads every review with names,
    hides any, and releases them; only then do authors read theirs. Work
    under review can no longer be taken back, and erasure removes the
-   reviews a student wrote and those of their work.
+   reviews a student wrote and those of their work. Marking a student,
+   the teacher reads beneath their work the reviews of it and those they
+   wrote, with names.
    Left: a review date of its own and reminders, rating a review's
-   helpfulness, the teacher's marking page showing the reviews, reviews
-   of quizzes and discussions, and passage comments by reviewers.
+   helpfulness, reviews of quizzes and discussions, and passage comments
+   by reviewers.
 3. **Translate a brief in place** for a reader in another language.
    Done: an assignment's brief says the language it is written in and
    can carry a translation in the other, written beside it in the editor

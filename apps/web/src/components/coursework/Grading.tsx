@@ -65,6 +65,7 @@ import { displayName } from "../people/format";
 import { CommentBankPicker } from "./CommentBank";
 import { DiscussionPosts } from "./Discussion";
 import { formatInstant } from "./format";
+import { StudentPeerReviews } from "./PeerReview";
 import { QuizAttempts } from "./QuizWork";
 import { VoiceFeedback } from "./VoiceFeedback";
 import { CommentedWork, CommentList } from "./WorkComments";
@@ -947,6 +948,12 @@ export function Grading({
           ) : (
             <RecordEmpty>{m.courseworkNothingHandedIn()}</RecordEmpty>
           )}
+          {data.assignment.peer ? (
+            <StudentPeerReviews
+              assignmentId={data.assignment.id}
+              studentId={studentId}
+            />
+          ) : null}
         </article>
       </div>
       {attempt ? (
