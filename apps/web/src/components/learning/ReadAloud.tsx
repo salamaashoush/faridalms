@@ -1,5 +1,9 @@
 import { voiceCanRead } from "@faridalms/domain/arabic";
-import { spokenWords, textDirection } from "@faridalms/domain/content";
+import { spokenWords } from "@faridalms/domain/content";
+import {
+  mathTextLanguage,
+  spokenMathText,
+} from "@faridalms/domain/math-speech";
 import { Button } from "@faridalms/ui/button";
 import { cn } from "@faridalms/ui/cn";
 import { Volume2 } from "lucide-react";
@@ -96,8 +100,11 @@ export function playRecording(fileId: string, voice?: Voice | null) {
     .catch(() => undefined);
 }
 
-const languageOf = (text: string) =>
-  textDirection(text) === "rtl" ? "ar" : getLocale();
+/** What the browser's voice says for a text, formulas in words, and in which language. */
+function voiced(written: string) {
+  const language = mathTextLanguage(written, getLocale());
+  return { language, text: spokenMathText(written, language) };
+}
 
 function subscribeVoices(onChange: () => void) {
   if (typeof window === "undefined" || !("speechSynthesis" in window))
@@ -139,10 +146,12 @@ export function onSpokenWord(listener: (word: SpokenWord | null) => void) {
 const tellWord = (word: SpokenWord | null) =>
   wordListeners.forEach((listener) => listener(word));
 
-function speak(text: string) {
+function speak(written: string) {
   stopSounds();
+  // What lights up follows the words said, not the text as written.
+  const { language, text } = voiced(written);
   const utterance = new SpeechSynthesisUtterance(text);
-  utterance.lang = languageOf(text);
+  utterance.lang = language;
   utterance.rate = 0.9;
   // Safari, which most school tablets run, names each word as it is said;
   // Chrome's network voices name none, and then nothing is lit.
@@ -167,11 +176,12 @@ function speak(text: string) {
 }
 
 /** Whether the browser's own voice may read this text, as `ReadAloud` decides. */
-function speakable(text: string, voices: string) {
+function speakable(written: string, voices: string) {
+  const { language, text } = voiced(written);
   return (
     text.trim() !== "" &&
     voiceCanRead(text) &&
-    voices.split(",").includes(languageOf(text))
+    voices.split(",").includes(language)
   );
 }
 

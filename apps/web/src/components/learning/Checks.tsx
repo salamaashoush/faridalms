@@ -131,7 +131,7 @@ function PartView({
 }
 
 const partLabel = (part: StudentPart) =>
-  textOfMath(part.text) || part.picture?.alt || "";
+  textOfMath(part.text, getLocale()) || part.picture?.alt || "";
 
 /**
  * A part with its speaker beside it. The speaker is a button of its own, so

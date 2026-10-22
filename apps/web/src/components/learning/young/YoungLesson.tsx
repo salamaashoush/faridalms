@@ -25,6 +25,7 @@ import { useEffect, useEffectEvent, useMemo, useRef, useState } from "react";
 
 import { ContentView, WholeDocument } from "~/components/content/ContentView";
 import * as m from "~/i18n/messages";
+import { getLocale } from "~/i18n/runtime";
 import { formatNumber } from "~/utils/datetime";
 
 import type { CheckDriver, CheckStudentBlock } from "../Checks";
@@ -143,7 +144,7 @@ function Prompt({ block }: { block: CheckStudentBlock }) {
       className="flex items-center justify-center gap-3"
     >
       <ReadAloud
-        text={textOfMath(block.prompt)}
+        text={textOfMath(block.prompt, getLocale())}
         narration={block.narration}
         words={block.narrationWords}
         size="large"

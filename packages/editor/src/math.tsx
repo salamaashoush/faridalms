@@ -1,6 +1,11 @@
 import type { TextRun } from "@faridalms/domain/content";
+import type { MathLanguage } from "@faridalms/domain/math-speech";
 
 import { mathRuns } from "@faridalms/domain/content";
+import {
+  mathTextLanguage,
+  spokenMathText,
+} from "@faridalms/domain/math-speech";
 import { lazy, Suspense } from "react";
 
 import { cx } from "./ui";
@@ -49,8 +54,9 @@ export function TextWithMath({ text }: { text: string }) {
   });
 }
 
-/** The same text for a label or a voice: each formula as the LaTeX it is written in. */
-export const textOfMath = (text: string) =>
-  mathRuns(text)
-    .map((run) => ("latex" in run ? run.latex : run.text))
-    .join("");
+/**
+ * The same text for a label or a voice: each formula said in words, in the
+ * language of the words around it, else in `fallback`.
+ */
+export const textOfMath = (text: string, fallback: MathLanguage) =>
+  spokenMathText(text, mathTextLanguage(text, fallback));
