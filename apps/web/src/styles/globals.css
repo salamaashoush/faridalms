@@ -1,6 +1,9 @@
 @import "tailwindcss";
 @import "@faridalms/ui/theme.css";
 @import "@faridalms/editor/editor.css";
+@import "@fontsource/andika/400.css";
+@import "@fontsource/andika/700.css";
+@import "@fontsource-variable/noto-naskh-arabic";
 
 @plugin "@tailwindcss/typography";
 @source "../../../../packages/editor/src";
@@ -47,6 +50,15 @@
 header:has([data-slot="page-actions"] > :not([data-keeps-global-tools]))
   [data-slot="global-tools"] {
   display: none;
+}
+
+/* The type a young child reads in: Andika, made for children learning to
+   read, with a single-storey a and g and an l told apart from an I; and
+   Arabic in naskh, the hand children are taught to write at school. A
+   font is fetched only once a young lesson shows it. */
+.young-type {
+  font-family:
+    "Andika", "Noto Naskh Arabic Variable", ui-sans-serif, system-ui, sans-serif;
 }
 
 /* Words a young child reads: Arabic set larger and looser than Latin at the

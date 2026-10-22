@@ -72,6 +72,13 @@ test("a young child plays a lesson one screen at a time, by tapping", async ({
   await child.getByRole("button", { name: "Start", exact: true }).click();
 
   const stage = child.getByRole("dialog", { name: "Ducks" });
+  // A young lesson is set in the type made for children learning to read.
+  await expect(stage).toHaveCSS("font-family", /Andika/);
+  expect(
+    await child.evaluate(
+      async () => (await document.fonts.load('28px "Andika"', "Duck")).length,
+    ),
+  ).toBeGreaterThan(0);
   // Taps in a screen's first 400 ms are a finger still down from the last
   // one, and are dropped, so the child waits as a person would.
   const settle = () => child.waitForTimeout(450);

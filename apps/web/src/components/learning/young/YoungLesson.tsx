@@ -493,7 +493,7 @@ export function YoungLesson({
           ref={stage}
           open
           aria-label={title}
-          className="fixed inset-0 z-50 m-0 flex size-full max-h-none max-w-none touch-manipulation flex-col bg-background p-0 text-foreground"
+          className="young-type fixed inset-0 z-50 m-0 flex size-full max-h-none max-w-none touch-manipulation flex-col bg-background p-0 text-foreground"
         >
           <header className="flex items-center gap-3 px-3 py-3 sm:px-6">
             {/* Leaving takes a second tap, so a stray one does not end the lesson. */}

@@ -573,6 +573,12 @@ Sources: [../research/course-design.md](../research/course-design.md),
    a fill that spreads in slowly, as some children's apps show it.
 2. **Children's reading type**: Andika for Latin and a naskh face for
    Arabic in young lessons, with the Arabic scale applied there.
+   Done: a young lesson is set in Andika, SIL's face for children
+   learning to read (a single-storey a and g, an l told from an I), and
+   its Arabic in Noto Naskh Arabic, the hand children are taught to
+   write, at the larger Arabic size and looser lines young lessons
+   already give it. The fonts load only when a young lesson shows.
+   Left: the same type in a teacher's editor while a lesson is young.
 3. **Teacher judgements per early-learning goal** (EYFS and the like),
    recorded from a child's work.
 
