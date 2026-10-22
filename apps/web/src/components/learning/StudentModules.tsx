@@ -22,6 +22,7 @@ import { moduleOutlineQuery, myModulesQuery } from "~/queries/learning";
 import { formatNumber } from "~/utils/datetime";
 
 import { LESSON_STATE_LABEL, lockedText } from "./format";
+import { ModuleGlossary } from "./ModuleGlossary";
 
 type Mine = Awaited<
   ReturnType<NonNullable<ReturnType<typeof myModulesQuery>["queryFn"]>>
@@ -265,6 +266,7 @@ export function ModuleOutline({
                 </p>
               </RecordSection>
             ) : null}
+            <ModuleGlossary moduleId={moduleId} studentId={studentId} />
           </>
         }
       />

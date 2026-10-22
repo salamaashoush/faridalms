@@ -1173,6 +1173,9 @@
   "editorGlossary": "مسرد المصطلحات",
   "editorGlossaryHint": "كل كلمة يعرّفها هذا المستند",
   "editorGlossaryEmpty": "تظهر هنا الكلمات التي تعرّفها. حدّد كلمات واختر «عرّف».",
+  "editorGlossaryCards": "اصنع بطاقات تعليمية",
+  "editorGlossaryMatching": "اصنع سؤال توصيل",
+  "editorGlossaryMatchPrompt": "صِل كل كلمة بمعناها.",
   "editorBibliography": "قائمة المراجع",
   "editorBibliographyHint": "كل مصدر تستشهد به الحواشي، بأسلوب الاستشهاد",
   "editorBibliographyEmpty": "تظهر هنا المصادر التي تستشهد بها حواشيك. أضف حاشية واختر استشهد بمصدر.",
@@ -3828,6 +3831,29 @@
     }
   ],
   "lrnAbout": "عن هذه الوحدة",
+  "lrnGlossary": "المسرد",
+  "lrnGlossaryHint": "كل كلمة تعرّفها دروس هذه الوحدة، في قائمة واحدة.",
+  "lrnGlossaryOpen": [
+    {
+      "declarations": [
+        "input count",
+        "input value",
+        "local countPlural = count: plural"
+      ],
+      "selectors": ["countPlural"],
+      "match": {
+        "countPlural=zero": "لا كلمات",
+        "countPlural=one": "كلمة واحدة",
+        "countPlural=two": "كلمتان",
+        "countPlural=few": "{value} كلمات",
+        "countPlural=many": "{value} كلمة",
+        "countPlural=*": "{value} كلمة"
+      }
+    }
+  ],
+  "lrnGlossarySearch": "ابحث عن كلمة",
+  "lrnGlossaryNone": "لا كلمة مطابقة.",
+  "lrnGlossaryFrom": "من {lesson}",
   "lrnAddLesson": "إضافة درس",
   "lrnAfter": "بعد {title}",
   "lrnAnswerSaved": "تم الحفظ",

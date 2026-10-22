@@ -84,6 +84,7 @@ import {
   STATE_TONE,
 } from "./format";
 import { ClassLive } from "./Live";
+import { ModuleGlossary } from "./ModuleGlossary";
 import { TeachLiveDialog } from "./PacedLesson";
 import { PlanCoverage } from "./PlanEditor";
 import { ClassQuestions } from "./Questions";
@@ -948,7 +949,12 @@ export function ModuleRecord({
         {tab === "lessons" ? (
           <RecordColumns
             main={<Lessons data={data} />}
-            aside={<About data={data} />}
+            aside={
+              <>
+                <About data={data} />
+                <ModuleGlossary moduleId={data.id} />
+              </>
+            }
           />
         ) : tab === "plan" ? (
           <ModulePlan moduleId={data.id} />

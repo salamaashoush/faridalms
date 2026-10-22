@@ -513,6 +513,9 @@ export interface EditorStrings
   glossary: string;
   glossaryHint: string;
   glossaryEmpty: string;
+  glossaryCards: string;
+  glossaryMatching: string;
+  glossaryMatchPrompt: string;
   bibliography: string;
   bibliographyHint: string;
   bibliographyEmpty: string;

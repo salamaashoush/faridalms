@@ -150,6 +150,7 @@ interface Context {
   mentionHref?: ((mention: Mention) => string | null) | undefined;
   mentionName?: ((mention: Mention) => string | undefined) | undefined;
   ltiHref?: ((linkId: string) => string | null) | undefined;
+  speaker?: ((text: string) => ReactNode) | undefined;
   /** The footnotes met so far, in reading order, numbered by their place here. */
   notes: ContentNode[];
   /** How many footnotes the parts of the document before this one hold. */
@@ -774,6 +775,7 @@ function draw(
             entries={entries}
             url={context.fileUrl}
             strings={context.strings}
+            speaker={context.speaker}
           />
         </section>
       ) : null;
@@ -1122,14 +1124,20 @@ function TermView({
                 className="max-h-40 w-full rounded-md object-contain"
               />
             ) : null}
-            <Popover.Title dir="auto" className="font-semibold">
-              {entry.words}
-              {entry.gloss ? (
-                <span className="ms-2 font-normal text-muted-foreground">
-                  <bdi>{entry.gloss}</bdi>
-                </span>
-              ) : null}
-            </Popover.Title>
+            <div className="flex items-start gap-2">
+              <Popover.Title
+                dir="auto"
+                className="min-w-0 flex-1 self-center font-semibold"
+              >
+                {entry.words}
+                {entry.gloss ? (
+                  <span className="ms-2 font-normal text-muted-foreground">
+                    <bdi>{entry.gloss}</bdi>
+                  </span>
+                ) : null}
+              </Popover.Title>
+              {context.speaker?.(entry.words)}
+            </div>
             <Popover.Description dir="auto" className="leading-6">
               {entry.definition}
             </Popover.Description>
@@ -1219,6 +1227,7 @@ export function ContentRenderer({
   mentionHref,
   mentionName,
   ltiHref,
+  speaker,
   lang,
 }: {
   document: ContentDocument;
@@ -1249,6 +1258,8 @@ export function ContentRenderer({
   mentionName?: ((mention: Mention) => string | undefined) | undefined;
   /** Where a link to an outside tool launches; without it the link only names the tool. */
   ltiHref?: (linkId: string) => string | null;
+  /** A button reading words aloud, offered beside a defined word; none without it. */
+  speaker?: (text: string) => ReactNode;
   /** The language the document is written in; without it, read from its words. */
   lang?: ContentLocale;
 }) {
@@ -1273,6 +1284,7 @@ export function ContentRenderer({
     mentionHref,
     mentionName,
     ltiHref,
+    speaker,
     notes: [],
     notesBefore: whole?.notesBefore?.get(document) ?? 0,
     scope,

@@ -119,6 +119,7 @@ import {
   workingYear,
 } from "@faridalms/database/stores/years";
 import { contentFileIds, contentPlainText } from "@faridalms/domain/content";
+import { documentTerms } from "@faridalms/domain/glossary";
 import {
   checkBlocks,
   checkStates,
@@ -2345,6 +2346,61 @@ export const play = readProcedure
       own,
       lessons: outline(row, lessons, cells, locked),
     };
+  });
+
+/**
+ * The words a module's lessons define, in the module's order, each with
+ * the lesson defining it, for its reader to gather as a glossary. A student
+ * and their family see the lessons on the student's path as they were
+ * shown; whoever teaches it sees every lesson as shown, or as written
+ * while it is not shown yet.
+ */
+export const moduleGlossary = readProcedure
+  .input(
+    v.object({ id, studentId: v.optional(v.union([v.literal(""), id]), "") }),
+  )
+  .handler(async ({ input, context }) => {
+    const row = await moduleById(context.tx, context.tenantId, input.id);
+    if (!row || row.orgId !== context.schoolId)
+      throw new ORPCError("NOT_FOUND");
+    const teaches = await mayEditModule(context, row);
+    let lessons: { id: string; title: string }[];
+    if (teaches)
+      lessons = await lessonsOf(context.tx, context.tenantId, row.id);
+    else {
+      const { studentId } = await learner(context, input.studentId);
+      const { locked } = await openModule(context, row.id, studentId);
+      const shown = await studentLessons(context, row.id);
+      const cells = await progressIn(context.tx, {
+        tenantId: context.tenantId,
+        lessonIds: shown.map((item) => item.id),
+        studentIds: [studentId],
+      });
+      lessons = outline(row, shown, cells, locked);
+    }
+    const found = [];
+    for (const part of lessons) {
+      const shown = await publishedLesson(context, part.id);
+      const written = teaches
+        ? await documentOf(context.tx, context.tenantId, {
+            type: "lesson",
+            id: part.id,
+          })
+        : null;
+      const content = shown
+        ? lessonContentOf(shown.stored)
+        : written
+          ? lessonContentOf(written.content)
+          : null;
+      if (content)
+        for (const entry of documentTerms(content))
+          found.push({
+            ...entry,
+            lessonId: part.id,
+            lessonTitle: part.title,
+          });
+    }
+    return found;
   });
 
 /** A module's lessons that students can play: those with a published version. */

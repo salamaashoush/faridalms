@@ -9,6 +9,7 @@ import {
   getLearningOptions,
   getLessonEditor,
   getPlan,
+  getModuleGlossary,
   getModuleOutline,
   getModuleLive,
   getPaced,
@@ -169,6 +170,13 @@ export const moduleOutlineQuery = (id: string, studentId: string) =>
   queryOptions({
     queryKey: ["learning", "outline", id, studentId],
     queryFn: () => getModuleOutline({ data: { id, studentId } }),
+  });
+
+/** The words a module's lessons define, fetched when its glossary is opened. */
+export const moduleGlossaryQuery = (id: string, studentId: string) =>
+  queryOptions({
+    queryKey: ["learning", "glossary", id, studentId],
+    queryFn: () => getModuleGlossary({ data: { id, studentId } }),
   });
 
 /** Opening a lesson records that the student began it, so it is fetched once per visit. */

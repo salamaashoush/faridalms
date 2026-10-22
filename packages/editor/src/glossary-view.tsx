@@ -1,4 +1,5 @@
 import type { GlossaryEntry } from "@faridalms/domain/glossary";
+import type { ReactNode } from "react";
 
 import { termKey } from "@faridalms/domain/glossary";
 import { BookA } from "lucide-react";
@@ -19,10 +20,13 @@ export function GlossaryList({
   entries,
   url,
   strings,
+  speaker,
 }: {
   entries: readonly GlossaryEntry[];
   url?: ((fileId: string) => string | undefined) | undefined;
   strings: GlossaryViewStrings;
+  /** A button reading a word aloud, beside each word; none without it. */
+  speaker?: ((text: string) => ReactNode) | undefined;
 }) {
   return (
     <>
@@ -47,6 +51,7 @@ export function GlossaryList({
                       <bdi>{entry.gloss}</bdi>
                     </span>
                   ) : null}
+                  {speaker?.(entry.words)}
                 </dt>
                 <dd>{entry.definition}</dd>
                 {src ? (

@@ -55,11 +55,11 @@ export function partsTerms(
  * where it is first defined, in the alphabetical order of the reader's
  * language. A term still without a definition is left out.
  */
-export function glossaryOf(
-  entries: readonly GlossaryEntry[],
+export function glossaryOf<T extends GlossaryEntry>(
+  entries: readonly T[],
   locale: string,
-): GlossaryEntry[] {
-  const kept = new Map<string, GlossaryEntry>();
+): T[] {
+  const kept = new Map<string, T>();
   for (const entry of entries) {
     const key = termKey(entry.words);
     if (key && entry.definition.trim() && !kept.has(key)) kept.set(key, entry);

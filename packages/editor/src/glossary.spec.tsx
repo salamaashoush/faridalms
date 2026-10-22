@@ -11,6 +11,7 @@ import {
   $createRangeSelection,
   $createTextNode,
   $getRoot,
+  $parseSerializedNode,
   $setSelection,
 } from "lexical";
 import { renderToStaticMarkup } from "react-dom/server";
@@ -20,7 +21,12 @@ import { describe, expect, it } from "vitest";
 import type { ViewStrings } from "./view";
 
 import { buildContentEditor } from "./headless";
-import { $defineSelection } from "./nodes";
+import {
+  $defineSelection,
+  $glossaryEntries,
+  $glossaryFlashCards,
+  $glossaryMatching,
+} from "./nodes";
 import { ContentRenderer } from "./view";
 
 const strings = { glossary: "Glossary", fileRemoved: "Removed" } as ViewStrings;
@@ -194,5 +200,65 @@ describe("glossary terms", () => {
       "Leaves hold ",
     );
     expect(valid(exported)).toBe(true);
+  });
+});
+
+describe("a glossary turned into practice", () => {
+  /** The document's glossary made into cards and questions, as its block's menu does. */
+  function practised(): ContentDocument {
+    const editor = buildContentEditor();
+    editor.update(
+      () => {
+        $getRoot().clear();
+        for (const node of document.root.children ?? [])
+          $getRoot().append($parseSerializedNode(node));
+        const entries = $glossaryEntries("en");
+        $getRoot().append(
+          ...$glossaryFlashCards(entries),
+          ...$glossaryMatching(entries, "Match each word to its meaning."),
+        );
+      },
+      { discrete: true },
+    );
+    return editor.getEditorState().toJSON() as unknown as ContentDocument;
+  }
+
+  it("makes a card for each word, its meaning and other-language word behind it", () => {
+    const made = practised();
+    expect(valid(made)).toBe(true);
+    const cards = made.root.children?.find((node) => node.type === "panels");
+    expect(cards?.layout).toBe("cards");
+    expect(
+      contentPlainText({
+        root: { type: "root", version: 1, children: cards ? [cards] : [] },
+      }),
+    ).toContain("Chlorophyll");
+    expect(cards?.children).toHaveLength(2);
+    expect(JSON.stringify(cards)).toContain("التمثيل الضوئي");
+  });
+
+  it("asks a matching question pairing each word with its meaning", () => {
+    const question = practised().root.children?.find(
+      (node) => node.type === "question",
+    );
+    expect(question?.kind).toBe("matching");
+    expect(
+      (question?.children ?? []).filter(
+        (part) => part.type === "question-pair",
+      ),
+    ).toHaveLength(2);
+    expect(JSON.stringify(question)).toContain("The green colouring in leaves");
+  });
+
+  it("offers each word read aloud, where the page can read it", () => {
+    const html = renderToStaticMarkup(
+      <ContentRenderer
+        document={document}
+        strings={strings}
+        speaker={(words) => <button type="button">Say {words}</button>}
+      />,
+    );
+    expect(html).toContain("Say photosynthesis");
+    expect(html).toContain("Say Chlorophyll");
   });
 });

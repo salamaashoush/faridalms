@@ -24,9 +24,11 @@ import {
 } from "lexical";
 import {
   ArrowDown,
+  ArrowLeftRight,
   ArrowUp,
   ChevronRight,
   Copy,
+  GalleryHorizontal,
   GripVertical,
   LayoutTemplate,
   Palette,
@@ -51,7 +53,11 @@ import {
 import { useEditorEnvironment } from "../context";
 import {
   $createPanel,
+  $glossaryEntries,
+  $glossaryFlashCards,
+  $glossaryMatching,
   $isCalloutNode,
+  $isGlossaryNode,
   $isPanelsNode,
   $isStarterNode,
   $isColumnsNode,
@@ -87,6 +93,8 @@ interface BlockFacts {
   narration: "none" | "empty" | "recorded";
   /** Whether it may be kept to show in many documents. */
   sharable: boolean;
+  /** How many words a glossary defines, which it may turn into cards or a question. */
+  glossary: number | null;
 }
 
 // Blocks with nothing to read aloud.
@@ -177,7 +185,8 @@ function $setLayout(block: LexicalNode, layout: ColumnLayout) {
 export function BlockHandlePlugin({ anchor }: { anchor: HTMLElement | null }) {
   const [editor] = useLexicalComposerContext();
   const editable = useLexicalEditable();
-  const { strings, media, narration, shared } = useEditorEnvironment();
+  const { strings, media, narration, shared, questions, locale } =
+    useEditorEnvironment();
   const [hovered, setHovered] = useState<Hovered | null>(null);
   const [menu, setMenu] = useState(false);
   const [facts, setFacts] = useState<BlockFacts | null>(null);
@@ -302,13 +311,16 @@ export function BlockHandlePlugin({ anchor }: { anchor: HTMLElement | null }) {
                 ? "recorded"
                 : "empty",
           sharable: Boolean(shared) && $sharableBlock(block),
+          glossary: $isGlossaryNode(block)
+            ? $glossaryEntries(locale).length
+            : null,
         } satisfies BlockFacts;
       });
       if (!next) return;
       setFacts(next);
       setMenu(true);
     },
-    [editor, narration, media, shared],
+    [editor, narration, media, shared, locale],
   );
 
   useEffect(
@@ -698,6 +710,43 @@ export function BlockHandlePlugin({ anchor }: { anchor: HTMLElement | null }) {
                       <span className="size-1.5 rounded-full bg-primary" />
                     ) : null}
                   </Menu.Item>
+                ) : null}
+                {facts?.glossary && facts.glossary > 1 ? (
+                  <>
+                    <Menu.Item
+                      className={menuItemClass}
+                      onClick={() =>
+                        act((node) => {
+                          for (const made of $glossaryFlashCards(
+                            $glossaryEntries(locale),
+                          ).toReversed())
+                            node.insertAfter(made);
+                        })
+                      }
+                    >
+                      <GalleryHorizontal aria-hidden />
+                      <span className="flex-1">{strings.glossaryCards}</span>
+                    </Menu.Item>
+                    {questions ? (
+                      <Menu.Item
+                        className={menuItemClass}
+                        onClick={() =>
+                          act((node) => {
+                            for (const made of $glossaryMatching(
+                              $glossaryEntries(locale),
+                              strings.glossaryMatchPrompt,
+                            ).toReversed())
+                              node.insertAfter(made);
+                          })
+                        }
+                      >
+                        <ArrowLeftRight aria-hidden />
+                        <span className="flex-1">
+                          {strings.glossaryMatching}
+                        </span>
+                      </Menu.Item>
+                    ) : null}
+                  </>
                 ) : null}
                 {shared && facts?.sharable ? (
                   <Menu.Item

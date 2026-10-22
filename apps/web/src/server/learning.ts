@@ -167,6 +167,14 @@ export const getMyModules = createServerFn({ method: "GET" })
   .validator(checked(v.object({ studentId: optionalId })))
   .handler(({ data }) => backend().learning.mine(data));
 
+export const getModuleGlossary = createServerFn({ method: "GET" })
+  .validator(
+    checked(
+      v.object({ id: v.pipe(v.string(), v.uuid()), studentId: optionalId }),
+    ),
+  )
+  .handler(({ data }) => backend().learning.moduleGlossary(data));
+
 export const getModuleOutline = createServerFn({ method: "GET" })
   .validator(
     checked(

@@ -1115,6 +1115,9 @@
   "editorGlossary": "Glossary",
   "editorGlossaryHint": "Every word this document defines",
   "editorGlossaryEmpty": "The words you define are listed here. Select words and choose Define.",
+  "editorGlossaryCards": "Make flash cards",
+  "editorGlossaryMatching": "Make a matching question",
+  "editorGlossaryMatchPrompt": "Match each word to its meaning.",
   "editorBibliography": "Bibliography",
   "editorBibliographyHint": "Every source the footnotes cite, in their style",
   "editorBibliographyEmpty": "The sources your footnotes cite are listed here. Add a footnote and choose Cite a source.",
@@ -3642,6 +3645,25 @@
     }
   ],
   "lrnAbout": "About this module",
+  "lrnGlossary": "Glossary",
+  "lrnGlossaryHint": "Every word this module's lessons define, in one list.",
+  "lrnGlossaryOpen": [
+    {
+      "declarations": [
+        "input count",
+        "input value",
+        "local countPlural = count: plural"
+      ],
+      "selectors": ["countPlural"],
+      "match": {
+        "countPlural=one": "{value} word",
+        "countPlural=*": "{value} words"
+      }
+    }
+  ],
+  "lrnGlossarySearch": "Find a word",
+  "lrnGlossaryNone": "No word matches.",
+  "lrnGlossaryFrom": "From {lesson}",
   "lrnAddLesson": "Add lesson",
   "lrnAfter": "After {title}",
   "lrnAnswerSaved": "Saved",

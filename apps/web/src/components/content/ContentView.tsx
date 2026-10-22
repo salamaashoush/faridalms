@@ -17,6 +17,7 @@ import { useMemo } from "react";
 import type { Locale } from "~/i18n/runtime";
 
 import { RunnableCode } from "~/components/coding/RunnableCode";
+import { ReadAloud } from "~/components/learning/ReadAloud";
 import * as m from "~/i18n/messages";
 import { getLocale } from "~/i18n/runtime";
 import { sharedBlockQuery } from "~/queries/shared";
@@ -36,6 +37,11 @@ export function SharedBlock({ id }: { id: string }) {
     return <p className="text-sm text-muted-foreground">{m.sharedGone()}</p>;
   return <ContentView document={block.data.content} />;
 }
+
+/** A defined word read aloud by the browser's voice, where it speaks the word's language. */
+const termSpeaker = (text: string) => (
+  <ReadAloud text={text} className="size-8 [&_svg]:size-4" />
+);
 
 /**
  * Where a mention opens. A person's opens nothing, as not every reader may
@@ -184,6 +190,7 @@ export function ContentView({
       shared={SharedBlock}
       mentionHref={mentionHref}
       mentionName={mentionName}
+      speaker={termSpeaker}
       ltiHref={ltiHref}
       lang={lang}
     />

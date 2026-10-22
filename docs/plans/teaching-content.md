@@ -594,9 +594,14 @@ Sources: [../research/course-design.md](../research/course-design.md),
    them, to open the meaning in place. Words defined once start defined
    the same wherever else they are chosen. A Glossary block lists every
    term the document defines, once each, in alphabetical order, as it is
-   written, and in a lesson it gathers the terms of every part.
-   Left: a module's glossary across its lessons; turning a glossary into
-   flash cards or a matching question; reading a term aloud.
+   written, and in a lesson it gathers the terms of every part. A
+   module's page lists the words all its lessons define, each once, found
+   by a search and named with the lesson defining it: a student sees the
+   lessons on their path as shown, whoever teaches it every lesson. A
+   Glossary block's menu turns it into flash cards (each word on a front,
+   its meaning, other-language word and picture behind) or matching
+   questions, as many as the words need. Wherever the browser speaks a
+   word's language, a speaker beside each defined word reads it aloud.
 7. **A document's own language**: lessons record the language they teach
    in, may carry a translation, and digits follow a school setting.
    Done: a lesson's Reading settings say which language it is taught in
