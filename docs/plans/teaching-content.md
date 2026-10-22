@@ -146,9 +146,15 @@ Sources: [../research/course-design.md](../research/course-design.md),
    Microsoft 365 files beside today's YouTube, Vimeo, Loom, Google and Canva. Done:
    GeoGebra activities, Desmos graphs (calculator, geometry, 3D) and PhET
    simulations, from a share link or embed code, behind the same click to
-   load. Left: Microsoft 365, whose embed addresses carry a tenant's own
-   host and a key, and Wikimedia Commons, whose pictures belong in a
-   picture block with their licence and author kept.
+   load. Then Microsoft 365: Word, Excel and PowerPoint for the web,
+   Stream, personal OneDrive, Sway and Microsoft Forms, read from their
+   embed code into a compact id (tenant, site and file) the frame's
+   address is rebuilt from; and Wikimedia Commons: a Commons or Wikipedia
+   file link becomes a picture copied into the school, described in the
+   reader's language, its author, licence and source kept under it in
+   reading, print and export.
+   Left: Commons in the picture search beside ARASAAC and OpenMoji, and a
+   credit a teacher can write for a picture of their own.
 
 ## 3. Questions and assessment
 
