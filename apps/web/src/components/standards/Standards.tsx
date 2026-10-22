@@ -1,6 +1,7 @@
 import type { CasePackage } from "@faridalms/domain/standards";
 
 import { EYFS_GOALS } from "@faridalms/domain/early-goals";
+import { IB_CONCEPTS } from "@faridalms/domain/ib-concepts";
 import {
   casePackageSchema,
   caseOutline,
@@ -28,6 +29,7 @@ import * as v from "valibot";
 import type { ActionItem } from "~/components/system/ActionMenu";
 import type { frameworkQuery } from "~/queries/standards";
 
+import { CheckboxRow } from "~/components/people/fields";
 import { ActionMenu } from "~/components/system/ActionMenu";
 import { ComboboxField } from "~/components/system/ComboboxField";
 import { FormField, TextField } from "~/components/system/field";
@@ -53,13 +55,15 @@ type FrameworkData = Awaited<
 export type StandardRow = FrameworkData["standards"][number];
 type FrameworkRow = FrameworkData["framework"];
 
-/** Where a framework came from: the EYFS goals, a CASE package, or the school. */
+/** Where a framework came from: the EYFS goals, the IB's concepts, a CASE package, or the school. */
 export const sourceOf = (framework: { caseIdentifier: string | null }) =>
   framework.caseIdentifier === EYFS_GOALS.identifier
     ? m.standardsSourceEyfs()
-    : framework.caseIdentifier
-      ? m.standardsSourceCase()
-      : m.standardsSourceOwn();
+    : IB_CONCEPTS.some((row) => row.identifier === framework.caseIdentifier)
+      ? m.standardsSourceIb()
+      : framework.caseIdentifier
+        ? m.standardsSourceCase()
+        : m.standardsSourceOwn();
 
 /** A framework's name and what it is, new or as kept. */
 export function FrameworkSheet({
@@ -75,6 +79,7 @@ export function FrameworkSheet({
 }) {
   const [title, setTitle] = useState(framework?.title ?? "");
   const [description, setDescription] = useState(framework?.description ?? "");
+  const [assessed, setAssessed] = useState(framework?.assessed ?? true);
   const save = useMutation({
     mutationFn: () =>
       saveFramework({
@@ -83,6 +88,7 @@ export function FrameworkSheet({
           expectedVersion: framework?.version ?? 0,
           title,
           description,
+          assessed,
         },
       }),
     meta: { inlineError: true },
@@ -128,6 +134,12 @@ export function FrameworkSheet({
           />
         )}
       </FormField>
+      <CheckboxRow
+        label={m.standardsAssessed()}
+        hint={m.standardsAssessedHint()}
+        checked={assessed}
+        onChange={setAssessed}
+      />
     </SheetForm>
   );
 }

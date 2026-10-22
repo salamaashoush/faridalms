@@ -1029,6 +1029,12 @@ export const standardFrameworks = core.table.withRLS(
     title: text("title").notNull(),
     description: text("description").notNull().default(""),
     caseIdentifier: uuid("case_identifier"),
+    /**
+     * Its items are what work is assessed against; false for ideas that frame
+     * units rather than being assessed, such as key concepts or global
+     * contexts, which a plan names without asking for questions on them.
+     */
+    assessed: boolean("assessed").notNull().default(true),
     ...entityColumns(),
   },
   (t): PgTableExtraConfigValue[] => [

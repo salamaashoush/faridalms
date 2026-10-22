@@ -394,8 +394,14 @@ Sources: [../research/course-design.md](../research/course-design.md),
    and terms, each a bar from the first day the class spends on it to the
    last, set per class (`module_classes.starts_on`, `ends_on`) and kept
    inside the year; a unit without dates is suggested the days after the
-   last one placed. Left: the IB coordinator's view of key concepts and
-   global contexts across units.
+   last one placed. The curriculum map (`/standards/map`) reads one
+   framework across the year's unit plans, by item (the units taking each
+   up, and those none does) or by unit. The IB's MYP key concepts and
+   global contexts and PYP key concepts and themes are added in one step,
+   as frameworks that frame units rather than being assessed
+   (`standard_frameworks.assessed`), so a plan names them without being
+   told no question assesses them; the IB planners choose them in
+   Standards blocks.
 
 ## 5. Reuse and course structure
 

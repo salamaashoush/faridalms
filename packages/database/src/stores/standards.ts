@@ -15,6 +15,7 @@ export interface FrameworkRow {
   title: string;
   description: string;
   caseIdentifier: string | null;
+  assessed: boolean;
   standards: number;
 }
 
@@ -24,6 +25,7 @@ type FrameworkRecord = {
   title: string;
   description: string;
   case_identifier: string | null;
+  assessed: boolean;
   standards: number;
 };
 
@@ -33,10 +35,11 @@ const frameworkOf = (row: FrameworkRecord): FrameworkRow => ({
   title: row.title,
   description: row.description,
   caseIdentifier: row.case_identifier,
+  assessed: row.assessed,
   standards: row.standards,
 });
 
-const frameworkColumns = sql`f.id, f.version, f.title, f.description, f.case_identifier,
+const frameworkColumns = sql`f.id, f.version, f.title, f.description, f.case_identifier, f.assessed,
   (select count(*)::int from core.standards s
     where s.tenant_id = f.tenant_id and s.framework_id = f.id and s.status = 'active') as standards`;
 
@@ -86,12 +89,14 @@ export async function insertFramework(
     title: string;
     description: string;
     caseIdentifier: string | null;
+    assessed: boolean;
   },
 ): Promise<{ id: string; version: number }> {
   const [row] = await tx.execute<{ id: string; version: number }>(sql`
-    insert into core.standard_frameworks (tenant_id, org_id, title, description, case_identifier)
+    insert into core.standard_frameworks (tenant_id, org_id, title, description, case_identifier,
+      assessed)
     values (${input.tenantId}::uuid, ${input.orgId}::uuid, ${input.title}, ${input.description},
-      ${input.caseIdentifier}::uuid)
+      ${input.caseIdentifier}::uuid, ${input.assessed})
     returning id, version`);
   if (!row) throw new Error("framework was not created");
   return row;
@@ -106,11 +111,12 @@ export async function updateFramework(
     expectedVersion: number;
     title: string;
     description: string;
+    assessed: boolean;
   },
 ): Promise<number | null> {
   const [row] = await tx.execute<{ version: number }>(sql`
     update core.standard_frameworks
-    set title = ${input.title}, description = ${input.description}
+    set title = ${input.title}, description = ${input.description}, assessed = ${input.assessed}
     where tenant_id = ${input.tenantId}::uuid and id = ${input.id}::uuid
       and version = ${input.expectedVersion} and status = 'active'
     returning version`);
@@ -309,6 +315,8 @@ export interface StandardSummaryRow {
   statement: string;
   frameworkId: string;
   frameworkTitle: string;
+  /** Its framework's items are assessed, rather than framing units. */
+  assessed: boolean;
 }
 
 type SummaryRecord = {
@@ -317,6 +325,7 @@ type SummaryRecord = {
   statement: string;
   framework_id: string;
   framework_title: string;
+  assessed: boolean;
 };
 
 const summaryOf = (row: SummaryRecord): StandardSummaryRow => ({
@@ -325,6 +334,7 @@ const summaryOf = (row: SummaryRecord): StandardSummaryRow => ({
   statement: row.statement,
   frameworkId: row.framework_id,
   frameworkTitle: row.framework_title,
+  assessed: row.assessed,
 });
 
 /**
@@ -345,7 +355,8 @@ export async function searchStandards(
   const like = `%${escapeLike(words)}%`;
   const start = `${escapeLike(words)}%`;
   const rows = await tx.execute<SummaryRecord>(sql`
-    select s.id, s.code, s.statement, f.id as framework_id, f.title as framework_title
+    select s.id, s.code, s.statement, f.id as framework_id, f.title as framework_title,
+      f.assessed
     from core.standards s
     join core.standard_frameworks f on f.tenant_id = s.tenant_id and f.id = s.framework_id
     where s.tenant_id = ${input.tenantId}::uuid and f.org_id = ${input.orgId}::uuid
@@ -364,7 +375,8 @@ export async function standardsByIds(
 ): Promise<StandardSummaryRow[]> {
   if (input.ids.length === 0) return [];
   const rows = await tx.execute<SummaryRecord>(sql`
-    select s.id, s.code, s.statement, f.id as framework_id, f.title as framework_title
+    select s.id, s.code, s.statement, f.id as framework_id, f.title as framework_title,
+      f.assessed
     from core.standards s
     join core.standard_frameworks f on f.tenant_id = s.tenant_id and f.id = s.framework_id
     where s.tenant_id = ${input.tenantId}::uuid and f.org_id = ${input.orgId}::uuid

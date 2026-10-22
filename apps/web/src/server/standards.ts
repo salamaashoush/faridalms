@@ -1,6 +1,7 @@
 import {
   classGoalsSchema,
   classProgressSchema,
+  curriculumMapSchema,
   describeStandardsSchema,
   importCaseSchema,
   judgeGoalSchema,
@@ -45,6 +46,14 @@ export const moveStandard = createServerFn({ method: "POST" })
 export const removeStandard = createServerFn({ method: "POST" })
   .validator(checked(refSchema))
   .handler(({ data }) => backend().standards.remove(data));
+
+export const addIbConcepts = createServerFn({ method: "POST" }).handler(() =>
+  backend().standards.addIbConcepts(),
+);
+
+export const getCurriculumMap = createServerFn({ method: "GET" })
+  .validator(checked(curriculumMapSchema))
+  .handler(({ data }) => backend().standards.curriculumMap(data));
 
 export const importCase = createServerFn({ method: "POST" })
   .validator(checked(importCaseSchema))

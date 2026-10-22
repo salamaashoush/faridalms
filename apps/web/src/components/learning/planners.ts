@@ -9,7 +9,9 @@ import * as m from "~/i18n/messages";
  * plan), a Cambridge scheme of work, and a plain plan. Each field carries
  * the question it answers; the plan's standards sit in a Standards block
  * where the framework names its goals, so the module can show which of
- * them its questions assess.
+ * them its questions assess. The IB's key concepts, global contexts and
+ * themes are chosen in Standards blocks too, which the curriculum map
+ * reads across the year's units.
  */
 
 type Text = { en: string; ar: string };
@@ -67,6 +69,22 @@ const standards = (): ContentNode => ({
   targets: [],
 });
 
+/**
+ * A field answered by choosing from the school's frameworks, such as a key
+ * concept or a global context, so a coordinator can read it across units,
+ * with a line beneath for what the choice alone does not say.
+ */
+const chosenField = (
+  name: string,
+  question: string,
+  line = true,
+): ContentNode[] => [
+  heading("h3", name),
+  paragraph(question, ITALIC),
+  standards(),
+  ...(line ? [paragraph()] : []),
+];
+
 export const PLANNERS: Planner[] = [
   {
     key: "ib-myp",
@@ -90,12 +108,13 @@ export const PLANNERS: Planner[] = [
           ar: "الاستقصاء: تحديد الغرض من الوحدة",
         }),
       ),
-      ...field(
+      ...chosenField(
         say({ en: "Key concept", ar: "المفهوم الرئيسي" }),
         say({
           en: "The one key concept that drives the unit.",
           ar: "المفهوم الرئيسي الواحد الذي يقود الوحدة.",
         }),
+        false,
       ),
       ...field(
         say({ en: "Related concepts", ar: "المفاهيم ذات الصلة" }),
@@ -104,7 +123,7 @@ export const PLANNERS: Planner[] = [
           ar: "مفاهيم من التخصص ترسّخ المفهوم الرئيسي.",
         }),
       ),
-      ...field(
+      ...chosenField(
         say({ en: "Global context", ar: "السياق العالمي" }),
         say({
           en: "The global context, and the exploration of it the unit takes.",
@@ -366,7 +385,7 @@ export const PLANNERS: Planner[] = [
         "h2",
         say({ en: "Reflecting and planning", ar: "التأمّل والتخطيط" }),
       ),
-      ...field(
+      ...chosenField(
         say({ en: "Transdisciplinary theme", ar: "المحور العابر للمواد" }),
         say({
           en: "The theme, and the part of its description the unit explores.",
@@ -387,7 +406,7 @@ export const PLANNERS: Planner[] = [
           ar: "الاتجاهات الثلاثة تقريبًا التي يسلكها الاستقصاء.",
         }),
       ),
-      ...field(
+      ...chosenField(
         say({
           en: "Key and related concepts",
           ar: "المفاهيم الرئيسية وذات الصلة",

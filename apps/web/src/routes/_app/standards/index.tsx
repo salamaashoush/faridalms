@@ -1,8 +1,9 @@
 import { useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
-import { FileUp, Flag, ListTree, Plus } from "lucide-react";
+import { FileUp, Flag, Grid3x3, Lightbulb, ListTree, Plus } from "lucide-react";
 import { useState } from "react";
+import { toast } from "sonner";
 
 import type { Column } from "~/components/system/DataTable";
 import type { HeaderAction } from "~/components/system/IndexPage";
@@ -16,7 +17,7 @@ import { DataTable, RowLink } from "~/components/system/DataTable";
 import { PageHeader } from "~/components/system/IndexPage";
 import * as m from "~/i18n/messages";
 import { frameworksQuery } from "~/queries/standards";
-import { addEarlyGoals } from "~/server/standards";
+import { addEarlyGoals, addIbConcepts } from "~/server/standards";
 import { formatNumber } from "~/utils/datetime";
 
 type Data = Awaited<
@@ -78,6 +79,7 @@ function FrameworksPage() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const addGoals = useServerFn(addEarlyGoals);
+  const addConcepts = useServerFn(addIbConcepts);
   const [sheet, setSheet] = useState<"new" | "import" | null>(null);
   const [key, setKey] = useState(0);
   const open = (next: "new" | "import") => {
@@ -104,8 +106,13 @@ function FrameworksPage() {
         description={m.standardsHint()}
         count={data.frameworks.length}
         action={create}
-        menu={
-          data.canManage
+        menu={[
+          {
+            label: m.curriculumMapTitle(),
+            icon: Grid3x3,
+            onSelect: () => navigate({ to: "/standards/map", search: {} }),
+          },
+          ...(data.canManage
             ? [
                 {
                   label: m.standardsImportCase(),
@@ -123,9 +130,20 @@ function FrameworksPage() {
                     await go(added.id);
                   },
                 },
+                {
+                  label: m.standardsAddIbConcepts(),
+                  icon: Lightbulb,
+                  onSelect: async () => {
+                    await addConcepts();
+                    await queryClient.invalidateQueries({
+                      queryKey: ["standards"],
+                    });
+                    toast.success(m.standardsIbConceptsAdded());
+                  },
+                },
               ]
-            : []
-        }
+            : []),
+        ]}
       />
       <DataTable
         caption={m.standardsCaption()}

@@ -473,6 +473,61 @@ export async function yearUnitsOf(
   }));
 }
 
+/** A module of the school year, with the classes that take it and when the earliest starts it. */
+export interface YearModuleRow {
+  id: string;
+  title: string;
+  state: ModuleState;
+  classes: ModuleClass[];
+  startsOn: string | null;
+}
+
+/** The school year's modules still in use, by their first class and when they are taken. */
+export async function yearModulesOf(
+  tx: Tx,
+  input: { tenantId: string; schoolId: string; yearId: string },
+): Promise<YearModuleRow[]> {
+  const rows = await tx.execute<{
+    id: string;
+    title: string;
+    state: ModuleState;
+    starts_on: string | null;
+    classes: {
+      id: string;
+      code: string;
+      title_en: string | null;
+      title_ar: string | null;
+    }[];
+  }>(sql`
+    select m.id, m.title, m.state,
+      (select min(x.starts_on)::text from core.module_classes x
+        where x.tenant_id = m.tenant_id and x.module_id = m.id and x.status = 'active') as starts_on,
+      coalesce((select json_agg(json_build_object('id', c.id, 'code', c.code,
+          'title_en', c.title_en, 'title_ar', c.title_ar) order by c.code)
+        from core.module_classes x join core.classes c on c.tenant_id = x.tenant_id and c.id = x.class_id
+        where x.tenant_id = m.tenant_id and x.module_id = m.id and x.status = 'active'), '[]'::json) as classes
+    from core.learning_modules m
+    where m.tenant_id = ${input.tenantId}::uuid and m.org_id = ${input.schoolId}::uuid
+      and m.school_year_id = ${input.yearId}::uuid and m.status = 'active' and m.state <> 'archived'
+    order by (select min(c.code) from core.module_classes x
+        join core.classes c on c.tenant_id = x.tenant_id and c.id = x.class_id
+        where x.tenant_id = m.tenant_id and x.module_id = m.id and x.status = 'active') nulls last,
+      starts_on nulls last, m.title, m.id
+    limit 500`);
+  return rows.map((row) => ({
+    id: row.id,
+    title: row.title,
+    state: row.state,
+    startsOn: row.starts_on,
+    classes: row.classes.map((item) => ({
+      id: item.id,
+      code: item.code,
+      titleEn: item.title_en,
+      titleAr: item.title_ar,
+    })),
+  }));
+}
+
 /** Sets when a class takes a module, or clears it; whether the module is set for the class. */
 export async function setUnitDates(
   tx: Tx,

@@ -5100,6 +5100,84 @@ describe("a module's unit plan", () => {
     );
     await office.standards.removeFramework({ id: framework.id });
   });
+
+  test("the IB's key concepts frame plans unassessed, and the curriculum map reads them across the year's units", async () => {
+    const office = await signedIn("northwind", login("principal"));
+    const added = await office.standards.addIbConcepts();
+    expect(added.ids).toHaveLength(4);
+    // Adding them again brings the same frameworks back, not second ones.
+    expect((await office.standards.addIbConcepts()).ids).toEqual(added.ids);
+    const keyConcepts = added.ids[0] ?? "";
+    const { framework: concepts, standards: items } =
+      await office.standards.framework({ id: keyConcepts });
+    expect(concepts).toMatchObject({
+      title: "IB MYP key concepts",
+      assessed: false,
+    });
+    expect(items).toHaveLength(16);
+    const change = items.find((row) => row.statement === "Change");
+    if (!change) throw new Error("no key concept Change");
+
+    const { keeper } = await teachers();
+    const { rows } = await keeper.learning.modules({});
+    const source = rows.find((row) => row.title === TITLE);
+    const saved = await keeper.learning.saveModule({
+      id: "",
+      expectedVersion: 0,
+      title: "Seasons change",
+      summary: "",
+      classIds: source?.classes.map((item) => item.id) ?? [],
+      prerequisiteId: "",
+      sequential: false,
+    });
+    const page = plainContent("Key concept");
+    await keeper.learning.savePlan({
+      moduleId: saved.id,
+      content: {
+        root: {
+          ...page.root,
+          children: [
+            ...(page.root.children ?? []),
+            {
+              type: "standards",
+              version: 1,
+              targets: [{ id: change.id, code: "", statement: "Change" }],
+            },
+          ],
+        },
+      },
+    });
+    expect(await keeper.standards.describe({ ids: [change.id] })).toMatchObject(
+      [{ id: change.id, assessed: false }],
+    );
+
+    const map = await keeper.standards.curriculumMap({
+      frameworkId: keyConcepts,
+    });
+    expect(map.frameworkId).toBe(keyConcepts);
+    expect(map.items).toHaveLength(16);
+    expect(map.units.find((row) => row.id === saved.id)).toMatchObject({
+      title: "Seasons change",
+      items: [change.id],
+    });
+    // The other units name nothing from it.
+    expect(
+      map.units
+        .filter((row) => row.id !== saved.id)
+        .every((row) => row.items.length === 0),
+    ).toBe(true);
+    const pupil = await signedIn("northwind", login("student"));
+    expect(
+      await rejection(pupil.standards.curriculumMap({ frameworkId: "" })),
+    ).toMatchObject({ code: "FORBIDDEN" });
+
+    await keeper.learning.archiveModule({
+      id: saved.id,
+      expectedVersion: saved.version,
+    });
+    for (const frameworkId of added.ids)
+      await office.standards.removeFramework({ id: frameworkId });
+  });
 });
 
 describe("copying a lesson", () => {

@@ -89,6 +89,7 @@ import { Route as AppPracticeModuleIdRouteImport } from './routes/_app/practice.
 import { Route as AppRegistersClassIdRouteImport } from './routes/_app/registers.$classId'
 import { Route as AppStandardsIndexRouteImport } from './routes/_app/standards/index'
 import { Route as AppStandardsFrameworkIdRouteImport } from './routes/_app/standards/$frameworkId'
+import { Route as AppStandardsMapRouteImport } from './routes/_app/standards/map'
 import { Route as AppStudentsStudentIdRouteImport } from './routes/_app/students.$studentId'
 import { Route as AppTeachIndexRouteImport } from './routes/_app/teach/index'
 import { Route as AppTeachAssignmentEditorRouteImport } from './routes/_app/teach/assignment-editor'
@@ -525,6 +526,11 @@ const AppStandardsFrameworkIdRoute = AppStandardsFrameworkIdRouteImport.update({
   path: '/standards/$frameworkId',
   getParentRoute: () => AppRoute,
 } as any)
+const AppStandardsMapRoute = AppStandardsMapRouteImport.update({
+  id: '/standards/map',
+  path: '/standards/map',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppStudentsStudentIdRoute = AppStudentsStudentIdRouteImport.update({
   id: '/students/$studentId',
   path: '/students/$studentId',
@@ -756,6 +762,7 @@ export interface FileRoutesByFullPath {
   '/practice/$moduleId': typeof AppPracticeModuleIdRoute
   '/registers/$classId': typeof AppRegistersClassIdRoute
   '/standards/$frameworkId': typeof AppStandardsFrameworkIdRoute
+  '/standards/map': typeof AppStandardsMapRoute
   '/students/$studentId': typeof AppStudentsStudentIdRoute
   '/teach/assignment-editor': typeof AppTeachAssignmentEditorRoute
   '/teach/assignments': typeof AppTeachAssignmentsRoute
@@ -862,6 +869,7 @@ export interface FileRoutesByTo {
   '/practice/$moduleId': typeof AppPracticeModuleIdRoute
   '/registers/$classId': typeof AppRegistersClassIdRoute
   '/standards/$frameworkId': typeof AppStandardsFrameworkIdRoute
+  '/standards/map': typeof AppStandardsMapRoute
   '/students/$studentId': typeof AppStudentsStudentIdRoute
   '/teach/assignment-editor': typeof AppTeachAssignmentEditorRoute
   '/teach/assignments': typeof AppTeachAssignmentsRoute
@@ -976,6 +984,7 @@ export interface FileRoutesById {
   '/_app/practice/$moduleId': typeof AppPracticeModuleIdRoute
   '/_app/registers/$classId': typeof AppRegistersClassIdRoute
   '/_app/standards/$frameworkId': typeof AppStandardsFrameworkIdRoute
+  '/_app/standards/map': typeof AppStandardsMapRoute
   '/_app/students/$studentId': typeof AppStudentsStudentIdRoute
   '/_app/teach/assignment-editor': typeof AppTeachAssignmentEditorRoute
   '/_app/teach/assignments': typeof AppTeachAssignmentsRoute
@@ -1089,6 +1098,7 @@ export interface FileRouteTypes {
     | '/practice/$moduleId'
     | '/registers/$classId'
     | '/standards/$frameworkId'
+    | '/standards/map'
     | '/students/$studentId'
     | '/teach/assignment-editor'
     | '/teach/assignments'
@@ -1195,6 +1205,7 @@ export interface FileRouteTypes {
     | '/practice/$moduleId'
     | '/registers/$classId'
     | '/standards/$frameworkId'
+    | '/standards/map'
     | '/students/$studentId'
     | '/teach/assignment-editor'
     | '/teach/assignments'
@@ -1308,6 +1319,7 @@ export interface FileRouteTypes {
     | '/_app/practice/$moduleId'
     | '/_app/registers/$classId'
     | '/_app/standards/$frameworkId'
+    | '/_app/standards/map'
     | '/_app/students/$studentId'
     | '/_app/teach/assignment-editor'
     | '/_app/teach/assignments'
@@ -1933,6 +1945,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppStandardsFrameworkIdRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/standards/map': {
+      id: '/_app/standards/map'
+      path: '/standards/map'
+      fullPath: '/standards/map'
+      preLoaderRoute: typeof AppStandardsMapRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/_app/students/$studentId': {
       id: '/_app/students/$studentId'
       path: '/students/$studentId'
@@ -2318,6 +2337,7 @@ interface AppRouteChildren {
   AppPracticeModuleIdRoute: typeof AppPracticeModuleIdRoute
   AppRegistersClassIdRoute: typeof AppRegistersClassIdRoute
   AppStandardsFrameworkIdRoute: typeof AppStandardsFrameworkIdRoute
+  AppStandardsMapRoute: typeof AppStandardsMapRoute
   AppStudentsStudentIdRoute: typeof AppStudentsStudentIdRoute
   AppYearsYearIdRoute: typeof AppYearsYearIdRoute
   AppAnnouncementsIndexRoute: typeof AppAnnouncementsIndexRoute
@@ -2355,6 +2375,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppPracticeModuleIdRoute: AppPracticeModuleIdRoute,
   AppRegistersClassIdRoute: AppRegistersClassIdRoute,
   AppStandardsFrameworkIdRoute: AppStandardsFrameworkIdRoute,
+  AppStandardsMapRoute: AppStandardsMapRoute,
   AppStudentsStudentIdRoute: AppStudentsStudentIdRoute,
   AppYearsYearIdRoute: AppYearsYearIdRoute,
   AppAnnouncementsIndexRoute: AppAnnouncementsIndexRoute,

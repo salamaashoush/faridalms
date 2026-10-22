@@ -3,6 +3,7 @@ import { queryOptions } from "@tanstack/react-query";
 import {
   getClassGoals,
   getClassProgress,
+  getCurriculumMap,
   getFramework,
   getFrameworks,
   getStandardSittings,
@@ -18,6 +19,14 @@ export const frameworkQuery = (id: string) =>
   queryOptions({
     queryKey: ["standards", "framework", id],
     queryFn: () => getFramework({ data: { id } }),
+  });
+
+/** One framework across the school year's unit plans. */
+export const curriculumMapQuery = (frameworkId: string) =>
+  queryOptions({
+    queryKey: ["standards", "map", frameworkId],
+    queryFn: () => getCurriculumMap({ data: { frameworkId } }),
+    placeholderData: (previous) => previous,
   });
 
 export const classProgressQuery = (classId: string) =>

@@ -6,9 +6,11 @@ import {
   teachesClass,
 } from "@faridalms/database/stores/classes";
 import { namesOf } from "@faridalms/database/stores/coursework";
+import { contentsOf } from "@faridalms/database/stores/documents";
 import {
   classesOfModule,
   lessonById,
+  yearModulesOf,
 } from "@faridalms/database/stores/learning";
 import {
   clearJudgement,
@@ -37,12 +39,19 @@ import {
   updateStandard,
 } from "@faridalms/database/stores/standards";
 import { isVisibleStudent } from "@faridalms/database/stores/students";
-import { dayIn, schoolYears } from "@faridalms/database/stores/years";
+import {
+  dayIn,
+  schoolYears,
+  workingYear,
+} from "@faridalms/database/stores/years";
 import { EYFS_GOALS } from "@faridalms/domain/early-goals";
+import { IB_CONCEPTS } from "@faridalms/domain/ib-concepts";
+import { isContentDocument } from "@faridalms/domain/lesson-content";
 import {
   caseOutline,
   classGoalsSchema,
   classProgressSchema,
+  curriculumMapSchema,
   describeStandardsSchema,
   importCaseSchema,
   judgeGoalSchema,
@@ -50,6 +59,7 @@ import {
   moveStandardSchema,
   OBSERVED_FRACTION,
   observeSchema,
+  planTargets,
   refSchema,
   saveFrameworkSchema,
   saveStandardSchema,
@@ -139,6 +149,7 @@ export const saveFramework = writeProcedure
         title: input.title,
         description: input.description,
         caseIdentifier: null,
+        assessed: input.assessed,
       });
       await audit(context, {
         action: "standards.framework_create",
@@ -155,6 +166,7 @@ export const saveFramework = writeProcedure
       expectedVersion: input.expectedVersion,
       title: input.title,
       description: input.description,
+      assessed: input.assessed,
     });
     if (version === null)
       throw new ORPCError("CONFLICT", { message: "conflict.version" });
@@ -307,6 +319,7 @@ export const importCase = writeProcedure
             title: outline.title,
             description: outline.description,
             caseIdentifier: outline.identifier,
+            assessed: true,
           })
         ).id);
     const imported = await importStandards(context.tx, {
@@ -341,6 +354,7 @@ export const addEarlyGoals = writeProcedure.handler(async ({ context }) => {
         title: EYFS_GOALS.title,
         description: EYFS_GOALS.description,
         caseIdentifier: EYFS_GOALS.identifier,
+        assessed: true,
       })
     ).id;
   const imported = await importStandards(context.tx, {
@@ -356,6 +370,135 @@ export const addEarlyGoals = writeProcedure.handler(async ({ context }) => {
   });
   return { id: target };
 });
+
+/**
+ * Adds the IB's planning concepts as frameworks of the school's, each
+ * framing units rather than assessed, or brings the copies it has back to
+ * them.
+ */
+export const addIbConcepts = writeProcedure.handler(async ({ context }) => {
+  requireCapability(context, "standards:manage");
+  const scope = { tenantId: context.tenantId, orgId: context.schoolId };
+  const added: string[] = [];
+  for (const concepts of IB_CONCEPTS) {
+    const target =
+      (await frameworkOfCase(context.tx, {
+        ...scope,
+        caseIdentifier: concepts.identifier,
+      })) ??
+      (
+        await insertFramework(context.tx, {
+          ...scope,
+          title: concepts.title,
+          description: concepts.description,
+          caseIdentifier: concepts.identifier,
+          assessed: false,
+        })
+      ).id;
+    const imported = await importStandards(context.tx, {
+      tenantId: context.tenantId,
+      frameworkId: target,
+      items: concepts.items,
+    });
+    await audit(context, {
+      action: "standards.import",
+      objectType: "standard_framework",
+      objectId: target,
+      details: { caseIdentifier: concepts.identifier, items: imported },
+    });
+    added.push(target);
+  }
+  return { ids: added };
+});
+
+/**
+ * One framework across the school year's unit plans: each unit with the
+ * items of the framework its plan names, so a coordinator sees which key
+ * concepts, contexts or standards the year's units take up and which none
+ * does. Without a framework chosen, the one the plans name most.
+ */
+export const curriculumMap = readProcedure
+  .input(curriculumMapSchema)
+  .handler(async ({ input, context }) => {
+    requireReader(context);
+    const scope = { tenantId: context.tenantId, orgId: context.schoolId };
+    const [kept, years] = await Promise.all([
+      frameworksOf(context.tx, scope),
+      schoolYears(context.tx, context.tenantId, context.schoolId),
+    ]);
+    const year = workingYear(years, context.today);
+    const modules = year
+      ? await yearModulesOf(context.tx, {
+          tenantId: context.tenantId,
+          schoolId: context.schoolId,
+          yearId: year.id,
+        })
+      : [];
+    const plans = await contentsOf(
+      context.tx,
+      context.tenantId,
+      "module_plan",
+      modules.map((row) => row.id),
+    );
+    const named = new Map(
+      modules.map((row) => {
+        const plan = plans.get(row.id);
+        return [
+          row.id,
+          new Set(
+            isContentDocument(plan)
+              ? planTargets(plan).map((target) => target.id)
+              : [],
+          ),
+        ];
+      }),
+    );
+    const everyName = [...named.values()].flatMap((ids) => [...ids]);
+    const seen = await standardsByIds(context.tx, {
+      ...scope,
+      ids: [...new Set(everyName)],
+    });
+    const frameworkOfItem = new Map(
+      seen.map((row) => [row.id, row.frameworkId]),
+    );
+    const uses = new Map<string, number>();
+    for (const item of everyName) {
+      const owner = frameworkOfItem.get(item);
+      if (owner) uses.set(owner, (uses.get(owner) ?? 0) + 1);
+    }
+    const chosen =
+      kept.find((row) => row.id === input.frameworkId) ??
+      kept.toSorted((a, b) => (uses.get(b.id) ?? 0) - (uses.get(a.id) ?? 0))[0];
+    if (input.frameworkId && chosen?.id !== input.frameworkId)
+      throw new ORPCError("NOT_FOUND");
+    const items = chosen
+      ? await standardsOf(context.tx, {
+          tenantId: context.tenantId,
+          frameworkId: chosen.id,
+        })
+      : [];
+    return {
+      year: year ? { titleEn: year.titleEn, titleAr: year.titleAr } : null,
+      frameworks: kept.map((row) => ({
+        id: row.id,
+        title: row.title,
+        assessed: row.assessed,
+      })),
+      frameworkId: chosen?.id ?? "",
+      items: items.map((row) => ({
+        id: row.id,
+        parentId: row.parentId,
+        code: row.code,
+        statement: row.statement,
+      })),
+      units: modules.map((row) => ({
+        ...row,
+        items: [...(named.get(row.id) ?? [])].filter(
+          (item) => frameworkOfItem.get(item) === chosen?.id,
+        ),
+      })),
+    };
+  });
 
 /** Standards whose code or statement holds the words, for a picker. */
 export const search = readProcedure

@@ -1931,6 +1931,38 @@
   "skillsSecureOf": "المهارات المتمكَّن منها: {count} من {total}",
   "skillsSecureColumn": "متمكّن",
   "skillsStandard": "المعيار",
+  "curriculumMapTitle": "خريطة المنهج",
+  "curriculumMapHint": "ما تتناوله خطط وحدات السنة من بنود إطار ما، وحدةً وحدة، وما لم تتناوله أي وحدة بعد.",
+  "curriculumMapViews": "قراءة الخريطة",
+  "curriculumMapByItem": "حسب البند",
+  "curriculumMapByUnit": "حسب الوحدة",
+  "curriculumMapUnits": [
+    {
+      "declarations": ["input count", "local countPlural = count: plural"],
+      "selectors": ["countPlural"],
+      "match": {
+        "countPlural=zero": "لا وحدات",
+        "countPlural=one": "وحدة واحدة",
+        "countPlural=two": "وحدتان",
+        "countPlural=few": "{count} وحدات",
+        "countPlural=many": "{count} وحدة",
+        "countPlural=*": "{count} وحدة"
+      }
+    }
+  ],
+  "curriculumMapNone": "لم تتناوله أي وحدة بعد",
+  "curriculumMapUnitNone": "لا تذكر خطتها شيئًا من هذا الإطار.",
+  "curriculumMapSummary": "تتناول {units} وحدة هذه السنة {covered} من {total}.",
+  "curriculumMapNoFrameworks": "لا أطر بعد",
+  "curriculumMapNoFrameworksBody": "أضف أطر المدرسة، أو المفاهيم الرئيسية والسياقات العالمية للبكالوريا الدولية، من صفحة المعايير. تذكرها خطط الوحدات حينئذٍ وتقرؤها الخريطة على مدار السنة.",
+  "curriculumMapNoUnits": "لا وحدات هذه السنة بعد",
+  "curriculumMapNoUnitsBody": "تظهر هنا وحدات السنة الدراسية بعد أن يكتبها المعلمون.",
+  "standardsAssessed": "تُقيَّم الأعمال وفق بنوده",
+  "standardsAssessedHint": "ألغِ التحديد للأفكار التي تؤطّر الوحدات ولا تُقيَّم، مثل المفاهيم الرئيسية أو السياقات العالمية. تذكرها خطط الوحدات حينئذٍ دون أن تطلب أسئلة عليها.",
+  "standardsAddIbConcepts": "إضافة مفاهيم البكالوريا الدولية وسياقاتها",
+  "standardsIbConceptsAdded": "أُضيفت المفاهيم الرئيسية والسياقات العالمية لبرنامج السنوات المتوسطة، والمفاهيم الرئيسية والمحاور لبرنامج السنوات الابتدائية",
+  "standardsSourceIb": "البكالوريا الدولية، مدمج",
+  "planFrames": "يؤطّر الوحدة",
   "standardsFieldAdd": "إضافة معيار",
   "standardsFieldRemove": "إزالة {name}",
   "standardsFieldUnknown": "معيار لم يعد لدى المدرسة",

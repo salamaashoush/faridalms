@@ -35,6 +35,8 @@ export const saveFrameworkSchema = v.object({
   expectedVersion: version,
   title: required(MAX_FRAMEWORK_TITLE),
   description: text(MAX_FRAMEWORK_DESCRIPTION),
+  /** False for ideas that frame units, such as key concepts, rather than being assessed. */
+  assessed: v.optional(v.boolean(), true),
 });
 export type SaveFramework = v.InferOutput<typeof saveFrameworkSchema>;
 
@@ -71,6 +73,11 @@ export const describeStandardsSchema = v.object({
 });
 
 export const classProgressSchema = v.object({ classId: id });
+
+/** One framework across the year's unit plans; empty for the one they name most. */
+export const curriculumMapSchema = v.object({
+  frameworkId: v.optional(v.union([v.literal(""), id]), ""),
+});
 
 export const studentProgressSchema = v.object({
   /** Empty for the student asking about themselves. */

@@ -1845,6 +1845,34 @@
   "skillsSecureOf": "{count} of {total} skills secure",
   "skillsSecureColumn": "Secure",
   "skillsStandard": "Standard",
+  "curriculumMapTitle": "Curriculum map",
+  "curriculumMapHint": "Which items of a framework the year's unit plans take up, unit by unit, and which none does yet.",
+  "curriculumMapViews": "Read the map",
+  "curriculumMapByItem": "By item",
+  "curriculumMapByUnit": "By unit",
+  "curriculumMapUnits": [
+    {
+      "declarations": ["input count", "local countPlural = count: plural"],
+      "selectors": ["countPlural"],
+      "match": {
+        "countPlural=one": "{count} unit",
+        "countPlural=*": "{count} units"
+      }
+    }
+  ],
+  "curriculumMapNone": "No unit takes it up yet",
+  "curriculumMapUnitNone": "Its plan names nothing from this framework.",
+  "curriculumMapSummary": "{covered} of {total} taken up across {units} units this year.",
+  "curriculumMapNoFrameworks": "No frameworks yet",
+  "curriculumMapNoFrameworksBody": "Add the school's frameworks, or the IB's key concepts and global contexts, under Standards. Unit plans then name them and the map reads them across the year.",
+  "curriculumMapNoUnits": "No units this year yet",
+  "curriculumMapNoUnitsBody": "Modules of the school year show here once teachers write them.",
+  "standardsAssessed": "Work is assessed against its items",
+  "standardsAssessedHint": "Clear it for ideas that frame units rather than being assessed, such as key concepts or global contexts. Unit plans then name them without asking for questions on them.",
+  "standardsAddIbConcepts": "Add the IB's key concepts and contexts",
+  "standardsIbConceptsAdded": "Added the MYP's key concepts and global contexts, and the PYP's key concepts and themes",
+  "standardsSourceIb": "IB, built in",
+  "planFrames": "Frames the unit",
   "standardsFieldAdd": "Add a standard",
   "standardsFieldRemove": "Remove {name}",
   "standardsFieldUnknown": "A standard the school no longer has",
