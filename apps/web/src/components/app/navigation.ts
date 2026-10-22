@@ -16,6 +16,7 @@ import {
   Inbox,
   Layers,
   ListTodo,
+  ListTree,
   Megaphone,
   Newspaper,
   School,
@@ -102,6 +103,12 @@ export const NAVIGATION: Record<Workspace, NavSection[]> = {
           capability: "exams:manage",
         },
         {
+          to: "/standards",
+          label: m.navStandards,
+          icon: ListTree,
+          capability: "standards:manage",
+        },
+        {
           to: "/privacy",
           label: m.navPrivacy,
           icon: ShieldCheck,
@@ -141,6 +148,12 @@ export const NAVIGATION: Record<Workspace, NavSection[]> = {
           label: m.navModules,
           icon: Layers,
           feature: "elearning",
+        },
+        {
+          to: "/standards",
+          label: m.navStandards,
+          icon: ListTree,
+          capability: "learning:author",
         },
       ],
     },

@@ -1321,6 +1321,100 @@
   "capHealthRead": "قراءة السجلات الصحية",
   "capHealthWrite": "تعديل السجلات الصحية",
   "capSupportManage": "تحديد ترتيبات الوصول للطلاب",
+  "capStandardsManage": "إدارة أطر المعايير في المدرسة",
+  "navStandards": "المعايير",
+  "standardsTitle": "المعايير",
+  "standardsHint": "الأطر التي تدرّس مدرستك وفقها، والمعايير في كل منها.",
+  "standardsCaption": "أطر المعايير في المدرسة",
+  "standardsFramework": "الإطار",
+  "standardsSource": "المصدر",
+  "standardsSourceCase": "مستورد من CASE",
+  "standardsSourceOwn": "من إعداد المدرسة",
+  "standardsCount": "المعايير",
+  "standardsCountOf": [
+    {
+      "declarations": ["input count", "local countPlural = count: plural"],
+      "selectors": ["countPlural"],
+      "match": {
+        "countPlural=zero": "لا معايير",
+        "countPlural=one": "معيار واحد",
+        "countPlural=two": "معياران",
+        "countPlural=few": "{count} معايير",
+        "countPlural=many": "{count} معيارًا",
+        "countPlural=*": "{count} معيار"
+      }
+    }
+  ],
+  "standardsEmptyTitle": "لا أطر بعد",
+  "standardsEmptyBody": "أضف إطار المدرسة الخاص، أو استورد إطارًا منشورًا بصيغة CASE مثل المعايير الأساسية المشتركة من شبكة CASE.",
+  "standardsNewFramework": "إطار جديد",
+  "standardsEditFramework": "تعديل الإطار",
+  "standardsFrameworkTitle": "الاسم",
+  "standardsFrameworkTitleHint": "كما يعرفه المعلمون، مثل «أهداف العلوم في برنامج السنوات المتوسطة» أو «الرياضيات وفق المعايير المشتركة».",
+  "standardsFrameworkDescription": "عن هذا الإطار",
+  "standardsFrameworkEmpty": "لا معايير في هذا الإطار بعد.",
+  "standardsImportCase": "استيراد من CASE",
+  "standardsImportCaseInto": "تحديث من CASE",
+  "standardsImport": "استيراد",
+  "standardsCaseHint": "اختر حزمة CASE محفوظة بصيغة JSON، كما تصدّرها محررات CASE وشبكة CASE. استيرادها مرة أخرى لاحقًا يحدّث الإطار نفسه، وتبقى الوسوم على معاييره.",
+  "standardsCaseFile": "حزمة CASE",
+  "standardsCaseChoose": "اختر حزمة CASE أولًا.",
+  "standardsCaseUnreadable": "هذا الملف ليس حزمة CASE. صدّر الإطار حزمة CASE بصيغة JSON وحاول مرة أخرى.",
+  "standardsCaseFound": [
+    {
+      "declarations": [
+        "input count",
+        "input title",
+        "local countPlural = count: plural"
+      ],
+      "selectors": ["countPlural"],
+      "match": {
+        "countPlural=zero": "«{title}» بلا معايير.",
+        "countPlural=one": "«{title}» بمعيار واحد.",
+        "countPlural=two": "«{title}» بمعيارين.",
+        "countPlural=few": "«{title}» بـ{count} معايير.",
+        "countPlural=many": "«{title}» بـ{count} معيارًا.",
+        "countPlural=*": "«{title}» بـ{count} معيار."
+      }
+    }
+  ],
+  "standardsImported": [
+    {
+      "declarations": ["input count", "local countPlural = count: plural"],
+      "selectors": ["countPlural"],
+      "match": {
+        "countPlural=zero": "لم يُستورد أي معيار",
+        "countPlural=one": "استُورد معيار واحد",
+        "countPlural=two": "استُورد معياران",
+        "countPlural=few": "استُوردت {count} معايير",
+        "countPlural=many": "استُورد {count} معيارًا",
+        "countPlural=*": "استُورد {count} معيار"
+      }
+    }
+  ],
+  "standardsAdd": "إضافة معيار",
+  "standardsEdit": "تعديل المعيار",
+  "standardsAddUnder": "إضافة معيار تحته",
+  "standardsCode": "الرمز",
+  "standardsCodeHint": "رمز الجهة الناشرة، مثل 7.EE.B.4 أو المعيار A.",
+  "standardsStatement": "النص",
+  "standardsItemType": "المستوى",
+  "standardsItemTypeHint": "ما يسميه الإطار، مثل محور أو هدف أو معيار.",
+  "standardsUnder": "تحت",
+  "standardsUnderHint": "اتركه فارغًا ليكون في أعلى الإطار.",
+  "standardsMoveUp": "نقل لأعلى",
+  "standardsMoveDown": "نقل لأسفل",
+  "standardsRemove": "إزالة المعيار",
+  "standardsRemoveTitle": "إزالة هذا المعيار؟",
+  "standardsRemoveBody": "سيُزال «{standard}» وكل معيار تحته. تتوقف الأسئلة الموسومة بها عن عرض هذه الوسوم.",
+  "standardsRemoveFramework": "إزالة الإطار",
+  "standardsRemoveFrameworkTitle": "إزالة هذا الإطار؟",
+  "standardsRemoveFrameworkBody": "سيُزال «{framework}» وجميع معاييره. تتوقف الأسئلة الموسومة بها عن عرض هذه الوسوم.",
+  "standardsActions": "إجراءات {standard}",
+  "standardsExpand": "عرض ما تحت {standard}",
+  "standardsCollapse": "إخفاء ما تحت {standard}",
+  "standardsSearch": "ابحث في المعايير",
+  "standardsTreeLabel": "معايير هذا الإطار",
   "capDemographicsRead": "قراءة الجنسية والديانة",
   "capDemographicsWrite": "تعديل الجنسية والديانة",
   "capCustodyRead": "قراءة قيود الحضانة والاستلام",

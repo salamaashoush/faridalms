@@ -1,0 +1,233 @@
+import * as v from "valibot";
+
+/**
+ * A school's standards: the frameworks it teaches to, such as an IB
+ * subject's objectives, a Cambridge curriculum framework, Common Core or
+ * AERO, or its own, each a tree of statements with the codes publishers
+ * give them. A question carries the standards it gives evidence of. A
+ * framework published in CASE, 1EdTech's exchange format, can be imported
+ * whole, its items' identifiers kept so a later import updates them.
+ */
+
+export const MAX_FRAMEWORK_TITLE = 200;
+export const MAX_FRAMEWORK_DESCRIPTION = 2000;
+export const MAX_STANDARD_CODE = 60;
+export const MAX_STANDARD_STATEMENT = 2000;
+export const MAX_ITEM_TYPE = 60;
+/** The most items one framework holds, as an import brings them. */
+export const MAX_FRAMEWORK_ITEMS = 5000;
+/** The most standards one question gives evidence of. */
+export const MAX_QUESTION_STANDARDS = 6;
+
+const id = v.pipe(v.string(), v.uuid());
+const version = v.pipe(v.number(), v.integer(), v.minValue(0));
+const text = (max: number) => v.pipe(v.string(), v.trim(), v.maxLength(max));
+const required = (max: number) =>
+  v.pipe(v.string(), v.trim(), v.minLength(1), v.maxLength(max));
+
+export const saveFrameworkSchema = v.object({
+  /** Empty for a new framework. */
+  id: v.optional(v.union([v.literal(""), id]), ""),
+  expectedVersion: version,
+  title: required(MAX_FRAMEWORK_TITLE),
+  description: text(MAX_FRAMEWORK_DESCRIPTION),
+});
+export type SaveFramework = v.InferOutput<typeof saveFrameworkSchema>;
+
+export const saveStandardSchema = v.object({
+  frameworkId: id,
+  /** Empty for a new standard. */
+  id: v.optional(v.union([v.literal(""), id]), ""),
+  expectedVersion: version,
+  /** Empty for one at the top of the framework. */
+  parentId: v.optional(v.union([v.literal(""), id]), ""),
+  code: text(MAX_STANDARD_CODE),
+  statement: required(MAX_STANDARD_STATEMENT),
+  /** What the framework calls this level: strand, objective, standard. */
+  itemType: text(MAX_ITEM_TYPE),
+});
+export type SaveStandard = v.InferOutput<typeof saveStandardSchema>;
+
+export const moveStandardSchema = v.object({
+  id,
+  parentId: v.optional(v.union([v.literal(""), id]), ""),
+  /** Its place among its new siblings, from 0. */
+  position: v.pipe(v.number(), v.integer(), v.minValue(0)),
+});
+
+export const refSchema = v.object({ id });
+
+export const searchStandardsSchema = v.object({
+  query: v.optional(v.pipe(v.string(), v.trim(), v.maxLength(100)), ""),
+  frameworkId: v.optional(v.union([v.literal(""), id]), ""),
+});
+
+export const describeStandardsSchema = v.object({
+  ids: v.pipe(v.array(id), v.maxLength(200)),
+});
+
+/** A standard as a picker or a tag shows it. */
+export interface StandardSummary {
+  id: string;
+  code: string;
+  statement: string;
+  frameworkId: string;
+  frameworkTitle: string;
+}
+
+// --- CASE ------------------------------------------------------------------
+
+const node = v.looseObject({ identifier: v.string() });
+
+/**
+ * A CASE package as CASE services and editors export it (CFPackage JSON),
+ * read only as far as a framework's tree needs.
+ */
+export const casePackageSchema = v.looseObject({
+  CFDocument: v.looseObject({
+    identifier: v.pipe(v.string(), v.uuid()),
+    title: v.string(),
+    description: v.optional(v.string()),
+    creator: v.optional(v.string()),
+    language: v.optional(v.string()),
+  }),
+  CFItems: v.optional(
+    v.array(
+      v.looseObject({
+        identifier: v.pipe(v.string(), v.uuid()),
+        fullStatement: v.string(),
+        abbreviatedStatement: v.optional(v.nullable(v.string())),
+        humanCodingScheme: v.optional(v.nullable(v.string())),
+        listEnumeration: v.optional(v.nullable(v.string())),
+        CFItemType: v.optional(v.nullable(v.string())),
+      }),
+    ),
+    [],
+  ),
+  CFAssociations: v.optional(
+    v.array(
+      v.looseObject({
+        associationType: v.string(),
+        originNodeURI: node,
+        destinationNodeURI: node,
+        sequenceNumber: v.optional(v.nullable(v.number())),
+      }),
+    ),
+    [],
+  ),
+});
+export type CasePackage = v.InferOutput<typeof casePackageSchema>;
+
+export const importCaseSchema = v.object({
+  /** Empty to make a new framework of the package. */
+  frameworkId: v.optional(v.union([v.literal(""), id]), ""),
+  casePackage: casePackageSchema,
+});
+
+/**
+ * A framework's items as a CASE package orders them, each with its parent,
+ * parents before their children.
+ */
+export interface CaseOutline {
+  identifier: string;
+  title: string;
+  description: string;
+  items: {
+    identifier: string;
+    parentIdentifier: string | null;
+    position: number;
+    code: string;
+    statement: string;
+    itemType: string;
+  }[];
+}
+
+const clip = (value: string | null | undefined, max: number) =>
+  (value ?? "").trim().slice(0, max);
+
+/**
+ * The tree a CASE package describes: each item under the item it is a child
+ * of, or at the top when its parent is the document or missing, ordered by
+ * the association's sequence number, then its list marker, then its code.
+ * An item claimed as the child of two parents stays under the first, and a
+ * loop is broken at the top, so whatever a package says the result is a
+ * tree. The title is empty when the package gives none.
+ */
+export function caseOutline(casePackage: CasePackage): CaseOutline {
+  const items = casePackage.CFItems.slice(0, MAX_FRAMEWORK_ITEMS);
+  const known = new Set(items.map((item) => item.identifier));
+  const parentOf = new Map<string, string | null>();
+  const order = new Map<string, number>();
+  for (const association of casePackage.CFAssociations) {
+    if (association.associationType !== "isChildOf") continue;
+    const child = association.originNodeURI.identifier;
+    const parent = association.destinationNodeURI.identifier;
+    if (!known.has(child) || parentOf.has(child)) continue;
+    parentOf.set(child, known.has(parent) ? parent : null);
+    if (typeof association.sequenceNumber === "number")
+      order.set(child, association.sequenceNumber);
+  }
+  // A parent chain that comes back on itself is cut where it closes.
+  for (const item of items) {
+    const seen = new Set<string>([item.identifier]);
+    let at = parentOf.get(item.identifier) ?? null;
+    while (at) {
+      if (seen.has(at)) {
+        parentOf.set(item.identifier, null);
+        break;
+      }
+      seen.add(at);
+      at = parentOf.get(at) ?? null;
+    }
+  }
+  const sorted = items.toSorted((a, b) => {
+    const left = order.get(a.identifier) ?? Number.MAX_SAFE_INTEGER;
+    const right = order.get(b.identifier) ?? Number.MAX_SAFE_INTEGER;
+    if (left !== right) return left - right;
+    const marker = (a.listEnumeration ?? "").localeCompare(
+      b.listEnumeration ?? "",
+      undefined,
+      { numeric: true },
+    );
+    if (marker !== 0) return marker;
+    return (a.humanCodingScheme ?? "").localeCompare(
+      b.humanCodingScheme ?? "",
+      undefined,
+      { numeric: true },
+    );
+  });
+  // Parents come before their children, so each can be stored in turn.
+  const childrenOf = new Map<string | null, typeof sorted>();
+  for (const item of sorted) {
+    const parent = parentOf.get(item.identifier) ?? null;
+    childrenOf.set(parent, [...(childrenOf.get(parent) ?? []), item]);
+  }
+  const outlined: CaseOutline["items"] = [];
+  const visit = (parent: string | null) =>
+    (childrenOf.get(parent) ?? []).forEach((item, position) => {
+      const statement =
+        clip(item.fullStatement, MAX_STANDARD_STATEMENT) ||
+        clip(item.abbreviatedStatement, MAX_STANDARD_STATEMENT);
+      // An item with nothing to say, and everything under it, is left out.
+      if (!statement) return;
+      outlined.push({
+        identifier: item.identifier,
+        parentIdentifier: parent,
+        position,
+        code: clip(item.humanCodingScheme, MAX_STANDARD_CODE),
+        statement,
+        itemType: clip(item.CFItemType, MAX_ITEM_TYPE),
+      });
+      visit(item.identifier);
+    });
+  visit(null);
+  return {
+    identifier: casePackage.CFDocument.identifier,
+    title: clip(casePackage.CFDocument.title, MAX_FRAMEWORK_TITLE),
+    description: clip(
+      casePackage.CFDocument.description,
+      MAX_FRAMEWORK_DESCRIPTION,
+    ),
+    items: outlined,
+  };
+}

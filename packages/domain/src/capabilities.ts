@@ -50,6 +50,7 @@ export const CAPABILITIES = [
   "own-work:submit",
   "learning:author",
   "learning:read",
+  "standards:manage",
   "exams:manage",
   "badges:issue",
 ] as const;

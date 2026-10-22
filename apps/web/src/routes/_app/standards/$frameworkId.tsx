@@ -1,0 +1,168 @@
+import { useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { FileUp, Pencil, Plus, Trash2 } from "lucide-react";
+import { useState } from "react";
+
+import type { StandardRow } from "~/components/standards/Standards";
+
+import { BreadcrumbCurrent } from "~/components/app/WorkspaceBreadcrumb";
+import {
+  FrameworkSheet,
+  ImportCaseSheet,
+  StandardSheet,
+  StandardsTree,
+} from "~/components/standards/Standards";
+import { RecordEmpty, RecordHeader } from "~/components/system/RecordPage";
+import * as m from "~/i18n/messages";
+import { frameworkQuery } from "~/queries/standards";
+import { removeFramework } from "~/server/standards";
+
+export const Route = createFileRoute("/_app/standards/$frameworkId")({
+  staticData: { trail: <FrameworkTrail />, section: "/standards" },
+  loader: async ({ context, params }) => {
+    await context.queryClient.ensureQueryData(
+      frameworkQuery(params.frameworkId),
+    );
+  },
+  component: FrameworkPage,
+});
+
+function FrameworkTrail() {
+  const { frameworkId } = Route.useParams();
+  const data = useSuspenseQuery(frameworkQuery(frameworkId)).data;
+  return <BreadcrumbCurrent>{data.framework.title}</BreadcrumbCurrent>;
+}
+
+type Sheet =
+  | { kind: "framework" }
+  | { kind: "import" }
+  | { kind: "standard"; standard: StandardRow | null; parentId: string };
+
+function FrameworkPage() {
+  const { frameworkId } = Route.useParams();
+  const data = useSuspenseQuery(frameworkQuery(frameworkId)).data;
+  const queryClient = useQueryClient();
+  const navigate = useNavigate();
+  const [sheet, setSheet] = useState<Sheet | null>(null);
+  const [key, setKey] = useState(0);
+  const open = (next: Sheet) => {
+    setKey((current) => current + 1);
+    setSheet(next);
+  };
+  const refresh = () =>
+    queryClient.invalidateQueries({ queryKey: ["standards"] });
+  const { framework, standards, canManage } = data;
+  return (
+    <div className="mx-auto w-full max-w-6xl">
+      <RecordHeader
+        title={framework.title}
+        facts={[
+          {
+            label: m.standardsCount(),
+            value: m.standardsCountOf({ count: standards.length }),
+          },
+          {
+            label: m.standardsSource(),
+            value: framework.caseIdentifier
+              ? m.standardsSourceCase()
+              : m.standardsSourceOwn(),
+          },
+        ]}
+        action={
+          canManage
+            ? {
+                label: m.standardsAdd(),
+                icon: Plus,
+                onClick: () =>
+                  open({ kind: "standard", standard: null, parentId: "" }),
+              }
+            : undefined
+        }
+        menu={
+          canManage
+            ? [
+                {
+                  label: m.standardsEditFramework(),
+                  icon: Pencil,
+                  onSelect: () => open({ kind: "framework" }),
+                },
+                {
+                  label: m.standardsImportCaseInto(),
+                  icon: FileUp,
+                  onSelect: () => open({ kind: "import" }),
+                },
+                {
+                  label: m.standardsRemoveFramework(),
+                  icon: Trash2,
+                  destructive: true,
+                  confirm: {
+                    title: m.standardsRemoveFrameworkTitle(),
+                    body: m.standardsRemoveFrameworkBody({
+                      framework: framework.title,
+                    }),
+                    label: m.standardsRemoveFramework(),
+                  },
+                  onSelect: async () => {
+                    await removeFramework({ data: { id: framework.id } });
+                    await refresh();
+                    await navigate({ to: "/standards" });
+                  },
+                },
+              ]
+            : []
+        }
+      />
+      {framework.description ? (
+        <p
+          dir="auto"
+          className="-mt-2 mb-6 max-w-prose text-sm leading-5 text-muted-foreground"
+        >
+          {framework.description}
+        </p>
+      ) : null}
+      {standards.length === 0 ? (
+        <RecordEmpty>{m.standardsFrameworkEmpty()}</RecordEmpty>
+      ) : (
+        <StandardsTree
+          key={framework.id}
+          standards={standards}
+          canManage={canManage}
+          onEdit={(standard) =>
+            open({ kind: "standard", standard, parentId: "" })
+          }
+          onAddUnder={(parentId) =>
+            open({ kind: "standard", standard: null, parentId })
+          }
+        />
+      )}
+      {canManage ? (
+        <>
+          <FrameworkSheet
+            key={`framework-${key}`}
+            open={sheet?.kind === "framework"}
+            onClose={() => setSheet(null)}
+            framework={framework}
+            onSaved={refresh}
+          />
+          <ImportCaseSheet
+            key={`import-${key}`}
+            open={sheet?.kind === "import"}
+            onClose={() => setSheet(null)}
+            frameworkId={framework.id}
+            onImported={refresh}
+          />
+          <StandardSheet
+            key={`standard-${key}`}
+            open={sheet?.kind === "standard"}
+            onClose={() => setSheet(null)}
+            frameworkId={framework.id}
+            standards={standards}
+            standard={sheet?.kind === "standard" ? sheet.standard : null}
+            parentId={sheet?.kind === "standard" ? sheet.parentId : ""}
+            onSaved={refresh}
+          />
+        </>
+      ) : null}
+    </div>
+  );
+}

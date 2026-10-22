@@ -23,6 +23,8 @@ import {
   documentLinks,
   documentTemplates,
   bankQuestions,
+  standardFrameworks,
+  standards,
   attemptAuthentications,
   attemptDeclarations,
   courseworkAssessments,
@@ -617,6 +619,18 @@ export async function completeFixture(
     ownerUserId: userId,
     kind: "lesson",
     title: "Read, check, reflect",
+  });
+  const [framework] = await tx
+    .insert(standardFrameworks)
+    .values({ tenantId, orgId: schoolId, title: "Reading" })
+    .returning();
+  if (!framework) throw new Error("framework not inserted");
+  await tx.insert(standards).values({
+    tenantId,
+    frameworkId: framework.id,
+    code: "R.1",
+    statement: "Read a story aloud with expression.",
+    position: 0,
   });
   await tx.insert(bankQuestions).values({
     tenantId,

@@ -79,6 +79,8 @@ import { Route as AppNewsPostIdRouteImport } from './routes/_app/news.$postId'
 import { Route as AppPeopleUserIdRouteImport } from './routes/_app/people.$userId'
 import { Route as AppPracticeModuleIdRouteImport } from './routes/_app/practice.$moduleId'
 import { Route as AppRegistersClassIdRouteImport } from './routes/_app/registers.$classId'
+import { Route as AppStandardsIndexRouteImport } from './routes/_app/standards/index'
+import { Route as AppStandardsFrameworkIdRouteImport } from './routes/_app/standards/$frameworkId'
 import { Route as AppStudentsStudentIdRouteImport } from './routes/_app/students.$studentId'
 import { Route as AppTeachIndexRouteImport } from './routes/_app/teach/index'
 import { Route as AppTeachAssignmentEditorRouteImport } from './routes/_app/teach/assignment-editor'
@@ -459,6 +461,16 @@ const AppRegistersClassIdRoute = AppRegistersClassIdRouteImport.update({
   path: '/registers/$classId',
   getParentRoute: () => AppRoute,
 } as any)
+const AppStandardsIndexRoute = AppStandardsIndexRouteImport.update({
+  id: '/standards/',
+  path: '/standards/',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppStandardsFrameworkIdRoute = AppStandardsFrameworkIdRouteImport.update({
+  id: '/standards/$frameworkId',
+  path: '/standards/$frameworkId',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppStudentsStudentIdRoute = AppStudentsStudentIdRouteImport.update({
   id: '/students/$studentId',
   path: '/students/$studentId',
@@ -651,6 +663,7 @@ export interface FileRoutesByFullPath {
   '/people/$userId': typeof AppPeopleUserIdRoute
   '/practice/$moduleId': typeof AppPracticeModuleIdRoute
   '/registers/$classId': typeof AppRegistersClassIdRoute
+  '/standards/$frameworkId': typeof AppStandardsFrameworkIdRoute
   '/students/$studentId': typeof AppStudentsStudentIdRoute
   '/teach/assignment-editor': typeof AppTeachAssignmentEditorRoute
   '/teach/assignments': typeof AppTeachAssignmentsRoute
@@ -675,6 +688,7 @@ export interface FileRoutesByFullPath {
   '/family/': typeof AppFamilyIndexRoute
   '/me/': typeof AppMeIndexRoute
   '/news/': typeof AppNewsIndexRoute
+  '/standards/': typeof AppStandardsIndexRoute
   '/teach/': typeof AppTeachIndexRoute
   '/site/$school/': typeof SiteSchoolIndexRoute
   '/files/$fileId/parts/$part': typeof FilesFileIdPartsPartRoute
@@ -741,6 +755,7 @@ export interface FileRoutesByTo {
   '/people/$userId': typeof AppPeopleUserIdRoute
   '/practice/$moduleId': typeof AppPracticeModuleIdRoute
   '/registers/$classId': typeof AppRegistersClassIdRoute
+  '/standards/$frameworkId': typeof AppStandardsFrameworkIdRoute
   '/students/$studentId': typeof AppStudentsStudentIdRoute
   '/teach/assignment-editor': typeof AppTeachAssignmentEditorRoute
   '/teach/assignments': typeof AppTeachAssignmentsRoute
@@ -765,6 +780,7 @@ export interface FileRoutesByTo {
   '/family': typeof AppFamilyIndexRoute
   '/me': typeof AppMeIndexRoute
   '/news': typeof AppNewsIndexRoute
+  '/standards': typeof AppStandardsIndexRoute
   '/teach': typeof AppTeachIndexRoute
   '/site/$school': typeof SiteSchoolIndexRoute
   '/files/$fileId/parts/$part': typeof FilesFileIdPartsPartRoute
@@ -839,6 +855,7 @@ export interface FileRoutesById {
   '/_app/people/$userId': typeof AppPeopleUserIdRoute
   '/_app/practice/$moduleId': typeof AppPracticeModuleIdRoute
   '/_app/registers/$classId': typeof AppRegistersClassIdRoute
+  '/_app/standards/$frameworkId': typeof AppStandardsFrameworkIdRoute
   '/_app/students/$studentId': typeof AppStudentsStudentIdRoute
   '/_app/teach/assignment-editor': typeof AppTeachAssignmentEditorRoute
   '/_app/teach/assignments': typeof AppTeachAssignmentsRoute
@@ -863,6 +880,7 @@ export interface FileRoutesById {
   '/_app/family/': typeof AppFamilyIndexRoute
   '/_app/me/': typeof AppMeIndexRoute
   '/_app/news/': typeof AppNewsIndexRoute
+  '/_app/standards/': typeof AppStandardsIndexRoute
   '/_app/teach/': typeof AppTeachIndexRoute
   '/site/$school/': typeof SiteSchoolIndexRoute
   '/files/$fileId/parts/$part': typeof FilesFileIdPartsPartRoute
@@ -936,6 +954,7 @@ export interface FileRouteTypes {
     | '/people/$userId'
     | '/practice/$moduleId'
     | '/registers/$classId'
+    | '/standards/$frameworkId'
     | '/students/$studentId'
     | '/teach/assignment-editor'
     | '/teach/assignments'
@@ -960,6 +979,7 @@ export interface FileRouteTypes {
     | '/family/'
     | '/me/'
     | '/news/'
+    | '/standards/'
     | '/teach/'
     | '/site/$school/'
     | '/files/$fileId/parts/$part'
@@ -1026,6 +1046,7 @@ export interface FileRouteTypes {
     | '/people/$userId'
     | '/practice/$moduleId'
     | '/registers/$classId'
+    | '/standards/$frameworkId'
     | '/students/$studentId'
     | '/teach/assignment-editor'
     | '/teach/assignments'
@@ -1050,6 +1071,7 @@ export interface FileRouteTypes {
     | '/family'
     | '/me'
     | '/news'
+    | '/standards'
     | '/teach'
     | '/site/$school'
     | '/files/$fileId/parts/$part'
@@ -1123,6 +1145,7 @@ export interface FileRouteTypes {
     | '/_app/people/$userId'
     | '/_app/practice/$moduleId'
     | '/_app/registers/$classId'
+    | '/_app/standards/$frameworkId'
     | '/_app/students/$studentId'
     | '/_app/teach/assignment-editor'
     | '/_app/teach/assignments'
@@ -1147,6 +1170,7 @@ export interface FileRouteTypes {
     | '/_app/family/'
     | '/_app/me/'
     | '/_app/news/'
+    | '/_app/standards/'
     | '/_app/teach/'
     | '/site/$school/'
     | '/files/$fileId/parts/$part'
@@ -1663,6 +1687,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppRegistersClassIdRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/standards/': {
+      id: '/_app/standards/'
+      path: '/standards'
+      fullPath: '/standards/'
+      preLoaderRoute: typeof AppStandardsIndexRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/standards/$frameworkId': {
+      id: '/_app/standards/$frameworkId'
+      path: '/standards/$frameworkId'
+      fullPath: '/standards/$frameworkId'
+      preLoaderRoute: typeof AppStandardsFrameworkIdRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/_app/students/$studentId': {
       id: '/_app/students/$studentId'
       path: '/students/$studentId'
@@ -1995,11 +2033,13 @@ interface AppRouteChildren {
   AppPeopleUserIdRoute: typeof AppPeopleUserIdRoute
   AppPracticeModuleIdRoute: typeof AppPracticeModuleIdRoute
   AppRegistersClassIdRoute: typeof AppRegistersClassIdRoute
+  AppStandardsFrameworkIdRoute: typeof AppStandardsFrameworkIdRoute
   AppStudentsStudentIdRoute: typeof AppStudentsStudentIdRoute
   AppYearsYearIdRoute: typeof AppYearsYearIdRoute
   AppAnnouncementsIndexRoute: typeof AppAnnouncementsIndexRoute
   AppCalendarIndexRoute: typeof AppCalendarIndexRoute
   AppNewsIndexRoute: typeof AppNewsIndexRoute
+  AppStandardsIndexRoute: typeof AppStandardsIndexRoute
 }
 
 const AppRouteChildren: AppRouteChildren = {
@@ -2028,11 +2068,13 @@ const AppRouteChildren: AppRouteChildren = {
   AppPeopleUserIdRoute: AppPeopleUserIdRoute,
   AppPracticeModuleIdRoute: AppPracticeModuleIdRoute,
   AppRegistersClassIdRoute: AppRegistersClassIdRoute,
+  AppStandardsFrameworkIdRoute: AppStandardsFrameworkIdRoute,
   AppStudentsStudentIdRoute: AppStudentsStudentIdRoute,
   AppYearsYearIdRoute: AppYearsYearIdRoute,
   AppAnnouncementsIndexRoute: AppAnnouncementsIndexRoute,
   AppCalendarIndexRoute: AppCalendarIndexRoute,
   AppNewsIndexRoute: AppNewsIndexRoute,
+  AppStandardsIndexRoute: AppStandardsIndexRoute,
 }
 
 const AppRouteWithChildren = AppRoute._addFileChildren(AppRouteChildren)

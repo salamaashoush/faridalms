@@ -156,6 +156,12 @@ Sources: [../research/course-design.md](../research/course-design.md),
 
 1. **Objectives and standards per school**, as configuration (IB, Cambridge,
    Common Core and AERO, a school's own), tagged on questions and lessons.
+   Done: a school keeps frameworks of standards in a tree (`/standards`,
+   capability `standards:manage`), writes its own or imports a CASE
+   package, the 1EdTech format CASE editors and the CASE Network export.
+   Importing again updates items in place by their CASE identifiers, so
+   tags hold. Authors search and read them (`standards.search`,
+   `standards.describe`). Left: tagging questions and lessons.
 2. **Skill progress**: "N of M skills secure" per student and per class,
    from the tagged checks.
 3. **Unit planning** with the fields a school's framework asks for (IB unit

@@ -701,3 +701,87 @@ export const bankQuestions = core.table.withRLS(
     ...entityProfile(),
   ],
 );
+
+/**
+ * A set of standards a school teaches to: an IB subject's objectives, a
+ * curriculum framework, Common Core, or the school's own. One imported from
+ * CASE keeps the package's identifier, so importing it again updates it.
+ */
+export const standardFrameworks = core.table.withRLS(
+  "standard_frameworks",
+  {
+    ...tenantColumns(),
+    orgId: uuid("org_id").notNull(),
+    title: text("title").notNull(),
+    description: text("description").notNull().default(""),
+    caseIdentifier: uuid("case_identifier"),
+    ...entityColumns(),
+  },
+  (t): PgTableExtraConfigValue[] => [
+    pk("standard_frameworks", t.tenantId, t.id),
+    ...baseConstraints("standard_frameworks", t, tenants),
+    fk("standard_frameworks", [t.tenantId, t.orgId], [orgs.tenantId, orgs.id]),
+    ck(
+      "standard_frameworks",
+      "title",
+      sql`char_length(title) between 1 and 200`,
+    ),
+    ck(
+      "standard_frameworks",
+      "description",
+      sql`char_length(description) <= 2000`,
+    ),
+    uniqueIndex("standard_frameworks_case_key")
+      .on(t.tenantId, t.orgId, t.caseIdentifier)
+      .where(sql`status = 'active' and case_identifier is not null`),
+    index("standard_frameworks_org_idx")
+      .on(t.tenantId, t.orgId)
+      .where(sql`status = 'active'`),
+    ...entityProfile(),
+  ],
+);
+
+/**
+ * One statement of a framework, under another or at its top, with the code
+ * its publisher gives it and what the framework calls its level.
+ */
+export const standards = core.table.withRLS(
+  "standards",
+  {
+    ...tenantColumns(),
+    frameworkId: uuid("framework_id").notNull(),
+    parentId: uuid("parent_id"),
+    code: text("code").notNull().default(""),
+    statement: text("statement").notNull(),
+    itemType: text("item_type").notNull().default(""),
+    position: integer("position").notNull(),
+    caseIdentifier: uuid("case_identifier"),
+    ...entityColumns(),
+  },
+  (t): PgTableExtraConfigValue[] => [
+    pk("standards", t.tenantId, t.id),
+    ...baseConstraints("standards", t, tenants),
+    fk(
+      "standards",
+      [t.tenantId, t.frameworkId],
+      [standardFrameworks.tenantId, standardFrameworks.id],
+    ),
+    fk("standards", [t.tenantId, t.parentId], [t.tenantId, t.id]),
+    ck("standards", "code", sql`char_length(code) <= 60`),
+    ck(
+      "standards",
+      "statement",
+      sql`char_length(statement) between 1 and 2000`,
+    ),
+    ck("standards", "item_type", sql`char_length(item_type) <= 60`),
+    ck("standards", "position", sql`position >= 0`),
+    ck("standards", "parent", sql`parent_id is distinct from id`),
+    uniqueIndex("standards_case_key")
+      .on(t.tenantId, t.frameworkId, t.caseIdentifier)
+      .where(sql`status = 'active' and case_identifier is not null`),
+    index("standards_framework_idx")
+      .on(t.tenantId, t.frameworkId, t.parentId, t.position)
+      .where(sql`status = 'active'`),
+    ...entityProfile(),
+  ],
+);

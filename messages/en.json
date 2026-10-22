@@ -1286,6 +1286,88 @@
   "capHealthRead": "Read health records",
   "capHealthWrite": "Edit health records",
   "capSupportManage": "Set students' access arrangements",
+  "capStandardsManage": "Keep the school's standards frameworks",
+  "navStandards": "Standards",
+  "standardsTitle": "Standards",
+  "standardsHint": "The frameworks your school teaches to, and the standards in each.",
+  "standardsCaption": "The school's standards frameworks",
+  "standardsFramework": "Framework",
+  "standardsSource": "Source",
+  "standardsSourceCase": "Imported from CASE",
+  "standardsSourceOwn": "The school's own",
+  "standardsCount": "Standards",
+  "standardsCountOf": [
+    {
+      "declarations": ["input count", "local countPlural = count: plural"],
+      "selectors": ["countPlural"],
+      "match": {
+        "countPlural=one": "{count} standard",
+        "countPlural=*": "{count} standards"
+      }
+    }
+  ],
+  "standardsEmptyTitle": "No frameworks yet",
+  "standardsEmptyBody": "Add the school's own framework, or import one published in CASE, such as Common Core from the CASE Network.",
+  "standardsNewFramework": "New framework",
+  "standardsEditFramework": "Edit framework",
+  "standardsFrameworkTitle": "Name",
+  "standardsFrameworkTitleHint": "As teachers know it, such as \"IB MYP Sciences objectives\" or \"Common Core Mathematics\".",
+  "standardsFrameworkDescription": "About this framework",
+  "standardsFrameworkEmpty": "This framework has no standards yet.",
+  "standardsImportCase": "Import from CASE",
+  "standardsImportCaseInto": "Update from CASE",
+  "standardsImport": "Import",
+  "standardsCaseHint": "Choose a CASE package saved as JSON, as CASE editors and the CASE Network export it. Importing it again later updates the same framework, and tags on its standards stay.",
+  "standardsCaseFile": "CASE package",
+  "standardsCaseChoose": "Choose a CASE package first.",
+  "standardsCaseUnreadable": "This file isn't a CASE package. Export the framework as a CASE JSON package and try again.",
+  "standardsCaseFound": [
+    {
+      "declarations": [
+        "input count",
+        "input title",
+        "local countPlural = count: plural"
+      ],
+      "selectors": ["countPlural"],
+      "match": {
+        "countPlural=one": "\"{title}\" with {count} standard.",
+        "countPlural=*": "\"{title}\" with {count} standards."
+      }
+    }
+  ],
+  "standardsImported": [
+    {
+      "declarations": ["input count", "local countPlural = count: plural"],
+      "selectors": ["countPlural"],
+      "match": {
+        "countPlural=one": "{count} standard imported",
+        "countPlural=*": "{count} standards imported"
+      }
+    }
+  ],
+  "standardsAdd": "Add standard",
+  "standardsEdit": "Edit standard",
+  "standardsAddUnder": "Add a standard under it",
+  "standardsCode": "Code",
+  "standardsCodeHint": "The publisher's code, such as 7.EE.B.4 or Criterion A.",
+  "standardsStatement": "Statement",
+  "standardsItemType": "Level",
+  "standardsItemTypeHint": "What the framework calls it, such as strand, objective or standard.",
+  "standardsUnder": "Under",
+  "standardsUnderHint": "Leave empty to put it at the top of the framework.",
+  "standardsMoveUp": "Move up",
+  "standardsMoveDown": "Move down",
+  "standardsRemove": "Remove standard",
+  "standardsRemoveTitle": "Remove this standard?",
+  "standardsRemoveBody": "\"{standard}\" and every standard under it will be removed. Questions tagged with them stop showing those tags.",
+  "standardsRemoveFramework": "Remove framework",
+  "standardsRemoveFrameworkTitle": "Remove this framework?",
+  "standardsRemoveFrameworkBody": "\"{framework}\" and all its standards will be removed. Questions tagged with them stop showing those tags.",
+  "standardsActions": "Actions for {standard}",
+  "standardsExpand": "Show what is under {standard}",
+  "standardsCollapse": "Hide what is under {standard}",
+  "standardsSearch": "Search standards",
+  "standardsTreeLabel": "Standards in this framework",
   "capDemographicsRead": "Read nationality and religion",
   "capDemographicsWrite": "Edit nationality and religion",
   "capCustodyRead": "Read custody and pickup restrictions",
