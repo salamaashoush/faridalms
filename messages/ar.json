@@ -7134,6 +7134,8 @@
   "ntfLibraryShared": "أصبح ما شاركته في مكتبة المدرسة",
   "ntfLibrarySentBack": "أعاد {name} ما شاركته إليك",
   "ntfKindLibrary": "مراجعة ما تشاركه",
+  "ntfReply": "ردّ {name} على مشاركتك",
+  "ntfKindReply": "الردود على مشاركاتك",
   "privacyConsentsTab": "نماذج الموافقة",
   "studentNoPhotos": "لا تصوير",
   "consentRecordedBy": "سجّلها {name}",

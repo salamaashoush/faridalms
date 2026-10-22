@@ -42,6 +42,8 @@ const LINES: Record<"en" | "ar", Record<NotificationKind, Line>> = {
       p.shared
         ? `${p.title ?? "Your piece"} is now in the school library.`
         : `${p.actorName || "A reviewer"} sent ${p.title ?? "your piece"} back with a note.`,
+    reply: (p) =>
+      `${p.actorName || "Someone in your class"} replied to your post in ${p.title ?? "a discussion"}.`,
   },
   ar: {
     announcement: (p) =>
@@ -74,6 +76,8 @@ const LINES: Record<"en" | "ar", Record<NotificationKind, Line>> = {
       p.shared
         ? `أصبح ${p.title ?? "ما شاركته"} في مكتبة المدرسة.`
         : `أعاد ${p.actorNameAr || p.actorName || "المراجع"} ${p.title ?? "ما شاركته"} إليك مع ملاحظة.`,
+    reply: (p) =>
+      `ردّ ${p.actorNameAr || p.actorName || "أحد زملائك"} على مشاركتك في ${p.title ?? "النقاش"}.`,
   },
 };
 

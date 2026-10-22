@@ -14,6 +14,7 @@ export const NOTIFICATION_KINDS = [
   "consent",
   "mention",
   "library",
+  "reply",
 ] as const;
 export type NotificationKind = (typeof NOTIFICATION_KINDS)[number];
 
@@ -57,6 +58,7 @@ export const CHOOSABLE_KINDS = [
   "consent",
   "mention",
   "library",
+  "reply",
 ] as const;
 export type ChoosableKind = (typeof CHOOSABLE_KINDS)[number];
 
@@ -101,6 +103,7 @@ export const DEFAULT_PREFERENCES: Preferences = {
     consent: "digest",
     mention: "instant",
     library: "digest",
+    reply: "digest",
   },
   sms: {
     announcement: "off",
@@ -112,6 +115,7 @@ export const DEFAULT_PREFERENCES: Preferences = {
     consent: "off",
     mention: "off",
     library: "off",
+    reply: "off",
   },
   quietFrom: "21:00",
   quietTo: "07:00",

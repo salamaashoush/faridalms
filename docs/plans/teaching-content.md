@@ -782,9 +782,11 @@ Scratch Text to Speech, Translate and tutorials.
    listing their posts with the words each reply answers. A teacher posts
    too, and hides a post from the class while its author still reads it.
    It closes with the hand-in rules, and erasure empties a student's posts
-   in place.
-   Left: a discussion in a module rather than a class, rating or liking
-   posts, and telling students of new replies.
+   in place. A reply tells the author of the post it answers and of its
+   thread, one unread notice a discussion, by a kind they choose how to
+   receive.
+   Left: a discussion in a module rather than a class, and rating or
+   liking posts.
 2. **Peer review**: students review each other's work against a rubric,
    anonymously when the teacher chooses.
    Done: work handed in on the page or as files can be set for peer

@@ -15,6 +15,7 @@ import {
   Megaphone,
   MessageSquare,
   Newspaper,
+  Reply,
   ShieldCheck,
   Siren,
   UserX,
@@ -48,6 +49,7 @@ export const KIND_ICON: Record<NotificationKind, LucideIcon> = {
   consent: ShieldCheck,
   mention: AtSign,
   library: BookMarked,
+  reply: Reply,
 };
 
 /** What a notice says, in the reader's language, from what its producer recorded. */
@@ -133,6 +135,15 @@ export function noticeText(notice: Notice): { title: string; body: string } {
     case "mention":
       return {
         title: m.ntfMention({
+          name:
+            both(params.actorName, params.actorNameAr) ||
+            inLocale(notice.actorNameEn, notice.actorNameAr),
+        }),
+        body: title,
+      };
+    case "reply":
+      return {
+        title: m.ntfReply({
           name:
             both(params.actorName, params.actorNameAr) ||
             inLocale(notice.actorNameEn, notice.actorNameAr),
@@ -294,6 +305,17 @@ export function NoticeLink({
     case "library":
       return (
         <Link {...rest} to="/library" search={{}}>
+          {children}
+        </Link>
+      );
+    case "reply":
+      return (
+        <Link
+          {...rest}
+          to="/assignments/$assignmentId"
+          params={{ assignmentId: notice.subjectId }}
+          search={{}}
+        >
           {children}
         </Link>
       );

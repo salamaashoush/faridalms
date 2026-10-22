@@ -236,6 +236,7 @@ import {
 import { gradeReader } from "../core/grades";
 import { publishTelling } from "../core/mentions";
 import { nameUuid } from "../core/names";
+import { notify } from "../core/notify";
 import {
   audit,
   can,
@@ -3851,6 +3852,8 @@ export const post = writeProcedure
       throw new ORPCError("CONFLICT", { message: "coursework.closed" });
     const plainText = postedText(input.content);
     let parentId: string | null = null;
+    // The authors of the post answered and of the thread it is in.
+    const answered: string[] = [];
     if (input.parentId) {
       const parent = await discussionPostById(
         context.tx,
@@ -3864,6 +3867,9 @@ export const post = writeProcedure
       )
         throw new ORPCError("NOT_FOUND");
       parentId = parent.parentPostId ?? parent.id;
+      answered.push(parent.authorUserId);
+      const thread = view.posts.find((item) => item.id === parentId);
+      if (thread) answered.push(thread.authorId);
     }
     if (view.waiting && parentId !== null)
       throw new ORPCError("CONFLICT", { message: "coursework.post_first" });
@@ -3913,6 +3919,22 @@ export const post = writeProcedure
       ...(viewer.teacher ? {} : { studentUserId: viewer.studentId }),
       details: { postId, reply: parentId !== null },
     });
+    if (answered.length > 0) {
+      const [replier] = await namesOf(context.tx, context.tenantId, [
+        context.actor.userId,
+      ]);
+      // One unread notice a discussion, however many replies follow it.
+      await notify(context, answered, {
+        kind: "reply",
+        subject: { type: "assignment", id: assignment.id },
+        collapse: true,
+        params: {
+          title: assignment.title,
+          actorName: replier?.fullNameEn ?? replier?.fullNameAr ?? "",
+          actorNameAr: replier?.fullNameAr ?? replier?.fullNameEn ?? "",
+        },
+      });
+    }
     return { id: postId };
   });
 

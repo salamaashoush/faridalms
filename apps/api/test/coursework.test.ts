@@ -2888,6 +2888,11 @@ describe("discussions", () => {
     expect(after.posts.find((item) => item.id === reply.id)?.parentId).toBe(
       theirs.id,
     );
+    // The classmate replied to hears of it.
+    const told = (await second.api.notifications.list({ tab: "all" })).rows
+      .filter((row) => row.kind === "reply" && row.subjectId === saved.id)
+      .map((row) => row.params.title);
+    expect(told).toEqual(["Is the river a friend?"]);
     expect(
       await rejection(
         second.api.coursework.editPost({

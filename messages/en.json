@@ -6778,6 +6778,8 @@
   "ntfLibraryShared": "Your piece is in the school library",
   "ntfLibrarySentBack": "{name} sent your piece back",
   "ntfKindLibrary": "Reviews of what you share",
+  "ntfReply": "{name} replied to your post",
+  "ntfKindReply": "Replies to your posts",
   "privacyConsentsTab": "Consent forms",
   "studentNoPhotos": "No photos",
   "consentRecordedBy": "recorded by {name}",
