@@ -22,7 +22,11 @@ import {
   imageSizes,
 } from "@faridalms/domain/content";
 import { fileFamily } from "@faridalms/domain/file";
-import { MAX_HINTS, MAX_LINE_STEPS } from "@faridalms/domain/learning";
+import {
+  MAX_HINTS,
+  MAX_LABEL_EXTRAS,
+  MAX_LINE_STEPS,
+} from "@faridalms/domain/learning";
 import {
   blankOf,
   locked,
@@ -82,6 +86,7 @@ import {
   Link,
   ListChecks,
   ChartColumnBig,
+  Tags,
   ListOrdered,
   ListTodo,
   Lock,
@@ -279,6 +284,7 @@ const DEFERRABLE = new Set<QuestionKind>([
   "matching",
   "ordering",
   "sorting",
+  "labelling",
 ]);
 const CODE_LANGUAGES = ["python", "javascript", "html", "text"] as const;
 /** Languages a code exercise can be marked in. */
@@ -723,7 +729,8 @@ export function SelectionToolbarPlugin() {
         !part &&
         (node.getSettings().kind === "counting" ||
           node.getSettings().kind === "spelling" ||
-          node.getSettings().kind === "hotspot")
+          node.getSettings().kind === "hotspot" ||
+          node.getSettings().kind === "labelling")
       )
         part = node;
       // Lines of code and a program's tests are text alone, with no
@@ -1877,9 +1884,15 @@ export function SelectionToolbarPlugin() {
           lessonActivities
             ? toggle("gallery", strings.questionGallery, <Images aria-hidden />)
             : null}
-          {settings.kind === "hotspot" && question.part?.picture && media ? (
+          {(settings.kind === "hotspot" || settings.kind === "labelling") &&
+          question.part?.picture &&
+          media ? (
             <ToolButton
-              label={strings.questionMarkPlaces}
+              label={
+                settings.kind === "labelling"
+                  ? strings.questionMarkLabels
+                  : strings.questionMarkPlaces
+              }
               active={settings.places.length > 0}
               onClick={() => {
                 saved.current = editor
@@ -1888,7 +1901,20 @@ export function SelectionToolbarPlugin() {
                 show("regions");
               }}
             >
-              <ScanSearch aria-hidden />
+              {settings.kind === "labelling" ? (
+                <Tags aria-hidden />
+              ) : (
+                <ScanSearch aria-hidden />
+              )}
+            </ToolButton>
+          ) : null}
+          {settings.kind === "labelling" ? (
+            <ToolButton
+              label={strings.questionLabelExtras}
+              active={(settings.bank ?? []).length > 0}
+              onClick={() => write("bank")}
+            >
+              <ListPlus aria-hidden />
             </ToolButton>
           ) : null}
           {settings.kind === "tracing" ? (
@@ -2228,6 +2254,7 @@ export function SelectionToolbarPlugin() {
             src={media.url(question.part.picture.fileId)}
             alt={question.part.picture.alt}
             places={question.settings.places}
+            labels={question.settings.kind === "labelling"}
             onClose={close}
             onDone={(places) => {
               withSelection(() => {
@@ -2432,7 +2459,10 @@ export function SelectionToolbarPlugin() {
       explanation: strings.questionExplanation,
       feedback: strings.questionFeedback,
       alt: strings.questionPictureDescribe,
-      bank: strings.questionBankWords,
+      bank:
+        question.settings.kind === "labelling"
+          ? strings.questionLabelExtras
+          : strings.questionBankWords,
     };
     const limits: Record<QuestionText, number> = {
       explanation: 1000,
@@ -2468,7 +2498,12 @@ export function SelectionToolbarPlugin() {
                   .map((word) => word.trim())
                   .filter((word) => word !== ""),
               ),
-            ].slice(0, MAX_BANK_WORDS),
+            ].slice(
+              0,
+              question.settings.kind === "labelling"
+                ? MAX_LABEL_EXTRAS
+                : MAX_BANK_WORDS,
+            ),
           });
         else node.setSettings({ [editing]: value });
       });

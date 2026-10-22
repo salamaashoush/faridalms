@@ -13,7 +13,11 @@ import { Radio } from "@base-ui/react/radio";
 import { parseNumber } from "@faridalms/domain/answers";
 import { joinedAroundGaps } from "@faridalms/domain/arabic";
 import { textDirection } from "@faridalms/domain/content";
-import { MAX_INDENT, MAX_RUN_OUTPUT } from "@faridalms/domain/learning";
+import {
+  MAX_INDENT,
+  MAX_RUN_OUTPUT,
+  placeNumber,
+} from "@faridalms/domain/learning";
 import { StoredImage } from "@faridalms/editor/files";
 import { TextWithMath, textOfMath } from "@faridalms/editor/math";
 import { MathInput } from "@faridalms/editor/math-input";
@@ -212,6 +216,7 @@ export type CheckStudentBlock =
   | Of<"tracing">
   | Of<"spelling">
   | Of<"hotspot">
+  | Of<"labelling">
   | Of<"written">
   | Of<"scratch">
   | Of<"project">
@@ -234,6 +239,7 @@ const CHECK_TYPES = new Set<StudentBlock["type"]>([
   "tracing",
   "spelling",
   "hotspot",
+  "labelling",
   "written",
   "scratch",
   "project",
@@ -1263,6 +1269,207 @@ const precedingGap = (segments: Of<"gaps">["segments"], index: number) =>
   segments.slice(0, index).findLast((segment) => segment.type === "gap")?.id ??
   "start";
 
+/** Words or labels to place, each pressed to put it in the next empty place. */
+function WordBank({
+  title,
+  words,
+  used,
+  locked,
+  labelOf,
+  onUse,
+}: {
+  title: string;
+  words: string[];
+  used: string[];
+  locked: boolean;
+  labelOf: (word: string) => string;
+  onUse: (word: string) => void;
+}) {
+  return (
+    <div className="grid gap-1.5">
+      <p className="text-[13px] leading-[18px] font-medium text-muted-foreground">
+        {title}
+      </p>
+      <ul dir="auto" className="flex flex-wrap gap-1.5">
+        {words.map((word) => (
+          <li key={word}>
+            <button
+              type="button"
+              disabled={locked}
+              aria-label={labelOf(word)}
+              onClick={() => onUse(word)}
+              className={cn(
+                "rounded-md border px-2.5 py-1 text-sm leading-5 transition-colors hover:bg-muted disabled:pointer-events-none max-md:min-h-10",
+                used.includes(word) && "border-dashed text-muted-foreground",
+              )}
+            >
+              {word}
+            </button>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
+/**
+ * A picture with numbered places, each given a label from the bank: pressed
+ * onto the next empty place, or chosen for each place from its list, so a
+ * keyboard and a screen reader label as a finger does. The places keep to
+ * the picture, which reads the same way in either language.
+ */
+function LabellingCheck({
+  block,
+  view,
+  driver,
+}: {
+  block: Of<"labelling">;
+  view: CheckView | undefined;
+  driver: CheckDriver;
+}) {
+  const legend = useId();
+  const { editing, setEditing, respond, reveal } = useCheck(
+    block.id,
+    view,
+    driver,
+  );
+  const [labels, setLabels] = useState<Record<string, string>>(
+    view?.response?.type === "labelling" ? view.response.labels : {},
+  );
+  const settled = answerFinal(block, view);
+  const numbers = block.spots.map((_, index) => placeNumber(index));
+  const canCheck = numbers.every((number) => labels[number]);
+  const check = () => {
+    if (canCheck) respond.mutate({ type: "labelling", labels });
+  };
+  const locked = !editing || settled;
+  return (
+    <CheckCard
+      block={block}
+      legendId={legend}
+      onSubmit={check}
+      status={<CheckStatus view={view} editing={editing} />}
+      actions={
+        <Retry
+          view={view}
+          editing={editing}
+          settled={settled}
+          canCheck={canCheck}
+          pending={respond.isPending || reveal.isPending}
+          onTryAgain={() => {
+            setLabels((current) => keepRight(current, view));
+            setEditing(true);
+          }}
+          onReveal={() => reveal.mutate()}
+        />
+      }
+    >
+      <WordBank
+        title={m.lrnLabels()}
+        words={block.bank}
+        used={Object.values(labels)}
+        locked={locked}
+        labelOf={(label) => m.lrnLabelUse({ label })}
+        onUse={(label) => {
+          const next = numbers.find((number) => !labels[number]);
+          if (next) setLabels((current) => ({ ...current, [next]: label }));
+        }}
+      />
+      <div dir="ltr" className="relative mx-auto w-fit max-w-full">
+        {block.picture ? (
+          <StoredImage
+            src={`/files/${block.picture.fileId}`}
+            alt={block.picture.alt}
+            removed={m.fileRemoved()}
+            draggable={false}
+            className="block max-h-[60dvh] w-auto max-w-full rounded-md select-none"
+          />
+        ) : null}
+        {block.spots.map(([left, top, width, height], index) => {
+          const number = placeNumber(index);
+          const mark = partMark(view, editing, number);
+          return (
+            <div
+              key={number}
+              aria-hidden
+              className={cn(
+                "absolute rounded-md border-2",
+                mark === "right"
+                  ? "border-success"
+                  : mark === "wrong"
+                    ? "border-destructive"
+                    : "border-dashed border-primary",
+              )}
+              style={{
+                left: `${left * 100}%`,
+                top: `${top * 100}%`,
+                width: `${width * 100}%`,
+                height: `${height * 100}%`,
+              }}
+            >
+              <span className="absolute -top-3 -left-3 flex items-center gap-1">
+                <span className="grid size-6 shrink-0 place-items-center rounded-full bg-primary text-xs font-bold text-primary-foreground tabular-nums shadow">
+                  {formatNumber(index + 1)}
+                </span>
+                {labels[number] ? (
+                  <span
+                    dir="auto"
+                    className="rounded bg-background/95 px-1.5 py-0.5 text-xs leading-4 font-medium whitespace-nowrap shadow"
+                  >
+                    {labels[number]}
+                  </span>
+                ) : null}
+              </span>
+            </div>
+          );
+        })}
+      </div>
+      <ol className="grid gap-2 sm:grid-cols-2">
+        {numbers.map((number, index) => {
+          const mark = partMark(view, editing, number);
+          return (
+            <li key={number} className="flex min-w-0 items-center gap-2">
+              <span
+                aria-hidden
+                className="grid size-6 shrink-0 place-items-center rounded-full bg-primary text-xs font-bold text-primary-foreground tabular-nums"
+              >
+                {formatNumber(index + 1)}
+              </span>
+              <Select
+                value={labels[number] ?? null}
+                onValueChange={(value) => {
+                  if (value !== null)
+                    setLabels((current) => ({ ...current, [number]: value }));
+                }}
+                disabled={locked}
+              >
+                <SelectTrigger
+                  size="sm"
+                  aria-label={m.lrnLabelPlace({
+                    number: formatNumber(index + 1),
+                  })}
+                  className={cn("min-w-0 flex-1", markBorder(mark))}
+                >
+                  <SelectValue placeholder={m.lrnChooseWord()} />
+                </SelectTrigger>
+                <SelectContent>
+                  {block.bank.map((label) => (
+                    <SelectItem key={label} value={label}>
+                      {label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <MarkIcon mark={mark} />
+              <RightPart mark={mark} text={view?.partKey?.[number]} />
+            </li>
+          );
+        })}
+      </ol>
+    </CheckCard>
+  );
+}
+
 function GapsCheck({
   block,
   view,
@@ -1310,39 +1517,18 @@ function GapsCheck({
       }
     >
       {block.bank ? (
-        <div className="grid gap-1.5">
-          <p className="text-[13px] leading-[18px] font-medium text-muted-foreground">
-            {m.lrnWordBank()}
-          </p>
-          <ul dir="auto" className="flex flex-wrap gap-1.5">
-            {block.bank.map((word) => {
-              const used = Object.values(answers).includes(word);
-              return (
-                <li key={word}>
-                  <button
-                    type="button"
-                    disabled={locked}
-                    aria-label={m.lrnWordBankUse({ word })}
-                    onClick={() => {
-                      const next = gaps.find((gap) => !answers[gap.id]);
-                      if (next)
-                        setAnswers((current) => ({
-                          ...current,
-                          [next.id]: word,
-                        }));
-                    }}
-                    className={cn(
-                      "rounded-md border px-2.5 py-1 text-sm leading-5 transition-colors hover:bg-muted disabled:pointer-events-none max-md:min-h-10",
-                      used && "border-dashed text-muted-foreground",
-                    )}
-                  >
-                    {word}
-                  </button>
-                </li>
-              );
-            })}
-          </ul>
-        </div>
+        <WordBank
+          title={m.lrnWordBank()}
+          words={block.bank}
+          used={Object.values(answers)}
+          locked={locked}
+          labelOf={(word) => m.lrnWordBankUse({ word })}
+          onUse={(word) => {
+            const next = gaps.find((gap) => !answers[gap.id]);
+            if (next)
+              setAnswers((current) => ({ ...current, [next.id]: word }));
+          }}
+        />
       ) : null}
       <div dir="auto" className="text-base leading-10 whitespace-pre-wrap">
         {joinedAroundGaps(block.segments).map((segment, index) => {
@@ -2864,6 +3050,8 @@ function CheckBody({
     return <GapsCheck block={block} view={view} driver={driver} />;
   if (block.type === "highlight")
     return <HighlightCheck block={block} view={view} driver={driver} />;
+  if (block.type === "labelling")
+    return <LabellingCheck block={block} view={view} driver={driver} />;
   if (block.type === "written" && block.recordSeconds)
     return <SpokenCheck block={block} view={view} driver={driver} />;
   if (block.type === "written" && block.answerWith)

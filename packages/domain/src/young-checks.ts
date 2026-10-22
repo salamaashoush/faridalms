@@ -92,6 +92,8 @@ function itemsOf(block: LessonBlock): number {
       return block.items.length;
     case "spelling":
       return block.tiles.length + block.extras.length;
+    case "labelling":
+      return block.places.length + block.extras.length;
     default:
       return 0;
   }

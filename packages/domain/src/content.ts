@@ -123,6 +123,7 @@ export const questionKinds = [
   "tracing",
   "spelling",
   "hotspot",
+  "labelling",
   "scratch",
   "parsons",
   "program",

@@ -245,9 +245,16 @@ Sources: [../research/course-design.md](../research/course-design.md),
     to themselves, a student who has voted sees how their class answered,
     each option's share of the first answers, asked again as others vote
     and never naming anyone; the teacher's question card shows who chose
-    what. Practice reviews leave polls out.
-    Left: label an image, crossword and word search; a poll's class
-    results in a quiz, and polls anonymous to the teacher too.
+    what. Practice reviews leave polls out. Label a picture: the teacher
+    drags a box over each place on a picture and writes its label, with
+    extra labels that fit no place; the student sees the places numbered
+    and a bank of every label, presses a label onto the next empty place
+    or chooses each place's label from its list, and each place labelled
+    rightly earns its share. Paper prints the bank, the numbered picture
+    and a line for each label.
+    Left: crossword and word search; a poll's class results in a quiz,
+    polls anonymous to the teacher too, and dragging a label onto its
+    place.
 
 ## 4. Standards, skills and planning
 

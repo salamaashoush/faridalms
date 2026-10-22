@@ -6,6 +6,7 @@ import type {
   ChoiceBlock,
   GapsBlock,
   HighlightBlock,
+  LabellingBlock,
   LessonDocument,
   StoredTry,
   MatchingBlock,
@@ -674,6 +675,69 @@ describe("polls", () => {
     const document = contentOfLesson({ version: 2, blocks: [unshared] });
     if (!document) throw new Error("no document");
     expect(lessonOfContent(document).blocks[0]).toEqual(unshared);
+  });
+});
+
+/** Whether a lesson holding just this block may go to students. */
+const publishable = (block: LessonDocument["blocks"][number]) =>
+  v.safeParse(lessonDocumentSchema, { version: 2, blocks: [block] }).success;
+
+describe("labelling a picture", () => {
+  const plant: LabellingBlock = {
+    ...common,
+    id: uuid(80),
+    type: "labelling",
+    prompt: "Label the parts of the plant.",
+    picture: { fileId: uuid(81), alt: "A flowering plant" },
+    places: [
+      { box: [0.4, 0.05, 0.2, 0.2], name: "Flower" },
+      { box: [0.45, 0.4, 0.1, 0.3], name: "Stem" },
+      { box: [0.3, 0.8, 0.4, 0.15], name: "Roots" },
+    ],
+    extras: ["Bark"],
+  };
+  it("shows the places by number and every label in one bank, none tied to its place", () => {
+    const [shown] = studentBlocks({ version: 2, blocks: [plant] }, "a");
+    if (shown?.type !== "labelling") throw new Error("not labelling");
+    expect(shown.spots).toEqual(plant.places.map((place) => place.box));
+    expect(shown.bank.toSorted()).toEqual(["Bark", "Flower", "Roots", "Stem"]);
+    expect(JSON.stringify(shown)).not.toContain('"name"');
+  });
+
+  it("gives each place labelled rightly its share", () => {
+    const mark = (labels: Record<string, string>) =>
+      markResponse(plant, { type: "labelling", labels });
+    expect(mark({ 1: "Flower", 2: "Stem", 3: "Roots" })).toMatchObject({
+      fraction: 1,
+      correct: true,
+    });
+    expect(mark({ 1: "Flower", 2: "Roots", 3: "Bark" })).toMatchObject({
+      correct: false,
+      parts: { 1: true, 2: false, 3: false },
+    });
+    expect(partKey(plant)).toEqual({ 1: "Flower", 2: "Stem", 3: "Roots" });
+    expect(answerKey(plant)).toEqual(["1 Flower", "2 Stem", "3 Roots"]);
+  });
+
+  it("takes only labels from its bank, for places it has", () => {
+    const issue = (labels: Record<string, string>) =>
+      responseIssue(plant, { type: "labelling", labels });
+    expect(issue({ 1: "Bark" })).toBeNull();
+    expect(issue({ 1: "Leaf" })).toBe("learning.option");
+    expect(issue({ 4: "Bark" })).toBe("learning.option");
+  });
+
+  it("needs its picture, a place, and a different label for each", () => {
+    expect(publishable(plant)).toBe(true);
+    expect(publishable({ ...plant, picture: null })).toBe(false);
+    expect(publishable({ ...plant, places: [] })).toBe(false);
+    expect(publishable({ ...plant, extras: ["stem"] })).toBe(false);
+  });
+
+  it("keeps its places and extra labels through the document", () => {
+    const document = contentOfLesson({ version: 2, blocks: [plant] });
+    if (!document) throw new Error("no document");
+    expect(lessonOfContent(document).blocks[0]).toEqual(plant);
   });
 });
 

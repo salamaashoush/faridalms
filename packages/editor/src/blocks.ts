@@ -54,6 +54,7 @@ import {
   Signature,
   Brackets,
   Highlighter,
+  Tags,
   Vote,
   ChevronRight,
   CircleCheck,
@@ -194,6 +195,7 @@ export type BlockType =
   | "tracingQuestion"
   | "spellingQuestion"
   | "hotspotQuestion"
+  | "labellingQuestion"
   | "scratchQuestion"
   | "projectQuestion"
   | "sketchQuestion"
@@ -236,6 +238,7 @@ const QUESTION_KIND: Partial<Record<BlockType, QuestionKind>> = {
   tracingQuestion: "tracing",
   spellingQuestion: "spelling",
   hotspotQuestion: "hotspot",
+  labellingQuestion: "labelling",
   scratchQuestion: "scratch",
   projectQuestion: "project",
   sketchQuestion: "project",
@@ -947,6 +950,25 @@ export const blockDefinitions: BlockDefinition[] = [
     ],
     question: true,
     activity: true,
+  },
+  {
+    type: "labellingQuestion",
+    group: "questions",
+    icon: Tags,
+    label: (s) => s.questionLabelling,
+    hint: (s) => s.questionLabellingHint,
+    keywords: [
+      "label",
+      "diagram",
+      "picture",
+      "parts",
+      "map",
+      "تسمية",
+      "رسم",
+      "أجزاء",
+      "خريطة",
+    ],
+    question: true,
   },
   {
     type: "scratchQuestion",

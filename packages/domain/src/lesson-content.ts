@@ -282,6 +282,19 @@ export function questionBlock(node: ContentNode): LessonBlock | null {
           }),
         ),
       };
+    case "labelling":
+      return {
+        ...check,
+        type: "labelling",
+        picture: pictureOf(node),
+        places: (node.places ?? []).map(
+          ({ box: [left = 0, top = 0, width = 0, height = 0], name }) => ({
+            box: [left, top, width, height] as [number, number, number, number],
+            name: name.trim(),
+          }),
+        ),
+        extras: (node.bank ?? []).map((label) => label.trim()).filter(Boolean),
+      };
     case "spelling": {
       // The first answer line is the word's tiles; any after it, extras.
       const [word, ...extra] = parts.filter(
@@ -755,6 +768,7 @@ export function questionNode(block: LessonBlock): ContentNode | null {
     block.type !== "tracing" &&
     block.type !== "spelling" &&
     block.type !== "hotspot" &&
+    block.type !== "labelling" &&
     block.type !== "scratch" &&
     block.type !== "project" &&
     block.type !== "puzzle" &&
@@ -1011,6 +1025,17 @@ export function questionNode(block: LessonBlock): ContentNode | null {
         name: place.name,
         correct: place.correct,
       })),
+    };
+  if (block.type === "labelling")
+    return {
+      ...base,
+      ...pictureFields(block.picture),
+      places: block.places.map((place) => ({
+        box: [...place.box],
+        name: place.name,
+        correct: true,
+      })),
+      ...(block.extras.length > 0 ? { bank: block.extras } : {}),
     };
   if (block.type === "spelling")
     return {

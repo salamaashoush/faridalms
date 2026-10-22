@@ -291,6 +291,10 @@ export function keyOf(block: LessonBlock, rtl: boolean): string | null {
           segment.type === "target" ? [segment.text] : [],
         ),
       );
+    case "labelling":
+      return list(
+        block.places.map((place, index) => `${index + 1} ${place.name}`),
+      );
     case "matching": {
       const letterFor = matchingLetters(block, rtl);
       return list(
@@ -888,6 +892,55 @@ export function PaperQuestion({
         </div>
       ) : null;
       break;
+    case "labelling": {
+      const labels = shuffled(
+        [...block.places.map((place) => place.name), ...block.extras].filter(
+          Boolean,
+        ),
+        `paper:${block.id}`,
+      );
+      body = (
+        <div className="grid gap-2">
+          {labels.length > 0 ? (
+            <p className="rounded border border-neutral-400 px-2 py-1">
+              {labels.join(" · ")}
+            </p>
+          ) : null}
+          {block.picture ? (
+            <div className="relative w-fit">
+              <StoredImage
+                src={fileUrl(block.picture.fileId)}
+                alt={block.picture.alt}
+                removed={m.fileRemoved()}
+                className="max-h-[9cm] w-auto"
+              />
+              {block.places.map(({ box: [left, top] }, index) => (
+                <span
+                  key={`${left},${top}`}
+                  className="absolute grid size-[1.4em] -translate-x-1/2 -translate-y-1/2 place-items-center rounded-full border-[1.5px] border-neutral-700 bg-white text-[0.8em] font-semibold"
+                  // Places are measured from the picture's left edge in
+                  // either direction, as the picture never mirrors.
+                  style={{ left: `${left * 100}%`, top: `${top * 100}%` }}
+                >
+                  {index + 1}
+                </span>
+              ))}
+            </div>
+          ) : null}
+          <ol className="grid grid-cols-2 gap-x-8 gap-y-1.5">
+            {block.places.map((place, index) => (
+              <li key={place.box.join(",")} className="flex items-end gap-2">
+                <span className="font-semibold">{index + 1}.</span>
+                <span className="flex h-[1.8em] flex-1 items-end border-b border-neutral-400 pb-0.5">
+                  {answers ? <span className={key}>{place.name}</span> : null}
+                </span>
+              </li>
+            ))}
+          </ol>
+        </div>
+      );
+      break;
+    }
   }
   return (
     <section className="paper-question grid gap-2 py-2">

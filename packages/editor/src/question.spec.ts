@@ -900,6 +900,7 @@ describe("questions in a document", () => {
       kinds: {
         choice: "",
         poll: "",
+        labelling: "",
         text: "",
         math: "",
         written: "",

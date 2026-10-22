@@ -111,6 +111,17 @@ export function blockIssue(block: LessonBlock): string | null {
       return block.places.some((place) => !place.name)
         ? m.lrnHotspotNames()
         : null;
+    case "labelling": {
+      if (!block.picture) return m.lrnLabellingPicture();
+      if (block.places.length === 0) return m.lrnLabellingPlaces();
+      const labels = [
+        ...block.places.map((place) => place.name),
+        ...block.extras,
+      ].map((label) => label.trim().toLocaleLowerCase());
+      return labels.includes("") || new Set(labels).size !== labels.length
+        ? m.lrnLabellingNames()
+        : null;
+    }
     case "media":
       if (needsCaptions(block.mediaType) && !block.captionsFileId)
         return m.lrnErrCaptions();

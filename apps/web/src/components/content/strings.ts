@@ -389,6 +389,8 @@ export function editorStrings(): EditorStrings {
     questionSpellingHint: m.editorQuestionSpellingHint(),
     questionHotspot: m.editorQuestionHotspot(),
     questionHotspotHint: m.editorQuestionHotspotHint(),
+    questionLabelling: m.editorQuestionLabelling(),
+    questionLabellingHint: m.editorQuestionLabellingHint(),
     questionScratch: m.editorQuestionScratch(),
     questionScratchHint: m.editorQuestionScratchHint(),
     questionProject: m.editorQuestionProject(),
@@ -433,6 +435,13 @@ export function editorStrings(): EditorStrings {
     questionPlaceName: (number) =>
       m.editorQuestionPlaceName({ number: formatNumber(number) }),
     questionPlaceNameHint: m.editorQuestionPlaceNameHint(),
+    questionMarkLabels: m.editorQuestionMarkLabels(),
+    questionMarkLabelsHint: m.editorQuestionMarkLabelsHint(),
+    questionLabelsCount: (count) => m.editorQuestionLabelsCount({ count }),
+    questionLabelName: (number) =>
+      m.editorQuestionLabelName({ number: formatNumber(number) }),
+    questionLabelNameHint: m.editorQuestionLabelNameHint(),
+    questionLabelExtras: m.editorQuestionLabelExtras(),
     questionPlaceToFind: m.editorQuestionPlaceToFind(),
     questionPlaceRemove: (number) =>
       m.editorQuestionPlaceRemove({ number: formatNumber(number) }),

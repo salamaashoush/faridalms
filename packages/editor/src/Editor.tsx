@@ -281,6 +281,7 @@ function Surface({
       kinds: {
         choice: strings.questionChoice,
         poll: strings.questionPoll,
+        labelling: strings.questionLabelling,
         text: strings.questionTyped,
         math: strings.questionMath,
         written: strings.questionWritten,

@@ -1821,6 +1821,91 @@ describe("polls", () => {
   });
 });
 
+describe("labelled pictures", () => {
+  test("a student labels a picture's places and is marked place by place", async () => {
+    const { keeper } = await teacherSessions();
+    const { rows } = await keeper.api.learning.modules({});
+    const source = rows.find((row) => row.title === TITLE);
+    if (!source) throw new Error("no module");
+    const saved = await keeper.api.learning.saveModule({
+      id: "",
+      expectedVersion: 0,
+      title: "Labels",
+      summary: "",
+      classIds: source.classes.map((item) => item.id),
+      prerequisiteId: "",
+      sequential: false,
+    });
+    // A PNG's signature, which is all the upload check reads.
+    const png = new Blob([
+      new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0, 0]),
+    ]);
+    const fileId = await uploadAs(keeper, "plant.png", "image/png", png);
+    const asked = {
+      id: id(),
+      type: "labelling" as const,
+      prompt: "Label the plant.",
+      points: 2,
+      hints: [],
+      explanation: "",
+      tries: null,
+      picture: { fileId, alt: "A plant" },
+      places: [
+        {
+          box: [0.4, 0.1, 0.2, 0.2] as [number, number, number, number],
+          name: "Flower",
+        },
+        {
+          box: [0.3, 0.8, 0.4, 0.1] as [number, number, number, number],
+          name: "Roots",
+        },
+      ],
+      extras: ["Bark"],
+    };
+    await keeper.api.learning.saveLesson({
+      id: "",
+      moduleId: saved.id,
+      expectedVersion: 0,
+      title: "Parts of a plant",
+      completion: "view",
+      passScore: null,
+      content: written([asked]),
+      publish: false,
+    });
+    await keeper.api.learning.publishModule({
+      id: saved.id,
+      expectedVersion: saved.version,
+    });
+
+    const pupil = await student();
+    const outline = await pupil.learning.play({ id: saved.id });
+    const lessonId = outline.lessons[0]?.id ?? "";
+    const shown = blockOf(
+      await pupil.learning.playLesson({ id: lessonId }),
+      "labelling",
+    );
+    expect(shown.bank.toSorted()).toEqual(["Bark", "Flower", "Roots"]);
+    expect(
+      await rejection(
+        pupil.learning.respond({
+          lessonId,
+          blockId: asked.id,
+          response: { type: "labelling", labels: { 1: "Leaf" } },
+        }),
+      ),
+    ).toMatchObject({ message: "learning.option" });
+    const first = await pupil.learning.respond({
+      lessonId,
+      blockId: asked.id,
+      response: { type: "labelling", labels: { 1: "Flower", 2: "Bark" } },
+    });
+    expect(first.check).toMatchObject({
+      correct: false,
+      parts: { 1: true, 2: false },
+    });
+  });
+});
+
 describe("marking again", () => {
   test("a teacher who fixes a key marks the answers already given again, scores and all", async () => {
     const { keeper } = await teachers();

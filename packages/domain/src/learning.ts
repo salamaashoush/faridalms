@@ -123,6 +123,8 @@ export const MAX_HOTSPOTS = 8;
 /** Places marked on one picture, the ones to find and others beside them. */
 export const MAX_PLACES = 12;
 export const MAX_PLACE_NAME = 60;
+/** Labels beside a picture's own that fit no place, so the last place is still a choice. */
+export const MAX_LABEL_EXTRAS = 6;
 /**
  * How far past a marked place a tap still finds it, across the picture: a
  * young finger lands several millimetres off what it aims at.
@@ -583,6 +585,41 @@ export const lessonBlockSchema = v.variant("type", [
       return Boolean(block.picture) && finds > 0 && finds <= MAX_HOTSPOTS;
     }, "learning.hotspot_needed"),
   ),
+  v.pipe(
+    v.object({
+      ...checkFields,
+      type: v.literal("labelling"),
+      /** The picture whose places are labelled; required before the question is shown. */
+      picture,
+      /** Each place to label: its box across the picture (left, top, width, height) and its label. */
+      places: v.pipe(
+        v.array(
+          v.object({
+            box: v.tuple([unit, unit, unit, unit]),
+            name: requiredText(MAX_PLACE_NAME),
+          }),
+        ),
+        v.maxLength(MAX_PLACES),
+      ),
+      /** Labels that belong to no place. */
+      extras: v.pipe(
+        v.array(requiredText(MAX_PLACE_NAME)),
+        v.maxLength(MAX_LABEL_EXTRAS),
+      ),
+    }),
+    // Two places with one label could each take it, so no answer would be wrong.
+    v.check((block) => {
+      const labels = [
+        ...block.places.map((place) => place.name),
+        ...block.extras,
+      ].map((label) => label.trim().toLocaleLowerCase());
+      return (
+        Boolean(block.picture) &&
+        block.places.length > 0 &&
+        new Set(labels).size === labels.length
+      );
+    }, "learning.labels_needed"),
+  ),
   v.object({
     ...checkFields,
     type: v.literal("spelling"),
@@ -722,6 +759,7 @@ export type CountingBlock = Extract<LessonBlock, { type: "counting" }>;
 export type TracingBlock = Extract<LessonBlock, { type: "tracing" }>;
 export type SpellingBlock = Extract<LessonBlock, { type: "spelling" }>;
 export type HotspotBlock = Extract<LessonBlock, { type: "hotspot" }>;
+export type LabellingBlock = Extract<LessonBlock, { type: "labelling" }>;
 export type ScratchBlock = Extract<LessonBlock, { type: "scratch" }>;
 export type ProgramBlock = Extract<LessonBlock, { type: "program" }>;
 export type ProjectBlock = Extract<LessonBlock, { type: "project" }>;
@@ -744,6 +782,7 @@ export type AutoBlock =
   | TracingBlock
   | SpellingBlock
   | HotspotBlock
+  | LabellingBlock
   | ProgramBlock
   | PuzzleBlock;
 /** A question its teacher marks: words, a recording or picture, or a project. */
@@ -766,6 +805,7 @@ const AUTO_TYPES = new Set<LessonBlockType>([
   "tracing",
   "spelling",
   "hotspot",
+  "labelling",
   "program",
   "puzzle",
 ]);
@@ -794,6 +834,7 @@ const DEFERRABLE_TYPES = new Set<LessonBlockType>([
   "matching",
   "ordering",
   "sorting",
+  "labelling",
 ]);
 
 export { FEEDBACK_TIMES, type FeedbackTime };
@@ -1212,6 +1253,11 @@ export function lessonPlainText(document: LessonDocument): string {
             block.prompt,
             block.segments.map((segment) => segment.text).join(""),
           ].join("\n");
+        case "labelling":
+          return [
+            block.prompt,
+            ...block.places.map((place) => place.name),
+          ].join("\n");
         case "matching":
           return [
             block.prompt,
@@ -1322,6 +1368,14 @@ export const responseSchema = v.variant("type", [
   v.object({
     type: v.literal("counting"),
     value: v.pipe(v.number(), v.integer(), v.minValue(0), v.maxValue(100)),
+  }),
+  v.object({
+    type: v.literal("labelling"),
+    /** The label put on each place, by the place's number. */
+    labels: v.record(
+      v.pipe(v.string(), v.regex(/^[1-9]\d?$/u)),
+      text(MAX_PLACE_NAME),
+    ),
   }),
   v.object({
     type: v.literal("hotspot"),
@@ -1747,6 +1801,17 @@ export function markResponse(
         ? marked
         : { ...marked, correct: false };
     }
+    case "labelling": {
+      if (response.type !== "labelling") return none;
+      return share(
+        Object.fromEntries(
+          block.places.map((place, index) => [
+            placeNumber(index),
+            response.labels[placeNumber(index)] === place.name,
+          ]),
+        ),
+      );
+    }
     case "spelling": {
       if (response.type !== "spelling") return none;
       const results = Object.fromEntries(
@@ -2077,6 +2142,12 @@ export type StudentBlock =
   | Omit<CountingBlock, "explanation" | "hints">
   | Omit<TracingBlock, "explanation" | "hints">
   | Omit<HotspotBlock, "explanation" | "hints">
+  | (Omit<LabellingBlock, "explanation" | "hints" | "places" | "extras"> & {
+      /** Each place's box, numbered in order, with nothing of its label. */
+      spots: [number, number, number, number][];
+      /** Every label, the places' own and the extra ones, shuffled together. */
+      bank: string[];
+    })
   | (Omit<SpellingBlock, "explanation" | "hints" | "tiles" | "extras"> & {
       /** Every tile, the word's and the extra ones, in one shuffled pile. */
       pile: { id: string; text: string }[];
@@ -2374,6 +2445,23 @@ export function studentBlocks(
         const { explanation: _why, hints: _hints, ...rest } = block;
         return rest;
       }
+      case "labelling": {
+        const {
+          explanation: _why,
+          hints: _hints,
+          places,
+          extras,
+          ...rest
+        } = block;
+        return {
+          ...rest,
+          spots: places.map((place) => place.box),
+          bank: shuffled(
+            [...places.map((place) => place.name), ...extras],
+            `${seed}:${block.id}`,
+          ),
+        };
+      }
       default:
         return block;
     }
@@ -2395,7 +2483,9 @@ export function puzzleKey(level: {
   return arrows.length > 0 ? [arrows.join(" ")] : [];
 }
 
-/** The answer to show once a question is settled. */
+/** A labelled place's key in answers and marks: its number, from 1, as the student sees it. */
+export const placeNumber = (index: number) => String(index + 1);
+
 /**
  * A highlight question's passage as the words a student taps: each word of
  * the plain text, each word to find whole, and the spaces between, the
@@ -2436,6 +2526,7 @@ export function highlightTokens(
   return tokens;
 }
 
+/** The answer to show once a question is settled. */
 export function answerKey(block: AutoBlock): string[] {
   switch (block.type) {
     case "choice":
@@ -2479,6 +2570,10 @@ export function answerKey(block: AutoBlock): string[] {
       return [block.tiles.join("")];
     case "hotspot":
       return [block.picture?.alt || block.prompt];
+    case "labelling":
+      return block.places.map(
+        (place, index) => `${placeNumber(index)} ${place.name}`,
+      );
     case "sorting":
       return block.items.map(
         (item) =>
@@ -2520,6 +2615,10 @@ export function partKey(block: AutoBlock): Record<string, string> {
         highlightTokens(block)
           .filter((token) => token.target)
           .map((token) => [token.id, token.text]),
+      );
+    case "labelling":
+      return Object.fromEntries(
+        block.places.map((place, index) => [placeNumber(index), place.name]),
       );
     case "ordering":
       return Object.fromEntries(
@@ -3337,6 +3436,20 @@ export function responseIssue(
         .map((token) => token.id),
     );
     if (response.chosen.some((token) => !words.has(token)))
+      return "learning.option";
+  }
+  if (block.type === "labelling" && response.type === "labelling") {
+    const bank = new Set([
+      ...block.places.map((place) => place.name),
+      ...block.extras,
+    ]);
+    if (
+      Object.entries(response.labels).some(
+        ([place, label]) =>
+          Number(place) > block.places.length ||
+          (label !== "" && !bank.has(label)),
+      )
+    )
       return "learning.option";
   }
   if (block.type === "written" && response.type === "written") {

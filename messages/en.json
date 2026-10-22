@@ -731,6 +731,23 @@
   "editorQuestionPlacesCount": "To find: {find} · Others: {other}",
   "editorQuestionPlaceName": "Name of place {number}",
   "editorQuestionPlaceNameHint": "What is here?",
+  "editorQuestionLabelling": "Label a picture",
+  "editorQuestionLabellingHint": "Students label places on a picture",
+  "editorQuestionMarkLabels": "Mark the places to label",
+  "editorQuestionMarkLabelsHint": "Drag a box over each place to label, then write its label. Students see the places numbered and give each one its label.",
+  "editorQuestionLabelsCount": [
+    {
+      "declarations": ["input count", "local countPlural = count: plural"],
+      "selectors": ["countPlural"],
+      "match": {
+        "countPlural=one": "{count} place to label",
+        "countPlural=*": "{count} places to label"
+      }
+    }
+  ],
+  "editorQuestionLabelName": "Label for place {number}",
+  "editorQuestionLabelNameHint": "Its label",
+  "editorQuestionLabelExtras": "Extra labels, which fit no place, separated by commas",
   "editorQuestionPlaceToFind": "To find",
   "editorQuestionPlaceRemove": "Remove place {number}",
   "editorQuestionPlaceUndo": "Undo the last place",
@@ -3622,6 +3639,9 @@
   "lrnHotspotPicture": "Add the picture children will search.",
   "lrnHotspotPlaces": "Mark at least one place to find in the picture.",
   "lrnHotspotNames": "Name every place in the picture, so a child on a keyboard or screen reader can choose it.",
+  "lrnLabellingPicture": "Add the picture students will label.",
+  "lrnLabellingPlaces": "Mark at least one place to label in the picture.",
+  "lrnLabellingNames": "Give every place its own label, different from the others.",
   "lrnHotspotNeeded": "A find-on-a-picture question needs its picture and a place to find.",
   "lrnYoungFindHere": "Let's look in the picture",
   "lrnYoungPlace": "Place {number}",
@@ -4879,6 +4899,9 @@
   "lrnNumberLinePlaced": "Your answer: {value}",
   "lrnWordBank": "Word bank",
   "lrnWordBankUse": "Put “{word}” in the next blank",
+  "lrnLabels": "Labels",
+  "lrnLabelUse": "Put “{label}” on the next place",
+  "lrnLabelPlace": "Place {number}",
   "lrnMarkedPoints": "Marked: {points} of {total} points",
   "lrnMarked": "Marked by your teacher",
   "lrnTeacherFeedback": "Your teacher's feedback",
@@ -4950,6 +4973,7 @@
   "lrnErrYoungFeedback": "Questions in a lesson for young children show how they went at once.",
   "lrnErrBankOptions": "A gap filled from the word bank takes no choices of its own.",
   "lrnErrPollFirst": "Answer the poll to see how your class answered.",
+  "lrnErrLabelsNeeded": "A picture to label needs its picture, a place marked, and a different label for each place.",
   "lrnErrTargetsNeeded": "Put at least one word to find in [brackets].",
   "lrnErrNumberLine": "A number line runs from a smaller number to a larger one, in steps that fit.",
   "lrnErrNumberLineAnswer": "The answer must lie on the number line.",

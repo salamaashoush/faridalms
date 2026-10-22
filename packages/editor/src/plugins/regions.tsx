@@ -46,18 +46,21 @@ const badge = (correct: boolean) =>
  * thing children should find and over a few things they should not, each
  * named. Children never see the boxes; they tap the picture, or choose a
  * place by its name from the keyboard or a screen reader, which is why the
- * other places are there.
+ * other places are there. For a picture to label, every place is one to
+ * label and its name is the label.
  */
 export function RegionPad({
   src,
   alt,
   places: initial,
+  labels = false,
   onDone,
   onClose,
 }: {
   src: string;
   alt: string;
   places: readonly PicturePlace[];
+  labels?: boolean;
   onDone: (places: PicturePlace[]) => void;
   onClose: () => void;
 }) {
@@ -102,10 +105,12 @@ export function RegionPad({
       <div className="flex items-start gap-2">
         <div className="grid flex-1 gap-0.5">
           <p className="text-sm leading-5 font-medium">
-            {strings.questionMarkPlaces}
+            {labels ? strings.questionMarkLabels : strings.questionMarkPlaces}
           </p>
           <p className="text-xs leading-4 text-muted-foreground">
-            {strings.questionMarkPlacesHint}
+            {labels
+              ? strings.questionMarkLabelsHint
+              : strings.questionMarkPlacesHint}
           </p>
         </div>
         <button
@@ -144,7 +149,11 @@ export function RegionPad({
             if (drawing && drawing[2] >= SMALLEST && drawing[3] >= SMALLEST)
               setPlaces([
                 ...places,
-                { box: drawing, name: "", correct: finds < MAX_HOTSPOTS },
+                {
+                  box: drawing,
+                  name: "",
+                  correct: labels || finds < MAX_HOTSPOTS,
+                },
               ]);
             setFrom(null);
             setTo(null);
@@ -206,25 +215,35 @@ export function RegionPad({
                 dir="auto"
                 value={place.name}
                 maxLength={MAX_PLACE_NAME}
-                aria-label={strings.questionPlaceName(index + 1)}
-                placeholder={strings.questionPlaceNameHint}
+                aria-label={
+                  labels
+                    ? strings.questionLabelName(index + 1)
+                    : strings.questionPlaceName(index + 1)
+                }
+                placeholder={
+                  labels
+                    ? strings.questionLabelNameHint
+                    : strings.questionPlaceNameHint
+                }
                 onChange={(event) =>
                   change(index, { name: event.target.value })
                 }
                 onKeyDown={escape}
                 className="h-8 min-w-0 flex-1 rounded-md border bg-background px-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring/30 max-md:h-10"
               />
-              <label className="flex shrink-0 items-center gap-1.5 text-xs font-medium text-muted-foreground">
-                <input
-                  type="checkbox"
-                  checked={place.correct}
-                  disabled={!place.correct && finds >= MAX_HOTSPOTS}
-                  onChange={() => change(index, { correct: !place.correct })}
-                  onKeyDown={escape}
-                  className="size-4 accent-primary"
-                />
-                {strings.questionPlaceToFind}
-              </label>
+              {labels ? null : (
+                <label className="flex shrink-0 items-center gap-1.5 text-xs font-medium text-muted-foreground">
+                  <input
+                    type="checkbox"
+                    checked={place.correct}
+                    disabled={!place.correct && finds >= MAX_HOTSPOTS}
+                    onChange={() => change(index, { correct: !place.correct })}
+                    onKeyDown={escape}
+                    className="size-4 accent-primary"
+                  />
+                  {strings.questionPlaceToFind}
+                </label>
+              )}
               <button
                 type="button"
                 aria-label={strings.questionPlaceRemove(index + 1)}
@@ -240,7 +259,9 @@ export function RegionPad({
         </ol>
       ) : null}
       <p className="text-xs leading-4 text-muted-foreground">
-        {strings.questionPlacesCount(finds, places.length - finds)}
+        {labels
+          ? strings.questionLabelsCount(places.length)
+          : strings.questionPlacesCount(finds, places.length - finds)}
       </p>
       <div className="-ms-2.5 flex flex-wrap items-center gap-1">
         <button

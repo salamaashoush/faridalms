@@ -1670,14 +1670,16 @@
   object-fit: contain;
 }
 
-/* A find-on-a-picture question shows its picture larger, with the places
-   to find outlined over it. Places are measured from the picture's own
+/* A find-on-a-picture or picture-to-label question shows its picture
+   larger, with its places outlined over it. Places are measured from the picture's own
    left and top edges, so the outline stays put in either direction. */
-.fe [data-kind="hotspot"] > [data-part-picture] {
+.fe [data-kind="hotspot"] > [data-part-picture],
+.fe [data-kind="labelling"] > [data-part-picture] {
   position: relative;
   width: fit-content;
 }
-.fe [data-kind="hotspot"] > [data-part-picture] img {
+.fe [data-kind="hotspot"] > [data-part-picture] img,
+.fe [data-kind="labelling"] > [data-part-picture] img {
   max-width: min(100%, 24rem);
   max-height: 16rem;
 }

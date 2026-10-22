@@ -76,6 +76,16 @@ export function paperBlock(block: StudentBlock): LessonBlock {
         })),
         correctOptionIds: [],
       };
+    case "labelling": {
+      const { spots, bank, ...rest } = block;
+      // A student's copy holds every label in its bank and no place's own.
+      return {
+        ...rest,
+        ...blank,
+        places: spots.map((box) => ({ box, name: "" })),
+        extras: bank,
+      };
+    }
     case "poll":
       return {
         ...block,

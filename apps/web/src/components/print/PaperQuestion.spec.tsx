@@ -155,6 +155,31 @@ describe("a poll on paper", () => {
   });
 });
 
+describe("a picture to label on paper", () => {
+  const plant: LessonBlock = {
+    ...base,
+    id: "q10",
+    type: "labelling",
+    prompt: "Label the plant.",
+    picture: { fileId: "f1", alt: "A plant" },
+    places: [
+      { box: [0.4, 0.1, 0.2, 0.2], name: "Flower" },
+      { box: [0.3, 0.8, 0.4, 0.1], name: "Roots" },
+    ],
+    extras: ["Bark"],
+  };
+
+  it("prints every label to write on its numbered line, and the labels on the teacher's copy", () => {
+    const [shown] = studentBlocks({ version: 2, blocks: [plant] }, "seed");
+    if (!shown) throw new Error("no question");
+    const copy = paper(paperBlock(shown), false);
+    for (const label of ["Flower", "Roots", "Bark"])
+      expect(copy).toContain(label);
+    expect(copy.match(/border-b border-neutral-400/g)).toHaveLength(2);
+    expect(keyOf(plant, false)).toBe("1 Flower, 2 Roots");
+  });
+});
+
 describe("an answer key", () => {
   it("names each answer in the letters and numbers its paper shows", () => {
     expect(keyOf(choice, false)).toBe("a");

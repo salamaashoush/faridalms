@@ -669,7 +669,10 @@ export class QuestionNode extends ElementNode {
       ...settings,
       ...(feedbackAt === "now" ? {} : { feedbackAt }),
       ...(suggested ? { suggested } : {}),
-      ...(settings.kind === "gaps" && bank !== null ? { bank } : {}),
+      ...((settings.kind === "gaps" || settings.kind === "labelling") &&
+      bank !== null
+        ? { bank }
+        : {}),
       ...(settings.kind === "number" && line !== null ? { line } : {}),
       ...(settings.kind === "poll" ? { classResults } : {}),
       ...(recordSeconds === null ? {} : { recordSeconds }),
@@ -679,7 +682,9 @@ export class QuestionNode extends ElementNode {
         ? { count, countMode, countLayout, flashSeconds }
         : {}),
       ...(settings.kind === "tracing" ? { trace } : {}),
-      ...(settings.kind === "hotspot" ? { places } : {}),
+      ...(settings.kind === "hotspot" || settings.kind === "labelling"
+        ? { places }
+        : {}),
       ...(settings.kind === "matching" && memory ? { memory } : {}),
       ...(settings.kind === "scratch" && projectFileId
         ? { projectFileId }
@@ -727,10 +732,12 @@ export class QuestionNode extends ElementNode {
     if (
       settings.kind === "counting" ||
       settings.kind === "spelling" ||
-      settings.kind === "hotspot"
+      settings.kind === "hotspot" ||
+      settings.kind === "labelling"
     )
       drawPicture(this, dom, editor);
-    if (settings.kind === "hotspot") drawPlaces(settings.places, dom);
+    if (settings.kind === "hotspot" || settings.kind === "labelling")
+      drawPlaces(settings.places, dom);
     if (settings.kind === "tracing") drawTrace(settings.trace, dom);
     if (settings.kind === "puzzle") drawPuzzle(settings.puzzle, dom);
     return dom;

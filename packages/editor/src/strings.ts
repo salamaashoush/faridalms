@@ -345,6 +345,8 @@ export interface EditorStrings extends LabelEditorStrings, ChartStrings {
   questionSpelling: string;
   questionHotspot: string;
   questionHotspotHint: string;
+  questionLabelling: string;
+  questionLabellingHint: string;
   questionScratch: string;
   questionScratchHint: string;
   questionProject: string;
@@ -381,6 +383,12 @@ export interface EditorStrings extends LabelEditorStrings, ChartStrings {
   questionPlacesCount: (find: number, other: number) => string;
   questionPlaceName: (number: number) => string;
   questionPlaceNameHint: string;
+  questionMarkLabels: string;
+  questionMarkLabelsHint: string;
+  questionLabelsCount: (count: number) => string;
+  questionLabelName: (number: number) => string;
+  questionLabelNameHint: string;
+  questionLabelExtras: string;
   questionPlaceToFind: string;
   questionPlaceRemove: (number: number) => string;
   questionPlaceUndo: string;
