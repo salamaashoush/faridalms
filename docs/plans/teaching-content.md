@@ -329,10 +329,17 @@ Sources: [../research/course-design.md](../research/course-design.md),
     the spare squares filled with the words' own letters. Students press
     a word's first letter and then its last, by finger or the keyboard; a
     stretch that spells a word stays marked, and each word found earns
-    its share. Paper prints the grid and the list.
-    Left: a poll's class results in a quiz, polls anonymous to the teacher
-    too, dragging a label onto its place, dragging across a word search,
-    and words hidden backwards for older students.
+    its share. Paper prints the grid and the list. A word search for
+    older students hides its words backwards, up and along the other
+    diagonal too (`backwards` on the question), grids without it coming out
+    as before; students drag across a word or press its ends. A label is
+    dragged onto its place on a picture as well as pressed or chosen, each
+    place a drop spot named with its question. A poll in a quiz shows its
+    student how the class voted once their vote is kept
+    (`coursework.quizPollResults`), and a poll can count its votes without
+    names (`anonymous`): its teacher reads the counts alone in the
+    questions view, the live lesson and a quiz attempt, and its students
+    are told so as they vote.
 
 ## 4. Standards, skills and planning
 
