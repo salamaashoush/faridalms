@@ -4,6 +4,7 @@ import type {
   LessonResponse,
   StudentBlock,
 } from "@faridalms/domain/learning";
+import type { ReactNode } from "react";
 import type * as v from "valibot";
 
 import { Button } from "@faridalms/ui/button";
@@ -11,7 +12,7 @@ import { Input } from "@faridalms/ui/input";
 import { Textarea } from "@faridalms/ui/textarea";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useHydrated } from "@tanstack/react-router";
-import { CheckCircle2, LoaderCircle, Timer } from "lucide-react";
+import { CheckCircle2, Coffee, LoaderCircle, Timer } from "lucide-react";
 import { useEffect, useEffectEvent, useState } from "react";
 import { toast } from "sonner";
 
@@ -33,7 +34,9 @@ import { myWorkQuery } from "~/queries/coursework";
 import {
   handInWork,
   markQuizAnswer,
+  pauseQuiz,
   practiseQuiz,
+  resumeQuiz,
   saveQuizAnswer,
   startQuiz,
 } from "~/server/coursework";
@@ -194,9 +197,12 @@ function Results({ quiz }: { quiz: LearnerQuiz }) {
 function QuizClock({
   endsAt,
   onTimeUp,
+  action,
 }: {
   endsAt: string;
   onTimeUp: () => void;
+  /** What the student may do with the clock, beside it. */
+  action?: ReactNode;
 }) {
   const hydrated = useHydrated();
   const [now, setNow] = useState(() => Date.now());
@@ -213,7 +219,8 @@ function QuizClock({
   if (!hydrated) return null;
   const minutes = Math.ceil(left / 60_000);
   return (
-    <div className="sticky top-2 z-10 flex justify-end">
+    <div className="sticky top-2 z-10 flex items-center justify-end gap-2">
+      {action}
       <p
         className={`inline-flex items-center gap-1.5 rounded-full border bg-background px-3 py-1.5 text-sm font-medium tabular-nums shadow-sm [&_svg]:size-4 ${left < 60_000 ? "border-destructive text-destructive" : ""}`}
       >
@@ -277,6 +284,16 @@ export function QuizWork({ data }: { data: Work }) {
       await queryClient.invalidateQueries({ queryKey: ["coursework"] });
       toast.info(m.quizTimeUp());
     },
+    meta: { inlineError: true },
+  });
+  // A supervised rest break stops the clock and hides the questions.
+  const rest = useMutation({
+    mutationFn: (step: "pause" | "resume") =>
+      (step === "pause" ? pauseQuiz : resumeQuiz)({
+        data: { assignmentId: data.assignment.id },
+      }),
+    onSuccess: () =>
+      queryClient.invalidateQueries({ queryKey: query.queryKey }),
     meta: { inlineError: true },
   });
   const ranOut = Boolean(quiz?.open && quiz.timing?.timeUp);
@@ -392,6 +409,40 @@ export function QuizWork({ data }: { data: Work }) {
             </output>
           )}
         </RecordSection>
+      ) : quiz.open && quiz.timing?.pausedAt && quiz.timing.endsAt ? (
+        <RecordSection
+          variant="page"
+          title={m.quizAttemptTitle({ number: formatNumber(quiz.attempt) })}
+        >
+          <div className="grid justify-items-start gap-4">
+            <p className="inline-flex items-center gap-2 text-sm leading-5 font-medium">
+              <Coffee aria-hidden className="size-4" />
+              {m.quizOnBreak()}
+            </p>
+            <p className="text-sm leading-5 text-muted-foreground">
+              {m.quizOnBreakBody({
+                time: formatClock(
+                  Date.parse(quiz.timing.endsAt) -
+                    Date.parse(quiz.timing.pausedAt),
+                ),
+              })}
+            </p>
+            {rest.error ? (
+              <p role="alert" className="text-sm leading-5 text-destructive">
+                {getMessageFromError(rest.error)}
+              </p>
+            ) : null}
+            <Button
+              type="button"
+              className="max-md:h-10"
+              disabled={rest.isPending}
+              onClick={() => rest.mutate("resume")}
+            >
+              <Timer aria-hidden />
+              {m.quizResume()}
+            </Button>
+          </div>
+        </RecordSection>
       ) : quiz.open ? (
         <RecordSection
           variant="page"
@@ -409,7 +460,27 @@ export function QuizWork({ data }: { data: Work }) {
                 onTimeUp={() => {
                   if (timeUp.isIdle) timeUp.mutate();
                 }}
+                action={
+                  quiz.restBreaks ? (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="rounded-full bg-background shadow-sm max-md:h-10"
+                      disabled={rest.isPending}
+                      onClick={() => rest.mutate("pause")}
+                    >
+                      <Coffee aria-hidden />
+                      {m.quizTakeBreak()}
+                    </Button>
+                  ) : null
+                }
               />
+            ) : null}
+            {rest.error ? (
+              <p role="alert" className="text-sm leading-5 text-destructive">
+                {getMessageFromError(rest.error)}
+              </p>
             ) : null}
             <CheckModeContext.Provider value="quiz">
               <QuizBlocks
@@ -574,6 +645,7 @@ interface GraderQuiz {
     blocks: StudentBlock[];
     score: number;
     checks: Record<string, CheckView>;
+    rest: { breaks: number; seconds: number } | null;
   }[];
 }
 
@@ -597,6 +669,18 @@ export function QuizAttempts({
           total: formatNumber(quiz.total),
         })}
       </p>
+      {attempt.rest ? (
+        <p className="inline-flex items-center gap-2 text-sm leading-5 text-muted-foreground">
+          <Coffee aria-hidden className="size-4" />
+          {m.quizRestBreaks({
+            count: attempt.rest.breaks,
+            value: formatNumber(attempt.rest.breaks),
+            time: formatMinutes(
+              Math.max(1, Math.ceil(attempt.rest.seconds / 60)),
+            ),
+          })}
+        </p>
+      ) : null}
       {quiz.attempts.length > 1 ? (
         <ul className="flex flex-wrap gap-2">
           {quiz.attempts.map((item) => (

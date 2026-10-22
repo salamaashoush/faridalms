@@ -4,8 +4,9 @@ import * as v from "valibot";
  * Access arrangements: what a school grants a student so a timed test or a
  * deadline measures what they know rather than what they cannot do in the
  * time. Exam boards grant extra time as a share of the time allowed, most
- * often 25% or 50%, with 10% and double time used too, and a computer
- * reader. Set once on the student's record, they apply to every quiz and
+ * often 25% or 50%, with 10% and double time used too, a computer reader,
+ * and supervised rest breaks, which stop the clock while the candidate
+ * rests. Set once on the student's record, they apply to every quiz and
  * assignment of theirs.
  */
 
@@ -24,6 +25,12 @@ export const arrangementsSchema = v.object({
   readAloud: v.boolean(),
   /** A choice question shows one wrong option fewer. */
   fewerChoices: v.boolean(),
+  /**
+   * Supervised rest breaks: during a timed quiz the student may stop the
+   * clock to rest, their questions hidden, and take up again where they
+   * were. Absent from arrangements kept before it existed.
+   */
+  restBreaks: v.optional(v.boolean(), false),
   /** Days added to every due date the student is set. */
   extensionDays: v.pipe(
     v.number(),
@@ -39,6 +46,7 @@ export const NO_ARRANGEMENTS: Arrangements = {
   unlimitedTime: false,
   readAloud: false,
   fewerChoices: false,
+  restBreaks: false,
   extensionDays: 0,
 };
 
@@ -58,6 +66,7 @@ export const hasArrangements = (arrangements: Arrangements) =>
   arrangements.unlimitedTime ||
   arrangements.readAloud ||
   arrangements.fewerChoices ||
+  arrangements.restBreaks ||
   arrangements.extensionDays > 0;
 
 /**

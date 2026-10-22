@@ -199,6 +199,14 @@ export const startQuiz = createServerFn({ method: "POST" })
   .validator(checked(v.object({ assignmentId: uuid })))
   .handler(({ data }) => backend().coursework.startQuiz(data));
 
+export const pauseQuiz = createServerFn({ method: "POST" })
+  .validator(checked(v.object({ assignmentId: uuid })))
+  .handler(({ data }) => backend().coursework.pauseQuiz(data));
+
+export const resumeQuiz = createServerFn({ method: "POST" })
+  .validator(checked(v.object({ assignmentId: uuid })))
+  .handler(({ data }) => backend().coursework.resumeQuiz(data));
+
 export const markQuizAnswer = createServerFn({ method: "POST" })
   .validator(checked(markQuizAnswerSchema))
   .handler(({ data }) => backend().coursework.markQuizAnswer(data));

@@ -103,6 +103,10 @@ export function getMessageFromError(error: unknown): string {
         return m.errDrawShort();
       case "coursework.time_up":
         return m.errTimeUp();
+      case "coursework.on_break":
+        return m.errOnBreak();
+      case "coursework.no_break":
+        return m.errNoBreak();
       case "coursework.quiz_rubric":
         return m.errQuizRubric();
       case "coursework.quiz_started":

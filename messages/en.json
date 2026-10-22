@@ -2046,6 +2046,8 @@
   "arrangementsReadAloudHint": "Questions and their choices can be read aloud by the browser.",
   "arrangementsFewerChoices": "One wrong choice fewer",
   "arrangementsFewerChoicesHint": "A choice question in a quiz with two or more wrong options shows one fewer.",
+  "arrangementsRestBreaks": "Supervised rest breaks",
+  "arrangementsRestBreaksHint": "In a timed quiz the student may stop the clock to rest, their questions hidden, and take it up again. Their teacher sees each break.",
   "demographicsTitle": "Background",
   "demographicsHint": "Nationality, birthplace, religion and home languages. Each visit is recorded.",
   "demographicsEdit": "Edit background",
@@ -5649,6 +5651,20 @@
     }
   ],
   "quizTimeUp": "Time is up. The answers you kept were handed in.",
+  "quizTakeBreak": "Rest break",
+  "quizOnBreak": "On a rest break",
+  "quizOnBreakBody": "The clock has stopped with {time} left, and your questions are hidden until you come back.",
+  "quizResume": "Back to the quiz",
+  "quizRestBreaks": [
+    {
+      "declarations": ["input count", "local countPlural = count: plural"],
+      "selectors": ["countPlural"],
+      "match": {
+        "countPlural=one": "{value} rest break, {time} in all",
+        "countPlural=*": "{value} rest breaks, {time} in all"
+      }
+    }
+  ],
   "quizResults": "Results",
   "quizScoreOf": "{score} of {total}",
   "quizPendingMarks": "Your teacher still has written answers to mark, so this score may rise.",
@@ -5684,6 +5700,8 @@
   "errDrawTag": "Choose the tag each draw takes its questions from.",
   "errDrawShort": "The question bank has fewer questions with a draw's tag than it asks for. Keep more with that tag, or draw fewer.",
   "errTimeUp": "Time is up for this attempt.",
+  "errOnBreak": "The quiz is stopped for a rest break. Come back to it to answer.",
+  "errNoBreak": "There is no rest break to start or end just now.",
   "errQuizRubric": "A quiz is marked by its questions, so it takes no rubric.",
   "errFormatFixed": "Once assigned, a quiz stays a quiz and a discussion stays a discussion, and other work cannot become either.",
   "errNotQuiz": "This work is not a quiz.",

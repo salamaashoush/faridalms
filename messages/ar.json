@@ -2135,6 +2135,8 @@
   "arrangementsReadAloudHint": "يمكن للمتصفح قراءة الأسئلة وخياراتها بصوت عالٍ.",
   "arrangementsFewerChoices": "خيار خاطئ أقل",
   "arrangementsFewerChoicesHint": "يظهر سؤال الاختيار في الاختبار الذي فيه خياران خاطئان أو أكثر بخيار خاطئ أقل.",
+  "arrangementsRestBreaks": "استراحات تحت الإشراف",
+  "arrangementsRestBreaksHint": "في الاختبار المؤقّت يمكن للطالب إيقاف الساعة ليستريح، فتُخفى أسئلته، ثم يستأنف. ويرى معلّمه كل استراحة.",
   "demographicsTitle": "الخلفية",
   "demographicsHint": "الجنسية ومكان الميلاد والديانة ولغات المنزل، ويُسجَّل كل اطلاع.",
   "demographicsEdit": "تعديل الخلفية",
@@ -5937,6 +5939,22 @@
     }
   ],
   "quizTimeUp": "انتهى الوقت. سُلِّمت الإجابات التي حفظتها.",
+  "quizTakeBreak": "استراحة",
+  "quizOnBreak": "في استراحة",
+  "quizOnBreakBody": "توقّفت الساعة وبقي {time}، وأسئلتك مخفية حتى تعود.",
+  "quizResume": "العودة إلى الاختبار",
+  "quizRestBreaks": [
+    {
+      "declarations": ["input count", "local countPlural = count: plural"],
+      "selectors": ["countPlural"],
+      "match": {
+        "countPlural=one": "استراحة واحدة، {time} في المجموع",
+        "countPlural=two": "استراحتان، {time} في المجموع",
+        "countPlural=few": "{value} استراحات، {time} في المجموع",
+        "countPlural=*": "{value} استراحة، {time} في المجموع"
+      }
+    }
+  ],
   "quizResults": "النتائج",
   "quizScoreOf": "{score} من {total}",
   "quizPendingMarks": "ما زال لدى معلمك إجابات كتابية ليصحّحها، فقد ترتفع هذه الدرجة.",
@@ -5980,6 +5998,8 @@
   "errDrawTag": "اختر الوسم الذي يُسحب منه كل سحب أسئلته.",
   "errDrawShort": "في بنك الأسئلة أسئلة بوسم السحب أقل مما يطلبه. احفظ أسئلة أكثر بهذا الوسم، أو اسحب عددًا أقل.",
   "errTimeUp": "انتهى وقت هذه المحاولة.",
+  "errOnBreak": "الاختبار متوقّف لاستراحة. عُد إليه لتجيب.",
+  "errNoBreak": "لا استراحة يمكن بدؤها أو إنهاؤها الآن.",
   "errQuizRubric": "يُصحَّح الاختبار بأسئلته، فلا يأخذ سلّم تقدير.",
   "errFormatFixed": "بعد الإسناد يبقى الاختبار اختبارًا والنقاش نقاشًا، ولا يتحوّل عمل آخر إلى أيٍّ منهما.",
   "errNotQuiz": "هذا العمل ليس اختبارًا.",

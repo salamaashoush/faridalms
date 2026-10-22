@@ -116,6 +116,8 @@ import {
   saveQuizAnswer as storeQuizAnswer,
   sittingsOf,
   beginSitting,
+  pauseSitting,
+  resumeSitting,
 } from "@faridalms/database/stores/quizzes";
 import { isVisibleStudent } from "@faridalms/database/stores/students";
 import {
@@ -1681,19 +1683,26 @@ async function graderQuiz(
 ) {
   const document = await publishedQuiz(context, assignment.id);
   if (!document) return null;
-  const [byAttempt, attempts, quizzes] = await Promise.all([
+  const [byAttempt, attempts, quizzes, sittings] = await Promise.all([
     answersByAttempt(context, submissionId),
     attemptsOf(context.tx, context.tenantId, submissionId),
     attemptQuizzes(context, document, submissionId),
+    sittingsOf(context.tx, { tenantId: context.tenantId, submissionId }),
   ]);
   return {
     total: quizPoints(document),
     attempts: attempts.map((attempt) => {
       const answers = byAttempt.get(attempt.number) ?? [];
       const asked = quizzes.of(attempt.number);
+      const sitting = sittings.get(attempt.number);
       return {
         attemptId: attempt.id,
         number: attempt.number,
+        /** The supervised rest breaks taken, which the clock stood still for. */
+        rest:
+          sitting && sitting.breaks > 0
+            ? { breaks: sitting.breaks, seconds: sitting.breakSeconds }
+            : null,
         blocks: studentQuiz(asked, "grading", false),
         score: attemptScore(
           asked,
@@ -2280,11 +2289,15 @@ async function learnerQuiz(
   const current = row.attempts + 1;
   const sitting = sittings.get(current) ?? null;
   const limit = assignment.quizTimeLimit;
-  // A running clock tells its own time; one not yet begun, the student's.
+  // A running clock tells its own time, its rest breaks aside; one not
+  // yet begun, the student's.
   const minutes = sitting
     ? sitting.endsAt &&
       Math.round(
-        (sitting.endsAt.getTime() - sitting.startedAt.getTime()) / 60_000,
+        (sitting.endsAt.getTime() -
+          sitting.startedAt.getTime() -
+          sitting.breakSeconds * 1000) /
+          60_000,
       )
     : limit === null
       ? null
@@ -2341,9 +2354,10 @@ async function learnerQuiz(
       context.now,
     );
   return {
-    // A timed attempt's questions stay out of sight until its clock begins.
+    // A timed attempt's questions stay out of sight until its clock begins,
+    // and while it stands still for a rest break.
     blocks:
-      minutes !== null && !sitting
+      minutes !== null && (!sitting || sitting.pausedAt)
         ? []
         : studentQuiz(
             quizzes.of(current),
@@ -2362,10 +2376,18 @@ async function learnerQuiz(
             extra: limit !== null && minutes > limit,
             startedAt: sitting?.startedAt.toISOString() ?? null,
             endsAt: sitting?.endsAt?.toISOString() ?? null,
-            timeUp: sitting ? timeIsUp(sitting.endsAt, context.now) : false,
+            timeUp:
+              sitting && !sitting.pausedAt
+                ? timeIsUp(sitting.endsAt, context.now)
+                : false,
+            /** When the rest break under way began, and the breaks taken. */
+            pausedAt: sitting?.pausedAt?.toISOString() ?? null,
+            breaks: sitting?.breaks ?? 0,
           },
     /** The student's arrangements give them a computer reader. */
     readAloud: arranged.readAloud,
+    /** The student's arrangements let them stop a timed quiz's clock to rest. */
+    restBreaks: arranged.restBreaks,
     attempt: current,
     attemptsAllowed: assignment.quizAttempts,
     attemptsUsed: row.attempts,
@@ -2590,6 +2612,8 @@ async function handInQuiz(
       submissionId: submission.id,
     })
   ).get(number);
+  if (sitting?.pausedAt)
+    throw new ORPCError("CONFLICT", { message: "coursework.on_break" });
   // An attempt whose time ran out may still be handed in as it stood, even
   // once the quiz has closed; any other needs the quiz open.
   const timedOut = sitting ? timeIsUp(sitting.endsAt, context.now) : false;
@@ -3050,6 +3074,9 @@ async function openAttempt(context: UnitContext, assignmentId: string) {
           startedAt: context.now,
           endsAt: sittingEnds(context.now, minutes),
         }));
+  // Nothing is answered while the clock stands still for a rest break.
+  if (sitting?.pausedAt)
+    throw new ORPCError("CONFLICT", { message: "coursework.on_break" });
   if (sitting && timeIsUp(sitting.endsAt, context.now))
     throw new ORPCError("CONFLICT", { message: "coursework.time_up" });
   await drawAttempt(context, {
@@ -3062,6 +3089,58 @@ async function openAttempt(context: UnitContext, assignmentId: string) {
   const quizzes = await attemptQuizzes(context, document, submission.id);
   return { assignment, submission, attempt, quiz: quizzes.of(attempt) };
 }
+
+/**
+ * Starts or ends a supervised rest break in a timed attempt, for a student
+ * whose arrangements allow them: the clock stands still and the questions
+ * go out of sight until the student takes up the quiz again.
+ */
+async function restBreak(
+  context: UnitContext,
+  assignmentId: string,
+  step: "pause" | "resume",
+) {
+  const { assignment } = await learnerAssignment(context, assignmentId);
+  if (assignment.submissionFormat !== "quiz")
+    throw new ORPCError("BAD_REQUEST", { message: "coursework.not_quiz" });
+  if (!(await ownArrangements(context, assignment.orgId)).restBreaks)
+    throw new ORPCError("FORBIDDEN");
+  const [row] = await studentWork(context.tx, {
+    tenantId: context.tenantId,
+    assignmentId: assignment.id,
+    studentId: context.actor.userId,
+  });
+  if (!row?.submissionId) throw new ORPCError("NOT_FOUND");
+  const sitting = {
+    tenantId: context.tenantId,
+    submissionId: row.submissionId,
+    attempt: row.attempts + 1,
+  };
+  const changed =
+    step === "pause"
+      ? await pauseSitting(context.tx, sitting)
+      : await resumeSitting(context.tx, sitting);
+  if (!changed)
+    throw new ORPCError("CONFLICT", { message: "coursework.no_break" });
+  await audit(context, {
+    action: step === "pause" ? "quiz.break_start" : "quiz.break_end",
+    objectType: "submission",
+    objectId: row.submissionId,
+    studentUserId: context.actor.userId,
+  });
+}
+
+export const pauseQuiz = writeProcedure
+  .input(v.object({ assignmentId: id }))
+  .handler(({ input, context }) =>
+    restBreak(context, input.assignmentId, "pause"),
+  );
+
+export const resumeQuiz = writeProcedure
+  .input(v.object({ assignmentId: id }))
+  .handler(({ input, context }) =>
+    restBreak(context, input.assignmentId, "resume"),
+  );
 
 /** Begins the attempt a student opens: its clock, and its draws from the bank. */
 export const startQuiz = writeProcedure

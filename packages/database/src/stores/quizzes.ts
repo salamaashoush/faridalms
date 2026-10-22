@@ -369,19 +369,31 @@ export interface SittingRow {
   startedAt: Date;
   endsAt: Date | null;
   closedAt: Date | null;
+  /** When the rest break under way began; null while the clock runs. */
+  pausedAt: Date | null;
+  breaks: number;
+  breakSeconds: number;
 }
 
 type SittingRecord = {
   started_at: Date | string;
   ends_at: Date | string | null;
   closed_at: Date | string | null;
+  paused_at: Date | string | null;
+  breaks: number;
+  break_seconds: number;
 };
 
 const sittingOf = (row: SittingRecord): SittingRow => ({
   startedAt: new Date(row.started_at),
   endsAt: row.ends_at === null ? null : new Date(row.ends_at),
   closedAt: row.closed_at === null ? null : new Date(row.closed_at),
+  pausedAt: row.paused_at === null ? null : new Date(row.paused_at),
+  breaks: row.breaks,
+  breakSeconds: row.break_seconds,
 });
+
+const SITTING_COLUMNS = sql`started_at, ends_at, closed_at, paused_at, breaks, break_seconds`;
 
 /** When each of a submission's timed attempts began and runs out, by attempt. */
 export async function sittingsOf(
@@ -389,7 +401,7 @@ export async function sittingsOf(
   input: { tenantId: string; submissionId: string },
 ): Promise<Map<number, SittingRow>> {
   const rows = await tx.execute<SittingRecord & { attempt: number }>(sql`
-    select attempt, started_at, ends_at, closed_at
+    select attempt, ${SITTING_COLUMNS}
     from core.quiz_sittings
     where tenant_id = ${input.tenantId}::uuid and submission_id = ${input.submissionId}::uuid
       and status = 'active'`);
@@ -419,12 +431,51 @@ export async function beginSitting(
       ${input.endsAt?.toISOString() ?? null}::timestamptz)
     on conflict (tenant_id, submission_id, attempt) where status = 'active' do nothing`);
   const [row] = await tx.execute<SittingRecord>(sql`
-    select started_at, ends_at, closed_at
+    select ${SITTING_COLUMNS}
     from core.quiz_sittings
     where tenant_id = ${input.tenantId}::uuid and submission_id = ${input.submissionId}::uuid
       and attempt = ${input.attempt} and status = 'active'`);
   if (!row) throw new Error("sitting was not kept");
   return sittingOf(row);
+}
+
+/**
+ * Stops a running clock for a rest break, while time is left on it. Its
+ * questions stay out of sight until the break ends.
+ */
+export async function pauseSitting(
+  tx: Tx,
+  input: { tenantId: string; submissionId: string; attempt: number },
+): Promise<boolean> {
+  const rows = await tx.execute(sql`
+    update core.quiz_sittings set paused_at = statement_timestamp()
+    where tenant_id = ${input.tenantId}::uuid and submission_id = ${input.submissionId}::uuid
+      and attempt = ${input.attempt} and status = 'active' and closed_at is null
+      and paused_at is null and ends_at > statement_timestamp()
+    returning id`);
+  return rows.length > 0;
+}
+
+/**
+ * Ends a rest break: the clock runs on from where it stopped, its end moved
+ * by the break's length, and the break is counted for the teacher to see.
+ */
+export async function resumeSitting(
+  tx: Tx,
+  input: { tenantId: string; submissionId: string; attempt: number },
+): Promise<boolean> {
+  const rows = await tx.execute(sql`
+    update core.quiz_sittings set
+      ends_at = ends_at + (statement_timestamp() - paused_at),
+      breaks = breaks + 1,
+      break_seconds = break_seconds
+        + ceil(extract(epoch from statement_timestamp() - paused_at))::int,
+      paused_at = null
+    where tenant_id = ${input.tenantId}::uuid and submission_id = ${input.submissionId}::uuid
+      and attempt = ${input.attempt} and status = 'active' and closed_at is null
+      and paused_at is not null
+    returning id`);
+  return rows.length > 0;
 }
 
 /** Stops an attempt's clock as it is handed in. */
@@ -447,8 +498,9 @@ export interface ExpiredSitting {
 }
 
 /**
- * Timed attempts whose time ran out before `before` and that nobody handed
- * in, oldest first, each locked so two passes never hand one in twice.
+ * Timed attempts whose time ran out before `before`, or whose rest break
+ * has gone on an hour, and that nobody handed in, oldest first, each
+ * locked so two passes never hand one in twice.
  */
 export async function expiredSittings(
   tx: Tx,
@@ -467,7 +519,11 @@ export async function expiredSittings(
     join core.assignments a on a.tenant_id = s.tenant_id and a.id = s.assignment_id
     where q.tenant_id = ${input.tenantId}::uuid and q.status = 'active'
       and q.closed_at is null and q.ends_at is not null
-      and q.ends_at < ${input.before.toISOString()}::timestamptz
+      and (
+        (q.paused_at is null and q.ends_at < ${input.before.toISOString()}::timestamptz)
+        -- A rest break left open an hour is no rest break: the sitting ends.
+        or q.paused_at < ${input.before.toISOString()}::timestamptz - interval '1 hour'
+      )
     order by q.ends_at
     limit ${input.limit}
     for update of q skip locked`);

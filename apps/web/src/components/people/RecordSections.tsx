@@ -671,6 +671,12 @@ function ArrangementsSheet({
         checked={value.fewerChoices}
         onChange={(fewerChoices) => setValue({ ...value, fewerChoices })}
       />
+      <CheckboxRow
+        label={m.arrangementsRestBreaks()}
+        hint={m.arrangementsRestBreaksHint()}
+        checked={value.restBreaks}
+        onChange={(restBreaks) => setValue({ ...value, restBreaks })}
+      />
     </SheetForm>
   );
 }
@@ -708,6 +714,9 @@ export function ArrangementsSection({ studentId }: { studentId: string }) {
             </Fact>
             <Fact label={m.arrangementsFewerChoices()}>
               {yesOrNo(value.fewerChoices)}
+            </Fact>
+            <Fact label={m.arrangementsRestBreaks()}>
+              {yesOrNo(value.restBreaks)}
             </Fact>
           </Facts>
         ) : (

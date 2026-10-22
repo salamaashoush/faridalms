@@ -260,8 +260,9 @@ export const demographics = core.table.withRLS(
 
 /**
  * A student's access arrangements at one school: extra time on timed
- * quizzes or none at all, a computer reader, one wrong choice fewer, and
- * days added to every due date. One row a student, changed in place.
+ * quizzes or none at all, a computer reader, one wrong choice fewer,
+ * supervised rest breaks, and days added to every due date. One row a
+ * student, changed in place.
  */
 export const accessArrangements = core.table.withRLS(
   "access_arrangements",
@@ -273,6 +274,8 @@ export const accessArrangements = core.table.withRLS(
     unlimitedTime: boolean("unlimited_time").notNull().default(false),
     readAloud: boolean("read_aloud").notNull().default(false),
     fewerChoices: boolean("fewer_choices").notNull().default(false),
+    /** Supervised rest breaks: a timed quiz's clock stops while the student rests. */
+    restBreaks: boolean("rest_breaks").notNull().default(false),
     extensionDays: smallint("extension_days").notNull().default(0),
     ...entityColumns(),
   },

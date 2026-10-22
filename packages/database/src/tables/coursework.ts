@@ -1007,6 +1007,11 @@ export const quizSittings = core.table.withRLS(
     /** Empty for a student whose arrangements give them all the time they need. */
     endsAt: instant("ends_at"),
     closedAt: instant("closed_at"),
+    /** When a rest break began, while the student is on one. */
+    pausedAt: instant("paused_at"),
+    /** Rest breaks taken and how long they lasted, which `ends_at` was moved on by. */
+    breaks: smallint("breaks").notNull().default(0),
+    breakSeconds: integer("break_seconds").notNull().default(0),
     ...entityColumns(),
   },
   (t): PgTableExtraConfigValue[] => [
@@ -1023,6 +1028,7 @@ export const quizSittings = core.table.withRLS(
       "ends_at",
       sql`ends_at is null or ends_at > started_at`,
     ),
+    ck("quiz_sittings", "breaks", sql`breaks >= 0 and break_seconds >= 0`),
     uniqueIndex("quiz_sittings_key")
       .on(t.tenantId, t.submissionId, t.attempt)
       .where(sql`status = 'active'`),

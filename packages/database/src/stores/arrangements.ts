@@ -12,6 +12,7 @@ type ArrangementRecord = {
   unlimited_time: boolean;
   read_aloud: boolean;
   fewer_choices: boolean;
+  rest_breaks: boolean;
   extension_days: number;
   version: number;
 };
@@ -21,6 +22,7 @@ const arrangementsOfRow = (row: ArrangementRecord): Arrangements => ({
   unlimitedTime: row.unlimited_time,
   readAloud: row.read_aloud,
   fewerChoices: row.fewer_choices,
+  restBreaks: row.rest_breaks,
   extensionDays: row.extension_days,
 });
 
@@ -31,7 +33,7 @@ export async function arrangementsOf(
 ): Promise<{ arrangements: Arrangements; version: number } | null> {
   const [row] = await tx.execute<ArrangementRecord>(sql`
     select student_user_id, extra_time, unlimited_time, read_aloud, fewer_choices,
-      extension_days, version
+      rest_breaks, extension_days, version
     from core.access_arrangements
     where tenant_id = ${input.tenantId}::uuid and org_id = ${input.orgId}::uuid
       and student_user_id = ${input.studentId}::uuid and status = 'active'`);
@@ -59,17 +61,17 @@ export async function keepArrangements(
     input.expectedVersion === 0
       ? await tx.execute<{ version: number }>(sql`
           insert into core.access_arrangements (tenant_id, org_id, student_user_id, extra_time,
-            unlimited_time, read_aloud, fewer_choices, extension_days)
+            unlimited_time, read_aloud, fewer_choices, rest_breaks, extension_days)
           values (${input.tenantId}::uuid, ${input.orgId}::uuid, ${input.studentId}::uuid,
             ${value.extraTime}, ${value.unlimitedTime}, ${value.readAloud}, ${value.fewerChoices},
-            ${value.extensionDays})
+            ${value.restBreaks}, ${value.extensionDays})
           on conflict (tenant_id, org_id, student_user_id) where status = 'active' do nothing
           returning version`)
       : await tx.execute<{ version: number }>(sql`
           update core.access_arrangements
           set extra_time = ${value.extraTime}, unlimited_time = ${value.unlimitedTime},
             read_aloud = ${value.readAloud}, fewer_choices = ${value.fewerChoices},
-            extension_days = ${value.extensionDays}
+            rest_breaks = ${value.restBreaks}, extension_days = ${value.extensionDays}
           where tenant_id = ${input.tenantId}::uuid and org_id = ${input.orgId}::uuid
             and student_user_id = ${input.studentId}::uuid and status = 'active'
             and version = ${input.expectedVersion}

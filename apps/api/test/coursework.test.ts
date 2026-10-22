@@ -2039,6 +2039,139 @@ describe("quizzes", () => {
     expect(next.quiz?.blocks.map((block) => block.id)).toEqual([choice.id]);
   });
 
+  test("a student with supervised rest breaks stops the clock, their questions hidden, and their teacher sees each break", async () => {
+    const principal = await signedIn("northwind", login("principal"));
+    const teacher = await arabicTeacher();
+    const student = await sessionFor("northwind", login("student"));
+    const me = await student.api.identity.currentUser();
+    const target = await classOfStudent(teacher.api, me.id);
+    const right = uuid();
+    const choice = {
+      ...common,
+      id: uuid(),
+      type: "choice" as const,
+      prompt: "Which is a verb?",
+      points: 1,
+      options: [
+        { id: right, text: "Run", feedback: "" },
+        { id: uuid(), text: "Book", feedback: "" },
+      ],
+      correctOptionIds: [right],
+      multiple: false,
+      shuffle: false,
+    };
+    const saved = await teacher.api.coursework.save(
+      draft(target.id, "Rested quiz", {
+        submissionFormat: "quiz",
+        points: null,
+        brief: briefWithQuiz(plainContent("Take a break if you need one."), {
+          version: 2,
+          blocks: [choice],
+        }),
+        quiz: {
+          attempts: 1,
+          keep: "highest",
+          reveal: "answers",
+          shuffle: false,
+          timeLimit: 10,
+        },
+      }),
+    );
+    await teacher.api.coursework.publish({
+      id: saved.id,
+      expectedVersion: saved.version,
+    });
+    const kept = await principal.records.arrangements({ studentId: me.id });
+    const arrange = async (restBreaks: boolean) =>
+      principal.records.saveArrangements({
+        studentId: me.id,
+        expectedVersion: (
+          await principal.records.arrangements({ studentId: me.id })
+        ).version,
+        arrangements: {
+          ...kept.arrangements,
+          unlimitedTime: false,
+          restBreaks,
+        },
+      });
+    await arrange(false);
+    await student.api.coursework.startQuiz({ assignmentId: saved.id });
+    // Without the arrangement there is no break to take.
+    expect(
+      await rejection(
+        student.api.coursework.pauseQuiz({ assignmentId: saved.id }),
+      ),
+    ).toMatchObject({ code: "FORBIDDEN" });
+    await arrange(true);
+    const begun = await student.api.coursework.work({ id: saved.id });
+    expect(begun.quiz?.restBreaks).toBe(true);
+    await student.api.coursework.pauseQuiz({ assignmentId: saved.id });
+    const resting = await student.api.coursework.work({ id: saved.id });
+    expect(resting.quiz?.blocks).toEqual([]);
+    expect(resting.quiz?.timing?.pausedAt).not.toBeNull();
+    expect(
+      await rejection(
+        student.api.coursework.saveQuizAnswer({
+          assignmentId: saved.id,
+          blockId: choice.id,
+          response: { type: "choice", optionIds: [right] },
+        }),
+      ),
+    ).toMatchObject({ code: "CONFLICT", message: "coursework.on_break" });
+
+    // Five minutes of rest move the end of the clock five minutes on.
+    const { cell, tenants } = seeded();
+    const tenantId = tenants[0]?.tenantId ?? "";
+    await cell.withWorker(
+      { tenantId, requestId: uuid(), actor: { kind: "system" } },
+      "write",
+      (tx) =>
+        tx.execute(sql`
+          update core.quiz_sittings set paused_at = paused_at - interval '5 minutes'
+          where tenant_id = ${tenantId}::uuid and closed_at is null
+            and submission_id in (select id from core.submissions
+              where tenant_id = ${tenantId}::uuid and assignment_id = ${saved.id}::uuid)`),
+    );
+    expect(await handInTimedOut(cell, tenantId, new Date())).toBe(0);
+    await student.api.coursework.resumeQuiz({ assignmentId: saved.id });
+    const back = await student.api.coursework.work({ id: saved.id });
+    const { startedAt, endsAt } = back.quiz?.timing ?? {};
+    const allowed = (begun.quiz?.timing?.minutes ?? 0) * 60_000;
+    const moved =
+      Date.parse(endsAt ?? "") - Date.parse(startedAt ?? "") - allowed;
+    expect(moved).toBeGreaterThanOrEqual(5 * 60_000);
+    expect(moved).toBeLessThan(6 * 60_000);
+    expect(back.quiz?.timing).toMatchObject({
+      minutes: begun.quiz?.timing?.minutes,
+      pausedAt: null,
+    });
+    expect(back.quiz?.blocks).toHaveLength(1);
+    await student.api.coursework.saveQuizAnswer({
+      assignmentId: saved.id,
+      blockId: choice.id,
+      response: { type: "choice", optionIds: [right] },
+    });
+    await student.api.coursework.handIn({
+      assignmentId: saved.id,
+      expectedVersion: back.submission.version,
+    });
+    const grading = await teacher.api.coursework.grading({
+      assignmentId: saved.id,
+      studentId: me.id,
+    });
+    expect(grading.quiz?.attempts[0]?.rest?.breaks).toBe(1);
+    expect(grading.quiz?.attempts[0]?.rest?.seconds).toBeGreaterThanOrEqual(
+      300,
+    );
+    await principal.records.saveArrangements({
+      studentId: me.id,
+      expectedVersion: (
+        await principal.records.arrangements({ studentId: me.id })
+      ).version,
+      arrangements: kept.arrangements,
+    });
+  });
+
   test("a quiz that shows which were wrong gives the feedback on each choice but not the answers", async () => {
     const { student, saved, choice, typed } = await quizFor("feedback");
     const wrong = choice.options[1]?.id ?? "";
