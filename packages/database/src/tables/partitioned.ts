@@ -127,7 +127,8 @@ export type NotificationKind =
   | "event"
   | "reminder"
   | "consent"
-  | "mention";
+  | "mention"
+  | "library";
 export type DeliveryChannel = "email" | "sms";
 export type DeliveryState = "pending" | "sent" | "failed" | "skipped";
 export type DeliveryReason =

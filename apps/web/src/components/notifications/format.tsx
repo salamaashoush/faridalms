@@ -9,6 +9,7 @@ import type { ComponentProps, ReactNode } from "react";
 import { Link } from "@tanstack/react-router";
 import {
   AtSign,
+  BookMarked,
   CalendarDays,
   ClipboardCheck,
   Megaphone,
@@ -46,6 +47,7 @@ export const KIND_ICON: Record<NotificationKind, LucideIcon> = {
   reminder: ClipboardCheck,
   consent: ShieldCheck,
   mention: AtSign,
+  library: BookMarked,
 };
 
 /** What a notice says, in the reader's language, from what its producer recorded. */
@@ -135,6 +137,17 @@ export function noticeText(notice: Notice): { title: string; body: string } {
             both(params.actorName, params.actorNameAr) ||
             inLocale(notice.actorNameEn, notice.actorNameAr),
         }),
+        body: title,
+      };
+    case "library":
+      return {
+        title: params.shared
+          ? m.ntfLibraryShared()
+          : m.ntfLibrarySentBack({
+              name:
+                both(params.actorName, params.actorNameAr) ||
+                inLocale(notice.actorNameEn, notice.actorNameAr),
+            }),
         body: title,
       };
   }
@@ -277,6 +290,12 @@ export function NoticeLink({
         <MentionedIn notice={notice} {...rest}>
           {children}
         </MentionedIn>
+      );
+    case "library":
+      return (
+        <Link {...rest} to="/library" search={{}}>
+          {children}
+        </Link>
       );
   }
   return null;

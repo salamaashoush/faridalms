@@ -38,6 +38,10 @@ const LINES: Record<"en" | "ar", Record<NotificationKind, Line>> = {
       `The school asks for your permission: ${p.title ?? ""}${p.studentName ? ` (${p.studentName})` : ""}.`,
     mention: (p) =>
       `${p.actorName || "Someone at school"} mentioned you in ${p.title ?? "a document"}.`,
+    library: (p) =>
+      p.shared
+        ? `${p.title ?? "Your piece"} is now in the school library.`
+        : `${p.actorName || "A reviewer"} sent ${p.title ?? "your piece"} back with a note.`,
   },
   ar: {
     announcement: (p) =>
@@ -66,6 +70,10 @@ const LINES: Record<"en" | "ar", Record<NotificationKind, Line>> = {
       `تطلب المدرسة موافقتك: ${p.title ?? ""}${p.studentName ? ` (${p.studentName})` : ""}.`,
     mention: (p) =>
       `ذكرك ${p.actorName || "أحد أفراد المدرسة"} في ${p.titleAr || p.title || "مستند"}.`,
+    library: (p) =>
+      p.shared
+        ? `أصبح ${p.title ?? "ما شاركته"} في مكتبة المدرسة.`
+        : `أعاد ${p.actorNameAr || p.actorName || "المراجع"} ${p.title ?? "ما شاركته"} إليك مع ملاحظة.`,
   },
 };
 

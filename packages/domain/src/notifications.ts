@@ -13,6 +13,7 @@ export const NOTIFICATION_KINDS = [
   "reminder",
   "consent",
   "mention",
+  "library",
 ] as const;
 export type NotificationKind = (typeof NOTIFICATION_KINDS)[number];
 
@@ -41,6 +42,8 @@ export interface NoticeParams {
   report?: "accepted" | "declined";
   periodName?: string;
   periodNameAr?: string;
+  /** A piece offered to the school library: shared, or sent back to its owner. */
+  shared?: boolean;
 }
 
 /** Urgent notices reach everyone on every channel, so nobody can turn them off. */
@@ -53,6 +56,7 @@ export const CHOOSABLE_KINDS = [
   "reminder",
   "consent",
   "mention",
+  "library",
 ] as const;
 export type ChoosableKind = (typeof CHOOSABLE_KINDS)[number];
 
@@ -96,6 +100,7 @@ export const DEFAULT_PREFERENCES: Preferences = {
     reminder: "instant",
     consent: "digest",
     mention: "instant",
+    library: "digest",
   },
   sms: {
     announcement: "off",
@@ -106,6 +111,7 @@ export const DEFAULT_PREFERENCES: Preferences = {
     reminder: "off",
     consent: "off",
     mention: "off",
+    library: "off",
   },
   quietFrom: "21:00",
   quietTo: "07:00",

@@ -1,4 +1,4 @@
-import { TEMPLATE_KINDS } from "@faridalms/domain/templates";
+import { kindsWritten, TEMPLATE_KINDS } from "@faridalms/domain/templates";
 import { WORKSPACE_HOME } from "@faridalms/domain/workspace";
 import {
   useQuery,
@@ -21,7 +21,7 @@ import { DataTable } from "~/components/system/DataTable";
 import { PageHeader } from "~/components/system/IndexPage";
 import { RecordTabs } from "~/components/system/RecordPage";
 import { StatusText } from "~/components/system/status";
-import { inLocale } from "~/hooks/useCurrentUser";
+import { inLocale, useCurrentUser } from "~/hooks/useCurrentUser";
 import * as m from "~/i18n/messages";
 import { subjectsQuery } from "~/queries/classes";
 import { libraryQuery, libraryQueueQuery } from "~/queries/library";
@@ -49,10 +49,7 @@ export const Route = createFileRoute("/_app/library")({
   loaderDeps: ({ search }) => search,
   loader: async ({ context, deps }) => {
     const user = await context.queryClient.ensureQueryData(currentUserQuery);
-    if (
-      !user.capabilities.includes("learning:author") &&
-      !user.capabilities.includes("assignments:author")
-    )
+    if (kindsWritten(user.capabilities).length === 0)
       throw redirect({ to: WORKSPACE_HOME[user.workspace] });
     await context.queryClient.ensureQueryData(
       libraryQuery({ kind: deps.kind, subjectId: deps.subjectId, q: deps.q }),
@@ -152,6 +149,7 @@ function pieceCard(reviewing: boolean, show: Open) {
 }
 
 function LibraryPage() {
+  const user = useCurrentUser();
   const search = Route.useSearch();
   const navigate = Route.useNavigate();
   const queryClient = useQueryClient();
@@ -221,7 +219,7 @@ function LibraryPage() {
     id: "kind",
     label: m.libraryKind(),
     single: true,
-    options: TEMPLATE_KINDS.map((kind) => ({
+    options: kindsWritten(user.capabilities).map((kind) => ({
       value: kind,
       label: KIND_LABEL[kind](),
     })),

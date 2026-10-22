@@ -436,9 +436,10 @@ Sources: [../research/course-design.md](../research/course-design.md),
    (`library:review`, held by the roles that run a school; a reviewer's own
    share needs no review), who shares it or sends it back with a note. Any
    author previews a shared piece and uses it, which opens a new lesson,
-   assignment or module plan started from it, theirs to edit. Left: whole
-   modules as one piece, and telling a teacher when their piece is
-   reviewed.
+   assignment or module plan started from it, theirs to edit. A teacher
+   is told when their piece is shared or sent back, by a notice kind they
+   choose how to receive, and anyone who writes a kind the library keeps
+   can open it. Left: whole modules as one piece.
 3. **Templates for every kind of document** (newsletter and news as well),
    and the built-in lessons "Read, check, reflect", "Watch and answer" and
    "Listen, choose, record". Done: news posts and announcements join

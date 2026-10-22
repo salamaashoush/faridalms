@@ -1,8 +1,8 @@
 import type { TemplateRow } from "@faridalms/database/stores/templates";
-import type { Capability } from "@faridalms/domain/capabilities";
 import type { ContentDocument } from "@faridalms/domain/content";
 import type { TemplateKind } from "@faridalms/domain/templates";
 
+import { namesOf } from "@faridalms/database/stores/coursework";
 import { documentOf, saveDocument } from "@faridalms/database/stores/documents";
 import {
   insertTemplate,
@@ -16,6 +16,7 @@ import {
   librarySchema,
   reviewTemplateSchema,
   saveTemplateSchema,
+  TEMPLATE_AUTHORS,
   TEMPLATE_KINDS,
   templateKindSchema,
   templateRefSchema,
@@ -24,6 +25,7 @@ import { ORPCError } from "@orpc/server";
 
 import type { UnitContext } from "../core/context";
 
+import { notify } from "../core/notify";
 import {
   audit,
   can,
@@ -33,19 +35,8 @@ import {
 } from "../core/procedure";
 import { placeMedia, registerHostReader } from "../files/authorize";
 
-/** Who writes each kind of document, and so may keep and use its templates. */
-const AUTHOR: Record<TemplateKind, readonly Capability[]> = {
-  lesson: ["learning:author"],
-  assignment: ["assignments:author"],
-  unit_plan: ["learning:author"],
-  news: ["news:manage"],
-  announcement: ["announcements:manage"],
-  event: ["calendar:manage", "calendar:author"],
-  consent_form: ["privacy:manage"],
-};
-
 const writes = (context: UnitContext, kind: TemplateKind) =>
-  AUTHOR[kind].some((capability) => can(context, capability));
+  TEMPLATE_AUTHORS[kind].some((capability) => can(context, capability));
 
 const hostOf = (id: string) => ({ type: "document_template", id });
 
@@ -88,7 +79,7 @@ registerHostReader("document_template", async (context, id) =>
 export const list = readProcedure
   .input(templateKindSchema)
   .handler(async ({ input, context }) => {
-    requireCapability(context, ...AUTHOR[input.kind]);
+    requireCapability(context, ...TEMPLATE_AUTHORS[input.kind]);
     const rows = await templatesOf(context.tx, {
       tenantId: context.tenantId,
       orgId: context.schoolId,
@@ -156,6 +147,20 @@ export const review = writeProcedure
       objectId: row.id,
       details: { title: row.title },
     });
+    // Its owner hears how it went, and finds the reviewer's note in the library.
+    const [reviewer] = await namesOf(context.tx, context.tenantId, [
+      context.actor.userId,
+    ]);
+    await notify(context, [row.ownerUserId], {
+      kind: "library",
+      subject: { type: "document_template", id: row.id },
+      params: {
+        title: row.title,
+        shared: input.share,
+        actorName: reviewer?.fullNameEn ?? reviewer?.fullNameAr ?? "",
+        actorNameAr: reviewer?.fullNameAr ?? reviewer?.fullNameEn ?? "",
+      },
+    });
     return { state: input.share ? "shared" : "declined" };
   });
 
@@ -186,7 +191,7 @@ export const open = readProcedure
 export const save = writeProcedure
   .input(saveTemplateSchema)
   .handler(async ({ input, context }) => {
-    requireCapability(context, ...AUTHOR[input.kind]);
+    requireCapability(context, ...TEMPLATE_AUTHORS[input.kind]);
     // A reviewer's own piece needs no other reviewer.
     const state = can(context, "library:review") ? "shared" : "pending";
     const created = await insertTemplate(context.tx, {

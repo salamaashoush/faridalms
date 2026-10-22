@@ -2790,6 +2790,12 @@ describe("templates", () => {
       saved.id,
     );
     await office.templates.review({ id: saved.id, share: true, note: "" });
+    // Its owner hears it was shared.
+    expect(
+      (await keeper.notifications.list({ tab: "all" })).rows.find(
+        (row) => row.kind === "library" && row.subjectId === saved.id,
+      )?.params,
+    ).toMatchObject({ title: "Read, check, reflect", shared: true });
     expect(
       await rejection(
         office.templates.review({ id: saved.id, share: false, note: "" }),
