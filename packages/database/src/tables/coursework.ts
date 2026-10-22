@@ -167,6 +167,11 @@ export const assignments = core.table.withRLS(
     quizTimeLimit: smallint("quiz_time_limit"),
     /** A quiz for practice: each question checked as it is answered, with tries and hints. */
     quizPractice: boolean("quiz_practice").notNull().default(false),
+    /** What a quiz tells a student with each attempt's score: `{ id, from, text }` each. */
+    quizBands: jsonb("quiz_bands")
+      .$type<{ id: string; from: number; text: string }[]>()
+      .notNull()
+      .default([]),
     /** Returned work shows its grade only once every comment is answered. */
     gradeAfterAnswers: boolean("grade_after_answers").notNull().default(false),
     /**
@@ -240,6 +245,11 @@ export const assignments = core.table.withRLS(
       "assignments",
       "quiz_practice",
       sql`not quiz_practice or submission_format = 'quiz'`,
+    ),
+    ck(
+      "assignments",
+      "quiz_bands",
+      sql`jsonb_typeof(quiz_bands) = 'array' and jsonb_array_length(quiz_bands) <= 6`,
     ),
     ck("assignments", "max_files", sql`max_files between 1 and 20`),
     fk(

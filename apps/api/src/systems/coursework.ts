@@ -173,6 +173,7 @@ import {
 } from "@faridalms/domain/coursework";
 import { DECLARATION_STATEMENT } from "@faridalms/domain/exams";
 import {
+  bandFor,
   checkBlocks,
   isTeacherMarked,
   quizViews,
@@ -568,6 +569,7 @@ export const editor = readProcedure
               shuffle: assignment.quizShuffle,
               timeLimit: assignment.quizTimeLimit,
               practice: assignment.quizPractice,
+              bands: assignment.quizBands,
               started:
                 assignment.state !== "draft" &&
                 (await quizStarted(
@@ -616,6 +618,7 @@ function fieldsOf(input: SaveAssignment) {
     quizShuffle: input.quiz?.shuffle ?? false,
     quizTimeLimit: input.quiz?.timeLimit ?? null,
     quizPractice: input.quiz?.practice ?? false,
+    quizBands: input.quiz?.bands ?? [],
     // A quiz marks itself, so it has no comments to answer first.
     gradeAfterAnswers: !input.quiz && input.gradeAfterAnswers,
     discussionPostFirst: input.discussion?.postFirst ?? null,
@@ -688,6 +691,7 @@ export const reuse = writeProcedure
       quizShuffle: source.quizShuffle,
       quizTimeLimit: source.quizTimeLimit,
       quizPractice: source.quizPractice,
+      quizBands: source.quizBands,
       gradeAfterAnswers: source.gradeAfterAnswers,
       discussionPostFirst: source.discussionPostFirst,
       discussionReplies: source.discussionReplies,
@@ -1340,6 +1344,17 @@ async function attemptsView(
   }));
 }
 
+const scoreOf = (asked: LessonDocument, answers: readonly QuizAnswer[]) =>
+  attemptScore(
+    asked,
+    Object.fromEntries(
+      answers.map((answer) => [answer.blockId, answer.fraction]),
+    ),
+  );
+
+const percentOf = (score: number | null, total: number) =>
+  score === null || total === 0 ? null : Math.round((score / total) * 100);
+
 /**
  * A handed-in attempt's questions as far as the quiz shows them. A practice
  * quiz's questions read as their student left them, right or shown, since
@@ -1964,13 +1979,13 @@ async function learnerQuiz(
           assignment.quizShuffle,
           arranged.fewerChoices,
         ),
-        score: show
-          ? attemptScore(
-              asked,
-              Object.fromEntries(
-                answers.map((answer) => [answer.blockId, answer.fraction]),
-              ),
-            )
+        score: show ? scoreOf(asked, answers) : null,
+        /** What the quiz tells a student with this score. */
+        band: show
+          ? (bandFor(
+              assignment.quizBands,
+              percentOf(scoreOf(asked, answers), quizPoints(asked)),
+            )?.text ?? null)
           : null,
         pending: answers.some((answer) => answer.state === "needs_marking"),
         responses: ownResponsesOf(answers),

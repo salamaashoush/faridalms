@@ -6,6 +6,7 @@ import type {
   Rubric,
   SubmissionFormat,
 } from "@faridalms/domain/coursework";
+import type { FeedbackBand } from "@faridalms/domain/learning";
 
 import { contentPlainText, sameContent } from "@faridalms/domain/content";
 import { emptyContent } from "@faridalms/domain/content-conversion";
@@ -63,6 +64,7 @@ import { formatMinutes, formatNumber } from "~/utils/datetime";
 import { getMessageFromError } from "~/utils/error";
 
 import { classTitle } from "../classes/format";
+import { FeedbackBands, keptBands } from "../learning/FeedbackBands";
 import { displayName } from "../people/format";
 import { formatInstant, PHASE_LABEL, PHASE_TONE } from "./format";
 import { UseAgainSheet } from "./UseAgain";
@@ -106,6 +108,7 @@ interface QuizDraft {
   /** Minutes, or "none" for no time limit. */
   timeLimit: string;
   practice: boolean;
+  bands: FeedbackBand[];
 }
 
 const KEEP_LABEL: Record<QuizKeep, () => string> = {
@@ -213,6 +216,7 @@ const newQuiz = (): QuizDraft => ({
   shuffle: false,
   timeLimit: "none",
   practice: false,
+  bands: [],
 });
 
 function initialDraft(
@@ -283,6 +287,7 @@ function initialDraft(
               ? "none"
               : String(existing.quiz.timeLimit),
           practice: existing.quiz.practice,
+          bands: existing.quiz.bands,
         }
       : newQuiz(),
     discussion: existing.discussion
@@ -528,6 +533,7 @@ export function AssignmentEditor({
               reveal: value.quiz.practice ? "answers" : value.quiz.reveal,
               shuffle: value.quiz.shuffle,
               practice: value.quiz.practice,
+              bands: keptBands(value.quiz.bands),
               timeLimit:
                 value.quiz.timeLimit === "none"
                   ? null
@@ -1282,6 +1288,10 @@ export function AssignmentEditor({
                   hint={m.quizShuffleHint()}
                   checked={draft.quiz.shuffle}
                   onChange={(value) => setQuiz("shuffle", value)}
+                />
+                <FeedbackBands
+                  bands={draft.quiz.bands}
+                  onChange={(value) => setQuiz("bands", value)}
                 />
               </DetailsSection>
             ) : null}

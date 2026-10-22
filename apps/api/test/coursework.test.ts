@@ -1942,6 +1942,10 @@ describe("quizzes", () => {
           reveal: "answers",
           shuffle: false,
           practice: true,
+          bands: [
+            { id: uuid(), from: 0, text: "Look at the noun page again." },
+            { id: uuid(), from: 60, text: "Good work." },
+          ],
         },
       }),
     );
@@ -1989,6 +1993,7 @@ describe("quizzes", () => {
     const after = await student.api.coursework.work({ id: saved.id });
     // Right on the second try keeps two thirds of its three points.
     expect(after.quiz?.results[0]?.score).toBeCloseTo(2, 1);
+    expect(after.quiz?.results[0]?.band).toBe("Good work.");
   });
 
   test("a quiz shown only when returned keeps its results back until then", async () => {

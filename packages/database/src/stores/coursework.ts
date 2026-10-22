@@ -1,3 +1,5 @@
+import type { FeedbackBand } from "@faridalms/domain/learning";
+
 import { sql } from "drizzle-orm";
 
 import type { CellTransaction } from "../context";
@@ -48,6 +50,7 @@ export interface AssignmentRow {
   quizShuffle: boolean;
   quizTimeLimit: number | null;
   quizPractice: boolean;
+  quizBands: FeedbackBand[];
   gradeAfterAnswers: boolean;
   discussionPostFirst: boolean | null;
   discussionReplies: number | null;
@@ -83,6 +86,7 @@ type AssignmentRecord = {
   quiz_shuffle: boolean;
   quiz_time_limit: number | null;
   quiz_practice: boolean;
+  quiz_bands: FeedbackBand[];
   grade_after_answers: boolean;
   discussion_post_first: boolean | null;
   discussion_replies: number | null;
@@ -96,7 +100,7 @@ const assignmentColumns = sql`a.id, a.version, a.org_id, a.class_id, a.class_typ
   to_char(a.closes_at at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS"Z"') as closes_at,
   a.late_policy, a.late_deduction_percent, a.submission_format, a.max_files, a.resubmission,
   a.points::text as points, a.rubric, a.quiz_attempts, a.quiz_keep, a.quiz_reveal, a.quiz_shuffle,
-  a.quiz_time_limit, a.quiz_practice, a.grade_after_answers, a.discussion_post_first, a.discussion_replies,
+  a.quiz_time_limit, a.quiz_practice, a.quiz_bands, a.grade_after_answers, a.discussion_post_first, a.discussion_replies,
   to_char(a.published_at at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS"Z"') as published_at`;
 
 function assignmentOf(row: AssignmentRecord): AssignmentRow {
@@ -129,6 +133,7 @@ function assignmentOf(row: AssignmentRecord): AssignmentRow {
     quizShuffle: row.quiz_shuffle,
     quizTimeLimit: row.quiz_time_limit,
     quizPractice: row.quiz_practice,
+    quizBands: row.quiz_bands,
     gradeAfterAnswers: row.grade_after_answers,
     discussionPostFirst: row.discussion_post_first,
     discussionReplies: row.discussion_replies,
@@ -168,6 +173,7 @@ export interface AssignmentFields {
   quizShuffle: boolean;
   quizTimeLimit: number | null;
   quizPractice: boolean;
+  quizBands: FeedbackBand[];
   gradeAfterAnswers: boolean;
   discussionPostFirst: boolean | null;
   discussionReplies: number | null;
@@ -186,7 +192,7 @@ export async function insertAssignment(
     insert into core.assignments (tenant_id, org_id, class_id, class_type, school_year_id,
       grading_period_id, author_user_id, title, audience, available_from, due_at, closes_at,
       late_policy, late_deduction_percent, submission_format, max_files, resubmission, points, rubric,
-      quiz_attempts, quiz_keep, quiz_reveal, quiz_shuffle, quiz_time_limit, quiz_practice, category_id,
+      quiz_attempts, quiz_keep, quiz_reveal, quiz_shuffle, quiz_time_limit, quiz_practice, quiz_bands, category_id,
       grade_after_answers, discussion_post_first, discussion_replies)
     values (${input.tenantId}::uuid, ${input.orgId}::uuid, ${input.classRow.id}::uuid,
       ${input.classRow.classType}, ${input.classRow.schoolYearId}::uuid,
@@ -195,7 +201,8 @@ export async function insertAssignment(
       ${input.closesAt}::timestamptz, ${input.latePolicy}, ${input.lateDeductionPercent},
       ${input.submissionFormat}, ${input.maxFiles}, ${input.resubmission}, ${input.points},
       ${input.rubric}::jsonb, ${input.quizAttempts}, ${input.quizKeep}, ${input.quizReveal},
-      ${input.quizShuffle}, ${input.quizTimeLimit}, ${input.quizPractice}, ${input.categoryId}::uuid,
+      ${input.quizShuffle}, ${input.quizTimeLimit}, ${input.quizPractice},
+      ${JSON.stringify(input.quizBands)}::text::jsonb, ${input.categoryId}::uuid,
       ${input.gradeAfterAnswers}, ${input.discussionPostFirst}, ${input.discussionReplies})
     returning id, version`);
   if (!row) throw new Error("assignment was not created");
@@ -228,6 +235,7 @@ export async function updateAssignment(
         quiz_reveal = ${input.quizReveal}, quiz_shuffle = ${input.quizShuffle},
         quiz_time_limit = ${input.quizTimeLimit},
         quiz_practice = ${input.quizPractice},
+        quiz_bands = ${JSON.stringify(input.quizBands)}::text::jsonb,
         grade_after_answers = ${input.gradeAfterAnswers},
         discussion_post_first = ${input.discussionPostFirst},
         discussion_replies = ${input.discussionReplies}

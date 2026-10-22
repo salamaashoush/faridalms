@@ -208,6 +208,13 @@ Sources: [../research/course-design.md](../research/course-design.md),
    exercises, are kept for hand-in as in any quiz.
    Left: code exercises checked at once in a practice quiz.
 8. **Overall feedback in bands** for a practice set's score.
+   Done: a scored lesson and a quiz each take up to six messages by score,
+   each for scores from its own up to the next (`lessons.feedback_bands`,
+   `assignments.quiz_bands`), written in the lesson's details or the quiz
+   settings. A student who finishes the lesson reads the message for
+   their score under it, and a quiz attempt's results open with theirs;
+   none shows while the score is kept back.
+   Left: messages for a module's mixed practice set.
 9. **Suggested checks** made from a document, held as unreviewed until a
    teacher accepts each, so publishing waits for that review.
 10. **More question kinds**: word bank, poll, highlight words, label an

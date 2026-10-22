@@ -1647,6 +1647,10 @@ describe("hints asked for", () => {
       passScore: null,
       review: false,
       content: written([asked]),
+      bands: [
+        { id: id(), from: 0, text: "Read the page on nouns again." },
+        { id: id(), from: 50, text: "Well done." },
+      ],
       publish: false,
     });
     await keeper.learning.publishModule({
@@ -1675,6 +1679,10 @@ describe("hints asked for", () => {
     // Two hints cost what two wrong tries would have.
     expect(answered.check).toMatchObject({ correct: true, hints: [] });
     expect(answered.score).toBe(33);
+    // A finished lesson tells its student the message for their score.
+    expect((await pupil.learning.playLesson({ id: lessonId })).band).toBe(
+      "Read the page on nouns again.",
+    );
     expect(
       await rejection(pupil.learning.hint({ lessonId, blockId: asked.id })),
     ).toMatchObject({ message: "learning.no_hint" });

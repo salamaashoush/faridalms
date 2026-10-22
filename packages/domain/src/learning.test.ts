@@ -19,11 +19,13 @@ import type {
 
 import {
   answerKey,
+  bandFor,
   checkStates,
   completionMet,
   creditOf,
   describeCheck,
   feedbackAtOf,
+  feedbackBandsSchema,
   gapsSource,
   lessonIssue,
   lessonConditionSchema,
@@ -487,6 +489,31 @@ describe("marking again under a changed key", () => {
       firstTryCorrect: true,
     });
     expect(remarksOf(fixed, rows)).toEqual([]);
+  });
+});
+
+describe("messages by score", () => {
+  const bands = [
+    { id: uuid(51), from: 0, text: "Look at the river map again." },
+    { id: uuid(52), from: 80, text: "Well done." },
+    { id: uuid(53), from: 50, text: "Nearly there." },
+  ];
+
+  it("gives the band starting highest at or below the score", () => {
+    expect(bandFor(bands, 100)?.text).toBe("Well done.");
+    expect(bandFor(bands, 80)?.text).toBe("Well done.");
+    expect(bandFor(bands, 79)?.text).toBe("Nearly there.");
+    expect(bandFor(bands, 10)?.text).toBe("Look at the river map again.");
+    expect(bandFor(bands, null)).toBeNull();
+    expect(bandFor(bands.slice(1), 10)).toBeNull();
+  });
+
+  it("refuses two bands from the same score", () => {
+    const twice = v.safeParse(feedbackBandsSchema, [
+      bands[0],
+      { ...bands[1], from: 0 },
+    ]);
+    expect(twice.success).toBe(false);
   });
 });
 

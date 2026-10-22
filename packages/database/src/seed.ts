@@ -2079,6 +2079,7 @@ async function seedLearning(
         young: false,
         readAlong: true,
         condition: null,
+        bands: [],
       });
       lessonIds.push(row.id);
       const content = { version: 2, blocks: lesson.blocks };

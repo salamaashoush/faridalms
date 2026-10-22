@@ -105,6 +105,7 @@ import {
   checkBlocks,
   checkStates,
   completionMet,
+  bandFor,
   describeCheck,
   describeReview,
   remarksOf,
@@ -898,6 +899,7 @@ async function copyLesson(
     review: lesson.review,
     vowelMarks: lesson.vowelMarks,
     young: lesson.young,
+    bands: lesson.bands,
     readAlong: lesson.readAlong,
     condition,
   });
@@ -1256,6 +1258,7 @@ export const saveLesson = writeProcedure
       vowelMarks: input.vowelMarks,
       young: input.young,
       readAlong: input.readAlong,
+      bands: input.bands,
       condition: await checkedCondition(
         context,
         owner.id,
@@ -2308,6 +2311,11 @@ export const playLesson = writeProcedure
         ? (own?.completedAt ?? context.now.toISOString())
         : null,
       score: toldScore(played, own?.score ?? null),
+      /** What the lesson tells a student who has finished it, by their score. */
+      band: completed
+        ? (bandFor(row.bands, toldScore(played, own?.score ?? null))?.text ??
+          null)
+        : null,
       position: own?.position ?? null,
       watches: await watchedIn(context, played),
       codes: await ownCode(context, played),

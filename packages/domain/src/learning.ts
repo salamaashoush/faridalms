@@ -2378,6 +2378,39 @@ export const duplicateModuleSchema = v.object({
   ),
 });
 
+/** Messages a scored lesson or quiz may give by score, as Moodle's overall feedback does. */
+export const MAX_FEEDBACK_BANDS = 6;
+
+/** A message for students scoring at least `from` percent, below the next band up. */
+export const feedbackBandSchema = v.object({
+  id,
+  from: v.pipe(v.number(), v.integer(), v.minValue(0), v.maxValue(100)),
+  text: requiredText(500),
+});
+export type FeedbackBand = v.InferOutput<typeof feedbackBandSchema>;
+
+export const feedbackBandsSchema = v.pipe(
+  v.array(feedbackBandSchema),
+  v.maxLength(MAX_FEEDBACK_BANDS),
+  v.check(
+    (bands) => new Set(bands.map((band) => band.from)).size === bands.length,
+    "learning.band_twice",
+  ),
+);
+
+/** The message for a score: the band starting highest at or below it. */
+export function bandFor(
+  bands: readonly FeedbackBand[],
+  score: number | null,
+): FeedbackBand | null {
+  if (score === null) return null;
+  return (
+    bands
+      .filter((band) => band.from <= score)
+      .toSorted((a, b) => b.from - a.from)[0] ?? null
+  );
+}
+
 export const saveLessonSchema = v.pipe(
   v.object({
     id: optionalId,
@@ -2399,6 +2432,8 @@ export const saveLessonSchema = v.pipe(
     readAlong: v.optional(v.boolean(), true),
     /** Show the lesson only to students scoring in a range in an earlier lesson. */
     condition: v.optional(v.nullable(lessonConditionSchema), null),
+    /** What a student is told on finishing, by their score. */
+    bands: v.optional(feedbackBandsSchema, []),
     /** Put the saved lesson in front of students at once, when its module is open. */
     publish: v.optional(v.boolean(), false),
     /** Mark answers already given again, where a changed key marks them differently. */

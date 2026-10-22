@@ -238,6 +238,11 @@ export const lessons = core.table.withRLS(
     passScore: smallint("pass_score"),
     /** Questions missed on the first try are asked once more at the end. */
     review: boolean("review").notNull().default(false),
+    /** What a student is told on finishing, by their score: `{ id, from, text }` each. */
+    bands: jsonb("feedback_bands")
+      .$type<{ id: string; from: number; text: string }[]>()
+      .notNull()
+      .default([]),
     /** Set out for young children: text read aloud on a tap, larger answers. */
     young: boolean("young").notNull().default(false),
     /** A young lesson lights each word as the voice reads it. */
@@ -288,6 +293,11 @@ export const lessons = core.table.withRLS(
           and coalesce(condition_at_least between 1 and 100, true)
           and coalesce(condition_below between 1 and 100, true)
           and coalesce(condition_at_least < condition_below, true) end`,
+    ),
+    ck(
+      "lessons",
+      "feedback_bands",
+      sql`jsonb_typeof(feedback_bands) = 'array' and jsonb_array_length(feedback_bands) <= 6`,
     ),
     index("lessons_module_idx")
       .on(t.tenantId, t.moduleId, t.position)

@@ -8,6 +8,7 @@ import { contentIssues } from "./content-checks";
 import { declarationSchema } from "./exams";
 import {
   checkBlocks,
+  feedbackBandsSchema,
   isCheck,
   lessonDocumentSchema,
   MAX_MARKED_TOGETHER,
@@ -143,6 +144,8 @@ export const quizSchema = v.object({
   shuffle: v.boolean(),
   /** Each question is checked as it is answered, with its tries and hints, as in a lesson. */
   practice: v.optional(v.boolean(), false),
+  /** What a student is told with each attempt's score, by that score. */
+  bands: v.optional(feedbackBandsSchema, []),
   /** Minutes an attempt runs from when it begins; null for no limit. */
   timeLimit: v.optional(
     v.nullable(

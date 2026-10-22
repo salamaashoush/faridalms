@@ -1,4 +1,4 @@
-import type { LessonCondition } from "@faridalms/domain/learning";
+import type { FeedbackBand, LessonCondition } from "@faridalms/domain/learning";
 import type { LiveProgress, LiveTry } from "@faridalms/domain/live";
 import type { SQL } from "drizzle-orm";
 
@@ -424,6 +424,8 @@ export interface LessonRow {
   young: boolean;
   readAlong: boolean;
   condition: LessonCondition | null;
+  /** What a student is told on finishing, by their score. */
+  bands: FeedbackBand[];
 }
 
 type LessonRecord = {
@@ -441,6 +443,7 @@ type LessonRecord = {
   condition_lesson_id: string | null;
   condition_at_least: number | null;
   condition_below: number | null;
+  feedback_bands: FeedbackBand[];
 };
 
 function lessonOf(row: LessonRecord): LessonRow {
@@ -463,11 +466,13 @@ function lessonOf(row: LessonRecord): LessonRow {
           below: row.condition_below,
         }
       : null,
+    bands: row.feedback_bands,
   };
 }
 
 const lessonColumns = sql`l.id, l.version, l.module_id, l.position, l.title, l.completion, l.pass_score,
-  l.review, l.vowel_marks, l.young, l.read_along, l.condition_lesson_id, l.condition_at_least, l.condition_below`;
+  l.review, l.vowel_marks, l.young, l.read_along, l.condition_lesson_id, l.condition_at_least, l.condition_below,
+  l.feedback_bands`;
 
 export async function lessonsOf(
   tx: Tx,
@@ -516,6 +521,7 @@ export interface LessonFields {
   young: boolean;
   readAlong: boolean;
   condition: LessonCondition | null;
+  bands: FeedbackBand[];
 }
 
 export async function insertLesson(
@@ -524,14 +530,15 @@ export async function insertLesson(
 ): Promise<{ id: string; version: number }> {
   const [row] = await tx.execute<{ id: string; version: number }>(sql`
     insert into core.lessons (tenant_id, module_id, position, title, completion, pass_score, review,
-      vowel_marks, young, read_along, condition_lesson_id, condition_at_least, condition_below)
+      vowel_marks, young, read_along, condition_lesson_id, condition_at_least, condition_below,
+      feedback_bands)
     values (${input.tenantId}::uuid, ${input.moduleId}::uuid,
       coalesce((select max(position) + 1 from core.lessons where tenant_id = ${input.tenantId}::uuid
         and module_id = ${input.moduleId}::uuid and status = 'active'), 0),
       ${input.title}, ${input.completion}, ${input.passScore}, ${input.review},
       ${input.vowelMarks}, ${input.young}, ${input.readAlong},
       ${input.condition?.lessonId ?? null}::uuid, ${input.condition?.atLeast ?? null},
-      ${input.condition?.below ?? null})
+      ${input.condition?.below ?? null}, ${JSON.stringify(input.bands)}::text::jsonb)
     returning id, version`);
   if (!row) throw new Error("lesson not written");
   return row;
@@ -551,7 +558,8 @@ export async function updateLesson(
       review = ${input.review}, vowel_marks = ${input.vowelMarks}, young = ${input.young},
       read_along = ${input.readAlong}, condition_lesson_id = ${input.condition?.lessonId ?? null}::uuid,
       condition_at_least = ${input.condition?.atLeast ?? null},
-      condition_below = ${input.condition?.below ?? null}
+      condition_below = ${input.condition?.below ?? null},
+      feedback_bands = ${JSON.stringify(input.bands)}::text::jsonb
     where tenant_id = ${input.tenantId}::uuid and id = ${input.id}::uuid
       and version = ${input.expectedVersion} and status = 'active'
     returning version`);

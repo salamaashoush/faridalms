@@ -1027,12 +1027,19 @@ export function LessonPlayer({ lessonId }: { lessonId: string }) {
       />
       {data.completedAt ? (
         <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-success/30 bg-success/5 px-5 py-4">
-          <p className="inline-flex items-center gap-2 text-sm leading-5 font-medium">
-            <CircleCheck aria-hidden className="size-4 text-success" />
-            {data.score === null
-              ? m.lrnLessonFinished()
-              : m.lrnFinishedScore({ value: formatNumber(data.score) })}
-          </p>
+          <div className="grid gap-1">
+            <p className="inline-flex items-center gap-2 text-sm leading-5 font-medium">
+              <CircleCheck aria-hidden className="size-4 text-success" />
+              {data.score === null
+                ? m.lrnLessonFinished()
+                : m.lrnFinishedScore({ value: formatNumber(data.score) })}
+            </p>
+            {data.band ? (
+              <p dir="auto" className="ps-6 text-sm leading-5">
+                {data.band}
+              </p>
+            ) : null}
+          </div>
           {canRetry ? (
             <RetryButton
               pending={retry.isPending}

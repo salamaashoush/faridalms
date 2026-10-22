@@ -1,5 +1,6 @@
 import type { ContentDocument } from "@faridalms/domain/content";
 import type {
+  FeedbackBand,
   LessonCompletion,
   LessonCondition,
   VowelMarks,
@@ -12,6 +13,7 @@ import {
   VOWEL_MARKS,
   lessonIssue,
   lessonPlainText,
+  lessonScored,
 } from "@faridalms/domain/learning";
 import {
   contentOfLesson,
@@ -54,6 +56,7 @@ import { formatNumber } from "~/utils/datetime";
 import { getMessageFromError } from "~/utils/error";
 
 import { CopyLessonSheet } from "./CopyLesson";
+import { FeedbackBands, keptBands } from "./FeedbackBands";
 import { COMPLETION_LABEL, conditionText } from "./format";
 import { blockIssue } from "./issues";
 import { PATTERNS } from "./patterns";
@@ -104,6 +107,7 @@ interface Draft {
   vowelMarks: VowelMarks;
   young: boolean;
   readAlong: boolean;
+  bands: FeedbackBand[];
   /** Shown only to students by their score in an earlier lesson. */
   byScore: boolean;
   conditionLessonId: string;
@@ -174,6 +178,7 @@ export function LessonEditor({
         module.classes.length > 0 &&
         module.classes.every((row) => row.young)),
     readAlong: existing?.readAlong ?? true,
+    bands: existing?.bands ?? [],
     byScore: Boolean(existing?.condition),
     conditionLessonId: existing?.condition?.lessonId ?? "",
     range:
@@ -283,6 +288,7 @@ export function LessonEditor({
           vowelMarks: value.vowelMarks,
           young: value.young,
           readAlong: value.readAlong,
+          bands: keptBands(value.bands),
           condition: conditionOf(value) ?? null,
           content: shared ? content.current : value.content,
           publish,
@@ -597,6 +603,12 @@ export function LessonEditor({
                 checked={draft.review}
                 onChange={(review) => set("review", review)}
               />
+              {lessonScored(draft.content) ? (
+                <FeedbackBands
+                  bands={draft.bands}
+                  onChange={(bands) => set("bands", bands)}
+                />
+              ) : null}
             </DetailsSection>
             <DetailsSection title={m.lrnSectionPath()}>
               <SelectField

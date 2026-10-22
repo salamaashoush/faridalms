@@ -159,6 +159,13 @@ function Results({ quiz }: { quiz: LearnerQuiz }) {
                 <p className="text-sm leading-5 text-muted-foreground">
                   {m.quizPendingMarks()}
                 </p>
+              ) : result.band ? (
+                <p
+                  dir="auto"
+                  className="rounded-lg bg-muted/50 px-4 py-3 text-sm leading-5"
+                >
+                  {result.band}
+                </p>
               ) : null}
               <CheckModeContext.Provider value="review">
                 <QuizBlocks
