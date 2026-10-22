@@ -81,6 +81,16 @@ const HlsJsVideo = lazy(() =>
     default: module.HlsJsVideo,
   })),
 );
+const YouTubeVideo = lazy(() =>
+  import("@videojs/react/media/youtube-video").then((module) => ({
+    default: module.YouTubeVideo,
+  })),
+);
+const VimeoVideo = lazy(() =>
+  import("@videojs/react/media/vimeo-video").then((module) => ({
+    default: module.VimeoVideo,
+  })),
+);
 
 /** What a student played of a recording since the last report, in whole seconds. */
 export interface WatchReport {
@@ -1071,6 +1081,122 @@ export function VideoSurface({
         ) : null}
         {captions && strings ? (
           <VideoTranscript captions={captions} strings={strings} />
+        ) : null}
+      </VideoPlayer>
+    </I18nProvider>
+  );
+}
+
+/** A video another service hosts, which our player drives through its own API. */
+export interface FramedSource {
+  provider: "youtube" | "vimeo";
+  id: string;
+}
+
+/**
+ * A YouTube or Vimeo video played through the school's own controls, which
+ * sit under the service's frame rather than over it: YouTube allows nothing
+ * drawn over its player, so neither service's frame is covered. The
+ * service's own controls stay hidden; its privacy-minded address is used,
+ * and it plays as it loads, since loading it was the student's choice.
+ */
+export function FramedVideo({
+  source,
+  locale,
+  watch,
+  chapters = NO_CHAPTERS,
+  label,
+}: {
+  source: FramedSource;
+  locale: string;
+  watch?: MediaWatch | undefined;
+  chapters?: readonly Chapter[] | undefined;
+  /** Names the chapter list beside the video. */
+  label?: string | undefined;
+}) {
+  const dir = pageDirection(locale);
+  return (
+    <I18nProvider locale={locale}>
+      <VideoPlayer>
+        <Container className="dark grid w-full overflow-hidden rounded-lg bg-black text-foreground scheme-dark outline-none focus-visible:ring-3 focus-visible:ring-ring/50">
+          <div className="relative aspect-video w-full [&>iframe]:absolute [&>iframe]:inset-0 [&>iframe]:size-full">
+            <Suspense fallback={null}>
+              {source.provider === "youtube" ? (
+                <YouTubeVideo
+                  src={`https://www.youtube-nocookie.com/embed/${source.id}`}
+                  autoplay
+                  playsInline
+                />
+              ) : (
+                <VimeoVideo
+                  source={{
+                    src: `https://player.vimeo.com/video/${source.id}`,
+                    engine: { vimeo: { dnt: true } },
+                  }}
+                  autoplay
+                  playsInline
+                />
+              )}
+            </Suspense>
+          </div>
+          <div dir="ltr" className="grid gap-1 px-2 pt-1 pb-1.5">
+            <TimeSlider.Root className={cx(sliderRoot, "h-4 max-md:h-6")}>
+              {chapters.length > 0 ? (
+                <TimeSlider.Chapters
+                  className="relative flex h-full w-full items-center"
+                  renderChapter={(props) => (
+                    <div {...props} className={chapterClip}>
+                      <VideoTrack />
+                    </div>
+                  )}
+                />
+              ) : (
+                <VideoTrack />
+              )}
+              {watch?.stops?.length ? <Marks marks={watch.stops} /> : null}
+              <TimeSlider.Thumb className={sliderThumb} />
+              <TimeSlider.Preview className="bottom-full mb-2 flex flex-col items-center gap-1 opacity-0 transition-opacity duration-150 group-data-pointing/slider:opacity-100">
+                <TimeSlider.ChapterTitle className="max-w-48 truncate rounded-md bg-background/90 px-1.5 py-0.5 text-xs font-medium empty:hidden" />
+                <TimeSlider.Value
+                  type="pointer"
+                  className="rounded-md bg-background/90 px-1.5 py-0.5 text-xs font-medium tabular-nums"
+                />
+              </TimeSlider.Preview>
+            </TimeSlider.Root>
+            <Tooltip.Provider>
+              <div className="flex items-center gap-0.5">
+                <PlayControl />
+                <VolumeControl />
+                <Clock />
+                {chapters.length > 0 ? (
+                  <ChapterNow chapters={chapters} />
+                ) : null}
+                <span className="flex-1" />
+                <SpeedMenu dir={dir} />
+                <PlayerTip>
+                  <FullscreenButton
+                    className={control}
+                    render={(props, state) => (
+                      <button type="button" {...props}>
+                        {state.fullscreen ? (
+                          <Minimize aria-hidden />
+                        ) : (
+                          <Maximize aria-hidden />
+                        )}
+                      </button>
+                    )}
+                  />
+                </PlayerTip>
+              </div>
+            </Tooltip.Provider>
+          </div>
+          <PlayerError />
+          <PlaybackKeys video />
+          {watch ? <VideoWatching watch={watch} /> : null}
+          <StatusAnnouncer className={announcer} />
+        </Container>
+        {chapters.length > 0 && label ? (
+          <VideoChapters chapters={chapters} label={label} />
         ) : null}
       </VideoPlayer>
     </I18nProvider>

@@ -730,6 +730,7 @@ function draw(
             {...embed}
             loadLabel={context.strings.embedLoad(name)}
             privacy={context.strings.embedPrivacy(name)}
+            locale={context.locale}
           />
           <div className="flex items-center justify-between gap-2">
             {node.caption ? (

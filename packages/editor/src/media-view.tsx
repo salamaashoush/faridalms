@@ -12,7 +12,13 @@ import { useEffect, useState } from "react";
 
 import type { MediaWatch, PlayerCaptions, TranscriptStrings } from "./player";
 
-import { AudioBar, PlayerFrame, StartMark, VideoSurface } from "./player";
+import {
+  AudioBar,
+  FramedVideo,
+  PlayerFrame,
+  StartMark,
+  VideoSurface,
+} from "./player";
 
 export function MediaPlayer({
   src,
@@ -177,19 +183,42 @@ export function MediaTranscript({
   );
 }
 
+/**
+ * Another service's page in the document, loaded only once the reader
+ * chooses to, since loading it tells that service they are here. A YouTube
+ * or Vimeo video then plays through the school's own player.
+ */
 export function EmbedFrame({
   provider,
   embedId,
   loadLabel,
   privacy,
+  locale,
+  watch,
+  chapters,
+  chaptersLabel,
 }: {
   provider: EmbedProvider;
   embedId: string;
   loadLabel: string;
   privacy: string;
+  locale: string;
+  watch?: MediaWatch | undefined;
+  chapters?: readonly Chapter[] | undefined;
+  chaptersLabel?: string | undefined;
 }) {
   const [loaded, setLoaded] = useState(false);
   const name = embedProviderNames[provider];
+  if (loaded && (provider === "youtube" || provider === "vimeo"))
+    return (
+      <FramedVideo
+        source={{ provider, id: embedId }}
+        locale={locale}
+        watch={watch}
+        chapters={chapters}
+        label={chaptersLabel}
+      />
+    );
   return (
     <div
       className="relative w-full overflow-hidden rounded-lg border bg-muted/40"

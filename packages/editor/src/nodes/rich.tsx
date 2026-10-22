@@ -300,7 +300,7 @@ function EmbedBlock({
   caption: string;
   size: ImageSize;
 }) {
-  const { strings } = useEditorEnvironment();
+  const { strings, locale } = useEditorEnvironment();
   const editable = useLexicalEditable();
   const update = useNodeUpdate(nodeKey, $isEmbedNode);
   useSelectOnClick(nodeKey);
@@ -319,6 +319,7 @@ function EmbedBlock({
           embedId={embedId}
           loadLabel={strings.embedLoad(name)}
           privacy={strings.embedPrivacy(name)}
+          locale={locale}
         />
         <div className="flex items-center justify-between gap-2">
           {editable ? (
