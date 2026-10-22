@@ -67,7 +67,7 @@ export function ContentEditor({
   placeholder?: string;
   initialFocus?: boolean;
   collaboration?: EditorCollaboration;
-  replace?: { to: ContentDocument; at: number };
+  replace?: { to: ContentDocument; at: number; quiet?: boolean };
   onUploadingChange?: (uploading: boolean) => void;
   questions?: boolean;
   gates?: boolean;

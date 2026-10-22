@@ -73,6 +73,8 @@ import { WordImportPlugin } from "./plugins/word";
 import { holdSlot } from "./slots";
 import { editorTheme } from "./theme";
 
+const QUIET_REPLACE = "fe-quiet-replace";
+
 /**
  * Live editing: the document's shared state comes from the provider, which
  * the host builds for a room it holds a ticket for. The server fills a new
@@ -118,8 +120,10 @@ export interface EditorProps {
   /**
    * Puts this content in place of what the editor holds each time `at`
    * changes, as an edit, so a live room passes it on to everyone in it.
+   * A quiet one is not told back through `onChange`, for a caller that
+   * already holds it and keeps its own history.
    */
-  replace?: { to: ContentDocument; at: number };
+  replace?: { to: ContentDocument; at: number; quiet?: boolean };
   /** Told whether files are still uploading into the document. */
   onUploadingChange?: (uploading: boolean) => void;
   /** The document may ask questions, as a lesson or quiz does. */
@@ -422,21 +426,24 @@ function Surface({
   useEffect(() => {
     if (!replace || replace.at === replaced.current) return;
     replaced.current = replace.at;
-    editor.update(() => {
-      const root = $getRoot();
-      root.clear();
-      for (const child of replace.to.root.children ?? [])
-        root.append($parseSerializedNode(child));
-      // The caret pointed into the text just thrown away; leaving it unset
-      // keeps the commit from moving focus into the editor mid-update.
-      $setSelection(null);
-    });
+    editor.update(
+      () => {
+        const root = $getRoot();
+        root.clear();
+        for (const child of replace.to.root.children ?? [])
+          root.append($parseSerializedNode(child));
+        // The caret pointed into the text just thrown away; leaving it unset
+        // keeps the commit from moving focus into the editor mid-update.
+        $setSelection(null);
+      },
+      replace.quiet ? { tag: QUIET_REPLACE } : undefined,
+    );
   }, [editor, replace]);
 
   useEffect(
     () =>
       editor.registerUpdateListener(
-        ({ editorState, dirtyElements, dirtyLeaves }) => {
+        ({ editorState, dirtyElements, dirtyLeaves, tags }) => {
           if (!dirtyElements.size && !dirtyLeaves.size) return;
           const result = v.safeParse(
             contentDocumentSchema,
@@ -446,7 +453,7 @@ function Surface({
           onValidityChange?.(result.success);
           if (!result.success) return;
           setCount(contentPlainText(result.output).length);
-          onChange(result.output);
+          if (!tags.has(QUIET_REPLACE)) onChange(result.output);
         },
       ),
     [editor, onChange, onValidityChange],

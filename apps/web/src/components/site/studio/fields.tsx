@@ -55,7 +55,7 @@ import {
   UsersRound,
   X,
 } from "lucide-react";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 
 import { ContentEditor } from "~/components/content/ContentEditor";
@@ -890,6 +890,56 @@ function ChoiceControl({
   );
 }
 
+/**
+ * A rich body. The editor keeps its own words as they are typed, so a
+ * change made to the page from outside it, as an undo is, is put into it;
+ * otherwise the next key pressed would bring the undone words back.
+ */
+function RichControl({
+  id,
+  label,
+  value,
+  media,
+  onChange,
+}: {
+  id: string;
+  label: string;
+  value: ContentDocument;
+  media: EditorMedia;
+  onChange: (value: ContentDocument) => void;
+}) {
+  const written = useRef(JSON.stringify(value));
+  const [replace, setReplace] = useState<{
+    to: ContentDocument;
+    at: number;
+    quiet: true;
+  }>();
+  const words = JSON.stringify(value);
+  useEffect(() => {
+    if (words === written.current) return;
+    written.current = words;
+    setReplace((before) => ({
+      to: value,
+      at: (before?.at ?? 0) + 1,
+      quiet: true,
+    }));
+  }, [words, value]);
+  return (
+    <ContentEditor
+      id={id}
+      label={label}
+      value={value}
+      replace={replace}
+      media={media}
+      sharedBlocks
+      onChange={(next) => {
+        written.current = JSON.stringify(next);
+        onChange(next);
+      }}
+    />
+  );
+}
+
 /** Whether a field has anything to edit in a language that only takes words. */
 const hasWords = (field: Field): boolean =>
   field.kind === "items"
@@ -942,13 +992,12 @@ export function FieldControl({
             dir={dirOf(context.locale)}
             className="min-w-0"
           >
-            <ContentEditor
+            <RichControl
               id={id}
               label={label}
               value={value as ContentDocument}
-              onChange={onChange}
               media={context.media}
-              sharedBlocks
+              onChange={onChange}
             />
           </div>
         </StudioField>
