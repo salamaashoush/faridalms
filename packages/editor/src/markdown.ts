@@ -29,6 +29,7 @@ import {
   $isFileNode,
   $isImageNode,
   $isToggleNode,
+  $isPanelsNode,
   CalloutNode,
   StarterNode,
   ColumnsNode,
@@ -36,6 +37,7 @@ import {
   ImageNode,
   MathNode,
   ToggleNode,
+  PanelsNode,
 } from "./nodes";
 
 const never = /(?!)/;
@@ -96,6 +98,31 @@ const TOGGLE: ElementTransformer = {
       : "";
     return [heading, body].filter(Boolean).join("\n\n");
   },
+  regExp: never,
+  replace: () => false,
+  type: "element",
+};
+
+const PANELS: ElementTransformer = {
+  dependencies: [PanelsNode],
+  export: (node, traverse) =>
+    $isPanelsNode(node)
+      ? node
+          .getChildren()
+          .map((panel) => {
+            if (!$isElementNode(panel)) return "";
+            const [title, body] = panel.getChildren();
+            const heading = $isElementNode(title) ? traverse(title) : "";
+            const text = $isElementNode(body)
+              ? exportBlocks(body.getChildren(), traverse)
+              : "";
+            return [heading ? `**${heading}**` : "", text]
+              .filter(Boolean)
+              .join("\n\n");
+          })
+          .filter(Boolean)
+          .join("\n\n")
+      : null,
   regExp: never,
   replace: () => false,
   type: "element",
@@ -168,6 +195,7 @@ const custom: ElementTransformer[] = [
   CALLOUT,
   STARTER,
   TOGGLE,
+  PANELS,
   COLUMNS,
   MEDIA,
 ];
@@ -178,6 +206,7 @@ export const markdownTransformers: Transformer[] = [
   CALLOUT,
   STARTER,
   TOGGLE,
+  PANELS,
   COLUMNS,
   MEDIA,
   ...ELEMENT_TRANSFORMERS,

@@ -12,6 +12,13 @@ import { MathNode } from "./math";
 import { FileNode, ImageNode } from "./media";
 import { PageBreakNode } from "./page-break";
 import {
+  $isPanelBodyNode,
+  PanelBodyNode,
+  PanelNode,
+  PanelsNode,
+  PanelTitleNode,
+} from "./panels";
+import {
   QuestionAnswerNode,
   QuestionGapNode,
   QuestionGroupNode,
@@ -41,6 +48,7 @@ export * from "./gate";
 export * from "./math";
 export * from "./media";
 export * from "./page-break";
+export * from "./panels";
 export * from "./question";
 export * from "./rich";
 export * from "./standards";
@@ -52,6 +60,10 @@ export const blockNodes = [
   ToggleNode,
   ToggleTitleNode,
   ToggleContentNode,
+  PanelsNode,
+  PanelNode,
+  PanelTitleNode,
+  PanelBodyNode,
   ColumnsNode,
   ColumnNode,
   ImageNode,
@@ -91,6 +103,7 @@ export function $isBlockContainer(
     $isCalloutNode(node) ||
     $isStarterNode(node) ||
     $isToggleContentNode(node) ||
+    $isPanelBodyNode(node) ||
     $isColumnNode(node) ||
     (includeCells && $isTableCellNode(node))
   );

@@ -6,7 +6,7 @@ import type {
   TextNode as TextNodeType,
 } from "lexical";
 
-import { validContentStyle } from "@faridalms/domain/content";
+import { MAX_PANELS, validContentStyle } from "@faridalms/domain/content";
 import { isSafeContentUrl } from "@faridalms/domain/rich-text";
 import {
   $isLinkNode,
@@ -16,7 +16,12 @@ import {
   LinkNode,
 } from "@lexical/link";
 import { $patchStyleText } from "@lexical/selection";
-import { $onEscapeDown, $onEscapeUp, mergeRegister } from "@lexical/utils";
+import {
+  $findMatchingParent,
+  $onEscapeDown,
+  $onEscapeUp,
+  mergeRegister,
+} from "@lexical/utils";
 import {
   $createParagraphNode,
   $createTextNode,
@@ -61,6 +66,17 @@ import {
   $isColumnNode,
   $isColumnsNode,
   $isDrawNode,
+  $createPanel,
+  $createPanelBodyNode,
+  $createPanelTitleNode,
+  $isPanelBodyNode,
+  $isPanelNode,
+  $isPanelsNode,
+  $isPanelTitleNode,
+  PanelBodyNode,
+  PanelNode,
+  PanelsNode,
+  PanelTitleNode,
   $isToggleContentNode,
   $isToggleNode,
   $isToggleTitleNode,
@@ -110,6 +126,7 @@ const escapable = (node: LexicalNode | null | undefined): node is ElementNode =>
   $isCalloutNode(node) ||
   $isStarterNode(node) ||
   $isToggleNode(node) ||
+  $isPanelsNode(node) ||
   $isColumnsNode(node) ||
   $isQuestionNode(node);
 
@@ -130,8 +147,13 @@ function $assignBlockIds(container: ElementNode, seen: Set<string>) {
       seen.add($getState(child, blockIdState));
     }
     if ($isElementNode(child))
-      for (const nested of child.getChildren())
+      for (const nested of child.getChildren()) {
         if ($isBlockContainer(nested, false)) $assignBlockIds(nested, seen);
+        // A set's parts hold their bodies a level further down.
+        if ($isPanelNode(nested))
+          for (const body of nested.getChildren())
+            if ($isBlockContainer(body, false)) $assignBlockIds(body, seen);
+      }
     if ($isBlockContainer(child, false)) $assignBlockIds(child, seen);
   }
 }
@@ -430,6 +452,93 @@ function $exitEmptyTrailingParagraph(): boolean {
   return true;
 }
 
+/**
+ * Puts a part of a set back together: its title, then its body, anything
+ * else moved into the body. Outside a set it unwraps into plain blocks.
+ */
+function $repairPanel(node: PanelNode) {
+  const children = node.getChildren();
+  if (!$isPanelsNode(node.getParent())) {
+    for (const child of children) {
+      if ($isPanelTitleNode(child)) {
+        if (!child.isEmpty())
+          node.insertBefore(
+            $createParagraphNode().append(...child.getChildren()),
+          );
+        child.remove();
+      } else if ($isPanelBodyNode(child)) $unwrapInto(child);
+    }
+    $unwrapInto(node);
+    return;
+  }
+  const [first, second] = children;
+  if (
+    children.length === 2 &&
+    $isPanelTitleNode(first) &&
+    $isPanelBodyNode(second)
+  )
+    return;
+  const title = children.find($isPanelTitleNode) ?? $createPanelTitleNode();
+  const body = children.find($isPanelBodyNode) ?? $createPanelBodyNode();
+  for (const child of children)
+    if (child !== title && child !== body)
+      body.append(
+        $isElementNode(child) ? child : $createParagraphNode().append(child),
+      );
+  node.append(title, body);
+  $fillEmpty(body);
+}
+
+/**
+ * Enter in a set of parts: from a title to its body; from the empty title
+ * of a last, empty part out of the set; and from an empty last line of a
+ * body to a new part, as a list goes on to its next item.
+ */
+function $enterInPanel(): boolean {
+  const selection = $getSelection();
+  if (!$isRangeSelection(selection) || !selection.isCollapsed()) return false;
+  const anchor = selection.anchor.getNode();
+  const title = $findMatchingParent(anchor, $isPanelTitleNode);
+  if ($isPanelTitleNode(title)) {
+    const panel = title.getParent();
+    const panels = panel?.getParent();
+    if (!$isPanelNode(panel) || !$isPanelsNode(panels)) return false;
+    if (
+      panel.getTextContent().trim() === "" &&
+      !panel.getNextSibling() &&
+      panels.getChildrenSize() > 1
+    ) {
+      const paragraph = $createParagraphNode();
+      panels.insertAfter(paragraph);
+      panel.remove();
+      paragraph.selectStart();
+      return true;
+    }
+    const body = title.getNextSibling();
+    if ($isElementNode(body)) {
+      const first = body.getFirstChild();
+      if ($isElementNode(first)) first.selectStart();
+      else body.append($createParagraphNode()).selectStart();
+    }
+    return true;
+  }
+  if (!$isParagraphNode(anchor) || !anchor.isEmpty()) return false;
+  const body = anchor.getParent();
+  if (!$isPanelBodyNode(body) || !anchor.is(body.getLastChild())) return false;
+  const panel = body.getParent();
+  const panels = panel?.getParent();
+  if (!$isPanelNode(panel) || !$isPanelsNode(panels)) return false;
+  // An empty part waiting next, as a new set starts with, is the one to fill.
+  const following = panel.getNextSibling();
+  const waiting =
+    $isPanelNode(following) && following.getTextContent().trim() === "";
+  if (!waiting && panels.getChildrenSize() >= MAX_PANELS) return false;
+  if (body.getChildrenSize() > 1) anchor.remove();
+  const next = waiting ? following : panel.insertAfter($createPanel());
+  if ($isPanelNode(next)) next.getFirstChild<ElementNode>()?.selectStart();
+  return true;
+}
+
 function $enterFromToggleTitle(): boolean {
   const selection = $getSelection();
   if (!$isRangeSelection(selection)) return false;
@@ -525,6 +634,27 @@ export const BlocksExtension = defineExtension({
         )
           $unwrapInto(node);
       }),
+      editor.registerNodeTransform(PanelsNode, (node) => {
+        if (!$isRootNode(node.getParent())) $unwrapInto(node);
+        else if (node.isEmpty()) node.remove();
+        else
+          for (const child of node.getChildren())
+            if (!$isPanelNode(child))
+              node.insertAfter(
+                $isElementNode(child)
+                  ? child
+                  : $createParagraphNode().append(child),
+              );
+      }),
+      editor.registerNodeTransform(PanelNode, $repairPanel),
+      editor.registerNodeTransform(PanelTitleNode, (node) => {
+        if (!$isPanelNode(node.getParent()))
+          node.replace($createParagraphNode().append(...node.getChildren()));
+      }),
+      editor.registerNodeTransform(PanelBodyNode, (node) => {
+        if (!$isPanelNode(node.getParent())) $unwrapInto(node);
+        else $fillEmpty(node);
+      }),
       editor.registerNodeTransform(ColumnNode, (node) => {
         if (!$isColumnsNode(node.getParent())) $unwrapInto(node);
         else $fillEmpty(node);
@@ -541,6 +671,7 @@ export const BlocksExtension = defineExtension({
           $newCodeLine() ||
           $enterInQuestion() ||
           $enterFromToggleTitle() ||
+          $enterInPanel() ||
           $exitEmptyTrailingParagraph(),
         COMMAND_PRIORITY_LOW,
       ),

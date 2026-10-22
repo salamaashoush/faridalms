@@ -17,7 +17,13 @@ import {
 import { useEffect } from "react";
 
 import { useEditorEnvironment } from "../context";
-import { $isCalloutNode, $isQuestionNode, $isToggleTitleNode } from "../nodes";
+import {
+  $isCalloutNode,
+  $isPanelsNode,
+  $isPanelTitleNode,
+  $isQuestionNode,
+  $isToggleTitleNode,
+} from "../nodes";
 
 export function PlaceholderPlugin({ empty }: { empty: string }) {
   const [editor] = useLexicalComposerContext();
@@ -45,6 +51,16 @@ export function PlaceholderPlugin({ empty }: { empty: string }) {
         );
       if ($isListItemNode(node)) return strings.listPlaceholder;
       if ($isToggleTitleNode(node)) return strings.togglePlaceholder;
+      if ($isPanelTitleNode(node)) {
+        const panels = node.getParent()?.getParent();
+        const layout = $isPanelsNode(panels) ? panels.getLayout() : "tabs";
+        return {
+          tabs: strings.tabPlaceholder,
+          steps: strings.stepPlaceholder,
+          timeline: strings.eventPlaceholder,
+          cards: strings.cardPlaceholder,
+        }[layout];
+      }
       if ($isQuoteNode(node)) return strings.quote;
       const parent = node.getParent();
       if ($isCalloutNode(parent) && parent.getChildrenSize() === 1)

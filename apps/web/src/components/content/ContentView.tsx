@@ -63,6 +63,8 @@ export function ContentView({
           m.editorDrawPointsEach({ count: points }, { locale }),
         drawNoTag: m.editorDrawNoTag({}, { locale }),
         standardsBlock: m.editorStandardsBlock({}, { locale }),
+        cardTurn: m.editorCardTurn({}, { locale }),
+        cardTurnBack: m.editorCardTurnBack({}, { locale }),
       }}
       fileUrl={fileUrl}
       locale={locale}

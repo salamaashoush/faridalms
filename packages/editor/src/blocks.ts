@@ -59,6 +59,8 @@ import {
   Copy,
   Clapperboard,
   Code,
+  Footprints,
+  GitCommitVertical,
   Library,
   Sigma,
   SquareRadical,
@@ -78,6 +80,7 @@ import {
   MessageSquareText,
   Minus,
   MonitorPlay,
+  PanelsTopLeft,
   Paperclip,
   Pilcrow,
   Puzzle,
@@ -87,6 +90,7 @@ import {
   Shapes,
   Shuffle,
   Sparkles,
+  SquareStack,
   Table,
   Target,
   TextCursorInput,
@@ -112,6 +116,8 @@ import {
   $createColumnsNode,
   $createToggleContentNode,
   $createToggleNode,
+  $createPanel,
+  $createPanelsNode,
   $createToggleTitleNode,
   $isCalloutNode,
   $isColumnsNode,
@@ -119,6 +125,7 @@ import {
   $isMathNode,
   $isQuestionNode,
   $isToggleNode,
+  $isPanelsNode,
   $nearestBlock,
   $selectDraw,
   $selectMath,
@@ -145,6 +152,10 @@ export type BlockType =
   | "equation"
   | "callout"
   | "toggle"
+  | "tabs"
+  | "steps"
+  | "timeline"
+  | "cards"
   | "divider"
   | "table"
   | "columns2"
@@ -581,6 +592,38 @@ export const blockDefinitions: BlockDefinition[] = [
     label: (s) => s.columns3,
     hint: (s) => s.columnsHint,
     keywords: ["columns", "layout", "three", "أعمدة", "ثلاثة"],
+  },
+  {
+    type: "tabs",
+    group: "layout",
+    icon: PanelsTopLeft,
+    label: (s) => s.tabs,
+    hint: (s) => s.tabsHint,
+    keywords: ["tabs", "sections", "panels", "تبويب", "علامات"],
+  },
+  {
+    type: "steps",
+    group: "layout",
+    icon: Footprints,
+    label: (s) => s.steps,
+    hint: (s) => s.stepsHint,
+    keywords: ["steps", "process", "how to", "procedure", "خطوات", "مراحل"],
+  },
+  {
+    type: "timeline",
+    group: "layout",
+    icon: GitCommitVertical,
+    label: (s) => s.timeline,
+    hint: (s) => s.timelineHint,
+    keywords: ["timeline", "history", "dates", "events", "خط زمني", "أحداث"],
+  },
+  {
+    type: "cards",
+    group: "layout",
+    icon: SquareStack,
+    label: (s) => s.cards,
+    hint: (s) => s.cardsHint,
+    keywords: ["flip", "cards", "flashcards", "vocabulary", "بطاقات", "مفردات"],
   },
   {
     type: "divider",
@@ -1094,6 +1137,7 @@ export function $blockTypeOf(block: LexicalNode | null): BlockType | null {
   if ($isTableNode(block)) return "table";
   if ($isHorizontalRuleNode(block)) return "divider";
   if ($isColumnsNode(block)) return "columns2";
+  if ($isPanelsNode(block)) return block.getLayout();
   return null;
 }
 
@@ -1202,6 +1246,10 @@ function $selectInside(node: LexicalNode) {
     node.getFirstChild()?.selectEnd();
     return;
   }
+  if ($isPanelsNode(node)) {
+    node.getFirstDescendant()?.selectStart();
+    return;
+  }
   if ($isCalloutNode(node) || $isStarterNode(node) || $isColumnsNode(node)) {
     node.getFirstDescendant()?.selectStart();
     return;
@@ -1224,7 +1272,16 @@ function $selectInside(node: LexicalNode) {
   if ($isElementNode(node)) node.selectEnd();
 }
 
+const PANEL_TYPES = new Set<BlockType>(["tabs", "steps", "timeline", "cards"]);
+
 function $createStructure(type: BlockType): LexicalNode | null {
+  if (
+    type === "tabs" ||
+    type === "steps" ||
+    type === "timeline" ||
+    type === "cards"
+  )
+    return $createPanelsNode(type).append($createPanel(), $createPanel());
   if (type === "trueFalseQuestion") return $createTrueFalseQuestion();
   if (type === "whyQuestion") return $createWhyQuestion();
   if (type === "sketchQuestion") return $createSketchQuestion();
@@ -1284,6 +1341,7 @@ function $allows(container: LexicalNode | null, type: BlockType): boolean {
   if (
     type === "columns2" ||
     type === "columns3" ||
+    PANEL_TYPES.has(type) ||
     type === "gate" ||
     type === "bankDraw" ||
     type === "pageBreak" ||

@@ -84,6 +84,10 @@ Sources: [../research/course-design.md](../research/course-design.md),
    left the block before it selected. Found while building 5.7. Done: a
    letter typed with a block chosen starts the line below it, and a widget
    inserted puts the caret on the line after it.
+10. **The block menu's submenus.** Turn into, a callout's tone and a set's
+    layout closed the whole menu when opened, by key or pointer, as Base UI
+    took each for a sibling of a menu with no trigger. Done: the grip is
+    the menu's trigger, so its submenus open within it.
 
 ## 2. Maths and science
 
@@ -281,6 +285,15 @@ Sources: [../research/course-design.md](../research/course-design.md),
 
 1. **Layout blocks**: tabs, flip cards, labelled image, steps and timeline,
    gallery, chart, before and after.
+   Done so far: tabs, steps, a timeline and flip cards are one block, a
+   set of titled parts (`panels`) shown four ways, switched from the block
+   menu's Show as without losing a word. As written every part shows;
+   Enter goes from a title to its body, from an empty last line to the
+   next part, and out of the set from an empty last title. Read, tabs
+   follow the WAI-ARIA tabs pattern, steps and events are ordered lists on
+   a rail, and a card turns over on a button that never holds its back;
+   paper shows every tab and both sides of each card.
+   Left: labelled image, gallery, chart, before and after.
 2. **Writing tools**: text size, clear formatting, find and replace.
 3. **Reusable blocks** kept once and shown in many documents.
 4. **Footnotes and citations** for older students and universities.

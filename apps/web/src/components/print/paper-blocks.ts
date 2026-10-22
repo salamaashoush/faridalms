@@ -3,11 +3,11 @@ import type { LessonBlock, StudentBlock } from "@faridalms/domain/learning";
 
 import { contentPlainText } from "@faridalms/domain/content";
 
-/** The document as paper reads it: every toggle open. */
+/** The document as paper reads it: every toggle open, every tab and card side shown. */
 export function opened(node: ContentNode): ContentNode {
   return {
     ...node,
-    ...(node.type === "toggle" ? { open: true } : {}),
+    ...(node.type === "toggle" || node.type === "panels" ? { open: true } : {}),
     ...(node.children ? { children: node.children.map(opened) } : {}),
   };
 }

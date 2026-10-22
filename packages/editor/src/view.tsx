@@ -29,6 +29,7 @@ import { cloneElement, createElement, Fragment, isValidElement } from "react";
 
 import type { AiUseViewStrings } from "./ai-use-view";
 import type { FileFacts } from "./files";
+import type { PanelStrings } from "./panels-view";
 import type { MediaWatch } from "./player";
 
 import { AiUseView } from "./ai-use-view";
@@ -37,11 +38,12 @@ import { FileCard, PictureView, StoredImage } from "./files";
 import { blockAlignClass, diagramImageClass, imageSizeClass } from "./format";
 import { MathText } from "./math";
 import { EmbedFrame, MediaPlayer, MediaTranscript } from "./media-view";
+import { PanelsView } from "./panels-view";
 import { editorTheme } from "./theme";
 
 export { editorFrame } from "./frame";
 
-export interface ViewStrings extends AiUseViewStrings {
+export interface ViewStrings extends AiUseViewStrings, PanelStrings {
   checklist: string;
   studentCopy: string;
   diagram: string;
@@ -357,9 +359,14 @@ function draw(
     node.type === "tab"
   )
     return renderText(node, key, context, block);
-  const children = node.children?.map((child, index) =>
-    render(child, `${key}.${index}`, context, block),
-  );
+  // A set of parts draws its titles and bodies itself; drawing them here
+  // too would count their words twice where comments mark them.
+  const children =
+    node.type === "panels"
+      ? undefined
+      : node.children?.map((child, index) =>
+          render(child, `${key}.${index}`, context, block),
+        );
   const style: CSSProperties = {
     ...textStyle(node.style),
     textAlign:
@@ -579,6 +586,38 @@ function draw(
     case "toggle-content":
       return (
         <div key={key} className="fe-toggle-content">
+          {children}
+        </div>
+      );
+    case "panels":
+      return (
+        <PanelsView
+          key={key}
+          layout={
+            node.layout === "steps" ||
+            node.layout === "timeline" ||
+            node.layout === "cards"
+              ? node.layout
+              : "tabs"
+          }
+          printed={node.open ?? false}
+          strings={context.strings}
+          items={(node.children ?? []).map((panel, index) => {
+            const [title, body] = panel.children ?? [];
+            const at = `${key}.${index}`;
+            return {
+              key: at,
+              title: title?.children?.map((child, place) =>
+                render(child, `${at}.0.${place}`, context, block),
+              ),
+              body: body ? render(body, `${at}.1`, context, block) : null,
+            };
+          })}
+        />
+      );
+    case "panel-body":
+      return (
+        <div key={key} className="fe-panel-body">
           {children}
         </div>
       );

@@ -22,6 +22,7 @@ import {
   $setSelection,
   BEFORE_INPUT_COMMAND,
   defineExtension,
+  INSERT_PARAGRAPH_COMMAND,
 } from "lexical";
 import * as v from "valibot";
 import { describe, expect, it } from "vitest";
@@ -32,6 +33,7 @@ import { markdownTransformers } from "./markdown";
 import {
   $isCalloutNode,
   $isColumnsNode,
+  $isPanelsNode,
   $isStandardsNode,
   $isToggleNode,
   $setCodeRun,
@@ -322,6 +324,77 @@ describe("block operations", () => {
       ["gate", ""],
       ["paragraph", "N"],
     ]);
+  });
+
+  it("writes a set of parts as a list goes on, and leaves it from an empty last part", () => {
+    const target = editor();
+    const step = (change: () => void) =>
+      target.update(change, { discrete: true });
+    const type = (text: string) =>
+      step(() => {
+        const selection = $getSelection();
+        if ($isRangeSelection(selection)) selection.insertText(text);
+      });
+    const enter = () =>
+      step(() => {
+        target.dispatchCommand(INSERT_PARAGRAPH_COMMAND, undefined);
+      });
+    const parts = () =>
+      target.read("latest", () => {
+        const set = $getRoot().getChildren().find($isPanelsNode);
+        return set
+          ? set
+              .getChildren()
+              .map((panel) => panel.getTextContent().replaceAll(/\n+/g, "|"))
+          : null;
+      });
+    step(() => {
+      $getRoot().clear().append(paragraph("Fractions"));
+      $getRoot().getFirstChild()?.selectEnd();
+      $insertBlock("cards");
+    });
+    expect(types(target)).toEqual(["paragraph", "panels", "paragraph"]);
+    type("Half");
+    // From the title to its body; an empty last line goes on to the empty
+    // card the set started with.
+    enter();
+    type("One of two equal parts.");
+    enter();
+    enter();
+    type("Quarter");
+    expect(parts()).toEqual(["Half|One of two equal parts.", "Quarter|"]);
+    // With no card waiting, an empty last line starts one; Enter on its
+    // empty title leaves the set, the empty card gone.
+    enter();
+    enter();
+    expect(parts()).toEqual(["Half|One of two equal parts.", "Quarter|", "|"]);
+    enter();
+    expect(parts()).toEqual(["Half|One of two equal parts.", "Quarter|"]);
+    expect(
+      target.read("latest", () => {
+        const selection = $getSelection();
+        return $isRangeSelection(selection)
+          ? selection.anchor.getNode().getPreviousSibling()?.getType()
+          : null;
+      }),
+    ).toBe("panels");
+    // Read as steps, the same parts keep every word.
+    step(() => {
+      const set = $getRoot().getChildren().find($isPanelsNode);
+      set?.setLayout("steps");
+    });
+    const saved = v.safeParse(
+      contentDocumentSchema,
+      target.getEditorState().toJSON(),
+    );
+    expect(saved.success && saved.output.root.children?.[1]?.layout).toBe(
+      "steps",
+    );
+    expect(
+      target.read("latest", () =>
+        $convertToMarkdownString(markdownTransformers),
+      ),
+    ).toContain("**Half**\n\nOne of two equal parts.");
   });
 
   it("moves blocks up and down among their siblings", () => {

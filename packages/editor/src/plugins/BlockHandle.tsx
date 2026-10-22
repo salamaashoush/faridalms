@@ -1,8 +1,13 @@
-import type { ColumnLayout } from "@faridalms/domain/content";
-import type { LexicalNode, NodeKey } from "lexical";
+import type { ColumnLayout, PanelLayout } from "@faridalms/domain/content";
+import type { ElementNode, LexicalNode, NodeKey } from "lexical";
 
 import { Menu } from "@base-ui/react/menu";
-import { calloutTones, columnLayouts } from "@faridalms/domain/content";
+import {
+  calloutTones,
+  columnLayouts,
+  MAX_PANELS,
+  panelLayouts,
+} from "@faridalms/domain/content";
 import { useLexicalComposerContext } from "@lexical/react/LexicalComposerContext";
 import { useLexicalEditable } from "@lexical/react/useLexicalEditable";
 import {
@@ -23,6 +28,7 @@ import {
   ChevronRight,
   Copy,
   GripVertical,
+  LayoutTemplate,
   Palette,
   Plus,
   Repeat2,
@@ -44,7 +50,9 @@ import {
 } from "../blocks";
 import { useEditorEnvironment } from "../context";
 import {
+  $createPanel,
   $isCalloutNode,
+  $isPanelsNode,
   $isStarterNode,
   $isColumnsNode,
   $nearestBlock,
@@ -70,6 +78,8 @@ interface BlockFacts {
   convertible: boolean;
   callout: string | null;
   layout: ColumnLayout | null;
+  /** How a set of parts reads, and how many parts it has. */
+  panels: { layout: PanelLayout; count: number } | null;
   first: boolean;
   last: boolean;
   /** Whether it may be read aloud, and whether it is. */
@@ -78,6 +88,7 @@ interface BlockFacts {
 
 // Blocks with nothing to read aloud.
 const SILENT = new Set([
+  "panels",
   "gate",
   "draw",
   "standards",
@@ -276,6 +287,9 @@ export function BlockHandlePlugin({ anchor }: { anchor: HTMLElement | null }) {
           convertible: $isConvertible(block),
           callout: $isCalloutNode(block) ? block.getTone() : null,
           layout: $isColumnsNode(block) ? block.getLayout() : null,
+          panels: $isPanelsNode(block)
+            ? { layout: block.getLayout(), count: block.getChildrenSize() }
+            : null,
           first: !block.getPreviousSibling(),
           last: !block.getNextSibling(),
           narration:
@@ -425,43 +439,40 @@ export function BlockHandlePlugin({ anchor }: { anchor: HTMLElement | null }) {
             <Plus className="size-4" aria-hidden />
           </button>
         </Tip>
-        <Tip label={strings.blockHandle} shortcut={shortcutLabel("Mod+/")}>
-          <button
-            ref={grip}
-            type="button"
-            draggable
-            tabIndex={-1}
-            aria-label={strings.blockHandle}
-            aria-haspopup="menu"
-            aria-expanded={menu}
-            onClick={() => {
-              if (hovered) openMenu(hovered.key);
-            }}
-            onDragStart={(event) => {
-              if (!hovered) return;
-              setMenu(false);
-              dragging.current = hovered.key;
-              event.dataTransfer.effectAllowed = "move";
-              event.dataTransfer.setData(DRAG_TYPE, hovered.key);
-              event.dataTransfer.setDragImage(hovered.element, 0, 0);
-              hovered.element.classList.add("fe-block-dragging");
-            }}
-            onDragEnd={() => {
-              hovered?.element.classList.remove("fe-block-dragging");
-              dragging.current = null;
-              if (line.current) line.current.style.opacity = "0";
-            }}
-            className="flex h-6 w-4.5 cursor-grab items-center justify-center rounded text-muted-foreground/70 hover:bg-accent hover:text-foreground active:cursor-grabbing"
-          >
-            <GripVertical className="size-4" aria-hidden />
-          </button>
-        </Tip>
         <Menu.Root
           open={menu}
           onOpenChange={(open) => {
             if (!open) setMenu(false);
           }}
         >
+          <Tip label={strings.blockHandle} shortcut={shortcutLabel("Mod+/")}>
+            <Menu.Trigger
+              ref={grip}
+              draggable
+              tabIndex={-1}
+              aria-label={strings.blockHandle}
+              onClick={() => {
+                if (hovered) openMenu(hovered.key);
+              }}
+              onDragStart={(event) => {
+                if (!hovered) return;
+                setMenu(false);
+                dragging.current = hovered.key;
+                event.dataTransfer.effectAllowed = "move";
+                event.dataTransfer.setData(DRAG_TYPE, hovered.key);
+                event.dataTransfer.setDragImage(hovered.element, 0, 0);
+                hovered.element.classList.add("fe-block-dragging");
+              }}
+              onDragEnd={() => {
+                hovered?.element.classList.remove("fe-block-dragging");
+                dragging.current = null;
+                if (line.current) line.current.style.opacity = "0";
+              }}
+              className="flex h-6 w-4.5 cursor-grab items-center justify-center rounded text-muted-foreground/70 hover:bg-accent hover:text-foreground active:cursor-grabbing"
+            >
+              <GripVertical className="size-4" aria-hidden />
+            </Menu.Trigger>
+          </Tip>
           <Menu.Portal>
             <Menu.Positioner
               anchor={grip}
@@ -592,6 +603,76 @@ export function BlockHandlePlugin({ anchor }: { anchor: HTMLElement | null }) {
                       </Menu.Positioner>
                     </Menu.Portal>
                   </Menu.SubmenuRoot>
+                ) : null}
+                {facts?.panels ? (
+                  <>
+                    <Menu.SubmenuRoot>
+                      <Menu.SubmenuTrigger className={menuItemClass}>
+                        <LayoutTemplate aria-hidden />
+                        <span className="flex-1">{strings.panelLayout}</span>
+                        <ChevronRight
+                          className="rtl:-scale-x-100"
+                          aria-hidden
+                        />
+                      </Menu.SubmenuTrigger>
+                      <Menu.Portal>
+                        <Menu.Positioner className="z-50" sideOffset={4}>
+                          <Menu.Popup className={menuPopupClass}>
+                            {panelLayouts.map((layout) => {
+                              const block = blockDefinitions.find(
+                                (item) => item.type === layout,
+                              );
+                              return block ? (
+                                <Menu.Item
+                                  key={layout}
+                                  className={menuItemClass}
+                                  onClick={() =>
+                                    act((node) => {
+                                      if ($isPanelsNode(node))
+                                        node.setLayout(layout);
+                                    })
+                                  }
+                                >
+                                  <block.icon aria-hidden />
+                                  <span className="flex-1">
+                                    {block.label(strings)}
+                                  </span>
+                                  {facts.panels?.layout === layout ? (
+                                    <span className="size-1.5 rounded-full bg-primary" />
+                                  ) : null}
+                                </Menu.Item>
+                              ) : null;
+                            })}
+                          </Menu.Popup>
+                        </Menu.Positioner>
+                      </Menu.Portal>
+                    </Menu.SubmenuRoot>
+                    {facts.panels.count < MAX_PANELS ? (
+                      <Menu.Item
+                        className={menuItemClass}
+                        onClick={() =>
+                          act((node) => {
+                            if (!$isPanelsNode(node)) return;
+                            const panel = $createPanel();
+                            node.append(panel);
+                            panel.getFirstChild<ElementNode>()?.selectStart();
+                          })
+                        }
+                      >
+                        <Plus aria-hidden />
+                        <span className="flex-1">
+                          {
+                            {
+                              tabs: strings.addTab,
+                              steps: strings.addStep,
+                              timeline: strings.addEvent,
+                              cards: strings.addCard,
+                            }[facts.panels.layout]
+                          }
+                        </span>
+                      </Menu.Item>
+                    ) : null}
+                  </>
                 ) : null}
                 {facts && facts.narration !== "none" ? (
                   <Menu.Item

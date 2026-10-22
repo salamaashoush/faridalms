@@ -73,6 +73,10 @@ const nodeTypes = [
   "toggle",
   "toggle-title",
   "toggle-content",
+  "panels",
+  "panel",
+  "panel-title",
+  "panel-body",
   "columns",
   "column",
   "image",
@@ -129,6 +133,14 @@ export const calloutTones = [
   "danger",
 ] as const;
 export const columnLayouts = ["1:1", "1:2", "2:1", "1:1:1", "1:1:1:1"] as const;
+/**
+ * How a set of titled parts reads: as tabs, numbered steps, a timeline, or
+ * cards a reader turns over from the title on the front to the body.
+ */
+export const panelLayouts = ["tabs", "steps", "timeline", "cards"] as const;
+export type PanelLayout = (typeof panelLayouts)[number];
+/** Parts in one set of tabs, steps, events or cards. */
+export const MAX_PANELS = 12;
 export const imageSizes = ["small", "medium", "large", "full"] as const;
 /** A file reads as a card, or a PDF also shows its pages in the document. */
 export const fileDisplays = ["card", "preview"] as const;
@@ -182,7 +194,7 @@ export interface ContentNode {
   frozenRowCount?: number;
   tone?: CalloutTone;
   open?: boolean;
-  layout?: ColumnLayout;
+  layout?: ColumnLayout | PanelLayout;
   fileId?: string;
   alt?: string;
   /** A picture that only decorates, so screen readers pass it by. */
@@ -420,7 +432,7 @@ const nodeSchema: v.GenericSchema<ContentNode> = v.lazy(() =>
       frozenRowCount: v.optional(integer(0, 100)),
       tone: v.optional(v.picklist(calloutTones)),
       open: v.optional(v.boolean()),
-      layout: v.optional(v.picklist(columnLayouts)),
+      layout: v.optional(v.picklist([...columnLayouts, ...panelLayouts])),
       fileId: v.optional(v.pipe(v.string(), v.uuid())),
       alt: v.optional(v.pipe(v.string(), v.maxLength(500))),
       decorative: v.optional(v.boolean()),
@@ -587,6 +599,7 @@ const blocks = new Set<string>([
   "pagebreak",
   "callout",
   "toggle",
+  "panels",
   "columns",
   "image",
   "file",
@@ -600,10 +613,11 @@ const blocks = new Set<string>([
   "starter",
   "ai-use",
 ]);
-// Columns, questions, draws, gates, page breaks and each student's copy
-// stand only at the top of a document.
+// Columns, sets of parts, questions, draws, gates, page breaks and each
+// student's copy stand only at the top of a document.
 const ROOT_ONLY = new Set([
   "columns",
+  "panels",
   "question",
   "draw",
   "gate",
@@ -743,6 +757,7 @@ function validNode(node: ContentNode): boolean {
     case "paragraph":
     case "code":
     case "toggle-title":
+    case "panel-title":
       return children.every(inline);
     case "heading":
       return Boolean(node.tag?.startsWith("h")) && children.every(inline);
@@ -796,15 +811,31 @@ function validNode(node: ContentNode): boolean {
       );
     case "toggle-content":
     case "column":
+    case "panel-body":
       return (
         children.length > 0 &&
         children.every((child) => nestedBlocks.has(child.type))
       );
     case "columns":
       return (
+        (node.layout === undefined ||
+          (columnLayouts as readonly string[]).includes(node.layout)) &&
         children.length >= 2 &&
         children.length <= 4 &&
         children.every((child) => child.type === "column")
+      );
+    case "panels":
+      return (
+        (panelLayouts as readonly string[]).includes(node.layout ?? "") &&
+        children.length >= 1 &&
+        children.length <= MAX_PANELS &&
+        children.every((child) => child.type === "panel")
+      );
+    case "panel":
+      return (
+        children.length === 2 &&
+        children[0]?.type === "panel-title" &&
+        children[1]?.type === "panel-body"
       );
   }
   return false;
@@ -845,6 +876,9 @@ const blockSeparated = new Set<string>([
   "callout",
   "toggle",
   "toggle-content",
+  "panels",
+  "panel",
+  "panel-body",
   "columns",
   "column",
 ]);
