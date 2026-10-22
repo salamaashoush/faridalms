@@ -4135,7 +4135,6 @@
   "courseworkTranslationHint": "Students choose the language they read the brief in. The translation starts as a copy of the brief to rewrite.",
   "courseworkTranslationRemoveBody": "Students will read the brief only as written. What the translation says is not kept.",
   "courseworkErrTranslationLanguage": "Choose the language the brief is written in, and keep it, while it has a translation.",
-  "courseworkErrTranslationQuiz": "A quiz's questions carry their answers, so a quiz can't have a translation yet.",
   "lrnTranslationUntranslated": "These parts read as written in {language}, as the translation lacks them or changes more than their words:",
   "lrnErrTranslationLanguage": "Choose the language the lesson is taught in, and keep it, while it has a translation.",
   "lrnVowelMarksHint": "Arabic harakat and Hebrew points, for readers who need them or who are learning to read without.",

@@ -127,6 +127,16 @@ export async function publishedQuiz(
   context: QuizUnit,
   assignmentId: string,
 ): Promise<LessonDocument | null> {
+  const content = await publishedBrief(context, assignmentId);
+  if (content && holdsQuestions(content)) return quizOfBrief(content);
+  return keptApart(context, assignmentId, true);
+}
+
+/** The brief as its students were last shown it, a quiz's questions and all. */
+export async function publishedBrief(
+  context: QuizUnit,
+  assignmentId: string,
+): Promise<ContentDocument | null> {
   const brief = await documentOf(
     context.tx,
     context.tenantId,
@@ -135,9 +145,7 @@ export async function publishedQuiz(
   const published = brief
     ? await publishedVersion(context.tx, context.tenantId, brief.id)
     : null;
-  const content = published?.content as ContentDocument | undefined;
-  if (content && holdsQuestions(content)) return quizOfBrief(content);
-  return keptApart(context, assignmentId, true);
+  return (published?.content as ContentDocument | undefined) ?? null;
 }
 
 /**

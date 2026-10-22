@@ -594,8 +594,6 @@ export function getMessageFromError(error: unknown): string {
         return m.translationErrNothingToCheck();
       case "coursework.translation_language":
         return m.courseworkErrTranslationLanguage();
-      case "coursework.translation_quiz":
-        return m.courseworkErrTranslationQuiz();
       case "learning.condition_in_use":
         return m.lrnErrConditionInUse();
       case "learning.paced_paused":

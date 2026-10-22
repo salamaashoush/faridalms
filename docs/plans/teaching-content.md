@@ -643,8 +643,13 @@ Sources: [../research/course-design.md](../research/course-design.md),
    other language as its own readers write it; a tap switches the screen
    the child is on, kept with their progress as an older student's choice
    is.
-   Left: a question's own labels in the lesson's language; translations
-   of quizzes (an assignment's brief already has one).
+   A quiz's brief may carry a translation as any brief does. Its students
+   read the words before the questions and the questions themselves in
+   either language, switching with the brief; the original keeps every
+   answer and the order, so an answer given in one language is marked by
+   the original's key and stands in the other, and a question the
+   translation changed beyond its words is asked as the original.
+   Left: a question's own labels in the lesson's language.
 8. **Word import**: a `.docx` opens as a document, its pictures uploaded.
    Done: "Word document" in the insert and slash menus brings a `.docx`
    in where the caret is, read in the browser (mammoth, loaded only when

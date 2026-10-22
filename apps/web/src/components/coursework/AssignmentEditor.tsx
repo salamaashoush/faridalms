@@ -600,7 +600,7 @@ export function AssignmentEditor({
               }
             : null,
         language: value.language === "auto" ? null : value.language,
-        translation: quiz ? null : value.translation,
+        translation: value.translation,
       };
     },
     [shared, timeZone],
@@ -653,7 +653,7 @@ export function AssignmentEditor({
   const [reviewing, setReviewing] = useState(false);
   const [removing, setRemoving] = useState(false);
   const language = draft.language === "auto" ? null : draft.language;
-  const translated = isQuiz ? null : draft.translation;
+  const translated = draft.translation;
   const setTranslation = (
     change: (current: { title: string; content: ContentDocument }) => {
       title: string;
@@ -1373,68 +1373,66 @@ export function AssignmentEditor({
                 />
               </DetailsSection>
             ) : null}
-            {isQuiz ? null : (
-              <DetailsSection title={m.contentLanguage()}>
-                <SelectField
-                  id="work-language"
-                  label={m.courseworkLanguage()}
-                  value={draft.language}
-                  options={[
-                    { value: "auto", label: m.lrnLanguageAuto() },
-                    ...CONTENT_LOCALES.map((value) => ({
-                      value,
-                      label: LOCALE_LABEL[value](),
-                    })),
-                  ]}
-                  onChange={(value) => set("language", value)}
-                  disabled={translated !== null}
-                  hint={
-                    translated
-                      ? m.courseworkLanguageLocked()
-                      : m.courseworkLanguageHint()
-                  }
+            <DetailsSection title={m.contentLanguage()}>
+              <SelectField
+                id="work-language"
+                label={m.courseworkLanguage()}
+                value={draft.language}
+                options={[
+                  { value: "auto", label: m.lrnLanguageAuto() },
+                  ...CONTENT_LOCALES.map((value) => ({
+                    value,
+                    label: LOCALE_LABEL[value](),
+                  })),
+                ]}
+                onChange={(value) => set("language", value)}
+                disabled={translated !== null}
+                hint={
+                  translated
+                    ? m.courseworkLanguageLocked()
+                    : m.courseworkLanguageHint()
+                }
+              />
+              {language ? (
+                <CheckboxRow
+                  label={m.contentBilingual({
+                    language: LOCALE_NAME[otherLocale(language)](),
+                  })}
+                  hint={m.courseworkTranslationHint()}
+                  checked={translated !== null}
+                  onChange={(checked) => {
+                    if (!checked) {
+                      setRemoving(true);
+                      return;
+                    }
+                    // A translation starts as the brief, to be rewritten.
+                    set("translation", {
+                      title: "",
+                      content: shared ? brief.current : draft.brief,
+                    });
+                    setWriting("translation");
+                  }}
                 />
-                {language ? (
-                  <CheckboxRow
-                    label={m.contentBilingual({
-                      language: LOCALE_NAME[otherLocale(language)](),
-                    })}
-                    hint={m.courseworkTranslationHint()}
-                    checked={translated !== null}
-                    onChange={(checked) => {
-                      if (!checked) {
-                        setRemoving(true);
-                        return;
-                      }
-                      // A translation starts as the brief, to be rewritten.
-                      set("translation", {
-                        title: "",
-                        content: shared ? brief.current : draft.brief,
-                      });
-                      setWriting("translation");
-                    }}
+              ) : null}
+              {language && translated && translation ? (
+                <>
+                  <TranslationNote
+                    state={translation}
+                    review={translationCheck}
+                    language={LOCALE_NAME[otherLocale(language)]()}
                   />
-                ) : null}
-                {language && translated && translation ? (
-                  <>
-                    <TranslationNote
-                      state={translation}
-                      review={translationCheck}
-                      language={LOCALE_NAME[otherLocale(language)]()}
-                    />
-                    <CheckboxRow
-                      label={m.translationReviewedCheck()}
-                      hint={m.translationReviewedHint({
-                        language: LOCALE_NAME[language](),
-                      })}
-                      checked={translation === "reviewed"}
-                      disabled={reviewing || !storedId}
-                      onChange={(checked) => void markReviewed(checked)}
-                    />
-                  </>
-                ) : null}
-              </DetailsSection>
-            )}
+                  <CheckboxRow
+                    label={m.translationReviewedCheck()}
+                    hint={m.translationReviewedHint({
+                      language: LOCALE_NAME[language](),
+                    })}
+                    checked={translation === "reviewed"}
+                    disabled={reviewing || !storedId}
+                    onChange={(checked) => void markReviewed(checked)}
+                  />
+                </>
+              ) : null}
+            </DetailsSection>
             {PEER_FORMATS.includes(draft.submissionFormat) ? (
               <DetailsSection title={m.peerSection()}>
                 <CheckboxRow
@@ -1570,8 +1568,10 @@ export function AssignmentEditor({
               onValidityChange={setValid}
               onUploadingChange={setUploading}
               media={media}
+              questions={isQuiz}
               gates={false}
-              starter
+              draws={isQuiz}
+              starter={!isQuiz}
               language={otherLocale(language)}
             />
           ) : (

@@ -568,7 +568,11 @@ export function LearnerWork({ assignmentId }: { assignmentId: string }) {
         <RecordEmpty>{m.courseworkNoBrief()}</RecordEmpty>
       )}
       {data.quiz ? (
-        <QuizWork key={data.attempts.length} data={data} />
+        <QuizWork
+          key={data.attempts.length}
+          data={data}
+          reading={reading.lang}
+        />
       ) : data.assignment.submissionFormat === "discussion" ? (
         <Discussion assignmentId={data.assignment.id} />
       ) : (

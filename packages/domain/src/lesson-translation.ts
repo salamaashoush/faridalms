@@ -2,7 +2,7 @@ import type { ContentDocument, ContentNode } from "./content";
 import type { LessonDocument } from "./learning";
 
 import { contentFileIds, contentPlainText } from "./content";
-import { lessonOfContent, questionBlock } from "./lesson-content";
+import { lessonOfContent, questionBlock, quizOfBrief } from "./lesson-content";
 
 /**
  * Parts that shape a lesson rather than say anything: where it stops, what
@@ -118,6 +118,27 @@ export function translatedLesson(
   original: ContentDocument,
   translation: ContentDocument,
 ): LessonDocument {
+  return readAs(lessonOfContent, original, translation);
+}
+
+/**
+ * A quiz read in the other language its brief is written in, as a lesson
+ * is: the original's questions and every answer, in the translation's
+ * words where it gives them.
+ */
+export function translatedQuiz(
+  brief: ContentDocument,
+  translation: ContentDocument,
+): LessonDocument {
+  return readAs(quizOfBrief, brief, translation);
+}
+
+/** A document read in its translation's words, its parts as the original's. */
+function readAs(
+  read: (document: ContentDocument) => LessonDocument,
+  original: ContentDocument,
+  translation: ContentDocument,
+): LessonDocument {
   const parts = translatedParts(translation);
   const merged: ContentDocument = {
     root: {
@@ -127,12 +148,12 @@ export function translatedLesson(
       ),
     },
   };
-  const asWritten = lessonOfContent(original);
-  const read = lessonOfContent(merged);
-  if (read.blocks.length !== asWritten.blocks.length) return asWritten;
+  const asWritten = read(original);
+  const translated = read(merged);
+  if (translated.blocks.length !== asWritten.blocks.length) return asWritten;
   return {
     version: 2,
-    blocks: read.blocks.map((block, index) => ({
+    blocks: translated.blocks.map((block, index) => ({
       ...block,
       id: asWritten.blocks[index]?.id ?? block.id,
     })),

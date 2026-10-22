@@ -202,9 +202,11 @@ import {
 } from "@faridalms/domain/learning";
 import {
   contentOfLesson,
+  holdsQuestions,
   quizIntro,
   quizOfBrief,
 } from "@faridalms/domain/lesson-content";
+import { translatedQuiz } from "@faridalms/domain/lesson-translation";
 import { practised, practiceStanding } from "@faridalms/domain/practice";
 import {
   documentWritten,
@@ -258,6 +260,7 @@ import {
   namelessVotes,
   ownResponsesOf,
   practiceViews,
+  publishedBrief,
   publishedQuiz,
   rescoreQuiz,
   responsesOf,
@@ -323,6 +326,7 @@ async function readersTranslation(
     id: string;
     language: ContentLocale | null;
     translationTitle: string | null;
+    submissionFormat: string;
   },
   reader: "teacher" | "student" | "editor" = "teacher",
 ) {
@@ -335,7 +339,13 @@ async function readersTranslation(
     ? await translationOf(context.tx, context.tenantId, document.id)
     : null;
   if (!translated) return null;
-  const content = translated.content as unknown as ContentDocument;
+  const written = translated.content as unknown as ContentDocument;
+  // As with the original, a quiz's readers get the words before its first
+  // question; the questions come in the quiz, the original's answers kept.
+  const content =
+    reader !== "editor" && assignment.submissionFormat === "quiz"
+      ? quizIntro(written)
+      : written;
   return {
     locale: otherLocale(assignment.language),
     title: assignment.translationTitle ?? "",
@@ -900,18 +910,14 @@ export const save = writeProcedure
           }
         : input.translation;
     // A translation is in the other language of the brief's own, which stays
-    // as it is while the translation is kept; a quiz's questions carry their
-    // answers, so it has none.
+    // as it is while the translation is kept. A quiz's translation gives its
+    // questions' words only; the original keeps every answer.
     if (
       translation &&
       (!language || (translated?.locale && translated.locale === language))
     )
       throw new ORPCError("CONFLICT", {
         message: "coursework.translation_language",
-      });
-    if (translation && input.submissionFormat === "quiz")
-      throw new ORPCError("BAD_REQUEST", {
-        message: "coursework.translation_quiz",
       });
     const kept = {
       language,
@@ -2316,6 +2322,20 @@ async function learnerQuiz(
       : new Map<number, SittingRow>(),
     ownArrangements(context, assignment.orgId),
   ]);
+  // A quiz whose brief has a translation is also asked in its words, the
+  // original's answers kept, for the student to read in either language.
+  const translation = await readersTranslation(context, assignment, "editor");
+  const shownBrief = translation
+    ? await publishedBrief(context, assignment.id)
+    : null;
+  const translatedQuizzes =
+    translation && shownBrief && holdsQuestions(shownBrief)
+      ? await attemptQuizzes(
+          context,
+          translatedQuiz(shownBrief, translation.content),
+          row.submissionId,
+        )
+      : null;
   const current = row.attempts + 1;
   const sitting = sittings.get(current) ?? null;
   const limit = assignment.quizTimeLimit;
@@ -2383,18 +2403,33 @@ async function learnerQuiz(
       assignment.quizAttempts,
       context.now,
     );
+  // A timed attempt's questions stay out of sight until its clock begins,
+  // and while it stands still for a rest break.
+  const hidden = minutes !== null && (!sitting || sitting.pausedAt);
   return {
-    // A timed attempt's questions stay out of sight until its clock begins,
-    // and while it stands still for a rest break.
-    blocks:
-      minutes !== null && (!sitting || sitting.pausedAt)
-        ? []
-        : studentQuiz(
-            quizzes.of(current),
-            seed(current),
-            assignment.quizShuffle,
-            arranged.fewerChoices,
-          ),
+    blocks: hidden
+      ? []
+      : studentQuiz(
+          quizzes.of(current),
+          seed(current),
+          assignment.quizShuffle,
+          arranged.fewerChoices,
+        ),
+    /** The same questions in the translation's words, in the same order. */
+    translated:
+      translation && translatedQuizzes
+        ? {
+            locale: translation.locale,
+            blocks: hidden
+              ? []
+              : studentQuiz(
+                  translatedQuizzes.of(current),
+                  seed(current),
+                  assignment.quizShuffle,
+                  arranged.fewerChoices,
+                ),
+          }
+        : null,
     total: quizPoints(document),
     /** Minutes an attempt runs, and when the one under way began and runs out. */
     timing:

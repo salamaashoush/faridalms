@@ -3029,25 +3029,91 @@ describe("a brief in two languages", () => {
     expect(
       (await student.api.coursework.work({ id: saved.id })).translation,
     ).toBeNull();
+  });
 
-    // A quiz's questions carry their answers, so it has no translation.
-    expect(
-      await rejection(
-        teacher.api.coursework.save({
-          ...draft(target.id, "Nile quiz"),
-          submissionFormat: "quiz",
-          points: null,
-          quiz: {
-            attempts: 1,
-            keep: "highest",
-            reveal: "marks",
-            shuffle: false,
-            timeLimit: null,
-          },
-          language: "en",
-          translation: words,
-        }),
-      ),
-    ).toMatchObject({ message: "coursework.translation_quiz" });
+  test("a quiz asks its questions in either language, the original keeping every answer", async () => {
+    const teacher = await arabicTeacher();
+    const student = await sessionFor("northwind", login("student"));
+    const me = await student.api.identity.currentUser();
+    const target = await classOfStudent(teacher.api, me.id);
+    const right = crypto.randomUUID();
+    const wrong = crypto.randomUUID();
+    const question = (prompt: string, options: [string, string]) => ({
+      hints: [],
+      explanation: "",
+      tries: null,
+      id: questionId,
+      type: "choice" as const,
+      prompt,
+      points: 2,
+      options: [
+        { id: right, text: options[0], feedback: "" },
+        { id: wrong, text: options[1], feedback: "" },
+      ],
+      correctOptionIds: [right],
+      multiple: false,
+      shuffle: false,
+    });
+    const questionId = crypto.randomUUID();
+    const quiz = (intro: string, prompt: string, options: [string, string]) =>
+      briefWithQuiz(plainContent(intro), {
+        version: 2,
+        blocks: [question(prompt, options)],
+      });
+    const saved = await teacher.api.coursework.save({
+      ...draft(target.id, "Nile quiz"),
+      submissionFormat: "quiz",
+      points: null,
+      quiz: {
+        attempts: 1,
+        keep: "highest",
+        reveal: "marks",
+        shuffle: false,
+        timeLimit: null,
+      },
+      language: "en",
+      brief: quiz("Answer the question.", "Which river is longest?", [
+        "Nile",
+        "Thames",
+      ]),
+      translation: {
+        title: "اختبار النيل",
+        content: quiz("أجب عن السؤال.", "أي الأنهار أطول؟", [
+          "النيل",
+          "التايمز",
+        ]),
+      },
+    });
+    await teacher.api.coursework.publish({
+      id: saved.id,
+      expectedVersion: saved.version,
+    });
+    const work = await student.api.coursework.work({ id: saved.id });
+    // Students get the words before the questions in the translation too,
+    // and the questions themselves in its words without their key.
+    expect(JSON.stringify(work.translation?.content)).toContain(
+      "أجب عن السؤال",
+    );
+    expect(JSON.stringify(work.translation?.content)).not.toContain(
+      "أي الأنهار أطول",
+    );
+    const translated = JSON.stringify(work.quiz?.translated);
+    expect(work.quiz?.translated?.locale).toBe("ar");
+    expect(translated).toContain("أي الأنهار أطول");
+    expect(translated).not.toContain("correctOptionIds");
+    expect(work.quiz?.translated?.blocks[0]?.id).toBe(work.quiz?.blocks[0]?.id);
+    // An answer given in Arabic is marked by the original's key.
+    await student.api.coursework.saveQuizAnswer({
+      assignmentId: saved.id,
+      blockId: questionId,
+      response: { type: "choice", optionIds: [right] },
+    });
+    const answered = await student.api.coursework.work({ id: saved.id });
+    await student.api.coursework.handIn({
+      assignmentId: saved.id,
+      expectedVersion: answered.submission.version,
+    });
+    const marked = await student.api.coursework.work({ id: saved.id });
+    expect(marked.quiz?.results[0]).toMatchObject({ score: 2 });
   });
 });

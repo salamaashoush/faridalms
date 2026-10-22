@@ -243,8 +243,21 @@ function QuizClock({
  * handing in marks the whole attempt. Earlier attempts show what the quiz
  * lets them see.
  */
-export function QuizWork({ data }: { data: Work }) {
+export function QuizWork({
+  data,
+  reading,
+}: {
+  data: Work;
+  /** The language the student reads the brief in, which its questions follow. */
+  reading?: string | undefined;
+}) {
   const quiz = data.quiz;
+  // The questions in the translation's words carry the same ids, so the
+  // answers kept so far stand in either language.
+  const asked =
+    quiz?.translated && reading === quiz.translated.locale
+      ? quiz.translated.blocks
+      : quiz?.blocks;
   const queryClient = useQueryClient();
   const query = myWorkQuery(data.assignment.id);
   const [confirming, setConfirming] = useState(false);
@@ -488,7 +501,7 @@ export function QuizWork({ data }: { data: Work }) {
             <CheckModeContext.Provider value="quiz">
               <QuizBlocks
                 key={quiz.attempt}
-                blocks={quiz.blocks}
+                blocks={asked ?? quiz.blocks}
                 views={views}
                 driver={driver}
                 practice={practice}
