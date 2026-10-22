@@ -8,6 +8,7 @@ import type {
 } from "react";
 
 import { parseChapters } from "@faridalms/domain/chapters";
+import { formatSource } from "@faridalms/domain/citations";
 import {
   codeSource,
   contentPlainText,
@@ -25,7 +26,13 @@ import {
 } from "@faridalms/domain/embed";
 import { isSafeContentUrl } from "@faridalms/domain/rich-text";
 import { ExternalLink, Target } from "lucide-react";
-import { cloneElement, createElement, Fragment, isValidElement } from "react";
+import {
+  cloneElement,
+  createElement,
+  Fragment,
+  isValidElement,
+  useId,
+} from "react";
 
 import type { AiUseViewStrings } from "./ai-use-view";
 import type { ChartStrings } from "./chart-view";
@@ -67,6 +74,9 @@ export interface ViewStrings
   drawPointsEach: (points: number) => string;
   drawNoTag: string;
   standardsBlock: string;
+  footnotes: string;
+  footnoteRef: (number: number) => string;
+  footnoteBack: (number: number) => string;
 }
 
 /** A passage drawn marked in the reader, as a comment points at it. */
@@ -106,6 +116,10 @@ interface Context {
   predicted?: boolean | undefined;
   replace?: Replace | undefined;
   shared?: ComponentType<{ id: string }> | undefined;
+  /** The footnotes met so far, in reading order, numbered by their place here. */
+  notes: ContentNode[];
+  /** Keeps a footnote's links to its own document when several share a page. */
+  scope: string;
 }
 
 /**
@@ -686,6 +700,20 @@ function draw(
           </p>
         </div>
       );
+    case "footnote": {
+      const number = context.notes.push(node);
+      return (
+        <sup key={key} className="fe-footnote-ref">
+          <a
+            href={`#${context.scope}-note-${number}`}
+            id={`${context.scope}-ref-${number}`}
+            aria-label={context.strings.footnoteRef(number)}
+          >
+            {number}
+          </a>
+        </sup>
+      );
+    }
     // A shared block reads as part of the page, drawn as it now is.
     case "shared":
       return context.shared && node.sharedId ? (
@@ -959,6 +987,58 @@ function ReadFile({
   return <FileCard file={useFileFacts(fileId, kept)} {...card} />;
 }
 
+const URL_IN_TEXT = /(https?:\/\/[^\s]+?)(?=[.,;]?(?:\s|$))/u;
+
+/** Words with any address in them made a link, as a citation's DOI or page. */
+function linked(text: string, key: string): ReactNode[] {
+  return text.split(URL_IN_TEXT).map((part, index) =>
+    index % 2 === 1 ? (
+      <a key={`${key}.${index}`} href={part} target="_blank" rel="noreferrer">
+        {part}
+      </a>
+    ) : (
+      part
+    ),
+  );
+}
+
+/** A document's footnotes in the order they stand, each linking back to its place. */
+function Notes({ notes, context }: { notes: ContentNode[]; context: Context }) {
+  return (
+    <section aria-label={context.strings.footnotes} className="fe-notes">
+      <ol>
+        {notes.map((note, index) => {
+          const number = index + 1;
+          return (
+            <li key={number} id={`${context.scope}-note-${number}`} dir="auto">
+              {note.source
+                ? formatSource(note.source, context.locale).map((run, at) =>
+                    run.italic ? (
+                      <i key={`${number}.${at}`}>{run.text}</i>
+                    ) : (
+                      <Fragment key={`${number}.${at}`}>
+                        {linked(run.text, `${number}.${at}`)}
+                      </Fragment>
+                    ),
+                  )
+                : null}
+              {note.source && note.note ? " " : null}
+              {note.note ? linked(note.note, `${number}.note`) : null}{" "}
+              <a
+                href={`#${context.scope}-ref-${number}`}
+                aria-label={context.strings.footnoteBack(number)}
+                className="fe-notes-back"
+              >
+                ↩
+              </a>
+            </li>
+          );
+        })}
+      </ol>
+    </section>
+  );
+}
+
 export function ContentRenderer({
   document,
   strings,
@@ -1000,7 +1080,8 @@ export function ContentRenderer({
   const marking = marks?.length
     ? markingOf(document, marks, activeMark)
     : undefined;
-  const context = {
+  const scope = useId();
+  const context: Context = {
     strings,
     top: topHeadingLevel(document),
     fileUrl,
@@ -1011,19 +1092,26 @@ export function ContentRenderer({
     predicted,
     replace,
     shared,
+    notes: [],
+    scope,
   };
+  const drawn = renderBlock
+    ? document.root.children?.map((child, index) => (
+        <Fragment key={`root.${index}`}>
+          {renderBlock(child, render(child, `root.${index}`, context))}
+        </Fragment>
+      ))
+    : render(document.root, "root", context);
+  // Drawing the text numbered its footnotes; they are listed below it.
   return (
     <div
       className={className ? `fe ${className}` : "fe"}
       dir={textDirection(contentPlainText(document)) ?? undefined}
     >
-      {renderBlock
-        ? document.root.children?.map((child, index) => (
-            <Fragment key={`root.${index}`}>
-              {renderBlock(child, render(child, `root.${index}`, context))}
-            </Fragment>
-          ))
-        : render(document.root, "root", context)}
+      {drawn}
+      {context.notes.length > 0 ? (
+        <Notes notes={context.notes} context={context} />
+      ) : null}
     </div>
   );
 }

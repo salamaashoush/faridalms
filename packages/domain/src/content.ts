@@ -3,10 +3,12 @@ import type { Level } from "@faridalms/puzzles/level";
 import { levelSchema } from "@faridalms/puzzles/level";
 import * as v from "valibot";
 
+import type { FootnoteSource } from "./citations";
 import type { EmbedProvider } from "./embed";
 import type { ProjectFile, ProjectLanguage } from "./project";
 import type { ScratchFeature } from "./scratch-project";
 
+import { footnoteSourceSchema } from "./citations";
 import { embedProviders, isEmbedId } from "./embed";
 import { projectLanguages, starterFilesSchema } from "./project";
 import { isSafeContentUrl } from "./rich-text";
@@ -103,6 +105,7 @@ const nodeTypes = [
   "draw",
   "standards",
   "shared",
+  "footnote",
 ] as const;
 /**
  * The questions a document can ask, each marked by the server from the
@@ -293,6 +296,10 @@ export interface ContentNode {
   bankTag?: string;
   /** A block kept once and shown in many documents, by the shared block it shows. */
   sharedId?: string;
+  /** A footnote's words, shown below the text its number stands in. */
+  note?: string;
+  /** A footnote citing a source, written in its style in place of the words. */
+  source?: FootnoteSource;
   /** The school's standards a question gives evidence of, by id. */
   standards?: string[];
   /**
@@ -616,6 +623,8 @@ const nodeSchema: v.GenericSchema<ContentNode> = v.lazy(() =>
       questionId: v.optional(v.pipe(v.string(), v.uuid())),
       bankTag: v.optional(v.pipe(v.string(), v.maxLength(40))),
       sharedId: v.optional(v.pipe(v.string(), v.uuid())),
+      note: v.optional(v.pipe(v.string(), v.maxLength(2000))),
+      source: v.optional(footnoteSourceSchema),
       standards: v.optional(
         v.pipe(
           v.array(v.pipe(v.string(), v.uuid())),
@@ -751,6 +760,9 @@ const inline = (child: ContentNode) =>
     "autolink",
     "math",
   ].includes(child.type);
+/** What running text may hold: its words, and footnotes on them. */
+const prose = (child: ContentNode) =>
+  inline(child) || child.type === "footnote";
 const blocks = new Set<string>([
   "paragraph",
   "heading",
@@ -828,6 +840,10 @@ function validNode(node: ContentNode): boolean {
     );
   if (node.type === "shared")
     return !node.children && node.text === undefined && Boolean(node.sharedId);
+  if (node.type === "footnote")
+    return (
+      !node.children && node.text === undefined && typeof node.note === "string"
+    );
   if (node.type === "draw")
     return (
       !node.children &&
@@ -930,18 +946,19 @@ function validNode(node: ContentNode): boolean {
     case "quote":
       return children.every(
         (child) =>
-          inline(child) ||
+          prose(child) ||
           ["paragraph", "heading", "quote", "list", "horizontalrule"].includes(
             child.type,
           ),
       );
     case "paragraph":
+      return children.every(prose);
     case "code":
     case "toggle-title":
     case "panel-title":
       return children.every(inline);
     case "heading":
-      return Boolean(node.tag?.startsWith("h")) && children.every(inline);
+      return Boolean(node.tag?.startsWith("h")) && children.every(prose);
     case "link":
     case "autolink":
       return (
@@ -957,7 +974,7 @@ function validNode(node: ContentNode): boolean {
         children.every((child) => child.type === "listitem")
       );
     case "listitem":
-      return children.every((child) => inline(child) || child.type === "list");
+      return children.every((child) => prose(child) || child.type === "list");
     case "table":
       return (
         children.length > 0 &&
@@ -1094,6 +1111,8 @@ const visit = (node: ContentNode): string => {
   if (node.type === "embed") return node.caption ?? "";
   if (node.type === "file") return node.name ?? "";
   if (node.type === "math") return mathText(node);
+  // A footnote is read where it is listed, not in the line it marks.
+  if (node.type === "footnote") return "";
   // Accepted answers are the key; they stay out of text anyone can search.
   if (node.type === "question-answer" || node.type === "question-gap")
     return "";

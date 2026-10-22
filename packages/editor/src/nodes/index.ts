@@ -8,6 +8,7 @@ import { $isCalloutNode, CalloutNode } from "./callout";
 import { ChartNode } from "./chart";
 import { $isColumnNode, ColumnNode, ColumnsNode } from "./columns";
 import { DrawNode } from "./draw";
+import { FootnoteNode } from "./footnote";
 import { GateNode } from "./gate";
 import { MathNode } from "./math";
 import { FileNode, ImageNode } from "./media";
@@ -48,6 +49,7 @@ export * from "./chart";
 export * from "./code-run";
 export * from "./columns";
 export * from "./draw";
+export * from "./footnote";
 export * from "./gate";
 export * from "./math";
 export * from "./media";
@@ -97,6 +99,7 @@ export const blockNodes = [
   StarterNode,
   AiUseNode,
   MathNode,
+  FootnoteNode,
 ];
 
 export const blockIdState = createState("id", {

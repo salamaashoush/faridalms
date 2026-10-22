@@ -125,6 +125,7 @@ import {
   ToggleNode,
   ToggleTitleNode,
 } from "./nodes";
+import { $insertFootnote } from "./nodes/footnote";
 
 const escapable = (node: LexicalNode | null | undefined): node is ElementNode =>
   $isCalloutNode(node) ||
@@ -753,6 +754,9 @@ function $shortcut(event: KeyboardEvent): boolean {
     if (block) $turnInto(block, type);
     return Boolean(block);
   }
+  // As Google Docs and Word take it, by the key so any layout reaches it.
+  if (event.altKey && !event.shiftKey && event.code === "KeyF")
+    return $insertFootnote() !== null;
   if (event.altKey) return false;
   if (!event.shiftKey && key === "enter") {
     const option = $markableAtCaret();

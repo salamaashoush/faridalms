@@ -450,6 +450,18 @@ Sources: [../research/course-design.md](../research/course-design.md),
    shared block's history of changes; telling a teacher which documents
    show one before they change it.
 4. **Footnotes and citations** for older students and universities.
+   Done: a footnote is added at the caret from the selection bar or with
+   Mod+Alt+F, a number in the line counted in reading order, its words
+   written in the floating bar. It may cite a source instead or as well:
+   a book, a journal article or a web page, its authors, title,
+   publisher, journal or site, date, pages, volume, issue and link,
+   set as it is typed in APA 7, MLA 9 or Chicago notes with the title in
+   italics. Readers and paper see each number linked to its note in a
+   list below the text, and back again; Arabic authors may be separated
+   with Arabic commas.
+   Left: a bibliography gathered from a document's sources; numbering
+   that runs on across a lesson's parts, which now count each part's
+   footnotes apart.
 5. **Mentions** of people and documents.
 6. **Glossary terms** a reader can open in place.
 7. **A document's own language**: lessons record the language they teach

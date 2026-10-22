@@ -1,3 +1,4 @@
+import type { FootnoteSource } from "@faridalms/domain/citations";
 import type {
   ContentNode,
   FeedbackTime,
@@ -62,6 +63,7 @@ import {
   AlignLeft,
   AlignRight,
   ALargeSmall,
+  Asterisk,
   Baseline,
   BookmarkPlus,
   Bold,
@@ -163,6 +165,7 @@ import {
 } from "../formatting";
 import { MathInput } from "../math-input";
 import { $isDrawNode, useBankTags } from "../nodes/draw";
+import { $insertFootnote, $isFootnoteNode } from "../nodes/footnote";
 import { $insertMath, $isMathNode } from "../nodes/math";
 import { $isFileNode, $isImageNode, OPEN_FILE_COMMAND } from "../nodes/media";
 import {
@@ -209,6 +212,7 @@ import {
   selectionReference,
   shortcutLabel,
 } from "../ui";
+import { FootnotePanel } from "./footnote-panel";
 import { NarrationPanel, OPEN_NARRATION_COMMAND } from "./narration";
 import { PictureLibrary, pictureFile } from "./picture-library";
 import { RegionPad } from "./regions";
@@ -233,7 +237,8 @@ type Mode =
   | "regions"
   | "picture"
   | "standards"
-  | "standards-block";
+  | "standards-block"
+  | "footnote";
 
 /** A chosen formula: what the bar writes and how it sits. */
 interface MathFacts {
@@ -241,6 +246,13 @@ interface MathFacts {
   latex: string;
   block: boolean;
   rtl: boolean;
+}
+
+/** A chosen footnote: its words, and the source it cites. */
+interface FootnoteFacts {
+  key: NodeKey;
+  note: string;
+  source: FootnoteSource | null;
 }
 
 /** A chosen standards block and the standards it names. */
@@ -531,6 +543,7 @@ export function SelectionToolbarPlugin() {
   } = useEditorEnvironment();
   const [mode, setMode] = useState<Mode>("hidden");
   const [math, setMath] = useState<MathFacts | null>(null);
+  const [footnote, setFootnote] = useState<FootnoteFacts | null>(null);
   const [drawing, setDrawing] = useState<DrawFacts | null>(null);
   const [naming, setNaming] = useState<NamingFacts | null>(null);
   // The standards panel tags the question the caret is in, or names a block's.
@@ -675,6 +688,20 @@ export function SelectionToolbarPlugin() {
       };
     });
 
+  const readFootnote = () =>
+    editor.getEditorState().read((): FootnoteFacts | null => {
+      const selection = $getSelection();
+      if (!$isNodeSelection(selection)) return null;
+      const nodes = selection.getNodes();
+      const node = nodes.length === 1 ? nodes[0] : null;
+      if (!$isFootnoteNode(node)) return null;
+      return {
+        key: node.getKey(),
+        note: node.getNote(),
+        source: node.getSource(),
+      };
+    });
+
   const readDraw = () =>
     editor.getEditorState().read((): DrawFacts | null => {
       const selection = $getSelection();
@@ -805,7 +832,8 @@ export function SelectionToolbarPlugin() {
       modeRef.current === "regions" ||
       modeRef.current === "picture" ||
       modeRef.current === "standards" ||
-      modeRef.current === "math"
+      modeRef.current === "math" ||
+      modeRef.current === "footnote"
     )
       return;
     const root = editor.getRootElement();
@@ -815,6 +843,12 @@ export function SelectionToolbarPlugin() {
       setMath(formula);
       setReference(editor.getElementByKey(formula.key));
       return show("math");
+    }
+    const noted = focused ? readFootnote() : null;
+    if (noted) {
+      setFootnote(noted);
+      setReference(editor.getElementByKey(noted.key));
+      return show("footnote");
     }
     const draw = focused && !lockQuestions ? readDraw() : null;
     if (draw) {
@@ -994,7 +1028,8 @@ export function SelectionToolbarPlugin() {
       mode === "regions" ||
       mode === "picture" ||
       mode === "standards" ||
-      mode === "math"
+      mode === "math" ||
+      mode === "footnote"
     )
       return undefined;
     const onFocus = () => {
@@ -1011,7 +1046,8 @@ export function SelectionToolbarPlugin() {
         modeRef.current === "regions" ||
         modeRef.current === "picture" ||
         modeRef.current === "standards" ||
-        modeRef.current === "math"
+        modeRef.current === "math" ||
+        modeRef.current === "footnote"
       )
         return;
       const active = document.activeElement;
@@ -1131,6 +1167,48 @@ export function SelectionToolbarPlugin() {
           >
             <Trash2 aria-hidden />
           </ToolButton>
+        </div>
+      </Floating>
+    );
+  }
+
+  if (mode === "footnote" && footnote) {
+    const close = () => {
+      show("hidden");
+      updateFromOutside(editor, () => {
+        const node = $getNodeByKey(footnote.key);
+        if (!$isFootnoteNode(node)) return;
+        node.selectNext(0, 0);
+        // A footnote left without words or a source is not kept.
+        if (!node.getNote().trim() && !node.getSource()) node.remove();
+      });
+    };
+    return (
+      <Floating
+        reference={reference}
+        placement="bottom-start"
+        boundary={boundary}
+        className="w-[30rem] max-w-[calc(100vw-1rem)] p-3"
+        keepInView
+        label={strings.footnote}
+      >
+        <div ref={toolbar} className="contents">
+          <FootnotePanel
+            key={footnote.key}
+            nodeKey={footnote.key}
+            note={footnote.note}
+            source={footnote.source}
+            onClose={close}
+            onRemove={() => {
+              show("hidden");
+              updateFromOutside(editor, () => {
+                const node = $getNodeByKey(footnote.key);
+                if (!$isFootnoteNode(node)) return;
+                node.selectNext(0, 0);
+                node.remove();
+              });
+            }}
+          />
         </div>
       </Floating>
     );
@@ -3243,6 +3321,13 @@ export function SelectionToolbarPlugin() {
           onClick={() => editor.update(() => void $insertMath())}
         >
           <Sigma aria-hidden />
+        </ToolButton>
+        <ToolButton
+          label={strings.footnoteAdd}
+          shortcut={shortcutLabel("Mod+Alt+F")}
+          onClick={() => editor.update(() => void $insertFootnote())}
+        >
+          <Asterisk aria-hidden />
         </ToolButton>
         {separator}
         <ToolButton

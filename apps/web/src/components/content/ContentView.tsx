@@ -77,6 +77,11 @@ export function ContentView({
           m.editorDrawPointsEach({ count: points }, { locale }),
         drawNoTag: m.editorDrawNoTag({}, { locale }),
         standardsBlock: m.editorStandardsBlock({}, { locale }),
+        footnotes: m.editorFootnotes({}, { locale }),
+        footnoteRef: (number) =>
+          m.editorFootnoteRef({ number: String(number) }, { locale }),
+        footnoteBack: (number) =>
+          m.editorFootnoteBack({ number: String(number) }, { locale }),
         cardTurn: m.editorCardTurn({}, { locale }),
         cardTurnBack: m.editorCardTurnBack({}, { locale }),
         pictureLabel: (number) =>

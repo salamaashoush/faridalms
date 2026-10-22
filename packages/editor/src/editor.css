@@ -1852,3 +1852,52 @@
   background: var(--fe-subtle);
   color: var(--foreground);
 }
+
+/* Footnotes. In the editor each is a number drawn by a counter, so it
+   follows any footnote added, moved or taken out; a reader's are written
+   out and listed below the text. */
+.fe {
+  counter-reset: fe-footnote;
+}
+.fe .fe-footnote {
+  padding-inline: 0.1em;
+  border-radius: 0.25rem;
+  color: var(--fe-accent);
+  font-weight: 600;
+}
+.fe .fe-footnote::after {
+  counter-increment: fe-footnote;
+  content: counter(fe-footnote);
+}
+.fe .fe-footnote[data-selected] {
+  outline: 2px solid var(--ring);
+  outline-offset: 1px;
+}
+.fe .fe-footnote-ref a {
+  padding-inline: 0.1em;
+  color: var(--fe-accent);
+  font-weight: 600;
+  text-decoration: none;
+}
+.fe .fe-notes {
+  margin-top: 1.5rem;
+  border-top: 1px solid var(--border);
+  padding-top: 0.75rem;
+  font-size: 0.875em;
+  color: var(--fe-muted);
+}
+.fe .fe-notes ol {
+  margin: 0;
+  padding-inline-start: 1.5em;
+  list-style: decimal;
+}
+.fe .fe-notes li + li {
+  margin-top: 0.25rem;
+}
+.fe .fe-notes a {
+  color: var(--fe-accent);
+  overflow-wrap: anywhere;
+}
+.fe .fe-notes-back {
+  text-decoration: none;
+}
