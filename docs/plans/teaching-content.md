@@ -249,8 +249,12 @@ Sources: [../research/course-design.md](../research/course-design.md),
    ledger staying append only) and works out each student's score, best
    score and standards evidence again; a question answered at once ends at
    its first right answer, so an earlier try that is now right stands.
-   A finished lesson stays finished.
-   Left: code exercises, which need a fresh run against changed tests.
+   A finished lesson stays finished. A code exercise whose tests or
+   language changed has its answers run again: the teacher is told how many
+   will run, and a background pass in the API (`program_remarks`, one
+   waiting row per exercise that a later change moves on) runs each answer
+   outside any transaction, keeps the changed marks with the new results,
+   which the student then sees, and works out scores and evidence again.
 7. **Quiz reveals and practice**: "which were wrong, with feedback" as a
    reveal, and a practice mode with tries and hints.
    Done: a quiz can show which answers were wrong with the feedback on each

@@ -248,7 +248,10 @@ export function LessonEditor({
   const [pending, setPending] = useState(false);
   // Answers already given that a changed key would mark differently, and
   // whether the teacher has them marked again.
-  const [remarking, setRemarking] = useState<number | null>(null);
+  const [remarking, setRemarking] = useState<{
+    answers: number;
+    programs: number;
+  } | null>(null);
   const [remark, setRemark] = useState<"again" | "keep">("again");
   const [copying, setCopying] = useState({ key: 0, open: false });
 
@@ -432,13 +435,13 @@ export function LessonEditor({
       await autosave.settle();
       // A lesson already shown may have answers its changed keys would
       // mark differently; its teacher chooses what becomes of them.
-      const marksDiffer =
+      const differ =
         shown && id.current
-          ? (await getRemarking({ data: { id: id.current } })).answers
-          : 0;
-      if (marksDiffer > 0) {
+          ? await getRemarking({ data: { id: id.current } })
+          : null;
+      if (differ && (differ.answers > 0 || differ.programs > 0)) {
         setRemark("again");
-        setRemarking(marksDiffer);
+        setRemarking(differ);
         return;
       }
       await publish(false);
@@ -1009,9 +1012,16 @@ export function LessonEditor({
           }
         }}
       >
-        <p className="text-sm leading-5 text-muted-foreground">
-          {m.lrnRemarkCount({ count: remarking ?? 0 })}
-        </p>
+        {remarking?.answers ? (
+          <p className="text-sm leading-5 text-muted-foreground">
+            {m.lrnRemarkCount({ count: remarking.answers })}
+          </p>
+        ) : null}
+        {remarking?.programs ? (
+          <p className="text-sm leading-5 text-muted-foreground">
+            {m.lrnRemarkPrograms({ count: remarking.programs })}
+          </p>
+        ) : null}
         <ChoiceField
           label={m.lrnRemarkChoice()}
           value={remark}

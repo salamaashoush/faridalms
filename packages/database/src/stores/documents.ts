@@ -333,6 +333,19 @@ export async function publishedVersion(
     : null;
 }
 
+/** One snapshot of a document, by its own id, as it was taken. */
+export async function versionContent(
+  tx: Tx,
+  tenantId: string,
+  versionId: string,
+): Promise<Record<string, unknown> | null> {
+  const [row] = await tx.execute<{ content: Record<string, unknown> }>(sql`
+    select content from core.document_versions
+    where tenant_id = ${tenantId}::uuid and id = ${versionId}::uuid
+      and redacted_at is null`);
+  return row?.content ?? null;
+}
+
 export interface VersionRow {
   documentVersion: number;
   reason: "publish" | "checkpoint" | "before_restore" | "import";

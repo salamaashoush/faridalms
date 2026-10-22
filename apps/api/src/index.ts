@@ -8,6 +8,7 @@ import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { createApp } from "./app";
+import { startProgramReruns } from "./coding/rerun";
 import { createJavaScriptRunner, createPythonRunner } from "./coding/run";
 import { createKeyRing } from "./core/keys";
 import { startQuizClock } from "./core/quiz-clock";
@@ -91,6 +92,13 @@ const gateways = {
   email: createProvider(env.EMAIL_WEBHOOK_URL, env.NOTIFY_WEBHOOK_TOKEN),
   sms: createProvider(env.SMS_WEBHOOK_URL, env.NOTIFY_WEBHOOK_TOKEN),
 };
+const runners = {
+  python: createPythonRunner(
+    env.PYTHON_DIR ?? join(process.cwd(), "vendor", "python"),
+  ),
+  javascript: createJavaScriptRunner(),
+};
+
 const server = Bun.serve({
   port: env.API_PORT,
   // Uploads stream through the raw file route; everything else stays small.
@@ -109,12 +117,7 @@ const server = Bun.serve({
       env.MEDIA_ORIGIN !== undefined && env.MEDIA_CAPTIONS === "on",
     streamLinkKey: streamLinkKey(cellSecret),
     scanner: createScanner(env.CLAMD_ADDRESS),
-    runners: {
-      python: createPythonRunner(
-        env.PYTHON_DIR ?? join(process.cwd(), "vendor", "python"),
-      ),
-      javascript: createJavaScriptRunner(),
-    },
+    runners,
     maxUploadBytes: env.MAX_UPLOAD_BYTES,
     channels: {
       email: Boolean(env.EMAIL_WEBHOOK_URL),
@@ -164,6 +167,17 @@ const stopQuizClock = env.CELL_WORKER_URL
     })
   : null;
 
+// Code answers to mark again run here, where the code runners are.
+const stopProgramReruns = env.CELL_WORKER_URL
+  ? startProgramReruns({
+      cell,
+      directory,
+      cellId: env.CELL_ID,
+      runners,
+      intervalMs: 30_000,
+    })
+  : null;
+
 let stopping = false;
 async function shutdown() {
   if (stopping) return;
@@ -173,6 +187,7 @@ async function shutdown() {
   await stopDelivery?.();
   await stopUpkeep?.();
   await stopQuizClock?.();
+  await stopProgramReruns?.();
   await directorySync?.close();
   await cell.close();
   await directory.close();

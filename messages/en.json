@@ -3734,6 +3734,16 @@
   "lrnNotShownYet": "Students do not see this lesson yet",
   "lrnShowStudents": "Show students",
   "lrnRemarkTitle": "Answers already given",
+  "lrnRemarkPrograms": [
+    {
+      "declarations": ["input count", "local countPlural = count: plural"],
+      "selectors": ["countPlural"],
+      "match": {
+        "countPlural=one": "{count} code answer will run again against the changed tests; its mark changes within a few minutes if the run comes out differently.",
+        "countPlural=*": "{count} code answers will run again against the changed tests; their marks change within a few minutes where a run comes out differently."
+      }
+    }
+  ],
   "lrnRemarkCount": [
     {
       "declarations": ["input count", "local countPlural = count: plural"],

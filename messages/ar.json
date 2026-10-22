@@ -3919,6 +3919,20 @@
   "lrnNotShownYet": "لا يرى الطلاب هذا الدرس بعد",
   "lrnShowStudents": "اعرض للطلاب",
   "lrnRemarkTitle": "إجابات سبق تقديمها",
+  "lrnRemarkPrograms": [
+    {
+      "declarations": ["input count", "local countPlural = count: plural"],
+      "selectors": ["countPlural"],
+      "match": {
+        "countPlural=zero": "لا إجابات برمجية تُشغَّل من جديد.",
+        "countPlural=one": "ستُشغَّل إجابة برمجية واحدة من جديد على الاختبارات المعدّلة، وتتغيّر علامتها خلال دقائق إن اختلفت نتيجتها.",
+        "countPlural=two": "ستُشغَّل إجابتان برمجيتان من جديد على الاختبارات المعدّلة، وتتغيّر علامتهما خلال دقائق إن اختلفت نتيجتهما.",
+        "countPlural=few": "ستُشغَّل {count} إجابات برمجية من جديد على الاختبارات المعدّلة، وتتغيّر علاماتها خلال دقائق حيث تختلف نتيجتها.",
+        "countPlural=many": "ستُشغَّل {count} إجابة برمجية من جديد على الاختبارات المعدّلة، وتتغيّر علاماتها خلال دقائق حيث تختلف نتيجتها.",
+        "countPlural=*": "ستُشغَّل {count} إجابة برمجية من جديد على الاختبارات المعدّلة، وتتغيّر علاماتها خلال دقائق حيث تختلف نتيجتها."
+      }
+    }
+  ],
   "lrnRemarkCount": [
     {
       "declarations": ["input count", "local countPlural = count: plural"],

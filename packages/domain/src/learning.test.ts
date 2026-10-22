@@ -26,6 +26,7 @@ import { crosswordLayout, crosswordLetters, squaresOf } from "./crossword";
 import {
   answerKey,
   bandFor,
+  changedPrograms,
   checkStates,
   completionMet,
   creditOf,
@@ -418,6 +419,71 @@ const answersOf = (given: [TextBlock, string][]): StoredTry[] =>
     response: { type: "text", text },
     feedback: null,
   }));
+
+describe("code marked again", () => {
+  const check = { id: uuid(71), input: "2", expected: "8", hidden: false };
+  const cubes: ProgramBlock = {
+    ...common,
+    id: uuid(70),
+    type: "program",
+    prompt: "Print the cube of the number.",
+    language: "python",
+    starter: "",
+    tests: [check],
+  };
+  const squares: ProgramBlock = {
+    ...cubes,
+    tests: [{ ...check, expected: "4" }],
+  };
+
+  it("finds the exercises whose tests changed since students saw them", () => {
+    const before: LessonDocument = { version: 2, blocks: [cubes, typed] };
+    expect(changedPrograms(before, before)).toEqual([]);
+    expect(
+      changedPrograms(before, { version: 2, blocks: [squares, typed] }),
+    ).toEqual([squares]);
+    expect(
+      changedPrograms(
+        { version: 2, blocks: [typed] },
+        { version: 2, blocks: [squares] },
+      ),
+    ).toEqual([]);
+  });
+
+  it("shows the results of the run that marked an answer again", () => {
+    const ran = (passed: boolean, output: string) => ({
+      type: "program",
+      code: "n = int(input())\nprint(n ** 3)",
+      results: { [check.id]: { passed, output, error: null, stopped: null } },
+    });
+    const rows: StoredTry[] = [
+      {
+        blockId: cubes.id,
+        try: 1,
+        state: "answered",
+        fraction: 1,
+        response: ran(true, "8\n"),
+        feedback: null,
+      },
+      {
+        blockId: cubes.id,
+        try: 1,
+        state: "remarked",
+        fraction: 0,
+        response: ran(false, "8\n"),
+        feedback: null,
+      },
+    ];
+    const state = checkStates({ version: 2, blocks: [squares] }, rows)[
+      squares.id
+    ];
+    expect(describeCheck(squares, rows, state)).toMatchObject({
+      fraction: 0,
+      correct: false,
+      response: ran(false, "8\n"),
+    });
+  });
+});
 
 describe("a continue gate waiting for some questions or a score", () => {
   const once = { ...typed, id: uuid(9), tries: 1 };

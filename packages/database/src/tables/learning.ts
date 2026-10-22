@@ -436,6 +436,61 @@ export const lessonReleases = core.table.withRLS(
 );
 
 /**
+ * A code exercise whose tests changed when its lesson was shown again, and
+ * whose teacher chose to mark its answers again. Running students' code
+ * takes minutes, so a background pass runs each answer against the version
+ * named here and keeps the marks that changed; a later change to the same
+ * exercise moves the pending row on to the newer version.
+ */
+export const programRemarks = core.table.withRLS(
+  "program_remarks",
+  {
+    ...tenantColumns(),
+    lessonId: uuid("lesson_id").notNull(),
+    blockId: uuid("block_id").notNull(),
+    documentVersionId: uuid("document_version_id").notNull(),
+    requestedByUserId: uuid("requested_by_user_id").notNull(),
+    state: text("state")
+      .$type<"pending" | "done">()
+      .notNull()
+      .default("pending"),
+    finishedAt: instant("finished_at"),
+    /** Answers whose mark the fresh run changed. */
+    remarked: integer("remarked"),
+    ...entityColumns(),
+  },
+  (t): PgTableExtraConfigValue[] => [
+    pk("program_remarks", t.tenantId, t.id),
+    ...baseConstraints("program_remarks", t, tenants),
+    fk(
+      "program_remarks",
+      [t.tenantId, t.lessonId],
+      [lessons.tenantId, lessons.id],
+    ),
+    fk(
+      "program_remarks",
+      [t.tenantId, t.documentVersionId],
+      [documentVersions.tenantId, documentVersions.id],
+    ),
+    fk(
+      "program_remarks",
+      [t.tenantId, t.requestedByUserId],
+      [users.tenantId, users.id],
+    ),
+    ck("program_remarks", "state", sql`state in ('pending', 'done')`),
+    ck(
+      "program_remarks",
+      "finished",
+      sql`(state = 'done') = (finished_at is not null)`,
+    ),
+    uniqueIndex("program_remarks_pending_key")
+      .on(t.tenantId, t.lessonId, t.blockId)
+      .where(sql`status = 'active' and state = 'pending'`),
+    ...entityProfile(),
+  ],
+);
+
+/**
  * Where a student is in a lesson: their score, where they stopped reading,
  * and whether it is done, by their own work or a teacher's override. Their
  * answers are the rows of `lesson_responses`.

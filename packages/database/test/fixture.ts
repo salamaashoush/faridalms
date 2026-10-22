@@ -76,6 +76,7 @@ import {
   moduleClasses,
   pacedLessons,
   lessonReleases,
+  programRemarks,
   discussionPosts,
   ltiKeys,
   ltiLineItems,
@@ -556,6 +557,19 @@ export async function completeFixture(
     lessonId: lesson.id,
     classId: setFor.classId,
     releasedByUserId: userId,
+  });
+  const [snapshot] = await tx
+    .select({ id: documentVersions.id })
+    .from(documentVersions)
+    .where(eq(documentVersions.tenantId, tenantId))
+    .limit(1);
+  if (!snapshot) throw new Error("the fixture keeps no document version");
+  await tx.insert(programRemarks).values({
+    tenantId,
+    lessonId: lesson.id,
+    blockId: id(),
+    documentVersionId: snapshot.id,
+    requestedByUserId: userId,
   });
   const [submission] = await tx
     .select({

@@ -2040,6 +2040,81 @@ export async function touchProgress(
 }
 
 /**
+ * Asks for a code exercise's answers to be run again against a lesson as
+ * shown in this version; one still waiting moves on to it.
+ */
+export async function queueProgramRemark(
+  tx: Tx,
+  input: {
+    tenantId: string;
+    lessonId: string;
+    blockId: string;
+    documentVersionId: string;
+    userId: string;
+  },
+): Promise<void> {
+  await tx.execute(sql`
+    insert into core.program_remarks
+      (tenant_id, lesson_id, block_id, document_version_id, requested_by_user_id)
+    values (${input.tenantId}::uuid, ${input.lessonId}::uuid, ${input.blockId}::uuid,
+      ${input.documentVersionId}::uuid, ${input.userId}::uuid)
+    on conflict (tenant_id, lesson_id, block_id)
+      where status = 'active' and state = 'pending'
+    do update set document_version_id = excluded.document_version_id,
+      requested_by_user_id = excluded.requested_by_user_id`);
+}
+
+export interface PendingProgramRemark {
+  id: string;
+  lessonId: string;
+  blockId: string;
+  documentVersionId: string;
+  version: number;
+}
+
+/** Code exercises waiting for their answers to be run again, oldest first. */
+export async function pendingProgramRemarks(
+  tx: Tx,
+  input: { tenantId: string; limit: number },
+): Promise<PendingProgramRemark[]> {
+  const rows = await tx.execute<{
+    id: string;
+    lesson_id: string;
+    block_id: string;
+    document_version_id: string;
+    version: number;
+  }>(sql`
+    select id, lesson_id, block_id, document_version_id, version
+    from core.program_remarks
+    where tenant_id = ${input.tenantId}::uuid and status = 'active' and state = 'pending'
+    order by created_at limit ${input.limit}`);
+  return rows.map((row) => ({
+    id: row.id,
+    lessonId: row.lesson_id,
+    blockId: row.block_id,
+    documentVersionId: row.document_version_id,
+    version: row.version,
+  }));
+}
+
+/**
+ * Closes a run once its marks are kept, unless the ask moved on to a newer
+ * version meanwhile; whether it was this run that closed it.
+ */
+export async function finishProgramRemark(
+  tx: Tx,
+  input: { tenantId: string; id: string; version: number; remarked: number },
+): Promise<boolean> {
+  const rows = await tx.execute(sql`
+    update core.program_remarks
+    set state = 'done', finished_at = statement_timestamp(), remarked = ${input.remarked}
+    where tenant_id = ${input.tenantId}::uuid and id = ${input.id}::uuid
+      and version = ${input.version} and state = 'pending'
+    returning id`);
+  return rows.length > 0;
+}
+
+/**
  * A teacher shows a class, or one student of it, how they did on a lesson's
  * questions that wait for them.
  */

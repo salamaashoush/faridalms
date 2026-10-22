@@ -12,7 +12,10 @@ import { PACKS } from "@faridalms/puzzles/levels";
 import { describe, expect, test } from "bun:test";
 import { sql } from "drizzle-orm";
 import { strToU8, zipSync } from "fflate";
+import { join } from "node:path";
 
+import { rerunPrograms } from "../src/coding/rerun";
+import { createJavaScriptRunner, createPythonRunner } from "../src/coding/run";
 import { sweepTenantFiles } from "../src/files/sweep";
 import { login, raw, rejection, seeded, sessionFor, signedIn } from "./harness";
 
@@ -2442,6 +2445,7 @@ describe("marking again", () => {
     expect(await keeper.learning.remarking({ id: created.id })).toEqual({
       answers: 2,
       students: 1,
+      programs: 0,
     });
     await keeper.learning.publishLesson({ id: created.id, remark: true });
     const after = await pupil.learning.playLesson({ id: created.id });
@@ -2453,7 +2457,97 @@ describe("marking again", () => {
     expect(await keeper.learning.remarking({ id: created.id })).toEqual({
       answers: 0,
       students: 0,
+      programs: 0,
     });
+  });
+
+  test("a code exercise whose tests change runs each answer again in the background", async () => {
+    const { keeper } = await teachers();
+    const { rows } = await keeper.learning.modules({});
+    const source = rows.find((row) => row.title === TITLE);
+    if (!source) throw new Error("no module");
+    const saved = await keeper.learning.saveModule({
+      id: "",
+      expectedVersion: 0,
+      title: "Powers",
+      summary: "",
+      classIds: source.classes.map((item) => item.id),
+      prerequisiteId: "",
+      sequential: false,
+    });
+    const check = { id: id(), input: "2", expected: "8", hidden: false };
+    const exercise = {
+      id: id(),
+      type: "program" as const,
+      prompt: "Print the cube of the number you are given.",
+      points: 1,
+      hints: [],
+      explanation: "",
+      tries: null,
+      language: "python" as const,
+      starter: "n = int(input())",
+      tests: [check],
+    };
+    const lesson = {
+      id: "",
+      moduleId: saved.id,
+      expectedVersion: 0,
+      title: "Powers",
+      completion: "quiz" as const,
+      passScore: null,
+      review: false,
+      content: written([exercise]),
+      publish: false,
+    };
+    const created = await keeper.learning.saveLesson(lesson);
+    await keeper.learning.publishModule({
+      id: saved.id,
+      expectedVersion: saved.version,
+    });
+    const pupil = await student();
+    const cubed = await pupil.learning.respondProgram({
+      lessonId: created.id,
+      blockId: exercise.id,
+      code: "n = int(input())\nprint(n * n * n)",
+    });
+    expect(cubed.check).toMatchObject({ correct: true });
+
+    // The exercise was meant to ask for the square.
+    const squares = { ...exercise, tests: [{ ...check, expected: "4" }] };
+    await keeper.learning.saveLesson({
+      ...lesson,
+      id: created.id,
+      expectedVersion: created.version,
+      content: written([squares]),
+    });
+    expect(await keeper.learning.remarking({ id: created.id })).toEqual({
+      answers: 0,
+      students: 0,
+      programs: 1,
+    });
+    await keeper.learning.publishLesson({ id: created.id, remark: true });
+    // Nothing changes until the background pass runs the code.
+    expect(
+      (await pupil.learning.playLesson({ id: created.id })).checks[exercise.id],
+    ).toMatchObject({ correct: true });
+
+    const { cell, tenants } = seeded();
+    const tenantId = tenants[0]?.tenantId ?? "";
+    const runners = {
+      python: createPythonRunner(
+        join(import.meta.dir, "..", "vendor", "python"),
+      ),
+      javascript: createJavaScriptRunner(),
+    };
+    expect(await rerunPrograms(cell, runners, tenantId)).toBe(1);
+    const after = await pupil.learning.playLesson({ id: created.id });
+    expect(after.checks[exercise.id]).toMatchObject({
+      correct: false,
+      fraction: 0,
+      response: { results: { [check.id]: { passed: false, output: "8\n" } } },
+    });
+    expect(after.score).toBe(0);
+    expect(await rerunPrograms(cell, runners, tenantId)).toBe(0);
   });
 });
 

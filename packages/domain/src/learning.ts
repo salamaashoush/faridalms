@@ -3437,6 +3437,31 @@ export function checkStates(
 }
 
 /**
+ * The code exercises of a lesson whose tests, or language, differ from the
+ * same exercise as students last saw it: their answers were marked by
+ * running them, so only running them again marks them as now written.
+ */
+export function changedPrograms(
+  before: LessonDocument,
+  after: LessonDocument,
+): ProgramBlock[] {
+  const earlier = new Map(
+    before.blocks.flatMap((block) =>
+      block.type === "program" ? [[block.id, block] as const] : [],
+    ),
+  );
+  return after.blocks.filter((block): block is ProgramBlock => {
+    if (block.type !== "program") return false;
+    const was = earlier.get(block.id);
+    return (
+      was !== undefined &&
+      (was.language !== block.language ||
+        JSON.stringify(was.tests) !== JSON.stringify(block.tests))
+    );
+  });
+}
+
+/**
  * The answers to a question that mark differently under its key as it now
  * stands, each with its new mark: the tries an earlier key marked, for a
  * teacher who chooses to mark them again.
@@ -3594,7 +3619,19 @@ export function describeCheck(
       row.blockId === block.id &&
       (row.state === "answered" || row.state === "needs_marking"),
   );
-  const response = (mine.at(-1)?.response ?? null) as LessonResponse | null;
+  const last = mine.at(-1);
+  // A code answer run again against changed tests keeps its new results
+  // with the mark they gave.
+  const rerun = last
+    ? rows.findLast(
+        (row) =>
+          row.blockId === block.id &&
+          row.state === "remarked" &&
+          row.try === last.try &&
+          Object.keys(row.response).length > 0,
+      )
+    : undefined;
+  const response = ((rerun ?? last)?.response ?? null) as LessonResponse | null;
   const mark = rows.findLast(
     (row) => row.blockId === block.id && row.state === "marked",
   );

@@ -42,6 +42,7 @@ import {
   pollVotes,
   insertLesson,
   insertResponse,
+  queueProgramRemark,
   insertModule,
   keepCode as keepOwnCode,
   lessonById,
@@ -120,6 +121,7 @@ import {
   describeCheck,
   describeReview,
   remarksOf,
+  changedPrograms,
   feedbackAtOf,
   feedbackOpen,
   heldChecks,
@@ -224,6 +226,7 @@ import {
   schoolProcedure,
   writeProcedure as anyWrite,
 } from "../core/procedure";
+import { applyRemarks } from "../core/remarks";
 import {
   registerArea,
   registerHostReader,
@@ -1200,95 +1203,30 @@ async function remarksIn(
 
 /**
  * Marks earlier answers again under a lesson's keys as now shown, as its
- * teacher chose: each changed mark is kept beside the answer it marks, and
- * each student's score, best score and evidence are worked out again. A
- * finished lesson stays finished.
+ * teacher chose. Code is run again by a background pass, asked for here for
+ * each exercise whose tests changed since the version shown before.
  */
-async function remarkLesson(context: UnitContext, shown: LessonRow) {
+async function remarkLesson(
+  context: UnitContext,
+  shown: LessonRow,
+  before: LessonDocument | null,
+) {
   const published = await publishedLesson(context, shown.id);
   if (!published) return 0;
-  const content = published.content;
-  const { rows, changes } = await remarksIn(context, shown.id, content);
-  for (const change of changes)
-    await insertResponse(context.tx, {
+  const { rows, changes } = await remarksIn(
+    context,
+    shown.id,
+    published.content,
+  );
+  for (const block of before ? changedPrograms(before, published.content) : [])
+    await queueProgramRemark(context.tx, {
       tenantId: context.tenantId,
       lessonId: shown.id,
+      blockId: block.id,
       documentVersionId: published.versionId,
-      studentId: change.studentId,
-      blockId: change.block.id,
-      attempt: change.attempt,
-      try: change.try,
-      kind: change.block.type,
-      response: {},
-      fraction: change.fraction,
-      state: "remarked",
+      userId: context.actor.userId,
     });
-  const students = [...new Set(changes.map((change) => change.studentId))];
-  const cells = await progressIn(context.tx, {
-    tenantId: context.tenantId,
-    lessonIds: [shown.id],
-    studentIds: students,
-  });
-  for (const studentId of students) {
-    const own = cells.find((cell) => cell.studentUserId === studentId);
-    const theirs = [
-      ...rows.filter((row) => row.studentId === studentId),
-      ...changes
-        .filter((change) => change.studentId === studentId)
-        .map((change) => ({
-          blockId: change.block.id,
-          attempt: change.attempt,
-          try: change.try,
-          state: "remarked" as const,
-          fraction: change.fraction,
-        })),
-    ];
-    const current = own?.attempts ?? 1;
-    const statesOf = (attempt: number) =>
-      checkStates(
-        content,
-        theirs.filter((row) => row.attempt === attempt),
-      );
-    const earlier = [...new Set(theirs.map((row) => row.attempt))]
-      .filter((attempt) => attempt < current)
-      .map((attempt) => lessonScore(content, statesOf(attempt)))
-      .filter((score) => score !== null);
-    const best = earlier.length > 0 ? Math.max(...earlier) : null;
-    const now = lessonScore(content, statesOf(current));
-    const met =
-      shown.completion !== "watch" &&
-      completionMet(shown, content, statesOf(current));
-    await recordProgress(context.tx, {
-      tenantId: context.tenantId,
-      lessonId: shown.id,
-      studentId,
-      score: now === null ? best : Math.max(now, best ?? 0),
-      bestScore: best,
-      ...(met ? { completed: { by: "student" as const } } : {}),
-    });
-    // The evidence a question gives is its first answer in each attempt.
-    for (const change of changes.filter(
-      (item) =>
-        item.studentId === studentId &&
-        item.try === 1 &&
-        item.block.standards?.length,
-    ))
-      await recordEvidence(context.tx, {
-        tenantId: context.tenantId,
-        studentId,
-        sitting: { source: "lesson", lessonId: shown.id },
-        marks: [
-          {
-            attempt: change.attempt,
-            blockId: change.block.id,
-            standards: change.block.standards ?? [],
-            fraction: change.fraction,
-          },
-        ],
-        replace: true,
-      });
-  }
-  return changes.length;
+  return applyRemarks(context, shown, published, rows, changes);
 }
 
 /** How many earlier answers the lesson as now written would mark differently, before its teacher shows it. */
@@ -1298,18 +1236,24 @@ export const remarking = readProcedure
     const row = await lessonById(context.tx, context.tenantId, input.id);
     if (!row) throw new ORPCError("NOT_FOUND");
     await editableModule(context, row.moduleId);
-    const document = await documentOf(context.tx, context.tenantId, {
-      type: "lesson",
-      id: row.id,
-    });
-    const { changes } = await remarksIn(
-      context,
-      row.id,
-      upgradeLesson(document?.content),
+    const [document, published] = await Promise.all([
+      documentOf(context.tx, context.tenantId, { type: "lesson", id: row.id }),
+      publishedLesson(context, row.id),
+    ]);
+    const draft = upgradeLesson(document?.content);
+    const { rows, changes } = await remarksIn(context, row.id, draft);
+    const rerun = new Set(
+      (published ? changedPrograms(published.content, draft) : []).map(
+        (block) => block.id,
+      ),
     );
     return {
       answers: changes.length,
       students: new Set(changes.map((change) => change.studentId)).size,
+      /** Code answers that would be run again against changed tests. */
+      programs: rows.filter(
+        (item) => item.state === "answered" && rerun.has(item.blockId),
+      ).length,
     };
   });
 
@@ -1323,8 +1267,11 @@ export const publishLesson = writeProcedure
       throw new ORPCError("CONFLICT", { message: "learning.module_draft" });
     const issue = await storedLessonIssue(context, row);
     if (issue) throw new ORPCError("CONFLICT", { message: issue });
+    const shownBefore = await publishedLesson(context, row.id);
     await publishLessons(context, [row.id]);
-    const remarked = input.remark ? await remarkLesson(context, row) : 0;
+    const remarked = input.remark
+      ? await remarkLesson(context, row, shownBefore?.content ?? null)
+      : 0;
     await audit(context, {
       action: "lesson.publish",
       objectType: "lesson",
@@ -1504,11 +1451,14 @@ export const saveLesson = writeProcedure
     if (published) {
       const issue = lessonIssue(input);
       if (issue) throw new ORPCError("CONFLICT", { message: issue });
+      const shownBefore = await publishedLesson(context, lessonId);
       await publishLessons(context, [lessonId]);
       const shownRow = input.remark
         ? await lessonById(context.tx, context.tenantId, lessonId)
         : null;
-      const remarked = shownRow ? await remarkLesson(context, shownRow) : 0;
+      const remarked = shownRow
+        ? await remarkLesson(context, shownRow, shownBefore?.content ?? null)
+        : 0;
       await audit(context, {
         action: "lesson.publish",
         objectType: "lesson",
