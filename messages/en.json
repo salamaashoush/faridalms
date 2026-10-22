@@ -5074,6 +5074,7 @@
   "quizKeepAverage": "The average of all attempts",
   "quizKeepFirst": "The first attempt",
   "quizRevealAnswers": "Right answers and explanations",
+  "quizRevealFeedback": "Which were wrong, with your feedback, not the answers",
   "quizRevealMarks": "Only which answers were right",
   "quizRevealReturned": "Nothing until you return it",
   "quizQuestionsNeeded": "Add at least one question.",

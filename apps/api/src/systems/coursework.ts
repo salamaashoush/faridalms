@@ -1921,10 +1921,13 @@ async function learnerQuiz(
         context.tenantId,
         attempt.id,
       );
-      const show = assessment?.releasedAt
-        ? "answers"
-        : assignment.quizReveal === "returned"
-          ? null
+      // A quiz shown only once returned shows its answers then; any other
+      // shows what its teacher chose, however its grade came back.
+      const show =
+        assignment.quizReveal === "returned"
+          ? assessment?.releasedAt
+            ? "answers"
+            : null
           : assignment.quizReveal;
       return {
         number: attempt.number,

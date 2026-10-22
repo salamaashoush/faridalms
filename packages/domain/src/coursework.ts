@@ -52,7 +52,12 @@ export type QuizKeep = (typeof QUIZ_KEEPS)[number];
  * explanations, only which questions were right, or nothing until the
  * teacher returns it.
  */
-export const QUIZ_REVEALS = ["answers", "marks", "returned"] as const;
+export const QUIZ_REVEALS = [
+  "answers",
+  "feedback",
+  "marks",
+  "returned",
+] as const;
 export type QuizReveal = (typeof QUIZ_REVEALS)[number];
 export const MAX_QUIZ_ATTEMPTS = 10;
 /** The longest a timed quiz may run, in minutes, before any extra time. */

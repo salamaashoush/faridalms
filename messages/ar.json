@@ -5309,6 +5309,7 @@
   "quizKeepAverage": "متوسط كل المحاولات",
   "quizKeepFirst": "المحاولة الأولى",
   "quizRevealAnswers": "الإجابات الصحيحة مع الشرح",
+  "quizRevealFeedback": "الخاطئ منها مع ملاحظاتك، دون الإجابات",
   "quizRevealMarks": "أي الإجابات كانت صحيحة فقط",
   "quizRevealReturned": "لا شيء حتى تعيده",
   "quizQuestionsNeeded": "أضف سؤالًا واحدًا على الأقل.",

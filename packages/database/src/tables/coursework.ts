@@ -119,7 +119,7 @@ export type SubmissionFormat =
   | "quiz"
   | "discussion";
 export type QuizKeep = "highest" | "latest" | "average" | "first";
-export type QuizReveal = "answers" | "marks" | "returned";
+export type QuizReveal = "answers" | "feedback" | "marks" | "returned";
 export type Audience = "class" | "selected";
 
 /**
@@ -232,7 +232,7 @@ export const assignments = core.table.withRLS(
     ck(
       "assignments",
       "quiz",
-      sql`(submission_format = 'quiz') = (quiz_keep is not null and quiz_reveal is not null) and (quiz_attempts is null or quiz_attempts between 1 and 10) and (quiz_keep is null or quiz_keep in ('highest', 'latest', 'average', 'first')) and (quiz_reveal is null or quiz_reveal in ('answers', 'marks', 'returned'))`,
+      sql`(submission_format = 'quiz') = (quiz_keep is not null and quiz_reveal is not null) and (quiz_attempts is null or quiz_attempts between 1 and 10) and (quiz_keep is null or quiz_keep in ('highest', 'latest', 'average', 'first')) and (quiz_reveal is null or quiz_reveal in ('answers', 'feedback', 'marks', 'returned'))`,
     ),
     ck("assignments", "max_files", sql`max_files between 1 and 20`),
     fk(

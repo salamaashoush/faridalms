@@ -116,6 +116,7 @@ const KEEP_LABEL: Record<QuizKeep, () => string> = {
 
 const REVEAL_LABEL: Record<QuizReveal, () => string> = {
   answers: m.quizRevealAnswers,
+  feedback: m.quizRevealFeedback,
   marks: m.quizRevealMarks,
   returned: m.quizRevealReturned,
 };

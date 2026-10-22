@@ -2944,13 +2944,14 @@ export interface QuizAnswer {
 
 /**
  * Each question's result in one handed-in attempt. "answers" shows the key,
- * explanation and option feedback; "marks" only whether each part was right.
- * Hints belong to practice and never show.
+ * explanation and option feedback; "feedback" which parts were wrong with
+ * the feedback on what was chosen, but not the key; "marks" only whether
+ * each part was right. Hints belong to practice and never show.
  */
 export function quizViews(
   document: LessonDocument,
   answers: readonly QuizAnswer[],
-  show: "answers" | "marks",
+  show: "answers" | "feedback" | "marks",
 ): Record<string, CheckView> {
   const blocks = checkBlocks(document);
   const rows: StoredTry[] = answers.flatMap((answer): StoredTry[] => {
@@ -2993,8 +2994,9 @@ export function quizViews(
               ...view,
               key: null,
               partKey: null,
+              keyProgram: undefined,
               explanation: null,
-              feedback: [],
+              feedback: show === "feedback" ? view.feedback : [],
             };
       return [block.id, { ...shown, hints: [], hintsLeft: 0, triesLeft: null }];
     }),

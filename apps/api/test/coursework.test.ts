@@ -1175,7 +1175,9 @@ const uuid = () => crypto.randomUUID();
 describe("quizzes", () => {
   const common = { hints: [], explanation: "Because.", tries: null };
 
-  async function quizFor(reveal: "answers" | "marks" | "returned") {
+  async function quizFor(
+    reveal: "answers" | "feedback" | "marks" | "returned",
+  ) {
     const teacher = await arabicTeacher();
     const student = await sessionFor("northwind", login("student"));
     const me = await student.api.identity.currentUser();
@@ -1871,6 +1873,36 @@ describe("quizzes", () => {
     const next = await student.api.coursework.work({ id: saved.id });
     expect(next.quiz?.timing).toBe(null);
     expect(next.quiz?.blocks.map((block) => block.id)).toEqual([choice.id]);
+  });
+
+  test("a quiz that shows which were wrong gives the feedback on each choice but not the answers", async () => {
+    const { student, saved, choice, typed } = await quizFor("feedback");
+    const wrong = choice.options[1]?.id ?? "";
+    await student.api.coursework.saveQuizAnswer({
+      assignmentId: saved.id,
+      blockId: choice.id,
+      response: { type: "choice", optionIds: [wrong] },
+    });
+    await student.api.coursework.saveQuizAnswer({
+      assignmentId: saved.id,
+      blockId: typed.id,
+      response: { type: "text", text: "Giza" },
+    });
+    const open = await student.api.coursework.work({ id: saved.id });
+    await student.api.coursework.handIn({
+      assignmentId: saved.id,
+      expectedVersion: open.submission.version,
+    });
+    const after = await student.api.coursework.work({ id: saved.id });
+    const checks = after.quiz?.results[0]?.checks;
+    expect(checks?.[choice.id]).toMatchObject({
+      correct: false,
+      feedback: ["A verb."],
+      key: null,
+      explanation: null,
+    });
+    expect(checks?.[typed.id]).toMatchObject({ correct: false, key: null });
+    expect(JSON.stringify(checks)).not.toContain("القاهرة");
   });
 
   test("a quiz shown only when returned keeps its results back until then", async () => {
