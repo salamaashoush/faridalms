@@ -816,10 +816,18 @@ Scratch Text to Speech, Translate and tutorials.
    points), which modules run in order, and the module to finish first.
    A cartridge's question banks (CC's own, and Canvas's beside its full
    quizzes) can be kept in the teacher's question bank, each question
-   tagged with its bank's name.
+   tagged with its bank's name. A module's quizzes also export as Canvas
+   writes its own for QTI (QTI 1.2 with Canvas's question types, the zip
+   Canvas's quizzes and New Quizzes import): choices, true or false,
+   short answers, numbers with their margin or range, blanks typed or
+   chosen, matching, sorting as matching to its groups, highlights as
+   multiple answers, and any other kind as an essay with its key. Running
+   the converter Canvas runs on import (QTIMigrationTool) and Canvas's own
+   question converter over the export, every kind arrived with its type,
+   points and right answers.
    Left: trying both directions against real Moodle and Canvas sites,
    which were not to hand; a CC 1.3 option carrying assignments with
-   their due dates; Canvas-shaped QTI 1.2 for New Quizzes.
+   their due dates.
 3. **Results shaped for xAPI** (score, duration, completion).
    Done: a module's progress view exports a class's results as Experience
    API 1.0.3 statements, as the owner chose, with no store of our own:

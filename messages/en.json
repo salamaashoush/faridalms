@@ -3653,6 +3653,7 @@
   "lrnDoneView": "The student opens it",
   "lrnDuplicate": "Duplicate",
   "lrnExportQuestions": "Export questions (QTI)",
+  "lrnExportCanvasQuizzes": "Export quizzes for Canvas (QTI 1.2)",
   "lrnExportResults": "Export results (xAPI)",
   "lrnExportCartridge": "Export for Moodle or Canvas (Common Cartridge)",
   "lrnDuplicated": "Copy made as a draft",

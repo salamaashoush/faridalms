@@ -464,3 +464,415 @@ export function ccManifest(manifest: {
     .join("")}</resources></manifest>
 `;
 }
+
+// --- Canvas's own QTI 1.2 --------------------------------------------------
+
+const CANVAS = "http://canvas.instructure.com/xsd/cccv1p0";
+
+/** The most words a highlight offers as choices before it goes as an essay. */
+const MOST_WORDS = 30;
+
+/** An item's own numbers for its answers, as Canvas numbers them. */
+function numbering() {
+  let next = 0;
+  return () => String((next += 1));
+}
+
+const lid = (
+  ident: string,
+  labels: { id: string; content: string }[],
+  lang: string,
+  options: { cardinality?: "Single" | "Multiple"; prompt?: string } = {},
+) =>
+  `<response_lid ident="${ident}"${options.cardinality ? ` rcardinality="${options.cardinality}"` : ""}>${options.prompt === undefined ? "" : material(options.prompt, "text/html", lang)}<render_choice>${labels
+    .map(
+      (label) =>
+        `<response_label ident="${label.id}">${material(label.content, "text/html", lang)}</response_label>`,
+    )
+    .join("")}</render_choice></response_lid>`;
+
+const typedResponse = (fibtype = "") =>
+  `<response_str ident="response1" rcardinality="Single"><render_fib${fibtype ? ` fibtype="${fibtype}"` : ""}><response_label ident="answer1" rshuffle="No"/></render_fib></response_str>`;
+
+const setScore = (condition: string) =>
+  `<respcondition continue="No"><conditionvar>${condition}</conditionvar><setvar action="Set" varname="SCORE">100</setvar></respcondition>`;
+
+const addScore = (condition: string, share: number) =>
+  `<respcondition><conditionvar>${condition}</conditionvar><setvar action="Add" varname="SCORE">${share.toFixed(2)}</setvar></respcondition>`;
+
+const equal = (respident: string, value: string) =>
+  `<varequal respident="${respident}">${escape(value)}</varequal>`;
+
+/** The distinct words of a highlight's passage, its targets among them. */
+function wordsOf(segments: { type: string; text: string }[]): string[] {
+  const words = segments.flatMap((segment) =>
+    segment.type === "target"
+      ? [segment.text.trim()]
+      : segment.text
+          .split(/\s+/u)
+          .map((word) => word.replaceAll(/^[\p{P}\p{S}]+|[\p{P}\p{S}]+$/gu, ""))
+          .filter(Boolean),
+  );
+  // One choice a word, however its first letter was written.
+  const seen = new Set<string>();
+  return words.filter((word) => {
+    const key = word.toLocaleLowerCase();
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
+
+/**
+ * A question as Canvas writes its own quizzes in QTI 1.2, the form Canvas's
+ * quizzes and New Quizzes import with every kind they have: choices, true
+ * or false, short answers, numbers, blanks typed or chosen, and matching,
+ * sorting going as matching to its groups. Any other kind goes as an essay
+ * that shows its parts, the key in the feedback the student reads after.
+ * Points are the question's own; the score is a share of a hundred.
+ */
+export function canvasItem(
+  block: LessonBlock,
+  options: CcItemOptions,
+): string | null {
+  if (!("prompt" in block)) return null;
+  const lang = langOf(block.prompt);
+  const prompt = `<p dir="${dirOf(block.prompt)}">${html(block.prompt)}</p>`;
+  const id = numbering();
+  const item = (shape: {
+    type: string;
+    points: number;
+    answers: string[];
+    stem?: string;
+    presentation: string;
+    processing: string | null;
+    feedbacks?: string;
+    explanation?: string;
+  }) => {
+    const said = [block.explanation.trim(), shape.explanation ?? ""]
+      .filter(Boolean)
+      .map((text) => (text.startsWith("<") ? text : `<p>${html(text)}</p>`))
+      .join("");
+    return `<item ident="${options.ident}" title="${escape(block.prompt.slice(0, 80))}"><itemmetadata><qtimetadata>${field("question_type", shape.type)}${field("points_possible", String(shape.points))}${field("original_answer_ids", shape.answers.join(","))}</qtimetadata></itemmetadata><presentation>${material(`<div>${prompt}${shape.stem ?? ""}</div>`, "text/html", lang)}${shape.presentation}</presentation>${
+      shape.processing === null
+        ? ""
+        : `<resprocessing>${SCORED}${said ? showFeedback("general_fb") : ""}${shape.processing}</resprocessing>`
+    }${said ? feedback("general_fb", said, lang) : ""}${shape.feedbacks ?? ""}</item>`;
+  };
+  const essay = (stem: string, key: string) =>
+    item({
+      type: "essay_question",
+      points: block.points,
+      answers: [],
+      stem,
+      presentation: typedResponse(),
+      processing: `<respcondition continue="No"><conditionvar><other/></conditionvar></respcondition>`,
+      explanation: key,
+    });
+
+  switch (block.type) {
+    case "choice":
+    case "poll": {
+      const texts = block.options.map((option) =>
+        option.text.trim().toLocaleLowerCase(),
+      );
+      const multiple = block.type === "choice" && block.multiple;
+      const trueFalse =
+        block.type === "choice" &&
+        !multiple &&
+        block.options.length === 2 &&
+        texts.some((text) => TRUE.has(text)) &&
+        texts.some((text) => FALSE.has(text));
+      const labels = block.options.map((option) => ({
+        id: id(),
+        content: `${pictureHtml(options, option.picture)}${html(option.text)}`,
+        right:
+          block.type === "choice" && block.correctOptionIds.includes(option.id),
+        feedback: block.type === "choice" ? option.feedback.trim() : "",
+      }));
+      const said = labels.filter((label) => label.feedback);
+      const answerFeedback = said
+        .map((label) =>
+          showFeedback(`${label.id}_fb`, equal("response1", label.id)),
+        )
+        .join("");
+      const right = labels.filter((label) => label.right);
+      const scoring =
+        block.type === "poll"
+          ? ""
+          : multiple
+            ? setScore(
+                `<and>${labels
+                  .map((label) =>
+                    label.right
+                      ? equal("response1", label.id)
+                      : `<not>${equal("response1", label.id)}</not>`,
+                  )
+                  .join("")}</and>`,
+              )
+            : right[0]
+              ? setScore(equal("response1", right[0].id))
+              : "";
+      return item({
+        type: trueFalse
+          ? "true_false_question"
+          : multiple
+            ? "multiple_answers_question"
+            : "multiple_choice_question",
+        // A poll asks without marking, so it is worth nothing.
+        points: block.type === "poll" ? 0 : block.points,
+        answers: labels.map((label) => label.id),
+        presentation: lid("response1", labels, lang, {
+          cardinality: multiple ? "Multiple" : "Single",
+        }),
+        processing: `${answerFeedback}${scoring}`,
+        feedbacks: said
+          .map((label) =>
+            feedback(`${label.id}_fb`, `<p>${html(label.feedback)}</p>`, lang),
+          )
+          .join(""),
+      });
+    }
+    case "text":
+    case "math": {
+      const answers = block.answers.map((answer) => ({
+        id: id(),
+        text: answer,
+      }));
+      return item({
+        type: "short_answer_question",
+        points: block.points,
+        answers: answers.map((answer) => answer.id),
+        presentation: typedResponse(),
+        processing: setScore(
+          answers.map((answer) => equal("response1", answer.text)).join(""),
+        ),
+      });
+    }
+    case "number": {
+      const margin = block.percent
+        ? Math.abs(block.value) * (block.tolerance / 100)
+        : block.tolerance;
+      const condition =
+        block.mode === "range"
+          ? `<vargte respident="response1">${block.min}</vargte><varlte respident="response1">${block.max}</varlte>`
+          : `<or>${equal("response1", String(block.value))}${
+              margin > 0
+                ? `<and><vargte respident="response1">${block.value - margin}</vargte><varlte respident="response1">${block.value + margin}</varlte></and>`
+                : ""
+            }</or>`;
+      return item({
+        type: "numerical_question",
+        points: block.points,
+        answers: [id()],
+        presentation: typedResponse("Decimal"),
+        processing: setScore(condition),
+      });
+    }
+    case "gaps": {
+      const gaps = block.segments.filter((segment) => segment.type === "gap");
+      const typed =
+        !block.bank && gaps.every((gap) => gap.options.length === 0);
+      const chosen =
+        Boolean(block.bank) || gaps.every((gap) => gap.options.length > 0);
+      if (!typed && !chosen) break;
+      const bank = block.bank
+        ? alphabetical([
+            ...new Set([
+              ...gaps.flatMap((gap) => gap.answers.slice(0, 1)),
+              ...block.bank,
+            ]),
+          ])
+        : [];
+      let place = 0;
+      const text = block.segments
+        .map((segment) =>
+          segment.type === "text"
+            ? html(segment.text)
+            : `[blank${(place += 1)}]`,
+        )
+        .join("");
+      const blanks = gaps.map((gap, index) => {
+        const words = typed ? gap.answers : block.bank ? bank : gap.options;
+        const labels = words.map((word) => ({
+          id: id(),
+          content: html(word),
+          word,
+        }));
+        return {
+          name: `blank${index + 1}`,
+          labels,
+          right: typed
+            ? labels[0]
+            : labels.find((label) => label.word === gap.answers[0]),
+        };
+      });
+      return item({
+        type: typed
+          ? "fill_in_multiple_blanks_question"
+          : "multiple_dropdowns_question",
+        points: block.points,
+        answers: blanks.flatMap((blank) =>
+          blank.labels.map((label) => label.id),
+        ),
+        stem: `<p dir="${dirOf(text)}">${text}</p>`,
+        presentation: blanks
+          .map((blank) =>
+            lid(`response_${blank.name}`, blank.labels, lang, {
+              prompt: blank.name,
+            }),
+          )
+          .join(""),
+        processing: blanks
+          .map((blank) =>
+            blank.right
+              ? addScore(
+                  equal(`response_${blank.name}`, blank.right.id),
+                  100 / blanks.length,
+                )
+              : "",
+          )
+          .join(""),
+      });
+    }
+    case "matching":
+    case "sorting": {
+      const lefts =
+        block.type === "matching"
+          ? block.pairs.map((pair) => ({
+              content: `${pictureHtml(options, pair.promptPicture)}${html(pair.prompt)}`,
+              match: partName({
+                text: pair.answer,
+                picture: pair.answerPicture,
+              }),
+            }))
+          : block.items.map((each) => ({
+              content: `${pictureHtml(options, each.picture)}${html(each.text)}`,
+              match:
+                block.groups.find((group) => group.id === each.groupId)?.name ??
+                "",
+            }));
+      const offered =
+        block.type === "matching"
+          ? alphabetical([
+              ...new Set([
+                ...lefts.map((left) => left.match),
+                ...block.distractors.map((distractor) => partName(distractor)),
+              ]),
+            ])
+          : block.groups.map((group) => group.name);
+      const matches = offered.map((text) => ({
+        id: id(),
+        content: html(text),
+        text,
+      }));
+      const rows = lefts.map((left) => ({ ...left, id: id() }));
+      return item({
+        type: "matching_question",
+        points: block.points,
+        answers: rows.map((row) => row.id),
+        presentation: rows
+          .map((row) =>
+            lid(`response_${row.id}`, matches, lang, { prompt: row.content }),
+          )
+          .join(""),
+        processing: rows
+          .map((row) => {
+            const match = matches.find((each) => each.text === row.match);
+            return match
+              ? addScore(
+                  equal(`response_${row.id}`, match.id),
+                  100 / rows.length,
+                )
+              : "";
+          })
+          .join(""),
+      });
+    }
+    case "highlight": {
+      const words = wordsOf(block.segments);
+      if (words.length > MOST_WORDS) break;
+      const targets = new Set(
+        block.segments.flatMap((segment) =>
+          segment.type === "target" ? [segment.text.trim()] : [],
+        ),
+      );
+      const labels = words.map((word) => ({
+        id: id(),
+        content: html(word),
+        right: targets.has(word),
+      }));
+      return item({
+        type: "multiple_answers_question",
+        points: block.points,
+        answers: labels.map((label) => label.id),
+        stem: `<p>${block.segments.map((segment) => html(segment.text)).join("")}</p>`,
+        presentation: lid("response1", labels, lang, {
+          cardinality: "Multiple",
+        }),
+        processing: setScore(
+          `<and>${labels
+            .map((label) =>
+              label.right
+                ? equal("response1", label.id)
+                : `<not>${equal("response1", label.id)}</not>`,
+            )
+            .join("")}</and>`,
+        ),
+      });
+    }
+    default:
+      break;
+  }
+  const { stem, key } = essayOf(block, options);
+  return essay(stem, key);
+}
+
+/** A quiz of Canvas's own items, in one section as Canvas writes it. */
+export function canvasAssessment(quiz: {
+  ident: string;
+  title: string;
+  items: string[];
+}): string {
+  return `<?xml version="1.0" encoding="UTF-8"?>
+<questestinterop xmlns="${QTI}" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="${QTI} http://www.imsglobal.org/xsd/ims_qtiasiv1p2p1.xsd"><assessment ident="${quiz.ident}" title="${escape(quiz.title)}"><qtimetadata>${field("cc_maxattempts", "unlimited")}</qtimetadata><section ident="root_section">${quiz.items.join("")}</section></assessment></questestinterop>
+`;
+}
+
+/** What Canvas keeps of a quiz beside its questions: a practice quiz, unpublished, worth its questions' points. */
+export function canvasQuizMeta(quiz: {
+  ident: string;
+  title: string;
+  points: number;
+}): string {
+  return `<?xml version="1.0" encoding="UTF-8"?>
+<quiz xmlns="${CANVAS}" identifier="${quiz.ident}"><title>${escape(quiz.title)}</title><description></description><shuffle_answers>false</shuffle_answers><scoring_policy>keep_highest</scoring_policy><hide_results></hide_results><quiz_type>practice_quiz</quiz_type><points_possible>${quiz.points}</points_possible><show_correct_answers>true</show_correct_answers><allowed_attempts>-1</allowed_attempts><one_question_at_a_time>false</one_question_at_a_time><cant_go_back>false</cant_go_back><available>false</available><one_time_results>false</one_time_results></quiz>
+`;
+}
+
+/**
+ * The manifest of a package of quizzes as Canvas exports one for QTI: each
+ * quiz a QTI 1.2 resource leaning on its Canvas settings, and the pictures
+ * they show as files.
+ */
+export function canvasQtiManifest(manifest: {
+  identifier: string;
+  title: string;
+  quizzes: { ident: string; href: string; meta: string }[];
+  media: string[];
+}): string {
+  const lang = langOf(manifest.title);
+  return `<?xml version="1.0" encoding="UTF-8"?>
+<manifest identifier="${manifest.identifier}" xmlns="${CC}" xmlns:imsmd="http://www.imsglobal.org/xsd/imsmd_v1p2" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="${CC} http://www.imsglobal.org/xsd/imscp_v1p1.xsd http://www.imsglobal.org/xsd/imsmd_v1p2 http://www.imsglobal.org/xsd/imsmd_v1p2p2.xsd"><metadata><schema>IMS Content</schema><schemaversion>1.1.3</schemaversion><imsmd:lom><imsmd:general><imsmd:title><imsmd:string xml:lang="${lang}">${escape(manifest.title)}</imsmd:string></imsmd:title></imsmd:general></imsmd:lom></metadata><organizations/><resources>${manifest.quizzes
+    .map(
+      (quiz) =>
+        `<resource identifier="${quiz.ident}" type="imsqti_xmlv1p2"><file href="${escape(quiz.href)}"/><dependency identifierref="${quiz.ident}_meta"/></resource><resource identifier="${quiz.ident}_meta" type="${CC_TYPES.kept}" href="${escape(quiz.meta)}"><file href="${escape(quiz.meta)}"/></resource>`,
+    )
+    .join("")}${manifest.media
+    .map(
+      (href, index) =>
+        `<resource identifier="media_${index + 1}" type="webcontent" href="${escape(href)}"><file href="${escape(href)}"/></resource>`,
+    )
+    .join("")}</resources></manifest>
+`;
+}

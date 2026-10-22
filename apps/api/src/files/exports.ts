@@ -23,6 +23,10 @@ import {
 import { toolById } from "@faridalms/database/stores/lti";
 import { isVisibleStudent } from "@faridalms/database/stores/students";
 import {
+  canvasAssessment,
+  canvasItem,
+  canvasQtiManifest,
+  canvasQuizMeta,
   CC_FILEBASE,
   CC_TYPES,
   ccAssessment,
@@ -71,6 +75,8 @@ const PORTFOLIO = /^\/v1\/students\/([0-9a-f-]{36})\/portfolio\.zip$/;
 const MODULE_QUESTIONS = /^\/v1\/modules\/([0-9a-f-]{36})\/questions\.zip$/;
 const MODULE_STATEMENTS = /^\/v1\/modules\/([0-9a-f-]{36})\/statements\.json$/;
 const MODULE_CARTRIDGE = /^\/v1\/modules\/([0-9a-f-]{36})\/cartridge\.imscc$/;
+const MODULE_CANVAS_QUIZZES =
+  /^\/v1\/modules\/([0-9a-f-]{36})\/canvas-quizzes\.zip$/;
 
 /** As much of a picture as is read for its size. */
 const HEAD_BYTES = 64 * 1024;
@@ -453,6 +459,100 @@ async function moduleQuestions(
     details: { items: items.length, skipped },
   });
   return { title: `${module.title} - QTI`, entries };
+}
+
+/**
+ * A module's questions as Canvas exports its own quizzes for QTI: a quiz
+ * for each lesson that asks any, every kind Canvas's quizzes and New
+ * Quizzes hold written as Canvas writes it, and the pictures they show.
+ * Only a teacher who may change the module gets it, and the export is
+ * recorded.
+ */
+async function moduleCanvasQuizzes(
+  unit: UnitContext,
+  moduleId: string,
+): Promise<{ title: string; entries: Entry[] } | null> {
+  const module = await editableModule(unit, moduleId);
+  const lessons = [];
+  for (const lesson of await lessonsOf(unit.tx, unit.tenantId, module.id)) {
+    const document = await documentOf(unit.tx, unit.tenantId, {
+      type: "lesson",
+      id: lesson.id,
+    });
+    const content = document?.content as unknown as ContentDocument | undefined;
+    if (!content) continue;
+    const blocks = lessonOfContent(content).blocks.filter(
+      (block) => "prompt" in block,
+    );
+    if (blocks.length > 0) lessons.push({ title: lesson.title, blocks });
+  }
+  const entries: Entry[] = [];
+  const shown = new Map<string, string>();
+  const taken = new Set<string>();
+  const files = await filesByIds(unit.tx, unit.tenantId, [
+    ...new Set(lessons.flatMap((lesson) => lesson.blocks.flatMap(qtiPictures))),
+  ]);
+  for (const file of files.filter((item) => item.state === "ready")) {
+    const name = plainUnique(file.name, taken, "picture");
+    shown.set(file.id, name);
+    entries.push({
+      path: `web_resources/media/${name}`,
+      storageKey: file.storageKey,
+    });
+  }
+  const quizzes: { ident: string; href: string; meta: string }[] = [];
+  let skipped = 0;
+  for (const [index, lesson] of lessons.entries()) {
+    const ident = `quiz_${index + 1}`;
+    const items = lesson.blocks.flatMap((block, at) => {
+      const xml = canvasItem(block, {
+        ident: `${ident}_q${at + 1}`,
+        picture: (fileId) => {
+          const name = shown.get(fileId);
+          return name ? `${CC_FILEBASE}/media/${name}` : null;
+        },
+      });
+      if (!xml) skipped += 1;
+      return xml ? [xml] : [];
+    });
+    if (items.length === 0) continue;
+    const points = lesson.blocks.reduce(
+      (sum, block) =>
+        sum +
+        (block.type === "poll" || !("points" in block) ? 0 : block.points),
+      0,
+    );
+    const href = `${ident}/${ident}.xml`;
+    const meta = `${ident}/assessment_meta.xml`;
+    entries.push(
+      {
+        path: href,
+        text: canvasAssessment({ ident, title: lesson.title, items }),
+      },
+      {
+        path: meta,
+        text: canvasQuizMeta({ ident, title: lesson.title, points }),
+      },
+    );
+    quizzes.push({ ident, href, meta });
+  }
+  entries.unshift({
+    path: "imsmanifest.xml",
+    text: canvasQtiManifest({
+      identifier: `canvas_quizzes_${module.id.replaceAll("-", "")}`,
+      title: module.title,
+      quizzes,
+      media: [...shown.values()].map((name) => `web_resources/media/${name}`),
+    }),
+  });
+  await writeAudit(unit.tx, unit.tenantId, {
+    action: "module.questions_exported",
+    objectType: "learning_module",
+    objectId: module.id,
+    orgId: unit.schoolId,
+    details: { quizzes: quizzes.length, skipped, format: "canvas_qti" },
+  });
+  return { title: `${module.title} - Canvas quizzes`, entries };
 }
 
 /** The links to outside tools a document holds, in reading order. */
@@ -849,5 +949,8 @@ export async function handleWorkExport(
   const cartridge = MODULE_CARTRIDGE.exec(url.pathname)?.[1];
   if (cartridge)
     return exported(context, (unit) => moduleCartridge(unit, cartridge));
+  const canvas = MODULE_CANVAS_QUIZZES.exec(url.pathname)?.[1];
+  if (canvas)
+    return exported(context, (unit) => moduleCanvasQuizzes(unit, canvas));
   return null;
 }

@@ -253,6 +253,87 @@ describe("moving teaching between systems", () => {
     expect(kept.content.root.children.length).toBeGreaterThan(2);
   });
 
+  test("a module's quizzes leave as Canvas writes its own, every kind it holds typed", async () => {
+    const common = { points: 4, hints: [], explanation: "", tries: null };
+    const gap = crypto.randomUUID();
+    const { teacher, moduleId } = await moduleAsking("Rivers for Canvas", [
+      {
+        ...common,
+        id: crypto.randomUUID(),
+        type: "matching",
+        prompt: "Match each river to its sea.",
+        pairs: [
+          { id: crypto.randomUUID(), prompt: "Nile", answer: "Mediterranean" },
+          { id: crypto.randomUUID(), prompt: "Amazon", answer: "Atlantic" },
+        ],
+        distractors: [{ id: crypto.randomUUID(), text: "Arctic" }],
+      },
+      {
+        ...common,
+        id: crypto.randomUUID(),
+        type: "number",
+        prompt: "How long is the Nile, in thousands of kilometres?",
+        mode: "range",
+        value: 0,
+        tolerance: 0,
+        percent: false,
+        min: 6,
+        max: 7,
+      },
+      {
+        ...common,
+        id: crypto.randomUUID(),
+        type: "gaps",
+        prompt: "Fill the gap.",
+        segments: [
+          { type: "text", text: "The Nile flows " },
+          { type: "gap", id: gap, answers: ["north"], options: [] },
+        ],
+        caseSensitive: false,
+        closeEnough: false,
+        tehMarbuta: true,
+      },
+    ]);
+    const response = await raw(
+      "northwind",
+      teacher.token,
+      `/v1/modules/${moduleId}/canvas-quizzes.zip`,
+    );
+    expect(response.status).toBe(200);
+    const files = await unzipped(response);
+    expect(Object.keys(files).toSorted()).toEqual([
+      "imsmanifest.xml",
+      "quiz_1/assessment_meta.xml",
+      "quiz_1/quiz_1.xml",
+    ]);
+    const manifest = String(files["imsmanifest.xml"]);
+    expect(manifest).toContain("<schema>IMS Content</schema>");
+    expect(manifest).toContain(
+      '<resource identifier="quiz_1" type="imsqti_xmlv1p2"><file href="quiz_1/quiz_1.xml"/><dependency identifierref="quiz_1_meta"/></resource>',
+    );
+    const quiz = String(files["quiz_1/quiz_1.xml"]);
+    for (const type of [
+      "matching_question",
+      "numerical_question",
+      "fill_in_multiple_blanks_question",
+    ])
+      expect(quiz).toContain(`<fieldentry>${type}</fieldentry>`);
+    expect(quiz).toContain(
+      "<fieldlabel>points_possible</fieldlabel><fieldentry>4</fieldentry>",
+    );
+    // Each pair earns its share; the range is a lower and an upper bound.
+    expect(quiz).toContain(
+      '<setvar action="Add" varname="SCORE">50.00</setvar>',
+    );
+    expect(quiz).toContain(
+      '<vargte respident="response1">6</vargte><varlte respident="response1">7</varlte>',
+    );
+    expect(quiz).toContain("[blank1]");
+    expect(String(files["quiz_1/assessment_meta.xml"])).toContain(
+      "<points_possible>12</points_possible>",
+    );
+  });
+
   test("a class's results in a module leave as xAPI statements", async () => {
     const nile = crypto.randomUUID();
     const choiceId = crypto.randomUUID();

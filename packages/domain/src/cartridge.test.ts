@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import type { LessonBlock } from "./learning";
 
-import { ccItem, plainFileName } from "./cartridge";
+import { canvasItem, ccItem, plainFileName } from "./cartridge";
 
 const common = { points: 2, hints: [], explanation: "", tries: null };
 const id = (n: number) =>
@@ -90,5 +90,91 @@ describe("questions in a Common Cartridge", () => {
     expect(plainFileName("River map (2).png", "file")).toBe(
       "River-map-2-.png".replace("-.", "."),
     );
+  });
+});
+
+const canvas = (block: LessonBlock) =>
+  canvasItem(block, { ident: "q1", picture: () => null }) ?? "";
+
+describe("questions as Canvas writes its own quizzes", () => {
+  it("writes typed blanks with every accepted answer, each blank its share", () => {
+    const xml = canvas({
+      ...common,
+      id: id(9),
+      type: "gaps",
+      prompt: "Fill the gaps.",
+      segments: [
+        { type: "text", text: "The Nile flows " },
+        { type: "gap", id: id(1), answers: ["north"], options: [] },
+        { type: "text", text: " into the " },
+        {
+          type: "gap",
+          id: id(2),
+          answers: ["Mediterranean", "Med"],
+          options: [],
+        },
+      ],
+      caseSensitive: false,
+      closeEnough: false,
+      tehMarbuta: true,
+    });
+    expect(xml).toContain(
+      "<fieldentry>fill_in_multiple_blanks_question</fieldentry>",
+    );
+    expect(xml).toContain("[blank1]");
+    expect(xml).toContain('<response_lid ident="response_blank2">');
+    expect(xml).toContain(">Med</mattext>");
+    expect(xml.match(/action="Add" varname="SCORE">50.00</g)).toHaveLength(2);
+  });
+
+  it("turns a percent tolerance into the margin Canvas reads", () => {
+    const xml = canvas({
+      ...common,
+      id: id(9),
+      type: "number",
+      prompt: "How long is the Nile?",
+      mode: "exact",
+      value: 200,
+      tolerance: 5,
+      percent: true,
+      min: 0,
+      max: 0,
+    });
+    expect(xml).toContain("<fieldentry>numerical_question</fieldentry>");
+    expect(xml).toContain(
+      '<vargte respident="response1">190</vargte><varlte respident="response1">210</varlte>',
+    );
+  });
+
+  it("offers a passage's words once each, its targets the right ones", () => {
+    const xml = canvas({
+      ...common,
+      id: id(9),
+      type: "highlight",
+      prompt: "Pick the river.",
+      segments: [
+        { type: "text", text: "The " },
+        { type: "target", id: id(1), text: "Nile" },
+        { type: "text", text: " and the desert." },
+      ],
+    });
+    expect(xml).toContain("<fieldentry>multiple_answers_question</fieldentry>");
+    expect(xml.match(/<response_label /g)).toHaveLength(4);
+  });
+
+  it("sends a kind Canvas has no form for as an essay with its key", () => {
+    const xml = canvas({
+      ...common,
+      id: id(9),
+      type: "ordering",
+      prompt: "Put the flood in order.",
+      items: [
+        { id: id(1), text: "Rain" },
+        { id: id(2), text: "Flood" },
+      ],
+      scoring: "all",
+    });
+    expect(xml).toContain("<fieldentry>essay_question</fieldentry>");
+    expect(xml).toContain('<itemfeedback ident="general_fb">');
   });
 });

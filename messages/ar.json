@@ -3835,6 +3835,7 @@
   "lrnDoneView": "يفتحه الطالب",
   "lrnDuplicate": "نسخ",
   "lrnExportQuestions": "تصدير الأسئلة (QTI)",
+  "lrnExportCanvasQuizzes": "تصدير الاختبارات إلى Canvas ‏(QTI 1.2)",
   "lrnExportResults": "تصدير النتائج (xAPI)",
   "lrnExportCartridge": "تصدير إلى Moodle أو Canvas (Common Cartridge)",
   "lrnDuplicated": "أُنشئت نسخة كمسودة",

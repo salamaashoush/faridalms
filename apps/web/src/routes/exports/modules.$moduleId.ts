@@ -3,12 +3,14 @@ import { createFileRoute } from "@tanstack/react-router";
 import { relayed, relayTo } from "~/server/relay";
 
 /**
- * What a module is exported as: its questions as QTI, all of it as a
- * Common Cartridge, or a class's results in it as xAPI statements.
+ * What a module is exported as: its questions as QTI 3 or as Canvas's own
+ * QTI 1.2 quizzes, all of it as a Common Cartridge, or a class's results in
+ * it as xAPI statements.
  */
 const EXPORTS: Record<string, string> = {
   qti: "questions.zip",
   cartridge: "cartridge.imscc",
+  canvas: "canvas-quizzes.zip",
   statements: "statements.json",
 };
 

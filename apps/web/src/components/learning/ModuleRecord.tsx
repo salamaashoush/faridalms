@@ -915,6 +915,12 @@ export function ModuleRecord({
             onSelect: () =>
               window.location.assign(`/exports/modules/${data.id}?as=qti`),
           },
+          {
+            label: m.lrnExportCanvasQuizzes(),
+            icon: FileDown,
+            onSelect: () =>
+              window.location.assign(`/exports/modules/${data.id}?as=canvas`),
+          },
           ...(data.state !== "archived"
             ? [
                 {
