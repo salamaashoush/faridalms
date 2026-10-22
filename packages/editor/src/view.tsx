@@ -24,7 +24,7 @@ import {
   framedKey,
 } from "@faridalms/domain/embed";
 import { isSafeContentUrl } from "@faridalms/domain/rich-text";
-import { ExternalLink } from "lucide-react";
+import { ExternalLink, Target } from "lucide-react";
 import { cloneElement, createElement, Fragment, isValidElement } from "react";
 
 import type { AiUseViewStrings } from "./ai-use-view";
@@ -52,6 +52,7 @@ export interface ViewStrings extends AiUseViewStrings {
   drawSummary: (count: number, tag: string) => string;
   drawPointsEach: (points: number) => string;
   drawNoTag: string;
+  standardsBlock: string;
 }
 
 /** A passage drawn marked in the reader, as a comment points at it. */
@@ -316,6 +317,7 @@ const LEAF_BLOCKS = new Set<ContentNode["type"]>([
   "diagram",
   "gate",
   "draw",
+  "standards",
   "ai-use",
 ]);
 
@@ -630,6 +632,29 @@ function draw(
               ? `${context.strings.drawSummary(node.count ?? 1, node.bankTag)} · ${context.strings.drawPointsEach(node.points ?? 1)}`
               : context.strings.drawNoTag}
           </p>
+        </div>
+      );
+    case "standards":
+      return (
+        <div key={key} className="fe-standards">
+          <p className="fe-standards-title">
+            <Target aria-hidden className="size-3.5" />
+            {context.strings.standardsBlock}
+          </p>
+          <ul>
+            {(node.targets ?? []).map((target) => (
+              <li key={target.id} dir="auto">
+                {target.code ? (
+                  <>
+                    <span className="fe-standards-code">
+                      {target.code}
+                    </span>{" "}
+                  </>
+                ) : null}
+                {target.statement}
+              </li>
+            ))}
+          </ul>
         </div>
       );
     case "ai-use":

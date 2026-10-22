@@ -12,6 +12,8 @@ import { ToolButton } from "../ui";
 const field =
   "h-8 w-full min-w-0 rounded-md border bg-background ps-7 pe-2 text-sm outline-none [unicode-bidi:plaintext] focus-visible:ring-2 focus-visible:ring-ring/30 max-md:h-10";
 
+const NO_REFS: StandardRef[] = [];
+
 function withRows(
   known: ReadonlyMap<string, StandardRef>,
   rows: readonly StandardRef[],
@@ -43,24 +45,30 @@ function Statement({ standard }: { standard: StandardRef }) {
 export function StandardsPad({
   standards,
   chosen: initial,
+  seen = NO_REFS,
+  max = MAX_QUESTION_STANDARDS,
   onDone,
   onClose,
 }: {
   standards: EditorStandards;
   chosen: readonly string[];
-  onDone: (ids: string[]) => void;
+  /** What is already known of the chosen ones, shown until they are read afresh. */
+  seen?: readonly StandardRef[];
+  max?: number;
+  /** The chosen ids, kept whether or not they could be read, and what is known of each. */
+  onDone: (ids: string[], refs: StandardRef[]) => void;
   onClose: () => void;
 }) {
   const { strings } = useEditorEnvironment();
   const [chosen, setChosen] = useState(() => [...initial]);
-  const [known, setKnown] = useState<ReadonlyMap<string, StandardRef>>(
-    () => new Map(),
+  const [known, setKnown] = useState<ReadonlyMap<string, StandardRef>>(() =>
+    withRows(new Map(), seen),
   );
   const [described, setDescribed] = useState(initial.length === 0);
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<StandardRef[] | null>(null);
   const [failed, setFailed] = useState(false);
-  const full = chosen.length >= MAX_QUESTION_STANDARDS;
+  const full = chosen.length >= max;
   const searchField = useRef<HTMLInputElement>(null);
   useEffect(() => searchField.current?.focus(), []);
 
@@ -123,7 +131,13 @@ export function StandardsPad({
       className="grid gap-2"
       onSubmit={(event) => {
         event.preventDefault();
-        onDone(chosen);
+        onDone(
+          chosen,
+          chosen.flatMap((id) => {
+            const found = known.get(id);
+            return found ? [found] : [];
+          }),
+        );
       }}
     >
       <div className="grid gap-0.5">
@@ -236,7 +250,7 @@ export function StandardsPad({
       )}
       <div className="flex items-center justify-between gap-2">
         <p className="text-xs leading-4 text-muted-foreground">
-          {full ? strings.questionStandardsFull(MAX_QUESTION_STANDARDS) : null}
+          {full ? strings.questionStandardsFull(max) : null}
         </p>
         <button
           type="submit"

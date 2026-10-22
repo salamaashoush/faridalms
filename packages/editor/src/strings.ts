@@ -343,6 +343,11 @@ export interface EditorStrings {
   questionHintNumber: (number: number) => string;
   questionHintAdd: string;
   questionHintRemove: (number: number) => string;
+  standardsBlock: string;
+  standardsBlockHint: string;
+  standardsBlockEmpty: string;
+  standardsChoose: string;
+  standardsBlockOptions: string;
   questionStandards: string;
   questionStandardsHelp: string;
   questionStandardsChosen: string;

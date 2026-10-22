@@ -80,6 +80,7 @@ interface BlockFacts {
 const SILENT = new Set([
   "gate",
   "draw",
+  "standards",
   "horizontalrule",
   "pagebreak",
   "starter",

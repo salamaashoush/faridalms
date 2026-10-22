@@ -2,6 +2,7 @@ import type {
   ContentNode,
   FileDisplay,
   ImageSize,
+  StandardTarget,
 } from "@faridalms/domain/content";
 import type { ReferenceElement } from "@floating-ui/dom";
 import type {
@@ -24,6 +25,7 @@ import {
   sameFiles,
 } from "@faridalms/domain/project";
 import { SCRATCH_FEATURES } from "@faridalms/domain/scratch-project";
+import { MAX_BLOCK_STANDARDS } from "@faridalms/domain/standards";
 import { $isCodeNode } from "@lexical/code";
 import { useLexicalComposerContext } from "@lexical/react/LexicalComposerContext";
 import { useLexicalEditable } from "@lexical/react/useLexicalEditable";
@@ -172,6 +174,7 @@ import {
   OPEN_RECORDING_COMMAND,
   playerOf,
 } from "../nodes/rich";
+import { $isStandardsNode } from "../nodes/standards";
 import { focusText, textFocus, updateFromOutside } from "../outside";
 import { editorInSlot } from "../slots";
 import { editorColors } from "../strings";
@@ -208,7 +211,8 @@ type Mode =
   | "trace"
   | "regions"
   | "picture"
-  | "standards";
+  | "standards"
+  | "standards-block";
 
 /** A chosen formula: what the bar writes and how it sits. */
 interface MathFacts {
@@ -216,6 +220,12 @@ interface MathFacts {
   latex: string;
   block: boolean;
   rtl: boolean;
+}
+
+/** A chosen standards block and the standards it names. */
+interface NamingFacts {
+  key: NodeKey;
+  targets: StandardTarget[];
 }
 
 /** A chosen draw from the bank: what it draws by, how many, and their worth. */
@@ -481,6 +491,9 @@ export function SelectionToolbarPlugin() {
   const [mode, setMode] = useState<Mode>("hidden");
   const [math, setMath] = useState<MathFacts | null>(null);
   const [drawing, setDrawing] = useState<DrawFacts | null>(null);
+  const [naming, setNaming] = useState<NamingFacts | null>(null);
+  // The standards panel tags the question the caret is in, or names a block's.
+  const [tagging, setTagging] = useState<"question" | "block">("question");
   const tags = useBankTags(mode === "draw" ? bank : undefined);
   const [reference, setReference] = useState<ReferenceElement | null>(null);
   const [facts, setFacts] = useState<Facts>(empty);
@@ -626,6 +639,16 @@ export function SelectionToolbarPlugin() {
       return { key: node.getKey(), ...node.getSettings() };
     });
 
+  const readStandardsBlock = () =>
+    editor.getEditorState().read((): NamingFacts | null => {
+      const selection = $getSelection();
+      if (!$isNodeSelection(selection)) return null;
+      const nodes = selection.getNodes();
+      const node = nodes.length === 1 ? nodes[0] : null;
+      if (!$isStandardsNode(node)) return null;
+      return { key: node.getKey(), targets: node.getTargets() };
+    });
+
   const readBlock = () =>
     editor.getEditorState().read((): Omit<BlockFacts, "rtl"> | null => {
       const selection = $getSelection();
@@ -751,6 +774,12 @@ export function SelectionToolbarPlugin() {
       setDrawing(draw);
       setReference(editor.getElementByKey(draw.key));
       return show("draw");
+    }
+    const named = focused && standards ? readStandardsBlock() : null;
+    if (named) {
+      setNaming(named);
+      setReference(editor.getElementByKey(named.key));
+      return show("standards-block");
     }
     const file = focused ? readFile() : null;
     if (file) {
@@ -1895,6 +1924,7 @@ export function SelectionToolbarPlugin() {
                 saved.current = editor
                   .getEditorState()
                   .read(() => $getSelection()?.clone() ?? null);
+                setTagging("question");
                 show("standards");
               }}
             >
@@ -2107,7 +2137,81 @@ export function SelectionToolbarPlugin() {
     );
   }
 
-  if (mode === "standards" && question && standards) {
+  if (mode === "standards-block" && naming && standards) {
+    return (
+      <Floating
+        reference={reference}
+        placement="top"
+        boundary={boundary}
+        className="flex items-center gap-0.5 p-1"
+        keepFocus
+        role="toolbar"
+        label={strings.standardsBlockOptions}
+      >
+        <div ref={toolbar} className="contents">
+          <button
+            type="button"
+            onMouseDown={(event) => event.preventDefault()}
+            onClick={() => {
+              saved.current = editor
+                .getEditorState()
+                .read(() => $getSelection()?.clone() ?? null);
+              setTagging("block");
+              show("standards");
+            }}
+            className="inline-flex h-8 items-center gap-1.5 rounded-md px-2 text-sm font-medium text-foreground/80 hover:bg-accent hover:text-foreground [&_svg]:size-4"
+          >
+            <Target aria-hidden />
+            {strings.standardsChoose}
+          </button>
+        </div>
+      </Floating>
+    );
+  }
+
+  if (mode === "standards" && tagging === "block" && naming && standards) {
+    const close = () => {
+      show("standards-block");
+      focusText(editor);
+    };
+    return (
+      <Floating
+        reference={reference}
+        placement="bottom-start"
+        boundary={boundary}
+        className="w-96 max-w-[calc(100vw-1rem)] p-2"
+        keepInView
+      >
+        <div ref={toolbar}>
+          <StandardsPad
+            standards={standards}
+            chosen={naming.targets.map((target) => target.id)}
+            seen={naming.targets.map((target) => ({
+              ...target,
+              frameworkTitle: "",
+            }))}
+            max={MAX_BLOCK_STANDARDS}
+            onClose={close}
+            onDone={(_, refs) => {
+              const targets = refs.map(({ id, code, statement }) => ({
+                id,
+                code,
+                statement,
+              }));
+              withSelection(() => {
+                const node = $getNodeByKey(naming.key);
+                if ($isStandardsNode(node)) node.setTargets(targets);
+              });
+              setNaming({ key: naming.key, targets });
+              close();
+            }}
+          />
+        </div>
+      </Floating>
+    );
+  }
+
+  if (mode === "standards" && tagging === "question" && question && standards) {
     const close = () => {
       show("question");
       focusText(editor);

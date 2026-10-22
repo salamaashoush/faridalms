@@ -11,7 +11,12 @@ import { embedProviders, isEmbedId } from "./embed";
 import { projectLanguages, starterFilesSchema } from "./project";
 import { isSafeContentUrl } from "./rich-text";
 import { scratchChecksSchema } from "./scratch-project";
-import { MAX_QUESTION_STANDARDS } from "./standards";
+import {
+  MAX_BLOCK_STANDARDS,
+  MAX_QUESTION_STANDARDS,
+  MAX_STANDARD_CODE,
+  MAX_STANDARD_STATEMENT,
+} from "./standards";
 
 /** The longest piece of mathematics one node holds, in LaTeX. */
 export const MAX_LATEX = 4000;
@@ -89,6 +94,7 @@ const nodeTypes = [
   "ai-use",
   "math",
   "draw",
+  "standards",
 ] as const;
 /**
  * The questions a document can ask, each marked by the server from the
@@ -207,6 +213,11 @@ export interface ContentNode {
   bankTag?: string;
   /** The school's standards a question gives evidence of, by id. */
   standards?: string[];
+  /**
+   * The standards a standards block names, with the code and statement each
+   * had when chosen, so a reader sees them without looking them up.
+   */
+  targets?: StandardTarget[];
   optionId?: string;
   correct?: boolean;
   feedback?: string;
@@ -282,6 +293,12 @@ export interface ContentNode {
     /** A code block students can run, straight away or once they predict. */
     run?: "run" | "predict";
   };
+}
+
+export interface StandardTarget {
+  id: string;
+  code: string;
+  statement: string;
 }
 
 /** A screenshot or file a student keeps as evidence of using an AI tool. */
@@ -440,6 +457,22 @@ const nodeSchema: v.GenericSchema<ContentNode> = v.lazy(() =>
           v.maxLength(MAX_QUESTION_STANDARDS),
         ),
       ),
+      targets: v.optional(
+        v.pipe(
+          v.array(
+            v.object({
+              id: v.pipe(v.string(), v.uuid()),
+              code: v.pipe(v.string(), v.maxLength(MAX_STANDARD_CODE)),
+              statement: v.pipe(
+                v.string(),
+                v.minLength(1),
+                v.maxLength(MAX_STANDARD_STATEMENT),
+              ),
+            }),
+          ),
+          v.maxLength(MAX_BLOCK_STANDARDS),
+        ),
+      ),
       optionId: v.optional(v.pipe(v.string(), v.uuid())),
       correct: v.optional(v.boolean()),
       feedback: v.optional(v.pipe(v.string(), v.maxLength(300))),
@@ -562,6 +595,7 @@ const blocks = new Set<string>([
   "diagram",
   "question",
   "draw",
+  "standards",
   "gate",
   "starter",
   "ai-use",
@@ -595,6 +629,10 @@ function validNode(node: ContentNode): boolean {
     return !node.children && node.text === undefined;
   if (node.type === "image")
     return !node.children && node.text === undefined && Boolean(node.fileId);
+  if (node.type === "standards")
+    return (
+      !node.children && node.text === undefined && Array.isArray(node.targets)
+    );
   if (node.type === "draw")
     return (
       !node.children &&

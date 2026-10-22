@@ -27,6 +27,7 @@ import { markdownTransformers } from "./markdown";
 import {
   $isCalloutNode,
   $isColumnsNode,
+  $isStandardsNode,
   $isToggleNode,
   $setCodeRun,
   blockIdState,
@@ -237,6 +238,34 @@ describe("block operations", () => {
     expect(saved.success && saved.output.root.children?.[0]?.chapters).toBe(
       written,
     );
+  });
+
+  it("names standards in a block of their own, kept as they read when chosen", () => {
+    const target = editor();
+    const goal = {
+      id: "0190a1b2-0000-7000-8000-0000000000b1",
+      code: "RL.3.2",
+      statement: "Recount stories and determine their central message.",
+    };
+    target.update(
+      () => {
+        $getRoot().clear().append(paragraph("Goals"));
+        $getRoot().getFirstChild()?.selectEnd();
+        $insertBlock("standards");
+        const block = $getRoot().getChildren().find($isStandardsNode);
+        block?.setTargets([goal]);
+      },
+      { discrete: true },
+    );
+    // The caret goes on below the block, as after any block without text.
+    expect(types(target)).toEqual(["paragraph", "standards", "paragraph"]);
+    const saved = v.safeParse(
+      contentDocumentSchema,
+      target.getEditorState().toJSON(),
+    );
+    expect(saved.success && saved.output.root.children?.[1]?.targets).toEqual([
+      goal,
+    ]);
   });
 
   it("moves blocks up and down among their siblings", () => {

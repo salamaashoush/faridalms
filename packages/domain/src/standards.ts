@@ -18,6 +18,8 @@ export const MAX_ITEM_TYPE = 60;
 export const MAX_FRAMEWORK_ITEMS = 5000;
 /** The most standards one question gives evidence of. */
 export const MAX_QUESTION_STANDARDS = 6;
+/** The most standards a standards block in a document names. */
+export const MAX_BLOCK_STANDARDS = 40;
 
 const id = v.pipe(v.string(), v.uuid());
 const version = v.pipe(v.number(), v.integer(), v.minValue(0));

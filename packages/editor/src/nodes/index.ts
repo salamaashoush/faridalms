@@ -23,6 +23,7 @@ import {
   QuestionSideNode,
 } from "./question";
 import { DiagramNode, EmbedNode, MediaNode } from "./rich";
+import { StandardsNode } from "./standards";
 import { $isStarterNode, StarterNode } from "./starter";
 import {
   $isToggleContentNode,
@@ -42,6 +43,7 @@ export * from "./media";
 export * from "./page-break";
 export * from "./question";
 export * from "./rich";
+export * from "./standards";
 export * from "./starter";
 export * from "./toggle";
 
@@ -68,6 +70,7 @@ export const blockNodes = [
   QuestionGapNode,
   GateNode,
   DrawNode,
+  StandardsNode,
   PageBreakNode,
   StarterNode,
   AiUseNode,

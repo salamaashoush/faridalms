@@ -87,6 +87,7 @@ import {
   Shuffle,
   Sparkles,
   Table,
+  Target,
   TextCursorInput,
   ToggleRight,
   ToyBrick,
@@ -120,6 +121,9 @@ import {
   $nearestBlock,
   $selectDraw,
   $selectMath,
+  $isStandardsNode,
+  $selectStandards,
+  StandardsNode,
   $isStarterNode,
   DrawNode,
   GateNode,
@@ -179,7 +183,8 @@ export type BlockType =
   | "studentCopy"
   | "aiUse"
   | "bankQuestion"
-  | "bankDraw";
+  | "bankDraw"
+  | "standards";
 
 export type BlockGroup = "text" | "lists" | "media" | "layout" | "questions";
 
@@ -237,6 +242,8 @@ export interface BlockDefinition {
   bank?: boolean;
   /** Offered only in a quiz drawing from the bank. */
   draw?: boolean;
+  /** Offered only where the school's standards can be read. */
+  standards?: boolean;
 }
 
 /** Which kinds of block a document may hold. */
@@ -251,6 +258,7 @@ export interface BlockScope {
   puzzles: boolean;
   bank: boolean;
   draws: boolean;
+  standards: boolean;
 }
 
 export function blockScope(environment: {
@@ -264,6 +272,7 @@ export function blockScope(environment: {
   puzzles?: unknown;
   bank?: unknown;
   draws?: boolean;
+  standards?: unknown;
 }): BlockScope {
   const questions = Boolean(environment.questions);
   return {
@@ -277,6 +286,7 @@ export function blockScope(environment: {
     puzzles: Boolean(environment.puzzles),
     bank: questions && Boolean(environment.bank),
     draws: questions && Boolean(environment.bank) && Boolean(environment.draws),
+    standards: Boolean(environment.standards),
   };
 }
 
@@ -290,7 +300,8 @@ export const offered = (block: BlockDefinition, scope: BlockScope) =>
   (scope.studio || !block.studio) &&
   (scope.puzzles || !block.puzzle) &&
   (scope.bank || !block.bank) &&
-  (scope.draws || !block.draw);
+  (scope.draws || !block.draw) &&
+  (scope.standards || !block.standards);
 
 export const blockDefinitions: BlockDefinition[] = [
   {
@@ -407,6 +418,25 @@ export const blockDefinitions: BlockDefinition[] = [
     hint: (s) => s.studentCopyHint,
     keywords: ["copy", "worksheet", "template", "student", "نسخة", "ورقة عمل"],
     starter: true,
+  },
+  {
+    type: "standards",
+    group: "text",
+    icon: Target,
+    label: (s) => s.standardsBlock,
+    hint: (s) => s.standardsBlockHint,
+    keywords: [
+      "standards",
+      "objectives",
+      "outcomes",
+      "goals",
+      "learning intentions",
+      "criteria",
+      "معايير",
+      "أهداف",
+      "نواتج",
+    ],
+    standards: true,
   },
   {
     type: "callout",
@@ -1163,6 +1193,10 @@ function $selectInside(node: LexicalNode) {
     $selectDraw(node);
     return;
   }
+  if ($isStandardsNode(node)) {
+    $selectStandards(node);
+    return;
+  }
   if ($isToggleNode(node)) {
     node.getFirstChild()?.selectEnd();
     return;
@@ -1195,6 +1229,7 @@ function $createStructure(type: BlockType): LexicalNode | null {
   if (type === "divider") return $createHorizontalRuleNode();
   if (type === "gate") return new GateNode();
   if (type === "bankDraw") return new DrawNode();
+  if (type === "standards") return new StandardsNode();
   if (type === "pageBreak") return new PageBreakNode();
   if (type === "aiUse") return $createAiUseNode();
   if (type === "equation")
