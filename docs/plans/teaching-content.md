@@ -728,6 +728,18 @@ Scratch Text to Speech, Translate and tutorials.
    prerequisites and completion rules; briefs coming in as assignments
    of a class rather than as lessons.
 3. **Results shaped for xAPI** (score, duration, completion).
+   Done: a module's progress view exports a class's results as Experience
+   API 1.0.3 statements, as the owner chose, with no store of our own:
+   each student's progress in each lesson (completed or attempted, its
+   score out of a hundred, whether it passed, and the time from opening to
+   finishing), each marked answer as an answered interaction of its kind
+   with its share of the question's points, and each video watched with
+   how much was seen. Students are named by their id under the school's
+   address, statements by ids the same records always give, so a record
+   store takes a second export without doubling it.
+   Left: sending statements to a school's own record store as they
+   happen; assignments' marks and outside tools' scores as statements;
+   the cmi5 profile for packages launched from a store.
 
 Waiting for the owner: help from a language model for teachers (drafting
 questions, levelling a text, translating), teaching languages beyond
