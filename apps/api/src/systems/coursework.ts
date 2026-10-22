@@ -2905,6 +2905,66 @@ export const child = readProcedure
     return workOf(context, input.studentId);
   });
 
+/**
+ * A piece of a child's work as their family reads it: its brief in either
+ * of its languages, without the part set aside for each student, once the
+ * child can read it too.
+ */
+export const childBrief = readProcedure
+  .input(v.object({ studentId: id, assignmentId: id }))
+  .handler(async ({ input, context }) => {
+    requireCapability(context, "children:read");
+    requireCapability(context, "assignments:read");
+    if (
+      !(await isVisibleStudent(context.tx, scopeOf(context), input.studentId))
+    )
+      throw new ORPCError("NOT_FOUND");
+    const stored = await assignmentById(
+      context.tx,
+      context.tenantId,
+      input.assignmentId,
+    );
+    const recipient = stored
+      ? await isRecipient(
+          context.tx,
+          context.tenantId,
+          stored.id,
+          input.studentId,
+        )
+      : null;
+    if (!stored || stored.state !== "published" || !recipient)
+      throw new ORPCError("NOT_FOUND");
+    const { assignment, dueAt } = ownSchedule(stored, recipient);
+    if (
+      assignment.availableFrom &&
+      Date.parse(assignment.availableFrom) > context.now.getTime()
+    )
+      throw new ORPCError("NOT_FOUND");
+    const [brief, translation, classRow] = await Promise.all([
+      readersBrief(context, assignment, "student"),
+      readersTranslation(context, assignment, "student"),
+      classById(context.tx, context, assignment.classId),
+    ]);
+    return {
+      assignment: {
+        id: assignment.id,
+        title: assignment.title,
+        dueAt,
+        language: assignment.language,
+        class: classRow
+          ? {
+              id: classRow.id,
+              code: classRow.code,
+              titleEn: classRow.titleEn,
+              titleAr: classRow.titleAr,
+            }
+          : null,
+      },
+      brief,
+      translation,
+    };
+  });
+
 /** A student's coursework for the staff who reach their record. */
 export const student = readProcedure
   .input(v.object({ studentId: id }))

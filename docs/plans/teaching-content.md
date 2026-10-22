@@ -814,9 +814,9 @@ Scratch Text to Speech, Translate and tutorials.
    the original, as a lesson's are. The page's trail and heading name the
    work in the language it is read in, kept in the address, and the
    lists of work a student or family reads give each title in the
-   reader's language where the brief has it.
-   Left: a family opening the brief itself, which families do not read
-   yet in any language.
+   reader's language where the brief has it. A family opens each piece
+   of their child's work from their list to read its brief, in either
+   language, without the part set aside for the child to answer in.
 4. **Reading fluency** assignments, teacher-marked first.
    Done: a "Read aloud" question holds a passage the student reads aloud,
    set large above the recorder, their recording the answer. Marking it,

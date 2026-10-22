@@ -78,10 +78,12 @@ function Item({
   item,
   timeZone,
   linked,
+  onOpen,
 }: {
   item: LearnerItem;
   timeZone: string;
   linked: boolean;
+  onOpen?: (item: LearnerItem) => void;
 }) {
   const facts = [
     classTitle({
@@ -111,6 +113,17 @@ function Item({
           >
             <bdi>{titleOf(item)}</bdi>
           </Link>
+        ) : onOpen ? (
+          <button
+            type="button"
+            onClick={() => onOpen(item)}
+            className={cn(
+              "justify-self-start text-start text-sm leading-5 font-medium hover:text-primary hover:underline focus-visible:underline focus-visible:outline-none",
+              phoneLink,
+            )}
+          >
+            <bdi>{titleOf(item)}</bdi>
+          </button>
         ) : (
           <bdi className="text-sm leading-5 font-medium">{titleOf(item)}</bdi>
         )}
@@ -168,12 +181,15 @@ export function WorkSection({
   items,
   timeZone,
   linked,
+  onOpen,
   empty,
 }: {
   title: string;
   items: LearnerItem[];
   timeZone: string;
   linked: boolean;
+  /** Opens a piece where the list does not link to it, as a family's does. */
+  onOpen?: (item: LearnerItem) => void;
   empty: string;
 }) {
   return (
@@ -188,6 +204,7 @@ export function WorkSection({
               item={item}
               timeZone={timeZone}
               linked={linked}
+              onOpen={onOpen}
             />
           ))}
         </RecordList>

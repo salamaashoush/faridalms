@@ -6,6 +6,7 @@ import {
   getSharedWork,
   getAssignmentEditor,
   getAssignmentRecord,
+  getChildBrief,
   getChildCoursework,
   getStudentCoursework,
   getClassGroups,
@@ -102,6 +103,12 @@ export const sharedWorkQuery = (studentId: string) =>
   queryOptions({
     queryKey: ["coursework", "shared", studentId],
     queryFn: () => getSharedWork({ data: { studentId } }),
+  });
+
+export const childBriefQuery = (studentId: string, assignmentId: string) =>
+  queryOptions({
+    queryKey: ["coursework", "child-brief", studentId, assignmentId],
+    queryFn: () => getChildBrief({ data: { studentId, assignmentId } }),
   });
 
 export const childCourseworkQuery = (studentId: string) =>

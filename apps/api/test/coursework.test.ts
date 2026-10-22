@@ -3014,6 +3014,32 @@ describe("a brief in two languages", () => {
         (row) => row.assignmentId === saved.id,
       ),
     ).toMatchObject({ language: "en", translationTitle: "رسالة إلى النيل" });
+    // The child's family reads the brief too, in either of its languages.
+    const parent = await signedIn(
+      "northwind",
+      login("student").replace("student", "parent"),
+    );
+    const family = await parent.coursework.childBrief({
+      studentId: me.id,
+      assignmentId: saved.id,
+    });
+    expect(family.assignment).toMatchObject({
+      title: "A letter to the Nile",
+      language: "en",
+    });
+    expect(JSON.stringify(family.brief)).toContain("Write the Nile a letter.");
+    expect(family.translation).toMatchObject({
+      locale: "ar",
+      title: "رسالة إلى النيل",
+    });
+    expect(
+      await rejection(
+        student.api.coursework.childBrief({
+          studentId: me.id,
+          assignmentId: saved.id,
+        }),
+      ),
+    ).toMatchObject({ code: "FORBIDDEN" });
 
     // A change to the original leaves the check behind it.
     const changed = await teacher.api.coursework.save({

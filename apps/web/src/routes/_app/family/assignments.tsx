@@ -1,10 +1,12 @@
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 import { Users } from "lucide-react";
+import { useState } from "react";
 import * as v from "valibot";
 
 import type { Facet } from "~/components/system/IndexPage";
 
+import { FamilyBrief } from "~/components/coursework/FamilyBrief";
 import { TO_DO, WorkSection } from "~/components/coursework/LearnerList";
 import { SharedWork } from "~/components/coursework/SharedWork";
 import { displayName } from "~/components/people/format";
@@ -56,7 +58,13 @@ function ChildWork({ studentId }: { studentId: string }) {
       row.releasedAt !== null &&
       at - Date.parse(row.releasedAt) <= RECENT_MS,
   );
-  const props = { timeZone: user.school.timeZone, linked: false };
+  const [reading, setReading] = useState<{ id: string; title: string }>();
+  const props = {
+    timeZone: user.school.timeZone,
+    linked: false,
+    onOpen: (item: { assignmentId: string; title: string }) =>
+      setReading({ id: item.assignmentId, title: item.title }),
+  };
   return (
     <div className="grid gap-6">
       <WorkSection
@@ -78,6 +86,14 @@ function ChildWork({ studentId }: { studentId: string }) {
         {...props}
       />
       <SharedWork studentId={studentId} />
+      {reading ? (
+        <FamilyBrief
+          studentId={studentId}
+          assignmentId={reading.id}
+          title={reading.title}
+          onClose={() => setReading(undefined)}
+        />
+      ) : null}
     </div>
   );
 }

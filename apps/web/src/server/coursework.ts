@@ -85,6 +85,10 @@ export const getSharedPiece = createServerFn({ method: "GET" })
   .validator(checked(v.object({ attemptId: uuid })))
   .handler(({ data }) => backend().coursework.sharedPiece(data));
 
+export const getChildBrief = createServerFn({ method: "GET" })
+  .validator(checked(v.object({ studentId: uuid, assignmentId: uuid })))
+  .handler(({ data }) => record(backend().coursework.childBrief(data)));
+
 export const getChildCoursework = createServerFn({ method: "GET" })
   .validator(checked(v.object({ studentId: uuid })))
   .handler(({ data }) => record(backend().coursework.child(data)));
