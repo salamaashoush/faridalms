@@ -64,6 +64,7 @@ import { useFileFacts } from "./file-facts";
 import { FileCard, PictureView, StoredImage } from "./files";
 import { blockAlignClass, diagramImageClass, imageSizeClass } from "./format";
 import { GlossaryList } from "./glossary-view";
+import { LtiCard } from "./lti-card";
 import { MathText } from "./math";
 import { EmbedFrame, MediaPlayer, MediaTranscript } from "./media-view";
 import { PanelsView } from "./panels-view";
@@ -95,6 +96,7 @@ export interface ViewStrings
   footnotes: string;
   footnoteRef: (number: number) => string;
   footnoteBack: (number: number) => string;
+  ltiOpen: string;
 }
 
 /** A passage drawn marked in the reader, as a comment points at it. */
@@ -135,6 +137,7 @@ interface Context {
   replace?: Replace | undefined;
   shared?: ComponentType<{ id: string }> | undefined;
   mentionHref?: ((mention: Mention) => string | null) | undefined;
+  ltiHref?: ((linkId: string) => string | null) | undefined;
   /** The footnotes met so far, in reading order, numbered by their place here. */
   notes: ContentNode[];
   /** Keeps a footnote's links to its own document when several share a page. */
@@ -772,6 +775,15 @@ function draw(
         </sup>
       );
     }
+    case "lti":
+      return node.lti ? (
+        <LtiCard
+          key={key}
+          title={node.lti.title}
+          href={context.ltiHref?.(node.lti.linkId) ?? null}
+          openLabel={context.strings.ltiOpen}
+        />
+      ) : null;
     // A shared block reads as part of the page, drawn as it now is.
     case "shared":
       return context.shared && node.sharedId ? (
@@ -1186,6 +1198,7 @@ export function ContentRenderer({
   predicted,
   shared,
   mentionHref,
+  ltiHref,
   lang,
 }: {
   document: ContentDocument;
@@ -1212,6 +1225,8 @@ export function ContentRenderer({
   shared?: ComponentType<{ id: string }>;
   /** Where a mention opens; without it, or where it gives none, a mention is only its name. */
   mentionHref?: (mention: Mention) => string | null;
+  /** Where a link to an outside tool launches; without it the link only names the tool. */
+  ltiHref?: (linkId: string) => string | null;
   /** The language the document is written in; without it, read from its words. */
   lang?: ContentLocale;
 }) {
@@ -1234,6 +1249,7 @@ export function ContentRenderer({
     replace,
     shared,
     mentionHref,
+    ltiHref,
     notes: [],
     scope,
     glossary: () => {

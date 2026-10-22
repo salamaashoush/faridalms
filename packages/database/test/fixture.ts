@@ -77,6 +77,9 @@ import {
   pacedLessons,
   lessonReleases,
   discussionPosts,
+  ltiKeys,
+  ltiReplays,
+  ltiTools,
   peerReviews,
   passkeys,
   quizAnswers,
@@ -595,6 +598,29 @@ export async function completeFixture(
     strengths: "The opening question pulls the reader in.",
     suggestion: "Say where the river starts.",
     sentAt: new Date("2026-09-22T10:00:00Z"),
+  });
+  await tx.insert(ltiTools).values({
+    tenantId,
+    orgId: schoolId,
+    name: "River simulator",
+    clientId: id(),
+    deploymentId: id(),
+    loginUrl: "https://tool.example.com/login",
+    launchUrl: "https://tool.example.com/launch",
+    redirectUrls: ["https://tool.example.com/launch"],
+    jwksUrl: "https://tool.example.com/jwks",
+  });
+  await tx.insert(ltiKeys).values({
+    tenantId,
+    orgId: schoolId,
+    kid: id(),
+    publicJwk: { kty: "RSA", n: "AQAB", e: "AQAB" },
+    sealedPrivateJwk: "sealed",
+  });
+  await tx.insert(ltiReplays).values({
+    tenantId,
+    keyHash: Buffer.alloc(32),
+    expiresAt: new Date(Date.now() + 3_600_000),
   });
   await tx.insert(quizAnswers).values({
     tenantId,

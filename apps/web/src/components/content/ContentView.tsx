@@ -20,6 +20,7 @@ import * as m from "~/i18n/messages";
 import { getLocale } from "~/i18n/runtime";
 import { sharedBlockQuery } from "~/queries/shared";
 
+import { useLtiHref } from "./lti";
 import { aiUseStrings, fileStrings } from "./strings";
 
 /**
@@ -111,6 +112,7 @@ export function ContentView({
   /** The language the document is written in; without it, read from its words. */
   lang?: ContentLocale;
 }) {
+  const ltiHref = useLtiHref();
   return (
     <ContentRenderer
       document={document}
@@ -149,6 +151,7 @@ export function ContentView({
         chartCategory: m.editorChartCategory({}, { locale }),
         chartOther: m.editorChartOther({}, { locale }),
         chartEmpty: m.editorChartEmpty({}, { locale }),
+        ltiOpen: m.ltiOpen({}, { locale }),
       }}
       fileUrl={fileUrl}
       locale={locale}
@@ -162,6 +165,7 @@ export function ContentView({
       predicted={predicted}
       shared={SharedBlock}
       mentionHref={mentionHref}
+      ltiHref={ltiHref}
       lang={lang}
     />
   );

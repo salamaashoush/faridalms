@@ -71,7 +71,8 @@ export type SerializedFileNode = Spread<
   SerializedDecoratorBlockNode
 >;
 
-function useNodeUpdate<T extends LexicalNode>(
+/** Changes a block's node from its own controls, in one discrete update. */
+export function useNodeUpdate<T extends LexicalNode>(
   nodeKey: NodeKey,
   guard: (node: LexicalNode | null) => node is T,
 ) {

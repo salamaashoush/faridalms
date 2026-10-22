@@ -677,6 +677,15 @@ Scratch Text to Speech, Translate and tutorials.
 
 1. **LTI 1.3** with Deep Linking and Assignment and Grade Services, so a
    school plugs in outside tools.
+   Done so far: a school registers outside tools in Settings, each given
+   a client id and deployment id, and finds there the issuer, key set and
+   authorization addresses a tool's maker needs. A teacher places an
+   "Outside tool" block in a lesson or brief; whoever opens it launches
+   the tool by LTI 1.3's third-party-initiated sign-in, signed with the
+   school's own RSA key, as an instructor when they teach it and a
+   learner when they study it, with names only when the school says.
+   Left: Deep Linking, so a teacher picks the tool's content; Assignment
+   and Grade Services, so scores come back.
 2. **QTI 3 and Common Cartridge** import and export, so content comes in
    from Moodle and Canvas and leaves again.
 3. **Results shaped for xAPI** (score, duration, completion).

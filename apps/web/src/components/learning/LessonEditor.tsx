@@ -46,6 +46,7 @@ import { contentIssueMessages } from "~/components/content/checks";
 import { useCollaboration } from "~/components/content/collaboration";
 import { ContentEditor } from "~/components/content/ContentEditor";
 import { LOCALE_LABEL, LOCALE_NAME } from "~/components/content/languages";
+import { LtiHostProvider } from "~/components/content/lti";
 import { useStartFrom } from "~/components/content/Templates";
 import { TranslationNote } from "~/components/content/TranslationNote";
 import { useDocumentMedia } from "~/components/coursework/useDocumentMedia";
@@ -514,7 +515,7 @@ export function LessonEditor({
       : { label: m.lrnStatusNotShown(), tone: "warning" as const };
 
   return (
-    <>
+    <LtiHostProvider type="lesson" id={storedId || null}>
       <DocumentPage
         heading={existing ? m.lrnEditLesson() : m.lrnNewLesson()}
         onBack={async () => {
@@ -1041,6 +1042,6 @@ export function LessonEditor({
           onClose={() => setCopying((current) => ({ ...current, open: false }))}
         />
       ) : null}
-    </>
+    </LtiHostProvider>
   );
 }

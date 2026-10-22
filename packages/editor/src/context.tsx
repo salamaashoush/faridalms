@@ -166,9 +166,18 @@ export interface EditorMentions {
   search: (query: string) => Promise<MentionOption[]>;
 }
 
+/** The school's outside tools a document may link to, and where a link opens. */
+export interface EditorTools {
+  list: { id: string; name: string; deepLinking: boolean }[];
+  /** Where a link launches from; none until the document is saved. */
+  href: (linkId: string) => string | null;
+}
+
 export interface EditorEnvironment {
   strings: EditorStrings;
   media?: EditorMedia;
+  /** Links to outside tools; absent where the school has none to offer. */
+  tools?: EditorTools;
   /** Offers coding questions; absent where no studio is set up. */
   studio?: EditorStudio;
   /** Offers puzzle questions; absent where there is no designer to make one in. */

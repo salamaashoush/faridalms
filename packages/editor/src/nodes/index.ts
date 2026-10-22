@@ -11,6 +11,7 @@ import { DrawNode } from "./draw";
 import { FootnoteNode } from "./footnote";
 import { GateNode } from "./gate";
 import { GlossaryNode } from "./glossary";
+import { LtiNode } from "./lti";
 import { MathNode } from "./math";
 import { FileNode, ImageNode } from "./media";
 import { MentionNode } from "./mention";
@@ -55,6 +56,7 @@ export * from "./draw";
 export * from "./footnote";
 export * from "./gate";
 export * from "./glossary";
+export * from "./lti";
 export * from "./math";
 export * from "./media";
 export * from "./mention";
@@ -87,6 +89,7 @@ export const blockNodes = [
   FileNode,
   MediaNode,
   EmbedNode,
+  LtiNode,
   DiagramNode,
   QuestionNode,
   QuestionPromptNode,

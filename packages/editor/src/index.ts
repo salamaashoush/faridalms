@@ -11,6 +11,7 @@ export type {
   EditorPuzzles,
   EditorStandards,
   EditorStudio,
+  EditorTools,
   StandardRef,
   UploadedFile,
   UploadOptions,

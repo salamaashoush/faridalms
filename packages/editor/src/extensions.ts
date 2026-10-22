@@ -126,6 +126,7 @@ import {
   ToggleTitleNode,
 } from "./nodes";
 import { $insertFootnote } from "./nodes/footnote";
+import { $uniqueLinkIds } from "./nodes/lti";
 
 const escapable = (node: LexicalNode | null | undefined): node is ElementNode =>
   $isCalloutNode(node) ||
@@ -596,6 +597,7 @@ export const BlocksExtension = defineExtension({
       editor.registerNodeTransform(RootNode, (root) => {
         $assignBlockIds(root, new Set());
         $uniqueAnswerIds(root, editor.getEditorState());
+        $uniqueLinkIds(root, editor.getEditorState());
       }),
       editor.registerNodeTransform(QuestionNode, (node) => {
         if (!$isRootNode(node.getParent())) $unwrapInto(node);

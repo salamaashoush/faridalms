@@ -42,6 +42,7 @@ import {
   $parseSerializedNode,
 } from "lexical";
 import {
+  AppWindow,
   ArrowDownUp,
   BookA,
   BookOpenText,
@@ -124,6 +125,7 @@ import {
   $createPuzzleQuestion,
   $createPythonQuestion,
   $createSketchQuestion,
+  $createLtiNode,
   $createReadingQuestion,
   $createWhyQuestion,
   $createColumnsNode,
@@ -219,6 +221,7 @@ export type BlockType =
   | "pollQuestion"
   | "whyQuestion"
   | "readingQuestion"
+  | "outsideTool"
   | "gate"
   | "pageBreak"
   | "studentCopy"
@@ -296,6 +299,8 @@ export interface BlockDefinition {
   standards?: boolean;
   /** Offered only where blocks are kept to show in many documents. */
   shared?: boolean;
+  /** Offered only where the school has outside tools to link to. */
+  tools?: boolean;
 }
 
 /** Which kinds of block a document may hold. */
@@ -312,6 +317,7 @@ export interface BlockScope {
   draws: boolean;
   standards: boolean;
   shared: boolean;
+  tools: boolean;
 }
 
 export function blockScope(environment: {
@@ -327,6 +333,7 @@ export function blockScope(environment: {
   draws?: boolean;
   standards?: unknown;
   shared?: unknown;
+  tools?: { list: readonly unknown[] };
 }): BlockScope {
   const questions = Boolean(environment.questions);
   return {
@@ -342,6 +349,7 @@ export function blockScope(environment: {
     draws: questions && Boolean(environment.bank) && Boolean(environment.draws),
     standards: Boolean(environment.standards),
     shared: Boolean(environment.shared),
+    tools: Boolean(environment.tools?.list.length),
   };
 }
 
@@ -357,7 +365,8 @@ export const offered = (block: BlockDefinition, scope: BlockScope) =>
   (scope.bank || !block.bank) &&
   (scope.draws || !block.draw) &&
   (scope.standards || !block.standards) &&
-  (scope.shared || !block.shared);
+  (scope.shared || !block.shared) &&
+  (scope.tools || !block.tools);
 
 export const blockDefinitions: BlockDefinition[] = [
   {
@@ -666,6 +675,25 @@ export const blockDefinitions: BlockDefinition[] = [
       "يوتيوب",
     ],
     prompt: true,
+  },
+  {
+    type: "outsideTool",
+    group: "media",
+    icon: AppWindow,
+    label: (s) => s.ltiTool,
+    hint: (s) => s.ltiToolHint,
+    keywords: [
+      "lti",
+      "tool",
+      "app",
+      "simulation",
+      "publisher",
+      "launch",
+      "أداة",
+      "تطبيق",
+      "محاكاة",
+    ],
+    tools: true,
   },
   {
     type: "diagram",
@@ -1525,6 +1553,7 @@ function $createStructure(type: BlockType): LexicalNode | null {
   if (type === "trueFalseQuestion") return $createTrueFalseQuestion();
   if (type === "whyQuestion") return $createWhyQuestion();
   if (type === "readingQuestion") return $createReadingQuestion();
+  if (type === "outsideTool") return $createLtiNode("", "");
   if (type === "sketchQuestion") return $createSketchQuestion();
   if (type === "pythonQuestion") return $createPythonQuestion();
   if (type === "microbitQuestion") return $createMicrobitQuestion();

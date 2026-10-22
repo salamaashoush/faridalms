@@ -5,12 +5,14 @@ import * as v from "valibot";
 
 import type { FootnoteSource } from "./citations";
 import type { EmbedProvider } from "./embed";
+import type { LtiLink } from "./lti";
 import type { ProjectFile, ProjectLanguage } from "./project";
 import type { ScratchFeature } from "./scratch-project";
 
 import { MAX_DESCRIPTION_TEXT, parseDescriptions } from "./chapters";
 import { footnoteSourceSchema } from "./citations";
 import { embedProviders, isEmbedId } from "./embed";
+import { ltiLinkSchema } from "./lti";
 import { projectLanguages, starterFilesSchema } from "./project";
 import { isSafeContentUrl } from "./rich-text";
 import { scratchChecksSchema } from "./scratch-project";
@@ -89,6 +91,7 @@ const nodeTypes = [
   "file",
   "media",
   "embed",
+  "lti",
   "diagram",
   "question",
   "question-prompt",
@@ -312,6 +315,8 @@ export interface ContentNode {
   noSkipping?: boolean;
   provider?: EmbedProvider;
   embedId?: string;
+  /** A link to one of the school's outside tools. */
+  lti?: LtiLink;
   sceneFileId?: string;
   kind?: QuestionKind;
   questionId?: string;
@@ -646,6 +651,7 @@ const nodeSchema: v.GenericSchema<ContentNode> = v.lazy(() =>
       noSkipping: v.optional(v.boolean()),
       provider: v.optional(v.picklist(embedProviders)),
       embedId: v.optional(v.pipe(v.string(), v.maxLength(200))),
+      lti: v.optional(ltiLinkSchema),
       sceneFileId: v.optional(v.pipe(v.string(), v.uuid())),
       projectFileId: v.optional(v.pipe(v.string(), v.uuid())),
       projectFiles: v.optional(starterFilesSchema),
@@ -824,6 +830,7 @@ const blocks = new Set<string>([
   "file",
   "media",
   "embed",
+  "lti",
   "diagram",
   "question",
   "draw",
@@ -930,6 +937,8 @@ function validNode(node: ContentNode): boolean {
       node.embedId !== undefined &&
       isEmbedId(node.provider, node.embedId)
     );
+  if (node.type === "lti")
+    return !node.children && node.text === undefined && Boolean(node.lti);
   if (node.type === "diagram")
     return (
       !node.children &&
@@ -1172,6 +1181,7 @@ const visit = (node: ContentNode): string => {
       .filter(Boolean)
       .join("\n");
   if (node.type === "file") return node.name ?? "";
+  if (node.type === "lti") return node.lti?.title ?? "";
   if (node.type === "math") return mathText(node);
   // A footnote is read where it is listed, not in the line it marks.
   if (node.type === "footnote") return "";

@@ -32,6 +32,9 @@ import { Route as AppTeachRouteImport } from './routes/_app/teach'
 import { Route as AuthSignInRouteImport } from './routes/_auth/sign-in'
 import { Route as ApiHealthRouteImport } from './routes/api/health'
 import { Route as FilesFileIdRouteImport } from './routes/files/$fileId'
+import { Route as LtiAuthRouteImport } from './routes/lti/auth'
+import { Route as LtiJwksRouteImport } from './routes/lti/jwks'
+import { Route as LtiLaunchRouteImport } from './routes/lti/launch'
 import { Route as SiteSchoolRouteImport } from './routes/site/$school'
 import { Route as AppAdminIndexRouteImport } from './routes/_app/admin/index'
 import { Route as AppAdminAcademicYearEditorRouteImport } from './routes/_app/admin/academic-year-editor'
@@ -224,6 +227,21 @@ const ApiHealthRoute = ApiHealthRouteImport.update({
 const FilesFileIdRoute = FilesFileIdRouteImport.update({
   id: '/files/$fileId',
   path: '/files/$fileId',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const LtiAuthRoute = LtiAuthRouteImport.update({
+  id: '/lti/auth',
+  path: '/lti/auth',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const LtiJwksRoute = LtiJwksRouteImport.update({
+  id: '/lti/jwks',
+  path: '/lti/jwks',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const LtiLaunchRoute = LtiLaunchRouteImport.update({
+  id: '/lti/launch',
+  path: '/lti/launch',
   getParentRoute: () => rootRouteImport,
 } as any)
 const SiteSchoolRoute = SiteSchoolRouteImport.update({
@@ -652,6 +670,9 @@ export interface FileRoutesByFullPath {
   '/sign-in': typeof AuthSignInRoute
   '/api/health': typeof ApiHealthRoute
   '/files/$fileId': typeof FilesFileIdRouteWithChildren
+  '/lti/auth': typeof LtiAuthRoute
+  '/lti/jwks': typeof LtiJwksRoute
+  '/lti/launch': typeof LtiLaunchRoute
   '/site/$school': typeof SiteSchoolRouteWithChildren
   '/admin/academic-year-editor': typeof AppAdminAcademicYearEditorRoute
   '/admin/academic-years': typeof AppAdminAcademicYearsRoute
@@ -750,6 +771,9 @@ export interface FileRoutesByTo {
   '/sign-in': typeof AuthSignInRoute
   '/api/health': typeof ApiHealthRoute
   '/files/$fileId': typeof FilesFileIdRouteWithChildren
+  '/lti/auth': typeof LtiAuthRoute
+  '/lti/jwks': typeof LtiJwksRoute
+  '/lti/launch': typeof LtiLaunchRoute
   '/admin/academic-year-editor': typeof AppAdminAcademicYearEditorRoute
   '/admin/academic-years': typeof AppAdminAcademicYearsRoute
   '/admin/announcement-editor': typeof AppAdminAnnouncementEditorRoute
@@ -854,6 +878,9 @@ export interface FileRoutesById {
   '/_auth/sign-in': typeof AuthSignInRoute
   '/api/health': typeof ApiHealthRoute
   '/files/$fileId': typeof FilesFileIdRouteWithChildren
+  '/lti/auth': typeof LtiAuthRoute
+  '/lti/jwks': typeof LtiJwksRoute
+  '/lti/launch': typeof LtiLaunchRoute
   '/site/$school': typeof SiteSchoolRouteWithChildren
   '/_app/admin/academic-year-editor': typeof AppAdminAcademicYearEditorRoute
   '/_app/admin/academic-years': typeof AppAdminAcademicYearsRoute
@@ -958,6 +985,9 @@ export interface FileRouteTypes {
     | '/sign-in'
     | '/api/health'
     | '/files/$fileId'
+    | '/lti/auth'
+    | '/lti/jwks'
+    | '/lti/launch'
     | '/site/$school'
     | '/admin/academic-year-editor'
     | '/admin/academic-years'
@@ -1056,6 +1086,9 @@ export interface FileRouteTypes {
     | '/sign-in'
     | '/api/health'
     | '/files/$fileId'
+    | '/lti/auth'
+    | '/lti/jwks'
+    | '/lti/launch'
     | '/admin/academic-year-editor'
     | '/admin/academic-years'
     | '/admin/announcement-editor'
@@ -1159,6 +1192,9 @@ export interface FileRouteTypes {
     | '/_auth/sign-in'
     | '/api/health'
     | '/files/$fileId'
+    | '/lti/auth'
+    | '/lti/jwks'
+    | '/lti/launch'
     | '/site/$school'
     | '/_app/admin/academic-year-editor'
     | '/_app/admin/academic-years'
@@ -1248,6 +1284,9 @@ export interface RootRouteChildren {
   WelcomeRoute: typeof WelcomeRoute
   ApiHealthRoute: typeof ApiHealthRoute
   FilesFileIdRoute: typeof FilesFileIdRouteWithChildren
+  LtiAuthRoute: typeof LtiAuthRoute
+  LtiJwksRoute: typeof LtiJwksRoute
+  LtiLaunchRoute: typeof LtiLaunchRoute
   SiteSchoolRoute: typeof SiteSchoolRouteWithChildren
   ExportsAssignmentsAssignmentIdRoute: typeof ExportsAssignmentsAssignmentIdRoute
   ExportsStudentsStudentIdRoute: typeof ExportsStudentsStudentIdRoute
@@ -1416,6 +1455,27 @@ declare module '@tanstack/react-router' {
       path: '/files/$fileId'
       fullPath: '/files/$fileId'
       preLoaderRoute: typeof FilesFileIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/lti/auth': {
+      id: '/lti/auth'
+      path: '/lti/auth'
+      fullPath: '/lti/auth'
+      preLoaderRoute: typeof LtiAuthRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/lti/jwks': {
+      id: '/lti/jwks'
+      path: '/lti/jwks'
+      fullPath: '/lti/jwks'
+      preLoaderRoute: typeof LtiJwksRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/lti/launch': {
+      id: '/lti/launch'
+      path: '/lti/launch'
+      fullPath: '/lti/launch'
+      preLoaderRoute: typeof LtiLaunchRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/site/$school': {
@@ -2245,6 +2305,9 @@ const rootRouteChildren: RootRouteChildren = {
   WelcomeRoute: WelcomeRoute,
   ApiHealthRoute: ApiHealthRoute,
   FilesFileIdRoute: FilesFileIdRouteWithChildren,
+  LtiAuthRoute: LtiAuthRoute,
+  LtiJwksRoute: LtiJwksRoute,
+  LtiLaunchRoute: LtiLaunchRoute,
   SiteSchoolRoute: SiteSchoolRouteWithChildren,
   ExportsAssignmentsAssignmentIdRoute: ExportsAssignmentsAssignmentIdRoute,
   ExportsStudentsStudentIdRoute: ExportsStudentsStudentIdRoute,

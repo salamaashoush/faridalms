@@ -3,6 +3,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import * as v from "valibot";
 
 import { BreadcrumbCurrent } from "~/components/app/WorkspaceBreadcrumb";
+import { LtiHostProvider } from "~/components/content/lti";
 import {
   AssignmentRecord,
   RECORD_TABS,
@@ -62,15 +63,21 @@ function AssignmentPage() {
   const { tab } = Route.useSearch();
   const { auth } = Route.useRouteContext();
   const navigate = Route.useNavigate();
-  if (learns(auth.workspace))
-    return <LearnerWork assignmentId={assignmentId} />;
   return (
-    <AssignmentRecord
-      assignmentId={assignmentId}
-      tab={tab}
-      onTab={(next) => {
-        void navigate({ search: (previous) => ({ ...previous, tab: next }) });
-      }}
-    />
+    <LtiHostProvider type="assignment" id={assignmentId}>
+      {learns(auth.workspace) ? (
+        <LearnerWork assignmentId={assignmentId} />
+      ) : (
+        <AssignmentRecord
+          assignmentId={assignmentId}
+          tab={tab}
+          onTab={(next) => {
+            void navigate({
+              search: (previous) => ({ ...previous, tab: next }),
+            });
+          }}
+        />
+      )}
+    </LtiHostProvider>
   );
 }

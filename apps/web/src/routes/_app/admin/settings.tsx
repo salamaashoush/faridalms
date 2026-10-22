@@ -14,6 +14,7 @@ import {
   findRole,
   RoleSheet,
 } from "~/components/admin/AccessRolesPanel";
+import { OutsideTools } from "~/components/admin/OutsideTools";
 import { SchoolProfileSection } from "~/components/admin/SchoolEditors";
 import {
   filterSubjects,
@@ -40,6 +41,7 @@ import * as m from "~/i18n/messages";
 import { accessChangesQuery, accessRolesQuery } from "~/queries/access";
 import { attendanceSettingsQuery } from "~/queries/attendance";
 import { subjectsQuery } from "~/queries/classes";
+import { ltiToolsQuery } from "~/queries/lti";
 import {
   schoolFeaturesQuery,
   schoolProfileQuery,
@@ -49,7 +51,7 @@ import { peopleOptionsQuery } from "~/queries/students";
 
 const searchSchema = v.object({
   section: v.optional(
-    v.picklist(["school", "subjects", "attendance", "access"]),
+    v.picklist(["school", "subjects", "attendance", "access", "tools"]),
     "school",
   ),
   q: v.optional(v.string(), ""),
@@ -79,6 +81,8 @@ export const Route = createFileRoute("/_app/admin/settings")({
       await queryClient.ensureQueryData(subjectsQuery);
     else if (deps.section === "attendance")
       await queryClient.ensureQueryData(attendanceSettingsQuery);
+    else if (deps.section === "tools")
+      await queryClient.ensureQueryData(ltiToolsQuery);
     else
       await Promise.all([
         queryClient.ensureQueryData(accessRolesQuery),
@@ -145,6 +149,7 @@ function SettingsRoute() {
           { value: "subjects", label: m.adminSubjectsSection() },
           { value: "attendance", label: m.attendanceTitle() },
           { value: "access", label: m.adminPermissionsSection() },
+          { value: "tools", label: m.ltiTools() },
         ]}
         value={search.section}
         onChange={(section) => void navigate({ search: { section } })}
@@ -157,6 +162,8 @@ function SettingsRoute() {
           <SettingsPage>
             <AttendanceRules />
           </SettingsPage>
+        ) : search.section === "tools" ? (
+          <OutsideTools />
         ) : (
           <Suspense fallback={<Skeleton className="h-40 w-full" />}>
             <AccessTab search={search} patch={patch} />

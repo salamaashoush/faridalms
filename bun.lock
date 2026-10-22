@@ -60,6 +60,7 @@
         "@orpc/server": "latest",
         "@orpc/valibot": "latest",
         "fflate": "^0.8.3",
+        "jose": "^6.2.12",
         "quickjs-emscripten-core": "0.32.0",
         "valibot": "^1.4.2",
       },

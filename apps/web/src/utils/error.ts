@@ -769,6 +769,14 @@ export function getMessageFromError(error: unknown): string {
         return m.calCancelFirst();
       case "calendar.audience":
         return m.calAudienceNotAllowed();
+      case "lti.url":
+      case "lti.https":
+        return m.ltiErrUrl();
+      case "lti.custom_too_many":
+        return m.ltiErrCustom();
+      case "lti.client_exists":
+      case "lti.key_exists":
+        return m.ltiErrRace();
     }
     if (error.message.startsWith("validation."))
       return validationMessage({ message: error.message });

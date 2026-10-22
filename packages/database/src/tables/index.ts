@@ -12,6 +12,7 @@ export * from "./exams";
 export * from "./files";
 export * from "./grading";
 export * from "./learning";
+export * from "./lti";
 export * from "./membership";
 export * from "./messaging";
 export * from "./people";

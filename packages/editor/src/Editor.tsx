@@ -30,6 +30,7 @@ import type {
   EditorBank,
   EditorShared,
   EditorMentions,
+  EditorTools,
   EditorMedia,
   EditorPuzzles,
   EditorStandards,
@@ -105,6 +106,8 @@ export interface EditorProps {
   shared?: EditorShared;
   /** Finds whom and what may be mentioned with @. */
   mentions?: EditorMentions;
+  /** The school's outside tools, to link to. */
+  tools?: EditorTools;
   placeholder?: string;
   initialFocus?: boolean;
   locale?: string;
@@ -150,6 +153,7 @@ export default function Editor({
   standards,
   shared,
   mentions,
+  tools,
   locale,
   value,
   collaboration,
@@ -191,6 +195,7 @@ export default function Editor({
       standards,
       shared,
       mentions,
+      tools,
       locale:
         locale ??
         (typeof document === "undefined"
@@ -215,6 +220,7 @@ export default function Editor({
       standards,
       shared,
       mentions,
+      tools,
       locale,
       questions,
       gates,

@@ -21,6 +21,7 @@ import * as identifiersSystem from "./systems/identifiers";
 import * as identity from "./systems/identity";
 import * as learningSystem from "./systems/learning";
 import * as librarySystem from "./systems/library";
+import * as ltiSystem from "./systems/lti";
 import * as messagesSystem from "./systems/messages";
 import * as newsSystem from "./systems/news";
 import * as notificationsSystem from "./systems/notifications";
@@ -75,6 +76,7 @@ export const router = {
   notifications: notificationsSystem,
   learning: learningSystem,
   library: librarySystem,
+  lti: ltiSystem,
   site: siteSystem,
   home: homeSystem,
   search: searchSystem,

@@ -9,6 +9,7 @@ import {
   BreadcrumbCurrent,
   BreadcrumbStep,
 } from "~/components/app/WorkspaceBreadcrumb";
+import { LtiHostProvider } from "~/components/content/lti";
 import { DefaultCatchBoundary } from "~/components/DefaultCatchBoundary";
 import {
   LessonPlayer,
@@ -90,10 +91,14 @@ function LessonTrail() {
 function LessonPage() {
   const { lessonId } = Route.useParams();
   const { auth } = Route.useRouteContext();
-  return learns(auth.workspace) ? (
-    <LessonPlayer key={lessonId} lessonId={lessonId} />
-  ) : (
-    <LessonPreview lessonId={lessonId} />
+  return (
+    <LtiHostProvider type="lesson" id={lessonId}>
+      {learns(auth.workspace) ? (
+        <LessonPlayer key={lessonId} lessonId={lessonId} />
+      ) : (
+        <LessonPreview lessonId={lessonId} />
+      )}
+    </LtiHostProvider>
   );
 }
 
