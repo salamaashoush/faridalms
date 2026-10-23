@@ -1,10 +1,14 @@
-import { emptyContent } from "@faridalms/domain/content-conversion";
+import {
+  emptyContent,
+  plainContent,
+} from "@faridalms/domain/content-conversion";
 import { SQL } from "bun";
 import { describe, expect, test } from "bun:test";
 import { sql } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/bun-sql/postgres";
 
 import { currentPurpose, withPurpose } from "../src/context";
+import { saveDocument } from "../src/stores/documents";
 import {
   approveErasure,
   erasurePlan,
@@ -1091,6 +1095,83 @@ describe("search", () => {
     ]);
     expect(result.error).toBeUndefined();
     expect(result.rows[0]?.n).toBe(1);
+  });
+});
+
+const words = (text: string) =>
+  plainContent(text) as unknown as Record<string, unknown>;
+
+describe("documents", () => {
+  test("a save of the same words keeps the revision, and new words make the next", async () => {
+    const { a } = harness();
+    const cell = appCell();
+    try {
+      const writer = await one<{ id: string }>(
+        "select id from core.users where tenant_id = $1 limit 1",
+        [a.tenantId],
+      );
+      const versions = await cell.withTenant(
+        { tenantId: a.tenantId, requestId: "save", actor: { kind: "system" } },
+        "write",
+        async (tx) => {
+          const input = {
+            tenantId: a.tenantId,
+            orgId: a.schoolIds[0] ?? "",
+            host: { type: "site_page", id: Bun.randomUUIDv7() },
+            content: words("Chess club"),
+            plainText: "Chess club",
+            mediaIds: [],
+            userId: writer.id,
+          };
+          const first = await saveDocument(tx, input);
+          const same = await saveDocument(tx, input);
+          const changed = await saveDocument(tx, {
+            ...input,
+            content: words("Chess club on Monday"),
+            plainText: "Chess club on Monday",
+          });
+          return [first.version, same.version, changed.version];
+        },
+      );
+      expect(versions).toEqual([1, 1, 2]);
+    } finally {
+      await cell.close();
+    }
+  });
+
+  test("its search entry is rebuilt when its words change, not when only its content does", async () => {
+    const { a } = harness();
+    const host = Bun.randomUUIDv7();
+    const found = `select (select count(*)::int from app.search('zzqx', array['site_page'])) as marked,
+                          (select count(*)::int from app.search('swimming', array['site_page'])) as swimming`;
+    const result = await probe("cell_owner", a.tenantId, [
+      {
+        text: `insert into core.documents (tenant_id, host_type, host_id, org_id, kind, schema_version, locale, content, plain_text)
+               values ($1, 'site_page', $2, $3, 'page', 1, 'en', '{}', 'Chess club on Monday')`,
+        params: [a.tenantId, host, a.schoolIds[0]],
+      },
+      // A mark the trigger would overwrite, to tell whether it ran.
+      {
+        text: `update search.entries e set text_vector = to_tsvector('simple', 'zzqx')
+               from core.documents d
+               where d.host_id = $1 and e.entity_type = 'document' and e.entity_id = d.id`,
+        params: [host],
+      },
+      {
+        text: `update core.documents set content = '{"edited": true}', plain_text = 'Chess club on Monday'
+               where host_id = $1`,
+        params: [host],
+      },
+      { text: found },
+      {
+        text: "update core.documents set plain_text = 'Swimming gala on Thursday' where host_id = $1",
+        params: [host],
+      },
+      { text: found },
+    ]);
+    expect(result.error).toBeUndefined();
+    expect(result.all[3]).toEqual([{ marked: 1, swimming: 0 }]);
+    expect(result.all[5]).toEqual([{ marked: 0, swimming: 1 }]);
   });
 });
 

@@ -3,7 +3,7 @@ import { sql } from "drizzle-orm";
 import type { CellTransaction } from "../context";
 import type { DocumentKind } from "../tables/documents";
 
-import { isoOf, uuidArray } from "./sql";
+import { isoOf, textArray, uuidArray } from "./sql";
 
 type Tx = CellTransaction;
 
@@ -50,6 +50,19 @@ export async function documentOf(
     : null;
 }
 
+export async function documentIdOf(
+  tx: Tx,
+  tenantId: string,
+  host: Host,
+): Promise<{ id: string; version: number } | null> {
+  const [row] = await tx.execute<{ id: string; version: number }>(sql`
+    select id, version from core.documents
+    where tenant_id = ${tenantId}::uuid and host_type = ${host.type} and host_id = ${host.id}::uuid
+      and status = 'active' and translation_of_id is null
+    order by created_at desc limit 1`);
+  return row ?? null;
+}
+
 /** The working content of several records' documents of one kind, by host. */
 export async function contentsOf(
   tx: Tx,
@@ -63,6 +76,38 @@ export async function contentsOf(
     content: Record<string, unknown>;
   }>(sql`
     select distinct on (host_id) host_id, content from core.documents
+    where tenant_id = ${tenantId}::uuid and host_type = ${hostType}
+      and host_id = any(${uuidArray(hostIds)}) and status = 'active'
+      and translation_of_id is null
+    order by host_id, created_at desc`);
+  return new Map(rows.map((row) => [row.host_id, row.content]));
+}
+
+/**
+ * Of several records' documents of one kind, by host, only the blocks of the
+ * given types at the top of each, under a root of their own: what a list
+ * needs of a lesson's questions without reading every word. Content kept
+ * from before documents had a root comes back whole.
+ */
+export async function topBlocksOf(
+  tx: Tx,
+  tenantId: string,
+  hostType: string,
+  hostIds: readonly string[],
+  types: readonly string[],
+): Promise<Map<string, Record<string, unknown>>> {
+  if (hostIds.length === 0) return new Map();
+  const rows = await tx.execute<{
+    host_id: string;
+    content: Record<string, unknown>;
+  }>(sql`
+    select distinct on (host_id) host_id,
+      case when content ? 'root' then jsonb_build_object('root', jsonb_build_object(
+        'type', 'root', 'version', 1, 'children', jsonb_path_query_array(content,
+          'strict $.root.children[*] ? (@.type == $types[*])',
+          jsonb_build_object('types', ${textArray(types)}))))
+      else content end as content
+    from core.documents
     where tenant_id = ${tenantId}::uuid and host_type = ${hostType}
       and host_id = any(${uuidArray(hostIds)}) and status = 'active'
       and translation_of_id is null
@@ -124,6 +169,31 @@ async function syncMedia(
       and linked_at is null and state = 'ready' and purpose in ('document_media', 'attachment')`);
 }
 
+/** A save of the same words leaves the row, and so its revision, as it was. */
+async function rewrite(
+  tx: Tx,
+  input: {
+    tenantId: string;
+    id: string;
+    content: Record<string, unknown>;
+    plainText: string;
+    locale: "ar" | "en" | null;
+    userId: string;
+  },
+): Promise<{ id: string; version: number } | undefined> {
+  const [row] = await tx.execute<{ id: string; version: number }>(sql`
+    update core.documents d
+    set content = n.content, plain_text = n.plain_text, locale = n.locale,
+        last_edited_by_user_id = ${input.userId}::uuid, last_edited_at = statement_timestamp()
+    from (select ${input.content}::jsonb as content, ${input.plainText}::text as plain_text,
+            ${input.locale}::text as locale) n
+    where d.tenant_id = ${input.tenantId}::uuid and d.id = ${input.id}::uuid
+      and (d.content is distinct from n.content or d.plain_text is distinct from n.plain_text
+           or d.locale is distinct from n.locale)
+    returning d.id, d.version`);
+  return row;
+}
+
 /** Writes a host's document, creating it the first time. */
 export async function saveDocument(
   tx: Tx,
@@ -139,16 +209,19 @@ export async function saveDocument(
     locale?: "en" | "ar" | null;
   },
 ): Promise<{ id: string; version: number }> {
-  const existing = await documentOf(tx, input.tenantId, input.host);
+  const existing = await documentIdOf(tx, input.tenantId, input.host);
   const locale = input.locale ?? null;
   let saved: { id: string; version: number } | undefined;
   if (existing) {
-    [saved] = await tx.execute<{ id: string; version: number }>(sql`
-      update core.documents
-      set content = ${input.content}::jsonb, plain_text = ${input.plainText}, locale = ${locale},
-          last_edited_by_user_id = ${input.userId}::uuid, last_edited_at = statement_timestamp()
-      where tenant_id = ${input.tenantId}::uuid and id = ${existing.id}::uuid
-      returning id, version`);
+    saved =
+      (await rewrite(tx, {
+        tenantId: input.tenantId,
+        id: existing.id,
+        content: input.content,
+        plainText: input.plainText,
+        locale,
+        userId: input.userId,
+      })) ?? existing;
   } else {
     [saved] = await tx.execute<{ id: string; version: number }>(sql`
       insert into core.documents (tenant_id, host_type, host_id, org_id, kind, schema_version,
@@ -226,6 +299,19 @@ export async function translationOf(
     : null;
 }
 
+async function translationIdOf(
+  tx: Tx,
+  tenantId: string,
+  originalId: string,
+): Promise<{ id: string; version: number } | null> {
+  const [row] = await tx.execute<{ id: string; version: number }>(sql`
+    select id, version from core.documents
+    where tenant_id = ${tenantId}::uuid and translation_of_id = ${originalId}::uuid
+      and status = 'active'
+    order by created_at desc limit 1`);
+  return row ?? null;
+}
+
 /** Writes the other language of a document, on the same host, creating it the first time. */
 export async function saveTranslation(
   tx: Tx,
@@ -242,21 +328,25 @@ export async function saveTranslation(
     userId: string;
   },
 ): Promise<{ id: string; version: number }> {
-  const existing = await translationOf(tx, input.tenantId, input.originalId);
-  const [saved] = existing
-    ? await tx.execute<{ id: string; version: number }>(sql`
-        update core.documents
-        set content = ${input.content}::jsonb, plain_text = ${input.plainText}, locale = ${input.locale},
-            last_edited_by_user_id = ${input.userId}::uuid, last_edited_at = statement_timestamp()
-        where tenant_id = ${input.tenantId}::uuid and id = ${existing.id}::uuid
-        returning id, version`)
-    : await tx.execute<{ id: string; version: number }>(sql`
-        insert into core.documents (tenant_id, host_type, host_id, org_id, kind, schema_version,
-          locale, translation_of_id, content, plain_text, last_edited_by_user_id, last_edited_at)
-        values (${input.tenantId}::uuid, ${input.host.type}, ${input.host.id}::uuid,
-          ${input.orgId}::uuid, ${input.kind}, 1, ${input.locale}, ${input.originalId}::uuid,
-          ${input.content}::jsonb, ${input.plainText}, ${input.userId}::uuid, statement_timestamp())
-        returning id, version`);
+  const existing = await translationIdOf(tx, input.tenantId, input.originalId);
+  const saved = existing
+    ? ((await rewrite(tx, {
+        tenantId: input.tenantId,
+        id: existing.id,
+        content: input.content,
+        plainText: input.plainText,
+        locale: input.locale,
+        userId: input.userId,
+      })) ?? existing)
+    : (
+        await tx.execute<{ id: string; version: number }>(sql`
+          insert into core.documents (tenant_id, host_type, host_id, org_id, kind, schema_version,
+            locale, translation_of_id, content, plain_text, last_edited_by_user_id, last_edited_at)
+          values (${input.tenantId}::uuid, ${input.host.type}, ${input.host.id}::uuid,
+            ${input.orgId}::uuid, ${input.kind}, 1, ${input.locale}, ${input.originalId}::uuid,
+            ${input.content}::jsonb, ${input.plainText}, ${input.userId}::uuid, statement_timestamp())
+          returning id, version`)
+      )[0];
   if (!saved) throw new Error("translation was not saved");
   await syncMedia(tx, {
     tenantId: input.tenantId,
@@ -271,7 +361,7 @@ export async function dropTranslation(
   tx: Tx,
   input: { tenantId: string; originalId: string },
 ): Promise<void> {
-  const existing = await translationOf(tx, input.tenantId, input.originalId);
+  const existing = await translationIdOf(tx, input.tenantId, input.originalId);
   if (!existing) return;
   await syncMedia(tx, {
     tenantId: input.tenantId,

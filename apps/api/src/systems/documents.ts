@@ -1,6 +1,6 @@
 import {
   contentToRestore,
-  documentOf,
+  documentIdOf,
   makeCollaborative,
   versionsOf,
 } from "@faridalms/database/stores/documents";
@@ -41,7 +41,7 @@ export const collaborate = writeProcedure
       throw new ORPCError("NOT_FOUND");
     // A room starts from the stored content, so it is put in shape first.
     if (access === "write") await rules?.prepare?.(context, host.id);
-    const document = await documentOf(context.tx, context.tenantId, host);
+    const document = await documentIdOf(context.tx, context.tenantId, host);
     if (!document) throw new ORPCError("NOT_FOUND");
     const live =
       access === "write"
@@ -73,7 +73,7 @@ async function written(
 ) {
   if ((await hostAccess(context, host)) !== "write")
     throw new ORPCError("NOT_FOUND");
-  return documentOf(context.tx, context.tenantId, host);
+  return documentIdOf(context.tx, context.tenantId, host);
 }
 
 /**

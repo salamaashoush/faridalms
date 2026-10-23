@@ -192,10 +192,11 @@ export async function placeMedia<T>(
       ids: files.filter((file) => held(file, host)).map((file) => file.id),
     });
   const replaced = new Map(copies);
+  if (replaced.size === 0) return { content, mediaIds: unique };
   let text = JSON.stringify(content);
   for (const [from, to] of replaced) text = text.replaceAll(from, to);
   return {
-    content: replaced.size ? (JSON.parse(text) as T) : content,
+    content: JSON.parse(text) as T,
     mediaIds: unique.map((id) => replaced.get(id) ?? id),
   };
 }

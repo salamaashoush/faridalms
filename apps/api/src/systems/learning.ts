@@ -27,12 +27,14 @@ import {
 import { groupsOf, namesOf } from "@faridalms/database/stores/coursework";
 import {
   contentsOf,
+  documentIdOf,
   documentOf,
   dropTranslation,
   publishedVersion,
   saveDocument,
   saveTranslation,
   snapshotPublish,
+  topBlocksOf,
   translationOf,
 } from "@faridalms/database/stores/documents";
 import { filesByIds, linkFiles } from "@faridalms/database/stores/files";
@@ -830,11 +832,12 @@ export const record = readProcedure
         moduleId: row.id,
       }),
     ]);
-    const contents = await contentsOf(
+    const contents = await topBlocksOf(
       context.tx,
       context.tenantId,
       "lesson",
       lessons.map((lesson) => lesson.id),
+      ["question"],
     );
     return {
       ...row,
@@ -1462,7 +1465,7 @@ export const saveLesson = writeProcedure
     if (input.id && (!stored || stored.moduleId !== owner.id))
       throw new ORPCError("NOT_FOUND");
     const before = stored
-      ? await documentOf(context.tx, context.tenantId, {
+      ? await documentIdOf(context.tx, context.tenantId, {
           type: "lesson",
           id: stored.id,
         })
