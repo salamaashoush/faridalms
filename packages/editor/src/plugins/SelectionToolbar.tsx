@@ -579,6 +579,16 @@ const empty: Facts = {
   term: false,
 };
 
+const sameFacts = (a: Facts, b: Facts) =>
+  a.block === b.block &&
+  a.link === b.link &&
+  a.color === b.color &&
+  a.background === b.background &&
+  a.size === b.size &&
+  a.term === b.term &&
+  a.formats.length === b.formats.length &&
+  a.formats.every((format, index) => format === b.formats[index]);
+
 export function SelectionToolbarPlugin() {
   const [editor] = useLexicalComposerContext();
   const editable = useLexicalEditable();
@@ -1017,7 +1027,11 @@ export function SelectionToolbarPlugin() {
     }
     const state = focused ? read() : null;
     if (!state) return show("hidden");
-    setFacts(state.facts);
+    // Typing reads the same facts on every key; new ones only when they
+    // differ, or the whole bar would draw again with each letter.
+    setFacts((current) =>
+      sameFacts(current, state.facts) ? current : state.facts,
+    );
     if (!state.collapsed && !state.code && state.text.trim()) {
       setReference(selectionReference(root));
       return show("format");

@@ -106,38 +106,77 @@ const MORE_WIDTH = 32;
 /**
  * How many tools fit the row. Each tool's width is kept from when it was last
  * drawn, so tools moved into the menu still count when the row grows again.
+ *
+ * Widths come from a ResizeObserver, which the browser feeds after its own
+ * layout: measuring on each render would force a layout of the whole page,
+ * document and all, after every key pressed.
  */
 function useFittingTools(count: number) {
   const row = useRef<HTMLFieldSetElement>(null);
   const widths = useRef<number[]>([]);
+  const room = useRef(0);
+  const watcher = useRef<{
+    observer: ResizeObserver;
+    watched: WeakSet<Element>;
+  } | null>(null);
   const [shown, setShown] = useState(count);
   const fit = useCallback(() => {
-    const box = row.current;
-    if (!box) return;
-    for (const tool of box.querySelectorAll<HTMLElement>("[data-tool]"))
-      widths.current[Number(tool.dataset.tool)] = tool.offsetWidth;
-    const style = getComputedStyle(box);
-    const room =
-      box.clientWidth -
-      Number.parseFloat(style.paddingLeft) -
-      Number.parseFloat(style.paddingRight);
     const need = (upTo: number) =>
       widths.current
         .slice(0, upTo)
         .reduce((sum, width) => sum + width + TOOL_GAP, 0);
     let next = count;
-    if (need(count) > room)
-      while (next > 0 && need(next) + MORE_WIDTH > room) next -= 1;
+    if (need(count) > room.current)
+      while (next > 0 && need(next) + MORE_WIDTH > room.current) next -= 1;
     setShown(next);
   }, [count]);
-  useLayoutEffect(() => fit());
+  // The first fit is measured before the row is painted, so it never shows
+  // tools it has no room for.
+  useLayoutEffect(() => {
+    const box = row.current;
+    if (!box) return;
+    for (const tool of box.querySelectorAll<HTMLElement>("[data-tool]"))
+      widths.current[Number(tool.dataset.tool)] = tool.offsetWidth;
+    const style = getComputedStyle(box);
+    room.current =
+      box.clientWidth -
+      Number.parseFloat(style.paddingLeft) -
+      Number.parseFloat(style.paddingRight);
+    fit();
+  }, [fit]);
   useEffect(() => {
     const box = row.current;
     if (!box) return undefined;
-    const observer = new ResizeObserver(() => fit());
+    const observer = new ResizeObserver((entries) => {
+      for (const entry of entries) {
+        const tool = (entry.target as HTMLElement).dataset.tool;
+        // A tool moved into the menu reports a width of nothing as it
+        // leaves; taken as its width, the row would make room for it and
+        // drop it again on every frame.
+        if (!entry.target.isConnected) observer.unobserve(entry.target);
+        else if (entry.target === box) room.current = entry.contentRect.width;
+        else if (tool !== undefined)
+          widths.current[Number(tool)] =
+            entry.borderBoxSize[0]?.inlineSize ?? entry.contentRect.width;
+      }
+      fit();
+    });
     observer.observe(box);
-    return () => observer.disconnect();
+    watcher.current = { observer, watched: new WeakSet() };
+    return () => {
+      observer.disconnect();
+      watcher.current = null;
+    };
   }, [fit]);
+  useEffect(() => {
+    const current = watcher.current;
+    if (!current) return;
+    for (const tool of row.current?.querySelectorAll("[data-tool]") ?? [])
+      if (!current.watched.has(tool)) {
+        current.watched.add(tool);
+        current.observer.observe(tool);
+      }
+  });
   return { row, shown };
 }
 
@@ -267,7 +306,14 @@ export function ToolbarPlugin({ disabled }: { disabled: boolean }) {
           editorState.read(() => {
             const selection = $getSelection();
             if (!$isRangeSelection(selection)) return;
-            setFormats($activeFormats());
+            // A new list on every key pressed would draw the whole row again.
+            const next = $activeFormats();
+            setFormats((current) =>
+              current.length === next.length &&
+              current.every((format, index) => format === next[index])
+                ? current
+                : next,
+            );
             setBlock($blockTypeOf($anchorFor("paragraph")));
             setInTable(
               Boolean(

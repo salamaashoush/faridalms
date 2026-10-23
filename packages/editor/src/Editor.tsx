@@ -2,6 +2,7 @@ import "./prism";
 import type { ContentDocument } from "@faridalms/domain/content";
 import type { Digits } from "@faridalms/domain/people";
 import type { Provider } from "@lexical/yjs";
+import type { EditorState } from "lexical";
 import type { Doc } from "yjs";
 
 import {
@@ -17,12 +18,16 @@ import { CollaborationPlugin } from "@lexical/react/LexicalCollaborationPlugin";
 import { useLexicalComposerContext } from "@lexical/react/LexicalComposerContext";
 import { ContentEditable } from "@lexical/react/LexicalContentEditable";
 import { LexicalExtensionComposer } from "@lexical/react/LexicalExtensionComposer";
+import { mergeRegister } from "@lexical/utils";
 import {
   $getNodeByKey,
   $getRoot,
   $parseSerializedNode,
   $setSelection,
+  BLUR_COMMAND,
+  COMMAND_PRIORITY_LOW,
   defineExtension,
+  KEY_DOWN_COMMAND,
 } from "lexical";
 import { useEffect, useMemo, useRef, useState } from "react";
 import * as v from "valibot";
@@ -76,6 +81,8 @@ import { editorTheme } from "./theme";
 import { cx } from "./ui";
 
 const QUIET_REPLACE = "fe-quiet-replace";
+const TYPING_PAUSE_MS = 200;
+const MAX_TYPING_WAIT_MS = 1000;
 
 /**
  * Live editing: the document's shared state comes from the provider, which
@@ -450,24 +457,78 @@ function Surface({
     );
   }, [editor, replace]);
 
-  useEffect(
-    () =>
+  // Each change is checked against the content schema and handed to the
+  // host, which draws its whole page again. A change after a pause goes at
+  // once; the keys of a burst of typing go together once it pauses, so
+  // neither the check nor the host's page stands between a key and its
+  // letter on screen. Leaving the editor, Enter, Escape and shortcuts hand
+  // over at once, so a save or a send never misses the last words typed.
+  useEffect(() => {
+    let pending: { state: EditorState; quiet: boolean; since: number } | null =
+      null;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    let handed = -Infinity;
+    const settle = () => {
+      clearTimeout(timer);
+      timer = undefined;
+      if (!pending) return;
+      const { state, quiet } = pending;
+      pending = null;
+      handed = performance.now();
+      const result = v.safeParse(contentDocumentSchema, state.toJSON());
+      setInvalid(!result.success);
+      onValidityChange?.(result.success);
+      if (!result.success) return;
+      setCount(contentPlainText(result.output).length);
+      if (!quiet) onChange(result.output);
+    };
+    return mergeRegister(
       editor.registerUpdateListener(
         ({ editorState, dirtyElements, dirtyLeaves, tags }) => {
           if (!dirtyElements.size && !dirtyLeaves.size) return;
-          const result = v.safeParse(
-            contentDocumentSchema,
-            editorState.toJSON(),
-          );
-          setInvalid(!result.success);
-          onValidityChange?.(result.success);
-          if (!result.success) return;
-          setCount(contentPlainText(result.output).length);
-          if (!tags.has(QUIET_REPLACE)) onChange(result.output);
+          const now = performance.now();
+          pending = {
+            state: editorState,
+            quiet: (pending?.quiet ?? true) && tags.has(QUIET_REPLACE),
+            since: pending?.since ?? now,
+          };
+          if (
+            (!timer && now - handed >= TYPING_PAUSE_MS) ||
+            now - pending.since >= MAX_TYPING_WAIT_MS
+          )
+            settle();
+          else {
+            clearTimeout(timer);
+            timer = setTimeout(settle, TYPING_PAUSE_MS);
+          }
         },
       ),
-    [editor, onChange, onValidityChange],
-  );
+      editor.registerCommand(
+        BLUR_COMMAND,
+        () => {
+          settle();
+          return false;
+        },
+        COMMAND_PRIORITY_LOW,
+      ),
+      editor.registerCommand(
+        KEY_DOWN_COMMAND,
+        (event) => {
+          if (
+            event.key === "Enter" ||
+            event.key === "Escape" ||
+            event.ctrlKey ||
+            event.metaKey ||
+            event.altKey
+          )
+            settle();
+          return false;
+        },
+        COMMAND_PRIORITY_LOW,
+      ),
+      settle,
+    );
+  }, [editor, onChange, onValidityChange]);
 
   const document = variant === "document";
   const errorId = `${id}-error`;

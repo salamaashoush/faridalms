@@ -56,7 +56,9 @@ export function NarrationMarksPlugin() {
       );
       for (const element of marked)
         if (!now.has(element)) delete element.dataset.narrated;
-      for (const element of now) element.dataset.narrated = "";
+      for (const element of now)
+        if (!element.hasAttribute("data-narrated"))
+          element.dataset.narrated = "";
       marked = now;
     };
     mark();
