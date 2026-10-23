@@ -53,26 +53,25 @@ const markSchema = v.variant("type", [
     }),
   }),
 ]);
-const nodeSchema: v.GenericSchema<RichTextNode> = v.lazy(() =>
-  v.pipe(
-    v.object({
-      type: v.picklist(nodeTypes),
-      text: v.optional(v.pipe(v.string(), v.maxLength(TEXT_LIMIT))),
-      marks: v.optional(v.pipe(v.array(markSchema), v.maxLength(6))),
-      attrs: v.optional(
-        v.object({
-          level: v.optional(
-            v.pipe(v.number(), v.integer(), v.minValue(1), v.maxValue(3)),
-          ),
-          start: v.optional(
-            v.pipe(v.number(), v.integer(), v.minValue(1), v.maxValue(1000000)),
-          ),
-        }),
-      ),
-      content: v.optional(v.pipe(v.array(nodeSchema), v.maxLength(2000))),
-    }),
-    v.check(validNode),
-  ),
+const nodeSchema: v.GenericSchema<RichTextNode> = v.lazy(() => nodeShape);
+const nodeShape: v.GenericSchema<RichTextNode> = v.pipe(
+  v.object({
+    type: v.picklist(nodeTypes),
+    text: v.optional(v.pipe(v.string(), v.maxLength(TEXT_LIMIT))),
+    marks: v.optional(v.pipe(v.array(markSchema), v.maxLength(6))),
+    attrs: v.optional(
+      v.object({
+        level: v.optional(
+          v.pipe(v.number(), v.integer(), v.minValue(1), v.maxValue(3)),
+        ),
+        start: v.optional(
+          v.pipe(v.number(), v.integer(), v.minValue(1), v.maxValue(1000000)),
+        ),
+      }),
+    ),
+    content: v.optional(v.pipe(v.array(nodeSchema), v.maxLength(2000))),
+  }),
+  v.check(validNode),
 );
 function validNode(node: RichTextNode): boolean {
   const children = node.content ?? [];

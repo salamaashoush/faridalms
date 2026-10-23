@@ -23,30 +23,29 @@ export type Program = Step[];
 
 const heading = v.picklist(["north", "east", "south", "west"]);
 
-const stepSchema: v.GenericSchema<Step> = v.lazy(() =>
-  v.variant("op", [
-    v.object({ op: v.literal("go"), to: heading }),
-    v.object({ op: v.literal("forward") }),
-    v.object({ op: v.literal("turn"), to: v.picklist(["left", "right"]) }),
-    v.object({
-      op: v.literal("repeat"),
-      times: v.pipe(
-        v.number(),
-        v.integer(),
-        v.minValue(1),
-        v.maxValue(MAX_REPEATS),
-      ),
-      body: v.array(stepSchema),
-    }),
-    v.object({ op: v.literal("until"), body: v.array(stepSchema) }),
-    v.object({
-      op: v.literal("if"),
-      path: v.picklist(["ahead", "left", "right"]),
-      body: v.array(stepSchema),
-      else: v.optional(v.array(stepSchema)),
-    }),
-  ]),
-);
+const stepSchema: v.GenericSchema<Step> = v.lazy(() => stepShape);
+const stepShape: v.GenericSchema<Step> = v.variant("op", [
+  v.object({ op: v.literal("go"), to: heading }),
+  v.object({ op: v.literal("forward") }),
+  v.object({ op: v.literal("turn"), to: v.picklist(["left", "right"]) }),
+  v.object({
+    op: v.literal("repeat"),
+    times: v.pipe(
+      v.number(),
+      v.integer(),
+      v.minValue(1),
+      v.maxValue(MAX_REPEATS),
+    ),
+    body: v.array(stepSchema),
+  }),
+  v.object({ op: v.literal("until"), body: v.array(stepSchema) }),
+  v.object({
+    op: v.literal("if"),
+    path: v.picklist(["ahead", "left", "right"]),
+    body: v.array(stepSchema),
+    else: v.optional(v.array(stepSchema)),
+  }),
+]);
 
 /** The lists of blocks a block holds inside it. */
 export function bodiesOf(step: Step): Step[][] {

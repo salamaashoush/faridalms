@@ -550,298 +550,287 @@ export function validContentStyle(style: string): boolean {
   });
 }
 const style = v.pipe(v.string(), v.maxLength(1024), v.check(validContentStyle));
-const nodeSchema: v.GenericSchema<ContentNode> = v.lazy(() =>
-  v.pipe(
-    v.object({
-      type: v.picklist(nodeTypes),
-      version: v.literal(1),
-      children: v.optional(v.array(nodeSchema)),
-      text: v.optional(v.pipe(v.string(), v.maxLength(100000))),
-      format: v.optional(
-        v.union([
-          integer(0, 2047),
-          v.picklist([
-            "",
-            "left",
-            "right",
-            "center",
-            "justify",
-            "start",
-            "end",
-          ]),
-        ]),
+// valibot runs a lazy schema's getter for every value it checks, so the
+// getter hands back a schema built once rather than building one per node.
+const nodeSchema: v.GenericSchema<ContentNode> = v.lazy(() => nodeShape);
+const nodeShape: v.GenericSchema<ContentNode> = v.pipe(
+  v.object({
+    type: v.picklist(nodeTypes),
+    version: v.literal(1),
+    children: v.optional(v.array(nodeSchema)),
+    text: v.optional(v.pipe(v.string(), v.maxLength(100000))),
+    format: v.optional(
+      v.union([
+        integer(0, 2047),
+        v.picklist(["", "left", "right", "center", "justify", "start", "end"]),
+      ]),
+    ),
+    indent: v.optional(integer(0, 20)),
+    direction: v.optional(v.nullable(v.picklist(["ltr", "rtl"]))),
+    style: v.optional(style),
+    textStyle: v.optional(style),
+    textFormat: v.optional(integer(0, 2047)),
+    mode: v.optional(v.picklist(["normal", "token", "segmented"])),
+    detail: v.optional(integer(0, 3)),
+    tag: v.optional(
+      v.picklist(["h1", "h2", "h3", "h4", "h5", "h6", "ul", "ol"]),
+    ),
+    listType: v.optional(v.picklist(["bullet", "number", "check"])),
+    start: v.optional(integer(1, 1000000)),
+    value: v.optional(integer(1, 1000000)),
+    checked: v.optional(v.boolean()),
+    url: v.optional(
+      v.pipe(v.string(), v.maxLength(2048), v.check(isSafeContentUrl)),
+    ),
+    target: v.optional(v.nullable(v.picklist(["_blank", "_self"]))),
+    rel: v.optional(v.nullable(v.pipe(v.string(), v.maxLength(255)))),
+    title: v.optional(v.nullable(v.pipe(v.string(), v.maxLength(1000)))),
+    isUnlinked: v.optional(v.boolean()),
+    language: v.optional(v.pipe(v.string(), v.maxLength(64))),
+    highlightType: v.optional(v.nullable(v.pipe(v.string(), v.maxLength(64)))),
+    colSpan: v.optional(integer(1, 100)),
+    rowSpan: v.optional(integer(1, 100)),
+    headerState: v.optional(integer(0, 3)),
+    width: v.optional(integer(1, 5000)),
+    height: v.optional(integer(1, 5000)),
+    backgroundColor: v.optional(v.nullable(color)),
+    verticalAlign: v.optional(v.picklist(["top", "middle", "bottom"])),
+    colWidths: v.optional(v.pipe(v.array(integer(1, 5000)), v.maxLength(100))),
+    rowStriping: v.optional(v.boolean()),
+    frozenColumnCount: v.optional(integer(0, 100)),
+    frozenRowCount: v.optional(integer(0, 100)),
+    tone: v.optional(v.picklist(calloutTones)),
+    open: v.optional(v.boolean()),
+    layout: v.optional(v.picklist([...columnLayouts, ...panelLayouts])),
+    fileId: v.optional(v.pipe(v.string(), v.uuid())),
+    alt: v.optional(v.pipe(v.string(), v.maxLength(500))),
+    decorative: v.optional(v.boolean()),
+    credit: v.optional(pictureCreditSchema),
+    latex: v.optional(v.pipe(v.string(), v.maxLength(MAX_LATEX))),
+    block: v.optional(v.boolean()),
+    caption: v.optional(v.pipe(v.string(), v.maxLength(1000))),
+    size: v.optional(v.picklist(imageSizes)),
+    labels: v.optional(
+      v.pipe(
+        v.array(
+          v.object({
+            id: v.pipe(v.string(), v.regex(/^[\da-z]{8,36}$/)),
+            x: v.pipe(v.number(), v.minValue(0), v.maxValue(1)),
+            y: v.pipe(v.number(), v.minValue(0), v.maxValue(1)),
+            title: v.pipe(v.string(), v.maxLength(80)),
+            text: v.pipe(v.string(), v.maxLength(500)),
+          }),
+        ),
+        v.maxLength(MAX_PICTURE_LABELS),
       ),
-      indent: v.optional(integer(0, 20)),
-      direction: v.optional(v.nullable(v.picklist(["ltr", "rtl"]))),
-      style: v.optional(style),
-      textStyle: v.optional(style),
-      textFormat: v.optional(integer(0, 2047)),
-      mode: v.optional(v.picklist(["normal", "token", "segmented"])),
-      detail: v.optional(integer(0, 3)),
-      tag: v.optional(
-        v.picklist(["h1", "h2", "h3", "h4", "h5", "h6", "ul", "ol"]),
-      ),
-      listType: v.optional(v.picklist(["bullet", "number", "check"])),
-      start: v.optional(integer(1, 1000000)),
-      value: v.optional(integer(1, 1000000)),
-      checked: v.optional(v.boolean()),
-      url: v.optional(
-        v.pipe(v.string(), v.maxLength(2048), v.check(isSafeContentUrl)),
-      ),
-      target: v.optional(v.nullable(v.picklist(["_blank", "_self"]))),
-      rel: v.optional(v.nullable(v.pipe(v.string(), v.maxLength(255)))),
-      title: v.optional(v.nullable(v.pipe(v.string(), v.maxLength(1000)))),
-      isUnlinked: v.optional(v.boolean()),
-      language: v.optional(v.pipe(v.string(), v.maxLength(64))),
-      highlightType: v.optional(
-        v.nullable(v.pipe(v.string(), v.maxLength(64))),
-      ),
-      colSpan: v.optional(integer(1, 100)),
-      rowSpan: v.optional(integer(1, 100)),
-      headerState: v.optional(integer(0, 3)),
-      width: v.optional(integer(1, 5000)),
-      height: v.optional(integer(1, 5000)),
-      backgroundColor: v.optional(v.nullable(color)),
-      verticalAlign: v.optional(v.picklist(["top", "middle", "bottom"])),
-      colWidths: v.optional(
-        v.pipe(v.array(integer(1, 5000)), v.maxLength(100)),
-      ),
-      rowStriping: v.optional(v.boolean()),
-      frozenColumnCount: v.optional(integer(0, 100)),
-      frozenRowCount: v.optional(integer(0, 100)),
-      tone: v.optional(v.picklist(calloutTones)),
-      open: v.optional(v.boolean()),
-      layout: v.optional(v.picklist([...columnLayouts, ...panelLayouts])),
-      fileId: v.optional(v.pipe(v.string(), v.uuid())),
-      alt: v.optional(v.pipe(v.string(), v.maxLength(500))),
-      decorative: v.optional(v.boolean()),
-      credit: v.optional(pictureCreditSchema),
-      latex: v.optional(v.pipe(v.string(), v.maxLength(MAX_LATEX))),
-      block: v.optional(v.boolean()),
-      caption: v.optional(v.pipe(v.string(), v.maxLength(1000))),
-      size: v.optional(v.picklist(imageSizes)),
-      labels: v.optional(
-        v.pipe(
-          v.array(
-            v.object({
-              id: v.pipe(v.string(), v.regex(/^[\da-z]{8,36}$/)),
-              x: v.pipe(v.number(), v.minValue(0), v.maxValue(1)),
-              y: v.pipe(v.number(), v.minValue(0), v.maxValue(1)),
-              title: v.pipe(v.string(), v.maxLength(80)),
-              text: v.pipe(v.string(), v.maxLength(500)),
-            }),
+    ),
+    chart: v.optional(
+      v.pipe(
+        v.object({
+          kind: v.picklist(chartKinds),
+          title: v.pipe(v.string(), v.maxLength(200)),
+          xTitle: v.pipe(v.string(), v.maxLength(80)),
+          yTitle: v.pipe(v.string(), v.maxLength(80)),
+          labels: v.pipe(
+            v.array(v.pipe(v.string(), v.maxLength(60))),
+            v.minLength(1),
+            v.maxLength(MAX_CHART_LABELS),
           ),
-          v.maxLength(MAX_PICTURE_LABELS),
+          series: v.pipe(
+            v.array(
+              v.object({
+                name: v.pipe(v.string(), v.maxLength(60)),
+                values: v.array(v.nullable(v.pipe(v.number(), v.finite()))),
+              }),
+            ),
+            v.minLength(1),
+            v.maxLength(MAX_CHART_SERIES),
+          ),
+        }),
+        v.check((chart) =>
+          chart.series.every(
+            (series) => series.values.length === chart.labels.length,
+          ),
         ),
       ),
-      chart: v.optional(
-        v.pipe(
+    ),
+    pictures: v.optional(
+      v.pipe(
+        v.array(
           v.object({
-            kind: v.picklist(chartKinds),
-            title: v.pipe(v.string(), v.maxLength(200)),
-            xTitle: v.pipe(v.string(), v.maxLength(80)),
-            yTitle: v.pipe(v.string(), v.maxLength(80)),
-            labels: v.pipe(
-              v.array(v.pipe(v.string(), v.maxLength(60))),
+            fileId: v.pipe(v.string(), v.uuid()),
+            alt: v.pipe(v.string(), v.maxLength(500)),
+            caption: v.optional(v.pipe(v.string(), v.maxLength(300))),
+          }),
+        ),
+        v.maxLength(MAX_GALLERY_PICTURES),
+      ),
+    ),
+    name: v.optional(v.pipe(v.string(), v.minLength(1), v.maxLength(255))),
+    mime: v.optional(v.pipe(v.string(), v.maxLength(255))),
+    bytes: v.optional(integer(0, 2147483647)),
+    display: v.optional(v.picklist(fileDisplays)),
+    captionsFileId: v.optional(v.pipe(v.string(), v.uuid())),
+    captionsLang: v.optional(
+      v.pipe(v.string(), v.regex(/^[a-z]{2,3}(?:-[\da-z]{2,8})*$/i)),
+    ),
+    transcript: v.optional(v.pipe(v.string(), v.maxLength(20000))),
+    chapters: v.optional(v.pipe(v.string(), v.maxLength(4000))),
+    descriptions: v.optional(
+      v.pipe(v.string(), v.maxLength(MAX_DESCRIPTION_TEXT)),
+    ),
+    noSkipping: v.optional(v.boolean()),
+    provider: v.optional(v.picklist(embedProviders)),
+    embedId: v.optional(v.pipe(v.string(), v.maxLength(400))),
+    lti: v.optional(ltiLinkSchema),
+    sceneFileId: v.optional(v.pipe(v.string(), v.uuid())),
+    projectFileId: v.optional(v.pipe(v.string(), v.uuid())),
+    projectFiles: v.optional(starterFilesSchema),
+    gallery: v.optional(v.boolean()),
+    projectChecks: v.optional(scratchChecksSchema),
+    projectLanguage: v.optional(v.picklist(projectLanguages)),
+    puzzle: v.optional(levelSchema),
+    kind: v.optional(v.picklist(questionKinds)),
+    questionId: v.optional(v.pipe(v.string(), v.uuid())),
+    bankTag: v.optional(v.pipe(v.string(), v.maxLength(40))),
+    sharedId: v.optional(v.pipe(v.string(), v.uuid())),
+    note: v.optional(v.pipe(v.string(), v.maxLength(2000))),
+    mention: v.optional(mentionSchema),
+    definition: v.optional(v.pipe(v.string(), v.maxLength(1000))),
+    gloss: v.optional(v.pipe(v.string(), v.maxLength(200))),
+    source: v.optional(footnoteSourceSchema),
+    standards: v.optional(
+      v.pipe(
+        v.array(v.pipe(v.string(), v.uuid())),
+        v.maxLength(MAX_QUESTION_STANDARDS),
+      ),
+    ),
+    targets: v.optional(
+      v.pipe(
+        v.array(
+          v.object({
+            id: v.pipe(v.string(), v.uuid()),
+            code: v.pipe(v.string(), v.maxLength(MAX_STANDARD_CODE)),
+            statement: v.pipe(
+              v.string(),
               v.minLength(1),
-              v.maxLength(MAX_CHART_LABELS),
-            ),
-            series: v.pipe(
-              v.array(
-                v.object({
-                  name: v.pipe(v.string(), v.maxLength(60)),
-                  values: v.array(v.nullable(v.pipe(v.number(), v.finite()))),
-                }),
-              ),
-              v.minLength(1),
-              v.maxLength(MAX_CHART_SERIES),
+              v.maxLength(MAX_STANDARD_STATEMENT),
             ),
           }),
-          v.check((chart) =>
-            chart.series.every(
-              (series) => series.values.length === chart.labels.length,
-            ),
-          ),
         ),
+        v.maxLength(MAX_BLOCK_STANDARDS),
       ),
-      pictures: v.optional(
-        v.pipe(
-          v.array(
-            v.object({
-              fileId: v.pipe(v.string(), v.uuid()),
-              alt: v.pipe(v.string(), v.maxLength(500)),
-              caption: v.optional(v.pipe(v.string(), v.maxLength(300))),
-            }),
-          ),
-          v.maxLength(MAX_GALLERY_PICTURES),
-        ),
-      ),
-      name: v.optional(v.pipe(v.string(), v.minLength(1), v.maxLength(255))),
-      mime: v.optional(v.pipe(v.string(), v.maxLength(255))),
-      bytes: v.optional(integer(0, 2147483647)),
-      display: v.optional(v.picklist(fileDisplays)),
-      captionsFileId: v.optional(v.pipe(v.string(), v.uuid())),
-      captionsLang: v.optional(
-        v.pipe(v.string(), v.regex(/^[a-z]{2,3}(?:-[\da-z]{2,8})*$/i)),
-      ),
-      transcript: v.optional(v.pipe(v.string(), v.maxLength(20000))),
-      chapters: v.optional(v.pipe(v.string(), v.maxLength(4000))),
-      descriptions: v.optional(
-        v.pipe(v.string(), v.maxLength(MAX_DESCRIPTION_TEXT)),
-      ),
-      noSkipping: v.optional(v.boolean()),
-      provider: v.optional(v.picklist(embedProviders)),
-      embedId: v.optional(v.pipe(v.string(), v.maxLength(400))),
-      lti: v.optional(ltiLinkSchema),
-      sceneFileId: v.optional(v.pipe(v.string(), v.uuid())),
-      projectFileId: v.optional(v.pipe(v.string(), v.uuid())),
-      projectFiles: v.optional(starterFilesSchema),
-      gallery: v.optional(v.boolean()),
-      projectChecks: v.optional(scratchChecksSchema),
-      projectLanguage: v.optional(v.picklist(projectLanguages)),
-      puzzle: v.optional(levelSchema),
-      kind: v.optional(v.picklist(questionKinds)),
-      questionId: v.optional(v.pipe(v.string(), v.uuid())),
-      bankTag: v.optional(v.pipe(v.string(), v.maxLength(40))),
-      sharedId: v.optional(v.pipe(v.string(), v.uuid())),
-      note: v.optional(v.pipe(v.string(), v.maxLength(2000))),
-      mention: v.optional(mentionSchema),
-      definition: v.optional(v.pipe(v.string(), v.maxLength(1000))),
-      gloss: v.optional(v.pipe(v.string(), v.maxLength(200))),
-      source: v.optional(footnoteSourceSchema),
-      standards: v.optional(
-        v.pipe(
-          v.array(v.pipe(v.string(), v.uuid())),
-          v.maxLength(MAX_QUESTION_STANDARDS),
-        ),
-      ),
-      targets: v.optional(
-        v.pipe(
-          v.array(
-            v.object({
-              id: v.pipe(v.string(), v.uuid()),
-              code: v.pipe(v.string(), v.maxLength(MAX_STANDARD_CODE)),
-              statement: v.pipe(
-                v.string(),
-                v.minLength(1),
-                v.maxLength(MAX_STANDARD_STATEMENT),
-              ),
-            }),
-          ),
-          v.maxLength(MAX_BLOCK_STANDARDS),
-        ),
-      ),
-      optionId: v.optional(v.pipe(v.string(), v.uuid())),
-      correct: v.optional(v.boolean()),
-      feedback: v.optional(v.pipe(v.string(), v.maxLength(300))),
-      points: v.optional(integer(0, 100)),
-      tries: v.optional(v.nullable(integer(1, 10))),
-      feedbackAt: v.optional(v.picklist(FEEDBACK_TIMES)),
-      requires: v.optional(v.picklist(GATE_WAITS)),
-      goal: v.optional(integer(1, 100)),
-      suggested: v.optional(v.boolean()),
-      bank: v.optional(
-        v.pipe(v.array(v.pipe(v.string(), v.maxLength(100))), v.maxLength(12)),
-      ),
-      line: v.optional(
-        v.object({ from: v.number(), to: v.number(), step: v.number() }),
-      ),
-      multiple: v.optional(v.boolean()),
-      shuffle: v.optional(v.boolean()),
-      classResults: v.optional(v.boolean()),
-      anonymous: v.optional(v.boolean()),
-      caseSensitive: v.optional(v.boolean()),
-      closeEnough: v.optional(v.boolean()),
-      tehMarbuta: v.optional(v.boolean()),
-      wordLimit: v.optional(v.nullable(integer(10, 5000))),
-      recordSeconds: v.optional(v.nullable(integer(5, 180))),
-      recordVideo: v.optional(v.boolean()),
-      reading: v.optional(v.boolean()),
-      videoAt: v.optional(v.nullable(integer(0, 21600))),
-      codeLanguage: v.optional(
-        v.picklist(["python", "javascript", "html", "text"]),
-      ),
-      hidden: v.optional(v.boolean()),
-      answerWith: v.optional(v.nullable(v.picklist(["drawing", "photo"]))),
-      places: v.optional(
-        v.pipe(
-          v.array(
-            v.object({
-              box: v.pipe(
-                v.array(v.pipe(v.number(), v.minValue(0), v.maxValue(1))),
-                v.length(4),
-              ),
-              name: v.pipe(v.string(), v.maxLength(60)),
-              correct: v.boolean(),
-            }),
-          ),
-          v.maxLength(12),
-        ),
-      ),
-      count: v.optional(integer(1, 20)),
-      countMode: v.optional(v.picklist(["count", "make"])),
-      countLayout: v.optional(v.picklist(["scatter", "line", "frame"])),
-      flashSeconds: v.optional(v.nullable(integer(1, 10))),
-      memory: v.optional(v.boolean()),
-      backwards: v.optional(v.boolean()),
-      trace: v.optional(
-        v.pipe(
-          v.array(
-            v.pipe(
+    ),
+    optionId: v.optional(v.pipe(v.string(), v.uuid())),
+    correct: v.optional(v.boolean()),
+    feedback: v.optional(v.pipe(v.string(), v.maxLength(300))),
+    points: v.optional(integer(0, 100)),
+    tries: v.optional(v.nullable(integer(1, 10))),
+    feedbackAt: v.optional(v.picklist(FEEDBACK_TIMES)),
+    requires: v.optional(v.picklist(GATE_WAITS)),
+    goal: v.optional(integer(1, 100)),
+    suggested: v.optional(v.boolean()),
+    bank: v.optional(
+      v.pipe(v.array(v.pipe(v.string(), v.maxLength(100))), v.maxLength(12)),
+    ),
+    line: v.optional(
+      v.object({ from: v.number(), to: v.number(), step: v.number() }),
+    ),
+    multiple: v.optional(v.boolean()),
+    shuffle: v.optional(v.boolean()),
+    classResults: v.optional(v.boolean()),
+    anonymous: v.optional(v.boolean()),
+    caseSensitive: v.optional(v.boolean()),
+    closeEnough: v.optional(v.boolean()),
+    tehMarbuta: v.optional(v.boolean()),
+    wordLimit: v.optional(v.nullable(integer(10, 5000))),
+    recordSeconds: v.optional(v.nullable(integer(5, 180))),
+    recordVideo: v.optional(v.boolean()),
+    reading: v.optional(v.boolean()),
+    videoAt: v.optional(v.nullable(integer(0, 21600))),
+    codeLanguage: v.optional(
+      v.picklist(["python", "javascript", "html", "text"]),
+    ),
+    hidden: v.optional(v.boolean()),
+    answerWith: v.optional(v.nullable(v.picklist(["drawing", "photo"]))),
+    places: v.optional(
+      v.pipe(
+        v.array(
+          v.object({
+            box: v.pipe(
               v.array(v.pipe(v.number(), v.minValue(0), v.maxValue(1))),
-              v.maxLength(400),
+              v.length(4),
             ),
-          ),
-          v.maxLength(8),
+            name: v.pipe(v.string(), v.maxLength(60)),
+            correct: v.boolean(),
+          }),
         ),
+        v.maxLength(12),
       ),
-      hint: v.optional(v.pipe(v.string(), v.maxLength(500))),
-      hints: v.optional(
-        v.pipe(v.array(v.pipe(v.string(), v.maxLength(500))), v.maxLength(5)),
-      ),
-      explanation: v.optional(v.pipe(v.string(), v.maxLength(1000))),
-      numberMode: v.optional(v.picklist(["exact", "range"])),
-      answerValue: v.optional(v.pipe(v.number(), v.finite())),
-      tolerance: v.optional(v.pipe(v.number(), v.finite(), v.minValue(0))),
-      percent: v.optional(v.boolean()),
-      rangeMin: v.optional(v.pipe(v.number(), v.finite())),
-      rangeMax: v.optional(v.pipe(v.number(), v.finite())),
-      scoring: v.optional(v.picklist(["all", "neighbours"])),
-      mathForm: v.optional(v.picklist(MATH_FORMS)),
-      mathPlaces: v.optional(
-        v.pipe(v.number(), v.integer(), v.minValue(0), v.maxValue(10)),
-      ),
-      mathUnits: v.optional(v.picklist(["convert", "same"])),
-      aiTool: v.optional(v.pipe(v.string(), v.maxLength(200))),
-      aiDate: v.optional(
-        v.union([v.literal(""), v.pipe(v.string(), v.isoDate())]),
-      ),
-      aiPrompt: v.optional(v.pipe(v.string(), v.maxLength(4000))),
-      aiUse: v.optional(v.pipe(v.string(), v.maxLength(4000))),
-      aiEvidence: v.optional(
-        v.pipe(
-          v.array(
-            v.object({
-              fileId: v.pipe(v.string(), v.uuid()),
-              name: v.pipe(v.string(), v.minLength(1), v.maxLength(255)),
-              mime: v.pipe(v.string(), v.maxLength(255)),
-              bytes: integer(0, 2147483647),
-            }),
+    ),
+    count: v.optional(integer(1, 20)),
+    countMode: v.optional(v.picklist(["count", "make"])),
+    countLayout: v.optional(v.picklist(["scatter", "line", "frame"])),
+    flashSeconds: v.optional(v.nullable(integer(1, 10))),
+    memory: v.optional(v.boolean()),
+    backwards: v.optional(v.boolean()),
+    trace: v.optional(
+      v.pipe(
+        v.array(
+          v.pipe(
+            v.array(v.pipe(v.number(), v.minValue(0), v.maxValue(1))),
+            v.maxLength(400),
           ),
-          v.maxLength(20),
         ),
+        v.maxLength(8),
       ),
-      $: v.optional(
-        v.object({
-          id: v.optional(v.pipe(v.string(), v.regex(/^[\da-z]{8,36}$/))),
-          narration: v.optional(v.pipe(v.string(), v.uuid())),
-          words: v.optional(narrationWordsSchema),
-          run: v.optional(v.picklist(["run", "predict"])),
-        }),
+    ),
+    hint: v.optional(v.pipe(v.string(), v.maxLength(500))),
+    hints: v.optional(
+      v.pipe(v.array(v.pipe(v.string(), v.maxLength(500))), v.maxLength(5)),
+    ),
+    explanation: v.optional(v.pipe(v.string(), v.maxLength(1000))),
+    numberMode: v.optional(v.picklist(["exact", "range"])),
+    answerValue: v.optional(v.pipe(v.number(), v.finite())),
+    tolerance: v.optional(v.pipe(v.number(), v.finite(), v.minValue(0))),
+    percent: v.optional(v.boolean()),
+    rangeMin: v.optional(v.pipe(v.number(), v.finite())),
+    rangeMax: v.optional(v.pipe(v.number(), v.finite())),
+    scoring: v.optional(v.picklist(["all", "neighbours"])),
+    mathForm: v.optional(v.picklist(MATH_FORMS)),
+    mathPlaces: v.optional(
+      v.pipe(v.number(), v.integer(), v.minValue(0), v.maxValue(10)),
+    ),
+    mathUnits: v.optional(v.picklist(["convert", "same"])),
+    aiTool: v.optional(v.pipe(v.string(), v.maxLength(200))),
+    aiDate: v.optional(
+      v.union([v.literal(""), v.pipe(v.string(), v.isoDate())]),
+    ),
+    aiPrompt: v.optional(v.pipe(v.string(), v.maxLength(4000))),
+    aiUse: v.optional(v.pipe(v.string(), v.maxLength(4000))),
+    aiEvidence: v.optional(
+      v.pipe(
+        v.array(
+          v.object({
+            fileId: v.pipe(v.string(), v.uuid()),
+            name: v.pipe(v.string(), v.minLength(1), v.maxLength(255)),
+            mime: v.pipe(v.string(), v.maxLength(255)),
+            bytes: integer(0, 2147483647),
+          }),
+        ),
+        v.maxLength(20),
       ),
-    }),
-    v.check(validNode),
-  ),
+    ),
+    $: v.optional(
+      v.object({
+        id: v.optional(v.pipe(v.string(), v.regex(/^[\da-z]{8,36}$/))),
+        narration: v.optional(v.pipe(v.string(), v.uuid())),
+        words: v.optional(narrationWordsSchema),
+        run: v.optional(v.picklist(["run", "predict"])),
+      }),
+    ),
+  }),
+  v.check(validNode),
 );
 const inline = (child: ContentNode) =>
   [
