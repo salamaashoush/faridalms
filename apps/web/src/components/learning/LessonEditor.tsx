@@ -20,6 +20,7 @@ import {
 import {
   contentOfLesson,
   lessonOfContent,
+  sameBlocks,
   sameLesson,
 } from "@faridalms/domain/lesson-content";
 import { untranslatedParts } from "@faridalms/domain/lesson-translation";
@@ -325,27 +326,31 @@ export function LessonEditor({
     (row) => row.id === draft.conditionLessonId,
   );
   const storable = !titleIssue && !passIssue && !conditionIssue;
-  const questionIssues = questions.flatMap((block) => {
-    const issue = blockIssue(block);
-    return issue ? [issue] : [];
-  });
-  const lessonProblem =
-    questionIssues.length === 0
-      ? lessonIssue({ completion: draft.completion, content: draft.content })
-      : null;
-  const issues = [
-    ...new Set(
-      [
-        titleIssue,
-        passIssue,
-        conditionIssue,
-        ...questionIssues,
-        ...contentIssueMessages(draft.content),
-        lessonProblem ? getMessageFromError(new Error(lessonProblem)) : null,
-        refused,
-      ].filter((issue): issue is string => Boolean(issue)),
-    ),
-  ];
+  // Checking the lesson reads every block of it, too much for each key
+  // pressed, so it runs only where its findings are wanted.
+  const issuesOf = () => {
+    const questionIssues = questions.flatMap((block) => {
+      const issue = blockIssue(block);
+      return issue ? [issue] : [];
+    });
+    const lessonProblem =
+      questionIssues.length === 0
+        ? lessonIssue({ completion: draft.completion, content: draft.content })
+        : null;
+    return [
+      ...new Set(
+        [
+          titleIssue,
+          passIssue,
+          conditionIssue,
+          ...questionIssues,
+          ...contentIssueMessages(draft.content),
+          lessonProblem ? getMessageFromError(new Error(lessonProblem)) : null,
+          refused,
+        ].filter((issue): issue is string => Boolean(issue)),
+      ),
+    ];
+  };
 
   const persist = useCallback(
     async (value: Draft, publish = false, markAgain = false) => {
@@ -414,18 +419,26 @@ export function LessonEditor({
   const written =
     lessonPlainText(lesson).trim() !== "" ||
     lesson.blocks.some((block) => block.type !== "content");
-  const translationChanged =
-    draft.translation !== null &&
-    (!shownTranslation ||
-      !sameLesson(draft.translation.content, shownTranslation));
-  const changed =
-    open &&
-    ((shown ? !sameLesson(draft.content, shown) : written) ||
-      translationChanged);
+  const translationChanged = useMemo(
+    () =>
+      draft.translation !== null &&
+      (!shownTranslation ||
+        !sameLesson(draft.translation.content, shownTranslation)),
+    [draft.translation, shownTranslation],
+  );
+  const shownBlocks = useMemo(
+    () => (shown ? lessonOfContent(shown).blocks : null),
+    [shown],
+  );
+  const differs = useMemo(
+    () => shownBlocks !== null && !sameBlocks(lesson.blocks, shownBlocks),
+    [lesson, shownBlocks],
+  );
+  const changed = open && ((shown ? differs : written) || translationChanged);
 
   const show = async () => {
     setChecking(true);
-    if (issues.length > 0) {
+    if (issuesOf().length > 0) {
       if (passIssue || conditionIssue) setDetailsOpen(true);
       return;
     }
@@ -510,7 +523,7 @@ export function LessonEditor({
     setChecking(false);
   };
 
-  const listed = checking ? issues : [];
+  const listed = checking ? issuesOf() : [];
   const status = !open
     ? { label: m.lrnStatusModuleDraft(), tone: "neutral" as const }
     : shown

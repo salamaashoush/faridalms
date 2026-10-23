@@ -691,8 +691,14 @@ export function briefWithQuiz(
  * words and the same questions, whatever ids the editor gave the blocks.
  */
 export function sameLesson(a: ContentDocument, b: ContentDocument): boolean {
-  const left = lessonOfContent(a).blocks;
-  const right = lessonOfContent(b).blocks;
+  return sameBlocks(lessonOfContent(a).blocks, lessonOfContent(b).blocks);
+}
+
+/** {@link sameLesson} for lessons already read into blocks. */
+export function sameBlocks(
+  left: readonly LessonBlock[],
+  right: readonly LessonBlock[],
+): boolean {
   return (
     left.length === right.length &&
     left.every((block, index) => {
