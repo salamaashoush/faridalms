@@ -33,6 +33,9 @@ export const env = v.parse(
       // Derives per-tenant keys for sign-in counters, so no raw identifier is stored.
       CELL_SECRET: bytes(32),
       API_PORT: v.optional(positiveInteger, "3001"),
+      // Proxies in front of the API that append to X-Forwarded-For; the
+      // client is the entry the outermost of them added.
+      TRUSTED_PROXY_HOPS: v.optional(positiveInteger, "1"),
       CELL_POOL_SIZE: v.optional(positiveInteger, "10"),
       // The files host listens beside the API; FILES_ORIGIN is how browsers reach it.
       FILES_PORT: v.optional(positiveInteger),

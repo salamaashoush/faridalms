@@ -19,6 +19,8 @@ export interface ApiDependencies {
   keys: KeyRing;
   cellId: string;
   cellSecret: Uint8Array<ArrayBuffer>;
+  /** Proxies in front of the API that append to `X-Forwarded-For`. */
+  trustedProxyHops: number;
   files: FileStore;
   /** The public-media bucket published files are copied to. */
   publicMedia: FileStore;

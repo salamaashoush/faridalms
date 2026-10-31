@@ -1,3 +1,4 @@
+import { clientAddress } from "@faridalms/domain/forwarded";
 import { createHash, createHmac, randomBytes } from "node:crypto";
 
 const TENANT = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
@@ -56,8 +57,14 @@ export function attemptKey(
 }
 
 /** The network the request came from, /24 for IPv4 and /48 for IPv6. */
-export function ipPrefix(headers: Headers): string | null {
-  const address = headers.get("x-forwarded-for")?.split(",")[0]?.trim();
+export function ipPrefix(
+  headers: Headers,
+  trustedProxyHops: number,
+): string | null {
+  const address = clientAddress(
+    headers.get("x-forwarded-for"),
+    trustedProxyHops,
+  );
   if (!address) return null;
   if (/^\d+\.\d+\.\d+\.\d+$/.test(address)) {
     const [a, b, c] = address.split(".");

@@ -1161,7 +1161,7 @@ export const submitEnquiry = publicProcedure
           throw new ORPCError("BAD_REQUEST", {
             message: "validation.required",
           });
-        const network = ipPrefix(context.headers);
+        const network = ipPrefix(context.headers, context.trustedProxyHops);
         const networkKey = network
           ? attemptKey(
               context.cellSecret,

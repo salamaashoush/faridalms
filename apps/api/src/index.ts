@@ -109,6 +109,7 @@ const server = Bun.serve({
     keys: createKeyRing(kek, env.CELL_ID),
     cellId: env.CELL_ID,
     cellSecret,
+    trustedProxyHops: env.TRUSTED_PROXY_HOPS,
     ...stores,
     filesOrigin,
     linkKey: linkKey(cellSecret),

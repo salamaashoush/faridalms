@@ -16,6 +16,12 @@ export const env = createEnv({
       // application's. Unset, web pages in a lesson show as code and editors
       // offer no coding questions.
       PLAY_URL: v.optional(v.pipe(v.string(), v.url())),
+      // Proxies in front of the web server that append to X-Forwarded-For;
+      // the client is the entry the outermost of them added.
+      TRUSTED_PROXY_HOPS: v.optional(
+        v.pipe(v.string(), v.transform(Number), v.integer(), v.minValue(1)),
+        "1",
+      ),
     },
     shared: {
       // "test" belongs here: vitest sets NODE_ENV=test, and without it every

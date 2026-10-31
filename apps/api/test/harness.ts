@@ -37,7 +37,7 @@ import { MemoryProvider } from "../src/notifications/providers";
 
 const adminUrl =
   process.env.DATABASE_ADMIN_URL ??
-  "postgres://northwind:northwind@127.0.0.1:5433/postgres";
+  "postgres://farida:farida@127.0.0.1:5433/postgres";
 const suffix = randomBytes(6).toString("hex");
 export const FILES_ORIGIN = "http://files.test";
 export const MEDIA_ORIGIN = "http://media.test";
@@ -129,6 +129,7 @@ export async function setUp() {
     keys: createKeyRing(kek, "eg-1"),
     cellId: "eg-1",
     cellSecret,
+    trustedProxyHops: 1,
     files,
     publicMedia,
     scanner: null,
@@ -218,11 +219,17 @@ export function seeded() {
   return state;
 }
 
-export function client(school: string, token?: string, locale = "en") {
+export function client(
+  school: string,
+  token?: string,
+  locale = "en",
+  headers: Record<string, string> = {},
+) {
   const { handler } = seeded();
   const link = new RPCLink({
     url: "http://api.test/rpc",
     headers: () => ({
+      ...headers,
       ...(token ? { authorization: `Bearer ${token}` } : {}),
       [SCHOOL_HEADER]: school,
       [LOCALE_HEADER]: locale,

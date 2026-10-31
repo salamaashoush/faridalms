@@ -1,4 +1,5 @@
 import { createApiClient, isHiddenRecordError } from "@faridalms/api-client";
+import { clientAddress } from "@faridalms/domain/forwarded";
 import { notFound } from "@tanstack/react-router";
 import {
   getCookie,
@@ -60,7 +61,11 @@ export function backend(
     school: school ?? undefined,
     locale: getLocale(),
     token,
-    forwardedFor: getRequestHeader("x-forwarded-for"),
+    forwardedFor:
+      clientAddress(
+        getRequestHeader("x-forwarded-for"),
+        env.TRUSTED_PROXY_HOPS,
+      ) ?? undefined,
   });
 }
 

@@ -105,22 +105,18 @@ export const signIn = schoolProcedure
           tenantId,
           `login:${input.loginName}`,
         );
-        const network = ipPrefix(context.headers);
+        const network = ipPrefix(context.headers, context.trustedProxyHops);
+        // A school signs in from one network, so only failures count
+        // against it, as with badges.
+        const networkKey = network
+          ? attemptKey(context.cellSecret, tenantId, `ip:${network}`)
+          : null;
         const tries = await countAttempt(tx, tenantId, nameKey, WINDOW_MINUTES);
-        const networkTries = network
-          ? await countAttempt(
-              tx,
-              tenantId,
-              attemptKey(context.cellSecret, tenantId, `ip:${network}`),
-              WINDOW_MINUTES,
-            )
+        const networkFailures = networkKey
+          ? await attemptsSoFar(tx, tenantId, networkKey)
           : 0;
         const identity = await findPasswordIdentity(tx, input.loginName);
-        const valid = await Bun.password.verify(
-          input.password,
-          identity?.secretHash ?? dummyHash,
-        );
-        if (tries > PER_NAME || networkTries > PER_NETWORK) {
+        if (tries > PER_NAME || networkFailures >= PER_NETWORK) {
           await writeAudit(tx, tenantId, {
             action: "account.sign_in",
             outcome: "denied",
@@ -131,6 +127,10 @@ export const signIn = schoolProcedure
           });
           return { ok: false, code: "auth.too_many_attempts" };
         }
+        const valid = await Bun.password.verify(
+          input.password,
+          identity?.secretHash ?? dummyHash,
+        );
         const today = dateIn(
           (await schoolProfile(tx, schoolId))?.timeZone ?? "UTC",
         );
@@ -157,6 +157,8 @@ export const signIn = schoolProcedure
               identity.identityId,
               identity.failedAttempts + 1,
             );
+          if (networkKey)
+            await countAttempt(tx, tenantId, networkKey, WINDOW_MINUTES);
           await writeAudit(tx, tenantId, {
             action: "account.sign_in",
             outcome: "failed",
@@ -249,7 +251,7 @@ export const badgeSignIn = schoolProcedure
       { tenantId, requestId: context.requestId, actor: { kind: "user" } },
       "write",
       async (tx) => {
-        const network = ipPrefix(context.headers);
+        const network = ipPrefix(context.headers, context.trustedProxyHops);
         const networkKey = network
           ? attemptKey(context.cellSecret, tenantId, `badge:${network}`)
           : null;
@@ -386,7 +388,7 @@ async function heldInvite(
     { tenantId, requestId: context.requestId, actor: { kind: "user" } },
     "write",
     async (tx) => {
-      const network = ipPrefix(context.headers);
+      const network = ipPrefix(context.headers, context.trustedProxyHops);
       const networkKey = network
         ? attemptKey(context.cellSecret, tenantId, `invite:${network}`)
         : null;
@@ -601,7 +603,7 @@ export const switchContext = writeProcedure
       activeOrgId: context.schoolId,
       idleMinutes: lifetime.idle,
       absoluteMinutes: lifetime.absolute,
-      ipPrefix: ipPrefix(context.headers),
+      ipPrefix: ipPrefix(context.headers, context.trustedProxyHops),
       userAgentSummary: userAgentSummary(context.headers),
     });
     await revokeSession(
@@ -684,7 +686,7 @@ export const childSession = writeProcedure
       activeOrgId: context.schoolId,
       idleMinutes: SHARED_LIFETIME.idle,
       absoluteMinutes: SHARED_LIFETIME.absolute,
-      ipPrefix: ipPrefix(context.headers),
+      ipPrefix: ipPrefix(context.headers, context.trustedProxyHops),
       userAgentSummary: userAgentSummary(context.headers),
       method: "guardian",
       clientKind: "shared_device",

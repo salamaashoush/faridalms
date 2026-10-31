@@ -11,7 +11,7 @@ describe("sign-in", () => {
     const father = options.relations.find((row) => row.code === "father");
     if (!father) throw new Error("options");
     const studentId =
-      (await api.people.students({ q: "GA1012" })).rows[0]?.id ?? "";
+      (await api.people.students({ q: "NO1012" })).rows[0]?.id ?? "";
     const flags = {
       relationId: father.id,
       legalGuardian: true,
@@ -130,9 +130,9 @@ describe("sign-in", () => {
   test("a teacher of one school cannot sign in at a school where they hold no role", async () => {
     const teacher = seeded().tenants[0]?.logins.find(
       (entry) =>
-        entry.role === "teacher" && entry.loginName.includes("east"),
+        entry.role === "teacher" && entry.loginName.includes("northwind-east"),
     );
-    if (!teacher) throw new Error("no east teacher");
+    if (!teacher) throw new Error("no northwind-east teacher");
     expect(
       await rejection(
         client("northwind").identity.signIn({
@@ -174,7 +174,8 @@ describe("a person's own password", () => {
     const signIn = async (password: string) =>
       client(
         "northwind",
-        (await client("northwind").identity.signIn({ loginName, password })).token,
+        (await client("northwind").identity.signIn({ loginName, password }))
+          .token,
       );
     const here = await signIn(old);
     const elsewhere = await signIn(old);
@@ -250,5 +251,44 @@ describe("a person's own password", () => {
       code: "TOO_MANY_REQUESTS",
       message: "auth.too_many_attempts",
     });
+  });
+});
+
+describe("sign-in from one network", () => {
+  test("a whole school signing in from one address is never held back", async () => {
+    const api = client("northwind", undefined, "en", {
+      "x-forwarded-for": "203.0.113.20",
+    });
+    const principal = login("principal");
+    for (let attempt = 0; attempt < 60; attempt += 1) {
+      const session = await api.identity.signIn({
+        loginName: principal,
+        password: SEED_PASSWORD,
+      });
+      expect(session.token).toBeString();
+    }
+  });
+
+  test("failures from one network refuse even the right password", async () => {
+    const api = client("northwind", undefined, "en", {
+      "x-forwarded-for": "198.51.100.30",
+    });
+    for (let attempt = 0; attempt < 50; attempt += 1)
+      expect(
+        await rejection(
+          api.identity.signIn({
+            loginName: `nobody${attempt}@northwind.example.com`,
+            password: "not anybody's password",
+          }),
+        ),
+      ).toMatchObject({ message: "auth.invalid_credentials" });
+    expect(
+      await rejection(
+        api.identity.signIn({
+          loginName: login("principal"),
+          password: SEED_PASSWORD,
+        }),
+      ),
+    ).toMatchObject({ message: "auth.too_many_attempts" });
   });
 });
