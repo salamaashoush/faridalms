@@ -68,7 +68,10 @@ export function createApp(dependencies: ApiDependencies) {
       if (url.pathname === "/health/live")
         response = Response.json({ status: "ok" });
       else if (url.pathname === "/health/ready") {
-        await dependencies.cell.ping();
+        await Promise.all([
+          dependencies.cell.ping(),
+          dependencies.directory.ping(),
+        ]);
         response = Response.json({ status: "ok" });
       } else if (url.pathname === "/openapi.json")
         response = Response.json(await specification);

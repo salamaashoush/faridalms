@@ -1,0 +1,21 @@
+services:
+  postgres:
+    image: postgres:18
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: farida
+      POSTGRES_PASSWORD: farida
+      POSTGRES_DB: postgres
+    ports:
+      - "127.0.0.1:5433:5432"
+    # Postgres 18 keeps its cluster in a versioned subdirectory of this path.
+    volumes:
+      - postgres:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U farida -d postgres"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+
+volumes:
+  postgres:

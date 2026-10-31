@@ -1,12 +1,13 @@
 # syntax=docker/dockerfile:1
-FROM oven/bun:1.4.2 AS build
+FROM oven/bun:1.4.4 AS build
 WORKDIR /app
 ENV CI=true
 COPY . .
 RUN --mount=type=cache,target=/root/.bun/install/cache bun install --frozen-lockfile
 RUN bun run build
+RUN bun build scripts/migrate.ts --target=bun --outdir=dist-migrate
 
-FROM oven/bun:1.4.2-slim AS api
+FROM oven/bun:1.4.4-slim AS api
 WORKDIR /app
 ENV NODE_ENV=production API_PORT=3001
 COPY --from=build --chown=bun:bun /app/LICENSE ./LICENSE
@@ -16,12 +17,14 @@ COPY --from=build --chown=bun:bun /app/apps/api/vendor/scratch ./vendor/scratch
 COPY --from=build --chown=bun:bun /app/apps/api/vendor/p5 ./vendor/p5
 COPY --from=build --chown=bun:bun /app/apps/api/vendor/makecode ./vendor/makecode
 COPY --from=build --chown=bun:bun /app/apps/api/studio ./studio
+# A named volume mounted here takes this owner on first use.
+RUN mkdir -p /data/files && chown bun:bun /data/files
 USER bun
 EXPOSE 3001 3003
 HEALTHCHECK --interval=15s --timeout=3s --start-period=10s --retries=3 CMD bun -e "fetch('http://127.0.0.1:3001/health/ready').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
 CMD ["bun", "dist/index.js"]
 
-FROM oven/bun:1.4.2-slim AS web
+FROM oven/bun:1.4.4-slim AS web
 WORKDIR /app
 ENV NODE_ENV=production PORT=3000 HOST=0.0.0.0
 COPY --from=build --chown=bun:bun /app/LICENSE ./LICENSE
@@ -29,6 +32,36 @@ COPY --from=build --chown=bun:bun /app/apps/web/.output ./.output
 USER bun
 EXPOSE 3000
 HEALTHCHECK --interval=15s --timeout=3s --start-period=10s --retries=3 CMD bun -e "fetch('http://127.0.0.1:3000/api/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
+CMD ["bun", ".output/server/index.mjs"]
+
+# One-shot: provisions roles, creates missing databases and applies pending
+# migrations. It carries no seed and nothing that drops data.
+FROM oven/bun:1.4.4-slim AS migrate
+WORKDIR /app
+ENV NODE_ENV=production
+COPY --from=build --chown=bun:bun /app/LICENSE ./LICENSE
+COPY --from=build --chown=bun:bun /app/dist-migrate/migrate.js ./migrate.js
+COPY --from=build --chown=bun:bun /app/drizzle ./drizzle
+COPY --from=build --chown=bun:bun /app/drizzle-directory ./drizzle-directory
+USER bun
+CMD ["bun", "migrate.js", "migrate"]
+
+FROM oven/bun:1.4.4-slim AS collab
+WORKDIR /app
+ENV NODE_ENV=production COLLAB_PORT=3002
+COPY --from=build --chown=bun:bun /app/LICENSE ./LICENSE
+COPY --from=build --chown=bun:bun /app/apps/collab/dist ./dist
+USER bun
+EXPOSE 3002
+CMD ["bun", "dist/index.js"]
+
+FROM oven/bun:1.4.4-slim AS ops
+WORKDIR /app
+ENV NODE_ENV=production PORT=3004 HOST=0.0.0.0
+COPY --from=build --chown=bun:bun /app/LICENSE ./LICENSE
+COPY --from=build --chown=bun:bun /app/apps/ops/.output ./.output
+USER bun
+EXPOSE 3004
 CMD ["bun", ".output/server/index.mjs"]
 
 FROM rust:1.98-slim-trixie AS media-build

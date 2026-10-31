@@ -97,7 +97,9 @@ export interface CellUrls {
 export function openCell(urls: CellUrls, size = 10) {
   const pools = {
     app: open(urls.app, size),
-    site: urls.site ? open(urls.site, Math.max(2, size / 2)) : undefined,
+    site: urls.site
+      ? open(urls.site, Math.max(2, Math.floor(size / 2)))
+      : undefined,
     integration: urls.integration ? open(urls.integration, 4) : undefined,
     worker: urls.worker ? open(urls.worker, 4) : undefined,
     retention: urls.retention ? open(urls.retention, 1) : undefined,

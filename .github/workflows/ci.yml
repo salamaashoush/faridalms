@@ -53,7 +53,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        target: [web, api, media]
+        target: [web, api, collab, ops, migrate, media]
     steps:
       - uses: actions/checkout@v7
       - uses: docker/setup-buildx-action@v3

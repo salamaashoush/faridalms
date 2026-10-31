@@ -19,6 +19,8 @@ export default defineConfig({
     // tanstackStart must precede viteReact.
     tanstackStart({ srcDirectory: "src" }),
     viteReact(),
-    nitro(),
+    // Validates the environment at server start, so a misconfigured
+    // container exits instead of failing on its first request.
+    nitro({ plugins: ["./src/server/preflight.ts"] }),
   ],
 });

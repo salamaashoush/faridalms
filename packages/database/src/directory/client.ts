@@ -144,6 +144,10 @@ export function openDirectory(url: string, ttlMs = 60_000) {
       cache.clear();
       series = null;
     },
+    /** Liveness of the directory, for readiness probes. */
+    ping: async () => {
+      await db.$client`select 1`;
+    },
     close: () => db.$client.close(),
   };
 }

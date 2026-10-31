@@ -1,19 +1,65 @@
+# One regional cell. Postgres is external; every connection URL names its own
+# login role (see docs/operations.md). Ports bind to loopback for the edge
+# proxy in front, which terminates TLS and appends X-Forwarded-For.
+x-cell-secret: &cell-secret ${CELL_SECRET:?Set CELL_SECRET, 32 random bytes in base64}
+
 services:
+  migrate:
+    build:
+      context: .
+      target: migrate
+    command: ["bun", "migrate.js", "create"]
+    environment:
+      DATABASE_ADMIN_URL: ${DATABASE_ADMIN_URL:?Set the cluster admin URL used for migrations}
+      CELL_DATABASE: ${CELL_DATABASE:-cell}
+      DIRECTORY_DATABASE: ${DIRECTORY_DATABASE:-directory}
+      CELL_ROLE_PASSWORD: ${CELL_ROLE_PASSWORD:-}
+    restart: "no"
+
   api:
     build:
       context: .
       target: api
     restart: unless-stopped
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
     environment:
-      CONTROL_DATABASE_URL: ${CONTROL_DATABASE_URL:?Set the control database URL}
-      API_PORT: 3001
+      CELL_ID: ${CELL_ID:?Set the cell id, for example eg-1}
+      CELL_KEK: ${CELL_KEK:?Set CELL_KEK, 32 random bytes in base64}
+      CELL_SECRET: *cell-secret
+      CELL_APP_URL: ${CELL_APP_URL:?Set the app role URL}
+      CELL_SITE_URL: ${CELL_SITE_URL:?Set the site role URL}
+      # Settles uploads and delivers notifications; without it neither happens.
+      CELL_WORKER_URL: ${CELL_WORKER_URL:?Set the worker role URL}
+      CELL_RETENTION_URL: ${CELL_RETENTION_URL:?Set the retention role URL}
+      DIRECTORY_URL: ${DIRECTORY_URL:?Set the directory_reader URL}
+      DIRECTORY_SYNC_URL: ${DIRECTORY_SYNC_URL:-}
       FILES_ORIGIN: ${FILES_ORIGIN:?Set the files host origin, its own domain}
-      MAX_TENANT_POOLS: ${MAX_TENANT_POOLS:-32}
-      TENANT_POOL_SIZE: ${TENANT_POOL_SIZE:-4}
+      MEDIA_ORIGIN: ${MEDIA_ORIGIN:-}
+      FILE_STORAGE: ${FILE_STORAGE:-disk}
+      FILE_STORAGE_DIR: /data/files
+      S3_ENDPOINT: ${S3_ENDPOINT:-}
+      S3_REGION: ${S3_REGION:-}
+      S3_ACCESS_KEY_ID: ${S3_ACCESS_KEY_ID:-}
+      S3_SECRET_ACCESS_KEY: ${S3_SECRET_ACCESS_KEY:-}
+      FILE_BUCKET: ${FILE_BUCKET:-}
+      PUBLIC_MEDIA_BUCKET: ${PUBLIC_MEDIA_BUCKET:-}
+      CLAMD_ADDRESS: ${CLAMD_ADDRESS:-}
+      EMAIL_WEBHOOK_URL: ${EMAIL_WEBHOOK_URL:-}
+      SMS_WEBHOOK_URL: ${SMS_WEBHOOK_URL:-}
+      NOTIFY_WEBHOOK_TOKEN: ${NOTIFY_WEBHOOK_TOKEN:-}
+      # The AGPL asks whoever runs a changed copy to offer its source.
+      SOURCE_URL: ${SOURCE_URL:-}
+      TRUSTED_PROXY_HOPS: ${TRUSTED_PROXY_HOPS:-1}
+      FILES_PORT: 3003
+    volumes:
+      - files:/data/files
     ports:
       - "127.0.0.1:3001:3001"
       - "127.0.0.1:3003:3003"
     stop_grace_period: 30s
+
   web:
     build:
       context: .
@@ -21,9 +67,50 @@ services:
     restart: unless-stopped
     environment:
       BACKEND_URL: http://api:3001
+      APP_HOST: ${APP_HOST:?Set the cell application host}
+      COLLAB_URL: ${COLLAB_URL:-}
+      PLAY_URL: ${PLAY_URL:-}
+      TRUSTED_PROXY_HOPS: ${TRUSTED_PROXY_HOPS:-1}
     ports:
       - "127.0.0.1:3000:3000"
     depends_on:
       api:
         condition: service_healthy
     stop_grace_period: 30s
+
+  collab:
+    build:
+      context: .
+      target: collab
+    restart: unless-stopped
+    environment:
+      CELL_COLLAB_URL: ${CELL_COLLAB_URL:?Set the collab role URL}
+      CELL_SECRET: *cell-secret
+    ports:
+      - "127.0.0.1:3002:3002"
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    stop_grace_period: 30s
+
+  ops:
+    build:
+      context: .
+      target: ops
+    restart: unless-stopped
+    profiles: ["ops"]
+    # Its preflight refuses to start without every OPS_ variable.
+    environment:
+      OPS_DIRECTORY_URL: ${OPS_DIRECTORY_URL:-}
+      OPS_ORIGIN: ${OPS_ORIGIN:-}
+      OPS_OIDC_ISSUER: ${OPS_OIDC_ISSUER:-}
+      OPS_OIDC_CLIENT_ID: ${OPS_OIDC_CLIENT_ID:-}
+      OPS_OIDC_CLIENT_SECRET: ${OPS_OIDC_CLIENT_SECRET:-}
+      OPS_OIDC_GROUP: ${OPS_OIDC_GROUP:-}
+      OPS_SESSION_SECRET: ${OPS_SESSION_SECRET:-}
+    ports:
+      - "127.0.0.1:3004:3004"
+    stop_grace_period: 30s
+
+volumes:
+  files:

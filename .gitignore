@@ -38,7 +38,6 @@
 *.pem
 .cache
 .vercel
-compose.yaml
 
 # debug
 npm-debug.log*
@@ -51,8 +50,6 @@ yarn-error.log*
 # private file storage for development and tests
 /.data
 
-# Local capture artifacts from the portal audit
-research/shots/
 
 **/.output/
 **/.nitro/

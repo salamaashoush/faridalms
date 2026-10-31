@@ -8,15 +8,16 @@
   },
   "scripts": {
     "dev": "bun --watch src/index.ts",
-    "start": "bun src/index.ts"
+    "start": "bun src/index.ts",
+    "build": "bun build src/index.ts --target=bun --outdir=dist"
   },
   "dependencies": {
     "@faridalms/database": "workspace:*",
     "@faridalms/domain": "workspace:*",
     "@faridalms/editor": "workspace:*",
-    "@hocuspocus/server": "^4.7.0",
-    "@lexical/yjs": "^0.50.0",
-    "lexical": "^0.50.0",
+    "@hocuspocus/server": "^4.8.0",
+    "@lexical/yjs": "^0.53.0",
+    "lexical": "^0.53.0",
     "valibot": "^1.5.0",
     "yjs": "^13.6.33"
   }
