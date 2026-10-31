@@ -23,7 +23,7 @@ import { saveLesson, saveModule } from "~/server/learning";
 import { formatNumber } from "~/utils/datetime";
 import { getMessageFromError } from "~/utils/error";
 
-import { importBanks, importCartridge } from "./cartridgeImport";
+import { importBanks, importCartridge } from "./cartridgeImporter";
 
 const CARTRIDGE = ".imscc,.zip,application/zip";
 

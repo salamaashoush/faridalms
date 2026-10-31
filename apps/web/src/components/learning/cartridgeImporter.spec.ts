@@ -2,7 +2,7 @@ import type { Cartridge } from "@faridalms/domain/cartridge-read";
 
 import { describe, expect, it } from "vitest";
 
-import { importBanks, importCartridge } from "./cartridgeImport";
+import { importBanks, importCartridge } from "./cartridgeImporter";
 
 const bytes = (text: string) => new TextEncoder().encode(text);
 
