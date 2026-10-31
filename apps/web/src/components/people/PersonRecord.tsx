@@ -264,6 +264,7 @@ export function PersonRecord({
               }
               description={m.personAccountHint()}
               none={m.personAccountNone()}
+              emailLink
             />
           }
         />

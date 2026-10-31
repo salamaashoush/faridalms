@@ -9,6 +9,9 @@ import { SignInForm } from "./SignInForm";
 
 const mockNavigate = vi.fn();
 vi.mock("@tanstack/react-router", () => ({
+  Link: ({ children }: { children: React.ReactNode }) => (
+    <a href="/">{children}</a>
+  ),
   useHydrated: () => true,
   useRouter: () => ({
     navigate: mockNavigate,

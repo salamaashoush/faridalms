@@ -20,6 +20,9 @@ test("a wrong password is refused without revealing whether the account exists",
   page,
 }) => {
   await page.goto("/sign-in");
+  const code = page.getByRole("textbox", { name: "School code" });
+  await expect(code).toBeEnabled();
+  await code.fill("northwind");
   await page
     .getByRole("textbox", { name: "Email" })
     .fill("parent1001@northwind.example.com");
@@ -98,5 +101,31 @@ test("signing out clears the session", async ({ page }) => {
 
   await expect(page).toHaveURL(/\/sign-in/);
   await page.goto("/family");
+  await expect(page).toHaveURL(/\/sign-in/);
+});
+
+test("a forgotten password is asked for from sign-in, and the answer never says whether the name exists", async ({
+  page,
+}) => {
+  await page.goto("/sign-in");
+  await expect(
+    page.getByRole("textbox", { name: "School code" }),
+  ).toBeEnabled();
+  await page.getByRole("link", { name: "Forgot your password?" }).click();
+  await expect(page).toHaveURL(/\/forgot-password/);
+  await expect(
+    page.getByRole("heading", { name: "Choose a new password" }),
+  ).toBeVisible();
+  const code = page.getByLabel("School code");
+  await expect(code).toBeEnabled();
+  await code.fill("northwind");
+  await page
+    .getByLabel("Email or sign-in name")
+    .fill("nobody.at.all@northwind.example.com");
+  await page.getByRole("button", { name: "Send the link" }).click();
+  await expect(
+    page.getByRole("heading", { name: "Check your email" }),
+  ).toBeVisible();
+  await page.getByRole("link", { name: "Back to sign-in" }).click();
   await expect(page).toHaveURL(/\/sign-in/);
 });

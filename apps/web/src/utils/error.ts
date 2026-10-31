@@ -192,6 +192,10 @@ export function getMessageFromError(error: unknown): string {
         return m.errorRequestsOpen();
       case "sign_in.no_email":
         return m.errorSignInNoEmail();
+      case "sign_in.no_address":
+        return m.errorSignInNoAddress();
+      case "sign_in.not_sent":
+        return m.errorSignInNotSent();
       case "leaving.not_enrolled":
         return m.errorLeavingNotEnrolled();
       case "leaving.none":

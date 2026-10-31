@@ -806,6 +806,7 @@ describe("a link to choose a student's password", () => {
     expect(await open.identity.invite({ secret })).toEqual({
       loginName: "no9721",
       name: { en: "Salama", ar: "سلامة" },
+      reset: false,
     });
     expect(
       await rejection(
@@ -1336,5 +1337,86 @@ describe("photos", () => {
     expect(
       (await principal.api.people.student({ id: pupil.id })).photoFileId,
     ).toBeNull();
+  });
+});
+
+describe("a link for an adult's own password", () => {
+  const password = "correct horse battery staple";
+
+  test("the office emails a new teacher a link, and the teacher alone chooses the password", async () => {
+    const address = "salama.link@northwind.example.com";
+    const { api, id } = await newStaff(address);
+    expect(
+      await api.people.sendSignInLink({ userId: id, loginName: address }),
+    ).toEqual({ sent: true, loginName: address });
+    const { message, secret } = linkTo(address);
+    expect(message.subject).toContain("choose your password");
+    expect(message.text).toContain(`Sign-in name: ${address}`);
+    const open = client("northwind");
+    expect(await open.identity.invite({ secret })).toEqual({
+      loginName: address,
+      name: { en: "Salama", ar: "سلامة" },
+      reset: false,
+    });
+    await open.identity.acceptInvite({ secret, password });
+    const session = await open.identity.signIn({
+      loginName: address,
+      password,
+    });
+    expect(session.token).toBeString();
+    expect(
+      await rejection(open.identity.acceptInvite({ secret, password })),
+    ).toMatchObject({ message: "auth.invalid_invite" });
+  });
+
+  test("a forgotten password is replaced from an emailed link, and every session ends", async () => {
+    const address = "salama.reset@northwind.example.com";
+    const { api, id } = await newStaff(address);
+    await api.people.saveSignIn({ userId: id, loginName: address, password });
+    const open = client("northwind");
+    const before = await open.identity.signIn({ loginName: address, password });
+    expect(
+      await open.identity.requestPasswordReset({ loginName: address }),
+    ).toEqual({ requested: true });
+    const { message, secret } = linkTo(address);
+    expect(message.subject).toContain("choose a new password");
+    expect(await open.identity.invite({ secret })).toMatchObject({
+      loginName: address,
+      reset: true,
+    });
+    const replaced = "a different phrase entirely";
+    await open.identity.acceptInvite({ secret, password: replaced });
+    expect(
+      await rejection(client("northwind", before.token).identity.currentUser()),
+    ).toMatchObject({ code: "UNAUTHORIZED" });
+    expect(
+      await rejection(open.identity.signIn({ loginName: address, password })),
+    ).toMatchObject({ message: "auth.invalid_credentials" });
+    expect(
+      (await open.identity.signIn({ loginName: address, password: replaced }))
+        .token,
+    ).toBeString();
+  });
+
+  test("asking for a reset tells a stranger nothing and sends nothing", async () => {
+    const sent = seeded().mail.sent.length;
+    expect(
+      await client("northwind").identity.requestPasswordReset({
+        loginName: "nobody.here@northwind.example.com",
+      }),
+    ).toEqual({ requested: true });
+    expect(seeded().mail.sent.length).toBe(sent);
+  });
+
+  test("resets for one name stop after a few, since each sends an email", async () => {
+    const api = client("northwind");
+    const loginName = "salama.often@northwind.example.com";
+    for (let attempt = 0; attempt < 3; attempt += 1)
+      expect(await api.identity.requestPasswordReset({ loginName })).toEqual({
+        requested: true,
+      });
+    expect(
+      await rejection(api.identity.requestPasswordReset({ loginName })),
+    ).toMatchObject({ message: "auth.too_many_attempts" });
   });
 });

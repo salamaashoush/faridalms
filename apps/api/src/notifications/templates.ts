@@ -181,3 +181,70 @@ export function inviteMessage(input: {
         ].join("\n\n"),
       };
 }
+
+/**
+ * The email that lets an adult the office added choose their own password,
+ * instead of being handed one the office typed.
+ */
+export function adultInviteMessage(input: {
+  locale: "en" | "ar";
+  school: string;
+  name: string;
+  loginName: string;
+  link: string;
+  days: number;
+}): Rendered {
+  return input.locale === "ar"
+    ? {
+        subject: `${input.school}: اختر كلمة مرورك`,
+        text: [
+          `مرحبًا ${input.name}، فتحت المدرسة لك حساب دخول في تطبيقها.`,
+          `اسم الدخول: ${input.loginName}`,
+          `اختر كلمة المرور من هذا الرابط، وهو يعمل مرة واحدة خلال ${input.days} أيام:`,
+          input.link,
+          "هذا الرابط لك وحدك، فلا ترسله إلى أحد. إن لم تنتظر هذه الرسالة فأبلغ مكتب المدرسة.",
+        ].join("\n\n"),
+      }
+    : {
+        subject: `${input.school}: choose your password`,
+        text: [
+          `Hello ${input.name}, the school has opened a sign-in for you in its app.`,
+          `Sign-in name: ${input.loginName}`,
+          `Choose your password from this link, which works once, within ${input.days} days:`,
+          input.link,
+          "The link is for you only, so please do not forward it. If you did not expect this email, tell the school office.",
+        ].join("\n\n"),
+      };
+}
+
+/**
+ * The email that replaces a forgotten password. Choosing a new one signs
+ * the account out everywhere, so the email says so.
+ */
+export function resetMessage(input: {
+  locale: "en" | "ar";
+  school: string;
+  loginName: string;
+  link: string;
+  minutes: number;
+}): Rendered {
+  return input.locale === "ar"
+    ? {
+        subject: `${input.school}: اختر كلمة مرور جديدة`,
+        text: [
+          `طلب أحدهم كلمة مرور جديدة لاسم الدخول ${input.loginName}.`,
+          `اختر كلمة المرور الجديدة من هذا الرابط، وهو يعمل مرة واحدة خلال ${input.minutes} دقيقة:`,
+          input.link,
+          "سيُسجَّل خروجك من كل الأجهزة الأخرى. إن لم تطلب ذلك فتجاهل هذه الرسالة، فكلمة مرورك لم تتغير.",
+        ].join("\n\n"),
+      }
+    : {
+        subject: `${input.school}: choose a new password`,
+        text: [
+          `Someone asked for a new password for the sign-in name ${input.loginName}.`,
+          `Choose the new password from this link, which works once, within ${input.minutes} minutes:`,
+          input.link,
+          "Every other device will be signed out. If you did not ask for this, ignore this email; your password has not changed.",
+        ].join("\n\n"),
+      };
+}

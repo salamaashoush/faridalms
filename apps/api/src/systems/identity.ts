@@ -6,6 +6,7 @@ import { writeAudit } from "@faridalms/database/audit";
 import { bindActor } from "@faridalms/database/context";
 import {
   ensureAccount,
+  revokeAccountSessions,
   revokeOtherSessions,
   signInOf,
   updatePasswordSignIn,
@@ -29,7 +30,13 @@ import {
   sessionExpiresAt,
   viewer,
 } from "@faridalms/database/stores/identity";
-import { findInvite, redeemInvite } from "@faridalms/database/stores/invites";
+import {
+  findInvite,
+  issueInvite,
+  redeemInvite,
+  voidInvite,
+} from "@faridalms/database/stores/invites";
+import { reachability } from "@faridalms/database/stores/notifications";
 import { childrenOf } from "@faridalms/database/stores/persons";
 import { youngStudents } from "@faridalms/database/stores/students";
 import { BADGE_DAYS } from "@faridalms/domain/badges";
@@ -37,6 +44,8 @@ import {
   acceptInviteSchema,
   changePasswordSchema,
   inviteSchema,
+  requestResetSchema,
+  RESET_MINUTES,
 } from "@faridalms/domain/first-sign-in";
 import {
   badgeSignInSchema,
@@ -53,6 +62,7 @@ import type { SchoolContext } from "../core/context";
 
 import { scopeOf } from "../core/coursework-access";
 import { featuresOf } from "../core/features";
+import { welcomeLink } from "../core/portal";
 import {
   audit,
   dateIn,
@@ -66,11 +76,13 @@ import {
   attemptKey,
   badgeHash,
   ipPrefix,
+  issueBadgeSecret,
   issueToken,
   LIFETIME,
   SHARED_LIFETIME,
   userAgentSummary,
 } from "../core/session";
+import { resetMessage } from "../notifications/templates";
 
 const dummyHash = await Bun.password.hash(randomBytes(32).toString("hex"), {
   algorithm: "argon2id",
@@ -371,9 +383,11 @@ export const badgeSignIn = schoolProcedure
 
 /**
  * Finds the account a link from an email opens, for someone who is not
- * signed in. A link that is unknown, used, expired or for an account that
- * has since been given a password reads the same, and wrong guesses from
- * one network are counted and stopped as wrong badges are.
+ * signed in. A link that is unknown, used, expired, or an invite for an
+ * account that has since been given a password reads the same, and wrong
+ * guesses from one network are counted and stopped as wrong badges are. A
+ * reset link replaces the password, so using it signs the account out
+ * everywhere.
  */
 async function heldInvite(
   context: SchoolContext,
@@ -402,7 +416,7 @@ async function heldInvite(
       if (
         !holder ||
         !loginName ||
-        holder.hasPassword ||
+        (holder.hasPassword && holder.purpose !== "reset") ||
         !["invited", "active"].includes(holder.accountState)
       ) {
         if (networkKey)
@@ -411,18 +425,21 @@ async function heldInvite(
       }
       if (redeem) {
         await redeem(tx, { ...holder, loginName });
+        if (holder.purpose === "reset")
+          await revokeAccountSessions(tx, tenantId, holder.accountId);
         await writeAudit(tx, tenantId, {
           action: "account.password_set",
           objectType: "account",
           objectId: holder.accountId,
           orgId: context.school.schoolId,
           subjectUserId: holder.userId,
-          details: { method: "invite" },
+          details: { method: holder.purpose },
         });
       }
       return {
         ok: true as const,
         loginName,
+        reset: holder.purpose === "reset",
         name: {
           en: holder.givenNameEn,
           ar: holder.preferredGivenName ?? holder.givenNameAr,
@@ -437,7 +454,11 @@ async function heldInvite(
         : "BAD_REQUEST",
       { message: outcome.code },
     );
-  return { loginName: outcome.loginName, name: outcome.name };
+  return {
+    loginName: outcome.loginName,
+    name: outcome.name,
+    reset: outcome.reset,
+  };
 }
 
 /** Whose password a link chooses, shown before it is chosen. */
@@ -451,19 +472,116 @@ export const invite = schoolProcedure
  */
 export const acceptInvite = schoolProcedure
   .input(acceptInviteSchema)
-  .handler(async ({ input, context }) => {
-    const secretHash = await Bun.password.hash(input.password, {
-      algorithm: "argon2id",
-    });
-    return heldInvite(context, input.secret, (tx, holder) =>
+  .handler(({ input, context }) =>
+    // Hashed only once the link holds, so a stranger's guesses cost no
+    // password hashing.
+    heldInvite(context, input.secret, async (tx, holder) =>
       redeemInvite(tx, {
         tenantId: context.school.tenantId,
         identityId: holder.identityId,
         accountId: holder.accountId,
         loginName: holder.loginName,
-        secretHash,
+        secretHash: await Bun.password.hash(input.password, {
+          algorithm: "argon2id",
+        }),
       }),
+    ),
+  );
+
+// Each request may send an email, so the limits are lower than sign-in's.
+const RESET_PER_NAME = 3;
+const RESET_PER_NETWORK = 20;
+const RESET_WINDOW_MINUTES = 60;
+
+/**
+ * Emails a link that replaces a forgotten password to the address held for
+ * the account's person. The answer is the same whether the name exists, has
+ * an address, or the email went, so it tells a stranger nothing about who
+ * has an account.
+ */
+export const requestPasswordReset = schoolProcedure
+  .input(requestResetSchema)
+  .handler(async ({ input, context }) => {
+    const { tenantId, schoolId } = context.school;
+    const limited = await context.cell.withTenant(
+      { tenantId, requestId: context.requestId, actor: { kind: "user" } },
+      "write",
+      async (tx) => {
+        const network = ipPrefix(context.headers, context.trustedProxyHops);
+        const nameTries = await countAttempt(
+          tx,
+          tenantId,
+          attemptKey(context.cellSecret, tenantId, `reset:${input.loginName}`),
+          RESET_WINDOW_MINUTES,
+        );
+        const networkTries = network
+          ? await countAttempt(
+              tx,
+              tenantId,
+              attemptKey(context.cellSecret, tenantId, `reset-ip:${network}`),
+              RESET_WINDOW_MINUTES,
+            )
+          : 0;
+        if (nameTries > RESET_PER_NAME || networkTries > RESET_PER_NETWORK)
+          return true;
+        const identity = await findPasswordIdentity(tx, input.loginName);
+        const mail = context.mail;
+        if (!identity || identity.accountState !== "active" || !mail)
+          return false;
+        const [reach] = await reachability(tx, {
+          tenantId,
+          userIds: [identity.userId],
+        });
+        if (!reach?.email) return false;
+        const { secret, secretHash } = issueBadgeSecret();
+        const link = await issueInvite(tx, {
+          tenantId,
+          userId: identity.userId,
+          secretHash,
+          expiresAt: new Date(Date.now() + RESET_MINUTES * 60_000),
+          sentToUserId: identity.userId,
+          linkedByUserId: identity.userId,
+          purpose: "reset",
+        });
+        if (!link) return false;
+        const school =
+          (reach.locale === "ar"
+            ? context.school.nameAr
+            : context.school.nameEn) ??
+          context.school.nameEn ??
+          "";
+        const sent = await mail
+          .send({
+            to: reach.email,
+            ...resetMessage({
+              locale: reach.locale,
+              school,
+              loginName: input.loginName,
+              link: welcomeLink(context.school, secret),
+              minutes: RESET_MINUTES,
+            }),
+          })
+          .then(
+            () => true,
+            () => false,
+          );
+        if (!sent) await voidInvite(tx, tenantId, link.identityId);
+        await writeAudit(tx, tenantId, {
+          action: "account.reset_requested",
+          outcome: sent ? "success" : "failed",
+          objectType: "account",
+          objectId: identity.accountId,
+          orgId: schoolId,
+          subjectUserId: identity.userId,
+        });
+        return false;
+      },
     );
+    if (limited)
+      throw new ORPCError("TOO_MANY_REQUESTS", {
+        message: "auth.too_many_attempts",
+      });
+    return { requested: true };
   });
 
 /**

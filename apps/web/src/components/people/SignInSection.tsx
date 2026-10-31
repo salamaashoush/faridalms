@@ -1,7 +1,7 @@
-import { loginNameSchema } from "@faridalms/domain/first-sign-in";
+import { INVITE_DAYS, loginNameSchema } from "@faridalms/domain/first-sign-in";
 import { Button } from "@faridalms/ui/button";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { KeyRound, Power } from "lucide-react";
+import { KeyRound, Mail, Power } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 import * as v from "valibot";
@@ -10,7 +10,7 @@ import { ConfirmDialog } from "~/components/system/ConfirmDialog";
 import { TextField } from "~/components/system/field";
 import { SheetForm } from "~/components/system/SheetForm";
 import * as m from "~/i18n/messages";
-import { saveSignIn, setSignInState } from "~/server/students";
+import { saveSignIn, sendSignInLink, setSignInState } from "~/server/students";
 import { getMessageFromError } from "~/utils/error";
 
 import { AccountSection } from "./record-parts";
@@ -28,6 +28,7 @@ function SignInSheet({
   name,
   account,
   suggestedLogin,
+  way,
   open,
   onClose,
 }: {
@@ -35,11 +36,14 @@ function SignInSheet({
   name: string;
   account: Account | null;
   suggestedLogin: string;
+  /** Type a password for them, or email them a link to choose their own. */
+  way: "password" | "link";
   open: boolean;
   onClose: () => void;
 }) {
   const queryClient = useQueryClient();
   const creating = !account?.loginName;
+  const linking = way === "link";
   const [loginName, setLoginName] = useState(
     account?.loginName ?? suggestedLogin,
   );
@@ -48,10 +52,14 @@ function SignInSheet({
     {},
   );
   const mutation = useMutation({
-    mutationFn: () =>
-      saveSignIn({
-        data: { userId, loginName: loginName.trim(), password },
-      }),
+    mutationFn: async () => {
+      if (linking)
+        await sendSignInLink({ data: { userId, loginName: loginName.trim() } });
+      else
+        await saveSignIn({
+          data: { userId, loginName: loginName.trim(), password },
+        });
+    },
     meta: { inlineError: true },
   });
   const failure = mutation.error ? getMessageFromError(mutation.error) : null;
@@ -62,14 +70,25 @@ function SignInSheet({
     <SheetForm
       open={open}
       onOpenChange={(next) => (next ? undefined : onClose())}
-      title={creating ? m.signInCreate() : m.signInChange()}
+      title={
+        linking
+          ? m.signInSendLink()
+          : creating
+            ? m.signInCreate()
+            : m.signInChange()
+      }
+      submitLabel={linking ? m.signInSendLinkSubmit() : undefined}
       pending={mutation.isPending}
       error={taken ? null : failure}
       onSubmit={async () => {
         const found: typeof errors = {};
         if (!v.is(loginNameSchema, loginName))
           found.login = m.validationLoginName();
-        if ((creating || password) && password.length < MIN_PASSWORD)
+        if (
+          !linking &&
+          (creating || password) &&
+          password.length < MIN_PASSWORD
+        )
           found.password = m.validationMinLength({ count: MIN_PASSWORD });
         setErrors(found);
         if (Object.keys(found).length > 0) return;
@@ -77,11 +96,13 @@ function SignInSheet({
           async () => {
             await queryClient.invalidateQueries({ queryKey: ["people"] });
             toast.success(
-              creating
-                ? m.signInCreated({ name })
-                : password
-                  ? m.signInPasswordChanged({ name })
-                  : m.managementSaved(),
+              linking
+                ? m.signInLinkSent({ name })
+                : creating
+                  ? m.signInCreated({ name })
+                  : password
+                    ? m.signInPasswordChanged({ name })
+                    : m.managementSaved(),
             );
             onClose();
           },
@@ -90,7 +111,13 @@ function SignInSheet({
       }}
     >
       <p className="text-sm leading-5 text-muted-foreground">
-        {creating ? m.signInCreateHint() : m.signInChangeHint()}
+        {linking
+          ? creating
+            ? m.signInSendLinkHint({ days: INVITE_DAYS })
+            : m.signInSendResetHint({ days: INVITE_DAYS })
+          : creating
+            ? m.signInCreateHint()
+            : m.signInChangeHint()}
       </p>
       <TextField
         id="sign-in-login"
@@ -99,6 +126,7 @@ function SignInSheet({
         dir="ltr"
         width="name"
         autoComplete="off"
+        readOnly={linking && !creating}
         value={loginName}
         onChange={(event) => {
           setErrors((current) => ({ ...current, login: undefined }));
@@ -112,22 +140,24 @@ function SignInSheet({
               : undefined
         }
       />
-      <TextField
-        id="sign-in-password"
-        label={creating ? m.signInPassword() : m.signInNewPassword()}
-        optional={!creating}
-        hint={m.signInPasswordHint({ count: MIN_PASSWORD })}
-        type="password"
-        dir="ltr"
-        width="name"
-        autoComplete="new-password"
-        value={password}
-        onChange={(event) => {
-          setErrors((current) => ({ ...current, password: undefined }));
-          setPassword(event.target.value);
-        }}
-        errors={errors.password ? [errors.password] : undefined}
-      />
+      {linking ? null : (
+        <TextField
+          id="sign-in-password"
+          label={creating ? m.signInPassword() : m.signInNewPassword()}
+          optional={!creating}
+          hint={m.signInPasswordHint({ count: MIN_PASSWORD })}
+          type="password"
+          dir="ltr"
+          width="name"
+          autoComplete="new-password"
+          value={password}
+          onChange={(event) => {
+            setErrors((current) => ({ ...current, password: undefined }));
+            setPassword(event.target.value);
+          }}
+          errors={errors.password ? [errors.password] : undefined}
+        />
+      )}
     </SheetForm>
   );
 }
@@ -144,6 +174,7 @@ export function SignInSection({
   suggestedLogin = "",
   description,
   none,
+  emailLink = false,
 }: {
   userId: string;
   name: string;
@@ -152,9 +183,15 @@ export function SignInSection({
   suggestedLogin?: string;
   description: string;
   none: string;
+  /** An adult may be emailed a link to choose their own password. */
+  emailLink?: boolean;
 }) {
   const queryClient = useQueryClient();
-  const [sheet, setSheet] = useState({ open: false, key: 0 });
+  const [sheet, setSheet] = useState({
+    open: false,
+    key: 0,
+    way: "password" as "password" | "link",
+  });
   const [confirming, setConfirming] = useState(false);
   const disabled = account?.state === "disabled";
   const toggle = useMutation({
@@ -190,12 +227,33 @@ export function SignInSection({
           {disabled ? m.signInEnable() : m.signInDisable()}
         </Button>
       ) : null}
+      {emailLink && !disabled ? (
+        <Button
+          type="button"
+          variant="ghost"
+          className="max-md:h-10"
+          onClick={() =>
+            setSheet((current) => ({
+              open: true,
+              key: current.key + 1,
+              way: "link",
+            }))
+          }
+        >
+          <Mail aria-hidden />
+          {m.signInSendLink()}
+        </Button>
+      ) : null}
       <Button
         type="button"
         variant="ghost"
         className="max-md:h-10"
         onClick={() =>
-          setSheet((current) => ({ open: true, key: current.key + 1 }))
+          setSheet((current) => ({
+            open: true,
+            key: current.key + 1,
+            way: "password",
+          }))
         }
       >
         <KeyRound aria-hidden />
@@ -218,6 +276,7 @@ export function SignInSection({
           name={name}
           account={account}
           suggestedLogin={suggestedLogin}
+          way={sheet.way}
           open={sheet.open}
           onClose={() => setSheet((current) => ({ ...current, open: false }))}
         />

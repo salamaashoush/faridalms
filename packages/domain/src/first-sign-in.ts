@@ -51,6 +51,27 @@ export const acceptInviteSchema = v.object({
   password: newPassword,
 });
 
+/** A link to replace a forgotten password works this long. */
+export const RESET_MINUTES = 60;
+
+export const requestResetSchema = v.object({
+  loginName: v.pipe(
+    v.string(),
+    v.trim(),
+    v.transform((value) => value.normalize("NFC").toLowerCase()),
+    v.minLength(1),
+    v.maxLength(254),
+  ),
+});
+export type RequestResetInput = v.InferInput<typeof requestResetSchema>;
+
+/** The office sends an adult a link to choose their own password. */
+export const sendSignInLinkSchema = v.object({
+  userId: v.pipe(v.string(), v.uuid()),
+  loginName: loginNameSchema,
+});
+export type SendSignInLinkInput = v.InferInput<typeof sendSignInLinkSchema>;
+
 export const MAX_SIGN_INS = 100;
 
 export const createSignInsSchema = v.object({

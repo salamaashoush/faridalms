@@ -29,6 +29,7 @@ import { Route as AppSearchRouteImport } from './routes/_app/search'
 import { Route as AppStaffEditorRouteImport } from './routes/_app/staff-editor'
 import { Route as AppStudentEditorRouteImport } from './routes/_app/student-editor'
 import { Route as AppTeachRouteImport } from './routes/_app/teach'
+import { Route as AuthForgotPasswordRouteImport } from './routes/_auth/forgot-password'
 import { Route as AuthSignInRouteImport } from './routes/_auth/sign-in'
 import { Route as ApiHealthRouteImport } from './routes/api/health'
 import { Route as FilesFileIdRouteImport } from './routes/files/$fileId'
@@ -221,6 +222,11 @@ const AppTeachRoute = AppTeachRouteImport.update({
   id: '/teach',
   path: '/teach',
   getParentRoute: () => AppRoute,
+} as any)
+const AuthForgotPasswordRoute = AuthForgotPasswordRouteImport.update({
+  id: '/forgot-password',
+  path: '/forgot-password',
+  getParentRoute: () => AuthRoute,
 } as any)
 const AuthSignInRoute = AuthSignInRouteImport.update({
   id: '/sign-in',
@@ -715,6 +721,7 @@ export interface FileRoutesByFullPath {
   '/staff-editor': typeof AppStaffEditorRoute
   '/student-editor': typeof AppStudentEditorRoute
   '/teach': typeof AppTeachRouteWithChildren
+  '/forgot-password': typeof AuthForgotPasswordRoute
   '/sign-in': typeof AuthSignInRoute
   '/api/health': typeof ApiHealthRoute
   '/files/$fileId': typeof FilesFileIdRouteWithChildren
@@ -824,6 +831,7 @@ export interface FileRoutesByTo {
   '/search': typeof AppSearchRoute
   '/staff-editor': typeof AppStaffEditorRoute
   '/student-editor': typeof AppStudentEditorRoute
+  '/forgot-password': typeof AuthForgotPasswordRoute
   '/sign-in': typeof AuthSignInRoute
   '/api/health': typeof ApiHealthRoute
   '/files/$fileId': typeof FilesFileIdRouteWithChildren
@@ -939,6 +947,7 @@ export interface FileRoutesById {
   '/_app/staff-editor': typeof AppStaffEditorRoute
   '/_app/student-editor': typeof AppStudentEditorRoute
   '/_app/teach': typeof AppTeachRouteWithChildren
+  '/_auth/forgot-password': typeof AuthForgotPasswordRoute
   '/_auth/sign-in': typeof AuthSignInRoute
   '/api/health': typeof ApiHealthRoute
   '/files/$fileId': typeof FilesFileIdRouteWithChildren
@@ -1054,6 +1063,7 @@ export interface FileRouteTypes {
     | '/staff-editor'
     | '/student-editor'
     | '/teach'
+    | '/forgot-password'
     | '/sign-in'
     | '/api/health'
     | '/files/$fileId'
@@ -1163,6 +1173,7 @@ export interface FileRouteTypes {
     | '/search'
     | '/staff-editor'
     | '/student-editor'
+    | '/forgot-password'
     | '/sign-in'
     | '/api/health'
     | '/files/$fileId'
@@ -1277,6 +1288,7 @@ export interface FileRouteTypes {
     | '/_app/staff-editor'
     | '/_app/student-editor'
     | '/_app/teach'
+    | '/_auth/forgot-password'
     | '/_auth/sign-in'
     | '/api/health'
     | '/files/$fileId'
@@ -1537,6 +1549,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/teach'
       preLoaderRoute: typeof AppTeachRouteImport
       parentRoute: typeof AppRoute
+    }
+    '/_auth/forgot-password': {
+      id: '/_auth/forgot-password'
+      path: '/forgot-password'
+      fullPath: '/forgot-password'
+      preLoaderRoute: typeof AuthForgotPasswordRouteImport
+      parentRoute: typeof AuthRoute
     }
     '/_auth/sign-in': {
       id: '/_auth/sign-in'
@@ -2407,10 +2426,12 @@ const AppRouteChildren: AppRouteChildren = {
 const AppRouteWithChildren = AppRoute._addFileChildren(AppRouteChildren)
 
 interface AuthRouteChildren {
+  AuthForgotPasswordRoute: typeof AuthForgotPasswordRoute
   AuthSignInRoute: typeof AuthSignInRoute
 }
 
 const AuthRouteChildren: AuthRouteChildren = {
+  AuthForgotPasswordRoute: AuthForgotPasswordRoute,
   AuthSignInRoute: AuthSignInRoute,
 }
 

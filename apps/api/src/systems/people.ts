@@ -31,6 +31,7 @@ import { studentsByIdentifier } from "@faridalms/database/stores/identifiers";
 import { schoolProfile } from "@faridalms/database/stores/identity";
 import {
   decidingGuardians,
+  inviteeOf,
   issueInvite,
   reserveLoginName,
   settleInvites,
@@ -102,6 +103,7 @@ import {
   freeLoginName,
   INVITE_DAYS,
   loginNameChoices,
+  sendSignInLinkSchema,
 } from "@faridalms/domain/first-sign-in";
 import { normaliseIdentifier } from "@faridalms/domain/identifiers";
 import {
@@ -135,6 +137,7 @@ import type { UnitContext } from "../core/context";
 
 import { guardingAccess, requireGrantable } from "../core/access";
 import { badgeTerm } from "../core/badges";
+import { welcomeLink } from "../core/portal";
 import {
   audit,
   can,
@@ -145,7 +148,7 @@ import {
 } from "../core/procedure";
 import { issueBadgeSecret } from "../core/session";
 import { registerHostReader } from "../files/authorize";
-import { inviteMessage } from "../notifications/templates";
+import { adultInviteMessage, inviteMessage } from "../notifications/templates";
 
 const id = v.pipe(v.string(), v.uuid());
 const STAFF_ROLE_SET: ReadonlySet<string> = new Set(STAFF_ROLES);
@@ -1265,6 +1268,91 @@ export const saveSignIn = writeProcedure
     return { accountId: current.accountId };
   });
 
+/**
+ * Emails an adult a link to choose their own password, so nobody else ever
+ * knows it. Someone who has a password gets a link that replaces it and
+ * keeps their sign-in name; a turned-off account gets none. The email goes
+ * before the unit commits, and a refusal fails the unit, so no link is kept
+ * that nobody received.
+ */
+export const sendSignInLink = writeProcedure
+  .input(sendSignInLinkSchema)
+  .handler(async ({ input, context }) => {
+    await requireSignInManager(context, input.userId);
+    const mail = context.mail;
+    if (!mail) throw new ORPCError("CONFLICT", { message: "sign_in.no_email" });
+    const [reach] = await reachability(context.tx, {
+      tenantId: context.tenantId,
+      userIds: [input.userId],
+    });
+    const invitee = await inviteeOf(context.tx, context.tenantId, input.userId);
+    if (!invitee || !reach?.email)
+      throw new ORPCError("CONFLICT", { message: "sign_in.no_address" });
+    const current = await signInOf(context.tx, context.tenantId, input.userId);
+    const reset = Boolean(current?.identityId);
+    const loginName = (reset ? current?.loginName : null) ?? input.loginName;
+    if (!reset && loginName !== invitee.username) {
+      const taken = await takenLoginNames(context.tx, context.tenantId, {
+        names: [loginName],
+        numbered: [],
+      });
+      if (taken.has(loginName))
+        throw new ORPCError("CONFLICT", {
+          message: "login_identity.login_name_taken",
+        });
+    }
+    const { secret, secretHash } = issueBadgeSecret();
+    const invite = await issueInvite(context.tx, {
+      tenantId: context.tenantId,
+      userId: input.userId,
+      secretHash,
+      expiresAt: new Date(context.now.getTime() + INVITE_DAYS * 86_400_000),
+      sentToUserId: input.userId,
+      linkedByUserId: context.actor.userId,
+      purpose: reset ? "reset" : "invite",
+    });
+    if (!invite)
+      throw new ORPCError("CONFLICT", { message: "account.disabled" });
+    if (!reset)
+      await reserveLoginName(context.tx, {
+        tenantId: context.tenantId,
+        userId: input.userId,
+        loginName,
+      });
+    const arabic = reach.locale === "ar";
+    const message = adultInviteMessage({
+      locale: reach.locale,
+      school:
+        (arabic ? context.school.nameAr : context.school.nameEn) ??
+        context.school.nameEn ??
+        "",
+      name:
+        (arabic
+          ? (invitee.preferredGivenName ?? invitee.givenNameAr)
+          : invitee.givenNameEn) ??
+        invitee.givenNameEn ??
+        invitee.givenNameAr ??
+        loginName,
+      loginName,
+      link: welcomeLink(context.school, secret),
+      days: INVITE_DAYS,
+    });
+    const sent = await mail.send({ to: reach.email, ...message }).then(
+      () => true,
+      () => false,
+    );
+    if (!sent)
+      throw new ORPCError("BAD_GATEWAY", { message: "sign_in.not_sent" });
+    await audit(context, {
+      action: invite.created ? "account.create" : "account.invite",
+      objectType: "account",
+      objectId: invite.accountId,
+      subjectUserId: input.userId,
+      details: { method: "invite", purpose: reset ? "reset" : "invite" },
+    });
+    return { sent: true, loginName };
+  });
+
 type SignInSeed = Awaited<ReturnType<typeof signInSeeds>>[number];
 type Refused = { studentId: string; reason: SignInRefusal };
 
@@ -1570,7 +1658,7 @@ async function openLinks(context: UnitContext, seeds: readonly SignInSeed[]) {
             seed.givenNameAr ??
             loginName,
           loginName,
-          link: `https://${context.school.appHost}/welcome?school=${encodeURIComponent(context.school.slug)}#${secret}`,
+          link: welcomeLink(context.school, secret),
           days: INVITE_DAYS,
         });
         const sent = await mail

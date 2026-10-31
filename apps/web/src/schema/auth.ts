@@ -8,14 +8,7 @@ import * as v from "valibot";
 
 import * as m from "~/i18n/messages";
 
-import {
-  companySchema,
-  emailSchema,
-  jobTitleSchema,
-  mobileNumberSchema,
-  passwordSchema,
-  usernameSchema,
-} from "./common";
+import { passwordSchema } from "./common";
 
 export const loginSchema = v.object({
   school: v.pipe(v.string(), v.trim(), v.minLength(1), v.maxLength(64)),
@@ -46,27 +39,12 @@ export const acceptInviteLinkSchema = v.object({
 });
 
 export const forgotPasswordSchema = v.object({
-  email: emailSchema,
-});
-
-export const registerSchema = v.pipe(
-  v.object({
-    email: emailSchema,
-    name: usernameSchema,
-    mobile: mobileNumberSchema,
-    company: companySchema,
-    jobTitle: jobTitleSchema,
-    password: passwordSchema,
-    confirmPassword: v.string(),
-  }),
-  v.forward(
-    v.partialCheck(
-      [["password"], ["confirmPassword"]],
-      (input) => input.password === input.confirmPassword,
-      m.validationPasswordMismatch(),
-    ),
-    ["confirmPassword"],
+  school: v.pipe(v.string(), v.trim(), v.minLength(1), v.maxLength(64)),
+  loginName: v.pipe(
+    v.string(),
+    v.trim(),
+    v.minLength(1, m.validationLoginName()),
+    v.maxLength(254),
   ),
-);
-
-export type RegisterSchemaOutput = v.InferOutput<typeof registerSchema>;
+});
+export type ForgotPasswordInput = v.InferInput<typeof forgotPasswordSchema>;

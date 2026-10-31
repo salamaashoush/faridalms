@@ -12,8 +12,9 @@ type Tx = CellTransaction;
 /**
  * Sends someone a way to choose an account's password: a secret that works
  * once, until it expires. The account is opened as invited when the person
- * has none, and holds no password until the secret is used. A turned-off
- * account gives null, so a link cannot reopen it.
+ * has none, and holds no password until the secret is used. A reset link is
+ * for an account that has a password and replaces it. A turned-off account
+ * gives null, so a link cannot reopen it.
  */
 export async function issueInvite(
   tx: Tx,
@@ -25,6 +26,7 @@ export async function issueInvite(
     /** Who the link went to. */
     sentToUserId: string;
     linkedByUserId: string;
+    purpose?: InvitePurpose;
   },
 ): Promise<{ accountId: string; identityId: string; created: boolean } | null> {
   const [existing] = await tx
@@ -67,7 +69,10 @@ export async function issueInvite(
       secretHash: input.secretHash,
       secretSetAt: new Date(),
       expiresAt: input.expiresAt,
-      metadata: { sentToUserId: input.sentToUserId },
+      metadata: {
+        sentToUserId: input.sentToUserId,
+        purpose: input.purpose ?? "invite",
+      },
       linkMethod: "invitation",
       linkedByUserId: input.linkedByUserId,
     })
@@ -89,6 +94,8 @@ export async function voidInvite(tx: Tx, tenantId: string, identityId: string) {
     );
 }
 
+export type InvitePurpose = "invite" | "reset";
+
 export interface InviteHolder {
   identityId: string;
   accountId: string;
@@ -100,6 +107,7 @@ export interface InviteHolder {
   givenNameAr: string | null;
   preferredGivenName: string | null;
   hasPassword: boolean;
+  purpose: InvitePurpose;
 }
 
 /** Whose password an invite sets, while it is unused and has not expired. */
@@ -117,8 +125,9 @@ export async function findInvite(
     given_name_ar: string | null;
     preferred_given_name: string | null;
     has_password: boolean;
+    purpose: string | null;
   }>(sql`
-    select l.id as identity_id, a.id as account_id, a.state, u.id as user_id, u.username,
+    select l.id as identity_id, l.metadata->>'purpose' as purpose, a.id as account_id, a.state, u.id as user_id, u.username,
            u.given_name_en, u.given_name_ar, u.preferred_given_name,
            exists (select 1 from core.login_identities p
              where p.tenant_id = a.tenant_id and p.account_id = a.id and p.kind = 'password'
@@ -139,13 +148,15 @@ export async function findInvite(
         givenNameAr: row.given_name_ar,
         preferredGivenName: row.preferred_given_name,
         hasPassword: row.has_password,
+        purpose: row.purpose === "reset" ? "reset" : "invite",
       }
     : null;
 }
 
 /**
- * Uses an invite: the account takes the password chosen, becomes active,
- * and every link sent for it stops working, the others as well as this one.
+ * Uses a link: the account takes the password chosen, replacing the one it
+ * had when the link was a reset, becomes active, and every link sent for it
+ * stops working, the others as well as this one.
  */
 export async function redeemInvite(
   tx: Tx,
@@ -157,15 +168,35 @@ export async function redeemInvite(
     secretHash: string;
   },
 ) {
-  await tx.insert(loginIdentities).values({
-    tenantId: input.tenantId,
-    accountId: input.accountId,
-    kind: "password",
-    loginName: input.loginName,
-    secretHash: input.secretHash,
-    secretSetAt: new Date(),
-    linkMethod: "invitation",
-  });
+  const replaced = await tx
+    .update(loginIdentities)
+    .set({
+      secretHash: input.secretHash,
+      secretSetAt: new Date(),
+      failedAttempts: 0,
+      lockedUntil: null,
+      compromisedAt: null,
+    })
+    .where(
+      and(
+        eq(loginIdentities.tenantId, input.tenantId),
+        eq(loginIdentities.accountId, input.accountId),
+        eq(loginIdentities.kind, "password"),
+        eq(loginIdentities.status, "active"),
+        isNull(loginIdentities.voidedAt),
+      ),
+    )
+    .returning({ id: loginIdentities.id });
+  if (replaced.length === 0)
+    await tx.insert(loginIdentities).values({
+      tenantId: input.tenantId,
+      accountId: input.accountId,
+      kind: "password",
+      loginName: input.loginName,
+      secretHash: input.secretHash,
+      secretSetAt: new Date(),
+      linkMethod: "invitation",
+    });
   await tx
     .update(accounts)
     .set({ state: "active", stateChangedAt: new Date() })
@@ -223,6 +254,26 @@ export async function settleInvites(
         isNull(loginIdentities.voidedAt),
       ),
     );
+}
+
+/** What a link's email calls the person, and the sign-in name they hold. */
+export async function inviteeOf(tx: Tx, tenantId: string, userId: string) {
+  const [row] = await tx
+    .select({
+      username: users.username,
+      givenNameEn: users.givenNameEn,
+      givenNameAr: users.givenNameAr,
+      preferredGivenName: users.preferredGivenName,
+    })
+    .from(users)
+    .where(
+      and(
+        eq(users.tenantId, tenantId),
+        eq(users.id, userId),
+        eq(users.status, "active"),
+      ),
+    );
+  return row ?? null;
 }
 
 /** Keeps a sign-in name for a person whose account has no password yet. */

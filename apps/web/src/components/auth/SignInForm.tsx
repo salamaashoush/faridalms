@@ -2,7 +2,7 @@ import { Button } from "@faridalms/ui/button";
 import { Input } from "@faridalms/ui/input";
 import { useForm } from "@tanstack/react-form";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { useRouter, useHydrated } from "@tanstack/react-router";
+import { Link, useRouter, useHydrated } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
 
@@ -147,6 +147,12 @@ export function SignInForm({ school }: { school?: string | null }) {
                   aria-invalid={invalid}
                 />
                 {invalid && <FieldError errors={field.state.meta.errors} />}
+                <Link
+                  to="/forgot-password"
+                  className="justify-self-end text-sm text-primary underline-offset-4 hover:underline"
+                >
+                  {m.authForgotPassword()}
+                </Link>
               </Field>
             );
           }}

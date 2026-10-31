@@ -1,8 +1,4 @@
-import {
-  INVITE_DAYS,
-  INVITE_SECRET,
-  MIN_PASSWORD,
-} from "@faridalms/domain/first-sign-in";
+import { INVITE_SECRET, MIN_PASSWORD } from "@faridalms/domain/first-sign-in";
 import { Button, buttonVariants } from "@faridalms/ui/button";
 import { Input } from "@faridalms/ui/input";
 import { useMutation } from "@tanstack/react-query";
@@ -76,8 +72,9 @@ function Notice({
 }
 
 /**
- * Where the link in a guardian's email lands: they choose the password
- * their child signs in with. The secret rides in the fragment, which the
+ * Where the link in an email lands: a guardian chooses the password their
+ * child signs in with, an adult chooses their own, or someone replaces a
+ * forgotten one. The secret rides in the fragment, which the
  * browser never sends to a server or puts in a referrer, and it leaves the
  * address bar and history as soon as the page has read it.
  */
@@ -140,7 +137,7 @@ function WelcomePage() {
               tone="warning"
               icon={TriangleAlert}
               title={m.welcomeInvalidTitle()}
-              body={m.welcomeInvalidBody({ days: INVITE_DAYS })}
+              body={m.welcomeInvalidBody()}
             />
           )}
           {signIn}
@@ -151,10 +148,11 @@ function WelcomePage() {
             tone="primary"
             icon={CircleCheck}
             title={m.welcomeDoneTitle()}
-            body={m.welcomeDoneBody({
-              name,
-              loginName: save.data.loginName,
-            })}
+            body={
+              save.data.reset
+                ? m.welcomeResetDoneBody({ loginName: save.data.loginName })
+                : m.welcomeDoneBody({ name, loginName: save.data.loginName })
+            }
           />
           {signIn}
         </div>
@@ -174,9 +172,11 @@ function WelcomePage() {
         >
           <div className="mb-8">
             <h1 className="mb-2 text-[32px] leading-10 font-semibold text-foreground">
-              {m.welcomeTitle({ name })}
+              {holder.reset ? m.welcomeResetTitle() : m.welcomeTitle({ name })}
             </h1>
-            <p className="text-muted-foreground">{m.welcomeBody({ name })}</p>
+            <p className="text-muted-foreground">
+              {holder.reset ? m.welcomeResetBody() : m.welcomeBody({ name })}
+            </p>
           </div>
           <FieldGroup>
             <Field>

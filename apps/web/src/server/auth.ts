@@ -14,6 +14,7 @@ import * as v from "valibot";
 import {
   acceptInviteLinkSchema,
   badgeLoginSchema,
+  forgotPasswordSchema,
   inviteLinkSchema,
   loginSchema,
 } from "~/schema/auth";
@@ -179,6 +180,17 @@ export const acceptInvite = createServerFn({ method: "POST" })
     backend(data.school).identity.acceptInvite({
       secret: data.secret,
       password: data.password,
+    }),
+  );
+
+/** Asks for a link that replaces a forgotten password. */
+export const requestPasswordReset = createServerFn({ method: "POST" })
+  .validator((input: v.InferInput<typeof forgotPasswordSchema>) =>
+    v.parse(forgotPasswordSchema, input),
+  )
+  .handler(({ data }) =>
+    backend(currentSchool() ?? data.school).identity.requestPasswordReset({
+      loginName: data.loginName,
     }),
   );
 
