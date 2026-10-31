@@ -8,14 +8,16 @@
   cell and directory databases if they are missing and applies pending
   migrations. It carries no seed and nothing that drops data. It runs before
   the API on every deploy.
-- `api` (port 3001, files host on 3003), `web` (3000), `collab` (3002), and
-  `ops` (3004, under the `ops` profile). `media` is built separately.
+- `api` (port 3001, files host on 3003), `web` (3000), `collab` (3002), and,
+  under the `ops` profile, `ops` (3004) and `provisioner`. `media` is built
+  separately.
 
 Postgres is external. Each service connects as its own login role, named in
 its URL: `CELL_APP_URL` (`app`), `CELL_SITE_URL` (`site`), `CELL_WORKER_URL`
 (`worker`), `CELL_RETENTION_URL` (`retention`), `CELL_COLLAB_URL` (`collab`),
-`DIRECTORY_URL` (`directory_reader`) and, for the console only,
-`OPS_DIRECTORY_URL` (`directory_admin`). `CELL_KEK` and `CELL_SECRET` are 32
+`DIRECTORY_URL` (`directory_reader`), for the console only
+`OPS_DIRECTORY_URL` (`directory_admin`), and for the provisioner only
+`CELL_PROVISION_URL` (`provisioner`). `CELL_KEK` and `CELL_SECRET` are 32
 random bytes each in base64; `CELL_SECRET` is shared by the API and collab.
 Every service validates its environment at startup and exits on anything
 missing. Without `CELL_WORKER_URL` uploads are never settled and no
@@ -46,11 +48,60 @@ container and expects a clean exit within the grace period.
 
 ## Registering a school
 
-There is no production path yet: `provisionTenant` and the directory
-registration are called only by the development seed and the tests, and the
-first administrator can only be made by the seed. The operator console's
-"create school" action, adult invitations and password reset are the first
-slices of [plans/school-front-door.md](plans/school-front-door.md).
+An operator creates a school, or a group with its schools, from **New
+school** in the operator console. Creating a tenant needs the cell's owner,
+which neither the console nor the public API holds, so the console asks the
+cell's provisioner:
+
+1. The console validates the form and writes the tenant and its schools to
+   the directory as `provisioning`, with ids it chooses and a `tenant.create`
+   change naming the operator. An address already in use is refused there.
+2. It calls the provisioner with those ids. In one transaction as
+   `cell_owner`, the provisioner creates the tenant, adds the first
+   administrator to the first school as a person with the built-in
+   `system_administrator` role (every capability) and their email, and emails
+   them a one-use link to choose a password, valid for seven days. The
+   school's address in the link comes from the directory's cell row. If the
+   email is not sent, nothing is kept.
+3. The console marks the tenant `active` with a `tenant.activate` change.
+
+A failure leaves the directory row `provisioning`, and the school's page
+says so. Submitting the same addresses again finishes it with the same ids:
+a tenant the cell already holds is not created twice, its administrator
+with that email is only sent a new link. On a school's page, **Send the
+administrator a new link** replaces an expired link, for the first
+administrator or the one whose email is given; someone who has already
+chosen a password chooses a new one. Each send is an audit entry in the
+cell naming the operator, and an `administrator.invite` change in the
+directory.
+
+The provisioner is the API image with two more settings, which only the
+`provisioner` service receives:
+
+- `CELL_PROVISION_URL`: the cell as the `provisioner` login, which may
+  `SET ROLE cell_owner` and nothing else. `bun run db:create` (and the
+  `migrate` job) creates the login and lets it connect to an existing cell.
+- `PROVISION_SECRET`: 32 random bytes, base64, shared with the console.
+- `PROVISION_PORT` (default 3005) and `PROVISION_HOST` (default
+  `127.0.0.1`; the compose file sets `0.0.0.0` inside its private network).
+
+With both of the first two set, the process listens on that port for the
+console's calls and nothing else; the public port never routes there. The
+compose file publishes no port for it and puts it on an internal network
+shared only with `ops`, which gets `PROVISION_URL` (`http://provisioner:3005`)
+and the same `PROVISION_SECRET`; the console's preflight refuses to start
+without them. Each call carries an HS256 token the console signs for that
+call: audience `farida-provision`, the operator's opaque id as subject, a
+unique id, and a lifetime of 60 seconds. The provisioner refuses any other
+signature, audience or age, and a token id it has already seen. It keeps
+those ids in memory, so run one provisioner per cell. Without an email
+gateway (`EMAIL_WEBHOOK_URL`) it refuses to create anything, since nobody
+could sign in.
+
+Locally, `bun install` generates `PROVISION_SECRET` and `.env.example` sets
+`CELL_PROVISION_URL`, so `bun run dev` starts the provisioner on
+127.0.0.1:3005; run the console with `PROVISION_URL=http://127.0.0.1:3005`
+and the same secret.
 
 Locally, `bun run db:reset` provisions the roles, recreates the cell and
 directory, migrates and seeds; it refuses to run with `NODE_ENV=production`.
@@ -94,6 +145,8 @@ password in the console and operators are never school accounts. Settings:
   `groups`) names this group may sign in.
 - `OPS_SESSION_SECRET`: 32 random bytes, base64, sealing the session cookie
   (eight hours).
+- `PROVISION_URL` and `PROVISION_SECRET`: the cell's provisioner and the
+  secret it shares with the console (see "Registering a school").
 
 The change log names an operator by a digest of the provider's issuer and
 subject, never by name. Every plan change requires a reason and lands in the

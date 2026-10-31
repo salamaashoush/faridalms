@@ -15,6 +15,8 @@ beforeEach(() => {
   vi.stubEnv("OPS_OIDC_CLIENT_ID", "farida-ops");
   vi.stubEnv("OPS_OIDC_GROUP", "farida-operators");
   vi.stubEnv("OPS_SESSION_SECRET", randomBytes(32).toString("base64"));
+  vi.stubEnv("PROVISION_URL", "http://provisioner:3005");
+  vi.stubEnv("PROVISION_SECRET", randomBytes(32).toString("base64"));
 });
 afterEach(() => {
   vi.unstubAllEnvs();

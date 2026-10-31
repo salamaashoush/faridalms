@@ -4,6 +4,7 @@ import { sql } from "drizzle-orm";
 
 import type { CellTransaction, openOwner } from "./context";
 import type { KeyEncryptionKey, KeyPurpose } from "./crypto";
+import type { TenantLifecycle } from "./tables/records";
 
 import { newDataKey } from "./crypto";
 import {
@@ -148,59 +149,83 @@ export async function provisionTenant(
   spec: TenantSpec,
   keys: { kek: KeyEncryptionKey; cell: string },
 ): Promise<ProvisionedTenant> {
+  const tenantId = spec.tenantId ?? Bun.randomUUIDv7();
+  return owner.asOwner(tenantId, "provision", (tx) =>
+    createTenant(tx, { ...spec, tenantId }, keys),
+  );
+}
+
+/**
+ * What `provisionTenant` does, inside an owner transaction that has already
+ * bound `spec.tenantId`, so a caller can do more in the same transaction.
+ */
+export async function createTenant(
+  tx: CellTransaction,
+  spec: TenantSpec & { tenantId: string },
+  keys: { kek: KeyEncryptionKey; cell: string },
+): Promise<ProvisionedTenant> {
   if (spec.kind === "school" && spec.schools.length !== 1)
     throw new Error("A standalone school tenant has exactly one school");
-  const tenantId = spec.tenantId ?? Bun.randomUUIDv7();
+  const tenantId = spec.tenantId;
   const schoolIds = spec.schools.map(
     (school) => school.id ?? Bun.randomUUIDv7(),
   );
   const rootOrgId = spec.kind === "school" ? schoolIds[0] : Bun.randomUUIDv7();
   if (!rootOrgId) throw new Error("A tenant needs a root org");
-  await owner.asOwner(tenantId, "provision", async (tx) => {
-    await tx.execute(
-      sql`insert into ops.tenant_registry (tenant_id, lifecycle) values (${tenantId}::uuid, 'provisioning')`,
-    );
-    await tx.insert(tenants).values({
+  await tx.execute(
+    sql`insert into ops.tenant_registry (tenant_id, lifecycle) values (${tenantId}::uuid, 'provisioning')`,
+  );
+  await tx.insert(tenants).values({
+    tenantId,
+    kind: spec.kind,
+    rootOrgId,
+    nameEn: spec.nameEn ?? null,
+    nameAr: spec.nameAr ?? null,
+    defaultLocale: spec.defaultLocale,
+    jurisdictions: spec.jurisdictions,
+  });
+  if (spec.kind === "school_group")
+    await tx.insert(orgs).values({
       tenantId,
-      kind: spec.kind,
-      rootOrgId,
+      id: rootOrgId,
+      type: "school_group",
       nameEn: spec.nameEn ?? null,
       nameAr: spec.nameAr ?? null,
       defaultLocale: spec.defaultLocale,
-      jurisdictions: spec.jurisdictions,
     });
-    if (spec.kind === "school_group")
-      await tx.insert(orgs).values({
-        tenantId,
-        id: rootOrgId,
-        type: "school_group",
-        nameEn: spec.nameEn ?? null,
-        nameAr: spec.nameAr ?? null,
-        defaultLocale: spec.defaultLocale,
-      });
-    await tx.insert(orgs).values(
-      spec.schools.map((school, index) => ({
-        tenantId,
-        id: schoolIds[index],
-        type: "school" as const,
-        parentId: spec.kind === "school_group" ? rootOrgId : null,
-        parentType:
-          spec.kind === "school_group" ? ("school_group" as const) : null,
-        nameEn: school.nameEn ?? null,
-        nameAr: school.nameAr ?? null,
-        identifier: school.identifier ?? null,
-        timeZone: school.timeZone,
-        defaultLocale: school.defaultLocale ?? null,
-        countryCode: school.countryCode,
-        ...week(school.countryCode),
-      })),
-    );
-    await seedDescriptors(tx, tenantId);
-    await seedBuiltinRoles(tx, tenantId);
-    await seedTenantKeys(tx, tenantId, keys.kek, keys.cell);
-    await tx.execute(
-      sql`update ops.tenant_registry set lifecycle = 'active', changed_at = statement_timestamp() where tenant_id = ${tenantId}::uuid`,
-    );
-  });
+  await tx.insert(orgs).values(
+    spec.schools.map((school, index) => ({
+      tenantId,
+      id: schoolIds[index],
+      type: "school" as const,
+      parentId: spec.kind === "school_group" ? rootOrgId : null,
+      parentType:
+        spec.kind === "school_group" ? ("school_group" as const) : null,
+      nameEn: school.nameEn ?? null,
+      nameAr: school.nameAr ?? null,
+      identifier: school.identifier ?? null,
+      timeZone: school.timeZone,
+      defaultLocale: school.defaultLocale ?? null,
+      countryCode: school.countryCode,
+      ...week(school.countryCode),
+    })),
+  );
+  await seedDescriptors(tx, tenantId);
+  await seedBuiltinRoles(tx, tenantId);
+  await seedTenantKeys(tx, tenantId, keys.kek, keys.cell);
+  await tx.execute(
+    sql`update ops.tenant_registry set lifecycle = 'active', changed_at = statement_timestamp() where tenant_id = ${tenantId}::uuid`,
+  );
   return { tenantId, rootOrgId, schoolIds };
+}
+
+/** Where a tenant stands in the cell's registry; null when it has none. */
+export async function tenantLifecycle(
+  tx: CellTransaction,
+  tenantId: string,
+): Promise<TenantLifecycle | null> {
+  const rows = await tx.execute<{ lifecycle: TenantLifecycle }>(
+    sql`select lifecycle from ops.tenant_registry where tenant_id = ${tenantId}::uuid`,
+  );
+  return rows[0]?.lifecycle ?? null;
 }

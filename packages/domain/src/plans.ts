@@ -59,13 +59,17 @@ const bytes = v.nullable(
   v.pipe(v.number(), v.integer(), v.minValue(1), v.maxValue(2 ** 50)),
 );
 
-/** A plan as the operator console sets it, with the reason the change log keeps. */
-export const savePlanSchema = v.object({
-  schoolId: v.pipe(v.string(), v.uuid()),
+export const schoolPlanSchema = v.object({
   poolBytes: bytes,
   classBytes: bytes,
   moduleBytes: bytes,
   personBytes: bytes,
   modules: v.nullable(v.array(v.picklist(SCHOOL_MODULES))),
+});
+
+/** A plan as the operator console sets it, with the reason the change log keeps. */
+export const savePlanSchema = v.object({
+  schoolId: v.pipe(v.string(), v.uuid()),
+  ...schoolPlanSchema.entries,
   reason: v.pipe(v.string(), v.trim(), v.minLength(1), v.maxLength(500)),
 });

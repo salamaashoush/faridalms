@@ -586,6 +586,8 @@ migrations, because roles are cluster objects:
 create role cell_owner nologin;                  -- owns every object in the cell schemas
 create role migrator login nobypassrls;          -- runs migrations as SET ROLE cell_owner
 grant cell_owner to migrator;
+create role provisioner login nobypassrls;       -- creates tenants for the operator console as SET ROLE cell_owner
+grant cell_owner to provisioner;
 create role app login nobypassrls;               -- the API for signed-in users and system work
 create role site login nobypassrls;              -- the public website: published rows only
 create role integration login nobypassrls;       -- OneRoster and LTI calls
@@ -613,6 +615,10 @@ alter role collab set statement_timeout = '5s';
 alter role collab set transaction_timeout = '30s';
 alter role retention set transaction_timeout = '30s';
 alter role migrator set lock_timeout = '5s';
+alter role provisioner set statement_timeout = '30s';
+alter role provisioner set lock_timeout = '5s';
+alter role provisioner set idle_in_transaction_session_timeout = '30s';
+alter role provisioner set transaction_timeout = '60s';
 alter role app set timezone = 'UTC';             -- and the same for every other role
 ```
 

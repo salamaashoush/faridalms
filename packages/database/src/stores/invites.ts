@@ -25,7 +25,8 @@ export async function issueInvite(
     expiresAt: Date;
     /** Who the link went to. */
     sentToUserId: string;
-    linkedByUserId: string;
+    /** Null when no school account sent it: an operator provisioning the school. */
+    linkedByUserId: string | null;
     purpose?: InvitePurpose;
   },
 ): Promise<{ accountId: string; identityId: string; created: boolean } | null> {

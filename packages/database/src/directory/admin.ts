@@ -3,8 +3,10 @@ import type { SchoolPlan } from "@faridalms/domain/plans";
 
 import { seriesId } from "@faridalms/domain/exams";
 import { SQL } from "bun";
-import { and, asc, desc, eq } from "drizzle-orm";
+import { and, asc, desc, eq, inArray } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/bun-sql/postgres";
+
+import type { DirectoryTenantState } from "./schema";
 
 import {
   cells,
@@ -23,6 +25,8 @@ export interface OperatorSchool {
   nameAr: string | null;
   placement: "legacy" | "cell";
   tenantId: string;
+  tenantKind: "school_group" | "school";
+  tenantState: DirectoryTenantState;
   tenantNameEn: string | null;
   tenantNameAr: string | null;
   cellId: string;
@@ -51,6 +55,57 @@ export interface Change {
   reason: string;
 }
 
+export interface OpenCell {
+  id: string;
+  region: string;
+  appHost: string;
+}
+
+/** A tenant the console is creating, with the ids it chose for it. */
+export interface NewTenant {
+  tenantId: string;
+  kind: "school_group" | "school";
+  nameEn: string | null;
+  nameAr: string | null;
+  cellId: string;
+  jurisdictions: string[];
+  schools: {
+    id: string;
+    slug: string;
+    nameEn: string | null;
+    nameAr: string | null;
+  }[];
+  plan: SchoolPlan | null;
+  operatorId: string;
+}
+
+/**
+ * Some of the addresses asked for already name a school. `pending` says they
+ * belong to a tenant still being created whose details differ from the
+ * request, rather than to a school in use.
+ */
+export class SlugTakenError extends Error {
+  constructor(
+    readonly slugs: string[],
+    readonly pending = false,
+  ) {
+    super("school.slug_taken");
+    this.name = "SlugTakenError";
+  }
+}
+
+const isSlugConflict = (error: unknown) => {
+  let current: unknown = error;
+  for (let depth = 0; depth < 4 && current; depth += 1) {
+    if (typeof current !== "object") return false;
+    const candidate = current as { errno?: string; constraint?: string };
+    if (candidate.errno === "23505")
+      return candidate.constraint === "schools_slug_key";
+    current = (current as { cause?: unknown }).cause;
+  }
+  return false;
+};
+
 interface SchoolRow {
   id: string;
   slug: string;
@@ -58,6 +113,8 @@ interface SchoolRow {
   nameAr: string | null;
   placement: "legacy" | "cell";
   tenantId: string;
+  tenantKind: "school_group" | "school";
+  tenantState: DirectoryTenantState;
   tenantNameEn: string | null;
   tenantNameAr: string | null;
   cellId: string;
@@ -81,6 +138,8 @@ function schoolOf(row: SchoolRow): OperatorSchool {
     nameAr: row.nameAr,
     placement: row.placement,
     tenantId: row.tenantId,
+    tenantKind: row.tenantKind,
+    tenantState: row.tenantState,
     tenantNameEn: row.tenantNameEn,
     tenantNameAr: row.tenantNameAr,
     cellId: row.cellId,
@@ -123,6 +182,8 @@ export function openDirectoryAdmin(url: string) {
         nameAr: schools.nameAr,
         placement: schools.placement,
         tenantId: tenants.id,
+        tenantKind: tenants.kind,
+        tenantState: tenants.state,
         tenantNameEn: tenants.nameEn,
         tenantNameAr: tenants.nameAr,
         cellId: cells.id,
@@ -191,6 +252,196 @@ export function openDirectoryAdmin(url: string) {
           reason: input.reason,
         });
       }),
+    /** The cells open for new tenants. */
+    openCells: async (): Promise<OpenCell[]> =>
+      db
+        .select({ id: cells.id, region: cells.region, appHost: cells.appHost })
+        .from(cells)
+        .where(eq(cells.state, "open"))
+        .orderBy(asc(cells.id)),
+    /**
+     * Writes a new tenant and its schools as provisioning, before its cell
+     * creates them. Asked again with the same addresses while the tenant is
+     * still provisioning, it keeps the ids it gave the first time and takes
+     * the new names, so a failed attempt can be retried as it was.
+     */
+    beginTenant: async (
+      input: NewTenant,
+    ): Promise<{ tenantId: string; schoolIds: string[]; retry: boolean }> => {
+      const slugs = input.schools.map((school) => school.slug);
+      try {
+        return await db.transaction(async (tx) => {
+          const [cell] = await tx
+            .select({ state: cells.state })
+            .from(cells)
+            .where(eq(cells.id, input.cellId));
+          if (cell?.state !== "open") throw new Error("cell.not_open");
+          const held = await tx
+            .select({
+              slug: schools.slug,
+              schoolId: schools.id,
+              tenantId: tenants.id,
+              state: tenants.state,
+              kind: tenants.kind,
+              cellId: tenants.cellId,
+            })
+            .from(schools)
+            .innerJoin(tenants, eq(tenants.id, schools.tenantId))
+            .where(inArray(schools.slug, slugs))
+            .for("update");
+          const plan = input.plan;
+          const plans = async (schoolIds: string[]) => {
+            if (!plan) return;
+            await tx
+              .insert(schoolPlans)
+              .values(schoolIds.map((schoolId) => ({ schoolId, ...plan })))
+              .onConflictDoUpdate({
+                target: schoolPlans.schoolId,
+                set: { ...plan, updatedAt: new Date() },
+              });
+          };
+          const after = {
+            kind: input.kind,
+            cellId: input.cellId,
+            schools: slugs,
+            plan: input.plan,
+          };
+          if (held.length === 0) {
+            await tx.insert(tenants).values({
+              id: input.tenantId,
+              kind: input.kind,
+              nameEn: input.nameEn,
+              nameAr: input.nameAr,
+              cellId: input.cellId,
+              jurisdictions: input.jurisdictions,
+              state: "provisioning",
+            });
+            await tx.insert(schools).values(
+              input.schools.map((school) => ({
+                id: school.id,
+                tenantId: input.tenantId,
+                slug: school.slug,
+                nameEn: school.nameEn,
+                nameAr: school.nameAr,
+                placement: "cell" as const,
+              })),
+            );
+            await plans(input.schools.map((school) => school.id));
+            await tx.insert(changes).values({
+              actor: `operator:${input.operatorId}`,
+              subjectType: "tenant",
+              subjectId: input.tenantId,
+              action: "tenant.create",
+              before: null,
+              after,
+              reason: "Created in the operator console",
+            });
+            return {
+              tenantId: input.tenantId,
+              schoolIds: input.schools.map((school) => school.id),
+              retry: false,
+            };
+          }
+          const first = held[0];
+          const ours =
+            first !== undefined &&
+            first.state === "provisioning" &&
+            held.every((row) => row.tenantId === first.tenantId);
+          if (!first || !ours)
+            throw new SlugTakenError(held.map((row) => row.slug));
+          const all = await tx
+            .select({ id: schools.id, slug: schools.slug })
+            .from(schools)
+            .where(eq(schools.tenantId, first.tenantId));
+          const bySlug = new Map(all.map((row) => [row.slug, row.id]));
+          const schoolIds = slugs.map((slug) => bySlug.get(slug));
+          if (
+            first.kind !== input.kind ||
+            first.cellId !== input.cellId ||
+            all.length !== slugs.length ||
+            schoolIds.some((id) => id === undefined)
+          )
+            throw new SlugTakenError(
+              held.map((row) => row.slug),
+              true,
+            );
+          const ids = schoolIds.filter((id): id is string => id !== undefined);
+          await tx
+            .update(tenants)
+            .set({
+              nameEn: input.nameEn,
+              nameAr: input.nameAr,
+              jurisdictions: input.jurisdictions,
+              updatedAt: new Date(),
+            })
+            .where(eq(tenants.id, first.tenantId));
+          for (const [index, school] of input.schools.entries()) {
+            const id = ids[index];
+            if (id)
+              await tx
+                .update(schools)
+                .set({
+                  nameEn: school.nameEn,
+                  nameAr: school.nameAr,
+                  updatedAt: new Date(),
+                })
+                .where(eq(schools.id, id));
+          }
+          await plans(ids);
+          await tx.insert(changes).values({
+            actor: `operator:${input.operatorId}`,
+            subjectType: "tenant",
+            subjectId: first.tenantId,
+            action: "tenant.retry",
+            before: null,
+            after,
+            reason: "Retried in the operator console",
+          });
+          return { tenantId: first.tenantId, schoolIds: ids, retry: true };
+        });
+      } catch (error) {
+        // Two consoles creating the same address at once: the second loses.
+        if (isSlugConflict(error)) throw new SlugTakenError(slugs);
+        throw error;
+      }
+    },
+    /** Marks a tenant active once its cell has created it. */
+    activateTenant: async (input: { tenantId: string; operatorId: string }) =>
+      db.transaction(async (tx) => {
+        const updated = await tx
+          .update(tenants)
+          .set({ state: "active", updatedAt: new Date() })
+          .where(
+            and(
+              eq(tenants.id, input.tenantId),
+              eq(tenants.state, "provisioning"),
+            ),
+          )
+          .returning({ id: tenants.id });
+        if (updated.length === 0) return false;
+        await tx.insert(changes).values({
+          actor: `operator:${input.operatorId}`,
+          subjectType: "tenant",
+          subjectId: input.tenantId,
+          action: "tenant.activate",
+          before: { state: "provisioning" },
+          after: { state: "active" },
+          reason: "Its cell created the tenant and emailed its administrator",
+        });
+        return true;
+      }),
+    /** Records that a school's administrator was sent a new link. */
+    recordInvite: async (input: { schoolId: string; operatorId: string }) => {
+      await db.insert(changes).values({
+        actor: `operator:${input.operatorId}`,
+        subjectType: "school",
+        subjectId: input.schoolId,
+        action: "administrator.invite",
+        before: null,
+        after: null,
+        reason: "Sent the school's administrator a new link",
+      });
+    },
     series: async (): Promise<ExamSeries[]> =>
       db
         .select({

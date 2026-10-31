@@ -2,7 +2,7 @@ import type { ExamSeries } from "@faridalms/domain/exams";
 import type { SchoolPlan } from "@faridalms/domain/plans";
 
 import { SQL } from "bun";
-import { and, asc, eq, isNotNull } from "drizzle-orm";
+import { and, asc, eq, isNotNull, ne } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/bun-sql/postgres";
 
 import {
@@ -116,12 +116,18 @@ export function openDirectory(url: string, ttlMs = 60_000) {
       }),
     schoolsOfTenant: async (tenantId: string) =>
       (await select().where(eq(schools.tenantId, tenantId))).map(schoolOf),
-    /** The tenants a cell serves, for its background passes. */
+    /**
+     * The tenants a cell serves, for its background passes. One still being
+     * provisioned may not exist in the cell yet, so it is left out until the
+     * console marks it active.
+     */
     tenantsOfCell: async (cellId: string) => {
       const rows = await db
         .selectDistinct({ tenantId: tenants.id })
         .from(tenants)
-        .where(eq(tenants.cellId, cellId));
+        .where(
+          and(eq(tenants.cellId, cellId), ne(tenants.state, "provisioning")),
+        );
       return rows.map((row) => row.tenantId);
     },
     /** The official exam sessions, kept briefly like the school lookups. */

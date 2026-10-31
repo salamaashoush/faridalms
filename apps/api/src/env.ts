@@ -82,6 +82,17 @@ export const env = v.parse(
       EMAIL_WEBHOOK_URL: v.optional(v.pipe(v.string(), v.url())),
       SMS_WEBHOOK_URL: v.optional(v.pipe(v.string(), v.url())),
       NOTIFY_WEBHOOK_TOKEN: v.optional(v.pipe(v.string(), v.minLength(1))),
+      // Set together, the process also listens for the operator console's
+      // calls that create schools, as the provisioner login. Only the
+      // provisioner service gets these; the public API never does.
+      CELL_PROVISION_URL: v.optional(v.pipe(v.string(), v.url())),
+      PROVISION_SECRET: v.optional(bytes(32)),
+      PROVISION_PORT: v.optional(positiveInteger, "3005"),
+      // Loopback by default; a container listens on its private network.
+      PROVISION_HOST: v.optional(
+        v.pipe(v.string(), v.minLength(1)),
+        "127.0.0.1",
+      ),
     }),
     v.check(
       (value) =>
@@ -89,6 +100,12 @@ export const env = v.parse(
         (value.FILE_BUCKET !== undefined &&
           value.PUBLIC_MEDIA_BUCKET !== undefined),
       "FILE_STORAGE=s3 needs FILE_BUCKET and PUBLIC_MEDIA_BUCKET",
+    ),
+    v.check(
+      (value) =>
+        (value.CELL_PROVISION_URL === undefined) ===
+        (value.PROVISION_SECRET === undefined),
+      "CELL_PROVISION_URL and PROVISION_SECRET are set together or not at all",
     ),
   ),
   process.env,

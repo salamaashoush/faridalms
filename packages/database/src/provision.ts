@@ -13,6 +13,7 @@ export type RuntimeRole = (typeof RUNTIME_ROLES)[number];
 
 export const LOGIN_ROLES = [
   "migrator",
+  "provisioner",
   ...RUNTIME_ROLES,
   "backup_dump",
   "directory_reader",
@@ -24,6 +25,7 @@ export type LoginRole = (typeof LOGIN_ROLES)[number];
 const ROLES: readonly { name: string; options: string }[] = [
   { name: "cell_owner", options: "nologin nobypassrls" },
   { name: "migrator", options: "login nobypassrls" },
+  { name: "provisioner", options: "login nobypassrls" },
   { name: "app", options: "login nobypassrls" },
   { name: "site", options: "login nobypassrls" },
   { name: "integration", options: "login nobypassrls" },
@@ -57,8 +59,15 @@ const SETTINGS: readonly [role: string, setting: string, value: string][] = [
   ["collab", "transaction_timeout", "30s"],
   ["retention", "transaction_timeout", "30s"],
   ["migrator", "lock_timeout", "5s"],
+  // A new school's first administrator is emailed inside the transaction that
+  // creates the school, so it stays open for one email gateway call.
+  ["provisioner", "statement_timeout", "30s"],
+  ["provisioner", "lock_timeout", "5s"],
+  ["provisioner", "idle_in_transaction_session_timeout", "30s"],
+  ["provisioner", "transaction_timeout", "60s"],
   ...[
     "migrator",
+    "provisioner",
     ...RUNTIME_ROLES,
     "backup_dump",
     "directory_reader",
@@ -96,6 +105,7 @@ export async function provisionRoles(
     );
   }
   await admin.unsafe("grant cell_owner to migrator");
+  await admin.unsafe("grant cell_owner to provisioner");
   for (const [role, setting, value] of SETTINGS)
     await admin.unsafe(
       `alter role ${identifier(role)} set ${setting} = ${literal(value)}`,
@@ -111,8 +121,16 @@ export async function createCellDatabase(admin: SQL, name: string) {
     `create database ${identifier(name)} owner cell_owner template template0 encoding 'UTF8' locale_provider builtin builtin_locale 'C.UTF-8'`,
   );
   await admin.unsafe(`revoke all on database ${identifier(name)} from public`);
+  await grantCellConnect(admin, name);
+}
+
+/**
+ * Lets every login a cell serves connect to it. Granting again is harmless,
+ * so a cell created before a login existed gains it on the next deploy.
+ */
+export async function grantCellConnect(admin: SQL, name: string) {
   await admin.unsafe(
-    `grant connect on database ${identifier(name)} to migrator, ${RUNTIME_ROLES.join(", ")}, backup_dump`,
+    `grant connect on database ${identifier(name)} to migrator, provisioner, ${RUNTIME_ROLES.join(", ")}, backup_dump`,
   );
 }
 

@@ -1,3 +1,4 @@
+import type { DirectoryTenantState } from "@faridalms/database/directory/schema";
 import type { SchoolModule, SchoolPlan } from "@faridalms/domain/plans";
 
 import {
@@ -5,6 +6,7 @@ import {
   limitsOf,
   SCHOOL_MODULES,
 } from "@faridalms/domain/plans";
+import { Badge } from "@faridalms/ui/badge";
 import { Button } from "@faridalms/ui/button";
 import { Checkbox } from "@faridalms/ui/checkbox";
 import { Input } from "@faridalms/ui/input";
@@ -17,7 +19,7 @@ import { toast } from "sonner";
 import { ChangeList } from "../components/ChangeList";
 import { Usage } from "../components/Usage";
 import { formatBytes, formatWhen, MODULE_NAMES } from "../format";
-import { getSchool, savePlan } from "../server/directory";
+import { getSchool, resendInvite, savePlan } from "../server/directory";
 
 export const Route = createFileRoute("/schools/$schoolId")({
   loader: ({ params }) => getSchool({ data: { id: params.schoolId } }),
@@ -49,6 +51,16 @@ const CAPS: { key: Cap; label: string; hint: string }[] = [
     hint: "One person's own work: answers, hand-ins, messages.",
   },
 ];
+
+const TENANT_STATES: Record<DirectoryTenantState, string> = {
+  provisioning: "Provisioning",
+  importing: "Importing",
+  active: "Active",
+  frozen: "Frozen",
+  suspended: "Suspended",
+  offboarding: "Offboarding",
+  offboarded: "Offboarded",
+};
 
 const MIB = 1024 * 1024;
 const GIB = 1024 * MIB;
@@ -92,11 +104,27 @@ function SchoolPage() {
         <Link to="/" className="text-sm text-muted-foreground hover:underline">
           Schools
         </Link>
-        <h1 className="text-2xl font-semibold">{name}</h1>
+        <h1 className="flex flex-wrap items-center gap-3 text-2xl font-semibold">
+          {name}
+          <Badge
+            variant={school.tenantState === "active" ? "secondary" : "outline"}
+          >
+            {TENANT_STATES[school.tenantState]}
+          </Badge>
+        </h1>
         <p className="text-sm text-muted-foreground">
           {school.slug} · {school.tenantNameEn ?? school.tenantNameAr} ·{" "}
           {school.cellId} ({school.region})
         </p>
+        {school.tenantState === "provisioning" ? (
+          <p className="text-sm">
+            Its cell has not finished creating it. Submit{" "}
+            <Link to="/schools/new" className="underline">
+              New school
+            </Link>{" "}
+            again with the same addresses to finish.
+          </p>
+        ) : null}
       </div>
       <section className="grid gap-2">
         <h2 className="text-base font-semibold">Storage</h2>
@@ -243,10 +271,84 @@ function SchoolPage() {
           {saving ? "Saving…" : "Save plan"}
         </Button>
       </form>
+      {school.tenantState === "active" ? (
+        <AdministratorLink schoolId={school.id} />
+      ) : null}
       <section className="grid gap-3">
         <h2 className="text-base font-semibold">History</h2>
         <ChangeList changes={changes} />
       </section>
     </div>
+  );
+}
+
+/**
+ * Sends the school's administrator a new link to choose a password, for
+ * when the first one expired or was lost. Without an email it goes to the
+ * school's first administrator.
+ */
+function AdministratorLink({ schoolId }: { schoolId: string }) {
+  const router = useRouter();
+  const resend = useServerFn(resendInvite);
+  const [email, setEmail] = useState("");
+  const [sending, setSending] = useState(false);
+  const [answer, setAnswer] = useState<Awaited<
+    ReturnType<typeof resendInvite>
+  > | null>(null);
+  return (
+    <form
+      className="grid max-w-2xl gap-4 rounded-lg border p-6"
+      onSubmit={async (event) => {
+        event.preventDefault();
+        setSending(true);
+        setAnswer(null);
+        try {
+          setAnswer(
+            await resend({
+              data: { schoolId, email: email.trim() === "" ? null : email },
+            }),
+          );
+          await router.invalidate();
+        } catch {
+          setAnswer({ ok: false, message: "The link could not be sent." });
+        } finally {
+          setSending(false);
+        }
+      }}
+    >
+      <div className="grid gap-1">
+        <h2 className="text-base font-semibold">Administrator</h2>
+        <p className="text-sm text-muted-foreground">
+          Sends a new link to choose a password, which replaces any link sent
+          before. Someone who already has a password chooses a new one.
+        </p>
+      </div>
+      <div className="grid gap-1.5 text-sm">
+        <label htmlFor="admin-email" className="font-medium">
+          Administrator's email
+        </label>
+        <Input
+          id="admin-email"
+          type="email"
+          dir="ltr"
+          value={email}
+          placeholder="Empty for the school's first administrator"
+          onChange={(event) => setEmail(event.target.value)}
+        />
+      </div>
+      {answer ? (
+        <p
+          role={answer.ok ? "status" : "alert"}
+          className={answer.ok ? "text-sm" : "text-sm text-destructive"}
+        >
+          {answer.ok
+            ? `Sent to ${answer.sentTo}${answer.reset ? ", replacing the password they had" : ""}.`
+            : answer.message}
+        </p>
+      ) : null}
+      <Button type="submit" disabled={sending} className="justify-self-start">
+        {sending ? "Sending…" : "Send the administrator a new link"}
+      </Button>
+    </form>
   );
 }

@@ -28,6 +28,10 @@ export function opsEnv() {
         "groups",
       ),
       OPS_SESSION_SECRET: bytes(32),
+      // The cell's provisioner, which creates schools; reachable from this
+      // app alone, and trusting only calls signed with the shared secret.
+      PROVISION_URL: v.pipe(v.string(), v.url()),
+      PROVISION_SECRET: bytes(32),
     }),
     process.env,
   );

@@ -7,6 +7,7 @@ import { migrate } from "@faridalms/database/migrate";
 import {
   createCellDatabase,
   createDirectoryDatabase,
+  grantCellConnect,
   LOGIN_ROLES,
   provisionRoles,
 } from "@faridalms/database/provision";
@@ -39,12 +40,16 @@ export async function provision(admin: SQL, target: CellDatabases) {
   );
 }
 
-/** Creates the cell and directory databases that do not exist yet. */
+/**
+ * Creates the cell and directory databases that do not exist yet, and lets
+ * every login connect to an existing cell.
+ */
 export async function createMissing(admin: SQL, target: CellDatabases) {
   const exists = async (name: string) =>
     (await admin`select 1 from pg_database where datname = ${name}`).length > 0;
   if (!(await exists(target.cell)))
     await createCellDatabase(admin, target.cell);
+  else await grantCellConnect(admin, target.cell);
   if (!(await exists(target.directory)))
     await createDirectoryDatabase(admin, target.directory);
 }

@@ -1,4 +1,4 @@
-import { openCell } from "@faridalms/database/context";
+import { openCell, openOwner } from "@faridalms/database/context";
 import { localKek } from "@faridalms/database/crypto";
 import {
   openDirectory,
@@ -22,6 +22,7 @@ import { startFileUpkeep } from "./files/upkeep";
 import { streamLinkKey } from "./media/streams";
 import { createProvider } from "./notifications/providers";
 import { startDelivery } from "./notifications/scheduler";
+import { createProvisioner } from "./provisioning/host";
 
 const cell = openCell(
   {
@@ -131,6 +132,29 @@ console.info(
   `Farida LMS API listening on port ${server.port}, files on ${filesServer.port}`,
 );
 
+// Its own listener and its own login: nothing the public port serves can
+// reach the owner role.
+const owner = env.CELL_PROVISION_URL ? openOwner(env.CELL_PROVISION_URL) : null;
+const provisionServer =
+  owner && env.PROVISION_SECRET
+    ? Bun.serve({
+        hostname: env.PROVISION_HOST,
+        port: env.PROVISION_PORT,
+        fetch: createProvisioner({
+          owner,
+          directory,
+          kek,
+          cellId: env.CELL_ID,
+          mail: gateways.email,
+          secret: new Uint8Array(Buffer.from(env.PROVISION_SECRET, "base64")),
+        }),
+      })
+    : null;
+if (provisionServer)
+  console.info(
+    `Provisioner listening on ${env.PROVISION_HOST}:${provisionServer.port}`,
+  );
+
 const stopDelivery =
   env.CELL_WORKER_URL && (gateways.email || gateways.sms)
     ? startDelivery({
@@ -185,12 +209,14 @@ async function shutdown() {
   stopping = true;
   await server.stop();
   await filesServer.stop();
+  await provisionServer?.stop();
   await stopDelivery?.();
   await stopUpkeep?.();
   await stopQuizClock?.();
   await stopProgramReruns?.();
   await directorySync?.close();
   await cell.close();
+  await owner?.close();
   await directory.close();
   process.exit(0);
 }

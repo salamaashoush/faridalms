@@ -15,6 +15,7 @@ import { Route as AuthLogoutRouteImport } from "./routes/auth/logout";
 import { Route as ChangesRouteImport } from "./routes/changes";
 import { Route as IndexRouteImport } from "./routes/index";
 import { Route as SchoolsSchoolIdRouteImport } from "./routes/schools.$schoolId";
+import { Route as SchoolsNewRouteImport } from "./routes/schools.new";
 import { Route as SeriesRouteImport } from "./routes/series";
 import { Route as SignInRouteImport } from "./routes/sign-in";
 
@@ -58,6 +59,11 @@ const SchoolsSchoolIdRoute = SchoolsSchoolIdRouteImport.update({
   path: "/schools/$schoolId",
   getParentRoute: () => rootRouteImport,
 } as any);
+const SchoolsNewRoute = SchoolsNewRouteImport.update({
+  id: "/schools/new",
+  path: "/schools/new",
+  getParentRoute: () => rootRouteImport,
+} as any);
 
 export interface FileRoutesByFullPath {
   "/": typeof IndexRoute;
@@ -68,6 +74,7 @@ export interface FileRoutesByFullPath {
   "/auth/login": typeof AuthLoginRoute;
   "/auth/logout": typeof AuthLogoutRoute;
   "/schools/$schoolId": typeof SchoolsSchoolIdRoute;
+  "/schools/new": typeof SchoolsNewRoute;
 }
 export interface FileRoutesByTo {
   "/": typeof IndexRoute;
@@ -78,6 +85,7 @@ export interface FileRoutesByTo {
   "/auth/login": typeof AuthLoginRoute;
   "/auth/logout": typeof AuthLogoutRoute;
   "/schools/$schoolId": typeof SchoolsSchoolIdRoute;
+  "/schools/new": typeof SchoolsNewRoute;
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport;
@@ -89,6 +97,7 @@ export interface FileRoutesById {
   "/auth/login": typeof AuthLoginRoute;
   "/auth/logout": typeof AuthLogoutRoute;
   "/schools/$schoolId": typeof SchoolsSchoolIdRoute;
+  "/schools/new": typeof SchoolsNewRoute;
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath;
@@ -100,7 +109,8 @@ export interface FileRouteTypes {
     | "/auth/callback"
     | "/auth/login"
     | "/auth/logout"
-    | "/schools/$schoolId";
+    | "/schools/$schoolId"
+    | "/schools/new";
   fileRoutesByTo: FileRoutesByTo;
   to:
     | "/"
@@ -110,7 +120,8 @@ export interface FileRouteTypes {
     | "/auth/callback"
     | "/auth/login"
     | "/auth/logout"
-    | "/schools/$schoolId";
+    | "/schools/$schoolId"
+    | "/schools/new";
   id:
     | "__root__"
     | "/"
@@ -120,7 +131,8 @@ export interface FileRouteTypes {
     | "/auth/callback"
     | "/auth/login"
     | "/auth/logout"
-    | "/schools/$schoolId";
+    | "/schools/$schoolId"
+    | "/schools/new";
   fileRoutesById: FileRoutesById;
 }
 export interface RootRouteChildren {
@@ -132,6 +144,7 @@ export interface RootRouteChildren {
   AuthLoginRoute: typeof AuthLoginRoute;
   AuthLogoutRoute: typeof AuthLogoutRoute;
   SchoolsSchoolIdRoute: typeof SchoolsSchoolIdRoute;
+  SchoolsNewRoute: typeof SchoolsNewRoute;
 }
 
 declare module "@tanstack/react-router" {
@@ -192,6 +205,13 @@ declare module "@tanstack/react-router" {
       preLoaderRoute: typeof SchoolsSchoolIdRouteImport;
       parentRoute: typeof rootRouteImport;
     };
+    "/schools/new": {
+      id: "/schools/new";
+      path: "/schools/new";
+      fullPath: "/schools/new";
+      preLoaderRoute: typeof SchoolsNewRouteImport;
+      parentRoute: typeof rootRouteImport;
+    };
   }
 }
 
@@ -204,6 +224,7 @@ const rootRouteChildren: RootRouteChildren = {
   AuthLoginRoute: AuthLoginRoute,
   AuthLogoutRoute: AuthLogoutRoute,
   SchoolsSchoolIdRoute: SchoolsSchoolIdRoute,
+  SchoolsNewRoute: SchoolsNewRoute,
 };
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

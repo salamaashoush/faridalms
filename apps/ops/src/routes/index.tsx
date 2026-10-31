@@ -1,5 +1,6 @@
 import { availableModules, limitsOf } from "@faridalms/domain/plans";
 import { Badge } from "@faridalms/ui/badge";
+import { buttonVariants } from "@faridalms/ui/button";
 import { Input } from "@faridalms/ui/input";
 import {
   Table,
@@ -34,12 +35,17 @@ function Schools() {
   );
   return (
     <div className="grid gap-6">
-      <div className="grid gap-1">
-        <h1 className="text-2xl font-semibold">Schools</h1>
-        <p className="text-sm text-muted-foreground">
-          Every school on the platform, with its storage and the modules its
-          plan includes. Usage is what each school's cell last reported.
-        </p>
+      <div className="flex flex-wrap items-start justify-between gap-4">
+        <div className="grid gap-1">
+          <h1 className="text-2xl font-semibold">Schools</h1>
+          <p className="text-sm text-muted-foreground">
+            Every school on the platform, with its storage and the modules its
+            plan includes. Usage is what each school's cell last reported.
+          </p>
+        </div>
+        <Link to="/schools/new" className={buttonVariants()}>
+          New school
+        </Link>
       </div>
       <Input
         type="search"
@@ -74,6 +80,9 @@ function Schools() {
                   <div className="text-xs text-muted-foreground">
                     {school.slug}
                     {school.placement === "legacy" ? " · legacy" : ""}
+                    {school.tenantState === "active"
+                      ? ""
+                      : ` · ${school.tenantState}`}
                   </div>
                 </TableCell>
                 <TableCell>

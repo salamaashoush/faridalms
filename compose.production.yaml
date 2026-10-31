@@ -2,6 +2,8 @@
 # login role (see docs/operations.md). Ports bind to loopback for the edge
 # proxy in front, which terminates TLS and appends X-Forwarded-For.
 x-cell-secret: &cell-secret ${CELL_SECRET:?Set CELL_SECRET, 32 random bytes in base64}
+# Shared by ops and the provisioner only; the api service never receives it.
+x-provision-secret: &provision-secret ${PROVISION_SECRET:-}
 
 services:
   migrate:
@@ -93,13 +95,43 @@ services:
         condition: service_completed_successfully
     stop_grace_period: 30s
 
+  # The same image as api, holding the provisioner login (which may become
+  # cell_owner) to create schools for the console. It publishes no port and
+  # shares its only inbound network with ops, so nothing else reaches it.
+  provisioner:
+    build:
+      context: .
+      target: api
+    restart: unless-stopped
+    profiles: ["ops"]
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    environment:
+      CELL_ID: ${CELL_ID:?Set the cell id, for example eg-1}
+      CELL_KEK: ${CELL_KEK:?Set CELL_KEK, 32 random bytes in base64}
+      CELL_SECRET: *cell-secret
+      CELL_APP_URL: ${CELL_APP_URL:?Set the app role URL}
+      DIRECTORY_URL: ${DIRECTORY_URL:?Set the directory_reader URL}
+      CELL_PROVISION_URL: ${CELL_PROVISION_URL:-}
+      PROVISION_SECRET: *provision-secret
+      PROVISION_PORT: 3005
+      PROVISION_HOST: 0.0.0.0
+      # The first administrator's link goes out before the school is kept.
+      EMAIL_WEBHOOK_URL: ${EMAIL_WEBHOOK_URL:-}
+      NOTIFY_WEBHOOK_TOKEN: ${NOTIFY_WEBHOOK_TOKEN:-}
+    networks:
+      - provision
+      - provisioner-egress
+    stop_grace_period: 30s
+
   ops:
     build:
       context: .
       target: ops
     restart: unless-stopped
     profiles: ["ops"]
-    # Its preflight refuses to start without every OPS_ variable.
+    # Its preflight refuses to start without every OPS_ and PROVISION_ variable.
     environment:
       OPS_DIRECTORY_URL: ${OPS_DIRECTORY_URL:-}
       OPS_ORIGIN: ${OPS_ORIGIN:-}
@@ -108,9 +140,21 @@ services:
       OPS_OIDC_CLIENT_SECRET: ${OPS_OIDC_CLIENT_SECRET:-}
       OPS_OIDC_GROUP: ${OPS_OIDC_GROUP:-}
       OPS_SESSION_SECRET: ${OPS_SESSION_SECRET:-}
+      PROVISION_URL: http://provisioner:3005
+      PROVISION_SECRET: *provision-secret
+    networks:
+      - default
+      - provision
     ports:
       - "127.0.0.1:3004:3004"
     stop_grace_period: 30s
+
+networks:
+  # Only ops and the provisioner join it, and it has no route out.
+  provision:
+    internal: true
+  # The provisioner's own way out, to Postgres and the email gateway.
+  provisioner-egress: {}
 
 volumes:
   files:

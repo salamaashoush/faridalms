@@ -1,0 +1,434 @@
+import type { NewSchoolInput } from "@faridalms/domain/provisioning";
+
+import {
+  openDirectoryAdmin,
+  SlugTakenError,
+} from "@faridalms/database/directory/admin";
+import { CAPABILITIES } from "@faridalms/domain/capabilities";
+import {
+  newSchoolSchema,
+  PROVISION_AUDIENCE,
+} from "@faridalms/domain/provisioning";
+import { afterAll, describe, expect, test } from "bun:test";
+import { SignJWT } from "jose";
+import { randomBytes } from "node:crypto";
+import * as v from "valibot";
+
+import { client, rejection, seeded, testDirectory } from "./harness";
+
+const OPERATOR = "operator-under-test";
+const operatorDirectory = openDirectoryAdmin(testDirectory().operatorUrl);
+afterAll(() => operatorDirectory.close());
+
+async function token(
+  options: {
+    secret?: Uint8Array;
+    audience?: string;
+    issuedAt?: number;
+    seconds?: number;
+    jti?: string;
+  } = {},
+) {
+  const issuedAt = options.issuedAt ?? Math.floor(Date.now() / 1000);
+  return new SignJWT({ name: "Salama Ashoush" })
+    .setProtectedHeader({ alg: "HS256" })
+    .setSubject(OPERATOR)
+    .setAudience(options.audience ?? PROVISION_AUDIENCE)
+    .setJti(options.jti ?? crypto.randomUUID())
+    .setIssuedAt(issuedAt)
+    .setExpirationTime(issuedAt + (options.seconds ?? 60))
+    .sign(options.secret ?? seeded().provisionSecret);
+}
+
+async function call(path: string, body: unknown, bearer?: string) {
+  const response = await seeded().provisioner(
+    new Request(`http://provisioner.test${path}`, {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        authorization: `Bearer ${bearer ?? (await token())}`,
+      },
+      body: JSON.stringify(body),
+    }),
+  );
+  return {
+    status: response.status,
+    body: (await response.json()) as Record<string, unknown>,
+  };
+}
+
+function standalone(slug: string, email: string): NewSchoolInput {
+  return {
+    kind: "school",
+    cellId: "eg-1",
+    defaultLocale: "en",
+    jurisdictions: ["EG"],
+    schools: [
+      {
+        nameEn: `${slug} School`,
+        nameAr: "مدرسة",
+        slug,
+        timeZone: "Africa/Cairo",
+        countryCode: "EG",
+      },
+    ],
+    administrator: {
+      givenNameEn: "Salama",
+      familyNameEn: "Ashoush",
+      givenNameAr: "سلامة",
+      familyNameAr: "عشوش",
+      email,
+    },
+  };
+}
+
+/** Writes the directory rows as the console does, before it calls the cell. */
+async function begin(input: NewSchoolInput) {
+  const spec = v.parse(newSchoolSchema, input);
+  const ids = await operatorDirectory.beginTenant({
+    tenantId: Bun.randomUUIDv7(),
+    kind: spec.kind,
+    nameEn: spec.nameEn,
+    nameAr: spec.nameAr,
+    cellId: spec.cellId,
+    jurisdictions: spec.jurisdictions,
+    schools: spec.schools.map((school) => ({
+      id: Bun.randomUUIDv7(),
+      slug: school.slug,
+      nameEn: school.nameEn,
+      nameAr: school.nameAr,
+    })),
+    plan: spec.plan,
+    operatorId: OPERATOR,
+  });
+  return {
+    ids,
+    body: { tenantId: ids.tenantId, schoolIds: ids.schoolIds, spec },
+  };
+}
+
+/** The secret in the last link emailed to the address, for the school. */
+function linkTo(address: string, slug: string) {
+  const message = seeded().mail.sent.findLast((row) => row.to === address);
+  const secret = new RegExp(
+    `welcome\\?school=${slug}#([A-Za-z0-9_-]{43})`,
+  ).exec(message?.text ?? "")?.[1];
+  if (!message || !secret) throw new Error(`no link was sent to ${address}`);
+  return { message, secret };
+}
+
+async function choosePassword(slug: string, secret: string) {
+  const password = "a long password the administrator chose";
+  const open = client(slug);
+  const { loginName } = await open.identity.acceptInvite({ secret, password });
+  const session = await open.identity.signIn({ loginName, password });
+  return { api: client(slug, session.token), loginName, password };
+}
+
+describe("creating a school from the operator console", () => {
+  test("a standalone school's administrator chooses a password and runs the school", async () => {
+    const email = "salama@riverside.example.com";
+    const { body } = await begin(standalone("riverside", email));
+    const created = await call("/v1/tenants", body);
+    expect(created.status).toBe(200);
+    expect(created.body).toMatchObject({
+      tenantId: body.tenantId,
+      created: true,
+      sentTo: email,
+      loginName: email,
+    });
+
+    const { message, secret } = linkTo(email, "riverside");
+    expect(message.subject).toBe("riverside School: choose your password");
+    expect(message.text).toContain(`Sign-in name: ${email}`);
+    const { api, loginName } = await choosePassword("riverside", secret);
+    expect(loginName).toBe(email);
+    const me = await api.identity.currentUser();
+    expect(me).toMatchObject({
+      nameEn: "Salama Ashoush",
+      nameAr: "سلامة عشوش",
+      workspace: "admin",
+      roles: ["system_administrator"],
+      school: { slug: "riverside", timeZone: "Africa/Cairo" },
+    });
+    expect(me.capabilities.toSorted()).toEqual([...CAPABILITIES].toSorted());
+  });
+
+  test("a group's administrator runs its first school", async () => {
+    const email = "salama@harbour.example.com";
+    const { body } = await begin({
+      ...standalone("harbour-east", email),
+      kind: "school_group",
+      nameEn: "Harbour Schools",
+      nameAr: "مدارس الميناء",
+      schools: [
+        {
+          nameEn: "Harbour East",
+          slug: "harbour-east",
+          timeZone: "Africa/Cairo",
+          countryCode: "EG",
+        },
+        {
+          nameEn: "Harbour West",
+          slug: "harbour-west",
+          timeZone: "Asia/Dubai",
+          countryCode: "AE",
+        },
+      ],
+    });
+    const created = await call("/v1/tenants", body);
+    expect(created).toMatchObject({ status: 200, body: { created: true } });
+    const { api } = await choosePassword(
+      "harbour-east",
+      linkTo(email, "harbour-east").secret,
+    );
+    expect(await api.identity.currentUser()).toMatchObject({
+      workspace: "admin",
+      school: { slug: "harbour-east" },
+    });
+    // The first administrator belongs to the group's first school only.
+    expect(
+      await rejection(
+        client("harbour-west").identity.signIn({
+          loginName: email,
+          password: "a long password the administrator chose",
+        }),
+      ),
+    ).toMatchObject({ message: "auth.invalid_credentials" });
+  });
+
+  test("an email the gateway refuses leaves nothing in the cell, and the retry creates the school", async () => {
+    const { body } = await begin(
+      standalone("brookside", "reject@brookside.example.com"),
+    );
+    const refused = await call("/v1/tenants", body);
+    expect(refused).toMatchObject({
+      status: 502,
+      body: { code: "BAD_GATEWAY", message: "sign_in.not_sent" },
+    });
+    expect(
+      await rejection(
+        client("brookside").identity.signIn({
+          loginName: "reject@brookside.example.com",
+          password: "a long password the administrator chose",
+        }),
+      ),
+    ).toMatchObject({ code: "UNAUTHORIZED" });
+
+    const email = "salama@brookside.example.com";
+    const { ids, body: again } = await begin(standalone("brookside", email));
+    expect(ids).toMatchObject({ tenantId: body.tenantId, retry: true });
+    const created = await call("/v1/tenants", again);
+    expect(created).toMatchObject({
+      status: 200,
+      body: { created: true, sentTo: email },
+    });
+    await choosePassword("brookside", linkTo(email, "brookside").secret);
+  });
+
+  test("a retry for a school the cell already holds only sends a new link", async () => {
+    const email = "salama@millbrook.example.com";
+    const { body } = await begin(standalone("millbrook", email));
+    expect((await call("/v1/tenants", body)).status).toBe(200);
+    const first = linkTo(email, "millbrook").secret;
+
+    const retried = await call("/v1/tenants", body);
+    expect(retried).toMatchObject({
+      status: 200,
+      body: { created: false, sentTo: email, loginName: email },
+    });
+    const second = linkTo(email, "millbrook").secret;
+    expect(second).not.toBe(first);
+    expect(
+      await rejection(client("millbrook").identity.invite({ secret: first })),
+    ).toMatchObject({ message: "auth.invalid_invite" });
+    const { api } = await choosePassword("millbrook", second);
+    const staff = await api.people.staff({});
+    expect(staff.rows.map((row) => row.email)).toEqual([email]);
+
+    const elsewhere = await call("/v1/tenants", {
+      ...body,
+      spec: {
+        ...body.spec,
+        administrator: {
+          ...body.spec.administrator,
+          email: "someone.else@millbrook.example.com",
+        },
+      },
+    });
+    expect(elsewhere).toMatchObject({
+      status: 409,
+      body: { message: "administrator.not_found" },
+    });
+  });
+
+  test("the administrator can be sent a new link, which replaces a chosen password", async () => {
+    const email = "salama@fairview.example.com";
+    const { ids, body } = await begin(standalone("fairview", email));
+    expect((await call("/v1/tenants", body)).status).toBe(200);
+    await choosePassword("fairview", linkTo(email, "fairview").secret);
+    const schoolId = ids.schoolIds[0];
+
+    const resent = await call("/v1/invites", {
+      tenantId: ids.tenantId,
+      schoolId,
+    });
+    expect(resent).toMatchObject({
+      status: 200,
+      body: { sentTo: email, loginName: email, reset: true },
+    });
+    expect(
+      await client("fairview").identity.invite({
+        secret: linkTo(email, "fairview").secret,
+      }),
+    ).toMatchObject({ loginName: email, reset: true });
+    expect(
+      await call("/v1/invites", {
+        tenantId: ids.tenantId,
+        schoolId,
+        email: "nobody@fairview.example.com",
+      }),
+    ).toMatchObject({
+      status: 404,
+      body: { message: "administrator.not_found" },
+    });
+  });
+
+  test("a call without a good token is refused before anything is read", async () => {
+    const { body } = await begin(
+      standalone("oakridge", "salama@oakridge.example.com"),
+    );
+    const replayed = await token();
+    for (const bearer of [
+      await token({ secret: new Uint8Array(randomBytes(32)) }),
+      await token({ issuedAt: Math.floor(Date.now() / 1000) - 120 }),
+      await token({ audience: "farida-api" }),
+      await token({ seconds: 600 }),
+      "not-a-token",
+    ])
+      expect(await call("/v1/tenants", body, bearer)).toMatchObject({
+        status: 401,
+        body: { code: "UNAUTHORIZED" },
+      });
+    expect((await call("/v1/tenants", body, replayed)).status).toBe(200);
+    expect(await call("/v1/tenants", body, replayed)).toMatchObject({
+      status: 401,
+    });
+    const unsigned = await seeded().provisioner(
+      new Request("http://provisioner.test/v1/tenants", {
+        method: "POST",
+        body: JSON.stringify(body),
+      }),
+    );
+    expect(unsigned.status).toBe(401);
+  });
+
+  test("the schema refuses an address the platform keeps, and so does the provisioner", async () => {
+    const { body } = await begin(
+      standalone("pinecrest", "salama@pinecrest.example.com"),
+    );
+    const reserved = await call("/v1/tenants", {
+      ...body,
+      spec: {
+        ...body.spec,
+        schools: body.spec.schools.map((school) => ({
+          ...school,
+          slug: "admin",
+        })),
+      },
+    });
+    expect(reserved).toMatchObject({
+      status: 400,
+      body: { code: "BAD_REQUEST", message: "validation" },
+    });
+  });
+
+  test("a tenant the directory does not place in this cell is not created", async () => {
+    const spec = v.parse(
+      newSchoolSchema,
+      standalone("nowhere", "salama@nowhere.example.com"),
+    );
+    expect(
+      await call("/v1/tenants", {
+        tenantId: Bun.randomUUIDv7(),
+        schoolIds: [Bun.randomUUIDv7()],
+        spec,
+      }),
+    ).toMatchObject({
+      status: 404,
+      body: { message: "tenant.not_in_directory" },
+    });
+  });
+
+  test("the directory refuses an address in use, and keeps a provisioning tenant's ids for its retry", async () => {
+    expect(
+      await rejection(
+        begin(standalone("northwind", "salama@northwind.example.com")),
+      ),
+    ).toMatchObject({ slugs: ["northwind"], pending: false });
+    const email = "salama@elmwood.example.com";
+    const { ids } = await begin(standalone("elmwood", email));
+    const again = await begin(standalone("elmwood", email));
+    expect(again.ids).toEqual({ ...ids, retry: true });
+    const differs = await rejection(
+      begin({
+        ...standalone("elmwood", email),
+        kind: "school_group",
+        nameEn: "Elmwood Group",
+      }),
+    );
+    expect(differs).toBeInstanceOf(SlugTakenError);
+    expect(differs).toMatchObject({ slugs: ["elmwood"], pending: true });
+    const { directory } = seeded();
+    expect(await directory.tenantsOfCell("eg-1")).not.toContain(ids.tenantId);
+
+    expect((await call("/v1/tenants", again.body)).status).toBe(200);
+
+    expect(
+      await operatorDirectory.activateTenant({
+        tenantId: ids.tenantId,
+        operatorId: OPERATOR,
+      }),
+    ).toBe(true);
+    expect(
+      await operatorDirectory.activateTenant({
+        tenantId: ids.tenantId,
+        operatorId: OPERATOR,
+      }),
+    ).toBe(false);
+    expect(await rejection(begin(standalone("elmwood", email)))).toMatchObject({
+      slugs: ["elmwood"],
+      pending: false,
+    });
+    expect(await directory.tenantsOfCell("eg-1")).toContain(ids.tenantId);
+    const school = await operatorDirectory.school(ids.schoolIds[0] ?? "");
+    expect(school).toMatchObject({
+      tenantState: "active",
+      tenantKind: "school",
+    });
+    expect(
+      (await operatorDirectory.changes({ id: ids.tenantId })).map((change) => [
+        change.action,
+        change.actor,
+      ]),
+    ).toEqual([
+      ["tenant.activate", `operator:${OPERATOR}`],
+      ["tenant.retry", `operator:${OPERATOR}`],
+      ["tenant.create", `operator:${OPERATOR}`],
+    ]);
+  });
+
+  test("the public API has no provisioning route", async () => {
+    const response = await seeded().handler(
+      new Request("http://api.test/v1/tenants", {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          authorization: `Bearer ${await token()}`,
+        },
+        body: "{}",
+      }),
+    );
+    expect(response.status).toBe(404);
+  });
+});

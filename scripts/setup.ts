@@ -19,6 +19,7 @@ const GENERATED: Record<string, () => string> = {
   CELL_ROLE_PASSWORD: () => randomBytes(24).toString("hex"),
   CELL_KEK: () => randomBytes(32).toString("base64"),
   CELL_SECRET: () => randomBytes(32).toString("base64"),
+  PROVISION_SECRET: () => randomBytes(32).toString("base64"),
 };
 
 const keyOf = (line: string) => /^([A-Z0-9_]+)\s*=/.exec(line)?.[1];

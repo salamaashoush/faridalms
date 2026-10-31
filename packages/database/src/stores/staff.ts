@@ -220,3 +220,29 @@ export async function schoolRoleIds(
       and org_id = ${scope.schoolId}::uuid and status = 'active'`);
   return new Set(rows.map((row) => row.id));
 }
+
+/**
+ * The person a new link to run the school goes to: the one holding a school
+ * administrator role there today with the email given, or without one the
+ * longest-serving such person, the first administrator the school was made
+ * with. Null when nobody matches.
+ */
+export async function schoolAdministrator(
+  tx: Tx,
+  scope: Pick<Scope, "tenantId" | "schoolId" | "today">,
+  email: string | null,
+): Promise<string | null> {
+  const rows = await tx.execute<{ user_id: string }>(sql`
+    select r.user_id from core.user_roles r
+    join core.users u on u.tenant_id = r.tenant_id and u.id = r.user_id and u.status = 'active'
+    where r.tenant_id = ${scope.tenantId}::uuid and r.org_id = ${scope.schoolId}::uuid
+      and r.status = 'active' and r.valid_during @> ${scope.today}::date
+      and r.role in ('system_administrator', 'site_administrator')
+      and (${email}::text is null or exists (
+        select 1 from core.contact_points c
+        where c.tenant_id = r.tenant_id and c.user_id = r.user_id and c.kind = 'email'
+          and c.status = 'active' and c.normalized = lower(${email}::text)))
+    order by lower(r.valid_during), r.id
+    limit 1`);
+  return rows[0]?.user_id ?? null;
+}

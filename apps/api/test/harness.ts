@@ -34,6 +34,7 @@ import { createFilesHost, linkKey } from "../src/files/links";
 import { DiskFileStore, PUBLIC_KEY } from "../src/files/store";
 import { streamLinkKey } from "../src/media/streams";
 import { MemoryProvider } from "../src/notifications/providers";
+import { createProvisioner } from "../src/provisioning/host";
 
 const adminUrl =
   process.env.DATABASE_ADMIN_URL ??
@@ -71,6 +72,9 @@ interface State {
   files: FileStore;
   /** What the app sent by email as it was asked to, such as a sign-in link. */
   mail: MemoryProvider;
+  /** The provisioner's listener, as the `provisioner` login, and its secret. */
+  provisioner: (request: Request) => Promise<Response>;
+  provisionSecret: Uint8Array<ArrayBuffer>;
   close: () => Promise<void>;
 }
 let state: State | undefined;
@@ -150,10 +154,22 @@ export async function setUp() {
     channels: { email: true, sms: false },
     mail,
   });
+  const provisioning = openOwner(urlFor(cellName, "provisioner"));
+  const provisionSecret = new Uint8Array(randomBytes(32));
+  const provisioner = createProvisioner({
+    owner: provisioning,
+    directory,
+    kek,
+    cellId: "eg-1",
+    mail,
+    secret: provisionSecret,
+  });
   state = {
     tenants,
     handler,
     mail,
+    provisioner,
+    provisionSecret,
     filesHost,
     cell,
     directory,
@@ -162,6 +178,7 @@ export async function setUp() {
     files,
     close: async () => {
       await cell.close();
+      await provisioning.close();
       await directory.close();
     },
   };
