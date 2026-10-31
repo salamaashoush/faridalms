@@ -373,7 +373,7 @@ the session cookie:
 Sign-in and sessions:
 
 - Session cookies are host-only and per tenant: `__Host-s-<tenant id as 32 hex
-digits>` (HttpOnly, Secure, SameSite=Lax, Path=/). No cookie crosses cells.
+  digits>` (HttpOnly, Secure, SameSite=Lax, Path=/). No cookie crosses cells.
   Application URLs carry the school slug as their first path segment, which
   the web backend-for-frontend maps through the directory to a tenant and so
   to a cookie. A browser holds at most five tenant sessions per cell host; the
@@ -381,7 +381,7 @@ digits>` (HttpOnly, Secure, SameSite=Lax, Path=/). No cookie crosses cells.
 - Every mutating request to the backend-for-frontend needs a same-origin
   `Origin` (or `Sec-Fetch-Site: same-origin`) and a CSRF token bound to the
   session; application hosts send `Content-Security-Policy:
-frame-ancestors 'none'` and embed no third-party content.
+  frame-ancestors 'none'` and embed no third-party content.
 - The product domain's apex serves only the school finder: search by school
   name or slug over the public projection, or identifier-first SSO discovery
   by the email domain against verified `directory.sso_domains` (the domain is
@@ -1313,7 +1313,7 @@ Table by table:
 - `core.org_features`: entity.
 - `core.descriptors`: entity, integration read. Deviation: `app` has `UPDATE`
   only on `label_en, label_ar, description_en, description_ar, sort_order,
-color, icon, effective_during, status, metadata`. `code_value`, `namespace`,
+  color, icon, effective_during, status, metadata`. `code_value`, `namespace`,
   `system_meaning`, `org_id`, the standards mappings and `seeded` are fixed
   after insert for the API; seed corrections run as `worker`.
 - `core.descriptor_overrides`: entity, integration read.
@@ -1348,14 +1348,14 @@ color, icon, effective_during, status, metadata`. `code_value`, `namespace`,
   trigger (it has no base columns).
 - `core.users`: entity, integration read; erase, person `id`, personal columns
   `username, given_name_ar, middle_name_ar, family_name_ar, full_name_ar,
-given_name_en, middle_name_en, family_name_en, full_name_en,
-preferred_given_name, preferred_middle_name, preferred_family_name,
-birth_date, birth_date_source, sex_descriptor_id, photo_file_id,
-preferred_locale, primary_org_id, erased_at`.
+  given_name_en, middle_name_en, family_name_en, full_name_en,
+  preferred_given_name, preferred_middle_name, preferred_family_name,
+  birth_date, birth_date_source, sex_descriptor_id, photo_file_id,
+  preferred_locale, primary_org_id, erased_at`.
 - `core.demographics`: entity (keyed, `user_id`), purpose gate `demographics`,
   integration read; erase, person `user_id`, personal columns
   `birth_country_code, birth_city, nationality_codes, religion_descriptor_id,
-home_languages`.
+  home_languages`.
 - `core.external_ids`: entity, integration read; erase and delete, person
   `user_id`.
 - `core.contact_points`: entity, integration read; erase and delete, person
@@ -1370,13 +1370,13 @@ home_languages`.
   relationship.
 - `core.accounts`: entity, integration read; erase, person `user_id`.
   Deviation: `app` has `UPDATE` only on `state, first_authenticated_at,
-last_authenticated_at, state_changed_at, state_changed_by_user_id,
-state_reason, status, metadata`.
+  last_authenticated_at, state_changed_at, state_changed_by_user_id,
+  state_reason, status, metadata`.
 - `core.identity_providers`, `core.identity_provider_orgs`: entity.
 - `core.login_identities`: entity; erase and delete, `<holder erased>`.
 - `core.passkeys`: entity; erase and delete, `<holder erased>`. Deviation:
   `app` has `UPDATE` only on `sign_count, last_used_at, nickname, revoked_at,
-revoked_reason, status, metadata`.
+  revoked_reason, status, metadata`.
 - `core.devices`: entity; erase and delete, `<holder erased>`.
 - `core.sessions`: ephemeral, expiry
   `absolute_expires_at < statement_timestamp() - interval '30 days'` (kept a
@@ -1386,7 +1386,7 @@ revoked_reason, status, metadata`.
   or holder erased.
 - `core.access_roles`: entity. Deviation: `app` has `UPDATE` only on
   `name_en, name_ar, description_en, description_ar, capabilities, status,
-metadata`, never `org_id` or `builtin_key`.
+  metadata`, never `org_id` or `builtin_key`.
 - `core.access_role_assignments`: entity.
 - `health.records`: entity, purpose gate `health`; erase and delete, person
   `student_user_id`.
@@ -1565,7 +1565,7 @@ create unique index org_features_key on core.org_features (tenant_id, org_id, fe
 - `orgs.identifier` is OneRoster `Org.identifier`: the ministry or national
   school code where one exists.
 - `orgs.address` is `{"lines": [text], "city": text, "region": text,
-"postal_code": text, "country": "EG"}`; OneRoster exports it as
+  "postal_code": text, "country": "EG"}`; OneRoster exports it as
   `metadata.address1` and so on ([R1] section 1). It is the school's public
   address, not personal data.
 - `orgs.default_locale` is the school's language for notices and exports;
@@ -1693,7 +1693,7 @@ Rules:
 - Codes are unique per namespace and org, with null (every school) as a value.
   A school value may not reuse a tenant-wide code of the same namespace, nor
   the reverse: the descriptor service takes `app.lock('descriptor:' ||
-namespace)` and checks before inserting, and a nightly check reports any
+  namespace)` and checks before inserting, and a nightly check reports any
   shadowing.
 - `code_value` never contains `#`, because the Ed-Fi wire form is
   `uri://{namespace}/{Name}Descriptor#{CodeValue}` ([R1] section 3.7).
@@ -1715,21 +1715,21 @@ Non-relatives and unrecorded relations are never exported as OneRoster agents.
 
 | code                     | en                       | ar                    | meaning        | OneRoster | Ed-Fi code value       |
 | ------------------------ | ------------------------ | --------------------- | -------------- | --------- | ---------------------- |
-| mother                   | Mother                   | الأم                  | mother         | parent    | Mother                 |
-| father                   | Father                   | الأب                  | father         | parent    | Father                 |
-| stepmother               | Stepmother               | زوجة الأب             | step_parent    | relative  | Mother, step           |
-| stepfather               | Stepfather               | زوج الأم              | step_parent    | relative  | Father, step           |
+| mother                   | Mother                   | الأم                   | mother         | parent    | Mother                 |
+| father                   | Father                   | الأب                   | father         | parent    | Father                 |
+| stepmother               | Stepmother               | زوجة الأب              | step_parent    | relative  | Mother, step           |
+| stepfather               | Stepfather               | زوج الأم               | step_parent    | relative  | Father, step           |
 | legal_guardian           | Legal guardian           | الوصي الشرعي          | guardian       | guardian  | Guardian               |
 | court_appointed_guardian | Court-appointed guardian | وصي بحكم المحكمة      | guardian       | guardian  | CourtAppointedGuardian |
-| foster_parent            | Foster parent            | الأسرة الحاضنة        | guardian       | guardian  | Foster parent          |
+| foster_parent            | Foster parent            | الأسرة الحاضنة         | guardian       | guardian  | Foster parent          |
 | grandfather              | Grandfather              | الجد                  | grandparent    | relative  | Grandfather            |
 | grandmother              | Grandmother              | الجدة                 | grandparent    | relative  | Grandmother            |
 | paternal_uncle           | Paternal uncle           | العم                  | other_relative | relative  | Uncle                  |
 | maternal_uncle           | Maternal uncle           | الخال                 | other_relative | relative  | Uncle                  |
 | paternal_aunt            | Paternal aunt            | العمة                 | other_relative | relative  | Aunt                   |
 | maternal_aunt            | Maternal aunt            | الخالة                | other_relative | relative  | Aunt                   |
-| brother                  | Brother                  | الأخ                  | sibling        | relative  | Brother                |
-| sister                   | Sister                   | الأخت                 | sibling        | relative  | Sister                 |
+| brother                  | Brother                  | الأخ                   | sibling        | relative  | Brother                |
+| sister                   | Sister                   | الأخت                  | sibling        | relative  | Sister                 |
 | other_relative           | Other relative           | قريب آخر              | other_relative | relative  | Relative               |
 | family_friend            | Family friend            | صديق العائلة          | non_relative   | (none)    | Friend                 |
 | driver                   | Driver                   | السائق                | non_relative   | (none)    | Other                  |
@@ -1763,9 +1763,9 @@ student profile (K-2) derives from the meaning of the student's current grade
 | code     | en       | ar              | meaning  | OneRoster | Ed-Fi code value |
 | -------- | -------- | --------------- | -------- | --------- | ---------------- |
 | pre_kg   | Pre-KG   | ما قبل الروضة   | pre_kg   | PR        | Preschool        |
-| kg1      | KG1      | الروضة الأولى   | kg1      | PK        | Prekindergarten  |
+| kg1      | KG1      | الروضة الأولى    | kg1      | PK        | Prekindergarten  |
 | kg2      | KG2      | الروضة الثانية  | kg2      | KG        | Kindergarten     |
-| grade_1  | Grade 1  | الصف الأول      | grade_1  | 01        | First grade      |
+| grade_1  | Grade 1  | الصف الأول       | grade_1  | 01        | First grade      |
 | grade_2  | Grade 2  | الصف الثاني     | grade_2  | 02        | Second grade     |
 | grade_3  | Grade 3  | الصف الثالث     | grade_3  | 03        | Third grade      |
 | grade_4  | Grade 4  | الصف الرابع     | grade_4  | 04        | Fourth grade     |
@@ -1782,18 +1782,18 @@ student profile (K-2) derives from the meaning of the student's current grade
 Instructional meanings: `instructional_day`, `make_up_day`,
 `early_dismissal`, `exam_day`; every other meaning is non-instructional.
 
-| code              | en                     | ar                 | meaning                 | Ed-Fi code value                     |
-| ----------------- | ---------------------- | ------------------ | ----------------------- | ------------------------------------ |
-| instructional_day | School day             | يوم دراسي          | instructional_day       | Instructional day                    |
-| exam_day          | Exam day               | يوم امتحانات       | exam_day                | Instructional day                    |
-| early_dismissal   | Early dismissal        | انصراف مبكر        | early_dismissal         | Student late arrival/early dismissal |
-| make_up_day       | Make-up day            | يوم تعويضي         | make_up_day             | Make-up day                          |
+| code              | en                     | ar                | meaning                 | Ed-Fi code value                     |
+| ----------------- | ---------------------- | ----------------- | ----------------------- | ------------------------------------ |
+| instructional_day | School day             | يوم دراسي         | instructional_day       | Instructional day                    |
+| exam_day          | Exam day               | يوم امتحانات      | exam_day                | Instructional day                    |
+| early_dismissal   | Early dismissal        | انصراف مبكر       | early_dismissal         | Student late arrival/early dismissal |
+| make_up_day       | Make-up day            | يوم تعويضي        | make_up_day             | Make-up day                          |
 | weekend           | Weekend                | عطلة نهاية الأسبوع | weekend                 | Non-instructional day                |
-| public_holiday    | Public holiday         | عطلة رسمية         | holiday                 | Holiday                              |
-| school_holiday    | School holiday         | إجازة مدرسية       | school_holiday          | Non-instructional day                |
-| teacher_only_day  | Staff day, no students | يوم للمعلمين فقط   | teacher_only_day        | Teacher only day                     |
-| weather_closure   | Weather closure        | تعطيل بسبب الطقس   | weather_closure         | Weather day                          |
-| emergency_closure | Emergency closure      | تعطيل طارئ         | emergency_closure       | Emergency day                        |
+| public_holiday    | Public holiday         | عطلة رسمية        | holiday                 | Holiday                              |
+| school_holiday    | School holiday         | إجازة مدرسية      | school_holiday          | Non-instructional day                |
+| teacher_only_day  | Staff day, no students | يوم للمعلمين فقط  | teacher_only_day        | Teacher only day                     |
+| weather_closure   | Weather closure        | تعطيل بسبب الطقس  | weather_closure         | Weather day                          |
+| emergency_closure | Emergency closure      | تعطيل طارئ        | emergency_closure       | Emergency day                        |
 | other             | Other non-school day   | يوم آخر بلا دراسة  | other_non_instructional | Other                                |
 
 `external_id_system` (open, meaning required). OneRoster `userIds[].type` is
@@ -1807,15 +1807,15 @@ Meanings `national_id`, `passport`, `residence_permit` and
 `birth_certificate` are identity documents: their values are stored sealed
 (section 6.7).
 
-| code              | en                                | ar                              | meaning           | OneRoster type  | Ed-Fi student  | Ed-Fi staff and contact |
-| ----------------- | --------------------------------- | ------------------------------- | ----------------- | --------------- | -------------- | ----------------------- |
-| school_reference  | School reference                  | الرقم المرجعي في المدرسة        | school_reference  | LocalID         | School         | School                  |
-| ministry_id       | Ministry number                   | الرقم في الوزارة                | ministry_id       | StateID         | State          | State                   |
-| national_id       | National ID number                | رقم الهوية الوطنية              | national_id       | NationalID      | Other          | Other                   |
-| passport          | Passport number                   | رقم جواز السفر                  | passport          | Passport        | Other          | Other                   |
+| code              | en                                | ar                             | meaning           | OneRoster type  | Ed-Fi student  | Ed-Fi staff and contact |
+| ----------------- | --------------------------------- | ------------------------------ | ----------------- | --------------- | -------------- | ----------------------- |
+| school_reference  | School reference                  | الرقم المرجعي في المدرسة       | school_reference  | LocalID         | School         | School                  |
+| ministry_id       | Ministry number                   | الرقم في الوزارة               | ministry_id       | StateID         | State          | State                   |
+| national_id       | National ID number                | رقم الهوية الوطنية             | national_id       | NationalID      | Other          | Other                   |
+| passport          | Passport number                   | رقم جواز السفر                 | passport          | Passport        | Other          | Other                   |
 | sis_id            | Student information system number | الرقم في نظام معلومات الطلاب    | sis_id            | SISNumber       | Local          | District                |
 | roster_sourced_id | Upstream roster ID                | المعرف في قائمة الطلاب الخارجية | roster_sourced_id | SISID           | (not exported) | (not exported)          |
-| legacy_id         | Previous system ID                | المعرف في النظام السابق         | legacy_id         | LegacySourcedID | Other          | Other                   |
+| legacy_id         | Previous system ID                | المعرف في النظام السابق        | legacy_id         | LegacySourcedID | Other          | Other                   |
 
 `roster_sourced_id` is the sourcedId the school's SIS gave the person. It is
 served as `SISID`, and an LTI launch sends it as `lis.person_sourcedid` when
@@ -1838,7 +1838,7 @@ student continues) exports as `End of school year`.
 
 | code                  | en                            | ar                    | meaning               | Ed-Fi code value |
 | --------------------- | ----------------------------- | --------------------- | --------------------- | ---------------- |
-| graduated             | Graduated                     | تخرّج                 | graduated             | Graduated        |
+| graduated             | Graduated                     | تخرّج                  | graduated             | Graduated        |
 | transfer_out          | Transferred to another school | انتقال إلى مدرسة أخرى | transfer_out          | Transferred      |
 | transfer_within_group | Transferred within the group  | انتقال داخل المجموعة  | transfer_within_group | Transferred      |
 | withdrawn             | Withdrawn                     | انسحاب                | withdrawn             | Withdrawn        |
@@ -1854,7 +1854,7 @@ student continues) exports as `End of school year`.
 | assistant_teacher    | Assistant teacher    | معلم مساعد     | Instructional Aide                  |
 | principal            | Principal            | مدير المدرسة   | Principal                           |
 | vice_principal       | Vice principal       | وكيل المدرسة   | Assistant Principal                 |
-| counselor            | Counselor            | مرشد طلابي     | Counselor                           |
+| counselor            | Counselor            | مرشد طلابي      | Counselor                           |
 | social_worker        | Social worker        | أخصائي اجتماعي | Social Workers                      |
 | psychologist         | School psychologist  | أخصائي نفسي    | School Psychologist                 |
 | nurse                | School nurse         | ممرض المدرسة   | Health Specialists                  |
@@ -1866,11 +1866,11 @@ student continues) exports as `End of school year`.
 Saudi Arabia and the UAE [R3]; Egyptian schools record it to allocate religion
 classes. It lives behind the demographics purpose (section 6.7).
 
-| code          | en            | ar            |
-| ------------- | ------------- | ------------- |
-| islam         | Islam         | الإسلام       |
-| christianity  | Christianity  | المسيحية      |
-| other         | Other         | أخرى          |
+| code          | en            | ar           |
+| ------------- | ------------- | ------------ |
+| islam         | Islam         | الإسلام        |
+| christianity  | Christianity  | المسيحية     |
+| other         | Other         | أخرى         |
 | not_disclosed | Not disclosed | لم يُفصح عنها |
 
 `health_record_kind` (open, meaning required). Never exported.
@@ -1900,8 +1900,8 @@ code `tool_<registration id>`.
 | photo_school_news                 | Photos in school news                     | الصور في أخبار المدرسة                        | photo_internal        |
 | share_contact_with_class_families | Share contact details with class families | مشاركة بيانات التواصل مع أسر الفصل            | directory_sharing     |
 | administer_medicine               | Give medicine at school                   | إعطاء الدواء في المدرسة                       | administer_medicine   |
-| voice_recording                   | Voice recordings in lessons               | التسجيلات الصوتية في الدروس                   | voice_recording       |
-| child_data_processing             | Processing the child's school records     | معالجة السجلات المدرسية للطفل                 | child_data_processing |
+| voice_recording                   | Voice recordings in lessons               | التسجيلات الصوتية في الدروس                    | voice_recording       |
+| child_data_processing             | Processing the child's school records     | معالجة السجلات المدرسية للطفل                  | child_data_processing |
 
 **Namespaces other specs own**, reserved here so names do not collide:
 `subject` (teaching; legacy `subjects` map here, section 10.3),
@@ -4884,7 +4884,7 @@ reset role;
   grants exist, because partitions do not inherit RLS ([R2] finding 2). Default
   privileges are never used.
 - Retention runs as an operator task, not in the application: `DETACH PARTITION
-... CONCURRENTLY` (it cannot run inside a function), export and verify the
+  ... CONCURRENTLY` (it cannot run inside a function), export and verify the
   detached table, then drop it. The docs advise keeping OLTP partition counts
   in the dozens to low hundreds.
 
@@ -5489,7 +5489,7 @@ that tries to reference a file the saving person cannot read.
    `tsvector` are `customType`s. Ids use ``.default(sql`uuidv7()`)``, never
    `.defaultRandom()`.
 4. **What goes in a custom migration** (`drizzle-kit generate --custom --name
-<topic>`), committed in the same change right after the generated migration
+   <topic>`), committed in the same change right after the generated migration
    it completes: `FORCE ROW LEVEL SECURITY`; grants and revokes, including
    column grants; functions and triggers; `EXCLUDE`, `WITHOUT OVERLAPS` and
    `PERIOD` keys; deferrable keys; extensions and schemas; partitioned tables
@@ -5520,7 +5520,7 @@ that tries to reference a file the saving person cannot read.
     section 7.6 to every job table, because a new queue gets a new table and
     default privileges are never used.
 12. **CI**: apply every migration to an empty cluster; run `drizzle-kit
-generate` and fail if it writes a file (schema and migrations disagree);
+    generate` and fail if it writes a file (schema and migrations disagree);
     run gates 1 to 3 (section 8).
 
 ## 10. Legacy import mapping
@@ -5577,7 +5577,7 @@ The cut-over:
    which is why staging has no RLS and only `cell_io` can see it. Backups leave
    staging out (section 4.2).
 5. **Map ids** in `staging.id_map (legacy_school_id, legacy_table, legacy_id,
-target_table, target_id, kind)`, where `kind` is `kept`, `merged_into` or
+   target_table, target_id, kind)`, where `kind` is `kept`, `merged_into` or
    `split`. Ids are kept wherever a legacy row becomes one target row.
 6. **Insert** into the cell with `INSERT ... SELECT` from staging, inside
    transactions with the tenant context set, so every policy `WITH CHECK`, key

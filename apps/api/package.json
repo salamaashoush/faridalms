@@ -16,23 +16,23 @@
     "@faridalms/database": "workspace:*",
     "@faridalms/domain": "workspace:*",
     "@jitl/quickjs-singlefile-mjs-release-sync": "0.32.0",
-    "@orpc/openapi": "latest",
-    "@orpc/server": "latest",
-    "@orpc/valibot": "latest",
+    "@orpc/openapi": "^1.16.1",
+    "@orpc/server": "^1.16.1",
+    "@orpc/valibot": "^1.16.1",
     "fflate": "^0.8.3",
-    "jose": "^6.2.12",
+    "jose": "^6.2.14",
     "quickjs-emscripten-core": "0.32.0",
-    "valibot": "^1.4.2"
+    "valibot": "^1.5.0"
   },
   "devDependencies": {
     "@faridalms/collab": "workspace:*",
     "@faridalms/editor": "workspace:*",
     "@faridalms/makecode": "workspace:*",
     "@faridalms/puzzles": "workspace:*",
-    "@hocuspocus/provider": "^4.7.0",
-    "@lexical/yjs": "^0.50.0",
-    "@orpc/client": "latest",
-    "lexical": "^0.50.0",
+    "@hocuspocus/provider": "^4.8.0",
+    "@lexical/yjs": "^0.53.0",
+    "@orpc/client": "^1.16.1",
+    "lexical": "^0.53.0",
     "yjs": "^13.6.33"
   }
 }

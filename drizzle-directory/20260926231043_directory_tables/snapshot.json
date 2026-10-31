@@ -1,67 +1,374 @@
 {
-  "version": "8",
+  "type": "base",
+  "version": "9",
   "dialect": "postgres",
   "id": "71419ae5-7139-4ae3-bc9e-609fc344d353",
   "prevIds": [
     "00000000-0000-0000-0000-000000000000"
   ],
+  "footprints": [
+    {
+      "statementType": "create_table",
+      "statementTarget": [
+        "table",
+        "public",
+        "cells"
+      ],
+      "writes": [
+        "s|tbl|public.cells",
+        "n|tbl|public.cells",
+        "e|tbl|public.cells",
+        "n|rel|public.cells",
+        "n|type|public.cells",
+        "n|rel|public.cells_pkey",
+        "n|rel|public.cells_app_host_key"
+      ],
+      "reads": [
+        "n|sch|public"
+      ]
+    },
+    {
+      "statementType": "create_table",
+      "statementTarget": [
+        "table",
+        "public",
+        "changes"
+      ],
+      "writes": [
+        "s|tbl|public.changes",
+        "n|tbl|public.changes",
+        "e|tbl|public.changes",
+        "n|rel|public.changes",
+        "n|type|public.changes",
+        "n|rel|public.changes_pkey"
+      ],
+      "reads": [
+        "n|sch|public"
+      ]
+    },
+    {
+      "statementType": "create_table",
+      "statementTarget": [
+        "table",
+        "public",
+        "hosts"
+      ],
+      "writes": [
+        "s|tbl|public.hosts",
+        "n|tbl|public.hosts",
+        "e|tbl|public.hosts",
+        "n|rel|public.hosts",
+        "n|type|public.hosts",
+        "n|rel|public.hosts_pkey"
+      ],
+      "reads": [
+        "n|sch|public"
+      ]
+    },
+    {
+      "statementType": "create_table",
+      "statementTarget": [
+        "table",
+        "public",
+        "integration_clients"
+      ],
+      "writes": [
+        "s|tbl|public.integration_clients",
+        "n|tbl|public.integration_clients",
+        "e|tbl|public.integration_clients",
+        "n|rel|public.integration_clients",
+        "n|type|public.integration_clients",
+        "n|rel|public.integration_clients_pkey"
+      ],
+      "reads": [
+        "n|sch|public"
+      ]
+    },
+    {
+      "statementType": "create_table",
+      "statementTarget": [
+        "table",
+        "public",
+        "schools"
+      ],
+      "writes": [
+        "s|tbl|public.schools",
+        "n|tbl|public.schools",
+        "e|tbl|public.schools",
+        "n|rel|public.schools",
+        "n|type|public.schools",
+        "n|rel|public.schools_pkey",
+        "n|rel|public.schools_slug_key",
+        "n|rel|public.schools_legacy_school_id_key"
+      ],
+      "reads": [
+        "n|sch|public"
+      ]
+    },
+    {
+      "statementType": "create_table",
+      "statementTarget": [
+        "table",
+        "public",
+        "sso_domains"
+      ],
+      "writes": [
+        "s|tbl|public.sso_domains",
+        "n|tbl|public.sso_domains",
+        "e|tbl|public.sso_domains",
+        "n|rel|public.sso_domains",
+        "n|type|public.sso_domains",
+        "n|rel|public.sso_domains_pkey"
+      ],
+      "reads": [
+        "n|sch|public"
+      ]
+    },
+    {
+      "statementType": "create_table",
+      "statementTarget": [
+        "table",
+        "public",
+        "tenants"
+      ],
+      "writes": [
+        "s|tbl|public.tenants",
+        "n|tbl|public.tenants",
+        "e|tbl|public.tenants",
+        "n|rel|public.tenants",
+        "n|type|public.tenants",
+        "n|rel|public.tenants_pkey"
+      ],
+      "reads": [
+        "n|sch|public"
+      ]
+    },
+    {
+      "statementType": "create_index",
+      "statementTarget": [
+        "index",
+        "public",
+        "integration_clients",
+        "integration_clients_tenant_idx"
+      ],
+      "writes": [
+        "s|idx|public.integration_clients_tenant_idx",
+        "n|idx|public.integration_clients_tenant_idx",
+        "e|idx|public.integration_clients_tenant_idx",
+        "n|rel|public.integration_clients_tenant_idx"
+      ],
+      "reads": [
+        "n|tbl|public.integration_clients",
+        "n|sch|public",
+        "n|col|public.integration_clients.tenant_id"
+      ]
+    },
+    {
+      "statementType": "create_index",
+      "statementTarget": [
+        "index",
+        "public",
+        "schools",
+        "schools_tenant_idx"
+      ],
+      "writes": [
+        "s|idx|public.schools_tenant_idx",
+        "n|idx|public.schools_tenant_idx",
+        "e|idx|public.schools_tenant_idx",
+        "n|rel|public.schools_tenant_idx"
+      ],
+      "reads": [
+        "n|tbl|public.schools",
+        "n|sch|public",
+        "n|col|public.schools.tenant_id"
+      ]
+    },
+    {
+      "statementType": "create_fk",
+      "statementTarget": [
+        "table",
+        "public",
+        "hosts"
+      ],
+      "writes": [
+        "s|fk|public.hosts.hosts_school_id_fkey",
+        "n|fk|public.hosts.hosts_school_id_fkey",
+        "e|fk|public.hosts.hosts_school_id_fkey",
+        "n|con|public.hosts.hosts_school_id_fkey"
+      ],
+      "reads": [
+        "n|tbl|public.hosts",
+        "n|sch|public",
+        "n|tbl|public.schools",
+        "n|sch|public",
+        "n|col|public.hosts.school_id",
+        "n|col|public.schools.id",
+        "e|uniqueness|public.schools.id"
+      ]
+    },
+    {
+      "statementType": "create_fk",
+      "statementTarget": [
+        "table",
+        "public",
+        "integration_clients"
+      ],
+      "writes": [
+        "s|fk|public.integration_clients.integration_clients_tenant_id_fkey",
+        "n|fk|public.integration_clients.integration_clients_tenant_id_fkey",
+        "e|fk|public.integration_clients.integration_clients_tenant_id_fkey",
+        "n|con|public.integration_clients.integration_clients_tenant_id_fkey"
+      ],
+      "reads": [
+        "n|tbl|public.integration_clients",
+        "n|sch|public",
+        "n|tbl|public.tenants",
+        "n|sch|public",
+        "n|col|public.integration_clients.tenant_id",
+        "n|col|public.tenants.id",
+        "e|uniqueness|public.tenants.id"
+      ]
+    },
+    {
+      "statementType": "create_fk",
+      "statementTarget": [
+        "table",
+        "public",
+        "schools"
+      ],
+      "writes": [
+        "s|fk|public.schools.schools_tenant_id_fkey",
+        "n|fk|public.schools.schools_tenant_id_fkey",
+        "e|fk|public.schools.schools_tenant_id_fkey",
+        "n|con|public.schools.schools_tenant_id_fkey"
+      ],
+      "reads": [
+        "n|tbl|public.schools",
+        "n|sch|public",
+        "n|tbl|public.tenants",
+        "n|sch|public",
+        "n|col|public.schools.tenant_id",
+        "n|col|public.tenants.id",
+        "e|uniqueness|public.tenants.id"
+      ]
+    },
+    {
+      "statementType": "create_fk",
+      "statementTarget": [
+        "table",
+        "public",
+        "sso_domains"
+      ],
+      "writes": [
+        "s|fk|public.sso_domains.sso_domains_tenant_id_fkey",
+        "n|fk|public.sso_domains.sso_domains_tenant_id_fkey",
+        "e|fk|public.sso_domains.sso_domains_tenant_id_fkey",
+        "n|con|public.sso_domains.sso_domains_tenant_id_fkey"
+      ],
+      "reads": [
+        "n|tbl|public.sso_domains",
+        "n|sch|public",
+        "n|tbl|public.tenants",
+        "n|sch|public",
+        "n|col|public.sso_domains.tenant_id",
+        "n|col|public.tenants.id",
+        "e|uniqueness|public.tenants.id"
+      ]
+    },
+    {
+      "statementType": "create_fk",
+      "statementTarget": [
+        "table",
+        "public",
+        "tenants"
+      ],
+      "writes": [
+        "s|fk|public.tenants.tenants_cell_id_fkey",
+        "n|fk|public.tenants.tenants_cell_id_fkey",
+        "e|fk|public.tenants.tenants_cell_id_fkey",
+        "n|con|public.tenants.tenants_cell_id_fkey"
+      ],
+      "reads": [
+        "n|tbl|public.tenants",
+        "n|sch|public",
+        "n|tbl|public.cells",
+        "n|sch|public",
+        "n|col|public.tenants.cell_id",
+        "n|col|public.cells.id",
+        "e|uniqueness|public.cells.id"
+      ]
+    },
+    {
+      "statementType": "create_fk",
+      "statementTarget": [
+        "table",
+        "public",
+        "tenants"
+      ],
+      "writes": [
+        "s|fk|public.tenants.tenants_merged_into_id_fkey",
+        "n|fk|public.tenants.tenants_merged_into_id_fkey",
+        "e|fk|public.tenants.tenants_merged_into_id_fkey",
+        "n|con|public.tenants.tenants_merged_into_id_fkey"
+      ],
+      "reads": [
+        "n|tbl|public.tenants",
+        "n|sch|public",
+        "n|tbl|public.tenants",
+        "n|sch|public",
+        "n|col|public.tenants.merged_into_id",
+        "n|col|public.tenants.id",
+        "e|uniqueness|public.tenants.id"
+      ]
+    }
+  ],
   "ddl": [
     {
-      "isRlsEnabled": false,
+      "schema": "public",
       "name": "cells",
-      "entityType": "tables",
-      "schema": "public"
+      "isRlsEnabled": false,
+      "entityType": "tables"
     },
     {
-      "isRlsEnabled": false,
+      "schema": "public",
       "name": "changes",
-      "entityType": "tables",
-      "schema": "public"
+      "isRlsEnabled": false,
+      "entityType": "tables"
     },
     {
-      "isRlsEnabled": false,
+      "schema": "public",
       "name": "hosts",
-      "entityType": "tables",
-      "schema": "public"
+      "isRlsEnabled": false,
+      "entityType": "tables"
     },
     {
-      "isRlsEnabled": false,
+      "schema": "public",
       "name": "integration_clients",
-      "entityType": "tables",
-      "schema": "public"
+      "isRlsEnabled": false,
+      "entityType": "tables"
     },
     {
-      "isRlsEnabled": false,
+      "schema": "public",
       "name": "schools",
-      "entityType": "tables",
-      "schema": "public"
+      "isRlsEnabled": false,
+      "entityType": "tables"
     },
     {
-      "isRlsEnabled": false,
+      "schema": "public",
       "name": "sso_domains",
-      "entityType": "tables",
-      "schema": "public"
-    },
-    {
       "isRlsEnabled": false,
+      "entityType": "tables"
+    },
+    {
+      "schema": "public",
       "name": "tenants",
-      "entityType": "tables",
-      "schema": "public"
+      "isRlsEnabled": false,
+      "entityType": "tables"
     },
     {
-      "type": "text",
-      "typeSchema": null,
-      "notNull": true,
-      "dimensions": 0,
-      "default": null,
-      "generated": null,
-      "identity": null,
+      "schema": "public",
+      "table": "cells",
       "name": "id",
-      "entityType": "columns",
-      "schema": "public",
-      "table": "cells"
-    },
-    {
       "type": "text",
       "typeSchema": null,
       "notNull": true,
@@ -69,12 +376,12 @@
       "default": null,
       "generated": null,
       "identity": null,
+      "entityType": "columns"
+    },
+    {
+      "schema": "public",
+      "table": "cells",
       "name": "jurisdiction",
-      "entityType": "columns",
-      "schema": "public",
-      "table": "cells"
-    },
-    {
       "type": "text",
       "typeSchema": null,
       "notNull": true,
@@ -82,12 +389,12 @@
       "default": null,
       "generated": null,
       "identity": null,
+      "entityType": "columns"
+    },
+    {
+      "schema": "public",
+      "table": "cells",
       "name": "provider",
-      "entityType": "columns",
-      "schema": "public",
-      "table": "cells"
-    },
-    {
       "type": "text",
       "typeSchema": null,
       "notNull": true,
@@ -95,12 +402,12 @@
       "default": null,
       "generated": null,
       "identity": null,
+      "entityType": "columns"
+    },
+    {
+      "schema": "public",
+      "table": "cells",
       "name": "region",
-      "entityType": "columns",
-      "schema": "public",
-      "table": "cells"
-    },
-    {
       "type": "text",
       "typeSchema": null,
       "notNull": true,
@@ -108,12 +415,12 @@
       "default": null,
       "generated": null,
       "identity": null,
+      "entityType": "columns"
+    },
+    {
+      "schema": "public",
+      "table": "cells",
       "name": "app_host",
-      "entityType": "columns",
-      "schema": "public",
-      "table": "cells"
-    },
-    {
       "type": "text",
       "typeSchema": null,
       "notNull": true,
@@ -121,12 +428,25 @@
       "default": null,
       "generated": null,
       "identity": null,
-      "name": "api_base_url",
-      "entityType": "columns",
-      "schema": "public",
-      "table": "cells"
+      "entityType": "columns"
     },
     {
+      "schema": "public",
+      "table": "cells",
+      "name": "api_base_url",
+      "type": "text",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "entityType": "columns"
+    },
+    {
+      "schema": "public",
+      "table": "cells",
+      "name": "state",
       "type": "text",
       "typeSchema": null,
       "notNull": true,
@@ -134,12 +454,12 @@
       "default": "'provisioning'",
       "generated": null,
       "identity": null,
-      "name": "state",
-      "entityType": "columns",
-      "schema": "public",
-      "table": "cells"
+      "entityType": "columns"
     },
     {
+      "schema": "public",
+      "table": "cells",
+      "name": "created_at",
       "type": "timestamp with time zone",
       "typeSchema": null,
       "notNull": true,
@@ -147,12 +467,12 @@
       "default": "statement_timestamp()",
       "generated": null,
       "identity": null,
-      "name": "created_at",
-      "entityType": "columns",
-      "schema": "public",
-      "table": "cells"
+      "entityType": "columns"
     },
     {
+      "schema": "public",
+      "table": "changes",
+      "name": "id",
       "type": "uuid",
       "typeSchema": null,
       "notNull": true,
@@ -160,38 +480,25 @@
       "default": "uuidv7()",
       "generated": null,
       "identity": null,
-      "name": "id",
-      "entityType": "columns",
-      "schema": "public",
-      "table": "changes"
+      "entityType": "columns"
     },
     {
-      "type": "timestamp with time zone",
-      "typeSchema": null,
-      "notNull": true,
-      "dimensions": 0,
-      "default": "statement_timestamp()",
-      "generated": null,
-      "identity": null,
+      "schema": "public",
+      "table": "changes",
       "name": "occurred_at",
-      "entityType": "columns",
-      "schema": "public",
-      "table": "changes"
-    },
-    {
-      "type": "text",
+      "type": "timestamp with time zone",
       "typeSchema": null,
       "notNull": true,
       "dimensions": 0,
-      "default": null,
+      "default": "statement_timestamp()",
       "generated": null,
       "identity": null,
+      "entityType": "columns"
+    },
+    {
+      "schema": "public",
+      "table": "changes",
       "name": "actor",
-      "entityType": "columns",
-      "schema": "public",
-      "table": "changes"
-    },
-    {
       "type": "text",
       "typeSchema": null,
       "notNull": true,
@@ -199,12 +506,12 @@
       "default": null,
       "generated": null,
       "identity": null,
+      "entityType": "columns"
+    },
+    {
+      "schema": "public",
+      "table": "changes",
       "name": "subject_type",
-      "entityType": "columns",
-      "schema": "public",
-      "table": "changes"
-    },
-    {
       "type": "text",
       "typeSchema": null,
       "notNull": true,
@@ -212,12 +519,12 @@
       "default": null,
       "generated": null,
       "identity": null,
+      "entityType": "columns"
+    },
+    {
+      "schema": "public",
+      "table": "changes",
       "name": "subject_id",
-      "entityType": "columns",
-      "schema": "public",
-      "table": "changes"
-    },
-    {
       "type": "text",
       "typeSchema": null,
       "notNull": true,
@@ -225,25 +532,25 @@
       "default": null,
       "generated": null,
       "identity": null,
+      "entityType": "columns"
+    },
+    {
+      "schema": "public",
+      "table": "changes",
       "name": "action",
-      "entityType": "columns",
-      "schema": "public",
-      "table": "changes"
-    },
-    {
-      "type": "jsonb",
+      "type": "text",
       "typeSchema": null,
-      "notNull": false,
+      "notNull": true,
       "dimensions": 0,
       "default": null,
       "generated": null,
       "identity": null,
+      "entityType": "columns"
+    },
+    {
+      "schema": "public",
+      "table": "changes",
       "name": "before",
-      "entityType": "columns",
-      "schema": "public",
-      "table": "changes"
-    },
-    {
       "type": "jsonb",
       "typeSchema": null,
       "notNull": false,
@@ -251,25 +558,25 @@
       "default": null,
       "generated": null,
       "identity": null,
+      "entityType": "columns"
+    },
+    {
+      "schema": "public",
+      "table": "changes",
       "name": "after",
-      "entityType": "columns",
-      "schema": "public",
-      "table": "changes"
-    },
-    {
-      "type": "text",
+      "type": "jsonb",
       "typeSchema": null,
-      "notNull": true,
+      "notNull": false,
       "dimensions": 0,
       "default": null,
       "generated": null,
       "identity": null,
+      "entityType": "columns"
+    },
+    {
+      "schema": "public",
+      "table": "changes",
       "name": "reason",
-      "entityType": "columns",
-      "schema": "public",
-      "table": "changes"
-    },
-    {
       "type": "text",
       "typeSchema": null,
       "notNull": true,
@@ -277,38 +584,51 @@
       "default": null,
       "generated": null,
       "identity": null,
+      "entityType": "columns"
+    },
+    {
+      "schema": "public",
+      "table": "hosts",
       "name": "hostname",
-      "entityType": "columns",
-      "schema": "public",
-      "table": "hosts"
-    },
-    {
-      "type": "uuid",
+      "type": "text",
       "typeSchema": null,
       "notNull": true,
       "dimensions": 0,
       "default": null,
       "generated": null,
       "identity": null,
+      "entityType": "columns"
+    },
+    {
+      "schema": "public",
+      "table": "hosts",
       "name": "school_id",
-      "entityType": "columns",
-      "schema": "public",
-      "table": "hosts"
-    },
-    {
-      "type": "timestamp with time zone",
+      "type": "uuid",
       "typeSchema": null,
-      "notNull": false,
+      "notNull": true,
       "dimensions": 0,
       "default": null,
       "generated": null,
       "identity": null,
+      "entityType": "columns"
+    },
+    {
+      "schema": "public",
+      "table": "hosts",
       "name": "verified_at",
-      "entityType": "columns",
-      "schema": "public",
-      "table": "hosts"
+      "type": "timestamp with time zone",
+      "typeSchema": null,
+      "notNull": false,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "entityType": "columns"
     },
     {
+      "schema": "public",
+      "table": "hosts",
+      "name": "created_at",
       "type": "timestamp with time zone",
       "typeSchema": null,
       "notNull": true,
@@ -316,38 +636,12 @@
       "default": "statement_timestamp()",
       "generated": null,
       "identity": null,
-      "name": "created_at",
-      "entityType": "columns",
-      "schema": "public",
-      "table": "hosts"
+      "entityType": "columns"
     },
     {
-      "type": "text",
-      "typeSchema": null,
-      "notNull": true,
-      "dimensions": 0,
-      "default": null,
-      "generated": null,
-      "identity": null,
+      "schema": "public",
+      "table": "integration_clients",
       "name": "client_id",
-      "entityType": "columns",
-      "schema": "public",
-      "table": "integration_clients"
-    },
-    {
-      "type": "uuid",
-      "typeSchema": null,
-      "notNull": true,
-      "dimensions": 0,
-      "default": null,
-      "generated": null,
-      "identity": null,
-      "name": "tenant_id",
-      "entityType": "columns",
-      "schema": "public",
-      "table": "integration_clients"
-    },
-    {
       "type": "text",
       "typeSchema": null,
       "notNull": true,
@@ -355,12 +649,38 @@
       "default": null,
       "generated": null,
       "identity": null,
-      "name": "kind",
-      "entityType": "columns",
-      "schema": "public",
-      "table": "integration_clients"
+      "entityType": "columns"
     },
     {
+      "schema": "public",
+      "table": "integration_clients",
+      "name": "tenant_id",
+      "type": "uuid",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "entityType": "columns"
+    },
+    {
+      "schema": "public",
+      "table": "integration_clients",
+      "name": "kind",
+      "type": "text",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "entityType": "columns"
+    },
+    {
+      "schema": "public",
+      "table": "integration_clients",
+      "name": "created_at",
       "type": "timestamp with time zone",
       "typeSchema": null,
       "notNull": true,
@@ -368,12 +688,12 @@
       "default": "statement_timestamp()",
       "generated": null,
       "identity": null,
-      "name": "created_at",
-      "entityType": "columns",
-      "schema": "public",
-      "table": "integration_clients"
+      "entityType": "columns"
     },
     {
+      "schema": "public",
+      "table": "integration_clients",
+      "name": "revoked_at",
       "type": "timestamp with time zone",
       "typeSchema": null,
       "notNull": false,
@@ -381,25 +701,12 @@
       "default": null,
       "generated": null,
       "identity": null,
-      "name": "revoked_at",
-      "entityType": "columns",
-      "schema": "public",
-      "table": "integration_clients"
+      "entityType": "columns"
     },
     {
-      "type": "uuid",
-      "typeSchema": null,
-      "notNull": true,
-      "dimensions": 0,
-      "default": null,
-      "generated": null,
-      "identity": null,
+      "schema": "public",
+      "table": "schools",
       "name": "id",
-      "entityType": "columns",
-      "schema": "public",
-      "table": "schools"
-    },
-    {
       "type": "uuid",
       "typeSchema": null,
       "notNull": true,
@@ -407,51 +714,25 @@
       "default": null,
       "generated": null,
       "identity": null,
+      "entityType": "columns"
+    },
+    {
+      "schema": "public",
+      "table": "schools",
       "name": "tenant_id",
-      "entityType": "columns",
-      "schema": "public",
-      "table": "schools"
-    },
-    {
-      "type": "text",
+      "type": "uuid",
       "typeSchema": null,
       "notNull": true,
       "dimensions": 0,
       "default": null,
       "generated": null,
       "identity": null,
+      "entityType": "columns"
+    },
+    {
+      "schema": "public",
+      "table": "schools",
       "name": "slug",
-      "entityType": "columns",
-      "schema": "public",
-      "table": "schools"
-    },
-    {
-      "type": "text",
-      "typeSchema": null,
-      "notNull": false,
-      "dimensions": 0,
-      "default": null,
-      "generated": null,
-      "identity": null,
-      "name": "name_en",
-      "entityType": "columns",
-      "schema": "public",
-      "table": "schools"
-    },
-    {
-      "type": "text",
-      "typeSchema": null,
-      "notNull": false,
-      "dimensions": 0,
-      "default": null,
-      "generated": null,
-      "identity": null,
-      "name": "name_ar",
-      "entityType": "columns",
-      "schema": "public",
-      "table": "schools"
-    },
-    {
       "type": "text",
       "typeSchema": null,
       "notNull": true,
@@ -459,12 +740,51 @@
       "default": null,
       "generated": null,
       "identity": null,
-      "name": "placement",
-      "entityType": "columns",
-      "schema": "public",
-      "table": "schools"
+      "entityType": "columns"
     },
     {
+      "schema": "public",
+      "table": "schools",
+      "name": "name_en",
+      "type": "text",
+      "typeSchema": null,
+      "notNull": false,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "entityType": "columns"
+    },
+    {
+      "schema": "public",
+      "table": "schools",
+      "name": "name_ar",
+      "type": "text",
+      "typeSchema": null,
+      "notNull": false,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "entityType": "columns"
+    },
+    {
+      "schema": "public",
+      "table": "schools",
+      "name": "placement",
+      "type": "text",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "entityType": "columns"
+    },
+    {
+      "schema": "public",
+      "table": "schools",
+      "name": "legacy_school_id",
       "type": "uuid",
       "typeSchema": null,
       "notNull": false,
@@ -472,12 +792,12 @@
       "default": null,
       "generated": null,
       "identity": null,
-      "name": "legacy_school_id",
-      "entityType": "columns",
-      "schema": "public",
-      "table": "schools"
+      "entityType": "columns"
     },
     {
+      "schema": "public",
+      "table": "schools",
+      "name": "listed",
       "type": "boolean",
       "typeSchema": null,
       "notNull": true,
@@ -485,38 +805,25 @@
       "default": "true",
       "generated": null,
       "identity": null,
-      "name": "listed",
-      "entityType": "columns",
-      "schema": "public",
-      "table": "schools"
+      "entityType": "columns"
     },
     {
-      "type": "timestamp with time zone",
-      "typeSchema": null,
-      "notNull": false,
-      "dimensions": 0,
-      "default": null,
-      "generated": null,
-      "identity": null,
+      "schema": "public",
+      "table": "schools",
       "name": "moved_at",
-      "entityType": "columns",
-      "schema": "public",
-      "table": "schools"
-    },
-    {
       "type": "timestamp with time zone",
       "typeSchema": null,
-      "notNull": true,
+      "notNull": false,
       "dimensions": 0,
-      "default": "statement_timestamp()",
+      "default": null,
       "generated": null,
       "identity": null,
+      "entityType": "columns"
+    },
+    {
+      "schema": "public",
+      "table": "schools",
       "name": "created_at",
-      "entityType": "columns",
-      "schema": "public",
-      "table": "schools"
-    },
-    {
       "type": "timestamp with time zone",
       "typeSchema": null,
       "notNull": true,
@@ -524,64 +831,12 @@
       "default": "statement_timestamp()",
       "generated": null,
       "identity": null,
+      "entityType": "columns"
+    },
+    {
+      "schema": "public",
+      "table": "schools",
       "name": "updated_at",
-      "entityType": "columns",
-      "schema": "public",
-      "table": "schools"
-    },
-    {
-      "type": "text",
-      "typeSchema": null,
-      "notNull": true,
-      "dimensions": 0,
-      "default": null,
-      "generated": null,
-      "identity": null,
-      "name": "domain",
-      "entityType": "columns",
-      "schema": "public",
-      "table": "sso_domains"
-    },
-    {
-      "type": "uuid",
-      "typeSchema": null,
-      "notNull": true,
-      "dimensions": 0,
-      "default": null,
-      "generated": null,
-      "identity": null,
-      "name": "tenant_id",
-      "entityType": "columns",
-      "schema": "public",
-      "table": "sso_domains"
-    },
-    {
-      "type": "text",
-      "typeSchema": null,
-      "notNull": true,
-      "dimensions": 0,
-      "default": null,
-      "generated": null,
-      "identity": null,
-      "name": "verification_method",
-      "entityType": "columns",
-      "schema": "public",
-      "table": "sso_domains"
-    },
-    {
-      "type": "timestamp with time zone",
-      "typeSchema": null,
-      "notNull": false,
-      "dimensions": 0,
-      "default": null,
-      "generated": null,
-      "identity": null,
-      "name": "verified_at",
-      "entityType": "columns",
-      "schema": "public",
-      "table": "sso_domains"
-    },
-    {
       "type": "timestamp with time zone",
       "typeSchema": null,
       "notNull": true,
@@ -589,12 +844,25 @@
       "default": "statement_timestamp()",
       "generated": null,
       "identity": null,
-      "name": "created_at",
-      "entityType": "columns",
-      "schema": "public",
-      "table": "sso_domains"
+      "entityType": "columns"
     },
     {
+      "schema": "public",
+      "table": "sso_domains",
+      "name": "domain",
+      "type": "text",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "entityType": "columns"
+    },
+    {
+      "schema": "public",
+      "table": "sso_domains",
+      "name": "tenant_id",
       "type": "uuid",
       "typeSchema": null,
       "notNull": true,
@@ -602,51 +870,64 @@
       "default": null,
       "generated": null,
       "identity": null,
+      "entityType": "columns"
+    },
+    {
+      "schema": "public",
+      "table": "sso_domains",
+      "name": "verification_method",
+      "type": "text",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "entityType": "columns"
+    },
+    {
+      "schema": "public",
+      "table": "sso_domains",
+      "name": "verified_at",
+      "type": "timestamp with time zone",
+      "typeSchema": null,
+      "notNull": false,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "entityType": "columns"
+    },
+    {
+      "schema": "public",
+      "table": "sso_domains",
+      "name": "created_at",
+      "type": "timestamp with time zone",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": "statement_timestamp()",
+      "generated": null,
+      "identity": null,
+      "entityType": "columns"
+    },
+    {
+      "schema": "public",
+      "table": "tenants",
       "name": "id",
-      "entityType": "columns",
-      "schema": "public",
-      "table": "tenants"
-    },
-    {
-      "type": "text",
+      "type": "uuid",
       "typeSchema": null,
       "notNull": true,
       "dimensions": 0,
       "default": null,
       "generated": null,
       "identity": null,
+      "entityType": "columns"
+    },
+    {
+      "schema": "public",
+      "table": "tenants",
       "name": "kind",
-      "entityType": "columns",
-      "schema": "public",
-      "table": "tenants"
-    },
-    {
-      "type": "text",
-      "typeSchema": null,
-      "notNull": false,
-      "dimensions": 0,
-      "default": null,
-      "generated": null,
-      "identity": null,
-      "name": "name_en",
-      "entityType": "columns",
-      "schema": "public",
-      "table": "tenants"
-    },
-    {
-      "type": "text",
-      "typeSchema": null,
-      "notNull": false,
-      "dimensions": 0,
-      "default": null,
-      "generated": null,
-      "identity": null,
-      "name": "name_ar",
-      "entityType": "columns",
-      "schema": "public",
-      "table": "tenants"
-    },
-    {
       "type": "text",
       "typeSchema": null,
       "notNull": true,
@@ -654,12 +935,51 @@
       "default": null,
       "generated": null,
       "identity": null,
-      "name": "cell_id",
-      "entityType": "columns",
-      "schema": "public",
-      "table": "tenants"
+      "entityType": "columns"
     },
     {
+      "schema": "public",
+      "table": "tenants",
+      "name": "name_en",
+      "type": "text",
+      "typeSchema": null,
+      "notNull": false,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "entityType": "columns"
+    },
+    {
+      "schema": "public",
+      "table": "tenants",
+      "name": "name_ar",
+      "type": "text",
+      "typeSchema": null,
+      "notNull": false,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "entityType": "columns"
+    },
+    {
+      "schema": "public",
+      "table": "tenants",
+      "name": "cell_id",
+      "type": "text",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "entityType": "columns"
+    },
+    {
+      "schema": "public",
+      "table": "tenants",
+      "name": "jurisdictions",
       "type": "text",
       "typeSchema": null,
       "notNull": true,
@@ -667,12 +987,12 @@
       "default": null,
       "generated": null,
       "identity": null,
-      "name": "jurisdictions",
-      "entityType": "columns",
-      "schema": "public",
-      "table": "tenants"
+      "entityType": "columns"
     },
     {
+      "schema": "public",
+      "table": "tenants",
+      "name": "state",
       "type": "text",
       "typeSchema": null,
       "notNull": true,
@@ -680,12 +1000,12 @@
       "default": "'provisioning'",
       "generated": null,
       "identity": null,
-      "name": "state",
-      "entityType": "columns",
-      "schema": "public",
-      "table": "tenants"
+      "entityType": "columns"
     },
     {
+      "schema": "public",
+      "table": "tenants",
+      "name": "merged_into_id",
       "type": "uuid",
       "typeSchema": null,
       "notNull": false,
@@ -693,25 +1013,12 @@
       "default": null,
       "generated": null,
       "identity": null,
-      "name": "merged_into_id",
-      "entityType": "columns",
-      "schema": "public",
-      "table": "tenants"
+      "entityType": "columns"
     },
     {
-      "type": "timestamp with time zone",
-      "typeSchema": null,
-      "notNull": true,
-      "dimensions": 0,
-      "default": "statement_timestamp()",
-      "generated": null,
-      "identity": null,
+      "schema": "public",
+      "table": "tenants",
       "name": "created_at",
-      "entityType": "columns",
-      "schema": "public",
-      "table": "tenants"
-    },
-    {
       "type": "timestamp with time zone",
       "typeSchema": null,
       "notNull": true,
@@ -719,33 +1026,25 @@
       "default": "statement_timestamp()",
       "generated": null,
       "identity": null,
+      "entityType": "columns"
+    },
+    {
+      "schema": "public",
+      "table": "tenants",
       "name": "updated_at",
-      "entityType": "columns",
-      "schema": "public",
-      "table": "tenants"
+      "type": "timestamp with time zone",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": "statement_timestamp()",
+      "generated": null,
+      "identity": null,
+      "entityType": "columns"
     },
     {
-      "nameExplicit": true,
-      "columns": [
-        {
-          "value": "tenant_id",
-          "isExpression": false,
-          "asc": true,
-          "nullsFirst": false,
-          "opclass": null
-        }
-      ],
-      "isUnique": false,
-      "where": null,
-      "with": "",
-      "method": "btree",
-      "concurrently": false,
+      "schema": "public",
+      "table": "integration_clients",
       "name": "integration_clients_tenant_idx",
-      "entityType": "indexes",
-      "schema": "public",
-      "table": "integration_clients"
-    },
-    {
       "nameExplicit": true,
       "columns": [
         {
@@ -761,12 +1060,33 @@
       "with": "",
       "method": "btree",
       "concurrently": false,
-      "name": "schools_tenant_idx",
-      "entityType": "indexes",
-      "schema": "public",
-      "table": "schools"
+      "entityType": "indexes"
     },
     {
+      "schema": "public",
+      "table": "schools",
+      "name": "schools_tenant_idx",
+      "nameExplicit": true,
+      "columns": [
+        {
+          "value": "tenant_id",
+          "isExpression": false,
+          "asc": true,
+          "nullsFirst": false,
+          "opclass": null
+        }
+      ],
+      "isUnique": false,
+      "where": null,
+      "with": "",
+      "method": "btree",
+      "concurrently": false,
+      "entityType": "indexes"
+    },
+    {
+      "schema": "public",
+      "table": "hosts",
+      "name": "hosts_school_id_fkey",
       "nameExplicit": true,
       "columns": [
         "school_id"
@@ -778,29 +1098,12 @@
       ],
       "onUpdate": "NO ACTION",
       "onDelete": "NO ACTION",
-      "name": "hosts_school_id_fkey",
-      "entityType": "fks",
-      "schema": "public",
-      "table": "hosts"
+      "entityType": "fks"
     },
     {
-      "nameExplicit": true,
-      "columns": [
-        "tenant_id"
-      ],
-      "schemaTo": "public",
-      "tableTo": "tenants",
-      "columnsTo": [
-        "id"
-      ],
-      "onUpdate": "NO ACTION",
-      "onDelete": "NO ACTION",
+      "schema": "public",
+      "table": "integration_clients",
       "name": "integration_clients_tenant_id_fkey",
-      "entityType": "fks",
-      "schema": "public",
-      "table": "integration_clients"
-    },
-    {
       "nameExplicit": true,
       "columns": [
         "tenant_id"
@@ -812,12 +1115,12 @@
       ],
       "onUpdate": "NO ACTION",
       "onDelete": "NO ACTION",
+      "entityType": "fks"
+    },
+    {
+      "schema": "public",
+      "table": "schools",
       "name": "schools_tenant_id_fkey",
-      "entityType": "fks",
-      "schema": "public",
-      "table": "schools"
-    },
-    {
       "nameExplicit": true,
       "columns": [
         "tenant_id"
@@ -829,12 +1132,29 @@
       ],
       "onUpdate": "NO ACTION",
       "onDelete": "NO ACTION",
-      "name": "sso_domains_tenant_id_fkey",
-      "entityType": "fks",
-      "schema": "public",
-      "table": "sso_domains"
+      "entityType": "fks"
     },
     {
+      "schema": "public",
+      "table": "sso_domains",
+      "name": "sso_domains_tenant_id_fkey",
+      "nameExplicit": true,
+      "columns": [
+        "tenant_id"
+      ],
+      "schemaTo": "public",
+      "tableTo": "tenants",
+      "columnsTo": [
+        "id"
+      ],
+      "onUpdate": "NO ACTION",
+      "onDelete": "NO ACTION",
+      "entityType": "fks"
+    },
+    {
+      "schema": "public",
+      "table": "tenants",
+      "name": "tenants_cell_id_fkey",
       "nameExplicit": true,
       "columns": [
         "cell_id"
@@ -846,12 +1166,12 @@
       ],
       "onUpdate": "NO ACTION",
       "onDelete": "NO ACTION",
-      "name": "tenants_cell_id_fkey",
-      "entityType": "fks",
-      "schema": "public",
-      "table": "tenants"
+      "entityType": "fks"
     },
     {
+      "schema": "public",
+      "table": "tenants",
+      "name": "tenants_merged_into_id_fkey",
       "nameExplicit": true,
       "columns": [
         "merged_into_id"
@@ -863,317 +1183,313 @@
       ],
       "onUpdate": "NO ACTION",
       "onDelete": "NO ACTION",
-      "name": "tenants_merged_into_id_fkey",
-      "entityType": "fks",
-      "schema": "public",
-      "table": "tenants"
+      "entityType": "fks"
     },
     {
-      "columns": [
-        "id"
-      ],
-      "nameExplicit": false,
-      "name": "cells_pkey",
       "schema": "public",
       "table": "cells",
-      "entityType": "pks"
-    },
-    {
+      "name": "cells_pkey",
       "columns": [
         "id"
       ],
       "nameExplicit": false,
-      "name": "changes_pkey",
-      "schema": "public",
-      "table": "changes",
       "entityType": "pks"
     },
     {
+      "schema": "public",
+      "table": "changes",
+      "name": "changes_pkey",
+      "columns": [
+        "id"
+      ],
+      "nameExplicit": false,
+      "entityType": "pks"
+    },
+    {
+      "schema": "public",
+      "table": "hosts",
+      "name": "hosts_pkey",
       "columns": [
         "hostname"
       ],
       "nameExplicit": false,
-      "name": "hosts_pkey",
-      "schema": "public",
-      "table": "hosts",
       "entityType": "pks"
     },
     {
+      "schema": "public",
+      "table": "integration_clients",
+      "name": "integration_clients_pkey",
       "columns": [
         "client_id"
       ],
       "nameExplicit": false,
-      "name": "integration_clients_pkey",
-      "schema": "public",
-      "table": "integration_clients",
       "entityType": "pks"
     },
     {
+      "schema": "public",
+      "table": "schools",
+      "name": "schools_pkey",
       "columns": [
         "id"
       ],
       "nameExplicit": false,
-      "name": "schools_pkey",
-      "schema": "public",
-      "table": "schools",
       "entityType": "pks"
     },
     {
+      "schema": "public",
+      "table": "sso_domains",
+      "name": "sso_domains_pkey",
       "columns": [
         "domain"
       ],
       "nameExplicit": false,
-      "name": "sso_domains_pkey",
-      "schema": "public",
-      "table": "sso_domains",
       "entityType": "pks"
     },
     {
+      "schema": "public",
+      "table": "tenants",
+      "name": "tenants_pkey",
       "columns": [
         "id"
       ],
       "nameExplicit": false,
-      "name": "tenants_pkey",
-      "schema": "public",
-      "table": "tenants",
       "entityType": "pks"
     },
     {
+      "schema": "public",
+      "table": "cells",
+      "name": "cells_app_host_key",
       "nameExplicit": true,
       "columns": [
         "app_host"
       ],
       "nullsNotDistinct": false,
-      "name": "cells_app_host_key",
-      "schema": "public",
-      "table": "cells",
       "entityType": "uniques"
     },
     {
+      "schema": "public",
+      "table": "schools",
+      "name": "schools_slug_key",
       "nameExplicit": true,
       "columns": [
         "slug"
       ],
       "nullsNotDistinct": false,
-      "name": "schools_slug_key",
-      "schema": "public",
-      "table": "schools",
       "entityType": "uniques"
     },
     {
+      "schema": "public",
+      "table": "schools",
+      "name": "schools_legacy_school_id_key",
       "nameExplicit": true,
       "columns": [
         "legacy_school_id"
       ],
       "nullsNotDistinct": false,
-      "name": "schools_legacy_school_id_key",
-      "schema": "public",
-      "table": "schools",
       "entityType": "uniques"
     },
     {
-      "value": "id ~ '^[a-z]{2}-[0-9]{1,2}$'",
+      "schema": "public",
+      "table": "cells",
       "name": "cells_id_check",
-      "entityType": "checks",
-      "schema": "public",
-      "table": "cells"
+      "value": "id ~ '^[a-z]{2}-[0-9]{1,2}$'",
+      "entityType": "checks"
     },
     {
-      "value": "jurisdiction ~ '^[A-Z]{2}$'",
+      "schema": "public",
+      "table": "cells",
       "name": "cells_jurisdiction_check",
-      "entityType": "checks",
-      "schema": "public",
-      "table": "cells"
+      "value": "jurisdiction ~ '^[A-Z]{2}$'",
+      "entityType": "checks"
     },
     {
-      "value": "char_length(provider) between 1 and 40",
+      "schema": "public",
+      "table": "cells",
       "name": "cells_provider_check",
-      "entityType": "checks",
-      "schema": "public",
-      "table": "cells"
+      "value": "char_length(provider) between 1 and 40",
+      "entityType": "checks"
     },
     {
-      "value": "char_length(region) between 1 and 60",
+      "schema": "public",
+      "table": "cells",
       "name": "cells_region_check",
-      "entityType": "checks",
-      "schema": "public",
-      "table": "cells"
+      "value": "char_length(region) between 1 and 60",
+      "entityType": "checks"
     },
     {
-      "value": "app_host = lower(app_host)",
+      "schema": "public",
+      "table": "cells",
       "name": "cells_app_host_check",
-      "entityType": "checks",
-      "schema": "public",
-      "table": "cells"
+      "value": "app_host = lower(app_host)",
+      "entityType": "checks"
     },
     {
-      "value": "char_length(api_base_url) between 1 and 2048",
+      "schema": "public",
+      "table": "cells",
       "name": "cells_api_base_url_check",
-      "entityType": "checks",
-      "schema": "public",
-      "table": "cells"
+      "value": "char_length(api_base_url) between 1 and 2048",
+      "entityType": "checks"
     },
     {
-      "value": "state in ('provisioning', 'open', 'closed', 'draining')",
+      "schema": "public",
+      "table": "cells",
       "name": "cells_state_check",
-      "entityType": "checks",
-      "schema": "public",
-      "table": "cells"
+      "value": "state in ('provisioning', 'open', 'closed', 'draining')",
+      "entityType": "checks"
     },
     {
-      "value": "actor ~ '^(operator|cell):[A-Za-z0-9_-]{1,64}$'",
+      "schema": "public",
+      "table": "changes",
       "name": "changes_actor_check",
-      "entityType": "checks",
-      "schema": "public",
-      "table": "changes"
+      "value": "actor ~ '^(operator|cell):[A-Za-z0-9_-]{1,64}$'",
+      "entityType": "checks"
     },
     {
-      "value": "subject_type in ('cell', 'tenant', 'school', 'host', 'sso_domain', 'integration_client')",
+      "schema": "public",
+      "table": "changes",
       "name": "changes_subject_type_check",
-      "entityType": "checks",
-      "schema": "public",
-      "table": "changes"
+      "value": "subject_type in ('cell', 'tenant', 'school', 'host', 'sso_domain', 'integration_client')",
+      "entityType": "checks"
     },
     {
-      "value": "char_length(action) between 1 and 60",
+      "schema": "public",
+      "table": "changes",
       "name": "changes_action_check",
-      "entityType": "checks",
-      "schema": "public",
-      "table": "changes"
+      "value": "char_length(action) between 1 and 60",
+      "entityType": "checks"
     },
     {
-      "value": "char_length(reason) between 1 and 500",
+      "schema": "public",
+      "table": "changes",
       "name": "changes_reason_check",
-      "entityType": "checks",
-      "schema": "public",
-      "table": "changes"
+      "value": "char_length(reason) between 1 and 500",
+      "entityType": "checks"
     },
     {
-      "value": "hostname = lower(hostname) and char_length(hostname) between 3 and 253",
+      "schema": "public",
+      "table": "hosts",
       "name": "hosts_hostname_check",
-      "entityType": "checks",
-      "schema": "public",
-      "table": "hosts"
+      "value": "hostname = lower(hostname) and char_length(hostname) between 3 and 253",
+      "entityType": "checks"
     },
     {
-      "value": "client_id ~ '^[A-Za-z0-9_-]{16,64}$'",
+      "schema": "public",
+      "table": "integration_clients",
       "name": "integration_clients_client_id_check",
-      "entityType": "checks",
-      "schema": "public",
-      "table": "integration_clients"
+      "value": "client_id ~ '^[A-Za-z0-9_-]{16,64}$'",
+      "entityType": "checks"
     },
     {
-      "value": "kind in ('oneroster', 'lti')",
+      "schema": "public",
+      "table": "integration_clients",
       "name": "integration_clients_kind_check",
-      "entityType": "checks",
-      "schema": "public",
-      "table": "integration_clients"
+      "value": "kind in ('oneroster', 'lti')",
+      "entityType": "checks"
     },
     {
-      "value": "slug ~ '^[a-z0-9](?:[a-z0-9-]{0,62}[a-z0-9])?$'",
+      "schema": "public",
+      "table": "schools",
       "name": "schools_slug_check",
-      "entityType": "checks",
-      "schema": "public",
-      "table": "schools"
+      "value": "slug ~ '^[a-z0-9](?:[a-z0-9-]{0,62}[a-z0-9])?$'",
+      "entityType": "checks"
     },
     {
-      "value": "char_length(name_en) between 1 and 160",
+      "schema": "public",
+      "table": "schools",
       "name": "schools_name_en_check",
-      "entityType": "checks",
-      "schema": "public",
-      "table": "schools"
-    },
-    {
-      "value": "char_length(name_ar) between 1 and 160",
-      "name": "schools_name_ar_check",
-      "entityType": "checks",
-      "schema": "public",
-      "table": "schools"
-    },
-    {
-      "value": "placement in ('legacy', 'cell')",
-      "name": "schools_placement_check",
-      "entityType": "checks",
-      "schema": "public",
-      "table": "schools"
-    },
-    {
-      "value": "num_nonnulls(name_en, name_ar) >= 1",
-      "name": "schools_check",
-      "entityType": "checks",
-      "schema": "public",
-      "table": "schools"
-    },
-    {
-      "value": "placement = 'cell' or legacy_school_id is not null",
-      "name": "schools_check1",
-      "entityType": "checks",
-      "schema": "public",
-      "table": "schools"
-    },
-    {
-      "value": "domain = lower(domain) and char_length(domain) between 3 and 253",
-      "name": "sso_domains_domain_check",
-      "entityType": "checks",
-      "schema": "public",
-      "table": "sso_domains"
-    },
-    {
-      "value": "verification_method in ('dns_txt', 'idp_hosted_domain')",
-      "name": "sso_domains_verification_method_check",
-      "entityType": "checks",
-      "schema": "public",
-      "table": "sso_domains"
-    },
-    {
-      "value": "kind in ('school_group', 'school')",
-      "name": "tenants_kind_check",
-      "entityType": "checks",
-      "schema": "public",
-      "table": "tenants"
-    },
-    {
       "value": "char_length(name_en) between 1 and 160",
-      "name": "tenants_name_en_check",
-      "entityType": "checks",
-      "schema": "public",
-      "table": "tenants"
+      "entityType": "checks"
     },
     {
+      "schema": "public",
+      "table": "schools",
+      "name": "schools_name_ar_check",
       "value": "char_length(name_ar) between 1 and 160",
-      "name": "tenants_name_ar_check",
-      "entityType": "checks",
-      "schema": "public",
-      "table": "tenants"
+      "entityType": "checks"
     },
     {
-      "value": "array_to_string(jurisdictions, ',') ~ '^[A-Z]{2}(,[A-Z]{2})*$'",
-      "name": "tenants_jurisdictions_check",
-      "entityType": "checks",
       "schema": "public",
-      "table": "tenants"
+      "table": "schools",
+      "name": "schools_placement_check",
+      "value": "placement in ('legacy', 'cell')",
+      "entityType": "checks"
     },
     {
-      "value": "state in ('provisioning', 'importing', 'active', 'frozen', 'suspended', 'offboarding', 'offboarded')",
-      "name": "tenants_state_check",
-      "entityType": "checks",
       "schema": "public",
-      "table": "tenants"
-    },
-    {
+      "table": "schools",
+      "name": "schools_check",
       "value": "num_nonnulls(name_en, name_ar) >= 1",
-      "name": "tenants_check",
-      "entityType": "checks",
-      "schema": "public",
-      "table": "tenants"
+      "entityType": "checks"
     },
     {
-      "value": "merged_into_id is null or state = 'offboarded'",
-      "name": "tenants_check1",
-      "entityType": "checks",
       "schema": "public",
-      "table": "tenants"
+      "table": "schools",
+      "name": "schools_check1",
+      "value": "placement = 'cell' or legacy_school_id is not null",
+      "entityType": "checks"
+    },
+    {
+      "schema": "public",
+      "table": "sso_domains",
+      "name": "sso_domains_domain_check",
+      "value": "domain = lower(domain) and char_length(domain) between 3 and 253",
+      "entityType": "checks"
+    },
+    {
+      "schema": "public",
+      "table": "sso_domains",
+      "name": "sso_domains_verification_method_check",
+      "value": "verification_method in ('dns_txt', 'idp_hosted_domain')",
+      "entityType": "checks"
+    },
+    {
+      "schema": "public",
+      "table": "tenants",
+      "name": "tenants_kind_check",
+      "value": "kind in ('school_group', 'school')",
+      "entityType": "checks"
+    },
+    {
+      "schema": "public",
+      "table": "tenants",
+      "name": "tenants_name_en_check",
+      "value": "char_length(name_en) between 1 and 160",
+      "entityType": "checks"
+    },
+    {
+      "schema": "public",
+      "table": "tenants",
+      "name": "tenants_name_ar_check",
+      "value": "char_length(name_ar) between 1 and 160",
+      "entityType": "checks"
+    },
+    {
+      "schema": "public",
+      "table": "tenants",
+      "name": "tenants_jurisdictions_check",
+      "value": "array_to_string(jurisdictions, ',') ~ '^[A-Z]{2}(,[A-Z]{2})*$'",
+      "entityType": "checks"
+    },
+    {
+      "schema": "public",
+      "table": "tenants",
+      "name": "tenants_state_check",
+      "value": "state in ('provisioning', 'importing', 'active', 'frozen', 'suspended', 'offboarding', 'offboarded')",
+      "entityType": "checks"
+    },
+    {
+      "schema": "public",
+      "table": "tenants",
+      "name": "tenants_check",
+      "value": "num_nonnulls(name_en, name_ar) >= 1",
+      "entityType": "checks"
+    },
+    {
+      "schema": "public",
+      "table": "tenants",
+      "name": "tenants_check1",
+      "value": "merged_into_id is null or state = 'offboarded'",
+      "entityType": "checks"
     }
-  ],
-  "renames": []
+  ]
 }

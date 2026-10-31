@@ -170,6 +170,10 @@ describe("a question answered with mathematics", () => {
   };
   const [block] = asked.blocks;
   if (block?.type !== "math") throw new Error("a maths question");
+  const issues = (extra: object) =>
+    v
+      .safeParse(lessonBlockSchema, { ...block, ...extra })
+      .issues?.map((issue) => issue.message) ?? [];
 
   it("keeps its accepted answers as formulas through the document", () => {
     const document = contentOfLesson(asked);
@@ -206,10 +210,6 @@ describe("a question answered with mathematics", () => {
   });
 
   it("will not publish a key that its own form or units would refuse", () => {
-    const issues = (extra: object) =>
-      v
-        .safeParse(lessonBlockSchema, { ...block, ...extra })
-        .issues?.map((issue) => issue.message) ?? [];
     expect(issues({ form: "factorised", answers: ["x^2+5x+6"] })).toEqual([
       "learning.math_key_form",
     ]);

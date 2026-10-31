@@ -489,6 +489,21 @@ export type SerializedMediaNode = Spread<
   SerializedDecoratorBlockNode
 >;
 
+const storedRecording = (element: HTMLElement) => {
+  const src = element.getAttribute("src") ?? "";
+  return src.startsWith(STORED_FILE)
+    ? {
+        conversion: () => ({
+          node: $createMediaNode(
+            src.slice(STORED_FILE.length),
+            element.dataset.mime ?? `${element.localName}/mp4`,
+          ),
+        }),
+        priority: 2 as const,
+      }
+    : null;
+};
+
 export class MediaNode extends DecoratorBlockNode {
   __fileId: string;
   __mime: string;
@@ -543,21 +558,7 @@ export class MediaNode extends DecoratorBlockNode {
   // A recording brought in from another document, once it is stored with
   // the school, as a package's pages play theirs.
   static importDOM(): DOMConversionMap | null {
-    const stored = (element: HTMLElement) => {
-      const src = element.getAttribute("src") ?? "";
-      return src.startsWith(STORED_FILE)
-        ? {
-            conversion: () => ({
-              node: $createMediaNode(
-                src.slice(STORED_FILE.length),
-                element.dataset.mime ?? `${element.localName}/mp4`,
-              ),
-            }),
-            priority: 2 as const,
-          }
-        : null;
-    };
-    return { video: stored, audio: stored };
+    return { video: storedRecording, audio: storedRecording };
   }
 
   static importJSON(json: SerializedMediaNode): MediaNode {

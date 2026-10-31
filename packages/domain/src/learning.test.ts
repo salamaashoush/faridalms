@@ -435,6 +435,11 @@ describe("code marked again", () => {
     ...cubes,
     tests: [{ ...check, expected: "4" }],
   };
+  const ran = (passed: boolean, output: string) => ({
+    type: "program",
+    code: "n = int(input())\nprint(n ** 3)",
+    results: { [check.id]: { passed, output, error: null, stopped: null } },
+  });
 
   it("finds the exercises whose tests changed since students saw them", () => {
     const before: LessonDocument = { version: 2, blocks: [cubes, typed] };
@@ -451,11 +456,6 @@ describe("code marked again", () => {
   });
 
   it("shows the results of the run that marked an answer again", () => {
-    const ran = (passed: boolean, output: string) => ({
-      type: "program",
-      code: "n = int(input())\nprint(n ** 3)",
-      results: { [check.id]: { passed, output, error: null, stopped: null } },
-    });
     const rows: StoredTry[] = [
       {
         blockId: cubes.id,
@@ -1026,6 +1026,8 @@ describe("labelling a picture", () => {
     ],
     extras: ["Bark"],
   };
+  const issue = (labels: Record<string, string>) =>
+    responseIssue(plant, { type: "labelling", labels });
   it("shows the places by number and every label in one bank, none tied to its place", () => {
     const [shown] = studentBlocks({ version: 2, blocks: [plant] }, "a");
     if (shown?.type !== "labelling") throw new Error("not labelling");
@@ -1050,8 +1052,6 @@ describe("labelling a picture", () => {
   });
 
   it("takes only labels from its bank, for places it has", () => {
-    const issue = (labels: Record<string, string>) =>
-      responseIssue(plant, { type: "labelling", labels });
     expect(issue({ 1: "Bark" })).toBeNull();
     expect(issue({ 1: "Leaf" })).toBe("learning.option");
     expect(issue({ 4: "Bark" })).toBe("learning.option");
@@ -1619,6 +1619,13 @@ describe("puzzles", () => {
   });
 });
 
+const validCondition = (atLeast: number | null, below: number | null) =>
+  v.safeParse(lessonConditionSchema, {
+    lessonId: uuid(1),
+    atLeast,
+    below,
+  }).success;
+
 describe("paths through a module", () => {
   const check = { id: uuid(1), condition: null };
   const more = {
@@ -1705,18 +1712,12 @@ describe("paths through a module", () => {
   });
 
   it("asks for a range that holds a score", () => {
-    const valid = (atLeast: number | null, below: number | null) =>
-      v.safeParse(lessonConditionSchema, {
-        lessonId: uuid(1),
-        atLeast,
-        below,
-      }).success;
-    expect(valid(null, 60)).toBe(true);
-    expect(valid(40, 80)).toBe(true);
-    expect(valid(null, null)).toBe(false);
-    expect(valid(80, 40)).toBe(false);
-    expect(valid(60, 60)).toBe(false);
-    expect(valid(0, null)).toBe(false);
+    expect(validCondition(null, 60)).toBe(true);
+    expect(validCondition(40, 80)).toBe(true);
+    expect(validCondition(null, null)).toBe(false);
+    expect(validCondition(80, 40)).toBe(false);
+    expect(validCondition(60, 60)).toBe(false);
+    expect(validCondition(0, null)).toBe(false);
   });
 });
 

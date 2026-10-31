@@ -30,6 +30,16 @@ const rainfall: ChartData = {
   ],
 };
 
+const arabic = (digits?: "latn" | "arab") =>
+  renderToStaticMarkup(
+    <ChartView
+      chart={rainfall}
+      strings={strings}
+      locale="ar"
+      digits={digits}
+    />,
+  );
+
 describe("charts as read", () => {
   it("steps its axis in round numbers that take in zero", () => {
     expect(niceTicks(4, 52)).toEqual([0, 20, 40, 60]);
@@ -71,15 +81,6 @@ describe("charts as read", () => {
   });
 
   it("writes Arabic numbers in the school's digits, Western by default", () => {
-    const arabic = (digits?: "latn" | "arab") =>
-      renderToStaticMarkup(
-        <ChartView
-          chart={rainfall}
-          strings={strings}
-          locale="ar"
-          digits={digits}
-        />,
-      );
     expect(arabic("arab")).toContain("٥٢");
     expect(arabic()).toContain("52");
     expect(arabic()).not.toContain("٥٢");

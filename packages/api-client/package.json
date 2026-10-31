@@ -7,10 +7,10 @@
     ".": "./src/index.ts"
   },
   "dependencies": {
-    "@orpc/client": "latest"
+    "@orpc/client": "^1.16.1"
   },
   "devDependencies": {
     "@faridalms/api": "workspace:*",
-    "@orpc/server": "latest"
+    "@orpc/server": "^1.16.1"
   }
 }

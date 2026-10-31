@@ -1,6 +1,8 @@
 import type { CellTransaction } from "@faridalms/database/context";
-import type { LessonRow ,
-  lessonResponses} from "@faridalms/database/stores/learning";
+import type {
+  LessonRow,
+  lessonResponses,
+} from "@faridalms/database/stores/learning";
 import type {
   CheckBlock,
   LessonDocument,

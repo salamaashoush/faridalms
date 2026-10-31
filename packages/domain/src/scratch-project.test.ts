@@ -232,21 +232,21 @@ describe("what a coding project has", () => {
   });
 });
 
-describe("what in a coding project is worth a second look", () => {
-  const notes = (...sprites: unknown[]) =>
-    scratchReadingOf(project(...sprites)).notes;
-  const send = (message: string) =>
-    block("event_broadcast", null, {
-      BROADCAST_INPUT: [1, [11, message, "id"]],
-    });
-  const hear = (message: string, next: string) =>
-    hat("event_whenbroadcastreceived", next, {
-      BROADCAST_OPTION: [message, "id"],
-    });
+const notesOf = (...sprites: unknown[]) =>
+  scratchReadingOf(project(...sprites)).notes;
+const broadcast = (message: string) =>
+  block("event_broadcast", null, {
+    BROADCAST_INPUT: [1, [11, message, "id"]],
+  });
+const whenHeard = (message: string, next: string) =>
+  hat("event_whenbroadcastreceived", next, {
+    BROADCAST_OPTION: [message, "id"],
+  });
 
+describe("what in a coding project is worth a second look", () => {
   it("is nothing in a project whose messages are heard and whose checks are looped", () => {
     expect(
-      notes(
+      notesOf(
         sprite({
           start: hat("event_whenflagclicked", "loop"),
           loop: block("control_forever", null, { SUBSTACK: inside("choice") }),
@@ -256,8 +256,8 @@ describe("what in a coding project is worth a second look", () => {
           }),
           key: block("sensing_keypressed"),
           say: block("looks_say"),
-          send: send("go"),
-          heard: hear("go", "say2"),
+          send: broadcast("go"),
+          heard: whenHeard("go", "say2"),
           say2: block("looks_say"),
         }),
       ),
@@ -266,11 +266,11 @@ describe("what in a coding project is worth a second look", () => {
 
   it("names a message nobody hears, and one nobody sends", () => {
     expect(
-      notes(
+      notesOf(
         sprite({
           start: hat("event_whenflagclicked", "send"),
-          send: send("start game"),
-          heard: hear("game over", "say"),
+          send: broadcast("start game"),
+          heard: whenHeard("game over", "say"),
           say: block("looks_say"),
         }),
       ),
@@ -282,14 +282,14 @@ describe("what in a coding project is worth a second look", () => {
 
   it("takes a message picked as the project runs to be any of them", () => {
     expect(
-      notes(
+      notesOf(
         sprite({
           start: hat("event_whenflagclicked", "send"),
           send: block("event_broadcast", null, {
             BROADCAST_INPUT: [3, "which", [11, "go", "id"]],
           }),
           which: block("data_variable"),
-          heard: hear("game over", "say"),
+          heard: whenHeard("game over", "say"),
           say: block("looks_say"),
         }),
       ),
@@ -307,19 +307,21 @@ describe("what in a coding project is worth a second look", () => {
       say: block("looks_say"),
     };
     expect(
-      notes(
+      notesOf(
         sprite({ start: hat("event_whenflagclicked", "choice"), ...check }),
       ),
     ).toEqual([{ kind: "once" }]);
     expect(
-      notes(sprite({ start: hat("event_whenkeypressed", "choice"), ...check })),
+      notesOf(
+        sprite({ start: hat("event_whenkeypressed", "choice"), ...check }),
+      ),
     ).toEqual([]);
   });
 
   it("notes a forever inside another loop, and none that follows a loop", () => {
     const say = block("looks_say");
     expect(
-      notes(
+      notesOf(
         sprite({
           start: hat("event_whenflagclicked", "outer"),
           outer: block("control_repeat", null, { SUBSTACK: inside("inner") }),
@@ -329,7 +331,7 @@ describe("what in a coding project is worth a second look", () => {
       ),
     ).toEqual([{ kind: "forever" }]);
     expect(
-      notes(
+      notesOf(
         sprite({
           start: hat("event_whenflagclicked", "outer"),
           outer: block("control_repeat", "inner", { SUBSTACK: inside("say") }),
@@ -347,7 +349,7 @@ describe("what in a coding project is worth a second look", () => {
         project(
           sprite({
             start: hat("event_whenflagclicked", "send"),
-            send: send("go"),
+            send: broadcast("go"),
           }),
         ),
       ),

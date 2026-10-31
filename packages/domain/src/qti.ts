@@ -713,6 +713,9 @@ export function qtiTest(test: {
 `;
 }
 
+const manifestFiles = (hrefs: string[]) =>
+  hrefs.map((href) => `<file href="${escape(href)}"/>`).join("");
+
 /** The package's manifest: every item, every test, and the pictures they show. */
 export function qtiManifest(manifest: {
   identifier: string;
@@ -720,10 +723,8 @@ export function qtiManifest(manifest: {
   tests: { identifier: string; href: string; items: string[] }[];
   media: string[];
 }): string {
-  const files = (hrefs: string[]) =>
-    hrefs.map((href) => `<file href="${escape(href)}"/>`).join("");
   const media = manifest.media.length
-    ? `<resource identifier="MEDIA" type="webcontent">${files(manifest.media)}</resource>`
+    ? `<resource identifier="MEDIA" type="webcontent">${manifestFiles(manifest.media)}</resource>`
     : "";
   return `<?xml version="1.0" encoding="UTF-8"?>
 <manifest xmlns="${MANIFEST_NAMESPACE}" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="${MANIFEST_NAMESPACE} ${MANIFEST_SCHEMA}" identifier="${manifest.identifier}"><metadata><schema>QTI Package</schema><schemaversion>3.0.0</schemaversion></metadata><organizations/><resources>${manifest.tests

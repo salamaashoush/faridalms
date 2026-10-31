@@ -216,6 +216,24 @@ const lesson: LessonDocument = {
 const checks = (blocks: LessonDocument["blocks"]) =>
   blocks.filter((block) => !["content", "media", "gate"].includes(block.type));
 
+const gatedOn = (requires: "above" | "last" | "none") =>
+  contentOfLesson({
+    version: 2,
+    blocks: lesson.blocks.map((block) =>
+      block.type === "gate" ? { ...block, requires } : block,
+    ),
+  });
+
+const scoreGated = (goal: number) =>
+  contentOfLesson({
+    version: 2,
+    blocks: lesson.blocks.map((block) =>
+      block.type === "gate"
+        ? { ...block, requires: "score" as const, goal }
+        : block,
+    ),
+  });
+
 describe("lessons written as one document", () => {
   it("keeps every question, its id and its key through the document", () => {
     const document = contentOfLesson(lesson);
@@ -288,15 +306,8 @@ describe("lessons written as one document", () => {
   });
 
   it("keeps what each continue gate waits for, and sees a change to it", () => {
-    const waits = (requires: "above" | "last" | "none") =>
-      contentOfLesson({
-        version: 2,
-        blocks: lesson.blocks.map((block) =>
-          block.type === "gate" ? { ...block, requires } : block,
-        ),
-      });
-    const last = waits("last");
-    const above = waits("above");
+    const last = gatedOn("last");
+    const above = gatedOn("above");
     if (!last || !above) throw new Error("lesson could not become a document");
     expect(
       last.root.children?.find((node) => node.type === "gate"),
@@ -308,17 +319,8 @@ describe("lessons written as one document", () => {
       lessonOfContent(last).blocks.find((block) => block.type === "gate"),
     ).toMatchObject({ requires: "last" });
     expect(sameLesson(above, last)).toBe(false);
-    const scored = (goal: number) =>
-      contentOfLesson({
-        version: 2,
-        blocks: lesson.blocks.map((block) =>
-          block.type === "gate"
-            ? { ...block, requires: "score" as const, goal }
-            : block,
-        ),
-      });
-    const eighty = scored(80);
-    const seventy = scored(70);
+    const eighty = scoreGated(80);
+    const seventy = scoreGated(70);
     if (!eighty || !seventy)
       throw new Error("lesson could not become a document");
     expect(
@@ -362,29 +364,30 @@ describe("lessons written as one document", () => {
 const partId = (n: number) =>
   `0190a1b2-0000-7000-8000-0000000001${String(n).padStart(2, "0")}`;
 
+const wordSearch = (backwards: boolean): LessonDocument => ({
+  version: 2,
+  blocks: [
+    {
+      id: partId(30),
+      type: "wordsearch",
+      prompt: "Find the planets.",
+      points: 2,
+      hints: [],
+      explanation: "",
+      tries: null,
+      words: [
+        { id: partId(31), answer: "mars" },
+        { id: partId(32), answer: "venus" },
+      ],
+      ...(backwards ? { backwards: true } : {}),
+    },
+  ],
+});
+
 describe("a word search for older students", () => {
   it("keeps its words running every way through the document", () => {
-    const search = (backwards: boolean): LessonDocument => ({
-      version: 2,
-      blocks: [
-        {
-          id: partId(30),
-          type: "wordsearch",
-          prompt: "Find the planets.",
-          points: 2,
-          hints: [],
-          explanation: "",
-          tries: null,
-          words: [
-            { id: partId(31), answer: "mars" },
-            { id: partId(32), answer: "venus" },
-          ],
-          ...(backwards ? { backwards: true } : {}),
-        },
-      ],
-    });
-    const harder = contentOfLesson(search(true));
-    const plain = contentOfLesson(search(false));
+    const harder = contentOfLesson(wordSearch(true));
+    const plain = contentOfLesson(wordSearch(false));
     if (!harder || !plain) throw new Error("no document");
     expect(harder.root.children?.[0]).toMatchObject({ backwards: true });
     expect(plain.root.children?.[0]).not.toHaveProperty("backwards");
@@ -1158,6 +1161,24 @@ describe("questions in a video", () => {
   });
 });
 
+const scratchAsking = (wanted: ("flag" | "loop")[]): LessonDocument => ({
+  version: 2,
+  blocks: [
+    {
+      id: partId(82),
+      type: "scratch",
+      prompt: "Make the cat walk.",
+      points: 2,
+      hints: [],
+      explanation: "",
+      tries: null,
+      starter: null,
+      gallery: false,
+      checks: wanted,
+    },
+  ],
+});
+
 describe("web projects", () => {
   const files = [
     { name: "index.html", code: '<link rel="stylesheet" href="style.css">' },
@@ -1206,24 +1227,7 @@ describe("web projects", () => {
   });
 
   it("keeps what a coding project is asked to do, and refuses one asked twice", () => {
-    const asking = (wanted: ("flag" | "loop")[]): LessonDocument => ({
-      version: 2,
-      blocks: [
-        {
-          id: partId(82),
-          type: "scratch",
-          prompt: "Make the cat walk.",
-          points: 2,
-          hints: [],
-          explanation: "",
-          tries: null,
-          starter: null,
-          gallery: false,
-          checks: wanted,
-        },
-      ],
-    });
-    const document = contentOfLesson(asking(["flag", "loop"]));
+    const document = contentOfLesson(scratchAsking(["flag", "loop"]));
     if (!document) throw new Error("lesson could not become a document");
     expect(v.safeParse(contentDocumentSchema, document).success).toBe(true);
     expect(lessonOfContent(document).blocks[0]).toMatchObject({
@@ -1231,11 +1235,14 @@ describe("web projects", () => {
       checks: ["flag", "loop"],
     });
     expect(
-      v.safeParse(lessonDocumentSchema, asking(["flag", "flag"])).success,
+      v.safeParse(lessonDocumentSchema, scratchAsking(["flag", "flag"]))
+        .success,
     ).toBe(false);
     // A question that asks for nothing says nothing of it in the document.
     expect(
-      JSON.stringify(contentOfLesson(asking([]))).includes("projectChecks"),
+      JSON.stringify(contentOfLesson(scratchAsking([]))).includes(
+        "projectChecks",
+      ),
     ).toBe(false);
   });
 

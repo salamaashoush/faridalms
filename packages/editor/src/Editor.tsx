@@ -9,8 +9,11 @@ import {
   contentDocumentSchema,
   contentPlainText,
 } from "@faridalms/domain/content";
-import { $isCodeNode, CodeNode, getCodeLanguageOptions } from "@lexical/code";
-import { CodePrismExtension } from "@lexical/code-prism";
+import { $isCodeNode, CodeNode } from "@lexical/code";
+import {
+  CodePrismExtension,
+  getCodeLanguageOptions,
+} from "@lexical/code-prism";
 import { HistoryExtension } from "@lexical/history";
 import { registerMarkdownShortcuts } from "@lexical/markdown";
 import { LexicalCollaboration } from "@lexical/react/LexicalCollaborationContext";

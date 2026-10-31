@@ -203,26 +203,26 @@ describe("glossary terms", () => {
   });
 });
 
-describe("a glossary turned into practice", () => {
-  /** The document's glossary made into cards and questions, as its block's menu does. */
-  function practised(): ContentDocument {
-    const editor = buildContentEditor();
-    editor.update(
-      () => {
-        $getRoot().clear();
-        for (const node of document.root.children ?? [])
-          $getRoot().append($parseSerializedNode(node));
-        const entries = $glossaryEntries("en");
-        $getRoot().append(
-          ...$glossaryFlashCards(entries),
-          ...$glossaryMatching(entries, "Match each word to its meaning."),
-        );
-      },
-      { discrete: true },
-    );
-    return editor.getEditorState().toJSON() as unknown as ContentDocument;
-  }
+/** The document's glossary made into cards and questions, as its block's menu does. */
+function practised(): ContentDocument {
+  const editor = buildContentEditor();
+  editor.update(
+    () => {
+      $getRoot().clear();
+      for (const node of document.root.children ?? [])
+        $getRoot().append($parseSerializedNode(node));
+      const entries = $glossaryEntries("en");
+      $getRoot().append(
+        ...$glossaryFlashCards(entries),
+        ...$glossaryMatching(entries, "Match each word to its meaning."),
+      );
+    },
+    { discrete: true },
+  );
+  return editor.getEditorState().toJSON() as unknown as ContentDocument;
+}
 
+describe("a glossary turned into practice", () => {
   it("makes a card for each word, its meaning and other-language word behind it", () => {
     const made = practised();
     expect(valid(made)).toBe(true);

@@ -84,7 +84,7 @@ a K-2 quiz mode, and hints, attempt limits and review for older students.
 
 - `lesson_progress`: one row per lesson and student with `answers` jsonb
   (`{quiz: {blockId: {optionIds, correct, tries}}, reflections: {blockId:
-{text}}}`, 64 KB cap), `score` 0 to 100, `attempts` (incremented on every quiz
+  {text}}}`, 64 KB cap), `score` 0 to 100, `attempts` (incremented on every quiz
   answer in the lesson), `position`, `completed_at` and `completed_by`
   (student or teacher).
 - The lesson document lives in `core.documents` keyed by host and is
@@ -214,7 +214,7 @@ numbers below are `https://community.instructure.com/en/kb/articles/<n>`.
   one `override` block into every child and sum `getScore()`/`getMaxScore()`
   (https://github.com/h5p/h5p-question-set/blob/master/semantics.json). Contract:
   `getAnswerGiven, getScore, getMaxScore, showSolutions, resetTask,
-getXAPIData, getCurrentState` (https://h5p.org/documentation/developers/contracts).
+  getXAPIData, getCurrentState` (https://h5p.org/documentation/developers/contracts).
 - Concrete behaviour worth copying: Fill in the Blanks `*a/b:tip*`
   alternatives, `caseSensitive` (default true), `acceptSpellingErrors` (one
   Damerau-Levenshtein edit for 3 to 9 characters, two above 9)
@@ -827,7 +827,7 @@ Pitfalls to design out:
 ### 3.5 Data model implications
 
 1. **Item definition.** An activity block is `{id, kind, prompt, config, key,
-scoring, feedback, hints, points}`. Each kind declares a QTI cardinality and
+   scoring, feedback, hints, points}`. Each kind declares a QTI cardinality and
    base type (choice: identifier single or multiple; typed and gap: string;
    number: float; dropdown: identifier; word bank, matching, sorting:
    directedPair multiple; ordering: identifier ordered; image find: point;

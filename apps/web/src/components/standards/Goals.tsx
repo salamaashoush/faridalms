@@ -32,6 +32,8 @@ import {
 import { useId, useState } from "react";
 import { toast } from "sonner";
 
+import type { studentProgressQuery } from "~/queries/standards";
+
 import { displayName } from "~/components/people/format";
 import { FormField, SelectField } from "~/components/system/field";
 import { EmptyState } from "~/components/system/IndexPage";
@@ -43,7 +45,6 @@ import {
   RecordSection,
 } from "~/components/system/RecordPage";
 import * as m from "~/i18n/messages";
-import type { studentProgressQuery } from "~/queries/standards";
 import { classGoalsQuery } from "~/queries/standards";
 import { addEarlyGoals, judgeGoal } from "~/server/standards";
 import { formatAgo, formatNumber } from "~/utils/datetime";

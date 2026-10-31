@@ -348,11 +348,11 @@ function LessonBody({
       }
     return { questions: above.filter(isCheckBlock), media: watchables(above) };
   };
+  const finished = (block: CheckStudentBlock) =>
+    isSettled(block, checks[block.id]);
   const settledAbove = (index: number): GateStanding => {
     const gate = blocks[index];
     const asked = blocks.slice(0, index).filter(isCheckBlock);
-    const finished = (block: CheckStudentBlock) =>
-      isSettled(block, checks[block.id]);
     if (gate?.type === "gate" && gate.requires === "some") {
       const total = gate.goal ?? 1;
       const done = asked.filter(finished).length;

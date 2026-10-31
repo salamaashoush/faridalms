@@ -661,13 +661,14 @@ export function sameMath(
   return compared >= (names.length === 0 ? 1 : 4);
 }
 
+const plainLatex = (latex: string) =>
+  westernDigits(latinMath(latex))
+    .replace(/\\(?:left|right|[,;:! ]|quad|qquad)/gu, "")
+    .replace(/\s+/gu, "");
+
 /** Whether two pieces of LaTeX are written alike, spacing and sizing aside. */
 export function sameLatex(a: string, b: string): boolean {
-  const plain = (latex: string) =>
-    westernDigits(latinMath(latex))
-      .replace(/\\(?:left|right|[,;:! ]|quad|qquad)/gu, "")
-      .replace(/\s+/gu, "");
-  return plain(a) === plain(b);
+  return plainLatex(a) === plainLatex(b);
 }
 
 /** The value of an expression with no letters in it, or null where it has some or cannot be read. */

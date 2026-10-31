@@ -19,19 +19,20 @@ const text = (words: string): ContentNode => ({
   format: 0,
 });
 
+const panel = (title: string, body: string): ContentNode => ({
+  type: "panel",
+  version: 1,
+  children: [
+    { type: "panel-title", version: 1, children: [text(title)] },
+    {
+      type: "panel-body",
+      version: 1,
+      children: [{ type: "paragraph", version: 1, children: [text(body)] }],
+    },
+  ],
+});
+
 function set(layout: PanelLayout, open?: boolean): ContentNode {
-  const panel = (title: string, body: string): ContentNode => ({
-    type: "panel",
-    version: 1,
-    children: [
-      { type: "panel-title", version: 1, children: [text(title)] },
-      {
-        type: "panel-body",
-        version: 1,
-        children: [{ type: "paragraph", version: 1, children: [text(body)] }],
-      },
-    ],
-  });
   return {
     type: "panels",
     version: 1,

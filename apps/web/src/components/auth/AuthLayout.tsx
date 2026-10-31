@@ -1,12 +1,14 @@
 import type { ReactNode } from "react";
 
 import { BookOpen, GraduationCap, Languages, Users } from "lucide-react";
+import { useState } from "react";
 
 import { LocaleToggle } from "~/components/theme/LocaleToggle";
 import { ThemeToggle } from "~/components/theme/ThemeToggle";
 import * as m from "~/i18n/messages";
 
 export function AuthLayout({ children }: { children: ReactNode }) {
+  const [year] = useState(() => new Date().getFullYear());
   const features = [
     {
       icon: BookOpen,
@@ -59,9 +61,7 @@ export function AuthLayout({ children }: { children: ReactNode }) {
           className="pointer-events-none absolute -end-40 -bottom-56 size-[520px] rounded-full border-[80px] border-white/[0.03]"
           aria-hidden
         />
-        <p className="text-xs text-[#bcd2c8]">
-          {m.commonCopyRights({ year: new Date().getFullYear() })}
-        </p>
+        <p className="text-xs text-[#bcd2c8]">{m.commonCopyRights({ year })}</p>
       </div>
       <div className="flex min-h-screen flex-col">
         <div className="flex items-center justify-between p-5 sm:p-8">

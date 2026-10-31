@@ -10,13 +10,13 @@
     "./Studio": "./src/Studio.tsx"
   },
   "dependencies": {
-    "@base-ui/react": "^1.8.0",
+    "@base-ui/react": "^1.9.0",
     "@faridalms/ui": "workspace:*",
-    "lucide-react": "^1.45.0",
+    "lucide-react": "^1.66.0",
     "valibot": "^1.5.0"
   },
   "peerDependencies": {
-    "react": "^19.3.0",
-    "react-dom": "^19.3.0"
+    "react": "^19.3.1",
+    "react-dom": "^19.3.1"
   }
 }

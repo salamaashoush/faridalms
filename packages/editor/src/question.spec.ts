@@ -1,6 +1,6 @@
 import type { ContentDocument } from "@faridalms/domain/content";
 import type { LessonDocument } from "@faridalms/domain/learning";
-import type { ElementNode, LexicalEditor } from "lexical";
+import type { ElementNode, LexicalEditor, LexicalNode } from "lexical";
 
 import {
   contentDocumentSchema,
@@ -19,6 +19,7 @@ import {
   $createTextNode,
   $getRoot,
   $getSelection,
+  $isElementNode,
   $isRangeSelection,
   defineExtension,
   INSERT_PARAGRAPH_COMMAND,
@@ -91,6 +92,11 @@ const voice = (n: number) => `0190a1b2-0000-7000-8000-00000000030${n}`;
 
 function write(node: ElementNode | null | undefined, text: string) {
   node?.append($createTextNode(text));
+}
+
+function element(node: LexicalNode | null | undefined): ElementNode {
+  if (!$isElementNode(node)) throw new Error("not an element");
+  return node;
 }
 
 describe("questions in a document", () => {
@@ -211,8 +217,8 @@ describe("questions in a document", () => {
         ].forEach(([word = "", clue = ""], index) => {
           const pair = pairs[index];
           if (!$isQuestionPairNode(pair)) throw new Error("no pair");
-          write(pair.getFirstChild<ElementNode>(), word);
-          write(pair.getLastChild<ElementNode>(), clue);
+          write(element(pair.getFirstChild()), word);
+          write(element(pair.getLastChild()), clue);
         });
       },
       { discrete: true },
@@ -549,7 +555,7 @@ describe("questions in a document", () => {
         $insertBlock("numberQuestion");
         const number = $getRoot().getChildren().filter($isQuestionNode)[1];
         number?.setSettings({ answerValue: 6, tolerance: 0.5 });
-        number?.getFirstChild<ElementNode>()?.append($createTextNode("Sides?"));
+        element(number?.getFirstChild()).append($createTextNode("Sides?"));
       },
       { discrete: true },
     );
@@ -580,8 +586,8 @@ describe("questions in a document", () => {
         ].forEach(([left = "", right = ""], index) => {
           const pair = pairs[index];
           if (!$isQuestionPairNode(pair)) throw new Error("no pair");
-          write(pair.getFirstChild<ElementNode>(), left);
-          write(pair.getLastChild<ElementNode>(), right);
+          write(element(pair.getFirstChild()), left);
+          write(element(pair.getLastChild()), right);
         });
         const paragraph = $createParagraphNode();
         $getRoot().append(paragraph);
@@ -596,7 +602,7 @@ describe("questions in a document", () => {
         ].forEach(([name = "", item = ""], index) => {
           const group = groups[index];
           if (!group) throw new Error("no group");
-          write(group.getFirstChild<ElementNode>(), name);
+          write(element(group.getFirstChild()), name);
           const option = group.getChildren().find($isQuestionOptionNode);
           write(option, item);
         });
@@ -639,8 +645,9 @@ describe("questions in a document", () => {
           ?.getChildren()
           .filter($isQuestionPairNode)
           .at(-1);
-        pair?.getFirstChild<ElementNode>()?.append($createTextNode("Hot"));
-        pair?.getFirstChild<ElementNode>()?.selectEnd();
+        const side = element(pair?.getFirstChild());
+        side.append($createTextNode("Hot"));
+        side.selectEnd();
       },
       { discrete: true },
     );
@@ -1030,11 +1037,9 @@ describe("questions in a document", () => {
         $getRoot().clear().append(paragraph);
         paragraph.select();
         $insertBlock("trueFalseQuestion");
-        $getRoot()
-          .getChildren()
-          .find($isQuestionNode)
-          ?.getFirstChild<ElementNode>()
-          ?.append($createTextNode("The sun is a star."));
+        element(
+          $getRoot().getChildren().find($isQuestionNode)?.getFirstChild(),
+        ).append($createTextNode("The sun is a star."));
       },
       { discrete: true },
     );
@@ -1061,16 +1066,13 @@ describe("questions in a document", () => {
           prompt.append($createTextNode("Match each animal to its name."));
         pairs.slice(0, 2).forEach((pair, index) => {
           if (!$isQuestionPairNode(pair)) throw new Error("no pair");
-          const side = pair.getFirstChild<ElementNode>();
+          const side = pair.getFirstChild();
           if (side)
             $setPartPicture(side, {
               fileId: cat,
               alt: index === 0 ? "A cat" : "Another cat",
             });
-          write(
-            pair.getLastChild<ElementNode>(),
-            index === 0 ? "Cat" : "Kitten",
-          );
+          write(element(pair.getLastChild()), index === 0 ? "Cat" : "Kitten");
         });
       },
       { discrete: true },
@@ -1110,11 +1112,13 @@ describe("questions in a document", () => {
           prompt.append($createTextNode("Which ones fly?"));
         $setNarration(question, voice(1));
         if (!$isQuestionGroupNode(group)) throw new Error("no group");
-        const [name, item] = group.getChildren<ElementNode>();
+        const [first, second] = group.getChildren();
+        const name = element(first);
+        const item = element(second);
         write(name, "Flies");
-        if (name) $setNarration(name, voice(2));
+        $setNarration(name, voice(2));
         write(item, "Bird");
-        if (item) $setNarration(item, voice(3));
+        $setNarration(item, voice(3));
         const intro = $createParagraphNode().append($createTextNode("Listen."));
         $setNarration(intro, voice(4));
         question.insertBefore(intro);

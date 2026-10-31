@@ -387,7 +387,7 @@ function CompareBlock({
   );
 }
 
-abstract class PicturesNode extends DecoratorBlockNode {
+class PicturesNode extends DecoratorBlockNode {
   __pictures: SetPicture[];
 
   constructor(
@@ -397,6 +397,12 @@ abstract class PicturesNode extends DecoratorBlockNode {
   ) {
     super(format, key);
     this.__pictures = pictures;
+  }
+
+  $config() {
+    return this.config(Symbol.for("PicturesNode"), {
+      extends: DecoratorBlockNode,
+    });
   }
 
   updateFromJSON(json: LexicalUpdateJSON<SerializedPicturesNode>): this {
@@ -434,7 +440,7 @@ abstract class PicturesNode extends DecoratorBlockNode {
 /** Pictures side by side, each opening large for its reader. */
 export class GalleryNode extends PicturesNode {
   $config() {
-    return this.config("gallery", {});
+    return this.config("gallery", { extends: PicturesNode });
   }
 
   static clone(node: GalleryNode): GalleryNode {
@@ -459,7 +465,7 @@ export class GalleryNode extends PicturesNode {
 /** Two pictures of one thing, before and after, its reader slides between. */
 export class CompareNode extends PicturesNode {
   $config() {
-    return this.config("compare", {});
+    return this.config("compare", { extends: PicturesNode });
   }
 
   static clone(node: CompareNode): CompareNode {

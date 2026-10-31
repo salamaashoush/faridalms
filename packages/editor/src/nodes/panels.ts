@@ -168,7 +168,8 @@ export class PanelTitleNode extends ElementNode {
     if (!$isPanelNode(previous))
       return panels.getChildrenSize() === 1 ? panels.collapseAtStart() : true;
     if (panel.getTextContent().trim() === "") panel.remove();
-    previous.getLastChild<ElementNode>()?.selectEnd();
+    const body = previous.getLastChild();
+    if ($isElementNode(body)) body.selectEnd();
     return true;
   }
 }

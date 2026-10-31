@@ -1,6 +1,6 @@
 # Farida LMS agent guidance
 
-The platform is Farida LMS. Northwind is one school, never the platform name.
+The platform is Farida LMS. A school name is never the platform name.
 The repository is a Bun workspace with independently deployable web and API apps.
 Use `bun run ready` for final verification. End-to-end tests create isolated
 school databases; never reset the developer's school to make a test pass.
@@ -37,7 +37,7 @@ bun run test:e2e     # playwright, builds and serves the production bundle
 `cargo test` there; the tests encode a clip, so they need `ffmpeg` on the
 path. CI's `media` job runs the same three.
 
-**Bun 1.4.2 is pinned** in packageManager, Dockerfile and `.github/setup/action.yml`.
+**Bun 1.4.4 is pinned** in packageManager, Dockerfile and `.github/setup/action.yml`.
 Keep all three aligned; Bun 1.3 cannot read this lockfile version.
 
 **The app runs on Bun, the test tooling runs on Node.** `drizzle-orm/bun-sql`

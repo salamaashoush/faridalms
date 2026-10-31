@@ -245,7 +245,7 @@ function $enterInHolder(): boolean {
   let node: LexicalNode | null = selection.anchor.getNode();
   while (node && !$isQuestionSideNode(node) && !$isQuestionOptionNode(node))
     node = node.getParent();
-  if (!node || !$isElementNode(node)) return false;
+  if (!node) return false;
   const holder = node.getParent();
   const question = holder?.getParent();
   if (!$isQuestionNode(question)) return false;
@@ -542,7 +542,8 @@ function $enterInPanel(): boolean {
   if (!waiting && panels.getChildrenSize() >= MAX_PANELS) return false;
   if (body.getChildrenSize() > 1) anchor.remove();
   const next = waiting ? following : panel.insertAfter($createPanel());
-  if ($isPanelNode(next)) next.getFirstChild<ElementNode>()?.selectStart();
+  const nextTitle = $isPanelNode(next) ? next.getFirstChild() : null;
+  if ($isElementNode(nextTitle)) nextTitle.selectStart();
   return true;
 }
 

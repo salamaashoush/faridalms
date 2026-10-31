@@ -17,7 +17,7 @@ import { completeFixture } from "./fixture";
 
 export const ADMIN_URL =
   process.env.DATABASE_ADMIN_URL ??
-  "postgres://northwind:northwind@127.0.0.1:5433/postgres";
+  "postgres://farida:farida@127.0.0.1:5433/postgres";
 
 const suffix = crypto.randomUUID().replaceAll("-", "").slice(0, 12);
 export const DATABASE = `cell_test_${suffix}`;
@@ -173,7 +173,7 @@ export async function probe<T = Record<string, unknown>>(
   } finally {
     await conn.unsafe("rollback").catch(() => undefined);
     await conn.unsafe("reset all").catch(() => undefined);
-    conn.release();
+    await conn.release();
   }
 }
 

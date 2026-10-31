@@ -52,7 +52,7 @@ interval.
   `communication_isolated`, classes through enrolment, the homeroom a subject class is taught to, or
   teaching, grades through homerooms. Anything else is a 404. Audiences are shown to managers only.
 - Writes use `expectedVersion` and write audit rows (`calendar_event.create|update|cancel|restore|
-delete`); delete is soft (`status = 'tobedeleted'`).
+  delete`); delete is soft (`status = 'tobedeleted'`).
 
 ### Screens
 
@@ -470,7 +470,7 @@ categories edit own only; Veracross and Blackbaud have no event approval.
 user with reset; Veracross and Blackbaud windows; client refresh behaviour (section 4).
 
 - Data: `calendar_feeds` (tenant, user, `token_hash`, optional filter `{children: [...], categories:
-[...], includeDays: bool}`, `created_at`, `revoked_at`, `last_fetched_at`). Store a hash, show the
+  [...], includeDays: bool}`, `created_at`, `revoked_at`, `last_fetched_at`). Store a hash, show the
   token once, "Reset link" revokes. Revoke on account deactivation.
 - Serve `GET /calendar/feed/<token>.ics` unauthenticated, evaluating the owner's reach at fetch time
   (so a guardian link dies with the relationship or `communication_isolated`), window 30 days back to

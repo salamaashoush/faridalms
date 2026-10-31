@@ -5,7 +5,7 @@ import { $getNodeByKey, SKIP_DOM_SELECTION_TAG } from "lexical";
 import { BookX, Check, ImageOff, ImagePlus, LoaderCircle } from "lucide-react";
 import { useCallback, useId, useState } from "react";
 
-import type { TermFacts, TermNode } from "../nodes/term";
+import type { TermFacts } from "../nodes/term";
 
 import { useEditorEnvironment } from "../context";
 import { $isTermNode } from "../nodes/term";
@@ -54,7 +54,7 @@ export function TermPanel({
     setFacts((current) => ({ ...current, ...patch }));
     editor.update(
       () => {
-        const node = $getNodeByKey<TermNode>(nodeKey);
+        const node = $getNodeByKey(nodeKey);
         if ($isTermNode(node)) node.setFacts(patch);
       },
       { tag: SKIP_DOM_SELECTION_TAG },

@@ -47,6 +47,16 @@ const labelled = (open?: boolean): ContentNode => ({
   ],
 });
 
+const compare = (open?: boolean): ContentNode => ({
+  type: "compare",
+  version: 1,
+  ...(open === undefined ? {} : { open }),
+  pictures: [
+    { fileId: file(2), alt: "The river in 1990" },
+    { fileId: file(3), alt: "The river today", caption: "2024" },
+  ],
+});
+
 describe("pictures as read", () => {
   it("names each place on a picture by a button that opens it", () => {
     const html = drawn(labelled());
@@ -65,15 +75,6 @@ describe("pictures as read", () => {
   });
 
   it("lays a before over an after under a slider, and side by side on paper", () => {
-    const compare = (open?: boolean): ContentNode => ({
-      type: "compare",
-      version: 1,
-      ...(open === undefined ? {} : { open }),
-      pictures: [
-        { fileId: file(2), alt: "The river in 1990" },
-        { fileId: file(3), alt: "The river today", caption: "2024" },
-      ],
-    });
     const html = drawn(compare());
     expect(html).toContain('type="range"');
     expect(html).toContain('aria-label="Slide between before and after"');

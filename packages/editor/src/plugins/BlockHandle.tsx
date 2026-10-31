@@ -1,5 +1,5 @@
 import type { ColumnLayout, PanelLayout } from "@faridalms/domain/content";
-import type { ElementNode, LexicalNode, NodeKey } from "lexical";
+import type { LexicalNode, NodeKey } from "lexical";
 
 import { Menu } from "@base-ui/react/menu";
 import {
@@ -671,7 +671,8 @@ export function BlockHandlePlugin({ anchor }: { anchor: HTMLElement | null }) {
                             if (!$isPanelsNode(node)) return;
                             const panel = $createPanel();
                             node.append(panel);
-                            panel.getFirstChild<ElementNode>()?.selectStart();
+                            const title = panel.getFirstChild();
+                            if ($isElementNode(title)) title.selectStart();
                           })
                         }
                       >
