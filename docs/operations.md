@@ -2,44 +2,60 @@
 
 ## Deployment
 
-Build both Docker targets, `web` and `api`, or use `compose.production.yaml`.
-The API requires `CONTROL_DATABASE_URL`. The web requires `BACKEND_URL`, pointing
-to the API's internal address. Both validate their required environment at startup.
-Expose the web and the native-client API through a TLS reverse proxy. Only trust
-forwarded protocol headers from that proxy; it must replace client-supplied headers.
-The web uses the forwarded protocol to set Secure cookies correctly.
+`compose.production.yaml` runs one regional cell from the Docker targets:
 
-Apply migrations before enabling a new school or rolling out schema-dependent
-code. The web can scale independently of the API. All replicas share the control
-database so sessions and login throttles remain consistent across instances.
-The API drains HTTP requests on termination and closes its pools afterward.
+- `migrate`, a one-shot job that provisions the cluster roles, creates the
+  cell and directory databases if they are missing and applies pending
+  migrations. It carries no seed and nothing that drops data. It runs before
+  the API on every deploy.
+- `api` (port 3001, files host on 3003), `web` (3000), `collab` (3002), and
+  `ops` (3004, under the `ops` profile). `media` is built separately.
 
-`bun run smoke:containers` builds both targets, runs them on the host network
-against the databases in `.env`, checks `/health/live`, `/health/ready`, a real
-sign-in through a school pool, the web health route and a server-rendered page in
-both languages, then stops each container and expects a clean exit within the
-grace period. Run it before a release and after changing the Dockerfile, the
-health routes or the startup environment validation.
+Postgres is external. Each service connects as its own login role, named in
+its URL: `CELL_APP_URL` (`app`), `CELL_SITE_URL` (`site`), `CELL_WORKER_URL`
+(`worker`), `CELL_RETENTION_URL` (`retention`), `CELL_COLLAB_URL` (`collab`),
+`DIRECTORY_URL` (`directory_reader`) and, for the console only,
+`OPS_DIRECTORY_URL` (`directory_admin`). `CELL_KEK` and `CELL_SECRET` are 32
+random bytes each in base64; `CELL_SECRET` is shared by the API and collab.
+Every service validates its environment at startup and exits on anything
+missing. Without `CELL_WORKER_URL` uploads are never settled and no
+notification is delivered, so the compose file requires it.
+
+Put a TLS proxy in front. It must set `X-Forwarded-Proto` and append the
+client's address to `X-Forwarded-For`. `TRUSTED_PROXY_HOPS` (default 1) is
+how many proxies append to that header; the client is the entry the outermost
+one added, and anything to its left is ignored, because a client can send
+whatever it likes there. Sign-in and enquiry limits are keyed on it.
+
+The web sends `frame-ancestors 'self'`, `nosniff`, a referrer policy and, over
+HTTPS, HSTS without `includeSubDomains`. The console sends
+`frame-ancestors 'none'`.
+
+`FILE_STORAGE=disk` keeps uploads in the `files` volume, which must be backed
+up with the database. `FILE_STORAGE=s3` with `FILE_BUCKET` and
+`PUBLIC_MEDIA_BUCKET` is the production choice once more than one API replica
+runs.
+
+The API drains HTTP requests on termination, then its workers, then its
+pools.
+
+`bun run smoke:containers` builds the images, runs them against the databases
+in `.env`, checks `/health/live`, `/health/ready`, a real sign-in, the web
+health route and a server-rendered page in both languages, then stops each
+container and expects a clean exit within the grace period.
 
 ## Registering a school
 
-Create a PostgreSQL database and a dedicated database role for the school. Use an
-administrator or migration role to apply migrations, then give the runtime role
-only the required database/schema/table privileges. Do not use PostgreSQL's
-superuser role for production requests. School database credentials are stored
-in the access-restricted control database; protect backups and rotate credentials
-through an operational maintenance window.
+There is no production path yet: `provisionTenant` and the directory
+registration are called only by the development seed and the tests, and the
+first administrator can only be made by the seed. The operator console's
+"create school" action, adult invitations and password reset are the first
+slices of [plans/school-front-door.md](plans/school-front-door.md).
 
-Set `DATABASE_URL` to the new school, then run `bun run db:migrate`. Set
-`SCHOOL_SLUG`, `SCHOOL_NAME`, and optionally `SCHOOL_TIMEZONE`, then run
-`bun run school:register`. School slugs are unique and registration does not
-replace an existing school. Provision the first administrator through your
-identity onboarding process; the development seed is not a production onboarding
-mechanism. An account-invitation delivery flow is not yet implemented.
-
-For the local Northwind database, `bun run db:init` creates the control database when
-missing, migrates both stores and registers the school without resetting data.
-It deliberately does not run the destructive demonstration seed.
+Locally, `bun run db:reset` provisions the roles, recreates the cell and
+directory, migrates and seeds; it refuses to run with `NODE_ENV=production`.
+`bun run db:create` creates what is missing and migrates without touching
+data.
 
 ## Storage limits
 
@@ -410,65 +426,47 @@ with nothing of the host but what a test gives and prints.
 
 ## Public site
 
-Each school's marketing site is served at `/site/{slug}` by the same web and API
-processes; no extra service is needed. Administrators switch it on from the
-Website section, and until then the address answers not found. To land visitors
-on a school's site from the root of its own hostname, set `public_domain` on the
-school's row in the control database to that hostname (without a port) and point
-the DNS at the web process; the root then redirects to `/site/{slug}`. Site
-media (logos, covers, page images) uses the same private file store as every
-other upload and is streamed publicly through `/v1/sites/{slug}/files/{id}/content`
-only while published content or the logo references the file, with a five-minute
-public cache header.
+Each school's website is served at `/site/{slug}` by the web and API; no
+extra service is needed. Administrators switch it on from the Website
+section, and until then the address answers not found. Published images are
+served from `/public-media/p/{token}/{name}`. A school's own hostname is not
+routed yet: nothing writes `directory.hosts`. Custom and wildcard hosts are
+section 2 of [plans/school-front-door.md](plans/school-front-door.md).
 
 ## Notifications
 
-`EMAIL_PROVIDER_URL` and `SMS_PROVIDER_URL` name HTTP endpoints that accept a
-JSON body `{ to, subject, text }` with an optional bearer token from
-`EMAIL_PROVIDER_TOKEN` and `SMS_PROVIDER_TOKEN`; a gateway or a small relay in
-front of the vendor keeps vendor SDKs out of the API. Leave both unset to keep
-outbound channels off: deliveries are then recorded as skipped with
-`provider_not_configured`, visible in the administrator's notification log.
-`memory:` is a test provider that records sends in process and fails on
-demand; the end-to-end suite uses it and never delivers anything.
-`NOTIFICATION_POLL_MS` (default 15000) is the worker's polling interval and
-`NOTIFICATION_RETRY_BASE_MS` (default 60000) the first retry delay, which
-grows by 5, 30, 120 and 720 times on later attempts. The
-worker runs inside every API replica and claims rows with `FOR UPDATE SKIP
-LOCKED`, so replicas share the queue without double sending. Failed
-deliveries retry with a growing delay and stop after five attempts; a provider
+`EMAIL_WEBHOOK_URL` and `SMS_WEBHOOK_URL` name HTTP endpoints that accept a
+JSON body `{ to, subject, text }`, with the bearer token
+`NOTIFY_WEBHOOK_TOKEN`; a small relay in front of the vendor keeps vendor
+SDKs out of the API. Use `https` URLs, since the token travels with each
+request. Leave both unset to keep outbound channels off: deliveries are then
+recorded as skipped, visible in the administrator's notification log.
+`memory:` is a test provider that records sends in process; the end-to-end
+suite uses it.
+
+The worker runs inside every API replica that has `CELL_WORKER_URL`, polls
+every 30 seconds and claims rows with `FOR UPDATE SKIP LOCKED`, so replicas
+share the queue without double sending. A failed delivery retries after 1,
+5, 30, 120 and 720 minutes and stops after the fifth attempt; a provider
 answering 4xx other than 429 is treated as permanent.
 
 ## Capacity and maintenance
 
-`MAX_TENANT_POOLS` defaults to 32 and `TENANT_POOL_SIZE` to 4. Budget approximately
-`replicas × (MAX_TENANT_POOLS × TENANT_POOL_SIZE + 4)` connections, plus migration,
-monitoring and maintenance connections. These are configurable resource limits,
-not measured throughput guarantees. Use PostgreSQL connection pooling where the
-fleet outgrows the cluster budget. Monitor 503 responses, connection utilisation,
-query latency and response duration before increasing limits.
+Each API replica opens, per cell, `CELL_POOL_SIZE` (default 10) connections
+as `app`, half that (at least 2) as `site`, 4 as `worker`, 1 as
+`retention`, and 4 to the directory. Budget the cluster's connections for
+every replica plus collab, the console, migrations and monitoring. These are
+resource limits, not measured throughput.
 
-The current student directory uses offset pagination with a stable tie-breaker.
-Deep pages and contains-search require query-plan measurement for very large
-schools. Student, staff and class directories are bounded at the API.
-Overview aggregation queries still need representative dataset measurements. Do not advertise a
-concurrency or tenant-capacity guarantee based on the browser test suite.
+Back up the cell and the directory independently, test restores, and keep
+the `files` volume or bucket in the same backup window.
 
-Schedule removal of expired sessions and expired login-attempt buckets from the
-control database. Back up the control store and every school independently.
-Record migration state per database, test restores, and apply schema updates in
-bounded batches. A fleet migration coordinator and automated school provisioning
-are not yet included.
-
-`/health/ready` checks the control database; individual school availability is
-observed on its API requests. Logs include request ID, operation path, status and
-duration, without request bodies or tokens. Route internal failure diagnostics to
-your observability system using the same request ID.
+`/health/ready` checks the cell and the directory. Logs are JSON lines with
+request ID, operation path, status and duration, without request bodies or
+tokens.
 
 ## Tests
 
-`bun run test:e2e` creates randomly named `northwind_test_*` databases. The prefix is
-historical development infrastructure, not platform branding. These isolated
-databases remain available after a run for diagnosis. Remove only the test
-databases you no longer need using your database administration tooling. Tests
-must never use the development school's reset command.
+`bun run test:e2e` creates a randomly named `cell_e2e_*` cell and
+`directory_e2e_*` directory, seeds them, and drops both however the run ends.
+Tests must never use the development school's reset command.

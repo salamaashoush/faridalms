@@ -1,28 +1,27 @@
 # Farida LMS
 
 A multilingual learning workspace for schools, teachers, students and families.
-The platform is Farida LMS. Northwind School is the development school.
-Each registered school has its own academic database and accounts.
+Each registered school has its own identity, accounts and records.
 
 ## Development
 
 ```sh
-bun install
-bun run db:up
-bun run db:init
+bun install      # also compiles i18n and writes a local .env
+bun run db:up    # Postgres 18 in Docker on port 5433
+bun run db:reset # provision roles, create the cell and directory, migrate, seed
 bun run dev
 ```
 
 The web app listens on port 3000; the independent API listens on 3001.
-`db:init` applies additive migrations and registers the existing local school. It
-preserves existing records. On a new, empty development database, `bun run db:seed`
-loads demonstration records. That seed command truncates school data and must
-never run against a database containing work you need to keep.
+`db:reset` recreates the local databases and loads demonstration records, so it
+must never run against a database holding work you need to keep; `db:migrate`
+applies pending migrations without touching data.
 
-Development sign-in uses school code `northwind`. The demo accounts are
-`admin@example.com`, `teacher@example.com`, `parent@example.com`, and
-`omar@example.com`, with password `northwind1234`. Credential shortcuts appear only
-in development builds. Production schools provision their own accounts.
+The seed creates a school group, Northwind Schools (school codes `northwind`
+and `northwind-east`), and a standalone school, `acme`. `db:reset` prints every
+login; all use the password `farida-development-password`. Credential shortcuts
+appear on the sign-in page only in development builds. Production schools
+provision their own accounts.
 
 ## Workspaces
 
@@ -45,13 +44,15 @@ registration, migrations, connection budgets and deployment.
 bun run ready
 ```
 
-This runs lint, TypeScript, unit tests, then production Playwright tests across
-Chromium, Firefox and WebKit. End-to-end tests create independent school databases
-and a control database; they do not reset the development school. They exercise
+This runs lint, TypeScript, unit tests, the database and API suites, then
+production Playwright tests across Chromium, Firefox and WebKit. Those suites
+create and drop their own throwaway cell and directory; they never reset the
+development databases. They exercise
 role navigation, SSR, Arabic RTL, mobile layouts, session revocation, concurrent
 school isolation, pagination, and the assignment/submission/grading workflow.
 
-`bun run build` uses Turborepo to build both deployable apps. Shared packages are
+`bun run build` uses Turborepo to build the deployable apps (web, api, collab,
+ops). Shared packages are
 TypeScript source packages consumed by their app bundlers. Dependency versions
 are locked in `bun.lock`.
 
@@ -59,15 +60,17 @@ are locked in `bun.lock`.
 
 The API exposes typed RPC at `/rpc`, JSON HTTP operations at `/v1`, and its
 OpenAPI document at `/openapi.json`. `/health/live` checks the process;
-`/health/ready` checks the control database. Protected operations require a bearer
+`/health/ready` checks the cell and the directory. Protected operations require a bearer
 token returned by `/v1/auth/signIn`, using `school`, `email` and `password`.
 The web server retains that token in an HTTP-only cookie. Native apps store it
 in platform secure storage and call the same API.
 
 The implemented learning workflow supports authored assignments, written
 submissions, feedback and scoring, attendance, timetables, family progress,
-messages, newsletters and school calendars. File-upload storage, billing,
-video delivery and account-invitation delivery are not implemented.
+messages, newsletters and school calendars, with file storage on disk or S3,
+adaptive video through the media service, and emailed sign-in links for
+students' families. Billing, invitations for adults, password reset and
+admissions are not implemented yet.
 
 ## Licence
 
