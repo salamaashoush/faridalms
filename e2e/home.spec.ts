@@ -20,7 +20,12 @@ test("a teacher's day lists their classes and opens one", async ({ page }) => {
 test("a family's home shows their child and the latest school news", async ({
   page,
 }) => {
-  await signInWith(page, "parent1007@northwind.example.com", PASSWORD, "/family");
+  await signInWith(
+    page,
+    "parent1007@northwind.example.com",
+    PASSWORD,
+    "/family",
+  );
   await expect(
     page.getByRole("region", { name: "Yasmin Sabry" }),
   ).toBeVisible();

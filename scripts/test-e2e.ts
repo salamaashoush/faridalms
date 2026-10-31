@@ -19,7 +19,7 @@ import { randomBytes } from "node:crypto";
 
 const adminUrl =
   process.env.DATABASE_ADMIN_URL ??
-  "postgres://northwind:northwind@127.0.0.1:5433/postgres";
+  "postgres://farida:farida@127.0.0.1:5433/postgres";
 const suffix = crypto.randomUUID().replaceAll("-", "").slice(0, 12);
 const cellName = `cell_e2e_${suffix}`;
 const directoryName = `directory_e2e_${suffix}`;

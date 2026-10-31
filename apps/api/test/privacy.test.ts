@@ -13,7 +13,7 @@ let pastYearId: string | undefined;
 /** Adds a student whose only school year ended on 30 June 2020. */
 async function leaver(
   api: Awaited<ReturnType<typeof signedIn>>,
-  reference = "GA9301",
+  reference = "NO9301",
 ) {
   const options = await api.people.options();
   const grade = options.grades.find((row) => row.code === "grade_7");
@@ -321,7 +321,7 @@ async function withErasure(
 describe("erasure", () => {
   test("an approved leaver is erased as the retention role, leaving proof and no personal data", async () => {
     await withErasure(async (api) => {
-      const id = await leaver(api, "GA9311");
+      const id = await leaver(api, "NO9311");
       await api.privacy.saveRetention({
         studentRule: "years_after_leaving",
         studentValue: 1,
@@ -391,7 +391,7 @@ describe("erasure", () => {
 
   test("a hold or an unfinished date refuses the approval", async () => {
     await withErasure(async (api) => {
-      const id = await leaver(api, "GA9312");
+      const id = await leaver(api, "NO9312");
       await api.privacy.saveRetention({
         studentRule: "years_after_leaving",
         studentValue: 20,

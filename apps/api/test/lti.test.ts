@@ -261,7 +261,9 @@ describe("outside tools by LTI 1.3", () => {
     const answer = posted(await (await ask(pupil.token)).text());
     expect(answer.action).toBe(`${TOOL}/launch`);
     expect(answer.fields.state).toBe("s-1");
-    const keys = await (await raw("northwind", pupil.token, "/lti/jwks")).json();
+    const keys = await (
+      await raw("northwind", pupil.token, "/lti/jwks")
+    ).json();
     const { payload, protectedHeader } = await jwtVerify(
       answer.fields.id_token ?? "",
       createLocalJWKSet(keys as { keys: [] }),
@@ -373,7 +375,9 @@ describe("outside tools by LTI 1.3", () => {
         )
       ).text(),
     );
-    const keys = await (await raw("northwind", keeper.token, "/lti/jwks")).json();
+    const keys = await (
+      await raw("northwind", keeper.token, "/lti/jwks")
+    ).json();
     const { payload: request } = await jwtVerify(
       answer.fields.id_token ?? "",
       createLocalJWKSet(keys as { keys: [] }),

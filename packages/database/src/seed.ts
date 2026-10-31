@@ -2516,20 +2516,20 @@ export const SEED_TENANTS: {
     spec: {
       kind: "school_group",
       nameEn: "Northwind Schools",
-      nameAr: "مدارس جاما",
+      nameAr: "مدارس نورثويند",
       defaultLocale: "ar",
       jurisdictions: ["EG"],
       schools: [
         {
-          nameEn: "Northwind School",
-          nameAr: "كلية جاما الدولية",
+          nameEn: "Northwind International College",
+          nameAr: "كلية نورثويند الدولية",
           timeZone: "Africa/Cairo",
           countryCode: "EG",
           defaultLocale: "en",
         },
         {
           nameEn: "Northwind East School",
-          nameAr: "مدرسة جاما مصر الجديدة",
+          nameAr: "مدرسة نورثويند الشرقية",
           timeZone: "Africa/Cairo",
           countryCode: "EG",
           defaultLocale: "ar",
@@ -2539,15 +2539,15 @@ export const SEED_TENANTS: {
     schools: [
       {
         slug: "northwind",
-        nameEn: "Northwind School",
-        nameAr: "كلية جاما الدولية",
+        nameEn: "Northwind International College",
+        nameAr: "كلية نورثويند الدولية",
         grades: ["grade_7", "grade_8", "grade_9"],
         studentsPerGrade: 6,
       },
       {
         slug: "northwind-east",
         nameEn: "Northwind East School",
-        nameAr: "مدرسة جاما مصر الجديدة",
+        nameAr: "مدرسة نورثويند الشرقية",
         grades: ["kg2", "grade_1", "grade_2"],
         studentsPerGrade: 5,
       },

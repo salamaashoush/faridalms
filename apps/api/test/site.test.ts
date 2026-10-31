@@ -77,7 +77,10 @@ describe("the public website", () => {
       ),
     ).toMatchObject({ code: "NOT_FOUND" });
 
-    const news = await site.publicSitePosts({ school: "northwind", locale: "en" });
+    const news = await site.publicSitePosts({
+      school: "northwind",
+      locale: "en",
+    });
     expect(news.rows[0]?.title).toBe("Welcome back");
     expect(news.rows.map((row) => row.title)).not.toContain("Sports day");
 
@@ -397,6 +400,13 @@ function listing(): PageSection {
   };
 }
 
+const contactPage = () =>
+  visitor().publicSitePage({
+    school: "northwind",
+    locale: "ar",
+    slug: "contact",
+  });
+
 describe("events on the website", () => {
   test("an events section lists the calendar's public published events in the visitor's language", async () => {
     const { api } = await principal();
@@ -448,13 +458,7 @@ describe("events on the website", () => {
       description: plainContent(""),
       public: true,
     });
-    const read = () =>
-      visitor().publicSitePage({
-        school: "northwind",
-        locale: "ar",
-        slug: "contact",
-      });
-    const before = await read();
+    const before = await contactPage();
     expect(before.events.map((row) => row.titleAr)).toContain(
       "مباراة كرة القدم مع مدرسة النيل",
     );
@@ -465,7 +469,7 @@ describe("events on the website", () => {
       expectedVersion: draft.version,
       notify: false,
     });
-    const after = await read();
+    const after = await contactPage();
     expect(after.events.find((row) => row.id === draft.id)).toMatchObject({
       titleAr: "صباح مفتوح",
       location: "Main hall",

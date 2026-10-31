@@ -14,7 +14,12 @@ test("a family agrees to a consent form and the office sees it counted", async (
 }) => {
   const familyContext = await browser.newContext();
   const family = await familyContext.newPage();
-  await signInWith(family, "parent1007@northwind.example.com", PASSWORD, "/family");
+  await signInWith(
+    family,
+    "parent1007@northwind.example.com",
+    PASSWORD,
+    "/family",
+  );
   await family.goto("/family/consents");
   await untilHydrated(family);
   const card = family.getByRole("region", { name: "Photos in school news" });

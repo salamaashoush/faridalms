@@ -118,7 +118,11 @@ describe("downloads", () => {
     });
     expect(part.status).toBe(206);
     expect(await part.text()).toBe("synt");
-    const saved = await raw("northwind", token, `/v1/files/${id}/content?download`);
+    const saved = await raw(
+      "northwind",
+      token,
+      `/v1/files/${id}/content?download`,
+    );
     expect(saved.headers.get("content-disposition")).toStartWith("attachment;");
   });
 
@@ -205,27 +209,27 @@ describe("the play page", () => {
   });
 });
 
-describe("the micro:bit editor", () => {
-  async function editorHost() {
-    const vendor = await mkdtemp(join(tmpdir(), "makecode-"));
-    const editor = join(vendor, "editor");
-    await mkdir(join(editor, "hexcache"), { recursive: true });
-    await writeFile(
-      join(editor, "index.html"),
-      "<!doctype html><title>Code editor</title>",
-    );
-    await writeFile(join(editor, "main.js"), "var pxt = {};");
-    await writeFile(join(editor, "hexcache", "abc.hex"), ":00000001FF");
-    await writeFile(join(vendor, "VERSION"), "not the editor's");
-    const host = createFilesHost({
-      files: seeded().files,
-      key,
-      makecode: createMakeCode({ editor }),
-    });
-    return (path: string, headers?: Record<string, string>) =>
-      host(new Request(`${FILES_ORIGIN}${path}`, { headers }));
-  }
+async function editorHost() {
+  const vendor = await mkdtemp(join(tmpdir(), "makecode-"));
+  const editor = join(vendor, "editor");
+  await mkdir(join(editor, "hexcache"), { recursive: true });
+  await writeFile(
+    join(editor, "index.html"),
+    "<!doctype html><title>Code editor</title>",
+  );
+  await writeFile(join(editor, "main.js"), "var pxt = {};");
+  await writeFile(join(editor, "hexcache", "abc.hex"), ":00000001FF");
+  await writeFile(join(vendor, "VERSION"), "not the editor's");
+  const host = createFilesHost({
+    files: seeded().files,
+    key,
+    makecode: createMakeCode({ editor }),
+  });
+  return (path: string, headers?: Record<string, string>) =>
+    host(new Request(`${FILES_ORIGIN}${path}`, { headers }));
+}
 
+describe("the micro:bit editor", () => {
   test("reaches only the files host and sets no cookie", async () => {
     const get = await editorHost();
     const page = await get("/makecode/?controller=2&lang=ar");

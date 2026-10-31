@@ -165,8 +165,13 @@ describe("moving teaching between systems", () => {
     // Only someone who may change the module takes its questions away.
     const pupil = await sessionFor("northwind", login("student"));
     expect(
-      (await raw("northwind", pupil.token, `/v1/modules/${moduleId}/questions.zip`))
-        .status,
+      (
+        await raw(
+          "northwind",
+          pupil.token,
+          `/v1/modules/${moduleId}/questions.zip`,
+        )
+      ).status,
     ).toBe(404);
   });
 
@@ -481,8 +486,13 @@ describe("moving teaching between systems", () => {
     // Only a teacher of the class takes it away.
     const pupil = await sessionFor("northwind", login("student"));
     expect(
-      (await raw("northwind", pupil.token, `/v1/classes/${classId}/course.imscc`))
-        .status,
+      (
+        await raw(
+          "northwind",
+          pupil.token,
+          `/v1/classes/${classId}/course.imscc`,
+        )
+      ).status,
     ).toBe(404);
     for (const saved of [essay, talk, drawn])
       await teacher.api.coursework.archive({

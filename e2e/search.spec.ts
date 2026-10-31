@@ -74,7 +74,12 @@ test("a family on a phone searches in Arabic and finds its news but no students"
   context,
 }) => {
   await page.setViewportSize({ width: 390, height: 844 });
-  await signInWith(page, "parent1007@northwind.example.com", PASSWORD, "/family");
+  await signInWith(
+    page,
+    "parent1007@northwind.example.com",
+    PASSWORD,
+    "/family",
+  );
   await context.addCookies([
     { name: "language-tag", value: "ar", url: page.url() },
   ]);

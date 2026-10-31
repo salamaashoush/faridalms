@@ -816,7 +816,8 @@ describe("handing in and returning work", () => {
     expect(copied).not.toContain(original);
     const copy = /"fileId":"([0-9a-f-]{36})"/.exec(copied)?.[1] ?? "";
     expect(
-      (await raw("northwind", student.token, `/v1/files/${copy}/content`)).status,
+      (await raw("northwind", student.token, `/v1/files/${copy}/content`))
+        .status,
     ).toBe(200);
     // The version they worked on goes back in its place.
     const theirs = await upload(student, "document_media", "my-map.txt");
@@ -1041,14 +1042,16 @@ describe("handing in and returning work", () => {
       content: work,
     });
     expect(
-      (await raw("northwind", teacher.token, `/v1/files/${answer}/content`)).status,
+      (await raw("northwind", teacher.token, `/v1/files/${answer}/content`))
+        .status,
     ).toBe(404);
     await student.api.coursework.handIn({
       assignmentId: saved.id,
       expectedVersion: drafted.version,
     });
     expect(
-      (await raw("northwind", teacher.token, `/v1/files/${answer}/content`)).status,
+      (await raw("northwind", teacher.token, `/v1/files/${answer}/content`))
+        .status,
     ).toBe(200);
 
     // Opening a student's work is recorded against that student.
@@ -1141,16 +1144,26 @@ describe("handing in and returning work", () => {
 
     const office = await sessionFor("northwind", login("principal"));
     expect(
-      (await raw("northwind", office.token, `/v1/students/${me.id}/portfolio.zip`))
-        .status,
+      (
+        await raw(
+          "northwind",
+          office.token,
+          `/v1/students/${me.id}/portfolio.zip`,
+        )
+      ).status,
     ).toBe(200);
     const parent = await sessionFor(
       "northwind",
       login("student").replace("student", "parent"),
     );
     expect(
-      (await raw("northwind", parent.token, `/v1/students/${me.id}/portfolio.zip`))
-        .status,
+      (
+        await raw(
+          "northwind",
+          parent.token,
+          `/v1/students/${me.id}/portfolio.zip`,
+        )
+      ).status,
     ).toBe(404);
   });
 });
@@ -1224,7 +1237,8 @@ describe("a class's file area", () => {
 
     // A student reads the area only through a brief they have been given;
     // a teacher of other classes not at all.
-    const read = () => raw("northwind", student.token, `/v1/files/${map}/content`);
+    const read = () =>
+      raw("northwind", student.token, `/v1/files/${map}/content`);
     expect((await read()).status).toBe(404);
     await teacher.api.coursework.publish({
       id: first.id,
@@ -1233,7 +1247,8 @@ describe("a class's file area", () => {
     expect((await read()).status).toBe(200);
     const outsider = await sessionFor("northwind", login("teacher", 0, 2));
     expect(
-      (await raw("northwind", outsider.token, `/v1/files/${map}/content`)).status,
+      (await raw("northwind", outsider.token, `/v1/files/${map}/content`))
+        .status,
     ).toBe(404);
 
     // Cards read a file's current name: a rename in the area shows to the

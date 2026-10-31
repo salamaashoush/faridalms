@@ -7,7 +7,7 @@ import { eq } from "drizzle-orm";
 const controlUrl = process.env.CONTROL_DATABASE_URL;
 if (
   !controlUrl ||
-  !/^\/northwind_test_control_[a-z0-9]+$/.test(new URL(controlUrl).pathname)
+  !/^\/farida_test_control_[a-z0-9]+$/.test(new URL(controlUrl).pathname)
 ) {
   throw new Error("Academic year fixtures require an isolated test database");
 }
@@ -19,7 +19,9 @@ try {
     .where(eq(schools.slug, "northwind"));
   if (
     !school ||
-    !/^\/northwind_test_northwind_[a-z0-9]+$/.test(new URL(school.databaseUrl).pathname)
+    !/^\/farida_test_northwind_[a-z0-9]+$/.test(
+      new URL(school.databaseUrl).pathname,
+    )
   ) {
     throw new Error("Academic year fixtures require an isolated school");
   }

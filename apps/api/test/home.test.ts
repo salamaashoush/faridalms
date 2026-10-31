@@ -4,7 +4,10 @@ import { login, rejection, signedIn } from "./harness";
 
 describe("home pages", () => {
   test("a teacher's day lists their classes and the lessons the timetable gives them", async () => {
-    const teacher = await signedIn("northwind", "teacher2.northwind@northwind.example.com");
+    const teacher = await signedIn(
+      "northwind",
+      "teacher2.northwind@northwind.example.com",
+    );
     const home = await teacher.home.teacher();
     expect(home.classes.length).toBeGreaterThan(0);
     for (const slot of home.slots) {
@@ -65,7 +68,7 @@ describe("home pages", () => {
     const held = await family.home.child({ studentId: first.studentId });
     expect(held).toMatchObject({ studentId: first.studentId, decides: true });
     expect(held.fullNameEn).toBeTruthy();
-    expect(held.reference).toMatch(/^GA/);
+    expect(held.reference).toMatch(/^NO/);
     expect(held.grade?.labelEn).toBeTruthy();
     expect(
       await rejection(family.home.child({ studentId: crypto.randomUUID() })),

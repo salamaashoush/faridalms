@@ -172,7 +172,9 @@ describe("video streams", () => {
 
     // Someone the upload is not shared with cannot ask for it.
     const stranger = await sessionFor("northwind", login("student"));
-    expect((await raw("northwind", stranger.token, streamPath)).status).toBe(404);
+    expect((await raw("northwind", stranger.token, streamPath)).status).toBe(
+      404,
+    );
   });
 
   test("a video that is gone takes its streams with it", async () => {
@@ -208,7 +210,8 @@ describe("video streams", () => {
     expect(swept.streams).toBeGreaterThanOrEqual(1);
     expect(removed).toContain(job.outputPrefix);
     expect(
-      (await raw("northwind", teacher.token, `/v1/files/${fileId}/stream`)).status,
+      (await raw("northwind", teacher.token, `/v1/files/${fileId}/stream`))
+        .status,
     ).toBe(404);
 
     // The folder is handed back once.
@@ -439,7 +442,8 @@ describe("a recording its maker cut", () => {
     expect((await raw("northwind", teacher.token, path)).status).toBe(200);
     expect((await raw("northwind", student.token, path)).status).toBe(404);
     expect(
-      (await raw("northwind", student.token, `/v1/files/${file.id}/stream`)).status,
+      (await raw("northwind", student.token, `/v1/files/${file.id}/stream`))
+        .status,
     ).toBe(404);
 
     const job = await claimVideo(file.id);

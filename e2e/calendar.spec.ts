@@ -39,7 +39,12 @@ test("the office adds an event for families, who see it and then see it called o
 
   const familyContext = await browser.newContext();
   const family = await familyContext.newPage();
-  await signInWith(family, "parent1007@northwind.example.com", PASSWORD, "/family");
+  await signInWith(
+    family,
+    "parent1007@northwind.example.com",
+    PASSWORD,
+    "/family",
+  );
   await family.goto("/calendar?month=2026-11&view=agenda");
   await untilHydrated(family);
   await family.getByRole("link", { name: title }).click();

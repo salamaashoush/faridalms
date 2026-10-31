@@ -63,7 +63,7 @@ test("the desktop workspace shows the platform and school as separate identities
     page.getByRole("complementary").getByText("Farida LMS", { exact: true }),
   ).toBeVisible();
   await expect(
-    page.getByText("Northwind School", { exact: true }).first(),
+    page.getByText("Northwind International College", { exact: true }).first(),
   ).toBeVisible();
   await page.screenshot({
     path: testInfo.outputPath("admin-desktop.png"),

@@ -154,6 +154,14 @@ const sha256 = (bytes: Uint8Array) =>
   new Bun.CryptoHasher("sha256").update(bytes).digest("hex");
 
 describe.each(stores)("%s file store", (name, store) => {
+  const held = async (key: string) =>
+    name === "disk"
+      ? stat(join(diskRoot, key)).then(
+          () => true,
+          () => false,
+        )
+      : s3.objects.has(key);
+
   test("keeps what it is given and reads it back whole or in part", async () => {
     const key = keyOf("q");
     const bytes = new TextEncoder().encode("Salama's notes on photosynthesis");
@@ -208,13 +216,6 @@ describe.each(stores)("%s file store", (name, store) => {
   test("removes a video's streams, every file of them, and nothing beside", async () => {
     const folder = `t/${tenant}/v/${crypto.randomUUID()}`;
     const parts = ["master.m3u8", "poster.jpg", "720p/seg_000.m4s"];
-    const held = async (key: string) =>
-      name === "disk"
-        ? stat(join(diskRoot, key)).then(
-            () => true,
-            () => false,
-          )
-        : s3.objects.has(key);
     for (const part of parts) {
       if (name === "disk") {
         await mkdir(join(diskRoot, folder, "720p"), { recursive: true });

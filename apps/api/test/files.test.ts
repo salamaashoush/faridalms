@@ -34,10 +34,15 @@ async function upload(
     mediaType: name.endsWith(".pdf") ? "application/pdf" : "text/plain",
     sizeBytes: declared,
   });
-  const response = await raw("northwind", token, `/v1/files/${file.id}/content`, {
-    method: "PUT",
-    body,
-  });
+  const response = await raw(
+    "northwind",
+    token,
+    `/v1/files/${file.id}/content`,
+    {
+      method: "PUT",
+      body,
+    },
+  );
   return { file, response };
 }
 
@@ -93,8 +98,13 @@ describe("files", () => {
       code: "file.content_mismatch",
     });
     expect(
-      (await raw("northwind", teacher.token, `/v1/files/${fake.file.id}/content`))
-        .status,
+      (
+        await raw(
+          "northwind",
+          teacher.token,
+          `/v1/files/${fake.file.id}/content`,
+        )
+      ).status,
     ).toBe(404);
     const short = await upload(
       teacher.token,
@@ -206,8 +216,13 @@ describe("files", () => {
     );
     expect(retry.status).toBe(404);
     expect(
-      (await raw("northwind", teacher.token, `/v1/files/${kept.file.id}/content`))
-        .status,
+      (
+        await raw(
+          "northwind",
+          teacher.token,
+          `/v1/files/${kept.file.id}/content`,
+        )
+      ).status,
     ).toBe(404);
   });
 });

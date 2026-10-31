@@ -4,7 +4,8 @@ import { strFromU8, unzipSync } from "fflate";
 
 import { client, login, raw, rejection, sessionFor, signedIn } from "./harness";
 
-const teacher = (index = 0) => signedIn("northwind", login("teacher", 0, index));
+const teacher = (index = 0) =>
+  signedIn("northwind", login("teacher", 0, index));
 const student = () => signedIn("northwind", login("student"));
 const principal = () => signedIn("northwind", login("principal"));
 

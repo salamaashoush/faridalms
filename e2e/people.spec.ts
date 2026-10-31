@@ -141,7 +141,7 @@ test("the office writes to a student's guardians from the student's record", asy
 }) => {
   await signIn(page, "admin");
   // A student whose family's conversations no other spec reads.
-  await page.goto("/admin/students?q=GA1008");
+  await page.goto("/admin/students?q=NO1008");
   await untilHydrated(page);
   await page
     .getByRole("link", { name: /Tarek Farouk/ })
@@ -292,7 +292,7 @@ test("the office records how a student joined and the school they came from", as
   page,
 }) => {
   await signIn(page, "admin");
-  await page.goto("/admin/students?q=GA1008");
+  await page.goto("/admin/students?q=NO1008");
   await untilHydrated(page);
   await page
     .getByRole("link", { name: /Tarek Farouk/ })
@@ -320,9 +320,9 @@ test("the office records how a student joined and the school they came from", as
 // Each browser records a student of its own as having left and takes it
 // back, so none finds a student another browser has changed.
 const LEAVER = {
-  chromium: { name: "Ali Fathy", reference: "GA1005" },
-  firefox: { name: "Nour Sabry", reference: "GA1003" },
-  webkit: { name: "Karim Saleh", reference: "GA1016" },
+  chromium: { name: "Ali Fathy", reference: "NO1005" },
+  firefox: { name: "Nour Sabry", reference: "NO1003" },
+  webkit: { name: "Karim Saleh", reference: "NO1016" },
 } as const;
 
 test("the office records that a student has left, reads how on their record, and takes it back", async ({

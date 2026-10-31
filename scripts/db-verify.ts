@@ -19,7 +19,7 @@ import { join, resolve } from "node:path";
 
 const admin =
   process.env.DATABASE_ADMIN_URL ??
-  "postgres://northwind:northwind@127.0.0.1:5433/postgres";
+  "postgres://farida:farida@127.0.0.1:5433/postgres";
 const suffix = crypto.randomUUID().replaceAll("-", "").slice(0, 12);
 const cellName = `cell_verify_${suffix}`;
 const directoryName = `directory_verify_${suffix}`;

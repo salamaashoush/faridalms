@@ -1348,11 +1348,10 @@ describe("a lesson's translation", () => {
     const english: ContentDocument = {
       root: {
         ...blocks.root,
-        children: (blocks.root.children ?? []).map(
-          (node: ContentNode, index) =>
-            node.type === "question"
-              ? node
-              : { ...node, $: { id: `partid${index}00` } },
+        children: (blocks.root.children ?? []).map((node: ContentNode, index) =>
+          node.type === "question"
+            ? node
+            : { ...node, $: { id: `partid${index}00` } },
         ),
       },
     };
@@ -2923,41 +2922,42 @@ describe("templates", () => {
   });
 });
 
+const bankQuestion = (prompt: string) =>
+  written([
+    {
+      id: id(),
+      type: "choice",
+      prompt,
+      points: 1,
+      hints: [],
+      explanation: "",
+      tries: null,
+      options: [
+        { id: id(), text: "Three", feedback: "" },
+        { id: id(), text: "Four", feedback: "" },
+      ],
+      correctOptionIds: [],
+      multiple: false,
+      shuffle: false,
+    },
+  ]);
+
 describe("the question bank", () => {
   test("a teacher keeps questions for themselves or the school, and asks them again", async () => {
     const { keeper, stranger } = await teachers();
-    const question = (prompt: string) =>
-      written([
-        {
-          id: id(),
-          type: "choice",
-          prompt,
-          points: 1,
-          hints: [],
-          explanation: "",
-          tries: null,
-          options: [
-            { id: id(), text: "Three", feedback: "" },
-            { id: id(), text: "Four", feedback: "" },
-          ],
-          correctOptionIds: [],
-          multiple: false,
-          shuffle: false,
-        },
-      ]);
     const shared = await keeper.bank.save({
       id: "",
       expectedVersion: 0,
       scope: "school",
       tags: ["fractions", "Year 7", "fractions"],
-      content: question("How many quarters make three quarters?"),
+      content: bankQuestion("How many quarters make three quarters?"),
     });
     const own = await keeper.bank.save({
       id: "",
       expectedVersion: 0,
       scope: "mine",
       tags: [],
-      content: question("A question only its teacher keeps"),
+      content: bankQuestion("A question only its teacher keeps"),
     });
     const seen = await stranger.bank.list({ tag: "fractions" });
     expect(seen.questions.map((row) => row.id)).toEqual([shared.id]);
@@ -3454,7 +3454,9 @@ describe("coding projects", () => {
       },
     ]);
     const projectPath = `/v1/files/${project}/content`;
-    expect((await raw("northwind", teacher.token, projectPath)).status).toBe(200);
+    expect((await raw("northwind", teacher.token, projectPath)).status).toBe(
+      200,
+    );
 
     // Each save keeps the whole project, so only the last few stay.
     const saves = [project];
@@ -3481,7 +3483,8 @@ describe("coding projects", () => {
     );
     expect(swept.superseded).toBeGreaterThanOrEqual(3);
     const served = async (fileId: string) =>
-      (await raw("northwind", teacher.token, `/v1/files/${fileId}/content`)).status;
+      (await raw("northwind", teacher.token, `/v1/files/${fileId}/content`))
+        .status;
     expect(await served(project)).toBe(404);
     expect(await served(stage)).toBe(404);
     expect(await served(saves[1] ?? "")).toBe(404);
@@ -4657,35 +4660,35 @@ describe("right now", () => {
   });
 });
 
-describe("watching recordings", () => {
-  /** A new module for the seeded module's classes, by one of its teachers. */
-  async function watchingModule(title: string) {
-    const tenant = seeded().tenants[0];
-    const school = tenant?.schools.find((row) => row.slug === "northwind");
-    let teacher: Awaited<ReturnType<typeof sessionFor>> | null = null;
-    for (const row of tenant?.logins ?? []) {
-      if (row.role !== "teacher" || row.schoolId !== school?.id) continue;
-      const session = await sessionFor("northwind", row.loginName);
-      const { rows } = await session.api.learning.modules({});
-      if (rows.some((item) => item.title === TITLE)) teacher ??= session;
-    }
-    if (!teacher) throw new Error("a teacher of the module needed");
-    const keeper = teacher.api;
-    const { rows } = await keeper.learning.modules({});
-    const source = rows.find((row) => row.title === TITLE);
-    if (!source) throw new Error("no module");
-    const saved = await keeper.learning.saveModule({
-      id: "",
-      expectedVersion: 0,
-      title,
-      summary: "",
-      classIds: source.classes.map((item) => item.id),
-      prerequisiteId: "",
-      sequential: false,
-    });
-    return { teacher, keeper, source, saved };
+/** A new module for the seeded module's classes, by one of its teachers. */
+async function watchingModule(title: string) {
+  const tenant = seeded().tenants[0];
+  const school = tenant?.schools.find((row) => row.slug === "northwind");
+  let teacher: Awaited<ReturnType<typeof sessionFor>> | null = null;
+  for (const row of tenant?.logins ?? []) {
+    if (row.role !== "teacher" || row.schoolId !== school?.id) continue;
+    const session = await sessionFor("northwind", row.loginName);
+    const { rows } = await session.api.learning.modules({});
+    if (rows.some((item) => item.title === TITLE)) teacher ??= session;
   }
+  if (!teacher) throw new Error("a teacher of the module needed");
+  const keeper = teacher.api;
+  const { rows } = await keeper.learning.modules({});
+  const source = rows.find((row) => row.title === TITLE);
+  if (!source) throw new Error("no module");
+  const saved = await keeper.learning.saveModule({
+    id: "",
+    expectedVersion: 0,
+    title,
+    summary: "",
+    classIds: source.classes.map((item) => item.id),
+    prerequisiteId: "",
+    sequential: false,
+  });
+  return { teacher, keeper, source, saved };
+}
 
+describe("watching recordings", () => {
   test("a lesson that finishes on watching counts only what was played, and picks up where it stopped", async () => {
     const { teacher, keeper, source, saved } =
       await watchingModule("Listening");
@@ -5409,6 +5412,31 @@ describe("module audiences", () => {
   });
 });
 
+const yesNoQuestion = (prompt: string) => {
+  const right = id();
+  const wrong = id();
+  return {
+    right,
+    wrong,
+    block: {
+      id: id(),
+      type: "choice" as const,
+      prompt,
+      points: 1,
+      hints: [],
+      explanation: "",
+      tries: 1,
+      options: [
+        { id: right, text: "Yes", feedback: "" },
+        { id: wrong, text: "No", feedback: "" },
+      ],
+      correctOptionIds: [right],
+      multiple: false,
+      shuffle: false,
+    },
+  };
+};
+
 describe("paths by score", () => {
   test("a lesson shown by score reaches the students it is for, and the next module opens at its score", async () => {
     const { keeper } = await teachers();
@@ -5427,31 +5455,10 @@ describe("paths by score", () => {
       prerequisiteId: "",
       ...fields,
     });
-    const ask = (prompt: string) => {
-      const right = id();
-      const wrong = id();
-      return {
-        right,
-        wrong,
-        block: {
-          id: id(),
-          type: "choice" as const,
-          prompt,
-          points: 1,
-          hints: [],
-          explanation: "",
-          tries: 1,
-          options: [
-            { id: right, text: "Yes", feedback: "" },
-            { id: wrong, text: "No", feedback: "" },
-          ],
-          correctOptionIds: [right],
-          multiple: false,
-          shuffle: false,
-        },
-      };
-    };
-    const asked = [ask("Is a half two quarters?"), ask("Is a third a half?")];
+    const asked = [
+      yesNoQuestion("Is a half two quarters?"),
+      yesNoQuestion("Is a third a half?"),
+    ];
     const lesson = (title: string, completion: "quiz" | "view") => ({
       id: "",
       moduleId: first.id,

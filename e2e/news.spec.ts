@@ -45,7 +45,12 @@ test("the office sends school news in two languages and a family reads it in Ara
 
   const familyContext = await browser.newContext();
   const family = await familyContext.newPage();
-  await signInWith(family, "parent1007@northwind.example.com", PASSWORD, "/family");
+  await signInWith(
+    family,
+    "parent1007@northwind.example.com",
+    PASSWORD,
+    "/family",
+  );
   await family.goto("/news");
   await untilHydrated(family);
   await family.getByRole("link", { name: title }).click();

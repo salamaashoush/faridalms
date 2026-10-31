@@ -28,7 +28,12 @@ test("an urgent notice reaches a family's notifications and opens the announceme
 
   const familyContext = await browser.newContext();
   const family = await familyContext.newPage();
-  await signInWith(family, "parent1007@northwind.example.com", PASSWORD, "/family");
+  await signInWith(
+    family,
+    "parent1007@northwind.example.com",
+    PASSWORD,
+    "/family",
+  );
   await family.goto("/notifications");
   await untilHydrated(family);
   const notice = family.getByRole("link", { name: new RegExp(title) });

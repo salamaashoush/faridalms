@@ -23,7 +23,7 @@ describe("students", () => {
     expect(list.total).toBe(18);
     expect(list.rows.every((row) => row.status === "enrolled")).toBe(true);
     expect(list.rows[0]?.grade).not.toBeNull();
-    expect(list.rows.every((row) => row.reference?.startsWith("GA"))).toBe(
+    expect(list.rows.every((row) => row.reference?.startsWith("NO"))).toBe(
       true,
     );
   });
@@ -94,7 +94,7 @@ describe("students", () => {
     if (!grade || !mother) throw new Error("options");
     const created = await api.people.saveStudent({
       names: names("Laila Ashoush", "ليلى عشوش"),
-      reference: "GA9001",
+      reference: "NO9001",
       birthDate: "2014-03-02",
       gradeId: grade.id,
       guardians: [
@@ -117,7 +117,7 @@ describe("students", () => {
       ],
     });
     const record = await api.people.student({ id: created.id });
-    expect(record.reference).toBe("GA9001");
+    expect(record.reference).toBe("NO9001");
     expect(record.status).toBe("enrolled");
     expect(record.placement?.gradeId).toBe(grade.id);
     expect(record.guardians?.[0]?.contacts[0]?.normalized).toBe(
@@ -171,7 +171,7 @@ describe("students", () => {
 
   test("ending a guardian link removes their family role when nothing else supports it", async () => {
     const api = await signedIn("northwind", login("principal"));
-    const list = await api.people.students({ q: "GA1002" });
+    const list = await api.people.students({ q: "NO1002" });
     const student = await api.people.student({ id: list.rows[0]?.id ?? "" });
     const father = student.guardians?.find(
       (g) => g.relationMeaning === "father",
@@ -201,7 +201,7 @@ describe("students", () => {
     if (!grade || !transfer) throw new Error("options");
     const { id: studentId } = await api.people.saveStudent({
       names: names("Salama Ashoush", "سلامة عشوش"),
-      reference: "GA9731",
+      reference: "NO9731",
       gradeId: grade.id,
     });
     const placement = (await api.people.student({ id: studentId }))
@@ -269,7 +269,7 @@ describe("students", () => {
 describe("person records", () => {
   test("the principal opens a guardian with contacts, roles and linked students", async () => {
     const api = await signedIn("northwind", login("principal"));
-    const list = await api.people.students({ q: "GA1003" });
+    const list = await api.people.students({ q: "NO1003" });
     const student = await api.people.student({ id: list.rows[0]?.id ?? "" });
     const guardian = student.guardians?.[0];
     if (!guardian) throw new Error("seed guardian");
@@ -409,7 +409,7 @@ describe("staff", () => {
 
   test("a person found by their email joins the staff without a second record", async () => {
     const api = await signedIn("northwind", login("principal"));
-    const list = await api.people.students({ q: "GA1004" });
+    const list = await api.people.students({ q: "NO1004" });
     const student = await api.people.student({ id: list.rows[0]?.id ?? "" });
     const guardian = student.guardians?.find((row) => row.contacts.length > 0);
     const phone = guardian?.contacts.find((row) => row.kind === "phone")?.value;
@@ -450,18 +450,18 @@ describe("staff", () => {
   });
 });
 
+async function newStaff(email: string) {
+  const api = await signedIn("northwind", login("principal"));
+  const saved = await api.people.saveStaff({
+    names: names("Salama Nour", "سلامة نور"),
+    email,
+    roles: ["teacher"],
+  });
+  return { api, id: saved.id };
+}
+
 describe("sign-in", () => {
   const password = "correct horse battery staple";
-
-  async function newStaff(email: string) {
-    const api = await signedIn("northwind", login("principal"));
-    const saved = await api.people.saveStaff({
-      names: names("Salama Nour", "سلامة نور"),
-      email,
-      roles: ["teacher"],
-    });
-    return { api, id: saved.id };
-  }
 
   test("an administrator opens a sign-in, and a new password ends the old sessions", async () => {
     const { api, id } = await newStaff("salama.nour@northwind.example.com");
@@ -570,14 +570,14 @@ describe("sign-in", () => {
         })
       ).id;
     const [numbered, named, second] = [
-      await add("GA9201"),
-      await add("GA9202"),
-      await add("GA9203"),
+      await add("NO9201"),
+      await add("NO9202"),
+      await add("NO9203"),
     ];
     // Two of the students' numbers are somebody's sign-in name already.
     for (const [taken, email] of [
-      ["ga9202", "salama.kamal@northwind.example.com"],
-      ["ga9203", "salama.hany@northwind.example.com"],
+      ["no9202", "salama.kamal@northwind.example.com"],
+      ["no9203", "salama.hany@northwind.example.com"],
     ] as const)
       await api.people.saveSignIn({
         userId: (await newStaff(email)).id,
@@ -600,7 +600,7 @@ describe("sign-in", () => {
         opened.slips.map((slip) => [slip.studentId, slip.loginName]),
       ),
     ).toEqual({
-      [numbered]: "ga9201",
+      [numbered]: "no9201",
       [named]: "salama.ashoush",
       [second]: "salama.ashoush2",
     });
@@ -610,7 +610,10 @@ describe("sign-in", () => {
         loginName: slip.loginName,
         password: slip.password,
       });
-      const me = await client("northwind", session.token).identity.currentUser();
+      const me = await client(
+        "northwind",
+        session.token,
+      ).identity.currentUser();
       expect(me.id).toBe(slip.studentId);
     }
     expect(
@@ -767,7 +770,7 @@ describe("a link to choose a student's password", () => {
     const address = "heba.salama@northwind.example.com";
     const { id: studentId } = await api.people.saveStudent({
       names: names("Salama Ashoush", "سلامة عشوش"),
-      reference: "GA9721",
+      reference: "NO9721",
       guardians: [
         {
           person: { names: names("Heba Ashoush", "هبة عشوش"), email: address },
@@ -790,18 +793,18 @@ describe("a link to choose a student's password", () => {
     });
     // The account is opened, but nobody signs in with it yet.
     expect((await api.people.student({ id: studentId })).account).toMatchObject(
-      { state: "invited", loginName: "ga9721" },
+      { state: "invited", loginName: "no9721" },
     );
     expect(
-      (await api.people.students({ q: "GA9721" })).rows[0]?.hasAccount,
+      (await api.people.students({ q: "NO9721" })).rows[0]?.hasAccount,
     ).toBe(false);
 
     const { message, secret } = linkTo(address);
     expect(message.subject).toContain("Salama");
-    expect(message.text).toContain("Sign-in name: ga9721");
+    expect(message.text).toContain("Sign-in name: no9721");
     const open = client("northwind");
     expect(await open.identity.invite({ secret })).toEqual({
-      loginName: "ga9721",
+      loginName: "no9721",
       name: { en: "Salama", ar: "سلامة" },
     });
     expect(
@@ -812,17 +815,17 @@ describe("a link to choose a student's password", () => {
     const password = "four words make it long";
     expect(
       (await open.identity.acceptInvite({ secret, password })).loginName,
-    ).toBe("ga9721");
+    ).toBe("no9721");
 
     const session = await open.identity.signIn({
-      loginName: "ga9721",
+      loginName: "no9721",
       password,
     });
     expect(
       (await client("northwind", session.token).identity.currentUser()).id,
     ).toBe(studentId);
     expect((await api.people.student({ id: studentId })).account).toMatchObject(
-      { state: "active", loginName: "ga9721" },
+      { state: "active", loginName: "no9721" },
     );
     for (const call of [
       () => open.identity.invite({ secret }),
@@ -848,7 +851,7 @@ describe("a link to choose a student's password", () => {
     const flags = await motherFlags(api);
     const alone = await api.people.saveStudent({
       names: names("Salama Nabil", "سلامة نبيل"),
-      reference: "GA9722",
+      reference: "NO9722",
       guardians: [
         {
           person: {
@@ -862,7 +865,7 @@ describe("a link to choose a student's password", () => {
     const address = "heba.fouad@northwind.example.com";
     const reached = await api.people.saveStudent({
       names: names("Salama Fouad", "سلامة فؤاد"),
-      reference: "GA9723",
+      reference: "NO9723",
       guardians: [
         {
           person: { names: names("Heba Fouad", "هبة فؤاد"), email: address },
@@ -892,7 +895,7 @@ describe("a link to choose a student's password", () => {
       await rejection(open.identity.invite({ secret: old })),
     ).toMatchObject({ message: "auth.invalid_invite" });
     expect((await open.identity.invite({ secret: fresh })).loginName).toBe(
-      "ga9723",
+      "no9723",
     );
 
     // A slip printed for the student after all hands over a password, so
@@ -903,7 +906,7 @@ describe("a link to choose a student's password", () => {
     });
     const [slip] = printed.slips;
     if (!slip) throw new Error("no slip was printed");
-    expect(slip.loginName).toBe("ga9723");
+    expect(slip.loginName).toBe("no9723");
     expect(
       await rejection(open.identity.invite({ secret: fresh })),
     ).toMatchObject({ message: "auth.invalid_invite" });
@@ -985,7 +988,7 @@ describe("leaving the school", () => {
 
   test("the office records that a student has left, and the family reads their record until the year is over", async () => {
     const { api, family, studentId, year, reasonId, today, yesterday } =
-      await enrolled("GA9711", "heba.ashoush@northwind.example.com");
+      await enrolled("NO9711", "heba.ashoush@northwind.example.com");
     expect(
       (await family.home.family({})).children.map((row) => row.studentId),
     ).toEqual([studentId]);
@@ -1019,7 +1022,7 @@ describe("leaving the school", () => {
     ).toContain("student.leave");
     // The school keeps the record, and the family still follows it.
     expect(
-      (await api.people.students({ q: "GA9711", status: ["left"] })).rows.map(
+      (await api.people.students({ q: "NO9711", status: ["left"] })).rows.map(
         (row) => row.id,
       ),
     ).toEqual([studentId]);
@@ -1030,7 +1033,7 @@ describe("leaving the school", () => {
 
   test("a leaver whose time ends with their last day is no longer the family's to follow, and coming back gives it all back", async () => {
     const { api, family, studentId, year, reasonId, today, yesterday } =
-      await enrolled("GA9712", "heba.nour@northwind.example.com");
+      await enrolled("NO9712", "heba.nour@northwind.example.com");
     const left = await api.people.recordLeaving({
       studentId,
       lastDay: yesterday,
@@ -1127,8 +1130,8 @@ describe("families", () => {
     const options = await api.people.options();
     const mother = options.relations.find((row) => row.code === "mother");
     if (!mother) throw new Error("options");
-    const first = (await api.people.students({ q: "GA1010" })).rows[0];
-    const second = (await api.people.students({ q: "GA1011" })).rows[0];
+    const first = (await api.people.students({ q: "NO1010" })).rows[0];
+    const second = (await api.people.students({ q: "NO1011" })).rows[0];
     if (!first || !second) throw new Error("seed students");
     expect(
       (await api.people.siblings({ id: first.id })).map((row) => row.userId),
@@ -1162,7 +1165,7 @@ describe("families", () => {
     const options = await api.people.options();
     const father = options.relations.find((row) => row.code === "father");
     if (!father) throw new Error("options");
-    const list = await api.people.students({ q: "GA1006" });
+    const list = await api.people.students({ q: "NO1006" });
     const studentId = list.rows[0]?.id ?? "";
     await api.people.saveRelationship({
       studentId,
@@ -1191,7 +1194,7 @@ describe("families", () => {
   test("an adult's phone, email and home address are kept and replaced", async () => {
     const api = await signedIn("northwind", login("principal"));
     const studentId =
-      (await api.people.students({ q: "GA1007" })).rows[0]?.id ?? "";
+      (await api.people.students({ q: "NO1007" })).rows[0]?.id ?? "";
     const adultId =
       (await api.people.student({ id: studentId })).guardians?.[0]?.userId ??
       "";
@@ -1239,7 +1242,7 @@ describe("families", () => {
   test("a teacher cannot change contacts and a parent cannot read siblings", async () => {
     const principal = await signedIn("northwind", login("principal"));
     const studentId =
-      (await principal.people.students({ q: "GA1008" })).rows[0]?.id ?? "";
+      (await principal.people.students({ q: "NO1008" })).rows[0]?.id ?? "";
     const adultId =
       (await principal.people.student({ id: studentId })).guardians?.[0]
         ?.userId ?? "";

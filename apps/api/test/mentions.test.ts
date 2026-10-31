@@ -5,7 +5,8 @@ import { describe, expect, test } from "bun:test";
 
 import { login, signedIn } from "./harness";
 
-const teacher = (index = 0) => signedIn("northwind", login("teacher", 0, index));
+const teacher = (index = 0) =>
+  signedIn("northwind", login("teacher", 0, index));
 
 /** A lesson's words naming people, each by the name given here. */
 function naming(...people: { id: string; label: string }[]): ContentDocument {

@@ -101,7 +101,8 @@ describe("peer review", () => {
       });
     }
     const opens = async (session: Session) =>
-      (await raw("northwind", session.token, `/v1/files/${sketch}/content`)).status;
+      (await raw("northwind", session.token, `/v1/files/${sketch}/content`))
+        .status;
     expect(await opens(second)).toBe(404);
 
     expect(await teacher.api.peer.start({ assignmentId: saved.id })).toEqual({
