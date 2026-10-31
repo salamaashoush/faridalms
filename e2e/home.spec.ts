@@ -52,7 +52,7 @@ test("a guardian reads what the school holds about their child and asks the offi
     page.getByRole("heading", { level: 1, name: /'s details$/ }),
   ).toBeVisible();
   await expect(page.getByRole("region", { name: "At school" })).toContainText(
-    /GA\d+/,
+    /NO\d+/,
   );
   await expect(
     page.getByRole("region", { name: "Your contact details" }),

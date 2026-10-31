@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test";
 
-import { signIn, untilHydrated } from "./fixtures/sign-in";
+import { chooseFromMenu, signIn, untilHydrated } from "./fixtures/sign-in";
 
 // Browser projects share one school and years may not overlap, so each adds
 // a year of its own. None is made current here: that would move every other
@@ -48,8 +48,10 @@ test("an administrator adds a year with terms, closes it and reopens it with a r
     page.getByRole("region", { name: "Terms" }).getByText("Autumn"),
   ).toBeVisible();
 
-  await page.getByRole("button", { name: "More actions" }).last().click();
-  await page.getByRole("menuitem", { name: "Close year" }).click();
+  await chooseFromMenu(
+    page.getByRole("button", { name: "More actions" }).last(),
+    page.getByRole("menuitem", { name: "Close year" }),
+  );
   await page
     .getByRole("dialog")
     .getByRole("button", { name: "Close year" })
@@ -58,8 +60,10 @@ test("an administrator adds a year with terms, closes it and reopens it with a r
   await expect(page.getByText("Closed", { exact: true })).toBeVisible();
   await expect(page.getByRole("button", { name: "Edit year" })).toHaveCount(0);
 
-  await page.getByRole("button", { name: "More actions" }).last().click();
-  await page.getByRole("menuitem", { name: "Reopen year" }).click();
+  await chooseFromMenu(
+    page.getByRole("button", { name: "More actions" }).last(),
+    page.getByRole("menuitem", { name: "Reopen year" }),
+  );
   const sheet = page.getByRole("dialog");
   await sheet.getByRole("button", { name: "Reopen year" }).click();
   await expect(

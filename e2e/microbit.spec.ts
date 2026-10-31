@@ -21,9 +21,15 @@ async function write(page: Page, studio: Locator, program: string) {
     .getByRole("button", { name: "Convert code to JavaScript" })
     .first()
     .click();
-  await editor.locator(".monaco-editor .view-lines").click();
+  const lines = editor.locator(".monaco-editor .view-lines");
+  // The JavaScript view is ready once it shows the program it starts from;
+  // keys pressed before it has focus go astray.
+  await expect(lines).not.toBeEmpty();
+  await lines.click();
+  await expect(editor.locator(".monaco-editor textarea")).toBeFocused();
   await page.keyboard.press("ControlOrMeta+a");
   await page.keyboard.type(program);
+  await expect(lines).toContainText(program);
 }
 
 test("a teacher sets a micro:bit project, and a student builds it in the board's editor, takes the program for a board and hands it in", async ({

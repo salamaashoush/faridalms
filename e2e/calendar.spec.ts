@@ -1,6 +1,7 @@
 import { expect, test } from "@playwright/test";
 
 import {
+  chooseFromMenu,
   PASSWORD,
   signIn,
   signInWith,
@@ -71,8 +72,10 @@ test("the office adds an event for families, who see it and then see it called o
   await family.reload();
   await expect(seen.getByText("Main hall")).toBeVisible();
 
-  await event.getByRole("button", { name: "More actions" }).click();
-  await page.getByRole("menuitem", { name: "Cancel event" }).click();
+  await chooseFromMenu(
+    event.getByRole("button", { name: "More actions" }),
+    page.getByRole("menuitem", { name: "Cancel event" }),
+  );
   await page
     .getByRole("dialog", { name: "Cancel this event?" })
     .getByRole("button", { name: "Cancel event" })

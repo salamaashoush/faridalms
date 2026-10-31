@@ -4,6 +4,7 @@ import { expect, test } from "@playwright/test";
 
 import {
   ACCOUNTS,
+  chooseFromMenu,
   PASSWORD,
   signInWith,
   untilHydrated,
@@ -104,8 +105,10 @@ test("a teacher sets a web project, a student builds it from several files and h
   await expect(page.getByText("Saved", { exact: true })).toBeVisible();
   await page.getByRole("button", { name: "Back" }).click();
   await expect(page).toHaveURL(recordUrl);
-  await page.getByRole("button", { name: "More actions" }).click();
-  await page.getByRole("menuitem", { name: "Open to students" }).click();
+  await chooseFromMenu(
+    page.getByRole("button", { name: "More actions" }),
+    page.getByRole("menuitem", { name: "Open to students" }),
+  );
   await expect(page.getByText("Module open to students")).toBeVisible();
 
   const studentContext = await browser.newContext();
@@ -246,8 +249,10 @@ test("a student shows a project to the class once the teacher agrees, and a clas
   await expect(page.getByText("Saved", { exact: true })).toBeVisible();
   await page.getByRole("button", { name: "Back" }).click();
   await expect(page).toHaveURL(recordUrl);
-  await page.getByRole("button", { name: "More actions" }).click();
-  await page.getByRole("menuitem", { name: "Open to students" }).click();
+  await chooseFromMenu(
+    page.getByRole("button", { name: "More actions" }),
+    page.getByRole("menuitem", { name: "Open to students" }),
+  );
   await expect(page.getByText("Module open to students")).toBeVisible();
 
   /** Signs a student in, opens the lesson, builds a page and hands it in. */
@@ -373,8 +378,10 @@ test("a p5.js sketch draws for its student with the library the school serves", 
   await expect(page.getByText("Saved", { exact: true })).toBeVisible();
   await page.getByRole("button", { name: "Back" }).click();
   await expect(page).toHaveURL(recordUrl);
-  await page.getByRole("button", { name: "More actions" }).click();
-  await page.getByRole("menuitem", { name: "Open to students" }).click();
+  await chooseFromMenu(
+    page.getByRole("button", { name: "More actions" }),
+    page.getByRole("menuitem", { name: "Open to students" }),
+  );
   await expect(page.getByText("Module open to students")).toBeVisible();
 
   const context = await browser.newContext();
@@ -438,8 +445,10 @@ test("a Python project runs across its files in the browser", async ({
   await expect(page.getByText("Saved", { exact: true })).toBeVisible();
   await page.getByRole("button", { name: "Back" }).click();
   await expect(page).toHaveURL(recordUrl);
-  await page.getByRole("button", { name: "More actions" }).click();
-  await page.getByRole("menuitem", { name: "Open to students" }).click();
+  await chooseFromMenu(
+    page.getByRole("button", { name: "More actions" }),
+    page.getByRole("menuitem", { name: "Open to students" }),
+  );
   await expect(page.getByText("Module open to students")).toBeVisible();
 
   const context = await browser.newContext();

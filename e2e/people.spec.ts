@@ -3,6 +3,7 @@ import type { Locator } from "@playwright/test";
 import { expect, test } from "@playwright/test";
 
 import {
+  chooseFromMenu,
   PASSWORD,
   signIn,
   signInWith,
@@ -149,16 +150,20 @@ test("the office writes to a student's guardians from the student's record", asy
     .click();
   await expect(page).toHaveURL(/\/students\/[a-f0-9-]+/);
   // Moving class is asked for here too, and opens the sheet the classes do.
-  await page.getByRole("button", { name: "More actions" }).click();
-  await page.getByRole("menuitem", { name: "Move class" }).click();
+  await chooseFromMenu(
+    page.getByRole("button", { name: "More actions" }),
+    page.getByRole("menuitem", { name: "Move class" }),
+  );
   const move = page.getByRole("dialog", {
     name: "Move Tarek Farouk to another class",
   });
   await expect(move).toBeVisible();
   await move.getByRole("button", { name: "Cancel" }).click();
   await expect(move).toBeHidden();
-  await page.getByRole("button", { name: "More actions" }).click();
-  await page.getByRole("menuitem", { name: "Message guardians" }).click();
+  await chooseFromMenu(
+    page.getByRole("button", { name: "More actions" }),
+    page.getByRole("menuitem", { name: "Message guardians" }),
+  );
   const sheet = page.getByRole("dialog", { name: "New message" });
   // Nobody is picked: the conversation is with this student's guardians.
   await expect(
@@ -225,9 +230,9 @@ test("the office moves the students it picks in the list and writes to their fam
 // Each browser project runs against the same seeded school, so each opens a
 // sign-in for a student of its own, whom no other spec signs in as.
 const SLIP = {
-  chromium: { name: "Mostafa Hamdy", loginName: "ga1006" },
-  firefox: { name: "Mostafa Kamel", loginName: "ga1018" },
-  webkit: { name: "Karim Nasser", loginName: "ga1001" },
+  chromium: { name: "Mostafa Hamdy", loginName: "no1006" },
+  firefox: { name: "Mostafa Kamel", loginName: "no1018" },
+  webkit: { name: "Karim Nasser", loginName: "no1001" },
 } as const;
 
 test("the office opens sign-ins for the students it picks, and a student signs in from their printed slip", async ({
@@ -335,8 +340,10 @@ test("the office records that a student has left, reads how on their record, and
   await untilHydrated(page);
   await page.getByRole("link", { name: student.name }).first().click();
   await expect(page).toHaveURL(/\/students\/[a-f0-9-]+/);
-  await page.getByRole("button", { name: "More actions" }).click();
-  await page.getByRole("menuitem", { name: "Record as left" }).click();
+  await chooseFromMenu(
+    page.getByRole("button", { name: "More actions" }),
+    page.getByRole("menuitem", { name: "Record as left" }),
+  );
   const sheet = page.getByRole("dialog", { name: "Record as left" });
   // Why they left is asked for before anything is recorded.
   await sheet.getByRole("button", { name: "Record as left" }).click();
@@ -366,8 +373,10 @@ test("the office records that a student has left, reads how on their record, and
   await expect(leaving).toContainText("Nile Valley School");
   await expect(leaving).toContainText("Access until");
 
-  await page.getByRole("button", { name: "More actions" }).click();
-  await page.getByRole("menuitem", { name: "Undo leaving" }).click();
+  await chooseFromMenu(
+    page.getByRole("button", { name: "More actions" }),
+    page.getByRole("menuitem", { name: "Undo leaving" }),
+  );
   await page
     .getByRole("dialog", { name: `Undo ${student.name}'s leaving?` })
     .getByRole("button", { name: "Undo leaving" })

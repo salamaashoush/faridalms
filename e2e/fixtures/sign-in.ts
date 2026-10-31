@@ -1,4 +1,4 @@
-import type { Page } from "@playwright/test";
+import type { Locator, Page } from "@playwright/test";
 
 import { expect } from "@playwright/test";
 
@@ -26,14 +26,13 @@ export async function signInWith(
   email: string,
   password: string,
   home: string,
-  school?: string,
+  school = "northwind",
 ) {
   await page.goto("/sign-in");
-  if (school) {
-    const code = page.getByRole("textbox", { name: "School code" });
-    await expect(code).toBeEnabled();
-    await code.fill(school);
-  }
+  // A production build prefills no school, so the visitor names it.
+  const code = page.getByRole("textbox", { name: "School code" });
+  await expect(code).toBeEnabled();
+  await code.fill(school);
   await page.getByRole("textbox", { name: "Email" }).fill(email);
   await page.getByRole("textbox", { name: "Password" }).fill(password);
   await page.getByRole("button", { name: "Sign In", exact: true }).click();
@@ -51,4 +50,22 @@ export async function untilHydrated(page: Page) {
   await expect(
     page.getByRole("button", { name: LAUNCHER }).first(),
   ).toBeEnabled();
+}
+
+/**
+ * Clicks until what the click opens shows. A part of the page can hydrate
+ * after the shell `untilHydrated` watches, and a click that lands before it
+ * is dropped, so the click is repeated while nothing has opened.
+ */
+export async function openWith(trigger: Locator, shown: Locator) {
+  await expect(async () => {
+    if (!(await shown.isVisible())) await trigger.click();
+    await expect(shown).toBeVisible({ timeout: 1_000 });
+  }).toPass();
+}
+
+/** Opens a menu and picks an item, once the menu has really opened. */
+export async function chooseFromMenu(trigger: Locator, item: Locator) {
+  await openWith(trigger, item);
+  await item.click();
 }

@@ -3,6 +3,7 @@ import { expect, test } from "@playwright/test";
 import { openAsStudent, startLesson } from "./fixtures/lessons";
 import {
   ACCOUNTS,
+  chooseFromMenu,
   PASSWORD,
   signInWith,
   untilHydrated,
@@ -88,8 +89,10 @@ test("a teacher builds a module, a student answers its lesson, and the teacher m
   await expect(page).toHaveURL(recordUrl);
   await expect(page.getByRole("link", { name: "Greetings" })).toBeVisible();
 
-  await page.getByRole("button", { name: "More actions" }).click();
-  await page.getByRole("menuitem", { name: "Open to students" }).click();
+  await chooseFromMenu(
+    page.getByRole("button", { name: "More actions" }),
+    page.getByRole("menuitem", { name: "Open to students" }),
+  );
   await expect(page.getByText("Module open to students")).toBeVisible();
 
   const studentContext = await browser.newContext();
@@ -214,8 +217,10 @@ test("a student reviews a module's finished lessons together and reads the messa
     .fill("Look at the colours again.");
   await page.getByRole("button", { name: "Save", exact: true }).click();
   await expect(page).toHaveURL(recordUrl);
-  await page.getByRole("button", { name: "More actions" }).click();
-  await page.getByRole("menuitem", { name: "Open to students" }).click();
+  await chooseFromMenu(
+    page.getByRole("button", { name: "More actions" }),
+    page.getByRole("menuitem", { name: "Open to students" }),
+  );
   await expect(page.getByText("Module open to students")).toBeVisible();
 
   // Opening each lesson finishes it, and two finished open the review.

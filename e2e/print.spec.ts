@@ -1,6 +1,11 @@
 import { expect, test } from "@playwright/test";
 
-import { PASSWORD, signInWith, untilHydrated } from "./fixtures/sign-in";
+import {
+  chooseFromMenu,
+  PASSWORD,
+  signInWith,
+  untilHydrated,
+} from "./fixtures/sign-in";
 
 // The seed's second teacher wrote "Reading stories together", whose second
 // lesson asks questions. Printing changes nothing, so every browser may
@@ -21,8 +26,10 @@ test("a teacher prints a lesson as paper, with its questions to write on and the
   await expect(page).toHaveURL(/\/lessons\/[a-f0-9-]+/);
   await untilHydrated(page);
 
-  await page.getByRole("button", { name: "More actions" }).last().click();
-  await page.getByRole("menuitem", { name: "Print…" }).click();
+  await chooseFromMenu(
+    page.getByRole("button", { name: "More actions" }).last(),
+    page.getByRole("menuitem", { name: "Print…" }),
+  );
   const sheet = page.getByRole("dialog", { name: "Print" });
   await expect(sheet).toBeVisible();
   const paper = sheet.locator(".paper-flow").first();

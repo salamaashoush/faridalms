@@ -2,6 +2,7 @@ import { expect, test } from "@playwright/test";
 
 import {
   ACCOUNTS,
+  chooseFromMenu,
   PASSWORD,
   signInWith,
   untilHydrated,
@@ -63,8 +64,10 @@ test("a young child plays a lesson one screen at a time, by tapping", async ({
   await page.getByRole("checkbox", { name: "For young children" }).click();
   await expect(page.getByText("Saved", { exact: true })).toBeVisible();
   await page.getByRole("button", { name: "Back" }).click();
-  await page.getByRole("button", { name: "More actions" }).click();
-  await page.getByRole("menuitem", { name: "Open to students" }).click();
+  await chooseFromMenu(
+    page.getByRole("button", { name: "More actions" }),
+    page.getByRole("menuitem", { name: "Open to students" }),
+  );
   await expect(page.getByText("Module open to students")).toBeVisible();
 
   const context = await browser.newContext();

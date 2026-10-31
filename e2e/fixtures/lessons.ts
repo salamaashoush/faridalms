@@ -2,7 +2,13 @@ import type { Page } from "@playwright/test";
 
 import { expect } from "@playwright/test";
 
-import { ACCOUNTS, PASSWORD, signInWith, untilHydrated } from "./sign-in";
+import {
+  ACCOUNTS,
+  chooseFromMenu,
+  PASSWORD,
+  signInWith,
+  untilHydrated,
+} from "./sign-in";
 
 // The seed's second teacher teaches Arabic to every grade; the seeded student
 // sits in 8A. Each browser builds its own module, so none reads another's.
@@ -32,8 +38,10 @@ export async function openToStudents(page: Page, recordUrl: string) {
   await expect(page.getByText("Saved", { exact: true })).toBeVisible();
   await page.getByRole("button", { name: "Back" }).click();
   await expect(page).toHaveURL(recordUrl);
-  await page.getByRole("button", { name: "More actions" }).click();
-  await page.getByRole("menuitem", { name: "Open to students" }).click();
+  await chooseFromMenu(
+    page.getByRole("button", { name: "More actions" }),
+    page.getByRole("menuitem", { name: "Open to students" }),
+  );
   await expect(page.getByText("Module open to students")).toBeVisible();
 }
 

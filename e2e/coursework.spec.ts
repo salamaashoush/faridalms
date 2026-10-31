@@ -2,6 +2,7 @@ import { expect, test } from "@playwright/test";
 
 import {
   ACCOUNTS,
+  openWith,
   PASSWORD,
   signInWith,
   untilHydrated,
@@ -232,8 +233,12 @@ test("a teacher writes a rubric, grades by its levels, and the student reads wha
     .click();
   await expect(page).toHaveURL(/\/teach\/grading/);
   await untilHydrated(page);
-  await page.getByRole("button", { name: "Grade", exact: true }).click();
-  await page.getByRole("combobox", { name: /Use of evidence/ }).click();
+  const level = page.getByRole("combobox", { name: /Use of evidence/ });
+  await openWith(
+    page.getByRole("button", { name: "Grade", exact: true }),
+    level,
+  );
+  await level.click();
   await page.getByRole("option", { name: "Meets (3)" }).click();
   // The grader reads what the level means as they choose it.
   await expect(page.getByText(meaning)).toBeVisible();
