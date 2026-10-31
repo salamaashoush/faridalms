@@ -40,10 +40,10 @@ sections on domains, sign-in and the directory).
 
 ### 2.1 Names
 
-| Role   | Platform name            | School's own name (optional) |
-| ------ | ------------------------ | ---------------------------- |
-| site   | `<slug>.<sites domain>`  | `www.school.edu.eg` or apex  |
-| portal | `<slug>.<cell app host>` | `portal.school.edu.eg`       |
+| Role   | Platform name           | School's own name (optional) |
+| ------ | ----------------------- | ---------------------------- |
+| site   | `<slug>.faridalms.site` | `www.school.edu.eg` or apex  |
+| portal | `<slug>.faridalms.com`  | `portal.school.edu.eg`       |
 
 The platform names come from wildcard certificates (DNS-01). A school's own
 names are optional and, once verified, become canonical: the platform name
@@ -320,4 +320,10 @@ Settled on 2026-10-31:
 2. **Two hosts per school:** site and portal stay separate origins (2.1).
 3. **Turnstile** on public forms and account registration only.
 
-Still open: the product domain, the sites domain and the cell host names.
+4. **Domains:** `faridalms.com` is the product domain and every school's
+   platform portal (`<slug>.faridalms.com`); its apex is the product site
+   and school finder. `faridalms.site` serves schools' websites
+   (`<slug>.faridalms.site`). Two registrable domains keep pages schools
+   write off the session's site and their reputation apart. Portal names
+   carry no region: while there is one cell the edge routes them all to it,
+   and a second cell adds a cached directory lookup at the edge.
