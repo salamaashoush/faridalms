@@ -7,6 +7,7 @@ export const Route = createFileRoute("/_auth/sign-in")({
   component: SignInPage,
 });
 function SignInPage() {
+  const { auth } = Route.useRouteContext();
   return (
     <>
       <div className="mb-8">
@@ -15,7 +16,7 @@ function SignInPage() {
         </h1>
         <p className="text-muted-foreground">{m.authSignInBody()}</p>
       </div>
-      <SignInForm />
+      <SignInForm school={auth.school} />
     </>
   );
 }

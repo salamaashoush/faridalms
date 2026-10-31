@@ -27,14 +27,17 @@ const DEMO_ACCOUNTS = [
     loginName: "teacher1.northwind@northwind.example.com",
     label: () => m.roleTeacher(),
   },
-  { loginName: "parent1001@northwind.example.com", label: () => m.roleParent() },
+  {
+    loginName: "parent1001@northwind.example.com",
+    label: () => m.roleParent(),
+  },
   {
     loginName: "student1007@northwind.example.com",
     label: () => m.roleStudent(),
   },
 ];
 
-export function SignInForm() {
+export function SignInForm({ school }: { school?: string | null }) {
   const hydrated = useHydrated();
   const router = useRouter();
   const queryClient = useQueryClient();
@@ -55,7 +58,11 @@ export function SignInForm() {
   });
 
   const form = useForm({
-    defaultValues: { school: "northwind", loginName: "", password: "" },
+    defaultValues: {
+      school: school ?? (import.meta.env.DEV ? "northwind" : ""),
+      loginName: "",
+      password: "",
+    },
     // valibot implements Standard Schema, so the schema is accepted directly --
     // no @hookform/resolvers-style adapter package.
     validators: { onSubmit: loginSchema },
