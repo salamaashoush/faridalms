@@ -254,6 +254,7 @@ describe("a person's own password", () => {
   });
 });
 
+// Each sign-in hashes a password, which is slow on shared CI machines.
 describe("sign-in from one network", () => {
   test("a whole school signing in from one address is never held back", async () => {
     const api = client("northwind", undefined, "en", {
@@ -267,7 +268,7 @@ describe("sign-in from one network", () => {
       });
       expect(session.token).toBeString();
     }
-  });
+  }, 30_000);
 
   test("failures from one network refuse even the right password", async () => {
     const api = client("northwind", undefined, "en", {
@@ -290,5 +291,5 @@ describe("sign-in from one network", () => {
         }),
       ),
     ).toMatchObject({ message: "auth.too_many_attempts" });
-  });
+  }, 30_000);
 });
