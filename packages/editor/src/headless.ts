@@ -1,6 +1,6 @@
 import type { LexicalEditor } from "lexical";
 
-import { isSafeContentUrl } from "@faridalms/domain/rich-text";
+import { isSafeContentUrl } from "@faridalms/domain/content";
 import { CodeExtension } from "@lexical/code";
 import {
   buildEditorFromExtensions,

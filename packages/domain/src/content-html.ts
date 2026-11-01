@@ -5,8 +5,8 @@ import type { ContentDocument, ContentNode } from "./content";
 import { bibliographyOf, documentSources } from "./bibliography";
 import { sourceText } from "./citations";
 import { creditText } from "./commons";
+import { isSafeContentUrl } from "./content";
 import { embedPage, embedSource } from "./embed";
-import { isSafeContentUrl } from "./rich-text";
 
 /**
  * A document as plain HTML for another system to show, a Common Cartridge

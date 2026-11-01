@@ -1,4 +1,4 @@
-import { isSafeContentUrl } from "./rich-text";
+import { isSafeContentUrl } from "./content";
 
 /** A path inside the school's own site, or a safe address elsewhere. */
 export function isSiteHref(value: string): boolean {

@@ -1,8 +1,7 @@
 import type { TextSize } from "@faridalms/domain/content";
 import type { BaseSelection, LexicalEditor, TextFormatType } from "lexical";
 
-import { TEXT_SIZES } from "@faridalms/domain/content";
-import { isSafeContentUrl } from "@faridalms/domain/rich-text";
+import { isSafeContentUrl, TEXT_SIZES } from "@faridalms/domain/content";
 import { $createLinkNode, $isLinkNode, $toggleLink } from "@lexical/link";
 import {
   $getSelectionStyleValueForProperty,

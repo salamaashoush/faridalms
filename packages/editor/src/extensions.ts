@@ -7,11 +7,11 @@ import type {
 } from "lexical";
 
 import {
+  isSafeContentUrl,
   MAX_PANELS,
   TEXT_SIZES,
   validContentStyle,
 } from "@faridalms/domain/content";
-import { isSafeContentUrl } from "@faridalms/domain/rich-text";
 import {
   $isLinkNode,
   AutoLinkExtension,

@@ -26,6 +26,7 @@ import { formatSource } from "@faridalms/domain/citations";
 import {
   codeSource,
   contentPlainText,
+  isSafeContentUrl,
   textDirection,
   validContentStyle,
 } from "@faridalms/domain/content";
@@ -43,7 +44,6 @@ import {
   glossaryOf,
   termEntry,
 } from "@faridalms/domain/glossary";
-import { isSafeContentUrl } from "@faridalms/domain/rich-text";
 import { languageDirection } from "@faridalms/domain/translations";
 import { ExternalLink, Target } from "lucide-react";
 import {
