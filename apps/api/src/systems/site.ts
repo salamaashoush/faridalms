@@ -48,6 +48,7 @@ import {
 } from "@faridalms/database/stores/site";
 import { readAnswers } from "@faridalms/domain/enquiries";
 import { clientAddress } from "@faridalms/domain/forwarded";
+import { phaseOf } from "@faridalms/domain/publication";
 import {
   isPortalDoor,
   PORTAL_DOOR_SLUGS,
@@ -230,12 +231,7 @@ function localesOf(settings: {
 const shownState = (
   row: { state: string; publishedAt: string | null },
   now: Date,
-) =>
-  row.state === "published" &&
-  row.publishedAt &&
-  Date.parse(row.publishedAt) > now.getTime()
-    ? ("scheduled" as const)
-    : (row.state as "draft" | "published" | "archived");
+) => phaseOf({ state: row.state, publishAt: row.publishedAt }, now);
 
 const PREVIEW_POSTS = 6;
 // Pages are written by whoever manages the site, so each of them opens the

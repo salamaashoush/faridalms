@@ -21,6 +21,7 @@ import type {
   RunOutcome,
 } from "../tables/learning";
 
+import { liveSql } from "./publication";
 import { isoOf, textArray, uuidArray } from "./sql";
 
 type Tx = CellTransaction;
@@ -1455,7 +1456,7 @@ export async function studentModules(
     select ${moduleColumns}
     from ${moduleFrom}
     where m.tenant_id = ${input.tenantId}::uuid and m.org_id = ${input.schoolId}::uuid
-      and m.status = 'active' and m.state = 'published' and m.publish_at <= statement_timestamp()
+      and m.status = 'active' and ${liveSql(sql`m.state`, sql`m.publish_at`)}
       and exists (select 1 from core.module_classes x
         where x.tenant_id = m.tenant_id and x.module_id = m.id and x.status = 'active'
           and x.class_id = any(${uuidArray(input.classIds)})
