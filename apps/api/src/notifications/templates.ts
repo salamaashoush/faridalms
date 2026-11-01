@@ -1,11 +1,70 @@
+import type { ContentDocument } from "@faridalms/domain/content";
 import type {
   NoticeParams,
   NotificationKind,
 } from "@faridalms/domain/notifications";
 
+import { contentHtml } from "@faridalms/domain/content-html";
+import { REPLY_MARKER } from "@faridalms/domain/email-replies";
+
 export interface Rendered {
   subject: string;
   text: string;
+}
+
+const escapeHtml = (value: string) =>
+  value
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;");
+
+const KEPT_AT_SCHOOL = {
+  en: (names: string) =>
+    `Too large to send by email, kept by the school: ${names}`,
+  ar: (names: string) =>
+    `ملفات أكبر من أن تُرسل بالبريد، تحتفظ بها المدرسة: ${names}`,
+};
+
+/**
+ * A message of a conversation as an email to someone without an account:
+ * all its words rather than a notice to sign in, under the conversation's
+ * subject, signed with the school's name. When replies come back into the
+ * conversation, a line at the top says where to write, and everything
+ * from it down is what a reply quotes.
+ */
+export function conversationMessage(input: {
+  locale: "en" | "ar";
+  school: string;
+  subject: string;
+  text: string;
+  content: ContentDocument | null;
+  repliesReturn: boolean;
+  /** Files too large to attach, named so the family can ask for them. */
+  keptBack: readonly string[];
+}): Rendered & { html: string } {
+  const dir = input.locale === "ar" ? "rtl" : "ltr";
+  const marker = input.repliesReturn ? REPLY_MARKER[input.locale] : "";
+  const kept = input.keptBack.length
+    ? KEPT_AT_SCHOOL[input.locale](input.keptBack.join(", "))
+    : "";
+  const words = input.content
+    ? contentHtml(input.content, { fileHref: () => null })
+    : `<p>${escapeHtml(input.text).replaceAll("\n", "<br>")}</p>`;
+  return {
+    subject: input.subject,
+    text: [marker, input.text, kept, `-- \n${input.school}`]
+      .filter(Boolean)
+      .join("\n\n"),
+    html: [
+      `<div dir="${dir}" lang="${input.locale}">`,
+      marker ? `<p style="color:#6b7280">${escapeHtml(marker)}</p>` : "",
+      words,
+      kept ? `<p style="color:#6b7280">${escapeHtml(kept)}</p>` : "",
+      `<p style="color:#6b7280">${escapeHtml(input.school)}</p>`,
+      "</div>",
+    ].join(""),
+  };
 }
 
 type Line = (params: NoticeParams) => string;

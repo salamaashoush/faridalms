@@ -1,7 +1,8 @@
 import type { Reach } from "@faridalms/database/stores/messages";
+import type { ContentDocument } from "@faridalms/domain/content";
+import type { EntryDetails, Mailbox } from "@faridalms/domain/messages";
 
 import { namesOf } from "@faridalms/database/stores/coursework";
-import { filesOfHosts, linkFiles } from "@faridalms/database/stores/files";
 import {
   addMembers,
   createThread,
@@ -11,7 +12,6 @@ import {
   messageable,
   messagesOf,
   messagingGuardians,
-  postMessage,
   readsMessage,
   removeMembers,
   saveDraft as writeDraft,
@@ -19,12 +19,16 @@ import {
   threadsOf,
   unreachable,
   unreadThreads,
+  writtenSince,
 } from "@faridalms/database/stores/messages";
 import { readSubject } from "@faridalms/database/stores/notifications";
 import { isVisibleStudent } from "@faridalms/database/stores/students";
+import { contentFileIds } from "@faridalms/domain/content";
 import {
   draftSchema,
   inboxQuerySchema,
+  isInternal,
+  mailboxesOf,
   membersSchema,
   recipientsQuerySchema,
   sendSchema,
@@ -36,7 +40,6 @@ import * as v from "valibot";
 
 import type { UnitContext } from "../core/context";
 
-import { notify } from "../core/notify";
 import {
   audit,
   can,
@@ -44,7 +47,8 @@ import {
   requireCapability,
   writeProcedure,
 } from "../core/procedure";
-import { registerHostReader } from "../files/authorize";
+import { placeMedia, registerHostReader } from "../files/authorize";
+import { scopeOf, writeEntry } from "../messages/conversations";
 
 const id = v.pipe(v.string(), v.uuid());
 
@@ -63,32 +67,48 @@ function isStaff(context: UnitContext) {
   return can(context, "people:read");
 }
 
-/** A thread of this school the viewer is in, or not found. */
-async function memberThread(context: UnitContext, threadId: string) {
+/** The mailboxes the viewer's capabilities read and write in. */
+const mailboxesFor = (context: UnitContext) =>
+  mailboxesOf(context.actor.capabilities);
+
+/**
+ * A conversation of this school the viewer reaches, or not found: one
+ * they are in, or one in a mailbox their team shares, which they read
+ * whole, internal entries included. In a mailbox conversation only a
+ * contact's row, theirs once linked, makes someone a member; a staff
+ * member's row there keeps read state and lets them in to nothing.
+ */
+async function openThread(context: UnitContext, threadId: string) {
   const thread = await threadById(context.tx, context.tenantId, threadId);
   if (!thread || thread.orgId !== context.schoolId)
     throw new ORPCError("NOT_FOUND");
   const members = await membersOf(context.tx, context.tenantId, thread.id);
-  const me = members.find((row) => row.userId === context.actor.userId);
-  if (!me) throw new ORPCError("NOT_FOUND");
-  return { thread, members, me };
-}
-
-async function attach(
-  context: UnitContext,
-  messageId: string,
-  fileIds: readonly string[],
-) {
-  if (fileIds.length === 0) return;
-  const linked = await linkFiles(context.tx, {
-    tenantId: context.tenantId,
-    userId: context.actor.userId,
-    ids: fileIds,
-    purpose: "attachment",
-    host: { type: "message", id: messageId },
-  });
-  if (linked.length !== fileIds.length)
-    throw new ORPCError("CONFLICT", { message: "files.not_linkable" });
+  const boxes = mailboxesFor(context);
+  const team = thread.mailbox !== null && boxes.reads.includes(thread.mailbox);
+  const me =
+    members.find(
+      (row) =>
+        row.userId === context.actor.userId &&
+        (thread.mailbox === null || row.role === "member"),
+    ) ?? null;
+  if (!team && !me) throw new ORPCError("NOT_FOUND");
+  const draft =
+    members.find(
+      (row) => row.userId === context.actor.userId && row.role !== "member",
+    )?.draft ??
+    me?.draft ??
+    null;
+  return {
+    thread,
+    members,
+    me,
+    team,
+    /** Whether the viewer writes here: their team's writer, or a member who may send. */
+    writes: team
+      ? boxes.writes.includes(thread.mailbox as Mailbox)
+      : can(context, "messages:send"),
+    draft,
+  };
 }
 
 registerHostReader("message", (context, hostId) =>
@@ -96,35 +116,53 @@ registerHostReader("message", (context, hostId) =>
     tenantId: context.tenantId,
     messageId: hostId,
     userId: context.actor.userId,
+    mailboxes: mailboxesFor(context).reads,
   }),
 );
+
+/** Reading Messages needs its capability, or a mailbox to read. */
+function readsMessages(context: UnitContext) {
+  if (mailboxesFor(context).reads.length) return;
+  requireCapability(context, "messages:read");
+}
 
 export const inbox = readProcedure
   .input(inboxQuerySchema)
   .handler(async ({ input, context }) => {
-    requireCapability(context, "messages:read");
+    readsMessages(context);
+    const boxes = mailboxesFor(context);
+    const box =
+      input.box === "all" ||
+      input.box === "personal" ||
+      boxes.reads.includes(input.box)
+        ? input.box
+        : "personal";
     const rows = await threadsOf(context.tx, {
       tenantId: context.tenantId,
       schoolId: context.schoolId,
       viewerId: context.actor.userId,
+      mailboxes: boxes.reads,
+      box,
       unreadOnly: input.show === "unread",
       q: input.q,
       limit: 200,
     });
     return {
       rows,
+      mailboxes: boxes.reads,
       canStart: can(context, "messages:send"),
       canStartFamily: can(context, "messages:send") && isStaff(context),
     };
   });
 
 export const unread = readProcedure.handler(async ({ context }) => {
-  requireCapability(context, "messages:read");
+  readsMessages(context);
   return {
     threads: await unreadThreads(context.tx, {
       tenantId: context.tenantId,
       schoolId: context.schoolId,
       viewerId: context.actor.userId,
+      mailboxes: mailboxesFor(context).reads,
     }),
   };
 });
@@ -132,25 +170,28 @@ export const unread = readProcedure.handler(async ({ context }) => {
 export const thread = readProcedure
   .input(threadQuerySchema)
   .handler(async ({ input, context }) => {
-    requireCapability(context, "messages:read");
-    const { thread: row, members, me } = await memberThread(context, input.id);
+    const opened = await openThread(context, input.id);
+    const { thread: row, members, team } = opened;
     const rows = await messagesOf(context.tx, {
       tenantId: context.tenantId,
       threadId: row.id,
       before: input.before || null,
       limit: 100,
-    });
-    const files = await filesOfHosts(context.tx, context.tenantId, {
-      type: "message",
-      ids: rows.map((message) => message.id),
+      internal: team,
     });
     const staff = isStaff(context);
     const [student] = row.studentId
       ? await namesOf(context.tx, context.tenantId, [row.studentId])
       : [];
+    // A mailbox conversation shows its outside contacts and who holds it;
+    // the team's own read rows are nobody's business.
+    const shown = members.filter(
+      (member) => row.mailbox === null || member.role !== "reader",
+    );
     return {
       id: row.id,
       kind: row.kind,
+      mailbox: row.mailbox,
       subject: row.subject,
       student: row.studentId
         ? {
@@ -159,26 +200,59 @@ export const thread = readProcedure
             fullNameAr: student?.fullNameAr ?? null,
           }
         : null,
-      members: members.map((member) => ({
+      members: shown.map((member) => ({
         userId: member.userId,
+        contactId: member.contactId,
         fullNameEn: member.fullNameEn,
         fullNameAr: member.fullNameAr,
         role: member.role,
+        outside: member.contactId !== null,
+        email: team ? member.email : null,
         lastReadAt: staff ? member.lastReadAt : null,
       })),
-      draft: me.draft,
-      canManage: row.kind === "group" && me.role === "owner",
+      owner:
+        row.mailbox !== null
+          ? (() => {
+              const owner = members.find(
+                (member) => member.role === "owner" && !member.contactId,
+              );
+              return owner
+                ? {
+                    userId: owner.userId,
+                    fullNameEn: owner.fullNameEn,
+                    fullNameAr: owner.fullNameAr,
+                  }
+                : null;
+            })()
+          : null,
+      draft: opened.draft,
+      team,
+      canWrite: opened.writes,
+      canNote: team && opened.writes,
+      /** Whether a message here also reaches someone by email. */
+      emailsOutside: members.some(
+        (member) =>
+          member.contactId !== null &&
+          member.email !== null &&
+          member.userId === null,
+      ),
+      canManage: row.kind === "group" && opened.me?.role === "owner",
       showsSeen: staff,
+      latestId: rows.at(-1)?.id ?? null,
       messages: rows.map((message) => ({
-        ...message,
-        files: files
-          .filter((file) => file.hostId === message.id)
-          .map((file) => ({
-            id: file.id,
-            name: file.name,
-            mediaType: file.mediaType,
-            sizeBytes: file.sizeBytes,
-          })),
+        id: message.id,
+        kind: message.kind,
+        authorId: message.authorId,
+        authorContactId: message.authorContactId,
+        authorNameEn: message.authorNameEn,
+        authorNameAr: message.authorNameAr,
+        body: message.body,
+        content: message.content as unknown as ContentDocument | null,
+        details: (team || message.kind === "message"
+          ? message.details
+          : {}) as EntryDetails,
+        redacted: message.redacted,
+        createdAt: message.createdAt,
       })),
       hasMore: rows.length === 100,
     };
@@ -197,49 +271,73 @@ export const recipients = readProcedure
   });
 
 /**
- * Tells the other members a message arrived. Someone still holding an unread
- * notice about the thread gets no second one, so a busy thread rings once.
+ * A message, or in a mailbox conversation an internal note or a contact
+ * logged. One action whether written in Messages or on the record the
+ * conversation belongs to, such as an enquiry. A reply that someone else
+ * has overtaken since the writer last looked is refused until they have
+ * read it, unless they send it anyway.
  */
-async function tellMembers(
-  context: UnitContext,
-  threadId: string,
-  body: string,
-) {
-  const members = await membersOf(context.tx, context.tenantId, threadId);
-  const author = members.find(
-    (member) => member.userId === context.actor.userId,
-  );
-  await notify(
-    context,
-    members.map((member) => member.userId),
-    {
-      kind: "message",
-      subject: { type: "message_thread", id: threadId },
-      params: {
-        actorName: author?.fullNameEn ?? author?.fullNameAr ?? "",
-        actorNameAr: author?.fullNameAr ?? author?.fullNameEn ?? "",
-        preview: body.slice(0, 140),
-      },
-      collapse: true,
-    },
-  );
-}
-
 export const send = writeProcedure
   .input(sendSchema)
   .handler(async ({ input, context }) => {
-    requireCapability(context, "messages:send");
-    const { thread: row } = await memberThread(context, input.threadId);
-    const posted = await postMessage(context.tx, {
-      tenantId: context.tenantId,
+    const {
+      thread: row,
+      team,
+      writes,
+    } = await openThread(context, input.threadId);
+    if (!writes) throw new ORPCError("FORBIDDEN");
+    if (isInternal(input.kind) && !team) throw new ORPCError("FORBIDDEN");
+    if (team && input.kind === "message" && !input.force) {
+      const newer = await writtenSince(context.tx, {
+        tenantId: context.tenantId,
+        threadId: row.id,
+        afterId: input.after || null,
+        viewerId: context.actor.userId,
+      });
+      if (newer)
+        throw new ORPCError("CONFLICT", {
+          message: "messages.newer",
+          data: { latestId: newer.id },
+        });
+    }
+    return writeComposed(context, {
       threadId: row.id,
-      authorId: context.actor.userId,
-      body: input.body,
+      kind: input.kind,
+      content: input.content,
     });
-    await attach(context, posted.id, input.fileIds);
-    await tellMembers(context, row.id, input.body);
-    return posted;
   });
+
+/**
+ * Writes what someone composed. The entry's id is made first, so the files
+ * its document shows are placed in its keeping before the document is
+ * saved, and its readers are the ones who may open them.
+ */
+async function writeComposed(
+  context: UnitContext,
+  input: {
+    threadId: string;
+    kind: v.InferOutput<typeof sendSchema>["kind"];
+    content: ContentDocument;
+    details?: Record<string, unknown>;
+  },
+) {
+  const entryId = Bun.randomUUIDv7();
+  const placed = await placeMedia(
+    context,
+    { type: "message", id: entryId },
+    input.content,
+    contentFileIds(input.content),
+  );
+  return writeEntry(scopeOf(context), {
+    id: entryId,
+    threadId: input.threadId,
+    kind: input.kind,
+    authorUserId: context.actor.userId,
+    content: placed.content,
+    mediaIds: placed.mediaIds,
+    details: input.details ?? {},
+  });
+}
 
 /** Writes to someone new: continues an open conversation with them, or starts one. */
 export const start = writeProcedure
@@ -294,6 +392,7 @@ export const start = writeProcedure
           kind: "family",
           subject: null,
           studentId: input.studentId,
+          createdBy: me,
           ownerId: me,
           memberIds: guardians,
         });
@@ -325,20 +424,18 @@ export const start = writeProcedure
           kind: input.kind,
           subject: input.kind === "group" ? input.subject : null,
           studentId: null,
+          createdBy: me,
           ownerId: me,
           memberIds: input.recipientIds,
         });
         created = true;
       }
     }
-    const posted = await postMessage(context.tx, {
-      tenantId: context.tenantId,
+    await writeComposed(context, {
       threadId,
-      authorId: me,
-      body: input.body,
+      kind: "message",
+      content: input.content,
     });
-    await attach(context, posted.id, input.fileIds);
-    await tellMembers(context, threadId, input.body);
     if (created)
       await audit(context, {
         action: "message_thread.create",
@@ -353,8 +450,7 @@ export const start = writeProcedure
 export const markRead = writeProcedure
   .input(v.object({ threadId: id }))
   .handler(async ({ input, context }) => {
-    requireCapability(context, "messages:read");
-    const { thread: row } = await memberThread(context, input.threadId);
+    const { thread: row } = await openThread(context, input.threadId);
     await markThreadRead(context.tx, {
       tenantId: context.tenantId,
       threadId: row.id,
@@ -372,8 +468,8 @@ export const markRead = writeProcedure
 export const saveDraft = writeProcedure
   .input(draftSchema)
   .handler(async ({ input, context }) => {
-    requireCapability(context, "messages:send");
-    const { thread: row } = await memberThread(context, input.threadId);
+    const { thread: row, writes } = await openThread(context, input.threadId);
+    if (!writes) throw new ORPCError("FORBIDDEN");
     await writeDraft(context.tx, {
       tenantId: context.tenantId,
       threadId: row.id,
@@ -388,8 +484,8 @@ export const members = writeProcedure
   .input(membersSchema)
   .handler(async ({ input, context }) => {
     requireCapability(context, "messages:send");
-    const { thread: row, me } = await memberThread(context, input.threadId);
-    if (row.kind !== "group" || me.role !== "owner")
+    const { thread: row, me } = await openThread(context, input.threadId);
+    if (row.kind !== "group" || me?.role !== "owner")
       throw new ORPCError("FORBIDDEN");
     const outside = await unreachable(context.tx, reachOf(context), input.add);
     if (outside.length)
