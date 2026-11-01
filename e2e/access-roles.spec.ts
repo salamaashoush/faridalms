@@ -185,3 +185,28 @@ test("administrators shape a role in settings and assign it from the person's re
   );
   expect(profile.capabilities).not.toContain("assignments:author");
 });
+
+test("an administrator cannot take away their own ability to manage roles, and is told so", async ({
+  page,
+}) => {
+  await signIn(page, "admin");
+  await page.goto("/admin/settings?section=access");
+  await untilHydrated(page);
+  await page
+    .getByRole("link", { name: "Principal", exact: true })
+    .first()
+    .click();
+  const sheet = page.getByRole("dialog", { name: "Edit role" });
+  const manage = sheet.getByRole("checkbox", {
+    name: "Manage roles and who holds them",
+    exact: true,
+  });
+  await expect(manage).toBeChecked();
+  await manage.click();
+  await sheet.getByRole("button", { name: "Save", exact: true }).click();
+  await expect(sheet.getByRole("alert")).toHaveText(
+    "You cannot remove your own ability to manage roles and permissions.",
+  );
+  const profile = await (await apiAs("admin")).identity.currentUser();
+  expect(profile.capabilities).toContain("access:manage");
+});
