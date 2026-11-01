@@ -32,6 +32,8 @@ export async function candidates(
     orgScope: readonly string[];
     after: { rank: number; id: string } | null;
     max: number;
+    /** Classes of this year come first. */
+    preferYear?: string | null;
   },
 ): Promise<Candidate[]> {
   const rows = await tx.execute<{
@@ -41,7 +43,8 @@ export async function candidates(
   }>(sql`
     select result_type, result_id, rank
     from app.search(${input.q}, ${textArray(input.types)}, ${uuidArray(input.orgScope)},
-      ${input.after?.rank ?? null}::real, ${input.after?.id ?? null}::uuid, ${input.max})`);
+      ${input.after?.rank ?? null}::real, ${input.after?.id ?? null}::uuid, ${input.max},
+      ${input.preferYear ?? null}::uuid)`);
   return rows.map((row) => ({
     type: row.result_type,
     id: row.result_id,
@@ -160,13 +163,20 @@ export async function peopleAmong(tx: Tx, scope: Scope, input: Among) {
   );
 }
 
-/** Classes among `ids` the viewer reaches. */
+/** Classes among `ids` the viewer reaches, each with its code and school year. */
 export async function classesAmong(tx: Tx, scope: Scope, input: Among) {
   return found(
     await tx.execute<Raw>(sql`
-      select c.id, 'class' as type, ${titled(input.ar, "c")} as title, null as snippet, c.code as context,
+      select c.id, 'class' as type, ${titled(input.ar, "c")} as title, null as snippet,
+        concat_ws(' · ', c.code, ${
+          input.ar
+            ? sql`coalesce(y.title_ar, y.title_en)`
+            : sql`coalesce(y.title_en, y.title_ar)`
+        }, case when y.title_ar is null and y.title_en is null
+          then concat(y.school_year - 1, '–', y.school_year) end) as context,
         null as "when", null as flag, null as roles
       from core.classes c
+      join core.academic_sessions y on y.tenant_id = c.tenant_id and y.id = c.school_year_id
       where c.tenant_id = ${scope.tenantId}::uuid and c.id = any(${uuidArray(input.ids)}) and c.status = 'active'
         and c.id in (select class_id from app.visible_classes(${scope.viewerId}::uuid,
           ${scope.schoolId}::uuid, ${scope.today}::date, ${scope.schoolWide}))`),
