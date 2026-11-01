@@ -45,6 +45,7 @@ export default defineConfig({
     "badges.spec.ts",
     "site.spec.ts",
     "admissions.spec.ts",
+    "applications.spec.ts",
     "hosts.spec.ts",
     "sign-in-page.spec.ts",
     "bare-domain.spec.ts",
