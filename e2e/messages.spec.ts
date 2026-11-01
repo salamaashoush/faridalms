@@ -128,7 +128,13 @@ test("a guardian's names lead nowhere they could not already open", async ({
     name: "People in this conversation",
   });
   await expect(people.getByRole("listitem").first()).toBeVisible();
-  await expect(people.getByRole("link")).toHaveCount(0);
+  const hrefs = await people
+    .getByRole("link")
+    .evaluateAll((links) =>
+      links.map((link) => link.getAttribute("href") ?? ""),
+    );
+  expect(hrefs.length).toBeGreaterThan(0);
+  for (const href of hrefs) expect(href).toMatch(/^\/profiles\/[0-9a-f-]{36}$/);
 });
 
 test("a teacher writes to a child's family from a new message", async ({
