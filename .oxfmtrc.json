@@ -18,6 +18,7 @@
     "functions": ["cn", "cva"]
   },
   "ignorePatterns": [
+    ".claude/**",
     "packages/ui/src/**",
     "**/node_modules/**",
     "apps/web/src/i18n/**",

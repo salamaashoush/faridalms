@@ -20,6 +20,8 @@ export default defineConfig({
           setupFiles: ["happy-dom.setup.ts"],
           exclude: [
             ...configDefaults.exclude,
+            // Agents' git worktrees are whole copies of the repository.
+            ".claude/**",
             "e2e/**",
             "**/*.browser.{test,spec}.{ts,tsx}",
             // Database integration tests run under Bun against a real cell

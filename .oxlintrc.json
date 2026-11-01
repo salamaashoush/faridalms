@@ -215,6 +215,7 @@
   ],
   "ignorePatterns": [
     "**/node_modules/**",
+    ".claude/**",
     "apps/web/src/i18n/**",
     "apps/web/src/i18n-dev/**",
     "apps/web/src/routeTree.gen.ts",
