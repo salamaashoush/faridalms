@@ -43,29 +43,6 @@ export const CLOSE_REASONS = [
 ] as const;
 export type CloseReason = (typeof CLOSE_REASONS)[number];
 
-/** What staff write into an enquiry's thread themselves. */
-export const LOGGED_ENTRIES = ["note", "call", "email", "meeting"] as const;
-export type LoggedEntry = (typeof LOGGED_ENTRIES)[number];
-/**
- * Everything the thread holds: what staff wrote, the replies sent from the
- * app, and each change of state or assignee, so the record reads as a history.
- */
-export const ENTRY_KINDS = [
-  ...LOGGED_ENTRIES,
-  "reply",
-  "state",
-  "assigned",
-] as const;
-export type EntryKind = (typeof ENTRY_KINDS)[number];
-
-/** Entries that are a conversation with the family, which ends the wait for a first response. */
-export const CONTACT_ENTRIES: readonly EntryKind[] = [
-  "call",
-  "email",
-  "meeting",
-  "reply",
-];
-
 const MOVES: Record<EnquiryState, readonly EnquiryState[]> = {
   open: ["in_progress", "converted", "closed"],
   in_progress: ["converted", "closed"],
@@ -295,127 +272,6 @@ export const moveEnquirySchema = v.pipe(
   ),
 );
 
-export const addEntrySchema = v.object({
-  id,
-  kind: v.picklist(LOGGED_ENTRIES),
-  body: v.pipe(v.string(), v.trim(), v.minLength(1), v.maxLength(4000)),
-});
-
-export const REPLY_TEMPLATES = [
-  "thanks",
-  "visit",
-  "information",
-  "places",
-  "general",
-] as const;
-export type ReplyTemplate = (typeof REPLY_TEMPLATES)[number];
-
-export const replySchema = v.object({
-  id,
-  template: v.optional(v.picklist(REPLY_TEMPLATES)),
-  locale: v.picklist(["en", "ar"]),
-  subject: v.pipe(v.string(), v.trim(), v.minLength(1), v.maxLength(200)),
-  body: v.pipe(v.string(), v.trim(), v.minLength(1), v.maxLength(5000)),
-});
-
-interface Written {
-  subject: string;
-  body: string;
-}
-
-/**
- * The replies an office sends most, in both languages. `{name}`, `{child}`,
- * `{school}` and `{sender}` are filled in before the reply opens, and the
- * person sending edits the words before they go.
- */
-export const REPLY_WORDING: Record<
-  ReplyTemplate,
-  Record<"en" | "ar", Written>
-> = {
-  thanks: {
-    en: {
-      subject: "Thank you for your enquiry",
-      body: "Dear {name},\n\nThank you for your interest in {school}. We have received your enquiry and would be glad to tell you more about the school and how admission works.\n\nPlease reply to this email with any questions, or let us know a good time to call you.\n\nKind regards,\n{sender}\n{school}",
-    },
-    ar: {
-      subject: "شكرًا لاستفساركم",
-      body: "مرحبًا {name}،\n\nنشكركم على اهتمامكم بـ{school}. وصلنا استفساركم، ويسعدنا أن نعرّفكم بالمدرسة وبخطوات القبول.\n\nيمكنكم الرد على هذه الرسالة بأي سؤال، أو إخبارنا بالوقت المناسب للاتصال بكم.\n\nمع خالص التحية،\n{sender}\n{school}",
-    },
-  },
-  visit: {
-    en: {
-      subject: "Visiting {school}",
-      body: "Dear {name},\n\nThank you for asking to visit. We would be delighted to show you around and answer your questions in person.\n\nPlease reply with two or three days and times that suit you, and we will confirm one.\n\nKind regards,\n{sender}\n{school}",
-    },
-    ar: {
-      subject: "زيارة {school}",
-      body: "مرحبًا {name}،\n\nنشكركم على طلب الزيارة، ويسعدنا أن نرافقكم في جولة بالمدرسة ونجيب عن أسئلتكم.\n\nنرجو الرد بيومين أو ثلاثة وبالأوقات المناسبة لكم، وسنؤكد لكم أحدها.\n\nمع خالص التحية،\n{sender}\n{school}",
-    },
-  },
-  information: {
-    en: {
-      subject: "A little more about {child}",
-      body: "Dear {name},\n\nThank you for your enquiry. To advise you properly, could you tell us {child}'s date of birth, the year you are hoping for, and the school {child} attends now?\n\nKind regards,\n{sender}\n{school}",
-    },
-    ar: {
-      subject: "معلومات إضافية عن {child}",
-      body: "مرحبًا {name}،\n\nنشكركم على استفساركم. حتى نتمكن من إفادتكم على النحو الصحيح، نرجو إخبارنا بتاريخ ميلاد {child}، والصف الذي ترغبون في التقديم له، ومدرسته الحالية إن وُجدت.\n\nمع خالص التحية،\n{sender}\n{school}",
-    },
-  },
-  places: {
-    en: {
-      subject: "Places at {school}",
-      body: "Dear {name},\n\nThank you for your enquiry. We do not have a place in the year you asked about at the moment. We would be glad to keep your details and contact you as soon as one becomes available.\n\nKind regards,\n{sender}\n{school}",
-    },
-    ar: {
-      subject: "المقاعد المتاحة في {school}",
-      body: "مرحبًا {name}،\n\nنشكركم على استفساركم. لا يتوفر لدينا حاليًا مقعد في الصف الذي سألتم عنه، ويسعدنا الاحتفاظ ببياناتكم والتواصل معكم فور توفر مقعد.\n\nمع خالص التحية،\n{sender}\n{school}",
-    },
-  },
-  general: {
-    en: {
-      subject: "Your message to {school}",
-      body: "Dear {name},\n\nThank you for your message.\n\n\n\nKind regards,\n{sender}\n{school}",
-    },
-    ar: {
-      subject: "رسالتكم إلى {school}",
-      body: "مرحبًا {name}،\n\nنشكركم على رسالتكم.\n\n\n\nمع خالص التحية،\n{sender}\n{school}",
-    },
-  },
-};
-
-/** The template a reply starts from, for what the family asked. */
-export const TEMPLATE_FOR: Record<EnquiryPurpose, ReplyTemplate> = {
-  enquiry: "thanks",
-  visit: "visit",
-  general: "general",
-};
-
-/** A template's words with its fields filled; a field with nothing to fill keeps a neutral word. */
-export function fillReply(
-  template: ReplyTemplate,
-  locale: "en" | "ar",
-  fields: { name: string; child: string; school: string; sender: string },
-): Written {
-  const fallback =
-    locale === "ar"
-      ? { child: "طفلكم", name: "ولي الأمر" }
-      : { child: "your child", name: "parent" };
-  const values: Record<string, string> = {
-    name: fields.name.trim() || fallback.name,
-    child: fields.child.trim() || fallback.child,
-    school: fields.school.trim(),
-    sender: fields.sender.trim(),
-  };
-  const fill = (text: string) =>
-    text.replaceAll(
-      /\{(name|child|school|sender)\}/g,
-      (_, key: string) => values[key] ?? "",
-    );
-  const written = REPLY_WORDING[template][locale];
-  return { subject: fill(written.subject), body: fill(written.body) };
-}
-
 /** Whole minutes from the enquiry to the first time someone talked to the family. */
 export function responseMinutes(
   createdAt: string,
@@ -427,3 +283,99 @@ export function responseMinutes(
   );
   return Number.isFinite(minutes) ? Math.max(0, minutes) : null;
 }
+
+const SUBJECTS: Record<EnquiryPurpose, Record<"en" | "ar", string>> = {
+  enquiry: {
+    en: "Your enquiry to {school}",
+    ar: "استفساركم لدى {school}",
+  },
+  visit: {
+    en: "Your visit to {school}",
+    ar: "زيارتكم إلى {school}",
+  },
+  general: {
+    en: "Your message to {school}",
+    ar: "رسالتكم إلى {school}",
+  },
+};
+
+/**
+ * What the enquiry's conversation is called, in the family's language: the
+ * subject of every email of it, so their mail program keeps it together.
+ */
+export function conversationSubject(
+  purpose: EnquiryPurpose,
+  locale: "en" | "ar",
+  school: string,
+): string {
+  return SUBJECTS[purpose][locale].replace("{school}", school).slice(0, 200);
+}
+
+/** What the admissions conversation with an applying family is called, when the office starts it. */
+export function applicationSubject(
+  locale: "en" | "ar",
+  school: string,
+): string {
+  return (
+    locale === "ar"
+      ? `طلب التحاقكم بـ${school}`
+      : `Your application to ${school}`
+  ).slice(0, 200);
+}
+
+/**
+ * A website enquiry as the family's first message: what they wrote, then
+ * their answers to the school's questions, so the conversation starts with
+ * their words. An enquiry that says nothing in words names its child.
+ */
+export function submissionText(enquiry: {
+  message: string;
+  answers: readonly EnquiryAnswer[];
+  childName: string;
+  childYear: string;
+}): string {
+  const message = enquiry.message.trim();
+  const answered = enquiry.answers
+    .map((answer) => `${answer.label}: ${answer.value}`)
+    .join("\n");
+  const about = [enquiry.childName, enquiry.childYear]
+    .map((part) => part.trim())
+    .filter(Boolean)
+    .join(", ");
+  const said = [message, answered].filter(Boolean).join("\n\n") || about;
+  return (said || "-").slice(0, 5000);
+}
+
+/**
+ * How an enquiry staff took by hand opens its conversation: what they
+ * noted down, as the call, meeting or email it was.
+ */
+export function loggedKind(
+  source: EnquirySource,
+): "call" | "meeting" | "email" | "note" {
+  if (source === "phone") return "call";
+  if (source === "walk_in" || source === "event") return "meeting";
+  if (source === "email") return "email";
+  return "note";
+}
+
+/**
+ * What the enquiry's system records in its conversation as it is worked:
+ * a move from one state to another, with the reason it closed, and a
+ * change of who holds it. The conversation shows them among its entries,
+ * so staff read one timeline.
+ */
+export type EnquiryEvent =
+  | {
+      event: "state";
+      from: EnquiryState;
+      to: EnquiryState;
+      reason?: CloseReason;
+      automatic?: boolean;
+    }
+  | {
+      event: "assigned";
+      assigneeId: string | null;
+      nameEn: string | null;
+      nameAr: string | null;
+    };

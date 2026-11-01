@@ -165,8 +165,9 @@ export const BUILTIN_CAPABILITIES: Record<
     "admissions:configure",
   ],
   // A family that has applied but has no child at the school yet: it reaches
-  // its own applications and nothing of the school's.
-  applicant_family: ["applications:submit"],
+  // its own applications, and its conversations with the school, which
+  // the office started or its enquiries brought, and nothing else.
+  applicant_family: ["applications:submit", "messages:read", "messages:send"],
 };
 
 /**

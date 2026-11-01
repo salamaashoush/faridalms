@@ -178,6 +178,62 @@ export function plainContent(text: string): ContentDocument {
   };
 }
 
+/**
+ * A document with a file block for each file after its words, as the
+ * attachments of an email that arrived take their place in the message.
+ */
+export function withFileBlocks(
+  document: ContentDocument,
+  files: readonly {
+    id: string;
+    name: string;
+    mediaType: string;
+    sizeBytes: number;
+  }[],
+): ContentDocument {
+  if (files.length === 0) return document;
+  return {
+    root: {
+      ...document.root,
+      children: [
+        ...(document.root.children ?? []),
+        ...files.map((file): ContentNode => ({
+          type: "file",
+          version: 1,
+          format: "",
+          fileId: file.id,
+          name: file.name,
+          mime: file.mediaType,
+          bytes: file.sizeBytes,
+        })),
+      ],
+    },
+  };
+}
+
+/**
+ * A document's words with `{name}`-style fields filled in, as a template
+ * is put in the composer; a field with no value keeps its braces.
+ */
+export function fillFields(
+  document: ContentDocument,
+  values: Readonly<Record<string, string>>,
+): ContentDocument {
+  const fill = (node: ContentNode): ContentNode => ({
+    ...node,
+    ...(typeof node.text === "string"
+      ? {
+          text: node.text.replaceAll(
+            /\{([a-z]+)\}/g,
+            (whole, key: string) => values[key] ?? whole,
+          ),
+        }
+      : {}),
+    ...(node.children ? { children: node.children.map(fill) } : {}),
+  });
+  return { root: fill(document.root) };
+}
+
 /** A document of headed parts: each heading a level-two heading followed by its text. */
 export function headedContent(
   parts: { heading: string; body: ContentDocument }[],
