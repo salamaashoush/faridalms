@@ -1,5 +1,6 @@
-import type { InboxQuery } from "@faridalms/domain/messages";
+import type { InboxQuery, Mailbox } from "@faridalms/domain/messages";
 
+import { INBOX_BOXES } from "@faridalms/domain/messages";
 import { cn } from "@faridalms/ui/cn";
 import { Input } from "@faridalms/ui/input";
 import { Skeleton } from "@faridalms/ui/skeleton";
@@ -22,14 +23,21 @@ const uuid = v.pipe(v.string(), v.uuid());
 export const messagesSearchSchema = v.object({
   thread: v.optional(v.union([v.literal(""), uuid]), ""),
   show: v.optional(v.picklist(["all", "unread"]), "all"),
+  box: v.optional(v.picklist(INBOX_BOXES), "all"),
   q: v.optional(v.pipe(v.string(), v.maxLength(100)), ""),
   compose: v.optional(v.boolean(), false),
 });
 export type MessagesSearch = v.InferOutput<typeof messagesSearchSchema>;
 
 export function inboxOf(search: MessagesSearch): InboxQuery {
-  return { show: search.show, q: search.q.trim() };
+  return { show: search.show, box: search.box, q: search.q.trim() };
 }
+
+/** A team's mailbox, as Messages names it. */
+export const MAILBOX_LABEL: Record<Mailbox, () => string> = {
+  admissions: m.msgBoxAdmissions,
+  attendance: m.msgBoxAttendance,
+};
 
 type Row = Awaited<
   ReturnType<NonNullable<ReturnType<typeof inboxQuery>["queryFn"]>>
@@ -48,17 +56,26 @@ function ThreadItem({
   timeZone: string;
   onOpen: () => void;
 }) {
+  const people = row.mailbox
+    ? row.others.filter((other) => other.userId !== row.owner?.userId)
+    : row.others;
   const preview = row.lastBody
-    ? row.lastAuthorId &&
-      row.others.some((other) => other.userId === row.lastAuthorId)
-      ? m.msgPreviewFrom({
-          name: nameOf({
-            fullNameEn: row.lastAuthorNameEn,
-            fullNameAr: row.lastAuthorNameAr,
-          }),
-          body: row.lastBody,
-        })
-      : m.msgPreviewYou({ body: row.lastBody })
+    ? row.lastKind && row.lastKind !== "message"
+      ? m.msgPreviewInternal({ body: row.lastBody })
+      : row.lastAuthorId &&
+          row.others.some(
+            (other) =>
+              other.userId === row.lastAuthorId ||
+              other.contactId === row.lastAuthorId,
+          )
+        ? m.msgPreviewFrom({
+            name: nameOf({
+              fullNameEn: row.lastAuthorNameEn,
+              fullNameAr: row.lastAuthorNameAr,
+            }),
+            body: row.lastBody,
+          })
+        : m.msgPreviewYou({ body: row.lastBody })
     : "";
   return (
     <li>
@@ -78,12 +95,27 @@ function ThreadItem({
               row.unread ? "font-semibold" : "font-medium",
             )}
           >
-            {threadTitle(row)}
+            {threadTitle({
+              subject: row.mailbox ? null : row.subject,
+              others: people,
+            })}
           </span>
           <span className="shrink-0 text-[13px] leading-[18px] text-muted-foreground tabular-nums">
             {whenShort(row.lastMessageAt, today, timeZone)}
           </span>
         </span>
+        {row.mailbox ? (
+          <span className="flex min-w-0 items-center gap-1.5 text-[13px] leading-[18px] text-muted-foreground">
+            <span className="shrink-0 rounded-sm bg-muted px-1.5 text-[11px] leading-[18px] font-medium">
+              {MAILBOX_LABEL[row.mailbox]()}
+            </span>
+            <span className="truncate">
+              {row.owner
+                ? m.msgHeldBy({ name: nameOf(row.owner) })
+                : m.msgUnassigned()}
+            </span>
+          </span>
+        ) : null}
         {row.studentId ? (
           <span className="truncate text-[13px] leading-[18px] text-muted-foreground">
             {m.msgAbout({
@@ -124,7 +156,9 @@ function ThreadList({
   onSearch: (change: Partial<MessagesSearch>) => void;
 }) {
   const user = useCurrentUser();
-  const { rows } = useSuspenseQuery(inboxQuery(inboxOf(search))).data;
+  const { rows, mailboxes } = useSuspenseQuery(
+    inboxQuery(inboxOf(search)),
+  ).data;
   return (
     <div className="grid min-h-0 min-w-0 grid-cols-[minmax(0,1fr)] content-start">
       <div className="grid gap-2 border-b p-3">
@@ -145,6 +179,31 @@ function ThreadList({
             onChange={(event) => onSearch({ q: event.target.value })}
           />
         </div>
+        {mailboxes.length ? (
+          <fieldset className="flex flex-wrap gap-1">
+            <legend className="sr-only">{m.msgBox()}</legend>
+            {(["all", "personal", ...mailboxes] as const).map((box) => (
+              <button
+                key={box}
+                type="button"
+                aria-pressed={search.box === box}
+                onClick={() => onSearch({ box })}
+                className={cn(
+                  "h-8 rounded-md px-3 text-[13px] font-medium max-md:h-10",
+                  search.box === box
+                    ? "bg-muted text-foreground"
+                    : "text-muted-foreground hover:bg-muted/60",
+                )}
+              >
+                {box === "all"
+                  ? m.msgBoxAll()
+                  : box === "personal"
+                    ? m.msgBoxPersonal()
+                    : MAILBOX_LABEL[box]()}
+              </button>
+            ))}
+          </fieldset>
+        ) : null}
         <fieldset className="flex gap-1">
           <legend className="sr-only">{m.msgShow()}</legend>
           {(["all", "unread"] as const).map((show) => (

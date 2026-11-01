@@ -1,18 +1,9 @@
-import type {
-  CloseReason,
-  EnquiryPurpose,
-  LoggedEntry,
-  ReplyTemplate,
-} from "@faridalms/domain/enquiries";
+import type { CloseReason, EnquiryPurpose } from "@faridalms/domain/enquiries";
 
 import {
   CLOSE_REASONS,
   ENQUIRY_PURPOSES,
-  fillReply,
-  LOGGED_ENTRIES,
   LOGGED_SOURCES,
-  REPLY_TEMPLATES,
-  TEMPLATE_FOR,
 } from "@faridalms/domain/enquiries";
 import { Textarea } from "@faridalms/ui/textarea";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
@@ -21,32 +12,15 @@ import { useState } from "react";
 import { toast } from "sonner";
 import * as v from "valibot";
 
-import {
-  ChoiceField,
-  FormField,
-  SelectField,
-  TextField,
-} from "~/components/system/field";
+import { FormField, SelectField, TextField } from "~/components/system/field";
 import { Segmented } from "~/components/system/panel";
 import { SheetForm } from "~/components/system/SheetForm";
 import { inLocale, useCurrentUser } from "~/hooks/useCurrentUser";
 import * as m from "~/i18n/messages";
-import {
-  addEnquiryEntry,
-  assignEnquiry,
-  logEnquiry,
-  moveEnquiry,
-  replyToEnquiry,
-} from "~/server/admissions";
+import { assignEnquiry, logEnquiry, moveEnquiry } from "~/server/admissions";
 import { getMessageFromError } from "~/utils/error";
 
-import {
-  ENTRY_LABEL,
-  PURPOSE_LABEL,
-  REASON_LABEL,
-  SOURCE_LABEL,
-  TEMPLATE_LABEL,
-} from "./labels";
+import { PURPOSE_LABEL, REASON_LABEL, SOURCE_LABEL } from "./labels";
 
 export interface StaffOption {
   id: string;
@@ -320,222 +294,6 @@ export interface EnquiryTarget {
   email: string;
   assignee: StaffOption | null;
   school: { nameEn: string; nameAr: string | null };
-}
-
-/**
- * An email to the family, started from a template in the language chosen
- * and edited before it goes. The family's answer reaches the school's own
- * address, and the words stay in the thread.
- */
-export function ReplySheet({
-  enquiry,
-  open,
-  onOpenChange,
-}: {
-  enquiry: EnquiryTarget;
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-}) {
-  const user = useCurrentUser();
-  const refresh = useRefresh();
-  const words = (template: ReplyTemplate, locale: "en" | "ar") =>
-    fillReply(template, locale, {
-      name: enquiry.name,
-      child: enquiry.childName,
-      school: inLocale(enquiry.school.nameEn, enquiry.school.nameAr, locale),
-      sender: inLocale(user.nameEn, user.nameAr, locale),
-    });
-  const start = () => {
-    const template = TEMPLATE_FOR[enquiry.purpose];
-    return {
-      template,
-      locale: enquiry.locale,
-      ...words(template, enquiry.locale),
-    };
-  };
-  const [draft, setDraft] = useState(start);
-  const [tried, setTried] = useState(false);
-  const choose = (template: ReplyTemplate, locale: "en" | "ar") =>
-    setDraft({ template, locale, ...words(template, locale) });
-  const send = useMutation({
-    mutationFn: () =>
-      replyToEnquiry({
-        data: {
-          id: enquiry.id,
-          template: draft.template,
-          locale: draft.locale,
-          subject: draft.subject.trim(),
-          body: draft.body.trim(),
-        },
-      }),
-    meta: { inlineError: true },
-  });
-  return (
-    <SheetForm
-      open={open}
-      onOpenChange={(next) => {
-        if (next) setDraft(start());
-        else {
-          setTried(false);
-          send.reset();
-        }
-        onOpenChange(next);
-      }}
-      title={m.admReplyTitle({ name: enquiry.name })}
-      submitLabel={m.admReplySend()}
-      pending={send.isPending}
-      error={send.error ? getMessageFromError(send.error) : null}
-      onSubmit={async () => {
-        setTried(true);
-        if (!draft.subject.trim() || !draft.body.trim()) return;
-        try {
-          await send.mutateAsync();
-        } catch {
-          return;
-        }
-        await refresh();
-        toast.success(m.admReplySent());
-        onOpenChange(false);
-      }}
-    >
-      <p className="text-sm leading-5 text-muted-foreground">
-        {m.admReplyTo()}{" "}
-        <bdi dir="ltr" className="text-foreground">
-          {enquiry.email}
-        </bdi>
-      </p>
-      <SelectField
-        id="reply-template"
-        label={m.admFieldTemplate()}
-        hint={m.admTemplateHint()}
-        value={draft.template}
-        options={REPLY_TEMPLATES.map((value) => ({
-          value,
-          label: TEMPLATE_LABEL[value](),
-        }))}
-        onChange={(value) => choose(value, draft.locale)}
-      />
-      <LanguageField
-        value={draft.locale}
-        onChange={(value) => choose(draft.template, value)}
-      />
-      <TextField
-        id="reply-subject"
-        label={m.admFieldSubject()}
-        maxLength={200}
-        lang={draft.locale}
-        value={draft.subject}
-        errors={
-          tried && !draft.subject.trim() ? [m.validationRequired()] : undefined
-        }
-        onChange={(event) =>
-          setDraft((previous) => ({ ...previous, subject: event.target.value }))
-        }
-      />
-      <FormField
-        id="reply-body"
-        label={m.admFieldBody()}
-        errors={
-          tried && !draft.body.trim() ? [m.validationRequired()] : undefined
-        }
-      >
-        {(control) => (
-          <Textarea
-            {...control}
-            lang={draft.locale}
-            dir={draft.locale === "ar" ? "rtl" : "ltr"}
-            rows={14}
-            maxLength={5000}
-            value={draft.body}
-            onChange={(event) =>
-              setDraft((previous) => ({
-                ...previous,
-                body: event.target.value,
-              }))
-            }
-          />
-        )}
-      </FormField>
-    </SheetForm>
-  );
-}
-
-/** A call, email or meeting that happened outside the app, or a note for colleagues. */
-export function EntrySheet({
-  enquiry,
-  open,
-  onOpenChange,
-}: {
-  enquiry: EnquiryTarget;
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-}) {
-  const refresh = useRefresh();
-  const [kind, setKind] = useState<LoggedEntry>("call");
-  const [body, setBody] = useState("");
-  const [tried, setTried] = useState(false);
-  const save = useMutation({
-    mutationFn: () =>
-      addEnquiryEntry({ data: { id: enquiry.id, kind, body: body.trim() } }),
-    meta: { inlineError: true },
-  });
-  return (
-    <SheetForm
-      open={open}
-      onOpenChange={(next) => {
-        if (!next) {
-          setBody("");
-          setKind("call");
-          setTried(false);
-          save.reset();
-        }
-        onOpenChange(next);
-      }}
-      title={m.admEntryTitle()}
-      pending={save.isPending}
-      error={save.error ? getMessageFromError(save.error) : null}
-      onSubmit={async () => {
-        setTried(true);
-        if (!body.trim()) return;
-        try {
-          await save.mutateAsync();
-        } catch {
-          return;
-        }
-        await refresh();
-        toast.success(m.admEntrySaved());
-        setBody("");
-        setTried(false);
-        onOpenChange(false);
-      }}
-    >
-      <ChoiceField
-        label={m.admEntryKind()}
-        value={kind}
-        options={LOGGED_ENTRIES.filter((value) => value !== "note").map(
-          (value) => ({ value, label: ENTRY_LABEL[value]() }),
-        )}
-        onChange={setKind}
-      />
-      <FormField
-        id="entry-body"
-        label={m.admEntryBody()}
-        hint={m.admEntryHint()}
-        errors={tried && !body.trim() ? [m.validationRequired()] : undefined}
-      >
-        {(control) => (
-          <Textarea
-            {...control}
-            dir="auto"
-            rows={6}
-            maxLength={4000}
-            value={body}
-            onChange={(event) => setBody(event.target.value)}
-          />
-        )}
-      </FormField>
-    </SheetForm>
-  );
 }
 
 /** Hands the enquiry to someone who works enquiries, or to nobody. */

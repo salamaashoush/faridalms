@@ -250,8 +250,10 @@ function ApplicationPage() {
             <ChecklistSection row={row} />
             <NeedsSection row={row} />
             <FamilyConversation
-              familyUserId={row.family.id}
               applicationId={row.id}
+              threadId={row.threadId}
+              childName={inLocale(row.child.nameEn, row.child.nameAr)}
+              manages={row.manages}
             />
             <HistorySection row={row} timeZone={timeZone} />
           </>

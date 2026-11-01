@@ -18,15 +18,18 @@ import {
   withdrawApplicationSchema,
 } from "@faridalms/domain/admissions";
 import {
-  addEntrySchema,
   assignEnquirySchema,
   enquiryListSchema,
   enquiryRefSchema,
   logEnquirySchema,
   moveEnquirySchema,
-  replySchema,
 } from "@faridalms/domain/enquiries";
+import {
+  approveContactErasureSchema,
+  runContactErasureSchema,
+} from "@faridalms/domain/privacy";
 import { createServerFn } from "@tanstack/react-start";
+import * as v from "valibot";
 
 import { backend, record } from "./backend";
 import { byId, checked } from "./input";
@@ -51,13 +54,23 @@ export const moveEnquiry = createServerFn({ method: "POST" })
   .validator(checked(moveEnquirySchema))
   .handler(({ data }) => backend().admissions.moveEnquiry(data));
 
-export const addEnquiryEntry = createServerFn({ method: "POST" })
-  .validator(checked(addEntrySchema))
-  .handler(({ data }) => backend().admissions.addEnquiryEntry(data));
+export const openEnquiryConversation = createServerFn({ method: "POST" })
+  .validator(checked(enquiryRefSchema))
+  .handler(({ data }) => backend().admissions.openConversation(data));
 
-export const replyToEnquiry = createServerFn({ method: "POST" })
-  .validator(checked(replySchema))
-  .handler(({ data }) => backend().admissions.replyToEnquiry(data));
+export const openApplicationConversation = createServerFn({ method: "POST" })
+  .validator(checked(applicationRefSchema))
+  .handler(({ data }) => backend().applications.openConversation(data));
+
+/** Erases a family that enquired and never had an account: approved, then run as its own call. */
+export const eraseOutsideContact = createServerFn({ method: "POST" })
+  .validator(checked(approveContactErasureSchema))
+  .handler(async ({ data }) => {
+    await backend().privacy.approveContactErasure(data);
+    return backend().privacy.runContactErasure(
+      v.parse(runContactErasureSchema, { contactId: data.contactId }),
+    );
+  });
 
 export const getIntakeOptions = createServerFn({ method: "GET" }).handler(() =>
   backend().intakes.options(),
