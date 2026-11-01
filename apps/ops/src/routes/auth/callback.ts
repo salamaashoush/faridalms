@@ -18,7 +18,8 @@ const refused = (reason: string) =>
 
 /**
  * Finishes sign-in: the code is exchanged with the PKCE verifier, the state
- * and nonce checked, and only members of the operators' group get a session.
+ * and nonce checked, and only those the console's sign-in rule admits get a
+ * session.
  */
 export const Route = createFileRoute("/auth/callback")({
   server: {

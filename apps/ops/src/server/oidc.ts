@@ -30,20 +30,39 @@ export const callbackUrl = () =>
   new URL("/auth/callback", opsEnv().OPS_ORIGIN).href;
 
 /**
- * Who signed in, if their provider says they are an operator: the group claim
- * must name the console's group. The operator is kept as a digest of issuer
- * and subject, which fits the directory's change log and names no one there.
+ * Whether the claims satisfy the console's rule: the group claim names the
+ * console's group, or the email claim is one of the listed addresses and the
+ * provider says it verified it. An unverified address proves nothing, since
+ * some providers let anyone type one in.
+ */
+function admitted(
+  claims: Record<string, unknown>,
+  env: ReturnType<typeof opsEnv>,
+) {
+  if (env.OPS_OIDC_GROUP !== undefined) {
+    const groups = claims[env.OPS_OIDC_GROUP_CLAIM];
+    return Array.isArray(groups)
+      ? groups.includes(env.OPS_OIDC_GROUP)
+      : groups === env.OPS_OIDC_GROUP;
+  }
+  const email = claims.email;
+  return (
+    claims.email_verified === true &&
+    typeof email === "string" &&
+    (env.OPS_OIDC_EMAILS ?? []).includes(email.trim().toLowerCase())
+  );
+}
+
+/**
+ * Who signed in, if their provider says they are an operator. The operator
+ * is kept as a digest of issuer and subject, which fits the directory's
+ * change log and names no one there.
  */
 export function operatorOf(
   claims: Record<string, unknown>,
 ): Operator | "not_operator" {
-  const env = opsEnv();
-  const groups = claims[env.OPS_OIDC_GROUP_CLAIM];
-  const member = Array.isArray(groups)
-    ? groups.includes(env.OPS_OIDC_GROUP)
-    : groups === env.OPS_OIDC_GROUP;
   if (
-    !member ||
+    !admitted(claims, opsEnv()) ||
     typeof claims.sub !== "string" ||
     typeof claims.iss !== "string"
   )

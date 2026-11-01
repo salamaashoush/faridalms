@@ -6,7 +6,7 @@ const REASON: Record<string, string> = {
   expired: "The sign-in took too long. Try again.",
   failed: "The identity provider did not confirm the sign-in. Try again.",
   not_operator:
-    "Your account is not in the operators' group. Ask an administrator of the identity provider to add you.",
+    "This account is not one the console lets in: it is not in the operators' group, or its email is not on the console's list or not verified. Ask whoever runs the console to add you.",
 };
 
 export const Route = createFileRoute("/sign-in")({

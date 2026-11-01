@@ -2,6 +2,7 @@ import { randomBytes } from "node:crypto";
 import * as v from "valibot";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+import { opsEnv } from "./env";
 import { operatorOf } from "./oidc";
 import { seal, unseal } from "./seal";
 
@@ -53,6 +54,73 @@ describe("operators", () => {
     expect(operatorOf({ iss: "https://id.example.com", sub: "someone" })).toBe(
       "not_operator",
     );
+  });
+});
+
+describe("operators by verified email", () => {
+  beforeEach(() => {
+    // Empty is unset, as compose passes an unset variable.
+    vi.stubEnv("OPS_OIDC_GROUP", "");
+    vi.stubEnv("OPS_OIDC_EMAILS", " Salama@Example.com , ops@example.com,");
+  });
+  const google = {
+    iss: "https://accounts.google.com",
+    sub: "109876543210987654321",
+  };
+
+  it("lets in a listed address the provider verified, compared without case", () => {
+    expect(
+      operatorOf({
+        ...google,
+        email: "salama@example.COM",
+        email_verified: true,
+      }),
+    ).toMatchObject({ name: "salama@example.COM" });
+    expect(
+      operatorOf({ ...google, email: "ops@example.com", email_verified: true }),
+    ).not.toBe("not_operator");
+  });
+
+  it("refuses an address that is not listed", () => {
+    expect(
+      operatorOf({
+        ...google,
+        email: "someone@example.com",
+        email_verified: true,
+      }),
+    ).toBe("not_operator");
+  });
+
+  it("refuses a listed address the provider did not verify", () => {
+    for (const email_verified of [false, "true", undefined])
+      expect(
+        operatorOf({ ...google, email: "salama@example.com", email_verified }),
+      ).toBe("not_operator");
+  });
+
+  it("ignores groups when the rule is the list", () => {
+    expect(
+      operatorOf({
+        ...google,
+        email: "someone@example.com",
+        email_verified: true,
+        groups: ["farida-operators"],
+      }),
+    ).toBe("not_operator");
+  });
+});
+
+describe("the sign-in rule", () => {
+  it("is a group or a list of addresses, exactly one of them", () => {
+    expect(opsEnv().OPS_OIDC_GROUP).toBe("farida-operators");
+    vi.stubEnv("OPS_OIDC_EMAILS", "salama@example.com");
+    expect(() => opsEnv()).toThrow(/not both/);
+    vi.stubEnv("OPS_OIDC_GROUP", "");
+    expect(opsEnv().OPS_OIDC_EMAILS).toEqual(["salama@example.com"]);
+    vi.stubEnv("OPS_OIDC_EMAILS", "");
+    expect(() => opsEnv()).toThrow(/OPS_OIDC_GROUP or OPS_OIDC_EMAILS/);
+    vi.stubEnv("OPS_OIDC_EMAILS", "not an address");
+    expect(() => opsEnv()).toThrow(/Invalid email/);
   });
 });
 

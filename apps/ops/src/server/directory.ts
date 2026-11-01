@@ -77,7 +77,7 @@ export const getSchool = createServerFn({ method: "GET" })
           host,
           school.slug,
           domains,
-          env.EDGE_IPV4 || null,
+          env.EDGE_IPV4 ?? null,
         ),
       })),
     };
