@@ -190,6 +190,12 @@ describe("grade scales", () => {
       programmeId: null,
       scaleId: null,
     });
+    // Saving took the student's term grade back from them; other files read
+    // it as released.
+    await teacher.api.gradebook.releasePeriod({
+      classId: target.id,
+      periodId: book.periodId,
+    });
   });
 
   test("the gradebook calculates a term grade from work weighed by its programme's categories", async () => {

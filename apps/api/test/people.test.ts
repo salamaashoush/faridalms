@@ -1072,6 +1072,14 @@ describe("leaving the school", () => {
     expect(
       await rejection(api.people.cancelLeaving({ studentId })),
     ).toMatchObject({ code: "BAD_REQUEST", message: "leaving.none" });
+    // The student came back into a seeded homeroom; other files count its
+    // roster, so they leave it again.
+    await api.people.recordLeaving({
+      studentId,
+      lastDay: yesterday,
+      exitTypeId: reasonId,
+      access: "last_day",
+    });
   });
 
   test("a register that marks the student later, a day they were not enrolled and a teacher are refused", async () => {

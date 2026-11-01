@@ -501,15 +501,16 @@ describe("early learning goals", () => {
     await theirsJudged(null);
 
     // Only a teacher of the class judges, and only its own children.
-    const other = (await office.classes.directory({})).rows.find(
-      (row) => row.id !== taught.id,
-    );
-    if (!other) throw new Error("the seed has one class");
-    const outsider = (
-      await office.classes.record({ id: other.id, on: "" })
-    ).roster.find(
-      (row) => !shown.students.some((mine) => mine.id === row.userId),
-    );
+    // Other files add classes of their own, empty ones among them.
+    let outsider: { userId: string } | undefined;
+    for (const row of (await office.classes.directory({})).rows) {
+      if (outsider || row.id === taught.id) continue;
+      outsider = (
+        await office.classes.record({ id: row.id, on: "" })
+      ).roster.find(
+        (sitting) => !shown.students.some((mine) => mine.id === sitting.userId),
+      );
+    }
     if (!outsider) throw new Error("the classes share every child");
     expect(
       await rejection(
