@@ -1,0 +1,119 @@
+{
+  "type": "diff",
+  "version": "9",
+  "dialect": "postgres",
+  "id": "f8debd5c-dec6-49b5-8902-cc00233b9c24",
+  "prevIds": [
+    "11a97610-68d7-4248-b509-d5cb19892a02"
+  ],
+  "footprints": [
+    {
+      "statementType": "create_index",
+      "statementTarget": [
+        "index",
+        "core",
+        "login_identities",
+        "login_identities_handoff_key"
+      ],
+      "writes": [
+        "s|idx|core.login_identities_handoff_key",
+        "n|idx|core.login_identities_handoff_key",
+        "e|idx|core.login_identities_handoff_key",
+        "n|rel|core.login_identities_handoff_key"
+      ],
+      "reads": [
+        "n|tbl|core.login_identities",
+        "n|sch|core",
+        "n|col|core.login_identities.tenant_id",
+        "n|col|core.login_identities.secret_hash"
+      ]
+    },
+    {
+      "statementType": "alter_check",
+      "statementTarget": [
+        "table",
+        "core",
+        "login_identities"
+      ],
+      "writes": [
+        "s|ck|core.login_identities.login_identities_kind_check"
+      ],
+      "reads": [
+        "n|tbl|core.login_identities",
+        "n|sch|core",
+        "n|col|core.login_identities.kind",
+        "e|col|core.login_identities.kind"
+      ],
+      "sqlHash": "1d4e1af5f6bb7bc5"
+    },
+    {
+      "statementType": "alter_check",
+      "statementTarget": [
+        "table",
+        "core",
+        "login_identities"
+      ],
+      "writes": [
+        "s|ck|core.login_identities.login_identities_badge_check"
+      ],
+      "reads": [
+        "n|tbl|core.login_identities",
+        "n|sch|core",
+        "n|col|core.login_identities.kind",
+        "n|col|core.login_identities.secret_hash",
+        "n|col|core.login_identities.expires_at",
+        "e|col|core.login_identities.kind",
+        "e|col|core.login_identities.secret_hash",
+        "e|col|core.login_identities.expires_at"
+      ],
+      "sqlHash": "a28becdfde4854bd"
+    }
+  ],
+  "deltas": [
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "login_identities",
+        "name": "login_identities_handoff_key",
+        "nameExplicit": true,
+        "columns": [
+          {
+            "value": "tenant_id",
+            "isExpression": false,
+            "asc": true,
+            "nullsFirst": false,
+            "opclass": null
+          },
+          {
+            "value": "secret_hash",
+            "isExpression": false,
+            "asc": true,
+            "nullsFirst": false,
+            "opclass": null
+          }
+        ],
+        "isUnique": true,
+        "where": "status = 'active' and kind = 'handoff' and voided_at is null",
+        "with": "",
+        "method": "btree",
+        "concurrently": false,
+        "entityType": "indexes"
+      }
+    },
+    {
+      "op": "alter",
+      "key": "checks\u0000[\"core\",\"login_identities\",\"login_identities_kind_check\"]",
+      "set": {
+        "value": "kind in ('password', 'oidc', 'saml', 'clever', 'classlink', 'badge', 'invite', 'handoff')"
+      }
+    },
+    {
+      "op": "alter",
+      "key": "checks\u0000[\"core\",\"login_identities\",\"login_identities_badge_check\"]",
+      "set": {
+        "value": "kind not in ('badge', 'invite', 'handoff') or (secret_hash is not null and expires_at is not null)"
+      }
+    }
+  ]
+}

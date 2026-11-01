@@ -1,0 +1,3 @@
+CREATE UNIQUE INDEX "login_identities_handoff_key" ON "core"."login_identities" ("tenant_id","secret_hash") WHERE status = 'active' and kind = 'handoff' and voided_at is null;--> statement-breakpoint
+ALTER TABLE "core"."login_identities" DROP CONSTRAINT "login_identities_kind_check", ADD CONSTRAINT "login_identities_kind_check" CHECK (kind in ('password', 'oidc', 'saml', 'clever', 'classlink', 'badge', 'invite', 'handoff'));--> statement-breakpoint
+ALTER TABLE "core"."login_identities" DROP CONSTRAINT "login_identities_badge_check", ADD CONSTRAINT "login_identities_badge_check" CHECK (kind not in ('badge', 'invite', 'handoff') or (secret_hash is not null and expires_at is not null));

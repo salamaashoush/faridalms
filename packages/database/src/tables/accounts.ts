@@ -224,7 +224,8 @@ export type LoginKind =
   | "clever"
   | "classlink"
   | "badge"
-  | "invite";
+  | "invite"
+  | "handoff";
 
 export const loginIdentities = core.table.withRLS(
   "login_identities",
@@ -292,7 +293,7 @@ export const loginIdentities = core.table.withRLS(
     ck(
       "login_identities",
       "kind",
-      sql`kind in ('password', 'oidc', 'saml', 'clever', 'classlink', 'badge', 'invite')`,
+      sql`kind in ('password', 'oidc', 'saml', 'clever', 'classlink', 'badge', 'invite', 'handoff')`,
     ),
     ck(
       "login_identities",
@@ -347,7 +348,7 @@ export const loginIdentities = core.table.withRLS(
     ck(
       "login_identities",
       "badge",
-      sql`kind not in ('badge', 'invite') or (secret_hash is not null and expires_at is not null)`,
+      sql`kind not in ('badge', 'invite', 'handoff') or (secret_hash is not null and expires_at is not null)`,
     ),
     ck(
       "login_identities",
@@ -368,6 +369,9 @@ export const loginIdentities = core.table.withRLS(
     uniqueIndex("login_identities_invite_key")
       .on(t.tenantId, t.secretHash)
       .where(sql`status = 'active' and kind = 'invite' and voided_at is null`),
+    uniqueIndex("login_identities_handoff_key")
+      .on(t.tenantId, t.secretHash)
+      .where(sql`status = 'active' and kind = 'handoff' and voided_at is null`),
     index("login_identities_account_idx")
       .on(t.tenantId, t.accountId)
       .where(sql`status = 'active'`),
