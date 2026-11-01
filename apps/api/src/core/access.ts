@@ -11,20 +11,31 @@ import type { UnitContext } from "./context";
 
 /**
  * Runs a write that can change who holds a capability, then refuses it when
- * nobody would be left holding access:manage. The lock makes two such writes
- * take turns, so two administrators removing each other cannot both succeed.
+ * nobody would be left holding access:manage, or when the actor would lose
+ * it themselves. The lock makes two such writes take turns, so two
+ * administrators removing each other cannot both succeed.
  */
 export async function guardingAccess<T>(
   context: UnitContext,
   write: () => Promise<T>,
 ): Promise<T> {
   await lockAccess(context.tx);
+  const managing = () =>
+    accessManagerCount(
+      context.tx,
+      context.tenantId,
+      context.today,
+      context.actor.userId,
+    );
+  const managedBefore = (await managing()) > 0;
   const result = await write();
   if (
     (await accessManagerCount(context.tx, context.tenantId, context.today)) ===
     0
   )
     throw new ORPCError("CONFLICT", { message: "access.last_manager" });
+  if (managedBefore && (await managing()) === 0)
+    throw new ORPCError("CONFLICT", { message: "access.self_lockout" });
   return result;
 }
 

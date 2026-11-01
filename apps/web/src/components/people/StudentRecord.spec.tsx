@@ -93,6 +93,7 @@ const RECORD: StudentData = {
   status: "enrolled",
   placement: null,
   placements: [],
+  homeroom: null,
   accessUntil: null,
   guardians: [
     guardian(

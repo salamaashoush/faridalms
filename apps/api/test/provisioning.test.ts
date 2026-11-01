@@ -9,6 +9,8 @@ import {
   newSchoolSchema,
   PROVISION_AUDIENCE,
 } from "@faridalms/domain/provisioning";
+import { addDays } from "@faridalms/domain/school";
+import { DEFAULT_PERIODS, isoWeekday } from "@faridalms/domain/timetable";
 import { afterAll, describe, expect, test } from "bun:test";
 import { SignJWT } from "jose";
 import { randomBytes } from "node:crypto";
@@ -152,6 +154,136 @@ describe("creating a school from the operator console", () => {
       school: { slug: "riverside", timeZone: "Africa/Cairo" },
     });
     expect(me.capabilities.toSorted()).toEqual([...CAPABILITIES].toSorted());
+  });
+
+  test("a new school's first year has a working day, so lessons are placed and registers taken", async () => {
+    const email = "salama@orchard.example.com";
+    const { body } = await begin(standalone("orchard", email));
+    expect((await call("/v1/tenants", body)).status).toBe(200);
+    const { api } = await choosePassword(
+      "orchard",
+      linkTo(email, "orchard").secret,
+    );
+    const { today } = await api.identity.currentUser();
+    const year = await api.years.save({
+      titleEn: "Orchard year",
+      titleAr: "",
+      startsOn: addDays(today, -40),
+      endsOn: addDays(today, 200),
+      terms: [],
+    });
+    const day = await api.years.periods({ id: year.id, on: "" });
+    expect(
+      day.periods.map((period) => [
+        period.nameEn,
+        period.startTime,
+        period.endTime,
+        period.official,
+      ]),
+    ).toEqual(
+      DEFAULT_PERIODS.map((period) => [
+        period.nameEn,
+        period.startTime,
+        period.endTime,
+        period.official,
+      ]),
+    );
+
+    const teacher = await api.people.saveStaff({
+      names: {
+        en: { given: "Salama", middle: "", family: "Ashoush" },
+        ar: { given: "سلامة", middle: "", family: "عشوش" },
+      },
+      email: "teacher@orchard.example.com",
+      roles: ["teacher"],
+    });
+    const options = await api.classes.options();
+    const [grade] = options.grades;
+    const [subject] = options.subjects;
+    if (!grade || !subject) throw new Error("the catalogue has no grades");
+    const homeroom = await api.classes.save({
+      yearId: year.id,
+      code: "1A",
+      titleEn: "1A",
+      titleAr: "",
+      gradeId: grade.id,
+      homeroomTeacherId: teacher.id,
+      subjects: [{ subjectId: subject.id, teacherIds: [teacher.id] }],
+    });
+    const people = await api.people.options();
+    const mother = people.relations.find((row) => row.code === "mother");
+    if (!mother) throw new Error("the catalogue has no mother");
+    const student = await api.people.saveStudent({
+      names: {
+        en: { given: "Omar", middle: "", family: "Ashoush" },
+        ar: { given: "عمر", middle: "", family: "عشوش" },
+      },
+      reference: "OR-0001",
+      guardians: [
+        {
+          person: {
+            names: {
+              en: { given: "Mona", middle: "", family: "Ashoush" },
+              ar: { given: "منى", middle: "", family: "عشوش" },
+            },
+            phone: "01012345678",
+          },
+          flags: {
+            relationId: mother.id,
+            legalGuardian: true,
+            portalAccess: false,
+            receivesNotifications: false,
+            primaryContact: true,
+            emergencyContact: true,
+            residence: "primary",
+            pickup: "allowed",
+          },
+        },
+      ],
+    });
+    await api.classes.enrol({
+      studentId: student.id,
+      classId: homeroom.id,
+      from: addDays(today, -40),
+    });
+
+    const { days } = await api.years.days({ id: year.id });
+    const taught = days
+      .filter((row) => row.day <= today && row.meaning === "instructional_day")
+      .at(-1)?.day;
+    if (!taught) throw new Error("the year has no school day yet");
+    const grid = await api.timetable.grid({ classId: homeroom.id, on: taught });
+    const [lesson] = grid.periods;
+    const [subjectClass] = grid.classes;
+    if (!lesson || !subjectClass) throw new Error("nothing to place");
+    await api.timetable.place({
+      classId: homeroom.id,
+      weekday: isoWeekday(taught),
+      periodId: lesson.id,
+      from: taught,
+      meetingClassId: subjectClass.id,
+      teacherId: teacher.id,
+      roomId: "",
+    });
+    expect(
+      (
+        await api.timetable.grid({ classId: homeroom.id, on: taught })
+      ).meetings.map((row) => [row.periodId, row.classId]),
+    ).toEqual([[lesson.id, subjectClass.id]]);
+
+    const register = await api.attendance.register({
+      classId: homeroom.id,
+      date: taught,
+    });
+    const official = day.periods.find((period) => period.official);
+    expect(register.period.id).toBe(official?.id ?? "");
+    await api.attendance.save({
+      classId: homeroom.id,
+      date: taught,
+      periodId: register.period.id,
+      expectedVersion: 0,
+      marks: [{ studentId: student.id, meaning: "present" }],
+    });
   });
 
   test("a group's administrator runs its first school", async () => {

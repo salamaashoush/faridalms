@@ -1,0 +1,2 @@
+ALTER TABLE "core"."class_periods" ADD COLUMN "weekdays" smallint[] DEFAULT '{1,2,3,4,5,6,7}'::smallint[] NOT NULL;--> statement-breakpoint
+ALTER TABLE "core"."class_periods" ADD CONSTRAINT "class_periods_weekdays_check" CHECK (weekdays <@ '{1,2,3,4,5,6,7}' and cardinality(weekdays) between 1 and 7);

@@ -1,6 +1,14 @@
 import {
+  givePeriods,
+  PeriodChangeError,
+  periodChangeDays,
+  periodsInForce,
+  replacePeriodsFrom,
+} from "@faridalms/database/stores/periods";
+import {
   calendarSummary,
   createYear,
+  dayIn,
   holdYear,
   objectHistory,
   paintDays,
@@ -15,6 +23,12 @@ import {
   yearDirectory,
 } from "@faridalms/database/stores/years";
 import { paintDaysSchema, targetDaysSchema } from "@faridalms/domain/calendar";
+import { addDays } from "@faridalms/domain/school";
+import {
+  periodsQuerySchema,
+  savePeriodsSchema,
+  schoolDays,
+} from "@faridalms/domain/timetable";
 import {
   saveYearSchema,
   yearLifecycleSchema,
@@ -151,6 +165,15 @@ export const save = writeProcedure
     };
     if (!input.id) {
       const created = await createYear(context.tx, values);
+      const periods = await givePeriods(context.tx, {
+        tenantId: context.tenantId,
+        schoolId: context.schoolId,
+        target: {
+          id: created.id,
+          startsOn: input.startsOn,
+          endsBefore: addDays(input.endsOn, 1),
+        },
+      });
       await audit(context, {
         action: "academic_session.create",
         objectType: "academic_session",
@@ -158,7 +181,7 @@ export const save = writeProcedure
         change: {
           table: "core.academic_sessions",
           before: null,
-          after: { ...input, terms: input.terms.length },
+          after: { ...input, terms: input.terms.length, periods },
         },
       });
       return {
@@ -325,4 +348,140 @@ export const target = writeProcedure
       details: { target: input.target },
     });
     return { target: input.target };
+  });
+
+/**
+ * A year's school day as it stands on a date: its periods in order, the
+ * days of the week they run on and the days the day changes shape on.
+ */
+export const periods = readProcedure
+  .input(periodsQuerySchema)
+  .handler(async ({ input, context }) => {
+    requireCapability(
+      context,
+      "years:manage",
+      "school:manage",
+      "timetable:manage",
+    );
+    const year = await yearOf(context, input.id);
+    const on = dayIn(year, input.on || context.today);
+    const [week, rows, changes] = await Promise.all([
+      schoolWeek(context.tx, context.tenantId, context.schoolId),
+      periodsInForce(context.tx, {
+        tenantId: context.tenantId,
+        yearId: year.id,
+        on,
+      }),
+      periodChangeDays(context.tx, {
+        tenantId: context.tenantId,
+        yearId: year.id,
+      }),
+    ]);
+    return {
+      year: {
+        id: year.id,
+        startsOn: year.startsOn,
+        lastDay: addDays(year.endsBefore, -1),
+        closed: year.lifecycle === "closed",
+      },
+      on,
+      today: context.today,
+      weekStart: week.weekStart,
+      days: schoolDays(week.weekStart, week.weekendDays),
+      changes,
+      periods: rows.map((row) => ({
+        id: row.id,
+        version: row.version,
+        nameEn: row.nameEn,
+        nameAr: row.nameAr,
+        kind: row.kind,
+        startTime: row.startTime,
+        endTime: row.endTime,
+        official: row.official,
+        weekdays: [...row.weekdays],
+        from: row.from,
+        until: row.until,
+      })),
+      canEdit:
+        (can(context, "years:manage") || can(context, "timetable:manage")) &&
+        year.lifecycle !== "closed",
+    };
+  });
+
+const periodView = (row: {
+  nameEn: string | null;
+  nameAr: string | null;
+  kind: string;
+  startTime: string;
+  endTime: string;
+  official: boolean;
+  weekdays: readonly number[];
+}) => ({
+  nameEn: row.nameEn,
+  nameAr: row.nameAr,
+  kind: row.kind,
+  startTime: row.startTime,
+  endTime: row.endTime,
+  official: row.official,
+  weekdays: [...row.weekdays],
+});
+
+/**
+ * Sets a year's school day from a date on. Earlier days keep the periods
+ * they had, so registers already taken read as they were.
+ */
+export const savePeriods = writeProcedure
+  .input(savePeriodsSchema)
+  .handler(async ({ input, context }) => {
+    requireCapability(context, "years:manage", "timetable:manage");
+    const year = await yearOf(context, input.yearId);
+    const held = await holdYear(context.tx, context.tenantId, year.id);
+    if (held === "closed")
+      throw new ORPCError("CONFLICT", { message: "school_year.closed" });
+    if (input.from < year.startsOn || input.from >= year.endsBefore)
+      throw new ORPCError("BAD_REQUEST", {
+        message: "class_period.outside_year",
+      });
+    const week = await schoolWeek(
+      context.tx,
+      context.tenantId,
+      context.schoolId,
+    );
+    const open = new Set<number>(schoolDays(week.weekStart, week.weekendDays));
+    if (
+      input.periods.some((period) =>
+        period.weekdays.every((day) => !open.has(day)),
+      )
+    )
+      throw new ORPCError("BAD_REQUEST", { message: "class_period.no_days" });
+    const before = await periodsInForce(context.tx, {
+      tenantId: context.tenantId,
+      yearId: year.id,
+      on: input.from,
+    });
+    const outcome = await replacePeriodsFrom(context.tx, {
+      tenantId: context.tenantId,
+      schoolId: context.schoolId,
+      yearId: year.id,
+      yearEndsBefore: year.endsBefore,
+      from: input.from,
+      known: input.known,
+      periods: input.periods,
+    }).catch((error: unknown) => {
+      if (error instanceof PeriodChangeError)
+        throw new ORPCError("CONFLICT", { message: error.code });
+      throw error;
+    });
+    await audit(context, {
+      action: "class_periods.replace",
+      objectType: "academic_session",
+      objectId: year.id,
+      change: {
+        table: "core.class_periods",
+        before: { from: input.from, periods: before.map(periodView) },
+        after: { from: input.from, periods: input.periods.map(periodView) },
+      },
+      details: outcome,
+    });
+    return { from: input.from, ...outcome };
   });

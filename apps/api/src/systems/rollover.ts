@@ -11,8 +11,8 @@ import {
   homeroomDirectory,
 } from "@faridalms/database/stores/classes";
 import { descriptorsFor } from "@faridalms/database/stores/descriptors";
+import { copyPeriods } from "@faridalms/database/stores/periods";
 import {
-  copyClassPeriods,
   markRolloverApplied,
   recordExits,
   rolloverOf,
@@ -476,7 +476,7 @@ export const apply = writeProcedure
           studentId: row.studentId,
           until: target.startsOn,
         });
-    await copyClassPeriods(tx, {
+    await copyPeriods(tx, {
       tenantId: context.tenantId,
       schoolId: context.schoolId,
       sourceYearId: source.id,

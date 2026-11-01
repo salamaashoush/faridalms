@@ -1,0 +1,76 @@
+{
+  "type": "diff",
+  "version": "9",
+  "dialect": "postgres",
+  "id": "037855de-0d62-4d8e-a6f4-059b448a719b",
+  "prevIds": [
+    "b7063a8c-7852-481f-a750-e3dbabbe0ff2"
+  ],
+  "footprints": [
+    {
+      "statementType": "add_column",
+      "statementTarget": [
+        "column",
+        "core",
+        "class_periods",
+        "weekdays"
+      ],
+      "writes": [
+        "s|col|core.class_periods.weekdays",
+        "n|col|core.class_periods.weekdays",
+        "e|col|core.class_periods.weekdays"
+      ],
+      "reads": [
+        "n|tbl|core.class_periods",
+        "n|sch|core"
+      ]
+    },
+    {
+      "statementType": "add_check",
+      "statementTarget": [
+        "table",
+        "core",
+        "class_periods"
+      ],
+      "writes": [
+        "s|ck|core.class_periods.class_periods_weekdays_check",
+        "n|ck|core.class_periods.class_periods_weekdays_check",
+        "e|ck|core.class_periods.class_periods_weekdays_check",
+        "n|con|core.class_periods.class_periods_weekdays_check"
+      ],
+      "reads": [
+        "n|tbl|core.class_periods",
+        "n|sch|core",
+        "n|col|core.class_periods.weekdays"
+      ]
+    }
+  ],
+  "deltas": [
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "class_periods",
+        "name": "weekdays",
+        "type": "smallint",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 1,
+        "default": "'{1,2,3,4,5,6,7}'",
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "class_periods",
+        "name": "class_periods_weekdays_check",
+        "value": "weekdays <@ '{1,2,3,4,5,6,7}' and cardinality(weekdays) between 1 and 7",
+        "entityType": "checks"
+      }
+    }
+  ]
+}

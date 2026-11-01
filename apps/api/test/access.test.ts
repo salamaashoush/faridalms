@@ -153,8 +153,8 @@ describe("the last holder of access:manage", () => {
       ),
     ).toMatchObject({ code: "CONFLICT", message: "access.last_manager" });
 
-    // A deputy holds it through an assignment; the principal then trades
-    // their built-ins for a narrower role, leaving the deputy the last holder.
+    // A deputy holds it through an assignment and trades the principal's
+    // built-ins for a narrower role, leaving the deputy the last holder.
     const office = (await api.people.staff({ q: acmeOffice() })).rows[0];
     if (!office) throw new Error("seed office staff");
     const deputy = await api.access.saveRole({
@@ -166,11 +166,21 @@ describe("the last holder of access:manage", () => {
       nameEn: "Staff desk",
       capabilities: ["staff:manage", "people:read"],
     });
-    await api.access.assign({
+    const narrower = {
       userId: me.id,
       accessRoleId: desk.id,
       replacesBuiltin: true,
+    };
+    // Nobody takes away their own access:manage, even while a deputy holds it.
+    expect(await rejection(api.access.assign(narrower))).toMatchObject({
+      code: "CONFLICT",
+      message: "access.self_lockout",
     });
+    expect(
+      (await api.access.personAccess({ userId: me.id })).capabilities,
+    ).toContain("access:manage");
+    const deputyApi = await signedIn("acme", acmeOffice());
+    await deputyApi.access.assign(narrower);
 
     // Disabling the deputy's sign-in, or ending their assignment, is refused.
     expect(
@@ -178,7 +188,6 @@ describe("the last holder of access:manage", () => {
         api.people.setSignInState({ userId: office.id, state: "disabled" }),
       ),
     ).toMatchObject({ code: "CONFLICT", message: "access.last_manager" });
-    const deputyApi = await signedIn("acme", acmeOffice());
     const held = await deputyApi.access.personAccess({ userId: office.id });
     const own = held.assignments.find((row) => row.accessRoleId === deputy.id);
     if (!own) throw new Error("deputy assignment missing");

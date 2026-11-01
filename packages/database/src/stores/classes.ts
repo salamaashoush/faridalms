@@ -78,7 +78,7 @@ const classColumns = sql`c.id, c.version, c.school_year_id, c.class_type, c.code
   c.course_id, c.homeroom_class_id, c.subject_descriptor_id, c.grade_level_descriptor_id, c.location_id`;
 
 /** Teachers and aides of each class on the date, primary teacher first. */
-async function teachersOf(
+export async function teachersOf(
   tx: Tx,
   tenantId: string,
   classIds: readonly string[],

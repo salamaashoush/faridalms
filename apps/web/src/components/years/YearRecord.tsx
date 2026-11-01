@@ -28,14 +28,16 @@ import {
   rolloverActions,
   useYearLifecycle,
 } from "./YearLifecycle";
+import { YearPeriods } from "./YearPeriods";
 import { YearPlanner } from "./YearPlanner";
 
-export const YEAR_TABS = ["overview", "days", "history"] as const;
+export const YEAR_TABS = ["overview", "days", "periods", "history"] as const;
 export type YearTab = (typeof YEAR_TABS)[number];
 
 const TAB_LABEL: Record<YearTab, () => string> = {
   overview: m.recordOverview,
   days: m.plannerTab,
+  periods: m.periodsTab,
   history: m.recordHistory,
 };
 
@@ -126,10 +128,13 @@ function YearHistory({ yearId }: { yearId: string }) {
 export function YearRecord({
   yearId,
   tab,
+  on,
   onTab,
 }: {
   yearId: string;
   tab: YearTab;
+  /** The day the periods tab reads the school day on; empty for today. */
+  on: string;
   onTab: (tab: YearTab) => void;
 }) {
   const year = useSuspenseQuery(yearQuery(yearId)).data;
@@ -189,6 +194,8 @@ export function YearRecord({
       >
         {tab === "history" ? (
           <RecordColumns main={<YearHistory yearId={year.id} />} />
+        ) : tab === "periods" ? (
+          <YearPeriods yearId={year.id} on={on} />
         ) : tab === "days" ? (
           <YearPlanner
             yearId={year.id}

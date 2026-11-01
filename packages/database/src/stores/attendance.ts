@@ -172,12 +172,23 @@ export interface PeriodRow {
   startTime: string | null;
   endTime: string | null;
   official: boolean;
+  weekdays: number[];
 }
 
-/** The periods of a school day registers can be taken in. */
+/**
+ * The periods of a school day registers can be taken in. With `everyDay`,
+ * those of the day's structure whichever days of the week they run on, as
+ * a week is drawn.
+ */
 export async function periodsOn(
   tx: Tx,
-  input: { tenantId: string; schoolId: string; yearId: string; day: string },
+  input: {
+    tenantId: string;
+    schoolId: string;
+    yearId: string;
+    day: string;
+    everyDay?: boolean;
+  },
 ): Promise<PeriodRow[]> {
   const rows = await tx.execute<{
     id: string;
@@ -189,14 +200,16 @@ export async function periodsOn(
     start_time: string | null;
     end_time: string | null;
     official_attendance: boolean;
+    weekdays: number[];
   }>(sql`
     select id, code, name_en, name_ar, sequence, kind,
            to_char(start_time, 'HH24:MI') as start_time, to_char(end_time, 'HH24:MI') as end_time,
-           official_attendance
+           official_attendance, weekdays
     from core.class_periods
     where tenant_id = ${input.tenantId}::uuid and org_id = ${input.schoolId}::uuid
       and school_year_id = ${input.yearId}::uuid and status = 'active'
       and valid_during @> ${input.day}::date and kind in ('lesson', 'registration')
+      and (${input.everyDay ?? false} or extract(isodow from ${input.day}::date)::smallint = any(weekdays))
     order by sequence`);
   return rows.map((row) => ({
     id: row.id,
@@ -208,6 +221,7 @@ export async function periodsOn(
     startTime: row.start_time,
     endTime: row.end_time,
     official: row.official_attendance,
+    weekdays: row.weekdays,
   }));
 }
 

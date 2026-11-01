@@ -1,6 +1,12 @@
 import { queryOptions } from "@tanstack/react-query";
 
-import { getYear, getYearDays, getYearHistory, getYears } from "~/server/years";
+import {
+  getYear,
+  getYearDays,
+  getYearHistory,
+  getYearPeriods,
+  getYears,
+} from "~/server/years";
 
 export const yearsQuery = queryOptions({
   queryKey: ["years", "directory"],
@@ -23,4 +29,10 @@ export const yearDaysQuery = (id: string) =>
   queryOptions({
     queryKey: ["years", "days", id],
     queryFn: () => getYearDays({ data: { id } }),
+  });
+
+export const yearPeriodsQuery = (id: string, on = "") =>
+  queryOptions({
+    queryKey: ["years", "periods", id, on],
+    queryFn: () => getYearPeriods({ data: { id, on } }),
   });

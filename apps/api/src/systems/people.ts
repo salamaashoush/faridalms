@@ -16,9 +16,12 @@ import {
 import { lastMarkFrom } from "@faridalms/database/stores/attendance";
 import { badgesOf, issueBadge } from "@faridalms/database/stores/badges";
 import {
+  classesTaughtBy,
   endStudentEnrollmentsFrom,
   homeroomsOn,
+  reachesClass,
   reopenStudentEnrollments,
+  teachersOf,
 } from "@faridalms/database/stores/classes";
 import { photoRefusals } from "@faridalms/database/stores/consents";
 import {
@@ -381,6 +384,33 @@ export const students = readProcedure
     };
   });
 
+/** The class a student is in today and the teachers who keep it. */
+async function homeroomOf(context: UnitContext, studentId: string) {
+  const homeroom = (
+    await homeroomsOn(context.tx, context, [studentId], context.today)
+  ).get(studentId);
+  if (!homeroom) return null;
+  const teachers =
+    (
+      await teachersOf(
+        context.tx,
+        context.tenantId,
+        [homeroom.classId],
+        context.today,
+      )
+    ).get(homeroom.classId) ?? [];
+  return {
+    ...homeroom,
+    teachers: teachers
+      .filter((teacher) => teacher.role === "teacher")
+      .map((teacher) => ({
+        userId: teacher.userId,
+        fullNameEn: teacher.fullNameEn,
+        fullNameAr: teacher.fullNameAr,
+      })),
+  };
+}
+
 /** A student's record at this school, with what the viewer may open in it. */
 export const student = readProcedure
   .input(v.object({ id }))
@@ -401,13 +431,14 @@ export const student = readProcedure
     const current = history.find(
       (row) => row.from <= context.today && context.today < row.to,
     );
-    const [account, refusals, accessUntil] = await Promise.all([
+    const [account, refusals, accessUntil, homeroom] = await Promise.all([
       accountOf(context.tx, context.tenantId, input.id),
       photoRefusals(context.tx, {
         tenantId: context.tenantId,
         studentIds: [input.id],
       }),
       studentRoleEnd(context.tx, scope, input.id),
+      homeroomOf(context, input.id),
     ]);
     const status: StudentStatus = studentStatus(
       history.map((row) => ({
@@ -423,6 +454,7 @@ export const student = readProcedure
       status,
       placement: current ?? null,
       placements: history,
+      homeroom,
       /** For a leaver, the day they and their family stop reading the record. */
       accessUntil,
       guardians,
@@ -871,6 +903,51 @@ function labelFrom(list: Descriptor[], value: string | null) {
 }
 
 /**
+ * The classes a member of staff teaches or assists in the working year, as
+ * they stand today or on the year's nearest day, each marked with whether
+ * the viewer may open it.
+ */
+async function teachingOf(
+  context: UnitContext,
+  userId: string,
+  subjects: Descriptor[],
+) {
+  const year = workingYear(
+    await schoolYears(context.tx, context.tenantId, context.schoolId),
+    context.today,
+  );
+  if (!year) return null;
+  const on = dayIn(year, context.today);
+  const taught = await classesTaughtBy(context.tx, context, {
+    userId,
+    yearId: year.id,
+    on,
+  });
+  const classScope = {
+    ...scopeOf(context),
+    schoolWide: can(context, "classes:manage") || can(context, "people:manage"),
+  };
+  const open = await Promise.all(
+    taught.map((row) => reachesClass(context.tx, classScope, row.id, on)),
+  );
+  return {
+    year: { id: year.id, titleEn: year.titleEn, titleAr: year.titleAr },
+    classes: taught.map((row, index) => ({
+      id: row.id,
+      code: row.code,
+      titleEn: row.titleEn,
+      titleAr: row.titleAr,
+      classType: row.classType,
+      role: row.role,
+      homeroomTitleEn: row.homeroomTitleEn,
+      homeroomTitleAr: row.homeroomTitleAr,
+      subject: labelFrom(subjects, row.subjectId),
+      canOpen: open[index] ?? false,
+    })),
+  };
+}
+
+/**
  * A person's record at this school: a guardian, a member of staff, or the
  * viewer themselves. Contact details show to staff who read contacts and to
  * the person; linked students only where the viewer reaches them.
@@ -907,6 +984,9 @@ export const person = readProcedure
       ]);
     const personal = manage || self;
     const staffMember = roles.some((role) => STAFF_ROLE_SET.has(role.role));
+    const teaching = staffMember
+      ? await teachingOf(context, input.id, await labels("subject"))
+      : null;
     const signIn =
       !self && (staffMember ? can(context, "staff:manage") : manage);
     return {
@@ -933,6 +1013,7 @@ export const person = readProcedure
         relation: labelFrom(relations, child.relationId),
       })),
       account: personal || signIn ? account : null,
+      teaching,
       today: context.today,
       access: {
         self,

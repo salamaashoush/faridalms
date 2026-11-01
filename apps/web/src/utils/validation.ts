@@ -36,6 +36,10 @@ export function validationMessage(issue: { message?: string }): string {
       return m.validationEndTime();
     case "validation.slot_overlap":
       return m.validationSlotOverlap();
+    case "validation.official_twice":
+      return m.periodsOfficialTwice();
+    case "validation.official_break":
+      return m.periodsOfficialBreak();
     case "validation.subject_code":
       return m.validationSubjectCode();
     case "validation.name_required":

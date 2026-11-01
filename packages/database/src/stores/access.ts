@@ -26,6 +26,7 @@ export async function accessManagerCount(
   tx: Tx,
   tenantId: string,
   today: string,
+  userId: string | null = null,
 ) {
   const rows = await tx.execute<{ holders: number }>(sql`
     with recursive paths as (
@@ -66,6 +67,7 @@ export async function accessManagerCount(
     join core.accounts a on a.tenant_id = u.tenant_id and a.user_id = u.id and a.status = 'active'
       and a.state in ('active', 'locked')
     where u.tenant_id = ${tenantId}::uuid and u.status = 'active'
+      and (${userId}::uuid is null or u.id = ${userId}::uuid)
       and exists (select 1 from held h where h.user_id = u.id and h.role = any(${textArray([...STAFF_ROLES])}))
       and (u.id in (select user_id from assigned where grants) or u.id in (select user_id from builtin))`);
   return rows[0]?.holders ?? 0;

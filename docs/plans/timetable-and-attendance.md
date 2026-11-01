@@ -58,7 +58,8 @@ This plan closes the gap between the two.
    severe absence lists, and scheduled reminders for registers not taken.
 7. **Corrections.** A correction to a past mark asks for its reason, and the
    register shows each mark's history.
-8. **Bell schedules and cycles.** Edit periods and times, more than one bell
-   schedule, and rotating day cycles.
+8. **Bell schedules and cycles.** A year's periods, their times and the days
+   each runs on are edited from a date on (the year record's Periods tab);
+   more than one bell schedule and rotating day cycles remain.
 9. **Print and subscribe.** Print any week; subscribe to a personal timetable
    as a calendar feed.

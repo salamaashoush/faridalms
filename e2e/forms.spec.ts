@@ -109,4 +109,19 @@ test("a sign-in name already in use is refused in the reader's language inside t
     arabic.signInLoginTaken ?? "",
   );
   await expect(sheet.getByRole("alert")).toHaveCount(0);
+
+  // An optional field says so beside its label, in the reader's language,
+  // and the marker stays out of the control's name.
+  await page.goto(`/staff-editor?id=${id}`);
+  await untilHydrated(page);
+  const mobile = page.getByRole("textbox", {
+    name: arabic.familyMobile ?? "",
+    exact: true,
+  });
+  await expect(mobile).toBeVisible();
+  await expect(
+    page
+      .locator('[data-slot="form-field"]', { has: mobile })
+      .getByText(arabic.formOptionalSuffix ?? "", { exact: true }),
+  ).toBeVisible();
 });
