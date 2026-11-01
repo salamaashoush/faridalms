@@ -13,6 +13,8 @@ env:
 permissions:
   contents: read
 jobs:
+  # `bun run ready` locally; here the browser suites run as their own jobs,
+  # since one runner cannot fit all three in a job's time.
   verify:
     runs-on: ubuntu-latest
     timeout-minutes: 30
@@ -20,13 +22,29 @@ jobs:
       - uses: actions/checkout@v7
       - uses: ./.github/setup
       - run: bun run db:up
-      - run: bun run test:e2e:install
       - run: bun run format
-      - run: bun run ready
+      - run: bun run lint
+      - run: bun run type-check
+      - run: bun run test --run
+      - run: bun run db:verify
+      - run: bun run test:api
+  e2e:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        browser: [chromium, firefox, webkit]
+    steps:
+      - uses: actions/checkout@v7
+      - uses: ./.github/setup
+      - run: bun run db:up
+      - run: bunx playwright install --with-deps ${{ matrix.browser }}
+      - run: bun run test:e2e --project=${{ matrix.browser }}
       - uses: actions/upload-artifact@v7
         if: ${{ !cancelled() }}
         with:
-          name: playwright-report
+          name: playwright-report-${{ matrix.browser }}
           path: playwright-report/
           retention-days: 14
   media:
@@ -84,7 +102,7 @@ jobs:
   # under the commit's tag and `main`. The server pulls linux/arm64.
   publish:
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-    needs: [verify, media, images]
+    needs: [verify, e2e, media, images]
     runs-on: ${{ matrix.runner }}
     timeout-minutes: 45
     permissions:
