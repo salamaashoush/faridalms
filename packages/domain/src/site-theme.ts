@@ -200,6 +200,19 @@ export interface Theme {
 }
 
 /**
+ * The platform's own green as a website palette, for the sign-in page of a
+ * school that never styled its website. The app's brand tokens in
+ * globals.css are the same colours.
+ */
+export const PLATFORM_PALETTE: Palette = {
+  canvas: "#ffffff",
+  surface: "#eef3ee",
+  primary: "#153f3a",
+  accent: "#c7d9b8",
+  ink: "#18221f",
+};
+
+/**
  * The themes a school starts from, each measured against the kind of school
  * site it answers (website-builder.md, section 4.2).
  */

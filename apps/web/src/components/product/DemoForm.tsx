@@ -113,7 +113,7 @@ export function DemoForm() {
   if (state === "sent")
     return (
       <output className="grid min-h-96 content-center justify-items-start gap-5 rounded-2xl border bg-card p-8 shadow-xl shadow-black/5 sm:p-10 dark:shadow-black/30">
-        <span className="grid size-12 place-items-center rounded-full bg-[#dcedcf] text-[#153f3a]">
+        <span className="grid size-12 place-items-center rounded-full bg-brand-accent text-brand">
           <CircleCheck aria-hidden className="size-6" />
         </span>
         <p className="max-w-sm text-xl leading-snug font-semibold text-balance">
