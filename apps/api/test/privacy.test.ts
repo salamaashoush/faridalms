@@ -74,12 +74,14 @@ describe("retention review", () => {
       studentRule: "years_after_leaving",
       studentValue: 5,
       staffYears: 6,
+      applicantMonths: null,
     });
     const ruled = await api.privacy.overview();
     expect(ruled.rules).toEqual({
       studentRule: "years_after_leaving",
       studentValue: 5,
       staffYears: 6,
+      applicantMonths: null,
     });
     expect(ruled.review.find((row) => row.userId === id)?.dueOn).toBe(
       "2025-06-30",
@@ -89,6 +91,7 @@ describe("retention review", () => {
       studentRule: "until_age",
       studentValue: 25,
       staffYears: 6,
+      applicantMonths: null,
     });
     expect(
       (await api.privacy.overview()).review.find((row) => row.userId === id)
@@ -135,6 +138,7 @@ describe("retention review", () => {
           studentRule: "until_age",
           studentValue: 16,
           staffYears: null,
+          applicantMonths: null,
         }),
       ),
     ).toMatchObject({ code: "BAD_REQUEST" });
@@ -326,6 +330,7 @@ describe("erasure", () => {
         studentRule: "years_after_leaving",
         studentValue: 1,
         staffYears: null,
+        applicantMonths: null,
       });
       const teacher = await signedIn("northwind", login("teacher"));
       expect(
@@ -396,6 +401,7 @@ describe("erasure", () => {
         studentRule: "years_after_leaving",
         studentValue: 20,
         staffYears: null,
+        applicantMonths: null,
       });
       expect(
         await rejection(

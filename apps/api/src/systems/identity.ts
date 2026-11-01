@@ -77,8 +77,10 @@ import {
   readProcedure,
   requireCapability,
   schoolProcedure,
+  schoolZone,
   writeProcedure,
 } from "../core/procedure";
+import { confirmRegistration } from "../core/registration";
 import {
   attemptKey,
   badgeHash,
@@ -434,6 +436,17 @@ async function heldInvite(
         await redeem(tx, { ...holder, loginName });
         if (holder.purpose === "reset")
           await revokeAccountSessions(tx, tenantId, holder.accountId);
+        if (holder.purpose === "register")
+          await confirmRegistration(tx, {
+            tenantId,
+            schoolId: context.school.schoolId,
+            userId: holder.userId,
+            email: loginName,
+            today: dateIn(
+              await schoolZone(tx, context.school.schoolId),
+              new Date(),
+            ),
+          });
         await writeAudit(tx, tenantId, {
           action: "account.password_set",
           objectType: "account",

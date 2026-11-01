@@ -41,6 +41,7 @@ import * as v from "valibot";
 
 import type { UnitContext } from "../core/context";
 
+import { healthCipher } from "../core/health";
 import { audit, can, readProcedure, writeProcedure } from "../core/procedure";
 import { withPurposeFor } from "../core/purpose";
 
@@ -60,14 +61,6 @@ async function requireStudent(context: UnitContext, studentId: string) {
   if (!(await isVisibleStudent(context.tx, scopeOf(context), studentId)))
     throw new ORPCError("NOT_FOUND");
 }
-
-const cipher = (context: UnitContext, rowId: string, keyVersion: number) => ({
-  tenantId: context.tenantId,
-  table: "health.records",
-  column: "ciphertext",
-  rowId,
-  keyVersion,
-});
 
 interface HealthPayload {
   text?: string;
@@ -120,7 +113,7 @@ export const health = readProcedure
           await decryptField(
             key.key,
             new Uint8Array(row.ciphertext),
-            cipher(context, row.id, row.keyVersion),
+            healthCipher(context, row.id, row.keyVersion),
           ),
         );
         const payload = isPayload(parsed) ? parsed : {};
@@ -168,7 +161,7 @@ export const saveHealth = writeProcedure
     const ciphertext = await encryptField(
       key.key,
       JSON.stringify(payload),
-      cipher(context, rowId, key.version),
+      healthCipher(context, rowId, key.version),
     );
     const record = {
       tenantId: context.tenantId,

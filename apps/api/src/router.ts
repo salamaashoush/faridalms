@@ -2,6 +2,8 @@ import * as absenceReportsSystem from "./systems/absence-reports";
 import * as accessSystem from "./systems/access";
 import * as admissionsSystem from "./systems/admissions";
 import * as announcementsSystem from "./systems/announcements";
+import * as applicationsSystem from "./systems/applications";
+import * as applyingSystem from "./systems/applying";
 import * as attendanceSystem from "./systems/attendance";
 import * as badgesSystem from "./systems/badges";
 import * as bankSystem from "./systems/bank";
@@ -21,6 +23,7 @@ import * as homeSystem from "./systems/home";
 import * as hostsSystem from "./systems/hosts";
 import * as identifiersSystem from "./systems/identifiers";
 import * as identity from "./systems/identity";
+import * as intakesSystem from "./systems/intakes";
 import * as learningSystem from "./systems/learning";
 import * as librarySystem from "./systems/library";
 import * as ltiSystem from "./systems/lti";
@@ -82,6 +85,9 @@ export const router = {
   lti: ltiSystem,
   site: siteSystem,
   admissions: admissionsSystem,
+  intakes: intakesSystem,
+  applications: applicationsSystem,
+  applying: applyingSystem,
   product: productSystem,
   hosts: hostsSystem,
   home: homeSystem,

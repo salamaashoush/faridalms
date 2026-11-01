@@ -59,6 +59,10 @@ const LINES: Record<"en" | "ar", Record<NotificationKind, Line>> = {
       p.assigned
         ? `${p.actorName || "A colleague"} handed you the enquiry from ${p.title ?? "a family"}.`
         : `${ENQUIRY_EN[p.purpose ?? "enquiry"]} from ${p.title ?? "a family"}${p.preview ? `: ${p.preview}` : ""}`,
+    application: (p) =>
+      p.received
+        ? `We received the application for ${p.title || p.titleAr || "your child"}${p.gradeName ? ` to ${p.gradeName}` : ""}. Its number is ${p.reference ?? ""}.`
+        : `New application for ${p.title || p.titleAr || "a child"}${p.gradeName ? ` to ${p.gradeName}` : ""}.`,
   },
   ar: {
     announcement: (p) =>
@@ -97,6 +101,10 @@ const LINES: Record<"en" | "ar", Record<NotificationKind, Line>> = {
       p.assigned
         ? `أحال إليك ${p.actorName || "أحد الزملاء"} الاستفسار الوارد من ${p.title ?? "إحدى الأسر"}.`
         : `${ENQUIRY_AR[p.purpose ?? "enquiry"]} من ${p.title ?? "إحدى الأسر"}${p.preview ? `: ${p.preview}` : ""}`,
+    application: (p) =>
+      p.received
+        ? `وصلنا طلب التحاق ${p.titleAr || p.title || "طفلكم"}${p.gradeNameAr || p.gradeName ? ` بـ${p.gradeNameAr || p.gradeName}` : ""}، ورقمه ${p.reference ?? ""}.`
+        : `طلب التحاق جديد لـ${p.titleAr || p.title || "أحد الأطفال"}${p.gradeNameAr || p.gradeName ? ` في ${p.gradeNameAr || p.gradeName}` : ""}.`,
   },
 };
 
@@ -264,6 +272,79 @@ export function resetMessage(input: {
           `Choose the new password from this link, which works once, within ${input.minutes} minutes:`,
           input.link,
           "Every other device will be signed out. If you did not ask for this, ignore this email; your password has not changed.",
+        ].join("\n\n"),
+      };
+}
+
+/**
+ * The email that confirms a family's address when they register to apply:
+ * choosing a password from the link proves the address is theirs.
+ */
+export function registerMessage(input: {
+  locale: "en" | "ar";
+  school: string;
+  name: string;
+  loginName: string;
+  link: string;
+  days: number;
+}): Rendered {
+  return input.locale === "ar"
+    ? {
+        subject: `${input.school}: أكّد بريدك لتبدأ طلب الالتحاق`,
+        text: [
+          `مرحبًا ${input.name}، شكرًا لتسجيلك لدى ${input.school}.`,
+          `اسم الدخول: ${input.loginName}`,
+          `أكّد بريدك واختر كلمة المرور من هذا الرابط، وهو يعمل مرة واحدة خلال ${input.days} أيام. بعدها تستطيع بدء طلب الالتحاق وحفظه والعودة إليه متى شئت:`,
+          input.link,
+          "إن لم تسجّل لدى المدرسة فتجاهل هذه الرسالة، ولن يُفتح أي حساب.",
+        ].join("\n\n"),
+      }
+    : {
+        subject: `${input.school}: confirm your email to start applying`,
+        text: [
+          `Hello ${input.name}, thank you for registering with ${input.school}.`,
+          `Sign-in name: ${input.loginName}`,
+          `Confirm your email and choose your password from this link, which works once, within ${input.days} days. You can then start an application, save it and come back to it whenever you like:`,
+          input.link,
+          "If you did not register with the school, ignore this email and no account will open.",
+        ].join("\n\n"),
+      };
+}
+
+/**
+ * The answer to registering with an address that already has an account,
+ * sent to that address alone, so the page itself never says who has one.
+ */
+export function alreadyRegisteredMessage(input: {
+  locale: "en" | "ar";
+  school: string;
+  loginName: string;
+  signIn: string;
+  reset: string;
+}): Rendered {
+  return input.locale === "ar"
+    ? {
+        subject: `${input.school}: لديك حساب بالفعل`,
+        text: [
+          `طلب أحدهم التسجيل لدى ${input.school} بهذا البريد، ولديك حساب به بالفعل.`,
+          `اسم الدخول: ${input.loginName}`,
+          `سجّل الدخول من هنا لتقدّم طلب الالتحاق من حسابك:`,
+          input.signIn,
+          `وإن نسيت كلمة المرور فاختر كلمة جديدة من هنا:`,
+          input.reset,
+          "إن لم تطلب ذلك فتجاهل هذه الرسالة.",
+        ].join("\n\n"),
+      }
+    : {
+        subject: `${input.school}: you already have an account`,
+        text: [
+          `Someone asked to register with ${input.school} using this email, and it already has an account.`,
+          `Sign-in name: ${input.loginName}`,
+          `Sign in here to apply from your account:`,
+          input.signIn,
+          `If you have forgotten your password, choose a new one here:`,
+          input.reset,
+          "If you did not ask for this, ignore this email.",
         ].join("\n\n"),
       };
 }

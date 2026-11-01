@@ -4,11 +4,7 @@ import type {
   IdentifierValue,
 } from "@faridalms/database/stores/identifiers";
 
-import {
-  decryptField,
-  encryptField,
-  lookupHmac,
-} from "@faridalms/database/crypto";
+import { decryptField } from "@faridalms/database/crypto";
 import { descriptorsFor } from "@faridalms/database/stores/descriptors";
 import {
   identifierById,
@@ -22,7 +18,6 @@ import {
   egyptianIdFacts,
   identifierRefSchema,
   isSealed,
-  normaliseIdentifier,
   saveIdentifierSchema,
   SYSTEM_KEPT_MEANINGS,
 } from "@faridalms/domain/identifiers";
@@ -32,6 +27,7 @@ import * as v from "valibot";
 
 import type { UnitContext } from "../core/context";
 
+import { identifierCipher, identifierValue } from "../core/identifiers";
 import {
   audit,
   can,
@@ -41,14 +37,6 @@ import {
 } from "../core/procedure";
 
 const id = v.pipe(v.string(), v.uuid());
-
-const cipher = (context: UnitContext, rowId: string, keyVersion: number) => ({
-  tenantId: context.tenantId,
-  table: "core.external_ids",
-  column: "identifier_ciphertext",
-  rowId,
-  keyVersion,
-});
 
 async function requireStudent(context: UnitContext, studentId: string) {
   const visible = await isVisibleStudent(
@@ -77,37 +65,6 @@ async function systemsOf(context: UnitContext): Promise<Descriptor[]> {
     (row) =>
       !(SYSTEM_KEPT_MEANINGS as readonly string[]).includes(row.meaning ?? ""),
   );
-}
-
-/**
- * A number as it is stored: an identity document's sealed under the
- * tenant's identifiers key with a keyed hash for exact lookup, anything else
- * as typed. A national ID keeps no last digits, since they say too much.
- */
-async function valueOf(
-  context: UnitContext,
-  input: { rowId: string; meaning: string; number: string },
-): Promise<IdentifierValue> {
-  if (!isSealed(input.meaning))
-    return { identifier: input.number, sealed: null };
-  const normalised = normaliseIdentifier(input.number);
-  const [key, lookup] = await Promise.all([
-    context.keys.active(context.tx, context.tenantId, "identifiers"),
-    context.keys.active(context.tx, context.tenantId, "identifier_lookup"),
-  ]);
-  return {
-    identifier: null,
-    sealed: {
-      ciphertext: await encryptField(
-        key.key,
-        input.number,
-        cipher(context, input.rowId, key.version),
-      ),
-      hmac: await lookupHmac(lookup.key, normalised),
-      keyVersion: key.version,
-      last4: input.meaning === "national_id" ? null : normalised.slice(-4),
-    },
-  };
 }
 
 /** A stored number carried over unchanged when only its dates or issuer change. */
@@ -192,7 +149,7 @@ export const reveal = readProcedure
     const number = await decryptField(
       key.key,
       row.ciphertext,
-      cipher(context, row.id, row.keyVersion),
+      identifierCipher(context, row.id, row.keyVersion),
     );
     await audit(context, {
       action: "external_id.reveal",
@@ -248,7 +205,11 @@ export const save = writeProcedure
     const value: IdentifierValue =
       existing && input.number === ""
         ? kept(existing)
-        : await valueOf(context, { rowId, meaning, number: input.number });
+        : await identifierValue(context, {
+            rowId,
+            meaning,
+            number: input.number,
+          });
     const from = input.validFrom || context.today;
     const to = input.expiresOn ? addDays(input.expiresOn, 1) : null;
     if (to !== null && to <= from)

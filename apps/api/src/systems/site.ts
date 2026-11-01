@@ -1,4 +1,3 @@
-import type { DirectorySchool } from "@faridalms/database/directory/client";
 import type { PageRow } from "@faridalms/database/stores/site";
 import type { ContentDocument } from "@faridalms/domain/content";
 import type {
@@ -58,7 +57,6 @@ import {
 } from "@faridalms/domain/content";
 import { readAnswers } from "@faridalms/domain/enquiries";
 import { clientAddress } from "@faridalms/domain/forwarded";
-import { platformName } from "@faridalms/domain/hosts";
 import { saveSignInPageSchema } from "@faridalms/domain/portal-face";
 import {
   buildTemplate,
@@ -101,7 +99,7 @@ import {
 import { ORPCError } from "@orpc/server";
 import * as v from "valibot";
 
-import type { RequestContext, UnitContext } from "../core/context";
+import type { UnitContext } from "../core/context";
 
 import { announceEnquiry } from "../core/enquiries";
 import { forgetFace } from "../core/portal-face";
@@ -116,6 +114,7 @@ import {
 import { attemptKey, ipPrefix } from "../core/session";
 import { inlinePageShared } from "../core/shared";
 import { publishMedia, withPublicSite, withdrawMedia } from "../core/site";
+import { servesSchool } from "../core/turnstile";
 import {
   placeMedia,
   registerHostReader,
@@ -1400,32 +1399,6 @@ const ENQUIRIES_PER_SCHOOL = 60;
 const MIN_FILL_MS = 2500;
 
 /**
- * Whether a host the challenge was solved on is one this school's website
- * answers at: its platform names, its own hosts, or the cell's own host,
- * where the site is reached under `/site/<school>`.
- */
-async function schoolHost(
-  context: RequestContext,
-  school: DirectorySchool,
-  hostname: string,
-) {
-  const name = hostname.toLowerCase();
-  if (
-    [
-      platformName(school.slug, "site", context.domains),
-      platformName(school.slug, "portal", context.domains),
-      school.hosts.site,
-      school.hosts.portal,
-      school.appHost,
-      context.domains.portal,
-    ].includes(name)
-  )
-    return true;
-  const routed = await context.directory.byHost(name);
-  return routed?.school.schoolId === school.schoolId;
-}
-
-/**
  * A visitor's message from a form section on a published page. A form that
  * came back filled by a script, or faster than a person can type, is
  * answered as if received and dropped, so the script learns nothing. Where
@@ -1449,7 +1422,7 @@ export const submitEnquiry = publicProcedure
           context.trustedProxyHops,
         ),
         action: "enquiry",
-        hostAllowed: (hostname) => schoolHost(context, school, hostname),
+        hostAllowed: (hostname) => servesSchool(context, school, hostname),
       }))
     )
       throw new ORPCError("BAD_REQUEST", { message: "site.challenge" });
