@@ -32,7 +32,7 @@ import {
 } from "@faridalms/database/stores/admissions";
 import { insertAnswer } from "@faridalms/database/stores/consents";
 import { descriptorsFor } from "@faridalms/database/stores/descriptors";
-import { insertEntry } from "@faridalms/database/stores/enquiries";
+import { openEnquiryConversation } from "@faridalms/database/stores/enquiries";
 import {
   filesByIds,
   filesOfHosts,
@@ -123,6 +123,7 @@ import { withPurposeFor } from "../core/purpose";
 import { attemptKey, ipPrefix, issueBadgeSecret } from "../core/session";
 import { servesSchool } from "../core/turnstile";
 import { registerHostReader } from "../files/authorize";
+import { scopeOf, writeEntry } from "../messages/conversations";
 import {
   alreadyRegisteredMessage,
   registerMessage,
@@ -1292,15 +1293,24 @@ export const submit = writeProcedure
         applicantUserId: child.id,
       }))
     ) {
-      await insertEntry(context.tx, {
+      const threadId = await openEnquiryConversation(context.tx, {
         tenantId: context.tenantId,
-        orgId: context.schoolId,
         enquiryId: enquiry.id,
-        kind: "state",
-        body: "",
-        details: { from: enquiry.state, to: "converted", automatic: true },
-        authorUserId: null,
       });
+      if (threadId)
+        await writeEntry(scopeOf(context), {
+          threadId,
+          kind: "event",
+          authorUserId: null,
+          content: null,
+          details: {
+            event: "state",
+            from: enquiry.state,
+            to: "converted",
+            automatic: true,
+          },
+          notify: false,
+        });
       await audit(context, {
         action: "enquiry.state",
         objectType: "site_enquiry",

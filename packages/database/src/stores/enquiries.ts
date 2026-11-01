@@ -5,13 +5,22 @@ import type {
   EnquiryPurpose,
   EnquirySource,
   EnquiryState,
-  EntryKind,
 } from "@faridalms/domain/enquiries";
 
+import { contentPlainText } from "@faridalms/domain/content";
+import { plainContent } from "@faridalms/domain/content-conversion";
+import {
+  conversationSubject,
+  loggedKind,
+  submissionText,
+} from "@faridalms/domain/enquiries";
+import { toE164 } from "@faridalms/domain/phone";
 import { sql } from "drizzle-orm";
 
 import type { CellTransaction } from "../context";
 
+import { saveDocument } from "./documents";
+import { contactFor, createThread, postMessage } from "./messages";
 import { escapeLike, isoOf } from "./sql";
 
 type Tx = CellTransaction;
@@ -44,6 +53,8 @@ export interface EnquiryListRow {
   assignee: PersonName | null;
   createdAt: string;
   firstRespondedAt: string | null;
+  /** The enquiry's conversation in the admissions mailbox. */
+  threadId: string | null;
 }
 
 export interface EnquiryList {
@@ -117,9 +128,14 @@ export async function listEnquiries(
     assignee_ar: string | null;
     created_at: string;
     first_responded_at: string | null;
+    thread_id: string | null;
   }>(sql`
     select e.id, e.version, e.source, e.purpose, e.state, e.closed_reason, e.name, e.email,
-      e.phone, e.child_name, e.child_year, left(e.message, 200) as preview,
+      e.phone, e.child_name, e.child_year, e.thread_id,
+      coalesce((select left(x.body, 200) from core.messages x
+        where x.tenant_id = e.tenant_id and x.thread_id = e.thread_id and x.status = 'active'
+          and x.kind = 'message' order by x.created_at desc, x.id desc limit 1),
+        left(e.message, 200)) as preview,
       e.assignee_user_id as assignee_id, a.full_name_en as assignee_en, a.full_name_ar as assignee_ar,
       ${isoOf(sql`e.created_at`)} as created_at,
       case when e.first_responded_at is null then null else ${isoOf(sql`e.first_responded_at`)} end
@@ -148,12 +164,14 @@ export async function listEnquiries(
       assignee: person(row.assignee_id, row.assignee_en, row.assignee_ar),
       createdAt: row.created_at,
       firstRespondedAt: row.first_responded_at,
+      threadId: row.thread_id,
     })),
   };
 }
 
 export interface EnquiryRecord extends EnquiryListRow {
   locale: "en" | "ar";
+  phoneNormalized: string | null;
   message: string;
   answers: EnquiryAnswer[];
   pageTitleEn: string | null;
@@ -197,8 +215,11 @@ export async function enquiryById(
     state_changed_at: string;
     family_user_id: string | null;
     applicant_user_id: string | null;
+    thread_id: string | null;
+    phone_normalized: string | null;
   }>(sql`
-    select e.id, e.version, e.source, e.purpose, e.state, e.closed_reason, e.locale, e.name,
+    select e.id, e.version, e.source, e.purpose, e.state, e.closed_reason, e.locale, e.name, e.thread_id,
+      e.phone_normalized,
       e.email, e.phone, e.child_name, e.child_year, e.message, e.answers,
       nullif(p.title_en, '') as page_title_en, nullif(p.title_ar, '') as page_title_ar,
       e.assignee_user_id as assignee_id, a.full_name_en as assignee_en, a.full_name_ar as assignee_ar,
@@ -240,6 +261,8 @@ export async function enquiryById(
     stateChangedAt: row.state_changed_at,
     familyUserId: row.family_user_id,
     applicantUserId: row.applicant_user_id,
+    threadId: row.thread_id,
+    phoneNormalized: row.phone_normalized,
   };
 }
 
@@ -252,6 +275,7 @@ export async function relatedEnquiries(
     id: string;
     email: string;
     phone: string;
+    phoneNormalized: string | null;
   },
 ): Promise<
   {
@@ -262,7 +286,7 @@ export async function relatedEnquiries(
     createdAt: string;
   }[]
 > {
-  if (!input.email && !input.phone) return [];
+  if (!input.email && !input.phoneNormalized && !input.phone) return [];
   const rows = await tx.execute<{
     id: string;
     name: string;
@@ -275,7 +299,8 @@ export async function relatedEnquiries(
     where e.tenant_id = ${input.tenantId}::uuid and e.org_id = ${input.orgId}::uuid
       and e.status = 'active' and e.id <> ${input.id}::uuid
       and ((${input.email} <> '' and lower(e.email) = lower(${input.email}))
-        or (${input.phone} <> '' and e.phone = ${input.phone}))
+        or (${input.phoneNormalized}::text is not null and e.phone_normalized = ${input.phoneNormalized})
+        or (${input.phoneNormalized}::text is null and ${input.phone} <> '' and e.phone = ${input.phone}))
     order by e.created_at desc
     limit 10`);
   return rows.map((row) => ({
@@ -387,68 +412,122 @@ export async function markResponded(
   return { moved: row?.was_open ?? false, first: row?.was_new ?? false };
 }
 
-/** What an entry records beside its words: a change's from and to, a reply's subject. */
-export type EntryDetails = Record<string, string | boolean | null>;
-
-export interface EntryRow {
-  id: string;
-  kind: EntryKind;
-  body: string;
-  details: EntryDetails;
-  author: PersonName | null;
-  createdAt: string;
-}
-
-export async function insertEntry(
+/** The enquiry whose conversation this is, for the admissions mailbox's own work. */
+export async function enquiryOfThread(
   tx: Tx,
-  input: {
-    tenantId: string;
-    orgId: string;
-    enquiryId: string;
-    kind: EntryKind;
-    body: string;
-    details?: EntryDetails;
-    authorUserId: string | null;
-  },
-): Promise<{ id: string; createdAt: string }> {
-  const [row] = await tx.execute<{ id: string; created_at: string }>(sql`
-    insert into core.site_enquiry_entries (tenant_id, org_id, enquiry_id, kind, body, details,
-      author_user_id)
-    values (${input.tenantId}::uuid, ${input.orgId}::uuid, ${input.enquiryId}::uuid, ${input.kind},
-      ${input.body}, ${JSON.stringify(input.details ?? {})}::text::jsonb, ${input.authorUserId}::uuid)
-    returning id, ${isoOf(sql`created_at`)} as created_at`);
-  if (!row) throw new Error("The entry was not recorded");
-  return { id: row.id, createdAt: row.created_at };
+  input: { tenantId: string; threadId: string },
+): Promise<{ id: string; orgId: string } | null> {
+  const [row] = await tx.execute<{ id: string; org_id: string }>(sql`
+    select id, org_id from core.site_enquiries
+    where tenant_id = ${input.tenantId}::uuid and thread_id = ${input.threadId}::uuid
+      and status = 'active'`);
+  return row ? { id: row.id, orgId: row.org_id } : null;
 }
 
-/** An enquiry's thread, oldest first. */
-export async function entriesOf(
+/**
+ * Gives an enquiry its conversation in the admissions mailbox, once: the
+ * family becomes its outside contact by the address or number they gave,
+ * whoever holds the enquiry owns it, and it opens with the family's own
+ * words, or for an enquiry staff took by hand, with what they noted as
+ * the contact it was. The phone is read in E.164 here too, so the family's
+ * other enquiries are found by it. Neither notices nor email go out: the
+ * family wrote it, and staff hear of a new enquiry on its own.
+ */
+export async function openEnquiryConversation(
   tx: Tx,
   input: { tenantId: string; enquiryId: string },
-): Promise<EntryRow[]> {
-  const rows = await tx.execute<{
+): Promise<string | null> {
+  const [row] = await tx.execute<{
     id: string;
-    kind: EntryKind;
-    body: string;
-    details: EntryDetails;
-    author_id: string | null;
-    author_en: string | null;
-    author_ar: string | null;
-    created_at: string;
+    org_id: string;
+    thread_id: string | null;
+    source: EnquirySource;
+    purpose: EnquiryPurpose;
+    locale: "en" | "ar";
+    name: string;
+    email: string;
+    phone: string;
+    child_name: string;
+    child_year: string;
+    message: string;
+    answers: EnquiryAnswer[];
+    assignee_user_id: string | null;
+    created_by_user_id: string | null;
+    country_code: string | null;
+    school_en: string | null;
+    school_ar: string | null;
   }>(sql`
-    select n.id, n.kind, n.body, n.details, n.author_user_id as author_id,
-      u.full_name_en as author_en, u.full_name_ar as author_ar,
-      ${isoOf(sql`n.created_at`)} as created_at
-    from core.site_enquiry_entries n
-    left join core.users u on u.tenant_id = n.tenant_id and u.id = n.author_user_id
-    where n.tenant_id = ${input.tenantId}::uuid and n.enquiry_id = ${input.enquiryId}::uuid
-    order by n.created_at, n.id`);
-  return rows.map((row) => ({
-    id: row.id,
-    kind: row.kind,
-    body: row.body,
-    details: row.details,
-    author: person(row.author_id, row.author_en, row.author_ar),
-    createdAt: row.created_at,
-  }));
+    select e.id, e.org_id, e.thread_id, e.source, e.purpose, e.locale, e.name, e.email, e.phone,
+      e.child_name, e.child_year, e.message, e.answers, e.assignee_user_id, e.created_by_user_id,
+      o.country_code, o.name_en as school_en, o.name_ar as school_ar
+    from core.site_enquiries e
+    join core.orgs o on o.tenant_id = e.tenant_id and o.id = e.org_id
+    where e.tenant_id = ${input.tenantId}::uuid and e.id = ${input.enquiryId}::uuid
+      and e.status = 'active'
+    for update of e`);
+  if (!row) return null;
+  if (row.thread_id) return row.thread_id;
+  const phoneNormalized = row.phone
+    ? toE164(row.phone, row.country_code ?? "EG")
+    : null;
+  const contact = await contactFor(tx, {
+    tenantId: input.tenantId,
+    email: row.email,
+    phone: row.phone,
+    phoneNormalized,
+    name: row.name,
+    locale: row.locale,
+  });
+  const school =
+    (row.locale === "ar" ? row.school_ar || row.school_en : row.school_en) ??
+    row.school_ar ??
+    "";
+  const threadId = await createThread(tx, {
+    tenantId: input.tenantId,
+    schoolId: row.org_id,
+    kind: "mailbox",
+    mailbox: "admissions",
+    subject: conversationSubject(row.purpose, row.locale, school),
+    studentId: null,
+    createdBy: row.created_by_user_id,
+    ownerId: row.assignee_user_id,
+    memberIds: [],
+    contactIds: [contact.id],
+  });
+  const answers = Array.isArray(row.answers) ? row.answers : [];
+  const website = row.source === "website";
+  const words = website
+    ? submissionText({
+        message: row.message,
+        answers,
+        childName: row.child_name,
+        childYear: row.child_year,
+      })
+    : row.message.trim();
+  if (website || (words && row.created_by_user_id)) {
+    const content = plainContent(words);
+    const posted = await postMessage(tx, {
+      tenantId: input.tenantId,
+      threadId,
+      kind: website ? "message" : loggedKind(row.source),
+      authorId: website ? null : row.created_by_user_id,
+      authorContactId: website ? contact.id : null,
+      body: words.slice(0, 5000),
+    });
+    await saveDocument(tx, {
+      tenantId: input.tenantId,
+      orgId: row.org_id,
+      host: { type: "message", id: posted.id },
+      content: content as unknown as Record<string, unknown>,
+      plainText: contentPlainText(content),
+      mediaIds: [],
+      userId: website ? null : row.created_by_user_id,
+      frozen: true,
+    });
+  }
+  await tx.execute(sql`
+    update core.site_enquiries set thread_id = ${threadId}::uuid,
+      phone_normalized = ${phoneNormalized}
+    where tenant_id = ${input.tenantId}::uuid and id = ${row.id}::uuid`);
+  return threadId;
 }

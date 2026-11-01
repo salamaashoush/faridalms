@@ -1,18 +1,16 @@
-import type { FileSummary } from "@faridalms/domain/file";
-import type { ThreadKind } from "@faridalms/domain/messages";
+import type { ContentDocument } from "@faridalms/domain/content";
+import type { StartKind } from "@faridalms/domain/messages";
 
-import {
-  MESSAGE_ATTACHMENT_BYTES,
-  MESSAGE_ATTACHMENT_LIMIT,
-} from "@faridalms/domain/file";
-import { Textarea } from "@faridalms/ui/textarea";
+import { emptyContent } from "@faridalms/domain/content-conversion";
+import { hasWords } from "@faridalms/domain/messages";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { toast } from "sonner";
 
+import { ContentEditor } from "~/components/content/ContentEditor";
+import { useDocumentMedia } from "~/components/coursework/useDocumentMedia";
 import { ComboboxField } from "~/components/system/ComboboxField";
 import { FormField, SelectField, TextField } from "~/components/system/field";
-import { FileField } from "~/components/system/FileField";
 import { SheetForm } from "~/components/system/SheetForm";
 import * as m from "~/i18n/messages";
 import { getLocale } from "~/i18n/runtime";
@@ -84,7 +82,7 @@ export function NewMessage({
   onStarted: (threadId: string | null) => void;
 }) {
   const queryClient = useQueryClient();
-  const [kind, setKind] = useState<ThreadKind>(
+  const [kind, setKind] = useState<StartKind>(
     canStartFamily ? "family" : "direct",
   );
   const [search, setSearch] = useState("");
@@ -96,8 +94,9 @@ export function NewMessage({
     () => new Map(),
   );
   const [subject, setSubject] = useState("");
-  const [body, setBody] = useState("");
-  const [files, setFiles] = useState<FileSummary[]>([]);
+  const [content, setContent] = useState<ContentDocument>(emptyContent);
+  const [uploading, setUploading] = useState(false);
+  const media = useDocumentMedia(undefined);
   const [shown, setShown] = useState(false);
   const found = useQuery(messageRecipientsQuery(search)).data?.rows ?? [];
   const eligible = found.filter((row) =>
@@ -122,9 +121,7 @@ export function NewMessage({
               recipientIds: [],
               studentId,
               subject: "",
-              body: body.trim(),
-              // A file belongs to one conversation, so several get none.
-              fileIds: [],
+              content,
             },
           }),
         );
@@ -134,8 +131,7 @@ export function NewMessage({
           recipientIds: kind === "family" ? [] : picked,
           studentId: kind === "family" ? (picked[0] ?? "") : "",
           subject: kind === "group" ? subject.trim() : "",
-          body: body.trim(),
-          fileIds: files.map((file) => file.id),
+          content,
         },
       });
       return { threadId: started.threadId, missed: [] as string[] };
@@ -151,7 +147,7 @@ export function NewMessage({
   const issues = {
     who,
     subject: kind === "group" && !subject.trim() ? m.msgSubjectNeeded() : null,
-    body: body.trim() ? null : m.msgBodyNeeded(),
+    body: hasWords(content) ? null : m.msgBodyNeeded(),
   };
   return (
     <SheetForm
@@ -161,7 +157,7 @@ export function NewMessage({
       }}
       title={m.msgNew()}
       submitLabel={m.msgSend()}
-      pending={start.isPending}
+      pending={start.isPending || uploading}
       error={start.error ? getMessageFromError(start.error) : null}
       onSubmit={async () => {
         setShown(true);
@@ -261,29 +257,17 @@ export function NewMessage({
         label={m.msgMessage()}
         errors={shown && issues.body ? [issues.body] : undefined}
       >
-        {(control) => (
-          <Textarea
-            {...control}
-            dir="auto"
-            rows={5}
-            maxLength={5000}
-            value={body}
-            onChange={(event) => setBody(event.target.value)}
+        {() => (
+          <ContentEditor
+            id="new-message-body"
+            label={m.msgMessage()}
+            value={content}
+            onChange={setContent}
+            onUploadingChange={setUploading}
+            media={media}
           />
         )}
       </FormField>
-      {several ? null : (
-        <FileField
-          id="new-message-files"
-          label={m.msgAttachments()}
-          optional
-          purpose="attachment"
-          value={files}
-          onChange={(update) => setFiles(update)}
-          maxFiles={MESSAGE_ATTACHMENT_LIMIT}
-          maxBytes={MESSAGE_ATTACHMENT_BYTES}
-        />
-      )}
     </SheetForm>
   );
 }

@@ -157,14 +157,45 @@ score, and attempts outside the assessor's offering are rejected by the API.
 Attendance batches reject duplicate students and students outside the current
 roster before writing.
 
-Messages form conversations: a root message and its replies share a thread,
-the inbox lists one row per thread with the viewer's own unread count, and a
-reply reaches everyone else in the thread. A message carries plain text,
-Markdown or a shared rich document; the plain text of a rich message is
-derived on the server so search and previews keep working. Attachments are
-private files linked to the message and downloadable by its participants
-only. Opening a conversation marks the viewer's rows read and nobody else's.
-Messages, delivery rows and attachment links commit in one transaction.
+Messages is the one place a conversation lives, with colleagues, with
+families who have accounts and with people who have none. The inbox lists
+one row per conversation with the viewer's own unread count, and a message
+reaches everyone else in it. What a message says is a frozen document of the
+shared editor, hosted as `message`, its files blocks of it; the message's
+plain text is derived on the server for search, previews and the text of an
+email. Files are readable by whoever reads the message. Opening a
+conversation marks the viewer's rows read and nobody else's. Messages, their
+documents, delivery rows and file links commit in one transaction, and every
+way into a conversation (the composer, a website enquiry, a reply by email,
+a change a system records) goes through one function, `writeEntry`.
+
+A member is a person or an outside contact (`message_contacts`): someone
+known by the address and name they gave, such as a family that enquired
+through the website. When a person proves an address is theirs, as family
+registration does, the contact is linked to them and they become the member
+of its conversations; nothing is copied. A message to a contact goes out by
+email through the notification worker, in the school's name, with a reply
+address `r+<tenant>.<token>@<INBOUND_EMAIL_DOMAIN>` whose token is an HMAC of
+the contact's membership under the cell's secret, stored only as a digest.
+Replies come back through Resend's receiving webhook and are posted as the
+contact's message when they come from the contact's address and pass its
+domain's checks, and held as an internal entry otherwise
+([operations.md](operations.md), "Conversations by email").
+
+A mailbox conversation belongs to a team rather than a person: everyone who
+holds the mailbox's capability reads every conversation in it (`admissions`
+for `admissions:manage`, `attendance` for the attendance office), and its
+owner is who holds it now, the enquiry's assignee for an enquiry. Read state
+stays per person in `reader` rows that grant nothing; losing the capability
+loses the mailbox. A team's conversation also holds internal entries the
+family never sees and search never indexes: notes, calls, meetings and
+emails logged, held mail, and the changes its system records, such as an
+enquiry moving on or being handed to someone. Staff therefore read one
+timeline, the conversation, where Front, Help Scout and Zendesk put notes and
+events, and the record it belongs to (an enquiry, an application) keeps only
+its workflow and draws the conversation with the Messages component. A reply
+someone else overtook is refused until its writer has read what came in, or
+sends it anyway.
 
 Notifications follow a transactional outbox. Publishing an assignment,
 releasing an assessment, sending a message or reply, publishing an

@@ -12,6 +12,7 @@ import type { CodeRunner } from "../coding/run";
 import type { FileScanner } from "../files/scan";
 import type { FileStore } from "../files/store";
 import type { HostChecks } from "../hosts/checks";
+import type { InboundMail } from "../messages/inbound";
 import type { Provider } from "../notifications/providers";
 import type { KeyRing } from "./keys";
 import type { LoginIndex } from "./login-index";
@@ -76,6 +77,11 @@ export interface ApiDependencies {
    * the hidden field, the fill time and the per-network and per-school limits.
    */
   turnstile?: Turnstile | null;
+  /**
+   * Replies to conversations' email, received through Resend at the
+   * inbound domain; null leaves families answering the school's address.
+   */
+  inbound?: InboundMail | null;
 }
 
 export interface RequestContext extends ApiDependencies {

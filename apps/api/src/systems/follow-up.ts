@@ -6,9 +6,12 @@ import {
   callList,
   contactsOn,
   guardiansToCall,
-  insertContact,
   overdueReasons,
 } from "@faridalms/database/stores/follow-up";
+import {
+  mailboxThreadAbout,
+  messagingGuardians,
+} from "@faridalms/database/stores/messages";
 import { isVisibleStudent } from "@faridalms/database/stores/students";
 import {
   calendarDays,
@@ -25,6 +28,7 @@ import {
   summarise,
 } from "@faridalms/domain/attendance";
 import { SCHOOL_DAY_MEANINGS } from "@faridalms/domain/calendar";
+import { plainContent } from "@faridalms/domain/content-conversion";
 import { addDays } from "@faridalms/domain/school";
 import { isoWeekday } from "@faridalms/domain/timetable";
 import { ORPCError } from "@orpc/server";
@@ -38,6 +42,11 @@ import {
   requireCapability,
   writeProcedure,
 } from "../core/procedure";
+import {
+  openMailboxConversation,
+  scopeOf as conversationScope,
+  writeEntry,
+} from "../messages/conversations";
 
 /** Missing half the sessions or more: absent more than present. */
 const SEVERE_PERCENT = 50;
@@ -194,18 +203,42 @@ export const logContact = writeProcedure
       ))
     )
       throw new ORPCError("NOT_FOUND");
-    const id = await insertContact(context.tx, {
-      tenantId: context.tenantId,
-      schoolId: context.schoolId,
-      studentId: input.studentId,
-      day: input.date,
-      outcome: input.outcome,
-      note: input.note || null,
-      actorId: context.actor.userId,
+    // A call is a logged contact in the attendance office's conversation
+    // with the child's family, the one the office writes to them in.
+    const scope = conversationScope(context);
+    const threadId =
+      (await mailboxThreadAbout(context.tx, {
+        tenantId: context.tenantId,
+        schoolId: context.schoolId,
+        mailbox: "attendance",
+        studentId: input.studentId,
+      })) ??
+      (await openMailboxConversation(scope, {
+        mailbox: "attendance",
+        subject: null,
+        studentId: input.studentId,
+        ownerId: null,
+        memberIds: await messagingGuardians(context.tx, {
+          tenantId: context.tenantId,
+          studentId: input.studentId,
+          on: context.today,
+        }),
+      }));
+    const { id } = await writeEntry(scope, {
+      threadId,
+      kind: "call",
+      authorUserId: context.actor.userId,
+      content: input.note ? plainContent(input.note) : null,
+      details: {
+        outcome: input.outcome,
+        studentId: input.studentId,
+        on: input.date,
+      },
+      notify: false,
     });
     await audit(context, {
       action: "attendance.contact",
-      objectType: "attendance_contact",
+      objectType: "message",
       objectId: id,
       subjectUserId: input.studentId,
       studentUserId: input.studentId,

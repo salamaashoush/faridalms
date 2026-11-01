@@ -16,6 +16,7 @@ export type TemplateKind =
   | "event"
   | "consent_form"
   | "module"
+  | "message"
   | "admission_letter";
 
 export interface TemplateRow {

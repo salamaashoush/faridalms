@@ -351,10 +351,19 @@ export function eraseLedger(who: SQL) {
 export const erasureOf = (column: string) =>
   sql`app.erasure_approved(tenant_id, ${sql.identifier(column)})`;
 
-export const erasureListed = (type: "file" | "document", column: string) => {
+/** What an approved erasure may list besides the person: their files, documents, conversations and enquiries. */
+export type ErasedObject =
+  | "file"
+  | "document"
+  | "message_thread"
+  | "site_enquiry";
+
+export const erasureListed = (type: ErasedObject, column: string) => {
   const kind = {
     file: sql`'file'`,
     document: sql`'document'`,
+    message_thread: sql`'message_thread'`,
+    site_enquiry: sql`'site_enquiry'`,
   }[type];
   return sql`app.erasure_listed(tenant_id, ${kind}, ${sql.identifier(column)})`;
 };

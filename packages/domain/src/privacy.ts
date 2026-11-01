@@ -369,6 +369,21 @@ export const runErasureSchema = v.object({
   subjectUserId: v.pipe(v.string(), v.uuid()),
 });
 
+/**
+ * Erasing someone the school corresponded with who never had an account,
+ * such as a family that enquired: their own request, or the school's
+ * retention rules, named by a reference since no request record holds them.
+ */
+export const approveContactErasureSchema = v.object({
+  contactId: v.pipe(v.string(), v.uuid()),
+  basis: v.picklist(ERASURE_BASES),
+  reference: v.nullable(note(120)),
+});
+
+export const runContactErasureSchema = v.object({
+  contactId: v.pipe(v.string(), v.uuid()),
+});
+
 /** The most requests a guardian may have open about one child at a time. */
 export const MAX_OPEN_CORRECTIONS = 3;
 

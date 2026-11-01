@@ -22,7 +22,8 @@ test("a guardian replies to the teacher's note and the teacher reads it", async 
     .getByRole("button", { name: /Yasmin Sabry/ })
     .click();
   await expect(page.getByText("About Yasmin Sabry").last()).toBeVisible();
-  await page.getByRole("textbox", { name: "Write a message" }).fill(words);
+  await page.locator("form [contenteditable=true]").last().click();
+  await page.keyboard.type(words);
   await page.getByRole("button", { name: "Send", exact: true }).click();
   await expect(page.getByRole("list", { name: "Messages" })).toContainText(
     words,
@@ -56,7 +57,8 @@ test("a teacher writes to a child's family from a new message", async ({
   await sheet.getByRole("combobox", { name: /^Student/ }).click();
   await page.getByRole("combobox", { name: /Search/ }).fill("Yasmin");
   await page.getByRole("option", { name: "Yasmin Sabry" }).click();
-  await sheet.getByRole("textbox", { name: "Message" }).fill(words);
+  await sheet.locator("[contenteditable=true]").click();
+  await page.keyboard.type(words);
   await sheet.getByRole("button", { name: "Send", exact: true }).click();
   await expect(page).toHaveURL(/thread=/);
   await expect(page.getByRole("list", { name: "Messages" })).toContainText(

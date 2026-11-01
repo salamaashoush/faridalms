@@ -3,6 +3,7 @@ import { BUILTIN_CAPABILITIES } from "@faridalms/domain/capabilities";
 import { contentPlainText } from "@faridalms/domain/content";
 import { plainContent } from "@faridalms/domain/content-conversion";
 import { CATALOGUE, edfiUri } from "@faridalms/domain/descriptors/catalogue";
+import { BUILTIN_MESSAGE_TEMPLATES } from "@faridalms/domain/templates";
 import { sql } from "drizzle-orm";
 
 import type { CellTransaction, openOwner } from "./context";
@@ -124,7 +125,7 @@ export async function giveTemplates(
   tx: CellTransaction,
   tenantId: string,
   schoolIds: readonly string[],
-  kind: "admission_letter",
+  kind: "message" | "admission_letter",
   templates: readonly {
     key: string;
     locale: "en" | "ar";
@@ -190,6 +191,17 @@ export const giveLetterTemplates = (
       body: letter.body,
     })),
   );
+
+/**
+ * Gives each school the replies its office sends most as message templates
+ * of its own, which it may edit or remove.
+ */
+export const seedMessageTemplates = (
+  tx: CellTransaction,
+  tenantId: string,
+  schoolIds: readonly string[],
+) =>
+  giveTemplates(tx, tenantId, schoolIds, "message", BUILTIN_MESSAGE_TEMPLATES);
 
 export async function seedTenantKeys(
   tx: CellTransaction,
@@ -295,6 +307,7 @@ export async function createTenant(
   );
   await seedDescriptors(tx, tenantId);
   await seedBuiltinRoles(tx, tenantId);
+  await seedMessageTemplates(tx, tenantId, schoolIds);
   await giveLetterTemplates(tx, tenantId, schoolIds);
   await seedTenantKeys(tx, tenantId, keys.kek, keys.cell);
   await tx.execute(

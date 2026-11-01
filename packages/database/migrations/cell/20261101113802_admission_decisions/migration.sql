@@ -56,12 +56,9 @@ ALTER TABLE "core"."admission_applications" ADD COLUMN "offer_expires_on" date;-
 ALTER TABLE "core"."admission_applications" ADD COLUMN "answered_at" timestamp with time zone;--> statement-breakpoint
 ALTER TABLE "core"."admission_applications" ADD COLUMN "student_user_id" uuid;--> statement-breakpoint
 ALTER TABLE "core"."admission_applications" ADD COLUMN "deferred_from_id" uuid;--> statement-breakpoint
-ALTER TABLE "core"."document_templates" ADD COLUMN "builtin_key" text;--> statement-breakpoint
-ALTER TABLE "core"."document_templates" ALTER COLUMN "owner_user_id" DROP NOT NULL;--> statement-breakpoint
 CREATE INDEX "admission_events_application_idx" ON "core"."admission_events" ("tenant_id","application_id","starts_on") WHERE status = 'active';--> statement-breakpoint
 CREATE INDEX "admission_events_day_idx" ON "core"."admission_events" ("tenant_id","org_id","starts_on") WHERE status = 'active';--> statement-breakpoint
 CREATE INDEX "admission_letters_application_idx" ON "core"."admission_letters" ("tenant_id","application_id","created_at");--> statement-breakpoint
-CREATE UNIQUE INDEX "document_templates_builtin_key" ON "core"."document_templates" ("tenant_id","org_id","builtin_key") WHERE builtin_key is not null;--> statement-breakpoint
 ALTER TABLE "core"."admission_events" ADD CONSTRAINT "admission_events_tenant_id_fkey" FOREIGN KEY ("tenant_id") REFERENCES "core"."tenants"("tenant_id");--> statement-breakpoint
 ALTER TABLE "core"."admission_events" ADD CONSTRAINT "admission_events_tenant_id_org_id_fkey" FOREIGN KEY ("tenant_id","org_id") REFERENCES "core"."orgs"("tenant_id","id");--> statement-breakpoint
 ALTER TABLE "core"."admission_events" ADD CONSTRAINT "admission_events_tenant_id_application_id_fkey" FOREIGN KEY ("tenant_id","application_id") REFERENCES "core"."admission_applications"("tenant_id","id");--> statement-breakpoint
@@ -75,10 +72,8 @@ ALTER TABLE "core"."admission_applications" ADD CONSTRAINT "admission_applicatio
         and (decision is null) = (decided_at is null));--> statement-breakpoint
 ALTER TABLE "core"."admission_applications" ADD CONSTRAINT "admission_applications_offered_check" CHECK (state <> 'offered' or offer_expires_on is not null);--> statement-breakpoint
 ALTER TABLE "core"."admission_applications" ADD CONSTRAINT "admission_applications_enrolled_check" CHECK ((state = 'enrolled') = (student_user_id is not null));--> statement-breakpoint
-ALTER TABLE "core"."document_templates" ADD CONSTRAINT "document_templates_builtin_check" CHECK ((builtin_key is null) = (owner_user_id is not null));--> statement-breakpoint
-ALTER TABLE "core"."document_templates" ADD CONSTRAINT "document_templates_builtin_key_check" CHECK (builtin_key ~ '^[a-z][a-z0-9_]{1,62}$');--> statement-breakpoint
 ALTER TABLE "core"."student_school_years" DROP CONSTRAINT "student_school_years_source_check", ADD CONSTRAINT "student_school_years_source_check" CHECK (source in ('manual', 'import', 'sis', 'oneroster', 'rollover', 'admission'));--> statement-breakpoint
-ALTER TABLE "core"."document_templates" DROP CONSTRAINT "document_templates_kind_check", ADD CONSTRAINT "document_templates_kind_check" CHECK (kind in ('lesson', 'assignment', 'unit_plan', 'news', 'announcement', 'event', 'consent_form', 'module', 'admission_letter'));--> statement-breakpoint
+ALTER TABLE "core"."document_templates" DROP CONSTRAINT "document_templates_kind_check", ADD CONSTRAINT "document_templates_kind_check" CHECK (kind in ('lesson', 'assignment', 'unit_plan', 'news', 'announcement', 'event', 'consent_form', 'module', 'message', 'admission_letter'));--> statement-breakpoint
 ALTER TABLE "core"."admission_entries" DROP CONSTRAINT "admission_entries_kind_check", ADD CONSTRAINT "admission_entries_kind_check" CHECK (kind in ('note', 'state', 'item', 'event'));--> statement-breakpoint
 CREATE POLICY "tenant_isolation" ON "core"."admission_events" AS RESTRICTIVE FOR ALL TO public USING (tenant_id = (select app.tenant_id())) WITH CHECK (tenant_id = (select app.tenant_id()));--> statement-breakpoint
 CREATE POLICY "owner_all" ON "core"."admission_events" AS PERMISSIVE FOR ALL TO "cell_owner" USING (true) WITH CHECK (true);--> statement-breakpoint

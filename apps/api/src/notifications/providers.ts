@@ -2,10 +2,17 @@ export interface OutboundMessage {
   to: string;
   subject: string;
   text: string;
+  /** The same words laid out, for mail programs that show HTML. */
+  html?: string;
+  /** Whose name the email is sent in, at the platform's own address. */
+  fromName?: string;
   /** What the message delivers, stable across retries of the same send. */
   reference?: string;
   /** Where the recipient's answer goes, when the sender's address takes none. */
   replyTo?: string;
+  /** The message this answers, so the recipient's mail program threads it. */
+  inReplyTo?: string;
+  attachments?: { filename: string; content: Uint8Array }[];
 }
 
 export interface Provider {

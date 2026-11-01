@@ -42,11 +42,28 @@ export class ResendProvider implements Provider {
 
   async send(message: OutboundMessage) {
     const body = JSON.stringify({
-      from: this.from,
+      from: message.fromName ? named(message.fromName, this.from) : this.from,
       to: [message.to],
       subject: message.subject,
       text: message.text,
+      ...(message.html ? { html: message.html } : {}),
       ...(message.replyTo ? { reply_to: [message.replyTo] } : {}),
+      ...(message.inReplyTo
+        ? {
+            headers: {
+              "In-Reply-To": message.inReplyTo,
+              References: message.inReplyTo,
+            },
+          }
+        : {}),
+      ...(message.attachments?.length
+        ? {
+            attachments: message.attachments.map((file) => ({
+              filename: file.filename,
+              content: Buffer.from(file.content).toString("base64"),
+            })),
+          }
+        : {}),
     });
     const idempotencyKey = `farida/${createHash("sha256")
       .update(message.reference ?? "")
@@ -126,6 +143,17 @@ export class ResendProvider implements Provider {
     if (wait > 0) await this.sleep(wait);
     this.remaining = null;
   }
+}
+
+/**
+ * The platform's sender in another name: `Northwind School <no-reply@...>`
+ * from `Farida <no-reply@...>`. Quotes and angle brackets in the name are
+ * dropped, so a school's name cannot change the address.
+ */
+export function named(name: string, from: string): string {
+  const address = /<([^<>]+)>\s*$/.exec(from)?.[1] ?? from.trim();
+  const display = name.replaceAll(/["<>\r\n]/g, "").trim();
+  return display ? `"${display}" <${address}>` : from;
 }
 
 async function describe(response: Response) {

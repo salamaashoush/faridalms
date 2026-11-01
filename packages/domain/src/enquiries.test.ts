@@ -2,14 +2,18 @@ import { describe, expect, it } from "vitest";
 
 import type { FormQuestion } from "./enquiries";
 
+import { contentPlainText } from "./content";
+import { fillFields, plainContent } from "./content-conversion";
 import {
-  fillReply,
+  conversationSubject,
   nextStates,
   optionsOf,
   questionComplete,
   readAnswers,
   responseMinutes,
+  submissionText,
 } from "./enquiries";
+import { BUILTIN_MESSAGE_TEMPLATES, messageFields } from "./templates";
 
 const question = (more: Partial<FormQuestion>): FormQuestion => ({
   id: "q1",
@@ -123,23 +127,79 @@ describe("a form's own questions", () => {
   });
 });
 
+const fill = (key: string, fields: { child: string }) => {
+  const template = BUILTIN_MESSAGE_TEMPLATES.find((row) => row.key === key);
+  if (!template) throw new Error(key);
+  return contentPlainText(
+    fillFields(
+      plainContent(template.body),
+      messageFields(template.locale, {
+        name: "Salama Ashoush",
+        school: "Northwind",
+        sender: "Office",
+        ...fields,
+      }),
+    ),
+  );
+};
+
 describe("reply templates", () => {
   it("fill the family's and the school's names in either language", () => {
-    const fields = {
-      name: "Salama Ashoush",
-      child: "Yusuf",
-      school: "Northwind",
-      sender: "Office",
-    };
-    const english = fillReply("information", "en", fields);
-    expect(english.subject).toBe("A little more about Yusuf");
-    expect(english.body).toContain("Dear Salama Ashoush,");
-    expect(english.body).toContain("Office\nNorthwind");
-    const arabic = fillReply("visit", "ar", { ...fields, child: "" });
-    expect(arabic.subject).toBe("زيارة Northwind");
-    expect(arabic.body).not.toMatch(/\{\w+\}/);
+    const english = fill("enquiry_information_en", { child: "Yusuf" });
+    expect(english).toContain("Dear Salama Ashoush,");
+    expect(english).toContain("tell us Yusuf's date of birth");
+    expect(english).toContain("Office\nNorthwind");
+    const arabic = fill("enquiry_visit_ar", { child: "" });
+    expect(arabic).toContain("مرحبًا Salama Ashoush،");
+    expect(arabic).not.toMatch(/\{\w+\}/);
+    expect(fill("enquiry_information_en", { child: "" })).toContain(
+      "tell us your child's date of birth",
+    );
+  });
+
+  it("come in both languages for every reply", () => {
+    const keys = BUILTIN_MESSAGE_TEMPLATES.map((row) => row.key);
+    for (const key of keys.filter((row) => row.endsWith("_en")))
+      expect(keys).toContain(key.replace(/_en$/, "_ar"));
+  });
+});
+
+describe("the enquiry's conversation", () => {
+  it("is named in the family's language after what they asked", () => {
+    expect(conversationSubject("visit", "en", "Northwind")).toBe(
+      "Your visit to Northwind",
+    );
+    expect(conversationSubject("enquiry", "ar", "نورثويند")).toBe(
+      "استفساركم لدى نورثويند",
+    );
+  });
+
+  it("opens with the family's words, then their answers, or else their child", () => {
+    const answers = [
+      {
+        id: "q1",
+        label: "How did you hear about us?",
+        kind: "choice" as const,
+        value: "A friend",
+      },
+    ];
     expect(
-      fillReply("information", "en", { ...fields, child: "" }).subject,
-    ).toBe("A little more about your child");
+      submissionText({
+        message: "Is there a place in grade 2?",
+        answers,
+        childName: "Yusuf",
+        childYear: "",
+      }),
+    ).toBe(
+      "Is there a place in grade 2?\n\nHow did you hear about us?: A friend",
+    );
+    expect(
+      submissionText({
+        message: "",
+        answers: [],
+        childName: "Yusuf",
+        childYear: "Grade 2",
+      }),
+    ).toBe("Yusuf, Grade 2");
   });
 });

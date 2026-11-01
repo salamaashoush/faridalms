@@ -168,10 +168,11 @@ export const documents = core.table.withRLS(
 
 /**
  * A document a school keeps to start new ones from, such as a lesson laid
- * out as read, check and reflect, or a letter the admissions office sends.
- * Its content is the document it hosts, so its pictures and files belong to
- * it and are copied into each new one. One the school was given when it was
- * made has no owner and a `builtin_key`, so it is given once.
+ * out as read, check and reflect, a reply the office sends often, or a
+ * letter the admissions office sends. Its content is the document it
+ * hosts, so its pictures and files belong to it and are copied into each
+ * new one. One the school was given when it was made has no owner and a
+ * `builtin_key`, so it is given once.
  */
 export type LibraryState = "pending" | "shared" | "declined";
 
@@ -191,6 +192,7 @@ export const documentTemplates = core.table.withRLS(
         | "event"
         | "consent_form"
         | "module"
+        | "message"
         | "admission_letter"
       >()
       .notNull(),
@@ -227,7 +229,7 @@ export const documentTemplates = core.table.withRLS(
     ck(
       "document_templates",
       "kind",
-      sql`kind in ('lesson', 'assignment', 'unit_plan', 'news', 'announcement', 'event', 'consent_form', 'module', 'admission_letter')`,
+      sql`kind in ('lesson', 'assignment', 'unit_plan', 'news', 'announcement', 'event', 'consent_form', 'module', 'message', 'admission_letter')`,
     ),
     ck(
       "document_templates",
@@ -781,7 +783,11 @@ export const erasureApprovals = core.table.withRLS(
     createdAt: instant("created_at")
       .notNull()
       .default(sql`statement_timestamp()`),
-    subjectUserId: uuid("subject_user_id").notNull(),
+    // A person, or an outside contact who never had an account; keyed to
+    // message_contacts NOT VALID by the custom migration, since the table
+    // already holds rows.
+    subjectUserId: uuid("subject_user_id"),
+    subjectContactId: uuid("subject_contact_id"),
     basis: text("basis")
       .$type<
         "data_subject_request" | "retention_schedule" | "regulator_order"
@@ -824,7 +830,15 @@ export const erasureApprovals = core.table.withRLS(
       "approvers",
       sql`second_approver_user_id is distinct from approved_by_user_id`,
     ),
+    ck(
+      "erasure_approvals",
+      "subject",
+      sql`num_nonnulls(subject_user_id, subject_contact_id) = 1`,
+    ),
     index("erasure_approvals_subject_idx").on(t.tenantId, t.subjectUserId),
+    index("erasure_approvals_contact_idx")
+      .on(t.tenantId, t.subjectContactId)
+      .where(sql`subject_contact_id is not null`),
     ...ledgerProfile(),
   ],
 );
@@ -834,7 +848,9 @@ export const erasureItems = core.table.withRLS(
   {
     tenantId: uuid("tenant_id").notNull(),
     approvalId: uuid("approval_id").notNull(),
-    objectType: text("object_type").$type<"file" | "document">().notNull(),
+    objectType: text("object_type")
+      .$type<"file" | "document" | "message_thread" | "site_enquiry">()
+      .notNull(),
     objectId: uuid("object_id").notNull(),
     createdAt: instant("created_at")
       .notNull()
@@ -851,7 +867,7 @@ export const erasureItems = core.table.withRLS(
     ck(
       "erasure_items",
       "object_type",
-      sql`object_type in ('file', 'document')`,
+      sql`object_type in ('file', 'document', 'message_thread', 'site_enquiry')`,
     ),
     index("erasure_items_object_idx").on(t.tenantId, t.objectType, t.objectId),
     ...ledgerProfile(),

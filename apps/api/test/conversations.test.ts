@@ -1,0 +1,536 @@
+import { plainContent } from "@faridalms/domain/content-conversion";
+import {
+  readReplyAddress,
+  REPLY_MARKER,
+} from "@faridalms/domain/email-replies";
+import { describe, expect, test } from "bun:test";
+
+import type { InboundMail } from "../src/messages/inbound";
+import type { Inbox, ReceivedEmail } from "../src/notifications/resend-inbox";
+
+import { claimConversations } from "../src/messages/conversations";
+import { INBOUND_PATH, MAIL_PER_HOUR } from "../src/messages/inbound";
+import { deliverTenant } from "../src/notifications/deliver";
+import { signWebhook } from "../src/notifications/resend-inbox";
+import {
+  handlerWith,
+  login,
+  raw,
+  rejection,
+  seeded,
+  sessionFor,
+} from "./harness";
+
+const officer = () => sessionFor("northwind", login("staff"));
+const principal = () => sessionFor("northwind", login("principal"));
+const teacher = () => sessionFor("northwind", login("teacher"));
+const parent = () =>
+  sessionFor("northwind", login("student").replace("student", "parent"));
+
+const DOMAIN = "reply.example.com";
+const SECRET = `whsec_${Buffer.from("a-test-signing-secret-of-32-bytes").toString("base64")}`;
+
+/** Received mail as Resend's API would return it, kept in memory. */
+class TestInbox implements Inbox {
+  readonly emails = new Map<string, ReceivedEmail>();
+  readonly bytes = new Map<string, Uint8Array>();
+
+  email(id: string) {
+    return Promise.resolve(this.emails.get(id) ?? null);
+  }
+
+  attachment(emailId: string, attachmentId: string, maxBytes: number) {
+    const found = this.bytes.get(`${emailId}/${attachmentId}`) ?? null;
+    return Promise.resolve(
+      found && found.byteLength <= maxBytes ? found : null,
+    );
+  }
+}
+
+const inbox = new TestInbox();
+const inbound: InboundMail = {
+  domain: DOMAIN,
+  webhookSecret: SECRET,
+  inbox,
+  senderDomain: "mail.example.com",
+};
+const app = () => handlerWith({ inbound });
+
+const tenantId = () => seeded().tenants[0]?.tenantId ?? "";
+
+/** Sends what is due, with replies coming back to the test's receiving domain. */
+function deliver() {
+  const { cell, mail, cellSecret, files } = seeded();
+  return deliverTenant(
+    cell,
+    {
+      email: mail,
+      sms: null,
+      conversations: { replyDomain: DOMAIN, cellSecret, files },
+    },
+    tenantId(),
+  );
+}
+
+/** Resend telling the API an email arrived, signed or not. */
+async function webhook(
+  email: Partial<ReceivedEmail> & { to: string[] },
+  options: { signed?: boolean } = {},
+) {
+  const id = email.id ?? crypto.randomUUID();
+  const received: ReceivedEmail = {
+    from: "salama.family@example.com",
+    cc: [],
+    subject: "Re: your enquiry",
+    text: "Thank you.",
+    html: null,
+    headers: {},
+    messageId: `<${id}@mail.example.org>`,
+    authentication: { spf: "pass", dkim: "pass", dmarc: "pass" },
+    attachments: [],
+    ...email,
+    id,
+  };
+  inbox.emails.set(id, received);
+  const body = JSON.stringify({
+    type: "email.received",
+    created_at: new Date().toISOString(),
+    data: { email_id: id, to: received.to, cc: [], from: received.from },
+  });
+  const timestamp = Math.floor(Date.now() / 1000);
+  const svixId = `msg_${crypto.randomUUID()}`;
+  const response = await app()(
+    new Request(`http://api.test${INBOUND_PATH}`, {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        "svix-id": svixId,
+        "svix-timestamp": String(timestamp),
+        "svix-signature":
+          options.signed === false
+            ? "v1,bm90IGEgc2lnbmF0dXJl"
+            : signWebhook({ secret: SECRET, id: svixId, timestamp, body }),
+      },
+      body,
+    }),
+  );
+  return {
+    status: response.status,
+    outcome: ((await response.json()) as { outcome?: string }).outcome,
+  };
+}
+
+/** A family's enquiry taken at the desk, with its conversation and the family's address. */
+async function enquiryFrom(email: string) {
+  const { api } = await officer();
+  const logged = await api.admissions.logEnquiry({
+    source: "walk_in",
+    purpose: "enquiry",
+    locale: "en",
+    name: "Salama Ashoush",
+    email,
+    phone: "010 0555 0123",
+    childName: "Yusuf",
+    childYear: "Grade 2",
+    message: "",
+    assigneeId: "",
+  });
+  if (!logged.threadId) throw new Error("no conversation");
+  return { api, enquiryId: logged.id, threadId: logged.threadId };
+}
+
+/** Writes to the family and returns the reply address their email carried. */
+async function replyAddressOf(
+  api: Awaited<ReturnType<typeof officer>>["api"],
+  threadId: string,
+  to: string,
+  words: string,
+) {
+  await api.messages.send({
+    threadId,
+    content: plainContent(words),
+    force: true,
+  });
+  await deliver();
+  const email = seeded().mail.sent.findLast((item) => item.to === to);
+  if (!email?.replyTo) throw new Error("no reply address");
+  return { email, replyTo: email.replyTo };
+}
+
+describe("a team's mailbox", () => {
+  test("every holder of its capability reads its conversations; others do not", async () => {
+    const { threadId } = await enquiryFrom("salama.mailbox@example.com");
+    const office = await officer();
+    const listed = await office.api.messages.inbox({ box: "admissions" });
+    expect(listed.mailboxes).toContain("admissions");
+    expect(listed.rows.map((row) => row.id)).toContain(threadId);
+    expect(listed.rows.find((row) => row.id === threadId)?.mailbox).toBe(
+      "admissions",
+    );
+    const head = await principal();
+    expect((await head.api.messages.thread({ id: threadId })).team).toBeTrue();
+    const other = await teacher();
+    expect(
+      await rejection(other.api.messages.thread({ id: threadId })),
+    ).toMatchObject({ code: "NOT_FOUND" });
+    expect(
+      (await other.api.messages.inbox({})).rows.some(
+        (row) => row.id === threadId,
+      ),
+    ).toBeFalse();
+  });
+
+  test("a reply someone overtook is refused until it is read, unless sent anyway", async () => {
+    const { threadId } = await enquiryFrom("salama.collide@example.com");
+    const office = await officer();
+    const head = await principal();
+    const seen = await office.api.messages.thread({ id: threadId });
+    await head.api.messages.send({
+      threadId,
+      content: plainContent("I have answered them."),
+      after: seen.latestId ?? "",
+    });
+    expect(
+      await rejection(
+        office.api.messages.send({
+          threadId,
+          content: plainContent("Thank you for visiting."),
+          after: seen.latestId ?? "",
+        }),
+      ),
+    ).toMatchObject({ code: "CONFLICT", message: "messages.newer" });
+    const sent = await office.api.messages.send({
+      threadId,
+      content: plainContent("Thank you for visiting."),
+      after: seen.latestId ?? "",
+      force: true,
+    });
+    expect(sent.id).toBeString();
+  });
+});
+
+describe("email to and from an outside contact", () => {
+  test("a message leaves as email in the school's name, with a reply address naming no record", async () => {
+    const address = "salama.out@example.com";
+    const { api, threadId, enquiryId } = await enquiryFrom(address);
+    const { email, replyTo } = await replyAddressOf(
+      api,
+      threadId,
+      address,
+      "We would be glad to show you round.",
+    );
+    const routed = readReplyAddress(replyTo, DOMAIN);
+    expect(routed?.tenantId).toBe(tenantId());
+    expect(replyTo).not.toContain(threadId.replaceAll("-", ""));
+    expect(replyTo).not.toContain(enquiryId.replaceAll("-", ""));
+    expect(email).toMatchObject({
+      fromName: "Northwind International College",
+      subject: "Your enquiry to Northwind International College",
+    });
+    expect(email.text).toStartWith(REPLY_MARKER.en);
+    expect(email.text).toContain("We would be glad to show you round.");
+    const note = await api.messages.send({
+      threadId,
+      kind: "note",
+      content: plainContent("Not for the family."),
+    });
+    expect(note.id).toBeString();
+    const before = seeded().mail.sent.length;
+    await deliver();
+    expect(
+      seeded()
+        .mail.sent.slice(before)
+        .some((item) => item.to === address),
+    ).toBeFalse();
+  });
+
+  test("the family's reply, from their own address, lands in the conversation without the quote", async () => {
+    const address = "salama.in@example.com";
+    const { api, threadId } = await enquiryFrom(address);
+    const { replyTo } = await replyAddressOf(
+      api,
+      threadId,
+      address,
+      "When can you visit?",
+    );
+    inbox.bytes.set("email-in-1/att-1", new TextEncoder().encode("Tue, Thu."));
+    const answered = await webhook({
+      from: `Salama Ashoush <${address}>`,
+      to: [replyTo],
+      text: `Tuesday at ten suits us.\n\nOn Mon, 2 Nov 2026, Northwind wrote:\n> ${REPLY_MARKER.en}\n> When can you visit?`,
+      attachments: [
+        {
+          id: "att-1",
+          filename: "dates.txt",
+          contentType: "text/plain",
+          size: 9,
+        },
+        {
+          id: "att-2",
+          filename: "huge.txt",
+          contentType: "text/plain",
+          size: 5 * 1024 * 1024,
+        },
+      ],
+      id: "email-in-1",
+    });
+    expect(answered).toEqual({ status: 200, outcome: "posted" });
+    const opened = await api.messages.thread({ id: threadId });
+    const last = opened.messages.at(-1);
+    expect(last?.kind).toBe("message");
+    expect(last?.authorNameEn).toBe("Salama Ashoush");
+    expect(last?.body).toBe("Tuesday at ten suits us.\ndates.txt");
+    expect(last?.authorContactId).toBeString();
+    expect(last?.details).toMatchObject({
+      emailId: "email-in-1",
+      skipped: [{ name: "huge.txt", reason: "too_large" }],
+    });
+    const again = await webhook({
+      from: address,
+      to: [replyTo],
+      id: "email-in-1",
+    });
+    expect(again.outcome).toBe("duplicate");
+  });
+
+  test("an attachment the family sends is checked, kept and opened by the team", async () => {
+    const address = "salama.files@example.com";
+    const { api, threadId } = await enquiryFrom(address);
+    const { replyTo } = await replyAddressOf(
+      api,
+      threadId,
+      address,
+      "Please send the form.",
+    );
+    inbox.bytes.set(
+      "email-files/form",
+      new TextEncoder().encode("Signed form."),
+    );
+    const result = await webhook({
+      id: "email-files",
+      from: address,
+      to: [replyTo],
+      text: "Here it is.",
+      attachments: [
+        {
+          id: "form",
+          filename: "form.txt",
+          contentType: "text/plain",
+          size: 12,
+        },
+      ],
+    });
+    expect(result.outcome).toBe("posted");
+    const last = (await api.messages.thread({ id: threadId })).messages.at(-1);
+    const block = last?.content?.root.children?.find(
+      (node) => node.type === "file",
+    );
+    expect(block?.name).toBe("form.txt");
+    const office = await officer();
+    const read = await raw(
+      "northwind",
+      office.token,
+      `/v1/files/${block?.fileId}/content`,
+    );
+    expect(read.status).toBe(200);
+    expect(await read.text()).toBe("Signed form.");
+    const outsider = await teacher();
+    expect(
+      (
+        await raw(
+          "northwind",
+          outsider.token,
+          `/v1/files/${block?.fileId}/content`,
+        )
+      ).status,
+    ).toBe(404);
+  });
+
+  test("mail from another address, or one that fails its checks, is held for the team, never posted", async () => {
+    const address = "salama.held@example.com";
+    const { api, threadId } = await enquiryFrom(address);
+    const { replyTo } = await replyAddressOf(api, threadId, address, "Hello.");
+    const stranger = await webhook({
+      from: "someone.else@example.org",
+      to: [replyTo],
+      text: "I am the family, honestly.",
+    });
+    expect(stranger.outcome).toBe("held");
+    const spoofed = await webhook({
+      from: address,
+      to: [replyTo],
+      text: "Spoofed.",
+      authentication: { spf: "fail", dkim: "fail", dmarc: "fail" },
+    });
+    expect(spoofed.outcome).toBe("held");
+    const entries = (await api.messages.thread({ id: threadId })).messages;
+    expect(
+      entries.slice(-2).map((entry) => [entry.kind, entry.details.reason]),
+    ).toEqual([
+      ["held", "sender"],
+      ["held", "unauthenticated"],
+    ]);
+    expect(
+      entries.slice(-2).every((entry) => entry.authorContactId === null),
+    ).toBeTrue();
+  });
+
+  test("machines, unknown addresses, floods and unsigned calls never reach a conversation", async () => {
+    const address = "salama.machines@example.com";
+    const { api, threadId } = await enquiryFrom(address);
+    const { replyTo } = await replyAddressOf(api, threadId, address, "Hello.");
+    expect(
+      (
+        await webhook({
+          from: address,
+          to: [replyTo],
+          headers: { "auto-submitted": "auto-replied" },
+          text: "I am out of the office.",
+        })
+      ).outcome,
+    ).toBe("automated");
+    expect(
+      (await webhook({ from: "mailer-daemon@example.org", to: [replyTo] }))
+        .outcome,
+    ).toBe("automated");
+    expect(
+      (await webhook({ from: "no-reply@mail.example.com", to: [replyTo] }))
+        .outcome,
+    ).toBe("automated");
+    const routed = readReplyAddress(replyTo, DOMAIN);
+    expect(
+      (
+        await webhook({
+          from: address,
+          to: [
+            `r+${routed?.tenantId.replaceAll("-", "")}.${"a".repeat(26)}@${DOMAIN}`,
+          ],
+        })
+      ).outcome,
+    ).toBe("unknown_token");
+    expect(
+      (await webhook({ from: address, to: ["office@example.com"] })).outcome,
+    ).toBe("unknown_address");
+    expect(
+      (await webhook({ from: address, to: [replyTo] }, { signed: false }))
+        .status,
+    ).toBe(401);
+    const before = (await api.messages.thread({ id: threadId })).messages
+      .length;
+    for (let sent = 0; sent < MAIL_PER_HOUR; sent += 1)
+      await webhook({ from: address, to: [replyTo], text: `Number ${sent}` });
+    expect(
+      (await webhook({ from: address, to: [replyTo], text: "One too many" }))
+        .outcome,
+    ).toBe("flood");
+    const after = (await api.messages.thread({ id: threadId })).messages;
+    expect(after.length).toBe(before + MAIL_PER_HOUR);
+  });
+});
+
+describe("an outside contact who becomes a family with an account", () => {
+  test("takes over the same conversations in their portal, without the team's internal entries", async () => {
+    const address = "salama.link@example.com";
+    const { api, threadId } = await enquiryFrom(address);
+    await api.messages.send({
+      threadId,
+      content: plainContent("Welcome to the school."),
+      force: true,
+    });
+    await api.messages.send({
+      threadId,
+      kind: "note",
+      content: plainContent("Seems keen."),
+    });
+    await deliver();
+    const family = await parent();
+    const me = await family.api.identity.currentUser();
+    const { cell } = seeded();
+    const school = seeded().tenants[0]?.schools[0]?.id ?? "";
+    const linked = await cell.withTenant(
+      {
+        tenantId: tenantId(),
+        requestId: crypto.randomUUID(),
+        actor: { kind: "system" },
+      },
+      "write",
+      (tx) =>
+        claimConversations(tx, {
+          tenantId: tenantId(),
+          schoolId: school,
+          userId: me.id,
+          verifiedEmail: address.toUpperCase(),
+        }),
+    );
+    expect(linked.conversations).toBe(1);
+    const theirs = await family.api.messages.inbox({});
+    expect(theirs.rows.map((row) => row.id)).toContain(threadId);
+    const opened = await family.api.messages.thread({ id: threadId });
+    expect(opened.team).toBeFalse();
+    expect(
+      opened.messages.every((entry) => entry.kind === "message"),
+    ).toBeTrue();
+    expect(opened.messages.map((entry) => entry.body)).toContain(
+      "Welcome to the school.",
+    );
+    expect(
+      await rejection(
+        family.api.messages.send({
+          threadId,
+          kind: "note",
+          content: plainContent("Trying a note."),
+        }),
+      ),
+    ).toMatchObject({ code: "FORBIDDEN" });
+    await family.api.messages.send({
+      threadId,
+      content: plainContent("Thank you, see you Tuesday."),
+    });
+    const office = await officer();
+    const told = (
+      await office.api.notifications.list({ tab: "all" })
+    ).rows.find((row) => row.subjectId === threadId);
+    expect(told?.kind).toBe("message");
+    const before = seeded().mail.sent.length;
+    await office.api.messages.send({
+      threadId,
+      content: plainContent("See you then."),
+      force: true,
+    });
+    await deliver();
+    expect(
+      seeded()
+        .mail.sent.slice(before)
+        .some((item) => item.to === address),
+    ).toBeFalse();
+  });
+});
+
+describe("the attendance office's calls", () => {
+  test("are logged contacts in its conversation with the family", async () => {
+    const office = await principal();
+    const child = await (
+      await sessionFor("northwind", login("student"))
+    ).api.identity.currentUser();
+    const day = new Date().toISOString().slice(0, 10);
+    const { id } = await office.api.followUp.logContact({
+      studentId: child.id,
+      date: day,
+      outcome: "left_message",
+      note: "Left a voicemail with the mother.",
+    });
+    const listed = await office.api.messages.inbox({ box: "attendance" });
+    const thread = listed.rows.find((row) => row.studentId === child.id);
+    if (!thread) throw new Error("no attendance conversation");
+    const opened = await office.api.messages.thread({ id: thread.id });
+    expect(opened.messages.find((entry) => entry.id === id)).toMatchObject({
+      kind: "call",
+      body: "Left a voicemail with the mother.",
+      details: { outcome: "left_message", studentId: child.id, on: day },
+    });
+    const family = await parent();
+    expect(
+      (await family.api.messages.thread({ id: thread.id })).messages,
+    ).toEqual([]);
+  });
+});

@@ -2,9 +2,9 @@
   "type": "diff",
   "version": "9",
   "dialect": "postgres",
-  "id": "f5c0537e-34b6-47b1-a09a-d7730ce45289",
+  "id": "ef238f9a-9a10-42ee-bf77-0a09fc10e21b",
   "prevIds": [
-    "5eeb80a6-41eb-4771-9437-b02d4d50e7d1"
+    "bf6b1d1e-448d-4bdb-9708-a9ed2c7b6f9f"
   ],
   "footprints": [
     {
@@ -190,42 +190,6 @@
       ]
     },
     {
-      "statementType": "add_column",
-      "statementTarget": [
-        "column",
-        "core",
-        "document_templates",
-        "builtin_key"
-      ],
-      "writes": [
-        "s|col|core.document_templates.builtin_key",
-        "n|col|core.document_templates.builtin_key",
-        "e|col|core.document_templates.builtin_key"
-      ],
-      "reads": [
-        "n|tbl|core.document_templates",
-        "n|sch|core"
-      ]
-    },
-    {
-      "statementType": "alter_column",
-      "statementTarget": [
-        "column",
-        "core",
-        "document_templates",
-        "owner_user_id"
-      ],
-      "writes": [
-        "s|colprop|core.document_templates.owner_user_id.notNull"
-      ],
-      "reads": [
-        "n|tbl|core.document_templates",
-        "n|sch|core",
-        "n|col|core.document_templates.owner_user_id"
-      ],
-      "sqlHash": "bfd9bc1fd09a0fd4"
-    },
-    {
       "statementType": "create_index",
       "statementTarget": [
         "index",
@@ -289,28 +253,6 @@
         "n|col|core.admission_letters.tenant_id",
         "n|col|core.admission_letters.application_id",
         "n|col|core.admission_letters.created_at"
-      ]
-    },
-    {
-      "statementType": "create_index",
-      "statementTarget": [
-        "index",
-        "core",
-        "document_templates",
-        "document_templates_builtin_key"
-      ],
-      "writes": [
-        "s|idx|core.document_templates_builtin_key",
-        "n|idx|core.document_templates_builtin_key",
-        "e|idx|core.document_templates_builtin_key",
-        "n|rel|core.document_templates_builtin_key"
-      ],
-      "reads": [
-        "n|tbl|core.document_templates",
-        "n|sch|core",
-        "n|col|core.document_templates.tenant_id",
-        "n|col|core.document_templates.org_id",
-        "n|col|core.document_templates.builtin_key"
       ]
     },
     {
@@ -591,45 +533,6 @@
       ]
     },
     {
-      "statementType": "add_check",
-      "statementTarget": [
-        "table",
-        "core",
-        "document_templates"
-      ],
-      "writes": [
-        "s|ck|core.document_templates.document_templates_builtin_check",
-        "n|ck|core.document_templates.document_templates_builtin_check",
-        "e|ck|core.document_templates.document_templates_builtin_check",
-        "n|con|core.document_templates.document_templates_builtin_check"
-      ],
-      "reads": [
-        "n|tbl|core.document_templates",
-        "n|sch|core",
-        "n|col|core.document_templates.builtin_key",
-        "n|col|core.document_templates.owner_user_id"
-      ]
-    },
-    {
-      "statementType": "add_check",
-      "statementTarget": [
-        "table",
-        "core",
-        "document_templates"
-      ],
-      "writes": [
-        "s|ck|core.document_templates.document_templates_builtin_key_check",
-        "n|ck|core.document_templates.document_templates_builtin_key_check",
-        "e|ck|core.document_templates.document_templates_builtin_key_check",
-        "n|con|core.document_templates.document_templates_builtin_key_check"
-      ],
-      "reads": [
-        "n|tbl|core.document_templates",
-        "n|sch|core",
-        "n|col|core.document_templates.builtin_key"
-      ]
-    },
-    {
       "statementType": "alter_check",
       "statementTarget": [
         "table",
@@ -663,7 +566,7 @@
         "n|col|core.document_templates.kind",
         "e|col|core.document_templates.kind"
       ],
-      "sqlHash": "d267520d00ea6b42"
+      "sqlHash": "6aba7f6abf150177"
     },
     {
       "statementType": "alter_check",
@@ -1483,22 +1386,6 @@
       "op": "create",
       "row": {
         "schema": "core",
-        "table": "document_templates",
-        "name": "builtin_key",
-        "type": "text",
-        "typeSchema": null,
-        "notNull": false,
-        "dimensions": 0,
-        "default": null,
-        "generated": null,
-        "identity": null,
-        "entityType": "columns"
-      }
-    },
-    {
-      "op": "create",
-      "row": {
-        "schema": "core",
         "table": "admission_events",
         "name": "admission_events_application_idx",
         "nameExplicit": true,
@@ -1603,44 +1490,6 @@
         ],
         "isUnique": false,
         "where": null,
-        "with": "",
-        "method": "btree",
-        "concurrently": false,
-        "entityType": "indexes"
-      }
-    },
-    {
-      "op": "create",
-      "row": {
-        "schema": "core",
-        "table": "document_templates",
-        "name": "document_templates_builtin_key",
-        "nameExplicit": true,
-        "columns": [
-          {
-            "value": "tenant_id",
-            "isExpression": false,
-            "asc": true,
-            "nullsFirst": false,
-            "opclass": null
-          },
-          {
-            "value": "org_id",
-            "isExpression": false,
-            "asc": true,
-            "nullsFirst": false,
-            "opclass": null
-          },
-          {
-            "value": "builtin_key",
-            "isExpression": false,
-            "asc": true,
-            "nullsFirst": false,
-            "opclass": null
-          }
-        ],
-        "isUnique": true,
-        "where": "builtin_key is not null",
         "with": "",
         "method": "btree",
         "concurrently": false,
@@ -2011,26 +1860,6 @@
       "op": "create",
       "row": {
         "schema": "core",
-        "table": "document_templates",
-        "name": "document_templates_builtin_check",
-        "value": "(builtin_key is null) = (owner_user_id is not null)",
-        "entityType": "checks"
-      }
-    },
-    {
-      "op": "create",
-      "row": {
-        "schema": "core",
-        "table": "document_templates",
-        "name": "document_templates_builtin_key_check",
-        "value": "builtin_key ~ '^[a-z][a-z0-9_]{1,62}$'",
-        "entityType": "checks"
-      }
-    },
-    {
-      "op": "create",
-      "row": {
-        "schema": "core",
         "table": "admission_events",
         "name": "tenant_isolation",
         "as": "RESTRICTIVE",
@@ -2201,13 +2030,6 @@
     },
     {
       "op": "alter",
-      "key": "columns\u0000[\"core\",\"document_templates\",\"owner_user_id\"]",
-      "set": {
-        "notNull": false
-      }
-    },
-    {
-      "op": "alter",
       "key": "checks\u0000[\"core\",\"student_school_years\",\"student_school_years_source_check\"]",
       "set": {
         "value": "source in ('manual', 'import', 'sis', 'oneroster', 'rollover', 'admission')"
@@ -2217,7 +2039,7 @@
       "op": "alter",
       "key": "checks\u0000[\"core\",\"document_templates\",\"document_templates_kind_check\"]",
       "set": {
-        "value": "kind in ('lesson', 'assignment', 'unit_plan', 'news', 'announcement', 'event', 'consent_form', 'module', 'admission_letter')"
+        "value": "kind in ('lesson', 'assignment', 'unit_plan', 'news', 'announcement', 'event', 'consent_form', 'module', 'message', 'admission_letter')"
       }
     },
     {

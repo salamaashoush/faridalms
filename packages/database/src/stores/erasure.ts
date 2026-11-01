@@ -14,6 +14,63 @@ type Tx = CellTransaction;
 export interface ErasurePlan {
   documents: string[];
   files: string[];
+  /** Conversations only about the subject: their enquiries' and their own as an outside contact. */
+  threads: string[];
+  enquiries: string[];
+}
+
+/**
+ * The conversations and enquiries that are only about an outside contact,
+ * and the documents and files of what was written in them and of what the
+ * contact wrote elsewhere: a conversation goes whole when the contact is
+ * the only one outside the school in it.
+ */
+async function conversationPlan(
+  tx: Tx,
+  input: { tenantId: string; contacts: SQL },
+): Promise<ErasurePlan> {
+  const t = input.tenantId;
+  const threads = await tx.execute<{ id: string }>(sql`
+    select distinct m.thread_id as id from core.thread_members m
+    join core.message_threads h on h.tenant_id = m.tenant_id and h.id = m.thread_id
+      and h.mailbox is not null
+    where m.tenant_id = ${t}::uuid and m.contact_id in ${input.contacts}
+      and not exists (select 1 from core.thread_members o
+        where o.tenant_id = m.tenant_id and o.thread_id = m.thread_id and o.contact_id is not null
+          and o.contact_id not in ${input.contacts})`);
+  const threadIds = threads.map((row) => row.id);
+  const enquiries = await tx.execute<{ id: string }>(sql`
+    select id from core.site_enquiries
+    where tenant_id = ${t}::uuid and thread_id = any(${uuidArray(threadIds)})`);
+  const entries = sql`(select x.id from core.messages x where x.tenant_id = ${t}::uuid
+    and (x.thread_id = any(${uuidArray(threadIds)}) or x.author_contact_id in ${input.contacts}))`;
+  const documents = await tx.execute<{ id: string }>(sql`
+    select id from core.documents
+    where tenant_id = ${t}::uuid and host_type = 'message' and host_id in ${entries}`);
+  const files = await tx.execute<{ id: string }>(sql`
+    select id from core.files
+    where tenant_id = ${t}::uuid and status = 'active' and host_type = 'message'
+      and host_id in ${entries}`);
+  return {
+    documents: documents.map((row) => row.id),
+    files: files.map((row) => row.id),
+    threads: threadIds,
+    enquiries: enquiries.map((row) => row.id),
+  };
+}
+
+/**
+ * What erasing an outside contact who never had an account takes: their
+ * conversations and enquiries as `conversationPlan` finds them.
+ */
+export function contactErasurePlan(
+  tx: Tx,
+  input: { tenantId: string; contactId: string },
+): Promise<ErasurePlan> {
+  return conversationPlan(tx, {
+    tenantId: input.tenantId,
+    contacts: sql`(select ${input.contactId}::uuid)`,
+  });
 }
 
 /**
@@ -65,9 +122,46 @@ export async function erasurePlan(
       and not exists (select 1 from core.orgs o where o.tenant_id = f.tenant_id and o.logo_file_id = f.id)
       and not exists (select 1 from core.users u where u.tenant_id = f.tenant_id and u.photo_file_id = f.id
                         and u.id <> ${s}::uuid)`);
+  // What they wrote in conversations, and the conversations and enquiries
+  // only about them as the outside contact their account was linked to.
+  const contacts = sql`(select id from core.message_contacts
+    where tenant_id = ${t}::uuid and user_id = ${s}::uuid)`;
+  const conversations = await conversationPlan(tx, { tenantId: t, contacts });
+  const written = await tx.execute<{
+    document_id: string;
+    file_id: string | null;
+  }>(sql`
+    select d.id as document_id, f.id as file_id from core.messages x
+    join core.documents d on d.tenant_id = x.tenant_id and d.host_type = 'message' and d.host_id = x.id
+    left join core.files f on f.tenant_id = x.tenant_id and f.host_type = 'message' and f.host_id = x.id
+      and f.status = 'active'
+    where x.tenant_id = ${t}::uuid and x.author_user_id = ${s}::uuid`);
   return {
-    documents: documentIds,
-    files: files.map((row) => row.id),
+    documents: [
+      ...new Set([
+        ...documentIds,
+        ...conversations.documents,
+        ...written.map((row) => row.document_id),
+      ]),
+    ],
+    files: [
+      ...new Set([
+        ...files.map((row) => row.id),
+        ...conversations.files,
+        ...written.flatMap((row) => (row.file_id ? [row.file_id] : [])),
+      ]),
+    ],
+    threads: conversations.threads,
+    enquiries: [
+      ...new Set([
+        ...conversations.enquiries,
+        ...(
+          await tx.execute<{ id: string }>(sql`
+            select id from core.site_enquiries where tenant_id = ${t}::uuid
+              and (family_user_id = ${s}::uuid or applicant_user_id = ${s}::uuid)`)
+        ).map((row) => row.id),
+      ]),
+    ],
   };
 }
 
@@ -76,7 +170,9 @@ export async function approveErasure(
   tx: Tx,
   input: {
     tenantId: string;
-    subjectUserId: string;
+    /** A person, or with `subjectContactId`, an outside contact who never had an account. */
+    subjectUserId: string | null;
+    subjectContactId?: string | null;
     basis: ErasureBasis;
     requestReference: string | null;
     approvedByUserId: string;
@@ -88,6 +184,7 @@ export async function approveErasure(
     .values({
       tenantId: input.tenantId,
       subjectUserId: input.subjectUserId,
+      subjectContactId: input.subjectContactId ?? null,
       basis: input.basis,
       requestReference: input.requestReference,
       approvedByUserId: input.approvedByUserId,
@@ -103,6 +200,14 @@ export async function approveErasure(
       objectType: "file" as const,
       objectId,
     })),
+    ...input.plan.threads.map((objectId) => ({
+      objectType: "message_thread" as const,
+      objectId,
+    })),
+    ...input.plan.enquiries.map((objectId) => ({
+      objectType: "site_enquiry" as const,
+      objectId,
+    })),
   ];
   if (items.length)
     await tx.insert(erasureItems).values(
@@ -113,6 +218,162 @@ export async function approveErasure(
       })),
     );
   return approval.id;
+}
+
+/**
+ * Empties what an erasure reaches in conversations: entries the subject
+ * wrote, as a person or as their contact, and every entry, membership and
+ * conversation the approval lists, each keeping its place so a
+ * conversation still reads in order; the contacts, emptied; the enquiries
+ * listed, emptied of the family's words; and the addresses mail to them
+ * was sent to. Row security admits each statement only under the approval.
+ */
+async function eraseConversations(
+  run: (name: string, statement: SQL) => Promise<void>,
+  input: {
+    tenantId: string;
+    /** The subject's contacts: their own row, or those linked to the person. */
+    contacts: SQL;
+    authorUserId: string | null;
+    listed: (type: "message_thread" | "site_enquiry") => SQL;
+  },
+) {
+  const t = input.tenantId;
+  const author = input.authorUserId
+    ? sql`x.author_user_id = ${input.authorUserId}::uuid or`
+    : sql``;
+  await run(
+    "messages",
+    sql`update core.messages x set body = '', details = '{}', redacted_at = statement_timestamp()
+        where x.tenant_id = ${t}::uuid and x.redacted_at is null
+          and (${author} x.author_contact_id in ${input.contacts}
+            or x.thread_id in ${input.listed("message_thread")})
+        returning 1`,
+  );
+  await run(
+    "thread_members",
+    sql`update core.thread_members m set status = 'tobedeleted', metadata = '{}', draft = null
+        where m.tenant_id = ${t}::uuid and m.status = 'active'
+          and (${input.authorUserId ? sql`m.user_id = ${input.authorUserId}::uuid or` : sql``}
+            m.contact_id in ${input.contacts} or m.thread_id in ${input.listed("message_thread")})
+        returning 1`,
+  );
+  await run(
+    "message_threads",
+    sql`update core.message_threads set status = 'tobedeleted', metadata = '{}', subject = null
+        where tenant_id = ${t}::uuid and status = 'active'
+          and id in ${input.listed("message_thread")}
+        returning 1`,
+  );
+  await run(
+    "site_enquiries",
+    sql`update core.site_enquiries set status = 'tobedeleted', metadata = '{}', name = '-',
+          email = '', phone = '', phone_normalized = null, child_name = '', child_year = '',
+          message = '', answers = '[]', network_key = ''
+        where tenant_id = ${t}::uuid and id in ${input.listed("site_enquiry")}
+        returning 1`,
+  );
+  await run(
+    "notification_deliveries",
+    sql`update core.notification_deliveries set address = null
+        where tenant_id = ${t}::uuid and contact_id in ${input.contacts} and address is not null
+        returning 1`,
+  );
+  await run(
+    "message_contacts",
+    sql`update core.message_contacts set status = 'tobedeleted', metadata = '{}', email = null,
+          phone = null, phone_normalized = null, display_name = ''
+        where tenant_id = ${t}::uuid and id in ${input.contacts}
+        returning 1`,
+  );
+}
+
+/**
+ * Erases an outside contact who never had an account, as the `retention`
+ * role: their conversations and enquiries as the approval lists them,
+ * what they wrote elsewhere, and the documents and files of all of it.
+ */
+export async function eraseContact(
+  tx: Tx,
+  input: { tenantId: string; contactId: string; emptyContent: object },
+): Promise<ErasureResult> {
+  const t = input.tenantId;
+  const counts: Record<string, number> = {};
+  const run = async (name: string, statement: SQL) => {
+    const rows = await tx.execute(statement);
+    counts[name] = (counts[name] ?? 0) + rows.length;
+  };
+  const listed = (type: string) =>
+    sql`(select i.object_id from core.erasure_items i
+          join core.erasure_approvals a on a.tenant_id = i.tenant_id and a.id = i.approval_id
+          where i.tenant_id = ${t}::uuid and a.subject_contact_id = ${input.contactId}::uuid
+            and i.object_type = ${type})`;
+  await eraseConversations(run, {
+    tenantId: t,
+    contacts: sql`(select ${input.contactId}::uuid)`,
+    authorUserId: null,
+    listed,
+  });
+  await eraseListed(tx, run, {
+    tenantId: t,
+    listed,
+    emptyContent: input.emptyContent,
+  });
+  const keys = await tx.execute<{ storage_key: string }>(sql`
+    select storage_key from core.files where tenant_id = ${t}::uuid and id in ${listed("file")}`);
+  await run(
+    "files",
+    sql`update core.files set status = 'tobedeleted', metadata = '{}'
+        where tenant_id = ${t}::uuid and id in ${listed("file")} returning 1`,
+  );
+  await run(
+    "files",
+    sql`delete from core.files where tenant_id = ${t}::uuid and status = 'tobedeleted'
+          and id in ${listed("file")} returning 1`,
+  );
+  return { counts, storageKeys: keys.map((row) => row.storage_key) };
+}
+
+/** Empties the documents an approval lists, with their translations, versions and file links. */
+async function eraseListed(
+  tx: Tx,
+  run: (name: string, statement: SQL) => Promise<void>,
+  input: {
+    tenantId: string;
+    listed: (type: string) => SQL;
+    emptyContent: object;
+  },
+) {
+  const t = input.tenantId;
+  const content = JSON.stringify(input.emptyContent);
+  await run(
+    "documents",
+    sql`update core.documents set status = 'tobedeleted', metadata = '{}', content = ${content}::text::jsonb,
+          plain_text = '', ydoc = null
+        where tenant_id = ${t}::uuid and id in ${input.listed("document")} returning 1`,
+  );
+  await run(
+    "document_translations",
+    sql`update core.document_translations set status = 'tobedeleted', metadata = '{}',
+          content = ${content}::text::jsonb, plain_text = ''
+        where tenant_id = ${t}::uuid and document_id in ${input.listed("document")} returning 1`,
+  );
+  await run(
+    "document_versions",
+    sql`update core.document_versions set content = '{}', plain_text = '', ydoc_snapshot = null,
+          redacted_at = statement_timestamp()
+        where tenant_id = ${t}::uuid and document_id in ${input.listed("document")} and redacted_at is null
+        returning 1`,
+  );
+  await tx.execute(
+    sql`update core.document_files set status = 'tobedeleted', metadata = '{}'
+        where tenant_id = ${t}::uuid and document_id in ${input.listed("document")}`,
+  );
+  await run(
+    "document_files",
+    sql`delete from core.document_files where tenant_id = ${t}::uuid and status = 'tobedeleted'
+          and document_id in ${input.listed("document")} returning 1`,
+  );
 }
 
 export interface ErasureResult {
@@ -146,7 +407,7 @@ export async function eraseSubject(
   const accounts = sql`(select id from core.accounts where tenant_id = ${t}::uuid and user_id = ${s}::uuid)`;
   const relationships = sql`(select id from core.user_relationships where tenant_id = ${t}::uuid
     and (student_user_id = ${s}::uuid or related_user_id = ${s}::uuid))`;
-  const listed = (type: "document" | "file") =>
+  const listed = (type: string) =>
     sql`(select i.object_id from core.erasure_items i
           join core.erasure_approvals a on a.tenant_id = i.tenant_id and a.id = i.approval_id
           where i.tenant_id = ${t}::uuid and a.subject_user_id = ${s}::uuid and i.object_type = ${type})`;
@@ -257,31 +518,18 @@ export async function eraseSubject(
         returning 1`,
   );
 
-  const content = JSON.stringify(input.emptyContent);
-  await run(
-    "documents",
-    sql`update core.documents set status = 'tobedeleted', metadata = '{}', content = ${content}::text::jsonb,
-          plain_text = '', ydoc = null
-        where tenant_id = ${t}::uuid and id in ${listed("document")} returning 1`,
-  );
-  await run(
-    "document_translations",
-    sql`update core.document_translations set status = 'tobedeleted', metadata = '{}',
-          content = ${content}::text::jsonb, plain_text = ''
-        where tenant_id = ${t}::uuid and document_id in ${listed("document")} returning 1`,
-  );
-  await run(
-    "document_versions",
-    sql`update core.document_versions set content = '{}', plain_text = '', ydoc_snapshot = null,
-          redacted_at = statement_timestamp()
-        where tenant_id = ${t}::uuid and document_id in ${listed("document")} and redacted_at is null
-        returning 1`,
-  );
-  await remove(
-    "document_files",
-    sql`core.document_files`,
-    sql`document_id in ${listed("document")}`,
-  );
+  await eraseConversations(run, {
+    tenantId: t,
+    contacts: sql`(select id from core.message_contacts
+      where tenant_id = ${t}::uuid and user_id = ${s}::uuid)`,
+    authorUserId: s,
+    listed,
+  });
+  await eraseListed(tx, run, {
+    tenantId: t,
+    listed,
+    emptyContent: input.emptyContent,
+  });
 
   await run(
     "users",
@@ -420,4 +668,18 @@ export async function erasuresOf(
     erasedAt: row.erased_at,
     items: row.items,
   }));
+}
+
+/** The approved erasure of an outside contact, and whether it has run. */
+export async function contactApproval(
+  tx: Tx,
+  input: { tenantId: string; contactId: string },
+): Promise<{ id: string; erased: boolean } | null> {
+  const [row] = await tx.execute<{ id: string; erased: boolean }>(sql`
+    select a.id, c.status = 'tobedeleted' as erased
+    from core.erasure_approvals a
+    join core.message_contacts c on c.tenant_id = a.tenant_id and c.id = a.subject_contact_id
+    where a.tenant_id = ${input.tenantId}::uuid and a.subject_contact_id = ${input.contactId}::uuid
+    order by a.created_at desc limit 1`);
+  return row ?? null;
 }

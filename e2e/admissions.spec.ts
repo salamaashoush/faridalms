@@ -54,27 +54,42 @@ test("an enquiry from the website is answered, followed up and closed from the i
 
   await expect(page.getByRole("heading", { level: 1, name })).toBeVisible();
   await expect(page.getByText("Open", { exact: true }).first()).toBeVisible();
-  await expect(page.getByText("How did you hear about us?")).toBeVisible();
+  await expect(
+    page.getByText("How did you hear about us?", { exact: true }),
+  ).toBeVisible();
   await expect(page.getByText("Social media", { exact: true })).toBeVisible();
 
-  await page
-    .getByRole("textbox", { name: "Note for colleagues" })
-    .fill("Their older child is with us already.");
-  await page.getByRole("button", { name: "Add note" }).click();
+  // The conversation is the enquiry's one timeline: a note for colleagues,
+  // then a call logged, each written in its composer.
+  const conversation = page.getByRole("region", { name });
   await expect(
-    page.getByText("Their older child is with us already."),
+    conversation.getByText("Is there a place in grade 4 next term?"),
+  ).toBeVisible();
+  await page
+    .getByRole("group", { name: "Write as" })
+    .getByRole("button", { name: "Note", exact: true })
+    .click();
+  await page.locator("form [contenteditable=true]").last().click();
+  await page.keyboard.type("Their older child is with us already.");
+  await page.getByRole("button", { name: "Save", exact: true }).click();
+  await expect(
+    page
+      .getByRole("list", { name: "Messages" })
+      .getByText("Their older child is with us already."),
   ).toBeVisible();
 
-  const contact = page.getByRole("dialog", { name: "Log a contact" });
-  await openWith(
-    page.getByRole("button", { name: "Log a contact" }).first(),
-    contact,
-  );
-  await contact
-    .getByRole("textbox", { name: "What was said" })
-    .fill("Called back; they will visit on Tuesday.");
-  await contact.getByRole("button", { name: "Save" }).click();
-  await expect(contact).toBeHidden();
+  await page
+    .getByRole("group", { name: "Write as" })
+    .getByRole("button", { name: "Log a contact", exact: true })
+    .click();
+  await page.locator("form [contenteditable=true]").last().click();
+  await page.keyboard.type("Called back; they will visit on Tuesday.");
+  await page.getByRole("button", { name: "Save", exact: true }).click();
+  await expect(
+    page
+      .getByRole("list", { name: "Messages" })
+      .getByText("Called back; they will visit on Tuesday."),
+  ).toBeVisible();
   await expect(
     page.getByText("In progress after the first contact"),
   ).toBeVisible();

@@ -3,6 +3,7 @@ import type { EnquiryPurpose } from "@faridalms/domain/enquiries";
 
 import { writeAudit } from "@faridalms/database/audit";
 import { capabilityHolders } from "@faridalms/database/stores/access";
+import { openEnquiryConversation } from "@faridalms/database/stores/enquiries";
 
 import type { RequestContext } from "./context";
 
@@ -10,11 +11,13 @@ import { notifyIn } from "./notify";
 import { dateIn, schoolZone } from "./procedure";
 
 /**
- * Records that a family sent an enquiry from the website and tells everyone
- * who works enquiries at the school. It runs after the visitor's row is
- * committed, in its own unit, because the site role that wrote it may write
- * neither the audit log nor notifications. A failure here is logged; the
- * enquiry is kept and waits in the inbox.
+ * Records that a family sent an enquiry from the website, opens its
+ * conversation in the admissions mailbox with the family's words as its
+ * first message, and tells everyone who works enquiries at the school. It
+ * runs after the visitor's row is committed, in its own unit, because the
+ * site role that wrote it may write neither the audit log, conversations
+ * nor notifications. A failure here is logged; the enquiry is kept, waits
+ * in the inbox, and gets its conversation when staff first work it.
  */
 export async function announceEnquiry(
   context: RequestContext,
@@ -35,6 +38,10 @@ export async function announceEnquiry(
       },
       "write",
       async (tx, _lifecycle, now) => {
+        await openEnquiryConversation(tx, {
+          tenantId: school.tenantId,
+          enquiryId: enquiry.id,
+        });
         await writeAudit(tx, school.tenantId, {
           action: "enquiry.receive",
           objectType: "site_enquiry",

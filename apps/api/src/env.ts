@@ -121,6 +121,18 @@ export const env = v.parse(
       ),
       RESEND_API_KEY: v.optional(v.pipe(v.string(), v.minLength(1))),
       EMAIL_FROM: v.optional(v.pipe(v.string(), v.minLength(3))),
+      // Replies to a conversation's email come back through Resend's
+      // receiving at r+<tenant>.<token>@<INBOUND_EMAIL_DOMAIN>, a subdomain
+      // whose MX points at Resend, and its webhook is signed with
+      // RESEND_WEBHOOK_SECRET. Unset, families answer the school's own
+      // address and the conversation continues only in the app.
+      INBOUND_EMAIL_DOMAIN: v.optional(domain),
+      // Another server answering as Resend's API: an egress proxy, or the
+      // end-to-end gate's stand-in. Unset, Resend's own.
+      RESEND_API_URL: v.optional(v.pipe(v.string(), v.url())),
+      RESEND_WEBHOOK_SECRET: v.optional(
+        v.pipe(v.string(), v.trim(), v.regex(/^whsec_[A-Za-z0-9+/=]{16,}$/)),
+      ),
       // Transactional email and SMS gateways that accept a JSON POST.
       EMAIL_WEBHOOK_URL: v.optional(v.pipe(v.string(), v.url())),
       SMS_WEBHOOK_URL: v.optional(v.pipe(v.string(), v.url())),
@@ -177,6 +189,13 @@ export const env = v.parse(
         value.RESEND_API_KEY === undefined ||
         value.EMAIL_WEBHOOK_URL === undefined,
       "Email goes through RESEND_API_KEY or EMAIL_WEBHOOK_URL, not both",
+    ),
+    v.check(
+      (value) =>
+        value.INBOUND_EMAIL_DOMAIN === undefined ||
+        (value.RESEND_API_KEY !== undefined &&
+          value.RESEND_WEBHOOK_SECRET !== undefined),
+      "INBOUND_EMAIL_DOMAIN needs RESEND_API_KEY and RESEND_WEBHOOK_SECRET",
     ),
   ),
   presentVariables(process.env),

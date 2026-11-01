@@ -362,6 +362,7 @@ export async function threadsAmong(
             and o.left_at is null and o.user_id <> ${input.viewerId}::uuid)) as title,
         (select ${snippetOf(sql`g.body`, input.q)} from core.messages g
           where g.tenant_id = t.tenant_id and g.thread_id = t.id and g.status = 'active'
+            and g.kind = 'message'
             and (to_tsvector('english'::regconfig, g.body) @@ websearch_to_tsquery('english'::regconfig, ${input.q})
               or to_tsvector('arabic'::regconfig, g.body) @@ websearch_to_tsquery('arabic'::regconfig, ${input.q}))
           order by g.created_at desc limit 1) as snippet,
@@ -369,6 +370,7 @@ export async function threadsAmong(
       from core.message_threads t
       join core.thread_members m on m.tenant_id = t.tenant_id and m.thread_id = t.id
         and m.user_id = ${input.viewerId}::uuid and m.status = 'active' and m.left_at is null
+        and (t.mailbox is null or m.role = 'member')
       where t.tenant_id = ${input.tenantId}::uuid and t.org_id = ${input.schoolId}::uuid
         and t.id = any(${uuidArray(input.ids)}) and t.status = 'active'`),
   );

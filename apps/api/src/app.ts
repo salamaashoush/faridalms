@@ -13,6 +13,7 @@ import { handleFileRequest } from "./files/routes";
 import { askLimiter, handleEdgeAsk } from "./hosts/ask";
 import { handleLtiRequest } from "./lti/routes";
 import { handleMediaRequest } from "./media/streams";
+import { handleInboundMail } from "./messages/inbound";
 import { router } from "./router";
 
 /**
@@ -86,6 +87,7 @@ export function createApp(dependencies: ApiDependencies) {
         };
         const file =
           (await handleEdgeAsk(request, url, context, askAllowed)) ??
+          (await handleInboundMail(request, url, context)) ??
           (await handlePublicFileRequest(request, url, context)) ??
           (await handleCalendarFeed(request, url, context)) ??
           (await handleWorkExport(request, url, context)) ??

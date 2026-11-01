@@ -30,7 +30,7 @@ import { createStudio } from "./files/studio";
 import { startFileUpkeep } from "./files/upkeep";
 import { createHostChecks } from "./hosts/checks";
 import { streamLinkKey } from "./media/streams";
-import { emailGateway } from "./notifications/gateway";
+import { emailGateway, resendInbox } from "./notifications/gateway";
 import { createProvider } from "./notifications/providers";
 import { startDelivery } from "./notifications/scheduler";
 import { createProvisioner } from "./provisioning/host";
@@ -126,7 +126,27 @@ const filesServer = Bun.serve({
 const gateways = {
   email: emailGateway(env),
   sms: createProvider(env.SMS_WEBHOOK_URL, env.NOTIFY_WEBHOOK_TOKEN),
+  conversations: {
+    replyDomain: env.INBOUND_EMAIL_DOMAIN ?? null,
+    cellSecret,
+    files: stores.files,
+  },
 };
+const inbound =
+  env.INBOUND_EMAIL_DOMAIN && env.RESEND_API_KEY && env.RESEND_WEBHOOK_SECRET
+    ? {
+        domain: env.INBOUND_EMAIL_DOMAIN,
+        webhookSecret: env.RESEND_WEBHOOK_SECRET,
+        inbox: resendInbox({
+          RESEND_API_KEY: env.RESEND_API_KEY,
+          RESEND_API_URL: env.RESEND_API_URL,
+        }),
+        senderDomain: env.EMAIL_FROM
+          ? (/@([^>\s]+)>?\s*$/.exec(env.EMAIL_FROM)?.[1]?.toLowerCase() ??
+            null)
+          : null,
+      }
+    : null;
 const runners = {
   python: createPythonRunner(
     env.PYTHON_DIR ?? join(process.cwd(), "vendor", "python"),
@@ -166,6 +186,7 @@ const server = Bun.serve({
     mail: gateways.email,
     productInbox: env.PRODUCT_INBOX ?? null,
     turnstile: turnstileFrom(env),
+    inbound,
   }),
 });
 console.info(

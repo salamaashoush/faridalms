@@ -179,6 +179,36 @@ describe("registering to apply", () => {
     expect(await response.text()).toContain("site.challenge");
   });
 
+  test("where the school sends no email, registering says so rather than pretend it sent", async () => {
+    const handler = handlerWith({
+      mail: null,
+      channels: { email: false, sms: false },
+    });
+    const response = await handler(
+      new Request("http://api.test/rpc/applying/register", {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          "x-farida-school": "northwind",
+        },
+        body: JSON.stringify({
+          json: {
+            names: names("Salama Ashoush", "سلامة عشوش"),
+            email: "salama.nomail@example.com",
+            phone: "",
+            locale: "en",
+            elapsed: 5000,
+          },
+        }),
+      }),
+    );
+    expect(response.status).toBe(503);
+    expect(await response.text()).toContain("register.no_mail");
+    expect(
+      registrationLink("salama.nomail@example.com").message,
+    ).toBeUndefined();
+  });
+
   test("confirming the address names the family on the enquiry they made with it", async () => {
     const email = "salama.enquired@example.com";
     const office = await officer();

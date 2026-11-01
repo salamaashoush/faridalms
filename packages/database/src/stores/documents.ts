@@ -178,7 +178,7 @@ async function rewrite(
     content: Record<string, unknown>;
     plainText: string;
     locale: "ar" | "en" | null;
-    userId: string;
+    userId: string | null;
   },
 ): Promise<{ id: string; version: number } | undefined> {
   const [row] = await tx.execute<{ id: string; version: number }>(sql`
@@ -194,7 +194,10 @@ async function rewrite(
   return row;
 }
 
-/** Writes a host's document, creating it the first time. */
+/**
+ * Writes a host's document, creating it the first time. A document made
+ * frozen, as a sent message's is, never changes afterwards.
+ */
 export async function saveDocument(
   tx: Tx,
   input: {
@@ -204,9 +207,11 @@ export async function saveDocument(
     content: Record<string, unknown>;
     plainText: string;
     mediaIds: readonly string[];
-    userId: string;
+    /** Who wrote it; null for words that arrived from outside, such as an email. */
+    userId: string | null;
     kind?: DocumentKind;
     locale?: "en" | "ar" | null;
+    frozen?: boolean;
   },
 ): Promise<{ id: string; version: number }> {
   const existing = await documentIdOf(tx, input.tenantId, input.host);
@@ -225,10 +230,11 @@ export async function saveDocument(
   } else {
     [saved] = await tx.execute<{ id: string; version: number }>(sql`
       insert into core.documents (tenant_id, host_type, host_id, org_id, kind, schema_version,
-        locale, content, plain_text, last_edited_by_user_id, last_edited_at)
+        locale, content, plain_text, frozen_at, last_edited_by_user_id, last_edited_at)
       values (${input.tenantId}::uuid, ${input.host.type}, ${input.host.id}::uuid,
         ${input.orgId}::uuid, ${input.kind ?? "rich_text"}, 1, ${locale}, ${input.content}::jsonb,
-        ${input.plainText}, ${input.userId}::uuid, statement_timestamp())
+        ${input.plainText}, ${input.frozen ? sql`statement_timestamp()` : sql`null`},
+        ${input.userId}::uuid, statement_timestamp())
       returning id, version`);
   }
   if (!saved) throw new Error("document was not saved");
