@@ -1,7 +1,7 @@
 import type { Descriptor } from "@faridalms/database/stores/descriptors";
 import type { Scope } from "@faridalms/database/stores/students";
 import type { SignInRefusal } from "@faridalms/domain/first-sign-in";
-import type { StudentStatus } from "@faridalms/domain/people";
+import type { ContactLabel, StudentStatus } from "@faridalms/domain/people";
 
 import { lookupHmac } from "@faridalms/database/crypto";
 import { rolesForSchool } from "@faridalms/database/stores/access";
@@ -111,6 +111,7 @@ import { normaliseIdentifier } from "@faridalms/domain/identifiers";
 import {
   addressLine,
   cancelLeavingSchema,
+  CONTACT_LABELS,
   endRelationshipSchema,
   guardianLookupSchema,
   accountStateSchema,
@@ -1772,16 +1773,6 @@ export const setSignInState = writeProcedure
     });
     return { state: input.state };
   });
-
-const CONTACT_LABELS = [
-  "mobile",
-  "home",
-  "work",
-  "personal",
-  "emergency",
-  "other",
-] as const;
-type ContactLabel = (typeof CONTACT_LABELS)[number];
 
 /**
  * The school year a student's placement is in, held open for the change:

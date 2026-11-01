@@ -15,6 +15,7 @@ import { Pencil, Plus, Trash2 } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 
+import { SEVERITY_LABEL } from "~/components/health/labels";
 import { ActionMenu } from "~/components/system/ActionMenu";
 import { ComboboxField } from "~/components/system/ComboboxField";
 import { SelectField, TextField } from "~/components/system/field";
@@ -81,12 +82,6 @@ type Health = Awaited<
   ReturnType<NonNullable<ReturnType<typeof healthQuery>["queryFn"]>>
 >;
 type HealthRecord = Health["records"][number];
-
-const SEVERITY_LABEL: Record<"mild" | "moderate" | "severe", () => string> = {
-  mild: m.healthSeverityMild,
-  moderate: m.healthSeverityModerate,
-  severe: m.healthSeveritySevere,
-};
 
 function HealthSheet({
   studentId,

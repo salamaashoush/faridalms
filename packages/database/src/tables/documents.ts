@@ -40,6 +40,7 @@ import { descriptors } from "./descriptors";
 import { files, tenantKeys } from "./files";
 import { userRelationships } from "./membership";
 import { users } from "./people";
+import { recordsRequests } from "./privacy";
 import { orgs, tenants } from "./tenancy";
 
 export const healthRecords = health.table.withRLS(
@@ -89,6 +90,94 @@ export const healthRecords = health.table.withRLS(
     ck("records", "file_purpose", sql`file_purpose = 'health_report'`),
     ck("records", "metadata_empty", sql`metadata = '{}'`),
     index("records_student_idx")
+      .on(t.tenantId, t.studentUserId)
+      .where(sql`status = 'active'`),
+    ...entityProfile(),
+    purposeGate("health"),
+    ...eraseAndDelete(erasureOf("student_user_id")),
+  ],
+);
+
+/**
+ * The change a guardian asked for in a child's medical summary, carried by
+ * their correction request, which holds its deadline and outcome. Nothing
+ * here touches the record until the office accepts; the words asked for,
+ * the record as the guardian read it and any reason for declining are
+ * encrypted together.
+ */
+export const healthChanges = health.table.withRLS(
+  "requested_changes",
+  {
+    ...tenantColumns(),
+    requestId: uuid("request_id").notNull(),
+    studentUserId: uuid("student_user_id").notNull(),
+    requestedByUserId: uuid("requested_by_user_id").notNull(),
+    target: text("target").$type<"record" | "contact">().notNull(),
+    kindDescriptorId: uuid("kind_descriptor_id"),
+    kindNs: text("kind_ns")
+      .notNull()
+      .generatedAlwaysAs(sql`'health_record_kind'`),
+    recordId: uuid("record_id"),
+    relationshipId: uuid("relationship_id"),
+    keyPurpose: text("key_purpose")
+      .notNull()
+      .generatedAlwaysAs(sql`'health'`),
+    keyVersion: integer("key_version").notNull(),
+    ciphertext: bytea("ciphertext").notNull(),
+    ...entityColumns(),
+  },
+  (t): PgTableExtraConfigValue[] => [
+    pk("requested_changes", t.tenantId, t.id),
+    ...baseConstraints("requested_changes", t, tenants),
+    fk(
+      "requested_changes",
+      [t.tenantId, t.requestId],
+      [recordsRequests.tenantId, recordsRequests.id],
+    ),
+    fk(
+      "requested_changes",
+      [t.tenantId, t.studentUserId],
+      [users.tenantId, users.id],
+    ),
+    fk(
+      "requested_changes",
+      [t.tenantId, t.requestedByUserId],
+      [users.tenantId, users.id],
+    ),
+    fk(
+      "requested_changes",
+      [t.tenantId, t.kindDescriptorId, t.kindNs],
+      [descriptors.tenantId, descriptors.id, descriptors.namespace],
+    ),
+    fk(
+      "requested_changes",
+      [t.tenantId, t.recordId],
+      [healthRecords.tenantId, healthRecords.id],
+    ),
+    fk(
+      "requested_changes",
+      [t.tenantId, t.relationshipId],
+      [userRelationships.tenantId, userRelationships.id],
+    ),
+    fk(
+      "requested_changes",
+      [t.tenantId, t.keyPurpose, t.keyVersion],
+      [tenantKeys.tenantId, tenantKeys.purpose, tenantKeys.keyVersion],
+    ),
+    uq("requested_changes", t.tenantId, t.requestId),
+    ck("requested_changes", "target", sql`target in ('record', 'contact')`),
+    ck(
+      "requested_changes",
+      "shape",
+      sql`(target = 'record') = (kind_descriptor_id is not null) and (target = 'contact') = (relationship_id is not null) and (record_id is null or target = 'record')`,
+    ),
+    ck(
+      "requested_changes",
+      "ciphertext",
+      sql`octet_length(ciphertext) between 29 and 65565`,
+    ),
+    ck("requested_changes", "metadata_empty", sql`metadata = '{}'`),
+    index("requested_changes_student_idx")
       .on(t.tenantId, t.studentUserId)
       .where(sql`status = 'active'`),
     ...entityProfile(),

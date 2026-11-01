@@ -79,6 +79,9 @@ function useRefresh() {
 
 const deadline = (row: RequestRow) => row.extendedTo ?? row.dueOn;
 
+const kindOf = (row: RequestRow) =>
+  row.topic === "health" ? m.privacyKindHealthChange() : KIND_LABEL[row.kind]();
+
 function standing(
   row: RequestRow,
   today: string,
@@ -123,7 +126,7 @@ function requestColumns(today: string): Column<RequestRow>[] {
     {
       id: "kind",
       header: m.privacyRequestKind(),
-      cell: (row) => KIND_LABEL[row.kind](),
+      cell: kindOf,
     },
     {
       id: "received",
@@ -147,7 +150,7 @@ function requestCard(today: string) {
   return {
     title: (row: RequestRow) => <PersonName row={row} />,
     status: (row: RequestRow) => <RequestStatus row={row} today={today} />,
-    fact: (row: RequestRow) => KIND_LABEL[row.kind](),
+    fact: kindOf,
   };
 }
 
@@ -165,29 +168,31 @@ export function RequestsTable({
   onClose: (row: RequestRow) => void;
 }) {
   const rowActions = (row: RequestRow): RowAction[] =>
-    row.outcome
+    row.topic
       ? []
-      : [
-          {
-            label: m.privacyCloseRequest(),
-            icon: CircleCheck,
-            onSelect: () => onClose(row),
-          },
-          ...(row.law === "uk_gdpr" && !row.extendedTo
-            ? [
-                {
-                  label: m.privacyExtendRequest(),
-                  icon: CalendarPlus,
-                  onSelect: () => onExtend(row),
-                },
-              ]
-            : []),
-          {
-            label: m.privacyEditRequest(),
-            icon: Pencil,
-            onSelect: () => onEdit(row),
-          },
-        ];
+      : row.outcome
+        ? []
+        : [
+            {
+              label: m.privacyCloseRequest(),
+              icon: CircleCheck,
+              onSelect: () => onClose(row),
+            },
+            ...(row.law === "uk_gdpr" && !row.extendedTo
+              ? [
+                  {
+                    label: m.privacyExtendRequest(),
+                    icon: CalendarPlus,
+                    onSelect: () => onExtend(row),
+                  },
+                ]
+              : []),
+            {
+              label: m.privacyEditRequest(),
+              icon: Pencil,
+              onSelect: () => onEdit(row),
+            },
+          ];
   return (
     <DataTable
       caption={m.privacyRequestsCaption()}

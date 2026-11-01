@@ -5,6 +5,7 @@ import type {
   RequestLaw,
   RequestOutcome,
   RequestRelation,
+  RequestTopic,
   RetentionRules,
 } from "@faridalms/domain/privacy";
 
@@ -342,6 +343,7 @@ export interface RequestRow {
   outcome: RequestOutcome | null;
   closedAt: string | null;
   outcomeNote: string | null;
+  topic: RequestTopic | null;
 }
 
 /** The school's records requests, open ones first by the day they fall due. */
@@ -368,13 +370,14 @@ export async function requestsOf(
     outcome: RequestOutcome | null;
     closed_at: string | null;
     outcome_note: string | null;
+    topic: RequestTopic | null;
   }>(sql`
     select r.id, r.version, r.subject_user_id, u.full_name_en, u.full_name_ar,
            r.requested_by, r.relation, r.kind, r.law,
            r.received_on::text as received_on, r.clock_from::text as clock_from,
            r.due_on::text as due_on, r.extended_to::text as extended_to,
            r.extension_reason, r.details, r.outcome, r.closed_at::text as closed_at,
-           r.outcome_note
+           r.outcome_note, r.topic
     from core.records_requests r
     join core.users u on u.tenant_id = r.tenant_id and u.id = r.subject_user_id
     where r.tenant_id = ${scope.tenantId}::uuid and r.org_id = ${scope.orgId}::uuid
@@ -399,6 +402,7 @@ export async function requestsOf(
     outcome: row.outcome,
     closedAt: row.closed_at,
     outcomeNote: row.outcome_note,
+    topic: row.topic,
   }));
 }
 
@@ -416,7 +420,8 @@ export interface RequestFields {
 
 export async function insertRequest(
   tx: Tx,
-  input: OrgScope & RequestFields & { loggedByUserId: string },
+  input: OrgScope &
+    RequestFields & { loggedByUserId: string; topic?: RequestTopic },
 ): Promise<string> {
   const [row] = await tx
     .insert(recordsRequests)
@@ -426,10 +431,17 @@ export async function insertRequest(
   return row.id;
 }
 
-/** How many requests one person has logged about another that are still open. */
+/**
+ * How many requests one person has logged about another that are still
+ * open, of one topic or, without one, those the office answers.
+ */
 export async function openRequestsBy(
   tx: Tx,
-  input: OrgScope & { subjectUserId: string; loggedByUserId: string },
+  input: OrgScope & {
+    subjectUserId: string;
+    loggedByUserId: string;
+    topic: RequestTopic | null;
+  },
 ): Promise<number> {
   const [row] = await tx
     .select({ open: sql<number>`count(*)::int` })
@@ -442,14 +454,18 @@ export async function openRequestsBy(
         eq(recordsRequests.loggedByUserId, input.loggedByUserId),
         eq(recordsRequests.status, "active"),
         isNull(recordsRequests.closedAt),
+        input.topic
+          ? eq(recordsRequests.topic, input.topic)
+          : isNull(recordsRequests.topic),
       ),
     );
   return row?.open ?? 0;
 }
 
 /**
- * Changes an open request; null when it is closed or not the school's. An
- * extension stays only while the deadline it extends is unchanged.
+ * Changes an open request; null when it is closed, not the school's, or
+ * carries a change its own system answers. An extension stays only while
+ * the deadline it extends is unchanged.
  */
 export async function updateRequest(
   tx: Tx,
@@ -470,6 +486,7 @@ export async function updateRequest(
         eq(recordsRequests.id, id),
         eq(recordsRequests.status, "active"),
         isNull(recordsRequests.outcome),
+        isNull(recordsRequests.topic),
       ),
     )
     .returning({ id: recordsRequests.id });
@@ -507,6 +524,7 @@ export async function extendRequest(
   return rows.length > 0;
 }
 
+/** Closes an open request of the topic its caller answers; false when there is none. */
 export async function closeRequest(
   tx: Tx,
   input: OrgScope & {
@@ -514,6 +532,7 @@ export async function closeRequest(
     outcome: RequestOutcome;
     note: string;
     closedByUserId: string;
+    topic: RequestTopic | null;
   },
 ): Promise<boolean> {
   const rows = await tx
@@ -531,6 +550,9 @@ export async function closeRequest(
         eq(recordsRequests.id, input.id),
         eq(recordsRequests.status, "active"),
         isNull(recordsRequests.outcome),
+        input.topic
+          ? eq(recordsRequests.topic, input.topic)
+          : isNull(recordsRequests.topic),
       ),
     )
     .returning({ id: recordsRequests.id });

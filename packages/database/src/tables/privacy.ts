@@ -5,6 +5,7 @@ import type {
   RequestLaw,
   RequestOutcome,
   RequestRelation,
+  RequestTopic,
   StudentRetention,
 } from "@faridalms/domain/privacy";
 import type { PgTableExtraConfigValue } from "drizzle-orm/pg-core";
@@ -98,6 +99,8 @@ export const recordsRequests = core.table.withRLS(
     extendedTo: date("extended_to", { mode: "string" }),
     extensionReason: text("extension_reason"),
     details: text("details"),
+    /** The system that answers the request with the change it carries; null when the office answers it. */
+    topic: text("topic").$type<RequestTopic>(),
     outcome: text("outcome").$type<RequestOutcome>(),
     closedAt: instant("closed_at"),
     closedByUserId: uuid("closed_by_user_id"),
@@ -160,6 +163,11 @@ export const recordsRequests = core.table.withRLS(
       sql`char_length(extension_reason) between 1 and 500`,
     ),
     ck("records_requests", "details", sql`char_length(details) <= 2000`),
+    ck(
+      "records_requests",
+      "topic",
+      sql`topic is null or (topic in ('health') and kind = 'correction')`,
+    ),
     ck(
       "records_requests",
       "outcome",
