@@ -130,6 +130,8 @@ export interface RenderContext {
     ownWords: boolean;
     /** A long flow, such as the application, takes the page's wider column. */
     wide?: boolean;
+    /** The school's logo and name, which a door laid out as a whole page heads itself with. */
+    mark?: ReactNode;
   };
 }
 

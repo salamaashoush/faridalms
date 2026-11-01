@@ -8672,5 +8672,7 @@
   "bcastWaiting": "Edits not sent yet",
   "bcastPublishedHint": "Readers keep what they received. Your edits save as you write and stay private until you send them.",
   "bcastPreviewNotice": "This is a preview. It has not gone out.",
-  "bcastEditsWaiting": "Edits made since this went out are waiting. Readers still see what was sent."
+  "bcastEditsWaiting": "Edits made since this went out are waiting. Readers still see what was sent.",
+  "siteVariantDoorPanel": "Full page, words on the school's colour",
+  "siteFieldPoints": "Highlights"
 }

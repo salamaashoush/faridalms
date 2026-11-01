@@ -16,6 +16,7 @@ import { LICENCE, SECURITY } from "~/components/product/links";
 import { SiteFrame } from "~/components/site/render/frame";
 import { opensOnPicture, PageSections } from "~/components/site/render/page";
 import { publicMediaUrl } from "~/components/site/render/parts";
+import { panelDoor } from "~/components/site/render/sections";
 import { LocaleToggle } from "~/components/theme/LocaleToggle";
 import { inLocale } from "~/hooks/useCurrentUser";
 import * as m from "~/i18n/messages";
@@ -166,14 +167,21 @@ export function PortalPage({
     events: [],
     contact: face.contact,
     turnstileKey: face.turnstileKey,
-    system: { node: children, ownWords, wide },
+    system: {
+      node: children,
+      ownWords,
+      wide,
+      mark: <SchoolMark face={face} />,
+    },
   };
+  const bare = sections.some(({ section }) => panelDoor(section));
   return (
     <div {...accent} className={cn(accent.className, "min-h-dvh")}>
       <SiteFrame
         frame={frameOf(face)}
         context={context}
         overlay={opensOnPicture(sections)}
+        bare={bare}
       >
         <PageSections
           sections={sections}

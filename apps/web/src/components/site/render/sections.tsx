@@ -60,7 +60,7 @@ import {
   SiteAnchor,
   SiteIcon,
 } from "./parts";
-import { focusStyle } from "./theme";
+import { focusStyle, schemeStyle } from "./theme";
 import { TurnstileWidget } from "./turnstile";
 
 type Props<T extends PageSection["type"]> = {
@@ -2881,13 +2881,27 @@ function Door({
   first,
   preview,
 }: {
-  data: { eyebrow: string; heading: string; text: string };
-  variant: "split" | "stacked";
+  data: {
+    eyebrow: string;
+    heading: string;
+    text: string;
+    points?: { id: string; icon: IconId; title: string; text: string }[];
+  };
+  variant: "panel" | "split" | "stacked";
   context: RenderContext;
   first: boolean;
   preview: ReactNode;
 }) {
   const system = context.system;
+  if (variant === "panel")
+    return (
+      <DoorPanel
+        data={data}
+        context={context}
+        first={first}
+        preview={preview}
+      />
+    );
   const words = system?.ownWords ? null : (
     <div
       data-stagger
@@ -2929,6 +2943,100 @@ function Door({
     >
       {words}
       {form}
+    </div>
+  );
+}
+
+/** A door laid out as a whole page: the school's words on its own colour beside the form. */
+export const panelDoor = (section: PageSection) =>
+  (section.type === "signIn" || section.type === "register") &&
+  section.variant === "panel";
+
+function DoorPanel({
+  data,
+  context,
+  first,
+  preview,
+}: {
+  data: {
+    eyebrow: string;
+    heading: string;
+    text: string;
+    points?: { id: string; icon: IconId; title: string; text: string }[];
+  };
+  context: RenderContext;
+  first: boolean;
+  preview: ReactNode;
+}) {
+  const system = context.system;
+  const points = (data.points ?? []).filter(
+    (point) => point.title.trim() || point.text.trim(),
+  );
+  const words = (
+    <>
+      <Eyebrow field="eyebrow">{data.eyebrow}</Eyebrow>
+      <Heading level={first ? 1 : 2} size="display" field="heading">
+        {data.heading}
+      </Heading>
+      <Lead field="text">{data.text}</Lead>
+    </>
+  );
+  return (
+    <div className="grid min-h-[min(100dvh,56rem)] @4xl/site:grid-cols-[1fr_1.05fr]">
+      <div
+        style={schemeStyle(context.theme, "brand")}
+        className="site-section relative hidden flex-col overflow-hidden p-12 @4xl/site:flex @6xl/site:p-16"
+      >
+        {system?.mark ?? null}
+        <div
+          data-stagger
+          className="relative z-10 my-auto grid max-w-lg gap-6 py-16"
+        >
+          {words}
+          {points.length > 0 ? (
+            <ul className="mt-6 grid gap-7">
+              {points.map((point) => (
+                <li key={point.id} className="flex gap-4">
+                  {point.icon === "none" ? null : (
+                    <span className="grid size-10 shrink-0 place-items-center rounded-xl border border-current/15 bg-current/5">
+                      <SiteIcon icon={point.icon} className="size-5" />
+                    </span>
+                  )}
+                  <div>
+                    <h3 dir="auto" className="text-sm font-medium">
+                      {point.title}
+                    </h3>
+                    <p dir="auto" className="site-muted mt-1 text-sm">
+                      {point.text}
+                    </p>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          ) : null}
+        </div>
+        <div
+          aria-hidden
+          className="pointer-events-none absolute -end-40 -bottom-56 size-[520px] rounded-full border-[80px] border-current/[0.04]"
+        />
+      </div>
+      <div className="flex flex-col">
+        <div className="flex flex-1 items-center justify-center px-6 py-12 @3xl/site:px-12">
+          <div className="grid w-full max-w-[400px] gap-8">
+            <div className="grid gap-4 @4xl/site:hidden">
+              {system?.mark ?? null}
+              {system?.ownWords ? null : words}
+            </div>
+            {system ? (
+              <div className="portal-system">{system.node}</div>
+            ) : (
+              <div aria-hidden className="grid gap-4">
+                {preview}
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
     </div>
   );
 }
@@ -3319,7 +3427,7 @@ export function SiteSection({
   joined?: boolean;
 }) {
   const t = { locale: context.locale };
-  const full = fullBleed(section);
+  const full = fullBleed(section) || panelDoor(section);
   const body = (() => {
     switch (section.type) {
       case "hero":

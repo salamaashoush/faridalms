@@ -863,7 +863,7 @@ const ENQUIRY_FORM = FORM(
 
 const SIGN_IN = section(
   "signIn",
-  "split",
+  "panel",
   (b) => ({
     eyebrow: b.w(["Families, students and staff", "الأسر والطلاب والموظفون"]),
     heading: b.w(["Sign in", "تسجيل الدخول"]),
@@ -871,13 +871,42 @@ const SIGN_IN = section(
       "Use the email or sign-in name you received from the school.",
       "استخدم البريد الإلكتروني أو اسم الدخول الذي حصلت عليه من المدرسة.",
     ]),
+    points: [
+      {
+        id: b.id(),
+        icon: "book" as const,
+        title: b.w(["Learning", "التعلم"]),
+        text: b.w([
+          "Lessons, homework and feedback in one place.",
+          "الدروس والواجبات والملاحظات في مكان واحد.",
+        ]),
+      },
+      {
+        id: b.id(),
+        icon: "users" as const,
+        title: b.w(["Families", "الأسر"]),
+        text: b.w([
+          "Messages, reports and news from the school.",
+          "الرسائل والتقارير وأخبار المدرسة.",
+        ]),
+      },
+      {
+        id: b.id(),
+        icon: "globe" as const,
+        title: b.w(["English and Arabic", "العربية والإنجليزية"]),
+        text: b.w([
+          "Read everything in the language you choose.",
+          "اقرأ كل شيء باللغة التي تختارها.",
+        ]),
+      },
+    ],
   }),
-  { scheme: "soft" },
+  { scheme: "canvas" },
 );
 
 const REGISTER = section(
   "register",
-  "split",
+  "panel",
   (b) => ({
     eyebrow: b.w(["Admissions", "القبول"]),
     heading: b.w(["Register to apply", "سجّل للتقديم"]),
@@ -886,7 +915,7 @@ const REGISTER = section(
       "أنشئ حساب أسرتك مرة واحدة، ثم ابدأ طلب الالتحاق واحفظه وعد إليه متى شئت.",
     ]),
   }),
-  { scheme: "soft" },
+  { scheme: "canvas" },
 );
 
 const APPLY = section(
@@ -903,20 +932,20 @@ const APPLY = section(
   { scheme: "canvas" },
 );
 
-const APPLY_HELP = section("contact", "details", (b) => ({
-  heading: b.w(["Questions about applying?", "أسئلة عن التقديم؟"]),
-  text: b.w([
-    "The admissions office is happy to help with the form or the documents.",
-    "يسعد مكتب القبول بالمساعدة في الاستمارة أو المستندات.",
-  ]),
-  mapHref: "",
-}));
-
 const SIGN_IN_HELP = section("contact", "details", (b) => ({
   heading: b.w(["Need help signing in?", "تحتاج إلى مساعدة في الدخول؟"]),
   text: b.w([
     "The school office can send you a new link or tell you your sign-in name.",
     "يمكن لمكتب المدرسة أن يرسل إليك رابطًا جديدًا أو أن يخبرك باسم الدخول.",
+  ]),
+  mapHref: "",
+}));
+
+const APPLY_HELP = section("contact", "details", (b) => ({
+  heading: b.w(["Questions about applying?", "أسئلة عن التقديم؟"]),
+  text: b.w([
+    "The admissions office is happy to help with the form or the documents.",
+    "يسعد مكتب القبول بالمساعدة في الاستمارة أو المستندات.",
   ]),
   mapHref: "",
 }));

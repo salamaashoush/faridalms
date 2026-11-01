@@ -679,14 +679,32 @@ export const SECTION_SPECS = {
    */
   signIn: {
     category: "system",
-    variants: ["split", "stacked"],
-    fields: { eyebrow: t(80), heading, text: intro },
+    variants: ["panel", "split", "stacked"],
+    fields: {
+      eyebrow: t(80),
+      heading,
+      text: intro,
+      points: {
+        kind: "items",
+        max: 4,
+        fields: { icon: { kind: "icon" }, title: t(80), text: t(200) },
+      },
+    },
   },
   /** The family registration form, on the portal page a family registers on to apply. */
   register: {
     category: "system",
-    variants: ["split", "stacked"],
-    fields: { eyebrow: t(80), heading, text: intro },
+    variants: ["panel", "split", "stacked"],
+    fields: {
+      eyebrow: t(80),
+      heading,
+      text: intro,
+      points: {
+        kind: "items",
+        max: 4,
+        fields: { icon: { kind: "icon" }, title: t(80), text: t(200) },
+      },
+    },
   },
   /** The application itself, on the portal page a signed-in family applies on. */
   apply: {

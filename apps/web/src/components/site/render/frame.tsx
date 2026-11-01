@@ -864,12 +864,15 @@ export function SiteFrame({
   frame,
   context,
   overlay,
+  bare = false,
   children,
 }: {
   frame: SiteFrameModel;
   context: RenderContext;
   /** The page opens on a full-bleed picture the overlay header can sit on. */
   overlay: boolean;
+  /** The page is whole in itself, as a door laid out as a page is: no header, footer or banner. */
+  bare?: boolean;
   children: ReactNode;
 }) {
   const t = { locale: context.locale };
@@ -909,15 +912,21 @@ export function SiteFrame({
           </feComponentTransfer>
         </filter>
       </svg>
-      <Banner frame={frame} />
+      {bare ? null : <Banner frame={frame} />}
       <div className="relative flex flex-1 flex-col">
-        <Header frame={frame} context={context} overlay={overlay} />
+        {bare ? null : (
+          <Header frame={frame} context={context} overlay={overlay} />
+        )}
         <main id="site-main" className="flex-1">
           {children}
         </main>
       </div>
-      <Footer frame={frame} context={context} />
-      <Dock frame={frame} context={context} />
+      {bare ? null : (
+        <>
+          <Footer frame={frame} context={context} />
+          <Dock frame={frame} context={context} />
+        </>
+      )}
     </div>
   );
 }

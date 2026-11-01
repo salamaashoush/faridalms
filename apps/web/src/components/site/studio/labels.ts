@@ -246,10 +246,12 @@ export const VARIANT_LABEL: {
     inset: m.siteVariantEmbedInset,
   },
   signIn: {
+    panel: m.siteVariantDoorPanel,
     split: m.siteVariantSignInSplit,
     stacked: m.siteVariantSignInStacked,
   },
   register: {
+    panel: m.siteVariantDoorPanel,
     split: m.siteVariantDoorSplit,
     stacked: m.siteVariantDoorStacked,
   },
@@ -285,6 +287,7 @@ export const FIELD_LABEL: Record<string, () => string> = {
   role: m.siteFieldRole,
   columns: m.siteFieldColumns,
   items: m.siteFieldItems,
+  points: m.siteFieldPoints,
   title: m.siteFieldTitle,
   image: m.siteFieldImage,
   icon: m.siteFieldIcon,
