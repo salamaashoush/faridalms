@@ -42,6 +42,15 @@ export function formatNumber(value: number): string {
   return new Intl.NumberFormat(numberLocale()).format(value);
 }
 
+/** An amount of money in its currency, in the reader's digits: EGP 1,500 or ١٬٥٠٠ ج.م. */
+export function formatAmount(value: number, currency: string): string {
+  return new Intl.NumberFormat(numberLocale(), {
+    style: "currency",
+    currency,
+    maximumFractionDigits: Number.isInteger(value) ? 0 : 2,
+  }).format(value);
+}
+
 /** Takes a whole-number rate, 0 to 100. */
 export function formatPercent(value: number): string {
   return new Intl.NumberFormat(numberLocale(), {

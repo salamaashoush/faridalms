@@ -70,6 +70,7 @@ function standing(
 const KIND_LABEL: Record<ReviewRow["kind"], () => string> = {
   student: m.privacyKindStudent,
   staff: m.privacyKindStaff,
+  applicant: m.privacyKindApplicant,
 };
 
 function reviewColumns(
@@ -258,7 +259,9 @@ export function ReviewTable({
     ];
   };
   const noRules =
-    overview.rules.studentRule === null && overview.rules.staffYears === null;
+    overview.rules.studentRule === null &&
+    overview.rules.staffYears === null &&
+    overview.rules.applicantMonths === null;
   return (
     <div className="grid gap-6">
       {noRules ? (
@@ -397,6 +400,13 @@ export function RetentionSection({
                 value: formatNumber(rules.staffYears),
               })}
         </Fact>
+        <Fact label={m.privacyApplicants()}>
+          {rules.applicantMonths === null
+            ? m.privacyRuleKeep()
+            : m.privacyRuleApplicantMonths({
+                value: formatNumber(rules.applicantMonths),
+              })}
+        </Fact>
       </Facts>
     </RecordSection>
   );
@@ -423,6 +433,9 @@ export function RetentionSheet({
   const [staff, setStaff] = useState(
     rules.staffYears === null ? "" : String(rules.staffYears),
   );
+  const [applicants, setApplicants] = useState(
+    rules.applicantMonths === null ? "" : String(rules.applicantMonths),
+  );
   const [tried, setTried] = useState(false);
   const studentValue = rule === KEEP ? null : Number(value);
   const valueError =
@@ -441,6 +454,14 @@ export function RetentionSheet({
     (!Number.isInteger(staffYears) || staffYears < 1 || staffYears > 100)
       ? m.privacyYearsInvalid()
       : null;
+  const applicantMonths = applicants.trim() === "" ? null : Number(applicants);
+  const applicantError =
+    applicantMonths !== null &&
+    (!Number.isInteger(applicantMonths) ||
+      applicantMonths < 1 ||
+      applicantMonths > 120)
+      ? m.privacyMonthsInvalid()
+      : null;
   const mutation = useMutation({
     mutationFn: () =>
       saveRetention({
@@ -448,6 +469,7 @@ export function RetentionSheet({
           studentRule: rule === KEEP ? null : rule,
           studentValue,
           staffYears,
+          applicantMonths,
         },
       }),
     meta: { inlineError: true },
@@ -461,7 +483,7 @@ export function RetentionSheet({
       error={mutation.error ? getMessageFromError(mutation.error) : null}
       onSubmit={async () => {
         setTried(true);
-        if (valueError || staffError) return;
+        if (valueError || staffError || applicantError) return;
         await mutation.mutateAsync().then(
           async () => {
             await refresh();
@@ -515,6 +537,21 @@ export function RetentionSheet({
         value={staff}
         onChange={(event) => setStaff(event.target.value)}
         errors={tried && staffError ? [staffError] : undefined}
+      />
+      <TextField
+        id="retention-applicants"
+        label={m.privacyApplicantMonths()}
+        hint={m.privacyApplicantHint()}
+        optional
+        type="number"
+        inputMode="numeric"
+        min={1}
+        max={120}
+        step={1}
+        width="score"
+        value={applicants}
+        onChange={(event) => setApplicants(event.target.value)}
+        errors={tried && applicantError ? [applicantError] : undefined}
       />
     </SheetForm>
   );

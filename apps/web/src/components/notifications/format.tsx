@@ -18,6 +18,7 @@ import {
   Reply,
   ShieldCheck,
   Siren,
+  FileUser,
   UserPlus,
   UserX,
 } from "lucide-react";
@@ -52,6 +53,7 @@ export const KIND_ICON: Record<NotificationKind, LucideIcon> = {
   library: BookMarked,
   reply: Reply,
   enquiry: UserPlus,
+  application: FileUser,
 };
 
 const ENQUIRY_TITLE = {
@@ -169,6 +171,22 @@ export function noticeText(notice: Notice): { title: string; body: string } {
           : ENQUIRY_TITLE[params.purpose ?? "enquiry"](),
         body: [title, params.preview ?? ""].filter(Boolean).join(" · "),
       };
+    case "application":
+      return params.received
+        ? {
+            title: m.ntfApplicationReceived(),
+            body: m.ntfApplicationReceivedBody({
+              child: title,
+              grade: both(params.gradeName, params.gradeNameAr),
+              reference: params.reference ?? "",
+            }),
+          }
+        : {
+            title: m.ntfApplication(),
+            body: [title, both(params.gradeName, params.gradeNameAr)]
+              .filter(Boolean)
+              .join(" · "),
+          };
     case "library":
       return {
         title: params.shared
@@ -344,6 +362,20 @@ export function NoticeLink({
           {...rest}
           to="/admissions/enquiries/$enquiryId"
           params={{ enquiryId: id }}
+        >
+          {children}
+        </Link>
+      );
+    case "application":
+      return notice.params.received ? (
+        <Link {...rest} to="/family/applications">
+          {children}
+        </Link>
+      ) : (
+        <Link
+          {...rest}
+          to="/admissions/applications/$applicationId"
+          params={{ applicationId: id }}
         >
           {children}
         </Link>
