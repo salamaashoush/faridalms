@@ -1,5 +1,7 @@
 import { expect, test } from "@playwright/test";
 
+import { apiAs } from "./fixtures/api";
+import { newYear } from "./fixtures/school";
 import { chooseFromMenu, signIn, untilHydrated } from "./fixtures/sign-in";
 
 // Browser projects share one school and years may not overlap, so each adds
@@ -10,6 +12,130 @@ const YEAR = {
   firefox: { title: "2032–2033", start: "2032-09-12", end: "2033-06-16" },
   webkit: { title: "2034–2035", start: "2034-09-10", end: "2035-06-14" },
 } as const;
+
+const DAY = {
+  chromium: {
+    title: "2050–2051 Salama",
+    startsOn: "2050-09-04",
+    endsOn: "2051-06-15",
+    later: "2050-11-06",
+  },
+  firefox: {
+    title: "2052–2053 Salama",
+    startsOn: "2052-09-08",
+    endsOn: "2053-06-12",
+    later: "2052-11-07",
+  },
+  webkit: {
+    title: "2054–2055 Salama",
+    startsOn: "2054-09-06",
+    endsOn: "2055-06-17",
+    later: "2054-11-08",
+  },
+} as const;
+
+test("the office sets a year's periods and their days, and a later change keeps the days before it", async ({
+  page,
+  browserName,
+}) => {
+  const dates = DAY[browserName];
+  const admin = await apiAs("admin");
+  const year = await newYear(admin, dates);
+  await signIn(page, "admin");
+  await page.goto(`/years/${year.id}`);
+  await untilHydrated(page);
+  await page.getByRole("tab", { name: "Periods", exact: true }).click();
+  await expect(page).toHaveURL(/tab=periods/);
+  const day = page.getByRole("region", { name: "School day" });
+  await expect(day.getByText("Period 1", { exact: true })).toBeVisible();
+  await expect(day.getByText("8:00 AM–8:45 AM")).toBeVisible();
+  await expect(
+    page
+      .getByRole("region", { name: "School days" })
+      .getByText("Sunday, Monday, Tuesday, Wednesday, and Thursday"),
+  ).toBeVisible();
+
+  await page.getByRole("button", { name: "Change periods" }).click();
+  const sheet = page.getByRole("dialog", { name: "Change periods" });
+  await expect(sheet.getByLabel("From", { exact: true })).toHaveValue(
+    dates.startsOn,
+  );
+  await sheet.getByRole("button", { name: "Remove Period 6" }).click();
+  await sheet.getByRole("button", { name: "Add period", exact: true }).click();
+  const added = sheet.getByRole("group", { name: "Period 8" });
+  await added
+    .getByRole("textbox", { name: "Name in English", exact: true })
+    .fill("Clubs");
+  const club = sheet.getByRole("group", { name: "Clubs", exact: true });
+  await club.getByLabel("Starts", { exact: true }).fill("13:30");
+  await club.getByLabel("Ends", { exact: true }).fill("13:00");
+  await club.getByRole("checkbox", { name: "Thursday" }).click();
+  await sheet.getByRole("button", { name: "Save", exact: true }).click();
+  const ends = club.getByLabel("Ends", { exact: true });
+  await expect(ends).toHaveAttribute("aria-invalid", "true");
+  await expect(ends).toHaveAccessibleDescription(
+    "A lesson must end after it starts.",
+  );
+  await ends.fill("14:15");
+  await sheet.getByRole("button", { name: "Save", exact: true }).click();
+  await expect(sheet).toHaveCount(0);
+  await expect(page.getByText("Periods saved", { exact: true })).toBeVisible();
+  await expect(day.getByText("Period 6", { exact: true })).toHaveCount(0);
+  await expect(day.getByText("Clubs", { exact: true })).toBeVisible();
+  await expect(day.getByText("1:30 PM–2:15 PM")).toBeVisible();
+  await expect(
+    day.getByText("Lesson · Sunday, Monday, Tuesday, and Wednesday"),
+  ).toBeVisible();
+
+  await page.getByRole("button", { name: "Change periods" }).click();
+  await sheet.getByLabel("From", { exact: true }).fill(dates.later);
+  await sheet
+    .getByRole("group", { name: "Clubs", exact: true })
+    .getByRole("textbox", { name: "Name in English", exact: true })
+    .fill("Sports");
+  await sheet.getByRole("button", { name: "Save", exact: true }).click();
+  await expect(sheet).toHaveCount(0);
+  const changes = page.getByRole("region", { name: "Changes this year" });
+  await expect(changes.getByRole("link")).toHaveCount(2);
+  await changes.getByRole("link").first().click();
+  await expect(page).toHaveURL(new RegExp(`on=${dates.startsOn}`));
+  await expect(day.getByText("Clubs", { exact: true })).toBeVisible();
+  await changes.getByRole("link").last().click();
+  await expect(page).toHaveURL(new RegExp(`on=${dates.later}`));
+  await expect(day.getByText("Sports", { exact: true })).toBeVisible();
+  await expect(day.getByText("Clubs", { exact: true })).toHaveCount(0);
+});
+
+test("a change to the school day cannot reach back over a register already taken", async ({
+  page,
+}) => {
+  const admin = await apiAs("admin");
+  const { workingYearId } = await admin.classes.options();
+  if (!workingYearId) throw new Error("the school has no working year");
+  const { startsOn } = await admin.years.record({ id: workingYearId });
+  await signIn(page, "admin");
+  await page.goto(`/years/${workingYearId}?tab=periods&on=${startsOn}`);
+  await untilHydrated(page);
+  await page.getByRole("button", { name: "Change periods" }).click();
+  const sheet = page.getByRole("dialog", { name: "Change periods" });
+  await sheet.getByLabel("From", { exact: true }).fill(startsOn);
+  await sheet
+    .getByRole("group", { name: "Registration", exact: true })
+    .getByLabel("Ends", { exact: true })
+    .fill("07:55");
+  await sheet.getByRole("button", { name: "Save", exact: true }).click();
+  const from = sheet.getByLabel("From", { exact: true });
+  await expect(from).toHaveAttribute("aria-invalid", "true");
+  await expect(from).toHaveAccessibleDescription(
+    /^A register was already taken on .+ in a period this changes\. Choose a later date\.$/,
+  );
+  await sheet.getByRole("button", { name: "Cancel", exact: true }).click();
+  await expect(
+    page
+      .getByRole("region", { name: "School day" })
+      .getByText("7:45 AM–8:00 AM"),
+  ).toBeVisible();
+});
 
 test("an administrator adds a year with terms, closes it and reopens it with a reason", async ({
   page,

@@ -1,5 +1,6 @@
 import { schoolDayCount } from "@faridalms/domain/calendar";
 import { teachingWeeks } from "@faridalms/domain/school";
+import { DEFAULT_PERIODS } from "@faridalms/domain/timetable";
 import { describe, expect, test } from "bun:test";
 
 import { login, rejection, signedIn } from "./harness";
@@ -42,6 +43,252 @@ const lastDay = (endsBefore: string) => {
   day.setUTCDate(day.getUTCDate() - 1);
   return day.toISOString().slice(0, 10);
 };
+
+type Periods = Awaited<
+  ReturnType<Awaited<ReturnType<typeof acmePrincipal>>["years"]["periods"]>
+>["periods"];
+
+const shapeOf = (periods: Periods) =>
+  periods.map((period) => ({
+    nameEn: period.nameEn,
+    kind: period.kind,
+    startTime: period.startTime,
+    endTime: period.endTime,
+    official: period.official,
+    weekdays: period.weekdays,
+  }));
+
+const inputOf = (periods: Periods) =>
+  periods.map((period) => ({
+    id: period.id,
+    nameEn: period.nameEn ?? "",
+    nameAr: period.nameAr ?? "",
+    kind: period.kind,
+    startTime: period.startTime,
+    endTime: period.endTime,
+    official: period.official,
+    weekdays: period.weekdays,
+  }));
+
+const knownOf = (periods: Periods) =>
+  periods.map((period) => ({ id: period.id, version: period.version }));
+
+// Acme teaches Monday to Friday. The change lands on a Monday after today
+// and after the weeks other suites read.
+const CHANGED = "2026-11-16";
+const BEFORE_CHANGE = "2026-11-09";
+const MONDAY = 1;
+const FRIDAY = 5;
+
+describe("the school day", () => {
+  test("a year's periods change from a date on, keeping earlier days and their registers", async () => {
+    const api = await acmePrincipal();
+    const year = await currentYear(api);
+    const before = await api.years.periods({ id: year.id, on: CHANGED });
+    expect(shapeOf(before.periods)).toEqual(
+      DEFAULT_PERIODS.map((period) => ({
+        nameEn: period.nameEn,
+        kind: period.kind,
+        startTime: period.startTime,
+        endTime: period.endTime,
+        official: period.official,
+        weekdays: [...period.weekdays],
+      })),
+    );
+    expect(before).toMatchObject({
+      weekStart: MONDAY,
+      days: [1, 2, 3, 4, 5],
+      changes: [year.startsOn],
+      canEdit: true,
+    });
+
+    const first = before.periods.find((period) => period.nameEn === "Period 1");
+    const last = before.periods.find((period) => period.nameEn === "Period 6");
+    const registration = before.periods.find((period) => period.official);
+    if (!first || !last || !registration) throw new Error("seeded periods");
+    const { grids } = await api.timetable.options();
+    const homeroom = grids.find((row) => row.classType === "homeroom");
+    if (!homeroom) throw new Error("seeded homeroom");
+    const placed = (
+      await api.timetable.grid({ classId: homeroom.id, on: BEFORE_CHANGE })
+    ).meetings.find(
+      (row) => row.weekday === MONDAY && row.periodId === first.id,
+    );
+    if (!placed) throw new Error("the seeded week has no first lesson");
+
+    const later = inputOf(before.periods)
+      .filter((period) => period.id !== last.id)
+      .map((period) =>
+        period.id === first.id ? { ...period, startTime: "08:05" } : period,
+      );
+    const added = {
+      nameEn: "Period 7",
+      nameAr: "الحصة السابعة",
+      kind: "lesson" as const,
+      startTime: "13:25",
+      endTime: "14:10",
+      official: false,
+      weekdays: [1, 2, 3, 4],
+    };
+
+    // A register already taken in a period the change touches keeps it out.
+    expect(
+      await rejection(
+        api.years.savePeriods({
+          yearId: year.id,
+          from: year.startsOn,
+          known: knownOf(before.periods),
+          periods: inputOf(before.periods).map((period) =>
+            period.id === registration.id
+              ? { ...period, endTime: "07:55" }
+              : period,
+          ),
+        }),
+      ),
+    ).toMatchObject({
+      code: "CONFLICT",
+      message: expect.stringMatching(
+        /^class_period\.registers_after:\d{4}-\d{2}-\d{2}$/,
+      ),
+    });
+    expect(
+      await rejection(
+        api.years.savePeriods({
+          yearId: year.id,
+          from: CHANGED,
+          known: knownOf(before.periods),
+          periods: [...later, { ...added, startTime: "12:00" }],
+        }),
+      ),
+    ).toMatchObject({ code: "BAD_REQUEST" });
+
+    const saved = await api.years.savePeriods({
+      yearId: year.id,
+      from: CHANGED,
+      known: knownOf(before.periods),
+      periods: [...later, added],
+    });
+    expect(saved).toMatchObject({ changed: 1, added: 1, ended: 1 });
+
+    const kept = await api.years.periods({ id: year.id, on: BEFORE_CHANGE });
+    expect(kept.periods.map((period) => period.id)).toEqual(
+      before.periods.map((period) => period.id),
+    );
+    const after = await api.years.periods({ id: year.id, on: CHANGED });
+    expect(after.changes).toEqual([year.startsOn, CHANGED]);
+    const moved = after.periods.find((period) => period.nameEn === "Period 1");
+    expect(moved).toMatchObject({ startTime: "08:05", from: CHANGED });
+    expect(moved?.id).not.toBe(first.id);
+    expect(after.periods.map((period) => period.nameEn)).not.toContain(
+      "Period 6",
+    );
+    expect(after.periods.at(-1)).toMatchObject({
+      nameEn: "Period 7",
+      weekdays: [1, 2, 3, 4],
+    });
+
+    // The lesson in the first period carries on in its new times.
+    const week = await api.timetable.grid({
+      classId: homeroom.id,
+      on: CHANGED,
+    });
+    expect(
+      week.meetings.find(
+        (row) => row.weekday === MONDAY && row.periodId === moved?.id,
+      )?.classId,
+    ).toBe(placed.classId);
+    expect(week.meetings.some((row) => row.periodId === last.id)).toBe(false);
+    const earlier = await api.timetable.grid({
+      classId: homeroom.id,
+      on: BEFORE_CHANGE,
+    });
+    expect(
+      earlier.meetings.find(
+        (row) => row.weekday === MONDAY && row.periodId === first.id,
+      )?.classId,
+    ).toBe(placed.classId);
+
+    // The new period runs Monday to Thursday only.
+    const seventh = after.periods.at(-1);
+    const subject = week.classes[0];
+    if (!seventh || !subject) throw new Error("the grid places no class");
+    expect(
+      await rejection(
+        api.timetable.place({
+          classId: homeroom.id,
+          weekday: FRIDAY,
+          periodId: seventh.id,
+          from: CHANGED,
+          meetingClassId: subject.id,
+          teacherId: "",
+          roomId: "",
+        }),
+      ),
+    ).toMatchObject({ code: "BAD_REQUEST", message: "timetable.no_period" });
+
+    // An editor who read the day before it changed is refused.
+    expect(
+      await rejection(
+        api.years.savePeriods({
+          yearId: year.id,
+          from: CHANGED,
+          known: knownOf(before.periods),
+          periods: inputOf(before.periods),
+        }),
+      ),
+    ).toMatchObject({ code: "CONFLICT", message: "conflict.version" });
+
+    // Changing the day again from the same date changes it where it stands.
+    await api.years.savePeriods({
+      yearId: year.id,
+      from: CHANGED,
+      known: knownOf(after.periods),
+      periods: inputOf(after.periods).map((period) =>
+        period.id === seventh.id
+          ? { ...period, nameEn: "Last lesson" }
+          : period,
+      ),
+    });
+    const renamed = await api.years.periods({ id: year.id, on: CHANGED });
+    expect(renamed.periods.at(-1)).toMatchObject({
+      id: seventh.id,
+      nameEn: "Last lesson",
+    });
+    expect(renamed.changes).toEqual([year.startsOn, CHANGED]);
+
+    const history = await api.years.history({ id: year.id });
+    expect(history[0]?.action).toBe("class_periods.replace");
+  });
+
+  test("a teacher reads and changes no school day", async () => {
+    const api = await acmePrincipal();
+    const year = await currentYear(api);
+    const teacher = await signedIn("acme", login("teacher", 1));
+    expect(
+      await rejection(teacher.years.periods({ id: year.id, on: "" })),
+    ).toMatchObject({ code: "FORBIDDEN" });
+    expect(
+      await rejection(
+        teacher.years.savePeriods({
+          yearId: year.id,
+          from: CHANGED,
+          known: [],
+          periods: [
+            {
+              nameEn: "Period 1",
+              nameAr: "",
+              kind: "lesson",
+              startTime: "08:00",
+              endTime: "08:45",
+              official: false,
+              weekdays: [1],
+            },
+          ],
+        }),
+      ),
+    ).toMatchObject({ code: "FORBIDDEN" });
+  });
+});
 
 describe("school years", () => {
   test("the principal lists the year with its terms, classes and students", async () => {
@@ -87,6 +334,13 @@ describe("school years", () => {
       teachingWeeks("2027-09-12", "2028-06-15", 1, weekStart).length,
     );
     expect(year.calendar.schoolDays).toBeGreaterThan(150);
+    const current = await currentYear(api);
+    const [ours, theirs] = await Promise.all([
+      api.years.periods({ id, on: "" }),
+      api.years.periods({ id: current.id, on: lastDay(current.endsBefore) }),
+    ]);
+    expect(shapeOf(ours.periods)).toEqual(shapeOf(theirs.periods));
+    expect(ours.changes).toEqual(["2027-09-12"]);
     expect(
       await rejection(
         api.years.save({
@@ -175,6 +429,17 @@ describe("school years", () => {
     const student = record.roster[0];
     if (!student) throw new Error("old roster");
     expect(record.access.manage).toBe(false);
+    const { periods } = await api.years.periods({ id: old.id, on: "" });
+    expect(
+      await rejection(
+        api.years.savePeriods({
+          yearId: old.id,
+          from: old.startsOn,
+          known: knownOf(periods),
+          periods: inputOf(periods),
+        }),
+      ),
+    ).toMatchObject({ code: "CONFLICT", message: "school_year.closed" });
     expect(
       await rejection(
         api.classes.withdraw({

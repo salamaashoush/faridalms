@@ -2210,6 +2210,8 @@ create table core.class_periods (
   start_time time,
   end_time time,
   official_attendance boolean not null default false,
+  weekdays smallint[] not null default '{1,2,3,4,5,6,7}'
+    check (weekdays <@ '{1,2,3,4,5,6,7}' and cardinality(weekdays) between 1 and 7),
   valid_during daterange not null,
   status text not null default 'active' check (status in ('active', 'tobedeleted')),
   date_last_modified timestamptz not null default statement_timestamp(),

@@ -356,6 +356,11 @@ export const classPeriods = core.table.withRLS(
     startTime: time("start_time"),
     endTime: time("end_time"),
     officialAttendance: boolean("official_attendance").notNull().default(false),
+    /** ISO days of the week it runs on, of the school's teaching days. */
+    weekdays: smallint("weekdays")
+      .array()
+      .notNull()
+      .default(sql`'{1,2,3,4,5,6,7}'`),
     validDuring: daterange("valid_during").notNull(),
     ...entityColumns(),
   },
@@ -393,6 +398,11 @@ export const classPeriods = core.table.withRLS(
       "class_periods",
       "times",
       sql`(start_time is null) = (end_time is null) and (end_time is null or end_time > start_time)`,
+    ),
+    ck(
+      "class_periods",
+      "weekdays",
+      sql`weekdays <@ '{1,2,3,4,5,6,7}' and cardinality(weekdays) between 1 and 7`,
     ),
     ck("class_periods", "valid_during", range.bounded("valid_during")),
     ...entityProfile({ integration: true }),

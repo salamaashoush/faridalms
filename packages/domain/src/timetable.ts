@@ -166,3 +166,171 @@ export const changeLessonSchema = v.pipe(
 export type ChangeLesson = v.InferOutput<typeof changeLessonSchema>;
 
 export const clearChangeSchema = v.object(lesson);
+
+export const PERIOD_KINDS = [
+  "lesson",
+  "registration",
+  "break",
+  "other",
+] as const;
+export type PeriodKind = (typeof PERIOD_KINDS)[number];
+
+export const EVERY_DAY: readonly IsoWeekday[] = [1, 2, 3, 4, 5, 6, 7];
+
+/** A period of the school day as a year's structure holds it, apart from its dates. */
+export interface PeriodPattern {
+  nameEn: string | null;
+  nameAr: string | null;
+  kind: PeriodKind;
+  startTime: string;
+  endTime: string;
+  /** Its register is the day's attendance for a homeroom. */
+  official: boolean;
+  /** The days of the week it runs on; the school's weekend never has it. */
+  weekdays: readonly number[];
+}
+
+/** The day a school starts from when neither it nor its group has one. */
+export const DEFAULT_PERIODS: readonly (PeriodPattern & { code: string })[] = [
+  ["reg", "Registration", "التسجيل", "registration", "07:45", "08:00"],
+  ["1", "Period 1", "الحصة الأولى", "lesson", "08:00", "08:45"],
+  ["2", "Period 2", "الحصة الثانية", "lesson", "08:50", "09:35"],
+  ["3", "Period 3", "الحصة الثالثة", "lesson", "09:40", "10:25"],
+  ["break", "Break", "الفسحة", "break", "10:25", "10:55"],
+  ["4", "Period 4", "الحصة الرابعة", "lesson", "10:55", "11:40"],
+  ["5", "Period 5", "الحصة الخامسة", "lesson", "11:45", "12:30"],
+  ["6", "Period 6", "الحصة السادسة", "lesson", "12:35", "13:20"],
+].map(([code, nameEn, nameAr, kind, startTime, endTime]) => ({
+  code: code ?? "",
+  nameEn: nameEn ?? null,
+  nameAr: nameAr ?? null,
+  kind: kind as PeriodKind,
+  startTime: startTime ?? "",
+  endTime: endTime ?? "",
+  official: kind === "registration",
+  weekdays: EVERY_DAY,
+}));
+
+const sameDays = (a: readonly number[], b: readonly number[]) =>
+  a.length === b.length &&
+  a
+    .toSorted((x, y) => x - y)
+    .every((day, index) => day === b.toSorted((x, y) => x - y)[index]);
+
+/** Whether two versions of a period differ in anything a day is drawn with. */
+export function periodChanged(a: PeriodPattern, b: PeriodPattern): boolean {
+  return (
+    a.nameEn !== b.nameEn ||
+    a.nameAr !== b.nameAr ||
+    a.kind !== b.kind ||
+    a.startTime !== b.startTime ||
+    a.endTime !== b.endTime ||
+    a.official !== b.official ||
+    !sameDays(a.weekdays, b.weekdays)
+  );
+}
+
+export type PeriodIssue = "slot_overlap" | "official_twice";
+
+/** The first clash between periods that share a day, or null when the day holds together. */
+export function periodIssue(
+  periods: readonly Pick<
+    PeriodPattern,
+    "startTime" | "endTime" | "official" | "weekdays"
+  >[],
+): PeriodIssue | null {
+  for (const [index, one] of periods.entries())
+    for (const other of periods.slice(index + 1)) {
+      if (!one.weekdays.some((day) => other.weekdays.includes(day))) continue;
+      if (one.startTime < other.endTime && other.startTime < one.endTime)
+        return "slot_overlap";
+      if (one.official && other.official) return "official_twice";
+    }
+  return null;
+}
+
+const clock = v.pipe(v.string(), v.regex(/^([01]\d|2[0-3]):[0-5]\d$/));
+const periodName = v.optional(
+  v.pipe(
+    v.string(),
+    v.trim(),
+    v.maxLength(60),
+    v.transform((value) => (value === "" ? null : value)),
+  ),
+  "",
+);
+
+export const periodSchema = v.pipe(
+  v.object({
+    /** The period this one carries on from; none for a period the day gains. */
+    id: v.optional(id),
+    nameEn: periodName,
+    nameAr: periodName,
+    kind: v.picklist(PERIOD_KINDS),
+    startTime: clock,
+    endTime: clock,
+    official: v.optional(v.boolean(), false),
+    weekdays: v.pipe(v.array(weekday), v.minLength(1), v.maxLength(7)),
+  }),
+  v.forward(
+    v.check(
+      (value) => value.nameEn !== null || value.nameAr !== null,
+      "validation.name_required",
+    ),
+    ["nameAr"],
+  ),
+  v.forward(
+    v.check((value) => value.endTime > value.startTime, "validation.end_time"),
+    ["endTime"],
+  ),
+  v.forward(
+    v.check(
+      (value) => !value.official || value.kind !== "break",
+      "validation.official_break",
+    ),
+    ["official"],
+  ),
+);
+export type PeriodInput = v.InferOutput<typeof periodSchema>;
+
+export const periodsQuerySchema = v.object({
+  id,
+  on: v.optional(v.union([v.literal(""), isoDate]), ""),
+});
+
+/**
+ * A year's day from a date on: the periods it holds then, in any order,
+ * replacing those in force on that date. `known` is every period the editor
+ * read in force on that date, with the version it read.
+ */
+export const savePeriodsSchema = v.pipe(
+  v.object({
+    yearId: id,
+    from: isoDate,
+    known: v.pipe(
+      v.array(
+        v.object({
+          id,
+          version: v.pipe(v.number(), v.integer(), v.minValue(1)),
+        }),
+      ),
+      v.maxLength(50),
+    ),
+    periods: v.pipe(v.array(periodSchema), v.minLength(1), v.maxLength(20)),
+  }),
+  v.forward(
+    v.check(
+      (value) => periodIssue(value.periods) !== "slot_overlap",
+      "validation.slot_overlap",
+    ),
+    ["periods"],
+  ),
+  v.forward(
+    v.check(
+      (value) => periodIssue(value.periods) !== "official_twice",
+      "validation.official_twice",
+    ),
+    ["periods"],
+  ),
+);
+export type SavePeriods = v.InferOutput<typeof savePeriodsSchema>;

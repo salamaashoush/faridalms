@@ -173,34 +173,3 @@ export async function markRolloverApplied(
         applied_by_user_id = ${input.userId}::uuid
     where tenant_id = ${input.tenantId}::uuid and id = ${input.id}::uuid`);
 }
-
-/**
- * Gives the target year the source year's class periods, keeping their codes,
- * when it has none of its own yet.
- */
-export async function copyClassPeriods(
-  tx: Tx,
-  input: {
-    tenantId: string;
-    schoolId: string;
-    sourceYearId: string;
-    target: { id: string; startsOn: string; endsBefore: string };
-  },
-) {
-  await tx.execute(sql`
-    insert into core.class_periods (tenant_id, org_id, school_year_id, code, name_en, name_ar,
-      sequence, kind, start_time, end_time, official_attendance, valid_during)
-    select tenant_id, org_id, ${input.target.id}::uuid, code, name_en, name_ar,
-      sequence, kind, start_time, end_time, official_attendance,
-      daterange(${input.target.startsOn}::date, ${input.target.endsBefore}::date, '[)')
-    from (
-      select distinct on (code) * from core.class_periods
-      where tenant_id = ${input.tenantId}::uuid and org_id = ${input.schoolId}::uuid
-        and school_year_id = ${input.sourceYearId}::uuid and status = 'active'
-      order by code, upper(valid_during) desc
-    ) latest
-    where not exists (
-      select 1 from core.class_periods t
-      where t.tenant_id = ${input.tenantId}::uuid and t.school_year_id = ${input.target.id}::uuid
-        and t.status = 'active')`);
-}

@@ -4,6 +4,10 @@ import { validationMessage } from "~/utils/validation";
 
 /** Followed by the last day a register marks the student, which the change would undo. */
 const REGISTERS_AFTER = "enrollment.registers_after:";
+/** Followed by the first day a register was taken in a period the change rewrites. */
+export const PERIOD_REGISTERS_AFTER = "class_period.registers_after:";
+/** Followed by the first day cover is arranged in a period the change ends. */
+export const PERIOD_COVER_AFTER = "class_period.cover_after:";
 
 export class HttpError extends Error {
   readonly status: number;
@@ -329,6 +333,10 @@ export function getMessageFromError(error: unknown): string {
         return m.ttNotSchoolDay();
       case "timetable.no_period":
         return m.ttNoPeriod();
+      case "class_period.outside_year":
+        return m.periodsOutsideYear();
+      case "class_period.no_days":
+        return m.periodsNoDays();
       case "timetable.not_in_group":
         return m.ttNotInGroup();
       case "timetable.teacher":
@@ -901,6 +909,14 @@ export function getMessageFromError(error: unknown): string {
     if (error.message.startsWith(REGISTERS_AFTER))
       return m.enrollmentRegistersAfter({
         date: formatDate(error.message.slice(REGISTERS_AFTER.length)),
+      });
+    if (error.message.startsWith(PERIOD_REGISTERS_AFTER))
+      return m.periodsRegistersAfter({
+        date: formatDate(error.message.slice(PERIOD_REGISTERS_AFTER.length)),
+      });
+    if (error.message.startsWith(PERIOD_COVER_AFTER))
+      return m.periodsCoverAfter({
+        date: formatDate(error.message.slice(PERIOD_COVER_AFTER.length)),
       });
     return error.message;
   }

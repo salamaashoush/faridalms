@@ -99,6 +99,7 @@ async function frame(context: UnitContext, year: SchoolYear, on: string) {
       schoolId: context.schoolId,
       yearId: year.id,
       day: on,
+      everyDay: true,
     }),
     calendarDays(context.tx, {
       tenantId: context.tenantId,
@@ -140,6 +141,7 @@ async function frame(context: UnitContext, year: SchoolYear, on: string) {
         nameAr: period.nameAr,
         startTime: period.startTime,
         endTime: period.endTime,
+        weekdays: period.weekdays,
       })),
   };
 }
@@ -370,7 +372,12 @@ async function placementYear(
   const shape = await frame(context, year, input.from);
   if (!shape.days.includes(input.weekday as never))
     throw new ORPCError("BAD_REQUEST", { message: "timetable.not_school_day" });
-  if (!shape.periods.some((period) => period.id === input.periodId))
+  if (
+    !shape.periods.some(
+      (period) =>
+        period.id === input.periodId && period.weekdays.includes(input.weekday),
+    )
+  )
     throw new ORPCError("BAD_REQUEST", { message: "timetable.no_period" });
   return year;
 }

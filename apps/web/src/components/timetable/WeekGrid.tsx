@@ -17,6 +17,8 @@ export interface GridPeriod {
   nameAr: string | null;
   startTime: string | null;
   endTime: string | null;
+  /** The days of the week it runs on; every day when not given. */
+  weekdays?: readonly number[];
 }
 
 export interface GridMeeting {
@@ -47,6 +49,18 @@ function dayNote(date: GridDate | undefined): string | null {
 
 export function periodName(period: GridPeriod) {
   return inLocale(period.nameEn, period.nameAr);
+}
+
+const runsOn = (period: GridPeriod, day: number) =>
+  !period.weekdays || period.weekdays.includes(day);
+
+function NoPeriod() {
+  return (
+    <span className="grid h-full min-h-10 place-items-center text-muted-foreground">
+      <span aria-hidden>—</span>
+      <span className="sr-only">{m.periodsNotOnDay()}</span>
+    </span>
+  );
 }
 
 function PeriodLabel({ period }: { period: GridPeriod }) {
@@ -184,7 +198,11 @@ export function WeekGrid<T extends GridMeeting>({
                         day === today && "bg-muted/30",
                       )}
                     >
-                      {cell({ meeting: at(day, period), day, period })}
+                      {runsOn(period, day) ? (
+                        cell({ meeting: at(day, period), day, period })
+                      ) : (
+                        <NoPeriod />
+                      )}
                     </td>
                   );
                 })}
@@ -250,7 +268,11 @@ export function WeekGrid<T extends GridMeeting>({
                     <PeriodLabel period={period} />
                   </div>
                   <div className="min-w-0">
-                    {cell({ meeting: at(picked, period), day: picked, period })}
+                    {runsOn(period, picked) ? (
+                      cell({ meeting: at(picked, period), day: picked, period })
+                    ) : (
+                      <NoPeriod />
+                    )}
                   </div>
                 </li>
               ))}
