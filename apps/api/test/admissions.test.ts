@@ -1,6 +1,7 @@
 import type { SectionOf } from "@faridalms/domain/website";
 import type { RouterClient } from "@orpc/server";
 
+import { fillFields, plainContent } from "@faridalms/domain/content-conversion";
 import { newSection } from "@faridalms/domain/website";
 import { createORPCClient } from "@orpc/client";
 import { RPCLink } from "@orpc/client/fetch";
@@ -9,6 +10,7 @@ import { describe, expect, test } from "bun:test";
 import type { AppRouter } from "../src/router";
 
 import { createTurnstile } from "../src/core/turnstile";
+import { deliverTenant } from "../src/notifications/deliver";
 import { handlerWith, login, rejection, seeded, sessionFor } from "./harness";
 
 const principal = () => sessionFor("northwind", login("principal"));
@@ -351,41 +353,50 @@ describe("the enquiry inbox", () => {
       ),
     ).toMatchObject({ message: "conflict.version" });
 
-    await api.admissions.addEnquiryEntry({
-      id: listed.id,
+    // The enquiry's conversation is the one timeline: the family's words,
+    // then each change, note and call, written through Messages.
+    const threadId = page.threadId;
+    if (!threadId) throw new Error("the enquiry has no conversation");
+    await api.messages.send({
+      threadId,
       kind: "note",
-      body: "Prefers a call after four.",
+      content: plainContent("Prefers a call after four."),
     });
     let now = await api.admissions.enquiry({ id: listed.id });
     expect(now.state).toBe("open");
     expect(now.firstRespondedAt).toBeNull();
 
-    await api.admissions.addEnquiryEntry({
-      id: listed.id,
+    await api.messages.send({
+      threadId,
       kind: "call",
-      body: "Called; a tour on Tuesday suits them.",
+      content: plainContent("Called; a tour on Tuesday suits them."),
     });
     now = await api.admissions.enquiry({ id: listed.id });
     expect(now.state).toBe("in_progress");
     expect(now.firstRespondedAt).not.toBeNull();
-    expect(now.thread.map((entry) => entry.kind)).toEqual([
-      "assigned",
+    const timeline = await api.messages.thread({ id: threadId });
+    expect(timeline.messages.map((entry) => entry.kind)).toEqual([
+      "message",
+      "event",
       "note",
       "call",
-      "state",
+      "event",
     ]);
+    expect(timeline.messages[0]?.authorContactId).not.toBeNull();
+    expect(timeline.messages.at(-1)?.details).toMatchObject({
+      event: "state",
+      from: "open",
+      to: "in_progress",
+      automatic: true,
+    });
+    expect(timeline).toMatchObject({
+      mailbox: "admissions",
+      team: true,
+      canNote: true,
+      emailsOutside: false,
+      owner: { userId: me.id },
+    });
     expect(now.version).toBeGreaterThan(assigned.version);
-    expect(now.canEmail).toBe(false);
-    expect(
-      await rejection(
-        api.admissions.replyToEnquiry({
-          id: listed.id,
-          locale: "en",
-          subject: "Hello",
-          body: "Hello",
-        }),
-      ),
-    ).toMatchObject({ message: "enquiry.no_email" });
 
     expect(
       await rejection(
@@ -425,14 +436,20 @@ describe("the enquiry inbox", () => {
     });
     now = await api.admissions.enquiry({ id: listed.id });
     expect(now).toMatchObject({ state: "in_progress", closedReason: null });
-    expect(now.thread.at(-1)).toMatchObject({
-      kind: "state",
+    const changes = (await api.messages.thread({ id: threadId })).messages;
+    expect(changes.at(-2)).toMatchObject({
+      kind: "event",
+      body: "Chose a school nearer home.",
+      details: { from: "in_progress", to: "closed", reason: "another_school" },
+    });
+    expect(changes.at(-1)).toMatchObject({
+      kind: "event",
       details: { from: "closed", to: "in_progress" },
     });
   });
 
-  test("a reply goes to the family by email from a template and is kept in the thread", async () => {
-    const { mail } = seeded();
+  test("a reply from a school template goes to the family by email and stays in the conversation", async () => {
+    const { mail, dependencies } = seeded();
     const { api } = await officer();
     const logged = await api.admissions.logEnquiry({
       source: "walk_in",
@@ -450,56 +467,50 @@ describe("the enquiry inbox", () => {
     expect(before).toMatchObject({
       source: "walk_in",
       state: "open",
-      canEmail: true,
       createdBy: { id: expect.any(String) },
     });
-    const reply = await api.admissions.replyToEnquiry({
-      id: logged.id,
-      template: "visit",
-      locale: "ar",
-      subject: "زيارة المدرسة",
-      body: "مرحبًا سلامة، يسعدنا استقبالكم يوم الثلاثاء.",
+    const threadId = before.threadId ?? "";
+    const opened = await api.messages.thread({ id: threadId });
+    expect(opened.messages.map((entry) => [entry.kind, entry.body])).toEqual([
+      ["meeting", "زارت المدرسة وتود حجز جولة."],
+    ]);
+    expect(opened.emailsOutside).toBe(true);
+    expect(opened.subject).toBe("زيارتكم إلى كلية نورثويند الدولية");
+
+    const templates = await api.templates.list({ kind: "message" });
+    const visit = templates.find((row) => row.title === "ترتيب زيارة");
+    if (!visit) throw new Error("the school has no visit reply");
+    const template = await api.templates.open({ id: visit.id });
+    const words = fillFields(template.content, {
+      name: "سلامة",
+      child: "مريم",
+      school: "نورث ويند",
+      sender: "المكتب",
     });
-    const email = mail.sent.find(
-      (item) => item.reference === `enquiry/${reply.id}`,
-    );
-    expect(email).toMatchObject({
-      to: "salama.walkin@example.com",
-      subject: "زيارة المدرسة",
-      text: "مرحبًا سلامة، يسعدنا استقبالكم يوم الثلاثاء.",
-    });
-    const after = await api.admissions.enquiry({ id: logged.id });
-    expect(after.state).toBe("in_progress");
-    expect(after.thread[0]).toMatchObject({
-      kind: "reply",
-      body: "مرحبًا سلامة، يسعدنا استقبالكم يوم الثلاثاء.",
-      details: { subject: "زيارة المدرسة", locale: "ar", template: "visit" },
+    await api.messages.send({
+      threadId,
+      content: words,
+      after: opened.latestId ?? "",
     });
 
-    const failing = await api.admissions.logEnquiry({
-      source: "phone",
-      purpose: "enquiry",
-      locale: "en",
-      name: "Salama Ashoush",
-      email: "fail-always@example.com",
-      phone: "",
-      childName: "",
-      childYear: "",
-      message: "",
-      assigneeId: "",
+    const delivered = await deliverTenant(
+      dependencies.cell,
+      { email: mail, sms: null },
+      seeded().tenants[0]?.tenantId ?? "",
+    );
+    expect(delivered.sent).toBeGreaterThan(0);
+    const email = mail.sent.findLast(
+      (item) => item.to === "salama.walkin@example.com",
+    );
+    expect(email).toMatchObject({
+      subject: "زيارتكم إلى كلية نورثويند الدولية",
+      fromName: expect.any(String),
     });
-    expect(
-      await rejection(
-        api.admissions.replyToEnquiry({
-          id: failing.id,
-          locale: "en",
-          subject: "Hello",
-          body: "Hello",
-        }),
-      ),
-    ).toMatchObject({ message: "enquiry.not_sent" });
-    const untouched = await api.admissions.enquiry({ id: failing.id });
-    expect(untouched).toMatchObject({ state: "open", thread: [] });
+    expect(email?.text).toContain("نشكركم على طلب الزيارة");
+    expect(email?.html).toContain('dir="rtl"');
+    const after = await api.admissions.enquiry({ id: logged.id });
+    expect(after.state).toBe("in_progress");
+    expect(after.firstRespondedAt).not.toBeNull();
   });
 
   test("an enquiry logged by hand needs a way to reach the family, and tells whoever it is handed to", async () => {
