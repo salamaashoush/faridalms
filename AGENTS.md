@@ -125,9 +125,14 @@ authorisation, school isolation or database ownership.
   `apps/api/src/core/procedure.ts` resolve the session, the school and a unit of
   work before entering a handler.
 - Capabilities are checked with `requireCapability` and `can` from
-  `apps/api/src/core/procedure.ts`; which records a viewer reaches is decided by
-  the stores' reach rules (`app.visible_students`, `teachesClass`). A capability
-  alone does not authorise a submitted student or class ID.
+  `apps/api/src/core/procedure.ts`; which records a viewer reaches is decided
+  only through `apps/api/src/core/reach.ts`, whose named scopes (`SCHOOL_WIDE`)
+  say which capabilities open the whole school for each kind of work. A
+  capability alone does not authorise a submitted student or class ID. Which
+  guardians the school may follow, contact, notify or call is
+  `app.guardian_permits`, and staff are the roles `app.staff_roles` names;
+  `scripts/check-sources.ts` refuses a copy of either, or a `schoolWide` set
+  outside `core/reach.ts`.
 - Every store in `packages/database/src/stores/` receives its transaction
   explicitly. Never introduce a process-global current school or current user.
 - `apps/web/src/server/` contains HTTP bridges and cookie handling only. Web
@@ -208,6 +213,8 @@ Routes live under `apps/web/src/routes/_app/<prefix>/`, and the prefix is the ro
 `admin`, `teach`, `family`, `me`. `_app.tsx` gates authentication and renders
 the shell; `_app/<prefix>.tsx` gates the role. Both are required, because the
 server authorises data but only the route can stop a page rendering at all.
+A page for some capabilities calls `requirePage` from
+`apps/web/src/utils/page-access.ts` in its loader, never its own check.
 
 Filters, the selected child, the selected week and the open folder all live in
 the URL via `validateSearch`. None of them belong in `useState`. Read data with
