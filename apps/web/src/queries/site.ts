@@ -9,7 +9,6 @@ import {
   getPublicSite,
   getSiteOverview,
   getSitePage,
-  getSiteEnquiries,
   getSiteHosts,
   getSignInPage,
 } from "~/server/site";
@@ -33,12 +32,6 @@ export const sitePageQuery = (id: string) =>
   queryOptions({
     queryKey: ["site", "page", id],
     queryFn: () => getSitePage({ data: { id } }),
-  });
-
-export const siteEnquiriesQuery = (handled: boolean) =>
-  queryOptions({
-    queryKey: ["site", "enquiries", handled],
-    queryFn: () => getSiteEnquiries({ data: { handled } }),
   });
 
 export const publicSiteQuery = (school: string, locale?: SiteLocale) =>

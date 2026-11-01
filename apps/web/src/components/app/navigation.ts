@@ -27,6 +27,7 @@ import {
   Sun,
   Table2,
   UserCheck,
+  UserPlus,
   Users,
 } from "lucide-react";
 
@@ -90,6 +91,17 @@ export const NAVIGATION: Record<Workspace, NavSection[]> = {
         { to: "/announcements", label: m.navAnnouncements, icon: Megaphone },
         { to: "/news", label: m.navNews, icon: Newspaper },
         { to: "/calendar", label: m.navCalendar, icon: CalendarDays },
+      ],
+    },
+    {
+      title: m.navSectionAdmissions,
+      items: [
+        {
+          to: "/admissions/enquiries",
+          label: m.navEnquiries,
+          icon: UserPlus,
+          capability: "admissions:read",
+        },
       ],
     },
     {
@@ -177,6 +189,17 @@ export const NAVIGATION: Record<Workspace, NavSection[]> = {
         { to: "/announcements", label: m.navAnnouncements, icon: Megaphone },
         { to: "/news", label: m.navNews, icon: Newspaper },
         { to: "/calendar", label: m.navCalendar, icon: CalendarDays },
+      ],
+    },
+    {
+      title: m.navSectionAdmissions,
+      items: [
+        {
+          to: "/admissions/enquiries",
+          label: m.navEnquiries,
+          icon: UserPlus,
+          capability: "admissions:read",
+        },
       ],
     },
   ],

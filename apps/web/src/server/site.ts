@@ -2,9 +2,7 @@ import { addHostSchema, hostRefSchema } from "@faridalms/domain/hosts";
 import { saveSignInPageSchema } from "@faridalms/domain/portal-face";
 import {
   applyStarterSchema,
-  enquiriesQuerySchema,
   enquirySchema,
-  markEnquirySchema,
   movePageSchema,
   publicPageSchema,
   publicPostSchema,
@@ -73,14 +71,6 @@ export const removeSiteCategory = createServerFn({ method: "POST" })
 export const submitSiteEnquiry = createServerFn({ method: "POST" })
   .validator(checked(enquirySchema))
   .handler(({ data }) => backend().site.submitEnquiry(data));
-
-export const getSiteEnquiries = createServerFn({ method: "GET" })
-  .validator(checked(enquiriesQuerySchema))
-  .handler(({ data }) => backend().site.enquiries(data));
-
-export const markSiteEnquiry = createServerFn({ method: "POST" })
-  .validator(checked(markEnquirySchema))
-  .handler(({ data }) => backend().site.markEnquiry(data));
 
 export const getPublicSite = createServerFn({ method: "GET" })
   .validator(checked(publicSiteSchema))

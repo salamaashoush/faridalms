@@ -18,6 +18,7 @@ import {
   Reply,
   ShieldCheck,
   Siren,
+  UserPlus,
   UserX,
 } from "lucide-react";
 
@@ -50,6 +51,13 @@ export const KIND_ICON: Record<NotificationKind, LucideIcon> = {
   mention: AtSign,
   library: BookMarked,
   reply: Reply,
+  enquiry: UserPlus,
+};
+
+const ENQUIRY_TITLE = {
+  enquiry: m.ntfEnquiry,
+  visit: m.ntfEnquiryVisit,
+  general: m.ntfEnquiryGeneral,
 };
 
 /** What a notice says, in the reader's language, from what its producer recorded. */
@@ -149,6 +157,17 @@ export function noticeText(notice: Notice): { title: string; body: string } {
             inLocale(notice.actorNameEn, notice.actorNameAr),
         }),
         body: title,
+      };
+    case "enquiry":
+      return {
+        title: params.assigned
+          ? m.ntfEnquiryAssigned({
+              name:
+                both(params.actorName, params.actorNameAr) ||
+                inLocale(notice.actorNameEn, notice.actorNameAr),
+            })
+          : ENQUIRY_TITLE[params.purpose ?? "enquiry"](),
+        body: [title, params.preview ?? ""].filter(Boolean).join(" · "),
       };
     case "library":
       return {
@@ -315,6 +334,16 @@ export function NoticeLink({
           to="/assignments/$assignmentId"
           params={{ assignmentId: notice.subjectId }}
           search={{}}
+        >
+          {children}
+        </Link>
+      );
+    case "enquiry":
+      return (
+        <Link
+          {...rest}
+          to="/admissions/enquiries/$enquiryId"
+          params={{ enquiryId: id }}
         >
           {children}
         </Link>

@@ -583,6 +583,22 @@ export function getMessageFromError(error: unknown): string {
         return m.siteAddressesUnavailable();
       case "site.stale":
         return m.siteErrStale();
+      case "site.challenge":
+        return m.siteErrChallenge();
+      case "enquiry.reach":
+        return m.admErrReach();
+      case "enquiry.assignee":
+        return m.admErrAssignee();
+      case "enquiry.state":
+        return m.admErrState();
+      case "enquiry.reason":
+        return m.admErrReason();
+      case "enquiry.no_email":
+        return m.admErrNoEmail();
+      case "enquiry.no_mail":
+        return m.admErrNoMail();
+      case "enquiry.not_sent":
+        return m.admErrNotSent();
       case "learning.disabled":
         return m.learningDisabled();
       case "learning.no_year":

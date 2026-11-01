@@ -118,6 +118,8 @@ import { Route as FilesFileIdPartsRouteImport } from './routes/files/$fileId.par
 import { Route as FilesFileIdStreamRouteImport } from './routes/files/$fileId.stream'
 import { Route as LtiAgsSplatRouteImport } from './routes/lti/ags.$'
 import { Route as SiteSchoolIndexRouteImport } from './routes/site/$school/index'
+import { Route as AppAdmissionsEnquiriesIndexRouteImport } from './routes/_app/admissions/enquiries/index'
+import { Route as AppAdmissionsEnquiriesEnquiryIdRouteImport } from './routes/_app/admissions/enquiries/$enquiryId'
 import { Route as AppTeachBoardPacedIdRouteImport } from './routes/_app/teach/board.$pacedId'
 import { Route as AppTeachLivePacedIdRouteImport } from './routes/_app/teach/live.$pacedId'
 import { Route as FilesFileIdPartsPartRouteImport } from './routes/files/$fileId.parts.$part'
@@ -678,6 +680,18 @@ const SiteSchoolIndexRoute = SiteSchoolIndexRouteImport.update({
   path: '/',
   getParentRoute: () => SiteSchoolRoute,
 } as any)
+const AppAdmissionsEnquiriesIndexRoute =
+  AppAdmissionsEnquiriesIndexRouteImport.update({
+    id: '/admissions/enquiries/',
+    path: '/admissions/enquiries/',
+    getParentRoute: () => AppRoute,
+  } as any)
+const AppAdmissionsEnquiriesEnquiryIdRoute =
+  AppAdmissionsEnquiriesEnquiryIdRouteImport.update({
+    id: '/admissions/enquiries/$enquiryId',
+    path: '/admissions/enquiries/$enquiryId',
+    getParentRoute: () => AppRoute,
+  } as any)
 const AppTeachBoardPacedIdRoute = AppTeachBoardPacedIdRouteImport.update({
   id: '/board/$pacedId',
   path: '/board/$pacedId',
@@ -822,12 +836,14 @@ export interface FileRoutesByFullPath {
   '/standards/': typeof AppStandardsIndexRoute
   '/teach/': typeof AppTeachIndexRoute
   '/site/$school/': typeof SiteSchoolIndexRoute
+  '/admissions/enquiries/$enquiryId': typeof AppAdmissionsEnquiriesEnquiryIdRoute
   '/teach/board/$pacedId': typeof AppTeachBoardPacedIdRoute
   '/teach/live/$pacedId': typeof AppTeachLivePacedIdRoute
   '/files/$fileId/parts/$part': typeof FilesFileIdPartsPartRoute
   '/public-media/p/$token/$name': typeof PublicMediaPTokenNameRoute
   '/site/$school/news/$slug': typeof SiteSchoolNewsSlugRoute
   '/site/$school/pages/$slug': typeof SiteSchoolPagesSlugRoute
+  '/admissions/enquiries/': typeof AppAdmissionsEnquiriesIndexRoute
   '/site/$school/news/': typeof SiteSchoolNewsIndexRoute
 }
 export interface FileRoutesByTo {
@@ -933,12 +949,14 @@ export interface FileRoutesByTo {
   '/standards': typeof AppStandardsIndexRoute
   '/teach': typeof AppTeachIndexRoute
   '/site/$school': typeof SiteSchoolIndexRoute
+  '/admissions/enquiries/$enquiryId': typeof AppAdmissionsEnquiriesEnquiryIdRoute
   '/teach/board/$pacedId': typeof AppTeachBoardPacedIdRoute
   '/teach/live/$pacedId': typeof AppTeachLivePacedIdRoute
   '/files/$fileId/parts/$part': typeof FilesFileIdPartsPartRoute
   '/public-media/p/$token/$name': typeof PublicMediaPTokenNameRoute
   '/site/$school/news/$slug': typeof SiteSchoolNewsSlugRoute
   '/site/$school/pages/$slug': typeof SiteSchoolPagesSlugRoute
+  '/admissions/enquiries': typeof AppAdmissionsEnquiriesIndexRoute
   '/site/$school/news': typeof SiteSchoolNewsIndexRoute
 }
 export interface FileRoutesById {
@@ -1052,12 +1070,14 @@ export interface FileRoutesById {
   '/_app/standards/': typeof AppStandardsIndexRoute
   '/_app/teach/': typeof AppTeachIndexRoute
   '/site/$school/': typeof SiteSchoolIndexRoute
+  '/_app/admissions/enquiries/$enquiryId': typeof AppAdmissionsEnquiriesEnquiryIdRoute
   '/_app/teach/board/$pacedId': typeof AppTeachBoardPacedIdRoute
   '/_app/teach/live/$pacedId': typeof AppTeachLivePacedIdRoute
   '/files/$fileId/parts/$part': typeof FilesFileIdPartsPartRoute
   '/public-media/p/$token/$name': typeof PublicMediaPTokenNameRoute
   '/site/$school/news/$slug': typeof SiteSchoolNewsSlugRoute
   '/site/$school/pages/$slug': typeof SiteSchoolPagesSlugRoute
+  '/_app/admissions/enquiries/': typeof AppAdmissionsEnquiriesIndexRoute
   '/site/$school/news/': typeof SiteSchoolNewsIndexRoute
 }
 export interface FileRouteTypes {
@@ -1170,12 +1190,14 @@ export interface FileRouteTypes {
     | '/standards/'
     | '/teach/'
     | '/site/$school/'
+    | '/admissions/enquiries/$enquiryId'
     | '/teach/board/$pacedId'
     | '/teach/live/$pacedId'
     | '/files/$fileId/parts/$part'
     | '/public-media/p/$token/$name'
     | '/site/$school/news/$slug'
     | '/site/$school/pages/$slug'
+    | '/admissions/enquiries/'
     | '/site/$school/news/'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -1281,12 +1303,14 @@ export interface FileRouteTypes {
     | '/standards'
     | '/teach'
     | '/site/$school'
+    | '/admissions/enquiries/$enquiryId'
     | '/teach/board/$pacedId'
     | '/teach/live/$pacedId'
     | '/files/$fileId/parts/$part'
     | '/public-media/p/$token/$name'
     | '/site/$school/news/$slug'
     | '/site/$school/pages/$slug'
+    | '/admissions/enquiries'
     | '/site/$school/news'
   id:
     | '__root__'
@@ -1399,12 +1423,14 @@ export interface FileRouteTypes {
     | '/_app/standards/'
     | '/_app/teach/'
     | '/site/$school/'
+    | '/_app/admissions/enquiries/$enquiryId'
     | '/_app/teach/board/$pacedId'
     | '/_app/teach/live/$pacedId'
     | '/files/$fileId/parts/$part'
     | '/public-media/p/$token/$name'
     | '/site/$school/news/$slug'
     | '/site/$school/pages/$slug'
+    | '/_app/admissions/enquiries/'
     | '/site/$school/news/'
   fileRoutesById: FileRoutesById
 }
@@ -2197,6 +2223,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof SiteSchoolIndexRouteImport
       parentRoute: typeof SiteSchoolRoute
     }
+    '/_app/admissions/enquiries/': {
+      id: '/_app/admissions/enquiries/'
+      path: '/admissions/enquiries'
+      fullPath: '/admissions/enquiries/'
+      preLoaderRoute: typeof AppAdmissionsEnquiriesIndexRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/admissions/enquiries/$enquiryId': {
+      id: '/_app/admissions/enquiries/$enquiryId'
+      path: '/admissions/enquiries/$enquiryId'
+      fullPath: '/admissions/enquiries/$enquiryId'
+      preLoaderRoute: typeof AppAdmissionsEnquiriesEnquiryIdRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/_app/teach/board/$pacedId': {
       id: '/_app/teach/board/$pacedId'
       path: '/board/$pacedId'
@@ -2423,6 +2463,8 @@ interface AppRouteChildren {
   AppCalendarIndexRoute: typeof AppCalendarIndexRoute
   AppNewsIndexRoute: typeof AppNewsIndexRoute
   AppStandardsIndexRoute: typeof AppStandardsIndexRoute
+  AppAdmissionsEnquiriesEnquiryIdRoute: typeof AppAdmissionsEnquiriesEnquiryIdRoute
+  AppAdmissionsEnquiriesIndexRoute: typeof AppAdmissionsEnquiriesIndexRoute
 }
 
 const AppRouteChildren: AppRouteChildren = {
@@ -2461,6 +2503,8 @@ const AppRouteChildren: AppRouteChildren = {
   AppCalendarIndexRoute: AppCalendarIndexRoute,
   AppNewsIndexRoute: AppNewsIndexRoute,
   AppStandardsIndexRoute: AppStandardsIndexRoute,
+  AppAdmissionsEnquiriesEnquiryIdRoute: AppAdmissionsEnquiriesEnquiryIdRoute,
+  AppAdmissionsEnquiriesIndexRoute: AppAdmissionsEnquiriesIndexRoute,
 }
 
 const AppRouteWithChildren = AppRoute._addFileChildren(AppRouteChildren)

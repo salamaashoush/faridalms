@@ -51,6 +51,7 @@ const KIND_LABEL: Record<ChoosableKind, () => string> = {
   mention: m.ntfKindMention,
   library: m.ntfKindLibrary,
   reply: m.ntfKindReply,
+  enquiry: m.ntfKindEnquiry,
 };
 
 const EMAIL_LABEL: Record<EmailMode, () => string> = {
@@ -66,17 +67,21 @@ const SMS_LABEL: Record<SmsMode, () => string> = {
 
 /**
  * Absences and consent requests reach families, register reminders and
- * library reviews reach staff, and replies those who post in discussions;
- * nobody else gets them.
+ * library reviews reach staff, replies those who post in discussions, and
+ * enquiries those who work them; nobody else gets them.
  */
-function kindsFor(workspace: Workspace): readonly ChoosableKind[] {
+function kindsFor(
+  workspace: Workspace,
+  capabilities: readonly string[],
+): readonly ChoosableKind[] {
   return CHOOSABLE_KINDS.filter(
     (kind) =>
       ((kind !== "absence" && kind !== "consent") || workspace === "family") &&
       ((kind !== "reminder" && kind !== "library") ||
         workspace === "teach" ||
         workspace === "admin") &&
-      (kind !== "reply" || workspace === "teach" || workspace === "me"),
+      (kind !== "reply" || workspace === "teach" || workspace === "me") &&
+      (kind !== "enquiry" || capabilities.includes("admissions:manage")),
   );
 }
 
@@ -138,7 +143,7 @@ function PreferencesPage() {
                 {m.ntfUrgentLocked()}
               </p>
             </li>
-            {kindsFor(user.workspace).map((kind) => {
+            {kindsFor(user.workspace, user.capabilities).map((kind) => {
               const Icon = KIND_ICON[kind];
               return (
                 <li
