@@ -68,7 +68,7 @@ const FIRST_FIELD = "student-ar-given";
 /** Refusals from the server that are about one field, shown on that field. */
 const FIELD_ERRORS: Partial<Record<string, keyof Draft>> = {
   "student.reference_taken": "reference",
-  "users.invalid": "birthDate",
+  "user.birth_date_early": "birthDate",
 };
 
 function identity(draft: Draft) {

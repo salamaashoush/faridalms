@@ -36,7 +36,10 @@ import {
   saveEventSchema,
 } from "@faridalms/domain/calendar";
 import { contentFileIds, contentPlainText } from "@faridalms/domain/content";
-import { contentIssues } from "@faridalms/domain/content-checks";
+import {
+  CONTENT_ISSUE_CODE,
+  contentIssues,
+} from "@faridalms/domain/content-checks";
 import { ORPCError } from "@orpc/server";
 import * as v from "valibot";
 
@@ -395,7 +398,9 @@ export const publish = writeProcedure
       ? contentIssues(description.content as unknown as ContentDocument)
       : [];
     if (problem)
-      throw new ORPCError("BAD_REQUEST", { message: `content.${problem}` });
+      throw new ORPCError("BAD_REQUEST", {
+        message: CONTENT_ISSUE_CODE[problem],
+      });
     const version = await publishEvent(context.tx, {
       tenantId: context.tenantId,
       id: row.id,
