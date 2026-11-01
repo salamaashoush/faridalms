@@ -41,6 +41,7 @@ import {
   RecordSection,
 } from "~/components/system/RecordPage";
 import { SheetForm } from "~/components/system/SheetForm";
+import { useDocumentMedia } from "~/hooks/useDocumentMedia";
 import * as m from "~/i18n/messages";
 import { myWorkQuery } from "~/queries/coursework";
 import { myStandingQuery } from "~/queries/exams";
@@ -55,7 +56,6 @@ import { Discussion } from "./Discussion";
 import { STATE_LABEL, STATE_TONE } from "./format";
 import { PeerReviewWork } from "./PeerReview";
 import { QuizWork } from "./QuizWork";
-import { useDocumentMedia } from "./useDocumentMedia";
 import { Recordings } from "./VoiceFeedback";
 import { CommentedWork, CommentList } from "./WorkComments";
 

@@ -5,11 +5,11 @@ import { FileCheck, Paperclip, ShieldAlert, ShieldCheck } from "lucide-react";
 import { useRef, useState } from "react";
 import { toast } from "sonner";
 
-import { useDocumentMedia } from "~/components/coursework/useDocumentMedia";
 import { FormField } from "~/components/system/field";
 import { SheetForm } from "~/components/system/SheetForm";
 import { StatusText } from "~/components/system/status";
 import { inLocale } from "~/hooks/useCurrentUser";
+import { useDocumentMedia } from "~/hooks/useDocumentMedia";
 import * as m from "~/i18n/messages";
 import { workStandingQuery } from "~/queries/exams";
 import { authenticateWork, recordPaperDeclaration } from "~/server/exams";

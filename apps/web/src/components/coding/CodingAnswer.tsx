@@ -9,7 +9,7 @@ import { toast } from "sonner";
 
 import type { CheckDriver, CheckMode } from "~/components/learning/Checks";
 
-import { useDocumentMedia } from "~/components/coursework/useDocumentMedia";
+import { useDocumentMedia } from "~/hooks/useDocumentMedia";
 import * as m from "~/i18n/messages";
 import { galleryQuery } from "~/queries/learning";
 import { playQuery } from "~/queries/play";

@@ -71,6 +71,7 @@ import {
 import { SelectField, TextField } from "~/components/system/field";
 import { useAutosave } from "~/hooks/useAutosave";
 import { inLocale } from "~/hooks/useCurrentUser";
+import { useDocumentMedia } from "~/hooks/useDocumentMedia";
 import * as m from "~/i18n/messages";
 import { classGroupsQuery, courseworkOptionsQuery } from "~/queries/coursework";
 import { classPlanQuery } from "~/queries/grading";
@@ -95,7 +96,6 @@ import { displayName } from "../people/format";
 import { PHASE_LABEL, PHASE_TONE } from "./format";
 import { RubricSheet } from "./RubricSheet";
 import { UseAgainSheet } from "./UseAgain";
-import { useDocumentMedia } from "./useDocumentMedia";
 
 type Existing = Awaited<
   ReturnType<NonNullable<ReturnType<typeof assignmentEditorQuery>["queryFn"]>>

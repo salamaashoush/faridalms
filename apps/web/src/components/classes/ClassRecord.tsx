@@ -21,6 +21,7 @@ import {
 } from "lucide-react";
 import { useState } from "react";
 
+import type { AreaView } from "~/components/files/AreaFiles";
 import type { HeaderFact, RecordTab } from "~/components/system/RecordPage";
 
 import { ButtonLink } from "~/components/app/ButtonLink";
@@ -402,10 +403,14 @@ export function ClassRecord({
   classId,
   tab,
   onTab,
+  files,
+  onFiles,
 }: {
   classId: string;
   tab: ClassTab;
   onTab: (tab: ClassTab) => void;
+  files: AreaView;
+  onFiles: (view: AreaView) => void;
 }) {
   const data = useSuspenseQuery(classRecordQuery(classId)).data;
   const options = useSuspenseQuery(classOptionsQuery).data;
@@ -471,7 +476,12 @@ export function ClassRecord({
         <ClassGoals classId={data.id} />
       </Deferred>
     ) : active === "files" ? (
-      <AreaFiles area={{ type: "class", id: data.id }} title={title} />
+      <AreaFiles
+        area={{ type: "class", id: data.id }}
+        title={title}
+        view={files}
+        onView={onFiles}
+      />
     ) : (
       <RecordColumns
         main={

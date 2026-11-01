@@ -41,7 +41,6 @@ import { contentIssueMessages } from "~/components/content/checks";
 import { ContentEditor } from "~/components/content/ContentEditor";
 import { sectionsContent } from "~/components/content/shapes";
 import { useStartFrom } from "~/components/content/Templates";
-import { useDocumentMedia } from "~/components/coursework/useDocumentMedia";
 import { sayIn } from "~/components/learning/starters";
 import { CheckboxRow } from "~/components/people/fields";
 import {
@@ -53,6 +52,7 @@ import {
 import { SelectField, TextField } from "~/components/system/field";
 import { useAutosave } from "~/hooks/useAutosave";
 import { inLocale } from "~/hooks/useCurrentUser";
+import { useDocumentMedia } from "~/hooks/useDocumentMedia";
 import * as m from "~/i18n/messages";
 import { getLocale } from "~/i18n/runtime";
 import { calendarEventQuery, calendarOptionsQuery } from "~/queries/calendar";

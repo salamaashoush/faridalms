@@ -24,6 +24,7 @@ import { ContentEditor } from "~/components/content/ContentEditor";
 import { ContentView } from "~/components/content/ContentView";
 import { ActionMenu } from "~/components/system/ActionMenu";
 import { RecordEmpty, RecordSection } from "~/components/system/RecordPage";
+import { useDocumentMedia } from "~/hooks/useDocumentMedia";
 import * as m from "~/i18n/messages";
 import { discussionQuery } from "~/queries/coursework";
 import {
@@ -35,7 +36,6 @@ import { formatInstant, formatNumber } from "~/utils/datetime";
 import { getMessageFromError } from "~/utils/error";
 
 import { displayName } from "../people/format";
-import { useDocumentMedia } from "./useDocumentMedia";
 
 type Data = Awaited<
   ReturnType<NonNullable<ReturnType<typeof discussionQuery>["queryFn"]>>

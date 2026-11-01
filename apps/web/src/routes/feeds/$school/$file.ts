@@ -1,6 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 
 import { env } from "~/env";
+import { relayed } from "~/server/relay";
 
 /**
  * A person's private calendar link, polled by calendar apps without a
@@ -18,13 +19,7 @@ export const Route = createFileRoute("/feeds/$school/$file")({
         const upstream = await fetch(
           `${env.BACKEND_URL}/feeds/${params.school}/${params.file}`,
         );
-        const headers = new Headers({ "cache-control": "no-store" });
-        const type = upstream.headers.get("content-type");
-        if (type) headers.set("content-type", type);
-        return new Response(upstream.body, {
-          status: upstream.status,
-          headers,
-        });
+        return relayed(upstream);
       },
     },
   },

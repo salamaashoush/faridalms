@@ -24,10 +24,10 @@ import { useEffect, useId, useRef, useState } from "react";
 import { ContentEditor } from "~/components/content/ContentEditor";
 import { ContentView } from "~/components/content/ContentView";
 import { TemplatePicker } from "~/components/content/Templates";
-import { useDocumentMedia } from "~/components/coursework/useDocumentMedia";
 import { SelectField } from "~/components/system/field";
 import { Segmented } from "~/components/system/panel";
 import { useCurrentUser } from "~/hooks/useCurrentUser";
+import { useDocumentMedia } from "~/hooks/useDocumentMedia";
 import * as m from "~/i18n/messages";
 import { threadQuery } from "~/queries/messages";
 import {

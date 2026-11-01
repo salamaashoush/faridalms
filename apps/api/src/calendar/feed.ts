@@ -128,6 +128,9 @@ export async function handleCalendarFeed(
   if (body === null)
     return Response.json({ code: "NOT_FOUND" }, { status: 404 });
   return new Response(body, {
-    headers: { "content-type": "text/calendar; charset=utf-8" },
+    headers: {
+      "content-type": "text/calendar; charset=utf-8",
+      "cache-control": "no-store",
+    },
   });
 }

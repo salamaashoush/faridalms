@@ -34,9 +34,9 @@ import {
 import { useDeferredValue, useId, useMemo, useState } from "react";
 import { toast } from "sonner";
 
-import { useDocumentMedia } from "~/components/coursework/useDocumentMedia";
 import { ConfirmDialog } from "~/components/system/ConfirmDialog";
 import { inLocale } from "~/hooks/useCurrentUser";
+import { useDocumentMedia } from "~/hooks/useDocumentMedia";
 import * as m from "~/i18n/messages";
 import { sharedBlockQuery } from "~/queries/shared";
 import {

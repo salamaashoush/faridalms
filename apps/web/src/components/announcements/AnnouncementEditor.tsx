@@ -35,7 +35,6 @@ import { ContentView } from "~/components/content/ContentView";
 import { LOCALE_LABEL, LOCALE_NAME } from "~/components/content/languages";
 import { useStartFrom } from "~/components/content/Templates";
 import { TranslationNote } from "~/components/content/TranslationNote";
-import { useDocumentMedia } from "~/components/coursework/useDocumentMedia";
 import { CheckboxRow } from "~/components/people/fields";
 import {
   DetailsPanel,
@@ -46,6 +45,7 @@ import {
 import { FormField, SelectField, TextField } from "~/components/system/field";
 import { SheetPanel } from "~/components/system/SheetPanel";
 import { useAutosave } from "~/hooks/useAutosave";
+import { useDocumentMedia } from "~/hooks/useDocumentMedia";
 import * as m from "~/i18n/messages";
 import { getLocale } from "~/i18n/runtime";
 import { announcementOptionsQuery } from "~/queries/announcements";

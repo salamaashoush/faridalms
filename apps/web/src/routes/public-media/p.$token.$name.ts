@@ -1,14 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 
 import { env } from "~/env";
-
-const FORWARDED = [
-  "content-type",
-  "content-disposition",
-  "cache-control",
-  "x-content-type-options",
-  "access-control-allow-origin",
-];
+import { relayed } from "~/server/relay";
 
 /**
  * Published files, served to anyone without a session. In production the
@@ -27,15 +20,7 @@ export const Route = createFileRoute("/public-media/p/$token/$name")({
         const upstream = await fetch(
           `${env.BACKEND_URL}/public-media/p/${params.token}/${params.name}`,
         );
-        const headers = new Headers();
-        for (const name of FORWARDED) {
-          const value = upstream.headers.get(name);
-          if (value) headers.set(name, value);
-        }
-        return new Response(upstream.body, {
-          status: upstream.status,
-          headers,
-        });
+        return relayed(upstream, ["access-control-allow-origin"]);
       },
     },
   },

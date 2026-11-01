@@ -72,7 +72,6 @@ import { ButtonLink } from "~/components/app/ButtonLink";
 import { UnsavedChangesGuard } from "~/components/app/UnsavedChangesGuard";
 import { DocumentHistory } from "~/components/content/DocumentHistory";
 import { LOCALE_NAME } from "~/components/content/languages";
-import { useDocumentMedia } from "~/components/coursework/useDocumentMedia";
 import { usePicturePeople } from "~/components/files/PicturedPeople";
 import {
   HeldChanges,
@@ -83,6 +82,7 @@ import { Segmented } from "~/components/system/panel";
 import { StatusBadge } from "~/components/system/status";
 import { useAutosave } from "~/hooks/useAutosave";
 import { useCurrentUser } from "~/hooks/useCurrentUser";
+import { useDocumentMedia } from "~/hooks/useDocumentMedia";
 import * as m from "~/i18n/messages";
 import {
   publishSitePage,
