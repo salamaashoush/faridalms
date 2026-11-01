@@ -53,6 +53,7 @@ export function publicContext(
     contact: site.contact,
     query: langQuery(site),
     page: input.page,
+    turnstileKey: site.turnstileKey,
   };
 }
 

@@ -8,6 +8,11 @@ import type {
 } from "@faridalms/domain/site-sections";
 import type { CSSProperties, FormEvent } from "react";
 
+import {
+  answerLimit,
+  optionsOf,
+  questionComplete,
+} from "@faridalms/domain/enquiries";
 import { withoutEmphasis } from "@faridalms/domain/site-sections";
 import { cn } from "@faridalms/ui/cn";
 import { useHydrated } from "@tanstack/react-router";
@@ -56,6 +61,7 @@ import {
   siteDate,
 } from "./parts";
 import { focusStyle } from "./theme";
+import { TurnstileWidget } from "./turnstile";
 
 type Props<T extends PageSection["type"]> = {
   section: SectionOf<T>;
@@ -2179,31 +2185,188 @@ function Contact({ section, context }: Props<"contact">) {
   );
 }
 
-type FormState = "idle" | "sending" | "sent" | "failed" | "limited";
+type FormState =
+  | "idle"
+  | "sending"
+  | "sent"
+  | "failed"
+  | "limited"
+  | "challenge"
+  | "reach"
+  | "check";
+
+const FAILURE: Partial<Record<string, FormState>> = {
+  "site.too_many": "limited",
+  "site.challenge": "challenge",
+  "validation.required": "check",
+  "validation.invalid": "check",
+};
+
+type Question = SectionOf<"form">["data"]["questions"][number];
+
+/** How long ago a moment was, read when the form is sent. */
+const since = (start: number) => Date.now() - start;
+
+/** One of the school's own questions, drawn as the kind of answer it takes. */
+function QuestionField({
+  question,
+  id,
+  context,
+}: {
+  question: Question;
+  id: string;
+  context: RenderContext;
+}) {
+  const t = { locale: context.locale };
+  const required = question.required === "required";
+  const name = `answer:${question.id}`;
+  const hintId = question.hint ? `${id}-hint` : undefined;
+  const label = (
+    <span>
+      {question.label}
+      {required ? null : (
+        <span className="site-muted font-normal">
+          {" "}
+          {m.siteFormOptional({}, t)}
+        </span>
+      )}
+    </span>
+  );
+  const hint = question.hint ? (
+    <span id={hintId} className="site-muted text-sm font-normal">
+      {question.hint}
+    </span>
+  ) : null;
+  const shared = {
+    id,
+    name,
+    required,
+    disabled: context.editing,
+    "aria-describedby": hintId,
+  };
+  if (question.answer === "choice") {
+    const options = optionsOf(question.options);
+    if (options.length <= 4)
+      return (
+        <fieldset
+          className="site-label @3xl/site:col-span-2"
+          aria-describedby={hintId}
+        >
+          <legend className="mb-2">{label}</legend>
+          {hint}
+          <div className="flex flex-wrap gap-x-6 gap-y-2">
+            {options.map((option, index) => (
+              <label
+                key={option}
+                htmlFor={`${id}-${index}`}
+                className="inline-flex min-h-10 items-center gap-2 font-normal"
+              >
+                <input
+                  id={`${id}-${index}`}
+                  type="radio"
+                  name={name}
+                  value={option}
+                  required={required}
+                  disabled={context.editing}
+                  className="size-4 accent-[var(--s-btn)]"
+                />
+                {option}
+              </label>
+            ))}
+          </div>
+        </fieldset>
+      );
+    return (
+      <label htmlFor={id} className="site-label">
+        {label}
+        {hint}
+        <select {...shared} className="site-input" defaultValue="">
+          <option value="" disabled>
+            {m.siteFormChoose({}, t)}
+          </option>
+          {options.map((option) => (
+            <option key={option} value={option}>
+              {option}
+            </option>
+          ))}
+        </select>
+      </label>
+    );
+  }
+  if (question.answer === "long")
+    return (
+      <label htmlFor={id} className="site-label @3xl/site:col-span-2">
+        {label}
+        {hint}
+        <textarea
+          {...shared}
+          className="site-input min-h-28"
+          maxLength={answerLimit("long")}
+        />
+      </label>
+    );
+  return (
+    <label htmlFor={id} className="site-label">
+      {label}
+      {hint}
+      <input
+        {...shared}
+        className="site-input"
+        type={question.answer === "date" ? "date" : "text"}
+        inputMode={question.answer === "number" ? "decimal" : undefined}
+        dir={question.answer === "short" ? undefined : "ltr"}
+        maxLength={answerLimit(question.answer)}
+      />
+    </label>
+  );
+}
 
 /**
- * An enquiry form. It sends only from a published page; in the builder it
- * shows what visitors will fill in.
+ * An enquiry form: the fixed core (a name, and an email or a phone number)
+ * with what the school chose to ask besides. It sends only from a published
+ * page; in the builder it shows what visitors will fill in.
  */
 function EnquiryForm({ section, context }: Props<"form">) {
   const { data, variant } = section;
   const t = { locale: context.locale };
   const opened = useRef(0);
   const [state, setState] = useState<FormState>("idle");
+  const [token, setToken] = useState("");
+  const [challenge, setChallenge] = useState(0);
   // Uncontrolled inputs keep what someone typed before the page hydrated,
   // and sending waits for hydration so nothing posts natively.
   const hydrated = useHydrated();
   useEffect(() => {
     opened.current = Date.now();
   }, []);
+  const questions = data.questions.filter((question) =>
+    context.editing ? question.label.trim() !== "" : questionComplete(question),
+  );
+  const turnstileKey = context.editing ? null : (context.turnstileKey ?? null);
   const send = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (context.editing || state === "sending") return;
     const form = new FormData(event.currentTarget);
     const read = (key: string) => {
       const value = form.get(key);
-      return typeof value === "string" ? value : "";
+      return typeof value === "string" ? value.trim() : "";
     };
+    if (
+      data.email !== "hide" &&
+      data.phone !== "hide" &&
+      !read("email") &&
+      !read("phone")
+    ) {
+      setState("reach");
+      event.currentTarget
+        .querySelector<HTMLInputElement>('input[name="email"]')
+        ?.focus();
+      return;
+    }
+    if (turnstileKey && !token) {
+      setState("challenge");
+      return;
+    }
     setState("sending");
     try {
       await submitSiteEnquiry({
@@ -2215,25 +2378,47 @@ function EnquiryForm({ section, context }: Props<"form">) {
           name: read("name"),
           email: read("email"),
           phone: read("phone"),
+          childName: read("childName"),
           childYear: read("childYear"),
           message: read("message"),
+          answers: Object.fromEntries(
+            questions.map((question) => [
+              question.id,
+              read(`answer:${question.id}`),
+            ]),
+          ),
           website: read("website"),
-          elapsed: Date.now() - opened.current,
+          elapsed: since(opened.current),
+          turnstile: token,
         },
       });
       setState("sent");
     } catch (error) {
       setState(
-        error instanceof Error && error.message === "site.too_many"
-          ? "limited"
-          : "failed",
+        (error instanceof Error ? FAILURE[error.message] : undefined) ??
+          "failed",
       );
+      // A token works once, so any answer asks for a new check.
+      setChallenge((count) => count + 1);
     }
   };
   const id = (name: string) => `${section.id}-${name}`;
   const optional = (
     <span className="site-muted font-normal"> {m.siteFormOptional({}, t)}</span>
   );
+  const reachOptional = data.email === "ask" && data.phone === "ask";
+  const failure =
+    state === "limited"
+      ? m.siteFormTooMany({}, t)
+      : state === "challenge"
+        ? m.siteFormChallenge({}, t)
+        : state === "reach"
+          ? m.siteFormReach({}, t)
+          : state === "check"
+            ? m.siteFormCheck({}, t)
+            : state === "failed"
+              ? m.siteFormFailed({}, t)
+              : null;
   const words = (
     <div data-stagger className="grid content-start gap-5">
       <Eyebrow field="eyebrow">{data.eyebrow}</Eyebrow>
@@ -2258,6 +2443,11 @@ function EnquiryForm({ section, context }: Props<"form">) {
         )}
         noValidate={false}
       >
+        {reachOptional ? (
+          <p id={id("reach")} className="site-muted text-sm">
+            {m.siteFormReachHint({}, t)}
+          </p>
+        ) : null}
         <div className="grid gap-4 @3xl/site:grid-cols-2">
           <label htmlFor={id("name")} className="site-label">
             {m.siteFormName({}, t)}
@@ -2271,25 +2461,32 @@ function EnquiryForm({ section, context }: Props<"form">) {
               disabled={context.editing}
             />
           </label>
-          <label htmlFor={id("email")} className="site-label">
-            {m.siteFormEmail({}, t)}
-            <input
-              id={id("email")}
-              className="site-input"
-              type="email"
-              required
-              maxLength={254}
-              autoComplete="email"
-              dir="ltr"
-              name="email"
-              disabled={context.editing}
-            />
-          </label>
+          {data.email === "hide" ? null : (
+            <label htmlFor={id("email")} className="site-label">
+              <span>
+                {m.siteFormEmail({}, t)}
+                {data.email === "ask" && !reachOptional ? optional : null}
+              </span>
+              <input
+                id={id("email")}
+                className="site-input"
+                type="email"
+                required={data.email === "require"}
+                maxLength={254}
+                autoComplete="email"
+                dir="ltr"
+                name="email"
+                aria-describedby={reachOptional ? id("reach") : undefined}
+                aria-invalid={state === "reach" || undefined}
+                disabled={context.editing}
+              />
+            </label>
+          )}
           {data.phone === "hide" ? null : (
             <label htmlFor={id("phone")} className="site-label">
               <span>
                 {m.siteFormPhone({}, t)}
-                {data.phone === "ask" ? optional : null}
+                {data.phone === "ask" && !reachOptional ? optional : null}
               </span>
               <input
                 id={id("phone")}
@@ -2300,6 +2497,24 @@ function EnquiryForm({ section, context }: Props<"form">) {
                 autoComplete="tel"
                 dir="ltr"
                 name="phone"
+                aria-describedby={reachOptional ? id("reach") : undefined}
+                aria-invalid={state === "reach" || undefined}
+                disabled={context.editing}
+              />
+            </label>
+          )}
+          {data.child === "hide" ? null : (
+            <label htmlFor={id("child")} className="site-label">
+              <span>
+                {m.siteFormChild({}, t)}
+                {optional}
+              </span>
+              <input
+                id={id("child")}
+                className="site-input"
+                maxLength={120}
+                autoComplete="off"
+                name="childName"
                 disabled={context.editing}
               />
             </label>
@@ -2319,20 +2534,30 @@ function EnquiryForm({ section, context }: Props<"form">) {
               />
             </label>
           )}
+          {questions.map((question) => (
+            <QuestionField
+              key={question.id}
+              question={question}
+              id={id(question.id)}
+              context={context}
+            />
+          ))}
         </div>
-        <label htmlFor={id("message")} className="site-label">
-          <span>
-            {m.siteFormMessage({}, t)}
-            {optional}
-          </span>
-          <textarea
-            id={id("message")}
-            className="site-input min-h-32"
-            maxLength={2000}
-            name="message"
-            disabled={context.editing}
-          />
-        </label>
+        {data.message === "hide" ? null : (
+          <label htmlFor={id("message")} className="site-label">
+            <span>
+              {m.siteFormMessage({}, t)}
+              {optional}
+            </span>
+            <textarea
+              id={id("message")}
+              className="site-input min-h-32"
+              maxLength={2000}
+              name="message"
+              disabled={context.editing}
+            />
+          </label>
+        )}
         <div
           aria-hidden
           className="absolute -start-[9999px] size-px overflow-hidden"
@@ -2345,11 +2570,17 @@ function EnquiryForm({ section, context }: Props<"form">) {
             name="website"
           />
         </div>
-        {state === "failed" || state === "limited" ? (
+        {turnstileKey ? (
+          <TurnstileWidget
+            siteKey={turnstileKey}
+            locale={context.locale}
+            generation={challenge}
+            onToken={setToken}
+          />
+        ) : null}
+        {failure ? (
           <p role="alert" className="text-sm font-semibold text-[#B42318]">
-            {state === "limited"
-              ? m.siteFormTooMany({}, t)
-              : m.siteFormFailed({}, t)}
+            {failure}
           </p>
         ) : null}
         <div className="flex flex-wrap items-center gap-4">

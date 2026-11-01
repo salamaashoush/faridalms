@@ -286,8 +286,16 @@ export const FIELD_LABEL: Record<string, () => string> = {
   valign: m.siteFieldValign,
   more: m.siteFieldMore,
   purpose: m.siteFieldPurpose,
+  email: m.siteFieldEmail,
   phone: m.siteFieldPhone,
+  child: m.siteFieldChild,
   grade: m.siteFieldGrade,
+  message: m.siteFieldMessage,
+  questions: m.siteFieldQuestions,
+  hint: m.siteFieldHint,
+  answer: m.siteFieldAnswer,
+  required: m.siteFieldRequired,
+  options: m.siteFieldOptions,
   submit: m.siteFieldSubmit,
   thanks: m.siteFieldThanks,
 };
@@ -467,6 +475,14 @@ export const ISSUE_LABEL: Record<SiteIssueCode, () => string> = {
   action: m.siteIssueAction,
   captions: m.siteIssueCaptions,
   label: m.siteIssueLabel,
+  form_contact: m.siteIssueFormContact,
+  form_question: m.siteIssueFormQuestion,
+};
+
+/** A line under a field's label, where its declaration alone would not say enough. */
+export const FIELD_HINT: Record<string, () => string> = {
+  options: m.siteFieldOptionsHint,
+  questions: m.siteFieldQuestionsHint,
 };
 
 export const SCALE_LABEL: Record<HeadingScale, () => string> = {
@@ -594,13 +610,37 @@ export const CHOICE_LABEL: Record<string, Record<string, () => string>> = {
     visit: m.siteChoicePurposeVisit,
     general: m.siteChoicePurposeGeneral,
   },
+  email: {
+    require: m.siteChoiceEmailRequire,
+    ask: m.siteChoiceEmailAsk,
+    hide: m.siteChoiceEmailHide,
+  },
   phone: {
     ask: m.siteChoicePhoneAsk,
     require: m.siteChoicePhoneRequire,
     hide: m.siteChoicePhoneHide,
   },
+  child: {
+    hide: m.siteChoiceChildHide,
+    ask: m.siteChoiceChildAsk,
+  },
   grade: {
     ask: m.siteChoiceGradeAsk,
     hide: m.siteChoiceGradeHide,
+  },
+  message: {
+    ask: m.siteChoiceMessageAsk,
+    hide: m.siteChoiceMessageHide,
+  },
+  answer: {
+    short: m.siteChoiceAnswerShort,
+    long: m.siteChoiceAnswerLong,
+    choice: m.siteChoiceAnswerChoice,
+    date: m.siteChoiceAnswerDate,
+    number: m.siteChoiceAnswerNumber,
+  },
+  required: {
+    optional: m.siteChoiceRequiredOptional,
+    required: m.siteChoiceRequiredRequired,
   },
 };

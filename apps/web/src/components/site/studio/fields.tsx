@@ -22,6 +22,7 @@ import {
   BLOCK_TYPES,
   blockFieldsOf,
   ICONS,
+  itemFieldShown,
   MAX_BLOCKS,
   newBlock,
   newItem,
@@ -69,6 +70,7 @@ import {
   AUDIENCE_LABEL,
   BLOCK_LABEL,
   CHOICE_LABEL,
+  FIELD_HINT,
   FIELD_LABEL,
   ICON_LABEL,
 } from "./labels";
@@ -839,12 +841,15 @@ function EmbedControl({
 }
 
 function ChoiceControl({
+  id,
   name,
   label,
   options,
   value,
   onChange,
 }: {
+  /** Unique on the panel, since items repeat the same field. */
+  id: string;
   name: string;
   label: string;
   options: readonly string[];
@@ -871,7 +876,6 @@ function ChoiceControl({
         />
       </StudioField>
     );
-  const id = `choice-${name}`;
   return (
     <StudioField id={id} label={label}>
       <Select value={value} onValueChange={(next) => next && onChange(next)}>
@@ -980,7 +984,11 @@ export function FieldControl({
           max={field.max}
           multiline={field.multiline}
           locale={context.locale}
-          hint={EMPHASISABLE.has(name) ? m.siteHeadingFieldHint() : undefined}
+          hint={
+            EMPHASISABLE.has(name)
+              ? m.siteHeadingFieldHint()
+              : FIELD_HINT[name]?.()
+          }
           onChange={onChange}
         />
       );
@@ -1047,6 +1055,7 @@ export function FieldControl({
     case "choice":
       return (
         <ChoiceControl
+          id={id}
           name={name}
           label={label}
           options={field.options}
@@ -1106,6 +1115,7 @@ export function FieldControl({
         <ItemsControl
           id={id}
           label={label}
+          hint={FIELD_HINT[name]?.()}
           field={field}
           value={value as Record<string, unknown>[]}
           context={context}
@@ -1299,6 +1309,7 @@ function summaryOf(item: Item, index: number): string {
 function ItemsControl({
   id,
   label,
+  hint,
   field,
   value,
   context,
@@ -1306,6 +1317,7 @@ function ItemsControl({
 }: {
   id: string;
   label: string;
+  hint?: string;
   field: Extract<Field, { kind: "items" }>;
   value: Record<string, unknown>[];
   context: FieldContext;
@@ -1317,9 +1329,13 @@ function ItemsControl({
       items.map((item, at) => (at === index ? { ...item, [key]: next } : item)),
     );
   return (
-    <fieldset className="grid gap-2">
+    // A legend names its fieldset only as the fieldset's first child, and
+    // this one shares a row with the count, so the group points at it.
+    <fieldset className="grid gap-2" aria-labelledby={`${id}-label`}>
       <div className="flex items-baseline justify-between">
-        <legend className="text-sm leading-5 font-medium">{label}</legend>
+        <span id={`${id}-label`} className="text-sm leading-5 font-medium">
+          {label}
+        </span>
         <span className="text-xs text-muted-foreground tabular-nums">
           {m.siteItemsOf({
             count: formatNumber(items.length),
@@ -1327,6 +1343,11 @@ function ItemsControl({
           })}
         </span>
       </div>
+      {hint ? (
+        <p className="-mt-1 text-[13px] leading-[18px] text-muted-foreground">
+          {hint}
+        </p>
+      ) : null}
       <ul className="grid gap-2">
         {items.map((item, index) => (
           <li key={item.id}>
@@ -1382,17 +1403,19 @@ function ItemsControl({
                 )
               }
             >
-              {Object.entries(field.fields).map(([key, inner]) => (
-                <FieldControl
-                  key={key}
-                  name={key}
-                  field={inner}
-                  value={item[key]}
-                  context={context}
-                  prefix={`${id}-${item.id}`}
-                  onChange={(next) => set(index, key, next)}
-                />
-              ))}
+              {Object.entries(field.fields)
+                .filter(([, inner]) => itemFieldShown(inner, item))
+                .map(([key, inner]) => (
+                  <FieldControl
+                    key={key}
+                    name={key}
+                    field={inner}
+                    value={item[key]}
+                    context={context}
+                    prefix={`${id}-${item.id}`}
+                    onChange={(next) => set(index, key, next)}
+                  />
+                ))}
             </Disclosure>
           </li>
         ))}

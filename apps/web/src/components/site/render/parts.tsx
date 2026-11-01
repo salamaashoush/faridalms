@@ -96,6 +96,8 @@ export interface RenderContext {
   query?: string;
   /** In the builder: links do not navigate and missing pictures show where they go. */
   editing?: boolean;
+  /** The public key a form's Cloudflare challenge renders with; none where forms take no challenge. */
+  turnstileKey?: string | null;
 }
 
 export const publicMediaUrl = (key: string) => `/public-media/${key}`;
