@@ -1,10 +1,13 @@
-import { contentPlainText } from "@faridalms/domain/content";
+import type { LessonBlock, LessonCompletion } from "@faridalms/domain/learning";
+
+import { contentFileIds, contentPlainText } from "@faridalms/domain/content";
 import {
   headedContent,
   plainContent,
 } from "@faridalms/domain/content-conversion";
 import { CATALOGUE } from "@faridalms/domain/descriptors/catalogue";
 import { normaliseIdentifier } from "@faridalms/domain/identifiers";
+import { contentOfLesson } from "@faridalms/domain/lesson-content";
 import { addDays, teachingWeeks } from "@faridalms/domain/school";
 import {
   buildTemplate,
@@ -2044,7 +2047,16 @@ async function seedLearning(
     order by user_id limit 1`);
   const quizId = Bun.randomUUIDv7();
   const right = Bun.randomUUIDv7();
-  const plans = [
+  const plans: {
+    title: string;
+    summary: string;
+    published: boolean;
+    lessons: {
+      title: string;
+      completion: LessonCompletion;
+      blocks: LessonBlock[];
+    }[];
+  }[] = [
     {
       title: "Reading stories together",
       summary: "How stories are built, with a short check and a reflection.",
@@ -2052,7 +2064,7 @@ async function seedLearning(
       lessons: [
         {
           title: "What makes a story",
-          completion: "view" as const,
+          completion: "view",
           blocks: [
             {
               id: Bun.randomUUIDv7(),
@@ -2065,7 +2077,7 @@ async function seedLearning(
         },
         {
           title: "Check your understanding",
-          completion: "quiz" as const,
+          completion: "quiz",
           blocks: [
             {
               id: quizId,
@@ -2142,7 +2154,7 @@ async function seedLearning(
         },
         {
           title: "Your favourite story",
-          completion: "reflection" as const,
+          completion: "reflection",
           blocks: [
             {
               id: Bun.randomUUIDv7(),
@@ -2166,7 +2178,7 @@ async function seedLearning(
       lessons: [
         {
           title: "Hearing the beat",
-          completion: "mark" as const,
+          completion: "mark",
           blocks: [
             {
               id: Bun.randomUUIDv7(),
@@ -2214,21 +2226,19 @@ async function seedLearning(
         bands: [],
       });
       lessonIds.push(row.id);
-      const content = { version: 2, blocks: lesson.blocks };
-      const [document] = await tx
-        .insert(documents)
-        .values({
-          tenantId,
-          hostType: "lesson",
-          hostId: row.id,
-          orgId: schoolId,
-          kind: "lesson",
-          schemaVersion: 2,
-          content,
-          plainText: lesson.title,
-        })
-        .returning({ id: documents.id });
-      if (plan.published && document)
+      const content = contentOfLesson({ version: 2, blocks: lesson.blocks });
+      if (!content) throw new Error(`${lesson.title} cannot be a document`);
+      const document = await saveDocument(tx, {
+        tenantId,
+        orgId: schoolId,
+        host: { type: "lesson", id: row.id },
+        kind: "lesson",
+        content: { ...content },
+        plainText: contentPlainText(content),
+        mediaIds: contentFileIds(content),
+        userId: homeroom.teacher_id,
+      });
+      if (plan.published)
         await snapshotPublish(tx, {
           tenantId,
           documentId: document.id,

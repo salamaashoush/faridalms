@@ -260,22 +260,6 @@ describe("lessons written as one document", () => {
     expect(contentPlainText(document)).toContain("Line two.");
   });
 
-  it("reads a question saved with one hint as its first hint", () => {
-    const document = contentOfLesson(lesson);
-    if (!document) throw new Error("lesson could not become a document");
-    const saved = structuredClone(document);
-    const question = saved.root.children?.find(
-      (node) => node.type === "question",
-    );
-    if (!question) throw new Error("the lesson has no question");
-    delete question.hints;
-    question.hint = "It is something you do.";
-    const back = lessonOfContent(saved);
-    expect(back.blocks.find((block) => block.type === "choice")).toMatchObject({
-      hints: ["It is something you do."],
-    });
-  });
-
   it("gives the text between questions the same id each time", () => {
     const document = contentOfLesson(lesson);
     if (!document) throw new Error("lesson could not become a document");

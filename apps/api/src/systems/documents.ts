@@ -1,3 +1,5 @@
+import type { ContentDocument } from "@faridalms/domain/content";
+
 import {
   contentToRestore,
   documentIdOf,
@@ -9,7 +11,6 @@ import {
   TICKET_TTL_SECONDS,
   roomOf,
 } from "@faridalms/domain/collab";
-import { lessonContentOf } from "@faridalms/domain/learning";
 import { ORPCError } from "@orpc/server";
 import * as v from "valibot";
 
@@ -120,7 +121,5 @@ export const restore = writeProcedure
       userId: context.actor.userId,
     });
     if (!content) throw new ORPCError("NOT_FOUND");
-    // Lessons kept as a list of blocks before they were documents come back
-    // as the document they read as today.
-    return { content: lessonContentOf(content) };
+    return { content: content as unknown as ContentDocument };
   });
