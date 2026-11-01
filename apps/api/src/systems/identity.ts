@@ -18,25 +18,17 @@ import {
 } from "@faridalms/database/stores/badges";
 import {
   attemptsSoFar,
-  clearAttempts,
   countAttempt,
   createSession,
   effectiveAccess,
   findPasswordIdentity,
-  recordFailure,
   recordSignIn,
   revokeSession,
   schoolProfile,
   sessionExpiresAt,
   viewer,
 } from "@faridalms/database/stores/identity";
-import {
-  findInvite,
-  issueInvite,
-  redeemInvite,
-  voidInvite,
-} from "@faridalms/database/stores/invites";
-import { reachability } from "@faridalms/database/stores/notifications";
+import { findInvite, redeemInvite } from "@faridalms/database/stores/invites";
 import { childrenOf } from "@faridalms/database/stores/persons";
 import { youngStudents } from "@faridalms/database/stores/students";
 import { BADGE_DAYS } from "@faridalms/domain/badges";
@@ -45,7 +37,6 @@ import {
   changePasswordSchema,
   inviteSchema,
   requestResetSchema,
-  RESET_MINUTES,
 } from "@faridalms/domain/first-sign-in";
 import { hostOf, placeOf, platformName } from "@faridalms/domain/hosts";
 import {
@@ -61,14 +52,18 @@ import {
 } from "@faridalms/domain/portal-face";
 import { WORKSPACE_OF } from "@faridalms/domain/workspace";
 import { ORPCError } from "@orpc/server";
-import { randomBytes } from "node:crypto";
 import * as v from "valibot";
 
 import type { SchoolContext } from "../core/context";
 
 import { scopeOf } from "../core/coursework-access";
 import { featuresOf } from "../core/features";
-import { welcomeLink } from "../core/portal";
+import { sendPasswordReset } from "../core/password-reset";
+import {
+  openSession,
+  provePassword,
+  refuseSignIn,
+} from "../core/password-sign-in";
 import { portalFace as readFace } from "../core/portal-face";
 import {
   audit,
@@ -83,20 +78,13 @@ import {
   attemptKey,
   badgeHash,
   ipPrefix,
-  issueBadgeSecret,
   issueToken,
   LIFETIME,
   SHARED_LIFETIME,
   userAgentSummary,
 } from "../core/session";
-import { resetMessage } from "../notifications/templates";
-
-const dummyHash = await Bun.password.hash(randomBytes(32).toString("hex"), {
-  algorithm: "argon2id",
-});
 
 const PER_NAME = 10;
-const PER_NETWORK = 50;
 // A class signs in together from one network, so only badges that fail
 // count against it.
 const BADGE_FAILURES = 20;
@@ -119,42 +107,18 @@ export const signIn = schoolProcedure
       { tenantId, requestId: context.requestId, actor: { kind: "user" } },
       "write",
       async (tx) => {
-        const nameKey = attemptKey(
-          context.cellSecret,
+        const proof = await provePassword(tx, context, {
           tenantId,
-          `login:${input.loginName}`,
-        );
-        const network = ipPrefix(context.headers, context.trustedProxyHops);
-        // A school signs in from one network, so only failures count
-        // against it, as with badges.
-        const networkKey = network
-          ? attemptKey(context.cellSecret, tenantId, `ip:${network}`)
-          : null;
-        const tries = await countAttempt(tx, tenantId, nameKey, WINDOW_MINUTES);
-        const networkFailures = networkKey
-          ? await attemptsSoFar(tx, tenantId, networkKey)
-          : 0;
-        const identity = await findPasswordIdentity(tx, input.loginName);
-        if (tries > PER_NAME || networkFailures >= PER_NETWORK) {
-          await writeAudit(tx, tenantId, {
-            action: "account.sign_in",
-            outcome: "denied",
-            objectType: "account",
-            objectId: identity?.accountId ?? null,
-            subjectUserId: identity?.userId ?? null,
-            details: { reason: "rate_limited" },
-          });
-          return { ok: false, code: "auth.too_many_attempts" };
-        }
-        const valid = await Bun.password.verify(
-          input.password,
-          identity?.secretHash ?? dummyHash,
-        );
+          loginName: input.loginName,
+          password: input.password,
+        });
+        if (proof.limited) return { ok: false, code: "auth.too_many_attempts" };
+        const { identity } = proof;
         const today = dateIn(
           (await schoolProfile(tx, schoolId))?.timeZone ?? "UTC",
         );
         const access =
-          identity && valid && identity.accountState === "active"
+          identity && proof.valid
             ? await effectiveAccess(tx, {
                 tenantId,
                 userId: identity.userId,
@@ -170,75 +134,23 @@ export const signIn = schoolProcedure
           !chosen ||
           !access.contexts.includes(chosen)
         ) {
-          if (identity)
-            await recordFailure(
-              tx,
-              identity.identityId,
-              identity.failedAttempts + 1,
-            );
-          if (networkKey)
-            await countAttempt(tx, tenantId, networkKey, WINDOW_MINUTES);
-          await writeAudit(tx, tenantId, {
-            action: "account.sign_in",
-            outcome: "failed",
-            objectType: "account",
-            objectId: identity?.accountId ?? null,
-            subjectUserId: identity?.userId ?? null,
-          });
+          await refuseSignIn(tx, tenantId, proof);
           return { ok: false, code: "auth.invalid_credentials" };
         }
-        const { token, tokenHash } = issueToken(tenantId);
-        const lifetime = LIFETIME[chosen];
-        const session = await createSession(tx, {
-          tenantId,
-          accountId: identity.accountId,
-          tokenHash,
-          loginIdentityId: identity.identityId,
-          context: chosen,
-          activeOrgId: schoolId,
-          idleMinutes: lifetime.idle,
-          absoluteMinutes: lifetime.absolute,
-          ipPrefix: network,
-          userAgentSummary: userAgentSummary(context.headers),
-        });
-        await bindActor(tx, {
-          tenantId,
-          requestId: context.requestId,
-          actor: {
-            kind: "user",
-            userId: identity.userId,
-            accountId: identity.accountId,
-            sessionId: session.id,
-          },
-        });
-        await recordSignIn(tx, {
-          accountId: identity.accountId,
-          identityId: identity.identityId,
-          firstTime: identity.firstAuthenticatedAt === null,
-        });
-        await clearAttempts(tx, tenantId, nameKey);
-        await writeAudit(tx, tenantId, {
-          action: "account.sign_in",
-          objectType: "account",
-          objectId: identity.accountId,
-          orgId: schoolId,
-          subjectUserId: identity.userId,
-          details: { context: chosen },
-        });
-        const profile = (
-          await effectiveAccess(tx, {
-            tenantId,
-            userId: identity.userId,
-            orgId: schoolId,
-            today,
-            context: chosen,
-          })
-        ).profile;
         return {
           ok: true,
-          token,
-          expiresAt: session.absoluteExpiresAt,
-          workspace: WORKSPACE_OF[profile],
+          ...(await openSession(tx, context, {
+            tenantId,
+            schoolId,
+            accountId: identity.accountId,
+            userId: identity.userId,
+            identityId: identity.identityId,
+            firstTime: identity.firstAuthenticatedAt === null,
+            sessionContext: chosen,
+            today,
+            network: proof.network,
+            nameKey: proof.nameKey,
+          })),
         };
       },
     );
@@ -479,26 +391,27 @@ export const invite = schoolProcedure
  */
 export const acceptInvite = schoolProcedure
   .input(acceptInviteSchema)
-  .handler(({ input, context }) =>
+  .handler(async ({ input, context }) => {
     // Hashed only once the link holds, so a stranger's guesses cost no
     // password hashing.
-    heldInvite(context, input.secret, async (tx, holder) =>
-      redeemInvite(tx, {
-        tenantId: context.school.tenantId,
-        identityId: holder.identityId,
-        accountId: holder.accountId,
-        loginName: holder.loginName,
-        secretHash: await Bun.password.hash(input.password, {
-          algorithm: "argon2id",
+    const accepted = await heldInvite(
+      context,
+      input.secret,
+      async (tx, holder) =>
+        redeemInvite(tx, {
+          tenantId: context.school.tenantId,
+          identityId: holder.identityId,
+          accountId: holder.accountId,
+          loginName: holder.loginName,
+          secretHash: await Bun.password.hash(input.password, {
+            algorithm: "argon2id",
+          }),
         }),
-      }),
-    ),
-  );
-
-// Each request may send an email, so the limits are lower than sign-in's.
-const RESET_PER_NAME = 3;
-const RESET_PER_NETWORK = 20;
-const RESET_WINDOW_MINUTES = 60;
+    );
+    // The account may now hold its first password sign-in name.
+    await context.logins?.refresh(context.school.tenantId);
+    return accepted;
+  });
 
 /**
  * Emails a link that replaces a forgotten password to the address held for
@@ -509,81 +422,11 @@ const RESET_WINDOW_MINUTES = 60;
 export const requestPasswordReset = schoolProcedure
   .input(requestResetSchema)
   .handler(async ({ input, context }) => {
-    const { tenantId, schoolId } = context.school;
-    const limited = await context.cell.withTenant(
-      { tenantId, requestId: context.requestId, actor: { kind: "user" } },
-      "write",
-      async (tx) => {
-        const network = ipPrefix(context.headers, context.trustedProxyHops);
-        const nameTries = await countAttempt(
-          tx,
-          tenantId,
-          attemptKey(context.cellSecret, tenantId, `reset:${input.loginName}`),
-          RESET_WINDOW_MINUTES,
-        );
-        const networkTries = network
-          ? await countAttempt(
-              tx,
-              tenantId,
-              attemptKey(context.cellSecret, tenantId, `reset-ip:${network}`),
-              RESET_WINDOW_MINUTES,
-            )
-          : 0;
-        if (nameTries > RESET_PER_NAME || networkTries > RESET_PER_NETWORK)
-          return true;
-        const identity = await findPasswordIdentity(tx, input.loginName);
-        const mail = context.mail;
-        if (!identity || identity.accountState !== "active" || !mail)
-          return false;
-        const [reach] = await reachability(tx, {
-          tenantId,
-          userIds: [identity.userId],
-        });
-        if (!reach?.email) return false;
-        const { secret, secretHash } = issueBadgeSecret();
-        const link = await issueInvite(tx, {
-          tenantId,
-          userId: identity.userId,
-          secretHash,
-          expiresAt: new Date(Date.now() + RESET_MINUTES * 60_000),
-          sentToUserId: identity.userId,
-          linkedByUserId: identity.userId,
-          purpose: "reset",
-        });
-        if (!link) return false;
-        const school =
-          (reach.locale === "ar"
-            ? context.school.nameAr
-            : context.school.nameEn) ??
-          context.school.nameEn ??
-          "";
-        const sent = await mail
-          .send({
-            to: reach.email,
-            ...resetMessage({
-              locale: reach.locale,
-              school,
-              loginName: input.loginName,
-              link: welcomeLink(context.school, context.domains, secret),
-              minutes: RESET_MINUTES,
-            }),
-          })
-          .then(
-            () => true,
-            () => false,
-          );
-        if (!sent) await voidInvite(tx, tenantId, link.identityId);
-        await writeAudit(tx, tenantId, {
-          action: "account.reset_requested",
-          outcome: sent ? "success" : "failed",
-          objectType: "account",
-          objectId: identity.accountId,
-          orgId: schoolId,
-          subjectUserId: identity.userId,
-        });
-        return false;
-      },
-    );
+    const limited = await sendPasswordReset(context, {
+      tenantId: context.school.tenantId,
+      loginName: input.loginName,
+      school: async () => context.school,
+    });
     if (limited)
       throw new ORPCError("TOO_MANY_REQUESTS", {
         message: "auth.too_many_attempts",

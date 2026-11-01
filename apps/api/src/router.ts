@@ -10,6 +10,7 @@ import * as classesSystem from "./systems/classes";
 import * as consentsSystem from "./systems/consents";
 import * as courseworkSystem from "./systems/coursework";
 import * as coverSystem from "./systems/cover";
+import * as discovery from "./systems/discovery";
 import * as documentsSystem from "./systems/documents";
 import * as examsSystem from "./systems/exams";
 import * as filesSystem from "./systems/files";
@@ -44,7 +45,7 @@ import * as yearsSystem from "./systems/years";
 
 export const router = {
   identifiers: identifiersSystem,
-  identity,
+  identity: { ...identity, ...discovery },
   people: peopleSystem,
   badges: badgesSystem,
   access: accessSystem,

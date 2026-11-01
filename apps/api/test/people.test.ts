@@ -753,7 +753,7 @@ const linkTo = (address: string) => {
   const message = seeded()
     .mail.sent.filter((row) => row.to === address)
     .at(-1);
-  const secret = /welcome\?school=northwind#([A-Za-z0-9_-]{43})/.exec(
+  const secret = /\/\/northwind\.[^/\s]+\/welcome#([A-Za-z0-9_-]{43})/.exec(
     message?.text ?? "",
   )?.[1];
   if (!message || !secret) throw new Error(`no link was sent to ${address}`);

@@ -15,6 +15,39 @@ export const signInSchema = v.object({
 });
 export type SignInInput = v.InferOutput<typeof signInSchema>;
 
+/** A handoff carries 256 random bits as base64url. */
+export const HANDOFF_SECRET = /^[A-Za-z0-9_-]{43}$/;
+/** How long a handoff from the bare portal domain stays good, in seconds. */
+export const HANDOFF_SECONDS = 60;
+
+const slug = v.pipe(
+  v.string(),
+  v.regex(/^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$/),
+);
+
+/**
+ * Sign-in on the bare portal domain, which names no school: the school is
+ * found from the sign-in name once the password is right. `school` picks
+ * one when the same name and password open more than one.
+ */
+export const discoverSignInSchema = v.object({
+  loginName: signInSchema.entries.loginName,
+  password: signInSchema.entries.password,
+  school: v.optional(slug),
+  /** The visitor's human check, where the platform asks for one. */
+  human: v.optional(v.pipe(v.string(), v.maxLength(4096))),
+});
+
+/** A forgotten password asked for on the bare portal domain. */
+export const discoverResetSchema = v.object({
+  loginName: signInSchema.entries.loginName,
+  human: v.optional(v.pipe(v.string(), v.maxLength(4096))),
+});
+
+export const redeemHandoffSchema = v.object({
+  token: v.pipe(v.string(), v.regex(HANDOFF_SECRET)),
+});
+
 export const switchContextSchema = v.object({
   context: v.picklist(SESSION_CONTEXTS),
 });
