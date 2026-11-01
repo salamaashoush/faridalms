@@ -206,9 +206,9 @@ const REGISTER_PER_ADDRESS = 3;
 const REGISTER_WINDOW_MINUTES = 60;
 
 /**
- * A parent registers on the portal to apply. Turnstile is checked first
- * where it is set up, then the hidden field, the fill time and the limits per
- * network and per address. The answer is the same whatever happened, so
+ * A parent registers on the portal to apply. Turnstile is checked where it
+ * is set up, the hidden field and the fill time where it is not, then the
+ * limits per network and per address. The answer is the same whatever happened, so
  * nobody learns who has an account: a new address is sent a link that
  * confirms it and chooses the password, and an address that already signs
  * in is told so in its own inbox.
@@ -216,10 +216,12 @@ const REGISTER_WINDOW_MINUTES = 60;
 export const register = schoolProcedure
   .input(registerFamilySchema)
   .handler(async ({ input, context }) => {
-    if (input.website || input.elapsed < MIN_FILL_MS)
-      return { registered: true };
     const { school } = context;
     const turnstile = context.turnstile;
+    // Turnstile's answer, where it is set up, outranks the hidden field and
+    // the fill time, which autofill trips for real families.
+    if (!turnstile && (input.website || input.elapsed < MIN_FILL_MS))
+      return { registered: true };
     if (
       turnstile &&
       !(await turnstile.verify({

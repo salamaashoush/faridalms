@@ -1169,10 +1169,15 @@ const MIN_FILL_MS = 2500;
 export const submitEnquiry = publicProcedure
   .input(enquirySchema)
   .handler(async ({ input, context }) => {
-    if (input.website || input.elapsed < MIN_FILL_MS) return { received: true };
+    const turnstile = context.turnstile;
+    // Where Turnstile is set up its answer is the proof of a person. The
+    // hidden field and the fill time are the fallback without it: browsers
+    // autofill a field called website and fill a form in an instant, which
+    // dropped real families who had passed the challenge.
+    if (!turnstile && (input.website || input.elapsed < MIN_FILL_MS))
+      return { received: true };
     const school = await context.directory.bySlug(input.school);
     if (!school) throw new ORPCError("NOT_FOUND");
-    const turnstile = context.turnstile;
     if (
       turnstile &&
       !(await turnstile.verify({
