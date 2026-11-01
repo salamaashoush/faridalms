@@ -5,6 +5,7 @@ import type { CellTransaction } from "../src/context";
 
 import { writeAudit } from "../src/audit";
 import { withPurpose } from "../src/context";
+import { insertEvent, insertLetter } from "../src/stores/admission-decisions";
 import {
   insertApplication,
   insertApplicationEntry,
@@ -1128,6 +1129,28 @@ export async function completeFixture(
     kind: "note",
     body: "Fixture note.",
     authorUserId: userId,
+  });
+  await insertLetter(tx, {
+    tenantId,
+    orgId: schoolId,
+    applicationId: admission.id,
+    kind: "waitlist",
+    locale: "en",
+    title: "A place on our waiting list",
+    templateId: null,
+    sentByUserId: userId,
+  });
+  await insertEvent(tx, {
+    tenantId,
+    orgId: schoolId,
+    applicationId: admission.id,
+    itemId: null,
+    kind: "tour",
+    startsOn: "2035-02-01",
+    startTime: "09:00",
+    endTime: "09:45",
+    location: "Main gate",
+    attendeeIds: [userId],
   });
   await tx.insert(attendanceSettings).values({
     tenantId,

@@ -80,6 +80,7 @@ const ADMISSIONS_TRIAD = section(
   "admissions",
   "triad",
   (b) => ({
+    source: "typed" as const,
     heading: b.w(["Join our school", "انضم إلى مدرستنا"]),
     text: b.w([
       "Three steps to a place for your child.",
@@ -121,6 +122,27 @@ const ADMISSIONS_TRIAD = section(
   }),
   { scheme: "brand" },
 );
+
+/** The intakes open and coming, read from admissions: each grade's dates and fees. */
+const ADMISSIONS_INTAKES = section("admissions", "triad", (b) => ({
+  source: "intakes" as const,
+  heading: b.w(["Places for next year", "المقاعد المتاحة للعام القادم"]),
+  text: b.w([
+    "Each grade's dates and fees, as the admissions office has set them.",
+    "مواعيد كل صف ورسومه كما حدّدها مكتب القبول.",
+  ]),
+}));
+
+const REGISTER_APPLY = section("registerApply", "banner", (b) => ({
+  eyebrow: b.w(["Admissions", "القبول"]),
+  heading: b.w(["Ready to apply?", "هل أنتم مستعدون للتقديم؟"]),
+  text: b.w([
+    "Register as a family once, then apply for each child and come back to the application whenever you like.",
+    "سجّلوا أسرتكم مرة واحدة، ثم قدّموا لكل طفل وعودوا إلى الطلب متى شئتم.",
+  ]),
+  intake: "",
+  button: b.w(["Register and apply", "سجّل وقدّم"]),
+}));
 
 const STATS = section(
   "stats",
@@ -932,7 +954,8 @@ const SAMPLES: Record<SectionType, (b: Builder) => PageSection> = {
   logos: LOGOS,
   news: NEWS,
   events: EVENTS,
-  admissions: ADMISSIONS_TRIAD,
+  admissions: ADMISSIONS_INTAKES,
+  registerApply: REGISTER_APPLY,
   steps: STEPS,
   fees: FEES,
   contact: CONTACT,
@@ -989,7 +1012,8 @@ export const PAGE_TEMPLATES = {
       ["Joining us is simple.", "الالتحاق بنا سهل."],
     ),
     STEPS,
-    FEES,
+    ADMISSIONS_INTAKES,
+    REGISTER_APPLY,
     FAQ,
     ENQUIRY_FORM,
   ],

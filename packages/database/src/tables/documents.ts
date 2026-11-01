@@ -168,10 +168,11 @@ export const documents = core.table.withRLS(
 
 /**
  * A document a school keeps to start new ones from, such as a lesson laid
- * out as read, check and reflect, or a reply the office sends often. Its
- * content is the document it hosts, so its pictures and files belong to it
- * and are copied into each new one. One the school was given when it was
- * made has no owner and a `builtin_key`, so it is given once.
+ * out as read, check and reflect, a reply the office sends often, or a
+ * letter the admissions office sends. Its content is the document it
+ * hosts, so its pictures and files belong to it and are copied into each
+ * new one. One the school was given when it was made has no owner and a
+ * `builtin_key`, so it is given once.
  */
 export type LibraryState = "pending" | "shared" | "declined";
 
@@ -192,6 +193,7 @@ export const documentTemplates = core.table.withRLS(
         | "consent_form"
         | "module"
         | "message"
+        | "admission_letter"
       >()
       .notNull(),
     builtinKey: text("builtin_key"),
@@ -227,7 +229,7 @@ export const documentTemplates = core.table.withRLS(
     ck(
       "document_templates",
       "kind",
-      sql`kind in ('lesson', 'assignment', 'unit_plan', 'news', 'announcement', 'event', 'consent_form', 'module', 'message')`,
+      sql`kind in ('lesson', 'assignment', 'unit_plan', 'news', 'announcement', 'event', 'consent_form', 'module', 'message', 'admission_letter')`,
     ),
     ck(
       "document_templates",

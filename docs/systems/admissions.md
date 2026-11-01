@@ -1,8 +1,8 @@
 # Admissions
 
-From a family's first question to a child applying for a place: enquiries,
-intakes, family registration and applications. Decisions, offers, the
-waiting list and conversion into a student follow
+From a family's first question to a child starting at the school:
+enquiries, intakes, family registration, applications, decisions, offers,
+the waiting list and enrolment
 ([plan, sections 6.4 and 6.5](../plans/school-front-door.md)). The doors a
 family meets are pages of the school's site ([website.md](website.md)).
 
@@ -85,11 +85,85 @@ draft -> submitted -> in_review -> decided -> offered -> accepted -> enrolled
 exits: declined_by_school, withdrawn, offer_declined, offer_expired, deferred
 ```
 
-Every state exists in the table; one move table in
-`packages/domain/src/admissions.ts` says who may make each move. Today a
-family sends or withdraws a draft and withdraws a sent one, and the office
-starts a review or withdraws on the family's word. Checklist steps go
-`pending` -> `received` -> `verified` | `waived` | `rejected`.
+One move table in `packages/domain/src/admissions.ts` says who may make
+each move: the family, the office, or the school's clock, and which of the
+office's moves need `admissions:decide`. Every move goes through
+`moveApplication` (`apps/api/src/core/decisions.ts`), which writes the
+history, the audit log, the letter the move sends and the family's notice,
+so no move records less than another. Checklist steps go `pending` ->
+`received` -> `verified` | `waived` | `rejected`.
+
+## Decisions and offers
+
+The office decides an application under review: offer a place, the
+waiting list, or decline. Until it is released the decision is the
+office's alone; the family still reads "in review". Decisions are released
+by hand, from the application or many at once from the intake's board, or
+by the clock (`core/admissions-clock.ts`, every five minutes) on the
+intake's decisions day at the school's own midnight; one made after that
+day is released at once.
+
+The places left are the seats less the offers accepted (and enrolled) and
+the offers still open. The office's release goes all or not at all, so an
+offer with no place refuses the release; the clock releases what fits and
+leaves the rest decided. An offer stays open for the intake's days; the
+family accepts or declines it in their account, or the office records the
+answer they gave by phone, and the clock lets an unanswered one lapse. The
+waiting list is ranked by the intake's priorities in its order, then the
+older child, then who sent first; places are offered from it while any
+remain, and closing it sends the refusal.
+
+Deferring carries an application to an intake of a later year as it was
+sent, with that year's number and checklist; the first ends `deferred` and
+each links to the other.
+
+Tours, assessments and interviews (`core.admission_events`) have a day,
+hours, a place, the admissions staff who attend and an outcome with notes;
+the family sees what is booked, and attending an assessment or interview
+step has that step in.
+
+## Letters
+
+Each phase sends a letter: the offer, the waiting list, the refusal and
+the welcome. They are templates of the `admission_letter` kind in the
+Templates system, one per phase in each language, given to every school
+when it is made (`giveLetterTemplates`) and edited on the Letters screen;
+they are never removed. A letter is written from the template in the
+language the family applied in, its fields in braces (`{family}`,
+`{child}`, `{grade}`, `{year}`, `{school}`, `{reference}`, `{expires}`)
+filled in, and frozen as sent (`core.admission_letters`, its words hosted
+as `admission_letter`). The family reads it with their application, and
+the same words are a message in their conversation with admissions,
+written through Messages' `writeEntry`, so they reach the family by email
+like any other message.
+
+## Enrolment
+
+Enrolling an accepted applicant runs in one transaction
+(`core/enrolment.ts`). The child becomes a student with the school's
+reference (the application number unless the office gives another), or,
+when matching found the school's own former student and the office
+confirms it, that student keeps one record: the applicant's identity
+document, consents, health and needs and family links are joined to it and
+the duplicate person is retired. The guardians the family named are linked
+with their relationship and legal-guardian flags, the applying parent now
+with the portal and notices; the identity document, health and consents
+stay with the child as they were kept from the first save. A placement for
+the intake's year and grade starts on the year's first day, with how the
+child came (first enrolment, transfer with the school before, or
+re-entry). The family role the links give replaces the applying role,
+which ends the day the child starts so the family keeps their workspace
+until then. The application closes read-only, linked to the student, and
+the welcome letter is sent.
+
+## The office's screens
+
+Each intake has a board by phase with its places, where applications are
+decided, released, offered from the waiting list and enrolled several at
+once; each application has its own page for one at a time. Reports show a
+year's funnel by stage, by grade and intake and by where families came
+from, and how long applications stay in each state, measured from their
+history.
 
 The office's notes and every change of state or step are the application's
 history (`core.admission_entries`), which the family never reads. What the
@@ -104,7 +178,8 @@ hold all four.
 
 ## Retention
 
-The school sets how many months an application that was withdrawn or not
-offered a place is kept after its intake closes. Such applicants then come
-up in the privacy review, and erasing one empties the application and
-tombstones it.
+The school sets how many months an application that was withdrawn, not
+offered a place, or whose offer was declined or lapsed, is kept after its
+intake closes. Such applicants then come up in the privacy review, and
+erasing one empties the application, the events booked for it and the
+letters sent, removes the documents its checklist held, and tombstones it.
