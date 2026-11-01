@@ -330,6 +330,21 @@ describe("starting from a starter", () => {
     const page = await api.site.page({ id: visit.id });
     expect(page.content.sections.length).toBeGreaterThan(0);
     expect(page.gaps.missing).toEqual([]);
+    // Other files read Northwind's seeded theme, so it goes back as it was.
+    await api.site.saveSettings({
+      expectedVersion: after.settings.version,
+      theme: before.settings.theme,
+      chrome: after.settings.chrome,
+      live: after.settings.live,
+      bilingual: after.settings.bilingual,
+      taglineEn: after.settings.taglineEn,
+      taglineAr: after.settings.taglineAr,
+      socialLinks: after.settings.socialLinks,
+      bannerEn: after.settings.bannerEn,
+      bannerAr: after.settings.bannerAr,
+      bannerTone: after.settings.bannerTone,
+      bannerUntil: after.settings.bannerUntil ?? "",
+    });
   });
 });
 

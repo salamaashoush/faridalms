@@ -499,7 +499,9 @@ describe("the portal's doors", () => {
       expect(face.page.starter).toBe(true);
       expect(face.page.sections.map((row) => row.section.type)).toContain(door);
     }
-    const api = await signedIn("northwind-east", login("principal", 0, 1));
+    // Creating doors on a school the sign-in page tests read as having none
+    // would break them in whichever order the files run.
+    const api = await signedIn("acme", login("principal", 1));
     const { id } = await api.site.startPortalPage({ door: "register" });
     const page = await api.site.page({ id });
     expect(page).toMatchObject({ kind: "portal", slug: "register" });
