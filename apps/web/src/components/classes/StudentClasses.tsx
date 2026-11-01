@@ -18,11 +18,44 @@ import { enrollmentHistoryQuery } from "~/queries/classes";
 import { peopleOptionsQuery } from "~/queries/students";
 import { formatDate } from "~/utils/datetime";
 
-import { lastDay } from "../people/format";
+import { displayName, lastDay } from "../people/format";
 import { MoveClassSheet, WithdrawSheet } from "./Enrolment";
 import { classTitle } from "./format";
 
 type Sheet = "move" | "withdraw" | null;
+
+export interface Homeroom {
+  classId: string;
+  teachers: {
+    userId: string;
+    fullNameEn: string | null;
+    fullNameAr: string | null;
+  }[];
+}
+
+/** The teachers who keep a student's class, each opening their record. */
+export function HomeroomTeachers({ homeroom }: { homeroom: Homeroom }) {
+  return (
+    <span>
+      {homeroom.teachers.map((teacher, index) => (
+        <span key={teacher.userId}>
+          <Link
+            to="/people/$userId"
+            params={{ userId: teacher.userId }}
+            search={{}}
+            dir="auto"
+            className={cn("hover:text-primary hover:underline", phoneLink)}
+          >
+            {displayName(teacher)}
+          </Link>
+          {index < homeroom.teachers.length - 1 ? (
+            <span aria-hidden> · </span>
+          ) : null}
+        </span>
+      ))}
+    </span>
+  );
+}
 
 /**
  * Where a student sits today: their homeroom, and the school year a move
@@ -76,10 +109,12 @@ export function StudentClasses({
   student,
   today,
   manage,
+  homeroom,
 }: {
   student: { id: string; name: string };
   today: string;
   manage: boolean;
+  homeroom: Homeroom | null;
 }) {
   const { episodes, current, year, closed } = useSeat(student.id, today);
   const [sheet, setSheet] = useState<{ which: Sheet; key: number }>({
@@ -154,6 +189,14 @@ export function StudentClasses({
                     <span className="text-[13px] leading-[18px] text-muted-foreground">
                       {inLocale(episode.yearTitleEn, episode.yearTitleAr)}
                     </span>
+                    {now &&
+                    homeroom?.classId === episode.classId &&
+                    homeroom.teachers.length > 0 ? (
+                      <span className="flex flex-wrap gap-x-1 text-[13px] leading-[18px] text-muted-foreground">
+                        {m.studentHomeroomTeacher()}:
+                        <HomeroomTeachers homeroom={homeroom} />
+                      </span>
+                    ) : null}
                   </div>
                   <span className="text-sm leading-5 text-muted-foreground">
                     {m.accessDuring({

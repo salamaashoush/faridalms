@@ -23,6 +23,7 @@ import * as m from "~/i18n/messages";
 import { personHistoryQuery, personRecordQuery } from "~/queries/students";
 import { formatDate, formatList } from "~/utils/datetime";
 
+import { classTitle } from "../classes/format";
 import { AccessSection } from "./AccessSection";
 import { ContactsSheet } from "./ContactsSheet";
 import { displayName, labelOf, otherName, roleLabel } from "./format";
@@ -184,6 +185,80 @@ function ChildrenSection({ data }: { data: PersonData }) {
   );
 }
 
+function TeachingSection({
+  teaching,
+}: {
+  teaching: NonNullable<PersonData["teaching"]>;
+}) {
+  return (
+    <RecordSection
+      title={m.personTeaching()}
+      description={m.personTeachingHint({
+        year: inLocale(teaching.year.titleEn, teaching.year.titleAr),
+      })}
+    >
+      {teaching.classes.length === 0 ? (
+        <RecordEmpty>{m.personNoTeaching()}</RecordEmpty>
+      ) : (
+        <RecordList>
+          {teaching.classes.map((row) => {
+            const homeroom = inLocale(row.homeroomTitleEn, row.homeroomTitleAr);
+            const detail =
+              row.classType === "homeroom"
+                ? m.studentHomeroomTeacher()
+                : formatList(
+                    [
+                      labelOf(row.subject),
+                      homeroom ? m.personTeachingIn({ class: homeroom }) : null,
+                    ].filter((part): part is string => Boolean(part)),
+                  );
+            return (
+              <li
+                key={row.id}
+                className="flex flex-wrap items-baseline justify-between gap-x-6 gap-y-1 py-3"
+              >
+                <div className="grid min-w-0 gap-0.5">
+                  {row.canOpen ? (
+                    <Link
+                      to="/classes/$classId"
+                      params={{ classId: row.id }}
+                      search={{}}
+                      dir="auto"
+                      className={cn(
+                        "justify-self-start text-sm leading-5 font-medium hover:text-primary hover:underline",
+                        phoneLink,
+                      )}
+                    >
+                      {classTitle(row)}
+                    </Link>
+                  ) : (
+                    <span dir="auto" className="text-sm leading-5 font-medium">
+                      {classTitle(row)}
+                    </span>
+                  )}
+                  {detail ? (
+                    <span
+                      dir="auto"
+                      className="text-[13px] leading-[18px] text-muted-foreground"
+                    >
+                      {detail}
+                    </span>
+                  ) : null}
+                </div>
+                {row.role === "aide" ? (
+                  <span className="text-[13px] leading-[18px] text-muted-foreground">
+                    {m.personTeachingAide()}
+                  </span>
+                ) : null}
+              </li>
+            );
+          })}
+        </RecordList>
+      )}
+    </RecordSection>
+  );
+}
+
 function PersonHistory({ userId }: { userId: string }) {
   const entries = useSuspenseQuery(personHistoryQuery(userId)).data;
   return <HistorySection entries={entries} />;
@@ -232,6 +307,9 @@ export function PersonRecord({
           main={
             <>
               <RolesSection data={data} />
+              {data.teaching ? (
+                <TeachingSection teaching={data.teaching} />
+              ) : null}
               {data.children.length > 0 ||
               data.roles.some((role) => isFamily(role.role)) ? (
                 <ChildrenSection data={data} />

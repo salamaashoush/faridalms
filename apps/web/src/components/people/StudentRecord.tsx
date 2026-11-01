@@ -62,7 +62,11 @@ import { formatDate } from "~/utils/datetime";
 
 import type { StudentSheet } from "./StudentSheets";
 
-import { MoveStudent, StudentClasses } from "../classes/StudentClasses";
+import {
+  HomeroomTeachers,
+  MoveStudent,
+  StudentClasses,
+} from "../classes/StudentClasses";
 import { ContactsSheet } from "./ContactsSheet";
 import {
   displayName,
@@ -582,6 +586,16 @@ export function StudentRecord({
       label: m.studentGrade(),
       value: labels.grade(data.placement.gradeId),
     });
+  if (data.homeroom && data.homeroom.teachers.length > 0)
+    facts.push({
+      label: m.studentHomeroomTeacher(),
+      value: (
+        <>
+          <span aria-hidden>{m.studentHomeroomTeacher()}: </span>
+          <HomeroomTeachers homeroom={data.homeroom} />
+        </>
+      ),
+    });
   const age = ageOn(data.birthDate, data.today);
   if (age) facts.push({ label: m.studentAge(), value: formatAge(age) });
 
@@ -795,6 +809,7 @@ export function StudentRecord({
                   student={{ id: studentId, name }}
                   today={data.today}
                   manage={access.manage}
+                  homeroom={data.homeroom}
                 />
               </Deferred>
               <EnrollmentHistory data={data} />
