@@ -12,6 +12,7 @@ import * as classesSystem from "./systems/classes";
 import * as consentsSystem from "./systems/consents";
 import * as courseworkSystem from "./systems/coursework";
 import * as coverSystem from "./systems/cover";
+import * as decisionsSystem from "./systems/decisions";
 import * as discovery from "./systems/discovery";
 import * as documentsSystem from "./systems/documents";
 import * as examsSystem from "./systems/exams";
@@ -89,6 +90,7 @@ export const router = {
   intakes: intakesSystem,
   applications: applicationsSystem,
   applying: applyingSystem,
+  decisions: decisionsSystem,
   product: productSystem,
   hosts: hostsSystem,
   home: homeSystem,

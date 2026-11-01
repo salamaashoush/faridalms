@@ -1,6 +1,11 @@
 import type { ApplicationMatches } from "@faridalms/domain/admissions";
 
 import {
+  deferredFrom,
+  eventsOf,
+  lettersOf,
+} from "@faridalms/database/stores/admission-decisions";
+import {
   applicationById,
   applicationEntries,
   formVersionById,
@@ -26,7 +31,9 @@ import {
   APPLICATIONS_PAGE_SIZE,
   attachDocumentSchema,
   canMove,
+  letterRefSchema,
   moveApplicationSchema,
+  moveDecides,
   moveItemSchema,
   NEEDS_KINDS,
   NO_MATCHES,
@@ -39,7 +46,7 @@ import { ORPCError } from "@orpc/server";
 
 import type { UnitContext } from "../core/context";
 
-import { fileDocument, intakeOf } from "../core/admissions";
+import { fileDocument, intakeOf, letterView } from "../core/admissions";
 import { readNeeds } from "../core/health";
 import {
   audit,
@@ -144,36 +151,58 @@ export const application = readProcedure
   .handler(async ({ input, context }) => {
     readsApplications(context);
     const row = await applicationOf(context, input.id);
-    const [intake, version, child, held, items, entries, reach, answers] =
-      await Promise.all([
-        intakeOf(context, row.intakeId),
-        formVersionById(context.tx, {
-          tenantId: context.tenantId,
-          id: row.formVersionId,
-        }),
-        readPerson(context.tx, row.applicantUserId),
-        identifiersOf(context.tx, {
-          tenantId: context.tenantId,
-          userId: row.applicantUserId,
-          except: SYSTEM_KEPT_MEANINGS,
-        }),
-        itemsOf(context.tx, {
-          tenantId: context.tenantId,
-          applicationIds: [row.id],
-        }),
-        applicationEntries(context.tx, {
-          tenantId: context.tenantId,
-          applicationId: row.id,
-        }),
-        reachability(context.tx, {
-          tenantId: context.tenantId,
-          userIds: [row.familyUserId],
-        }),
-        currentAnswers(context.tx, {
-          tenantId: context.tenantId,
-          studentIds: [row.applicantUserId],
-        }),
-      ]);
+    const [
+      intake,
+      version,
+      child,
+      held,
+      items,
+      entries,
+      reach,
+      answers,
+      letters,
+      events,
+      later,
+      deferred,
+    ] = await Promise.all([
+      intakeOf(context, row.intakeId),
+      formVersionById(context.tx, {
+        tenantId: context.tenantId,
+        id: row.formVersionId,
+      }),
+      readPerson(context.tx, row.applicantUserId),
+      identifiersOf(context.tx, {
+        tenantId: context.tenantId,
+        userId: row.applicantUserId,
+        except: SYSTEM_KEPT_MEANINGS,
+      }),
+      itemsOf(context.tx, {
+        tenantId: context.tenantId,
+        applicationIds: [row.id],
+      }),
+      applicationEntries(context.tx, {
+        tenantId: context.tenantId,
+        applicationId: row.id,
+      }),
+      reachability(context.tx, {
+        tenantId: context.tenantId,
+        userIds: [row.familyUserId],
+      }),
+      currentAnswers(context.tx, {
+        tenantId: context.tenantId,
+        studentIds: [row.applicantUserId],
+      }),
+      lettersOf(context.tx, {
+        tenantId: context.tenantId,
+        applicationIds: [row.id],
+      }),
+      eventsOf(context.tx, {
+        tenantId: context.tenantId,
+        applicationIds: [row.id],
+      }),
+      intakesOf(context.tx, org(context)),
+      deferredFrom(context.tx, { tenantId: context.tenantId, id: row.id }),
+    ]);
     if (!child) throw new ORPCError("NOT_FOUND");
     const vocabulary = (namespace: string) =>
       descriptorsFor(context.tx, {
@@ -287,9 +316,44 @@ export const application = readProcedure
       })),
       matches: matchesOf(row),
       entries,
-      moves: nextApplicationStates(row.state, "office"),
+      decision: row.decision,
+      decidedAt: row.decidedAt,
+      releasedAt: row.releasedAt,
+      offerExpiresOn: row.offerExpiresOn,
+      answeredAt: row.answeredAt,
+      studentId: row.studentUserId,
+      deferredFromId: row.deferredFromId,
+      deferredToId: deferred,
+      letters,
+      events,
+      laterIntakes: later
+        .filter((each) => each.yearStartsOn > intake.yearStartsOn)
+        .map((each) => ({
+          id: each.id,
+          gradeEn: each.gradeEn,
+          gradeAr: each.gradeAr,
+          yearTitleEn: each.yearTitleEn,
+          yearTitleAr: each.yearTitleAr,
+        })),
+      moves: nextApplicationStates(row.state, "office").filter((to) =>
+        can(
+          context,
+          moveDecides(row.state, to)
+            ? "admissions:decide"
+            : "admissions:manage",
+        ),
+      ),
       manages: can(context, "admissions:manage"),
+      decides: can(context, "admissions:decide"),
     };
+  });
+
+/** A letter the family was sent, as they read it. */
+export const letter = readProcedure
+  .input(letterRefSchema)
+  .handler(async ({ input, context }) => {
+    readsApplications(context);
+    return letterView(context, input.id, null);
   });
 
 /** The applicant's health and needs, read behind the health purpose and recorded as read. */
@@ -312,14 +376,15 @@ export const needs = readProcedure
     return Object.fromEntries(NEEDS_KINDS.map((kind) => [kind, read[kind]]));
   });
 
-/** The office moves an application on: to review, or withdrawn on the family's word. */
+/** The office starts reading an application the family sent. */
 export const move = writeProcedure
   .input(moveApplicationSchema)
   .handler(async ({ input, context }) => {
     requireCapability(context, "admissions:manage");
     const row = await applicationOf(context, input.id);
+    // Every other move has its own procedure, which records what it needs.
     if (
-      input.state === "withdrawn" ||
+      input.state !== "in_review" ||
       !canMove(row.state, input.state, "office")
     )
       throw new ORPCError("CONFLICT", { message: "application.state" });

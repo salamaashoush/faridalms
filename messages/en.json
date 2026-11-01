@@ -8215,5 +8215,6 @@
   "errApplicationNotSent": "The family has not sent this application yet.",
   "errApplicationExists": "This child already has an application to this grade.",
   "errApplicationStale": "The application changed meanwhile. Reload and try again.",
-  "errRegisterNotSent": "The email could not be sent. Please try again."
+  "errRegisterNotSent": "The email could not be sent. Please try again.",
+  "libraryKindAdmissionLetter": "Letter of admission"
 }

@@ -4,17 +4,22 @@ import type { EnquiryListQuery } from "@faridalms/domain/enquiries";
 import { queryOptions } from "@tanstack/react-query";
 
 import {
+  getAdmissionReports,
   getApplication,
   getApplications,
+  getAttendees,
+  getBoard,
   getDraft,
   getEnquiries,
   getEnquiry,
+  getFamilyLetter,
   getForm,
   getForms,
   getIntake,
   getIntakeOptions,
   getIntakes,
   getMyApplications,
+  getOfficeLetter,
 } from "~/server/admissions";
 
 export const enquiriesQuery = (query: EnquiryListQuery) =>
@@ -78,4 +83,31 @@ export const draftQuery = (id: string) =>
   queryOptions({
     queryKey: ["applying", "draft", id],
     queryFn: () => getDraft({ data: { id } }),
+  });
+
+export const boardQuery = (intake: string) =>
+  queryOptions({
+    queryKey: ["admissions", "board", intake],
+    queryFn: () => getBoard({ data: { intake } }),
+  });
+
+export const admissionReportsQuery = (year: string) =>
+  queryOptions({
+    queryKey: ["admissions", "reports", year],
+    queryFn: () => getAdmissionReports({ data: { year } }),
+  });
+
+export const attendeesQuery = queryOptions({
+  queryKey: ["admissions", "attendees"],
+  queryFn: () => getAttendees(),
+});
+
+/** A letter as the office reads it, or as the family it was sent to does. */
+export const letterQuery = (id: string, reader: "office" | "family") =>
+  queryOptions({
+    queryKey: [reader === "office" ? "admissions" : "applying", "letter", id],
+    queryFn: () =>
+      reader === "office"
+        ? getOfficeLetter({ data: { id } })
+        : getFamilyLetter({ data: { id } }),
   });

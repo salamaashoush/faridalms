@@ -1,8 +1,18 @@
-import type { AdmissionQuestion } from "@faridalms/domain/admissions";
-
 import { describe, expect, test } from "bun:test";
 
 import { createTurnstile } from "../src/core/turnstile";
+import {
+  child,
+  consents,
+  filledDraft,
+  intakeFor,
+  names,
+  officer,
+  principal,
+  QUESTION,
+  registeredFamily,
+  registrationLink,
+} from "./admission-fixtures";
 import {
   client,
   handlerWith,
@@ -13,131 +23,6 @@ import {
   sessionFor,
   signedIn,
 } from "./harness";
-
-const officer = () => signedIn("northwind", login("staff"));
-const principal = () => signedIn("northwind", login("principal"));
-
-const QUESTION: AdmissionQuestion = {
-  id: "0192f0a4-7a1c-7b5a-9a2e-7e6f1f2a3d01",
-  answer: "choice",
-  required: "required",
-  labelEn: "Which bus route?",
-  labelAr: "أي خط حافلة؟",
-  hintEn: "",
-  hintAr: "",
-  optionsEn: "Maadi\nZamalek",
-  optionsAr: "المعادي\nالزمالك",
-};
-
-const DOCUMENT_KEY = "0192f0a4-7a1c-7b5a-9a2e-7e6f1f2a3d10";
-
-const names = (en: string, ar: string) => ({
-  en: {
-    given: en.split(" ")[0] ?? "",
-    middle: "",
-    family: en.split(" ").slice(1).join(" "),
-  },
-  ar: {
-    given: ar.split(" ")[0] ?? "",
-    middle: "",
-    family: ar.split(" ").slice(1).join(" "),
-  },
-});
-
-/** A form and an intake of their own into a grade, open every day the tests run. */
-async function intakeFor(grade: string) {
-  const api = await officer();
-  const options = await api.intakes.options();
-  const year = options.years.find((row) => row.titleEn === "2027–2028");
-  const gradeRow = options.grades.find((row) => row.labelEn === grade);
-  if (!year || !gradeRow) throw new Error(`no upcoming year or ${grade}`);
-  const form = await api.intakes.saveForm({
-    expectedVersion: 0,
-    nameEn: `${grade} form`,
-    nameAr: "",
-    questions: [QUESTION],
-  });
-  await api.intakes.publishForm({ id: form.id, expectedVersion: form.version });
-  const intake = await api.intakes.saveIntake({
-    expectedVersion: 0,
-    schoolYearId: year.id,
-    gradeId: gradeRow.id,
-    opensOn: "2020-01-01",
-    closesOn: "2099-12-31",
-    capacity: 20,
-    formId: form.id,
-    checklist: [
-      {
-        key: DOCUMENT_KEY,
-        kind: "document",
-        labelEn: "Birth certificate",
-        labelAr: "شهادة الميلاد",
-        required: true,
-      },
-    ],
-    currency: "EGP",
-    fees: [{ kind: "application", amount: 1500 }],
-    decisionsOn: "",
-    offerDays: 14,
-    ageCutoffOn: "2027-10-01",
-    minAgeMonths: gradeRow.minMonths,
-    maxAgeMonths: gradeRow.maxMonths,
-    priorities: [
-      "sibling",
-      "staff_child",
-      "returning_student",
-      "additional_needs",
-    ],
-  });
-  return { intakeId: intake.id, formId: form.id };
-}
-
-/** The secret in the last registration link sent to an address. */
-function registrationLink(address: string) {
-  const message = seeded().mail.sent.findLast((row) => row.to === address);
-  const secret = /\/\/northwind\.[^/\s]+\/welcome#([A-Za-z0-9_-]{43})/.exec(
-    message?.text ?? "",
-  )?.[1];
-  return { message, secret };
-}
-
-/** Registers a family on the portal and confirms the address, as the email link does. */
-async function registeredFamily(email: string) {
-  await client("northwind").applying.register({
-    names: names("Salama Ashoush", "سلامة عشوش"),
-    email,
-    phone: "",
-    locale: "en",
-    elapsed: 5000,
-  });
-  const { secret } = registrationLink(email);
-  if (!secret) throw new Error(`no registration link went to ${email}`);
-  await client("northwind").identity.acceptInvite({
-    secret,
-    password: "a long family password",
-  });
-  const session = await client("northwind").identity.signIn({
-    loginName: email,
-    password: "a long family password",
-  });
-  return { api: client("northwind", session.token), token: session.token };
-}
-
-type Api = Awaited<ReturnType<typeof officer>>;
-
-async function consents(api: Api, id: string) {
-  const draft = await api.applying.draft({ id });
-  return draft.consents.flatMap((consent) =>
-    consent.notice ? [{ noticeId: consent.notice.id, agreed: true }] : [],
-  );
-}
-
-const child = (sexId: string, birthDate = "2021-05-10") => ({
-  names: names("Omar Ashoush", "عمر عشوش"),
-  birthDate,
-  sexId,
-  document: null,
-});
 
 describe("setting up admissions", () => {
   test("a teacher sets up nothing, and an intake needs a published form", async () => {
@@ -208,7 +93,7 @@ describe("setting up admissions", () => {
       ageCutoffOn: "2027-10-01",
       minAgeMonths: 48,
       maxAgeMonths: 71,
-      live: 1,
+      live: 5,
     });
     expect(kg1?.checklist.map((item) => item.labelEn)).toContain(
       "Birth certificate",
@@ -315,73 +200,6 @@ describe("registering to apply", () => {
     expect(enquiry.applicantUserId).toBeNull();
   });
 });
-
-const NO_NEEDS = {
-  chronic_condition: "",
-  allergy: "",
-  medication: "",
-  dietary_requirement: "",
-  additional_needs: "",
-};
-
-/** Starts a draft for a new child and fills in what sending it needs. */
-async function filledDraft(
-  api: Api,
-  intakeId: string,
-  input: { birthDate?: string; childNames?: ReturnType<typeof names> } = {},
-) {
-  const { options } = await api.applying.mine();
-  const sexId = options.sexes[0]?.id ?? "";
-  const fatherId =
-    options.relations.find((row) => row.meaning === "father")?.id ?? "";
-  const nationalId =
-    options.documents.find((row) => row.meaning === "national_id")?.id ?? "";
-  const kid = {
-    names: input.childNames ?? names("Omar Ashoush", "عمر عشوش"),
-    birthDate: input.birthDate ?? "2022-03-14",
-    sexId,
-    document: {
-      systemId: nationalId,
-      number: `3${(input.birthDate ?? "2022-03-14").replaceAll("-", "").slice(2)}01${String(Math.floor(Math.random() * 9000) + 1000)}3`,
-      issuingCountry: "EG",
-    },
-  };
-  const started = await api.applying.start({
-    intakeId,
-    applicantId: "",
-    child: kid,
-    locale: "en",
-  });
-  const saved = await api.applying.save({
-    id: started.id,
-    expectedVersion: started.version,
-    child: { ...kid, document: { ...kid.document, number: "" } },
-    form: {
-      relationId: fatherId,
-      responsible: true,
-      phone: "01005550199",
-      other: null,
-      schools: [
-        {
-          name: "Little Steps Nursery",
-          country: "EG",
-          city: "Cairo",
-          fromYear: 2024,
-          toYear: null,
-          grade: "Nursery",
-          leaving: "",
-        },
-      ],
-      questions: { [QUESTION.id]: "Maadi" },
-    },
-    needs: {
-      ...NO_NEEDS,
-      allergy: "Peanuts",
-      additional_needs: "Speech therapy twice a week",
-    },
-  });
-  return { id: started.id, version: saved.version, sexId };
-}
 
 describe("an application", () => {
   test("is drafted, kept in the systems that keep each part, sent with its consents, and read by the office", async () => {

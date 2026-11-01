@@ -8605,5 +8605,6 @@
   "errApplicationNotSent": "لم ترسل الأسرة هذا الطلب بعد.",
   "errApplicationExists": "لهذا الطفل طلب لهذا الصف بالفعل.",
   "errApplicationStale": "تغيّر الطلب في الأثناء. أعد التحميل وحاول مجددًا.",
-  "errRegisterNotSent": "تعذّر إرسال البريد. يُرجى المحاولة مجددًا."
+  "errRegisterNotSent": "تعذّر إرسال البريد. يُرجى المحاولة مجددًا.",
+  "libraryKindAdmissionLetter": "خطاب قبول"
 }
