@@ -9,7 +9,15 @@ import { INBOX_VIEWS } from "@faridalms/domain/messages";
 import { Button } from "@faridalms/ui/button";
 import { cn } from "@faridalms/ui/cn";
 import { Input } from "@faridalms/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@faridalms/ui/select";
 import { Skeleton } from "@faridalms/ui/skeleton";
+import { Tabs, TabsList, TabsTrigger } from "@faridalms/ui/tabs";
 import {
   useMutation,
   useQueryClient,
@@ -429,6 +437,16 @@ function ThreadList({
         : (["all", "drafts"] as const)
       : []),
   ];
+  const boxLabel = (box: InboxView) =>
+    box === "all"
+      ? mailboxes.length
+        ? m.msgBoxAll()
+        : m.msgConversations()
+      : box === "personal"
+        ? m.msgBoxPersonal()
+        : box === "drafts"
+          ? m.msgBoxDrafts()
+          : MAILBOX_LABEL[box]();
   return (
     <div className="grid min-h-0 min-w-0 grid-cols-[minmax(0,1fr)] content-start">
       <div className="grid gap-2 border-b p-3">
@@ -449,56 +467,45 @@ function ThreadList({
             onChange={(event) => onSearch({ q: event.target.value })}
           />
         </div>
-        {views.length ? (
-          <fieldset className="flex flex-wrap gap-1">
-            <legend className="sr-only">{m.msgBox()}</legend>
-            {views.map((box) => (
-              <button
-                key={box}
-                type="button"
-                aria-pressed={search.box === box}
-                onClick={() => onSearch({ box })}
-                className={cn(
-                  "h-8 rounded-md px-3 text-[13px] font-medium max-md:h-10",
-                  search.box === box
-                    ? "bg-muted text-foreground"
-                    : "text-muted-foreground hover:bg-muted/60",
-                )}
+        {views.length || search.box !== "drafts" ? (
+          <div className="flex items-center gap-2">
+            {views.length ? (
+              <Select
+                value={search.box}
+                onValueChange={(box) => {
+                  if (box) onSearch({ box });
+                }}
               >
-                {box === "all"
-                  ? mailboxes.length
-                    ? m.msgBoxAll()
-                    : m.msgConversations()
-                  : box === "personal"
-                    ? m.msgBoxPersonal()
-                    : box === "drafts"
-                      ? m.msgBoxDrafts()
-                      : MAILBOX_LABEL[box]()}
-              </button>
-            ))}
-          </fieldset>
+                <SelectTrigger
+                  size="sm"
+                  aria-label={m.msgBox()}
+                  className="min-w-0 flex-1 max-md:h-10"
+                >
+                  <SelectValue>{boxLabel(search.box)}</SelectValue>
+                </SelectTrigger>
+                <SelectContent>
+                  {views.map((box) => (
+                    <SelectItem key={box} value={box}>
+                      {boxLabel(box)}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            ) : null}
+            {search.box === "drafts" ? null : (
+              <Tabs
+                value={search.show}
+                onValueChange={(show: "all" | "unread") => onSearch({ show })}
+                className={cn(!views.length && "flex-1")}
+              >
+                <TabsList aria-label={m.msgShow()}>
+                  <TabsTrigger value="all">{m.msgShowAll()}</TabsTrigger>
+                  <TabsTrigger value="unread">{m.msgShowUnread()}</TabsTrigger>
+                </TabsList>
+              </Tabs>
+            )}
+          </div>
         ) : null}
-        {search.box === "drafts" ? null : (
-          <fieldset className="flex gap-1">
-            <legend className="sr-only">{m.msgShow()}</legend>
-            {(["all", "unread"] as const).map((show) => (
-              <button
-                key={show}
-                type="button"
-                aria-pressed={search.show === show}
-                onClick={() => onSearch({ show })}
-                className={cn(
-                  "h-8 rounded-md px-3 text-[13px] font-medium max-md:h-10",
-                  search.show === show
-                    ? "bg-muted text-foreground"
-                    : "text-muted-foreground hover:bg-muted/60",
-                )}
-              >
-                {show === "all" ? m.msgShowAll() : m.msgShowUnread()}
-              </button>
-            ))}
-          </fieldset>
-        )}
       </div>
       {search.box === "drafts" ? (
         <Suspense fallback={<PaneFallback />}>
