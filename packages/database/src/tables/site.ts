@@ -194,12 +194,16 @@ export const sitePages = core.table.withRLS(
       "portal",
       sql`kind = 'site' or (not is_home and not in_menu and parent_id is null)`,
     ),
+    // A portal page is one of the portal's doors, at the door's own address;
+    // the slug key keeps each door to one page.
+    ck(
+      "site_pages",
+      "door",
+      sql`kind = 'site' or slug in ('sign-in', 'register', 'apply')`,
+    ),
     uniqueIndex("site_pages_slug_key")
       .on(t.tenantId, t.orgId, t.kind, t.slug)
       .where(sql`status = 'active'`),
-    uniqueIndex("site_pages_portal_key")
-      .on(t.tenantId, t.orgId)
-      .where(sql`status = 'active' and kind = 'portal'`),
     uniqueIndex("site_pages_home_key")
       .on(t.tenantId, t.orgId)
       .where(sql`status = 'active' and is_home`),

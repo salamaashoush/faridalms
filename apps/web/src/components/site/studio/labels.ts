@@ -61,6 +61,8 @@ export const SECTION_LABEL: Record<SectionType, () => string> = {
   quickLinks: m.siteTypeQuickLinks,
   embed: m.siteTypeEmbed,
   signIn: m.siteTypeSignIn,
+  register: m.siteTypeRegister,
+  apply: m.siteTypeApply,
 };
 
 export const SECTION_HINT: Record<SectionType, () => string> = {
@@ -94,6 +96,8 @@ export const SECTION_HINT: Record<SectionType, () => string> = {
   quickLinks: m.siteTypeHintQuickLinks,
   embed: m.siteTypeHintEmbed,
   signIn: m.siteTypeHintSignIn,
+  register: m.siteTypeHintRegister,
+  apply: m.siteTypeHintApply,
 };
 
 /** The name of each layout, by section type then layout. */
@@ -238,6 +242,14 @@ export const VARIANT_LABEL: {
   signIn: {
     split: m.siteVariantSignInSplit,
     stacked: m.siteVariantSignInStacked,
+  },
+  register: {
+    split: m.siteVariantDoorSplit,
+    stacked: m.siteVariantDoorStacked,
+  },
+  apply: {
+    stacked: m.siteVariantDoorStacked,
+    split: m.siteVariantDoorSplit,
   },
 };
 

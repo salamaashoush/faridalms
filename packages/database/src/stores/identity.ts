@@ -7,6 +7,7 @@ import { YOUNG_STUDENT_GRADES } from "@faridalms/domain/descriptors/catalogue";
 import { FEATURE_DEFAULTS, FEATURES } from "@faridalms/domain/features";
 import {
   ADMINISTRATION_ROLES,
+  APPLICANT_ROLE,
   builtinFor,
   contextsFor,
 } from "@faridalms/domain/workspace";
@@ -117,8 +118,8 @@ export async function effectiveAccess(
   }
   let contexts = contextsFor(roles);
   // A legal guardian holds a family role without portal access; only a
-  // portal link opens the family workspace.
-  if (contexts.includes("family")) {
+  // portal link opens the family workspace, or applying to the school.
+  if (contexts.includes("family") && !roles.includes(APPLICANT_ROLE)) {
     const portal = await tx.execute<{ found: boolean }>(sql`
       select exists (
         select 1 from core.user_relationships r

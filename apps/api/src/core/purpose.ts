@@ -32,12 +32,20 @@ export async function withPurposeFor<T>(
     subjectUserId: string;
     reason: string;
     write: boolean;
+    /**
+     * What lets this use run instead of the purpose's own capability: the
+     * admissions office reading an applicant's needs, or a family writing
+     * them for the child they applied for, whose reach the caller checked.
+     */
+    capabilities?: readonly Capability[];
   },
   work: (tx: CellTransaction) => Promise<T>,
 ): Promise<T> {
   requireCapability(
     context,
-    CAPABILITY[use.purpose][use.write ? "write" : "read"],
+    ...(use.capabilities ?? [
+      CAPABILITY[use.purpose][use.write ? "write" : "read"],
+    ]),
   );
   await audit(context, {
     action: `${OBJECT[use.purpose]}.${use.write ? "write" : "read"}`,

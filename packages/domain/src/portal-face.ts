@@ -16,6 +16,8 @@ const slug = v.pipe(
 export const portalFaceSchema = v.object({
   school: slug,
   locale: v.optional(v.picklist(LOCALES), "en"),
+  /** Which door's page: the sign-in page unless another is named. */
+  door: v.optional(v.picklist(["sign-in", "register", "apply"]), "sign-in"),
 });
 
 /** What a person types to find their school; codes are short, names longer. */

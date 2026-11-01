@@ -1,4 +1,5 @@
 import type { PostalAddress } from "@faridalms/database/tables/tenancy";
+import type { PortalDoor } from "@faridalms/domain/site-sections";
 import type { Theme } from "@faridalms/domain/site-theme";
 import type {
   PageSection,
@@ -14,7 +15,7 @@ import {
   siteSettings,
 } from "@faridalms/database/stores/site";
 import { platformName } from "@faridalms/domain/hosts";
-import { buildTemplate, PORTAL_PAGE } from "@faridalms/domain/site-templates";
+import { buildTemplate, PORTAL_PAGES } from "@faridalms/domain/site-templates";
 import {
   resolveTheme,
   siteChromeSchema,
@@ -75,6 +76,8 @@ export interface PortalFace {
     media: Record<string, string>;
     starter: boolean;
   };
+  /** The public key a form on the page renders Turnstile with; null where it is not set up. */
+  turnstileKey: string | null;
 }
 
 const TTL_MS = 60_000;
@@ -83,10 +86,10 @@ const TTL_MS = 60_000;
 const MAX_CACHED = 2_000;
 const cache = new Map<string, { at: number; value: PortalFace }>();
 
-/** Drops a school's cached face once what it shows has changed. */
+/** Drops a school's cached faces, every door in both languages, once what they show has changed. */
 export function forgetFace(slug: string) {
-  cache.delete(`${slug}:en`);
-  cache.delete(`${slug}:ar`);
+  for (const key of cache.keys())
+    if (key.startsWith(`${slug}:`)) cache.delete(key);
 }
 
 /** Published sections read through the schema, so later fields get their defaults. */
@@ -100,11 +103,12 @@ function shownSections(content: Record<string, unknown>) {
   });
 }
 
-function starterPage(locale: SiteLocale): PortalFace["page"] {
-  const built = buildTemplate(PORTAL_PAGE.template, locale);
+function starterPage(door: PortalDoor, locale: SiteLocale): PortalFace["page"] {
+  const starter = PORTAL_PAGES[door];
+  const built = buildTemplate(starter.template, locale);
   return {
     locale,
-    title: locale === "ar" ? PORTAL_PAGE.title[1] : PORTAL_PAGE.title[0],
+    title: locale === "ar" ? starter.title[1] : starter.title[0],
     sections: built.content.map((section) => ({ section, locale })),
     media: {},
     starter: true,
@@ -121,8 +125,9 @@ export async function portalFace(
   context: RequestContext,
   slug: string,
   locale: SiteLocale,
+  door: PortalDoor = "sign-in",
 ): Promise<PortalFace> {
-  const key = `${slug}:${locale}`;
+  const key = `${slug}:${door}:${locale}`;
   const hit = cache.get(key);
   if (hit && Date.now() - hit.at < TTL_MS) return hit.value;
   const directory = await context.directory.bySlug(slug);
@@ -133,7 +138,7 @@ export async function portalFace(
       const [school, settings, pages] = await Promise.all([
         publicSchool(tx, schoolId),
         siteSettings(tx, tenantId, schoolId),
-        publicPortalPages(tx, schoolId),
+        publicPortalPages(tx, schoolId, door),
       ]);
       const chrome = v.safeParse(siteChromeSchema, settings?.chrome ?? {});
       const theme = v.safeParse(siteThemeSchema, settings?.theme ?? {});
@@ -218,7 +223,8 @@ export async function portalFace(
               media: published.media,
               starter: false,
             }
-          : starterPage(locale),
+          : starterPage(door, locale),
+        turnstileKey: context.turnstile?.siteKey ?? null,
       };
     },
   );

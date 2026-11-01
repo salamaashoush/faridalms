@@ -100,6 +100,7 @@ const ROLE_ORDER = [
   "staff",
   "student",
   "family",
+  "applicant_family",
 ] as const satisfies readonly BuiltinAccessRole[];
 
 /**

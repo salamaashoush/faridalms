@@ -46,7 +46,8 @@ export type FilePurpose =
   | "legal_document"
   | "evidence"
   | "import_source"
-  | "export";
+  | "export"
+  | "admission_document";
 
 export type FileState = "initiated" | "quarantined" | "ready" | "rejected";
 
@@ -183,7 +184,7 @@ export const files = core.table.withRLS(
     ck(
       "files",
       "purpose",
-      sql`purpose in ('document_media', 'attachment', 'submission', 'avatar', 'logo', 'site_media', 'health_report', 'legal_document', 'evidence', 'import_source', 'export')`,
+      sql`purpose in ('document_media', 'attachment', 'submission', 'avatar', 'logo', 'site_media', 'health_report', 'legal_document', 'evidence', 'import_source', 'export', 'admission_document')`,
     ),
     ck("files", "name", sql`char_length(name) between 1 and 255`),
     ck("files", "media_type", sql`char_length(media_type) between 3 and 128`),

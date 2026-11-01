@@ -603,6 +603,58 @@ export function getMessageFromError(error: unknown): string {
         return m.admErrNoMail();
       case "enquiry.not_sent":
         return m.admErrNotSent();
+      case "intake.form_unpublished":
+        return m.errIntakeFormUnpublished();
+      case "intake.fixed":
+        return m.errIntakeFixed();
+      case "intake.year":
+        return m.errIntakeYear();
+      case "intake.grade":
+        return m.errIntakeGrade();
+      case "intake.exists":
+        return m.errIntakeExists();
+      case "form.question_unready":
+        return m.errFormQuestionUnready();
+      case "form.unchanged":
+        return m.errFormUnchanged();
+      case "form.stale":
+        return m.errFormStale();
+      case "application.sent":
+        return m.errApplicationSent();
+      case "application.intake_closed":
+        return m.errApplicationClosed();
+      case "application.age_young":
+        return m.errApplicationYoung();
+      case "application.age_old":
+        return m.errApplicationOld();
+      case "application.child":
+        return m.errApplicationChild();
+      case "application.relation":
+        return m.errApplicationRelation();
+      case "application.responsible":
+        return m.errApplicationResponsible();
+      case "application.consent":
+        return m.errApplicationConsent();
+      case "application.consent_words":
+        return m.errApplicationConsentWords();
+      case "application.state":
+        return m.errApplicationState();
+      case "application.item_done":
+        return m.errApplicationItemDone();
+      case "application.item_full":
+        return m.errApplicationItemFull();
+      case "application.item_state":
+        return m.errApplicationItemState();
+      case "application.not_sent":
+        return m.errApplicationNotSent();
+      case "application.exists":
+        return m.errApplicationExists();
+      case "application.stale":
+        return m.errApplicationStale();
+      case "register.no_mail":
+        return m.registerErrNoMail();
+      case "register.not_sent":
+        return m.errRegisterNotSent();
       case "learning.disabled":
         return m.learningDisabled();
       case "learning.no_year":

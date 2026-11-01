@@ -1,3 +1,10 @@
+import type { PortalDoor } from "@faridalms/domain/site-sections";
+import type { LucideIcon } from "lucide-react";
+
+import {
+  isPortalDoor,
+  PORTAL_DOOR_SLUGS,
+} from "@faridalms/domain/site-sections";
 import { Button } from "@faridalms/ui/button";
 import {
   Dialog,
@@ -13,6 +20,7 @@ import {
   ArrowUp,
   EyeOff,
   FileText,
+  FileUser,
   IndentDecrease,
   IndentIncrease,
   LogIn,
@@ -21,6 +29,7 @@ import {
   Plus,
   Sparkles,
   Trash2,
+  UserPlus,
 } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
@@ -89,7 +98,7 @@ function Title({ row, primary }: { row: Row; primary: "en" | "ar" }) {
       </RowLink>
       {row.kind === "portal" ? (
         <span className="ms-2 text-[13px] text-muted-foreground">
-          {m.sitePortalPage()}
+          {isPortalDoor(row.slug) ? DOOR_LABEL[row.slug]() : null}
         </span>
       ) : row.isHome ? (
         <span className="ms-2 text-[13px] text-muted-foreground">
@@ -132,7 +141,7 @@ function columns(primary: "en" | "ar"): Column<Row>[] {
       cell: (row) => (
         <span dir="ltr" className="text-sm text-muted-foreground">
           {row.kind === "portal"
-            ? m.sitePortalAddress()
+            ? m.sitePortalDoorAddress({ path: `/${row.slug}` })
             : row.isHome
               ? "/"
               : `/pages/${row.slug}`}
@@ -152,18 +161,44 @@ const pageCard = (primary: "en" | "ar") => ({
   status: (row: Row) => <State row={row} />,
 });
 
+const DOOR_LABEL: Record<PortalDoor, () => string> = {
+  "sign-in": m.sitePortalPage,
+  register: m.sitePortalRegisterPage,
+  apply: m.sitePortalApplyPage,
+};
+
+const DOOR_STARTER: Record<PortalDoor, () => string> = {
+  "sign-in": m.sitePortalPageStarter,
+  register: m.sitePortalRegisterStarter,
+  apply: m.sitePortalApplyStarter,
+};
+
+const DOOR_EDIT: Record<PortalDoor, () => string> = {
+  "sign-in": m.sitePortalPageEdit,
+  register: m.sitePortalRegisterEdit,
+  apply: m.sitePortalApplyEdit,
+};
+
+const DOOR_ICON: Record<PortalDoor, LucideIcon> = {
+  "sign-in": LogIn,
+  register: UserPlus,
+  apply: FileUser,
+};
+
 /**
- * The portal's sign-in page before the school has made it: the portal shows
- * the builder's starter page until the school edits and publishes its own.
+ * A door of the portal before the school has made its page: the portal
+ * shows the builder's starter page until the school edits and publishes
+ * its own.
  */
-function PortalPageStart() {
+function PortalPageStart({ door }: { door: PortalDoor }) {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [opening, setOpening] = useState(false);
+  const Icon = DOOR_ICON[door];
   const open = async () => {
     setOpening(true);
     try {
-      const { id } = await startPortalPage();
+      const { id } = await startPortalPage({ data: { door } });
       await queryClient.invalidateQueries({ queryKey: ["site"] });
       await navigate({ to: "/admin/site-page-editor", search: { id } });
     } catch (error) {
@@ -173,21 +208,21 @@ function PortalPageStart() {
   };
   return (
     <section
-      aria-labelledby="portal-page"
+      aria-labelledby={`portal-page-${door}`}
       className="flex flex-wrap items-center gap-4 rounded-lg border bg-card p-4"
     >
       <span
         aria-hidden
         className="grid size-10 shrink-0 place-items-center rounded-md bg-muted text-muted-foreground"
       >
-        <LogIn className="size-5" />
+        <Icon className="size-5" />
       </span>
       <div className="grid min-w-0 flex-1 gap-0.5">
-        <h2 id="portal-page" className="text-sm font-semibold">
-          {m.sitePortalPage()}
+        <h2 id={`portal-page-${door}`} className="text-sm font-semibold">
+          {DOOR_LABEL[door]()}
         </h2>
         <p className="text-[13px] text-muted-foreground">
-          {m.sitePortalPageStarter()}
+          {DOOR_STARTER[door]()}
         </p>
       </div>
       <Button
@@ -197,10 +232,25 @@ function PortalPageStart() {
         onClick={() => void open()}
       >
         <Pencil aria-hidden />
-        {m.sitePortalPageEdit()}
+        {DOOR_EDIT[door]()}
       </Button>
     </section>
   );
+}
+
+/** Each door of the portal the school has not made a page for yet. */
+function PortalDoorsToMake({ pages }: { pages: readonly Page[] }) {
+  const made = new Set(
+    pages.filter((page) => page.kind === "portal").map((page) => page.slug),
+  );
+  const missing = PORTAL_DOOR_SLUGS.filter((door) => !made.has(door));
+  return missing.length ? (
+    <div className="grid gap-3">
+      {missing.map((door) => (
+        <PortalPageStart key={door} door={door} />
+      ))}
+    </div>
+  ) : null;
 }
 
 /** The site's pages as its menu tree: reorder, nest, publish and open each. */
@@ -347,7 +397,7 @@ export function SitePages({ overview }: { overview: Overview }) {
           </ButtonLink>
         </div>
         {starters(false)}
-        <PortalPageStart />
+        <PortalDoorsToMake pages={overview.pages} />
       </div>
     );
   return (
@@ -374,9 +424,7 @@ export function SitePages({ overview }: { overview: Overview }) {
         ) : null}
         {create}
       </div>
-      {overview.pages.some((page) => page.kind === "portal") ? null : (
-        <PortalPageStart />
-      )}
+      <PortalDoorsToMake pages={overview.pages} />
       <DataTable
         caption={m.sitePagesCaption()}
         rows={rows}

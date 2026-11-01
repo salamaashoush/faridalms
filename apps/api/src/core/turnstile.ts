@@ -1,3 +1,9 @@
+import type { DirectorySchool } from "@faridalms/database/directory/client";
+
+import { platformName } from "@faridalms/domain/hosts";
+
+import type { RequestContext } from "./context";
+
 const SITEVERIFY = "https://challenges.cloudflare.com/turnstile/v0/siteverify";
 
 /** Cloudflare's own limit on a token; anything longer is not one. */
@@ -98,4 +104,30 @@ export function turnstileFrom(env: {
       "TURNSTILE_SITE_KEY and TURNSTILE_SECRET_KEY are set together or not at all",
     );
   return createTurnstile({ siteKey, secretKey });
+}
+
+/**
+ * Whether a host a challenge was solved on is one this school answers at:
+ * its platform names, its own hosts, or the cell's own host, where the site
+ * is reached under `/site/<school>`.
+ */
+export async function servesSchool(
+  context: Pick<RequestContext, "domains" | "directory">,
+  school: DirectorySchool,
+  hostname: string,
+) {
+  const name = hostname.toLowerCase();
+  if (
+    [
+      platformName(school.slug, "site", context.domains),
+      platformName(school.slug, "portal", context.domains),
+      school.hosts.site,
+      school.hosts.portal,
+      school.appHost,
+      context.domains.portal,
+    ].includes(name)
+  )
+    return true;
+  const routed = await context.directory.byHost(name);
+  return routed?.school.schoolId === school.schoolId;
 }

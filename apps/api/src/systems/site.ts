@@ -1,6 +1,6 @@
-import type { DirectorySchool } from "@faridalms/database/directory/client";
 import type { PageRow } from "@faridalms/database/stores/site";
 import type { ContentDocument } from "@faridalms/domain/content";
+import type { PortalDoor } from "@faridalms/domain/site-sections";
 import type { StarterPage } from "@faridalms/domain/site-templates";
 import type {
   PageContent,
@@ -50,10 +50,13 @@ import {
 } from "@faridalms/database/stores/site";
 import { readAnswers } from "@faridalms/domain/enquiries";
 import { clientAddress } from "@faridalms/domain/forwarded";
-import { platformName } from "@faridalms/domain/hosts";
+import {
+  isPortalDoor,
+  PORTAL_DOOR_SLUGS,
+} from "@faridalms/domain/site-sections";
 import {
   buildTemplate,
-  PORTAL_PAGE,
+  PORTAL_PAGES,
   STARTERS,
   starterChrome,
 } from "@faridalms/domain/site-templates";
@@ -92,7 +95,7 @@ import {
 import { ORPCError } from "@orpc/server";
 import * as v from "valibot";
 
-import type { RequestContext, UnitContext } from "../core/context";
+import type { UnitContext } from "../core/context";
 
 import { announceEnquiry } from "../core/enquiries";
 import { forgetFace } from "../core/portal-face";
@@ -107,6 +110,7 @@ import {
 import { attemptKey, ipPrefix } from "../core/session";
 import { inlinePageShared } from "../core/shared";
 import { publishMedia, withPublicSite, withdrawMedia } from "../core/site";
+import { servesSchool } from "../core/turnstile";
 import { placeMedia, registerHostReader } from "../files/authorize";
 
 const id = v.pipe(v.string(), v.uuid());
@@ -458,9 +462,11 @@ export const savePage = writeProcedure
     let version: number;
     const row = input.id ? await pageOfSchool(context, input.id) : null;
     const kind = row?.kind ?? "site";
+    const door = row && isPortalDoor(row.slug) ? row.slug : undefined;
     if (
-      !sectionsFitKind(kind, input.content.sections) ||
-      (input.translation && !sectionsFitKind(kind, input.translation.sections))
+      !sectionsFitKind(kind, input.content.sections, door) ||
+      (input.translation &&
+        !sectionsFitKind(kind, input.translation.sections, door))
     )
       throw new ORPCError("BAD_REQUEST", { message: "site.system_section" });
     // The portal's page keeps its place: at its own address, out of the menu.
@@ -877,16 +883,19 @@ async function startPage(
   return inserted.id;
 }
 
-/** The school's portal page, made from the starter the first time it is asked for. */
+/** A door's portal page, the sign-in page unless named, made from its starter the first time it is asked for. */
 async function portalPage(
   context: UnitContext,
   settings: { primaryLocale: SiteLocale; bilingual: boolean },
+  door: PortalDoor = "sign-in",
 ): Promise<{ id: string; created: boolean }> {
   const pages = await sitePages(context.tx, context.tenantId, context.schoolId);
-  const existing = pages.find((row) => row.kind === "portal");
+  const existing = pages.find(
+    (row) => row.kind === "portal" && row.slug === door,
+  );
   if (existing) return { id: existing.id, created: false };
   return {
-    id: await startPage(context, settings, PORTAL_PAGE, {
+    id: await startPage(context, settings, PORTAL_PAGES[door], {
       kind: "portal",
       home: false,
     }),
@@ -951,18 +960,28 @@ export const applyStarter = writeProcedure
  * has one, otherwise a draft made from the starter, which strangers see
  * until the school publishes it.
  */
-export const startPortalPage = writeProcedure.handler(async ({ context }) => {
-  requireCapability(context, "site:manage");
-  const portal = await portalPage(context, await settingsFor(context));
-  if (portal.created)
-    await audit(context, {
-      action: "site.page_create",
-      objectType: "site_page",
-      objectId: portal.id,
-      details: { slug: PORTAL_PAGE.slug },
-    });
-  return { id: portal.id };
-});
+export const startPortalPage = writeProcedure
+  .input(
+    v.optional(
+      v.object({
+        door: v.optional(v.picklist(PORTAL_DOOR_SLUGS), "sign-in"),
+      }),
+      {},
+    ),
+  )
+  .handler(async ({ input, context }) => {
+    requireCapability(context, "site:manage");
+    const { door } = input;
+    const portal = await portalPage(context, await settingsFor(context), door);
+    if (portal.created)
+      await audit(context, {
+        action: "site.page_create",
+        objectType: "site_page",
+        objectId: portal.id,
+        details: { slug: PORTAL_PAGES[door].slug },
+      });
+    return { id: portal.id };
+  });
 
 async function liveSettings(
   tx: UnitContext["tx"],
@@ -1211,32 +1230,6 @@ const ENQUIRIES_PER_SCHOOL = 60;
 const MIN_FILL_MS = 2500;
 
 /**
- * Whether a host the challenge was solved on is one this school's website
- * answers at: its platform names, its own hosts, or the cell's own host,
- * where the site is reached under `/site/<school>`.
- */
-async function schoolHost(
-  context: RequestContext,
-  school: DirectorySchool,
-  hostname: string,
-) {
-  const name = hostname.toLowerCase();
-  if (
-    [
-      platformName(school.slug, "site", context.domains),
-      platformName(school.slug, "portal", context.domains),
-      school.hosts.site,
-      school.hosts.portal,
-      school.appHost,
-      context.domains.portal,
-    ].includes(name)
-  )
-    return true;
-  const routed = await context.directory.byHost(name);
-  return routed?.school.schoolId === school.schoolId;
-}
-
-/**
  * A visitor's message from a form section on a published page. A form that
  * came back filled by a script, or faster than a person can type, is
  * answered as if received and dropped, so the script learns nothing. Where
@@ -1260,7 +1253,7 @@ export const submitEnquiry = publicProcedure
           context.trustedProxyHops,
         ),
         action: "enquiry",
-        hostAllowed: (hostname) => schoolHost(context, school, hostname),
+        hostAllowed: (hostname) => servesSchool(context, school, hostname),
       }))
     )
       throw new ORPCError("BAD_REQUEST", { message: "site.challenge" });

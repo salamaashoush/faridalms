@@ -52,6 +52,7 @@ const KIND_LABEL: Record<ChoosableKind, () => string> = {
   library: m.ntfKindLibrary,
   reply: m.ntfKindReply,
   enquiry: m.ntfKindEnquiry,
+  application: m.ntfKindApplication,
 };
 
 const EMAIL_LABEL: Record<EmailMode, () => string> = {
@@ -81,7 +82,10 @@ function kindsFor(
         workspace === "teach" ||
         workspace === "admin") &&
       (kind !== "reply" || workspace === "teach" || workspace === "me") &&
-      (kind !== "enquiry" || capabilities.includes("admissions:manage")),
+      (kind !== "enquiry" || capabilities.includes("admissions:manage")) &&
+      (kind !== "application" ||
+        capabilities.includes("admissions:manage") ||
+        capabilities.includes("applications:submit")),
   );
 }
 

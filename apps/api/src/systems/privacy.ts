@@ -1,6 +1,7 @@
-import type { BreachRow } from "@faridalms/database/stores/privacy";
+import type { BreachRow, LeaverRow } from "@faridalms/database/stores/privacy";
 import type { DayKind } from "@faridalms/domain/privacy";
 
+import { unsuccessfulApplicants } from "@faridalms/database/stores/admissions";
 import {
   approveErasure as approveErasureOf,
   erasurePlan,
@@ -160,13 +161,26 @@ async function dayKinds(
  */
 async function reviewOf(context: UnitContext, fulfilling: string | null) {
   const scope = scopeOf(context);
-  const [rules, leavers, holds, requests, sessions] = await Promise.all([
-    retentionOf(context.tx, scope),
-    leaversOf(context.tx, { ...scope, today: context.today }),
-    holdsOf(context.tx, scope),
-    requestsOf(context.tx, scope),
-    sessionViews(context),
-  ]);
+  const [rules, people, applicants, holds, requests, sessions] =
+    await Promise.all([
+      retentionOf(context.tx, scope),
+      leaversOf(context.tx, { ...scope, today: context.today }),
+      unsuccessfulApplicants(context.tx, scope),
+      holdsOf(context.tx, scope),
+      requestsOf(context.tx, scope),
+      sessionViews(context),
+    ]);
+  const leavers: LeaverRow[] = [
+    ...people,
+    ...applicants.map((row) => ({
+      userId: row.userId,
+      kind: "applicant" as const,
+      fullNameEn: row.fullNameEn,
+      fullNameAr: row.fullNameAr,
+      birthDate: row.birthDate,
+      leftOn: row.closedOn,
+    })),
+  ];
   const openRequest = new Map<string, string>();
   for (const row of requests) {
     if (row.outcome || row.id === fulfilling) continue;

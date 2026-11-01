@@ -1,0 +1,69 @@
+{
+  "type": "diff",
+  "version": "9",
+  "dialect": "postgres",
+  "id": "5eeb80a6-41eb-4771-9437-b02d4d50e7d1",
+  "prevIds": [
+    "64038a4b-90e7-4c87-b1e8-8bf9d6df2975"
+  ],
+  "footprints": [
+    {
+      "statementType": "drop_index",
+      "statementTarget": [
+        "index",
+        "core",
+        "site_pages",
+        "site_pages_portal_key"
+      ],
+      "writes": [
+        "s|idx|core.site_pages_portal_key",
+        "n|idx|core.site_pages_portal_key",
+        "e|idx|core.site_pages_portal_key",
+        "n|rel|core.site_pages_portal_key"
+      ],
+      "reads": [
+        "e|tbl|core.site_pages",
+        "n|sch|core",
+        "e|col|core.site_pages.tenant_id",
+        "e|col|core.site_pages.org_id"
+      ],
+      "sharedWrites": []
+    },
+    {
+      "statementType": "add_check",
+      "statementTarget": [
+        "table",
+        "core",
+        "site_pages"
+      ],
+      "writes": [
+        "s|ck|core.site_pages.site_pages_door_check",
+        "n|ck|core.site_pages.site_pages_door_check",
+        "e|ck|core.site_pages.site_pages_door_check",
+        "n|con|core.site_pages.site_pages_door_check"
+      ],
+      "reads": [
+        "n|tbl|core.site_pages",
+        "n|sch|core",
+        "n|col|core.site_pages.kind",
+        "n|col|core.site_pages.slug"
+      ]
+    }
+  ],
+  "deltas": [
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "site_pages",
+        "name": "site_pages_door_check",
+        "value": "kind = 'site' or slug in ('sign-in', 'register', 'apply')",
+        "entityType": "checks"
+      }
+    },
+    {
+      "op": "drop",
+      "key": "indexes\u0000[\"core\",\"site_pages_portal_key\"]"
+    }
+  ]
+}

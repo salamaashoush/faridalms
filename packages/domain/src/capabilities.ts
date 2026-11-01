@@ -33,6 +33,9 @@ export const CAPABILITIES = [
   "site:manage",
   "admissions:read",
   "admissions:manage",
+  "admissions:decide",
+  "admissions:configure",
+  "applications:submit",
   "reports:read",
   "roster:read",
   "assignments:author",
@@ -109,7 +112,8 @@ export const BUILTIN_CAPABILITIES: Record<
   | "staff"
   | "student"
   | "family"
-  | "admissions_officer",
+  | "admissions_officer"
+  | "applicant_family",
   readonly Capability[]
 > = {
   site_administrator: ADMINISTRATION,
@@ -145,6 +149,7 @@ export const BUILTIN_CAPABILITIES: Record<
   ],
   family: [
     ...EVERYONE,
+    "applications:submit",
     "children:read",
     "contacts:read",
     "grades:read",
@@ -152,7 +157,16 @@ export const BUILTIN_CAPABILITIES: Record<
     "learning:read",
   ],
   // No natural role carries it, so it reaches people only by assignment.
-  admissions_officer: [...EVERYONE, "admissions:read", "admissions:manage"],
+  admissions_officer: [
+    ...EVERYONE,
+    "admissions:read",
+    "admissions:manage",
+    "admissions:decide",
+    "admissions:configure",
+  ],
+  // A family that has applied but has no child at the school yet: it reaches
+  // its own applications and nothing of the school's.
+  applicant_family: ["applications:submit"],
 };
 
 /**

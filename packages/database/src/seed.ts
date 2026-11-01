@@ -24,6 +24,15 @@ import type { ProvisionedTenant, TenantSpec } from "./tenants";
 import { withPurpose } from "./context";
 import { encryptField, lookupHmac } from "./crypto";
 import { newUserHandle } from "./stores/accounts";
+import {
+  insertApplication,
+  insertApplicationEntry,
+  insertForm as insertAdmissionForm,
+  insertIntake,
+  markSubmitted as markApplicationSubmitted,
+  openApplicantRole,
+  publishForm as publishAdmissionForm,
+} from "./stores/admissions";
 import { addRecipients } from "./stores/announcements";
 import { audienceUsers, setAudiences } from "./stores/audiences";
 import { insertAnswer, insertForm, publishForm } from "./stores/consents";
@@ -1283,6 +1292,12 @@ async function seedSchool(
         },
   );
   await seedEnquiries(tx, tenantId, schoolId, office.id);
+  if (plan.slug === "northwind")
+    await seedAdmissions(tx, tenantId, schoolId, {
+      passwordHash: context.passwordHash,
+      login: `applicant.${plan.slug}@${context.domain}`,
+      logins: context.logins,
+    });
   return { yearId, teachers };
 }
 
@@ -1651,6 +1666,67 @@ async function seedConsents(
         part(
           "ما نطلبه",
           "هل تظهر صور طفلك في الأخبار التي تُرسل إلى أسر المدرسة؟",
+        ),
+      ]),
+    },
+    {
+      code: "admission_processing",
+      publish: true,
+      english: headedContent([
+        part(
+          "What we are asking",
+          "May the school use what you write in this application, and the documents you upload, to consider your child for a place?",
+        ),
+        part(
+          "How long we keep it",
+          "If your child does not join the school, we delete the application after the period in our privacy notice.",
+        ),
+        part(
+          "Changing your mind",
+          "You can withdraw the application at any time from your account.",
+        ),
+      ]),
+      arabic: headedContent([
+        part(
+          "ما نطلبه",
+          "هل تسمح للمدرسة باستخدام ما تكتبه في هذا الطلب وما ترفعه من مستندات للنظر في قبول طفلك؟",
+        ),
+        part(
+          "مدة الاحتفاظ",
+          "إن لم يلتحق طفلك بالمدرسة نحذف الطلب بعد المدة المذكورة في إشعار الخصوصية.",
+        ),
+        part("تغيير رأيك", "يمكنك سحب الطلب في أي وقت من حسابك."),
+      ]),
+    },
+    {
+      code: "admission_special_category",
+      publish: true,
+      english: headedContent([
+        part(
+          "What we are asking",
+          "May the school read what you tell us about your child's health and needs, so we can plan the right support?",
+        ),
+      ]),
+      arabic: headedContent([
+        part(
+          "ما نطلبه",
+          "هل تسمح للمدرسة بالاطلاع على ما تخبرنا به عن صحة طفلك واحتياجاته، حتى نخطط للدعم المناسب؟",
+        ),
+      ]),
+    },
+    {
+      code: "admission_marketing",
+      publish: true,
+      english: headedContent([
+        part(
+          "What we are asking",
+          "May we email you news and open days of the school while you apply?",
+        ),
+      ]),
+      arabic: headedContent([
+        part(
+          "ما نطلبه",
+          "هل نرسل إليك بالبريد أخبار المدرسة وأيامها المفتوحة أثناء التقديم؟",
         ),
       ]),
     },
@@ -2840,6 +2916,245 @@ async function seedPortalPage(
       media: {},
       visibleFrom: publishedAt,
     });
+}
+
+const seedChecklist = (labels: [string, string, string][]) =>
+  labels.map(([kind, en, ar], index) => ({
+    key: `0192f0a4-7a1c-7b5a-9a2e-6e6f1f2a3d${String(index).padStart(2, "0")}`,
+    kind: kind as "document" | "assessment" | "interview",
+    labelEn: en,
+    labelAr: ar,
+    required: kind === "document",
+  }));
+
+/**
+ * Admissions for next year: the year itself, a published application form
+ * with two questions of the school's own, intakes into KG1 and Grade 1 open
+ * today, and a family who registered and sent an application for KG1.
+ */
+async function seedAdmissions(
+  tx: Tx,
+  tenantId: string,
+  schoolId: string,
+  context: {
+    passwordHash: string;
+    login: string;
+    logins: SeededTenant["logins"];
+  },
+) {
+  const yearId = Bun.randomUUIDv7();
+  await tx.insert(academicSessions).values({
+    tenantId,
+    id: yearId,
+    orgId: schoolId,
+    type: "school_year",
+    schoolYearId: yearId,
+    titleEn: "2027–2028",
+    titleAr: "٢٠٢٧–٢٠٢٨",
+    span: "[2027-09-12,2028-06-16)",
+    schoolYear: 2028,
+    lifecycle: "upcoming",
+  });
+  const org = { tenantId, orgId: schoolId };
+  const form = await insertAdmissionForm(tx, {
+    ...org,
+    nameEn: "Application form",
+    nameAr: "استمارة الالتحاق",
+    questions: [
+      {
+        id: "0192f0a4-7a1c-7b5a-9a2e-5e6f1f2a3d01",
+        answer: "choice",
+        required: "required",
+        labelEn: "How did you hear about the school?",
+        labelAr: "كيف عرفتم بالمدرسة؟",
+        hintEn: "",
+        hintAr: "",
+        optionsEn: "A friend or family\nOur website\nSocial media\nAn open day",
+        optionsAr: "صديق أو قريب\nموقعنا\nوسائل التواصل\nيوم مفتوح",
+      },
+      {
+        id: "0192f0a4-7a1c-7b5a-9a2e-5e6f1f2a3d02",
+        answer: "long",
+        required: "optional",
+        labelEn: "Anything else we should know about your child?",
+        labelAr: "هل هناك ما ينبغي أن نعرفه عن طفلكم؟",
+        hintEn:
+          "Interests, languages spoken at home, what they are looking forward to.",
+        hintAr: "الاهتمامات، واللغات التي يتحدثها في البيت، وما يتطلع إليه.",
+        optionsEn: "",
+        optionsAr: "",
+      },
+    ],
+  });
+  const published = await publishAdmissionForm(tx, {
+    ...org,
+    id: form.id,
+    expectedVersion: form.version,
+    userId: null,
+  });
+  if (!published) throw new Error("Seed form was not published");
+  const grades = await descriptorIds(tx, tenantId, "grade_level");
+  const papers: [string, string, string][] = [
+    ["document", "Birth certificate", "شهادة الميلاد"],
+    [
+      "document",
+      "Parents' national IDs or passports",
+      "بطاقات الرقم القومي أو جوازات سفر الوالدين",
+    ],
+    ["document", "Vaccination card", "بطاقة التطعيمات"],
+  ];
+  const kg1 = await insertIntake(tx, {
+    ...org,
+    schoolYearId: yearId,
+    gradeId: need(grades, "kg1"),
+    opensOn: "2026-10-15",
+    closesOn: "2027-03-31",
+    capacity: 40,
+    formId: form.id,
+    checklist: seedChecklist([
+      ...papers,
+      ["assessment", "Readiness play session", "جلسة لعب لتقييم الاستعداد"],
+      ["interview", "Meeting with the family", "لقاء مع الأسرة"],
+    ]),
+    currency: "EGP",
+    fees: [
+      { kind: "application", amount: 1500 },
+      { kind: "registration", amount: 10000 },
+      { kind: "tuition", amount: 185000 },
+    ],
+    decisionsOn: "2027-04-15",
+    offerDays: 14,
+    ageCutoffOn: "2027-10-01",
+    minAgeMonths: 48,
+    maxAgeMonths: 71,
+    priorities: [
+      "sibling",
+      "staff_child",
+      "returning_student",
+      "additional_needs",
+    ],
+  });
+  await insertIntake(tx, {
+    ...org,
+    schoolYearId: yearId,
+    gradeId: need(grades, "grade_1"),
+    opensOn: "2026-10-15",
+    closesOn: "2027-03-31",
+    capacity: 24,
+    formId: form.id,
+    checklist: seedChecklist([
+      ...papers,
+      ["document", "Last school report", "آخر شهادة مدرسية"],
+      [
+        "assessment",
+        "English and Arabic assessment",
+        "تقييم في اللغتين الإنجليزية والعربية",
+      ],
+    ]),
+    currency: "EGP",
+    fees: [
+      { kind: "application", amount: 1500 },
+      { kind: "tuition", amount: 198000 },
+    ],
+    decisionsOn: "2027-04-15",
+    offerDays: 14,
+    ageCutoffOn: "2027-10-01",
+    minAgeMonths: 72,
+    maxAgeMonths: 107,
+    priorities: ["sibling", "returning_student"],
+  });
+
+  const parent = person(["Salama", "سلامة"], ["Ashoush", "عشوش"], "male");
+  await insertPerson(tx, tenantId, parent, { primaryOrgId: schoolId });
+  await giveAccount(
+    tx,
+    tenantId,
+    parent.id,
+    context.login,
+    context.passwordHash,
+  );
+  await openApplicantRole(tx, {
+    ...org,
+    userId: parent.id,
+    today: "2026-10-20",
+  });
+  context.logins.push({
+    role: "applicant",
+    loginName: context.login,
+    schoolId,
+  });
+  const child = person(["Omar", "عمر"], ["Ashoush", "عشوش"], "male");
+  await insertPerson(tx, tenantId, child, {
+    primaryOrgId: schoolId,
+    birthDate: "2023-03-14",
+    birthDateSource: "guardian_declared",
+  });
+  const relations = await descriptorIds(tx, tenantId, "relation");
+  const application = await insertApplication(tx, {
+    ...org,
+    intakeId: kg1.id,
+    formVersionId: published.id,
+    familyUserId: parent.id,
+    applicantUserId: child.id,
+    locale: "en",
+    form: {
+      relationId: need(relations, "father"),
+      responsible: true,
+      phone: "+20 100 555 0199",
+      other: null,
+      schools: [
+        {
+          name: "Little Steps Nursery",
+          country: "EG",
+          city: "Cairo",
+          fromYear: 2025,
+          toYear: null,
+          grade: "Nursery",
+          leaving: "Starting school",
+        },
+      ],
+      questions: {},
+    },
+    checklist: seedChecklist([
+      ...papers,
+      ["assessment", "Readiness play session", "جلسة لعب لتقييم الاستعداد"],
+      ["interview", "Meeting with the family", "لقاء مع الأسرة"],
+    ]),
+  });
+  await markApplicationSubmitted(tx, {
+    ...org,
+    id: application.id,
+    expectedVersion: application.version,
+    reference: "2027-0001",
+    locale: "en",
+    answers: [
+      {
+        id: "0192f0a4-7a1c-7b5a-9a2e-5e6f1f2a3d01",
+        label: "How did you hear about the school?",
+        kind: "choice",
+        value: "An open day",
+      },
+      {
+        id: "0192f0a4-7a1c-7b5a-9a2e-5e6f1f2a3d02",
+        label: "Anything else we should know about your child?",
+        kind: "long",
+        value:
+          "Omar loves building things and speaks Arabic and English at home.",
+      },
+    ],
+    matches: { students: [], guardians: [], siblings: [], staffParent: false },
+    priorities: [],
+    additionalNeeds: false,
+    enquiryId: null,
+  });
+  await insertApplicationEntry(tx, {
+    ...org,
+    applicationId: application.id,
+    kind: "state",
+    body: "",
+    details: { from: "draft", to: "submitted" },
+    authorUserId: parent.id,
+  });
 }
 
 /**

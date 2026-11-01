@@ -1,7 +1,6 @@
 import type { ConsentAnswer } from "@faridalms/database/stores/consents";
 import type { Descriptor } from "@faridalms/database/stores/descriptors";
 import type { Scope } from "@faridalms/database/stores/students";
-import type { ContentDocument } from "@faridalms/domain/content";
 
 import {
   answerCounts,
@@ -20,11 +19,9 @@ import {
 } from "@faridalms/database/stores/consents";
 import { descriptorsFor } from "@faridalms/database/stores/descriptors";
 import {
-  documentOf,
   dropTranslation,
   saveDocument,
   saveTranslation,
-  translationOf,
 } from "@faridalms/database/stores/documents";
 import { filesByIds, linkFiles } from "@faridalms/database/stores/files";
 import { schoolProfile } from "@faridalms/database/stores/identity";
@@ -36,6 +33,7 @@ import {
   reviewTranslation,
   translationReview,
 } from "@faridalms/database/stores/translations";
+import { askedAtAdmission } from "@faridalms/domain/admissions";
 import {
   answerConsentSchema,
   consentFormRefSchema,
@@ -54,6 +52,7 @@ import * as v from "valibot";
 
 import type { UnitContext } from "../core/context";
 
+import { consentWords } from "../core/admissions";
 import { notify } from "../core/notify";
 import {
   audit,
@@ -98,18 +97,6 @@ const purposeView = (row: Descriptor) => ({
   labelAr: row.labelAr,
 });
 
-/** A form's words in both languages as they now stand. */
-async function words(context: UnitContext, formId: string) {
-  const original = await documentOf(context.tx, context.tenantId, host(formId));
-  const translation = original
-    ? await translationOf(context.tx, context.tenantId, original.id)
-    : null;
-  return {
-    body: (original?.content ?? null) as ContentDocument | null,
-    translation: (translation?.content ?? null) as ContentDocument | null,
-  };
-}
-
 /** The words a family is asked to agree to: the latest published form of each purpose. */
 async function publishedForms(context: UnitContext) {
   const [purposes, { published }] = await Promise.all([
@@ -121,7 +108,9 @@ async function publishedForms(context: UnitContext) {
   ]);
   return purposes.flatMap((purpose) => {
     const notice = published.find((row) => row.purposeId === purpose.id);
-    return notice ? [{ purpose, notice }] : [];
+    return notice && !askedAtAdmission(purpose.meaning)
+      ? [{ purpose, notice }]
+      : [];
   });
 }
 
@@ -163,6 +152,7 @@ export const forms = readProcedure.handler(async ({ context }) => {
             }
           : null,
         draftId: draft?.id ?? null,
+        atAdmission: askedAtAdmission(purpose.meaning),
         granted: count?.granted ?? 0,
         refused: count?.refused ?? 0,
       });
@@ -188,7 +178,7 @@ export const form = readProcedure
       (row) => row.purposeId === purpose.id,
     );
     const [draftWords, review, publishedWords] = await Promise.all([
-      draft ? words(context, draft.id) : null,
+      draft ? consentWords(context, draft.id) : null,
       draft
         ? translationReview(context.tx, {
             tenantId: context.tenantId,
@@ -196,7 +186,7 @@ export const form = readProcedure
             id: draft.id,
           })
         : null,
-      published ? words(context, published.id) : null,
+      published ? consentWords(context, published.id) : null,
     ]);
     return {
       purpose: purposeView(purpose),
@@ -277,7 +267,7 @@ export const saveForm = writeProcedure
       });
       if (next === null) throw conflict();
       version = next;
-      const was = (await words(context, formId)).translation;
+      const was = (await consentWords(context, formId)).translation;
       before = was ? contentPlainText(was) : null;
       original = await saveDocument(context.tx, document(formId));
     } else {
@@ -395,7 +385,7 @@ export const publishForm = writeProcedure
     if (!row) throw new ORPCError("NOT_FOUND");
     if (row.publishedAt !== null)
       throw new ORPCError("CONFLICT", { message: "consents.published" });
-    const { body } = await words(context, row.id);
+    const { body } = await consentWords(context, row.id);
     if (!body || !contentPlainText(body).trim())
       throw new ORPCError("BAD_REQUEST", { message: "consents.empty" });
     const version = await publishFormRow(context.tx, {
@@ -407,11 +397,15 @@ export const publishForm = writeProcedure
     const purpose = (await purposesOf(context)).find(
       (item) => item.id === row.purposeId,
     );
-    const students = await enrolledStudents(context.tx, {
-      tenantId: context.tenantId,
-      schoolId: context.schoolId,
-      today: context.today,
-    });
+    // Words an application asks for are agreed when a family applies, so
+    // the families already at the school are not asked them.
+    const students = askedAtAdmission(purpose?.meaning ?? null)
+      ? []
+      : await enrolledStudents(context.tx, {
+          tenantId: context.tenantId,
+          schoolId: context.schoolId,
+          today: context.today,
+        });
     const answerers = await answerersOf(context.tx, {
       tenantId: context.tenantId,
       studentIds: students,
@@ -709,7 +703,7 @@ export const family = readProcedure.handler(async ({ context }) => {
       tenantId: context.tenantId,
       studentIds: links.map((link) => link.studentId),
     }),
-    Promise.all(asked.map(({ notice }) => words(context, notice.id))),
+    Promise.all(asked.map(({ notice }) => consentWords(context, notice.id))),
   ]);
   return {
     today: context.today,

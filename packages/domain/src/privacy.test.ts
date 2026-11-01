@@ -14,7 +14,12 @@ import {
   saveRetentionSchema,
 } from "./privacy";
 
-const none = { studentRule: null, studentValue: null, staffYears: null };
+const none = {
+  studentRule: null,
+  studentValue: null,
+  staffYears: null,
+  applicantMonths: null,
+};
 
 describe("addYears", () => {
   it("moves a leap day to 1 March, never earlier", () => {

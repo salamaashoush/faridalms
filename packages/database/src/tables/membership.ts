@@ -158,6 +158,7 @@ export const NATURAL_ROLES = [
   "parent",
   "guardian",
   "relative",
+  "applicant_family",
 ] as const;
 export type NaturalRole = (typeof NATURAL_ROLES)[number];
 
@@ -206,7 +207,7 @@ export const userRoles = core.table.withRLS(
     ck(
       "user_roles",
       "role",
-      sql`role in ('student', 'teacher', 'aide', 'counselor', 'principal', 'site_administrator', 'district_administrator', 'system_administrator', 'proctor', 'staff', 'parent', 'guardian', 'relative')`,
+      sql`role in ('student', 'teacher', 'aide', 'counselor', 'principal', 'site_administrator', 'district_administrator', 'system_administrator', 'proctor', 'staff', 'parent', 'guardian', 'relative', 'applicant_family')`,
     ),
     ck(
       "user_roles",

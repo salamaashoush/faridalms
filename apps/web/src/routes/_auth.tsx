@@ -1,3 +1,5 @@
+import type { PortalDoor } from "@faridalms/domain/site-sections";
+
 import {
   createFileRoute,
   Outlet,
@@ -20,8 +22,8 @@ export const Route = createFileRoute("/_auth")({
   },
   // On a school's portal the pages are the portal page of the school's site;
   // the bare domain keeps the platform's, since it names no school.
-  loader: ({ context }) => {
-    const query = faceQueryFor(context.auth.school);
+  loader: ({ context, location }) => {
+    const query = faceQueryFor(context.auth.school, doorOf(location.pathname));
     return query ? context.queryClient.ensureQueryData(query) : null;
   },
   head: ({ loaderData }) => ({
@@ -32,13 +34,18 @@ export const Route = createFileRoute("/_auth")({
   component: AuthHome,
 });
 
+/** Registering is its own door of the portal; every other page here is the sign-in door's. */
+const doorOf = (pathname: string): PortalDoor =>
+  pathname === "/register" ? "register" : "sign-in";
+
 function AuthHome() {
   const face = Route.useLoaderData();
-  // Sign-in shows the section's own words over the form; every other page
+  const { pathname } = useLocation();
+  // A door shows its section's own words over its form; every other page
   // of the flow says its own heading.
-  const ownWords = useLocation().pathname !== "/sign-in";
+  const ownWords = pathname !== "/sign-in" && pathname !== "/register";
   return (
-    <AuthLayout face={face} ownWords={ownWords}>
+    <AuthLayout face={face} ownWords={ownWords} door={doorOf(pathname)}>
       <Outlet />
     </AuthLayout>
   );

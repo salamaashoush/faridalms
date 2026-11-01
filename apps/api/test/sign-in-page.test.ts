@@ -40,6 +40,7 @@ describe("the portal's face", () => {
         "page",
         "school",
         "theme",
+        "turnstileKey",
       ].toSorted(),
     );
     expect(face.name).toEqual({

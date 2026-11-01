@@ -1,0 +1,691 @@
+import type { AdmissionQuestion } from "@faridalms/domain/admissions";
+
+import { describe, expect, test } from "bun:test";
+
+import { createTurnstile } from "../src/core/turnstile";
+import {
+  client,
+  handlerWith,
+  login,
+  raw,
+  rejection,
+  seeded,
+  sessionFor,
+  signedIn,
+} from "./harness";
+
+const officer = () => signedIn("northwind", login("staff"));
+const principal = () => signedIn("northwind", login("principal"));
+
+const QUESTION: AdmissionQuestion = {
+  id: "0192f0a4-7a1c-7b5a-9a2e-7e6f1f2a3d01",
+  answer: "choice",
+  required: "required",
+  labelEn: "Which bus route?",
+  labelAr: "أي خط حافلة؟",
+  hintEn: "",
+  hintAr: "",
+  optionsEn: "Maadi\nZamalek",
+  optionsAr: "المعادي\nالزمالك",
+};
+
+const DOCUMENT_KEY = "0192f0a4-7a1c-7b5a-9a2e-7e6f1f2a3d10";
+
+const names = (en: string, ar: string) => ({
+  en: {
+    given: en.split(" ")[0] ?? "",
+    middle: "",
+    family: en.split(" ").slice(1).join(" "),
+  },
+  ar: {
+    given: ar.split(" ")[0] ?? "",
+    middle: "",
+    family: ar.split(" ").slice(1).join(" "),
+  },
+});
+
+/** A form and an intake of their own into a grade, open every day the tests run. */
+async function intakeFor(grade: string) {
+  const api = await officer();
+  const options = await api.intakes.options();
+  const year = options.years.find((row) => row.titleEn === "2027–2028");
+  const gradeRow = options.grades.find((row) => row.labelEn === grade);
+  if (!year || !gradeRow) throw new Error(`no upcoming year or ${grade}`);
+  const form = await api.intakes.saveForm({
+    expectedVersion: 0,
+    nameEn: `${grade} form`,
+    nameAr: "",
+    questions: [QUESTION],
+  });
+  await api.intakes.publishForm({ id: form.id, expectedVersion: form.version });
+  const intake = await api.intakes.saveIntake({
+    expectedVersion: 0,
+    schoolYearId: year.id,
+    gradeId: gradeRow.id,
+    opensOn: "2020-01-01",
+    closesOn: "2099-12-31",
+    capacity: 20,
+    formId: form.id,
+    checklist: [
+      {
+        key: DOCUMENT_KEY,
+        kind: "document",
+        labelEn: "Birth certificate",
+        labelAr: "شهادة الميلاد",
+        required: true,
+      },
+    ],
+    currency: "EGP",
+    fees: [{ kind: "application", amount: 1500 }],
+    decisionsOn: "",
+    offerDays: 14,
+    ageCutoffOn: "2027-10-01",
+    minAgeMonths: gradeRow.minMonths,
+    maxAgeMonths: gradeRow.maxMonths,
+    priorities: [
+      "sibling",
+      "staff_child",
+      "returning_student",
+      "additional_needs",
+    ],
+  });
+  return { intakeId: intake.id, formId: form.id };
+}
+
+/** The secret in the last registration link sent to an address. */
+function registrationLink(address: string) {
+  const message = seeded().mail.sent.findLast((row) => row.to === address);
+  const secret = /\/\/northwind\.[^/\s]+\/welcome#([A-Za-z0-9_-]{43})/.exec(
+    message?.text ?? "",
+  )?.[1];
+  return { message, secret };
+}
+
+/** Registers a family on the portal and confirms the address, as the email link does. */
+async function registeredFamily(email: string) {
+  await client("northwind").applying.register({
+    names: names("Salama Ashoush", "سلامة عشوش"),
+    email,
+    phone: "",
+    locale: "en",
+    elapsed: 5000,
+  });
+  const { secret } = registrationLink(email);
+  if (!secret) throw new Error(`no registration link went to ${email}`);
+  await client("northwind").identity.acceptInvite({
+    secret,
+    password: "a long family password",
+  });
+  const session = await client("northwind").identity.signIn({
+    loginName: email,
+    password: "a long family password",
+  });
+  return { api: client("northwind", session.token), token: session.token };
+}
+
+type Api = Awaited<ReturnType<typeof officer>>;
+
+async function consents(api: Api, id: string) {
+  const draft = await api.applying.draft({ id });
+  return draft.consents.flatMap((consent) =>
+    consent.notice ? [{ noticeId: consent.notice.id, agreed: true }] : [],
+  );
+}
+
+const child = (sexId: string, birthDate = "2021-05-10") => ({
+  names: names("Omar Ashoush", "عمر عشوش"),
+  birthDate,
+  sexId,
+  document: null,
+});
+
+describe("setting up admissions", () => {
+  test("a teacher sets up nothing, and an intake needs a published form", async () => {
+    const teacher = await signedIn("northwind", login("teacher"));
+    expect(await rejection(teacher.intakes.options())).toMatchObject({
+      code: "FORBIDDEN",
+    });
+    const api = await officer();
+    const options = await api.intakes.options();
+    const year = options.years.find((row) => row.titleEn === "2027–2028");
+    const grade = options.grades.find((row) => row.labelEn === "Grade 5");
+    if (!year || !grade) throw new Error("seed is missing next year");
+    expect(year.cutoffOn).toBe("2027-10-01");
+    expect(grade.minMonths).toBe(120);
+    const draft = await api.intakes.saveForm({
+      expectedVersion: 0,
+      nameEn: "Unpublished",
+      nameAr: "",
+      questions: [],
+    });
+    expect(
+      await rejection(
+        api.intakes.saveIntake({
+          expectedVersion: 0,
+          schoolYearId: year.id,
+          gradeId: grade.id,
+          opensOn: "2026-11-01",
+          closesOn: "2027-03-31",
+          capacity: 10,
+          formId: draft.id,
+          checklist: [],
+          currency: "EGP",
+          fees: [],
+          decisionsOn: "",
+          offerDays: 14,
+          ageCutoffOn: "2027-10-01",
+          minAgeMonths: null,
+          maxAgeMonths: null,
+          priorities: [],
+        }),
+      ),
+    ).toMatchObject({ message: "intake.form_unpublished" });
+  });
+
+  test("a choice is published only once each language has its options", async () => {
+    const api = await officer();
+    const form = await api.intakes.saveForm({
+      expectedVersion: 0,
+      nameEn: "Half translated",
+      nameAr: "",
+      questions: [{ ...QUESTION, optionsAr: "المعادي" }],
+    });
+    expect(
+      await rejection(
+        api.intakes.publishForm({ id: form.id, expectedVersion: form.version }),
+      ),
+    ).toMatchObject({ message: "form.question_unready" });
+  });
+
+  test("the seeded school has next year's KG1 intake open with its checklist", async () => {
+    const api = await principal();
+    const { years } = await api.intakes.options();
+    const year = years.find((row) => row.titleEn === "2027–2028");
+    const { intakes } = await api.intakes.list({ year: year?.id ?? "" });
+    const kg1 = intakes.find((row) => row.gradeEn === "KG1");
+    expect(kg1).toMatchObject({
+      capacity: 40,
+      ageCutoffOn: "2027-10-01",
+      minAgeMonths: 48,
+      maxAgeMonths: 71,
+      live: 1,
+    });
+    expect(kg1?.checklist.map((item) => item.labelEn)).toContain(
+      "Birth certificate",
+    );
+  });
+});
+
+describe("registering to apply", () => {
+  test("a new address is sent a link, and using it opens an applying family's account", async () => {
+    const email = "salama.register@example.com";
+    const { api } = await registeredFamily(email);
+    const { message } = registrationLink(email);
+    expect(message?.subject).toContain("confirm your email");
+    const me = await api.identity.currentUser();
+    expect(me).toMatchObject({ workspace: "family" });
+    const mine = await api.applying.mine();
+    expect(mine.applications).toEqual([]);
+    expect(mine.intakes.map((row) => row.gradeEn)).toContain("KG1");
+    // A family that only applies reaches nothing of the school's own.
+    expect(await rejection(api.applications.list({}))).toMatchObject({
+      code: "FORBIDDEN",
+    });
+  });
+
+  test("an address that already signs in is told so in its inbox, and the page says the same", async () => {
+    const address = login("parent");
+    const answer = await client("northwind").applying.register({
+      names: names("Salama Ashoush", "سلامة عشوش"),
+      email: address,
+      phone: "",
+      locale: "en",
+      elapsed: 5000,
+    });
+    expect(answer).toEqual({ registered: true });
+    const sent = seeded().mail.sent.findLast((row) => row.to === address);
+    expect(sent?.subject).toContain("already have an account");
+    expect(sent?.text).not.toMatch(/\/welcome#/);
+  });
+
+  test("a form filled faster than a person types is answered and dropped", async () => {
+    const email = "salama.script@example.com";
+    await client("northwind").applying.register({
+      names: names("Salama Ashoush", "سلامة عشوش"),
+      email,
+      phone: "",
+      locale: "en",
+      elapsed: 100,
+    });
+    expect(registrationLink(email).message).toBeUndefined();
+  });
+
+  test("where Turnstile is set up, a token Cloudflare does not accept stops the registration", async () => {
+    const handler = handlerWith({
+      turnstile: createTurnstile({
+        siteKey: "site",
+        secretKey: "secret",
+        fetch: (() =>
+          Promise.resolve(
+            Response.json({ success: false }),
+          )) as unknown as typeof fetch,
+      }),
+    });
+    const response = await handler(
+      new Request("http://api.test/rpc/applying/register", {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          "x-farida-school": "northwind",
+        },
+        body: JSON.stringify({
+          json: {
+            names: names("Salama Ashoush", "سلامة عشوش"),
+            email: "salama.robot@example.com",
+            phone: "",
+            locale: "en",
+            elapsed: 5000,
+            turnstile: "forged",
+          },
+        }),
+      }),
+    );
+    expect(response.status).toBe(400);
+    expect(await response.text()).toContain("site.challenge");
+  });
+
+  test("confirming the address names the family on the enquiry they made with it", async () => {
+    const email = "salama.enquired@example.com";
+    const office = await officer();
+    const { id: enquiryId } = await office.admissions.logEnquiry({
+      source: "phone",
+      purpose: "enquiry",
+      locale: "en",
+      name: "Salama Ashoush",
+      email,
+      phone: "",
+      childName: "Laila",
+      childYear: "KG1",
+      message: "",
+      assigneeId: "",
+    });
+    await registeredFamily(email);
+    const enquiry = await office.admissions.enquiry({ id: enquiryId });
+    expect(enquiry.familyUserId).not.toBeNull();
+    expect(enquiry.applicantUserId).toBeNull();
+  });
+});
+
+const NO_NEEDS = {
+  chronic_condition: "",
+  allergy: "",
+  medication: "",
+  dietary_requirement: "",
+  additional_needs: "",
+};
+
+/** Starts a draft for a new child and fills in what sending it needs. */
+async function filledDraft(
+  api: Api,
+  intakeId: string,
+  input: { birthDate?: string; childNames?: ReturnType<typeof names> } = {},
+) {
+  const { options } = await api.applying.mine();
+  const sexId = options.sexes[0]?.id ?? "";
+  const fatherId =
+    options.relations.find((row) => row.meaning === "father")?.id ?? "";
+  const nationalId =
+    options.documents.find((row) => row.meaning === "national_id")?.id ?? "";
+  const kid = {
+    names: input.childNames ?? names("Omar Ashoush", "عمر عشوش"),
+    birthDate: input.birthDate ?? "2022-03-14",
+    sexId,
+    document: {
+      systemId: nationalId,
+      number: `3${(input.birthDate ?? "2022-03-14").replaceAll("-", "").slice(2)}01${String(Math.floor(Math.random() * 9000) + 1000)}3`,
+      issuingCountry: "EG",
+    },
+  };
+  const started = await api.applying.start({
+    intakeId,
+    applicantId: "",
+    child: kid,
+    locale: "en",
+  });
+  const saved = await api.applying.save({
+    id: started.id,
+    expectedVersion: started.version,
+    child: { ...kid, document: { ...kid.document, number: "" } },
+    form: {
+      relationId: fatherId,
+      responsible: true,
+      phone: "01005550199",
+      other: null,
+      schools: [
+        {
+          name: "Little Steps Nursery",
+          country: "EG",
+          city: "Cairo",
+          fromYear: 2024,
+          toYear: null,
+          grade: "Nursery",
+          leaving: "",
+        },
+      ],
+      questions: { [QUESTION.id]: "Maadi" },
+    },
+    needs: {
+      ...NO_NEEDS,
+      allergy: "Peanuts",
+      additional_needs: "Speech therapy twice a week",
+    },
+  });
+  return { id: started.id, version: saved.version, sexId };
+}
+
+describe("an application", () => {
+  test("is drafted, kept in the systems that keep each part, sent with its consents, and read by the office", async () => {
+    const { intakeId } = await intakeFor("KG2");
+    const email = "salama.applies@example.com";
+    const office = await officer();
+    const { id: enquiryId } = await office.admissions.logEnquiry({
+      source: "walk_in",
+      purpose: "enquiry",
+      locale: "en",
+      name: "Salama Ashoush",
+      email,
+      phone: "",
+      childName: "Omar",
+      childYear: "KG2",
+      message: "",
+      assigneeId: "",
+    });
+    const { api } = await registeredFamily(email);
+    const draft = await filledDraft(api, intakeId);
+
+    const read = await api.applying.draft({ id: draft.id });
+    expect(read.child.document?.shown).toBe("••••••••");
+    expect(read.needs.allergy).toBe("Peanuts");
+    expect(read.application.state).toBe("draft");
+    expect(read.child.age).toBe("fits");
+
+    // Sending without agreeing to how the application is used is refused.
+    expect(
+      await rejection(
+        api.applying.submit({
+          id: draft.id,
+          expectedVersion: draft.version,
+          locale: "en",
+          consents: [],
+        }),
+      ),
+    ).toMatchObject({ message: "application.consent" });
+
+    const sent = await api.applying.submit({
+      id: draft.id,
+      expectedVersion: draft.version,
+      locale: "en",
+      consents: await consents(api, draft.id),
+    });
+    expect(sent.reference).toMatch(/^2027-\d{4}$/);
+
+    const mine = await api.applying.mine();
+    expect(mine.applications[0]).toMatchObject({
+      state: "submitted",
+      reference: sent.reference,
+      needed: 1,
+    });
+
+    const { rows } = await office.applications.list({ intake: intakeId });
+    expect(rows.map((row) => row.reference)).toEqual([sent.reference]);
+    expect(rows[0]?.priorities).toEqual(["additional_needs"]);
+    const record = await office.applications.application({ id: draft.id });
+    expect(record).toMatchObject({
+      state: "submitted",
+      enquiryId,
+      moves: ["in_review", "withdrawn"],
+      family: { email },
+      answers: [{ label: "Which bus route?", value: "Maadi" }],
+    });
+    expect(record.consents.map((row) => row.decision)).toEqual([
+      "granted",
+      "granted",
+      "granted",
+    ]);
+    expect(record.child.documents[0]?.shown).toBe("••••••••");
+    // Health and needs are their own read, behind the health purpose.
+    expect(record).not.toHaveProperty("needs");
+    const needs = await office.applications.needs({ id: draft.id });
+    expect(needs.additional_needs).toBe("Speech therapy twice a week");
+
+    const enquiry = await office.admissions.enquiry({ id: enquiryId });
+    expect(enquiry).toMatchObject({ state: "converted" });
+    expect(enquiry.applicantUserId).toBe(record.child.id);
+
+    // The office was told, and so was the family, through notifications.
+    const officeInbox = await office.notifications.list({});
+    expect(
+      officeInbox.rows.some(
+        (row) => row.kind === "application" && row.subjectId === draft.id,
+      ),
+    ).toBe(true);
+    const familyInbox = await api.notifications.list({});
+    expect(
+      familyInbox.rows.some(
+        (row) =>
+          row.kind === "application" &&
+          (row.params as { received?: boolean }).received === true,
+      ),
+    ).toBe(true);
+
+    // A sent application is no longer the family's to change.
+    expect(
+      await rejection(
+        api.applying.save({
+          id: draft.id,
+          expectedVersion: sent.version,
+          child: { ...child(draft.sexId), birthDate: "2022-03-14" },
+          form: { ...read.application.form, other: null },
+          needs: null,
+        }),
+      ),
+    ).toMatchObject({ message: "application.sent" });
+
+    const reviewing = await office.applications.move({
+      id: draft.id,
+      expectedVersion: record.version,
+      state: "in_review",
+      note: "",
+    });
+    await office.applications.note({
+      id: draft.id,
+      body: "Called the family.",
+    });
+    const history = await office.applications.application({ id: draft.id });
+    expect(history.state).toBe("in_review");
+    expect(history.entries.map((row) => row.kind)).toEqual([
+      "state",
+      "state",
+      "note",
+    ]);
+    expect(reviewing.version).toBeGreaterThan(record.version);
+  });
+
+  test("a document goes up for its checklist step, and the office checks it", async () => {
+    const { intakeId } = await intakeFor("Grade 3");
+    const { api, token } = await registeredFamily(
+      "salama.documents@example.com",
+    );
+    const draft = await filledDraft(api, intakeId, { birthDate: "2019-02-02" });
+    const body = new Blob(["%PDF-1.4 birth certificate"]);
+    const file = await api.files.initiate({
+      purpose: "admission_document",
+      name: "birth-certificate.pdf",
+      mediaType: "application/pdf",
+      sizeBytes: body.size,
+    });
+    const put = await raw("northwind", token, `/v1/files/${file.id}/content`, {
+      method: "PUT",
+      body,
+    });
+    expect(put.status).toBe(200);
+    const [step] = (await api.applying.draft({ id: draft.id })).items;
+    if (!step) throw new Error("the intake's checklist was not copied");
+    await api.applying.attach({
+      applicationId: draft.id,
+      itemId: step.id,
+      fileId: file.id,
+    });
+    const after = await api.applying.draft({ id: draft.id });
+    expect(after.items[0]).toMatchObject({
+      state: "received",
+      files: [{ name: "birth-certificate.pdf" }],
+    });
+    await api.applying.submit({
+      id: draft.id,
+      expectedVersion: after.application.version,
+      locale: "en",
+      consents: await consents(api, draft.id),
+    });
+    const office = await officer();
+    const record = await office.applications.application({ id: draft.id });
+    const item = record.items[0];
+    if (!item) throw new Error("no checklist step");
+    expect(item.files).toHaveLength(1);
+    await office.applications.moveItem({
+      applicationId: draft.id,
+      itemId: item.id,
+      expectedVersion: item.version,
+      state: "verified",
+      note: "",
+    });
+    const checked = await office.applications.application({ id: draft.id });
+    expect(checked.items[0]?.state).toBe("verified");
+    expect(
+      await rejection(
+        api.applying.detach({ applicationId: draft.id, fileId: file.id }),
+      ),
+    ).toMatchObject({ message: "application.item_done" });
+  });
+
+  test("a child too young on the cut-off day cannot be sent", async () => {
+    const { intakeId } = await intakeFor("Grade 4");
+    const { api } = await registeredFamily("salama.young@example.com");
+    const draft = await filledDraft(api, intakeId, { birthDate: "2022-01-01" });
+    expect(
+      await rejection(
+        api.applying.submit({
+          id: draft.id,
+          expectedVersion: draft.version,
+          locale: "en",
+          consents: await consents(api, draft.id),
+        }),
+      ),
+    ).toMatchObject({ message: "application.age_young" });
+  });
+
+  test("a family at the school applying for a sibling is recognised", async () => {
+    const { intakeId } = await intakeFor("Grade 6");
+    const { api } = await sessionFor("northwind", login("parent"));
+    const draft = await filledDraft(api, intakeId, {
+      birthDate: "2016-04-04",
+      childNames: names("Yara Haddad", "يارا حداد"),
+    });
+    await api.applying.submit({
+      id: draft.id,
+      expectedVersion: draft.version,
+      locale: "en",
+      consents: await consents(api, draft.id),
+    });
+    const record = await (
+      await officer()
+    ).applications.application({
+      id: draft.id,
+    });
+    expect(record.matches.siblings.length).toBeGreaterThan(0);
+    expect(record.priorities).toContain("sibling");
+  });
+
+  test("another family reaches none of it, and the family withdraws it", async () => {
+    const { intakeId } = await intakeFor("Grade 7");
+    const { api } = await registeredFamily("salama.private@example.com");
+    const draft = await filledDraft(api, intakeId, { birthDate: "2015-06-06" });
+    const stranger = await registeredFamily("salama.stranger@example.com");
+    expect(
+      await rejection(stranger.api.applying.draft({ id: draft.id })),
+    ).toMatchObject({ code: "NOT_FOUND" });
+    const withdrawn = await api.applying.withdraw({
+      id: draft.id,
+      expectedVersion: draft.version,
+      reason: "another_school",
+      note: "",
+    });
+    expect(withdrawn.version).toBeGreaterThan(draft.version);
+    const mine = await api.applying.mine();
+    expect(mine.applications[0]?.state).toBe("withdrawn");
+  });
+
+  test("a withdrawn applicant comes up for review after the school's months", async () => {
+    const api = await principal();
+    await api.privacy.saveRetention({
+      studentRule: null,
+      studentValue: null,
+      staffYears: null,
+      applicantMonths: 12,
+    });
+    const overview = await api.privacy.overview();
+    const applicant = overview.review.find((row) => row.kind === "applicant");
+    expect(applicant).toMatchObject({ dueOn: "2100-12-31" });
+  });
+});
+
+describe("the portal's doors", () => {
+  test("registering and applying are pages of the site, each holding its own form", async () => {
+    const stranger = client("northwind-east").identity;
+    for (const door of ["register", "apply"] as const) {
+      const face = await stranger.portalFace({
+        school: "northwind-east",
+        locale: "en",
+        door,
+      });
+      expect(face.page.starter).toBe(true);
+      expect(face.page.sections.map((row) => row.section.type)).toContain(door);
+    }
+    const api = await signedIn("northwind-east", login("principal", 0, 1));
+    const { id } = await api.site.startPortalPage({ door: "register" });
+    const page = await api.site.page({ id });
+    expect(page).toMatchObject({ kind: "portal", slug: "register" });
+    const signInPage = await api.site.page({
+      id: (await api.site.startPortalPage({ door: "sign-in" })).id,
+    });
+    const signIn = signInPage.content.sections.find(
+      (section) => section.type === "signIn",
+    );
+    if (!signIn) throw new Error("the sign-in page has no sign-in form");
+    // The registration door holds the registration form, never sign-in's.
+    expect(
+      await rejection(
+        api.site.savePage({
+          id,
+          expectedVersion: page.version,
+          parentId: "",
+          slug: "register",
+          titleEn: "Register",
+          titleAr: "التسجيل",
+          inMenu: false,
+          content: {
+            sections: [
+              ...page.content.sections.filter(
+                (section) => section.type !== "register",
+              ),
+              signIn,
+            ],
+            description: "",
+            reviewed: [],
+          },
+          translation: null,
+        }),
+      ),
+    ).toMatchObject({ code: "BAD_REQUEST", message: "site.system_section" });
+  });
+});

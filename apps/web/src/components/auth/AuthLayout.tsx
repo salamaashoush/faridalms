@@ -1,3 +1,4 @@
+import type { PortalDoor } from "@faridalms/domain/site-sections";
 import type { ReactNode } from "react";
 
 import { BookOpen, GraduationCap, Languages, Users } from "lucide-react";
@@ -99,15 +100,17 @@ function PlatformLayout({ children }: { children: ReactNode }) {
 export function AuthLayout({
   face = null,
   ownWords = true,
+  door = "sign-in",
   children,
 }: {
   face?: PortalFace | null;
   /** The page says its own heading, in place of the sign-in section's words. */
   ownWords?: boolean;
+  door?: PortalDoor;
   children: ReactNode;
 }) {
   return face ? (
-    <PortalPage face={face} ownWords={ownWords}>
+    <PortalPage face={face} ownWords={ownWords} door={door}>
       {children}
     </PortalPage>
   ) : (

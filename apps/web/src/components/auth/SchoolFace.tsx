@@ -1,8 +1,9 @@
+import type { PortalDoor } from "@faridalms/domain/site-sections";
 import type { Theme } from "@faridalms/domain/site-theme";
 import type { CSSProperties, ReactNode } from "react";
 
 import { portalAccent } from "@faridalms/domain/portal-face";
-import { PORTAL_SECTION } from "@faridalms/domain/site-sections";
+import { PORTAL_DOORS } from "@faridalms/domain/site-sections";
 import { THEMES } from "@faridalms/domain/site-theme";
 import { newSection } from "@faridalms/domain/website";
 import { cn } from "@faridalms/ui/cn";
@@ -133,25 +134,31 @@ function frameOf(face: PortalFace): SiteFrameModel {
 export function PortalPage({
   face,
   ownWords,
+  door = "sign-in",
+  wide = false,
   children,
 }: {
   face: PortalFace;
   /** The flow being shown says its own heading, in place of the section's. */
   ownWords: boolean;
+  /** Which door's page this is, whose system section holds the flow. */
+  door?: PortalDoor;
+  wide?: boolean;
   children: ReactNode;
 }) {
   const locale = getLocale() === "ar" ? "ar" : "en";
   const theme = face.theme ?? PLATFORM_THEME;
   const accent = faceAccent(face);
-  // A published page always holds the form; one that somehow lost it still
-  // signs people in.
+  // A published page always holds its door's form; one that somehow lost it
+  // still lets people through.
+  const system = PORTAL_DOORS[door];
   const sections = face.page.sections.some(
-    (item) => item.section.type === PORTAL_SECTION,
+    (item) => item.section.type === system,
   )
     ? face.page.sections
     : [
         ...face.page.sections,
-        { section: newSection(PORTAL_SECTION), locale: face.page.locale },
+        { section: newSection(system), locale: face.page.locale },
       ];
   const context: RenderContext = {
     school: face.school,
@@ -164,7 +171,8 @@ export function PortalPage({
     news: [],
     events: [],
     contact: face.contact,
-    system: { node: children, ownWords },
+    turnstileKey: face.turnstileKey,
+    system: { node: children, ownWords, wide },
   };
   return (
     <div {...accent} className={cn(accent.className, "min-h-dvh")}>

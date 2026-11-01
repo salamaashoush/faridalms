@@ -1,3 +1,5 @@
+import type { PortalDoor } from "@faridalms/domain/site-sections";
+
 import { addHostSchema, hostRefSchema } from "@faridalms/domain/hosts";
 import {
   applyStarterSchema,
@@ -107,6 +109,6 @@ export const checkSiteHost = createServerFn({ method: "POST" })
   .validator(checked(hostRefSchema))
   .handler(({ data }) => backend().hosts.check(data));
 
-export const startPortalPage = createServerFn({ method: "POST" }).handler(() =>
-  backend().site.startPortalPage(),
-);
+export const startPortalPage = createServerFn({ method: "POST" })
+  .validator((input: { door: PortalDoor }) => input)
+  .handler(({ data }) => backend().site.startPortalPage(data));

@@ -70,6 +70,8 @@ const UPLOADERS: Record<FilePurpose, Capability[] | null> = {
   avatar: null,
   // A family's note for an absence; it is of use only once a report holds it.
   evidence: null,
+  // A family's document for an application, or one the office files for it.
+  admission_document: ["applications:submit", "admissions:manage"],
 };
 
 /** What this school's files can have done to them, for an editor to offer. */

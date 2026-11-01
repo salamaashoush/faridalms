@@ -55,7 +55,7 @@ export function TurnstileWidget({
 }: {
   siteKey: string;
   /** The form it guards, which the server checks the token was solved for. */
-  action: "enquiry" | "sign_in" | "reset";
+  action: "enquiry" | "sign_in" | "reset" | "register";
   locale: "en" | "ar";
   generation: number;
   onToken: (token: string) => void;

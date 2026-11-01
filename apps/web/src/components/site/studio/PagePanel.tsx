@@ -38,8 +38,8 @@ export function PagePanel({
   draft: PageDraft;
   languages: Languages;
   isHome: boolean;
-  /** The portal's sign-in page keeps its own address, out of the website's menu. */
-  portal?: boolean;
+  /** A door of the portal keeps its own address, out of the website's menu. */
+  portal?: string | false;
   parents: { id: string; title: string }[];
   errors: { title: string | null; slug: string | null };
   history: Version[];
@@ -87,7 +87,11 @@ export function PagePanel({
         })}
         {portal ? (
           <p className="text-sm text-muted-foreground">
-            {m.sitePortalPageAddress()}
+            {portal === "register"
+              ? m.sitePortalRegisterAddress()
+              : portal === "apply"
+                ? m.sitePortalApplyAddress()
+                : m.sitePortalPageAddress()}
           </p>
         ) : (
           <>

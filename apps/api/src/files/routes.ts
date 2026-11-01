@@ -296,6 +296,7 @@ const WATCHED_PURPOSES = new Set([
   "health_report",
   "evidence",
   "legal_document",
+  "admission_document",
 ]);
 
 function watched(file: StoredFile): boolean {
