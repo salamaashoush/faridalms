@@ -1,12 +1,18 @@
 import { expect, test } from "@playwright/test";
 
-import { PASSWORD, signInWith, untilHydrated } from "./fixtures/sign-in";
+import {
+  PASSWORD,
+  portal,
+  signInWith,
+  untilHydrated,
+} from "./fixtures/sign-in";
 
+const SCHOOL = "northwind-east";
 const TEACHER = "teacher1.northwind-east@northwind.example.com";
 
 test("a teacher prints sign-in badges for a young class", async ({ page }) => {
-  await signInWith(page, TEACHER, PASSWORD, "/teach", "northwind-east");
-  await page.goto("/teach/classes");
+  await signInWith(page, TEACHER, PASSWORD, "/teach", SCHOOL);
+  await page.goto(`${portal(SCHOOL)}/teach/classes`);
   await untilHydrated(page);
   await page.getByRole("link", { name: "KG2A" }).first().click();
   await page.getByRole("tab", { name: "Students" }).click();
@@ -32,7 +38,7 @@ test("a teacher prints sign-in badges for a young class", async ({ page }) => {
 test("a badge that does not work says so, and leaves no secret in the address", async ({
   page,
 }) => {
-  await page.goto(`/badge?school=northwind-east#${"x".repeat(43)}`);
+  await page.goto(`${portal(SCHOOL)}/badge#${"x".repeat(43)}`);
   await expect(page.getByRole("alert")).toHaveText(
     "This badge does not work any more. Ask your teacher for a new one.",
   );
@@ -49,7 +55,7 @@ test("a parent hands the device to a young child and a grown-up's answer brings 
     "parent1020@northwind.example.com",
     PASSWORD,
     "/family",
-    "northwind-east",
+    SCHOOL,
   );
   await untilHydrated(page);
   await page.getByRole("button", { name: /^Hand over to / }).click();

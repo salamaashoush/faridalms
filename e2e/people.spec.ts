@@ -6,6 +6,7 @@ import {
   chooseFromMenu,
   openWith,
   PASSWORD,
+  portal,
   signIn,
   signInWith,
   untilHydrated,
@@ -97,7 +98,7 @@ test("record tabs follow the reading direction in Arabic", async ({
 }) => {
   await signIn(page, "admin");
   await context.addCookies([
-    { name: "language-tag", value: "ar", domain: "127.0.0.1", path: "/" },
+    { name: "language-tag", value: "ar", url: portal() },
   ]);
   await page.goto("/admin/students");
   await untilHydrated(page);
@@ -504,7 +505,7 @@ test("the school profile saves its fields and refuses a weekend start", async ({
 }) => {
   const [school, email] = PROFILE_ADMIN[browserName];
   await signInWith(page, email, PASSWORD, "/admin", school);
-  await page.goto("/admin/settings");
+  await page.goto(`${portal(school)}/admin/settings`);
   await untilHydrated(page);
   const profile = page.getByRole("region", { name: "School profile" });
   const weekStart = profile.getByRole("combobox", {

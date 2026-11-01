@@ -99,6 +99,7 @@ try {
         CELL_ID: cellId,
         CELL_KEK: kek.toString("base64"),
         CELL_SECRET: randomBytes(32).toString("base64"),
+        LOGIN_INDEX_KEY: randomBytes(32).toString("base64"),
         E2E_WEB_PORT: webPort,
         E2E_API_PORT: apiPort,
         E2E_COLLAB_PORT: collabPort,

@@ -4,6 +4,7 @@ import {
   ACCOUNTS,
   chooseFromMenu,
   PASSWORD,
+  portal,
   signInWith,
   untilHydrated,
 } from "./fixtures/sign-in";
@@ -132,7 +133,7 @@ test("a Reception teacher judges each child against an early learning goal", asy
     "/admin",
     school,
   );
-  await page.goto("/standards");
+  await page.goto(`${portal(school)}/standards`);
   await untilHydrated(page);
   await page.getByRole("button", { name: "More actions" }).click();
   await page

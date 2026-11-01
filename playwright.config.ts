@@ -47,6 +47,7 @@ export default defineConfig({
     "admissions.spec.ts",
     "hosts.spec.ts",
     "sign-in-page.spec.ts",
+    "bare-domain.spec.ts",
     "home.spec.ts",
     "search.spec.ts",
     "privacy.spec.ts",
@@ -68,8 +69,10 @@ export default defineConfig({
   reporter: "html",
   /* Shared settings for all the projects below. See https://playwright.dev/docs/api/class-testoptions. */
   use: {
-    /* Base URL to use in actions like `await page.goto('/')`. */
-    baseURL: `http://127.0.0.1:${webPort}`,
+    // Northwind's portal: a school signs people in only on its own host, and
+    // the server answers every *.localhost name. Specs of the bare portal
+    // domain reach it at localhost.
+    baseURL: `http://northwind.localhost:${webPort}`,
 
     /* Collect trace when retrying the failed test. See https://playwright.dev/docs/trace-viewer */
     trace: "on-first-retry",
