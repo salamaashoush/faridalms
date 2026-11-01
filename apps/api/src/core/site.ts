@@ -40,13 +40,13 @@ export async function withPublicSite<T>(
       requestId: context.requestId,
       actor: { kind: "system" },
     },
-    (tx) =>
+    (tx, now) =>
       run({
         tx,
         tenantId: school.tenantId,
         schoolId: school.schoolId,
         portalHost: portalHost(school, context.domains),
-        now: new Date(),
+        now,
       }),
   );
 }

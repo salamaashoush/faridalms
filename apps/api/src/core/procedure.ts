@@ -123,7 +123,7 @@ export async function openUnit<T>(
       actor: { kind: "user" },
     },
     access,
-    async (tx, lifecycle) => {
+    async (tx, lifecycle, now) => {
       const session = await findSession(tx, token.tenantId, token.tokenHash);
       if (!session) throw new ORPCError("UNAUTHORIZED");
       await bindActor(tx, {
@@ -145,7 +145,6 @@ export async function openUnit<T>(
             : LIFETIME[session.context].idle,
         );
       const schoolId = context.school.schoolId;
-      const now = new Date();
       const today = dateIn(await schoolZone(tx, schoolId), now);
       const resolved = await effectiveAccess(tx, {
         tenantId: token.tenantId,

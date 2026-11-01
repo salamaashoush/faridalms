@@ -44,11 +44,24 @@ const SIGN_IN_STATES: ReadonlySet<TenantLifecycle> = new Set([
   "frozen",
 ]);
 
+/**
+ * Binds the tenant and reads the database's clock in the same statement. The
+ * unit's `now` is the database's, not the process's: what a unit writes as
+ * happening now is compared with `statement_timestamp()` in policies and
+ * queries, and two clocks a few milliseconds apart would hide it meanwhile.
+ */
 async function beginUnit(tx: CellTransaction, work: UnitOfWork) {
-  const rows = await tx.execute<{ lifecycle: TenantLifecycle | null }>(
-    sql`select app.begin_unit(${work.tenantId}::uuid, ${work.actor.userId ?? null}::uuid, ${work.actor.accountId ?? null}::uuid, ${work.actor.sessionId ?? null}::uuid, ${work.requestId}, ${work.actor.kind}) as lifecycle`,
+  const rows = await tx.execute<{
+    lifecycle: TenantLifecycle | null;
+    now: string | Date;
+  }>(
+    sql`select app.begin_unit(${work.tenantId}::uuid, ${work.actor.userId ?? null}::uuid, ${work.actor.accountId ?? null}::uuid, ${work.actor.sessionId ?? null}::uuid, ${work.requestId}, ${work.actor.kind}) as lifecycle, transaction_timestamp() as now`,
   );
-  return rows[0]?.lifecycle ?? null;
+  const row = rows[0];
+  return {
+    lifecycle: row?.lifecycle ?? null,
+    now: row ? new Date(row.now) : new Date(),
+  };
 }
 
 /**
@@ -63,15 +76,19 @@ async function unit<T>(
   pool: Pool,
   work: UnitOfWork,
   access: Access,
-  run: (tx: CellTransaction, lifecycle: TenantLifecycle) => Promise<T>,
+  run: (
+    tx: CellTransaction,
+    lifecycle: TenantLifecycle,
+    now: Date,
+  ) => Promise<T>,
 ): Promise<T> {
   return pool.transaction(async (tx) => {
-    const lifecycle = await beginUnit(tx, work);
+    const { lifecycle, now } = await beginUnit(tx, work);
     if (lifecycle === null || !SIGN_IN_STATES.has(lifecycle))
       throw new TenantUnavailableError("unknown");
     if (access === "write" && lifecycle !== "active")
       throw new TenantUnavailableError("read_only");
-    return run(tx, lifecycle);
+    return run(tx, lifecycle, now);
   });
 }
 
@@ -108,10 +125,19 @@ export function openCell(urls: CellUrls, size = 10) {
     withTenant: <T>(
       work: UnitOfWork,
       access: Access,
-      run: (tx: CellTransaction, lifecycle: TenantLifecycle) => Promise<T>,
+      run: (
+        tx: CellTransaction,
+        lifecycle: TenantLifecycle,
+        now: Date,
+      ) => Promise<T>,
     ) => unit(pools.app, work, access, run),
-    withSite: <T>(work: UnitOfWork, run: (tx: CellTransaction) => Promise<T>) =>
-      unit(need(pools.site, "site"), work, "read", run),
+    withSite: <T>(
+      work: UnitOfWork,
+      run: (tx: CellTransaction, now: Date) => Promise<T>,
+    ) =>
+      unit(need(pools.site, "site"), work, "read", (tx, _lifecycle, now) =>
+        run(tx, now),
+      ),
     withIntegration: <T>(
       work: UnitOfWork,
       access: Access,
