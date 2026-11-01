@@ -106,6 +106,14 @@ export const env = v.parse(
       // Where the product site's demonstration requests are emailed; only
       // the platform's own deployment sets it.
       PRODUCT_INBOX: v.optional(v.pipe(v.string(), v.trim(), v.email())),
+      // Cloudflare Turnstile on the websites' forms, both keys or neither.
+      // Without them the forms keep their hidden field, fill time and limits.
+      TURNSTILE_SITE_KEY: v.optional(
+        v.pipe(v.string(), v.trim(), v.minLength(1)),
+      ),
+      TURNSTILE_SECRET_KEY: v.optional(
+        v.pipe(v.string(), v.trim(), v.minLength(1)),
+      ),
       RESEND_API_KEY: v.optional(v.pipe(v.string(), v.minLength(1))),
       EMAIL_FROM: v.optional(v.pipe(v.string(), v.minLength(3))),
       // Transactional email and SMS gateways that accept a JSON POST.

@@ -14,6 +14,7 @@ import type { FileStore } from "../files/store";
 import type { HostChecks } from "../hosts/checks";
 import type { Provider } from "../notifications/providers";
 import type { KeyRing } from "./keys";
+import type { Turnstile } from "./turnstile";
 
 /** Everything a request can reach, built once per process. */
 export interface ApiDependencies {
@@ -64,6 +65,11 @@ export interface ApiDependencies {
    * product site takes none.
    */
   productInbox?: string | null;
+  /**
+   * Cloudflare Turnstile for the websites' public forms; null leaves them to
+   * the hidden field, the fill time and the per-network and per-school limits.
+   */
+  turnstile?: Turnstile | null;
 }
 
 export interface RequestContext extends ApiDependencies {

@@ -160,6 +160,9 @@ services:
       NOTIFY_WEBHOOK_TOKEN: ${NOTIFY_WEBHOOK_TOKEN:-}
       # Where the product site's demonstration requests are emailed.
       PRODUCT_INBOX: ${PRODUCT_INBOX:-}
+      # Cloudflare Turnstile on the schools' website forms, both or neither.
+      TURNSTILE_SITE_KEY: ${TURNSTILE_SITE_KEY:-}
+      TURNSTILE_SECRET_KEY: ${TURNSTILE_SECRET_KEY:-}
       TRUSTED_PROXY_HOPS: 1
     networks: [front, data]
     depends_on:

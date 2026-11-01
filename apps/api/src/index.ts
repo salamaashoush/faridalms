@@ -13,6 +13,7 @@ import { createJavaScriptRunner, createPythonRunner } from "./coding/run";
 import { createKeyRing } from "./core/keys";
 import { startPartitionUpkeep } from "./core/partitions";
 import { startQuizClock } from "./core/quiz-clock";
+import { turnstileFrom } from "./core/turnstile";
 import { env } from "./env";
 import { createFilesHost, linkKey } from "./files/links";
 import { createMakeCode } from "./files/makecode";
@@ -153,6 +154,7 @@ const server = Bun.serve({
     },
     mail: gateways.email,
     productInbox: env.PRODUCT_INBOX ?? null,
+    turnstile: turnstileFrom(env),
   }),
 });
 console.info(
