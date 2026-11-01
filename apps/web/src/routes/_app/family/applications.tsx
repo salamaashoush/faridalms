@@ -1,11 +1,12 @@
 import { WITHDRAW_REASONS } from "@faridalms/domain/admissions";
+import { buttonVariants } from "@faridalms/ui/button";
 import {
   useMutation,
   useQueryClient,
   useSuspenseQuery,
 } from "@tanstack/react-query";
-import { createFileRoute } from "@tanstack/react-router";
-import { FileUser } from "lucide-react";
+import { createFileRoute, Link } from "@tanstack/react-router";
+import { FileUser, Plus } from "lucide-react";
 import { Suspense } from "react";
 import { toast } from "sonner";
 
@@ -116,6 +117,15 @@ function ApplicationCard({ row }: { row: Row }) {
             </StatusText>
           ) : null}
         </p>
+        {row.state === "draft" ? (
+          <Link
+            to="/apply"
+            search={{ application: row.id }}
+            className={buttonVariants({ className: "justify-self-start" })}
+          >
+            {m.famAppsContinue()}
+          </Link>
+        ) : null}
         {row.state !== "draft" && row.state !== "withdrawn" ? (
           <Suspense fallback={null}>
             <Documents id={row.id} />
@@ -131,7 +141,15 @@ function FamilyApplications() {
   const data = useSuspenseQuery(myApplicationsQuery).data;
   return (
     <>
-      <PageHeader title={m.famAppsTitle()} description={m.famAppsHint()} />
+      <PageHeader
+        title={m.famAppsTitle()}
+        description={m.famAppsHint()}
+        action={
+          data.intakes.length
+            ? { label: m.famAppsStart(), icon: Plus, link: { to: "/apply" } }
+            : undefined
+        }
+      />
       {data.applications.length ? (
         <div className="grid gap-6">
           {data.applications.map((row) => (

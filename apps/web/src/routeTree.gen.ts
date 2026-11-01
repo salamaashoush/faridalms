@@ -13,6 +13,7 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as AppRouteImport } from './routes/_app'
 import { Route as AuthRouteImport } from './routes/_auth'
 import { Route as AnotherAccountRouteImport } from './routes/another-account'
+import { Route as ApplyRouteImport } from './routes/apply'
 import { Route as BadgeRouteImport } from './routes/badge'
 import { Route as WelcomeRouteImport } from './routes/welcome'
 import { Route as AppAdminRouteImport } from './routes/_app/admin'
@@ -31,6 +32,7 @@ import { Route as AppStaffEditorRouteImport } from './routes/_app/staff-editor'
 import { Route as AppStudentEditorRouteImport } from './routes/_app/student-editor'
 import { Route as AppTeachRouteImport } from './routes/_app/teach'
 import { Route as AuthForgotPasswordRouteImport } from './routes/_auth/forgot-password'
+import { Route as AuthRegisterRouteImport } from './routes/_auth/register'
 import { Route as AuthSignInRouteImport } from './routes/_auth/sign-in'
 import { Route as ApiHealthRouteImport } from './routes/api/health'
 import { Route as FilesFileIdRouteImport } from './routes/files/$fileId'
@@ -152,6 +154,11 @@ const AnotherAccountRoute = AnotherAccountRouteImport.update({
   path: '/another-account',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApplyRoute = ApplyRouteImport.update({
+  id: '/apply',
+  path: '/apply',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const BadgeRoute = BadgeRouteImport.update({
   id: '/badge',
   path: '/badge',
@@ -241,6 +248,11 @@ const AppTeachRoute = AppTeachRouteImport.update({
 const AuthForgotPasswordRoute = AuthForgotPasswordRouteImport.update({
   id: '/forgot-password',
   path: '/forgot-password',
+  getParentRoute: () => AuthRoute,
+} as any)
+const AuthRegisterRoute = AuthRegisterRouteImport.update({
+  id: '/register',
+  path: '/register',
   getParentRoute: () => AuthRoute,
 } as any)
 const AuthSignInRoute = AuthSignInRouteImport.update({
@@ -771,6 +783,7 @@ const SiteSchoolPagesSlugRoute = SiteSchoolPagesSlugRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/another-account': typeof AnotherAccountRoute
+  '/apply': typeof ApplyRoute
   '/badge': typeof BadgeRoute
   '/welcome': typeof WelcomeRoute
   '/admin': typeof AppAdminRouteWithChildren
@@ -789,6 +802,7 @@ export interface FileRoutesByFullPath {
   '/student-editor': typeof AppStudentEditorRoute
   '/teach': typeof AppTeachRouteWithChildren
   '/forgot-password': typeof AuthForgotPasswordRoute
+  '/register': typeof AuthRegisterRoute
   '/sign-in': typeof AuthSignInRoute
   '/api/health': typeof ApiHealthRoute
   '/files/$fileId': typeof FilesFileIdRouteWithChildren
@@ -895,6 +909,7 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/another-account': typeof AnotherAccountRoute
+  '/apply': typeof ApplyRoute
   '/badge': typeof BadgeRoute
   '/welcome': typeof WelcomeRoute
   '/consent-form-editor': typeof AppConsentFormEditorRoute
@@ -909,6 +924,7 @@ export interface FileRoutesByTo {
   '/staff-editor': typeof AppStaffEditorRoute
   '/student-editor': typeof AppStudentEditorRoute
   '/forgot-password': typeof AuthForgotPasswordRoute
+  '/register': typeof AuthRegisterRoute
   '/sign-in': typeof AuthSignInRoute
   '/api/health': typeof ApiHealthRoute
   '/files/$fileId': typeof FilesFileIdRouteWithChildren
@@ -1017,6 +1033,7 @@ export interface FileRoutesById {
   '/_app': typeof AppRouteWithChildren
   '/_auth': typeof AuthRouteWithChildren
   '/another-account': typeof AnotherAccountRoute
+  '/apply': typeof ApplyRoute
   '/badge': typeof BadgeRoute
   '/welcome': typeof WelcomeRoute
   '/_app/admin': typeof AppAdminRouteWithChildren
@@ -1035,6 +1052,7 @@ export interface FileRoutesById {
   '/_app/student-editor': typeof AppStudentEditorRoute
   '/_app/teach': typeof AppTeachRouteWithChildren
   '/_auth/forgot-password': typeof AuthForgotPasswordRoute
+  '/_auth/register': typeof AuthRegisterRoute
   '/_auth/sign-in': typeof AuthSignInRoute
   '/api/health': typeof ApiHealthRoute
   '/files/$fileId': typeof FilesFileIdRouteWithChildren
@@ -1143,6 +1161,7 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/another-account'
+    | '/apply'
     | '/badge'
     | '/welcome'
     | '/admin'
@@ -1161,6 +1180,7 @@ export interface FileRouteTypes {
     | '/student-editor'
     | '/teach'
     | '/forgot-password'
+    | '/register'
     | '/sign-in'
     | '/api/health'
     | '/files/$fileId'
@@ -1267,6 +1287,7 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/another-account'
+    | '/apply'
     | '/badge'
     | '/welcome'
     | '/consent-form-editor'
@@ -1281,6 +1302,7 @@ export interface FileRouteTypes {
     | '/staff-editor'
     | '/student-editor'
     | '/forgot-password'
+    | '/register'
     | '/sign-in'
     | '/api/health'
     | '/files/$fileId'
@@ -1388,6 +1410,7 @@ export interface FileRouteTypes {
     | '/_app'
     | '/_auth'
     | '/another-account'
+    | '/apply'
     | '/badge'
     | '/welcome'
     | '/_app/admin'
@@ -1406,6 +1429,7 @@ export interface FileRouteTypes {
     | '/_app/student-editor'
     | '/_app/teach'
     | '/_auth/forgot-password'
+    | '/_auth/register'
     | '/_auth/sign-in'
     | '/api/health'
     | '/files/$fileId'
@@ -1515,6 +1539,7 @@ export interface RootRouteChildren {
   AppRoute: typeof AppRouteWithChildren
   AuthRoute: typeof AuthRouteWithChildren
   AnotherAccountRoute: typeof AnotherAccountRoute
+  ApplyRoute: typeof ApplyRoute
   BadgeRoute: typeof BadgeRoute
   WelcomeRoute: typeof WelcomeRoute
   ApiHealthRoute: typeof ApiHealthRoute
@@ -1563,6 +1588,13 @@ declare module '@tanstack/react-router' {
       path: '/another-account'
       fullPath: '/another-account'
       preLoaderRoute: typeof AnotherAccountRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/apply': {
+      id: '/apply'
+      path: '/apply'
+      fullPath: '/apply'
+      preLoaderRoute: typeof ApplyRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/badge': {
@@ -1689,6 +1721,13 @@ declare module '@tanstack/react-router' {
       path: '/forgot-password'
       fullPath: '/forgot-password'
       preLoaderRoute: typeof AuthForgotPasswordRouteImport
+      parentRoute: typeof AuthRoute
+    }
+    '/_auth/register': {
+      id: '/_auth/register'
+      path: '/register'
+      fullPath: '/register'
+      preLoaderRoute: typeof AuthRegisterRouteImport
       parentRoute: typeof AuthRoute
     }
     '/_auth/sign-in': {
@@ -2641,12 +2680,14 @@ const AppRouteWithChildren = AppRoute._addFileChildren(AppRouteChildren)
 
 interface AuthRouteChildren {
   AuthForgotPasswordRoute: typeof AuthForgotPasswordRoute
+  AuthRegisterRoute: typeof AuthRegisterRoute
   AuthSignInRoute: typeof AuthSignInRoute
   AuthAuthHandoffRoute: typeof AuthAuthHandoffRoute
 }
 
 const AuthRouteChildren: AuthRouteChildren = {
   AuthForgotPasswordRoute: AuthForgotPasswordRoute,
+  AuthRegisterRoute: AuthRegisterRoute,
   AuthSignInRoute: AuthSignInRoute,
   AuthAuthHandoffRoute: AuthAuthHandoffRoute,
 }
@@ -2701,6 +2742,7 @@ const rootRouteChildren: RootRouteChildren = {
   AppRoute: AppRouteWithChildren,
   AuthRoute: AuthRouteWithChildren,
   AnotherAccountRoute: AnotherAccountRoute,
+  ApplyRoute: ApplyRoute,
   BadgeRoute: BadgeRoute,
   WelcomeRoute: WelcomeRoute,
   ApiHealthRoute: ApiHealthRoute,
