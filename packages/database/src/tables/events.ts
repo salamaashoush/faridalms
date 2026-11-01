@@ -12,7 +12,7 @@ import {
   uuid,
 } from "drizzle-orm/pg-core";
 
-import type { AudienceScope } from "./announcements";
+import type { AudienceScope } from "./broadcasts";
 
 import {
   baseConstraints,

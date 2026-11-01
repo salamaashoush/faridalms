@@ -27,7 +27,6 @@ const INTERNAL_CODES: ReadonlySet<string> = new Set([
   "account.handle_taken",
   "account.no_password",
   "administrator.not_found",
-  "announcement_recipient.exists",
   "announcements.ack_due_without_ack",
   "application.questions",
   "assessment.exists",
@@ -36,6 +35,7 @@ const INTERNAL_CODES: ReadonlySet<string> = new Set([
   "attendance.minutes_not_timed",
   "auth.invalid_handoff",
   "auth.invalid_invite",
+  "broadcast_recipient.exists",
   "calendar.code_taken",
   "calendar.range",
   "calendar.school_calendar_exists",
@@ -368,6 +368,15 @@ export function getMessageFromError(error: unknown): string {
         return m.siteIssueOrder();
       case "content.link":
         return m.siteIssueLink();
+      case "content.heading":
+        return m.siteIssueHeading();
+      case "content.captions":
+        return m.contentIssueCaptions();
+      case "content.unreviewed":
+        return m.contentIssueUnreviewed();
+      case "content.consent":
+      case "announcements.consent":
+        return m.contentErrConsent();
       case "announcements.archived":
         return m.annErrArchived();
       case "announcements.already_out":

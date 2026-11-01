@@ -537,7 +537,7 @@ export function NewsEditor({
         history={
           stored
             ? {
-                hostType: "site_post",
+                hostType: "news",
                 hostId: postId,
                 onRestore: (content) => {
                   change({ body: content });

@@ -501,6 +501,7 @@ export const ISSUE_LABEL: Record<SiteIssueCode, () => string> = {
   link: m.siteIssueLink,
   action: m.siteIssueAction,
   captions: m.siteIssueCaptions,
+  unreviewed: m.contentIssueUnreviewed,
   label: m.siteIssueLabel,
   form_contact: m.siteIssueFormContact,
   form_question: m.siteIssueFormQuestion,

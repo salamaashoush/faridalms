@@ -12,7 +12,7 @@ import {
   classesTaughtBy,
   teachesClass,
 } from "@faridalms/database/stores/classes";
-import { documentOf, saveDocument } from "@faridalms/database/stores/documents";
+import { saveDocument } from "@faridalms/database/stores/documents";
 import {
   eventById,
   eventReaches,
@@ -36,10 +36,7 @@ import {
   saveEventSchema,
 } from "@faridalms/domain/calendar";
 import { contentFileIds, contentPlainText } from "@faridalms/domain/content";
-import {
-  CONTENT_ISSUE_CODE,
-  contentIssues,
-} from "@faridalms/domain/content-checks";
+import { CONTENT_ISSUE_CODE } from "@faridalms/domain/content-checks";
 import { ORPCError } from "@orpc/server";
 import * as v from "valibot";
 
@@ -55,11 +52,46 @@ import {
   requireCapability,
   writeProcedure,
 } from "../core/procedure";
+import {
+  draftWords,
+  publishedWords,
+  publishWords,
+  wordsIssues,
+} from "../core/publication";
 import { registerHostReader, placeMedia } from "../files/authorize";
 
 const id = v.pipe(v.string(), v.uuid());
 
 const manages = (context: UnitContext) => can(context, "calendar:manage");
+
+const host = (eventId: string) => ({ type: "calendar_event", id: eventId });
+
+/**
+ * What stops an event's description going out to its audience, by the one
+ * check list and the consent of everyone its pictures show.
+ */
+async function checkDescription(
+  context: UnitContext,
+  description: ContentDocument | null,
+) {
+  const [problem] = await wordsIssues(context, [description]);
+  if (problem)
+    throw new ORPCError("BAD_REQUEST", {
+      message: CONTENT_ISSUE_CODE[problem],
+    });
+}
+
+/** The description its audience reads now, and the people it newly mentions told. */
+function sendDescription(
+  context: UnitContext,
+  row: { id: string; titleEn: string | null; titleAr: string | null },
+) {
+  return publishWords(context, host(row.id), {
+    live: true,
+    title: row.titleEn ?? row.titleAr ?? "",
+    ...(row.titleAr ? { titleAr: row.titleAr } : {}),
+  });
+}
 
 function teachingScope(context: UnitContext): Scope {
   return {
@@ -266,15 +298,13 @@ export const event = readProcedure
       manages(context) ||
       (can(context, "calendar:author") &&
         row.authorUserId === context.actor.userId);
-    const [audiences, description] = await Promise.all([
+    const [audiences, draft, published] = await Promise.all([
       audiencesOf(context.tx, context.tenantId, {
         kind: "calendar_event",
         id: row.id,
       }),
-      documentOf(context.tx, context.tenantId, {
-        type: "calendar_event",
-        id: row.id,
-      }),
+      draftWords(context, host(row.id)),
+      publishedWords(context, host(row.id)),
     ]);
     const reached = canEdit
       ? (
@@ -293,8 +323,9 @@ export const event = readProcedure
       ...row,
       audiences: canEdit ? audiences : [],
       reached,
-      description: (description?.content ??
-        null) as unknown as ContentDocument | null,
+      // Its audience reads the description as it went out; those who can
+      // change it read what they are writing.
+      description: canEdit ? draft.body : (published?.body ?? null),
       canManage: manages(context),
       canEdit,
     };
@@ -320,9 +351,12 @@ export const save = writeProcedure
     let eventId = input.id;
     let version: number;
     let told = false;
+    let out = false;
     if (input.id) {
       const row = await editable(context, input.id);
-      told = row.state === "published" && input.sendUpdate;
+      out = row.state === "published";
+      if (out) await checkDescription(context, input.description);
+      told = out && input.sendUpdate;
       const next = await updateEvent(context.tx, {
         tenantId: context.tenantId,
         id: input.id,
@@ -361,6 +395,13 @@ export const save = writeProcedure
       plainText: contentPlainText(input.description),
       userId: context.actor.userId,
     });
+    // A published event changes for its audience as it is saved.
+    if (out)
+      await sendDescription(context, {
+        id: eventId,
+        titleEn: fields.titleEn,
+        titleAr: fields.titleAr,
+      });
     if (told)
       await tell(
         context,
@@ -390,17 +431,10 @@ export const publish = writeProcedure
   .input(publishEventSchema)
   .handler(async ({ input, context }) => {
     const row = await editable(context, input.id);
-    const description = await documentOf(context.tx, context.tenantId, {
-      type: "calendar_event",
-      id: row.id,
-    });
-    const [problem] = description
-      ? contentIssues(description.content as unknown as ContentDocument)
-      : [];
-    if (problem)
-      throw new ORPCError("BAD_REQUEST", {
-        message: CONTENT_ISSUE_CODE[problem],
-      });
+    await checkDescription(
+      context,
+      (await draftWords(context, host(row.id))).body,
+    );
     const version = await publishEvent(context.tx, {
       tenantId: context.tenantId,
       id: row.id,
@@ -408,6 +442,7 @@ export const publish = writeProcedure
     });
     if (version === null)
       throw new ORPCError("CONFLICT", { message: "conflict.version" });
+    await sendDescription(context, row);
     const told = input.notify ? await tell(context, row, {}) : 0;
     await audit(context, {
       action: "calendar_event.publish",

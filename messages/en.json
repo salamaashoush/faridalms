@@ -8643,5 +8643,8 @@
   "personNoTeaching": "No classes in this year.",
   "personTeachingAide": "Assistant",
   "personTeachingIn": "In {class}",
-  "periodsDays": "Days"
+  "periodsDays": "Days",
+  "contentIssueCaptions": "A recording has no captions or transcript",
+  "contentIssueUnreviewed": "A suggested question is still waiting to be kept or removed",
+  "contentErrConsent": "Someone in a picture has not agreed to photos shared inside the school."
 }

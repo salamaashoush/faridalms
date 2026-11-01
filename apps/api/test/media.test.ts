@@ -413,6 +413,24 @@ describe("a recording its maker cut", () => {
       });
       if (roster.some((pupil) => pupil.id === me.id)) classId = row.id;
     }
+    // A video goes out to readers only with its captions.
+    const vtt = "WEBVTT\n\n00:00:00.000 --> 00:00:02.000\nWatch closely.\n";
+    const captions = await teacher.api.files.initiate({
+      purpose: "document_media",
+      name: "recording.vtt",
+      mediaType: "text/vtt",
+      sizeBytes: new TextEncoder().encode(vtt).length,
+    });
+    expect(
+      (
+        await raw(
+          "northwind",
+          teacher.token,
+          `/v1/files/${captions.id}/content`,
+          { method: "PUT", body: vtt },
+        )
+      ).status,
+    ).toBe(200);
     const brief = plainContent("Watch the recording.");
     brief.root.children?.push({
       type: "media",
@@ -422,6 +440,7 @@ describe("a recording its maker cut", () => {
       name: "recording.webm",
       mime: "video/webm",
       bytes: webm().size,
+      captionsFileId: captions.id,
     });
     const saved = await teacher.api.coursework.save({
       classId,

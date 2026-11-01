@@ -7,7 +7,16 @@ import {
 } from "@faridalms/domain/content-conversion";
 import { describe, expect, test } from "bun:test";
 
-import { client, login, rejection, sessionFor, signedIn } from "./harness";
+import { runGoLive } from "../src/core/publication";
+import {
+  client,
+  login,
+  rejection,
+  seeded,
+  sessionFor,
+  signedIn,
+  timeHasCome,
+} from "./harness";
 
 const principal = () => signedIn("northwind", login("principal"));
 const mother = () =>
@@ -289,6 +298,46 @@ describe("writing school news", () => {
     expect(opened.audiences.map((row) => row.scope)).toEqual(["families"]);
     expect(headings(opened.translation)[0]).toBe("خطط الفصل الشتوي");
     expect(opened.translationReview?.current).toBe(true);
+  });
+
+  test("a scheduled post tells its audience once it goes live, and not if it is taken back first", async () => {
+    const office = await principal();
+    const tenantId = seeded().tenants[0]?.tenantId ?? "";
+    const channels = { email: false, sms: false };
+    const later = new Date(Date.now() + 2 * 86_400_000).toISOString();
+    const kept = await office.news.save(story("Science fair", "Science fair"));
+    const keptOut = await office.news.publish({
+      id: kept.id,
+      expectedVersion: kept.version,
+      publishAt: later,
+    });
+    const dropped = await office.news.save(story("Bake sale", "Bake sale"));
+    const droppedOut = await office.news.publish({
+      id: dropped.id,
+      expectedVersion: dropped.version,
+      publishAt: later,
+    });
+    await office.news.unpublish({
+      id: dropped.id,
+      expectedVersion: droppedOut.version,
+    });
+    const family = await mother();
+    const told = async (id: string) =>
+      (await family.notifications.list({ tab: "all" })).rows.filter(
+        (row) => row.subjectId === id && row.kind === "news",
+      ).length;
+
+    await timeHasCome("broadcasts", kept.id);
+    await runGoLive(seeded().cell, tenantId, { channels });
+    await runGoLive(seeded().cell, tenantId, { channels });
+    expect(await told(kept.id)).toBe(1);
+    expect(await told(dropped.id)).toBe(0);
+    expect(keptOut.recipients).toBeGreaterThan(0);
+    expect(
+      (await family.news.list({ q: "Science fair" })).rows.some(
+        (row) => row.id === kept.id,
+      ),
+    ).toBe(true);
   });
 
   test("a post with nothing written cannot go out", async () => {

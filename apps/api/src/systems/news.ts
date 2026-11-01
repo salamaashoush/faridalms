@@ -1,53 +1,21 @@
-import type { PostRow } from "@faridalms/database/stores/news";
+import type { BroadcastRow } from "@faridalms/database/stores/broadcasts";
 import type { ContentDocument } from "@faridalms/domain/content";
+import type { SaveNews } from "@faridalms/domain/news";
 import type { ContentLocale } from "@faridalms/domain/translations";
 import type { SiteLocale } from "@faridalms/domain/website";
 
-import {
-  audiencesOf,
-  audienceUsers,
-  setAudiences,
-} from "@faridalms/database/stores/audiences";
-import {
-  documentOf,
-  dropTranslation,
-  publishedVersion,
-  saveDocument,
-  saveTranslation,
-  snapshotPublish,
-  translationOf,
-  versionsOf,
-} from "@faridalms/database/stores/documents";
-import {
-  addPostRecipients,
-  insertPost,
-  managedPosts,
-  markPostRead,
-  newsFor,
-  postById,
-  postRecipientOf,
-  postReport,
-  setPostState,
-  updatePost,
-} from "@faridalms/database/stores/news";
-import { readSubject } from "@faridalms/database/stores/notifications";
+import { newsFor } from "@faridalms/database/stores/broadcasts";
 import {
   siteCategories,
   siteSettings,
-  subjectsWithoutConsent,
   withdrawPost,
   writePublishedPost,
 } from "@faridalms/database/stores/site";
-import {
-  reviewTranslation,
-  translationReview,
-} from "@faridalms/database/stores/translations";
 import {
   contentFileIds,
   contentPlainText,
   firstPicture,
 } from "@faridalms/domain/content";
-import { emptyContent } from "@faridalms/domain/content-conversion";
 import {
   manageNewsSchema,
   NEWS_PAGE,
@@ -67,78 +35,69 @@ import * as v from "valibot";
 
 import type { UnitContext } from "../core/context";
 
-import { audienceChoices, audienceOf } from "../core/audiences";
-import { publishTelling } from "../core/mentions";
-import { notify } from "../core/notify";
+import { audienceChoices } from "../core/audiences";
 import {
-  audit,
   can,
   readProcedure,
   requireCapability,
   writeProcedure,
 } from "../core/procedure";
-import { sharedInliner } from "../core/shared";
 import { publishMedia, withdrawMedia } from "../core/site";
 import {
-  placeMedia,
-  registerHostReader,
-  registerHostWriter,
-} from "../files/authorize";
+  checkWords,
+  defineKind,
+  duplicateBroadcast,
+  editorOf,
+  manage as manageKind,
+  primaryOf,
+  publishBroadcast,
+  recordOf,
+  reviewBroadcast,
+  saveBroadcast,
+  seenBroadcast,
+  takeDown,
+  titleIn,
+} from "./broadcasts";
 
 const id = v.pipe(v.string(), v.uuid());
 
-const host = (postId: string) => ({ type: "site_post", id: postId });
+/** What a notice says of a post: its summary, else the start of its words. */
+const summaryOf = (en: string, ar: string, words: ContentDocument | null) =>
+  (en || ar || (words ? contentPlainText(words) : "")).slice(0, 160);
 
-const conflict = () =>
-  new ORPCError("CONFLICT", { message: "conflict.version" });
-
-async function ofSchool(context: UnitContext, postId: string) {
-  const row = await postById(context.tx, context.tenantId, postId);
-  if (!row || row.orgId !== context.schoolId) throw new ORPCError("NOT_FOUND");
-  return row;
-}
-
-async function managed(context: UnitContext, postId: string) {
-  requireCapability(context, "news:manage");
-  return ofSchool(context, postId);
-}
-
-const out = (row: PostRow, now: Date) =>
-  row.state === "published" &&
-  row.publishedAt !== null &&
-  Date.parse(row.publishedAt) <= now.getTime();
-
-/**
- * A post the viewer may read inside the school: any for those who manage
- * news, otherwise one out that is public or reached them.
- */
-async function readable(context: UnitContext, postId: string) {
-  const row = await ofSchool(context, postId);
-  const recipient = await postRecipientOf(context.tx, {
-    tenantId: context.tenantId,
-    postId: row.id,
-    userId: context.actor.userId,
-  });
-  if (can(context, "news:manage")) return { row, recipient };
-  if (!out(row, context.now) || (row.visibility !== "public" && !recipient))
-    throw new ORPCError("NOT_FOUND");
-  return { row, recipient };
-}
-
-registerHostReader("site_post", async (context, hostId) => {
-  try {
-    await readable(context, hostId);
-    return true;
-  } catch {
-    return false;
-  }
+/** A news post: a broadcast that can also be on the school's website. */
+const rules = defineKind({
+  kind: "news",
+  capability: "news:manage",
+  codes: {
+    archived: "news.archived",
+    alreadyOut: "news.already_out",
+    nobody: "news.nobody",
+    consent: "news.consent",
+    nothingToCheck: "news.nothing_to_check",
+  },
+  audit: "news",
+  revised: "revise",
+  notice: (row, words) => ({
+    kind: "news",
+    params: {
+      title: titleIn(row, "en"),
+      titleAr: titleIn(row, "ar"),
+      preview: summaryOf(
+        row.excerptEn,
+        row.excerptAr,
+        primaryOf(row) === "en" ? words.body : words.other,
+      ),
+    },
+    needsAction: false,
+  }),
 });
 
-registerHostWriter("site_post", async (context, hostId) => {
-  if (!can(context, "news:manage")) return false;
-  const row = await postById(context.tx, context.tenantId, hostId);
-  return row !== null && row.orgId === context.schoolId;
-});
+/** A news post's address on the website, which every news post has. */
+function slugOf(row: BroadcastRow): string {
+  if (row.slug === null) throw new Error(`news post ${row.id} has no slug`);
+  return row.slug;
+}
 
 /** The site's languages, which a public post is published in. */
 async function siteLanguages(context: UnitContext) {
@@ -156,66 +115,13 @@ async function siteLanguages(context: UnitContext) {
   };
 }
 
-const bodyOf = (content: unknown): ContentDocument | null =>
-  content ? (content as ContentDocument) : null;
-
-/** The two languages as they are being written. */
-async function drafts(context: UnitContext, postId: string) {
-  const original = await documentOf(context.tx, context.tenantId, host(postId));
-  const translation = original
-    ? await translationOf(context.tx, context.tenantId, original.id)
-    : null;
-  return { original, translation };
-}
-
-/** The two languages as readers last received them, with whether edits wait since. */
-async function edition(context: UnitContext, postId: string) {
-  const { original, translation } = await drafts(context, postId);
-  if (!original) return null;
-  const [published, publishedTranslation] = await Promise.all([
-    publishedVersion(context.tx, context.tenantId, original.id),
-    translation
-      ? publishedVersion(context.tx, context.tenantId, translation.id)
-      : Promise.resolve(null),
-  ]);
-  if (!published) return null;
-  return {
-    body: bodyOf(published.content) ?? emptyContent(),
-    translation: bodyOf(publishedTranslation?.content ?? null),
-    changedSince:
-      original.version > published.documentVersion ||
-      (translation !== null &&
-        translation.version > (publishedTranslation?.documentVersion ?? 0)),
-  };
-}
-
-const primaryOf = (row: PostRow): ContentLocale => row.primaryLocale ?? "en";
-
-/** A post out later than now reads as scheduled. */
-const shownState = (row: PostRow, now: Date) =>
-  row.state === "published" &&
-  row.publishedAt !== null &&
-  Date.parse(row.publishedAt) > now.getTime()
-    ? ("scheduled" as const)
-    : row.state;
-
-/** What a notice says of a post: its summary, else the start of its words. */
-const summaryOf = (en: string, ar: string, words: ContentDocument | null) =>
-  (en || ar || (words ? contentPlainText(words) : "")).slice(0, 160);
-
-const titleIn = (row: PostRow, locale: ContentLocale) => {
-  const pick = (which: ContentLocale) =>
-    which === "ar" ? row.titleAr : row.titleEn;
-  return pick(locale) || pick(primaryOf(row)) || pick(otherLocale(locale));
-};
-
 const postMedia = (body: ContentDocument, coverFileId: string | null) => [
   ...new Set([...contentFileIds(body), ...(coverFileId ? [coverFileId] : [])]),
 ];
 
 /** What stops a post going out, per language it is written in. */
 function issuesOf(
-  row: PostRow,
+  row: BroadcastRow,
   body: ContentDocument,
   translation: ContentDocument | null,
 ) {
@@ -232,6 +138,40 @@ function issuesOf(
   }
   return found;
 }
+
+const fieldsOf = (
+  input: Pick<
+    SaveNews,
+    | "titleEn"
+    | "titleAr"
+    | "visibility"
+    | "categoryId"
+    | "slug"
+    | "excerptEn"
+    | "excerptAr"
+    | "coverFileId"
+    | "coverAltEn"
+    | "coverAltAr"
+    | "pinned"
+  >,
+) => ({
+  titleEn: input.titleEn,
+  titleAr: input.titleAr,
+  visibility: input.visibility,
+  urgency: "normal" as const,
+  pinnedUntil: null,
+  expiresOn: null,
+  requiresAck: false,
+  ackDueOn: null,
+  categoryId: input.categoryId || null,
+  slug: input.slug,
+  excerptEn: input.excerptEn,
+  excerptAr: input.excerptAr,
+  coverFileId: input.coverFileId || null,
+  coverAltEn: input.coverAltEn,
+  coverAltAr: input.coverAltAr,
+  pinned: input.pinned,
+});
 
 /** What the school's readers see, a page at a time: posts out that are public or reached them. */
 export const list = readProcedure
@@ -259,15 +199,7 @@ export const list = readProcedure
 
 export const manage = readProcedure
   .input(manageNewsSchema)
-  .handler(async ({ input, context }) => {
-    requireCapability(context, "news:manage");
-    return managedPosts(context.tx, {
-      tenantId: context.tenantId,
-      orgId: context.schoolId,
-      tab: input.tab,
-      q: input.q,
-    });
-  });
+  .handler(({ input, context }) => manageKind(context, rules, input));
 
 /** Audiences, categories and the website's languages a post is written against. */
 export const options = readProcedure.handler(async ({ context }) => {
@@ -294,33 +226,10 @@ export const options = readProcedure.handler(async ({ context }) => {
 export const editor = readProcedure
   .input(v.object({ id }))
   .handler(async ({ input, context }) => {
-    const row = await managed(context, input.id);
-    const [audiences, { original, translation }, review, published] =
-      await Promise.all([
-        audiencesOf(context.tx, context.tenantId, {
-          kind: "site_post",
-          id: row.id,
-        }),
-        drafts(context, row.id),
-        translationReview(context.tx, {
-          tenantId: context.tenantId,
-          host: "site_post",
-          id: row.id,
-        }),
-        edition(context, row.id),
-      ]);
-    const body = bodyOf(original?.content ?? null) ?? emptyContent();
-    const other = bodyOf(translation?.content ?? null);
+    const opened = await editorOf(context, rules, input.id);
     return {
-      ...row,
-      primaryLocale: primaryOf(row),
-      shown: shownState(row, context.now),
-      audiences,
-      body,
-      translation: other,
-      translationReview: review,
-      changedSince: published?.changedSince ?? false,
-      issues: issuesOf(row, body, other),
+      ...opened,
+      issues: issuesOf(opened, opened.body, opened.translation),
     };
   });
 
@@ -330,196 +239,27 @@ export const editor = readProcedure
  */
 export const record = readProcedure
   .input(v.object({ id }))
-  .handler(async ({ input, context }) => {
-    const { row, recipient } = await readable(context, input.id);
-    const manages = can(context, "news:manage");
-    const [audiences, published, report, review] = await Promise.all([
-      audiencesOf(context.tx, context.tenantId, {
-        kind: "site_post",
-        id: row.id,
-      }),
-      edition(context, row.id),
-      manages
-        ? postReport(context.tx, {
-            tenantId: context.tenantId,
-            postId: row.id,
-          })
-        : Promise.resolve(null),
-      manages
-        ? translationReview(context.tx, {
-            tenantId: context.tenantId,
-            host: "site_post",
-            id: row.id,
-          })
-        : Promise.resolve(null),
-    ]);
-    let shown = published;
-    if (!shown && manages) {
-      const { original, translation } = await drafts(context, row.id);
-      shown = {
-        body: bodyOf(original?.content ?? null) ?? emptyContent(),
-        translation: bodyOf(translation?.content ?? null),
-        changedSince: false,
-      };
-    }
-    if (!shown) throw new ORPCError("NOT_FOUND");
-    const { original } = await drafts(context, row.id);
-    const sends = original
-      ? (await versionsOf(context.tx, context.tenantId, original.id)).filter(
-          (version) => version.reason === "publish",
-        )
-      : [];
-    return {
-      ...row,
-      primaryLocale: primaryOf(row),
-      shown: shownState(row, context.now),
-      /** When an edition already out was last replaced for its readers. */
-      updatedAt: sends.length > 1 ? (sends[0]?.createdAt ?? null) : null,
-      audiences,
-      body: shown.body,
-      translation: shown.translation,
-      translationReview: review,
-      preview: published === null,
-      changedSince: shown.changedSince,
-      readAt: recipient?.readAt ?? null,
-      canManage: manages,
-      report,
-    };
-  });
+  .handler(({ input, context }) => recordOf(context, rules, input.id));
 
 export const save = writeProcedure
   .input(saveNewsSchema)
-  .handler(async ({ input, context }) => {
-    requireCapability(context, "news:manage");
-    const fields = {
-      categoryId: input.categoryId || null,
-      slug: input.slug,
-      titleEn: input.titleEn,
-      titleAr: input.titleAr,
-      excerptEn: input.excerptEn,
-      excerptAr: input.excerptAr,
-      coverFileId: input.coverFileId || null,
-      coverAltEn: input.coverAltEn,
-      coverAltAr: input.coverAltAr,
-      pinned: input.pinned,
-      visibility: input.visibility,
-    };
-    let postId = input.id;
-    let version: number;
-    let keepFiles: string[] = [];
-    let before: { plainText: string } | null = null;
-    if (input.id) {
-      const row = await managed(context, input.id);
-      if (row.state === "archived")
-        throw new ORPCError("CONFLICT", { message: "news.archived" });
-      const next = await updatePost(context.tx, {
-        tenantId: context.tenantId,
-        id: row.id,
-        expectedVersion: input.expectedVersion,
-        ...fields,
-      });
-      if (next === null) throw conflict();
-      version = next;
-      before = (await drafts(context, row.id)).translation;
-      const published = await edition(context, row.id);
-      // What readers already have must keep its pictures while edits wait.
-      if (published)
-        keepFiles = [
-          ...contentFileIds(published.body),
-          ...(published.translation
-            ? contentFileIds(published.translation)
-            : []),
-        ];
-    } else {
-      const created = await insertPost(context.tx, {
-        tenantId: context.tenantId,
-        orgId: context.schoolId,
-        authorId: context.actor.userId,
-        ...fields,
-      });
-      postId = created.id;
-      version = created.version;
-    }
-    await setAudiences(context.tx, {
-      tenantId: context.tenantId,
-      owner: { kind: "site_post", id: postId },
-      audiences: input.audiences.map(audienceOf),
-    });
-    const placed = await placeMedia(
-      context,
-      host(postId),
-      input.body,
-      postMedia(input.body, fields.coverFileId),
-    );
-    const original = await saveDocument(context.tx, {
-      tenantId: context.tenantId,
-      orgId: context.schoolId,
-      host: host(postId),
-      kind: "rich_text",
-      locale: input.primaryLocale,
-      content: placed.content,
-      plainText: contentPlainText(input.body),
-      mediaIds: [...new Set([...placed.mediaIds, ...keepFiles])],
-      userId: context.actor.userId,
-    });
-    if (input.translation && documentWritten(input.translation))
-      await saveTranslation(context.tx, {
-        tenantId: context.tenantId,
-        orgId: context.schoolId,
-        host: host(postId),
-        originalId: original.id,
-        locale: otherLocale(input.primaryLocale),
-        kind: "rich_text",
-        ...(await placeMedia(
-          context,
-          host(postId),
-          input.translation,
-          contentFileIds(input.translation),
-        )),
-        plainText: contentPlainText(input.translation),
-        userId: context.actor.userId,
-      });
-    else
-      await dropTranslation(context.tx, {
-        tenantId: context.tenantId,
-        originalId: original.id,
-      });
-    // A check lapses by itself once the original's words change; a translation
-    // rewritten, or dropped, needs checking again.
-    if (
-      !input.translation ||
-      contentPlainText(input.translation) !== (before?.plainText ?? "")
-    ) {
-      const cleared = await reviewTranslation(context.tx, {
-        host: "site_post",
-        tenantId: context.tenantId,
-        id: postId,
-        userId: context.actor.userId,
-        reviewed: false,
-      });
-      if (cleared !== null) version = cleared;
-    }
-    await audit(context, {
-      action: input.id ? "news.update" : "news.create",
-      objectType: "site_post",
-      objectId: postId,
+  .handler(({ input, context }) =>
+    saveBroadcast(context, rules, {
+      id: input.id,
+      expectedVersion: input.expectedVersion,
+      primaryLocale: input.primaryLocale,
+      body: input.body,
+      translation: input.translation,
+      audiences: input.audiences,
+      fields: fieldsOf(input),
       details: { slug: input.slug, visibility: input.visibility },
-    });
-    return {
-      id: postId,
-      version,
-      translationReview: await translationReview(context.tx, {
-        tenantId: context.tenantId,
-        host: "site_post",
-        id: postId,
-      }),
-    };
-  });
+    }),
+  );
 
 /** Writes a public post's copy in each of the website's languages for visitors. */
 async function putOnWebsite(
   context: UnitContext,
-  row: PostRow,
+  row: BroadcastRow,
   body: ContentDocument,
   translation: ContentDocument | null,
   publishedAt: string,
@@ -528,7 +268,7 @@ async function putOnWebsite(
   const primary = primaryOf(row);
   const media = await publishMedia(
     context,
-    { tenantId: context.tenantId, hostType: "site_post", hostId: row.id },
+    { tenantId: context.tenantId, hostType: "news", hostId: row.id },
     [
       ...new Set([
         ...postMedia(body, row.coverFileId),
@@ -554,7 +294,7 @@ async function putOnWebsite(
     await writePublishedPost(context.tx, {
       tenantId: context.tenantId,
       orgId: context.schoolId,
-      post: row,
+      post: { ...row, slug: slugOf(row) },
       locale,
       title: titleIn(row, locale),
       excerpt: words(row.excerptEn, row.excerptAr),
@@ -570,155 +310,51 @@ async function putOnWebsite(
   }
 }
 
-async function offWebsite(context: UnitContext, postId: string) {
-  await withdrawPost(context.tx, { tenantId: context.tenantId, postId });
+async function offWebsite(context: UnitContext, row: BroadcastRow) {
+  await withdrawPost(context.tx, {
+    tenantId: context.tenantId,
+    postId: row.id,
+  });
   await withdrawMedia(context, {
     tenantId: context.tenantId,
-    hostType: "site_post",
-    hostId: postId,
+    hostType: "news",
+    hostId: row.id,
   });
 }
 
 /**
  * Sends a post now or at a set time: the words are snapshotted for readers,
- * its audience fixed and told once, and a public post is written to the
- * website. Publishing one already out replaces what readers have without
- * telling them again, and reaches anyone newly in its audience.
+ * its audience fixed and told once it is out, and a public post is written
+ * to the website. Publishing one already out replaces what readers have
+ * without telling them again, and reaches anyone newly in its audience.
  */
 export const publish = writeProcedure
   .input(publishNewsSchema)
-  .handler(async ({ input, context }) => {
-    const row = await managed(context, input.id);
-    if (row.state === "archived")
-      throw new ORPCError("CONFLICT", { message: "news.archived" });
-    const revising = out(row, context.now);
-    const later =
-      input.publishAt !== "" &&
-      Date.parse(input.publishAt) > context.now.getTime();
-    if (revising && later)
-      throw new ORPCError("BAD_REQUEST", { message: "news.already_out" });
-    const { original, translation } = await drafts(context, row.id);
-    const written = bodyOf(original?.content ?? null);
-    if (!original || !written || !documentWritten(written))
-      throw new ORPCError("CONFLICT", { message: "news.empty" });
-    const translated = bodyOf(translation?.content ?? null);
-    // Its readers here see shared blocks as they stand; the website's copy
-    // stands on its own, so it is checked and written with them in place.
-    const inline = await sharedInliner(
-      context,
-      translated ? [written, translated] : [written],
-    );
-    const body = inline(written);
-    const other = translated ? inline(translated) : null;
-    const issues = issuesOf(row, body, other);
-    if (issues.en.length + issues.ar.length > 0)
-      throw new ORPCError("CONFLICT", { message: "site.issues" });
-    // The website copy is checked again as its pictures go public; a post for
-    // the school is checked here against consent to photos in school news.
-    if (row.visibility === "school") {
-      const unconsented = await subjectsWithoutConsent(context.tx, {
-        tenantId: context.tenantId,
-        fileIds: [
-          ...new Set([
-            ...postMedia(body, row.coverFileId),
-            ...(other ? postMedia(other, null) : []),
-          ]),
-        ],
-        meaning: "photo_internal",
-        on: context.today,
-      });
-      if (unconsented.length > 0)
-        throw new ORPCError("CONFLICT", { message: "news.consent" });
-    }
-    const audiences = await audiencesOf(context.tx, context.tenantId, {
-      kind: "site_post",
-      id: row.id,
-    });
-    const users = await audienceUsers(
-      context.tx,
-      {
-        tenantId: context.tenantId,
-        schoolId: context.schoolId,
-        on: context.today,
-      },
-      audiences,
-    );
-    if (row.visibility === "school" && users.length === 0)
-      throw new ORPCError("CONFLICT", { message: "news.nobody" });
-    const publishedAt =
-      revising && row.publishedAt
-        ? row.publishedAt
-        : later
-          ? input.publishAt
-          : context.now.toISOString();
-    const version = await setPostState(context.tx, {
-      tenantId: context.tenantId,
-      id: row.id,
+  .handler(({ input, context }) =>
+    publishBroadcast(context, rules, {
+      id: input.id,
       expectedVersion: input.expectedVersion,
-      state: "published",
-      publishedAt,
-    });
-    if (version === null) throw conflict();
-    // A post set for later tells nobody yet, those it mentions included.
-    if (later)
-      await snapshotPublish(context.tx, {
-        tenantId: context.tenantId,
-        documentId: original.id,
-        userId: context.actor.userId,
-      });
-    else
-      await publishTelling(context, {
-        documentId: original.id,
-        subject: { type: "site_post", id: row.id },
-        title: titleIn(row, "en"),
-        titleAr: titleIn(row, "ar"),
-      });
-    if (translation && other)
-      await snapshotPublish(context.tx, {
-        tenantId: context.tenantId,
-        documentId: translation.id,
-        userId: context.actor.userId,
-      });
-    if (row.visibility === "public")
-      await putOnWebsite(context, row, body, other, publishedAt);
-    else await offWebsite(context, row.id);
-    const added = await addPostRecipients(context.tx, {
-      tenantId: context.tenantId,
-      postId: row.id,
-      userIds: users,
-    });
-    if (!later && !revising && users.length > 0) {
-      await notify(context, users, {
-        kind: "news",
-        subject: { type: "site_post", id: row.id },
-        params: {
-          title: titleIn(row, "en"),
-          titleAr: titleIn(row, "ar"),
-          preview: summaryOf(
-            row.excerptEn,
-            row.excerptAr,
-            primaryOf(row) === "en" ? body : other,
-          ),
-        },
-      });
-    }
-    await audit(context, {
-      action: revising
-        ? "news.revise"
-        : later
-          ? "news.schedule"
-          : "news.publish",
-      objectType: "site_post",
-      objectId: row.id,
-      details: {
-        visibility: row.visibility,
-        recipients: users.length,
-        added,
-        publishAt: input.publishAt || null,
+      publishAt: input.publishAt,
+      revise: "quietly",
+      check: async (row, body, other) => {
+        if (!documentWritten(body))
+          throw new ORPCError("CONFLICT", { message: "news.empty" });
+        const issues = issuesOf(row, body, other);
+        if (issues.en.length + issues.ar.length > 0)
+          throw new ORPCError("CONFLICT", { message: "site.issues" });
+        // The website copy is checked again as its pictures go public.
+        await checkWords(context, rules, [body, other], {
+          underHeading: true,
+          beside: row.coverFileId ? [row.coverFileId] : [],
+          consent: row.visibility === "school",
+        });
       },
-    });
-    return { version, recipients: users.length };
-  });
+      website: (row, body, other, publishAt) =>
+        row.visibility === "public"
+          ? putOnWebsite(context, row, body, other, publishAt)
+          : offWebsite(context, row),
+    }),
+  );
 
 /**
  * Records that the translation was checked against the original as it now
@@ -726,186 +362,46 @@ export const publish = writeProcedure
  */
 export const review = writeProcedure
   .input(reviewTranslationSchema)
-  .handler(async ({ input, context }) => {
-    const row = await managed(context, input.id);
-    if (row.version !== input.expectedVersion) throw conflict();
-    const { translation } = await drafts(context, row.id);
-    if (
-      input.reviewed &&
-      !documentWritten(bodyOf(translation?.content ?? null))
-    )
-      throw new ORPCError("CONFLICT", { message: "news.nothing_to_check" });
-    const version = await reviewTranslation(context.tx, {
-      host: "site_post",
-      tenantId: context.tenantId,
-      id: row.id,
-      userId: context.actor.userId,
-      reviewed: input.reviewed,
-    });
-    await audit(context, {
-      action: input.reviewed
-        ? "news.translation_checked"
-        : "news.translation_unchecked",
-      objectType: "site_post",
-      objectId: row.id,
-    });
-    return {
-      version: version ?? row.version,
-      review: await translationReview(context.tx, {
-        tenantId: context.tenantId,
-        host: "site_post",
-        id: row.id,
-      }),
-    };
-  });
-
-async function takeDown(
-  context: UnitContext,
-  row: PostRow,
-  expectedVersion: number,
-  state: "draft" | "archived",
-) {
-  const version = await setPostState(context.tx, {
-    tenantId: context.tenantId,
-    id: row.id,
-    expectedVersion,
-    state,
-    publishedAt: null,
-  });
-  if (version === null) throw conflict();
-  await offWebsite(context, row.id);
-  await audit(context, {
-    action: state === "archived" ? "news.archive" : "news.unpublish",
-    objectType: "site_post",
-    objectId: row.id,
-  });
-  return { version };
-}
+  .handler(({ input, context }) => reviewBroadcast(context, rules, input));
 
 export const unpublish = writeProcedure
   .input(newsRefSchema)
-  .handler(async ({ input, context }) =>
-    takeDown(
-      context,
-      await managed(context, input.id),
-      input.expectedVersion,
-      "draft",
-    ),
+  .handler(({ input, context }) =>
+    takeDown(context, rules, input, "draft", (row) => offWebsite(context, row)),
   );
 
 export const archive = writeProcedure
   .input(newsRefSchema)
-  .handler(async ({ input, context }) =>
-    takeDown(
-      context,
-      await managed(context, input.id),
-      input.expectedVersion,
-      "archived",
+  .handler(({ input, context }) =>
+    takeDown(context, rules, input, "archived", (row) =>
+      offWebsite(context, row),
     ),
   );
 
 /** A new draft with a post's words, picture, audience and both languages as they stand. */
 export const duplicate = writeProcedure
   .input(v.object({ id }))
-  .handler(async ({ input, context }) => {
-    const row = await managed(context, input.id);
-    const [audiences, { original, translation }, checked] = await Promise.all([
-      audiencesOf(context.tx, context.tenantId, {
-        kind: "site_post",
-        id: row.id,
+  .handler(({ input, context }) =>
+    duplicateBroadcast(context, rules, input.id, (row) =>
+      fieldsOf({
+        titleEn: row.titleEn,
+        titleAr: row.titleAr,
+        visibility: row.visibility,
+        categoryId: row.categoryId ?? "",
+        slug: `${slugOf(row).slice(0, 60)}-${Date.now().toString(36)}`,
+        excerptEn: row.excerptEn,
+        excerptAr: row.excerptAr,
+        coverFileId: row.coverFileId ?? "",
+        coverAltEn: row.coverAltEn,
+        coverAltAr: row.coverAltAr,
+        pinned: false,
       }),
-      drafts(context, row.id),
-      translationReview(context.tx, {
-        tenantId: context.tenantId,
-        host: "site_post",
-        id: row.id,
-      }),
-    ]);
-    const created = await insertPost(context.tx, {
-      tenantId: context.tenantId,
-      orgId: context.schoolId,
-      authorId: context.actor.userId,
-      categoryId: row.categoryId,
-      slug: `${row.slug.slice(0, 60)}-${Date.now().toString(36)}`,
-      titleEn: row.titleEn,
-      titleAr: row.titleAr,
-      excerptEn: row.excerptEn,
-      excerptAr: row.excerptAr,
-      coverFileId: row.coverFileId,
-      coverAltEn: row.coverAltEn,
-      coverAltAr: row.coverAltAr,
-      pinned: false,
-      visibility: row.visibility,
-    });
-    await setAudiences(context.tx, {
-      tenantId: context.tenantId,
-      owner: { kind: "site_post", id: created.id },
-      audiences,
-    });
-    if (original) {
-      const body = bodyOf(original.content) ?? emptyContent();
-      const copy = await saveDocument(context.tx, {
-        tenantId: context.tenantId,
-        orgId: context.schoolId,
-        host: host(created.id),
-        kind: "rich_text",
-        locale: original.locale ?? primaryOf(row),
-        content: original.content,
-        plainText: original.plainText,
-        mediaIds: postMedia(body, row.coverFileId),
-        userId: context.actor.userId,
-      });
-      const other = bodyOf(translation?.content ?? null);
-      if (translation && other) {
-        await saveTranslation(context.tx, {
-          tenantId: context.tenantId,
-          orgId: context.schoolId,
-          host: host(created.id),
-          originalId: copy.id,
-          locale: otherLocale(original.locale ?? primaryOf(row)),
-          kind: "rich_text",
-          content: translation.content,
-          plainText: translation.plainText,
-          mediaIds: contentFileIds(other),
-          userId: context.actor.userId,
-        });
-        if (checked?.current) {
-          const version = await reviewTranslation(context.tx, {
-            host: "site_post",
-            tenantId: context.tenantId,
-            id: created.id,
-            userId: context.actor.userId,
-            reviewed: true,
-          });
-          if (version !== null) created.version = version;
-        }
-      }
-    }
-    await audit(context, {
-      action: "news.duplicate",
-      objectType: "site_post",
-      objectId: created.id,
-      details: { from: row.id },
-    });
-    return created;
-  });
+    ),
+  );
 
 /** A reader opened a post. */
 export const seen = writeProcedure
   .input(v.object({ id }))
-  .handler(async ({ input, context }) => {
-    const { row, recipient } = await readable(context, input.id);
-    if (!recipient) return { seen: false };
-    await markPostRead(context.tx, {
-      tenantId: context.tenantId,
-      postId: row.id,
-      userId: context.actor.userId,
-    });
-    await readSubject(context.tx, {
-      tenantId: context.tenantId,
-      userId: context.actor.userId,
-      subjectType: "site_post",
-      subjectId: row.id,
-    });
-    return { seen: true };
-  });
+  .handler(({ input, context }) =>
+    seenBroadcast(context, rules, { id: input.id, acknowledge: false }),
+  );

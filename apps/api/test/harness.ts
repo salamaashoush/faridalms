@@ -267,6 +267,28 @@ export function testCell() {
   return { adminUrl: urlFor(cellName) };
 }
 
+/**
+ * Brings forward to a minute ago the time something set for later goes
+ * out, as the database's clock would have reached it, so the clock that
+ * tells its readers can be run now.
+ */
+export async function timeHasCome(
+  table: "broadcasts" | "assignments",
+  id: string,
+) {
+  const column = table === "broadcasts" ? "publish_at" : "available_from";
+  const admin = new SQL(urlFor(cellName));
+  try {
+    await admin.unsafe(
+      `update core.${table} set ${column} = statement_timestamp() - interval '1 minute'
+       where id = $1::uuid`,
+      [id],
+    );
+  } finally {
+    await admin.close();
+  }
+}
+
 /** Writes a school's plan in the test directory, as the operator console would. */
 export async function setPlan(
   schoolId: string,

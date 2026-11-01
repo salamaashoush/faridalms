@@ -217,6 +217,7 @@ import {
   practiceView,
 } from "@faridalms/domain/practice";
 import { heldAs, sameFiles } from "@faridalms/domain/project";
+import { isLive } from "@faridalms/domain/publication";
 import { scratchReadingOf } from "@faridalms/domain/scratch-project";
 import {
   intendedStandards,
@@ -256,6 +257,7 @@ import {
   schoolProcedure,
   writeProcedure as anyWrite,
 } from "../core/procedure";
+import { wordsIssues } from "../core/publication";
 import { applyRemarks } from "../core/remarks";
 import {
   registerArea,
@@ -332,11 +334,6 @@ async function authoringClasses(context: UnitContext) {
   };
 }
 
-const isOpen = (row: ModuleRow, now: Date) =>
-  row.state === "published" &&
-  row.publishAt !== null &&
-  Date.parse(row.publishAt) <= now.getTime();
-
 /**
  * The student whose modules the viewer reads: themselves, or a child they
  * may see. Anyone else is not found.
@@ -373,7 +370,7 @@ async function openModule(
   studentId: string,
 ) {
   const row = await moduleOfSchool(context, moduleId);
-  if (!isOpen(row, context.now)) throw new ORPCError("NOT_FOUND");
+  if (!isLive(row, context.now)) throw new ORPCError("NOT_FOUND");
   if (
     !(await moduleReaches(context.tx, {
       tenantId: context.tenantId,
@@ -455,11 +452,16 @@ async function storedLessonIssue(
     type: "lesson",
     id: lesson.id,
   });
-  return lessonIssue({
+  const content = lessonContentOf(document?.content);
+  const issue = lessonIssue({
     completion: lesson.completion,
-    content: lessonContentOf(document?.content),
+    content,
     young: lesson.young,
   });
+  if (issue) return issue;
+  return (await wordsIssues(context, [content])).includes("consent")
+    ? "content.consent"
+    : null;
 }
 
 async function publishLessons(context: UnitContext, lessonIds: string[]) {
@@ -840,7 +842,7 @@ export const record = readProcedure
           })),
       })),
       audiences,
-      open: isOpen(row, context.now),
+      open: isLive(row, context.now),
     };
   });
 
@@ -1558,7 +1560,11 @@ export const saveLesson = writeProcedure
     });
     const published = input.publish && owner.state === "published";
     if (published) {
-      const issue = lessonIssue(input);
+      const issue =
+        lessonIssue(input) ??
+        ((await wordsIssues(context, [input.content])).includes("consent")
+          ? "content.consent"
+          : null);
       if (issue) throw new ORPCError("CONFLICT", { message: issue });
       const shownBefore = await publishedLesson(context, lessonId);
       await publishLessons(context, [lessonId]);
@@ -1930,7 +1936,7 @@ export const startPaced = writeProcedure
     const led = await lessonById(context.tx, context.tenantId, input.lessonId);
     if (!led) throw new ORPCError("NOT_FOUND");
     const owner = await editableModule(context, led.moduleId);
-    if (!isOpen(owner, context.now))
+    if (!isLive(owner, context.now))
       throw new ORPCError("CONFLICT", { message: "learning.module_draft" });
     const classes = await classesOfModule(
       context.tx,
