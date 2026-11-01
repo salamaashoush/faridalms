@@ -1,5 +1,7 @@
 import { expect, test } from "@playwright/test";
 
+import { apiAs } from "./fixtures/api";
+import { newClass, newStudent, schoolDaysTo } from "./fixtures/school";
 import {
   PASSWORD,
   signIn,
@@ -121,4 +123,76 @@ test("a family reads their child's attendance", async ({ page }) => {
   await expect(
     page.getByRole("heading", { name: "Absences and late arrivals" }),
   ).toBeVisible();
+});
+
+test("an unsaved register asks before it is left, and a register saved meanwhile is refused with the marks kept", async ({
+  page,
+}) => {
+  const admin = await apiAs("admin");
+  const unique = crypto.randomUUID().slice(0, 6);
+  const { workingYearId } = await admin.classes.options();
+  if (!workingYearId) throw new Error("the school has no working year");
+  const klass = await newClass(admin, {
+    yearId: workingYearId,
+    title: `Salama register ${unique}`,
+  });
+  const [first, second] = await Promise.all([
+    newStudent(admin, `Guard ${unique}`),
+    newStudent(admin, `Stale ${unique}`),
+  ]);
+  const { today } = await admin.identity.currentUser();
+  const days = await schoolDaysTo(admin, workingYearId, today);
+  const day = days.at(-3);
+  const joined = days.at(-6);
+  if (!day || !joined) throw new Error("too few school days so far");
+  await Promise.all(
+    [first, second].map((student) =>
+      admin.classes.enrol({
+        studentId: student.id,
+        classId: klass.id,
+        from: joined,
+      }),
+    ),
+  );
+
+  await signIn(page, "admin");
+  await page.goto(`/registers/${klass.id}?date=${day}`);
+  await untilHydrated(page);
+  const mark = page
+    .getByRole("group", { name: `Mark for ${first.name}` })
+    .getByRole("radio", { name: "Absent" });
+  await expect(mark).toBeEnabled();
+  await mark.locator("..").click();
+  await expect(mark).toBeChecked();
+
+  // Changing the day with a mark unsaved asks first, and staying keeps it.
+  const address = page.url();
+  await page.locator("#register-date").fill(days.at(-4) ?? joined);
+  const leave = page.getByRole("dialog", { name: "Leave without saving?" });
+  await expect(leave).toBeVisible();
+  await leave.getByRole("button", { name: "Keep editing" }).click();
+  await expect(leave).toHaveCount(0);
+  await expect(page).toHaveURL(address);
+  await expect(mark).toBeChecked();
+
+  // Someone else saves the register while this one is open.
+  const register = await admin.attendance.register({
+    classId: klass.id,
+    date: day,
+  });
+  await admin.attendance.save({
+    classId: klass.id,
+    date: day,
+    periodId: register.period.id,
+    expectedVersion: 0,
+    marks: [{ studentId: second.id, meaning: "present" }],
+  });
+  await page.getByRole("button", { name: "Save progress" }).click();
+  await expect(
+    page.getByRole("alert").filter({
+      hasText:
+        "Someone saved this register after you opened it. Reload to see their marks before saving again.",
+    }),
+  ).toBeVisible();
+  await expect(mark).toBeChecked();
 });
