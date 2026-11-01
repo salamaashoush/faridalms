@@ -19,6 +19,7 @@ export function ConfirmDialog({
   title,
   body,
   confirmLabel,
+  cancelLabel,
   pending = false,
   error,
   destructive = true,
@@ -29,6 +30,7 @@ export function ConfirmDialog({
   title: string;
   body: string;
   confirmLabel: string;
+  cancelLabel?: string;
   pending?: boolean;
   error?: string;
   /** False for a confirmation that removes nothing, such as accepting an offer. */
@@ -66,7 +68,7 @@ export function ConfirmDialog({
             disabled={pending}
             onClick={onCancel}
           >
-            {m.docCancel()}
+            {cancelLabel ?? m.docCancel()}
           </Button>
           <Button
             type="button"

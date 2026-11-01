@@ -29,6 +29,7 @@ export function SheetForm({
   error,
   submitLabel = m.commonSave(),
   destructive = false,
+  status,
   children,
 }: {
   open: boolean;
@@ -40,6 +41,8 @@ export function SheetForm({
   submitLabel?: string;
   /** The submit destroys something, so it takes the destructive colour. */
   destructive?: boolean;
+  /** What happened to what is written so far, as a sheet that keeps a draft says. */
+  status?: string | null;
   children: ReactNode;
 }) {
   const side = getTextDirection(getLocale()) === "rtl" ? "left" : "right";
@@ -77,7 +80,7 @@ export function SheetForm({
               {title}
             </SheetTitle>
           </SheetHeader>
-          <div className="grid min-h-0 flex-1 content-start gap-6 overflow-y-auto px-6 py-6">
+          <div className="grid min-h-0 flex-1 grid-cols-[minmax(0,1fr)] content-start gap-6 overflow-y-auto px-6 py-6">
             {error ? (
               <p
                 role="alert"
@@ -110,6 +113,14 @@ export function SheetForm({
             >
               {m.commonCancel()}
             </Button>
+            {status ? (
+              <span
+                aria-live="polite"
+                className="ms-auto self-center text-[13px] leading-[18px] text-muted-foreground"
+              >
+                {status}
+              </span>
+            ) : null}
           </SheetFooter>
         </form>
         {/* Centred on the title line: the header's 16px padding plus half of

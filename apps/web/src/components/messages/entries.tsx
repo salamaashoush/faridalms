@@ -1,7 +1,10 @@
 import type { ContactOutcome } from "@faridalms/domain/attendance";
 import type { EntryKind, Mailbox } from "@faridalms/domain/messages";
 import type { LucideIcon } from "lucide-react";
+import type { ReactNode } from "react";
 
+import { cn } from "@faridalms/ui/cn";
+import { Link } from "@tanstack/react-router";
 import {
   ArrowRightLeft,
   Mail,
@@ -74,4 +77,40 @@ export function entryTitle(
       : m.msgHeldSender({ from });
   }
   return ENTRY_LABEL[kind]();
+}
+
+/**
+ * A name in a conversation, leading to the person's or the student's
+ * record where the server says the viewer may already open it, and plain
+ * text everywhere else.
+ */
+export function NameLink({
+  userId,
+  link,
+  children,
+  className,
+}: {
+  userId: string | null;
+  link: "student" | "person" | null;
+  children: ReactNode;
+  className?: string;
+}) {
+  const style = cn(
+    "underline-offset-2 hover:underline focus-visible:underline",
+    className,
+  );
+  if (!userId || !link) return <bdi className={className}>{children}</bdi>;
+  return link === "student" ? (
+    <Link
+      to="/students/$studentId"
+      params={{ studentId: userId }}
+      className={style}
+    >
+      <bdi>{children}</bdi>
+    </Link>
+  ) : (
+    <Link to="/people/$userId" params={{ userId }} className={style}>
+      <bdi>{children}</bdi>
+    </Link>
+  );
 }

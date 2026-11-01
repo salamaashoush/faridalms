@@ -49,6 +49,8 @@ export interface NavItem {
   exact?: boolean;
   /** Kept for young children, whose home holds everything they open. */
   young?: boolean;
+  /** What waits there, counted beside the label. */
+  count?: "messages";
 }
 
 export interface NavSection {
@@ -91,7 +93,12 @@ export const NAVIGATION: Record<Workspace, NavSection[]> = {
     {
       title: m.navSectionCommunication,
       items: [
-        { to: "/admin/messages", label: m.navMessages, icon: Inbox },
+        {
+          to: "/admin/messages",
+          label: m.navMessages,
+          icon: Inbox,
+          count: "messages",
+        },
         { to: "/announcements", label: m.navAnnouncements, icon: Megaphone },
         { to: "/news", label: m.navNews, icon: Newspaper },
         { to: "/calendar", label: m.navCalendar, icon: CalendarDays },
@@ -213,7 +220,12 @@ export const NAVIGATION: Record<Workspace, NavSection[]> = {
     {
       title: m.navSectionCommunication,
       items: [
-        { to: "/teach/messages", label: m.navMessages, icon: Inbox },
+        {
+          to: "/teach/messages",
+          label: m.navMessages,
+          icon: Inbox,
+          count: "messages",
+        },
         { to: "/announcements", label: m.navAnnouncements, icon: Megaphone },
         { to: "/news", label: m.navNews, icon: Newspaper },
         { to: "/calendar", label: m.navCalendar, icon: CalendarDays },
@@ -314,7 +326,12 @@ export const NAVIGATION: Record<Workspace, NavSection[]> = {
     {
       title: m.navSectionCommunication,
       items: [
-        { to: "/family/messages", label: m.navMessages, icon: Inbox },
+        {
+          to: "/family/messages",
+          label: m.navMessages,
+          icon: Inbox,
+          count: "messages",
+        },
         { to: "/announcements", label: m.navAnnouncements, icon: Megaphone },
         { to: "/news", label: m.navNews, icon: Newspaper },
         { to: "/calendar", label: m.navCalendar, icon: CalendarDays },
@@ -347,7 +364,12 @@ export const NAVIGATION: Record<Workspace, NavSection[]> = {
     {
       title: m.navSectionCommunication,
       items: [
-        { to: "/me/messages", label: m.navMessages, icon: Inbox },
+        {
+          to: "/me/messages",
+          label: m.navMessages,
+          icon: Inbox,
+          count: "messages",
+        },
         { to: "/announcements", label: m.navAnnouncements, icon: Megaphone },
         { to: "/news", label: m.navNews, icon: Newspaper },
         { to: "/calendar", label: m.navCalendar, icon: CalendarDays },

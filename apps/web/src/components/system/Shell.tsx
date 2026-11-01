@@ -66,6 +66,7 @@ import type { NavItem } from "~/components/app/navigation";
 import { GrownUpGate } from "~/components/app/GrownUpGate";
 import { MOBILE_TABS, NAVIGATION } from "~/components/app/navigation";
 import { NotificationBell } from "~/components/app/NotificationBell";
+import { UnreadMessagesCount } from "~/components/app/UnreadMessagesCount";
 import { initialsOf, WORKSPACE_LABEL } from "~/components/app/UserMenu";
 import { WorkspaceBreadcrumb } from "~/components/app/WorkspaceBreadcrumb";
 import { WorkspaceSearch } from "~/components/app/WorkspaceSearch";
@@ -333,6 +334,9 @@ function SidebarBody() {
                       >
                         <item.icon className="size-4" aria-hidden />
                         <span className="truncate">{item.label()}</span>
+                        {item.count ? (
+                          <UnreadMessagesCount className="ms-auto" />
+                        ) : null}
                       </SidebarMenuButton>
                     </SidebarMenuItem>
                   ))}
@@ -409,12 +413,15 @@ function MobileTabs() {
                 activeOptions={{ exact: item.exact === true }}
                 aria-current={active ? "page" : undefined}
                 className={cn(
-                  "flex h-14 flex-col items-center justify-center gap-1 text-[11px] font-medium",
+                  "relative flex h-14 flex-col items-center justify-center gap-1 text-[11px] font-medium",
                   active ? "text-primary" : "text-muted-foreground",
                 )}
               >
                 <item.icon className="size-5" aria-hidden />
                 <span className="max-w-full truncate px-1">{item.label()}</span>
+                {item.count ? (
+                  <UnreadMessagesCount className="absolute start-1/2 top-1.5 ms-2" />
+                ) : null}
               </Link>
             </li>
           );

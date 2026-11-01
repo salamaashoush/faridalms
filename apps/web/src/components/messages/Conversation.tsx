@@ -13,6 +13,7 @@ import { messageFields } from "@faridalms/domain/templates";
 import { Button } from "@faridalms/ui/button";
 import { cn } from "@faridalms/ui/cn";
 import {
+  useInfiniteQuery,
   useMutation,
   useQueryClient,
   useSuspenseQuery,
@@ -29,16 +30,13 @@ import { Segmented } from "~/components/system/panel";
 import { useCurrentUser } from "~/hooks/useCurrentUser";
 import { useDocumentMedia } from "~/hooks/useDocumentMedia";
 import * as m from "~/i18n/messages";
-import { threadQuery } from "~/queries/messages";
-import {
-  markThreadRead,
-  saveThreadDraft,
-  sendMessage,
-} from "~/server/messages";
+import { earlierEntriesQuery, threadQuery } from "~/queries/messages";
+import { markThreadRead, sendMessage } from "~/server/messages";
 import { formatInstant, schoolDayOf } from "~/utils/datetime";
 import { getMessageFromError } from "~/utils/error";
 
-import { ENTRY_ICON, entryTitle } from "./entries";
+import { useMessageDraft } from "./draft";
+import { ENTRY_ICON, entryTitle, NameLink } from "./entries";
 import { dayHeading, nameOf, threadTitle } from "./format";
 import { MembersSheet } from "./MembersSheet";
 
@@ -107,12 +105,12 @@ function Bubble({
       >
         {showAuthor ? (
           <span className="px-1 text-[13px] leading-[18px] font-medium text-muted-foreground">
-            <bdi>
+            <NameLink userId={entry.authorId} link={entry.authorLink}>
               {nameOf({
                 fullNameEn: entry.authorNameEn,
                 fullNameAr: entry.authorNameAr,
               })}
-            </bdi>
+            </NameLink>
           </span>
         ) : null}
         <div
@@ -171,7 +169,9 @@ function InternalEntry({
           {author ? (
             <>
               {" · "}
-              <bdi>{author}</bdi>
+              <NameLink userId={entry.authorId} link={entry.authorLink}>
+                {author}
+              </NameLink>
             </>
           ) : null}
           {" · "}
@@ -200,7 +200,9 @@ function InternalEntry({
         <span className="text-muted-foreground">
           {author ? (
             <>
-              <bdi>{author}</bdi>
+              <NameLink userId={entry.authorId} link={entry.authorLink}>
+                {author}
+              </NameLink>
               {" · "}
             </>
           ) : null}
@@ -232,8 +234,8 @@ function Composer({
   const queryClient = useQueryClient();
   const id = useId();
   const media = useDocumentMedia(undefined);
-  const [content, setContent] = useState<ContentDocument>(() =>
-    thread.draft ? plainContent(thread.draft) : emptyContent(),
+  const [content, setContent] = useState<ContentDocument>(
+    () => thread.draft?.content ?? emptyContent(),
   );
   const [replace, setReplace] = useState<{
     to: ContentDocument;
@@ -244,7 +246,12 @@ function Composer({
     useState<(typeof LOGGED_CONTACTS)[number]>("call");
   const [uploading, setUploading] = useState(false);
   const [overtaken, setOvertaken] = useState(false);
-  const saved = useRef(thread.draft ?? "");
+  const draft = useMessageDraft({
+    value: content,
+    initial: thread.draft,
+    toDraft: (value) => ({ threadId: thread.id, content: value }),
+    enabled: hydrated && !uploading,
+  });
   const kind: WrittenKind =
     mode === "logged" ? logged : mode === "note" ? "note" : "message";
   const send = useMutation({
@@ -260,38 +267,30 @@ function Composer({
       }),
     meta: { inlineError: true },
   });
-  const { mutate: keepDraft } = useMutation({
-    mutationFn: (value: string) =>
-      saveThreadDraft({ data: { threadId: thread.id, draft: value } }),
-    meta: { inlineError: true },
-  });
-  const text = contentPlainText(content);
-  useEffect(() => {
-    if (text === saved.current || text.length > 5000) return undefined;
-    const timer = setTimeout(() => {
-      saved.current = text;
-      keepDraft(text);
-    }, 800);
-    return () => clearTimeout(timer);
-  }, [text, keepDraft]);
+  const { flush } = draft;
+  useEffect(() => () => void flush(), [flush]);
   const clear = () => {
-    saved.current = "";
-    setContent(emptyContent());
-    setReplace({ to: emptyContent(), at: Date.now() });
+    const empty = emptyContent();
+    draft.sent(empty);
+    setContent(empty);
+    setReplace({ to: empty, at: Date.now() });
   };
   const submit = (force = false) => {
     if (!hasWords(content) || send.isPending || uploading) return;
     setOvertaken(false);
-    void send.mutateAsync(force).then(
-      async () => {
-        clear();
-        await queryClient.invalidateQueries({ queryKey: ["messages"] });
-        await queryClient.invalidateQueries({ queryKey: ["admissions"] });
-      },
-      (error: unknown) => {
-        if (getMessageFromError(error) === m.msgNewer()) setOvertaken(true);
-      },
-    );
+    void draft
+      .flush()
+      .then(() => send.mutateAsync(force))
+      .then(
+        async () => {
+          clear();
+          await queryClient.invalidateQueries({ queryKey: ["messages"] });
+          await queryClient.invalidateQueries({ queryKey: ["admissions"] });
+        },
+        (error: unknown) => {
+          if (getMessageFromError(error) === m.msgNewer()) setOvertaken(true);
+        },
+      );
   };
   const outside = thread.members.find((member) => member.outside);
   const insert = (template: ContentDocument) => {
@@ -406,8 +405,20 @@ function Composer({
         <p role="alert" className="text-[13px] leading-[18px] text-destructive">
           {getMessageFromError(send.error)}
         </p>
+      ) : draft.error ? (
+        <p role="alert" className="text-[13px] leading-[18px] text-destructive">
+          {draft.error}
+        </p>
       ) : null}
-      <div className="flex justify-end">
+      <div className="flex items-center justify-end gap-3">
+        {draft.status ? (
+          <span
+            aria-live="polite"
+            className="text-[13px] leading-[18px] text-muted-foreground"
+          >
+            {draft.status}
+          </span>
+        ) : null}
         <Button
           type="submit"
           className="max-md:h-10"
@@ -451,7 +462,10 @@ export function Conversation({
   const { mutate: markRead } = useMutation({
     mutationFn: () => markThreadRead({ data: { threadId } }),
     onSuccess: () =>
-      queryClient.invalidateQueries({ queryKey: ["messages", "inbox"] }),
+      Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["messages", "inbox"] }),
+        queryClient.invalidateQueries({ queryKey: ["messages", "unread"] }),
+      ]),
   });
   const lastId = thread.messages.at(-1)?.id;
   useEffect(() => {
@@ -459,6 +473,18 @@ export function Conversation({
     markRead();
     if (!embedded) end.current?.scrollIntoView({ block: "end" });
   }, [lastId, markRead, embedded]);
+  const oldest = thread.messages[0]?.id ?? "";
+  const [reading, setReading] = useState(false);
+  const earlier = useInfiniteQuery({
+    ...earlierEntriesQuery(threadId, oldest),
+    enabled: reading && thread.hasMore && oldest !== "",
+  });
+  const entries = [
+    ...(earlier.data?.pages.toReversed().flatMap((page) => page.messages) ??
+      []),
+    ...thread.messages,
+  ];
+  const further = reading ? earlier.hasNextPage : thread.hasMore;
   const others = thread.members.filter((row) => row.userId !== user.id);
   const title = threadTitle({
     subject: thread.mailbox ? null : thread.subject,
@@ -535,14 +561,31 @@ export function Conversation({
         className="grid min-w-0 grid-cols-[minmax(0,1fr)] content-start gap-3 overflow-y-auto p-4"
         aria-label={m.msgMessages()}
       >
-        {thread.messages.length === 0 ? (
+        {entries.length === 0 ? (
           <li className="py-6 text-center text-sm leading-5 text-muted-foreground">
             {m.msgNothingYet()}
           </li>
         ) : null}
-        {thread.messages.flatMap((entry, index) => {
+        {further ? (
+          <li className="flex justify-center">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="max-md:h-10"
+              disabled={earlier.isFetching}
+              onClick={() => {
+                if (!reading) setReading(true);
+                else void earlier.fetchNextPage();
+              }}
+            >
+              {m.msgEarlier()}
+            </Button>
+          </li>
+        ) : null}
+        {entries.flatMap((entry, index) => {
           const day = schoolDayOf(entry.createdAt);
-          const before = thread.messages[index - 1];
+          const before = entries[index - 1];
           const heading =
             before && schoolDayOf(before.createdAt) === day ? null : (
               <li
@@ -569,7 +612,7 @@ export function Conversation({
                 mailbox={thread.mailbox}
               />
             );
-          return [...(heading ? [heading] : []), drawn];
+          return heading ? [heading, drawn] : [drawn];
         })}
         <li ref={end} aria-hidden className="h-px" />
       </ol>

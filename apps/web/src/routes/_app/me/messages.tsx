@@ -2,11 +2,10 @@ import { createFileRoute, stripSearchParams } from "@tanstack/react-router";
 import * as v from "valibot";
 
 import {
-  inboxOf,
+  loadMessages,
   MessagesPage,
   messagesSearchSchema,
 } from "~/components/messages/Inbox";
-import { inboxQuery, threadQuery } from "~/queries/messages";
 
 const DEFAULT_SEARCH = v.parse(messagesSearchSchema, {});
 
@@ -14,14 +13,7 @@ export const Route = createFileRoute("/_app/me/messages")({
   validateSearch: messagesSearchSchema,
   search: { middlewares: [stripSearchParams(DEFAULT_SEARCH)] },
   loaderDeps: ({ search }) => search,
-  loader: async ({ context, deps }) => {
-    await Promise.all([
-      context.queryClient.ensureQueryData(inboxQuery(inboxOf(deps))),
-      ...(deps.thread
-        ? [context.queryClient.ensureQueryData(threadQuery(deps.thread))]
-        : []),
-    ]);
-  },
+  loader: ({ context, deps }) => loadMessages(context.queryClient, deps),
   component: MessagesRoute,
 });
 

@@ -8451,5 +8451,61 @@
   "siteTypeRegisterApply": "Register and apply",
   "siteTypeHintRegisterApply": "The way in to applying, preset to an intake if you choose one.",
   "siteVariantRegisterApplyBanner": "Banner",
-  "siteVariantRegisterApplyCard": "Card"
+  "siteVariantRegisterApplyCard": "Card",
+  "msgBoxDrafts": "Drafts",
+  "msgDraftsEmpty": "No drafts. A message you start and do not send is kept here.",
+  "msgDraftLabel": "Draft",
+  "msgDraftTo": "To {names}",
+  "msgDraftReply": "Reply to {names}",
+  "msgDraftNoOne": "No one chosen yet",
+  "msgDraftNothing": "Nothing written yet",
+  "msgDraftSaving": "Saving draft…",
+  "msgDraftSaved": "Draft saved",
+  "msgDraftFailed": "Couldn't save the draft",
+  "msgDraftKept": "Kept in Drafts.",
+  "msgDraftDelete": "Delete draft: {title}",
+  "msgDraftDeleteTitle": "Delete this draft?",
+  "msgDraftDeleteBody": "The draft “{title}” and the files in it will be deleted. This cannot be undone.",
+  "msgDraftDeleteConfirm": "Delete draft",
+  "msgDraftDeleted": "Draft deleted.",
+  "msgDiscardTitle": "Discard this message?",
+  "msgDiscardBody": "It is written to several families at once, so it cannot be kept as a draft.",
+  "msgAboutChild": "About",
+  "msgAboutChildHint": "Which of your children this is about, if any.",
+  "msgAboutNone": "No particular child",
+  "msgMoreRecipients": "More people",
+  "msgMoreThreads": "Show more conversations",
+  "msgMoreDrafts": "Show more drafts",
+  "msgHasFiles": "Has files",
+  "msgEarlier": "Show earlier messages",
+  "newsSortDate": "Date published",
+  "newsSortTitle": "Title",
+  "msgMessageCount": [
+    {
+      "declarations": [
+        "input count",
+        "input shown",
+        "local countPlural = count: plural"
+      ],
+      "selectors": ["countPlural"],
+      "match": {
+        "countPlural=one": "{shown} message",
+        "countPlural=*": "{shown} messages"
+      }
+    }
+  ],
+  "navUnreadMessages": [
+    {
+      "declarations": [
+        "input count",
+        "input shown",
+        "local countPlural = count: plural"
+      ],
+      "selectors": ["countPlural"],
+      "match": {
+        "countPlural=one": "{shown} unread conversation",
+        "countPlural=*": "{shown} unread conversations"
+      }
+    }
+  ]
 }

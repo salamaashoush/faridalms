@@ -8841,5 +8841,69 @@
   "siteTypeRegisterApply": "التسجيل والتقديم",
   "siteTypeHintRegisterApply": "مدخل التقديم، مضبوطًا مسبقًا على دفعة إن اخترتموها.",
   "siteVariantRegisterApplyBanner": "شريط",
-  "siteVariantRegisterApplyCard": "بطاقة"
+  "siteVariantRegisterApplyCard": "بطاقة",
+  "msgBoxDrafts": "المسودات",
+  "msgDraftsEmpty": "لا توجد مسودات. تُحفظ هنا الرسالة التي تبدأ كتابتها ولا ترسلها.",
+  "msgDraftLabel": "مسودة",
+  "msgDraftTo": "إلى {names}",
+  "msgDraftReply": "رد على {names}",
+  "msgDraftNoOne": "لم يُختر أحد بعد",
+  "msgDraftNothing": "لم يُكتب شيء بعد",
+  "msgDraftSaving": "جارٍ حفظ المسودة…",
+  "msgDraftSaved": "حُفظت المسودة",
+  "msgDraftFailed": "تعذّر حفظ المسودة",
+  "msgDraftKept": "حُفظت الرسالة في المسودات.",
+  "msgDraftDelete": "حذف المسودة: {title}",
+  "msgDraftDeleteTitle": "هل تحذف هذه المسودة؟",
+  "msgDraftDeleteBody": "ستُحذف المسودة «{title}» والملفات التي فيها، ولا يمكن التراجع عن ذلك.",
+  "msgDraftDeleteConfirm": "حذف المسودة",
+  "msgDraftDeleted": "حُذفت المسودة.",
+  "msgDiscardTitle": "هل تتجاهل هذه الرسالة؟",
+  "msgDiscardBody": "هذه الرسالة موجّهة إلى عدة أسر معًا، ولذلك لا يمكن حفظها مسودةً.",
+  "msgAboutChild": "بخصوص",
+  "msgAboutChildHint": "أيّ أبنائك تخصّه هذه الرسالة، إن كانت تخصّ أحدهم.",
+  "msgAboutNone": "لا تخصّ طفلًا بعينه",
+  "msgMoreRecipients": "مزيد من الأشخاص",
+  "msgMoreThreads": "عرض مزيد من المحادثات",
+  "msgMoreDrafts": "عرض مزيد من المسودات",
+  "msgHasFiles": "فيها ملفات",
+  "msgEarlier": "عرض الرسائل السابقة",
+  "newsSortDate": "تاريخ النشر",
+  "newsSortTitle": "العنوان",
+  "msgMessageCount": [
+    {
+      "declarations": [
+        "input count",
+        "input shown",
+        "local countPlural = count: plural"
+      ],
+      "selectors": ["countPlural"],
+      "match": {
+        "countPlural=zero": "لا رسائل",
+        "countPlural=one": "رسالة واحدة",
+        "countPlural=two": "رسالتان",
+        "countPlural=few": "{shown} رسائل",
+        "countPlural=many": "{shown} رسالة",
+        "countPlural=*": "{shown} رسالة"
+      }
+    }
+  ],
+  "navUnreadMessages": [
+    {
+      "declarations": [
+        "input count",
+        "input shown",
+        "local countPlural = count: plural"
+      ],
+      "selectors": ["countPlural"],
+      "match": {
+        "countPlural=zero": "لا محادثات غير مقروءة",
+        "countPlural=one": "محادثة واحدة غير مقروءة",
+        "countPlural=two": "محادثتان غير مقروءتين",
+        "countPlural=few": "{shown} محادثات غير مقروءة",
+        "countPlural=many": "{shown} محادثة غير مقروءة",
+        "countPlural=*": "{shown} محادثة غير مقروءة"
+      }
+    }
+  ]
 }
