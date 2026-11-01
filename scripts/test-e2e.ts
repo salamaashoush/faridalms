@@ -17,6 +17,8 @@ import { seedCell } from "@faridalms/database/seed";
 import { SQL } from "bun";
 import { randomBytes } from "node:crypto";
 
+import { startResendStandIn } from "./e2e-resend";
+
 const adminUrl =
   process.env.DATABASE_ADMIN_URL ??
   "postgres://farida:farida@127.0.0.1:5433/postgres";
@@ -30,6 +32,9 @@ const cellId = "eg-1";
 const webPort = "3200";
 const apiPort = "3201";
 const collabPort = "3202";
+// Resend's stand-in, which email is sent to and received mail read from.
+const resendPort = "3207";
+const webhookSecret = `whsec_${randomBytes(24).toString("base64")}`;
 
 const urlFor = (name: string, role?: string) => {
   const url = new URL(adminUrl);
@@ -74,6 +79,7 @@ try {
     await owner.close();
     await directory.close();
   }
+  const resend = startResendStandIn(Number(resendPort));
   const runner = Bun.spawn(
     [
       "bun",
@@ -103,6 +109,12 @@ try {
         E2E_WEB_PORT: webPort,
         E2E_API_PORT: apiPort,
         E2E_COLLAB_PORT: collabPort,
+        RESEND_API_KEY: "re_e2e",
+        RESEND_API_URL: `http://127.0.0.1:${resendPort}`,
+        EMAIL_FROM: "Farida <no-reply@mail.localhost>",
+        INBOUND_EMAIL_DOMAIN: "reply.localhost",
+        RESEND_WEBHOOK_SECRET: webhookSecret,
+        E2E_RESEND_PORT: resendPort,
       },
       stdout: "inherit",
       stderr: "inherit",
@@ -111,6 +123,7 @@ try {
   process.on("SIGINT", () => runner.kill("SIGINT"));
   process.on("SIGTERM", () => runner.kill("SIGTERM"));
   exitCode = await runner.exited;
+  await resend.stop(true);
 } finally {
   await dropDatabase(admin, cellName);
   await dropDatabase(admin, directoryName);
