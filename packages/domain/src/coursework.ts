@@ -8,7 +8,7 @@ import {
   contentPlainText,
   holdsSuggestions,
 } from "./content";
-import { contentIssues } from "./content-checks";
+import { CONTENT_ISSUE_CODE, contentIssues } from "./content-checks";
 import { declarationSchema } from "./exams";
 import {
   checkBlocks,
@@ -388,7 +388,8 @@ export function publishIssues(
   if (!contentPlainText(input.brief).trim())
     issues.push("coursework.brief_empty");
   if (holdsSuggestions(input.brief)) issues.push("coursework.unreviewed");
-  for (const code of contentIssues(input.brief)) issues.push(`content.${code}`);
+  for (const code of contentIssues(input.brief))
+    issues.push(CONTENT_ISSUE_CODE[code]);
   if (
     input.audience === "selected" &&
     input.groupIds.length === 0 &&

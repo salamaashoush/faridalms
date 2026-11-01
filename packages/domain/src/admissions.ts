@@ -338,7 +338,7 @@ const amount = v.pipe(
   v.number(),
   v.minValue(0),
   v.maxValue(100_000_000),
-  v.check((value) => Math.round(value * 100) === value * 100, "fee.amount"),
+  v.check((value) => Number(value.toFixed(2)) === value, "fee.amount"),
 );
 
 export const feeSchema = v.object({

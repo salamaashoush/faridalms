@@ -8,26 +8,12 @@ export function validationMessage(issue: { message?: string }): string {
       return m.validationNewPassword();
     case "validation.time_zone":
       return m.validationTimeZone();
-    case "validation.https":
-      return m.validationHttps();
     case "validation.end_date":
       return m.validationEndDate();
-    case "validation.due_after_available":
-      return m.validationDueAfterAvailable();
-    case "validation.close_after_due":
-      return m.validationCloseAfterDue();
-    case "validation.deduction_required":
-      return m.validationDeductionRequired();
-    case "validation.attachments_required":
-      return m.validationAttachmentsRequired();
-    case "validation.report_required":
-      return m.validationReportRequired();
-    case "validation.rubric_total":
-      return m.validationRubricTotal();
     case "validation.file_type":
       return m.validationFileType();
-    case "validation.message_body":
-      return m.validationMessageBody();
+    case "validation.report_required":
+      return m.validationReportRequired();
     case "validation.term_outside":
       return m.validationTermOutside();
     case "validation.term_overlap":
@@ -57,7 +43,11 @@ export function validationMessage(issue: { message?: string }): string {
     case "validation.subject_twice":
       return m.classesSubjectTwice();
   }
-  if (!("type" in issue)) return issue.message ?? m.validationInvalid();
+  if (!("type" in issue))
+    return issue.message === undefined ||
+      issue.message.startsWith("validation.")
+      ? m.validationInvalid()
+      : issue.message;
   const count =
     "requirement" in issue && typeof issue.requirement === "number"
       ? issue.requirement
