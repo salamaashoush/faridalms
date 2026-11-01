@@ -10,6 +10,10 @@ import {
   untilHydrated,
 } from "./fixtures/sign-in";
 
+// The studio loads a 17 MB editor, which a step waits up to 90 seconds for;
+// the test as a whole needs room for that and for its other steps.
+test.describe.configure({ timeout: 240_000 });
+
 /** The sprite's name in the studio: changing it is a change the studio saves. */
 const spriteIn = (studio: Locator) =>
   studio

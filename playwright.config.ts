@@ -57,6 +57,9 @@ export default defineConfig({
   forbidOnly: !!process.env.CI,
   /* Retry on CI only */
   retries: process.env.CI ? 2 : 0,
+  // A CI runner has two cores for the server and two browsers, where Firefox
+  // and WebKit take several times Chromium's time over a multi-page flow.
+  timeout: process.env.CI ? 90_000 : 30_000,
   /* Opt out of parallel tests on CI. */
   workers: process.env.CI ? 2 : 4,
   /* Reporter to use. See https://playwright.dev/docs/test-reporters */

@@ -10,6 +10,10 @@ import {
   untilHydrated,
 } from "./fixtures/sign-in";
 
+// The board's editor is 35 MB of pages and scripts, which a step waits up to 90 seconds for;
+// the test as a whole needs room for that and for its other steps.
+test.describe.configure({ timeout: 240_000 });
+
 const editorIn = (studio: Locator) =>
   studio.frameLocator('iframe[title="micro:bit code editor"]');
 
