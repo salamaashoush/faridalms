@@ -121,10 +121,14 @@ function ContactsSection({
 }
 
 function ChildrenSection({ data }: { data: PersonData }) {
-  const { capabilities } = useCurrentUser();
+  const { capabilities, workspace } = useCurrentUser();
   const opensRecords =
     capabilities.includes("people:read") ||
     capabilities.includes("people:manage");
+  const linkClass = cn(
+    "justify-self-start text-sm leading-5 font-medium hover:text-primary hover:underline",
+    phoneLink,
+  );
   return (
     <RecordSection title={m.personChildren()}>
       {data.children.length === 0 ? (
@@ -149,10 +153,16 @@ function ChildrenSection({ data }: { data: PersonData }) {
                     params={{ studentId: child.studentId }}
                     search={{}}
                     dir="auto"
-                    className={cn(
-                      "justify-self-start text-sm leading-5 font-medium hover:text-primary hover:underline",
-                      phoneLink,
-                    )}
+                    className={linkClass}
+                  >
+                    {displayName(child)}
+                  </Link>
+                ) : workspace === "family" ? (
+                  <Link
+                    to="/family/details"
+                    search={{ studentId: child.studentId }}
+                    dir="auto"
+                    className={linkClass}
                   >
                     {displayName(child)}
                   </Link>
