@@ -715,7 +715,6 @@ export const removeSitePage = writeProcedure
     return { removed: true };
   });
 
-/** Brings an earlier version of one language back as the page's working copy. */
 export const saveSiteCategory = writeProcedure
   .input(saveCategorySchema)
   .handler(async ({ input, context }) => {

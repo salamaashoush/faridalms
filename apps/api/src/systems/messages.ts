@@ -1,20 +1,31 @@
 import type { Reach } from "@faridalms/database/stores/messages";
 import type { ContentDocument } from "@faridalms/domain/content";
-import type { EntryDetails, Mailbox } from "@faridalms/domain/messages";
+import type {
+  EntryDetails,
+  Mailbox,
+  StartKind,
+} from "@faridalms/domain/messages";
 
 import { namesOf } from "@faridalms/database/stores/coursework";
+import { saveDocument } from "@faridalms/database/stores/documents";
+import { rehostFiles } from "@faridalms/database/stores/files";
 import {
   addMembers,
+  consumeDraft,
   createThread,
+  draftOf,
+  draftsOf,
   existingThread,
+  keepDraft,
   markRead as markThreadRead,
   membersOf,
   messageable,
   messagesOf,
+  messagingChildren,
   messagingGuardians,
+  openable,
   readsMessage,
   removeMembers,
-  saveDraft as writeDraft,
   threadById,
   threadsOf,
   unreachable,
@@ -23,9 +34,14 @@ import {
 } from "@faridalms/database/stores/messages";
 import { readSubject } from "@faridalms/database/stores/notifications";
 import { isVisibleStudent } from "@faridalms/database/stores/students";
-import { contentFileIds } from "@faridalms/domain/content";
+import { contentFileIds, contentPlainText } from "@faridalms/domain/content";
+import { plainContent } from "@faridalms/domain/content-conversion";
 import {
+  draftRefSchema,
   draftSchema,
+  draftsQuerySchema,
+  hasWords,
+  INBOX_PAGE,
   inboxQuerySchema,
   isInternal,
   mailboxesOf,
@@ -52,6 +68,9 @@ import { scopeOf, writeEntry } from "../messages/conversations";
 
 const id = v.pipe(v.string(), v.uuid());
 
+/** How many entries of a conversation one request shows. */
+const THREAD_PAGE = 100;
+
 function reachOf(context: UnitContext): Reach {
   return {
     tenantId: context.tenantId,
@@ -70,6 +89,9 @@ function isStaff(context: UnitContext) {
 /** The mailboxes the viewer's capabilities read and write in. */
 const mailboxesFor = (context: UnitContext) =>
   mailboxesOf(context.actor.capabilities);
+
+const draftConflict = () =>
+  new ORPCError("CONFLICT", { message: "message_draft.revision_conflict" });
 
 /**
  * A conversation of this school the viewer reaches, or not found: one
@@ -92,12 +114,6 @@ async function openThread(context: UnitContext, threadId: string) {
         (thread.mailbox === null || row.role === "member"),
     ) ?? null;
   if (!team && !me) throw new ORPCError("NOT_FOUND");
-  const draft =
-    members.find(
-      (row) => row.userId === context.actor.userId && row.role !== "member",
-    )?.draft ??
-    me?.draft ??
-    null;
   return {
     thread,
     members,
@@ -107,7 +123,6 @@ async function openThread(context: UnitContext, threadId: string) {
     writes: team
       ? boxes.writes.includes(thread.mailbox as Mailbox)
       : can(context, "messages:send"),
-    draft,
   };
 }
 
@@ -120,10 +135,32 @@ registerHostReader("message", (context, hostId) =>
   }),
 );
 
+// A draft is its writer's alone, files included.
+registerHostReader("message_draft", async (context, hostId) =>
+  Boolean(
+    await draftOf(context.tx, {
+      tenantId: context.tenantId,
+      schoolId: context.schoolId,
+      userId: context.actor.userId,
+      id: hostId,
+    }),
+  ),
+);
+
 /** Reading Messages needs its capability, or a mailbox to read. */
 function readsMessages(context: UnitContext) {
   if (mailboxesFor(context).reads.length) return;
   requireCapability(context, "messages:read");
+}
+
+/** The children a guardian may say a message is about; none for staff, who write to families instead. */
+async function childrenToName(context: UnitContext) {
+  if (isStaff(context) || !can(context, "messages:send")) return [];
+  return messagingChildren(context.tx, {
+    tenantId: context.tenantId,
+    viewerId: context.actor.userId,
+    on: context.today,
+  });
 }
 
 export const inbox = readProcedure
@@ -137,21 +174,27 @@ export const inbox = readProcedure
       boxes.reads.includes(input.box)
         ? input.box
         : "personal";
-    const rows = await threadsOf(context.tx, {
-      tenantId: context.tenantId,
-      schoolId: context.schoolId,
-      viewerId: context.actor.userId,
-      mailboxes: boxes.reads,
-      box,
-      unreadOnly: input.show === "unread",
-      q: input.q,
-      limit: 200,
-    });
+    const [page, children] = await Promise.all([
+      threadsOf(context.tx, {
+        tenantId: context.tenantId,
+        schoolId: context.schoolId,
+        viewerId: context.actor.userId,
+        mailboxes: boxes.reads,
+        box,
+        unreadOnly: input.show === "unread",
+        q: input.q,
+        limit: INBOX_PAGE,
+        after: input.after,
+      }),
+      childrenToName(context),
+    ]);
     return {
-      rows,
+      rows: page.rows,
+      next: page.next,
       mailboxes: boxes.reads,
       canStart: can(context, "messages:send"),
       canStartFamily: can(context, "messages:send") && isStaff(context),
+      children,
     };
   });
 
@@ -167,27 +210,83 @@ export const unread = readProcedure.handler(async ({ context }) => {
   };
 });
 
+type Link = "student" | "person" | null;
+
+/**
+ * Where a name in a conversation leads: the student's record or the
+ * person's, only where the viewer may already open it under the records'
+ * own reach rules, and nowhere otherwise.
+ */
+async function linksFor(
+  context: UnitContext,
+  userIds: readonly (string | null)[],
+): Promise<(userId: string | null) => Link> {
+  const ids = [
+    ...new Set(
+      userIds.filter(
+        (userId): userId is string =>
+          userId !== null && userId !== context.actor.userId,
+      ),
+    ),
+  ];
+  const opened = await openable(context.tx, {
+    schoolId: context.schoolId,
+    viewerId: context.actor.userId,
+    on: context.today,
+    schoolWide: can(context, "people:manage"),
+    userIds: ids,
+  });
+  const readsStudents =
+    can(context, "people:read") || can(context, "people:manage");
+  const students = new Set(readsStudents ? opened.students : []);
+  const people = new Set(opened.people);
+  return (userId) =>
+    userId === null || userId === context.actor.userId
+      ? null
+      : students.has(userId)
+        ? "student"
+        : people.has(userId)
+          ? "person"
+          : null;
+}
+
 export const thread = readProcedure
   .input(threadQuerySchema)
   .handler(async ({ input, context }) => {
     const opened = await openThread(context, input.id);
     const { thread: row, members, team } = opened;
-    const rows = await messagesOf(context.tx, {
+    const fetched = await messagesOf(context.tx, {
       tenantId: context.tenantId,
       threadId: row.id,
       before: input.before || null,
-      limit: 100,
+      limit: THREAD_PAGE + 1,
       internal: team,
     });
+    const hasMore = fetched.length > THREAD_PAGE;
+    const rows = hasMore ? fetched.slice(1) : fetched;
     const staff = isStaff(context);
-    const [student] = row.studentId
-      ? await namesOf(context.tx, context.tenantId, [row.studentId])
-      : [];
+    const [[student], draft] = await Promise.all([
+      row.studentId
+        ? namesOf(context.tx, context.tenantId, [row.studentId])
+        : Promise.resolve([]),
+      opened.writes
+        ? draftOf(context.tx, {
+            tenantId: context.tenantId,
+            schoolId: context.schoolId,
+            userId: context.actor.userId,
+            threadId: row.id,
+          })
+        : Promise.resolve(null),
+    ]);
     // A mailbox conversation shows its outside contacts and who holds it;
     // the team's own read rows are nobody's business.
     const shown = members.filter(
       (member) => row.mailbox === null || member.role !== "reader",
     );
+    const linkOf = await linksFor(context, [
+      ...shown.map((member) => member.userId),
+      ...rows.map((message) => message.authorId),
+    ]);
     return {
       id: row.id,
       kind: row.kind,
@@ -209,6 +308,7 @@ export const thread = readProcedure
         outside: member.contactId !== null,
         email: team ? member.email : null,
         lastReadAt: staff ? member.lastReadAt : null,
+        link: linkOf(member.userId),
       })),
       owner:
         row.mailbox !== null
@@ -225,7 +325,14 @@ export const thread = readProcedure
                 : null;
             })()
           : null,
-      draft: opened.draft,
+      draft: draft
+        ? {
+            id: draft.id,
+            version: draft.version,
+            content: (draft.content ??
+              plainContent(draft.body)) as unknown as ContentDocument,
+          }
+        : null,
       team,
       canWrite: opened.writes,
       canNote: team && opened.writes,
@@ -246,6 +353,7 @@ export const thread = readProcedure
         authorContactId: message.authorContactId,
         authorNameEn: message.authorNameEn,
         authorNameAr: message.authorNameAr,
+        authorLink: message.authorContactId ? null : linkOf(message.authorId),
         body: message.body,
         content: message.content as unknown as ContentDocument | null,
         details: (team || message.kind === "message"
@@ -254,7 +362,7 @@ export const thread = readProcedure
         redacted: message.redacted,
         createdAt: message.createdAt,
       })),
-      hasMore: rows.length === 100,
+      hasMore,
     };
   });
 
@@ -262,12 +370,12 @@ export const recipients = readProcedure
   .input(recipientsQuerySchema)
   .handler(async ({ input, context }) => {
     requireCapability(context, "messages:send");
-    return {
-      rows: await messageable(context.tx, reachOf(context), {
-        q: input.q,
-        limit: 30,
-      }),
-    };
+    return messageable(context.tx, reachOf(context), {
+      q: input.q,
+      limit: 30,
+      after: input.after,
+      among: input.among,
+    });
   });
 
 /**
@@ -300,17 +408,25 @@ export const send = writeProcedure
           data: { latestId: newer.id },
         });
     }
+    const draft = await draftOf(context.tx, {
+      tenantId: context.tenantId,
+      schoolId: context.schoolId,
+      userId: context.actor.userId,
+      threadId: row.id,
+    });
     return writeComposed(context, {
       threadId: row.id,
       kind: input.kind,
       content: input.content,
+      draftId: draft?.id ?? null,
     });
   });
 
 /**
  * Writes what someone composed. The entry's id is made first, so the files
  * its document shows are placed in its keeping before the document is
- * saved, and its readers are the ones who may open them.
+ * saved, and its readers are the ones who may open them. Written from a
+ * draft, the draft's files move to the entry rather than being copied.
  */
 async function writeComposed(
   context: UnitContext,
@@ -318,15 +434,24 @@ async function writeComposed(
     threadId: string;
     kind: v.InferOutput<typeof sendSchema>["kind"];
     content: ContentDocument;
+    draftId: string | null;
     details?: Record<string, unknown>;
   },
 ) {
   const entryId = Bun.randomUUIDv7();
+  const fileIds = contentFileIds(input.content);
+  if (input.draftId)
+    await rehostFiles(context.tx, {
+      tenantId: context.tenantId,
+      from: { type: "message_draft", id: input.draftId },
+      to: { type: "message", id: entryId },
+      ids: fileIds,
+    });
   const placed = await placeMedia(
     context,
     { type: "message", id: entryId },
     input.content,
-    contentFileIds(input.content),
+    fileIds,
   );
   return writeEntry(scopeOf(context), {
     id: entryId,
@@ -339,30 +464,78 @@ async function writeComposed(
   });
 }
 
+/**
+ * Who a new conversation is for, checked as starting it checks them: a
+ * family's child the viewer reaches, people the viewer may write to, and
+ * for a guardian, one of their own children to say it is about.
+ */
+async function checkAddressees(
+  context: UnitContext,
+  input: { kind: StartKind; recipientIds: string[]; studentId: string },
+) {
+  if (input.kind === "family") {
+    if (!isStaff(context)) throw new ORPCError("FORBIDDEN");
+    if (
+      input.studentId &&
+      !(await isVisibleStudent(
+        context.tx,
+        {
+          tenantId: context.tenantId,
+          schoolId: context.schoolId,
+          today: context.today,
+          viewerId: context.actor.userId,
+          schoolWide: reachOf(context).schoolWide,
+        },
+        input.studentId,
+      ))
+    )
+      throw new ORPCError("NOT_FOUND");
+    return;
+  }
+  if (input.kind === "group" && !isStaff(context))
+    throw new ORPCError("FORBIDDEN");
+  const outside = await unreachable(
+    context.tx,
+    reachOf(context),
+    input.recipientIds,
+  );
+  if (outside.length)
+    throw new ORPCError("FORBIDDEN", { message: "messages.recipient" });
+  if (
+    input.kind === "direct" &&
+    input.studentId &&
+    !(await childrenToName(context)).some(
+      (child) => child.userId === input.studentId,
+    )
+  )
+    throw new ORPCError("NOT_FOUND");
+}
+
 /** Writes to someone new: continues an open conversation with them, or starts one. */
 export const start = writeProcedure
   .input(startSchema)
   .handler(async ({ input, context }) => {
     requireCapability(context, "messages:send");
     const me = context.actor.userId;
+    const studentId = input.kind === "group" ? "" : input.studentId;
+    await checkAddressees(context, {
+      kind: input.kind,
+      recipientIds: input.kind === "family" ? [] : input.recipientIds,
+      studentId,
+    });
+    if (
+      input.draftId &&
+      !(await consumeDraft(context.tx, {
+        tenantId: context.tenantId,
+        userId: me,
+        id: input.draftId,
+        version: input.draftVersion,
+      }))
+    )
+      throw draftConflict();
     let threadId: string | null = null;
     let created = false;
     if (input.kind === "family") {
-      if (!isStaff(context)) throw new ORPCError("FORBIDDEN");
-      if (
-        !(await isVisibleStudent(
-          context.tx,
-          {
-            tenantId: context.tenantId,
-            schoolId: context.schoolId,
-            today: context.today,
-            viewerId: me,
-            schoolWide: reachOf(context).schoolWide,
-          },
-          input.studentId,
-        ))
-      )
-        throw new ORPCError("NOT_FOUND");
       const guardians = await messagingGuardians(context.tx, {
         tenantId: context.tenantId,
         studentId: input.studentId,
@@ -399,22 +572,13 @@ export const start = writeProcedure
         created = true;
       }
     } else {
-      if (input.kind === "group" && !isStaff(context))
-        throw new ORPCError("FORBIDDEN");
-      const outside = await unreachable(
-        context.tx,
-        reachOf(context),
-        input.recipientIds,
-      );
-      if (outside.length)
-        throw new ORPCError("FORBIDDEN", { message: "messages.recipient" });
       if (input.kind === "direct")
         threadId = await existingThread(context.tx, {
           tenantId: context.tenantId,
           schoolId: context.schoolId,
           kind: "direct",
           memberIds: [me, ...input.recipientIds],
-          studentId: null,
+          studentId: studentId || null,
           ownerId: me,
         });
       if (!threadId) {
@@ -423,7 +587,7 @@ export const start = writeProcedure
           schoolId: context.schoolId,
           kind: input.kind,
           subject: input.kind === "group" ? input.subject : null,
-          studentId: null,
+          studentId: studentId || null,
           createdBy: me,
           ownerId: me,
           memberIds: input.recipientIds,
@@ -435,13 +599,14 @@ export const start = writeProcedure
       threadId,
       kind: "message",
       content: input.content,
+      draftId: input.draftId || null,
     });
     if (created)
       await audit(context, {
         action: "message_thread.create",
         objectType: "message_thread",
         objectId: threadId,
-        studentUserId: input.studentId || null,
+        studentUserId: studentId || null,
         details: { kind: input.kind, members: input.recipientIds.length },
       });
     return { threadId, created };
@@ -465,18 +630,169 @@ export const markRead = writeProcedure
     return { read: true };
   });
 
+/**
+ * Keeps what someone is writing, as they write it: a reply to a
+ * conversation they may write in, or the first message of a new one with
+ * whom it is for, checked as sending would check it. Its words are a
+ * document like a sent message's, files placed in the draft's keeping.
+ * A draft left with nothing in it is let go. A version that moved on, in
+ * another tab or because the draft was sent, is refused.
+ */
 export const saveDraft = writeProcedure
   .input(draftSchema)
   .handler(async ({ input, context }) => {
-    const { thread: row, writes } = await openThread(context, input.threadId);
-    if (!writes) throw new ORPCError("FORBIDDEN");
-    await writeDraft(context.tx, {
+    requireCapability(context, "messages:send");
+    const reply = input.threadId !== "";
+    if (reply) {
+      const { writes } = await openThread(context, input.threadId);
+      if (!writes) throw new ORPCError("FORBIDDEN");
+    } else
+      await checkAddressees(context, {
+        kind: input.kind,
+        recipientIds: input.kind === "family" ? [] : input.recipientIds,
+        studentId: input.kind === "group" ? "" : input.studentId,
+      });
+    const empty =
+      !hasWords(input.content) &&
+      (reply ||
+        (input.recipientIds.length === 0 &&
+          input.studentId === "" &&
+          input.subject === ""));
+    if (empty) {
+      if (
+        input.id &&
+        !(await consumeDraft(context.tx, {
+          tenantId: context.tenantId,
+          userId: context.actor.userId,
+          id: input.id,
+          version: input.version,
+        }))
+      )
+        throw draftConflict();
+      return { id: "", version: 0 };
+    }
+    const plainText = contentPlainText(input.content);
+    const kept = await keepDraft(context.tx, {
       tenantId: context.tenantId,
-      threadId: row.id,
+      schoolId: context.schoolId,
       userId: context.actor.userId,
-      draft: input.draft,
+      id: input.id || null,
+      version: input.version,
+      threadId: reply ? input.threadId : null,
+      kind: reply ? null : input.kind,
+      recipientIds: reply || input.kind === "family" ? [] : input.recipientIds,
+      studentId:
+        reply || input.kind === "group" ? null : input.studentId || null,
+      subject: reply || input.kind !== "group" ? null : input.subject || null,
+      body: plainText.slice(0, 5000),
     });
-    return { saved: true };
+    if (!kept) throw draftConflict();
+    const placed = await placeMedia(
+      context,
+      { type: "message_draft", id: kept.id },
+      input.content,
+      contentFileIds(input.content),
+    );
+    await saveDocument(context.tx, {
+      tenantId: context.tenantId,
+      orgId: context.schoolId,
+      host: { type: "message_draft", id: kept.id },
+      content: placed.content,
+      plainText,
+      mediaIds: placed.mediaIds,
+      userId: context.actor.userId,
+    });
+    return kept;
+  });
+
+/** The viewer's drafts at this school, last kept first, a page at a time. */
+export const drafts = readProcedure
+  .input(draftsQuerySchema)
+  .handler(async ({ input, context }) => {
+    requireCapability(context, "messages:send");
+    return draftsOf(context.tx, {
+      tenantId: context.tenantId,
+      schoolId: context.schoolId,
+      viewerId: context.actor.userId,
+      mailboxes: mailboxesFor(context).reads,
+      limit: INBOX_PAGE,
+      after: input.after,
+    });
+  });
+
+/**
+ * A draft of a new conversation, to pick up where it was left: with whom
+ * it is for, those the viewer may still write to, and its words. A reply
+ * being written names its conversation, which holds it. Null once it was
+ * sent or deleted, since a link to it may outlive it.
+ */
+export const draft = readProcedure
+  .input(v.object({ id }))
+  .handler(async ({ input, context }) => {
+    requireCapability(context, "messages:send");
+    const row = await draftOf(context.tx, {
+      tenantId: context.tenantId,
+      schoolId: context.schoolId,
+      userId: context.actor.userId,
+      id: input.id,
+    });
+    if (!row) return null;
+    if (row.threadId) return { reply: true as const, threadId: row.threadId };
+    const kind = row.kind ?? "direct";
+    const [people, [student]] = await Promise.all([
+      row.recipientIds.length
+        ? messageable(context.tx, reachOf(context), {
+            q: "",
+            limit: 50,
+            after: null,
+            ids: row.recipientIds,
+          })
+        : Promise.resolve({ rows: [], next: null }),
+      row.studentId
+        ? namesOf(context.tx, context.tenantId, [row.studentId])
+        : Promise.resolve([]),
+    ]);
+    const reached = new Map(
+      people.rows.map((person) => [person.userId, person]),
+    );
+    return {
+      reply: false as const,
+      id: row.id,
+      version: row.version,
+      kind,
+      recipients: row.recipientIds.flatMap((userId) => {
+        const person = reached.get(userId);
+        return person ? [person] : [];
+      }),
+      student: student
+        ? {
+            id: student.id,
+            fullNameEn: student.fullNameEn,
+            fullNameAr: student.fullNameAr,
+          }
+        : null,
+      subject: row.subject ?? "",
+      content: (row.content ??
+        plainContent(row.body)) as unknown as ContentDocument,
+      updatedAt: row.updatedAt,
+    };
+  });
+
+/** Deletes a draft at the version its writer read. */
+export const discardDraft = writeProcedure
+  .input(draftRefSchema)
+  .handler(async ({ input, context }) => {
+    requireCapability(context, "messages:send");
+    if (
+      !(await consumeDraft(context.tx, {
+        tenantId: context.tenantId,
+        userId: context.actor.userId,
+        id: input.id,
+        version: input.version,
+      }))
+    )
+      throw draftConflict();
+    return { discarded: true };
   });
 
 /** A group's owner brings people in or takes them out. */

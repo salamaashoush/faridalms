@@ -80,6 +80,7 @@ export const CONFLICTS: Record<string, string> = {
   thread_members_contact_key: "thread_member.exists",
   thread_members_reply_key: "thread_member.exists",
   message_contacts_email_key: "conflict.version",
+  message_drafts_reply_key: "message_draft.revision_conflict",
   messages_email_key: "messages.taken",
   site_enquiries_thread_key: "conflict.version",
   document_templates_builtin_key: "templates.exists",

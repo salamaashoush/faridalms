@@ -50,6 +50,7 @@ import {
 import { emptyContent } from "@faridalms/domain/content-conversion";
 import {
   manageNewsSchema,
+  NEWS_PAGE,
   newsListSchema,
   newsRefSchema,
   publishNewsSchema,
@@ -232,19 +233,29 @@ function issuesOf(
   return found;
 }
 
-/** What the school's readers see: posts out that are public or reached them. */
+/** What the school's readers see, a page at a time: posts out that are public or reached them. */
 export const list = readProcedure
   .input(newsListSchema)
-  .handler(async ({ input, context }) => ({
-    rows: await newsFor(context.tx, {
+  .handler(async ({ input, context }) => {
+    const { rows, total } = await newsFor(context.tx, {
       tenantId: context.tenantId,
       schoolId: context.schoolId,
       viewerId: context.actor.userId,
       q: input.q,
-      limit: 200,
-    }),
-    canManage: can(context, "news:manage"),
-  }));
+      sort: input.sort,
+      direction: input.direction,
+      locale: input.locale,
+      limit: NEWS_PAGE,
+      offset: (input.page - 1) * NEWS_PAGE,
+    });
+    return {
+      rows,
+      total,
+      page: input.page,
+      pages: Math.max(1, Math.ceil(total / NEWS_PAGE)),
+      canManage: can(context, "news:manage"),
+    };
+  });
 
 export const manage = readProcedure
   .input(manageNewsSchema)

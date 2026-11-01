@@ -171,7 +171,7 @@ function SortIcon({
   );
 }
 
-function ViewMenu<S extends string>({
+export function ViewMenu<S extends string>({
   sort,
   sortOptions,
   columns,

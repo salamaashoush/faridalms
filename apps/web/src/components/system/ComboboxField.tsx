@@ -22,6 +22,7 @@ type Issue = { message?: string } | string | undefined | null;
  * choice, the popup searches. The caller owns the search text so it can fetch
  * matches from the server. Clear is opt-in rather than implied by optional,
  * because emptying some fields removes something and has to confirm instead.
+ * Matches the server holds back for a further page come with `more`.
  */
 export function ComboboxField({
   label,
@@ -37,6 +38,7 @@ export function ComboboxField({
   onSearchChange,
   searchLabel,
   emptyLabel,
+  more,
 }: {
   label: string;
   hint?: ReactNode;
@@ -51,6 +53,7 @@ export function ComboboxField({
   onSearchChange: (search: string) => void;
   searchLabel?: string;
   emptyLabel?: string;
+  more?: { label: string; pending: boolean; onMore: () => void };
 }) {
   const searchText = searchLabel ?? m.managementSearchFor({ label });
   const names = new Map(options.map((option) => [option.value, option.label]));
@@ -113,6 +116,20 @@ export function ComboboxField({
                   </ComboboxItem>
                 )}
               </ComboboxList>
+              {more ? (
+                <div className="border-t p-1">
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="w-full justify-start max-md:h-10"
+                    disabled={more.pending}
+                    onClick={more.onMore}
+                  >
+                    {more.label}
+                  </Button>
+                </div>
+              ) : null}
               {clearable && value.length ? (
                 <div className="border-t p-1">
                   <Button

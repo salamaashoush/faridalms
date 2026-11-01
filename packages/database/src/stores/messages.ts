@@ -1,4 +1,9 @@
-import type { InboxBox } from "@faridalms/domain/messages";
+import type {
+  InboxBox,
+  Keyset,
+  RecipientCursor,
+  StartKind,
+} from "@faridalms/domain/messages";
 import type { SQL } from "drizzle-orm";
 
 import { sql } from "drizzle-orm";
@@ -109,15 +114,31 @@ function reachable(reach: Reach): SQL {
     order by c.user_id, case c.kind when 'staff' then 0 when 'guardian' then 1 else 2 end`;
 }
 
+/**
+ * A page of the people the viewer may write to, matching a name or, for a
+ * guardian, a child's name: staff, then guardians, then students, each by
+ * name, and where the next page starts when there is one.
+ */
 export async function messageable(
   tx: Tx,
   reach: Reach,
-  filter: { q: string; limit: number },
-): Promise<Messageable[]> {
-  const q = filter.q ? `%${filter.q}%` : null;
+  filter: {
+    q: string;
+    limit: number;
+    after: RecipientCursor | null;
+    among?: "all" | "people" | "students";
+    /** Only these people, as a draft names them. */
+    ids?: readonly string[];
+  },
+): Promise<{ rows: Messageable[]; next: RecipientCursor | null }> {
+  const q = filter.q ? `%${escapeLike(filter.q)}%` : null;
+  const after = filter.after;
+  const only = filter.ids ? uuidArray(filter.ids) : null;
   const rows = await tx.execute<{
     user_id: string;
     kind: PersonKind;
+    rank: number;
+    sort_name: string;
     full_name_en: string | null;
     full_name_ar: string | null;
     children: {
@@ -126,35 +147,82 @@ export async function messageable(
       full_name_ar: string | null;
     }[];
   }>(sql`
-    with people as (${reachable(reach)})
-    select p.user_id, p.kind, u.full_name_en, u.full_name_ar,
+    with people as (${reachable(reach)}), ranked as (
+      select p.user_id, p.kind, u.tenant_id, u.full_name_en, u.full_name_ar,
+             case p.kind when 'staff' then 0 when 'guardian' then 1 else 2 end as rank,
+             coalesce(u.full_name_en, '') as sort_name
+      from people p
+      join core.users u on u.tenant_id = ${reach.tenantId}::uuid and u.id = p.user_id and u.status = 'active'
+      where ${only === null ? sql`true` : sql`p.user_id = any(${only})`}
+        and (${filter.among ?? "all"} = 'all'
+          or (p.kind = 'student') = (${filter.among ?? "all"} = 'students'))
+        and (${q}::text is null or u.full_name_en ilike ${q} or u.full_name_ar ilike ${q}
+             or exists (select 1 from core.user_relationships l
+               join core.users s on s.tenant_id = l.tenant_id and s.id = l.student_user_id
+               where p.kind = 'guardian' and l.tenant_id = u.tenant_id and l.related_user_id = u.id
+                 and l.status = 'active' and (s.full_name_en ilike ${q} or s.full_name_ar ilike ${q})))
+    )
+    select r.user_id, r.kind, r.rank, r.sort_name, r.full_name_en, r.full_name_ar,
            coalesce((select jsonb_agg(jsonb_build_object('user_id', s.id,
                'full_name_en', s.full_name_en, 'full_name_ar', s.full_name_ar)
                order by s.full_name_en)
              from core.user_relationships l
              join core.users s on s.tenant_id = l.tenant_id and s.id = l.student_user_id
-             where p.kind = 'guardian' and l.tenant_id = u.tenant_id and l.related_user_id = u.id
+             where r.kind = 'guardian' and l.tenant_id = r.tenant_id and l.related_user_id = r.user_id
                and l.status = 'active' and l.valid_during @> ${reach.on}::date), '[]'::jsonb) as children
-    from people p
-    join core.users u on u.tenant_id = ${reach.tenantId}::uuid and u.id = p.user_id and u.status = 'active'
-    where (${q}::text is null or u.full_name_en ilike ${q} or u.full_name_ar ilike ${q}
-           or exists (select 1 from core.user_relationships l
-             join core.users s on s.tenant_id = l.tenant_id and s.id = l.student_user_id
-             where p.kind = 'guardian' and l.tenant_id = u.tenant_id and l.related_user_id = u.id
-               and l.status = 'active' and (s.full_name_en ilike ${q} or s.full_name_ar ilike ${q})))
-    order by case p.kind when 'staff' then 0 when 'guardian' then 1 else 2 end,
-             u.full_name_en, u.id
-    limit ${filter.limit}`);
+    from ranked r
+    where ${after === null}::boolean
+      or (r.rank, r.sort_name, r.user_id) > (${after?.rank ?? 0}::int, ${after?.name ?? ""}::text,
+        ${after?.id ?? null}::uuid)
+    order by r.rank, r.sort_name, r.user_id
+    limit ${filter.limit + 1}`);
+  const page = rows.slice(0, filter.limit);
+  const last = page.at(-1);
+  return {
+    rows: page.map((row) => ({
+      userId: row.user_id,
+      kind: row.kind,
+      fullNameEn: row.full_name_en,
+      fullNameAr: row.full_name_ar,
+      children: row.children.map((child) => ({
+        userId: child.user_id,
+        fullNameEn: child.full_name_en,
+        fullNameAr: child.full_name_ar,
+      })),
+    })),
+    next:
+      rows.length > filter.limit && last
+        ? { rank: last.rank, name: last.sort_name, id: last.user_id }
+        : null,
+  };
+}
+
+/**
+ * The children a guardian may write to the school about: those they are
+ * linked to with portal access and not kept apart from its messages.
+ */
+export async function messagingChildren(
+  tx: Tx,
+  input: { tenantId: string; viewerId: string; on: string },
+): Promise<
+  { userId: string; fullNameEn: string | null; fullNameAr: string | null }[]
+> {
+  const rows = await tx.execute<{
+    user_id: string;
+    full_name_en: string | null;
+    full_name_ar: string | null;
+  }>(sql`
+    select distinct s.id as user_id, s.full_name_en, s.full_name_ar
+    from core.user_relationships l
+    join core.users s on s.tenant_id = l.tenant_id and s.id = l.student_user_id and s.status = 'active'
+    where l.tenant_id = ${input.tenantId}::uuid and l.related_user_id = ${input.viewerId}::uuid
+      and l.status = 'active' and l.portal_access and l.valid_during @> ${input.on}::date
+      and not coalesce(l.communication_isolated, false)
+    order by s.full_name_en, s.id`);
   return rows.map((row) => ({
     userId: row.user_id,
-    kind: row.kind,
     fullNameEn: row.full_name_en,
     fullNameAr: row.full_name_ar,
-    children: row.children.map((child) => ({
-      userId: child.user_id,
-      fullNameEn: child.full_name_en,
-      fullNameAr: child.full_name_ar,
-    })),
   }));
 }
 
@@ -222,6 +290,12 @@ export interface ThreadSummary {
   lastAuthorNameEn: string | null;
   lastAuthorNameAr: string | null;
   unread: number;
+  /** The messages the viewer reads in it, internal entries too for the team. */
+  messageCount: number;
+  /** Whether anything the viewer reads in it carries a file. */
+  hasFiles: boolean;
+  /** Whether the viewer is writing a reply to it. */
+  hasDraft: boolean;
   /** Everyone else in it; in a mailbox conversation, its contacts and its owner. */
   others: Named[];
   owner: Named | null;
@@ -304,7 +378,12 @@ const memberNames = sql`'user_id', o.user_id, 'contact_id', o.contact_id,
     'full_name_en', coalesce(u.full_name_en, case when u.id is null then c.display_name end),
     'full_name_ar', coalesce(u.full_name_ar, case when u.id is null then c.display_name end)`;
 
-/** The viewer's conversations, newest first; unread ones only when asked. */
+/**
+ * A page of the viewer's conversations, newest first, unread ones only
+ * when asked, and where the next page starts when there is one.
+ * Conversations move as they are written to, so the order is the latest
+ * entry's millisecond, then the id.
+ */
 export async function threadsOf(
   tx: Tx,
   input: {
@@ -316,10 +395,12 @@ export async function threadsOf(
     unreadOnly: boolean;
     q: string;
     limit: number;
+    after?: Keyset | null;
   },
-): Promise<ThreadSummary[]> {
+): Promise<{ rows: ThreadSummary[]; next: Keyset | null }> {
   const q = input.q ? `%${escapeLike(input.q)}%` : null;
   const reader = { ...input, mailboxes: input.mailboxes ?? [] };
+  const after = input.after ?? null;
   const rows = await tx.execute<{
     id: string;
     kind: ThreadKind;
@@ -335,6 +416,9 @@ export async function threadsOf(
     last_author_en: string | null;
     last_author_ar: string | null;
     unread: number;
+    message_count: number;
+    has_files: boolean;
+    has_draft: boolean;
     others: NamedRecord[];
     owner: NamedRecord | null;
   }>(sql`
@@ -343,10 +427,10 @@ export async function threadsOf(
            s.full_name_ar as student_ar, ${isoOf(sql`t.last_message_at`)} as last_message_at,
            last.body as last_body, last.kind as last_kind, last.author_id as last_author_id,
            last.name_en as last_author_en, last.name_ar as last_author_ar,
-           (select count(*)::int from core.messages x
-             where x.tenant_id = t.tenant_id and x.thread_id = t.id and x.status = 'active'
-               and x.kind <> 'event' and ${visible(sql`r.team`)} and ${notBy(input.viewerId)}
-               and ${unreadBy}) as unread,
+           counted.unread, counted.message_count, counted.has_files,
+           exists (select 1 from core.message_drafts d
+             where d.tenant_id = t.tenant_id and d.thread_id = t.id
+               and d.user_id = ${input.viewerId}::uuid and d.status = 'active') as has_draft,
            coalesce((select jsonb_agg(jsonb_build_object(${memberNames})
                order by o.role, coalesce(u.full_name_en, c.display_name))
              from core.thread_members o
@@ -376,8 +460,22 @@ export async function threadsOf(
       where x.tenant_id = t.tenant_id and x.thread_id = t.id and x.status = 'active'
         and x.kind <> 'event' and ${visible(sql`r.team`)}
       order by x.created_at desc, x.id desc limit 1) last on true
+    cross join lateral (
+      select count(*) filter (where ${notBy(input.viewerId)} and ${unreadBy})::int as unread,
+        count(*)::int as message_count,
+        coalesce(bool_or(exists (select 1 from core.files f
+          where f.tenant_id = x.tenant_id and f.host_type = 'message' and f.host_id = x.id
+            and f.status = 'active')), false) as has_files
+      from core.messages x
+      where x.tenant_id = t.tenant_id and x.thread_id = t.id and x.status = 'active'
+        and x.kind <> 'event' and ${visible(sql`r.team`)}) counted
     -- A family sees a team's conversation with them once it holds a word for them.
     where (r.team or t.mailbox is null or last.kind is not null)
+      and (not ${input.unreadOnly} or counted.unread > 0)
+      and (${after === null}::boolean
+        or date_trunc('milliseconds', t.last_message_at) < ${after?.at ?? null}::timestamptz
+        or (date_trunc('milliseconds', t.last_message_at) = ${after?.at ?? null}::timestamptz
+          and t.id > ${after?.id ?? null}::uuid))
       and (${q}::text is null or t.subject ilike ${q} or s.full_name_en ilike ${q}
            or s.full_name_ar ilike ${q}
            or exists (select 1 from core.thread_members o
@@ -389,11 +487,12 @@ export async function threadsOf(
            or exists (select 1 from core.messages x
              where x.tenant_id = t.tenant_id and x.thread_id = t.id and x.status = 'active'
                and ${visible(sql`r.team`)} and x.body ilike ${q}))
-    order by t.last_message_at desc, t.id
-    limit ${input.limit}`);
-  return rows
-    .filter((row) => !input.unreadOnly || row.unread > 0)
-    .map((row) => ({
+    order by date_trunc('milliseconds', t.last_message_at) desc, t.id
+    limit ${input.limit + 1}`);
+  const page = rows.slice(0, input.limit);
+  const last = page.at(-1);
+  return {
+    rows: page.map((row) => ({
       id: row.id,
       kind: row.kind,
       mailbox: row.mailbox,
@@ -408,9 +507,17 @@ export async function threadsOf(
       lastAuthorNameEn: row.last_author_en,
       lastAuthorNameAr: row.last_author_ar,
       unread: row.unread,
+      messageCount: row.message_count,
+      hasFiles: row.has_files,
+      hasDraft: row.has_draft,
       others: row.others.map(named),
       owner: row.owner ? named(row.owner) : null,
-    }));
+    })),
+    next:
+      rows.length > input.limit && last
+        ? { at: last.last_message_at, id: last.id }
+        : null,
+  };
 }
 
 export interface ThreadRow {
@@ -459,7 +566,6 @@ export interface MemberRow extends Named {
   id: string;
   role: ThreadRole;
   lastReadAt: string | null;
-  draft: string | null;
   /** A contact's address, which only the team that shares the mailbox reads. */
   email: string | null;
 }
@@ -478,12 +584,11 @@ export async function membersOf(
     email: string | null;
     role: ThreadRole;
     last_read_at: string | null;
-    draft: string | null;
   }>(sql`
     select m.id, m.user_id, m.contact_id,
            coalesce(u.full_name_en, case when u.id is null then c.display_name end) as full_name_en,
            coalesce(u.full_name_ar, case when u.id is null then c.display_name end) as full_name_ar,
-           c.email, m.role, ${isoOf(sql`m.last_read_at`)} as last_read_at, m.draft
+           c.email, m.role, ${isoOf(sql`m.last_read_at`)} as last_read_at
     from core.thread_members m
     left join core.message_contacts c on c.tenant_id = m.tenant_id and c.id = m.contact_id
     left join core.users u on u.tenant_id = m.tenant_id and u.id = m.user_id
@@ -499,7 +604,6 @@ export async function membersOf(
     email: row.email,
     role: row.role,
     lastReadAt: row.last_read_at,
-    draft: row.draft,
   }));
 }
 
@@ -520,8 +624,9 @@ export interface MessageRow {
 }
 
 /**
- * The latest entries of a thread, oldest first, before a moment when
- * paging back. Internal entries only when the reader is of the team.
+ * The latest entries of a thread, oldest first, or when paging back those
+ * before the entry given. Internal entries only when the reader is of the
+ * team.
  */
 export async function messagesOf(
   tx: Tx,
@@ -561,7 +666,9 @@ export async function messagesOf(
       left join core.users u on u.tenant_id = x.tenant_id and u.id = coalesce(x.author_user_id, c.user_id)
       where x.tenant_id = ${input.tenantId}::uuid and x.thread_id = ${input.threadId}::uuid
         and x.status = 'active' and (${input.internal} or x.kind = 'message')
-        and (${input.before}::timestamptz is null or x.created_at < ${input.before}::timestamptz)
+        and (${input.before}::uuid is null or (x.created_at, x.id) < (
+          select b.created_at, b.id from core.messages b
+          where b.tenant_id = x.tenant_id and b.thread_id = x.thread_id and b.id = ${input.before}::uuid))
       order by x.created_at desc, x.id desc
       limit ${input.limit}) latest
     order by at, id`);
@@ -583,6 +690,7 @@ export async function messagesOf(
 /**
  * An open thread of this kind among exactly these people, so writing to
  * someone again continues the conversation rather than starting another.
+ * A direct conversation about one child is not the one about another.
  */
 export async function existingThread(
   tx: Tx,
@@ -610,6 +718,7 @@ export async function existingThread(
     select t.id from core.message_threads t
     where t.tenant_id = ${input.tenantId}::uuid and t.org_id = ${input.schoolId}::uuid
       and t.status = 'active' and t.kind = 'direct'
+      and t.student_user_id is not distinct from ${input.studentId}::uuid
       and (select array_agg(m.user_id order by m.user_id) from core.thread_members m
            where m.tenant_id = t.tenant_id and m.thread_id = t.id and m.status = 'active'
              and m.left_at is null)
@@ -777,7 +886,8 @@ export interface NewEntry {
 /**
  * Adds an entry to a conversation. A message or an entry someone wrote
  * moves the conversation up the inbox; a recorded event does not. Writing
- * reads the conversation up to now for whoever wrote it.
+ * reads the conversation up to now for whoever wrote it, and what they
+ * were writing to it is sent, so their draft of it goes.
  */
 export async function postMessage(
   tx: Tx,
@@ -797,13 +907,18 @@ export async function postMessage(
     await tx.execute(sql`
       update core.message_threads set last_message_at = statement_timestamp()
       where tenant_id = ${input.tenantId}::uuid and id = ${input.threadId}::uuid`);
-  if (input.authorId)
+  if (input.authorId) {
     await markRead(tx, {
       tenantId: input.tenantId,
       threadId: input.threadId,
       userId: input.authorId,
-      clearDraft: true,
     });
+    await dropDrafts(
+      tx,
+      input.tenantId,
+      sql`thread_id = ${input.threadId}::uuid and user_id = ${input.authorId}::uuid`,
+    );
+  }
   return { id: row.id, createdAt: row.created_at };
 }
 
@@ -818,13 +933,10 @@ export async function markRead(
     tenantId: string;
     threadId: string;
     userId: string;
-    clearDraft?: boolean;
   },
 ): Promise<void> {
   const rows = await tx.execute<{ id: string }>(sql`
-    update core.thread_members
-    set last_read_at = statement_timestamp(),
-      draft = case when ${input.clearDraft ?? false} then null else draft end
+    update core.thread_members set last_read_at = statement_timestamp()
     where tenant_id = ${input.tenantId}::uuid and thread_id = ${input.threadId}::uuid
       and user_id = ${input.userId}::uuid and status = 'active' and left_at is null
     returning id`);
@@ -838,26 +950,288 @@ export async function markRead(
     on conflict do nothing`);
 }
 
-export async function saveDraft(
-  tx: Tx,
-  input: { tenantId: string; threadId: string; userId: string; draft: string },
-): Promise<void> {
-  const rows = await tx.execute<{ id: string }>(sql`
-    update core.thread_members set draft = nullif(${input.draft}, '')
-    where tenant_id = ${input.tenantId}::uuid and thread_id = ${input.threadId}::uuid
-      and user_id = ${input.userId}::uuid and status = 'active' and left_at is null
-    returning id`);
-  if (rows.length || !input.draft) return;
-  await tx.execute(sql`
-    insert into core.thread_members (tenant_id, thread_id, user_id, role, draft)
-    select t.tenant_id, t.id, ${input.userId}::uuid, 'reader', ${input.draft}
-    from core.message_threads t
-    where t.tenant_id = ${input.tenantId}::uuid and t.id = ${input.threadId}::uuid
-      and t.mailbox is not null
-    on conflict do nothing`);
+export interface DraftRow {
+  id: string;
+  version: number;
+  /** The conversation it replies to; null for the first message of one. */
+  threadId: string | null;
+  kind: StartKind | null;
+  recipientIds: string[];
+  studentId: string | null;
+  subject: string | null;
+  body: string;
+  /** Its document; null until its first words are kept. */
+  content: Record<string, unknown> | null;
+  updatedAt: string;
 }
 
-/** Unread conversations for the bell and the navigation badge. */
+type DraftRecord = {
+  id: string;
+  version: number;
+  thread_id: string | null;
+  kind: StartKind | null;
+  recipient_ids: string[];
+  student_user_id: string | null;
+  subject: string | null;
+  body: string;
+  content: Record<string, unknown> | null;
+  updated_at: string;
+};
+
+const draftOfRecord = (row: DraftRecord): DraftRow => ({
+  id: row.id,
+  version: row.version,
+  threadId: row.thread_id,
+  kind: row.kind,
+  recipientIds: row.recipient_ids,
+  studentId: row.student_user_id,
+  subject: row.subject,
+  body: row.body,
+  content: row.content,
+  updatedAt: row.updated_at,
+});
+
+/** A draft of the writer's at this school, by its id or as their reply to a conversation. */
+export async function draftOf(
+  tx: Tx,
+  input: {
+    tenantId: string;
+    schoolId: string;
+    userId: string;
+    id?: string;
+    threadId?: string;
+  },
+): Promise<DraftRow | null> {
+  const [row] = await tx.execute<DraftRecord>(sql`
+    select d.id, d.version, d.thread_id, d.kind, d.recipient_ids, d.student_user_id, d.subject,
+           d.body, ${isoOf(sql`d.date_last_modified`)} as updated_at,
+           (select x.content from core.documents x
+             where x.tenant_id = d.tenant_id and x.host_type = 'message_draft' and x.host_id = d.id
+               and x.status = 'active'
+             order by x.created_at desc limit 1) as content
+    from core.message_drafts d
+    where d.tenant_id = ${input.tenantId}::uuid and d.org_id = ${input.schoolId}::uuid
+      and d.user_id = ${input.userId}::uuid and d.status = 'active'
+      and (${input.id ?? null}::uuid is null or d.id = ${input.id ?? null}::uuid)
+      and (${input.threadId ?? null}::uuid is null or d.thread_id = ${input.threadId ?? null}::uuid)
+    limit 1`);
+  return row ? draftOfRecord(row) : null;
+}
+
+/**
+ * Keeps what someone is writing: a new draft when no id is given, or the
+ * draft named at the version they read. Null when that version moved on,
+ * the draft was sent, or a reply to the conversation is already kept.
+ */
+export async function keepDraft(
+  tx: Tx,
+  input: {
+    tenantId: string;
+    schoolId: string;
+    userId: string;
+    id: string | null;
+    version: number;
+    threadId: string | null;
+    kind: StartKind | null;
+    recipientIds: readonly string[];
+    studentId: string | null;
+    subject: string | null;
+    body: string;
+  },
+): Promise<{ id: string; version: number } | null> {
+  const [row] = await tx.execute<{ id: string; version: number }>(
+    input.id
+      ? sql`
+    update core.message_drafts
+    set recipient_ids = ${uuidArray(input.recipientIds)}, kind = ${input.kind},
+      student_user_id = ${input.studentId}::uuid, subject = ${input.subject},
+      body = ${input.body}
+    where tenant_id = ${input.tenantId}::uuid and id = ${input.id}::uuid
+      and org_id = ${input.schoolId}::uuid and user_id = ${input.userId}::uuid
+      and thread_id is not distinct from ${input.threadId}::uuid
+      and status = 'active' and version = ${input.version}
+    returning id, version`
+      : sql`
+    insert into core.message_drafts (tenant_id, org_id, user_id, thread_id, kind, recipient_ids,
+      student_user_id, subject, body)
+    values (${input.tenantId}::uuid, ${input.schoolId}::uuid, ${input.userId}::uuid,
+      ${input.threadId}::uuid, ${input.kind}, ${uuidArray(input.recipientIds)},
+      ${input.studentId}::uuid, ${input.subject}, ${input.body})
+    on conflict (tenant_id, thread_id, user_id) where status = 'active' and thread_id is not null
+    do nothing
+    returning id, version`,
+  );
+  return row ?? null;
+}
+
+/**
+ * Tombstones the drafts a condition names, with their documents, so
+ * nothing of them is shown again. The files they held go where the
+ * message took them, or with the document.
+ */
+async function dropDrafts(tx: Tx, tenantId: string, which: SQL) {
+  const rows = await tx.execute<{ id: string }>(sql`
+    update core.message_drafts set status = 'tobedeleted'
+    where tenant_id = ${tenantId}::uuid and status = 'active' and ${which}
+    returning id`);
+  if (rows.length === 0) return;
+  const ids = uuidArray(rows.map((row) => row.id));
+  await tx.execute(sql`
+    update core.document_files l set status = 'tobedeleted'
+    from core.documents d
+    where l.tenant_id = ${tenantId}::uuid and l.status = 'active' and d.tenant_id = l.tenant_id
+      and d.id = l.document_id and d.host_type = 'message_draft' and d.host_id = any(${ids})`);
+  await tx.execute(sql`
+    update core.documents set status = 'tobedeleted'
+    where tenant_id = ${tenantId}::uuid and host_type = 'message_draft' and host_id = any(${ids})
+      and status = 'active'`);
+}
+
+/**
+ * Lets go of a draft at the version its writer read, as sending it or
+ * deleting it does. False when it moved on since or was already sent.
+ */
+export async function consumeDraft(
+  tx: Tx,
+  input: { tenantId: string; userId: string; id: string; version: number },
+): Promise<boolean> {
+  const [held] = await tx.execute<{ id: string }>(sql`
+    select id from core.message_drafts
+    where tenant_id = ${input.tenantId}::uuid and id = ${input.id}::uuid
+      and user_id = ${input.userId}::uuid and status = 'active' and version = ${input.version}
+    for update`);
+  if (!held) return false;
+  await dropDrafts(tx, input.tenantId, sql`id = ${input.id}::uuid`);
+  return true;
+}
+
+export interface DraftSummary {
+  id: string;
+  version: number;
+  threadId: string | null;
+  kind: StartKind | null;
+  subject: string | null;
+  body: string;
+  updatedAt: string;
+  studentNameEn: string | null;
+  studentNameAr: string | null;
+  hasFiles: boolean;
+  /** Whom it is for: the people picked, or everyone else in the conversation it replies to. */
+  to: Named[];
+}
+
+/**
+ * A page of the writer's drafts at this school, last kept first, and
+ * where the next page starts when there is one. A reply to a conversation
+ * they no longer reach is not listed.
+ */
+export async function draftsOf(
+  tx: Tx,
+  reader: Reader & { limit: number; after: Keyset | null },
+): Promise<{ rows: DraftSummary[]; next: Keyset | null }> {
+  const after = reader.after;
+  const rows = await tx.execute<{
+    id: string;
+    version: number;
+    thread_id: string | null;
+    kind: StartKind | null;
+    subject: string | null;
+    body: string;
+    updated_at: string;
+    student_en: string | null;
+    student_ar: string | null;
+    has_files: boolean;
+    to: NamedRecord[];
+  }>(sql`
+    ${reached(reader, "all")}
+    select d.id, d.version, d.thread_id, d.kind, coalesce(d.subject, t.subject) as subject, d.body,
+           ${isoOf(sql`d.date_last_modified`)} as updated_at,
+           s.full_name_en as student_en, s.full_name_ar as student_ar,
+           exists (select 1 from core.files f
+             where f.tenant_id = d.tenant_id and f.host_type = 'message_draft' and f.host_id = d.id
+               and f.status = 'active') as has_files,
+           case when d.thread_id is null then
+             coalesce((select jsonb_agg(jsonb_build_object('user_id', u.id, 'contact_id', null,
+                 'full_name_en', u.full_name_en, 'full_name_ar', u.full_name_ar) order by p.ord)
+               from unnest(d.recipient_ids) with ordinality as p(user_id, ord)
+               join core.users u on u.tenant_id = d.tenant_id and u.id = p.user_id), '[]'::jsonb)
+           else
+             coalesce((select jsonb_agg(jsonb_build_object(${memberNames})
+                 order by o.role, coalesce(u.full_name_en, c.display_name))
+               from core.thread_members o
+               left join core.message_contacts c on c.tenant_id = o.tenant_id and c.id = o.contact_id
+               left join core.users u on u.tenant_id = o.tenant_id and u.id = o.user_id
+               where o.tenant_id = d.tenant_id and o.thread_id = d.thread_id and o.status = 'active'
+                 and o.left_at is null and o.user_id is distinct from ${reader.viewerId}::uuid
+                 and (t.mailbox is null or o.role <> 'reader')), '[]'::jsonb)
+           end as to
+    from core.message_drafts d
+    left join core.message_threads t on t.tenant_id = d.tenant_id and t.id = d.thread_id
+    left join core.users s on s.tenant_id = d.tenant_id
+      and s.id = coalesce(d.student_user_id, t.student_user_id)
+    where d.tenant_id = ${reader.tenantId}::uuid and d.org_id = ${reader.schoolId}::uuid
+      and d.user_id = ${reader.viewerId}::uuid and d.status = 'active'
+      and (d.thread_id is null or d.thread_id in (select thread_id from reached))
+      and (${after === null}::boolean
+        or date_trunc('milliseconds', d.date_last_modified) < ${after?.at ?? null}::timestamptz
+        or (date_trunc('milliseconds', d.date_last_modified) = ${after?.at ?? null}::timestamptz
+          and d.id > ${after?.id ?? null}::uuid))
+    order by date_trunc('milliseconds', d.date_last_modified) desc, d.id
+    limit ${reader.limit + 1}`);
+  const page = rows.slice(0, reader.limit);
+  const last = page.at(-1);
+  return {
+    rows: page.map((row) => ({
+      id: row.id,
+      version: row.version,
+      threadId: row.thread_id,
+      kind: row.kind,
+      subject: row.subject,
+      body: row.body,
+      updatedAt: row.updated_at,
+      studentNameEn: row.student_en,
+      studentNameAr: row.student_ar,
+      hasFiles: row.has_files,
+      to: row.to.map(named),
+    })),
+    next:
+      rows.length > reader.limit && last
+        ? { at: last.updated_at, id: last.id }
+        : null,
+  };
+}
+
+/**
+ * Which of these people the viewer may already open, as a student's
+ * record or a person's, by the same reach rules those records apply.
+ */
+export async function openable(
+  tx: Tx,
+  input: {
+    schoolId: string;
+    viewerId: string;
+    on: string;
+    schoolWide: boolean;
+    userIds: readonly string[];
+  },
+): Promise<{ students: string[]; people: string[] }> {
+  if (input.userIds.length === 0) return { students: [], people: [] };
+  const rows = await tx.execute<{ user_id: string; student: boolean }>(sql`
+    select t.user_id,
+      t.user_id in (select student_user_id from app.visible_students(${input.viewerId}::uuid,
+        ${input.schoolId}::uuid, ${input.on}::date, ${input.schoolWide})) as student
+    from unnest(${uuidArray(input.userIds)}) as t(user_id)
+    where t.user_id in (select student_user_id from app.visible_students(${input.viewerId}::uuid,
+        ${input.schoolId}::uuid, ${input.on}::date, ${input.schoolWide}))
+      or t.user_id in (select user_id from app.visible_people(${input.viewerId}::uuid,
+        ${input.schoolId}::uuid, ${input.on}::date, ${input.schoolWide}))`);
+  return {
+    students: rows.filter((row) => row.student).map((row) => row.user_id),
+    people: rows.filter((row) => !row.student).map((row) => row.user_id),
+  };
+}
+
+/** Unread conversations, for the Messages count in navigation and the home pages. */
 export async function unreadThreads(
   tx: Tx,
   input: {

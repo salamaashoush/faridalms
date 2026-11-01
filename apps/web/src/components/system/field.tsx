@@ -72,7 +72,10 @@ export function FormField({
     <div
       data-slot="form-field"
       data-invalid={error ? true : undefined}
-      className={cn("grid min-w-0 content-start gap-2", className)}
+      className={cn(
+        "grid min-w-0 grid-cols-[minmax(0,1fr)] content-start gap-2",
+        className,
+      )}
     >
       <div
         className={cn(

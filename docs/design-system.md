@@ -19,6 +19,13 @@ this document first.
 - **Both directions.** Every layout mirrors for Arabic. Numbers inside a value
   never reverse; back and forward chevrons do (Apple HIG, Material). Media
   playback controls are the one exception (see Media and activities).
+- **Work before decoration.** A home page leads with the next useful action
+  and the records behind it; nothing decorative pushes coursework, grading,
+  attendance or a child's progress below the first screen.
+- **Done is a round trip.** A workflow is finished when a person can start
+  it, correct what they got wrong, save it, reload and find what they saved,
+  and read a useful message when their permission or the record changed
+  underneath them.
 
 ## Tokens
 
@@ -145,6 +152,10 @@ A student, a class, a person (Arbor, PowerSchool, Polaris detail layout).
   reads "Not recorded"; typed text is isolated with `dir="auto"`.
 - Main column two thirds, supporting column one third on wide screens; stacked
   on phones.
+- One record looks the same to every role; the role changes which sections
+  and actions it offers, never its layout. A name of a class, a student or a
+  person links to its record where the viewer may open it, and is plain text
+  where they may not.
 
 #### Section sheets
 
@@ -157,6 +168,14 @@ A student, a class, a person (Arbor, PowerSchool, Polaris detail layout).
   steps in the same sheet: choose, then check a summary of what changes, with
   a Change link back. Removing something is never a cleared field; it is its
   own destructive action in the `•••` menu and confirms.
+- A sheet that holds something being written, such as a new message, keeps
+  it as a draft while it is written, and says how the draft stands at the
+  end of the footer ("Saving draft…", "Draft saved"). Closing it (Cancel,
+  the close button, Escape or a click outside) keeps the draft and says so
+  in a toast. Writing that cannot be kept, such as one message to several
+  families at once, or a draft that failed to save, asks before it is
+  thrown away: "Keep editing" or "Discard changes". Nothing a person wrote
+  is lost without being asked.
 
 ### Content editor
 
@@ -209,7 +228,8 @@ School settings, website settings, notification preferences.
 The field, in order (GOV.UK, Primer):
 
 1. Label above the control, sentence case, no colon, 1–3 words.
-2. "(optional)" in muted text after the label on optional fields. No asterisks
+2. "(optional)" in muted text after the label on optional fields, outside the
+   label, so the field's accessible name stays the label. No asterisks
    (GOV.UK). Most fields should be required; cut the rest.
 3. Hint between label and control, 13px muted, only when it helps.
 4. The control, 36px.
@@ -225,8 +245,19 @@ always left to right.
 
 Validation runs on submit, then live only on fields still invalid (Primer).
 Forms with more than five fields show an error summary at the top that takes
-focus and links to each field (GOV.UK). Save is never disabled except while a
-submit is in flight. Placeholders never replace labels.
+focus and links to each field (GOV.UK); a shorter form moves focus to its
+first invalid field, else to the form's error. Save is never disabled except
+before the page has hydrated, when the fields are disabled too because
+WebKit drops what is typed before then, and while a submit is in flight.
+Placeholders never replace labels.
+
+Leaving a form or an editor with changes not yet saved (a record or
+settings form, the attendance register, the assignment, lesson and plan
+editors, the website studio) asks first, "Keep editing" or "Discard
+changes", with Discard disabled while a save is under way, and the browser
+warns before the page is closed. Error messages travel as keys
+(`validation.*` from the domain schemas, `<area>.<reason>` from the API)
+and are read in the person's language; raw validator text is never shown.
 
 ## Status
 
@@ -250,7 +281,8 @@ danger. Labels are one or two words, sentence case, past tense for outcomes
 ## Feedback
 
 - Toasts confirm an action that happened elsewhere on screen; they never carry
-  the only copy of an error.
+  the only copy of an error. They appear top centre, so they never cover a
+  bottom action bar.
 - Errors from the server appear inline where the person is looking: on the
   field, or in the form's summary.
 - Destructive actions confirm in a dialog that names the thing being removed.

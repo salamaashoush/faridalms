@@ -1,18 +1,46 @@
-import type { InboxQuery, Mailbox } from "@faridalms/domain/messages";
+import type {
+  InboxQuery,
+  InboxView,
+  Mailbox,
+} from "@faridalms/domain/messages";
+import type { QueryClient } from "@tanstack/react-query";
 
-import { INBOX_BOXES } from "@faridalms/domain/messages";
+import { INBOX_VIEWS } from "@faridalms/domain/messages";
+import { Button } from "@faridalms/ui/button";
 import { cn } from "@faridalms/ui/cn";
 import { Input } from "@faridalms/ui/input";
 import { Skeleton } from "@faridalms/ui/skeleton";
-import { useSuspenseQuery } from "@tanstack/react-query";
-import { Inbox as InboxIcon, PenSquare, Search } from "lucide-react";
-import { Suspense } from "react";
+import {
+  useMutation,
+  useQueryClient,
+  useSuspenseInfiniteQuery,
+  useSuspenseQuery,
+} from "@tanstack/react-query";
+import {
+  FilePen,
+  Inbox as InboxIcon,
+  Paperclip,
+  PenSquare,
+  Search,
+  Trash2,
+} from "lucide-react";
+import { Suspense, useEffect, useState } from "react";
+import { toast } from "sonner";
 import * as v from "valibot";
 
+import { ConfirmDialog } from "~/components/system/ConfirmDialog";
 import { EmptyState, PageHeader } from "~/components/system/IndexPage";
 import { useCurrentUser } from "~/hooks/useCurrentUser";
 import * as m from "~/i18n/messages";
-import { inboxQuery } from "~/queries/messages";
+import {
+  draftQuery,
+  draftsQuery,
+  inboxQuery,
+  threadQuery,
+} from "~/queries/messages";
+import { discardMessageDraft } from "~/server/messages";
+import { formatNumber, formatList } from "~/utils/datetime";
+import { getMessageFromError } from "~/utils/error";
 
 import { Conversation } from "./Conversation";
 import { nameOf, threadTitle, whenShort } from "./format";
@@ -23,14 +51,39 @@ const uuid = v.pipe(v.string(), v.uuid());
 export const messagesSearchSchema = v.object({
   thread: v.optional(v.union([v.literal(""), uuid]), ""),
   show: v.optional(v.picklist(["all", "unread"]), "all"),
-  box: v.optional(v.picklist(INBOX_BOXES), "all"),
+  box: v.optional(v.picklist(INBOX_VIEWS), "all"),
   q: v.optional(v.pipe(v.string(), v.maxLength(100)), ""),
   compose: v.optional(v.boolean(), false),
+  /** The draft the compose sheet writes on. */
+  draft: v.optional(v.union([v.literal(""), uuid]), ""),
 });
 export type MessagesSearch = v.InferOutput<typeof messagesSearchSchema>;
 
 export function inboxOf(search: MessagesSearch): InboxQuery {
-  return { show: search.show, box: search.box, q: search.q.trim() };
+  return {
+    show: search.show,
+    box: search.box === "drafts" ? "all" : search.box,
+    q: search.q.trim(),
+  };
+}
+
+/** What every Messages route loads before it renders. */
+export async function loadMessages(
+  queryClient: QueryClient,
+  search: MessagesSearch,
+) {
+  await Promise.all([
+    queryClient.ensureInfiniteQueryData(inboxQuery(inboxOf(search))),
+    ...(search.box === "drafts"
+      ? [queryClient.ensureInfiniteQueryData(draftsQuery)]
+      : []),
+    ...(search.thread
+      ? [queryClient.ensureQueryData(threadQuery(search.thread))]
+      : []),
+    ...(search.compose && search.draft
+      ? [queryClient.ensureQueryData(draftQuery(search.draft))]
+      : []),
+  ]);
 }
 
 /** A team's mailbox, as Messages names it. */
@@ -42,6 +95,12 @@ export const MAILBOX_LABEL: Record<Mailbox, () => string> = {
 type Row = Awaited<
   ReturnType<NonNullable<ReturnType<typeof inboxQuery>["queryFn"]>>
 >["rows"][number];
+type DraftRow = Awaited<
+  ReturnType<NonNullable<(typeof draftsQuery)["queryFn"]>>
+>["rows"][number];
+
+const marker =
+  "shrink-0 rounded-sm bg-muted px-1.5 text-[11px] leading-[18px] font-medium";
 
 function ThreadItem({
   row,
@@ -104,9 +163,7 @@ function ThreadItem({
         </span>
         {row.mailbox ? (
           <span className="flex min-w-0 items-center gap-1.5 text-[13px] leading-[18px] text-muted-foreground">
-            <span className="shrink-0 rounded-sm bg-muted px-1.5 text-[11px] leading-[18px] font-medium">
-              {MAILBOX_LABEL[row.mailbox]()}
-            </span>
+            <span className={marker}>{MAILBOX_LABEL[row.mailbox]()}</span>
             <span className="truncate">
               {row.owner
                 ? m.msgHeldBy({ name: nameOf(row.owner) })
@@ -136,13 +193,219 @@ function ThreadItem({
           </span>
           {row.unread ? (
             <span className="shrink-0 rounded-full bg-primary px-1.5 text-[11px] leading-[18px] font-semibold text-primary-foreground tabular-nums">
-              {row.unread}
+              {formatNumber(row.unread)}
               <span className="sr-only"> {m.msgUnread()}</span>
+            </span>
+          ) : null}
+        </span>
+        <span className="flex flex-wrap items-center gap-x-2 text-[12px] leading-4 text-muted-foreground">
+          {row.messageCount > 0 ? (
+            <span>
+              {m.msgMessageCount({
+                count: row.messageCount,
+                shown: formatNumber(row.messageCount),
+              })}
+            </span>
+          ) : null}
+          {row.hasFiles ? (
+            <span className="flex items-center gap-1">
+              <Paperclip aria-hidden className="size-3" />
+              {m.msgHasFiles()}
+            </span>
+          ) : null}
+          {row.hasDraft ? (
+            <span className="flex items-center gap-1 font-medium text-foreground">
+              <FilePen aria-hidden className="size-3" />
+              {m.msgDraftLabel()}
             </span>
           ) : null}
         </span>
       </button>
     </li>
+  );
+}
+
+function MoreButton({
+  label,
+  pending,
+  onMore,
+}: {
+  label: string;
+  pending: boolean;
+  onMore: () => void;
+}) {
+  return (
+    <div className="flex justify-center border-t p-3">
+      <Button
+        type="button"
+        variant="outline"
+        size="sm"
+        className="max-md:h-10"
+        disabled={pending}
+        onClick={onMore}
+      >
+        {label}
+      </Button>
+    </div>
+  );
+}
+
+/** Whom a draft is for, as its row and its deletion name it. */
+function draftTitle(row: DraftRow) {
+  const names = formatList(row.to.map(nameOf).filter(Boolean));
+  if (row.threadId)
+    return row.subject ?? (names ? m.msgDraftReply({ names }) : m.msgOnlyYou());
+  if (row.subject) return row.subject;
+  if (names) return m.msgDraftTo({ names });
+  if (row.studentNameEn || row.studentNameAr)
+    return m.msgToGuardiansOf({
+      name: nameOf({
+        fullNameEn: row.studentNameEn,
+        fullNameAr: row.studentNameAr,
+      }),
+    });
+  return m.msgDraftNoOne();
+}
+
+function DraftItem({
+  row,
+  today,
+  onOpen,
+  onDelete,
+}: {
+  row: DraftRow;
+  today: string;
+  onOpen: () => void;
+  onDelete: () => void;
+}) {
+  const title = draftTitle(row);
+  return (
+    <li className="flex items-stretch">
+      <button
+        type="button"
+        onClick={onOpen}
+        className="grid min-w-0 flex-1 grid-cols-[minmax(0,1fr)] gap-0.5 py-3 ps-4 pe-2 text-start transition-colors hover:bg-muted/60 focus-visible:bg-muted focus-visible:outline-none"
+      >
+        <span className="flex items-baseline justify-between gap-3">
+          <span className="min-w-0 truncate text-sm leading-5 font-medium">
+            {title}
+          </span>
+          <span className="shrink-0 text-[13px] leading-[18px] text-muted-foreground tabular-nums">
+            {whenShort(row.updatedAt, today)}
+          </span>
+        </span>
+        {row.threadId && row.subject && row.to.length ? (
+          <span className="truncate text-[13px] leading-[18px] text-muted-foreground">
+            {m.msgDraftReply({ names: formatList(row.to.map(nameOf)) })}
+          </span>
+        ) : null}
+        <span className="flex items-center gap-2">
+          <span className={cn(marker, "text-foreground")}>
+            {m.msgDraftLabel()}
+          </span>
+          <span
+            dir="auto"
+            className="min-w-0 truncate text-[13px] leading-[18px] text-muted-foreground"
+          >
+            {row.body || m.msgDraftNothing()}
+          </span>
+          {row.hasFiles ? (
+            <Paperclip
+              aria-label={m.msgHasFiles()}
+              className="size-3 shrink-0 text-muted-foreground"
+            />
+          ) : null}
+        </span>
+      </button>
+      <div className="flex items-center pe-2">
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon-sm"
+          className="max-md:size-10"
+          aria-label={m.msgDraftDelete({ title })}
+          onClick={onDelete}
+        >
+          <Trash2 aria-hidden />
+        </Button>
+      </div>
+    </li>
+  );
+}
+
+function DraftList({
+  onSearch,
+}: {
+  onSearch: (change: Partial<MessagesSearch>) => void;
+}) {
+  const user = useCurrentUser();
+  const queryClient = useQueryClient();
+  const drafts = useSuspenseInfiniteQuery(draftsQuery);
+  const rows = drafts.data.pages.flatMap((page) => page.rows);
+  const [deleting, setDeleting] = useState<DraftRow | null>(null);
+  const discard = useMutation({
+    mutationFn: (row: DraftRow) =>
+      discardMessageDraft({ data: { id: row.id, version: row.version } }),
+    meta: { inlineError: true },
+  });
+  if (rows.length === 0)
+    return (
+      <p className="p-4 text-sm leading-5 text-muted-foreground">
+        {m.msgDraftsEmpty()}
+      </p>
+    );
+  return (
+    <>
+      <ul className="divide-y" aria-label={m.msgBoxDrafts()}>
+        {rows.map((row) => (
+          <DraftItem
+            key={row.id}
+            row={row}
+            today={user.today}
+            onOpen={() =>
+              onSearch(
+                row.threadId
+                  ? { thread: row.threadId }
+                  : { compose: true, draft: row.id },
+              )
+            }
+            onDelete={() => {
+              discard.reset();
+              setDeleting(row);
+            }}
+          />
+        ))}
+      </ul>
+      {drafts.hasNextPage ? (
+        <MoreButton
+          label={m.msgMoreDrafts()}
+          pending={drafts.isFetchingNextPage}
+          onMore={() => void drafts.fetchNextPage()}
+        />
+      ) : null}
+      <ConfirmDialog
+        open={deleting !== null}
+        title={m.msgDraftDeleteTitle()}
+        body={m.msgDraftDeleteBody({
+          title: deleting ? draftTitle(deleting) : "",
+        })}
+        confirmLabel={m.msgDraftDeleteConfirm()}
+        pending={discard.isPending}
+        error={discard.error ? getMessageFromError(discard.error) : undefined}
+        onCancel={() => setDeleting(null)}
+        onConfirm={() => {
+          if (!deleting) return;
+          void discard.mutateAsync(deleting).then(
+            async () => {
+              setDeleting(null);
+              toast.success(m.msgDraftDeleted());
+              await queryClient.invalidateQueries({ queryKey: ["messages"] });
+            },
+            () => undefined,
+          );
+        }}
+      />
+    </>
   );
 }
 
@@ -154,9 +417,18 @@ function ThreadList({
   onSearch: (change: Partial<MessagesSearch>) => void;
 }) {
   const user = useCurrentUser();
-  const { rows, mailboxes } = useSuspenseQuery(
-    inboxQuery(inboxOf(search)),
-  ).data;
+  const inbox = useSuspenseInfiniteQuery(inboxQuery(inboxOf(search)));
+  const first = inbox.data.pages[0];
+  const rows = inbox.data.pages.flatMap((page) => page.rows);
+  const mailboxes = first?.mailboxes ?? [];
+  const views: InboxView[] = [
+    ...(mailboxes.length ? (["all", "personal", ...mailboxes] as const) : []),
+    ...(first?.canStart
+      ? mailboxes.length
+        ? (["drafts"] as const)
+        : (["all", "drafts"] as const)
+      : []),
+  ];
   return (
     <div className="grid min-h-0 min-w-0 grid-cols-[minmax(0,1fr)] content-start">
       <div className="grid gap-2 border-b p-3">
@@ -177,10 +449,10 @@ function ThreadList({
             onChange={(event) => onSearch({ q: event.target.value })}
           />
         </div>
-        {mailboxes.length ? (
+        {views.length ? (
           <fieldset className="flex flex-wrap gap-1">
             <legend className="sr-only">{m.msgBox()}</legend>
-            {(["all", "personal", ...mailboxes] as const).map((box) => (
+            {views.map((box) => (
               <button
                 key={box}
                 type="button"
@@ -194,52 +466,71 @@ function ThreadList({
                 )}
               >
                 {box === "all"
-                  ? m.msgBoxAll()
+                  ? mailboxes.length
+                    ? m.msgBoxAll()
+                    : m.msgConversations()
                   : box === "personal"
                     ? m.msgBoxPersonal()
-                    : MAILBOX_LABEL[box]()}
+                    : box === "drafts"
+                      ? m.msgBoxDrafts()
+                      : MAILBOX_LABEL[box]()}
               </button>
             ))}
           </fieldset>
         ) : null}
-        <fieldset className="flex gap-1">
-          <legend className="sr-only">{m.msgShow()}</legend>
-          {(["all", "unread"] as const).map((show) => (
-            <button
-              key={show}
-              type="button"
-              aria-pressed={search.show === show}
-              onClick={() => onSearch({ show })}
-              className={cn(
-                "h-8 rounded-md px-3 text-[13px] font-medium max-md:h-10",
-                search.show === show
-                  ? "bg-muted text-foreground"
-                  : "text-muted-foreground hover:bg-muted/60",
-              )}
-            >
-              {show === "all" ? m.msgShowAll() : m.msgShowUnread()}
-            </button>
-          ))}
-        </fieldset>
+        {search.box === "drafts" ? null : (
+          <fieldset className="flex gap-1">
+            <legend className="sr-only">{m.msgShow()}</legend>
+            {(["all", "unread"] as const).map((show) => (
+              <button
+                key={show}
+                type="button"
+                aria-pressed={search.show === show}
+                onClick={() => onSearch({ show })}
+                className={cn(
+                  "h-8 rounded-md px-3 text-[13px] font-medium max-md:h-10",
+                  search.show === show
+                    ? "bg-muted text-foreground"
+                    : "text-muted-foreground hover:bg-muted/60",
+                )}
+              >
+                {show === "all" ? m.msgShowAll() : m.msgShowUnread()}
+              </button>
+            ))}
+          </fieldset>
+        )}
       </div>
-      {rows.length === 0 ? (
+      {search.box === "drafts" ? (
+        <Suspense fallback={<PaneFallback />}>
+          <DraftList onSearch={onSearch} />
+        </Suspense>
+      ) : rows.length === 0 ? (
         <p className="p-4 text-sm leading-5 text-muted-foreground">
           {search.q || search.show === "unread"
             ? m.msgNoMatches()
             : m.msgNoThreads()}
         </p>
       ) : (
-        <ul className="divide-y" aria-label={m.msgConversations()}>
-          {rows.map((row) => (
-            <ThreadItem
-              key={row.id}
-              row={row}
-              selected={row.id === search.thread}
-              today={user.today}
-              onOpen={() => onSearch({ thread: row.id })}
+        <>
+          <ul className="divide-y" aria-label={m.msgConversations()}>
+            {rows.map((row) => (
+              <ThreadItem
+                key={row.id}
+                row={row}
+                selected={row.id === search.thread}
+                today={user.today}
+                onOpen={() => onSearch({ thread: row.id })}
+              />
+            ))}
+          </ul>
+          {inbox.hasNextPage ? (
+            <MoreButton
+              label={m.msgMoreThreads()}
+              pending={inbox.isFetchingNextPage}
+              onMore={() => void inbox.fetchNextPage()}
             />
-          ))}
-        </ul>
+          ) : null}
+        </>
       )}
     </div>
   );
@@ -255,6 +546,41 @@ function PaneFallback() {
   );
 }
 
+type ComposeProps = Omit<Parameters<typeof NewMessage>[0], "draft">;
+
+/** A draft reopened from Drafts, or from a reloaded page that was writing it. */
+function ReopenedDraft({
+  id,
+  onReply,
+  ...props
+}: ComposeProps & { id: string; onReply: (threadId: string) => void }) {
+  const draft = useSuspenseQuery(draftQuery(id)).data;
+  const reply = draft?.reply ? draft.threadId : null;
+  useEffect(() => {
+    if (reply) onReply(reply);
+  }, [reply, onReply]);
+  if (draft?.reply) return null;
+  return <NewMessage {...props} draft={draft ?? undefined} />;
+}
+
+/**
+ * The compose sheet. Which draft it writes on is fixed when it opens, so
+ * the address naming the draft it has just kept does not open it again.
+ */
+function ComposeSheet({
+  draftId,
+  onReply,
+  ...props
+}: ComposeProps & { draftId: string; onReply: (threadId: string) => void }) {
+  const [opened] = useState(draftId);
+  if (!opened) return <NewMessage {...props} />;
+  return (
+    <Suspense fallback={null}>
+      <ReopenedDraft id={opened} onReply={onReply} {...props} />
+    </Suspense>
+  );
+}
+
 /**
  * Conversations beside the open one from 1024px; below that the list and the
  * conversation take the screen in turn.
@@ -266,7 +592,8 @@ export function MessagesPage({
   search: MessagesSearch;
   onSearch: (change: Partial<MessagesSearch>, replace?: boolean) => void;
 }) {
-  const inbox = useSuspenseQuery(inboxQuery(inboxOf(search))).data;
+  const inbox = useSuspenseInfiniteQuery(inboxQuery(inboxOf(search))).data
+    .pages[0];
   const open = search.thread !== "";
   return (
     <>
@@ -275,11 +602,11 @@ export function MessagesPage({
           title={m.msgTitle()}
           description={m.msgHint()}
           action={
-            inbox.canStart
+            inbox?.canStart
               ? {
                   label: m.msgNew(),
                   icon: PenSquare,
-                  onClick: () => onSearch({ compose: true }),
+                  onClick: () => onSearch({ compose: true, draft: "" }),
                 }
               : undefined
           }
@@ -314,11 +641,20 @@ export function MessagesPage({
         </div>
       </div>
       {search.compose ? (
-        <NewMessage
-          canStartFamily={inbox.canStartFamily}
-          onClose={() => onSearch({ compose: false }, true)}
+        <ComposeSheet
+          draftId={search.draft}
+          canStartFamily={inbox?.canStartFamily ?? false}
+          childrenToName={inbox?.children ?? []}
+          onReply={(threadId) =>
+            onSearch({ compose: false, draft: "", thread: threadId }, true)
+          }
+          onKept={(draftId) => onSearch({ draft: draftId }, true)}
+          onClose={() => onSearch({ compose: false, draft: "" }, true)}
           onStarted={(threadId) =>
-            onSearch({ compose: false, thread: threadId ?? "" }, true)
+            onSearch(
+              { compose: false, draft: "", thread: threadId ?? "" },
+              true,
+            )
           }
         />
       ) : null}

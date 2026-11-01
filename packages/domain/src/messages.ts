@@ -102,20 +102,32 @@ const content = v.pipe(
 /** `personal` keeps to conversations the viewer is in; a mailbox to that team's. */
 export const INBOX_BOXES = ["all", "personal", ...MAILBOX_KEYS] as const;
 export type InboxBox = (typeof INBOX_BOXES)[number];
+/** What Messages lists: a box of conversations, or the viewer's drafts. */
+export const INBOX_VIEWS = [...INBOX_BOXES, "drafts"] as const;
+export type InboxView = (typeof INBOX_VIEWS)[number];
+
+/** How many conversations or drafts one request answers with. */
+export const INBOX_PAGE = 50;
+
+/** Where the next page starts: after the row the previous one ended on. */
+const keyset = v.optional(
+  v.nullable(v.object({ at: v.pipe(v.string(), v.isoTimestamp()), id })),
+  null,
+);
+export type Keyset = { at: string; id: string };
 
 export const inboxQuerySchema = v.object({
   show: v.optional(v.picklist(["all", "unread"]), "all"),
   box: v.optional(v.picklist(INBOX_BOXES), "all"),
   q: v.optional(v.pipe(v.string(), v.trim(), v.maxLength(100)), ""),
+  after: keyset,
 });
-export type InboxQuery = v.InferOutput<typeof inboxQuerySchema>;
+export type InboxQuery = v.InferInput<typeof inboxQuerySchema>;
 
+/** `before` is the oldest entry already shown, to read further back from. */
 export const threadQuerySchema = v.object({
   id,
-  before: v.optional(
-    v.union([v.literal(""), v.pipe(v.string(), v.isoTimestamp())]),
-    "",
-  ),
+  before: v.optional(v.union([v.literal(""), id]), ""),
 });
 
 /**
@@ -133,13 +145,24 @@ export const sendSchema = v.object({
 });
 export type SendMessage = v.InferOutput<typeof sendSchema>;
 
+const optionalId = v.optional(v.union([v.literal(""), id]), "");
+const version = v.pipe(v.number(), v.integer(), v.minValue(0));
+
+/**
+ * Starts a conversation. `studentId` is the child it is about: the one
+ * whose family a staff member writes to, or the child a guardian names
+ * when writing to a teacher. Sent from a draft, `draftId` and the version
+ * read consume it, so a draft is sent once.
+ */
 export const startSchema = v.pipe(
   v.object({
     kind: v.picklist(THREAD_KINDS),
     recipientIds: v.optional(v.pipe(v.array(id), v.maxLength(50)), []),
-    studentId: v.optional(v.union([v.literal(""), id]), ""),
+    studentId: optionalId,
     subject: v.optional(v.pipe(v.string(), v.trim(), v.maxLength(200)), ""),
     content,
+    draftId: optionalId,
+    draftVersion: v.optional(version, 0),
   }),
   v.check(
     (input) =>
@@ -153,10 +176,27 @@ export const startSchema = v.pipe(
 );
 export type StartThread = v.InferOutput<typeof startSchema>;
 
+/**
+ * What a composer holds, kept as someone writes: a reply to `threadId`,
+ * or the first message of a conversation with whom it is for. `id` and
+ * the `version` read name the draft being kept; a new one has neither.
+ * Its words may still be empty, as while someone picks who to write to.
+ */
 export const draftSchema = v.object({
-  threadId: id,
-  draft: v.pipe(v.string(), v.maxLength(5000)),
+  id: optionalId,
+  version: v.optional(version, 0),
+  threadId: optionalId,
+  kind: v.optional(v.picklist(THREAD_KINDS), "direct"),
+  recipientIds: v.optional(v.pipe(v.array(id), v.maxLength(50)), []),
+  studentId: optionalId,
+  subject: v.optional(v.pipe(v.string(), v.trim(), v.maxLength(200)), ""),
+  content: contentDocumentSchema,
 });
+export type SaveDraft = v.InferInput<typeof draftSchema>;
+
+export const draftRefSchema = v.object({ id, version });
+
+export const draftsQuerySchema = v.object({ after: keyset });
 
 export const membersSchema = v.object({
   threadId: id,
@@ -164,9 +204,28 @@ export const membersSchema = v.object({
   remove: v.optional(v.pipe(v.array(id), v.maxLength(50)), []),
 });
 
+/**
+ * People come staff first, then guardians, then students, each by name;
+ * `among` keeps to the students, for a family's conversation, or to
+ * everyone else.
+ */
 export const recipientsQuerySchema = v.object({
   q: v.optional(v.pipe(v.string(), v.trim(), v.maxLength(100)), ""),
+  among: v.optional(v.picklist(["all", "people", "students"]), "all"),
+  after: v.optional(
+    v.nullable(
+      v.object({
+        rank: v.pipe(v.number(), v.integer(), v.minValue(0), v.maxValue(2)),
+        name: v.pipe(v.string(), v.maxLength(400)),
+        id,
+      }),
+    ),
+    null,
+  ),
 });
+export type RecipientCursor = NonNullable<
+  v.InferOutput<typeof recipientsQuerySchema>["after"]
+>;
 
 /** Why mail that reached a conversation's address was kept back from it. */
 export const HOLD_REASONS = ["sender", "unauthenticated"] as const;

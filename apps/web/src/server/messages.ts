@@ -1,5 +1,7 @@
 import {
+  draftRefSchema,
   draftSchema,
+  draftsQuerySchema,
   inboxQuerySchema,
   membersSchema,
   recipientsQuerySchema,
@@ -14,6 +16,7 @@ import { backend, record } from "./backend";
 import { checked } from "./input";
 
 const threadId = v.object({ threadId: v.pipe(v.string(), v.uuid()) });
+const byId = v.object({ id: v.pipe(v.string(), v.uuid()) });
 
 export const getInbox = createServerFn({ method: "GET" })
   .validator(checked(inboxQuerySchema))
@@ -43,9 +46,21 @@ export const markThreadRead = createServerFn({ method: "POST" })
   .validator(checked(threadId))
   .handler(({ data }) => backend().messages.markRead(data));
 
-export const saveThreadDraft = createServerFn({ method: "POST" })
+export const saveMessageDraft = createServerFn({ method: "POST" })
   .validator(checked(draftSchema))
   .handler(({ data }) => backend().messages.saveDraft(data));
+
+export const getDrafts = createServerFn({ method: "GET" })
+  .validator(checked(draftsQuerySchema))
+  .handler(({ data }) => backend().messages.drafts(data));
+
+export const getDraft = createServerFn({ method: "GET" })
+  .validator(checked(byId))
+  .handler(({ data }) => backend().messages.draft(data));
+
+export const discardMessageDraft = createServerFn({ method: "POST" })
+  .validator(checked(draftRefSchema))
+  .handler(({ data }) => backend().messages.discardDraft(data));
 
 export const changeMembers = createServerFn({ method: "POST" })
   .validator(checked(membersSchema))

@@ -303,6 +303,10 @@ export function getMessageFromError(error: unknown): string {
         return m.msgNewer();
       case "messages.empty":
         return m.msgBodyNeeded();
+      case "messages.recipients":
+        return m.messageDraftIncomplete();
+      case "message_draft.revision_conflict":
+        return m.messageDraftConflict();
       case "privacy.contact_linked":
         return m.msgContactLinked();
       case "attendance.stale":

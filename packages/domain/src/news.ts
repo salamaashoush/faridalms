@@ -26,9 +26,26 @@ const version = (min: number) =>
   v.pipe(v.number(), v.integer(), v.minValue(min));
 const words = (max: number) => v.pipe(v.string(), v.trim(), v.maxLength(max));
 
+export const NEWS_SORTS = ["date", "title"] as const;
+export type NewsSort = (typeof NEWS_SORTS)[number];
+/** How many posts a page of the readers' list holds. */
+export const NEWS_PAGE = 25;
+
 export const newsListSchema = v.object({
   q: v.optional(words(100), ""),
+  sort: v.fallback(v.optional(v.picklist(NEWS_SORTS), "date"), "date"),
+  direction: v.fallback(
+    v.optional(v.picklist(["asc", "desc"]), "desc"),
+    "desc",
+  ),
+  page: v.fallback(
+    v.optional(v.pipe(v.number(), v.integer(), v.minValue(1)), 1),
+    1,
+  ),
+  /** Which language's titles a sort by title reads first. */
+  locale: v.fallback(v.optional(v.picklist(CONTENT_LOCALES), "en"), "en"),
 });
+export type NewsListQuery = v.InferOutput<typeof newsListSchema>;
 
 export const manageNewsSchema = v.object({
   tab: v.fallback(v.optional(v.picklist(NEWS_TABS), "published"), "published"),

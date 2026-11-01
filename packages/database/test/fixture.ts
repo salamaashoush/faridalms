@@ -22,6 +22,7 @@ import {
   attendanceSettings,
   siteEnquiries,
   siteEnquiryEntries,
+  messageDrafts,
   accounts,
   calendarFeeds,
   calendarGradeLevels,
@@ -1265,6 +1266,13 @@ export async function completeFixture(
       authorUserId: userId,
     },
   ]);
+  await tx.insert(messageDrafts).values({
+    tenantId,
+    orgId: schoolId,
+    userId,
+    kind: "direct",
+    body: "Salama, a note still being written.",
+  });
   const [builtin] = await tx
     .select({ id: accessRoles.id })
     .from(accessRoles)

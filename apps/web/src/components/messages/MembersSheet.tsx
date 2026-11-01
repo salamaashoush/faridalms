@@ -1,5 +1,9 @@
 import { Button } from "@faridalms/ui/button";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import {
+  useInfiniteQuery,
+  useMutation,
+  useQueryClient,
+} from "@tanstack/react-query";
 import { UserMinus } from "lucide-react";
 import { useState } from "react";
 
@@ -13,6 +17,7 @@ import { messageRecipientsQuery } from "~/queries/messages";
 import { changeMembers } from "~/server/messages";
 import { getMessageFromError } from "~/utils/error";
 
+import { NameLink } from "./entries";
 import { nameOf } from "./format";
 
 type Thread = Awaited<
@@ -35,10 +40,11 @@ export function MembersSheet({
     () => new Map(),
   );
   const [remove, setRemove] = useState<string[]>([]);
-  const found = useQuery({
+  const recipients = useInfiniteQuery({
     ...messageRecipientsQuery(search),
     enabled: thread.canManage,
-  }).data?.rows;
+  });
+  const found = recipients.data?.pages.flatMap((page) => page.rows);
   const present = new Set(
     thread.members.flatMap((row) => (row.userId ? [row.userId] : [])),
   );
@@ -66,9 +72,13 @@ export function MembersSheet({
             className="flex items-center justify-between gap-3 px-3 py-2"
           >
             <span className="grid min-w-0">
-              <bdi className="truncate text-sm leading-5 font-medium">
+              <NameLink
+                userId={row.userId}
+                link={row.link}
+                className="truncate text-sm leading-5 font-medium"
+              >
                 {nameOf(row)}
-              </bdi>
+              </NameLink>
               {row.role === "owner" ? (
                 <span className="text-[13px] leading-[18px] text-muted-foreground">
                   {thread.mailbox ? m.msgHolds() : m.msgOwner()}
@@ -159,6 +169,15 @@ export function MembersSheet({
         }}
         search={search}
         onSearchChange={setSearch}
+        more={
+          recipients.hasNextPage
+            ? {
+                label: m.msgMoreRecipients(),
+                pending: recipients.isFetchingNextPage,
+                onMore: () => void recipients.fetchNextPage(),
+              }
+            : undefined
+        }
       />
     </SheetForm>
   );

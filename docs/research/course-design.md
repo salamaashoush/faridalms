@@ -11,8 +11,7 @@ Sources: `packages/domain/src/learning.ts`, `apps/api/src/systems/learning.ts`,
 `packages/database/src/tables/learning.ts`, `packages/domain/src/content.ts`,
 `packages/domain/src/embed.ts`, `packages/editor/src/blocks.ts`,
 `apps/web/src/components/learning/*.tsx`, `packages/database/src/tables/coursework.ts`,
-`packages/domain/src/coursework.ts`, `docs/product-spec.md`, `docs/rewrite-tracker.md`
-(learning modules checkpoint).
+`packages/domain/src/coursework.ts`, `docs/product-spec.md`, `docs/systems/learning.md`.
 
 ### 1.1 Structure a teacher can build
 

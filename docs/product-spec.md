@@ -127,6 +127,11 @@ by term; families see returned results only.
   them in one tap; exceptions are Present, Absent, Late (minutes), Excused, Left
   early, each with an optional note; a sticky footer summarises and saves.
   Teachers may edit within a configurable window.
+- A register takes marks only for the students in the class, or its
+  homeroom, on that date. It cannot be saved for a closed year, a future
+  date or a day that is not a school day, nor, for a teacher without
+  `attendance:manage`, outside the edit window; a save made from an
+  out-of-date register is refused rather than overwriting someone else's.
 - Admin: registers board (every class by session: not started, in progress,
   submitted, with Remind), absences (unexplained first, bulk message guardians,
   excuse with reason), reports (by student and class, chronic absence threshold,
@@ -149,6 +154,20 @@ re-entrant draft: create next year, copy classes and allocations, promote by
 class mapping with per-student Retain / Leave / Graduate, copy or skip the
 timetable, resolve blockers, review counts, apply. Making the new year current
 is a separate, explicit step; the old year becomes read-only.
+
+- Making an upcoming year current closes the year it replaces; the current
+  year is never closed directly. Reopening a closed year needs
+  `years:reopen` and a reason, and leaves it open but not current. Each step
+  is an audited event that keeps the reason.
+- The rollover plan is a draft saved against the version it read. Opening
+  it again adds newcomers as promoted and drops students who left. Applying
+  runs in one transaction, copies no coursework and changes nothing in the
+  year it comes from; applying again, even at the same moment, answers with
+  the outcome already recorded, and a stale plan or a closed year is
+  refused.
+- Lists that span years show the year in the URL. With none named they show
+  the current year, else the year that holds today, else the latest; a year
+  that does not exist answers not found rather than showing another.
 
 ## People
 
