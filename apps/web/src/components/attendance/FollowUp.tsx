@@ -28,7 +28,7 @@ import { inLocale } from "~/hooks/useCurrentUser";
 import * as m from "~/i18n/messages";
 import { followUpQuery } from "~/queries/attendance";
 import { logAttendanceContact } from "~/server/attendance";
-import { formatDate, formatNumber } from "~/utils/datetime";
+import { formatDate, formatInstant, formatNumber } from "~/utils/datetime";
 import { getMessageFromError } from "~/utils/error";
 
 import { DayNav } from "./DayNav";
@@ -49,12 +49,6 @@ const OUTCOME_LABEL: Record<ContactOutcome, () => string> = {
   left_message: m.fupLeftMessage,
   messaged: m.fupMessaged,
 };
-
-const clock = (iso: string) =>
-  new Date(iso).toLocaleTimeString(undefined, {
-    hour: "2-digit",
-    minute: "2-digit",
-  });
 
 const nameOf = (row: {
   fullNameEn: string | null;
@@ -208,7 +202,7 @@ function CallRow({ call, onLog }: { call: Call; onLog: (call: Call) => void }) {
               >
                 {m.fupLogged({
                   outcome: OUTCOME_LABEL[contact.outcome](),
-                  time: clock(contact.at),
+                  time: formatInstant(contact.at, "time"),
                   name: inLocale(contact.byNameEn, contact.byNameAr),
                 })}
                 {contact.note ? (

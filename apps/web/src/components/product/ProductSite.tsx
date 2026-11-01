@@ -104,7 +104,7 @@ function Star({ className }: { className?: string }) {
 function Brand({ className }: { className?: string }) {
   return (
     <span className={cn("flex items-center gap-2.5 font-semibold", className)}>
-      <span className="grid size-8 place-items-center rounded-lg bg-[#dcedcf] text-[#153f3a]">
+      <span className="grid size-8 place-items-center rounded-lg bg-brand-accent text-brand">
         <GraduationCap aria-hidden className="size-[1.15rem]" />
       </span>
       {m.appName()}
@@ -123,7 +123,7 @@ function LanguageSwitch({ className }: { className?: string }) {
         void setLocale(other);
       }}
       className={cn(
-        "inline-flex h-9 items-center rounded-md px-3 text-sm font-medium outline-none focus-visible:ring-3 focus-visible:ring-[#dcedcf]/50",
+        "inline-flex h-9 items-center rounded-md px-3 text-sm font-medium outline-none focus-visible:ring-3 focus-visible:ring-brand-accent/50",
         className,
       )}
     >
@@ -142,11 +142,11 @@ function Header() {
     { href: "#self-hosting", label: m.productNavSelfHost() },
   ];
   return (
-    <header className="school-sidebar sticky top-0 z-40 border-b border-white/10 bg-[#153f3a]/95 backdrop-blur supports-[backdrop-filter]:bg-[#153f3a]/85">
+    <header className="school-sidebar sticky top-0 z-40 border-b border-white/10 bg-brand/95 backdrop-blur supports-[backdrop-filter]:bg-brand/85">
       <div className={cn(CONTAINER, "flex h-16 items-center gap-6")}>
         <a
           href="#top"
-          className="shrink-0 rounded-md whitespace-nowrap text-white outline-none focus-visible:ring-3 focus-visible:ring-[#dcedcf]/50"
+          className="shrink-0 rounded-md whitespace-nowrap text-white outline-none focus-visible:ring-3 focus-visible:ring-brand-accent/50"
         >
           <Brand />
         </a>
@@ -156,7 +156,7 @@ function Header() {
               <li key={link.href}>
                 <a
                   href={link.href}
-                  className="rounded-md px-3 py-2 text-sm text-[#c8dbd3] outline-none hover:bg-white/10 hover:text-white focus-visible:ring-3 focus-visible:ring-[#dcedcf]/50"
+                  className="rounded-md px-3 py-2 text-sm text-brand-soft outline-none hover:bg-white/10 hover:text-white focus-visible:ring-3 focus-visible:ring-brand-accent/50"
                 >
                   {link.label}
                 </a>
@@ -166,14 +166,14 @@ function Header() {
         </nav>
         {/* The theme menu draws its trigger in the app's muted tokens;
             here they are the green band's own. */}
-        <div className="ms-auto flex items-center gap-1 [--foreground:#fff] [--muted-foreground:#c8dbd3] [--muted:rgb(255_255_255/0.1)] [--ring:#dcedcf]">
-          <LanguageSwitch className="text-[#c8dbd3] hover:bg-white/10 hover:text-white" />
+        <div className="ms-auto flex items-center gap-1 [--foreground:#fff] [--muted-foreground:var(--brand-soft)] [--muted:rgb(255_255_255/0.1)] [--ring:var(--brand-accent)]">
+          <LanguageSwitch className="text-brand-soft hover:bg-white/10 hover:text-white" />
           <ThemeToggle />
           <Link
             to="/sign-in"
             className={cn(
               buttonVariants({ variant: "ghost" }),
-              "hidden text-[#edf4ed] hover:bg-white/10 hover:text-white sm:inline-flex",
+              "hidden text-brand-foreground hover:bg-white/10 hover:text-white sm:inline-flex",
             )}
           >
             {m.productSignIn()}
@@ -182,7 +182,7 @@ function Header() {
             href="#demo"
             className={cn(
               buttonVariants(),
-              "ms-1 hidden bg-[#dcedcf] px-4 text-[#153f3a] hover:bg-[#cfe5bf] sm:inline-flex",
+              "ms-1 hidden bg-brand-accent px-4 text-brand hover:bg-brand-accent-hover sm:inline-flex",
             )}
           >
             {m.productRequestDemo()}
@@ -194,7 +194,7 @@ function Header() {
                   variant="ghost"
                   size="icon"
                   aria-label={m.productMenuOpen()}
-                  className="text-[#edf4ed] hover:bg-white/10 hover:text-white lg:hidden"
+                  className="text-brand-foreground hover:bg-white/10 hover:text-white lg:hidden"
                 />
               }
             >
@@ -269,7 +269,7 @@ function Compare() {
   const [split, setSplit] = useState(50);
   return (
     <figure>
-      <div className="rounded-[1.25rem] bg-white/10 p-1.5 shadow-[0_24px_64px_-24px_rgb(9_42_32/0.45)] ring-1 ring-white/15 sm:p-2">
+      <div className="rounded-[1.25rem] bg-white/10 p-1.5 shadow-[0_24px_64px_-24px_color-mix(in_srgb,var(--brand-shadow)_45%,transparent)] ring-1 ring-white/15 sm:p-2">
         <div
           dir="ltr"
           className="relative overflow-hidden rounded-xl bg-background"
@@ -315,9 +315,9 @@ function Compare() {
           />
           <div
             aria-hidden
-            className="pointer-events-none absolute inset-y-0 start-[var(--split)] z-20 w-0.5 -translate-x-1/2 bg-white shadow-[0_0_0_1px_rgb(21_63_58/0.25),0_0_24px_rgb(21_63_58/0.35)] peer-focus-visible:[&>span]:ring-4 peer-focus-visible:[&>span]:ring-[#dcedcf]"
+            className="pointer-events-none absolute inset-y-0 start-[var(--split)] z-20 w-0.5 -translate-x-1/2 bg-white shadow-[0_0_0_1px_color-mix(in_srgb,var(--brand)_25%,transparent),0_0_24px_color-mix(in_srgb,var(--brand)_35%,transparent)] peer-focus-visible:[&>span]:ring-4 peer-focus-visible:[&>span]:ring-brand-accent"
           >
-            <span className="absolute start-1/2 top-1/2 grid size-9 -translate-x-1/2 -translate-y-1/2 place-items-center rounded-full bg-[#153f3a] text-white shadow-lg ring-2 ring-white sm:size-11">
+            <span className="absolute start-1/2 top-1/2 grid size-9 -translate-x-1/2 -translate-y-1/2 place-items-center rounded-full bg-brand text-white shadow-lg ring-2 ring-white sm:size-11">
               <ChevronsLeftRight className="size-4 sm:size-5" />
             </span>
           </div>
@@ -353,14 +353,14 @@ function Hero() {
       lang: "ar",
       dir: "rtl",
       text: m.productHeroTitleArabic(),
-      className: "text-[#dcedcf]",
+      className: "text-brand-accent",
     },
   ] as const;
   const ordered = shown() === "ar" ? lines.toReversed() : lines;
   return (
     <section
       aria-labelledby="hero-title"
-      className="relative overflow-hidden bg-[linear-gradient(to_bottom,#153f3a_0,#123833_calc(100%-14rem),var(--background)_calc(100%-14rem))] text-[#edf4ed] sm:bg-[linear-gradient(to_bottom,#153f3a_0,#123833_calc(100%-20rem),var(--background)_calc(100%-20rem))]"
+      className="relative overflow-hidden bg-[linear-gradient(to_bottom,var(--brand)_0,var(--brand-deep)_calc(100%-14rem),var(--background)_calc(100%-14rem))] text-brand-foreground sm:bg-[linear-gradient(to_bottom,var(--brand)_0,var(--brand-deep)_calc(100%-20rem),var(--background)_calc(100%-20rem))]"
     >
       <div
         aria-hidden
@@ -368,11 +368,11 @@ function Hero() {
       />
       <div
         aria-hidden
-        className="pointer-events-none absolute start-1/2 top-[28rem] h-[30rem] w-[60rem] max-w-[140%] -translate-x-1/2 rounded-full bg-[#5fae8f]/25 blur-[120px] rtl:translate-x-1/2"
+        className="pointer-events-none absolute start-1/2 top-[28rem] h-[30rem] w-[60rem] max-w-[140%] -translate-x-1/2 rounded-full bg-brand-glow/25 blur-[120px] rtl:translate-x-1/2"
       />
       <div className={cn(CONTAINER, "relative pt-16 sm:pt-24")}>
-        <p className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/5 px-3.5 py-1.5 text-sm text-[#c7d9b8]">
-          <Star className="size-3.5 text-[#dcedcf]" />
+        <p className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/5 px-3.5 py-1.5 text-sm text-brand-sage">
+          <Star className="size-3.5 text-brand-accent" />
           {m.productHeroEyebrow()}
         </p>
         <h1
@@ -395,7 +395,7 @@ function Hero() {
           ))}
         </h1>
         <div className="mt-10 grid gap-8 lg:mt-12 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-end lg:gap-16">
-          <p className="max-w-xl text-lg leading-relaxed text-pretty text-[#bcd2c8]">
+          <p className="max-w-xl text-lg leading-relaxed text-pretty text-brand-muted">
             {m.productHeroBody()}
           </p>
           <div className="grid gap-4 lg:justify-items-end">
@@ -404,7 +404,7 @@ function Hero() {
                 href="#demo"
                 className={cn(
                   buttonVariants({ size: "lg" }),
-                  "h-11 bg-[#dcedcf] px-6 text-base text-[#153f3a] hover:bg-[#cfe5bf] focus-visible:ring-[#dcedcf]/50",
+                  "h-11 bg-brand-accent px-6 text-base text-brand hover:bg-brand-accent-hover focus-visible:ring-brand-accent/50",
                 )}
               >
                 {m.productRequestDemo()}
@@ -413,13 +413,13 @@ function Hero() {
                 to="/sign-in"
                 className={cn(
                   buttonVariants({ size: "lg", variant: "ghost" }),
-                  "h-11 border border-white/20 px-6 text-base text-[#edf4ed] hover:bg-white/10 hover:text-white focus-visible:ring-[#dcedcf]/50",
+                  "h-11 border border-white/20 px-6 text-base text-brand-foreground hover:bg-white/10 hover:text-white focus-visible:ring-brand-accent/50",
                 )}
               >
                 {m.productHeroSecondary()}
               </Link>
             </div>
-            <p className="text-sm text-[#a9c4bb]">{m.productHeroNote()}</p>
+            <p className="text-sm text-brand-quiet">{m.productHeroNote()}</p>
           </div>
         </div>
         <div className="mt-14 sm:mt-16">
@@ -518,7 +518,7 @@ function Shot({
           height={900}
           loading="lazy"
           decoding="async"
-          className="absolute start-[6%] top-[8%] h-auto w-[135%] max-w-none rounded-lg shadow-[0_30px_80px_-20px_rgb(9_42_32/0.45)] ring-1 ring-black/10"
+          className="absolute start-[6%] top-[8%] h-auto w-[135%] max-w-none rounded-lg shadow-[0_30px_80px_-20px_color-mix(in_srgb,var(--brand-shadow)_45%,transparent)] ring-1 ring-black/10"
         />
       )}
     </div>
@@ -679,17 +679,17 @@ function CodeSketch() {
     [0, 0, 1, 0, 0],
   ];
   const button = (
-    <span className="size-5 rounded-full bg-[#2b4b45] ring-4 ring-[#1a3a35]" />
+    <span className="size-5 rounded-full bg-brand-raised ring-4 ring-brand-edge" />
   );
   return (
     <div aria-hidden dir="ltr" className="mt-8 grid gap-3">
-      <pre className="overflow-hidden rounded-xl bg-[#0f2925] px-4 py-3.5 font-mono text-[13px] leading-6 text-[#cfe3d8]">
-        <span className="text-[#8fb9a8]">from</span> microbit{" "}
-        <span className="text-[#8fb9a8]">import</span> *{"\n"}
+      <pre className="overflow-hidden rounded-xl bg-brand-ink px-4 py-3.5 font-mono text-[13px] leading-6 text-brand-code">
+        <span className="text-brand-keyword">from</span> microbit{" "}
+        <span className="text-brand-keyword">import</span> *{"\n"}
         display.<span className="text-[#9fd3f0]">show</span>(Image.
         <span className="text-[#f2c98a]">HEART</span>)
       </pre>
-      <div className="flex items-center justify-between rounded-xl bg-[#0f2925] px-6 py-5">
+      <div className="flex items-center justify-between rounded-xl bg-brand-ink px-6 py-5">
         {button}
         <div className="grid grid-cols-5 gap-2">
           {heart.flatMap((row, y) =>
@@ -928,12 +928,12 @@ function Trust() {
           <h2 id="security-title" className={HEADING}>
             {m.productTrustTitle()}
           </h2>
-          <p className="mt-5 text-lg leading-relaxed text-pretty text-[#bcd2c8]">
+          <p className="mt-5 text-lg leading-relaxed text-pretty text-brand-muted">
             {m.productTrustBody()}
           </p>
           <a
             href={SECURITY}
-            className="mt-8 inline-flex items-center gap-1.5 rounded-sm font-medium text-[#dcedcf] underline-offset-4 outline-none hover:underline focus-visible:ring-3 focus-visible:ring-[#dcedcf]/50"
+            className="mt-8 inline-flex items-center gap-1.5 rounded-sm font-medium text-brand-accent underline-offset-4 outline-none hover:underline focus-visible:ring-3 focus-visible:ring-brand-accent/50"
           >
             {m.productTrustPolicy()}
             <ArrowUpRight aria-hidden className="size-4 rtl:-scale-x-100" />
@@ -945,11 +945,11 @@ function Trust() {
               key={title}
               className="-ms-px -mt-px border-s border-t border-white/10 bg-white/[0.03] p-7"
             >
-              <span className="grid size-10 place-items-center rounded-xl bg-[#dcedcf] text-[#153f3a]">
+              <span className="grid size-10 place-items-center rounded-xl bg-brand-accent text-brand">
                 <Icon aria-hidden className="size-5" />
               </span>
               <h3 className="mt-5 text-lg font-semibold text-white">{title}</h3>
-              <p className="mt-2 leading-relaxed text-[#bcd2c8]">{body}</p>
+              <p className="mt-2 leading-relaxed text-brand-muted">{body}</p>
             </li>
           ))}
         </ul>
@@ -996,8 +996,8 @@ function SelfHosting() {
               </a>
             </div>
           </div>
-          <figure className="overflow-hidden rounded-xl bg-[#0f2925] text-[#cfe3d8] shadow-xl ring-1 ring-black/10">
-            <figcaption className="border-b border-white/10 px-5 py-3 text-xs text-[#8fb9a8]">
+          <figure className="overflow-hidden rounded-xl bg-brand-ink text-brand-code shadow-xl ring-1 ring-black/10">
+            <figcaption className="border-b border-white/10 px-5 py-3 text-xs text-brand-keyword">
               {m.productOpenTerminal()}
             </figcaption>
             <pre
@@ -1006,7 +1006,7 @@ function SelfHosting() {
             >
               {QUICK_START.map((line) => (
                 <span key={line} className="block">
-                  <span aria-hidden className="text-[#8fb9a8] select-none">
+                  <span aria-hidden className="text-brand-keyword select-none">
                     ${" "}
                   </span>
                   {line}
@@ -1106,12 +1106,12 @@ function Footer() {
         <div className="grid gap-12 md:grid-cols-[minmax(0,1.4fr)_repeat(2,minmax(0,1fr))]">
           <div>
             <Brand className="text-white" />
-            <p className="mt-4 max-w-xs leading-relaxed text-[#bcd2c8]">
+            <p className="mt-4 max-w-xs leading-relaxed text-brand-muted">
               {m.productFooterTagline()}
             </p>
             <Link
               to="/sign-in"
-              className="mt-6 inline-flex items-center gap-1.5 rounded-sm text-sm font-medium text-[#dcedcf] underline-offset-4 outline-none hover:underline focus-visible:ring-3 focus-visible:ring-[#dcedcf]/50"
+              className="mt-6 inline-flex items-center gap-1.5 rounded-sm text-sm font-medium text-brand-accent underline-offset-4 outline-none hover:underline focus-visible:ring-3 focus-visible:ring-brand-accent/50"
             >
               {m.productHeroSecondary()}
             </Link>
@@ -1124,7 +1124,7 @@ function Footer() {
                   <li key={link.href}>
                     <a
                       href={link.href}
-                      className="rounded-sm text-[#bcd2c8] outline-none hover:text-white focus-visible:ring-3 focus-visible:ring-[#dcedcf]/50"
+                      className="rounded-sm text-brand-muted outline-none hover:text-white focus-visible:ring-3 focus-visible:ring-brand-accent/50"
                     >
                       {link.label}
                     </a>
@@ -1134,14 +1134,14 @@ function Footer() {
             </nav>
           ))}
         </div>
-        <p className="mt-14 border-t border-white/10 pt-6 text-sm text-[#a9c4bb]">
+        <p className="mt-14 border-t border-white/10 pt-6 text-sm text-brand-quiet">
           {m.commonCopyRights({ year })} · {m.productFooterLicence()}
         </p>
       </div>
       <div
         aria-hidden
         dir="ltr"
-        className="pointer-events-none -mt-6 flex items-end justify-between gap-[4vw] px-5 leading-none font-semibold text-[#1d4a44] select-none sm:px-6"
+        className="pointer-events-none -mt-6 flex items-end justify-between gap-[4vw] px-5 leading-none font-semibold text-brand-faint select-none sm:px-6"
       >
         <span lang="en" className="text-[19vw] tracking-[-0.05em]">
           {m.productWordmarkEnglish()}

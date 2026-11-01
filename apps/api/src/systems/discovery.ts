@@ -18,6 +18,7 @@ import {
   HANDOFF_SECONDS,
   redeemHandoffSchema,
 } from "@faridalms/domain/identity-schema";
+import { schoolDate } from "@faridalms/domain/school";
 import { ORPCError } from "@orpc/server";
 import { createHmac, randomBytes } from "node:crypto";
 
@@ -32,7 +33,7 @@ import {
   refuseSignIn,
 } from "../core/password-sign-in";
 import { portalHost } from "../core/portal";
-import { dateIn, publicProcedure, schoolProcedure } from "../core/procedure";
+import { publicProcedure, schoolProcedure } from "../core/procedure";
 import { badgeHash, ipPrefix } from "../core/session";
 
 const WINDOW_MS = 15 * 60_000;
@@ -170,7 +171,7 @@ async function tryTenant(
         return { kind: "refused", tenantId, proof };
       const candidates: Candidate[] = [];
       for (const school of schools) {
-        const today = dateIn(
+        const today = schoolDate(
           (await schoolProfile(tx, school.schoolId))?.timeZone ?? "UTC",
         );
         const access = await effectiveAccess(tx, {
@@ -329,7 +330,7 @@ export const redeemHandoff = schoolProcedure
           held.network !== network
         )
           return null;
-        const today = dateIn(
+        const today = schoolDate(
           (await schoolProfile(tx, schoolId))?.timeZone ?? "UTC",
         );
         const access = await effectiveAccess(tx, {
@@ -386,7 +387,7 @@ export const discoverReset = publicProcedure
           loginName: input.loginName,
           school: async (tx, person) => {
             for (const school of schools) {
-              const today = dateIn(
+              const today = schoolDate(
                 (await schoolProfile(tx, school.schoolId))?.timeZone ?? "UTC",
               );
               const access = await effectiveAccess(tx, {

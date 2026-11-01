@@ -207,6 +207,7 @@ export async function deliverTenant(
           "";
         const message = render({
           locale: head.locale,
+          digits: head.digits,
           channel: head.channel,
           school,
           items: group.map((row) => ({ kind: row.kind, params: row.params })),

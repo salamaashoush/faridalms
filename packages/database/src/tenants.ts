@@ -300,7 +300,7 @@ export async function createTenant(
       nameAr: school.nameAr ?? null,
       identifier: school.identifier ?? null,
       timeZone: school.timeZone,
-      defaultLocale: school.defaultLocale ?? null,
+      defaultLocale: school.defaultLocale ?? spec.defaultLocale,
       countryCode: school.countryCode,
       ...week(school.countryCode),
     })),

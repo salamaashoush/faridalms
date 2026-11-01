@@ -200,6 +200,19 @@ export interface Theme {
 }
 
 /**
+ * The platform's own green as a website palette, for the sign-in page of a
+ * school that never styled its website. The app's brand tokens in
+ * globals.css are the same colours.
+ */
+export const PLATFORM_PALETTE: Palette = {
+  canvas: "#ffffff",
+  surface: "#eef3ee",
+  primary: "#153f3a",
+  accent: "#c7d9b8",
+  ink: "#18221f",
+};
+
+/**
  * The themes a school starts from, each measured against the kind of school
  * site it answers (website-builder.md, section 4.2).
  */
@@ -634,12 +647,11 @@ const href = v.pipe(
 const link = v.object({ id, label: label(40), href });
 
 /**
- * The site's frame, set once for every page: its logo, the links above the
- * menu, the actions beside it (Enquire, Visit, Apply), the footer, and the
- * action dock phones keep at the bottom.
+ * The site's frame, set once for every page: the links above the menu, the
+ * actions beside it (Enquire, Visit, Apply), the footer, and the action dock
+ * phones keep at the bottom. The logo it shows is the school's own.
  */
 export const siteChromeSchema = v.object({
-  logoFileId: v.optional(v.nullable(id), null),
   utility: v.optional(v.pipe(v.array(link), v.maxLength(6)), []),
   actions: v.optional(
     v.pipe(

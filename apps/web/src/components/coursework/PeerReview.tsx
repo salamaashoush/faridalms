@@ -20,7 +20,6 @@ import {
   RecordSection,
 } from "~/components/system/RecordPage";
 import { StatusBadge } from "~/components/system/status";
-import { useCurrentUser } from "~/hooks/useCurrentUser";
 import * as m from "~/i18n/messages";
 import { myPeerReviewsQuery, peerOverviewQuery } from "~/queries/coursework";
 import {
@@ -29,10 +28,8 @@ import {
   sendPeerReview,
   startPeerReview,
 } from "~/server/coursework";
-import { formatNumber } from "~/utils/datetime";
+import { formatInstant, formatNumber } from "~/utils/datetime";
 import { getMessageFromError } from "~/utils/error";
-
-import { formatInstant } from "./format";
 
 interface Written {
   rubricScores: Record<string, string>;
@@ -91,7 +88,6 @@ function ReviewText({
  * hide one, then release them to the authors.
  */
 export function PeerReviewPanel({ assignmentId }: { assignmentId: string }) {
-  const user = useCurrentUser();
   const queryClient = useQueryClient();
   const data = useQuery(peerOverviewQuery(assignmentId)).data;
   const start = useServerFn(startPeerReview);
@@ -152,7 +148,7 @@ export function PeerReviewPanel({ assignmentId }: { assignmentId: string }) {
           <p className="text-sm leading-5 font-medium">
             {data.releasedAt
               ? m.peerReleasedOn({
-                  date: formatInstant(data.releasedAt, user.school.timeZone),
+                  date: formatInstant(data.releasedAt),
                 })
               : m.peerSentOf({
                   count: formatNumber(sent),
@@ -203,7 +199,7 @@ export function PeerReviewPanel({ assignmentId }: { assignmentId: string }) {
                         </span>
                         {review.sentAt ? (
                           <span className="text-[13px] leading-[18px] text-muted-foreground">
-                            {formatInstant(review.sentAt, user.school.timeZone)}
+                            {formatInstant(review.sentAt)}
                           </span>
                         ) : (
                           <StatusBadge tone="warning">
@@ -276,7 +272,6 @@ export function StudentPeerReviews({
   assignmentId: string;
   studentId: string;
 }) {
-  const user = useCurrentUser();
   const data = useQuery(peerOverviewQuery(assignmentId)).data;
   if (!data?.startedAt) return null;
   const names = new Map(
@@ -312,7 +307,7 @@ export function StudentPeerReviews({
                     </span>
                     {review.sentAt ? (
                       <span className="text-[13px] leading-[18px] text-muted-foreground">
-                        {formatInstant(review.sentAt, user.school.timeZone)}
+                        {formatInstant(review.sentAt)}
                       </span>
                     ) : (
                       <StatusBadge tone="warning">

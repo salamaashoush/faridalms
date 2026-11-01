@@ -1,14 +1,6 @@
-import type {
-  BannerTone,
-  SiteLocale,
-  SocialKind,
-} from "@faridalms/domain/website";
+import type { BannerTone, SocialKind } from "@faridalms/domain/website";
 
-import {
-  BANNER_TONES,
-  SITE_LOCALES,
-  SOCIAL_KINDS,
-} from "@faridalms/domain/website";
+import { BANNER_TONES, SOCIAL_KINDS } from "@faridalms/domain/website";
 import { Button } from "@faridalms/ui/button";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Plus, X } from "lucide-react";
@@ -17,15 +9,18 @@ import { toast } from "sonner";
 
 import type { siteOverviewQuery } from "~/queries/site";
 
+import { ButtonLink } from "~/components/app/ButtonLink";
 import { LOCALE_NAME } from "~/components/content/languages";
 import { CheckboxRow } from "~/components/people/fields";
 import { SelectField, TextField } from "~/components/system/field";
+import { Fact } from "~/components/system/RecordPage";
 import {
   SettingsPage,
   SettingsSection,
 } from "~/components/system/SettingsSection";
 import * as m from "~/i18n/messages";
 import { saveSiteSettings } from "~/server/site";
+import { instantFromLocal, localInput } from "~/utils/datetime";
 import { getMessageFromError } from "~/utils/error";
 
 type Settings = Awaited<
@@ -48,17 +43,8 @@ const TONE_LABEL: Record<BannerTone, () => string> = {
   danger: m.siteToneDanger,
 };
 
-/** `2026-09-27T09:30:00.000Z` as the value a local date-time input shows. */
-function localInput(iso: string | null): string {
-  if (!iso) return "";
-  const date = new Date(iso);
-  const offset = date.getTimezoneOffset() * 60_000;
-  return new Date(date.getTime() - offset).toISOString().slice(0, 16);
-}
-
 interface Draft {
   live: boolean;
-  primaryLocale: SiteLocale;
   bilingual: boolean;
   taglineEn: string;
   taglineAr: string;
@@ -72,7 +58,6 @@ interface Draft {
 function draftOf(settings: Settings): Draft {
   return {
     live: settings.live,
-    primaryLocale: settings.primaryLocale,
     bilingual: settings.bilingual,
     taglineEn: settings.taglineEn,
     taglineAr: settings.taglineAr,
@@ -85,7 +70,7 @@ function draftOf(settings: Settings): Draft {
 }
 
 const GROUPS = {
-  site: ["live", "primaryLocale", "bilingual", "taglineEn", "taglineAr"],
+  site: ["live", "bilingual", "taglineEn", "taglineAr"],
   social: ["socialLinks"],
   banner: ["bannerEn", "bannerAr", "bannerTone", "bannerUntil"],
 } as const satisfies Record<string, readonly (keyof Draft)[]>;
@@ -109,9 +94,7 @@ export function SiteSettings({ settings }: { settings: Settings }) {
           chrome: settings.chrome,
           expectedVersion: settings.version,
           socialLinks: draft.socialLinks.filter((link) => link.url.trim()),
-          bannerUntil: draft.bannerUntil
-            ? new Date(draft.bannerUntil).toISOString()
-            : "",
+          bannerUntil: instantFromLocal(draft.bannerUntil),
         },
       }),
   });
@@ -130,10 +113,6 @@ export function SiteSettings({ settings }: { settings: Settings }) {
     toast.success(m.siteSettingsSaved());
   };
   const error = save.error ? getMessageFromError(save.error) : null;
-  const localeOptions = SITE_LOCALES.map((locale) => ({
-    value: locale,
-    label: LOCALE_NAME[locale](),
-  }));
   return (
     <SettingsPage>
       <SettingsSection
@@ -151,15 +130,27 @@ export function SiteSettings({ settings }: { settings: Settings }) {
           checked={draft.live}
           onChange={(live) => set("live", live)}
         />
-        <SelectField
-          id="site-primary-locale"
-          label={m.sitePrimaryLocale()}
-          hint={m.sitePrimaryLocaleHint()}
-          width="date"
-          value={draft.primaryLocale}
-          options={localeOptions}
-          onChange={(primaryLocale) => set("primaryLocale", primaryLocale)}
-        />
+        <div className="grid gap-2">
+          <dl>
+            <Fact label={m.sitePrimaryLocale()}>
+              {LOCALE_NAME[settings.primaryLocale]()}
+            </Fact>
+          </dl>
+          <p className="text-[13px] leading-[18px] text-muted-foreground">
+            {m.sitePrimaryLocaleHint()}
+          </p>
+          <div>
+            <ButtonLink
+              to="/admin/settings"
+              search={{ section: "school" }}
+              variant="outline"
+              size="sm"
+              className="max-md:h-10"
+            >
+              {m.siteChangeInSchoolSettings()}
+            </ButtonLink>
+          </div>
+        </div>
         <CheckboxRow
           label={m.siteBilingual()}
           hint={m.siteBilingualHint()}

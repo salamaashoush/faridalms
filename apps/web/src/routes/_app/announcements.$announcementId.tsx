@@ -20,7 +20,6 @@ import {
 } from "~/components/announcements/format";
 import { BreadcrumbCurrent } from "~/components/app/WorkspaceBreadcrumb";
 import { shownIn, TranslatedView } from "~/components/content/TranslatedView";
-import { formatInstant } from "~/components/coursework/format";
 import { usePrint } from "~/components/print/usePrint";
 import { DataTable } from "~/components/system/DataTable";
 import {
@@ -35,7 +34,7 @@ import {
 } from "~/components/system/RecordPage";
 import { SheetPanel } from "~/components/system/SheetPanel";
 import { StatusText } from "~/components/system/status";
-import { inLocale, useCurrentUser } from "~/hooks/useCurrentUser";
+import { inLocale } from "~/hooks/useCurrentUser";
 import * as m from "~/i18n/messages";
 import { getLocale } from "~/i18n/runtime";
 import { announcementQuery } from "~/queries/announcements";
@@ -45,7 +44,7 @@ import {
   markAnnouncementSeen,
   publishAnnouncement,
 } from "~/server/announcements";
-import { formatDate, formatNumber } from "~/utils/datetime";
+import { formatInstant, formatDate, formatNumber } from "~/utils/datetime";
 import { getMessageFromError } from "~/utils/error";
 
 export const Route = createFileRoute("/_app/announcements/$announcementId")({
@@ -68,21 +67,17 @@ function AnnouncementTrail() {
   return <BreadcrumbCurrent>{data.title}</BreadcrumbCurrent>;
 }
 
-function Read({ row, timeZone }: { row: ReportRow; timeZone: string }) {
+function Read({ row }: { row: ReportRow }) {
   return row.readAt ? (
-    <StatusText tone="success">
-      {formatInstant(row.readAt, timeZone)}
-    </StatusText>
+    <StatusText tone="success">{formatInstant(row.readAt)}</StatusText>
   ) : (
     <StatusText tone="neutral">{m.annNotRead()}</StatusText>
   );
 }
 
-function Acknowledged({ row, timeZone }: { row: ReportRow; timeZone: string }) {
+function Acknowledged({ row }: { row: ReportRow }) {
   return row.acknowledgedAt ? (
-    <StatusText tone="success">
-      {formatInstant(row.acknowledgedAt, timeZone)}
-    </StatusText>
+    <StatusText tone="success">{formatInstant(row.acknowledgedAt)}</StatusText>
   ) : (
     <StatusText tone="warning">{m.annNotAcknowledged()}</StatusText>
   );
@@ -90,10 +85,7 @@ function Acknowledged({ row, timeZone }: { row: ReportRow; timeZone: string }) {
 
 // Built per render: headers read the request's locale, which a module-level
 // array would fix at whichever language first loaded the module on the server.
-function reportColumns(
-  timeZone: string,
-  withAck: boolean,
-): Column<ReportRow>[] {
+function reportColumns(withAck: boolean): Column<ReportRow>[] {
   return [
     {
       id: "name",
@@ -104,33 +96,27 @@ function reportColumns(
     {
       id: "read",
       header: m.annColRead(),
-      cell: (row) => <Read row={row} timeZone={timeZone} />,
+      cell: (row) => <Read row={row} />,
     },
     ...(withAck
       ? [
           {
             id: "ack",
             header: m.annColAcknowledged(),
-            cell: (row: ReportRow) => (
-              <Acknowledged row={row} timeZone={timeZone} />
-            ),
+            cell: (row: ReportRow) => <Acknowledged row={row} />,
           },
         ]
       : []),
   ];
 }
 
-function reportCard(timeZone: string, withAck: boolean) {
+function reportCard(withAck: boolean) {
   return {
     title: (row: ReportRow) => (
       <bdi>{inLocale(row.fullNameEn, row.fullNameAr)}</bdi>
     ),
     status: (row: ReportRow) =>
-      withAck ? (
-        <Acknowledged row={row} timeZone={timeZone} />
-      ) : (
-        <Read row={row} timeZone={timeZone} />
-      ),
+      withAck ? <Acknowledged row={row} /> : <Read row={row} />,
   };
 }
 
@@ -143,7 +129,6 @@ function Report({
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }) {
-  const user = useCurrentUser();
   const rows: ReportRow[] = (data.report ?? []).map((row) => ({
     ...row,
     id: row.userId,
@@ -169,9 +154,9 @@ function Report({
       <DataTable
         caption={m.annReport()}
         rows={rows}
-        columns={reportColumns(user.school.timeZone, data.requiresAck)}
+        columns={reportColumns(data.requiresAck)}
         rowLabel={(row) => inLocale(row.fullNameEn, row.fullNameAr)}
-        card={reportCard(user.school.timeZone, data.requiresAck)}
+        card={reportCard(data.requiresAck)}
         empty={{ title: m.annNotSent() }}
       />
     </SheetPanel>
@@ -180,7 +165,6 @@ function Report({
 
 function AnnouncementPage() {
   const { announcementId } = Route.useParams();
-  const user = useCurrentUser();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const data = useSuspenseQuery(announcementQuery(announcementId)).data;
@@ -269,7 +253,7 @@ function AnnouncementPage() {
       ? [
           {
             label: m.annSent(),
-            value: formatInstant(data.publishAt, user.school.timeZone),
+            value: formatInstant(data.publishAt),
           },
         ]
       : []),
@@ -377,7 +361,7 @@ function AnnouncementPage() {
       {data.updateSentAt ? (
         <p className="text-[13px] leading-[18px] text-muted-foreground">
           {m.annUpdatedOn({
-            date: formatInstant(data.updateSentAt, user.school.timeZone),
+            date: formatInstant(data.updateSentAt),
           })}
         </p>
       ) : null}
@@ -395,7 +379,7 @@ function AnnouncementPage() {
           {data.acknowledgedAt ? (
             <StatusText tone="success">
               {m.annAcknowledgedOn({
-                date: formatInstant(data.acknowledgedAt, user.school.timeZone),
+                date: formatInstant(data.acknowledgedAt),
               })}
             </StatusText>
           ) : (

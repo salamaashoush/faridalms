@@ -70,12 +70,7 @@ function ToDoPage() {
           void navigate({ search: { tab: next } });
         }}
       >
-        <ByDay
-          items={lists[tab]}
-          timeZone={user.school.timeZone}
-          linked
-          empty={empty[tab]}
-        />
+        <ByDay items={lists[tab]} linked empty={empty[tab]} />
       </RecordTabs>
     </>
   );

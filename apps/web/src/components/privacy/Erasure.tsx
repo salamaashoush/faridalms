@@ -4,17 +4,16 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { toast } from "sonner";
 
-import { formatStamp } from "~/components/coursework/format";
 import { displayName } from "~/components/people/format";
 import { ConfirmDialog } from "~/components/system/ConfirmDialog";
 import { SelectField, TextField } from "~/components/system/field";
 import { RecordSection } from "~/components/system/RecordPage";
 import { SheetForm } from "~/components/system/SheetForm";
 import { StatusText } from "~/components/system/status";
-import { inLocale, useCurrentUser } from "~/hooks/useCurrentUser";
+import { inLocale } from "~/hooks/useCurrentUser";
 import * as m from "~/i18n/messages";
 import { approveErasure, runErasure } from "~/server/privacy";
-import { formatNumber } from "~/utils/datetime";
+import { formatInstant, formatNumber } from "~/utils/datetime";
 import { getMessageFromError } from "~/utils/error";
 
 import type { PrivacyOverview, ReviewRow } from "./DataProtection";
@@ -219,11 +218,11 @@ export function RunErasureDialog({
   );
 }
 
-function ErasureLine({ row, timeZone }: { row: ErasureRow; timeZone: string }) {
+function ErasureLine({ row }: { row: ErasureRow }) {
   const facts = [
     BASIS_LABEL[row.basis](),
     m.privacyApprovedBy({
-      date: formatStamp(row.approvedAt, timeZone),
+      date: formatInstant(row.approvedAt, "stamp"),
       name: inLocale(row.approvedByEn, row.approvedByAr),
     }),
     m.privacyErasureItems({
@@ -243,7 +242,7 @@ function ErasureLine({ row, timeZone }: { row: ErasureRow; timeZone: string }) {
       </span>
       {row.erasedAt ? (
         <StatusText tone="success">
-          {m.privacyErasedOn({ date: formatStamp(row.erasedAt, timeZone) })}
+          {m.privacyErasedOn({ date: formatInstant(row.erasedAt, "stamp") })}
         </StatusText>
       ) : (
         <StatusText tone="warning">{m.privacyErasurePending()}</StatusText>
@@ -254,7 +253,6 @@ function ErasureLine({ row, timeZone }: { row: ErasureRow; timeZone: string }) {
 
 /** The proof of each erasure, kept after the person's data is gone. */
 export function ErasuresSection({ overview }: { overview: PrivacyOverview }) {
-  const user = useCurrentUser();
   if (overview.erasures.length === 0) return null;
   return (
     <RecordSection
@@ -263,7 +261,7 @@ export function ErasuresSection({ overview }: { overview: PrivacyOverview }) {
     >
       <ul className="grid divide-y">
         {overview.erasures.map((row) => (
-          <ErasureLine key={row.id} row={row} timeZone={user.school.timeZone} />
+          <ErasureLine key={row.id} row={row} />
         ))}
       </ul>
     </RecordSection>

@@ -40,7 +40,6 @@ import { LOCALE_LABEL, LOCALE_NAME } from "~/components/content/languages";
 import { useStartFrom } from "~/components/content/Templates";
 import { TranslatedView } from "~/components/content/TranslatedView";
 import { TranslationNote } from "~/components/content/TranslationNote";
-import { useDocumentMedia } from "~/components/coursework/useDocumentMedia";
 import { usePicturePeople } from "~/components/files/PicturedPeople";
 import { CheckboxRow } from "~/components/people/fields";
 import { PictureField } from "~/components/site/PictureField";
@@ -55,6 +54,7 @@ import { FormField, SelectField, TextField } from "~/components/system/field";
 import { SheetPanel } from "~/components/system/SheetPanel";
 import { useAutosave } from "~/hooks/useAutosave";
 import { inLocale } from "~/hooks/useCurrentUser";
+import { useDocumentMedia } from "~/hooks/useDocumentMedia";
 import * as m from "~/i18n/messages";
 import { getLocale } from "~/i18n/runtime";
 import { newsOptionsQuery } from "~/queries/news";
@@ -64,6 +64,7 @@ import {
   reviewNewsTranslation,
   saveNews,
 } from "~/server/news";
+import { instantFromLocal } from "~/utils/datetime";
 import { getMessageFromError } from "~/utils/error";
 
 type Existing = Awaited<
@@ -409,7 +410,7 @@ export function NewsEditor({
         data: {
           id: id.current,
           expectedVersion: version.current,
-          publishAt: later ? new Date(sendAt).toISOString() : "",
+          publishAt: later ? instantFromLocal(sendAt) : "",
         },
       });
       await queryClient.invalidateQueries({ queryKey: ["news"] });

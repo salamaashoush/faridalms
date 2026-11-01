@@ -20,6 +20,7 @@ describe("localized form validation", () => {
       m.validationClassCode(),
       m.validationSelection(),
       m.validationSelection(),
+      m.validationNameRequired(),
     ]);
   });
 

@@ -10,7 +10,6 @@ import * as v from "valibot";
 import { UnsavedChangesGuard } from "~/components/app/UnsavedChangesGuard";
 import { BreadcrumbCurrent } from "~/components/app/WorkspaceBreadcrumb";
 import { ContentEditor } from "~/components/content/ContentEditor";
-import { useDocumentMedia } from "~/components/coursework/useDocumentMedia";
 import {
   DetailsPanel,
   DetailsSection,
@@ -18,6 +17,7 @@ import {
   DocumentTitle,
 } from "~/components/system/DocumentPage";
 import { useAutosave } from "~/hooks/useAutosave";
+import { useDocumentMedia } from "~/hooks/useDocumentMedia";
 import * as m from "~/i18n/messages";
 import { lettersQuery } from "~/queries/admissions";
 import { templateQuery } from "~/queries/library";

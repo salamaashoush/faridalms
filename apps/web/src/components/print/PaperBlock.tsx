@@ -13,7 +13,7 @@ import type { Locale } from "~/i18n/runtime";
 
 import { QrCode } from "~/components/badges/QrCode";
 import * as m from "~/i18n/messages";
-import { numberLocale } from "~/utils/digits";
+import { formatDate } from "~/utils/datetime";
 
 /** What a block's paper form reads from the paper it is on. */
 export interface PaperFacts {
@@ -41,14 +41,6 @@ const WIDTH = {
 export function typedAddress(url: string): string {
   return url.replace(/^https?:\/\/(www\.)?/, "").replace(/\/$/, "");
 }
-
-const dayOf = (date: string, locale: Locale) =>
-  new Intl.DateTimeFormat(numberLocale(locale), {
-    day: "numeric",
-    month: "long",
-    year: "numeric",
-    timeZone: "UTC",
-  }).format(new Date(`${date}T00:00:00Z`));
 
 /** The longest address worth printing; nobody types more from paper. */
 const TYPED = 60;
@@ -313,7 +305,7 @@ function PaperAiUse({ node, paper }: { node: ContentNode; paper: PaperFacts }) {
     { label: m.editorAiUseTool({}, { locale }), value: node.aiTool ?? "" },
     {
       label: m.editorAiUseDate({}, { locale }),
-      value: node.aiDate ? dayOf(node.aiDate, locale) : "",
+      value: node.aiDate ? formatDate(node.aiDate, "full", locale) : "",
     },
     { label: m.editorAiUsePrompt({}, { locale }), value: node.aiPrompt ?? "" },
     { label: m.editorAiUseHow({}, { locale }), value: node.aiUse ?? "" },

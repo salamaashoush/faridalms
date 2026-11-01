@@ -1,5 +1,6 @@
 import type { SiteLocale } from "@faridalms/domain/site-sections";
 
+import { Button } from "@faridalms/ui/button";
 import { Input } from "@faridalms/ui/input";
 import {
   Select,
@@ -9,6 +10,7 @@ import {
   SelectValue,
 } from "@faridalms/ui/select";
 import { Textarea } from "@faridalms/ui/textarea";
+import { History } from "lucide-react";
 
 import { LOCALE_NAME } from "~/components/content/languages";
 import { CheckboxRow } from "~/components/people/fields";
@@ -17,12 +19,9 @@ import * as m from "~/i18n/messages";
 
 import type { Languages, PageDraft } from "./draft";
 
-import { History } from "../History";
 import { StudioField } from "./controls";
 
-type Version = Parameters<typeof History>[0]["rows"][number];
-
-/** The page itself: its titles, address, place in the menu, search description and history. */
+/** The page itself: its titles, address, place in the menu, search description, and the way to its earlier versions. */
 export function PagePanel({
   draft,
   languages,
@@ -30,8 +29,7 @@ export function PagePanel({
   portal = false,
   parents,
   errors,
-  history,
-  pageId,
+  onHistory,
   onChange,
   onSlugTouched,
 }: {
@@ -42,8 +40,8 @@ export function PagePanel({
   portal?: string | false;
   parents: { id: string; title: string }[];
   errors: { title: string | null; slug: string | null };
-  history: Version[];
-  pageId: string | null;
+  /** Opens the page's earlier versions, once it is stored. */
+  onHistory?: () => void;
   onChange: (change: Partial<PageDraft>, key?: string) => void;
   onSlugTouched: () => void;
 }) {
@@ -202,9 +200,18 @@ export function PagePanel({
           </StudioField>
         ))}
       </PanelGroup>
-      {pageId && history.length ? (
+      {onHistory ? (
         <PanelGroup title={m.siteHistory()} hint={m.siteHistoryHint()}>
-          <History id={pageId} rows={history} languages={languages} />
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="justify-self-start max-md:h-10"
+            onClick={onHistory}
+          >
+            <History aria-hidden />
+            {m.docHistory()}
+          </Button>
         </PanelGroup>
       ) : null}
     </div>

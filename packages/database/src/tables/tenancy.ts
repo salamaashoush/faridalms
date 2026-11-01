@@ -104,7 +104,7 @@ export const orgs = core.table.withRLS(
     nameAr: text("name_ar"),
     identifier: text("identifier"),
     timeZone: text("time_zone"),
-    defaultLocale: text("default_locale").$type<"ar" | "en">(),
+    defaultLocale: text("default_locale").$type<"ar" | "en">().notNull(),
     weekStart: smallint("week_start").notNull().default(7),
     weekendDays: smallint("weekend_days")
       .array()
@@ -129,7 +129,6 @@ export const orgs = core.table.withRLS(
     address: jsonb("address").$type<PostalAddress>(),
     phone: text("phone"),
     email: text("email"),
-    websiteUrl: text("website_url"),
     logoFileId: uuid("logo_file_id"),
     lifecycle: text("lifecycle")
       .$type<"importing" | "active">()
@@ -166,7 +165,6 @@ export const orgs = core.table.withRLS(
     ck("orgs", "address", sql`jsonb_typeof(address) = 'object'`),
     ck("orgs", "phone", sql`char_length(phone) between 1 and 40`),
     ck("orgs", "email", sql`char_length(email) between 3 and 254`),
-    ck("orgs", "website_url", sql`char_length(website_url) between 1 and 2048`),
     ck("orgs", "lifecycle", sql`lifecycle in ('importing', 'active')`),
     ck("orgs", "name", sql`num_nonnulls(name_en, name_ar) >= 1`),
     ck("orgs", "parent_pair", sql`(parent_id is null) = (parent_type is null)`),

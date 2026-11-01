@@ -15,7 +15,6 @@ import { Pencil, Plus, Trash2 } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 
-import { formatDate } from "~/components/family/format";
 import { ActionMenu } from "~/components/system/ActionMenu";
 import { ComboboxField } from "~/components/system/ComboboxField";
 import { SelectField, TextField } from "~/components/system/field";
@@ -43,7 +42,7 @@ import {
   saveDemographics,
   saveHealth,
 } from "~/server/records";
-import { formatList, formatNumber } from "~/utils/datetime";
+import { formatDate, formatList, formatNumber } from "~/utils/datetime";
 import { getMessageFromError } from "~/utils/error";
 
 import { CheckboxRow } from "./fields";

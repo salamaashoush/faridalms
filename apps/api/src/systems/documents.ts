@@ -3,6 +3,7 @@ import type { ContentDocument } from "@faridalms/domain/content";
 import {
   contentToRestore,
   documentIdOf,
+  documentsInLanguages,
   makeCollaborative,
   versionsOf,
 } from "@faridalms/database/stores/documents";
@@ -11,6 +12,7 @@ import {
   TICKET_TTL_SECONDS,
   roomOf,
 } from "@faridalms/domain/collab";
+import { pageContentSchema } from "@faridalms/domain/website";
 import { ORPCError } from "@orpc/server";
 import * as v from "valibot";
 
@@ -67,32 +69,51 @@ export const collaborate = writeProcedure
     };
   });
 
-/** The record's document, for those who may change it; refused to anyone else. */
+/**
+ * The record's document in each language it is written in, original first,
+ * for those who may change it; refused to anyone else.
+ */
 async function written(
   context: UnitContext,
   host: { type: string; id: string },
 ) {
   if ((await hostAccess(context, host)) !== "write")
     throw new ORPCError("NOT_FOUND");
-  return documentIdOf(context.tx, context.tenantId, host);
+  const documents = await documentsInLanguages(
+    context.tx,
+    context.tenantId,
+    host,
+  );
+  return documents.filter(
+    (row, index) =>
+      documents.findIndex((other) => other.locale === row.locale) === index,
+  );
 }
 
 /**
- * A document's earlier versions for those who write it: each one readers
- * were shown, the copies kept while people edit together, and the text set
- * aside before each restore.
+ * A document's earlier versions for those who write it, in each language
+ * it is written in: each one readers were shown, the copies kept while
+ * people edit together, and the text set aside before each restore.
  */
 export const history = readProcedure
   .input(hostSchema)
   .handler(async ({ input, context }) => {
-    const document = await written(context, {
+    const documents = await written(context, {
       type: input.hostType,
       id: input.hostId,
     });
+    const versions = await Promise.all(
+      documents.map(async (document) =>
+        (await versionsOf(context.tx, context.tenantId, document.id)).map(
+          (row) => ({ ...row, locale: document.locale }),
+        ),
+      ),
+    );
     return {
-      versions: document
-        ? await versionsOf(context.tx, context.tenantId, document.id)
-        : [],
+      languages: documents.map((document) => document.locale),
+      versions: versions
+        .flat()
+        .toSorted((a, b) => b.createdAt.localeCompare(a.createdAt)),
     };
   });
 
@@ -106,13 +127,18 @@ export const restore = writeProcedure
     v.object({
       ...hostSchema.entries,
       documentVersion: v.pipe(v.number(), v.integer(), v.minValue(1)),
+      /** The language whose version it is, where the record has two. */
+      locale: v.optional(v.picklist(["en", "ar"])),
     }),
   )
   .handler(async ({ input, context }) => {
-    const document = await written(context, {
+    const documents = await written(context, {
       type: input.hostType,
       id: input.hostId,
     });
+    const document = input.locale
+      ? documents.find((row) => row.locale === input.locale)
+      : documents[0];
     if (!document) throw new ORPCError("NOT_FOUND");
     const content = await contentToRestore(context.tx, {
       tenantId: context.tenantId,
@@ -121,5 +147,18 @@ export const restore = writeProcedure
       userId: context.actor.userId,
     });
     if (!content) throw new ORPCError("NOT_FOUND");
-    return { content: content as unknown as ContentDocument };
+    if (document.kind === "page") {
+      const page = v.safeParse(pageContentSchema, content);
+      if (!page.success) throw new ORPCError("NOT_FOUND");
+      return {
+        kind: "page" as const,
+        locale: document.locale,
+        page: page.output,
+      };
+    }
+    return {
+      kind: "document" as const,
+      locale: document.locale,
+      content: content as unknown as ContentDocument,
+    };
   });

@@ -11,7 +11,6 @@ import type { Column, RowAction } from "~/components/system/DataTable";
 import type { Tone } from "~/components/system/status";
 import type { getPrivacyOverview } from "~/server/privacy";
 
-import { formatStamp } from "~/components/coursework/format";
 import { sessionName } from "~/components/exams/names";
 import { displayName } from "~/components/people/format";
 import { ComboboxField } from "~/components/system/ComboboxField";
@@ -21,11 +20,11 @@ import { Fact, Facts, RecordSection } from "~/components/system/RecordPage";
 import { SheetForm } from "~/components/system/SheetForm";
 import { StatusText } from "~/components/system/status";
 import { UserText } from "~/components/system/UserText";
-import { inLocale, useCurrentUser } from "~/hooks/useCurrentUser";
+import { inLocale } from "~/hooks/useCurrentUser";
 import * as m from "~/i18n/messages";
 import { placeHold, releaseHold, saveRetention } from "~/server/privacy";
 import { searchPeople } from "~/server/students";
-import { formatDate, formatNumber } from "~/utils/datetime";
+import { formatInstant, formatDate, formatNumber } from "~/utils/datetime";
 import { getMessageFromError } from "~/utils/error";
 
 import { erasable, ErasuresSection } from "./Erasure";
@@ -157,7 +156,7 @@ function reviewCard(today: string, pending: ReadonlySet<string>) {
   };
 }
 
-function holdColumns(timeZone: string): Column<HoldRow>[] {
+function holdColumns(): Column<HoldRow>[] {
   return [
     {
       id: "name",
@@ -178,7 +177,7 @@ function holdColumns(timeZone: string): Column<HoldRow>[] {
       header: m.privacyPlaced(),
       cell: (row) =>
         m.privacyPlacedBy({
-          date: formatStamp(row.placedAt, timeZone),
+          date: formatInstant(row.placedAt, "stamp"),
           name: inLocale(row.placedByEn, row.placedByAr),
         }),
     },
@@ -338,12 +337,11 @@ export function HoldsTable({
   onAdd: () => void;
   onRelease: (hold: HoldRow) => void;
 }) {
-  const user = useCurrentUser();
   return (
     <DataTable
       caption={m.privacyHoldsCaption()}
       rows={overview.holds}
-      columns={holdColumns(user.school.timeZone)}
+      columns={holdColumns()}
       rowLabel={displayName}
       rowActions={(row) => [
         {

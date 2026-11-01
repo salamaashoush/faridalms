@@ -9,7 +9,6 @@ import { useState } from "react";
 import type { HeaderFact, RecordTab } from "~/components/system/RecordPage";
 
 import { initialsOf } from "~/components/app/UserMenu";
-import { formatDate } from "~/components/family/format";
 import {
   phoneLink,
   RecordColumns,
@@ -22,7 +21,7 @@ import {
 import { inLocale, useCurrentUser } from "~/hooks/useCurrentUser";
 import * as m from "~/i18n/messages";
 import { personHistoryQuery, personRecordQuery } from "~/queries/students";
-import { formatList } from "~/utils/datetime";
+import { formatDate, formatList } from "~/utils/datetime";
 
 import { AccessSection } from "./AccessSection";
 import { ContactsSheet } from "./ContactsSheet";

@@ -70,6 +70,7 @@ import {
   saveRequestSchema,
   saveRetentionSchema,
 } from "@faridalms/domain/privacy";
+import { schoolDate } from "@faridalms/domain/school";
 import { isoWeekday } from "@faridalms/domain/timetable";
 import { ORPCError } from "@orpc/server";
 
@@ -82,9 +83,10 @@ import {
   readProcedure,
   requireCapability,
   schoolProcedure,
+  schoolZone,
   writeProcedure,
 } from "../core/procedure";
-import { sessionViews } from "../core/sessions";
+import { sessionViews } from "../exams/sessions";
 
 function scopeOf(context: UnitContext) {
   return { tenantId: context.tenantId, orgId: context.schoolId };
@@ -98,12 +100,9 @@ export type Block =
 
 /** Each breach with who must be told and by when. */
 async function breachClocks(context: UnitContext, rows: BreachRow[]) {
-  const profile = await schoolProfile(context.tx, context.schoolId);
-  const dayIn = new Intl.DateTimeFormat("en-CA", {
-    timeZone: profile?.timeZone ?? "UTC",
-  });
+  const zone = await schoolZone(context.tx, context.schoolId);
   const discoveredOn = (row: BreachRow) =>
-    dayIn.format(new Date(row.discoveredAt));
+    schoolDate(zone, new Date(row.discoveredAt));
   const first = rows
     .filter((row) => !row.closedAt)
     .map(discoveredOn)

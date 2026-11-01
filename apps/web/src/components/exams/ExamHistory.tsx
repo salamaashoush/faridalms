@@ -8,7 +8,7 @@ import { SheetPanel } from "~/components/system/SheetPanel";
 import { inLocale } from "~/hooks/useCurrentUser";
 import * as m from "~/i18n/messages";
 import { examHistoryQuery } from "~/queries/exams";
-import { formatDate, formatDateTime, formatMonthLabel } from "~/utils/datetime";
+import { formatDate, formatInstant, formatMonthLabel } from "~/utils/datetime";
 
 import { sessionName } from "./names";
 
@@ -108,7 +108,7 @@ export function ExamHistory({
                       <bdi>{subject(row.details)}</bdi>
                     </span>
                     <span className="text-[13px] leading-[18px] text-muted-foreground">
-                      {formatDateTime(row.occurredAt)}
+                      {formatInstant(row.occurredAt, "medium")}
                       {" · "}
                       <bdi>{inLocale(row.actorEn, row.actorAr)}</bdi>
                     </span>

@@ -34,9 +34,9 @@ import {
 import { useDeferredValue, useId, useMemo, useState } from "react";
 import { toast } from "sonner";
 
-import { useDocumentMedia } from "~/components/coursework/useDocumentMedia";
 import { ConfirmDialog } from "~/components/system/ConfirmDialog";
 import { inLocale } from "~/hooks/useCurrentUser";
+import { useDocumentMedia } from "~/hooks/useDocumentMedia";
 import * as m from "~/i18n/messages";
 import { sharedBlockQuery } from "~/queries/shared";
 import {
@@ -533,7 +533,9 @@ function EditDialog({ id, onClose }: { id: string; onClose: () => void }) {
             onOpenChange={setHistory}
             hostType="shared_block"
             hostId={id}
-            onRestore={(to) => {
+            onRestore={(restored) => {
+              if (restored.kind !== "document") return;
+              const to = restored.content;
               setDraft((before) =>
                 before
                   ? { ...before, content: to }

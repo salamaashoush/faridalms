@@ -1,12 +1,13 @@
 import type { ReactNode } from "react";
+import type { InferInput } from "valibot";
 
+import { saveSubjectSchema } from "@faridalms/domain/classes";
 import { Button } from "@faridalms/ui/button";
 import { revalidateLogic, useForm } from "@tanstack/react-form";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { BookOpen, Pencil, Plus } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
-import * as v from "valibot";
 
 import type {
   Column,
@@ -21,7 +22,7 @@ import { SheetForm } from "~/components/system/SheetForm";
 import * as m from "~/i18n/messages";
 import { getLocale } from "~/i18n/runtime";
 import { saveSubject } from "~/server/classes";
-import { getMessageFromError } from "~/utils/error";
+import { refusalOf } from "~/utils/error";
 
 export interface Subject {
   id: string;
@@ -196,32 +197,14 @@ export function SubjectCatalogue({
   );
 }
 
-interface SubjectDraft {
-  name: string;
-  nameAr: string;
-  slug: string;
-}
+type SubjectDraft = InferInput<typeof saveSubjectSchema>;
 
-const EMPTY: SubjectDraft = { slug: "", name: "", nameAr: "" };
+const EMPTY: SubjectDraft = { code: "", labelEn: "", labelAr: "" };
 
-const subjectFormSchema = v.pipe(
-  v.object({
-    name: v.pipe(v.string(), v.maxLength(80)),
-    nameAr: v.pipe(v.string(), v.maxLength(80)),
-    slug: v.pipe(
-      v.string(),
-      v.trim(),
-      v.regex(/^[a-z][a-z0-9_]{1,39}$/i, "validation.subject_code"),
-    ),
-  }),
-  v.forward(
-    v.check(
-      (value) => value.name.trim() !== "" || value.nameAr.trim() !== "",
-      "validation.name_required",
-    ),
-    ["name"],
-  ),
-);
+/** Refusals from the server that are about one field, shown on that field. */
+const FIELD_ERRORS: Partial<Record<string, "code">> = {
+  "descriptor.code_taken": "code",
+};
 
 export function SubjectSheet({
   open,
@@ -242,31 +225,28 @@ export function SubjectSheet({
   const mutation = useMutation({
     mutationFn: (value: SubjectDraft) =>
       saveSubject({
-        data: {
-          ...(subject ? { id: subject.id } : {}),
-          code: value.slug.trim(),
-          labelEn: value.name,
-          labelAr: value.nameAr,
-        },
+        data: { ...(subject ? { id: subject.id } : {}), ...value },
       }),
     meta: { inlineError: true },
   });
   const form = useForm({
     defaultValues: subject
-      ? { name: subject.name, nameAr: subject.nameAr, slug: subject.slug }
+      ? {
+          code: subject.slug,
+          labelEn: subject.name,
+          labelAr: subject.nameAr,
+        }
       : EMPTY,
     validationLogic: revalidateLogic(),
-    validators: { onDynamic: subjectFormSchema },
+    validators: { onDynamic: saveSubjectSchema },
     onSubmit: async ({ value }) => {
       setRefused(null);
       try {
         await mutation.mutateAsync(value);
       } catch (error) {
-        if (error instanceof Error && error.message === "descriptor.code_taken")
-          setRefused({
-            value: value.slug.trim(),
-            message: getMessageFromError(error),
-          });
+        const refusal = refusalOf(error, FIELD_ERRORS);
+        if (refusal?.field)
+          setRefused({ value: value.code.trim(), message: refusal.message });
         return;
       }
       await queryClient.invalidateQueries({ queryKey: ["classes"] });
@@ -274,8 +254,8 @@ export function SubjectSheet({
       onClose();
     },
   });
-  const failure =
-    mutation.error && !refused ? getMessageFromError(mutation.error) : null;
+  const refusal = refusalOf(mutation.error, FIELD_ERRORS);
+  const failure = refusal && !refusal.field ? refusal.message : null;
   return (
     <SheetForm
       open={open}
@@ -287,7 +267,7 @@ export function SubjectSheet({
       pending={mutation.isPending}
       error={failure}
     >
-      <form.Field name="name">
+      <form.Field name="labelEn">
         {(field) => (
           <TextField
             id="subject-name"
@@ -302,7 +282,7 @@ export function SubjectSheet({
           />
         )}
       </form.Field>
-      <form.Field name="nameAr">
+      <form.Field name="labelAr">
         {(field) => (
           <TextField
             id="subject-name-ar"
@@ -318,7 +298,7 @@ export function SubjectSheet({
           />
         )}
       </form.Field>
-      <form.Field name="slug">
+      <form.Field name="code">
         {(field) => (
           <TextField
             id="subject-code"

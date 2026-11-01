@@ -3,9 +3,11 @@ import type {
   NoticeParams,
   NotificationKind,
 } from "@faridalms/domain/notifications";
+import type { Digits } from "@faridalms/domain/people";
 
 import { contentHtml } from "@faridalms/domain/content-html";
 import { REPLY_MARKER } from "@faridalms/domain/email-replies";
+import { formatDayIn, formattingLocale } from "@faridalms/domain/school";
 
 export interface Rendered {
   subject: string;
@@ -219,8 +221,15 @@ const DIGEST = {
   ar: (count: number) => `${count} تحديثات من المدرسة`,
 };
 
-/** Each reader gets the names in their own language where both were given. */
-function paramsOf(locale: "en" | "ar", value: NoticeParams): NoticeParams {
+/**
+ * Each reader gets the names in their own language where both were given,
+ * and the day written as the school writes dates in that language.
+ */
+function paramsOf(
+  locale: "en" | "ar",
+  digits: Digits,
+  value: NoticeParams,
+): NoticeParams {
   const pick = (en?: string, ar?: string) =>
     (locale === "ar" ? ar || en : en || ar) || undefined;
   return {
@@ -230,15 +239,19 @@ function paramsOf(locale: "en" | "ar", value: NoticeParams): NoticeParams {
     studentName: pick(value.studentName, value.studentNameAr),
     className: pick(value.className, value.classNameAr),
     periodName: pick(value.periodName, value.periodNameAr),
+    date: value.date
+      ? formatDayIn(value.date, "full", formattingLocale(locale, digits))
+      : undefined,
   };
 }
 
 export function lineFor(
   locale: "en" | "ar",
+  digits: Digits,
   kind: NotificationKind,
   params: NoticeParams,
 ): string {
-  return LINES[locale][kind](paramsOf(locale, params));
+  return LINES[locale][kind](paramsOf(locale, digits, params));
 }
 
 /**
@@ -247,12 +260,13 @@ export function lineFor(
  */
 export function render(input: {
   locale: "en" | "ar";
+  digits: Digits;
   channel: "email" | "sms";
   school: string;
   items: readonly { kind: NotificationKind; params: NoticeParams }[];
 }): Rendered {
   const lines = input.items.map((item) =>
-    lineFor(input.locale, item.kind, item.params),
+    lineFor(input.locale, input.digits, item.kind, item.params),
   );
   const [first] = lines;
   if (input.channel === "sms")

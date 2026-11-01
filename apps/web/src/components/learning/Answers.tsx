@@ -29,7 +29,7 @@ import { getLocale } from "~/i18n/runtime";
 import { writtenAnswersQuery } from "~/queries/learning";
 import { decideGalleryOffer, markAnswer } from "~/server/learning";
 import { judgeGoal } from "~/server/standards";
-import { formatDateTime, formatNumber } from "~/utils/datetime";
+import { formatInstant, formatNumber } from "~/utils/datetime";
 import { getMessageFromError } from "~/utils/error";
 
 import { FluencyMarker, FluencySummary } from "./Fluency";
@@ -404,7 +404,7 @@ function AnswerCard({
             <bdi>{name}</bdi>
           </h4>
           <span className="text-[13px] leading-[18px] text-muted-foreground">
-            {formatDateTime(answer.sentAt)}
+            {formatInstant(answer.sentAt, "medium")}
           </span>
           {answer.attempt && answer.attempt > 1 ? (
             <span className="text-[13px] leading-[18px] text-muted-foreground">

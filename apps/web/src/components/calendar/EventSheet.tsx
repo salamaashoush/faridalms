@@ -33,10 +33,10 @@ import {
   publishCalendarEvent,
   removeCalendarEvent,
 } from "~/server/calendar";
-import { formatList, secondaryDate } from "~/utils/datetime";
+import { formatSpan, formatList, secondaryDate } from "~/utils/datetime";
 import { getMessageFromError } from "~/utils/error";
 
-import { CATEGORY_LABEL, eventTitle, whenLabel } from "./format";
+import { CATEGORY_LABEL, eventTitle } from "./format";
 import { CategoryIcon } from "./views";
 
 type Data = Awaited<
@@ -183,7 +183,7 @@ function EventFooter({ data, onClose }: { data: Data; onClose: () => void }) {
   const printing = usePrint({
     title: eventTitle(data),
     facts: (locale) =>
-      [whenLabel(data, "long", locale), data.location].filter(
+      [formatSpan(data, "long", locale), data.location].filter(
         (fact) => fact !== null,
       ),
     content: data.description ?? emptyContent(),
@@ -267,7 +267,7 @@ function EventBody({ data }: { data: Data }) {
   const secondary = secondaryDate(
     data.startsOn,
     user.school.secondaryCalendar,
-    { day: "numeric", month: "long", year: "numeric" },
+    "full",
   );
   const described =
     data.description &&
@@ -277,7 +277,7 @@ function EventBody({ data }: { data: Data }) {
     <>
       <p className="-mt-4 text-[15px] leading-6">
         <span className={data.cancelled ? "line-through" : undefined}>
-          {whenLabel(data)}
+          {formatSpan(data)}
         </span>
         {secondary ? (
           <span className="block text-sm leading-5 text-muted-foreground">

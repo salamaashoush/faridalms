@@ -87,6 +87,31 @@ test("the home page opens with its hero and the school's actions", async ({
   await expect(page.locator("html [dir=rtl]").first()).toBeVisible();
 });
 
+test("a stale address on a school's website shows the school's own not-found page", async ({
+  page,
+}) => {
+  const missing = await page.goto("/site/northwind/pages/no-such-page");
+  expect(missing?.status()).toBe(404);
+  await expect(
+    page.getByRole("heading", { level: 1, name: "Page not found" }),
+  ).toBeVisible();
+  const menu = page.getByRole("navigation", { name: "Site navigation" });
+  await expect(menu.first()).toBeVisible();
+  await expect(page.getByRole("link", { name: "Apply" }).first()).toBeVisible();
+  await page.getByRole("link", { name: "Go home" }).click();
+  await expect(page).toHaveURL(/\/site\/northwind$/);
+
+  const nowhere = await page.goto("/site/northwind/no-such-place?lang=ar");
+  expect(nowhere?.status()).toBe(404);
+  await expect(
+    page.getByRole("heading", { level: 1, name: "الصفحة غير موجودة" }),
+  ).toBeVisible();
+  await expect(page.locator("html [dir=rtl]").first()).toBeVisible();
+  await expect(
+    page.getByRole("link", { name: "الأخبار" }).first(),
+  ).toBeVisible();
+});
+
 test("a family sends an enquiry and the school finds it in the enquiry inbox", async ({
   browser,
   page,

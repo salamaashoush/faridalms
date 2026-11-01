@@ -37,26 +37,44 @@ export const classRecordSchema = v.object({
   on: v.optional(v.union([v.literal(""), isoDate]), ""),
 });
 
-export const saveClassSchema = v.object({
-  id: v.optional(id),
-  expectedVersion: v.optional(version),
-  yearId: id,
-  code,
-  titleEn: optionalText(120),
-  titleAr: optionalText(120),
-  gradeId: v.optional(v.union([v.literal(""), id]), ""),
-  locationId: v.optional(v.union([v.literal(""), id]), ""),
-  homeroomTeacherId: v.optional(v.union([v.literal(""), id]), ""),
-  subjects: v.pipe(
-    v.array(
-      v.object({
-        subjectId: id,
-        teacherIds: v.pipe(v.array(id), v.maxLength(4)),
-      }),
+export const saveClassSchema = v.pipe(
+  v.object({
+    id: v.optional(id),
+    expectedVersion: v.optional(version),
+    yearId: id,
+    code,
+    titleEn: optionalText(120),
+    titleAr: optionalText(120),
+    gradeId: v.optional(v.union([v.literal(""), id]), ""),
+    locationId: v.optional(v.union([v.literal(""), id]), ""),
+    homeroomTeacherId: v.optional(v.union([v.literal(""), id]), ""),
+    subjects: v.pipe(
+      v.array(
+        v.object({
+          subjectId: id,
+          teacherIds: v.pipe(v.array(id), v.maxLength(4)),
+        }),
+      ),
+      v.maxLength(30),
     ),
-    v.maxLength(30),
+  }),
+  v.forward(
+    v.check(
+      (value) => Boolean(value.titleEn || value.titleAr),
+      "validation.name_required",
+    ),
+    ["titleEn"],
   ),
-});
+  v.forward(
+    v.check(
+      (value) =>
+        new Set(value.subjects.map((row) => row.subjectId)).size ===
+        value.subjects.length,
+      "validation.subject_twice",
+    ),
+    ["subjects"],
+  ),
+);
 export type SaveClassInput = v.InferInput<typeof saveClassSchema>;
 
 export const enrolStudentSchema = v.object({
@@ -72,18 +90,27 @@ export const withdrawStudentSchema = v.object({
   on: v.optional(v.union([v.literal(""), isoDate]), ""),
 });
 
-export const saveSubjectSchema = v.object({
-  id: v.optional(id),
-  code: v.pipe(
-    v.string(),
-    v.trim(),
-    v.toLowerCase(),
-    v.regex(/^[a-z][a-z0-9_]{1,39}$/, "validation.subject_code"),
+export const saveSubjectSchema = v.pipe(
+  v.object({
+    id: v.optional(id),
+    code: v.pipe(
+      v.string(),
+      v.trim(),
+      v.toLowerCase(),
+      v.regex(/^[a-z][a-z0-9_]{1,39}$/, "validation.subject_code"),
+    ),
+    labelEn: optionalText(80),
+    labelAr: optionalText(80),
+    color: v.optional(
+      v.union([v.literal(""), v.pipe(v.string(), v.regex(/^#[0-9a-f]{6}$/i))]),
+      "",
+    ),
+  }),
+  v.forward(
+    v.check(
+      (value) => Boolean(value.labelEn || value.labelAr),
+      "validation.name_required",
+    ),
+    ["labelEn"],
   ),
-  labelEn: optionalText(80),
-  labelAr: optionalText(80),
-  color: v.optional(
-    v.union([v.literal(""), v.pipe(v.string(), v.regex(/^#[0-9a-f]{6}$/i))]),
-    "",
-  ),
-});
+);

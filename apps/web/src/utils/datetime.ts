@@ -1,8 +1,57 @@
+import type { DayStyle, InstantStyle } from "@faridalms/domain/school";
+
+import {
+  formatDayIn,
+  formatDayRangeIn,
+  formatInstantIn,
+  formatTimeIn,
+  schoolClock,
+  schoolDate,
+  zonedInstant,
+  zonedLocal,
+} from "@faridalms/domain/school";
+
+import type { Locale } from "~/i18n/runtime";
+
 import { getLocale } from "~/i18n/runtime";
 
 import { numberLocale } from "./digits";
 
+export type { DayStyle, InstantStyle };
+
 const DAY_MS = 86_400_000;
+
+// The school's zone, which every instant is shown and entered in. Held here
+// once the page knows its school; the server keeps one per request.
+let adopted: string | null = null;
+let zoneSource: () => string = () => adopted ?? "UTC";
+let keepZone: (next: string) => void = (next) => {
+  adopted = next;
+};
+
+/**
+ * Where the zone comes from while the server draws a page: the request's
+ * own, so two schools' pages drawn at once keep their own.
+ */
+export function overwriteZoneSource(
+  read: () => string,
+  adopt?: (next: string) => void,
+) {
+  zoneSource = read;
+  if (adopt) keepZone = adopt;
+}
+
+/**
+ * Draws the rest of the page on a school's clock, as the signed-in app and
+ * a school's website do once they know their school. The server and the
+ * browser each adopt it as the page is drawn, so the two drawings agree.
+ */
+export function adoptSchoolZone(next: string) {
+  if (zoneSource() !== next) keepZone(next);
+}
+
+/** The time zone of the reader's school, never the browser's own. */
+export const schoolZone = (): string => zoneSource();
 
 /**
  * `now` is injectable so callers can render a stable value. The seeded fixtures
@@ -71,36 +120,78 @@ export function formatChoices(values: readonly string[]): string {
   );
 }
 
-export function formatDateTime(isoDate: string): string {
-  return new Intl.DateTimeFormat(numberLocale(), {
-    dateStyle: "medium",
-    timeStyle: "short",
-    timeZone: "UTC",
-  }).format(new Date(isoDate));
+/**
+ * A calendar day with no time of day, for `date` columns such as
+ * `2026-09-14`: "14 Sept 2026", or with `weekday` "Monday 14 September".
+ */
+export function formatDate(
+  isoDate: string,
+  style: DayStyle = "medium",
+  locale: Locale = getLocale(),
+): string {
+  return formatDayIn(isoDate, style, numberLocale(locale));
 }
-
-/** A calendar day with no time of day, for `date` columns such as `2026-09-14`. */
-export function formatDate(isoDate: string): string {
-  return new Intl.DateTimeFormat(numberLocale(), {
-    dateStyle: "medium",
-    timeZone: "UTC",
-  }).format(new Date(`${isoDate.slice(0, 10)}T00:00:00.000Z`));
-}
-
-const calendarDay = (isoDate: string) =>
-  new Date(`${isoDate.slice(0, 10)}T00:00:00.000Z`);
 
 /** Two calendar days as one span, sharing what they share: "7 – 25 Sept 2026". */
-export function formatDayRange(first: string, last: string): string {
-  return new Intl.DateTimeFormat(numberLocale(), {
-    dateStyle: "medium",
-    timeZone: "UTC",
-  }).formatRange(calendarDay(first), calendarDay(last));
+export function formatDayRange(
+  first: string,
+  last: string,
+  style: DayStyle = "medium",
+): string {
+  return formatDayRangeIn(first, last, style, numberLocale());
+}
+
+/**
+ * An instant (a timestamp) on the school's clock, whatever zone the reader's
+ * device is in: "Mon 14 Sept, 9:00", or with `medium` "14 Sept 2026, 9:00".
+ */
+export function formatInstant(
+  iso: string | Date,
+  style: InstantStyle = "full",
+  locale: Locale = getLocale(),
+): string {
+  return formatInstantIn(iso, style, schoolZone(), numberLocale(locale));
+}
+
+/** A time of day (a `time` column such as `08:30:00`) as the reader's clock writes it. */
+export function formatTime(time: string): string {
+  return formatTimeIn(time, numberLocale());
+}
+
+/** The calendar day an instant falls on at the school, `YYYY-MM-DD`. */
+export function schoolDayOf(iso: string | Date): string {
+  return schoolDate(
+    schoolZone(),
+    typeof iso === "string" ? new Date(iso) : iso,
+  );
+}
+
+/** The school's clock at an instant, `HH:MM`, for comparing with timetable times. */
+export function schoolClockAt(at: Date = new Date()): string {
+  return schoolClock(schoolZone(), at);
+}
+
+/** A date-time input's value for an instant: the school's wall clock, or empty. */
+export function localInput(iso: string | null | undefined): string {
+  return iso ? zonedLocal(iso, schoolZone()) : "";
+}
+
+/**
+ * The instant a date-time input's value (`YYYY-MM-DDTHH:MM`, or a bare day
+ * read as its start) names on the school's clock; empty for an empty input.
+ */
+export function instantFromLocal(local: string): string {
+  if (!local) return "";
+  const [date = "", time = "00:00"] = local.split("T");
+  return zonedInstant(date, time.slice(0, 5), schoolZone()).toISOString();
 }
 
 /** A month's short name alone, such as "Sept", for a timeline's scale. */
-export function formatMonthShort(isoDate: string): string {
-  return new Intl.DateTimeFormat(numberLocale(), {
+export function formatMonthShort(
+  isoDate: string,
+  locale: Locale = getLocale(),
+): string {
+  return new Intl.DateTimeFormat(numberLocale(locale), {
     month: "short",
     timeZone: "UTC",
   }).format(new Date(`${isoDate.slice(0, 7)}-01T00:00:00.000Z`));
@@ -115,6 +206,50 @@ export function formatMonthLabel(isoMonth: string): string {
   }).format(new Date(`${isoMonth.slice(0, 7)}-01T00:00:00.000Z`));
 }
 
+/** An ISO weekday (1 for Monday) named in the reader's language; 1 January 2024 was a Monday. */
+export function formatWeekday(
+  day: number,
+  width: "long" | "short" = "long",
+): string {
+  return new Intl.DateTimeFormat(numberLocale(), {
+    weekday: width,
+    timeZone: "UTC",
+  }).format(new Date(Date.UTC(2024, 0, day)));
+}
+
+const wallClock = (date: string, time: string | null) =>
+  new Date(`${date}T${time?.slice(0, 5) ?? "00:00"}:00Z`);
+
+/**
+ * Days that may carry wall-clock times of their own, such as an event's,
+ * as one span: its days and, if timed, its hours, in full or short. The
+ * locale lays out the range, so Arabic reads it in its own order.
+ */
+export function formatSpan(
+  span: {
+    startsOn: string;
+    endsOn: string;
+    startTime: string | null;
+    endTime: string | null;
+  },
+  style: "long" | "short" = "long",
+  locale: Locale = getLocale(),
+): string {
+  const timed = span.startTime !== null && span.endTime !== null;
+  return new Intl.DateTimeFormat(numberLocale(locale), {
+    weekday: style,
+    day: "numeric",
+    month: style,
+    ...(timed
+      ? { hour: "2-digit", minute: "2-digit", hourCycle: "h23" }
+      : undefined),
+    timeZone: "UTC",
+  }).formatRange(
+    wallClock(span.startsOn, span.startTime),
+    wallClock(span.endsOn, span.endTime),
+  );
+}
+
 /**
  * A day in the school's second calendar, such as "3 Rabiʻ II" in Hijri, or
  * null when the school keeps none. The calendar is always named: CLDR moved
@@ -124,14 +259,10 @@ export function formatMonthLabel(isoMonth: string): string {
 export function secondaryDate(
   isoDate: string,
   calendar: "islamic-umalqura" | "islamic-civil" | null,
-  options: Intl.DateTimeFormatOptions = { day: "numeric", month: "short" },
+  style: DayStyle = "short",
 ): string | null {
   if (!calendar) return null;
-  return new Intl.DateTimeFormat(numberLocale(), {
-    ...options,
-    calendar,
-    timeZone: "UTC",
-  }).format(new Date(`${isoDate.slice(0, 10)}T00:00:00.000Z`));
+  return formatDayIn(isoDate, style, numberLocale(), calendar);
 }
 
 const inUnit = (value: number, unit: "hour" | "minute") =>

@@ -22,7 +22,7 @@ import * as m from "~/i18n/messages";
 import { studentAttendanceQuery } from "~/queries/attendance";
 import { studentNoticesQuery } from "~/queries/students";
 import { studentWeekQuery } from "~/queries/timetable";
-import { formatDateTime, formatList, formatNumber } from "~/utils/datetime";
+import { formatInstant, formatList, formatNumber } from "~/utils/datetime";
 
 /**
  * A student's lessons today, in the order of the day, as the timetable has
@@ -195,7 +195,7 @@ export function StudentNotices({ studentId }: { studentId: string }) {
                   ) : null}
                   <span className="text-[13px] leading-[18px] text-muted-foreground">
                     {[
-                      formatDateTime(notice.createdAt),
+                      formatInstant(notice.createdAt, "medium"),
                       read.length > 0
                         ? m.studentNoticeReadBy({ names: formatList(read) })
                         : null,

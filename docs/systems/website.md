@@ -7,14 +7,17 @@ foundation's documents, file publications and the `site` role. Evidence:
 
 ## Model
 
-- **Settings** (`core.site_settings`, one row per school): live flag, first
-  language, bilingual flag, tagline, banner, social links, plus two JSON
+- **Settings** (`core.site_settings`, one row per school): live flag,
+  bilingual flag, tagline, banner, social links, plus two JSON
   documents validated in `packages/domain/src/site-theme.ts`:
   - `theme`: the chosen theme id and the school's overrides (palette roles,
     font per role and script, radius, button shape, density, header and footer
     variant, heading case, divider).
-  - `chrome`: the logo, utility links, up to three header actions (Enquire,
-    Visit, Apply), footer columns and note, and the mobile action dock.
+  - `chrome`: utility links, up to three header actions (Enquire, Visit,
+    Apply), footer columns and note, and the mobile action dock.
+    The website's first language and its logo are the school's own
+    (`orgs.default_locale`, `orgs.logo_file_id`), edited in school settings;
+    the logo's public copy is published for the `org` host when it is saved.
     Labels in `chrome` are `{ en, ar }` pairs; they are short and belong to the
     settings rather than to a document.
 - **Pages** (`core.site_pages`): the page tree is the menu. A page's sections

@@ -1,3 +1,4 @@
+import type { Picture, PictureFocus } from "@faridalms/domain/commons";
 import type { ContentDocument } from "@faridalms/domain/content";
 import type {
   BADGES,
@@ -7,8 +8,6 @@ import type {
   SiteColumn,
   IconId,
   SiteEmbed,
-  SiteFocus,
-  SiteImage,
   SiteLink,
   SiteLocale,
   SiteMedia,
@@ -60,6 +59,7 @@ import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 
 import { ContentEditor } from "~/components/content/ContentEditor";
+import { CheckboxRow } from "~/components/people/fields";
 import { Segmented } from "~/components/system/panel";
 import * as m from "~/i18n/messages";
 import { formatNumber } from "~/utils/datetime";
@@ -268,7 +268,7 @@ function Thumb({
   );
 }
 
-const CENTRE: SiteFocus = { x: 50, y: 50 };
+const CENTRE: PictureFocus = { x: 50, y: 50 };
 const NUDGE: Record<string, [number, number]> = {
   ArrowLeft: [-1, 0],
   ArrowRight: [1, 0],
@@ -285,8 +285,8 @@ export function FocusPicker({
   onChange,
 }: {
   src: string;
-  value?: SiteFocus;
-  onChange: (focus: SiteFocus) => void;
+  value?: PictureFocus;
+  onChange: (focus: PictureFocus) => void;
 }) {
   const place = (event: PointerEvent<HTMLDivElement>) => {
     const box = event.currentTarget.getBoundingClientRect();
@@ -350,9 +350,9 @@ function ImageControl({
 }: {
   id: string;
   label: string;
-  value: SiteImage;
+  value: Picture;
   context: FieldContext;
-  onChange: (value: SiteImage) => void;
+  onChange: (value: Picture) => void;
 }) {
   const { busy, upload } = useUpload(context.media);
   const framed = context.wordsOnly ? null : value.fileId;
@@ -408,7 +408,14 @@ function ImageControl({
           </div>
         )}
       </div>
-      {value.fileId ? (
+      {value.fileId && !context.wordsOnly ? (
+        <CheckboxRow
+          label={m.editorImageDecorative()}
+          checked={value.decorative ?? false}
+          onChange={(decorative) => onChange({ ...value, decorative })}
+        />
+      ) : null}
+      {value.fileId && !value.decorative ? (
         <AltText
           id={`${id}-alt`}
           value={value.alt}
@@ -1054,7 +1061,7 @@ export function FieldControl({
         <ImageControl
           id={id}
           label={label}
-          value={value as SiteImage}
+          value={value as Picture}
           context={context}
           onChange={onChange}
         />

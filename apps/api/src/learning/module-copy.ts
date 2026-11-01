@@ -17,7 +17,7 @@ import {
 import { contentFileIds, contentPlainText } from "@faridalms/domain/content";
 import { lessonContentOf } from "@faridalms/domain/learning";
 
-import type { UnitContext } from "./context";
+import type { UnitContext } from "../core/context";
 
 import { placeMedia } from "../files/authorize";
 

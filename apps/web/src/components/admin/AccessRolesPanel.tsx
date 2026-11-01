@@ -29,7 +29,7 @@ import { inLocale } from "~/hooks/useCurrentUser";
 import * as m from "~/i18n/messages";
 import { accessChangesQuery, accessRolesQuery } from "~/queries/access";
 import { saveAccessRole } from "~/server/access";
-import { formatDateTime, formatNumber } from "~/utils/datetime";
+import { formatInstant, formatNumber } from "~/utils/datetime";
 import { getMessageFromError } from "~/utils/error";
 
 type Roles = Awaited<
@@ -88,7 +88,7 @@ function roleColumns(nameLink: NameLink): Column<AccessRole>[] {
     {
       id: "changed",
       header: m.accessLastChanged(),
-      cell: (role) => formatDateTime(role.changedAt),
+      cell: (role) => formatInstant(role.changedAt, "medium"),
     },
   ];
 }
@@ -189,7 +189,7 @@ function AccessChanges() {
                       : m.historySystem()}
                   </bdi>
                   {" · "}
-                  {formatDateTime(row.occurredAt)}
+                  {formatInstant(row.occurredAt, "medium")}
                 </span>
               </li>
             ))}

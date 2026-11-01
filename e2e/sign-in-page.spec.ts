@@ -70,6 +70,8 @@ test("a site manager makes the sign-in page in the site builder and it shows onc
   await untilHydrated(page);
   await page.getByRole("button", { name: "Edit sign-in page" }).click();
   await expect(page).toHaveURL(/\/admin\/site-page-editor\?id=/);
+  // Northwind East's language is Arabic; its English page follows it.
+  await page.getByRole("button", { name: "English", exact: true }).click();
   await page.getByRole("tab", { name: "Sections" }).click();
   await page
     .getByRole("button", { name: /Sign-in form/ })

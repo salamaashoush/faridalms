@@ -1,6 +1,4 @@
-import type { TermIssue } from "@faridalms/domain/years";
-
-import { termIssue } from "@faridalms/domain/years";
+import { saveYearSchema } from "@faridalms/domain/years";
 import { Button } from "@faridalms/ui/button";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Plus, X } from "lucide-react";
@@ -13,7 +11,8 @@ import { TextField } from "~/components/system/field";
 import { FormSection, RecordForm } from "~/components/system/RecordForm";
 import * as m from "~/i18n/messages";
 import { saveYear } from "~/server/years";
-import { getMessageFromError } from "~/utils/error";
+import { refusalOf } from "~/utils/error";
+import { schemaErrors } from "~/utils/validation";
 
 import { lastDay } from "../people/format";
 
@@ -40,6 +39,15 @@ interface Draft {
 
 type Field = "titles" | "startsOn" | "endsOn" | "terms";
 
+const FIELD_OF: Partial<Record<string, Field>> = {
+  titleEn: "titles",
+  titleAr: "titles",
+  startsOn: "startsOn",
+  endsOn: "endsOn",
+  terms: "terms",
+};
+
+/** Refusals from the server that are about one field, shown on that field. */
 const FIELD_ERRORS: Partial<Record<string, Field>> = {
   "school_year.overlapping": "startsOn",
   "school_year.end_year_fixed": "endsOn",
@@ -50,12 +58,6 @@ const FIELD_ERRORS: Partial<Record<string, Field>> = {
   "validation.term_overlap": "terms",
   "validation.term_name_conflict": "terms",
   "academic_session.overlapping": "terms",
-};
-
-const TERM_MESSAGE: Record<TermIssue, () => string> = {
-  term_outside: m.validationTermOutside,
-  term_overlap: m.validationTermOverlap,
-  term_name_conflict: m.validationTermNameConflict,
 };
 
 function initialDraft(year: YearData | null): Draft {
@@ -76,8 +78,6 @@ function initialDraft(year: YearData | null): Draft {
     })),
   };
 }
-
-const trimmed = (value: string) => value.trim() || null;
 
 export function YearEditor({
   year = null,
@@ -109,60 +109,30 @@ export function YearEditor({
         term.key === key ? { ...term, ...change } : term,
       ),
     );
-  const terms = draft.terms.map((term) => ({
-    ...(term.id ? { id: term.id } : {}),
-    titleEn: trimmed(term.titleEn),
-    titleAr: trimmed(term.titleAr),
-    startsOn: term.startsOn,
-    endsOn: term.endsOn,
-  }));
+  const payload = {
+    ...(year ? { id: year.id, expectedVersion: year.version } : {}),
+    titleEn: draft.titleEn,
+    titleAr: draft.titleAr,
+    startsOn: draft.startsOn,
+    endsOn: draft.endsOn,
+    terms: draft.terms.map((term) => ({
+      ...(term.id ? { id: term.id } : {}),
+      titleEn: term.titleEn,
+      titleAr: term.titleAr,
+      startsOn: term.startsOn,
+      endsOn: term.endsOn,
+    })),
+  };
   const mutation = useMutation({
-    mutationFn: () =>
-      saveYear({
-        data: {
-          ...(year ? { id: year.id, expectedVersion: year.version } : {}),
-          titleEn: draft.titleEn,
-          titleAr: draft.titleAr,
-          startsOn: draft.startsOn,
-          endsOn: draft.endsOn,
-          terms: terms.map((term) => ({
-            ...term,
-            titleEn: term.titleEn ?? "",
-            titleAr: term.titleAr ?? "",
-          })),
-        },
-      }),
+    mutationFn: () => saveYear({ data: payload }),
     meta: { inlineError: true },
   });
-  const validate = () => {
-    const found: typeof errors = {};
-    if (!draft.titleEn.trim() && !draft.titleAr.trim())
-      found.titles = m.validationNameRequired();
-    if (!draft.startsOn) found.startsOn = m.validationDate();
-    if (!draft.endsOn) found.endsOn = m.validationDate();
-    else if (draft.startsOn && draft.endsOn < draft.startsOn)
-      found.endsOn = m.validationEndDate();
-    if (
-      terms.some(
-        (term) =>
-          (!term.titleEn && !term.titleAr) ||
-          !term.startsOn ||
-          !term.endsOn ||
-          term.endsOn < term.startsOn,
-      )
-    )
-      found.terms = m.yearsTermIncomplete();
-    else if (!found.endsOn && !found.startsOn) {
-      const issue = termIssue(draft, terms);
-      if (issue) found.terms = TERM_MESSAGE[issue]();
-    }
-    return found;
-  };
-  const failure =
-    mutation.error &&
-    !(mutation.error instanceof Error && FIELD_ERRORS[mutation.error.message])
-      ? getMessageFromError(mutation.error)
-      : null;
+  const validate = () =>
+    schemaErrors(saveYearSchema, payload, (key) => FIELD_OF[key], {
+      terms: m.yearsTermIncomplete(),
+    });
+  const refusal = refusalOf(mutation.error, FIELD_ERRORS);
+  const failure = refusal && !refusal.field ? refusal.message : null;
   const fieldError = (field: Field) =>
     errors[field] ? [errors[field]] : undefined;
   return (
@@ -177,9 +147,8 @@ export function YearEditor({
         try {
           saved = await mutation.mutateAsync();
         } catch (error) {
-          const field =
-            error instanceof Error ? FIELD_ERRORS[error.message] : undefined;
-          if (field) setErrors({ [field]: getMessageFromError(error) });
+          const refused = refusalOf(error, FIELD_ERRORS);
+          if (refused?.field) setErrors({ [refused.field]: refused.message });
           return;
         }
         await Promise.all([

@@ -1,10 +1,9 @@
+import { addDays } from "@faridalms/domain/school";
 import { Button } from "@faridalms/ui/button";
 import { Input } from "@faridalms/ui/input";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 
 import * as m from "~/i18n/messages";
-
-import { shiftDay } from "./format";
 
 /**
  * Steps a page one school day at a time, or jumps to a date. Arrows follow
@@ -25,8 +24,8 @@ export function DayNav({
   today: string;
   onChange: (date: string) => void;
 }) {
-  const previous = shiftDay(date, -1);
-  const next = shiftDay(date, 1);
+  const previous = addDays(date, -1);
+  const next = addDays(date, 1);
   const inRange = (day: string) => day >= min && day <= max;
   return (
     <div className="flex flex-wrap items-center gap-2">

@@ -96,8 +96,8 @@ import { editableModule } from "../core/learning-access";
 import { nameUuid } from "../core/names";
 import { portalOrigin } from "../core/portal";
 import { can, localeOf, openUnit, schoolOf } from "../core/procedure";
-import { drawsOf, publishedQuiz } from "../core/quiz";
 import { sharedInliner } from "../core/shared";
+import { drawsOf, publishedQuiz } from "../quizzes/quiz";
 
 const PATH = /^\/v1\/assignments\/([0-9a-f-]{36})\/work\.zip$/;
 const PORTFOLIO = /^\/v1\/students\/([0-9a-f-]{36})\/portfolio\.zip$/;

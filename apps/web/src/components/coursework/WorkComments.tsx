@@ -41,11 +41,11 @@ import {
   restoreWorkComment,
   saveToCommentBank,
 } from "~/server/coursework";
+import { formatInstant } from "~/utils/datetime";
 import { getMessageFromError } from "~/utils/error";
 
 import { displayName } from "../people/format";
 import { CommentBankPicker } from "./CommentBank";
-import { formatInstant } from "./format";
 
 export interface WorkComment {
   id: string;
@@ -151,7 +151,6 @@ const markOf = (id: string) => `mark[data-comments~="${CSS.escape(id)}"]`;
 const DRAFT = "mark[data-draft]";
 
 function CommentMeta({ comment }: { comment: WorkComment }) {
-  const user = useCurrentUser();
   return (
     <span className="text-[13px] leading-[18px] text-muted-foreground">
       {[
@@ -159,7 +158,7 @@ function CommentMeta({ comment }: { comment: WorkComment }) {
           fullNameEn: comment.authorNameEn,
           fullNameAr: comment.authorNameAr,
         }),
-        formatInstant(comment.createdAt, user.school.timeZone),
+        formatInstant(comment.createdAt),
         comment.editedAt ? m.courseworkCommentEdited() : null,
       ]
         .filter(Boolean)
@@ -184,7 +183,6 @@ function ThreadSummary({
   comment: WorkComment;
   reader?: "grader" | "student" | "answering";
 }) {
-  const user = useCurrentUser();
   const state = reader === "answering" ? null : comment.studentState;
   if (!state && !comment.replies.length) return null;
   return (
@@ -219,7 +217,7 @@ function ThreadSummary({
                 fullNameEn: reply.authorNameEn,
                 fullNameAr: reply.authorNameAr,
               }),
-              formatInstant(reply.createdAt, user.school.timeZone),
+              formatInstant(reply.createdAt),
             ].join(" · ")}
           </span>
         </div>

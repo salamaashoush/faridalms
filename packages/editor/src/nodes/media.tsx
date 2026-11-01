@@ -1,4 +1,4 @@
-import type { PictureCredit } from "@faridalms/domain/commons";
+import type { PictureCredit, PictureFocus } from "@faridalms/domain/commons";
 import type {
   FileDisplay,
   ImageSize,
@@ -59,6 +59,7 @@ export type SerializedImageNode = Spread<
     size: ImageSize;
     labels?: PictureLabel[];
     credit?: PictureCredit;
+    focus?: PictureFocus;
   },
   SerializedDecoratorBlockNode
 >;
@@ -324,6 +325,7 @@ export class ImageNode extends DecoratorBlockNode {
   __size: ImageSize;
   __labels: PictureLabel[] = [];
   __credit: PictureCredit | null = null;
+  __focus: PictureFocus | null = null;
 
   constructor(
     fileId = "",
@@ -356,6 +358,7 @@ export class ImageNode extends DecoratorBlockNode {
     copy.__decorative = node.__decorative;
     copy.__labels = node.__labels;
     copy.__credit = node.__credit;
+    copy.__focus = node.__focus;
     return copy;
   }
 
@@ -372,6 +375,7 @@ export class ImageNode extends DecoratorBlockNode {
     node.__size = json.size;
     node.__labels = json.labels ?? [];
     node.__credit = json.credit ?? null;
+    node.__focus = json.focus ?? null;
     return node;
   }
 
@@ -386,6 +390,7 @@ export class ImageNode extends DecoratorBlockNode {
       size: node.__size,
       ...(node.__labels.length > 0 ? { labels: node.__labels } : {}),
       ...(node.__credit ? { credit: node.__credit } : {}),
+      ...(node.__focus ? { focus: node.__focus } : {}),
     };
   }
 

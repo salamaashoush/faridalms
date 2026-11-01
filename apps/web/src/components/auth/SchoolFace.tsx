@@ -4,7 +4,7 @@ import type { CSSProperties, ReactNode } from "react";
 
 import { portalAccent } from "@faridalms/domain/portal-face";
 import { PORTAL_DOORS } from "@faridalms/domain/site-sections";
-import { THEMES } from "@faridalms/domain/site-theme";
+import { PLATFORM_PALETTE, THEMES } from "@faridalms/domain/site-theme";
 import { newSection } from "@faridalms/domain/website";
 import { cn } from "@faridalms/ui/cn";
 
@@ -28,13 +28,7 @@ import { hostHref } from "~/utils/host";
  */
 const PLATFORM_THEME: Theme = {
   ...THEMES.meridian,
-  palette: {
-    canvas: "#FFFFFF",
-    surface: "#EEF3EE",
-    primary: "#153F3A",
-    accent: "#C7D9B8",
-    ink: "#18221F",
-  },
+  palette: PLATFORM_PALETTE,
   fonts: {
     headingLatin: "inter",
     bodyLatin: "inter",

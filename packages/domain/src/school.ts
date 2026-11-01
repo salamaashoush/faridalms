@@ -36,17 +36,27 @@ function zoneOffsetMinutes(at: Date, timeZone: string): number {
   return Math.round((wall - at.getTime()) / 60_000);
 }
 
-/** The instant at which a school-local wall-clock time (`HH:MM`) occurs. */
+/**
+ * The instant at which a school-local wall-clock time (`HH:MM`) occurs. A
+ * time the clocks skip when summer time starts reads as the same distance
+ * past the change; a time they repeat when it ends is its first occurrence,
+ * as calendars and browsers resolve both.
+ */
 export function zonedInstant(
   date: string,
   time: string,
   timeZone: string,
 ): Date {
   const naive = Date.parse(`${date}T${time}:00Z`);
-  let result = naive - zoneOffsetMinutes(new Date(naive), timeZone) * 60_000;
-  const settled = zoneOffsetMinutes(new Date(result), timeZone);
-  if (naive - settled * 60_000 !== result) result = naive - settled * 60_000;
-  return new Date(result);
+  const before = zoneOffsetMinutes(new Date(naive - 86_400_000), timeZone);
+  const after = zoneOffsetMinutes(new Date(naive + 86_400_000), timeZone);
+  const held = [before, after]
+    .map((offset) => naive - offset * 60_000)
+    .filter(
+      (at) => zoneOffsetMinutes(new Date(at), timeZone) * 60_000 === naive - at,
+    )
+    .toSorted((a, b) => a - b);
+  return new Date(held[0] ?? naive - before * 60_000);
 }
 
 /** An instant as the school's wall clock, `YYYY-MM-DDTHH:MM`, for date-time inputs. */
@@ -56,6 +66,121 @@ export function zonedLocal(instant: string | Date, timeZone: string): string {
     at.getTime() + zoneOffsetMinutes(at, timeZone) * 60_000,
   );
   return shifted.toISOString().slice(0, 16);
+}
+
+/** The time of day on the school's clock, `HH:MM` on a 24-hour clock. */
+export function schoolClock(timeZone: string, at = new Date()): string {
+  return zonedLocal(at, timeZone).slice(11, 16);
+}
+
+/**
+ * The locale dates and numbers are written in: the reader's language, with
+ * Arabic pinned to the school's digits, since browsers and regions disagree
+ * on them.
+ */
+export function formattingLocale(
+  locale: string,
+  digits: "latn" | "arab",
+): string {
+  return locale === "ar" ? `ar-u-nu-${digits}` : locale;
+}
+
+/** How a calendar day is written, from the fullest to its number alone. */
+export type DayStyle =
+  | "medium"
+  | "weekday"
+  | "full"
+  | "dayMonth"
+  | "short"
+  | "day";
+
+const DAY_STYLES: Record<DayStyle, Intl.DateTimeFormatOptions> = {
+  medium: { dateStyle: "medium" },
+  weekday: { weekday: "long", day: "numeric", month: "long" },
+  full: { day: "numeric", month: "long", year: "numeric" },
+  dayMonth: { day: "numeric", month: "long" },
+  short: { day: "numeric", month: "short" },
+  day: { day: "numeric" },
+};
+
+/** How an instant is written on the school's clock. */
+export type InstantStyle =
+  | "full"
+  | "stamp"
+  | "medium"
+  | "date"
+  | "short"
+  | "time";
+
+const INSTANT_STYLES: Record<InstantStyle, Intl.DateTimeFormatOptions> = {
+  full: {
+    weekday: "short",
+    day: "numeric",
+    month: "short",
+    hour: "numeric",
+    minute: "2-digit",
+  },
+  stamp: { day: "numeric", month: "short", hour: "numeric", minute: "2-digit" },
+  medium: { dateStyle: "medium", timeStyle: "short" },
+  date: { dateStyle: "medium" },
+  short: { day: "numeric", month: "short" },
+  time: { hour: "numeric", minute: "2-digit" },
+};
+
+const calendarDay = (isoDate: string) =>
+  new Date(`${isoDate.slice(0, 10)}T00:00:00.000Z`);
+
+/**
+ * A calendar day (a `date` column, `YYYY-MM-DD`). It has no time zone, so
+ * it reads the same day wherever it is shown.
+ */
+export function formatDayIn(
+  isoDate: string,
+  style: DayStyle,
+  locale: string,
+  calendar?: string,
+): string {
+  return new Intl.DateTimeFormat(locale, {
+    ...DAY_STYLES[style],
+    ...(calendar ? { calendar } : {}),
+    timeZone: "UTC",
+  }).format(calendarDay(isoDate));
+}
+
+/** Two calendar days as one span, sharing what they share: "7 – 25 Sept 2026". */
+export function formatDayRangeIn(
+  first: string,
+  last: string,
+  style: DayStyle,
+  locale: string,
+): string {
+  return new Intl.DateTimeFormat(locale, {
+    ...DAY_STYLES[style],
+    timeZone: "UTC",
+  }).formatRange(calendarDay(first), calendarDay(last));
+}
+
+/** An instant on the school's clock, whatever the reader's own zone is. */
+export function formatInstantIn(
+  instant: string | Date,
+  style: InstantStyle,
+  timeZone: string,
+  locale: string,
+): string {
+  return new Intl.DateTimeFormat(locale, {
+    ...INSTANT_STYLES[style],
+    timeZone,
+  }).format(typeof instant === "string" ? new Date(instant) : instant);
+}
+
+/** A time of day (a `time` column, `HH:MM` or `HH:MM:SS`) as the locale writes it. */
+export function formatTimeIn(time: string, locale: string): string {
+  const [hours = 0, minutes = 0] = time.split(":").map(Number);
+  return new Intl.DateTimeFormat(locale, {
+    hour: "numeric",
+    minute: "2-digit",
+    timeZone: "UTC",
+  }).format(new Date(Date.UTC(2000, 0, 1, hours, minutes)));
 }
 
 /** Age in whole years and months, or `null` when no birthdate is recorded. */

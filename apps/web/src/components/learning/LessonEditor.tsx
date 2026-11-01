@@ -50,7 +50,6 @@ import { LOCALE_LABEL, LOCALE_NAME } from "~/components/content/languages";
 import { LtiHostProvider } from "~/components/content/lti";
 import { useStartFrom } from "~/components/content/Templates";
 import { TranslationNote } from "~/components/content/TranslationNote";
-import { useDocumentMedia } from "~/components/coursework/useDocumentMedia";
 import { CheckboxRow } from "~/components/people/fields";
 import { ConfirmDialog } from "~/components/system/ConfirmDialog";
 import {
@@ -63,6 +62,7 @@ import { ChoiceField, SelectField, TextField } from "~/components/system/field";
 import { SheetForm } from "~/components/system/SheetForm";
 import { useAutosave } from "~/hooks/useAutosave";
 import { useCurrentUser } from "~/hooks/useCurrentUser";
+import { useDocumentMedia } from "~/hooks/useDocumentMedia";
 import * as m from "~/i18n/messages";
 import { getLocale } from "~/i18n/runtime";
 import { moduleRecordQuery } from "~/queries/learning";

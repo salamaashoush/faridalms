@@ -41,22 +41,21 @@ import {
   RecordSection,
 } from "~/components/system/RecordPage";
 import { SheetForm } from "~/components/system/SheetForm";
-import { useCurrentUser } from "~/hooks/useCurrentUser";
+import { useDocumentMedia } from "~/hooks/useDocumentMedia";
 import * as m from "~/i18n/messages";
 import { myWorkQuery } from "~/queries/coursework";
 import { myStandingQuery } from "~/queries/exams";
 import { handInWork, saveMyDraft, undoHandIn } from "~/server/coursework";
-import { formatNumber } from "~/utils/datetime";
+import { formatInstant, formatNumber } from "~/utils/datetime";
 import { getMessageFromError } from "~/utils/error";
 
 import { classTitle } from "../classes/format";
 import { resultText } from "../grading/format";
 import { useBriefLanguage } from "./BriefLanguage";
 import { Discussion } from "./Discussion";
-import { formatInstant, STATE_LABEL, STATE_TONE } from "./format";
+import { STATE_LABEL, STATE_TONE } from "./format";
 import { PeerReviewWork } from "./PeerReview";
 import { QuizWork } from "./QuizWork";
-import { useDocumentMedia } from "./useDocumentMedia";
 import { Recordings } from "./VoiceFeedback";
 import { CommentedWork, CommentList } from "./WorkComments";
 
@@ -133,7 +132,6 @@ function RubricResult({
 }
 
 function AttemptItem({ data, attempt }: { data: Data; attempt: Attempt }) {
-  const user = useCurrentUser();
   const assessment = attempt.assessment;
   const [active, setActive] = useState<string | null>(null);
   const [reveal, setReveal] = useState(0);
@@ -146,7 +144,7 @@ function AttemptItem({ data, attempt }: { data: Data; attempt: Attempt }) {
         </span>
         <span className="text-[13px] leading-[18px] text-muted-foreground">
           {[
-            formatInstant(attempt.submittedAt, user.school.timeZone),
+            formatInstant(attempt.submittedAt),
             attempt.isLate ? m.courseworkLate() : null,
             attempt.byTeacher ? m.courseworkByTeacher() : null,
           ]
@@ -469,7 +467,6 @@ function OutstandingDeclaration({ data }: { data: Data }) {
 
 export function LearnerWork({ assignmentId }: { assignmentId: string }) {
   const data = useSuspenseQuery(myWorkQuery(assignmentId)).data;
-  const user = useCurrentUser();
   const width = useReaderWidth();
   const standing = useQuery(myStandingQuery(assignmentId)).data;
   const facts: HeaderFact[] = [];
@@ -482,7 +479,7 @@ export function LearnerWork({ assignmentId }: { assignmentId: string }) {
     facts.push({
       label: m.courseworkDue(),
       value: m.courseworkDueOn({
-        date: formatInstant(data.assignment.dueAt, user.school.timeZone),
+        date: formatInstant(data.assignment.dueAt),
       }),
     });
   if (data.assignment.points !== null)
@@ -505,7 +502,7 @@ export function LearnerWork({ assignmentId }: { assignmentId: string }) {
     dueAt
       ? [
           m.courseworkDueOn(
-            { date: formatInstant(dueAt, user.school.timeZone, locale) },
+            { date: formatInstant(dueAt, "full", locale) },
             { locale },
           ),
         ]

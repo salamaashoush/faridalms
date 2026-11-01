@@ -3,7 +3,7 @@ import { ImagePlus, UsersRound, X } from "lucide-react";
 import { useRef, useState } from "react";
 import { toast } from "sonner";
 
-import { useDocumentMedia } from "~/components/coursework/useDocumentMedia";
+import { useDocumentMedia } from "~/hooks/useDocumentMedia";
 import * as m from "~/i18n/messages";
 
 /** Uploads a picture as document media and shows what is chosen. */

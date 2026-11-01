@@ -33,7 +33,6 @@ import {
   STATE_TONE,
 } from "~/components/admissions/labels";
 import { BreadcrumbCurrent } from "~/components/app/WorkspaceBreadcrumb";
-import { formatInstant } from "~/components/coursework/format";
 import { Conversation } from "~/components/messages/Conversation";
 import {
   Fact,
@@ -45,7 +44,7 @@ import {
   RecordSection,
 } from "~/components/system/RecordPage";
 import { StatusText } from "~/components/system/status";
-import { inLocale, useCurrentUser } from "~/hooks/useCurrentUser";
+import { inLocale } from "~/hooks/useCurrentUser";
 import * as m from "~/i18n/messages";
 import { enquiryQuery } from "~/queries/admissions";
 import { threadQuery } from "~/queries/messages";
@@ -55,7 +54,7 @@ import {
   moveEnquiry,
   openEnquiryConversation,
 } from "~/server/admissions";
-import { formatDate, formatMinutes } from "~/utils/datetime";
+import { formatInstant, formatDate, formatMinutes } from "~/utils/datetime";
 import { numberLocale } from "~/utils/digits";
 import { getMessageFromError } from "~/utils/error";
 
@@ -154,11 +153,9 @@ type Sheet = "assign" | "close" | null;
 
 function EnquiryPage() {
   const { enquiryId } = Route.useParams();
-  const user = useCurrentUser();
   const queryClient = useQueryClient();
   const enquiry = useSuspenseQuery(enquiryQuery(enquiryId)).data;
   const [sheet, setSheet] = useState<Sheet>(null);
-  const timeZone = user.school.timeZone;
   const open = (next: Sheet) => () => setSheet(next);
   const move = (state: EnquiryState) => async () => {
     await moveEnquiry({
@@ -264,7 +261,7 @@ function EnquiryPage() {
           { label: m.admColSource(), value: SOURCE_LABEL[enquiry.source]() },
           {
             label: m.admColReceived(),
-            value: formatInstant(enquiry.createdAt, timeZone),
+            value: formatInstant(enquiry.createdAt),
           },
           {
             label: m.admColAssignee(),
@@ -410,7 +407,7 @@ function EnquiryPage() {
                         </StatusText>
                         <span>
                           {PURPOSE_LABEL[row.purpose]()} ·{" "}
-                          {formatInstant(row.createdAt, timeZone)}
+                          {formatInstant(row.createdAt)}
                         </span>
                       </span>
                     </li>

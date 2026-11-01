@@ -9,7 +9,7 @@ import { useState } from "react";
 import { meaningOf } from "~/components/years/YearPlanner";
 import { inLocale } from "~/hooks/useCurrentUser";
 import * as m from "~/i18n/messages";
-import { numberLocale } from "~/utils/digits";
+import { formatDate, formatDayRange, formatWeekday } from "~/utils/datetime";
 
 export interface GridPeriod {
   id: string;
@@ -35,13 +35,6 @@ export interface GridDate {
   noteAr: string | null;
 }
 
-const shortDate = (iso: string) =>
-  new Intl.DateTimeFormat(numberLocale(), {
-    day: "numeric",
-    month: "short",
-    timeZone: "UTC",
-  }).format(new Date(`${iso}T00:00:00Z`));
-
 /** Why a day differs from an ordinary school day, or nothing when it doesn't. */
 function dayNote(date: GridDate | undefined): string | null {
   if (!date) return null;
@@ -50,14 +43,6 @@ function dayNote(date: GridDate | undefined): string | null {
   if (!date.meaning || date.meaning === "instructional_day")
     return date.closed ? m.ttNoSchool() : null;
   return note || meaningOf(date.meaning).label();
-}
-
-/** An ISO weekday named in the reader's language; 1 January 2024 was a Monday. */
-export function dayName(day: number, width: "long" | "short" = "long") {
-  return new Intl.DateTimeFormat(numberLocale(), {
-    weekday: width,
-    timeZone: "UTC",
-  }).format(new Date(Date.UTC(2024, 0, day)));
 }
 
 export function periodName(period: GridPeriod) {
@@ -142,11 +127,11 @@ export function WeekGrid<T extends GridMeeting>({
                     )}
                   >
                     <span className="block">
-                      {dayName(day)}
+                      {formatWeekday(day)}
                       {date ? (
                         <span className="font-normal tabular-nums">
                           {" "}
-                          {shortDate(date.date)}
+                          {formatDate(date.date, "short")}
                         </span>
                       ) : null}
                       {day === today ? (
@@ -227,10 +212,10 @@ export function WeekGrid<T extends GridMeeting>({
                   date?.closed && day !== picked && "border-dashed",
                 )}
               >
-                {dayName(day, "short")}
+                {formatWeekday(day, "short")}
                 {date ? (
                   <span className="text-xs font-normal tabular-nums">
-                    {shortDate(date.date)}
+                    {formatDate(date.date, "short")}
                   </span>
                 ) : null}
               </button>
@@ -361,14 +346,6 @@ export function FreeCell() {
   );
 }
 
-const weekRange = (from: string, to: string) =>
-  new Intl.DateTimeFormat(numberLocale(), {
-    day: "numeric",
-    month: "short",
-    year: "numeric",
-    timeZone: "UTC",
-  }).formatRange(new Date(`${from}T00:00:00Z`), new Date(`${to}T00:00:00Z`));
-
 /**
  * Steps a dated week back and forth inside the school year, and back to the
  * week holding today. Arrows follow the reading direction.
@@ -424,7 +401,7 @@ export function WeekStep({
         </Button>
       </div>
       <p aria-live="polite" className="text-sm leading-5 font-medium">
-        {weekRange(first, last)}
+        {formatDayRange(first, last)}
       </p>
       {holdsToday || today < year.startsOn || today > year.lastDay ? null : (
         <Button

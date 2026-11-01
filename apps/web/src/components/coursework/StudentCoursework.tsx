@@ -2,7 +2,6 @@ import { Button } from "@faridalms/ui/button";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { Download } from "lucide-react";
 
-import { useCurrentUser } from "~/hooks/useCurrentUser";
 import * as m from "~/i18n/messages";
 import { studentCourseworkQuery } from "~/queries/coursework";
 
@@ -11,9 +10,8 @@ import { StudentGrades } from "./StudentGrades";
 
 /** A student's work and term results on their record: what is missing first. */
 export function StudentCoursework({ studentId }: { studentId: string }) {
-  const user = useCurrentUser();
   const { rows } = useSuspenseQuery(studentCourseworkQuery(studentId)).data;
-  const props = { timeZone: user.school.timeZone, linked: false };
+  const props = { linked: false };
   return (
     <div className="grid gap-6">
       <Button

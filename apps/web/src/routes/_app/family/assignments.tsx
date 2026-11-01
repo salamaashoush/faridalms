@@ -42,7 +42,6 @@ export const Route = createFileRoute("/_app/family/assignments")({
 });
 
 function ChildWork({ studentId }: { studentId: string }) {
-  const user = useCurrentUser();
   const { rows, now } = useSuspenseQuery(childCourseworkQuery(studentId)).data;
   const at = Date.parse(now);
   const missing = rows.filter((row) => row.state === "missing");
@@ -60,7 +59,6 @@ function ChildWork({ studentId }: { studentId: string }) {
   );
   const [reading, setReading] = useState<{ id: string; title: string }>();
   const props = {
-    timeZone: user.school.timeZone,
     linked: false,
     onOpen: (item: { assignmentId: string; title: string }) =>
       setReading({ id: item.assignmentId, title: item.title }),

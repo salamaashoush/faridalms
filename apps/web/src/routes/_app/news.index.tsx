@@ -13,7 +13,6 @@ import * as v from "valibot";
 
 import type { Column } from "~/components/system/DataTable";
 
-import { formatInstant } from "~/components/coursework/format";
 import { DataTable, RowLink } from "~/components/system/DataTable";
 import {
   EmptyState,
@@ -25,7 +24,7 @@ import { inLocale, useCurrentUser } from "~/hooks/useCurrentUser";
 import * as m from "~/i18n/messages";
 import { managedNewsQuery, newsQuery } from "~/queries/news";
 import { currentUserQuery } from "~/queries/user";
-import { formatNumber } from "~/utils/datetime";
+import { formatInstant, formatNumber } from "~/utils/datetime";
 
 const TABS = ["latest", ...NEWS_TABS] as const;
 type Tab = (typeof TABS)[number];
@@ -74,7 +73,7 @@ type ManagedRow = Awaited<
 const titleOf = (row: { titleEn: string; titleAr: string }) =>
   inLocale(row.titleEn || null, row.titleAr || null);
 
-function NewsItem({ row, timeZone }: { row: NewsRow; timeZone: string }) {
+function NewsItem({ row }: { row: NewsRow }) {
   const unread = row.recipient && row.readAt === null;
   const summary =
     inLocale(row.excerptEn || null, row.excerptAr || null) || row.summary;
@@ -93,7 +92,7 @@ function NewsItem({ row, timeZone }: { row: NewsRow; timeZone: string }) {
       </Link>
       <p className="text-[13px] leading-[18px] text-muted-foreground">
         {[
-          row.publishedAt ? formatInstant(row.publishedAt, timeZone) : null,
+          row.publishedAt ? formatInstant(row.publishedAt) : null,
           inLocale(row.authorNameEn, row.authorNameAr),
           row.visibility === "public" ? m.newsWebsite() : null,
         ]
@@ -113,7 +112,6 @@ function NewsItem({ row, timeZone }: { row: NewsRow; timeZone: string }) {
 }
 
 function Latest({ q }: { q: string }) {
-  const user = useCurrentUser();
   const { rows } = useSuspenseQuery(newsQuery(q)).data;
   if (rows.length === 0)
     return (
@@ -129,7 +127,7 @@ function Latest({ q }: { q: string }) {
       aria-label={m.newsTitle()}
     >
       {rows.map((row) => (
-        <NewsItem key={row.id} row={row} timeZone={user.school.timeZone} />
+        <NewsItem key={row.id} row={row} />
       ))}
     </ul>
   );
@@ -157,7 +155,7 @@ function reach(row: ManagedRow) {
 
 // Built per render: headers read the request's locale, which a module-level
 // array would fix at whichever language first loaded the module on the server.
-function managedColumns(timeZone: string): Column<ManagedRow>[] {
+function managedColumns(): Column<ManagedRow>[] {
   return [
     {
       id: "title",
@@ -174,8 +172,7 @@ function managedColumns(timeZone: string): Column<ManagedRow>[] {
     {
       id: "when",
       header: m.annColWhen(),
-      cell: (row) =>
-        row.publishedAt ? formatInstant(row.publishedAt, timeZone) : "–",
+      cell: (row) => (row.publishedAt ? formatInstant(row.publishedAt) : "–"),
     },
     { id: "reach", header: m.annColReach(), cell: (row) => reach(row) },
   ];
@@ -187,13 +184,12 @@ const managedCard = {
 };
 
 function Managed({ tab, q }: { tab: ManageNewsQuery["tab"]; q: string }) {
-  const user = useCurrentUser();
   const { rows } = useSuspenseQuery(managedNewsQuery({ tab, q })).data;
   return (
     <DataTable
       caption={m.newsManagedCaption()}
       rows={rows}
-      columns={managedColumns(user.school.timeZone)}
+      columns={managedColumns()}
       rowLabel={(row) => titleOf(row)}
       card={managedCard}
       empty={{

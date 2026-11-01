@@ -14,7 +14,6 @@ import * as v from "valibot";
 import type { Column } from "~/components/system/DataTable";
 
 import { URGENCY_LABEL, URGENCY_TONE } from "~/components/announcements/format";
-import { formatInstant } from "~/components/coursework/format";
 import { DataTable, RowLink } from "~/components/system/DataTable";
 import {
   EmptyState,
@@ -29,7 +28,7 @@ import {
   announcementFeedQuery,
   managedAnnouncementsQuery,
 } from "~/queries/announcements";
-import { formatDate, formatNumber } from "~/utils/datetime";
+import { formatInstant, formatDate, formatNumber } from "~/utils/datetime";
 
 const TABS = ["current", "past", ...MANAGE_TABS] as const;
 type Tab = (typeof TABS)[number];
@@ -80,7 +79,7 @@ type ManagedRow = Awaited<
   >
 >["rows"][number];
 
-function FeedItem({ row, timeZone }: { row: FeedRow; timeZone: string }) {
+function FeedItem({ row }: { row: FeedRow }) {
   const unread = row.readAt === null;
   return (
     <li className="grid gap-1.5 py-4">
@@ -111,7 +110,7 @@ function FeedItem({ row, timeZone }: { row: FeedRow; timeZone: string }) {
       <p className="text-[13px] leading-[18px] text-muted-foreground">
         {[
           inLocale(row.authorNameEn, row.authorNameAr),
-          row.publishAt ? formatInstant(row.publishAt, timeZone) : null,
+          row.publishAt ? formatInstant(row.publishAt) : null,
         ]
           .filter(Boolean)
           .join(" · ")}
@@ -140,7 +139,6 @@ function FeedItem({ row, timeZone }: { row: FeedRow; timeZone: string }) {
 }
 
 function Feed({ tab, q }: { tab: "current" | "past"; q: string }) {
-  const user = useCurrentUser();
   const { rows } = useSuspenseQuery(announcementFeedQuery({ tab, q })).data;
   if (rows.length === 0)
     return (
@@ -156,7 +154,7 @@ function Feed({ tab, q }: { tab: "current" | "past"; q: string }) {
       aria-label={m.annTitle()}
     >
       {rows.map((row) => (
-        <FeedItem key={row.id} row={row} timeZone={user.school.timeZone} />
+        <FeedItem key={row.id} row={row} />
       ))}
     </ul>
   );
@@ -190,7 +188,7 @@ function reach(row: ManagedRow) {
 
 // Built per render: headers read the request's locale, which a module-level
 // array would fix at whichever language first loaded the module on the server.
-function managedColumns(timeZone: string): Column<ManagedRow>[] {
+function managedColumns(): Column<ManagedRow>[] {
   return [
     {
       id: "title",
@@ -210,8 +208,7 @@ function managedColumns(timeZone: string): Column<ManagedRow>[] {
     {
       id: "when",
       header: m.annColWhen(),
-      cell: (row) =>
-        row.publishAt ? formatInstant(row.publishAt, timeZone) : "–",
+      cell: (row) => (row.publishAt ? formatInstant(row.publishAt) : "–"),
     },
     { id: "reach", header: m.annColReach(), cell: (row) => reach(row) },
   ];
@@ -223,13 +220,12 @@ const managedCard = {
 };
 
 function Managed({ tab, q }: { tab: ManageQuery["tab"]; q: string }) {
-  const user = useCurrentUser();
   const { rows } = useSuspenseQuery(managedAnnouncementsQuery({ tab, q })).data;
   return (
     <DataTable
       caption={m.annManagedCaption()}
       rows={rows}
-      columns={managedColumns(user.school.timeZone)}
+      columns={managedColumns()}
       rowLabel={(row) => row.title}
       card={managedCard}
       empty={{

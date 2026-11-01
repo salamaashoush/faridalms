@@ -1,4 +1,5 @@
-import type { SiteFocus, SiteLocale } from "@faridalms/domain/site-sections";
+import type { PictureFocus } from "@faridalms/domain/commons";
+import type { SiteLocale } from "@faridalms/domain/site-sections";
 import type { SchemeId, Theme } from "@faridalms/domain/site-theme";
 import type { CSSProperties } from "react";
 
@@ -131,7 +132,7 @@ export function ratioStyle(ratio?: string, phoneRatio?: string): CSSProperties {
 }
 
 /** Keeps a picture's subject in view whatever the crop, and zooms in towards it. */
-export function focusStyle(focus?: SiteFocus): CSSProperties | undefined {
+export function focusStyle(focus?: PictureFocus): CSSProperties | undefined {
   if (!focus) return undefined;
   const at = `${focus.x}% ${focus.y}%`;
   return { objectPosition: at, transformOrigin: at };

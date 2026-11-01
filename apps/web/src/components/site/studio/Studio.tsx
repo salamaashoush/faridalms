@@ -50,7 +50,6 @@ import {
   Paintbrush,
   PanelsTopLeft,
   Redo2,
-  Save as SaveIcon,
   Smartphone,
   SquarePen,
   Tablet,
@@ -71,12 +70,19 @@ import type { siteOverviewQuery, sitePageQuery } from "~/queries/site";
 
 import { ButtonLink } from "~/components/app/ButtonLink";
 import { UnsavedChangesGuard } from "~/components/app/UnsavedChangesGuard";
+import { DocumentHistory } from "~/components/content/DocumentHistory";
 import { LOCALE_NAME } from "~/components/content/languages";
-import { useDocumentMedia } from "~/components/coursework/useDocumentMedia";
 import { usePicturePeople } from "~/components/files/PicturedPeople";
+import {
+  HeldChanges,
+  NotSaved,
+  SaveIndicator,
+} from "~/components/system/DocumentPage";
 import { Segmented } from "~/components/system/panel";
 import { StatusBadge } from "~/components/system/status";
+import { useAutosave } from "~/hooks/useAutosave";
 import { useCurrentUser } from "~/hooks/useCurrentUser";
+import { useDocumentMedia } from "~/hooks/useDocumentMedia";
 import * as m from "~/i18n/messages";
 import {
   publishSitePage,
@@ -84,7 +90,7 @@ import {
   saveSiteSettings,
   unpublishSitePage,
 } from "~/server/site";
-import { formatNumber } from "~/utils/datetime";
+import { formatNumber, instantFromLocal } from "~/utils/datetime";
 import { getMessageFromError } from "~/utils/error";
 
 import type { SiteFrameModel } from "../render/frame";
@@ -196,11 +202,14 @@ export function SiteStudio({
   overview,
   template,
   initialPanel = "sections",
+  onCreated,
 }: {
   existing: Existing | null;
   overview: Overview;
   template: PageTemplate | null;
   initialPanel?: StudioPanel;
+  /** Learns the address a new page was stored at, once its first save lands. */
+  onCreated?: (id: string) => void;
 }) {
   const user = useCurrentUser();
   const navigate = useNavigate();
@@ -226,13 +235,20 @@ export function SiteStudio({
     site: { theme: settings.theme, chrome: settings.chrome },
   }));
   const draft = history.value;
-  const [saved, setSaved] = useState(draft);
+  const [savedSite, setSavedSite] = useState(draft.site);
   const [pageId, setPageId] = useState(existing?.id ?? null);
+  // What the server holds, read by saves that run one after another before
+  // the next render.
   const versions = useRef({
+    id: existing?.id ?? null,
     page: existing?.version ?? 0,
     settings: settings.version,
   });
   const [shownState, setShownState] = useState(existing?.shown ?? "draft");
+  const [waiting, setWaiting] = useState(
+    Boolean(existing && existing.revisedAt !== null),
+  );
+  const [historyOpen, setHistoryOpen] = useState(false);
   const [selected, setSelected] = useState<string | null>(null);
   const [panel, setPanel] = useState<StudioPanel>(initialPanel);
   const [chosenDevice, setDevice] = useState<Device>("desktop");
@@ -248,9 +264,7 @@ export function SiteStudio({
   const otherLocale = languages.other;
   const page = draft.page;
   const theme = resolveTheme(draft.site.theme);
-  const pageDirty = JSON.stringify(page) !== JSON.stringify(saved.page);
-  const siteDirty = JSON.stringify(draft.site) !== JSON.stringify(saved.site);
-  const dirty = pageDirty || siteDirty || !pageId;
+  const siteDirty = JSON.stringify(draft.site) !== JSON.stringify(savedSite);
 
   const updatePage = useCallback(
     (change: (page: PageDraft) => PageDraft, key?: string) =>
@@ -326,7 +340,9 @@ export function SiteStudio({
   const say = (words: { en: string; ar: string }) =>
     words[locale] || words[languages.primary];
   const chrome = draft.site.chrome;
-  const logoUrl = chrome.logoFileId ? `/files/${chrome.logoFileId}` : null;
+  const logoUrl = user.school.logoFileId
+    ? `/files/${user.school.logoFileId}`
+    : null;
   const bannerWords =
     (locale === "ar" ? settings.bannerAr : settings.bannerEn) ||
     (languages.primary === "ar" ? settings.bannerAr : settings.bannerEn);
@@ -561,7 +577,6 @@ export function SiteStudio({
     queryClient.invalidateQueries({ queryKey: ["site"] });
   const settingsPayload = {
     live: settings.live,
-    primaryLocale: settings.primaryLocale,
     bilingual: settings.bilingual,
     taglineEn: settings.taglineEn,
     taglineAr: settings.taglineAr,
@@ -569,43 +584,51 @@ export function SiteStudio({
     bannerEn: settings.bannerEn,
     bannerAr: settings.bannerAr,
     bannerTone: settings.bannerTone,
-    bannerUntil: settings.bannerUntil
-      ? new Date(settings.bannerUntil).toISOString()
-      : "",
+    bannerUntil: settings.bannerUntil ?? "",
   };
-  const save = useMutation({
-    mutationFn: async (snapshot: StudioDraft) => {
-      let saving = { id: pageId, version: versions.current.page };
-      if (pageDirty || !pageId) {
-        const { content, translation } = contentOf(snapshot.page);
-        const result = await saveSitePage({
-          data: {
-            id: pageId ?? "",
-            expectedVersion: versions.current.page,
-            parentId: snapshot.page.parentId,
-            slug: existing?.isHome ? existing.slug : snapshot.page.slug,
-            titleEn: snapshot.page.titleEn.trim(),
-            titleAr: snapshot.page.titleAr.trim(),
-            inMenu: snapshot.page.inMenu,
-            content,
-            translation: languages.other ? translation : null,
-          },
-        });
-        versions.current.page = result.version;
-        saving = result;
-      }
-      if (siteDirty) {
-        const result = await saveSiteSettings({
-          data: {
-            ...settingsPayload,
-            theme: snapshot.site.theme,
-            chrome: snapshot.site.chrome,
-            expectedVersion: versions.current.settings,
-          },
-        });
-        versions.current.settings = result.version;
-      }
-      return { id: saving.id ?? "", version: versions.current.page };
+  const storePage = async (snapshot: PageDraft) => {
+    const { content, translation } = contentOf(snapshot);
+    const result = await saveSitePage({
+      data: {
+        id: versions.current.id ?? "",
+        expectedVersion: versions.current.page,
+        parentId: snapshot.parentId,
+        slug: existing?.isHome ? existing.slug : snapshot.slug,
+        titleEn: snapshot.titleEn.trim(),
+        titleAr: snapshot.titleAr.trim(),
+        inMenu: snapshot.inMenu,
+        content,
+        translation: languages.other ? translation : null,
+      },
+    });
+    versions.current.page = result.version;
+    setWaiting(true);
+    if (!versions.current.id) {
+      versions.current.id = result.id;
+      setPageId(result.id);
+      onCreated?.(result.id);
+    }
+    await invalidate();
+  };
+  const pageValid = !errors.title && !errors.slug;
+  const autosave = useAutosave({
+    value: page,
+    save: storePage,
+    enabled: pageValid,
+  });
+  const saveSite = useMutation({
+    mutationFn: async (site: StudioDraft["site"]) => {
+      const result = await saveSiteSettings({
+        data: {
+          ...settingsPayload,
+          theme: site.theme,
+          chrome: site.chrome,
+          expectedVersion: versions.current.settings,
+        },
+      });
+      versions.current.settings = result.version;
+      setSavedSite(site);
+      await invalidate();
     },
     onError: (error) => toast.error(getMessageFromError(error)),
   });
@@ -628,41 +651,17 @@ export function SiteStudio({
     onError: (error) => toast.error(getMessageFromError(error)),
   });
 
-  const valid = () => {
+  const showPageDetails = () => {
     setAttempted(true);
-    if (errors.title || errors.slug) {
-      setPanel("page");
-      if (!wide) setSheet("panel");
-      toast.error(m.siteFixPageDetails());
-      return false;
-    }
-    return true;
-  };
-  const doSave = async () => {
-    if (!valid()) return null;
-    const snapshot = draft;
-    let result: { id: string; version: number };
-    try {
-      result = await save.mutateAsync(snapshot);
-    } catch {
-      return null;
-    }
-    setSaved(snapshot);
-    await invalidate();
-    if (!pageId) {
-      setPageId(result.id);
-      // The draft was just saved, but the guard still holds the render
-      // before that; this address change loses nothing.
-      void navigate({
-        to: "/admin/site-page-editor",
-        search: { id: result.id },
-        replace: true,
-        ignoreBlocker: true,
-      });
-    }
-    return result;
+    setPanel("page");
+    if (!wide) setSheet("panel");
+    toast.error(m.siteFixPageDetails());
   };
   const doPublish = async (at: string) => {
+    if (!pageValid) {
+      showPageDetails();
+      return;
+    }
     if (page.sections.length === 0) {
       toast.error(m.siteSectionsNeeded());
       return;
@@ -673,12 +672,21 @@ export function SiteStudio({
       toast.error(m.siteFixIssues());
       return;
     }
-    const result = await doSave();
-    if (!result) return;
+    if (!(await autosave.flush()) || !versions.current.id) {
+      toast.error(m.docSaveFailed());
+      return;
+    }
+    if (siteDirty) {
+      try {
+        await saveSite.mutateAsync(draft.site);
+      } catch {
+        return;
+      }
+    }
     try {
       const published = await publish.mutateAsync({
-        id: result.id,
-        version: result.version,
+        id: versions.current.id,
+        version: versions.current.page,
         at,
       });
       versions.current.page = published.version;
@@ -686,11 +694,12 @@ export function SiteStudio({
       return;
     }
     setShownState(at ? "scheduled" : "published");
+    setWaiting(false);
     setScheduling(false);
     await invalidate();
     toast.success(at ? m.siteScheduled() : m.sitePublished());
   };
-  const busy = save.isPending || publish.isPending || unpublish.isPending;
+  const busy = saveSite.isPending || publish.isPending || unpublish.isPending;
   const published = shownState === "published" || shownState === "scheduled";
 
   const fieldContext = {
@@ -868,8 +877,7 @@ export function SiteStudio({
                 }))
         }
         errors={attempted ? errors : { title: null, slug: null }}
-        history={existing?.history ?? []}
-        pageId={pageId}
+        onHistory={pageId ? () => setHistoryOpen(true) : undefined}
         onSlugTouched={() => {
           slugTouched.current = true;
         }}
@@ -906,7 +914,6 @@ export function SiteStudio({
         chrome={chrome}
         languages={languages}
         pages={pages}
-        media={media}
         logoUrl={logoUrl}
         onChange={(next, key) =>
           history.update(
@@ -954,7 +961,7 @@ export function SiteStudio({
   return (
     <div className="flex h-dvh flex-col bg-background">
       <UnsavedChangesGuard
-        isDirty={() => dirty && (pageDirty || siteDirty)}
+        isDirty={() => autosave.busy() || autosave.dirty || siteDirty}
         pending={busy}
       />
       <header className="flex h-14 shrink-0 items-center gap-2 border-b px-2 lg:px-3">
@@ -1093,13 +1100,32 @@ export function SiteStudio({
           >
             <Redo2 aria-hidden className="rtl:-scale-x-100" />
           </Button>
-          <output className="px-2 text-[13px] text-muted-foreground max-xl:sr-only">
-            {save.isPending
-              ? m.siteSaving()
-              : dirty
-                ? m.siteUnsaved()
-                : m.siteAllSaved()}
-          </output>
+          <div className="flex min-w-0 items-center gap-2 px-1 max-xl:hidden">
+            {!pageValid && autosave.dirty ? (
+              <NotSaved reason={errors.title ?? errors.slug ?? ""} />
+            ) : (
+              <SaveIndicator state={autosave.state} onRetry={autosave.retry} />
+            )}
+            {published && waiting && !siteDirty ? (
+              <span className="text-[13px] text-muted-foreground">
+                {m.siteChangesWaiting()}
+              </span>
+            ) : null}
+          </div>
+          {siteDirty ? (
+            <HeldChanges
+              waiting={m.siteStylesWaiting()}
+              onDiscard={() =>
+                history.update(
+                  (current) => ({ ...current, site: savedSite }),
+                  "site:discard",
+                )
+              }
+              onUpdate={() => void saveSite.mutateAsync(draft.site)}
+              pending={saveSite.isPending}
+              quiet
+            />
+          ) : null}
           {published &&
           pageId &&
           !existing?.isHome &&
@@ -1128,21 +1154,6 @@ export function SiteStudio({
               <ExternalLink aria-hidden />
             </ButtonLink>
           ) : null}
-          <Button
-            type="button"
-            variant="outline"
-            className="max-md:h-10 max-sm:w-10 max-sm:px-0"
-            aria-label={m.siteSave()}
-            disabled={busy || (!dirty && Boolean(pageId))}
-            onClick={() =>
-              void doSave().then(
-                (result) => result && toast.success(m.siteSaved()),
-              )
-            }
-          >
-            <SaveIcon aria-hidden className="sm:hidden" />
-            <span className="max-sm:hidden">{m.siteSave()}</span>
-          </Button>
           <div className="flex">
             <Button
               type="button"
@@ -1343,7 +1354,7 @@ export function SiteStudio({
             <Button
               type="button"
               disabled={!publishAt || busy}
-              onClick={() => void doPublish(new Date(publishAt).toISOString())}
+              onClick={() => void doPublish(instantFromLocal(publishAt))}
             >
               {m.siteSchedule()}
             </Button>
@@ -1351,6 +1362,34 @@ export function SiteStudio({
         </DialogContent>
       </Dialog>
       {pictured.sheet}
+      {pageId ? (
+        <DocumentHistory
+          open={historyOpen}
+          onOpenChange={setHistoryOpen}
+          hostType="site_page"
+          hostId={pageId}
+          onRestore={(restored) => {
+            if (restored.kind !== "page") return;
+            const words = restored.page;
+            updatePage((current) =>
+              restored.locale === languages.other
+                ? {
+                    ...current,
+                    translated: Object.fromEntries(
+                      words.sections.map((section) => [section.id, section]),
+                    ),
+                    otherDescription: words.description,
+                  }
+                : {
+                    ...current,
+                    sections: words.sections,
+                    description: words.description,
+                    reviewed: words.reviewed,
+                  },
+            );
+          }}
+        />
+      ) : null}
     </div>
   );
 }

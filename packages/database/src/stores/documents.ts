@@ -63,6 +63,28 @@ export async function documentIdOf(
   return row ?? null;
 }
 
+/**
+ * A record's document and its translation, original first, each with the
+ * language it is written in and the kind of content it holds.
+ */
+export async function documentsInLanguages(
+  tx: Tx,
+  tenantId: string,
+  host: Host,
+): Promise<{ id: string; locale: "ar" | "en" | null; kind: DocumentKind }[]> {
+  const original = await documentIdOf(tx, tenantId, host);
+  if (!original) return [];
+  return tx.execute<{
+    id: string;
+    locale: "ar" | "en" | null;
+    kind: DocumentKind;
+  }>(sql`
+    select id, locale, kind from core.documents
+    where tenant_id = ${tenantId}::uuid and status = 'active'
+      and (id = ${original.id}::uuid or translation_of_id = ${original.id}::uuid)
+    order by translation_of_id nulls first, created_at desc`);
+}
+
 /** The working content of several records' documents of one kind, by host. */
 export async function contentsOf(
   tx: Tx,

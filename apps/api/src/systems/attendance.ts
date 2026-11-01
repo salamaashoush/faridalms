@@ -46,7 +46,6 @@ import {
 import { namesOf } from "@faridalms/database/stores/coursework";
 import { changesOn, coveredPeriods } from "@faridalms/database/stores/cover";
 import { movementsOn } from "@faridalms/database/stores/front-desk";
-import { schoolProfile } from "@faridalms/database/stores/identity";
 import { noticeGuardians } from "@faridalms/database/stores/messages";
 import { noticed, withdraw } from "@faridalms/database/stores/notifications";
 import { facesOf, isVisibleStudent } from "@faridalms/database/stores/students";
@@ -87,6 +86,7 @@ import { notify } from "../core/notify";
 import {
   audit,
   can,
+  clockOf,
   readProcedure,
   requireCapability,
   writeProcedure,
@@ -173,17 +173,6 @@ function periodView(period: PeriodRow) {
     endTime: period.endTime,
     official: period.official,
   };
-}
-
-/** The time of day on the school's clock, as `HH:MM`. */
-async function schoolClock(context: UnitContext): Promise<string> {
-  const profile = await schoolProfile(context.tx, context.schoolId);
-  return new Intl.DateTimeFormat("en-GB", {
-    hour: "2-digit",
-    minute: "2-digit",
-    hourCycle: "h23",
-    timeZone: profile?.timeZone ?? "UTC",
-  }).format(context.now);
 }
 
 /** The register's year, or not found; a date outside it is refused. */
@@ -582,7 +571,7 @@ export const checkIn = writeProcedure
       throw new ORPCError("NOT_FOUND", { message: "attendance.not_roster" });
     const [codes, clock, periods] = await Promise.all([
       attendanceCodes(context.tx, context.tenantId),
-      schoolClock(context),
+      clockOf(context),
       periodsOn(context.tx, {
         tenantId: context.tenantId,
         schoolId: context.schoolId,

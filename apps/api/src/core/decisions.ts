@@ -36,6 +36,7 @@ import {
 } from "@faridalms/domain/admissions";
 import { contentPlainText } from "@faridalms/domain/content";
 import { APPLICATION_OUTCOMES } from "@faridalms/domain/notifications";
+import { formatDayIn, formattingLocale } from "@faridalms/domain/school";
 
 import type { UnitContext } from "./context";
 import type { NoticeScope } from "./notify";
@@ -119,14 +120,6 @@ export function registerLetterDelivery(delivery: LetterDelivery) {
 const pick = (locale: "en" | "ar", en: string | null, ar: string | null) =>
   (locale === "ar" ? (ar ?? en) : (en ?? ar)) ?? "";
 
-/** A day as a letter in its language writes it, with the school's digits in Arabic. */
-function longDate(day: string, locale: "en" | "ar", digits: "latn" | "arab") {
-  return new Intl.DateTimeFormat(
-    locale === "ar" ? `ar-EG-u-nu-${digits}` : "en-GB",
-    { day: "numeric", month: "long", year: "numeric", timeZone: "UTC" },
-  ).format(new Date(`${day}T00:00:00Z`));
-}
-
 async function letterFields(
   scope: AdmissionScope,
   row: ApplicationRow,
@@ -142,7 +135,13 @@ async function letterFields(
     year: pick(locale, intake.yearTitleEn, intake.yearTitleAr),
     school: pick(locale, school?.nameEn ?? null, school?.nameAr ?? null),
     reference: row.reference ?? "",
-    expires: expires ? longDate(expires, locale, school?.digits ?? "latn") : "",
+    expires: expires
+      ? formatDayIn(
+          expires,
+          "full",
+          formattingLocale(locale, school?.digits ?? "latn"),
+        )
+      : "",
   };
 }
 
