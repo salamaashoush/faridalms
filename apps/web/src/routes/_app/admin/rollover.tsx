@@ -1,6 +1,5 @@
-import { WORKSPACE_HOME } from "@faridalms/domain/workspace";
 import { useSuspenseQuery } from "@tanstack/react-query";
-import { createFileRoute, Link, redirect } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import * as v from "valibot";
 
 import {
@@ -13,6 +12,7 @@ import * as m from "~/i18n/messages";
 import { classOptionsQuery } from "~/queries/classes";
 import { rolloverQuery } from "~/queries/rollover";
 import { currentUserQuery } from "~/queries/user";
+import { requirePage } from "~/utils/page-access";
 
 export const Route = createFileRoute("/_app/admin/rollover")({
   staticData: {
@@ -26,8 +26,7 @@ export const Route = createFileRoute("/_app/admin/rollover")({
   loaderDeps: ({ search }) => search,
   loader: async ({ context, deps }) => {
     const user = await context.queryClient.ensureQueryData(currentUserQuery);
-    if (!user.capabilities.includes("years:manage"))
-      throw redirect({ to: WORKSPACE_HOME[user.workspace] });
+    requirePage(user, "years:manage");
     await Promise.all([
       context.queryClient.ensureQueryData(
         rolloverQuery({ sourceYearId: deps.source, targetYearId: deps.target }),

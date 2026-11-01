@@ -1,9 +1,7 @@
-import { WORKSPACE_HOME } from "@faridalms/domain/workspace";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import {
   createFileRoute,
   Link,
-  redirect,
   useCanGoBack,
   useRouter,
 } from "@tanstack/react-router";
@@ -18,6 +16,7 @@ import { YearEditor } from "~/components/years/YearEditor";
 import * as m from "~/i18n/messages";
 import { currentUserQuery } from "~/queries/user";
 import { yearQuery } from "~/queries/years";
+import { requirePage } from "~/utils/page-access";
 
 export const Route = createFileRoute("/_app/admin/academic-year-editor")({
   staticData: {
@@ -28,8 +27,7 @@ export const Route = createFileRoute("/_app/admin/academic-year-editor")({
   loaderDeps: ({ search }) => search,
   loader: async ({ context, deps }) => {
     const user = await context.queryClient.ensureQueryData(currentUserQuery);
-    if (!user.capabilities.includes("years:manage"))
-      throw redirect({ to: WORKSPACE_HOME[user.workspace] });
+    requirePage(user, "years:manage");
     if (deps.id) await context.queryClient.ensureQueryData(yearQuery(deps.id));
   },
   component: YearEditorPage,

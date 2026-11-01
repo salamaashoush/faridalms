@@ -1,6 +1,5 @@
-import { WORKSPACE_HOME } from "@faridalms/domain/workspace";
 import { useQuery } from "@tanstack/react-query";
-import { createFileRoute, redirect } from "@tanstack/react-router";
+import { createFileRoute } from "@tanstack/react-router";
 import * as v from "valibot";
 
 import { FormEditor } from "~/components/admissions/FormEditor";
@@ -8,6 +7,7 @@ import { BreadcrumbCurrent } from "~/components/app/WorkspaceBreadcrumb";
 import * as m from "~/i18n/messages";
 import { formQuery } from "~/queries/admissions";
 import { currentUserQuery } from "~/queries/user";
+import { requirePage } from "~/utils/page-access";
 
 export const Route = createFileRoute("/_app/admissions/form-editor")({
   staticData: {
@@ -18,8 +18,7 @@ export const Route = createFileRoute("/_app/admissions/form-editor")({
   loaderDeps: ({ search }) => ({ id: search.id }),
   loader: async ({ context, deps }) => {
     const user = await context.queryClient.ensureQueryData(currentUserQuery);
-    if (!user.capabilities.includes("admissions:configure"))
-      throw redirect({ to: WORKSPACE_HOME[user.workspace] });
+    requirePage(user, "admissions:configure");
     if (deps.id) await context.queryClient.ensureQueryData(formQuery(deps.id));
   },
   component: FormEditorPage,

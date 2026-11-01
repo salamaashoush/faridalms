@@ -1,14 +1,13 @@
 import type { DecideHealthChangeInput } from "@faridalms/domain/people";
 
 import { decideHealthChangeSchema } from "@faridalms/domain/people";
-import { WORKSPACE_HOME } from "@faridalms/domain/workspace";
 import { Textarea } from "@faridalms/ui/textarea";
 import {
   useMutation,
   useQueryClient,
   useSuspenseQuery,
 } from "@tanstack/react-query";
-import { createFileRoute, redirect, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { ClipboardCheck, HeartPulse } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
@@ -31,6 +30,7 @@ import { currentUserQuery } from "~/queries/user";
 import { decideHealthChange } from "~/server/records";
 import { formatDate, formatRelativeDays } from "~/utils/datetime";
 import { refusalOf } from "~/utils/error";
+import { requirePage } from "~/utils/page-access";
 import { schemaErrors } from "~/utils/validation";
 
 const SHOWN = ["open", "all"] as const;
@@ -43,8 +43,7 @@ export const Route = createFileRoute("/_app/health-changes")({
   loaderDeps: ({ search }) => search,
   loader: async ({ context, deps }) => {
     const user = await context.queryClient.ensureQueryData(currentUserQuery);
-    if (!user.capabilities.includes("health:write"))
-      throw redirect({ to: WORKSPACE_HOME[user.workspace] });
+    requirePage(user, "health:write");
     await context.queryClient.ensureQueryData(
       healthChangesQuery(deps.show === "open"),
     );

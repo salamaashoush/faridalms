@@ -2,9 +2,8 @@ import type { PageTemplate } from "@faridalms/domain/site-templates";
 
 import { PAGE_TEMPLATE_IDS } from "@faridalms/domain/site-templates";
 import { resolveTheme } from "@faridalms/domain/site-theme";
-import { WORKSPACE_HOME } from "@faridalms/domain/workspace";
 import { useSuspenseQuery } from "@tanstack/react-query";
-import { createFileRoute, redirect } from "@tanstack/react-router";
+import { createFileRoute } from "@tanstack/react-router";
 import { ArrowLeft } from "lucide-react";
 import { useState } from "react";
 import * as v from "valibot";
@@ -17,6 +16,7 @@ import * as m from "~/i18n/messages";
 import { siteOverviewQuery, sitePageQuery } from "~/queries/site";
 import { currentUserQuery } from "~/queries/user";
 import siteCss from "~/styles/site.css?url";
+import { requirePage } from "~/utils/page-access";
 
 const PANELS = ["sections", "page", "styles", "frame"] as const;
 
@@ -30,8 +30,7 @@ export const Route = createFileRoute("/_app/admin/site-page-editor")({
   loaderDeps: ({ search }) => ({ id: search.id }),
   loader: async ({ context, deps }) => {
     const user = await context.queryClient.ensureQueryData(currentUserQuery);
-    if (!user.capabilities.includes("site:manage"))
-      throw redirect({ to: WORKSPACE_HOME[user.workspace] });
+    requirePage(user, "site:manage");
     await Promise.all([
       context.queryClient.ensureQueryData(siteOverviewQuery),
       deps.id

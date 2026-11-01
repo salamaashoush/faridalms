@@ -8,13 +8,8 @@ import {
   APPLICATIONS_PAGE_SIZE,
   LIVE_STATES,
 } from "@faridalms/domain/admissions";
-import { WORKSPACE_HOME } from "@faridalms/domain/workspace";
 import { useSuspenseQuery } from "@tanstack/react-query";
-import {
-  createFileRoute,
-  redirect,
-  stripSearchParams,
-} from "@tanstack/react-router";
+import { createFileRoute, stripSearchParams } from "@tanstack/react-router";
 import { FileUser } from "lucide-react";
 import * as v from "valibot";
 
@@ -39,6 +34,7 @@ import {
   formatList,
   formatNumber,
 } from "~/utils/datetime";
+import { requirePage } from "~/utils/page-access";
 
 const DEFAULT_SEARCH = v.parse(applicationListSchema, {});
 
@@ -49,11 +45,7 @@ export const Route = createFileRoute("/_app/admissions/applications/")({
   loaderDeps: ({ search }) => search,
   loader: async ({ context, deps }) => {
     const user = await context.queryClient.ensureQueryData(currentUserQuery);
-    if (
-      !user.capabilities.includes("admissions:read") &&
-      !user.capabilities.includes("admissions:manage")
-    )
-      throw redirect({ to: WORKSPACE_HOME[user.workspace] });
+    requirePage(user, "admissions:read", "admissions:manage");
     await context.queryClient.ensureQueryData(applicationsQuery(deps));
   },
   component: ApplicationsPage,

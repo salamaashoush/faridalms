@@ -1,9 +1,8 @@
 import type { LetterKind } from "@faridalms/domain/admissions";
 
 import { LETTER_KINDS, letterKey } from "@faridalms/domain/admissions";
-import { WORKSPACE_HOME } from "@faridalms/domain/workspace";
 import { useSuspenseQuery } from "@tanstack/react-query";
-import { createFileRoute, redirect } from "@tanstack/react-router";
+import { createFileRoute } from "@tanstack/react-router";
 import { Mail } from "lucide-react";
 
 import type { Column } from "~/components/system/DataTable";
@@ -15,13 +14,13 @@ import * as m from "~/i18n/messages";
 import { lettersQuery } from "~/queries/admissions";
 import { currentUserQuery } from "~/queries/user";
 import { formatDate } from "~/utils/datetime";
+import { requirePage } from "~/utils/page-access";
 
 export const Route = createFileRoute("/_app/admissions/letters")({
   staticData: { breadcrumb: m.ltrTitle },
   loader: async ({ context }) => {
     const user = await context.queryClient.ensureQueryData(currentUserQuery);
-    if (!user.capabilities.includes("admissions:configure"))
-      throw redirect({ to: WORKSPACE_HOME[user.workspace] });
+    requirePage(user, "admissions:configure");
     await context.queryClient.ensureQueryData(lettersQuery);
   },
   component: LettersPage,

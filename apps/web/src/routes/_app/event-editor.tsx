@@ -8,6 +8,8 @@ import { useCurrentUser } from "~/hooks/useCurrentUser";
 import * as m from "~/i18n/messages";
 import { calendarEventQuery, calendarOptionsQuery } from "~/queries/calendar";
 import { templateQuery } from "~/queries/library";
+import { currentUserQuery } from "~/queries/user";
+import { requirePage } from "~/utils/page-access";
 
 export const Route = createFileRoute("/_app/event-editor")({
   staticData: { breadcrumb: m.calEditorBreadcrumb, section: "/calendar" },
@@ -19,6 +21,11 @@ export const Route = createFileRoute("/_app/event-editor")({
   }),
   loaderDeps: ({ search }) => search,
   loader: async ({ context, deps }) => {
+    requirePage(
+      await context.queryClient.ensureQueryData(currentUserQuery),
+      "calendar:manage",
+      "calendar:author",
+    );
     await Promise.all([
       ...(deps.template && !deps.id
         ? [context.queryClient.ensureQueryData(templateQuery(deps.template))]

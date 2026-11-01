@@ -1,9 +1,8 @@
 import type { ContentDocument } from "@faridalms/domain/content";
 
 import { LETTER_FIELDS } from "@faridalms/domain/admissions";
-import { WORKSPACE_HOME } from "@faridalms/domain/workspace";
 import { useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
-import { createFileRoute, redirect } from "@tanstack/react-router";
+import { createFileRoute } from "@tanstack/react-router";
 import { useRef, useState } from "react";
 import * as v from "valibot";
 
@@ -23,6 +22,7 @@ import { lettersQuery } from "~/queries/admissions";
 import { templateQuery } from "~/queries/library";
 import { currentUserQuery } from "~/queries/user";
 import { updateTemplate } from "~/server/templates";
+import { requirePage } from "~/utils/page-access";
 
 export const Route = createFileRoute("/_app/admissions/letter-editor")({
   staticData: {
@@ -33,8 +33,7 @@ export const Route = createFileRoute("/_app/admissions/letter-editor")({
   loaderDeps: ({ search }) => search,
   loader: async ({ context, deps }) => {
     const user = await context.queryClient.ensureQueryData(currentUserQuery);
-    if (!user.capabilities.includes("admissions:configure"))
-      throw redirect({ to: WORKSPACE_HOME[user.workspace] });
+    requirePage(user, "admissions:configure");
     await Promise.all([
       context.queryClient.ensureQueryData(lettersQuery),
       context.queryClient.ensureQueryData(templateQuery(deps.id)),

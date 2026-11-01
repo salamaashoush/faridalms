@@ -1,9 +1,7 @@
-import { WORKSPACE_HOME } from "@faridalms/domain/workspace";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import {
   createFileRoute,
   Link,
-  redirect,
   useCanGoBack,
   useRouter,
 } from "@tanstack/react-router";
@@ -22,6 +20,7 @@ import * as m from "~/i18n/messages";
 import { staffMemberQuery } from "~/queries/staff";
 import { peopleOptionsQuery } from "~/queries/students";
 import { currentUserQuery } from "~/queries/user";
+import { requirePage } from "~/utils/page-access";
 
 export const Route = createFileRoute("/_app/staff-editor")({
   staticData: {
@@ -36,8 +35,7 @@ export const Route = createFileRoute("/_app/staff-editor")({
   loaderDeps: ({ search }) => ({ id: search.id }),
   loader: async ({ context, deps }) => {
     const user = await context.queryClient.ensureQueryData(currentUserQuery);
-    if (!user.capabilities.includes("staff:manage"))
-      throw redirect({ to: WORKSPACE_HOME[user.workspace] });
+    requirePage(user, "staff:manage");
     await Promise.all([
       context.queryClient.ensureQueryData(peopleOptionsQuery),
       deps.id

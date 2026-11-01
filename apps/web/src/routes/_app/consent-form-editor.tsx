@@ -1,6 +1,5 @@
-import { WORKSPACE_HOME } from "@faridalms/domain/workspace";
 import { useSuspenseQuery } from "@tanstack/react-query";
-import { createFileRoute, redirect } from "@tanstack/react-router";
+import { createFileRoute } from "@tanstack/react-router";
 import * as v from "valibot";
 
 import { ConsentFormEditor } from "~/components/consents/ConsentFormEditor";
@@ -8,6 +7,7 @@ import * as m from "~/i18n/messages";
 import { consentFormQuery } from "~/queries/consents";
 import { templateQuery } from "~/queries/library";
 import { currentUserQuery } from "~/queries/user";
+import { requirePage } from "~/utils/page-access";
 
 export const Route = createFileRoute("/_app/consent-form-editor")({
   staticData: { breadcrumb: m.consentFormEditing, section: "/privacy" },
@@ -19,8 +19,7 @@ export const Route = createFileRoute("/_app/consent-form-editor")({
   loaderDeps: ({ search }) => search,
   loader: async ({ context, deps }) => {
     const user = await context.queryClient.ensureQueryData(currentUserQuery);
-    if (!user.capabilities.includes("privacy:manage"))
-      throw redirect({ to: WORKSPACE_HOME[user.workspace] });
+    requirePage(user, "privacy:manage");
     await Promise.all([
       context.queryClient.ensureQueryData(consentFormQuery(deps.purpose)),
       ...(deps.template

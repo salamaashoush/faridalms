@@ -7,6 +7,8 @@ import { NewsEditor } from "~/components/news/NewsEditor";
 import * as m from "~/i18n/messages";
 import { templateQuery } from "~/queries/library";
 import { newsEditorQuery, newsOptionsQuery } from "~/queries/news";
+import { currentUserQuery } from "~/queries/user";
+import { requirePage } from "~/utils/page-access";
 
 export const Route = createFileRoute("/_app/news-editor")({
   staticData: { breadcrumb: m.newsEditorBreadcrumb, section: "/news" },
@@ -17,6 +19,10 @@ export const Route = createFileRoute("/_app/news-editor")({
   }),
   loaderDeps: ({ search }) => search,
   loader: async ({ context, deps }) => {
+    requirePage(
+      await context.queryClient.ensureQueryData(currentUserQuery),
+      "news:manage",
+    );
     await Promise.all([
       ...(deps.template && !deps.id
         ? [context.queryClient.ensureQueryData(templateQuery(deps.template))]

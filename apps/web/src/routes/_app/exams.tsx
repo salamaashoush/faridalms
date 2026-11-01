@@ -1,6 +1,5 @@
-import { WORKSPACE_HOME } from "@faridalms/domain/workspace";
 import { useSuspenseQuery } from "@tanstack/react-query";
-import { createFileRoute, redirect } from "@tanstack/react-router";
+import { createFileRoute } from "@tanstack/react-router";
 import { History, Plus, RefreshCcw } from "lucide-react";
 import { useState } from "react";
 import * as v from "valibot";
@@ -43,6 +42,7 @@ import * as m from "~/i18n/messages";
 import { courseworkListQuery, examOverviewQuery } from "~/queries/exams";
 import { gradingOverviewQuery } from "~/queries/grading";
 import { currentUserQuery } from "~/queries/user";
+import { requirePage } from "~/utils/page-access";
 
 const TABS = [
   "coursework",
@@ -62,8 +62,7 @@ export const Route = createFileRoute("/_app/exams")({
   validateSearch: searchSchema,
   loader: async ({ context }) => {
     const user = await context.queryClient.ensureQueryData(currentUserQuery);
-    if (!user.capabilities.includes("exams:manage"))
-      throw redirect({ to: WORKSPACE_HOME[user.workspace] });
+    requirePage(user, "exams:manage");
     await Promise.all([
       context.queryClient.ensureQueryData(examOverviewQuery),
       context.queryClient.ensureQueryData(courseworkListQuery),

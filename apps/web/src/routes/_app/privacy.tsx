@@ -1,6 +1,5 @@
-import { WORKSPACE_HOME } from "@faridalms/domain/workspace";
 import { useSuspenseQuery } from "@tanstack/react-query";
-import { createFileRoute, redirect } from "@tanstack/react-router";
+import { createFileRoute } from "@tanstack/react-router";
 import { FileText, Lock, ShieldAlert } from "lucide-react";
 import { useState } from "react";
 import * as v from "valibot";
@@ -39,6 +38,7 @@ import * as m from "~/i18n/messages";
 import { consentFormsQuery } from "~/queries/consents";
 import { privacyOverviewQuery } from "~/queries/privacy";
 import { currentUserQuery } from "~/queries/user";
+import { requirePage } from "~/utils/page-access";
 
 const TABS = [
   "review",
@@ -59,8 +59,7 @@ export const Route = createFileRoute("/_app/privacy")({
   validateSearch: searchSchema,
   loader: async ({ context }) => {
     const user = await context.queryClient.ensureQueryData(currentUserQuery);
-    if (!user.capabilities.includes("privacy:manage"))
-      throw redirect({ to: WORKSPACE_HOME[user.workspace] });
+    requirePage(user, "privacy:manage");
     await Promise.all([
       context.queryClient.ensureQueryData(privacyOverviewQuery),
       context.queryClient.ensureQueryData(consentFormsQuery),
