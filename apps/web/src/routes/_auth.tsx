@@ -1,8 +1,13 @@
-import { createFileRoute, Outlet, redirect } from "@tanstack/react-router";
+import {
+  createFileRoute,
+  Outlet,
+  redirect,
+  useLocation,
+} from "@tanstack/react-router";
 
 import { AuthLayout } from "~/components/auth/AuthLayout";
 import { faceName } from "~/components/auth/SchoolFace";
-import { faceQueryFor, linkedSchool } from "~/queries/portal";
+import { faceQueryFor } from "~/queries/portal";
 import siteCss from "~/styles/site.css?url";
 
 export const Route = createFileRoute("/_auth")({
@@ -13,15 +18,15 @@ export const Route = createFileRoute("/_auth")({
       throw redirect({ to: "/" });
     }
   },
-  // On a school's portal the pages wear the school's face; the bare domain
-  // keeps the platform's, since the school there is only being chosen.
+  // On a school's portal the pages are the portal page of the school's site;
+  // the bare domain keeps the platform's, since it names no school.
   loader: ({ context }) => {
-    const query = faceQueryFor(linkedSchool(context.auth, undefined));
+    const query = faceQueryFor(context.auth.school);
     return query ? context.queryClient.ensureQueryData(query) : null;
   },
   head: ({ loaderData }) => ({
     meta: loaderData ? [{ title: faceName(loaderData) }] : [],
-    // The school's theme faces, which its side of the page is set in.
+    // The school's theme faces, which its portal page is set in.
     links: loaderData ? [{ rel: "stylesheet", href: siteCss }] : [],
   }),
   component: AuthHome,
@@ -29,8 +34,11 @@ export const Route = createFileRoute("/_auth")({
 
 function AuthHome() {
   const face = Route.useLoaderData();
+  // Sign-in shows the section's own words over the form; every other page
+  // of the flow says its own heading.
+  const ownWords = useLocation().pathname !== "/sign-in";
   return (
-    <AuthLayout face={face}>
+    <AuthLayout face={face} ownWords={ownWords}>
       <Outlet />
     </AuthLayout>
   );

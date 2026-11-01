@@ -196,7 +196,6 @@ export function ClassBadges({ classId }: { classId: string }) {
       {printed ? (
         <BadgeSheet
           badges={printed.badges}
-          school={user.school.slug}
           schoolName={inLocale(user.school.nameEn, user.school.nameAr)}
           className={title}
           warnings={printed.disabled ? [m.badgesDisabled()] : []}

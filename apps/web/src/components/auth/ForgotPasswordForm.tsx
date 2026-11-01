@@ -15,35 +15,33 @@ import {
 } from "~/components/app/field";
 import * as m from "~/i18n/messages";
 import { forgotPasswordSchema } from "~/schema/auth";
-import { requestPasswordReset } from "~/server/auth";
+import { discoverReset, requestPasswordReset } from "~/server/auth";
 import { getMessageFromError } from "~/utils/error";
+import { hostView } from "~/utils/host";
 
 /**
  * Asks for a link that replaces a forgotten password. What comes back reads
  * the same whether or not the name has an account, so the page never says
  * which names exist.
  */
-export function ForgotPasswordForm({
-  school,
-  schoolFromHost = false,
-}: {
-  school?: string | null;
-  /** The host names the school, so the field is not shown. */
-  schoolFromHost?: boolean;
-}) {
+export function ForgotPasswordForm() {
   const hydrated = useHydrated();
+  const everySchool = useServerFn(discoverReset);
+  const thisSchool = useServerFn(requestPasswordReset);
   const request = useMutation({
-    mutationFn: useServerFn(requestPasswordReset),
+    // The bare portal domain asks every school holding the name; a
+    // school's portal asks only itself.
+    mutationFn: (loginName: string) =>
+      hostView().bare
+        ? everySchool({ data: { loginName } })
+        : thisSchool({ data: { loginName } }),
     meta: { inlineError: true },
   });
   const form = useForm({
-    defaultValues: {
-      school: school ?? (import.meta.env.DEV ? "northwind" : ""),
-      loginName: "",
-    },
+    defaultValues: { loginName: "" },
     validators: { onSubmit: forgotPasswordSchema },
     onSubmit: async ({ value }) => {
-      await request.mutateAsync({ data: value }).catch(() => undefined);
+      await request.mutateAsync(value.loginName).catch(() => undefined);
     },
   });
 
@@ -85,24 +83,6 @@ export function ForgotPasswordForm({
         <p className="text-muted-foreground">{m.forgotBody()}</p>
       </div>
       <FieldGroup>
-        <form.Field name="school">
-          {(field) =>
-            schoolFromHost ? null : (
-              <Field>
-                <FieldLabel htmlFor="school">{m.authSchoolCode()}</FieldLabel>
-                <Input
-                  disabled={!hydrated}
-                  id="school"
-                  name="school"
-                  autoComplete="organization"
-                  value={field.state.value}
-                  onChange={(event) => field.handleChange(event.target.value)}
-                  onBlur={field.handleBlur}
-                />
-              </Field>
-            )
-          }
-        </form.Field>
         <form.Field name="loginName">
           {(field) => {
             const invalid =

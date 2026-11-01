@@ -1,7 +1,4 @@
-import {
-  findSchoolsSchema,
-  portalFaceSchema,
-} from "@faridalms/domain/portal-face";
+import { portalFaceSchema } from "@faridalms/domain/portal-face";
 import { createServerFn } from "@tanstack/react-start";
 
 import { backend } from "./backend";
@@ -28,20 +25,5 @@ export const getPortalFace = createServerFn({ method: "GET" })
           }),
         );
       return null;
-    }
-  });
-
-export const findSchools = createServerFn({ method: "GET" })
-  .validator(checked(findSchoolsSchema))
-  .handler(async ({ data }) => {
-    try {
-      return {
-        limited: false,
-        ...(await backend(null).identity.findSchools(data)),
-      };
-    } catch (error) {
-      if (isCode(error, "TOO_MANY_REQUESTS"))
-        return { limited: true, schools: [] };
-      throw error;
     }
   });

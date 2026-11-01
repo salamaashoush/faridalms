@@ -11,11 +11,23 @@ export interface HostView {
   /** How the page was reached, for links to the school's other hosts. */
   protocol: "http:" | "https:";
   port: string;
+  /**
+   * The platform's portal domain: bare, it finds a school; under it, each
+   * school's portal.
+   */
+  portalDomain: string;
+  /** True on the bare portal domain, which signs nobody in. */
+  bare?: boolean;
   /** True on the bare portal domain of a platform that serves its product site there. */
   product?: boolean;
 }
 
-let held: HostView = { site: null, protocol: "https:", port: "" };
+let held: HostView = {
+  site: null,
+  protocol: "https:",
+  port: "",
+  portalDomain: "",
+};
 let source: () => HostView = () => held;
 
 /**
@@ -74,6 +86,14 @@ export function hostHref(hostname: string, path: string): string {
   const { protocol, port } = hostView();
   return `${protocol}//${hostname}${port ? `:${port}` : ""}${path}`;
 }
+
+/** A page of a school's portal under its platform name. */
+export const portalHref = (school: string, path: string) =>
+  hostHref(`${school}.${hostView().portalDomain}`, path);
+
+/** A page of the bare portal domain, where a visitor chooses their school. */
+export const bareHref = (path: string) =>
+  hostHref(hostView().portalDomain, path);
 
 /** The address a visitor sees for one of the router's website paths. */
 export function publicPath(pathname: string, school: string): string {

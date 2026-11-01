@@ -99,7 +99,6 @@ export function CreateSignIns({
           name: of(badge.studentId)?.name ?? "",
           className: of(badge.studentId)?.className,
         }))}
-        school={user.school.slug}
         schoolName={schoolName}
         className={null}
         {...left}
@@ -112,7 +111,6 @@ export function CreateSignIns({
           name: of(slip.studentId)?.name ?? "",
           className: of(slip.studentId)?.className ?? null,
         }))}
-        school={user.school.slug}
         schoolName={schoolName}
         {...left}
         onDone={onClose}

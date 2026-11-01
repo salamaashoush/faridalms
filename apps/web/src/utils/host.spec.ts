@@ -3,20 +3,28 @@ import { afterEach, describe, expect, it } from "vitest";
 import type { HostView } from "./host";
 
 import {
+  bareHref,
   hostHref,
   insideWebsite,
   overwriteHostSource,
+  portalHref,
   publicPath,
   sitePath,
   sitePathIn,
   sitePathOut,
 } from "./host";
 
-const portal: HostView = { site: null, protocol: "http:", port: "3000" };
+const portal: HostView = {
+  site: null,
+  protocol: "http:",
+  port: "3000",
+  portalDomain: "localhost",
+};
 const website: HostView = {
   site: "northwind",
   protocol: "https:",
   port: "",
+  portalDomain: "example.com",
 };
 
 describe("a school's website on its own host", () => {
@@ -94,6 +102,18 @@ describe("a school's website on its own host", () => {
     overwriteHostSource(() => website);
     expect(hostHref("portal.northwind.example.com", "/sign-in")).toBe(
       "https://portal.northwind.example.com/sign-in",
+    );
+  });
+
+  it("links between the bare domain and a school's portal under it", () => {
+    overwriteHostSource(() => portal);
+    expect(portalHref("northwind", "/sign-in")).toBe(
+      "http://northwind.localhost:3000/sign-in",
+    );
+    expect(bareHref("/sign-in")).toBe("http://localhost:3000/sign-in");
+    overwriteHostSource(() => website);
+    expect(portalHref("northwind", "/welcome")).toBe(
+      "https://northwind.example.com/welcome",
     );
   });
 });

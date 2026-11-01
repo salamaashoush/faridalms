@@ -1,6 +1,5 @@
 import { BADGE_SECRET } from "@faridalms/domain/identity-schema";
 import { buttonVariants } from "@faridalms/ui/button";
-import { cn } from "@faridalms/ui/cn";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute, Link, useRouter } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
@@ -8,21 +7,30 @@ import { Clock, LoaderCircle, QrCode, TriangleAlert } from "lucide-react";
 import { useEffect, useEffectEvent, useRef } from "react";
 import * as v from "valibot";
 
-import { faceAccent, SchoolMark } from "~/components/auth/SchoolFace";
+import { AuthLayout } from "~/components/auth/AuthLayout";
 import { ReadAloud } from "~/components/learning/ReadAloud";
-import { LocaleToggle } from "~/components/theme/LocaleToggle";
 import * as m from "~/i18n/messages";
-import { faceQueryFor, linkedSchool } from "~/queries/portal";
+import { faceQueryFor } from "~/queries/portal";
 import { badgeLogin } from "~/server/auth";
+import siteCss from "~/styles/site.css?url";
+import { leaveBareDomain, linkedSlug } from "~/utils/bare-domain";
 
 export const Route = createFileRoute("/badge")({
+  // Badges printed before each school had its own portal name it here.
   validateSearch: v.object({ school: v.optional(v.string()) }),
-  loaderDeps: ({ search }) => ({ school: search.school }),
-  loader: ({ context, deps }) => {
-    const query = faceQueryFor(linkedSchool(context.auth, deps.school));
+  beforeLoad: ({ context, location, search }) =>
+    leaveBareDomain(context.auth, location.pathname, {
+      linked: linkedSlug(search.school),
+      otherwise: "/sign-in",
+    }),
+  loader: ({ context }) => {
+    const query = faceQueryFor(context.auth.school);
     return query ? context.queryClient.ensureQueryData(query) : null;
   },
-  head: () => ({ meta: [{ name: "referrer", content: "no-referrer" }] }),
+  head: () => ({
+    meta: [{ name: "referrer", content: "no-referrer" }],
+    links: [{ rel: "stylesheet", href: siteCss }],
+  }),
   component: BadgePage,
 });
 
@@ -42,9 +50,7 @@ function isTooMany(error: unknown) {
  * address bar and history before the sign-in starts.
  */
 function BadgePage() {
-  const { school } = Route.useSearch();
   const face = Route.useLoaderData();
-  const accent = faceAccent(face);
   const router = useRouter();
   const queryClient = useQueryClient();
   const signIn = useServerFn(badgeLogin);
@@ -52,8 +58,8 @@ function BadgePage() {
   const login = useMutation({
     meta: { inlineError: true },
     mutationFn: async (secret: string) => {
-      if (!school || !BADGE_SECRET.test(secret)) throw new NoBadge();
-      return signIn({ data: { school, secret } });
+      if (!BADGE_SECRET.test(secret)) throw new NoBadge();
+      return signIn({ data: { secret } });
     },
     onSuccess: async () => {
       queryClient.clear();
@@ -98,18 +104,8 @@ function BadgePage() {
         : TriangleAlert;
 
   return (
-    <main
-      {...accent}
-      className={cn(
-        accent.className,
-        "grid min-h-dvh grid-rows-[auto_1fr] bg-background",
-      )}
-    >
-      <div className="flex items-center justify-between gap-3 p-4">
-        {face ? <SchoolMark face={face} /> : <span />}
-        <LocaleToggle />
-      </div>
-      <div className="mx-auto grid max-w-md content-center justify-items-center gap-6 px-6 pb-16 text-center">
+    <AuthLayout face={face}>
+      <div className="mx-auto grid max-w-md content-center justify-items-center gap-6 py-4 text-center">
         <span
           aria-hidden
           className={
@@ -138,6 +134,6 @@ function BadgePage() {
           </Link>
         ) : null}
       </div>
-    </main>
+    </AuthLayout>
   );
 }

@@ -12,8 +12,14 @@ import { getLocale } from "~/i18n/runtime";
 
 import { currentPlace } from "./place";
 
-/** The school chosen at sign-in, for hosts that do not name one. */
+/**
+ * The school a person last signed in to from the bare portal domain, which
+ * sends them straight to that school's portal the next time.
+ */
 export const SCHOOL_COOKIE = "farida-school";
+
+/** How long the bare domain remembers a school: a year. */
+export const REMEMBER_SECONDS = 365 * 24 * 60 * 60;
 
 const SLUG = /^[a-z0-9](?:[a-z0-9-]{0,62}[a-z0-9])?$/;
 
@@ -30,21 +36,20 @@ export function sessionCookie(school: string) {
   return `${isSecureRequest() ? "__Host-" : ""}s-${school}`;
 }
 
-/** The school this request's host names: a school's portal, or nothing. */
-export function hostSchool(): string | null {
+/**
+ * The school a request is for: the one its portal host names, and none
+ * anywhere else. Each school's sessions live on its own origin, out of reach
+ * of every other school's pages, so the bare domain, which only finds a
+ * school, and a website host sign nobody in.
+ */
+export function currentSchool(): string | null {
   const place = currentPlace();
   return place.kind === "portal" ? place.slug : null;
 }
 
-/**
- * The school a request is for: the one its portal host names, otherwise,
- * on the bare domain, the school the browser signed in to. A school's
- * website host has none: nothing there reads a session.
- */
-export function currentSchool(): string | null {
-  const place = currentPlace();
-  if (place.kind === "portal") return place.slug;
-  if (place.kind === "site") return null;
+/** The school the bare portal domain remembers this browser choosing. */
+export function rememberedSchool(): string | null {
+  if (currentPlace().kind !== "bare") return null;
   const chosen = getCookie(SCHOOL_COOKIE);
   return chosen && SLUG.test(chosen) ? chosen : null;
 }
