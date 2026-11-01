@@ -66,7 +66,7 @@ const FIRST_FIELD = "student-ar-given";
 
 /** Refusals from the server that are about one field, shown on that field. */
 const FIELD_ERRORS: Record<string, keyof Draft> = {
-  "external_id.taken": "reference",
+  "student.reference_taken": "reference",
   "users.invalid": "birthDate",
 };
 

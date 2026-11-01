@@ -843,7 +843,7 @@ export function getMessageFromError(error: unknown): string {
         return m.managementClassNotFound();
       case "management.subject_code_conflict":
         return m.managementSubjectCodeConflict();
-      case "management.reference_conflict":
+      case "student.reference_taken":
         return m.managementReferenceConflict();
       case "management.move_date_future":
         return m.managementMoveDateFuture();
