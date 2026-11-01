@@ -1,4 +1,4 @@
-import { hostOf, placeOf } from "@faridalms/domain/hosts";
+import { hostOf, isEdgeName, placeOf } from "@faridalms/domain/hosts";
 
 import type { RequestContext } from "../core/context";
 
@@ -24,10 +24,13 @@ export function askLimiter(perSecond = 20, burst = 100) {
 
 /**
  * The edge's on-demand TLS question: may it get a certificate for this
- * name? Yes only for a school's own host that is verified or active. The
- * platform's names are under its wildcard certificates, so they are never
- * asked about and are refused if they are. It reads no session and no
- * school header.
+ * name? Yes for a school's own host that is verified or active, for an
+ * existing school's names under the platform's domains, and for the names
+ * the edge serves the platform on. An edge with wildcard certificates never
+ * asks about the platform's names; one that gets a certificate per name, as
+ * a self-hosted server does, asks about every one. Anything else is refused,
+ * so made-up names never spend the issuer's limits. It reads no session and
+ * no school header.
  */
 export async function handleEdgeAsk(
   request: Request,
@@ -40,10 +43,16 @@ export async function handleEdgeAsk(
     return new Response(null, { status: 405, headers: { allow: "GET" } });
   const hostname = hostOf(url.searchParams.get("domain"));
   if (!hostname) return new Response(null, { status: 400 });
-  if (placeOf(hostname, context.domains).kind !== "custom")
+  const place = placeOf(hostname, context.domains);
+  const edge = isEdgeName(hostname, context.domains);
+  if (!edge && place.kind !== "custom" && place.kind !== "platform")
     return new Response(null, { status: 404 });
   if (!allow()) return new Response(null, { status: 429 });
-  return new Response(null, {
-    status: (await context.directory.askAllowed(hostname)) ? 200 : 404,
-  });
+  const allowed = edge
+    ? true
+    : place.kind === "custom"
+      ? await context.directory.askAllowed(hostname)
+      : place.kind === "platform" &&
+        (await context.directory.bySlug(place.slug)) !== null;
+  return new Response(null, { status: allowed ? 200 : 404 });
 }

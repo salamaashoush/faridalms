@@ -4,15 +4,19 @@
 #
 #   PORTAL_DOMAIN         example.com: the product site and every portal
 #   SITES_DOMAIN          example.net: every school's website
-#   CLOUDFLARE_API_TOKEN  issues the two wildcard certificates by DNS-01
-#   EDGE_TLS              cloudflare (default), or internal for a local run
+#   EDGE_TLS              acme (default): a certificate per name from Let's
+#                         Encrypt on its first visit, over ports 80 and 443
+#                         cloudflare: two wildcard certificates by DNS-01
+#                         internal: Caddy's own authority, for a local run
+#   CLOUDFLARE_API_TOKEN  for cloudflare only
 #   EDGE_LOG_LEVEL        INFO (default); DEBUG logs each proxied request
 {
 	log default {
 		level {$EDGE_LOG_LEVEL:INFO}
 	}
-	# A school's own name gets a certificate only once the API says it is
-	# one of a school's verified or active hosts.
+	# A name gets a certificate on demand only once the API says it is one
+	# the platform serves: a school's verified or active host, an existing
+	# school's name under the platform's domains, or one of the edge's own.
 	on_demand_tls {
 		ask http://api:3001/edge/ask
 	}
@@ -35,8 +39,16 @@
 	}
 }
 
+(tls_acme) {
+	tls {
+		on_demand
+	}
+}
+
 (tls_internal) {
-	tls internal
+	tls internal {
+		on_demand
+	}
 }
 
 # Access logs go to stdout, where Docker rotates them. Only the first segment
@@ -56,7 +68,7 @@
 # HSTS covers their subdomains. A school's own host gets the web's HSTS,
 # which leaves its other subdomains alone.
 (platform) {
-	import tls_{$EDGE_TLS:cloudflare}
+	import tls_{$EDGE_TLS:acme}
 	import access_log
 	header >Strict-Transport-Security "max-age=31536000; includeSubDomains"
 }

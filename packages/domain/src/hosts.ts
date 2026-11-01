@@ -102,6 +102,24 @@ export function placeOf(host: string, domains: PlatformDomains): HostPlace {
     : { kind: "none" };
 }
 
+/**
+ * The labels under the platform's domains that the edge serves for the
+ * platform itself rather than for a school.
+ */
+export const EDGE_LABELS = {
+  portal: ["www", "ops", "collab", "api"],
+  sites: ["files", "play", "media"],
+} as const;
+
+/** True for either platform domain itself or one of the edge's own labels. */
+export function isEdgeName(host: string, domains: PlatformDomains): boolean {
+  if (host === domains.portal || host === domains.sites) return true;
+  return (
+    EDGE_LABELS.portal.some((label) => host === `${label}.${domains.portal}`) ||
+    EDGE_LABELS.sites.some((label) => host === `${label}.${domains.sites}`)
+  );
+}
+
 /** A school's own name on the platform for a role. */
 export function platformName(
   slug: string,

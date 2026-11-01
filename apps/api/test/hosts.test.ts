@@ -83,11 +83,25 @@ describe("the edge's on-demand TLS question", () => {
     expect((await ask("nobody.example.org")).status).toBe(404);
   });
 
-  test("never covers the platform's own names, which its wildcards serve", async () => {
-    expect((await ask(`northwind.${DOMAINS.portal}`)).status).toBe(404);
-    expect((await ask(`northwind.${DOMAINS.sites}`)).status).toBe(404);
-    expect((await ask(DOMAINS.portal)).status).toBe(404);
-    expect((await ask(`www.${DOMAINS.portal}`)).status).toBe(404);
+  test("covers an existing school's platform names and the edge's own, for an edge without wildcards", async () => {
+    expect((await ask(`northwind.${DOMAINS.portal}`)).status).toBe(200);
+    expect((await ask(`northwind.${DOMAINS.sites}`)).status).toBe(200);
+    expect((await ask(DOMAINS.portal)).status).toBe(200);
+    expect((await ask(DOMAINS.sites)).status).toBe(200);
+    for (const label of ["www", "ops", "collab", "api"])
+      expect((await ask(`${label}.${DOMAINS.portal}`)).status).toBe(200);
+    for (const label of ["files", "play", "media"])
+      expect((await ask(`${label}.${DOMAINS.sites}`)).status).toBe(200);
+  });
+
+  test("refuses a platform name no school holds and labels the edge does not serve", async () => {
+    expect((await ask(`nobody-here.${DOMAINS.portal}`)).status).toBe(404);
+    expect((await ask(`nobody-here.${DOMAINS.sites}`)).status).toBe(404);
+    expect((await ask(`admin.${DOMAINS.portal}`)).status).toBe(404);
+    expect((await ask(`ops.${DOMAINS.sites}`)).status).toBe(404);
+    expect((await ask(`files.${DOMAINS.portal}`)).status).toBe(404);
+    expect((await ask(`a.b.${DOMAINS.portal}`)).status).toBe(404);
+    expect((await ask("203.0.113.10")).status).toBe(404);
   });
 
   test("refuses what is not a hostname and anything but GET", async () => {

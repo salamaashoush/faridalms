@@ -90,7 +90,10 @@ RUN xcaddy build v2.11.7 --with github.com/caddy-dns/cloudflare@v0.2.4 --output 
 FROM caddy:2.11.7 AS edge
 COPY --from=edge-build /caddy /usr/bin/caddy
 COPY deploy/single-server/Caddyfile /etc/caddy/Caddyfile
-RUN PORTAL_DOMAIN=example.com SITES_DOMAIN=example.net CLOUDFLARE_API_TOKEN=0000000000000000000000000000000000000000 caddy validate --adapter caddyfile --config /etc/caddy/Caddyfile
+RUN for tls in acme cloudflare internal; do \
+      EDGE_TLS=$tls PORTAL_DOMAIN=example.com SITES_DOMAIN=example.net CLOUDFLARE_API_TOKEN=0000000000000000000000000000000000000000 \
+        caddy validate --adapter caddyfile --config /etc/caddy/Caddyfile || exit 1; \
+    done
 HEALTHCHECK --interval=15s --timeout=3s --start-period=10s --retries=3 CMD wget -q -O /dev/null http://127.0.0.1:2019/config/ || exit 1
 
 # Nightly dumps of the cell and the directory and a copy of the file buckets,
