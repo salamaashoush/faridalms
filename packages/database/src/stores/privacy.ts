@@ -32,6 +32,7 @@ const NO_RULES: RetentionRules = {
   studentRule: null,
   studentValue: null,
   staffYears: null,
+  applicantMonths: null,
 };
 
 export async function retentionOf(
@@ -43,6 +44,7 @@ export async function retentionOf(
       studentRule: retentionSettings.studentRule,
       studentValue: retentionSettings.studentValue,
       staffYears: retentionSettings.staffYears,
+      applicantMonths: retentionSettings.applicantMonths,
     })
     .from(retentionSettings)
     .where(
@@ -64,6 +66,7 @@ export async function saveRetention(
     studentRule: input.studentRule,
     studentValue: input.studentValue,
     staffYears: input.staffYears,
+    applicantMonths: input.applicantMonths,
   };
   const updated = await tx
     .update(retentionSettings)
@@ -85,7 +88,7 @@ export async function saveRetention(
 
 export interface LeaverRow {
   userId: string;
-  kind: "student" | "staff";
+  kind: "student" | "staff" | "applicant";
   fullNameEn: string | null;
   fullNameAr: string | null;
   birthDate: string | null;

@@ -734,6 +734,8 @@ export async function addContact(
     value: string;
     normalized: string | null;
     label: "mobile" | "personal" | "work" | "home" | "other";
+    /** Typed by the person themselves rather than by the office. */
+    source?: "manual" | "self_service";
   },
 ) {
   await tx
@@ -746,9 +748,26 @@ export async function addContact(
       value: input.value,
       normalized: input.normalized,
       smsCapable: input.kind === "phone" ? true : null,
-      source: "manual",
+      source: input.source ?? "manual",
     })
     .onConflictDoNothing();
+}
+
+/**
+ * Marks a person's email as theirs once a link sent to it was used, so it
+ * may also sign them in and recover the account.
+ */
+export async function confirmEmail(
+  tx: Tx,
+  input: { tenantId: string; userId: string; email: string },
+) {
+  await tx.execute(sql`
+    update core.contact_points
+    set verified_at = coalesce(verified_at, statement_timestamp()),
+      verification_method = coalesce(verification_method, 'invitation'),
+      purposes = array(select distinct unnest(purposes || array['login', 'recovery']::text[]))
+    where tenant_id = ${input.tenantId}::uuid and user_id = ${input.userId}::uuid
+      and kind = 'email' and normalized = ${input.email.toLowerCase()} and status = 'active'`);
 }
 
 export async function insertPerson(
@@ -1033,7 +1052,8 @@ export async function insertRelationship(
       pickup: "allowed" | "not_allowed" | "ask_office" | null;
     };
     from: string;
-    verifiedByUserId: string;
+    /** Who on the staff confirmed it; null for a link a family declared, still to be checked. */
+    verifiedByUserId: string | null;
   },
 ) {
   const [row] = await tx
@@ -1046,9 +1066,13 @@ export async function insertRelationship(
       relationMeaning: input.relationMeaning,
       ...input.flags,
       validDuring: `[${input.from},)`,
-      verificationMethod: "staff_attested",
-      verifiedAt: new Date(),
-      verifiedByUserId: input.verifiedByUserId,
+      ...(input.verifiedByUserId
+        ? {
+            verificationMethod: "staff_attested" as const,
+            verifiedAt: new Date(),
+            verifiedByUserId: input.verifiedByUserId,
+          }
+        : {}),
     })
     .returning({ id: userRelationships.id });
   if (!row) throw new Error("relationship was not created");

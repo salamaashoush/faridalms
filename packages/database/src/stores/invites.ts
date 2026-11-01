@@ -95,7 +95,12 @@ export async function voidInvite(tx: Tx, tenantId: string, identityId: string) {
     );
 }
 
-export type InvitePurpose = "invite" | "reset";
+/**
+ * What a link is for: choosing the first password of an account the office
+ * opened, replacing a forgotten one, or confirming the address a family
+ * registered with to apply, which also opens their applying role.
+ */
+export type InvitePurpose = "invite" | "reset" | "register";
 
 export interface InviteHolder {
   identityId: string;
@@ -149,7 +154,10 @@ export async function findInvite(
         givenNameAr: row.given_name_ar,
         preferredGivenName: row.preferred_given_name,
         hasPassword: row.has_password,
-        purpose: row.purpose === "reset" ? "reset" : "invite",
+        purpose:
+          row.purpose === "reset" || row.purpose === "register"
+            ? row.purpose
+            : "invite",
       }
     : null;
 }

@@ -46,6 +46,7 @@ export const retentionSettings = core.table.withRLS(
     studentRule: text("student_rule").$type<StudentRetention>(),
     studentValue: smallint("student_value"),
     staffYears: smallint("staff_years"),
+    applicantMonths: smallint("applicant_months"),
     ...entityColumns(),
   },
   (t): PgTableExtraConfigValue[] => [
@@ -63,6 +64,11 @@ export const retentionSettings = core.table.withRLS(
       sql`(student_rule is null) = (student_value is null) and (student_rule <> 'years_after_leaving' or student_value between 1 and 100) and (student_rule <> 'until_age' or student_value between 18 and 100)`,
     ),
     ck("retention_settings", "staff_years", sql`staff_years between 1 and 100`),
+    ck(
+      "retention_settings",
+      "applicant_months",
+      sql`applicant_months between 1 and 120`,
+    ),
     uniqueIndex("retention_settings_org_key")
       .on(t.tenantId, t.orgId)
       .where(sql`status = 'active'`),

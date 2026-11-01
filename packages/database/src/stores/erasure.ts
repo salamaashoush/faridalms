@@ -232,6 +232,13 @@ export async function eraseSubject(
     sql`core.enrollments`,
     sql`user_id = ${s}::uuid`,
   );
+  await run(
+    "admission_applications",
+    sql`update core.admission_applications set status = 'tobedeleted', metadata = '{}',
+          form = '{}', answers = '[]', matches = '{}'
+        where tenant_id = ${t}::uuid and applicant_user_id = ${s}::uuid and status = 'active'
+        returning 1`,
+  );
 
   const content = JSON.stringify(input.emptyContent);
   await run(

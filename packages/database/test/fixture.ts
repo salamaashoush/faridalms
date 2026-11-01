@@ -1,9 +1,17 @@
+import { emptyApplicationForm } from "@faridalms/domain/admissions";
 import { and, eq, sql } from "drizzle-orm";
 
 import type { CellTransaction } from "../src/context";
 
 import { writeAudit } from "../src/audit";
 import { withPurpose } from "../src/context";
+import {
+  insertApplication,
+  insertApplicationEntry,
+  insertForm as insertAdmissionForm,
+  insertIntake,
+  publishForm as publishAdmissionForm,
+} from "../src/stores/admissions";
 import { setOrgFeature } from "../src/stores/school";
 import {
   absenceReports,
@@ -1068,6 +1076,67 @@ export async function completeFixture(
     span: "[2035-09-01,2036-07-01)",
     schoolYear: 2036,
     lifecycle: "upcoming",
+  });
+  const admissionForm = await insertAdmissionForm(tx, {
+    tenantId,
+    orgId: schoolId,
+    nameEn: "Fixture form",
+    nameAr: "",
+    questions: [],
+  });
+  const admissionVersion = await publishAdmissionForm(tx, {
+    tenantId,
+    orgId: schoolId,
+    id: admissionForm.id,
+    expectedVersion: admissionForm.version,
+    userId,
+  });
+  if (!admissionVersion) throw new Error("fixture form was not published");
+  const intake = await insertIntake(tx, {
+    tenantId,
+    orgId: schoolId,
+    schoolYearId: nextYear,
+    gradeId: await descriptor(tx, tenantId, "grade_level", "kg1"),
+    opensOn: "2035-01-01",
+    closesOn: "2035-03-31",
+    capacity: 20,
+    formId: admissionForm.id,
+    checklist: [],
+    currency: "EGP",
+    fees: [],
+    decisionsOn: null,
+    offerDays: 14,
+    ageCutoffOn: "2035-10-01",
+    minAgeMonths: 48,
+    maxAgeMonths: 71,
+    priorities: ["sibling"],
+  });
+  const admission = await insertApplication(tx, {
+    tenantId,
+    orgId: schoolId,
+    intakeId: intake.id,
+    formVersionId: admissionVersion.id,
+    familyUserId: userId,
+    applicantUserId: relationship.student,
+    locale: "en",
+    form: emptyApplicationForm(),
+    checklist: [
+      {
+        key: id(),
+        kind: "document",
+        labelEn: "Birth certificate",
+        labelAr: "",
+        required: true,
+      },
+    ],
+  });
+  await insertApplicationEntry(tx, {
+    tenantId,
+    orgId: schoolId,
+    applicationId: admission.id,
+    kind: "note",
+    body: "Fixture note.",
+    authorUserId: userId,
   });
   await tx.insert(attendanceSettings).values({
     tenantId,
