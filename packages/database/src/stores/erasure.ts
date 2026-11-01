@@ -19,7 +19,8 @@ export interface ErasurePlan {
 /**
  * The documents and files erasing a person takes with them: the drafts and
  * handed-in copies of their work, the files those hold, what they recorded,
- * drew or built to answer a lesson, and their photo. A file another record
+ * drew or built to answer a lesson, their photo, and for an applicant the
+ * letters their family was sent and the documents the application held. A file another record
  * still needs (published, kept as consent evidence, about someone else, or
  * placed in a document that is not being erased) stays.
  */
@@ -35,7 +36,11 @@ export async function erasurePlan(
       and ((d.host_type = 'submission' and d.host_id in (
               select id from core.submissions where tenant_id = ${t}::uuid and student_user_id = ${s}::uuid))
         or (d.host_type = 'submission_attempt' and d.host_id in (
-              select id from core.submission_attempts where tenant_id = ${t}::uuid and student_user_id = ${s}::uuid)))`);
+              select id from core.submission_attempts where tenant_id = ${t}::uuid and student_user_id = ${s}::uuid))
+        or (d.host_type = 'admission_letter' and d.host_id in (
+              select l.id from core.admission_letters l
+              join core.admission_applications a on a.tenant_id = l.tenant_id and a.id = l.application_id
+              where l.tenant_id = ${t}::uuid and a.applicant_user_id = ${s}::uuid)))`);
   const documentIds = documents.map((row) => row.id);
   const files = await tx.execute<{ id: string }>(sql`
     select f.id from core.files f
@@ -45,7 +50,11 @@ export async function erasurePlan(
               select id from core.submissions where tenant_id = ${t}::uuid and student_user_id = ${s}::uuid))
         or (f.host_type = 'submission_attempt' and f.host_id in (
               select id from core.submission_attempts where tenant_id = ${t}::uuid and student_user_id = ${s}::uuid))
-        or (f.host_type = 'lesson_answer' and f.uploaded_by_user_id = ${s}::uuid))
+        or (f.host_type = 'lesson_answer' and f.uploaded_by_user_id = ${s}::uuid)
+        or (f.host_type = 'admission_item' and f.host_id in (
+              select i.id from core.admission_items i
+              join core.admission_applications a on a.tenant_id = i.tenant_id and a.id = i.application_id
+              where i.tenant_id = ${t}::uuid and a.applicant_user_id = ${s}::uuid)))
       and f.purpose not in ('health_report', 'evidence', 'legal_document')
       and not exists (select 1 from core.file_publications p where p.tenant_id = f.tenant_id and p.file_id = f.id)
       and not exists (select 1 from core.consent_records c where c.tenant_id = f.tenant_id and c.evidence_file_id = f.id)
@@ -231,6 +240,14 @@ export async function eraseSubject(
     "enrollments",
     sql`core.enrollments`,
     sql`user_id = ${s}::uuid`,
+  );
+  await run(
+    "admission_events",
+    sql`update core.admission_events set status = 'tobedeleted', metadata = '{}', location = '', result = ''
+        where tenant_id = ${t}::uuid and status = 'active' and application_id in (
+          select id from core.admission_applications
+          where tenant_id = ${t}::uuid and applicant_user_id = ${s}::uuid)
+        returning 1`,
   );
   await run(
     "admission_applications",
