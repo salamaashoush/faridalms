@@ -64,7 +64,7 @@ import { practised, practiceStanding } from "@faridalms/domain/practice";
 import { ORPCError } from "@orpc/server";
 import * as v from "valibot";
 
-import type { UnitContext } from "./context";
+import type { UnitContext } from "../core/context";
 
 /** What reading and marking a quiz needs of a unit of work; a worker's pass has it too. */
 export type QuizUnit = Pick<UnitContext, "tx" | "tenantId">;

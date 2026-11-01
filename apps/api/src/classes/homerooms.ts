@@ -13,7 +13,7 @@ import { descriptorsFor } from "@faridalms/database/stores/descriptors";
 import { dayIn } from "@faridalms/database/stores/years";
 import { ORPCError } from "@orpc/server";
 
-import type { UnitContext } from "./context";
+import type { UnitContext } from "../core/context";
 
 function subjectCode(code: string) {
   return (

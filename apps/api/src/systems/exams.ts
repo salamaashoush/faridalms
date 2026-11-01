@@ -41,7 +41,7 @@ import {
 import { ORPCError } from "@orpc/server";
 
 import type { UnitContext } from "../core/context";
-import type { ExamSessionView } from "../core/sessions";
+import type { ExamSessionView } from "../exams/sessions";
 
 import {
   assessedRules,
@@ -56,7 +56,7 @@ import {
   requireCapability,
   writeProcedure,
 } from "../core/procedure";
-import { officialSeries, sessionViews, viewOf } from "../core/sessions";
+import { officialSeries, sessionViews, viewOf } from "../exams/sessions";
 import { hostAccess, registerHostReader } from "../files/authorize";
 
 const HISTORY_PAGE = 25;

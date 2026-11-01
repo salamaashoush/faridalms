@@ -86,7 +86,7 @@ import {
   schoolZone,
   writeProcedure,
 } from "../core/procedure";
-import { sessionViews } from "../core/sessions";
+import { sessionViews } from "../exams/sessions";
 
 function scopeOf(context: UnitContext) {
   return { tenantId: context.tenantId, orgId: context.schoolId };

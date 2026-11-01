@@ -243,7 +243,6 @@ import {
 } from "../core/learning-access";
 import { templateHost, usableTemplate } from "../core/library";
 import { publishTelling } from "../core/mentions";
-import { copyLesson, copyModule, planHost } from "../core/module-copy";
 import {
   audit,
   can,
@@ -261,6 +260,7 @@ import {
   registerLiveRules,
   placeMedia,
 } from "../files/authorize";
+import { copyLesson, copyModule, planHost } from "../learning/module-copy";
 import { resultOf } from "../lti/grades";
 
 const id = v.pipe(v.string(), v.uuid());

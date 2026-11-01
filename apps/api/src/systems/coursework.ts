@@ -217,7 +217,7 @@ import { ORPCError } from "@orpc/server";
 import * as v from "valibot";
 
 import type { UnitContext } from "../core/context";
-import type { AttemptQuizzes } from "../core/quiz";
+import type { AttemptQuizzes } from "../quizzes/quiz";
 
 import { markedProgram } from "../coding/mark";
 import {
@@ -247,6 +247,15 @@ import {
   writeProcedure,
 } from "../core/procedure";
 import {
+  registerArea,
+  registerOpenWork,
+  registerHostReader,
+  registerHostWriter,
+  registerLiveRules,
+  placeMedia,
+} from "../files/authorize";
+import { resultOf } from "../lti/grades";
+import {
   answersByAttempt,
   attemptQuizzes,
   briefForEditing,
@@ -265,16 +274,7 @@ import {
   publishedQuiz,
   rescoreQuiz,
   responsesOf,
-} from "../core/quiz";
-import {
-  registerArea,
-  registerOpenWork,
-  registerHostReader,
-  registerHostWriter,
-  registerLiveRules,
-  placeMedia,
-} from "../files/authorize";
-import { resultOf } from "../lti/grades";
+} from "../quizzes/quiz";
 
 const id = v.pipe(v.string(), v.uuid());
 

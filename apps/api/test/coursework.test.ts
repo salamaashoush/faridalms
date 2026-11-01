@@ -10,7 +10,7 @@ import { describe, expect, test } from "bun:test";
 import { sql } from "drizzle-orm";
 import { strFromU8, unzipSync } from "fflate";
 
-import { handInTimedOut } from "../src/core/quiz-clock";
+import { handInTimedOut } from "../src/quizzes/clock";
 import { login, raw, rejection, seeded, sessionFor, signedIn } from "./harness";
 
 // The seed's second teacher teaches Arabic to every grade, the third English.
