@@ -78,6 +78,9 @@ export function Rollover({
   onClose: () => void;
 }) {
   const data = useSuspenseQuery(rolloverQuery(query)).data;
+  // Saving changes the draft's version, which starts the draft afresh from
+  // what was saved; the confirmation a save led to has to outlive that.
+  const [confirming, setConfirming] = useState(false);
   if (data.state === "applied" && data.outcome)
     return <RolloverApplied data={data} />;
   return (
@@ -86,6 +89,8 @@ export function Rollover({
       data={data}
       query={query}
       onClose={onClose}
+      confirming={confirming}
+      setConfirming={setConfirming}
     />
   );
 }
@@ -298,10 +303,14 @@ function RolloverDraft({
   data,
   query,
   onClose,
+  confirming,
+  setConfirming,
 }: {
   data: Data;
   query: RolloverQuery;
   onClose: () => void;
+  confirming: boolean;
+  setConfirming: (open: boolean) => void;
 }) {
   const queryClient = useQueryClient();
   const leaving = useRef(false);
@@ -312,7 +321,6 @@ function RolloverDraft({
   // one stored, so it is unsaved until saved again.
   const [reconciled, setReconciled] = useState(data.reconciled);
   const [problem, setProblem] = useState<string | null>(null);
-  const [confirming, setConfirming] = useState(false);
   const save = useMutation({
     mutationFn: () =>
       saveRollover({ data: { ...query, expectedVersion: version, plan } }),
