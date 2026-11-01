@@ -3,11 +3,7 @@ import type { StoredFile } from "@faridalms/database/stores/files";
 import { writeAudit } from "@faridalms/database/audit";
 import { TenantUnavailableError } from "@faridalms/database/context";
 import { studentOf } from "@faridalms/database/stores/coursework";
-import {
-  fileById,
-  partKey,
-  settleFile,
-} from "@faridalms/database/stores/files";
+import { partKey, settleFile } from "@faridalms/database/stores/files";
 import {
   previewable,
   UPLOAD_PART_BYTES,
@@ -19,10 +15,13 @@ import type { RequestContext, SchoolContext } from "../core/context";
 import type { Rejection } from "./ingest";
 
 import { openUnit, schoolOf } from "../core/procedure";
+import { refusalResponse } from "../core/refusal";
 import { canReadFile } from "./authorize";
+import { findFile, withFileGate } from "./gate";
 import { takeChecked } from "./ingest";
 import { uploadLimit } from "./limit";
 import { linkSeconds, sealLink } from "./links";
+import { fileKeys } from "./sealed";
 import { StoreError } from "./store";
 
 const PATH = /^\/v1\/files\/([0-9a-f-]{36})\/content$/;
@@ -46,7 +45,7 @@ function problem(status: number, code: string, requestId: string) {
  */
 async function settle(
   context: SchoolContext,
-  fileId: string,
+  file: StoredFile,
   verdict: Parameters<typeof settleFile>[1]["verdict"],
 ) {
   return context.cell.withWorker(
@@ -57,18 +56,20 @@ async function settle(
     },
     "write",
     (tx) =>
-      settleFile(tx, {
-        tenantId: context.school.tenantId,
-        id: fileId,
-        verdict,
-      }),
+      withFileGate(tx, file.purpose, (inner) =>
+        settleFile(inner, {
+          tenantId: context.school.tenantId,
+          id: file.id,
+          verdict,
+        }),
+      ),
   );
 }
 
 /** The upload this person began and has not finished, if it is theirs. */
 function pendingFile(context: SchoolContext, fileId: string) {
   return openUnit(context, "read", async (unit) => {
-    const found = await fileById(unit.tx, unit.tenantId, fileId);
+    const found = await findFile(unit.tx, unit.tenantId, fileId);
     return found &&
       found.state === "initiated" &&
       found.uploadedByUserId === unit.actor.userId
@@ -130,27 +131,32 @@ async function accept(
   file: StoredFile,
   body: ReadableStream<Uint8Array>,
 ): Promise<Response> {
-  const fileId = file.id;
   const checked = await takeChecked(
-    { files: context.files, scanner: context.scanner, log: context.requestId },
+    {
+      files: context.files,
+      scanner: context.scanner,
+      keys: fileKeys(context),
+      log: context.requestId,
+    },
     context.school.tenantId,
     file,
     body,
     uploadLimit(context, file),
   );
   if (!checked.ok) {
-    await settle(context, fileId, {
+    await settle(context, file, {
       state: "rejected",
       reason: checked.reason,
     });
     const { status, code } = REJECTED[checked.reason];
     return problem(status, code, context.requestId);
   }
-  const settled = await settle(context, fileId, {
+  const settled = await settle(context, file, {
     state: "ready",
     sha256: checked.sha256,
     scanEngine: context.scanner ? "clamd" : null,
     stream: context.mediaOrigin !== null,
+    keyVersion: checked.keyVersion,
   });
   if (!settled) return problem(409, "file.not_pending", context.requestId);
   return Response.json({
@@ -269,9 +275,14 @@ async function send(
 ): Promise<Response> {
   const download = new URL(request.url).searchParams.get("download") !== null;
   const opened = await openUnit(context, "read", async (unit) => {
-    const found = await fileById(unit.tx, unit.tenantId, fileId);
+    const found = await findFile(unit.tx, unit.tenantId, fileId);
     if (!found || found.state !== "ready") return null;
-    if (!(await canReadFile({ ...context, ...unit }, found))) return null;
+    if (
+      !(await withFileGate(unit.tx, found.purpose, (tx) =>
+        canReadFile({ ...context, ...unit, tx }, found),
+      ))
+    )
+      return null;
     return {
       file: found,
       logged:
@@ -307,6 +318,10 @@ async function send(
     disposition:
       previewable(file.mediaType) && !download ? "inline" : "attachment",
     expires: Math.floor(Date.now() / 1000) + linkSeconds(file.mediaType),
+    sealed:
+      file.keyVersion === null
+        ? null
+        : { tenantId: context.school.tenantId, keyVersion: file.keyVersion },
   });
   return new Response(null, {
     status: 302,
@@ -348,7 +363,7 @@ export async function handleFileRequest(
     return problem(405, "METHOD_NOT_ALLOWED", context.requestId);
   } catch (error) {
     if (error instanceof ORPCError)
-      return problem(error.status, error.code, context.requestId);
+      return refusalResponse(error, context.requestId);
     if (error instanceof TenantUnavailableError)
       return error.reason === "unknown"
         ? problem(401, "UNAUTHORIZED", context.requestId)

@@ -58,6 +58,7 @@ import {
 import { publishWords, saveWords, wordsIssues } from "../core/publication";
 import { requireStudent, scopeFor } from "../core/reach";
 import { registerHostReader } from "../files/authorize";
+import { withFileGate } from "../files/gate";
 
 const id = v.pipe(v.string(), v.uuid());
 
@@ -567,13 +568,16 @@ async function writeAnswer(
     note: input.note,
   });
   if (input.fileId) {
-    const linked = await linkFiles(context.tx, {
-      tenantId: context.tenantId,
-      userId: context.actor.userId,
-      ids: [input.fileId],
-      purpose: "evidence",
-      host: { type: "consent_record", id: answerId },
-    });
+    const fileId = input.fileId;
+    const linked = await withFileGate(context.tx, "evidence", (tx) =>
+      linkFiles(tx, {
+        tenantId: context.tenantId,
+        userId: context.actor.userId,
+        ids: [fileId],
+        purpose: "evidence",
+        host: { type: "consent_record", id: answerId },
+      }),
+    );
     if (linked.length !== 1)
       throw new ORPCError("CONFLICT", { message: "files.not_linkable" });
   }
@@ -620,9 +624,10 @@ export const record = writeProcedure
     if (!answerer)
       throw new ORPCError("FORBIDDEN", { message: "consents.not_guardian" });
     if (input.fileId) {
-      const [file] = await filesByIds(context.tx, context.tenantId, [
-        input.fileId,
-      ]);
+      const fileId = input.fileId;
+      const [file] = await withFileGate(context.tx, "evidence", (tx) =>
+        filesByIds(tx, context.tenantId, [fileId]),
+      );
       if (!file || file.purpose !== "evidence")
         throw new ORPCError("BAD_REQUEST", { message: "validation.file_type" });
     }

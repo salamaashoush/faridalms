@@ -47,7 +47,8 @@ export type FilePurpose =
   | "evidence"
   | "import_source"
   | "export"
-  | "admission_document";
+  | "admission_document"
+  | "message_attachment";
 
 export type FileState = "initiated" | "quarantined" | "ready" | "rejected";
 
@@ -184,7 +185,7 @@ export const files = core.table.withRLS(
     ck(
       "files",
       "purpose",
-      sql`purpose in ('document_media', 'attachment', 'submission', 'avatar', 'logo', 'site_media', 'health_report', 'legal_document', 'evidence', 'import_source', 'export', 'admission_document')`,
+      sql`purpose in ('document_media', 'attachment', 'submission', 'avatar', 'logo', 'site_media', 'health_report', 'legal_document', 'evidence', 'import_source', 'export', 'admission_document', 'message_attachment')`,
     ),
     ck("files", "name", sql`char_length(name) between 1 and 255`),
     ck("files", "media_type", sql`char_length(media_type) between 3 and 128`),
@@ -250,6 +251,16 @@ export const files = core.table.withRLS(
       "files",
       "health_report",
       sql`purpose <> 'health_report' or (derivatives = '{}' and name ~ '^medical-report(\\.[a-z0-9]{1,8})?$' and (state <> 'ready' or encryption = 'tenant_dek'))`,
+    ),
+    ck(
+      "files",
+      "sealed",
+      sql`purpose not in ('health_report', 'evidence', 'legal_document') or (stream_state is null and derivatives = '{}' and (state <> 'ready' or encryption = 'tenant_dek'))`,
+    ),
+    ck(
+      "files",
+      "sealed_prefix",
+      sql`encryption <> 'tenant_dek' or starts_with(storage_key, 't/' || tenant_id::text || '/h/')`,
     ),
     index("files_host_idx")
       .on(t.tenantId, t.hostType, t.hostId)

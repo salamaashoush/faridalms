@@ -21,6 +21,7 @@ import {
 } from "~/components/health/labels";
 import { displayName, labelOf } from "~/components/people/format";
 import { ActionMenu } from "~/components/system/ActionMenu";
+import { FileList } from "~/components/system/FileList";
 import { EmptyState, PageHeader } from "~/components/system/IndexPage";
 import {
   RecordColumns,
@@ -115,6 +116,24 @@ function Summary({
                   {record.severity ? (
                     <span className="text-[13px] leading-[18px] text-muted-foreground">
                       {SEVERITY_LABEL[record.severity]()}
+                    </span>
+                  ) : null}
+                  {record.report?.shared ? (
+                    <div className="mt-2">
+                      <FileList
+                        files={[
+                          {
+                            id: record.report.fileId,
+                            name: record.report.name,
+                            mediaType: record.report.mediaType,
+                            sizeBytes: record.report.sizeBytes,
+                          },
+                        ]}
+                      />
+                    </div>
+                  ) : record.report ? (
+                    <span className="text-[13px] leading-[18px] text-muted-foreground">
+                      {m.medicalReportHeld()}
                     </span>
                   ) : null}
                   {waiting((change) => change.recordId === record.id) ? (
@@ -243,6 +262,20 @@ function Summary({
                         </bdi>
                       </span>
                       <StatusText tone={state.tone}>{state.label()}</StatusText>
+                      {change.report ? (
+                        <div className="mt-1">
+                          <FileList
+                            files={[
+                              {
+                                id: change.report.fileId,
+                                name: change.report.name,
+                                mediaType: change.report.mediaType,
+                                sizeBytes: change.report.sizeBytes,
+                              },
+                            ]}
+                          />
+                        </div>
+                      ) : null}
                       {change.reason ? (
                         <span className="text-sm leading-5">
                           <span className="text-muted-foreground">

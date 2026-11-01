@@ -8,12 +8,15 @@ import {
 } from "@faridalms/domain/identifiers";
 import {
   askHealthChangeSchema,
+  attachHealthReportSchema,
   decideHealthChangeSchema,
   healthChangesSchema,
   removeHealthRecordSchema,
+  removeHealthReportSchema,
   saveCustodySchema,
   saveDemographicsSchema,
   saveHealthRecordSchema,
+  shareHealthReportSchema,
 } from "@faridalms/domain/people";
 import { createServerFn } from "@tanstack/react-start";
 import * as v from "valibot";
@@ -34,6 +37,18 @@ export const saveHealth = createServerFn({ method: "POST" })
 export const removeHealth = createServerFn({ method: "POST" })
   .validator(checked(removeHealthRecordSchema))
   .handler(({ data }) => backend().records.removeHealth(data));
+
+export const attachHealthReport = createServerFn({ method: "POST" })
+  .validator(checked(attachHealthReportSchema))
+  .handler(({ data }) => backend().records.attachHealthReport(data));
+
+export const shareHealthReport = createServerFn({ method: "POST" })
+  .validator(checked(shareHealthReportSchema))
+  .handler(({ data }) => backend().records.shareReport(data));
+
+export const removeHealthReport = createServerFn({ method: "POST" })
+  .validator(checked(removeHealthReportSchema))
+  .handler(({ data }) => backend().records.removeReport(data));
 
 export const getArrangements = createServerFn({ method: "GET" })
   .validator(checked(arrangementsRefSchema))

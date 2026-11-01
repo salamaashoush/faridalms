@@ -188,6 +188,63 @@ describe("staff conversations", () => {
   });
 });
 
+describe("a family's attachments", () => {
+  test("go on the family's own draft and message, checked like any upload, and open for the conversation alone", async () => {
+    const mother = await parent();
+    const child = await studentId();
+    const thread = (await mother.api.messages.inbox({})).rows.find(
+      (row) => row.studentId === child,
+    );
+    if (!thread) throw new Error("the seed has no family thread for the child");
+    expect(
+      await rejection(
+        mother.api.files.initiate({
+          purpose: "message_attachment",
+          name: "run-me.exe",
+          mediaType: "application/octet-stream",
+          sizeBytes: 10,
+        }),
+      ),
+    ).toMatchObject({ code: "BAD_REQUEST" });
+    const body = new TextEncoder().encode("%PDF-1.4\nExcused from swimming.\n");
+    const file = await mother.api.files.initiate({
+      purpose: "message_attachment",
+      name: "Doctor's note.pdf",
+      mediaType: "application/pdf",
+      sizeBytes: body.byteLength,
+    });
+    const path = `/v1/files/${file.id}/content`;
+    expect(
+      (await raw("northwind", mother.token, path, { method: "PUT", body }))
+        .status,
+    ).toBe(200);
+    const content = withFileBlocks(plainContent("The note from the doctor."), [
+      file,
+    ]);
+    const kept = await mother.api.messages.saveDraft({
+      threadId: thread.id,
+      content,
+    });
+    const keeper = await teacher();
+    expect((await raw("northwind", keeper.token, path)).status).toBe(404);
+
+    await mother.api.messages.send({ threadId: thread.id, content });
+    expect(await mother.api.messages.draft({ id: kept.id })).toBeNull();
+    const seen = await keeper.api.messages.thread({ id: thread.id });
+    expect(
+      seen.messages
+        .at(-1)
+        ?.content?.root.children?.filter((node) => node.type === "file")
+        .map((node) => node.name),
+    ).toEqual(["Doctor's note.pdf"]);
+    const read = await raw("northwind", keeper.token, path);
+    expect(read.status).toBe(200);
+    expect(await read.text()).toContain("Excused from swimming.");
+    const outsider = await sessionFor("northwind", login("teacher", 0, 3));
+    expect((await raw("northwind", outsider.token, path)).status).toBe(404);
+  });
+});
+
 type Session = Awaited<ReturnType<typeof sessionFor>>;
 
 async function upload(session: Session, name: string) {

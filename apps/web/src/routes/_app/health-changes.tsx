@@ -16,9 +16,11 @@ import * as v from "valibot";
 import type { Column } from "~/components/system/DataTable";
 
 import { CHANGE_STATE, valueLine } from "~/components/health/labels";
+import { CheckboxRow } from "~/components/people/fields";
 import { displayName, labelOf } from "~/components/people/format";
 import { DataTable } from "~/components/system/DataTable";
 import { ChoiceField, FormField } from "~/components/system/field";
+import { FileList } from "~/components/system/FileList";
 import { PageHeader } from "~/components/system/IndexPage";
 import { Fact, Facts } from "~/components/system/RecordPage";
 import { SheetForm } from "~/components/system/SheetForm";
@@ -149,6 +151,9 @@ function ReviewSheet({ row, onClose }: { row: Change; onClose: () => void }) {
   const queryClient = useQueryClient();
   const [answer, setAnswer] = useState<Answer>("accepted");
   const [reason, setReason] = useState("");
+  const [keepReport, setKeepReport] = useState(true);
+  const [shareReport, setShareReport] = useState(true);
+  const keeps = row.report !== null && row.target === "record";
   const [errors, setErrors] = useState<{ reason?: string }>({});
   const mutation = useMutation({
     mutationFn: (data: DecideHealthChangeInput) => decideHealthChange({ data }),
@@ -161,6 +166,9 @@ function ReviewSheet({ row, onClose }: { row: Change; onClose: () => void }) {
           id: row.id,
           decision: "accepted",
           ...(row.nowVersion ? { expectedVersion: row.nowVersion } : {}),
+          ...(keeps
+            ? { keepReport, shareReport: keepReport && shareReport }
+            : {}),
         }
       : { id: row.id, decision: "declined", reason };
   const refusal = refusalOf(mutation.error, {});
@@ -201,6 +209,23 @@ function ReviewSheet({ row, onClose }: { row: Change; onClose: () => void }) {
       ) : null}
     </Facts>
   );
+  const sent = row.report ? (
+    <div className="grid gap-1.5">
+      <span className="text-[13px] leading-[18px] text-muted-foreground">
+        {m.healthChangesReport()}
+      </span>
+      <FileList
+        files={[
+          {
+            id: row.report.fileId,
+            name: row.report.name,
+            mediaType: row.report.mediaType,
+            sizeBytes: row.report.sizeBytes,
+          },
+        ]}
+      />
+    </div>
+  ) : null;
   return (
     <SheetForm
       open
@@ -243,6 +268,7 @@ function ReviewSheet({ row, onClose }: { row: Change; onClose: () => void }) {
       }}
     >
       {facts}
+      {sent}
       {row.missing ? (
         <p className="text-sm text-muted-foreground">
           {m.healthChangesMissing()}
@@ -267,6 +293,23 @@ function ReviewSheet({ row, onClose }: { row: Change; onClose: () => void }) {
             ]}
             onChange={setAnswer}
           />
+          {answer === "accepted" && keeps ? (
+            <>
+              <CheckboxRow
+                label={m.healthChangesKeepReport()}
+                hint={m.healthChangesKeepReportHint()}
+                checked={keepReport}
+                onChange={setKeepReport}
+              />
+              {keepReport ? (
+                <CheckboxRow
+                  label={m.healthChangesShareReport()}
+                  checked={shareReport}
+                  onChange={setShareReport}
+                />
+              ) : null}
+            </>
+          ) : null}
           {answer === "declined" ? (
             <FormField
               id="health-change-reason"

@@ -21,6 +21,9 @@ export interface HealthRow {
   recordedOn: string | null;
   keyVersion: number;
   ciphertext: Uint8Array;
+  /** The record's report, a file sealed under the school's files key. */
+  fileId: string | null;
+  reportShared: boolean;
 }
 
 export async function healthRecordsOf(
@@ -36,8 +39,11 @@ export async function healthRecordsOf(
     recorded_on: string | null;
     key_version: number;
     ciphertext: Uint8Array;
+    file_id: string | null;
+    report_shared: boolean;
   }>(sql`
-    select id, version, kind_descriptor_id, has_alert, recorded_on::text as recorded_on, key_version, ciphertext
+    select id, version, kind_descriptor_id, has_alert, recorded_on::text as recorded_on, key_version, ciphertext,
+      file_id, report_shared
     from health.records
     where tenant_id = ${tenantId}::uuid and student_user_id = ${studentId}::uuid and status = 'active'
     order by has_alert desc, created_at`);
@@ -49,6 +55,8 @@ export async function healthRecordsOf(
     recordedOn: row.recorded_on,
     keyVersion: row.key_version,
     ciphertext: row.ciphertext,
+    fileId: row.file_id,
+    reportShared: row.report_shared,
   }));
 }
 
@@ -114,6 +122,69 @@ export async function removeHealthRecord(
   return rows.length > 0;
 }
 
+/**
+ * Gives a record its report, or takes it away, with the record sealed again
+ * so it carries the report's name; whether the family may open it goes with
+ * it. False when the row changed since the version the caller read.
+ */
+export async function setHealthReport(
+  tx: Tx,
+  input: {
+    tenantId: string;
+    id: string;
+    studentId: string;
+    expectedVersion: number;
+    fileId: string | null;
+    shared: boolean;
+    keyVersion: number;
+    ciphertext: Uint8Array;
+  },
+) {
+  const rows = await tx.execute<{ id: string }>(sql`
+    update health.records
+    set file_id = ${input.fileId}::uuid, report_shared = ${input.fileId !== null && input.shared},
+        key_version = ${input.keyVersion}, ciphertext = ${input.ciphertext}
+    where tenant_id = ${input.tenantId}::uuid and id = ${input.id}::uuid
+      and student_user_id = ${input.studentId}::uuid and version = ${input.expectedVersion} and status = 'active'
+    returning id`);
+  return rows.length > 0;
+}
+
+/** Whether the family may open a record's report; false when the row changed or holds none. */
+export async function shareHealthReport(
+  tx: Tx,
+  input: {
+    tenantId: string;
+    id: string;
+    studentId: string;
+    expectedVersion: number;
+    shared: boolean;
+  },
+) {
+  const rows = await tx.execute<{ id: string }>(sql`
+    update health.records set report_shared = ${input.shared}
+    where tenant_id = ${input.tenantId}::uuid and id = ${input.id}::uuid
+      and student_user_id = ${input.studentId}::uuid and version = ${input.expectedVersion}
+      and status = 'active' and file_id is not null
+    returning id`);
+  return rows.length > 0;
+}
+
+/** The student a record is about and the report it holds, for whoever asks to open the report. */
+export async function healthRecordOf(
+  tx: Tx,
+  tenantId: string,
+  id: string,
+): Promise<{ studentId: string; fileId: string | null } | null> {
+  const [row] = await tx.execute<{
+    student_user_id: string;
+    file_id: string | null;
+  }>(sql`
+    select student_user_id, file_id from health.records
+    where tenant_id = ${tenantId}::uuid and id = ${id}::uuid and status = 'active'`);
+  return row ? { studentId: row.student_user_id, fileId: row.file_id } : null;
+}
+
 /** A link through which the viewer may read the child's medical summary today. */
 const permitsHealth = (input: {
   tenantId: string;
@@ -133,6 +204,8 @@ export interface FamilyHealthRow {
   meaning: string;
   keyVersion: number;
   ciphertext: Uint8Array;
+  fileId: string | null;
+  reportShared: boolean;
 }
 
 /**
@@ -156,8 +229,11 @@ export async function familyHealthRecordsOf(
     meaning: string;
     key_version: number;
     ciphertext: Uint8Array;
+    file_id: string | null;
+    report_shared: boolean;
   }>(sql`
-    select h.id, h.version, h.kind_descriptor_id, d.system_meaning as meaning, h.key_version, h.ciphertext
+    select h.id, h.version, h.kind_descriptor_id, d.system_meaning as meaning, h.key_version, h.ciphertext,
+      h.file_id, h.report_shared
     from health.records h
     join core.descriptors d on d.tenant_id = h.tenant_id and d.id = h.kind_descriptor_id
     where h.tenant_id = ${input.tenantId}::uuid and h.student_user_id = ${input.studentId}::uuid
@@ -171,6 +247,8 @@ export async function familyHealthRecordsOf(
     meaning: row.meaning,
     keyVersion: row.key_version,
     ciphertext: row.ciphertext,
+    fileId: row.file_id,
+    reportShared: row.report_shared,
   }));
 }
 
@@ -193,14 +271,16 @@ export async function insertHealthChange(
     relationshipId: string | null;
     keyVersion: number;
     ciphertext: Uint8Array;
+    /** The report sent with the change, already hosted by it. */
+    fileId?: string | null;
   },
 ): Promise<boolean> {
   const rows = await tx.execute<{ id: string }>(sql`
     insert into health.requested_changes (tenant_id, id, request_id, student_user_id, requested_by_user_id,
-      target, kind_descriptor_id, record_id, relationship_id, key_version, ciphertext)
+      target, kind_descriptor_id, record_id, relationship_id, key_version, ciphertext, file_id)
     select ${input.tenantId}::uuid, ${input.id}::uuid, ${input.requestId}::uuid, ${input.studentId}::uuid,
       ${input.requestedByUserId}::uuid, ${input.target}, ${input.kindId}::uuid, ${input.recordId}::uuid,
-      ${input.relationshipId}::uuid, ${input.keyVersion}, ${input.ciphertext}
+      ${input.relationshipId}::uuid, ${input.keyVersion}, ${input.ciphertext}, ${input.fileId ?? null}::uuid
     where ${permitsHealth({
       tenantId: input.tenantId,
       viewerId: input.requestedByUserId,
@@ -226,6 +306,7 @@ export interface HealthChangeRow {
   relationshipId: string | null;
   keyVersion: number;
   ciphertext: Uint8Array;
+  fileId: string | null;
   receivedOn: string;
   dueOn: string;
   outcome: "completed" | "refused" | "withdrawn" | null;
@@ -255,6 +336,7 @@ async function healthChangesWhere(
     relationship_id: string | null;
     key_version: number;
     ciphertext: Uint8Array;
+    file_id: string | null;
     received_on: string;
     due_on: string;
     outcome: HealthChangeRow["outcome"];
@@ -263,7 +345,7 @@ async function healthChangesWhere(
     select c.id, c.request_id, c.student_user_id, s.full_name_en as student_name_en,
            s.full_name_ar as student_name_ar, c.requested_by_user_id, g.full_name_en as requester_name_en,
            g.full_name_ar as requester_name_ar, c.target, c.kind_descriptor_id, c.record_id, c.relationship_id,
-           c.key_version, c.ciphertext, q.received_on::text as received_on,
+           c.key_version, c.ciphertext, c.file_id, q.received_on::text as received_on,
            coalesce(q.extended_to, q.due_on)::text as due_on, q.outcome, q.closed_at::text as closed_at
     from health.requested_changes c
     join core.records_requests q on q.tenant_id = c.tenant_id and q.id = c.request_id and q.status = 'active'
@@ -287,6 +369,7 @@ async function healthChangesWhere(
     relationshipId: row.relationship_id,
     keyVersion: row.key_version,
     ciphertext: row.ciphertext,
+    fileId: row.file_id,
     receivedOn: row.received_on,
     dueOn: row.due_on,
     outcome: row.outcome,
@@ -344,6 +427,18 @@ export async function healthChangeOf(
   const [row] = await healthChangesWhere(tx, {
     ...input,
     where: sql`c.request_id = ${input.requestId}::uuid and ${reached(input)}`,
+  });
+  return row ?? null;
+}
+
+/** One change by its own id, for the office that reaches its student. */
+export async function healthChangeById(
+  tx: Tx,
+  input: { tenantId: string; orgId: string; id: string } & HealthReach,
+): Promise<HealthChangeRow | null> {
+  const [row] = await healthChangesWhere(tx, {
+    ...input,
+    where: sql`c.id = ${input.id}::uuid and ${reached(input)}`,
   });
   return row ?? null;
 }

@@ -1,7 +1,8 @@
+import { withPurpose } from "@faridalms/database/context";
 import { describe, expect, test } from "bun:test";
 import { sql } from "drizzle-orm";
 
-import { login, rejection, seeded, signedIn } from "./harness";
+import { login, raw, rejection, seeded, sessionFor, signedIn } from "./harness";
 
 const names = (en: string, ar: string) => ({
   en: { given: en.split(" ")[0], family: en.split(" ").slice(1).join(" ") },
@@ -10,10 +11,14 @@ const names = (en: string, ar: string) => ({
 
 let pastYearId: string | undefined;
 
-/** Adds a student whose only school year ended on 30 June 2020. */
+/**
+ * Adds a student whose only school year ended on 30 June 2020, after
+ * `meanwhile` has done what needs them still at the school.
+ */
 async function leaver(
   api: Awaited<ReturnType<typeof signedIn>>,
   reference = "NO9301",
+  meanwhile: (studentId: string) => Promise<void> = async () => {},
 ) {
   const options = await api.people.options();
   const grade = options.grades.find((row) => row.code === "grade_7");
@@ -25,6 +30,7 @@ async function leaver(
     gradeId: grade.id,
     guardians: [],
   });
+  await meanwhile(created.id);
   pastYearId ??= (
     await api.years.save({
       titleEn: "2019–2020",
@@ -391,6 +397,89 @@ describe("erasure", () => {
       expect(
         await rejection(api.privacy.runErasure({ subjectUserId: id })),
       ).toMatchObject({ code: "CONFLICT", message: "privacy.erased" });
+    });
+  });
+
+  test("takes the medical reports of the leaver's health records, row and bytes", async () => {
+    await withErasure(async (api) => {
+      const office = await sessionFor("northwind", login("principal"));
+      const { tenantId } = seeded().tenants[0] ?? { tenantId: "" };
+      let fileId = "";
+      const id = await leaver(api, "NO9313", async (studentId) => {
+        const { kinds } = await office.api.records.health({ studentId });
+        const kind = kinds.find((row) => row.code === "chronic_condition");
+        if (!kind) throw new Error("the seed has the condition kind");
+        const { id: recordId } = await office.api.records.saveHealth({
+          studentId,
+          kindId: kind.id,
+          hasAlert: false,
+          text: "Epilepsy",
+        });
+        const body = new TextEncoder().encode("%PDF-1.4\nSeizure plan.\n");
+        const file = await office.api.files.initiate({
+          purpose: "health_report",
+          name: "Seizure plan.pdf",
+          mediaType: "application/pdf",
+          sizeBytes: body.byteLength,
+        });
+        const put = await raw(
+          "northwind",
+          office.token,
+          `/v1/files/${file.id}/content`,
+          { method: "PUT", body },
+        );
+        expect(put.status).toBe(200);
+        const record = (
+          await office.api.records.health({ studentId })
+        ).records.find((row) => row.id === recordId);
+        if (!record) throw new Error("the record is kept");
+        await office.api.records.attachHealthReport({
+          studentId,
+          recordId,
+          expectedVersion: record.version,
+          report: { fileId: file.id, name: file.name },
+          shared: false,
+        });
+        fileId = file.id;
+      });
+      await api.privacy.saveRetention({
+        studentRule: "years_after_leaving",
+        studentValue: 1,
+        staffYears: null,
+        applicantMonths: null,
+      });
+      const { cell, files } = seeded();
+      const unit = {
+        tenantId,
+        requestId: crypto.randomUUID(),
+        actor: { kind: "system" as const },
+      };
+      const keyOf = async () => {
+        const [row] = await cell.withWorker(unit, "read", (tx) =>
+          withPurpose(tx, "health", (inner) =>
+            inner.execute<{ storage_key: string }>(sql`
+              select storage_key from core.files
+              where tenant_id = ${tenantId}::uuid and id = ${fileId}::uuid`),
+          ),
+        );
+        return row?.storage_key ?? null;
+      };
+      const key = await keyOf();
+      if (!key) throw new Error("the report is stored");
+      expect(await files.open(key)).not.toBeNull();
+
+      const approved = await api.privacy.approveErasure({
+        subjectUserId: id,
+        basis: "retention_schedule",
+        requestId: null,
+        reference: null,
+      });
+      expect(approved.files).toBeGreaterThanOrEqual(1);
+      const { counts } = await api.privacy.runErasure({ subjectUserId: id });
+      expect(counts.health_records).toBe(1);
+      expect(counts.files).toBeGreaterThanOrEqual(1);
+      expect(await keyOf()).toBeNull();
+      expect(await files.open(key)).toBeNull();
     });
   });
 

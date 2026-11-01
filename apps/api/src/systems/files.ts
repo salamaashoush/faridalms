@@ -27,6 +27,7 @@ import {
 import {
   fileAreaSchema,
   fileFamily,
+  healthReportName,
   initiateUploadSchema,
   picturedSchema,
   safeFilename,
@@ -49,6 +50,7 @@ import {
 } from "../core/procedure";
 import { studentsReached } from "../core/reach";
 import { canReadFile, mayKeepArea, mayWorkOn } from "../files/authorize";
+import { withFileGate } from "../files/gate";
 import { uploadLimit } from "../files/limit";
 
 /** Who may upload for each purpose; none, anyone signed in, its use checked where it is put. */
@@ -79,6 +81,10 @@ const UPLOADERS: Record<FilePurpose, Capability[] | null> = {
   evidence: null,
   // A family's document for an application, or one the office files for it.
   admission_document: ["applications:submit", "admissions:manage"],
+  // The health staff's report on a record, or a family's for a change they ask for.
+  health_report: ["health:write", "children:read"],
+  // Whoever writes in a conversation; the conversation they put it in decides who reads it.
+  message_attachment: ["messages:send"],
 };
 
 /** What this school's files can have done to them, for an editor to offer. */
@@ -108,19 +114,23 @@ export const initiate = writeProcedure
     if (input.trim && context.mediaOrigin === null)
       throw new ORPCError("BAD_REQUEST", { message: "file.trim_unavailable" });
     const warning = await roomFor(context, input);
-    const file = await initiateFile(context.tx, {
-      tenantId: context.tenantId,
-      userId: context.actor.userId,
-      orgId: context.schoolId,
-      purpose: input.purpose,
-      name: safeFilename(input.name),
-      mediaType,
-      sizeBytes: input.sizeBytes,
-      trim: input.trim,
-    });
+    const name = safeFilename(input.name);
+    const file = await withFileGate(context.tx, input.purpose, (tx) =>
+      initiateFile(tx, {
+        tenantId: context.tenantId,
+        userId: context.actor.userId,
+        orgId: context.schoolId,
+        purpose: input.purpose,
+        name: input.purpose === "health_report" ? healthReportName(name) : name,
+        mediaType,
+        sizeBytes: input.sizeBytes,
+        trim: input.trim,
+      }),
+    );
     return {
       id: file.id,
-      name: file.name,
+      // The name it was given, which a report keeps only in its record.
+      name,
       mediaType: file.mediaType,
       sizeBytes: file.sizeBytes,
       // A file larger than this goes up in parts of this size.

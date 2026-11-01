@@ -92,6 +92,7 @@ import { nameUuid } from "../core/names";
 import { portalOrigin } from "../core/portal";
 import { can, localeOf, openUnit, schoolOf } from "../core/procedure";
 import { reachesStudent, scopeFor, teaches } from "../core/reach";
+import { refusalResponse } from "../core/refusal";
 import { sharedInliner } from "../core/shared";
 import { drawsOf, publishedQuiz } from "../quizzes/quiz";
 
@@ -270,7 +271,7 @@ async function exported(
     );
   } catch (error) {
     if (error instanceof ORPCError)
-      return problem(error.status, error.code, context.requestId);
+      return refusalResponse(error, context.requestId);
     if (error instanceof TenantUnavailableError)
       return problem(503, "tenant.read_only", context.requestId);
     throw error;

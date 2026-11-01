@@ -40,6 +40,7 @@ import {
 } from "../core/procedure";
 import { requireStudent, scopeFor } from "../core/reach";
 import { registerHostReader } from "../files/authorize";
+import { withFileGate } from "../files/gate";
 
 /** The links of a family member to the children they follow; none for anyone else. */
 async function familyLinks(context: UnitContext): Promise<ChildLink[]> {
@@ -129,11 +130,13 @@ export const mine = readProcedure
     const [reports, reasons] = await Promise.all([
       studentIds.length === 0
         ? Promise.resolve([])
-        : reportsFor(context.tx, {
-            tenantId: context.tenantId,
-            schoolId: context.schoolId,
-            studentIds,
-          }),
+        : withFileGate(context.tx, "evidence", (tx) =>
+            reportsFor(tx, {
+              tenantId: context.tenantId,
+              schoolId: context.schoolId,
+              studentIds,
+            }),
+          ),
       reasonsOf(context),
     ]);
     return {
@@ -181,9 +184,10 @@ export const report = writeProcedure
     if (!reasons.some((row) => row.id === input.reasonId))
       throw new ORPCError("BAD_REQUEST", { message: "attendance.reason" });
     if (input.fileId) {
-      const [file] = await filesByIds(context.tx, context.tenantId, [
-        input.fileId,
-      ]);
+      const fileId = input.fileId;
+      const [file] = await withFileGate(context.tx, "evidence", (tx) =>
+        filesByIds(tx, context.tenantId, [fileId]),
+      );
       if (!file || file.purpose !== "evidence")
         throw new ORPCError("BAD_REQUEST", { message: "validation.file_type" });
     }
@@ -202,13 +206,16 @@ export const report = writeProcedure
       fileId: input.fileId || null,
     });
     if (input.fileId) {
-      const linked = await linkFiles(context.tx, {
-        tenantId: context.tenantId,
-        userId: context.actor.userId,
-        ids: [input.fileId],
-        purpose: "evidence",
-        host: { type: "absence_report", id },
-      });
+      const fileId = input.fileId;
+      const linked = await withFileGate(context.tx, "evidence", (tx) =>
+        linkFiles(tx, {
+          tenantId: context.tenantId,
+          userId: context.actor.userId,
+          ids: [fileId],
+          purpose: "evidence",
+          host: { type: "absence_report", id },
+        }),
+      );
       if (linked.length !== 1)
         throw new ORPCError("CONFLICT", { message: "files.not_linkable" });
     }
@@ -256,11 +263,13 @@ export const inbox = readProcedure
   .input(reportInboxSchema)
   .handler(async ({ input, context }) => {
     requireCapability(context, "attendance:manage");
-    const reports = await reportInbox(context.tx, {
-      tenantId: context.tenantId,
-      schoolId: context.schoolId,
-      open: input.open,
-    });
+    const reports = await withFileGate(context.tx, "evidence", (tx) =>
+      reportInbox(tx, {
+        tenantId: context.tenantId,
+        schoolId: context.schoolId,
+        open: input.open,
+      }),
+    );
     return { today: context.today, reports: reports.map(reportView) };
   });
 

@@ -1,17 +1,21 @@
 import type { Arrangements } from "@faridalms/domain/arrangements";
+import type { FileSummary } from "@faridalms/domain/file";
+import type { AttachHealthReportInput } from "@faridalms/domain/people";
 
 import {
   EXTRA_TIMES,
   hasArrangements,
   MAX_EXTENSION_DAYS,
 } from "@faridalms/domain/arrangements";
+import { MAX_FILE_BYTES } from "@faridalms/domain/file";
+import { attachHealthReportSchema } from "@faridalms/domain/people";
 import { Button } from "@faridalms/ui/button";
 import {
   useMutation,
   useQueryClient,
   useSuspenseQuery,
 } from "@tanstack/react-query";
-import { Pencil, Plus, Trash2 } from "lucide-react";
+import { FileUp, Pencil, Plus, Share2, Trash2, Users } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 
@@ -19,6 +23,8 @@ import { SEVERITY_LABEL } from "~/components/health/labels";
 import { ActionMenu } from "~/components/system/ActionMenu";
 import { ComboboxField } from "~/components/system/ComboboxField";
 import { SelectField, TextField } from "~/components/system/field";
+import { FileField } from "~/components/system/FileField";
+import { FileList } from "~/components/system/FileList";
 import {
   Fact,
   Facts,
@@ -37,14 +43,18 @@ import {
 } from "~/queries/records";
 import { peopleOptionsQuery } from "~/queries/students";
 import {
+  attachHealthReport,
   removeHealth,
+  removeHealthReport,
   saveArrangements,
   saveCustody,
   saveDemographics,
   saveHealth,
+  shareHealthReport,
 } from "~/server/records";
 import { formatDate, formatList, formatNumber } from "~/utils/datetime";
-import { getMessageFromError } from "~/utils/error";
+import { getMessageFromError, refusalOf } from "~/utils/error";
+import { schemaErrors } from "~/utils/validation";
 
 import { CheckboxRow } from "./fields";
 import { displayName, labelOf } from "./format";
@@ -219,6 +229,114 @@ function HealthSheet({
   );
 }
 
+/**
+ * Gives a health record its report, such as a doctor's letter, and says
+ * whether the family may open it. The file is uploaded as a medical
+ * report, so it rests encrypted for the school.
+ */
+function ReportSheet({
+  studentId,
+  record,
+  open,
+  onClose,
+}: {
+  studentId: string;
+  record: HealthRecord;
+  open: boolean;
+  onClose: () => void;
+}) {
+  const refresh = useRefresh(studentId);
+  const [files, setFiles] = useState<FileSummary[]>([]);
+  const [shared, setShared] = useState(record.report?.shared ?? false);
+  const [errors, setErrors] = useState<{ report?: string }>({});
+  const file = files[0];
+  const input = {
+    studentId,
+    recordId: record.id,
+    expectedVersion: record.version,
+    report: file ? { fileId: file.id, name: file.name } : undefined,
+    shared,
+  };
+  const mutation = useMutation({
+    mutationFn: (data: AttachHealthReportInput) => attachHealthReport({ data }),
+    meta: { inlineError: true },
+  });
+  const refusal = refusalOf(mutation.error, {});
+  return (
+    <SheetForm
+      open={open}
+      onOpenChange={(next) => (next ? undefined : onClose())}
+      title={record.report ? m.healthReportReplace() : m.healthReportAttach()}
+      pending={mutation.isPending}
+      error={refusal?.message ?? null}
+      onSubmit={async () => {
+        const found = schemaErrors(attachHealthReportSchema, input, (key) =>
+          key === "report" ? "report" : undefined,
+        );
+        setErrors(found);
+        if (Object.keys(found).length > 0 || !input.report) return;
+        await mutation.mutateAsync({ ...input, report: input.report }).then(
+          async () => {
+            await refresh();
+            toast.success(m.healthReportSaved());
+            onClose();
+          },
+          () => undefined,
+        );
+      }}
+    >
+      <p className="text-sm text-muted-foreground">
+        {m.healthReportIntro({ record: record.text })}
+      </p>
+      <FileField
+        id="health-report-file"
+        label={m.healthReportFile()}
+        hint={m.healthReportFileHint()}
+        purpose="health_report"
+        value={files}
+        onChange={(update) => {
+          setErrors({});
+          setFiles(update);
+        }}
+        maxFiles={1}
+        maxBytes={MAX_FILE_BYTES}
+        errors={errors.report ? [errors.report] : undefined}
+      />
+      <CheckboxRow
+        label={m.healthReportShare()}
+        hint={m.healthReportShareHint()}
+        checked={shared}
+        onChange={setShared}
+      />
+    </SheetForm>
+  );
+}
+
+/** A record's report as its card, and whether the family may open it. */
+function RecordReport({
+  report,
+}: {
+  report: NonNullable<HealthRecord["report"]>;
+}) {
+  return (
+    <div className="mt-2 grid gap-1.5">
+      <FileList
+        files={[
+          {
+            id: report.fileId,
+            name: report.name,
+            mediaType: report.mediaType,
+            sizeBytes: report.sizeBytes,
+          },
+        ]}
+      />
+      <StatusText tone={report.shared ? "success" : "neutral"}>
+        {report.shared ? m.healthReportShared() : m.healthReportNotShared()}
+      </StatusText>
+    </div>
+  );
+}
+
 export function HealthSection({ studentId }: { studentId: string }) {
   const data = useSuspenseQuery(healthQuery(studentId)).data;
   const refresh = useRefresh(studentId);
@@ -231,6 +349,44 @@ export function HealthSection({ studentId }: { studentId: string }) {
     open: false,
     key: 0,
   });
+  const [reporting, setReporting] = useState<{
+    value: HealthRecord | null;
+    open: boolean;
+    key: number;
+  }>({ value: null, open: false, key: 0 });
+  const share = (record: HealthRecord, shared: boolean) => async () => {
+    try {
+      await shareHealthReport({
+        data: {
+          studentId,
+          recordId: record.id,
+          expectedVersion: record.version,
+          shared,
+        },
+      });
+    } catch (error) {
+      throw new Error(getMessageFromError(error), { cause: error });
+    }
+    await refresh();
+    toast.success(
+      shared ? m.healthReportSharedDone() : m.healthReportUnsharedDone(),
+    );
+  };
+  const removeReport = (record: HealthRecord) => async () => {
+    try {
+      await removeHealthReport({
+        data: {
+          studentId,
+          recordId: record.id,
+          expectedVersion: record.version,
+        },
+      });
+    } catch (error) {
+      throw new Error(getMessageFromError(error), { cause: error });
+    }
+    await refresh();
+    toast.success(m.healthReportRemoved());
+  };
   const remove = (record: HealthRecord) => async () => {
     try {
       await removeHealth({
@@ -303,6 +459,9 @@ export function HealthSection({ studentId }: { studentId: string }) {
                       <bdi>{record.actionPlan}</bdi>
                     </span>
                   ) : null}
+                  {record.report ? (
+                    <RecordReport report={record.report} />
+                  ) : null}
                 </div>
                 {data.canWrite ? (
                   <ActionMenu
@@ -313,6 +472,35 @@ export function HealthSection({ studentId }: { studentId: string }) {
                         icon: Pencil,
                         onSelect: () => openSheet(setSheet, record),
                       },
+                      {
+                        label: record.report
+                          ? m.healthReportReplace()
+                          : m.healthReportAttach(),
+                        icon: FileUp,
+                        onSelect: () => openSheet(setReporting, record),
+                      },
+                      ...(record.report
+                        ? [
+                            {
+                              label: record.report.shared
+                                ? m.healthReportUnshare()
+                                : m.healthReportShare(),
+                              icon: record.report.shared ? Users : Share2,
+                              onSelect: share(record, !record.report.shared),
+                            },
+                            {
+                              label: m.healthReportRemove(),
+                              icon: Trash2,
+                              destructive: true,
+                              confirm: {
+                                title: m.healthReportRemoveTitle(),
+                                body: m.healthReportRemoveBody(),
+                                label: m.healthReportRemove(),
+                              },
+                              onSelect: removeReport(record),
+                            },
+                          ]
+                        : []),
                       {
                         label: m.healthRemove(),
                         icon: Trash2,
@@ -340,6 +528,17 @@ export function HealthSection({ studentId }: { studentId: string }) {
           record={sheet.value}
           open={sheet.open}
           onClose={() => setSheet((current) => ({ ...current, open: false }))}
+        />
+      ) : null}
+      {data.canWrite && reporting.value ? (
+        <ReportSheet
+          key={reporting.key}
+          studentId={studentId}
+          record={reporting.value}
+          open={reporting.open}
+          onClose={() =>
+            setReporting((current) => ({ ...current, open: false }))
+          }
         />
       ) : null}
     </>

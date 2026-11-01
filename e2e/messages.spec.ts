@@ -350,3 +350,58 @@ test("a long conversation reads back past its latest hundred messages", async ({
     messages.getByRole("button", { name: "Show earlier messages" }),
   ).toHaveCount(0);
 });
+
+test("a guardian attaches a doctor's note to a reply, and the teacher opens it", async ({
+  browser,
+  page,
+  browserName,
+}) => {
+  const words = `The note is attached (${tag(browserName)})`;
+  const name = `Doctor note ${browserName}.pdf`;
+  await signInWith(page, MOTHER, PASSWORD, "/family");
+  await page.goto("/family/messages");
+  await untilHydrated(page);
+  await page
+    .getByRole("list", { name: "Conversations" })
+    .getByRole("button", { name: /Yasmin Sabry/ })
+    .first()
+    .click();
+  await expect(page.getByText("About Yasmin Sabry").last()).toBeVisible();
+  await page.locator("form [contenteditable=true]").last().click();
+  await page.keyboard.type(words);
+  await page
+    // The editor's media input; the others import quizzes and documents.
+    .locator('form input[type=file][hidden][accept*="image/png"]')
+    .setInputFiles({
+      name,
+      mimeType: "application/pdf",
+      buffer: Buffer.from("%PDF-1.4\nExcused from swimming this week.\n"),
+    });
+  await expect(page.locator("form").getByText(name).last()).toBeVisible();
+  await page.getByRole("button", { name: "Send", exact: true }).click();
+  const sent = page.getByRole("list", { name: "Messages" });
+  await expect(sent).toContainText(words);
+  await expect(sent.getByText(name).last()).toBeVisible();
+
+  const teacherContext = await browser.newContext();
+  const teacher = await teacherContext.newPage();
+  await signInWith(teacher, TEACHER, PASSWORD, "/teach");
+  await teacher.goto("/teach/messages");
+  await untilHydrated(teacher);
+  await teacher
+    .getByRole("list", { name: "Conversations" })
+    .getByRole("button", { name: /Yasmin Sabry/ })
+    .first()
+    .click();
+  const download = teacher
+    .getByRole("list", { name: "Messages" })
+    .getByRole("link", { name: new RegExp(`^Download: ${name}`) })
+    .last();
+  await expect(download).toBeVisible();
+  const opened = await teacher.request.get(
+    new URL((await download.getAttribute("href")) ?? "", teacher.url()).href,
+  );
+  expect(opened.status()).toBe(200);
+  expect(await opened.text()).toContain("Excused from swimming this week.");
+  await teacherContext.close();
+});

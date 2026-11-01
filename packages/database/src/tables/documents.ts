@@ -61,6 +61,8 @@ export const healthRecords = health.table.withRLS(
     ciphertext: bytea("ciphertext").notNull(),
     fileId: uuid("file_id"),
     filePurpose: text("file_purpose").notNull().default("health_report"),
+    /** Whether a guardian who reads the summary may open the record's report. */
+    reportShared: boolean("report_shared").notNull().default(false),
     ...entityColumns(),
   },
   (t): PgTableExtraConfigValue[] => [
@@ -88,6 +90,11 @@ export const healthRecords = health.table.withRLS(
       sql`octet_length(ciphertext) between 29 and 65565`,
     ),
     ck("records", "file_purpose", sql`file_purpose = 'health_report'`),
+    ck(
+      "records",
+      "report_shared",
+      sql`file_id is not null or not report_shared`,
+    ),
     ck("records", "metadata_empty", sql`metadata = '{}'`),
     index("records_student_idx")
       .on(t.tenantId, t.studentUserId)
@@ -124,6 +131,12 @@ export const healthChanges = health.table.withRLS(
       .generatedAlwaysAs(sql`'health'`),
     keyVersion: integer("key_version").notNull(),
     ciphertext: bytea("ciphertext").notNull(),
+    /** A report the family sent with the change, such as a doctor's letter. */
+    // Keyed to files NOT VALID by the custom migration: drizzle-kit writes a
+    // key on an existing table as validated, and validating reads the table
+    // under forced row security, where a migration has no tenant.
+    fileId: uuid("file_id"),
+    filePurpose: text("file_purpose").notNull().default("health_report"),
     ...entityColumns(),
   },
   (t): PgTableExtraConfigValue[] => [
@@ -165,6 +178,16 @@ export const healthChanges = health.table.withRLS(
       [tenantKeys.tenantId, tenantKeys.purpose, tenantKeys.keyVersion],
     ),
     uq("requested_changes", t.tenantId, t.requestId),
+    ck(
+      "requested_changes",
+      "file_purpose",
+      sql`file_purpose = 'health_report'`,
+    ),
+    ck(
+      "requested_changes",
+      "file_target",
+      sql`file_id is null or target = 'record'`,
+    ),
     ck("requested_changes", "target", sql`target in ('record', 'contact')`),
     ck(
       "requested_changes",
@@ -580,7 +603,7 @@ export const documentFiles = core.table.withRLS(
     ck(
       "document_files",
       "file_purpose",
-      sql`file_purpose in ('document_media', 'attachment', 'site_media')`,
+      sql`file_purpose in ('document_media', 'attachment', 'site_media', 'message_attachment')`,
     ),
     uniqueIndex("document_files_key")
       .on(t.tenantId, t.documentId, t.fileId)
