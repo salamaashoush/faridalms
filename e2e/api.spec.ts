@@ -2,6 +2,7 @@ import { plainContent } from "@faridalms/domain/content-conversion";
 import { expect, test } from "@playwright/test";
 
 import { API_ORIGIN, apiAs, apiClient, signedInApi } from "./fixtures/api";
+import { names, refusal } from "./fixtures/school";
 import { PASSWORD, signInWith, untilHydrated } from "./fixtures/sign-in";
 
 const ACME_ADMIN = "principal.acme@acme.example.com";
@@ -10,20 +11,6 @@ const ACME_ADMIN = "principal.acme@acme.example.com";
 // conversation about her is not hers to read.
 const TEACHER = "teacher2.northwind@northwind.example.com";
 const MOTHER = "parent1007@northwind.example.com";
-
-const names = (given: string, family: string) => ({
-  en: { given, middle: "", family },
-  ar: { given: "سلامة", middle: "", family: "عشوش" },
-});
-
-async function refusal(call: Promise<unknown>) {
-  try {
-    await call;
-  } catch (error) {
-    return error;
-  }
-  throw new Error("The call succeeded but was expected to fail");
-}
 
 test("native clients authenticate without browser cookies and can revoke sessions", async () => {
   const api = await apiAs("admin");

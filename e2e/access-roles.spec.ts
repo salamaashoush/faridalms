@@ -3,18 +3,10 @@ import { expect, test } from "@playwright/test";
 import type { Api } from "./fixtures/api";
 
 import { apiAs, signedInApi } from "./fixtures/api";
+import { names, refusal } from "./fixtures/school";
 import { PASSWORD, signIn, untilHydrated } from "./fixtures/sign-in";
 
 const ACCOUNT_PASSWORD = "clerk-passphrase-2026-salama";
-
-async function refusal(call: Promise<unknown>) {
-  try {
-    await call;
-  } catch (error) {
-    return error;
-  }
-  throw new Error("The call succeeded but was expected to fail");
-}
 
 /** A new teacher with a password of their own, as the office would add one. */
 async function newTeacher(admin: Api, label: string) {
@@ -22,10 +14,7 @@ async function newTeacher(admin: Api, label: string) {
   const email = `${label}-${suffix}@northwind.example.com`;
   const family = `Ashoush ${label} ${suffix}`;
   const { id } = await admin.people.saveStaff({
-    names: {
-      en: { given: "Salama", middle: "", family },
-      ar: { given: "سلامة", middle: "", family: "عشوش" },
-    },
+    names: names("Salama", family),
     email,
     roles: ["teacher"],
   });

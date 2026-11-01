@@ -1,154 +1,130 @@
-import type { APIRequestContext, Page } from "@playwright/test";
-
 import { expect, test } from "@playwright/test";
 
-const origin = "http://127.0.0.1:3001";
+import { apiAs, signedInApi } from "./fixtures/api";
+import { newStudent, refusal } from "./fixtures/school";
+import { ACCOUNTS, openWith, signIn, untilHydrated } from "./fixtures/sign-in";
 
-async function signIn(request: APIRequestContext, email: string) {
-  const response = await request.post(`${origin}/v1/auth/signIn`, {
-    data: { school: "northwind", email, password: "northwind1234" },
-  });
-  expect(response.status()).toBe(200);
-  const session = (await response.json()) as { token: string };
-  return { authorization: `Bearer ${session.token}` };
-}
+const NOBODY = "00000000-0000-4000-8000-000000000000";
 
-async function whoAmI(
-  request: APIRequestContext,
-  headers: Record<string, string>,
-) {
-  const response = await request.post(`${origin}/v1/auth/currentUser`, {
-    headers,
-  });
-  expect(response.status()).toBe(200);
-  return (await response.json()) as { id: string };
-}
-
-function person(
-  request: APIRequestContext,
-  headers: Record<string, string>,
-  id: string,
-) {
-  return request.post(`${origin}/v1/getPerson`, { headers, data: { id } });
-}
-
-async function login(page: Page, email: string) {
-  await page.goto("/sign-in");
-  await page
-    .getByRole("textbox", { name: "Email or sign-in name" })
-    .fill(email);
-  await page
-    .getByRole("textbox", { name: "Password", exact: true })
-    .fill("northwind1234");
-  await page.getByRole("button", { name: "Sign In", exact: true }).click();
-  await expect(page.locator("main#main")).toBeVisible();
-}
-
-test("people are reachable through shared classes, related students and conversations only", async ({
-  request,
-}) => {
-  const admin = await signIn(request, "admin@example.com");
-  const teacherByEmail = async (email: string) => {
-    const response = await request.post(`${origin}/v1/getAllUsers`, {
-      headers: admin,
-      data: { role: "teacher", q: email },
-    });
-    expect(response.status()).toBe(200);
-    const staff = (await response.json()) as {
-      rows: { id: string; email: string }[];
-    };
-    return staff.rows.find((row) => row.email === email);
-  };
-  const norhan = await teacherByEmail("teacher@example.com");
-  const sara = await teacherByEmail("sara@example.com");
-  if (!norhan || !sara) throw new Error("Missing seeded teachers");
-
-  const parent = await signIn(request, "parent@example.com");
-  const learner = await signIn(request, "omar@example.com");
-  const teacher = await signIn(request, "teacher@example.com");
-  const [guardian, omar] = await Promise.all([
-    whoAmI(request, parent),
-    whoAmI(request, learner),
+test("people are reachable through the students a viewer teaches or is linked to, and only those", async () => {
+  const [admin, teacher, learner, parent] = await Promise.all([
+    apiAs("admin"),
+    apiAs("teacher"),
+    apiAs("student"),
+    apiAs("parent"),
   ]);
-
-  const parentSeesNorhan = await person(request, parent, norhan.id);
-  expect(parentSeesNorhan.status()).toBe(200);
-  expect(await parentSeesNorhan.json()).toMatchObject({
-    profile: {
-      role: "teacher",
-      contact: { email: "teacher@example.com" },
-      teaching: expect.arrayContaining([
-        expect.objectContaining({
-          className: "PreKG-A",
-          subject: null,
-          canOpen: true,
-        }),
-      ]),
-    },
-    access: { self: false, manage: false },
-  });
-  expect((await person(request, parent, sara.id)).status()).toBe(200);
-
-  const teacherSeesGuardian = await person(request, teacher, guardian.id);
-  expect(teacherSeesGuardian.status()).toBe(200);
-  const guardianProfile = (await teacherSeesGuardian.json()) as {
-    profile: { children: { fullName: string; relation: string }[] };
-  };
-  expect(guardianProfile.profile.children).toEqual([
-    expect.objectContaining({ fullName: "Ali Ashoush", relation: "father" }),
+  const [teacherMe, learnerMe, parentMe] = await Promise.all([
+    teacher.identity.currentUser(),
+    learner.identity.currentUser(),
+    parent.identity.currentUser(),
   ]);
-  expect((await person(request, teacher, omar.id)).status()).toBe(404);
+  const [teacherId, learnerId, parentId] = [
+    teacherMe.id,
+    learnerMe.id,
+    parentMe.id,
+  ];
 
-  expect((await person(request, learner, sara.id)).status()).toBe(200);
-  expect((await person(request, learner, norhan.id)).status()).toBe(404);
-  const self = await person(request, learner, omar.id);
-  expect(self.status()).toBe(200);
-  expect(await self.json()).toMatchObject({
-    access: { self: true },
-    profile: { student: { fullName: "Omar Ashoush" } },
+  const homeroom = (await teacher.classes.mine({})).rows.find(
+    (row) => row.classType === "homeroom",
+  );
+  if (!homeroom) throw new Error("the seeded teacher keeps no homeroom");
+  const taught = (await teacher.classes.record({ id: homeroom.id })).roster[0];
+  if (!taught) throw new Error("the seeded homeroom has no students");
+  const guardian = (await admin.people.student({ id: taught.userId }))
+    .guardians?.[0];
+  if (!guardian) throw new Error("the seeded student has no guardian");
+
+  const seen = await teacher.people.person({ id: guardian.userId });
+  expect(seen.access).toMatchObject({ self: false, manage: false });
+  expect(seen.children).toContainEqual(
+    expect.objectContaining({ studentId: taught.userId }),
+  );
+
+  const stranger = await newStudent(
+    admin,
+    `Ashoush ${crypto.randomUUID().slice(0, 6)}`,
+  );
+  const strangerGuardian = (await admin.people.student({ id: stranger.id }))
+    .guardians?.[0];
+  if (!strangerGuardian) throw new Error("the new student has no guardian");
+  expect(
+    await refusal(teacher.people.person({ id: stranger.id })),
+  ).toMatchObject({ code: "NOT_FOUND" });
+  expect(
+    await refusal(teacher.people.person({ id: strangerGuardian.userId })),
+  ).toMatchObject({ code: "NOT_FOUND" });
+
+  const ownClass = (await admin.people.students({ q: "NO1007" })).rows[0]
+    ?.homeroom?.classId;
+  if (!ownClass) throw new Error("the seeded student has no homeroom");
+  const keeping = await admin.classes.record({ id: ownClass });
+  const theirTeachers = new Set([
+    ...keeping.teachers.map((row) => row.userId),
+    ...keeping.subjects.flatMap((row) => row.teachers.map((one) => one.userId)),
+  ]);
+  const notTheirs = (await admin.people.staff({ role: ["teacher"] })).rows.find(
+    (row) => !theirTeachers.has(row.id),
+  );
+  if (!notTheirs) throw new Error("every seeded teacher teaches 8A");
+  expect(
+    await refusal(learner.people.person({ id: notTheirs.id })),
+  ).toMatchObject({ code: "NOT_FOUND" });
+  const self = await learner.people.person({ id: learnerId });
+  expect(self.access.self).toBe(true);
+  expect(self.roles.map((role) => role.role)).toContain("student");
+
+  const family = await parent.people.person({ id: parentId });
+  expect(family.access).toMatchObject({ self: true, manage: false });
+  expect(family.children.length).toBeGreaterThan(0);
+  expect(
+    await refusal(parent.people.person({ id: guardian.userId })),
+  ).toMatchObject({ code: "NOT_FOUND" });
+
+  const office = await admin.people.person({ id: guardian.userId });
+  expect(office.access.manage).toBe(true);
+  expect(office.contacts?.length).toBeGreaterThan(0);
+  expect(office.children.map((child) => child.studentId)).toContain(
+    taught.userId,
+  );
+  expect(await refusal(admin.people.person({ id: NOBODY }))).toMatchObject({
+    code: "NOT_FOUND",
   });
-
-  const adminSeesGuardian = await person(request, admin, guardian.id);
-  expect(adminSeesGuardian.status()).toBe(200);
-  const fullGuardian = (await adminSeesGuardian.json()) as {
-    profile: { contact: { email: string }; children: { fullName: string }[] };
-    access: { manage: boolean };
-  };
-  expect(fullGuardian.profile.contact.email).toBe("parent@example.com");
-  expect(fullGuardian.access.manage).toBe(true);
-  expect(
-    fullGuardian.profile.children.map((child) => child.fullName).toSorted(),
-  ).toEqual(["Ali Ashoush", "Omar Ashoush"]);
-  expect(
-    (
-      await person(request, admin, "00000000-0000-4000-8000-000000000000")
-    ).status(),
-  ).toBe(404);
+  expect(teacherId).not.toBe(guardian.userId);
 });
 
-test("families move between student, class and person records without losing their place", async ({
+test("staff move between class, student and person records without losing their place", async ({
   page,
 }) => {
-  await login(page, "parent@example.com");
-  await page.goto("/family/children");
+  await signIn(page, "teacher");
+  await page.goto("/teach/classes");
+  await untilHydrated(page);
   await page
-    .getByRole("link", { name: "Ali Ashoush PreKG-A", exact: true })
+    .getByRole("table")
+    .getByRole("link", { name: "7A", exact: true })
     .click();
+  await expect(page).toHaveURL(/\/classes\/[a-f0-9-]+/);
+  const classUrl = page.url().split("?")[0] ?? "";
+  await expect(
+    page.getByRole("heading", { level: 1, name: "7A", exact: true }),
+  ).toBeVisible();
+
+  await page.getByRole("tab", { name: "Students", exact: true }).click();
+  await expect(page).toHaveURL(/tab=students/);
+  const pupil = page
+    .getByRole("region", { name: "Students" })
+    .getByRole("link")
+    .first();
+  const pupilName = (await pupil.innerText()).trim();
+  await pupil.click();
   await expect(page).toHaveURL(/\/students\/[a-f0-9-]+/);
   await expect(
-    page.getByRole("heading", { name: "Ali Ashoush", exact: true }),
+    page.getByRole("heading", { level: 1, name: pupilName }),
   ).toBeVisible();
 
   await page.getByRole("tab", { name: "Attendance", exact: true }).click();
   await expect(page).toHaveURL(/tab=attendance/);
-  await expect(
-    page.getByRole("heading", { name: "Daily record", exact: true }),
-  ).toBeVisible();
   await page.getByRole("tab", { name: "Coursework", exact: true }).click();
   await expect(page).toHaveURL(/tab=coursework/);
-  await expect(
-    page.getByRole("heading", { name: "Results", exact: true }),
-  ).toBeVisible();
   await page.reload();
   await expect(
     page.getByRole("tab", { name: "Coursework", exact: true }),
@@ -156,16 +132,17 @@ test("families move between student, class and person records without losing the
 
   await page.getByRole("tab", { name: "Family", exact: true }).click();
   await expect(page).toHaveURL(/tab=family/);
-  await page.getByRole("link", { name: "Salama Ashoush", exact: true }).click();
+  const parentLink = page.getByRole("tabpanel").getByRole("link").first();
+  const parentName = (await parentLink.innerText()).trim();
+  await parentLink.click();
   await expect(page).toHaveURL(/\/people\/[a-f0-9-]+/);
   await expect(
-    page.getByRole("heading", { name: "Salama Ashoush", exact: true }),
+    page.getByRole("heading", { level: 1, name: parentName }),
   ).toBeVisible();
   await expect(
-    page.getByRole("link", { name: "Omar Ashoush", exact: true }),
-  ).toBeVisible();
-  await expect(
-    page.getByRole("link", { name: "Notification preferences" }),
+    page
+      .getByRole("region", { name: "Linked students" })
+      .getByRole("link", { name: pupilName }),
   ).toBeVisible();
 
   await page.goBack();
@@ -174,57 +151,33 @@ test("families move between student, class and person records without losing the
     page.getByRole("tab", { name: "Family", exact: true }),
   ).toHaveAttribute("aria-selected", "true");
 
+  await page.getByRole("tab", { name: "Enrollment", exact: true }).click();
+  await expect(page).toHaveURL(/tab=enrollment/);
   await page
-    .getByRole("link", { name: "PreKG-A", exact: true })
+    .getByRole("tabpanel")
+    .getByRole("link", { name: "7A", exact: true })
     .first()
     .click();
   await expect(page).toHaveURL(/\/classes\/[a-f0-9-]+/);
-  await expect(
-    page.getByRole("heading", { name: "Teaching team", exact: true }),
-  ).toBeVisible();
-  await page
-    .getByRole("link", { name: "Norhan Elsaraf", exact: true })
-    .first()
-    .click();
+  const colleague = page
+    .getByRole("region", { name: "Teachers" })
+    .getByRole("link")
+    .first();
+  const colleagueName = (await colleague.innerText()).trim();
+  await colleague.click();
   await expect(page).toHaveURL(/\/people\/[a-f0-9-]+/);
   await expect(
-    page.getByRole("heading", { name: "Norhan Elsaraf", exact: true }),
+    page.getByRole("heading", { level: 1, name: colleagueName }),
   ).toBeVisible();
-  await expect(
-    page.getByText("Homeroom teacher", { exact: true }).first(),
-  ).toBeVisible();
-  await expect(
-    page.getByRole("link", { name: "Notification preferences" }),
-  ).toHaveCount(0);
 
-  await page
-    .getByRole("link", { name: "PreKG-A", exact: true })
-    .first()
-    .click();
-  await expect(page).toHaveURL(/\/classes\/[a-f0-9-]+/);
-  await page.getByRole("tab", { name: "Attendance", exact: true }).click();
-  await expect(page).toHaveURL(/tab=attendance/);
-  await expect(
-    page.getByRole("link", { name: "Ali Ashoush", exact: true }),
-  ).toBeVisible();
-  await expect(
-    page.getByRole("link", { name: "Omar Ashoush", exact: true }),
-  ).toHaveCount(0);
-  await page.getByRole("tab", { name: "Assignments", exact: true }).click();
-  await expect(page).toHaveURL(/tab=coursework/);
-  await expect(
-    page.getByRole("heading", { name: "Assignments", exact: true }),
-  ).toBeVisible();
-  await page.getByRole("tab", { name: "Timetable", exact: true }).click();
-  await expect(page).toHaveURL(/tab=timetable/);
+  await page.goto(`${classUrl}?tab=timetable`);
+  await untilHydrated(page);
   await page.reload();
   await expect(
     page.getByRole("tab", { name: "Timetable", exact: true }),
   ).toHaveAttribute("aria-selected", "true");
 
-  const missing = await page.goto(
-    "/people/00000000-0000-4000-8000-000000000000",
-  );
+  const missing = await page.goto(`/people/${NOBODY}`);
   expect(missing?.status()).toBe(404);
   await expect(
     page.getByRole("heading", { name: "Page not found", exact: true }),
@@ -233,8 +186,18 @@ test("families move between student, class and person records without losing the
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goBack();
   await expect(page).toHaveURL(/tab=timetable/);
-  await page.getByRole("button", { name: "Change language" }).click();
-  await page.getByRole("menuitem", { name: "العربية" }).click();
+  await untilHydrated(page);
+  await page.getByRole("button", { name: "Open menu", exact: true }).click();
+  const language = page.getByRole("menuitem", { name: "Language" });
+  const arabic = page.getByRole("menuitem", { name: "العربية" });
+  await openWith(
+    page.getByRole("button", { name: "Account", exact: true }),
+    language,
+  );
+  await openWith(language, arabic);
+  // The submenu moves while it opens, so the item is chosen from the keyboard
+  // rather than by a pointer that crosses its trigger on the way.
+  await arabic.press("Enter");
   await expect(page.locator("html")).toHaveAttribute("dir", "rtl");
   await expect(page.getByRole("tab", { selected: true })).toHaveText(
     "الجدول الدراسي",
@@ -246,28 +209,53 @@ test("families move between student, class and person records without losing the
   ).toBe(true);
 });
 
+test("a family's own record names each linked child and links nowhere that is not found", async ({
+  page,
+}) => {
+  const parent = await apiAs("parent");
+  const me = await parent.identity.currentUser();
+  const { children } = await parent.people.person({ id: me.id });
+  expect(children.length).toBeGreaterThan(0);
+  await signIn(page, "parent");
+  await untilHydrated(page);
+  await page.getByRole("button", { name: "Account", exact: true }).click();
+  await page.getByRole("menuitem", { name: "Your profile" }).click();
+  await expect(page).toHaveURL(new RegExp(`/people/${me.id}`));
+  const linked = page.getByRole("region", { name: "Linked students" });
+  await Promise.all(
+    children.map((child) =>
+      expect(linked).toContainText(child.fullNameEn ?? ""),
+    ),
+  );
+  const hrefs = await linked
+    .getByRole("link")
+    .evaluateAll((links) =>
+      links.map((link) => link.getAttribute("href") ?? ""),
+    );
+  const statuses = await Promise.all(
+    hrefs.map(async (href) => [href, (await page.request.get(href)).status()]),
+  );
+  for (const [href, status] of statuses)
+    expect(status, `${href} should open`).toBeLessThan(400);
+});
+
 test("a student reaches their own record from the user menu", async ({
   page,
 }) => {
-  await login(page, "omar@example.com");
-  await page.getByRole("button", { name: "User menu", exact: true }).click();
-  await page.getByRole("menuitem", { name: "My profile", exact: true }).click();
-  await expect(page).toHaveURL(/\/people\/[a-f0-9-]+/);
+  const { api } = await signedInApi(ACCOUNTS.student.email);
+  const me = await api.identity.currentUser();
+  await signIn(page, "student");
+  await untilHydrated(page);
+  await page.getByRole("button", { name: "Account", exact: true }).click();
+  await page.getByRole("menuitem", { name: "Your profile" }).click();
+  await expect(page).toHaveURL(new RegExp(`/people/${me.id}`));
   await expect(
-    page.getByRole("heading", { name: "Omar Ashoush", exact: true }),
+    page.getByRole("heading", { level: 1, name: me.nameEn ?? "" }),
   ).toBeVisible();
-  await page.getByRole("link", { name: /Omar Ashoush/ }).click();
-  await expect(page).toHaveURL(/\/students\/[a-f0-9-]+/);
-  await page.getByRole("tab", { name: "Coursework", exact: true }).click();
-  await expect(page).toHaveURL(/tab=coursework/);
-  await page.getByRole("link", { name: "P1-B", exact: true }).first().click();
-  await expect(page).toHaveURL(/\/classes\/[a-f0-9-]+/);
-  await page
-    .getByRole("link", { name: "Sara Mahmoud", exact: true })
-    .first()
-    .click();
-  await expect(page).toHaveURL(/\/people\/[a-f0-9-]+/);
+  await page.getByRole("tab", { name: "Account", exact: true }).click();
+  await expect(page).toHaveURL(/tab=account/);
+  await page.reload();
   await expect(
-    page.getByRole("heading", { name: "Sara Mahmoud", exact: true }),
-  ).toBeVisible();
+    page.getByRole("tab", { name: "Account", exact: true }),
+  ).toHaveAttribute("aria-selected", "true");
 });

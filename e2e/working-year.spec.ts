@@ -1,251 +1,265 @@
-import type { APIRequestContext } from "@playwright/test";
-
+import { teachingWeeks } from "@faridalms/domain/school";
 import { expect, test } from "@playwright/test";
-import { execFileSync } from "node:child_process";
 
-const origin = "http://127.0.0.1:3001/v1";
+import type { Api } from "./fixtures/api";
 
-async function signIn(request: APIRequestContext, email: string) {
-  const response = await request.post(`${origin}/auth/signIn`, {
-    data: { school: "northwind", email, password: "northwind1234" },
-  });
-  expect(response.status()).toBe(200);
-  const session = (await response.json()) as { token: string };
-  return { authorization: `Bearer ${session.token}` };
-}
+import { apiAs } from "./fixtures/api";
+import { newClass, newStudent, newYear, refusal } from "./fixtures/school";
+import { portal, signIn, untilHydrated } from "./fixtures/sign-in";
 
-interface Source {
-  yearId: string;
-  yearName: string;
-  classA: { id: string; name: string };
-  classB: { id: string; name: string };
-  students: Record<
-    "promoted" | "repeating" | "leaving",
-    { id: string; name: string }
-  >;
-}
+// Browser projects share one school and years may not overlap, so each
+// browser keeps years of its own. A year rolled from has to have begun.
+const ROLLED = {
+  chromium: {
+    from: {
+      title: "2016–2017 Salama",
+      startsOn: "2016-09-11",
+      endsOn: "2017-06-15",
+    },
+    to: {
+      title: "2071–2072 Salama",
+      startsOn: "2071-09-06",
+      endsOn: "2072-06-16",
+    },
+  },
+  firefox: {
+    from: {
+      title: "2015–2016 Salama",
+      startsOn: "2015-09-13",
+      endsOn: "2016-06-16",
+    },
+    to: {
+      title: "2073–2074 Salama",
+      startsOn: "2073-09-03",
+      endsOn: "2074-06-14",
+    },
+  },
+  webkit: {
+    from: {
+      title: "2014–2015 Salama",
+      startsOn: "2014-09-14",
+      endsOn: "2015-06-11",
+    },
+    to: {
+      title: "2075–2076 Salama",
+      startsOn: "2075-09-08",
+      endsOn: "2076-06-18",
+    },
+  },
+} as const;
+const CLOSED = {
+  chromium: {
+    title: "2013–2014 Salama",
+    startsOn: "2013-09-08",
+    endsOn: "2014-06-12",
+  },
+  firefox: {
+    title: "2012–2013 Salama",
+    startsOn: "2012-09-09",
+    endsOn: "2013-06-13",
+  },
+  webkit: {
+    title: "2011–2012 Salama",
+    startsOn: "2011-09-11",
+    endsOn: "2012-06-14",
+  },
+} as const;
+const WIDENED = {
+  chromium: {
+    title: "2077–2078 Salama",
+    startsOn: "2077-09-05",
+    endsOn: "2078-06-15",
+    widened: "2078-07-15",
+  },
+  firefox: {
+    title: "2079–2080 Salama",
+    startsOn: "2079-09-03",
+    endsOn: "2080-06-13",
+    widened: "2080-07-13",
+  },
+  webkit: {
+    title: "2081–2082 Salama",
+    startsOn: "2081-09-07",
+    endsOn: "2082-06-17",
+    widened: "2082-07-17",
+  },
+} as const;
 
-function source(): Source {
-  return JSON.parse(
-    execFileSync("bun", ["e2e/fixtures/rollover-source.ts"], {
-      encoding: "utf8",
-    }),
-  ) as Source;
-}
-
-async function classes(
-  request: APIRequestContext,
-  headers: Record<string, string>,
-  year: string,
-  q = "",
-) {
-  return request.post(`${origin}/getAllClasses`, {
-    headers,
-    data: { year, q, pageSize: 48 },
-  });
-}
-
-async function placement(
-  request: APIRequestContext,
-  headers: Record<string, string>,
-  year: string,
-  studentName: string,
-) {
-  const response = await request.post(`${origin}/getAllStudents`, {
-    headers,
-    data: { year, q: studentName },
-  });
-  expect(response.status()).toBe(200);
-  const body = (await response.json()) as {
-    rows: { fullName: string; className: string | null }[];
-    year: { id: string };
-  };
+async function placement(api: Api, year: string, name: string) {
+  const listed = await api.people.students({ year, q: name });
   return {
-    year: body.year.id,
-    classes: body.rows
-      .filter((row) => row.fullName === studentName)
-      .map((row) => row.className),
+    year: listed.year?.id,
+    classes: listed.rows
+      .filter((row) => row.fullNameEn === name)
+      .map((row) => row.homeroom?.classId ?? null),
   };
 }
 
-test("directories answer for the requested year, refuse an unknown one and read placements on that year's dates", async ({
-  request,
+test("directories answer for the year asked, refuse an unknown one and place students on that year's dates", async ({
+  browserName,
 }) => {
-  const admin = await signIn(request, "admin@example.com");
-  const from = source();
-
-  const own = await classes(request, admin, from.yearId);
-  expect(own.status()).toBe(200);
-  const ownBody = (await own.json()) as {
-    rows: { id: string }[];
-    year: { id: string; isCurrent: boolean };
-  };
-  expect(ownBody.year).toMatchObject({ id: from.yearId, isCurrent: false });
-  expect(ownBody.rows.map((row) => row.id).toSorted()).toEqual(
-    [from.classA.id, from.classB.id].toSorted(),
+  const admin = await apiAs("admin");
+  const unique = crypto.randomUUID().slice(0, 6);
+  const years = ROLLED[browserName];
+  const source = await newYear(admin, years.from);
+  const [first, second] = await Promise.all([
+    newClass(admin, { yearId: source.id, title: `Salama A ${unique}` }),
+    newClass(admin, { yearId: source.id, title: `Salama B ${unique}` }),
+  ]);
+  const [promoted, other] = await Promise.all([
+    newStudent(admin, `Ashoush ${unique}`),
+    newStudent(admin, `Ashoush other ${unique}`),
+  ]);
+  await Promise.all(
+    [
+      { student: promoted, classId: first.id },
+      { student: other, classId: second.id },
+    ].map(({ student, classId }) =>
+      admin.classes.enrol({
+        studentId: student.id,
+        classId,
+        from: years.from.startsOn,
+      }),
+    ),
   );
-  const current = (await (
-    await classes(request, admin, "", from.classA.name)
-  ).json()) as { rows: { id: string }[]; year: { isCurrent: boolean } };
-  expect(current.year.isCurrent).toBe(true);
-  expect(current.rows).toEqual([]);
-  expect((await classes(request, admin, crypto.randomUUID())).status()).toBe(
-    404,
+
+  const own = await admin.classes.directory({ year: source.id });
+  expect(own.year).toMatchObject({ id: source.id, lifecycle: "upcoming" });
+  expect(own.rows.map((row) => row.id).toSorted()).toEqual(
+    [first.id, second.id].toSorted(),
   );
-
-  const target = await request.post(`${origin}/saveAcademicYear`, {
-    headers: admin,
-    data: {
-      name: `W${crypto.randomUUID().slice(0, 8)}`,
-      startsOn: "2057-09-01",
-      endsOn: "2058-06-30",
-    },
-  });
-  const { id: targetId } = (await target.json()) as { id: string };
-  const query = { sourceYearId: from.yearId, targetYearId: targetId };
-  const preview = (await (
-    await request.post(`${origin}/getRollover`, { headers: admin, data: query })
-  ).json()) as { plan: unknown };
+  const working = await admin.classes.directory({ q: first.title });
+  expect(working.year?.lifecycle).toBe("current");
+  expect(working.rows).toEqual([]);
   expect(
-    (
-      await request.post(`${origin}/saveRollover`, {
-        headers: admin,
-        data: { ...query, expectedRevision: 0, plan: preview.plan },
-      })
-    ).status(),
-  ).toBe(200);
-  expect(
-    (
-      await request.post(`${origin}/applyRollover`, {
-        headers: admin,
-        data: { ...query, expectedRevision: 1 },
-      })
-    ).status(),
-  ).toBe(200);
+    await refusal(admin.classes.directory({ year: crypto.randomUUID() })),
+  ).toMatchObject({ code: "NOT_FOUND" });
 
-  const name = from.students.promoted.name;
-  expect(await placement(request, admin, from.yearId, name)).toEqual({
-    year: from.yearId,
-    classes: [from.classA.name],
+  const target = await newYear(admin, years.to);
+  const query = { sourceYearId: source.id, targetYearId: target.id };
+  const preview = await admin.rollover.preview(query);
+  expect(preview.issue).toBeNull();
+  const saved = await admin.rollover.save({
+    ...query,
+    expectedVersion: preview.version,
+    plan: preview.plan,
   });
-  expect(await placement(request, admin, targetId, name)).toEqual({
-    year: targetId,
-    classes: [from.classA.name],
+  const outcome = await admin.rollover.apply({
+    ...query,
+    expectedVersion: saved.version,
   });
-  expect((await placement(request, admin, "", name)).classes).toEqual([null]);
+  const successor = outcome.classes.find(
+    (row) =>
+      row.key ===
+      preview.plan.classes.find((plan) => plan.sourceClassId === first.id)?.key,
+  )?.classId;
+  if (!successor) throw new Error("the rollover made no class from A");
 
-  await request.post(`${origin}/setAcademicYearStatus`, {
-    headers: admin,
-    data: {
-      id: from.yearId,
-      expectedRevision: 1,
-      status: "closed",
-      reason: "",
-    },
+  expect(await placement(admin, source.id, promoted.name)).toEqual({
+    year: source.id,
+    classes: [first.id],
   });
-  const closedClass = (await (
-    await request.post(`${origin}/getClass`, {
-      headers: admin,
-      data: { id: from.classA.id },
-    })
-  ).json()) as {
-    schoolYearStatus: string;
-    schoolYearIsCurrent: boolean;
-    canManage: boolean;
-    canRecordAttendance: boolean;
-  };
-  expect(closedClass).toMatchObject({
-    schoolYearStatus: "closed",
-    schoolYearIsCurrent: false,
-    canManage: false,
-    canRecordAttendance: false,
+  expect(await placement(admin, target.id, promoted.name)).toEqual({
+    year: target.id,
+    classes: [successor],
+  });
+  expect((await placement(admin, "", promoted.name)).classes).toEqual([null]);
+
+  const { years: listed } = await admin.years.directory();
+  const version = listed.find((row) => row.id === source.id)?.version;
+  if (version === undefined) throw new Error("the source year is not listed");
+  await admin.years.lifecycle({
+    id: source.id,
+    expectedVersion: version,
+    action: "close",
+  });
+  expect(await admin.classes.record({ id: first.id })).toMatchObject({
+    year: { id: source.id, lifecycle: "closed" },
+    access: { manage: false, enrol: false },
   });
 });
 
-test("administrators switch the working year in the class directory and keep it in the address", async ({
+test("administrators switch the school year in the class directory and keep it in the address", async ({
   page,
-  request,
+  context,
+  browserName,
 }) => {
-  const admin = await signIn(request, "admin@example.com");
-  const from = source();
-  const years = (await (
-    await request.post(`${origin}/getAcademicYears`, { headers: admin })
-  ).json()) as { id: string; revision: number }[];
-  const revision = years.find((year) => year.id === from.yearId)?.revision;
-  expect(
-    (
-      await request.post(`${origin}/setAcademicYearStatus`, {
-        headers: admin,
-        data: {
-          id: from.yearId,
-          expectedRevision: revision,
-          status: "closed",
-          reason: "",
-        },
-      })
-    ).status(),
-  ).toBe(200);
+  const admin = await apiAs("admin");
+  const year = CLOSED[browserName];
+  const created = await newYear(admin, year);
+  const kept = await newClass(admin, {
+    yearId: created.id,
+    title: `Salama closed ${crypto.randomUUID().slice(0, 6)}`,
+  });
+  const { years } = await admin.years.directory();
+  const version = years.find((row) => row.id === created.id)?.version;
+  if (version === undefined) throw new Error("the year is not listed");
+  await admin.years.lifecycle({
+    id: created.id,
+    expectedVersion: version,
+    action: "close",
+  });
 
-  await page.goto("/sign-in");
-  await page
-    .getByRole("textbox", { name: "Email or sign-in name" })
-    .fill("admin@example.com");
-  await page
-    .getByRole("textbox", { name: "Password", exact: true })
-    .fill("northwind1234");
-  await page.getByRole("button", { name: "Sign In", exact: true }).click();
-  await expect(page.locator("main#main")).toBeVisible();
+  await signIn(page, "admin");
   await page.goto("/admin/classes");
+  await untilHydrated(page);
   await expect(
     page.getByRole("heading", { level: 1, name: "Classes" }),
   ).toBeVisible();
   await expect(
-    page.getByRole("button", { name: "Create class", exact: true }),
+    page.getByRole("link", { name: "Add class", exact: true }),
   ).toBeVisible();
-  await page.getByRole("combobox", { name: "School year" }).click();
+  await page.getByRole("button", { name: /^School year/ }).click();
   await page
-    .getByRole("option", { name: `${from.yearName} · Closed`, exact: true })
+    .getByRole("menuitemradio", { name: new RegExp(`^${year.title}`) })
     .click();
-  await expect(page).toHaveURL(new RegExp(`year=${from.yearId}`));
-  await expect(page.getByText(from.classA.name, { exact: true })).toBeVisible();
+  await expect(page).toHaveURL(new RegExp(`year=${created.id}`));
   await expect(
-    page.getByRole("button", { name: "Create class", exact: true }),
+    page.getByRole("table").getByRole("link", { name: kept.title }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("link", { name: "Add class", exact: true }),
   ).toHaveCount(0);
   await expect(
-    page.getByRole("button", { name: `Edit ${from.classA.name}` }),
+    page.getByRole("button", { name: `Actions for ${kept.title}` }),
   ).toHaveCount(0);
   await page.reload();
-  await expect(page.getByText(from.classA.name, { exact: true })).toBeVisible();
-
-  await page.goto(`/classes/${from.classA.id}`);
   await expect(
-    page.getByText(`${from.yearName} · Closed · not the default year`),
+    page.getByRole("table").getByRole("link", { name: kept.title }),
   ).toBeVisible();
-  await expect(page.getByRole("link", { name: "Edit class" })).toHaveCount(0);
+
+  await page.getByRole("table").getByRole("link", { name: kept.title }).click();
+  await expect(page).toHaveURL(new RegExp(`/classes/${kept.id}`));
+  await expect(page.getByText("Year closed", { exact: true })).toBeVisible();
+  await expect(page.getByText(year.title).first()).toBeVisible();
   await expect(
-    page.getByRole("link", { name: "Record attendance" }),
+    page
+      .getByRole("button", { name: "Edit class", exact: true })
+      .or(page.getByRole("link", { name: "Edit class", exact: true })),
   ).toHaveCount(0);
   await page.goBack();
-  await expect(page).toHaveURL(new RegExp(`year=${from.yearId}`));
-  await expect(page.getByText(from.classA.name, { exact: true })).toBeVisible();
+  await expect(page).toHaveURL(new RegExp(`year=${created.id}`));
+  await expect(
+    page.getByRole("table").getByRole("link", { name: kept.title }),
+  ).toBeVisible();
 
   await page.goto(`/admin/classes?year=${crypto.randomUUID()}`);
   await expect(page.getByText("Page not found")).toBeVisible();
 
   await page.setViewportSize({ width: 390, height: 844 });
-  await page
-    .context()
-    .addCookies([
-      { name: "language-tag", value: "ar", domain: "127.0.0.1", path: "/" },
-    ]);
+  await context.addCookies([
+    { name: "language-tag", value: "ar", url: portal() },
+  ]);
   await page.goto("/admin/academic-years");
   await expect(page.locator("html")).toHaveAttribute("dir", "rtl");
-  const card = page.locator("article", {
-    has: page.getByRole("heading", { name: from.yearName, exact: true }),
-  });
+  const card = page
+    .getByRole("listitem")
+    .filter({ has: page.getByRole("link", { name: year.title, exact: true }) });
   await expect(card.getByText("مغلق", { exact: true })).toBeVisible();
-  await page.goto(`/admin/classes?year=${from.yearId}`);
-  await expect(page.getByText(from.classA.name, { exact: true })).toBeVisible();
+  await page.goto(`/admin/classes?year=${created.id}`);
+  await expect(
+    page.getByRole("link", { name: kept.title }).first(),
+  ).toBeVisible();
   expect(
     await page.evaluate(
       () => document.documentElement.scrollWidth <= window.innerWidth,
@@ -253,70 +267,41 @@ test("administrators switch the working year in the class directory and keep it 
   ).toBe(true);
 });
 
-test("a new year gets teaching weeks covering its dates and the overview counts only the default year", async ({
-  request,
+test("a new year gets teaching weeks covering its dates and the home page counts only the working year", async ({
+  browserName,
 }) => {
-  const admin = await signIn(request, "admin@example.com");
-  const created = await request.post(`${origin}/saveAcademicYear`, {
-    headers: admin,
-    data: {
-      name: `K${crypto.randomUUID().slice(0, 8)}`,
-      startsOn: "2059-09-01",
-      endsOn: "2060-06-30",
-    },
-  });
-  expect(created.status()).toBe(200);
-  const year = (await created.json()) as {
-    id: string;
-    name: string;
-    revision: number;
-  };
-  const read = async () =>
-    (await (
-      await request.post(`${origin}/getAcademicYear`, {
-        headers: admin,
-        data: { id: year.id },
-      })
-    ).json()) as {
-      revision: number;
-      weeks: { id: string; number: number; startsOn: string; endsOn: string }[];
-    };
-  const before = await read();
-  expect(before.weeks[0]).toMatchObject({ number: 1, startsOn: "2059-09-01" });
-  expect(before.weeks.at(-1)?.endsOn).toBe("2060-06-30");
-  const extended = await request.post(`${origin}/saveAcademicYear`, {
-    headers: admin,
-    data: {
-      id: year.id,
-      expectedRevision: before.revision,
-      name: year.name,
-      startsOn: "2059-09-01",
-      endsOn: "2060-07-15",
-    },
-  });
-  expect(extended.status()).toBe(200);
-  const after = await read();
-  const lastBefore = before.weeks.at(-1);
-  expect(after.weeks.slice(0, before.weeks.length - 1)).toEqual(
-    before.weeks.slice(0, -1),
+  const admin = await apiAs("admin");
+  const year = WIDENED[browserName];
+  const { weekStart } = await admin.school.profile();
+  const { id } = await newYear(admin, year);
+  const before = await admin.years.record({ id });
+  expect(before.calendar.weeks).toBe(
+    teachingWeeks(year.startsOn, year.endsOn, 1, weekStart).length,
   );
-  expect(after.weeks[before.weeks.length - 1]).toMatchObject({
-    id: lastBefore?.id,
-    number: lastBefore?.number,
-    startsOn: lastBefore?.startsOn,
-    endsOn: "2060-07-03",
+  await admin.years.save({
+    id,
+    expectedVersion: before.version,
+    titleEn: year.title,
+    titleAr: year.title,
+    startsOn: year.startsOn,
+    endsOn: year.widened,
+    terms: [],
   });
-  expect(after.weeks.at(-1)).toMatchObject({
-    number: before.weeks.length + 2,
-    endsOn: "2060-07-15",
-  });
+  const after = await admin.years.record({ id });
+  expect(after.calendar.weeks).toBe(
+    teachingWeeks(year.startsOn, year.widened, 1, weekStart).length,
+  );
+  expect(after.calendar.weeks).toBeGreaterThan(before.calendar.weeks);
 
-  source();
-  const overview = (await (
-    await request.post(`${origin}/getAdminOverview`, { headers: admin })
-  ).json()) as { stats: { classes: number } };
-  const directory = (await (await classes(request, admin, "")).json()) as {
-    total: number;
-  };
-  expect(overview.stats.classes).toBe(directory.total);
+  await newClass(admin, {
+    yearId: id,
+    title: `Salama unstaffed ${crypto.randomUUID().slice(0, 6)}`,
+  });
+  const [home, directory] = await Promise.all([
+    admin.home.admin(),
+    admin.classes.directory({}),
+  ]);
+  expect(home.homerooms).toBe(
+    directory.rows.filter((row) => row.teachers.length === 0).length,
+  );
 });
