@@ -41,6 +41,7 @@ import {
   saveTranslation,
   snapshotPublish,
 } from "./stores/documents";
+import { openEnquiryConversation } from "./stores/enquiries";
 import {
   insertLesson,
   insertModule,
@@ -48,6 +49,7 @@ import {
   setModuleClasses,
   setModuleState,
 } from "./stores/learning";
+import { postMessage } from "./stores/messages";
 import { addPostRecipients, insertPost, setPostState } from "./stores/news";
 import { insertDeliveries, insertNotifications } from "./stores/notifications";
 import { setOrgFeature } from "./stores/school";
@@ -97,7 +99,6 @@ import {
   orgs,
   periodGrades,
   siteEnquiries,
-  siteEnquiryEntries,
   rubrics,
   studentSchoolYears,
   submissionAttempts,
@@ -2376,6 +2377,26 @@ async function seedMessages(
     await tx.insert(threadMembers).values(members.slice(index, index + 200));
   for (let index = 0; index < posts.length; index += 200)
     await tx.insert(messages).values(posts.slice(index, index + 200));
+  // What each message says is its document, as the composer saves it.
+  const written = await tx.execute<{
+    id: string;
+    body: string;
+    author_user_id: string | null;
+  }>(sql`
+    select x.id, x.body, x.author_user_id from core.messages x
+    join core.message_threads t on t.tenant_id = x.tenant_id and t.id = x.thread_id
+    where x.tenant_id = ${tenantId}::uuid and t.org_id = ${schoolId}::uuid`);
+  for (const row of written)
+    await saveDocument(tx, {
+      tenantId,
+      orgId: schoolId,
+      host: { type: "message", id: row.id },
+      content: plainContent(row.body) as unknown as Record<string, unknown>,
+      plainText: row.body,
+      mediaIds: [],
+      userId: row.author_user_id,
+      frozen: true,
+    });
   // Messages take the moment they are written; whoever had read them has
   // read them as written.
   await tx.execute(sql`
@@ -3202,25 +3223,44 @@ async function seedEnquiries(
       firstRespondedAt: sql`statement_timestamp()`,
     },
   ]);
-  const [called] = await tx
-    .select({ id: siteEnquiries.id })
+  // Every enquiry, the website's included, has its conversation in the
+  // admissions mailbox, as the API gives one when an enquiry arrives.
+  const all = await tx
+    .select({ id: siteEnquiries.id, source: siteEnquiries.source })
     .from(siteEnquiries)
     .where(
       and(
         eq(siteEnquiries.tenantId, tenantId),
         eq(siteEnquiries.orgId, schoolId),
-        eq(siteEnquiries.source, "phone"),
       ),
     );
-  if (called)
-    await tx.insert(siteEnquiryEntries).values({
+  for (const enquiry of all) {
+    const threadId = await openEnquiryConversation(tx, {
       tenantId,
-      orgId: schoolId,
-      enquiryId: called.id,
-      kind: "call",
-      body: "Called back. They can visit on a Tuesday morning; offered 10:00.",
-      authorUserId: officeId,
+      enquiryId: enquiry.id,
     });
+    if (threadId && enquiry.source === "phone") {
+      const words =
+        "Called back. They can visit on a Tuesday morning; offered 10:00.";
+      const call = await postMessage(tx, {
+        tenantId,
+        threadId,
+        kind: "call",
+        authorId: officeId,
+        body: words,
+      });
+      await saveDocument(tx, {
+        tenantId,
+        orgId: schoolId,
+        host: { type: "message", id: call.id },
+        content: plainContent(words) as unknown as Record<string, unknown>,
+        plainText: words,
+        mediaIds: [],
+        userId: officeId,
+        frozen: true,
+      });
+    }
+  }
 }
 
 async function seedSite(

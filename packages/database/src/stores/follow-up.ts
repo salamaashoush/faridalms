@@ -149,6 +149,12 @@ export interface ContactRow {
   at: string;
 }
 
+/**
+ * The calls the office logged on a day about children's absences. A call
+ * is a logged contact in the attendance office's conversation with the
+ * child's family, so it is read from there with the rest of that
+ * conversation, as Messages shows it.
+ */
 export async function contactsOn(
   tx: Tx,
   input: { tenantId: string; schoolId: string; day: string },
@@ -157,49 +163,30 @@ export async function contactsOn(
     id: string;
     student_user_id: string;
     outcome: ContactOutcome;
-    note: string | null;
+    note: string;
     by_en: string | null;
     by_ar: string | null;
     at: string;
   }>(sql`
-    select a.id, a.student_user_id, a.outcome, a.note, u.full_name_en as by_en,
-           u.full_name_ar as by_ar, ${isoOf(sql`a.created_at`)} as at
-    from core.attendance_contacts a
-    join core.users u on u.tenant_id = a.tenant_id and u.id = a.recorded_by_user_id
-    where a.tenant_id = ${input.tenantId}::uuid and a.org_id = ${input.schoolId}::uuid
-      and a.day_on = ${input.day}::date and a.status = 'active'
-    order by a.created_at`);
+    select x.id, x.details ->> 'studentId' as student_user_id, x.details ->> 'outcome' as outcome,
+           x.body as note, u.full_name_en as by_en, u.full_name_ar as by_ar,
+           ${isoOf(sql`x.created_at`)} as at
+    from core.messages x
+    join core.message_threads t on t.tenant_id = x.tenant_id and t.id = x.thread_id
+      and t.mailbox = 'attendance' and t.org_id = ${input.schoolId}::uuid and t.status = 'active'
+    left join core.users u on u.tenant_id = x.tenant_id and u.id = x.author_user_id
+    where x.tenant_id = ${input.tenantId}::uuid and x.status = 'active' and x.kind = 'call'
+      and x.details ? 'studentId' and x.details ->> 'on' = ${input.day}
+    order by x.created_at`);
   return rows.map((row) => ({
     id: row.id,
     studentId: row.student_user_id,
     outcome: row.outcome,
-    note: row.note,
+    note: row.note || null,
     byNameEn: row.by_en,
     byNameAr: row.by_ar,
     at: row.at,
   }));
-}
-
-export async function insertContact(
-  tx: Tx,
-  input: {
-    tenantId: string;
-    schoolId: string;
-    studentId: string;
-    day: string;
-    outcome: ContactOutcome;
-    note: string | null;
-    actorId: string;
-  },
-): Promise<string> {
-  const [row] = await tx.execute<{ id: string }>(sql`
-    insert into core.attendance_contacts
-      (tenant_id, org_id, student_user_id, day_on, outcome, note, recorded_by_user_id)
-    values (${input.tenantId}::uuid, ${input.schoolId}::uuid, ${input.studentId}::uuid,
-      ${input.day}::date, ${input.outcome}, ${input.note}, ${input.actorId}::uuid)
-    returning id`);
-  if (!row) throw new Error("contact not inserted");
-  return row.id;
 }
 
 export interface OverdueRow {

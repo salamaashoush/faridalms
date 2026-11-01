@@ -80,6 +80,13 @@ select name, p.polname || ' lets retention change rows without an erasure approv
     and name not in ('core.tenant_keys', 'core.auth_attempts', 'core.lti_replays')
     and coalesce(pg_get_expr(p.polqual, p.polrelid), '') not like '%erasure_%'
 union all
+select name, 'names an outside contact without an erasure rule' from t
+  where name <> 'core.erasure_approvals'
+    and exists (select 1 from pg_constraint k where k.conrelid = t.oid and k.contype = 'f'
+      and k.confrelid = to_regclass('core.message_contacts'))
+    and not exists (select 1 from pg_policy p where p.polrelid = t.oid and p.polcmd in ('w', 'd')
+      and p.polroles @> array[(select oid from pg_roles where rolname = 'retention')])
+union all
 select name, k.conname || ' does not lead with tenant_id' from t
   join pg_constraint k on k.conrelid = t.oid and k.contype in ('p', 'u', 'x', 'f')
   where (select attname from pg_attribute where attrelid = t.oid and attnum = k.conkey[1]) <> 'tenant_id'

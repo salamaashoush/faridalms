@@ -75,12 +75,16 @@ export const partsFolder = (tenantId: string, fileId: string) =>
 export const partKey = (tenantId: string, fileId: string, part: number) =>
   `${partsFolder(tenantId, fileId)}/${part}`;
 
-/** Records an upload the person is about to send; the key is the server's. */
+/**
+ * Records an upload the person is about to send; the key is the server's.
+ * A file that arrived from outside, such as an email's attachment, has no
+ * uploader.
+ */
 export async function initiateFile(
   tx: Tx,
   input: {
     tenantId: string;
-    userId: string;
+    userId: string | null;
     /** The school the upload is made in. */
     orgId: string;
     purpose: FilePurpose;
@@ -182,6 +186,30 @@ export async function linkFiles(
       and status = 'active' and state = 'ready' and purpose = ${input.purpose}
       and ((host_id is null and uploaded_by_user_id = ${input.userId}::uuid)
         or (host_type = ${input.host.type} and host_id = ${input.host.id}::uuid))
+    returning id`);
+  return rows.map((row) => row.id);
+}
+
+/**
+ * Gives files that arrived from outside, which nobody uploaded, the record
+ * they came with, such as the message an email's attachments belong to.
+ */
+export async function hostArrivedFiles(
+  tx: Tx,
+  input: {
+    tenantId: string;
+    ids: readonly string[];
+    host: { type: string; id: string };
+  },
+): Promise<string[]> {
+  if (input.ids.length === 0) return [];
+  const rows = await tx.execute<{ id: string }>(sql`
+    update core.files
+    set host_type = ${input.host.type}, host_id = ${input.host.id}::uuid,
+        linked_at = coalesce(linked_at, statement_timestamp())
+    where tenant_id = ${input.tenantId}::uuid and id = any(${uuidArray(input.ids)})
+      and status = 'active' and state = 'ready' and uploaded_by_user_id is null
+      and host_id is null
     returning id`);
   return rows.map((row) => row.id);
 }

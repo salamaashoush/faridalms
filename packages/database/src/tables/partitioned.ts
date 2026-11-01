@@ -175,9 +175,13 @@ export const notificationDeliveries = core.table("notification_deliveries", {
   createdAt: instant("created_at")
     .notNull()
     .default(sql`statement_timestamp()`),
-  notificationId: uuid("notification_id").notNull(),
-  notificationCreatedAt: instant("notification_created_at").notNull(),
-  userId: uuid("user_id").notNull(),
+  // A delivery tells a person about a notification, or carries a message of
+  // a conversation to an outside contact, who has no notifications.
+  notificationId: uuid("notification_id"),
+  notificationCreatedAt: instant("notification_created_at"),
+  userId: uuid("user_id"),
+  contactId: uuid("contact_id"),
+  messageId: uuid("message_id"),
   channel: text("channel").$type<DeliveryChannel>().notNull(),
   address: text("address"),
   locale: text("locale").$type<"ar" | "en">().notNull(),

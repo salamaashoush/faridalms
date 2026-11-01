@@ -363,7 +363,8 @@ export interface DeliveryLogRow {
   lastError: string | null;
   kind: NotificationKind;
   title: string | null;
-  userId: string;
+  /** The person told; null for an outside contact a conversation wrote to. */
+  userId: string | null;
   fullNameEn: string | null;
   fullNameAr: string | null;
 }
@@ -383,15 +384,18 @@ export async function deliveryLog(
 ): Promise<{ rows: DeliveryLogRow[]; total: number }> {
   const q = input.q ? `%${input.q}%` : null;
   const filter = sql`d.tenant_id = ${input.tenantId}::uuid and d.status = 'active'
-    and n.org_id = ${input.orgId}::uuid
+    and coalesce(n.org_id, h.org_id) = ${input.orgId}::uuid
     and (${input.state} = 'all' or d.state = ${input.state})
     and (${input.channel} = 'all' or d.channel = ${input.channel})
     and (${q}::text is null or u.full_name_en ilike ${q} or u.full_name_ar ilike ${q}
-      or n.params ->> 'title' ilike ${q})`;
+      or c.display_name ilike ${q} or n.params ->> 'title' ilike ${q} or h.subject ilike ${q})`;
   const from = sql`core.notification_deliveries d
-    join core.notifications n on n.tenant_id = d.tenant_id and n.created_at = d.notification_created_at
-      and n.id = d.notification_id
-    join core.users u on u.tenant_id = d.tenant_id and u.id = d.user_id`;
+    left join core.notifications n on n.tenant_id = d.tenant_id
+      and n.created_at = d.notification_created_at and n.id = d.notification_id
+    left join core.users u on u.tenant_id = d.tenant_id and u.id = d.user_id
+    left join core.message_contacts c on c.tenant_id = d.tenant_id and c.id = d.contact_id
+    left join core.messages x on x.tenant_id = d.tenant_id and x.id = d.message_id
+    left join core.message_threads h on h.tenant_id = x.tenant_id and h.id = x.thread_id`;
   const [count] = await tx.execute<{ total: number }>(sql`
     select count(*)::int as total from ${from} where ${filter}`);
   const rows = await tx.execute<{
@@ -406,14 +410,16 @@ export async function deliveryLog(
     last_error: string | null;
     kind: NotificationKind;
     title: string | null;
-    user_id: string;
+    user_id: string | null;
     full_name_en: string | null;
     full_name_ar: string | null;
   }>(sql`
     select d.id, ${isoOf(sql`d.created_at`)} as created_at, d.channel, d.state, d.reason,
            ${isoOf(sql`d.due_at`)} as due_at, ${isoOf(sql`d.sent_at`)} as sent_at, d.attempts,
-           d.last_error, n.kind, n.params ->> 'title' as title, d.user_id,
-           u.full_name_en, u.full_name_ar
+           d.last_error, coalesce(n.kind, 'message') as kind,
+           coalesce(n.params ->> 'title', h.subject) as title, d.user_id,
+           coalesce(u.full_name_en, c.display_name) as full_name_en,
+           coalesce(u.full_name_ar, c.display_name) as full_name_ar
     from ${from}
     where ${filter}
     order by d.created_at desc, d.id desc
@@ -484,6 +490,7 @@ export async function claimDue(
       and n.id = d.notification_id
     join core.orgs o on o.tenant_id = n.tenant_id and o.id = n.org_id
     where d.tenant_id = ${input.tenantId}::uuid and d.state = 'pending' and d.status = 'active'
+      and d.user_id is not null
       and d.due_at <= ${input.now.toISOString()}::timestamptz and d.address is not null
     order by d.user_id, d.channel, d.due_at
     limit ${input.limit}
@@ -501,6 +508,151 @@ export async function claimDue(
     params: row.params,
     schoolNameEn: row.name_en,
     schoolNameAr: row.name_ar,
+  }));
+}
+
+export interface NewConversationMail {
+  contactId: string;
+  address: string;
+  locale: "ar" | "en";
+  state: "pending" | "skipped";
+  reason: DeliveryReason | null;
+}
+
+/**
+ * One ledger row per outside contact a conversation's message goes to by
+ * email, in the same unit as the message, so the office's delivery log
+ * answers for the family as it does for anyone else.
+ */
+export async function queueConversationMail(
+  tx: Tx,
+  input: {
+    tenantId: string;
+    messageId: string;
+    rows: readonly NewConversationMail[];
+  },
+): Promise<void> {
+  if (input.rows.length === 0) return;
+  await tx.execute(sql`
+    insert into core.notification_deliveries (tenant_id, contact_id, message_id, channel, address,
+      locale, state, reason, due_at)
+    values ${sql.join(
+      input.rows.map(
+        (row) => sql`(${input.tenantId}::uuid, ${row.contactId}::uuid,
+          ${input.messageId}::uuid, 'email', ${row.address}, ${row.locale}, ${row.state},
+          ${row.reason}, statement_timestamp())`,
+      ),
+      sql`, `,
+    )}`);
+}
+
+export interface DueConversationMail {
+  id: string;
+  createdAt: string;
+  attempts: number;
+  address: string;
+  locale: "ar" | "en";
+  messageId: string;
+  /** The contact's place in the conversation, which its reply token names. */
+  memberId: string | null;
+  subject: string | null;
+  body: string;
+  content: Record<string, unknown> | null;
+  schoolNameEn: string | null;
+  schoolNameAr: string | null;
+  schoolEmail: string | null;
+  /** The provider's id of the newest mail the family sent into it, to answer in its thread. */
+  inReplyTo: string | null;
+  files: {
+    id: string;
+    name: string;
+    mediaType: string;
+    sizeBytes: number;
+    storageKey: string;
+  }[];
+}
+
+/** Messages due to go to outside contacts, locked so a second worker passes over them. */
+export async function claimConversationMail(
+  tx: Tx,
+  input: { tenantId: string; now: Date; limit: number },
+): Promise<DueConversationMail[]> {
+  const rows = await tx.execute<{
+    id: string;
+    created_at: string;
+    attempts: number;
+    address: string;
+    locale: "ar" | "en";
+    message_id: string;
+    member_id: string | null;
+    subject: string | null;
+    body: string;
+    content: Record<string, unknown> | null;
+    name_en: string | null;
+    name_ar: string | null;
+    email: string | null;
+    in_reply_to: string | null;
+    files: {
+      id: string;
+      name: string;
+      media_type: string;
+      size_bytes: number;
+      storage_key: string;
+    }[];
+  }>(sql`
+    select d.id, d.created_at::text as created_at, d.attempts, d.address, d.locale, d.message_id,
+      m.id as member_id, t.subject, x.body, doc.content,
+      o.name_en, o.name_ar, o.email,
+      (select p.details ->> 'messageId' from core.messages p
+        where p.tenant_id = x.tenant_id and p.thread_id = x.thread_id
+          and p.author_contact_id = d.contact_id and p.details ? 'messageId'
+        order by p.created_at desc limit 1) as in_reply_to,
+      coalesce((select jsonb_agg(jsonb_build_object('id', f.id, 'name', f.name,
+          'media_type', f.media_type, 'size_bytes', f.size_bytes, 'storage_key', f.storage_key)
+          order by f.created_at, f.id)
+        from core.document_files l
+        join core.files f on f.tenant_id = l.tenant_id and f.id = l.file_id
+          and f.status = 'active' and f.state = 'ready'
+        where l.tenant_id = x.tenant_id and l.document_id = doc.id and l.status = 'active'),
+        '[]'::jsonb) as files
+    from core.notification_deliveries d
+    join core.messages x on x.tenant_id = d.tenant_id and x.id = d.message_id
+    join core.message_threads t on t.tenant_id = x.tenant_id and t.id = x.thread_id
+    join core.orgs o on o.tenant_id = t.tenant_id and o.id = t.org_id
+    left join core.thread_members m on m.tenant_id = x.tenant_id and m.thread_id = x.thread_id
+      and m.contact_id = d.contact_id and m.status = 'active' and m.left_at is null
+    left join lateral (select g.id, g.content from core.documents g
+      where g.tenant_id = x.tenant_id and g.host_type = 'message' and g.host_id = x.id
+        and g.status = 'active'
+      order by g.created_at desc limit 1) doc on true
+    where d.tenant_id = ${input.tenantId}::uuid and d.state = 'pending' and d.status = 'active'
+      and d.message_id is not null and d.address is not null
+      and d.due_at <= ${input.now.toISOString()}::timestamptz
+    order by d.due_at
+    limit ${input.limit}
+    for update of d skip locked`);
+  return rows.map((row) => ({
+    id: row.id,
+    createdAt: row.created_at,
+    attempts: row.attempts,
+    address: row.address,
+    locale: row.locale,
+    messageId: row.message_id,
+    memberId: row.member_id,
+    subject: row.subject,
+    body: row.body,
+    content: row.content,
+    schoolNameEn: row.name_en,
+    schoolNameAr: row.name_ar,
+    schoolEmail: row.email,
+    inReplyTo: row.in_reply_to,
+    files: row.files.map((file) => ({
+      id: file.id,
+      name: file.name,
+      mediaType: file.media_type,
+      sizeBytes: file.size_bytes,
+      storageKey: file.storage_key,
+    })),
   }));
 }
 
