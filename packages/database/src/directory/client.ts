@@ -45,6 +45,16 @@ export interface DirectorySchool {
   plan: SchoolPlan | null;
 }
 
+/** What the school finder may say about a school. */
+export interface FinderRow {
+  slug: string;
+  nameEn: string | null;
+  nameAr: string | null;
+  listed: boolean;
+  /** The school's own canonical portal host once active; null where the platform name serves it. */
+  portalHost: string | null;
+}
+
 /** A school's own host that routes, with what it serves. */
 export interface RoutedHost {
   school: DirectorySchool;
@@ -182,6 +192,28 @@ export function openDirectory(url: string, ttlMs = 60_000) {
       cache.delete(`ask:${hostname}`);
       if (slug) cache.delete(`slug:${slug}`);
     },
+    /**
+     * Every school a person could sign in to now, for the school finder:
+     * its code, names, canonical portal host and whether it is listed, and
+     * nothing else about it. Kept like the other lookups, so the finder
+     * answers from memory however often it is asked.
+     */
+    signInSchools: () =>
+      cached("sign-in-schools", async (): Promise<FinderRow[]> =>
+        db
+          .select({
+            slug: schools.slug,
+            nameEn: schools.nameEn,
+            nameAr: schools.nameAr,
+            listed: schools.listed,
+            portalHost: canonicalHost("portal"),
+          })
+          .from(schools)
+          .innerJoin(tenants, eq(tenants.id, schools.tenantId))
+          .where(
+            and(eq(schools.placement, "cell"), eq(tenants.state, "active")),
+          ),
+      ),
     schoolsOfTenant: async (tenantId: string) =>
       (await select().where(eq(schools.tenantId, tenantId))).map(schoolOf),
     /**

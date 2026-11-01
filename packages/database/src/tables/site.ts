@@ -523,6 +523,49 @@ export const sitePublishedPosts = core.table.withRLS(
   ],
 );
 
+/**
+ * The portal's sign-in page as strangers read it in one language, written
+ * when the site's manager publishes it. `content` is the document shown
+ * beside the form and the language it is in; the words being written are
+ * the document hosted as `site_sign_in` on the school, which stays private
+ * until it is published again.
+ */
+export const sitePublishedSignIn = core.table.withRLS(
+  "site_published_sign_in",
+  {
+    ...tenantColumns(),
+    orgId: uuid("org_id").notNull(),
+    locale: text("locale").$type<SiteLocale>().notNull(),
+    content: jsonb("content").$type<Record<string, unknown>>().notNull(),
+    media: jsonb("media")
+      .$type<Record<string, string>>()
+      .notNull()
+      .default(sql`'{}'`),
+    ...entityColumns(),
+  },
+  (t): PgTableExtraConfigValue[] => [
+    pk("site_published_sign_in", t.tenantId, t.id),
+    ...baseConstraints("site_published_sign_in", t, tenants),
+    fk(
+      "site_published_sign_in",
+      [t.tenantId, t.orgId],
+      [orgs.tenantId, orgs.id],
+    ),
+    ck("site_published_sign_in", "locale", sql`locale in ('en', 'ar')`),
+    ck(
+      "site_published_sign_in",
+      "content",
+      sql`jsonb_typeof(content) = 'object' and octet_length(content::text) <= 262144`,
+    ),
+    ck("site_published_sign_in", "media", sql`jsonb_typeof(media) = 'object'`),
+    uniqueIndex("site_published_sign_in_key")
+      .on(t.tenantId, t.orgId, t.locale)
+      .where(sql`status = 'active'`),
+    ...entityProfile(),
+    siteRead(),
+  ],
+);
+
 export type EnquiryPurpose = "enquiry" | "visit" | "general";
 
 /**

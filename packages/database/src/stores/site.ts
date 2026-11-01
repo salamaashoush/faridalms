@@ -505,6 +505,57 @@ export async function withdrawPost(
       and status = 'active'`);
 }
 
+/** Writes the sign-in page's copy in one language for strangers. */
+export async function writePublishedSignIn(
+  tx: Tx,
+  input: {
+    tenantId: string;
+    orgId: string;
+    locale: SiteLocale;
+    content: Record<string, unknown>;
+    media: Record<string, string>;
+  },
+): Promise<void> {
+  const [updated] = await tx.execute<{ id: string }>(sql`
+    update core.site_published_sign_in
+    set content = ${input.content}::jsonb, media = ${input.media}::jsonb
+    where tenant_id = ${input.tenantId}::uuid and org_id = ${input.orgId}::uuid
+      and locale = ${input.locale} and status = 'active'
+    returning id`);
+  if (updated) return;
+  await tx.execute(sql`
+    insert into core.site_published_sign_in (tenant_id, org_id, locale, content, media)
+    values (${input.tenantId}::uuid, ${input.orgId}::uuid, ${input.locale},
+      ${input.content}::jsonb, ${input.media}::jsonb)`);
+}
+
+/** Takes the sign-in page's copies down, or those in languages the site no longer speaks. */
+export async function withdrawSignIn(
+  tx: Tx,
+  input: { tenantId: string; orgId: string; keep?: readonly SiteLocale[] },
+): Promise<void> {
+  await tx.execute(sql`
+    update core.site_published_sign_in set status = 'tobedeleted'
+    where tenant_id = ${input.tenantId}::uuid and org_id = ${input.orgId}::uuid
+      and status = 'active' and not (locale = any(${textArray(input.keep ?? [])}))`);
+}
+
+export interface PublishedSignIn {
+  locale: SiteLocale;
+  content: Record<string, unknown>;
+  media: Record<string, string>;
+}
+
+/** The sign-in page's published copies; the site role reads them too. */
+export async function publishedSignIn(
+  tx: Tx,
+  orgId: string,
+): Promise<PublishedSignIn[]> {
+  return tx.execute<PublishedSignIn>(sql`
+    select locale, content, media from core.site_published_sign_in
+    where org_id = ${orgId}::uuid and status = 'active'`);
+}
+
 export interface Publication {
   fileId: string;
   publicKey: string;

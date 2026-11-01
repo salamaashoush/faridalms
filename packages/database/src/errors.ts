@@ -94,6 +94,7 @@ export const CONFLICTS: Record<string, string> = {
   site_posts_slug_key: "site.slug_taken",
   site_published_pages_key: "site.stale",
   site_published_posts_key: "site.stale",
+  site_published_sign_in_key: "site.stale",
   user_roles_role_excl: "role.overlapping",
   user_relationships_excl: "relationship.overlapping",
   accounts_tenant_id_webauthn_user_handle_key: "account.handle_taken",

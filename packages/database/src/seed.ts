@@ -49,6 +49,7 @@ import {
   setPageState,
   writePublishedPage,
   writePublishedPost,
+  writePublishedSignIn,
 } from "./stores/site";
 import { reviewTranslation } from "./stores/translations";
 import {
@@ -1247,7 +1248,19 @@ async function seedSchool(
   await seedEvents(tx, tenantId, schoolId, yearId);
   await seedNotifications(tx, tenantId, schoolId);
   await seedLearning(tx, tenantId, schoolId, yearId);
-  await seedSite(tx, tenantId, schoolId);
+  // One school of the group keeps the product's own welcome, so both show.
+  await seedSite(
+    tx,
+    tenantId,
+    schoolId,
+    plan.slug === "northwind-east"
+      ? null
+      : {
+          en: plan.nameEn,
+          ar: plan.nameAr,
+          office: `office@${context.domain}`,
+        },
+  );
   return { yearId, teachers };
 }
 
@@ -2669,11 +2682,94 @@ export async function seedCell(
   return result;
 }
 
+interface SignInWelcome {
+  en: string;
+  ar: string;
+  office: string;
+}
+
+/** A school's sign-in page, published in both languages: a welcome and where to ask for help. */
+async function seedSignInPage(
+  tx: Tx,
+  tenantId: string,
+  schoolId: string,
+  userId: string,
+  school: SignInWelcome,
+) {
+  const host = { type: "site_sign_in", id: schoolId };
+  const body = headedContent([
+    {
+      heading: `Welcome to ${school.en}`,
+      body: plainContent(
+        "Families, students and staff sign in here for classes, homework, messages and the school calendar.",
+      ),
+    },
+    {
+      heading: "Need help signing in?",
+      body: plainContent(
+        `Students: ask your class teacher. Families and staff: write to ${school.office}, Sunday to Thursday, 8:00 to 15:00.`,
+      ),
+    },
+  ]);
+  const translation = headedContent([
+    {
+      heading: `أهلًا بكم في ${school.ar}`,
+      body: plainContent(
+        "يدخل أولياء الأمور والطلاب والعاملون من هنا لمتابعة الفصول والواجبات والرسائل وتقويم المدرسة.",
+      ),
+    },
+    {
+      heading: "هل تحتاج إلى مساعدة في الدخول؟",
+      body: plainContent(
+        `الطلاب: اسألوا معلم الفصل. أولياء الأمور والعاملون: راسلوا مكتب المدرسة على ${school.office} من الأحد إلى الخميس، من الثامنة صباحًا حتى الثالثة عصرًا.`,
+      ),
+    },
+  ]);
+  const original = await saveDocument(tx, {
+    tenantId,
+    orgId: schoolId,
+    host,
+    kind: "rich_text",
+    locale: "en",
+    content: body as unknown as Record<string, unknown>,
+    plainText: contentPlainText(body),
+    mediaIds: [],
+    userId,
+  });
+  const other = await saveTranslation(tx, {
+    tenantId,
+    orgId: schoolId,
+    host,
+    originalId: original.id,
+    locale: "ar",
+    kind: "rich_text",
+    content: translation as unknown as Record<string, unknown>,
+    plainText: contentPlainText(translation),
+    mediaIds: [],
+    userId,
+  });
+  await snapshotPublish(tx, { tenantId, documentId: original.id, userId });
+  await snapshotPublish(tx, { tenantId, documentId: other.id, userId });
+  for (const locale of ["en", "ar"] as const)
+    await writePublishedSignIn(tx, {
+      tenantId,
+      orgId: schoolId,
+      locale,
+      content: { body: locale === "ar" ? translation : body, locale },
+      media: {},
+    });
+}
+
 /**
  * A live, bilingual website: a home page and an about page published in both
  * languages, an admissions page still in draft, and news posts.
  */
-async function seedSite(tx: Tx, tenantId: string, schoolId: string) {
+async function seedSite(
+  tx: Tx,
+  tenantId: string,
+  schoolId: string,
+  welcome: SignInWelcome | null,
+) {
   const [principal] = await tx.execute<{ user_id: string }>(sql`
     select r.user_id from core.user_roles r
     where r.tenant_id = ${tenantId}::uuid and r.org_id = ${schoolId}::uuid
@@ -2718,6 +2814,8 @@ async function seedSite(tx: Tx, tenantId: string, schoolId: string) {
     nameEn: "Events",
     nameAr: "فعاليات",
   });
+
+  if (welcome) await seedSignInPage(tx, tenantId, schoolId, userId, welcome);
 
   const starter = STARTERS.international;
   const publishedAt = "2026-09-01T07:00:00.000Z";
