@@ -59,8 +59,8 @@ what follows from them. A decision changes only by a new entry here.
   already rebuilt on them stay and move onto the new backend. This supersedes
   rule 1 of section 9 of
   [../systems/platform-foundation.md](../systems/platform-foundation.md): the
-  schema is `packages/database/src` itself and `drizzle.config.ts` writes its
-  migrations to `drizzle/`.
+  schema is `packages/database/src` itself and drizzle-kit writes its
+  migrations to `packages/database/migrations/`.
 
 - **Settings pages use the record page's cards.** Salama judged the
   two-column settings layout (heading beside a card) out of step with the rest

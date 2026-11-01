@@ -6,6 +6,7 @@
  */
 import { CONFLICTS } from "@faridalms/database/errors";
 import { CONFLICT_CONSTRAINTS } from "@faridalms/database/gates";
+import { MIGRATIONS } from "@faridalms/database/migrate";
 import {
   CATALOGUE,
   CEDS_GRADE_LEVELS,
@@ -80,7 +81,7 @@ const FORBIDDEN_IN_MIGRATIONS = [
   /owner\s+to\s+(?!"?cell_owner"?\b|"?directory_owner"?\b)/i,
   /bypassrls/i,
 ];
-for (const folder of ["drizzle", "drizzle-directory"])
+for (const folder of Object.values(MIGRATIONS))
   for await (const path of new Glob(`${folder}/*/migration.sql`).scan(".")) {
     const text = await Bun.file(path).text();
     for (const pattern of FORBIDDEN_IN_MIGRATIONS)

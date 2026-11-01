@@ -3,7 +3,7 @@ import type { AttendanceMeaning } from "@faridalms/domain/attendance";
 /**
  * Tables drizzle-kit cannot create: partitioned tables and the search index.
  * Their DDL lives only in custom migrations; these declarations give queries
- * their types. `drizzle.config.ts` does not list this module.
+ * their types. The drizzle-kit config does not list this module.
  */
 import { sql } from "drizzle-orm";
 import {

@@ -1,6 +1,16 @@
 import { SQL } from "bun";
 import { readMigrationFiles } from "drizzle-orm/migrator";
 
+/**
+ * Each database's migrations, from the repository's root, which is also the
+ * migrate image's working directory: its script is bundled, so the folders
+ * cannot be found from the module's own location.
+ */
+export const MIGRATIONS = {
+  cell: "packages/database/migrations/cell",
+  directory: "packages/database/migrations/directory",
+} as const;
+
 export interface MigrationResult {
   applied: string[];
 }

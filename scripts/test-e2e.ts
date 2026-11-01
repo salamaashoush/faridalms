@@ -5,7 +5,7 @@
 import { openOwner } from "@faridalms/database/context";
 import { localKek } from "@faridalms/database/crypto";
 import { registerTenants } from "@faridalms/database/directory/seed";
-import { migrate } from "@faridalms/database/migrate";
+import { migrate, MIGRATIONS } from "@faridalms/database/migrate";
 import {
   createCellDatabase,
   createDirectoryDatabase,
@@ -50,9 +50,12 @@ try {
   );
   await createCellDatabase(admin, cellName);
   await createDirectoryDatabase(admin, directoryName);
-  await migrate(urlFor(cellName), { folder: "drizzle", owner: "cell_owner" });
+  await migrate(urlFor(cellName), {
+    folder: MIGRATIONS.cell,
+    owner: "cell_owner",
+  });
   await migrate(urlFor(directoryName), {
-    folder: "drizzle-directory",
+    folder: MIGRATIONS.directory,
     owner: "directory_owner",
   });
   const owner = openOwner(urlFor(cellName));

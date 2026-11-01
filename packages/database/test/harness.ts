@@ -5,7 +5,7 @@ import type { SeededTenant } from "../src/seed";
 
 import { openCell, openOwner } from "../src/context";
 import { localKek } from "../src/crypto";
-import { migrate } from "../src/migrate";
+import { migrate, MIGRATIONS } from "../src/migrate";
 import {
   createCellDatabase,
   dropDatabase,
@@ -67,7 +67,7 @@ export async function setUp(): Promise<Harness> {
   } finally {
     await admin.close();
   }
-  await migrate(urlFor(null), { folder: "drizzle", owner: "cell_owner" });
+  await migrate(urlFor(null), { folder: MIGRATIONS.cell, owner: "cell_owner" });
   const owner = openOwner(urlFor(null));
   try {
     const tenants = await seedCell(owner, { kek, cell: CELL });

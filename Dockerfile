@@ -41,8 +41,7 @@ WORKDIR /app
 ENV NODE_ENV=production
 COPY --from=build --chown=bun:bun /app/LICENSE ./LICENSE
 COPY --from=build --chown=bun:bun /app/dist-migrate/migrate.js ./migrate.js
-COPY --from=build --chown=bun:bun /app/drizzle ./drizzle
-COPY --from=build --chown=bun:bun /app/drizzle-directory ./drizzle-directory
+COPY --from=build --chown=bun:bun /app/packages/database/migrations ./packages/database/migrations
 USER bun
 CMD ["bun", "migrate.js", "migrate"]
 

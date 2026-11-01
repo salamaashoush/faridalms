@@ -28,8 +28,7 @@
     "dist/**",
     "coverage/**",
     "playwright-report/**",
-    "drizzle/**",
-    "drizzle-directory/**",
+    "packages/database/migrations/**",
     "bun.lock",
     "apps/api/src/library/pictures.json"
   ]

@@ -11,7 +11,7 @@ import {
   openDirectorySync,
 } from "@faridalms/database/directory/client";
 import { registerTenants } from "@faridalms/database/directory/seed";
-import { migrate } from "@faridalms/database/migrate";
+import { migrate, MIGRATIONS } from "@faridalms/database/migrate";
 import {
   createCellDatabase,
   createDirectoryDatabase,
@@ -108,9 +108,12 @@ export async function setUp() {
   await createCellDatabase(admin, cellName);
   await createDirectoryDatabase(admin, directoryName);
   await admin.close();
-  await migrate(urlFor(cellName), { folder: "drizzle", owner: "cell_owner" });
+  await migrate(urlFor(cellName), {
+    folder: MIGRATIONS.cell,
+    owner: "cell_owner",
+  });
   await migrate(urlFor(directoryName), {
-    folder: "drizzle-directory",
+    folder: MIGRATIONS.directory,
     owner: "directory_owner",
   });
   const kek = localKek(new Uint8Array(randomBytes(32)), "local:test");

@@ -4,7 +4,7 @@
  * catalogue check, the source checks and the isolation and behaviour suites.
  * The throwaway databases are dropped however it ends.
  */
-import { migrate } from "@faridalms/database/migrate";
+import { migrate, MIGRATIONS } from "@faridalms/database/migrate";
 import {
   createCellDatabase,
   createDirectoryDatabase,
@@ -81,9 +81,12 @@ try {
   );
   await createCellDatabase(client, cellName);
   await createDirectoryDatabase(client, directoryName);
-  await migrate(urlOf(cellName), { folder: "drizzle", owner: "cell_owner" });
+  await migrate(urlOf(cellName), {
+    folder: MIGRATIONS.cell,
+    owner: "cell_owner",
+  });
   await migrate(urlOf(directoryName), {
-    folder: "drizzle-directory",
+    folder: MIGRATIONS.directory,
     owner: "directory_owner",
   });
   console.info("Migrations apply to empty databases.");
@@ -91,16 +94,16 @@ try {
   if (
     !(await generateWritesNothing({
       schema: "packages/database/src/tables/index.ts",
-      out: "drizzle",
+      out: MIGRATIONS.cell,
     }))
   )
     failures.push(
-      "drizzle-kit would write a cell migration: the schema and drizzle/ disagree",
+      "drizzle-kit would write a cell migration: the schema and its migrations disagree",
     );
   if (
     !(await generateWritesNothing({
       schema: "packages/database/src/directory/schema.ts",
-      out: "drizzle-directory",
+      out: MIGRATIONS.directory,
     }))
   )
     failures.push("drizzle-kit would write a directory migration");

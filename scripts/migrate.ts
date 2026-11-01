@@ -3,7 +3,7 @@
  * entry the production image runs, so it never imports the seed and offers
  * nothing that drops or overwrites data.
  */
-import { migrate } from "@faridalms/database/migrate";
+import { migrate, MIGRATIONS } from "@faridalms/database/migrate";
 import {
   createCellDatabase,
   createDirectoryDatabase,
@@ -57,11 +57,11 @@ export async function createMissing(admin: SQL, target: CellDatabases) {
 
 export async function migrateAll(target: CellDatabases) {
   const cell = await migrate(adminUrlFor(target, target.cell), {
-    folder: "drizzle",
+    folder: MIGRATIONS.cell,
     owner: "cell_owner",
   });
   const directory = await migrate(adminUrlFor(target, target.directory), {
-    folder: "drizzle-directory",
+    folder: MIGRATIONS.directory,
     owner: "directory_owner",
   });
   console.info(
