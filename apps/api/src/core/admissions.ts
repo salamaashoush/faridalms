@@ -3,6 +3,10 @@ import type { ApplicationConsent } from "@faridalms/domain/admissions";
 import type { ContentDocument } from "@faridalms/domain/content";
 
 import {
+  letterHolder,
+  lettersOf,
+} from "@faridalms/database/stores/admission-decisions";
+import {
   insertApplicationEntry,
   intakesOf,
   itemsOf,
@@ -23,7 +27,60 @@ import { ORPCError } from "@orpc/server";
 
 import type { UnitContext } from "./context";
 
+import { registerHostReader } from "../files/authorize";
 import { audit } from "./procedure";
+
+const readsAdmissions = (context: UnitContext) =>
+  context.actor.capabilities.has("admissions:read") ||
+  context.actor.capabilities.has("admissions:manage");
+
+// A letter, and the pictures its words show, are the family's it was sent
+// to and the office's.
+registerHostReader("admission_letter", async (context, letterId) => {
+  const holder = await letterHolder(context.tx, {
+    tenantId: context.tenantId,
+    letterId,
+  });
+  if (holder?.orgId !== context.schoolId) return false;
+  return (
+    holder.familyUserId === context.actor.userId || readsAdmissions(context)
+  );
+});
+
+/**
+ * A letter as the family read it, words and all; with a family, only one
+ * sent to them.
+ */
+export async function letterView(
+  context: UnitContext,
+  letterId: string,
+  familyUserId: string | null,
+) {
+  const holder = await letterHolder(context.tx, {
+    tenantId: context.tenantId,
+    letterId,
+  });
+  if (
+    holder?.orgId !== context.schoolId ||
+    (familyUserId !== null && holder.familyUserId !== familyUserId)
+  )
+    throw new ORPCError("NOT_FOUND");
+  const [letter] = (
+    await lettersOf(context.tx, {
+      tenantId: context.tenantId,
+      applicationIds: [holder.applicationId],
+    })
+  ).filter((each) => each.id === letterId);
+  const document = await documentOf(context.tx, context.tenantId, {
+    type: "admission_letter",
+    id: letterId,
+  });
+  if (!letter || !document) throw new ORPCError("NOT_FOUND");
+  return {
+    ...letter,
+    content: document.content as unknown as ContentDocument,
+  };
+}
 
 export async function intakeOf(context: UnitContext, id: string) {
   const [intake] = await intakesOf(context.tx, {

@@ -9,6 +9,7 @@ import type {
   SiteLocale,
 } from "@faridalms/domain/website";
 
+import { publicIntakes } from "@faridalms/database/stores/admissions";
 import {
   documentOf,
   dropTranslation,
@@ -264,7 +265,7 @@ export const overview = readProcedure.handler(async ({ context }) => {
       limit: PREVIEW_POSTS,
       offset: 0,
     });
-  const [settings, pages, categories, school, newsEn, newsAr, events] =
+  const [settings, pages, categories, school, newsEn, newsAr, events, intakes] =
     await Promise.all([
       settingsFor(context),
       sitePages(context.tx, context.tenantId, context.schoolId),
@@ -276,6 +277,10 @@ export const overview = readProcedure.handler(async ({ context }) => {
         orgId: context.schoolId,
         from: context.today,
         limit: MAX_EVENTS,
+      }),
+      publicIntakes(context.tx, {
+        orgId: context.schoolId,
+        today: context.today,
       }),
     ]);
   const logo = school
@@ -304,6 +309,8 @@ export const overview = readProcedure.handler(async ({ context }) => {
     logoKey: logo,
     news: { en: newsEn.rows, ar: newsAr.rows },
     events,
+    intakes,
+    today: context.today,
   };
 });
 
@@ -1062,12 +1069,22 @@ export const publicSitePage = publicProcedure
               : [],
           ),
         );
+        const today = await schoolToday(tx, schoolId);
         const events = coming
           ? await publicEvents(tx, {
               orgId: schoolId,
-              from: await schoolToday(tx, schoolId),
+              from: today,
               limit: coming,
             })
+          : [];
+        // Admissions and the way in to applying read the intakes themselves.
+        const intakes = sections.some(
+          (item) =>
+            item.section.type === "registerApply" ||
+            (item.section.type === "admissions" &&
+              item.section.data.source === "intakes"),
+        )
+          ? await publicIntakes(tx, { orgId: schoolId, today })
           : [];
         return {
           locale,
@@ -1081,6 +1098,8 @@ export const publicSitePage = publicProcedure
           media: row.media,
           news,
           events,
+          intakes,
+          today,
         };
       },
     ),

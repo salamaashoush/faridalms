@@ -18,7 +18,6 @@ import { embedProviders, isEmbedId } from "./embed";
 import { ltiLinkSchema } from "./lti";
 import { MATH_FORMS } from "./math-forms";
 import { projectLanguages, starterFilesSchema } from "./project";
-import { isSafeContentUrl } from "./rich-text";
 import { scratchChecksSchema } from "./scratch-project";
 import {
   MAX_BLOCK_STANDARDS,
@@ -26,6 +25,23 @@ import {
   MAX_STANDARD_CODE,
   MAX_STANDARD_STATEMENT,
 } from "./standards";
+
+export function isSafeContentUrl(value: string): boolean {
+  try {
+    const url = new URL(value);
+    return (
+      ["https:", "http:", "mailto:", "tel:"].includes(url.protocol) &&
+      !url.username &&
+      !url.password &&
+      !Array.from(value).some(
+        (character) =>
+          character.charCodeAt(0) <= 32 || character.charCodeAt(0) === 127,
+      )
+    );
+  } catch {
+    return false;
+  }
+}
 
 /** The longest piece of mathematics one node holds, in LaTeX. */
 export const MAX_LATEX = 4000;
@@ -438,8 +454,6 @@ export interface ContentNode {
   projectLanguage?: ProjectLanguage;
   /** A puzzle question's grid, the blocks it offers and its teacher's answer. */
   puzzle?: Level;
-  /** Before a question had hints in order, its one hint. */
-  hint?: string;
   hints?: string[];
   explanation?: string;
   numberMode?: "exact" | "range";
@@ -788,7 +802,6 @@ const nodeShape: v.GenericSchema<ContentNode> = v.pipe(
         v.maxLength(8),
       ),
     ),
-    hint: v.optional(v.pipe(v.string(), v.maxLength(500))),
     hints: v.optional(
       v.pipe(v.array(v.pipe(v.string(), v.maxLength(500))), v.maxLength(5)),
     ),

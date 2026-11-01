@@ -7,8 +7,12 @@ import type {
   ChecklistItem,
   ChecklistKind,
   Currency,
+  Decision,
+  EventKind,
+  EventOutcome,
   Fee,
   ItemState,
+  LetterKind,
   PriorityRule,
 } from "@faridalms/domain/admissions";
 import type { EnquiryAnswer } from "@faridalms/domain/enquiries";
@@ -21,8 +25,10 @@ import {
   index,
   integer,
   jsonb,
+  pgPolicy,
   smallint,
   text,
+  time,
   uniqueIndex,
   uuid,
 } from "drizzle-orm/pg-core";
@@ -40,6 +46,7 @@ import {
   instant,
   ledgerProfile,
   pk,
+  roles,
   tenantColumns,
   uq,
 } from "./conventions";
@@ -242,6 +249,13 @@ export const admissionIntakes = core.table.withRLS(
     index("admission_intakes_window_idx")
       .on(t.tenantId, t.orgId, t.opensOn, t.closesOn)
       .where(sql`status = 'active'`),
+    // The website lists the intakes families may apply to, with their dates
+    // and fees; never their places, forms or how they rank.
+    pgPolicy("p_site_select", {
+      for: "select",
+      to: roles.site,
+      using: sql`status = 'active'`,
+    }),
     ...entityProfile(),
   ],
 );
@@ -286,6 +300,25 @@ export const admissionApplications = core.table.withRLS(
       .notNull()
       .default(sql`'{}'`),
     submittedAt: instant("submitted_at"),
+    /** What the office decided, kept after it is released for the record and the reports. */
+    decision: text("decision").$type<Decision>(),
+    // These three reference users and applications through keys the access
+    // migration adds NOT VALID: drizzle-kit 1.0.0-rc.5 writes a key on an
+    // existing table as validated, and validating one reads the table under
+    // its forced row security, where a migration has no tenant. New rows are
+    // checked.
+    decidedAt: instant("decided_at"),
+    decidedByUserId: uuid("decided_by_user_id"),
+    /** When the family was told: by hand, or on the intake's day. */
+    releasedAt: instant("released_at"),
+    /** The last day an open offer may be accepted. */
+    offerExpiresOn: date("offer_expires_on", { mode: "string" }),
+    /** When the family accepted or declined the offer. */
+    answeredAt: instant("answered_at"),
+    /** The student the applicant became: the applicant, or the school's own student they were found to be. */
+    studentUserId: uuid("student_user_id"),
+    /** The application of an earlier year this one was deferred from. */
+    deferredFromId: uuid("deferred_from_id"),
     ...entityColumns(),
   },
   (t): PgTableExtraConfigValue[] => [
@@ -320,6 +353,27 @@ export const admissionApplications = core.table.withRLS(
       "admission_applications",
       [t.tenantId, t.enquiryId],
       [siteEnquiries.tenantId, siteEnquiries.id],
+    ),
+    ck(
+      "admission_applications",
+      "decision",
+      sql`decision in ('offer', 'waitlist', 'decline')`,
+    ),
+    ck(
+      "admission_applications",
+      "decided",
+      sql`(state <> 'decided' or (decision is not null and released_at is null))
+        and (decision is null) = (decided_at is null)`,
+    ),
+    ck(
+      "admission_applications",
+      "offered",
+      sql`state <> 'offered' or offer_expires_on is not null`,
+    ),
+    ck(
+      "admission_applications",
+      "enrolled",
+      sql`(state = 'enrolled') = (student_user_id is not null)`,
     ),
     ck(
       "admission_applications",
@@ -474,7 +528,11 @@ export const admissionEntries = core.table.withRLS(
       [t.tenantId, t.authorUserId],
       [users.tenantId, users.id],
     ),
-    ck("admission_entries", "kind", sql`kind in ('note', 'state', 'item')`),
+    ck(
+      "admission_entries",
+      "kind",
+      sql`kind in ('note', 'state', 'item', 'event')`,
+    ),
     ck("admission_entries", "body", sql`char_length(body) <= 4000`),
     ck(
       "admission_entries",
@@ -487,5 +545,133 @@ export const admissionEntries = core.table.withRLS(
       t.createdAt,
     ),
     ...ledgerProfile(),
+  ],
+);
+
+/**
+ * A letter an application's family received: an offer, a place on the
+ * waiting list, a refusal, a welcome. Its words are the document hosted as
+ * `admission_letter`, written from the school's template in the family's
+ * language and frozen as sent.
+ */
+export const admissionLetters = core.table.withRLS(
+  "admission_letters",
+  {
+    ...tenantColumns(),
+    orgId: uuid("org_id").notNull(),
+    applicationId: uuid("application_id").notNull(),
+    kind: text("kind").$type<LetterKind>().notNull(),
+    locale: text("locale").$type<"en" | "ar">().notNull(),
+    title: text("title").notNull(),
+    /** The template it was written from, while the school keeps it. */
+    templateId: uuid("template_id"),
+    sentByUserId: uuid("sent_by_user_id"),
+    createdAt: instant("created_at")
+      .notNull()
+      .default(sql`statement_timestamp()`),
+  },
+  (t): PgTableExtraConfigValue[] => [
+    pk("admission_letters", t.tenantId, t.id),
+    fk("admission_letters", [t.tenantId], [tenants.tenantId]),
+    fk("admission_letters", [t.tenantId, t.orgId], [orgs.tenantId, orgs.id]),
+    fk(
+      "admission_letters",
+      [t.tenantId, t.applicationId],
+      [admissionApplications.tenantId, admissionApplications.id],
+    ),
+    fk(
+      "admission_letters",
+      [t.tenantId, t.sentByUserId],
+      [users.tenantId, users.id],
+    ),
+    ck(
+      "admission_letters",
+      "kind",
+      sql`kind in ('offer', 'waitlist', 'decline', 'welcome')`,
+    ),
+    ck("admission_letters", "locale", sql`locale in ('en', 'ar')`),
+    ck("admission_letters", "title", sql`char_length(title) between 1 and 200`),
+    index("admission_letters_application_idx").on(
+      t.tenantId,
+      t.applicationId,
+      t.createdAt,
+    ),
+    ...ledgerProfile(),
+  ],
+);
+
+/**
+ * A tour, assessment or interview booked for an application: its day and
+ * hours on the school's clock, where, the staff who attend, and what came
+ * of it. One booked for an assessment or interview step settles that step
+ * once attended.
+ */
+export const admissionEvents = core.table.withRLS(
+  "admission_events",
+  {
+    ...tenantColumns(),
+    orgId: uuid("org_id").notNull(),
+    applicationId: uuid("application_id").notNull(),
+    itemId: uuid("item_id"),
+    kind: text("kind").$type<EventKind>().notNull(),
+    startsOn: date("starts_on", { mode: "string" }).notNull(),
+    startTime: time("start_time").notNull(),
+    endTime: time("end_time").notNull(),
+    location: text("location").notNull().default(""),
+    attendeeUserIds: uuid("attendee_user_ids")
+      .array()
+      .notNull()
+      .default(sql`'{}'`),
+    outcome: text("outcome")
+      .$type<EventOutcome>()
+      .notNull()
+      .default("scheduled"),
+    result: text("result").notNull().default(""),
+    ...entityColumns(),
+  },
+  (t): PgTableExtraConfigValue[] => [
+    pk("admission_events", t.tenantId, t.id),
+    ...baseConstraints("admission_events", t, tenants),
+    fk("admission_events", [t.tenantId, t.orgId], [orgs.tenantId, orgs.id]),
+    fk(
+      "admission_events",
+      [t.tenantId, t.applicationId],
+      [admissionApplications.tenantId, admissionApplications.id],
+    ),
+    fk(
+      "admission_events",
+      [t.tenantId, t.itemId],
+      [admissionItems.tenantId, admissionItems.id],
+    ),
+    ck(
+      "admission_events",
+      "kind",
+      sql`kind in ('tour', 'assessment', 'interview')`,
+    ),
+    ck(
+      "admission_events",
+      "outcome",
+      sql`outcome in ('scheduled', 'attended', 'missed', 'cancelled')`,
+    ),
+    ck("admission_events", "times", sql`start_time < end_time`),
+    ck("admission_events", "location", sql`char_length(location) <= 200`),
+    ck("admission_events", "result", sql`char_length(result) <= 2000`),
+    ck(
+      "admission_events",
+      "attendees",
+      sql`cardinality(attendee_user_ids) <= 10`,
+    ),
+    index("admission_events_application_idx")
+      .on(t.tenantId, t.applicationId, t.startsOn)
+      .where(sql`status = 'active'`),
+    index("admission_events_day_idx")
+      .on(t.tenantId, t.orgId, t.startsOn)
+      .where(sql`status = 'active'`),
+    ...entityProfile(),
+    ...erase(
+      sql`exists (select 1 from core.admission_applications a
+        where a.tenant_id = admission_events.tenant_id and a.id = admission_events.application_id
+          and app.erasure_approved(a.tenant_id, a.applicant_user_id))`,
+    ),
   ],
 );

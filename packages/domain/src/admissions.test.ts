@@ -4,24 +4,35 @@ import { describe, expect, it } from "vitest";
 import type { AdmissionQuestion } from "./admissions";
 
 import {
-  APPLICATION_STATES,
   ageFit,
   ageInMonths,
+  APPLICATION_STATES,
   applicationReference,
+  BUILTIN_LETTERS,
   canMove,
+  familyState,
+  fillLetter,
   intakeWindow,
+  LETTER_FIELDS,
+  moveDecides,
   nextApplicationStates,
   nextItemStates,
   NO_MATCHES,
+  offerExpiresOn,
+  placesLeft,
   prioritiesFound,
   prioritiesMet,
   questionIn,
   questionReady,
+  rankWaitlist,
   readApplicationAnswers,
+  releaseDue,
   saveIntakeSchema,
+  stageReached,
   suggestedAges,
   suggestedCutoff,
 } from "./admissions";
+import { plainContent } from "./content-conversion";
 import { reviewDueOn } from "./privacy";
 
 const question = (more: Partial<AdmissionQuestion>): AdmissionQuestion => ({
@@ -61,6 +72,31 @@ describe("an application's states", () => {
       "enrolled",
     ] as const)
       expect(nextApplicationStates(state, "office")).toEqual([]);
+  });
+
+  it("keeps deciding, offering and enrolling to those who decide", () => {
+    expect(nextApplicationStates("in_review", "office")).toContain("decided");
+    expect(moveDecides("in_review", "decided")).toBe(true);
+    expect(moveDecides("decided", "offered")).toBe(true);
+    expect(moveDecides("accepted", "enrolled")).toBe(true);
+    expect(moveDecides("in_review", "withdrawn")).toBe(false);
+    expect(moveDecides("offered", "accepted")).toBe(false);
+  });
+
+  it("lets the family answer an offer and the clock let it lapse, and nobody else", () => {
+    expect(nextApplicationStates("offered", "family")).toEqual([
+      "accepted",
+      "offer_declined",
+    ]);
+    expect(canMove("offered", "offer_expired", "clock")).toBe(true);
+    expect(canMove("offered", "offer_expired", "office")).toBe(false);
+    expect(canMove("decided", "offered", "clock")).toBe(true);
+    expect(canMove("decided", "offered", "family")).toBe(false);
+  });
+
+  it("shows the family a decision not yet released as still under review", () => {
+    expect(familyState("decided")).toBe("in_review");
+    expect(familyState("offered")).toBe("offered");
   });
 
   it("moves a checklist step on and back without skipping its check", () => {
@@ -219,5 +255,108 @@ describe("keeping an unsuccessful application", () => {
         { kind: "applicant", leftOn: "2027-03-31", birthDate: null },
       ),
     ).toBeNull();
+  });
+});
+
+const entry = (
+  id: string,
+  priorities: ("sibling" | "staff_child")[],
+  birthDate: string | null,
+  submittedAt = "2027-01-01T00:00:00.000Z",
+) => ({ id, priorities, birthDate, submittedAt });
+
+describe("places and offers", () => {
+  it("counts the seats less the offers accepted and those still open", () => {
+    expect(placesLeft({ capacity: 24, accepted: 20, offered: 3 })).toBe(1);
+    expect(placesLeft({ capacity: 2, accepted: 2, offered: 1 })).toBe(-1);
+  });
+
+  it("keeps an offer open for the intake's days and releases on its day", () => {
+    expect(offerExpiresOn("2027-04-15", 14)).toBe("2027-04-29");
+    expect(offerExpiresOn("2027-12-25", 10)).toBe("2028-01-04");
+    expect(releaseDue({ decisionsOn: "2027-04-15" }, "2027-04-14")).toBe(false);
+    expect(releaseDue({ decisionsOn: "2027-04-15" }, "2027-04-15")).toBe(true);
+    expect(releaseDue({ decisionsOn: null }, "2099-01-01")).toBe(false);
+  });
+
+  it("ranks the waiting list by the intake's rules in order, then the older child, then who sent first", () => {
+    const ranked = rankWaitlist(
+      [
+        entry("staff", ["staff_child"], "2022-01-01"),
+        entry("young", [], "2022-06-01"),
+        entry("sibling", ["sibling"], "2022-09-01"),
+        entry("old", [], "2021-11-01"),
+        entry("unknown", [], null),
+        entry("late", [], "2021-11-01", "2027-02-01T00:00:00.000Z"),
+        entry("both", ["sibling", "staff_child"], "2022-12-01"),
+      ],
+      ["sibling", "staff_child"],
+    );
+    expect(ranked.map((row) => row.id)).toEqual([
+      "both",
+      "sibling",
+      "staff",
+      "old",
+      "late",
+      "young",
+      "unknown",
+    ]);
+  });
+});
+
+describe("letters", () => {
+  const fields = {
+    family: "Salama Ashoush",
+    child: "Omar",
+    grade: "KG1",
+    year: "2027–2028",
+    school: "Northwind",
+    reference: "2027-0042",
+    expires: "29 April 2027",
+  };
+
+  it("fills every field wherever it is written and leaves unknown braces alone", () => {
+    const letter = fillLetter(
+      plainContent(
+        "Dear {family},\n{child} joins {grade} in {year}. {unknown}",
+      ),
+      fields,
+    );
+    const text = JSON.stringify(letter);
+    expect(text).toContain("Dear Salama Ashoush,");
+    expect(text).toContain("Omar joins KG1 in 2027–2028.");
+    expect(text).toContain("{unknown}");
+  });
+
+  it("starts every school with each phase's letter in both languages, using only known fields", () => {
+    for (const kind of ["offer", "waitlist", "decline", "welcome"] as const)
+      for (const locale of ["en", "ar"] as const)
+        expect(
+          BUILTIN_LETTERS.some(
+            (letter) => letter.kind === kind && letter.locale === locale,
+          ),
+        ).toBe(true);
+    for (const letter of BUILTIN_LETTERS)
+      for (const [, name] of letter.body.matchAll(/\{([a-z]+)\}/g))
+        expect(LETTER_FIELDS).toContain(name);
+  });
+});
+
+describe("the funnel", () => {
+  it("counts each application at the furthest stage it reached, an ending at the stage it ended from", () => {
+    expect(stageReached(["submitted", "in_review"])).toBe("in_review");
+    expect(
+      stageReached([
+        "submitted",
+        "in_review",
+        "decided",
+        "offered",
+        "offer_declined",
+      ]),
+    ).toBe("offered");
+    expect(
+      stageReached(["submitted", "in_review", "decided", "waitlisted"]),
+    ).toBe("decided");
+    expect(stageReached(["draft", "withdrawn"])).toBeNull();
   });
 });

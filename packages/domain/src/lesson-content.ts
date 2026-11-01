@@ -23,11 +23,6 @@ import { FLASH_SECONDS, isCheck, MAX_INDENT, RECORD_SECONDS } from "./learning";
  * still match.
  */
 
-/** Whether a stored lesson is a document, rather than a list of blocks. */
-export function isContentDocument(value: unknown): value is ContentDocument {
-  return typeof value === "object" && value !== null && "root" in value;
-}
-
 /** How far a line of code is indented, with a tab as four spaces. */
 function leadingWidth(text: string): number {
   const lead = /^[\t ]*/.exec(text)?.[0] ?? "";
@@ -143,18 +138,11 @@ function pictureFields(
   return picture ? { fileId: picture.fileId, alt: picture.alt } : {};
 }
 
-/**
- * A question's hints in order. Questions written when each had one hint keep
- * it under `hint`, in saved documents and in the editor's shared state alike.
- */
-export function hintsOf(question: { hint?: unknown; hints?: unknown }) {
-  if (Array.isArray(question.hints))
-    return question.hints.filter(
-      (hint): hint is string => typeof hint === "string" && hint.trim() !== "",
-    );
-  return typeof question.hint === "string" && question.hint.trim() !== ""
-    ? [question.hint]
-    : [];
+/** A question's hints in order, leaving out any left blank. */
+export function hintsOf(question: { hints?: readonly unknown[] }) {
+  return (question.hints ?? []).filter(
+    (hint): hint is string => typeof hint === "string" && hint.trim() !== "",
+  );
 }
 
 /** The question a question node asks, with its key, as the player marks it. */

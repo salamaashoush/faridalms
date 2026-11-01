@@ -26,7 +26,6 @@ import {
 import {
   documentOf,
   publishedVersion,
-  snapshotPublish,
 } from "@faridalms/database/stores/documents";
 import {
   closeSitting,
@@ -52,10 +51,8 @@ import {
   isTeacherMarked,
   markResponse,
   responseSchema,
-  upgradeLesson,
 } from "@faridalms/domain/learning";
 import {
-  briefWithQuiz,
   drawnQuestion,
   holdsQuestions,
   quizOfBrief,
@@ -69,40 +66,10 @@ import type { UnitContext } from "../core/context";
 /** What reading and marking a quiz needs of a unit of work; a worker's pass has it too. */
 export type QuizUnit = Pick<UnitContext, "tx" | "tenantId">;
 
-/**
- * Where a quiz's questions were kept before they were written in its brief.
- * Quizzes not edited since still read them from here.
- */
-export const quizHost = (assignmentId: string) => ({
-  type: "assignment_quiz",
-  id: assignmentId,
-});
-
 const briefHost = (assignmentId: string) => ({
   type: "assignment",
   id: assignmentId,
 });
-
-/** The questions kept apart from the brief, as last saved or as last sent. */
-async function keptApart(
-  context: QuizUnit,
-  assignmentId: string,
-  sent: boolean,
-): Promise<LessonDocument | null> {
-  const document = await documentOf(
-    context.tx,
-    context.tenantId,
-    quizHost(assignmentId),
-  );
-  if (!document) return null;
-  if (!sent) return upgradeLesson(document.content);
-  const published = await publishedVersion(
-    context.tx,
-    context.tenantId,
-    document.id,
-  );
-  return published ? upgradeLesson(published.content) : null;
-}
 
 /** The questions as the teacher last saved them. */
 export async function draftQuiz(
@@ -115,11 +82,7 @@ export async function draftQuiz(
     briefHost(assignmentId),
   );
   const content = brief?.content as ContentDocument | undefined;
-  if (content && holdsQuestions(content)) return quizOfBrief(content);
-  return (
-    (await keptApart(context, assignmentId, false)) ??
-    (content ? quizOfBrief(content) : null)
-  );
+  return content ? quizOfBrief(content) : null;
 }
 
 /** The questions students answer: those in the brief as last sent to them. */
@@ -128,8 +91,7 @@ export async function publishedQuiz(
   assignmentId: string,
 ): Promise<LessonDocument | null> {
   const content = await publishedBrief(context, assignmentId);
-  if (content && holdsQuestions(content)) return quizOfBrief(content);
-  return keptApart(context, assignmentId, true);
+  return content && holdsQuestions(content) ? quizOfBrief(content) : null;
 }
 
 /** The brief as its students were last shown it, a quiz's questions and all. */
@@ -146,21 +108,6 @@ export async function publishedBrief(
     ? await publishedVersion(context.tx, context.tenantId, brief.id)
     : null;
   return (published?.content as ContentDocument | undefined) ?? null;
-}
-
-/**
- * The brief as its teacher edits it: a quiz whose questions are still kept
- * apart has them written in, so the next save keeps them in the brief.
- */
-export async function briefForEditing(
-  context: UnitContext,
-  assignmentId: string,
-  brief: ContentDocument,
-  sent: boolean,
-): Promise<ContentDocument> {
-  if (holdsQuestions(brief)) return brief;
-  const apart = await keptApart(context, assignmentId, sent);
-  return apart ? briefWithQuiz(brief, apart) : brief;
 }
 
 /** The same value whatever order its keys were stored in. */
@@ -339,24 +286,6 @@ export async function drawAttempt(
     attempt: input.attempt,
     drawn,
   });
-}
-
-/** Freezes questions still kept apart from the brief as the quiz goes out. */
-export async function publishKeptApart(
-  context: UnitContext,
-  assignmentId: string,
-) {
-  const document = await documentOf(
-    context.tx,
-    context.tenantId,
-    quizHost(assignmentId),
-  );
-  if (document)
-    await snapshotPublish(context.tx, {
-      tenantId: context.tenantId,
-      documentId: document.id,
-      userId: context.actor.userId,
-    });
 }
 
 /** A submission's answers grouped by attempt. */

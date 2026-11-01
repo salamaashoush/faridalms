@@ -296,6 +296,41 @@ export async function freezeCopy(
   return row.id;
 }
 
+/**
+ * Writes a host's document frozen, as it was sent, from words made out of
+ * another host's, such as a letter written from its template. The pictures
+ * and files of the source are linked to it as they are.
+ */
+export async function insertFrozen(
+  tx: Tx,
+  input: {
+    tenantId: string;
+    orgId: string;
+    host: Host;
+    from: Host;
+    content: Record<string, unknown>;
+    plainText: string;
+    locale: "en" | "ar" | null;
+    userId: string | null;
+  },
+): Promise<string> {
+  const [row] = await tx.execute<{ id: string }>(sql`
+    insert into core.documents (tenant_id, host_type, host_id, org_id, kind, schema_version, locale,
+      content, plain_text, frozen_at, last_edited_by_user_id, last_edited_at)
+    values (${input.tenantId}::uuid, ${input.host.type}, ${input.host.id}::uuid, ${input.orgId}::uuid,
+      'rich_text', 1, ${input.locale}, ${input.content}::jsonb, ${input.plainText},
+      statement_timestamp(), ${input.userId}::uuid, statement_timestamp())
+    returning id`);
+  if (!row) throw new Error("The document was not written");
+  await tx.execute(sql`
+    insert into core.document_files (tenant_id, document_id, file_id, file_purpose)
+    select d.tenant_id, ${row.id}::uuid, d.file_id, d.file_purpose from core.document_files d
+    join core.documents s on s.tenant_id = d.tenant_id and s.id = d.document_id
+    where d.tenant_id = ${input.tenantId}::uuid and s.host_type = ${input.from.type}
+      and s.host_id = ${input.from.id}::uuid and s.status = 'active' and d.status = 'active'`);
+  return row.id;
+}
+
 type TranslationRecord = {
   id: string;
   version: number;

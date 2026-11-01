@@ -42,6 +42,7 @@ export const KIND_LABEL: Record<TemplateKind, () => string> = {
   consent_form: m.libraryKindConsentForm,
   module: m.libraryKindModule,
   message: m.libraryKindMessage,
+  admission_letter: m.libraryKindAdmissionLetter,
 };
 
 export type Piece = Awaited<

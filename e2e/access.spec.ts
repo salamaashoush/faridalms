@@ -1,44 +1,18 @@
-import type { Page } from "@playwright/test";
-
 import { expect, test } from "@playwright/test";
 
-const PASSWORD = "northwind1234";
+import type { RoleKey } from "./fixtures/sign-in";
 
-const HOME = {
-  admin: "/admin",
-  teacher: "/teach",
-  parent: "/family",
-  student: "/me",
-} as const;
-
-const EMAIL = {
-  admin: "admin@example.com",
-  teacher: "teacher@example.com",
-  parent: "parent@example.com",
-  student: "omar@example.com",
-} as const;
-
-type RoleKey = keyof typeof HOME;
-
-async function signIn(page: Page, role: RoleKey) {
-  await page.goto("/sign-in");
-  await page.getByRole("textbox", { name: "Email" }).fill(EMAIL[role]);
-  await page.getByRole("textbox", { name: "Password" }).fill(PASSWORD);
-  await page.getByRole("button", { name: "Sign In", exact: true }).click();
-  await page.waitForURL(`**${HOME[role]}`);
-  await expect(
-    page.getByRole("navigation", { name: "Primary", exact: true }),
-  ).toBeVisible();
-}
+import { ACCOUNTS, signIn, untilHydrated } from "./fixtures/sign-in";
 
 /**
  * Navigation is the contract: a role only ever sees links to sections it can
  * actually open. The old portal put four dead links in every page's menu.
  */
 test.describe("navigation offers nothing that 404s", () => {
-  for (const role of Object.keys(HOME) as RoleKey[]) {
+  for (const role of Object.keys(ACCOUNTS) as RoleKey[]) {
     test(`every ${role} nav link resolves`, async ({ page }) => {
       await signIn(page, role);
+      await untilHydrated(page);
 
       const hrefs = await page
         .getByRole("navigation")
@@ -59,9 +33,7 @@ test.describe("navigation offers nothing that 404s", () => {
           400,
         );
         await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
-        await expect(
-          page.getByRole("button", { name: "Find a page…", exact: true }),
-        ).toBeEnabled();
+        await untilHydrated(page);
       }
     });
   }
@@ -96,7 +68,7 @@ test("a parent cannot read a student id outside their family", async ({
 }) => {
   await signIn(page, "parent");
   await page.goto(
-    "/family/children?studentId=00000000-0000-4000-8000-000000000000",
+    "/family/assignments?studentId=00000000-0000-4000-8000-000000000000",
   );
 
   // A forged id must be refused, not silently swapped for a child they can see.

@@ -439,6 +439,9 @@ export function SiteStudio({
       ? overview.news[locale]
       : overview.news[languages.primary],
     events: overview.events,
+    intakes: overview.intakes,
+    today: overview.today,
+    applyHref: () => "/apply",
     contact: overview.school.contact,
     editing: true,
   };
@@ -699,7 +702,25 @@ export function SiteStudio({
   const busy = saveSite.isPending || publish.isPending || unpublish.isPending;
   const published = shownState === "published" || shownState === "scheduled";
 
-  const fieldContext = { locale, wordsOnly: editingOther, pages, media };
+  const fieldContext = {
+    locale,
+    wordsOnly: editingOther,
+    pages,
+    media,
+    intakes: overview.intakes.map((intake) => ({
+      id: intake.id,
+      label: m.itkEditTitle({
+        grade:
+          (locale === "ar"
+            ? (intake.gradeAr ?? intake.gradeEn)
+            : (intake.gradeEn ?? intake.gradeAr)) ?? "",
+        year:
+          (locale === "ar"
+            ? (intake.yearTitleAr ?? intake.yearTitleEn)
+            : (intake.yearTitleEn ?? intake.yearTitleAr)) ?? "",
+      }),
+    })),
+  };
   const inspector = selectedSection ? (
     <Inspector
       key={`${selectedSection.id}-${locale}`}

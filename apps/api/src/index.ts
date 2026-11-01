@@ -10,6 +10,7 @@ import { fileURLToPath } from "node:url";
 import { createApp } from "./app";
 import { startProgramReruns } from "./coding/rerun";
 import { createJavaScriptRunner, createPythonRunner } from "./coding/run";
+import { startAdmissionsClock } from "./core/admissions-clock";
 import { createKeyRing } from "./core/keys";
 import { createLoginIndex, startLoginIndex } from "./core/login-index";
 import { startPartitionUpkeep } from "./core/partitions";
@@ -243,6 +244,21 @@ const stopUpkeep = env.CELL_WORKER_URL
 // A timed quiz left open when its time ran out is handed in by the worker.
 const stopPartitions = env.CELL_WORKER_URL ? startPartitionUpkeep(cell) : null;
 
+// Decisions are released on their intake's day and offers lapse after
+// their last one, at each school's own midnight.
+const stopAdmissionsClock = env.CELL_WORKER_URL
+  ? startAdmissionsClock({
+      cell,
+      directory,
+      cellId: env.CELL_ID,
+      channels: {
+        email: gateways.email !== null,
+        sms: Boolean(env.SMS_WEBHOOK_URL),
+      },
+      intervalMs: 5 * 60_000,
+    })
+  : null;
+
 const stopQuizClock = env.CELL_WORKER_URL
   ? startQuizClock({
       cell,
@@ -288,6 +304,7 @@ async function shutdown() {
   await stopDelivery?.();
   await stopUpkeep?.();
   await stopQuizClock?.();
+  await stopAdmissionsClock?.();
   await stopPartitions?.();
   await stopProgramReruns?.();
   await stopHostChecks?.();

@@ -9,10 +9,11 @@ import {
   pendingProgramRemarks,
 } from "@faridalms/database/stores/learning";
 import {
+  lessonContentOf,
   markResponse,
   responseSchema,
-  upgradeLesson,
 } from "@faridalms/domain/learning";
+import { lessonOfContent } from "@faridalms/domain/lesson-content";
 import * as v from "valibot";
 
 import type { Remark } from "../core/remarks";
@@ -47,7 +48,9 @@ async function rerunAsk(
       ).filter((row) => row.blockId === ask.blockId),
     }),
   );
-  const content = read.stored ? upgradeLesson(read.stored) : null;
+  const content = read.stored
+    ? lessonOfContent(lessonContentOf(read.stored))
+    : null;
   const block = content?.blocks.find((item) => item.id === ask.blockId);
   const changes: Remark[] = [];
   if (block?.type === "program")

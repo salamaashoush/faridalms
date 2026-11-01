@@ -63,6 +63,7 @@ export const SECTION_LABEL: Record<SectionType, () => string> = {
   signIn: m.siteTypeSignIn,
   register: m.siteTypeRegister,
   apply: m.siteTypeApply,
+  registerApply: m.siteTypeRegisterApply,
 };
 
 export const SECTION_HINT: Record<SectionType, () => string> = {
@@ -98,6 +99,7 @@ export const SECTION_HINT: Record<SectionType, () => string> = {
   signIn: m.siteTypeHintSignIn,
   register: m.siteTypeHintRegister,
   apply: m.siteTypeHintApply,
+  registerApply: m.siteTypeHintRegisterApply,
 };
 
 /** The name of each layout, by section type then layout. */
@@ -214,6 +216,10 @@ export const VARIANT_LABEL: {
     banner: m.siteVariantAdmissionsBanner,
     keyDate: m.siteVariantAdmissionsKeyDate,
   },
+  registerApply: {
+    banner: m.siteVariantRegisterApplyBanner,
+    card: m.siteVariantRegisterApplyCard,
+  },
   steps: {
     horizontal: m.siteVariantStepsHorizontal,
     vertical: m.siteVariantStepsVertical,
@@ -264,6 +270,8 @@ export const CATEGORY_LABEL: Record<SectionCategory, () => string> = {
 
 /** The label of each field, by its name in the section declaration. */
 export const FIELD_LABEL: Record<string, () => string> = {
+  intake: m.siteFieldIntake,
+  button: m.siteFieldButton,
   eyebrow: m.siteFieldEyebrow,
   heading: m.siteFieldHeading,
   text: m.siteFieldText,
@@ -500,6 +508,7 @@ export const ISSUE_LABEL: Record<SiteIssueCode, () => string> = {
 
 /** A line under a field's label, where its declaration alone would not say enough. */
 export const FIELD_HINT: Record<string, () => string> = {
+  intake: m.siteFieldIntakeHint,
   options: m.siteFieldOptionsHint,
   questions: m.siteFieldQuestionsHint,
 };
@@ -576,6 +585,7 @@ export const BLOCK_LABEL: Record<BlockType, () => string> = {
 export const CHOICE_LABEL: Record<string, Record<string, () => string>> = {
   source: {
     calendar: m.siteChoiceSourceCalendar,
+    intakes: m.siteChoiceSourceIntakes,
     typed: m.siteChoiceSourceTyped,
   },
   height: {

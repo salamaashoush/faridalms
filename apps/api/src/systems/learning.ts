@@ -125,7 +125,12 @@ import {
   workingYear,
 } from "@faridalms/database/stores/years";
 import { contentFileIds, contentPlainText } from "@faridalms/domain/content";
-import { richTextToContent } from "@faridalms/domain/content-conversion";
+import {
+  contentOf,
+  listNode,
+  paragraphNode,
+  textNode,
+} from "@faridalms/domain/content-conversion";
 import { documentTerms } from "@faridalms/domain/glossary";
 import {
   checkBlocks,
@@ -197,12 +202,11 @@ import {
   shortOfGate,
   standingOf,
   studentBlocks,
-  upgradeLesson,
   videoStops,
   watchSchema,
   yearMapSchema,
 } from "@faridalms/domain/learning";
-import { isContentDocument } from "@faridalms/domain/lesson-content";
+import { lessonOfContent } from "@faridalms/domain/lesson-content";
 import { translatedLesson } from "@faridalms/domain/lesson-translation";
 import { LIVE_WINDOW_MS, liveStates } from "@faridalms/domain/live";
 import {
@@ -418,19 +422,17 @@ async function publishedLesson(context: UnitContext, lessonId: string) {
   const translated = draft
     ? await publishedVersion(context.tx, context.tenantId, draft.id)
     : null;
-  return published
+  const stored = published ? lessonContentOf(published.content) : null;
+  return published && stored
     ? {
         versionId: published.id,
         documentVersion: published.documentVersion,
         draftVersion: document.version,
-        content: upgradeLesson(published.content),
-        stored: published.content,
+        content: lessonOfContent(stored),
+        stored,
         /** The translation students read, as last published. */
         translation:
-          draft?.locale &&
-          translated &&
-          isContentDocument(published.content) &&
-          isContentDocument(translated.content)
+          draft?.locale && translated
             ? {
                 locale: draft.locale,
                 content: lessonContentOf(translated.content),
@@ -685,24 +687,6 @@ export const savePlan = writeProcedure
   });
 registerLiveRules("lesson", {
   keyed: () => Promise.resolve(true),
-  // A lesson still stored as a list of blocks is written as one document
-  // before a room opens on it, since the room starts from stored content.
-  prepare: async (context, lessonId) => {
-    const host = { type: "lesson", id: lessonId };
-    const stored = await documentOf(context.tx, context.tenantId, host);
-    if (!stored || isContentDocument(stored.content)) return;
-    const content = { ...lessonContentOf(stored.content) };
-    await saveDocument(context.tx, {
-      tenantId: context.tenantId,
-      orgId: context.schoolId,
-      host,
-      kind: "lesson",
-      content,
-      plainText: contentPlainText(content),
-      mediaIds: contentFileIds(content),
-      userId: context.actor.userId,
-    });
-  },
 });
 registerHostWriter("lesson", async (context, lessonId) => {
   if (!(await isOn(context))) return false;
@@ -1101,31 +1085,13 @@ function moduleOverview(
   summary: string,
   lessons: readonly { title: string }[],
 ) {
-  return richTextToContent({
-    type: "doc",
-    content: [
-      ...(summary.trim()
-        ? [
-            {
-              type: "paragraph" as const,
-              content: [{ type: "text" as const, text: summary.trim() }],
-            },
-          ]
-        : []),
-      {
-        type: "orderedList" as const,
-        content: lessons.map((lesson) => ({
-          type: "listItem" as const,
-          content: [
-            {
-              type: "paragraph" as const,
-              content: [{ type: "text" as const, text: lesson.title }],
-            },
-          ],
-        })),
-      },
-    ],
-  });
+  return contentOf([
+    ...(summary.trim() ? [paragraphNode([textNode(summary.trim())])] : []),
+    listNode(
+      "number",
+      lessons.map((lesson) => [textNode(lesson.title)]),
+    ),
+  ]);
 }
 
 /**
@@ -1245,7 +1211,7 @@ export const lesson = readProcedure
             changed:
               published.draftVersion > published.documentVersion ||
               published.translationChanged,
-            content: lessonContentOf(published.stored),
+            content: published.stored,
             translation: published.translation?.content ?? null,
           }
         : null,
@@ -1383,7 +1349,7 @@ export const remarking = readProcedure
       documentOf(context.tx, context.tenantId, { type: "lesson", id: row.id }),
       publishedLesson(context, row.id),
     ]);
-    const draft = upgradeLesson(document?.content);
+    const draft = lessonOfContent(lessonContentOf(document?.content));
     const { rows, changes } = await remarksIn(context, row.id, draft);
     const rerun = new Set(
       (published ? changedPrograms(published.content, draft) : []).map(
@@ -2557,7 +2523,7 @@ export const moduleGlossary = readProcedure
           })
         : null;
       const content = shown
-        ? lessonContentOf(shown.stored)
+        ? shown.stored
         : written
           ? lessonContentOf(written.content)
           : null;
@@ -2632,9 +2598,7 @@ async function playable(context: UnitContext, lessonId: string) {
       })))
     : null;
   const content =
-    translation &&
-    reading === translation.locale &&
-    isContentDocument(published.stored)
+    translation && reading === translation.locale
       ? translatedLesson(published.stored, translation.content)
       : published.content;
   const shown: FeedbackShown = {

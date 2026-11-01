@@ -1,340 +1,187 @@
-import type { APIRequestContext, Page } from "@playwright/test";
-
 import { expect, test } from "@playwright/test";
 
-const origin = "http://127.0.0.1:3001";
+import type { Api } from "./fixtures/api";
 
-async function signIn(
-  request: APIRequestContext,
-  email: string,
-  password = "northwind1234",
-) {
-  const response = await request.post(`${origin}/v1/auth/signIn`, {
-    data: { school: "northwind", email, password },
-  });
-  expect(response.status()).toBe(200);
-  const session = (await response.json()) as { token: string };
-  return { authorization: `Bearer ${session.token}` };
-}
+import { apiAs, signedInApi } from "./fixtures/api";
+import { names, refusal } from "./fixtures/school";
+import { PASSWORD, signIn, untilHydrated } from "./fixtures/sign-in";
 
-async function login(page: Page, email: string) {
-  await page.goto("/sign-in");
-  await page
-    .getByRole("textbox", { name: "Email or sign-in name" })
-    .fill(email);
-  await page
-    .getByRole("textbox", { name: "Password", exact: true })
-    .fill("northwind1234");
-  await page.getByRole("button", { name: "Sign In", exact: true }).click();
-  await expect(page.locator("main#main")).toBeVisible();
-}
+const ACCOUNT_PASSWORD = "clerk-passphrase-2026-salama";
 
-const PASSWORD = "clerk-passphrase-2026";
-
-async function createAccount(
-  request: APIRequestContext,
-  admin: Record<string, string>,
-  input: { name: string; email: string; role: "admin" | "teacher" },
-) {
-  const response = await request.post(`${origin}/v1/saveUser`, {
-    headers: admin,
-    data: {
-      ...input,
-      title: "",
-      mobile: "",
-      password: PASSWORD,
-      isActive: true,
-    },
-  });
-  expect(response.status()).toBe(200);
-  return (await response.json()) as { id: string };
-}
-
-test("school roles grant only what the actor holds, never lock out the last administrator and are audited", async ({
-  request,
-}) => {
+/** A new teacher with a password of their own, as the office would add one. */
+async function newTeacher(admin: Api, label: string) {
   const suffix = crypto.randomUUID().slice(0, 8);
-  const admin = await signIn(request, "admin@example.com");
-  const teacher = await signIn(request, "sara@example.com");
-  expect(
-    (
-      await request.post(`${origin}/v1/getAccessRoles`, { headers: teacher })
-    ).status(),
-  ).toBe(403);
-  const catalogue = await request.post(`${origin}/v1/getAccessRoles`, {
-    headers: admin,
+  const email = `${label}-${suffix}@northwind.example.com`;
+  const family = `Ashoush ${label} ${suffix}`;
+  const { id } = await admin.people.saveStaff({
+    names: names("Salama", family),
+    email,
+    roles: ["teacher"],
   });
-  expect(catalogue.status()).toBe(200);
-  const roles = (await catalogue.json()) as {
-    builtins: { baseRole: string; permissions: string[] }[];
-    grantable: string[];
-  };
-  expect(roles.builtins.map((row) => row.baseRole)).toEqual([
-    "admin",
-    "teacher",
-    "parent",
-    "student",
+  await admin.people.saveSignIn({
+    userId: id,
+    loginName: email,
+    password: ACCOUNT_PASSWORD,
+  });
+  return { id, email, name: `Salama ${family}` };
+}
+
+test("school roles grant only what the actor holds, never lock out the last administrator and are audited", async () => {
+  const suffix = crypto.randomUUID().slice(0, 8);
+  const [admin, teacher] = await Promise.all([
+    apiAs("admin"),
+    apiAs("teacher"),
   ]);
-  expect(roles.grantable).toContain("access:manage");
-
-  const clerkRoleId = crypto.randomUUID();
-  const clerk = await request.post(`${origin}/v1/saveAccessRole`, {
-    headers: admin,
-    data: {
-      id: clerkRoleId,
-      expectedRevision: 0,
-      name: `Attendance clerk ${suffix}`,
-      baseRole: "teacher",
-      permissions: [
-        "classes:read",
-        "roster:read",
-        "attendance:read",
-        "attendance:record",
-        "messages:read",
-        "calendar:read",
-        "student-profile:read",
-        "timetable:read",
-      ],
-    },
+  expect(await refusal(teacher.access.roles())).toMatchObject({
+    code: "FORBIDDEN",
   });
-  expect(clerk.status()).toBe(200);
-  expect(await clerk.json()).toMatchObject({ id: clerkRoleId, revision: 1 });
-  const stale = await request.post(`${origin}/v1/saveAccessRole`, {
-    headers: admin,
-    data: {
-      id: clerkRoleId,
-      expectedRevision: 5,
-      name: "Renamed",
-      baseRole: "teacher",
-      permissions: ["classes:read"],
-    },
-  });
-  expect(stale.status()).toBe(409);
-
-  const teacherAccount = await createAccount(request, admin, {
-    name: `Clerk Teacher ${suffix}`,
-    email: `clerk-${suffix}@example.com`,
-    role: "teacher",
-  });
-  const parentRole = await request.post(`${origin}/v1/assignAccessRole`, {
-    headers: admin,
-    data: {
-      userId: teacherAccount.id,
-      accessRoleId: clerkRoleId,
-      expectedRevision: 0,
-    },
-  });
-  expect(parentRole.status()).toBe(200);
-  const clerkSession = await signIn(
-    request,
-    `clerk-${suffix}@example.com`,
-    PASSWORD,
+  const catalogue = await admin.access.roles();
+  expect(catalogue.roles.map((role) => role.builtinKey)).toEqual(
+    expect.arrayContaining(["principal", "teacher", "family", "student"]),
   );
-  const me = await request.post(`${origin}/v1/auth/currentUser`, {
-    headers: clerkSession,
-  });
-  const profile = (await me.json()) as { permissions: string[] };
-  expect(profile.permissions).toContain("attendance:record");
-  expect(profile.permissions).not.toContain("assignments:author");
-  expect(
-    (
-      await request.post(`${origin}/v1/getAuthoringContext`, {
-        headers: clerkSession,
-        data: { classId: "" },
-      })
-    ).status(),
-  ).toBe(403);
-  expect(
-    (
-      await request.post(`${origin}/v1/getMyClasses`, { headers: clerkSession })
-    ).status(),
-  ).toBe(200);
+  expect(catalogue.grantable).toContain("access:manage");
 
-  const studentsResponse = await request.post(`${origin}/v1/getAllUsers`, {
-    headers: admin,
-    data: { role: "parent" },
+  const clerkRole = await admin.access.saveRole({
+    nameEn: `Attendance clerk ${suffix}`,
+    capabilities: [
+      "classes:read",
+      "roster:read",
+      "attendance:read",
+      "attendance:record",
+      "messages:read",
+      "calendar:read",
+      "timetable:read",
+    ],
   });
-  const parents = (await studentsResponse.json()) as { rows: { id: string }[] };
-  const parent = parents.rows[0];
-  if (!parent) throw new Error("Missing seeded parent");
+  expect(clerkRole.version).toBe(1);
   expect(
-    (
-      await request.post(`${origin}/v1/assignAccessRole`, {
-        headers: admin,
-        data: {
-          userId: parent.id,
-          accessRoleId: clerkRoleId,
-          expectedRevision: 0,
-        },
-      })
-    ).status(),
-  ).toBe(400);
+    await refusal(
+      admin.access.saveRole({
+        id: clerkRole.id,
+        expectedVersion: 5,
+        nameEn: "Renamed",
+        capabilities: ["classes:read"],
+      }),
+    ),
+  ).toMatchObject({ code: "CONFLICT" });
 
-  const officeRoleId = crypto.randomUUID();
-  const office = await request.post(`${origin}/v1/saveAccessRole`, {
-    headers: admin,
-    data: {
-      id: officeRoleId,
-      expectedRevision: 0,
-      name: `Office ${suffix}`,
-      baseRole: "admin",
-      permissions: [
-        "access:manage",
-        "users:read",
-        "users:manage",
-        "classes:read",
-      ],
-    },
+  const clerk = await newTeacher(admin, "clerk");
+  await admin.access.assign({
+    userId: clerk.id,
+    accessRoleId: clerkRole.id,
+    replacesBuiltin: true,
   });
-  expect(office.status()).toBe(200);
-  const limitedAccount = await createAccount(request, admin, {
-    name: `Limited Admin ${suffix}`,
-    email: `limited-${suffix}@example.com`,
-    role: "admin",
+  const clerkApi = (await signedInApi(clerk.email, ACCOUNT_PASSWORD)).api;
+  const profile = await clerkApi.identity.currentUser();
+  expect(profile.capabilities).toContain("attendance:record");
+  expect(profile.capabilities).not.toContain("assignments:author");
+  expect(await refusal(clerkApi.coursework.options())).toMatchObject({
+    code: "FORBIDDEN",
   });
+  expect((await clerkApi.classes.mine({})).rows).toBeDefined();
+
+  const officeRole = await admin.access.saveRole({
+    nameEn: `Office ${suffix}`,
+    capabilities: ["access:manage", "staff:manage", "people:read"],
+  });
+  const limited = await newTeacher(admin, "limited");
+  await admin.access.assign({
+    userId: limited.id,
+    accessRoleId: officeRole.id,
+    replacesBuiltin: true,
+  });
+  const limitedApi = (await signedInApi(limited.email, ACCOUNT_PASSWORD)).api;
   expect(
-    (
-      await request.post(`${origin}/v1/assignAccessRole`, {
-        headers: admin,
-        data: {
-          userId: limitedAccount.id,
-          accessRoleId: officeRoleId,
-          expectedRevision: 0,
-        },
-      })
-    ).status(),
-  ).toBe(200);
-  const limited = await signIn(
-    request,
-    `limited-${suffix}@example.com`,
-    PASSWORD,
+    await refusal(
+      limitedApi.access.saveRole({
+        nameEn: `Sneaky ${suffix}`,
+        capabilities: ["access:manage", "school:manage"],
+      }),
+    ),
+  ).toMatchObject({ code: "FORBIDDEN", message: "access.not_held" });
+  const modest = await limitedApi.access.saveRole({
+    nameEn: `Front desk ${suffix}`,
+    capabilities: ["people:read"],
+  });
+  expect(modest.id).toBeTruthy();
+
+  // Acme has one administrator, so narrowing the role that makes them one
+  // would leave the school with nobody to manage access.
+  const acme = (
+    await signedInApi("principal.acme@acme.example.com", PASSWORD, "acme")
+  ).api;
+  const principalRole = (await acme.access.roles()).roles.find(
+    (role) => role.builtinKey === "principal",
   );
-  const escalation = await request.post(`${origin}/v1/saveAccessRole`, {
-    headers: limited,
-    data: {
-      id: crypto.randomUUID(),
-      expectedRevision: 0,
-      name: `Sneaky ${suffix}`,
-      baseRole: "admin",
-      permissions: ["access:manage", "school:manage"],
-    },
-  });
-  expect(escalation.status()).toBe(403);
-  const modest = await request.post(`${origin}/v1/saveAccessRole`, {
-    headers: limited,
-    data: {
-      id: crypto.randomUUID(),
-      expectedRevision: 0,
-      name: `Front desk ${suffix}`,
-      baseRole: "admin",
-      permissions: ["users:read", "classes:read"],
-    },
-  });
-  expect(modest.status()).toBe(200);
-  const meResponse = await request.post(`${origin}/v1/auth/currentUser`, {
-    headers: limited,
-  });
-  const limitedProfile = (await meResponse.json()) as { id: string };
-  const lockout = await request.post(`${origin}/v1/assignAccessRole`, {
-    headers: limited,
-    data: {
-      userId: limitedProfile.id,
-      accessRoleId: null,
-      expectedRevision: 1,
-    },
-  });
-  expect(lockout.status()).toBe(200);
-  const selfLock = await request.post(`${origin}/v1/assignAccessRole`, {
-    headers: limited,
-    data: {
-      userId: limitedProfile.id,
-      accessRoleId: (await modest.json()).id as string,
-      expectedRevision: 0,
-    },
-  });
-  expect(selfLock.status()).toBe(400);
+  if (!principalRole) throw new Error("the seed gives acme no principal role");
+  expect(
+    await refusal(
+      acme.access.saveRole({
+        id: principalRole.id,
+        expectedVersion: principalRole.version,
+        nameEn: "Principal",
+        capabilities: principalRole.capabilities.filter(
+          (capability) => capability !== "access:manage",
+        ),
+      }),
+    ),
+  ).toMatchObject({ code: "CONFLICT", message: "access.last_manager" });
 
-  const audit = await request.post(`${origin}/v1/getAccessChanges`, {
-    headers: admin,
-    data: { page: 1 },
-  });
-  expect(audit.status()).toBe(200);
-  const changes = (await audit.json()) as {
-    rows: { action: string; targetId: string; after: { name?: string } }[];
-  };
-  expect(changes.rows).toContainEqual(
-    expect.objectContaining({
-      action: "role.created",
-      targetId: clerkRoleId,
-    }),
-  );
-  expect(changes.rows).toContainEqual(
-    expect.objectContaining({
-      action: "assignment.changed",
-      targetId: teacherAccount.id,
-    }),
+  const log = await admin.access.changes({});
+  expect(log.rows.map((row) => row.action)).toEqual(
+    expect.arrayContaining(["access_role.create", "access_assignment.create"]),
   );
 });
 
-test("administrators shape a role in settings and assign it from the staff directory", async ({
+test("administrators shape a role in settings and assign it from the person's record", async ({
   page,
-  request,
 }) => {
   const suffix = crypto.randomUUID().slice(0, 8);
-  const admin = await signIn(request, "admin@example.com");
-  const account = await createAccount(request, admin, {
-    name: `Desk Teacher ${suffix}`,
-    email: `desk-${suffix}@example.com`,
-    role: "teacher",
-  });
+  const admin = await apiAs("admin");
+  const desk = await newTeacher(admin, "desk");
+  const roleName = `Desk ${suffix}`;
 
-  await login(page, "admin@example.com");
+  await signIn(page, "admin");
   await page.goto("/admin/settings?section=access");
+  await untilHydrated(page);
   await page.getByRole("button", { name: "New role", exact: true }).click();
-  const dialog = page.getByRole("dialog");
-  await dialog
-    .getByRole("textbox", { name: "Role name", exact: true })
-    .fill(`Desk ${suffix}`);
-  await dialog
-    .getByRole("checkbox", { name: "View classes", exact: true })
+  const sheet = page.getByRole("dialog", { name: "New role" });
+  await sheet
+    .getByRole("textbox", { name: "Name in English", exact: true })
+    .fill(roleName);
+  await sheet
+    .getByRole("checkbox", { name: "See classes", exact: true })
     .click();
-  await dialog
-    .getByRole("checkbox", { name: "View attendance", exact: true })
+  await sheet
+    .getByRole("checkbox", { name: "See attendance", exact: true })
     .click();
-  await dialog.getByRole("button", { name: "Save", exact: true }).click();
-  await expect(dialog).toHaveCount(0);
+  await sheet.getByRole("button", { name: "Save", exact: true }).click();
+  await expect(sheet).toHaveCount(0);
+  await expect(page.getByText("Changes saved", { exact: true })).toBeVisible();
   await expect(
-    page.getByRole("link", { name: `Desk ${suffix}`, exact: true }),
-  ).toBeVisible();
-  await expect(
-    page.getByText("Role created", { exact: true }).first(),
+    page.getByRole("link", { name: roleName, exact: true }).first(),
   ).toBeVisible();
 
-  await page.goto("/admin/staff");
-  await page
-    .getByRole("searchbox", { name: "Search records…" })
-    .fill(`Desk Teacher ${suffix}`);
-  await page
-    .getByRole("button", { name: `Edit Desk Teacher ${suffix}`, exact: true })
+  await page.goto(`/people/${desk.id}?tab=access`);
+  await untilHydrated(page);
+  await page.getByRole("button", { name: "Assign role", exact: true }).click();
+  const assign = page.getByRole("dialog", { name: "Assign role" });
+  await assign.getByRole("combobox", { name: /^Role/ }).click();
+  await page.getByRole("option", { name: roleName, exact: true }).click();
+  await assign
+    .getByRole("checkbox", { name: "Use instead of their usual role's access" })
     .click();
-  await dialog.getByRole("combobox", { name: "Access role" }).click();
-  await page
-    .getByRole("option", { name: `Desk ${suffix}`, exact: true })
-    .click();
-  await dialog
-    .getByRole("button", { name: "Save changes", exact: true })
-    .click();
-  await expect(dialog).toHaveCount(0);
+  await assign.getByRole("button", { name: "Save", exact: true }).click();
+  await expect(assign).toHaveCount(0);
+  await expect(
+    page.getByText(`Role assigned to ${desk.name}`, { exact: true }),
+  ).toBeVisible();
 
-  const session = await signIn(request, `desk-${suffix}@example.com`, PASSWORD);
-  const me = await request.post(`${origin}/v1/auth/currentUser`, {
-    headers: session,
-  });
-  expect(await me.json()).toMatchObject({
-    permissions: expect.arrayContaining(["classes:read", "attendance:read"]),
-    accessRoleId: expect.any(String),
-  });
-  const profile = (await me.json()) as { permissions: string[] };
-  expect(profile.permissions).not.toContain("assignments:author");
-  expect(account.id).toBeTruthy();
+  const profile = await (
+    await signedInApi(desk.email, ACCOUNT_PASSWORD)
+  ).api.identity.currentUser();
+  expect(profile.capabilities).toEqual(
+    expect.arrayContaining(["classes:read", "attendance:read"]),
+  );
+  expect(profile.capabilities).not.toContain("assignments:author");
 });

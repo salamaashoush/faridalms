@@ -43,7 +43,7 @@ in `decisions.md`; a choice below changes only with new evidence.
   - Documents with their versions, translations, file references and link
     references.
   - Privacy notices, consent records, erasure approvals and legal holds.
-  - The audit log with its seals, activity events, idempotency keys.
+  - The audit log with its seals.
   - Import runs, user preferences and saved views.
   - The search index and partition maintenance.
 - The request and tenant context contract (including integrations, the public
@@ -730,13 +730,13 @@ the row-metadata trigger.
   `core.relationship_restrictions` (by `relationship_id`).
 - **Ledger**: append-only facts (`audit.log`, `audit.payloads`, the seals,
   `core.consent_records`, `core.erasure_approvals`, `core.erasure_items`,
-  `core.document_versions`, `core.activity_events`, `core.import_rows`).
+  `core.document_versions`, `core.import_rows`).
   `tenant_id`, their own key and a creation or occurrence timestamp; no
   `status`, `version`, `date_last_modified` or `metadata`; no `UPDATE` grant
   for any runtime role, with one exception: `retention` may redact the content
   columns of an approved document version (section 5).
 - **Ephemeral**: short-lived security state (`core.sessions`,
-  `core.auth_attempts`, `core.idempotency_keys`). Own columns, hard-deleted by
+  `core.auth_attempts`). Own columns, hard-deleted by
   `retention` after expiry, or earlier on an approved erasure.
 
 ### 4.4 Base columns
@@ -1039,8 +1039,8 @@ Notes on the functions:
     `users.erased_at`), clearing their `metadata`;
   - delete the person's external ids, contact points,
     relationship restrictions, login identities, passkeys, devices, sessions,
-    idempotency keys, file subjects, preferences, saved views, activity
-    events, health records and audit payloads;
+    file subjects, preferences, saved views, health records and audit
+    payloads;
   - delete the listed files (then their objects), and redact the listed
     documents, their versions and translations.
 
@@ -1453,8 +1453,6 @@ Table by table:
   `absolute_expires_at < statement_timestamp() - interval '30 days'` (kept a
   month for the "active sessions" list and investigations), or holder erased.
 - `core.auth_attempts`: ephemeral, expiry `window_ends_at < statement_timestamp()`.
-- `core.idempotency_keys`: ephemeral, expiry `expires_at < statement_timestamp()`,
-  or holder erased.
 - `core.access_roles`: entity. Deviation: `app` has `UPDATE` only on
   `name_en, name_ar, description_en, description_ar, capabilities, status,
   metadata`, never `org_id` or `builtin_key`.
@@ -1499,10 +1497,6 @@ Table by table:
   `core.consent_records`, `core.erasure_approvals`, `core.erasure_items`:
   ledger. `core.current_consents` (view):
   `grant select to app, worker, cell_io, retention`.
-- `core.activity_events`: ledger; `retention` deletes an erased person's
-  events:
-  `create policy p_erase_delete on core.activity_events for delete to retention using (app.erasure_approved(tenant_id, actor_user_id))`,
-  `grant delete on core.activity_events to retention`.
 - `core.import_runs`: entity. `core.import_rows`: ledger.
 - `core.user_preferences`: entity; erase and delete, person `user_id`.
   `core.saved_views`: entity; erase and delete, person `owner_user_id`.
@@ -1526,11 +1520,11 @@ personal data. The `integration` role reads only the tables marked
 scope includes it, and inserts audit rows.
 
 `DELETE` allowlist, which the CI check enforces: `retention` on
-`core.sessions`, `core.auth_attempts`, `core.idempotency_keys`,
+`core.sessions`, `core.auth_attempts`,
 `core.external_ids`, `core.contact_points`, `core.relationship_restrictions`,
 `core.login_identities`, `core.passkeys`, `core.devices`, `core.files`,
 `core.file_subjects`, `core.user_preferences`, `core.saved_views`,
-`core.activity_events`, `health.records` and `audit.payloads`. Nobody else,
+`health.records` and `audit.payloads`. Nobody else,
 on anything.
 
 ## 6. Foundation tables
@@ -3802,8 +3796,7 @@ create index records_student_idx on health.records (tenant_id, student_user_id) 
   a record can never point at a file that escaped the report rules of section
   6.5.
 - Audit payloads of health writes record the changed field names only, never
-  values (section 6.14), and idempotency rows of health procedures store no
-  response body (section 6.16).
+  values (section 6.14).
 - Neither standard carries this (Ed-Fi `StudentHealth` is immunisations
   only), so nothing here is exported ([R1] section 6).
 - UAE health data stays in the country, including backups ([R2] section 14).
@@ -4505,77 +4498,21 @@ hash and an asynchronous sealer ([R2] finding 4, probe). So:
   period (open question 9); seal batches and anchors are kept, so verification
   starts from the oldest kept batch.
 
-### 6.15 Activity events
+### 6.15 Learning activity
 
-```sql
-create table core.activity_events (
-  tenant_id uuid not null,
-  id uuid not null default uuidv7(),
-  occurred_at timestamptz not null default statement_timestamp(),
-  actor_user_id uuid not null,
-  verb text not null check (verb ~ '^[a-z][a-z_]{1,40}$'),
-  object_type text not null check (object_type ~ '^[a-z][a-z0-9_]{1,62}$'),
-  object_id uuid not null,
-  org_id uuid,
-  context_type text check (context_type ~ '^[a-z][a-z0-9_]{1,62}$'),
-  context_id uuid,
-  session_id uuid,
-  result jsonb check (jsonb_typeof(result) = 'object' and octet_length(result::text) <= 4096),
-  primary key (tenant_id, occurred_at, id),
-  foreign key (tenant_id) references core.tenants (tenant_id),
-  constraint activity_events_context_check check ((context_type is null) = (context_id is null))
-) partition by range (occurred_at);
-create index activity_events_actor_idx on core.activity_events (tenant_id, actor_user_id, occurred_at);
-create index activity_events_object_idx on core.activity_events (tenant_id, object_type, object_id, occurred_at);
-```
+There is no activity log. Lesson progress, answers, watches and submissions
+are kept in their own tables, and an export to a learning record store
+writes them as xAPI statements from those records when asked
+(`packages/domain/src/xapi.ts`), so nothing records a child's activity a
+second time.
 
-- Our own append-only learning activity log, from which Caliper 1.2 or xAPI 2.0
-  statements are exported [BA]: `verb` (viewed, started, completed, submitted,
-  answered), the object, and the class or module as context. Verbs are defined
-  by the systems that emit them (learning, coursework).
-- It is not the audit log (no hash chain, not a record of access) and not the
-  source of truth for any state (lesson progress and submissions have their own
-  tables). An approved erasure deletes the person's events.
-- Egypt forbids using a child's activity data "for classification, tracking or
-  behavioural monitoring" (Decree 816/2025 Art. 14(5), [R3] finding 7). Until
-  the owner decides whether this log falls under that (open question 8), it
-  records only what a teacher's progress view shows, keeps it 13 months, and
-  feeds no profiling.
+### 6.16 Repeated writes
 
-### 6.16 Idempotency keys
-
-```sql
-create table core.idempotency_keys (
-  tenant_id uuid not null,
-  account_id uuid not null,
-  key text not null check (char_length(key) between 8 and 255),
-  request_hash bytea not null check (octet_length(request_hash) = 32),
-  procedure text not null check (char_length(procedure) between 1 and 120),
-  response_status smallint check (response_status between 100 and 599),
-  response_body jsonb,
-  resource_type text check (char_length(resource_type) between 1 and 63),
-  resource_id uuid,
-  created_at timestamptz not null default statement_timestamp(),
-  expires_at timestamptz not null default statement_timestamp() + interval '24 hours',
-  primary key (tenant_id, account_id, key),
-  foreign key (tenant_id) references core.tenants (tenant_id),
-  foreign key (tenant_id, account_id) references core.accounts (tenant_id, id)
-);
-create index idempotency_keys_expiry_idx on core.idempotency_keys (tenant_id, expires_at);
-```
-
-Stripe's semantics [BA]; the flow is in section 7.9. Keys are scoped to the
-account, expire after 24 hours, and `request_hash` is SHA-256 of the procedure
-name and the canonical JSON input. Domain rules that already make a retry safe
-(a hand-in of the same draft revision returns the same attempt) stay; the key
-covers everything else.
-
-A procedure whose response carries a secret (an invitation link, a badge
-secret, recovery codes) or special-category data (health, custody,
-demographics) is marked sensitive in its contract and stores only the status
-and resource ids; a replay re-reads the resource through the normal
-authorisation path, or answers 409 when the secret cannot be shown twice.
-Secrets are otherwise only ever stored as SHA-256 (section 4.6).
+There is no table of idempotency keys. An update names the `version` it
+read, so a repeated update fails as stale rather than applying twice
+(section 4.8), and a create a client may repeat is made safe by its own
+rule: a hand-in of the same draft revision returns the attempt it already
+created.
 
 ### 6.17 Imports
 
@@ -4898,7 +4835,7 @@ create table ops.partitioned_tables (
   primary key (schema_name, table_name)
 );
 insert into ops.partitioned_tables (schema_name, table_name, period)
-values ('core', 'activity_events', 'month'), ('audit', 'log', 'month'), ('audit', 'payloads', 'month');
+values ('audit', 'log', 'month'), ('audit', 'payloads', 'month');
 
 create function app.ensure_partitions(months_ahead integer default 3, since date default null) returns integer
 language plpgsql security definer
@@ -4939,8 +4876,8 @@ select app.ensure_partitions(3);
 reset role;
 ```
 
-- Monthly range partitions for `audit.log`, `audit.payloads` and
-  `core.activity_events` ([R2] section 7). Other systems add their parents by
+- Monthly range partitions for `audit.log` and `audit.payloads` ([R2]
+  section 7). Other systems add their parents by
   inserting into `ops.partitioned_tables` in the migration that creates them
   (notifications and the delivery ledger monthly, attendance events yearly),
   never by redefining the function. The registry is cell metadata, not tenant
@@ -5064,7 +5001,7 @@ same function on the `site` and `integration` pools. Each does, in order:
    the answer reveals nothing about which tenants exist. For an authenticated
    caller, a `write` unit of work fails with 503 and `Retry-After` unless the
    tenant is `active`; a `read` succeeds while it is `frozen`.
-4. Run `work`. Audit rows, idempotency rows and pg-boss jobs are written with
+4. Run `work`. Audit rows and pg-boss jobs are written with
    the same handle, so they commit or roll back with the change.
 5. `commit`. When `work` failed with a denial or an error that must be
    audited, the rollback is followed by a short second transaction that writes
@@ -5154,8 +5091,7 @@ The API maps database errors to domain errors by SQLSTATE and constraint name:
 - `42501` from `app.tenant_id()`, an RLS `WITH CHECK` failure (a purpose gate
   included) or a missing privilege: 500, logged with the request id and
   alerted. It is always a bug.
-- `57014` statement timeout, `55P03` lock timeout: 503 with `Retry-After`
-  (for idempotent creates, 409 `request_in_progress`, section 7.9).
+- `57014` statement timeout, `55P03` lock timeout: 503 with `Retry-After`.
 - A version mismatch (no row returned by a versioned update): 412 or
   `CONFLICT`, section 4.8.
 
@@ -5265,24 +5201,10 @@ Denied and failed operations that must leave a trace (a refused sign-in, a
 denied export) are written by the unit of work in a second, short transaction
 after the rollback. A test per mutating procedure asserts the audit row exists.
 
-### 7.9 Idempotent creates
+### 7.9 Repeated writes
 
-1. The client sends `Idempotency-Key` (REST) or `idempotencyKey` (RPC) on a
-   create-type mutation.
-2. First statement after the context:
-   `insert into core.idempotency_keys (tenant_id, account_id, key, request_hash, procedure) values (...) on conflict do nothing returning key`.
-   If another request with the same key is in flight, this waits on its unique
-   index entry; if that request commits, the insert returns nothing, and if it
-   rolls back, the insert proceeds.
-3. A row returned: do the work, then set `response_status`, `response_body`
-   (null for a sensitive procedure, section 6.16), `resource_type` and
-   `resource_id` before commit.
-4. Nothing returned: read the stored row. A different `request_hash` answers
-   422 `idempotency_key_reused`; otherwise replay the stored response with
-   `Idempotent-Replayed: true`, or for a sensitive procedure re-read the
-   resource or answer 409.
-5. A wait longer than `lock_timeout` (2 s) answers 409 `request_in_progress`,
-   as Stripe does for concurrent requests.
+A repeated write is refused or answered by the rules of section 6.16; the
+unit of work keeps no record of requests.
 
 ### 7.10 Outbound requests
 
@@ -5318,16 +5240,16 @@ t as (
   where n.nspname in ('core', 'audit', 'health') and c.relkind in ('r', 'p') and not c.relispartition
 ),
 delete_allowed(name, role) as (values
-  ('core.sessions', 'retention'), ('core.auth_attempts', 'retention'), ('core.idempotency_keys', 'retention'),
+  ('core.sessions', 'retention'), ('core.auth_attempts', 'retention'),
   ('core.external_ids', 'retention'), ('core.contact_points', 'retention'),
   ('core.relationship_restrictions', 'retention'),
   ('core.login_identities', 'retention'), ('core.passkeys', 'retention'), ('core.devices', 'retention'),
   ('core.files', 'retention'), ('core.file_subjects', 'retention'), ('core.user_preferences', 'retention'),
-  ('core.saved_views', 'retention'), ('core.activity_events', 'retention'), ('health.records', 'retention'),
+  ('core.saved_views', 'retention'), ('health.records', 'retention'),
   ('audit.payloads', 'retention')),
 unversioned_update_allowed(name, role) as (values
   ('core.sessions', 'app'), ('core.sessions', 'worker'), ('core.auth_attempts', 'app'), ('core.auth_attempts', 'worker'),
-  ('core.idempotency_keys', 'app'), ('core.idempotency_keys', 'worker'), ('core.tenant_keys', 'worker'),
+  ('core.tenant_keys', 'worker'),
   ('core.tenant_keys', 'retention'), ('core.document_versions', 'retention')),
 column_granted(name, role) as (values
   ('core.tenants', 'app'), ('core.orgs', 'app'), ('core.descriptors', 'app'), ('core.files', 'app'),
@@ -6130,10 +6052,9 @@ Before the flip, all of these must pass:
    means a tenant merge makes the absorbed school's people register new
    passkeys. The alternative is asking for the school before every passkey
    prompt.
-8. **Activity events and Egypt's Art. 14(5).** Do lesson views and quiz answers
-   count as "tracking or behavioural monitoring" of a child? If yes, drop the
-   table for Egyptian tenants and keep only lesson progress. Retention: 13
-   months proposed.
+8. **Learning activity and Egypt's Art. 14(5).** Do lesson views and quiz
+   answers, as lesson progress keeps them, count as "tracking or behavioural
+   monitoring" of a child? If yes, Egyptian tenants keep only completion.
 9. **Retention periods**: the audit log (proposal: seven years, matching the
    Object Lock period), expired sessions (30 days), rejected files (30 days),
    pg-boss jobs (proposal: completed jobs 7 days, failed 30), the rollback

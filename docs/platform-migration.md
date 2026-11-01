@@ -67,7 +67,7 @@ Entities, grouped:
   `document_versions`.
 - Platform: `descriptors` (namespaced code values with English and Arabic
   labels), `audit_log` (append-only, hash-chained, including reads and
-  exports), `activity_events`, `idempotency_keys`, pg-boss tables.
+  exports), pg-boss tables.
 
 ## How real schools move
 

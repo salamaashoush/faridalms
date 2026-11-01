@@ -1,4 +1,5 @@
 import type {
+  ApplicationOutcome,
   NoticeParams,
   NotificationKind,
 } from "@faridalms/domain/notifications";
@@ -54,6 +55,18 @@ export const KIND_ICON: Record<NotificationKind, LucideIcon> = {
   reply: Reply,
   enquiry: UserPlus,
   application: FileUser,
+};
+
+/** What a notice about an application's move is headed, for the family and for the office. */
+const OUTCOME_TITLE: Record<ApplicationOutcome, () => string> = {
+  offered: m.ntfOutcomeOffered,
+  waitlisted: m.ntfOutcomeWaitlisted,
+  declined_by_school: m.ntfOutcomeDeclined,
+  enrolled: m.ntfOutcomeEnrolled,
+  offer_expired: m.ntfOutcomeExpired,
+  deferred: m.ntfOutcomeDeferred,
+  accepted: m.ntfOutcomeAccepted,
+  offer_declined: m.ntfOutcomeOfferDeclined,
 };
 
 const ENQUIRY_TITLE = {
@@ -172,6 +185,13 @@ export function noticeText(notice: Notice): { title: string; body: string } {
         body: [title, params.preview ?? ""].filter(Boolean).join(" · "),
       };
     case "application":
+      if (params.outcome)
+        return {
+          title: OUTCOME_TITLE[params.outcome](),
+          body: [title, both(params.gradeName, params.gradeNameAr)]
+            .filter(Boolean)
+            .join(" · "),
+        };
       return params.received
         ? {
             title: m.ntfApplicationReceived(),
@@ -367,7 +387,7 @@ export function NoticeLink({
         </Link>
       );
     case "application":
-      return notice.params.received ? (
+      return notice.params.received || notice.params.toFamily ? (
         <Link {...rest} to="/family/applications">
           {children}
         </Link>

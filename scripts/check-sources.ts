@@ -24,12 +24,6 @@ const IGNORED = [
   /\/i18n\//,
 ];
 
-/** Files of the per-school model that remain until their systems are rewritten. */
-const LEGACY_POOLS = new Set([
-  "packages/database/src/index.ts",
-  "packages/database/src/control.ts",
-]);
-
 async function sources(): Promise<{ path: string; text: string }[]> {
   const files: { path: string; text: string }[] = [];
   for (const root of SOURCE_ROOTS)
@@ -73,8 +67,7 @@ for (const { path, text } of await sources()) {
     context ||
     runner ||
     path.startsWith("packages/database/src/directory/") ||
-    path.startsWith("scripts/") ||
-    LEGACY_POOLS.has(path);
+    path.startsWith("scripts/");
   if (!poolAllowed && POOL.test(text))
     problems.push(`${path}: opens a database pool outside the context module`);
   if (/singletonKey\s*:/.test(text) && !path.endsWith("/jobs.ts"))

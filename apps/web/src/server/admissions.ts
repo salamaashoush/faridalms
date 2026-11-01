@@ -1,16 +1,26 @@
 import {
+  admissionReportSchema,
+  answerOfferSchema,
   applicationListSchema,
   applicationNoteSchema,
   applicationRefSchema,
   attachDocumentSchema,
+  boardSchema,
+  convertSchema,
+  decideSchema,
+  deferApplicationSchema,
   detachDocumentSchema,
   formRefSchema,
   intakeListSchema,
   intakeRefSchema,
+  letterRefSchema,
   moveApplicationSchema,
   moveItemSchema,
+  recordEventSchema,
   registerFamilySchema,
+  releaseSchema,
   saveDraftSchema,
+  saveEventSchema,
   saveFormSchema,
   saveIntakeSchema,
   startApplicationSchema,
@@ -171,3 +181,67 @@ export const attachDocument = createServerFn({ method: "POST" })
 export const detachDocument = createServerFn({ method: "POST" })
   .validator(checked(detachDocumentSchema))
   .handler(({ data }) => backend().applying.detach(data));
+
+export const getBoard = createServerFn({ method: "GET" })
+  .validator(checked(boardSchema))
+  .handler(({ data }) => record(backend().decisions.board(data)));
+
+export const decideApplications = createServerFn({ method: "POST" })
+  .validator(checked(decideSchema))
+  .handler(({ data }) => backend().decisions.decide(data));
+
+export const reopenApplications = createServerFn({ method: "POST" })
+  .validator(checked(releaseSchema))
+  .handler(({ data }) => backend().decisions.reopen(data));
+
+export const releaseDecisions = createServerFn({ method: "POST" })
+  .validator(checked(releaseSchema))
+  .handler(({ data }) => backend().decisions.release(data));
+
+export const offerPlaces = createServerFn({ method: "POST" })
+  .validator(checked(releaseSchema))
+  .handler(({ data }) => backend().decisions.offer(data));
+
+export const refusePlaces = createServerFn({ method: "POST" })
+  .validator(checked(releaseSchema))
+  .handler(({ data }) => backend().decisions.refuse(data));
+
+export const answerForFamily = createServerFn({ method: "POST" })
+  .validator(checked(answerOfferSchema))
+  .handler(({ data }) => backend().decisions.answer(data));
+
+export const deferApplication = createServerFn({ method: "POST" })
+  .validator(checked(deferApplicationSchema))
+  .handler(({ data }) => backend().decisions.defer(data));
+
+export const convertApplications = createServerFn({ method: "POST" })
+  .validator(checked(convertSchema))
+  .handler(({ data }) => backend().decisions.convert(data));
+
+export const getAttendees = createServerFn({ method: "GET" }).handler(() =>
+  backend().decisions.attendees(),
+);
+
+export const saveAdmissionEvent = createServerFn({ method: "POST" })
+  .validator(checked(saveEventSchema))
+  .handler(({ data }) => backend().decisions.saveEvent(data));
+
+export const recordAdmissionEvent = createServerFn({ method: "POST" })
+  .validator(checked(recordEventSchema))
+  .handler(({ data }) => backend().decisions.recordEvent(data));
+
+export const getAdmissionReports = createServerFn({ method: "GET" })
+  .validator(checked(admissionReportSchema))
+  .handler(({ data }) => backend().decisions.reports(data));
+
+export const getOfficeLetter = createServerFn({ method: "GET" })
+  .validator(checked(letterRefSchema))
+  .handler(({ data }) => record(backend().applications.letter(data)));
+
+export const getFamilyLetter = createServerFn({ method: "GET" })
+  .validator(checked(letterRefSchema))
+  .handler(({ data }) => record(backend().applying.letter(data)));
+
+export const answerOffer = createServerFn({ method: "POST" })
+  .validator(checked(answerOfferSchema))
+  .handler(({ data }) => backend().applying.answer(data));

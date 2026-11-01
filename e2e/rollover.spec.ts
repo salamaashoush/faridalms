@@ -96,8 +96,7 @@ test("an administrator rolls the current year into the next and opens a new clas
 
   const created = page
     .getByRole("region", { name: "New classes" })
-    .getByRole("link")
-    .first();
+    .getByRole("link", { name: "7-A", exact: true });
   await created.click();
   await expect(
     page.getByRole("heading", { level: 1, name: `Next ${unique}` }),

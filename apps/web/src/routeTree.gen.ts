@@ -61,6 +61,9 @@ import { Route as AppAdminStudentsRouteImport } from './routes/_app/admin/studen
 import { Route as AppAdminTimetableRouteImport } from './routes/_app/admin/timetable'
 import { Route as AppAdmissionsFormEditorRouteImport } from './routes/_app/admissions/form-editor'
 import { Route as AppAdmissionsIntakeEditorRouteImport } from './routes/_app/admissions/intake-editor'
+import { Route as AppAdmissionsLetterEditorRouteImport } from './routes/_app/admissions/letter-editor'
+import { Route as AppAdmissionsLettersRouteImport } from './routes/_app/admissions/letters'
+import { Route as AppAdmissionsReportsRouteImport } from './routes/_app/admissions/reports'
 import { Route as AppAnnouncementsIndexRouteImport } from './routes/_app/announcements.index'
 import { Route as AppAnnouncementsAnnouncementIdRouteImport } from './routes/_app/announcements.$announcementId'
 import { Route as AppAssignmentsAssignmentIdRouteImport } from './routes/_app/assignments/$assignmentId'
@@ -128,6 +131,7 @@ import { Route as AppAdmissionsApplicationsApplicationIdRouteImport } from './ro
 import { Route as AppAdmissionsEnquiriesIndexRouteImport } from './routes/_app/admissions/enquiries/index'
 import { Route as AppAdmissionsEnquiriesEnquiryIdRouteImport } from './routes/_app/admissions/enquiries/$enquiryId'
 import { Route as AppAdmissionsIntakesIndexRouteImport } from './routes/_app/admissions/intakes/index'
+import { Route as AppAdmissionsIntakesIntakeIdRouteImport } from './routes/_app/admissions/intakes/$intakeId'
 import { Route as AppTeachBoardPacedIdRouteImport } from './routes/_app/teach/board.$pacedId'
 import { Route as AppTeachLivePacedIdRouteImport } from './routes/_app/teach/live.$pacedId'
 import { Route as FilesFileIdPartsPartRouteImport } from './routes/files/$fileId.parts.$part'
@@ -399,6 +403,22 @@ const AppAdmissionsIntakeEditorRoute =
     path: '/admissions/intake-editor',
     getParentRoute: () => AppRoute,
   } as any)
+const AppAdmissionsLetterEditorRoute =
+  AppAdmissionsLetterEditorRouteImport.update({
+    id: '/admissions/letter-editor',
+    path: '/admissions/letter-editor',
+    getParentRoute: () => AppRoute,
+  } as any)
+const AppAdmissionsLettersRoute = AppAdmissionsLettersRouteImport.update({
+  id: '/admissions/letters',
+  path: '/admissions/letters',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppAdmissionsReportsRoute = AppAdmissionsReportsRouteImport.update({
+  id: '/admissions/reports',
+  path: '/admissions/reports',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppAnnouncementsIndexRoute = AppAnnouncementsIndexRouteImport.update({
   id: '/announcements/',
   path: '/announcements/',
@@ -744,6 +764,12 @@ const AppAdmissionsIntakesIndexRoute =
     path: '/admissions/intakes/',
     getParentRoute: () => AppRoute,
   } as any)
+const AppAdmissionsIntakesIntakeIdRoute =
+  AppAdmissionsIntakesIntakeIdRouteImport.update({
+    id: '/admissions/intakes/$intakeId',
+    path: '/admissions/intakes/$intakeId',
+    getParentRoute: () => AppRoute,
+  } as any)
 const AppTeachBoardPacedIdRoute = AppTeachBoardPacedIdRouteImport.update({
   id: '/board/$pacedId',
   path: '/board/$pacedId',
@@ -830,6 +856,9 @@ export interface FileRoutesByFullPath {
   '/admin/timetable': typeof AppAdminTimetableRoute
   '/admissions/form-editor': typeof AppAdmissionsFormEditorRoute
   '/admissions/intake-editor': typeof AppAdmissionsIntakeEditorRoute
+  '/admissions/letter-editor': typeof AppAdmissionsLetterEditorRoute
+  '/admissions/letters': typeof AppAdmissionsLettersRoute
+  '/admissions/reports': typeof AppAdmissionsReportsRoute
   '/announcements/$announcementId': typeof AppAnnouncementsAnnouncementIdRoute
   '/assignments/$assignmentId': typeof AppAssignmentsAssignmentIdRoute
   '/badges/$classId': typeof AppBadgesClassIdRoute
@@ -895,6 +924,7 @@ export interface FileRoutesByFullPath {
   '/site/$school/': typeof SiteSchoolIndexRoute
   '/admissions/applications/$applicationId': typeof AppAdmissionsApplicationsApplicationIdRoute
   '/admissions/enquiries/$enquiryId': typeof AppAdmissionsEnquiriesEnquiryIdRoute
+  '/admissions/intakes/$intakeId': typeof AppAdmissionsIntakesIntakeIdRoute
   '/teach/board/$pacedId': typeof AppTeachBoardPacedIdRoute
   '/teach/live/$pacedId': typeof AppTeachLivePacedIdRoute
   '/files/$fileId/parts/$part': typeof FilesFileIdPartsPartRoute
@@ -951,6 +981,9 @@ export interface FileRoutesByTo {
   '/admin/timetable': typeof AppAdminTimetableRoute
   '/admissions/form-editor': typeof AppAdmissionsFormEditorRoute
   '/admissions/intake-editor': typeof AppAdmissionsIntakeEditorRoute
+  '/admissions/letter-editor': typeof AppAdmissionsLetterEditorRoute
+  '/admissions/letters': typeof AppAdmissionsLettersRoute
+  '/admissions/reports': typeof AppAdmissionsReportsRoute
   '/announcements/$announcementId': typeof AppAnnouncementsAnnouncementIdRoute
   '/assignments/$assignmentId': typeof AppAssignmentsAssignmentIdRoute
   '/badges/$classId': typeof AppBadgesClassIdRoute
@@ -1016,6 +1049,7 @@ export interface FileRoutesByTo {
   '/site/$school': typeof SiteSchoolIndexRoute
   '/admissions/applications/$applicationId': typeof AppAdmissionsApplicationsApplicationIdRoute
   '/admissions/enquiries/$enquiryId': typeof AppAdmissionsEnquiriesEnquiryIdRoute
+  '/admissions/intakes/$intakeId': typeof AppAdmissionsIntakesIntakeIdRoute
   '/teach/board/$pacedId': typeof AppTeachBoardPacedIdRoute
   '/teach/live/$pacedId': typeof AppTeachLivePacedIdRoute
   '/files/$fileId/parts/$part': typeof FilesFileIdPartsPartRoute
@@ -1080,6 +1114,9 @@ export interface FileRoutesById {
   '/_app/admin/timetable': typeof AppAdminTimetableRoute
   '/_app/admissions/form-editor': typeof AppAdmissionsFormEditorRoute
   '/_app/admissions/intake-editor': typeof AppAdmissionsIntakeEditorRoute
+  '/_app/admissions/letter-editor': typeof AppAdmissionsLetterEditorRoute
+  '/_app/admissions/letters': typeof AppAdmissionsLettersRoute
+  '/_app/admissions/reports': typeof AppAdmissionsReportsRoute
   '/_app/announcements/$announcementId': typeof AppAnnouncementsAnnouncementIdRoute
   '/_app/assignments/$assignmentId': typeof AppAssignmentsAssignmentIdRoute
   '/_app/badges/$classId': typeof AppBadgesClassIdRoute
@@ -1145,6 +1182,7 @@ export interface FileRoutesById {
   '/site/$school/': typeof SiteSchoolIndexRoute
   '/_app/admissions/applications/$applicationId': typeof AppAdmissionsApplicationsApplicationIdRoute
   '/_app/admissions/enquiries/$enquiryId': typeof AppAdmissionsEnquiriesEnquiryIdRoute
+  '/_app/admissions/intakes/$intakeId': typeof AppAdmissionsIntakesIntakeIdRoute
   '/_app/teach/board/$pacedId': typeof AppTeachBoardPacedIdRoute
   '/_app/teach/live/$pacedId': typeof AppTeachLivePacedIdRoute
   '/files/$fileId/parts/$part': typeof FilesFileIdPartsPartRoute
@@ -1208,6 +1246,9 @@ export interface FileRouteTypes {
     | '/admin/timetable'
     | '/admissions/form-editor'
     | '/admissions/intake-editor'
+    | '/admissions/letter-editor'
+    | '/admissions/letters'
+    | '/admissions/reports'
     | '/announcements/$announcementId'
     | '/assignments/$assignmentId'
     | '/badges/$classId'
@@ -1273,6 +1314,7 @@ export interface FileRouteTypes {
     | '/site/$school/'
     | '/admissions/applications/$applicationId'
     | '/admissions/enquiries/$enquiryId'
+    | '/admissions/intakes/$intakeId'
     | '/teach/board/$pacedId'
     | '/teach/live/$pacedId'
     | '/files/$fileId/parts/$part'
@@ -1329,6 +1371,9 @@ export interface FileRouteTypes {
     | '/admin/timetable'
     | '/admissions/form-editor'
     | '/admissions/intake-editor'
+    | '/admissions/letter-editor'
+    | '/admissions/letters'
+    | '/admissions/reports'
     | '/announcements/$announcementId'
     | '/assignments/$assignmentId'
     | '/badges/$classId'
@@ -1394,6 +1439,7 @@ export interface FileRouteTypes {
     | '/site/$school'
     | '/admissions/applications/$applicationId'
     | '/admissions/enquiries/$enquiryId'
+    | '/admissions/intakes/$intakeId'
     | '/teach/board/$pacedId'
     | '/teach/live/$pacedId'
     | '/files/$fileId/parts/$part'
@@ -1457,6 +1503,9 @@ export interface FileRouteTypes {
     | '/_app/admin/timetable'
     | '/_app/admissions/form-editor'
     | '/_app/admissions/intake-editor'
+    | '/_app/admissions/letter-editor'
+    | '/_app/admissions/letters'
+    | '/_app/admissions/reports'
     | '/_app/announcements/$announcementId'
     | '/_app/assignments/$assignmentId'
     | '/_app/badges/$classId'
@@ -1522,6 +1571,7 @@ export interface FileRouteTypes {
     | '/site/$school/'
     | '/_app/admissions/applications/$applicationId'
     | '/_app/admissions/enquiries/$enquiryId'
+    | '/_app/admissions/intakes/$intakeId'
     | '/_app/teach/board/$pacedId'
     | '/_app/teach/live/$pacedId'
     | '/files/$fileId/parts/$part'
@@ -1924,6 +1974,27 @@ declare module '@tanstack/react-router' {
       path: '/admissions/intake-editor'
       fullPath: '/admissions/intake-editor'
       preLoaderRoute: typeof AppAdmissionsIntakeEditorRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/admissions/letter-editor': {
+      id: '/_app/admissions/letter-editor'
+      path: '/admissions/letter-editor'
+      fullPath: '/admissions/letter-editor'
+      preLoaderRoute: typeof AppAdmissionsLetterEditorRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/admissions/letters': {
+      id: '/_app/admissions/letters'
+      path: '/admissions/letters'
+      fullPath: '/admissions/letters'
+      preLoaderRoute: typeof AppAdmissionsLettersRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/admissions/reports': {
+      id: '/_app/admissions/reports'
+      path: '/admissions/reports'
+      fullPath: '/admissions/reports'
+      preLoaderRoute: typeof AppAdmissionsReportsRouteImport
       parentRoute: typeof AppRoute
     }
     '/_app/announcements/': {
@@ -2395,6 +2466,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppAdmissionsIntakesIndexRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/admissions/intakes/$intakeId': {
+      id: '/_app/admissions/intakes/$intakeId'
+      path: '/admissions/intakes/$intakeId'
+      fullPath: '/admissions/intakes/$intakeId'
+      preLoaderRoute: typeof AppAdmissionsIntakesIntakeIdRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/_app/teach/board/$pacedId': {
       id: '/_app/teach/board/$pacedId'
       path: '/board/$pacedId'
@@ -2603,6 +2681,9 @@ interface AppRouteChildren {
   AppTeachRoute: typeof AppTeachRouteWithChildren
   AppAdmissionsFormEditorRoute: typeof AppAdmissionsFormEditorRoute
   AppAdmissionsIntakeEditorRoute: typeof AppAdmissionsIntakeEditorRoute
+  AppAdmissionsLetterEditorRoute: typeof AppAdmissionsLetterEditorRoute
+  AppAdmissionsLettersRoute: typeof AppAdmissionsLettersRoute
+  AppAdmissionsReportsRoute: typeof AppAdmissionsReportsRoute
   AppAnnouncementsAnnouncementIdRoute: typeof AppAnnouncementsAnnouncementIdRoute
   AppAssignmentsAssignmentIdRoute: typeof AppAssignmentsAssignmentIdRoute
   AppBadgesClassIdRoute: typeof AppBadgesClassIdRoute
@@ -2625,6 +2706,7 @@ interface AppRouteChildren {
   AppStandardsIndexRoute: typeof AppStandardsIndexRoute
   AppAdmissionsApplicationsApplicationIdRoute: typeof AppAdmissionsApplicationsApplicationIdRoute
   AppAdmissionsEnquiriesEnquiryIdRoute: typeof AppAdmissionsEnquiriesEnquiryIdRoute
+  AppAdmissionsIntakesIntakeIdRoute: typeof AppAdmissionsIntakesIntakeIdRoute
   AppAdmissionsApplicationsIndexRoute: typeof AppAdmissionsApplicationsIndexRoute
   AppAdmissionsEnquiriesIndexRoute: typeof AppAdmissionsEnquiriesIndexRoute
   AppAdmissionsIntakesIndexRoute: typeof AppAdmissionsIntakesIndexRoute
@@ -2648,6 +2730,9 @@ const AppRouteChildren: AppRouteChildren = {
   AppTeachRoute: AppTeachRouteWithChildren,
   AppAdmissionsFormEditorRoute: AppAdmissionsFormEditorRoute,
   AppAdmissionsIntakeEditorRoute: AppAdmissionsIntakeEditorRoute,
+  AppAdmissionsLetterEditorRoute: AppAdmissionsLetterEditorRoute,
+  AppAdmissionsLettersRoute: AppAdmissionsLettersRoute,
+  AppAdmissionsReportsRoute: AppAdmissionsReportsRoute,
   AppAnnouncementsAnnouncementIdRoute: AppAnnouncementsAnnouncementIdRoute,
   AppAssignmentsAssignmentIdRoute: AppAssignmentsAssignmentIdRoute,
   AppBadgesClassIdRoute: AppBadgesClassIdRoute,
@@ -2671,6 +2756,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppAdmissionsApplicationsApplicationIdRoute:
     AppAdmissionsApplicationsApplicationIdRoute,
   AppAdmissionsEnquiriesEnquiryIdRoute: AppAdmissionsEnquiriesEnquiryIdRoute,
+  AppAdmissionsIntakesIntakeIdRoute: AppAdmissionsIntakesIntakeIdRoute,
   AppAdmissionsApplicationsIndexRoute: AppAdmissionsApplicationsIndexRoute,
   AppAdmissionsEnquiriesIndexRoute: AppAdmissionsEnquiriesIndexRoute,
   AppAdmissionsIntakesIndexRoute: AppAdmissionsIntakesIndexRoute,

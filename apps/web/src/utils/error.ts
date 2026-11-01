@@ -619,6 +619,20 @@ export function getMessageFromError(error: unknown): string {
         return m.errFormUnchanged();
       case "form.stale":
         return m.errFormStale();
+      case "admissions.full":
+        return m.errAdmissionsFull();
+      case "enrol.not_matched":
+        return m.errEnrolNotMatched();
+      case "defer.later_year":
+        return m.errDeferLaterYear();
+      case "event.times":
+        return m.errEventTimes();
+      case "event.item":
+        return m.errEventItem();
+      case "event.attendee":
+        return m.errEventAttendee();
+      case "templates.kept":
+        return m.errTemplatesKept();
       case "application.sent":
         return m.errApplicationSent();
       case "application.intake_closed":
@@ -843,7 +857,7 @@ export function getMessageFromError(error: unknown): string {
         return m.managementClassNotFound();
       case "management.subject_code_conflict":
         return m.managementSubjectCodeConflict();
-      case "management.reference_conflict":
+      case "student.reference_taken":
         return m.managementReferenceConflict();
       case "management.move_date_future":
         return m.managementMoveDateFuture();

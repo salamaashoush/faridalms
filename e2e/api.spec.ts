@@ -1,108 +1,86 @@
-import type { APIRequestContext } from "@playwright/test";
-
+import { plainContent } from "@faridalms/domain/content-conversion";
 import { expect, test } from "@playwright/test";
 
-const origin = "http://127.0.0.1:3001";
+import { API_ORIGIN, apiAs, apiClient, signedInApi } from "./fixtures/api";
+import { names, refusal } from "./fixtures/school";
+import { PASSWORD, signInWith, untilHydrated } from "./fixtures/sign-in";
 
-async function signIn(
-  request: APIRequestContext,
-  school: string,
-  email = "admin@example.com",
-) {
-  const response = await request.post(`${origin}/v1/auth/signIn`, {
-    data: { school, email, password: "northwind1234" },
-  });
-  expect(response.status()).toBe(200);
-  const session = (await response.json()) as { token: string };
-  return { authorization: `Bearer ${session.token}` };
-}
+const ACME_ADMIN = "principal.acme@acme.example.com";
+// The seed's second teacher keeps 8A, where Yasmin Sabry sits; her mother
+// signs in with her number. Yasmin is the student account, and a family's
+// conversation about her is not hers to read.
+const TEACHER = "teacher2.northwind@northwind.example.com";
+const MOTHER = "parent1007@northwind.example.com";
 
-test("native clients authenticate without browser cookies and can revoke sessions", async ({
-  request,
-}) => {
-  const headers = await signIn(request, "northwind");
-  const profile = await request.post(`${origin}/v1/auth/currentUser`, {
-    headers,
-  });
-  expect(profile.status()).toBe(200);
-  expect(await profile.json()).toMatchObject({
+test("native clients authenticate without browser cookies and can revoke sessions", async () => {
+  const api = await apiAs("admin");
+  expect(await api.identity.currentUser()).toMatchObject({
     school: { slug: "northwind" },
-    role: "admin",
+    workspace: "admin",
   });
-  const logout = await request.post(`${origin}/v1/auth/signOut`, { headers });
-  expect(logout.status()).toBe(200);
-  const revoked = await request.post(`${origin}/v1/auth/currentUser`, {
-    headers,
+  await api.identity.signOut();
+  expect(await refusal(api.identity.currentUser())).toMatchObject({
+    code: "UNAUTHORIZED",
   });
-  expect(revoked.status()).toBe(401);
 });
 
-test("concurrent school sessions cannot override each other's database context", async ({
-  request,
-}) => {
+test("concurrent school sessions cannot override each other's database context", async () => {
   const [northwind, acme] = await Promise.all([
-    signIn(request, "northwind"),
-    signIn(request, "acme"),
+    signedInApi("principal.northwind@northwind.example.com"),
+    signedInApi(ACME_ADMIN, PASSWORD, "acme"),
   ]);
-  const responses = await Promise.all(
+  const own = await Promise.all(
     Array.from({ length: 12 }, (_, index) =>
-      request.post(`${origin}/v1/auth/currentUser`, {
-        headers: {
-          ...(index % 2 === 0 ? northwind : acme),
-          "x-school-id": index % 2 === 0 ? "acme" : "northwind",
-        },
-      }),
+      (index % 2 === 0 ? northwind.api : acme.api).identity.currentUser(),
     ),
   );
-  for (const [index, response] of responses.entries()) {
-    expect(response.status()).toBe(200);
-    expect(await response.json()).toMatchObject({
-      school: { slug: index % 2 === 0 ? "northwind" : "acme" },
-    });
-  }
+  for (const [index, me] of own.entries())
+    expect(me.school.slug).toBe(index % 2 === 0 ? "northwind" : "acme");
+
+  // A token sent to the other school's name never reads that school.
+  const crossed = await Promise.all(
+    Array.from({ length: 12 }, (_, index) =>
+      refusal(
+        apiClient(
+          index % 2 === 0
+            ? { token: northwind.token, school: "acme" }
+            : { token: acme.token, school: "northwind" },
+        ).identity.currentUser(),
+      ),
+    ),
+  );
+  for (const error of crossed)
+    expect(error).toMatchObject({ code: "UNAUTHORIZED" });
 });
 
-test("parents cannot enumerate a school directory", async ({ request }) => {
-  const headers = await signIn(request, "northwind", "parent@example.com");
-  const response = await request.post(`${origin}/v1/getAllStudents`, {
-    headers,
-    data: {},
+test("parents cannot enumerate a school directory", async () => {
+  const parent = await apiAs("parent");
+  expect(await refusal(parent.people.students({}))).toMatchObject({
+    code: "FORBIDDEN",
   });
-  expect(response.status()).toBe(403);
 });
 
-test("directory pages are bounded, stable and searchable", async ({
-  request,
-}) => {
-  const headers = await signIn(request, "northwind");
-  const first = await request.post(`${origin}/v1/getAllStudents`, {
-    headers,
-    data: { pageSize: 25, page: 1 },
-  });
-  expect(first.status()).toBe(200);
-  const data = (await first.json()) as {
-    rows: { id: string; fullName: string }[];
-    total: number;
-    pages: number;
-  };
-  expect(data.rows.length).toBeLessThanOrEqual(25);
-  expect(data.total).toBeGreaterThan(0);
-  const invalid = await request.post(`${origin}/v1/getAllStudents`, {
-    headers,
-    data: { pageSize: 100000 },
-  });
-  expect(invalid.status()).toBe(400);
-  const search = await request.post(`${origin}/v1/getAllStudents`, {
-    headers,
-    data: { q: "no-such-student-7f1490" },
-  });
-  expect(await search.json()).toMatchObject({ rows: [], total: 0 });
+test("directory pages are bounded, stable and searchable", async () => {
+  const admin = await apiAs("admin");
+  const first = await admin.people.students({ pageSize: 25, page: 1 });
+  expect(first.rows.length).toBeLessThanOrEqual(25);
+  expect(first.total).toBeGreaterThan(0);
+  const again = await admin.people.students({ pageSize: 25, page: 1 });
+  expect(again.rows.map((row) => row.id)).toEqual(
+    first.rows.map((row) => row.id),
+  );
+  expect(
+    await refusal(admin.people.students({ pageSize: 100000 as unknown as 25 })),
+  ).toMatchObject({ code: "BAD_REQUEST" });
+  expect(
+    await admin.people.students({ q: "no-such-student-7f1490" }),
+  ).toMatchObject({ rows: [], total: 0 });
 });
 
 test("the API exposes a machine-readable contract and request IDs", async ({
   request,
 }) => {
-  const response = await request.get(`${origin}/openapi.json`);
+  const response = await request.get(`${API_ORIGIN}/openapi.json`);
   expect(response.status()).toBe(200);
   expect(response.headers()["x-request-id"]).toBeTruthy();
   expect(await response.json()).toMatchObject({
@@ -110,76 +88,78 @@ test("the API exposes a machine-readable contract and request IDs", async ({
   });
 });
 
-test("administrative writes reject family accounts and cross-school references", async ({
-  request,
-}) => {
-  const parent = await signIn(request, "northwind", "parent@example.com");
-  const denied = await request.post(`${origin}/v1/saveUser`, {
-    headers: parent,
-    data: {
-      name: "Salama Ashoush",
-      email: `salama-${crypto.randomUUID()}@example.com`,
-      role: "admin",
-      password: "a-long-school-password",
-      isActive: true,
-    },
-  });
-  expect(denied.status()).toBe(403);
+test("administrative writes reject family accounts and cross-school references", async () => {
+  const parent = await apiAs("parent");
+  expect(
+    await refusal(
+      parent.people.saveStaff({
+        names: names("Salama", "Ashoush"),
+        email: `salama-${crypto.randomUUID()}@example.com`,
+        roles: ["teacher"],
+      }),
+    ),
+  ).toMatchObject({ code: "FORBIDDEN" });
+
   const [northwind, acme] = await Promise.all([
-    signIn(request, "northwind"),
-    signIn(request, "acme"),
+    apiAs("admin"),
+    signedInApi(ACME_ADMIN, PASSWORD, "acme").then((session) => session.api),
   ]);
-  const classes = await request.post(`${origin}/v1/getManagementOptions`, {
-    headers: acme,
-    data: { kind: "classes", q: "" },
+  const foreignGrade = (await acme.people.options()).grades[0];
+  if (!foreignGrade) throw new Error("the seed gives acme no grades");
+  const reference = `TEST-${crypto.randomUUID().slice(0, 8)}`;
+  expect(
+    await refusal(
+      northwind.people.saveStudent({
+        names: names("Salama", "Ashoush"),
+        reference,
+        gradeId: foreignGrade.id,
+      }),
+    ),
+  ).toMatchObject({ code: "BAD_REQUEST" });
+  expect(await northwind.people.students({ q: reference })).toMatchObject({
+    rows: [],
+    total: 0,
   });
-  const rows = (await classes.json()) as { id: string }[];
-  expect(rows[0]).toBeTruthy();
-  const invalid = await request.post(`${origin}/v1/saveStudent`, {
-    headers: northwind,
-    data: {
-      reference: `TEST-${crypto.randomUUID().slice(0, 8)}`,
-      firstName: "Salama",
-      lastName: "Ashoush",
-      classId: rows[0]?.id,
-    },
-  });
-  expect(invalid.status()).toBe(400);
 });
 
-test("a guardian is found by phone whichever way the number was written", async ({
-  request,
-}) => {
-  const headers = await signIn(request, "northwind");
+test("a guardian is found by phone whichever way the number was written", async () => {
+  const admin = await apiAs("admin");
+  const options = await admin.people.options();
+  const mother = options.relations.find((row) => row.code === "mother");
+  if (!mother) throw new Error("the seed has no mother relation");
   const digits = String(Date.now()).slice(-7);
   const spaced = `${digits.slice(0, 3)} ${digits.slice(3)}`;
-  const create = async (label: string, mobile: string) => {
-    const response = await request.post(`${origin}/v1/saveUser`, {
-      headers,
-      data: {
-        name: `Salama Ashoush ${label} ${digits}`,
-        email: `salama-${label}-${crypto.randomUUID()}@example.com`,
-        role: "parent",
-        mobile,
-        password: "a-long-school-password",
-        isActive: true,
-      },
+  const create = async (label: string, phone: string) => {
+    const student = await admin.people.saveStudent({
+      names: names("Salama", `Ashoush ${label} ${digits}`),
+      reference: `PH-${label.slice(0, 3)}-${digits}`,
+      guardians: [
+        {
+          person: { names: names("Mona", `Ashoush ${label} ${digits}`), phone },
+          flags: {
+            relationId: mother.id,
+            legalGuardian: true,
+            portalAccess: false,
+            receivesNotifications: true,
+            primaryContact: true,
+            emergencyContact: true,
+            residence: "primary",
+            pickup: "allowed",
+          },
+        },
+      ],
     });
-    expect(response.status()).toBe(200);
-    return ((await response.json()) as { id: string }).id;
+    const record = await admin.people.student({ id: student.id });
+    const guardian = record.guardians?.[0];
+    if (!guardian) throw new Error("the guardian was not linked");
+    return guardian.userId;
   };
   const [national, international] = await Promise.all([
     create("national", `0109 ${spaced}`),
     create("international", `+20 108 ${spaced}`),
   ]);
-  const found = async (q: string) => {
-    const response = await request.post(`${origin}/v1/getManagementOptions`, {
-      headers,
-      data: { kind: "parents", q },
-    });
-    expect(response.status()).toBe(200);
-    return ((await response.json()) as { id: string }[]).map((row) => row.id);
-  };
+  const found = async (phone: string) =>
+    (await admin.people.findGuardians({ phone })).map((row) => row.id);
   const [
     nationalSpaced,
     nationalPlus,
@@ -202,215 +182,158 @@ test("a guardian is found by phone whichever way the number was written", async 
 });
 
 test("teachers message linked families and replies stay private", async ({
-  request,
   page,
+  browserName,
 }) => {
-  const [teacher, parent, student] = await Promise.all([
-    signIn(request, "northwind", "teacher@example.com"),
-    signIn(request, "northwind", "parent@example.com"),
-    signIn(request, "northwind", "omar@example.com"),
+  const [teacher, mother, outsider] = await Promise.all([
+    signedInApi(TEACHER).then((session) => session.api),
+    signedInApi(MOTHER).then((session) => session.api),
+    apiAs("student"),
   ]);
-  const recipientsResponse = await request.post(`${origin}/v1/getRecipients`, {
-    headers: teacher,
-    data: { category: "parents", q: "" },
+  const me = await mother.identity.currentUser();
+  const child = (await mother.people.person({ id: me.id })).children[0];
+  if (!child) throw new Error("the seed gives the mother no child");
+  const note = `Salama learning steps (${browserName} ${crypto.randomUUID().slice(0, 6)})`;
+  const { threadId } = await teacher.messages.start({
+    kind: "family",
+    studentId: child.studentId,
+    recipientIds: [],
+    subject: "",
+    content: plainContent(note),
   });
-  expect(recipientsResponse.status()).toBe(200);
-  const { rows: recipients } = (await recipientsResponse.json()) as {
-    rows: { id: string }[];
-  };
-  const profile = await request.post(`${origin}/v1/auth/currentUser`, {
-    headers: parent,
+  const reply = `Thank you, a meeting please (${crypto.randomUUID().slice(0, 6)})`;
+  await mother.messages.send({
+    threadId,
+    content: plainContent(reply),
   });
-  const parentId = ((await profile.json()) as { id: string }).id;
-  expect(recipients.some((row) => row.id === parentId)).toBe(true);
-  const subject = `Salama family conversation ${crypto.randomUUID()}`;
-  const sent = await request.post(`${origin}/v1/sendMessage`, {
-    headers: teacher,
-    data: {
-      category: "parents",
-      recipientId: parentId,
-      subject,
-      body: "Let us discuss the next learning steps.",
-    },
-  });
-  expect(sent.status()).toBe(200);
-  const { id } = (await sent.json()) as { id: string };
-  const reply = await request.post(`${origin}/v1/replyMessage`, {
-    headers: parent,
-    data: { id, body: "Thank you. I would like to arrange a meeting." },
-  });
-  expect(reply.status()).toBe(200);
-  const thread = await request.post(`${origin}/v1/getMessage`, {
-    headers: teacher,
-    data: { id },
-  });
-  expect(await thread.json()).toMatchObject({
-    subject,
-    replies: [{ body: "Thank you. I would like to arrange a meeting." }],
-  });
-  await page.goto("/sign-in");
-  await page
-    .getByRole("textbox", { name: "Email or sign-in name" })
-    .fill("parent@example.com");
-  await page
-    .getByRole("textbox", { name: "Password", exact: true })
-    .fill("northwind1234");
-  await page.getByRole("button", { name: "Sign In", exact: true }).click();
-  await expect(page.locator("main#main")).toBeVisible();
-  await page.goto(`/family/messages?message=${id}`);
-  const composer = page.getByRole("textbox", {
-    name: "Your reply",
-    exact: true,
-  });
-  await expect(composer).toBeEditable();
-  await composer.click();
-  await page.keyboard.type("Salama learning plan");
-  await composer.press("ControlOrMeta+a");
-  await page.getByRole("button", { name: "Bold", exact: true }).click();
-  await expect(composer.locator("strong")).toHaveText("Salama learning plan");
-  await page.getByRole("button", { name: "Send reply", exact: true }).click();
-  await expect(page.locator("article ol strong")).toHaveText(
-    "Salama learning plan",
+  const thread = await teacher.messages.thread({ id: threadId });
+  expect(thread.messages.map((message) => message.body)).toEqual(
+    expect.arrayContaining([note, reply]),
   );
-  await expect(page).toHaveURL(new RegExp(`message=${id}`));
+
+  await signInWith(page, MOTHER, PASSWORD, "/family");
+  await page.goto(`/family/messages?thread=${threadId}`);
+  await untilHydrated(page);
+  const composer = page.locator("form [contenteditable=true]").last();
+  await expect(composer).toBeEditable();
+  const words = `Salama learning plan ${crypto.randomUUID().slice(0, 6)}`;
+  await composer.click();
+  await page.keyboard.type(words);
+  await composer.press("ControlOrMeta+a");
+  await page
+    .getByRole("toolbar", { name: "Text formatting" })
+    .getByRole("button", { name: "Bold", exact: true })
+    .click();
+  await expect(composer.locator("strong")).toHaveText(words);
+  await page.getByRole("button", { name: "Send", exact: true }).click();
+  const messages = page.getByRole("list", { name: "Messages" });
+  await expect(messages.locator("strong", { hasText: words })).toBeVisible();
+  await expect(page).toHaveURL(new RegExp(`thread=${threadId}`));
   await expect(composer).toHaveText("");
   await page.reload();
-  await expect(page.locator("article ol strong")).toHaveText(
-    "Salama learning plan",
-  );
-  const unrelated = await request.post(`${origin}/v1/getMessage`, {
-    headers: student,
-    data: { id },
-  });
-  expect(unrelated.status()).toBe(404);
-  const forbiddenReply = await request.post(`${origin}/v1/replyMessage`, {
-    headers: student,
-    data: { id, body: "This is not my conversation." },
-  });
-  expect(forbiddenReply.status()).toBe(404);
-  const parentDirectory = await request.post(`${origin}/v1/getRecipients`, {
-    headers: parent,
-    data: { category: "parents", q: "" },
-  });
-  expect(parentDirectory.status()).toBe(403);
+  await expect(messages.locator("strong", { hasText: words })).toBeVisible();
+
+  expect(
+    await refusal(outsider.messages.thread({ id: threadId })),
+  ).toMatchObject({ code: "NOT_FOUND" });
+  expect(
+    await refusal(
+      outsider.messages.send({
+        threadId,
+        content: plainContent("This is not my conversation."),
+      }),
+    ),
+  ).toMatchObject({ code: "NOT_FOUND" });
+  const reachable = await mother.messages.recipients({ q: "" });
+  expect(reachable.rows.every((row) => row.kind === "staff")).toBe(true);
 });
 
-test("calendar revisions reject stale updates without losing the saved event", async ({
-  request,
-}) => {
-  const headers = await signIn(request, "northwind");
+test("calendar revisions reject stale updates without losing the saved event", async () => {
+  const admin = await apiAs("admin");
+  const day = "2026-10-12";
   const input = {
-    title: "Salama calendar revision",
-    description: "Initial details",
-    category: "general",
-    startsOn: "2026-10-12",
-    endsOn: "2026-10-12",
+    id: "",
+    expectedVersion: 0,
+    titleEn: "Salama calendar revision",
+    titleAr: "",
+    category: "general" as const,
+    startsOn: day,
+    endsOn: day,
+    allDay: true,
+    startTime: "",
+    endTime: "",
+    location: "",
     provisional: false,
+    audiences: [{ scope: "staff" as const, classId: "", gradeId: "" }],
+    description: plainContent("Initial details"),
   };
-  const created = await request.post(`${origin}/v1/saveCalendarEvent`, {
-    headers,
-    data: input,
+  const created = await admin.calendar.save(input);
+  const saved = await admin.calendar.save({
+    ...input,
+    id: created.id,
+    expectedVersion: created.version,
+    titleEn: "Saved revision",
   });
-  expect(created.status()).toBe(200);
-  const event = (await created.json()) as { id: string; revision: number };
-  const saved = await request.post(`${origin}/v1/saveCalendarEvent`, {
-    headers,
-    data: {
-      ...input,
-      id: event.id,
-      expectedRevision: event.revision,
-      title: "Saved revision",
-    },
+  expect(saved.version).toBeGreaterThan(created.version);
+  expect(
+    await refusal(
+      admin.calendar.save({
+        ...input,
+        id: created.id,
+        expectedVersion: created.version,
+        titleEn: "Stale revision",
+      }),
+    ),
+  ).toMatchObject({ code: "CONFLICT" });
+  const { events } = await admin.calendar.range({
+    from: day,
+    to: day,
+    child: "",
   });
-  expect(saved.status()).toBe(200);
-  const stale = await request.post(`${origin}/v1/saveCalendarEvent`, {
-    headers,
-    data: {
-      ...input,
-      id: event.id,
-      expectedRevision: event.revision,
-      title: "Stale revision",
-    },
-  });
-  expect(stale.status()).toBe(409);
-  const calendar = await request.post(`${origin}/v1/getCalendar`, {
-    headers,
-    data: { month: "2026-10" },
-  });
-  const data = (await calendar.json()) as {
-    allEvents: { id: string; title: string }[];
-  };
-  expect(data.allEvents.find((row) => row.id === event.id)?.title).toBe(
+  expect(events.find((row) => row.id === created.id)?.titleEn).toBe(
     "Saved revision",
   );
 });
 
-test("shared student records protect medical fields and family class rosters", async ({
-  request,
-}) => {
-  const parent = await signIn(request, "northwind", "parent@example.com");
-  const teacher = await signIn(request, "northwind", "teacher@example.com");
-  const parentStudentsResponse = await request.post(
-    `${origin}/v1/getVisibleStudents`,
-    { headers: parent },
-  );
-  expect(parentStudentsResponse.status()).toBe(200);
-  const parentStudents = (await parentStudentsResponse.json()) as {
-    id: string;
-    classId: string;
-  }[];
-  const child = parentStudents.find((student) => student.classId);
-  expect(child).toBeDefined();
-  if (!child) throw new Error("Missing seeded child");
-  const familyProfile = await request.post(`${origin}/v1/getStudent`, {
-    headers: parent,
-    data: { studentId: child.id },
-  });
-  expect(familyProfile.status()).toBe(200);
-  expect(await familyProfile.json()).toMatchObject({
-    access: { contacts: true, medical: true, manage: false },
-  });
-  const familyClass = await request.post(`${origin}/v1/getClass`, {
-    headers: parent,
-    data: { id: child.classId },
-  });
-  expect(familyClass.status()).toBe(200);
-  const classData = (await familyClass.json()) as {
-    roster: { id: string }[];
-    canManage: boolean;
-  };
-  expect(classData.canManage).toBe(false);
-  expect(classData.roster.length).toBeGreaterThan(0);
-  expect(
-    classData.roster.every((student) =>
-      parentStudents.some((own) => own.id === student.id),
+test("shared student records protect medical fields and family class rosters", async () => {
+  const [admin, parent, teacher] = await Promise.all([
+    apiAs("admin"),
+    apiAs("parent"),
+    apiAs("teacher"),
+  ]);
+  const me = await parent.identity.currentUser();
+  const own = new Set(
+    (await parent.people.person({ id: me.id })).children.map(
+      (child) => child.studentId,
     ),
-  ).toBe(true);
-  const teacherClassesResponse = await request.post(
-    `${origin}/v1/getMyClasses`,
-    { headers: teacher },
   );
-  expect(teacherClassesResponse.status()).toBe(200);
-  const teacherClasses = (await teacherClassesResponse.json()) as {
-    id: string;
-  }[];
-  const taught = teacherClasses[0];
-  if (!taught) throw new Error("Missing seeded teaching assignment");
-  const rosterResponse = await request.post(`${origin}/v1/getClass`, {
-    headers: teacher,
-    data: { id: taught.id },
+  expect(own.size).toBeGreaterThan(0);
+  let opened = 0;
+  for (const row of (await admin.classes.directory({})).rows) {
+    const record = await parent.classes.record({ id: row.id }).then(
+      (found) => found,
+      () => null,
+    );
+    if (!record) continue;
+    opened += 1;
+    expect(record.access).toMatchObject({ manage: false, staff: false });
+    expect(record.roster.length).toBeGreaterThan(0);
+    expect(record.roster.every((student) => own.has(student.userId))).toBe(
+      true,
+    );
+  }
+  expect(opened).toBeGreaterThan(0);
+
+  const homeroom = (await teacher.classes.mine({})).rows.find(
+    (row) => row.classType === "homeroom",
+  );
+  if (!homeroom) throw new Error("the seed gives the teacher no homeroom");
+  const learner = (await teacher.classes.record({ id: homeroom.id })).roster[0];
+  if (!learner) throw new Error("the teacher's homeroom has no students");
+  expect(await teacher.people.student({ id: learner.userId })).toMatchObject({
+    access: { health: false, manage: false },
   });
-  expect(rosterResponse.status()).toBe(200);
-  const roster = (await rosterResponse.json()) as { roster: { id: string }[] };
-  const learner = roster.roster[0];
-  if (!learner) throw new Error("Missing seeded learner");
-  const teacherProfile = await request.post(`${origin}/v1/getStudent`, {
-    headers: teacher,
-    data: { studentId: learner.id },
-  });
-  expect(teacherProfile.status()).toBe(200);
-  expect(await teacherProfile.json()).toMatchObject({
-    access: { medical: false, manage: false },
-    profile: { medical: null, medicalReports: [] },
-  });
+  expect(
+    await refusal(teacher.records.health({ studentId: learner.userId })),
+  ).toMatchObject({ code: "FORBIDDEN" });
 });

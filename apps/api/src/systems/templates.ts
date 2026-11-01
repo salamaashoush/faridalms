@@ -10,9 +10,11 @@ import {
   reviewTemplate,
   templateById,
   templatesOf,
+  updateTemplate,
 } from "@faridalms/database/stores/templates";
 import { contentFileIds, contentPlainText } from "@faridalms/domain/content";
 import {
+  KEPT_BUILTIN_KINDS,
   librarySchema,
   reviewTemplateSchema,
   saveTemplateSchema,
@@ -20,6 +22,7 @@ import {
   TEMPLATE_KINDS,
   templateKindSchema,
   templateRefSchema,
+  updateTemplateSchema,
 } from "@faridalms/domain/templates";
 import { ORPCError } from "@orpc/server";
 
@@ -38,6 +41,8 @@ import { placeMedia, registerHostReader } from "../files/authorize";
 
 const listed = (context: UnitContext, row: TemplateRow) => ({
   id: row.id,
+  version: row.version,
+  builtinKey: row.builtinKey,
   kind: row.kind,
   title: row.title,
   description: row.description,
@@ -207,12 +212,63 @@ export const save = writeProcedure
     return { ...created, state };
   });
 
+/**
+ * Changes a template's words in place: its owner's or a reviewer's, or one
+ * the school was given, which those who write its kind keep up to date.
+ */
+export const update = writeProcedure
+  .input(updateTemplateSchema)
+  .handler(async ({ input, context }) => {
+    const row = await usableTemplate(context, input.id);
+    if (!row) throw new ORPCError("NOT_FOUND");
+    if (
+      row.ownerUserId
+        ? row.ownerUserId !== context.actor.userId &&
+          !can(context, "library:review")
+        : !writesKind(context, row.kind)
+    )
+      throw new ORPCError("FORBIDDEN", { message: "templates.not_owner" });
+    const version = await updateTemplate(context.tx, {
+      tenantId: context.tenantId,
+      id: row.id,
+      expectedVersion: input.expectedVersion,
+      title: input.title,
+    });
+    if (version === null)
+      throw new ORPCError("CONFLICT", { message: "conflict.version" });
+    const host = templateHost(row.id);
+    const before = await documentOf(context.tx, context.tenantId, host);
+    await saveDocument(context.tx, {
+      tenantId: context.tenantId,
+      orgId: context.schoolId,
+      host,
+      ...(await placeMedia(
+        context,
+        host,
+        input.content,
+        contentFileIds(input.content),
+      )),
+      plainText: contentPlainText(input.content),
+      userId: context.actor.userId,
+      locale: before?.locale ?? null,
+    });
+    await audit(context, {
+      action: "template.update",
+      objectType: "document_template",
+      objectId: row.id,
+      details: { kind: row.kind, title: input.title },
+    });
+    return { version };
+  });
+
 /** Takes away a library piece its owner, or a reviewer, no longer wants offered. */
 export const remove = writeProcedure
   .input(templateRefSchema)
   .handler(async ({ input, context }) => {
     const row = await usableTemplate(context, input.id);
     if (!row) throw new ORPCError("NOT_FOUND");
+    if (row.builtinKey && KEPT_BUILTIN_KINDS.includes(row.kind))
+      throw new ORPCError("CONFLICT", { message: "templates.kept" });
     if (
       row.ownerUserId !== context.actor.userId &&
       !can(context, "library:review")

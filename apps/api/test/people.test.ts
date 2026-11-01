@@ -147,7 +147,7 @@ describe("students", () => {
           reference: first?.reference ?? "",
         }),
       ),
-    ).toMatchObject({ message: "external_id.taken" });
+    ).toMatchObject({ code: "CONFLICT", message: "student.reference_taken" });
   });
 
   test("editing names on a stale version is refused", async () => {

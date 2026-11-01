@@ -8,8 +8,8 @@ import type {
   SiteLocale,
 } from "./site-sections";
 
+import { isSafeContentUrl } from "./content";
 import { MAX_QUESTIONS } from "./enquiries";
-import { isSafeContentUrl } from "./rich-text";
 import {
   bodyIssues,
   overlay,

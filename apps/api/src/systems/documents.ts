@@ -1,3 +1,5 @@
+import type { ContentDocument } from "@faridalms/domain/content";
+
 import {
   contentToRestore,
   documentIdOf,
@@ -10,7 +12,6 @@ import {
   TICKET_TTL_SECONDS,
   roomOf,
 } from "@faridalms/domain/collab";
-import { lessonContentOf } from "@faridalms/domain/learning";
 import { pageContentSchema } from "@faridalms/domain/website";
 import { ORPCError } from "@orpc/server";
 import * as v from "valibot";
@@ -155,11 +156,9 @@ export const restore = writeProcedure
         page: page.output,
       };
     }
-    // Lessons kept as a list of blocks before they were documents come back
-    // as the document they read as today.
     return {
       kind: "document" as const,
       locale: document.locale,
-      content: lessonContentOf(content),
+      content: content as unknown as ContentDocument,
     };
   });

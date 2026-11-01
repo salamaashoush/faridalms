@@ -258,7 +258,6 @@ import { resultOf } from "../lti/grades";
 import {
   answersByAttempt,
   attemptQuizzes,
-  briefForEditing,
   draftQuiz,
   drawAttempt,
   drawsOf,
@@ -266,7 +265,6 @@ import {
   keepStartedQuestions,
   keptOf,
   markedQuestions,
-  publishKeptApart,
   namelessVotes,
   ownResponsesOf,
   practiceViews,
@@ -454,43 +452,10 @@ registerArea("class", {
     },
   },
 });
-registerHostReader("assignment_quiz", (context, hostId) =>
-  readable(context, { type: "assignment", id: hostId }),
-);
-registerLiveRules("assignment_quiz", { keyed: () => Promise.resolve(true) });
 registerLiveRules("assignment", {
   keyed: async (context, hostId) =>
     (await assignmentById(context.tx, context.tenantId, hostId))
       ?.submissionFormat === "quiz",
-  // A quiz whose questions are still kept apart has them written into its
-  // brief before a room opens on it, since the room starts from the brief.
-  prepare: async (context, hostId) => {
-    const assignment = await assignmentById(
-      context.tx,
-      context.tenantId,
-      hostId,
-    );
-    if (assignment?.submissionFormat !== "quiz") return;
-    const host = { type: "assignment", id: hostId };
-    const stored = await documentOf(context.tx, context.tenantId, host);
-    if (!stored) return;
-    const brief = stored.content as unknown as ContentDocument;
-    const written = await briefForEditing(context, hostId, brief, false);
-    if (written === brief) return;
-    await saveDocument(context.tx, {
-      tenantId: context.tenantId,
-      orgId: context.schoolId,
-      host,
-      ...(await placeMedia(
-        context,
-        host,
-        { ...written },
-        contentFileIds(written),
-      )),
-      plainText: contentPlainText(written),
-      userId: context.actor.userId,
-    });
-  },
 });
 registerHostReader("submission", (context, hostId) =>
   readable(context, { type: "submission", id: hostId }),
@@ -644,14 +609,8 @@ export const editor = readProcedure
           })
         : null,
       rubric: assignment.rubric as unknown as Rubric | null,
-      brief:
-        stored && isQuiz
-          ? await briefForEditing(context, assignment.id, stored, false)
-          : stored,
-      publishedBrief:
-        sent && isQuiz
-          ? await briefForEditing(context, assignment.id, sent, true)
-          : sent,
+      brief: stored,
+      publishedBrief: sent,
       quiz:
         quiz && assignment.quizKeep && assignment.quizReveal
           ? {
@@ -1133,7 +1092,6 @@ export const publish = writeProcedure
         subject: { type: "assignment", id: assignment.id },
         title: assignment.title,
       });
-    if (quiz) await publishKeptApart(context, assignment.id);
     const year = (
       await schoolYears(tx, context.tenantId, context.schoolId)
     ).find((row) => row.id === assignment.schoolYearId);

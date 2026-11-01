@@ -65,25 +65,6 @@ export const auditPayloads = audit.table("payloads", {
   after: jsonb("after").$type<Record<string, unknown> | null>(),
 });
 
-export const activityEvents = core.table("activity_events", {
-  tenantId: uuid("tenant_id").notNull(),
-  id: uuid("id")
-    .notNull()
-    .default(sql`uuidv7()`),
-  occurredAt: instant("occurred_at")
-    .notNull()
-    .default(sql`statement_timestamp()`),
-  actorUserId: uuid("actor_user_id").notNull(),
-  verb: text("verb").notNull(),
-  objectType: text("object_type").notNull(),
-  objectId: uuid("object_id").notNull(),
-  orgId: uuid("org_id"),
-  contextType: text("context_type"),
-  contextId: uuid("context_id"),
-  sessionId: uuid("session_id"),
-  result: jsonb("result").$type<Record<string, unknown>>(),
-});
-
 /**
  * Ed-Fi's student section attendance event: one student's mark in one
  * register, partitioned by the day it was taken.

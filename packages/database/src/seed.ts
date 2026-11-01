@@ -1,10 +1,13 @@
-import { contentPlainText } from "@faridalms/domain/content";
+import type { LessonBlock, LessonCompletion } from "@faridalms/domain/learning";
+
+import { contentFileIds, contentPlainText } from "@faridalms/domain/content";
 import {
   headedContent,
   plainContent,
 } from "@faridalms/domain/content-conversion";
 import { CATALOGUE } from "@faridalms/domain/descriptors/catalogue";
 import { normaliseIdentifier } from "@faridalms/domain/identifiers";
+import { contentOfLesson } from "@faridalms/domain/lesson-content";
 import { addDays, teachingWeeks } from "@faridalms/domain/school";
 import {
   buildTemplate,
@@ -24,6 +27,7 @@ import type { ProvisionedTenant, TenantSpec } from "./tenants";
 import { withPurpose } from "./context";
 import { encryptField, lookupHmac } from "./crypto";
 import { newUserHandle } from "./stores/accounts";
+import { decideApplication } from "./stores/admission-decisions";
 import {
   insertApplication,
   insertApplicationEntry,
@@ -32,6 +36,7 @@ import {
   markSubmitted as markApplicationSubmitted,
   openApplicantRole,
   publishForm as publishAdmissionForm,
+  setApplicationState,
 } from "./stores/admissions";
 import { addRecipients } from "./stores/announcements";
 import { audienceUsers, setAudiences } from "./stores/audiences";
@@ -1298,6 +1303,7 @@ async function seedSchool(
       passwordHash: context.passwordHash,
       login: `applicant.${plan.slug}@${context.domain}`,
       logins: context.logins,
+      officeId: office.id,
     });
   return { yearId, teachers };
 }
@@ -2044,7 +2050,16 @@ async function seedLearning(
     order by user_id limit 1`);
   const quizId = Bun.randomUUIDv7();
   const right = Bun.randomUUIDv7();
-  const plans = [
+  const plans: {
+    title: string;
+    summary: string;
+    published: boolean;
+    lessons: {
+      title: string;
+      completion: LessonCompletion;
+      blocks: LessonBlock[];
+    }[];
+  }[] = [
     {
       title: "Reading stories together",
       summary: "How stories are built, with a short check and a reflection.",
@@ -2052,7 +2067,7 @@ async function seedLearning(
       lessons: [
         {
           title: "What makes a story",
-          completion: "view" as const,
+          completion: "view",
           blocks: [
             {
               id: Bun.randomUUIDv7(),
@@ -2065,7 +2080,7 @@ async function seedLearning(
         },
         {
           title: "Check your understanding",
-          completion: "quiz" as const,
+          completion: "quiz",
           blocks: [
             {
               id: quizId,
@@ -2142,7 +2157,7 @@ async function seedLearning(
         },
         {
           title: "Your favourite story",
-          completion: "reflection" as const,
+          completion: "reflection",
           blocks: [
             {
               id: Bun.randomUUIDv7(),
@@ -2166,7 +2181,7 @@ async function seedLearning(
       lessons: [
         {
           title: "Hearing the beat",
-          completion: "mark" as const,
+          completion: "mark",
           blocks: [
             {
               id: Bun.randomUUIDv7(),
@@ -2214,21 +2229,19 @@ async function seedLearning(
         bands: [],
       });
       lessonIds.push(row.id);
-      const content = { version: 2, blocks: lesson.blocks };
-      const [document] = await tx
-        .insert(documents)
-        .values({
-          tenantId,
-          hostType: "lesson",
-          hostId: row.id,
-          orgId: schoolId,
-          kind: "lesson",
-          schemaVersion: 2,
-          content,
-          plainText: lesson.title,
-        })
-        .returning({ id: documents.id });
-      if (plan.published && document)
+      const content = contentOfLesson({ version: 2, blocks: lesson.blocks });
+      if (!content) throw new Error(`${lesson.title} cannot be a document`);
+      const document = await saveDocument(tx, {
+        tenantId,
+        orgId: schoolId,
+        host: { type: "lesson", id: row.id },
+        kind: "lesson",
+        content: { ...content },
+        plainText: contentPlainText(content),
+        mediaIds: contentFileIds(content),
+        userId: homeroom.teacher_id,
+      });
+      if (plan.published)
         await snapshotPublish(tx, {
           tenantId,
           documentId: document.id,
@@ -2951,7 +2964,8 @@ const seedChecklist = (labels: [string, string, string][]) =>
 /**
  * Admissions for next year: the year itself, a published application form
  * with two questions of the school's own, intakes into KG1 and Grade 1 open
- * today, and a family who registered and sent an application for KG1.
+ * today, a family who registered and sent an application for KG1, and
+ * other families' KG1 applications the office is reading and deciding.
  */
 async function seedAdmissions(
   tx: Tx,
@@ -2961,6 +2975,7 @@ async function seedAdmissions(
     passwordHash: string;
     login: string;
     logins: SeededTenant["logins"];
+    officeId: string;
   },
 ) {
   const yearId = Bun.randomUUIDv7();
@@ -3176,6 +3191,150 @@ async function seedAdmissions(
     details: { from: "draft", to: "submitted" },
     authorUserId: parent.id,
   });
+
+  const others: {
+    parent: [Name, Name, "female" | "male"];
+    child: [Name, Name, "female" | "male"];
+    born: string;
+    relation: string;
+    state: "submitted" | "in_review" | "decided";
+    priorities: ("sibling" | "staff_child")[];
+  }[] = [
+    {
+      parent: [["Nadia", "نادية"], ["Fahmy", "فهمي"], "female"],
+      child: [["Laila", "ليلى"], ["Fahmy", "فهمي"], "female"],
+      born: "2022-11-02",
+      relation: "mother",
+      state: "in_review",
+      priorities: ["sibling"],
+    },
+    {
+      parent: [["Karim", "كريم"], ["Salem", "سالم"], "male"],
+      child: [["Yusuf", "يوسف"], ["Salem", "سالم"], "male"],
+      born: "2023-01-20",
+      relation: "father",
+      state: "in_review",
+      priorities: [],
+    },
+    {
+      parent: [["Mona", "منى"], ["Rashad", "رشاد"], "female"],
+      child: [["Hana", "هنا"], ["Rashad", "رشاد"], "female"],
+      born: "2022-12-08",
+      relation: "mother",
+      state: "decided",
+      priorities: ["staff_child"],
+    },
+    {
+      parent: [["Tarek", "طارق"], ["Nabil", "نبيل"], "male"],
+      child: [["Adam", "آدم"], ["Nabil", "نبيل"], "male"],
+      born: "2023-04-30",
+      relation: "father",
+      state: "submitted",
+      priorities: [],
+    },
+  ];
+  for (const [index, other] of others.entries()) {
+    const adult = person(other.parent[0], other.parent[1], other.parent[2]);
+    await insertPerson(tx, tenantId, adult, { primaryOrgId: schoolId });
+    // The family whose decision waits for release signs in, so the offer
+    // can be followed to the family's answer.
+    if (other.state === "decided") {
+      const login = context.login.replace("applicant.", "applicant2.");
+      await giveAccount(tx, tenantId, adult.id, login, context.passwordHash);
+      await openApplicantRole(tx, {
+        ...org,
+        userId: adult.id,
+        today: "2026-10-20",
+      });
+      context.logins.push({ role: "applicant", loginName: login, schoolId });
+    }
+    const kid = person(other.child[0], other.child[1], other.child[2]);
+    await insertPerson(tx, tenantId, kid, {
+      primaryOrgId: schoolId,
+      birthDate: other.born,
+      birthDateSource: "guardian_declared",
+    });
+    const made = await insertApplication(tx, {
+      ...org,
+      intakeId: kg1.id,
+      formVersionId: published.id,
+      familyUserId: adult.id,
+      applicantUserId: kid.id,
+      locale: index % 2 === 0 ? "ar" : "en",
+      form: {
+        relationId: need(relations, other.relation),
+        responsible: true,
+        phone: "",
+        other: null,
+        schools: [],
+        questions: {},
+      },
+      checklist: seedChecklist([
+        ...papers,
+        ["assessment", "Readiness play session", "جلسة لعب لتقييم الاستعداد"],
+        ["interview", "Meeting with the family", "لقاء مع الأسرة"],
+      ]),
+    });
+    const sent = await markApplicationSubmitted(tx, {
+      ...org,
+      id: made.id,
+      expectedVersion: made.version,
+      reference: `2027-${String(index + 2).padStart(4, "0")}`,
+      locale: index % 2 === 0 ? "ar" : "en",
+      answers: [],
+      matches: {
+        students: [],
+        guardians: [],
+        siblings: [],
+        staffParent: other.priorities.includes("staff_child"),
+      },
+      priorities: other.priorities,
+      additionalNeeds: false,
+      enquiryId: null,
+    });
+    await insertApplicationEntry(tx, {
+      ...org,
+      applicationId: made.id,
+      kind: "state",
+      body: "",
+      details: { from: "draft", to: "submitted" },
+      authorUserId: adult.id,
+    });
+    if (other.state === "submitted" || sent === null) continue;
+    const reviewing = await setApplicationState(tx, {
+      ...org,
+      id: made.id,
+      expectedVersion: sent,
+      from: "submitted",
+      state: "in_review",
+      exitReason: null,
+    });
+    await insertApplicationEntry(tx, {
+      ...org,
+      applicationId: made.id,
+      kind: "state",
+      body: "",
+      details: { from: "submitted", to: "in_review" },
+      authorUserId: context.officeId,
+    });
+    if (other.state === "decided" && reviewing !== null) {
+      await decideApplication(tx, {
+        ...org,
+        id: made.id,
+        expectedVersion: reviewing,
+        decision: "offer",
+        userId: context.officeId,
+      });
+      await insertApplicationEntry(tx, {
+        ...org,
+        applicationId: made.id,
+        kind: "state",
+        body: "",
+        details: { from: "in_review", to: "decided", decision: "offer" },
+        authorUserId: context.officeId,
+      });
+    }
+  }
 }
 
 /**

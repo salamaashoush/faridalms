@@ -10,7 +10,12 @@ import * as m from "~/i18n/messages";
 import { hostHref, insideWebsite, publicPath } from "~/utils/host";
 
 import type { SiteFrameModel } from "./render/frame";
-import type { NewsItem, RenderContext, SiteEvent } from "./render/parts";
+import type {
+  NewsItem,
+  RenderContext,
+  SiteEvent,
+  SiteIntake,
+} from "./render/parts";
 
 import { SiteFrame } from "./render/frame";
 import { publicMediaUrl } from "./render/parts";
@@ -37,6 +42,8 @@ export function publicContext(
     media?: Record<string, string>;
     news?: NewsItem[];
     events?: SiteEvent[];
+    intakes?: SiteIntake[];
+    today?: string;
     page?: string;
   } = {},
 ): RenderContext {
@@ -50,6 +57,13 @@ export function publicContext(
     },
     news: input.news ?? [],
     events: input.events ?? [],
+    intakes: input.intakes ?? [],
+    today: input.today,
+    applyHref: (intakeId) =>
+      hostHref(
+        site.portalHost,
+        intakeId ? `/apply?intake=${intakeId}` : "/apply",
+      ),
     contact: site.contact,
     query: langQuery(site),
     page: input.page,

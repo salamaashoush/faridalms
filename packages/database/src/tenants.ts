@@ -1,3 +1,4 @@
+import { BUILTIN_LETTERS, letterKey } from "@faridalms/domain/admissions";
 import { BUILTIN_CAPABILITIES } from "@faridalms/domain/capabilities";
 import { contentPlainText } from "@faridalms/domain/content";
 import { plainContent } from "@faridalms/domain/content-conversion";
@@ -116,22 +117,30 @@ export async function seedBuiltinRoles(tx: CellTransaction, tenantId: string) {
 }
 
 /**
- * Gives each school the replies its office sends most as message templates
- * of its own, which it may edit or remove.
+ * Gives each school templates of its own to start from, which it then
+ * edits: each one's words as a document in its language, kept under a
+ * builtin key so it is given once.
  */
-export async function seedMessageTemplates(
+export async function giveTemplates(
   tx: CellTransaction,
   tenantId: string,
   schoolIds: readonly string[],
+  kind: "message" | "admission_letter",
+  templates: readonly {
+    key: string;
+    locale: "en" | "ar";
+    title: string;
+    body: string;
+  }[],
 ) {
   for (const orgId of schoolIds) {
     const made = await tx
       .insert(documentTemplates)
       .values(
-        BUILTIN_MESSAGE_TEMPLATES.map((template) => ({
+        templates.map((template) => ({
           tenantId,
           orgId,
-          kind: "message" as const,
+          kind,
           builtinKey: template.key,
           title: template.title,
           state: "shared" as const,
@@ -143,9 +152,7 @@ export async function seedMessageTemplates(
       });
     await tx.insert(documents).values(
       made.flatMap((row) => {
-        const template = BUILTIN_MESSAGE_TEMPLATES.find(
-          (entry) => entry.key === row.key,
-        );
+        const template = templates.find((entry) => entry.key === row.key);
         if (!template) return [];
         const content = plainContent(template.body);
         return [
@@ -165,6 +172,36 @@ export async function seedMessageTemplates(
     );
   }
 }
+
+/** The letters of admission each school starts with, in both languages. */
+export const giveLetterTemplates = (
+  tx: CellTransaction,
+  tenantId: string,
+  schoolIds: readonly string[],
+) =>
+  giveTemplates(
+    tx,
+    tenantId,
+    schoolIds,
+    "admission_letter",
+    BUILTIN_LETTERS.map((letter) => ({
+      key: letterKey(letter.kind, letter.locale),
+      locale: letter.locale,
+      title: letter.title,
+      body: letter.body,
+    })),
+  );
+
+/**
+ * Gives each school the replies its office sends most as message templates
+ * of its own, which it may edit or remove.
+ */
+export const seedMessageTemplates = (
+  tx: CellTransaction,
+  tenantId: string,
+  schoolIds: readonly string[],
+) =>
+  giveTemplates(tx, tenantId, schoolIds, "message", BUILTIN_MESSAGE_TEMPLATES);
 
 export async function seedTenantKeys(
   tx: CellTransaction,
@@ -271,6 +308,7 @@ export async function createTenant(
   await seedDescriptors(tx, tenantId);
   await seedBuiltinRoles(tx, tenantId);
   await seedMessageTemplates(tx, tenantId, schoolIds);
+  await giveLetterTemplates(tx, tenantId, schoolIds);
   await seedTenantKeys(tx, tenantId, keys.kek, keys.cell);
   await tx.execute(
     sql`update ops.tenant_registry set lifecycle = 'active', changed_at = statement_timestamp() where tenant_id = ${tenantId}::uuid`,

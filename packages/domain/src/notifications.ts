@@ -55,7 +55,29 @@ export interface NoticeParams {
   gradeNameAr?: string;
   reference?: string;
   received?: boolean;
+  /**
+   * Where an application went: to the family, the offer, the waiting list,
+   * the refusal, the welcome, an offer lapsed or moved to a later year; to
+   * the office, the family's answer to an offer.
+   */
+  outcome?: ApplicationOutcome;
+  /** That the reader is the family, who read it in their own applications. */
+  toFamily?: boolean;
+  /** The last day of an offer. */
+  until?: string;
 }
+
+export const APPLICATION_OUTCOMES = [
+  "offered",
+  "waitlisted",
+  "declined_by_school",
+  "enrolled",
+  "offer_expired",
+  "deferred",
+  "accepted",
+  "offer_declined",
+] as const;
+export type ApplicationOutcome = (typeof APPLICATION_OUTCOMES)[number];
 
 /** Urgent notices reach everyone on every channel, so nobody can turn them off. */
 export const CHOOSABLE_KINDS = [

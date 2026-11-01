@@ -161,7 +161,10 @@ export const save = writeProcedure
           after: { ...input, terms: input.terms.length },
         },
       });
-      return created;
+      return {
+        id: created.id,
+        version: (await yearOf(context, created.id)).version,
+      };
     }
     const before = await yearOf(context, input.id);
     await updateYear(context.tx, {
@@ -190,7 +193,9 @@ export const save = writeProcedure
         },
       },
     });
-    return { id: input.id };
+    // A save that moves the dates writes the year's row more than once, so
+    // the version a client sends next is read back rather than counted.
+    return { id: input.id, version: (await yearOf(context, input.id)).version };
   });
 
 export const lifecycle = writeProcedure
