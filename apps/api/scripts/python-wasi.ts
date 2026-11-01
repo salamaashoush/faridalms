@@ -15,10 +15,11 @@ import { existsSync, readFileSync } from "node:fs";
 import { mkdir, rm, writeFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
 
-const VERSION = "3.14.7";
-const SOURCE = `https://github.com/brettcannon/cpython-wasi-build/releases/download/v${VERSION}/python-${VERSION}-wasi_sdk-24.zip`;
+const VERSION = "3.15.2";
+const WASI_SDK = 33;
+const SOURCE = `https://github.com/brettcannon/cpython-wasi-build/releases/download/v${VERSION}/python-${VERSION}-wasi_sdk-${WASI_SDK}.zip`;
 const SHA256 =
-  "2e064d3fb8172471d39d741348efa722349c40b96301f69968dff714999c584b";
+  "b8a63559c56760bbdc310dedb74fd69d10bcbafae26b705bea0ad353ad256888";
 const OUT = new URL("../vendor/python/", import.meta.url).pathname;
 const STAMP = join(OUT, "VERSION");
 

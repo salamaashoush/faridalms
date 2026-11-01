@@ -62,7 +62,7 @@ USER bun
 EXPOSE 3004
 CMD ["bun", ".output/server/index.mjs"]
 
-FROM rust:1.98-slim-trixie AS media-build
+FROM rust:1.99-slim-trixie AS media-build
 WORKDIR /app/apps/media
 # aws-lc, which the store's and the API's TLS stand on, builds with cmake.
 RUN apt-get update && apt-get install -y --no-install-recommends cmake && rm -rf /var/lib/apt/lists/*
@@ -98,7 +98,7 @@ HEALTHCHECK --interval=15s --timeout=3s --start-period=10s --retries=3 CMD wget 
 # major version, so this image follows the database's.
 FROM rclone/rclone:1.75.2 AS rclone
 
-FROM postgres:18.4-trixie AS backup
+FROM postgres:18.6-trixie AS backup
 COPY --from=rclone /usr/local/bin/rclone /usr/local/bin/rclone
 COPY --chmod=0755 deploy/single-server/backup.sh /usr/local/bin/farida-backup
 USER postgres

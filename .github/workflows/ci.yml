@@ -9,7 +9,7 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
 env:
-  NODE_VERSION: 24
+  NODE_VERSION: 26
 permissions:
   contents: read
 jobs:
@@ -55,7 +55,7 @@ jobs:
         working-directory: apps/media
     steps:
       - uses: actions/checkout@v7
-      - run: rustup toolchain install 1.98 --profile minimal --component rustfmt,clippy && rustup default 1.98
+      - run: rustup toolchain install 1.99 --profile minimal --component rustfmt,clippy && rustup default 1.99
       - uses: actions/cache@v6
         with:
           path: |

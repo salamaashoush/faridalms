@@ -69,7 +69,7 @@
         "@faridalms/editor": "workspace:*",
         "@faridalms/makecode": "workspace:*",
         "@faridalms/puzzles": "workspace:*",
-        "@faridalms/studio": "github:salamaashoush/farida-studio#v1.0.0",
+        "@faridalms/studio": "github:salamaashoush/farida-studio#v1.1.0",
         "@hocuspocus/provider": "^4.8.0",
         "@lexical/yjs": "^0.53.0",
         "@orpc/client": "^1.16.1",
@@ -518,7 +518,7 @@
 
     "@faridalms/puzzles": ["@faridalms/puzzles@workspace:packages/puzzles"],
 
-    "@faridalms/studio": ["@faridalms/studio@github:salamaashoush/farida-studio#dab0041", { "bin": { "farida-studio": "./install.ts" } }, "salamaashoush-farida-studio-dab0041", "sha512-Vl6mfHNO7qELiogx85AzuYtr33N7WH0G68zgLCeHM6SH0YWjzWAPFOKfPT9IsPFrTCWlwB3XEqO10EaCBdHeVA=="],
+    "@faridalms/studio": ["@faridalms/studio@github:salamaashoush/farida-studio#98ef2dc", { "bin": { "farida-studio": "./install.ts" } }, "salamaashoush-farida-studio-98ef2dc", "sha512-PVc+B4J+/cCDMJ8sxVnWhhKAYzSGHCP3/VnxqIbjbRyWxQZj8YYULb/a9ycmX1Dq47UA0KqvxsCp/ym7zmJK6A=="],
 
     "@faridalms/ui": ["@faridalms/ui@workspace:packages/ui"],
 
@@ -1810,7 +1810,7 @@
 
     "kleur": ["kleur@4.1.5", "", {}, "sha512-o+NO+8WrRiQEE4/7nwRJhN1HWpVmJm511pBHUxPLtp0BUISzlBplORYSmTclCnJvQq2tKu/sgl3xVpkc7ZWuQQ=="],
 
-    "kysely": ["kysely@0.28.18", "", {}, "sha512-lf6nEHwPlaWbUDw5rycPSkEVGVC7sF7hzY7kH0OryleqK8Ym0zZ+RjI8o+RpHHlxpbKVC1d+UoQSW8GFxGQf4Q=="],
+    "kysely": ["kysely@0.28.19", "", {}, "sha512-sXoKWuQjtorwxDLiws0ZSPGGne/hs+fGHIII7vXquSBFgHwLXgFIHN9tTv3kNdVkJ5d3xtXC84GjjWMYLqdFWg=="],
 
     "langium": ["langium@3.3.1", "", { "dependencies": { "chevrotain": "~11.0.3", "chevrotain-allstar": "~0.3.0", "vscode-languageserver": "~9.0.1", "vscode-languageserver-textdocument": "~1.0.11", "vscode-uri": "~3.0.8" } }, "sha512-QJv/h939gDpvT+9SiLVlY7tZC3xB2qK57v0J04Sh9wpMb6MP1q8gB21L3WIo8T5P1MSMg3Ep14L7KkDCFG3y4w=="],
 

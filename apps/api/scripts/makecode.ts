@@ -30,15 +30,15 @@ import { dirname, extname, join, relative } from "node:path";
 
 const CORE = {
   name: "pxt-core",
-  version: "13.0.1",
+  version: "13.2.17",
   sha512:
-    "msh++EUMDaBkVAPIJvH7EwaBGNyAYiODnXg8ibJYdPIbv0VJbmnAmYaHsS8lwR5UOrgWzcVLjefqlkTrzQk16Q==",
+    "5bdFP6RAp1BGAZvBVgMHCV3ezUG3PY7GBUDm55U3BYVtdmHB0QP1gjUtPx6qDcjHXGPkPgAVePY0LYM31MD0JQ==",
 };
 const TARGET = {
   name: "pxt-microbit",
-  version: "9.1.1",
+  version: "9.1.2",
   sha512:
-    "+TsQTicpVMyR+jGC5V9BvnwpPpqDz9ZYOedOrKA9JZufXtc6E8TVITLMgqMNEJt8gS/jO5Sf9JhV6CxOFdD00g==",
+    "G39c4QbXOnlQxLk3cao25nmXr/PWRdYQhGi8l3UDxNZWT8vbtJbnmT1fe8B1XlUzmZDVxuS4HqfnpXgTbuZ3Wg==",
 };
 /** Raised whenever what this script makes of the two packages changes. */
 const LAYOUT = 1;
