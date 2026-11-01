@@ -16,7 +16,7 @@ import { formatInstant } from "~/utils/datetime";
 import type { PublicSite } from "./SiteShell";
 
 import { opensOnPicture, PageSections } from "./render/page";
-import { publicMediaUrl } from "./render/parts";
+import { Actions, publicMediaUrl } from "./render/parts";
 import { schemeStyle } from "./render/theme";
 import { langSearch, publicContext, SiteShell } from "./SiteShell";
 
@@ -130,6 +130,57 @@ export function PostList({
         </li>
       ))}
     </ul>
+  );
+}
+
+/**
+ * What a visitor sees at an address the website does not have, or when a
+ * page fails to load: the school's own frame, theme and menu around a few
+ * words in the site's language and the ways back in.
+ */
+export function SiteStatus({
+  site,
+  school,
+  kind,
+  onRetry,
+}: {
+  site: PublicSite;
+  school: string;
+  kind: "missing" | "failed";
+  onRetry?: () => void;
+}) {
+  const t = { locale: site.locale };
+  const context = publicContext(site, school);
+  return (
+    <SiteShell site={site} school={school}>
+      <PageBand site={site}>
+        {kind === "missing" ? (
+          <p className="site-eyebrow">
+            <bdi>404</bdi>
+          </p>
+        ) : null}
+        <h1 className="site-heading site-display max-w-3xl">
+          {kind === "missing" ? m.notFoundTitle({}, t) : m.errorTitle({}, t)}
+        </h1>
+        <p className="site-muted max-w-2xl text-lg">
+          {kind === "missing" ? m.notFoundBody({}, t) : m.errorBody({}, t)}
+        </p>
+        <div className="flex flex-wrap gap-3 pt-2">
+          {kind === "failed" && onRetry ? (
+            <button type="button" className="site-button" onClick={onRetry}>
+              {m.errorRetry({}, t)}
+            </button>
+          ) : null}
+          <Actions
+            actions={[
+              { id: "home", label: m.notFoundGoHome({}, t), href: "/" },
+              { id: "news", label: m.siteNews({}, t), href: "/news" },
+            ]}
+            context={context}
+          />
+        </div>
+      </PageBand>
+    </SiteShell>
   );
 }
 
