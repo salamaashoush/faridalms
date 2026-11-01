@@ -108,7 +108,7 @@ export function NotificationBell({ className }: { className?: string }) {
                         )}
                         aria-hidden
                       />
-                      <span className="grid min-w-0 flex-1 gap-0.5">
+                      <span className="grid min-w-0 flex-1 grid-cols-[minmax(0,1fr)] gap-0.5">
                         <span className="flex items-center gap-2">
                           <span
                             className={cn(
@@ -118,7 +118,7 @@ export function NotificationBell({ className }: { className?: string }) {
                           >
                             {text.title}
                           </span>
-                          <span className="shrink-0 text-xs text-muted-foreground">
+                          <span className="shrink-0 text-xs whitespace-nowrap text-muted-foreground">
                             {formatAgo(row.createdAt)}
                           </span>
                         </span>
