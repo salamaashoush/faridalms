@@ -14,14 +14,14 @@ export const seo = ({ title, description, keywords, image }: SeoProps) => {
     { name: "twitter:description", content: description },
     { name: "twitter:creator", content: "@salamaashoush" },
     { name: "twitter:site", content: "@salamaashoush" },
-    { name: "og:type", content: "website" },
-    { name: "og:title", content: title },
-    { name: "og:description", content: description },
+    { property: "og:type", content: "website" },
+    { property: "og:title", content: title },
+    { property: "og:description", content: description },
     ...(image
       ? [
           { name: "twitter:image", content: image },
           { name: "twitter:card", content: "summary_large_image" },
-          { name: "og:image", content: image },
+          { property: "og:image", content: image },
         ]
       : []),
   ];

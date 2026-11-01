@@ -24,6 +24,7 @@ import { hostView } from "~/utils/host";
 
 import { DefaultCatchBoundary } from "../components/DefaultCatchBoundary";
 import { NotFound } from "../components/NotFound";
+import { bareHref } from "../utils/host";
 import { seo } from "../utils/seo";
 
 interface AppRouterContext {
@@ -65,7 +66,9 @@ export const Route = createRootRouteWithContext<AppRouterContext>()({
       ...seo({
         title: m.commonAppName(),
         description: m.commonAppDescription(),
+        image: bareHref("/og-image.png"),
       }),
+      { name: "theme-color", content: "#153f3a" },
     ],
     links: [
       { rel: "stylesheet", href: appCss },
@@ -86,8 +89,9 @@ export const Route = createRootRouteWithContext<AppRouterContext>()({
         sizes: "16x16",
         href: "/favicon-16x16.png",
       },
-      { rel: "manifest", href: "/site.webmanifest", color: "#fffff" },
-      { rel: "icon", href: "/favicon.ico" },
+      { rel: "icon", type: "image/svg+xml", href: "/favicon.svg" },
+      { rel: "manifest", href: "/site.webmanifest" },
+      { rel: "icon", href: "/favicon.ico", sizes: "48x48" },
     ],
   }),
   errorComponent: (props) => {
