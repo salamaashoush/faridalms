@@ -6,7 +6,6 @@ import { harness, probe } from "./harness";
 const DELETE_ALLOWED = new Set([
   "core.sessions",
   "core.auth_attempts",
-  "core.idempotency_keys",
   "core.external_ids",
   "core.contact_points",
   "core.relationship_restrictions",
@@ -19,7 +18,6 @@ const DELETE_ALLOWED = new Set([
   "core.file_subjects",
   "core.user_preferences",
   "core.saved_views",
-  "core.activity_events",
   "core.lesson_runs",
   "core.lesson_code",
   "core.lesson_projects",
