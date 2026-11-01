@@ -1,11 +1,12 @@
 import type { IsoWeekday } from "@faridalms/domain/timetable";
+import type { DragEvent, KeyboardEvent, ReactNode } from "react";
 
-import { monthWeeks, onDay } from "@faridalms/domain/calendar";
-import { addDays } from "@faridalms/domain/school";
+import { monthWeeks, onDay, weekOf } from "@faridalms/domain/calendar";
+import { addDays, daysBetween } from "@faridalms/domain/school";
 import { isoWeekday } from "@faridalms/domain/timetable";
 import { cn } from "@faridalms/ui/cn";
 import { Link } from "@tanstack/react-router";
-import { CalendarDays, MapPin } from "lucide-react";
+import { CalendarDays, MapPin, Plus } from "lucide-react";
 import { useState } from "react";
 
 import type { calendarRangeQuery } from "~/queries/calendar";
@@ -14,12 +15,15 @@ import { EmptyState } from "~/components/system/IndexPage";
 import { StatusBadge } from "~/components/system/status";
 import { useCurrentUser } from "~/hooks/useCurrentUser";
 import * as m from "~/i18n/messages";
+import { getLocale, getTextDirection } from "~/i18n/runtime";
 import {
   formatWeekday,
   formatDate,
   formatNumber,
   secondaryDate,
 } from "~/utils/datetime";
+
+import type { Change } from "./Reschedule";
 
 import {
   CATEGORY_LABEL,
@@ -54,34 +58,189 @@ export function CategoryIcon({
   );
 }
 
-function EventChip({ event }: { event: CalendarEvent }) {
+/** What the grid lets a viewer do beyond reading: add on a day, move and resize what they may edit. */
+export interface GridActions {
+  canAdd: boolean;
+  movable: (event: CalendarEvent) => boolean;
+  reschedule: (event: CalendarEvent, change: Change) => void;
+}
+
+interface Dragging {
+  event: CalendarEvent;
+  /** The day the event was picked up from, as one spanning days shows on each. */
+  from: string;
+  mode: "move" | "resize";
+}
+
+/**
+ * Pointer dragging between the days of a grid. The event rides in React
+ * state; the data transfer only carries its id, which Firefox needs before
+ * it starts a drag at all.
+ */
+function useDrag(actions: GridActions | undefined) {
+  const [dragging, setDragging] = useState<Dragging | null>(null);
+  const [over, setOver] = useState<string | null>(null);
+  const start = (next: Dragging) => (event: DragEvent) => {
+    event.stopPropagation();
+    event.dataTransfer.effectAllowed = "move";
+    event.dataTransfer.setData("text/plain", next.event.id);
+    setDragging(next);
+  };
+  const end = () => {
+    setDragging(null);
+    setOver(null);
+  };
+  const target = (day: string) =>
+    actions && dragging
+      ? {
+          onDragOver: (event: DragEvent) => {
+            event.preventDefault();
+            event.dataTransfer.dropEffect = "move";
+            if (over !== day) setOver(day);
+          },
+          onDrop: (event: DragEvent) => {
+            event.preventDefault();
+            const offset = daysBetween(dragging.from, day) - 1;
+            end();
+            if (offset !== 0)
+              actions.reschedule(
+                dragging.event,
+                dragging.mode === "move"
+                  ? { move: offset }
+                  : { extend: offset },
+              );
+          },
+        }
+      : {};
+  return { dragging, over, start, end, target };
+}
+
+/**
+ * Alt with an arrow moves a focused event a day along the week, or a week up
+ * or down; with Shift too it moves the event's last day instead. Left and
+ * right follow the page's direction, as the grid does.
+ */
+function keyChange(event: KeyboardEvent): Change | null {
+  if (!event.altKey || event.ctrlKey || event.metaKey) return null;
+  const rtl = getTextDirection(getLocale()) === "rtl";
+  const step =
+    event.key === "ArrowRight"
+      ? rtl
+        ? -1
+        : 1
+      : event.key === "ArrowLeft"
+        ? rtl
+          ? 1
+          : -1
+        : event.key === "ArrowDown"
+          ? 7
+          : event.key === "ArrowUp"
+            ? -7
+            : 0;
+  if (step === 0) return null;
+  return event.shiftKey ? { extend: step } : { move: step };
+}
+
+function EventChip({
+  event,
+  day,
+  actions,
+  drag,
+}: {
+  event: CalendarEvent;
+  day: string;
+  actions?: GridActions;
+  drag?: ReturnType<typeof useDrag>;
+}) {
+  const movable = Boolean(actions?.movable(event) && drag);
+  const last = day === event.endsOn;
   return (
-    <Link
-      from="/calendar/"
-      to="/calendar"
-      search={(previous) => ({ ...previous, event: event.id })}
-      title={eventTitle(event)}
+    <div
       className={cn(
-        "flex min-w-0 items-center gap-1.5 rounded px-1.5 py-0.5 text-xs leading-4 hover:bg-accent",
-        event.cancelled && "text-muted-foreground line-through",
-        event.state === "draft" &&
-          "border border-dashed border-muted-foreground/50 text-muted-foreground",
+        "group/chip relative flex min-w-0 items-stretch rounded",
+        drag?.dragging?.event.id === event.id && "opacity-50",
       )}
     >
-      {event.state === "draft" ? (
-        <span className="sr-only">{m.calDraft()}</span>
+      <Link
+        from="/calendar/"
+        to="/calendar"
+        search={(previous) => ({ ...previous, event: event.id })}
+        title={eventTitle(event)}
+        draggable={movable}
+        onDragStart={
+          movable && drag
+            ? drag.start({ event, from: day, mode: "move" })
+            : undefined
+        }
+        onDragEnd={drag?.end}
+        onKeyDown={(key) => {
+          if (!movable || !actions) return;
+          const change = keyChange(key);
+          if (!change) return;
+          key.preventDefault();
+          actions.reschedule(event, change);
+        }}
+        aria-describedby={movable ? "calendar-move-hint" : undefined}
+        className={cn(
+          "flex min-w-0 flex-1 items-center gap-1.5 rounded px-1.5 py-0.5 text-xs leading-4 hover:bg-accent",
+          movable && "cursor-grab active:cursor-grabbing",
+          event.cancelled && "text-muted-foreground line-through",
+          event.state === "draft" &&
+            "border border-dashed border-muted-foreground/50 text-muted-foreground",
+        )}
+      >
+        {event.state === "draft" ? (
+          <span className="sr-only">{m.calDraft()}</span>
+        ) : null}
+        <CategoryIcon
+          category={event.category}
+          className={cn("size-3", event.cancelled && "text-muted-foreground")}
+        />
+        {event.startTime ? (
+          <span className="shrink-0 text-muted-foreground tabular-nums">
+            <bdi dir="ltr">{event.startTime}</bdi>
+          </span>
+        ) : null}
+        <bdi className="truncate">{eventTitle(event)}</bdi>
+      </Link>
+      {movable && last && drag ? (
+        <span
+          draggable
+          aria-hidden
+          title={m.calResizeHandle()}
+          data-resize={event.id}
+          onDragStart={drag.start({ event, from: day, mode: "resize" })}
+          onDragEnd={drag.end}
+          className="absolute inset-y-0 end-0 w-2 cursor-ew-resize rounded-e opacity-0 group-hover/chip:bg-primary/30 group-hover/chip:opacity-100"
+        />
       ) : null}
-      <CategoryIcon
-        category={event.category}
-        className={cn("size-3", event.cancelled && "text-muted-foreground")}
-      />
-      {event.startTime ? (
-        <span className="shrink-0 text-muted-foreground tabular-nums">
-          <bdi dir="ltr">{event.startTime}</bdi>
-        </span>
-      ) : null}
-      <bdi className="truncate">{eventTitle(event)}</bdi>
+    </div>
+  );
+}
+
+/** A link to start a new event on a day, shown to those who may write one. */
+function AddOnDay({ day }: { day: string }) {
+  return (
+    <Link
+      to="/event-editor"
+      search={{ day }}
+      aria-label={m.calNewOn({ date: formatDate(day, "weekday") })}
+      className="grid size-6 place-items-center rounded text-muted-foreground opacity-0 group-hover/day:opacity-100 hover:bg-accent hover:text-foreground focus-visible:opacity-100 pointer-coarse:opacity-100"
+    >
+      <Plus className="size-3.5" aria-hidden />
     </Link>
+  );
+}
+
+/** How to move and resize events without a pointer, for those who may. */
+export function MoveHint({ children }: { children?: ReactNode }) {
+  return (
+    <p
+      id="calendar-move-hint"
+      className="text-[13px] leading-[18px] text-muted-foreground max-md:hidden"
+    >
+      {children ?? m.calMoveHint()}
+    </p>
   );
 }
 
@@ -96,6 +255,7 @@ export function MonthGrid({
   today,
   events,
   days,
+  actions,
 }: {
   month: string;
   weekStart: IsoWeekday;
@@ -103,8 +263,10 @@ export function MonthGrid({
   today: string;
   events: CalendarEvent[];
   days: SpecialDay[];
+  actions?: GridActions;
 }) {
   const secondary = useCurrentUser().school.secondaryCalendar;
+  const drag = useDrag(actions);
   const weeks = monthWeeks(month, weekStart);
   const special = new Map(days.map((row) => [row.day, row]));
   const header = weeks[0] ?? [];
@@ -140,10 +302,14 @@ export function MonthGrid({
               return (
                 <td
                   key={day}
+                  {...drag.target(day)}
+                  data-day={day}
                   className={cn(
-                    "h-28 border-e border-b p-1 align-top last:border-e-0 [tr:last-child_&]:border-b-0",
+                    "group/day h-28 border-e border-b p-1 align-top last:border-e-0 [tr:last-child_&]:border-b-0",
                     (off || holiday) && "bg-muted/70",
                     !inMonth && "text-muted-foreground/70 [&_a]:opacity-70",
+                    drag.over === day &&
+                      "bg-primary/5 ring-2 ring-primary ring-inset",
                   )}
                 >
                   <div className="flex items-center justify-between gap-1 px-1 pt-0.5">
@@ -162,6 +328,7 @@ export function MonthGrid({
                         {secondaryDate(day, secondary)}
                       </span>
                     ) : null}
+                    {actions?.canAdd ? <AddOnDay day={day} /> : null}
                   </div>
                   {holiday ? (
                     <p className="truncate px-1.5 text-xs leading-4 text-muted-foreground">
@@ -171,7 +338,13 @@ export function MonthGrid({
                   {on.length > 0 ? (
                     <div className="mt-0.5 grid min-w-0 gap-px">
                       {on.slice(0, MAX_IN_CELL).map((event) => (
-                        <EventChip key={event.id} event={event} />
+                        <EventChip
+                          key={event.id}
+                          event={event}
+                          day={day}
+                          actions={actions}
+                          drag={drag}
+                        />
                       ))}
                       {on.length > MAX_IN_CELL ? (
                         <Link
@@ -196,6 +369,121 @@ export function MonthGrid({
             })}
           </tr>
         ))}
+      </tbody>
+    </table>
+  );
+}
+
+/**
+ * One week of days side by side, each listing everything on it, for
+ * planning a week at a time with room to drag events between its days.
+ */
+export function WeekGrid({
+  day: anchor,
+  weekStart,
+  weekend,
+  today,
+  events,
+  days,
+  actions,
+}: {
+  day: string;
+  weekStart: IsoWeekday;
+  weekend: readonly number[];
+  today: string;
+  events: CalendarEvent[];
+  days: SpecialDay[];
+  actions?: GridActions;
+}) {
+  const secondary = useCurrentUser().school.secondaryCalendar;
+  const drag = useDrag(actions);
+  const week = weekOf(anchor, weekStart);
+  const special = new Map(days.map((row) => [row.day, row]));
+  return (
+    <table className="w-full table-fixed border-separate border-spacing-0 overflow-hidden rounded-lg border bg-card">
+      <caption className="sr-only">{m.calWeekCaption()}</caption>
+      <thead>
+        <tr>
+          {week.map((day) => (
+            <th
+              key={day}
+              scope="col"
+              className="border-e border-b px-2 py-2 text-start align-top font-normal last:border-e-0"
+            >
+              <span className="flex items-center justify-between gap-1">
+                <span className="grid gap-0.5">
+                  <abbr
+                    title={formatWeekday(isoWeekday(day))}
+                    className="text-xs leading-4 font-medium text-muted-foreground no-underline"
+                  >
+                    {formatWeekday(isoWeekday(day), "short")}
+                  </abbr>
+                  <span
+                    className={cn(
+                      "grid size-7 place-items-center rounded-full text-sm leading-5 font-semibold tabular-nums",
+                      day === today && "bg-primary text-primary-foreground",
+                    )}
+                    aria-current={day === today ? "date" : undefined}
+                  >
+                    {formatNumber(Number(day.slice(8)))}
+                  </span>
+                </span>
+              </span>
+              {secondary ? (
+                <span className="block truncate text-[11px] leading-4 text-muted-foreground">
+                  {secondaryDate(day, secondary)}
+                </span>
+              ) : null}
+            </th>
+          ))}
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          {week.map((day) => {
+            const holiday = special.get(day);
+            const on = events.filter((event) => onDay(event, day));
+            const off = weekend.includes(isoWeekday(day));
+            return (
+              <td
+                key={day}
+                {...drag.target(day)}
+                data-day={day}
+                aria-label={formatDate(day, "weekday")}
+                className={cn(
+                  "group/day h-72 border-e p-1 align-top last:border-e-0",
+                  (off || holiday) && "bg-muted/70",
+                  drag.over === day &&
+                    "bg-primary/5 ring-2 ring-primary ring-inset",
+                )}
+              >
+                <div className="flex min-h-6 items-start justify-between gap-1">
+                  {holiday ? (
+                    <p className="min-w-0 px-1.5 pt-1 text-xs leading-4 text-muted-foreground">
+                      {specialDayLabel(holiday)}
+                    </p>
+                  ) : (
+                    <span />
+                  )}
+                  {actions?.canAdd ? <AddOnDay day={day} /> : null}
+                </div>
+                {on.length > 0 ? (
+                  <div className="mt-0.5 grid min-w-0 gap-px">
+                    {on.map((event) => (
+                      <EventChip
+                        key={event.id}
+                        event={event}
+                        day={day}
+                        actions={actions}
+                        drag={drag}
+                      />
+                    ))}
+                  </div>
+                ) : null}
+              </td>
+            );
+          })}
+        </tr>
       </tbody>
     </table>
   );

@@ -28,8 +28,18 @@ as school days.
 - Teachers hold `calendar:author` and add events for classes they teach, and
   change only their own. The school, staff, families and whole grades stay
   with `calendar:manage`, which also decides whether an event is public.
-- The month grid and agenda filter by kind from the legend, kept in the
-  address, and a family with several children narrows the calendar to one.
+- The month grid, the week grid and the agenda filter by kind from the
+  legend, kept in the address, and a family with several children narrows the
+  calendar to one. A date can be jumped to; the week grid shows its week and
+  the agenda starts from it. Phones read the week as a list.
+- Whoever may write events adds one from a day's add link, which opens the
+  editor on that day. An event they may change moves to another day by
+  dragging it, and its last day moves by dragging its end; from the keyboard,
+  Alt and an arrow key move it a day or a week, and with Shift they move its
+  last day. Each move saves through the same save as the editor, with the
+  version it read, and a published event asks first whether to tell its
+  audience, pre-ticked. Opening the event and editing its dates is the
+  single-pointer way to do the same.
 - An event opens in a side panel over the calendar, its address carrying the
   event so it can be shared; links from feeds, notices and search open the
   same panel over the event's month.
@@ -52,6 +62,6 @@ as school days.
 ## Next
 
 Recurring events that skip closed days, RSVP with headcounts and reminders,
-parent-teacher conference booking, a staff week view and print, grade and
+parent-teacher conference booking, print, grade and
 staff calendars, school-defined kinds and rooms, keeping next year's calendar
 private until published, and limiting how often a calendar link is fetched.

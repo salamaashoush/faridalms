@@ -155,6 +155,42 @@ export function monthWeeks(month: string, weekStart: IsoWeekday): string[][] {
   return weeks;
 }
 
+/** The seven days of the school week a day falls in, from its first weekday. */
+export function weekOf(day: string, weekStart: IsoWeekday): string[] {
+  const start = addDays(day, -((isoWeekday(day) - weekStart + 7) % 7));
+  return Array.from({ length: 7 }, (_, index) => addDays(start, index));
+}
+
+interface Dated {
+  startsOn: string;
+  endsOn: string;
+  startTime: string | null;
+  endTime: string | null;
+}
+
+/**
+ * An event's days after it is dragged: moved whole by `move` days, or with
+ * its last day moved by `extend`. Null when the result cannot be saved, a
+ * last day before the first or a single day that ends before it starts.
+ */
+export function rescheduled(
+  event: Dated,
+  change: { move?: number; extend?: number },
+): { startsOn: string; endsOn: string } | null {
+  const move = change.move ?? 0;
+  const startsOn = addDays(event.startsOn, move);
+  const endsOn = addDays(event.endsOn, move + (change.extend ?? 0));
+  if (endsOn < startsOn) return null;
+  if (
+    endsOn === startsOn &&
+    event.startTime !== null &&
+    event.endTime !== null &&
+    event.endTime <= event.startTime
+  )
+    return null;
+  return { startsOn, endsOn };
+}
+
 /** Whether an event falls on a day, counting every day of one spanning several. */
 export function onDay(
   event: { startsOn: string; endsOn: string },
