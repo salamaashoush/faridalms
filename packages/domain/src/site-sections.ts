@@ -689,6 +689,8 @@ export const SECTION_SPECS = {
         max: 4,
         fields: { icon: { kind: "icon" }, title: t(80), text: t(200) },
       },
+      helpHeading: t(80),
+      helpText: t(300, true),
     },
   },
   /** The family registration form, on the portal page a family registers on to apply. */
@@ -704,6 +706,8 @@ export const SECTION_SPECS = {
         max: 4,
         fields: { icon: { kind: "icon" }, title: t(80), text: t(200) },
       },
+      helpHeading: t(80),
+      helpText: t(300, true),
     },
   },
   /** The application itself, on the portal page a signed-in family applies on. */

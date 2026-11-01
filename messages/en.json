@@ -8674,5 +8674,7 @@
   "bcastPreviewNotice": "This is a preview. It has not gone out.",
   "bcastEditsWaiting": "Edits made since this went out are waiting. Readers still see what was sent.",
   "siteVariantDoorPanel": "Full page, words on the school's colour",
-  "siteFieldPoints": "Highlights"
+  "siteFieldPoints": "Highlights",
+  "siteFieldHelpHeading": "Help heading",
+  "siteFieldHelpText": "Help text"
 }

@@ -2886,6 +2886,8 @@ function Door({
     heading: string;
     text: string;
     points?: { id: string; icon: IconId; title: string; text: string }[];
+    helpHeading?: string;
+    helpText?: string;
   };
   variant: "panel" | "split" | "stacked";
   context: RenderContext;
@@ -2918,13 +2920,22 @@ function Door({
       <Lead field="text">{data.text}</Lead>
     </div>
   );
-  const form = system ? (
-    <div className="portal-system site-card bg-card p-6 text-card-foreground @3xl/site:p-8">
-      {system.node}
-    </div>
-  ) : (
-    <div aria-hidden className="site-card grid gap-4 p-6 @3xl/site:p-8">
-      {preview}
+  const form = (
+    <div className="grid gap-6">
+      {system ? (
+        <div className="portal-system site-card bg-card p-6 text-card-foreground @3xl/site:p-8">
+          {system.node}
+        </div>
+      ) : (
+        <div aria-hidden className="site-card grid gap-4 p-6 @3xl/site:p-8">
+          {preview}
+        </div>
+      )}
+      <DoorHelp
+        heading={data.helpHeading}
+        text={data.helpText}
+        contact={context.contact}
+      />
     </div>
   );
   if (variant === "split" && words)
@@ -2947,6 +2958,55 @@ function Door({
   );
 }
 
+/** Where to turn when the form does not let someone in, under the form itself, with the school's own ways to reach it. */
+function DoorHelp({
+  heading,
+  text,
+  contact,
+}: {
+  heading?: string;
+  text?: string;
+  contact: RenderContext["contact"];
+}) {
+  if (!heading?.trim() && !text?.trim()) return null;
+  return (
+    <div className="grid gap-1.5 border-t border-[var(--s-border)] pt-6 text-sm">
+      {heading?.trim() ? (
+        <h2 dir="auto" className="font-semibold text-[var(--s-heading)]">
+          {heading}
+        </h2>
+      ) : null}
+      {text?.trim() ? (
+        <p dir="auto" className="site-muted leading-relaxed">
+          {text}
+        </p>
+      ) : null}
+      {contact?.email || contact?.phone ? (
+        <p className="flex flex-wrap gap-x-4 gap-y-1">
+          {contact.email ? (
+            <a
+              dir="ltr"
+              href={`mailto:${contact.email}`}
+              className="text-[var(--s-link)] underline-offset-4 hover:underline"
+            >
+              {contact.email}
+            </a>
+          ) : null}
+          {contact.phone ? (
+            <a
+              dir="ltr"
+              href={`tel:${contact.phone.replace(/\s+/g, "")}`}
+              className="text-[var(--s-link)] underline-offset-4 hover:underline"
+            >
+              {contact.phone}
+            </a>
+          ) : null}
+        </p>
+      ) : null}
+    </div>
+  );
+}
+
 /** A door laid out as a whole page: the school's words on its own colour beside the form. */
 export const panelDoor = (section: PageSection) =>
   (section.type === "signIn" || section.type === "register") &&
@@ -2963,6 +3023,8 @@ function DoorPanel({
     heading: string;
     text: string;
     points?: { id: string; icon: IconId; title: string; text: string }[];
+    helpHeading?: string;
+    helpText?: string;
   };
   context: RenderContext;
   first: boolean;
@@ -3034,6 +3096,11 @@ function DoorPanel({
                 {preview}
               </div>
             )}
+            <DoorHelp
+              heading={data.helpHeading}
+              text={data.helpText}
+              contact={context.contact}
+            />
           </div>
         </div>
       </div>

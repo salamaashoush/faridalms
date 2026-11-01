@@ -9072,5 +9072,7 @@
   "bcastPreviewNotice": "هذه معاينة، ولم تُرسل بعد.",
   "bcastEditsWaiting": "تعديلات أُجريت بعد الإرسال ما زالت تنتظر، والقرّاء ما زالوا يرون ما أُرسل.",
   "siteVariantDoorPanel": "صفحة كاملة، والكلمات على لون المدرسة",
-  "siteFieldPoints": "أبرز النقاط"
+  "siteFieldPoints": "أبرز النقاط",
+  "siteFieldHelpHeading": "عنوان المساعدة",
+  "siteFieldHelpText": "نص المساعدة"
 }

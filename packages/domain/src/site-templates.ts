@@ -900,6 +900,11 @@ const SIGN_IN = section(
         ]),
       },
     ],
+    helpHeading: b.w(["Need help signing in?", "تحتاج إلى مساعدة في الدخول؟"]),
+    helpText: b.w([
+      "The school office can send you a new link or tell you your sign-in name.",
+      "يمكن لمكتب المدرسة أن يرسل إليك رابطًا جديدًا أو أن يخبرك باسم الدخول.",
+    ]),
   }),
   { scheme: "canvas" },
 );
@@ -913,6 +918,11 @@ const REGISTER = section(
     text: b.w([
       "Create your family's account once. You can then start an application, save it and come back to it.",
       "أنشئ حساب أسرتك مرة واحدة، ثم ابدأ طلب الالتحاق واحفظه وعد إليه متى شئت.",
+    ]),
+    helpHeading: b.w(["Questions about applying?", "أسئلة عن التقديم؟"]),
+    helpText: b.w([
+      "The admissions office is happy to help with the form or the documents.",
+      "يسعد مكتب القبول بالمساعدة في الاستمارة أو المستندات.",
     ]),
   }),
   { scheme: "canvas" },
@@ -931,15 +941,6 @@ const APPLY = section(
   }),
   { scheme: "canvas" },
 );
-
-const SIGN_IN_HELP = section("contact", "details", (b) => ({
-  heading: b.w(["Need help signing in?", "تحتاج إلى مساعدة في الدخول؟"]),
-  text: b.w([
-    "The school office can send you a new link or tell you your sign-in name.",
-    "يمكن لمكتب المدرسة أن يرسل إليك رابطًا جديدًا أو أن يخبرك باسم الدخول.",
-  ]),
-  mapHref: "",
-}));
 
 const APPLY_HELP = section("contact", "details", (b) => ({
   heading: b.w(["Questions about applying?", "أسئلة عن التقديم؟"]),
@@ -1097,8 +1098,8 @@ export const PAGE_TEMPLATES = {
     ),
     FAQ,
   ],
-  portal: [SIGN_IN, SIGN_IN_HELP],
-  portalRegister: [REGISTER, APPLY_HELP],
+  portal: [SIGN_IN],
+  portalRegister: [REGISTER],
   portalApply: [APPLY, APPLY_HELP],
 } satisfies Record<string, ((b: Builder) => PageSection)[]>;
 export type PageTemplate = keyof typeof PAGE_TEMPLATES;

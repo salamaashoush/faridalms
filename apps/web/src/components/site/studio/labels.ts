@@ -288,6 +288,8 @@ export const FIELD_LABEL: Record<string, () => string> = {
   columns: m.siteFieldColumns,
   items: m.siteFieldItems,
   points: m.siteFieldPoints,
+  helpHeading: m.siteFieldHelpHeading,
+  helpText: m.siteFieldHelpText,
   title: m.siteFieldTitle,
   image: m.siteFieldImage,
   icon: m.siteFieldIcon,

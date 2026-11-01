@@ -2861,14 +2861,7 @@ async function seedPortalPage(
               locale === "ar"
                 ? "يدخل أولياء الأمور والطلاب والعاملون من هنا لمتابعة الفصول والواجبات والرسائل وتقويم المدرسة."
                 : "Families, students and staff sign in here for classes, homework, messages and the school calendar.",
-          },
-        };
-      if (section.type === "contact")
-        return {
-          ...section,
-          data: {
-            ...section.data,
-            text:
+            helpText:
               locale === "ar"
                 ? `الطلاب: اسألوا معلم الفصل. أولياء الأمور والعاملون: راسلوا مكتب المدرسة على ${school.office} من الأحد إلى الخميس، من الثامنة صباحًا حتى الثالثة عصرًا.`
                 : `Students: ask your class teacher. Families and staff: write to ${school.office}, Sunday to Thursday, 8:00 to 15:00.`,
