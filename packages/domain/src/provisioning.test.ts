@@ -63,6 +63,17 @@ describe("a new school", () => {
   });
 
   it("refuses every reserved address and anything that is not one DNS label", () => {
+    // The names the edge routes to the platform's own services.
+    for (const slug of [
+      "www",
+      "api",
+      "ops",
+      "collab",
+      "files",
+      "media",
+      "play",
+    ])
+      expect(RESERVED_SLUGS.has(slug)).toBe(true);
     for (const slug of RESERVED_SLUGS)
       expect(v.safeParse(slugSchema, slug).success).toBe(false);
     for (const slug of ["-north", "north-", "north_wind", "a".repeat(65), ""])

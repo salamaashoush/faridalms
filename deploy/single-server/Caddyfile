@@ -1,0 +1,159 @@
+# The edge of a single-server cell. Every name comes from the environment,
+# so the same file serves production, a staging domain and the local smoke
+# test (docs/operations.md, "School addresses").
+#
+#   PORTAL_DOMAIN         faridalms.com: the product site and every portal
+#   SITES_DOMAIN          faridalms.site: every school's website
+#   CLOUDFLARE_API_TOKEN  issues the two wildcard certificates by DNS-01
+#   EDGE_TLS              cloudflare (default), or internal for a local run
+#   EDGE_LOG_LEVEL        INFO (default); DEBUG logs each proxied request
+{
+	log default {
+		level {$EDGE_LOG_LEVEL:INFO}
+	}
+	# A school's own name gets a certificate only once the API says it is
+	# one of a school's verified or active hosts.
+	on_demand_tls {
+		ask http://api:3001/edge/ask
+	}
+	servers {
+		# Nothing stands in front of this edge, so no peer is trusted:
+		# Caddy then replaces any X-Forwarded-For a client sent with the
+		# address it connected from, which is the one entry the apps read
+		# with TRUSTED_PROXY_HOPS=1.
+		timeouts {
+			read_header 10s
+			idle 2m
+		}
+		protocols h1 h2 h3
+	}
+}
+
+(tls_cloudflare) {
+	tls {
+		dns cloudflare {env.CLOUDFLARE_API_TOKEN}
+	}
+}
+
+(tls_internal) {
+	tls internal
+}
+
+# Access logs go to stdout, where Docker rotates them. Only the first segment
+# of a path is kept: the rest of a file, stream, feed or export address is
+# the token that grants it. Cookies and Authorization are redacted by Caddy.
+(access_log) {
+	log {
+		output stdout
+		format filter {
+			request>uri regexp "^(/[^/?]*)[/?].*$" "${1}/..."
+			wrap json
+		}
+	}
+}
+
+# The platform's own names are all under the two wildcard certificates, so
+# HSTS covers their subdomains. A school's own host gets the web's HSTS,
+# which leaves its other subdomains alone.
+(platform) {
+	import tls_{$EDGE_TLS:cloudflare}
+	import access_log
+	header >Strict-Transport-Security "max-age=31536000; includeSubDomains"
+}
+
+# A file over 8 MiB is sent in parts of 8 MiB; anything smaller goes whole,
+# up to MAX_UPLOAD_BYTES (25 MiB by default). Raise this with that setting.
+(uploads) {
+	request_body {
+		max_size 32MB
+	}
+}
+
+*.{$PORTAL_DOMAIN}, {$PORTAL_DOMAIN} {
+	import platform
+
+	@ops host ops.{$PORTAL_DOMAIN}
+	handle @ops {
+		encode zstd gzip
+		reverse_proxy ops:3004
+	}
+
+	@collab host collab.{$PORTAL_DOMAIN}
+	handle @collab {
+		reverse_proxy collab:3002 {
+			# Editors keep their socket open across a reload of this file.
+			stream_close_delay 5m
+		}
+	}
+
+	# For native clients. The edge's own question is not theirs to ask:
+	# asking it would spend the limit the edge's certificates depend on.
+	@api host api.{$PORTAL_DOMAIN}
+	handle @api {
+		handle /edge/* {
+			respond 404
+		}
+		import uploads
+		encode zstd gzip
+		reverse_proxy api:3001
+	}
+
+	@www host www.{$PORTAL_DOMAIN}
+	handle @www {
+		redir https://{$PORTAL_DOMAIN}{uri} 308
+	}
+
+	# The product site on the apex and every school's portal.
+	handle {
+		import uploads
+		encode zstd gzip
+		reverse_proxy web:3000
+	}
+}
+
+*.{$SITES_DOMAIN}, {$SITES_DOMAIN} {
+	import platform
+
+	# FILES_ORIGIN and PLAY_URL: private files, the play page, the coding
+	# studio and the micro:bit editor, all served by the API's files host.
+	@files host files.{$SITES_DOMAIN}
+	handle @files {
+		reverse_proxy api:3003
+	}
+
+	# The play page names the files host in its policy, which Safari needs
+	# for a page with no origin, so it is served there and nowhere else.
+	@play host play.{$SITES_DOMAIN}
+	handle @play {
+		redir https://files.{$SITES_DOMAIN}{uri} 308
+	}
+
+	@media host media.{$SITES_DOMAIN}
+	handle @media {
+		reverse_proxy media:3104
+	}
+
+	# Every school's website; the bare domain answers 404 from the web.
+	handle {
+		import uploads
+		encode zstd gzip
+		reverse_proxy web:3000
+	}
+}
+
+# Plain HTTP only answers certificate challenges and sends everyone else to
+# HTTPS, a school's own names included.
+http:// {
+	redir https://{host}{uri} 308
+}
+
+# A school's own names, each with its own certificate on its first visit.
+https:// {
+	tls {
+		on_demand
+	}
+	import access_log
+	import uploads
+	encode zstd gzip
+	reverse_proxy web:3000
+}

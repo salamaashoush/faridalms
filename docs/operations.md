@@ -2,17 +2,27 @@
 
 ## Deployment
 
-`compose.production.yaml` runs one regional cell from the Docker targets:
+A cell runs on one server from
+[deploy/single-server](../deploy/single-server/README.md): its runbook covers
+the first deploy, upgrades, rollback, logs, backups and, in `restore.md`, a
+restore, and `smoke.sh` runs the whole stack on a workstation. CI publishes
+every Docker target for linux/amd64 and linux/arm64 to
+`ghcr.io/salamaashoush/faridalms-<target>`, tagged with the commit and
+`main`, after main passes. The targets:
 
 - `migrate`, a one-shot job that provisions the cluster roles, creates the
   cell and directory databases if they are missing and applies pending
   migrations. It carries no seed and nothing that drops data. It runs before
   the API on every deploy.
-- `api` (port 3001, files host on 3003), `web` (3000), `collab` (3002), and,
-  under the `ops` profile, `ops` (3004) and `provisioner`. `media` is built
-  separately.
+- `api` (port 3001, files host on 3003), `web` (3000), `collab` (3002),
+  `ops` (3004), `media` (3104), and `provisioner`, the `api` image with the
+  provisioner's settings.
+- `edge`, Caddy with the Cloudflare DNS module and the deployment's
+  Caddyfile, and `backup`, the nightly dump and bucket copy.
 
-Postgres is external. Each service connects as its own login role, named in
+The single-server stack runs Postgres 18 beside them. A cell spread over
+several machines takes the same services and settings with Postgres
+elsewhere. Each service connects as its own login role, named in
 its URL: `CELL_APP_URL` (`app`), `CELL_SITE_URL` (`site`), `CELL_WORKER_URL`
 (`worker`), `CELL_RETENTION_URL` (`retention`), `CELL_COLLAB_URL` (`collab`),
 `DIRECTORY_URL` (`directory_reader`), for the console only
@@ -20,12 +30,14 @@ its URL: `CELL_APP_URL` (`app`), `CELL_SITE_URL` (`site`), `CELL_WORKER_URL`
 `CELL_PROVISION_URL` (`provisioner`). `CELL_KEK` and `CELL_SECRET` are 32
 random bytes each in base64; `CELL_SECRET` is shared by the API and collab.
 Every service validates its environment at startup and exits on anything
-missing. Without `CELL_WORKER_URL` uploads are never settled and no
+missing; a variable set to the empty string, as compose passes an unset
+`${NAME:-}`, counts as unset. Without `CELL_WORKER_URL` uploads are never settled and no
 notification is delivered, so the compose file requires it.
 
-Put a TLS proxy in front (see "School addresses" for the edge). It must pass
-the `Host` header through unchanged, set `X-Forwarded-Proto` and append the
-client's address to `X-Forwarded-For`. The web routes by `Host` alone and
+The edge (see "School addresses") terminates TLS. It must pass the `Host`
+header through unchanged, set `X-Forwarded-Proto` and append the client's
+address to `X-Forwarded-For`, replacing whatever a client sent there when
+nothing it trusts stands in front of it. The web routes by `Host` alone and
 never reads `X-Forwarded-Host`. `TRUSTED_PROXY_HOPS` (default 1) is
 how many proxies append to that header; the client is the entry the outermost
 one added, and anything to its left is ignored, because a client can send
@@ -35,10 +47,9 @@ The web sends `frame-ancestors 'self'`, `nosniff`, a referrer policy and, over
 HTTPS, HSTS without `includeSubDomains`. The console sends
 `frame-ancestors 'none'`.
 
-`FILE_STORAGE=disk` keeps uploads in the `files` volume, which must be backed
-up with the database. `FILE_STORAGE=s3` with `FILE_BUCKET` and
-`PUBLIC_MEDIA_BUCKET` is the production choice once more than one API replica
-runs.
+`FILE_STORAGE=disk` keeps uploads in a volume, which must be backed up with
+the database. `FILE_STORAGE=s3` with `FILE_BUCKET` and `PUBLIC_MEDIA_BUCKET`
+is the production choice, and the single-server stack's.
 
 The API drains HTTP requests on termination, then its workers, then its
 pools.
@@ -94,32 +105,16 @@ and on-demand certificates for everything else, which it asks the API about
 first. `GET /edge/ask?domain=<host>` answers 200 only for a school's own host
 that is verified or active, from one indexed lookup, and 404 for anything
 else, the platform's own names included; it reads no session and is limited
-to 20 questions a second. A minimal Caddyfile:
-
-```caddyfile
-{
-	on_demand_tls {
-		ask http://api:3001/edge/ask
-	}
-}
-
-*.faridalms.com, faridalms.com, *.faridalms.site {
-	tls {
-		dns <provider> {env.DNS_API_TOKEN}
-	}
-	reverse_proxy web:3000
-}
-
-https:// {
-	tls {
-		on_demand
-	}
-	reverse_proxy web:3000
-}
-```
+to 20 questions a second. The edge therefore asks it on the internal network
+and answers 404 for it on the public API host. The deployment's Caddyfile is
+[deploy/single-server/Caddyfile](../deploy/single-server/Caddyfile): the
+service names (`ops`, `collab` and `api` under the portal domain, `files`,
+`media` and `play` under the sites domain) go to their services, every other
+name under either domain and every school's own name to the web.
 
 Caddy passes `Host` through and sets `X-Forwarded-Proto` and
-`X-Forwarded-For` by default.
+`X-Forwarded-For` by default, ignoring what a client sent unless it came
+from a proxy listed in `trusted_proxies`, which the deployment leaves empty.
 
 The cell's own host (`cells.app_host`) must be the bare `PORTAL_DOMAIN`, since
 any other name under it would be read as a school's portal. The LTI issuer
@@ -177,7 +172,7 @@ call: audience `farida-provision`, the operator's opaque id as subject, a
 unique id, and a lifetime of 60 seconds. The provisioner refuses any other
 signature, audience or age, and a token id it has already seen. It keeps
 those ids in memory, so run one provisioner per cell. Without an email
-gateway (`EMAIL_WEBHOOK_URL`) it refuses to create anything, since nobody
+gateway (Resend or `EMAIL_WEBHOOK_URL`, "Notifications" below) it refuses to create anything, since nobody
 could sign in.
 
 Locally, `bun install` generates `PROVISION_SECRET` and `.env.example` sets
@@ -223,8 +218,12 @@ password in the console and operators are never school accounts. Settings:
   `<OPS_ORIGIN>/auth/callback` as the client's redirect URI.
 - `OPS_OIDC_ISSUER`, `OPS_OIDC_CLIENT_ID`, `OPS_OIDC_CLIENT_SECRET`: the
   provider and the console's client there.
-- `OPS_OIDC_GROUP`: only accounts whose `OPS_OIDC_GROUP_CLAIM` (default
-  `groups`) names this group may sign in.
+- Who may sign in, one of two rules: `OPS_OIDC_GROUP`, only accounts whose
+  `OPS_OIDC_GROUP_CLAIM` (default `groups`) names this group; or, for a
+  provider without groups such as Google, `OPS_OIDC_EMAILS`, a
+  comma-separated list of addresses compared without case against the
+  `email` claim, which only counts when `email_verified` is true. Exactly
+  one is set; the console refuses to start with neither or both.
 - `OPS_SESSION_SECRET`: 32 random bytes, base64, sealing the session cookie
   (eight hours).
 - `PROVISION_URL` and `PROVISION_SECRET`: the cell's provisioner and the
@@ -263,8 +262,11 @@ under a sandbox policy. Rotating `CELL_SECRET` invalidates every link issued.
 directory) holds private objects under `t/<school id>/...` and published media
 under `public-media/`; give the API a dedicated volume. With `s3`, private
 objects go to `FILE_BUCKET` and published media to `PUBLIC_MEDIA_BUCKET` on any
-S3-compatible service (AWS S3, Cloudflare R2, MinIO, SeaweedFS), reached through
-`S3_ENDPOINT`, `S3_REGION`, `S3_ACCESS_KEY_ID` and `S3_SECRET_ACCESS_KEY`. Large
+S3-compatible service (AWS S3, Cloudflare R2, Hetzner, MinIO, SeaweedFS),
+reached through `S3_ENDPOINT`, `S3_REGION`, `S3_ACCESS_KEY_ID` and
+`S3_SECRET_ACCESS_KEY`. `S3_ADDRESSING_STYLE` is `path` (the default,
+`<endpoint>/<bucket>/<key>`) or `virtual` (`<bucket>.<endpoint host>/<key>`,
+the form Hetzner documents); the media service reads the same setting. Large
 uploads go up in parts, and a move is a copy then a delete, since S3 has no
 rename. Keep both buckets private: downloads always pass through the API. Back
 the store up alongside the school databases; a file record without its object
@@ -570,7 +572,17 @@ section 2 of [plans/school-front-door.md](plans/school-front-door.md).
 
 ## Notifications
 
-`EMAIL_WEBHOOK_URL` and `SMS_WEBHOOK_URL` name HTTP endpoints that accept a
+Email goes through Resend when `RESEND_API_KEY` and `EMAIL_FROM` are set
+(the sender's domain verified at Resend). Resend's limit is per team, shared
+by every key and process, so the provider paces itself from the
+`ratelimit-remaining` and `ratelimit-reset` headers of each answer and waits
+out a 429's `retry-after` when it is a few seconds; a longer one (a spent
+daily quota) fails the send, and the worker retries it with its backoff.
+Each send carries an `Idempotency-Key` derived from the deliveries it
+carries and its text, so a retry after a lost answer is not sent twice.
+Only a 422, a message Resend cannot accept, gives up at once.
+
+Otherwise `EMAIL_WEBHOOK_URL` and `SMS_WEBHOOK_URL` name HTTP endpoints that accept a
 JSON body `{ to, subject, text }`, with the bearer token
 `NOTIFY_WEBHOOK_TOKEN`; a small relay in front of the vendor keeps vendor
 SDKs out of the API. Use `https` URLs, since the token travels with each
@@ -594,7 +606,11 @@ every replica plus collab, the console, migrations and monitoring. These are
 resource limits, not measured throughput.
 
 Back up the cell and the directory independently, test restores, and keep
-the `files` volume or bucket in the same backup window.
+the file buckets in the same backup window. The single-server stack's
+`backup` service dumps both every night as the `backup_dump` login (which
+reads every table through `pg_read_all_data` and bypasses row security) and
+copies the buckets to a bucket at another provider; `restore.md` beside it
+restores them.
 
 `/health/ready` checks the cell and the directory. Logs are JSON lines with
 request ID, operation path, status and duration, without request bodies or

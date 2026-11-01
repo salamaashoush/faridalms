@@ -12,12 +12,16 @@ export const SLUG = /^[a-z0-9](?:[a-z0-9-]{0,62}[a-z0-9])?$/;
 
 /**
  * Labels the platform answers on itself, so no school may take one as its
- * address.
+ * address. The edge routes `ops`, `collab` and `api` under the portal domain
+ * and `files`, `media` and `play` under the sites domain to services, never
+ * to a school.
  */
 export const RESERVED_SLUGS: ReadonlySet<string> = new Set([
   "www",
   "api",
   "files",
+  "media",
+  "play",
   "collab",
   "auth",
   "admin",

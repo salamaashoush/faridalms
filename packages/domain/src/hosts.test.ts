@@ -67,8 +67,12 @@ describe("placeOf", () => {
   });
 
   it("keeps the platform's own labels from naming a school", () => {
-    for (const label of ["www", "api", "connect", "ops", "admin"])
+    for (const label of ["www", "api", "connect", "ops", "admin", "collab"])
       expect(placeOf(`${label}.faridalms.com`, domains)).toEqual({
+        kind: "none",
+      });
+    for (const label of ["files", "media", "play"])
+      expect(placeOf(`${label}.faridalms.site`, domains)).toEqual({
         kind: "none",
       });
   });

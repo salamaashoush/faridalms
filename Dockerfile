@@ -82,3 +82,28 @@ USER media
 EXPOSE 3104
 HEALTHCHECK --interval=15s --timeout=3s --start-period=10s --retries=3 CMD bash -c 'exec 3<>/dev/tcp/127.0.0.1/3104 && printf "GET /health HTTP/1.0\r\n\r\n" >&3 && grep -q ok <&3'
 CMD ["farida-media"]
+
+# The edge: Caddy with the Cloudflare DNS module, which the platform's
+# wildcard certificates are issued through (DNS-01). The routing travels with
+# the image, so a rollback to an older tag rolls the routing back with it.
+FROM caddy:2.11.7-builder AS edge-build
+RUN xcaddy build v2.11.7 --with github.com/caddy-dns/cloudflare@v0.2.4 --output /caddy
+
+FROM caddy:2.11.7 AS edge
+COPY --from=edge-build /caddy /usr/bin/caddy
+COPY deploy/single-server/Caddyfile /etc/caddy/Caddyfile
+RUN PORTAL_DOMAIN=example.com SITES_DOMAIN=example.net CLOUDFLARE_API_TOKEN=0000000000000000000000000000000000000000 caddy validate --adapter caddyfile --config /etc/caddy/Caddyfile
+HEALTHCHECK --interval=15s --timeout=3s --start-period=10s --retries=3 CMD wget -q -O /dev/null http://127.0.0.1:2019/config/ || exit 1
+
+# Nightly dumps of the cell and the directory and a copy of the file buckets,
+# to a bucket at another provider. pg_dump must be at least the server's
+# major version, so this image follows the database's.
+FROM rclone/rclone:1.75.2 AS rclone
+
+FROM postgres:18.4-trixie AS backup
+COPY --from=rclone /usr/local/bin/rclone /usr/local/bin/rclone
+COPY --chmod=0755 deploy/single-server/backup.sh /usr/local/bin/farida-backup
+USER postgres
+WORKDIR /tmp
+ENTRYPOINT ["farida-backup"]
+CMD ["schedule"]

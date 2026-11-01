@@ -106,6 +106,9 @@ export async function provisionRoles(
   }
   await admin.unsafe("grant cell_owner to migrator");
   await admin.unsafe("grant cell_owner to provisioner");
+  // Dumps read every table of the cell and the directory, and no migration
+  // grants backup_dump anything on them.
+  await admin.unsafe("grant pg_read_all_data to backup_dump");
   for (const [role, setting, value] of SETTINGS)
     await admin.unsafe(
       `alter role ${identifier(role)} set ${setting} = ${literal(value)}`,
