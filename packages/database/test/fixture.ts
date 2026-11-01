@@ -39,6 +39,7 @@ import {
   standardEvidence,
   standards,
   goalJudgements,
+  healthChanges,
   standardObservations,
   attemptAuthentications,
   attemptDeclarations,
@@ -169,6 +170,7 @@ export async function completeFixture(
     .select({
       id: userRelationships.id,
       student: userRelationships.studentUserId,
+      related: userRelationships.relatedUserId,
     })
     .from(userRelationships)
     .where(eq(userRelationships.tenantId, tenantId))
@@ -901,6 +903,45 @@ export async function completeFixture(
     dueOn: "2026-10-01",
     loggedByUserId: userId,
   });
+  const [askedFor] = await tx
+    .insert(recordsRequests)
+    .values({
+      tenantId,
+      orgId: schoolId,
+      subjectUserId: relationship.student,
+      requestedBy: "Salama Ashoush",
+      relation: "parent",
+      kind: "correction",
+      law: "egypt",
+      receivedOn: "2026-09-01",
+      clockFrom: "2026-09-01",
+      dueOn: "2026-10-01",
+      loggedByUserId: relationship.related,
+      topic: "health",
+    })
+    .returning({ id: recordsRequests.id });
+  if (!askedFor) throw new Error("health change request fixture missing");
+  const [healthKey] = await tx.execute<{ key_version: number }>(sql`
+    select key_version from core.tenant_keys where tenant_id = ${tenantId}::uuid and purpose = 'health' limit 1`);
+  if (!healthKey) throw new Error("the seed gives every tenant a health key");
+  const allergy = await descriptor(
+    tx,
+    tenantId,
+    "health_record_kind",
+    "allergy",
+  );
+  await withPurpose(tx, "health", (inner) =>
+    inner.insert(healthChanges).values({
+      tenantId,
+      requestId: askedFor.id,
+      studentUserId: relationship.student,
+      requestedByUserId: relationship.related,
+      target: "record",
+      kindDescriptorId: allergy,
+      keyVersion: healthKey.key_version,
+      ciphertext: bytes(64),
+    }),
+  );
   await tx.insert(programmeCategories).values({
     tenantId,
     programmeId: programme.id,

@@ -17,6 +17,7 @@ export const NOTIFICATION_KINDS = [
   "reply",
   "enquiry",
   "application",
+  "correction",
 ] as const;
 export type NotificationKind = (typeof NOTIFICATION_KINDS)[number];
 
@@ -41,7 +42,7 @@ export interface NoticeParams {
   date?: string;
   /** A lesson someone covers, or with `cancelled`, no longer covers. */
   cover?: boolean;
-  /** The office's answer to an absence a family reported. */
+  /** The office's answer to an absence a family reported, or to a change it asked for. */
   report?: "accepted" | "declined";
   periodName?: string;
   periodNameAr?: string;
@@ -93,6 +94,7 @@ export const CHOOSABLE_KINDS = [
   "reply",
   "enquiry",
   "application",
+  "correction",
 ] as const;
 export type ChoosableKind = (typeof CHOOSABLE_KINDS)[number];
 
@@ -140,6 +142,7 @@ export const DEFAULT_PREFERENCES: Preferences = {
     reply: "digest",
     enquiry: "instant",
     application: "instant",
+    correction: "instant",
   },
   sms: {
     announcement: "off",
@@ -154,6 +157,7 @@ export const DEFAULT_PREFERENCES: Preferences = {
     reply: "off",
     enquiry: "off",
     application: "off",
+    correction: "off",
   },
   quietFrom: "21:00",
   quietTo: "07:00",

@@ -1,3 +1,5 @@
+import type { SQL } from "drizzle-orm";
+
 import { sql } from "drizzle-orm";
 
 import type { CellTransaction } from "../context";
@@ -110,6 +112,274 @@ export async function removeHealthRecord(
       and student_user_id = ${input.studentId}::uuid and version = ${input.expectedVersion} and status = 'active'
     returning id`);
   return rows.length > 0;
+}
+
+/** A link through which the viewer may read the child's medical summary today. */
+const permitsHealth = (input: {
+  tenantId: string;
+  viewerId: string;
+  studentId: SQL;
+  today: string;
+}) => sql`exists (
+  select 1 from core.user_relationships r
+  where r.tenant_id = ${input.tenantId}::uuid and r.related_user_id = ${input.viewerId}::uuid
+    and r.student_user_id = ${input.studentId}
+    and app.guardian_permits(r, ${input.today}::date, 'health'))`;
+
+export interface FamilyHealthRow {
+  id: string;
+  version: number;
+  kindId: string;
+  meaning: string;
+  keyVersion: number;
+  ciphertext: Uint8Array;
+}
+
+/**
+ * The records of the given kinds a guardian reads in the child's medical
+ * summary, and none at all unless their link permits it.
+ */
+export async function familyHealthRecordsOf(
+  tx: Tx,
+  input: {
+    tenantId: string;
+    studentId: string;
+    viewerId: string;
+    today: string;
+    meanings: readonly string[];
+  },
+): Promise<FamilyHealthRow[]> {
+  const rows = await tx.execute<{
+    id: string;
+    version: number;
+    kind_descriptor_id: string;
+    meaning: string;
+    key_version: number;
+    ciphertext: Uint8Array;
+  }>(sql`
+    select h.id, h.version, h.kind_descriptor_id, d.system_meaning as meaning, h.key_version, h.ciphertext
+    from health.records h
+    join core.descriptors d on d.tenant_id = h.tenant_id and d.id = h.kind_descriptor_id
+    where h.tenant_id = ${input.tenantId}::uuid and h.student_user_id = ${input.studentId}::uuid
+      and h.status = 'active' and d.system_meaning = any(${textArray([...input.meanings])})
+      and ${permitsHealth({ ...input, studentId: sql`h.student_user_id` })}
+    order by h.created_at, h.id`);
+  return rows.map((row) => ({
+    id: row.id,
+    version: row.version,
+    kindId: row.kind_descriptor_id,
+    meaning: row.meaning,
+    keyVersion: row.key_version,
+    ciphertext: row.ciphertext,
+  }));
+}
+
+/**
+ * Records a guardian's change against their open correction request; false
+ * when their link does not permit the medical summary, so nothing is kept.
+ */
+export async function insertHealthChange(
+  tx: Tx,
+  input: {
+    tenantId: string;
+    id: string;
+    requestId: string;
+    studentId: string;
+    requestedByUserId: string;
+    today: string;
+    target: "record" | "contact";
+    kindId: string | null;
+    recordId: string | null;
+    relationshipId: string | null;
+    keyVersion: number;
+    ciphertext: Uint8Array;
+  },
+): Promise<boolean> {
+  const rows = await tx.execute<{ id: string }>(sql`
+    insert into health.requested_changes (tenant_id, id, request_id, student_user_id, requested_by_user_id,
+      target, kind_descriptor_id, record_id, relationship_id, key_version, ciphertext)
+    select ${input.tenantId}::uuid, ${input.id}::uuid, ${input.requestId}::uuid, ${input.studentId}::uuid,
+      ${input.requestedByUserId}::uuid, ${input.target}, ${input.kindId}::uuid, ${input.recordId}::uuid,
+      ${input.relationshipId}::uuid, ${input.keyVersion}, ${input.ciphertext}
+    where ${permitsHealth({
+      tenantId: input.tenantId,
+      viewerId: input.requestedByUserId,
+      studentId: sql`${input.studentId}::uuid`,
+      today: input.today,
+    })}
+    returning id`);
+  return rows.length > 0;
+}
+
+export interface HealthChangeRow {
+  id: string;
+  requestId: string;
+  studentId: string;
+  studentNameEn: string | null;
+  studentNameAr: string | null;
+  requestedByUserId: string;
+  requesterNameEn: string | null;
+  requesterNameAr: string | null;
+  target: "record" | "contact";
+  kindId: string | null;
+  recordId: string | null;
+  relationshipId: string | null;
+  keyVersion: number;
+  ciphertext: Uint8Array;
+  receivedOn: string;
+  dueOn: string;
+  outcome: "completed" | "refused" | "withdrawn" | null;
+  closedAt: string | null;
+}
+
+/**
+ * Changes asked for at a school with their request's dates and outcome,
+ * the open ones first by the day they fall due.
+ */
+async function healthChangesWhere(
+  tx: Tx,
+  input: { tenantId: string; orgId: string; where: SQL },
+): Promise<HealthChangeRow[]> {
+  const rows = await tx.execute<{
+    id: string;
+    request_id: string;
+    student_user_id: string;
+    student_name_en: string | null;
+    student_name_ar: string | null;
+    requested_by_user_id: string;
+    requester_name_en: string | null;
+    requester_name_ar: string | null;
+    target: "record" | "contact";
+    kind_descriptor_id: string | null;
+    record_id: string | null;
+    relationship_id: string | null;
+    key_version: number;
+    ciphertext: Uint8Array;
+    received_on: string;
+    due_on: string;
+    outcome: HealthChangeRow["outcome"];
+    closed_at: string | null;
+  }>(sql`
+    select c.id, c.request_id, c.student_user_id, s.full_name_en as student_name_en,
+           s.full_name_ar as student_name_ar, c.requested_by_user_id, g.full_name_en as requester_name_en,
+           g.full_name_ar as requester_name_ar, c.target, c.kind_descriptor_id, c.record_id, c.relationship_id,
+           c.key_version, c.ciphertext, q.received_on::text as received_on,
+           coalesce(q.extended_to, q.due_on)::text as due_on, q.outcome, q.closed_at::text as closed_at
+    from health.requested_changes c
+    join core.records_requests q on q.tenant_id = c.tenant_id and q.id = c.request_id and q.status = 'active'
+    join core.users s on s.tenant_id = c.tenant_id and s.id = c.student_user_id
+    join core.users g on g.tenant_id = c.tenant_id and g.id = c.requested_by_user_id
+    where c.tenant_id = ${input.tenantId}::uuid and q.org_id = ${input.orgId}::uuid and c.status = 'active'
+      and q.topic = 'health' and ${input.where}
+    order by q.outcome is not null, coalesce(q.extended_to, q.due_on), q.closed_at desc, c.id`);
+  return rows.map((row) => ({
+    id: row.id,
+    requestId: row.request_id,
+    studentId: row.student_user_id,
+    studentNameEn: row.student_name_en,
+    studentNameAr: row.student_name_ar,
+    requestedByUserId: row.requested_by_user_id,
+    requesterNameEn: row.requester_name_en,
+    requesterNameAr: row.requester_name_ar,
+    target: row.target,
+    kindId: row.kind_descriptor_id,
+    recordId: row.record_id,
+    relationshipId: row.relationship_id,
+    keyVersion: row.key_version,
+    ciphertext: row.ciphertext,
+    receivedOn: row.received_on,
+    dueOn: row.due_on,
+    outcome: row.outcome,
+    closedAt: row.closed_at,
+  }));
+}
+
+/** What one guardian asked to change about one child. */
+export function familyHealthChanges(
+  tx: Tx,
+  input: {
+    tenantId: string;
+    orgId: string;
+    studentId: string;
+    requestedByUserId: string;
+  },
+) {
+  return healthChangesWhere(tx, {
+    ...input,
+    where: sql`c.student_user_id = ${input.studentId}::uuid
+      and c.requested_by_user_id = ${input.requestedByUserId}::uuid`,
+  });
+}
+
+/** Whose records the office's viewer reaches, as `app.visible_students` decides. */
+export interface HealthReach {
+  viewerId: string;
+  today: string;
+  schoolWide: boolean;
+}
+
+const reached = (
+  input: { orgId: string } & HealthReach,
+) => sql`c.student_user_id in (
+  select student_user_id from app.visible_students(${input.viewerId}::uuid, ${input.orgId}::uuid,
+    ${input.today}::date, ${input.schoolWide}))`;
+
+/** The office's changes to answer, or every one, of the students it reaches. */
+export function healthChangeQueue(
+  tx: Tx,
+  input: { tenantId: string; orgId: string; open: boolean } & HealthReach,
+) {
+  return healthChangesWhere(tx, {
+    ...input,
+    where: input.open
+      ? sql`q.outcome is null and ${reached(input)}`
+      : reached(input),
+  });
+}
+
+export async function healthChangeOf(
+  tx: Tx,
+  input: { tenantId: string; orgId: string; requestId: string } & HealthReach,
+): Promise<HealthChangeRow | null> {
+  const [row] = await healthChangesWhere(tx, {
+    ...input,
+    where: sql`c.request_id = ${input.requestId}::uuid and ${reached(input)}`,
+  });
+  return row ?? null;
+}
+
+/**
+ * The students whose medical summary changes the office's queue shows,
+ * read from the requests alone, so the read can be put on each student's
+ * history before any health row is opened.
+ */
+export async function healthQueueStudents(
+  tx: Tx,
+  input: { tenantId: string; orgId: string; open: boolean } & HealthReach,
+): Promise<string[]> {
+  const rows = await tx.execute<{ subject_user_id: string }>(sql`
+    select distinct q.subject_user_id from core.records_requests q
+    where q.tenant_id = ${input.tenantId}::uuid and q.org_id = ${input.orgId}::uuid and q.status = 'active'
+      and q.topic = 'health' and (not ${input.open} or q.outcome is null)
+      and q.subject_user_id in (
+        select student_user_id from app.visible_students(${input.viewerId}::uuid, ${input.orgId}::uuid,
+          ${input.today}::date, ${input.schoolWide}))`);
+  return rows.map((row) => row.subject_user_id);
+}
+
+/** Seals a change again, as when the office's reason for declining joins it. */
+export async function resealHealthChange(
+  tx: Tx,
+  input: {
+    tenantId: string;
+    id: string;
+    keyVersion: number;
+    ciphertext: Uint8Array;
+  },
+) {
+  await tx.execute(sql`
+    update health.requested_changes set key_version = ${input.keyVersion}, ciphertext = ${input.ciphertext}
+    where tenant_id = ${input.tenantId}::uuid and id = ${input.id}::uuid and status = 'active'`);
 }
 
 /** Mirrors whether any current health record carries an alert into the header flag. */
