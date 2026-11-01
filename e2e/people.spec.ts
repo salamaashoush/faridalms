@@ -4,6 +4,7 @@ import { expect, test } from "@playwright/test";
 
 import {
   chooseFromMenu,
+  openWith,
   PASSWORD,
   signIn,
   signInWith,
@@ -556,10 +557,14 @@ test("a health alert and a pickup restriction show on the student's header", asy
   await page.getByRole("button", { name: "Save", exact: true }).click();
   await expect(page).toHaveURL(/\/admin\/students/);
   await page.getByRole("searchbox").fill(`H-${unique}`);
-  await page
-    .getByRole("table")
-    .getByRole("link", { name: `Salama Hassan ${unique}` })
-    .click();
+  // The table redraws as the search applies, which can swallow a click on a
+  // row it is replacing; clicking again until the record opens rides that out.
+  await openWith(
+    page
+      .getByRole("table")
+      .getByRole("link", { name: `Salama Hassan ${unique}` }),
+    page.getByRole("tab", { name: "Health", exact: true }),
+  );
 
   await page.getByRole("tab", { name: "Health", exact: true }).click();
   await page.getByRole("button", { name: "Add health record" }).click();
@@ -613,10 +618,14 @@ test("an administrator keeps a guardian's address on the student's family tab", 
   await page.getByRole("button", { name: "Save", exact: true }).click();
   await expect(page).toHaveURL(/\/admin\/students/);
   await page.getByRole("searchbox").fill(`N-${unique}`);
-  await page
-    .getByRole("table")
-    .getByRole("link", { name: `Youssef Nabil ${unique}` })
-    .click();
+  // The table redraws as the search applies, which can swallow a click on a
+  // row it is replacing; clicking again until the record opens rides that out.
+  await openWith(
+    page
+      .getByRole("table")
+      .getByRole("link", { name: `Youssef Nabil ${unique}` }),
+    page.getByRole("tab", { name: "Family", exact: true }),
+  );
 
   await page.getByRole("tab", { name: "Family", exact: true }).click();
   await page

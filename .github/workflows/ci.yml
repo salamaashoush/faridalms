@@ -40,7 +40,9 @@ jobs:
       - uses: ./.github/setup
       - run: bun run db:up
       - run: bunx playwright install --with-deps ${{ matrix.browser }}
-      - run: bun run test:e2e --project=${{ matrix.browser }}
+      # Firefox gets WebGL, which the Scratch studio needs, only with a
+      # display to draw on; the runner has none, so it gets a virtual one.
+      - run: ${{ matrix.browser == 'firefox' && 'xvfb-run -a ' || '' }}bun run test:e2e --project=${{ matrix.browser }}
       - uses: actions/upload-artifact@v7
         if: ${{ !cancelled() }}
         with:
