@@ -31,6 +31,8 @@ export const CAPABILITIES = [
   "announcements:manage",
   "news:manage",
   "site:manage",
+  "admissions:read",
+  "admissions:manage",
   "reports:read",
   "roster:read",
   "assignments:author",
@@ -106,7 +108,8 @@ export const BUILTIN_CAPABILITIES: Record<
   | "proctor"
   | "staff"
   | "student"
-  | "family",
+  | "family"
+  | "admissions_officer",
   readonly Capability[]
 > = {
   site_administrator: ADMINISTRATION,
@@ -148,6 +151,8 @@ export const BUILTIN_CAPABILITIES: Record<
     "attendance:read",
     "learning:read",
   ],
+  // No natural role carries it, so it reaches people only by assignment.
+  admissions_officer: [...EVERYONE, "admissions:read", "admissions:manage"],
 };
 
 /**

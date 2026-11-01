@@ -800,8 +800,26 @@ const FORM = (
       heading: b.w(heading),
       text: b.w(text),
       purpose,
+      email: "require" as const,
       phone: "ask" as const,
+      child: purpose === "enquiry" ? ("ask" as const) : ("hide" as const),
       grade: purpose === "general" ? ("hide" as const) : ("ask" as const),
+      questions:
+        purpose === "enquiry"
+          ? [
+              {
+                id: b.id(),
+                label: b.w(["How did you hear about us?", "كيف عرفتم بنا؟"]),
+                hint: "",
+                answer: "choice" as const,
+                required: "optional" as const,
+                options: b.w([
+                  "A friend or relative\nSocial media\nA search online\nAn event or open day\nSomewhere else",
+                  "صديق أو قريب\nوسائل التواصل الاجتماعي\nالبحث على الإنترنت\nفعالية أو يوم مفتوح\nمصدر آخر",
+                ]),
+              },
+            ]
+          : [],
       submit: b.w(["Send", "أرسل"]),
       thanks: b.w([
         "Thank you. We will reply within two working days.",

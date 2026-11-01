@@ -10,6 +10,7 @@ import {
 } from "./content";
 import { contentIssues, hasFirstLevelHeading } from "./content-checks";
 import { embedProviders, isEmbedId } from "./embed";
+import { MAX_QUESTIONS, optionsOf, QUESTION_KINDS } from "./enquiries";
 import { isSiteHref, isVagueLink, MAX_BUTTON_LABEL } from "./site-links";
 import { DIVIDERS, SCHEMES } from "./site-theme";
 
@@ -61,7 +62,13 @@ export const AUDIENCES = ["student", "parent", "staff", "alumni"] as const;
 export const PATTERNS = ["none", "dots", "grid", "lines", "grain"] as const;
 export type Pattern = (typeof PATTERNS)[number];
 
-type TextField = { kind: "text"; max: number; multiline?: boolean };
+type TextField = {
+  kind: "text";
+  max: number;
+  multiline?: boolean;
+  /** Shown in the inspector only while a sibling field of an item has this value. */
+  when?: { field: string; is: string };
+};
 type RichField = { kind: "rich" };
 type ImageField = { kind: "image" };
 type MediaField = { kind: "media" };
@@ -82,7 +89,7 @@ export type ItemsField = {
   max: number;
   fields: Record<string, ScalarField>;
 };
-type ScalarField =
+export type ScalarField =
   | TextField
   | RichField
   | ImageField
@@ -604,8 +611,27 @@ export const SECTION_SPECS = {
       heading,
       text: intro,
       purpose: choice(["enquiry", "visit", "general"]),
+      email: choice(["require", "ask", "hide"]),
       phone: choice(["ask", "require", "hide"]),
+      child: choice(["hide", "ask"]),
       grade: choice(["ask", "hide"]),
+      message: choice(["ask", "hide"]),
+      questions: {
+        kind: "items",
+        max: MAX_QUESTIONS,
+        fields: {
+          label: t(120),
+          hint: t(200),
+          answer: choice(QUESTION_KINDS),
+          required: choice(["optional", "required"]),
+          options: {
+            kind: "text",
+            max: 1000,
+            multiline: true,
+            when: { field: "answer", is: "choice" },
+          },
+        },
+      },
       submit: t(25),
       thanks: t(300, true),
       media: { kind: "media" },
@@ -1341,7 +1367,9 @@ export type SiteIssueCode =
   | "link"
   | "action"
   | "captions"
-  | "label";
+  | "label"
+  | "form_contact"
+  | "form_question";
 export interface SiteIssue {
   sectionId: string;
   code: SiteIssueCode;
@@ -1393,8 +1421,41 @@ function scalarIssues(field: ScalarField, value: unknown): SiteIssueCode[] {
  */
 export function sectionIssues(section: PageSection): SiteIssueCode[] {
   return [
-    ...new Set(
-      eachScalar(fieldsOf(section.type), section.data as Loose, scalarIssues),
-    ),
+    ...new Set([
+      ...eachScalar(
+        fieldsOf(section.type),
+        section.data as Loose,
+        scalarIssues,
+      ),
+      ...(section.type === "form" ? formIssues(section) : []),
+    ]),
   ];
+}
+
+/**
+ * A form must leave the family a way to be answered, and a choice it asks
+ * must offer two options. A question without words is not shown, as any
+ * empty field, so it stops nothing.
+ */
+function formIssues(section: SectionOf<"form">): SiteIssueCode[] {
+  const found: SiteIssueCode[] = [];
+  if (section.data.email === "hide" && section.data.phone === "hide")
+    found.push("form_contact");
+  if (
+    section.data.questions.some(
+      (question) =>
+        question.label.trim() !== "" &&
+        question.answer === "choice" &&
+        optionsOf(question.options).length < 2,
+    )
+  )
+    found.push("form_question");
+  return found;
+}
+
+/** Whether a field of a repeating item applies to the item as it stands. */
+export function itemFieldShown(field: ScalarField, item: Loose): boolean {
+  return field.kind !== "text" || !field.when
+    ? true
+    : item[field.when.field] === field.when.is;
 }

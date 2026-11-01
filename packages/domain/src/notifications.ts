@@ -15,6 +15,7 @@ export const NOTIFICATION_KINDS = [
   "mention",
   "library",
   "reply",
+  "enquiry",
 ] as const;
 export type NotificationKind = (typeof NOTIFICATION_KINDS)[number];
 
@@ -45,6 +46,9 @@ export interface NoticeParams {
   periodNameAr?: string;
   /** A piece offered to the school library: shared, or sent back to its owner. */
   shared?: boolean;
+  /** What a family's enquiry is about, and whether it was handed to the reader. */
+  purpose?: "enquiry" | "visit" | "general";
+  assigned?: boolean;
 }
 
 /** Urgent notices reach everyone on every channel, so nobody can turn them off. */
@@ -59,6 +63,7 @@ export const CHOOSABLE_KINDS = [
   "mention",
   "library",
   "reply",
+  "enquiry",
 ] as const;
 export type ChoosableKind = (typeof CHOOSABLE_KINDS)[number];
 
@@ -104,6 +109,7 @@ export const DEFAULT_PREFERENCES: Preferences = {
     mention: "instant",
     library: "digest",
     reply: "digest",
+    enquiry: "instant",
   },
   sms: {
     announcement: "off",
@@ -116,6 +122,7 @@ export const DEFAULT_PREFERENCES: Preferences = {
     mention: "off",
     library: "off",
     reply: "off",
+    enquiry: "off",
   },
   quietFrom: "21:00",
   quietTo: "07:00",

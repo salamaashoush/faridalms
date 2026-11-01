@@ -8,6 +8,7 @@ import type {
   SiteLocale,
 } from "./site-sections";
 
+import { MAX_QUESTIONS } from "./enquiries";
 import { isSafeContentUrl } from "./rich-text";
 import {
   bodyIssues,
@@ -186,7 +187,9 @@ export function postIssues(post: {
 /**
  * What a visitor sends from a form section. `website` is a field people
  * never see, so anything in it came from a script; `elapsed` is how long the
- * form was open, and a person takes more than a moment to fill it.
+ * form was open, and a person takes more than a moment to fill it. `answers`
+ * holds the school's own questions by id, and `turnstile` the challenge's
+ * token where the site is protected by one.
  */
 export const enquirySchema = v.object({
   school: v.pipe(v.string(), v.maxLength(80)),
@@ -194,24 +197,32 @@ export const enquirySchema = v.object({
   page: v.pipe(v.string(), v.maxLength(80)),
   sectionId: id,
   name: v.pipe(v.string(), v.trim(), v.minLength(1), v.maxLength(120)),
-  email: v.pipe(v.string(), v.trim(), v.maxLength(254), v.email()),
+  email: v.optional(
+    v.union([
+      v.literal(""),
+      v.pipe(v.string(), v.trim(), v.maxLength(254), v.email()),
+    ]),
+    "",
+  ),
   phone: v.optional(v.pipe(v.string(), v.trim(), v.maxLength(40)), ""),
+  childName: v.optional(v.pipe(v.string(), v.trim(), v.maxLength(120)), ""),
   childYear: v.optional(v.pipe(v.string(), v.trim(), v.maxLength(60)), ""),
   message: v.optional(v.pipe(v.string(), v.trim(), v.maxLength(2000)), ""),
+  answers: v.optional(
+    v.pipe(
+      v.record(id, v.pipe(v.string(), v.maxLength(2000))),
+      v.check(
+        (answers) => Object.keys(answers).length <= MAX_QUESTIONS,
+        "site.form",
+      ),
+    ),
+    {},
+  ),
   website: v.optional(v.pipe(v.string(), v.maxLength(200)), ""),
   elapsed: v.pipe(v.number(), v.integer(), v.minValue(0)),
+  turnstile: v.optional(v.pipe(v.string(), v.maxLength(2048)), ""),
 });
 export type Enquiry = v.InferOutput<typeof enquirySchema>;
-
-export const enquiriesQuerySchema = v.object({
-  handled: v.optional(v.boolean(), false),
-});
-
-export const markEnquirySchema = v.object({
-  id,
-  expectedVersion: version(1),
-  handled: v.boolean(),
-});
 
 export const socialLinkSchema = v.object({
   kind: v.picklist(SOCIAL_KINDS),
