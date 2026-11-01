@@ -16,6 +16,7 @@ import * as v from "valibot";
 import type { RequestContext, SchoolContext } from "../core/context";
 
 import { openUnit, schoolOf } from "../core/procedure";
+import { refusalResponse } from "../core/refusal";
 import { canReadFile } from "../files/authorize";
 import { claimCaptions, reportCaptions } from "./captions";
 
@@ -350,7 +351,7 @@ export async function handleMediaRequest(
       return await stream({ ...context, school }, asked[1]);
     } catch (error) {
       if (error instanceof ORPCError)
-        return problem(error.status, error.code, context.requestId);
+        return refusalResponse(error, context.requestId);
       throw error;
     }
   }

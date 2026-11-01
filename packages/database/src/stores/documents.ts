@@ -180,7 +180,7 @@ async function syncMedia(
     insert into core.document_files (tenant_id, document_id, file_id, file_purpose)
     select f.tenant_id, ${input.documentId}::uuid, f.id, f.purpose from core.files f
     where f.tenant_id = ${input.tenantId}::uuid and f.id = any(${uuidArray(input.fileIds)})
-      and f.status = 'active' and f.state = 'ready' and f.purpose in ('document_media', 'attachment')
+      and f.status = 'active' and f.state = 'ready' and f.purpose in ('document_media', 'attachment', 'message_attachment')
       and not exists (
         select 1 from core.document_files d
         where d.tenant_id = f.tenant_id and d.document_id = ${input.documentId}::uuid
@@ -188,7 +188,7 @@ async function syncMedia(
   await tx.execute(sql`
     update core.files set linked_at = statement_timestamp()
     where tenant_id = ${input.tenantId}::uuid and id = any(${uuidArray(input.fileIds)})
-      and linked_at is null and state = 'ready' and purpose in ('document_media', 'attachment')`);
+      and linked_at is null and state = 'ready' and purpose in ('document_media', 'attachment', 'message_attachment')`);
 }
 
 /** A save of the same words leaves the row, and so its revision, as it was. */

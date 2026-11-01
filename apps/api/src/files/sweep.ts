@@ -1,5 +1,6 @@
-import type { Cell } from "@faridalms/database/context";
+import type { Cell, CellTransaction } from "@faridalms/database/context";
 
+import { withPurpose } from "@faridalms/database/context";
 import {
   abandonUploads,
   retireStreams,
@@ -10,6 +11,7 @@ import {
 } from "@faridalms/database/stores/files";
 import {
   ABANDONED_UPLOAD_MS,
+  FILE_GATES,
   SAVES_KEPT,
   SUPERSEDED_SAVE_MS,
   TRASHED_MEDIA_MS,
@@ -25,8 +27,9 @@ import type { FileStore } from "./store";
  * from a file area, for the trash window is retired, and coding projects
  * saved over since are pruned to each student's last few saves. A video
  * that is gone, by this pass or any other way, loses the streams made from
- * it. Records change first and bytes second, so a failure in between leaves
- * stray bytes rather than a record pointing at nothing.
+ * it. Files a special-category purpose hides are swept behind each purpose
+ * in turn. Records change first and bytes second, so a failure in between
+ * leaves stray bytes rather than a record pointing at nothing.
  */
 export async function sweepTenantFiles(
   cell: Cell,
@@ -35,6 +38,20 @@ export async function sweepTenantFiles(
   now: Date,
   limit = 100,
 ) {
+  const unused = async (tx: CellTransaction) => ({
+    abandoned: await abandonUploads(
+      tx,
+      tenantId,
+      new Date(now.getTime() - ABANDONED_UPLOAD_MS),
+      limit,
+    ),
+    retired: await retireUnlinkedFiles(
+      tx,
+      tenantId,
+      new Date(now.getTime() - UNLINKED_FILE_MS),
+      limit,
+    ),
+  });
   const keys = await cell.withWorker(
     {
       tenantId,
@@ -42,41 +59,40 @@ export async function sweepTenantFiles(
       actor: { kind: "system" },
     },
     "write",
-    async (tx) => ({
-      abandoned: await abandonUploads(
-        tx,
-        tenantId,
-        new Date(now.getTime() - ABANDONED_UPLOAD_MS),
-        limit,
-      ),
-      retired: await retireUnlinkedFiles(
-        tx,
-        tenantId,
-        new Date(now.getTime() - UNLINKED_FILE_MS),
-        limit,
-      ),
-      trashed: [
-        ...(await retireTrashedMedia(
-          tx,
-          tenantId,
-          new Date(now.getTime() - TRASHED_MEDIA_MS),
+    async (tx) => {
+      const open = await unused(tx);
+      const gated = [];
+      for (const gate of FILE_GATES)
+        gated.push(await withPurpose(tx, gate, unused));
+      return {
+        abandoned: [
+          ...open.abandoned,
+          ...gated.flatMap((row) => row.abandoned),
+        ],
+        retired: [...open.retired, ...gated.flatMap((row) => row.retired)],
+        trashed: [
+          ...(await retireTrashedMedia(
+            tx,
+            tenantId,
+            new Date(now.getTime() - TRASHED_MEDIA_MS),
+            limit,
+          )),
+          ...(await retireTrashedFiles(
+            tx,
+            tenantId,
+            new Date(now.getTime() - TRASHED_MEDIA_MS),
+            limit,
+          )),
+        ],
+        superseded: await retireSupersededAnswers(tx, tenantId, {
+          kept: SAVES_KEPT,
+          savedBefore: new Date(now.getTime() - SUPERSEDED_SAVE_MS),
           limit,
-        )),
-        ...(await retireTrashedFiles(
-          tx,
-          tenantId,
-          new Date(now.getTime() - TRASHED_MEDIA_MS),
-          limit,
-        )),
-      ],
-      superseded: await retireSupersededAnswers(tx, tenantId, {
-        kept: SAVES_KEPT,
-        savedBefore: new Date(now.getTime() - SUPERSEDED_SAVE_MS),
-        limit,
-      }),
-      // Last, so a video retired in this pass loses its streams with it.
-      streams: await retireStreams(tx, tenantId, limit),
-    }),
+        }),
+        // Last, so a video retired in this pass loses its streams with it.
+        streams: await retireStreams(tx, tenantId, limit),
+      };
+    },
   );
   for (const key of [
     ...keys.abandoned,

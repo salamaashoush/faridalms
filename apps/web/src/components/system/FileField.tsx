@@ -34,6 +34,7 @@ export function FileField({
   maxBytes,
   optional,
   disabled = false,
+  errors,
 }: {
   id: string;
   label: string;
@@ -45,6 +46,7 @@ export function FileField({
   maxBytes: number;
   optional?: boolean;
   disabled?: boolean;
+  errors?: string[];
 }) {
   const input = useRef<HTMLInputElement>(null);
   const initiate = useServerFn(initiateUpload);
@@ -99,7 +101,13 @@ export function FileField({
   };
 
   return (
-    <FormField id={id} label={label} hint={hint} optional={optional}>
+    <FormField
+      id={id}
+      label={label}
+      hint={hint}
+      optional={optional}
+      errors={errors}
+    >
       {(control) => (
         <div className="grid gap-2">
           <FileList

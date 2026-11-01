@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 
-import { login, rejection, seeded, signedIn } from "./harness";
+import { login, raw, rejection, seeded, sessionFor, signedIn } from "./harness";
 
 const principal = () => signedIn("northwind", login("principal"));
 
@@ -530,5 +530,252 @@ describe("who the medical summary reaches", () => {
         (change) => change.id === asked.id,
       ),
     ).toBe(true);
+  });
+});
+
+/**
+ * A seeded mother's session, with its token for the raw file route. These
+ * take the mothers before the ones the summary's own tests use, which no
+ * other suite signs in as.
+ */
+async function familySession(index: number) {
+  const session = await sessionFor(
+    "northwind",
+    loginAt("northwind", "parent", index),
+  );
+  const me = await session.api.identity.currentUser();
+  const child = (await session.api.people.person({ id: me.id })).children[0];
+  if (!child) throw new Error("the seeded mother follows no child");
+  return { ...session, me, studentId: child.studentId };
+}
+
+/** A doctor's letter as a PDF, uploaded as a medical report. */
+async function uploadReport(
+  session: { api: Awaited<ReturnType<typeof principal>>; token: string },
+  name: string,
+  words: string,
+) {
+  const body = new TextEncoder().encode(`%PDF-1.4\n${words}\n`);
+  const file = await session.api.files.initiate({
+    purpose: "health_report",
+    name,
+    mediaType: "application/pdf",
+    sizeBytes: body.byteLength,
+  });
+  const put = await raw(
+    "northwind",
+    session.token,
+    `/v1/files/${file.id}/content`,
+    { method: "PUT", body },
+  );
+  expect(put.status).toBe(200);
+  return { file, words };
+}
+
+const opened = (token: string, fileId: string) =>
+  raw("northwind", token, `/v1/files/${fileId}/content`);
+
+describe("medical reports", () => {
+  test("a family learns a report exists, and opens it only once the school shares it", async () => {
+    const office = await sessionFor(
+      "northwind",
+      loginAt("northwind", "principal"),
+    );
+    const mother = await familySession(2);
+    const stranger = await familySession(3);
+    const { id: recordId } = await office.api.records.saveHealth({
+      studentId: mother.studentId,
+      kindId: await kindId(office.api, mother.studentId, "chronic_condition"),
+      hasAlert: false,
+      text: "Type 1 diabetes",
+    });
+    const { file } = await uploadReport(
+      office,
+      "Endocrinology letter.pdf",
+      "Insulin before lunch.",
+    );
+    const held = async () => {
+      const found = (
+        await office.api.records.health({ studentId: mother.studentId })
+      ).records.find((row) => row.id === recordId);
+      if (!found) throw new Error("the record is kept");
+      return found;
+    };
+    const record = await held();
+    expect(record.report).toBeNull();
+    await office.api.records.attachHealthReport({
+      studentId: mother.studentId,
+      recordId,
+      expectedVersion: record.version,
+      report: { fileId: file.id, name: "Endocrinology letter.pdf" },
+      shared: false,
+    });
+
+    const unshared = await mother.api.records.familyHealth({
+      studentId: mother.studentId,
+    });
+    if (!unshared.permitted) throw new Error("the mother is permitted");
+    const listed = unshared.records.find((row) => row.id === recordId);
+    expect(listed?.report).toEqual({ shared: false });
+    expect(JSON.stringify(unshared)).not.toContain(file.id);
+    expect((await opened(mother.token, file.id)).status).toBe(404);
+
+    const attached = await held();
+    expect(attached.report).toEqual({
+      fileId: file.id,
+      mediaType: "application/pdf",
+      sizeBytes: file.sizeBytes,
+      name: "Endocrinology letter.pdf",
+      shared: false,
+    });
+    await office.api.records.shareReport({
+      studentId: mother.studentId,
+      recordId,
+      expectedVersion: attached.version,
+      shared: true,
+    });
+    const shared = await mother.api.records.familyHealth({
+      studentId: mother.studentId,
+    });
+    if (!shared.permitted) throw new Error("the mother is permitted");
+    expect(shared.records.find((row) => row.id === recordId)?.report).toEqual({
+      shared: true,
+      fileId: file.id,
+      mediaType: "application/pdf",
+      sizeBytes: file.sizeBytes,
+      name: "Endocrinology letter.pdf",
+    });
+    const read = await opened(mother.token, file.id);
+    expect(read.status).toBe(200);
+    expect(await read.text()).toContain("Insulin before lunch.");
+    expect((await opened(stranger.token, file.id)).status).toBe(404);
+    const teacher = await sessionFor(
+      "northwind",
+      loginAt("northwind", "teacher"),
+    );
+    expect((await opened(teacher.token, file.id)).status).toBe(404);
+
+    const changed = await held();
+    await office.api.records.saveHealth({
+      studentId: mother.studentId,
+      id: recordId,
+      expectedVersion: changed.version,
+      kindId: await kindId(office.api, mother.studentId, "chronic_condition"),
+      hasAlert: false,
+      text: "Type 1 diabetes, pump fitted",
+    });
+    const edited = await held();
+    expect(edited.report?.name).toBe("Endocrinology letter.pdf");
+    await office.api.records.removeReport({
+      studentId: mother.studentId,
+      recordId,
+      expectedVersion: edited.version,
+    });
+    expect((await held()).report).toBeNull();
+    expect((await opened(office.token, file.id)).status).toBe(404);
+  });
+
+  test("a family may send a doctor's letter with a change, which the office reads and may keep on the record", async () => {
+    const office = await sessionFor(
+      "northwind",
+      loginAt("northwind", "principal"),
+    );
+    const mother = await familySession(4);
+    const { file } = await uploadReport(
+      mother,
+      "Dr Nour allergy test.pdf",
+      "Positive for tree nuts.",
+    );
+    const asked = await mother.api.records.askHealthChange({
+      target: "record",
+      studentId: mother.studentId,
+      kind: "allergy",
+      text: "Tree nuts",
+      severity: "severe",
+      report: { fileId: file.id, name: "Dr Nour allergy test.pdf" },
+    });
+    const own = await mother.api.records.familyHealth({
+      studentId: mother.studentId,
+    });
+    if (!own.permitted) throw new Error("the mother is permitted");
+    expect(own.changes.find((row) => row.id === asked.id)?.report).toEqual({
+      fileId: file.id,
+      mediaType: "application/pdf",
+      sizeBytes: file.sizeBytes,
+      name: "Dr Nour allergy test.pdf",
+    });
+
+    const queue = await office.api.records.healthChanges({ open: true });
+    expect(queue.changes.find((row) => row.id === asked.id)?.report).toEqual({
+      fileId: file.id,
+      mediaType: "application/pdf",
+      sizeBytes: file.sizeBytes,
+      name: "Dr Nour allergy test.pdf",
+    });
+    const read = await opened(office.token, file.id);
+    expect(read.status).toBe(200);
+    expect(await read.text()).toContain("Positive for tree nuts.");
+    const teacher = await sessionFor(
+      "northwind",
+      loginAt("northwind", "teacher"),
+    );
+    expect((await opened(teacher.token, file.id)).status).toBe(404);
+
+    await office.api.records.decideHealthChange({
+      id: asked.id,
+      decision: "accepted",
+      keepReport: true,
+      shareReport: true,
+    });
+    const staff = await office.api.records.health({
+      studentId: mother.studentId,
+    });
+    expect(
+      staff.records.find((row) => row.text === "Tree nuts")?.report,
+    ).toEqual({
+      fileId: file.id,
+      mediaType: "application/pdf",
+      sizeBytes: file.sizeBytes,
+      name: "Dr Nour allergy test.pdf",
+      shared: true,
+    });
+    const summary = await mother.api.records.familyHealth({
+      studentId: mother.studentId,
+    });
+    if (!summary.permitted) throw new Error("the mother is permitted");
+    expect(
+      summary.records.find((row) => row.text === "Tree nuts")?.report,
+    ).toEqual({
+      shared: true,
+      fileId: file.id,
+      mediaType: "application/pdf",
+      sizeBytes: file.sizeBytes,
+      name: "Dr Nour allergy test.pdf",
+    });
+    expect((await opened(office.token, file.id)).status).toBe(200);
+  });
+
+  test("a family cannot send a file it did not upload with a change", async () => {
+    const mother = await familySession(5);
+    const office = await sessionFor(
+      "northwind",
+      loginAt("northwind", "principal"),
+    );
+    const { file } = await uploadReport(
+      office,
+      "staff-only.pdf",
+      "Office copy.",
+    );
+    expect(
+      await rejection(
+        mother.api.records.askHealthChange({
+          target: "record",
+          studentId: mother.studentId,
+          kind: "medication",
+          text: "Ventolin",
+          report: { fileId: file.id, name: "staff-only.pdf" },
+        }),
+      ),
+    ).toMatchObject({ code: "CONFLICT", message: "files.not_linkable" });
   });
 });

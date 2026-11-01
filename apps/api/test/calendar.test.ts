@@ -1,7 +1,10 @@
-import { plainContent } from "@faridalms/domain/content-conversion";
+import {
+  plainContent,
+  withFileBlocks,
+} from "@faridalms/domain/content-conversion";
 import { describe, expect, test } from "bun:test";
 
-import { login, rejection, seeded, sessionFor, signedIn } from "./harness";
+import { login, raw, rejection, seeded, sessionFor, signedIn } from "./harness";
 
 const principal = () => signedIn("northwind", login("principal"));
 const mother = () =>
@@ -297,5 +300,33 @@ describe("a second calendar", () => {
     expect(
       (await office.identity.currentUser()).school.secondaryCalendar,
     ).toBeNull();
+  });
+});
+
+describe("files in an event", () => {
+  test("a message's attachment cannot be put in an event, which other people read", async () => {
+    const office = await sessionFor("northwind", login("principal"));
+    const body = new TextEncoder().encode("For the conversation only.");
+    const file = await office.api.files.initiate({
+      purpose: "message_attachment",
+      name: "private-note.txt",
+      mediaType: "text/plain",
+      sizeBytes: body.byteLength,
+    });
+    const put = await raw(
+      "northwind",
+      office.token,
+      `/v1/files/${file.id}/content`,
+      { method: "PUT", body },
+    );
+    expect(put.status).toBe(200);
+    expect(
+      await rejection(
+        office.api.calendar.save({
+          ...event("Parents' evening"),
+          description: withFileBlocks(plainContent("Agenda attached."), [file]),
+        }),
+      ),
+    ).toMatchObject({ code: "FORBIDDEN", message: "file.not_attachable" });
   });
 });

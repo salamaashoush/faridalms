@@ -1,4 +1,5 @@
 import type {
+  FilePurpose,
   SpeechLanguage,
   StorageScope,
   UploadDestination,
@@ -57,6 +58,15 @@ export function warnNearlyFull(
 const IMAGE = ["image/png", "image/jpeg", "image/gif", "image/webp"];
 
 /**
+ * What a document's files are uploaded as: media the document keeps, or a
+ * message's attachments, which only its conversation reads.
+ */
+type MediaPurpose = Extract<
+  FilePurpose,
+  "document_media" | "message_attachment"
+>;
+
+/**
  * Stores a file as media a document keeps, through the same two-step upload
  * as any attachment, counted against where it goes.
  */
@@ -65,12 +75,13 @@ export async function uploadDocumentFile(
   file: File,
   destination: UploadDestination | undefined,
   options: UploadOptions = {},
+  purpose: MediaPurpose = "document_media",
 ): Promise<UploadedFile> {
   let initiated: Awaited<ReturnType<typeof initiate>>;
   try {
     initiated = await initiate({
       data: {
-        purpose: "document_media",
+        purpose,
         name: file.name,
         mediaType: file.type || mediaTypeFor(file.name) || "",
         sizeBytes: file.size,
@@ -107,9 +118,14 @@ export async function uploadDocumentFile(
  * Lets a document editor embed pictures, sound, video and any file a school
  * may exchange: each goes through the same two-step upload as any
  * attachment, as media the document keeps. Naming where the files go lets
- * the server check the storage cap they count against.
+ * the server check the storage cap they count against. A message's files
+ * are its attachments, which anyone writing in the conversation may add;
+ * recordings in them are kept as sent, so they are neither cut nor captioned.
  */
-export function useDocumentMedia(destination?: UploadDestination): EditorMedia {
+export function useDocumentMedia(
+  destination?: UploadDestination,
+  purpose: MediaPurpose = "document_media",
+): EditorMedia {
   const initiate = useServerFn(initiateUpload);
   const search = useServerFn(searchPictures);
   const askDraft = useServerFn(draftCaptions);
@@ -133,13 +149,17 @@ export function useDocumentMedia(destination?: UploadDestination): EditorMedia {
         captions: ["text/vtt"],
       },
       url: (fileId: string) => `/files/${fileId}`,
-      canTrim: async () => (await abilities()).trim,
-      captions: {
-        draft: async (fileId: string, language: SpeechLanguage) => {
-          await askDraft({ data: { fileId, language } });
-        },
-        status: (fileId: string) => draftOf({ data: { fileId } }),
-      },
+      ...(purpose === "document_media"
+        ? {
+            canTrim: async () => (await abilities()).trim,
+            captions: {
+              draft: async (fileId: string, language: SpeechLanguage) => {
+                await askDraft({ data: { fileId, language } });
+              },
+              status: (fileId: string) => draftOf({ data: { fileId } }),
+            },
+          }
+        : {}),
       pictures: {
         search: async (query: string) =>
           (await search({ data: { q: query } })).pictures,
@@ -151,8 +171,9 @@ export function useDocumentMedia(destination?: UploadDestination): EditorMedia {
           file,
           type && id ? { type, id } : undefined,
           options,
+          purpose,
         ),
     }),
-    [initiate, search, askDraft, draftOf, abilities, type, id],
+    [initiate, search, askDraft, draftOf, abilities, type, id, purpose],
   );
 }

@@ -26,6 +26,8 @@ export interface StoredFile {
    * made: until then it holds what was cut away.
    */
   uncut: boolean;
+  /** The version of the school's files key the bytes are sealed with; none for bucket encryption. */
+  keyVersion: number | null;
 }
 
 type FileRecord = {
@@ -41,11 +43,12 @@ type FileRecord = {
   host_id: string | null;
   trashed_at: string | null;
   uncut: boolean;
+  key_version: number | null;
 };
 
 const columns = sql`id, purpose, name, media_type, size_bytes, state, storage_key,
   uploaded_by_user_id, host_type, host_id, ${isoOf(sql`trashed_at`)} as trashed_at,
-  (metadata ? 'trim') as uncut`;
+  (metadata ? 'trim') as uncut, key_version`;
 
 function fileOf(row: FileRecord): StoredFile {
   return {
@@ -61,6 +64,7 @@ function fileOf(row: FileRecord): StoredFile {
     hostId: row.host_id,
     trashedAt: row.trashed_at,
     uncut: row.uncut,
+    keyVersion: row.key_version,
   };
 }
 
@@ -69,6 +73,9 @@ export const quarantineKey = (tenantId: string, fileId: string) =>
   `t/${tenantId}/q/${fileId}`;
 export const readyKey = (tenantId: string, fileId: string) =>
   `t/${tenantId}/f/${fileId}`;
+/** Where a file sealed under the school's files key lives once ready. */
+export const sealedKey = (tenantId: string, fileId: string) =>
+  `t/${tenantId}/h/${fileId}`;
 /** Where the parts of an upload wait until the last one arrives. */
 export const partsFolder = (tenantId: string, fileId: string) =>
   `t/${tenantId}/u/${fileId}`;
@@ -231,8 +238,32 @@ export async function unlinkFiles(
 }
 
 /**
+ * Tombstones a file its host let go of, as a record does a report it no
+ * longer holds. Its key comes back only when no active row still points at
+ * the same object, for the bytes to go once the change commits.
+ */
+export async function retireFile(
+  tx: Tx,
+  input: { tenantId: string; id: string; host: { type: string; id: string } },
+): Promise<string | null> {
+  const [row] = await tx.execute<{ storage_key: string }>(sql`
+    with retired as (
+      update core.files set status = 'tobedeleted'
+      where tenant_id = ${input.tenantId}::uuid and id = ${input.id}::uuid
+        and host_type = ${input.host.type} and host_id = ${input.host.id}::uuid and status = 'active'
+      returning id, storage_key)
+    select r.storage_key from retired r
+    where not exists (
+      select 1 from core.files f
+      where f.tenant_id = ${input.tenantId}::uuid and f.storage_key = r.storage_key
+        and f.status = 'active' and f.id <> r.id)`);
+  return row?.storage_key ?? null;
+}
+
+/**
  * The verdict on an upload, written as the worker: a ready file moves to its
- * final key with its digest, a rejected one keeps its reason.
+ * final key with its digest, and a sealed one records the key version it was
+ * sealed with; a rejected one keeps its reason.
  */
 export async function settleFile(
   tx: Tx,
@@ -246,6 +277,8 @@ export async function settleFile(
           scanEngine: string | null;
           /** Whether a video gets adaptive streams, which the media service makes. */
           stream: boolean;
+          /** The files key version the bytes were sealed with, for a sealed file. */
+          keyVersion?: number | null;
         }
       | {
           state: "rejected";
@@ -259,15 +292,18 @@ export async function settleFile(
   },
 ): Promise<boolean> {
   const verdict = input.verdict;
+  const sealed =
+    verdict.state === "ready" ? (verdict.keyVersion ?? null) : null;
   const rows =
     verdict.state === "ready"
       ? await tx.execute<{ id: string }>(sql`
           update core.files
           set state = 'ready', sha256 = decode(${verdict.sha256}, 'hex'),
-              storage_key = ${readyKey(input.tenantId, input.id)},
+              storage_key = ${sealed === null ? readyKey(input.tenantId, input.id) : sealedKey(input.tenantId, input.id)},
+              encryption = ${sealed === null ? "bucket" : "tenant_dek"}, key_version = ${sealed},
               scanned_at = case when ${verdict.scanEngine}::text is null then null else statement_timestamp() end,
               scan_engine = ${verdict.scanEngine}, ready_at = statement_timestamp(),
-              stream_state = case when ${verdict.stream} and media_type like 'video/%' then 'queued' end
+              stream_state = case when ${verdict.stream && sealed === null} and media_type like 'video/%' then 'queued' end
           where tenant_id = ${input.tenantId}::uuid and id = ${input.id}::uuid and state = 'initiated'
           returning id`)
       : await tx.execute<{ id: string }>(sql`
@@ -464,7 +500,9 @@ export async function adoptFiles(
       linked_at = coalesce(linked_at, statement_timestamp())
     where tenant_id = ${input.tenantId}::uuid and id = any(${uuidArray(input.ids)})
       and host_type is null and uploaded_by_user_id = ${input.userId}::uuid
-      and purpose in ('document_media', 'site_media') and state = 'ready' and status = 'active'
+      and (purpose in ('document_media', 'site_media')
+        or (purpose = 'message_attachment' and ${input.host.type} in ('message', 'message_draft')))
+      and state = 'ready' and status = 'active'
     returning id`);
   return rows.map((row) => row.id);
 }

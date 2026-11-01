@@ -233,7 +233,7 @@ function Composer({
   const user = useCurrentUser();
   const queryClient = useQueryClient();
   const id = useId();
-  const media = useDocumentMedia(undefined);
+  const media = useDocumentMedia(undefined, "message_attachment");
   const [content, setContent] = useState<ContentDocument>(
     () => thread.draft?.content ?? emptyContent(),
   );

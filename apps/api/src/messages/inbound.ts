@@ -41,6 +41,7 @@ import type { Inbox } from "../notifications/resend-inbox";
 
 import { schoolZone } from "../core/procedure";
 import { takeChecked } from "../files/ingest";
+import { fileKeys } from "../files/sealed";
 import { verifyWebhook } from "../notifications/resend-inbox";
 import { writeEntry } from "./conversations";
 import { replyKey } from "./reply";
@@ -182,7 +183,7 @@ async function takeMail(
                 tenantId: routed.tenantId,
                 userId: null,
                 orgId: target.orgId,
-                purpose: "document_media",
+                purpose: "message_attachment",
                 name,
                 mediaType: attachment.contentType,
                 sizeBytes: attachment.size,
@@ -219,6 +220,7 @@ async function takeMail(
           {
             files: context.files,
             scanner: context.scanner,
+            keys: fileKeys(context),
             log: context.requestId,
           },
           routed.tenantId,
@@ -237,6 +239,7 @@ async function takeMail(
               sha256: checked.sha256,
               scanEngine: context.scanner ? "clamd" : null,
               stream: context.mediaOrigin !== null,
+              keyVersion: checked.keyVersion,
             }
           : { state: "rejected", reason: checked.reason },
       }),

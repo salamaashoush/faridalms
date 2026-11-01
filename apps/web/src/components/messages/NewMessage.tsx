@@ -158,7 +158,7 @@ export function NewMessage({
   );
   const [uploading, setUploading] = useState(false);
   const [leaving, setLeaving] = useState(false);
-  const media = useDocumentMedia(undefined);
+  const media = useDocumentMedia(undefined, "message_attachment");
   const [shown, setShown] = useState(false);
   const recipients = useInfiniteQuery(
     messageRecipientsQuery(search, kind === "family" ? "students" : "people"),
