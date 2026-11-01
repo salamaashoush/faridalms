@@ -178,6 +178,13 @@ function defaultPeriod(periods: PeriodRow[], classType: string) {
   );
 }
 
+const LOCKED = {
+  closed: "attendance.closed",
+  future: "attendance.future",
+  window: "attendance.window",
+  not_school_day: "attendance.not_school_day",
+} as const;
+
 async function editability(
   context: UnitContext,
   year: SchoolYear,
@@ -498,7 +505,7 @@ async function checkInRegister(
   const year = await yearOfClass(context, classRow.schoolYearId, input.date);
   const access = await editability(context, year, input.date);
   if (!access.editable)
-    throw new ORPCError("CONFLICT", { message: `attendance.${access.reason}` });
+    throw new ORPCError("CONFLICT", { message: LOCKED[access.reason] });
   const periods = await periodsOn(context.tx, {
     tenantId: context.tenantId,
     schoolId: context.schoolId,
@@ -769,9 +776,7 @@ export const save = writeProcedure
     const year = await yearOfClass(context, classRow.schoolYearId, input.date);
     const access = await editability(context, year, input.date);
     if (!access.editable)
-      throw new ORPCError("CONFLICT", {
-        message: `attendance.${access.reason}`,
-      });
+      throw new ORPCError("CONFLICT", { message: LOCKED[access.reason] });
     const periods = await periodsOn(context.tx, {
       tenantId: context.tenantId,
       schoolId: context.schoolId,

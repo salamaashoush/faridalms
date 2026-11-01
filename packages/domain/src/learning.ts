@@ -24,7 +24,7 @@ import {
   narrationWordsSchema,
   textDirection,
 } from "./content";
-import { contentIssues } from "./content-checks";
+import { CONTENT_ISSUE_CODE, contentIssues } from "./content-checks";
 import { emptyContent } from "./content-conversion";
 import {
   crosswordLayout,
@@ -1266,7 +1266,7 @@ export function lessonIssue(lesson: {
       return "learning.gate_score";
   }
   const [problem] = contentIssues(lesson.content);
-  return problem ? `content.${problem}` : null;
+  return problem ? CONTENT_ISSUE_CODE[problem] : null;
 }
 
 function gapText(block: GapsBlock): string {

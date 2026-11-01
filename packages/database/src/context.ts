@@ -34,7 +34,7 @@ export type Access = "read" | "write";
  */
 export class TenantUnavailableError extends Error {
   constructor(readonly reason: "unknown" | "read_only") {
-    super(`tenant.${reason}`);
+    super(`Tenant unavailable: ${reason}`);
     this.name = "TenantUnavailableError";
   }
 }

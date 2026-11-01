@@ -52,6 +52,13 @@ import { canReadFile, mayKeepArea, mayWorkOn } from "../files/authorize";
 import { uploadLimit } from "../files/limit";
 
 /** Who may upload for each purpose; none, anyone signed in, its use checked where it is put. */
+const FULL: Record<StorageScope, string> = {
+  school: "file.quota_school",
+  class: "file.quota_class",
+  module: "file.quota_module",
+  person: "file.quota_person",
+};
+
 const UPLOADERS: Record<FilePurpose, Capability[] | null> = {
   attachment: ["assignments:author", "messages:send"],
   submission: ["own-work:submit"],
@@ -170,7 +177,7 @@ async function roomFor(
     });
   for (const { scope, used, limit } of scopes)
     if (used.usedBytes + input.sizeBytes > limit)
-      throw new ORPCError("FORBIDDEN", { message: `file.quota_${scope}` });
+      throw new ORPCError("FORBIDDEN", { message: FULL[scope] });
   const fullest = scopes
     .map(({ scope, used, limit }) => ({
       scope,

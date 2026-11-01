@@ -964,7 +964,8 @@ export const submit = writeProcedure
     );
     if (fit === "young" || fit === "old")
       throw new ORPCError("BAD_REQUEST", {
-        message: `application.age_${fit}`,
+        message:
+          fit === "young" ? "application.age_young" : "application.age_old",
       });
     const form = row.form;
     const relation = relations.find((each) => each.id === form.relationId);
