@@ -265,6 +265,48 @@ export const removeHealthRecordSchema = v.object({
   expectedVersion: version,
 });
 
+const reportName = v.pipe(
+  v.string(),
+  v.trim(),
+  v.minLength(1),
+  v.maxLength(255),
+);
+
+/**
+ * A medical report the family sends, or the health staff keep, with the
+ * name it was uploaded under; the file itself is stored under a generic one.
+ */
+export const healthReportSchema = v.object({ fileId: id, name: reportName });
+export type HealthReportInput = v.InferInput<typeof healthReportSchema>;
+
+/**
+ * The health staff give a record its report, replacing any it held, and
+ * say whether a family that reads the summary may open it.
+ */
+export const attachHealthReportSchema = v.object({
+  studentId: id,
+  recordId: id,
+  expectedVersion: version,
+  report: v.object(healthReportSchema.entries, "validation.report_required"),
+  shared: v.boolean(),
+});
+export type AttachHealthReportInput = v.InferInput<
+  typeof attachHealthReportSchema
+>;
+
+export const shareHealthReportSchema = v.object({
+  studentId: id,
+  recordId: id,
+  expectedVersion: version,
+  shared: v.boolean(),
+});
+
+export const removeHealthReportSchema = v.object({
+  studentId: id,
+  recordId: id,
+  expectedVersion: version,
+});
+
 /**
  * The kinds of health record a permitted guardian reads in the child's
  * medical summary and may ask the school to change, by their meaning.
@@ -296,6 +338,8 @@ export const askHealthChangeSchema = v.variant("target", [
       v.union([v.literal(""), v.picklist(HEALTH_SEVERITIES)]),
       "",
     ),
+    /** A doctor's letter or the like, for the office to read with the change. */
+    report: v.optional(healthReportSchema),
   }),
   v.object({
     target: v.literal("contact"),
@@ -312,13 +356,16 @@ export const healthChangesSchema = v.object({
 
 /**
  * The office's answer to a change: accepting applies it to the version of
- * the record the office compared, declining says why.
+ * the record the office compared, and may make the report the family sent
+ * the record's own; declining says why.
  */
 export const decideHealthChangeSchema = v.variant("decision", [
   v.object({
     id,
     decision: v.literal("accepted"),
     expectedVersion: v.optional(version),
+    keepReport: v.optional(v.boolean(), false),
+    shareReport: v.optional(v.boolean(), false),
   }),
   v.object({
     id,

@@ -1,13 +1,23 @@
-import type { HealthChangeRow } from "@faridalms/database/stores/records";
+import type {
+  HealthChangeRow,
+  HealthRow,
+} from "@faridalms/database/stores/records";
 import type { Scope } from "@faridalms/database/stores/students";
 
-import { decryptField, encryptField } from "@faridalms/database/crypto";
+import { withPurpose } from "@faridalms/database/context";
+import { decryptField } from "@faridalms/database/crypto";
 import {
   arrangementsOf,
   keepArrangements,
 } from "@faridalms/database/stores/arrangements";
 import { arrangeDue } from "@faridalms/database/stores/coursework";
 import { descriptorsFor } from "@faridalms/database/stores/descriptors";
+import {
+  filesByIds,
+  linkFiles,
+  rehostFiles,
+  retireFile,
+} from "@faridalms/database/stores/files";
 import { schoolProfile } from "@faridalms/database/stores/identity";
 import {
   childrenOf,
@@ -19,9 +29,11 @@ import {
   demographicsOf,
   familyHealthChanges,
   familyHealthRecordsOf,
+  healthChangeById,
   healthChangeOf,
   healthChangeQueue,
   healthQueueStudents,
+  healthRecordOf,
   healthRecordsOf,
   insertHealthChange,
   insertHealthRecord,
@@ -31,6 +43,8 @@ import {
   restrictionsOf,
   saveDemographicsRow,
   saveRestriction,
+  setHealthReport,
+  shareHealthReport,
   updateCustodyFlags,
   updateHealthRecord,
 } from "@faridalms/database/stores/records";
@@ -44,17 +58,21 @@ import {
   NO_ARRANGEMENTS,
   saveArrangementsSchema,
 } from "@faridalms/domain/arrangements";
+import { healthReportName, safeFilename } from "@faridalms/domain/file";
 import {
   askHealthChangeSchema,
+  attachHealthReportSchema,
   CONTACT_LABELS,
   decideHealthChangeSchema,
   FAMILY_HEALTH_KINDS,
   HEALTH_SEVERITIES,
   healthChangesSchema,
   removeHealthRecordSchema,
+  removeHealthReportSchema,
   saveCustodySchema,
   saveDemographicsSchema,
   saveHealthRecordSchema,
+  shareHealthReportSchema,
 } from "@faridalms/domain/people";
 import { toE164 } from "@faridalms/domain/phone";
 import { ORPCError } from "@orpc/server";
@@ -73,6 +91,7 @@ import {
 } from "../core/procedure";
 import { withPurposeFor } from "../core/purpose";
 import { logFamilyRequest } from "../core/records-requests";
+import { registerHostReader } from "../files/authorize";
 
 const id = v.pipe(v.string(), v.uuid());
 
@@ -96,6 +115,8 @@ interface HealthPayload {
   value?: string;
   severity?: string;
   action_plan?: string;
+  /** The name the record's report was uploaded under; the file keeps a generic one. */
+  report_name?: string;
 }
 
 function isPayload(value: unknown): value is HealthPayload {
@@ -104,6 +125,29 @@ function isPayload(value: unknown): value is HealthPayload {
 
 function severityOf(value: string | undefined) {
   return HEALTH_SEVERITIES.find((severity) => severity === value) ?? null;
+}
+
+/**
+ * A report as a file card shows it: the name it was uploaded under, which
+ * only the record holds, with the type and size its stored file has.
+ */
+async function reportFiles(context: UnitContext, ids: (string | null)[]) {
+  const files = await withPurpose(context.tx, "health", (tx) =>
+    filesByIds(
+      tx,
+      context.tenantId,
+      ids.filter((fileId): fileId is string => fileId !== null),
+    ),
+  );
+  return (fileId: string, name: string | undefined) => {
+    const file = files.find((row) => row.id === fileId);
+    return {
+      fileId,
+      name: name ?? healthReportName(file?.name ?? ""),
+      mediaType: file?.mediaType ?? "application/octet-stream",
+      sizeBytes: file?.sizeBytes ?? 0,
+    };
+  };
 }
 
 export const health = readProcedure
@@ -129,6 +173,10 @@ export const health = readProcedure
             includeRetired: true,
           }),
         ]),
+    );
+    const reportOf = await reportFiles(
+      context,
+      rows.map((row) => row.fileId),
     );
     const records = await Promise.all(
       rows.map(async (row) => {
@@ -157,6 +205,12 @@ export const health = readProcedure
           text: payload.text ?? payload.value ?? "",
           severity: severityOf(payload.severity),
           actionPlan: payload.action_plan ?? null,
+          report: row.fileId
+            ? {
+                ...reportOf(row.fileId, payload.report_name),
+                shared: row.reportShared,
+              }
+            : null,
         };
       }),
     );
@@ -176,31 +230,7 @@ export const saveHealth = writeProcedure
   .input(saveHealthRecordSchema)
   .handler(async ({ input, context }) => {
     await requireStudent(context, input.studentId);
-    const key = await context.keys.active(
-      context.tx,
-      context.tenantId,
-      "health",
-    );
     const rowId = input.id ?? Bun.randomUUIDv7();
-    const payload: HealthPayload = {
-      text: input.text,
-      ...(input.severity ? { severity: input.severity } : {}),
-      ...(input.actionPlan ? { action_plan: input.actionPlan } : {}),
-    };
-    const ciphertext = await encryptField(
-      key.key,
-      JSON.stringify(payload),
-      healthCipher(context, rowId, key.version),
-    );
-    const record = {
-      tenantId: context.tenantId,
-      studentId: input.studentId,
-      kindId: input.kindId,
-      hasAlert: input.hasAlert,
-      recordedOn: input.recordedOn || null,
-      keyVersion: key.version,
-      ciphertext,
-    };
     await withPurposeFor(
       context,
       {
@@ -210,6 +240,32 @@ export const saveHealth = writeProcedure
         write: true,
       },
       async (tx) => {
+        const current = input.id
+          ? (await healthRecordsOf(tx, context.tenantId, input.studentId)).find(
+              (row) => row.id === input.id,
+            )
+          : undefined;
+        if (input.id && !current)
+          throw new ORPCError("CONFLICT", { message: "conflict.version" });
+        const held = current ? await openRecord(context, current) : {};
+        const payload: HealthPayload = {
+          ...(held.report_name ? { report_name: held.report_name } : {}),
+          text: input.text,
+          ...(input.severity ? { severity: input.severity } : {}),
+          ...(input.actionPlan ? { action_plan: input.actionPlan } : {}),
+        };
+        const record = {
+          tenantId: context.tenantId,
+          studentId: input.studentId,
+          kindId: input.kindId,
+          hasAlert: input.hasAlert,
+          recordedOn: input.recordedOn || null,
+          ...(await seal(
+            context,
+            (keyVersion) => healthCipher(context, rowId, keyVersion),
+            payload,
+          )),
+        };
         if (input.id) {
           const saved = await updateHealthRecord(tx, {
             ...record,
@@ -229,7 +285,7 @@ export const removeHealth = writeProcedure
   .input(removeHealthRecordSchema)
   .handler(async ({ input, context }) => {
     await requireStudent(context, input.studentId);
-    await withPurposeFor(
+    const gone = await withPurposeFor(
       context,
       {
         purpose: "health",
@@ -238,6 +294,9 @@ export const removeHealth = writeProcedure
         write: true,
       },
       async (tx) => {
+        const current = (
+          await healthRecordsOf(tx, context.tenantId, input.studentId)
+        ).find((row) => row.id === input.id);
         const removed = await removeHealthRecord(tx, {
           tenantId: context.tenantId,
           id: input.id,
@@ -247,8 +306,214 @@ export const removeHealth = writeProcedure
         if (!removed)
           throw new ORPCError("CONFLICT", { message: "conflict.version" });
         await refreshMedicalAlert(tx, context.tenantId, input.studentId);
+        return current?.fileId
+          ? retireFile(tx, {
+              tenantId: context.tenantId,
+              id: current.fileId,
+              host: { type: "health_record", id: input.id },
+            })
+          : null;
       },
     );
+    dropBytes(context, gone);
+    return { removed: true };
+  });
+
+/** What a health record holds, opened with the key version it was sealed under. */
+async function openRecord(
+  context: UnitContext,
+  row: HealthRow,
+): Promise<HealthPayload> {
+  const held = await openSealed(
+    context,
+    healthCipher(context, row.id, row.keyVersion),
+    row.ciphertext,
+  );
+  return isPayload(held) ? held : {};
+}
+
+/** A report's bytes go once the change that let go of it commits. */
+function dropBytes(context: UnitContext, key: string | null) {
+  if (key) context.afterCommit(() => context.files.remove(key));
+}
+
+/**
+ * Makes a file the record's report, with the name it was uploaded under
+ * sealed into the record, and lets go of the report the record held
+ * before, answering its key. `place` puts the file in the record's keeping.
+ * Run with the health purpose set.
+ */
+async function giveReport(
+  context: UnitContext,
+  tx: UnitContext["tx"],
+  input: {
+    studentId: string;
+    record: HealthRow;
+    report: { fileId: string; name: string };
+    shared: boolean;
+    place: () => Promise<boolean>;
+  },
+): Promise<string | null> {
+  const { record, report } = input;
+  if (!(await input.place()))
+    throw new ORPCError("CONFLICT", { message: "files.not_linkable" });
+  const sealed = await seal(
+    context,
+    (keyVersion) => healthCipher(context, record.id, keyVersion),
+    {
+      ...(await openRecord(context, record)),
+      report_name: safeFilename(report.name),
+    },
+  );
+  const saved = await setHealthReport(tx, {
+    tenantId: context.tenantId,
+    id: record.id,
+    studentId: input.studentId,
+    expectedVersion: record.version,
+    fileId: report.fileId,
+    shared: input.shared,
+    ...sealed,
+  });
+  if (!saved) throw new ORPCError("CONFLICT", { message: "conflict.version" });
+  return record.fileId && record.fileId !== report.fileId
+    ? retireFile(tx, {
+        tenantId: context.tenantId,
+        id: record.fileId,
+        host: { type: "health_record", id: record.id },
+      })
+    : null;
+}
+
+/** A record the health staff work on, at the version they read, or a conflict. */
+async function recordToChange(
+  context: UnitContext,
+  tx: UnitContext["tx"],
+  input: { studentId: string; recordId: string; expectedVersion: number },
+) {
+  const record = (
+    await healthRecordsOf(tx, context.tenantId, input.studentId)
+  ).find((row) => row.id === input.recordId);
+  if (!record) throw new ORPCError("NOT_FOUND");
+  if (record.version !== input.expectedVersion)
+    throw new ORPCError("CONFLICT", { message: "conflict.version" });
+  return record;
+}
+
+/**
+ * The health staff give a record its report, such as a doctor's letter,
+ * replacing any it held. The file was uploaded as a medical report, so it
+ * rests sealed under the school's files key.
+ */
+export const attachHealthReport = writeProcedure
+  .input(attachHealthReportSchema)
+  .handler(async ({ input, context }) => {
+    await requireStudent(context, input.studentId);
+    const gone = await withPurposeFor(
+      context,
+      {
+        purpose: "health",
+        subjectUserId: input.studentId,
+        reason: "Attached a report to a health record",
+        write: true,
+      },
+      async (tx) =>
+        giveReport(context, tx, {
+          studentId: input.studentId,
+          record: await recordToChange(context, tx, input),
+          report: input.report,
+          shared: input.shared,
+          place: async () =>
+            (
+              await linkFiles(tx, {
+                tenantId: context.tenantId,
+                userId: context.actor.userId,
+                ids: [input.report.fileId],
+                purpose: "health_report",
+                host: { type: "health_record", id: input.recordId },
+              })
+            ).length === 1,
+        }),
+    );
+    dropBytes(context, gone);
+    return { id: input.recordId };
+  });
+
+/** Whether a family that reads the medical summary may open the record's report. */
+export const shareReport = writeProcedure
+  .input(shareHealthReportSchema)
+  .handler(async ({ input, context }) => {
+    await requireStudent(context, input.studentId);
+    await withPurposeFor(
+      context,
+      {
+        purpose: "health",
+        subjectUserId: input.studentId,
+        reason: input.shared
+          ? "Shared a health report with the family"
+          : "Stopped sharing a health report with the family",
+        write: true,
+      },
+      async (tx) => {
+        await recordToChange(context, tx, input);
+        if (
+          !(await shareHealthReport(tx, {
+            tenantId: context.tenantId,
+            id: input.recordId,
+            studentId: input.studentId,
+            expectedVersion: input.expectedVersion,
+            shared: input.shared,
+          }))
+        )
+          throw new ORPCError("CONFLICT", { message: "conflict.version" });
+      },
+    );
+    return { shared: input.shared };
+  });
+
+/** Takes a record's report away; the file goes with it. */
+export const removeReport = writeProcedure
+  .input(removeHealthReportSchema)
+  .handler(async ({ input, context }) => {
+    await requireStudent(context, input.studentId);
+    const gone = await withPurposeFor(
+      context,
+      {
+        purpose: "health",
+        subjectUserId: input.studentId,
+        reason: "Removed a health record's report",
+        write: true,
+      },
+      async (tx) => {
+        const record = await recordToChange(context, tx, input);
+        if (!record.fileId) throw new ORPCError("NOT_FOUND");
+        const held = await openRecord(context, record);
+        const sealed = await seal(
+          context,
+          (keyVersion) => healthCipher(context, record.id, keyVersion),
+          Object.fromEntries(
+            Object.entries(held).filter(([field]) => field !== "report_name"),
+          ),
+        );
+        if (
+          !(await setHealthReport(tx, {
+            tenantId: context.tenantId,
+            id: record.id,
+            studentId: input.studentId,
+            expectedVersion: record.version,
+            fileId: null,
+            shared: false,
+            ...sealed,
+          }))
+        )
+          throw new ORPCError("CONFLICT", { message: "conflict.version" });
+        return retireFile(tx, {
+          tenantId: context.tenantId,
+          id: record.fileId,
+          host: { type: "health_record", id: record.id },
+        });
+      },
+    );
+    dropBytes(context, gone);
     return { removed: true };
   });
 
@@ -465,6 +730,8 @@ interface ChangePayload {
   before: ChangeValue | null;
   after: ChangeValue;
   reason?: string;
+  /** The name of the report the family sent with the change. */
+  report?: string;
 }
 
 const isObject = (value: unknown): value is Record<string, unknown> =>
@@ -494,6 +761,7 @@ function changePayloadOf(value: unknown): ChangePayload {
     before: changeValueOf(payload.before),
     after: changeValueOf(payload.after) ?? { text: "", severity: null },
     ...(typeof payload.reason === "string" ? { reason: payload.reason } : {}),
+    ...(typeof payload.report === "string" ? { report: payload.report } : {}),
   };
 }
 
@@ -629,6 +897,10 @@ export const familyHealth = readProcedure
       FAMILY_HEALTH_KINDS.find(
         (kind) => kind === kinds.find((row) => row.id === kindId)?.meaning,
       ) ?? null;
+    const reportOf = await reportFiles(context, [
+      ...rows.map((row) => (row.reportShared ? row.fileId : null)),
+      ...changes.map((row) => row.fileId),
+    ]);
     const records = await Promise.all(
       rows.flatMap((row) => {
         const kind = meaningOf(row.kindId);
@@ -643,6 +915,18 @@ export const familyHealth = readProcedure
             version: row.version,
             kind,
             ...recordValueOf(held),
+            // The family learns a report exists, and opens it once shared.
+            report: row.fileId
+              ? row.reportShared
+                ? {
+                    shared: true as const,
+                    ...reportOf(
+                      row.fileId,
+                      isPayload(held) ? held.report_name : undefined,
+                    ),
+                  }
+                : { shared: false as const }
+              : null,
           })),
         ];
       }),
@@ -659,6 +943,7 @@ export const familyHealth = readProcedure
           before: payload.before,
           after: payload.after,
           reason: payload.reason ?? null,
+          report: row.fileId ? reportOf(row.fileId, payload.report) : null,
           state: stateOf(row.outcome),
           askedOn: row.receivedOn,
           dueOn: row.dueOn,
@@ -708,6 +993,8 @@ export const askHealthChange = writeProcedure
         let kindId: string | null = null;
         let recordId: string | null = null;
         let relationshipId: string | null = null;
+        const rowId = Bun.randomUUIDv7();
+        const report = input.target === "record" ? input.report : undefined;
         if (input.target === "record") {
           const kind = (await healthKinds(context)).find(
             (row) => row.meaning === input.kind,
@@ -755,17 +1042,33 @@ export const askHealthChange = writeProcedure
           before = { phone: contact.phone };
           after = { phone };
         }
-        if (before && sameValue(before, after))
+        if (before && sameValue(before, after) && !report)
           throw new ORPCError("BAD_REQUEST", {
             message: "health.change_unchanged",
           });
+        if (
+          report &&
+          (
+            await linkFiles(tx, {
+              tenantId: context.tenantId,
+              userId: context.actor.userId,
+              ids: [report.fileId],
+              purpose: "health_report",
+              host: { type: "health_change", id: rowId },
+            })
+          ).length !== 1
+        )
+          throw new ORPCError("CONFLICT", { message: "files.not_linkable" });
         const request = await logFamilyRequest(context, {
           studentId: input.studentId,
           details: null,
           topic: "health",
         });
-        const rowId = Bun.randomUUIDv7();
-        const payload: ChangePayload = { before, after };
+        const payload: ChangePayload = {
+          before,
+          after,
+          ...(report ? { report: safeFilename(report.name) } : {}),
+        };
         const sealed = await seal(
           context,
           (keyVersion) => changeCipher(context, rowId, keyVersion),
@@ -783,6 +1086,7 @@ export const askHealthChange = writeProcedure
           recordId,
           relationshipId,
           ...sealed,
+          fileId: report?.fileId ?? null,
         });
         if (!kept)
           throw new ORPCError("FORBIDDEN", { message: "health.not_permitted" });
@@ -835,6 +1139,10 @@ export const healthChanges = readProcedure
         ]);
         return { rows: queue, current: held.flat(), kinds: labels };
       },
+    );
+    const reportOf = await reportFiles(
+      context,
+      rows.map((row) => row.fileId),
     );
     const contacts = new Map(
       await Promise.all(
@@ -899,6 +1207,7 @@ export const healthChanges = readProcedure
           asked: payload.after,
           askedBefore: payload.before,
           reason: payload.reason ?? null,
+          report: row.fileId ? reportOf(row.fileId, payload.report) : null,
           state: stateOf(row.outcome),
           askedOn: row.receivedOn,
           dueOn: row.dueOn,
@@ -914,25 +1223,28 @@ const ANSWERED = {
   declined: "Declined from the medical summary changes.",
 };
 
+/** Applies a change to its record, answering the record it is now. */
 async function applyRecordChange(
   context: UnitContext,
   tx: UnitContext["tx"],
   row: HealthChangeRow,
   after: RecordValue,
   expectedVersion: number | undefined,
-) {
+): Promise<string> {
   const severity = after.severity ? { severity: after.severity } : {};
-  if (!row.recordId) {
+  let recordId = row.recordId;
+  if (!recordId) {
     if (!row.kindId) throw new Error("a record change carries its kind");
-    const recordId = Bun.randomUUIDv7();
+    const added = Bun.randomUUIDv7();
+    recordId = added;
     const sealed = await seal(
       context,
-      (keyVersion) => healthCipher(context, recordId, keyVersion),
+      (keyVersion) => healthCipher(context, added, keyVersion),
       { text: after.text, ...severity },
     );
     await insertHealthRecord(tx, {
       tenantId: context.tenantId,
-      id: recordId,
+      id: added,
       studentId: row.studentId,
       kindId: row.kindId,
       hasAlert: false,
@@ -958,6 +1270,7 @@ async function applyRecordChange(
       (keyVersion) => healthCipher(context, current.id, keyVersion),
       {
         ...(kept.action_plan ? { action_plan: kept.action_plan } : {}),
+        ...(kept.report_name ? { report_name: kept.report_name } : {}),
         text: after.text,
         ...severity,
       },
@@ -976,6 +1289,44 @@ async function applyRecordChange(
       throw new ORPCError("CONFLICT", { message: "conflict.version" });
   }
   await refreshMedicalAlert(tx, context.tenantId, row.studentId);
+  return recordId;
+}
+
+/**
+ * Makes the report a family sent with an accepted change the report of
+ * the record the change applied to, answering the key of the one replaced.
+ */
+async function keepChangeReport(
+  context: UnitContext,
+  tx: UnitContext["tx"],
+  input: {
+    row: HealthChangeRow;
+    payload: ChangePayload;
+    recordId: string;
+    shared: boolean;
+  },
+) {
+  const { row } = input;
+  const fileId = row.fileId;
+  const record = (
+    await healthRecordsOf(tx, context.tenantId, row.studentId)
+  ).find((entry) => entry.id === input.recordId);
+  if (!fileId || !record) return null;
+  return giveReport(context, tx, {
+    studentId: row.studentId,
+    record,
+    report: { fileId, name: input.payload.report ?? healthReportName(fileId) },
+    shared: input.shared,
+    place: async () => {
+      await rehostFiles(tx, {
+        tenantId: context.tenantId,
+        from: { type: "health_change", id: row.id },
+        to: { type: "health_record", id: record.id },
+        ids: [fileId],
+      });
+      return true;
+    },
+  });
 }
 
 async function applyContactChange(
@@ -1050,6 +1401,7 @@ export const decideHealthChange = writeProcedure
         });
         if (!row) throw new ORPCError("NOT_FOUND");
         const payload = await openChange(context, row);
+        let gone: string | null = null;
         if (input.decision === "declined") {
           const sealed = await seal(
             context,
@@ -1061,15 +1413,22 @@ export const decideHealthChange = writeProcedure
             id: row.id,
             ...sealed,
           });
-        } else if (row.target === "record" && "text" in payload.after)
-          await applyRecordChange(
+        } else if (row.target === "record" && "text" in payload.after) {
+          const recordId = await applyRecordChange(
             context,
             tx,
             row,
             payload.after,
             input.expectedVersion,
           );
-        else if (row.target === "contact" && "phone" in payload.after)
+          if (input.keepReport)
+            gone = await keepChangeReport(context, tx, {
+              row,
+              payload,
+              recordId,
+              shared: input.shareReport,
+            });
+        } else if (row.target === "contact" && "phone" in payload.after)
           await applyContactChange(context, row, payload.after.phone);
         else throw new Error("a health change's payload must match its target");
         const closed = await closeRequest(tx, {
@@ -1083,9 +1442,10 @@ export const decideHealthChange = writeProcedure
         });
         if (!closed)
           throw new ORPCError("CONFLICT", { message: "health.change_decided" });
-        return row;
+        return { ...row, gone };
       },
     );
+    dropBytes(context, change.gone);
     await audit(context, {
       action: `health_change.${input.decision === "accepted" ? "accept" : "decline"}`,
       objectType: "records_request",
@@ -1109,3 +1469,43 @@ export const decideHealthChange = writeProcedure
     });
     return { decision: input.decision };
   });
+
+/**
+ * A record's report opens for the health staff who reach its student, and
+ * for a guardian who reads the medical summary once the school shares it.
+ */
+registerHostReader("health_record", (context, recordId, file) =>
+  withPurpose(context.tx, "health", async (tx) => {
+    const record = await healthRecordOf(tx, context.tenantId, recordId);
+    if (!file || !record || record.fileId !== file.id) return false;
+    if (can(context, "health:read"))
+      return isVisibleStudent(tx, scopeOf(context), record.studentId);
+    if (!can(context, "children:read")) return false;
+    return (
+      await familyHealthRecordsOf(tx, {
+        tenantId: context.tenantId,
+        studentId: record.studentId,
+        viewerId: context.actor.userId,
+        today: context.today,
+        meanings: FAMILY_HEALTH_KINDS,
+      })
+    ).some(
+      (row) =>
+        row.id === recordId && row.fileId === file.id && row.reportShared,
+    );
+  }),
+);
+
+/** A report a family sent with a change opens for the health staff who answer it. */
+registerHostReader("health_change", (context, changeId, file) =>
+  withPurpose(context.tx, "health", async (tx) => {
+    if (!file || !can(context, "health:write")) return false;
+    const change = await healthChangeById(tx, {
+      tenantId: context.tenantId,
+      orgId: context.schoolId,
+      id: changeId,
+      ...reachOf(context),
+    });
+    return change?.fileId === file.id;
+  }),
+);
