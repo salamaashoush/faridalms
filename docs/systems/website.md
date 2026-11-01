@@ -103,6 +103,15 @@ enquiry form, quick links and embed.
   text, a choice of options one per line, a date or a number. Each answer
   is kept with the enquiry in the words the family saw, so editing the
   form later changes no enquiry. Enquiries land in the admissions inbox.
+- **Portal doors:** the portal's sign-in, registration and apply pages are
+  pages of the site of the `portal` kind, at `/sign-in`, `/register` and
+  `/apply` on the portal host, out of the menu. Each holds its door's
+  system section exactly once (Sign-in form, Registration form, Apply),
+  which the school words and lays out like any section and the platform
+  draws: the sign-in form, the family registration form with Turnstile,
+  and the application, which asks a stranger to register or sign in
+  first. Until the school publishes a door's page, the portal shows its
+  starter.
 - **No photographs yet:** where a picture belongs but none is chosen, the
   section draws artwork from the palette, seeded by the section so it never
   changes between visits. Heroes get a mesh gradient with grain; other slots
