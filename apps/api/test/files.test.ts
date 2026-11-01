@@ -674,7 +674,7 @@ describe("storage reports", () => {
     const { cell, directory, tenants } = seeded();
     const tenantId = tenants[0]?.tenantId ?? "";
     const { syncUrl, adminUrl } = testDirectory();
-    const sync = openDirectorySync(syncUrl);
+    const sync = openDirectorySync(syncUrl, "cell:eg-1");
     const admin = new SQL(adminUrl);
     try {
       await reportTenantUsage(cell, directory, sync, tenantId);

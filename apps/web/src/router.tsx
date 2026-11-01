@@ -8,6 +8,7 @@ import { DefaultCatchBoundary } from "./components/DefaultCatchBoundary";
 import { NotFound } from "./components/NotFound";
 import { createQueryClient } from "./queryClient";
 import { routeTree } from "./routeTree.gen";
+import { adoptHostView, hostView, sitePathIn, sitePathOut } from "./utils/host";
 import "./preview-locale";
 
 export function getRouter() {
@@ -26,10 +27,32 @@ export function getRouter() {
         isAuthenticated: false,
         workspace: null,
         school: null,
+        schoolFromHost: false,
         childMode: false,
       },
       queryClient,
     },
+    // A school's website host serves the website's pages from its root, so
+    // the router reads `/news` there as `/site/<school>/news` and writes
+    // the website's links back without the prefix. Nothing else matches.
+    rewrite: {
+      input: ({ url }) => {
+        const school = hostView().site;
+        if (!school) return undefined;
+        url.pathname = sitePathIn(url.pathname, school);
+        return url;
+      },
+      output: ({ url }) => {
+        const school = hostView().site;
+        if (!school) return undefined;
+        url.pathname = sitePathOut(url.pathname, school);
+        return url;
+      },
+    },
+    // The browser reads its address before anything else, so it needs the
+    // host's view first; hydration reads the address again once it has it.
+    dehydrate: () => ({ host: hostView() }),
+    hydrate: (dehydrated) => adoptHostView(dehydrated.host),
     defaultPreload: "intent",
     scrollRestoration: true,
     defaultErrorComponent: DefaultCatchBoundary,

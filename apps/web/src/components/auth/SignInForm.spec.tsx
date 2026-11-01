@@ -38,6 +38,14 @@ describe("SignForm", () => {
     ).toBeInTheDocument();
   });
 
+  it("asks for the school only where the host does not name one", () => {
+    const { unmount } = render(<SignInForm school="northwind" />);
+    expect(screen.getByLabelText(m.authSchoolCode())).toHaveValue("northwind");
+    unmount();
+    render(<SignInForm school="northwind" schoolFromHost />);
+    expect(screen.queryByLabelText(m.authSchoolCode())).toBeNull();
+  });
+
   it("shows validation errors for empty form submission", async () => {
     render(<SignInForm />);
 

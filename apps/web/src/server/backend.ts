@@ -10,6 +10,8 @@ import {
 import { env } from "~/env";
 import { getLocale } from "~/i18n/runtime";
 
+import { currentPlace } from "./place";
+
 /** The school chosen at sign-in, for hosts that do not name one. */
 export const SCHOOL_COOKIE = "farida-school";
 
@@ -28,16 +30,21 @@ export function sessionCookie(school: string) {
   return `${isSecureRequest() ? "__Host-" : ""}s-${school}`;
 }
 
+/** The school this request's host names: a school's portal, or nothing. */
+export function hostSchool(): string | null {
+  const place = currentPlace();
+  return place.kind === "portal" ? place.slug : null;
+}
+
 /**
- * The school a request is for: the host when it is `<school>.<APP_HOST>`,
- * otherwise the school the browser signed in to.
+ * The school a request is for: the one its portal host names, otherwise,
+ * on the bare domain, the school the browser signed in to. A school's
+ * website host has none: nothing there reads a session.
  */
 export function currentSchool(): string | null {
-  const host = getRequestHeader("host")?.split(":")[0]?.toLowerCase() ?? "";
-  if (env.APP_HOST && host.endsWith(`.${env.APP_HOST}`)) {
-    const slug = host.slice(0, -env.APP_HOST.length - 1);
-    if (SLUG.test(slug)) return slug;
-  }
+  const place = currentPlace();
+  if (place.kind === "portal") return place.slug;
+  if (place.kind === "site") return null;
   const chosen = getCookie(SCHOOL_COOKIE);
   return chosen && SLUG.test(chosen) ? chosen : null;
 }

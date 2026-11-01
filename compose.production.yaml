@@ -36,7 +36,11 @@ services:
       CELL_WORKER_URL: ${CELL_WORKER_URL:?Set the worker role URL}
       CELL_RETENTION_URL: ${CELL_RETENTION_URL:?Set the retention role URL}
       DIRECTORY_URL: ${DIRECTORY_URL:?Set the directory_reader URL}
+      # Reports storage and binds and checks schools' own hosts.
       DIRECTORY_SYNC_URL: ${DIRECTORY_SYNC_URL:-}
+      PORTAL_DOMAIN: ${PORTAL_DOMAIN:?Set the portal domain, for example faridalms.com}
+      SITES_DOMAIN: ${SITES_DOMAIN:?Set the sites domain, for example faridalms.site}
+      EDGE_IPV4: ${EDGE_IPV4:-}
       FILES_ORIGIN: ${FILES_ORIGIN:?Set the files host origin, its own domain}
       MEDIA_ORIGIN: ${MEDIA_ORIGIN:-}
       FILE_STORAGE: ${FILE_STORAGE:-disk}
@@ -69,7 +73,8 @@ services:
     restart: unless-stopped
     environment:
       BACKEND_URL: http://api:3001
-      APP_HOST: ${APP_HOST:?Set the cell application host}
+      PORTAL_DOMAIN: ${PORTAL_DOMAIN:?Set the portal domain, for example faridalms.com}
+      SITES_DOMAIN: ${SITES_DOMAIN:?Set the sites domain, for example faridalms.site}
       COLLAB_URL: ${COLLAB_URL:-}
       PLAY_URL: ${PLAY_URL:-}
       TRUSTED_PROXY_HOPS: ${TRUSTED_PROXY_HOPS:-1}
@@ -113,6 +118,9 @@ services:
       CELL_SECRET: *cell-secret
       CELL_APP_URL: ${CELL_APP_URL:?Set the app role URL}
       DIRECTORY_URL: ${DIRECTORY_URL:?Set the directory_reader URL}
+      # The first administrator's link points at the school's portal.
+      PORTAL_DOMAIN: ${PORTAL_DOMAIN:?Set the portal domain, for example faridalms.com}
+      SITES_DOMAIN: ${SITES_DOMAIN:?Set the sites domain, for example faridalms.site}
       CELL_PROVISION_URL: ${CELL_PROVISION_URL:-}
       PROVISION_SECRET: *provision-secret
       PROVISION_PORT: 3005
@@ -142,6 +150,9 @@ services:
       OPS_SESSION_SECRET: ${OPS_SESSION_SECRET:-}
       PROVISION_URL: http://provisioner:3005
       PROVISION_SECRET: *provision-secret
+      PORTAL_DOMAIN: ${PORTAL_DOMAIN:-}
+      SITES_DOMAIN: ${SITES_DOMAIN:-}
+      EDGE_IPV4: ${EDGE_IPV4:-}
     networks:
       - default
       - provision

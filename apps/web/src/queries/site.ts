@@ -10,11 +10,17 @@ import {
   getSiteOverview,
   getSitePage,
   getSiteEnquiries,
+  getSiteHosts,
 } from "~/server/site";
 
 export const siteOverviewQuery = queryOptions({
   queryKey: ["site", "overview"],
   queryFn: () => getSiteOverview(),
+});
+
+export const siteHostsQuery = queryOptions({
+  queryKey: ["site", "hosts"],
+  queryFn: () => getSiteHosts(),
 });
 
 export const sitePageQuery = (id: string) =>

@@ -9,6 +9,13 @@ import { drizzle } from "drizzle-orm/bun-sql/postgres";
 import type { DirectoryTenantState } from "./schema";
 
 import {
+  addHost,
+  makeCanonical,
+  removeHost,
+  requestCheck,
+  schoolHosts,
+} from "./hosts";
+import {
   cells,
   changes,
   examSeries,
@@ -430,6 +437,32 @@ export function openDirectoryAdmin(url: string) {
         });
         return true;
       }),
+    /** A school's own hosts, as the console lists them. */
+    hosts: (schoolId: string) => schoolHosts(db, schoolId),
+    addHost: (input: {
+      schoolId: string;
+      hostname: string;
+      role: "site" | "portal";
+      challenge: string;
+      operatorId: string;
+      reason: string;
+    }) => addHost(db, { ...input, actor: `operator:${input.operatorId}` }),
+    removeHost: (input: {
+      schoolId: string;
+      hostname: string;
+      operatorId: string;
+      reason: string;
+    }) => removeHost(db, { ...input, actor: `operator:${input.operatorId}` }),
+    makeCanonical: (input: {
+      schoolId: string;
+      hostname: string;
+      operatorId: string;
+      reason: string;
+    }) =>
+      makeCanonical(db, { ...input, actor: `operator:${input.operatorId}` }),
+    /** Asks the cells' worker to check a host on its next pass. */
+    requestCheck: (input: { schoolId: string; hostname: string }) =>
+      requestCheck(db, input),
     /** Records that a school's administrator was sent a new link. */
     recordInvite: async (input: { schoolId: string; operatorId: string }) => {
       await db.insert(changes).values({

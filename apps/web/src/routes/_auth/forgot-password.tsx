@@ -8,5 +8,10 @@ export const Route = createFileRoute("/_auth/forgot-password")({
 
 function ForgotPasswordPage() {
   const { auth } = Route.useRouteContext();
-  return <ForgotPasswordForm school={auth.school} />;
+  return (
+    <ForgotPasswordForm
+      school={auth.school}
+      schoolFromHost={auth.schoolFromHost}
+    />
+  );
 }

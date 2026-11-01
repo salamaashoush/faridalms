@@ -47,6 +47,7 @@ import {
   requestResetSchema,
   RESET_MINUTES,
 } from "@faridalms/domain/first-sign-in";
+import { hostOf, placeOf } from "@faridalms/domain/hosts";
 import {
   badgeSignInSchema,
   childSessionSchema,
@@ -557,7 +558,7 @@ export const requestPasswordReset = schoolProcedure
               locale: reach.locale,
               school,
               loginName: input.loginName,
-              link: welcomeLink(context.school, secret),
+              link: welcomeLink(context.school, context.domains, secret),
               minutes: RESET_MINUTES,
             }),
           })
@@ -827,14 +828,32 @@ export const childSession = writeProcedure
     };
   });
 
-/** The school whose own verified domain this is, for its public website. */
-export const hostSchool = publicProcedure
-  .input(v.object({ host: v.pipe(v.string(), v.maxLength(255)) }))
+/**
+ * What a host serves, for the web to route a request before anything else:
+ * the school, whether it is the school's website or its portal, and the
+ * school's own canonical host for that role when the request should be sent
+ * there instead. Null for a host that serves nothing, which the web answers
+ * with a 404 rather than a guess.
+ */
+export const resolveHost = publicProcedure
+  .input(v.object({ host: v.pipe(v.string(), v.maxLength(260)) }))
   .handler(async ({ input, context }) => {
-    const hostname = input.host.split(":")[0]?.toLowerCase() ?? "";
+    const hostname = hostOf(input.host);
     if (!hostname) return null;
-    const school = await context.directory.byHost(hostname);
-    return school
-      ? { slug: school.slug, nameEn: school.nameEn, nameAr: school.nameAr }
-      : null;
+    const place = placeOf(hostname, context.domains);
+    const routed =
+      place.kind === "platform"
+        ? await context.directory
+            .bySlug(place.slug)
+            .then((school) => (school ? { school, role: place.role } : null))
+        : place.kind === "custom"
+          ? await context.directory.byHost(hostname)
+          : null;
+    if (!routed) return null;
+    const canonical = routed.school.hosts[routed.role];
+    return {
+      slug: routed.school.slug,
+      role: routed.role,
+      redirect: canonical && canonical !== hostname ? canonical : null,
+    };
   });

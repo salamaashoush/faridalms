@@ -44,6 +44,7 @@ import { createContext, useContext, useRef, useState } from "react";
 
 import { ContentView } from "~/components/content/ContentView";
 import { numberLocale } from "~/utils/digits";
+import { sitePath } from "~/utils/host";
 
 import { SiteArt } from "./art";
 import { focusStyle, overMediaStyle, ratioStyle, schemeStyle } from "./theme";
@@ -107,12 +108,14 @@ export function siteDate(iso: string, locale: SiteLocale): string {
   }).format(new Date(iso.length === 10 ? `${iso}T00:00:00Z` : iso));
 }
 
-/** A link a page author wrote: a path inside the site lands under the school's address. */
+/**
+ * A link a page author wrote: a path inside the site lands at the school's
+ * website, at the root of its own host or under `/site/<school>` elsewhere.
+ */
 export function siteHref(school: string, href: string, query = ""): string {
-  if (!href.startsWith("/")) return href;
+  if (!href.startsWith("/") || href.startsWith("//")) return href;
   const [path = "", hash] = href.split("#");
-  const base = `/site/${school}${path === "/" ? "" : path}`;
-  return `${base || "/"}${query}${hash === undefined ? "" : `#${hash}`}`;
+  return `${sitePath(school, path || "/")}${query}${hash === undefined ? "" : `#${hash}`}`;
 }
 
 const ICON: Record<Exclude<IconId, "none">, LucideIcon> = {

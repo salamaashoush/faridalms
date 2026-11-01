@@ -88,9 +88,11 @@ public reads, so later edits stay private until the next publish. A post's
 and needs no worker because public queries compare it against now. Site media
 is a file purpose of its own, served without a session through
 `/v1/sites/{slug}/files/{id}/content` only while the published content or the
-logo references the file. A school with a `public_domain` on the control row
-lands visitors on its site from the web's root; the site itself always lives
-under `/site/{slug}` so the same page has one address behind every host.
+logo references the file. The website is served at the root of its own host
+(`<slug>.<sites domain>`, or a host the school bound and verified), which
+reads no session, sets no cookie and serves nothing but the website; the
+router reads `/news` there as `/site/{slug}/news`, and the same pages stay at
+`/site/{slug}` on the portal.
 
 E-learning modules are an optional area a school switches on through a
 `school_features` row; every learning procedure answers not found while the

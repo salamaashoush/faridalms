@@ -10,6 +10,7 @@ import { handleCalendarFeed } from "./calendar/feed";
 import { handleWorkExport } from "./files/exports";
 import { handlePublicFileRequest } from "./files/public";
 import { handleFileRequest } from "./files/routes";
+import { askLimiter, handleEdgeAsk } from "./hosts/ask";
 import { handleLtiRequest } from "./lti/routes";
 import { handleMediaRequest } from "./media/streams";
 import { router } from "./router";
@@ -59,6 +60,8 @@ export function createApp(dependencies: ApiDependencies) {
     },
   });
 
+  const askAllowed = askLimiter();
+
   return async (request: Request): Promise<Response> => {
     const requestId = crypto.randomUUID();
     const started = performance.now();
@@ -82,6 +85,7 @@ export function createApp(dependencies: ApiDependencies) {
           requestId,
         };
         const file =
+          (await handleEdgeAsk(request, url, context, askAllowed)) ??
           (await handlePublicFileRequest(request, url, context)) ??
           (await handleCalendarFeed(request, url, context)) ??
           (await handleWorkExport(request, url, context)) ??

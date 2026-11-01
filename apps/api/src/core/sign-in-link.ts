@@ -1,5 +1,6 @@
 import type { CellTransaction } from "@faridalms/database/context";
 import type { DirectorySchool } from "@faridalms/database/directory/client";
+import type { PlatformDomains } from "@faridalms/domain/hosts";
 
 import { signInOf, takenLoginNames } from "@faridalms/database/stores/accounts";
 import {
@@ -29,7 +30,8 @@ export async function emailSignInLink(
   input: {
     tenantId: string;
     userId: string;
-    school: Pick<DirectorySchool, "appHost" | "slug" | "nameEn" | "nameAr">;
+    school: Pick<DirectorySchool, "hosts" | "slug" | "nameEn" | "nameAr">;
+    domains: PlatformDomains;
     /**
      * The sign-in name to keep for someone who has no password yet; by
      * default the one already kept for them, or else their email address.
@@ -103,7 +105,7 @@ export async function emailSignInLink(
       invitee.givenNameAr ??
       loginName,
     loginName,
-    link: welcomeLink(input.school, secret),
+    link: welcomeLink(input.school, input.domains, secret),
     days: INVITE_DAYS,
   });
   // A gateway may refuse by throwing before it returns a promise.

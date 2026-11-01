@@ -17,6 +17,8 @@ beforeEach(() => {
   vi.stubEnv("OPS_SESSION_SECRET", randomBytes(32).toString("base64"));
   vi.stubEnv("PROVISION_URL", "http://provisioner:3005");
   vi.stubEnv("PROVISION_SECRET", randomBytes(32).toString("base64"));
+  vi.stubEnv("PORTAL_DOMAIN", "example.com");
+  vi.stubEnv("SITES_DOMAIN", "example.net");
 });
 afterEach(() => {
   vi.unstubAllEnvs();

@@ -37,7 +37,14 @@ const DEMO_ACCOUNTS = [
   },
 ];
 
-export function SignInForm({ school }: { school?: string | null }) {
+export function SignInForm({
+  school,
+  schoolFromHost = false,
+}: {
+  school?: string | null;
+  /** The host names the school, so nobody is asked which one. */
+  schoolFromHost?: boolean;
+}) {
   const hydrated = useHydrated();
   const router = useRouter();
   const queryClient = useQueryClient();
@@ -80,24 +87,26 @@ export function SignInForm({ school }: { school?: string | null }) {
     >
       <FieldGroup>
         <form.Field name="school">
-          {(field) => (
-            <Field>
-              <FieldLabel htmlFor="school">{m.authSchoolCode()}</FieldLabel>
-              <Input
-                disabled={!hydrated}
-                id="school"
-                name="school"
-                autoComplete="organization"
-                value={field.state.value}
-                onChange={(event) => field.handleChange(event.target.value)}
-                onBlur={field.handleBlur}
-                aria-describedby="school-hint"
-              />
-              <p id="school-hint" className="text-xs text-muted-foreground">
-                {m.authSchoolHint()}
-              </p>
-            </Field>
-          )}
+          {(field) =>
+            schoolFromHost ? null : (
+              <Field>
+                <FieldLabel htmlFor="school">{m.authSchoolCode()}</FieldLabel>
+                <Input
+                  disabled={!hydrated}
+                  id="school"
+                  name="school"
+                  autoComplete="organization"
+                  value={field.state.value}
+                  onChange={(event) => field.handleChange(event.target.value)}
+                  onBlur={field.handleBlur}
+                  aria-describedby="school-hint"
+                />
+                <p id="school-hint" className="text-xs text-muted-foreground">
+                  {m.authSchoolHint()}
+                </p>
+              </Field>
+            )
+          }
         </form.Field>
         <form.Field name="loginName">
           {(field) => {

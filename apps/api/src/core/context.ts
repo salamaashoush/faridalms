@@ -2,13 +2,16 @@ import type { Cell, CellTransaction } from "@faridalms/database/context";
 import type {
   Directory,
   DirectorySchool,
+  DirectorySync,
 } from "@faridalms/database/directory/client";
 import type { Capability, Profile } from "@faridalms/domain/capabilities";
+import type { PlatformDomains } from "@faridalms/domain/hosts";
 import type { SessionContext, Workspace } from "@faridalms/domain/workspace";
 
 import type { CodeRunner } from "../coding/run";
 import type { FileScanner } from "../files/scan";
 import type { FileStore } from "../files/store";
+import type { HostChecks } from "../hosts/checks";
 import type { Provider } from "../notifications/providers";
 import type { KeyRing } from "./keys";
 
@@ -19,6 +22,15 @@ export interface ApiDependencies {
   keys: KeyRing;
   cellId: string;
   cellSecret: Uint8Array<ArrayBuffer>;
+  /** The platform's names for schools' portals and websites. */
+  domains: PlatformDomains;
+  /** The edge's public IPv4, which a school's own apex points at; null where unset. */
+  edgeAddress: string | null;
+  /**
+   * The cell's write access to its schools' own hosts and the worker that
+   * checks them; null without the directory_sync login.
+   */
+  hosts: { registry: DirectorySync["hosts"]; checks: HostChecks } | null;
   /** Proxies in front of the API that append to `X-Forwarded-For`. */
   trustedProxyHops: number;
   files: FileStore;

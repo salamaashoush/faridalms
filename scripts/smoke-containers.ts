@@ -19,6 +19,8 @@ const API_ENV = [
   "CELL_ID",
   "CELL_KEK",
   "CELL_SECRET",
+  "PORTAL_DOMAIN",
+  "SITES_DOMAIN",
 ] as const;
 for (const name of [
   "CELL_APP_URL",
@@ -26,6 +28,8 @@ for (const name of [
   "CELL_ID",
   "CELL_KEK",
   "CELL_SECRET",
+  "PORTAL_DOMAIN",
+  "SITES_DOMAIN",
 ])
   if (!process.env[name]) throw new Error(`${name} is not set`);
 const apiEnv = API_ENV.flatMap((name) =>
@@ -102,7 +106,7 @@ try {
   );
 
   const web = (
-    await $`docker run -d --network host -e BACKEND_URL=http://127.0.0.1:${API_PORT} -e PORT=${WEB_PORT} -e SESSION_SECRET=${secret} faridalms-web:${tag}`.text()
+    await $`docker run -d --network host -e BACKEND_URL=http://127.0.0.1:${API_PORT} -e PORT=${WEB_PORT} -e SESSION_SECRET=${secret} -e PORTAL_DOMAIN=${process.env.PORTAL_DOMAIN ?? ""} -e SITES_DOMAIN=${process.env.SITES_DOMAIN ?? ""} faridalms-web:${tag}`.text()
   ).trim();
   started.push(web);
   const webHealth = await waitFor(`http://127.0.0.1:${WEB_PORT}/api/health`);

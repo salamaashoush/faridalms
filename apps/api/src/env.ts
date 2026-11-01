@@ -1,3 +1,4 @@
+import { isHostname } from "@faridalms/domain/hosts";
 import * as v from "valibot";
 
 const positiveInteger = v.pipe(
@@ -6,6 +7,17 @@ const positiveInteger = v.pipe(
   v.integer(),
   v.minValue(1),
 );
+// A registrable domain the platform names schools under, such as faridalms.com.
+const domain = v.pipe(
+  v.string(),
+  v.trim(),
+  v.toLowerCase(),
+  v.check(
+    (value) => value === "localhost" || isHostname(value),
+    "must be a domain name",
+  ),
+);
+
 const bytes = (length: number) =>
   v.pipe(
     v.string(),
@@ -27,6 +39,17 @@ export const env = v.parse(
       // Runs approved erasures: the only role that may null a person's data.
       CELL_RETENTION_URL: v.optional(v.pipe(v.string(), v.url())),
       DIRECTORY_URL: v.pipe(v.string(), v.url()),
+      // `<slug>.<PORTAL_DOMAIN>` is a school's portal and `<slug>.<SITES_DOMAIN>`
+      // its website, unless it binds its own; links in email and exports are
+      // built from them, never from a request's Host header.
+      PORTAL_DOMAIN: domain,
+      SITES_DOMAIN: domain,
+      // The address a school's own apex domain points its A record at: the
+      // edge's public IPv4. Unset or empty, as compose passes an unset one,
+      // only subdomains (by CNAME) can be bound.
+      EDGE_IPV4: v.optional(
+        v.union([v.literal(""), v.pipe(v.string(), v.ipv4())]),
+      ),
       CELL_ID: v.pipe(v.string(), v.regex(/^[a-z]{2}-[0-9]{1,2}$/)),
       // Wraps each tenant's data keys; a deployed cell wraps through its KMS.
       CELL_KEK: bytes(32),
@@ -59,7 +82,8 @@ export const env = v.parse(
       PUBLIC_MEDIA_BUCKET: v.optional(v.pipe(v.string(), v.minLength(1))),
       MAX_UPLOAD_BYTES: v.optional(positiveInteger, String(25 * 1024 * 1024)),
       FILE_SWEEP_MS: v.optional(positiveInteger, String(60 * 60 * 1000)),
-      // The directory_sync login, for reporting each school's storage; without it nothing is reported.
+      // The directory_sync login, for reporting each school's storage and for
+      // binding and checking schools' own hosts; without it neither happens.
       DIRECTORY_SYNC_URL: v.optional(v.pipe(v.string(), v.url())),
       USAGE_REPORT_MS: v.optional(positiveInteger, String(5 * 60 * 1000)),
       // Python for marking code exercises, as apps/api/scripts/python-wasi.ts
@@ -100,6 +124,10 @@ export const env = v.parse(
         (value.FILE_BUCKET !== undefined &&
           value.PUBLIC_MEDIA_BUCKET !== undefined),
       "FILE_STORAGE=s3 needs FILE_BUCKET and PUBLIC_MEDIA_BUCKET",
+    ),
+    v.check(
+      (value) => value.PORTAL_DOMAIN !== value.SITES_DOMAIN,
+      "PORTAL_DOMAIN and SITES_DOMAIN must differ",
     ),
     v.check(
       (value) =>

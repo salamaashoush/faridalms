@@ -17,6 +17,7 @@ import { useState } from "react";
 import { toast } from "sonner";
 
 import { ChangeList } from "../components/ChangeList";
+import { Hosts } from "../components/Hosts";
 import { Usage } from "../components/Usage";
 import { formatBytes, formatWhen, MODULE_NAMES } from "../format";
 import { getSchool, resendInvite, savePlan } from "../server/directory";
@@ -80,7 +81,7 @@ function asBytes(field: { value: string; unit: Unit }): number | null {
 }
 
 function SchoolPage() {
-  const { school, changes } = Route.useLoaderData();
+  const { school, changes, hosts, platform } = Route.useLoaderData();
   const router = useRouter();
   const save = useServerFn(savePlan);
   const plan: SchoolPlan | null = school.plan;
@@ -271,6 +272,7 @@ function SchoolPage() {
           {saving ? "Saving…" : "Save plan"}
         </Button>
       </form>
+      <Hosts schoolId={school.id} platform={platform} hosts={hosts} />
       {school.tenantState === "active" ? (
         <AdministratorLink schoolId={school.id} />
       ) : null}

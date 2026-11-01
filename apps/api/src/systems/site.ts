@@ -909,7 +909,7 @@ export const publicSite = publicProcedure
     withPublicSite(
       context,
       input.school,
-      async ({ tx, tenantId, schoolId, now }) => {
+      async ({ tx, tenantId, schoolId, portalHost, now }) => {
         const settings = await liveSettings(tx, tenantId, schoolId);
         const locale = resolveLocale(settings, input.locale);
         const [school, menu, categories, logo] = await Promise.all([
@@ -940,6 +940,7 @@ export const publicSite = publicProcedure
           primaryLocale: settings.primaryLocale,
           locales: localesOf(settings),
           digits: school.digits,
+          portalHost,
           name: (locale === "ar" ? school.nameAr : null) || school.nameEn,
           tagline:
             (locale === "ar" ? settings.taglineAr : settings.taglineEn) ||

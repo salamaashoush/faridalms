@@ -11,6 +11,7 @@ import { createApp } from "./app";
 import { startProgramReruns } from "./coding/rerun";
 import { createJavaScriptRunner, createPythonRunner } from "./coding/run";
 import { createKeyRing } from "./core/keys";
+import { startPartitionUpkeep } from "./core/partitions";
 import { startQuizClock } from "./core/quiz-clock";
 import { env } from "./env";
 import { createFilesHost, linkKey } from "./files/links";
@@ -19,6 +20,7 @@ import { createScanner } from "./files/scan";
 import { DiskFileStore, PUBLIC_KEY, S3FileStore } from "./files/store";
 import { createStudio } from "./files/studio";
 import { startFileUpkeep } from "./files/upkeep";
+import { createHostChecks } from "./hosts/checks";
 import { streamLinkKey } from "./media/streams";
 import { createProvider } from "./notifications/providers";
 import { startDelivery } from "./notifications/scheduler";
@@ -34,6 +36,22 @@ const cell = openCell(
   env.CELL_POOL_SIZE,
 );
 const directory = openDirectory(env.DIRECTORY_URL);
+const domains = { portal: env.PORTAL_DOMAIN, sites: env.SITES_DOMAIN };
+const edgeAddress = env.EDGE_IPV4 || null;
+const directorySync = env.DIRECTORY_SYNC_URL
+  ? openDirectorySync(env.DIRECTORY_SYNC_URL, `cell:${env.CELL_ID}`)
+  : null;
+const hosts = directorySync
+  ? {
+      registry: directorySync.hosts,
+      checks: createHostChecks({
+        registry: directorySync.hosts,
+        directory,
+        domains,
+        edgeAddress,
+      }),
+    }
+  : null;
 const kek = localKek(
   new Uint8Array(Buffer.from(env.CELL_KEK, "base64")),
   `local:${env.CELL_ID}`,
@@ -110,6 +128,9 @@ const server = Bun.serve({
     keys: createKeyRing(kek, env.CELL_ID),
     cellId: env.CELL_ID,
     cellSecret,
+    domains,
+    edgeAddress,
+    hosts,
     trustedProxyHops: env.TRUSTED_PROXY_HOPS,
     ...stores,
     filesOrigin,
@@ -145,6 +166,7 @@ const provisionServer =
           directory,
           kek,
           cellId: env.CELL_ID,
+          domains,
           mail: gateways.email,
           secret: new Uint8Array(Buffer.from(env.PROVISION_SECRET, "base64")),
         }),
@@ -166,9 +188,6 @@ const stopDelivery =
       })
     : null;
 
-const directorySync = env.DIRECTORY_SYNC_URL
-  ? openDirectorySync(env.DIRECTORY_SYNC_URL)
-  : null;
 // Sweeps and reports write as the worker, so they run only where it can log in.
 const stopUpkeep = env.CELL_WORKER_URL
   ? startFileUpkeep({
@@ -183,6 +202,8 @@ const stopUpkeep = env.CELL_WORKER_URL
   : null;
 
 // A timed quiz left open when its time ran out is handed in by the worker.
+const stopPartitions = env.CELL_WORKER_URL ? startPartitionUpkeep(cell) : null;
+
 const stopQuizClock = env.CELL_WORKER_URL
   ? startQuizClock({
       cell,
@@ -203,6 +224,10 @@ const stopProgramReruns = env.CELL_WORKER_URL
     })
   : null;
 
+// Schools' own hosts are checked when due: on request, then hourly. Every
+// replica may run the pass; a host is claimed by one before it is checked.
+const stopHostChecks = hosts?.checks.start(30_000) ?? null;
+
 let stopping = false;
 async function shutdown() {
   if (stopping) return;
@@ -213,7 +238,9 @@ async function shutdown() {
   await stopDelivery?.();
   await stopUpkeep?.();
   await stopQuizClock?.();
+  await stopPartitions?.();
   await stopProgramReruns?.();
+  await stopHostChecks?.();
   await directorySync?.close();
   await cell.close();
   await owner?.close();

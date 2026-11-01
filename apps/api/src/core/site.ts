@@ -12,10 +12,14 @@ import { ORPCError } from "@orpc/server";
 
 import type { RequestContext, UnitContext } from "./context";
 
+import { portalHost } from "./portal";
+
 export interface PublicUnit {
   tx: CellTransaction;
   tenantId: string;
   schoolId: string;
+  /** Where the school's portal answers, for the website's way to sign in. */
+  portalHost: string;
   now: Date;
 }
 
@@ -41,6 +45,7 @@ export async function withPublicSite<T>(
         tx,
         tenantId: school.tenantId,
         schoolId: school.schoolId,
+        portalHost: portalHost(school, context.domains),
         now: new Date(),
       }),
   );

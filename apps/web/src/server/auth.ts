@@ -23,6 +23,7 @@ import {
   backend,
   currentSchool,
   guardianCookie,
+  hostSchool,
   isSecureRequest,
   SCHOOL_COOKIE,
   sessionCookie,
@@ -33,6 +34,8 @@ export interface AuthState {
   isAuthenticated: boolean;
   workspace: Workspace | null;
   school: string | null;
+  /** The host names the school, so nobody is asked which one. */
+  schoolFromHost: boolean;
   /** A guardian handed this device to a young child and waits to return. */
   childMode: boolean;
 }
@@ -41,6 +44,7 @@ const signedOut = (school: string | null): AuthState => ({
   isAuthenticated: false,
   workspace: null,
   school,
+  schoolFromHost: hostSchool() !== null,
   childMode: false,
 });
 
@@ -98,6 +102,7 @@ export const getAuthState = createServerFn({ method: "GET" }).handler(
         isAuthenticated: true,
         workspace: user.workspace,
         school,
+        schoolFromHost: hostSchool() !== null,
         childMode: parked(school) !== null,
       };
     } catch (error) {
@@ -115,7 +120,9 @@ export const login = createServerFn({ method: "POST" })
     v.parse(loginSchema, input),
   )
   .handler(async ({ data }): Promise<AuthState> => {
-    const school = currentSchool() ?? data.school;
+    // The host's school when it names one; on the bare domain, the school
+    // the person typed, which may not be the one they signed in to last.
+    const school = hostSchool() ?? data.school;
     const session = await backend(school).identity.signIn({
       loginName: data.loginName,
       password: data.password,
@@ -128,6 +135,7 @@ export const login = createServerFn({ method: "POST" })
       isAuthenticated: true,
       workspace: session.workspace,
       school,
+      schoolFromHost: hostSchool() !== null,
       childMode: false,
     };
   });
@@ -142,23 +150,25 @@ export const badgeLogin = createServerFn({ method: "POST" })
     v.parse(badgeLoginSchema, input),
   )
   .handler(async ({ data }): Promise<AuthState> => {
-    const api = backend(data.school);
+    const school = hostSchool() ?? data.school;
+    const api = backend(school);
     const session = await api.identity.badgeSignIn({ secret: data.secret });
-    if (getCookie(sessionCookie(data.school))) {
+    if (getCookie(sessionCookie(school))) {
       try {
         await api.identity.signOut();
       } catch (error) {
         if (!isUnauthorized(error)) throw error;
       }
     }
-    await dropGuardian(data.school);
+    await dropGuardian(school);
     const options = cookieOptions(session.expiresAt);
-    setCookie(sessionCookie(data.school), session.token, options);
-    setCookie(SCHOOL_COOKIE, data.school, options);
+    setCookie(sessionCookie(school), session.token, options);
+    setCookie(SCHOOL_COOKIE, school, options);
     return {
       isAuthenticated: true,
       workspace: session.workspace,
-      school: data.school,
+      school,
+      schoolFromHost: hostSchool() !== null,
       childMode: false,
     };
   });
@@ -169,7 +179,9 @@ export const readInvite = createServerFn({ method: "POST" })
     v.parse(inviteLinkSchema, input),
   )
   .handler(({ data }) =>
-    backend(data.school).identity.invite({ secret: data.secret }),
+    backend(hostSchool() ?? data.school).identity.invite({
+      secret: data.secret,
+    }),
   );
 
 export const acceptInvite = createServerFn({ method: "POST" })
@@ -177,7 +189,7 @@ export const acceptInvite = createServerFn({ method: "POST" })
     v.parse(acceptInviteLinkSchema, input),
   )
   .handler(({ data }) =>
-    backend(data.school).identity.acceptInvite({
+    backend(hostSchool() ?? data.school).identity.acceptInvite({
       secret: data.secret,
       password: data.password,
     }),
@@ -189,7 +201,7 @@ export const requestPasswordReset = createServerFn({ method: "POST" })
     v.parse(forgotPasswordSchema, input),
   )
   .handler(({ data }) =>
-    backend(currentSchool() ?? data.school).identity.requestPasswordReset({
+    backend(hostSchool() ?? data.school).identity.requestPasswordReset({
       loginName: data.loginName,
     }),
   );
@@ -242,6 +254,7 @@ export const startChildMode = createServerFn({ method: "POST" })
       isAuthenticated: true,
       workspace: session.workspace,
       school,
+      schoolFromHost: hostSchool() !== null,
       childMode: true,
     };
   });
@@ -269,6 +282,7 @@ export const endChildMode = createServerFn({ method: "POST" }).handler(
         isAuthenticated: true,
         workspace: user.workspace,
         school,
+        schoolFromHost: hostSchool() !== null,
         childMode: false,
       };
     } catch (error) {

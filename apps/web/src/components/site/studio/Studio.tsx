@@ -405,6 +405,8 @@ export function SiteStudio({
         }
       : null,
     currentHref: existing?.isHome ? "/" : `/pages/${page.slug}`,
+    // The builder shows the link without following it.
+    signInHref: "/sign-in",
   };
   const context: RenderContext = {
     school: user.school.slug,

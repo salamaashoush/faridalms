@@ -285,12 +285,25 @@ create table schools (
 );
 create index schools_tenant_idx on schools (tenant_id);
 
-create table hosts (                                              -- a school's own domain, public website only
+create table hosts (                                              -- a school's own hostname, for its website or portal
   hostname text primary key check (hostname = lower(hostname) and char_length(hostname) between 3 and 253),
   school_id uuid not null references schools (id),
+  role text not null check (role in ('site', 'portal')),
+  canonical boolean not null default false,                       -- what links and redirects use, once active
+  challenge text not null check (challenge ~ '^[A-Za-z0-9_-]{32,64}$'),  -- TXT _farida-challenge.<hostname>
+  state text not null default 'pending'
+    check (state in ('pending', 'verified', 'active', 'failing', 'removed')),
+  state_changed_at timestamptz not null default statement_timestamp(),
   verified_at timestamptz,
-  created_at timestamptz not null default statement_timestamp()
+  checked_at timestamptz,                                         -- null: a check is due now
+  last_error text check (char_length(last_error) between 1 and 200),
+  failures integer not null default 0 check (failures >= 0),
+  created_at timestamptz not null default statement_timestamp(),
+  check (not canonical or state <> 'removed')
 );
+create unique index hosts_canonical_key on hosts (school_id, role) where canonical;
+create index hosts_school_idx on hosts (school_id);
+create index hosts_due_idx on hosts (checked_at) where state <> 'removed';
 
 create table sso_domains (                                        -- identifier-first SSO discovery
   domain text primary key check (domain = lower(domain) and char_length(domain) between 3 and 253),
@@ -335,7 +348,12 @@ every change it makes:
 - `directory_sync`: UPDATE of `name_en`, `name_ar` and `updated_at` on
   `schools`, and INSERT on `changes`, for a cell worker job that copies a
   school's names from `core.orgs` when they change in Settings, so the finder
-  never shows a school under its old name.
+  never shows a school under its old name. It also binds a cell's schools'
+  own hosts for their site managers and records what the cell's verification
+  worker finds: SELECT on `hosts` (and `schools.slug`, for the CNAME target),
+  INSERT of `hostname`, `school_id`, `role` and `challenge`, and UPDATE of
+  `role`, `challenge`, `canonical` and the state columns. It cannot rename a
+  host, move one to another school or delete one.
 
 Readers cache rows for 60 seconds; a cut-over, cell move or merge also pushes
 an invalidation.
@@ -344,8 +362,9 @@ an invalidation.
 return only a school's slug, display names and its cell's `app_host`, for a
 listed school or an exact slug match, and for SSO discovery the same fields of
 the matching tenant's schools. They never return `tenant_id`, state,
-placement, `legacy_school_id` or which schools share a group. A host or SSO
-domain without `verified_at` is neither routed nor used for discovery.
+placement, `legacy_school_id` or which schools share a group. A host routes
+only while `active`; an SSO domain without `verified_at` is not used for
+discovery.
 
 `schools.placement` is why routing is per school rather than per tenant: a
 school group's legacy schools move one at a time (section 10.1), so for a
@@ -359,12 +378,28 @@ domain can ask for assertions and every sibling subdomain is "same site" to
 the session cookie:
 
 - **The product domain** serves first-party hosts only: the school finder at
-  its apex, each cell's application host (`cells.app_host`, for example
-  `eg.<product domain>`) and the integration host `connect.<product domain>`.
-  It never serves documentation, status or marketing pages, school websites or
-  any user content.
-- **The sites domain** serves school websites at `<slug>.<sites domain>`, and
-  schools' own hosts from `directory.hosts`. Sign-in never happens there.
+  its apex, each school's portal at `<slug>.<product domain>` (sign-in and the
+  signed-in application; no region label while one cell serves them all) and
+  the integration host `connect.<product domain>`. It never serves
+  documentation, status or marketing pages, school websites or any user
+  content. `cells.app_host` remains the cell's own host, where the LTI issuer
+  lives until callbacks move to `connect`.
+- **The sites domain** serves school websites at `<slug>.<sites domain>`.
+  Sign-in never happens there: a site host reads no session and sets no
+  cookie, and its links to sign in go to the school's portal.
+- **A school's own hosts**, from `directory.hosts`, each serve one role
+  (`site` or `portal`) once the school proves it holds the name: a TXT
+  record `_farida-challenge.<host>` with the host's challenge, and a CNAME to
+  the school's platform name for that role (an A record to the edge's
+  address for an apex). A worker in each cell's API checks them on request
+  and hourly: `pending` becomes `verified` when the records are found, and
+  `active` once the edge has served it over TLS; three rechecks in a row that
+  miss make it `failing`, which stops it routing, and seven days later it is
+  `removed`. The active canonical host of a role replaces the platform name,
+  which answers with a 308 to it. The edge issues certificates for these
+  names on demand, asking the API's `/edge/ask` first, which says yes only
+  for a verified or active host; the platform's names are under wildcard
+  certificates and are never asked about.
 - **The files domain**, cookieless, serves short-lived signed downloads
   (section 6.5).
 - **The public-media domain** serves published images from each cell's
@@ -378,6 +413,12 @@ Sign-in and sessions:
   the web backend-for-frontend maps through the directory to a tenant and so
   to a cookie. A browser holds at most five tenant sessions per cell host; the
   account switcher lists them.
+- A school's portal host names the school, so its sign-in asks only for the
+  person; the bare product domain still asks for the school, prefilled from
+  the one the browser chose last. A school's own portal and its platform
+  portal are different origins, so a person signs in on the canonical one,
+  and the redirect to it happens before sign-in. The web reads the host from
+  `Host` alone, never from `X-Forwarded-Host`, which a client can set.
 - Every mutating request to the backend-for-frontend needs a same-origin
   `Origin` (or `Sec-Fetch-Site: same-origin`) and a CSRF token bound to the
   session; application hosts send `Content-Security-Policy:
@@ -4910,7 +4951,7 @@ header or a record id:
   the school chosen in the finder (a directory lookup of the slug).
 - **SSO callback**: the tenant part of the `state` parameter, checked against
   the hash in the host-only cookie set when the flow began.
-- **Public website**: the host (`directory.hosts`, verified) or
+- **Public website**: the host (`directory.hosts`, active, role `site`) or
   `<slug>.<sites domain>`, resolved through the directory to tenant and
   school. It runs as the `site` role.
 - **Worker job**: `tenantId` in the job payload, validated against

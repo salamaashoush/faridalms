@@ -1,3 +1,4 @@
+import { addHostSchema, hostRefSchema } from "@faridalms/domain/hosts";
 import {
   applyStarterSchema,
   enquiriesQuerySchema,
@@ -16,7 +17,6 @@ import {
   siteRefSchema,
 } from "@faridalms/domain/website";
 import { createServerFn } from "@tanstack/react-start";
-import { getRequestHeader } from "@tanstack/react-start/server";
 
 import { backend, record } from "./backend";
 import { byId, checked } from "./input";
@@ -97,11 +97,22 @@ export const getPublicPost = createServerFn({ method: "GET" })
   .validator(checked(publicPostSchema))
   .handler(({ data }) => record(backend().site.publicSitePost(data)));
 
-/** The school whose own domain this request came in on, if any. */
-export const getSchoolForCurrentHost = createServerFn({
-  method: "GET",
-}).handler(() =>
-  backend(null).identity.hostSchool({
-    host: (getRequestHeader("host") ?? "").slice(0, 255),
-  }),
+export const getSiteHosts = createServerFn({ method: "GET" }).handler(() =>
+  backend().hosts.list(),
 );
+
+export const addSiteHost = createServerFn({ method: "POST" })
+  .validator(checked(addHostSchema))
+  .handler(({ data }) => backend().hosts.add(data));
+
+export const removeSiteHost = createServerFn({ method: "POST" })
+  .validator(checked(hostRefSchema))
+  .handler(({ data }) => backend().hosts.remove(data));
+
+export const makeSiteHostCanonical = createServerFn({ method: "POST" })
+  .validator(checked(hostRefSchema))
+  .handler(({ data }) => backend().hosts.makeCanonical(data));
+
+export const checkSiteHost = createServerFn({ method: "POST" })
+  .validator(checked(hostRefSchema))
+  .handler(({ data }) => backend().hosts.check(data));

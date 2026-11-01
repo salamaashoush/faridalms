@@ -23,8 +23,10 @@ Every service validates its environment at startup and exits on anything
 missing. Without `CELL_WORKER_URL` uploads are never settled and no
 notification is delivered, so the compose file requires it.
 
-Put a TLS proxy in front. It must set `X-Forwarded-Proto` and append the
-client's address to `X-Forwarded-For`. `TRUSTED_PROXY_HOPS` (default 1) is
+Put a TLS proxy in front (see "School addresses" for the edge). It must pass
+the `Host` header through unchanged, set `X-Forwarded-Proto` and append the
+client's address to `X-Forwarded-For`. The web routes by `Host` alone and
+never reads `X-Forwarded-Host`. `TRUSTED_PROXY_HOPS` (default 1) is
 how many proxies append to that header; the client is the entry the outermost
 one added, and anything to its left is ignored, because a client can send
 whatever it likes there. Sign-in and enquiry limits are keyed on it.
@@ -45,6 +47,86 @@ pools.
 in `.env`, checks `/health/live`, `/health/ready`, a real sign-in, the web
 health route and a server-rendered page in both languages, then stops each
 container and expects a clean exit within the grace period.
+
+## School addresses
+
+Every school answers on two platform names, set by two variables that the
+API, the web and the console all receive:
+
+- `PORTAL_DOMAIN` (production `faridalms.com`): `<slug>.<PORTAL_DOMAIN>` is
+  the school's portal, where people sign in and work. The bare domain asks
+  for the school's code, prefilled from the one the browser chose last.
+- `SITES_DOMAIN` (production `faridalms.site`): `<slug>.<SITES_DOMAIN>` is
+  the school's public website, served from its root. It reads no session,
+  sets no cookie and answers 404 to anything that is not a page of the
+  website, including sign-in, which its links send to the portal.
+
+Locally they are `localhost` and `site.localhost`, so `northwind.localhost:3000`
+is a portal and `northwind.site.localhost:3000` a website; browsers resolve
+every `*.localhost` name to the loopback address. A host that is neither, nor
+a school's own active host, answers 404. An address rather than a name (a
+health check, the smoke test) is treated as the bare portal domain.
+
+A school may bind names of its own, for its website or its portal, from the
+console's school page or from Website, Addresses, in the school. Each is
+pending until the school publishes two records, which both screens show:
+
+- `TXT _farida-challenge.<host>` with the host's challenge, and
+- `CNAME <host>` to the platform name of the host's role, or, for an apex
+  where a CNAME is not allowed, `A <host>` to `EDGE_IPV4`, the edge's public
+  IPv4. Without `EDGE_IPV4` only subdomains can be bound.
+
+The API checks hosts that are due every 30 seconds, as the `directory_sync`
+login (`DIRECTORY_SYNC_URL`; without it nothing is bound or checked): a new
+host or one someone asked to check at once, every other host hourly. Found
+records make a host verified; the API then fetches `https://<host>/api/health`
+through the edge, which issues its certificate on that handshake, and a
+success makes it active. The first host of a role is the school's main one;
+once it is active, links in email, calendar feeds and exports use it and the
+platform name answers with a 308 to it. Three rechecks in a row that miss the
+records make a host failing, which stops it routing and redirecting, and seven
+days later it is removed. Every change of state is in the directory's change
+log. Check now on the school's screen runs the check while the person waits;
+the console's queues it for the next pass.
+
+The edge is Caddy with a DNS-01 wildcard certificate for each platform domain
+and on-demand certificates for everything else, which it asks the API about
+first. `GET /edge/ask?domain=<host>` answers 200 only for a school's own host
+that is verified or active, from one indexed lookup, and 404 for anything
+else, the platform's own names included; it reads no session and is limited
+to 20 questions a second. A minimal Caddyfile:
+
+```caddyfile
+{
+	on_demand_tls {
+		ask http://api:3001/edge/ask
+	}
+}
+
+*.faridalms.com, faridalms.com, *.faridalms.site {
+	tls {
+		dns <provider> {env.DNS_API_TOKEN}
+	}
+	reverse_proxy web:3000
+}
+
+https:// {
+	tls {
+		on_demand
+	}
+	reverse_proxy web:3000
+}
+```
+
+Caddy passes `Host` through and sets `X-Forwarded-Proto` and
+`X-Forwarded-For` by default.
+
+The cell's own host (`cells.app_host`) must be the bare `PORTAL_DOMAIN`, since
+any other name under it would be read as a school's portal. The LTI issuer
+stays there for now: a lesson on a school's portal launches a tool from the
+portal, but the tool sends the person back to the issuer's `/lti/auth`, where
+someone who signed in on their portal has no session, until callbacks hand
+off to the school's portal with a one-time code (plan section 2.4).
 
 ## Registering a school
 

@@ -1282,6 +1282,7 @@ export const sendSignInLink = writeProcedure
       tenantId: context.tenantId,
       userId: input.userId,
       school: context.school,
+      domains: context.domains,
       loginName: input.loginName,
       linkedByUserId: context.actor.userId,
       mail,
@@ -1605,7 +1606,7 @@ async function openLinks(context: UnitContext, seeds: readonly SignInSeed[]) {
             seed.givenNameAr ??
             loginName,
           loginName,
-          link: welcomeLink(context.school, secret),
+          link: welcomeLink(context.school, context.domains, secret),
           days: INVITE_DAYS,
         });
         const sent = await mail

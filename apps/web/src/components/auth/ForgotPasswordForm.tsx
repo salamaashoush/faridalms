@@ -23,7 +23,14 @@ import { getMessageFromError } from "~/utils/error";
  * the same whether or not the name has an account, so the page never says
  * which names exist.
  */
-export function ForgotPasswordForm({ school }: { school?: string | null }) {
+export function ForgotPasswordForm({
+  school,
+  schoolFromHost = false,
+}: {
+  school?: string | null;
+  /** The host names the school, so the field is not shown. */
+  schoolFromHost?: boolean;
+}) {
   const hydrated = useHydrated();
   const request = useMutation({
     mutationFn: useServerFn(requestPasswordReset),
@@ -79,20 +86,22 @@ export function ForgotPasswordForm({ school }: { school?: string | null }) {
       </div>
       <FieldGroup>
         <form.Field name="school">
-          {(field) => (
-            <Field>
-              <FieldLabel htmlFor="school">{m.authSchoolCode()}</FieldLabel>
-              <Input
-                disabled={!hydrated}
-                id="school"
-                name="school"
-                autoComplete="organization"
-                value={field.state.value}
-                onChange={(event) => field.handleChange(event.target.value)}
-                onBlur={field.handleBlur}
-              />
-            </Field>
-          )}
+          {(field) =>
+            schoolFromHost ? null : (
+              <Field>
+                <FieldLabel htmlFor="school">{m.authSchoolCode()}</FieldLabel>
+                <Input
+                  disabled={!hydrated}
+                  id="school"
+                  name="school"
+                  autoComplete="organization"
+                  value={field.state.value}
+                  onChange={(event) => field.handleChange(event.target.value)}
+                  onBlur={field.handleBlur}
+                />
+              </Field>
+            )
+          }
         </form.Field>
         <form.Field name="loginName">
           {(field) => {

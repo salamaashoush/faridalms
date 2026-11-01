@@ -53,6 +53,8 @@ export interface SiteFrameModel {
   /** The other language's address of this page, when the site speaks two. */
   otherLanguage: { locale: SiteLocale; href: string } | null;
   currentHref: string;
+  /** The school's portal sign-in, on the portal's own host. */
+  signInHref: string;
 }
 
 const SOCIAL_NAME: Record<SocialKind, string> = {
@@ -680,7 +682,7 @@ function FooterBase({
         {context.editing ? (
           <span>{m.sitePortalSignIn({}, t)}</span>
         ) : (
-          <a href="/sign-in" className="hover:underline">
+          <a href={frame.signInHref} className="hover:underline">
             {m.sitePortalSignIn({}, t)}
           </a>
         )}

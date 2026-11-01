@@ -4,6 +4,7 @@ import type {
   Directory,
   DirectorySchool,
 } from "@faridalms/database/directory/client";
+import type { PlatformDomains } from "@faridalms/domain/hosts";
 import type {
   ProvisionResult,
   ProvisionTenant,
@@ -48,6 +49,8 @@ export interface ProvisionerDependencies {
   directory: Directory;
   kek: KeyEncryptionKey;
   cellId: string;
+  /** Where the first administrator's link points: the school's portal. */
+  domains: PlatformDomains;
   mail: Provider | null;
   /** Shared with the operator console, which signs every call with it. */
   secret: Uint8Array;
@@ -175,6 +178,7 @@ async function sendLink(
     tenantId: input.tenantId,
     userId: input.userId,
     school: input.school,
+    domains: call.deps.domains,
     loginName: input.loginName,
     linkedByUserId: null,
     mail: requireMail(call.deps),

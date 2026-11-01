@@ -571,6 +571,16 @@ export function getMessageFromError(error: unknown): string {
         return m.siteErrTooMany();
       case "site.form":
         return m.siteErrForm();
+      case "hosts.taken":
+        return m.siteErrHostTaken();
+      case "hosts.exists":
+        return m.siteErrHostExists();
+      case "hosts.platform":
+        return m.siteErrHostPlatform();
+      case "hosts.invalid":
+        return m.siteErrHostInvalid();
+      case "hosts.unavailable":
+        return m.siteAddressesUnavailable();
       case "site.stale":
         return m.siteErrStale();
       case "learning.disabled":

@@ -4,13 +4,22 @@ import {
   openDirectoryAdmin,
   SlugTakenError,
 } from "@faridalms/database/directory/admin";
+import { HostTakenError } from "@faridalms/database/directory/hosts";
 import { saveSeriesSchema } from "@faridalms/domain/exams";
+import {
+  addHostSchema,
+  customHostProblem,
+  expectedRecords,
+  hostRefSchema,
+  platformName,
+} from "@faridalms/domain/hosts";
 import { savePlanSchema } from "@faridalms/domain/plans";
 import {
   newSchoolSchema,
   reissueInviteSchema,
 } from "@faridalms/domain/provisioning";
 import { createServerFn } from "@tanstack/react-start";
+import { randomBytes } from "node:crypto";
 import * as v from "valibot";
 
 import { opsEnv } from "./env";
@@ -38,12 +47,40 @@ export const getSchool = createServerFn({ method: "GET" })
   .validator((input: v.InferInput<typeof byId>) => v.parse(byId, input))
   .handler(async ({ data }) => {
     requireOperator();
-    const [school, changes] = await Promise.all([
+    const [school, changes, hosts] = await Promise.all([
       directory().school(data.id),
       directory().changes({ id: data.id }),
+      directory().hosts(data.id),
     ]);
     if (!school) throw new Error("NOT_FOUND");
-    return { school, changes };
+    const env = opsEnv();
+    const domains = { portal: env.PORTAL_DOMAIN, sites: env.SITES_DOMAIN };
+    const hostChanges = hosts.length
+      ? (
+          await Promise.all(
+            hosts.map((host) => directory().changes({ id: host.hostname })),
+          )
+        ).flat()
+      : [];
+    return {
+      school,
+      platform: {
+        site: platformName(school.slug, "site", domains),
+        portal: platformName(school.slug, "portal", domains),
+      },
+      changes: [...changes, ...hostChanges].toSorted((a, b) =>
+        b.occurredAt.localeCompare(a.occurredAt),
+      ),
+      hosts: hosts.map((host) => ({
+        ...host,
+        records: expectedRecords(
+          host,
+          school.slug,
+          domains,
+          env.EDGE_IPV4 || null,
+        ),
+      })),
+    };
   });
 
 export const savePlan = createServerFn({ method: "POST" })
@@ -230,3 +267,113 @@ export const resendInvite = createServerFn({ method: "POST" })
       };
     },
   );
+
+const schoolHostSchema = v.object({
+  schoolId: v.pipe(v.string(), v.uuid()),
+  ...hostRefSchema.entries,
+});
+const reasoned = v.object({
+  reason: v.pipe(v.string(), v.trim(), v.minLength(1), v.maxLength(500)),
+});
+
+export const addHost = createServerFn({ method: "POST" })
+  .validator(
+    (
+      input: v.InferInput<typeof addHostSchema> & {
+        schoolId: string;
+        reason: string;
+      },
+    ) =>
+      v.parse(
+        v.object({
+          schoolId: v.pipe(v.string(), v.uuid()),
+          ...addHostSchema.entries,
+          ...reasoned.entries,
+        }),
+        input,
+      ),
+  )
+  .handler(
+    async ({
+      data,
+    }): Promise<{ ok: true } | { ok: false; message: string }> => {
+      const operator = requireOperator();
+      const env = opsEnv();
+      const problem = customHostProblem(data.hostname, {
+        portal: env.PORTAL_DOMAIN,
+        sites: env.SITES_DOMAIN,
+      });
+      if (problem)
+        return {
+          ok: false,
+          message:
+            problem === "hosts.platform"
+              ? "Names under the platform's own domains are the platform's."
+              : "That is not a domain name.",
+        };
+      try {
+        await directory().addHost({
+          schoolId: data.schoolId,
+          hostname: data.hostname,
+          role: data.role,
+          challenge: randomBytes(24).toString("base64url"),
+          operatorId: operator.id,
+          reason: data.reason,
+        });
+      } catch (error) {
+        if (error instanceof HostTakenError)
+          return {
+            ok: false,
+            message:
+              error.code === "hosts.exists"
+                ? "The school already has this host."
+                : "Another school holds this host.",
+          };
+        throw error;
+      }
+      return { ok: true };
+    },
+  );
+
+export const removeHost = createServerFn({ method: "POST" })
+  .validator(
+    (input: v.InferInput<typeof schoolHostSchema> & { reason: string }) =>
+      v.parse(
+        v.object({ ...schoolHostSchema.entries, ...reasoned.entries }),
+        input,
+      ),
+  )
+  .handler(async ({ data }) => {
+    const operator = requireOperator();
+    return {
+      ok: await directory().removeHost({ ...data, operatorId: operator.id }),
+    };
+  });
+
+export const makeHostCanonical = createServerFn({ method: "POST" })
+  .validator(
+    (input: v.InferInput<typeof schoolHostSchema> & { reason: string }) =>
+      v.parse(
+        v.object({ ...schoolHostSchema.entries, ...reasoned.entries }),
+        input,
+      ),
+  )
+  .handler(async ({ data }) => {
+    const operator = requireOperator();
+    return {
+      ok: await directory().makeCanonical({
+        ...data,
+        operatorId: operator.id,
+      }),
+    };
+  });
+
+/** Queues a check; the cell's worker runs it on its next pass. */
+export const checkHost = createServerFn({ method: "POST" })
+  .validator((input: v.InferInput<typeof schoolHostSchema>) =>
+    v.parse(schoolHostSchema, input),
+  )
+  .handler(async ({ data }) => {
+    requireOperator();
+    return { ok: await directory().requestCheck(data) };
+  });

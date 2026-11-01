@@ -16,7 +16,7 @@ function SignInPage() {
         </h1>
         <p className="text-muted-foreground">{m.authSignInBody()}</p>
       </div>
-      <SignInForm school={auth.school} />
+      <SignInForm school={auth.school} schoolFromHost={auth.schoolFromHost} />
     </>
   );
 }

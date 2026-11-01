@@ -89,6 +89,10 @@ try {
         CELL_RETENTION_URL: urlFor(cellName, "retention"),
         CELL_COLLAB_URL: urlFor(cellName, "collab"),
         DIRECTORY_URL: urlFor(directoryName, "directory_reader"),
+        DIRECTORY_SYNC_URL: urlFor(directoryName, "directory_sync"),
+        // Every *.localhost name reaches the gate's servers on loopback.
+        PORTAL_DOMAIN: "localhost",
+        SITES_DOMAIN: "site.localhost",
         CELL_ID: cellId,
         CELL_KEK: kek.toString("base64"),
         CELL_SECRET: randomBytes(32).toString("base64"),

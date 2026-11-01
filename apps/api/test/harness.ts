@@ -1,11 +1,15 @@
 import type { Cell } from "@faridalms/database/context";
 import type { Directory } from "@faridalms/database/directory/client";
 import type { SeededTenant } from "@faridalms/database/seed";
+import type { DnsFindings } from "@faridalms/domain/hosts";
 import type { RouterClient } from "@orpc/server";
 
 import { openCell, openOwner } from "@faridalms/database/context";
 import { localKek } from "@faridalms/database/crypto";
-import { openDirectory } from "@faridalms/database/directory/client";
+import {
+  openDirectory,
+  openDirectorySync,
+} from "@faridalms/database/directory/client";
 import { registerTenants } from "@faridalms/database/directory/seed";
 import { migrate } from "@faridalms/database/migrate";
 import {
@@ -23,6 +27,7 @@ import { randomBytes } from "node:crypto";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
+import type { ApiDependencies } from "../src/core/context";
 import type { FileStore } from "../src/files/store";
 import type { AppRouter } from "../src/router";
 
@@ -32,6 +37,7 @@ import { createKeyRing } from "../src/core/keys";
 import { LOCALE_HEADER, SCHOOL_HEADER } from "../src/core/procedure";
 import { createFilesHost, linkKey } from "../src/files/links";
 import { DiskFileStore, PUBLIC_KEY } from "../src/files/store";
+import { createHostChecks } from "../src/hosts/checks";
 import { streamLinkKey } from "../src/media/streams";
 import { MemoryProvider } from "../src/notifications/providers";
 import { createProvisioner } from "../src/provisioning/host";
@@ -42,6 +48,18 @@ const adminUrl =
 const suffix = randomBytes(6).toString("hex");
 export const FILES_ORIGIN = "http://files.test";
 export const MEDIA_ORIGIN = "http://media.test";
+/** The platform's names for schools in tests. */
+export const DOMAINS = { portal: "example.com", sites: "example.net" };
+export const EDGE_ADDRESS = "203.0.113.10";
+
+/**
+ * What DNS holds in tests, by hostname, and which hosts answer over TLS.
+ * A hostname not listed holds nothing.
+ */
+export const fakeDns = {
+  records: new Map<string, DnsFindings>(),
+  servedOverTls: new Set<string>(),
+};
 const cellName = `cell_api_${suffix}`;
 const directoryName = `directory_api_${suffix}`;
 const password =
@@ -68,6 +86,8 @@ interface State {
   cell: Cell;
   directory: Directory;
   cellSecret: Uint8Array<ArrayBuffer>;
+  /** The cell's host access, as the API process holds it. */
+  hosts: NonNullable<ApiDependencies["hosts"]>;
   collabUrl: string;
   files: FileStore;
   /** What the app sent by email as it was asked to, such as a sign-in link. */
@@ -114,6 +134,22 @@ export async function setUp() {
     4,
   );
   const directory = openDirectory(urlFor(directoryName, "directory_reader"), 0);
+  const sync = openDirectorySync(
+    urlFor(directoryName, "directory_sync"),
+    "cell:eg-1",
+  );
+  const hosts = {
+    registry: sync.hosts,
+    checks: createHostChecks({
+      registry: sync.hosts,
+      directory,
+      domains: DOMAINS,
+      edgeAddress: EDGE_ADDRESS,
+      lookup: async (hostname) =>
+        fakeDns.records.get(hostname) ?? { txt: [], cname: [], a: [] },
+      probe: async (hostname) => fakeDns.servedOverTls.has(hostname),
+    }),
+  };
   const files = new DiskFileStore(join(tmpdir(), `farida-api-test-${suffix}`));
   const publicMedia = new DiskFileStore(
     join(tmpdir(), `farida-api-test-${suffix}`, "public-media"),
@@ -133,6 +169,9 @@ export async function setUp() {
     keys: createKeyRing(kek, "eg-1"),
     cellId: "eg-1",
     cellSecret,
+    domains: DOMAINS,
+    edgeAddress: EDGE_ADDRESS,
+    hosts,
     trustedProxyHops: 1,
     files,
     publicMedia,
@@ -161,6 +200,7 @@ export async function setUp() {
     directory,
     kek,
     cellId: "eg-1",
+    domains: DOMAINS,
     mail,
     secret: provisionSecret,
   });
@@ -174,12 +214,14 @@ export async function setUp() {
     cell,
     directory,
     cellSecret,
+    hosts,
     collabUrl: urlFor(cellName, "collab"),
     files,
     close: async () => {
       await cell.close();
       await provisioning.close();
       await directory.close();
+      await sync.close();
     },
   };
 }

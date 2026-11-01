@@ -17,6 +17,7 @@ import * as frontDeskSystem from "./systems/front-desk";
 import * as gradebookSystem from "./systems/gradebook";
 import * as gradingSystem from "./systems/grading";
 import * as homeSystem from "./systems/home";
+import * as hostsSystem from "./systems/hosts";
 import * as identifiersSystem from "./systems/identifiers";
 import * as identity from "./systems/identity";
 import * as learningSystem from "./systems/learning";
@@ -78,6 +79,7 @@ export const router = {
   library: librarySystem,
   lti: ltiSystem,
   site: siteSystem,
+  hosts: hostsSystem,
   home: homeSystem,
   search: searchSystem,
 };

@@ -1,4 +1,15 @@
+import { isHostname } from "@faridalms/domain/hosts";
 import * as v from "valibot";
+
+const domain = v.pipe(
+  v.string(),
+  v.trim(),
+  v.toLowerCase(),
+  v.check(
+    (value) => value === "localhost" || isHostname(value),
+    "must be a domain name",
+  ),
+);
 
 const bytes = (length: number) =>
   v.pipe(
@@ -32,6 +43,14 @@ export function opsEnv() {
       // app alone, and trusting only calls signed with the shared secret.
       PROVISION_URL: v.pipe(v.string(), v.url()),
       PROVISION_SECRET: bytes(32),
+      // The cells' platform domains and edge address, for the DNS records a
+      // school's own host needs; the same values the cells' API holds.
+      PORTAL_DOMAIN: domain,
+      SITES_DOMAIN: domain,
+      // Empty, as compose passes an unset one, means none.
+      EDGE_IPV4: v.optional(
+        v.union([v.literal(""), v.pipe(v.string(), v.ipv4())]),
+      ),
     }),
     process.env,
   );

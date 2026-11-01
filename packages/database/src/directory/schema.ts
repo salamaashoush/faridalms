@@ -1,4 +1,5 @@
 import type { ExamBoard } from "@faridalms/domain/exams";
+import type { HostRole, HostState } from "@faridalms/domain/hosts";
 
 import { sql } from "drizzle-orm";
 import {
@@ -153,12 +154,31 @@ export const schools = pgTable(
   ],
 );
 
+/**
+ * A school's own hostname, for its public website or its portal. It routes
+ * only once the school has proved it holds the name in DNS; a removed host
+ * stays as a tombstone so its name cannot quietly pass to another school.
+ */
 export const hosts = pgTable(
   "hosts",
   {
     hostname: text("hostname").primaryKey(),
     schoolId: uuid("school_id").notNull(),
+    role: text("role").$type<HostRole>().notNull(),
+    /** The address links and redirects use for the school's role, once active. */
+    canonical: boolean("canonical").notNull().default(false),
+    /** What the school publishes in TXT `_farida-challenge.<hostname>`. */
+    challenge: text("challenge").notNull(),
+    state: text("state").$type<HostState>().notNull().default("pending"),
+    stateChangedAt: instant("state_changed_at")
+      .notNull()
+      .default(sql`statement_timestamp()`),
     verifiedAt: instant("verified_at"),
+    /** Null when a check is due now. */
+    checkedAt: instant("checked_at"),
+    lastError: text("last_error"),
+    /** Rechecks in a row that did not find the records. */
+    failures: integer("failures").notNull().default(0),
     createdAt: createdAt(),
   },
   (t) => [
@@ -171,6 +191,25 @@ export const hosts = pgTable(
       "hosts_hostname_check",
       sql`hostname = lower(hostname) and char_length(hostname) between 3 and 253`,
     ),
+    check("hosts_role_check", sql`role in ('site', 'portal')`),
+    check(
+      "hosts_state_check",
+      sql`state in ('pending', 'verified', 'active', 'failing', 'removed')`,
+    ),
+    check("hosts_challenge_check", sql`challenge ~ '^[A-Za-z0-9_-]{32,64}$'`),
+    check("hosts_failures_check", sql`failures >= 0`),
+    check(
+      "hosts_last_error_check",
+      sql`char_length(last_error) between 1 and 200`,
+    ),
+    check("hosts_check", sql`not canonical or state <> 'removed'`),
+    uniqueIndex("hosts_canonical_key")
+      .on(t.schoolId, t.role)
+      .where(sql`canonical`),
+    index("hosts_school_idx").on(t.schoolId),
+    index("hosts_due_idx")
+      .on(t.checkedAt)
+      .where(sql`state <> 'removed'`),
   ],
 );
 

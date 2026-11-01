@@ -10,6 +10,9 @@ const LABEL: Record<string, string> = {
   modules: "Modules",
   keepUntil: "Keep until",
   retired: "Retired",
+  role: "Serves",
+  state: "State",
+  canonical: "Main host",
 };
 
 function describe(value: unknown, key: string): string {

@@ -6,8 +6,11 @@ export const env = createEnv({
   schema: {
     private: {
       BACKEND_URL: v.pipe(v.string(), v.url()),
-      // The cell's application host; `<school>.<APP_HOST>` names a school.
-      APP_HOST: v.optional(v.pipe(v.string(), v.toLowerCase())),
+      // `<school>.<PORTAL_DOMAIN>` is a school's portal and the bare domain
+      // asks for the school; `<school>.<SITES_DOMAIN>` is its public website.
+      // Any other host is one a school bound, or answers 404.
+      PORTAL_DOMAIN: v.optional(v.pipe(v.string(), v.trim(), v.toLowerCase())),
+      SITES_DOMAIN: v.optional(v.pipe(v.string(), v.trim(), v.toLowerCase())),
       // The collaboration server's WebSocket URL as browsers reach it; unset
       // turns live editing off and every editor works alone.
       COLLAB_URL: v.optional(v.pipe(v.string(), v.url())),

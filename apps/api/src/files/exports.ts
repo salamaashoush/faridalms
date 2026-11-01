@@ -94,6 +94,7 @@ import type {
 
 import { editableModule } from "../core/learning-access";
 import { nameUuid } from "../core/names";
+import { portalOrigin } from "../core/portal";
 import { can, localeOf, openUnit, schoolOf } from "../core/procedure";
 import { drawsOf, publishedQuiz } from "../core/quiz";
 import { sharedInliner } from "../core/shared";
@@ -1227,7 +1228,7 @@ async function moduleStatements(
     await classesOfModule(unit.tx, unit.tenantId, module.id)
   ).find((row) => row.id === classId);
   if (!taught) throw new ORPCError("NOT_FOUND");
-  const home = `https://${unit.school.appHost}`;
+  const home = portalOrigin(unit.school, unit.domains);
   const students = await rosterOf(unit.tx, unit.tenantId, classId, unit.today);
   const people = new Map(
     (await namesOf(unit.tx, unit.tenantId, students)).map((row) => [

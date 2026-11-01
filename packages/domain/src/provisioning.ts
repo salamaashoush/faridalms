@@ -23,6 +23,7 @@ export const RESERVED_SLUGS: ReadonlySet<string> = new Set([
   "admin",
   "ops",
   "connect",
+  "site",
   "app",
   "mail",
   "status",

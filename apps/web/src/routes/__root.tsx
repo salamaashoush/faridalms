@@ -20,6 +20,7 @@ import { currentUserQuery } from "~/queries/user";
 import { getAuthState } from "~/server/auth";
 import appCss from "~/styles/globals.css?url";
 import { digits } from "~/utils/digits";
+import { hostView } from "~/utils/host";
 
 import { DefaultCatchBoundary } from "../components/DefaultCatchBoundary";
 import { NotFound } from "../components/NotFound";
@@ -32,7 +33,16 @@ interface AppRouterContext {
 
 export const Route = createRootRouteWithContext<AppRouterContext>()({
   beforeLoad: async () => {
-    const auth = await getAuthState();
+    // Nothing on a school's website host reads a session.
+    const auth: AuthState = hostView().site
+      ? {
+          isAuthenticated: false,
+          workspace: null,
+          school: null,
+          schoolFromHost: false,
+          childMode: false,
+        }
+      : await getAuthState();
     // Return only what this route adds. Router merges it into the existing
     // context, and the return value must be serializable (the QueryClient
     // already in context is not).

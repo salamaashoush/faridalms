@@ -10,6 +10,7 @@ import { addDays } from "@faridalms/domain/school";
 
 import type { RequestContext } from "../core/context";
 
+import { portalOrigin } from "../core/portal";
 import { dateIn } from "../core/procedure";
 import { feedLessons } from "./lessons";
 
@@ -80,7 +81,7 @@ export async function handleCalendarFeed(
         userId: owner.userId,
         on: today,
       });
-      const origin = `https://${school.appHost}`;
+      const origin = portalOrigin(school, context.domains);
       const [events, days, lessons] = await Promise.all([
         eventsBetween(tx, {
           ...range,

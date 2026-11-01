@@ -7,6 +7,7 @@ import { useEffect, useRef } from "react";
 import type { publicSiteQuery } from "~/queries/site";
 
 import * as m from "~/i18n/messages";
+import { hostHref, insideWebsite, publicPath } from "~/utils/host";
 
 import type { SiteFrameModel } from "./render/frame";
 import type { NewsItem, RenderContext, SiteEvent } from "./render/parts";
@@ -99,10 +100,11 @@ function frameOf(
     otherLanguage: other
       ? {
           locale: other,
-          href: `${pathname}${other === site.primaryLocale ? "" : `?lang=${other}`}`,
+          href: `${publicPath(pathname, school)}${other === site.primaryLocale ? "" : `?lang=${other}`}`,
         }
       : null,
     currentHref: current.startsWith("/news") ? "/news" : current,
+    signInHref: hostHref(site.portalHost, "/sign-in"),
   };
 }
 
@@ -144,7 +146,8 @@ export function SiteShell({
       const href = anchor?.getAttribute("href");
       if (
         !anchor ||
-        !href?.startsWith(`/site/${school}`) ||
+        !href ||
+        !insideWebsite(href, school) ||
         anchor.target ||
         anchor.hasAttribute("hreflang")
       )

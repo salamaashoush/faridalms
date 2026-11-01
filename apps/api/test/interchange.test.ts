@@ -8,7 +8,7 @@ import {
 import { describe, expect, test } from "bun:test";
 import { unzipSync } from "fflate";
 
-import { login, raw, seeded, sessionFor } from "./harness";
+import { DOMAINS, login, raw, seeded, sessionFor } from "./harness";
 
 const TITLE = "Reading stories together";
 const PIXEL = Uint8Array.from(
@@ -553,13 +553,15 @@ describe("moving teaching between systems", () => {
         (statement.verb as { id: string }).id ===
         "http://adlnet.gov/expapi/verbs/answered",
     );
+    // Statements name the school's portal, where a person finds the lesson.
+    const home = `https://northwind.${DOMAINS.portal}`;
     expect(answered).toMatchObject({
       actor: {
         objectType: "Agent",
-        account: { homePage: "https://localhost", name: me.id },
+        account: { homePage: home, name: me.id },
       },
       object: {
-        id: `https://localhost/lessons/${lessonId}#${choiceId}`,
+        id: `${home}/lessons/${lessonId}#${choiceId}`,
         definition: {
           type: "http://adlnet.gov/expapi/activities/cmi.interaction",
           interactionType: "choice",
@@ -573,10 +575,10 @@ describe("moving teaching between systems", () => {
       context: {
         platform: "Farida",
         contextActivities: {
-          parent: [{ id: `https://localhost/lessons/${lessonId}` }],
+          parent: [{ id: `${home}/lessons/${lessonId}` }],
           grouping: [
-            { id: `https://localhost/modules/${moduleId}` },
-            { id: `https://localhost/classes/${classId}` },
+            { id: `${home}/modules/${moduleId}` },
+            { id: `${home}/classes/${classId}` },
           ],
         },
       },
@@ -586,7 +588,7 @@ describe("moving teaching between systems", () => {
       statements.some(
         (statement) =>
           (statement.object as { id: string }).id ===
-            `https://localhost/lessons/${lessonId}` &&
+            `${home}/lessons/${lessonId}` &&
           (statement.actor as { account: { name: string } }).account.name ===
             me.id,
       ),
