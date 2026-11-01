@@ -19,7 +19,7 @@ import { toast } from "sonner";
 
 import type { ActionItem } from "~/components/system/ActionMenu";
 
-import { audienceLabel } from "~/components/announcements/format";
+import { audienceLabel } from "~/components/broadcasts/format";
 import { ContentView } from "~/components/content/ContentView";
 import { usePrint } from "~/components/print/usePrint";
 import { ActionMenu } from "~/components/system/ActionMenu";

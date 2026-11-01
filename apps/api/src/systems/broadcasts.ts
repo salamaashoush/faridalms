@@ -235,6 +235,10 @@ export async function editorOf(
     translation: words.other,
     translationReview: review,
     changedSince: published?.changedSince ?? false,
+    /** The words its readers have, which waiting edits can go back to. */
+    sent: published
+      ? { body: published.body, translation: published.translation }
+      : null,
   };
 }
 

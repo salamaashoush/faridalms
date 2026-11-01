@@ -184,11 +184,13 @@ describe("the portal page in the site builder", () => {
       heading: "أهلًا بكم في نورثويند الشرقية",
     });
 
+    // Each call starts only when awaited: one refused while the other is
+    // still awaited would surface as a rejection nobody handled.
     for (const refused of [
-      api.site.removeSitePage({ id }),
-      api.site.movePage({ id, parentId: "", position: 0 }),
+      () => api.site.removeSitePage({ id }),
+      () => api.site.movePage({ id, parentId: "", position: 0 }),
     ])
-      expect(await rejection(refused)).toMatchObject({
+      expect(await rejection(refused())).toMatchObject({
         code: "CONFLICT",
         message: "site.portal_page",
       });
