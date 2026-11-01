@@ -82,6 +82,8 @@ export interface FieldContext {
   wordsOnly: boolean;
   pages: { href: string; title: string }[];
   media: EditorMedia;
+  /** The school's intakes still to close, which a section may name. */
+  intakes: { id: string; label: string }[];
 }
 
 const BADGE_NAME: Record<(typeof BADGES)[number], string> = {
@@ -894,6 +896,43 @@ function ChoiceControl({
   );
 }
 
+/** One of the school's intakes, or every intake open, for a section that leads into applying. */
+function IntakeControl({
+  id,
+  label,
+  hint,
+  value,
+  intakes,
+  onChange,
+}: {
+  id: string;
+  label: string;
+  hint?: string;
+  value: string;
+  intakes: FieldContext["intakes"];
+  onChange: (value: string) => void;
+}) {
+  const options = [{ id: "", label: m.siteIntakeAny() }, ...intakes];
+  const shown =
+    options.find((option) => option.id === value)?.label ?? m.siteIntakeGone();
+  return (
+    <StudioField id={id} label={label} hint={hint}>
+      <Select value={value} onValueChange={(next) => onChange(next ?? "")}>
+        <SelectTrigger id={id} className="w-full max-md:h-10">
+          <SelectValue>{shown}</SelectValue>
+        </SelectTrigger>
+        <SelectContent>
+          {options.map((option) => (
+            <SelectItem key={option.id || "any"} value={option.id}>
+              {option.label}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+    </StudioField>
+  );
+}
+
 /**
  * A rich body. The editor keeps its own words as they are typed, so a
  * change made to the page from outside it, as an undo is, is put into it;
@@ -1100,6 +1139,17 @@ export function FieldControl({
             onChange={(event) => onChange(event.target.value)}
           />
         </StudioField>
+      );
+    case "intake":
+      return (
+        <IntakeControl
+          id={id}
+          label={label}
+          hint={FIELD_HINT[name]?.()}
+          value={value as string}
+          intakes={context.intakes}
+          onChange={onChange}
+        />
       );
     case "embed":
       return (

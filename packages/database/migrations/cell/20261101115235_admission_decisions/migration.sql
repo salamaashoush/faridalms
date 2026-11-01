@@ -75,6 +75,7 @@ ALTER TABLE "core"."admission_applications" ADD CONSTRAINT "admission_applicatio
 ALTER TABLE "core"."student_school_years" DROP CONSTRAINT "student_school_years_source_check", ADD CONSTRAINT "student_school_years_source_check" CHECK (source in ('manual', 'import', 'sis', 'oneroster', 'rollover', 'admission'));--> statement-breakpoint
 ALTER TABLE "core"."document_templates" DROP CONSTRAINT "document_templates_kind_check", ADD CONSTRAINT "document_templates_kind_check" CHECK (kind in ('lesson', 'assignment', 'unit_plan', 'news', 'announcement', 'event', 'consent_form', 'module', 'message', 'admission_letter'));--> statement-breakpoint
 ALTER TABLE "core"."admission_entries" DROP CONSTRAINT "admission_entries_kind_check", ADD CONSTRAINT "admission_entries_kind_check" CHECK (kind in ('note', 'state', 'item', 'event'));--> statement-breakpoint
+CREATE POLICY "p_site_select" ON "core"."academic_sessions" AS PERMISSIVE FOR SELECT TO "site" USING (status = 'active' and type = 'school_year');--> statement-breakpoint
 CREATE POLICY "tenant_isolation" ON "core"."admission_events" AS RESTRICTIVE FOR ALL TO public USING (tenant_id = (select app.tenant_id())) WITH CHECK (tenant_id = (select app.tenant_id()));--> statement-breakpoint
 CREATE POLICY "owner_all" ON "core"."admission_events" AS PERMISSIVE FOR ALL TO "cell_owner" USING (true) WITH CHECK (true);--> statement-breakpoint
 CREATE POLICY "p_select" ON "core"."admission_events" AS PERMISSIVE FOR SELECT TO "app", "cell_io", "retention", "worker" USING (true);--> statement-breakpoint
@@ -83,7 +84,10 @@ CREATE POLICY "p_update" ON "core"."admission_events" AS PERMISSIVE FOR UPDATE T
 CREATE POLICY "p_erase_update" ON "core"."admission_events" AS PERMISSIVE FOR UPDATE TO "retention" USING (exists (select 1 from core.admission_applications a
         where a.tenant_id = admission_events.tenant_id and a.id = admission_events.application_id
           and app.erasure_approved(a.tenant_id, a.applicant_user_id))) WITH CHECK (status = 'tobedeleted');--> statement-breakpoint
+CREATE POLICY "p_site_select" ON "core"."admission_intakes" AS PERMISSIVE FOR SELECT TO "site" USING (status = 'active');--> statement-breakpoint
 CREATE POLICY "tenant_isolation" ON "core"."admission_letters" AS RESTRICTIVE FOR ALL TO public USING (tenant_id = (select app.tenant_id())) WITH CHECK (tenant_id = (select app.tenant_id()));--> statement-breakpoint
 CREATE POLICY "owner_all" ON "core"."admission_letters" AS PERMISSIVE FOR ALL TO "cell_owner" USING (true) WITH CHECK (true);--> statement-breakpoint
 CREATE POLICY "p_select" ON "core"."admission_letters" AS PERMISSIVE FOR SELECT TO "app", "cell_io", "retention", "worker" USING (true);--> statement-breakpoint
-CREATE POLICY "p_insert" ON "core"."admission_letters" AS PERMISSIVE FOR INSERT TO "app", "cell_io", "worker" WITH CHECK (true);
+CREATE POLICY "p_insert" ON "core"."admission_letters" AS PERMISSIVE FOR INSERT TO "app", "cell_io", "worker" WITH CHECK (true);--> statement-breakpoint
+CREATE POLICY "p_site_select" ON "core"."descriptor_overrides" AS PERMISSIVE FOR SELECT TO "site" USING (status = 'active');--> statement-breakpoint
+CREATE POLICY "p_site_select" ON "core"."descriptors" AS PERMISSIVE FOR SELECT TO "site" USING (status = 'active' and namespace = 'grade_level');

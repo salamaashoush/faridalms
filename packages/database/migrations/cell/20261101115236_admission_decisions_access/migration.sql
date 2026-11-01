@@ -1,7 +1,7 @@
 -- What the generated migration cannot express for decisions, letters and
 -- events: their forced row level security, triggers and grants, what
--- erasure may empty, and the letters every school starts with, given to the
--- schools made before them.
+-- erasure may empty, what a website may read to list the intakes, and the
+-- letters every school starts with, given to the schools made before them.
 
 alter table core.admission_letters force row level security;
 alter table core.admission_events force row level security;
@@ -29,6 +29,17 @@ grant select on core.admission_letters to retention;
 -- An approved erasure of the child empties what the office wrote about the
 -- events booked for them and tombstones each.
 grant update (status, metadata, location, result) on core.admission_events to retention;
+
+-- A website lists the intakes families may apply to: their grade, year,
+-- dates and fees, and nothing of their places, forms or ranking.
+grant select (tenant_id, id, org_id, school_year_id, grade_level_descriptor_id, opens_on,
+  closes_on, currency, fees, decisions_on, status) on core.admission_intakes to site;
+grant select (tenant_id, id, org_id, type, title_en, title_ar, span, status)
+  on core.academic_sessions to site;
+grant select (tenant_id, id, namespace, label_en, label_ar, sort_order, system_meaning, status)
+  on core.descriptors to site;
+grant select (tenant_id, descriptor_id, org_id, label_en, label_ar, sort_order, status)
+  on core.descriptor_overrides to site;
 
 do $$
 declare

@@ -80,6 +80,20 @@ export interface SiteEvent {
   cancelled: boolean;
 }
 
+/** An intake the website lists: the grade and year it takes, when families apply, and what it costs. */
+export interface SiteIntake {
+  id: string;
+  gradeEn: string | null;
+  gradeAr: string | null;
+  yearTitleEn: string | null;
+  yearTitleAr: string | null;
+  opensOn: string;
+  closesOn: string;
+  decisionsOn: string | null;
+  currency: string;
+  fees: { kind: string; amount: number }[];
+}
+
 export interface RenderContext {
   school: string;
   locale: SiteLocale;
@@ -89,6 +103,12 @@ export interface RenderContext {
   news: NewsItem[];
   /** The school calendar's public events still to come, soonest first. */
   events?: SiteEvent[];
+  /** The intakes admissions lists as still to close, by year and grade. */
+  intakes?: SiteIntake[];
+  /** The school's day, to tell an intake open from one still to come. */
+  today?: string;
+  /** Where applying starts on the portal, preset to an intake when one is named. */
+  applyHref?: (intakeId: string | null) => string;
   contact: SiteContact | null;
   /** The page's address inside the site, "" for the home page; forms send it with a message. */
   page?: string;

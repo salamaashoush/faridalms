@@ -25,6 +25,7 @@ import {
   index,
   integer,
   jsonb,
+  pgPolicy,
   smallint,
   text,
   time,
@@ -45,6 +46,7 @@ import {
   instant,
   ledgerProfile,
   pk,
+  roles,
   tenantColumns,
   uq,
 } from "./conventions";
@@ -247,6 +249,13 @@ export const admissionIntakes = core.table.withRLS(
     index("admission_intakes_window_idx")
       .on(t.tenantId, t.orgId, t.opensOn, t.closesOn)
       .where(sql`status = 'active'`),
+    // The website lists the intakes families may apply to, with their dates
+    // and fees; never their places, forms or how they rank.
+    pgPolicy("p_site_select", {
+      for: "select",
+      to: roles.site,
+      using: sql`status = 'active'`,
+    }),
     ...entityProfile(),
   ],
 );

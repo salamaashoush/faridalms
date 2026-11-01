@@ -1185,3 +1185,68 @@ export async function linkEnquiriesToFamily(
     returning id`);
   return rows.map((row) => row.id);
 }
+
+export interface PublicIntake {
+  id: string;
+  gradeEn: string | null;
+  gradeAr: string | null;
+  yearTitleEn: string | null;
+  yearTitleAr: string | null;
+  opensOn: string;
+  closesOn: string;
+  decisionsOn: string | null;
+  currency: Currency;
+  fees: Fee[];
+}
+
+/**
+ * The intakes a school's website lists: those still to close, with their
+ * grade, year, dates and fees, by year of entry and then grade. Reads only
+ * what the site role is granted, so it runs on a visitor's page.
+ */
+export async function publicIntakes(
+  tx: Tx,
+  input: { orgId: string; today: string },
+): Promise<PublicIntake[]> {
+  const rows = await tx.execute<{
+    id: string;
+    grade_en: string | null;
+    grade_ar: string | null;
+    year_title_en: string | null;
+    year_title_ar: string | null;
+    opens_on: string;
+    closes_on: string;
+    decisions_on: string | null;
+    currency: Currency;
+    fees: Fee[];
+  }>(sql`
+    select i.id, coalesce(o.label_en, g.label_en) as grade_en,
+      coalesce(o.label_ar, g.label_ar) as grade_ar, y.title_en as year_title_en,
+      y.title_ar as year_title_ar, i.opens_on::text as opens_on, i.closes_on::text as closes_on,
+      i.decisions_on::text as decisions_on, i.currency, i.fees
+    from core.admission_intakes i
+    join core.academic_sessions y on y.tenant_id = i.tenant_id and y.id = i.school_year_id
+      and y.status = 'active'
+    join core.descriptors g on g.tenant_id = i.tenant_id and g.id = i.grade_level_descriptor_id
+    left join lateral (
+      select x.label_en, x.label_ar, x.sort_order from core.descriptor_overrides x
+      where x.tenant_id = i.tenant_id and x.descriptor_id = g.id and x.org_id = i.org_id
+        and x.status = 'active' limit 1
+    ) o on true
+    where i.org_id = ${input.orgId}::uuid and i.status = 'active'
+      and i.closes_on >= ${input.today}::date
+    order by lower(y.span), coalesce(o.sort_order, g.sort_order), i.id
+    limit 40`);
+  return rows.map((row) => ({
+    id: row.id,
+    gradeEn: row.grade_en,
+    gradeAr: row.grade_ar,
+    yearTitleEn: row.year_title_en,
+    yearTitleAr: row.year_title_ar,
+    opensOn: row.opens_on,
+    closesOn: row.closes_on,
+    decisionsOn: row.decisions_on,
+    currency: row.currency,
+    fees: row.fees,
+  }));
+}

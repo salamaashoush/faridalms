@@ -5,6 +5,7 @@ import {
   boolean,
   index,
   integer,
+  pgPolicy,
   text,
   uniqueIndex,
   uuid,
@@ -19,6 +20,7 @@ import {
   entityProfile,
   fk,
   pk,
+  roles,
   tenantColumns,
   uq,
 } from "./conventions";
@@ -107,6 +109,12 @@ export const descriptors = core.table.withRLS(
       sql`namespace <> 'relation' or oneroster_token is not distinct from (case system_meaning when 'mother' then 'parent' when 'father' then 'parent' when 'guardian' then 'guardian' when 'step_parent' then 'relative' when 'grandparent' then 'relative' when 'sibling' then 'relative' when 'other_relative' then 'relative' end)`,
     ),
     index("descriptors_namespace_idx").on(t.tenantId, t.namespace, t.sortOrder),
+    // A website names the grades its intakes take; nothing else of the vocabulary.
+    pgPolicy("p_site_select", {
+      for: "select",
+      to: roles.site,
+      using: sql`status = 'active' and namespace = 'grade_level'`,
+    }),
     ...entityProfile({ integration: true }),
   ],
 );
@@ -166,6 +174,11 @@ export const descriptorOverrides = core.table.withRLS(
     uniqueIndex("descriptor_overrides_key")
       .on(t.tenantId, t.descriptorId, t.orgId)
       .where(sql`status = 'active'`),
+    pgPolicy("p_site_select", {
+      for: "select",
+      to: roles.site,
+      using: sql`status = 'active'`,
+    }),
     ...entityProfile({ integration: true }),
   ],
 );

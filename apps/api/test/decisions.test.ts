@@ -1,5 +1,6 @@
 import { contentPlainText } from "@faridalms/domain/content";
 import { plainContent } from "@faridalms/domain/content-conversion";
+import { newSection } from "@faridalms/domain/site-sections";
 import { describe, expect, test } from "bun:test";
 
 import { runAdmissionsClock } from "../src/core/admissions-clock";
@@ -12,7 +13,7 @@ import {
   principal,
   registeredFamily,
 } from "./admission-fixtures";
-import { login, rejection, seeded, signedIn } from "./harness";
+import { client, login, rejection, seeded, signedIn } from "./harness";
 
 type Family = Awaited<ReturnType<typeof registeredFamily>>["api"];
 type Office = Awaited<ReturnType<typeof officer>>;
@@ -529,5 +530,54 @@ describe("letters", () => {
     expect(contentPlainText(letter.content)).toContain(
       "Omar Ashoush is on the waiting list for Grade 6",
     );
+  });
+});
+
+describe("the website's doors into admissions", () => {
+  test("a published page lists the intakes from admissions and leads into applying, without their places", async () => {
+    const api = await principal();
+    const admissions = { ...newSection("admissions"), id: crypto.randomUUID() };
+    const door = {
+      ...newSection("registerApply"),
+      id: crypto.randomUUID(),
+      data: {
+        ...newSection("registerApply").data,
+        heading: "Ready to apply?",
+        intake: "",
+        button: "Register and apply",
+      },
+    };
+    const saved = await api.site.savePage({
+      id: "",
+      expectedVersion: 0,
+      parentId: "",
+      slug: "places",
+      titleEn: "Places",
+      titleAr: "المقاعد",
+      inMenu: false,
+      content: {
+        sections: [admissions, door],
+        description: "",
+        reviewed: [],
+      },
+      translation: null,
+    });
+    await api.site.publishPage({
+      id: saved.id,
+      expectedVersion: saved.version,
+    });
+    const page = await client("northwind").site.publicSitePage({
+      school: "northwind",
+      locale: "en",
+      slug: "places",
+    });
+    const kg1 = page.intakes.find((intake) => intake.gradeEn === "KG1");
+    expect(kg1).toMatchObject({
+      yearTitleEn: "2027–2028",
+      currency: "EGP",
+      decisionsOn: "2027-04-15",
+    });
+    expect(kg1?.fees.map((fee) => fee.kind)).toContain("tuition");
+    expect(kg1).not.toHaveProperty("capacity");
   });
 });

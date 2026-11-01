@@ -6,6 +6,7 @@ import {
   date,
   index,
   jsonb,
+  pgPolicy,
   smallint,
   text,
   time,
@@ -24,6 +25,7 @@ import {
   instant,
   pk,
   range,
+  roles,
   tenantColumns,
   uq,
 } from "./conventions";
@@ -146,6 +148,12 @@ export const academicSessions = core.table.withRLS(
       ),
     index("academic_sessions_year_idx").on(t.tenantId, t.schoolYearId, t.type),
     index("academic_sessions_delta_idx").on(t.tenantId, t.dateLastModified),
+    // A website names the year of entry of the intakes it lists.
+    pgPolicy("p_site_select", {
+      for: "select",
+      to: roles.site,
+      using: sql`status = 'active' and type = 'school_year'`,
+    }),
     ...entityProfile({ integration: true }),
   ],
 );

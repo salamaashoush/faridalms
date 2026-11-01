@@ -2,7 +2,7 @@
   "type": "diff",
   "version": "9",
   "dialect": "postgres",
-  "id": "ef238f9a-9a10-42ee-bf77-0a09fc10e21b",
+  "id": "6033c181-e952-4efa-bc99-3a1508f8e80b",
   "prevIds": [
     "bf6b1d1e-448d-4bdb-9708-a9ed2c7b6f9f"
   ],
@@ -591,6 +591,25 @@
       "statementTarget": [
         "table",
         "core",
+        "academic_sessions"
+      ],
+      "writes": [
+        "s|pol|core.academic_sessions.p_site_select",
+        "n|pol|core.academic_sessions.p_site_select",
+        "e|pol|core.academic_sessions.p_site_select"
+      ],
+      "reads": [
+        "n|tbl|core.academic_sessions",
+        "n|sch|core",
+        "n|role|site",
+        "e|rls|core.academic_sessions"
+      ]
+    },
+    {
+      "statementType": "create_policy",
+      "statementTarget": [
+        "table",
+        "core",
         "admission_events"
       ],
       "writes": [
@@ -711,6 +730,25 @@
       "statementTarget": [
         "table",
         "core",
+        "admission_intakes"
+      ],
+      "writes": [
+        "s|pol|core.admission_intakes.p_site_select",
+        "n|pol|core.admission_intakes.p_site_select",
+        "e|pol|core.admission_intakes.p_site_select"
+      ],
+      "reads": [
+        "n|tbl|core.admission_intakes",
+        "n|sch|core",
+        "n|role|site",
+        "e|rls|core.admission_intakes"
+      ]
+    },
+    {
+      "statementType": "create_policy",
+      "statementTarget": [
+        "table",
+        "core",
         "admission_letters"
       ],
       "writes": [
@@ -784,6 +822,44 @@
         "n|role|cell_io",
         "n|role|worker",
         "e|rls|core.admission_letters"
+      ]
+    },
+    {
+      "statementType": "create_policy",
+      "statementTarget": [
+        "table",
+        "core",
+        "descriptor_overrides"
+      ],
+      "writes": [
+        "s|pol|core.descriptor_overrides.p_site_select",
+        "n|pol|core.descriptor_overrides.p_site_select",
+        "e|pol|core.descriptor_overrides.p_site_select"
+      ],
+      "reads": [
+        "n|tbl|core.descriptor_overrides",
+        "n|sch|core",
+        "n|role|site",
+        "e|rls|core.descriptor_overrides"
+      ]
+    },
+    {
+      "statementType": "create_policy",
+      "statementTarget": [
+        "table",
+        "core",
+        "descriptors"
+      ],
+      "writes": [
+        "s|pol|core.descriptors.p_site_select",
+        "n|pol|core.descriptors.p_site_select",
+        "e|pol|core.descriptors.p_site_select"
+      ],
+      "reads": [
+        "n|tbl|core.descriptors",
+        "n|sch|core",
+        "n|role|site",
+        "e|rls|core.descriptors"
       ]
     }
   ],
@@ -1860,6 +1936,22 @@
       "op": "create",
       "row": {
         "schema": "core",
+        "table": "academic_sessions",
+        "name": "p_site_select",
+        "as": "PERMISSIVE",
+        "for": "SELECT",
+        "roles": [
+          "site"
+        ],
+        "using": "status = 'active' and type = 'school_year'",
+        "withCheck": null,
+        "entityType": "policies"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
         "table": "admission_events",
         "name": "tenant_isolation",
         "as": "RESTRICTIVE",
@@ -1963,6 +2055,22 @@
       "op": "create",
       "row": {
         "schema": "core",
+        "table": "admission_intakes",
+        "name": "p_site_select",
+        "as": "PERMISSIVE",
+        "for": "SELECT",
+        "roles": [
+          "site"
+        ],
+        "using": "status = 'active'",
+        "withCheck": null,
+        "entityType": "policies"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
         "table": "admission_letters",
         "name": "tenant_isolation",
         "as": "RESTRICTIVE",
@@ -2025,6 +2133,38 @@
         ],
         "using": null,
         "withCheck": "true",
+        "entityType": "policies"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "descriptor_overrides",
+        "name": "p_site_select",
+        "as": "PERMISSIVE",
+        "for": "SELECT",
+        "roles": [
+          "site"
+        ],
+        "using": "status = 'active'",
+        "withCheck": null,
+        "entityType": "policies"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "descriptors",
+        "name": "p_site_select",
+        "as": "PERMISSIVE",
+        "for": "SELECT",
+        "roles": [
+          "site"
+        ],
+        "using": "status = 'active' and namespace = 'grade_level'",
+        "withCheck": null,
         "entityType": "policies"
       }
     },

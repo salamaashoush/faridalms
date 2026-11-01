@@ -55,6 +55,8 @@ export function PublicPageView({
           media: page.media,
           news: page.news,
           events: page.events,
+          intakes: page.intakes,
+          today: page.today,
           page: slug,
         })}
       />
