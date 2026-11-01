@@ -88,6 +88,11 @@ export interface SentLetter {
   applicationId: string;
   familyUserId: string;
   applicantUserId: string;
+  enquiryId: string | null;
+  /** Who sent it: whoever moved the application, or for the clock, whoever decided. */
+  sentByUserId: string | null;
+  /** The language the family applied in, which their conversation is in. */
+  applicationLocale: "en" | "ar";
   kind: LetterKind;
   locale: "en" | "ar";
   title: string;
@@ -103,9 +108,9 @@ const deliveries: LetterDelivery[] = [];
 
 /**
  * Where a letter also goes beside the family's applications, which always
- * keep it. The Messages system registers here to post each letter into the
- * family's conversation with the admissions office, so admissions never
- * writes a message or an email of its own.
+ * keep it: `family-conversation.ts` registers here to post each letter
+ * into the family's conversation with admissions through Messages, so
+ * admissions never writes a message or an email of its own.
  */
 export function registerLetterDelivery(delivery: LetterDelivery) {
   deliveries.push(delivery);
@@ -181,7 +186,7 @@ export async function sendLetter(
     locale,
     title,
     templateId: template.id,
-    sentByUserId: scope.actorUserId,
+    sentByUserId: scope.actorUserId ?? row.decidedByUserId,
   });
   await insertFrozen(scope.tx, {
     ...org,
@@ -198,6 +203,9 @@ export async function sendLetter(
       applicationId: row.id,
       familyUserId: row.familyUserId,
       applicantUserId: row.applicantUserId,
+      enquiryId: row.enquiryId,
+      sentByUserId: scope.actorUserId ?? row.decidedByUserId,
+      applicationLocale: row.locale,
       kind,
       locale,
       title,

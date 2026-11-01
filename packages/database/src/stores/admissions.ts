@@ -421,6 +421,7 @@ export interface ApplicationRow {
   createdAt: string;
   decision: Decision | null;
   decidedAt: string | null;
+  decidedByUserId: string | null;
   releasedAt: string | null;
   offerExpiresOn: string | null;
   answeredAt: string | null;
@@ -444,7 +445,7 @@ const applicationColumns = sql`a.id, a.version, a.intake_id, a.form_version_id, 
   case when a.released_at is null then null else ${isoOf(sql`a.released_at`)} end as released_at,
   a.offer_expires_on::text as offer_expires_on,
   case when a.answered_at is null then null else ${isoOf(sql`a.answered_at`)} end as answered_at,
-  a.student_user_id, a.deferred_from_id,
+  a.decided_by_user_id, a.student_user_id, a.deferred_from_id,
   c.full_name_en as applicant_en, c.full_name_ar as applicant_ar,
   c.birth_date::text as applicant_birth_date, c.sex_descriptor_id as applicant_sex_id,
   p.full_name_en as family_en, p.full_name_ar as family_ar`;
@@ -476,6 +477,7 @@ type ApplicationRecord = {
   created_at: string;
   decision: Decision | null;
   decided_at: string | null;
+  decided_by_user_id: string | null;
   released_at: string | null;
   offer_expires_on: string | null;
   answered_at: string | null;
@@ -511,6 +513,7 @@ const applicationOf = (row: ApplicationRecord): ApplicationRow => ({
   createdAt: row.created_at,
   decision: row.decision,
   decidedAt: row.decided_at,
+  decidedByUserId: row.decided_by_user_id,
   releasedAt: row.released_at,
   offerExpiresOn: row.offer_expires_on,
   answeredAt: row.answered_at,

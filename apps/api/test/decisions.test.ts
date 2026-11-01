@@ -135,6 +135,17 @@ describe("deciding", () => {
     expect(words).toContain("Grade 8");
     expect(words).not.toMatch(/\{[a-z]+\}/);
 
+    // The letter is also a message in the family's conversation with
+    // admissions, which they read in Messages.
+    const { threadId } = await office.applications.application({ id });
+    if (!threadId) throw new Error("the letter opened no conversation");
+    const conversation = await family.messages.thread({ id: threadId });
+    expect(
+      conversation.messages.some((message) =>
+        message.body.includes("Omar Ashoush"),
+      ),
+    ).toBe(true);
+
     // Another family reaches none of it.
     const { api: stranger } = await registeredFamily(
       "salama.notmine@example.com",

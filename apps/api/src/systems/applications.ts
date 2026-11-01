@@ -22,7 +22,6 @@ import { filesOfHosts } from "@faridalms/database/stores/files";
 import { identifiersOf } from "@faridalms/database/stores/identifiers";
 import { familyConversation } from "@faridalms/database/stores/messages";
 import { reachability } from "@faridalms/database/stores/notifications";
-import { publicSchool } from "@faridalms/database/stores/site";
 import { person as readPerson } from "@faridalms/database/stores/students";
 import { schoolYears } from "@faridalms/database/stores/years";
 import {
@@ -43,13 +42,13 @@ import {
   nextItemStates,
   withdrawApplicationSchema,
 } from "@faridalms/domain/admissions";
-import { applicationSubject } from "@faridalms/domain/enquiries";
 import { SYSTEM_KEPT_MEANINGS } from "@faridalms/domain/identifiers";
 import { ORPCError } from "@orpc/server";
 
 import type { UnitContext } from "../core/context";
 
 import { fileDocument, intakeOf, letterView } from "../core/admissions";
+import { familyThread } from "../core/family-conversation";
 import { readNeeds } from "../core/health";
 import {
   audit,
@@ -59,7 +58,7 @@ import {
   writeProcedure,
 } from "../core/procedure";
 import { withPurposeFor } from "../core/purpose";
-import { openMailboxConversation, scopeOf } from "../messages/conversations";
+import { scopeOf } from "../messages/conversations";
 
 const conflict = () =>
   new ORPCError("CONFLICT", { message: "conflict.version" });
@@ -551,31 +550,12 @@ export const openConversation = writeProcedure
   .handler(async ({ input, context }) => {
     requireCapability(context, "admissions:manage");
     const row = await applicationOf(context, input.id);
-    const existing = await familyConversation(context.tx, {
-      tenantId: context.tenantId,
-      schoolId: context.schoolId,
-      mailbox: "admissions",
-      userId: row.familyUserId,
-      enquiryId: row.enquiryId,
-    });
-    if (existing) return { threadId: existing };
-    const school = await publicSchool(context.tx, context.schoolId);
-    const locale = row.locale === "ar" ? "ar" : "en";
-    const threadId = await openMailboxConversation(scopeOf(context), {
-      mailbox: "admissions",
-      subject: applicationSubject(
-        locale,
-        (locale === "ar" ? school?.nameAr : null) ?? school?.nameEn ?? "",
-      ),
-      ownerId: null,
-      memberIds: [row.familyUserId],
-    });
-    await audit(context, {
-      action: "message_thread.create",
-      objectType: "message_thread",
-      objectId: threadId,
-      subjectUserId: row.familyUserId,
-      details: { mailbox: "admissions", application: row.id },
-    });
-    return { threadId };
+    return {
+      threadId: await familyThread(scopeOf(context), {
+        id: row.id,
+        familyUserId: row.familyUserId,
+        enquiryId: row.enquiryId,
+        locale: row.locale,
+      }),
+    };
   });
