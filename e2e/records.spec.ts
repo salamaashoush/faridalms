@@ -292,3 +292,126 @@ test("a teacher's record lists what they teach, and their students' records name
   await expect(page).toHaveURL(new RegExp(`/people/${me.id}`));
   await expect(page.getByRole("heading", { level: 1, name })).toBeVisible();
 });
+
+/** The seeded family's first child, and the teacher who keeps that child's homeroom. */
+async function childsTeacher() {
+  const [admin, parent] = await Promise.all([apiAs("admin"), apiAs("parent")]);
+  const me = await parent.identity.currentUser();
+  const [child] = (await parent.people.person({ id: me.id })).children;
+  if (!child) throw new Error("the seeded parent has no child");
+  const { homeroom } = await admin.people.student({ id: child.studentId });
+  const teacher = homeroom?.teachers[0];
+  if (!homeroom || !teacher)
+    throw new Error("the child's homeroom has no teacher");
+  return { parent, homeroom, teacher };
+}
+
+test("a family opens its child's teacher's limited profile, never the staff record", async ({
+  page,
+}) => {
+  const { parent, homeroom, teacher } = await childsTeacher();
+  const profile = await parent.people.profile({ id: teacher.userId });
+  expect(profile.teaching?.classes.map((row) => row.id)).toContain(
+    homeroom.classId,
+  );
+  expect(
+    await refusal(parent.people.person({ id: teacher.userId })),
+  ).toMatchObject({ code: "NOT_FOUND" });
+
+  await signIn(page, "parent");
+  await page.goto(`/profiles/${teacher.userId}`);
+  await untilHydrated(page);
+  await expect(
+    page.getByRole("heading", { level: 1, name: teacher.fullNameEn ?? "" }),
+  ).toBeVisible();
+  const classes = page.getByRole("region", {
+    name: "In your children's classes",
+  });
+  await expect(classes).toBeVisible();
+  await expect(classes.getByRole("link")).toHaveCount(0);
+  await expect(
+    page.getByRole("region", { name: "Roles at this school" }),
+  ).toHaveCount(0);
+  await expect(
+    page.getByRole("region", { name: "Contact details" }),
+  ).toHaveCount(0);
+  await page
+    .getByRole("button", { name: "Send a message" })
+    .filter({ visible: true })
+    .click();
+  await expect(page.getByRole("dialog")).toContainText(
+    teacher.fullNameEn ?? "",
+  );
+
+  const record = await page.request.get(`/people/${teacher.userId}`);
+  expect(record.status()).toBe(404);
+});
+
+test("a student opens their own teacher's profile, and no other teacher's", async ({
+  page,
+}) => {
+  const [admin, learner] = await Promise.all([
+    apiAs("admin"),
+    apiAs("student"),
+  ]);
+  const me = await learner.identity.currentUser();
+  const { homeroom } = await admin.people.student({ id: me.id });
+  const teacher = homeroom?.teachers[0];
+  if (!homeroom || !teacher)
+    throw new Error("the student's homeroom has no teacher");
+  const keeping = await admin.classes.record({ id: homeroom.classId });
+  const theirTeachers = new Set([
+    ...keeping.teachers.map((row) => row.userId),
+    ...keeping.subjects.flatMap((row) => row.teachers.map((one) => one.userId)),
+  ]);
+  const other = (await admin.people.staff({ role: ["teacher"] })).rows.find(
+    (row) => !theirTeachers.has(row.id),
+  );
+  if (!other) throw new Error("every seeded teacher teaches 8A");
+  expect(await refusal(learner.people.profile({ id: other.id }))).toMatchObject(
+    { code: "NOT_FOUND" },
+  );
+
+  await signIn(page, "student");
+  await page.goto(`/profiles/${teacher.userId}`);
+  await untilHydrated(page);
+  await expect(
+    page.getByRole("region", { name: "In your classes" }),
+  ).toBeVisible();
+  expect((await page.request.get(`/people/${teacher.userId}`)).status()).toBe(
+    404,
+  );
+});
+
+test("a name in a family's conversation opens that person's profile", async ({
+  page,
+}) => {
+  const parent = await apiAs("parent");
+  const me = await parent.identity.currentUser();
+  const family = (await parent.messages.inbox({})).rows.find(
+    (row) => row.kind === "family",
+  );
+  if (!family) throw new Error("the seeded family has no conversation");
+  const opened = await parent.messages.thread({ id: family.id });
+  const other = opened.members.find(
+    (row) => row.userId !== null && row.userId !== me.id,
+  );
+  if (!other?.userId) throw new Error("the conversation has nobody else");
+  expect(other.link).toBe("profile");
+
+  await signIn(page, "parent");
+  await page.goto(`/family/messages?thread=${family.id}`);
+  await untilHydrated(page);
+  await page
+    .getByRole("button", { name: /People in this conversation/ })
+    .filter({ visible: true })
+    .click();
+  await page
+    .getByRole("dialog")
+    .getByRole("link", { name: other.fullNameEn ?? "" })
+    .click();
+  await expect(page).toHaveURL(new RegExp(`/profiles/${other.userId}`));
+  await expect(
+    page.getByRole("heading", { level: 1, name: other.fullNameEn ?? "" }),
+  ).toBeVisible();
+});
