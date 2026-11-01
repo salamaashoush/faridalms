@@ -146,8 +146,11 @@ export function openCell(urls: CellUrls, size = 10) {
     withWorker: <T>(
       work: UnitOfWork,
       access: Access,
-      run: (tx: CellTransaction) => Promise<T>,
-    ) => unit(need(pools.worker, "worker"), work, access, run),
+      run: (tx: CellTransaction, now: Date) => Promise<T>,
+    ) =>
+      unit(need(pools.worker, "worker"), work, access, (tx, _lifecycle, now) =>
+        run(tx, now),
+      ),
     /**
      * Creates the monthly and yearly partitions the coming months need.
      * Migrations make them only when they run, so a cell that runs for a

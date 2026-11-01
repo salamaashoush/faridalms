@@ -23,7 +23,7 @@ export function startDelivery(input: {
     for (const tenantId of tenants) {
       if (stopped) return;
       try {
-        await deliverTenant(input.cell, input.gateways, tenantId, new Date());
+        await deliverTenant(input.cell, input.gateways, tenantId);
       } catch (error) {
         console.error(
           JSON.stringify({

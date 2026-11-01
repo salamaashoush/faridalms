@@ -150,12 +150,7 @@ describe("reaching people outside the app", () => {
     const office = await principal();
     await announce(office, "Photos day", "urgent");
     const email = new MemoryProvider();
-    const first = await deliverTenant(
-      cell,
-      { email, sms: null },
-      tenantId,
-      new Date(),
-    );
+    const first = await deliverTenant(cell, { email, sms: null }, tenantId);
     expect(first.sent).toBeGreaterThan(0);
     expect(email.sent.some((row) => row.subject.includes("Photos day"))).toBe(
       true,
@@ -165,12 +160,7 @@ describe("reaching people outside the app", () => {
       q: "Photos day",
     });
     expect(log.rows.length).toBeGreaterThan(0);
-    const again = await deliverTenant(
-      cell,
-      { email, sms: null },
-      tenantId,
-      new Date(),
-    );
+    const again = await deliverTenant(cell, { email, sms: null }, tenantId);
     expect(again.sent).toBe(0);
   });
 
