@@ -1,4 +1,4 @@
-import type { ManageNewsQuery } from "@faridalms/domain/news";
+import type { ManageNewsQuery, NewsListQuery } from "@faridalms/domain/news";
 
 import { queryOptions } from "@tanstack/react-query";
 
@@ -10,10 +10,10 @@ import {
   getNewsPost,
 } from "~/server/news";
 
-export const newsQuery = (q: string) =>
+export const newsQuery = (query: NewsListQuery) =>
   queryOptions({
-    queryKey: ["news", "list", q],
-    queryFn: () => getNews({ data: { q } }),
+    queryKey: ["news", "list", query],
+    queryFn: () => getNews({ data: query }),
     placeholderData: (previous) => previous,
   });
 

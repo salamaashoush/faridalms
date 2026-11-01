@@ -3,7 +3,7 @@ import { sql } from "drizzle-orm";
 import type { CellTransaction } from "../context";
 import type { PostVisibility, SiteLocale, SiteState } from "../tables/site";
 
-import { isoOf, uuidArray } from "./sql";
+import { escapeLike, isoOf, uuidArray } from "./sql";
 
 type Tx = CellTransaction;
 
@@ -282,8 +282,9 @@ export interface NewsRow extends PostRow {
 }
 
 /**
- * The posts a person may read inside the school, newest first: every post out
- * on the website, and school posts that reached them.
+ * A page of the posts a person may read inside the school: every post out
+ * on the website, and school posts that reached them, by when they went
+ * out or by title in the reader's language first, with how many there are.
  */
 export async function newsFor(
   tx: Tx,
@@ -292,19 +293,34 @@ export async function newsFor(
     schoolId: string;
     viewerId: string;
     q: string;
+    sort: "date" | "title";
+    direction: "asc" | "desc";
+    locale: "en" | "ar";
     limit: number;
+    offset: number;
   },
-): Promise<NewsRow[]> {
-  const q = input.q ? `%${input.q}%` : null;
+): Promise<{ rows: NewsRow[]; total: number }> {
+  const q = input.q ? `%${escapeLike(input.q)}%` : null;
+  const dir = input.direction === "asc" ? sql`asc` : sql`desc`;
+  const title =
+    input.locale === "ar"
+      ? sql`lower(coalesce(nullif(p.title_ar, ''), p.title_en))`
+      : sql`lower(coalesce(nullif(p.title_en, ''), p.title_ar))`;
+  const order =
+    input.sort === "title"
+      ? sql`${title} ${dir}, p.published_at desc, p.id`
+      : sql`p.published_at ${dir}, p.id`;
   const rows = await tx.execute<
     PostRecord & {
       summary: string | null;
       read_at: string | null;
       recipient: boolean;
+      total: number;
     }
   >(sql`
     select ${postColumns}, left(t.text, 240) as summary,
-      ${isoOf(sql`r.read_at`)} as read_at, r.id is not null as recipient
+      ${isoOf(sql`r.read_at`)} as read_at, r.id is not null as recipient,
+      (count(*) over ())::int as total
     from ${postFrom}
     left join core.site_post_recipients r on r.tenant_id = p.tenant_id and r.post_id = p.id
       and r.user_id = ${input.viewerId}::uuid and r.status = 'active'
@@ -313,14 +329,17 @@ export async function newsFor(
       and p.status = 'active' and p.state = 'published' and p.published_at <= statement_timestamp()
       and (p.visibility = 'public' or r.id is not null)
       and (${q}::text is null or p.title_en ilike ${q} or p.title_ar ilike ${q} or t.text ilike ${q})
-    order by p.published_at desc, p.id
-    limit ${input.limit}`);
-  return rows.map((row) => ({
-    ...postOf(row),
-    summary: row.summary ?? "",
-    readAt: row.read_at,
-    recipient: row.recipient,
-  }));
+    order by ${order}
+    limit ${input.limit} offset ${input.offset}`);
+  return {
+    rows: rows.map((row) => ({
+      ...postOf(row),
+      summary: row.summary ?? "",
+      readAt: row.read_at,
+      recipient: row.recipient,
+    })),
+    total: rows[0]?.total ?? 0,
+  };
 }
 
 export interface PostReportRow {

@@ -89,6 +89,52 @@ describe("reading school news", () => {
     ).toBe(false);
   });
 
+  test("the list pages past its first posts and sorts by date or title", async () => {
+    const office = await principal();
+    const tag = crypto.randomUUID().slice(0, 8);
+    // One after another, so each goes out after the one before.
+    await Array.from({ length: 27 }, (_, index) => index).reduce<
+      Promise<unknown>
+    >(
+      (previous, index) =>
+        previous
+          .then(() =>
+            office.news.save(
+              story(`Paged ${tag} ${String(index).padStart(2, "0")}`, "A note"),
+            ),
+          )
+          .then((saved) =>
+            office.news.publish({
+              id: saved.id,
+              expectedVersion: saved.version,
+            }),
+          ),
+      Promise.resolve(),
+    );
+    const family = await mother();
+    const first = await family.news.list({ q: tag });
+    expect(first).toMatchObject({ total: 27, page: 1, pages: 2 });
+    expect(first.rows).toHaveLength(25);
+    const second = await family.news.list({ q: tag, page: 2 });
+    expect(second.rows).toHaveLength(2);
+    const ids = [...first.rows, ...second.rows].map((row) => row.id);
+    expect(new Set(ids).size).toBe(27);
+    expect(first.rows[0]?.titleEn).toBe(`Paged ${tag} 26`);
+
+    const byTitle = await family.news.list({
+      q: tag,
+      sort: "title",
+      direction: "asc",
+    });
+    expect(byTitle.rows.slice(0, 3).map((row) => row.titleEn)).toEqual([
+      `Paged ${tag} 00`,
+      `Paged ${tag} 01`,
+      `Paged ${tag} 02`,
+    ]);
+    const oldest = await family.news.list({ q: tag, direction: "asc" });
+    expect(oldest.rows[0]?.titleEn).toBe(`Paged ${tag} 00`);
+  }, 30_000);
+
   test("school news never reaches the website", async () => {
     const visitor = client("northwind").site;
     const { rows } = await visitor.publicSitePosts({ school: "northwind" });

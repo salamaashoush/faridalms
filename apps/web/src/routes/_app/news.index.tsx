@@ -1,6 +1,6 @@
-import type { ManageNewsQuery } from "@faridalms/domain/news";
+import type { ManageNewsQuery, NewsListQuery } from "@faridalms/domain/news";
 
-import { NEWS_TABS } from "@faridalms/domain/news";
+import { NEWS_PAGE, NEWS_SORTS, NEWS_TABS } from "@faridalms/domain/news";
 import { cn } from "@faridalms/ui/cn";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import {
@@ -11,9 +11,14 @@ import {
 import { CircleCheck, Newspaper, Plus } from "lucide-react";
 import * as v from "valibot";
 
-import type { Column } from "~/components/system/DataTable";
+import type { Column, SortDirection } from "~/components/system/DataTable";
 
-import { DataTable, RowLink } from "~/components/system/DataTable";
+import {
+  DataTable,
+  Pagination,
+  RowLink,
+  ViewMenu,
+} from "~/components/system/DataTable";
 import {
   EmptyState,
   IndexToolbar,
@@ -22,6 +27,7 @@ import {
 import { RecordTabs } from "~/components/system/RecordPage";
 import { inLocale, useCurrentUser } from "~/hooks/useCurrentUser";
 import * as m from "~/i18n/messages";
+import { getLocale } from "~/i18n/runtime";
 import { managedNewsQuery, newsQuery } from "~/queries/news";
 import { currentUserQuery } from "~/queries/user";
 import { formatInstant, formatNumber } from "~/utils/datetime";
@@ -32,11 +38,28 @@ type Tab = (typeof TABS)[number];
 const searchSchema = v.object({
   tab: v.fallback(v.optional(v.picklist(TABS), "latest"), "latest"),
   q: v.optional(v.pipe(v.string(), v.maxLength(100)), ""),
+  sort: v.fallback(v.optional(v.picklist(NEWS_SORTS), "date"), "date"),
+  dir: v.fallback(v.optional(v.picklist(["asc", "desc"]), "desc"), "desc"),
+  page: v.fallback(
+    v.optional(v.pipe(v.number(), v.integer(), v.minValue(1)), 1),
+    1,
+  ),
 });
 const DEFAULT_SEARCH = v.parse(searchSchema, {});
+type NewsSearch = v.InferOutput<typeof searchSchema>;
+
+const NO_COLUMNS: ReadonlySet<string> = new Set();
 
 const isManage = (tab: Tab): tab is ManageNewsQuery["tab"] =>
   (NEWS_TABS as readonly string[]).includes(tab);
+
+const latestOf = (search: NewsSearch): NewsListQuery => ({
+  q: search.q,
+  sort: search.sort,
+  direction: search.dir,
+  page: search.page,
+  locale: getLocale(),
+});
 
 export const Route = createFileRoute("/_app/news/")({
   staticData: { breadcrumb: m.newsTitle },
@@ -50,7 +73,7 @@ export const Route = createFileRoute("/_app/news/")({
       await queryClient.ensureQueryData(
         managedNewsQuery({ tab: deps.tab, q: deps.q }),
       );
-    else await queryClient.ensureQueryData(newsQuery(deps.q));
+    else await queryClient.ensureQueryData(newsQuery(latestOf(deps)));
   },
   component: NewsPage,
 });
@@ -111,25 +134,44 @@ function NewsItem({ row }: { row: NewsRow }) {
   );
 }
 
-function Latest({ q }: { q: string }) {
-  const { rows } = useSuspenseQuery(newsQuery(q)).data;
+function Latest({
+  search,
+  onPage,
+}: {
+  search: NewsSearch;
+  onPage: (page: number) => void;
+}) {
+  const { rows, page, pages, total } = useSuspenseQuery(
+    newsQuery(latestOf(search)),
+  ).data;
   if (rows.length === 0)
     return (
       <EmptyState
         icon={Newspaper}
-        title={q ? m.newsNoMatch() : m.newsNothing()}
+        title={search.q ? m.newsNoMatch() : m.newsNothing()}
         description={m.newsNothingBody()}
       />
     );
   return (
-    <ul
-      className="divide-y rounded-lg border bg-card px-5"
-      aria-label={m.newsTitle()}
-    >
-      {rows.map((row) => (
-        <NewsItem key={row.id} row={row} />
-      ))}
-    </ul>
+    <div className="grid gap-4">
+      <ul
+        className="divide-y rounded-lg border bg-card px-5"
+        aria-label={m.newsTitle()}
+      >
+        {rows.map((row) => (
+          <NewsItem key={row.id} row={row} />
+        ))}
+      </ul>
+      {pages > 1 ? (
+        <Pagination
+          page={page}
+          pages={pages}
+          total={total}
+          pageSize={NEWS_PAGE}
+          onPage={onPage}
+        />
+      ) : null}
+    </div>
   );
 }
 
@@ -213,15 +255,43 @@ function NewsPage() {
         search={{
           value: search.q,
           onChange: (q) =>
-            void navigate({ search: (previous) => ({ ...previous, q }) }),
+            void navigate({
+              search: (previous) => ({ ...previous, q, page: 1 }),
+            }),
           label: m.newsSearch(),
           placeholder: m.newsSearchPlaceholder(),
         }}
+        view={
+          isManage(tab) ? undefined : (
+            <ViewMenu
+              sort={{
+                value: search.sort,
+                direction: search.dir,
+                onChange: (sort, dir: SortDirection) =>
+                  void navigate({
+                    search: (previous) => ({ ...previous, sort, dir, page: 1 }),
+                  }),
+              }}
+              sortOptions={[
+                { value: "date", label: m.newsSortDate() },
+                { value: "title", label: m.newsSortTitle() },
+              ]}
+              columns={[]}
+              hidden={NO_COLUMNS}
+              onToggle={() => undefined}
+            />
+          )
+        }
       />
       {isManage(tab) ? (
         <Managed tab={tab} q={search.q} />
       ) : (
-        <Latest q={search.q} />
+        <Latest
+          search={search}
+          onPage={(page) =>
+            void navigate({ search: (previous) => ({ ...previous, page }) })
+          }
+        />
       )}
     </div>
   );

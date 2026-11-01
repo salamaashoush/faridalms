@@ -271,7 +271,7 @@ export const teacher = readProcedure.handler(async ({ context }) => {
       }),
     }),
   ]);
-  const messages = { unread, threads };
+  const messages = { unread, threads: threads.rows };
   const upcoming = events.filter((event) => !event.cancelled).slice(0, 5);
   if (!year)
     return {
@@ -649,7 +649,7 @@ export const family = readProcedure
     const chosen = input.studentId
       ? links.filter((link) => link.studentId === input.studentId)
       : links;
-    const [threads, unread, feed, news] = await Promise.all([
+    const [threads, unread, feed, { rows: news }] = await Promise.all([
       threadsOf(context.tx, {
         tenantId: context.tenantId,
         schoolId: context.schoolId,
@@ -676,7 +676,11 @@ export const family = readProcedure
         schoolId: context.schoolId,
         viewerId: context.actor.userId,
         q: "",
+        sort: "date",
+        direction: "desc",
+        locale: "en",
         limit: 1,
+        offset: 0,
       }),
     ]);
     const young = await youngStudents(context.tx, {
@@ -748,7 +752,7 @@ export const family = readProcedure
         fullNameAr: link.fullNameAr,
       })),
       children,
-      messages: { unread, threads },
+      messages: { unread, threads: threads.rows },
       pinned: feed
         .filter((row) => row.pinned)
         .slice(0, 3)
