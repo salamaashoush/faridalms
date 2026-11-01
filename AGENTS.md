@@ -148,8 +148,8 @@ authorisation, school isolation or database ownership.
 
 ## What this product must not do again
 
-Each of these is a defect in the portal being replaced, recorded in
-`research/PORTAL-AUDIT.md`. A reviewer checks for them.
+Each of these is a defect found in the school portal this product was first
+built to replace. A reviewer checks for them.
 
 **Say "not recorded", never render a blank.** Any value that can legitimately
 be absent goes through `<Value>`. The old portal printed a label and then
