@@ -38,6 +38,7 @@ import { toast } from "sonner";
 
 import type { ActionItem } from "~/components/system/ActionMenu";
 import type { PrimaryAction } from "~/components/system/DocumentPage";
+import type { applicationQuery } from "~/queries/admissions";
 
 import { ContentView } from "~/components/content/ContentView";
 import {
@@ -56,12 +57,7 @@ import { SheetForm } from "~/components/system/SheetForm";
 import { StatusText } from "~/components/system/status";
 import { inLocale } from "~/hooks/useCurrentUser";
 import * as m from "~/i18n/messages";
-import type {
-  applicationQuery} from "~/queries/admissions";
-import {
-  attendeesQuery,
-  letterQuery,
-} from "~/queries/admissions";
+import { attendeesQuery, letterQuery } from "~/queries/admissions";
 import {
   answerForFamily,
   convertApplications,
