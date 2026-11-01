@@ -10,9 +10,17 @@ import { describe, expect, test } from "bun:test";
 import { sql } from "drizzle-orm";
 import { strFromU8, unzipSync } from "fflate";
 
-import { tellOpenedWork } from "../src/core/coursework-clock";
+import { runGoLive } from "../src/core/publication";
 import { handInTimedOut } from "../src/quizzes/clock";
-import { login, raw, rejection, seeded, sessionFor, signedIn } from "./harness";
+import {
+  login,
+  raw,
+  rejection,
+  seeded,
+  sessionFor,
+  signedIn,
+  timeHasCome,
+} from "./harness";
 
 // The seed's second teacher teaches Arabic to every grade, the third English.
 const arabicTeacher = () => sessionFor("northwind", login("teacher", 0, 1));
@@ -409,19 +417,11 @@ describe("handing in and returning work", () => {
     expect(await told()).toBe(0);
     const tenantId = seeded().tenants[0]?.tenantId ?? "";
     const channels = { email: false, sms: false };
-    await tellOpenedWork(seeded().cell, tenantId, {
-      now: new Date(opens.getTime() - 60_000),
-      channels,
-    });
+    await runGoLive(seeded().cell, tenantId, { channels });
     expect(await told()).toBe(0);
-    await tellOpenedWork(seeded().cell, tenantId, {
-      now: new Date(opens.getTime() + 60_000),
-      channels,
-    });
-    await tellOpenedWork(seeded().cell, tenantId, {
-      now: new Date(opens.getTime() + 120_000),
-      channels,
-    });
+    await timeHasCome("assignments", saved.id);
+    await runGoLive(seeded().cell, tenantId, { channels });
+    await runGoLive(seeded().cell, tenantId, { channels });
     expect(await told()).toBe(1);
   });
 
