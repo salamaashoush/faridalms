@@ -1,270 +1,294 @@
+import { addDays } from "@faridalms/domain/school";
 import { expect, test } from "@playwright/test";
-import { execFileSync } from "node:child_process";
 
-test("class transfers preserve other school years and returning enrollment episodes", async ({
-  request,
+import { apiAs, signedInApi } from "./fixtures/api";
+import {
+  newClass,
+  newStudent,
+  newYear,
+  refusal,
+  schoolDaysTo,
+} from "./fixtures/school";
+import { signIn, untilHydrated } from "./fixtures/sign-in";
+
+// Browser projects share one school and years may not overlap, so each
+// browser keeps years of its own.
+const EARLIER = {
+  chromium: {
+    title: "2019–2020 Salama",
+    startsOn: "2019-09-08",
+    endsOn: "2020-06-11",
+  },
+  firefox: {
+    title: "2018–2019 Salama",
+    startsOn: "2018-09-09",
+    endsOn: "2019-06-12",
+  },
+  webkit: {
+    title: "2017–2018 Salama",
+    startsOn: "2017-09-10",
+    endsOn: "2018-06-13",
+  },
+} as const;
+const REVISED = {
+  chromium: { startsOn: "2083-09-05", endsOn: "2084-06-15" },
+  firefox: { startsOn: "2085-09-02", endsOn: "2086-06-14" },
+  webkit: { startsOn: "2087-09-07", endsOn: "2088-06-16" },
+} as const;
+const EDITED = {
+  chromium: { startsOn: "2089-09-04", endsOn: "2090-06-14" },
+  firefox: { startsOn: "2091-09-02", endsOn: "2092-06-12" },
+  webkit: { startsOn: "2093-09-06", endsOn: "2094-06-17" },
+} as const;
+
+test("class moves keep other school years and return to a class as a new episode", async ({
+  browserName,
 }) => {
-  const fixture = JSON.parse(
-    execFileSync("bun", ["e2e/fixtures/academic-year.ts", "--enrollment"], {
-      encoding: "utf8",
-    }),
-  ) as {
-    classId: string;
-    today: string;
-    enrollmentFixture: {
-      scheduledStudentId: string;
-      scheduledReference: string;
-      studentId: string;
-      reference: string;
-      firstClassId: string;
-      secondClassId: string;
-      past: { id: string; since: string; until: string };
-    };
-  };
-  const origin = "http://127.0.0.1:3001/v1";
-  const login = await request.post(`${origin}/auth/signIn`, {
-    data: {
-      school: "northwind",
-      email: "admin@example.com",
-      password: "northwind1234",
-    },
+  const admin = await apiAs("admin");
+  const unique = crypto.randomUUID().slice(0, 6);
+  const earlier = await newYear(admin, EARLIER[browserName]);
+  const before = await newClass(admin, {
+    yearId: earlier.id,
+    title: `Salama earlier ${unique}`,
   });
-  expect(login.status()).toBe(200);
-  const { token } = (await login.json()) as { token: string };
-  const headers = { authorization: `Bearer ${token}` };
-  const { studentId, reference, firstClassId, secondClassId, past } =
-    fixture.enrollmentFixture;
-  const save = async (classId: string) => {
-    const response = await request.post(`${origin}/saveStudent`, {
-      headers,
-      data: {
-        id: studentId,
-        reference,
-        firstName: "Salama",
-        lastName: "Ashoush",
-        classId,
-        guardianIds: [],
-      },
+  const { workingYearId } = await admin.classes.options();
+  if (!workingYearId) throw new Error("the school has no working year");
+  const [first, second] = await Promise.all([
+    newClass(admin, { yearId: workingYearId, title: `Salama A ${unique}` }),
+    newClass(admin, { yearId: workingYearId, title: `Salama B ${unique}` }),
+  ]);
+  const [student, scheduled] = await Promise.all([
+    newStudent(admin, `Ashoush ${unique}`),
+    newStudent(admin, `Ashoush later ${unique}`),
+  ]);
+
+  await admin.classes.enrol({
+    studentId: student.id,
+    classId: before.id,
+    from: EARLIER[browserName].startsOn,
+  });
+  const { today } = await admin.identity.currentUser();
+  const days = await schoolDaysTo(admin, workingYearId, today);
+  const day = days.at(-1);
+  const left = days.at(-4);
+  const joined = days.at(-9);
+  if (!day || !left || !joined) throw new Error("too few school days so far");
+
+  await admin.classes.enrol({
+    studentId: student.id,
+    classId: first.id,
+    from: joined,
+  });
+  const register = await admin.attendance.register({
+    classId: first.id,
+    date: joined,
+  });
+  expect(register.students.map((row) => row.id)).toContain(student.id);
+  const mark = (classId: string, date: string, periodId: string) =>
+    admin.attendance.save({
+      classId,
+      date,
+      periodId,
+      expectedVersion: 0,
+      marks: [{ studentId: student.id, meaning: "present" }],
     });
-    expect(response.status()).toBe(200);
-  };
-  const mark = (classId: string, date: string) =>
-    request.post(`${origin}/saveAttendance`, {
-      headers,
-      data: {
-        classId,
-        date,
-        entries: [{ studentId, status: "present", note: "" }],
-      },
-    });
-  const historicalRegister = await request.post(
-    `${origin}/getAttendanceRegister`,
-    { headers, data: { classId: firstClassId, date: past.since } },
+  await mark(first.id, joined, register.period.id);
+
+  const placed = (
+    await admin.classes.record({ id: first.id, on: joined })
+  ).roster.find((row) => row.userId === student.id);
+  if (!placed) throw new Error("the student is not in the class");
+  await admin.classes.withdraw({
+    studentId: student.id,
+    enrollmentId: placed.enrollmentId,
+    expectedVersion: placed.version,
+    on: left,
+  });
+  expect(await refusal(mark(first.id, left, register.period.id))).toMatchObject(
+    { code: "CONFLICT", message: "attendance.not_roster" },
   );
-  expect(historicalRegister.status()).toBe(200);
-  const historical = (await historicalRegister.json()) as {
-    roster: { id: string }[];
-  };
-  expect(historical.roster.map((row) => row.id)).toContain(studentId);
-  expect((await mark(firstClassId, past.since)).status()).toBe(200);
-  expect((await mark(firstClassId, past.until)).status()).toBe(403);
-  expect((await mark(firstClassId, "1900-01-01")).status()).toBe(400);
-  await save(firstClassId);
-  expect((await mark(firstClassId, fixture.today)).status()).toBe(200);
-  await save(secondClassId);
-  expect((await mark(secondClassId, fixture.today)).status()).toBe(409);
-  await save(firstClassId);
-  await save(firstClassId);
-  const response = await request.post(`${origin}/getStudent`, {
-    headers,
-    data: { studentId },
+  expect(
+    await refusal(mark(first.id, "1900-01-01", register.period.id)),
+  ).toMatchObject({ code: "BAD_REQUEST", message: "attendance.outside_year" });
+
+  await admin.classes.enrol({
+    studentId: student.id,
+    classId: first.id,
+    from: day,
   });
-  expect(response.status()).toBe(200);
-  const { profile } = (await response.json()) as {
-    profile: {
-      classId: string;
-      enrollmentHistory: {
-        id: string;
-        classId: string;
-        since: string;
-        until: string | null;
-      }[];
-    };
-  };
-  const history = profile.enrollmentHistory;
-  expect(profile.classId).toBe(firstClassId);
-  expect(history).toHaveLength(5);
-  expect(history.find((row) => row.id === past.id)).toMatchObject({
-    since: past.since,
-    until: past.until,
+  await mark(first.id, day, register.period.id);
+  // A day already counted in one class cannot be counted again in another.
+  expect(
+    await refusal(
+      admin.classes.enrol({
+        studentId: student.id,
+        classId: second.id,
+        from: day,
+      }),
+    ),
+  ).toMatchObject({ code: "CONFLICT" });
+  expect(
+    await admin.classes.enrol({
+      studentId: student.id,
+      classId: first.id,
+      from: day,
+    }),
+  ).toMatchObject({ moved: false });
+
+  const history = await admin.classes.history({ studentId: student.id });
+  expect(history.find((row) => row.classId === before.id)).toMatchObject({
+    from: EARLIER[browserName].startsOn,
+    to: addDays(EARLIER[browserName].endsOn, 1),
+  });
+  const returns = history.filter((row) => row.classId === first.id);
+  expect(returns).toHaveLength(2);
+  expect(returns.find((row) => row.from === joined)?.to).toBe(left);
+  expect(
+    returns.filter((row) => row.from <= today && today < row.to),
+  ).toHaveLength(1);
+  expect(history.some((row) => row.classId === second.id)).toBe(false);
+  const listed = (await admin.people.students({ q: student.reference }))
+    .rows[0];
+  expect(listed?.homeroom?.classId).toBe(first.id);
+
+  const teacher = await apiAs("teacher");
+  expect(
+    await refusal(teacher.people.student({ id: student.id })),
+  ).toMatchObject({ code: "NOT_FOUND" });
+
+  await admin.classes.enrol({
+    studentId: scheduled.id,
+    classId: first.id,
+    from: addDays(today, 3),
   });
   expect(
-    history.find((row) => row.classId === fixture.classId)?.until,
-  ).toBeNull();
-  const returns = history.filter((row) => row.classId === firstClassId);
-  expect(returns).toHaveLength(3);
-  expect(returns.filter((row) => row.until === null)).toHaveLength(1);
-  const editor = await request.post(`${origin}/getStudentForManagement`, {
-    headers,
-    data: { id: studentId },
+    await refusal(
+      admin.classes.enrol({ studentId: scheduled.id, classId: second.id }),
+    ),
+  ).toMatchObject({
+    code: "CONFLICT",
+    message: "enrollment.future_placement",
   });
-  expect(editor.status()).toBe(200);
-  expect(await editor.json()).toMatchObject({ classId: firstClassId });
-  const teacherLogin = await request.post(`${origin}/auth/signIn`, {
-    data: {
-      school: "northwind",
-      email: "teacher@example.com",
-      password: "northwind1234",
-    },
-  });
-  expect(teacherLogin.status()).toBe(200);
-  const teacher = (await teacherLogin.json()) as { token: string };
-  const forbiddenProfile = await request.post(`${origin}/getStudent`, {
-    headers: { authorization: `Bearer ${teacher.token}` },
-    data: { studentId },
-  });
-  expect(forbiddenProfile.status()).toBe(403);
-  const scheduledConflict = await request.post(`${origin}/saveStudent`, {
-    headers,
-    data: {
-      id: fixture.enrollmentFixture.scheduledStudentId,
-      reference: fixture.enrollmentFixture.scheduledReference,
-      firstName: "Changed",
-      lastName: "Ashoush",
-      classId: secondClassId,
-      guardianIds: [],
-    },
-  });
-  expect(scheduledConflict.status()).toBe(409);
-  const unchanged = await request.post(`${origin}/getStudent`, {
-    headers,
-    data: { studentId: fixture.enrollmentFixture.scheduledStudentId },
-  });
-  expect(unchanged.status()).toBe(200);
-  expect(await unchanged.json()).toMatchObject({
-    profile: { firstName: "Salama", classId: null },
-  });
+  const waiting = await admin.classes.history({ studentId: scheduled.id });
+  expect(waiting.map((row) => [row.classId, row.from])).toEqual([
+    [first.id, addDays(today, 3)],
+  ]);
 });
 
-test("academic year edits reject stale revisions and stay isolated by school", async ({
-  request,
+test("school year edits refuse stale versions and stay inside the school", async ({
+  browserName,
 }) => {
-  const origin = "http://127.0.0.1:3001/v1";
-  const signIn = async (school: string, email: string) => {
-    const response = await request.post(`${origin}/auth/signIn`, {
-      data: { school, email, password: "northwind1234" },
-    });
-    expect(response.status()).toBe(200);
-    const { token } = (await response.json()) as { token: string };
-    return { authorization: `Bearer ${token}` };
-  };
-  const [admin, parent, otherSchool] = await Promise.all([
-    signIn("northwind", "admin@example.com"),
-    signIn("northwind", "parent@example.com"),
-    signIn("acme", "admin@example.com"),
-  ]);
+  const [admin, parent] = await Promise.all([apiAs("admin"), apiAs("parent")]);
+  const { api: acme } = await signedInApi(
+    "principal.acme@acme.example.com",
+    undefined,
+    "acme",
+  );
   const input = {
-    name: `Y-${crypto.randomUUID().slice(0, 8)}`,
-    startsOn: "2030-09-01",
-    endsOn: "2031-06-30",
+    titleEn: `Y-${crypto.randomUUID().slice(0, 8)}`,
+    titleAr: "",
+    terms: [],
+    ...REVISED[browserName],
   };
-  const forbidden = await request.post(`${origin}/saveAcademicYear`, {
-    headers: parent,
-    data: input,
+  expect(await refusal(parent.years.save(input))).toMatchObject({
+    code: "FORBIDDEN",
   });
-  expect(forbidden.status()).toBe(403);
-  const invalid = await request.post(`${origin}/saveAcademicYear`, {
-    headers: admin,
-    data: { ...input, endsOn: "2030-08-01" },
+  expect(
+    await refusal(
+      admin.years.save({ ...input, endsOn: addDays(input.startsOn, -30) }),
+    ),
+  ).toMatchObject({ code: "BAD_REQUEST" });
+
+  const { id } = await admin.years.save(input);
+  const year = await admin.years.record({ id });
+  expect(year).toMatchObject({ lifecycle: "upcoming", standing: "upcoming" });
+  expect(await refusal(admin.years.save(input))).toMatchObject({
+    code: "CONFLICT",
+    message: "school_year.overlapping",
   });
-  expect(invalid.status()).toBe(400);
-  const created = await request.post(`${origin}/saveAcademicYear`, {
-    headers: admin,
-    data: input,
-  });
-  expect(created.status()).toBe(200);
-  const year = (await created.json()) as {
-    id: string;
-    revision: number;
-    isCurrent: boolean;
-  };
-  expect(year.isCurrent).toBe(false);
-  const duplicate = await request.post(`${origin}/saveAcademicYear`, {
-    headers: admin,
-    data: input,
-  });
-  expect(duplicate.status()).toBe(409);
-  const updates = await Promise.all(
-    ["2031-07-01", "2031-07-02"].map((endsOn) =>
-      request.post(`${origin}/saveAcademicYear`, {
-        headers: admin,
-        data: {
-          ...input,
-          id: year.id,
-          expectedRevision: year.revision,
-          endsOn,
-        },
+
+  const updates = await Promise.allSettled(
+    [1, 2].map((offset) =>
+      admin.years.save({
+        ...input,
+        id,
+        expectedVersion: year.version,
+        endsOn: addDays(input.endsOn, offset),
       }),
     ),
   );
+  expect(updates.map((result) => result.status).toSorted()).toEqual([
+    "fulfilled",
+    "rejected",
+  ]);
+  const stale = updates.find((result) => result.status === "rejected");
+  expect(stale?.status === "rejected" ? stale.reason : null).toMatchObject({
+    code: "CONFLICT",
+    message: "conflict.version",
+  });
+  const won = updates.find((result) => result.status === "fulfilled");
+  if (won?.status !== "fulfilled") throw new Error("no save went through");
+  const stored = await admin.years.record({ id });
+  expect(stored).toMatchObject({
+    version: won.value.version,
+    lifecycle: "upcoming",
+    endsBefore: addDays(input.endsOn, 1 + (updates[0] === won ? 1 : 2)),
+  });
+  expect(stored.version).toBeGreaterThan(year.version);
+
+  expect(await refusal(acme.years.record({ id }))).toMatchObject({
+    code: "NOT_FOUND",
+  });
   expect(
-    updates.map((response) => response.status()).toSorted((a, b) => a - b),
-  ).toEqual([200, 409]);
-  const detail = await request.post(`${origin}/getAcademicYear`, {
-    headers: admin,
-    data: { id: year.id },
-  });
-  expect(detail.status()).toBe(200);
-  expect(await detail.json()).toMatchObject({
-    revision: year.revision + 1,
-    isCurrent: false,
-  });
-  const missing = await request.post(`${origin}/getAcademicYear`, {
-    headers: otherSchool,
-    data: { id: year.id },
-  });
-  expect(missing.status()).toBe(404);
-  const foreignWrite = await request.post(`${origin}/saveAcademicYear`, {
-    headers: otherSchool,
-    data: { ...input, id: year.id, expectedRevision: year.revision + 1 },
-  });
-  expect(foreignWrite.status()).toBe(404);
+    await refusal(
+      acme.years.save({ ...input, id, expectedVersion: stored.version }),
+    ),
+  ).toMatchObject({ code: "NOT_FOUND" });
 });
 
-test("administrators create a school year through a validated page and reopen it", async ({
+test("administrators add a school year through a checked page and reopen it", async ({
   page,
+  browserName,
 }) => {
-  await page.goto("/sign-in");
-  await page
-    .getByRole("textbox", { name: "Email or sign-in name" })
-    .fill("admin@example.com");
-  await page
-    .getByRole("textbox", { name: "Password", exact: true })
-    .fill("northwind1234");
-  await page.getByRole("button", { name: "Sign In", exact: true }).click();
-  await expect(page.locator("main#main")).toBeVisible();
-  await page.goto("/admin/settings");
-  await page.getByRole("link", { name: "Manage school years" }).click();
-  await page.getByRole("link", { name: "Create school year" }).click();
+  const dates = EDITED[browserName];
   const name = `Y-${crypto.randomUUID().slice(0, 8)}`;
-  await page.getByRole("button", { name: "Save changes", exact: true }).click();
+  await signIn(page, "admin");
+  await page.goto("/admin/academic-years");
+  await untilHydrated(page);
+  await page
+    .getByRole("link", { name: "Add school year", exact: true })
+    .first()
+    .click();
+  await expect(page).toHaveURL(/\/admin\/academic-year-editor/);
+  await page.getByRole("button", { name: "Save", exact: true }).click();
   await expect(
-    page.getByLabel("School year name", { exact: true }),
+    page.getByRole("textbox", { name: "Year name in Arabic" }),
   ).toHaveAttribute("aria-invalid", "true");
-  await page.getByLabel("School year name", { exact: true }).fill(name);
-  await page.getByLabel("Starts", { exact: true }).fill("2032-09-01");
-  await page.getByLabel("Ends", { exact: true }).fill("2033-06-30");
-  await page.getByRole("button", { name: "Save changes", exact: true }).click();
-  await expect(page).toHaveURL(/\/admin\/academic-years$/);
-  await page.reload();
-  await page.getByRole("link", { name: `Edit ${name}`, exact: true }).click();
   await expect(
-    page.getByLabel("School year name", { exact: true }),
+    page.getByLabel("First day", { exact: true }).first(),
+  ).toHaveAttribute("aria-invalid", "true");
+
+  await page.getByRole("textbox", { name: "Year name in English" }).fill(name);
+  await page
+    .getByLabel("First day", { exact: true })
+    .first()
+    .fill(dates.startsOn);
+  await page.getByLabel("Last day", { exact: true }).first().fill(dates.endsOn);
+  await page.getByRole("button", { name: "Save", exact: true }).click();
+  await expect(page).toHaveURL(/\/years\/[a-f0-9-]+/);
+  await expect(page.getByRole("heading", { level: 1, name })).toBeVisible();
+
+  await page.reload();
+  await untilHydrated(page);
+  await page.getByRole("button", { name: "Edit year" }).click();
+  await expect(page).toHaveURL(/\/admin\/academic-year-editor\?id=/);
+  await expect(
+    page.getByRole("textbox", { name: "Year name in English" }),
   ).toHaveValue(name);
-  await expect(page.getByLabel("Starts", { exact: true })).toHaveValue(
-    "2032-09-01",
-  );
-  await expect(page.getByLabel("Ends", { exact: true })).toHaveValue(
-    "2033-06-30",
-  );
+  await expect(
+    page.getByLabel("First day", { exact: true }).first(),
+  ).toHaveValue(dates.startsOn);
+  await expect(
+    page.getByLabel("Last day", { exact: true }).first(),
+  ).toHaveValue(dates.endsOn);
 });

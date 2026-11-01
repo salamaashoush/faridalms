@@ -19,7 +19,7 @@ import {
   RecordSection,
   RecordTabs,
 } from "~/components/system/RecordPage";
-import { inLocale } from "~/hooks/useCurrentUser";
+import { inLocale, useCurrentUser } from "~/hooks/useCurrentUser";
 import * as m from "~/i18n/messages";
 import { personHistoryQuery, personRecordQuery } from "~/queries/students";
 import { formatList } from "~/utils/datetime";
@@ -121,6 +121,14 @@ function ContactsSection({
 }
 
 function ChildrenSection({ data }: { data: PersonData }) {
+  const { capabilities, workspace } = useCurrentUser();
+  const opensRecords =
+    capabilities.includes("people:read") ||
+    capabilities.includes("people:manage");
+  const linkClass = cn(
+    "justify-self-start text-sm leading-5 font-medium hover:text-primary hover:underline",
+    phoneLink,
+  );
   return (
     <RecordSection title={m.personChildren()}>
       {data.children.length === 0 ? (
@@ -139,18 +147,30 @@ function ChildrenSection({ data }: { data: PersonData }) {
                 {initialsOf(displayName(child))}
               </span>
               <div className="grid min-w-0 flex-1 gap-0.5">
-                <Link
-                  to="/students/$studentId"
-                  params={{ studentId: child.studentId }}
-                  search={{}}
-                  dir="auto"
-                  className={cn(
-                    "justify-self-start text-sm leading-5 font-medium hover:text-primary hover:underline",
-                    phoneLink,
-                  )}
-                >
-                  {displayName(child)}
-                </Link>
+                {opensRecords ? (
+                  <Link
+                    to="/students/$studentId"
+                    params={{ studentId: child.studentId }}
+                    search={{}}
+                    dir="auto"
+                    className={linkClass}
+                  >
+                    {displayName(child)}
+                  </Link>
+                ) : workspace === "family" ? (
+                  <Link
+                    to="/family/details"
+                    search={{ studentId: child.studentId }}
+                    dir="auto"
+                    className={linkClass}
+                  >
+                    {displayName(child)}
+                  </Link>
+                ) : (
+                  <span dir="auto" className="text-sm leading-5 font-medium">
+                    {displayName(child)}
+                  </span>
+                )}
                 {child.relation ? (
                   <span className="text-[13px] leading-[18px] text-muted-foreground">
                     {labelOf(child.relation)}

@@ -452,10 +452,6 @@ export async function eraseSubject(
     "sessions",
     sql`delete from core.sessions where tenant_id = ${t}::uuid and account_id in ${accounts} returning 1`,
   );
-  await run(
-    "idempotency_keys",
-    sql`delete from core.idempotency_keys where tenant_id = ${t}::uuid and account_id in ${accounts} returning 1`,
-  );
   for (const table of ["login_identities", "passkeys", "devices"] as const)
     await remove(
       table,
@@ -605,10 +601,6 @@ export async function eraseSubject(
   await run(
     "audit_payloads",
     sql`delete from audit.payloads where tenant_id = ${t}::uuid and subject_user_id = ${s}::uuid returning 1`,
-  );
-  await run(
-    "activity_events",
-    sql`delete from core.activity_events where tenant_id = ${t}::uuid and actor_user_id = ${s}::uuid returning 1`,
   );
   return { counts, storageKeys: keys.map((row) => row.storage_key) };
 }

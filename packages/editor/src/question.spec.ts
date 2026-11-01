@@ -849,38 +849,6 @@ describe("questions in a document", () => {
     });
   });
 
-  it("reads a question shared editing kept from before it had hints in order", () => {
-    const target = buildContentEditor();
-    target.update(
-      () => {
-        const question = $createQuestionNode("choice");
-        $getRoot().clear().append(question);
-        // Shared editing sets the settings whole, as they were last written,
-        // by the property's name.
-        Reflect.set(question.getWritable(), "__settings", {
-          kind: "choice",
-          questionId: crypto.randomUUID(),
-          points: 1,
-          hint: "Look at the picture.",
-        });
-      },
-      { discrete: true },
-    );
-    target.getEditorState().read(() => {
-      const question = $getRoot().getFirstChild();
-      if (!$isQuestionNode(question)) throw new Error("no question");
-      expect(question.getSettings()).toMatchObject({
-        hints: ["Look at the picture."],
-        videoAt: null,
-        codeLanguage: "python",
-      });
-    });
-    const saved = json(target).root.children?.[0];
-    expect(saved).toMatchObject({ hints: ["Look at the picture."] });
-    expect(saved).not.toHaveProperty("hint");
-    expect(saved).not.toHaveProperty("videoAt");
-  });
-
   it("keeps the standards a question is tagged with, up to six", () => {
     const target = withQuestion("choiceQuestion");
     const tag = (standards: string[]) =>

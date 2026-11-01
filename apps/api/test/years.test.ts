@@ -123,8 +123,9 @@ describe("school years", () => {
       await rejection(api.years.save(form("2028-01-10", year.version))),
     ).toMatchObject({ message: "school_year.end_year_fixed" });
 
-    await api.years.save(form("2027-06-10", year.version));
+    const saved = await api.years.save(form("2027-06-10", year.version));
     const narrowed = await api.years.record({ id: year.id });
+    expect(saved.version).toBe(narrowed.version);
     expect(narrowed.endsBefore).toBe("2027-06-11");
     expect(narrowed.terms.at(-1)?.endsBefore).toBe("2027-06-11");
     expect(narrowed.students).toBe(year.students);

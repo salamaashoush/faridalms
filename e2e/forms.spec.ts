@@ -1,69 +1,64 @@
-import type { APIRequestContext } from "@playwright/test";
-
 import { expect, test } from "@playwright/test";
 import { readFileSync } from "node:fs";
 
-const origin = "http://127.0.0.1:3001/v1";
+import { apiAs, apiClient } from "./fixtures/api";
+import { ACCOUNTS, portal, signIn, untilHydrated } from "./fixtures/sign-in";
+
 const arabic = JSON.parse(readFileSync("messages/ar.json", "utf8")) as Record<
   string,
   string
 >;
 
-async function signIn(request: APIRequestContext, email: string) {
-  const response = await request.post(`${origin}/auth/signIn`, {
-    data: { school: "northwind", email, password: "northwind1234" },
+/** A staff member with no sign-in yet, for a sign-in to be opened for. */
+async function staffWithoutSignIn() {
+  const admin = await apiAs("admin");
+  const unique = crypto.randomUUID().slice(0, 8);
+  const { id } = await admin.people.saveStaff({
+    names: {
+      en: { given: "Salama", middle: "", family: `Ashoush ${unique}` },
+      ar: { given: "سلامة", middle: "", family: "عاشور" },
+    },
+    email: `salama-${unique}@northwind.example.com`,
+    roles: ["teacher"],
   });
-  expect(response.status()).toBe(200);
-  const session = (await response.json()) as { token: string };
-  return { authorization: `Bearer ${session.token}` };
+  return { admin, id };
 }
 
 test("business conflicts carry a code the client turns into the reader's language", async ({
   page,
-  request,
 }) => {
-  const admin = await signIn(request, "admin@example.com");
-  const duplicate = await request.post(`${origin}/saveUser`, {
-    headers: admin,
-    data: {
-      name: "Salama Duplicate",
-      email: "sara@example.com",
-      role: "teacher",
-      title: "",
-      mobile: "",
-      password: "school-account-2026",
-      isActive: true,
-    },
+  const { admin, id } = await staffWithoutSignIn();
+  await expect(
+    admin.people.saveSignIn({
+      userId: id,
+      loginName: ACCOUNTS.teacher.email,
+      password: "school-account-passphrase-2026",
+    }),
+  ).rejects.toMatchObject({
+    status: 409,
+    message: "login_identity.login_name_taken",
   });
-  expect(duplicate.status()).toBe(409);
-  expect(((await duplicate.json()) as { message: string }).message).toBe(
-    "management.email_in_use",
-  );
-  const wrongPassword = await request.post(`${origin}/auth/signIn`, {
-    data: {
-      school: "northwind",
-      email: "admin@example.com",
+  await expect(
+    apiClient().identity.signIn({
+      loginName: ACCOUNTS.admin.email,
       password: "wrong-password-2026",
-    },
+    }),
+  ).rejects.toMatchObject({
+    status: 400,
+    message: "auth.invalid_credentials",
   });
-  expect(wrongPassword.status()).toBe(400);
-  expect(((await wrongPassword.json()) as { message: string }).message).toBe(
-    "auth.invalid_credentials",
-  );
 
   await page
     .context()
-    .addCookies([
-      { name: "language-tag", value: "ar", domain: "127.0.0.1", path: "/" },
-    ]);
+    .addCookies([{ name: "language-tag", value: "ar", url: portal() }]);
   await page.goto("/sign-in");
   await expect(page.locator("html")).toHaveAttribute("dir", "rtl");
-  await page
-    .getByRole("textbox", {
-      name: arabic.authSignInFormLogin ?? "",
-      exact: true,
-    })
-    .fill("admin@example.com");
+  const login = page.getByRole("textbox", {
+    name: arabic.authSignInFormLogin ?? "",
+    exact: true,
+  });
+  await expect(login).toBeEnabled();
+  await login.fill(ACCOUNTS.admin.email);
   await page
     .getByRole("textbox", {
       name: arabic.authSignInFormPassword ?? "",
@@ -77,51 +72,41 @@ test("business conflicts carry a code the client turns into the reader's languag
     })
     .click();
   await expect(
-    page.getByText(arabic.authInvalidCredentials ?? ""),
+    page.getByText(arabic.authInvalidCredentials ?? "").first(),
   ).toBeVisible();
 });
 
-test("a duplicate email is refused in the reader's language inside the account dialog", async ({
+test("a sign-in name already in use is refused in the reader's language inside the sign-in sheet", async ({
   page,
 }) => {
-  await page.goto("/sign-in");
-  await page
-    .getByRole("textbox", { name: "Email or sign-in name" })
-    .fill("admin@example.com");
-  await page
-    .getByRole("textbox", { name: "Password", exact: true })
-    .fill("northwind1234");
-  await page.getByRole("button", { name: "Sign In", exact: true }).click();
-  await expect(page.locator("main#main")).toBeVisible();
+  const { id } = await staffWithoutSignIn();
+  await signIn(page, "admin");
   await page
     .context()
-    .addCookies([
-      { name: "language-tag", value: "ar", domain: "127.0.0.1", path: "/" },
-    ]);
-  await page.goto("/admin/staff");
+    .addCookies([{ name: "language-tag", value: "ar", url: portal() }]);
+  await page.goto(`/people/${id}?tab=account`);
+  await expect(page.locator("html")).toHaveAttribute("dir", "rtl");
+  await untilHydrated(page);
   await page
-    .getByRole("button", {
-      name: arabic.managementAddAccount ?? "",
-      exact: true,
-    })
+    .getByRole("button", { name: arabic.signInCreate ?? "", exact: true })
     .click();
-  const dialog = page.getByRole("dialog");
-  await dialog
-    .getByLabel(arabic.adminName ?? "", { exact: true })
-    .fill("Salama Duplicate");
-  await dialog
-    .getByLabel(arabic.adminEmail ?? "", { exact: true })
-    .fill("sara@example.com");
-  await dialog
-    .getByLabel(arabic.managementPassword ?? "", { exact: true })
-    .fill("school-account-2026");
-  await expect(
-    dialog.getByText(arabic.formOptional ?? "").first(),
-  ).toBeVisible();
-  await dialog
-    .getByRole("button", { name: arabic.managementSave ?? "", exact: true })
+  const sheet = page.getByRole("dialog", {
+    name: arabic.signInCreate ?? "",
+  });
+  const login = sheet.getByRole("textbox", {
+    name: arabic.accountLoginName ?? "",
+    exact: true,
+  });
+  await login.fill(ACCOUNTS.teacher.email);
+  await sheet
+    .getByLabel(arabic.signInPassword ?? "", { exact: true })
+    .fill("school-account-passphrase-2026");
+  await sheet
+    .getByRole("button", { name: arabic.commonSave ?? "", exact: true })
     .click();
-  await expect(dialog.getByRole("alert")).toHaveText(
-    arabic.managementEmailInUse ?? "",
+  await expect(login).toHaveAttribute("aria-invalid", "true");
+  await expect(login).toHaveAccessibleDescription(
+    arabic.signInLoginTaken ?? "",
   );
+  await expect(sheet.getByRole("alert")).toHaveCount(0);
 });

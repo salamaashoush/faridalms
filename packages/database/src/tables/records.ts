@@ -8,13 +8,11 @@ import {
   index,
   integer,
   jsonb,
-  smallint,
   text,
   uniqueIndex,
   uuid,
 } from "drizzle-orm/pg-core";
 
-import { accounts } from "./accounts";
 import {
   audit,
   baseConstraints,
@@ -22,11 +20,9 @@ import {
   core,
   entityColumns,
   entityProfile,
-  ephemeralProfile,
   eraseAndDelete,
   erasureOf,
   fk,
-  holderErased,
   instant,
   ledgerProfile,
   ops,
@@ -211,61 +207,6 @@ export const savedViews = core.table.withRLS(
       .where(sql`status = 'active' and shared`),
     ...entityProfile(),
     ...eraseAndDelete(erasureOf("owner_user_id")),
-  ],
-);
-
-export const idempotencyKeys = core.table.withRLS(
-  "idempotency_keys",
-  {
-    tenantId: uuid("tenant_id").notNull(),
-    accountId: uuid("account_id").notNull(),
-    key: text("key").notNull(),
-    requestHash: bytea("request_hash").notNull(),
-    procedure: text("procedure").notNull(),
-    responseStatus: smallint("response_status"),
-    responseBody: jsonb("response_body").$type<unknown>(),
-    resourceType: text("resource_type"),
-    resourceId: uuid("resource_id"),
-    createdAt: instant("created_at")
-      .notNull()
-      .default(sql`statement_timestamp()`),
-    expiresAt: instant("expires_at")
-      .notNull()
-      .default(sql`statement_timestamp() + interval '24 hours'`),
-  },
-  (t): PgTableExtraConfigValue[] => [
-    pk("idempotency_keys", t.tenantId, t.accountId, t.key),
-    fk("idempotency_keys", [t.tenantId], [tenants.tenantId]),
-    fk(
-      "idempotency_keys",
-      [t.tenantId, t.accountId],
-      [accounts.tenantId, accounts.id],
-    ),
-    ck("idempotency_keys", "key", sql`char_length(key) between 8 and 255`),
-    ck(
-      "idempotency_keys",
-      "request_hash",
-      sql`octet_length(request_hash) = 32`,
-    ),
-    ck(
-      "idempotency_keys",
-      "procedure",
-      sql`char_length(procedure) between 1 and 120`,
-    ),
-    ck(
-      "idempotency_keys",
-      "response_status",
-      sql`response_status between 100 and 599`,
-    ),
-    ck(
-      "idempotency_keys",
-      "resource_type",
-      sql`char_length(resource_type) between 1 and 63`,
-    ),
-    index("idempotency_keys_expiry_idx").on(t.tenantId, t.expiresAt),
-    ...ephemeralProfile(
-      sql`expires_at < statement_timestamp() or ${holderErased("idempotency_keys")}`,
-    ),
   ],
 );
 

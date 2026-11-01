@@ -73,7 +73,6 @@ import {
   files,
   identityProviderOrgs,
   identityProviders,
-  idempotencyKeys,
   importRows,
   importRuns,
   legalHolds,
@@ -326,13 +325,6 @@ export async function completeFixture(
     keyHash: bytes(32),
     windowEndsAt: new Date(now + 900_000),
   });
-  await tx.insert(idempotencyKeys).values({
-    tenantId,
-    accountId: account.id,
-    key: "fixture-key-0001",
-    requestHash: bytes(32),
-    procedure: "fixture.create",
-  });
 
   const documentId = id();
   await tx.insert(documents).values({
@@ -437,9 +429,6 @@ export async function completeFixture(
     reason: "Open investigation.",
     placedByUserId: userId,
   });
-
-  await tx.execute(sql`insert into core.activity_events (tenant_id, actor_user_id, verb, object_type, object_id, org_id)
-    values (${tenantId}::uuid, ${userId}::uuid, 'viewed', 'lesson', ${id()}::uuid, ${schoolId}::uuid)`);
 
   const importFile = id();
   await tx.insert(files).values({

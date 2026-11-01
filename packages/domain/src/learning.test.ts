@@ -55,7 +55,6 @@ import {
   settled,
   shortOfGate,
   studentBlocks,
-  upgradeLesson,
   viewCredit,
 } from "./learning";
 import { contentOfLesson, lessonOfContent } from "./lesson-content";
@@ -1093,44 +1092,6 @@ describe("a number line", () => {
     expect(allowed({ ...placed, line: { from: 5, to: 0, step: 1 } })).toBe(
       false,
     );
-  });
-});
-
-describe("older lessons", () => {
-  it("read a question's one hint as the first of its hints", () => {
-    const { hints: _hints, ...saved } = typed;
-    const upgraded = upgradeLesson({
-      version: 2,
-      blocks: [{ ...saved, hint: "It is on the Nile." }],
-    });
-    expect(v.safeParse(lessonDocumentSchema, upgraded).success).toBe(true);
-    expect(upgraded.blocks[0]).toMatchObject({ hints: ["It is on the Nile."] });
-    expect(upgraded.blocks[0]).not.toHaveProperty("hint");
-  });
-
-  it("upgrade their quizzes and reflections to today's questions", () => {
-    const upgraded = upgradeLesson({
-      version: 1,
-      blocks: [
-        {
-          id: uuid(5),
-          type: "quiz",
-          question: "2 + 2?",
-          options: [
-            { id: uuid(51), text: "4" },
-            { id: uuid(52), text: "5" },
-          ],
-          correctOptionIds: [uuid(51)],
-          explanation: "",
-        },
-        { id: uuid(6), type: "reflection", prompt: "What did you learn?" },
-      ],
-    });
-    expect(v.safeParse(lessonDocumentSchema, upgraded).success).toBe(true);
-    expect(upgraded.blocks.map((block) => block.type)).toEqual([
-      "choice",
-      "written",
-    ]);
   });
 });
 

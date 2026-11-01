@@ -1,141 +1,85 @@
-import type { APIRequestContext } from "@playwright/test";
-
+import { plainContent } from "@faridalms/domain/content-conversion";
 import { expect, test } from "@playwright/test";
 
-const origin = "http://127.0.0.1:3001/v1";
+import { apiAs, signedInApi } from "./fixtures/api";
+import { newClass, newStudent } from "./fixtures/school";
+import { ACCOUNTS } from "./fixtures/sign-in";
 
-async function signIn(
-  request: APIRequestContext,
-  email: string,
-  password = "northwind1234",
-) {
-  const response = await request.post(`${origin}/auth/signIn`, {
-    data: { school: "northwind", email, password },
-  });
-  expect(response.status()).toBe(200);
-  const session = (await response.json()) as { token: string };
-  return { authorization: `Bearer ${session.token}` };
-}
+test("a notice about an assignment still opens it after the student moves to another class", async () => {
+  const unique = crypto.randomUUID().slice(0, 6);
+  const admin = await apiAs("admin");
+  const { api: teacher } = await signedInApi(ACCOUNTS.teacher.email);
+  const teacherId = (await teacher.identity.currentUser()).id;
+  const options = await admin.classes.options();
+  const arabic = options.subjects.find((row) => row.code === "arabic");
+  if (!options.workingYearId || !arabic)
+    throw new Error("the school has no working year or no Arabic");
+  const subjects = [{ subjectId: arabic.id, teacherIds: [teacherId] }];
+  const [first, second] = await Promise.all([
+    newClass(admin, {
+      yearId: options.workingYearId,
+      title: `Salama first ${unique}`,
+      subjects,
+    }),
+    newClass(admin, {
+      yearId: options.workingYearId,
+      title: `Salama second ${unique}`,
+      subjects,
+    }),
+  ]);
 
-async function classes(
-  request: APIRequestContext,
-  admin: { authorization: string },
-) {
-  const sara = (await (
-    await request.post(`${origin}/getAllUsers`, {
-      headers: admin,
-      data: { role: "teacher", q: "sara@example.com" },
-    })
-  ).json()) as { rows: { id: string }[] };
-  const subjects = (await (
-    await request.post(`${origin}/getSubjects`, { headers: admin })
-  ).json()) as { id: string }[];
-  const teacherId = sara.rows[0]?.id;
-  const subjectId = subjects[0]?.id;
-  if (!teacherId || !subjectId)
-    throw new Error("Missing seeded teacher or subject");
+  const pupil = await newStudent(admin, `Pupil ${unique}`);
+  const loginName = `pupil-${unique}@northwind.example.com`;
+  const password = "pupil-passphrase-2026";
+  await admin.people.saveSignIn({ userId: pupil.id, loginName, password });
+  await admin.classes.enrol({ studentId: pupil.id, classId: first.id });
 
-  return {
-    subjectId,
-    create: async (name: string) => {
-      const response = await request.post(`${origin}/saveClass`, {
-        headers: admin,
-        data: {
-          name,
-          grade: "P3",
-          stage: "primary",
-          room: "",
-          homeroomTeacherId: "",
-          subjects: [{ subjectId, teacherId }],
-        },
-      });
-      expect(response.status()).toBe(200);
-      return ((await response.json()) as { id: string }).id;
-    },
-  };
-}
-
-test("a notification about an assignment still opens it after the student moves to another class", async ({
-  request,
-}) => {
-  const suffix = crypto.randomUUID().slice(0, 6);
-  const admin = await signIn(request, "admin@example.com");
-  const { subjectId, create: createClass } = await classes(request, admin);
-  const first = await createClass(`Salama first ${suffix}`);
-  const second = await createClass(`Salama second ${suffix}`);
-
-  const account = await request.post(`${origin}/saveUser`, {
-    headers: admin,
-    data: {
-      name: `Salama Pupil ${suffix}`,
-      email: `pupil-${suffix}@example.com`,
-      role: "student",
-      title: "",
-      mobile: "",
-      password: "pupil-passphrase-2026",
-      isActive: true,
-    },
-  });
-  expect(account.status()).toBe(200);
-  const { id: userId } = (await account.json()) as { id: string };
-  const student = {
-    reference: `PU-${suffix}`,
-    firstName: "Salama",
-    lastName: `Pupil ${suffix}`,
-    classId: first,
-    userId,
-  };
-  const placed = await request.post(`${origin}/saveStudent`, {
-    headers: admin,
-    data: student,
-  });
-  expect(placed.status()).toBe(200);
-  const { id: studentId } = (await placed.json()) as { id: string };
-
-  const { today } = (await (
-    await request.post(`${origin}/getAdminOverview`, { headers: admin })
-  ).json()) as { today: string };
-  const assignment = await request.post(`${origin}/createAssignment`, {
-    headers: admin,
-    data: {
-      classId: first,
-      subjectId,
-      title: `Salama pupil task ${suffix}`,
-      description: "Read the first chapter.",
-      dueDate: today,
-      maxScore: 10,
-    },
-  });
-  expect(assignment.status()).toBe(200);
-  const { id: assignmentId } = (await assignment.json()) as { id: string };
-
-  const moved = await request.post(`${origin}/saveStudent`, {
-    headers: admin,
-    data: { ...student, id: studentId, classId: second },
-  });
-  expect(moved.status()).toBe(200);
-
-  const pupil = await signIn(
-    request,
-    `pupil-${suffix}@example.com`,
-    "pupil-passphrase-2026",
+  const lessons = (await admin.classes.record({ id: first.id })).subjects.find(
+    (row) => row.subjectId === arabic.id,
   );
-  const notifications = (await (
-    await request.post(`${origin}/getNotifications`, {
-      headers: pupil,
-      data: { page: 1 },
-    })
-  ).json()) as { rows: { path: string | null }[] };
-  expect(
-    notifications.rows.some((row) => row.path?.includes(assignmentId)),
-  ).toBe(true);
-  const opened = await request.post(`${origin}/getLearnerAssignment`, {
-    headers: pupil,
-    data: { id: assignmentId },
+  if (!lessons) throw new Error("the class has no Arabic lessons");
+  const title = `Salama pupil task ${unique}`;
+  const saved = await teacher.coursework.save({
+    classId: lessons.id,
+    title,
+    brief: plainContent("Read the first chapter, then say what you found."),
+    audience: "class",
+    latePolicy: "accept",
+    submissionFormat: "discussion",
+    discussion: { postFirst: false, replies: 0 },
+    points: 10,
+    rubric: null,
   });
-  expect(opened.status()).toBe(200);
-  expect(await opened.json()).toMatchObject({
-    class: { id: first },
-    title: `Salama pupil task ${suffix}`,
+  await teacher.coursework.publish({
+    id: saved.id,
+    expectedVersion: saved.version,
+  });
+
+  const { api: learner } = await signedInApi(loginName, password);
+  const answer = await learner.coursework.post({
+    assignmentId: saved.id,
+    content: plainContent("The hero leaves home in the first chapter."),
+  });
+  await teacher.coursework.post({
+    assignmentId: saved.id,
+    parentId: answer.id,
+    content: plainContent("Where does she go next?"),
+  });
+
+  expect(
+    await admin.classes.enrol({ studentId: pupil.id, classId: second.id }),
+  ).toMatchObject({ moved: true });
+
+  const notices = await learner.notifications.list({ tab: "all" });
+  expect(
+    notices.rows.some(
+      (row) => row.subjectType === "assignment" && row.subjectId === saved.id,
+    ),
+  ).toBe(true);
+  const opened = await learner.coursework.work({ id: saved.id });
+  expect(opened.assignment).toMatchObject({
+    id: saved.id,
+    title,
+    class: { id: lessons.id },
   });
 });

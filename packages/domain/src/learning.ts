@@ -33,12 +33,7 @@ import {
   squaresOf,
 } from "./crossword";
 import { embedProviderNames, FRAMED_KEY, framedKey } from "./embed";
-import {
-  contentOfLesson,
-  hintsOf,
-  isContentDocument,
-  lessonOfContent,
-} from "./lesson-content";
+import { lessonOfContent } from "./lesson-content";
 import { MATH_FORMS } from "./math-forms";
 import { keyIssue, markMath } from "./math-marking";
 import {
@@ -973,21 +968,15 @@ export const lessonDocumentSchema = v.pipe(
 );
 export type LessonDocument = v.InferOutput<typeof lessonDocumentSchema>;
 
-export function emptyLesson(): LessonDocument {
-  return { version: 2, blocks: [] };
-}
-
 export function contentBlock(content: ContentDocument): LessonBlock {
   return { id: crypto.randomUUID(), type: "content", content };
 }
 
-/**
- * A lesson as its teacher writes it: one document. Lessons stored as a list
- * of blocks are read as the document they become.
- */
-export function lessonContentOf(value: unknown): ContentDocument {
-  if (isContentDocument(value)) return value;
-  return contentOfLesson(upgradeLesson(value)) ?? emptyContent();
+/** A lesson's stored words, the one document its teacher writes. */
+export function lessonContentOf(
+  value: Record<string, unknown> | null | undefined,
+): ContentDocument {
+  return value ? (value as unknown as ContentDocument) : emptyContent();
 }
 
 const mediaOf = (node: ContentNode): ContentNode[] =>
@@ -1278,66 +1267,6 @@ export function lessonIssue(lesson: {
   }
   const [problem] = contentIssues(lesson.content);
   return problem ? `content.${problem}` : null;
-}
-
-/** A question saved when it had one hint, with its hints in order. */
-function withHints(block: Record<string, unknown>): LessonBlock {
-  if (!("hint" in block)) return block as LessonBlock;
-  const { hint: _hint, ...rest } = block;
-  return Object.assign(rest, { hints: hintsOf(block) }) as LessonBlock;
-}
-
-/**
- * A lesson saved before questions had points, hints and feedback, in today's
- * shape: its quizzes become choice questions and its reflections unmarked
- * written answers. Published versions keep whatever shape they had.
- */
-export function upgradeLesson(value: unknown): LessonDocument {
-  if (isContentDocument(value)) return lessonOfContent(value);
-  const document = (value ?? {}) as {
-    version?: number;
-    blocks?: Record<string, unknown>[];
-  };
-  if (document.version === 2)
-    return { version: 2, blocks: (document.blocks ?? []).map(withHints) };
-  const blocks = (document.blocks ?? []).map((block): LessonBlock => {
-    switch (block.type) {
-      case "quiz": {
-        const correct = (block.correctOptionIds as string[] | undefined) ?? [];
-        return {
-          id: block.id as string,
-          type: "choice",
-          prompt: (block.question as string | undefined) ?? "",
-          points: 1,
-          hints: [],
-          explanation: (block.explanation as string | undefined) ?? "",
-          tries: null,
-          options: (
-            (block.options as { id: string; text: string }[] | undefined) ?? []
-          ).map((option) => ({ ...option, feedback: "" })),
-          correctOptionIds: correct,
-          multiple: correct.length > 1,
-          shuffle: false,
-        };
-      }
-      case "reflection":
-        return {
-          id: block.id as string,
-          type: "written",
-          prompt: (block.prompt as string | undefined) ?? "",
-          points: 0,
-          hints: [],
-          explanation: "",
-          tries: null,
-          wordLimit: null,
-        };
-      case "media":
-        return { transcript: "", ...block } as LessonBlock;
-      default:
-        return block as LessonBlock;
-    }
-  });
-  return { version: 2, blocks };
 }
 
 function gapText(block: GapsBlock): string {

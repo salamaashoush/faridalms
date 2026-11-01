@@ -1,4 +1,5 @@
 import type { Scope } from "@faridalms/database/stores/students";
+import type { ContentDocument } from "@faridalms/domain/content";
 
 import {
   classById,
@@ -46,7 +47,6 @@ import {
 } from "@faridalms/database/stores/years";
 import { EYFS_GOALS } from "@faridalms/domain/early-goals";
 import { IB_CONCEPTS } from "@faridalms/domain/ib-concepts";
-import { isContentDocument } from "@faridalms/domain/lesson-content";
 import {
   caseOutline,
   classGoalsSchema,
@@ -446,8 +446,10 @@ export const curriculumMap = readProcedure
         return [
           row.id,
           new Set(
-            isContentDocument(plan)
-              ? planTargets(plan).map((target) => target.id)
+            plan
+              ? planTargets(plan as unknown as ContentDocument).map(
+                  (target) => target.id,
+                )
               : [],
           ),
         ];

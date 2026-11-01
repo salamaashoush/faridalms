@@ -24,11 +24,10 @@ import {
   viewCredit,
   watchables,
   studentBlocks,
-  upgradeLesson,
   videoStops,
   watchedEnough,
 } from "@faridalms/domain/learning";
-import { isContentDocument } from "@faridalms/domain/lesson-content";
+import { lessonOfContent } from "@faridalms/domain/lesson-content";
 import { translatedLesson } from "@faridalms/domain/lesson-translation";
 import { otherLocale } from "@faridalms/domain/translations";
 import { mediaClock } from "@faridalms/editor/format";
@@ -1405,7 +1404,7 @@ export function LessonPreview({
       vowels.strip(
         data.translation && reading !== data.language
           ? translatedLesson(data.content, data.translation.content)
-          : upgradeLesson(data.content),
+          : lessonOfContent(data.content),
       ),
     [vowels, data.content, data.translation, reading, data.language],
   );
@@ -1488,17 +1487,13 @@ export function LessonPreview({
       to: "/teach/lesson-editor",
       search: { id: data.id, moduleId: data.moduleId },
     });
-  const printing = usePrint(
-    isContentDocument(data.content)
-      ? {
-          title: data.title,
-          content: data.content,
-          answers: true,
-          link: `/lessons/${data.id}`,
-          language: data.language,
-        }
-      : null,
-  );
+  const printing = usePrint({
+    title: data.title,
+    content: data.content,
+    answers: true,
+    link: `/lessons/${data.id}`,
+    language: data.language,
+  });
   if (data.young && earlyYears)
     return (
       <YoungContext.Provider value>

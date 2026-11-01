@@ -592,7 +592,7 @@ export async function areaFiles(
         join core.documents d on d.tenant_id = l2.tenant_id and d.id = l2.document_id
           and d.status = 'active'
         left join core.assignments a on a.tenant_id = d.tenant_id and a.id = d.host_id
-          and d.host_type in ('assignment', 'assignment_quiz')
+          and d.host_type = 'assignment'
         left join core.lessons l on l.tenant_id = d.tenant_id and l.id = d.host_id
           and d.host_type = 'lesson'
         where l2.tenant_id = f.tenant_id and l2.file_id = f.id and l2.status = 'active'
