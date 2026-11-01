@@ -911,6 +911,12 @@ export const CATALOGUE: readonly SeedNamespace[] = [
         meaning: "dietary_requirement",
       },
       {
+        code: "doctor",
+        en: "Doctor",
+        ar: "الطبيب المعالج",
+        meaning: "doctor",
+      },
+      {
         code: "injury",
         en: "Past injury",
         ar: "إصابة سابقة",

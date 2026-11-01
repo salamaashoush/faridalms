@@ -1,5 +1,4 @@
 import type { BreachRow, LeaverRow } from "@faridalms/database/stores/privacy";
-import type { DayKind } from "@faridalms/domain/privacy";
 
 import { unsuccessfulApplicants } from "@faridalms/database/stores/admissions";
 import {
@@ -11,7 +10,6 @@ import {
   eraseSubject,
   erasuresOf,
 } from "@faridalms/database/stores/erasure";
-import { schoolProfile, viewer } from "@faridalms/database/stores/identity";
 import {
   contactById,
   contactOfSchool,
@@ -22,7 +20,6 @@ import {
   breachesOf,
   closeBreach as closeBreachOf,
   closeRequest as closeRequestOf,
-  dayMeanings,
   examWorkOf,
   extendRequest as extendRequestOf,
   hadAtSchool,
@@ -31,7 +28,6 @@ import {
   leaversOf,
   placeHold as placeHoldOf,
   insertRequest,
-  openRequestsBy,
   releaseHold as releaseHoldOf,
   requestById,
   requestsOf,
@@ -42,7 +38,6 @@ import {
   updateBreach,
   updateRequest,
 } from "@faridalms/database/stores/privacy";
-import { SCHOOL_DAY_MEANINGS } from "@faridalms/domain/calendar";
 import { emptyContent } from "@faridalms/domain/content-conversion";
 import {
   approveContactErasureSchema,
@@ -53,9 +48,7 @@ import {
   closeRequestSchema,
   extendedDueOn,
   extendRequestSchema,
-  familyRequestLaw,
   hasClock,
-  MAX_OPEN_CORRECTIONS,
   peopleDueOn,
   peopleMustBeTold,
   placeHoldSchema,
@@ -71,7 +64,6 @@ import {
   saveRetentionSchema,
 } from "@faridalms/domain/privacy";
 import { schoolDate } from "@faridalms/domain/school";
-import { isoWeekday } from "@faridalms/domain/timetable";
 import { ORPCError } from "@orpc/server";
 
 import type { UnitContext } from "../core/context";
@@ -86,6 +78,7 @@ import {
   schoolZone,
   writeProcedure,
 } from "../core/procedure";
+import { dayKinds, logFamilyRequest } from "../core/records-requests";
 import { sessionViews } from "../exams/sessions";
 
 function scopeOf(context: UnitContext) {
@@ -118,48 +111,6 @@ async function breachClocks(context: UnitContext, rows: BreachRow[]) {
         ? peopleDueOn(row.law, discoveredOn(row), dayOf)
         : null,
   }));
-}
-
-/** The longest a request's clock runs: a month, then two more, then a weekend. */
-const CLOCK_SPAN_DAYS = 200;
-
-function plusDays(iso: string, days: number): string {
-  const date = new Date(`${iso}T00:00:00Z`);
-  date.setUTCDate(date.getUTCDate() + days);
-  return date.toISOString().slice(0, 10);
-}
-
-/**
- * Each day from `from` as the school's calendar has it, and by its week where
- * the calendar says nothing: lessons on school days, offices open on any day
- * that is neither a weekend nor a public holiday.
- */
-async function dayKinds(
-  context: UnitContext,
-  from: string,
-): Promise<(day: string) => DayKind> {
-  const [meanings, profile] = await Promise.all([
-    dayMeanings(context.tx, {
-      ...scopeOf(context),
-      from,
-      to: plusDays(from, CLOCK_SPAN_DAYS),
-    }),
-    schoolProfile(context.tx, context.schoolId),
-  ]);
-  const weekend = new Set(profile?.weekendDays ?? []);
-  return (day) => {
-    const known = meanings.get(day);
-    const restDay = weekend.has(isoWeekday(day));
-    if (!known) return { school: !restDay, working: !restDay };
-    const school = known.some((meaning) =>
-      SCHOOL_DAY_MEANINGS.includes(meaning),
-    );
-    const closed =
-      known.includes("public_holiday") ||
-      known.includes("weekend") ||
-      (restDay && !school);
-    return { school, working: !closed };
-  };
 }
 
 /**
@@ -419,10 +370,8 @@ export const saveRequest = writeProcedure
 
 /**
  * A guardian asks the school to correct what it holds about their child.
- * The request goes into the same register the office logs requests in, with
- * the deadline the school's law sets, so it is answered on that clock and
- * not lost in a message. Only a guardian who decides for the child may ask;
- * one who only follows them sees the record and leaves changes to the other.
+ * Only a guardian who decides for the child may ask; one who only follows
+ * them sees the record and leaves changes to the other.
  */
 export const askCorrection = writeProcedure
   .input(askCorrectionSchema)
@@ -444,47 +393,11 @@ export const askCorrection = writeProcedure
     if (!link) throw new ORPCError("NOT_FOUND");
     if (link.educationalRights !== "full")
       throw new ORPCError("FORBIDDEN", { message: "privacy.follows_only" });
-    const scope = scopeOf(context);
-    const open = await openRequestsBy(context.tx, {
-      ...scope,
-      subjectUserId: input.studentId,
-      loggedByUserId: context.actor.userId,
-    });
-    if (open >= MAX_OPEN_CORRECTIONS)
-      throw new ORPCError("CONFLICT", { message: "privacy.requests_open" });
-    const [me, school] = await Promise.all([
-      viewer(context.tx, context.actor.userId),
-      schoolProfile(context.tx, context.schoolId),
-    ]);
-    const law = familyRequestLaw(school?.countryCode ?? null);
-    const dueOn =
-      requestDueOn(
-        law,
-        "correction",
-        context.today,
-        await dayKinds(context, context.today),
-      ) ?? plusDays(context.today, 30);
-    const id = await insertRequest(context.tx, {
-      ...scope,
-      subjectUserId: input.studentId,
-      requestedBy: (me?.fullNameEn ?? me?.fullNameAr ?? "").slice(0, 120),
-      relation: "parent",
-      kind: "correction",
-      law,
-      receivedOn: context.today,
-      clockFrom: context.today,
-      dueOn,
+    return logFamilyRequest(context, {
+      studentId: input.studentId,
       details: input.details,
-      loggedByUserId: context.actor.userId,
+      topic: null,
     });
-    await audit(context, {
-      action: "privacy_request.log",
-      objectType: "records_request",
-      objectId: id,
-      subjectUserId: input.studentId,
-      details: { kind: "correction", law, dueOn, by: "guardian" },
-    });
-    return { id, dueOn };
   });
 
 /** Gives a complex UK request the two further months the law allows. */
@@ -530,6 +443,10 @@ export const closeRequest = writeProcedure
       ...scopeOf(context),
       id: input.id,
     });
+    if (request?.topic)
+      throw new ORPCError("BAD_REQUEST", {
+        message: "privacy.answered_elsewhere",
+      });
     const closed =
       request !== null &&
       (await closeRequestOf(context.tx, {
@@ -538,6 +455,7 @@ export const closeRequest = writeProcedure
         outcome: input.outcome,
         note: input.note,
         closedByUserId: context.actor.userId,
+        topic: null,
       }));
     if (!request || !closed)
       throw new ORPCError("NOT_FOUND", { message: "privacy.request_closed" });

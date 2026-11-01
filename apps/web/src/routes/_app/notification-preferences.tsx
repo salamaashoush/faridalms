@@ -56,6 +56,7 @@ const KIND_LABEL: Record<ChoosableKind, () => string> = {
   assignment: m.ntfKindAssignment,
   feedback: m.ntfKindFeedback,
   grades: m.ntfKindGrades,
+  correction: m.ntfKindCorrection,
 };
 
 const EMAIL_LABEL: Record<EmailMode, () => string> = {
@@ -70,10 +71,11 @@ const SMS_LABEL: Record<SmsMode, () => string> = {
 };
 
 /**
- * Absences and consent requests reach families, register reminders and
- * library reviews reach staff, replies those who post in discussions, work
- * set, returned and graded reaches students and their families, and
- * enquiries those who work them; nobody else gets them.
+ * Absences, consent requests and answers to the changes a family asked for
+ * reach families, register reminders and library reviews reach staff,
+ * replies those who post in discussions, work set, returned and graded
+ * reaches students and their families, and enquiries those who work them;
+ * nobody else gets them.
  */
 function kindsFor(
   workspace: Workspace,
@@ -81,7 +83,8 @@ function kindsFor(
 ): readonly ChoosableKind[] {
   return CHOOSABLE_KINDS.filter(
     (kind) =>
-      ((kind !== "absence" && kind !== "consent") || workspace === "family") &&
+      ((kind !== "absence" && kind !== "consent" && kind !== "correction") ||
+        workspace === "family") &&
       ((kind !== "reminder" && kind !== "library") ||
         workspace === "teach" ||
         workspace === "admin") &&

@@ -176,6 +176,10 @@ const LINES: Record<"en" | "ar", Record<NotificationKind, Line>> = {
           : `Your work on ${p.title ?? "an assignment"} came back with your teacher's feedback.`,
     grades: (p) =>
       `${p.studentName ? `${p.studentName}'s` : "Your"} grades for ${p.title ?? "the term"}${p.className ? ` in ${p.className}` : ""} are out.`,
+    correction: (p) =>
+      p.report === "accepted"
+        ? `The school updated ${p.studentName ?? "your child"}'s medical summary with the change you asked for.`
+        : `The school answered the change you asked for in ${p.studentName ?? "your child"}'s medical summary and did not make it.`,
   },
   ar: {
     announcement: (p) =>
@@ -232,6 +236,10 @@ const LINES: Record<"en" | "ar", Record<NotificationKind, Line>> = {
           : `أُعيد إليك عملك في ${p.title ?? "الواجب"} مع ملاحظات معلمك.`,
     grades: (p) =>
       `صدرت ${p.studentName ? `درجات ${p.studentName}` : "درجاتك"} عن ${p.title ?? "الفصل الدراسي"}${p.className ? ` في ${p.className}` : ""}.`,
+    correction: (p) =>
+      p.report === "accepted"
+        ? `حدّثت المدرسة ملخص ${p.studentName ?? "طفلك"} الطبي بالتعديل الذي طلبته.`
+        : `لم تعتمد المدرسة التعديل الذي طلبته على ملخص ${p.studentName ?? "طفلك"} الطبي.`,
   },
 };
 

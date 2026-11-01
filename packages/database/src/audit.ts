@@ -18,6 +18,7 @@ const DENIED_COLUMNS = new Set([
 /** Tables whose every column stays out of payloads. */
 const DENIED_TABLES = new Set([
   "health.records",
+  "health.requested_changes",
   "core.demographics",
   "core.relationship_restrictions",
 ]);

@@ -115,7 +115,8 @@ export type NotificationKind =
   | "application"
   | "assignment"
   | "feedback"
-  | "grades";
+  | "grades"
+  | "correction";
 export type DeliveryChannel = "email" | "sms";
 export type DeliveryState = "pending" | "sent" | "failed" | "skipped";
 export type DeliveryReason =

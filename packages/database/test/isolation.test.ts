@@ -34,11 +34,13 @@ const DELETE_ALLOWED = new Set([
   "core.module_audiences",
   "core.lesson_openings",
   "health.records",
+  "health.requested_changes",
   "audit.payloads",
 ]);
 
 const PURPOSE_OF: Record<string, string> = {
   "health.records": "health",
+  "health.requested_changes": "health",
   "core.demographics": "demographics",
   "core.relationship_restrictions": "custody",
 };

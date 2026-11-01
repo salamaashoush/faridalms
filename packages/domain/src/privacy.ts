@@ -387,6 +387,20 @@ export const runContactErasureSchema = v.object({
 /** The most requests a guardian may have open about one child at a time. */
 export const MAX_OPEN_CORRECTIONS = 3;
 
+/**
+ * A correction a system answers with the change it carries, rather than the
+ * privacy office by hand: the medical summary's changes, answered by the
+ * school's health staff.
+ */
+export const REQUEST_TOPICS = ["health"] as const;
+export type RequestTopic = (typeof REQUEST_TOPICS)[number];
+
+/**
+ * The most changes to a child's medical summary one guardian may have open
+ * at a time, enough to bring a whole summary up to date at once.
+ */
+export const MAX_OPEN_HEALTH_CHANGES = 10;
+
 export const askCorrectionSchema = v.object({
   studentId: v.pipe(v.string(), v.uuid()),
   details: note(2000),
