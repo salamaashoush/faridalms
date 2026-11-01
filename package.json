@@ -90,7 +90,7 @@
     "vitest-dom": "^0.1.1"
   },
   "lint-staged": {
-    "*": "oxfmt",
+    "*": "oxfmt --no-error-on-unmatched-pattern",
     "*.{js,jsx,ts,tsx}": "oxlint --fix --no-error-on-unmatched-pattern"
   },
   "packageManager": "bun@1.4.4",
