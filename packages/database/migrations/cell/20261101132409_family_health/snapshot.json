@@ -1,0 +1,1223 @@
+{
+  "type": "diff",
+  "version": "9",
+  "dialect": "postgres",
+  "id": "e0968988-4a0d-480b-b532-3ced2a6ee68e",
+  "prevIds": [
+    "f225812d-53b4-4484-a1d1-24d3084a0b5d"
+  ],
+  "footprints": [
+    {
+      "statementType": "create_table",
+      "statementTarget": [
+        "table",
+        "health",
+        "requested_changes"
+      ],
+      "writes": [
+        "s|tbl|health.requested_changes",
+        "n|tbl|health.requested_changes",
+        "e|tbl|health.requested_changes",
+        "n|rel|health.requested_changes",
+        "n|type|health.requested_changes",
+        "n|rel|health.requested_changes_pkey",
+        "n|rel|health.requested_changes_tenant_id_request_id_key"
+      ],
+      "reads": [
+        "n|sch|health"
+      ]
+    },
+    {
+      "statementType": "add_column",
+      "statementTarget": [
+        "column",
+        "core",
+        "records_requests",
+        "topic"
+      ],
+      "writes": [
+        "s|col|core.records_requests.topic",
+        "n|col|core.records_requests.topic",
+        "e|col|core.records_requests.topic"
+      ],
+      "reads": [
+        "n|tbl|core.records_requests",
+        "n|sch|core"
+      ]
+    },
+    {
+      "statementType": "create_index",
+      "statementTarget": [
+        "index",
+        "health",
+        "requested_changes",
+        "requested_changes_student_idx"
+      ],
+      "writes": [
+        "s|idx|health.requested_changes_student_idx",
+        "n|idx|health.requested_changes_student_idx",
+        "e|idx|health.requested_changes_student_idx",
+        "n|rel|health.requested_changes_student_idx"
+      ],
+      "reads": [
+        "n|tbl|health.requested_changes",
+        "n|sch|health",
+        "n|col|health.requested_changes.tenant_id",
+        "n|col|health.requested_changes.student_user_id"
+      ]
+    },
+    {
+      "statementType": "create_fk",
+      "statementTarget": [
+        "table",
+        "health",
+        "requested_changes"
+      ],
+      "writes": [
+        "s|fk|health.requested_changes.requested_changes_tenant_id_fkey",
+        "n|fk|health.requested_changes.requested_changes_tenant_id_fkey",
+        "e|fk|health.requested_changes.requested_changes_tenant_id_fkey",
+        "n|con|health.requested_changes.requested_changes_tenant_id_fkey"
+      ],
+      "reads": [
+        "n|tbl|health.requested_changes",
+        "n|sch|health",
+        "n|tbl|core.tenants",
+        "n|sch|core",
+        "n|col|health.requested_changes.tenant_id",
+        "n|col|core.tenants.tenant_id",
+        "e|uniqueness|core.tenants.tenant_id"
+      ]
+    },
+    {
+      "statementType": "create_fk",
+      "statementTarget": [
+        "table",
+        "health",
+        "requested_changes"
+      ],
+      "writes": [
+        "s|fk|health.requested_changes.requested_changes_tenant_id_request_id_fkey",
+        "n|fk|health.requested_changes.requested_changes_tenant_id_request_id_fkey",
+        "e|fk|health.requested_changes.requested_changes_tenant_id_request_id_fkey",
+        "n|con|health.requested_changes.requested_changes_tenant_id_request_id_fkey"
+      ],
+      "reads": [
+        "n|tbl|health.requested_changes",
+        "n|sch|health",
+        "n|tbl|core.records_requests",
+        "n|sch|core",
+        "n|col|health.requested_changes.tenant_id",
+        "n|col|health.requested_changes.request_id",
+        "n|col|core.records_requests.tenant_id",
+        "n|col|core.records_requests.id",
+        "e|uniqueness|core.records_requests.id.tenant_id"
+      ]
+    },
+    {
+      "statementType": "create_fk",
+      "statementTarget": [
+        "table",
+        "health",
+        "requested_changes"
+      ],
+      "writes": [
+        "s|fk|health.requested_changes.requested_changes_tenant_id_student_user_id_fkey",
+        "n|fk|health.requested_changes.requested_changes_tenant_id_student_user_id_fkey",
+        "e|fk|health.requested_changes.requested_changes_tenant_id_student_user_id_fkey",
+        "n|con|health.requested_changes.requested_changes_tenant_id_student_user_id_fkey"
+      ],
+      "reads": [
+        "n|tbl|health.requested_changes",
+        "n|sch|health",
+        "n|tbl|core.users",
+        "n|sch|core",
+        "n|col|health.requested_changes.tenant_id",
+        "n|col|health.requested_changes.student_user_id",
+        "n|col|core.users.tenant_id",
+        "n|col|core.users.id",
+        "e|uniqueness|core.users.id.tenant_id"
+      ]
+    },
+    {
+      "statementType": "create_fk",
+      "statementTarget": [
+        "table",
+        "health",
+        "requested_changes"
+      ],
+      "writes": [
+        "s|fk|health.requested_changes.requested_changes_tenant_id_requested_by_user_id_fkey",
+        "n|fk|health.requested_changes.requested_changes_tenant_id_requested_by_user_id_fkey",
+        "e|fk|health.requested_changes.requested_changes_tenant_id_requested_by_user_id_fkey",
+        "n|con|health.requested_changes.requested_changes_tenant_id_requested_by_user_id_fkey"
+      ],
+      "reads": [
+        "n|tbl|health.requested_changes",
+        "n|sch|health",
+        "n|tbl|core.users",
+        "n|sch|core",
+        "n|col|health.requested_changes.tenant_id",
+        "n|col|health.requested_changes.requested_by_user_id",
+        "n|col|core.users.tenant_id",
+        "n|col|core.users.id",
+        "e|uniqueness|core.users.id.tenant_id"
+      ]
+    },
+    {
+      "statementType": "create_fk",
+      "statementTarget": [
+        "table",
+        "health",
+        "requested_changes"
+      ],
+      "writes": [
+        "s|fk|health.requested_changes.requested_changes_tenant_id_kind_descriptor_id_kind_ns_fkey",
+        "n|fk|health.requested_changes.requested_changes_tenant_id_kind_descriptor_id_kind_ns_fkey",
+        "e|fk|health.requested_changes.requested_changes_tenant_id_kind_descriptor_id_kind_ns_fkey",
+        "n|con|health.requested_changes.requested_changes_tenant_id_kind_descriptor_id_kind_ns_fkey"
+      ],
+      "reads": [
+        "n|tbl|health.requested_changes",
+        "n|sch|health",
+        "n|tbl|core.descriptors",
+        "n|sch|core",
+        "n|col|health.requested_changes.tenant_id",
+        "n|col|health.requested_changes.kind_descriptor_id",
+        "n|col|health.requested_changes.kind_ns",
+        "n|col|core.descriptors.tenant_id",
+        "n|col|core.descriptors.id",
+        "n|col|core.descriptors.namespace",
+        "e|uniqueness|core.descriptors.id.namespace.tenant_id"
+      ]
+    },
+    {
+      "statementType": "create_fk",
+      "statementTarget": [
+        "table",
+        "health",
+        "requested_changes"
+      ],
+      "writes": [
+        "s|fk|health.requested_changes.requested_changes_tenant_id_record_id_fkey",
+        "n|fk|health.requested_changes.requested_changes_tenant_id_record_id_fkey",
+        "e|fk|health.requested_changes.requested_changes_tenant_id_record_id_fkey",
+        "n|con|health.requested_changes.requested_changes_tenant_id_record_id_fkey"
+      ],
+      "reads": [
+        "n|tbl|health.requested_changes",
+        "n|sch|health",
+        "n|tbl|health.records",
+        "n|sch|health",
+        "n|col|health.requested_changes.tenant_id",
+        "n|col|health.requested_changes.record_id",
+        "n|col|health.records.tenant_id",
+        "n|col|health.records.id",
+        "e|uniqueness|health.records.id.tenant_id"
+      ]
+    },
+    {
+      "statementType": "create_fk",
+      "statementTarget": [
+        "table",
+        "health",
+        "requested_changes"
+      ],
+      "writes": [
+        "s|fk|health.requested_changes.requested_changes_tenant_id_relationship_id_fkey",
+        "n|fk|health.requested_changes.requested_changes_tenant_id_relationship_id_fkey",
+        "e|fk|health.requested_changes.requested_changes_tenant_id_relationship_id_fkey",
+        "n|con|health.requested_changes.requested_changes_tenant_id_relationship_id_fkey"
+      ],
+      "reads": [
+        "n|tbl|health.requested_changes",
+        "n|sch|health",
+        "n|tbl|core.user_relationships",
+        "n|sch|core",
+        "n|col|health.requested_changes.tenant_id",
+        "n|col|health.requested_changes.relationship_id",
+        "n|col|core.user_relationships.tenant_id",
+        "n|col|core.user_relationships.id",
+        "e|uniqueness|core.user_relationships.id.tenant_id"
+      ]
+    },
+    {
+      "statementType": "create_fk",
+      "statementTarget": [
+        "table",
+        "health",
+        "requested_changes"
+      ],
+      "writes": [
+        "s|fk|health.requested_changes.requested_changes_tenant_id_key_purpose_key_version_fkey",
+        "n|fk|health.requested_changes.requested_changes_tenant_id_key_purpose_key_version_fkey",
+        "e|fk|health.requested_changes.requested_changes_tenant_id_key_purpose_key_version_fkey",
+        "n|con|health.requested_changes.requested_changes_tenant_id_key_purpose_key_version_fkey"
+      ],
+      "reads": [
+        "n|tbl|health.requested_changes",
+        "n|sch|health",
+        "n|tbl|core.tenant_keys",
+        "n|sch|core",
+        "n|col|health.requested_changes.tenant_id",
+        "n|col|health.requested_changes.key_purpose",
+        "n|col|health.requested_changes.key_version",
+        "n|col|core.tenant_keys.tenant_id",
+        "n|col|core.tenant_keys.purpose",
+        "n|col|core.tenant_keys.key_version",
+        "e|uniqueness|core.tenant_keys.key_version.purpose.tenant_id"
+      ]
+    },
+    {
+      "statementType": "add_check",
+      "statementTarget": [
+        "table",
+        "core",
+        "records_requests"
+      ],
+      "writes": [
+        "s|ck|core.records_requests.records_requests_topic_check",
+        "n|ck|core.records_requests.records_requests_topic_check",
+        "e|ck|core.records_requests.records_requests_topic_check",
+        "n|con|core.records_requests.records_requests_topic_check"
+      ],
+      "reads": [
+        "n|tbl|core.records_requests",
+        "n|sch|core",
+        "n|col|core.records_requests.topic",
+        "n|col|core.records_requests.kind"
+      ]
+    },
+    {
+      "statementType": "create_policy",
+      "statementTarget": [
+        "table",
+        "health",
+        "requested_changes"
+      ],
+      "writes": [
+        "s|pol|health.requested_changes.tenant_isolation",
+        "n|pol|health.requested_changes.tenant_isolation",
+        "e|pol|health.requested_changes.tenant_isolation"
+      ],
+      "reads": [
+        "n|tbl|health.requested_changes",
+        "n|sch|health",
+        "e|rls|health.requested_changes"
+      ]
+    },
+    {
+      "statementType": "create_policy",
+      "statementTarget": [
+        "table",
+        "health",
+        "requested_changes"
+      ],
+      "writes": [
+        "s|pol|health.requested_changes.owner_all",
+        "n|pol|health.requested_changes.owner_all",
+        "e|pol|health.requested_changes.owner_all"
+      ],
+      "reads": [
+        "n|tbl|health.requested_changes",
+        "n|sch|health",
+        "n|role|cell_owner",
+        "e|rls|health.requested_changes"
+      ]
+    },
+    {
+      "statementType": "create_policy",
+      "statementTarget": [
+        "table",
+        "health",
+        "requested_changes"
+      ],
+      "writes": [
+        "s|pol|health.requested_changes.p_select",
+        "n|pol|health.requested_changes.p_select",
+        "e|pol|health.requested_changes.p_select"
+      ],
+      "reads": [
+        "n|tbl|health.requested_changes",
+        "n|sch|health",
+        "n|role|app",
+        "n|role|cell_io",
+        "n|role|retention",
+        "n|role|worker",
+        "e|rls|health.requested_changes"
+      ]
+    },
+    {
+      "statementType": "create_policy",
+      "statementTarget": [
+        "table",
+        "health",
+        "requested_changes"
+      ],
+      "writes": [
+        "s|pol|health.requested_changes.p_insert",
+        "n|pol|health.requested_changes.p_insert",
+        "e|pol|health.requested_changes.p_insert"
+      ],
+      "reads": [
+        "n|tbl|health.requested_changes",
+        "n|sch|health",
+        "n|role|app",
+        "n|role|cell_io",
+        "n|role|worker",
+        "e|rls|health.requested_changes"
+      ]
+    },
+    {
+      "statementType": "create_policy",
+      "statementTarget": [
+        "table",
+        "health",
+        "requested_changes"
+      ],
+      "writes": [
+        "s|pol|health.requested_changes.p_update",
+        "n|pol|health.requested_changes.p_update",
+        "e|pol|health.requested_changes.p_update"
+      ],
+      "reads": [
+        "n|tbl|health.requested_changes",
+        "n|sch|health",
+        "n|role|app",
+        "n|role|cell_io",
+        "n|role|worker",
+        "e|rls|health.requested_changes"
+      ]
+    },
+    {
+      "statementType": "create_policy",
+      "statementTarget": [
+        "table",
+        "health",
+        "requested_changes"
+      ],
+      "writes": [
+        "s|pol|health.requested_changes.purpose_gate",
+        "n|pol|health.requested_changes.purpose_gate",
+        "e|pol|health.requested_changes.purpose_gate"
+      ],
+      "reads": [
+        "n|tbl|health.requested_changes",
+        "n|sch|health",
+        "e|rls|health.requested_changes"
+      ]
+    },
+    {
+      "statementType": "create_policy",
+      "statementTarget": [
+        "table",
+        "health",
+        "requested_changes"
+      ],
+      "writes": [
+        "s|pol|health.requested_changes.p_erase_update",
+        "n|pol|health.requested_changes.p_erase_update",
+        "e|pol|health.requested_changes.p_erase_update"
+      ],
+      "reads": [
+        "n|tbl|health.requested_changes",
+        "n|sch|health",
+        "n|role|retention",
+        "e|rls|health.requested_changes"
+      ]
+    },
+    {
+      "statementType": "create_policy",
+      "statementTarget": [
+        "table",
+        "health",
+        "requested_changes"
+      ],
+      "writes": [
+        "s|pol|health.requested_changes.p_erase_delete",
+        "n|pol|health.requested_changes.p_erase_delete",
+        "e|pol|health.requested_changes.p_erase_delete"
+      ],
+      "reads": [
+        "n|tbl|health.requested_changes",
+        "n|sch|health",
+        "n|role|retention",
+        "e|rls|health.requested_changes"
+      ]
+    }
+  ],
+  "deltas": [
+    {
+      "op": "create",
+      "row": {
+        "schema": "health",
+        "name": "requested_changes",
+        "isRlsEnabled": true,
+        "entityType": "tables"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "health",
+        "table": "requested_changes",
+        "name": "tenant_id",
+        "type": "uuid",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "health",
+        "table": "requested_changes",
+        "name": "id",
+        "type": "uuid",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": "uuidv7()",
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "health",
+        "table": "requested_changes",
+        "name": "request_id",
+        "type": "uuid",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "health",
+        "table": "requested_changes",
+        "name": "student_user_id",
+        "type": "uuid",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "health",
+        "table": "requested_changes",
+        "name": "requested_by_user_id",
+        "type": "uuid",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "health",
+        "table": "requested_changes",
+        "name": "target",
+        "type": "text",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "health",
+        "table": "requested_changes",
+        "name": "kind_descriptor_id",
+        "type": "uuid",
+        "typeSchema": null,
+        "notNull": false,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "health",
+        "table": "requested_changes",
+        "name": "kind_ns",
+        "type": "text",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": null,
+        "generated": {
+          "as": "'health_record_kind'",
+          "type": "stored"
+        },
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "health",
+        "table": "requested_changes",
+        "name": "record_id",
+        "type": "uuid",
+        "typeSchema": null,
+        "notNull": false,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "health",
+        "table": "requested_changes",
+        "name": "relationship_id",
+        "type": "uuid",
+        "typeSchema": null,
+        "notNull": false,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "health",
+        "table": "requested_changes",
+        "name": "key_purpose",
+        "type": "text",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": null,
+        "generated": {
+          "as": "'health'",
+          "type": "stored"
+        },
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "health",
+        "table": "requested_changes",
+        "name": "key_version",
+        "type": "integer",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "health",
+        "table": "requested_changes",
+        "name": "ciphertext",
+        "type": "bytea",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "health",
+        "table": "requested_changes",
+        "name": "status",
+        "type": "text",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": "'active'",
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "health",
+        "table": "requested_changes",
+        "name": "date_last_modified",
+        "type": "timestamp with time zone",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": "statement_timestamp()",
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "health",
+        "table": "requested_changes",
+        "name": "version",
+        "type": "integer",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": "1",
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "health",
+        "table": "requested_changes",
+        "name": "metadata",
+        "type": "jsonb",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": "'{}'",
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "health",
+        "table": "requested_changes",
+        "name": "created_at",
+        "type": "timestamp with time zone",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": "statement_timestamp()",
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "records_requests",
+        "name": "topic",
+        "type": "text",
+        "typeSchema": null,
+        "notNull": false,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "health",
+        "table": "requested_changes",
+        "name": "requested_changes_student_idx",
+        "nameExplicit": true,
+        "columns": [
+          {
+            "value": "tenant_id",
+            "isExpression": false,
+            "asc": true,
+            "nullsFirst": false,
+            "opclass": null
+          },
+          {
+            "value": "student_user_id",
+            "isExpression": false,
+            "asc": true,
+            "nullsFirst": false,
+            "opclass": null
+          }
+        ],
+        "isUnique": false,
+        "where": "status = 'active'",
+        "with": "",
+        "method": "btree",
+        "concurrently": false,
+        "entityType": "indexes"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "health",
+        "table": "requested_changes",
+        "name": "requested_changes_tenant_id_fkey",
+        "nameExplicit": true,
+        "columns": [
+          "tenant_id"
+        ],
+        "schemaTo": "core",
+        "tableTo": "tenants",
+        "columnsTo": [
+          "tenant_id"
+        ],
+        "onUpdate": "NO ACTION",
+        "onDelete": "NO ACTION",
+        "entityType": "fks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "health",
+        "table": "requested_changes",
+        "name": "requested_changes_tenant_id_request_id_fkey",
+        "nameExplicit": true,
+        "columns": [
+          "tenant_id",
+          "request_id"
+        ],
+        "schemaTo": "core",
+        "tableTo": "records_requests",
+        "columnsTo": [
+          "tenant_id",
+          "id"
+        ],
+        "onUpdate": "NO ACTION",
+        "onDelete": "NO ACTION",
+        "entityType": "fks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "health",
+        "table": "requested_changes",
+        "name": "requested_changes_tenant_id_student_user_id_fkey",
+        "nameExplicit": true,
+        "columns": [
+          "tenant_id",
+          "student_user_id"
+        ],
+        "schemaTo": "core",
+        "tableTo": "users",
+        "columnsTo": [
+          "tenant_id",
+          "id"
+        ],
+        "onUpdate": "NO ACTION",
+        "onDelete": "NO ACTION",
+        "entityType": "fks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "health",
+        "table": "requested_changes",
+        "name": "requested_changes_tenant_id_requested_by_user_id_fkey",
+        "nameExplicit": true,
+        "columns": [
+          "tenant_id",
+          "requested_by_user_id"
+        ],
+        "schemaTo": "core",
+        "tableTo": "users",
+        "columnsTo": [
+          "tenant_id",
+          "id"
+        ],
+        "onUpdate": "NO ACTION",
+        "onDelete": "NO ACTION",
+        "entityType": "fks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "health",
+        "table": "requested_changes",
+        "name": "requested_changes_tenant_id_kind_descriptor_id_kind_ns_fkey",
+        "nameExplicit": true,
+        "columns": [
+          "tenant_id",
+          "kind_descriptor_id",
+          "kind_ns"
+        ],
+        "schemaTo": "core",
+        "tableTo": "descriptors",
+        "columnsTo": [
+          "tenant_id",
+          "id",
+          "namespace"
+        ],
+        "onUpdate": "NO ACTION",
+        "onDelete": "NO ACTION",
+        "entityType": "fks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "health",
+        "table": "requested_changes",
+        "name": "requested_changes_tenant_id_record_id_fkey",
+        "nameExplicit": true,
+        "columns": [
+          "tenant_id",
+          "record_id"
+        ],
+        "schemaTo": "health",
+        "tableTo": "records",
+        "columnsTo": [
+          "tenant_id",
+          "id"
+        ],
+        "onUpdate": "NO ACTION",
+        "onDelete": "NO ACTION",
+        "entityType": "fks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "health",
+        "table": "requested_changes",
+        "name": "requested_changes_tenant_id_relationship_id_fkey",
+        "nameExplicit": true,
+        "columns": [
+          "tenant_id",
+          "relationship_id"
+        ],
+        "schemaTo": "core",
+        "tableTo": "user_relationships",
+        "columnsTo": [
+          "tenant_id",
+          "id"
+        ],
+        "onUpdate": "NO ACTION",
+        "onDelete": "NO ACTION",
+        "entityType": "fks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "health",
+        "table": "requested_changes",
+        "name": "requested_changes_tenant_id_key_purpose_key_version_fkey",
+        "nameExplicit": true,
+        "columns": [
+          "tenant_id",
+          "key_purpose",
+          "key_version"
+        ],
+        "schemaTo": "core",
+        "tableTo": "tenant_keys",
+        "columnsTo": [
+          "tenant_id",
+          "purpose",
+          "key_version"
+        ],
+        "onUpdate": "NO ACTION",
+        "onDelete": "NO ACTION",
+        "entityType": "fks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "health",
+        "table": "requested_changes",
+        "name": "requested_changes_pkey",
+        "columns": [
+          "tenant_id",
+          "id"
+        ],
+        "nameExplicit": true,
+        "entityType": "pks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "health",
+        "table": "requested_changes",
+        "name": "requested_changes_tenant_id_request_id_key",
+        "nameExplicit": true,
+        "columns": [
+          "tenant_id",
+          "request_id"
+        ],
+        "nullsNotDistinct": false,
+        "entityType": "uniques"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "health",
+        "table": "requested_changes",
+        "name": "requested_changes_status_check",
+        "value": "status in ('active', 'tobedeleted')",
+        "entityType": "checks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "health",
+        "table": "requested_changes",
+        "name": "requested_changes_version_check",
+        "value": "version > 0",
+        "entityType": "checks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "health",
+        "table": "requested_changes",
+        "name": "requested_changes_metadata_check",
+        "value": "jsonb_typeof(metadata) = 'object' and octet_length(metadata::text) <= 16384",
+        "entityType": "checks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "health",
+        "table": "requested_changes",
+        "name": "requested_changes_target_check",
+        "value": "target in ('record', 'contact')",
+        "entityType": "checks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "health",
+        "table": "requested_changes",
+        "name": "requested_changes_shape_check",
+        "value": "(target = 'record') = (kind_descriptor_id is not null) and (target = 'contact') = (relationship_id is not null) and (record_id is null or target = 'record')",
+        "entityType": "checks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "health",
+        "table": "requested_changes",
+        "name": "requested_changes_ciphertext_check",
+        "value": "octet_length(ciphertext) between 29 and 65565",
+        "entityType": "checks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "health",
+        "table": "requested_changes",
+        "name": "requested_changes_metadata_empty_check",
+        "value": "metadata = '{}'",
+        "entityType": "checks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "records_requests",
+        "name": "records_requests_topic_check",
+        "value": "topic is null or (topic in ('health') and kind = 'correction')",
+        "entityType": "checks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "health",
+        "table": "requested_changes",
+        "name": "tenant_isolation",
+        "as": "RESTRICTIVE",
+        "for": "ALL",
+        "roles": [
+          "public"
+        ],
+        "using": "tenant_id = (select app.tenant_id())",
+        "withCheck": "tenant_id = (select app.tenant_id())",
+        "entityType": "policies"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "health",
+        "table": "requested_changes",
+        "name": "owner_all",
+        "as": "PERMISSIVE",
+        "for": "ALL",
+        "roles": [
+          "cell_owner"
+        ],
+        "using": "true",
+        "withCheck": "true",
+        "entityType": "policies"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "health",
+        "table": "requested_changes",
+        "name": "p_select",
+        "as": "PERMISSIVE",
+        "for": "SELECT",
+        "roles": [
+          "app",
+          "cell_io",
+          "retention",
+          "worker"
+        ],
+        "using": "true",
+        "withCheck": null,
+        "entityType": "policies"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "health",
+        "table": "requested_changes",
+        "name": "p_insert",
+        "as": "PERMISSIVE",
+        "for": "INSERT",
+        "roles": [
+          "app",
+          "cell_io",
+          "worker"
+        ],
+        "using": null,
+        "withCheck": "true",
+        "entityType": "policies"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "health",
+        "table": "requested_changes",
+        "name": "p_update",
+        "as": "PERMISSIVE",
+        "for": "UPDATE",
+        "roles": [
+          "app",
+          "cell_io",
+          "worker"
+        ],
+        "using": "true",
+        "withCheck": "true",
+        "entityType": "policies"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "health",
+        "table": "requested_changes",
+        "name": "purpose_gate",
+        "as": "RESTRICTIVE",
+        "for": "ALL",
+        "roles": [
+          "public"
+        ],
+        "using": "(select current_setting('app.purpose', true)) = 'health'",
+        "withCheck": "(select current_setting('app.purpose', true)) = 'health'",
+        "entityType": "policies"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "health",
+        "table": "requested_changes",
+        "name": "p_erase_update",
+        "as": "PERMISSIVE",
+        "for": "UPDATE",
+        "roles": [
+          "retention"
+        ],
+        "using": "app.erasure_approved(tenant_id, \"student_user_id\")",
+        "withCheck": "status = 'tobedeleted'",
+        "entityType": "policies"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "health",
+        "table": "requested_changes",
+        "name": "p_erase_delete",
+        "as": "PERMISSIVE",
+        "for": "DELETE",
+        "roles": [
+          "retention"
+        ],
+        "using": "status = 'tobedeleted' and (app.erasure_approved(tenant_id, \"student_user_id\"))",
+        "withCheck": null,
+        "entityType": "policies"
+      }
+    }
+  ]
+}

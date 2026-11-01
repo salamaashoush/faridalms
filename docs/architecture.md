@@ -340,11 +340,13 @@ Records are reachable through relationships rather than roles. The database func
 
 Portal access is a flag of the guardian link the office keeps: a phone
 number, an address or an emergency contact on file grants nobody anything.
-Reaching a student never opens their health information either; that takes
-`health:read` under the health purpose, and a guardian reads only what their
-own link to the child permits. A name in a conversation links to the
-person's or the student's record only where the viewer may already open it
-under these rules; showing the name grants nothing.
+Reaching a student never opens their health information either; staff need
+`health:read` under the health purpose, and a guardian reads only the
+summary `app.guardian_permits` allows them, below. A name in a conversation
+links to the person's or the student's record only where the viewer may
+already open it under these rules; showing the name grants nothing.
+
+Which of a child's guardians the school may do something for is one database function, `app.guardian_permits(link, on, purpose)`: following the child in the portal needs a current link with portal access; contact also needs the school not to have cut the guardian off (`communication_isolated`); the medical summary also needs a legal guardian the office confirmed, whose educational rights no court order has limited. A guardian it permits reads the child's medical summary in the family workspace (`/family/health`): allergies with their severity, conditions, medicines, dietary needs, the doctor and the emergency contacts, never the plans and notes the health staff keep. The stores that read those records and keep a family's changes join the same function, so the screen, the procedure and the store cannot disagree. A family's change to the summary is a correction request in the records register (`records_requests.topic = 'health'`), which gives it the deadline the school's law sets; the change itself, with the record as the family read it and any reason for declining, is sealed in `health.requested_changes` behind the health purpose. Nothing changes until someone holding `health:write` accepts it in Medical updates (`/health-changes`), which applies it in the same transaction, closes the request, audits it with who asked, and tells the family through `notify`. The privacy office sees such a request in its register but answers it there only through Medical updates. The changes are erased with the student and kept until then, like the records they change.
 
 An assignment is authored against a class by its teachers. Its brief is a
 document, with the files it hands out as blocks; its audience (the class,

@@ -20,6 +20,7 @@ import {
   ShieldCheck,
   Siren,
   FileUser,
+  HeartPulse,
   UserPlus,
   UserX,
 } from "lucide-react";
@@ -55,6 +56,7 @@ export const KIND_ICON: Record<NotificationKind, LucideIcon> = {
   reply: Reply,
   enquiry: UserPlus,
   application: FileUser,
+  correction: HeartPulse,
 };
 
 /** What a notice about an application's move is headed, for the family and for the office. */
@@ -217,6 +219,15 @@ export function noticeText(notice: Notice): { title: string; body: string } {
                 inLocale(notice.actorNameEn, notice.actorNameAr),
             }),
         body: title,
+      };
+    case "correction":
+      return {
+        title: (params.report === "accepted"
+          ? m.ntfCorrectionAccepted
+          : m.ntfCorrectionDeclined)({
+          name: both(params.studentName, params.studentNameAr),
+        }),
+        body: m.ntfCorrectionBody(),
       };
   }
   return { title: "", body: "" };
@@ -396,6 +407,16 @@ export function NoticeLink({
           {...rest}
           to="/admissions/applications/$applicationId"
           params={{ applicationId: id }}
+        >
+          {children}
+        </Link>
+      );
+    case "correction":
+      return (
+        <Link
+          {...rest}
+          to="/family/health"
+          search={{ studentId: notice.params.studentId || undefined }}
         >
           {children}
         </Link>

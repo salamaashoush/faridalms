@@ -164,6 +164,10 @@ const LINES: Record<"en" | "ar", Record<NotificationKind, Line>> = {
         : p.received
           ? `We received the application for ${p.title || p.titleAr || "your child"}${p.gradeName ? ` to ${p.gradeName}` : ""}. Its number is ${p.reference ?? ""}.`
           : `New application for ${p.title || p.titleAr || "a child"}${p.gradeName ? ` to ${p.gradeName}` : ""}.`,
+    correction: (p) =>
+      p.report === "accepted"
+        ? `The school updated ${p.studentName ?? "your child"}'s medical summary with the change you asked for.`
+        : `The school answered the change you asked for in ${p.studentName ?? "your child"}'s medical summary and did not make it.`,
   },
   ar: {
     announcement: (p) =>
@@ -208,6 +212,10 @@ const LINES: Record<"en" | "ar", Record<NotificationKind, Line>> = {
         : p.received
           ? `وصلنا طلب التحاق ${p.titleAr || p.title || "طفلكم"}${p.gradeNameAr || p.gradeName ? ` بـ${p.gradeNameAr || p.gradeName}` : ""}، ورقمه ${p.reference ?? ""}.`
           : `طلب التحاق جديد لـ${p.titleAr || p.title || "أحد الأطفال"}${p.gradeNameAr || p.gradeName ? ` في ${p.gradeNameAr || p.gradeName}` : ""}.`,
+    correction: (p) =>
+      p.report === "accepted"
+        ? `حدّثت المدرسة ملخص ${p.studentName ?? "طفلك"} الطبي بالتعديل الذي طلبته.`
+        : `لم تعتمد المدرسة التعديل الذي طلبته على ملخص ${p.studentName ?? "طفلك"} الطبي.`,
   },
 };
 

@@ -159,6 +159,8 @@ services:
       EMAIL_WEBHOOK_URL: ${EMAIL_WEBHOOK_URL:-}
       SMS_WEBHOOK_URL: ${SMS_WEBHOOK_URL:-}
       NOTIFY_WEBHOOK_TOKEN: ${NOTIFY_WEBHOOK_TOKEN:-}
+      INBOUND_EMAIL_DOMAIN: ${INBOUND_EMAIL_DOMAIN:-}
+      RESEND_WEBHOOK_SECRET: ${RESEND_WEBHOOK_SECRET:-}
       # Where the product site's demonstration requests are emailed.
       PRODUCT_INBOX: ${PRODUCT_INBOX:-}
       # Cloudflare Turnstile on the schools' website forms, both or neither.

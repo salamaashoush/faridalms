@@ -4,6 +4,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import {
   BookOpen,
   ClipboardList,
+  HeartPulse,
   IdCard,
   Layers,
   Table2,
@@ -107,6 +108,16 @@ function ChildrenPage() {
                     >
                       <IdCard aria-hidden className="size-4" />
                       {m.familyDetails()}
+                    </Link>
+                  </li>
+                  <li>
+                    <Link
+                      to="/family/health"
+                      search={search}
+                      className={cn(link, phoneLink)}
+                    >
+                      <HeartPulse aria-hidden className="size-4" />
+                      {m.medicalTitleShort()}
                     </Link>
                   </li>
                   {modules ? (
