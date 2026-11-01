@@ -48,11 +48,6 @@ import {
   withdrawPage,
   writePublishedPage,
 } from "@faridalms/database/stores/site";
-import {
-  contentDocumentSchema,
-  contentFileIds,
-  contentPlainText,
-} from "@faridalms/domain/content";
 import { readAnswers } from "@faridalms/domain/enquiries";
 import { clientAddress } from "@faridalms/domain/forwarded";
 import { platformName } from "@faridalms/domain/hosts";
@@ -72,7 +67,6 @@ import {
 import {
   alignTranslation,
   applyStarterSchema,
-  bodyIssues,
   enquirySchema,
   localizedSections,
   movePageSchema,
