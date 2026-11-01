@@ -158,6 +158,8 @@ services:
       EMAIL_WEBHOOK_URL: ${EMAIL_WEBHOOK_URL:-}
       SMS_WEBHOOK_URL: ${SMS_WEBHOOK_URL:-}
       NOTIFY_WEBHOOK_TOKEN: ${NOTIFY_WEBHOOK_TOKEN:-}
+      # Where the product site's demonstration requests are emailed.
+      PRODUCT_INBOX: ${PRODUCT_INBOX:-}
       TRUSTED_PROXY_HOPS: 1
     networks: [front, data]
     depends_on:
@@ -180,6 +182,9 @@ services:
       PORTAL_DOMAIN: *portal-domain
       SITES_DOMAIN: *sites-domain
       COLLAB_URL: wss://collab.${PORTAL_DOMAIN}
+      # The platform's own product site on the bare portal domain; off, the
+      # bare domain asks visitors for their school.
+      PRODUCT_SITE: ${PRODUCT_SITE:-off}
       # The files host: students' web pages play there and the studios open.
       PLAY_URL: https://files.${SITES_DOMAIN}
       TRUSTED_PROXY_HOPS: 1

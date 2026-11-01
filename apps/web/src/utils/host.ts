@@ -11,6 +11,8 @@ export interface HostView {
   /** How the page was reached, for links to the school's other hosts. */
   protocol: "http:" | "https:";
   port: string;
+  /** True on the bare portal domain of a platform that serves its product site there. */
+  product?: boolean;
 }
 
 let held: HostView = { site: null, protocol: "https:", port: "" };

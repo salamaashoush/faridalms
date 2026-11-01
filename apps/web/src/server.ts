@@ -7,6 +7,7 @@ import { AsyncLocalStorage } from "node:async_hooks";
 import type { Routing } from "~/server/place";
 import type { HostView } from "~/utils/host";
 
+import { env } from "~/env";
 import { paraglideMiddleware } from "~/i18n/server";
 import { routeHost, withPlace } from "~/server/place";
 import {
@@ -117,6 +118,7 @@ export default createServerEntry({
           ? "https:"
           : "http:",
       port: /:(\d+)$/.exec(raw ?? "")?.[1] ?? "",
+      product: place.kind === "bare" && env.PRODUCT_SITE === "on",
     };
     return withPlace(place, () =>
       requestHost.run(view, async () => {

@@ -66,7 +66,10 @@ API, the web and the console all receive:
 
 - `PORTAL_DOMAIN` (`example.com`, say): `<slug>.<PORTAL_DOMAIN>` is
   the school's portal, where people sign in and work. The bare domain asks
-  for the school's code, prefilled from the one the browser chose last.
+  for the school's code, prefilled from the one the browser chose last, or,
+  with `PRODUCT_SITE=on` on the web, shows the product's own site to anyone
+  not signed in, whose demonstration requests the API emails to
+  `PRODUCT_INBOX`. Only the platform's own deployment turns that on.
 - `SITES_DOMAIN` (`example.net`, say): `<slug>.<SITES_DOMAIN>` is
   the school's public website, served from its root. It reads no session,
   sets no cookie and answers 404 to anything that is not a page of the

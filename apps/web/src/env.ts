@@ -20,6 +20,10 @@ export const env = createEnv({
       // application's. Unset, web pages in a lesson show as code and editors
       // offer no coding questions.
       PLAY_URL: v.optional(v.pipe(v.string(), v.url())),
+      // "on" serves the product's own site on the bare portal domain, where
+      // otherwise the visitor is asked for their school. Only the platform's
+      // own deployment turns it on.
+      PRODUCT_SITE: v.optional(v.picklist(["on", "off"]), "off"),
       // Proxies in front of the web server that append to X-Forwarded-For;
       // the client is the entry the outermost of them added.
       TRUSTED_PROXY_HOPS: v.optional(
