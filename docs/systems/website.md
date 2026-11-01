@@ -23,10 +23,11 @@ foundation's documents, file publications and the `site` role. Evidence:
 - **Pages** (`core.site_pages`): the page tree is the menu. A page's sections
   are the `page` document hosted as `site_page`; the second language is its
   translation document.
-- **Posts** (`core.site_posts`): the school's news, written in the News
-  screen rather than the website builder. A post's body is a `rich_text`
-  document in its own first language, with the other language as its
-  translation. Only posts whose `visibility` is `public` get published
+- **Posts** (`core.broadcasts` of kind `news`): the school's news,
+  written in the News screen rather than the website builder, one of the two
+  kinds of broadcast beside announcements. A post's body is a `rich_text`
+  document hosted as `news` in its own first language, with the other
+  language as its translation. Only posts whose `visibility` is `public` get published
   copies; `school` posts reach their audience inside the app and never the
   website.
 - **Published copies** (`core.site_published_pages`, `site_published_posts`):

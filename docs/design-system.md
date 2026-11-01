@@ -191,8 +191,9 @@ publishing changes state (Notion, Linear, Polaris).
   loses focus. There is no Save button; Ctrl/Cmd+S saves now. Leaving with a
   save in flight warns.
 - Once published, edits are held back: the save-state slot shows "Unsaved
-  changes · Discard · Update", because families see changes immediately
-  (Polaris). Updating asks whether to notify recipients again.
+  changes · Discard · Update", because readers keep the copy last published
+  until it is updated, whichever client made the edit. Updating asks whether
+  to notify recipients again.
 - Body: the document title (30px) above a 720px content column; settings for
   the item (audience, dates, class) sit in a 280px panel beside it and move
   above the content on phones.
