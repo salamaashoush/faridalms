@@ -4,7 +4,7 @@ version = "0.1.0"
 edition = "2024"
 rust-version = "1.97.0"
 publish = false
-license = "AGPL-3.0-only"
+license = "FSL-1.1-ALv2"
 description = "Turns a school's uploaded video into adaptive streams and serves them behind sealed links"
 
 [dependencies]
