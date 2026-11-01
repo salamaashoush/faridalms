@@ -112,7 +112,8 @@ export type NotificationKind =
   | "library"
   | "reply"
   | "enquiry"
-  | "application";
+  | "application"
+  | "correction";
 export type DeliveryChannel = "email" | "sms";
 export type DeliveryState = "pending" | "sent" | "failed" | "skipped";
 export type DeliveryReason =

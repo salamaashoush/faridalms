@@ -29,7 +29,8 @@ export async function withPurposeFor<T>(
   context: UnitContext,
   use: {
     purpose: Purpose;
-    subjectUserId: string;
+    /** Whose records are read, each on their own history: one person, or everyone a list shows. */
+    subjectUserId: string | readonly string[];
     reason: string;
     write: boolean;
     /**
@@ -47,12 +48,17 @@ export async function withPurposeFor<T>(
       CAPABILITY[use.purpose][use.write ? "write" : "read"],
     ]),
   );
-  await audit(context, {
-    action: `${OBJECT[use.purpose]}.${use.write ? "write" : "read"}`,
-    objectType: OBJECT[use.purpose],
-    subjectUserId: use.subjectUserId,
-    studentUserId: use.subjectUserId,
-    details: { reason: use.reason },
-  });
+  const subjects =
+    typeof use.subjectUserId === "string"
+      ? [use.subjectUserId]
+      : [...new Set(use.subjectUserId)];
+  for (const subjectUserId of subjects)
+    await audit(context, {
+      action: `${OBJECT[use.purpose]}.${use.write ? "write" : "read"}`,
+      objectType: OBJECT[use.purpose],
+      subjectUserId,
+      studentUserId: subjectUserId,
+      details: { reason: use.reason },
+    });
   return withPurpose(context.tx, use.purpose, work);
 }

@@ -1,3 +1,5 @@
+import type { GuardianPurpose } from "@faridalms/domain/family-roles";
+
 import { PARENTAL_MEANINGS } from "@faridalms/domain/family-roles";
 import { sql } from "drizzle-orm";
 
@@ -152,6 +154,29 @@ export async function childrenOf(
       consents: row.consents,
       visible: row.visible,
     }));
+}
+
+/**
+ * The viewer's link to a child when it permits the purpose today, as
+ * `app.guardian_permits` decides; null when it does not.
+ */
+export async function permittingLink(
+  tx: Tx,
+  input: {
+    tenantId: string;
+    viewerId: string;
+    studentId: string;
+    today: string;
+    purpose: GuardianPurpose;
+  },
+): Promise<string | null> {
+  const rows = await tx.execute<{ id: string }>(sql`
+    select r.id from core.user_relationships r
+    where r.tenant_id = ${input.tenantId}::uuid and r.related_user_id = ${input.viewerId}::uuid
+      and r.student_user_id = ${input.studentId}::uuid
+      and app.guardian_permits(r, ${input.today}::date, ${input.purpose})
+    limit 1`);
+  return rows[0]?.id ?? null;
 }
 
 const parental = sql`(${sql.join(

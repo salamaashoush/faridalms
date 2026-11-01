@@ -131,6 +131,7 @@ export const CONFLICTS: Record<string, string> = {
   attempt_declarations_attempt_key: "coursework.declared_already",
   attempt_authentications_attempt_key: "coursework.authenticated_already",
   programme_grade_levels_key: "grading.level_repeated",
+  requested_changes_tenant_id_request_id_key: "health_change.exists",
 };
 
 /** Checks whose failure means something to a person, not just a bad shape. */

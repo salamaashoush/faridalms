@@ -7,6 +7,9 @@ import {
   saveIdentifierSchema,
 } from "@faridalms/domain/identifiers";
 import {
+  askHealthChangeSchema,
+  decideHealthChangeSchema,
+  healthChangesSchema,
   removeHealthRecordSchema,
   saveCustodySchema,
   saveDemographicsSchema,
@@ -71,3 +74,19 @@ export const saveIdentifier = createServerFn({ method: "POST" })
 export const removeIdentifier = createServerFn({ method: "POST" })
   .validator(checked(identifierRefSchema))
   .handler(({ data }) => backend().identifiers.remove(data));
+
+export const getFamilyHealth = createServerFn({ method: "GET" })
+  .validator(checked(student))
+  .handler(({ data }) => record(backend().records.familyHealth(data)));
+
+export const askHealthChange = createServerFn({ method: "POST" })
+  .validator(checked(askHealthChangeSchema))
+  .handler(({ data }) => backend().records.askHealthChange(data));
+
+export const getHealthChanges = createServerFn({ method: "GET" })
+  .validator(checked(healthChangesSchema))
+  .handler(({ data }) => backend().records.healthChanges(data));
+
+export const decideHealthChange = createServerFn({ method: "POST" })
+  .validator(checked(decideHealthChangeSchema))
+  .handler(({ data }) => backend().records.decideHealthChange(data));

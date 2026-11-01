@@ -435,6 +435,11 @@ export async function eraseSubject(
   );
   await purpose("health");
   await remove(
+    "health_changes",
+    sql`health.requested_changes`,
+    sql`student_user_id = ${s}::uuid`,
+  );
+  await remove(
     "health_records",
     sql`health.records`,
     sql`student_user_id = ${s}::uuid`,
