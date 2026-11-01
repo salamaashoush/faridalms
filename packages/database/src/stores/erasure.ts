@@ -135,7 +135,13 @@ export async function erasurePlan(
     join core.documents d on d.tenant_id = x.tenant_id and d.host_type = 'message' and d.host_id = x.id
     left join core.files f on f.tenant_id = x.tenant_id and f.host_type = 'message' and f.host_id = x.id
       and f.status = 'active'
-    where x.tenant_id = ${t}::uuid and x.author_user_id = ${s}::uuid`);
+    where x.tenant_id = ${t}::uuid and x.author_user_id = ${s}::uuid
+    union all
+    select d.id, f.id from core.message_drafts x
+    join core.documents d on d.tenant_id = x.tenant_id and d.host_type = 'message_draft' and d.host_id = x.id
+    left join core.files f on f.tenant_id = x.tenant_id and f.host_type = 'message_draft'
+      and f.host_id = x.id and f.status = 'active'
+    where x.tenant_id = ${t}::uuid and (x.user_id = ${s}::uuid or x.student_user_id = ${s}::uuid)`);
   return {
     documents: [
       ...new Set([
@@ -252,10 +258,19 @@ async function eraseConversations(
   );
   await run(
     "thread_members",
-    sql`update core.thread_members m set status = 'tobedeleted', metadata = '{}', draft = null
+    sql`update core.thread_members m set status = 'tobedeleted', metadata = '{}'
         where m.tenant_id = ${t}::uuid and m.status = 'active'
           and (${input.authorUserId ? sql`m.user_id = ${input.authorUserId}::uuid or` : sql``}
             m.contact_id in ${input.contacts} or m.thread_id in ${input.listed("message_thread")})
+        returning 1`,
+  );
+  await run(
+    "message_drafts",
+    sql`update core.message_drafts d set status = 'tobedeleted', metadata = '{}', body = '',
+          subject = null, recipient_ids = '{}'
+        where d.tenant_id = ${t}::uuid and d.status = 'active'
+          and (${input.authorUserId ? sql`d.user_id = ${input.authorUserId}::uuid or d.student_user_id = ${input.authorUserId}::uuid or` : sql``}
+            d.thread_id in ${input.listed("message_thread")})
         returning 1`,
   );
   await run(

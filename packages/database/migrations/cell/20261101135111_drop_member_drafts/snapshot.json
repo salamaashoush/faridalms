@@ -1,0 +1,58 @@
+{
+  "type": "diff",
+  "version": "9",
+  "dialect": "postgres",
+  "id": "0c9d58bc-2249-446f-82a9-672a6be4a913",
+  "prevIds": [
+    "62e7585a-1d15-4d3c-bb46-b96eb2363649"
+  ],
+  "footprints": [
+    {
+      "statementType": "drop_check",
+      "statementTarget": [
+        "table",
+        "core",
+        "thread_members"
+      ],
+      "writes": [
+        "s|ck|core.thread_members.thread_members_draft_check",
+        "n|ck|core.thread_members.thread_members_draft_check",
+        "e|ck|core.thread_members.thread_members_draft_check",
+        "n|con|core.thread_members.thread_members_draft_check"
+      ],
+      "reads": [
+        "n|tbl|core.thread_members",
+        "n|sch|core",
+        "e|col|core.thread_members.draft"
+      ]
+    },
+    {
+      "statementType": "drop_column",
+      "statementTarget": [
+        "column",
+        "core",
+        "thread_members",
+        "draft"
+      ],
+      "writes": [
+        "s|col|core.thread_members.draft",
+        "n|col|core.thread_members.draft",
+        "e|col|core.thread_members.draft"
+      ],
+      "reads": [
+        "n|tbl|core.thread_members",
+        "n|sch|core"
+      ]
+    }
+  ],
+  "deltas": [
+    {
+      "op": "drop",
+      "key": "columns\u0000[\"core\",\"thread_members\",\"draft\"]"
+    },
+    {
+      "op": "drop",
+      "key": "checks\u0000[\"core\",\"thread_members\",\"thread_members_draft_check\"]"
+    }
+  ]
+}

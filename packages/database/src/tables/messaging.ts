@@ -108,7 +108,8 @@ export const messageContacts = core.table.withRLS(
 
 /**
  * A conversation. `family` threads are one staff member with a child's
- * guardians, about that child; `direct` is two people; `group` is several
+ * guardians, about that child; `direct` is two people, about a child when
+ * a guardian says which; `group` is several
  * people a staff member gathered, and can gain or lose members. A
  * `mailbox` conversation belongs to a team's mailbox: everyone who holds
  * the mailbox's capability reads it, and its owner is who holds it now.
@@ -166,7 +167,7 @@ export const messageThreads = core.table.withRLS(
     ck(
       "message_threads",
       "student",
-      sql`(kind = 'family' and student_user_id is not null) or (kind = 'mailbox') or (student_user_id is null)`,
+      sql`(kind = 'family' and student_user_id is not null) or kind in ('mailbox', 'direct') or (student_user_id is null)`,
     ),
     index("message_threads_org_idx")
       .on(t.tenantId, t.orgId, t.lastMessageAt)
@@ -209,7 +210,6 @@ export const threadMembers = core.table.withRLS(
       .default(sql`statement_timestamp()`),
     leftAt: instant("left_at"),
     lastReadAt: instant("last_read_at"),
-    draft: text("draft"),
     replyKey: bytea("reply_key"),
     ...entityColumns(),
   },
@@ -228,7 +228,6 @@ export const threadMembers = core.table.withRLS(
       "member",
       sql`user_id is not null or contact_id is not null`,
     ),
-    ck("thread_members", "draft", sql`char_length(draft) <= 5000`),
     ck(
       "thread_members",
       "left_at",
@@ -259,6 +258,83 @@ export const threadMembers = core.table.withRLS(
     ...entityProfile(),
     ...erase(
       sql`${erasureOf("user_id")} or ${erasureOf("contact_id")} or ${erasureListed("message_thread", "thread_id")}`,
+    ),
+  ],
+);
+
+/**
+ * What someone is still writing, kept as they type: a reply to a
+ * conversation (`thread_id`), or the first message of one not yet started,
+ * with whom it is for (`kind`, `recipient_ids`, `student_user_id`,
+ * `subject`) as the composer had them. Its words are a document hosted as
+ * `message_draft`, files included as its blocks; `body` is their plain
+ * text for the Drafts list. Sending writes the message and tombstones the
+ * draft in one transaction, naming the version read, so a draft sends
+ * once. Only its writer reads it.
+ */
+export const messageDrafts = core.table.withRLS(
+  "message_drafts",
+  {
+    ...tenantColumns(),
+    orgId: uuid("org_id").notNull(),
+    userId: uuid("user_id").notNull(),
+    threadId: uuid("thread_id"),
+    kind: text("kind").$type<"direct" | "group" | "family">(),
+    recipientIds: uuid("recipient_ids")
+      .array()
+      .notNull()
+      .default(sql`'{}'`),
+    studentUserId: uuid("student_user_id"),
+    subject: text("subject"),
+    body: text("body").notNull().default(""),
+    ...entityColumns(),
+  },
+  (t): PgTableExtraConfigValue[] => [
+    pk("message_drafts", t.tenantId, t.id),
+    ...baseConstraints("message_drafts", t, tenants),
+    fk("message_drafts", [t.tenantId, t.orgId], [orgs.tenantId, orgs.id]),
+    fk("message_drafts", [t.tenantId, t.userId], [users.tenantId, users.id]),
+    fk(
+      "message_drafts",
+      [t.tenantId, t.threadId],
+      [messageThreads.tenantId, messageThreads.id],
+    ),
+    fk(
+      "message_drafts",
+      [t.tenantId, t.studentUserId],
+      [users.tenantId, users.id],
+    ),
+    ck("message_drafts", "kind", sql`kind in ('direct', 'group', 'family')`),
+    ck(
+      "message_drafts",
+      "start",
+      sql`(thread_id is null) = (kind is not null)`,
+    ),
+    ck(
+      "message_drafts",
+      "reply",
+      sql`thread_id is null or (cardinality(recipient_ids) = 0 and student_user_id is null and subject is null)`,
+    ),
+    ck(
+      "message_drafts",
+      "recipient_ids",
+      sql`cardinality(recipient_ids) <= 50`,
+    ),
+    ck(
+      "message_drafts",
+      "subject",
+      sql`char_length(subject) between 1 and 200`,
+    ),
+    ck("message_drafts", "body", sql`char_length(body) <= 5000`),
+    uniqueIndex("message_drafts_reply_key")
+      .on(t.tenantId, t.threadId, t.userId)
+      .where(sql`status = 'active' and thread_id is not null`),
+    index("message_drafts_user_idx")
+      .on(t.tenantId, t.userId, t.orgId, t.dateLastModified)
+      .where(sql`status = 'active'`),
+    ...entityProfile(),
+    ...erase(
+      sql`${erasureOf("user_id")} or ${erasureOf("student_user_id")} or ${erasureListed("message_thread", "thread_id")}`,
     ),
   ],
 );
