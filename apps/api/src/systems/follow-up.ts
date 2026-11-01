@@ -12,7 +12,6 @@ import {
   mailboxThreadAbout,
   messagingGuardians,
 } from "@faridalms/database/stores/messages";
-import { isVisibleStudent } from "@faridalms/database/stores/students";
 import {
   calendarDays,
   dayIn,
@@ -31,17 +30,16 @@ import { SCHOOL_DAY_MEANINGS } from "@faridalms/domain/calendar";
 import { plainContent } from "@faridalms/domain/content-conversion";
 import { addDays } from "@faridalms/domain/school";
 import { isoWeekday } from "@faridalms/domain/timetable";
-import { ORPCError } from "@orpc/server";
 
 import type { UnitContext } from "../core/context";
 
-import { scopeOf } from "../core/coursework-access";
 import {
   audit,
   readProcedure,
   requireCapability,
   writeProcedure,
 } from "../core/procedure";
+import { requireStudent } from "../core/reach";
 import {
   openMailboxConversation,
   scopeOf as conversationScope,
@@ -195,14 +193,7 @@ export const logContact = writeProcedure
   .input(logContactSchema)
   .handler(async ({ input, context }) => {
     requireCapability(context, "attendance:manage");
-    if (
-      !(await isVisibleStudent(
-        context.tx,
-        { ...scopeOf(context), schoolWide: true },
-        input.studentId,
-      ))
-    )
-      throw new ORPCError("NOT_FOUND");
+    await requireStudent(context, "school", input.studentId);
     // A call is a logged contact in the attendance office's conversation
     // with the child's family, the one the office writes to them in.
     const scope = conversationScope(context);

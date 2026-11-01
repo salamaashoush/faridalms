@@ -8,7 +8,6 @@ import {
   updateAccessRole,
 } from "@faridalms/database/stores/access";
 import { effectiveAccess } from "@faridalms/database/stores/identity";
-import { isVisiblePerson } from "@faridalms/database/stores/persons";
 import { CAPABILITIES } from "@faridalms/domain/capabilities";
 import {
   accessChangesSchema,
@@ -28,6 +27,7 @@ import {
   requireCapability,
   writeProcedure,
 } from "../core/procedure";
+import { requirePerson } from "../core/reach";
 
 const id = v.pipe(v.string(), v.uuid());
 const PAGE_SIZE = 25;
@@ -49,12 +49,7 @@ function roleScope(
 }
 
 async function requireReached(context: UnitContext, userId: string) {
-  const reached = await isVisiblePerson(
-    context.tx,
-    { ...scopeOf(context), viewerId: context.actor.userId, schoolWide: true },
-    userId,
-  );
-  if (!reached) throw new ORPCError("NOT_FOUND");
+  await requirePerson(context, "school", userId);
 }
 
 async function visibleRole(context: UnitContext, roleId: string) {

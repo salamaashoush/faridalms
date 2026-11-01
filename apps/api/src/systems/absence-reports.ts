@@ -16,7 +16,6 @@ import {
 } from "@faridalms/database/stores/attendance";
 import { filesByIds, linkFiles } from "@faridalms/database/stores/files";
 import { childrenOf } from "@faridalms/database/stores/persons";
-import { isVisibleStudent } from "@faridalms/database/stores/students";
 import { schoolYears } from "@faridalms/database/stores/years";
 import {
   absenceReportSchema,
@@ -31,7 +30,6 @@ import { ORPCError } from "@orpc/server";
 
 import type { UnitContext } from "../core/context";
 
-import { scopeOf } from "../core/coursework-access";
 import { notify } from "../core/notify";
 import {
   audit,
@@ -40,13 +38,18 @@ import {
   requireCapability,
   writeProcedure,
 } from "../core/procedure";
+import { requireStudent, scopeFor } from "../core/reach";
 import { registerHostReader } from "../files/authorize";
 
 /** The links of a family member to the children they follow; none for anyone else. */
 async function familyLinks(context: UnitContext): Promise<ChildLink[]> {
   if (context.actor.context !== "family" || !can(context, "children:read"))
     return [];
-  return childrenOf(context.tx, scopeOf(context), context.actor.userId);
+  return childrenOf(
+    context.tx,
+    scopeFor(context, "teaching"),
+    context.actor.userId,
+  );
 }
 
 const followed = (links: readonly ChildLink[]) =>
@@ -152,10 +155,7 @@ export const report = writeProcedure
   .handler(async ({ input, context }) => {
     const office = can(context, "attendance:manage");
     if (office) {
-      if (
-        !(await isVisibleStudent(context.tx, scopeOf(context), input.studentId))
-      )
-        throw new ORPCError("NOT_FOUND");
+      await requireStudent(context, "teaching", input.studentId);
     } else {
       const links = await familyLinks(context);
       if (!followed(links).includes(input.studentId))

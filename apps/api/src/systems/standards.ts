@@ -1,11 +1,6 @@
-import type { Scope } from "@faridalms/database/stores/students";
 import type { ContentDocument } from "@faridalms/domain/content";
 
-import {
-  classById,
-  rosterOf,
-  teachesClass,
-} from "@faridalms/database/stores/classes";
+import { classById, rosterOf } from "@faridalms/database/stores/classes";
 import { namesOf } from "@faridalms/database/stores/coursework";
 import { contentsOf } from "@faridalms/database/stores/documents";
 import {
@@ -39,7 +34,6 @@ import {
   updateFramework,
   updateStandard,
 } from "@faridalms/database/stores/standards";
-import { isVisibleStudent } from "@faridalms/database/stores/students";
 import {
   dayIn,
   schoolYears,
@@ -78,6 +72,12 @@ import {
   requireCapability,
   writeProcedure,
 } from "../core/procedure";
+import {
+  reachesStudent,
+  requireStudent,
+  requireTaught,
+  teaches,
+} from "../core/reach";
 
 /** Whoever writes lessons or assignments reads the school's standards to tag them. */
 function requireReader(context: UnitContext) {
@@ -528,16 +528,6 @@ export const describe = readProcedure
     });
   });
 
-function scopeOf(context: UnitContext): Scope {
-  return {
-    tenantId: context.tenantId,
-    schoolId: context.schoolId,
-    today: context.today,
-    viewerId: context.actor.userId,
-    schoolWide: can(context, "classes:manage"),
-  };
-}
-
 type EvidenceRows = Awaited<ReturnType<typeof evidenceOfStudents>>;
 type Observations = Awaited<ReturnType<typeof observationsOf>>;
 
@@ -605,7 +595,7 @@ async function described(context: UnitContext, rows: EvidenceRows) {
 async function taughtClass(context: UnitContext, classId: string) {
   requireCapability(context, "submissions:grade");
   const classRow = await classById(context.tx, context, classId);
-  if (!classRow || !(await teachesClass(context.tx, scopeOf(context), classId)))
+  if (!classRow || !(await teaches(context, "teaching", classId)))
     throw new ORPCError("NOT_FOUND");
   const years = await schoolYears(
     context.tx,
@@ -656,7 +646,7 @@ async function progressStudent(context: UnitContext, asked: string) {
   const studentId = asked || context.actor.userId;
   if (
     studentId !== context.actor.userId &&
-    !(await isVisibleStudent(context.tx, scopeOf(context), studentId))
+    !(await reachesStudent(context, "teaching", studentId))
   )
     throw new ORPCError("NOT_FOUND");
   return studentId;
@@ -761,14 +751,8 @@ export const observe = writeProcedure
   .input(observeSchema)
   .handler(async ({ input, context }) => {
     requireCapability(context, "submissions:grade");
-    const scope = scopeOf(context);
-    if (!(await isVisibleStudent(context.tx, scope, input.studentId)))
-      throw new ORPCError("NOT_FOUND");
-    if (
-      input.classId &&
-      !(await teachesClass(context.tx, scope, input.classId))
-    )
-      throw new ORPCError("NOT_FOUND");
+    await requireStudent(context, "teaching", input.studentId);
+    if (input.classId) await requireTaught(context, "teaching", input.classId);
     const [standard] = await standardsByIds(context.tx, {
       tenantId: context.tenantId,
       orgId: context.schoolId,

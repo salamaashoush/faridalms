@@ -24,7 +24,6 @@ import {
   subjectsOf,
   trashAreaFile,
 } from "@faridalms/database/stores/files";
-import { isVisibleStudent } from "@faridalms/database/stores/students";
 import {
   fileAreaSchema,
   fileFamily,
@@ -48,6 +47,7 @@ import {
   requireCapability,
   writeProcedure,
 } from "../core/procedure";
+import { studentsReached } from "../core/reach";
 import { canReadFile, mayKeepArea, mayWorkOn } from "../files/authorize";
 import { uploadLimit } from "../files/limit";
 
@@ -532,18 +532,9 @@ export const tagPictured = writeProcedure
     requireCapability(context, "people:read");
     const [file] = await readablePictures(context, [input.id]);
     if (!file) throw new ORPCError("NOT_FOUND");
-    const scope = {
-      tenantId: context.tenantId,
-      schoolId: context.schoolId,
-      today: context.today,
-      viewerId: context.actor.userId,
-      schoolWide: can(context, "people:manage"),
-    };
     const students = [...new Set(input.studentIds)];
-    const visible = await Promise.all(
-      students.map((id) => isVisibleStudent(context.tx, scope, id)),
-    );
-    if (visible.includes(false)) throw new ORPCError("NOT_FOUND");
+    const reached = await studentsReached(context, "people", students);
+    if (reached.size < students.length) throw new ORPCError("NOT_FOUND");
     await setSubjects(context.tx, {
       tenantId: context.tenantId,
       fileId: file.id,

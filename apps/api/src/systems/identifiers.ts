@@ -13,7 +13,7 @@ import {
   removeIdentifier,
   updateIdentifier,
 } from "@faridalms/database/stores/identifiers";
-import { isVisibleStudent, person } from "@faridalms/database/stores/students";
+import { person } from "@faridalms/database/stores/students";
 import {
   egyptianIdFacts,
   identifierRefSchema,
@@ -35,23 +35,9 @@ import {
   requireCapability,
   writeProcedure,
 } from "../core/procedure";
+import { requireStudent } from "../core/reach";
 
 const id = v.pipe(v.string(), v.uuid());
-
-async function requireStudent(context: UnitContext, studentId: string) {
-  const visible = await isVisibleStudent(
-    context.tx,
-    {
-      tenantId: context.tenantId,
-      schoolId: context.schoolId,
-      today: context.today,
-      viewerId: context.actor.userId,
-      schoolWide: can(context, "people:manage"),
-    },
-    studentId,
-  );
-  if (!visible) throw new ORPCError("NOT_FOUND");
-}
 
 /** The kinds of number the office keeps on a record, as this school labels them. */
 async function systemsOf(context: UnitContext): Promise<Descriptor[]> {
@@ -93,7 +79,7 @@ export const list = readProcedure
   .input(v.object({ studentId: id }))
   .handler(async ({ input, context }) => {
     requireCapability(context, "people:manage", "identifiers:read");
-    await requireStudent(context, input.studentId);
+    await requireStudent(context, "people", input.studentId);
     const [rows, systems] = await Promise.all([
       identifiersOf(context.tx, {
         tenantId: context.tenantId,
@@ -137,7 +123,7 @@ export const reveal = readProcedure
       id: input.id,
     });
     if (!row) throw new ORPCError("NOT_FOUND");
-    await requireStudent(context, row.userId);
+    await requireStudent(context, "people", row.userId);
     if (!row.ciphertext || row.keyVersion === null)
       return { number: row.identifier ?? "" };
     const key = await context.keys.version(
@@ -170,7 +156,7 @@ export const save = writeProcedure
   .input(saveIdentifierSchema)
   .handler(async ({ input, context }) => {
     requireCapability(context, "people:manage");
-    await requireStudent(context, input.studentId);
+    await requireStudent(context, "people", input.studentId);
     const system = (await systemsOf(context)).find(
       (row) => row.id === input.systemId,
     );
@@ -277,7 +263,7 @@ export const remove = writeProcedure
       (SYSTEM_KEPT_MEANINGS as readonly string[]).includes(row.meaning)
     )
       throw new ORPCError("NOT_FOUND");
-    await requireStudent(context, row.userId);
+    await requireStudent(context, "people", row.userId);
     if (
       !(await removeIdentifier(context.tx, {
         tenantId: context.tenantId,

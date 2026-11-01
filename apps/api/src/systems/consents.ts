@@ -1,6 +1,5 @@
 import type { ConsentAnswer } from "@faridalms/database/stores/consents";
 import type { Descriptor } from "@faridalms/database/stores/descriptors";
-import type { Scope } from "@faridalms/database/stores/students";
 
 import {
   answerCounts,
@@ -28,7 +27,7 @@ import { schoolProfile } from "@faridalms/database/stores/identity";
 import { markActed } from "@faridalms/database/stores/notifications";
 import { childrenOf } from "@faridalms/database/stores/persons";
 import { endPublicationsShowing } from "@faridalms/database/stores/site";
-import { isVisibleStudent, person } from "@faridalms/database/stores/students";
+import { person } from "@faridalms/database/stores/students";
 import {
   reviewTranslation,
   translationReview,
@@ -61,6 +60,7 @@ import {
   requireCapability,
   writeProcedure,
 } from "../core/procedure";
+import { requireStudent, scopeFor } from "../core/reach";
 import { registerHostReader } from "../files/authorize";
 
 const id = v.pipe(v.string(), v.uuid());
@@ -69,16 +69,6 @@ const host = (formId: string) => ({ type: "privacy_notice", id: formId });
 
 const conflict = () =>
   new ORPCError("CONFLICT", { message: "conflict.version" });
-
-function scopeOf(context: UnitContext): Scope {
-  return {
-    tenantId: context.tenantId,
-    schoolId: context.schoolId,
-    today: context.today,
-    viewerId: context.actor.userId,
-    schoolWide: can(context, "people:manage") || can(context, "privacy:manage"),
-  };
-}
 
 function purposesOf(context: UnitContext): Promise<Descriptor[]> {
   return descriptorsFor(context.tx, {
@@ -414,7 +404,7 @@ export const publishForm = writeProcedure
     const asked = await notify(
       context,
       answerers
-        .filter((answerer) => answerer.portalAccess)
+        .filter((answerer) => answerer.contactable)
         .map((answerer) => answerer.userId),
       {
         kind: "consent",
@@ -476,8 +466,7 @@ export const student = readProcedure
   .input(v.object({ id }))
   .handler(async ({ input, context }) => {
     requireCapability(context, "people:manage", "privacy:manage");
-    if (!(await isVisibleStudent(context.tx, scopeOf(context), input.id)))
-      throw new ORPCError("NOT_FOUND");
+    await requireStudent(context, "consents", input.id);
     const [asked, answers, answerers] = await Promise.all([
       publishedForms(context),
       answersFor(context.tx, {
@@ -516,9 +505,9 @@ async function settleRequest(
   userId: string,
   formId: string,
 ) {
-  const links = (await childrenOf(context.tx, scopeOf(context), userId)).filter(
-    (link) => link.consents,
-  );
+  const links = (
+    await childrenOf(context.tx, scopeFor(context, "consents"), userId)
+  ).filter((link) => link.consents);
   const answers = await currentAnswers(context.tx, {
     tenantId: context.tenantId,
     studentIds: links.map((link) => link.studentId),
@@ -650,10 +639,7 @@ export const record = writeProcedure
   .input(recordConsentSchema)
   .handler(async ({ input, context }) => {
     requireCapability(context, "people:manage");
-    if (
-      !(await isVisibleStudent(context.tx, scopeOf(context), input.studentId))
-    )
-      throw new ORPCError("NOT_FOUND");
+    await requireStudent(context, "consents", input.studentId);
     if (input.givenOn > context.today)
       throw new ORPCError("BAD_REQUEST", { message: "consents.future" });
     const entry = (await publishedForms(context)).find(
@@ -695,8 +681,12 @@ export const family = readProcedure.handler(async ({ context }) => {
   requireCapability(context, "children:read");
   if (context.actor.context !== "family") throw new ORPCError("FORBIDDEN");
   const links = (
-    await childrenOf(context.tx, scopeOf(context), context.actor.userId)
-  ).filter((link) => link.portalAccess);
+    await childrenOf(
+      context.tx,
+      scopeFor(context, "consents"),
+      context.actor.userId,
+    )
+  ).filter((link) => link.follows);
   const asked = await publishedForms(context);
   const [answers, texts] = await Promise.all([
     currentAnswers(context.tx, {
@@ -746,8 +736,12 @@ export const answer = writeProcedure
     requireCapability(context, "children:read");
     if (context.actor.context !== "family") throw new ORPCError("FORBIDDEN");
     const link = (
-      await childrenOf(context.tx, scopeOf(context), context.actor.userId)
-    ).find((row) => row.studentId === input.studentId && row.portalAccess);
+      await childrenOf(
+        context.tx,
+        scopeFor(context, "consents"),
+        context.actor.userId,
+      )
+    ).find((row) => row.studentId === input.studentId && row.follows);
     if (!link) throw new ORPCError("NOT_FOUND");
     if (!link.consents)
       throw new ORPCError("FORBIDDEN", { message: "consents.not_guardian" });

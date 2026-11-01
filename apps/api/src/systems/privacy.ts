@@ -78,6 +78,7 @@ import {
   schoolZone,
   writeProcedure,
 } from "../core/procedure";
+import { scopeFor } from "../core/reach";
 import { dayKinds, logFamilyRequest } from "../core/records-requests";
 import { sessionViews } from "../exams/sessions";
 
@@ -380,13 +381,7 @@ export const askCorrection = writeProcedure
     const link = (
       await childrenOf(
         context.tx,
-        {
-          tenantId: context.tenantId,
-          schoolId: context.schoolId,
-          today: context.today,
-          viewerId: context.actor.userId,
-          schoolWide: false,
-        },
+        scopeFor(context, "own"),
         context.actor.userId,
       )
     ).find((row) => row.studentId === input.studentId);

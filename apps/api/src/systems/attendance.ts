@@ -4,7 +4,6 @@ import type {
   PeriodRow,
 } from "@faridalms/database/stores/attendance";
 import type { ClassRow } from "@faridalms/database/stores/classes";
-import type { Scope } from "@faridalms/database/stores/students";
 import type { SchoolYear } from "@faridalms/database/stores/years";
 import type { AttendanceMeaning } from "@faridalms/domain/attendance";
 
@@ -38,17 +37,15 @@ import { findBadge } from "@faridalms/database/stores/badges";
 import {
   classById,
   classesTaughtBy,
-  reachesClass,
   rosterOf,
   teachersOn,
-  teachesClass,
 } from "@faridalms/database/stores/classes";
 import { namesOf } from "@faridalms/database/stores/coursework";
 import { changesOn, coveredPeriods } from "@faridalms/database/stores/cover";
 import { movementsOn } from "@faridalms/database/stores/front-desk";
 import { noticeGuardians } from "@faridalms/database/stores/messages";
 import { noticed, withdraw } from "@faridalms/database/stores/notifications";
-import { facesOf, isVisibleStudent } from "@faridalms/database/stores/students";
+import { facesOf } from "@faridalms/database/stores/students";
 import { meetingsOn } from "@faridalms/database/stores/timetable";
 import {
   dayIn,
@@ -91,19 +88,10 @@ import {
   requireCapability,
   writeProcedure,
 } from "../core/procedure";
+import { reachesClass, reachesStudent, teaches } from "../core/reach";
 import { badgeHash } from "../core/session";
 
 const id = v.pipe(v.string(), v.uuid());
-
-function teachingScope(context: UnitContext): Scope {
-  return {
-    tenantId: context.tenantId,
-    schoolId: context.schoolId,
-    today: context.today,
-    viewerId: context.actor.userId,
-    schoolWide: can(context, "attendance:manage"),
-  };
-}
 
 /**
  * Whether the viewer takes this class's register on a day: a class they
@@ -114,8 +102,7 @@ async function registerAccess(
   classId: string,
   date: string,
 ): Promise<{ periods: "all" | string[] }> {
-  if (await teachesClass(context.tx, teachingScope(context), classId))
-    return { periods: "all" };
+  if (await teaches(context, "registers", classId)) return { periods: "all" };
   return {
     periods: await coveredPeriods(context.tx, {
       tenantId: context.tenantId,
@@ -128,14 +115,6 @@ async function registerAccess(
 
 const allows = (access: { periods: "all" | string[] }, periodId: string) =>
   access.periods === "all" || access.periods.includes(periodId);
-
-function studentScope(context: UnitContext): Scope {
-  return {
-    ...teachingScope(context),
-    schoolWide:
-      can(context, "attendance:manage") || can(context, "classes:manage"),
-  };
-}
 
 async function years(context: UnitContext) {
   return schoolYears(context.tx, context.tenantId, context.schoolId);
@@ -1166,7 +1145,7 @@ export const student = readProcedure
     const studentId = input.studentId ?? context.actor.userId;
     if (
       studentId !== context.actor.userId &&
-      !(await isVisibleStudent(context.tx, studentScope(context), studentId))
+      !(await reachesStudent(context, "attendance", studentId))
     )
       throw new ORPCError("NOT_FOUND");
     const year = workingYear(await years(context), context.today);
@@ -1218,8 +1197,8 @@ export const classSummary = readProcedure
     if (!year) throw new ORPCError("NOT_FOUND");
     const on = dayIn(year, context.today);
     if (
-      !(await teachesClass(context.tx, teachingScope(context), classRow.id)) &&
-      !(await reachesClass(context.tx, studentScope(context), classRow.id, on))
+      !(await teaches(context, "registers", classRow.id)) &&
+      !(await reachesClass(context, "attendance", classRow.id, on))
     )
       throw new ORPCError("NOT_FOUND");
     const roster = await rosterOf(
@@ -1245,7 +1224,7 @@ export const classSummary = readProcedure
         (can(context, "attendance:record") ||
           can(context, "attendance:manage")) &&
         year.lifecycle !== "closed" &&
-        (await teachesClass(context.tx, teachingScope(context), classRow.id)),
+        (await teaches(context, "registers", classRow.id)),
       students: names.map((row) => {
         const summary = summarise(counts.get(row.id) ?? emptyCounts());
         return {

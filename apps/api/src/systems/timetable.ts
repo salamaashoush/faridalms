@@ -1,17 +1,10 @@
 import type { LessonChange } from "@faridalms/database/stores/cover";
-import type { Scope } from "@faridalms/database/stores/students";
 import type { MeetingRow } from "@faridalms/database/stores/timetable";
 import type { SchoolYear } from "@faridalms/database/stores/years";
 
 import { periodsOn } from "@faridalms/database/stores/attendance";
-import {
-  classById,
-  reachesClass,
-  roomsOf,
-  teachesClass,
-} from "@faridalms/database/stores/classes";
+import { classById, roomsOf } from "@faridalms/database/stores/classes";
 import { changesOn } from "@faridalms/database/stores/cover";
-import { isVisibleStudent } from "@faridalms/database/stores/students";
 import {
   bookingsAt,
   endCell,
@@ -57,17 +50,7 @@ import {
   requireCapability,
   writeProcedure,
 } from "../core/procedure";
-
-function scopeOf(context: UnitContext): Scope {
-  return {
-    tenantId: context.tenantId,
-    schoolId: context.schoolId,
-    today: context.today,
-    viewerId: context.actor.userId,
-    schoolWide:
-      can(context, "timetable:manage") || can(context, "classes:manage"),
-  };
-}
+import { reachesClass, reachesStudent, teaches } from "../core/reach";
 
 async function currentYear(context: UnitContext) {
   return workingYear(
@@ -593,7 +576,7 @@ export const studentWeek = readProcedure
     const studentId = input.studentId || context.actor.userId;
     if (
       studentId !== context.actor.userId &&
-      !(await isVisibleStudent(context.tx, scopeOf(context), studentId))
+      !(await reachesStudent(context, "timetable", studentId))
     )
       throw new ORPCError("NOT_FOUND");
     const year = await currentYear(context);
@@ -636,8 +619,8 @@ export const classWeek = readProcedure
     if (!year) throw new ORPCError("NOT_FOUND");
     const on = dayIn(year, input.on || context.today);
     if (
-      !(await teachesClass(context.tx, scopeOf(context), row.id)) &&
-      !(await reachesClass(context.tx, scopeOf(context), row.id, on))
+      !(await teaches(context, "timetable", row.id)) &&
+      !(await reachesClass(context, "timetable", row.id, on))
     )
       throw new ORPCError("NOT_FOUND");
     const shape = await frame(context, year, on);

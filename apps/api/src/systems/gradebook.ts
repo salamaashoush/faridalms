@@ -1,10 +1,4 @@
-import type { Scope } from "@faridalms/database/stores/students";
-
-import {
-  classById,
-  rosterOf,
-  teachesClass,
-} from "@faridalms/database/stores/classes";
+import { classById, rosterOf } from "@faridalms/database/stores/classes";
 import { namesOf } from "@faridalms/database/stores/coursework";
 import {
   classResults,
@@ -18,7 +12,6 @@ import {
   classCategories,
   classGrading,
 } from "@faridalms/database/stores/grading";
-import { isVisibleStudent } from "@faridalms/database/stores/students";
 import {
   dayIn,
   holdYear,
@@ -40,29 +33,16 @@ import type { UnitContext } from "../core/context";
 import { gradeReader } from "../core/grades";
 import {
   audit,
-  can,
   readProcedure,
   requireCapability,
   writeProcedure,
 } from "../core/procedure";
+import { requireStudent, teaches } from "../core/reach";
 import { teachingScope, tellPeriodGrades } from "../core/teaching-notices";
-
-function scopeOf(context: UnitContext): Scope {
-  return {
-    tenantId: context.tenantId,
-    schoolId: context.schoolId,
-    today: context.today,
-    viewerId: context.actor.userId,
-    schoolWide: can(context, "classes:manage"),
-  };
-}
 
 async function taughtClass(context: UnitContext, classId: string) {
   const classRow = await classById(context.tx, context, classId);
-  if (
-    !classRow ||
-    !(await teachesClass(context.tx, scopeOf(context), classRow.id))
-  )
+  if (!classRow || !(await teaches(context, "teaching", classRow.id)))
     throw new ORPCError("NOT_FOUND");
   const years = await schoolYears(
     context.tx,
@@ -295,8 +275,7 @@ export const student = readProcedure
       requireCapability(context, "grades:read");
     else {
       requireCapability(context, "grades:read");
-      if (!(await isVisibleStudent(context.tx, scopeOf(context), studentId)))
-        throw new ORPCError("NOT_FOUND");
+      await requireStudent(context, "teaching", studentId);
     }
     const years = await schoolYears(
       context.tx,

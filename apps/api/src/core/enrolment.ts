@@ -2,7 +2,6 @@ import type {
   ApplicationRow,
   IntakeRow,
 } from "@faridalms/database/stores/admissions";
-import type { Scope } from "@faridalms/database/stores/students";
 
 import {
   adoptApplicant,
@@ -35,6 +34,7 @@ import type { UnitContext } from "./context";
 import { admissionScope, moveApplication } from "./decisions";
 import { audit } from "./procedure";
 import { withPurposeFor } from "./purpose";
+import { scopeFor } from "./reach";
 
 /**
  * Whom an accepted applicant becomes: themself, or the school's own
@@ -144,13 +144,7 @@ export async function enrol(
   if (row.state !== "accepted")
     throw new ORPCError("CONFLICT", { message: "application.state" });
   const tx = context.tx;
-  const scope: Scope = {
-    tenantId: context.tenantId,
-    schoolId: context.schoolId,
-    today: context.today,
-    viewerId: context.actor.userId,
-    schoolWide: true,
-  };
+  const scope = scopeFor(context, "school");
   const studentId = studentOf(row, input.studentId);
   const returning = studentId !== row.applicantUserId;
   if (!(await readPerson(tx, studentId))) throw new ORPCError("NOT_FOUND");

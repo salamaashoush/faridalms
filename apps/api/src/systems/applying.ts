@@ -120,6 +120,7 @@ import {
   writeProcedure,
 } from "../core/procedure";
 import { withPurposeFor } from "../core/purpose";
+import { scopeFor } from "../core/reach";
 import { attemptKey, ipPrefix, issueBadgeSecret } from "../core/session";
 import { servesSchool } from "../core/turnstile";
 import { registerHostReader } from "../files/authorize";
@@ -1163,13 +1164,7 @@ export const submit = writeProcedure
       tenantId: context.tenantId,
       userIds: [context.actor.userId],
     });
-    const scope = {
-      tenantId: context.tenantId,
-      schoolId: context.schoolId,
-      today: context.today,
-      viewerId: context.actor.userId,
-      schoolWide: true,
-    };
+    const scope = scopeFor(context, "school");
     const columns = nameColumns({
       ar: {
         given: child.givenNameAr,

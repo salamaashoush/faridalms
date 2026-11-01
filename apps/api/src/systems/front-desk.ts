@@ -10,7 +10,6 @@ import {
   movementsOn,
   pickupContacts,
 } from "@faridalms/database/stores/front-desk";
-import { isVisibleStudent } from "@faridalms/database/stores/students";
 import {
   dayIn,
   schoolYears,
@@ -28,13 +27,13 @@ import { ORPCError } from "@orpc/server";
 
 import type { UnitContext } from "../core/context";
 
-import { scopeOf } from "../core/coursework-access";
 import {
   audit,
   readProcedure,
   requireCapability,
   writeProcedure,
 } from "../core/procedure";
+import { requireStudent } from "../core/reach";
 
 const minutesOf = (clock: string) => {
   const [hours, minutes] = clock.split(":").map(Number);
@@ -42,14 +41,7 @@ const minutesOf = (clock: string) => {
 };
 
 async function requireOnRoll(context: UnitContext, studentId: string) {
-  if (
-    !(await isVisibleStudent(
-      context.tx,
-      { ...scopeOf(context), schoolWide: true },
-      studentId,
-    ))
-  )
-    throw new ORPCError("NOT_FOUND");
+  await requireStudent(context, "school", studentId);
 }
 
 async function reasonIdOf(context: UnitContext, reasonId: string) {

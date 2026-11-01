@@ -11,11 +11,7 @@ import type { XapiStatement } from "@faridalms/domain/xapi";
 import { writeAudit } from "@faridalms/database/audit";
 import { TenantUnavailableError } from "@faridalms/database/context";
 import { bankPool } from "@faridalms/database/stores/bank";
-import {
-  classById,
-  rosterOf,
-  teachesClass,
-} from "@faridalms/database/stores/classes";
+import { classById, rosterOf } from "@faridalms/database/stores/classes";
 import {
   assignmentById,
   classAssignments,
@@ -37,7 +33,6 @@ import {
   yearUnitsOf,
 } from "@faridalms/database/stores/learning";
 import { toolById } from "@faridalms/database/stores/lti";
-import { isVisibleStudent } from "@faridalms/database/stores/students";
 import { bankQuestionOf } from "@faridalms/domain/bank";
 import {
   canvasAssessment,
@@ -96,6 +91,7 @@ import { editableModule } from "../core/learning-access";
 import { nameUuid } from "../core/names";
 import { portalOrigin } from "../core/portal";
 import { can, localeOf, openUnit, schoolOf } from "../core/procedure";
+import { reachesStudent, scopeFor, teaches } from "../core/reach";
 import { sharedInliner } from "../core/shared";
 import { drawsOf, publishedQuiz } from "../quizzes/quiz";
 
@@ -179,17 +175,7 @@ async function entriesFor(
   if (
     !assignment ||
     assignment.orgId !== unit.schoolId ||
-    !(await teachesClass(
-      unit.tx,
-      {
-        tenantId: unit.tenantId,
-        schoolId: unit.schoolId,
-        today: unit.today,
-        viewerId: unit.actor.userId,
-        schoolWide: can(unit, "classes:manage"),
-      },
-      assignment.classId,
-    ))
+    !(await teaches(unit, "teaching", assignment.classId))
   )
     return null;
   const rows = await studentWork(unit.tx, {
@@ -317,17 +303,7 @@ async function portfolioFor(
   const own = unit.actor.userId === studentId;
   const staff =
     can(unit, "people:read") &&
-    (await isVisibleStudent(
-      unit.tx,
-      {
-        tenantId: unit.tenantId,
-        schoolId: unit.schoolId,
-        today: unit.today,
-        viewerId: unit.actor.userId,
-        schoolWide: can(unit, "classes:manage"),
-      },
-      studentId,
-    ));
+    (await reachesStudent(unit, "teaching", studentId));
   if (!own && !staff) return null;
   const work = await handedInWork(unit.tx, {
     tenantId: unit.tenantId,
@@ -906,16 +882,10 @@ async function classCartridge(
   unit: UnitContext,
   classId: string,
 ): Promise<{ title: string; extension: string; entries: Entry[] } | null> {
-  const scope = {
-    tenantId: unit.tenantId,
-    schoolId: unit.schoolId,
-    today: unit.today,
-    viewerId: unit.actor.userId,
-    schoolWide: can(unit, "classes:manage"),
-  };
+  const scope = scopeFor(unit, "teaching");
   if (
     !can(unit, "assignments:author") ||
-    !(await teachesClass(unit.tx, scope, classId))
+    !(await teaches(unit, "teaching", classId))
   )
     return null;
   const taught = await classById(unit.tx, scope, classId);

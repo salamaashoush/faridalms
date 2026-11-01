@@ -1,5 +1,4 @@
 import type { Candidate, FoundRow } from "@faridalms/database/stores/search";
-import type { Scope } from "@faridalms/database/stores/students";
 import type { MentionKind } from "@faridalms/domain/content";
 import type {
   SearchGroup,
@@ -8,21 +7,31 @@ import type {
   SearchResult,
   SearchTarget,
 } from "@faridalms/domain/search";
+import type { SQL } from "drizzle-orm";
 
 import { reachOf } from "@faridalms/database/stores/audiences";
 import { orgPath } from "@faridalms/database/stores/identity";
 import { childrenOf } from "@faridalms/database/stores/persons";
 import {
   announcementsAmong,
+  announcementsReached,
   assignmentsAmong,
+  assignmentsReached,
   candidates,
   classesAmong,
+  classesReached,
   eventsAmong,
+  eventsReached,
   learningAmong,
+  learningReached,
   newsAmong,
+  newsReached,
   peopleAmong,
+  peopleReached,
   studentsAmong,
+  studentsReached,
   threadsAmong,
+  threadsReached,
 } from "@faridalms/database/stores/search";
 import { schoolYears, workingYear } from "@faridalms/database/stores/years";
 import {
@@ -40,6 +49,7 @@ import type { UnitContext } from "../core/context";
 import { calendarReach } from "../core/audiences";
 import { featuresOf } from "../core/features";
 import { can, localeOf, readProcedure } from "../core/procedure";
+import { scopeFor } from "../core/reach";
 
 const TYPES: Record<SearchKind, readonly string[]> = {
   students: ["user"],
@@ -64,34 +74,13 @@ const TARGET: Record<string, SearchTarget> = {
   message_thread: "thread",
 };
 
-/** Index rows read per round, and rounds per page, before a sparse result stops. */
-const ROUND = 50;
-const ROUNDS = 5;
-
-function peopleScope(context: UnitContext): Scope {
-  return {
-    tenantId: context.tenantId,
-    schoolId: context.schoolId,
-    today: context.today,
-    viewerId: context.actor.userId,
-    schoolWide: can(context, "people:manage"),
-  };
-}
-
-function teachingScope(context: UnitContext): Scope {
-  return {
-    ...peopleScope(context),
-    schoolWide: can(context, "classes:manage"),
-  };
-}
-
 /** The students whose work the viewer follows: themselves, or the children in their care. */
 async function learnersOf(context: UnitContext) {
   const own = can(context, "own-work:read") ? [context.actor.userId] : [];
   if (!can(context, "children:read")) return own;
   const children = await childrenOf(
     context.tx,
-    peopleScope(context),
+    scopeFor(context, "people"),
     context.actor.userId,
   );
   return [...own, ...children.map((child) => child.studentId)];
@@ -111,74 +100,119 @@ async function learnerClasses(context: UnitContext, learners: string[]) {
   return [...new Set(reaches.flatMap((reach) => reach.classIds))];
 }
 
-type Resolve = (ids: string[]) => Promise<FoundRow[]>;
+interface Resolver {
+  /** The ids of the kind the viewer may open, which the index ranks among. */
+  within: SQL;
+  /** Reads candidates back through the same rule, for what the hit shows. */
+  resolve: (ids: string[]) => Promise<FoundRow[]>;
+}
 
 /** How each kind reads its candidates back through the rule its own pages use. */
 async function resolverOf(
   context: UnitContext,
   kind: SearchKind,
   q: string,
-): Promise<Resolve> {
+): Promise<Resolver> {
   const ar = localeOf(context) === "ar";
-  const base = {
-    tenantId: context.tenantId,
-    schoolId: context.schoolId,
-    q,
-    ar,
-  };
+  const school = { tenantId: context.tenantId, schoolId: context.schoolId };
+  const base = { ...school, q, ar };
   const viewerId = context.actor.userId;
   switch (kind) {
-    case "students":
-      return (ids) =>
-        studentsAmong(context.tx, peopleScope(context), { ...base, ids });
-    case "people":
-      return (ids) =>
-        peopleAmong(context.tx, peopleScope(context), { ...base, ids });
-    case "classes":
-      return (ids) =>
-        classesAmong(context.tx, teachingScope(context), { ...base, ids });
+    case "students": {
+      const scope = scopeFor(context, "people");
+      return {
+        within: studentsReached(scope),
+        resolve: (ids) => studentsAmong(context.tx, scope, { ...base, ids }),
+      };
+    }
+    case "people": {
+      const scope = scopeFor(context, "people");
+      return {
+        within: peopleReached(scope),
+        resolve: (ids) => peopleAmong(context.tx, scope, { ...base, ids }),
+      };
+    }
+    case "classes": {
+      const scope = scopeFor(context, "teaching");
+      return {
+        within: classesReached(scope),
+        resolve: (ids) => classesAmong(context.tx, scope, { ...base, ids }),
+      };
+    }
     case "assignments": {
-      const teaching = can(context, "assignments:author")
-        ? teachingScope(context)
-        : null;
-      const learners = await learnersOf(context);
-      return (ids) =>
-        assignmentsAmong(context.tx, { ...base, ids, teaching, learners });
+      const access = {
+        ...school,
+        teaching: can(context, "assignments:author")
+          ? scopeFor(context, "teaching")
+          : null,
+        learners: await learnersOf(context),
+      };
+      return {
+        within: assignmentsReached(access),
+        resolve: (ids) =>
+          assignmentsAmong(context.tx, { ...base, ...access, ids }),
+      };
     }
     case "learning": {
-      const teaching = can(context, "learning:author")
-        ? teachingScope(context)
-        : null;
       const learnerIds = can(context, "learning:read")
         ? await learnersOf(context)
         : [];
-      const learnerClassIds = await learnerClasses(context, learnerIds);
-      return (ids) =>
-        learningAmong(context.tx, {
-          ...base,
-          ids,
-          viewerId,
-          teaching,
-          learnerClassIds,
-          learnerIds,
-        });
+      const access = {
+        ...school,
+        viewerId,
+        teaching: can(context, "learning:author")
+          ? scopeFor(context, "teaching")
+          : null,
+        learnerClassIds: await learnerClasses(context, learnerIds),
+        learnerIds,
+      };
+      return {
+        within: learningReached(access),
+        resolve: (ids) =>
+          learningAmong(context.tx, { ...base, ...access, ids }),
+      };
     }
     case "announcements": {
-      const manage = can(context, "announcements:manage");
-      return (ids) =>
-        announcementsAmong(context.tx, { ...base, ids, viewerId, manage });
+      const access = {
+        ...school,
+        viewerId,
+        manage: can(context, "announcements:manage"),
+      };
+      return {
+        within: announcementsReached(access),
+        resolve: (ids) =>
+          announcementsAmong(context.tx, { ...base, ...access, ids }),
+      };
     }
     case "news": {
-      const manage = can(context, "news:manage");
-      return (ids) => newsAmong(context.tx, { ...base, ids, viewerId, manage });
+      const access = {
+        ...school,
+        viewerId,
+        manage: can(context, "news:manage"),
+      };
+      return {
+        within: newsReached(access),
+        resolve: (ids) => newsAmong(context.tx, { ...base, ...access, ids }),
+      };
     }
     case "events": {
-      const reach = await calendarReach(context);
-      return (ids) =>
-        eventsAmong(context.tx, { ...base, ids, reach, viewerId });
+      const access = {
+        ...school,
+        viewerId,
+        reach: await calendarReach(context),
+      };
+      return {
+        within: eventsReached(access),
+        resolve: (ids) => eventsAmong(context.tx, { ...base, ...access, ids }),
+      };
     }
-    case "messages":
-      return (ids) => threadsAmong(context.tx, { ...base, ids, viewerId });
+    case "messages": {
+      const access = { ...school, viewerId };
+      return {
+        within: threadsReached(access),
+        resolve: (ids) => threadsAmong(context.tx, { ...base, ...access, ids }),
+      };
+    }
     default: {
       const unreachable: never = kind;
       return unreachable;
@@ -214,9 +248,9 @@ function parseCursor(value: string | undefined) {
 }
 
 /**
- * One kind's page: index candidates in rank order, read back through the
- * kind's rule, until the page is full or the index runs out. Never a total,
- * so a narrow viewer learns nothing from what was left out.
+ * One kind's page: the index ranks only what the viewer may open, so a page
+ * is the best of their own and the one after it starts where it ended.
+ * Never a total, so a narrow viewer learns nothing from what was left out.
  */
 async function pageOf(
   context: UnitContext,
@@ -228,7 +262,7 @@ async function pageOf(
     after: { rank: number; id: string } | null;
   },
 ): Promise<{ group: SearchGroup; next: string | null }> {
-  const resolve = await resolverOf(context, input.kind, input.q);
+  const { within, resolve } = await resolverOf(context, input.kind, input.q);
   const preferYear =
     input.kind === "classes"
       ? (workingYear(
@@ -236,42 +270,31 @@ async function pageOf(
           context.today,
         )?.id ?? null)
       : null;
-  const rows: SearchHit[] = [];
-  let after = input.after;
-  for (let round = 0; round < ROUNDS; round++) {
-    const found = await candidates(context.tx, {
-      q: input.q,
-      types: TYPES[input.kind],
-      orgScope: input.orgScope,
-      after,
-      max: ROUND,
-      preferYear,
-    });
-    const visible = new Map(
-      (await resolve(found.map((candidate) => candidate.id))).map((row) => [
-        row.id,
-        row,
-      ]),
-    );
-    for (const [index, candidate] of found.entries()) {
-      const row = visible.get(candidate.id);
-      if (row) rows.push(hitOf(input.kind, row));
-      if (rows.length === input.size) {
-        const more = index < found.length - 1 || found.length === ROUND;
-        return {
-          group: { kind: input.kind, rows, more },
-          next: more ? cursorOf(candidate) : null,
-        };
-      }
-    }
-    const last = found.at(-1);
-    if (!last || found.length < ROUND)
-      return { group: { kind: input.kind, rows, more: false }, next: null };
-    after = { rank: last.rank, id: last.id };
-  }
+  const found = await candidates(context.tx, {
+    q: input.q,
+    types: TYPES[input.kind],
+    orgScope: input.orgScope,
+    after: input.after,
+    max: input.size + 1,
+    preferYear,
+    within,
+  });
+  const page = found.slice(0, input.size);
+  const visible = new Map(
+    (await resolve(page.map((candidate) => candidate.id))).map((row) => [
+      row.id,
+      row,
+    ]),
+  );
+  const rows = page.flatMap((candidate) => {
+    const row = visible.get(candidate.id);
+    return row ? [hitOf(input.kind, row)] : [];
+  });
+  const more = found.length > input.size;
+  const last = page.at(-1);
   return {
-    group: { kind: input.kind, rows, more: true },
-    next: after ? `${after.rank}:${after.id}` : null,
+    group: { kind: input.kind, rows, more },
+    next: more && last ? cursorOf(last) : null,
   };
 }
 
@@ -352,7 +375,7 @@ export const mentionNames = readProcedure
           wanted.set(kind, (wanted.get(kind) ?? new Set()).add(mention.id));
     const found = await Promise.all(
       [...wanted].map(async ([kind, ids]) =>
-        (await resolverOf(context, kind, ""))([...ids]),
+        (await resolverOf(context, kind, "")).resolve([...ids]),
       ),
     );
     return [

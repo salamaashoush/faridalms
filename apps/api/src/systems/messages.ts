@@ -1,4 +1,3 @@
-import type { Reach } from "@faridalms/database/stores/messages";
 import type { ContentDocument } from "@faridalms/domain/content";
 import type {
   EntryDetails,
@@ -23,7 +22,6 @@ import {
   messagesOf,
   messagingChildren,
   messagingGuardians,
-  openable,
   readsMessage,
   removeMembers,
   threadById,
@@ -33,7 +31,6 @@ import {
   writtenSince,
 } from "@faridalms/database/stores/messages";
 import { readSubject } from "@faridalms/database/stores/notifications";
-import { isVisibleStudent } from "@faridalms/database/stores/students";
 import { contentFileIds, contentPlainText } from "@faridalms/domain/content";
 import { plainContent } from "@faridalms/domain/content-conversion";
 import {
@@ -63,6 +60,7 @@ import {
   requireCapability,
   writeProcedure,
 } from "../core/procedure";
+import { isStaff, recordLinks, requireStudent, scopeFor } from "../core/reach";
 import { placeMedia, registerHostReader } from "../files/authorize";
 import { scopeOf, writeEntry } from "../messages/conversations";
 
@@ -70,21 +68,6 @@ const id = v.pipe(v.string(), v.uuid());
 
 /** How many entries of a conversation one request shows. */
 const THREAD_PAGE = 100;
-
-function reachOf(context: UnitContext): Reach {
-  return {
-    tenantId: context.tenantId,
-    schoolId: context.schoolId,
-    viewerId: context.actor.userId,
-    on: context.today,
-    schoolWide: can(context, "classes:manage") || can(context, "people:manage"),
-  };
-}
-
-/** Staff read who has seen their messages; families and students never see staff read state. */
-function isStaff(context: UnitContext) {
-  return can(context, "people:read");
-}
 
 /** The mailboxes the viewer's capabilities read and write in. */
 const mailboxesFor = (context: UnitContext) =>
@@ -210,46 +193,6 @@ export const unread = readProcedure.handler(async ({ context }) => {
   };
 });
 
-type Link = "student" | "person" | null;
-
-/**
- * Where a name in a conversation leads: the student's record or the
- * person's, only where the viewer may already open it under the records'
- * own reach rules, and nowhere otherwise.
- */
-async function linksFor(
-  context: UnitContext,
-  userIds: readonly (string | null)[],
-): Promise<(userId: string | null) => Link> {
-  const ids = [
-    ...new Set(
-      userIds.filter(
-        (userId): userId is string =>
-          userId !== null && userId !== context.actor.userId,
-      ),
-    ),
-  ];
-  const opened = await openable(context.tx, {
-    schoolId: context.schoolId,
-    viewerId: context.actor.userId,
-    on: context.today,
-    schoolWide: can(context, "people:manage"),
-    userIds: ids,
-  });
-  const readsStudents =
-    can(context, "people:read") || can(context, "people:manage");
-  const students = new Set(readsStudents ? opened.students : []);
-  const people = new Set(opened.people);
-  return (userId) =>
-    userId === null || userId === context.actor.userId
-      ? null
-      : students.has(userId)
-        ? "student"
-        : people.has(userId)
-          ? "person"
-          : null;
-}
-
 export const thread = readProcedure
   .input(threadQuerySchema)
   .handler(async ({ input, context }) => {
@@ -283,7 +226,7 @@ export const thread = readProcedure
     const shown = members.filter(
       (member) => row.mailbox === null || member.role !== "reader",
     );
-    const linkOf = await linksFor(context, [
+    const linkOf = await recordLinks(context, [
       ...shown.map((member) => member.userId),
       ...rows.map((message) => message.authorId),
     ]);
@@ -370,7 +313,7 @@ export const recipients = readProcedure
   .input(recipientsQuerySchema)
   .handler(async ({ input, context }) => {
     requireCapability(context, "messages:send");
-    return messageable(context.tx, reachOf(context), {
+    return messageable(context.tx, scopeFor(context, "classes"), {
       q: input.q,
       limit: 30,
       after: input.after,
@@ -475,28 +418,15 @@ async function checkAddressees(
 ) {
   if (input.kind === "family") {
     if (!isStaff(context)) throw new ORPCError("FORBIDDEN");
-    if (
-      input.studentId &&
-      !(await isVisibleStudent(
-        context.tx,
-        {
-          tenantId: context.tenantId,
-          schoolId: context.schoolId,
-          today: context.today,
-          viewerId: context.actor.userId,
-          schoolWide: reachOf(context).schoolWide,
-        },
-        input.studentId,
-      ))
-    )
-      throw new ORPCError("NOT_FOUND");
+    if (input.studentId)
+      await requireStudent(context, "classes", input.studentId);
     return;
   }
   if (input.kind === "group" && !isStaff(context))
     throw new ORPCError("FORBIDDEN");
   const outside = await unreachable(
     context.tx,
-    reachOf(context),
+    scopeFor(context, "classes"),
     input.recipientIds,
   );
   if (outside.length)
@@ -741,7 +671,7 @@ export const draft = readProcedure
     const kind = row.kind ?? "direct";
     const [people, [student]] = await Promise.all([
       row.recipientIds.length
-        ? messageable(context.tx, reachOf(context), {
+        ? messageable(context.tx, scopeFor(context, "classes"), {
             q: "",
             limit: 50,
             after: null,
@@ -803,7 +733,11 @@ export const members = writeProcedure
     const { thread: row, me } = await openThread(context, input.threadId);
     if (row.kind !== "group" || me?.role !== "owner")
       throw new ORPCError("FORBIDDEN");
-    const outside = await unreachable(context.tx, reachOf(context), input.add);
+    const outside = await unreachable(
+      context.tx,
+      scopeFor(context, "classes"),
+      input.add,
+    );
     if (outside.length)
       throw new ORPCError("FORBIDDEN", { message: "messages.recipient" });
     await addMembers(context.tx, {

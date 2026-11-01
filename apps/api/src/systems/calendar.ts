@@ -1,4 +1,3 @@
-import type { Scope } from "@faridalms/database/stores/students";
 import type { AudienceInput } from "@faridalms/domain/announcements";
 import type { ContentDocument } from "@faridalms/domain/content";
 
@@ -8,10 +7,7 @@ import {
   reachOf,
   setAudiences,
 } from "@faridalms/database/stores/audiences";
-import {
-  classesTaughtBy,
-  teachesClass,
-} from "@faridalms/database/stores/classes";
+import { classesTaughtBy } from "@faridalms/database/stores/classes";
 import { documentOf, saveDocument } from "@faridalms/database/stores/documents";
 import {
   eventById,
@@ -52,21 +48,12 @@ import {
   requireCapability,
   writeProcedure,
 } from "../core/procedure";
+import { scopeFor, teaches } from "../core/reach";
 import { registerHostReader, placeMedia } from "../files/authorize";
 
 const id = v.pipe(v.string(), v.uuid());
 
 const manages = (context: UnitContext) => can(context, "calendar:manage");
-
-function teachingScope(context: UnitContext): Scope {
-  return {
-    tenantId: context.tenantId,
-    schoolId: context.schoolId,
-    today: context.today,
-    viewerId: context.actor.userId,
-    schoolWide: can(context, "classes:manage"),
-  };
-}
 
 /** An event of this school the viewer is invited to or wrote, or not found. */
 async function readable(context: UnitContext, eventId: string) {
@@ -110,11 +97,7 @@ async function checkAudiences(
   for (const audience of audiences) {
     if (
       audience.scope !== "class" ||
-      !(await teachesClass(
-        context.tx,
-        teachingScope(context),
-        audience.classId,
-      ))
+      !(await teaches(context, "teaching", audience.classId))
     )
       throw new ORPCError("FORBIDDEN", { message: "calendar.audience" });
   }
@@ -175,7 +158,7 @@ async function reachFor(context: UnitContext, childId: string) {
   const children = can(context, "children:read")
     ? await childrenOf(
         context.tx,
-        { ...teachingScope(context), schoolWide: false },
+        scopeFor(context, "own"),
         context.actor.userId,
       )
     : [];

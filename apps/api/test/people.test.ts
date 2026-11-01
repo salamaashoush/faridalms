@@ -1,3 +1,4 @@
+import { plainContent } from "@faridalms/domain/content-conversion";
 import { addDays } from "@faridalms/domain/school";
 import { describe, expect, test } from "bun:test";
 
@@ -1490,5 +1491,122 @@ describe("who teaches what", () => {
       id: (await parent.identity.currentUser()).id,
     });
     expect(self.teaching).toBeNull();
+  });
+});
+
+/** A seeded family, one of its children, and that child's homeroom teacher. */
+async function familyAndTeacher() {
+  const office = await signedIn("northwind", login("principal"));
+  const parent = await signedIn("northwind", login("parent"));
+  const me = await parent.identity.currentUser();
+  const [child] = (await parent.people.person({ id: me.id })).children;
+  if (!child) throw new Error("seed parent with a child");
+  const seen = await office.people.student({ id: child.studentId });
+  const teacher = seen.homeroom?.teachers[0];
+  if (!seen.homeroom || !teacher)
+    throw new Error("seed homeroom with a teacher");
+  return { office, parent, me, child, homeroom: seen.homeroom, teacher };
+}
+
+describe("teacher profiles", () => {
+  test("a family opens its child's teacher's profile, never the staff record", async () => {
+    const { parent, homeroom, teacher } = await familyAndTeacher();
+    const profile = await parent.people.profile({ id: teacher.userId });
+    expect(profile).toMatchObject({
+      id: teacher.userId,
+      fullNameEn: teacher.fullNameEn,
+      access: { message: true },
+    });
+    expect(profile.roles.map((row) => row.role)).toContain("teacher");
+    const classes = profile.teaching?.classes ?? [];
+    expect(classes.map((row) => row.id)).toContain(homeroom.classId);
+    expect(classes.every((row) => !row.canOpen)).toBe(true);
+    expect(Object.keys(profile).toSorted()).toEqual(
+      [
+        "access",
+        "familyNameAr",
+        "familyNameEn",
+        "fullNameAr",
+        "fullNameEn",
+        "givenNameAr",
+        "givenNameEn",
+        "id",
+        "photoFileId",
+        "preferredGivenName",
+        "roles",
+        "teaching",
+      ].toSorted(),
+    );
+    expect(
+      await rejection(parent.people.person({ id: teacher.userId })),
+    ).toMatchObject({ code: "NOT_FOUND" });
+  });
+
+  test("the profile lists only the classes the teacher takes with the family's children", async () => {
+    const { office, parent, teacher } = await familyAndTeacher();
+    const record = await office.people.person({ id: teacher.userId });
+    const profile = await parent.people.profile({ id: teacher.userId });
+    const all = new Set(record.teaching?.classes.map((row) => row.id));
+    const shown = profile.teaching?.classes ?? [];
+    expect(shown.length).toBeGreaterThan(0);
+    expect(shown.every((row) => all.has(row.id))).toBe(true);
+  });
+
+  test("a student opens their own teacher's profile, never the staff record", async () => {
+    const student = await signedIn("northwind", login("student"));
+    const office = await signedIn("northwind", login("principal"));
+    const me = await student.identity.currentUser();
+    const seen = await office.people.student({ id: me.id });
+    const teacher = seen.homeroom?.teachers[0];
+    if (!teacher) throw new Error("seed homeroom with a teacher");
+    const profile = await student.people.profile({ id: teacher.userId });
+    expect(profile.teaching?.classes.map((row) => row.id)).toContain(
+      seen.homeroom?.classId,
+    );
+    expect(
+      await rejection(student.people.person({ id: teacher.userId })),
+    ).toMatchObject({ code: "NOT_FOUND" });
+  });
+
+  test("being in a conversation opens the profile of whoever the family talks to", async () => {
+    const office = await signedIn("northwind", login("staff"));
+    const parent = await signedIn("northwind", login("parent"));
+    const me = await parent.identity.currentUser();
+    const keeper = await office.identity.currentUser();
+    expect(
+      await rejection(parent.people.profile({ id: keeper.id })),
+    ).toMatchObject({ code: "NOT_FOUND" });
+    const { threadId } = await office.messages.start({
+      kind: "direct",
+      recipientIds: [me.id],
+      content: plainContent("A word about the trip"),
+    });
+    const profile = await parent.people.profile({ id: keeper.id });
+    expect(profile.id).toBe(keeper.id);
+    expect(profile.teaching?.classes ?? []).toEqual([]);
+    const opened = await parent.messages.thread({ id: threadId });
+    expect(opened.members.find((row) => row.userId === keeper.id)?.link).toBe(
+      "profile",
+    );
+  });
+
+  test("nobody else has a profile for the family", async () => {
+    const parent = await signedIn("northwind", login("parent"));
+    const me = (await parent.identity.currentUser()).id;
+    const others = await Promise.all(
+      [login("parent", 0, 1), login("parent", 0, 2)].map(
+        async (name) =>
+          (await (await signedIn("northwind", name)).identity.currentUser()).id,
+      ),
+    );
+    const refused = await Promise.all(
+      [
+        ...others.filter((id) => id !== me),
+        "00000000-0000-4000-8000-000000000000",
+      ].map((id) => rejection(parent.people.profile({ id }))),
+    );
+    expect(refused.length).toBeGreaterThan(1);
+    for (const refusal of refused)
+      expect(refusal).toMatchObject({ code: "NOT_FOUND" });
   });
 });
