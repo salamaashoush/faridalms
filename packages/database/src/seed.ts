@@ -1362,7 +1362,7 @@ async function seedAnnouncements(tx: Tx, tenantId: string, schoolId: string) {
       body: "Registers open at 7:45 each morning. The timetable and the reading lists for the term are in the app.",
       audience: { scope: "school", classId: null, gradeId: null },
       urgency: "normal",
-      pinnedUntil: "2026-10-31",
+      pinnedUntil: "2027-06-18",
       publishAt: new Date("2026-09-13T06:00:00Z"),
     },
     {
@@ -1801,6 +1801,18 @@ async function seedEvents(
       cancelled: true,
       audiences: [school],
       body: "Moved to December; a new date will follow.",
+    },
+    {
+      title: "Sports day",
+      titleAr: "اليوم الرياضي",
+      public: true,
+      category: "sport",
+      startsOn: "2027-06-10",
+      startTime: "08:00",
+      endTime: "12:00",
+      location: "Sports field",
+      audiences: [school],
+      body: "Races, relays and a picnic. Families are welcome to watch.",
     },
   ];
   for (const plan of plans) {

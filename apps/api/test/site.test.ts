@@ -21,6 +21,8 @@ import {
 
 const visitor = () => client("northwind").site;
 const principal = () => sessionFor("northwind", login("principal"));
+// A week ahead, so an event added here is still to come whenever this runs.
+const ahead = new Date(Date.now() + 7 * 86_400_000).toISOString().slice(0, 10);
 
 const PIXEL = Uint8Array.from(
   atob(
@@ -447,8 +449,8 @@ describe("events on the website", () => {
       titleEn: "Open morning",
       titleAr: "صباح مفتوح",
       category: "general",
-      startsOn: "2027-01-12",
-      endsOn: "2027-01-12",
+      startsOn: ahead,
+      endsOn: ahead,
       allDay: true,
       startTime: "",
       endTime: "",
@@ -459,9 +461,7 @@ describe("events on the website", () => {
       public: true,
     });
     const before = await contactPage();
-    expect(before.events.map((row) => row.titleAr)).toContain(
-      "مباراة كرة القدم مع مدرسة النيل",
-    );
+    expect(before.events.map((row) => row.titleAr)).toContain("اليوم الرياضي");
     expect(before.events.some((row) => row.id === draft.id)).toBe(false);
 
     await api.calendar.publish({
