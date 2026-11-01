@@ -21,6 +21,7 @@ import {
   getMyApplications,
   getOfficeLetter,
 } from "~/server/admissions";
+import { listTemplates } from "~/server/templates";
 
 export const enquiriesQuery = (query: EnquiryListQuery) =>
   queryOptions({
@@ -111,3 +112,9 @@ export const letterQuery = (id: string, reader: "office" | "family") =>
         ? getOfficeLetter({ data: { id } })
         : getFamilyLetter({ data: { id } }),
   });
+
+/** The school's letters of admission, one for each phase in each language. */
+export const lettersQuery = queryOptions({
+  queryKey: ["templates", "admission_letter"],
+  queryFn: () => listTemplates({ data: { kind: "admission_letter" } }),
+});

@@ -2,14 +2,19 @@ import type {
   AgeFit,
   ApplicationState,
   ChecklistKind,
+  Decision,
+  EventKind,
+  EventOutcome,
   FeeKind,
+  FunnelStage,
   IntakeWindow,
   ItemState,
+  LetterKind,
   NeedsKind,
   PriorityRule,
   WithdrawReason,
 } from "@faridalms/domain/admissions";
-import type { QuestionKind } from "@faridalms/domain/enquiries";
+import type { EnquirySource, QuestionKind } from "@faridalms/domain/enquiries";
 
 import type { Tone } from "~/components/system/status";
 
@@ -151,4 +156,64 @@ export const ANSWER_LABEL: Record<QuestionKind, () => string> = {
   choice: m.siteChoiceAnswerChoice,
   date: m.siteChoiceAnswerDate,
   number: m.siteChoiceAnswerNumber,
+};
+
+export const DECISION_LABEL: Record<Decision, () => string> = {
+  offer: m.decDecisionOffer,
+  waitlist: m.decDecisionWaitlist,
+  decline: m.decDecisionDecline,
+};
+
+export const DECISION_HINT: Record<Decision, () => string> = {
+  offer: m.decDecisionOfferHint,
+  waitlist: m.decDecisionWaitlistHint,
+  decline: m.decDecisionDeclineHint,
+};
+
+export const LETTER_LABEL: Record<LetterKind, () => string> = {
+  offer: m.decLetterOffer,
+  waitlist: m.decLetterWaitlist,
+  decline: m.decLetterDecline,
+  welcome: m.decLetterWelcome,
+};
+
+export const EVENT_KIND_LABEL: Record<EventKind, () => string> = {
+  tour: m.decEventTour,
+  assessment: m.decEventAssessment,
+  interview: m.decEventInterview,
+};
+
+export const EVENT_OUTCOME_LABEL: Record<EventOutcome, () => string> = {
+  scheduled: m.decOutcomeScheduled,
+  attended: m.decOutcomeAttended,
+  missed: m.decOutcomeMissed,
+  cancelled: m.decOutcomeCancelled,
+};
+
+export const EVENT_OUTCOME_TONE: Record<EventOutcome, Tone> = {
+  scheduled: "info",
+  attended: "success",
+  missed: "warning",
+  cancelled: "neutral",
+};
+
+/** Where a family came from: an enquiry by one of its channels, or straight to the application. */
+export const ORIGIN_LABEL: Record<EnquirySource | "direct", () => string> = {
+  website: m.decOriginWebsite,
+  phone: m.decOriginPhone,
+  email: m.decOriginEmail,
+  walk_in: m.decOriginWalkIn,
+  event: m.decOriginEvent,
+  referral: m.decOriginReferral,
+  other: m.decOriginOther,
+  direct: m.decOriginDirect,
+};
+
+export const STAGE_LABEL: Record<FunnelStage, () => string> = {
+  submitted: m.aplStateSubmitted,
+  in_review: m.aplStateInReview,
+  decided: m.aplStateDecided,
+  offered: m.aplStateOffered,
+  accepted: m.aplStateAccepted,
+  enrolled: m.aplStateEnrolled,
 };

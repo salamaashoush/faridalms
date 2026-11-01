@@ -170,6 +170,7 @@ export const board = readProcedure
       today: context.today,
       manages: can(context, "admissions:manage"),
       decides: can(context, "admissions:decide"),
+      configures: can(context, "admissions:configure"),
     };
   });
 

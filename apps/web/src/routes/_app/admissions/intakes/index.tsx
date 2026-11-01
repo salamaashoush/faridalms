@@ -65,11 +65,12 @@ type Form = Awaited<
   ReturnType<NonNullable<(typeof formsQuery)["queryFn"]>>
 >["forms"][number];
 
+/** An intake opens its board, where its applications are worked through. */
 function Grade({ row }: { row: Intake }) {
   return (
     <RowLink
-      to="/admissions/intake-editor"
-      search={{ id: row.id }}
+      to="/admissions/intakes/$intakeId"
+      params={{ intakeId: row.id }}
       className="justify-self-start"
     >
       {inLocale(row.gradeEn, row.gradeAr)}
