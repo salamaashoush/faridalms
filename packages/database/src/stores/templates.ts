@@ -16,13 +16,16 @@ export type TemplateKind =
   | "event"
   | "consent_form"
   | "module"
-  | "message";
+  | "message"
+  | "admission_letter";
 
 export interface TemplateRow {
   id: string;
+  version: number;
   orgId: string;
   /** Null for one the school was given when it was made. */
   ownerUserId: string | null;
+  builtinKey: string | null;
   kind: TemplateKind;
   title: string;
   description: string;
@@ -38,8 +41,10 @@ export interface TemplateRow {
 
 type TemplateRecord = {
   id: string;
+  version: number;
   org_id: string;
   owner_user_id: string | null;
+  builtin_key: string | null;
   kind: TemplateKind;
   title: string;
   description: string;
@@ -54,8 +59,10 @@ type TemplateRecord = {
 
 const templateOf = (row: TemplateRecord): TemplateRow => ({
   id: row.id,
+  version: row.version,
   orgId: row.org_id,
   ownerUserId: row.owner_user_id,
+  builtinKey: row.builtin_key,
   kind: row.kind,
   title: row.title,
   description: row.description,
@@ -68,7 +75,7 @@ const templateOf = (row: TemplateRecord): TemplateRow => ({
   moduleId: row.module_id,
 });
 
-const columns = sql`t.id, t.org_id, t.owner_user_id, t.kind, t.title, t.description,
+const columns = sql`t.id, t.version, t.org_id, t.owner_user_id, t.builtin_key, t.kind, t.title, t.description,
   t.subject_descriptor_id, t.state, t.review_note, t.module_id,
   u.full_name_en as name_en, u.full_name_ar as name_ar,
   ${isoOf(sql`t.date_last_modified`)} as updated_at`;
@@ -122,6 +129,38 @@ export async function templateById(
     left join core.users u on u.tenant_id = t.tenant_id and u.id = t.owner_user_id
     where t.tenant_id = ${tenantId}::uuid and t.id = ${id}::uuid and t.status = 'active'`);
   return row ? templateOf(row) : null;
+}
+
+/** The template a school was given under a builtin key, while it keeps it. */
+export async function templateByKey(
+  tx: Tx,
+  input: { tenantId: string; orgId: string; key: string },
+): Promise<TemplateRow | null> {
+  const [row] = await tx.execute<TemplateRecord>(sql`
+    select ${columns}
+    from core.document_templates t
+    left join core.users u on u.tenant_id = t.tenant_id and u.id = t.owner_user_id
+    where t.tenant_id = ${input.tenantId}::uuid and t.org_id = ${input.orgId}::uuid
+      and t.builtin_key = ${input.key} and t.status = 'active'`);
+  return row ? templateOf(row) : null;
+}
+
+/** Renames a template as its words change; null when another edit won. */
+export async function updateTemplate(
+  tx: Tx,
+  input: {
+    tenantId: string;
+    id: string;
+    expectedVersion: number;
+    title: string;
+  },
+): Promise<number | null> {
+  const [row] = await tx.execute<{ version: number }>(sql`
+    update core.document_templates set title = ${input.title}
+    where tenant_id = ${input.tenantId}::uuid and id = ${input.id}::uuid
+      and version = ${input.expectedVersion} and status = 'active'
+    returning version`);
+  return row?.version ?? null;
 }
 
 export async function insertTemplate(

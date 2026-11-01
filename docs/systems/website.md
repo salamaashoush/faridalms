@@ -84,8 +84,8 @@ A section is `{ id, type, variant, style, data }`.
 Types: hero, slider, page header, announcement, welcome, text, blocks,
 image and text, cards, divisions, stats, pillars, quote, voices, video,
 gallery, timeline, people, collapsible content, logos (including a moving
-strip), news, events, admissions actions, steps, fees and dates, contact,
-enquiry form, quick links and embed.
+strip), news, events, admissions, register and apply, steps, fees and
+dates, contact, enquiry form, quick links and embed.
 
 - **Slider:** slides with their own picture, words and buttons. They turn
   every 7 or 10 seconds, with previous, next, dot and pause controls, and
@@ -103,6 +103,14 @@ enquiry form, quick links and embed.
   text, a choice of options one per line, a date or a number. Each answer
   is kept with the enquiry in the words the family saw, so editing the
   form later changes no enquiry. Enquiries land in the admissions inbox.
+- **Admissions:** the intakes still to close, read from the admissions
+  system: each grade and year, when families apply, when decisions come
+  and the fees, with the way in to applying for an open one. The site
+  role reads only those columns of an intake, never its places or how it
+  ranks. A school that takes no applications here types its own panels.
+- **Register and apply:** the way in to applying, a link to the portal's
+  apply door, preset to the intake the builder picks or open to all; a
+  closed intake says so instead.
 - **Portal doors:** the portal's sign-in, registration and apply pages are
   pages of the site of the `portal` kind, at `/sign-in`, `/register` and
   `/apply` on the portal host, out of the menu. Each holds its door's
@@ -191,5 +199,5 @@ Builder work still to do, most useful first:
    whose words fill in as it scrolls.
 8. **Focal point on video posters.**
 
-Later: admissions pipeline beyond the enquiry inbox, social feed, approval
+Later: social feed, approval
 workflow, page permissions, host-based routing, Hijri dates.

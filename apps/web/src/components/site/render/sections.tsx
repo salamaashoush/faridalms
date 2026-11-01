@@ -39,7 +39,7 @@ import * as m from "~/i18n/messages";
 import { submitSiteEnquiry } from "~/server/site";
 import { numberLocale } from "~/utils/digits";
 
-import type { RenderContext } from "./parts";
+import type { RenderContext, SiteIntake } from "./parts";
 
 import { SiteArt } from "./art";
 import { useCountUp } from "./motion";
@@ -1946,8 +1946,164 @@ function Events({ section, context }: Props<"events">) {
   );
 }
 
+const FEE_WORDS: Record<
+  string,
+  (inputs: object, options: { locale: "en" | "ar" }) => string
+> = {
+  application: m.itkFeeApplication,
+  assessment: m.itkFeeAssessment,
+  registration: m.itkFeeRegistration,
+  tuition: m.itkFeeTuition,
+  other: m.itkFeeOther,
+};
+
+const intakeGrade = (intake: SiteIntake, locale: "en" | "ar") =>
+  (locale === "ar"
+    ? (intake.gradeAr ?? intake.gradeEn)
+    : (intake.gradeEn ?? intake.gradeAr)) ?? "";
+const intakeYear = (intake: SiteIntake, locale: "en" | "ar") =>
+  (locale === "ar"
+    ? (intake.yearTitleAr ?? intake.yearTitleEn)
+    : (intake.yearTitleEn ?? intake.yearTitleAr)) ?? "";
+
+/** A link into the portal, which the builder shows without following. */
+function PortalLink({
+  href,
+  context,
+  className,
+  children,
+}: {
+  href: string;
+  context: RenderContext;
+  className?: string;
+  children: ReactNode;
+}) {
+  return context.editing ? (
+    <span className={className}>{children}</span>
+  ) : (
+    <a href={href} className={className}>
+      {children}
+    </a>
+  );
+}
+
+/** Each intake still to close: its grade and year, when families apply, its fees and the way in. */
+function IntakeCards({
+  intakes,
+  context,
+  compact,
+}: {
+  intakes: SiteIntake[];
+  context: RenderContext;
+  compact: boolean;
+}) {
+  const t = { locale: context.locale };
+  const money = (currency: string, amount: number) =>
+    new Intl.NumberFormat(numberLocale(context.locale), {
+      style: "currency",
+      currency,
+      maximumFractionDigits: amount % 1 === 0 ? 0 : 2,
+    }).format(amount);
+  return (
+    <ul
+      data-stagger
+      className={cn(
+        "grid gap-6",
+        compact ? "" : "@3xl/site:grid-cols-2 @5xl/site:grid-cols-3",
+      )}
+    >
+      {intakes.map((intake) => {
+        const upcoming = context.today ? context.today < intake.opensOn : false;
+        return (
+          <li
+            key={intake.id}
+            className="site-card grid content-between gap-6 p-6 text-start @3xl/site:p-8"
+          >
+            <div className="grid gap-3">
+              <span className="site-eyebrow">
+                {intakeYear(intake, context.locale)}
+              </span>
+              <Heading level={3}>{intakeGrade(intake, context.locale)}</Heading>
+              <p className="site-muted">
+                {upcoming
+                  ? m.siteIntakeOpens(
+                      { date: siteDate(intake.opensOn, context.locale) },
+                      t,
+                    )
+                  : m.siteIntakeCloses(
+                      { date: siteDate(intake.closesOn, context.locale) },
+                      t,
+                    )}
+              </p>
+              {intake.decisionsOn ? (
+                <p className="site-muted text-sm">
+                  {m.siteIntakeDecisions(
+                    { date: siteDate(intake.decisionsOn, context.locale) },
+                    t,
+                  )}
+                </p>
+              ) : null}
+              {intake.fees.length ? (
+                <dl className="grid gap-1 text-sm">
+                  {intake.fees.map((fee) => (
+                    <div key={fee.kind} className="flex justify-between gap-4">
+                      <dt className="site-muted">
+                        {(FEE_WORDS[fee.kind] ?? m.itkFeeOther)({}, t)}
+                      </dt>
+                      <dd className="font-semibold tabular-nums">
+                        {money(intake.currency, fee.amount)}
+                      </dd>
+                    </div>
+                  ))}
+                </dl>
+              ) : null}
+            </div>
+            {upcoming || !context.applyHref ? null : (
+              <PortalLink
+                href={context.applyHref(intake.id)}
+                context={context}
+                className="site-button justify-self-start"
+              >
+                {m.siteIntakeApply({}, t)}
+              </PortalLink>
+            )}
+          </li>
+        );
+      })}
+    </ul>
+  );
+}
+
 function Admissions({ section, context }: Props<"admissions">) {
   const { data, variant } = section;
+  if (data.source === "intakes") {
+    const intakes =
+      variant === "keyDate"
+        ? (context.intakes ?? []).slice(0, 1)
+        : (context.intakes ?? []);
+    return (
+      <div className="grid gap-8">
+        <SectionIntro
+          heading={data.heading}
+          text={data.text}
+          center={variant === "triad"}
+        />
+        {intakes.length ? (
+          <IntakeCards
+            intakes={intakes}
+            context={context}
+            compact={variant !== "triad"}
+          />
+        ) : (
+          <p className="site-muted text-center">
+            {context.editing
+              ? m.siteIntakesFromAdmissions({}, { locale: context.locale })
+              : m.siteIntakesNone({}, { locale: context.locale })}
+          </p>
+        )}
+      </div>
+    );
+  }
   const date = data.date ? siteDate(data.date, context.locale) : null;
   if (variant === "banner" || variant === "keyDate")
     return (
@@ -1991,6 +2147,74 @@ function Admissions({ section, context }: Props<"admissions">) {
           </li>
         ))}
       </ol>
+    </div>
+  );
+}
+
+/**
+ * The way in to applying: a family registers on the portal, or carries on
+ * if signed in, preset to the intake the section names. An intake that has
+ * closed, or is still to open, says so instead of offering the way in.
+ */
+function RegisterApply({ section, context }: Props<"registerApply">) {
+  const { data, variant } = section;
+  const t = { locale: context.locale };
+  const named = data.intake
+    ? (context.intakes ?? []).find((intake) => intake.id === data.intake)
+    : null;
+  const notYet = named && context.today ? context.today < named.opensOn : false;
+  const gone = Boolean(data.intake) && !named && !context.editing;
+  const label = data.button.trim() || m.siteRegisterApplyButton({}, t);
+  return (
+    <div
+      className={cn(
+        "grid items-center gap-8",
+        variant === "banner"
+          ? "@3xl/site:grid-cols-[1fr_auto]"
+          : "site-card mx-auto max-w-2xl p-8 text-center @3xl/site:p-12",
+      )}
+    >
+      <div data-stagger className="grid gap-4">
+        {data.eyebrow ? (
+          <span className="site-eyebrow">{data.eyebrow}</span>
+        ) : null}
+        <Heading size="display" field="heading">
+          {data.heading}
+        </Heading>
+        <Lead field="text">{data.text}</Lead>
+        {named ? (
+          <p className="site-muted">
+            {m.siteRegisterApplyFor(
+              {
+                grade: intakeGrade(named, context.locale),
+                year: intakeYear(named, context.locale),
+              },
+              t,
+            )}
+          </p>
+        ) : null}
+      </div>
+      {gone ? (
+        <p className="site-muted">{m.siteRegisterApplyClosed({}, t)}</p>
+      ) : notYet && named ? (
+        <p className="site-muted">
+          {m.siteIntakeOpens(
+            { date: siteDate(named.opensOn, context.locale) },
+            t,
+          )}
+        </p>
+      ) : context.applyHref ? (
+        <PortalLink
+          href={context.applyHref(named?.id ?? null)}
+          context={context}
+          className={cn(
+            "site-button",
+            variant === "card" && "justify-self-center",
+          )}
+        >
+          {label}
+        </PortalLink>
+      ) : null}
     </div>
   );
 }
@@ -3133,6 +3357,10 @@ export function SiteSection({
         return <Events section={section} context={context} first={first} />;
       case "admissions":
         return <Admissions section={section} context={context} first={first} />;
+      case "registerApply":
+        return (
+          <RegisterApply section={section} context={context} first={first} />
+        );
       case "steps":
         return <Steps section={section} context={context} first={first} />;
       case "fees":

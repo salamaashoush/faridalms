@@ -1,5 +1,6 @@
 import * as v from "valibot";
 
+import type { ContentDocument, ContentNode } from "./content";
 import type { FormQuestion, QuestionKind } from "./enquiries";
 
 import {
@@ -50,18 +51,28 @@ export const APPLICATION_STATES = [
 ] as const;
 export type ApplicationState = (typeof APPLICATION_STATES)[number];
 
-/** Who may make a move: the family that applied, or the admissions office. */
-export type Mover = "family" | "office";
+/**
+ * Who may make a move: the family that applied, the admissions office, or
+ * the school's own clock, which releases decisions on the intake's day and
+ * lets an offer lapse when its time is up.
+ */
+export type Mover = "family" | "office" | "clock";
+
+interface Move {
+  to: ApplicationState;
+  by: readonly Mover[];
+  /** A move the office makes only with `admissions:decide`: deciding, releasing, offering, enrolling. */
+  decides?: true;
+}
 
 /**
- * Every move an application may make, and who makes it. Decisions, offers,
- * the waiting list and enrolment are added here, beside the rest; a move not
- * listed cannot be made by anyone.
+ * Every move an application may make, and who makes it; a move not listed
+ * cannot be made by anyone. A decision stays the office's until it is
+ * released, when it becomes an offer, a ranked place on the waiting list or
+ * a refusal. An accepted offer is enrolled by converting the applicant into
+ * a student; deferring moves the application to an intake of a later year.
  */
-const MOVES: Record<
-  ApplicationState,
-  readonly { to: ApplicationState; by: readonly Mover[] }[]
-> = {
+const MOVES: Record<ApplicationState, readonly Move[]> = {
   draft: [
     { to: "submitted", by: ["family"] },
     { to: "withdrawn", by: ["family"] },
@@ -70,12 +81,37 @@ const MOVES: Record<
     { to: "in_review", by: ["office"] },
     { to: "withdrawn", by: ["family", "office"] },
   ],
-  in_review: [{ to: "withdrawn", by: ["family", "office"] }],
-  decided: [],
-  offered: [],
-  accepted: [],
+  in_review: [
+    { to: "decided", by: ["office"], decides: true },
+    { to: "withdrawn", by: ["family", "office"] },
+    { to: "deferred", by: ["office"] },
+  ],
+  decided: [
+    { to: "in_review", by: ["office"], decides: true },
+    { to: "offered", by: ["office", "clock"], decides: true },
+    { to: "waitlisted", by: ["office", "clock"], decides: true },
+    { to: "declined_by_school", by: ["office", "clock"], decides: true },
+    { to: "withdrawn", by: ["family", "office"] },
+    { to: "deferred", by: ["office"] },
+  ],
+  waitlisted: [
+    { to: "offered", by: ["office"], decides: true },
+    { to: "declined_by_school", by: ["office"], decides: true },
+    { to: "withdrawn", by: ["family", "office"] },
+    { to: "deferred", by: ["office"] },
+  ],
+  offered: [
+    { to: "accepted", by: ["family", "office"] },
+    { to: "offer_declined", by: ["family", "office"] },
+    { to: "offer_expired", by: ["clock"] },
+    { to: "deferred", by: ["office"] },
+  ],
+  accepted: [
+    { to: "enrolled", by: ["office"], decides: true },
+    { to: "withdrawn", by: ["family", "office"] },
+    { to: "deferred", by: ["office"] },
+  ],
   enrolled: [],
-  waitlisted: [],
   declined_by_school: [],
   withdrawn: [],
   offer_declined: [],
@@ -97,6 +133,88 @@ export const canMove = (
   to: ApplicationState,
   mover: Mover,
 ) => nextApplicationStates(from, mover).includes(to);
+
+/** Whether the office needs `admissions:decide` for a move, rather than `admissions:manage`. */
+export const moveDecides = (from: ApplicationState, to: ApplicationState) =>
+  MOVES[from].some((move) => move.to === to && move.decides === true);
+
+/**
+ * What the office may decide for an application under review, and the
+ * state each becomes once released.
+ */
+export const DECISIONS = ["offer", "waitlist", "decline"] as const;
+export type Decision = (typeof DECISIONS)[number];
+
+export const RELEASED_AS: Record<Decision, ApplicationState> = {
+  offer: "offered",
+  waitlist: "waitlisted",
+  decline: "declined_by_school",
+};
+
+/**
+ * The state a family reads: a decision not yet released is still being
+ * reviewed as far as they can tell.
+ */
+export const familyState = (state: ApplicationState): ApplicationState =>
+  state === "decided" ? "in_review" : state;
+
+/** Whether the intake's day for releasing decisions has come. */
+export const releaseDue = (
+  intake: { decisionsOn: string | null },
+  today: string,
+) => intake.decisionsOn !== null && intake.decisionsOn <= today;
+
+/**
+ * Places still to give: the seats, less the offers accepted (and enrolled,
+ * which were accepted first) and the offers still open.
+ */
+export function placesLeft(input: {
+  capacity: number;
+  accepted: number;
+  offered: number;
+}): number {
+  return input.capacity - input.accepted - input.offered;
+}
+
+/** The last day an offer released today may be accepted. */
+export function offerExpiresOn(today: string, offerDays: number): string {
+  const at = new Date(`${today}T00:00:00Z`);
+  at.setUTCDate(at.getUTCDate() + offerDays);
+  return at.toISOString().slice(0, 10);
+}
+
+export interface WaitlistEntry {
+  id: string;
+  priorities: readonly PriorityRule[];
+  birthDate: string | null;
+  submittedAt: string | null;
+}
+
+/**
+ * The waiting list in the order places are offered: by the intake's
+ * priority rules in its order, each rule met ahead of one not met, then by
+ * the intake's tiebreak, age, the older child first, and last by who sent
+ * their application first.
+ */
+export function rankWaitlist<T extends WaitlistEntry>(
+  entries: readonly T[],
+  order: readonly PriorityRule[],
+): T[] {
+  const key = (entry: T) =>
+    order.map((rule) => entry.priorities.includes(rule));
+  return entries.toSorted((a, b) => {
+    const ka = key(a);
+    const kb = key(b);
+    for (let index = 0; index < order.length; index += 1)
+      if (ka[index] !== kb[index]) return ka[index] ? -1 : 1;
+    if (a.birthDate !== b.birthDate) {
+      if (a.birthDate === null) return 1;
+      if (b.birthDate === null) return -1;
+      return a.birthDate < b.birthDate ? -1 : 1;
+    }
+    return (a.submittedAt ?? "").localeCompare(b.submittedAt ?? "");
+  });
+}
 
 /** States that hold a place in the intake's count of live applications. */
 export const LIVE_STATES: readonly ApplicationState[] = [
@@ -695,7 +813,12 @@ export const detachDocumentSchema = v.object({
 });
 
 /** What the thread of an application holds: notes, each change of state, and each checklist change. */
-export const APPLICATION_ENTRY_KINDS = ["note", "state", "item"] as const;
+export const APPLICATION_ENTRY_KINDS = [
+  "note",
+  "state",
+  "item",
+  "event",
+] as const;
 export type ApplicationEntryKind = (typeof APPLICATION_ENTRY_KINDS)[number];
 
 /** People the office may already know, found when the application is sent; never shown to the family. */
@@ -762,3 +885,284 @@ export const registerFamilySchema = v.object({
   elapsed: v.pipe(v.number(), v.minValue(0)),
 });
 export type RegisterFamily = v.InferOutput<typeof registerFamilySchema>;
+
+const applicationVersion = v.object({ id, expectedVersion: version });
+const someApplications = v.pipe(
+  v.array(applicationVersion),
+  v.minLength(1),
+  v.maxLength(100),
+);
+
+/** The office decides one application or many at once; nothing reaches the family until it is released. */
+export const decideSchema = v.object({
+  applications: someApplications,
+  decision: v.picklist(DECISIONS),
+  note: words(500),
+});
+
+/** Decisions released by hand, before the intake's day; and places offered from the waiting list. */
+export const releaseSchema = v.object({ applications: someApplications });
+
+/** The family answers an offer, or the office records the answer they gave by phone or at the desk. */
+export const OFFER_ANSWERS = ["accept", "decline"] as const;
+export type OfferAnswer = (typeof OFFER_ANSWERS)[number];
+export const answerOfferSchema = v.object({
+  id,
+  expectedVersion: version,
+  answer: v.picklist(OFFER_ANSWERS),
+  note: words(500),
+});
+
+/** Moves an application to an intake of a later year, where it carries on as sent. */
+export const deferApplicationSchema = v.object({
+  id,
+  expectedVersion: version,
+  intakeId: id,
+  note: words(500),
+});
+
+const schoolReference = v.pipe(
+  v.string(),
+  v.trim(),
+  v.maxLength(24),
+  v.regex(/^[A-Za-z0-9/_-]*$/, "validation.reference"),
+);
+
+/**
+ * Enrols accepted applicants. Each names the student they become: empty
+ * for the applicant themself, or a current or former student matching
+ * found when the application was sent, which the office confirms is the
+ * same child. A new student takes the school reference given, or the
+ * application's number.
+ */
+export const convertSchema = v.object({
+  applications: v.pipe(
+    v.array(
+      v.object({
+        id,
+        expectedVersion: version,
+        studentId: v.optional(v.union([v.literal(""), id]), ""),
+        reference: v.optional(schoolReference, ""),
+      }),
+    ),
+    v.minLength(1),
+    v.maxLength(100),
+  ),
+});
+
+export const boardSchema = v.object({ intake: id });
+
+export const admissionReportSchema = v.object({
+  year: v.optional(v.union([v.literal(""), id]), ""),
+});
+
+/** Visits and meetings an application can hold, each at a time with the staff who attend. */
+export const EVENT_KINDS = ["tour", "assessment", "interview"] as const;
+export type EventKind = (typeof EVENT_KINDS)[number];
+
+/** An event is booked, then attended, missed by the family, or called off. */
+export const EVENT_OUTCOMES = [
+  "scheduled",
+  "attended",
+  "missed",
+  "cancelled",
+] as const;
+export type EventOutcome = (typeof EVENT_OUTCOMES)[number];
+
+export const MAX_EVENT_ATTENDEES = 10;
+const clockTime = v.pipe(v.string(), v.isoTime());
+
+export const saveEventSchema = v.pipe(
+  v.object({
+    applicationId: id,
+    id: v.optional(v.union([v.literal(""), id]), ""),
+    expectedVersion: v.pipe(v.number(), v.integer(), v.minValue(0)),
+    kind: v.picklist(EVENT_KINDS),
+    /** The checklist step it is for, an assessment or interview; empty for none. */
+    itemId: v.optional(v.union([v.literal(""), id]), ""),
+    date: isoDate,
+    startTime: clockTime,
+    endTime: clockTime,
+    location: words(200),
+    attendeeIds: v.pipe(v.array(id), v.maxLength(MAX_EVENT_ATTENDEES)),
+  }),
+  v.forward(
+    v.check((input) => input.startTime < input.endTime, "event.times"),
+    ["endTime"],
+  ),
+);
+export type SaveEvent = v.InferOutput<typeof saveEventSchema>;
+
+export const recordEventSchema = v.object({
+  applicationId: id,
+  id,
+  expectedVersion: version,
+  outcome: v.picklist(["attended", "missed", "cancelled"]),
+  result: words(2000),
+});
+
+/** The letters a family receives as its application moves, each written from the school's template for it. */
+export const LETTER_KINDS = [
+  "offer",
+  "waitlist",
+  "decline",
+  "welcome",
+] as const;
+export type LetterKind = (typeof LETTER_KINDS)[number];
+
+/** The letter a move into a state sends. */
+export const LETTER_FOR: Partial<Record<ApplicationState, LetterKind>> = {
+  offered: "offer",
+  waitlisted: "waitlist",
+  declined_by_school: "decline",
+  enrolled: "welcome",
+};
+
+/** What a letter's template may say in braces, filled in from the application when it is sent. */
+export const LETTER_FIELDS = [
+  "family",
+  "child",
+  "grade",
+  "year",
+  "school",
+  "reference",
+  "expires",
+] as const;
+export type LetterField = (typeof LETTER_FIELDS)[number];
+
+const FIELD = /\{([a-z]+)\}/g;
+
+/** Words with a letter's fields filled in; braces naming no field stay as written. */
+export function fillLetterText(
+  text: string,
+  fields: Readonly<Record<LetterField, string>>,
+): string {
+  return text.replaceAll(FIELD, (written, name: string) =>
+    (LETTER_FIELDS as readonly string[]).includes(name)
+      ? fields[name as LetterField]
+      : written,
+  );
+}
+
+/** A letter's document with its fields filled in, wherever in it they are written. */
+export function fillLetter(
+  document: ContentDocument,
+  fields: Readonly<Record<LetterField, string>>,
+): ContentDocument {
+  const fill = (node: ContentNode): ContentNode => ({
+    ...node,
+    ...(typeof node.text === "string"
+      ? { text: fillLetterText(node.text, fields) }
+      : {}),
+    ...(node.children ? { children: node.children.map(fill) } : {}),
+  });
+  return { ...document, root: fill(document.root) };
+}
+
+/** The builtin key a school's starting letter of a kind and language is given under. */
+export const letterKey = (kind: LetterKind, locale: "en" | "ar") =>
+  `admission_${kind}_${locale}`;
+
+/**
+ * The letters every school starts with, in both languages, given to it as
+ * templates it edits. A custom migration gave them to the schools that
+ * existed before; it copies these words.
+ */
+export const BUILTIN_LETTERS: readonly {
+  kind: LetterKind;
+  locale: "en" | "ar";
+  title: string;
+  body: string;
+}[] = [
+  {
+    kind: "offer",
+    locale: "en",
+    title: "Offer of a place",
+    body: "Dear {family},\n\nWe are delighted to offer {child} a place in {grade} for the {year} school year.\n\nPlease accept or decline the offer from your family account by {expires}. If we do not hear from you by then, the place will be offered to another child.\n\nYour application number is {reference}. Once you accept, we will write to you about the next steps before the year begins.\n\nWith warm regards,\n{school}",
+  },
+  {
+    kind: "offer",
+    locale: "ar",
+    title: "عرض مقعد",
+    body: "إلى {family}،\n\nتحية طيبة وبعد،\n\nيسعدنا أن نعرض على {child} مقعدًا في {grade} للعام الدراسي {year}.\n\nنرجو قبول العرض أو الاعتذار عنه من حساب الأسرة في موعد أقصاه {expires}، وإن لم يصلنا ردكم حتى ذلك الحين عُرض المقعد على طفل آخر.\n\nرقم طلبكم {reference}، وبعد قبولكم العرض سنراسلكم بالخطوات التالية قبل بداية العام.\n\nمع أطيب التحيات،\n{school}",
+  },
+  {
+    kind: "waitlist",
+    locale: "en",
+    title: "A place on our waiting list",
+    body: "Dear {family},\n\nThank you for applying to {school} for {child}. We have more applications for {grade} in {year} than places, and we are not able to offer {child} a place at this time.\n\nWe have placed {child} on our waiting list. If a place becomes available, we offer it in the order of our admission criteria and will write to you straight away.\n\nYour application number is {reference}. You can leave the waiting list at any time from your family account.\n\nWith kind regards,\n{school}",
+  },
+  {
+    kind: "waitlist",
+    locale: "ar",
+    title: "قائمة الانتظار",
+    body: "إلى {family}،\n\nتحية طيبة وبعد،\n\nنشكركم على تقديم طلب التحاق {child} بـ{school}. لقد تجاوز عدد الطلبات المقدَّمة إلى {grade} للعام الدراسي {year} عدد المقاعد المتاحة، ولذلك لا يمكننا أن نعرض على {child} مقعدًا في الوقت الحالي.\n\nوقد أدرجنا {child} في قائمة الانتظار، وإذا توفر مقعد عرضناه وفق ترتيب معايير القبول لدينا وراسلناكم فورًا.\n\nرقم طلبكم {reference}، ويمكنكم الخروج من قائمة الانتظار في أي وقت من حساب الأسرة.\n\nمع أطيب التحيات،\n{school}",
+  },
+  {
+    kind: "decline",
+    locale: "en",
+    title: "Your application",
+    body: "Dear {family},\n\nThank you for your interest in {school} and for the time you gave to the application for {child} to join {grade} in {year}.\n\nAfter careful consideration, we are sorry that we are not able to offer {child} a place.\n\nWe wish {child} every success, and we thank you again for thinking of us.\n\nWith kind regards,\n{school}",
+  },
+  {
+    kind: "decline",
+    locale: "ar",
+    title: "بشأن طلب الالتحاق",
+    body: "إلى {family}،\n\nتحية طيبة وبعد،\n\nنشكركم على اهتمامكم بـ{school} وعلى الوقت الذي خصصتموه لطلب التحاق {child} بـ{grade} للعام الدراسي {year}.\n\nوبعد دراسة الطلب بعناية، نأسف لعدم تمكننا من عرض مقعد على {child}.\n\nنتمنى لـ{child} كل التوفيق، ونشكركم مجددًا على ثقتكم.\n\nمع أطيب التحيات،\n{school}",
+  },
+  {
+    kind: "welcome",
+    locale: "en",
+    title: "Welcome to {school}",
+    body: "Dear {family},\n\nWelcome to {school}. {child} is now enrolled in {grade} for the {year} school year, and we look forward to meeting you.\n\nYour family account now opens {child}'s record at the school. Before the year begins we will share the calendar, the uniform and supplies list, and the arrangements for the first day.\n\nWith warm regards,\n{school}",
+  },
+  {
+    kind: "welcome",
+    locale: "ar",
+    title: "مرحبًا بكم في {school}",
+    body: "إلى {family}،\n\nتحية طيبة وبعد،\n\nيسعدنا أن نرحب بكم في {school}، فقد أصبح {child} مقيدًا في {grade} للعام الدراسي {year}، ونتطلع إلى لقائكم.\n\nيتيح لكم حساب الأسرة الآن الاطلاع على سجل {child} في المدرسة، وقبل بداية العام سنرسل إليكم التقويم الدراسي وقائمة الزي المدرسي والأدوات وترتيبات اليوم الأول.\n\nمع أطيب التحيات،\n{school}",
+  },
+];
+
+/** The phases the funnel counts, in order: how far each application got. */
+export const FUNNEL_STAGES = [
+  "submitted",
+  "in_review",
+  "decided",
+  "offered",
+  "accepted",
+  "enrolled",
+] as const;
+export type FunnelStage = (typeof FUNNEL_STAGES)[number];
+
+const STAGE_OF: Partial<Record<ApplicationState, FunnelStage>> = {
+  submitted: "submitted",
+  in_review: "in_review",
+  decided: "decided",
+  waitlisted: "decided",
+  declined_by_school: "decided",
+  offered: "offered",
+  offer_declined: "offered",
+  offer_expired: "offered",
+  accepted: "accepted",
+  enrolled: "enrolled",
+};
+
+/**
+ * The furthest stage of the funnel an application reached, from the states
+ * it has been in. A draft reaches none; an ending counts at the stage it
+ * ended from, so an offer turned down still reached an offer.
+ */
+export function stageReached(
+  history: readonly ApplicationState[],
+): FunnelStage | null {
+  let reached = -1;
+  for (const state of history) {
+    const stage = STAGE_OF[state];
+    const at = stage ? FUNNEL_STAGES.indexOf(stage) : -1;
+    if (at > reached) reached = at;
+  }
+  return FUNNEL_STAGES[reached] ?? null;
+}
+
+export const letterRefSchema = v.object({ id });

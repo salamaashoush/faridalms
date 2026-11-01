@@ -875,7 +875,7 @@ export async function place(
     /** The day the grade takes effect; today by default, never before the year. */
     from?: string;
     entryTypeId?: string | null;
-    source?: "manual" | "rollover";
+    source?: "manual" | "rollover" | "admission";
   },
 ) {
   const wanted = input.from ?? scope.today;

@@ -57,7 +57,9 @@ export const studentSchoolYears = core.table.withRLS(
     /** Where a student who left went on to, as the family told the office. */
     destinationSchool: text("destination_school"),
     source: text("source")
-      .$type<"manual" | "import" | "sis" | "oneroster" | "rollover">()
+      .$type<
+        "manual" | "import" | "sis" | "oneroster" | "rollover" | "admission"
+      >()
       .notNull(),
     importRunId: uuid("import_run_id"),
     ...entityColumns(),
@@ -119,7 +121,7 @@ export const studentSchoolYears = core.table.withRLS(
     ck(
       "student_school_years",
       "source",
-      sql`source in ('manual', 'import', 'sis', 'oneroster', 'rollover')`,
+      sql`source in ('manual', 'import', 'sis', 'oneroster', 'rollover', 'admission')`,
     ),
     ck("student_school_years", "valid_during", range.bounded("valid_during")),
     ck(

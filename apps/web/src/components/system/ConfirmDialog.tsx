@@ -21,6 +21,7 @@ export function ConfirmDialog({
   confirmLabel,
   pending = false,
   error,
+  destructive = true,
   onConfirm,
   onCancel,
 }: {
@@ -30,6 +31,8 @@ export function ConfirmDialog({
   confirmLabel: string;
   pending?: boolean;
   error?: string;
+  /** False for a confirmation that removes nothing, such as accepting an offer. */
+  destructive?: boolean;
   onConfirm: () => void;
   onCancel: () => void;
 }) {
@@ -67,7 +70,7 @@ export function ConfirmDialog({
           </Button>
           <Button
             type="button"
-            variant="destructive"
+            variant={destructive ? "destructive" : "default"}
             disabled={pending}
             onClick={onConfirm}
           >

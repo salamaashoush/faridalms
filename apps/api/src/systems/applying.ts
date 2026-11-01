@@ -5,6 +5,10 @@ import { writeAudit } from "@faridalms/database/audit";
 import { lookupHmac } from "@faridalms/database/crypto";
 import { capabilityHolders } from "@faridalms/database/stores/access";
 import {
+  eventsOf,
+  lettersOf,
+} from "@faridalms/database/stores/admission-decisions";
+import {
   applicationById,
   applicationsOfFamily,
   appliedFor,
@@ -64,13 +68,16 @@ import {
 } from "@faridalms/database/stores/students";
 import {
   ageFit,
+  answerOfferSchema,
   applicationReference,
   applicationRefSchema,
   attachDocumentSchema,
   canMove,
   detachDocumentSchema,
   emptyApplicationForm,
+  familyState,
   intakeWindow,
+  letterRefSchema,
   NEEDS_KINDS,
   prioritiesFound,
   prioritiesMet,
@@ -98,7 +105,9 @@ import {
   documentStep,
   fileDocument,
   intakeOf,
+  letterView,
 } from "../core/admissions";
+import { admissionScope, moveApplication } from "../core/decisions";
 import { readNeeds, writeNeeds } from "../core/health";
 import { identifierValue } from "../core/identifiers";
 import { notify, notifyIn } from "../core/notify";
@@ -425,13 +434,19 @@ function intakeView(
   };
 }
 
+/** An application as its family reads it: a decision not yet released is still under review to them. */
 function applicationView(row: ApplicationRow) {
+  const state = familyState(row.state);
   return {
     id: row.id,
     version: row.version,
     intakeId: row.intakeId,
-    state: row.state,
-    stateChangedAt: row.stateChangedAt,
+    state,
+    stateChangedAt:
+      row.state === state
+        ? row.stateChangedAt
+        : (row.submittedAt ?? row.stateChangedAt),
+    offerExpiresOn: state === "offered" ? row.offerExpiresOn : null,
     reference: row.reference,
     submittedAt: row.submittedAt,
     createdAt: row.createdAt,
@@ -456,10 +471,12 @@ export const mine = readProcedure.handler(async ({ context }) => {
     intakesOf(context.tx, org(context)),
     formOptions(context),
   ]);
-  const items = await itemsOf(context.tx, {
-    tenantId: context.tenantId,
-    applicationIds: rows.map((row) => row.id),
-  });
+  const ids = rows.map((row) => row.id);
+  const [items, letters, events] = await Promise.all([
+    itemsOf(context.tx, { tenantId: context.tenantId, applicationIds: ids }),
+    lettersOf(context.tx, { tenantId: context.tenantId, applicationIds: ids }),
+    eventsOf(context.tx, { tenantId: context.tenantId, applicationIds: ids }),
+  ]);
   const children = new Map<
     string,
     { id: string; nameEn: string | null; nameAr: string | null }
@@ -484,8 +501,30 @@ export const mine = readProcedure.handler(async ({ context }) => {
             item.kind === "document" &&
             (item.state === "pending" || item.state === "rejected"),
         ).length,
+        letters: letters
+          .filter((letter) => letter.applicationId === row.id)
+          .map((letter) => ({
+            id: letter.id,
+            kind: letter.kind,
+            title: letter.title,
+            createdAt: letter.createdAt,
+          })),
+        events: events
+          .filter(
+            (event) =>
+              event.applicationId === row.id && event.outcome === "scheduled",
+          )
+          .map((event) => ({
+            id: event.id,
+            kind: event.kind,
+            startsOn: event.startsOn,
+            startTime: event.startTime,
+            endTime: event.endTime,
+            location: event.location,
+          })),
         moves: {
           withdraw: canMove(row.state, "withdrawn", "family"),
+          answer: canMove(row.state, "accepted", "family"),
         },
       };
     }),
@@ -1404,6 +1443,66 @@ export const withdraw = writeProcedure
       details: { from: row.state, to: "withdrawn", reason: input.reason },
     });
     return { version };
+  });
+
+/**
+ * The family accepts the place they were offered, or declines it, by the
+ * offer's last day; the office hears either way.
+ */
+export const answer = writeProcedure
+  .input(answerOfferSchema)
+  .handler(async ({ input, context }) => {
+    applying(context);
+    const row = await ownApplication(context, input.id);
+    const to = input.answer === "accept" ? "accepted" : "offer_declined";
+    if (
+      !canMove(row.state, to, "family") ||
+      (row.offerExpiresOn !== null && row.offerExpiresOn < context.today)
+    )
+      throw new ORPCError("CONFLICT", { message: "application.state" });
+    const intake = await intakeOf(context, row.intakeId);
+    const version = await moveApplication(admissionScope(context), {
+      row,
+      intake,
+      to,
+      expectedVersion: input.expectedVersion,
+      note: input.note,
+      answered: true,
+    });
+    if (version === null) throw conflict();
+    const office = await capabilityHolders(context.tx, {
+      tenantId: context.tenantId,
+      schoolId: context.schoolId,
+      today: context.today,
+      capability: "admissions:manage",
+    });
+    await notify(
+      context,
+      office.map((each) => each.id),
+      {
+        kind: "application",
+        subject: { type: "admission_application", id: row.id },
+        params: {
+          title: row.applicant.nameEn ?? row.applicant.nameAr ?? "",
+          titleAr: row.applicant.nameAr ?? undefined,
+          actorName: row.family.nameEn ?? row.family.nameAr ?? "",
+          actorNameAr: row.family.nameAr ?? undefined,
+          gradeName: intake.gradeEn ?? intake.gradeAr ?? undefined,
+          gradeNameAr: intake.gradeAr ?? undefined,
+          outcome: to,
+        },
+        needsAction: to === "accepted",
+      },
+    );
+    return { version };
+  });
+
+/** A letter the school sent the family, as they read it. */
+export const letter = readProcedure
+  .input(letterRefSchema)
+  .handler(async ({ input, context }) => {
+    applying(context);
+    return letterView(context, input.id, context.actor.userId);
   });
 
 export const attach = writeProcedure

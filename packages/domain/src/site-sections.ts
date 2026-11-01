@@ -84,6 +84,8 @@ type NumberField = {
 type IconField = { kind: "icon" };
 type DateField = { kind: "date" };
 type EmbedField = { kind: "embed" };
+/** One of the school's intakes, by its id, or "" for every intake open. */
+type IntakeField = { kind: "intake" };
 export type ItemsField = {
   kind: "items";
   max: number;
@@ -100,7 +102,8 @@ export type ScalarField =
   | NumberField
   | IconField
   | DateField
-  | EmbedField;
+  | EmbedField
+  | IntakeField;
 /** Columns of freely arranged blocks, the builder's open canvas. */
 type ColumnsField = { kind: "columns"; max: number };
 export type Field = ScalarField | ItemsField | ColumnsField;
@@ -155,7 +158,9 @@ type ScalarValue<F> = F extends TextField
                     ? string
                     : F extends EmbedField
                       ? SiteEmbed | null
-                      : never;
+                      : F extends IntakeField
+                        ? string
+                        : never;
 type ValueOf<F> = F extends ColumnsField
   ? SiteColumn[]
   : F extends { kind: "items"; fields: infer G }
@@ -555,12 +560,18 @@ export const SECTION_SPECS = {
       },
     },
   },
+  /**
+   * Admissions at a glance: the intakes open and coming, with their grades,
+   * dates and fees, read from the admissions system; or, for a school that
+   * does not take applications here, a few typed panels.
+   */
   admissions: {
     category: "conversion",
     variants: ["triad", "banner", "keyDate"],
     fields: {
       heading,
       text: intro,
+      source: choice(["intakes", "typed"]),
       date: { kind: "date" },
       items: {
         kind: "items",
@@ -571,6 +582,18 @@ export const SECTION_SPECS = {
           actions: { kind: "links", max: 1 },
         },
       },
+    },
+  },
+  /** The way in to applying: the portal's registration, preset to an intake when the section names one. */
+  registerApply: {
+    category: "conversion",
+    variants: ["banner", "card"],
+    fields: {
+      eyebrow: t(80),
+      heading,
+      text: intro,
+      intake: { kind: "intake" },
+      button: t(25),
     },
   },
   steps: {
@@ -840,6 +863,8 @@ function scalarSchema(field: ScalarField): v.GenericSchema {
       return v.picklist(ICONS);
     case "date":
       return v.union([v.literal(""), v.pipe(v.string(), v.isoDate())]);
+    case "intake":
+      return v.union([v.literal(""), id]);
     case "embed":
       return v.nullable(
         v.pipe(
@@ -948,6 +973,7 @@ function initialScalar(field: ScalarField): unknown {
     case "text":
     case "href":
     case "date":
+    case "intake":
       return "";
     case "rich":
       return emptyBody();

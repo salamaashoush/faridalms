@@ -8,6 +8,7 @@ import type {
   ChecklistItem,
   ChecklistKind,
   Currency,
+  Decision,
   Fee,
   ItemState,
   PriorityRule,
@@ -418,6 +419,14 @@ export interface ApplicationRow {
   matches: Partial<ApplicationMatches> & { documentHolders?: string[] };
   submittedAt: string | null;
   createdAt: string;
+  decision: Decision | null;
+  decidedAt: string | null;
+  decidedByUserId: string | null;
+  releasedAt: string | null;
+  offerExpiresOn: string | null;
+  answeredAt: string | null;
+  studentUserId: string | null;
+  deferredFromId: string | null;
   applicant: {
     nameEn: string | null;
     nameAr: string | null;
@@ -431,7 +440,12 @@ const applicationColumns = sql`a.id, a.version, a.intake_id, a.form_version_id, 
   a.applicant_user_id, a.enquiry_id, a.state, ${isoOf(sql`a.state_changed_at`)} as state_changed_at,
   a.exit_reason, a.reference, a.locale, a.form, a.answers, a.additional_needs, a.priorities, a.matches,
   case when a.submitted_at is null then null else ${isoOf(sql`a.submitted_at`)} end as submitted_at,
-  ${isoOf(sql`a.created_at`)} as created_at,
+  ${isoOf(sql`a.created_at`)} as created_at, a.decision,
+  case when a.decided_at is null then null else ${isoOf(sql`a.decided_at`)} end as decided_at,
+  case when a.released_at is null then null else ${isoOf(sql`a.released_at`)} end as released_at,
+  a.offer_expires_on::text as offer_expires_on,
+  case when a.answered_at is null then null else ${isoOf(sql`a.answered_at`)} end as answered_at,
+  a.decided_by_user_id, a.student_user_id, a.deferred_from_id,
   c.full_name_en as applicant_en, c.full_name_ar as applicant_ar,
   c.birth_date::text as applicant_birth_date, c.sex_descriptor_id as applicant_sex_id,
   p.full_name_en as family_en, p.full_name_ar as family_ar`;
@@ -461,6 +475,14 @@ type ApplicationRecord = {
   matches: ApplicationRow["matches"];
   submitted_at: string | null;
   created_at: string;
+  decision: Decision | null;
+  decided_at: string | null;
+  decided_by_user_id: string | null;
+  released_at: string | null;
+  offer_expires_on: string | null;
+  answered_at: string | null;
+  student_user_id: string | null;
+  deferred_from_id: string | null;
   applicant_en: string | null;
   applicant_ar: string | null;
   applicant_birth_date: string | null;
@@ -489,6 +511,14 @@ const applicationOf = (row: ApplicationRecord): ApplicationRow => ({
   matches: row.matches,
   submittedAt: row.submitted_at,
   createdAt: row.created_at,
+  decision: row.decision,
+  decidedAt: row.decided_at,
+  decidedByUserId: row.decided_by_user_id,
+  releasedAt: row.released_at,
+  offerExpiresOn: row.offer_expires_on,
+  answeredAt: row.answered_at,
+  studentUserId: row.student_user_id,
+  deferredFromId: row.deferred_from_id,
   applicant: {
     nameEn: row.applicant_en,
     nameAr: row.applicant_ar,
@@ -1154,4 +1184,69 @@ export async function linkEnquiriesToFamily(
       and lower(email) = lower(${input.email}) and state in ('open', 'in_progress')
     returning id`);
   return rows.map((row) => row.id);
+}
+
+export interface PublicIntake {
+  id: string;
+  gradeEn: string | null;
+  gradeAr: string | null;
+  yearTitleEn: string | null;
+  yearTitleAr: string | null;
+  opensOn: string;
+  closesOn: string;
+  decisionsOn: string | null;
+  currency: Currency;
+  fees: Fee[];
+}
+
+/**
+ * The intakes a school's website lists: those still to close, with their
+ * grade, year, dates and fees, by year of entry and then grade. Reads only
+ * what the site role is granted, so it runs on a visitor's page.
+ */
+export async function publicIntakes(
+  tx: Tx,
+  input: { orgId: string; today: string },
+): Promise<PublicIntake[]> {
+  const rows = await tx.execute<{
+    id: string;
+    grade_en: string | null;
+    grade_ar: string | null;
+    year_title_en: string | null;
+    year_title_ar: string | null;
+    opens_on: string;
+    closes_on: string;
+    decisions_on: string | null;
+    currency: Currency;
+    fees: Fee[];
+  }>(sql`
+    select i.id, coalesce(o.label_en, g.label_en) as grade_en,
+      coalesce(o.label_ar, g.label_ar) as grade_ar, y.title_en as year_title_en,
+      y.title_ar as year_title_ar, i.opens_on::text as opens_on, i.closes_on::text as closes_on,
+      i.decisions_on::text as decisions_on, i.currency, i.fees
+    from core.admission_intakes i
+    join core.academic_sessions y on y.tenant_id = i.tenant_id and y.id = i.school_year_id
+      and y.status = 'active'
+    join core.descriptors g on g.tenant_id = i.tenant_id and g.id = i.grade_level_descriptor_id
+    left join lateral (
+      select x.label_en, x.label_ar, x.sort_order from core.descriptor_overrides x
+      where x.tenant_id = i.tenant_id and x.descriptor_id = g.id and x.org_id = i.org_id
+        and x.status = 'active' limit 1
+    ) o on true
+    where i.org_id = ${input.orgId}::uuid and i.status = 'active'
+      and i.closes_on >= ${input.today}::date
+    order by lower(y.span), coalesce(o.sort_order, g.sort_order), i.id
+    limit 40`);
+  return rows.map((row) => ({
+    id: row.id,
+    gradeEn: row.grade_en,
+    gradeAr: row.grade_ar,
+    yearTitleEn: row.year_title_en,
+    yearTitleAr: row.year_title_ar,
+    opensOn: row.opens_on,
+    closesOn: row.closes_on,
+    decisionsOn: row.decisions_on,
+    currency: row.currency,
+    fees: row.fees,
+  }));
 }

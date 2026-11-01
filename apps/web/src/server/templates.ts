@@ -4,6 +4,7 @@ import {
   saveTemplateSchema,
   templateKindSchema,
   templateRefSchema,
+  updateTemplateSchema,
 } from "@faridalms/domain/templates";
 import { createServerFn } from "@tanstack/react-start";
 
@@ -37,3 +38,7 @@ export const getLibraryQueue = createServerFn({ method: "GET" }).handler(() =>
 export const reviewTemplate = createServerFn({ method: "POST" })
   .validator(checked(reviewTemplateSchema))
   .handler(({ data }) => backend().templates.review(data));
+
+export const updateTemplate = createServerFn({ method: "POST" })
+  .validator(checked(updateTemplateSchema))
+  .handler(({ data }) => backend().templates.update(data));

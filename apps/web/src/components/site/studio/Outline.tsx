@@ -21,6 +21,7 @@ import {
   LayoutGrid,
   LayoutPanelTop,
   Link2,
+  DoorOpen,
   FileUser,
   LogIn,
   ListChecks,
@@ -84,6 +85,7 @@ export const SECTION_ICON: Record<PageSection["type"], LucideIcon> = {
   signIn: LogIn,
   register: UserPlus,
   apply: FileUser,
+  registerApply: DoorOpen,
 };
 
 /** A short line saying what a section holds, from its heading or first words. */

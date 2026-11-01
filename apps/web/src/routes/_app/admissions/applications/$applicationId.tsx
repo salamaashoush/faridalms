@@ -24,6 +24,9 @@ import {
   AGE_LABEL,
   APPLICATION_STATE_LABEL,
   APPLICATION_STATE_TONE,
+  DECISION_LABEL,
+  EVENT_KIND_LABEL,
+  EVENT_OUTCOME_LABEL,
   ITEM_MOVE_LABEL,
   ITEM_STATE_LABEL,
   ITEM_STATE_TONE,
@@ -31,6 +34,12 @@ import {
   PRIORITY_LABEL,
   WITHDRAW_LABEL,
 } from "~/components/admissions/application-labels";
+import {
+  DecisionSection,
+  EventsSection,
+  LettersSection,
+  useDecisionActions,
+} from "~/components/admissions/Decisions";
 import { FamilyConversation } from "~/components/admissions/FamilyConversation";
 import { BreadcrumbCurrent } from "~/components/app/WorkspaceBreadcrumb";
 import { formatInstant } from "~/components/coursework/format";
@@ -123,8 +132,10 @@ function ApplicationPage() {
         },
       }),
   });
-  const menu: ActionItem[] =
-    row.manages && row.moves.includes("withdrawn")
+  const decisions = useDecisionActions(row);
+  const menu: ActionItem[] = [
+    ...decisions.menu,
+    ...(row.manages && row.moves.includes("withdrawn")
       ? [
           {
             label: m.aplWithdrawAction(),
@@ -132,7 +143,8 @@ function ApplicationPage() {
             onSelect: () => setWithdrawing(true),
           },
         ]
-      : [];
+      : []),
+  ];
   return (
     <>
       <RecordHeader
@@ -183,7 +195,7 @@ function ApplicationPage() {
                     (error: unknown) => toast.error(getMessageFromError(error)),
                   ),
               }
-            : undefined
+            : decisions.action
         }
         menu={menu}
       />
@@ -248,6 +260,8 @@ function ApplicationPage() {
               )}
             </RecordSection>
             <ChecklistSection row={row} />
+            <EventsSection row={row} />
+            <LettersSection row={row} />
             <NeedsSection row={row} />
             <FamilyConversation
               applicationId={row.id}
@@ -258,8 +272,14 @@ function ApplicationPage() {
             <HistorySection row={row} timeZone={timeZone} />
           </>
         }
-        aside={<Aside row={row} timeZone={timeZone} />}
+        aside={
+          <>
+            <DecisionSection row={row} />
+            <Aside row={row} timeZone={timeZone} />
+          </>
+        }
       />
+      {decisions.sheets}
       {row.manages ? (
         <WithdrawSheet
           row={row}
@@ -544,8 +564,14 @@ function entryText(entry: Application["entries"][number]): string {
   const details = entry.details;
   if (entry.kind === "state") {
     const reason = pick(WITHDRAW_LABEL, details.reason);
-    return `${m.aplEntryState({ state: pick(APPLICATION_STATE_LABEL, details.to) })}${reason ? ` · ${reason}` : ""}`;
+    const decision = pick(DECISION_LABEL, details.decision);
+    return `${m.aplEntryState({ state: pick(APPLICATION_STATE_LABEL, details.to) })}${decision ? ` · ${decision}` : ""}${reason ? ` · ${reason}` : ""}`;
   }
+  if (entry.kind === "event")
+    return m.decEntryEvent({
+      event: pick(EVENT_KIND_LABEL, details.kind),
+      outcome: pick(EVENT_OUTCOME_LABEL, details.to),
+    });
   if (entry.kind === "item")
     return m.aplEntryItem({
       item: inLocale(
