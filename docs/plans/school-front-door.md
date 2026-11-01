@@ -31,7 +31,19 @@ sections on domains, sign-in and the directory).
    one, both or neither of its own; the platform names always work.
 4. **Every absolute URL comes from the school's canonical host**, stored in
    the directory, never from the request's `Host` header.
-5. **Applicants are people before they are students.** A family registers an
+5. **Every front door is a website-builder page.** The school's sign-in,
+   registration, application, contact and admissions pages are pages of the
+   school's site, made in the same builder from the same sections, theme and
+   chrome, and drawn by the same renderer. What only the platform can
+   provide (the sign-in form, the registration form, the application form,
+   the enquiry form, the list of open intakes) is a _system section_: a
+   section the builder places and styles like any other but whose behaviour
+   belongs to its system. A door that holds a session (sign-in, registration,
+   applying) is a page the builder makes for the _portal_ host and the portal
+   draws it there with the site's renderer; the site host only links or posts
+   to it. There is no second editor, no second theme and no second renderer
+   for any door.
+6. **Applicants are people before they are students.** A family registers an
    account once; their applications, and later their children's records,
    hang off the same identities, so nothing is typed twice and duplicates are
    caught at the door.
@@ -158,14 +170,20 @@ school's identity, not the platform's:
 - The look comes from the site's theme and chrome (palette, fonts, scheme,
   logo), read through a new public, cached `identity.portalFace` procedure.
   It returns only what a stranger may see: names, logo, theme, and the
-  sign-in page's document.
-- The site studio gains a **Sign-in page** next to its pages: one editor
-  document (welcome text, a picture, help contacts) shown beside the form,
-  in both languages. It is content, so it is an editor document like every
-  other.
-- On a school's portal host there is no school-code field: the host names
-  the school. The field remains only on the bare cell host, prefilled from
-  the `farida-school` cookie.
+  published sign-in page.
+- The sign-in page is a page of the site, made in the site builder like any
+  other (principle 5): the school arranges sections (a heading, text, a
+  picture, help contacts) around the **Sign-in** system section, which holds
+  the form and cannot be removed. The portal draws that page with the site's
+  renderer, theme and chrome; forgot-password, welcome and badge pages use
+  the same page's frame with their own system section. A school that has not
+  edited it gets a starter page.
+- There is no school-code field anywhere: a school's portal host names the
+  school. The bare domain hosts no sign-in and no session; it asks for an
+  email, then a password, finds the school only after the password is
+  checked (so nobody learns which school an address belongs to), and hands
+  the person to their school's portal with a single-use token. A remembered
+  school (the `farida-school` cookie) goes straight to its portal.
 - The platform name and links to legal pages appear in a small footer.
 
 ## 5. Website doors
