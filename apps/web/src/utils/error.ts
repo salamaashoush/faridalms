@@ -53,6 +53,8 @@ export function getMessageFromError(error: unknown): string {
         return m.errorAccessLastManager();
       case "access.not_held":
         return m.errorAccessNotHeld();
+      case "access.self_lockout":
+        return m.accessSelfLockout();
       case "account.self":
         return m.errorAccountSelf();
       case "school.week_start_weekend":
