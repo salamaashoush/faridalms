@@ -8,210 +8,210 @@
 // You should NOT make any changes in this file as it will be overwritten.
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
-import { Route as rootRouteImport } from "./routes/__root";
-import { Route as AuthCallbackRouteImport } from "./routes/auth/callback";
-import { Route as AuthLoginRouteImport } from "./routes/auth/login";
-import { Route as AuthLogoutRouteImport } from "./routes/auth/logout";
-import { Route as ChangesRouteImport } from "./routes/changes";
-import { Route as IndexRouteImport } from "./routes/index";
-import { Route as SchoolsSchoolIdRouteImport } from "./routes/schools.$schoolId";
-import { Route as SchoolsNewRouteImport } from "./routes/schools.new";
-import { Route as SeriesRouteImport } from "./routes/series";
-import { Route as SignInRouteImport } from "./routes/sign-in";
+import { Route as rootRouteImport } from './routes/__root'
+import { Route as IndexRouteImport } from './routes/index'
+import { Route as ChangesRouteImport } from './routes/changes'
+import { Route as SeriesRouteImport } from './routes/series'
+import { Route as SignInRouteImport } from './routes/sign-in'
+import { Route as AuthCallbackRouteImport } from './routes/auth/callback'
+import { Route as AuthLoginRouteImport } from './routes/auth/login'
+import { Route as AuthLogoutRouteImport } from './routes/auth/logout'
+import { Route as SchoolsSchoolIdRouteImport } from './routes/schools.$schoolId'
+import { Route as SchoolsNewRouteImport } from './routes/schools.new'
 
 const IndexRoute = IndexRouteImport.update({
-  id: "/",
-  path: "/",
+  id: '/',
+  path: '/',
   getParentRoute: () => rootRouteImport,
-} as any);
+} as any)
 const ChangesRoute = ChangesRouteImport.update({
-  id: "/changes",
-  path: "/changes",
+  id: '/changes',
+  path: '/changes',
   getParentRoute: () => rootRouteImport,
-} as any);
+} as any)
 const SeriesRoute = SeriesRouteImport.update({
-  id: "/series",
-  path: "/series",
+  id: '/series',
+  path: '/series',
   getParentRoute: () => rootRouteImport,
-} as any);
+} as any)
 const SignInRoute = SignInRouteImport.update({
-  id: "/sign-in",
-  path: "/sign-in",
+  id: '/sign-in',
+  path: '/sign-in',
   getParentRoute: () => rootRouteImport,
-} as any);
+} as any)
 const AuthCallbackRoute = AuthCallbackRouteImport.update({
-  id: "/auth/callback",
-  path: "/auth/callback",
+  id: '/auth/callback',
+  path: '/auth/callback',
   getParentRoute: () => rootRouteImport,
-} as any);
+} as any)
 const AuthLoginRoute = AuthLoginRouteImport.update({
-  id: "/auth/login",
-  path: "/auth/login",
+  id: '/auth/login',
+  path: '/auth/login',
   getParentRoute: () => rootRouteImport,
-} as any);
+} as any)
 const AuthLogoutRoute = AuthLogoutRouteImport.update({
-  id: "/auth/logout",
-  path: "/auth/logout",
+  id: '/auth/logout',
+  path: '/auth/logout',
   getParentRoute: () => rootRouteImport,
-} as any);
+} as any)
 const SchoolsSchoolIdRoute = SchoolsSchoolIdRouteImport.update({
-  id: "/schools/$schoolId",
-  path: "/schools/$schoolId",
+  id: '/schools/$schoolId',
+  path: '/schools/$schoolId',
   getParentRoute: () => rootRouteImport,
-} as any);
+} as any)
 const SchoolsNewRoute = SchoolsNewRouteImport.update({
-  id: "/schools/new",
-  path: "/schools/new",
+  id: '/schools/new',
+  path: '/schools/new',
   getParentRoute: () => rootRouteImport,
-} as any);
+} as any)
 
 export interface FileRoutesByFullPath {
-  "/": typeof IndexRoute;
-  "/changes": typeof ChangesRoute;
-  "/series": typeof SeriesRoute;
-  "/sign-in": typeof SignInRoute;
-  "/auth/callback": typeof AuthCallbackRoute;
-  "/auth/login": typeof AuthLoginRoute;
-  "/auth/logout": typeof AuthLogoutRoute;
-  "/schools/$schoolId": typeof SchoolsSchoolIdRoute;
-  "/schools/new": typeof SchoolsNewRoute;
+  '/': typeof IndexRoute
+  '/changes': typeof ChangesRoute
+  '/series': typeof SeriesRoute
+  '/sign-in': typeof SignInRoute
+  '/auth/callback': typeof AuthCallbackRoute
+  '/auth/login': typeof AuthLoginRoute
+  '/auth/logout': typeof AuthLogoutRoute
+  '/schools/$schoolId': typeof SchoolsSchoolIdRoute
+  '/schools/new': typeof SchoolsNewRoute
 }
 export interface FileRoutesByTo {
-  "/": typeof IndexRoute;
-  "/changes": typeof ChangesRoute;
-  "/series": typeof SeriesRoute;
-  "/sign-in": typeof SignInRoute;
-  "/auth/callback": typeof AuthCallbackRoute;
-  "/auth/login": typeof AuthLoginRoute;
-  "/auth/logout": typeof AuthLogoutRoute;
-  "/schools/$schoolId": typeof SchoolsSchoolIdRoute;
-  "/schools/new": typeof SchoolsNewRoute;
+  '/': typeof IndexRoute
+  '/changes': typeof ChangesRoute
+  '/series': typeof SeriesRoute
+  '/sign-in': typeof SignInRoute
+  '/auth/callback': typeof AuthCallbackRoute
+  '/auth/login': typeof AuthLoginRoute
+  '/auth/logout': typeof AuthLogoutRoute
+  '/schools/$schoolId': typeof SchoolsSchoolIdRoute
+  '/schools/new': typeof SchoolsNewRoute
 }
 export interface FileRoutesById {
-  __root__: typeof rootRouteImport;
-  "/": typeof IndexRoute;
-  "/changes": typeof ChangesRoute;
-  "/series": typeof SeriesRoute;
-  "/sign-in": typeof SignInRoute;
-  "/auth/callback": typeof AuthCallbackRoute;
-  "/auth/login": typeof AuthLoginRoute;
-  "/auth/logout": typeof AuthLogoutRoute;
-  "/schools/$schoolId": typeof SchoolsSchoolIdRoute;
-  "/schools/new": typeof SchoolsNewRoute;
+  __root__: typeof rootRouteImport
+  '/': typeof IndexRoute
+  '/changes': typeof ChangesRoute
+  '/series': typeof SeriesRoute
+  '/sign-in': typeof SignInRoute
+  '/auth/callback': typeof AuthCallbackRoute
+  '/auth/login': typeof AuthLoginRoute
+  '/auth/logout': typeof AuthLogoutRoute
+  '/schools/$schoolId': typeof SchoolsSchoolIdRoute
+  '/schools/new': typeof SchoolsNewRoute
 }
 export interface FileRouteTypes {
-  fileRoutesByFullPath: FileRoutesByFullPath;
+  fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
-    | "/"
-    | "/changes"
-    | "/series"
-    | "/sign-in"
-    | "/auth/callback"
-    | "/auth/login"
-    | "/auth/logout"
-    | "/schools/$schoolId"
-    | "/schools/new";
-  fileRoutesByTo: FileRoutesByTo;
+    | '/'
+    | '/changes'
+    | '/series'
+    | '/sign-in'
+    | '/auth/callback'
+    | '/auth/login'
+    | '/auth/logout'
+    | '/schools/$schoolId'
+    | '/schools/new'
+  fileRoutesByTo: FileRoutesByTo
   to:
-    | "/"
-    | "/changes"
-    | "/series"
-    | "/sign-in"
-    | "/auth/callback"
-    | "/auth/login"
-    | "/auth/logout"
-    | "/schools/$schoolId"
-    | "/schools/new";
+    | '/'
+    | '/changes'
+    | '/series'
+    | '/sign-in'
+    | '/auth/callback'
+    | '/auth/login'
+    | '/auth/logout'
+    | '/schools/$schoolId'
+    | '/schools/new'
   id:
-    | "__root__"
-    | "/"
-    | "/changes"
-    | "/series"
-    | "/sign-in"
-    | "/auth/callback"
-    | "/auth/login"
-    | "/auth/logout"
-    | "/schools/$schoolId"
-    | "/schools/new";
-  fileRoutesById: FileRoutesById;
+    | '__root__'
+    | '/'
+    | '/changes'
+    | '/series'
+    | '/sign-in'
+    | '/auth/callback'
+    | '/auth/login'
+    | '/auth/logout'
+    | '/schools/$schoolId'
+    | '/schools/new'
+  fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
-  IndexRoute: typeof IndexRoute;
-  ChangesRoute: typeof ChangesRoute;
-  SeriesRoute: typeof SeriesRoute;
-  SignInRoute: typeof SignInRoute;
-  AuthCallbackRoute: typeof AuthCallbackRoute;
-  AuthLoginRoute: typeof AuthLoginRoute;
-  AuthLogoutRoute: typeof AuthLogoutRoute;
-  SchoolsSchoolIdRoute: typeof SchoolsSchoolIdRoute;
-  SchoolsNewRoute: typeof SchoolsNewRoute;
+  IndexRoute: typeof IndexRoute
+  ChangesRoute: typeof ChangesRoute
+  SeriesRoute: typeof SeriesRoute
+  SignInRoute: typeof SignInRoute
+  AuthCallbackRoute: typeof AuthCallbackRoute
+  AuthLoginRoute: typeof AuthLoginRoute
+  AuthLogoutRoute: typeof AuthLogoutRoute
+  SchoolsSchoolIdRoute: typeof SchoolsSchoolIdRoute
+  SchoolsNewRoute: typeof SchoolsNewRoute
 }
 
-declare module "@tanstack/react-router" {
+declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
-    "/": {
-      id: "/";
-      path: "/";
-      fullPath: "/";
-      preLoaderRoute: typeof IndexRouteImport;
-      parentRoute: typeof rootRouteImport;
-    };
-    "/changes": {
-      id: "/changes";
-      path: "/changes";
-      fullPath: "/changes";
-      preLoaderRoute: typeof ChangesRouteImport;
-      parentRoute: typeof rootRouteImport;
-    };
-    "/series": {
-      id: "/series";
-      path: "/series";
-      fullPath: "/series";
-      preLoaderRoute: typeof SeriesRouteImport;
-      parentRoute: typeof rootRouteImport;
-    };
-    "/sign-in": {
-      id: "/sign-in";
-      path: "/sign-in";
-      fullPath: "/sign-in";
-      preLoaderRoute: typeof SignInRouteImport;
-      parentRoute: typeof rootRouteImport;
-    };
-    "/auth/callback": {
-      id: "/auth/callback";
-      path: "/auth/callback";
-      fullPath: "/auth/callback";
-      preLoaderRoute: typeof AuthCallbackRouteImport;
-      parentRoute: typeof rootRouteImport;
-    };
-    "/auth/login": {
-      id: "/auth/login";
-      path: "/auth/login";
-      fullPath: "/auth/login";
-      preLoaderRoute: typeof AuthLoginRouteImport;
-      parentRoute: typeof rootRouteImport;
-    };
-    "/auth/logout": {
-      id: "/auth/logout";
-      path: "/auth/logout";
-      fullPath: "/auth/logout";
-      preLoaderRoute: typeof AuthLogoutRouteImport;
-      parentRoute: typeof rootRouteImport;
-    };
-    "/schools/$schoolId": {
-      id: "/schools/$schoolId";
-      path: "/schools/$schoolId";
-      fullPath: "/schools/$schoolId";
-      preLoaderRoute: typeof SchoolsSchoolIdRouteImport;
-      parentRoute: typeof rootRouteImport;
-    };
-    "/schools/new": {
-      id: "/schools/new";
-      path: "/schools/new";
-      fullPath: "/schools/new";
-      preLoaderRoute: typeof SchoolsNewRouteImport;
-      parentRoute: typeof rootRouteImport;
-    };
+    '/': {
+      id: '/'
+      path: '/'
+      fullPath: '/'
+      preLoaderRoute: typeof IndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/changes': {
+      id: '/changes'
+      path: '/changes'
+      fullPath: '/changes'
+      preLoaderRoute: typeof ChangesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/series': {
+      id: '/series'
+      path: '/series'
+      fullPath: '/series'
+      preLoaderRoute: typeof SeriesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/sign-in': {
+      id: '/sign-in'
+      path: '/sign-in'
+      fullPath: '/sign-in'
+      preLoaderRoute: typeof SignInRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/auth/callback': {
+      id: '/auth/callback'
+      path: '/auth/callback'
+      fullPath: '/auth/callback'
+      preLoaderRoute: typeof AuthCallbackRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/auth/login': {
+      id: '/auth/login'
+      path: '/auth/login'
+      fullPath: '/auth/login'
+      preLoaderRoute: typeof AuthLoginRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/auth/logout': {
+      id: '/auth/logout'
+      path: '/auth/logout'
+      fullPath: '/auth/logout'
+      preLoaderRoute: typeof AuthLogoutRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/schools/$schoolId': {
+      id: '/schools/$schoolId'
+      path: '/schools/$schoolId'
+      fullPath: '/schools/$schoolId'
+      preLoaderRoute: typeof SchoolsSchoolIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/schools/new': {
+      id: '/schools/new'
+      path: '/schools/new'
+      fullPath: '/schools/new'
+      preLoaderRoute: typeof SchoolsNewRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -225,17 +225,17 @@ const rootRouteChildren: RootRouteChildren = {
   AuthLogoutRoute: AuthLogoutRoute,
   SchoolsSchoolIdRoute: SchoolsSchoolIdRoute,
   SchoolsNewRoute: SchoolsNewRoute,
-};
+}
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
-  ._addFileTypes<FileRouteTypes>();
+  ._addFileTypes<FileRouteTypes>()
 
-import type { getRouter } from "./router.tsx";
-import type { startInstance } from "./start.ts";
-declare module "@tanstack/react-start" {
+import type { getRouter } from './router.tsx'
+import type { startInstance } from './start.ts'
+declare module '@tanstack/react-start' {
   interface Register {
-    ssr: true;
-    router: Awaited<ReturnType<typeof getRouter>>;
-    config: Awaited<ReturnType<typeof startInstance.getOptions>>;
+    ssr: true
+    router: Awaited<ReturnType<typeof getRouter>>
+    config: Awaited<ReturnType<typeof startInstance.getOptions>>
   }
 }

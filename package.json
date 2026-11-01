@@ -90,7 +90,7 @@
   },
   "lint-staged": {
     "*": "oxfmt",
-    "*.{js,jsx,ts,tsx}": "oxlint --fix"
+    "*.{js,jsx,ts,tsx}": "oxlint --fix --no-error-on-unmatched-pattern"
   },
   "packageManager": "bun@1.4.4",
   "patchedDependencies": {

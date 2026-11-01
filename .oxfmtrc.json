@@ -24,6 +24,7 @@
     "apps/web/src/i18n/**",
     "apps/web/src/i18n-dev/**",
     "apps/web/src/routeTree.gen.ts",
+    "apps/ops/src/routeTree.gen.ts",
     "**/.output/**",
     "**/.nitro/**",
     "dist/**",
