@@ -308,6 +308,9 @@ function RolloverDraft({
   const [baseline, setBaseline] = useState(data.plan);
   const [plan, setPlan] = useState(data.plan);
   const [version, setVersion] = useState(data.version);
+  // A plan reconciled with today's placements on reading differs from the
+  // one stored, so it is unsaved until saved again.
+  const [reconciled, setReconciled] = useState(data.reconciled);
   const [problem, setProblem] = useState<string | null>(null);
   const [confirming, setConfirming] = useState(false);
   const save = useMutation({
@@ -373,7 +376,7 @@ function RolloverDraft({
     .filter((group) => group.students.length > 0);
   const planned = new Map(plan.students.map((row) => [row.studentId, row]));
   const total = counts(plan);
-  const dirty = JSON.stringify(plan) !== JSON.stringify(baseline);
+  const dirty = reconciled || JSON.stringify(plan) !== JSON.stringify(baseline);
   const takenCode = plan.classes.find(
     (row) =>
       row.include &&
@@ -418,6 +421,7 @@ function RolloverDraft({
             }
             setVersion(saved.version);
             setBaseline(plan);
+            setReconciled(false);
             await queryClient.invalidateQueries({ queryKey: ["years"] });
             toast.success(m.rolloverSaved());
           }
@@ -428,7 +432,7 @@ function RolloverDraft({
         pending={save.isPending}
         error={failure}
       >
-        {data.reconciled ? (
+        {reconciled ? (
           <p className="rounded-lg bg-muted p-3 text-sm leading-5">
             {m.rolloverReconciled()}
           </p>
