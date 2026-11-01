@@ -11,6 +11,7 @@ import {
   LOGIN_ROLES,
   provisionRoles,
 } from "@faridalms/database/provision";
+import { presentVariables } from "@faridalms/domain/environment";
 import { SQL } from "bun";
 import * as v from "valibot";
 
@@ -76,7 +77,7 @@ if (import.meta.main) {
       DIRECTORY_DATABASE: v.optional(databaseName, "directory"),
       CELL_ROLE_PASSWORD: v.optional(v.pipe(v.string(), v.minLength(16))),
     }),
-    process.env,
+    presentVariables(process.env),
   );
   const target: CellDatabases = {
     adminUrl: config.DATABASE_ADMIN_URL,

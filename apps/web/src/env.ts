@@ -1,3 +1,4 @@
+import { presentVariables } from "@faridalms/domain/environment";
 import * as v from "valibot";
 import { createEnv } from "valibot-env";
 
@@ -46,7 +47,7 @@ export const env = createEnv({
     },
   },
   values: {
-    ...process.env,
+    ...presentVariables(process.env),
     ...import.meta.env,
   },
 });

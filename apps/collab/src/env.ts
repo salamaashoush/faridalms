@@ -1,3 +1,4 @@
+import { presentVariables } from "@faridalms/domain/environment";
 import * as v from "valibot";
 
 export const env = v.parse(
@@ -18,5 +19,5 @@ export const env = v.parse(
       "3002",
     ),
   }),
-  process.env,
+  presentVariables(process.env),
 );
