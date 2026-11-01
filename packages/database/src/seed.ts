@@ -87,6 +87,8 @@ import {
   messageThreads,
   orgs,
   periodGrades,
+  siteEnquiries,
+  siteEnquiryEntries,
   rubrics,
   studentSchoolYears,
   submissionAttempts,
@@ -1224,6 +1226,25 @@ async function seedSchool(
       grantedByUserId: principal.id,
       reason: "Runs admissions this year.",
     });
+  const [officer] = await tx
+    .select({ id: accessRoles.id })
+    .from(accessRoles)
+    .where(
+      and(
+        eq(accessRoles.tenantId, tenantId),
+        eq(accessRoles.builtinKey, "admissions_officer"),
+      ),
+    );
+  if (officer)
+    await tx.insert(accessRoleAssignments).values({
+      tenantId,
+      userId: office.id,
+      accessRoleId: officer.id,
+      orgId: schoolId,
+      validDuring: "[2026-09-01,)",
+      grantedByUserId: principal.id,
+      reason: "Answers the families who enquire.",
+    });
   await seedClasses(
     tx,
     tenantId,
@@ -1261,6 +1282,7 @@ async function seedSchool(
           office: `office@${context.domain}`,
         },
   );
+  await seedEnquiries(tx, tenantId, schoolId, office.id);
   return { yearId, teachers };
 }
 
@@ -2764,6 +2786,68 @@ async function seedSignInPage(
  * A live, bilingual website: a home page and an about page published in both
  * languages, an admissions page still in draft, and news posts.
  */
+/**
+ * Enquiries further along than the website's, so the inbox shows the work:
+ * a phone call the office is following up and a question already answered.
+ */
+async function seedEnquiries(
+  tx: Tx,
+  tenantId: string,
+  schoolId: string,
+  officeId: string,
+) {
+  await tx.insert(siteEnquiries).values([
+    {
+      tenantId,
+      orgId: schoolId,
+      source: "phone",
+      locale: "en",
+      purpose: "visit",
+      name: "Salama Ashoush",
+      phone: "+20 122 555 0144",
+      childName: "Yusuf",
+      childYear: "Grade 4",
+      message: "Moving to Cairo in January; would like to see the school.",
+      state: "in_progress",
+      assigneeUserId: officeId,
+      createdByUserId: officeId,
+      firstRespondedAt: sql`statement_timestamp()`,
+    },
+    {
+      tenantId,
+      orgId: schoolId,
+      purpose: "general",
+      name: "سلامة عشوش",
+      email: "salama.bus@example.com",
+      locale: "ar",
+      message: "هل توفر المدرسة حافلة من المعادي؟",
+      state: "closed",
+      closedReason: "answered",
+      assigneeUserId: officeId,
+      firstRespondedAt: sql`statement_timestamp()`,
+    },
+  ]);
+  const [called] = await tx
+    .select({ id: siteEnquiries.id })
+    .from(siteEnquiries)
+    .where(
+      and(
+        eq(siteEnquiries.tenantId, tenantId),
+        eq(siteEnquiries.orgId, schoolId),
+        eq(siteEnquiries.source, "phone"),
+      ),
+    );
+  if (called)
+    await tx.insert(siteEnquiryEntries).values({
+      tenantId,
+      orgId: schoolId,
+      enquiryId: called.id,
+      kind: "call",
+      body: "Called back. They can visit on a Tuesday morning; offered 10:00.",
+      authorUserId: officeId,
+    });
+}
+
 async function seedSite(
   tx: Tx,
   tenantId: string,
@@ -3075,10 +3159,13 @@ async function seedSite(
   ])
     await insertEnquiry(tx, {
       tenantId,
+      id: Bun.randomUUIDv7(),
       orgId: schoolId,
       pageId: admissions?.id ?? null,
       sectionId: null,
       networkKey: "",
+      childName: "",
+      answers: [],
       ...enquiry,
     });
 }

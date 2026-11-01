@@ -1,0 +1,1519 @@
+{
+  "type": "diff",
+  "version": "9",
+  "dialect": "postgres",
+  "id": "f622061d-24c0-4ab2-ba1d-fcd7bc8ad9be",
+  "prevIds": [
+    "d38406b2-5c35-4630-ab6e-bdc9da0a43f4"
+  ],
+  "footprints": [
+    {
+      "statementType": "create_table",
+      "statementTarget": [
+        "table",
+        "core",
+        "site_enquiry_entries"
+      ],
+      "writes": [
+        "s|tbl|core.site_enquiry_entries",
+        "n|tbl|core.site_enquiry_entries",
+        "e|tbl|core.site_enquiry_entries",
+        "n|rel|core.site_enquiry_entries",
+        "n|type|core.site_enquiry_entries",
+        "n|rel|core.site_enquiry_entries_pkey"
+      ],
+      "reads": [
+        "n|sch|core"
+      ]
+    },
+    {
+      "statementType": "add_column",
+      "statementTarget": [
+        "column",
+        "core",
+        "site_enquiries",
+        "source"
+      ],
+      "writes": [
+        "s|col|core.site_enquiries.source",
+        "n|col|core.site_enquiries.source",
+        "e|col|core.site_enquiries.source"
+      ],
+      "reads": [
+        "n|tbl|core.site_enquiries",
+        "n|sch|core"
+      ]
+    },
+    {
+      "statementType": "add_column",
+      "statementTarget": [
+        "column",
+        "core",
+        "site_enquiries",
+        "child_name"
+      ],
+      "writes": [
+        "s|col|core.site_enquiries.child_name",
+        "n|col|core.site_enquiries.child_name",
+        "e|col|core.site_enquiries.child_name"
+      ],
+      "reads": [
+        "n|tbl|core.site_enquiries",
+        "n|sch|core"
+      ]
+    },
+    {
+      "statementType": "add_column",
+      "statementTarget": [
+        "column",
+        "core",
+        "site_enquiries",
+        "answers"
+      ],
+      "writes": [
+        "s|col|core.site_enquiries.answers",
+        "n|col|core.site_enquiries.answers",
+        "e|col|core.site_enquiries.answers"
+      ],
+      "reads": [
+        "n|tbl|core.site_enquiries",
+        "n|sch|core"
+      ]
+    },
+    {
+      "statementType": "add_column",
+      "statementTarget": [
+        "column",
+        "core",
+        "site_enquiries",
+        "state"
+      ],
+      "writes": [
+        "s|col|core.site_enquiries.state",
+        "n|col|core.site_enquiries.state",
+        "e|col|core.site_enquiries.state"
+      ],
+      "reads": [
+        "n|tbl|core.site_enquiries",
+        "n|sch|core"
+      ]
+    },
+    {
+      "statementType": "add_column",
+      "statementTarget": [
+        "column",
+        "core",
+        "site_enquiries",
+        "state_changed_at"
+      ],
+      "writes": [
+        "s|col|core.site_enquiries.state_changed_at",
+        "n|col|core.site_enquiries.state_changed_at",
+        "e|col|core.site_enquiries.state_changed_at"
+      ],
+      "reads": [
+        "n|tbl|core.site_enquiries",
+        "n|sch|core"
+      ]
+    },
+    {
+      "statementType": "add_column",
+      "statementTarget": [
+        "column",
+        "core",
+        "site_enquiries",
+        "closed_reason"
+      ],
+      "writes": [
+        "s|col|core.site_enquiries.closed_reason",
+        "n|col|core.site_enquiries.closed_reason",
+        "e|col|core.site_enquiries.closed_reason"
+      ],
+      "reads": [
+        "n|tbl|core.site_enquiries",
+        "n|sch|core"
+      ]
+    },
+    {
+      "statementType": "add_column",
+      "statementTarget": [
+        "column",
+        "core",
+        "site_enquiries",
+        "assignee_user_id"
+      ],
+      "writes": [
+        "s|col|core.site_enquiries.assignee_user_id",
+        "n|col|core.site_enquiries.assignee_user_id",
+        "e|col|core.site_enquiries.assignee_user_id"
+      ],
+      "reads": [
+        "n|tbl|core.site_enquiries",
+        "n|sch|core"
+      ]
+    },
+    {
+      "statementType": "add_column",
+      "statementTarget": [
+        "column",
+        "core",
+        "site_enquiries",
+        "first_responded_at"
+      ],
+      "writes": [
+        "s|col|core.site_enquiries.first_responded_at",
+        "n|col|core.site_enquiries.first_responded_at",
+        "e|col|core.site_enquiries.first_responded_at"
+      ],
+      "reads": [
+        "n|tbl|core.site_enquiries",
+        "n|sch|core"
+      ]
+    },
+    {
+      "statementType": "add_column",
+      "statementTarget": [
+        "column",
+        "core",
+        "site_enquiries",
+        "created_by_user_id"
+      ],
+      "writes": [
+        "s|col|core.site_enquiries.created_by_user_id",
+        "n|col|core.site_enquiries.created_by_user_id",
+        "e|col|core.site_enquiries.created_by_user_id"
+      ],
+      "reads": [
+        "n|tbl|core.site_enquiries",
+        "n|sch|core"
+      ]
+    },
+    {
+      "statementType": "add_column",
+      "statementTarget": [
+        "column",
+        "core",
+        "site_enquiries",
+        "family_user_id"
+      ],
+      "writes": [
+        "s|col|core.site_enquiries.family_user_id",
+        "n|col|core.site_enquiries.family_user_id",
+        "e|col|core.site_enquiries.family_user_id"
+      ],
+      "reads": [
+        "n|tbl|core.site_enquiries",
+        "n|sch|core"
+      ]
+    },
+    {
+      "statementType": "add_column",
+      "statementTarget": [
+        "column",
+        "core",
+        "site_enquiries",
+        "applicant_user_id"
+      ],
+      "writes": [
+        "s|col|core.site_enquiries.applicant_user_id",
+        "n|col|core.site_enquiries.applicant_user_id",
+        "e|col|core.site_enquiries.applicant_user_id"
+      ],
+      "reads": [
+        "n|tbl|core.site_enquiries",
+        "n|sch|core"
+      ]
+    },
+    {
+      "statementType": "alter_column",
+      "statementTarget": [
+        "column",
+        "core",
+        "site_enquiries",
+        "email"
+      ],
+      "writes": [
+        "s|colprop|core.site_enquiries.email.default"
+      ],
+      "reads": [
+        "n|tbl|core.site_enquiries",
+        "n|sch|core",
+        "n|col|core.site_enquiries.email"
+      ],
+      "sqlHash": "97884f884cf065f8"
+    },
+    {
+      "statementType": "create_index",
+      "statementTarget": [
+        "index",
+        "core",
+        "site_enquiries",
+        "site_enquiries_state_idx"
+      ],
+      "writes": [
+        "s|idx|core.site_enquiries_state_idx",
+        "n|idx|core.site_enquiries_state_idx",
+        "e|idx|core.site_enquiries_state_idx",
+        "n|rel|core.site_enquiries_state_idx"
+      ],
+      "reads": [
+        "n|tbl|core.site_enquiries",
+        "n|sch|core",
+        "n|col|core.site_enquiries.tenant_id",
+        "n|col|core.site_enquiries.org_id",
+        "n|col|core.site_enquiries.state",
+        "n|col|core.site_enquiries.created_at"
+      ]
+    },
+    {
+      "statementType": "create_index",
+      "statementTarget": [
+        "index",
+        "core",
+        "site_enquiries",
+        "site_enquiries_assignee_idx"
+      ],
+      "writes": [
+        "s|idx|core.site_enquiries_assignee_idx",
+        "n|idx|core.site_enquiries_assignee_idx",
+        "e|idx|core.site_enquiries_assignee_idx",
+        "n|rel|core.site_enquiries_assignee_idx"
+      ],
+      "reads": [
+        "n|tbl|core.site_enquiries",
+        "n|sch|core",
+        "n|col|core.site_enquiries.tenant_id",
+        "n|col|core.site_enquiries.assignee_user_id",
+        "n|col|core.site_enquiries.state"
+      ]
+    },
+    {
+      "statementType": "create_index",
+      "statementTarget": [
+        "index",
+        "core",
+        "site_enquiries",
+        "site_enquiries_email_idx"
+      ],
+      "writes": [
+        "s|idx|core.site_enquiries_email_idx",
+        "n|idx|core.site_enquiries_email_idx",
+        "e|idx|core.site_enquiries_email_idx",
+        "n|rel|core.site_enquiries_email_idx"
+      ],
+      "reads": [
+        "n|tbl|core.site_enquiries",
+        "n|sch|core",
+        "n|col|core.site_enquiries.tenant_id",
+        "n|col|core.site_enquiries.org_id"
+      ]
+    },
+    {
+      "statementType": "create_index",
+      "statementTarget": [
+        "index",
+        "core",
+        "site_enquiry_entries",
+        "site_enquiry_entries_enquiry_idx"
+      ],
+      "writes": [
+        "s|idx|core.site_enquiry_entries_enquiry_idx",
+        "n|idx|core.site_enquiry_entries_enquiry_idx",
+        "e|idx|core.site_enquiry_entries_enquiry_idx",
+        "n|rel|core.site_enquiry_entries_enquiry_idx"
+      ],
+      "reads": [
+        "n|tbl|core.site_enquiry_entries",
+        "n|sch|core",
+        "n|col|core.site_enquiry_entries.tenant_id",
+        "n|col|core.site_enquiry_entries.enquiry_id",
+        "n|col|core.site_enquiry_entries.created_at"
+      ]
+    },
+    {
+      "statementType": "create_fk",
+      "statementTarget": [
+        "table",
+        "core",
+        "site_enquiry_entries"
+      ],
+      "writes": [
+        "s|fk|core.site_enquiry_entries.site_enquiry_entries_tenant_id_fkey",
+        "n|fk|core.site_enquiry_entries.site_enquiry_entries_tenant_id_fkey",
+        "e|fk|core.site_enquiry_entries.site_enquiry_entries_tenant_id_fkey",
+        "n|con|core.site_enquiry_entries.site_enquiry_entries_tenant_id_fkey"
+      ],
+      "reads": [
+        "n|tbl|core.site_enquiry_entries",
+        "n|sch|core",
+        "n|tbl|core.tenants",
+        "n|sch|core",
+        "n|col|core.site_enquiry_entries.tenant_id",
+        "n|col|core.tenants.tenant_id",
+        "e|uniqueness|core.tenants.tenant_id"
+      ]
+    },
+    {
+      "statementType": "create_fk",
+      "statementTarget": [
+        "table",
+        "core",
+        "site_enquiry_entries"
+      ],
+      "writes": [
+        "s|fk|core.site_enquiry_entries.site_enquiry_entries_tenant_id_org_id_fkey",
+        "n|fk|core.site_enquiry_entries.site_enquiry_entries_tenant_id_org_id_fkey",
+        "e|fk|core.site_enquiry_entries.site_enquiry_entries_tenant_id_org_id_fkey",
+        "n|con|core.site_enquiry_entries.site_enquiry_entries_tenant_id_org_id_fkey"
+      ],
+      "reads": [
+        "n|tbl|core.site_enquiry_entries",
+        "n|sch|core",
+        "n|tbl|core.orgs",
+        "n|sch|core",
+        "n|col|core.site_enquiry_entries.tenant_id",
+        "n|col|core.site_enquiry_entries.org_id",
+        "n|col|core.orgs.tenant_id",
+        "n|col|core.orgs.id",
+        "e|uniqueness|core.orgs.id.tenant_id"
+      ]
+    },
+    {
+      "statementType": "create_fk",
+      "statementTarget": [
+        "table",
+        "core",
+        "site_enquiry_entries"
+      ],
+      "writes": [
+        "s|fk|core.site_enquiry_entries.site_enquiry_entries_tenant_id_enquiry_id_fkey",
+        "n|fk|core.site_enquiry_entries.site_enquiry_entries_tenant_id_enquiry_id_fkey",
+        "e|fk|core.site_enquiry_entries.site_enquiry_entries_tenant_id_enquiry_id_fkey",
+        "n|con|core.site_enquiry_entries.site_enquiry_entries_tenant_id_enquiry_id_fkey"
+      ],
+      "reads": [
+        "n|tbl|core.site_enquiry_entries",
+        "n|sch|core",
+        "n|tbl|core.site_enquiries",
+        "n|sch|core",
+        "n|col|core.site_enquiry_entries.tenant_id",
+        "n|col|core.site_enquiry_entries.enquiry_id",
+        "n|col|core.site_enquiries.tenant_id",
+        "n|col|core.site_enquiries.id",
+        "e|uniqueness|core.site_enquiries.id.tenant_id"
+      ]
+    },
+    {
+      "statementType": "create_fk",
+      "statementTarget": [
+        "table",
+        "core",
+        "site_enquiry_entries"
+      ],
+      "writes": [
+        "s|fk|core.site_enquiry_entries.site_enquiry_entries_tenant_id_author_user_id_fkey",
+        "n|fk|core.site_enquiry_entries.site_enquiry_entries_tenant_id_author_user_id_fkey",
+        "e|fk|core.site_enquiry_entries.site_enquiry_entries_tenant_id_author_user_id_fkey",
+        "n|con|core.site_enquiry_entries.site_enquiry_entries_tenant_id_author_user_id_fkey"
+      ],
+      "reads": [
+        "n|tbl|core.site_enquiry_entries",
+        "n|sch|core",
+        "n|tbl|core.users",
+        "n|sch|core",
+        "n|col|core.site_enquiry_entries.tenant_id",
+        "n|col|core.site_enquiry_entries.author_user_id",
+        "n|col|core.users.tenant_id",
+        "n|col|core.users.id",
+        "e|uniqueness|core.users.id.tenant_id"
+      ]
+    },
+    {
+      "statementType": "add_check",
+      "statementTarget": [
+        "table",
+        "core",
+        "site_enquiries"
+      ],
+      "writes": [
+        "s|ck|core.site_enquiries.site_enquiries_source_check",
+        "n|ck|core.site_enquiries.site_enquiries_source_check",
+        "e|ck|core.site_enquiries.site_enquiries_source_check",
+        "n|con|core.site_enquiries.site_enquiries_source_check"
+      ],
+      "reads": [
+        "n|tbl|core.site_enquiries",
+        "n|sch|core",
+        "n|col|core.site_enquiries.source",
+        "n|col|core.site_enquiries.phone",
+        "n|col|core.site_enquiries.email"
+      ]
+    },
+    {
+      "statementType": "add_check",
+      "statementTarget": [
+        "table",
+        "core",
+        "site_enquiries"
+      ],
+      "writes": [
+        "s|ck|core.site_enquiries.site_enquiries_reach_check",
+        "n|ck|core.site_enquiries.site_enquiries_reach_check",
+        "e|ck|core.site_enquiries.site_enquiries_reach_check",
+        "n|con|core.site_enquiries.site_enquiries_reach_check"
+      ],
+      "reads": [
+        "n|tbl|core.site_enquiries",
+        "n|sch|core",
+        "n|col|core.site_enquiries.email",
+        "n|col|core.site_enquiries.phone"
+      ]
+    },
+    {
+      "statementType": "add_check",
+      "statementTarget": [
+        "table",
+        "core",
+        "site_enquiries"
+      ],
+      "writes": [
+        "s|ck|core.site_enquiries.site_enquiries_child_name_check",
+        "n|ck|core.site_enquiries.site_enquiries_child_name_check",
+        "e|ck|core.site_enquiries.site_enquiries_child_name_check",
+        "n|con|core.site_enquiries.site_enquiries_child_name_check"
+      ],
+      "reads": [
+        "n|tbl|core.site_enquiries",
+        "n|sch|core",
+        "n|col|core.site_enquiries.child_name"
+      ]
+    },
+    {
+      "statementType": "add_check",
+      "statementTarget": [
+        "table",
+        "core",
+        "site_enquiries"
+      ],
+      "writes": [
+        "s|ck|core.site_enquiries.site_enquiries_answers_check",
+        "n|ck|core.site_enquiries.site_enquiries_answers_check",
+        "e|ck|core.site_enquiries.site_enquiries_answers_check",
+        "n|con|core.site_enquiries.site_enquiries_answers_check"
+      ],
+      "reads": [
+        "n|tbl|core.site_enquiries",
+        "n|sch|core",
+        "n|col|core.site_enquiries.answers"
+      ]
+    },
+    {
+      "statementType": "add_check",
+      "statementTarget": [
+        "table",
+        "core",
+        "site_enquiries"
+      ],
+      "writes": [
+        "s|ck|core.site_enquiries.site_enquiries_state_check",
+        "n|ck|core.site_enquiries.site_enquiries_state_check",
+        "e|ck|core.site_enquiries.site_enquiries_state_check",
+        "n|con|core.site_enquiries.site_enquiries_state_check"
+      ],
+      "reads": [
+        "n|tbl|core.site_enquiries",
+        "n|sch|core",
+        "n|col|core.site_enquiries.state"
+      ]
+    },
+    {
+      "statementType": "add_check",
+      "statementTarget": [
+        "table",
+        "core",
+        "site_enquiries"
+      ],
+      "writes": [
+        "s|ck|core.site_enquiries.site_enquiries_closed_reason_check",
+        "n|ck|core.site_enquiries.site_enquiries_closed_reason_check",
+        "e|ck|core.site_enquiries.site_enquiries_closed_reason_check",
+        "n|con|core.site_enquiries.site_enquiries_closed_reason_check"
+      ],
+      "reads": [
+        "n|tbl|core.site_enquiries",
+        "n|sch|core",
+        "n|col|core.site_enquiries.closed_reason"
+      ]
+    },
+    {
+      "statementType": "add_check",
+      "statementTarget": [
+        "table",
+        "core",
+        "site_enquiries"
+      ],
+      "writes": [
+        "s|ck|core.site_enquiries.site_enquiries_closed_check",
+        "n|ck|core.site_enquiries.site_enquiries_closed_check",
+        "e|ck|core.site_enquiries.site_enquiries_closed_check",
+        "n|con|core.site_enquiries.site_enquiries_closed_check"
+      ],
+      "reads": [
+        "n|tbl|core.site_enquiries",
+        "n|sch|core",
+        "n|col|core.site_enquiries.state",
+        "n|col|core.site_enquiries.closed_reason"
+      ]
+    },
+    {
+      "statementType": "add_check",
+      "statementTarget": [
+        "table",
+        "core",
+        "site_enquiries"
+      ],
+      "writes": [
+        "s|ck|core.site_enquiries.site_enquiries_website_check",
+        "n|ck|core.site_enquiries.site_enquiries_website_check",
+        "e|ck|core.site_enquiries.site_enquiries_website_check",
+        "n|con|core.site_enquiries.site_enquiries_website_check"
+      ],
+      "reads": [
+        "n|tbl|core.site_enquiries",
+        "n|sch|core",
+        "n|col|core.site_enquiries.source",
+        "n|col|core.site_enquiries.created_by_user_id"
+      ]
+    },
+    {
+      "statementType": "alter_check",
+      "statementTarget": [
+        "table",
+        "core",
+        "access_roles"
+      ],
+      "writes": [
+        "s|ck|core.access_roles.access_roles_builtin_key_check"
+      ],
+      "reads": [
+        "n|tbl|core.access_roles",
+        "n|sch|core",
+        "n|col|core.access_roles.builtin_key",
+        "e|col|core.access_roles.builtin_key"
+      ],
+      "sqlHash": "6275b0005317eb61"
+    },
+    {
+      "statementType": "alter_check",
+      "statementTarget": [
+        "table",
+        "core",
+        "site_enquiries"
+      ],
+      "writes": [
+        "s|ck|core.site_enquiries.site_enquiries_email_check"
+      ],
+      "reads": [
+        "n|tbl|core.site_enquiries",
+        "n|sch|core",
+        "n|col|core.site_enquiries.email",
+        "e|col|core.site_enquiries.email"
+      ],
+      "sqlHash": "0e867ba7b2071fc5"
+    },
+    {
+      "statementType": "create_policy",
+      "statementTarget": [
+        "table",
+        "core",
+        "site_enquiry_entries"
+      ],
+      "writes": [
+        "s|pol|core.site_enquiry_entries.tenant_isolation",
+        "n|pol|core.site_enquiry_entries.tenant_isolation",
+        "e|pol|core.site_enquiry_entries.tenant_isolation"
+      ],
+      "reads": [
+        "n|tbl|core.site_enquiry_entries",
+        "n|sch|core",
+        "e|rls|core.site_enquiry_entries"
+      ]
+    },
+    {
+      "statementType": "create_policy",
+      "statementTarget": [
+        "table",
+        "core",
+        "site_enquiry_entries"
+      ],
+      "writes": [
+        "s|pol|core.site_enquiry_entries.owner_all",
+        "n|pol|core.site_enquiry_entries.owner_all",
+        "e|pol|core.site_enquiry_entries.owner_all"
+      ],
+      "reads": [
+        "n|tbl|core.site_enquiry_entries",
+        "n|sch|core",
+        "n|role|cell_owner",
+        "e|rls|core.site_enquiry_entries"
+      ]
+    },
+    {
+      "statementType": "create_policy",
+      "statementTarget": [
+        "table",
+        "core",
+        "site_enquiry_entries"
+      ],
+      "writes": [
+        "s|pol|core.site_enquiry_entries.p_select",
+        "n|pol|core.site_enquiry_entries.p_select",
+        "e|pol|core.site_enquiry_entries.p_select"
+      ],
+      "reads": [
+        "n|tbl|core.site_enquiry_entries",
+        "n|sch|core",
+        "n|role|app",
+        "n|role|cell_io",
+        "n|role|retention",
+        "n|role|worker",
+        "e|rls|core.site_enquiry_entries"
+      ]
+    },
+    {
+      "statementType": "create_policy",
+      "statementTarget": [
+        "table",
+        "core",
+        "site_enquiry_entries"
+      ],
+      "writes": [
+        "s|pol|core.site_enquiry_entries.p_insert",
+        "n|pol|core.site_enquiry_entries.p_insert",
+        "e|pol|core.site_enquiry_entries.p_insert"
+      ],
+      "reads": [
+        "n|tbl|core.site_enquiry_entries",
+        "n|sch|core",
+        "n|role|app",
+        "n|role|cell_io",
+        "n|role|worker",
+        "e|rls|core.site_enquiry_entries"
+      ]
+    },
+    {
+      "statementType": "alter_policy",
+      "statementTarget": [
+        "table",
+        "core",
+        "site_enquiries"
+      ],
+      "writes": [
+        "s|pol|core.site_enquiries.p_site_insert"
+      ],
+      "reads": [
+        "n|tbl|core.site_enquiries",
+        "n|sch|core",
+        "n|role|site"
+      ],
+      "sqlHash": "091e819ba8be1a37"
+    }
+  ],
+  "deltas": [
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "name": "site_enquiry_entries",
+        "isRlsEnabled": true,
+        "entityType": "tables"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "site_enquiries",
+        "name": "source",
+        "type": "text",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": "'website'",
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "site_enquiries",
+        "name": "child_name",
+        "type": "text",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": "''",
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "site_enquiries",
+        "name": "answers",
+        "type": "jsonb",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": "'[]'",
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "site_enquiries",
+        "name": "state",
+        "type": "text",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": "'open'",
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "site_enquiries",
+        "name": "state_changed_at",
+        "type": "timestamp with time zone",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": "statement_timestamp()",
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "site_enquiries",
+        "name": "closed_reason",
+        "type": "text",
+        "typeSchema": null,
+        "notNull": false,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "site_enquiries",
+        "name": "assignee_user_id",
+        "type": "uuid",
+        "typeSchema": null,
+        "notNull": false,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "site_enquiries",
+        "name": "first_responded_at",
+        "type": "timestamp with time zone",
+        "typeSchema": null,
+        "notNull": false,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "site_enquiries",
+        "name": "created_by_user_id",
+        "type": "uuid",
+        "typeSchema": null,
+        "notNull": false,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "site_enquiries",
+        "name": "family_user_id",
+        "type": "uuid",
+        "typeSchema": null,
+        "notNull": false,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "site_enquiries",
+        "name": "applicant_user_id",
+        "type": "uuid",
+        "typeSchema": null,
+        "notNull": false,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "site_enquiry_entries",
+        "name": "tenant_id",
+        "type": "uuid",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "site_enquiry_entries",
+        "name": "id",
+        "type": "uuid",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": "uuidv7()",
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "site_enquiry_entries",
+        "name": "org_id",
+        "type": "uuid",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "site_enquiry_entries",
+        "name": "enquiry_id",
+        "type": "uuid",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "site_enquiry_entries",
+        "name": "kind",
+        "type": "text",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "site_enquiry_entries",
+        "name": "body",
+        "type": "text",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": "''",
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "site_enquiry_entries",
+        "name": "details",
+        "type": "jsonb",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": "'{}'",
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "site_enquiry_entries",
+        "name": "author_user_id",
+        "type": "uuid",
+        "typeSchema": null,
+        "notNull": false,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "site_enquiry_entries",
+        "name": "created_at",
+        "type": "timestamp with time zone",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": "statement_timestamp()",
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "site_enquiries",
+        "name": "site_enquiries_state_idx",
+        "nameExplicit": true,
+        "columns": [
+          {
+            "value": "tenant_id",
+            "isExpression": false,
+            "asc": true,
+            "nullsFirst": false,
+            "opclass": null
+          },
+          {
+            "value": "org_id",
+            "isExpression": false,
+            "asc": true,
+            "nullsFirst": false,
+            "opclass": null
+          },
+          {
+            "value": "state",
+            "isExpression": false,
+            "asc": true,
+            "nullsFirst": false,
+            "opclass": null
+          },
+          {
+            "value": "created_at",
+            "isExpression": false,
+            "asc": true,
+            "nullsFirst": false,
+            "opclass": null
+          }
+        ],
+        "isUnique": false,
+        "where": "status = 'active'",
+        "with": "",
+        "method": "btree",
+        "concurrently": false,
+        "entityType": "indexes"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "site_enquiries",
+        "name": "site_enquiries_assignee_idx",
+        "nameExplicit": true,
+        "columns": [
+          {
+            "value": "tenant_id",
+            "isExpression": false,
+            "asc": true,
+            "nullsFirst": false,
+            "opclass": null
+          },
+          {
+            "value": "assignee_user_id",
+            "isExpression": false,
+            "asc": true,
+            "nullsFirst": false,
+            "opclass": null
+          },
+          {
+            "value": "state",
+            "isExpression": false,
+            "asc": true,
+            "nullsFirst": false,
+            "opclass": null
+          }
+        ],
+        "isUnique": false,
+        "where": "status = 'active' and assignee_user_id is not null",
+        "with": "",
+        "method": "btree",
+        "concurrently": false,
+        "entityType": "indexes"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "site_enquiries",
+        "name": "site_enquiries_email_idx",
+        "nameExplicit": true,
+        "columns": [
+          {
+            "value": "tenant_id",
+            "isExpression": false,
+            "asc": true,
+            "nullsFirst": false,
+            "opclass": null
+          },
+          {
+            "value": "org_id",
+            "isExpression": false,
+            "asc": true,
+            "nullsFirst": false,
+            "opclass": null
+          },
+          {
+            "value": "lower(email)",
+            "isExpression": true,
+            "asc": true,
+            "nullsFirst": false,
+            "opclass": null
+          }
+        ],
+        "isUnique": false,
+        "where": "status = 'active' and email <> ''",
+        "with": "",
+        "method": "btree",
+        "concurrently": false,
+        "entityType": "indexes"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "site_enquiry_entries",
+        "name": "site_enquiry_entries_enquiry_idx",
+        "nameExplicit": true,
+        "columns": [
+          {
+            "value": "tenant_id",
+            "isExpression": false,
+            "asc": true,
+            "nullsFirst": false,
+            "opclass": null
+          },
+          {
+            "value": "enquiry_id",
+            "isExpression": false,
+            "asc": true,
+            "nullsFirst": false,
+            "opclass": null
+          },
+          {
+            "value": "created_at",
+            "isExpression": false,
+            "asc": true,
+            "nullsFirst": false,
+            "opclass": null
+          }
+        ],
+        "isUnique": false,
+        "where": null,
+        "with": "",
+        "method": "btree",
+        "concurrently": false,
+        "entityType": "indexes"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "site_enquiry_entries",
+        "name": "site_enquiry_entries_tenant_id_fkey",
+        "nameExplicit": true,
+        "columns": [
+          "tenant_id"
+        ],
+        "schemaTo": "core",
+        "tableTo": "tenants",
+        "columnsTo": [
+          "tenant_id"
+        ],
+        "onUpdate": "NO ACTION",
+        "onDelete": "NO ACTION",
+        "entityType": "fks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "site_enquiry_entries",
+        "name": "site_enquiry_entries_tenant_id_org_id_fkey",
+        "nameExplicit": true,
+        "columns": [
+          "tenant_id",
+          "org_id"
+        ],
+        "schemaTo": "core",
+        "tableTo": "orgs",
+        "columnsTo": [
+          "tenant_id",
+          "id"
+        ],
+        "onUpdate": "NO ACTION",
+        "onDelete": "NO ACTION",
+        "entityType": "fks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "site_enquiry_entries",
+        "name": "site_enquiry_entries_tenant_id_enquiry_id_fkey",
+        "nameExplicit": true,
+        "columns": [
+          "tenant_id",
+          "enquiry_id"
+        ],
+        "schemaTo": "core",
+        "tableTo": "site_enquiries",
+        "columnsTo": [
+          "tenant_id",
+          "id"
+        ],
+        "onUpdate": "NO ACTION",
+        "onDelete": "NO ACTION",
+        "entityType": "fks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "site_enquiry_entries",
+        "name": "site_enquiry_entries_tenant_id_author_user_id_fkey",
+        "nameExplicit": true,
+        "columns": [
+          "tenant_id",
+          "author_user_id"
+        ],
+        "schemaTo": "core",
+        "tableTo": "users",
+        "columnsTo": [
+          "tenant_id",
+          "id"
+        ],
+        "onUpdate": "NO ACTION",
+        "onDelete": "NO ACTION",
+        "entityType": "fks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "site_enquiry_entries",
+        "name": "site_enquiry_entries_pkey",
+        "columns": [
+          "tenant_id",
+          "id"
+        ],
+        "nameExplicit": true,
+        "entityType": "pks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "site_enquiries",
+        "name": "site_enquiries_source_check",
+        "value": "source in ('website', 'phone', 'email', 'walk_in', 'event', 'referral', 'other')",
+        "entityType": "checks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "site_enquiries",
+        "name": "site_enquiries_reach_check",
+        "value": "email <> '' or phone <> ''",
+        "entityType": "checks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "site_enquiries",
+        "name": "site_enquiries_child_name_check",
+        "value": "char_length(child_name) <= 120",
+        "entityType": "checks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "site_enquiries",
+        "name": "site_enquiries_answers_check",
+        "value": "jsonb_typeof(answers) = 'array' and octet_length(answers::text) <= 32768",
+        "entityType": "checks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "site_enquiries",
+        "name": "site_enquiries_state_check",
+        "value": "state in ('open', 'in_progress', 'converted', 'closed')",
+        "entityType": "checks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "site_enquiries",
+        "name": "site_enquiries_closed_reason_check",
+        "value": "closed_reason in ('answered', 'not_interested', 'another_school', 'not_eligible', 'no_places', 'no_response', 'duplicate', 'spam', 'other')",
+        "entityType": "checks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "site_enquiries",
+        "name": "site_enquiries_closed_check",
+        "value": "(state = 'closed') = (closed_reason is not null)",
+        "entityType": "checks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "site_enquiries",
+        "name": "site_enquiries_website_check",
+        "value": "(source = 'website') = (created_by_user_id is null)",
+        "entityType": "checks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "site_enquiry_entries",
+        "name": "site_enquiry_entries_kind_check",
+        "value": "kind in ('note', 'call', 'email', 'meeting', 'reply', 'state', 'assigned')",
+        "entityType": "checks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "site_enquiry_entries",
+        "name": "site_enquiry_entries_body_check",
+        "value": "char_length(body) <= 5200",
+        "entityType": "checks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "site_enquiry_entries",
+        "name": "site_enquiry_entries_details_check",
+        "value": "jsonb_typeof(details) = 'object' and octet_length(details::text) <= 4096",
+        "entityType": "checks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "site_enquiry_entries",
+        "name": "tenant_isolation",
+        "as": "RESTRICTIVE",
+        "for": "ALL",
+        "roles": [
+          "public"
+        ],
+        "using": "tenant_id = (select app.tenant_id())",
+        "withCheck": "tenant_id = (select app.tenant_id())",
+        "entityType": "policies"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "site_enquiry_entries",
+        "name": "owner_all",
+        "as": "PERMISSIVE",
+        "for": "ALL",
+        "roles": [
+          "cell_owner"
+        ],
+        "using": "true",
+        "withCheck": "true",
+        "entityType": "policies"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "site_enquiry_entries",
+        "name": "p_select",
+        "as": "PERMISSIVE",
+        "for": "SELECT",
+        "roles": [
+          "app",
+          "cell_io",
+          "retention",
+          "worker"
+        ],
+        "using": "true",
+        "withCheck": null,
+        "entityType": "policies"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "site_enquiry_entries",
+        "name": "p_insert",
+        "as": "PERMISSIVE",
+        "for": "INSERT",
+        "roles": [
+          "app",
+          "cell_io",
+          "worker"
+        ],
+        "using": null,
+        "withCheck": "true",
+        "entityType": "policies"
+      }
+    },
+    {
+      "op": "alter",
+      "key": "columns\u0000[\"core\",\"site_enquiries\",\"email\"]",
+      "set": {
+        "default": "''"
+      }
+    },
+    {
+      "op": "alter",
+      "key": "checks\u0000[\"core\",\"access_roles\",\"access_roles_builtin_key_check\"]",
+      "set": {
+        "value": "builtin_key in ('site_administrator', 'district_administrator', 'system_administrator', 'principal', 'teacher', 'aide', 'counselor', 'proctor', 'staff', 'student', 'family', 'admissions_officer')"
+      }
+    },
+    {
+      "op": "alter",
+      "key": "checks\u0000[\"core\",\"site_enquiries\",\"site_enquiries_email_check\"]",
+      "set": {
+        "value": "email = '' or (char_length(email) between 3 and 254 and email like '%_@_%')"
+      }
+    },
+    {
+      "op": "alter",
+      "key": "policies\u0000[\"core\",\"site_enquiries\",\"p_site_insert\"]",
+      "set": {
+        "withCheck": "status = 'active' and source = 'website' and state = 'open'\n        and closed_reason is null and assignee_user_id is null and first_responded_at is null\n        and created_by_user_id is null and family_user_id is null and applicant_user_id is null\n        and handled_at is null"
+      }
+    }
+  ]
+}

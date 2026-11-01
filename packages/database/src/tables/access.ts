@@ -30,6 +30,7 @@ export const BUILTIN_ACCESS_ROLES = [
   "staff",
   "student",
   "family",
+  "admissions_officer",
 ] as const;
 export type BuiltinAccessRole = (typeof BUILTIN_ACCESS_ROLES)[number];
 
@@ -53,7 +54,7 @@ export const accessRoles = core.table.withRLS(
     ck(
       "access_roles",
       "builtin_key",
-      sql`builtin_key in ('site_administrator', 'district_administrator', 'system_administrator', 'principal', 'teacher', 'aide', 'counselor', 'proctor', 'staff', 'student', 'family')`,
+      sql`builtin_key in ('site_administrator', 'district_administrator', 'system_administrator', 'principal', 'teacher', 'aide', 'counselor', 'proctor', 'staff', 'student', 'family', 'admissions_officer')`,
     ),
     ck("access_roles", "name_en", sql`char_length(name_en) between 1 and 80`),
     ck("access_roles", "name_ar", sql`char_length(name_ar) between 1 and 80`),

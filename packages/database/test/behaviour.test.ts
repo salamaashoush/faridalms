@@ -978,6 +978,37 @@ describe("other runtime roles", () => {
     expect(result.rows[0]?.n).toBe(0);
   });
 
+  test("site adds only a website enquiry nobody has worked, and reads none of it back", async () => {
+    const { a } = harness();
+    const schoolId = a.schoolIds[0];
+    const add = (columns: string, values: string) =>
+      probe("site", a.tenantId, [
+        {
+          text: `insert into core.site_enquiries (tenant_id, id, org_id, locale, purpose, name, email${columns})
+                 values ($1, $2, $3, 'en', 'enquiry', 'Salama Ashoush', 'salama@example.com'${values})`,
+          params: [a.tenantId, Bun.randomUUIDv7(), schoolId],
+        },
+      ]);
+    expect((await add("", "")).error).toBeUndefined();
+    for (const [column, value] of [
+      ["state", "'in_progress'"],
+      ["first_responded_at", "now()"],
+      ["assignee_user_id", `'${Bun.randomUUIDv7()}'`],
+      ["applicant_user_id", `'${Bun.randomUUIDv7()}'`],
+    ] as const) {
+      const refused = await add(`, ${column}`, `, ${value}`);
+      expect(refused.error?.code).toBe("42501");
+    }
+    const read = await probe("site", a.tenantId, [
+      { text: "select name from core.site_enquiries" },
+    ]);
+    expect(read.error?.message).toContain("permission denied");
+    const thread = await probe("site", a.tenantId, [
+      { text: "select count(*) from core.site_enquiry_entries" },
+    ]);
+    expect(thread.error?.message).toContain("permission denied");
+  });
+
   test("site reads only public org columns, integration reads users but not health or documents", async () => {
     const { a } = harness();
     const orgs = await probe<{ n: number }>("site", a.tenantId, [

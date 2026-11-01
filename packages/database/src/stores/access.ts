@@ -96,6 +96,7 @@ const ROLE_ORDER = [
   "aide",
   "counselor",
   "proctor",
+  "admissions_officer",
   "staff",
   "student",
   "family",
@@ -399,4 +400,68 @@ export async function accessChanges(
       subjectNameAr: row.subject_ar,
     })),
   };
+}
+
+/**
+ * The staff who hold a capability at a school today, by the same rules a
+ * session resolves it: an open assignment granting it, or the nearest
+ * built-in role of a natural role they hold, unless an assignment replaces
+ * the built-ins. Only people with a staff role and an account count, since
+ * no family or student session is ever given an office capability.
+ */
+export async function capabilityHolders(
+  tx: Tx,
+  scope: {
+    tenantId: string;
+    schoolId: string;
+    today: string;
+    capability: string;
+  },
+): Promise<{ id: string; nameEn: string | null; nameAr: string | null }[]> {
+  const path = uuidArray(await orgPath(tx, scope.tenantId, scope.schoolId));
+  const rows = await tx.execute<{
+    id: string;
+    full_name_en: string | null;
+    full_name_ar: string | null;
+  }>(sql`
+    with held as (
+      select r.user_id, r.role from core.user_roles r
+      where r.tenant_id = ${scope.tenantId}::uuid and r.org_id = any(${path})
+        and r.status = 'active' and r.valid_during @> ${scope.today}::date
+    ), replaced as (
+      select a.user_id from core.access_role_assignments a
+      where a.tenant_id = ${scope.tenantId}::uuid and a.org_id = any(${path})
+        and a.status = 'active' and a.replaces_builtin and a.valid_during @> ${scope.today}::date
+    ), assigned as (
+      select a.user_id from core.access_role_assignments a
+      join core.access_roles r on r.tenant_id = a.tenant_id and r.id = a.access_role_id
+        and r.status = 'active'
+      where a.tenant_id = ${scope.tenantId}::uuid and a.org_id = any(${path})
+        and a.status = 'active' and a.valid_during @> ${scope.today}::date
+        and ${scope.capability} = any(r.capabilities)
+    ), builtin as (
+      select h.user_id from held h
+      where h.user_id not in (select user_id from replaced)
+        and coalesce((
+          select ${scope.capability} = any(r.capabilities)
+          from core.access_roles r
+          where r.tenant_id = ${scope.tenantId}::uuid and r.status = 'active'
+            and r.builtin_key = case when h.role in ${FAMILY_ROLES} then 'family' else h.role end
+            and (r.org_id is null or r.org_id = any(${path}))
+          order by coalesce(array_position(${path}, r.org_id), 1000000)
+          limit 1), false)
+    )
+    select u.id, u.full_name_en, u.full_name_ar
+    from core.users u
+    where u.tenant_id = ${scope.tenantId}::uuid and u.status = 'active'
+      and exists (select 1 from core.accounts a where a.tenant_id = u.tenant_id and a.user_id = u.id
+        and a.status = 'active' and a.state in ('active', 'locked'))
+      and exists (select 1 from held h where h.user_id = u.id and h.role = any(${textArray([...STAFF_ROLES])}))
+      and (u.id in (select user_id from assigned) or u.id in (select user_id from builtin))
+    order by coalesce(u.full_name_en, u.full_name_ar), u.id`);
+  return rows.map((row) => ({
+    id: row.id,
+    nameEn: row.full_name_en,
+    nameAr: row.full_name_ar,
+  }));
 }

@@ -129,7 +129,8 @@ export type NotificationKind =
   | "consent"
   | "mention"
   | "library"
-  | "reply";
+  | "reply"
+  | "enquiry";
 export type DeliveryChannel = "email" | "sms";
 export type DeliveryState = "pending" | "sent" | "failed" | "skipped";
 export type DeliveryReason =

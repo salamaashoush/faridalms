@@ -1,3 +1,11 @@
+import type {
+  CloseReason,
+  EnquiryAnswer,
+  EnquiryPurpose,
+  EnquirySource,
+  EnquiryState,
+  EntryKind,
+} from "@faridalms/domain/enquiries";
 import type { SiteChrome, SiteTheme } from "@faridalms/domain/site-theme";
 import type { SocialLink } from "@faridalms/domain/website";
 import type { SQL } from "drizzle-orm";
@@ -25,6 +33,7 @@ import {
   entityProfile,
   fk,
   instant,
+  ledgerProfile,
   pk,
   roles,
   tenantColumns,
@@ -566,11 +575,21 @@ export const sitePublishedSignIn = core.table.withRLS(
   ],
 );
 
-export type EnquiryPurpose = "enquiry" | "visit" | "general";
+export type {
+  CloseReason,
+  EnquiryAnswer,
+  EnquiryPurpose,
+  EnquirySource,
+  EnquiryState,
+  EntryKind,
+} from "@faridalms/domain/enquiries";
 
 /**
- * A message a visitor sent from a form on the public website. The site role
- * may only add rows; it reads nothing back but the network key and time it
+ * A family's enquiry, from whichever door it came in: a form on the website,
+ * or a call, a visit, an event or a referral that staff logged. It is worked
+ * from open to converted or closed, and later links to the family and the
+ * applicant it became. The site role may only add rows from a form, unworked
+ * and unassigned; it reads nothing back but the network key and time it
  * needs to slow down a flood from one place.
  */
 export const siteEnquiries = core.table.withRLS(
@@ -578,16 +597,38 @@ export const siteEnquiries = core.table.withRLS(
   {
     ...tenantColumns(),
     orgId: uuid("org_id").notNull(),
+    source: text("source").$type<EnquirySource>().notNull().default("website"),
     pageId: uuid("page_id"),
     sectionId: uuid("section_id"),
     locale: text("locale").$type<SiteLocale>().notNull(),
     purpose: text("purpose").$type<EnquiryPurpose>().notNull(),
     name: text("name").notNull(),
-    email: text("email").notNull(),
+    email: text("email").notNull().default(""),
     phone: text("phone").notNull().default(""),
+    childName: text("child_name").notNull().default(""),
     childYear: text("child_year").notNull().default(""),
     message: text("message").notNull().default(""),
+    answers: jsonb("answers")
+      .$type<EnquiryAnswer[]>()
+      .notNull()
+      .default(sql`'[]'`),
     networkKey: text("network_key").notNull().default(""),
+    state: text("state").$type<EnquiryState>().notNull().default("open"),
+    stateChangedAt: instant("state_changed_at")
+      .notNull()
+      .default(sql`statement_timestamp()`),
+    closedReason: text("closed_reason").$type<CloseReason>(),
+    // These four reference users through keys the access migration adds NOT
+    // VALID: drizzle-kit 1.0.0-rc.5 writes a key on an existing table as
+    // validated, and validating one reads the table under its forced row
+    // security, where a migration has no tenant. New rows are checked.
+    assigneeUserId: uuid("assignee_user_id"),
+    firstRespondedAt: instant("first_responded_at"),
+    createdByUserId: uuid("created_by_user_id"),
+    familyUserId: uuid("family_user_id"),
+    applicantUserId: uuid("applicant_user_id"),
+    // What the release before the enquiry's states reads and writes; nothing
+    // here does, and the columns go once no such release runs.
     handledAt: instant("handled_at"),
     handledBy: uuid("handled_by"),
     ...entityColumns(),
@@ -597,6 +638,11 @@ export const siteEnquiries = core.table.withRLS(
     ...baseConstraints("site_enquiries", t, tenants),
     fk("site_enquiries", [t.tenantId, t.orgId], [orgs.tenantId, orgs.id]),
     fk("site_enquiries", [t.tenantId, t.handledBy], [users.tenantId, users.id]),
+    ck(
+      "site_enquiries",
+      "source",
+      sql`source in ('website', 'phone', 'email', 'walk_in', 'event', 'referral', 'other')`,
+    ),
     ck("site_enquiries", "locale", sql`locale in ('en', 'ar')`),
     ck(
       "site_enquiries",
@@ -607,12 +653,39 @@ export const siteEnquiries = core.table.withRLS(
     ck(
       "site_enquiries",
       "email",
-      sql`char_length(email) between 3 and 254 and email like '%_@_%'`,
+      sql`email = '' or (char_length(email) between 3 and 254 and email like '%_@_%')`,
     ),
     ck("site_enquiries", "phone", sql`char_length(phone) <= 40`),
+    ck("site_enquiries", "reach", sql`email <> '' or phone <> ''`),
+    ck("site_enquiries", "child_name", sql`char_length(child_name) <= 120`),
     ck("site_enquiries", "child_year", sql`char_length(child_year) <= 60`),
     ck("site_enquiries", "message", sql`char_length(message) <= 2000`),
+    ck(
+      "site_enquiries",
+      "answers",
+      sql`jsonb_typeof(answers) = 'array' and octet_length(answers::text) <= 32768`,
+    ),
     ck("site_enquiries", "network_key", sql`char_length(network_key) <= 128`),
+    ck(
+      "site_enquiries",
+      "state",
+      sql`state in ('open', 'in_progress', 'converted', 'closed')`,
+    ),
+    ck(
+      "site_enquiries",
+      "closed_reason",
+      sql`closed_reason in ('answered', 'not_interested', 'another_school', 'not_eligible', 'no_places', 'no_response', 'duplicate', 'spam', 'other')`,
+    ),
+    ck(
+      "site_enquiries",
+      "closed",
+      sql`(state = 'closed') = (closed_reason is not null)`,
+    ),
+    ck(
+      "site_enquiries",
+      "website",
+      sql`(source = 'website') = (created_by_user_id is null)`,
+    ),
     ck(
       "site_enquiries",
       "handled",
@@ -621,6 +694,15 @@ export const siteEnquiries = core.table.withRLS(
     index("site_enquiries_org_idx")
       .on(t.tenantId, t.orgId, t.createdAt)
       .where(sql`status = 'active'`),
+    index("site_enquiries_state_idx")
+      .on(t.tenantId, t.orgId, t.state, t.createdAt)
+      .where(sql`status = 'active'`),
+    index("site_enquiries_assignee_idx")
+      .on(t.tenantId, t.assigneeUserId, t.state)
+      .where(sql`status = 'active' and assignee_user_id is not null`),
+    index("site_enquiries_email_idx")
+      .on(t.tenantId, t.orgId, sql`lower(email)`)
+      .where(sql`status = 'active' and email <> ''`),
     index("site_enquiries_network_idx")
       .on(t.tenantId, t.networkKey, t.createdAt)
       .where(sql`status = 'active'`),
@@ -628,12 +710,71 @@ export const siteEnquiries = core.table.withRLS(
     pgPolicy("p_site_insert", {
       for: "insert",
       to: roles.site,
-      withCheck: sql`status = 'active' and handled_at is null`,
+      withCheck: sql`status = 'active' and source = 'website' and state = 'open'
+        and closed_reason is null and assignee_user_id is null and first_responded_at is null
+        and created_by_user_id is null and family_user_id is null and applicant_user_id is null
+        and handled_at is null`,
     }),
     pgPolicy("p_site_select", {
       for: "select",
       to: roles.site,
       using: sql`status = 'active' and created_at > statement_timestamp() - interval '1 day'`,
     }),
+  ],
+);
+
+/**
+ * An enquiry's thread, oldest first: what staff noted, the calls, emails and
+ * meetings they logged, the replies sent from the app, and each change of
+ * state or assignee. Entries are never edited; a correction is a new note.
+ */
+export const siteEnquiryEntries = core.table.withRLS(
+  "site_enquiry_entries",
+  {
+    ...tenantColumns(),
+    orgId: uuid("org_id").notNull(),
+    enquiryId: uuid("enquiry_id").notNull(),
+    kind: text("kind").$type<EntryKind>().notNull(),
+    body: text("body").notNull().default(""),
+    details: jsonb("details")
+      .$type<Record<string, unknown>>()
+      .notNull()
+      .default(sql`'{}'`),
+    authorUserId: uuid("author_user_id"),
+    createdAt: instant("created_at")
+      .notNull()
+      .default(sql`statement_timestamp()`),
+  },
+  (t): PgTableExtraConfigValue[] => [
+    pk("site_enquiry_entries", t.tenantId, t.id),
+    fk("site_enquiry_entries", [t.tenantId], [tenants.tenantId]),
+    fk("site_enquiry_entries", [t.tenantId, t.orgId], [orgs.tenantId, orgs.id]),
+    fk(
+      "site_enquiry_entries",
+      [t.tenantId, t.enquiryId],
+      [siteEnquiries.tenantId, siteEnquiries.id],
+    ),
+    fk(
+      "site_enquiry_entries",
+      [t.tenantId, t.authorUserId],
+      [users.tenantId, users.id],
+    ),
+    ck(
+      "site_enquiry_entries",
+      "kind",
+      sql`kind in ('note', 'call', 'email', 'meeting', 'reply', 'state', 'assigned')`,
+    ),
+    ck("site_enquiry_entries", "body", sql`char_length(body) <= 5200`),
+    ck(
+      "site_enquiry_entries",
+      "details",
+      sql`jsonb_typeof(details) = 'object' and octet_length(details::text) <= 4096`,
+    ),
+    index("site_enquiry_entries_enquiry_idx").on(
+      t.tenantId,
+      t.enquiryId,
+      t.createdAt,
+    ),
+    ...ledgerProfile(),
   ],
 );
