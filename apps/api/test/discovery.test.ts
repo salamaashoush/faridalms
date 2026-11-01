@@ -139,7 +139,7 @@ describe("sign-in on the bare portal domain", () => {
     ).toMatchObject({ message: "auth.invalid_handoff" });
   });
 
-  test("a handoff opens nothing at another school or from another network", async () => {
+  test("a handoff opens nothing at another school, and opens from another network", async () => {
     const { token } = await handoffFor(login("principal"), SEED_PASSWORD);
     expect(
       await rejection(
@@ -151,14 +151,13 @@ describe("sign-in on the bare portal domain", () => {
       await rejection(client("northwind").identity.redeemHandoff({ token })),
     ).toMatchObject({ message: "auth.invalid_handoff" });
 
+    // Carrier-grade NAT moves one browser between public addresses, so the
+    // portal may see another network than the bare domain did.
     const other = await handoffFor(login("principal"), SEED_PASSWORD);
-    expect(
-      await rejection(
-        client("northwind", undefined, "en", {
-          "x-forwarded-for": "198.51.100.7",
-        }).identity.redeemHandoff({ token: other.token }),
-      ),
-    ).toMatchObject({ message: "auth.invalid_handoff" });
+    const session = await client("northwind", undefined, "en", {
+      "x-forwarded-for": "198.51.100.7",
+    }).identity.redeemHandoff({ token: other.token });
+    expect(session.token).toBeString();
   });
 
   test("the bare domain counts tries per name, and each school's own limits still hold", async () => {

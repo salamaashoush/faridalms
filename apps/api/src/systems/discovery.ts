@@ -310,8 +310,10 @@ export const discoverSignIn = publicProcedure
 /**
  * Turns a handoff into a session at the school whose portal received it.
  * The secret is spent on the first try, right or wrong, and holds only for
- * its account, at its school, from the network that proved the password,
- * within its minute.
+ * its account, at its school, within its minute. It is not bound to the
+ * network that proved the password: carrier-grade NAT gives one browser a
+ * different public address per connection, so the school's portal often
+ * sees another network than the bare domain did a second earlier.
  */
 export const redeemHandoff = schoolProcedure
   .input(redeemHandoffSchema)
@@ -323,13 +325,7 @@ export const redeemHandoff = schoolProcedure
       "write",
       async (tx) => {
         const held = await spendHandoff(tx, tenantId, badgeHash(input.token));
-        if (
-          !held ||
-          !held.fresh ||
-          held.schoolId !== schoolId ||
-          held.network !== network
-        )
-          return null;
+        if (!held || !held.fresh || held.schoolId !== schoolId) return null;
         const today = schoolDate(
           (await schoolProfile(tx, schoolId))?.timeZone ?? "UTC",
         );
