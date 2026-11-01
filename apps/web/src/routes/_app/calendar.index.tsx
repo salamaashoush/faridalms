@@ -408,6 +408,8 @@ function CalendarPage() {
             events={events}
             days={days}
             className="md:hidden"
+            everyDay
+            canAdd={actions.canAdd}
           />
         </TabsContent>
         <TabsContent value="agenda">

@@ -543,6 +543,8 @@ export function Agenda({
   events,
   days,
   className,
+  everyDay = false,
+  canAdd = false,
 }: {
   from: string;
   to: string;
@@ -550,10 +552,17 @@ export function Agenda({
   events: CalendarEvent[];
   days: SpecialDay[];
   className?: string;
+  /** A week on a phone lists every day, so a quiet day still shows its date. */
+  everyDay?: boolean;
+  canAdd?: boolean;
 }) {
   const secondary = useCurrentUser().school.secondaryCalendar;
+  const span: string[] = [];
+  if (everyDay)
+    for (let day = from; day <= to; day = addDays(day, 1)) span.push(day);
   const dates = [
     ...new Set([
+      ...span,
       ...days.map((row) => row.day),
       ...events.flatMap((event) => {
         const list: string[] = [];
@@ -569,7 +578,7 @@ export function Agenda({
   ]
     .filter((day) => day >= from && day <= to)
     .toSorted();
-  if (dates.length === 0)
+  if (dates.length === 0 && !everyDay)
     return (
       <div className={className}>
         <EmptyState
@@ -611,6 +620,15 @@ export function Agenda({
                     <AgendaItem key={event.id} event={event} />
                   ))}
                 </ul>
+              ) : everyDay ? (
+                <p className="pt-2.5 text-sm leading-5 text-muted-foreground">
+                  {m.calNothingOnDay()}
+                </p>
+              ) : null}
+              {everyDay && canAdd ? (
+                <div className="pt-1">
+                  <AddOnDay day={day} />
+                </div>
               ) : null}
             </div>
           </li>
