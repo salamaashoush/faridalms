@@ -21,6 +21,7 @@ import { Route as AppConsentFormEditorRouteImport } from './routes/_app/consent-
 import { Route as AppEventEditorRouteImport } from './routes/_app/event-editor'
 import { Route as AppExamsRouteImport } from './routes/_app/exams'
 import { Route as AppFamilyRouteImport } from './routes/_app/family'
+import { Route as AppHealthChangesRouteImport } from './routes/_app/health-changes'
 import { Route as AppLibraryRouteImport } from './routes/_app/library'
 import { Route as AppMeRouteImport } from './routes/_app/me'
 import { Route as AppNewsEditorRouteImport } from './routes/_app/news-editor'
@@ -79,6 +80,7 @@ import { Route as AppFamilyChildrenRouteImport } from './routes/_app/family/chil
 import { Route as AppFamilyConsentsRouteImport } from './routes/_app/family/consents'
 import { Route as AppFamilyDetailsRouteImport } from './routes/_app/family/details'
 import { Route as AppFamilyGradesRouteImport } from './routes/_app/family/grades'
+import { Route as AppFamilyHealthRouteImport } from './routes/_app/family/health'
 import { Route as AppFamilyMessagesRouteImport } from './routes/_app/family/messages'
 import { Route as AppFamilyModulesRouteImport } from './routes/_app/family/modules'
 import { Route as AppFamilyTimetableRouteImport } from './routes/_app/family/timetable'
@@ -196,6 +198,11 @@ const AppExamsRoute = AppExamsRouteImport.update({
 const AppFamilyRoute = AppFamilyRouteImport.update({
   id: '/family',
   path: '/family',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppHealthChangesRoute = AppHealthChangesRouteImport.update({
+  id: '/health-changes',
+  path: '/health-changes',
   getParentRoute: () => AppRoute,
 } as any)
 const AppLibraryRoute = AppLibraryRouteImport.update({
@@ -494,6 +501,11 @@ const AppFamilyDetailsRoute = AppFamilyDetailsRouteImport.update({
 const AppFamilyGradesRoute = AppFamilyGradesRouteImport.update({
   id: '/grades',
   path: '/grades',
+  getParentRoute: () => AppFamilyRoute,
+} as any)
+const AppFamilyHealthRoute = AppFamilyHealthRouteImport.update({
+  id: '/health',
+  path: '/health',
   getParentRoute: () => AppFamilyRoute,
 } as any)
 const AppFamilyMessagesRoute = AppFamilyMessagesRouteImport.update({
@@ -817,6 +829,7 @@ export interface FileRoutesByFullPath {
   '/event-editor': typeof AppEventEditorRoute
   '/exams': typeof AppExamsRoute
   '/family': typeof AppFamilyRouteWithChildren
+  '/health-changes': typeof AppHealthChangesRoute
   '/library': typeof AppLibraryRoute
   '/me': typeof AppMeRouteWithChildren
   '/news-editor': typeof AppNewsEditorRoute
@@ -871,6 +884,7 @@ export interface FileRoutesByFullPath {
   '/family/consents': typeof AppFamilyConsentsRoute
   '/family/details': typeof AppFamilyDetailsRoute
   '/family/grades': typeof AppFamilyGradesRoute
+  '/family/health': typeof AppFamilyHealthRoute
   '/family/messages': typeof AppFamilyMessagesRoute
   '/family/modules': typeof AppFamilyModulesRoute
   '/family/timetable': typeof AppFamilyTimetableRoute
@@ -945,6 +959,7 @@ export interface FileRoutesByTo {
   '/consent-form-editor': typeof AppConsentFormEditorRoute
   '/event-editor': typeof AppEventEditorRoute
   '/exams': typeof AppExamsRoute
+  '/health-changes': typeof AppHealthChangesRoute
   '/library': typeof AppLibraryRoute
   '/news-editor': typeof AppNewsEditorRoute
   '/notification-preferences': typeof AppNotificationPreferencesRoute
@@ -996,6 +1011,7 @@ export interface FileRoutesByTo {
   '/family/consents': typeof AppFamilyConsentsRoute
   '/family/details': typeof AppFamilyDetailsRoute
   '/family/grades': typeof AppFamilyGradesRoute
+  '/family/health': typeof AppFamilyHealthRoute
   '/family/messages': typeof AppFamilyMessagesRoute
   '/family/modules': typeof AppFamilyModulesRoute
   '/family/timetable': typeof AppFamilyTimetableRoute
@@ -1075,6 +1091,7 @@ export interface FileRoutesById {
   '/_app/event-editor': typeof AppEventEditorRoute
   '/_app/exams': typeof AppExamsRoute
   '/_app/family': typeof AppFamilyRouteWithChildren
+  '/_app/health-changes': typeof AppHealthChangesRoute
   '/_app/library': typeof AppLibraryRoute
   '/_app/me': typeof AppMeRouteWithChildren
   '/_app/news-editor': typeof AppNewsEditorRoute
@@ -1129,6 +1146,7 @@ export interface FileRoutesById {
   '/_app/family/consents': typeof AppFamilyConsentsRoute
   '/_app/family/details': typeof AppFamilyDetailsRoute
   '/_app/family/grades': typeof AppFamilyGradesRoute
+  '/_app/family/health': typeof AppFamilyHealthRoute
   '/_app/family/messages': typeof AppFamilyMessagesRoute
   '/_app/family/modules': typeof AppFamilyModulesRoute
   '/_app/family/timetable': typeof AppFamilyTimetableRoute
@@ -1207,6 +1225,7 @@ export interface FileRouteTypes {
     | '/event-editor'
     | '/exams'
     | '/family'
+    | '/health-changes'
     | '/library'
     | '/me'
     | '/news-editor'
@@ -1261,6 +1280,7 @@ export interface FileRouteTypes {
     | '/family/consents'
     | '/family/details'
     | '/family/grades'
+    | '/family/health'
     | '/family/messages'
     | '/family/modules'
     | '/family/timetable'
@@ -1335,6 +1355,7 @@ export interface FileRouteTypes {
     | '/consent-form-editor'
     | '/event-editor'
     | '/exams'
+    | '/health-changes'
     | '/library'
     | '/news-editor'
     | '/notification-preferences'
@@ -1386,6 +1407,7 @@ export interface FileRouteTypes {
     | '/family/consents'
     | '/family/details'
     | '/family/grades'
+    | '/family/health'
     | '/family/messages'
     | '/family/modules'
     | '/family/timetable'
@@ -1464,6 +1486,7 @@ export interface FileRouteTypes {
     | '/_app/event-editor'
     | '/_app/exams'
     | '/_app/family'
+    | '/_app/health-changes'
     | '/_app/library'
     | '/_app/me'
     | '/_app/news-editor'
@@ -1518,6 +1541,7 @@ export interface FileRouteTypes {
     | '/_app/family/consents'
     | '/_app/family/details'
     | '/_app/family/grades'
+    | '/_app/family/health'
     | '/_app/family/messages'
     | '/_app/family/modules'
     | '/_app/family/timetable'
@@ -1694,6 +1718,13 @@ declare module '@tanstack/react-router' {
       path: '/family'
       fullPath: '/family'
       preLoaderRoute: typeof AppFamilyRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/health-changes': {
+      id: '/_app/health-changes'
+      path: '/health-changes'
+      fullPath: '/health-changes'
+      preLoaderRoute: typeof AppHealthChangesRouteImport
       parentRoute: typeof AppRoute
     }
     '/_app/library': {
@@ -2100,6 +2131,13 @@ declare module '@tanstack/react-router' {
       path: '/grades'
       fullPath: '/family/grades'
       preLoaderRoute: typeof AppFamilyGradesRouteImport
+      parentRoute: typeof AppFamilyRoute
+    }
+    '/_app/family/health': {
+      id: '/_app/family/health'
+      path: '/health'
+      fullPath: '/family/health'
+      preLoaderRoute: typeof AppFamilyHealthRouteImport
       parentRoute: typeof AppFamilyRoute
     }
     '/_app/family/messages': {
@@ -2575,6 +2613,7 @@ interface AppFamilyRouteChildren {
   AppFamilyConsentsRoute: typeof AppFamilyConsentsRoute
   AppFamilyDetailsRoute: typeof AppFamilyDetailsRoute
   AppFamilyGradesRoute: typeof AppFamilyGradesRoute
+  AppFamilyHealthRoute: typeof AppFamilyHealthRoute
   AppFamilyMessagesRoute: typeof AppFamilyMessagesRoute
   AppFamilyModulesRoute: typeof AppFamilyModulesRoute
   AppFamilyTimetableRoute: typeof AppFamilyTimetableRoute
@@ -2589,6 +2628,7 @@ const AppFamilyRouteChildren: AppFamilyRouteChildren = {
   AppFamilyConsentsRoute: AppFamilyConsentsRoute,
   AppFamilyDetailsRoute: AppFamilyDetailsRoute,
   AppFamilyGradesRoute: AppFamilyGradesRoute,
+  AppFamilyHealthRoute: AppFamilyHealthRoute,
   AppFamilyMessagesRoute: AppFamilyMessagesRoute,
   AppFamilyModulesRoute: AppFamilyModulesRoute,
   AppFamilyTimetableRoute: AppFamilyTimetableRoute,
@@ -2669,6 +2709,7 @@ interface AppRouteChildren {
   AppEventEditorRoute: typeof AppEventEditorRoute
   AppExamsRoute: typeof AppExamsRoute
   AppFamilyRoute: typeof AppFamilyRouteWithChildren
+  AppHealthChangesRoute: typeof AppHealthChangesRoute
   AppLibraryRoute: typeof AppLibraryRoute
   AppMeRoute: typeof AppMeRouteWithChildren
   AppNewsEditorRoute: typeof AppNewsEditorRoute
@@ -2718,6 +2759,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppEventEditorRoute: AppEventEditorRoute,
   AppExamsRoute: AppExamsRoute,
   AppFamilyRoute: AppFamilyRouteWithChildren,
+  AppHealthChangesRoute: AppHealthChangesRoute,
   AppLibraryRoute: AppLibraryRoute,
   AppMeRoute: AppMeRouteWithChildren,
   AppNewsEditorRoute: AppNewsEditorRoute,

@@ -4,7 +4,9 @@ import {
   getArrangements,
   getCustody,
   getDemographics,
+  getFamilyHealth,
   getHealth,
+  getHealthChanges,
   getIdentifiers,
 } from "~/server/records";
 
@@ -30,6 +32,18 @@ export const custodyQuery = (studentId: string) =>
   queryOptions({
     queryKey: ["people", "student", studentId, "custody"],
     queryFn: () => getCustody({ data: { studentId } }),
+  });
+
+export const familyHealthQuery = (studentId: string) =>
+  queryOptions({
+    queryKey: ["family", "health", studentId],
+    queryFn: () => getFamilyHealth({ data: { studentId } }),
+  });
+
+export const healthChangesQuery = (open: boolean) =>
+  queryOptions({
+    queryKey: ["health-changes", open],
+    queryFn: () => getHealthChanges({ data: { open } }),
   });
 
 export const identifiersQuery = (studentId: string) =>

@@ -14,6 +14,7 @@ import {
   ClipboardList,
   FileUser,
   Globe,
+  HeartPulse,
   GraduationCap,
   House,
   BookMarked,
@@ -74,6 +75,12 @@ export const NAVIGATION: Record<Workspace, NavSection[]> = {
           label: m.navAttendance,
           icon: UserCheck,
           capability: "attendance:manage",
+        },
+        {
+          to: "/health-changes",
+          label: m.navHealthChanges,
+          icon: HeartPulse,
+          capability: "health:write",
         },
         {
           to: "/admin/timetable",
@@ -189,6 +196,12 @@ export const NAVIGATION: Record<Workspace, NavSection[]> = {
           capability: "exams:manage",
         },
         { to: "/teach/attendance", label: m.navAttendance, icon: UserCheck },
+        {
+          to: "/health-changes",
+          label: m.navHealthChanges,
+          icon: HeartPulse,
+          capability: "health:write",
+        },
         { to: "/teach/timetable", label: m.navTimetable, icon: Table2 },
         {
           to: "/teach/modules",

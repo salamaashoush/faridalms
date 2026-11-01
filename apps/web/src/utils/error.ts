@@ -190,6 +190,18 @@ export function getMessageFromError(error: unknown): string {
         return m.errorFollowsOnly();
       case "privacy.requests_open":
         return m.errorRequestsOpen();
+      case "privacy.answered_elsewhere":
+        return m.errorAnsweredElsewhere();
+      case "health.not_permitted":
+        return m.errorHealthNotPermitted();
+      case "health.change_unchanged":
+        return m.errorHealthUnchanged();
+      case "health.change_decided":
+        return m.errorHealthDecided();
+      case "health.change_stale":
+        return m.errorHealthStale();
+      case "health.kind":
+        return m.errorHealthKind();
       case "sign_in.no_email":
         return m.errorSignInNoEmail();
       case "sign_in.no_address":
