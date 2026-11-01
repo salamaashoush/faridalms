@@ -29,6 +29,7 @@ import * as notificationsSystem from "./systems/notifications";
 import * as peerSystem from "./systems/peer";
 import * as peopleSystem from "./systems/people";
 import * as privacySystem from "./systems/privacy";
+import * as productSystem from "./systems/product";
 import * as recordsSystem from "./systems/records";
 import * as rolloverSystem from "./systems/rollover";
 import * as schoolSystem from "./systems/school";
@@ -79,6 +80,7 @@ export const router = {
   library: librarySystem,
   lti: ltiSystem,
   site: siteSystem,
+  product: productSystem,
   hosts: hostsSystem,
   home: homeSystem,
   search: searchSystem,

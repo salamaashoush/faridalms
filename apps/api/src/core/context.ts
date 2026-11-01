@@ -59,6 +59,11 @@ export interface ApiDependencies {
    * sent as they are made and never stored; none where email is not set up.
    */
   mail: Provider | null;
+  /**
+   * Where the product site's demonstration requests are emailed; unset, the
+   * product site takes none.
+   */
+  productInbox?: string | null;
 }
 
 export interface RequestContext extends ApiDependencies {

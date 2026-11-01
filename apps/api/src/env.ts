@@ -103,6 +103,9 @@ export const env = v.parse(
       CLAMD_ADDRESS: v.optional(v.pipe(v.string(), v.regex(/^[^\s:]+:\d+$/))),
       // Email through Resend's API, from this sender on a domain verified
       // there, for example `Farida <no-reply@mail.example.com>`.
+      // Where the product site's demonstration requests are emailed; only
+      // the platform's own deployment sets it.
+      PRODUCT_INBOX: v.optional(v.pipe(v.string(), v.trim(), v.email())),
       RESEND_API_KEY: v.optional(v.pipe(v.string(), v.minLength(1))),
       EMAIL_FROM: v.optional(v.pipe(v.string(), v.minLength(3))),
       // Transactional email and SMS gateways that accept a JSON POST.

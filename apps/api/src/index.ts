@@ -152,6 +152,7 @@ const server = Bun.serve({
       sms: Boolean(env.SMS_WEBHOOK_URL),
     },
     mail: gateways.email,
+    productInbox: env.PRODUCT_INBOX ?? null,
   }),
 });
 console.info(

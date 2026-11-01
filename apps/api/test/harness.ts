@@ -195,6 +195,7 @@ export async function setUp() {
     maxVideoBytes: VIDEO_BYTES,
     channels: { email: true, sms: false },
     mail,
+    productInbox: "sales@example.com",
   });
   const provisioning = openOwner(urlFor(cellName, "provisioner"));
   const provisionSecret = new Uint8Array(randomBytes(32));
