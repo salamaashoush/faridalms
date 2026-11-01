@@ -1,3 +1,4 @@
+import { presentVariables } from "@faridalms/domain/environment";
 import { isHostname } from "@faridalms/domain/hosts";
 import * as v from "valibot";
 
@@ -45,11 +46,8 @@ export const env = v.parse(
       PORTAL_DOMAIN: domain,
       SITES_DOMAIN: domain,
       // The address a school's own apex domain points its A record at: the
-      // edge's public IPv4. Unset or empty, as compose passes an unset one,
-      // only subdomains (by CNAME) can be bound.
-      EDGE_IPV4: v.optional(
-        v.union([v.literal(""), v.pipe(v.string(), v.ipv4())]),
-      ),
+      // edge's public IPv4. Unset, only subdomains (by CNAME) can be bound.
+      EDGE_IPV4: v.optional(v.pipe(v.string(), v.ipv4())),
       CELL_ID: v.pipe(v.string(), v.regex(/^[a-z]{2}-[0-9]{1,2}$/)),
       // Wraps each tenant's data keys; a deployed cell wraps through its KMS.
       CELL_KEK: bytes(32),
@@ -75,6 +73,10 @@ export const env = v.parse(
         ".data/files",
       ),
       S3_ENDPOINT: v.optional(v.pipe(v.string(), v.url())),
+      // `virtual` puts the bucket in the host name
+      // (https://<bucket>.<endpoint host>), which some services, Hetzner's
+      // among them, document as their only form; `path` puts it in the path.
+      S3_ADDRESSING_STYLE: v.optional(v.picklist(["path", "virtual"]), "path"),
       S3_REGION: v.optional(v.pipe(v.string(), v.minLength(1))),
       S3_ACCESS_KEY_ID: v.optional(v.pipe(v.string(), v.minLength(1))),
       S3_SECRET_ACCESS_KEY: v.optional(v.pipe(v.string(), v.minLength(1))),
@@ -102,6 +104,10 @@ export const env = v.parse(
       SOURCE_URL: v.optional(v.pipe(v.string(), v.url())),
       // host:port of a clamd daemon; uploads are only signature-checked without one.
       CLAMD_ADDRESS: v.optional(v.pipe(v.string(), v.regex(/^[^\s:]+:\d+$/))),
+      // Email through Resend's API, from this sender on a domain verified
+      // there, for example `Farida <no-reply@mail.example.com>`.
+      RESEND_API_KEY: v.optional(v.pipe(v.string(), v.minLength(1))),
+      EMAIL_FROM: v.optional(v.pipe(v.string(), v.minLength(3))),
       // Transactional email and SMS gateways that accept a JSON POST.
       EMAIL_WEBHOOK_URL: v.optional(v.pipe(v.string(), v.url())),
       SMS_WEBHOOK_URL: v.optional(v.pipe(v.string(), v.url())),
@@ -135,6 +141,18 @@ export const env = v.parse(
         (value.PROVISION_SECRET === undefined),
       "CELL_PROVISION_URL and PROVISION_SECRET are set together or not at all",
     ),
+    v.check(
+      (value) =>
+        (value.RESEND_API_KEY === undefined) ===
+        (value.EMAIL_FROM === undefined),
+      "RESEND_API_KEY and EMAIL_FROM are set together or not at all",
+    ),
+    v.check(
+      (value) =>
+        value.RESEND_API_KEY === undefined ||
+        value.EMAIL_WEBHOOK_URL === undefined,
+      "Email goes through RESEND_API_KEY or EMAIL_WEBHOOK_URL, not both",
+    ),
   ),
-  process.env,
+  presentVariables(process.env),
 );

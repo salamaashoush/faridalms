@@ -84,7 +84,11 @@ export async function deliverTenant(
           items: group.map((row) => ({ kind: row.kind, params: row.params })),
         });
         try {
-          const result = await provider.send({ to: head.address, ...message });
+          const result = await provider.send({
+            to: head.address,
+            ...message,
+            reference: group.map((row) => row.id).join(","),
+          });
           await settleDeliveries(tx, {
             tenantId,
             ids,

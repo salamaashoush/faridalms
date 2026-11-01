@@ -2,6 +2,8 @@ export interface OutboundMessage {
   to: string;
   subject: string;
   text: string;
+  /** What the message delivers, stable across retries of the same send. */
+  reference?: string;
 }
 
 export interface Provider {
@@ -35,7 +37,11 @@ export class HttpProvider implements Provider {
         "content-type": "application/json",
         ...(this.token ? { authorization: `Bearer ${this.token}` } : {}),
       },
-      body: JSON.stringify(message),
+      body: JSON.stringify({
+        to: message.to,
+        subject: message.subject,
+        text: message.text,
+      }),
       signal: AbortSignal.timeout(15_000),
     });
     if (!response.ok) {

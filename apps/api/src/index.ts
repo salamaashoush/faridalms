@@ -17,12 +17,18 @@ import { env } from "./env";
 import { createFilesHost, linkKey } from "./files/links";
 import { createMakeCode } from "./files/makecode";
 import { createScanner } from "./files/scan";
-import { DiskFileStore, PUBLIC_KEY, S3FileStore } from "./files/store";
+import {
+  bucketEndpoint,
+  DiskFileStore,
+  PUBLIC_KEY,
+  S3FileStore,
+} from "./files/store";
 import { createStudio } from "./files/studio";
 import { startFileUpkeep } from "./files/upkeep";
 import { createHostChecks } from "./hosts/checks";
 import { streamLinkKey } from "./media/streams";
 import { createProvider } from "./notifications/providers";
+import { ResendProvider } from "./notifications/resend";
 import { startDelivery } from "./notifications/scheduler";
 import { createProvisioner } from "./provisioning/host";
 
@@ -37,7 +43,7 @@ const cell = openCell(
 );
 const directory = openDirectory(env.DIRECTORY_URL);
 const domains = { portal: env.PORTAL_DOMAIN, sites: env.SITES_DOMAIN };
-const edgeAddress = env.EDGE_IPV4 || null;
+const edgeAddress = env.EDGE_IPV4 ?? null;
 const directorySync = env.DIRECTORY_SYNC_URL
   ? openDirectorySync(env.DIRECTORY_SYNC_URL, `cell:${env.CELL_ID}`)
   : null;
@@ -59,7 +65,8 @@ const kek = localKek(
 function bucket(name: string | undefined) {
   return new Bun.S3Client({
     bucket: name,
-    endpoint: env.S3_ENDPOINT,
+    endpoint: bucketEndpoint(env.S3_ENDPOINT, name, env.S3_ADDRESSING_STYLE),
+    virtualHostedStyle: env.S3_ADDRESSING_STYLE === "virtual",
     region: env.S3_REGION,
     accessKeyId: env.S3_ACCESS_KEY_ID,
     secretAccessKey: env.S3_SECRET_ACCESS_KEY,
@@ -108,7 +115,10 @@ const filesServer = Bun.serve({
   }),
 });
 const gateways = {
-  email: createProvider(env.EMAIL_WEBHOOK_URL, env.NOTIFY_WEBHOOK_TOKEN),
+  email:
+    env.RESEND_API_KEY && env.EMAIL_FROM
+      ? new ResendProvider(env.RESEND_API_KEY, env.EMAIL_FROM)
+      : createProvider(env.EMAIL_WEBHOOK_URL, env.NOTIFY_WEBHOOK_TOKEN),
   sms: createProvider(env.SMS_WEBHOOK_URL, env.NOTIFY_WEBHOOK_TOKEN),
 };
 const runners = {
@@ -143,7 +153,7 @@ const server = Bun.serve({
     runners,
     maxUploadBytes: env.MAX_UPLOAD_BYTES,
     channels: {
-      email: Boolean(env.EMAIL_WEBHOOK_URL),
+      email: gateways.email !== null,
       sms: Boolean(env.SMS_WEBHOOK_URL),
     },
     mail: gateways.email,
