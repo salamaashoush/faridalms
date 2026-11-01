@@ -1,8 +1,10 @@
+import type { FileSummary } from "@faridalms/domain/file";
 import type {
   AskHealthChangeInput,
   FamilyHealthKind,
 } from "@faridalms/domain/people";
 
+import { MAX_FILE_BYTES } from "@faridalms/domain/file";
 import { askHealthChangeSchema } from "@faridalms/domain/people";
 import { Textarea } from "@faridalms/ui/textarea";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
@@ -10,6 +12,7 @@ import { useState } from "react";
 import { toast } from "sonner";
 
 import { FormField, SelectField, TextField } from "~/components/system/field";
+import { FileField } from "~/components/system/FileField";
 import { SheetForm } from "~/components/system/SheetForm";
 import * as m from "~/i18n/messages";
 import { askHealthChange } from "~/server/records";
@@ -37,7 +40,7 @@ export type Asking =
       contact: { relationshipId: string; name: string; phone: string | null };
     };
 
-type Field = "text" | "severity" | "phone";
+type Field = "text" | "severity" | "phone" | "report";
 
 const KIND_ADD: Record<FamilyHealthKind, () => string> = {
   allergy: m.medicalAddAllergy,
@@ -57,10 +60,11 @@ const KIND_CHANGE: Record<FamilyHealthKind, () => string> = {
 
 const REFUSED: Partial<Record<string, Field>> = {
   "contact_point.phone_invalid": "phone",
+  "files.not_linkable": "report",
 };
 
 const isField = (key: string): key is Field =>
-  key === "text" || key === "severity" || key === "phone";
+  key === "text" || key === "severity" || key === "phone" || key === "report";
 
 /**
  * Asks the school to add or change one entry of a child's medical summary.
@@ -87,7 +91,9 @@ export function ChangeSheet({
   const [phone, setPhone] = useState(
     asking.target === "contact" ? (asking.contact.phone ?? "") : "",
   );
+  const [files, setFiles] = useState<FileSummary[]>([]);
   const [errors, setErrors] = useState<Partial<Record<Field, string>>>({});
+  const report = files[0];
   const mutation = useMutation({
     mutationFn: (data: AskHealthChangeInput) => askHealthChange({ data }),
     meta: { inlineError: true },
@@ -103,6 +109,9 @@ export function ChangeSheet({
             : {}),
           text,
           severity: asking.kind === "allergy" ? severity : "",
+          ...(report
+            ? { report: { fileId: report.id, name: report.name } }
+            : {}),
         }
       : {
           target: "contact",
@@ -194,6 +203,21 @@ export function ChangeSheet({
               width="name"
             />
           ) : null}
+          <FileField
+            id="health-change-report"
+            label={m.medicalAskReport()}
+            hint={m.medicalAskReportHint()}
+            purpose="health_report"
+            value={files}
+            onChange={(update) => {
+              setErrors(({ report: _report, ...rest }) => rest);
+              setFiles(update);
+            }}
+            maxFiles={1}
+            maxBytes={MAX_FILE_BYTES}
+            optional
+            errors={shown.report ? [shown.report] : undefined}
+          />
         </>
       ) : (
         <TextField

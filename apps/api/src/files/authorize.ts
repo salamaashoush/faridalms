@@ -178,12 +178,25 @@ export async function placeMedia<T>(
       return [file.id, copy] as const;
     }),
   );
-  await adoptFiles(context.tx, {
-    tenantId: context.tenantId,
-    userId: context.actor.userId,
-    host: keeper,
-    ids: files.filter(own).map((file) => file.id),
-  });
+  const adopted = new Set(
+    await adoptFiles(context.tx, {
+      tenantId: context.tenantId,
+      userId: context.actor.userId,
+      host: keeper,
+      ids: files.filter(own).map((file) => file.id),
+    }),
+  );
+  // A message's attachment is for the conversation it is written in; put
+  // anywhere else it would open to that record's readers.
+  if (
+    files.some(
+      (file) =>
+        own(file) &&
+        file.purpose === "message_attachment" &&
+        !adopted.has(file.id),
+    )
+  )
+    throw new ORPCError("FORBIDDEN", { message: "file.not_attachable" });
   if (keeper !== host)
     await moveIntoArea(context.tx, {
       tenantId: context.tenantId,

@@ -302,10 +302,12 @@ The files host listens inside the API process on `FILES_PORT` (default
 `API_PORT` + 2) and is reached at `FILES_ORIGIN` (default
 `http://127.0.0.1:<FILES_PORT>`); in production give it its own registrable
 domain, so nothing it serves shares cookies or an origin with the application.
-It reads no cookies and no database: a link is the file's storage key, name,
-type, size and disposition, encrypted and signed with a key derived from
-`CELL_SECRET`, and expires after five minutes, or an hour for sound and video
-so a player can keep seeking. It answers ranges, allows any origin to read
+It reads no cookies: a link is the file's storage key, name, type, size and
+disposition, encrypted and signed with a key derived from `CELL_SECRET`, and
+expires after five minutes, or an hour for sound and video so a player can
+keep seeking. A link to a sealed file (below) also names its school and key
+version, and only then does the host read the database, as the worker, to
+unwrap that school's files key. It answers ranges, allows any origin to read
 (captions and viewers fetch across origins), and serves everything except PDFs
 under a sandbox policy. Rotating `CELL_SECRET` invalidates every link issued.
 
@@ -357,8 +359,27 @@ Files stored before a scanner was configured have no `scanned_at` and are not
 rescanned automatically. Refused uploads keep their record with a
 `rejection_reason` and lose their bytes at once.
 
+Medical reports, absence notes and custody papers (`health_report`,
+`evidence`, `legal_document`) are sealed. Their records are visible only
+under the health or custody purpose, which every step that touches them
+sets, and once checked their bytes are encrypted under the school's own
+`files` data key and kept under `t/<tenant>/h/<file>`; the plaintext copy
+is removed and its absence checked, and the database refuses a ready file
+of these purposes that is not sealed. An object is a header and 64 KiB
+segments, each AES-256-GCM under a key derived for that object, so a range
+opens only the segments it needs and an object copied to another key or
+school does not open. These files are never streamed, captioned, published
+or copied into another record, and the files host tells browsers not to
+keep them. A medical report is stored as `medical-report.<ext>`; the name it
+was uploaded under is sealed in its health record. Rotating a school's
+`files` key follows the other data keys: retire the active version and add
+the next in one transaction; new files are sealed with the new key and old
+ones keep opening with theirs. `CELL_KEK` wraps the data keys and is not
+changed by this.
+
 Each API replica that can log in as the worker (`CELL_WORKER_URL`) runs a sweep
-every `FILE_SWEEP_MS` (default one hour) over every active school. An upload still `initiated` after 24 hours is rejected as
+every `FILE_SWEEP_MS` (default one hour) over every active school, and over
+its sealed files behind each purpose in turn. An upload still `initiated` after 24 hours is rejected as
 `abandoned` and its bytes removed. A ready file that no record and no stored
 document has referred to for 7 days after completion is deleted, record first
 and bytes second, and rejected records are deleted after 30 days. References

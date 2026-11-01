@@ -1,0 +1,318 @@
+{
+  "type": "diff",
+  "version": "9",
+  "dialect": "postgres",
+  "id": "57bfe8b2-516a-4755-9bdc-963a6c3b0a6b",
+  "prevIds": [
+    "0b78ef49-f45a-4df6-aa71-42f29fae79c7"
+  ],
+  "footprints": [
+    {
+      "statementType": "add_column",
+      "statementTarget": [
+        "column",
+        "health",
+        "requested_changes",
+        "file_id"
+      ],
+      "writes": [
+        "s|col|health.requested_changes.file_id",
+        "n|col|health.requested_changes.file_id",
+        "e|col|health.requested_changes.file_id"
+      ],
+      "reads": [
+        "n|tbl|health.requested_changes",
+        "n|sch|health"
+      ]
+    },
+    {
+      "statementType": "add_column",
+      "statementTarget": [
+        "column",
+        "health",
+        "requested_changes",
+        "file_purpose"
+      ],
+      "writes": [
+        "s|col|health.requested_changes.file_purpose",
+        "n|col|health.requested_changes.file_purpose",
+        "e|col|health.requested_changes.file_purpose"
+      ],
+      "reads": [
+        "n|tbl|health.requested_changes",
+        "n|sch|health"
+      ]
+    },
+    {
+      "statementType": "add_column",
+      "statementTarget": [
+        "column",
+        "health",
+        "records",
+        "report_shared"
+      ],
+      "writes": [
+        "s|col|health.records.report_shared",
+        "n|col|health.records.report_shared",
+        "e|col|health.records.report_shared"
+      ],
+      "reads": [
+        "n|tbl|health.records",
+        "n|sch|health"
+      ]
+    },
+    {
+      "statementType": "add_check",
+      "statementTarget": [
+        "table",
+        "core",
+        "files"
+      ],
+      "writes": [
+        "s|ck|core.files.files_sealed_check",
+        "n|ck|core.files.files_sealed_check",
+        "e|ck|core.files.files_sealed_check",
+        "n|con|core.files.files_sealed_check"
+      ],
+      "reads": [
+        "n|tbl|core.files",
+        "n|sch|core",
+        "n|col|core.files.purpose",
+        "n|col|core.files.stream_state",
+        "n|col|core.files.derivatives",
+        "n|col|core.files.state",
+        "n|col|core.files.encryption"
+      ]
+    },
+    {
+      "statementType": "add_check",
+      "statementTarget": [
+        "table",
+        "core",
+        "files"
+      ],
+      "writes": [
+        "s|ck|core.files.files_sealed_prefix_check",
+        "n|ck|core.files.files_sealed_prefix_check",
+        "e|ck|core.files.files_sealed_prefix_check",
+        "n|con|core.files.files_sealed_prefix_check"
+      ],
+      "reads": [
+        "n|tbl|core.files",
+        "n|sch|core",
+        "n|col|core.files.encryption",
+        "n|col|core.files.storage_key",
+        "n|col|core.files.tenant_id"
+      ]
+    },
+    {
+      "statementType": "add_check",
+      "statementTarget": [
+        "table",
+        "health",
+        "requested_changes"
+      ],
+      "writes": [
+        "s|ck|health.requested_changes.requested_changes_file_purpose_check",
+        "n|ck|health.requested_changes.requested_changes_file_purpose_check",
+        "e|ck|health.requested_changes.requested_changes_file_purpose_check",
+        "n|con|health.requested_changes.requested_changes_file_purpose_check"
+      ],
+      "reads": [
+        "n|tbl|health.requested_changes",
+        "n|sch|health",
+        "n|col|health.requested_changes.file_purpose"
+      ]
+    },
+    {
+      "statementType": "add_check",
+      "statementTarget": [
+        "table",
+        "health",
+        "requested_changes"
+      ],
+      "writes": [
+        "s|ck|health.requested_changes.requested_changes_file_target_check",
+        "n|ck|health.requested_changes.requested_changes_file_target_check",
+        "e|ck|health.requested_changes.requested_changes_file_target_check",
+        "n|con|health.requested_changes.requested_changes_file_target_check"
+      ],
+      "reads": [
+        "n|tbl|health.requested_changes",
+        "n|sch|health",
+        "n|col|health.requested_changes.file_id",
+        "n|col|health.requested_changes.target"
+      ]
+    },
+    {
+      "statementType": "add_check",
+      "statementTarget": [
+        "table",
+        "health",
+        "records"
+      ],
+      "writes": [
+        "s|ck|health.records.records_report_shared_check",
+        "n|ck|health.records.records_report_shared_check",
+        "e|ck|health.records.records_report_shared_check",
+        "n|con|health.records.records_report_shared_check"
+      ],
+      "reads": [
+        "n|tbl|health.records",
+        "n|sch|health",
+        "n|col|health.records.file_id",
+        "n|col|health.records.report_shared"
+      ]
+    },
+    {
+      "statementType": "alter_check",
+      "statementTarget": [
+        "table",
+        "core",
+        "document_files"
+      ],
+      "writes": [
+        "s|ck|core.document_files.document_files_file_purpose_check"
+      ],
+      "reads": [
+        "n|tbl|core.document_files",
+        "n|sch|core",
+        "n|col|core.document_files.file_purpose",
+        "e|col|core.document_files.file_purpose"
+      ],
+      "sqlHash": "0e865a67fb9a4220"
+    },
+    {
+      "statementType": "alter_check",
+      "statementTarget": [
+        "table",
+        "core",
+        "files"
+      ],
+      "writes": [
+        "s|ck|core.files.files_purpose_check"
+      ],
+      "reads": [
+        "n|tbl|core.files",
+        "n|sch|core",
+        "n|col|core.files.purpose",
+        "e|col|core.files.purpose"
+      ],
+      "sqlHash": "6bba7fe6a40c9102"
+    }
+  ],
+  "deltas": [
+    {
+      "op": "create",
+      "row": {
+        "schema": "health",
+        "table": "requested_changes",
+        "name": "file_id",
+        "type": "uuid",
+        "typeSchema": null,
+        "notNull": false,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "health",
+        "table": "requested_changes",
+        "name": "file_purpose",
+        "type": "text",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": "'health_report'",
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "health",
+        "table": "records",
+        "name": "report_shared",
+        "type": "boolean",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": "false",
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "files",
+        "name": "files_sealed_check",
+        "value": "purpose not in ('health_report', 'evidence', 'legal_document') or (stream_state is null and derivatives = '{}' and (state <> 'ready' or encryption = 'tenant_dek'))",
+        "entityType": "checks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "files",
+        "name": "files_sealed_prefix_check",
+        "value": "encryption <> 'tenant_dek' or starts_with(storage_key, 't/' || tenant_id::text || '/h/')",
+        "entityType": "checks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "health",
+        "table": "requested_changes",
+        "name": "requested_changes_file_purpose_check",
+        "value": "file_purpose = 'health_report'",
+        "entityType": "checks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "health",
+        "table": "requested_changes",
+        "name": "requested_changes_file_target_check",
+        "value": "file_id is null or target = 'record'",
+        "entityType": "checks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "health",
+        "table": "records",
+        "name": "records_report_shared_check",
+        "value": "file_id is not null or not report_shared",
+        "entityType": "checks"
+      }
+    },
+    {
+      "op": "alter",
+      "key": "checks\u0000[\"core\",\"document_files\",\"document_files_file_purpose_check\"]",
+      "set": {
+        "value": "file_purpose in ('document_media', 'attachment', 'site_media', 'message_attachment')"
+      }
+    },
+    {
+      "op": "alter",
+      "key": "checks\u0000[\"core\",\"files\",\"files_purpose_check\"]",
+      "set": {
+        "value": "purpose in ('document_media', 'attachment', 'submission', 'avatar', 'logo', 'site_media', 'health_report', 'legal_document', 'evidence', 'import_source', 'export', 'admission_document', 'message_attachment')"
+      }
+    }
+  ]
+}

@@ -1,7 +1,9 @@
+import { withPurpose } from "@faridalms/database/context";
 import { addDays } from "@faridalms/domain/school";
 import { describe, expect, test } from "bun:test";
+import { sql } from "drizzle-orm";
 
-import { login, rejection, sessionFor, signedIn } from "./harness";
+import { login, raw, rejection, seeded, sessionFor, signedIn } from "./harness";
 
 const principal = () => signedIn("northwind", login("principal"));
 const mother = () =>
@@ -176,5 +178,76 @@ describe("absences families report", () => {
     expect(reports.find((row) => row.id === late.id)?.decision).toBe(
       "withdrawn",
     );
+  });
+});
+
+describe("a note sent with a report", () => {
+  test("rests sealed and opens for the family and the office, not for a teacher", async () => {
+    const family = await sessionFor(
+      "northwind",
+      login("student").replace("student", "parent"),
+    );
+    const student = await sessionFor("northwind", login("student"));
+    const me = await student.api.identity.currentUser();
+    const { reasons, today } = await family.api.absenceReports.mine({});
+    const reason = reasons[0];
+    if (!reason) throw new Error("no reasons");
+    const body = new TextEncoder().encode("%PDF-1.4\nDentist at 9.\n");
+    const file = await family.api.files.initiate({
+      purpose: "evidence",
+      name: "Dentist appointment.pdf",
+      mediaType: "application/pdf",
+      sizeBytes: body.byteLength,
+    });
+    const put = await raw(
+      "northwind",
+      family.token,
+      `/v1/files/${file.id}/content`,
+      { method: "PUT", body },
+    );
+    expect(put.status).toBe(200);
+    const { id } = await family.api.absenceReports.report({
+      studentId: me.id,
+      kind: "late",
+      from: addDays(today, 8),
+      to: addDays(today, 8),
+      at: "10:00",
+      reasonId: reason.id,
+      fileId: file.id,
+    });
+    const mine = await family.api.absenceReports.mine({ studentId: me.id });
+    expect(mine.reports.find((row) => row.id === id)).toMatchObject({
+      fileId: file.id,
+      fileName: "Dentist appointment.pdf",
+    });
+    const office = await sessionFor("northwind", login("principal"));
+    const { reports } = await office.api.absenceReports.inbox({ open: true });
+    expect(reports.find((row) => row.id === id)?.fileName).toBe(
+      "Dentist appointment.pdf",
+    );
+    const path = `/v1/files/${file.id}/content`;
+    const read = await raw("northwind", office.token, path);
+    expect(read.status).toBe(200);
+    expect(await read.text()).toContain("Dentist at 9.");
+    const teacher = await sessionFor("northwind", login("teacher"));
+    expect((await raw("northwind", teacher.token, path)).status).toBe(404);
+
+    const { cell, tenants } = seeded();
+    const tenantId = tenants[0]?.tenantId ?? "";
+    const [row] = await cell.withWorker(
+      { tenantId, requestId: crypto.randomUUID(), actor: { kind: "system" } },
+      "read",
+      (tx) =>
+        withPurpose(tx, "custody", (inner) =>
+          inner.execute<{ encryption: string; storage_key: string }>(sql`
+            select encryption, storage_key from core.files
+            where tenant_id = ${tenantId}::uuid and id = ${file.id}::uuid`),
+        ),
+    );
+    expect(row?.encryption).toBe("tenant_dek");
+    const atRest = await seeded().files.open(row?.storage_key ?? "");
+    const sealed = atRest ? await new Response(atRest).text() : "";
+    expect(sealed).not.toContain("Dentist");
+    await family.api.absenceReports.withdraw({ id });
   });
 });

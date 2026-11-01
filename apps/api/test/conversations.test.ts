@@ -1,3 +1,4 @@
+import { fileById } from "@faridalms/database/stores/files";
 import { plainContent } from "@faridalms/domain/content-conversion";
 import {
   readReplyAddress,
@@ -334,6 +335,18 @@ describe("email to and from an outside contact", () => {
     );
     expect(read.status).toBe(200);
     expect(await read.text()).toBe("Signed form.");
+    const { cell, tenants } = seeded();
+    const tenant = tenants[0]?.tenantId ?? "";
+    const kept = await cell.withWorker(
+      {
+        tenantId: tenant,
+        requestId: crypto.randomUUID(),
+        actor: { kind: "system" },
+      },
+      "read",
+      (tx) => fileById(tx, tenant, block?.fileId ?? ""),
+    );
+    expect(kept?.purpose).toBe("message_attachment");
     const outsider = await teacher();
     expect(
       (

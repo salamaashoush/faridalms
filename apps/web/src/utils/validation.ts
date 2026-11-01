@@ -12,6 +12,8 @@ export function validationMessage(issue: { message?: string }): string {
       return m.validationEndDate();
     case "validation.file_type":
       return m.validationFileType();
+    case "validation.report_required":
+      return m.validationReportRequired();
     case "validation.term_outside":
       return m.validationTermOutside();
     case "validation.term_overlap":

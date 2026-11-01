@@ -1,9 +1,11 @@
 import { byteRange, contentDisposition } from "@faridalms/domain/file";
 import { createCipheriv, createDecipheriv, createHmac } from "node:crypto";
 
+import type { FileKeys } from "./sealed";
 import type { FileStore } from "./store";
 
 import { libraryResponse, playResponse } from "./play";
+import { openSealedObject } from "./sealed";
 
 /** What a signed link lets its holder read, and until when. */
 export interface LinkGrant {
@@ -14,6 +16,8 @@ export interface LinkGrant {
   disposition: "inline" | "attachment";
   /** Seconds since the epoch. */
   expires: number;
+  /** Whose files key the bytes are sealed with, and its version; none for bytes the bucket keeps. */
+  sealed?: { tenantId: string; keyVersion: number } | null;
 }
 
 export const LINK_SECONDS = 5 * 60;
@@ -46,6 +50,7 @@ export function sealLink(key: Buffer, grant: LinkGrant): string {
         grant.sizeBytes,
         grant.disposition,
         grant.expires,
+        grant.sealed ?? null,
       ]),
     ),
     cipher.final(),
@@ -71,17 +76,33 @@ export function openLink(
       decipher.update(sealed.subarray(12, -16)),
       decipher.final(),
     ]).toString();
-    const [storageKey, name, mediaType, sizeBytes, disposition, expires] =
-      JSON.parse(plain) as [
-        string,
-        string,
-        string,
-        number,
-        LinkGrant["disposition"],
-        number,
-      ];
+    const [
+      storageKey,
+      name,
+      mediaType,
+      sizeBytes,
+      disposition,
+      expires,
+      atRest = null,
+    ] = JSON.parse(plain) as [
+      string,
+      string,
+      string,
+      number,
+      LinkGrant["disposition"],
+      number,
+      LinkGrant["sealed"]?,
+    ];
     if (expires < now) return null;
-    return { storageKey, name, mediaType, sizeBytes, disposition, expires };
+    return {
+      storageKey,
+      name,
+      mediaType,
+      sizeBytes,
+      disposition,
+      expires,
+      ...(atRest ? { sealed: atRest } : {}),
+    };
   } catch {
     return null;
   }
@@ -105,6 +126,8 @@ const shared = {
 export function createFilesHost(dependencies: {
   files: FileStore;
   key: Buffer;
+  /** The schools' files keys, which open what a link says is sealed. */
+  keys?: FileKeys;
   studio?: (request: Request) => Promise<Response | null>;
   /** The micro:bit editor, where install has fetched one. */
   makecode?: (request: Request) => Promise<Response | null>;
@@ -146,17 +169,31 @@ export function createFilesHost(dependencies: {
     if (makecode) return makecode;
     const token = LINK_PATH.exec(url.pathname)?.[1];
     const grant = token ? openLink(dependencies.key, token, now()) : null;
-    if (!grant) return new Response(null, { status: 404, headers: shared });
+    if (!grant || (grant.sealed && !dependencies.keys))
+      return new Response(null, { status: 404, headers: shared });
     const range = byteRange(request.headers.get("range"), grant.sizeBytes);
     if (range === "unsatisfiable")
       return new Response(null, {
         status: 416,
         headers: { ...shared, "content-range": `bytes */${grant.sizeBytes}` },
       });
+    const sealed = grant.sealed ?? null;
+    const keys = dependencies.keys;
     const body =
       request.method === "HEAD"
         ? null
-        : await dependencies.files.open(grant.storageKey, range ?? undefined);
+        : sealed && keys
+          ? await openSealedObject(
+              dependencies.files,
+              keys,
+              {
+                ...sealed,
+                storageKey: grant.storageKey,
+                sizeBytes: grant.sizeBytes,
+              },
+              range ?? undefined,
+            )
+          : await dependencies.files.open(grant.storageKey, range ?? undefined);
     if (request.method === "GET" && !body)
       return new Response(null, { status: 404, headers: shared });
     const pdf = grant.mediaType.toLowerCase().startsWith("application/pdf");
@@ -178,7 +215,10 @@ export function createFilesHost(dependencies: {
           grant.name,
           grant.disposition,
         ),
-        "cache-control": `private, max-age=${Math.max(0, grant.expires - now())}`,
+        // What is sealed at rest is not kept in a browser's cache either.
+        "cache-control": sealed
+          ? "private, no-store"
+          : `private, max-age=${Math.max(0, grant.expires - now())}`,
         // A PDF is drawn by the browser's own viewer, which in Firefox is a
         // script in the document that a sandbox policy would stop; everything
         // else is shown sandboxed.
