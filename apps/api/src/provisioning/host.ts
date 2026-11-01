@@ -57,8 +57,11 @@ export interface ProvisionerDependencies {
   now?: () => Date;
 }
 
+/** What creating a school needs, whoever asks: the console's call or a shell. */
+export type ProvisioningDependencies = Omit<ProvisionerDependencies, "secret">;
+
 interface Call {
-  deps: ProvisionerDependencies;
+  deps: ProvisioningDependencies;
   operator: ProvisionOperator;
   requestId: string;
   now: Date;
@@ -73,7 +76,7 @@ const json = (body: unknown, status = 200) =>
     },
   });
 
-function requireMail(deps: ProvisionerDependencies) {
+function requireMail(deps: ProvisioningDependencies) {
   if (!deps.mail)
     throw new ORPCError("CONFLICT", { message: "sign_in.no_email" });
   return deps.mail;
@@ -320,6 +323,30 @@ async function reissue(
     },
   );
 }
+
+const directCall = (
+  deps: ProvisioningDependencies,
+  operatorId: string,
+): Call => ({
+  deps,
+  operator: { id: operatorId, name: null },
+  requestId: crypto.randomUUID(),
+  now: deps.now?.() ?? new Date(),
+});
+
+/** Creates a tenant as the console's call does, for a caller on the server itself. */
+export const provisionTenant = (
+  deps: ProvisioningDependencies,
+  operatorId: string,
+  request: ProvisionTenant,
+) => provision(directCall(deps, operatorId), request);
+
+/** Sends an administrator a new link, as the console's call does. */
+export const reissueInvite = (
+  deps: ProvisioningDependencies,
+  operatorId: string,
+  request: ReissueInvite,
+) => reissue(directCall(deps, operatorId), request);
 
 const ROUTES = {
   "/v1/tenants": async (call: Call, body: unknown) => {

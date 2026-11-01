@@ -1,7 +1,7 @@
 {
   "name": "@faridalms/api",
   "private": true,
-  "license": "AGPL-3.0-only",
+  "license": "FSL-1.1-ALv2",
   "type": "module",
   "exports": {
     "./router": "./src/router.ts"
@@ -10,7 +10,7 @@
     "dev": "bun --watch src/index.ts",
     "start": "bun src/index.ts",
     "studio": "farida-studio vendor/scratch",
-    "build": "bun build src/index.ts --target=bun --outdir=dist && bun build src/coding/python-worker.ts src/coding/javascript-worker.ts --target=bun --outdir=dist"
+    "build": "bun build src/index.ts src/admin.ts --target=bun --outdir=dist && bun build src/coding/python-worker.ts src/coding/javascript-worker.ts --target=bun --outdir=dist"
   },
   "dependencies": {
     "@bjorn3/browser_wasi_shim": "0.4.2",

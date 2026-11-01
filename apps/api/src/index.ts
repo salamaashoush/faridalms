@@ -27,8 +27,8 @@ import { createStudio } from "./files/studio";
 import { startFileUpkeep } from "./files/upkeep";
 import { createHostChecks } from "./hosts/checks";
 import { streamLinkKey } from "./media/streams";
+import { emailGateway } from "./notifications/gateway";
 import { createProvider } from "./notifications/providers";
-import { ResendProvider } from "./notifications/resend";
 import { startDelivery } from "./notifications/scheduler";
 import { createProvisioner } from "./provisioning/host";
 
@@ -113,10 +113,7 @@ const filesServer = Bun.serve({
   }),
 });
 const gateways = {
-  email:
-    env.RESEND_API_KEY && env.EMAIL_FROM
-      ? new ResendProvider(env.RESEND_API_KEY, env.EMAIL_FROM)
-      : createProvider(env.EMAIL_WEBHOOK_URL, env.NOTIFY_WEBHOOK_TOKEN),
+  email: emailGateway(env),
   sms: createProvider(env.SMS_WEBHOOK_URL, env.NOTIFY_WEBHOOK_TOKEN),
 };
 const runners = {
