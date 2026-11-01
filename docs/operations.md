@@ -588,6 +588,14 @@ served from `/public-media/p/{token}/{name}`. A school's own hostname is not
 routed yet: nothing writes `directory.hosts`. Custom and wildcard hosts are
 section 2 of [plans/school-front-door.md](plans/school-front-door.md).
 
+The websites' forms take Cloudflare Turnstile when the API has both
+`TURNSTILE_SITE_KEY` and `TURNSTILE_SECRET_KEY`; it refuses to start with
+one alone. The widget's hostnames in Cloudflare must cover the sites
+domain and any school's own site host, since the API accepts a token only
+when it was solved on one of that school's hosts. Without the keys, the
+hidden field, the fill time and the per-network and per-school limits
+still apply.
+
 ## Notifications
 
 Email goes through Resend when `RESEND_API_KEY` and `EMAIL_FROM` are set

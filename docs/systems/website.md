@@ -95,10 +95,14 @@ enquiry form, quick links and embed.
   buttons, list, figure, quote, feature, video, space and divider. Blocks
   take preset sizes, shapes and proportions, never free pixels; the
   translation overlay and the checks reach into them.
-- **Enquiry form:** name and email, with phone optional, required or hidden
-  and the child's year asked or hidden, for an admissions enquiry, a visit
-  request or a general message. Messages land in the website screen's
-  Enquiries tab.
+- **Enquiry form:** for an admissions enquiry, a visit request or a
+  general message. Its fixed core is a name and a way to reply: email and
+  phone are each required, optional or hidden, never both hidden. The
+  child's name, year and a message are asked or hidden. The school adds up
+  to ten questions of its own, each optional or required: short or long
+  text, a choice of options one per line, a date or a number. Each answer
+  is kept with the enquiry in the words the family saw, so editing the
+  form later changes no enquiry. Enquiries land in the admissions inbox.
 - **No photographs yet:** where a picture belongs but none is chosen, the
   section draws artwork from the palette, seeded by the section so it never
   changes between visits. Heroes get a mesh gradient with grain; other slots
@@ -131,13 +135,23 @@ in both languages and no stock photographs.
 
 ## Enquiries
 
-The site role may add an enquiry and read back only the organisation,
-network key, status and time, which it needs to count a flood. A form sent
-with its hidden field filled, or within 2.5 seconds of opening, is answered
-as received and dropped. Five an hour from one network and sixty an hour for
-a school are the limits. The network key is an HMAC of the /24 or /48
-prefix under a per-tenant key, so no address is stored. Staff see open and
-handled enquiries, reply by email and mark each one dealt with.
+The site role may add an enquiry, only as an unworked website one, and read
+back only the organisation, network key, status and time, which it needs to
+count a flood. A form sent with its hidden field filled, or within 2.5
+seconds of opening, is answered as received and dropped. Five an hour from
+one network and sixty an hour for a school are the limits. The network key
+is an HMAC of the /24 or /48 prefix under a per-tenant key, so no address is
+stored.
+
+Where `TURNSTILE_SITE_KEY` and `TURNSTILE_SECRET_KEY` are set, the form
+also renders Cloudflare Turnstile, and the API checks its token with
+siteverify before anything is written: solved, for the `enquiry` action, on
+a host of that school, and not used before. Without the keys the checks
+above are the protection.
+
+Once written, the enquiry is the admissions system's: an inbox for whoever
+holds `admissions:read` or `admissions:manage`, with its states, assignee,
+thread and replies ([plan, section 6.1](../plans/school-front-door.md)).
 
 ## Publishing checks
 
@@ -159,8 +173,8 @@ Builder work still to do, most useful first:
    screens, shown in the builder with a marker.
 4. **Events from the calendar.** The events section lists the school's public
    calendar events instead of items typed by hand.
-5. **Form fields.** A form chooses its own fields (choice, date, number,
-   consent) beyond the fixed enquiry set, and its enquiries keep them.
+5. **Consent on forms.** A form asks for a consent (marketing, the privacy
+   notice) through the consents system, with its wording version.
 6. **Copy and paste sections** between pages and languages, and drag to
    reorder on the canvas as well as in the outline.
 7. **Heritage ornament.** Crest and girih patterns as section textures, a motto
