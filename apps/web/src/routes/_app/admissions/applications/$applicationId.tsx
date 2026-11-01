@@ -148,7 +148,10 @@ function ApplicationPage() {
             : []),
           {
             label: m.aplColGrade(),
-            value: `${inLocale(row.intake.gradeEn, row.intake.gradeAr)}, ${inLocale(row.intake.yearTitleEn, row.intake.yearTitleAr)}`,
+            value: m.itkEditTitle({
+              grade: inLocale(row.intake.gradeEn, row.intake.gradeAr),
+              year: inLocale(row.intake.yearTitleEn, row.intake.yearTitleAr),
+            }),
           },
           {
             label: m.aplColFamily(),

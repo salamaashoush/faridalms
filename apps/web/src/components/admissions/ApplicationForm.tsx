@@ -395,7 +395,10 @@ export function StartApplication({
           value={chosenIntake}
           options={mine.intakes.map((row) => ({
             value: row.id,
-            label: `${inLocale(row.gradeEn, row.gradeAr)}, ${inLocale(row.yearTitleEn, row.yearTitleAr)}`,
+            label: m.itkEditTitle({
+              grade: inLocale(row.gradeEn, row.gradeAr),
+              year: inLocale(row.yearTitleEn, row.yearTitleAr),
+            }),
           }))}
           onChange={setChosenIntake}
           width="name"
@@ -916,28 +919,35 @@ function FamilyStep({
         value={form.phone ?? ""}
         onChange={(event) => onChange({ ...form, phone: event.target.value })}
       />
-      <FormField
-        id="family-responsible"
-        label={m.applyResponsible()}
-        hint={m.applyResponsibleHint()}
-        errors={
-          tried && !form.responsible ? [m.applyErrResponsible()] : undefined
-        }
+      <fieldset
+        className="grid gap-2"
+        aria-describedby="family-responsible-hint"
+        data-invalid={tried && !form.responsible ? true : undefined}
       >
-        {(control) => (
-          <label className="flex items-center gap-2 text-sm">
-            <Checkbox
-              id={control.id}
-              aria-describedby={control["aria-describedby"]}
-              checked={form.responsible}
-              onCheckedChange={(responsible) =>
-                onChange({ ...form, responsible })
-              }
-            />
-            {m.applyResponsibleYes()}
-          </label>
-        )}
-      </FormField>
+        <legend className="text-sm leading-5 font-medium">
+          {m.applyResponsible()}
+        </legend>
+        <p
+          id="family-responsible-hint"
+          className="text-[13px] leading-[18px] text-muted-foreground"
+        >
+          {m.applyResponsibleHint()}
+        </p>
+        <label className="flex items-center gap-2 text-sm">
+          <Checkbox
+            checked={form.responsible}
+            onCheckedChange={(responsible) =>
+              onChange({ ...form, responsible })
+            }
+          />
+          {m.applyResponsibleYes()}
+        </label>
+        {tried && !form.responsible ? (
+          <p className="text-[13px] leading-[18px] text-destructive">
+            {m.applyErrResponsible()}
+          </p>
+        ) : null}
+      </fieldset>
       <FormSection title={m.applyOtherTitle()} description={m.applyOtherHint()}>
         {other ? (
           <>

@@ -57,7 +57,10 @@ function ApplicationCard({ row }: { row: Row }) {
       }),
   });
   const grade = row.intake
-    ? `${inLocale(row.intake.gradeEn, row.intake.gradeAr)}, ${inLocale(row.intake.yearTitleEn, row.intake.yearTitleAr)}`
+    ? m.itkEditTitle({
+        grade: inLocale(row.intake.gradeEn, row.intake.gradeAr),
+        year: inLocale(row.intake.yearTitleEn, row.intake.yearTitleAr),
+      })
     : "";
   return (
     <RecordSection
