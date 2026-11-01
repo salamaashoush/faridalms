@@ -169,6 +169,7 @@ jobs:
           retention-days: 1
 
   manifests:
+    if: ${{ !cancelled() && needs.publish.result == 'success' }}
     needs: publish
     runs-on: ubuntu-latest
     permissions:
