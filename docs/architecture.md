@@ -85,7 +85,8 @@ read, into the router's not-found page with a 404 status. Restricted fields
 payload rather than hidden in the page.
 
 Each school also publishes a public site from the same database. Its settings
-(branding, contact, default language, whether the site is on), pages, blog
+(branding, contact, whether the site is on; its first language and logo are
+the school's own), pages, blog
 posts, categories and post revisions live in school-scoped tables, so nothing
 about one school's site can appear under another's. The public API resolves
 the school from the slug in the request rather than from a session, leases the

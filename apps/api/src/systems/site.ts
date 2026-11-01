@@ -20,6 +20,7 @@ import {
   versionsOf,
 } from "@faridalms/database/stores/documents";
 import { publicEvents } from "@faridalms/database/stores/events";
+import { schoolProfile } from "@faridalms/database/stores/identity";
 import {
   insertEnquiry,
   insertPage,
@@ -28,7 +29,6 @@ import {
   placePage,
   publicCategories,
   publicMenu,
-  publicationsOf,
   publicPage,
   publicPost,
   publicPosts,
@@ -109,7 +109,12 @@ import {
 } from "../core/procedure";
 import { attemptKey, ipPrefix } from "../core/session";
 import { inlinePageShared } from "../core/shared";
-import { publishMedia, withPublicSite, withdrawMedia } from "../core/site";
+import {
+  logoKey,
+  publishMedia,
+  withPublicSite,
+  withdrawMedia,
+} from "../core/site";
 import { servesSchool } from "../core/turnstile";
 import { placeMedia, registerHostReader } from "../files/authorize";
 
@@ -147,7 +152,12 @@ async function settingsFor(context: UnitContext) {
     context.tenantId,
     context.schoolId,
   );
-  return row ? normalised(row) : DEFAULT_SETTINGS;
+  if (row) return normalised(row);
+  const school = await schoolProfile(context.tx, context.schoolId);
+  return {
+    ...DEFAULT_SETTINGS,
+    primaryLocale: school?.defaultLocale ?? DEFAULT_SETTINGS.primaryLocale,
+  };
 }
 
 const otherLocale = (locale: SiteLocale): SiteLocale =>
@@ -282,13 +292,12 @@ export const overview = readProcedure.handler(async ({ context }) => {
         limit: MAX_EVENTS,
       }),
     ]);
-  const logo = settings.id
-    ? await publicationsOf(context.tx, {
-        tenantId: context.tenantId,
-        hostType: "site_settings",
-        hostId: settings.id,
+  const logo = school
+    ? await logoKey(context.tx, context.tenantId, {
+        id: context.schoolId,
+        logoFileId: school.logoFileId,
       })
-    : [];
+    : null;
   return {
     settings,
     pages: pages.map((row) => ({
@@ -306,9 +315,7 @@ export const overview = readProcedure.handler(async ({ context }) => {
         email: school?.email ?? null,
       },
     },
-    logoKey:
-      logo.find((row) => row.fileId === settings.chrome.logoFileId)
-        ?.publicKey ?? null,
+    logoKey: logo,
     news: { en: newsEn.rows, ar: newsAr.rows },
     events,
   };
@@ -325,21 +332,6 @@ export const saveSettings = writeProcedure
       bannerUntil: input.bannerUntil || null,
     });
     if (version === null) throw conflict();
-    const saved = await siteSettings(
-      context.tx,
-      context.tenantId,
-      context.schoolId,
-    );
-    if (saved)
-      await publishMedia(
-        context,
-        {
-          tenantId: context.tenantId,
-          hostType: "site_settings",
-          hostId: saved.id,
-        },
-        input.chrome.logoFileId ? [input.chrome.logoFileId] : [],
-      );
     forgetFace(context.school.slug);
     await audit(context, {
       action: "site.settings",
@@ -1012,15 +1004,10 @@ export const publicSite = publicProcedure
       async ({ tx, tenantId, schoolId, portalHost, now }) => {
         const settings = await liveSettings(tx, tenantId, schoolId);
         const locale = resolveLocale(settings, input.locale);
-        const [school, menu, categories, logo] = await Promise.all([
+        const [school, menu, categories] = await Promise.all([
           publicSchool(tx, schoolId),
           publicMenu(tx, { orgId: schoolId, locale }),
           publicCategories(tx, schoolId),
-          publicationsOf(tx, {
-            tenantId,
-            hostType: "site_settings",
-            hostId: settings.id,
-          }),
         ]);
         const say = (words: { en: string; ar: string }) =>
           words[locale] || words[settings.primaryLocale];
@@ -1051,9 +1038,10 @@ export const publicSite = publicProcedure
           banner: bannerOn ? { text: banner, tone: settings.bannerTone } : null,
           socialLinks: settings.socialLinks,
           theme: resolveTheme(settings.theme),
-          logoKey:
-            logo.find((row) => row.fileId === chrome.logoFileId)?.publicKey ??
-            null,
+          logoKey: await logoKey(tx, tenantId, {
+            id: schoolId,
+            logoFileId: school.logoFileId,
+          }),
           utility: chrome.utility.map((item) => ({
             id: item.id,
             label: say(item.label),

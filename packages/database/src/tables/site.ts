@@ -63,9 +63,10 @@ const siteRead = (extra?: SQL) =>
   });
 
 /**
- * A school's website as a whole: whether it is live, its languages, the line
- * under its name, its social links and the banner shown on every page until
- * `banner_until`, for closures and the like.
+ * A school's website as a whole: whether it is live, whether it speaks the
+ * school's other language too, the line under its name, its social links and
+ * the banner shown on every page until `banner_until`, for closures and the
+ * like. Its first language and its logo are the school's own, on `orgs`.
  */
 export const siteSettings = core.table.withRLS(
   "site_settings",
@@ -73,10 +74,6 @@ export const siteSettings = core.table.withRLS(
     ...tenantColumns(),
     orgId: uuid("org_id").notNull(),
     live: boolean("live").notNull().default(false),
-    primaryLocale: text("primary_locale")
-      .$type<SiteLocale>()
-      .notNull()
-      .default("en"),
     bilingual: boolean("bilingual").notNull().default(true),
     taglineEn: text("tagline_en").notNull().default(""),
     taglineAr: text("tagline_ar").notNull().default(""),
@@ -105,7 +102,6 @@ export const siteSettings = core.table.withRLS(
     pk("site_settings", t.tenantId, t.id),
     ...baseConstraints("site_settings", t, tenants),
     fk("site_settings", [t.tenantId, t.orgId], [orgs.tenantId, orgs.id]),
-    ck("site_settings", "primary_locale", sql`primary_locale in ('en', 'ar')`),
     ck("site_settings", "tagline_en", sql`char_length(tagline_en) <= 200`),
     ck("site_settings", "tagline_ar", sql`char_length(tagline_ar) <= 200`),
     ck(

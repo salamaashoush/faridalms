@@ -75,7 +75,6 @@ interface ProfileDraft {
   arabicMath: "ltr" | "rtl";
   phone: string;
   email: string;
-  websiteUrl: string;
   logoFileId: string;
 }
 
@@ -85,7 +84,7 @@ function draftOf(profile: Profile): ProfileDraft {
     nameAr: profile.nameAr ?? "",
     identifier: profile.identifier ?? "",
     timeZone: profile.timeZone ?? "",
-    defaultLocale: profile.defaultLocale ?? "ar",
+    defaultLocale: profile.defaultLocale,
     weekStart: profile.weekStart,
     weekendDays: [...profile.weekendDays],
     secondaryCalendar: profile.secondaryCalendar ?? "",
@@ -93,7 +92,6 @@ function draftOf(profile: Profile): ProfileDraft {
     arabicMath: profile.arabicMath,
     phone: profile.phone ?? "",
     email: profile.email ?? "",
-    websiteUrl: profile.websiteUrl ?? "",
     logoFileId: profile.logoFileId ?? "",
   };
 }
@@ -299,17 +297,6 @@ export function SchoolProfileSection() {
           autoComplete="off"
           value={draft.email}
           onChange={(event) => set("email", event.target.value)}
-        />
-        <TextField
-          id="school-website"
-          label={m.settingsSchoolWebsite()}
-          optional
-          type="url"
-          dir="ltr"
-          width="name"
-          autoComplete="off"
-          value={draft.websiteUrl}
-          onChange={(event) => set("websiteUrl", event.target.value)}
         />
         <fieldset className="grid gap-1.5">
           <legend className="mb-1.5 text-sm leading-5 font-medium">

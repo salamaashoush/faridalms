@@ -379,8 +379,10 @@ export const saveSchoolSchema = v.object({
   arabicMath: v.optional(v.picklist(ARABIC_MATH), "ltr"),
   phone: optionalText(40),
   email: optionalText(254),
-  websiteUrl: optionalText(2048),
-  /** The school's own logo, printed on its paper: empty for none, left out to keep it. */
+  /**
+   * The school's logo, on its paper, its website and its sign-in pages:
+   * empty for none, left out to keep it.
+   */
   logoFileId: v.optional(v.union([v.literal(""), id])),
 });
 

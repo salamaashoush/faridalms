@@ -282,13 +282,12 @@ describe("a second calendar", () => {
         nameAr: profile.nameAr ?? "",
         identifier: profile.identifier ?? "",
         timeZone: profile.timeZone ?? "Africa/Cairo",
-        defaultLocale: profile.defaultLocale ?? "ar",
+        defaultLocale: profile.defaultLocale,
         weekStart: profile.weekStart,
         weekendDays: profile.weekendDays,
         secondaryCalendar,
         phone: profile.phone ?? "",
         email: profile.email ?? "",
-        websiteUrl: profile.websiteUrl ?? "",
       });
     const saved = await save("islamic-umalqura", profile.version);
     expect((await office.identity.currentUser()).school.secondaryCalendar).toBe(

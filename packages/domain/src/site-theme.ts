@@ -634,12 +634,11 @@ const href = v.pipe(
 const link = v.object({ id, label: label(40), href });
 
 /**
- * The site's frame, set once for every page: its logo, the links above the
- * menu, the actions beside it (Enquire, Visit, Apply), the footer, and the
- * action dock phones keep at the bottom.
+ * The site's frame, set once for every page: the links above the menu, the
+ * actions beside it (Enquire, Visit, Apply), the footer, and the action dock
+ * phones keep at the bottom. The logo it shows is the school's own.
  */
 export const siteChromeSchema = v.object({
-  logoFileId: v.optional(v.nullable(id), null),
   utility: v.optional(v.pipe(v.array(link), v.maxLength(6)), []),
   actions: v.optional(
     v.pipe(

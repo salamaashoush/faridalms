@@ -1376,11 +1376,11 @@ Table by table:
   `create policy p_update_app on core.orgs for update to app using (true) with check (type = 'department' or status = 'active')`,
   with `p_insert` and `p_update` for `worker, cell_io` only;
   `grant select, insert on core.orgs to app`,
-  `grant update (name_en, name_ar, identifier, time_zone, default_locale, week_start, weekend_days, country_code, address, phone, email, website_url, logo_file_id, status, metadata) on core.orgs to app`
+  `grant update (name_en, name_ar, identifier, time_zone, default_locale, week_start, weekend_days, country_code, address, phone, email, logo_file_id, status, metadata) on core.orgs to app`
   (never `type`, `parent_id`, `parent_type` or `lifecycle`). The public
   website reads public fields:
   `create policy p_site_select on core.orgs for select to site using (status = 'active' and lifecycle = 'active')`,
-  `grant select (tenant_id, id, type, parent_id, name_en, name_ar, time_zone, default_locale, country_code, address, phone, email, website_url, logo_file_id, status, lifecycle) on core.orgs to site`.
+  `grant select (tenant_id, id, type, parent_id, name_en, name_ar, time_zone, default_locale, country_code, address, phone, email, logo_file_id, status, lifecycle) on core.orgs to site`.
 - `core.org_features`: entity.
 - `core.descriptors`: entity, integration read. Deviation: `app` has `UPDATE`
   only on `label_en, label_ar, description_en, description_ar, sort_order,
@@ -1573,14 +1573,13 @@ create table core.orgs (
   name_ar text check (char_length(name_ar) between 1 and 160),
   identifier text check (char_length(identifier) between 1 and 64),
   time_zone text check (char_length(time_zone) between 1 and 64),
-  default_locale text check (default_locale in ('ar', 'en')),
+  default_locale text not null check (default_locale in ('ar', 'en')),
   week_start smallint not null default 7 check (week_start between 1 and 7),
   weekend_days smallint[] not null default '{5,6}' check (weekend_days <@ '{1,2,3,4,5,6,7}'),
   country_code text check (country_code ~ '^[A-Z]{2}$'),
   address jsonb check (jsonb_typeof(address) = 'object'),
   phone text check (char_length(phone) between 1 and 40),
   email text check (char_length(email) between 3 and 254),
-  website_url text check (char_length(website_url) between 1 and 2048),
   logo_file_id uuid,
   lifecycle text not null default 'active' check (lifecycle in ('importing', 'active')),
   status text not null default 'active' check (status in ('active', 'tobedeleted')),

@@ -128,12 +128,14 @@ describe("the portal page in the site builder", () => {
         await rejection(save(sections, null, opened.version)),
       ).toMatchObject({ code: "BAD_REQUEST", message: "site.system_section" });
 
+    // Northwind East's language is Arabic, so its pages are written in Arabic
+    // first and in English beside it.
     const saved = await save(
       opened.content.sections.map((section) =>
-        signInWords(section, "Welcome to Northwind East"),
+        signInWords(section, "أهلًا بكم في نورثويند الشرقية"),
       ),
       (opened.translation?.sections ?? []).map((section) =>
-        signInWords(section, "أهلًا بكم في نورثويند الشرقية"),
+        signInWords(section, "Welcome to Northwind East"),
       ),
       opened.version,
       { slug: "elsewhere", inMenu: true },

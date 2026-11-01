@@ -6,7 +6,6 @@ import type {
   SiteTheme,
   ThemeId,
 } from "@faridalms/domain/site-theme";
-import type { EditorMedia } from "@faridalms/editor";
 
 import {
   BUTTON_SHAPES,
@@ -45,9 +44,9 @@ import {
   RotateCcw,
   Trash2,
   TriangleAlert,
-  X,
 } from "lucide-react";
 
+import { ButtonLink } from "~/components/app/ButtonLink";
 import { LOCALE_NAME } from "~/components/content/languages";
 import { CheckboxRow } from "~/components/people/fields";
 import { PanelGroup, Segmented } from "~/components/system/panel";
@@ -57,7 +56,6 @@ import { formatNumber } from "~/utils/datetime";
 import type { Languages } from "./draft";
 
 import { Disclosure, StudioField } from "./controls";
-import { FilePick, useUpload } from "./fields";
 import {
   BUTTON_LABEL,
   CARD_LABEL,
@@ -672,23 +670,23 @@ function LinkList<T extends ChromeLink>({
 
 const blank = () => ({ en: "", ar: "" });
 
-/** The frame every page shares: logo, the links above the menu, the actions beside it, the footer and the phone dock. */
+/**
+ * The frame every page shares: the school's logo, the links above the menu,
+ * the actions beside it, the footer and the phone dock.
+ */
 export function FramePanel({
   chrome,
   languages,
   pages,
-  media,
   logoUrl,
   onChange,
 }: {
   chrome: SiteChrome;
   languages: Languages;
   pages: { href: string; title: string }[];
-  media: EditorMedia;
   logoUrl: string | null;
   onChange: (next: SiteChrome, key?: string) => void;
 }) {
-  const { busy, upload } = useUpload(media);
   const set = <K extends keyof SiteChrome>(key: K, value: SiteChrome[K]) =>
     onChange({ ...chrome, [key]: value }, `chrome:${key}`);
   return (
@@ -704,26 +702,15 @@ export function FramePanel({
               />
             ) : null}
           </div>
-          <FilePick
-            accept={media.accept.image}
-            label={chrome.logoFileId ? m.siteReplace() : m.siteUpload()}
-            busy={busy}
-            onFile={(file) =>
-              void upload(file, (logoFileId) => set("logoFileId", logoFileId))
-            }
-          />
-          {chrome.logoFileId ? (
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon-sm"
-              className="max-md:size-10"
-              aria-label={m.siteRemoveLogo()}
-              onClick={() => set("logoFileId", null)}
-            >
-              <X aria-hidden />
-            </Button>
-          ) : null}
+          <ButtonLink
+            to="/admin/settings"
+            search={{ section: "school" }}
+            variant="outline"
+            size="sm"
+            className="max-md:h-10"
+          >
+            {m.siteChangeInSchoolSettings()}
+          </ButtonLink>
         </div>
       </PanelGroup>
       <PanelGroup

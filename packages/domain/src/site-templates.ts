@@ -1214,7 +1214,6 @@ export function starterChrome(pages: StarterPage[]): SiteChrome {
   const target = (slug: string) =>
     has(slug) ? `/pages/${slug}` : "/pages/contact";
   return {
-    logoFileId: null,
     utility: [
       { id: freshId(), label: { en: "News", ar: "الأخبار" }, href: "/news" },
       {

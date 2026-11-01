@@ -8,7 +8,6 @@ import type {
 } from "@faridalms/domain/website";
 
 import {
-  publicationsOf,
   publicMenu,
   publicPortalPages,
   publicSchool,
@@ -26,7 +25,7 @@ import * as v from "valibot";
 
 import type { RequestContext } from "./context";
 
-import { withPublicSite } from "./site";
+import { logoKey, withPublicSite } from "./site";
 
 interface FaceLink {
   id: string;
@@ -142,23 +141,18 @@ export async function portalFace(
       ]);
       const chrome = v.safeParse(siteChromeSchema, settings?.chrome ?? {});
       const theme = v.safeParse(siteThemeSchema, settings?.theme ?? {});
-      const logoFileId = chrome.success ? chrome.output.logoFileId : null;
-      const logo =
-        settings && logoFileId
-          ? (
-              await publicationsOf(tx, {
-                tenantId,
-                hostType: "site_settings",
-                hostId: settings.id,
-              })
-            ).find((row) => row.fileId === logoFileId)
-          : undefined;
+      const logo = school
+        ? await logoKey(tx, tenantId, {
+            id: schoolId,
+            logoFileId: school.logoFileId,
+          })
+        : null;
       const published =
         pages.find((row) => row.locale === locale) ??
-        pages.find((row) => row.locale === settings?.primaryLocale) ??
+        pages.find((row) => row.locale === school?.defaultLocale) ??
         pages[0];
       const say = (words: { en: string; ar: string }) =>
-        words[locale] || words[settings?.primaryLocale ?? "en"];
+        words[locale] || words[school?.defaultLocale ?? "en"];
       const frame: FaceFrame | null =
         settings?.live && chrome.success
           ? {
@@ -167,7 +161,7 @@ export async function portalFace(
                 platformName(slug, "site", context.domains),
               tagline:
                 (locale === "ar" ? settings.taglineAr : settings.taglineEn) ||
-                (settings.primaryLocale === "ar"
+                (school?.defaultLocale === "ar"
                   ? settings.taglineAr
                   : settings.taglineEn),
               utility: chrome.output.utility.map((item) => ({
@@ -208,7 +202,7 @@ export async function portalFace(
         theme: settings
           ? resolveTheme(theme.success ? theme.output : null)
           : null,
-        logoKey: logo?.publicKey ?? null,
+        logoKey: logo,
         contact: {
           address: school?.address ?? null,
           phone: school?.phone ?? null,

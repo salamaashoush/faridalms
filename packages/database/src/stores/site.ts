@@ -23,6 +23,7 @@ export interface SettingsRow {
   id: string;
   version: number;
   live: boolean;
+  /** The school's own language, which the website is written in first. */
   primaryLocale: SiteLocale;
   bilingual: boolean;
   taglineEn: string;
@@ -53,9 +54,9 @@ type SettingsRecord = {
   chrome: SiteChrome;
 };
 
-const settingsColumns = sql`id, version, live, primary_locale, bilingual, tagline_en, tagline_ar,
-  social_links, banner_en, banner_ar, banner_tone, ${isoOf(sql`banner_until`)} as banner_until,
-  theme, chrome`;
+const settingsColumns = sql`s.id, s.version, s.live, o.default_locale as primary_locale, s.bilingual,
+  s.tagline_en, s.tagline_ar, s.social_links, s.banner_en, s.banner_ar, s.banner_tone,
+  ${isoOf(sql`s.banner_until`)} as banner_until, s.theme, s.chrome`;
 
 function settingsOf(row: SettingsRecord): SettingsRow {
   return {
@@ -83,12 +84,16 @@ export async function siteSettings(
   orgId: string,
 ): Promise<SettingsRow | null> {
   const [row] = await tx.execute<SettingsRecord>(sql`
-    select ${settingsColumns} from core.site_settings
-    where tenant_id = ${tenantId}::uuid and org_id = ${orgId}::uuid and status = 'active'`);
+    select ${settingsColumns} from core.site_settings s
+    join core.orgs o on o.tenant_id = s.tenant_id and o.id = s.org_id
+    where s.tenant_id = ${tenantId}::uuid and s.org_id = ${orgId}::uuid and s.status = 'active'`);
   return row ? settingsOf(row) : null;
 }
 
-export type SettingsFields = Omit<SettingsRow, "id" | "version">;
+export type SettingsFields = Omit<
+  SettingsRow,
+  "id" | "version" | "primaryLocale"
+>;
 
 /** Writes the settings, creating them the first time; null when someone saved first. */
 export async function saveSiteSettings(
@@ -100,13 +105,13 @@ export async function saveSiteSettings(
   },
 ): Promise<number | null> {
   // A bound array would travel as a Postgres array, so the links go as JSON text.
-  const values = sql`${input.live}, ${input.primaryLocale}, ${input.bilingual}, ${input.taglineEn},
+  const values = sql`${input.live}, ${input.bilingual}, ${input.taglineEn},
     ${input.taglineAr}, ${JSON.stringify(input.socialLinks)}::text::jsonb, ${input.bannerEn}, ${input.bannerAr},
     ${input.bannerTone}, ${input.bannerUntil}::timestamptz, ${input.theme}::jsonb,
     ${input.chrome}::jsonb`;
   if (input.expectedVersion === 0) {
     const [row] = await tx.execute<{ version: number }>(sql`
-      insert into core.site_settings (tenant_id, org_id, live, primary_locale, bilingual,
+      insert into core.site_settings (tenant_id, org_id, live, bilingual,
         tagline_en, tagline_ar, social_links, banner_en, banner_ar, banner_tone, banner_until,
         theme, chrome)
       values (${input.tenantId}::uuid, ${input.orgId}::uuid, ${values})
@@ -116,7 +121,7 @@ export async function saveSiteSettings(
   }
   const [row] = await tx.execute<{ version: number }>(sql`
     update core.site_settings
-    set (live, primary_locale, bilingual, tagline_en, tagline_ar, social_links, banner_en,
+    set (live, bilingual, tagline_en, tagline_ar, social_links, banner_en,
       banner_ar, banner_tone, banner_until, theme, chrome) = (${values})
     where tenant_id = ${input.tenantId}::uuid and org_id = ${input.orgId}::uuid
       and version = ${input.expectedVersion} and status = 'active'
@@ -875,6 +880,9 @@ export interface PublicSchool {
   digits: "latn" | "arab";
   /** The school's clock, which every time on its website is shown on. */
   timeZone: string;
+  /** The school's language, the one its website is written in first. */
+  defaultLocale: SiteLocale;
+  logoFileId: string | null;
 }
 
 /** What a school's website may say about the school itself. */
@@ -890,8 +898,11 @@ export async function publicSchool(
     email: string | null;
     digits: "latn" | "arab";
     time_zone: string | null;
+    default_locale: SiteLocale;
+    logo_file_id: string | null;
   }>(sql`
-    select name_en, name_ar, address, phone, email, digits, time_zone
+    select name_en, name_ar, address, phone, email, digits, time_zone,
+      default_locale, logo_file_id
     from core.orgs
     where id = ${orgId}::uuid and status = 'active'`);
   return row
@@ -903,6 +914,8 @@ export async function publicSchool(
         email: row.email,
         digits: row.digits,
         timeZone: row.time_zone ?? "UTC",
+        defaultLocale: row.default_locale,
+        logoFileId: row.logo_file_id,
       }
     : null;
 }

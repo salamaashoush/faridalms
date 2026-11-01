@@ -243,7 +243,6 @@ export const saveSettingsSchema = v.object({
   theme: siteThemeSchema,
   chrome: siteChromeSchema,
   live: v.boolean(),
-  primaryLocale: v.picklist(SITE_LOCALES),
   bilingual: v.boolean(),
   taglineEn: v.pipe(v.string(), v.trim(), v.maxLength(200)),
   taglineAr: v.pipe(v.string(), v.trim(), v.maxLength(200)),

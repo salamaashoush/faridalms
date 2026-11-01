@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 
-import { login, raw, sessionFor } from "./harness";
+import { client, login, raw, sessionFor } from "./harness";
 
 const png = new Blob([
   new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0, 0]),
@@ -26,13 +26,12 @@ describe("the school's logo", () => {
       nameAr: profile.nameAr ?? "",
       identifier: profile.identifier ?? "",
       timeZone: profile.timeZone ?? "Africa/Cairo",
-      defaultLocale: profile.defaultLocale ?? "ar",
+      defaultLocale: profile.defaultLocale,
       weekStart: profile.weekStart,
       weekendDays: profile.weekendDays,
       secondaryCalendar: profile.secondaryCalendar ?? "",
       phone: profile.phone ?? "",
       email: profile.email ?? "",
-      websiteUrl: profile.websiteUrl ?? "",
       logoFileId: file.id,
     });
     const parent = await sessionFor(
@@ -49,6 +48,18 @@ describe("the school's logo", () => {
     );
     expect(opened.status).toBe(200);
 
+    // It is the one logo strangers see too, on the website and the sign-in page.
+    const shell = await client("").site.publicSite({
+      school: "northwind",
+      locale: "en",
+    });
+    expect(shell.logoKey).toMatch(/^p\//);
+    const face = await client("").identity.portalFace({
+      school: "northwind",
+      locale: "en",
+    });
+    expect(face.logoKey).toBe(shell.logoKey);
+
     // A save that leaves the logo out keeps it.
     await office.api.school.saveProfile({
       expectedVersion: saved.version,
@@ -56,13 +67,12 @@ describe("the school's logo", () => {
       nameAr: profile.nameAr ?? "",
       identifier: profile.identifier ?? "",
       timeZone: profile.timeZone ?? "Africa/Cairo",
-      defaultLocale: profile.defaultLocale ?? "ar",
+      defaultLocale: profile.defaultLocale,
       weekStart: profile.weekStart,
       weekendDays: profile.weekendDays,
       secondaryCalendar: profile.secondaryCalendar ?? "",
       phone: profile.phone ?? "",
       email: profile.email ?? "",
-      websiteUrl: profile.websiteUrl ?? "",
     });
     expect((await office.api.school.profile()).logoFileId).toBe(file.id);
   });
@@ -77,14 +87,13 @@ describe("mathematics in Arabic", () => {
       nameAr: profile.nameAr ?? "",
       identifier: profile.identifier ?? "",
       timeZone: profile.timeZone ?? "Africa/Cairo",
-      defaultLocale: profile.defaultLocale ?? "ar",
+      defaultLocale: profile.defaultLocale,
       weekStart: profile.weekStart,
       weekendDays: profile.weekendDays,
       secondaryCalendar: profile.secondaryCalendar ?? ("" as const),
       digits: profile.digits,
       phone: profile.phone ?? "",
       email: profile.email ?? "",
-      websiteUrl: profile.websiteUrl ?? "",
     };
     const saved = await office.api.school.saveProfile({
       ...settings,

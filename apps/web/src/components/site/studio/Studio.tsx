@@ -326,7 +326,9 @@ export function SiteStudio({
   const say = (words: { en: string; ar: string }) =>
     words[locale] || words[languages.primary];
   const chrome = draft.site.chrome;
-  const logoUrl = chrome.logoFileId ? `/files/${chrome.logoFileId}` : null;
+  const logoUrl = user.school.logoFileId
+    ? `/files/${user.school.logoFileId}`
+    : null;
   const bannerWords =
     (locale === "ar" ? settings.bannerAr : settings.bannerEn) ||
     (languages.primary === "ar" ? settings.bannerAr : settings.bannerEn);
@@ -558,7 +560,6 @@ export function SiteStudio({
     queryClient.invalidateQueries({ queryKey: ["site"] });
   const settingsPayload = {
     live: settings.live,
-    primaryLocale: settings.primaryLocale,
     bilingual: settings.bilingual,
     taglineEn: settings.taglineEn,
     taglineAr: settings.taglineAr,
@@ -883,7 +884,6 @@ export function SiteStudio({
         chrome={chrome}
         languages={languages}
         pages={pages}
-        media={media}
         logoUrl={logoUrl}
         onChange={(next, key) =>
           history.update(

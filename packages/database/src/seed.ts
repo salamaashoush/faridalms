@@ -3281,7 +3281,6 @@ async function seedSite(
     orgId: schoolId,
     expectedVersion: 0,
     live: true,
-    primaryLocale: "en",
     bilingual: true,
     taglineEn: "Learning together, every day",
     taglineAr: "نتعلّم معًا كل يوم",

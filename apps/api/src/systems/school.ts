@@ -13,15 +13,18 @@ import { saveSchoolSchema, setFeatureSchema } from "@faridalms/domain/people";
 import { availableModules, limitsOf } from "@faridalms/domain/plans";
 import { ORPCError } from "@orpc/server";
 
+import { forgetFace } from "../core/portal-face";
 import {
   audit,
   readProcedure,
   requireCapability,
   writeProcedure,
 } from "../core/procedure";
+import { publishLogo } from "../core/site";
 import { registerHostReader } from "../files/authorize";
 
-// The school's logo prints on its paper, so whoever belongs to it may see it.
+// The school's logo prints on its paper, so whoever belongs to it may see it;
+// strangers see its public copy on the website and the sign-in pages.
 registerHostReader("org", (context, hostId) =>
   Promise.resolve(hostId === context.schoolId),
 );
@@ -86,6 +89,10 @@ export const saveProfile = writeProcedure
     });
     if (!saved)
       throw new ORPCError("CONFLICT", { message: "conflict.version" });
+    if (logoFileId !== (before?.logoFileId ?? null)) {
+      await publishLogo(context, logoFileId);
+      forgetFace(context.school.slug);
+    }
     await audit(context, {
       action: "school.update",
       objectType: "org",
