@@ -14,10 +14,7 @@ import {
 } from "@faridalms/database/stores/admissions";
 import { formsOf as consentFormsOf } from "@faridalms/database/stores/consents";
 import { descriptorsFor } from "@faridalms/database/stores/descriptors";
-import {
-  documentOf,
-  translationOf,
-} from "@faridalms/database/stores/documents";
+import { documentOf } from "@faridalms/database/stores/documents";
 import { filesOfHosts, linkFiles } from "@faridalms/database/stores/files";
 import {
   APPLICATION_CONSENTS,
@@ -29,6 +26,7 @@ import type { UnitContext } from "./context";
 
 import { registerHostReader } from "../files/authorize";
 import { audit } from "./procedure";
+import { draftWords } from "./publication";
 
 const readsAdmissions = (context: UnitContext) =>
   context.actor.capabilities.has("admissions:read") ||
@@ -135,17 +133,11 @@ export async function admissionConsents(context: UnitContext) {
 
 /** A consent form's words in both languages as they now stand. */
 export async function consentWords(context: UnitContext, formId: string) {
-  const original = await documentOf(context.tx, context.tenantId, {
+  const words = await draftWords(context, {
     type: "privacy_notice",
     id: formId,
   });
-  const translation = original
-    ? await translationOf(context.tx, context.tenantId, original.id)
-    : null;
-  return {
-    body: (original?.content ?? null) as ContentDocument | null,
-    translation: (translation?.content ?? null) as ContentDocument | null,
-  };
+  return { body: words.body, translation: words.other };
 }
 
 export async function documentStep(

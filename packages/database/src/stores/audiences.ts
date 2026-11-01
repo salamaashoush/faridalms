@@ -3,7 +3,7 @@ import type { SQL } from "drizzle-orm";
 import { sql } from "drizzle-orm";
 
 import type { CellTransaction } from "../context";
-import type { AudienceScope } from "../tables/announcements";
+import type { AudienceScope } from "../tables/broadcasts";
 
 import { uuidArray } from "./sql";
 
@@ -17,13 +17,12 @@ export interface Audience {
 
 /** What an audience list belongs to; each kind keeps its own audience table. */
 export interface AudienceOwner {
-  kind: "announcement" | "site_post" | "calendar_event";
+  kind: "broadcast" | "calendar_event";
   id: string;
 }
 
 const OWNERS = {
-  announcement: { table: "announcement_audiences", column: "announcement_id" },
-  site_post: { table: "site_post_audiences", column: "post_id" },
+  broadcast: { table: "broadcast_audiences", column: "broadcast_id" },
   calendar_event: { table: "calendar_event_audiences", column: "event_id" },
 } as const;
 

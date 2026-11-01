@@ -133,7 +133,7 @@ export function AnnouncementEditor({
   const version = useRef(existing?.version ?? 0);
   const [storedId, setStoredId] = useState(existing?.id ?? "");
   const stored = storedId !== "";
-  const [state, setState] = useState(existing?.state ?? "draft");
+  const [state, setState] = useState(existing?.shown ?? "draft");
   const [draft, setDraft] = useState<Draft>(() => draftOf(existing));
   const [sent, setSent] = useState<Draft>(draft);
   const [sendAt, setSendAt] = useState(localInput(existing?.publishAt));
@@ -312,15 +312,16 @@ export function AnnouncementEditor({
     setPending("update");
     try {
       await persist(draft);
-      if (notify)
-        await publishAnnouncement({
-          data: {
-            id: id.current,
-            expectedVersion: version.current,
-            publishAt: "",
-            sendUpdate: true,
-          },
-        });
+      const sentNow = await publishAnnouncement({
+        data: {
+          id: id.current,
+          expectedVersion: version.current,
+          publishAt: "",
+          sendUpdate: true,
+          quietly: !notify,
+        },
+      });
+      version.current = sentNow.version;
       await queryClient.invalidateQueries({ queryKey: ["announcements"] });
       setSent(draft);
       setState("published");

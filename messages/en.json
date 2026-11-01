@@ -8650,5 +8650,8 @@
   "profileTeachesYou": "In your classes",
   "profileTeachesChild": "In your children's classes",
   "profileTeachesYouNone": "None of your classes this year.",
-  "profileTeachesChildNone": "None of your children's classes this year."
+  "profileTeachesChildNone": "None of your children's classes this year.",
+  "contentIssueCaptions": "A recording has no captions or transcript",
+  "contentIssueUnreviewed": "A suggested question is still waiting to be kept or removed",
+  "contentErrConsent": "Someone in a picture has not agreed to photos shared inside the school."
 }

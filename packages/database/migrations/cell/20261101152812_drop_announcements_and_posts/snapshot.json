@@ -1,0 +1,1568 @@
+{
+  "type": "diff",
+  "version": "9",
+  "dialect": "postgres",
+  "id": "c39be348-56bd-41b0-902c-8228de4424cb",
+  "prevIds": [
+    "69e6312a-cee6-451a-b3d6-fe7dc8e5d269"
+  ],
+  "footprints": [
+    {
+      "statementType": "drop_policy",
+      "statementTarget": [
+        "table",
+        "core",
+        "announcement_audiences"
+      ],
+      "writes": [
+        "s|pol|core.announcement_audiences.tenant_isolation",
+        "n|pol|core.announcement_audiences.tenant_isolation",
+        "e|pol|core.announcement_audiences.tenant_isolation"
+      ],
+      "reads": [
+        "n|tbl|core.announcement_audiences",
+        "n|sch|core"
+      ]
+    },
+    {
+      "statementType": "drop_policy",
+      "statementTarget": [
+        "table",
+        "core",
+        "announcement_audiences"
+      ],
+      "writes": [
+        "s|pol|core.announcement_audiences.owner_all",
+        "n|pol|core.announcement_audiences.owner_all",
+        "e|pol|core.announcement_audiences.owner_all"
+      ],
+      "reads": [
+        "n|tbl|core.announcement_audiences",
+        "n|sch|core"
+      ]
+    },
+    {
+      "statementType": "drop_policy",
+      "statementTarget": [
+        "table",
+        "core",
+        "announcement_audiences"
+      ],
+      "writes": [
+        "s|pol|core.announcement_audiences.p_select",
+        "n|pol|core.announcement_audiences.p_select",
+        "e|pol|core.announcement_audiences.p_select"
+      ],
+      "reads": [
+        "n|tbl|core.announcement_audiences",
+        "n|sch|core"
+      ]
+    },
+    {
+      "statementType": "drop_policy",
+      "statementTarget": [
+        "table",
+        "core",
+        "announcement_audiences"
+      ],
+      "writes": [
+        "s|pol|core.announcement_audiences.p_insert",
+        "n|pol|core.announcement_audiences.p_insert",
+        "e|pol|core.announcement_audiences.p_insert"
+      ],
+      "reads": [
+        "n|tbl|core.announcement_audiences",
+        "n|sch|core"
+      ]
+    },
+    {
+      "statementType": "drop_policy",
+      "statementTarget": [
+        "table",
+        "core",
+        "announcement_audiences"
+      ],
+      "writes": [
+        "s|pol|core.announcement_audiences.p_update",
+        "n|pol|core.announcement_audiences.p_update",
+        "e|pol|core.announcement_audiences.p_update"
+      ],
+      "reads": [
+        "n|tbl|core.announcement_audiences",
+        "n|sch|core"
+      ]
+    },
+    {
+      "statementType": "drop_policy",
+      "statementTarget": [
+        "table",
+        "core",
+        "announcement_recipients"
+      ],
+      "writes": [
+        "s|pol|core.announcement_recipients.tenant_isolation",
+        "n|pol|core.announcement_recipients.tenant_isolation",
+        "e|pol|core.announcement_recipients.tenant_isolation"
+      ],
+      "reads": [
+        "n|tbl|core.announcement_recipients",
+        "n|sch|core"
+      ]
+    },
+    {
+      "statementType": "drop_policy",
+      "statementTarget": [
+        "table",
+        "core",
+        "announcement_recipients"
+      ],
+      "writes": [
+        "s|pol|core.announcement_recipients.owner_all",
+        "n|pol|core.announcement_recipients.owner_all",
+        "e|pol|core.announcement_recipients.owner_all"
+      ],
+      "reads": [
+        "n|tbl|core.announcement_recipients",
+        "n|sch|core"
+      ]
+    },
+    {
+      "statementType": "drop_policy",
+      "statementTarget": [
+        "table",
+        "core",
+        "announcement_recipients"
+      ],
+      "writes": [
+        "s|pol|core.announcement_recipients.p_select",
+        "n|pol|core.announcement_recipients.p_select",
+        "e|pol|core.announcement_recipients.p_select"
+      ],
+      "reads": [
+        "n|tbl|core.announcement_recipients",
+        "n|sch|core"
+      ]
+    },
+    {
+      "statementType": "drop_policy",
+      "statementTarget": [
+        "table",
+        "core",
+        "announcement_recipients"
+      ],
+      "writes": [
+        "s|pol|core.announcement_recipients.p_insert",
+        "n|pol|core.announcement_recipients.p_insert",
+        "e|pol|core.announcement_recipients.p_insert"
+      ],
+      "reads": [
+        "n|tbl|core.announcement_recipients",
+        "n|sch|core"
+      ]
+    },
+    {
+      "statementType": "drop_policy",
+      "statementTarget": [
+        "table",
+        "core",
+        "announcement_recipients"
+      ],
+      "writes": [
+        "s|pol|core.announcement_recipients.p_update",
+        "n|pol|core.announcement_recipients.p_update",
+        "e|pol|core.announcement_recipients.p_update"
+      ],
+      "reads": [
+        "n|tbl|core.announcement_recipients",
+        "n|sch|core"
+      ]
+    },
+    {
+      "statementType": "drop_policy",
+      "statementTarget": [
+        "table",
+        "core",
+        "announcements"
+      ],
+      "writes": [
+        "s|pol|core.announcements.tenant_isolation",
+        "n|pol|core.announcements.tenant_isolation",
+        "e|pol|core.announcements.tenant_isolation"
+      ],
+      "reads": [
+        "n|tbl|core.announcements",
+        "n|sch|core"
+      ]
+    },
+    {
+      "statementType": "drop_policy",
+      "statementTarget": [
+        "table",
+        "core",
+        "announcements"
+      ],
+      "writes": [
+        "s|pol|core.announcements.owner_all",
+        "n|pol|core.announcements.owner_all",
+        "e|pol|core.announcements.owner_all"
+      ],
+      "reads": [
+        "n|tbl|core.announcements",
+        "n|sch|core"
+      ]
+    },
+    {
+      "statementType": "drop_policy",
+      "statementTarget": [
+        "table",
+        "core",
+        "announcements"
+      ],
+      "writes": [
+        "s|pol|core.announcements.p_select",
+        "n|pol|core.announcements.p_select",
+        "e|pol|core.announcements.p_select"
+      ],
+      "reads": [
+        "n|tbl|core.announcements",
+        "n|sch|core"
+      ]
+    },
+    {
+      "statementType": "drop_policy",
+      "statementTarget": [
+        "table",
+        "core",
+        "announcements"
+      ],
+      "writes": [
+        "s|pol|core.announcements.p_insert",
+        "n|pol|core.announcements.p_insert",
+        "e|pol|core.announcements.p_insert"
+      ],
+      "reads": [
+        "n|tbl|core.announcements",
+        "n|sch|core"
+      ]
+    },
+    {
+      "statementType": "drop_policy",
+      "statementTarget": [
+        "table",
+        "core",
+        "announcements"
+      ],
+      "writes": [
+        "s|pol|core.announcements.p_update",
+        "n|pol|core.announcements.p_update",
+        "e|pol|core.announcements.p_update"
+      ],
+      "reads": [
+        "n|tbl|core.announcements",
+        "n|sch|core"
+      ]
+    },
+    {
+      "statementType": "drop_policy",
+      "statementTarget": [
+        "table",
+        "core",
+        "site_posts"
+      ],
+      "writes": [
+        "s|pol|core.site_posts.tenant_isolation",
+        "n|pol|core.site_posts.tenant_isolation",
+        "e|pol|core.site_posts.tenant_isolation"
+      ],
+      "reads": [
+        "n|tbl|core.site_posts",
+        "n|sch|core"
+      ]
+    },
+    {
+      "statementType": "drop_policy",
+      "statementTarget": [
+        "table",
+        "core",
+        "site_posts"
+      ],
+      "writes": [
+        "s|pol|core.site_posts.owner_all",
+        "n|pol|core.site_posts.owner_all",
+        "e|pol|core.site_posts.owner_all"
+      ],
+      "reads": [
+        "n|tbl|core.site_posts",
+        "n|sch|core"
+      ]
+    },
+    {
+      "statementType": "drop_policy",
+      "statementTarget": [
+        "table",
+        "core",
+        "site_posts"
+      ],
+      "writes": [
+        "s|pol|core.site_posts.p_select",
+        "n|pol|core.site_posts.p_select",
+        "e|pol|core.site_posts.p_select"
+      ],
+      "reads": [
+        "n|tbl|core.site_posts",
+        "n|sch|core"
+      ]
+    },
+    {
+      "statementType": "drop_policy",
+      "statementTarget": [
+        "table",
+        "core",
+        "site_posts"
+      ],
+      "writes": [
+        "s|pol|core.site_posts.p_insert",
+        "n|pol|core.site_posts.p_insert",
+        "e|pol|core.site_posts.p_insert"
+      ],
+      "reads": [
+        "n|tbl|core.site_posts",
+        "n|sch|core"
+      ]
+    },
+    {
+      "statementType": "drop_policy",
+      "statementTarget": [
+        "table",
+        "core",
+        "site_posts"
+      ],
+      "writes": [
+        "s|pol|core.site_posts.p_update",
+        "n|pol|core.site_posts.p_update",
+        "e|pol|core.site_posts.p_update"
+      ],
+      "reads": [
+        "n|tbl|core.site_posts",
+        "n|sch|core"
+      ]
+    },
+    {
+      "statementType": "drop_policy",
+      "statementTarget": [
+        "table",
+        "core",
+        "site_post_audiences"
+      ],
+      "writes": [
+        "s|pol|core.site_post_audiences.tenant_isolation",
+        "n|pol|core.site_post_audiences.tenant_isolation",
+        "e|pol|core.site_post_audiences.tenant_isolation"
+      ],
+      "reads": [
+        "n|tbl|core.site_post_audiences",
+        "n|sch|core"
+      ]
+    },
+    {
+      "statementType": "drop_policy",
+      "statementTarget": [
+        "table",
+        "core",
+        "site_post_audiences"
+      ],
+      "writes": [
+        "s|pol|core.site_post_audiences.owner_all",
+        "n|pol|core.site_post_audiences.owner_all",
+        "e|pol|core.site_post_audiences.owner_all"
+      ],
+      "reads": [
+        "n|tbl|core.site_post_audiences",
+        "n|sch|core"
+      ]
+    },
+    {
+      "statementType": "drop_policy",
+      "statementTarget": [
+        "table",
+        "core",
+        "site_post_audiences"
+      ],
+      "writes": [
+        "s|pol|core.site_post_audiences.p_select",
+        "n|pol|core.site_post_audiences.p_select",
+        "e|pol|core.site_post_audiences.p_select"
+      ],
+      "reads": [
+        "n|tbl|core.site_post_audiences",
+        "n|sch|core"
+      ]
+    },
+    {
+      "statementType": "drop_policy",
+      "statementTarget": [
+        "table",
+        "core",
+        "site_post_audiences"
+      ],
+      "writes": [
+        "s|pol|core.site_post_audiences.p_insert",
+        "n|pol|core.site_post_audiences.p_insert",
+        "e|pol|core.site_post_audiences.p_insert"
+      ],
+      "reads": [
+        "n|tbl|core.site_post_audiences",
+        "n|sch|core"
+      ]
+    },
+    {
+      "statementType": "drop_policy",
+      "statementTarget": [
+        "table",
+        "core",
+        "site_post_audiences"
+      ],
+      "writes": [
+        "s|pol|core.site_post_audiences.p_update",
+        "n|pol|core.site_post_audiences.p_update",
+        "e|pol|core.site_post_audiences.p_update"
+      ],
+      "reads": [
+        "n|tbl|core.site_post_audiences",
+        "n|sch|core"
+      ]
+    },
+    {
+      "statementType": "drop_policy",
+      "statementTarget": [
+        "table",
+        "core",
+        "site_post_recipients"
+      ],
+      "writes": [
+        "s|pol|core.site_post_recipients.tenant_isolation",
+        "n|pol|core.site_post_recipients.tenant_isolation",
+        "e|pol|core.site_post_recipients.tenant_isolation"
+      ],
+      "reads": [
+        "n|tbl|core.site_post_recipients",
+        "n|sch|core"
+      ]
+    },
+    {
+      "statementType": "drop_policy",
+      "statementTarget": [
+        "table",
+        "core",
+        "site_post_recipients"
+      ],
+      "writes": [
+        "s|pol|core.site_post_recipients.owner_all",
+        "n|pol|core.site_post_recipients.owner_all",
+        "e|pol|core.site_post_recipients.owner_all"
+      ],
+      "reads": [
+        "n|tbl|core.site_post_recipients",
+        "n|sch|core"
+      ]
+    },
+    {
+      "statementType": "drop_policy",
+      "statementTarget": [
+        "table",
+        "core",
+        "site_post_recipients"
+      ],
+      "writes": [
+        "s|pol|core.site_post_recipients.p_select",
+        "n|pol|core.site_post_recipients.p_select",
+        "e|pol|core.site_post_recipients.p_select"
+      ],
+      "reads": [
+        "n|tbl|core.site_post_recipients",
+        "n|sch|core"
+      ]
+    },
+    {
+      "statementType": "drop_policy",
+      "statementTarget": [
+        "table",
+        "core",
+        "site_post_recipients"
+      ],
+      "writes": [
+        "s|pol|core.site_post_recipients.p_insert",
+        "n|pol|core.site_post_recipients.p_insert",
+        "e|pol|core.site_post_recipients.p_insert"
+      ],
+      "reads": [
+        "n|tbl|core.site_post_recipients",
+        "n|sch|core"
+      ]
+    },
+    {
+      "statementType": "drop_policy",
+      "statementTarget": [
+        "table",
+        "core",
+        "site_post_recipients"
+      ],
+      "writes": [
+        "s|pol|core.site_post_recipients.p_update",
+        "n|pol|core.site_post_recipients.p_update",
+        "e|pol|core.site_post_recipients.p_update"
+      ],
+      "reads": [
+        "n|tbl|core.site_post_recipients",
+        "n|sch|core"
+      ]
+    },
+    {
+      "statementType": "drop_fk",
+      "statementTarget": [
+        "table",
+        "core",
+        "announcement_audiences"
+      ],
+      "writes": [
+        "s|fk|core.announcement_audiences.announcement_audiences_tenant_id_announcement_id_fkey",
+        "n|fk|core.announcement_audiences.announcement_audiences_tenant_id_announcement_id_fkey",
+        "e|fk|core.announcement_audiences.announcement_audiences_tenant_id_announcement_id_fkey",
+        "n|con|core.announcement_audiences.announcement_audiences_tenant_id_announcement_id_fkey"
+      ],
+      "reads": [
+        "n|tbl|core.announcement_audiences",
+        "n|sch|core",
+        "e|col|core.announcement_audiences.tenant_id",
+        "e|col|core.announcement_audiences.announcement_id"
+      ]
+    },
+    {
+      "statementType": "drop_fk",
+      "statementTarget": [
+        "table",
+        "core",
+        "announcement_recipients"
+      ],
+      "writes": [
+        "s|fk|core.announcement_recipients.announcement_recipients_tenant_id_announcement_id_fkey",
+        "n|fk|core.announcement_recipients.announcement_recipients_tenant_id_announcement_id_fkey",
+        "e|fk|core.announcement_recipients.announcement_recipients_tenant_id_announcement_id_fkey",
+        "n|con|core.announcement_recipients.announcement_recipients_tenant_id_announcement_id_fkey"
+      ],
+      "reads": [
+        "n|tbl|core.announcement_recipients",
+        "n|sch|core",
+        "e|col|core.announcement_recipients.tenant_id",
+        "e|col|core.announcement_recipients.announcement_id"
+      ]
+    },
+    {
+      "statementType": "drop_fk",
+      "statementTarget": [
+        "table",
+        "core",
+        "site_post_audiences"
+      ],
+      "writes": [
+        "s|fk|core.site_post_audiences.site_post_audiences_tenant_id_post_id_fkey",
+        "n|fk|core.site_post_audiences.site_post_audiences_tenant_id_post_id_fkey",
+        "e|fk|core.site_post_audiences.site_post_audiences_tenant_id_post_id_fkey",
+        "n|con|core.site_post_audiences.site_post_audiences_tenant_id_post_id_fkey"
+      ],
+      "reads": [
+        "n|tbl|core.site_post_audiences",
+        "n|sch|core",
+        "e|col|core.site_post_audiences.tenant_id",
+        "e|col|core.site_post_audiences.post_id"
+      ]
+    },
+    {
+      "statementType": "drop_fk",
+      "statementTarget": [
+        "table",
+        "core",
+        "site_post_recipients"
+      ],
+      "writes": [
+        "s|fk|core.site_post_recipients.site_post_recipients_tenant_id_post_id_fkey",
+        "n|fk|core.site_post_recipients.site_post_recipients_tenant_id_post_id_fkey",
+        "e|fk|core.site_post_recipients.site_post_recipients_tenant_id_post_id_fkey",
+        "n|con|core.site_post_recipients.site_post_recipients_tenant_id_post_id_fkey"
+      ],
+      "reads": [
+        "n|tbl|core.site_post_recipients",
+        "n|sch|core",
+        "e|col|core.site_post_recipients.tenant_id",
+        "e|col|core.site_post_recipients.post_id"
+      ]
+    },
+    {
+      "statementType": "drop_table",
+      "statementTarget": [
+        "table",
+        "core",
+        "announcement_audiences"
+      ],
+      "writes": [
+        "s|tbl|core.announcement_audiences",
+        "n|tbl|core.announcement_audiences",
+        "e|tbl|core.announcement_audiences",
+        "n|rel|core.announcement_audiences",
+        "n|type|core.announcement_audiences"
+      ],
+      "reads": [
+        "n|sch|core"
+      ]
+    },
+    {
+      "statementType": "drop_table",
+      "statementTarget": [
+        "table",
+        "core",
+        "announcement_recipients"
+      ],
+      "writes": [
+        "s|tbl|core.announcement_recipients",
+        "n|tbl|core.announcement_recipients",
+        "e|tbl|core.announcement_recipients",
+        "n|rel|core.announcement_recipients",
+        "n|type|core.announcement_recipients"
+      ],
+      "reads": [
+        "n|sch|core"
+      ]
+    },
+    {
+      "statementType": "drop_table",
+      "statementTarget": [
+        "table",
+        "core",
+        "announcements"
+      ],
+      "writes": [
+        "s|tbl|core.announcements",
+        "n|tbl|core.announcements",
+        "e|tbl|core.announcements",
+        "n|rel|core.announcements",
+        "n|type|core.announcements"
+      ],
+      "reads": [
+        "n|sch|core"
+      ]
+    },
+    {
+      "statementType": "drop_table",
+      "statementTarget": [
+        "table",
+        "core",
+        "site_posts"
+      ],
+      "writes": [
+        "s|tbl|core.site_posts",
+        "n|tbl|core.site_posts",
+        "e|tbl|core.site_posts",
+        "n|rel|core.site_posts",
+        "n|type|core.site_posts"
+      ],
+      "reads": [
+        "n|sch|core"
+      ]
+    },
+    {
+      "statementType": "drop_table",
+      "statementTarget": [
+        "table",
+        "core",
+        "site_post_audiences"
+      ],
+      "writes": [
+        "s|tbl|core.site_post_audiences",
+        "n|tbl|core.site_post_audiences",
+        "e|tbl|core.site_post_audiences",
+        "n|rel|core.site_post_audiences",
+        "n|type|core.site_post_audiences"
+      ],
+      "reads": [
+        "n|sch|core"
+      ]
+    },
+    {
+      "statementType": "drop_table",
+      "statementTarget": [
+        "table",
+        "core",
+        "site_post_recipients"
+      ],
+      "writes": [
+        "s|tbl|core.site_post_recipients",
+        "n|tbl|core.site_post_recipients",
+        "e|tbl|core.site_post_recipients",
+        "n|rel|core.site_post_recipients",
+        "n|type|core.site_post_recipients"
+      ],
+      "reads": [
+        "n|sch|core"
+      ]
+    },
+    {
+      "statementType": "recreate_fk",
+      "statementTarget": [
+        "table",
+        "core",
+        "site_published_posts"
+      ],
+      "writes": [
+        "s|fk|core.site_published_posts.site_published_posts_tenant_id_post_id_fkey",
+        "n|fk|core.site_published_posts.site_published_posts_tenant_id_post_id_fkey",
+        "e|fk|core.site_published_posts.site_published_posts_tenant_id_post_id_fkey",
+        "n|con|core.site_published_posts.site_published_posts_tenant_id_post_id_fkey"
+      ],
+      "reads": [
+        "n|tbl|core.site_published_posts",
+        "n|sch|core",
+        "n|tbl|core.broadcasts",
+        "n|sch|core",
+        "n|col|core.site_published_posts.tenant_id",
+        "n|col|core.site_published_posts.post_id",
+        "n|col|core.broadcasts.tenant_id",
+        "n|col|core.broadcasts.id",
+        "e|uniqueness|core.broadcasts.id.tenant_id"
+      ],
+      "sqlHash": "aa4b73f643519ce3"
+    }
+  ],
+  "deltas": [
+    {
+      "op": "drop",
+      "key": "tables\u0000[\"core\",\"announcement_audiences\"]"
+    },
+    {
+      "op": "drop",
+      "key": "tables\u0000[\"core\",\"announcement_recipients\"]"
+    },
+    {
+      "op": "drop",
+      "key": "tables\u0000[\"core\",\"announcements\"]"
+    },
+    {
+      "op": "drop",
+      "key": "tables\u0000[\"core\",\"site_posts\"]"
+    },
+    {
+      "op": "drop",
+      "key": "tables\u0000[\"core\",\"site_post_audiences\"]"
+    },
+    {
+      "op": "drop",
+      "key": "tables\u0000[\"core\",\"site_post_recipients\"]"
+    },
+    {
+      "op": "drop",
+      "key": "columns\u0000[\"core\",\"announcement_audiences\",\"tenant_id\"]"
+    },
+    {
+      "op": "drop",
+      "key": "columns\u0000[\"core\",\"announcement_audiences\",\"id\"]"
+    },
+    {
+      "op": "drop",
+      "key": "columns\u0000[\"core\",\"announcement_audiences\",\"announcement_id\"]"
+    },
+    {
+      "op": "drop",
+      "key": "columns\u0000[\"core\",\"announcement_audiences\",\"scope\"]"
+    },
+    {
+      "op": "drop",
+      "key": "columns\u0000[\"core\",\"announcement_audiences\",\"class_id\"]"
+    },
+    {
+      "op": "drop",
+      "key": "columns\u0000[\"core\",\"announcement_audiences\",\"grade_descriptor_id\"]"
+    },
+    {
+      "op": "drop",
+      "key": "columns\u0000[\"core\",\"announcement_audiences\",\"grade_ns\"]"
+    },
+    {
+      "op": "drop",
+      "key": "columns\u0000[\"core\",\"announcement_audiences\",\"status\"]"
+    },
+    {
+      "op": "drop",
+      "key": "columns\u0000[\"core\",\"announcement_audiences\",\"date_last_modified\"]"
+    },
+    {
+      "op": "drop",
+      "key": "columns\u0000[\"core\",\"announcement_audiences\",\"version\"]"
+    },
+    {
+      "op": "drop",
+      "key": "columns\u0000[\"core\",\"announcement_audiences\",\"metadata\"]"
+    },
+    {
+      "op": "drop",
+      "key": "columns\u0000[\"core\",\"announcement_audiences\",\"created_at\"]"
+    },
+    {
+      "op": "drop",
+      "key": "columns\u0000[\"core\",\"announcement_recipients\",\"tenant_id\"]"
+    },
+    {
+      "op": "drop",
+      "key": "columns\u0000[\"core\",\"announcement_recipients\",\"id\"]"
+    },
+    {
+      "op": "drop",
+      "key": "columns\u0000[\"core\",\"announcement_recipients\",\"announcement_id\"]"
+    },
+    {
+      "op": "drop",
+      "key": "columns\u0000[\"core\",\"announcement_recipients\",\"user_id\"]"
+    },
+    {
+      "op": "drop",
+      "key": "columns\u0000[\"core\",\"announcement_recipients\",\"read_at\"]"
+    },
+    {
+      "op": "drop",
+      "key": "columns\u0000[\"core\",\"announcement_recipients\",\"acknowledged_at\"]"
+    },
+    {
+      "op": "drop",
+      "key": "columns\u0000[\"core\",\"announcement_recipients\",\"status\"]"
+    },
+    {
+      "op": "drop",
+      "key": "columns\u0000[\"core\",\"announcement_recipients\",\"date_last_modified\"]"
+    },
+    {
+      "op": "drop",
+      "key": "columns\u0000[\"core\",\"announcement_recipients\",\"version\"]"
+    },
+    {
+      "op": "drop",
+      "key": "columns\u0000[\"core\",\"announcement_recipients\",\"metadata\"]"
+    },
+    {
+      "op": "drop",
+      "key": "columns\u0000[\"core\",\"announcement_recipients\",\"created_at\"]"
+    },
+    {
+      "op": "drop",
+      "key": "columns\u0000[\"core\",\"announcements\",\"tenant_id\"]"
+    },
+    {
+      "op": "drop",
+      "key": "columns\u0000[\"core\",\"announcements\",\"id\"]"
+    },
+    {
+      "op": "drop",
+      "key": "columns\u0000[\"core\",\"announcements\",\"org_id\"]"
+    },
+    {
+      "op": "drop",
+      "key": "columns\u0000[\"core\",\"announcements\",\"urgency\"]"
+    },
+    {
+      "op": "drop",
+      "key": "columns\u0000[\"core\",\"announcements\",\"state\"]"
+    },
+    {
+      "op": "drop",
+      "key": "columns\u0000[\"core\",\"announcements\",\"publish_at\"]"
+    },
+    {
+      "op": "drop",
+      "key": "columns\u0000[\"core\",\"announcements\",\"pinned_until\"]"
+    },
+    {
+      "op": "drop",
+      "key": "columns\u0000[\"core\",\"announcements\",\"expires_on\"]"
+    },
+    {
+      "op": "drop",
+      "key": "columns\u0000[\"core\",\"announcements\",\"requires_ack\"]"
+    },
+    {
+      "op": "drop",
+      "key": "columns\u0000[\"core\",\"announcements\",\"ack_due_on\"]"
+    },
+    {
+      "op": "drop",
+      "key": "columns\u0000[\"core\",\"announcements\",\"author_user_id\"]"
+    },
+    {
+      "op": "drop",
+      "key": "columns\u0000[\"core\",\"announcements\",\"update_sent_at\"]"
+    },
+    {
+      "op": "drop",
+      "key": "columns\u0000[\"core\",\"announcements\",\"status\"]"
+    },
+    {
+      "op": "drop",
+      "key": "columns\u0000[\"core\",\"announcements\",\"date_last_modified\"]"
+    },
+    {
+      "op": "drop",
+      "key": "columns\u0000[\"core\",\"announcements\",\"version\"]"
+    },
+    {
+      "op": "drop",
+      "key": "columns\u0000[\"core\",\"announcements\",\"metadata\"]"
+    },
+    {
+      "op": "drop",
+      "key": "columns\u0000[\"core\",\"announcements\",\"created_at\"]"
+    },
+    {
+      "op": "drop",
+      "key": "columns\u0000[\"core\",\"site_posts\",\"tenant_id\"]"
+    },
+    {
+      "op": "drop",
+      "key": "columns\u0000[\"core\",\"site_posts\",\"id\"]"
+    },
+    {
+      "op": "drop",
+      "key": "columns\u0000[\"core\",\"site_posts\",\"org_id\"]"
+    },
+    {
+      "op": "drop",
+      "key": "columns\u0000[\"core\",\"site_posts\",\"category_id\"]"
+    },
+    {
+      "op": "drop",
+      "key": "columns\u0000[\"core\",\"site_posts\",\"slug\"]"
+    },
+    {
+      "op": "drop",
+      "key": "columns\u0000[\"core\",\"site_posts\",\"title_en\"]"
+    },
+    {
+      "op": "drop",
+      "key": "columns\u0000[\"core\",\"site_posts\",\"title_ar\"]"
+    },
+    {
+      "op": "drop",
+      "key": "columns\u0000[\"core\",\"site_posts\",\"excerpt_en\"]"
+    },
+    {
+      "op": "drop",
+      "key": "columns\u0000[\"core\",\"site_posts\",\"excerpt_ar\"]"
+    },
+    {
+      "op": "drop",
+      "key": "columns\u0000[\"core\",\"site_posts\",\"pinned\"]"
+    },
+    {
+      "op": "drop",
+      "key": "columns\u0000[\"core\",\"site_posts\",\"state\"]"
+    },
+    {
+      "op": "drop",
+      "key": "columns\u0000[\"core\",\"site_posts\",\"published_at\"]"
+    },
+    {
+      "op": "drop",
+      "key": "columns\u0000[\"core\",\"site_posts\",\"revised_at\"]"
+    },
+    {
+      "op": "drop",
+      "key": "columns\u0000[\"core\",\"site_posts\",\"author_user_id\"]"
+    },
+    {
+      "op": "drop",
+      "key": "columns\u0000[\"core\",\"site_posts\",\"status\"]"
+    },
+    {
+      "op": "drop",
+      "key": "columns\u0000[\"core\",\"site_posts\",\"date_last_modified\"]"
+    },
+    {
+      "op": "drop",
+      "key": "columns\u0000[\"core\",\"site_posts\",\"version\"]"
+    },
+    {
+      "op": "drop",
+      "key": "columns\u0000[\"core\",\"site_posts\",\"metadata\"]"
+    },
+    {
+      "op": "drop",
+      "key": "columns\u0000[\"core\",\"site_posts\",\"created_at\"]"
+    },
+    {
+      "op": "drop",
+      "key": "columns\u0000[\"core\",\"site_post_audiences\",\"tenant_id\"]"
+    },
+    {
+      "op": "drop",
+      "key": "columns\u0000[\"core\",\"site_post_audiences\",\"id\"]"
+    },
+    {
+      "op": "drop",
+      "key": "columns\u0000[\"core\",\"site_post_audiences\",\"post_id\"]"
+    },
+    {
+      "op": "drop",
+      "key": "columns\u0000[\"core\",\"site_post_audiences\",\"scope\"]"
+    },
+    {
+      "op": "drop",
+      "key": "columns\u0000[\"core\",\"site_post_audiences\",\"class_id\"]"
+    },
+    {
+      "op": "drop",
+      "key": "columns\u0000[\"core\",\"site_post_audiences\",\"grade_descriptor_id\"]"
+    },
+    {
+      "op": "drop",
+      "key": "columns\u0000[\"core\",\"site_post_audiences\",\"grade_ns\"]"
+    },
+    {
+      "op": "drop",
+      "key": "columns\u0000[\"core\",\"site_post_audiences\",\"status\"]"
+    },
+    {
+      "op": "drop",
+      "key": "columns\u0000[\"core\",\"site_post_audiences\",\"date_last_modified\"]"
+    },
+    {
+      "op": "drop",
+      "key": "columns\u0000[\"core\",\"site_post_audiences\",\"version\"]"
+    },
+    {
+      "op": "drop",
+      "key": "columns\u0000[\"core\",\"site_post_audiences\",\"metadata\"]"
+    },
+    {
+      "op": "drop",
+      "key": "columns\u0000[\"core\",\"site_post_audiences\",\"created_at\"]"
+    },
+    {
+      "op": "drop",
+      "key": "columns\u0000[\"core\",\"site_post_recipients\",\"tenant_id\"]"
+    },
+    {
+      "op": "drop",
+      "key": "columns\u0000[\"core\",\"site_post_recipients\",\"id\"]"
+    },
+    {
+      "op": "drop",
+      "key": "columns\u0000[\"core\",\"site_post_recipients\",\"post_id\"]"
+    },
+    {
+      "op": "drop",
+      "key": "columns\u0000[\"core\",\"site_post_recipients\",\"user_id\"]"
+    },
+    {
+      "op": "drop",
+      "key": "columns\u0000[\"core\",\"site_post_recipients\",\"read_at\"]"
+    },
+    {
+      "op": "drop",
+      "key": "columns\u0000[\"core\",\"site_post_recipients\",\"status\"]"
+    },
+    {
+      "op": "drop",
+      "key": "columns\u0000[\"core\",\"site_post_recipients\",\"date_last_modified\"]"
+    },
+    {
+      "op": "drop",
+      "key": "columns\u0000[\"core\",\"site_post_recipients\",\"version\"]"
+    },
+    {
+      "op": "drop",
+      "key": "columns\u0000[\"core\",\"site_post_recipients\",\"metadata\"]"
+    },
+    {
+      "op": "drop",
+      "key": "columns\u0000[\"core\",\"site_post_recipients\",\"created_at\"]"
+    },
+    {
+      "op": "drop",
+      "key": "columns\u0000[\"core\",\"site_posts\",\"visibility\"]"
+    },
+    {
+      "op": "drop",
+      "key": "columns\u0000[\"core\",\"site_posts\",\"translation_reviewed_at\"]"
+    },
+    {
+      "op": "drop",
+      "key": "columns\u0000[\"core\",\"site_posts\",\"translation_reviewed_by_user_id\"]"
+    },
+    {
+      "op": "drop",
+      "key": "columns\u0000[\"core\",\"site_posts\",\"translation_source_digest\"]"
+    },
+    {
+      "op": "drop",
+      "key": "columns\u0000[\"core\",\"announcements\",\"title_en\"]"
+    },
+    {
+      "op": "drop",
+      "key": "columns\u0000[\"core\",\"announcements\",\"title_ar\"]"
+    },
+    {
+      "op": "drop",
+      "key": "columns\u0000[\"core\",\"announcements\",\"translation_reviewed_at\"]"
+    },
+    {
+      "op": "drop",
+      "key": "columns\u0000[\"core\",\"announcements\",\"translation_reviewed_by_user_id\"]"
+    },
+    {
+      "op": "drop",
+      "key": "columns\u0000[\"core\",\"announcements\",\"translation_source_digest\"]"
+    },
+    {
+      "op": "drop",
+      "key": "columns\u0000[\"core\",\"site_posts\",\"cover_file_id\"]"
+    },
+    {
+      "op": "drop",
+      "key": "columns\u0000[\"core\",\"site_posts\",\"cover_alt_en\"]"
+    },
+    {
+      "op": "drop",
+      "key": "columns\u0000[\"core\",\"site_posts\",\"cover_alt_ar\"]"
+    },
+    {
+      "op": "drop",
+      "key": "indexes\u0000[\"core\",\"announcement_audiences_announcement_idx\"]"
+    },
+    {
+      "op": "drop",
+      "key": "indexes\u0000[\"core\",\"announcement_recipients_key\"]"
+    },
+    {
+      "op": "drop",
+      "key": "indexes\u0000[\"core\",\"announcement_recipients_user_idx\"]"
+    },
+    {
+      "op": "drop",
+      "key": "indexes\u0000[\"core\",\"announcements_org_idx\"]"
+    },
+    {
+      "op": "drop",
+      "key": "indexes\u0000[\"core\",\"site_posts_slug_key\"]"
+    },
+    {
+      "op": "drop",
+      "key": "indexes\u0000[\"core\",\"site_posts_org_idx\"]"
+    },
+    {
+      "op": "drop",
+      "key": "indexes\u0000[\"core\",\"site_post_audiences_post_idx\"]"
+    },
+    {
+      "op": "drop",
+      "key": "indexes\u0000[\"core\",\"site_post_recipients_key\"]"
+    },
+    {
+      "op": "drop",
+      "key": "indexes\u0000[\"core\",\"site_post_recipients_user_idx\"]"
+    },
+    {
+      "op": "drop",
+      "key": "fks\u0000[\"core\",\"announcement_audiences\",\"announcement_audiences_tenant_id_fkey\"]"
+    },
+    {
+      "op": "drop",
+      "key": "fks\u0000[\"core\",\"announcement_audiences\",\"announcement_audiences_tenant_id_announcement_id_fkey\"]"
+    },
+    {
+      "op": "drop",
+      "key": "fks\u0000[\"core\",\"announcement_audiences\",\"announcement_audiences_tenant_id_class_id_fkey\"]"
+    },
+    {
+      "op": "drop",
+      "key": "fks\u0000[\"core\",\"announcement_audiences\",\"announcement_audiences_tenant_id_grade_descriptor_id_grade_fkey\"]"
+    },
+    {
+      "op": "drop",
+      "key": "fks\u0000[\"core\",\"announcement_recipients\",\"announcement_recipients_tenant_id_fkey\"]"
+    },
+    {
+      "op": "drop",
+      "key": "fks\u0000[\"core\",\"announcement_recipients\",\"announcement_recipients_tenant_id_announcement_id_fkey\"]"
+    },
+    {
+      "op": "drop",
+      "key": "fks\u0000[\"core\",\"announcement_recipients\",\"announcement_recipients_tenant_id_user_id_fkey\"]"
+    },
+    {
+      "op": "drop",
+      "key": "fks\u0000[\"core\",\"announcements\",\"announcements_tenant_id_fkey\"]"
+    },
+    {
+      "op": "drop",
+      "key": "fks\u0000[\"core\",\"announcements\",\"announcements_tenant_id_org_id_fkey\"]"
+    },
+    {
+      "op": "drop",
+      "key": "fks\u0000[\"core\",\"announcements\",\"announcements_tenant_id_author_user_id_fkey\"]"
+    },
+    {
+      "op": "drop",
+      "key": "fks\u0000[\"core\",\"site_posts\",\"site_posts_tenant_id_fkey\"]"
+    },
+    {
+      "op": "drop",
+      "key": "fks\u0000[\"core\",\"site_posts\",\"site_posts_tenant_id_org_id_fkey\"]"
+    },
+    {
+      "op": "drop",
+      "key": "fks\u0000[\"core\",\"site_posts\",\"site_posts_tenant_id_category_id_fkey\"]"
+    },
+    {
+      "op": "drop",
+      "key": "fks\u0000[\"core\",\"site_posts\",\"site_posts_tenant_id_author_user_id_fkey\"]"
+    },
+    {
+      "op": "drop",
+      "key": "fks\u0000[\"core\",\"site_post_audiences\",\"site_post_audiences_tenant_id_fkey\"]"
+    },
+    {
+      "op": "drop",
+      "key": "fks\u0000[\"core\",\"site_post_audiences\",\"site_post_audiences_tenant_id_post_id_fkey\"]"
+    },
+    {
+      "op": "drop",
+      "key": "fks\u0000[\"core\",\"site_post_audiences\",\"site_post_audiences_tenant_id_class_id_fkey\"]"
+    },
+    {
+      "op": "drop",
+      "key": "fks\u0000[\"core\",\"site_post_audiences\",\"site_post_audiences_tenant_id_grade_descriptor_id_grade_ns_fkey\"]"
+    },
+    {
+      "op": "drop",
+      "key": "fks\u0000[\"core\",\"site_post_recipients\",\"site_post_recipients_tenant_id_fkey\"]"
+    },
+    {
+      "op": "drop",
+      "key": "fks\u0000[\"core\",\"site_post_recipients\",\"site_post_recipients_tenant_id_post_id_fkey\"]"
+    },
+    {
+      "op": "drop",
+      "key": "fks\u0000[\"core\",\"site_post_recipients\",\"site_post_recipients_tenant_id_user_id_fkey\"]"
+    },
+    {
+      "op": "drop",
+      "key": "fks\u0000[\"core\",\"site_posts\",\"site_posts_tenant_id_translation_reviewed_by_user_id_fkey\"]"
+    },
+    {
+      "op": "drop",
+      "key": "fks\u0000[\"core\",\"announcements\",\"announcements_tenant_id_translation_reviewed_by_user_id_fkey\"]"
+    },
+    {
+      "op": "drop",
+      "key": "fks\u0000[\"core\",\"site_posts\",\"site_posts_tenant_id_cover_file_id_fkey\"]"
+    },
+    {
+      "op": "drop",
+      "key": "pks\u0000[\"core\",\"announcement_audiences\",\"announcement_audiences_pkey\"]"
+    },
+    {
+      "op": "drop",
+      "key": "pks\u0000[\"core\",\"announcement_recipients\",\"announcement_recipients_pkey\"]"
+    },
+    {
+      "op": "drop",
+      "key": "pks\u0000[\"core\",\"announcements\",\"announcements_pkey\"]"
+    },
+    {
+      "op": "drop",
+      "key": "pks\u0000[\"core\",\"site_posts\",\"site_posts_pkey\"]"
+    },
+    {
+      "op": "drop",
+      "key": "pks\u0000[\"core\",\"site_post_audiences\",\"site_post_audiences_pkey\"]"
+    },
+    {
+      "op": "drop",
+      "key": "pks\u0000[\"core\",\"site_post_recipients\",\"site_post_recipients_pkey\"]"
+    },
+    {
+      "op": "drop",
+      "key": "checks\u0000[\"core\",\"announcement_audiences\",\"announcement_audiences_status_check\"]"
+    },
+    {
+      "op": "drop",
+      "key": "checks\u0000[\"core\",\"announcement_audiences\",\"announcement_audiences_version_check\"]"
+    },
+    {
+      "op": "drop",
+      "key": "checks\u0000[\"core\",\"announcement_audiences\",\"announcement_audiences_metadata_check\"]"
+    },
+    {
+      "op": "drop",
+      "key": "checks\u0000[\"core\",\"announcement_audiences\",\"announcement_audiences_scope_check\"]"
+    },
+    {
+      "op": "drop",
+      "key": "checks\u0000[\"core\",\"announcement_audiences\",\"announcement_audiences_grade_ns_check\"]"
+    },
+    {
+      "op": "drop",
+      "key": "checks\u0000[\"core\",\"announcement_audiences\",\"announcement_audiences_target_check\"]"
+    },
+    {
+      "op": "drop",
+      "key": "checks\u0000[\"core\",\"announcement_recipients\",\"announcement_recipients_status_check\"]"
+    },
+    {
+      "op": "drop",
+      "key": "checks\u0000[\"core\",\"announcement_recipients\",\"announcement_recipients_version_check\"]"
+    },
+    {
+      "op": "drop",
+      "key": "checks\u0000[\"core\",\"announcement_recipients\",\"announcement_recipients_metadata_check\"]"
+    },
+    {
+      "op": "drop",
+      "key": "checks\u0000[\"core\",\"announcements\",\"announcements_status_check\"]"
+    },
+    {
+      "op": "drop",
+      "key": "checks\u0000[\"core\",\"announcements\",\"announcements_version_check\"]"
+    },
+    {
+      "op": "drop",
+      "key": "checks\u0000[\"core\",\"announcements\",\"announcements_metadata_check\"]"
+    },
+    {
+      "op": "drop",
+      "key": "checks\u0000[\"core\",\"announcements\",\"announcements_title_check\"]"
+    },
+    {
+      "op": "drop",
+      "key": "checks\u0000[\"core\",\"announcements\",\"announcements_urgency_check\"]"
+    },
+    {
+      "op": "drop",
+      "key": "checks\u0000[\"core\",\"announcements\",\"announcements_state_check\"]"
+    },
+    {
+      "op": "drop",
+      "key": "checks\u0000[\"core\",\"announcements\",\"announcements_publish_at_check\"]"
+    },
+    {
+      "op": "drop",
+      "key": "checks\u0000[\"core\",\"announcements\",\"announcements_ack_due_on_check\"]"
+    },
+    {
+      "op": "drop",
+      "key": "checks\u0000[\"core\",\"site_posts\",\"site_posts_status_check\"]"
+    },
+    {
+      "op": "drop",
+      "key": "checks\u0000[\"core\",\"site_posts\",\"site_posts_version_check\"]"
+    },
+    {
+      "op": "drop",
+      "key": "checks\u0000[\"core\",\"site_posts\",\"site_posts_metadata_check\"]"
+    },
+    {
+      "op": "drop",
+      "key": "checks\u0000[\"core\",\"site_posts\",\"site_posts_slug_check\"]"
+    },
+    {
+      "op": "drop",
+      "key": "checks\u0000[\"core\",\"site_posts\",\"site_posts_title_check\"]"
+    },
+    {
+      "op": "drop",
+      "key": "checks\u0000[\"core\",\"site_posts\",\"site_posts_excerpt_check\"]"
+    },
+    {
+      "op": "drop",
+      "key": "checks\u0000[\"core\",\"site_posts\",\"site_posts_state_check\"]"
+    },
+    {
+      "op": "drop",
+      "key": "checks\u0000[\"core\",\"site_posts\",\"site_posts_published_at_check\"]"
+    },
+    {
+      "op": "drop",
+      "key": "checks\u0000[\"core\",\"site_post_audiences\",\"site_post_audiences_status_check\"]"
+    },
+    {
+      "op": "drop",
+      "key": "checks\u0000[\"core\",\"site_post_audiences\",\"site_post_audiences_version_check\"]"
+    },
+    {
+      "op": "drop",
+      "key": "checks\u0000[\"core\",\"site_post_audiences\",\"site_post_audiences_metadata_check\"]"
+    },
+    {
+      "op": "drop",
+      "key": "checks\u0000[\"core\",\"site_post_audiences\",\"site_post_audiences_scope_check\"]"
+    },
+    {
+      "op": "drop",
+      "key": "checks\u0000[\"core\",\"site_post_audiences\",\"site_post_audiences_grade_ns_check\"]"
+    },
+    {
+      "op": "drop",
+      "key": "checks\u0000[\"core\",\"site_post_audiences\",\"site_post_audiences_target_check\"]"
+    },
+    {
+      "op": "drop",
+      "key": "checks\u0000[\"core\",\"site_post_recipients\",\"site_post_recipients_status_check\"]"
+    },
+    {
+      "op": "drop",
+      "key": "checks\u0000[\"core\",\"site_post_recipients\",\"site_post_recipients_version_check\"]"
+    },
+    {
+      "op": "drop",
+      "key": "checks\u0000[\"core\",\"site_post_recipients\",\"site_post_recipients_metadata_check\"]"
+    },
+    {
+      "op": "drop",
+      "key": "checks\u0000[\"core\",\"site_posts\",\"site_posts_visibility_check\"]"
+    },
+    {
+      "op": "drop",
+      "key": "checks\u0000[\"core\",\"site_posts\",\"site_posts_translation_review_check\"]"
+    },
+    {
+      "op": "drop",
+      "key": "checks\u0000[\"core\",\"announcements\",\"announcements_translation_review_check\"]"
+    },
+    {
+      "op": "drop",
+      "key": "checks\u0000[\"core\",\"site_posts\",\"site_posts_cover_alt_check\"]"
+    },
+    {
+      "op": "drop",
+      "key": "policies\u0000[\"core\",\"announcement_audiences\",\"tenant_isolation\"]"
+    },
+    {
+      "op": "drop",
+      "key": "policies\u0000[\"core\",\"announcement_audiences\",\"owner_all\"]"
+    },
+    {
+      "op": "drop",
+      "key": "policies\u0000[\"core\",\"announcement_audiences\",\"p_select\"]"
+    },
+    {
+      "op": "drop",
+      "key": "policies\u0000[\"core\",\"announcement_audiences\",\"p_insert\"]"
+    },
+    {
+      "op": "drop",
+      "key": "policies\u0000[\"core\",\"announcement_audiences\",\"p_update\"]"
+    },
+    {
+      "op": "drop",
+      "key": "policies\u0000[\"core\",\"announcement_recipients\",\"tenant_isolation\"]"
+    },
+    {
+      "op": "drop",
+      "key": "policies\u0000[\"core\",\"announcement_recipients\",\"owner_all\"]"
+    },
+    {
+      "op": "drop",
+      "key": "policies\u0000[\"core\",\"announcement_recipients\",\"p_select\"]"
+    },
+    {
+      "op": "drop",
+      "key": "policies\u0000[\"core\",\"announcement_recipients\",\"p_insert\"]"
+    },
+    {
+      "op": "drop",
+      "key": "policies\u0000[\"core\",\"announcement_recipients\",\"p_update\"]"
+    },
+    {
+      "op": "drop",
+      "key": "policies\u0000[\"core\",\"announcements\",\"tenant_isolation\"]"
+    },
+    {
+      "op": "drop",
+      "key": "policies\u0000[\"core\",\"announcements\",\"owner_all\"]"
+    },
+    {
+      "op": "drop",
+      "key": "policies\u0000[\"core\",\"announcements\",\"p_select\"]"
+    },
+    {
+      "op": "drop",
+      "key": "policies\u0000[\"core\",\"announcements\",\"p_insert\"]"
+    },
+    {
+      "op": "drop",
+      "key": "policies\u0000[\"core\",\"announcements\",\"p_update\"]"
+    },
+    {
+      "op": "drop",
+      "key": "policies\u0000[\"core\",\"site_posts\",\"tenant_isolation\"]"
+    },
+    {
+      "op": "drop",
+      "key": "policies\u0000[\"core\",\"site_posts\",\"owner_all\"]"
+    },
+    {
+      "op": "drop",
+      "key": "policies\u0000[\"core\",\"site_posts\",\"p_select\"]"
+    },
+    {
+      "op": "drop",
+      "key": "policies\u0000[\"core\",\"site_posts\",\"p_insert\"]"
+    },
+    {
+      "op": "drop",
+      "key": "policies\u0000[\"core\",\"site_posts\",\"p_update\"]"
+    },
+    {
+      "op": "drop",
+      "key": "policies\u0000[\"core\",\"site_post_audiences\",\"tenant_isolation\"]"
+    },
+    {
+      "op": "drop",
+      "key": "policies\u0000[\"core\",\"site_post_audiences\",\"owner_all\"]"
+    },
+    {
+      "op": "drop",
+      "key": "policies\u0000[\"core\",\"site_post_audiences\",\"p_select\"]"
+    },
+    {
+      "op": "drop",
+      "key": "policies\u0000[\"core\",\"site_post_audiences\",\"p_insert\"]"
+    },
+    {
+      "op": "drop",
+      "key": "policies\u0000[\"core\",\"site_post_audiences\",\"p_update\"]"
+    },
+    {
+      "op": "drop",
+      "key": "policies\u0000[\"core\",\"site_post_recipients\",\"tenant_isolation\"]"
+    },
+    {
+      "op": "drop",
+      "key": "policies\u0000[\"core\",\"site_post_recipients\",\"owner_all\"]"
+    },
+    {
+      "op": "drop",
+      "key": "policies\u0000[\"core\",\"site_post_recipients\",\"p_select\"]"
+    },
+    {
+      "op": "drop",
+      "key": "policies\u0000[\"core\",\"site_post_recipients\",\"p_insert\"]"
+    },
+    {
+      "op": "drop",
+      "key": "policies\u0000[\"core\",\"site_post_recipients\",\"p_update\"]"
+    },
+    {
+      "op": "alter",
+      "key": "fks\u0000[\"core\",\"site_published_posts\",\"site_published_posts_tenant_id_post_id_fkey\"]",
+      "set": {
+        "tableTo": "broadcasts"
+      }
+    }
+  ]
+}

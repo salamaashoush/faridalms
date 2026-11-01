@@ -3,13 +3,6 @@ import * as v from "valibot";
 import { contentDocumentSchema } from "./content";
 import { CONTENT_LOCALES } from "./translations";
 
-export const ANNOUNCEMENT_STATES = [
-  "draft",
-  "scheduled",
-  "published",
-  "archived",
-] as const;
-export type AnnouncementState = (typeof ANNOUNCEMENT_STATES)[number];
 export const URGENCIES = ["normal", "important", "urgent"] as const;
 export type Urgency = (typeof URGENCIES)[number];
 export const AUDIENCE_SCOPES = [
@@ -104,8 +97,10 @@ export const publishAnnouncementSchema = v.object({
     v.union([v.literal(""), v.pipe(v.string(), v.isoTimestamp())]),
     "",
   ),
-  /** For a published announcement: tell recipients it changed. */
+  /** For a published announcement: replace what its recipients read. */
   sendUpdate: v.optional(v.boolean(), false),
+  /** With an update: replace it without telling them or showing it unread again. */
+  quietly: v.optional(v.boolean(), false),
 });
 
 export const archiveAnnouncementSchema = v.object({

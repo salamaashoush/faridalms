@@ -1,5 +1,6 @@
 import type { ContentDocument, ContentNode } from "./content";
 
+import { holdsSuggestions } from "./content";
 import { isVagueLink } from "./site-links";
 
 /**
@@ -14,7 +15,11 @@ export const CONTENT_ISSUE_CODE = {
   alt: "content.alt",
   order: "content.order",
   link: "content.link",
-} as const satisfies { [Issue in ContentIssue]: `content.${Issue}` };
+  heading: "content.heading",
+  captions: "content.captions",
+  unreviewed: "content.unreviewed",
+  consent: "content.consent",
+} as const satisfies { [Issue in PublishIssue]: `content.${Issue}` };
 
 const LEVEL: Partial<Record<NonNullable<ContentNode["tag"]>, number>> = {
   h1: 1,
@@ -76,4 +81,57 @@ export function hasFirstLevelHeading(document: ContentDocument): boolean {
     if (node.children) pending.push(...node.children);
   }
   return false;
+}
+
+/**
+ * Whether a document plays a video without captions, or audio with neither
+ * captions nor a transcript, which a reader who cannot hear it would miss.
+ */
+export function holdsUncaptioned(document: ContentDocument): boolean {
+  const pending: ContentNode[] = [document.root];
+  for (let node = pending.pop(); node; node = pending.pop()) {
+    if (
+      node.type === "media" &&
+      !node.captionsFileId &&
+      ((node.mime ?? "").startsWith("video/") || !node.transcript)
+    )
+      return true;
+    if (node.children) pending.push(...node.children);
+  }
+  return false;
+}
+
+/**
+ * What stops a document going out to its readers, whichever host publishes
+ * it. Who a picture shows is checked against consent by the publishing
+ * system, which holds the answers, and reported as `consent`.
+ */
+export type PublishIssue =
+  | ContentIssue
+  | "heading"
+  | "captions"
+  | "unreviewed"
+  | "consent";
+
+export interface PublishRules {
+  /**
+   * Words shown under a heading of their own, as a section of a website page
+   * or a post on the website: a first-level heading competes with it, and the
+   * outline is the page's rather than the document's.
+   */
+  underHeading?: boolean;
+}
+
+export function publishIssues(
+  document: ContentDocument,
+  rules: PublishRules = {},
+): PublishIssue[] {
+  const found = new Set<PublishIssue>(contentIssues(document));
+  if (rules.underHeading) {
+    found.delete("order");
+    if (hasFirstLevelHeading(document)) found.add("heading");
+  }
+  if (holdsUncaptioned(document)) found.add("captions");
+  if (holdsSuggestions(document)) found.add("unreviewed");
+  return [...found];
 }

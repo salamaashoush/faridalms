@@ -127,7 +127,7 @@ const FORBIDDEN_IN_MIGRATIONS = [
 ];
 // Migrations from the one reach model on call its functions rather than
 // writing the rules out again.
-const REACH_MODEL = "20261101152025_reach_model";
+const REACH_MODEL = "20261101162307_reach_model";
 for (const folder of Object.values(MIGRATIONS))
   for await (const path of new Glob(`${folder}/*/migration.sql`).scan(".")) {
     const text = await Bun.file(path).text();

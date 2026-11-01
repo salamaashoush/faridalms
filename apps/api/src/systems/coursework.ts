@@ -36,6 +36,7 @@ import {
   attemptFromVersion,
   attemptsOf,
   bankCommentById,
+  openedUntold,
   bankCommentsOf,
   commentById,
   commentsOf,
@@ -88,6 +89,7 @@ import {
   publishedVersion,
   saveDocument,
   saveTranslation,
+  snapshotPublish,
   translationOf,
 } from "@faridalms/database/stores/documents";
 import {
@@ -164,7 +166,7 @@ import {
   learnerState,
   markQuizAnswerSchema,
   practiseQuizSchema,
-  publishIssues,
+  assignIssues,
   removeCommentSchema,
   replyToCommentSchema,
   restoreCommentSchema,
@@ -208,6 +210,7 @@ import {
 } from "@faridalms/domain/lesson-content";
 import { translatedQuiz } from "@faridalms/domain/lesson-translation";
 import { practised, practiceStanding } from "@faridalms/domain/practice";
+import { isLater } from "@faridalms/domain/publication";
 import {
   documentWritten,
   otherLocale,
@@ -245,6 +248,7 @@ import {
   schoolProcedure,
   writeProcedure,
 } from "../core/procedure";
+import { registerGoLive, tellLive, wordsIssues } from "../core/publication";
 import {
   reachesStudent,
   requireStudent,
@@ -462,6 +466,27 @@ registerLiveRules("assignment", {
   keyed: async (context, hostId) =>
     (await assignmentById(context.tx, context.tenantId, hostId))
       ?.submissionFormat === "quiz",
+});
+
+/**
+ * Work assigned to open later goes live when it opens: its students and
+ * their families are told as its teacher would have been heard on assigning
+ * it, and so is anyone its brief mentions.
+ */
+registerGoLive<AssignmentRow>("assignment", {
+  due: (tx, input) => openedUntold(tx, input),
+  schoolOf: (row) => row.orgId,
+  authorOf: (row) => row.authorUserId,
+  live: async (scope, row) => {
+    await tellAssigned(scope, row);
+    await tellLive(
+      scope,
+      { type: "assignment", id: row.id },
+      {
+        title: row.title,
+      },
+    );
+  },
 });
 registerHostReader("submission", (context, hostId) =>
   readable(context, { type: "submission", id: hostId }),
@@ -1085,18 +1110,30 @@ export const publish = writeProcedure
             blocks: [],
           })
         : null;
-    const issues = publishIssues({
-      brief: (brief?.content ?? {
-        root: { children: [] },
-      }) as unknown as ContentDocument,
+    const briefContent = (brief?.content ?? {
+      root: { children: [] },
+    }) as unknown as ContentDocument;
+    const issues = assignIssues({
+      brief: briefContent,
       audience: assignment.audience,
       groupIds: selection.groupIds,
       studentIds: selection.studentIds,
       quiz,
     });
     if (issues[0]) throw new ORPCError("BAD_REQUEST", { message: issues[0] });
+    if ((await wordsIssues(context, [briefContent])).includes("consent"))
+      throw new ORPCError("BAD_REQUEST", { message: "content.consent" });
     if (quiz) await requireDrawable(context, quiz, assignment.authorUserId);
-    if (brief)
+    // Work that opens later is told about when it opens, by the clock, and
+    // so are the people its brief mentions.
+    const opensLater = isLater(assignment.availableFrom, context.now);
+    if (brief && opensLater)
+      await snapshotPublish(tx, {
+        tenantId: context.tenantId,
+        documentId: brief.id,
+        userId: context.actor.userId,
+      });
+    else if (brief)
       await publishTelling(context, {
         documentId: brief.id,
         subject: { type: "assignment", id: assignment.id },
@@ -1125,12 +1162,7 @@ export const publish = writeProcedure
     });
     if (!saved)
       throw new ORPCError("CONFLICT", { message: "conflict.version" });
-    // Work that opens later is told about when it opens, by the clock.
-    if (
-      !assignment.availableFrom ||
-      Date.parse(assignment.availableFrom) <= context.now.getTime()
-    )
-      await tellAssigned(teachingScope(context), assignment);
+    if (!opensLater) await tellAssigned(teachingScope(context), assignment);
     await audit(context, {
       action: "assignment.publish",
       objectType: "assignment",

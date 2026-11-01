@@ -238,11 +238,11 @@ function NewsPostPage() {
       label: m.annAuthor(),
       value: inLocale(data.authorNameEn, data.authorNameAr),
     },
-    ...(data.publishedAt
+    ...(data.publishAt
       ? [
           {
             label: scheduled ? m.newsGoesOut() : m.annSent(),
-            value: formatInstant(data.publishedAt),
+            value: formatInstant(data.publishAt),
           },
         ]
       : []),

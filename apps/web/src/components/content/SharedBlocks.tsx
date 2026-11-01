@@ -185,11 +185,11 @@ const USE_KIND: Record<Use["hostType"], () => string> = {
   assignment: m.libraryKindAssignment,
   module_plan: m.libraryKindPlan,
   announcement: m.libraryKindAnnouncement,
-  site_post: m.libraryKindNews,
+  news: m.libraryKindNews,
   site_page: m.sharedUsePage,
 };
 
-const WEBSITE = new Set<Use["hostType"]>(["site_page", "site_post"]);
+const WEBSITE = new Set<Use["hostType"]>(["site_page", "news"]);
 
 /** Which documents show a shared block, named on request, so a change is made knowing what it reaches. */
 function SharedUses({ id }: { id: string }) {

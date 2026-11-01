@@ -1,16 +1,19 @@
+import type { PublishedVersion } from "@faridalms/database/stores/documents";
 import type { ContentDocument } from "@faridalms/domain/content";
 
 import { reachedAmong } from "@faridalms/database/stores/audiences";
 import { namesOf } from "@faridalms/database/stores/coursework";
 import {
   publishedVersion,
+  publishedVersions,
   snapshotPublish,
 } from "@faridalms/database/stores/documents";
 import { contentMentions } from "@faridalms/domain/content";
 
 import type { UnitContext } from "./context";
+import type { NoticeScope } from "./notify";
 
-import { notify } from "./notify";
+import { notifyIn } from "./notify";
 
 const peopleIn = (content: Record<string, unknown> | undefined) =>
   content
@@ -18,6 +21,41 @@ const peopleIn = (content: Record<string, unknown> | undefined) =>
         .filter((mention) => mention.kind === "person")
         .map((mention) => mention.id)
     : [];
+
+interface Telling {
+  documentId: string;
+  subject: { type: string; id: string };
+  title: string;
+  titleAr?: string;
+}
+
+/** Tells the people `after` mentions that `before` did not, as its author. */
+async function tellFresh(
+  scope: NoticeScope & { today: string; actorUserId: string },
+  before: PublishedVersion | null,
+  after: PublishedVersion,
+  input: Telling,
+): Promise<void> {
+  const told = new Set(peopleIn(before?.content));
+  const fresh = peopleIn(after.content).filter((id) => !told.has(id));
+  const people = await reachedAmong(
+    scope.tx,
+    { tenantId: scope.tenantId, schoolId: scope.schoolId, on: scope.today },
+    fresh,
+  );
+  if (people.length === 0) return;
+  const [author] = await namesOf(scope.tx, scope.tenantId, [scope.actorUserId]);
+  await notifyIn(scope, people, {
+    kind: "mention",
+    subject: input.subject,
+    params: {
+      title: input.title,
+      ...(input.titleAr ? { titleAr: input.titleAr } : {}),
+      actorName: author?.fullNameEn ?? author?.fullNameAr ?? "",
+      actorNameAr: author?.fullNameAr ?? author?.fullNameEn ?? "",
+    },
+  });
+}
 
 /**
  * Snapshots a document as its readers now see it, and tells each person
@@ -27,12 +65,7 @@ const peopleIn = (content: Record<string, unknown> | undefined) =>
  */
 export async function publishTelling(
   context: UnitContext,
-  input: {
-    documentId: string;
-    subject: { type: string; id: string };
-    title: string;
-    titleAr?: string;
-  },
+  input: Telling,
 ): Promise<void> {
   const before = await publishedVersion(
     context.tx,
@@ -50,29 +83,36 @@ export async function publishTelling(
     input.documentId,
   );
   if (!after || after.id === before?.id) return;
-  const told = new Set(peopleIn(before?.content));
-  const fresh = peopleIn(after.content).filter((id) => !told.has(id));
-  const people = await reachedAmong(
-    context.tx,
+  await tellFresh(
     {
+      tx: context.tx,
       tenantId: context.tenantId,
       schoolId: context.schoolId,
-      on: context.today,
+      actorUserId: context.actor.userId,
+      now: context.now,
+      channels: context.channels,
+      today: context.today,
     },
-    fresh,
+    before,
+    after,
+    input,
   );
-  if (people.length === 0) return;
-  const [author] = await namesOf(context.tx, context.tenantId, [
-    context.actor.userId,
-  ]);
-  await notify(context, people, {
-    kind: "mention",
-    subject: input.subject,
-    params: {
-      title: input.title,
-      ...(input.titleAr ? { titleAr: input.titleAr } : {}),
-      actorName: author?.fullNameEn ?? author?.fullNameAr ?? "",
-      actorNameAr: author?.fullNameAr ?? author?.fullNameEn ?? "",
-    },
-  });
+}
+
+/**
+ * Tells the people a snapshot taken earlier mentions for the first time,
+ * once the words it holds reach their readers: a publication set for later
+ * is snapshotted when it is scheduled and heard of when it goes live.
+ */
+export async function tellPublished(
+  scope: NoticeScope & { today: string; actorUserId: string },
+  input: Telling,
+): Promise<void> {
+  const [after, before = null] = await publishedVersions(
+    scope.tx,
+    scope.tenantId,
+    input.documentId,
+    2,
+  );
+  if (after) await tellFresh(scope, before, after, input);
 }

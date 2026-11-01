@@ -4,10 +4,6 @@ import type { MeetingRow } from "@faridalms/database/stores/timetable";
 import type { AttendanceCounts } from "@faridalms/domain/attendance";
 
 import {
-  managedAnnouncements,
-  feedOf,
-} from "@faridalms/database/stores/announcements";
-import {
   absencesBetween,
   absentUnexplainedOn,
   attendanceReport,
@@ -16,6 +12,11 @@ import {
   studentAttendance,
 } from "@faridalms/database/stores/attendance";
 import { reachOf } from "@faridalms/database/stores/audiences";
+import {
+  announcementFeed,
+  managedBroadcasts,
+  newsFor,
+} from "@faridalms/database/stores/broadcasts";
 import {
   classesTaughtBy,
   homeroomDirectory,
@@ -31,7 +32,6 @@ import { eventsBetween } from "@faridalms/database/stores/events";
 import { expiringDocuments } from "@faridalms/database/stores/identifiers";
 import { studentModules } from "@faridalms/database/stores/learning";
 import { threadsOf, unreadThreads } from "@faridalms/database/stores/messages";
-import { managedPosts, newsFor } from "@faridalms/database/stores/news";
 import { deliveryLog } from "@faridalms/database/stores/notifications";
 import { childrenOf } from "@faridalms/database/stores/persons";
 import {
@@ -670,7 +670,7 @@ export const family = readProcedure
         schoolId: context.schoolId,
         viewerId: context.actor.userId,
       }),
-      feedOf(context.tx, {
+      announcementFeed(context.tx, {
         tenantId: context.tenantId,
         schoolId: context.schoolId,
         viewerId: context.actor.userId,
@@ -799,7 +799,7 @@ export const student = readProcedure.handler(async ({ context }) => {
       userId: studentId,
       on: context.today,
     }),
-    feedOf(context.tx, {
+    announcementFeed(context.tx, {
       tenantId: context.tenantId,
       schoolId: context.schoolId,
       viewerId: studentId,
@@ -1001,13 +1001,14 @@ export const admin = readProcedure.handler(async ({ context }) => {
     : null;
   const announcements = can(context, "announcements:manage")
     ? (
-        await managedAnnouncements(context.tx, {
+        await managedBroadcasts(context.tx, {
           tenantId: context.tenantId,
           schoolId: context.schoolId,
-          states: ["published"],
+          kind: "announcement",
+          tab: "published",
           q: "",
         })
-      )
+      ).rows
         .slice(0, 3)
         .map((row) => ({
           id: row.id,
@@ -1019,9 +1020,10 @@ export const admin = readProcedure.handler(async ({ context }) => {
     : [];
   const news = can(context, "news:manage")
     ? (
-        await managedPosts(context.tx, {
+        await managedBroadcasts(context.tx, {
           tenantId: context.tenantId,
-          orgId: context.schoolId,
+          schoolId: context.schoolId,
+          kind: "news",
           tab: "published",
           q: "",
         })

@@ -17,9 +17,13 @@ dividers it accepts the editor's blocks: callouts, toggles, columns,
 pictures, files, video and audio, embeds, drawings, questions, continue
 gates, page breaks, a student's starting copy and a declaration of AI use,
 and formulas written in LaTeX within the text.
-`content-checks.ts` names what a document must not carry to its readers
-(an undescribed picture, a first-level heading, a skipped level, a vague
-link), and every publishing path refuses those.
+`publishIssues` in `content-checks.ts` is the one list of what a document
+must not carry to its readers: an undescribed picture, a skipped heading
+level (or, for words under a heading of their own such as a website
+section, a first-level heading), a vague link, a video without captions or
+audio without captions or a transcript, and a suggested question not yet
+kept. Every publishing path refuses those through `core/publication.ts`,
+which also refuses a picture showing someone who has not agreed to it.
 
 Lessons, quizzes, assignment briefs, learner responses, assessment
 feedback, messages, announcements, calendar events, news posts, consent

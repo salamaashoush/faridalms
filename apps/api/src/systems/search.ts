@@ -13,10 +13,10 @@ import { reachOf } from "@faridalms/database/stores/audiences";
 import { orgPath } from "@faridalms/database/stores/identity";
 import { childrenOf } from "@faridalms/database/stores/persons";
 import {
-  announcementsAmong,
-  announcementsReached,
   assignmentsAmong,
   assignmentsReached,
+  broadcastsAmong,
+  broadcastsReached,
   candidates,
   classesAmong,
   classesReached,
@@ -24,8 +24,6 @@ import {
   eventsReached,
   learningAmong,
   learningReached,
-  newsAmong,
-  newsReached,
   peopleAmong,
   peopleReached,
   studentsAmong,
@@ -58,7 +56,7 @@ const TYPES: Record<SearchKind, readonly string[]> = {
   assignments: ["assignment"],
   learning: ["learning_module", "lesson"],
   announcements: ["announcement"],
-  news: ["site_post"],
+  news: ["news"],
   events: ["calendar_event"],
   messages: ["message_thread"],
 };
@@ -69,7 +67,7 @@ const TARGET: Record<string, SearchTarget> = {
   learning_module: "module",
   lesson: "lesson",
   announcement: "announcement",
-  site_post: "news",
+  news: "news",
   calendar_event: "event",
   message_thread: "thread",
 };
@@ -175,24 +173,27 @@ async function resolverOf(
     case "announcements": {
       const access = {
         ...school,
+        kind: "announcement" as const,
         viewerId,
         manage: can(context, "announcements:manage"),
       };
       return {
-        within: announcementsReached(access),
+        within: broadcastsReached(access),
         resolve: (ids) =>
-          announcementsAmong(context.tx, { ...base, ...access, ids }),
+          broadcastsAmong(context.tx, { ...base, ...access, ids }),
       };
     }
     case "news": {
       const access = {
         ...school,
+        kind: "news" as const,
         viewerId,
         manage: can(context, "news:manage"),
       };
       return {
-        within: newsReached(access),
-        resolve: (ids) => newsAmong(context.tx, { ...base, ...access, ids }),
+        within: broadcastsReached(access),
+        resolve: (ids) =>
+          broadcastsAmong(context.tx, { ...base, ...access, ids }),
       };
     }
     case "events": {

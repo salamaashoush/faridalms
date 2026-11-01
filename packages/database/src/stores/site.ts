@@ -13,7 +13,7 @@ import type {
   SocialLink,
 } from "../tables/site";
 import type { PostalAddress } from "../tables/tenancy";
-import type { PostRow } from "./news";
+import type { BroadcastRow } from "./broadcasts";
 
 import { isoOf, textArray, uuidArray } from "./sql";
 
@@ -406,8 +406,9 @@ export async function siteCategories(
     posts: number;
   }>(sql`
     select c.id, c.version, c.slug, c.name_en, c.name_ar, c.position,
-      (select count(*)::int from core.site_posts p
-        where p.tenant_id = c.tenant_id and p.category_id = c.id and p.status = 'active') as posts
+      (select count(*)::int from core.broadcasts p
+        where p.tenant_id = c.tenant_id and p.kind = 'news' and p.category_id = c.id
+          and p.status = 'active') as posts
     from core.site_categories c
     where c.tenant_id = ${tenantId}::uuid and c.org_id = ${orgId}::uuid and c.status = 'active'
     order by c.position, c.id`);
@@ -459,7 +460,7 @@ export async function removeCategory(
   input: { tenantId: string; orgId: string; id: string },
 ): Promise<boolean> {
   await tx.execute(sql`
-    update core.site_posts set category_id = null
+    update core.broadcasts set category_id = null
     where tenant_id = ${input.tenantId}::uuid and category_id = ${input.id}::uuid`);
   await tx.execute(sql`
     update core.site_published_posts set category_id = null
@@ -477,7 +478,7 @@ export async function writePublishedPost(
   input: {
     tenantId: string;
     orgId: string;
-    post: PostRow;
+    post: Pick<BroadcastRow, "id" | "categoryId" | "pinned"> & { slug: string };
     locale: SiteLocale;
     title: string;
     excerpt: string;
@@ -854,20 +855,6 @@ export async function publicPost(
   return row
     ? { ...publicPostOf(row), content: row.content, media: row.media }
     : null;
-}
-
-/** A published page or post was edited: visitors still read the last copy. */
-export async function markRevised(
-  tx: Tx,
-  input: { tenantId: string; kind: "page" | "post"; id: string },
-): Promise<void> {
-  const table = sql.identifier(
-    input.kind === "page" ? "site_pages" : "site_posts",
-  );
-  await tx.execute(sql`
-    update core.${table} set revised_at = statement_timestamp()
-    where tenant_id = ${input.tenantId}::uuid and id = ${input.id}::uuid
-      and state = 'published' and status = 'active'`);
 }
 
 export interface PublicSchool {

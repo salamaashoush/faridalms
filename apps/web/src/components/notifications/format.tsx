@@ -315,7 +315,7 @@ function MentionedIn({
           {children}
         </Link>
       );
-    case "site_post":
+    case "news":
       return (
         <Link {...rest} to="/news/$postId" params={{ postId: id }}>
           {children}

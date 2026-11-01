@@ -17,11 +17,6 @@ import {
   updateDraft,
 } from "@faridalms/database/stores/consents";
 import { descriptorsFor } from "@faridalms/database/stores/descriptors";
-import {
-  dropTranslation,
-  saveDocument,
-  saveTranslation,
-} from "@faridalms/database/stores/documents";
 import { filesByIds, linkFiles } from "@faridalms/database/stores/files";
 import { schoolProfile } from "@faridalms/database/stores/identity";
 import { markActed } from "@faridalms/database/stores/notifications";
@@ -44,8 +39,8 @@ import {
   saveConsentFormSchema,
 } from "@faridalms/domain/consents";
 import { contentFileIds, contentPlainText } from "@faridalms/domain/content";
+import { CONTENT_ISSUE_CODE } from "@faridalms/domain/content-checks";
 import { ageOn } from "@faridalms/domain/school";
-import { documentWritten, otherLocale } from "@faridalms/domain/translations";
 import { ORPCError } from "@orpc/server";
 import * as v from "valibot";
 
@@ -60,6 +55,7 @@ import {
   requireCapability,
   writeProcedure,
 } from "../core/procedure";
+import { publishWords, saveWords, wordsIssues } from "../core/publication";
 import { requireStudent, scopeFor } from "../core/reach";
 import { registerHostReader } from "../files/authorize";
 
@@ -224,20 +220,8 @@ export const saveForm = writeProcedure
       (row) => row.id === input.purposeId,
     );
     if (!purpose) throw new ORPCError("NOT_FOUND");
-    const document = (formId: string) => ({
-      tenantId: context.tenantId,
-      orgId: context.schoolId,
-      host: host(formId),
-      locale: input.primaryLocale,
-      content: input.body,
-      plainText: contentPlainText(input.body),
-      mediaIds: [],
-      userId: context.actor.userId,
-    });
     let formId: string;
-    let version: number;
-    let original: { id: string };
-    let before: string | null = null;
+    let version = 0;
     if (input.id) {
       formId = input.id;
       const row = await formById(context.tx, {
@@ -257,9 +241,6 @@ export const saveForm = writeProcedure
       });
       if (next === null) throw conflict();
       version = next;
-      const was = (await consentWords(context, formId)).translation;
-      before = was ? contentPlainText(was) : null;
-      original = await saveDocument(context.tx, document(formId));
     } else {
       const { drafts } = await formsOf(context.tx, {
         tenantId: context.tenantId,
@@ -268,7 +249,14 @@ export const saveForm = writeProcedure
       if (drafts.some((row) => row.purposeId === purpose.id))
         throw new ORPCError("CONFLICT", { message: "consents.draft_open" });
       formId = Bun.randomUUIDv7();
-      original = await saveDocument(context.tx, document(formId));
+    }
+    const words = await saveWords(context, host(formId), {
+      primaryLocale: input.primaryLocale,
+      body: input.body,
+      translation: input.translation,
+      review: "privacy_notice",
+    });
+    if (!input.id) {
       const { label, supersedesId } = await nextVersionLabel(context.tx, {
         tenantId: context.tenantId,
         schoolId: context.schoolId,
@@ -281,44 +269,10 @@ export const saveForm = writeProcedure
         purposeId: purpose.id,
         locale: input.primaryLocale,
         versionLabel: label,
-        documentId: original.id,
+        documentId: words.originalId,
         supersedesId,
       });
-    }
-    const translated =
-      input.translation && documentWritten(input.translation)
-        ? input.translation
-        : null;
-    if (translated)
-      await saveTranslation(context.tx, {
-        tenantId: context.tenantId,
-        orgId: context.schoolId,
-        host: host(formId),
-        originalId: original.id,
-        locale: otherLocale(input.primaryLocale),
-        kind: "rich_text",
-        content: translated,
-        mediaIds: [],
-        plainText: contentPlainText(translated),
-        userId: context.actor.userId,
-      });
-    else
-      await dropTranslation(context.tx, {
-        tenantId: context.tenantId,
-        originalId: original.id,
-      });
-    // A check lapses by itself once the original's words change; a translation
-    // rewritten, or dropped, needs checking again.
-    if (!translated || contentPlainText(translated) !== before) {
-      const cleared = await reviewTranslation(context.tx, {
-        tenantId: context.tenantId,
-        host: "privacy_notice",
-        id: formId,
-        userId: context.actor.userId,
-        reviewed: false,
-      });
-      if (cleared !== null) version = cleared;
-    }
+    } else if (words.version !== null) version = words.version;
     return {
       id: formId,
       version,
@@ -375,9 +329,14 @@ export const publishForm = writeProcedure
     if (!row) throw new ORPCError("NOT_FOUND");
     if (row.publishedAt !== null)
       throw new ORPCError("CONFLICT", { message: "consents.published" });
-    const { body } = await consentWords(context, row.id);
+    const { body, translation } = await consentWords(context, row.id);
     if (!body || !contentPlainText(body).trim())
       throw new ORPCError("BAD_REQUEST", { message: "consents.empty" });
+    const [problem] = await wordsIssues(context, [body, translation]);
+    if (problem)
+      throw new ORPCError("BAD_REQUEST", {
+        message: CONTENT_ISSUE_CODE[problem],
+      });
     const version = await publishFormRow(context.tx, {
       tenantId: context.tenantId,
       id: row.id,
@@ -387,6 +346,11 @@ export const publishForm = writeProcedure
     const purpose = (await purposesOf(context)).find(
       (item) => item.id === row.purposeId,
     );
+    await publishWords(context, host(row.id), {
+      live: true,
+      title: purpose?.labelEn ?? purpose?.code ?? "",
+      ...(purpose?.labelAr ? { titleAr: purpose.labelAr } : {}),
+    });
     // Words an application asks for are agreed when a family applies, so
     // the families already at the school are not asked them.
     const students = askedAtAdmission(purpose?.meaning ?? null)

@@ -3,7 +3,15 @@ import type { AudienceInput } from "@faridalms/domain/announcements";
 import { plainContent } from "@faridalms/domain/content-conversion";
 import { describe, expect, test } from "bun:test";
 
-import { login, rejection, sessionFor, signedIn } from "./harness";
+import { runGoLive } from "../src/core/publication";
+import {
+  login,
+  rejection,
+  seeded,
+  sessionFor,
+  signedIn,
+  timeHasCome,
+} from "./harness";
 
 const principal = () => signedIn("northwind", login("principal"));
 const mother = () =>
@@ -140,6 +148,92 @@ describe("writing announcements", () => {
         ),
       ),
     ).toMatchObject({ code: "FORBIDDEN" });
+  });
+});
+
+const tenantId = () => seeded().tenants[0]?.tenantId ?? "";
+
+describe("announcements going out", () => {
+  const families: AudienceInput[] = [
+    { scope: "families", classId: "", gradeId: "" },
+  ];
+  const channels = { email: false, sms: false };
+
+  test("a scheduled announcement tells its families once it goes live, and asks them to acknowledge it then", async () => {
+    const office = await principal();
+    const saved = await office.announcements.save({
+      ...draft("Book fair permission", families),
+      requiresAck: true,
+    });
+    await office.announcements.publish({
+      id: saved.id,
+      expectedVersion: saved.version,
+      publishAt: new Date(Date.now() + 2 * 86_400_000).toISOString(),
+    });
+    const family = await mother();
+    const notices = async () =>
+      (await family.notifications.list({ tab: "all" })).rows.filter(
+        (row) => row.subjectId === saved.id,
+      );
+    await runGoLive(seeded().cell, tenantId(), { channels });
+    expect(await notices()).toHaveLength(0);
+
+    await timeHasCome("broadcasts", saved.id);
+    await runGoLive(seeded().cell, tenantId(), { channels });
+    await runGoLive(seeded().cell, tenantId(), { channels });
+    const told = await notices();
+    expect(told).toHaveLength(1);
+    expect(told[0]?.kind).toBe("announcement");
+    expect(told[0]?.needsAction).toBe(true);
+    expect(told[0]?.params.preview).toBe("Book fair permission in full.");
+    expect(
+      (await family.announcements.feed({})).rows.some(
+        (row) => row.id === saved.id,
+      ),
+    ).toBe(true);
+  });
+
+  test("families read what was sent until an update goes out, told or quietly", async () => {
+    const office = await principal();
+    const saved = await office.announcements.save({
+      ...draft("Lunch menu", families),
+      body: plainContent("Pasta on Monday."),
+    });
+    const sent = await office.announcements.publish({
+      id: saved.id,
+      expectedVersion: saved.version,
+    });
+    const family = await mother();
+    await family.announcements.seen({ id: saved.id, acknowledge: false });
+    const edited = await office.announcements.save({
+      ...draft("Lunch menu", families),
+      id: saved.id,
+      expectedVersion: sent.version,
+      body: plainContent("Rice on Monday."),
+    });
+    const words = async () =>
+      (await family.announcements.record({ id: saved.id })).body.root
+        .children?.[0]?.children?.[0]?.text;
+    expect(await words()).toBe("Pasta on Monday.");
+    expect(
+      (await office.announcements.editor({ id: saved.id })).changedSince,
+    ).toBe(true);
+
+    await office.announcements.publish({
+      id: saved.id,
+      expectedVersion: edited.version,
+      sendUpdate: true,
+      quietly: true,
+    });
+    expect(await words()).toBe("Rice on Monday.");
+    const read = await family.announcements.record({ id: saved.id });
+    expect(read.readAt).not.toBeNull();
+    expect(read.updateSentAt).toBeNull();
+    expect(
+      (await family.notifications.list({ tab: "all" })).rows.filter(
+        (row) => row.subjectId === saved.id,
+      ),
+    ).toHaveLength(1);
   });
 });
 
