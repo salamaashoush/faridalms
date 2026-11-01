@@ -892,3 +892,16 @@ export function getMessageFromError(error: unknown): string {
   }
   return m.notificationErrorMessage();
 }
+
+/**
+ * Where a refusal from the server is shown: on the field its code names in
+ * `fields`, or for the form as a whole. Null while nothing was refused.
+ */
+export function refusalOf<F extends string>(
+  error: unknown,
+  fields: Partial<Record<string, F>>,
+): { field: F | null; message: string } | null {
+  if (!error) return null;
+  const field = error instanceof Error ? (fields[error.message] ?? null) : null;
+  return { field, message: getMessageFromError(error) };
+}

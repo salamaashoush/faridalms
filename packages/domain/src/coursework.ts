@@ -315,8 +315,17 @@ export type AssignmentIssue =
 
 const instantOf = (value: string) => (value ? Date.parse(value) : null);
 
-/** The first thing that stops an assignment being saved as it is, or null. */
-export function assignmentIssue(input: SaveAssignment): AssignmentIssue | null {
+/**
+ * What is wrong with an assignment's dates and late rule, or null: the
+ * part of its rules a teacher meets while still writing the dates.
+ */
+export function scheduleIssue(input: {
+  availableFrom: string;
+  dueAt: string;
+  closesAt: string;
+  latePolicy: SaveAssignment["latePolicy"];
+  lateDeductionPercent?: number | null;
+}): AssignmentIssue | null {
   const available = instantOf(input.availableFrom);
   const due = instantOf(input.dueAt);
   const closes = instantOf(input.closesAt);
@@ -324,8 +333,20 @@ export function assignmentIssue(input: SaveAssignment): AssignmentIssue | null {
     return "coursework.due_before_available";
   if (due !== null && closes !== null && closes < due)
     return "coursework.close_before_due";
-  if ((input.latePolicy === "deduct") !== (input.lateDeductionPercent != null))
+  const deduction = input.lateDeductionPercent;
+  if (
+    (input.latePolicy === "deduct") !== (deduction != null) ||
+    (deduction != null &&
+      !(Number.isInteger(deduction) && deduction >= 1 && deduction <= 100))
+  )
     return "coursework.deduction_required";
+  return null;
+}
+
+/** The first thing that stops an assignment being saved as it is, or null. */
+export function assignmentIssue(input: SaveAssignment): AssignmentIssue | null {
+  const scheduled = scheduleIssue(input);
+  if (scheduled) return scheduled;
   if (input.rubric && input.points === null)
     return "coursework.rubric_needs_points";
   if ((input.submissionFormat === "quiz") !== (input.quiz !== null))

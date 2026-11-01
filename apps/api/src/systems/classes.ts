@@ -262,10 +262,6 @@ export const save = writeProcedure
     const { year } = await yearOf(context, input.yearId);
     if (!year) throw new ORPCError("NOT_FOUND");
     await requireOpen(context, year);
-    if (!input.titleEn && !input.titleAr)
-      throw new ORPCError("BAD_REQUEST", {
-        message: "validation.name_required",
-      });
     const homeroomId = await writeHomeroom(context, year, input);
     await audit(context, {
       action: input.id ? "class.update" : "class.create",
@@ -427,10 +423,6 @@ export const saveSubject = writeProcedure
   .input(saveSubjectSchema)
   .handler(async ({ input, context }) => {
     requireCapability(context, "classes:manage", "school:manage");
-    if (!input.labelEn && !input.labelAr)
-      throw new ORPCError("BAD_REQUEST", {
-        message: "validation.name_required",
-      });
     const fields = {
       tenantId: context.tenantId,
       orgId: context.schoolId,

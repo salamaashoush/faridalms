@@ -1,3 +1,5 @@
+import * as v from "valibot";
+
 import * as m from "~/i18n/messages";
 
 export function validationMessage(issue: { message?: string }): string {
@@ -46,6 +48,8 @@ export function validationMessage(issue: { message?: string }): string {
       return m.validationRoleRequired();
     case "validation.class_code":
       return m.validationClassCode();
+    case "validation.subject_twice":
+      return m.classesSubjectTwice();
   }
   if (!("type" in issue)) return issue.message ?? m.validationInvalid();
   const count =
@@ -90,4 +94,31 @@ export function validationMessage(issue: { message?: string }): string {
     default:
       return m.validationInvalid();
   }
+}
+
+/**
+ * A form's draft checked with the schema the API checks it with, as each
+ * field's first problem in words. A problem belongs to the field its path
+ * starts with, or to the one `fieldOf` names for it; a field made of rows,
+ * such as a year's terms, may say one thing for a problem inside any row.
+ */
+export function schemaErrors<F extends string>(
+  schema: v.GenericSchema,
+  value: unknown,
+  fieldOf: (key: string, path: readonly unknown[]) => F | undefined,
+  inRows: Partial<Record<F, string>> = {},
+): Partial<Record<F, string>> {
+  const result = v.safeParse(schema, value);
+  const found: Partial<Record<F, string>> = {};
+  if (result.success) return found;
+  for (const issue of result.issues) {
+    const path = issue.path?.map((item) => item.key) ?? [];
+    const [key] = path;
+    const field = fieldOf(typeof key === "string" ? key : "", path);
+    if (!field || found[field]) continue;
+    found[field] =
+      ((issue.path?.length ?? 0) > 1 ? inRows[field] : undefined) ??
+      validationMessage(issue);
+  }
+  return found;
 }

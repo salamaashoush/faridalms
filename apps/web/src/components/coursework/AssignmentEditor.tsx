@@ -25,6 +25,7 @@ import {
   QUIZ_REVEALS,
   quizPoints,
   rubricTotal,
+  scheduleIssue,
 } from "@faridalms/domain/coursework";
 import { isCheck } from "@faridalms/domain/learning";
 import { quizOfBrief, sameLesson } from "@faridalms/domain/lesson-content";
@@ -86,7 +87,7 @@ import {
   instantFromLocal,
   localInput,
 } from "~/utils/datetime";
-import { getMessageFromError } from "~/utils/error";
+import { getMessageFromError, refusalOf } from "~/utils/error";
 
 import { classTitle } from "../classes/format";
 import { FeedbackBands, keptBands } from "../learning/FeedbackBands";
@@ -345,25 +346,20 @@ function initialDraft(existing: Existing | null, classId: string): Draft {
 /**
  * What stops a draft being stored, then what else stops it going out. The
  * first group is checked as the teacher writes, since nothing saves until it
- * is clear; the second only when they assign.
+ * is clear; the second only when they assign. The rules the API keeps for
+ * an assignment's dates and late work come in `ruled`.
  */
-function issuesOf(draft: Draft, started: boolean) {
+function issuesOf(
+  draft: Draft,
+  started: boolean,
+  ruled: Partial<Record<Field, string>>,
+) {
   const quiz = draft.submissionFormat === "quiz";
-  const blocking: Partial<Record<Field, string>> = {};
+  const blocking: Partial<Record<Field, string>> = { ...ruled };
   if (!draft.title.trim()) blocking.title = m.courseworkTitleNeeded();
   if (!draft.classId) blocking.classId = m.courseworkClassNeeded();
-  if (draft.availableFrom && draft.dueAt && draft.dueAt < draft.availableFrom)
-    blocking.dueAt = m.validationDueAfterAvailable();
-  if (draft.dueAt && draft.closesAt && draft.closesAt < draft.dueAt)
-    blocking.closesAt = m.validationCloseAfterDue();
   if (!quiz && draft.graded && !(Number(draft.points) >= 0.5))
     blocking.points = m.courseworkPointsRequired();
-  const deduction = Number(draft.deduction);
-  if (
-    draft.latePolicy === "deduct" &&
-    !(Number.isInteger(deduction) && deduction >= 1 && deduction <= 100)
-  )
-    blocking.deduction = m.courseworkDeductionRequired();
   const publishing: Partial<Record<Field, string>> = {};
   const [briefIssue] = contentIssueMessages(draft.brief);
   if (!contentPlainText(draft.brief).trim())
@@ -391,6 +387,26 @@ function issuesOf(draft: Draft, started: boolean) {
     else if (issue) publishing.quiz = issue;
   }
   return { blocking, publishing };
+}
+
+/**
+ * What the API's own rules refuse in a draft's dates and late work, on the
+ * field each belongs to.
+ */
+function ruledIssues(draft: Draft): Partial<Record<Field, string>> {
+  const issue = scheduleIssue({
+    availableFrom: instantFromLocal(draft.availableFrom),
+    dueAt: instantFromLocal(draft.dueAt),
+    closesAt: instantFromLocal(draft.closesAt),
+    latePolicy: draft.latePolicy,
+    ...(draft.latePolicy === "deduct"
+      ? { lateDeductionPercent: Number(draft.deduction) }
+      : {}),
+  });
+  const field = issue ? FIELD_ERRORS[issue] : undefined;
+  return issue && field
+    ? { [field]: getMessageFromError(new Error(issue)) }
+    : {};
 }
 
 /** The dates and late rule in one sentence, as students will meet them. */
@@ -524,8 +540,6 @@ export function AssignmentEditor({
   const isDiscussion = draft.submissionFormat === "discussion";
   const started = existing?.quiz?.started ?? false;
   const quizContent = quizOfBrief(draft.brief);
-  const { blocking, publishing } = issuesOf(draft, started);
-  const storable = Object.keys(blocking).length === 0;
 
   const inputOf = useCallback(
     (value: Draft) => {
@@ -596,6 +610,8 @@ export function AssignmentEditor({
     },
     [shared],
   );
+  const { blocking, publishing } = issuesOf(draft, started, ruledIssues(draft));
+  const storable = Object.keys(blocking).length === 0;
 
   const persist = useCallback(
     async (value: Draft) => {
@@ -690,13 +706,13 @@ export function AssignmentEditor({
     (fieldsOf(draft) !== fieldsOf(sent) || !sameBrief(draft.brief, sent.brief));
 
   const fail = (error: unknown) => {
-    const field =
-      error instanceof Error ? FIELD_ERRORS[error.message] : undefined;
-    if (field) {
-      setRefused({ [field]: getMessageFromError(error) });
+    const refusal = refusalOf(error, FIELD_ERRORS);
+    if (!refusal) return;
+    if (refusal.field) {
+      setRefused({ [refusal.field]: refusal.message });
       setShown(true);
-      if (IN_PANEL.includes(field)) setDetailsOpen(true);
-    } else toast.error(getMessageFromError(error));
+      if (IN_PANEL.includes(refusal.field)) setDetailsOpen(true);
+    } else toast.error(refusal.message);
   };
 
   const check = () => {

@@ -1,6 +1,6 @@
 import type { ReactNode, Ref } from "react";
 
-import { fullName } from "@faridalms/domain/people";
+import { fullName, saveStudentSchema } from "@faridalms/domain/people";
 import { Button } from "@faridalms/ui/button";
 import { RadioGroup, RadioGroupItem } from "@faridalms/ui/radio-group";
 import {
@@ -23,7 +23,8 @@ import {
   saveStudent,
 } from "~/server/students";
 import { formatList } from "~/utils/datetime";
-import { getMessageFromError } from "~/utils/error";
+import { refusalOf } from "~/utils/error";
+import { schemaErrors } from "~/utils/validation";
 
 import type { FlagsDraft, NamesDraft } from "./fields";
 
@@ -65,7 +66,7 @@ const ADD_ANOTHER = "add-another";
 const FIRST_FIELD = "student-ar-given";
 
 /** Refusals from the server that are about one field, shown on that field. */
-const FIELD_ERRORS: Record<string, keyof Draft> = {
+const FIELD_ERRORS: Partial<Record<string, keyof Draft>> = {
   "external_id.taken": "reference",
   "users.invalid": "birthDate",
 };
@@ -353,48 +354,42 @@ export function StudentEditor({
     notice.current?.focus();
   }, [focusNotice]);
 
+  const payloadOf = (value: Draft) => ({
+    ...(record ? { id: record.id, expectedVersion: record.version } : {}),
+    names: namesInput(value.names),
+    preferredName: value.preferred,
+    reference: value.reference,
+    birthDate: value.birthDate,
+    sexId: value.sexId,
+    gradeId: adding ? value.gradeId : "",
+    guardians: adding
+      ? value.guardians.map((guardian) =>
+          guardian.choice === "new"
+            ? {
+                person: {
+                  names: namesInput(guardian.names),
+                  phone: guardian.phone,
+                  email: guardian.email,
+                },
+                flags: guardian.flags,
+              }
+            : { existingUserId: guardian.choice, flags: guardian.flags },
+        )
+      : [],
+  });
   const mutation = useMutation({
-    mutationFn: (value: Draft) =>
-      saveStudent({
-        data: {
-          ...(record ? { id: record.id, expectedVersion: record.version } : {}),
-          names: namesInput(value.names),
-          preferredName: value.preferred,
-          reference: value.reference,
-          birthDate: value.birthDate,
-          sexId: value.sexId,
-          gradeId: adding ? value.gradeId : "",
-          guardians: adding
-            ? value.guardians.map((guardian) =>
-                guardian.choice === "new"
-                  ? {
-                      person: {
-                        names: namesInput(guardian.names),
-                        phone: guardian.phone,
-                        email: guardian.email,
-                      },
-                      flags: guardian.flags,
-                    }
-                  : { existingUserId: guardian.choice, flags: guardian.flags },
-              )
-            : [],
-        },
-      }),
+    mutationFn: (value: Draft) => saveStudent({ data: payloadOf(value) }),
     meta: { inlineError: true },
   });
 
-  const validate = (value: Draft) => {
-    const found: typeof errors = {};
-    if (!hasName(value.names)) found.names = m.validationNameRequired();
-    if (!value.reference.trim()) found.reference = m.validationRequired();
-    else if (!/^[A-Za-z0-9/_-]+$/.test(value.reference.trim()))
-      found.reference = m.validationReference();
-    value.guardians.forEach((guardian, index) => {
-      if (guardian.choice === "new" && !hasName(guardian.names))
-        found[`guardian-${index}`] = m.validationNameRequired();
-    });
-    return found;
-  };
+  const validate = (value: Draft) =>
+    schemaErrors(saveStudentSchema, payloadOf(value), (key, path) =>
+      key === "guardians" && typeof path[1] === "number"
+        ? `guardian-${path[1]}`
+        : key === "names" || key === "reference"
+          ? key
+          : undefined,
+    );
 
   const submit = async () => {
     const found = validate(draft);
@@ -414,9 +409,8 @@ export function StudentEditor({
     try {
       await mutation.mutateAsync(draft);
     } catch (error) {
-      const field =
-        error instanceof Error ? FIELD_ERRORS[error.message] : undefined;
-      if (field) setErrors({ [field]: getMessageFromError(error) });
+      const refused = refusalOf(error, FIELD_ERRORS);
+      if (refused?.field) setErrors({ [refused.field]: refused.message });
       return;
     }
     await queryClient.invalidateQueries({ queryKey: ["people"] });
@@ -450,11 +444,8 @@ export function StudentEditor({
     onClose();
   };
 
-  const failure =
-    mutation.error &&
-    !(mutation.error instanceof Error && FIELD_ERRORS[mutation.error.message])
-      ? getMessageFromError(mutation.error)
-      : null;
+  const refusal = refusalOf(mutation.error, FIELD_ERRORS);
+  const failure = refusal && !refusal.field ? refusal.message : null;
   const guardianNames =
     record?.guardians?.map((guardian) => displayName(guardian)) ?? [];
 
