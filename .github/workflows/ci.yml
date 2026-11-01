@@ -5,6 +5,14 @@ on:
   push:
     branches: ["main"]
   merge_group:
+  # A run by hand on main can publish while browser tests are known broken;
+  # every other check still has to pass.
+  workflow_dispatch:
+    inputs:
+      publish_without_e2e:
+        description: Publish even if the browser tests fail
+        type: boolean
+        default: false
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
@@ -103,7 +111,13 @@ jobs:
   # (no emulation) and pushed by digest, then the two digests are joined
   # under the commit's tag and `main`. The server pulls linux/arm64.
   publish:
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    if: >-
+      ${{ !cancelled() && github.ref == 'refs/heads/main'
+      && (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
+      && needs.verify.result == 'success'
+      && needs.media.result == 'success'
+      && needs.images.result == 'success'
+      && (needs.e2e.result == 'success' || inputs.publish_without_e2e) }}
     needs: [verify, e2e, media, images]
     runs-on: ${{ matrix.runner }}
     timeout-minutes: 45
