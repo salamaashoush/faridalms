@@ -563,7 +563,7 @@ describe("what a conversation says about its people", () => {
       kind: "direct",
       recipientIds: [keeper.userId],
       studentId: child,
-      content: plainContent("About the reading homework"),
+      content: plainContent("About the multiplication worksheet"),
     });
     const opened = await mother.api.messages.thread({ id: threadId });
     expect(opened.student?.id).toBe(child);
