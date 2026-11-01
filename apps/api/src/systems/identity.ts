@@ -47,13 +47,18 @@ import {
   requestResetSchema,
   RESET_MINUTES,
 } from "@faridalms/domain/first-sign-in";
-import { hostOf, placeOf } from "@faridalms/domain/hosts";
+import { hostOf, placeOf, platformName } from "@faridalms/domain/hosts";
 import {
   badgeSignInSchema,
   childSessionSchema,
   signInSchema,
   switchContextSchema,
 } from "@faridalms/domain/identity-schema";
+import {
+  findSchoolsSchema,
+  findSchools as findSchoolsIn,
+  portalFaceSchema,
+} from "@faridalms/domain/portal-face";
 import { WORKSPACE_OF } from "@faridalms/domain/workspace";
 import { ORPCError } from "@orpc/server";
 import { randomBytes } from "node:crypto";
@@ -64,6 +69,7 @@ import type { SchoolContext } from "../core/context";
 import { scopeOf } from "../core/coursework-access";
 import { featuresOf } from "../core/features";
 import { welcomeLink } from "../core/portal";
+import { portalFace as readFace } from "../core/portal-face";
 import {
   audit,
   dateIn,
@@ -855,5 +861,74 @@ export const resolveHost = publicProcedure
       slug: routed.school.slug,
       role: routed.role,
       redirect: canonical && canonical !== hostname ? canonical : null,
+    };
+  });
+
+/**
+ * How a school's portal looks to someone not yet signed in: its names,
+ * logo, website theme and the sign-in page it published. Only what the
+ * school already shows strangers, kept briefly, so drawing a sign-in page
+ * does not reach the cell each time.
+ */
+export const portalFace = publicProcedure
+  .input(portalFaceSchema)
+  .handler(({ input, context }) =>
+    readFace(context, input.school, input.locale),
+  );
+
+const FINDER_WINDOW_MS = 60_000;
+const FINDER_PER_NETWORK = 30;
+// Networks come from requests, so the count must not grow without bound.
+const FINDER_NETWORKS = 10_000;
+const searches = new Map<string, number[]>();
+
+/**
+ * Whether one network may search again. Kept in memory: a search reads only
+ * the directory's cached list, so the limit is there to slow a script
+ * walking the list, and a restart forgetting a minute of it costs nothing.
+ */
+function finderAllows(network: string, now: number) {
+  const recent = (searches.get(network) ?? []).filter(
+    (at) => now - at < FINDER_WINDOW_MS,
+  );
+  if (recent.length >= FINDER_PER_NETWORK) return false;
+  searches.delete(network);
+  if (searches.size >= FINDER_NETWORKS) {
+    const oldest = searches.keys().next();
+    if (!oldest.done) searches.delete(oldest.value);
+  }
+  searches.set(network, [...recent, now]);
+  return true;
+}
+
+/**
+ * The school finder on the bare portal domain: schools a person may sign in
+ * to now, by name in either language or by code, each with only its names
+ * and the portal address to go to. A school that is not listed answers only
+ * to its exact code, and nothing else about a school (its tenant, group,
+ * state or website) leaves the directory.
+ */
+export const findSchools = publicProcedure
+  .input(findSchoolsSchema)
+  .handler(async ({ input, context }) => {
+    const network =
+      ipPrefix(context.headers, context.trustedProxyHops) ?? "unknown";
+    if (!finderAllows(network, Date.now()))
+      throw new ORPCError("TOO_MANY_REQUESTS", {
+        message: "auth.too_many_attempts",
+      });
+    const found = findSchoolsIn(
+      input.query,
+      await context.directory.signInSchools(),
+    );
+    return {
+      schools: found.map((school) => ({
+        slug: school.slug,
+        nameEn: school.nameEn,
+        nameAr: school.nameAr,
+        portalHost:
+          school.portalHost ??
+          platformName(school.slug, "portal", context.domains),
+      })),
     };
   });

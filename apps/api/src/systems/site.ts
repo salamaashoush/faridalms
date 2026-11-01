@@ -3,6 +3,7 @@ import type { ContentDocument } from "@faridalms/domain/content";
 import type {
   PageContent,
   SiteIssue,
+  SiteIssueCode,
   SiteLocale,
 } from "@faridalms/domain/website";
 
@@ -10,6 +11,7 @@ import {
   contentToRestore,
   documentOf,
   dropTranslation,
+  publishedVersion,
   saveDocument,
   saveTranslation,
   snapshotPublish,
@@ -30,6 +32,7 @@ import {
   publicPost,
   publicPosts,
   publicSchool,
+  publishedSignIn,
   recentEnquiries,
   removeCategory,
   removePage,
@@ -45,8 +48,16 @@ import {
   syncPublishedPlaces,
   updatePage,
   withdrawPage,
+  withdrawSignIn,
   writePublishedPage,
+  writePublishedSignIn,
 } from "@faridalms/database/stores/site";
+import {
+  contentDocumentSchema,
+  contentFileIds,
+  contentPlainText,
+} from "@faridalms/domain/content";
+import { saveSignInPageSchema } from "@faridalms/domain/portal-face";
 import {
   buildTemplate,
   STARTERS,
@@ -59,9 +70,11 @@ import {
   siteChromeSchema,
   siteThemeSchema,
 } from "@faridalms/domain/site-theme";
+import { documentWritten } from "@faridalms/domain/translations";
 import {
   alignTranslation,
   applyStarterSchema,
+  bodyIssues,
   enquiriesQuerySchema,
   enquirySchema,
   localizedSections,
@@ -90,6 +103,7 @@ import * as v from "valibot";
 
 import type { UnitContext } from "../core/context";
 
+import { forgetFace } from "../core/portal-face";
 import {
   audit,
   can,
@@ -101,7 +115,11 @@ import {
 import { attemptKey, ipPrefix } from "../core/session";
 import { inlinePageShared } from "../core/shared";
 import { publishMedia, withPublicSite, withdrawMedia } from "../core/site";
-import { registerHostReader, placeMedia } from "../files/authorize";
+import {
+  placeMedia,
+  registerHostReader,
+  registerHostWriter,
+} from "../files/authorize";
 
 const id = v.pipe(v.string(), v.uuid());
 
@@ -258,7 +276,7 @@ export const overview = readProcedure.handler(async ({ context }) => {
       limit: PREVIEW_POSTS,
       offset: 0,
     });
-  const [settings, pages, categories, school, newsEn, newsAr, events] =
+  const [settings, pages, categories, school, newsEn, newsAr, events, signIn] =
     await Promise.all([
       settingsFor(context),
       sitePages(context.tx, context.tenantId, context.schoolId),
@@ -271,6 +289,7 @@ export const overview = readProcedure.handler(async ({ context }) => {
         from: context.today,
         limit: MAX_EVENTS,
       }),
+      signInDrafts(context),
     ]);
   const logo = settings.id
     ? await publicationsOf(context.tx, {
@@ -301,6 +320,11 @@ export const overview = readProcedure.handler(async ({ context }) => {
         ?.publicKey ?? null,
     news: { en: newsEn.rows, ar: newsAr.rows },
     events,
+    signIn: {
+      written: documentWritten(signIn.body),
+      published: signIn.published,
+      changed: signIn.changed,
+    },
   };
 });
 
@@ -330,6 +354,7 @@ export const saveSettings = writeProcedure
         },
         input.chrome.logoFileId ? [input.chrome.logoFileId] : [],
       );
+    forgetFace(context.school.slug);
     await audit(context, {
       action: "site.settings",
       objectType: "org",
@@ -882,6 +907,250 @@ export const applyStarter = writeProcedure
     });
     return { created };
   });
+
+const signInHost = (schoolId: string) => ({
+  type: "site_sign_in",
+  id: schoolId,
+});
+
+// The sign-in page belongs to the school's website, so whoever manages the
+// site writes it, and its history opens to them as any document's does.
+const managesSignIn = (context: UnitContext, hostId: string) =>
+  Promise.resolve(can(context, "site:manage") && hostId === context.schoolId);
+registerHostReader("site_sign_in", managesSignIn);
+registerHostWriter("site_sign_in", managesSignIn);
+
+const signInMedia = (
+  body: ContentDocument,
+  translation: ContentDocument | null,
+) => [
+  ...new Set([
+    ...contentFileIds(body),
+    ...(translation ? contentFileIds(translation) : []),
+  ]),
+];
+
+const documentIn = (content: unknown) =>
+  parsed<ContentDocument | null>(contentDocumentSchema, content, null);
+
+/** The sign-in page as it is being written, and whether strangers see an older copy. */
+async function signInDrafts(context: UnitContext) {
+  const host = signInHost(context.schoolId);
+  const original = await documentOf(context.tx, context.tenantId, host);
+  const translation = original
+    ? await translationOf(context.tx, context.tenantId, original.id)
+    : null;
+  const shown = await publishedSignIn(context.tx, context.schoolId);
+  const [published, publishedTranslation] = await Promise.all([
+    original
+      ? publishedVersion(context.tx, context.tenantId, original.id)
+      : Promise.resolve(null),
+    translation
+      ? publishedVersion(context.tx, context.tenantId, translation.id)
+      : Promise.resolve(null),
+  ]);
+  const body = original ? documentIn(original.content) : null;
+  const other = translation ? documentIn(translation.content) : null;
+  return {
+    originalId: original?.id ?? null,
+    translationId: translation?.id ?? null,
+    body,
+    translation: other,
+    published: shown.length > 0,
+    /** Files strangers already see, which must stay while edits wait. */
+    shownFiles: [...new Set(shown.flatMap((row) => Object.keys(row.media)))],
+    changed:
+      shown.length > 0 &&
+      ((original?.version ?? 0) > (published?.documentVersion ?? 0) ||
+        (translation !== null &&
+          translation.version > (publishedTranslation?.documentVersion ?? 0))),
+  };
+}
+
+function signInIssues(
+  body: ContentDocument | null,
+  translation: ContentDocument | null,
+  settings: { primaryLocale: SiteLocale; bilingual: boolean },
+): Record<SiteLocale, SiteIssueCode[]> {
+  const found: Record<SiteLocale, SiteIssueCode[]> = { en: [], ar: [] };
+  const other = otherLocale(settings.primaryLocale);
+  if (body && documentWritten(body))
+    found[settings.primaryLocale] = bodyIssues(body);
+  if (settings.bilingual && translation && documentWritten(translation))
+    found[other] = bodyIssues(translation);
+  return found;
+}
+
+/**
+ * The portal's sign-in page for the school's site managers: the document
+ * shown beside the form in the site's languages, whether it is published,
+ * and what stops it publishing. With nothing written, the portal shows the
+ * product's own welcome.
+ */
+export const signInPage = readProcedure.handler(async ({ context }) => {
+  requireCapability(context, "site:manage");
+  const settings = await settingsFor(context);
+  const drafts = await signInDrafts(context);
+  return {
+    primaryLocale: settings.primaryLocale,
+    bilingual: settings.bilingual,
+    body: drafts.body,
+    translation: drafts.translation,
+    published: drafts.published,
+    changed: drafts.changed,
+    issues: signInIssues(drafts.body, drafts.translation, settings),
+  };
+});
+
+/** Keeps the sign-in page's words; strangers see them once they are published. */
+export const saveSignInPage = writeProcedure
+  .input(saveSignInPageSchema)
+  .handler(async ({ input, context }) => {
+    requireCapability(context, "site:manage");
+    const settings = await settingsFor(context);
+    const host = signInHost(context.schoolId);
+    const drafts = await signInDrafts(context);
+    const placed = await placeMedia(
+      context,
+      host,
+      input.body,
+      contentFileIds(input.body),
+    );
+    const original = await saveDocument(context.tx, {
+      tenantId: context.tenantId,
+      orgId: context.schoolId,
+      host,
+      kind: "rich_text",
+      locale: settings.primaryLocale,
+      content: placed.content,
+      plainText: contentPlainText(input.body),
+      mediaIds: [...new Set([...placed.mediaIds, ...drafts.shownFiles])],
+      userId: context.actor.userId,
+    });
+    if (
+      settings.bilingual &&
+      input.translation &&
+      documentWritten(input.translation)
+    )
+      await saveTranslation(context.tx, {
+        tenantId: context.tenantId,
+        orgId: context.schoolId,
+        host,
+        originalId: original.id,
+        locale: otherLocale(settings.primaryLocale),
+        kind: "rich_text",
+        ...(await placeMedia(
+          context,
+          host,
+          input.translation,
+          contentFileIds(input.translation),
+        )),
+        plainText: contentPlainText(input.translation),
+        userId: context.actor.userId,
+      });
+    else
+      await dropTranslation(context.tx, {
+        tenantId: context.tenantId,
+        originalId: original.id,
+      });
+    await audit(context, {
+      action: "site.sign_in_update",
+      objectType: "org",
+      objectId: context.schoolId,
+    });
+    return { saved: true, changed: drafts.published };
+  });
+
+/**
+ * Shows the sign-in page's words to everyone who opens the portal: each of
+ * the site's languages is checked, its pictures made public, the words
+ * snapshotted, and a copy per language written for strangers to read.
+ */
+export const publishSignInPage = writeProcedure.handler(async ({ context }) => {
+  requireCapability(context, "site:manage");
+  const settings = await settingsFor(context);
+  const drafts = await signInDrafts(context);
+  if (!drafts.originalId || !drafts.body || !documentWritten(drafts.body))
+    throw new ORPCError("CONFLICT", { message: "site.empty" });
+  const translation =
+    settings.bilingual &&
+    drafts.translation &&
+    documentWritten(drafts.translation)
+      ? drafts.translation
+      : null;
+  const issues = signInIssues(drafts.body, translation, settings);
+  if (issues.en.length + issues.ar.length > 0)
+    throw new ORPCError("CONFLICT", { message: "site.issues" });
+  const media = await publishMedia(
+    context,
+    {
+      tenantId: context.tenantId,
+      hostType: "site_sign_in",
+      hostId: context.schoolId,
+    },
+    signInMedia(drafts.body, translation),
+  );
+  await snapshotPublish(context.tx, {
+    tenantId: context.tenantId,
+    documentId: drafts.originalId,
+    userId: context.actor.userId,
+  });
+  if (translation && drafts.translationId)
+    await snapshotPublish(context.tx, {
+      tenantId: context.tenantId,
+      documentId: drafts.translationId,
+      userId: context.actor.userId,
+    });
+  const locales = localesOf(settings);
+  await withdrawSignIn(context.tx, {
+    tenantId: context.tenantId,
+    orgId: context.schoolId,
+    keep: locales,
+  });
+  for (const locale of locales) {
+    const own = locale === settings.primaryLocale ? drafts.body : translation;
+    await writePublishedSignIn(context.tx, {
+      tenantId: context.tenantId,
+      orgId: context.schoolId,
+      locale,
+      content: {
+        body: own ?? drafts.body,
+        locale: own ? locale : settings.primaryLocale,
+      },
+      media,
+    });
+  }
+  forgetFace(context.school.slug);
+  await audit(context, {
+    action: "site.sign_in_publish",
+    objectType: "org",
+    objectId: context.schoolId,
+  });
+  return { published: true };
+});
+
+/** Takes the sign-in page's words down; the portal shows the product's welcome again. */
+export const unpublishSignInPage = writeProcedure.handler(
+  async ({ context }) => {
+    requireCapability(context, "site:manage");
+    await withdrawSignIn(context.tx, {
+      tenantId: context.tenantId,
+      orgId: context.schoolId,
+    });
+    await withdrawMedia(context, {
+      tenantId: context.tenantId,
+      hostType: "site_sign_in",
+      hostId: context.schoolId,
+    });
+    forgetFace(context.school.slug);
+    await audit(context, {
+      action: "site.sign_in_unpublish",
+      objectType: "org",
+      objectId: context.schoolId,
+    });
+    return { published: false };
+  },
+);
 
 async function liveSettings(
   tx: UnitContext["tx"],
