@@ -44,6 +44,75 @@
   background-size: 32px 32px;
 }
 
+/* The product site (see "Product site" in docs/design-system.md). Its dark
+   canvas leans towards the brand green rather than the app's neutral grey,
+   so the green bands read as one family with the page around them. */
+.dark .product-site {
+  --background: hsl(168 20% 6.5%);
+  --card: hsl(168 16% 9%);
+  --muted: hsl(168 14% 10.5%);
+  --accent: hsl(168 12% 14%);
+  --border: hsl(168 10% 17%);
+  --input: hsl(168 9% 22%);
+}
+
+/* The eight-pointed star of the region's geometric patterns, drawn as a
+   lattice. It is a mask filled with currentColor, so one drawing serves
+   the green bands and the pale panels, and --lattice-fade shapes where it
+   shows. */
+.product-lattice {
+  background-color: currentColor;
+  --lattice: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='72' height='72' fill='none' stroke='black' stroke-width='1'%3E%3Cpath d='M23 23h26v26H23z'/%3E%3Cpath d='M36 17.6 54.4 36 36 54.4 17.6 36z'/%3E%3Cpath d='M36 0v17.6M36 54.4V72M0 36h17.6M54.4 36H72M23 23 0 0M49 23 72 0M23 49 0 72M49 49l23 23'/%3E%3C/svg%3E");
+  -webkit-mask-image:
+    var(--lattice), var(--lattice-fade, linear-gradient(#000, #000));
+  mask-image: var(--lattice), var(--lattice-fade, linear-gradient(#000, #000));
+  -webkit-mask-size:
+    72px 72px,
+    100% 100%;
+  mask-size:
+    72px 72px,
+    100% 100%;
+  -webkit-mask-repeat: repeat, no-repeat;
+  mask-repeat: repeat, no-repeat;
+  -webkit-mask-composite: source-in;
+  mask-composite: intersect;
+}
+
+/* English set inside the Arabic page keeps Inter, rather than the Latin of
+   the Arabic face that leads the font stack in right-to-left pages. */
+.product-site :lang(en) {
+  font-family:
+    "Inter Variable", "Noto Sans Arabic Variable", system-ui, sans-serif;
+}
+
+/* Arabic display lines are set in naskh, the hand taught at school, against
+   Inter for English. Arabic is cursive, so the Latin tracking is undone. */
+.product-display:lang(ar) {
+  font-family: "Noto Naskh Arabic Variable", "Noto Sans Arabic Variable", serif;
+  letter-spacing: 0;
+  line-height: 1.35;
+}
+
+/* Sections rise into place as they scroll in, where the browser ties the
+   animation to scrolling. Elsewhere, and for anyone who asks for less
+   motion, and on paper, they are simply there; nothing waits on the
+   animation. */
+@media screen and (prefers-reduced-motion: no-preference) {
+  @supports (animation-timeline: view()) {
+    .product-reveal {
+      animation: product-reveal linear both;
+      animation-timeline: view();
+      animation-range: entry 0% entry 35%;
+    }
+  }
+}
+@keyframes product-reveal {
+  from {
+    opacity: 0;
+    transform: translateY(1.5rem);
+  }
+}
+
 /* An editor's actions take the place of the global tools; search,
    notifications and language stay one step away on every other page. A
    record's phone menu sits beside them instead, so the bell stays. */

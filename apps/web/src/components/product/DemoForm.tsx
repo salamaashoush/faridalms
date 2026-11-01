@@ -112,11 +112,13 @@ export function DemoForm() {
 
   if (state === "sent")
     return (
-      <output className="grid min-h-80 content-center justify-items-start gap-4 rounded-xl border bg-card p-8">
-        <span className="grid size-12 place-items-center rounded-full bg-primary/10 text-primary">
+      <output className="grid min-h-96 content-center justify-items-start gap-5 rounded-2xl border bg-card p-8 shadow-xl shadow-black/5 sm:p-10 dark:shadow-black/30">
+        <span className="grid size-12 place-items-center rounded-full bg-[#dcedcf] text-[#153f3a]">
           <CircleCheck aria-hidden className="size-6" />
         </span>
-        <p className="text-lg font-semibold">{m.productDemoSent()}</p>
+        <p className="max-w-sm text-xl leading-snug font-semibold text-balance">
+          {m.productDemoSent()}
+        </p>
       </output>
     );
 
@@ -132,7 +134,7 @@ export function DemoForm() {
   return (
     <form
       onSubmit={(event) => void send(event)}
-      className="grid gap-6 rounded-xl border bg-card p-6 shadow-sm sm:p-8"
+      className="grid gap-6 rounded-2xl border bg-card p-5 shadow-xl shadow-black/5 sm:p-8 dark:shadow-black/30"
     >
       <div className="grid gap-6 sm:grid-cols-2">
         <Field id="demo-name" label={m.productDemoName()}>
@@ -241,7 +243,7 @@ export function DemoForm() {
       <Button
         type="submit"
         size="lg"
-        className="justify-self-start px-5"
+        className="w-full px-5 sm:w-auto sm:justify-self-start"
         disabled={state === "sending"}
       >
         {state === "sending" ? m.productDemoSending() : m.productDemoSend()}

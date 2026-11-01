@@ -296,6 +296,39 @@ never the browser's own.
 150–200ms ease-out for popovers, menus and sheets. Nothing animates on page
 load. `prefers-reduced-motion` removes movement.
 
+## Product site
+
+The platform's own page on its bare domain (`components/product/`) sells
+the product rather than running a school, so it departs from the rules
+above where a marketing page needs to, and only there.
+
+- **Type is larger.** Body text is 16 to 18px and section headings 30 to
+  44px, because the page is read once by someone deciding, not worked in
+  all day. Arabic display lines are set in Noto Naskh Arabic against Inter
+  (`.product-display`), with Latin tracking undone, since Arabic is cursive.
+- **The hero is bilingual in both locales.** Its headline is one line in
+  each language, each in its own direction, the page's language first.
+  Below it the same timetable is shown in English and Arabic, divided by a
+  range input, so mirroring is something a visitor moves rather than reads
+  about.
+- **Brand colour leads.** The header, hero, security band and footer use
+  the school-sidebar green (`#153f3a`) with the pale accent (`#dcedcf`) for
+  primary actions on it; teal stays the accent on the light sections. In
+  dark mode the canvas leans green (`.dark .product-site`) so the bands
+  belong to the page.
+- **One motif.** The eight-pointed star of the region's geometric patterns,
+  as a line lattice (`.product-lattice`, a mask filled with
+  `currentColor`), faded out behind the hero, the security band and the
+  screenshot panels.
+- **Screens are real.** Screenshots in `apps/web/public/product/` are taken
+  from the development seed (the Northwind school) and only from it, in
+  each language; images carry width and height so nothing shifts, and
+  everything below the hero loads lazily.
+- **Motion is restrained.** Sections rise in as they scroll into view, only
+  where the browser ties the animation to scrolling, only on screen, and
+  never with `prefers-reduced-motion`. Nothing waits for an animation and
+  nothing moves on its own.
+
 ## Sources
 
 - Polaris: page, resource index, resource details and settings layouts,
