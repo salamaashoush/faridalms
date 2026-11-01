@@ -6,6 +6,7 @@ import {
   canHandIn,
   effectiveScore,
   GRACE_MS,
+  handInIssue,
   isLate,
   learnerState,
   rubricEvidence,
@@ -47,6 +48,18 @@ describe("assignmentPhase", () => {
       "draft",
     );
   });
+
+  it("closes undated work at its close date and keeps it open until then", () => {
+    const undated = { ...schedule, dueAt: null, closesAt: at(60_000_000) };
+    expect(assignmentPhase(undated, at(59_999_999))).toBe("assigned");
+    expect(assignmentPhase(undated, at(60_000_001))).toBe("closed");
+    expect(
+      assignmentPhase({ ...undated, latePolicy: "refuse" }, at(30_000_000)),
+    ).toBe("assigned");
+    expect(
+      assignmentPhase({ ...undated, closesAt: null }, at(10 * 60_000_000)),
+    ).toBe("assigned");
+  });
 });
 
 describe("handing in", () => {
@@ -69,6 +82,40 @@ describe("handing in", () => {
     expect(
       canHandIn({ ...open, latePolicy: "refuse" }, 0, false, at(GRACE_MS + 1)),
     ).toBe(false);
+  });
+
+  it("asks for written work and files together only when the format requires both", () => {
+    const none = { written: false, files: false };
+    const written = { written: true, files: false };
+    const files = { written: false, files: true };
+    const all = { written: true, files: true };
+    expect(handInIssue("both", written)).toBeNull();
+    expect(handInIssue("both", files)).toBeNull();
+    expect(handInIssue("both", none)).toBe("coursework.nothing_to_hand_in");
+    expect(handInIssue("online_and_files", all)).toBeNull();
+    expect(handInIssue("online_and_files", written)).toBe(
+      "coursework.files_needed",
+    );
+    expect(handInIssue("online_and_files", files)).toBe(
+      "coursework.written_needed",
+    );
+    expect(handInIssue("online_and_files", none)).toBe(
+      "coursework.nothing_to_hand_in",
+    );
+    expect(handInIssue("online", files)).toBe("coursework.nothing_to_hand_in");
+    expect(handInIssue("files", written)).toBe("coursework.nothing_to_hand_in");
+    expect(handInIssue("none", none)).toBeNull();
+  });
+
+  it("stops hand-in at the close date of work with no due date", () => {
+    const undated = {
+      ...schedule,
+      dueAt: null,
+      closesAt: at(60_000_000),
+      resubmission: false,
+    };
+    expect(canHandIn(undated, 0, false, at(60_000_000))).toBe(true);
+    expect(canHandIn(undated, 0, false, at(60_000_001))).toBe(false);
   });
 });
 

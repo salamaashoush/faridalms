@@ -26,7 +26,7 @@ export interface Notice {
   needsAction?: boolean;
   /** Minutes before email and texts go, so a mistake can be put right first. */
   delayMinutes?: number;
-  /** Skip people who have not yet read an earlier notice about the same subject. */
+  /** Skip people who have not yet read an earlier notice of this kind about the same subject. */
   collapse?: boolean;
 }
 
@@ -77,6 +77,7 @@ export async function notifyIn(
   const holding = notice.collapse
     ? await holdingUnread(context.tx, {
         tenantId: context.tenantId,
+        kind: notice.kind,
         subjectType: notice.subject.type,
         subjectId: notice.subject.id,
         userIds: others,

@@ -318,8 +318,11 @@ no provider is configured), so the office can answer why someone got
 nothing. In-app delivery is the notification row itself, and read state is
 per person. The kinds today are announcements and urgent notices, news,
 messages and replies, absences, events, reminders, consents, mentions,
-library notices, enquiries and applications. Both tables are partitioned
-by month.
+library notices, enquiries and applications, and the teaching events: work
+set, work returned or sent back, and a period's grades released, each told
+to the students and to their guardians who take notices. Work set to open
+later is told when it opens, by a clock in the API process. Both tables are
+partitioned by month.
 
 The delivery worker runs in the API process as the `worker` role every 30 seconds. It claims due rows per tenant with row locks, so two replicas never send the same one. A person's digest items leave as one message and a conversation's message to a contact leaves whole, in the recipient's language, from server-side templates. The worker records the provider's receipt, or the failure with the next attempt after a backoff of one, five, 30, 120 and 720 minutes, giving up after five tries. Holders of `school:manage` read the delivery log.
 
@@ -377,8 +380,9 @@ and kind in the URL.
 
 The API process runs the cell's background work where the `worker` login is
 configured: deliveries, file sweeps and storage reports to the directory,
-monthly partitions, handing in timed quizzes whose time ran out, marking
-code answers again, checking schools' hosts and keeping the sign-in index.
+monthly partitions, handing in timed quizzes whose time ran out, telling
+students and families about work that has opened, marking code answers
+again, checking schools' hosts and keeping the sign-in index.
 A pass claims its rows before working them, so every replica may run it.
 
 The operator console (`apps/ops`) runs on its own host, signs operators in

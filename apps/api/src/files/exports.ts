@@ -889,6 +889,7 @@ const SUBMISSION_OF: Partial<Record<string, CcSubmission>> = {
   online: "online",
   files: "files",
   both: "both",
+  online_and_files: "both",
   none: "none",
 };
 

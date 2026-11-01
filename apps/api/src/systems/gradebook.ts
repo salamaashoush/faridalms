@@ -45,6 +45,7 @@ import {
   requireCapability,
   writeProcedure,
 } from "../core/procedure";
+import { teachingScope, tellPeriodGrades } from "../core/teaching-notices";
 
 function scopeOf(context: UnitContext): Scope {
   return {
@@ -257,18 +258,32 @@ export const releasePeriod = writeProcedure
     const { classRow, year } = await taughtClass(context, input.classId);
     if ((await holdYear(context.tx, context.tenantId, year.id)) === "closed")
       throw new ORPCError("CONFLICT", { message: "school_year.closed" });
-    const released = await releasePeriodGrades(context.tx, {
+    const period = (await termsOf(context.tx, context.tenantId, year.id)).find(
+      (row) => row.id === input.periodId,
+    );
+    if (!period) throw new ORPCError("NOT_FOUND");
+    const students = await releasePeriodGrades(context.tx, {
       tenantId: context.tenantId,
       classId: classRow.id,
-      periodId: input.periodId,
+      periodId: period.id,
+    });
+    const learners = await namesOf(context.tx, context.tenantId, students);
+    await tellPeriodGrades(teachingScope(context), {
+      classId: classRow.id,
+      period,
+      learners: learners.map((row) => ({
+        studentId: row.id,
+        fullNameEn: row.fullNameEn,
+        fullNameAr: row.fullNameAr,
+      })),
     });
     await audit(context, {
       action: "period_grade.release",
       objectType: "class",
       objectId: classRow.id,
-      details: { periodId: input.periodId, released },
+      details: { periodId: input.periodId, released: students.length },
     });
-    return { released };
+    return { released: students.length };
   });
 
 /** A student's released term grades, for the student, their family or staff who reach them. */

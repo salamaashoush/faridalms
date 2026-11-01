@@ -1,7 +1,6 @@
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 import { Users } from "lucide-react";
-import { useState } from "react";
 import * as v from "valibot";
 
 import type { Facet } from "~/components/system/IndexPage";
@@ -27,6 +26,8 @@ const RECENT_MS = 14 * 86_400_000;
 export const Route = createFileRoute("/_app/family/assignments")({
   validateSearch: v.object({
     studentId: v.optional(v.pipe(v.string(), v.uuid())),
+    /** The piece open in the side panel, so a notice can open it. */
+    assignment: v.fallback(v.optional(v.pipe(v.string(), v.uuid())), undefined),
   }),
   loaderDeps: ({ search }) => search,
   loader: async ({ context, deps }) => {
@@ -41,7 +42,15 @@ export const Route = createFileRoute("/_app/family/assignments")({
   component: FamilyCourseworkPage,
 });
 
-function ChildWork({ studentId }: { studentId: string }) {
+function ChildWork({
+  studentId,
+  open,
+  onOpen,
+}: {
+  studentId: string;
+  open: string | undefined;
+  onOpen: (assignmentId: string | undefined) => void;
+}) {
   const { rows, now } = useSuspenseQuery(childCourseworkQuery(studentId)).data;
   const at = Date.parse(now);
   const missing = rows.filter((row) => row.state === "missing");
@@ -51,17 +60,20 @@ function ChildWork({ studentId }: { studentId: string }) {
       row.dueAt !== null &&
       Date.parse(row.dueAt) - at <= WEEK_MS,
   );
-  const returned = rows.filter(
-    (row) =>
-      row.state === "returned" &&
-      row.releasedAt !== null &&
-      at - Date.parse(row.releasedAt) <= RECENT_MS,
+  const waiting = rows.filter(
+    (row) => row.state === "handed_in" || row.state === "handed_in_late",
   );
-  const [reading, setReading] = useState<{ id: string; title: string }>();
+  const recent = (row: (typeof rows)[number]) =>
+    row.releasedAt !== null && at - Date.parse(row.releasedAt) <= RECENT_MS;
+  const returned = rows.filter(
+    (row) => row.state === "returned" && recent(row),
+  );
+  const earlier = rows
+    .filter((row) => row.state === "returned" && !recent(row))
+    .toSorted((a, b) => (b.releasedAt ?? "").localeCompare(a.releasedAt ?? ""));
   const props = {
     linked: false,
-    onOpen: (item: { assignmentId: string; title: string }) =>
-      setReading({ id: item.assignmentId, title: item.title }),
+    onOpen: (item: { assignmentId: string }) => onOpen(item.assignmentId),
   };
   return (
     <div className="grid gap-6">
@@ -78,18 +90,32 @@ function ChildWork({ studentId }: { studentId: string }) {
         {...props}
       />
       <WorkSection
+        title={m.courseworkFamilyWaiting()}
+        items={waiting}
+        empty={m.courseworkNothingWaiting()}
+        {...props}
+      />
+      <WorkSection
         title={m.courseworkFamilyReturned()}
         items={returned}
         empty={m.courseworkNothingReturned()}
         {...props}
       />
+      {earlier.length > 0 ? (
+        <WorkSection
+          title={m.courseworkFamilyEarlier()}
+          items={earlier}
+          empty={m.courseworkNothingReturned()}
+          {...props}
+        />
+      ) : null}
       <SharedWork studentId={studentId} />
-      {reading ? (
+      {open ? (
         <FamilyBrief
           studentId={studentId}
-          assignmentId={reading.id}
-          title={reading.title}
-          onClose={() => setReading(undefined)}
+          assignmentId={open}
+          title={rows.find((row) => row.assignmentId === open)?.title ?? ""}
+          onClose={() => onOpen(undefined)}
         />
       ) : null}
     </div>
@@ -114,7 +140,9 @@ function FamilyCourseworkPage() {
     selected: current ? [current] : [],
     defaultSelected: children[0] ? [children[0].studentId] : [],
     onChange: ([next]) => {
-      void navigate({ search: { studentId: next || undefined } });
+      void navigate({
+        search: { studentId: next || undefined, assignment: undefined },
+      });
     },
   };
   return (
@@ -126,7 +154,15 @@ function FamilyCourseworkPage() {
       {current ? (
         <div className="grid gap-6">
           {children.length > 1 ? <IndexToolbar facets={[childFacet]} /> : null}
-          <ChildWork studentId={current} />
+          <ChildWork
+            studentId={current}
+            open={search.assignment}
+            onOpen={(assignment) =>
+              void navigate({
+                search: (previous) => ({ ...previous, assignment }),
+              })
+            }
+          />
         </div>
       ) : (
         <EmptyState

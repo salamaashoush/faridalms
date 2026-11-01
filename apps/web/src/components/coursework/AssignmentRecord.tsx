@@ -123,6 +123,7 @@ function Settings({
   }[data.latePolicy];
   const format = {
     both: m.courseworkFormatBoth(),
+    online_and_files: m.courseworkFormatWrittenAndFiles(),
     online: m.courseworkFormatOnline(),
     files: m.courseworkFormatFiles(),
     none: m.courseworkFormatNone(),

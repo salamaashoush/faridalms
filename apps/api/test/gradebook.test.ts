@@ -64,6 +64,16 @@ describe("gradebook", () => {
     expect(
       family.rows.find((row) => row.classId === book.class.id)?.score,
     ).toBe(95);
+    // Both hear the grades are out, the family about the child by name.
+    const told = <T extends { kind: string; subjectId: string }>(rows: T[]) =>
+      rows.filter((row) => row.kind === "grades" && row.subjectId === periodId);
+    expect(
+      told((await student.notifications.list({ tab: "all" })).rows).length,
+    ).toBeGreaterThan(0);
+    const familyNotice = told(
+      (await parent.notifications.list({ tab: "all" })).rows,
+    )[0];
+    expect(familyNotice?.params.studentId).toBe(me.id);
     expect(
       await rejection(
         api.gradebook.savePeriodGrades({

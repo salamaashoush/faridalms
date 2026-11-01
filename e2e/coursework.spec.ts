@@ -1,5 +1,7 @@
+import { plainContent } from "@faridalms/domain/content-conversion";
 import { expect, test } from "@playwright/test";
 
+import { signedInApi } from "./fixtures/api";
 import {
   ACCOUNTS,
   openWith,
@@ -665,3 +667,129 @@ test("a brief written in two languages opens in the reader's own", async ({
   await expect(student.getByText("Write the Nile a letter.")).toBeVisible();
   await context.close();
 });
+
+/**
+ * Work for the seeded student: one piece handed in and returned with
+ * feedback and a private note, another handed in and waiting.
+ */
+async function returnedAndWaiting(unique: string) {
+  const { api: teacher } = await signedInApi(TEACHER);
+  const { api: learner } = await signedInApi(ACCOUNTS.student.email);
+  const me = await learner.identity.currentUser();
+  const { classes } = await teacher.coursework.options();
+  const rosters = await Promise.all(
+    classes
+      .filter((row) => row.classType === "scheduled")
+      .map(async (row) => ({
+        id: row.id,
+        roster: (await teacher.coursework.groups({ classId: row.id })).roster,
+      })),
+  );
+  const classId = rosters.find((row) =>
+    row.roster.some((pupil) => pupil.id === me.id),
+  )?.id;
+  if (!classId) throw new Error("the seeded student takes no Arabic class");
+  const set = async (title: string) => {
+    const saved = await teacher.coursework.save({
+      classId,
+      title,
+      brief: plainContent(`Instructions for ${title}.`),
+      audience: "class",
+      latePolicy: "accept",
+      submissionFormat: "online",
+      points: 10,
+      rubric: null,
+    });
+    await teacher.coursework.publish({
+      id: saved.id,
+      expectedVersion: saved.version,
+    });
+    const drafted = await learner.coursework.saveDraft({
+      assignmentId: saved.id,
+      expectedVersion: 0,
+      content: plainContent(`My answer to ${title}.`),
+    });
+    await learner.coursework.handIn({
+      assignmentId: saved.id,
+      expectedVersion: drafted.version,
+    });
+    return saved.id;
+  };
+  const marked = `Marked letter ${unique}`;
+  const waiting = `Waiting letter ${unique}`;
+  const [markedId] = await Promise.all([set(marked), set(waiting)]);
+  const grading = await teacher.coursework.grading({
+    assignmentId: markedId,
+    studentId: me.id,
+  });
+  const attempt = grading.attempts[0];
+  if (!attempt) throw new Error("the attempt was not made");
+  await teacher.coursework.assess({
+    attemptId: attempt.id,
+    score: 8,
+    feedback: "A warm letter. Check your full stops.",
+    privateNote: "Kept for the teacher.",
+  });
+  await teacher.coursework.act({
+    assignmentId: markedId,
+    action: "return",
+    studentIds: [me.id],
+  });
+  return { studentId: me.id, marked, markedId, waiting };
+}
+
+const WAITING = {
+  en: "Handed in, waiting to be marked",
+  ar: "سُلِّم وينتظر التصحيح",
+} as const;
+
+for (const [locale, width] of [
+  ["en", 1280],
+  ["ar", 1280],
+  ["en", 390],
+  ["ar", 390],
+] as const)
+  test(`a family reads the feedback on returned work and sees what waits to be marked (${locale}, ${width}px)`, async ({
+    browser,
+  }, testInfo) => {
+    const work = await returnedAndWaiting(crypto.randomUUID().slice(0, 6));
+    const context = await browser.newContext({
+      viewport: { width, height: 844 },
+    });
+    const family = await context.newPage();
+    await signInWith(
+      family,
+      "parent1007@northwind.example.com",
+      PASSWORD,
+      "/family",
+    );
+    // The family reads the school in its own language once signed in.
+    await context.addCookies([
+      { name: "language-tag", value: locale, url: portal() },
+    ]);
+    await family.goto(`/family/assignments?studentId=${work.studentId}`);
+    await untilHydrated(family);
+    await expect(
+      family
+        .getByRole("region", { name: WAITING[locale] })
+        .getByText(work.waiting),
+    ).toBeVisible();
+    await family.getByRole("button", { name: work.marked }).first().click();
+    await expect(family).toHaveURL(new RegExp(`assignment=${work.markedId}`));
+    const sheet = family.getByRole("dialog");
+    await expect(
+      sheet.getByText("A warm letter. Check your full stops."),
+    ).toBeVisible();
+    await expect(sheet.getByText("Kept for the teacher.")).toHaveCount(0);
+    expect(
+      await family.evaluate(
+        () => document.documentElement.scrollWidth <= window.innerWidth,
+      ),
+    ).toBe(true);
+    await family.screenshot({
+      path: testInfo.outputPath(
+        `family-coursework-${locale}-${width < 768 ? "mobile" : "desktop"}.png`,
+      ),
+    });
+    await context.close();
+  });

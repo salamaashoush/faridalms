@@ -143,17 +143,18 @@ export async function savePeriodGrade(
       recorded_by_user_id = excluded.recorded_by_user_id`);
 }
 
+/** Releases a class's recorded grades for a period, answering whose went out. */
 export async function releasePeriodGrades(
   tx: Tx,
   input: { tenantId: string; classId: string; periodId: string },
-): Promise<number> {
-  const rows = await tx.execute<{ id: string }>(sql`
+): Promise<string[]> {
+  const rows = await tx.execute<{ student_user_id: string }>(sql`
     update core.period_grades set released_at = statement_timestamp()
     where tenant_id = ${input.tenantId}::uuid and class_id = ${input.classId}::uuid
       and grading_period_id = ${input.periodId}::uuid and status = 'active'
       and released_at is null and score is not null
-    returning id`);
-  return rows.length;
+    returning student_user_id`);
+  return rows.map((row) => row.student_user_id);
 }
 
 export interface StudentGradeRow {

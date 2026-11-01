@@ -11,13 +11,14 @@ import {
   useQueryClient,
   useSuspenseQuery,
 } from "@tanstack/react-query";
-import { CheckCircle2, Save, Undo2 } from "lucide-react";
-import { useState } from "react";
+import { CheckCircle2, Undo2 } from "lucide-react";
+import { useCallback, useRef, useState } from "react";
 import { toast } from "sonner";
 
 import type { HeaderFact } from "~/components/system/RecordPage";
 import type { Locale } from "~/i18n/runtime";
 
+import { UnsavedChangesGuard } from "~/components/app/UnsavedChangesGuard";
 import { ContentEditor } from "~/components/content/ContentEditor";
 import { ContentView } from "~/components/content/ContentView";
 import {
@@ -28,6 +29,7 @@ import {
 } from "~/components/exams/Declaration";
 import { isolatedLine, sessionName } from "~/components/exams/names";
 import { usePrint } from "~/components/print/usePrint";
+import { SaveIndicator } from "~/components/system/DocumentPage";
 import { FormField } from "~/components/system/field";
 import { FileList } from "~/components/system/FileList";
 import {
@@ -41,6 +43,7 @@ import {
   RecordSection,
 } from "~/components/system/RecordPage";
 import { SheetForm } from "~/components/system/SheetForm";
+import { useAutosave } from "~/hooks/useAutosave";
 import { useDocumentMedia } from "~/hooks/useDocumentMedia";
 import * as m from "~/i18n/messages";
 import { myWorkQuery } from "~/queries/coursework";
@@ -238,13 +241,13 @@ function YourWork({ data }: { data: Data }) {
   const media = useDocumentMedia({ type: "work", id: data.assignment.id });
   const format = data.assignment.submissionFormat;
   const editable = data.canHandIn;
+  const writes = editable && format !== "none";
   const [content, setContent] = useState<ContentDocument>(
     data.submission.content ?? emptyContent(),
   );
   // Hand-in waits for files still uploading into the answer.
   const [uploading, setUploading] = useState(false);
-  const [version, setVersion] = useState(data.submission.version);
-  const [dirty, setDirty] = useState(false);
+  const version = useRef(data.submission.version);
   const [confirming, setConfirming] = useState(false);
   const standing = useQuery(myStandingQuery(data.assignment.id)).data;
   const declaring = Boolean(standing?.declarationRequired);
@@ -255,30 +258,32 @@ function YourWork({ data }: { data: Data }) {
       queryClient.invalidateQueries({ queryKey: ["coursework"] }),
       queryClient.invalidateQueries({ queryKey: ["exams"] }),
     ]);
-  const save = useMutation({
-    mutationFn: () =>
-      saveMyDraft({
+  const persist = useCallback(
+    async (value: ContentDocument) => {
+      const saved = await saveMyDraft({
         data: {
           assignmentId: data.assignment.id,
-          expectedVersion: version,
-          content: format === "none" ? null : content,
+          expectedVersion: version.current,
+          content: value,
         },
-      }),
-    onSuccess: (saved) => {
-      setVersion(saved.version);
-      setDirty(false);
+      });
+      version.current = saved.version;
     },
+    [data.assignment.id],
+  );
+  const autosave = useAutosave({
+    value: content,
+    save: persist,
+    enabled: writes,
   });
   const handIn = useMutation({
     mutationFn: async () => {
-      let current = version;
-      if (dirty || format === "none") {
-        if (format !== "none") current = (await save.mutateAsync()).version;
-      }
+      if (writes && !(await autosave.flush()))
+        throw new Error(m.courseworkDraftNotSaved());
       return handInWork({
         data: {
           assignmentId: data.assignment.id,
-          expectedVersion: current,
+          expectedVersion: version.current,
           ...(declaring && declarationReady(declaration)
             ? { declaration }
             : {}),
@@ -306,7 +311,7 @@ function YourWork({ data }: { data: Data }) {
       }
     >
       <div className="grid gap-4">
-        {editable && format !== "none" ? (
+        {writes ? (
           <FormField
             id="your-work"
             label={
@@ -315,7 +320,11 @@ function YourWork({ data }: { data: Data }) {
                 : m.courseworkWriteHere()
             }
             hint={
-              format === "online" ? undefined : m.courseworkFilesInAnswerHint()
+              format === "online"
+                ? undefined
+                : format === "online_and_files"
+                  ? m.courseworkWrittenAndFilesHint()
+                  : m.courseworkFilesInAnswerHint()
             }
           >
             {(control) => (
@@ -328,10 +337,7 @@ function YourWork({ data }: { data: Data }) {
                       : m.courseworkWriteHere()
                   }
                   value={content}
-                  onChange={(value) => {
-                    setContent(value);
-                    setDirty(true);
-                  }}
+                  onChange={setContent}
                   onUploadingChange={setUploading}
                   media={media}
                   aiUse
@@ -340,7 +346,7 @@ function YourWork({ data }: { data: Data }) {
             )}
           </FormField>
         ) : null}
-        <div className="flex flex-wrap gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           {data.canHandIn ? (
             <Button
               type="button"
@@ -352,25 +358,6 @@ function YourWork({ data }: { data: Data }) {
               {format === "none"
                 ? m.courseworkMarkDone()
                 : m.courseworkHandIn()}
-            </Button>
-          ) : null}
-          {editable && format !== "none" ? (
-            <Button
-              type="button"
-              variant="outline"
-              className="max-md:h-10"
-              disabled={!dirty || save.isPending}
-              onClick={async () => {
-                try {
-                  await save.mutateAsync();
-                  toast.success(m.courseworkDraftSaved());
-                } catch (error) {
-                  toast.error(getMessageFromError(error));
-                }
-              }}
-            >
-              <Save aria-hidden />
-              {m.courseworkSaveWork()}
             </Button>
           ) : null}
           {data.canUndo ? (
@@ -393,8 +380,18 @@ function YourWork({ data }: { data: Data }) {
               {m.courseworkUndoHandIn()}
             </Button>
           ) : null}
+          {writes ? (
+            <SaveIndicator
+              state={autosave.state}
+              onRetry={() => void autosave.retry()}
+            />
+          ) : null}
         </div>
       </div>
+      <UnsavedChangesGuard
+        isDirty={() => writes && autosave.dirty}
+        pending={autosave.busy()}
+      />
       <SheetForm
         open={confirming}
         onOpenChange={setConfirming}

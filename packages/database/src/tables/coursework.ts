@@ -115,6 +115,7 @@ export type SubmissionFormat =
   | "online"
   | "files"
   | "both"
+  | "online_and_files"
   | "none"
   | "quiz"
   | "discussion";
@@ -249,7 +250,7 @@ export const assignments = core.table.withRLS(
     ck(
       "assignments",
       "submission_format",
-      sql`submission_format in ('online', 'files', 'both', 'none', 'quiz', 'discussion')`,
+      sql`submission_format in ('online', 'files', 'both', 'online_and_files', 'none', 'quiz', 'discussion')`,
     ),
     ck(
       "assignments",
@@ -275,7 +276,7 @@ export const assignments = core.table.withRLS(
     ck(
       "assignments",
       "peer",
-      sql`(peer_reviews is null) = (peer_anonymous is null) and (peer_reviews is null or (peer_reviews between 1 and 5 and submission_format in ('online', 'files', 'both'))) and (peer_started_at is null or peer_reviews is not null) and (peer_released_at is null or peer_started_at is not null)`,
+      sql`(peer_reviews is null) = (peer_anonymous is null) and (peer_reviews is null or (peer_reviews between 1 and 5 and submission_format in ('online', 'files', 'both', 'online_and_files'))) and (peer_started_at is null or peer_reviews is not null) and (peer_released_at is null or peer_started_at is not null)`,
     ),
     ck(
       "assignments",
@@ -451,6 +452,11 @@ export const submissionAttempts = core.table.withRLS(
       .notNull()
       .default(sql`statement_timestamp()`),
     submittedByUserId: uuid("submitted_by_user_id").notNull(),
+    /**
+     * The draft version the student's page held when it handed this in, so
+     * a retry of that request finds the attempt it already made.
+     */
+    fromVersion: integer("from_version"),
     ...entityColumns(),
   },
   (t): PgTableExtraConfigValue[] => [

@@ -17,6 +17,9 @@ export const NOTIFICATION_KINDS = [
   "reply",
   "enquiry",
   "application",
+  "assignment",
+  "feedback",
+  "grades",
 ] as const;
 export type NotificationKind = (typeof NOTIFICATION_KINDS)[number];
 
@@ -65,6 +68,8 @@ export interface NoticeParams {
   toFamily?: boolean;
   /** The last day of an offer. */
   until?: string;
+  /** Work sent back for the student to revise, rather than returned marked. */
+  revise?: boolean;
 }
 
 export const APPLICATION_OUTCOMES = [
@@ -93,6 +98,9 @@ export const CHOOSABLE_KINDS = [
   "reply",
   "enquiry",
   "application",
+  "assignment",
+  "feedback",
+  "grades",
 ] as const;
 export type ChoosableKind = (typeof CHOOSABLE_KINDS)[number];
 
@@ -140,6 +148,9 @@ export const DEFAULT_PREFERENCES: Preferences = {
     reply: "digest",
     enquiry: "instant",
     application: "instant",
+    assignment: "digest",
+    feedback: "digest",
+    grades: "instant",
   },
   sms: {
     announcement: "off",
@@ -154,6 +165,9 @@ export const DEFAULT_PREFERENCES: Preferences = {
     reply: "off",
     enquiry: "off",
     application: "off",
+    assignment: "off",
+    feedback: "off",
+    grades: "off",
   },
   quietFrom: "21:00",
   quietTo: "07:00",
