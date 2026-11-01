@@ -122,6 +122,17 @@ export function openCell(urls: CellUrls, size = 10) {
       access: Access,
       run: (tx: CellTransaction) => Promise<T>,
     ) => unit(need(pools.worker, "worker"), work, access, run),
+    /**
+     * Creates the monthly and yearly partitions the coming months need.
+     * Migrations make them only when they run, so a cell that runs for a
+     * long time needs this regularly, or writes past the last partition fail.
+     */
+    ensurePartitions: async (monthsAhead: number) => {
+      const [row] = await need(pools.worker, "worker").execute<{
+        made: number;
+      }>(sql`select app.ensure_partitions(${monthsAhead}) as made`);
+      return row?.made ?? 0;
+    },
     /** Whether erasure can run in this deployment. */
     canErase: () => pools.retention !== undefined,
     withRetention: <T>(

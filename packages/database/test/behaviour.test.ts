@@ -879,7 +879,7 @@ describe("audit", () => {
     }>("app", a.tenantId, [
       {
         text: `insert into audit.log (tenant_id, occurred_at, actor_kind, actor_user_id, action, object_type)
-                 values ($1, now() - interval '1 hour', 'operator', $1, 'user.update', 'user')
+                 values ($1, date_trunc('month', now()), 'operator', $1, 'user.update', 'user')
                  returning occurred_at::text, actor_kind, actor_user_id`,
         params: [a.tenantId],
       },
