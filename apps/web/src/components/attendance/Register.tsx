@@ -24,7 +24,7 @@ import {
   NotebookPen,
   Save,
 } from "lucide-react";
-import { useId, useState } from "react";
+import { useEffect, useId, useState } from "react";
 import { toast } from "sonner";
 
 import { PersonAvatar } from "~/components/admin/PersonAvatar";
@@ -467,10 +467,19 @@ function Summary({ drafts }: { drafts: Drafts }) {
   );
 }
 
-function RegisterForm({ data }: { data: Data }) {
+function RegisterForm({
+  data,
+  onDirtyChange,
+}: {
+  data: Data;
+  onDirtyChange: (dirty: boolean) => void;
+}) {
   const hydrated = useHydrated();
   const queryClient = useQueryClient();
-  const [initial] = useState(() => draftsOf(data));
+  const [initial, setInitial] = useState(() => draftsOf(data));
+  // A save names the version these marks were made against, so a register
+  // someone saved since is refused rather than overwritten.
+  const [expectedVersion] = useState(data.register?.version ?? 0);
   const [drafts, setDrafts] = useState(() => withReports(initial, data));
   const [correction, setCorrection] = useState("");
   const [asked, setAsked] = useState(false);
@@ -490,7 +499,7 @@ function RegisterForm({ data }: { data: Data }) {
           classId: data.class.id,
           date: data.date,
           periodId: data.period.id,
-          expectedVersion: data.register?.version ?? 0,
+          expectedVersion,
           marks: data.students.flatMap((student) => {
             const draft = drafts[student.id] ?? BLANK;
             if (!draft.meaning) return [];
@@ -513,6 +522,7 @@ function RegisterForm({ data }: { data: Data }) {
     meta: { inlineError: true },
   });
   const dirty = JSON.stringify(drafts) !== JSON.stringify(initial);
+  useEffect(() => onDirtyChange(dirty), [dirty, onDirtyChange]);
   const unmarked = data.students.filter(
     (student) => !(drafts[student.id] ?? BLANK).meaning,
   );
@@ -550,6 +560,7 @@ function RegisterForm({ data }: { data: Data }) {
         }
         void save.mutateAsync().then(
           async (result) => {
+            setInitial(drafts);
             toast.success(
               result.state === "submitted"
                 ? m.attSubmittedToast()
@@ -666,6 +677,12 @@ export function Register({
 }) {
   const data = useSuspenseQuery(registerQuery(classId, date, periodId)).data;
   const [checking, setChecking] = useState(false);
+  // Marks being made stay on screen when the register is read again, as it
+  // is after any save; only an untouched form takes up a newer version.
+  const [editing, setEditing] = useState(false);
+  const version = data.register?.version ?? 0;
+  const [shown, setShown] = useState(version);
+  if (!editing && shown !== version) setShown(version);
   const state = data.register?.state ?? "not_started";
   const facts = [
     { label: m.attDate(), value: formatDate(data.date, "weekday") },
@@ -754,8 +771,9 @@ export function Register({
         </p>
       ) : (
         <RegisterForm
-          key={`${data.date}|${data.period.id}|${data.register?.version ?? 0}`}
+          key={`${data.date}|${data.period.id}|${shown}`}
           data={data}
+          onDirtyChange={setEditing}
         />
       )}
     </div>

@@ -107,8 +107,10 @@ attach files or a photo), Hand in with a confirmation and a receipt, Undo hand
 in until returned, and the returned score, rubric and feedback. Mark as done
 for work with nothing to hand in.
 
-**Family:** per child, Missing first, then due this week, then recently
-returned. Never draft grades, never other students. A weekly digest (daily
+**Family:** per child, Missing first, then due this week, what was handed in
+and waits to be marked, recently returned, and work returned earlier in the
+year. A returned piece opens with its mark, its rubric levels and the
+teacher's feedback. Never draft grades, never other students. A weekly digest (daily
 optional) in the parent's language, sent only when there is something to say.
 
 **Admin:** missing work by class and grade; assignment load per class per week.

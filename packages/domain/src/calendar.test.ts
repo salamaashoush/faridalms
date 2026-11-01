@@ -6,7 +6,9 @@ import {
   eventIcs,
   materialChange,
   monthWeeks,
+  rescheduled,
   saveEventSchema,
+  weekOf,
 } from "./calendar";
 import { plainContent } from "./content-conversion";
 
@@ -20,6 +22,63 @@ describe("month weeks", () => {
 
   it("follows a Monday start", () => {
     expect(monthWeeks("2026-10", 1)[0]?.[0]).toBe("2026-09-28");
+  });
+});
+
+describe("week of a day", () => {
+  it("runs from the school's first weekday through the six after it", () => {
+    expect(weekOf("2026-11-12", 7)).toEqual([
+      "2026-11-08",
+      "2026-11-09",
+      "2026-11-10",
+      "2026-11-11",
+      "2026-11-12",
+      "2026-11-13",
+      "2026-11-14",
+    ]);
+    expect(weekOf("2026-11-08", 7)[0]).toBe("2026-11-08");
+    expect(weekOf("2026-11-08", 1)[0]).toBe("2026-11-02");
+    expect(weekOf("2026-12-31", 6)).toHaveLength(7);
+  });
+});
+
+describe("dragging an event", () => {
+  const trip = {
+    startsOn: "2026-11-10",
+    endsOn: "2026-11-11",
+    startTime: "13:00",
+    endTime: "11:00",
+  };
+
+  it("moves every day of it together, across a month's end", () => {
+    expect(rescheduled(trip, { move: 21 })).toEqual({
+      startsOn: "2026-12-01",
+      endsOn: "2026-12-02",
+    });
+    expect(rescheduled(trip, { move: -1 })).toEqual({
+      startsOn: "2026-11-09",
+      endsOn: "2026-11-10",
+    });
+  });
+
+  it("lengthens or shortens it from its last day", () => {
+    expect(rescheduled(trip, { extend: 2 })).toEqual({
+      startsOn: "2026-11-10",
+      endsOn: "2026-11-13",
+    });
+    const day = { ...trip, endTime: "15:00" };
+    expect(rescheduled(day, { extend: -1 })).toEqual({
+      startsOn: "2026-11-10",
+      endsOn: "2026-11-10",
+    });
+  });
+
+  it("refuses a last day before the first, or a day that ends before it starts", () => {
+    expect(rescheduled(trip, { extend: -2 })).toBeNull();
+    expect(rescheduled(trip, { extend: -1 })).toBeNull();
+    expect(
+      rescheduled({ ...trip, startTime: null, endTime: null }, { extend: -1 }),
+    ).toEqual({ startsOn: "2026-11-10", endsOn: "2026-11-10" });
   });
 });
 

@@ -158,6 +158,7 @@ const REVEAL_LABEL: Record<QuizReveal, () => string> = {
 
 const FORMATS: readonly SubmissionFormat[] = [
   "both",
+  "online_and_files",
   "online",
   "files",
   "none",
@@ -167,6 +168,7 @@ const FORMATS: readonly SubmissionFormat[] = [
 
 const FORMAT_LABEL: Record<SubmissionFormat, () => string> = {
   both: m.courseworkFormatBoth,
+  online_and_files: m.courseworkFormatWrittenAndFiles,
   online: m.courseworkFormatOnline,
   files: m.courseworkFormatFiles,
   none: m.courseworkFormatNone,
@@ -1288,6 +1290,7 @@ export function AssignmentEditor({
               />
               {draft.submissionFormat === "files" ||
               draft.submissionFormat === "both" ||
+              draft.submissionFormat === "online_and_files" ||
               isDiscussion ? (
                 <TextField
                   id="work-max-files"

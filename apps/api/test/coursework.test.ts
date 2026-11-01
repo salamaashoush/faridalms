@@ -10,6 +10,7 @@ import { describe, expect, test } from "bun:test";
 import { sql } from "drizzle-orm";
 import { strFromU8, unzipSync } from "fflate";
 
+import { tellOpenedWork } from "../src/core/coursework-clock";
 import { handInTimedOut } from "../src/quizzes/clock";
 import { login, raw, rejection, seeded, sessionFor, signedIn } from "./harness";
 
@@ -223,6 +224,13 @@ describe("handing in and returning work", () => {
       assignmentId: saved.id,
       expectedVersion: drafted.version,
     });
+    // A retry after a lost answer finds the attempt it already made.
+    expect(
+      await student.api.coursework.handIn({
+        assignmentId: saved.id,
+        expectedVersion: drafted.version,
+      }),
+    ).toEqual(handed);
     expect(
       await rejection(
         student.api.coursework.handIn({
@@ -250,6 +258,17 @@ describe("handing in and returning work", () => {
     expect(hidden.attempts[0]?.assessment).toBeNull();
     expect(hidden.canUndo).toBe(false);
 
+    // The seeded student's mother signs in with the same number.
+    const parent = await signedIn(
+      "northwind",
+      login("student").replace("student", "parent"),
+    );
+    const waiting = await parent.coursework.childBrief({
+      studentId: me.id,
+      assignmentId: saved.id,
+    });
+    expect(waiting.result).toBeNull();
+
     await teacher.api.coursework.act({
       assignmentId: saved.id,
       action: "return",
@@ -263,15 +282,147 @@ describe("handing in and returning work", () => {
       privateNote: null,
     });
 
-    // The seeded student's mother signs in with the same number.
-    const parent = await signedIn(
-      "northwind",
-      login("student").replace("student", "parent"),
-    );
     const family = await parent.coursework.child({ studentId: me.id });
     expect(
       family.rows.find((row) => row.assignmentId === saved.id),
     ).toMatchObject({ state: "returned", effectiveScore: 9 });
+    const brief = await parent.coursework.childBrief({
+      studentId: me.id,
+      assignmentId: saved.id,
+    });
+    expect(brief.result).toMatchObject({ score: 9, feedback: "Thoughtful." });
+    expect(JSON.stringify(brief)).not.toContain("Check spelling");
+
+    // Setting the work and returning it told the student and the family.
+    const about = <T extends { kind: string; subjectId: string }>(
+      rows: T[],
+      kind: string,
+    ) => rows.filter((row) => row.kind === kind && row.subjectId === saved.id);
+    const mine = (await student.api.notifications.list({ tab: "all" })).rows;
+    expect(about(mine, "assignment")).toHaveLength(1);
+    expect(about(mine, "feedback")).toHaveLength(1);
+    const theirs = (await parent.notifications.list({ tab: "all" })).rows;
+    expect(about(theirs, "assignment")[0]?.params.studentId).toBe(me.id);
+    expect(about(theirs, "feedback")[0]?.params.studentId).toBe(me.id);
+  });
+
+  test("work asking for written work and files is handed in only with both", async () => {
+    const teacher = await arabicTeacher();
+    const student = await sessionFor("northwind", login("student"));
+    const me = await student.api.identity.currentUser();
+    const target = await classOfStudent(teacher.api, me.id);
+    const saved = await teacher.api.coursework.save(
+      draft(target.id, "Letter with a drawing", {
+        submissionFormat: "online_and_files",
+      }),
+    );
+    await teacher.api.coursework.publish({
+      id: saved.id,
+      expectedVersion: saved.version,
+    });
+    const written = await student.api.coursework.saveDraft({
+      assignmentId: saved.id,
+      expectedVersion: 0,
+      content: plainContent("Dear Salama, here is my drawing."),
+    });
+    expect(
+      await rejection(
+        student.api.coursework.handIn({
+          assignmentId: saved.id,
+          expectedVersion: written.version,
+        }),
+      ),
+    ).toMatchObject({ message: "coursework.files_needed" });
+    const fileId = await upload(student, "document_media", "drawing.txt");
+    const both = await student.api.coursework.saveDraft({
+      assignmentId: saved.id,
+      expectedVersion: written.version,
+      content: {
+        root: {
+          ...plainContent("Dear Salama, here is my drawing.").root,
+          children: [
+            ...(plainContent("Dear Salama, here is my drawing.").root
+              .children ?? []),
+            fileNode(fileId, "drawing.txt"),
+          ],
+        },
+      },
+    });
+    const handed = await student.api.coursework.handIn({
+      assignmentId: saved.id,
+      expectedVersion: both.version,
+    });
+    expect(handed.attemptId).toBeTruthy();
+  });
+
+  test("work with no due date stops taking hand-ins at its close date", async () => {
+    const teacher = await arabicTeacher();
+    const student = await sessionFor("northwind", login("student"));
+    const me = await student.api.identity.currentUser();
+    const target = await classOfStudent(teacher.api, me.id);
+    const saved = await teacher.api.coursework.save(
+      draft(target.id, "Closed without a due date", {
+        availableFrom: new Date(Date.now() - 2 * 86_400_000).toISOString(),
+        closesAt: new Date(Date.now() - 86_400_000).toISOString(),
+      }),
+    );
+    await teacher.api.coursework.publish({
+      id: saved.id,
+      expectedVersion: saved.version,
+    });
+    const work = await student.api.coursework.work({ id: saved.id });
+    expect(work.canHandIn).toBe(false);
+    const drafted = await student.api.coursework.saveDraft({
+      assignmentId: saved.id,
+      expectedVersion: 0,
+      content: plainContent("Too late."),
+    });
+    expect(
+      await rejection(
+        student.api.coursework.handIn({
+          assignmentId: saved.id,
+          expectedVersion: drafted.version,
+        }),
+      ),
+    ).toMatchObject({ message: "coursework.closed" });
+  });
+
+  test("work set to open later tells its students only once it opens", async () => {
+    const teacher = await arabicTeacher();
+    const student = await sessionFor("northwind", login("student"));
+    const me = await student.api.identity.currentUser();
+    const target = await classOfStudent(teacher.api, me.id);
+    const opens = new Date(Date.now() + 3 * 86_400_000);
+    const saved = await teacher.api.coursework.save(
+      draft(target.id, "Opens on Thursday", {
+        availableFrom: opens.toISOString(),
+      }),
+    );
+    await teacher.api.coursework.publish({
+      id: saved.id,
+      expectedVersion: saved.version,
+    });
+    const told = async () =>
+      (await student.api.notifications.list({ tab: "all" })).rows.filter(
+        (row) => row.kind === "assignment" && row.subjectId === saved.id,
+      ).length;
+    expect(await told()).toBe(0);
+    const tenantId = seeded().tenants[0]?.tenantId ?? "";
+    const channels = { email: false, sms: false };
+    await tellOpenedWork(seeded().cell, tenantId, {
+      now: new Date(opens.getTime() - 60_000),
+      channels,
+    });
+    expect(await told()).toBe(0);
+    await tellOpenedWork(seeded().cell, tenantId, {
+      now: new Date(opens.getTime() + 60_000),
+      channels,
+    });
+    await tellOpenedWork(seeded().cell, tenantId, {
+      now: new Date(opens.getTime() + 120_000),
+      channels,
+    });
+    expect(await told()).toBe(1);
   });
 
   test("comments on a passage stay with the teacher until the work is returned, and only their writer changes them", async () => {

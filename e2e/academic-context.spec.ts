@@ -45,8 +45,7 @@ test("a notice about an assignment still opens it after the student moves to ano
     brief: plainContent("Read the first chapter, then say what you found."),
     audience: "class",
     latePolicy: "accept",
-    submissionFormat: "discussion",
-    discussion: { postFirst: false, replies: 0 },
+    submissionFormat: "online",
     points: 10,
     rubric: null,
   });
@@ -55,25 +54,19 @@ test("a notice about an assignment still opens it after the student moves to ano
     expectedVersion: saved.version,
   });
 
-  const { api: learner } = await signedInApi(loginName, password);
-  const answer = await learner.coursework.post({
-    assignmentId: saved.id,
-    content: plainContent("The hero leaves home in the first chapter."),
-  });
-  await teacher.coursework.post({
-    assignmentId: saved.id,
-    parentId: answer.id,
-    content: plainContent("Where does she go next?"),
-  });
-
   expect(
     await admin.classes.enrol({ studentId: pupil.id, classId: second.id }),
   ).toMatchObject({ moved: true });
 
+  // Publishing the work is what told the student about it.
+  const { api: learner } = await signedInApi(loginName, password);
   const notices = await learner.notifications.list({ tab: "all" });
   expect(
     notices.rows.some(
-      (row) => row.subjectType === "assignment" && row.subjectId === saved.id,
+      (row) =>
+        row.kind === "assignment" &&
+        row.subjectType === "assignment" &&
+        row.subjectId === saved.id,
     ),
   ).toBe(true);
   const opened = await learner.coursework.work({ id: saved.id });

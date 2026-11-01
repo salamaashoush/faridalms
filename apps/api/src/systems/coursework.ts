@@ -34,6 +34,7 @@ import {
   assessmentOf,
   assignmentById,
   attemptById,
+  attemptFromVersion,
   attemptsOf,
   bankCommentById,
   bankCommentsOf,
@@ -159,6 +160,7 @@ import {
   sittingEnds,
   timeIsUp,
   effectiveScore,
+  handInIssue,
   handInSchema,
   isLate,
   learnerState,
@@ -246,6 +248,11 @@ import {
   schoolProcedure,
   writeProcedure,
 } from "../core/procedure";
+import {
+  teachingScope,
+  tellAssigned,
+  tellReturned,
+} from "../core/teaching-notices";
 import {
   registerArea,
   registerOpenWork,
@@ -1115,6 +1122,12 @@ export const publish = writeProcedure
     });
     if (!saved)
       throw new ORPCError("CONFLICT", { message: "conflict.version" });
+    // Work that opens later is told about when it opens, by the clock.
+    if (
+      !assignment.availableFrom ||
+      Date.parse(assignment.availableFrom) <= context.now.getTime()
+    )
+      await tellAssigned(teachingScope(context), assignment);
     await audit(context, {
       action: "assignment.publish",
       objectType: "assignment",
@@ -1401,6 +1414,7 @@ export const act = writeProcedure
       input.studentIds.includes(row.studentId),
     );
     let changed = 0;
+    const returned: typeof chosen = [];
     // Assessed coursework goes back with a grade only once its teacher has
     // confirmed it, and confirmed work is final, so it is not sent back.
     let held = 0;
@@ -1481,6 +1495,7 @@ export const act = writeProcedure
             state: "returned",
             needsRevision: input.action === "revise",
           });
+          returned.push(row);
           changed += 1;
           continue;
         }
@@ -1497,6 +1512,12 @@ export const act = writeProcedure
         });
         changed += 1;
       }
+    await tellReturned(
+      teachingScope(context),
+      assignment,
+      returned,
+      input.action === "revise",
+    );
     await audit(context, {
       action: `submission.${input.action}`,
       objectType: "assignment",
@@ -2506,6 +2527,14 @@ export const handIn = writeProcedure
       assignmentId: assignment.id,
       studentId: context.actor.userId,
     });
+    // A request retried after its answer was lost finds the attempt it made.
+    const retried = await attemptFromVersion(tx, {
+      tenantId: context.tenantId,
+      submissionId: submission.id,
+      studentId: context.actor.userId,
+      fromVersion: input.expectedVersion,
+    });
+    if (retried) return { attemptId: retried, version: submission.version };
     if (
       input.expectedVersion !== 0 &&
       submission.version !== input.expectedVersion
@@ -2518,7 +2547,13 @@ export const handIn = writeProcedure
     });
     if (!row) throw new ORPCError("NOT_FOUND");
     if (assignment.submissionFormat === "quiz")
-      return handInQuiz(context, { assignment, dueAt, submission, row });
+      return handInQuiz(context, {
+        assignment,
+        dueAt,
+        submission,
+        row,
+        fromVersion: input.expectedVersion,
+      });
     // A discussion is handed in by posting in it.
     if (assignment.submissionFormat === "discussion")
       throw new ORPCError("BAD_REQUEST", {
@@ -2544,16 +2579,11 @@ export const handIn = writeProcedure
     const inAnswer = draft
       ? contentFileIds(draft.content as unknown as ContentDocument)
       : [];
-    const hasFiles = inAnswer.length > 0;
-    const format = assignment.submissionFormat;
-    if (
-      (format === "online" && !hasText) ||
-      (format === "files" && !hasFiles) ||
-      (format === "both" && !hasText && !hasFiles)
-    )
-      throw new ORPCError("BAD_REQUEST", {
-        message: "coursework.nothing_to_hand_in",
-      });
+    const lacking = handInIssue(assignment.submissionFormat, {
+      written: hasText,
+      files: inAnswer.length > 0,
+    });
+    if (lacking) throw new ORPCError("BAD_REQUEST", { message: lacking });
     const rules = await assessedRules(context, assignment.id);
     const declaration = rules?.declarationRequired ? input.declaration : null;
     if (rules?.declarationRequired) {
@@ -2575,6 +2605,7 @@ export const handIn = writeProcedure
       number: row.attempts + 1,
       isLate: isLate(dueAt, context.now),
       userId: context.actor.userId,
+      fromVersion: input.expectedVersion,
     });
     if (declaration)
       await insertDeclaration(tx, {
@@ -2628,6 +2659,7 @@ async function handInQuiz(
     dueAt: string | null;
     submission: { id: string; version: number };
     row: WorkRow;
+    fromVersion: number;
   },
 ) {
   const { assignment, submission, row } = input;
@@ -2669,6 +2701,7 @@ async function handInQuiz(
     studentId: context.actor.userId,
     attempt: number,
     isLate: isLate(input.dueAt, context.now),
+    fromVersion: input.fromVersion,
   });
   if (!handed) throw new ORPCError("NOT_FOUND");
   const saved = await touchSubmission(context.tx, {
@@ -2901,10 +2934,15 @@ export const childBrief = readProcedure
       Date.parse(assignment.availableFrom) > context.now.getTime()
     )
       throw new ORPCError("NOT_FOUND");
-    const [brief, translation, classRow] = await Promise.all([
+    const [brief, translation, classRow, [row]] = await Promise.all([
       readersBrief(context, assignment, "student"),
       readersTranslation(context, assignment, "student"),
       classById(context.tx, context, assignment.classId),
+      studentWork(context.tx, {
+        tenantId: context.tenantId,
+        assignmentId: assignment.id,
+        studentId: input.studentId,
+      }),
     ]);
     return {
       assignment: {
@@ -2912,6 +2950,8 @@ export const childBrief = readProcedure
         title: assignment.title,
         dueAt,
         language: assignment.language,
+        points: assignment.points,
+        rubric: assignment.rubric as unknown as Rubric | null,
         class: classRow
           ? {
               id: classRow.id,
@@ -2923,8 +2963,39 @@ export const childBrief = readProcedure
       },
       brief,
       translation,
+      result: row?.attemptId
+        ? await familyResult(context, row.attemptId, assignment.points)
+        : null,
     };
   });
+
+/**
+ * What a family reads of the teacher's judgement on a child's latest
+ * attempt: the mark, the feedback and the rubric's levels, once released
+ * and never while the grade is held or still a draft.
+ */
+async function familyResult(
+  context: UnitContext,
+  attemptId: string,
+  points: number | null,
+) {
+  const assessment = await assessmentOf(
+    context.tx,
+    context.tenantId,
+    attemptId,
+  );
+  if (!assessment?.releasedAt) return null;
+  const grade = await gradeReader(context, [assessment.gradeScaleVersionId]);
+  const score = assessment.effectiveScore ?? assessment.score;
+  return {
+    releasedAt: assessment.releasedAt,
+    score,
+    grade: grade(assessment.gradeScaleVersionId, score, points),
+    feedback: assessment.feedback,
+    rubricScores: assessment.rubricScores,
+    rubricComments: assessment.rubricComments,
+  };
+}
 
 /** A student's coursework for the staff who reach their record. */
 export const student = readProcedure
