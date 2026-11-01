@@ -104,6 +104,12 @@ export function SignInForm({
                 <p id="school-hint" className="text-xs text-muted-foreground">
                   {m.authSchoolHint()}
                 </p>
+                <Link
+                  to="/find-school"
+                  className="justify-self-start text-sm text-primary underline-offset-4 hover:underline"
+                >
+                  {m.authFindSchool()}
+                </Link>
               </Field>
             )
           }

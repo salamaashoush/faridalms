@@ -7586,5 +7586,48 @@
   "productFooterSource": "Source code",
   "productFooterSecurity": "Security policy",
   "productFooterSelfHost": "Self-hosting guide",
-  "productFooterLicence": "Licensed under FSL-1.1-ALv2"
+  "productFooterLicence": "Licensed under FSL-1.1-ALv2",
+  "authFindSchool": "Don't know your school's code? Find your school",
+  "portalAboutSchool": "About {school}",
+  "portalWelcomeTitle": "Welcome to {school}",
+  "portalWelcomeBody": "Sign in to follow your classes, assignments, messages and the school calendar.",
+  "portalWelcomeHelp": "No account yet, or cannot sign in? Ask your school.",
+  "portalPoweredBy": "Powered by {platform}",
+  "portalLegal": "Legal",
+  "portalLicence": "Licence",
+  "portalSignInTitle": "Sign in",
+  "portalSignInBody": "Use the email or sign-in name you received from {school}.",
+  "finderTitle": "Find your school",
+  "finderBody": "Search by your school's name in English or Arabic, or by its code, then sign in on its own page.",
+  "finderLabel": "School name or code",
+  "finderSubmit": "Search",
+  "finderNone": "No school matches “{query}”. Check the spelling, or ask your school for its sign-in address.",
+  "finderTooMany": "Too many searches from your network. Wait a minute and try again.",
+  "signInPageTitle": "Sign-in page",
+  "signInPageHint": "Shown beside the sign-in form on your portal, in your website's theme, to everyone before they sign in. Write a welcome, add a picture, and say who to ask for help. Anyone can read it, so keep anything private off it.",
+  "signInPageCardHint": "What everyone sees beside the form before they sign in to your portal.",
+  "signInPageStandard": "Standard welcome",
+  "signInPageEdit": "Edit sign-in page",
+  "signInPageHelpHeading": "Need help signing in?",
+  "signInPageHelpBody": "Students: ask your class teacher. Families and staff: contact the school office.",
+  "signInPageEmpty": "Write something on the sign-in page before you publish it",
+  "signInPagePublished": "The sign-in page is published",
+  "signInPageTakenDown": "The portal shows the standard welcome again",
+  "signInPagePublish": "Publish",
+  "signInPagePublishChanges": "Publish changes",
+  "signInPagePreview": "Preview",
+  "signInPagePreviewHint": "How the school's side of the sign-in page reads in {language}.",
+  "signInPageTakeDown": "Take down",
+  "signInPageTakeDownTitle": "Take the sign-in page down?",
+  "signInPageTakeDownBody": "The portal shows the standard welcome until you publish the page again. Your words are kept.",
+  "finderFound": [
+    {
+      "declarations": ["input count", "local countPlural = count: plural"],
+      "selectors": ["countPlural"],
+      "match": {
+        "countPlural=one": "1 school found",
+        "countPlural=*": "{count} schools found"
+      }
+    }
+  ]
 }

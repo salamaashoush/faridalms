@@ -15,6 +15,7 @@ import {
   FileText,
   IndentDecrease,
   IndentIncrease,
+  LogIn,
   Paintbrush,
   Pencil,
   Plus,
@@ -129,6 +130,51 @@ const pageCard = (primary: "en" | "ar") => ({
   title: (row: Row) => <Title row={row} primary={primary} />,
   status: (row: Row) => <State row={row} />,
 });
+
+/**
+ * The portal's sign-in page, beside the website's pages: the document a
+ * school shows to everyone before they sign in.
+ */
+function SignInPageCard({ signIn }: { signIn: Overview["signIn"] }) {
+  const state = signIn.published
+    ? { tone: "success" as const, label: m.siteStatePublished() }
+    : signIn.written
+      ? { tone: "neutral" as const, label: m.siteStateDraft() }
+      : { tone: "neutral" as const, label: m.signInPageStandard() };
+  return (
+    <section
+      aria-labelledby="sign-in-page"
+      className="flex flex-wrap items-center gap-4 rounded-lg border bg-card p-4"
+    >
+      <span
+        aria-hidden
+        className="grid size-10 shrink-0 place-items-center rounded-md bg-muted text-muted-foreground"
+      >
+        <LogIn className="size-5" />
+      </span>
+      <div className="grid min-w-0 flex-1 gap-0.5">
+        <h2 id="sign-in-page" className="text-sm font-semibold">
+          {m.signInPageTitle()}
+        </h2>
+        <p className="text-[13px] text-muted-foreground">
+          {m.signInPageCardHint()}
+        </p>
+        <div className="flex flex-wrap items-center gap-x-3">
+          <StatusText tone={state.tone}>{state.label}</StatusText>
+          {signIn.changed ? (
+            <span className="text-[13px] text-muted-foreground">
+              {m.siteUnpublishedChanges()}
+            </span>
+          ) : null}
+        </div>
+      </div>
+      <ButtonLink to="/admin/site-sign-in" variant="outline">
+        <Pencil aria-hidden />
+        {m.signInPageEdit()}
+      </ButtonLink>
+    </section>
+  );
+}
 
 /** The site's pages as its menu tree: reorder, nest, publish and open each. */
 export function SitePages({ overview }: { overview: Overview }) {
@@ -274,6 +320,7 @@ export function SitePages({ overview }: { overview: Overview }) {
           </ButtonLink>
         </div>
         {starters(false)}
+        <SignInPageCard signIn={overview.signIn} />
       </div>
     );
   return (
@@ -300,6 +347,7 @@ export function SitePages({ overview }: { overview: Overview }) {
         ) : null}
         {create}
       </div>
+      <SignInPageCard signIn={overview.signIn} />
       <DataTable
         caption={m.sitePagesCaption()}
         rows={rows}

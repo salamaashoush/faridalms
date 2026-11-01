@@ -42,10 +42,7 @@ import { getLocale, setLocale } from "~/i18n/runtime";
 import { formatNumber } from "~/utils/datetime";
 
 import { DemoForm } from "./DemoForm";
-
-const SOURCE = "https://github.com/salamaashoush/faridalms";
-const GUIDE = `${SOURCE}/blob/main/deploy/single-server/README.md`;
-const SECURITY = `${SOURCE}/blob/main/SECURITY.md`;
+import { GUIDE, SECURITY, SOURCE } from "./links";
 
 // The guide's own commands, quoted as it gives them.
 const QUICK_START = [

@@ -11,11 +11,17 @@ import {
   getSitePage,
   getSiteEnquiries,
   getSiteHosts,
+  getSignInPage,
 } from "~/server/site";
 
 export const siteOverviewQuery = queryOptions({
   queryKey: ["site", "overview"],
   queryFn: () => getSiteOverview(),
+});
+
+export const signInPageQuery = queryOptions({
+  queryKey: ["site", "sign-in"],
+  queryFn: () => getSignInPage(),
 });
 
 export const siteHostsQuery = queryOptions({

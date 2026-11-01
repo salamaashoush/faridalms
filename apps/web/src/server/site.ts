@@ -1,4 +1,5 @@
 import { addHostSchema, hostRefSchema } from "@faridalms/domain/hosts";
+import { saveSignInPageSchema } from "@faridalms/domain/portal-face";
 import {
   applyStarterSchema,
   enquiriesQuerySchema,
@@ -116,3 +117,19 @@ export const makeSiteHostCanonical = createServerFn({ method: "POST" })
 export const checkSiteHost = createServerFn({ method: "POST" })
   .validator(checked(hostRefSchema))
   .handler(({ data }) => backend().hosts.check(data));
+
+export const getSignInPage = createServerFn({ method: "GET" }).handler(() =>
+  backend().site.signInPage(),
+);
+
+export const saveSignInPage = createServerFn({ method: "POST" })
+  .validator(checked(saveSignInPageSchema))
+  .handler(({ data }) => backend().site.saveSignInPage(data));
+
+export const publishSignInPage = createServerFn({ method: "POST" }).handler(
+  () => backend().site.publishSignInPage(),
+);
+
+export const unpublishSignInPage = createServerFn({ method: "POST" }).handler(
+  () => backend().site.unpublishSignInPage(),
+);

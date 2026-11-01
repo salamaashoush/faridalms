@@ -29,6 +29,18 @@
   color: #193e35;
   box-shadow: 0 2px 8px #092a201a;
 }
+/* A school's sign-in pages take its colour as their accent, in the shade
+   portalAccent found readable on this scheme's pages. */
+.portal-face[data-branded] {
+  --primary: var(--face-primary);
+  --primary-foreground: var(--face-primary-foreground);
+  --ring: var(--face-primary);
+}
+.dark .portal-face[data-branded] {
+  --primary: var(--face-primary-dark);
+  --primary-foreground: var(--face-primary-dark-foreground);
+  --ring: var(--face-primary-dark);
+}
 .workspace-hero {
   background: #e6ecde;
   color: #234338;

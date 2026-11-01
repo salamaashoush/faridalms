@@ -45,6 +45,7 @@ export default defineConfig({
     "badges.spec.ts",
     "site.spec.ts",
     "hosts.spec.ts",
+    "sign-in-page.spec.ts",
     "home.spec.ts",
     "search.spec.ts",
     "privacy.spec.ts",

@@ -17,11 +17,21 @@ import {
 import { AuthLayout } from "~/components/auth/AuthLayout";
 import { inLocale } from "~/hooks/useCurrentUser";
 import * as m from "~/i18n/messages";
+import { faceQueryFor, linkedSchool } from "~/queries/portal";
 import { acceptInvite, readInvite } from "~/server/auth";
+import siteCss from "~/styles/site.css?url";
 
 export const Route = createFileRoute("/welcome")({
   validateSearch: v.object({ school: v.optional(v.string()) }),
-  head: () => ({ meta: [{ name: "referrer", content: "no-referrer" }] }),
+  loaderDeps: ({ search }) => ({ school: search.school }),
+  loader: ({ context, deps }) => {
+    const query = faceQueryFor(linkedSchool(context.auth, deps.school));
+    return query ? context.queryClient.ensureQueryData(query) : null;
+  },
+  head: () => ({
+    meta: [{ name: "referrer", content: "no-referrer" }],
+    links: [{ rel: "stylesheet", href: siteCss }],
+  }),
   component: WelcomePage,
 });
 
@@ -80,6 +90,7 @@ function Notice({
  */
 function WelcomePage() {
   const { school } = Route.useSearch();
+  const face = Route.useLoaderData();
   const read = useServerFn(readInvite);
   const accept = useServerFn(acceptInvite);
   const secret = useRef("");
@@ -127,7 +138,7 @@ function WelcomePage() {
     </Link>
   );
   return (
-    <AuthLayout>
+    <AuthLayout face={face}>
       {failed ? (
         <div className="grid justify-items-start gap-6">
           {isTooMany(failed) ? (

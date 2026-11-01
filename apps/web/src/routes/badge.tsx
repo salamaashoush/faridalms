@@ -1,5 +1,6 @@
 import { BADGE_SECRET } from "@faridalms/domain/identity-schema";
 import { buttonVariants } from "@faridalms/ui/button";
+import { cn } from "@faridalms/ui/cn";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute, Link, useRouter } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
@@ -7,13 +8,20 @@ import { Clock, LoaderCircle, QrCode, TriangleAlert } from "lucide-react";
 import { useEffect, useEffectEvent, useRef } from "react";
 import * as v from "valibot";
 
+import { faceAccent, SchoolMark } from "~/components/auth/SchoolFace";
 import { ReadAloud } from "~/components/learning/ReadAloud";
 import { LocaleToggle } from "~/components/theme/LocaleToggle";
 import * as m from "~/i18n/messages";
+import { faceQueryFor, linkedSchool } from "~/queries/portal";
 import { badgeLogin } from "~/server/auth";
 
 export const Route = createFileRoute("/badge")({
   validateSearch: v.object({ school: v.optional(v.string()) }),
+  loaderDeps: ({ search }) => ({ school: search.school }),
+  loader: ({ context, deps }) => {
+    const query = faceQueryFor(linkedSchool(context.auth, deps.school));
+    return query ? context.queryClient.ensureQueryData(query) : null;
+  },
   head: () => ({ meta: [{ name: "referrer", content: "no-referrer" }] }),
   component: BadgePage,
 });
@@ -35,6 +43,8 @@ function isTooMany(error: unknown) {
  */
 function BadgePage() {
   const { school } = Route.useSearch();
+  const face = Route.useLoaderData();
+  const accent = faceAccent(face);
   const router = useRouter();
   const queryClient = useQueryClient();
   const signIn = useServerFn(badgeLogin);
@@ -88,8 +98,15 @@ function BadgePage() {
         : TriangleAlert;
 
   return (
-    <main className="grid min-h-dvh grid-rows-[auto_1fr] bg-background">
-      <div className="flex justify-end p-4">
+    <main
+      {...accent}
+      className={cn(
+        accent.className,
+        "grid min-h-dvh grid-rows-[auto_1fr] bg-background",
+      )}
+    >
+      <div className="flex items-center justify-between gap-3 p-4">
+        {face ? <SchoolMark face={face} /> : <span />}
         <LocaleToggle />
       </div>
       <div className="mx-auto grid max-w-md content-center justify-items-center gap-6 px-6 pb-16 text-center">

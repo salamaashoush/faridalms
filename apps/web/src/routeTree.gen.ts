@@ -29,6 +29,7 @@ import { Route as AppSearchRouteImport } from './routes/_app/search'
 import { Route as AppStaffEditorRouteImport } from './routes/_app/staff-editor'
 import { Route as AppStudentEditorRouteImport } from './routes/_app/student-editor'
 import { Route as AppTeachRouteImport } from './routes/_app/teach'
+import { Route as AuthFindSchoolRouteImport } from './routes/_auth/find-school'
 import { Route as AuthForgotPasswordRouteImport } from './routes/_auth/forgot-password'
 import { Route as AuthSignInRouteImport } from './routes/_auth/sign-in'
 import { Route as ApiHealthRouteImport } from './routes/api/health'
@@ -53,6 +54,7 @@ import { Route as AppAdminRolloverRouteImport } from './routes/_app/admin/rollov
 import { Route as AppAdminSettingsRouteImport } from './routes/_app/admin/settings'
 import { Route as AppAdminSiteRouteImport } from './routes/_app/admin/site'
 import { Route as AppAdminSitePageEditorRouteImport } from './routes/_app/admin/site-page-editor'
+import { Route as AppAdminSiteSignInRouteImport } from './routes/_app/admin/site-sign-in'
 import { Route as AppAdminStaffRouteImport } from './routes/_app/admin/staff'
 import { Route as AppAdminStudentsRouteImport } from './routes/_app/admin/students'
 import { Route as AppAdminTimetableRouteImport } from './routes/_app/admin/timetable'
@@ -223,6 +225,11 @@ const AppTeachRoute = AppTeachRouteImport.update({
   path: '/teach',
   getParentRoute: () => AppRoute,
 } as any)
+const AuthFindSchoolRoute = AuthFindSchoolRouteImport.update({
+  id: '/find-school',
+  path: '/find-school',
+  getParentRoute: () => AuthRoute,
+} as any)
 const AuthForgotPasswordRoute = AuthForgotPasswordRouteImport.update({
   id: '/forgot-password',
   path: '/forgot-password',
@@ -344,6 +351,11 @@ const AppAdminSiteRoute = AppAdminSiteRouteImport.update({
 const AppAdminSitePageEditorRoute = AppAdminSitePageEditorRouteImport.update({
   id: '/site-page-editor',
   path: '/site-page-editor',
+  getParentRoute: () => AppAdminRoute,
+} as any)
+const AppAdminSiteSignInRoute = AppAdminSiteSignInRouteImport.update({
+  id: '/site-sign-in',
+  path: '/site-sign-in',
   getParentRoute: () => AppAdminRoute,
 } as any)
 const AppAdminStaffRoute = AppAdminStaffRouteImport.update({
@@ -721,6 +733,7 @@ export interface FileRoutesByFullPath {
   '/staff-editor': typeof AppStaffEditorRoute
   '/student-editor': typeof AppStudentEditorRoute
   '/teach': typeof AppTeachRouteWithChildren
+  '/find-school': typeof AuthFindSchoolRoute
   '/forgot-password': typeof AuthForgotPasswordRoute
   '/sign-in': typeof AuthSignInRoute
   '/api/health': typeof ApiHealthRoute
@@ -744,6 +757,7 @@ export interface FileRoutesByFullPath {
   '/admin/settings': typeof AppAdminSettingsRoute
   '/admin/site': typeof AppAdminSiteRoute
   '/admin/site-page-editor': typeof AppAdminSitePageEditorRoute
+  '/admin/site-sign-in': typeof AppAdminSiteSignInRoute
   '/admin/staff': typeof AppAdminStaffRoute
   '/admin/students': typeof AppAdminStudentsRoute
   '/admin/timetable': typeof AppAdminTimetableRoute
@@ -831,6 +845,7 @@ export interface FileRoutesByTo {
   '/search': typeof AppSearchRoute
   '/staff-editor': typeof AppStaffEditorRoute
   '/student-editor': typeof AppStudentEditorRoute
+  '/find-school': typeof AuthFindSchoolRoute
   '/forgot-password': typeof AuthForgotPasswordRoute
   '/sign-in': typeof AuthSignInRoute
   '/api/health': typeof ApiHealthRoute
@@ -853,6 +868,7 @@ export interface FileRoutesByTo {
   '/admin/settings': typeof AppAdminSettingsRoute
   '/admin/site': typeof AppAdminSiteRoute
   '/admin/site-page-editor': typeof AppAdminSitePageEditorRoute
+  '/admin/site-sign-in': typeof AppAdminSiteSignInRoute
   '/admin/staff': typeof AppAdminStaffRoute
   '/admin/students': typeof AppAdminStudentsRoute
   '/admin/timetable': typeof AppAdminTimetableRoute
@@ -947,6 +963,7 @@ export interface FileRoutesById {
   '/_app/staff-editor': typeof AppStaffEditorRoute
   '/_app/student-editor': typeof AppStudentEditorRoute
   '/_app/teach': typeof AppTeachRouteWithChildren
+  '/_auth/find-school': typeof AuthFindSchoolRoute
   '/_auth/forgot-password': typeof AuthForgotPasswordRoute
   '/_auth/sign-in': typeof AuthSignInRoute
   '/api/health': typeof ApiHealthRoute
@@ -970,6 +987,7 @@ export interface FileRoutesById {
   '/_app/admin/settings': typeof AppAdminSettingsRoute
   '/_app/admin/site': typeof AppAdminSiteRoute
   '/_app/admin/site-page-editor': typeof AppAdminSitePageEditorRoute
+  '/_app/admin/site-sign-in': typeof AppAdminSiteSignInRoute
   '/_app/admin/staff': typeof AppAdminStaffRoute
   '/_app/admin/students': typeof AppAdminStudentsRoute
   '/_app/admin/timetable': typeof AppAdminTimetableRoute
@@ -1063,6 +1081,7 @@ export interface FileRouteTypes {
     | '/staff-editor'
     | '/student-editor'
     | '/teach'
+    | '/find-school'
     | '/forgot-password'
     | '/sign-in'
     | '/api/health'
@@ -1086,6 +1105,7 @@ export interface FileRouteTypes {
     | '/admin/settings'
     | '/admin/site'
     | '/admin/site-page-editor'
+    | '/admin/site-sign-in'
     | '/admin/staff'
     | '/admin/students'
     | '/admin/timetable'
@@ -1173,6 +1193,7 @@ export interface FileRouteTypes {
     | '/search'
     | '/staff-editor'
     | '/student-editor'
+    | '/find-school'
     | '/forgot-password'
     | '/sign-in'
     | '/api/health'
@@ -1195,6 +1216,7 @@ export interface FileRouteTypes {
     | '/admin/settings'
     | '/admin/site'
     | '/admin/site-page-editor'
+    | '/admin/site-sign-in'
     | '/admin/staff'
     | '/admin/students'
     | '/admin/timetable'
@@ -1288,6 +1310,7 @@ export interface FileRouteTypes {
     | '/_app/staff-editor'
     | '/_app/student-editor'
     | '/_app/teach'
+    | '/_auth/find-school'
     | '/_auth/forgot-password'
     | '/_auth/sign-in'
     | '/api/health'
@@ -1311,6 +1334,7 @@ export interface FileRouteTypes {
     | '/_app/admin/settings'
     | '/_app/admin/site'
     | '/_app/admin/site-page-editor'
+    | '/_app/admin/site-sign-in'
     | '/_app/admin/staff'
     | '/_app/admin/students'
     | '/_app/admin/timetable'
@@ -1550,6 +1574,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppTeachRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_auth/find-school': {
+      id: '/_auth/find-school'
+      path: '/find-school'
+      fullPath: '/find-school'
+      preLoaderRoute: typeof AuthFindSchoolRouteImport
+      parentRoute: typeof AuthRoute
+    }
     '/_auth/forgot-password': {
       id: '/_auth/forgot-password'
       path: '/forgot-password'
@@ -1716,6 +1747,13 @@ declare module '@tanstack/react-router' {
       path: '/site-page-editor'
       fullPath: '/admin/site-page-editor'
       preLoaderRoute: typeof AppAdminSitePageEditorRouteImport
+      parentRoute: typeof AppAdminRoute
+    }
+    '/_app/admin/site-sign-in': {
+      id: '/_app/admin/site-sign-in'
+      path: '/site-sign-in'
+      fullPath: '/admin/site-sign-in'
+      preLoaderRoute: typeof AppAdminSiteSignInRouteImport
       parentRoute: typeof AppAdminRoute
     }
     '/_app/admin/staff': {
@@ -2224,6 +2262,7 @@ interface AppAdminRouteChildren {
   AppAdminSettingsRoute: typeof AppAdminSettingsRoute
   AppAdminSiteRoute: typeof AppAdminSiteRoute
   AppAdminSitePageEditorRoute: typeof AppAdminSitePageEditorRoute
+  AppAdminSiteSignInRoute: typeof AppAdminSiteSignInRoute
   AppAdminStaffRoute: typeof AppAdminStaffRoute
   AppAdminStudentsRoute: typeof AppAdminStudentsRoute
   AppAdminTimetableRoute: typeof AppAdminTimetableRoute
@@ -2243,6 +2282,7 @@ const AppAdminRouteChildren: AppAdminRouteChildren = {
   AppAdminSettingsRoute: AppAdminSettingsRoute,
   AppAdminSiteRoute: AppAdminSiteRoute,
   AppAdminSitePageEditorRoute: AppAdminSitePageEditorRoute,
+  AppAdminSiteSignInRoute: AppAdminSiteSignInRoute,
   AppAdminStaffRoute: AppAdminStaffRoute,
   AppAdminStudentsRoute: AppAdminStudentsRoute,
   AppAdminTimetableRoute: AppAdminTimetableRoute,
@@ -2426,11 +2466,13 @@ const AppRouteChildren: AppRouteChildren = {
 const AppRouteWithChildren = AppRoute._addFileChildren(AppRouteChildren)
 
 interface AuthRouteChildren {
+  AuthFindSchoolRoute: typeof AuthFindSchoolRoute
   AuthForgotPasswordRoute: typeof AuthForgotPasswordRoute
   AuthSignInRoute: typeof AuthSignInRoute
 }
 
 const AuthRouteChildren: AuthRouteChildren = {
+  AuthFindSchoolRoute: AuthFindSchoolRoute,
   AuthForgotPasswordRoute: AuthForgotPasswordRoute,
   AuthSignInRoute: AuthSignInRoute,
 }

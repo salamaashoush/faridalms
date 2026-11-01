@@ -7976,5 +7976,52 @@
   "productFooterSource": "الشيفرة المصدرية",
   "productFooterSecurity": "سياسة الأمان",
   "productFooterSelfHost": "دليل الاستضافة الذاتية",
-  "productFooterLicence": "مرخّصة وفق FSL-1.1-ALv2"
+  "productFooterLicence": "مرخّصة وفق FSL-1.1-ALv2",
+  "authFindSchool": "لا تعرف رمز مدرستك؟ ابحث عن مدرستك",
+  "portalAboutSchool": "عن {school}",
+  "portalWelcomeTitle": "أهلًا بكم في {school}",
+  "portalWelcomeBody": "سجّل الدخول لمتابعة فصولك وواجباتك ورسائلك وتقويم المدرسة.",
+  "portalWelcomeHelp": "ليس لديك حساب بعد، أو تعذّر عليك الدخول؟ تواصل مع مدرستك.",
+  "portalPoweredBy": "تعمل بنظام {platform}",
+  "portalLegal": "الشؤون القانونية",
+  "portalLicence": "الترخيص",
+  "portalSignInTitle": "تسجيل الدخول",
+  "portalSignInBody": "استخدم البريد الإلكتروني أو اسم الدخول الذي حصلت عليه من {school}.",
+  "finderTitle": "ابحث عن مدرستك",
+  "finderBody": "ابحث باسم مدرستك بالعربية أو الإنجليزية، أو برمزها، ثم سجّل الدخول من صفحتها.",
+  "finderLabel": "اسم المدرسة أو رمزها",
+  "finderSubmit": "بحث",
+  "finderNone": "لا توجد مدرسة تطابق «{query}». تحقّق من الكتابة، أو اطلب من مدرستك عنوان صفحة الدخول.",
+  "finderTooMany": "أجرت شبكتك عمليات بحث كثيرة. انتظر دقيقة ثم حاول مجددًا.",
+  "signInPageTitle": "صفحة الدخول",
+  "signInPageHint": "تظهر بجانب نموذج الدخول في بوابتك، بتصميم موقعك، لكل من يفتحها قبل تسجيل الدخول. اكتب ترحيبًا، وأضف صورة، واذكر من يُسأل عند الحاجة إلى المساعدة. يستطيع أي شخص قراءتها، فلا تضع فيها شيئًا خاصًّا.",
+  "signInPageCardHint": "ما يراه الجميع بجانب نموذج الدخول قبل تسجيل الدخول إلى بوابتك.",
+  "signInPageStandard": "الترحيب الافتراضي",
+  "signInPageEdit": "تعديل صفحة الدخول",
+  "signInPageHelpHeading": "هل تحتاج إلى مساعدة في الدخول؟",
+  "signInPageHelpBody": "الطلاب: اسألوا معلم الفصل. أولياء الأمور والعاملون: تواصلوا مع مكتب المدرسة.",
+  "signInPageEmpty": "اكتب شيئًا في صفحة الدخول قبل نشرها",
+  "signInPagePublished": "نُشرت صفحة الدخول",
+  "signInPageTakenDown": "تعرض البوابة الترحيب الافتراضي مجددًا",
+  "signInPagePublish": "نشر",
+  "signInPagePublishChanges": "نشر التغييرات",
+  "signInPagePreview": "معاينة",
+  "signInPagePreviewHint": "كيف يبدو جانب المدرسة من صفحة الدخول باللغة {language}.",
+  "signInPageTakeDown": "إيقاف النشر",
+  "signInPageTakeDownTitle": "إيقاف نشر صفحة الدخول؟",
+  "signInPageTakeDownBody": "ستعرض البوابة الترحيب الافتراضي حتى تنشر الصفحة مجددًا. يبقى ما كتبته محفوظًا.",
+  "finderFound": [
+    {
+      "declarations": ["input count", "local countPlural = count: plural"],
+      "selectors": ["countPlural"],
+      "match": {
+        "countPlural=zero": "لم يُعثر على مدارس",
+        "countPlural=one": "عُثر على مدرسة واحدة",
+        "countPlural=two": "عُثر على مدرستين",
+        "countPlural=few": "عُثر على {count} مدارس",
+        "countPlural=many": "عُثر على {count} مدرسة",
+        "countPlural=*": "عُثر على {count} مدرسة"
+      }
+    }
+  ]
 }

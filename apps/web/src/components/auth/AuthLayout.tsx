@@ -1,14 +1,70 @@
 import type { ReactNode } from "react";
 
+import { cn } from "@faridalms/ui/cn";
 import { BookOpen, GraduationCap, Languages, Users } from "lucide-react";
-import { useState } from "react";
+
+import type { PortalFace } from "~/queries/portal";
 
 import { LocaleToggle } from "~/components/theme/LocaleToggle";
 import { ThemeToggle } from "~/components/theme/ThemeToggle";
 import * as m from "~/i18n/messages";
 
-export function AuthLayout({ children }: { children: ReactNode }) {
-  const [year] = useState(() => new Date().getFullYear());
+import {
+  faceAccent,
+  PlatformFooter,
+  SchoolMark,
+  SchoolPanel,
+} from "./SchoolFace";
+
+function Toggles() {
+  return (
+    <div className="flex shrink-0 gap-1">
+      <LocaleToggle />
+      <ThemeToggle />
+    </div>
+  );
+}
+
+/**
+ * A school's own sign-in pages: its side, in its website's theme, beside
+ * the form on wide screens and under it on phones, where the form comes
+ * first; the form in the app's own light or dark, accented in the school's
+ * colour.
+ */
+function SchoolLayout({
+  face,
+  children,
+}: {
+  face: PortalFace;
+  children: ReactNode;
+}) {
+  const accent = faceAccent(face);
+  return (
+    <div
+      {...accent}
+      className={cn(
+        accent.className,
+        "grid min-h-dvh lg:grid-cols-[minmax(0,1fr)_minmax(0,1.05fr)]",
+      )}
+    >
+      <SchoolPanel face={face} className="max-lg:order-2" />
+      <div className="flex flex-col max-lg:order-1 lg:min-h-dvh">
+        <div className="flex items-center justify-between gap-3 p-5 sm:p-8">
+          <SchoolMark face={face} className="lg:invisible" />
+          <Toggles />
+        </div>
+        <main className="flex flex-1 items-center justify-center px-6 pt-4 pb-12 sm:px-12">
+          <div className="w-full max-w-[400px]">{children}</div>
+        </main>
+        <PlatformFooter className="max-lg:hidden" />
+      </div>
+      <PlatformFooter className="order-3 lg:hidden" />
+    </div>
+  );
+}
+
+/** The bare portal domain, where no school is named yet: the platform's own page. */
+function PlatformLayout({ children }: { children: ReactNode }) {
   const features = [
     {
       icon: BookOpen,
@@ -61,7 +117,6 @@ export function AuthLayout({ children }: { children: ReactNode }) {
           className="pointer-events-none absolute -end-40 -bottom-56 size-[520px] rounded-full border-[80px] border-white/[0.03]"
           aria-hidden
         />
-        <p className="text-xs text-[#bcd2c8]">{m.commonCopyRights({ year })}</p>
       </div>
       <div className="flex min-h-screen flex-col">
         <div className="flex items-center justify-between p-5 sm:p-8">
@@ -69,18 +124,31 @@ export function AuthLayout({ children }: { children: ReactNode }) {
             <GraduationCap className="size-6" aria-hidden />
             {m.appName()}
           </span>
-          <div className="flex gap-1">
-            <LocaleToggle />
-            <ThemeToggle />
-          </div>
+          <Toggles />
         </div>
-        <div className="flex flex-1 items-center justify-center px-6 py-12 sm:px-12">
+        <main className="flex flex-1 items-center justify-center px-6 py-12 sm:px-12">
           <div className="w-full max-w-[400px]">{children}</div>
-        </div>
-        <p className="p-6 text-center text-xs text-muted-foreground">
-          {m.authFeatureLanguageBody()}
-        </p>
+        </main>
+        <PlatformFooter />
       </div>
     </div>
+  );
+}
+
+/**
+ * The frame of every page before sign-in: the school's own where the page
+ * knows the school, the platform's on the bare domain.
+ */
+export function AuthLayout({
+  face = null,
+  children,
+}: {
+  face?: PortalFace | null;
+  children: ReactNode;
+}) {
+  return face ? (
+    <SchoolLayout face={face}>{children}</SchoolLayout>
+  ) : (
+    <PlatformLayout>{children}</PlatformLayout>
   );
 }
