@@ -1,39 +1,39 @@
-import type { EntryDetails } from "@faridalms/database/stores/enquiries";
 import type {
+  EnquiryEvent,
   EnquiryPurpose,
   EnquiryState,
-  EntryKind,
 } from "@faridalms/domain/enquiries";
 
 import { capabilityHolders } from "@faridalms/database/stores/access";
 import { namesOf } from "@faridalms/database/stores/coursework";
 import {
   enquiryById,
-  entriesOf,
-  insertEntry,
+  enquiryOfThread,
   insertLoggedEnquiry,
   listEnquiries,
   markResponded,
+  openEnquiryConversation,
   relatedEnquiries,
   setEnquiryAssignee,
   setEnquiryState,
 } from "@faridalms/database/stores/enquiries";
+import { membersOf, setOwner } from "@faridalms/database/stores/messages";
 import { publicSchool } from "@faridalms/database/stores/site";
+import { plainContent } from "@faridalms/domain/content-conversion";
 import {
-  addEntrySchema,
   assignEnquirySchema,
-  CONTACT_ENTRIES,
   ENQUIRIES_PAGE_SIZE,
   enquiryListSchema,
   enquiryRefSchema,
   logEnquirySchema,
   moveEnquirySchema,
   nextStates,
-  replySchema,
 } from "@faridalms/domain/enquiries";
+import { LOGGED_CONTACTS } from "@faridalms/domain/messages";
 import { ORPCError } from "@orpc/server";
 
 import type { UnitContext } from "../core/context";
+import type { ConversationScope } from "../messages/conversations";
 
 import { notify } from "../core/notify";
 import {
@@ -43,6 +43,11 @@ import {
   requireCapability,
   writeProcedure,
 } from "../core/procedure";
+import {
+  registerMailbox,
+  scopeOf,
+  writeEntry,
+} from "../messages/conversations";
 
 const conflict = () =>
   new ORPCError("CONFLICT", { message: "conflict.version" });
@@ -105,41 +110,75 @@ async function tellAssignee(
   });
 }
 
-async function entry(
+/** The enquiry's conversation, made now for one whose arrival could not make it. */
+async function conversationOf(
   context: UnitContext,
-  enquiryId: string,
-  kind: EntryKind,
-  body: string,
-  details: EntryDetails = {},
+  enquiry: { id: string; threadId: string | null },
+): Promise<string> {
+  const threadId =
+    enquiry.threadId ??
+    (await openEnquiryConversation(context.tx, {
+      tenantId: context.tenantId,
+      enquiryId: enquiry.id,
+    }));
+  if (!threadId) throw new ORPCError("NOT_FOUND");
+  return threadId;
+}
+
+/**
+ * A change the enquiry's work records in its conversation, among the
+ * messages and notes, so staff read one timeline. People hear of a change
+ * on its own terms, as an assignment does, not as a message.
+ */
+function recordEvent(
+  scope: ConversationScope,
+  threadId: string,
+  event: EnquiryEvent,
+  note = "",
 ) {
-  return insertEntry(context.tx, {
-    tenantId: context.tenantId,
-    orgId: context.schoolId,
-    enquiryId,
-    kind,
-    body,
-    details,
-    authorUserId: context.actor.userId,
+  return writeEntry(scope, {
+    threadId,
+    kind: "event",
+    authorUserId: scope.actorUserId,
+    content: note ? plainContent(note) : null,
+    details: event,
+    notify: false,
   });
 }
 
 /**
- * Records that the family was talked to. The first time also starts the
- * work: an open enquiry moves to in progress, and the thread says so.
+ * Staff writing to the family, or logging a call, meeting or email with
+ * them, is the family being answered: the first time sets the response
+ * time, and an open enquiry is then in progress, which the conversation
+ * records.
  */
-async function responded(context: UnitContext, enquiryId: string) {
-  const { moved } = await markResponded(context.tx, {
-    tenantId: context.tenantId,
-    orgId: context.schoolId,
-    id: enquiryId,
-  });
-  if (moved)
-    await entry(context, enquiryId, "state", "", {
-      from: "open",
-      to: "in_progress",
-      automatic: true,
+registerMailbox("admissions", {
+  written: async (scope, entry) => {
+    if (entry.fromOutside || !entry.authorUserId) return;
+    if (
+      entry.kind !== "message" &&
+      !(LOGGED_CONTACTS as readonly string[]).includes(entry.kind)
+    )
+      return;
+    const enquiry = await enquiryOfThread(scope.tx, {
+      tenantId: scope.tenantId,
+      threadId: entry.threadId,
     });
-}
+    if (!enquiry) return;
+    const { moved } = await markResponded(scope.tx, {
+      tenantId: scope.tenantId,
+      orgId: enquiry.orgId,
+      id: enquiry.id,
+    });
+    if (moved)
+      await recordEvent(scope, entry.threadId, {
+        event: "state",
+        from: "open",
+        to: "in_progress",
+        automatic: true,
+      });
+  },
+});
 
 /** The inbox: one state at a time, narrowed by source, purpose, holder and words. */
 export const enquiries = readProcedure
@@ -167,31 +206,38 @@ export const enquiries = readProcedure
   });
 
 /**
- * One enquiry with everything its page shows: the family's answers, the
- * thread, the family's other enquiries, where it may move next and who may
- * hold it.
+ * One enquiry's workflow: the family's answers, their other enquiries,
+ * where it may move next and who may hold it. Its conversation, with every
+ * message, note and change, is read through Messages by its thread.
  */
 export const enquiry = readProcedure
   .input(enquiryRefSchema)
   .handler(async ({ input, context }) => {
     readsEnquiries(context);
     const row = await enquiryOf(context, input.id);
-    const [thread, related, staff, school] = await Promise.all([
-      entriesOf(context.tx, { tenantId: context.tenantId, enquiryId: row.id }),
+    const [related, staff, school, members] = await Promise.all([
       relatedEnquiries(context.tx, {
         tenantId: context.tenantId,
         orgId: context.schoolId,
         id: row.id,
         email: row.email,
         phone: row.phone,
+        phoneNormalized: row.phoneNormalized,
       }),
       assignable(context),
       publicSchool(context.tx, context.schoolId),
+      row.threadId
+        ? membersOf(context.tx, context.tenantId, row.threadId)
+        : Promise.resolve([]),
     ]);
     return {
       ...row,
-      thread,
       related,
+      /** The family as the conversation's outside contact, which an erasure names. */
+      contactId:
+        members.find((member) => member.contactId && !member.userId)
+          ?.contactId ?? null,
+      canErase: can(context, "erasure:approve"),
       staff,
       moves: nextStates({
         state: row.state,
@@ -199,7 +245,6 @@ export const enquiry = readProcedure
         linked: row.applicantUserId !== null,
       }),
       manages: can(context, "admissions:manage"),
-      canEmail: row.email !== "" && context.mail !== null,
       /** How long the family has waited for a first answer; null once they have one. */
       waitingMinutes: row.firstRespondedAt
         ? null
@@ -211,6 +256,18 @@ export const enquiry = readProcedure
           ),
       school: { nameEn: school?.nameEn ?? "", nameAr: school?.nameAr ?? null },
     };
+  });
+
+/**
+ * Makes an enquiry's conversation where its arrival did not, so the page
+ * has one to show. Returns the conversation either way.
+ */
+export const openConversation = writeProcedure
+  .input(enquiryRefSchema)
+  .handler(async ({ input, context }) => {
+    requireCapability(context, "admissions:manage");
+    const row = await enquiryOf(context, input.id);
+    return { threadId: await conversationOf(context, row) };
   });
 
 /** An enquiry taken by phone, at the desk, at an event or from a referral. */
@@ -235,6 +292,10 @@ export const logEnquiry = writeProcedure
       assigneeUserId: assigneeId,
       createdByUserId: context.actor.userId,
     });
+    const threadId = await openEnquiryConversation(context.tx, {
+      tenantId: context.tenantId,
+      enquiryId: created.id,
+    });
     await audit(context, {
       action: "enquiry.log",
       objectType: "site_enquiry",
@@ -251,9 +312,10 @@ export const logEnquiry = writeProcedure
         name: input.name,
         purpose: input.purpose,
       });
-    return created;
+    return { ...created, threadId };
   });
 
+/** Hands an enquiry, and so its conversation, to someone or to nobody. */
 export const assignEnquiry = writeProcedure
   .input(assignEnquirySchema)
   .handler(async ({ input, context }) => {
@@ -271,7 +333,14 @@ export const assignEnquiry = writeProcedure
       assigneeUserId: assigneeId,
     });
     if (version === null) throw conflict();
-    await entry(context, row.id, "assigned", "", {
+    const threadId = await conversationOf(context, row);
+    await setOwner(context.tx, {
+      tenantId: context.tenantId,
+      threadId,
+      userId: assigneeId,
+    });
+    await recordEvent(scopeOf(context), threadId, {
+      event: "assigned",
       assigneeId,
       nameEn: holder?.nameEn ?? null,
       nameAr: holder?.nameAr ?? null,
@@ -308,11 +377,17 @@ export const moveEnquiry = writeProcedure
       closedReason: input.reason ?? null,
     });
     if (version === null) throw conflict();
-    await entry(context, row.id, "state", input.note, {
-      from: row.state,
-      to: input.state,
-      ...(input.reason ? { reason: input.reason } : {}),
-    });
+    await recordEvent(
+      scopeOf(context),
+      await conversationOf(context, row),
+      {
+        event: "state",
+        from: row.state,
+        to: input.state,
+        ...(input.reason ? { reason: input.reason } : {}),
+      },
+      input.note,
+    );
     await audit(context, {
       action: "enquiry.state",
       objectType: "site_enquiry",
@@ -324,69 +399,4 @@ export const moveEnquiry = writeProcedure
       },
     });
     return { version };
-  });
-
-/** A note, or a call, email or meeting that happened outside the app. */
-export const addEnquiryEntry = writeProcedure
-  .input(addEntrySchema)
-  .handler(async ({ input, context }) => {
-    requireCapability(context, "admissions:manage");
-    const row = await enquiryOf(context, input.id);
-    const written = await entry(context, row.id, input.kind, input.body);
-    if (CONTACT_ENTRIES.includes(input.kind)) await responded(context, row.id);
-    await audit(context, {
-      action: "enquiry.entry",
-      objectType: "site_enquiry",
-      objectId: row.id,
-      details: { kind: input.kind },
-    });
-    return written;
-  });
-
-/**
- * Emails the family from the app, in the language chosen, and keeps the
- * words in the thread. The family's answer goes to the school's own address.
- * The email leaves last, so a failure to send records nothing.
- */
-export const replyToEnquiry = writeProcedure
-  .input(replySchema)
-  .handler(async ({ input, context }) => {
-    requireCapability(context, "admissions:manage");
-    const row = await enquiryOf(context, input.id);
-    if (!row.email)
-      throw new ORPCError("BAD_REQUEST", { message: "enquiry.no_email" });
-    const mail = context.mail;
-    if (!mail)
-      throw new ORPCError("SERVICE_UNAVAILABLE", {
-        message: "enquiry.no_mail",
-      });
-    const school = await publicSchool(context.tx, context.schoolId);
-    const written = await entry(context, row.id, "reply", input.body, {
-      subject: input.subject,
-      locale: input.locale,
-      to: row.email,
-      ...(input.template ? { template: input.template } : {}),
-    });
-    await responded(context, row.id);
-    await audit(context, {
-      action: "enquiry.reply",
-      objectType: "site_enquiry",
-      objectId: row.id,
-      details: {
-        locale: input.locale,
-        template: input.template ?? null,
-      },
-    });
-    try {
-      await mail.send({
-        to: row.email,
-        subject: input.subject,
-        text: input.body,
-        reference: `enquiry/${written.id}`,
-        ...(school?.email ? { replyTo: school.email } : {}),
-      });
-    } catch {
-      throw new ORPCError("BAD_GATEWAY", { message: "enquiry.not_sent" });
-    }
-    return written;
   });

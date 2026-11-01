@@ -6,14 +6,9 @@ import { studentOf } from "@faridalms/database/stores/coursework";
 import {
   fileById,
   partKey,
-  partsFolder,
-  quarantineKey,
-  readyKey,
   settleFile,
 } from "@faridalms/database/stores/files";
 import {
-  contentBytesNeeded,
-  contentMatchesName,
   previewable,
   UPLOAD_PART_BYTES,
   uploadParts,
@@ -21,23 +16,25 @@ import {
 import { ORPCError } from "@orpc/server";
 
 import type { RequestContext, SchoolContext } from "../core/context";
+import type { Rejection } from "./ingest";
 
 import { openUnit, schoolOf } from "../core/procedure";
 import { canReadFile } from "./authorize";
+import { takeChecked } from "./ingest";
 import { uploadLimit } from "./limit";
 import { linkSeconds, sealLink } from "./links";
-import { ScanUnavailableError } from "./scan";
-import { readPrefix, StoreError } from "./store";
+import { StoreError } from "./store";
 
 const PATH = /^\/v1\/files\/([0-9a-f-]{36})\/content$/;
 const PARTS = /^\/v1\/files\/([0-9a-f-]{36})\/parts(?:\/(\d{1,4}))?$/;
 
-type Rejection =
-  | "too_large"
-  | "size_mismatch"
-  | "content_mismatch"
-  | "infected"
-  | "scan_unavailable";
+const REJECTED_STATUS: Record<Rejection, number> = {
+  too_large: 413,
+  size_mismatch: 400,
+  content_mismatch: 422,
+  infected: 422,
+  scan_unavailable: 503,
+};
 
 function problem(status: number, code: string, requestId: string) {
   return Response.json({ code, requestId }, { status });
@@ -134,65 +131,27 @@ async function accept(
   body: ReadableStream<Uint8Array>,
 ): Promise<Response> {
   const fileId = file.id;
-  const tenantId = context.school.tenantId;
-  const waiting = quarantineKey(tenantId, fileId);
-  const refuse = async (status: number, reason: Rejection) => {
-    await context.files.remove(waiting);
-    await context.files.removeFolder(partsFolder(tenantId, fileId));
-    await settle(context, fileId, { state: "rejected", reason });
-    return problem(status, `file.${reason}`, context.requestId);
-  };
-  let stored;
-  try {
-    stored = await context.files.write(
-      waiting,
-      body,
-      Math.min(file.sizeBytes, uploadLimit(context, file)),
-    );
-  } catch (error) {
-    if (error instanceof StoreError) return refuse(413, "too_large");
-    throw error;
-  }
-  if (stored.sizeBytes !== file.sizeBytes) return refuse(400, "size_mismatch");
-  const head = await readPrefix(
-    context.files,
-    waiting,
-    contentBytesNeeded(file.name, stored.sizeBytes),
+  const checked = await takeChecked(
+    { files: context.files, scanner: context.scanner, log: context.requestId },
+    context.school.tenantId,
+    file,
+    body,
+    uploadLimit(context, file),
   );
-  if (!contentMatchesName(file.name, head))
-    return refuse(422, "content_mismatch");
-  if (context.scanner) {
-    const scanned = await context.files.open(waiting);
-    if (!scanned) return refuse(400, "size_mismatch");
-    try {
-      const verdict = await context.scanner.scan(scanned);
-      if (!verdict.clean) {
-        console.warn(
-          JSON.stringify({
-            requestId: context.requestId,
-            file: fileId,
-            signature: verdict.signature,
-          }),
-        );
-        return refuse(422, "infected");
-      }
-    } catch (error) {
-      if (!(error instanceof ScanUnavailableError)) throw error;
-      console.error(
-        JSON.stringify({
-          requestId: context.requestId,
-          file: fileId,
-          scanner: error.message,
-        }),
-      );
-      return refuse(503, "scan_unavailable");
-    }
+  if (!checked.ok) {
+    await settle(context, fileId, {
+      state: "rejected",
+      reason: checked.reason,
+    });
+    return problem(
+      REJECTED_STATUS[checked.reason],
+      `file.${checked.reason}`,
+      context.requestId,
+    );
   }
-  await context.files.move(waiting, readyKey(tenantId, fileId));
-  await context.files.removeFolder(partsFolder(tenantId, fileId));
   const settled = await settle(context, fileId, {
     state: "ready",
-    sha256: stored.sha256,
+    sha256: checked.sha256,
     scanEngine: context.scanner ? "clamd" : null,
     stream: context.mediaOrigin !== null,
   });

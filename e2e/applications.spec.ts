@@ -84,12 +84,11 @@ test("a parent meets the registration form on the portal's registration page", a
   // A person takes a while to fill the form; faster sends are dropped as scripts.
   await visitor.clock.fastForward(5000);
   await visitor.getByRole("button", { name: "Register", exact: true }).click();
-  // The gate's school has no email gateway, and confirming the address is
-  // what registering is, so the page says so rather than pretend it sent.
-  // The API suite follows a registration through its email and link.
-  await expect(visitor.getByRole("alert")).toHaveText(
-    "Registration needs email, which this school has not set up yet. Please contact the school.",
-  );
+  // The gate sends email to its stand-in for Resend, so the link is on its
+  // way; the API suite follows a registration through its email and link.
+  await expect(
+    visitor.getByRole("heading", { name: "Check your email" }),
+  ).toBeVisible();
 });
 
 test("a registered family applies on the apply page and sends it", async ({

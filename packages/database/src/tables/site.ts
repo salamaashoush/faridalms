@@ -4,7 +4,6 @@ import type {
   EnquiryPurpose,
   EnquirySource,
   EnquiryState,
-  EntryKind,
 } from "@faridalms/domain/enquiries";
 import type { SiteChrome, SiteTheme } from "@faridalms/domain/site-theme";
 import type { SocialLink } from "@faridalms/domain/website";
@@ -31,6 +30,8 @@ import {
   core,
   entityColumns,
   entityProfile,
+  erase,
+  erasureListed,
   fk,
   instant,
   ledgerProfile,
@@ -555,7 +556,6 @@ export type {
   EnquiryPurpose,
   EnquirySource,
   EnquiryState,
-  EntryKind,
 } from "@faridalms/domain/enquiries";
 
 /**
@@ -579,6 +579,9 @@ export const siteEnquiries = core.table.withRLS(
     name: text("name").notNull(),
     email: text("email").notNull().default(""),
     phone: text("phone").notNull().default(""),
+    // The phone in E.164 when it reads as a number of the school's country
+    // or an international one, so a family's other enquiries are found by it.
+    phoneNormalized: text("phone_normalized"),
     childName: text("child_name").notNull().default(""),
     childYear: text("child_year").notNull().default(""),
     message: text("message").notNull().default(""),
@@ -601,6 +604,10 @@ export const siteEnquiries = core.table.withRLS(
     createdByUserId: uuid("created_by_user_id"),
     familyUserId: uuid("family_user_id"),
     applicantUserId: uuid("applicant_user_id"),
+    // The enquiry's conversation in the admissions mailbox, where the family
+    // is written to and every note, contact and change is kept. Keyed NOT
+    // VALID by the custom migration, for the reason above.
+    threadId: uuid("thread_id"),
     // What the release before the enquiry's states reads and writes; nothing
     // here does, and the columns go once no such release runs.
     handledAt: instant("handled_at"),
@@ -630,7 +637,16 @@ export const siteEnquiries = core.table.withRLS(
       sql`email = '' or (char_length(email) between 3 and 254 and email like '%_@_%')`,
     ),
     ck("site_enquiries", "phone", sql`char_length(phone) <= 40`),
-    ck("site_enquiries", "reach", sql`email <> '' or phone <> ''`),
+    ck(
+      "site_enquiries",
+      "phone_normalized",
+      sql`phone_normalized ~ '^\\+[1-9][0-9]{6,14}$'`,
+    ),
+    ck(
+      "site_enquiries",
+      "reach",
+      sql`status = 'tobedeleted' or email <> '' or phone <> ''`,
+    ),
     ck("site_enquiries", "child_name", sql`char_length(child_name) <= 120`),
     ck("site_enquiries", "child_year", sql`char_length(child_year) <= 60`),
     ck("site_enquiries", "message", sql`char_length(message) <= 2000`),
@@ -680,14 +696,21 @@ export const siteEnquiries = core.table.withRLS(
     index("site_enquiries_network_idx")
       .on(t.tenantId, t.networkKey, t.createdAt)
       .where(sql`status = 'active'`),
+    index("site_enquiries_phone_idx")
+      .on(t.tenantId, t.orgId, t.phoneNormalized)
+      .where(sql`status = 'active' and phone_normalized is not null`),
+    uniqueIndex("site_enquiries_thread_key")
+      .on(t.tenantId, t.threadId)
+      .where(sql`thread_id is not null`),
     ...entityProfile(),
+    ...erase(erasureListed("site_enquiry", "id")),
     pgPolicy("p_site_insert", {
       for: "insert",
       to: roles.site,
       withCheck: sql`status = 'active' and source = 'website' and state = 'open'
         and closed_reason is null and assignee_user_id is null and first_responded_at is null
         and created_by_user_id is null and family_user_id is null and applicant_user_id is null
-        and handled_at is null`,
+        and thread_id is null and handled_at is null`,
     }),
     pgPolicy("p_site_select", {
       for: "select",
@@ -697,10 +720,20 @@ export const siteEnquiries = core.table.withRLS(
   ],
 );
 
+type LegacyEntryKind =
+  | "note"
+  | "call"
+  | "email"
+  | "meeting"
+  | "reply"
+  | "state"
+  | "assigned";
+
 /**
- * An enquiry's thread, oldest first: what staff noted, the calls, emails and
- * meetings they logged, the replies sent from the app, and each change of
- * state or assignee. Entries are never edited; a correction is a new note.
+ * What an enquiry's thread held before it became a conversation in the
+ * admissions mailbox. The move copied every row into the conversation and
+ * nothing reads or writes here; the table goes once no release that wrote
+ * it runs, after a last copy of anything such a release added meanwhile.
  */
 export const siteEnquiryEntries = core.table.withRLS(
   "site_enquiry_entries",
@@ -708,7 +741,7 @@ export const siteEnquiryEntries = core.table.withRLS(
     ...tenantColumns(),
     orgId: uuid("org_id").notNull(),
     enquiryId: uuid("enquiry_id").notNull(),
-    kind: text("kind").$type<EntryKind>().notNull(),
+    kind: text("kind").$type<LegacyEntryKind>().notNull(),
     body: text("body").notNull().default(""),
     details: jsonb("details")
       .$type<Record<string, unknown>>()

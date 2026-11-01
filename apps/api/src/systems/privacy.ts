@@ -4,11 +4,18 @@ import type { DayKind } from "@faridalms/domain/privacy";
 import { unsuccessfulApplicants } from "@faridalms/database/stores/admissions";
 import {
   approveErasure as approveErasureOf,
+  contactApproval,
+  contactErasurePlan,
+  eraseContact,
   erasurePlan,
   eraseSubject,
   erasuresOf,
 } from "@faridalms/database/stores/erasure";
 import { schoolProfile, viewer } from "@faridalms/database/stores/identity";
+import {
+  contactById,
+  contactOfSchool,
+} from "@faridalms/database/stores/messages";
 import { childrenOf } from "@faridalms/database/stores/persons";
 import {
   breachById,
@@ -38,6 +45,7 @@ import {
 import { SCHOOL_DAY_MEANINGS } from "@faridalms/domain/calendar";
 import { emptyContent } from "@faridalms/domain/content-conversion";
 import {
+  approveContactErasureSchema,
   approveErasureSchema,
   askCorrectionSchema,
   breachNoticesSchema,
@@ -56,6 +64,7 @@ import {
   releaseHoldSchema,
   requestDueOn,
   reviewDueOn,
+  runContactErasureSchema,
   runErasureSchema,
   saveBreachSchema,
   saveRequestSchema,
@@ -764,6 +773,130 @@ export const runErasure = schoolProcedure
         objectType: "erasure_approval",
         objectId: ready.approvalId,
         subjectUserId: input.subjectUserId,
+        outcome: erased ? "success" : "failed",
+        details: { counts: result.counts },
+      });
+      if (erased)
+        for (const key of result.storageKeys)
+          unit.afterCommit(() => context.files.remove(key));
+    });
+    if (!erased)
+      throw new ORPCError("CONFLICT", { message: "privacy.erasure_blocked" });
+    return { counts: result.counts };
+  });
+
+/** An outside contact of this school, or not found. */
+async function schoolContact(context: UnitContext, contactId: string) {
+  const contact = await contactById(context.tx, {
+    tenantId: context.tenantId,
+    id: contactId,
+  });
+  if (
+    !contact ||
+    !(await contactOfSchool(context.tx, {
+      tenantId: context.tenantId,
+      schoolId: context.schoolId,
+      contactId,
+    }))
+  )
+    throw new ORPCError("NOT_FOUND");
+  return contact;
+}
+
+/**
+ * Approves erasing someone the school corresponded with who never had an
+ * account, such as a family that enquired and did not apply: their
+ * conversations and enquiries, what they wrote, and the files they sent.
+ * A contact who became a person with an account is erased as that person.
+ */
+export const approveContactErasure = writeProcedure
+  .input(approveContactErasureSchema)
+  .handler(async ({ input, context }) => {
+    requireCapability(context, "erasure:approve");
+    const contact = await schoolContact(context, input.contactId);
+    if (contact.userId)
+      throw new ORPCError("CONFLICT", { message: "privacy.contact_linked" });
+    if (contact.erased)
+      throw new ORPCError("CONFLICT", { message: "privacy.erased" });
+    if (
+      await contactApproval(context.tx, {
+        tenantId: context.tenantId,
+        contactId: contact.id,
+      })
+    )
+      throw new ORPCError("CONFLICT", { message: "privacy.erasure_pending" });
+    const plan = await contactErasurePlan(context.tx, {
+      tenantId: context.tenantId,
+      contactId: contact.id,
+    });
+    const id = await approveErasureOf(context.tx, {
+      tenantId: context.tenantId,
+      subjectUserId: null,
+      subjectContactId: contact.id,
+      basis: input.basis,
+      requestReference: input.reference,
+      approvedByUserId: context.actor.userId,
+      plan,
+    });
+    const listed = {
+      documents: plan.documents.length,
+      files: plan.files.length,
+      conversations: plan.threads.length,
+      enquiries: plan.enquiries.length,
+    };
+    await audit(context, {
+      action: "privacy_erasure.approve",
+      objectType: "erasure_approval",
+      objectId: id,
+      details: { basis: input.basis, contact: contact.id, ...listed },
+    });
+    return { id, ...listed };
+  });
+
+/** Runs an outside contact's approved erasure, in the three units a person's takes. */
+export const runContactErasure = schoolProcedure
+  .input(runContactErasureSchema)
+  .handler(async ({ input, context }) => {
+    const ready = await openUnit(context, "read", async (opened) => {
+      const unit = { ...context, ...opened };
+      requireCapability(unit, "erasure:approve");
+      await schoolContact(unit, input.contactId);
+      const approval = await contactApproval(unit.tx, {
+        tenantId: unit.tenantId,
+        contactId: input.contactId,
+      });
+      if (!approval)
+        throw new ORPCError("NOT_FOUND", {
+          message: "privacy.erasure_not_approved",
+        });
+      if (approval.erased)
+        throw new ORPCError("CONFLICT", { message: "privacy.erased" });
+      return { tenantId: unit.tenantId, approvalId: approval.id };
+    });
+    if (!context.cell.canErase())
+      throw new ORPCError("SERVICE_UNAVAILABLE", {
+        message: "privacy.erasure_unavailable",
+      });
+    const result = await context.cell.withRetention(
+      {
+        tenantId: ready.tenantId,
+        requestId: context.requestId,
+        actor: { kind: "system" },
+      },
+      (tx) =>
+        eraseContact(tx, {
+          tenantId: ready.tenantId,
+          contactId: input.contactId,
+          emptyContent: emptyContent(),
+        }),
+    );
+    const erased = (result.counts.message_contacts ?? 0) === 1;
+    await openUnit(context, "write", async (opened) => {
+      const unit = { ...context, ...opened };
+      await audit(unit, {
+        action: "privacy_erasure.run",
+        objectType: "erasure_approval",
+        objectId: ready.approvalId,
         outcome: erased ? "success" : "failed",
         details: { counts: result.counts },
       });

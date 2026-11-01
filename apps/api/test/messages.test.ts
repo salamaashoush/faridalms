@@ -1,3 +1,7 @@
+import {
+  plainContent,
+  withFileBlocks,
+} from "@faridalms/domain/content-conversion";
 import { describe, expect, test } from "bun:test";
 
 import { login, raw, rejection, sessionFor, signedIn } from "./harness";
@@ -31,7 +35,7 @@ describe("family conversations", () => {
 
     await mother.api.messages.send({
       threadId: thread.id,
-      body: "We will send the permission slip tomorrow.",
+      content: plainContent("We will send the permission slip tomorrow."),
     });
     const keeper = await teacher();
     const theirs = await keeper.api.messages.inbox({ show: "unread" });
@@ -46,7 +50,7 @@ describe("family conversations", () => {
     const again = await keeper.api.messages.start({
       kind: "family",
       studentId: child,
-      body: "Thank you, received.",
+      content: plainContent("Thank you, received."),
     });
     expect(again).toEqual({ threadId: thread.id, created: false });
   });
@@ -70,7 +74,7 @@ describe("family conversations", () => {
           mother.api.messages.start({
             kind: "direct",
             recipientIds: [stranger.userId],
-            body: "Hello",
+            content: plainContent("Hello"),
           }),
         ),
       ).toMatchObject({ code: "FORBIDDEN" });
@@ -80,7 +84,7 @@ describe("family conversations", () => {
         mother.api.messages.start({
           kind: "family",
           studentId: await studentId(),
-          body: "Hello",
+          content: plainContent("Hello"),
         }),
       ),
     ).toMatchObject({ code: "FORBIDDEN" });
@@ -96,12 +100,12 @@ describe("staff conversations", () => {
     const first = await keeper.api.messages.start({
       kind: "direct",
       recipientIds: [colleague.userId],
-      body: "Can we swap duty on Tuesday?",
+      content: plainContent("Can we swap duty on Tuesday?"),
     });
     const second = await keeper.api.messages.start({
       kind: "direct",
       recipientIds: [colleague.userId],
-      body: "Or Wednesday works too.",
+      content: plainContent("Or Wednesday works too."),
     });
     expect(second.threadId).toBe(first.threadId);
     const opened = await keeper.api.messages.thread({ id: first.threadId });
@@ -121,7 +125,7 @@ describe("staff conversations", () => {
       kind: "group",
       recipientIds: [first.userId, second.userId],
       subject: "Trip planning",
-      body: "Kick-off on Sunday.",
+      content: plainContent("Kick-off on Sunday."),
     });
     await keeper.api.messages.members({
       threadId,
@@ -141,7 +145,7 @@ describe("staff conversations", () => {
     const child = await studentId();
     const body = new Blob(["permission slip"]);
     const file = await keeper.api.files.initiate({
-      purpose: "attachment",
+      purpose: "document_media",
       name: "slip.txt",
       mediaType: "text/plain",
       sizeBytes: body.size,
@@ -159,13 +163,15 @@ describe("staff conversations", () => {
     const { threadId } = await keeper.api.messages.start({
       kind: "family",
       studentId: child,
-      body: "The slip is attached.",
-      fileIds: [file.id],
+      content: withFileBlocks(plainContent("The slip is attached."), [file]),
     });
     const opened = await mother.api.messages.thread({ id: threadId });
-    expect(opened.messages.at(-1)?.files.map((row) => row.name)).toEqual([
-      "slip.txt",
-    ]);
+    expect(
+      opened.messages
+        .at(-1)
+        ?.content?.root.children?.filter((node) => node.type === "file")
+        .map((node) => node.name),
+    ).toEqual(["slip.txt"]);
     const read = await raw(
       "northwind",
       mother.token,

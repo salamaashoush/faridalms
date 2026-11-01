@@ -995,6 +995,7 @@ describe("other runtime roles", () => {
       ["first_responded_at", "now()"],
       ["assignee_user_id", `'${Bun.randomUUIDv7()}'`],
       ["applicant_user_id", `'${Bun.randomUUIDv7()}'`],
+      ["thread_id", `'${Bun.randomUUIDv7()}'`],
     ] as const) {
       const refused = await add(`, ${column}`, `, ${value}`);
       expect(refused.error?.code).toBe("42501");

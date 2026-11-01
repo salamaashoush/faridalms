@@ -19,6 +19,8 @@ import {
   accessRoles,
   attendanceContacts,
   attendanceSettings,
+  siteEnquiries,
+  siteEnquiryEntries,
   accounts,
   calendarFeeds,
   calendarGradeLevels,
@@ -1152,6 +1154,51 @@ export async function completeFixture(
     targetYearId: nextYear,
     plan: { classes: [], students: [] },
   });
+  // What a release before conversations wrote: an enquiry with a thread of
+  // its own, which the move into Messages turns into a conversation.
+  const legacyEnquiry = id();
+  await tx.insert(siteEnquiries).values({
+    tenantId,
+    id: legacyEnquiry,
+    orgId: schoolId,
+    source: "phone",
+    locale: "en",
+    purpose: "visit",
+    name: "Salama Ashoush",
+    email: "Salama.Legacy@Example.com",
+    phone: "0100 555 0177",
+    message: "Asked about a visit.",
+    state: "in_progress",
+    assigneeUserId: userId,
+    createdByUserId: userId,
+  });
+  await tx.insert(siteEnquiryEntries).values([
+    {
+      tenantId,
+      orgId: schoolId,
+      enquiryId: legacyEnquiry,
+      kind: "note",
+      body: "Prefers mornings.",
+      authorUserId: userId,
+    },
+    {
+      tenantId,
+      orgId: schoolId,
+      enquiryId: legacyEnquiry,
+      kind: "reply",
+      body: "Dear Salama, Tuesday at ten suits us.",
+      details: { subject: "Visiting", locale: "en" },
+      authorUserId: userId,
+    },
+    {
+      tenantId,
+      orgId: schoolId,
+      enquiryId: legacyEnquiry,
+      kind: "state",
+      details: { from: "open", to: "in_progress", automatic: true },
+      authorUserId: userId,
+    },
+  ]);
   const [builtin] = await tx
     .select({ id: accessRoles.id })
     .from(accessRoles)
@@ -1163,5 +1210,6 @@ export async function completeFixture(
     builtinRoleId: builtin?.id,
     photoId,
     erasedSubject,
+    legacyEnquiry,
   };
 }

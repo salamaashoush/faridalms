@@ -28,6 +28,13 @@ What is here:
 - **Email**: a [Resend](https://resend.com) account with a verified sender
   domain, or an HTTPS endpoint of your own that sends what it is given.
   Every invitation and password reset goes by email.
+- **Replies by email** (optional): a subdomain such as `reply.example.com`
+  for families' answers to the school's messages. Add it to Resend for
+  receiving and publish the MX record Resend shows, add a webhook for
+  `email.received` to `https://api.example.com/callbacks/resend`, and set
+  `INBOUND_EMAIL_DOMAIN` and `RESEND_WEBHOOK_SECRET` in `.env`. Without it,
+  answers reach the school's own address. The steps and what the endpoint
+  accepts are in `docs/operations.md`, "Conversations by email".
 - **Somewhere for backups**: a bucket at another provider, ideally with
   object lock (see "Backups").
 

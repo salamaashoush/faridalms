@@ -279,6 +279,12 @@ export function getMessageFromError(error: unknown): string {
         return m.msgNoGuardians();
       case "messages.recipient":
         return m.msgRecipientGone();
+      case "messages.newer":
+        return m.msgNewer();
+      case "messages.empty":
+        return m.msgBodyNeeded();
+      case "privacy.contact_linked":
+        return m.msgContactLinked();
       case "attendance.stale":
         return m.attStale();
       case "attendance.outside_year":
@@ -597,12 +603,6 @@ export function getMessageFromError(error: unknown): string {
         return m.admErrState();
       case "enquiry.reason":
         return m.admErrReason();
-      case "enquiry.no_email":
-        return m.admErrNoEmail();
-      case "enquiry.no_mail":
-        return m.admErrNoMail();
-      case "enquiry.not_sent":
-        return m.admErrNotSent();
       case "intake.form_unpublished":
         return m.errIntakeFormUnpublished();
       case "intake.fixed":

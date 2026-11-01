@@ -91,13 +91,11 @@ describe("the notification centre", () => {
       recipientIds: [me.id],
       studentId: "",
       subject: "",
-      body: "Could we speak on Monday?",
-      fileIds: [],
+      content: plainContent("Could we speak on Monday?"),
     });
     await office.messages.send({
       threadId,
-      body: "Or Tuesday.",
-      fileIds: [],
+      content: plainContent("Or Tuesday."),
     });
     const about = (await family.notifications.list({ tab: "all" })).rows.filter(
       (row) => row.subjectId === threadId,

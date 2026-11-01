@@ -1,5 +1,8 @@
 import { BUILTIN_CAPABILITIES } from "@faridalms/domain/capabilities";
+import { contentPlainText } from "@faridalms/domain/content";
+import { plainContent } from "@faridalms/domain/content-conversion";
 import { CATALOGUE, edfiUri } from "@faridalms/domain/descriptors/catalogue";
+import { BUILTIN_MESSAGE_TEMPLATES } from "@faridalms/domain/templates";
 import { sql } from "drizzle-orm";
 
 import type { CellTransaction, openOwner } from "./context";
@@ -10,6 +13,8 @@ import { newDataKey } from "./crypto";
 import {
   accessRoles,
   descriptors,
+  documents,
+  documentTemplates,
   orgs,
   tenantKeys,
   tenants,
@@ -108,6 +113,57 @@ export async function seedBuiltinRoles(tx: CellTransaction, tenantId: string) {
       capabilities: [...BUILTIN_CAPABILITIES[key]],
     })),
   );
+}
+
+/**
+ * Gives each school the replies its office sends most as message templates
+ * of its own, which it may edit or remove.
+ */
+export async function seedMessageTemplates(
+  tx: CellTransaction,
+  tenantId: string,
+  schoolIds: readonly string[],
+) {
+  for (const orgId of schoolIds) {
+    const made = await tx
+      .insert(documentTemplates)
+      .values(
+        BUILTIN_MESSAGE_TEMPLATES.map((template) => ({
+          tenantId,
+          orgId,
+          kind: "message" as const,
+          builtinKey: template.key,
+          title: template.title,
+          state: "shared" as const,
+        })),
+      )
+      .returning({
+        id: documentTemplates.id,
+        key: documentTemplates.builtinKey,
+      });
+    await tx.insert(documents).values(
+      made.flatMap((row) => {
+        const template = BUILTIN_MESSAGE_TEMPLATES.find(
+          (entry) => entry.key === row.key,
+        );
+        if (!template) return [];
+        const content = plainContent(template.body);
+        return [
+          {
+            tenantId,
+            hostType: "document_template",
+            hostId: row.id,
+            orgId,
+            kind: "rich_text" as const,
+            schemaVersion: 1,
+            locale: template.locale,
+            content: content as unknown as Record<string, unknown>,
+            plainText: contentPlainText(content),
+          },
+        ];
+      }),
+    );
+  }
 }
 
 export async function seedTenantKeys(
@@ -214,6 +270,7 @@ export async function createTenant(
   );
   await seedDescriptors(tx, tenantId);
   await seedBuiltinRoles(tx, tenantId);
+  await seedMessageTemplates(tx, tenantId, schoolIds);
   await seedTenantKeys(tx, tenantId, keys.kek, keys.cell);
   await tx.execute(
     sql`update ops.tenant_registry set lifecycle = 'active', changed_at = statement_timestamp() where tenant_id = ${tenantId}::uuid`,

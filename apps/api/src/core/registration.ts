@@ -7,6 +7,8 @@ import {
 } from "@faridalms/database/stores/admissions";
 import { confirmEmail } from "@faridalms/database/stores/students";
 
+import { claimConversations } from "../messages/conversations";
+
 export interface ConfirmedFamily {
   tenantId: string;
   schoolId: string;
@@ -41,6 +43,15 @@ export async function adoptFamilyRecords(
       orgId: family.schoolId,
       subjectUserId: family.userId,
     });
+  // The outside contact who wrote from this address becomes the family's
+  // account in the same conversations, so their enquiries' replies are in
+  // their portal's Messages.
+  await claimConversations(tx, {
+    tenantId: family.tenantId,
+    schoolId: family.schoolId,
+    userId: family.userId,
+    verifiedEmail: family.email,
+  });
 }
 
 /**

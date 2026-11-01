@@ -15,12 +15,14 @@ export type TemplateKind =
   | "announcement"
   | "event"
   | "consent_form"
-  | "module";
+  | "module"
+  | "message";
 
 export interface TemplateRow {
   id: string;
   orgId: string;
-  ownerUserId: string;
+  /** Null for one the school was given when it was made. */
+  ownerUserId: string | null;
   kind: TemplateKind;
   title: string;
   description: string;
@@ -37,7 +39,7 @@ export interface TemplateRow {
 type TemplateRecord = {
   id: string;
   org_id: string;
-  owner_user_id: string;
+  owner_user_id: string | null;
   kind: TemplateKind;
   title: string;
   description: string;

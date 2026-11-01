@@ -216,11 +216,15 @@ public forms and on account registration only.
 - source (web form, phone, walk-in, event, referral), the form's answers,
 - state `open` → `in_progress` → `converted` | `closed` (with a reason),
   replacing handled/unhandled,
-- assignee, first-response time, a thread of notes and logged contacts,
-- links to the family and applicant it became.
+- assignee, first-response time,
+- links to the family and applicant it became, and to its conversation.
 
-Staff are notified when one arrives (a new notification kind), and reply from
-templates in either language.
+Its conversation is a Messages conversation in the admissions mailbox, with
+the family as an outside contact by email: the family's words, every reply,
+note, logged call or meeting and change of state, in one timeline (see
+architecture.md, Messages). Staff are notified when one arrives (a new
+notification kind), and reply from the school's message templates in either
+language; the family's answers by email land in the same conversation.
 
 ### 6.2 Intakes
 

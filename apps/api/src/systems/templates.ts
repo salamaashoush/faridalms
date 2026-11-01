@@ -131,7 +131,7 @@ export const review = writeProcedure
     const [reviewer] = await namesOf(context.tx, context.tenantId, [
       context.actor.userId,
     ]);
-    await notify(context, [row.ownerUserId], {
+    await notify(context, row.ownerUserId ? [row.ownerUserId] : [], {
       kind: "library",
       subject: { type: "document_template", id: row.id },
       params: {

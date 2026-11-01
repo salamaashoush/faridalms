@@ -15,7 +15,9 @@ import { currentAnswers } from "@faridalms/database/stores/consents";
 import { descriptorsFor } from "@faridalms/database/stores/descriptors";
 import { filesOfHosts } from "@faridalms/database/stores/files";
 import { identifiersOf } from "@faridalms/database/stores/identifiers";
+import { familyConversation } from "@faridalms/database/stores/messages";
 import { reachability } from "@faridalms/database/stores/notifications";
+import { publicSchool } from "@faridalms/database/stores/site";
 import { person as readPerson } from "@faridalms/database/stores/students";
 import { schoolYears } from "@faridalms/database/stores/years";
 import {
@@ -34,6 +36,7 @@ import {
   nextItemStates,
   withdrawApplicationSchema,
 } from "@faridalms/domain/admissions";
+import { applicationSubject } from "@faridalms/domain/enquiries";
 import { SYSTEM_KEPT_MEANINGS } from "@faridalms/domain/identifiers";
 import { ORPCError } from "@orpc/server";
 
@@ -49,6 +52,7 @@ import {
   writeProcedure,
 } from "../core/procedure";
 import { withPurposeFor } from "../core/purpose";
+import { openMailboxConversation, scopeOf } from "../messages/conversations";
 
 const conflict = () =>
   new ORPCError("CONFLICT", { message: "conflict.version" });
@@ -207,6 +211,14 @@ export const application = readProcedure
       priorities: row.priorities,
       additionalNeeds: row.additionalNeeds,
       enquiryId: row.enquiryId,
+      /** The family's conversation with admissions, drawn by Messages; null until there is one. */
+      threadId: await familyConversation(context.tx, {
+        tenantId: context.tenantId,
+        schoolId: context.schoolId,
+        mailbox: "admissions",
+        userId: row.familyUserId,
+        enquiryId: row.enquiryId,
+      }),
       intake: {
         id: intake.id,
         gradeEn: intake.gradeEn,
@@ -462,4 +474,43 @@ export const attach = writeProcedure
     requireCapability(context, "admissions:manage");
     const row = await applicationOf(context, input.applicationId);
     return fileDocument(context, row, input);
+  });
+
+/**
+ * The family's conversation with admissions, started now when they have
+ * none: one of the mailbox's, with the family in it, under a subject in
+ * the language they applied in.
+ */
+export const openConversation = writeProcedure
+  .input(applicationRefSchema)
+  .handler(async ({ input, context }) => {
+    requireCapability(context, "admissions:manage");
+    const row = await applicationOf(context, input.id);
+    const existing = await familyConversation(context.tx, {
+      tenantId: context.tenantId,
+      schoolId: context.schoolId,
+      mailbox: "admissions",
+      userId: row.familyUserId,
+      enquiryId: row.enquiryId,
+    });
+    if (existing) return { threadId: existing };
+    const school = await publicSchool(context.tx, context.schoolId);
+    const locale = row.locale === "ar" ? "ar" : "en";
+    const threadId = await openMailboxConversation(scopeOf(context), {
+      mailbox: "admissions",
+      subject: applicationSubject(
+        locale,
+        (locale === "ar" ? school?.nameAr : null) ?? school?.nameEn ?? "",
+      ),
+      ownerId: null,
+      memberIds: [row.familyUserId],
+    });
+    await audit(context, {
+      action: "message_thread.create",
+      objectType: "message_thread",
+      objectId: threadId,
+      subjectUserId: row.familyUserId,
+      details: { mailbox: "admissions", application: row.id },
+    });
+    return { threadId };
   });
