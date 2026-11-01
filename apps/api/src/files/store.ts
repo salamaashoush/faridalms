@@ -112,6 +112,23 @@ export class DiskFileStore implements FileStore {
 }
 
 /**
+ * The endpoint a bucket's client is given. In the virtual-hosted style the
+ * bucket is the first label of the host, and Bun's client then takes the
+ * endpoint as the bucket's own address and ignores its bucket option.
+ */
+export function bucketEndpoint(
+  endpoint: string | undefined,
+  bucket: string | undefined,
+  style: "path" | "virtual",
+): string | undefined {
+  if (style === "path" || endpoint === undefined || bucket === undefined)
+    return endpoint;
+  const url = new URL(endpoint);
+  url.hostname = `${bucket}.${url.hostname}`;
+  return url.href.replace(/\/$/, "");
+}
+
+/**
  * Objects in an S3-compatible bucket (S3, R2, MinIO and the like). The
  * protocol has no rename, so a move is a copy followed by a delete.
  */

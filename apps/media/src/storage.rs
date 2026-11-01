@@ -28,12 +28,14 @@ pub fn open(storage: &Storage) -> Result<Arc<dyn ObjectStore>> {
       bucket,
       region,
       endpoint,
+      virtual_hosted,
       access_key_id,
       secret_access_key,
     } => {
       let mut builder = AmazonS3Builder::new()
         .with_bucket_name(bucket)
         .with_region(region)
+        .with_virtual_hosted_style_request(*virtual_hosted)
         .with_access_key_id(access_key_id)
         .with_secret_access_key(secret_access_key);
       if let Some(endpoint) = endpoint {

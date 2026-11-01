@@ -21,7 +21,9 @@ pub enum Storage {
   S3 {
     bucket: String,
     region: String,
+    /// The bucket's own address when `virtual_hosted`, the service's otherwise.
     endpoint: Option<String>,
+    virtual_hosted: bool,
     access_key_id: String,
     secret_access_key: String,
   },
@@ -55,6 +57,18 @@ fn required(name: &str) -> Result<String> {
   var(name).with_context(|| format!("{name} must be set"))
 }
 
+/// The endpoint with the bucket as the first label of its host, which is how
+/// the store's client is given a bucket reached in the virtual-hosted style.
+fn bucket_endpoint(endpoint: &str, bucket: &str) -> Result<String> {
+  let mut url = reqwest::Url::parse(endpoint).with_context(|| format!("S3_ENDPOINT {endpoint} must be a URL"))?;
+  let host = url
+    .host_str()
+    .with_context(|| format!("S3_ENDPOINT {endpoint} must name a host"))?
+    .to_string();
+  url.set_host(Some(&format!("{bucket}.{host}")))?;
+  Ok(url.as_str().trim_end_matches('/').to_string())
+}
+
 impl Config {
   pub fn from_env() -> Result<Self> {
     let cell_secret = STANDARD
@@ -67,12 +81,26 @@ impl Config {
       None | Some("disk") => Storage::Disk {
         root: var("FILE_STORAGE_DIR").unwrap_or_else(|| ".data/files".into()).into(),
       },
-      Some("s3") => Storage::S3 {
-        bucket: required("FILE_BUCKET")?,
-        region: var("S3_REGION").unwrap_or_else(|| "auto".into()),
-        endpoint: var("S3_ENDPOINT"),
-        access_key_id: required("S3_ACCESS_KEY_ID")?,
-        secret_access_key: required("S3_SECRET_ACCESS_KEY")?,
+      Some("s3") => {
+        let bucket = required("FILE_BUCKET")?;
+        // Named and read as the API reads it, so both reach the bucket alike.
+        let virtual_hosted = match var("S3_ADDRESSING_STYLE").as_deref() {
+          None | Some("path") => false,
+          Some("virtual") => true,
+          Some(other) => bail!("S3_ADDRESSING_STYLE must be path or virtual, not {other}"),
+        };
+        let endpoint = match var("S3_ENDPOINT") {
+          Some(endpoint) if virtual_hosted => Some(bucket_endpoint(&endpoint, &bucket)?),
+          endpoint => endpoint,
+        };
+        Storage::S3 {
+          bucket,
+          region: var("S3_REGION").unwrap_or_else(|| "auto".into()),
+          endpoint,
+          virtual_hosted,
+          access_key_id: required("S3_ACCESS_KEY_ID")?,
+          secret_access_key: required("S3_SECRET_ACCESS_KEY")?,
+        }
       },
       Some(other) => bail!("FILE_STORAGE must be disk or s3, not {other}"),
     };
@@ -120,5 +148,24 @@ impl Config {
         )),
       },
     })
+  }
+}
+
+#[cfg(test)]
+mod tests {
+  use super::*;
+
+  #[test]
+  fn a_virtual_hosted_bucket_is_the_first_label_of_the_host() -> Result<()> {
+    assert_eq!(
+      bucket_endpoint("https://hel1.your-objectstorage.com", "faridalms-files")?,
+      "https://faridalms-files.hel1.your-objectstorage.com"
+    );
+    assert_eq!(
+      bucket_endpoint("http://minio:9000/", "faridalms-files")?,
+      "http://faridalms-files.minio:9000"
+    );
+    assert!(bucket_endpoint("not a url", "faridalms-files").is_err());
+    Ok(())
   }
 }
