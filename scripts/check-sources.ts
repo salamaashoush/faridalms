@@ -15,6 +15,7 @@ import {
 import { Glob, SQL } from "bun";
 
 import { errorCodeProblems } from "./error-codes";
+import { migrationProblems } from "./migration-checks";
 
 const problems: string[] = [];
 
@@ -90,19 +91,9 @@ for (const { path, text } of files) {
 
 problems.push(...errorCodeProblems(files));
 
-const FORBIDDEN_IN_MIGRATIONS = [
-  /disable\s+row\s+level\s+security/i,
-  /no\s+force\s+row\s+level\s+security/i,
-  /drop\s+policy\s+(?:if\s+exists\s+)?"?tenant_isolation"?/i,
-  /owner\s+to\s+(?!"?cell_owner"?\b|"?directory_owner"?\b)/i,
-  /bypassrls/i,
-];
 for (const folder of Object.values(MIGRATIONS))
-  for await (const path of new Glob(`${folder}/*/migration.sql`).scan(".")) {
-    const text = await Bun.file(path).text();
-    for (const pattern of FORBIDDEN_IN_MIGRATIONS)
-      if (pattern.test(text)) problems.push(`${path}: matches ${pattern}`);
-  }
+  for await (const path of new Glob(`${folder}/*/migration.sql`).scan("."))
+    problems.push(...migrationProblems(path, await Bun.file(path).text()));
 
 for (const namespace of CATALOGUE)
   for (const value of namespace.values) {
