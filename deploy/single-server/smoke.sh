@@ -1,8 +1,10 @@
 #!/usr/bin/env bash
-# Runs the single-server stack on a workstation and checks it end to end:
-# the migration, every service's health, routing through the edge, the
-# store, the network boundaries, log rotation, a backup to MinIO and a
-# restore from it. Everything it starts, volumes included, is removed when
+# Runs the single-server stack on a workstation and checks it end to end, as
+# a self-hosted server runs it: the bundled file store and the console
+# profiles, certificates on demand, the migration listing the cell, a school
+# created from the shell, every service's health, routing through the edge,
+# the store, the network boundaries, log rotation, a backup to MinIO (the
+# stand-in for another provider's bucket) and a restore from it. Everything it starts, volumes included, is removed when
 # it ends. It needs the images built locally first:
 #
 #   for t in api web collab ops migrate media edge backup; do
@@ -35,12 +37,14 @@ CELL_ROLE_PASSWORD=$(hex)
 CELL_KEK=$(secret)
 CELL_ID=eu-1
 cat >"$env" <<EOF
+COMPOSE_PROFILES=storage,console
 IMAGE_PREFIX=faridalms
 IMAGE_TAG=local
 PORTAL_DOMAIN=$portal
 SITES_DOMAIN=$sites
 EDGE_IPV4=192.0.2.10
 CELL_ID=$CELL_ID
+CELL_JURISDICTION=EG
 POSTGRES_PASSWORD=$POSTGRES_PASSWORD
 CELL_ROLE_PASSWORD=$CELL_ROLE_PASSWORD
 CELL_KEK=$CELL_KEK
@@ -49,9 +53,9 @@ PROVISION_SECRET=$(secret)
 OPS_SESSION_SECRET=$(secret)
 CLOUDFLARE_API_TOKEN=0000000000000000000000000000000000000000
 EDGE_LOG_LEVEL=DEBUG
-S3_ENDPOINT=http://minio:9000
+S3_ENDPOINT=http://storage:8333
 S3_REGION=us-east-1
-S3_ADDRESSING_STYLE=virtual
+S3_ADDRESSING_STYLE=path
 S3_ACCESS_KEY_ID=$S3_ACCESS_KEY_ID
 S3_SECRET_ACCESS_KEY=$S3_SECRET_ACCESS_KEY
 FILE_BUCKET=faridalms-files
@@ -110,11 +114,8 @@ s3() {
 
 psql_cell() { compose exec -T postgres psql -U postgres -At "$@"; }
 
-echo "Starting MinIO and its buckets..."
+echo "Starting MinIO and the backup bucket..."
 compose up -d --wait minio >/dev/null
-for bucket in faridalms-files faridalms-media; do
-  s3 -X PUT "http://minio:9000/$bucket" >/dev/null
-done
 # The backup bucket keeps every version under object lock, as the real one.
 s3 -X PUT -H "x-amz-bucket-object-lock-enabled: true" http://minio:9000/backups >/dev/null
 lock='<ObjectLockConfiguration xmlns="http://s3.amazonaws.com/doc/2006-03-01/"><ObjectLockEnabled>Enabled</ObjectLockEnabled><Rule><DefaultRetention><Mode>GOVERNANCE</Mode><Days>1</Days></DefaultRetention></Rule></ObjectLockConfiguration>'
@@ -126,9 +127,48 @@ compose up -d --wait --wait-timeout 300 >/dev/null || true
 
 echo "== Services"
 check "migrate ran and exited 0" test "$(docker inspect -f '{{.State.ExitCode}}' "$project-migrate-1")" = 0
-for service in postgres api web collab media provisioner ops edge backup; do
+check "the store's buckets were made" test "$(docker inspect -f '{{.State.ExitCode}}' "$project-storage-buckets-1")" = 0
+for service in postgres storage api web collab media provisioner ops edge backup; do
   check "$service is healthy" test "$(docker inspect -f '{{.State.Health.Status}}' "$project-$service-1")" = healthy
 done
+
+echo "== A school from the shell"
+cell_listed() {
+  local row
+  row=$(psql_cell -d directory -c "select state || ' ' || app_host || ' ' || jurisdiction from cells where id = '$CELL_ID'")
+  echo "$row"
+  [[ "$row" == "open $portal EG" ]]
+}
+create_school() {
+  compose run --rm -T admin create-school --slug smoke-school --name 'Smoke School' \
+    --admin-email head@smoke.example --admin-name 'Amira Hassan' --country EG \
+    --time-zone Africa/Cairo --print-link
+}
+# grep without -q reads to the end, so tee never meets a closed pipe.
+school_created() { create_school | tee /dev/stderr | grep "https://smoke-school.$portal/welcome" >/dev/null; }
+second_refused() {
+  local out
+  if out=$(create_school 2>&1); then return 1; fi
+  echo "$out"
+  grep -q 'already has the code smoke-school' <<<"$out"
+}
+invited() {
+  compose run --rm -T admin invite --slug smoke-school --print-link | tee /dev/stderr |
+    grep "https://smoke-school.$portal/welcome" >/dev/null
+}
+own_certificate() {
+  echo | openssl s_client -connect "127.0.0.1:$port" -servername "smoke-school.$portal" 2>/dev/null |
+    openssl x509 -noout -ext subjectAltName | tee /dev/stderr | grep "DNS:smoke-school.$portal" >/dev/null
+}
+check "migrate listed the cell as open" cell_listed
+check "create-school makes a school and prints its link" school_created
+check "a second create-school with the same code is refused" second_refused
+check "invite sends its administrator a new link" invited
+check "its portal gets a certificate for its own name on the first visit" own_certificate
+check "its portal serves its sign-in page" bash -c "
+  curl -sk --resolve smoke-school.$portal:$port:127.0.0.1 https://smoke-school.$portal:$port/sign-in | grep -qi 'password'"
+check "a code no school holds gets no certificate" bash -c "
+  ! curl -sk --max-time 5 --resolve nobody-here.$portal:$port:127.0.0.1 https://nobody-here.$portal:$port/ -o /dev/null"
 
 echo "== Seeding the stack's own cell"
 (
@@ -154,8 +194,10 @@ check "www redirects to the bare domain" expect_status 308 "www.$portal"
 check "a website answers 404 to an app route" bash -c "
   [[ \$(curl -sk -o /dev/null -w '%{http_code}' --resolve northwind.$sites:$port:127.0.0.1 https://northwind.$sites:$port/sign-in) == 404 ]] &&
   [[ \$(curl -sk -o /dev/null -w '%{http_code}' --resolve northwind.$sites:$port:127.0.0.1 https://northwind.$sites:$port/admin) == 404 ]]"
+# Certificates come on demand here, so a label the edge does not serve on
+# the portal domain gets none; with wildcard certificates it answers 404.
 check "a reserved label is no school's portal" bash -c "
-  [[ \$(curl -sk -o /dev/null -w '%{http_code}' --resolve media.$portal:$port:127.0.0.1 https://media.$portal:$port/sign-in) == 404 ]]"
+  ! curl -sk --max-time 5 -o /dev/null --resolve media.$portal:$port:127.0.0.1 https://media.$portal:$port/sign-in"
 check "ops serves the console's sign-in" bash -c "
   curl -sk --resolve ops.$portal:$port:127.0.0.1 https://ops.$portal:$port/sign-in | grep -q 'Operator console'"
 check "collab upgrades a WebSocket" bash -c "
@@ -206,7 +248,7 @@ check "its bytes go to the bucket" bash -c "
     -H 'x-farida-school: northwind' -X PUT --data-binary '$body' https://api.$portal:$port/v1/files/$file/content) == 200 ]]"
 check "the object is in the bucket under its school" bash -c "
   docker run --rm --network ${project}_front curlimages/curl:8.17.0 -sf --aws-sigv4 aws:amz:us-east-1:s3 \
-    --user '$S3_ACCESS_KEY_ID:$S3_SECRET_ACCESS_KEY' 'http://faridalms-files.minio:9000/?list-type=2' | grep -q '<Key>t/'"
+    --user '$S3_ACCESS_KEY_ID:$S3_SECRET_ACCESS_KEY' 'http://storage:8333/faridalms-files?list-type=2' | grep -q '<Key>t/'"
 link=$(api -o /dev/null -w '%{redirect_url}' "https://api.$portal:$port/v1/files/$file/content")
 check "opening it redirects to the files host" grep -q "^https://files.$sites/" <<<"$link"
 check "the files host serves the bytes" bash -c "
@@ -305,11 +347,11 @@ restored_file() {
 # The file store lost, then copied back from the backup bucket.
 restore_files() {
   local key
-  key=$(s3 'http://faridalms-files.minio:9000/?list-type=2' | sed -n 's/.*<Key>\(t\/[^<]*\)<\/Key>.*/\1/p' | head -1)
-  [[ -n "$key" ]] && s3 -X DELETE "http://faridalms-files.minio:9000/$key" &&
-    ! s3 -o /dev/null "http://faridalms-files.minio:9000/$key" &&
+  key=$(s3 'http://storage:8333/faridalms-files?list-type=2' | sed -n 's/.*<Key>\(t\/[^<]*\)<\/Key>.*/\1/p' | head -1)
+  [[ -n "$key" ]] && s3 -X DELETE "http://storage:8333/faridalms-files/$key" &&
+    ! s3 -o /dev/null "http://storage:8333/faridalms-files/$key" &&
     backup backup rclone copy backup:backups/files/faridalms-files files:faridalms-files &&
-    s3 -o /dev/null "http://faridalms-files.minio:9000/$key"
+    s3 -o /dev/null "http://storage:8333/faridalms-files/$key"
 }
 check "the dumps are fetched, checked and restored, and the stack comes back" restore
 check "a lost file is copied back from the backup bucket" restore_files

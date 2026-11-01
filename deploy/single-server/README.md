@@ -1,25 +1,144 @@
-# Single-server deployment
+# Self-hosting Farida LMS
 
-One cell on one machine: Postgres, the API, the web, collaboration, the
-media service, the operator console with its provisioner, the edge (Caddy)
-and a nightly backup, all from images CI publishes. It is sized for a
-machine with 4 vCPU, 8 GB of memory, 80 GB of disk and 4 GB of swap (a
-Hetzner CAX21, say), running Docker as a `deploy` user behind a firewall
-that admits TCP 22, 80 and 443, UDP 443 and ICMP.
-
-The examples use `example.com` for `PORTAL_DOMAIN`, `example.net` for
-`SITES_DOMAIN` and `203.0.113.10` for the server; put your own in their
-place.
+The whole platform on one server: Postgres, the API, the web, live editing,
+the media service, the edge (Caddy, with HTTPS) and a nightly backup, all
+from the images CI publishes. This is the second way to run Farida; the
+first is [faridalms.com](https://faridalms.com), where it is run for you.
 
 What is here:
 
-- `compose.yaml`: the stack. The only file the server needs besides `.env`.
+- `compose.yaml`: the stack. With `.env`, the only file the server needs.
 - `env.example`: every setting, with how to generate each secret.
-- `Caddyfile`, `backup.sh`: built into the `edge` and `backup` images, so
-  the routing and the backup move with the image tag.
-- `restore.md`: restoring the databases and the files, as `smoke.sh` tests it.
+- `Caddyfile`, `backup.sh`: built into the `edge` and `backup` images, so the
+  routing and the backup move with the image tag.
+- `restore.md`: restoring the databases and the files.
 - `compose.local.yaml`, `smoke.sh`: the same stack on a workstation, checked
   end to end.
+
+## What you need
+
+- **A server** with Docker Engine and the Compose plugin, 4 CPUs and 8 GB of
+  memory (see "Resources"; a school of a few hundred people fits in less),
+  and 4 GB of swap. Arm64 and amd64 images are published. Open TCP 80 and
+  443 and UDP 443 to everyone, and SSH to yourself.
+- **Two domains**, each a registrable domain of its own: one for the portals
+  where people sign in (`example.com` here) and one for the schools' public
+  websites, where students' code also runs (`example.net`). Never put the
+  second under the first: students' code must not share the portal's site.
+- **Email**: a [Resend](https://resend.com) account with a verified sender
+  domain, or an HTTPS endpoint of your own that sends what it is given.
+  Every invitation and password reset goes by email.
+- **Somewhere for backups**: a bucket at another provider, ideally with
+  object lock (see "Backups").
+
+## Quick start
+
+1. **DNS.** At your DNS provider, point four records at the server, with no
+   proxy in front:
+
+   ```
+   A  example.com      203.0.113.10
+   A  *.example.com    203.0.113.10
+   A  example.net      203.0.113.10
+   A  *.example.net    203.0.113.10
+   ```
+
+   Add `AAAA` records only after giving Docker IPv6 (see "IPv6"). If the
+   domains have `CAA` records, allow `letsencrypt.org`.
+
+2. **The files.** On the server, take the two files from the commit you
+   will run (the SHA you will set as `IMAGE_TAG`), and lock the
+   configuration down:
+
+   ```sh
+   mkdir -p ~/farida && cd ~/farida
+   ref=main   # or that commit's SHA
+   base=https://raw.githubusercontent.com/salamaashoush/faridalms/$ref/deploy/single-server
+   curl -fsSLO "$base/compose.yaml" && curl -fsSL "$base/env.example" -o .env
+   chmod 600 .env
+   ```
+
+3. **The settings.** Fill in `.env`; every line says what it is. Generate
+   the secrets on the server:
+
+   ```sh
+   openssl rand -hex 32     # POSTGRES_PASSWORD, CELL_ROLE_PASSWORD, S3_SECRET_ACCESS_KEY
+   openssl rand -hex 16     # S3_ACCESS_KEY_ID
+   openssl rand -base64 32  # CELL_KEK, CELL_SECRET
+   ```
+
+   Set `IMAGE_TAG` to the commit you are running, your two domains, the
+   server's address in `EDGE_IPV4`, the country your data is kept in as
+   `CELL_JURISDICTION`, and the email gateway. Then copy `.env` into a
+   password manager: the backups do not carry it, and without `CELL_KEK` a
+   restored server cannot read its encrypted fields.
+
+4. **Start.**
+
+   ```sh
+   docker compose up -d
+   docker compose ps
+   ```
+
+   `migrate` creates the databases, applies the migrations and lists this
+   server's cell as open, then exits 0; everything else should be `healthy`
+   within a minute or two.
+
+5. **The first school.** Create it from the shell:
+
+   ```sh
+   docker compose run --rm admin create-school \
+     --slug acme --name "Acme School" --country EG --time-zone Africa/Cairo \
+     --admin-email head@acme.example --admin-name "Amira Hassan"
+   ```
+
+   Its administrator is emailed a link to choose a password, and the school
+   is at `https://acme.example.com`, with its website at
+   `https://acme.example.net`. `--print-link` prints the email instead of
+   sending it, and `admin invite --slug acme` sends a new link when the
+   first has expired. Add `--name-ar` and `--admin-name-ar` for Arabic
+   names, and `--locale ar` to start the school in Arabic.
+
+   The first visit to each name takes a few seconds while its certificate is
+   issued. Caddy asks the API before every certificate, and only the names
+   of schools that exist, and the edge's own, are ever issued.
+
+From here the school's administrator does the rest in the portal: the school
+year, classes, people, and, under Settings, the school's own domain names
+for its portal and website.
+
+## Options
+
+**An S3 service for files.** The `storage` profile runs a file store on the
+server (SeaweedFS), and its files live in the `storage` volume, which the
+nightly backup copies to your backup bucket. To use an S3 service instead,
+make two private buckets there, set `S3_ENDPOINT`, `S3_REGION`,
+`S3_ADDRESSING_STYLE` and the keys, and remove `storage` from
+`COMPOSE_PROFILES`. Hetzner Object Storage, for one, takes
+`S3_ADDRESSING_STYLE=virtual`.
+
+**Wildcard certificates.** With `EDGE_TLS=acme` each name gets its own
+certificate from Let's Encrypt, which allows 50 new ones a week per domain:
+plenty for a few schools. For many, set `EDGE_TLS=cloudflare` and
+`CLOUDFLARE_API_TOKEN` (Zone, DNS, Edit and Zone, Zone, Read on both zones,
+the domains' DNS at Cloudflare): two wildcard certificates by DNS-01 then
+cover every name. A token limited to the server's IPv4 address must be
+called from the server with `curl -4`, since the host prefers IPv6.
+
+**The operator console.** For running many schools, add `console` to
+`COMPOSE_PROFILES`. The console at `https://ops.example.com` creates schools,
+binds their domains and keeps a log of every change, signed in through any
+OpenID Connect provider:
+
+1. Create a client of type "Web application" whose authorised redirect URI
+   is `https://ops.example.com/auth/callback`. With Google: a project in the
+   Google Cloud console, an OAuth consent screen (External, the scopes
+   `openid`, `email` and `profile`), then Credentials, OAuth client ID.
+2. Set `OPS_OIDC_ISSUER`, `OPS_OIDC_CLIENT_ID`, `OPS_OIDC_CLIENT_SECRET`,
+   and who may sign in: `OPS_OIDC_EMAILS` (verified addresses), or
+   `OPS_OIDC_GROUP` with a provider that has groups. Set `PROVISION_SECRET`
+   and `OPS_SESSION_SECRET` (`openssl rand -base64 32` each).
+3. `docker compose up -d`.
 
 ## Routing
 
@@ -78,119 +197,11 @@ all peak at once, and the 4 GB of swap is the headroom.
 Every container logs to Docker's json-file driver, 5 files of 20 MB, so
 logs cannot take more than about 1 GB of the disk.
 
-## First deploy
-
-On a workstation, with this repository:
-
-1. **DNS at Cloudflare**, every record DNS only (grey cloud, no proxy):
-
-   - `A example.com` and `A *.example.com` to `203.0.113.10`
-   - `A example.net` and `A *.example.net` to `203.0.113.10`
-
-   Add the matching `AAAA` records only after giving Docker IPv6 (see
-   "IPv6" below); without it every IPv6 visitor would share one address in
-   the sign-in limits. Leave the `CAA` records unset, or allow
-   `letsencrypt.org`.
-
-2. **Cloudflare API token**: My Profile, API Tokens, Create Token, "Edit
-   zone DNS" template; permissions Zone, DNS, Edit and Zone, Zone, Read;
-   zone resources `example.com` and `example.net` only. Caddy uses it
-   to answer the DNS-01 challenge for the two wildcard certificates. If the
-   token is limited to the server's IPv4 address, call the API from the
-   server's own shell with `curl -4`: the host prefers IPv6, which the
-   token refuses (containers have IPv4 only, so Caddy is unaffected).
-
-3. **Object storage**: create two private buckets, `faridalms-files` and
-   `faridalms-media`, and an S3 key pair (with Hetzner Object Storage, in
-   the Cloud Console; `env.example` has its endpoint). The keys go in `.env` and nowhere else.
-
-4. **Google sign-in for the console** (the operator signs in with a Google
-   account):
-
-   1. In the Google Cloud console, create a project, then APIs and Services,
-      OAuth consent screen: user type External, app name "Farida LMS
-      operators", the scopes `openid`, `email` and `profile`, which need no
-      verification. While the app is in Testing, add your own address as a
-      test user, or publish it.
-   2. Credentials, Create credentials, OAuth client ID, type Web application,
-      authorised redirect URI `https://ops.example.com/auth/callback`
-      (the console's `/auth/callback` route; nothing else).
-   3. Put the client ID and secret in `.env` with
-      `OPS_OIDC_ISSUER=https://accounts.google.com` and your address in
-      `OPS_OIDC_EMAILS`. The console admits an address only when Google
-      marks it verified (`email_verified`), and leaves `OPS_OIDC_GROUP`
-      unset, since a personal Google account has no groups.
-
-5. **A token to pull images**, if the images are private: a classic
-   personal access token with only `read:packages`, for the server alone.
-
-On the server, as `deploy`:
-
-6. Copy the stack across and lock the configuration down:
-
-   ```sh
-   ssh deploy@203.0.113.10 mkdir -p farida
-   scp deploy/single-server/compose.yaml deploy/single-server/env.example deploy@203.0.113.10:farida/
-   ssh deploy@203.0.113.10
-   cd farida
-   cp env.example .env && chmod 600 .env
-   ```
-
-7. Fill in `.env`. Generate each secret on the server:
-
-   ```sh
-   openssl rand -hex 32     # POSTGRES_PASSWORD, CELL_ROLE_PASSWORD
-   openssl rand -base64 32  # CELL_KEK, CELL_SECRET, PROVISION_SECRET, OPS_SESSION_SECRET
-   ```
-
-   Set `IMAGE_TAG` to the commit to run, `EDGE_IPV4` to the server's
-   address, and the email gateway (`RESEND_API_KEY` with `EMAIL_FROM`, or
-   `EMAIL_WEBHOOK_URL`): without it nobody can be invited or reset a
-   password, and the console cannot create a school. Then copy `.env` into a
-   password manager. The backups do not carry it, and without `CELL_KEK` a
-   restored cell cannot read its encrypted fields. A password manager with a
-   CLI can render it instead (`op inject` from a template of references, for
-   instance), so the secrets never sit on a workstation's disk.
-
-8. Log in to the registry if the images are private, and start:
-
-   ```sh
-   echo "$TOKEN" | docker login ghcr.io -u <account> --password-stdin
-   docker compose pull
-   docker compose up -d
-   docker compose ps
-   ```
-
-   `migrate` runs first and exits 0; everything else should show `healthy`
-   within a minute. The edge asks for the two wildcard certificates as it
-   starts (`docker compose logs edge | grep -i certificate`).
-
-9. Register the cell in the directory, once. The console offers schools
-   only on a registered cell, and its host must be the bare portal domain:
-
-   ```sh
-   docker compose exec postgres psql -U postgres -d directory -c "
-     insert into cells (id, jurisdiction, provider, region, app_host, api_base_url, state)
-     values ('eu-1', 'FI', 'hetzner', 'hel1', 'example.com', 'http://api:3001', 'open')
-     on conflict (id) do nothing"
-   ```
-
-   Use the `CELL_ID` and `PORTAL_DOMAIN` from `.env`, the two-letter
-   country the data lives in, and the provider and region of the server.
-
-10. Create the first school: open `https://ops.example.com`, sign in with
-    Google, New school. The provisioner creates it and emails its first
-    administrator a link to choose a password (docs/operations.md,
-    "Registering a school"). The school's portal is then
-    `https://<slug>.example.com` and its website
-    `https://<slug>.example.net`.
-
-11. Configure backups (below) and run one by hand.
-
 ## Upgrades
 
-CI publishes every target for every commit on main, tagged with the commit
-SHA and `main`. To upgrade, set `IMAGE_TAG` in `.env` to the new SHA, then:
+CI publishes every target for every commit on main that passes its checks,
+tagged with the commit SHA and `main`. To upgrade, take that commit's
+`compose.yaml`, set `IMAGE_TAG` in `.env` to its SHA, then:
 
 ```sh
 docker compose pull
@@ -245,7 +256,7 @@ bucket at another provider:
 
 - `db/<date>/cell.dump`, `db/<date>/directory.dump`, `db/<date>/roles.sql`
   and `db/<date>/SHA256SUMS`;
-- `files/faridalms-files/...` and `files/faridalms-media/...`, to which
+- `files/<FILE_BUCKET>/...` and `files/<PUBLIC_MEDIA_BUCKET>/...`, to which
   each night adds what is new or changed.
 
 Until the five `BACKUP_S3_*` settings are set it logs that it is not
@@ -280,16 +291,18 @@ the edge's access log shows it.
 
 ## HSTS preload
 
-The plan is to preload both platform domains. Once every name under them
-has served HTTPS for a while, add `; preload` to the edge's
-`Strict-Transport-Security` and submit both at hstspreload.org. Leaving the
-list takes months, so it is a decision, not a setting.
+Once every name under both domains has served HTTPS for a while, you may
+add `; preload` to the edge's `Strict-Transport-Security` and submit both
+domains at hstspreload.org. Leaving the list takes months, so it is a
+decision, not a setting.
 
 ## On a workstation
 
-`smoke.sh` runs this stack with locally built images, `tls internal` for the
-platform names and MinIO for the buckets, checks routing, health, the
-store, the network boundaries, log rotation, a backup and a restore, and
+`smoke.sh` runs this stack as a self-hosted server runs it, with locally
+built images, the bundled file store, the console, and certificates issued
+on demand by Caddy's own authority. It checks the cell's listing, a school
+created from the shell and its certificate, routing, health, the store, the
+network boundaries, log rotation, a backup to MinIO and a restore, and
 removes everything it started:
 
 ```sh
@@ -299,5 +312,6 @@ done
 deploy/single-server/smoke.sh
 ```
 
-The Cloudflare DNS-01 issuance, Google sign-in, Hetzner's own endpoint and
-a real backup bucket are what it cannot exercise.
+Let's Encrypt and Cloudflare issuance, sign-in through a real identity
+provider, a real S3 service and a real backup bucket are what it cannot
+exercise.

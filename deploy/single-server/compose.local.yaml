@@ -1,8 +1,8 @@
 # The single-server stack on a workstation, for smoke.sh: images built
-# locally (IMAGE_PREFIX=faridalms, IMAGE_TAG=local), certificates from
-# Caddy's own authority instead of Cloudflare, MinIO in place of both the
-# file store and the backup bucket, and ports that leave the workstation's
-# own 80, 443 and 5432 alone.
+# locally (IMAGE_PREFIX=faridalms, IMAGE_TAG=local), certificates on demand
+# from Caddy's own authority instead of Let's Encrypt, MinIO standing in for
+# the backup bucket at another provider, and ports that leave the
+# workstation's own 80, 443 and 5432 alone.
 services:
   postgres:
     ports: !override
@@ -21,15 +21,9 @@ services:
     environment:
       MINIO_ROOT_USER: ${S3_ACCESS_KEY_ID}
       MINIO_ROOT_PASSWORD: ${S3_SECRET_ACCESS_KEY}
-      # Buckets as the first label of the host, as Hetzner addresses them.
-      MINIO_DOMAIN: minio
     volumes:
       - minio:/data
-    networks:
-      front:
-        aliases: [faridalms-files.minio, faridalms-media.minio, backups.minio]
-      data:
-        aliases: [faridalms-files.minio, faridalms-media.minio, backups.minio]
+    networks: [front, data]
     logging:
       driver: json-file
       options:

@@ -3,6 +3,12 @@
 # here. Configuration is the .env beside this file (see env.example), and the
 # runbook is README.md.
 #
+# Profiles add what not every server needs (COMPOSE_PROFILES in .env):
+#   console  the operator console and its provisioner, to create and manage
+#            schools from a browser signed in through OpenID Connect
+#   storage  a file store on this server, for when there is no S3 service
+#   tools    `docker compose run --rm admin ...`, schools from the shell
+#
 # The project name keeps these volumes apart from a development checkout's.
 name: farida-cell
 
@@ -19,7 +25,8 @@ x-service: &service
     - no-new-privileges:true
 
 x-cell-secret: &cell-secret ${CELL_SECRET:?Set CELL_SECRET, 32 random bytes in base64}
-x-provision-secret: &provision-secret ${PROVISION_SECRET:?Set PROVISION_SECRET, 32 random bytes in base64}
+# Only the console and its provisioner use it, so it may be unset without them.
+x-provision-secret: &provision-secret ${PROVISION_SECRET:-}
 x-portal-domain: &portal-domain ${PORTAL_DOMAIN:?Set PORTAL_DOMAIN, for example example.com}
 x-sites-domain: &sites-domain ${SITES_DOMAIN:?Set SITES_DOMAIN, for example example.net}
 
@@ -107,6 +114,12 @@ services:
       CELL_DATABASE: cell
       DIRECTORY_DATABASE: directory
       CELL_ROLE_PASSWORD: ${CELL_ROLE_PASSWORD:?Set CELL_ROLE_PASSWORD, 32 random bytes in hex}
+      # The cell lists itself in the directory as open for schools.
+      CELL_ID: ${CELL_ID:?Set CELL_ID, for example eu-1}
+      PORTAL_DOMAIN: *portal-domain
+      CELL_JURISDICTION: ${CELL_JURISDICTION:?Set CELL_JURISDICTION, the two-letter country the data is kept in}
+      CELL_PROVIDER: ${CELL_PROVIDER:-}
+      CELL_REGION: ${CELL_REGION:-}
     networks: [data]
     depends_on:
       postgres:
@@ -150,6 +163,9 @@ services:
     depends_on:
       migrate:
         condition: service_completed_successfully
+      storage-buckets:
+        condition: service_completed_successfully
+        required: false
     stop_grace_period: 30s
     deploy:
       resources:
@@ -232,6 +248,7 @@ services:
   # email gateway, so the public API cannot reach it.
   provisioner:
     <<: *service
+    profiles: [console]
     image: ${IMAGE_PREFIX:-ghcr.io/salamaashoush/faridalms}-api:${IMAGE_TAG:?Set IMAGE_TAG to a commit SHA or main}
     environment:
       CELL_ID: ${CELL_ID:?Set CELL_ID, for example eu-1}
@@ -264,18 +281,19 @@ services:
 
   ops:
     <<: *service
+    profiles: [console]
     image: ${IMAGE_PREFIX:-ghcr.io/salamaashoush/faridalms}-ops:${IMAGE_TAG:?Set IMAGE_TAG to a commit SHA or main}
     environment:
       OPS_DIRECTORY_URL: postgres://directory_admin:${CELL_ROLE_PASSWORD}@postgres:5432/directory
       OPS_ORIGIN: https://ops.${PORTAL_DOMAIN}
       OPS_OIDC_ISSUER: ${OPS_OIDC_ISSUER:-https://accounts.google.com}
-      OPS_OIDC_CLIENT_ID: ${OPS_OIDC_CLIENT_ID:?Set OPS_OIDC_CLIENT_ID}
-      OPS_OIDC_CLIENT_SECRET: ${OPS_OIDC_CLIENT_SECRET:?Set OPS_OIDC_CLIENT_SECRET}
+      OPS_OIDC_CLIENT_ID: ${OPS_OIDC_CLIENT_ID:-}
+      OPS_OIDC_CLIENT_SECRET: ${OPS_OIDC_CLIENT_SECRET:-}
       # One of the two: a group of the provider, or verified addresses.
       OPS_OIDC_GROUP: ${OPS_OIDC_GROUP:-}
       OPS_OIDC_EMAILS: ${OPS_OIDC_EMAILS:-}
       OPS_OIDC_GROUP_CLAIM: ${OPS_OIDC_GROUP_CLAIM:-}
-      OPS_SESSION_SECRET: ${OPS_SESSION_SECRET:?Set OPS_SESSION_SECRET, 32 random bytes in base64}
+      OPS_SESSION_SECRET: ${OPS_SESSION_SECRET:-}
       PROVISION_URL: http://provisioner:3005
       PROVISION_SECRET: *provision-secret
       PORTAL_DOMAIN: *portal-domain
@@ -309,8 +327,11 @@ services:
     environment:
       PORTAL_DOMAIN: *portal-domain
       SITES_DOMAIN: *sites-domain
-      CLOUDFLARE_API_TOKEN: ${CLOUDFLARE_API_TOKEN:?Set CLOUDFLARE_API_TOKEN, Zone DNS Edit and Zone Read on both zones}
-      EDGE_TLS: ${EDGE_TLS:-cloudflare}
+      # acme: a certificate per name from Let's Encrypt on its first visit,
+      # needing nothing but ports 80 and 443. cloudflare: two wildcard
+      # certificates by DNS-01, with the token below.
+      EDGE_TLS: ${EDGE_TLS:-acme}
+      CLOUDFLARE_API_TOKEN: ${CLOUDFLARE_API_TOKEN:-}
       EDGE_LOG_LEVEL: ${EDGE_LOG_LEVEL:-INFO}
     ports:
       - "80:80"
@@ -334,6 +355,94 @@ services:
       resources:
         limits:
           memory: 256m
+
+  # Schools from the shell, for a server without the console:
+  #   docker compose run --rm admin create-school --help
+  # It holds the provisioner's login and the directory's, and leaves when done.
+  admin:
+    profiles: [tools]
+    image: ${IMAGE_PREFIX:-ghcr.io/salamaashoush/faridalms}-api:${IMAGE_TAG:?Set IMAGE_TAG to a commit SHA or main}
+    restart: "no"
+    logging: *logging
+    entrypoint: ["bun", "dist/admin.js"]
+    environment:
+      CELL_ID: ${CELL_ID:?Set CELL_ID, for example eu-1}
+      CELL_KEK: ${CELL_KEK:?Set CELL_KEK, 32 random bytes in base64}
+      CELL_JURISDICTION: ${CELL_JURISDICTION:-}
+      CELL_PROVISION_URL: postgres://provisioner:${CELL_ROLE_PASSWORD}@postgres:5432/cell
+      DIRECTORY_URL: postgres://directory_reader:${CELL_ROLE_PASSWORD}@postgres:5432/directory
+      DIRECTORY_ADMIN_URL: postgres://directory_admin:${CELL_ROLE_PASSWORD}@postgres:5432/directory
+      PORTAL_DOMAIN: *portal-domain
+      SITES_DOMAIN: *sites-domain
+      RESEND_API_KEY: ${RESEND_API_KEY:-}
+      EMAIL_FROM: ${EMAIL_FROM:-}
+      EMAIL_WEBHOOK_URL: ${EMAIL_WEBHOOK_URL:-}
+      NOTIFY_WEBHOOK_TOKEN: ${NOTIFY_WEBHOOK_TOKEN:-}
+    networks: [provisioner-data]
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+
+  # A file store on this server (SeaweedFS), for when there is no S3 service:
+  # set S3_ENDPOINT=http://storage:8333 and S3_ADDRESSING_STYLE=path, and
+  # choose the S3 keys it is to accept. The files live in the storage volume;
+  # back it up as you back up the rest of the server.
+  storage:
+    <<: *service
+    profiles: [storage]
+    image: chrislusf/seaweedfs:4.51
+    # It binds to one detected address unless told otherwise, which would
+    # leave it unreachable from one of its two networks.
+    command:
+      ["server", "-dir=/data", "-s3", "-s3.port=8333", "-ip.bind=0.0.0.0"]
+    environment:
+      AWS_ACCESS_KEY_ID: ${S3_ACCESS_KEY_ID}
+      AWS_SECRET_ACCESS_KEY: ${S3_SECRET_ACCESS_KEY}
+    volumes:
+      - storage:/data
+    networks: [front, data]
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "wget -q -O /dev/null http://127.0.0.1:8333/healthz || exit 1",
+        ]
+      interval: 5s
+      timeout: 3s
+      retries: 30
+    deploy:
+      resources:
+        limits:
+          memory: 512m
+
+  # Creates the two buckets in the store if they are missing, then exits.
+  storage-buckets:
+    profiles: [storage]
+    image: curlimages/curl:8.17.0
+    restart: "no"
+    logging: *logging
+    environment:
+      S3_ACCESS_KEY_ID: ${S3_ACCESS_KEY_ID}
+      S3_SECRET_ACCESS_KEY: ${S3_SECRET_ACCESS_KEY}
+      FILE_BUCKET: ${FILE_BUCKET}
+      PUBLIC_MEDIA_BUCKET: ${PUBLIC_MEDIA_BUCKET}
+    entrypoint: ["sh", "-c"]
+    command:
+      - |
+        for bucket in "$$FILE_BUCKET" "$$PUBLIC_MEDIA_BUCKET"; do
+          code=$$(curl -s -o /dev/null -w '%{http_code}' -X PUT \
+            --aws-sigv4 "aws:amz:us-east-1:s3" \
+            --user "$$S3_ACCESS_KEY_ID:$$S3_SECRET_ACCESS_KEY" \
+            "http://storage:8333/$$bucket")
+          case "$$code" in
+            200 | 409) echo "bucket $$bucket ready" ;;
+            *) echo "bucket $$bucket: HTTP $$code" && exit 1 ;;
+          esac
+        done
+    networks: [data]
+    depends_on:
+      storage:
+        condition: service_healthy
 
   backup:
     <<: *service
@@ -391,3 +500,4 @@ volumes:
   postgres:
   caddy-data:
   caddy-config:
+  storage:

@@ -175,6 +175,18 @@ those ids in memory, so run one provisioner per cell. Without an email
 gateway (Resend or `EMAIL_WEBHOOK_URL`, "Notifications" below) it refuses to create anything, since nobody
 could sign in.
 
+Without the console, `apps/api/src/admin.ts` does the same from a shell on
+the server, with the provisioner's login and the directory's
+(`docker compose run --rm admin create-school --help`): it writes the
+directory rows, provisions the tenant in-process exactly as the provisioner
+does, and activates it, naming `operator:server-shell` in the change log.
+`invite` sends an administrator a new link, and `--print-link` prints the
+email instead of sending it. A school is only created on a cell the
+directory lists as open; the `migrate` job lists its own cell, once, from
+`CELL_ID`, `PORTAL_DOMAIN` and `CELL_JURISDICTION` (`CELL_PROVIDER` and
+`CELL_REGION` default to `self-hosted` and `default`), and leaves a row
+already there as it is.
+
 Locally, `bun install` generates `PROVISION_SECRET` and `.env.example` sets
 `CELL_PROVISION_URL`, so `bun run dev` starts the provisioner on
 127.0.0.1:3005; run the console with `PROVISION_URL=http://127.0.0.1:3005`

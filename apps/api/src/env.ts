@@ -43,6 +43,7 @@ export const env = v.parse(
       // `<slug>.<PORTAL_DOMAIN>` is a school's portal and `<slug>.<SITES_DOMAIN>`
       // its website, unless it binds its own; links in email and exports are
       // built from them, never from a request's Host header.
+      NODE_ENV: v.optional(v.string()),
       PORTAL_DOMAIN: domain,
       SITES_DOMAIN: domain,
       // The address a school's own apex domain points its A record at: the
@@ -130,6 +131,18 @@ export const env = v.parse(
     v.check(
       (value) => value.PORTAL_DOMAIN !== value.SITES_DOMAIN,
       "PORTAL_DOMAIN and SITES_DOMAIN must differ",
+    ),
+    // Students' code runs under the sites domain, so in production it may
+    // not sit inside the portal's (or the portal inside it), where it would
+    // share the portal's site. Development nests them under localhost.
+    v.check(
+      (value) =>
+        value.NODE_ENV !== "production" ||
+        !(
+          value.SITES_DOMAIN.endsWith(`.${value.PORTAL_DOMAIN}`) ||
+          value.PORTAL_DOMAIN.endsWith(`.${value.SITES_DOMAIN}`)
+        ),
+      "SITES_DOMAIN must be another domain from PORTAL_DOMAIN, not one inside it",
     ),
     v.check(
       (value) =>
