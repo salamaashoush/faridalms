@@ -235,6 +235,38 @@ describe("announcements going out", () => {
       ),
     ).toHaveLength(1);
   });
+
+  test("edits taken back to what was sent wait for nothing, and the editor holds that copy", async () => {
+    const office = await principal();
+    const saved = await office.announcements.save({
+      ...draft("Bus times", families),
+      body: plainContent("The bus leaves at eight."),
+    });
+    const sent = await office.announcements.publish({
+      id: saved.id,
+      expectedVersion: saved.version,
+    });
+    const edited = await office.announcements.save({
+      ...draft("Bus times", families),
+      id: saved.id,
+      expectedVersion: sent.version,
+      body: plainContent("The bus leaves at nine."),
+    });
+    const opened = await office.announcements.editor({ id: saved.id });
+    expect(opened.changedSince).toBe(true);
+    expect(opened.sent?.body.root.children?.[0]?.children?.[0]?.text).toBe(
+      "The bus leaves at eight.",
+    );
+    await office.announcements.save({
+      ...draft("Bus times", families),
+      id: saved.id,
+      expectedVersion: edited.version,
+      body: plainContent("The bus leaves at eight."),
+    });
+    expect(
+      (await office.announcements.editor({ id: saved.id })).changedSince,
+    ).toBe(false);
+  });
 });
 
 describe("announcements in two languages", () => {

@@ -78,10 +78,13 @@ export async function publishedWords(context: Reader, host: Host) {
     translation: publishedTranslation
       ? (publishedTranslation.content as unknown as ContentDocument)
       : null,
+    // Words saved back to what went out are no change, whatever their version.
     changedSince:
-      original.version > published.documentVersion ||
-      (translation !== null &&
-        translation.version > (publishedTranslation?.documentVersion ?? 0)),
+      JSON.stringify(original.content) !== JSON.stringify(published.content) ||
+      (translation === null
+        ? publishedTranslation !== null
+        : JSON.stringify(translation.content) !==
+          JSON.stringify(publishedTranslation?.content ?? null)),
   };
 }
 
