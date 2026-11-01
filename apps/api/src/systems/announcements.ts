@@ -45,7 +45,10 @@ import {
   seenSchema,
 } from "@faridalms/domain/announcements";
 import { contentFileIds, contentPlainText } from "@faridalms/domain/content";
-import { contentIssues } from "@faridalms/domain/content-checks";
+import {
+  CONTENT_ISSUE_CODE,
+  contentIssues,
+} from "@faridalms/domain/content-checks";
 import {
   documentWritten,
   otherLocale,
@@ -411,7 +414,9 @@ export const publish = writeProcedure
       document ? contentIssues(document) : [],
     );
     if (problem)
-      throw new ORPCError("BAD_REQUEST", { message: `content.${problem}` });
+      throw new ORPCError("BAD_REQUEST", {
+        message: CONTENT_ISSUE_CODE[problem],
+      });
     const version = await setState(context.tx, {
       tenantId: context.tenantId,
       id: row.id,
