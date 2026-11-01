@@ -241,6 +241,13 @@ export function getMessageFromError(error: unknown): string {
         return m.siteIssueOrder();
       case "content.link":
         return m.siteIssueLink();
+      case "content.captions":
+        return m.contentIssueCaptions();
+      case "content.unreviewed":
+        return m.contentIssueUnreviewed();
+      case "content.consent":
+      case "announcements.consent":
+        return m.contentErrConsent();
       case "announcements.archived":
         return m.annErrArchived();
       case "announcements.already_out":

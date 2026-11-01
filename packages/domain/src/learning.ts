@@ -18,13 +18,12 @@ import {
   contentPlainText,
   FEEDBACK_TIMES,
   GATE_WAITS,
-  holdsSuggestions,
   MAX_LATEX,
   mathText,
   narrationWordsSchema,
   textDirection,
 } from "./content";
-import { contentIssues } from "./content-checks";
+import { publishIssues } from "./content-checks";
 import { emptyContent } from "./content-conversion";
 import {
   crosswordLayout,
@@ -1204,16 +1203,12 @@ export function lessonIssue(lesson: {
 }): string | null {
   const document = lessonOfContent(lesson.content);
   if (lessonPlainText(document).trim() === "") return "learning.lesson_empty";
-  if (holdsSuggestions(lesson.content)) return "learning.unreviewed";
+  const issues = publishIssues(lesson.content);
+  if (issues.includes("unreviewed")) return "learning.unreviewed";
   // Only a quiz draws questions from the bank, one draw for each attempt.
   if (document.blocks.some((block) => block.type === "draw"))
     return "learning.lesson_incomplete";
-  const uncaptioned = mediaOf(lesson.content.root).some(
-    (node) =>
-      !node.captionsFileId &&
-      ((node.mime ?? "").startsWith("video/") || !node.transcript),
-  );
-  if (uncaptioned) return "learning.captions_required";
+  if (issues.includes("captions")) return "learning.captions_required";
   const parsed = v.safeParse(lessonDocumentSchema, document);
   if (!parsed.success) {
     const { message } = parsed.issues[0];
@@ -1265,7 +1260,7 @@ export function lessonIssue(lesson: {
     )
       return "learning.gate_score";
   }
-  const [problem] = contentIssues(lesson.content);
+  const [problem] = issues;
   return problem ? `content.${problem}` : null;
 }
 

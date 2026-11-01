@@ -1,14 +1,10 @@
 import * as v from "valibot";
 
-import type { ContentIssue } from "./content-checks";
+import type { PublishIssue } from "./content-checks";
 import type { CheckBlock, LessonDocument } from "./learning";
 
-import {
-  contentDocumentSchema,
-  contentPlainText,
-  holdsSuggestions,
-} from "./content";
-import { contentIssues } from "./content-checks";
+import { contentDocumentSchema, contentPlainText } from "./content";
+import { publishIssues } from "./content-checks";
 import { declarationSchema } from "./exams";
 import {
   checkBlocks,
@@ -313,7 +309,7 @@ export type AssignmentIssue =
   | "coursework.quiz_rubric"
   | "coursework.draw_tag"
   | "coursework.draw_short"
-  | `content.${ContentIssue}`;
+  | `content.${Exclude<PublishIssue, "unreviewed" | "heading">}`;
 
 const instantOf = (value: string) => (value ? Date.parse(value) : null);
 
@@ -376,7 +372,7 @@ export function quizIssue(quiz: LessonDocument): AssignmentIssue | null {
 }
 
 /** What still stops a draft being assigned. Empty means it can go out. */
-export function publishIssues(
+export function assignIssues(
   input: Pick<
     SaveAssignment,
     "brief" | "audience" | "groupIds" | "studentIds"
@@ -387,8 +383,11 @@ export function publishIssues(
   if (quiz) issues.push(quiz);
   if (!contentPlainText(input.brief).trim())
     issues.push("coursework.brief_empty");
-  if (holdsSuggestions(input.brief)) issues.push("coursework.unreviewed");
-  for (const code of contentIssues(input.brief)) issues.push(`content.${code}`);
+  const brief = publishIssues(input.brief);
+  if (brief.includes("unreviewed")) issues.push("coursework.unreviewed");
+  for (const code of brief)
+    if (code !== "unreviewed" && code !== "heading")
+      issues.push(`content.${code}`);
   if (
     input.audience === "selected" &&
     input.groupIds.length === 0 &&

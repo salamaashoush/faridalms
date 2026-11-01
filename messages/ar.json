@@ -9031,5 +9031,8 @@
   "personNoTeaching": "لا توجد فصول في هذا العام.",
   "personTeachingAide": "مساعد",
   "personTeachingIn": "في {class}",
-  "periodsDays": "الأيام"
+  "periodsDays": "الأيام",
+  "contentIssueCaptions": "تسجيل بلا ترجمة نصية ولا نص مكتوب",
+  "contentIssueUnreviewed": "سؤال مقترح ما زال ينتظر الإبقاء عليه أو حذفه",
+  "contentErrConsent": "أحد الظاهرين في صورة لم يوافق على مشاركة صوره داخل المدرسة."
 }
