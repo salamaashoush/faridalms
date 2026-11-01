@@ -5,6 +5,7 @@
     "": {
       "name": "tanstack-template",
       "dependencies": {
+        "@faridalms/api-client": "workspace:*",
         "@faridalms/database": "workspace:*",
         "@faridalms/domain": "workspace:*",
         "drizzle-orm": "1.0.0-rc.5",
