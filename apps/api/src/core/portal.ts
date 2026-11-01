@@ -24,11 +24,7 @@ export function portalUrl(
   domains: PlatformDomains,
   path: string,
 ) {
-  const url = new URL(path, portalOrigin(school, domains));
-  // The bare domain still asks for the school, and the welcome and badge
-  // pages read it from here when the host does not name one.
-  url.searchParams.set("school", school.slug);
-  return url;
+  return new URL(path, portalOrigin(school, domains));
 }
 
 /**

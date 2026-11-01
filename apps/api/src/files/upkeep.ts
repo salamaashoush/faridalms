@@ -15,7 +15,7 @@ import { sweepTenantFiles } from "./sweep";
  * the previous one, and one tenant's failure is logged without stopping the
  * rest.
  */
-function everyTenant(input: {
+export function everyTenant(input: {
   name: string;
   directory: Directory;
   cellId: string;

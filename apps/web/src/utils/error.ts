@@ -551,6 +551,10 @@ export function getMessageFromError(error: unknown): string {
         return m.siteErrHome();
       case "site.has_children":
         return m.siteErrHasChildren();
+      case "site.portal_page":
+        return m.siteErrPortalPage();
+      case "site.system_section":
+        return m.siteErrSystemSection();
       case "site.parent":
         return m.siteErrParent();
       case "site.empty":

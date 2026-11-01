@@ -98,6 +98,12 @@ export interface RenderContext {
   editing?: boolean;
   /** The public key a form's Cloudflare challenge renders with; none where forms take no challenge. */
   turnstileKey?: string | null;
+  /**
+   * On the portal, what its system section holds: the sign-in form, or the
+   * page of the flow being shown (a reset, a welcome, a badge), which says
+   * its own heading in place of the section's words.
+   */
+  system?: { node: ReactNode; ownWords: boolean };
 }
 
 export const publicMediaUrl = (key: string) => `/public-media/${key}`;

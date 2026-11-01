@@ -28,14 +28,12 @@ function Line({ label, value }: { label: string; value: string }) {
  */
 export function SignInSlips({
   slips,
-  school,
   schoolName,
   notes,
   warnings,
   onDone,
 }: {
   slips: PrintedSlip[];
-  school: string;
   schoolName: string;
   notes?: readonly string[];
   warnings?: readonly string[];
@@ -74,7 +72,6 @@ export function SignInSlips({
             </div>
             <dl className="grid gap-[1.5mm]">
               <Line label={m.slipsWhere()} value={address} />
-              <Line label={m.authSchoolCode()} value={school} />
               <Line label={m.accountLoginName()} value={slip.loginName} />
               <Line label={m.authSignInFormPassword()} value={slip.password} />
             </dl>

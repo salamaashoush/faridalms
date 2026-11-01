@@ -31,7 +31,13 @@ overwriteDigitsSource(
 
 const requestHost = new AsyncLocalStorage<HostView>();
 overwriteHostSource(
-  () => requestHost.getStore() ?? { site: null, protocol: "https:", port: "" },
+  () =>
+    requestHost.getStore() ?? {
+      site: null,
+      protocol: "https:",
+      port: "",
+      portalDomain: env.PORTAL_DOMAIN ?? "",
+    },
 );
 
 // The environment is validated at server init by src/server/preflight.ts, a Nitro
@@ -118,6 +124,8 @@ export default createServerEntry({
           ? "https:"
           : "http:",
       port: /:(\d+)$/.exec(raw ?? "")?.[1] ?? "",
+      portalDomain: env.PORTAL_DOMAIN ?? "",
+      bare: place.kind === "bare",
       product: place.kind === "bare" && env.PRODUCT_SITE === "on",
     };
     return withPlace(place, () =>

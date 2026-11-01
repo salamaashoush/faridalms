@@ -34,7 +34,12 @@ import { DataTable, RowLink } from "~/components/system/DataTable";
 import { StatusText } from "~/components/system/status";
 import { useCurrentUser } from "~/hooks/useCurrentUser";
 import * as m from "~/i18n/messages";
-import { moveSitePage, removeSitePage, unpublishSitePage } from "~/server/site";
+import {
+  moveSitePage,
+  removeSitePage,
+  startPortalPage,
+  unpublishSitePage,
+} from "~/server/site";
 import { getMessageFromError } from "~/utils/error";
 
 import { STATE_LABEL, STATE_TONE } from "./format";
@@ -46,17 +51,25 @@ type Overview = Awaited<
 type Page = Overview["pages"][number];
 type Row = Page & { depth: number; siblings: Page[]; index: number };
 
-/** The page tree flattened in menu order, each page knowing its depth and siblings. */
+/**
+ * The website's page tree flattened in menu order, each page knowing its
+ * depth and siblings, then the portal's sign-in page, which has no place in
+ * the menu.
+ */
 function flatten(pages: Page[]): Row[] {
   const rows: Row[] = [];
+  const site = pages.filter((page) => page.kind === "site");
   const visit = (parentId: string | null, depth: number) => {
-    const siblings = pages.filter((page) => page.parentId === parentId);
+    const siblings = site.filter((page) => page.parentId === parentId);
     siblings.forEach((page, index) => {
       rows.push({ ...page, depth, siblings, index });
       visit(page.id, depth + 1);
     });
   };
   visit(null, 0);
+  for (const page of pages)
+    if (page.kind === "portal")
+      rows.push({ ...page, depth: 0, siblings: [page], index: 0 });
   return rows;
 }
 
@@ -74,7 +87,11 @@ function Title({ row, primary }: { row: Row; primary: "en" | "ar" }) {
       <RowLink to="/admin/site-page-editor" search={{ id: row.id }}>
         {titleOf(row, primary)}
       </RowLink>
-      {row.isHome ? (
+      {row.kind === "portal" ? (
+        <span className="ms-2 text-[13px] text-muted-foreground">
+          {m.sitePortalPage()}
+        </span>
+      ) : row.isHome ? (
         <span className="ms-2 text-[13px] text-muted-foreground">
           {m.siteHome()}
         </span>
@@ -114,7 +131,11 @@ function columns(primary: "en" | "ar"): Column<Row>[] {
       header: m.siteAddress(),
       cell: (row) => (
         <span dir="ltr" className="text-sm text-muted-foreground">
-          {row.isHome ? "/" : `/pages/${row.slug}`}
+          {row.kind === "portal"
+            ? m.sitePortalAddress()
+            : row.isHome
+              ? "/"
+              : `/pages/${row.slug}`}
         </span>
       ),
     },
@@ -132,18 +153,27 @@ const pageCard = (primary: "en" | "ar") => ({
 });
 
 /**
- * The portal's sign-in page, beside the website's pages: the document a
- * school shows to everyone before they sign in.
+ * The portal's sign-in page before the school has made it: the portal shows
+ * the builder's starter page until the school edits and publishes its own.
  */
-function SignInPageCard({ signIn }: { signIn: Overview["signIn"] }) {
-  const state = signIn.published
-    ? { tone: "success" as const, label: m.siteStatePublished() }
-    : signIn.written
-      ? { tone: "neutral" as const, label: m.siteStateDraft() }
-      : { tone: "neutral" as const, label: m.signInPageStandard() };
+function PortalPageStart() {
+  const navigate = useNavigate();
+  const queryClient = useQueryClient();
+  const [opening, setOpening] = useState(false);
+  const open = async () => {
+    setOpening(true);
+    try {
+      const { id } = await startPortalPage();
+      await queryClient.invalidateQueries({ queryKey: ["site"] });
+      await navigate({ to: "/admin/site-page-editor", search: { id } });
+    } catch (error) {
+      toast.error(getMessageFromError(error));
+      setOpening(false);
+    }
+  };
   return (
     <section
-      aria-labelledby="sign-in-page"
+      aria-labelledby="portal-page"
       className="flex flex-wrap items-center gap-4 rounded-lg border bg-card p-4"
     >
       <span
@@ -153,25 +183,22 @@ function SignInPageCard({ signIn }: { signIn: Overview["signIn"] }) {
         <LogIn className="size-5" />
       </span>
       <div className="grid min-w-0 flex-1 gap-0.5">
-        <h2 id="sign-in-page" className="text-sm font-semibold">
-          {m.signInPageTitle()}
+        <h2 id="portal-page" className="text-sm font-semibold">
+          {m.sitePortalPage()}
         </h2>
         <p className="text-[13px] text-muted-foreground">
-          {m.signInPageCardHint()}
+          {m.sitePortalPageStarter()}
         </p>
-        <div className="flex flex-wrap items-center gap-x-3">
-          <StatusText tone={state.tone}>{state.label}</StatusText>
-          {signIn.changed ? (
-            <span className="text-[13px] text-muted-foreground">
-              {m.siteUnpublishedChanges()}
-            </span>
-          ) : null}
-        </div>
       </div>
-      <ButtonLink to="/admin/site-sign-in" variant="outline">
+      <Button
+        type="button"
+        variant="outline"
+        disabled={opening}
+        onClick={() => void open()}
+      >
         <Pencil aria-hidden />
-        {m.signInPageEdit()}
-      </ButtonLink>
+        {m.sitePortalPageEdit()}
+      </Button>
     </section>
   );
 }
@@ -210,7 +237,7 @@ export function SitePages({ overview }: { overview: Overview }) {
         onSelect: () =>
           navigate({ to: "/admin/site-page-editor", search: { id: row.id } }),
       },
-      ...(row.index > 0
+      ...(row.kind === "site" && row.index > 0
         ? [
             {
               label: m.siteMoveUp(),
@@ -219,7 +246,7 @@ export function SitePages({ overview }: { overview: Overview }) {
             },
           ]
         : []),
-      ...(row.index < row.siblings.length - 1
+      ...(row.kind === "site" && row.index < row.siblings.length - 1
         ? [
             {
               label: m.siteMoveDown(),
@@ -228,7 +255,7 @@ export function SitePages({ overview }: { overview: Overview }) {
             },
           ]
         : []),
-      ...(before && !row.isHome && !before.isHome
+      ...(before && row.kind === "site" && !row.isHome && !before.isHome
         ? [
             {
               label: m.siteNestUnder({ title: titleOf(before, primary) }),
@@ -262,7 +289,7 @@ export function SitePages({ overview }: { overview: Overview }) {
             },
           ]
         : []),
-      ...(!row.isHome
+      ...(!row.isHome && row.kind === "site"
         ? [
             {
               label: m.siteRemovePage(),
@@ -320,7 +347,7 @@ export function SitePages({ overview }: { overview: Overview }) {
           </ButtonLink>
         </div>
         {starters(false)}
-        <SignInPageCard signIn={overview.signIn} />
+        <PortalPageStart />
       </div>
     );
   return (
@@ -347,7 +374,9 @@ export function SitePages({ overview }: { overview: Overview }) {
         ) : null}
         {create}
       </div>
-      <SignInPageCard signIn={overview.signIn} />
+      {overview.pages.some((page) => page.kind === "portal") ? null : (
+        <PortalPageStart />
+      )}
       <DataTable
         caption={m.sitePagesCaption()}
         rows={rows}

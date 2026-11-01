@@ -11,6 +11,7 @@ import { createApp } from "./app";
 import { startProgramReruns } from "./coding/rerun";
 import { createJavaScriptRunner, createPythonRunner } from "./coding/run";
 import { createKeyRing } from "./core/keys";
+import { createLoginIndex, startLoginIndex } from "./core/login-index";
 import { startPartitionUpkeep } from "./core/partitions";
 import { startQuizClock } from "./core/quiz-clock";
 import { turnstileFrom } from "./core/turnstile";
@@ -58,6 +59,14 @@ const hosts = directorySync
         edgeAddress,
       }),
     }
+  : null;
+const logins = env.LOGIN_INDEX_KEY
+  ? createLoginIndex({
+      cell,
+      directory,
+      sync: directorySync,
+      secret: new Uint8Array(Buffer.from(env.LOGIN_INDEX_KEY, "base64")),
+    })
   : null;
 const kek = localKek(
   new Uint8Array(Buffer.from(env.CELL_KEK, "base64")),
@@ -137,6 +146,7 @@ const server = Bun.serve({
     domains,
     edgeAddress,
     hosts,
+    logins,
     trustedProxyHops: env.TRUSTED_PROXY_HOPS,
     ...stores,
     filesOrigin,
@@ -236,6 +246,17 @@ const stopProgramReruns = env.CELL_WORKER_URL
 // replica may run the pass; a host is claimed by one before it is checked.
 const stopHostChecks = hosts?.checks.start(30_000) ?? null;
 
+// Each cell keeps its own tenants' sign-in names in the directory's index.
+const stopLoginIndex =
+  logins && directorySync
+    ? startLoginIndex({
+        index: logins,
+        directory,
+        cellId: env.CELL_ID,
+        intervalMs: 15 * 60_000,
+      })
+    : null;
+
 let stopping = false;
 async function shutdown() {
   if (stopping) return;
@@ -249,6 +270,7 @@ async function shutdown() {
   await stopPartitions?.();
   await stopProgramReruns?.();
   await stopHostChecks?.();
+  await stopLoginIndex?.();
   await directorySync?.close();
   await cell.close();
   await owner?.close();

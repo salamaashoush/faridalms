@@ -8,7 +8,7 @@ import type {
   SectionVariant,
   SiteIssueCode,
 } from "@faridalms/domain/site-sections";
-import type { PageTemplate, StarterId } from "@faridalms/domain/site-templates";
+import type { SiteTemplate, StarterId } from "@faridalms/domain/site-templates";
 import type {
   ButtonShape,
   CardStyle,
@@ -60,6 +60,7 @@ export const SECTION_LABEL: Record<SectionType, () => string> = {
   form: m.siteTypeForm,
   quickLinks: m.siteTypeQuickLinks,
   embed: m.siteTypeEmbed,
+  signIn: m.siteTypeSignIn,
 };
 
 export const SECTION_HINT: Record<SectionType, () => string> = {
@@ -92,6 +93,7 @@ export const SECTION_HINT: Record<SectionType, () => string> = {
   form: m.siteTypeHintForm,
   quickLinks: m.siteTypeHintQuickLinks,
   embed: m.siteTypeHintEmbed,
+  signIn: m.siteTypeHintSignIn,
 };
 
 /** The name of each layout, by section type then layout. */
@@ -233,6 +235,10 @@ export const VARIANT_LABEL: {
   embed: {
     inset: m.siteVariantEmbedInset,
   },
+  signIn: {
+    split: m.siteVariantSignInSplit,
+    stacked: m.siteVariantSignInStacked,
+  },
 };
 
 export const CATEGORY_LABEL: Record<SectionCategory, () => string> = {
@@ -241,6 +247,7 @@ export const CATEGORY_LABEL: Record<SectionCategory, () => string> = {
   people: m.siteGroupPeople,
   dynamic: m.siteGroupDynamic,
   conversion: m.siteGroupConversion,
+  system: m.siteGroupSystem,
 };
 
 /** The label of each field, by its name in the section declaration. */
@@ -397,7 +404,7 @@ export const PALETTE_LABEL: Record<keyof Palette, () => string> = {
   ink: m.sitePaletteInk,
 };
 
-export const TEMPLATE_LABEL: Record<PageTemplate, () => string> = {
+export const TEMPLATE_LABEL: Record<SiteTemplate, () => string> = {
   blank: m.siteTemplateBlank,
   homeClassic: m.siteTemplateHomeClassic,
   homeStory: m.siteTemplateHomeStory,
@@ -411,7 +418,7 @@ export const TEMPLATE_LABEL: Record<PageTemplate, () => string> = {
   contact: m.siteTemplateContact,
 };
 
-export const TEMPLATE_HINT: Record<PageTemplate, () => string> = {
+export const TEMPLATE_HINT: Record<SiteTemplate, () => string> = {
   blank: m.siteTemplateHintBlank,
   homeClassic: m.siteTemplateHintHomeClassic,
   homeStory: m.siteTemplateHintHomeStory,

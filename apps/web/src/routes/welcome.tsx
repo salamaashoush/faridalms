@@ -17,15 +17,21 @@ import {
 import { AuthLayout } from "~/components/auth/AuthLayout";
 import { inLocale } from "~/hooks/useCurrentUser";
 import * as m from "~/i18n/messages";
-import { faceQueryFor, linkedSchool } from "~/queries/portal";
+import { faceQueryFor } from "~/queries/portal";
 import { acceptInvite, readInvite } from "~/server/auth";
 import siteCss from "~/styles/site.css?url";
+import { leaveBareDomain, linkedSlug } from "~/utils/bare-domain";
 
 export const Route = createFileRoute("/welcome")({
+  // Links sent before each school had its own portal name it here.
   validateSearch: v.object({ school: v.optional(v.string()) }),
-  loaderDeps: ({ search }) => ({ school: search.school }),
-  loader: ({ context, deps }) => {
-    const query = faceQueryFor(linkedSchool(context.auth, deps.school));
+  beforeLoad: ({ context, location, search }) =>
+    leaveBareDomain(context.auth, location.pathname, {
+      linked: linkedSlug(search.school),
+      otherwise: "/sign-in",
+    }),
+  loader: ({ context }) => {
+    const query = faceQueryFor(context.auth.school);
     return query ? context.queryClient.ensureQueryData(query) : null;
   },
   head: () => ({
@@ -89,7 +95,6 @@ function Notice({
  * address bar and history as soon as the page has read it.
  */
 function WelcomePage() {
-  const { school } = Route.useSearch();
   const face = Route.useLoaderData();
   const read = useServerFn(readInvite);
   const accept = useServerFn(acceptInvite);
@@ -102,16 +107,16 @@ function WelcomePage() {
   const invite = useMutation({
     meta: { inlineError: true },
     mutationFn: async () => {
-      if (!school || !INVITE_SECRET.test(secret.current))
+      if (!INVITE_SECRET.test(secret.current))
         throw new Error("auth.invalid_invite");
-      return read({ data: { school, secret: secret.current } });
+      return read({ data: { secret: secret.current } });
     },
   });
   const save = useMutation({
     meta: { inlineError: true },
     mutationFn: () =>
       accept({
-        data: { school: school ?? "", secret: secret.current, password },
+        data: { secret: secret.current, password },
       }),
   });
   const open = invite.mutate;

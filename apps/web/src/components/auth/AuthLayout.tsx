@@ -1,6 +1,5 @@
 import type { ReactNode } from "react";
 
-import { cn } from "@faridalms/ui/cn";
 import { BookOpen, GraduationCap, Languages, Users } from "lucide-react";
 
 import type { PortalFace } from "~/queries/portal";
@@ -9,56 +8,13 @@ import { LocaleToggle } from "~/components/theme/LocaleToggle";
 import { ThemeToggle } from "~/components/theme/ThemeToggle";
 import * as m from "~/i18n/messages";
 
-import {
-  faceAccent,
-  PlatformFooter,
-  SchoolMark,
-  SchoolPanel,
-} from "./SchoolFace";
+import { PlatformFooter, PortalPage } from "./SchoolFace";
 
 function Toggles() {
   return (
     <div className="flex shrink-0 gap-1">
       <LocaleToggle />
       <ThemeToggle />
-    </div>
-  );
-}
-
-/**
- * A school's own sign-in pages: its side, in its website's theme, beside
- * the form on wide screens and under it on phones, where the form comes
- * first; the form in the app's own light or dark, accented in the school's
- * colour.
- */
-function SchoolLayout({
-  face,
-  children,
-}: {
-  face: PortalFace;
-  children: ReactNode;
-}) {
-  const accent = faceAccent(face);
-  return (
-    <div
-      {...accent}
-      className={cn(
-        accent.className,
-        "grid min-h-dvh lg:grid-cols-[minmax(0,1fr)_minmax(0,1.05fr)]",
-      )}
-    >
-      <SchoolPanel face={face} className="max-lg:order-2" />
-      <div className="flex flex-col max-lg:order-1 lg:min-h-dvh">
-        <div className="flex items-center justify-between gap-3 p-5 sm:p-8">
-          <SchoolMark face={face} className="lg:invisible" />
-          <Toggles />
-        </div>
-        <main className="flex flex-1 items-center justify-center px-6 pt-4 pb-12 sm:px-12">
-          <div className="w-full max-w-[400px]">{children}</div>
-        </main>
-        <PlatformFooter className="max-lg:hidden" />
-      </div>
-      <PlatformFooter className="order-3 lg:hidden" />
     </div>
   );
 }
@@ -136,18 +92,24 @@ function PlatformLayout({ children }: { children: ReactNode }) {
 }
 
 /**
- * The frame of every page before sign-in: the school's own where the page
- * knows the school, the platform's on the bare domain.
+ * The frame of every page before sign-in: on a school's portal, the portal
+ * page of the school's site with what the page shows in its system
+ * section; the platform's own where no school is known.
  */
 export function AuthLayout({
   face = null,
+  ownWords = true,
   children,
 }: {
   face?: PortalFace | null;
+  /** The page says its own heading, in place of the sign-in section's words. */
+  ownWords?: boolean;
   children: ReactNode;
 }) {
   return face ? (
-    <SchoolLayout face={face}>{children}</SchoolLayout>
+    <PortalPage face={face} ownWords={ownWords}>
+      {children}
+    </PortalPage>
   ) : (
     <PlatformLayout>{children}</PlatformLayout>
   );

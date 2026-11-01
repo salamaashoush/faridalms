@@ -27,7 +27,6 @@ const TONES = ["#dbeafe", "#dcfce7", "#fef3c7", "#fce7f3", "#ede9fe"];
  */
 export function BadgeSheet({
   badges,
-  school,
   schoolName,
   className,
   notes,
@@ -35,7 +34,6 @@ export function BadgeSheet({
   onDone,
 }: {
   badges: PrintedBadge[];
-  school: string;
   schoolName: string;
   /** The class printed on each card; none when the badges are of several. */
   className: string | null;
@@ -58,7 +56,7 @@ export function BadgeSheet({
     >
       <ul className="grid grid-cols-[repeat(2,85.6mm)] gap-[4mm]">
         {badges.map((badge, index) => {
-          const url = `${origin}/badge?school=${encodeURIComponent(school)}#${badge.secret}`;
+          const url = `${origin}/badge#${badge.secret}`;
           return (
             <li
               key={badge.studentId}

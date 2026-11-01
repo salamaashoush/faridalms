@@ -2,11 +2,17 @@ import type { ChangePasswordInput } from "@faridalms/domain/first-sign-in";
 import type { Workspace } from "@faridalms/domain/workspace";
 
 import { changePasswordSchema } from "@faridalms/domain/first-sign-in";
-import { childSessionSchema } from "@faridalms/domain/identity-schema";
+import {
+  childSessionSchema,
+  discoverResetSchema,
+  discoverSignInSchema,
+  redeemHandoffSchema,
+} from "@faridalms/domain/identity-schema";
 import { createIsomorphicFn, createServerFn } from "@tanstack/react-start";
 import {
   deleteCookie,
   getCookie,
+  getCookies,
   setCookie,
 } from "@tanstack/react-start/server";
 import * as v from "valibot";
@@ -18,24 +24,28 @@ import {
   inviteLinkSchema,
   loginSchema,
 } from "~/schema/auth";
+import { hostHref } from "~/utils/host";
 
 import {
   backend,
   currentSchool,
   guardianCookie,
-  hostSchool,
   isSecureRequest,
+  rememberedSchool,
+  REMEMBER_SECONDS,
   SCHOOL_COOKIE,
   sessionCookie,
 } from "./backend";
 import { checked } from "./input";
+import { currentPlace } from "./place";
 
 export interface AuthState {
   isAuthenticated: boolean;
   workspace: Workspace | null;
+  /** The school whose portal this is; none on the bare domain. */
   school: string | null;
-  /** The host names the school, so nobody is asked which one. */
-  schoolFromHost: boolean;
+  /** On the bare domain, the school this browser chose there last. */
+  remembered?: string;
   /** A guardian handed this device to a young child and waits to return. */
   childMode: boolean;
 }
@@ -44,9 +54,44 @@ const signedOut = (school: string | null): AuthState => ({
   isAuthenticated: false,
   workspace: null,
   school,
-  schoolFromHost: hostSchool() !== null,
   childMode: false,
 });
+
+/**
+ * The school whose portal this request reached. Signing in, choosing a
+ * password and asking for a reset happen only there, so no session is ever
+ * set on a host that is not the school's own.
+ */
+function portalSchool(): string {
+  const school = currentSchool();
+  if (!school) throw new Error("Only a school's portal signs people in");
+  return school;
+}
+
+const SESSION_COOKIE = /^(?:__Host-)?([sg])-([a-z0-9-]+)$/;
+
+/**
+ * Ends the sessions a browser still holds on the bare domain from before
+ * each school had its own origin: each is signed out at the API and its
+ * cookie removed, and none is ever read.
+ */
+async function dropBareSessions() {
+  if (currentPlace().kind !== "bare") return;
+  for (const [name, value] of Object.entries(getCookies())) {
+    const found = SESSION_COOKIE.exec(name);
+    if (!found) continue;
+    const [, kind, school = ""] = found;
+    const token = kind === "s" ? value : value.split("~")[0];
+    if (token) {
+      try {
+        await backend(school, token).identity.signOut();
+      } catch (error) {
+        if (!isUnauthorized(error)) console.error(error);
+      }
+    }
+    deleteCookie(name, { path: "/", secure: name.startsWith("__Host-") });
+  }
+}
 
 function cookieOptions(expires: Date) {
   return {
@@ -91,7 +136,11 @@ function isUnauthorized(error: unknown) {
 export const getAuthState = createServerFn({ method: "GET" }).handler(
   async (): Promise<AuthState> => {
     const school = currentSchool();
-    if (!school) return signedOut(school);
+    if (!school) {
+      await dropBareSessions();
+      const remembered = rememberedSchool();
+      return remembered ? { ...signedOut(null), remembered } : signedOut(null);
+    }
     if (!getCookie(sessionCookie(school))) {
       await dropGuardian(school);
       return signedOut(school);
@@ -102,7 +151,6 @@ export const getAuthState = createServerFn({ method: "GET" }).handler(
         isAuthenticated: true,
         workspace: user.workspace,
         school,
-        schoolFromHost: hostSchool() !== null,
         childMode: parked(school) !== null,
       };
     } catch (error) {
@@ -120,9 +168,7 @@ export const login = createServerFn({ method: "POST" })
     v.parse(loginSchema, input),
   )
   .handler(async ({ data }): Promise<AuthState> => {
-    // The host's school when it names one; on the bare domain, the school
-    // the person typed, which may not be the one they signed in to last.
-    const school = hostSchool() ?? data.school;
+    const school = portalSchool();
     const session = await backend(school).identity.signIn({
       loginName: data.loginName,
       password: data.password,
@@ -130,12 +176,10 @@ export const login = createServerFn({ method: "POST" })
     await dropGuardian(school);
     const options = cookieOptions(session.expiresAt);
     setCookie(sessionCookie(school), session.token, options);
-    setCookie(SCHOOL_COOKIE, school, options);
     return {
       isAuthenticated: true,
       workspace: session.workspace,
       school,
-      schoolFromHost: hostSchool() !== null,
       childMode: false,
     };
   });
@@ -150,7 +194,7 @@ export const badgeLogin = createServerFn({ method: "POST" })
     v.parse(badgeLoginSchema, input),
   )
   .handler(async ({ data }): Promise<AuthState> => {
-    const school = hostSchool() ?? data.school;
+    const school = portalSchool();
     const api = backend(school);
     const session = await api.identity.badgeSignIn({ secret: data.secret });
     if (getCookie(sessionCookie(school))) {
@@ -163,12 +207,10 @@ export const badgeLogin = createServerFn({ method: "POST" })
     await dropGuardian(school);
     const options = cookieOptions(session.expiresAt);
     setCookie(sessionCookie(school), session.token, options);
-    setCookie(SCHOOL_COOKIE, school, options);
     return {
       isAuthenticated: true,
       workspace: session.workspace,
       school,
-      schoolFromHost: hostSchool() !== null,
       childMode: false,
     };
   });
@@ -179,7 +221,7 @@ export const readInvite = createServerFn({ method: "POST" })
     v.parse(inviteLinkSchema, input),
   )
   .handler(({ data }) =>
-    backend(hostSchool() ?? data.school).identity.invite({
+    backend(portalSchool()).identity.invite({
       secret: data.secret,
     }),
   );
@@ -189,7 +231,7 @@ export const acceptInvite = createServerFn({ method: "POST" })
     v.parse(acceptInviteLinkSchema, input),
   )
   .handler(({ data }) =>
-    backend(hostSchool() ?? data.school).identity.acceptInvite({
+    backend(portalSchool()).identity.acceptInvite({
       secret: data.secret,
       password: data.password,
     }),
@@ -201,10 +243,87 @@ export const requestPasswordReset = createServerFn({ method: "POST" })
     v.parse(forgotPasswordSchema, input),
   )
   .handler(({ data }) =>
-    backend(hostSchool() ?? data.school).identity.requestPasswordReset({
+    backend(portalSchool()).identity.requestPasswordReset({
       loginName: data.loginName,
     }),
   );
+
+function bareOnly() {
+  if (currentPlace().kind !== "bare")
+    throw new Error("Only the bare portal domain finds a person's school");
+}
+
+/**
+ * Sign-in on the bare portal domain. It opens no session here: a proved
+ * password comes back as the address of a handoff on the school's own
+ * portal, which the browser goes to, and the bare domain remembers the
+ * school for next time. Several schools come back as their names.
+ */
+export const discoverSignIn = createServerFn({ method: "POST" })
+  .validator(checked(discoverSignInSchema))
+  .handler(
+    async ({
+      data,
+    }): Promise<
+      | { href: string }
+      | {
+          schools: {
+            slug: string;
+            nameEn: string | null;
+            nameAr: string | null;
+          }[];
+        }
+    > => {
+      bareOnly();
+      const answer = await backend(null).identity.discoverSignIn(data);
+      if (!("handoff" in answer)) return { schools: answer.schools };
+      const { slug, portalHost, token } = answer.handoff;
+      setCookie(SCHOOL_COOKIE, slug, {
+        httpOnly: true,
+        sameSite: "lax",
+        path: "/",
+        maxAge: REMEMBER_SECONDS,
+        secure: isSecureRequest(),
+      });
+      // The secret rides in the fragment, which never reaches a server log
+      // or a Referer.
+      return { href: hostHref(portalHost, `/auth/handoff#${token}`) };
+    },
+  );
+
+/** The public key the bare domain's forms render their human check with, if any. */
+export const getHumanCheck = createServerFn({ method: "GET" }).handler(() => {
+  bareOnly();
+  return backend(null).identity.humanCheck();
+});
+
+/** A forgotten password asked for on the bare portal domain. */
+export const discoverReset = createServerFn({ method: "POST" })
+  .validator(checked(discoverResetSchema))
+  .handler(({ data }) => {
+    bareOnly();
+    return backend(null).identity.discoverReset(data);
+  });
+
+/** Opens the session a handoff from the bare portal domain carries, on the school's portal. */
+export const redeemHandoff = createServerFn({ method: "POST" })
+  .validator(checked(redeemHandoffSchema))
+  .handler(async ({ data }): Promise<AuthState> => {
+    const school = portalSchool();
+    const session = await backend(school).identity.redeemHandoff(data);
+    await dropGuardian(school);
+    setCookie(
+      sessionCookie(school),
+      session.token,
+      cookieOptions(session.expiresAt),
+    );
+    return {
+      isAuthenticated: true,
+      workspace: session.workspace,
+      school,
+      childMode: false,
+    };
+  });
 
 export const changeOwnPassword = createServerFn({ method: "POST" })
   .validator((input: ChangePasswordInput) =>
@@ -254,7 +373,6 @@ export const startChildMode = createServerFn({ method: "POST" })
       isAuthenticated: true,
       workspace: session.workspace,
       school,
-      schoolFromHost: hostSchool() !== null,
       childMode: true,
     };
   });
@@ -282,7 +400,6 @@ export const endChildMode = createServerFn({ method: "POST" }).handler(
         isAuthenticated: true,
         workspace: user.workspace,
         school,
-        schoolFromHost: hostSchool() !== null,
         childMode: false,
       };
     } catch (error) {

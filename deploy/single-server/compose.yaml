@@ -137,6 +137,7 @@ services:
       CELL_ID: ${CELL_ID:?Set CELL_ID, for example eu-1}
       CELL_KEK: ${CELL_KEK:?Set CELL_KEK, 32 random bytes in base64}
       CELL_SECRET: *cell-secret
+      LOGIN_INDEX_KEY: ${LOGIN_INDEX_KEY:?Set LOGIN_INDEX_KEY, 32 random bytes in base64}
       CELL_APP_URL: postgres://app:${CELL_ROLE_PASSWORD}@postgres:5432/cell
       CELL_SITE_URL: postgres://site:${CELL_ROLE_PASSWORD}@postgres:5432/cell
       # Settles uploads, delivers notifications and keeps partitions ahead.

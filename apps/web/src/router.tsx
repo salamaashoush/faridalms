@@ -27,7 +27,6 @@ export function getRouter() {
         isAuthenticated: false,
         workspace: null,
         school: null,
-        schoolFromHost: false,
         childMode: false,
       },
       queryClient,

@@ -23,6 +23,7 @@ import {
   cells,
   examSeries,
   hosts,
+  loginIndex,
   schoolPlans,
   schools,
   tenants,
@@ -214,6 +215,23 @@ export function openDirectory(url: string, ttlMs = 60_000) {
             and(eq(schools.placement, "cell"), eq(tenants.state, "active")),
           ),
       ),
+    /**
+     * The tenants holding a sign-in name, by its keyed hash. Never cached,
+     * so a name a school has just given works at once.
+     */
+    loginTenants: async (key: Uint8Array): Promise<string[]> => {
+      const rows = await db
+        .select({ tenantId: loginIndex.tenantId })
+        .from(loginIndex)
+        .innerJoin(tenants, eq(tenants.id, loginIndex.tenantId))
+        .where(
+          and(
+            eq(loginIndex.key, Buffer.from(key)),
+            eq(tenants.state, "active"),
+          ),
+        );
+      return rows.map((row) => row.tenantId);
+    },
     schoolsOfTenant: async (tenantId: string) =>
       (await select().where(eq(schools.tenantId, tenantId))).map(schoolOf),
     /**
@@ -291,6 +309,25 @@ export function openDirectorySync(url: string, actor: HostActor) {
       record: (input: Omit<Parameters<typeof recordCheck>[1], "actor">) =>
         recordCheck(db, { ...input, actor }),
     },
+    /**
+     * Makes the directory's keyed sign-in names for a tenant exactly the
+     * ones given, in one transaction, so a lookup never sees half of them.
+     */
+    replaceLogins: (tenantId: string, keys: readonly Uint8Array[]) =>
+      client.begin(async (tx) => {
+        const hex = [
+          ...new Set(keys.map((key) => Buffer.from(key).toString("hex"))),
+        ];
+        const array = `{${hex.join(",")}}`;
+        await tx`
+          delete from login_index where tenant_id = ${tenantId}::uuid
+            and not (encode(key, 'hex') = any(${array}::text[]))`;
+        if (hex.length)
+          await tx`
+            insert into login_index (key, tenant_id)
+            select decode(k, 'hex'), ${tenantId}::uuid from unnest(${array}::text[]) k
+            on conflict do nothing`;
+      }),
     reportUsage: async (
       rows: { schoolId: string; usedBytes: number; fileCount: number }[],
       measuredAt: Date,

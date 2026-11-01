@@ -19,6 +19,7 @@ const GENERATED: Record<string, () => string> = {
   CELL_ROLE_PASSWORD: () => randomBytes(24).toString("hex"),
   CELL_KEK: () => randomBytes(32).toString("base64"),
   CELL_SECRET: () => randomBytes(32).toString("base64"),
+  LOGIN_INDEX_KEY: () => randomBytes(32).toString("base64"),
   PROVISION_SECRET: () => randomBytes(32).toString("base64"),
 };
 

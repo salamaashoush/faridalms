@@ -34,6 +34,7 @@ import type { AppRouter } from "../src/router";
 import { createApp } from "../src/app";
 import { createJavaScriptRunner, createPythonRunner } from "../src/coding/run";
 import { createKeyRing } from "../src/core/keys";
+import { createLoginIndex } from "../src/core/login-index";
 import { LOCALE_HEADER, SCHOOL_HEADER } from "../src/core/procedure";
 import { createFilesHost, linkKey } from "../src/files/links";
 import { DiskFileStore, PUBLIC_KEY } from "../src/files/store";
@@ -88,6 +89,7 @@ interface State {
   cell: Cell;
   directory: Directory;
   cellSecret: Uint8Array<ArrayBuffer>;
+  logins: ReturnType<typeof createLoginIndex>;
   /** The cell's host access, as the API process holds it. */
   hosts: NonNullable<ApiDependencies["hosts"]>;
   collabUrl: string;
@@ -143,6 +145,13 @@ export async function setUp() {
     urlFor(directoryName, "directory_sync"),
     "cell:eg-1",
   );
+  const logins = createLoginIndex({
+    cell,
+    directory,
+    sync,
+    secret: new Uint8Array(randomBytes(32)),
+  });
+  for (const tenant of tenants) await logins.refresh(tenant.tenantId);
   const hosts = {
     registry: sync.hosts,
     checks: createHostChecks({
@@ -177,6 +186,7 @@ export async function setUp() {
     domains: DOMAINS,
     edgeAddress: EDGE_ADDRESS,
     hosts,
+    logins,
     trustedProxyHops: 1,
     files,
     publicMedia,
@@ -223,6 +233,7 @@ export async function setUp() {
     directory,
     cellSecret,
     hosts,
+    logins,
     collabUrl: urlFor(cellName, "collab"),
     files,
     close: async () => {
@@ -249,6 +260,11 @@ export function testDirectory() {
     operatorUrl: urlFor(directoryName, "directory_admin"),
     adminUrl: urlFor(directoryName),
   };
+}
+
+/** The test cell as a superuser reaches it, to put a row where no API puts it. */
+export function testCell() {
+  return { adminUrl: urlFor(cellName) };
 }
 
 /** Writes a school's plan in the test directory, as the operator console would. */

@@ -317,12 +317,12 @@ describe("links in email", () => {
       const before = mail.sent.length;
       await open.identity.requestPasswordReset({ loginName });
       const message = mail.sent.slice(before).at(-1);
-      return /https:\/\/[^\s"<>]+\/welcome\?school=acme#[A-Za-z0-9_-]{43}/.exec(
+      return /https:\/\/[^\s"<>]+\/welcome#[A-Za-z0-9_-]{43}/.exec(
         message?.text ?? "",
       )?.[0];
     };
     expect(await linkOf()).toStartWith(
-      `https://acme.${DOMAINS.portal}/welcome?school=acme#`,
+      `https://acme.${DOMAINS.portal}/welcome#`,
     );
     await placeHost("portal.acme-own.example.org", {
       schoolId: acme().id,
@@ -339,7 +339,7 @@ describe("links in email", () => {
       await sql.close();
     }
     expect(await linkOf()).toStartWith(
-      "https://portal.acme-own.example.org/welcome?school=acme#",
+      "https://portal.acme-own.example.org/welcome#",
     );
   });
 });

@@ -136,6 +136,7 @@ import type { UnitContext } from "../core/context";
 
 import { guardingAccess, requireGrantable } from "../core/access";
 import { badgeTerm } from "../core/badges";
+import { refreshLoginsAfter } from "../core/login-index";
 import { welcomeLink } from "../core/portal";
 import {
   audit,
@@ -1210,6 +1211,7 @@ export const saveSignIn = writeProcedure
   .handler(async ({ input, context }) => {
     await requireSignInManager(context, input.userId);
     const current = await signInOf(context.tx, context.tenantId, input.userId);
+    refreshLoginsAfter(context);
     const secretHash = input.password
       ? await Bun.password.hash(input.password, { algorithm: "argon2id" })
       : null;
@@ -1476,6 +1478,7 @@ async function openSlips(context: UnitContext, seeds: readonly SignInSeed[]) {
     ...row,
     password: firstPassword(randomInt),
   }));
+  refreshLoginsAfter(context);
   const hashes = await Promise.all(
     slips.map((row) =>
       Bun.password.hash(row.password, { algorithm: "argon2id" }),

@@ -38,14 +38,11 @@ describe("SignForm", () => {
     ).toBeInTheDocument();
   });
 
-  it("asks for the school only where the host does not name one", () => {
-    const { unmount } = render(<SignInForm school="northwind" />);
-    expect(screen.getByLabelText(m.authSchoolCode())).toHaveValue("northwind");
-    expect(screen.getByText(m.authFindSchool())).toBeInTheDocument();
-    unmount();
-    render(<SignInForm school="northwind" schoolFromHost />);
-    expect(screen.queryByLabelText(m.authSchoolCode())).toBeNull();
-    expect(screen.queryByText(m.authFindSchool())).toBeNull();
+  it("never asks which school: the portal's host names it", () => {
+    render(<SignInForm />);
+    expect(screen.getAllByRole("textbox")).toEqual([
+      screen.getByLabelText(m.authSignInFormLogin()),
+    ]);
   });
 
   it("shows validation errors for empty form submission", async () => {

@@ -12,8 +12,18 @@ through the typed API client, using the opaque token from its HTTP-only cookie.
 A mobile application calls the API directly. Both paths execute the same protected
 procedures. Database and authorisation code never enters the browser runtime.
 
-Sign-in resolves a school code from the control database, leases that school's
-connection pool, and verifies an active local account with Argon2. Tokens contain
+Sign-in happens on the school's own portal host, which names the school; the
+API resolves it from the directory, from that host or the `x-farida-school`
+header a native app sends, and verifies an active local account with Argon2.
+Nobody types a school code. The bare portal domain signs nobody in: it asks
+for an email, then a password, finds the tenants holding the name through the
+directory's `login_index` (an HMAC of the name under `LOGIN_INDEX_KEY`, so the
+directory holds no name), checks the password in each, and hands a proved
+sign-in to the school's portal as a one-time, one-minute secret bound to the
+account, the school and the network, which that portal's web server turns into
+its own session. Each school on its own origin keeps schools' sessions and
+storage apart, so a script on one school's pages cannot reach another's.
+Tokens contain
 256 random bits; only their SHA-256 hashes are stored. Sessions expire after seven
 days and logout deletes the stored session immediately. Every protected request
 checks school activation, session expiry and the user's current active status.

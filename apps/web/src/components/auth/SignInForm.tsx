@@ -16,9 +16,9 @@ import * as m from "~/i18n/messages";
 import { loginSchema } from "~/schema/auth";
 import { login } from "~/server/auth";
 
-const DEMO_PASSWORD = "farida-development-password";
+export const DEMO_PASSWORD = "farida-development-password";
 
-const DEMO_ACCOUNTS = [
+export const DEMO_ACCOUNTS = [
   {
     loginName: "principal.northwind@northwind.example.com",
     label: () => m.roleAdmin(),
@@ -37,14 +37,8 @@ const DEMO_ACCOUNTS = [
   },
 ];
 
-export function SignInForm({
-  school,
-  schoolFromHost = false,
-}: {
-  school?: string | null;
-  /** The host names the school, so nobody is asked which one. */
-  schoolFromHost?: boolean;
-}) {
+/** Signs a person in to the school whose portal shows the form. */
+export function SignInForm() {
   const hydrated = useHydrated();
   const router = useRouter();
   const queryClient = useQueryClient();
@@ -66,7 +60,6 @@ export function SignInForm({
 
   const form = useForm({
     defaultValues: {
-      school: school ?? (import.meta.env.DEV ? "northwind" : ""),
       loginName: "",
       password: "",
     },
@@ -86,34 +79,6 @@ export function SignInForm({
       }}
     >
       <FieldGroup>
-        <form.Field name="school">
-          {(field) =>
-            schoolFromHost ? null : (
-              <Field>
-                <FieldLabel htmlFor="school">{m.authSchoolCode()}</FieldLabel>
-                <Input
-                  disabled={!hydrated}
-                  id="school"
-                  name="school"
-                  autoComplete="organization"
-                  value={field.state.value}
-                  onChange={(event) => field.handleChange(event.target.value)}
-                  onBlur={field.handleBlur}
-                  aria-describedby="school-hint"
-                />
-                <p id="school-hint" className="text-xs text-muted-foreground">
-                  {m.authSchoolHint()}
-                </p>
-                <Link
-                  to="/find-school"
-                  className="justify-self-start text-sm text-primary underline-offset-4 hover:underline"
-                >
-                  {m.authFindSchool()}
-                </Link>
-              </Field>
-            )
-          }
-        </form.Field>
         <form.Field name="loginName">
           {(field) => {
             const invalid =

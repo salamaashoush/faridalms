@@ -4,6 +4,7 @@ import {
   ACCOUNTS,
   openWith,
   PASSWORD,
+  portal,
   signInWith,
   untilHydrated,
 } from "./fixtures/sign-in";
@@ -649,7 +650,7 @@ test("a brief written in two languages opens in the reader's own", async ({
   );
   // The student reads the school in Arabic.
   await context.addCookies([
-    { name: "language-tag", value: "ar", domain: "127.0.0.1", path: "/" },
+    { name: "language-tag", value: "ar", url: portal() },
   ]);
   await student.goto(address);
   await untilHydrated(student);

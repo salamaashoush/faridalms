@@ -14,6 +14,7 @@ import type { FileStore } from "../files/store";
 import type { HostChecks } from "../hosts/checks";
 import type { Provider } from "../notifications/providers";
 import type { KeyRing } from "./keys";
+import type { LoginIndex } from "./login-index";
 import type { Turnstile } from "./turnstile";
 
 /** Everything a request can reach, built once per process. */
@@ -32,6 +33,11 @@ export interface ApiDependencies {
    * checks them; null without the directory_sync login.
    */
   hosts: { registry: DirectorySync["hosts"]; checks: HostChecks } | null;
+  /**
+   * Which tenants hold a sign-in name, for sign-in on the bare portal
+   * domain; none where the platform's index key is not set.
+   */
+  logins?: LoginIndex | null;
   /** Proxies in front of the API that append to `X-Forwarded-For`. */
   trustedProxyHops: number;
   files: FileStore;

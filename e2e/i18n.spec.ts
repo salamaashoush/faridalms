@@ -1,5 +1,7 @@
 import { expect, test } from "@playwright/test";
 
+import { portal } from "./fixtures/sign-in";
+
 test("defaults to English, left-to-right", async ({ page }) => {
   await page.goto("/sign-in");
 
@@ -26,8 +28,7 @@ test("the cookie wins over Accept-Language", async ({ browser }) => {
     {
       name: "language-tag",
       value: "en",
-      domain: "127.0.0.1",
-      path: "/",
+      url: portal(),
     },
   ]);
   const page = await context.newPage();

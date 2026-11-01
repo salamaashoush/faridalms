@@ -14,7 +14,7 @@ export interface ShownSection {
   locale: SiteLocale;
 }
 
-const OPENERS = new Set<PageSection["type"]>(["hero", "pageHeader"]);
+const OPENERS = new Set<PageSection["type"]>(["hero", "pageHeader", "signIn"]);
 
 /** Whether a page's first section already says its title as the one first-level heading. */
 export function opensWithTitle(sections: ShownSection[]): boolean {

@@ -21,6 +21,19 @@ export async function signIn(page: Page, role: RoleKey) {
   await signInWith(page, account.email, PASSWORD, account.home);
 }
 
+const WEB_PORT = process.env.E2E_WEB_PORT ?? "3200";
+
+/**
+ * A school's portal on the gate's web server, which answers every
+ * *.localhost name. Sessions are host-only, so a page signed in to one
+ * school stays on that school's origin.
+ */
+export const portal = (school = "northwind") =>
+  `http://${school}.localhost:${WEB_PORT}`;
+
+/** The bare portal domain, the gate's PORTAL_DOMAIN, which signs nobody in itself. */
+export const BARE = `http://localhost:${WEB_PORT}`;
+
 export async function signInWith(
   page: Page,
   email: string,
@@ -28,15 +41,14 @@ export async function signInWith(
   home: string,
   school = "northwind",
 ) {
-  await page.goto("/sign-in");
-  // A production build prefills no school, so the visitor names it.
-  const code = page.getByRole("textbox", { name: "School code" });
-  await expect(code).toBeEnabled();
-  await code.fill(school);
-  await page.getByRole("textbox", { name: "Email" }).fill(email);
+  const origin = portal(school);
+  await page.goto(`${origin}/sign-in`);
+  const login = page.getByRole("textbox", { name: "Email" });
+  await expect(login).toBeEnabled();
+  await login.fill(email);
   await page.getByRole("textbox", { name: "Password" }).fill(password);
   await page.getByRole("button", { name: "Sign In", exact: true }).click();
-  await page.waitForURL(`**${home}`);
+  await page.waitForURL(`${origin}${home}`);
 }
 
 const LAUNCHER = /^(Search everything|ابحث في كل شيء)$/;

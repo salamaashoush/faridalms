@@ -41,19 +41,19 @@ function groups(rows: readonly DueDelivery[]): DueDelivery[][] {
  * One pass over a tenant's due deliveries as the worker. Rows are claimed with
  * a lock inside the unit, so two passes never send the same one; a person's
  * digest items leave as one message; a failed send is retried with backoff
- * until the attempts run out.
+ * until the attempts run out. What is due is judged by the database's clock,
+ * the one deliveries were made due by.
  */
 export async function deliverTenant(
   cell: Cell,
   gateways: Gateways,
   tenantId: string,
-  now: Date,
   limit = 200,
 ): Promise<{ sent: number; failed: number }> {
   return cell.withWorker(
     { tenantId, requestId: crypto.randomUUID(), actor: { kind: "system" } },
     "write",
-    async (tx) => {
+    async (tx, now) => {
       const due = await claimDue(tx, { tenantId, now, limit });
       let sent = 0;
       let failed = 0;

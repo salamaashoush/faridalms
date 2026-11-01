@@ -39,7 +39,6 @@ export const Route = createRootRouteWithContext<AppRouterContext>()({
           isAuthenticated: false,
           workspace: null,
           school: null,
-          schoolFromHost: false,
           childMode: false,
         }
       : await getAuthState();

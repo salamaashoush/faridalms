@@ -89,6 +89,11 @@ export const env = v.parse(
       // binding and checking schools' own hosts; without it neither happens.
       DIRECTORY_SYNC_URL: v.optional(v.pipe(v.string(), v.url())),
       USAGE_REPORT_MS: v.optional(positiveInteger, String(5 * 60 * 1000)),
+      // Keys the directory's index of sign-in names, shared by every cell,
+      // so sign-in on the bare portal domain finds a person's school without
+      // the directory holding any name. Rotating it means rebuilding the
+      // index; without it the bare domain cannot sign anyone in.
+      LOGIN_INDEX_KEY: v.optional(bytes(32)),
       // Python for marking code exercises, as apps/api/scripts/python-wasi.ts
       // fetches it; by default vendor/python beside the running API.
       PYTHON_DIR: v.optional(v.pipe(v.string(), v.minLength(1))),

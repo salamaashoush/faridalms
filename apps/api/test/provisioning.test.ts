@@ -111,7 +111,7 @@ async function begin(input: NewSchoolInput) {
 function linkTo(address: string, slug: string) {
   const message = seeded().mail.sent.findLast((row) => row.to === address);
   const secret = new RegExp(
-    `welcome\\?school=${slug}#([A-Za-z0-9_-]{43})`,
+    `//${slug}\\.[^/\\s]+/welcome#([A-Za-z0-9_-]{43})`,
   ).exec(message?.text ?? "")?.[1];
   if (!message || !secret) throw new Error(`no link was sent to ${address}`);
   return { message, secret };

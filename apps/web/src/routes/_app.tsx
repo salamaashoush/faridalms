@@ -7,6 +7,7 @@ import { useCurrentUser } from "~/hooks/useCurrentUser";
 import { currentUserQuery } from "~/queries/user";
 import { getWorkspacePreferences } from "~/server/auth";
 import { getFileFacts } from "~/server/files";
+import { leaveBareDomain } from "~/utils/bare-domain";
 import { rememberDigits } from "~/utils/digits";
 
 async function currentFacts(ids: string[]) {
@@ -21,6 +22,7 @@ async function currentFacts(ids: string[]) {
 
 export const Route = createFileRoute("/_app")({
   beforeLoad: ({ context, location }) => {
+    leaveBareDomain(context.auth, location.href);
     if (!context.auth.isAuthenticated) {
       throw redirect({ to: "/sign-in", search: { redirect: location.href } });
     }

@@ -5,6 +5,7 @@ import { sql } from "drizzle-orm";
 import {
   bigint,
   boolean,
+  bytea,
   check,
   date,
   foreignKey,
@@ -12,6 +13,7 @@ import {
   integer,
   jsonb,
   pgTable,
+  primaryKey,
   text,
   timestamp,
   uniqueIndex,
@@ -297,6 +299,32 @@ export const schoolPlans = pgTable(
       "school_plans_modules_check",
       sql`modules <@ array['elearning', 'early_years', 'video', 'coding']::text[]`,
     ),
+  ],
+);
+
+/**
+ * Which tenants hold a sign-in name, for sign-in on the bare portal domain,
+ * where the person names no school. The key is an HMAC of the name under a
+ * platform secret the directory never holds, so the directory keeps no
+ * personal data: without the secret a row names nobody, and a name can be
+ * tested only by a holder of the secret. Each cell keeps its tenants' rows
+ * current through directory_sync.
+ */
+export const loginIndex = pgTable(
+  "login_index",
+  {
+    key: bytea("key").notNull(),
+    tenantId: uuid("tenant_id").notNull(),
+  },
+  (t) => [
+    primaryKey({ name: "login_index_pkey", columns: [t.key, t.tenantId] }),
+    foreignKey({
+      name: "login_index_tenant_id_fkey",
+      columns: [t.tenantId],
+      foreignColumns: [tenants.id],
+    }).onDelete("cascade"),
+    index("login_index_tenant_idx").on(t.tenantId),
+    check("login_index_key_check", sql`octet_length(key) = 32`),
   ],
 );
 

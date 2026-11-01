@@ -21,6 +21,7 @@ import {
   LayoutGrid,
   LayoutPanelTop,
   Link2,
+  LogIn,
   ListChecks,
   ListCollapse,
   Megaphone,
@@ -78,6 +79,7 @@ export const SECTION_ICON: Record<PageSection["type"], LucideIcon> = {
   form: Send,
   quickLinks: Link2,
   embed: Code2,
+  signIn: LogIn,
 };
 
 /** A short line saying what a section holds, from its heading or first words. */

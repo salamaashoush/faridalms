@@ -55,6 +55,8 @@ export interface SiteFrameModel {
   currentHref: string;
   /** The school's portal sign-in, on the portal's own host. */
   signInHref: string;
+  /** Where the name and logo lead; the website's home when unset. */
+  homeHref?: string;
 }
 
 const SOCIAL_NAME: Record<SocialKind, string> = {
@@ -89,7 +91,7 @@ function Brand({
 }) {
   return (
     <SiteAnchor
-      href="/"
+      href={frame.homeHref ?? "/"}
       context={context}
       className={cn(
         "flex min-w-0 shrink-0 items-center gap-3",

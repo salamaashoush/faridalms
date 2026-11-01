@@ -61,8 +61,9 @@ The platform names come from wildcard certificates (DNS-01). A school's own
 names are optional and, once verified, become canonical: the platform name
 answers with a 308 to them, so links already printed keep working.
 
-The product apex is the school finder (foundation, unchanged): search by name
-or slug, then go to the school's portal.
+The product apex signs nobody in: its sign-in asks for an email, then a
+password, finds the school once the password is right and hands off to the
+school's portal (section 4).
 
 ### 2.2 Directory
 
@@ -104,9 +105,10 @@ certificates a week, and the platform names share one wildcard.
 ### 2.4 What changes in the app
 
 - `currentSchool()` resolves in order: platform wildcard label, then a
-  verified `directory.hosts` row through `byHost` (cached), then the
-  `farida-school` cookie on the bare cell host. An unknown host gets a 404,
-  never a guess.
+  verified `directory.hosts` row through `byHost` (cached). The bare cell
+  host names none and holds no session; its `farida-school` cookie only
+  remembers where to send the browser. An unknown host gets a 404, never a
+  guess.
 - The API builds links (invites, feeds, exports, notification mail) from the
   school's canonical portal host, through one helper replacing the
   `https://<appHost>/...` strings in `people.ts`, `calendar/feed.ts` and

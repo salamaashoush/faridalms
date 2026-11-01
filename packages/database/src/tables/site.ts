@@ -45,6 +45,7 @@ import { classes } from "./teaching";
 import { orgs, tenants } from "./tenancy";
 
 export type SiteLocale = "en" | "ar";
+export type PageKind = "site" | "portal";
 export type PostVisibility = "public" | "school";
 export type SiteState = "draft" | "published" | "archived";
 export type BannerTone = "info" | "warning" | "danger";
@@ -148,6 +149,7 @@ export const sitePages = core.table.withRLS(
   {
     ...tenantColumns(),
     orgId: uuid("org_id").notNull(),
+    kind: text("kind").$type<PageKind>().notNull().default("site"),
     parentId: uuid("parent_id"),
     position: smallint("position").notNull().default(0),
     slug: text("slug").notNull(),
@@ -186,9 +188,18 @@ export const sitePages = core.table.withRLS(
       sql`(state = 'published') = (published_at is not null)`,
     ),
     ck("site_pages", "home", sql`not is_home or parent_id is null`),
+    ck("site_pages", "kind", sql`kind in ('site', 'portal')`),
+    ck(
+      "site_pages",
+      "portal",
+      sql`kind = 'site' or (not is_home and not in_menu and parent_id is null)`,
+    ),
     uniqueIndex("site_pages_slug_key")
-      .on(t.tenantId, t.orgId, t.slug)
+      .on(t.tenantId, t.orgId, t.kind, t.slug)
       .where(sql`status = 'active'`),
+    uniqueIndex("site_pages_portal_key")
+      .on(t.tenantId, t.orgId)
+      .where(sql`status = 'active' and kind = 'portal'`),
     uniqueIndex("site_pages_home_key")
       .on(t.tenantId, t.orgId)
       .where(sql`status = 'active' and is_home`),
@@ -344,6 +355,7 @@ export const sitePublishedPages = core.table.withRLS(
     ...tenantColumns(),
     pageId: uuid("page_id").notNull(),
     orgId: uuid("org_id").notNull(),
+    kind: text("kind").$type<PageKind>().notNull().default("site"),
     locale: text("locale").$type<SiteLocale>().notNull(),
     slug: text("slug").notNull(),
     parentId: uuid("parent_id"),
@@ -369,6 +381,7 @@ export const sitePublishedPages = core.table.withRLS(
     ),
     fk("site_published_pages", [t.tenantId, t.orgId], [orgs.tenantId, orgs.id]),
     ck("site_published_pages", "locale", sql`locale in ('en', 'ar')`),
+    ck("site_published_pages", "kind", sql`kind in ('site', 'portal')`),
     ck(
       "site_published_pages",
       "title",
@@ -529,49 +542,6 @@ export const sitePublishedPosts = core.table.withRLS(
       .where(sql`status = 'active'`),
     ...entityProfile(),
     siteRead(visible),
-  ],
-);
-
-/**
- * The portal's sign-in page as strangers read it in one language, written
- * when the site's manager publishes it. `content` is the document shown
- * beside the form and the language it is in; the words being written are
- * the document hosted as `site_sign_in` on the school, which stays private
- * until it is published again.
- */
-export const sitePublishedSignIn = core.table.withRLS(
-  "site_published_sign_in",
-  {
-    ...tenantColumns(),
-    orgId: uuid("org_id").notNull(),
-    locale: text("locale").$type<SiteLocale>().notNull(),
-    content: jsonb("content").$type<Record<string, unknown>>().notNull(),
-    media: jsonb("media")
-      .$type<Record<string, string>>()
-      .notNull()
-      .default(sql`'{}'`),
-    ...entityColumns(),
-  },
-  (t): PgTableExtraConfigValue[] => [
-    pk("site_published_sign_in", t.tenantId, t.id),
-    ...baseConstraints("site_published_sign_in", t, tenants),
-    fk(
-      "site_published_sign_in",
-      [t.tenantId, t.orgId],
-      [orgs.tenantId, orgs.id],
-    ),
-    ck("site_published_sign_in", "locale", sql`locale in ('en', 'ar')`),
-    ck(
-      "site_published_sign_in",
-      "content",
-      sql`jsonb_typeof(content) = 'object' and octet_length(content::text) <= 262144`,
-    ),
-    ck("site_published_sign_in", "media", sql`jsonb_typeof(media) = 'object'`),
-    uniqueIndex("site_published_sign_in_key")
-      .on(t.tenantId, t.orgId, t.locale)
-      .where(sql`status = 'active'`),
-    ...entityProfile(),
-    siteRead(),
   ],
 );
 

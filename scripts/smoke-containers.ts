@@ -19,6 +19,7 @@ const API_ENV = [
   "CELL_ID",
   "CELL_KEK",
   "CELL_SECRET",
+  "LOGIN_INDEX_KEY",
   "PORTAL_DOMAIN",
   "SITES_DOMAIN",
 ] as const;

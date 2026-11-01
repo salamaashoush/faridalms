@@ -1,28 +1,29 @@
-import type { ContentDocument } from "@faridalms/domain/content";
 import type { Theme } from "@faridalms/domain/site-theme";
-import type { CSSProperties } from "react";
+import type { CSSProperties, ReactNode } from "react";
 
 import { portalAccent } from "@faridalms/domain/portal-face";
+import { PORTAL_SECTION } from "@faridalms/domain/site-sections";
 import { THEMES } from "@faridalms/domain/site-theme";
+import { newSection } from "@faridalms/domain/website";
 import { cn } from "@faridalms/ui/cn";
 
+import type { SiteFrameModel } from "~/components/site/render/frame";
+import type { RenderContext } from "~/components/site/render/parts";
 import type { PortalFace } from "~/queries/portal";
 
-import { ContentView } from "~/components/content/ContentView";
 import { LICENCE, SECURITY } from "~/components/product/links";
+import { SiteFrame } from "~/components/site/render/frame";
+import { opensOnPicture, PageSections } from "~/components/site/render/page";
 import { publicMediaUrl } from "~/components/site/render/parts";
-import {
-  schemeStyle,
-  themeAttributes,
-  themeStyle,
-} from "~/components/site/render/theme";
+import { LocaleToggle } from "~/components/theme/LocaleToggle";
 import { inLocale } from "~/hooks/useCurrentUser";
 import * as m from "~/i18n/messages";
 import { getLocale } from "~/i18n/runtime";
+import { hostHref } from "~/utils/host";
 
 /**
  * The look of a school that never styled its website: the platform's own
- * green and faces, so its sign-in page still carries its name and welcome.
+ * green and faces, so its sign-in page still carries its name.
  */
 const PLATFORM_THEME: Theme = {
   ...THEMES.meridian,
@@ -47,7 +48,7 @@ export const faceName = (face: PortalFace) =>
   inLocale(face.name.en, face.name.ar);
 
 /**
- * The school's colour as the page's accent, in the shade that reads on the
+ * The school's colour as the form's accent, in the shade that reads on the
  * app's light and dark pages. A school that never styled its website keeps
  * the platform's accent.
  */
@@ -91,75 +92,98 @@ export function SchoolMark({
   );
 }
 
-/** What the school writes beside the form, or the product's welcome when it has written nothing. */
-export type FacePage = {
-  body: ContentDocument;
-  locale: "en" | "ar";
-  media: Record<string, string>;
-  /** Pictures in a draft being previewed, which have no public address yet. */
-  fileUrl?: (fileId: string) => string;
-} | null;
+/** The website's frame around the portal page, its links leading to the website's own host. */
+function frameOf(face: PortalFace): SiteFrameModel {
+  const site = face.frame;
+  const out = (href: string) =>
+    site && href.startsWith("/") && !href.startsWith("//")
+      ? hostHref(site.siteHost, href)
+      : href;
+  const links = <T extends { href: string }>(rows: T[]) =>
+    rows.map((row) => ({ ...row, href: out(row.href) }));
+  return {
+    name: faceName(face),
+    tagline: site?.tagline ?? "",
+    logoUrl: face.logoKey ? publicMediaUrl(face.logoKey) : null,
+    banner: null,
+    utility: links(site?.utility ?? []),
+    actions: links(site?.actions ?? []),
+    menu: links(site?.menu ?? []),
+    footerColumns: (site?.footerColumns ?? []).map((column) => ({
+      ...column,
+      links: links(column.links),
+    })),
+    footerNote: site?.footerNote ?? "",
+    dock: false,
+    socialLinks: site?.socialLinks ?? [],
+    otherLanguage: null,
+    currentHref: "",
+    signInHref: "/sign-in",
+    homeHref: site ? hostHref(site.siteHost, "/") : "/sign-in",
+  };
+}
 
 /**
- * The school's side of its sign-in pages, drawn in its website's theme: its
- * brand colour scheme and faces, its logo and name, and the page it wrote.
- * The page is an editor document, drawn as the website draws its posts, so
- * nothing a school writes runs as script.
+ * A page of a school's portal: the portal page of its site, drawn by the
+ * website's renderer in its theme and frame, its system section holding
+ * what the portal shows now (the sign-in form, or the page of a reset, a
+ * welcome or a badge). Nothing a school writes runs as script: sections are
+ * data the renderer draws.
  */
-export function SchoolPanel({
+export function PortalPage({
   face,
-  page = face.page,
-  className,
+  ownWords,
+  children,
 }: {
   face: PortalFace;
-  page?: FacePage;
-  className?: string;
+  /** The flow being shown says its own heading, in place of the section's. */
+  ownWords: boolean;
+  children: ReactNode;
 }) {
-  const theme = face.theme ?? PLATFORM_THEME;
   const locale = getLocale() === "ar" ? "ar" : "en";
-  const name = faceName(face);
-  const written = page?.locale ?? locale;
+  const theme = face.theme ?? PLATFORM_THEME;
+  const accent = faceAccent(face);
+  // A published page always holds the form; one that somehow lost it still
+  // signs people in.
+  const sections = face.page.sections.some(
+    (item) => item.section.type === PORTAL_SECTION,
+  )
+    ? face.page.sections
+    : [
+        ...face.page.sections,
+        { section: newSection(PORTAL_SECTION), locale: face.page.locale },
+      ];
+  const context: RenderContext = {
+    school: face.school,
+    locale,
+    theme,
+    fileUrl: (fileId) => {
+      const key = face.page.media[fileId];
+      return key ? publicMediaUrl(key) : null;
+    },
+    news: [],
+    events: [],
+    contact: face.contact,
+    system: { node: children, ownWords },
+  };
   return (
-    <aside
-      aria-label={m.portalAboutSchool({ school: name })}
-      className={cn("site-root", className)}
-      style={themeStyle(theme, written)}
-      {...themeAttributes(theme, true)}
-    >
-      <div
-        className="site-section flex h-full flex-col gap-10 px-6 py-10 sm:px-10 lg:p-12 xl:p-16"
-        style={schemeStyle(theme, "brand")}
+    <div {...accent} className={cn(accent.className, "min-h-dvh")}>
+      <SiteFrame
+        frame={frameOf(face)}
+        context={context}
+        overlay={opensOnPicture(sections)}
       >
-        <SchoolMark face={face} className="text-lg max-lg:hidden" />
-        <div
-          lang={written === locale ? undefined : written}
-          dir={
-            written === locale ? undefined : written === "ar" ? "rtl" : "ltr"
-          }
-          className="site-prose grid max-w-xl gap-4 lg:my-auto"
-        >
-          {page ? (
-            <ContentView
-              document={page.body}
-              lang={page.locale}
-              fileUrl={(fileId) => {
-                if (page.fileUrl) return page.fileUrl(fileId);
-                const key = page.media[fileId];
-                return key ? publicMediaUrl(key) : "";
-              }}
-            />
-          ) : (
-            <>
-              <h2 className="site-heading text-3xl leading-tight font-semibold text-balance xl:text-4xl">
-                {m.portalWelcomeTitle({ school: name })}
-              </h2>
-              <p className="text-base">{m.portalWelcomeBody()}</p>
-              <p className="site-muted text-sm">{m.portalWelcomeHelp()}</p>
-            </>
-          )}
-        </div>
+        <PageSections
+          sections={sections}
+          title={ownWords ? "" : face.page.title}
+          context={context}
+        />
+      </SiteFrame>
+      <div className="flex flex-wrap items-center justify-center gap-2 border-t bg-background">
+        <PlatformFooter />
+        <LocaleToggle />
       </div>
-    </aside>
+    </div>
   );
 }
 

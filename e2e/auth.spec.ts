@@ -20,12 +20,9 @@ test("a wrong password is refused without revealing whether the account exists",
   page,
 }) => {
   await page.goto("/sign-in");
-  const code = page.getByRole("textbox", { name: "School code" });
-  await expect(code).toBeEnabled();
-  await code.fill("northwind");
-  await page
-    .getByRole("textbox", { name: "Email" })
-    .fill("parent1001@northwind.example.com");
+  const login = page.getByRole("textbox", { name: "Email" });
+  await expect(login).toBeEnabled();
+  await login.fill("parent1001@northwind.example.com");
   await page.getByRole("textbox", { name: "Password" }).fill("wrongpassword");
   await page.getByRole("button", { name: "Sign In", exact: true }).click();
 
@@ -50,10 +47,10 @@ for (const role of Object.keys(ACCOUNTS) as RoleKey[]) {
 test("a link to choose a password that the school never sent opens nothing", async ({
   page,
 }) => {
-  await page.goto(`/welcome?school=northwind#${"x".repeat(43)}`);
+  await page.goto(`/welcome#${"x".repeat(43)}`);
   await expect(page.getByRole("alert")).toHaveText("This link no longer works");
   // The secret leaves the address bar as soon as the page has read it.
-  await expect(page).toHaveURL(/\/welcome\?school=northwind$/);
+  await expect(page).toHaveURL(/\/welcome$/);
   await page.getByRole("link", { name: "Go to sign-in" }).click();
   await expect(page).toHaveURL(/\/sign-in/);
 });
@@ -108,20 +105,15 @@ test("a forgotten password is asked for from sign-in, and the answer never says 
   page,
 }) => {
   await page.goto("/sign-in");
-  await expect(
-    page.getByRole("textbox", { name: "School code" }),
-  ).toBeEnabled();
+  await expect(page.getByRole("textbox", { name: "Email" })).toBeEnabled();
   await page.getByRole("link", { name: "Forgot your password?" }).click();
   await expect(page).toHaveURL(/\/forgot-password/);
   await expect(
     page.getByRole("heading", { name: "Choose a new password" }),
   ).toBeVisible();
-  const code = page.getByLabel("School code");
-  await expect(code).toBeEnabled();
-  await code.fill("northwind");
-  await page
-    .getByLabel("Email or sign-in name")
-    .fill("nobody.at.all@northwind.example.com");
+  const login = page.getByLabel("Email or sign-in name");
+  await expect(login).toBeEnabled();
+  await login.fill("nobody.at.all@northwind.example.com");
   await page.getByRole("button", { name: "Send the link" }).click();
   await expect(
     page.getByRole("heading", { name: "Check your email" }),

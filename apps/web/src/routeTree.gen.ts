@@ -12,6 +12,7 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AppRouteImport } from './routes/_app'
 import { Route as AuthRouteImport } from './routes/_auth'
+import { Route as AnotherAccountRouteImport } from './routes/another-account'
 import { Route as BadgeRouteImport } from './routes/badge'
 import { Route as WelcomeRouteImport } from './routes/welcome'
 import { Route as AppAdminRouteImport } from './routes/_app/admin'
@@ -29,7 +30,6 @@ import { Route as AppSearchRouteImport } from './routes/_app/search'
 import { Route as AppStaffEditorRouteImport } from './routes/_app/staff-editor'
 import { Route as AppStudentEditorRouteImport } from './routes/_app/student-editor'
 import { Route as AppTeachRouteImport } from './routes/_app/teach'
-import { Route as AuthFindSchoolRouteImport } from './routes/_auth/find-school'
 import { Route as AuthForgotPasswordRouteImport } from './routes/_auth/forgot-password'
 import { Route as AuthSignInRouteImport } from './routes/_auth/sign-in'
 import { Route as ApiHealthRouteImport } from './routes/api/health'
@@ -54,7 +54,6 @@ import { Route as AppAdminRolloverRouteImport } from './routes/_app/admin/rollov
 import { Route as AppAdminSettingsRouteImport } from './routes/_app/admin/settings'
 import { Route as AppAdminSiteRouteImport } from './routes/_app/admin/site'
 import { Route as AppAdminSitePageEditorRouteImport } from './routes/_app/admin/site-page-editor'
-import { Route as AppAdminSiteSignInRouteImport } from './routes/_app/admin/site-sign-in'
 import { Route as AppAdminStaffRouteImport } from './routes/_app/admin/staff'
 import { Route as AppAdminStudentsRouteImport } from './routes/_app/admin/students'
 import { Route as AppAdminTimetableRouteImport } from './routes/_app/admin/timetable'
@@ -112,6 +111,7 @@ import { Route as AppTeachModulesRouteImport } from './routes/_app/teach/modules
 import { Route as AppTeachTimetableRouteImport } from './routes/_app/teach/timetable'
 import { Route as AppTeachYearMapRouteImport } from './routes/_app/teach/year-map'
 import { Route as AppYearsYearIdRouteImport } from './routes/_app/years.$yearId'
+import { Route as AuthAuthHandoffRouteImport } from './routes/_auth/auth.handoff'
 import { Route as ExportsAssignmentsAssignmentIdRouteImport } from './routes/exports/assignments.$assignmentId'
 import { Route as ExportsClassesClassIdRouteImport } from './routes/exports/classes.$classId'
 import { Route as ExportsModulesModuleIdRouteImport } from './routes/exports/modules.$moduleId'
@@ -145,6 +145,11 @@ const AppRoute = AppRouteImport.update({
 } as any)
 const AuthRoute = AuthRouteImport.update({
   id: '/_auth',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AnotherAccountRoute = AnotherAccountRouteImport.update({
+  id: '/another-account',
+  path: '/another-account',
   getParentRoute: () => rootRouteImport,
 } as any)
 const BadgeRoute = BadgeRouteImport.update({
@@ -232,11 +237,6 @@ const AppTeachRoute = AppTeachRouteImport.update({
   id: '/teach',
   path: '/teach',
   getParentRoute: () => AppRoute,
-} as any)
-const AuthFindSchoolRoute = AuthFindSchoolRouteImport.update({
-  id: '/find-school',
-  path: '/find-school',
-  getParentRoute: () => AuthRoute,
 } as any)
 const AuthForgotPasswordRoute = AuthForgotPasswordRouteImport.update({
   id: '/forgot-password',
@@ -359,11 +359,6 @@ const AppAdminSiteRoute = AppAdminSiteRouteImport.update({
 const AppAdminSitePageEditorRoute = AppAdminSitePageEditorRouteImport.update({
   id: '/site-page-editor',
   path: '/site-page-editor',
-  getParentRoute: () => AppAdminRoute,
-} as any)
-const AppAdminSiteSignInRoute = AppAdminSiteSignInRouteImport.update({
-  id: '/site-sign-in',
-  path: '/site-sign-in',
   getParentRoute: () => AppAdminRoute,
 } as any)
 const AppAdminStaffRoute = AppAdminStaffRouteImport.update({
@@ -655,6 +650,11 @@ const AppYearsYearIdRoute = AppYearsYearIdRouteImport.update({
   path: '/years/$yearId',
   getParentRoute: () => AppRoute,
 } as any)
+const AuthAuthHandoffRoute = AuthAuthHandoffRouteImport.update({
+  id: '/auth/handoff',
+  path: '/auth/handoff',
+  getParentRoute: () => AuthRoute,
+} as any)
 const ExportsAssignmentsAssignmentIdRoute =
   ExportsAssignmentsAssignmentIdRouteImport.update({
     id: '/exports/assignments/$assignmentId',
@@ -770,6 +770,7 @@ const SiteSchoolPagesSlugRoute = SiteSchoolPagesSlugRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/another-account': typeof AnotherAccountRoute
   '/badge': typeof BadgeRoute
   '/welcome': typeof WelcomeRoute
   '/admin': typeof AppAdminRouteWithChildren
@@ -787,7 +788,6 @@ export interface FileRoutesByFullPath {
   '/staff-editor': typeof AppStaffEditorRoute
   '/student-editor': typeof AppStudentEditorRoute
   '/teach': typeof AppTeachRouteWithChildren
-  '/find-school': typeof AuthFindSchoolRoute
   '/forgot-password': typeof AuthForgotPasswordRoute
   '/sign-in': typeof AuthSignInRoute
   '/api/health': typeof ApiHealthRoute
@@ -811,7 +811,6 @@ export interface FileRoutesByFullPath {
   '/admin/settings': typeof AppAdminSettingsRoute
   '/admin/site': typeof AppAdminSiteRoute
   '/admin/site-page-editor': typeof AppAdminSitePageEditorRoute
-  '/admin/site-sign-in': typeof AppAdminSiteSignInRoute
   '/admin/staff': typeof AppAdminStaffRoute
   '/admin/students': typeof AppAdminStudentsRoute
   '/admin/timetable': typeof AppAdminTimetableRoute
@@ -862,6 +861,7 @@ export interface FileRoutesByFullPath {
   '/teach/timetable': typeof AppTeachTimetableRoute
   '/teach/year-map': typeof AppTeachYearMapRoute
   '/years/$yearId': typeof AppYearsYearIdRoute
+  '/auth/handoff': typeof AuthAuthHandoffRoute
   '/exports/assignments/$assignmentId': typeof ExportsAssignmentsAssignmentIdRoute
   '/exports/classes/$classId': typeof ExportsClassesClassIdRoute
   '/exports/modules/$moduleId': typeof ExportsModulesModuleIdRoute
@@ -894,6 +894,7 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/another-account': typeof AnotherAccountRoute
   '/badge': typeof BadgeRoute
   '/welcome': typeof WelcomeRoute
   '/consent-form-editor': typeof AppConsentFormEditorRoute
@@ -907,7 +908,6 @@ export interface FileRoutesByTo {
   '/search': typeof AppSearchRoute
   '/staff-editor': typeof AppStaffEditorRoute
   '/student-editor': typeof AppStudentEditorRoute
-  '/find-school': typeof AuthFindSchoolRoute
   '/forgot-password': typeof AuthForgotPasswordRoute
   '/sign-in': typeof AuthSignInRoute
   '/api/health': typeof ApiHealthRoute
@@ -930,7 +930,6 @@ export interface FileRoutesByTo {
   '/admin/settings': typeof AppAdminSettingsRoute
   '/admin/site': typeof AppAdminSiteRoute
   '/admin/site-page-editor': typeof AppAdminSitePageEditorRoute
-  '/admin/site-sign-in': typeof AppAdminSiteSignInRoute
   '/admin/staff': typeof AppAdminStaffRoute
   '/admin/students': typeof AppAdminStudentsRoute
   '/admin/timetable': typeof AppAdminTimetableRoute
@@ -981,6 +980,7 @@ export interface FileRoutesByTo {
   '/teach/timetable': typeof AppTeachTimetableRoute
   '/teach/year-map': typeof AppTeachYearMapRoute
   '/years/$yearId': typeof AppYearsYearIdRoute
+  '/auth/handoff': typeof AuthAuthHandoffRoute
   '/exports/assignments/$assignmentId': typeof ExportsAssignmentsAssignmentIdRoute
   '/exports/classes/$classId': typeof ExportsClassesClassIdRoute
   '/exports/modules/$moduleId': typeof ExportsModulesModuleIdRoute
@@ -1016,6 +1016,7 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/_app': typeof AppRouteWithChildren
   '/_auth': typeof AuthRouteWithChildren
+  '/another-account': typeof AnotherAccountRoute
   '/badge': typeof BadgeRoute
   '/welcome': typeof WelcomeRoute
   '/_app/admin': typeof AppAdminRouteWithChildren
@@ -1033,7 +1034,6 @@ export interface FileRoutesById {
   '/_app/staff-editor': typeof AppStaffEditorRoute
   '/_app/student-editor': typeof AppStudentEditorRoute
   '/_app/teach': typeof AppTeachRouteWithChildren
-  '/_auth/find-school': typeof AuthFindSchoolRoute
   '/_auth/forgot-password': typeof AuthForgotPasswordRoute
   '/_auth/sign-in': typeof AuthSignInRoute
   '/api/health': typeof ApiHealthRoute
@@ -1057,7 +1057,6 @@ export interface FileRoutesById {
   '/_app/admin/settings': typeof AppAdminSettingsRoute
   '/_app/admin/site': typeof AppAdminSiteRoute
   '/_app/admin/site-page-editor': typeof AppAdminSitePageEditorRoute
-  '/_app/admin/site-sign-in': typeof AppAdminSiteSignInRoute
   '/_app/admin/staff': typeof AppAdminStaffRoute
   '/_app/admin/students': typeof AppAdminStudentsRoute
   '/_app/admin/timetable': typeof AppAdminTimetableRoute
@@ -1108,6 +1107,7 @@ export interface FileRoutesById {
   '/_app/teach/timetable': typeof AppTeachTimetableRoute
   '/_app/teach/year-map': typeof AppTeachYearMapRoute
   '/_app/years/$yearId': typeof AppYearsYearIdRoute
+  '/_auth/auth/handoff': typeof AuthAuthHandoffRoute
   '/exports/assignments/$assignmentId': typeof ExportsAssignmentsAssignmentIdRoute
   '/exports/classes/$classId': typeof ExportsClassesClassIdRoute
   '/exports/modules/$moduleId': typeof ExportsModulesModuleIdRoute
@@ -1142,6 +1142,7 @@ export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/another-account'
     | '/badge'
     | '/welcome'
     | '/admin'
@@ -1159,7 +1160,6 @@ export interface FileRouteTypes {
     | '/staff-editor'
     | '/student-editor'
     | '/teach'
-    | '/find-school'
     | '/forgot-password'
     | '/sign-in'
     | '/api/health'
@@ -1183,7 +1183,6 @@ export interface FileRouteTypes {
     | '/admin/settings'
     | '/admin/site'
     | '/admin/site-page-editor'
-    | '/admin/site-sign-in'
     | '/admin/staff'
     | '/admin/students'
     | '/admin/timetable'
@@ -1234,6 +1233,7 @@ export interface FileRouteTypes {
     | '/teach/timetable'
     | '/teach/year-map'
     | '/years/$yearId'
+    | '/auth/handoff'
     | '/exports/assignments/$assignmentId'
     | '/exports/classes/$classId'
     | '/exports/modules/$moduleId'
@@ -1266,6 +1266,7 @@ export interface FileRouteTypes {
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
+    | '/another-account'
     | '/badge'
     | '/welcome'
     | '/consent-form-editor'
@@ -1279,7 +1280,6 @@ export interface FileRouteTypes {
     | '/search'
     | '/staff-editor'
     | '/student-editor'
-    | '/find-school'
     | '/forgot-password'
     | '/sign-in'
     | '/api/health'
@@ -1302,7 +1302,6 @@ export interface FileRouteTypes {
     | '/admin/settings'
     | '/admin/site'
     | '/admin/site-page-editor'
-    | '/admin/site-sign-in'
     | '/admin/staff'
     | '/admin/students'
     | '/admin/timetable'
@@ -1353,6 +1352,7 @@ export interface FileRouteTypes {
     | '/teach/timetable'
     | '/teach/year-map'
     | '/years/$yearId'
+    | '/auth/handoff'
     | '/exports/assignments/$assignmentId'
     | '/exports/classes/$classId'
     | '/exports/modules/$moduleId'
@@ -1387,6 +1387,7 @@ export interface FileRouteTypes {
     | '/'
     | '/_app'
     | '/_auth'
+    | '/another-account'
     | '/badge'
     | '/welcome'
     | '/_app/admin'
@@ -1404,7 +1405,6 @@ export interface FileRouteTypes {
     | '/_app/staff-editor'
     | '/_app/student-editor'
     | '/_app/teach'
-    | '/_auth/find-school'
     | '/_auth/forgot-password'
     | '/_auth/sign-in'
     | '/api/health'
@@ -1428,7 +1428,6 @@ export interface FileRouteTypes {
     | '/_app/admin/settings'
     | '/_app/admin/site'
     | '/_app/admin/site-page-editor'
-    | '/_app/admin/site-sign-in'
     | '/_app/admin/staff'
     | '/_app/admin/students'
     | '/_app/admin/timetable'
@@ -1479,6 +1478,7 @@ export interface FileRouteTypes {
     | '/_app/teach/timetable'
     | '/_app/teach/year-map'
     | '/_app/years/$yearId'
+    | '/_auth/auth/handoff'
     | '/exports/assignments/$assignmentId'
     | '/exports/classes/$classId'
     | '/exports/modules/$moduleId'
@@ -1514,6 +1514,7 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AppRoute: typeof AppRouteWithChildren
   AuthRoute: typeof AuthRouteWithChildren
+  AnotherAccountRoute: typeof AnotherAccountRoute
   BadgeRoute: typeof BadgeRoute
   WelcomeRoute: typeof WelcomeRoute
   ApiHealthRoute: typeof ApiHealthRoute
@@ -1555,6 +1556,13 @@ declare module '@tanstack/react-router' {
       path: ''
       fullPath: '/'
       preLoaderRoute: typeof AuthRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/another-account': {
+      id: '/another-account'
+      path: '/another-account'
+      fullPath: '/another-account'
+      preLoaderRoute: typeof AnotherAccountRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/badge': {
@@ -1675,13 +1683,6 @@ declare module '@tanstack/react-router' {
       fullPath: '/teach'
       preLoaderRoute: typeof AppTeachRouteImport
       parentRoute: typeof AppRoute
-    }
-    '/_auth/find-school': {
-      id: '/_auth/find-school'
-      path: '/find-school'
-      fullPath: '/find-school'
-      preLoaderRoute: typeof AuthFindSchoolRouteImport
-      parentRoute: typeof AuthRoute
     }
     '/_auth/forgot-password': {
       id: '/_auth/forgot-password'
@@ -1849,13 +1850,6 @@ declare module '@tanstack/react-router' {
       path: '/site-page-editor'
       fullPath: '/admin/site-page-editor'
       preLoaderRoute: typeof AppAdminSitePageEditorRouteImport
-      parentRoute: typeof AppAdminRoute
-    }
-    '/_app/admin/site-sign-in': {
-      id: '/_app/admin/site-sign-in'
-      path: '/site-sign-in'
-      fullPath: '/admin/site-sign-in'
-      preLoaderRoute: typeof AppAdminSiteSignInRouteImport
       parentRoute: typeof AppAdminRoute
     }
     '/_app/admin/staff': {
@@ -2257,6 +2251,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppYearsYearIdRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_auth/auth/handoff': {
+      id: '/_auth/auth/handoff'
+      path: '/auth/handoff'
+      fullPath: '/auth/handoff'
+      preLoaderRoute: typeof AuthAuthHandoffRouteImport
+      parentRoute: typeof AuthRoute
+    }
     '/exports/assignments/$assignmentId': {
       id: '/exports/assignments/$assignmentId'
       path: '/exports/assignments/$assignmentId'
@@ -2420,7 +2421,6 @@ interface AppAdminRouteChildren {
   AppAdminSettingsRoute: typeof AppAdminSettingsRoute
   AppAdminSiteRoute: typeof AppAdminSiteRoute
   AppAdminSitePageEditorRoute: typeof AppAdminSitePageEditorRoute
-  AppAdminSiteSignInRoute: typeof AppAdminSiteSignInRoute
   AppAdminStaffRoute: typeof AppAdminStaffRoute
   AppAdminStudentsRoute: typeof AppAdminStudentsRoute
   AppAdminTimetableRoute: typeof AppAdminTimetableRoute
@@ -2440,7 +2440,6 @@ const AppAdminRouteChildren: AppAdminRouteChildren = {
   AppAdminSettingsRoute: AppAdminSettingsRoute,
   AppAdminSiteRoute: AppAdminSiteRoute,
   AppAdminSitePageEditorRoute: AppAdminSitePageEditorRoute,
-  AppAdminSiteSignInRoute: AppAdminSiteSignInRoute,
   AppAdminStaffRoute: AppAdminStaffRoute,
   AppAdminStudentsRoute: AppAdminStudentsRoute,
   AppAdminTimetableRoute: AppAdminTimetableRoute,
@@ -2641,15 +2640,15 @@ const AppRouteChildren: AppRouteChildren = {
 const AppRouteWithChildren = AppRoute._addFileChildren(AppRouteChildren)
 
 interface AuthRouteChildren {
-  AuthFindSchoolRoute: typeof AuthFindSchoolRoute
   AuthForgotPasswordRoute: typeof AuthForgotPasswordRoute
   AuthSignInRoute: typeof AuthSignInRoute
+  AuthAuthHandoffRoute: typeof AuthAuthHandoffRoute
 }
 
 const AuthRouteChildren: AuthRouteChildren = {
-  AuthFindSchoolRoute: AuthFindSchoolRoute,
   AuthForgotPasswordRoute: AuthForgotPasswordRoute,
   AuthSignInRoute: AuthSignInRoute,
+  AuthAuthHandoffRoute: AuthAuthHandoffRoute,
 }
 
 const AuthRouteWithChildren = AuthRoute._addFileChildren(AuthRouteChildren)
@@ -2701,6 +2700,7 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AppRoute: AppRouteWithChildren,
   AuthRoute: AuthRouteWithChildren,
+  AnotherAccountRoute: AnotherAccountRoute,
   BadgeRoute: BadgeRoute,
   WelcomeRoute: WelcomeRoute,
   ApiHealthRoute: ApiHealthRoute,
