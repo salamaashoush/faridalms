@@ -119,6 +119,31 @@ for (const { path, text } of files) {
 
 problems.push(...errorCodeProblems(files));
 
+// Every action the audit log records reads as words in a history, never as
+// its code: an action written without a label fails here.
+const AUDITED = /\baction: "([a-z_]+\.[a-z_.]+)"/g;
+const labels = files.find(
+  (file) => file.path === "apps/web/src/utils/audit-actions.ts",
+);
+const labelled = new Set(
+  [...(labels?.text ?? "").matchAll(/^\s+"([a-z_.]+)": m\./gm)].map(
+    (match) => match[1],
+  ),
+);
+for (const file of files) {
+  if (
+    !file.path.startsWith("apps/api/src/") &&
+    !file.path.startsWith("packages/database/src/")
+  )
+    continue;
+  if (file.path.endsWith(".test.ts")) continue;
+  for (const [, action] of file.text.matchAll(AUDITED))
+    if (action && !labelled.has(action))
+      problems.push(
+        `${file.path}: audits "${action}" with no label in apps/web/src/utils/audit-actions.ts`,
+      );
+}
+
 // Migrations from the one reach model on call its functions rather than
 // writing the rules out again.
 const REACH_MODEL = "20261101163828_reach_model";

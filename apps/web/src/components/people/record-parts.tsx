@@ -16,6 +16,7 @@ import {
 import { StatusText } from "~/components/system/status";
 import { inLocale } from "~/hooks/useCurrentUser";
 import * as m from "~/i18n/messages";
+import { auditActionLabel } from "~/utils/audit-actions";
 import { formatInstant } from "~/utils/datetime";
 
 import { formatPhone } from "./format";
@@ -111,25 +112,6 @@ export function AccountSection({
   );
 }
 
-const ACTION_LABEL: Record<string, () => string> = {
-  "user.create": m.historyUserCreate,
-  "user.update": m.historyUserUpdate,
-  "placement.change": m.historyPlacementChange,
-  "student.leave": m.historyStudentLeave,
-  "student.return": m.historyStudentReturn,
-  "relationship.create": m.historyRelationshipCreate,
-  "relationship.update": m.historyRelationshipUpdate,
-  "relationship.end": m.historyRelationshipEnd,
-  "academic_session.create": m.historyYearCreate,
-  "academic_session.update": m.historyYearUpdate,
-  "academic_session.span_change": m.historyYearDates,
-  "academic_session.made_current": m.historyYearMadeCurrent,
-  "academic_session.closed": m.historyYearClosed,
-  "academic_session.reopened": m.historyYearReopened,
-  "attendance.mark_change": m.historyAttendanceChange,
-  "attendance.excuse": m.historyAttendanceExcuse,
-};
-
 interface Entry {
   id: string;
   occurredAt: string;
@@ -152,7 +134,7 @@ export function HistorySection({ entries }: { entries: Entry[] }) {
           {entries.map((entry) => (
             <li key={entry.id} className="grid gap-0.5 py-3">
               <span className="text-sm leading-5 font-medium">
-                {ACTION_LABEL[entry.action]?.() ?? entry.action}
+                {auditActionLabel(entry.action)}
               </span>
               <span className="text-[13px] leading-[18px] text-muted-foreground">
                 {[
