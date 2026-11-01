@@ -107,6 +107,15 @@ test("class moves keep other school years and return to a class as a new episode
   expect(await refusal(mark(first.id, left, register.period.id))).toMatchObject(
     { code: "CONFLICT", message: "attendance.not_roster" },
   );
+  // The register taken while they were in the class still reads with them.
+  const past = await admin.attendance.register({
+    classId: first.id,
+    date: joined,
+  });
+  expect(past.students.map((row) => row.id)).toContain(student.id);
+  expect(past.marks).toContainEqual(
+    expect.objectContaining({ studentId: student.id, meaning: "present" }),
+  );
   expect(
     await refusal(mark(first.id, "1900-01-01", register.period.id)),
   ).toMatchObject({ code: "BAD_REQUEST", message: "attendance.outside_year" });
@@ -173,6 +182,84 @@ test("class moves keep other school years and return to a class as a new episode
   expect(waiting.map((row) => [row.classId, row.from])).toEqual([
     [first.id, addDays(today, 3)],
   ]);
+});
+
+test("a backdated move cannot reach over a register already taken, and each day keeps its roster", async () => {
+  const admin = await apiAs("admin");
+  const unique = crypto.randomUUID().slice(0, 6);
+  const { workingYearId } = await admin.classes.options();
+  if (!workingYearId) throw new Error("the school has no working year");
+  const [registered, moved] = await Promise.all([
+    newClass(admin, {
+      yearId: workingYearId,
+      title: `Salama registered ${unique}`,
+    }),
+    newClass(admin, { yearId: workingYearId, title: `Salama moved ${unique}` }),
+  ]);
+  const student = await newStudent(admin, `Ashoush register ${unique}`);
+  const { today } = await admin.identity.currentUser();
+  const days = await schoolDaysTo(admin, workingYearId, today);
+  const [placedOn, takenOn, movedOn] = days.slice(-3);
+  if (!placedOn || !takenOn || !movedOn)
+    throw new Error("too few school days so far");
+  await admin.classes.enrol({
+    studentId: student.id,
+    classId: registered.id,
+    from: placedOn,
+  });
+  const taken = await admin.attendance.register({
+    classId: registered.id,
+    date: takenOn,
+  });
+  await admin.attendance.save({
+    classId: registered.id,
+    date: takenOn,
+    periodId: taken.period.id,
+    expectedVersion: 0,
+    marks: [{ studentId: student.id, meaning: "present" }],
+  });
+  const roster = async (classId: string, date: string) =>
+    (await admin.attendance.register({ classId, date })).students.map(
+      (row) => row.id,
+    );
+
+  const refused = {
+    code: "CONFLICT",
+    message: `enrollment.registers_after:${takenOn}`,
+  };
+  expect(
+    await Promise.all(
+      [placedOn, takenOn].map((from) =>
+        refusal(
+          admin.classes.enrol({
+            studentId: student.id,
+            classId: moved.id,
+            from,
+          }),
+        ),
+      ),
+    ),
+  ).toMatchObject([refused, refused]);
+  const unchanged = await admin.attendance.register({
+    classId: registered.id,
+    date: takenOn,
+  });
+  expect(unchanged.students.map((row) => row.id)).toContain(student.id);
+  expect(unchanged.marks).toContainEqual(
+    expect.objectContaining({ studentId: student.id, meaning: "present" }),
+  );
+
+  expect(
+    await admin.classes.enrol({
+      studentId: student.id,
+      classId: moved.id,
+      from: movedOn,
+    }),
+  ).toMatchObject({ moved: true });
+  expect(await roster(registered.id, takenOn)).toContain(student.id);
+  expect(await roster(moved.id, takenOn)).not.toContain(student.id);
+  expect(await roster(moved.id, movedOn)).toContain(student.id);
+  expect(await roster(registered.id, movedOn)).not.toContain(student.id);
 });
 
 test("school year edits refuse stale versions and stay inside the school", async ({

@@ -101,6 +101,50 @@ describe("search", () => {
     expect(ids(theirs, "assignments")).toHaveLength(0);
   });
 
+  test("classes of the same name in several years carry their year, this year's first", async () => {
+    // The group's second school, so the classes made here change no count
+    // another suite reads.
+    const office = await signedIn("northwind-east", login("principal", 0, 1));
+    const added = await office.years.save({
+      titleEn: "2045–2046",
+      titleAr: "",
+      startsOn: "2045-09-10",
+      endsOn: "2046-06-14",
+      terms: [],
+    });
+    const { years, workingYearId, grades } = await office.classes.options();
+    const working = years.find((row) => row.id === workingYearId);
+    const next = years.find((row) => row.id === added.id);
+    const [grade] = grades;
+    if (!working || !next || !grade) throw new Error("the seed has no year");
+    const name = "Salama Ashoush tutor group";
+    const save = async (yearId: string) =>
+      (
+        await office.classes.save({
+          yearId,
+          code: "SAT",
+          titleEn: name,
+          titleAr: "",
+          gradeId: grade.id,
+          homeroomTeacherId: "",
+          subjects: [],
+        })
+      ).id;
+    // The later year's class is made last, so its id alone would rank it first.
+    const currentClass = await save(working.id);
+    const laterClass = await save(next.id);
+
+    const found = await office.search.find({ q: name, kind: "classes" });
+    const rows = found.groups[0]?.rows ?? [];
+    expect(rows.map((row) => row.id)).toEqual([currentClass, laterClass]);
+    expect(rows.map((row) => row.context)).toEqual([
+      `SAT · ${working.titleEn}`,
+      `SAT · ${next.titleEn}`,
+    ]);
+    const preview = await office.search.find({ q: name });
+    expect(ids(preview, "classes")[0]).toBe(currentClass);
+  });
+
   test("words in a conversation find it for its members, not another family", async () => {
     const family = await mother();
     const inbox = await family.api.messages.inbox({});

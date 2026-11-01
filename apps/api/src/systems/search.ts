@@ -24,6 +24,7 @@ import {
   studentsAmong,
   threadsAmong,
 } from "@faridalms/database/stores/search";
+import { schoolYears, workingYear } from "@faridalms/database/stores/years";
 import {
   mentionNamesSchema,
   SEARCH_PAGE_SIZE,
@@ -228,6 +229,13 @@ async function pageOf(
   },
 ): Promise<{ group: SearchGroup; next: string | null }> {
   const resolve = await resolverOf(context, input.kind, input.q);
+  const preferYear =
+    input.kind === "classes"
+      ? (workingYear(
+          await schoolYears(context.tx, context.tenantId, context.schoolId),
+          context.today,
+        )?.id ?? null)
+      : null;
   const rows: SearchHit[] = [];
   let after = input.after;
   for (let round = 0; round < ROUNDS; round++) {
@@ -237,6 +245,7 @@ async function pageOf(
       orgScope: input.orgScope,
       after,
       max: ROUND,
+      preferYear,
     });
     const visible = new Map(
       (await resolve(found.map((candidate) => candidate.id))).map((row) => [

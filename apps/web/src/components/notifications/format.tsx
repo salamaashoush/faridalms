@@ -13,7 +13,10 @@ import {
   BookMarked,
   CalendarDays,
   ClipboardCheck,
+  ClipboardList,
+  GraduationCap,
   Megaphone,
+  MessageSquareText,
   MessageSquare,
   Newspaper,
   Reply,
@@ -56,6 +59,9 @@ export const KIND_ICON: Record<NotificationKind, LucideIcon> = {
   reply: Reply,
   enquiry: UserPlus,
   application: FileUser,
+  assignment: ClipboardList,
+  feedback: MessageSquareText,
+  grades: GraduationCap,
   correction: HeartPulse,
 };
 
@@ -209,6 +215,47 @@ export function noticeText(notice: Notice): { title: string; body: string } {
               .filter(Boolean)
               .join(" · "),
           };
+    case "assignment":
+      return {
+        title: params.studentName
+          ? m.ntfAssignmentFor({
+              name: both(params.studentName, params.studentNameAr),
+            })
+          : m.ntfAssignment(),
+        body: [
+          title,
+          both(params.className, params.classNameAr),
+          date ? m.ntfDue({ date: formatDate(date) }) : "",
+        ]
+          .filter(Boolean)
+          .join(" · "),
+      };
+    case "feedback": {
+      const name = both(params.studentName, params.studentNameAr);
+      return {
+        title: params.revise
+          ? name
+            ? m.ntfReviseFor({ name })
+            : m.ntfRevise()
+          : name
+            ? m.ntfFeedbackFor({ name })
+            : m.ntfFeedback(),
+        body: [title, both(params.className, params.classNameAr)]
+          .filter(Boolean)
+          .join(" · "),
+      };
+    }
+    case "grades":
+      return {
+        title: params.studentName
+          ? m.ntfGradesFor({
+              name: both(params.studentName, params.studentNameAr),
+            })
+          : m.ntfGrades(),
+        body: [title, both(params.className, params.classNameAr)]
+          .filter(Boolean)
+          .join(" · "),
+      };
     case "library":
       return {
         title: params.shared
@@ -394,6 +441,43 @@ export function NoticeLink({
           to="/admissions/enquiries/$enquiryId"
           params={{ enquiryId: id }}
         >
+          {children}
+        </Link>
+      );
+    case "assignment":
+    case "feedback":
+      return notice.params.studentId ? (
+        <Link
+          {...rest}
+          to="/family/assignments"
+          search={{
+            studentId: notice.params.studentId,
+            assignment: notice.subjectId,
+          }}
+        >
+          {children}
+        </Link>
+      ) : (
+        <Link
+          {...rest}
+          to="/assignments/$assignmentId"
+          params={{ assignmentId: notice.subjectId }}
+          search={{}}
+        >
+          {children}
+        </Link>
+      );
+    case "grades":
+      return notice.params.studentId ? (
+        <Link
+          {...rest}
+          to="/family/grades"
+          search={{ studentId: notice.params.studentId }}
+        >
+          {children}
+        </Link>
+      ) : (
+        <Link {...rest} to="/me/grades">
           {children}
         </Link>
       );

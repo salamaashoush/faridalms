@@ -175,6 +175,29 @@ export async function assignmentById(
   return row ? assignmentOf(row) : null;
 }
 
+/**
+ * Assigned work that opened in the last week and whose students have not
+ * yet been told, as work set to open later is told about once it does. The
+ * rows are claimed, so two replicas never tell the same work twice.
+ */
+export async function openedUntold(
+  tx: Tx,
+  input: { tenantId: string; now: Date; limit: number },
+): Promise<AssignmentRow[]> {
+  const rows = await tx.execute<AssignmentRecord>(sql`
+    select ${assignmentColumns} from core.assignments a
+    where a.tenant_id = ${input.tenantId}::uuid and a.status = 'active' and a.state = 'published'
+      and a.available_from <= ${input.now.toISOString()}::timestamptz
+      and a.available_from > ${input.now.toISOString()}::timestamptz - interval '7 days'
+      and not exists (select 1 from core.notifications n
+        where n.tenant_id = a.tenant_id and n.subject_type = 'assignment'
+          and n.subject_id = a.id and n.kind = 'assignment')
+    order by a.available_from
+    limit ${input.limit}
+    for update of a skip locked`);
+  return rows.map(assignmentOf);
+}
+
 /** A class's assignments still in use, in the order they fall due, drafts last. */
 export async function classAssignments(
   tx: Tx,
@@ -983,16 +1006,41 @@ export async function insertAttempt(
     number: number;
     isLate: boolean;
     userId: string;
+    fromVersion?: number;
   },
 ): Promise<string> {
   const [row] = await tx.execute<{ id: string }>(sql`
     insert into core.submission_attempts (tenant_id, submission_id, student_user_id, number,
-      is_late, submitted_by_user_id)
+      is_late, submitted_by_user_id, from_version)
     values (${input.tenantId}::uuid, ${input.submissionId}::uuid, ${input.studentId}::uuid,
-      ${input.number}, ${input.isLate}, ${input.userId}::uuid)
+      ${input.number}, ${input.isLate}, ${input.userId}::uuid, ${input.fromVersion ?? null}::int)
     returning id`);
   if (!row) throw new Error("attempt was not recorded");
   return row.id;
+}
+
+/**
+ * The attempt a student's own hand-in from this draft version already made,
+ * while it is still their latest, so a retried request returns it.
+ */
+export async function attemptFromVersion(
+  tx: Tx,
+  input: {
+    tenantId: string;
+    submissionId: string;
+    studentId: string;
+    fromVersion: number;
+  },
+): Promise<string | null> {
+  const [row] = await tx.execute<{
+    id: string;
+    from_version: number | null;
+  }>(sql`
+    select id, from_version from core.submission_attempts
+    where tenant_id = ${input.tenantId}::uuid and submission_id = ${input.submissionId}::uuid
+      and status = 'active' and submitted_by_user_id = ${input.studentId}::uuid
+    order by number desc limit 1`);
+  return row && row.from_version === input.fromVersion ? row.id : null;
 }
 
 /** An attempt is withdrawn only while nobody has assessed it. */

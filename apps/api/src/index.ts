@@ -11,6 +11,7 @@ import { createApp } from "./app";
 import { startProgramReruns } from "./coding/rerun";
 import { createJavaScriptRunner, createPythonRunner } from "./coding/run";
 import { startAdmissionsClock } from "./core/admissions-clock";
+import { startCourseworkClock } from "./core/coursework-clock";
 import { createKeyRing } from "./core/keys";
 import { createLoginIndex, startLoginIndex } from "./core/login-index";
 import { startPartitionUpkeep } from "./core/partitions";
@@ -259,6 +260,20 @@ const stopAdmissionsClock = env.CELL_WORKER_URL
     })
   : null;
 
+// Work assigned to open later tells its students and families once it opens.
+const stopCourseworkClock = env.CELL_WORKER_URL
+  ? startCourseworkClock({
+      cell,
+      directory,
+      cellId: env.CELL_ID,
+      channels: {
+        email: gateways.email !== null,
+        sms: Boolean(env.SMS_WEBHOOK_URL),
+      },
+      intervalMs: 60_000,
+    })
+  : null;
+
 const stopQuizClock = env.CELL_WORKER_URL
   ? startQuizClock({
       cell,
@@ -304,6 +319,7 @@ async function shutdown() {
   await stopDelivery?.();
   await stopUpkeep?.();
   await stopQuizClock?.();
+  await stopCourseworkClock?.();
   await stopAdmissionsClock?.();
   await stopPartitions?.();
   await stopProgramReruns?.();

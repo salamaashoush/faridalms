@@ -1425,3 +1425,70 @@ describe("a link for an adult's own password", () => {
     ).toMatchObject({ message: "auth.too_many_attempts" });
   });
 });
+
+describe("who teaches what", () => {
+  test("a student's record names their homeroom's teachers", async () => {
+    const api = await signedIn("northwind", login("principal"));
+    const homeroom = (await api.classes.directory({})).rows.find(
+      (row) => row.students > 0 && row.teachers.length > 0,
+    );
+    if (!homeroom) throw new Error("seed homeroom with a teacher");
+    const record = await api.classes.record({ id: homeroom.id });
+    const student = record.roster[0];
+    if (!student) throw new Error("seed student");
+    const seen = await api.people.student({ id: student.userId });
+    expect(seen.homeroom).toMatchObject({ classId: homeroom.id });
+    expect(seen.homeroom?.teachers.map((row) => row.userId)).toEqual(
+      record.teachers
+        .filter((row) => row.role === "teacher")
+        .map((row) => row.userId),
+    );
+    expect(seen.homeroom?.teachers.length).toBeGreaterThan(0);
+  });
+
+  test("a member of staff's record lists the classes they teach this year, open where the viewer may", async () => {
+    const office = await signedIn("northwind", login("principal"));
+    const teacher = await signedIn("northwind", login("teacher"));
+    const me = await teacher.identity.currentUser();
+    const mine = (await teacher.classes.mine({})).rows;
+    expect(mine.length).toBeGreaterThan(0);
+
+    const read = await office.people.person({ id: me.id });
+    expect(read.teaching?.classes.map((row) => row.id).toSorted()).toEqual(
+      mine.map((row) => row.id).toSorted(),
+    );
+    expect(read.teaching?.classes.every((row) => row.canOpen)).toBe(true);
+
+    const staff = await Promise.all(
+      (await office.people.staff({ role: ["teacher"] })).rows.map((row) =>
+        office.people.person({ id: row.id }),
+      ),
+    );
+    const subjects = staff
+      .flatMap((row) => row.teaching?.classes ?? [])
+      .filter((row) => row.classType === "scheduled");
+    expect(subjects.length).toBeGreaterThan(0);
+    expect(subjects.every((row) => row.subject !== null)).toBe(true);
+    expect(subjects.every((row) => row.homeroomTitleEn !== null)).toBe(true);
+
+    const colleague = staff.find(
+      (row) => row.id !== me.id && (row.teaching?.classes.length ?? 0) > 0,
+    );
+    if (!colleague) throw new Error("seed colleague who teaches");
+    const theirs = await teacher.people.person({ id: colleague.id });
+    expect(theirs.teaching?.classes.length).toBeGreaterThan(0);
+    for (const row of theirs.teaching?.classes ?? [])
+      expect(row.canOpen).toBe(
+        await teacher.classes.record({ id: row.id }).then(
+          () => true,
+          () => false,
+        ),
+      );
+
+    const parent = await signedIn("northwind", login("parent"));
+    const self = await parent.people.person({
+      id: (await parent.identity.currentUser()).id,
+    });
+    expect(self.teaching).toBeNull();
+  });
+});

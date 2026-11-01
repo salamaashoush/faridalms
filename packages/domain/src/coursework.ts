@@ -28,6 +28,7 @@ export const SUBMISSION_FORMATS = [
   "online",
   "files",
   "both",
+  "online_and_files",
   "none",
   "quiz",
   "discussion",
@@ -58,6 +59,7 @@ export const PEER_FORMATS: readonly SubmissionFormat[] = [
   "online",
   "files",
   "both",
+  "online_and_files",
 ];
 
 /**
@@ -424,19 +426,45 @@ export function assignmentPhase(
   const at = now.getTime();
   if (schedule.availableFrom && at < millis(schedule.availableFrom))
     return "scheduled";
-  if (!schedule.dueAt || at <= millis(schedule.dueAt) + GRACE_MS)
+  if (schedule.dueAt && at <= millis(schedule.dueAt) + GRACE_MS)
     return "assigned";
-  if (
-    schedule.latePolicy === "refuse" ||
-    (schedule.closesAt && at > millis(schedule.closesAt))
-  )
-    return "closed";
+  if (schedule.closesAt && at > millis(schedule.closesAt)) return "closed";
+  if (!schedule.dueAt) return "assigned";
+  if (schedule.latePolicy === "refuse") return "closed";
   return "past_due";
 }
 
 /** Whether work handed in at `at` against this due date is late. */
 export function isLate(dueAt: string | Date | null, at: Date): boolean {
   return dueAt !== null && at.getTime() > millis(dueAt) + GRACE_MS;
+}
+
+export type HandInIssue =
+  | "coursework.nothing_to_hand_in"
+  | "coursework.written_needed"
+  | "coursework.files_needed";
+
+/** What the work lacks for its format to be handed in, or null when it holds it. */
+export function handInIssue(
+  format: SubmissionFormat,
+  work: { written: boolean; files: boolean },
+): HandInIssue | null {
+  switch (format) {
+    case "online":
+      return work.written ? null : "coursework.nothing_to_hand_in";
+    case "files":
+      return work.files ? null : "coursework.nothing_to_hand_in";
+    case "both":
+      return work.written || work.files
+        ? null
+        : "coursework.nothing_to_hand_in";
+    case "online_and_files":
+      if (!work.written && !work.files) return "coursework.nothing_to_hand_in";
+      if (!work.written) return "coursework.written_needed";
+      return work.files ? null : "coursework.files_needed";
+    default:
+      return null;
+  }
 }
 
 /** Whether a student may hand in now, given how many times they already have. */

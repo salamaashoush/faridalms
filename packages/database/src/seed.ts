@@ -15,7 +15,7 @@ import {
   STARTERS,
   starterChrome,
 } from "@faridalms/domain/site-templates";
-import { schoolDays } from "@faridalms/domain/timetable";
+import { DEFAULT_PERIODS, schoolDays } from "@faridalms/domain/timetable";
 import { localizedSections, pagePlainText } from "@faridalms/domain/website";
 import { and, eq, sql } from "drizzle-orm";
 
@@ -381,36 +381,20 @@ async function seedYear(tx: Tx, tenantId: string, schoolId: string) {
     labelAr: `الأسبوع ${week.number}`,
   }));
   await tx.insert(academicWeeks).values(weeks);
-  const periods: [
-    code: string,
-    en: string,
-    ar: string,
-    kind: "lesson" | "registration" | "break",
-    start: string,
-    end: string,
-  ][] = [
-    ["reg", "Registration", "التسجيل", "registration", "07:45", "08:00"],
-    ["1", "Period 1", "الحصة الأولى", "lesson", "08:00", "08:45"],
-    ["2", "Period 2", "الحصة الثانية", "lesson", "08:50", "09:35"],
-    ["3", "Period 3", "الحصة الثالثة", "lesson", "09:40", "10:25"],
-    ["break", "Break", "الفسحة", "break", "10:25", "10:55"],
-    ["4", "Period 4", "الحصة الرابعة", "lesson", "10:55", "11:40"],
-    ["5", "Period 5", "الحصة الخامسة", "lesson", "11:45", "12:30"],
-    ["6", "Period 6", "الحصة السادسة", "lesson", "12:35", "13:20"],
-  ];
   await tx.insert(classPeriods).values(
-    periods.map(([code, en, ar, kind, start, end], index) => ({
+    DEFAULT_PERIODS.map((period, index) => ({
       tenantId,
       orgId: schoolId,
       schoolYearId: yearId,
-      code,
-      nameEn: en,
-      nameAr: ar,
+      code: period.code,
+      nameEn: period.nameEn,
+      nameAr: period.nameAr,
       sequence: index + 1,
-      kind,
-      startTime: start,
-      endTime: end,
-      officialAttendance: kind === "registration",
+      kind: period.kind,
+      startTime: period.startTime,
+      endTime: period.endTime,
+      officialAttendance: period.official,
+      weekdays: [...period.weekdays],
       validDuring: `[${YEAR.start},${YEAR.end})`,
     })),
   );

@@ -41,3 +41,85 @@ describe("notice emails", () => {
     expect(western.text).toContain("14 سبتمبر 2026");
   });
 });
+
+const feedbackLine = (params: Record<string, unknown>, locale: "en" | "ar") =>
+  render({
+    locale,
+    digits: "latn",
+    channel: "sms",
+    school: "Acme",
+    items: [{ kind: "feedback", params: { title: "Letters home", ...params } }],
+  }).text;
+
+describe("teaching notices", () => {
+  const assigned = {
+    kind: "assignment" as const,
+    params: {
+      title: "Letters home",
+      titleAr: "رسائل إلى البيت",
+      className: "Arabic 5A",
+      classNameAr: "العربية ٥أ",
+      date: "2026-11-12",
+    },
+  };
+
+  it("tell a student and a family about new work, naming the child to the family", () => {
+    const student = render({
+      locale: "en",
+      digits: "latn",
+      channel: "email",
+      school: "Acme School",
+      items: [assigned],
+    });
+    expect(student.subject).toBe(
+      "Acme School: New work in Arabic 5A: Letters home, due November 12, 2026.",
+    );
+    const family = render({
+      locale: "ar",
+      digits: "latn",
+      channel: "email",
+      school: "مدرسة أكمي",
+      items: [
+        {
+          ...assigned,
+          params: {
+            ...assigned.params,
+            studentName: "Salama",
+            studentNameAr: "سلامة",
+          },
+        },
+      ],
+    });
+    expect(family.text).toContain(
+      "واجب جديد لـسلامة في العربية ٥أ: رسائل إلى البيت",
+    );
+  });
+
+  it("say whether returned work was marked or sent back to revise", () => {
+    expect(feedbackLine({}, "en")).toBe(
+      "Acme: Your work on Letters home came back with your teacher's feedback.",
+    );
+    expect(feedbackLine({ revise: true, studentName: "Salama" }, "en")).toBe(
+      "Acme: Salama's work on Letters home came back to revise.",
+    );
+    expect(feedbackLine({ studentNameAr: "سلامة" }, "ar")).toBe(
+      "Acme: صُحِّح عمل سلامة في Letters home وأُعيد إليه.",
+    );
+  });
+
+  it("announce a period's grades in the reader's language", () => {
+    const grades = {
+      kind: "grades" as const,
+      params: { title: "Term 1", titleAr: "الفصل الأول", className: "Science" },
+    };
+    expect(
+      render({
+        locale: "ar",
+        digits: "latn",
+        channel: "sms",
+        school: "Acme",
+        items: [grades],
+      }).text,
+    ).toBe("Acme: صدرت درجاتك عن الفصل الأول في Science.");
+  });
+});

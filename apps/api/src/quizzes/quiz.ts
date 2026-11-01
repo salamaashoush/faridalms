@@ -433,6 +433,7 @@ export async function handInAttempt(
     studentId: string;
     attempt: number;
     isLate: boolean;
+    fromVersion?: number;
   },
 ): Promise<{ attemptId: string; returned: boolean } | null> {
   const document = await publishedQuiz(unit, input.assignment.id);
@@ -452,6 +453,7 @@ export async function handInAttempt(
     number: input.attempt,
     isLate: input.isLate,
     userId: input.studentId,
+    fromVersion: input.fromVersion,
   });
   const blocks = checkBlocks(quizzes.of(input.attempt));
   await markQuizAttempt(unit.tx, {

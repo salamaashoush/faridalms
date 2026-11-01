@@ -259,3 +259,36 @@ test("a student reaches their own record from the user menu", async ({
     page.getByRole("tab", { name: "Account", exact: true }),
   ).toHaveAttribute("aria-selected", "true");
 });
+
+test("a teacher's record lists what they teach, and their students' records name them as homeroom teacher", async ({
+  page,
+}) => {
+  const [admin, teacher] = await Promise.all([
+    apiAs("admin"),
+    apiAs("teacher"),
+  ]);
+  const me = await teacher.identity.currentUser();
+  const homeroom = (await teacher.classes.mine({})).rows.find(
+    (row) => row.classType === "homeroom",
+  );
+  if (!homeroom) throw new Error("the seeded teacher keeps no homeroom");
+  const pupil = (await admin.classes.record({ id: homeroom.id })).roster[0];
+  if (!pupil) throw new Error("the seeded homeroom has no students");
+  const name = me.nameEn ?? "";
+
+  await signIn(page, "admin");
+  await page.goto(`/people/${me.id}`);
+  await untilHydrated(page);
+  const teaching = page.getByRole("region", { name: "Teaching" });
+  await expect(teaching.getByText(/^Classes and subjects in /)).toBeVisible();
+  await expect(teaching.getByText("Homeroom teacher")).toBeVisible();
+  await teaching.getByRole("link", { name: homeroom.titleEn ?? "" }).click();
+  await expect(page).toHaveURL(new RegExp(`/classes/${homeroom.id}`));
+
+  await page.goto(`/students/${pupil.userId}`);
+  await untilHydrated(page);
+  await expect(page.getByText("Homeroom teacher:").first()).toBeVisible();
+  await page.getByRole("link", { name, exact: true }).first().click();
+  await expect(page).toHaveURL(new RegExp(`/people/${me.id}`));
+  await expect(page.getByRole("heading", { level: 1, name })).toBeVisible();
+});

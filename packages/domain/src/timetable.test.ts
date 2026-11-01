@@ -3,7 +3,11 @@ import { describe, expect, it } from "vitest";
 
 import {
   changeLessonSchema,
+  DEFAULT_PERIODS,
   isoWeekday,
+  periodChanged,
+  periodIssue,
+  savePeriodsSchema,
   schoolDays,
   staffAbsenceSchema,
   weekDates,
@@ -84,5 +88,67 @@ describe("one day's lesson changes", () => {
         to: "2026-10-05",
       }),
     ).toBe(false);
+  });
+});
+
+const day = (
+  startTime: string,
+  endTime: string,
+  weekdays: number[] = [1, 2, 3, 4, 5],
+  official = false,
+) => ({
+  nameEn: "Period",
+  nameAr: "",
+  kind: "lesson" as const,
+  startTime,
+  endTime,
+  official,
+  weekdays,
+});
+const save = (periods: ReturnType<typeof day>[]) =>
+  v.safeParse(savePeriodsSchema, {
+    yearId: "0192f0a4-7a1c-7b5a-9a2e-5e6f1f2a3d01",
+    from: "2026-11-16",
+    known: [],
+    periods,
+  });
+const messages = (periods: ReturnType<typeof day>[]) =>
+  save(periods).issues?.map((issue) => issue.message) ?? [];
+
+describe("a year's school day", () => {
+  it("starts from a default whose times run in order and take one register a day", () => {
+    expect(periodIssue(DEFAULT_PERIODS)).toBeNull();
+    expect(DEFAULT_PERIODS.filter((period) => period.official)).toHaveLength(1);
+  });
+
+  it("refuses periods that overlap on a day they share, and allows them on different days", () => {
+    expect(messages([day("08:00", "08:45"), day("08:30", "09:15")])).toEqual([
+      "validation.slot_overlap",
+    ]);
+    expect(
+      save([day("08:00", "08:45", [1, 2]), day("08:30", "09:15", [3, 4])])
+        .success,
+    ).toBe(true);
+    expect(
+      messages([
+        day("08:00", "08:45", [1], true),
+        day("09:00", "09:45", [1], true),
+      ]),
+    ).toEqual(["validation.official_twice"]);
+  });
+
+  it("needs a name, an end after the start and at least one day", () => {
+    expect(messages([day("09:00", "08:00")])).toContain("validation.end_time");
+    expect(messages([{ ...day("08:00", "08:45"), nameEn: "" }])).toContain(
+      "validation.name_required",
+    );
+    expect(save([day("08:00", "08:45", [])]).success).toBe(false);
+  });
+
+  it("tells a changed period from one that stays as it was", () => {
+    const base = day("08:00", "08:45", [1, 2]);
+    expect(periodChanged(base, { ...base, weekdays: [2, 1] })).toBe(false);
+    expect(periodChanged(base, { ...base, endTime: "08:50" })).toBe(true);
+    expect(periodChanged(base, { ...base, weekdays: [1] })).toBe(true);
   });
 });

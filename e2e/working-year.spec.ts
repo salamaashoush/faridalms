@@ -177,6 +177,9 @@ test("directories answer for the year asked, refuse an unknown one and place stu
     year: { id: source.id, lifecycle: "closed" },
     access: { manage: false, enrol: false },
   });
+  expect(
+    await admin.attendance.classSummary({ classId: first.id }),
+  ).toMatchObject({ canRecord: false });
 });
 
 test("administrators switch the school year in the class directory and keep it in the address", async ({
@@ -242,6 +245,13 @@ test("administrators switch the school year in the class directory and keep it i
   await expect(
     page.getByRole("table").getByRole("link", { name: kept.title }),
   ).toBeVisible();
+
+  // A closed year's class keeps its registers to read and takes no new one.
+  await page.goto(`/classes/${kept.id}?tab=attendance`);
+  await expect(page.getByText(/registers? taken this year/)).toBeVisible();
+  await expect(
+    page.getByRole("link", { name: "Take register", exact: true }),
+  ).toHaveCount(0);
 
   await page.goto(`/admin/classes?year=${crypto.randomUUID()}`);
   await expect(page.getByText("Page not found")).toBeVisible();

@@ -4,6 +4,10 @@ import { validationMessage } from "~/utils/validation";
 
 /** Followed by the last day a register marks the student, which the change would undo. */
 const REGISTERS_AFTER = "enrollment.registers_after:";
+/** Followed by the first day a register was taken in a period the change rewrites. */
+export const PERIOD_REGISTERS_AFTER = "class_period.registers_after:";
+/** Followed by the first day cover is arranged in a period the change ends. */
+export const PERIOD_COVER_AFTER = "class_period.cover_after:";
 
 export class HttpError extends Error {
   readonly status: number;
@@ -69,6 +73,8 @@ export function getMessageFromError(error: unknown): string {
         return m.errorStandardsJudgement();
       case "learning.audience":
         return m.errorLearningAudience();
+      case "learning.targets_needed":
+        return m.lrnErrTargetsNeeded();
       case "templates.reviewed":
         return m.errorLibraryReviewed();
       case "templates.not_owner":
@@ -149,6 +155,10 @@ export function getMessageFromError(error: unknown): string {
         return m.errorCourseworkClosed();
       case "coursework.nothing_to_hand_in":
         return m.errorCourseworkNothingToHandIn();
+      case "coursework.written_needed":
+        return m.errorCourseworkWrittenNeeded();
+      case "coursework.files_needed":
+        return m.errorCourseworkFilesNeeded();
       case "coursework.cannot_undo":
         return m.errorCourseworkCannotUndo();
       case "coursework.brief_empty":
@@ -229,10 +239,6 @@ export function getMessageFromError(error: unknown): string {
         return m.siteIssueOrder();
       case "content.link":
         return m.siteIssueLink();
-      case "message_draft.revision_conflict":
-        return m.messageDraftConflict();
-      case "message_draft.incomplete":
-        return m.messageDraftIncomplete();
       case "announcements.archived":
         return m.annErrArchived();
       case "announcements.already_out":
@@ -331,8 +337,6 @@ export function getMessageFromError(error: unknown): string {
         return m.repNeedsTime();
       case "attendance.report_decided":
         return m.repAlreadyDecided();
-      case "enrollment.scheduled_conflict":
-        return m.enrollmentScheduledConflict();
       case "timetable.busy":
         return m.ttBusyError();
       case "timetable.outside_year":
@@ -341,6 +345,10 @@ export function getMessageFromError(error: unknown): string {
         return m.ttNotSchoolDay();
       case "timetable.no_period":
         return m.ttNoPeriod();
+      case "class_period.outside_year":
+        return m.periodsOutsideYear();
+      case "class_period.no_days":
+        return m.periodsNoDays();
       case "timetable.not_in_group":
         return m.ttNotInGroup();
       case "timetable.teacher":
@@ -386,24 +394,6 @@ export function getMessageFromError(error: unknown): string {
         return m.rolloverPlanStale();
       case "rollover.exists":
         return m.rolloverExists();
-      case "academic_year.not_found":
-        return m.academicYearNotFound();
-      case "assignment.revision_conflict":
-        return m.assignmentRevisionConflict();
-      case "assignment.not_found":
-        return m.assignmentNotFound();
-      case "assignment.subject_not_taught":
-        return m.assignmentSubjectNotTaught();
-      case "assignment.responsibility":
-        return m.assignmentResponsibility();
-      case "assignment.archived":
-        return m.assignmentArchivedError();
-      case "assignment.resource_missing":
-        return m.assignmentResourceMissing();
-      case "assignment.class_changed":
-        return m.assignmentClassChanged();
-      case "assignment.not_draft":
-        return m.assignmentNotDraft();
       case "submission.scheduled":
         return m.submissionScheduledError();
       case "submission.closed":
@@ -426,12 +416,6 @@ export function getMessageFromError(error: unknown): string {
         return m.submissionFileMissing();
       case "submission.file_too_large":
         return m.submissionFileTooLarge();
-      case "assessment.not_found":
-        return m.assessmentNotFound();
-      case "assessment.score_range":
-        return m.assessmentScoreRange();
-      case "assessment.rubric_mismatch":
-        return m.assessmentRubricMismatch();
       case "file.too_large":
         return m.fileTooLarge();
       case "file.content_mismatch":
@@ -546,22 +530,6 @@ export function getMessageFromError(error: unknown): string {
         return m.fileQuotaModule();
       case "file.quota_person":
         return m.fileQuotaPerson();
-      case "group.name_conflict":
-        return m.groupNameConflict();
-      case "group.student_not_enrolled":
-        return m.groupStudentNotEnrolled();
-      case "group.not_found":
-        return m.groupNotFound();
-      case "message.empty":
-        return m.messageEmptyError();
-      case "message.file_missing":
-        return m.messageFileMissing();
-      case "announcement.revision_conflict":
-        return m.announcementRevisionConflict();
-      case "announcement.not_found":
-        return m.announcementNotFound();
-      case "announcement.incomplete":
-        return m.announcementIncomplete();
       case "site.slug_taken":
         return m.siteErrSlugTaken();
       case "site.home":
@@ -821,62 +789,8 @@ export function getMessageFromError(error: unknown): string {
         return m.lrnErrSortGroup();
       case "module_class.exists":
         return m.lrnErrClassTwice();
-      case "access.escalation":
-        return m.accessEscalation();
-      case "access.revision_conflict":
-        return m.accessRevisionConflict();
-      case "access.not_found":
-        return m.accessNotFound();
-      case "access.base_role_fixed":
-        return m.accessBaseRoleFixed();
-      case "access.base_role_mismatch":
-        return m.accessBaseRoleMismatch();
-      case "access.last_administrator":
-        return m.accessLastAdministrator();
-      case "access.self_lockout":
-        return m.accessSelfLockout();
-      case "access.user_not_found":
-        return m.accessUserNotFound();
-      case "management.self_admin_removal":
-        return m.managementSelfAdminRemoval();
-      case "management.email_in_use":
-        return m.managementEmailInUse();
-      case "management.account_not_found":
-        return m.managementAccountNotFound();
-      case "management.role_relationships":
-        return m.managementRoleRelationships();
-      case "management.birthdate_future":
-        return m.managementBirthdateFuture();
-      case "management.class_not_current":
-        return m.managementClassNotCurrent();
-      case "management.parents_invalid":
-        return m.managementParentsInvalid();
-      case "management.student_account_invalid":
-        return m.managementStudentAccountInvalid();
-      case "management.account_linked":
-        return m.managementAccountLinked();
-      case "management.student_not_found":
-        return m.managementStudentNotFound();
-      case "management.teachers_inactive":
-        return m.managementTeachersInactive();
-      case "management.subject_duplicate":
-        return m.managementSubjectDuplicate();
-      case "management.subject_not_found":
-        return m.managementSubjectNotFound();
-      case "management.class_name_conflict":
-        return m.managementClassNameConflict();
-      case "management.class_not_found":
-        return m.managementClassNotFound();
-      case "management.subject_code_conflict":
-        return m.managementSubjectCodeConflict();
       case "student.reference_taken":
         return m.managementReferenceConflict();
-      case "management.move_date_future":
-        return m.managementMoveDateFuture();
-      case "management.move_date_early":
-        return m.managementMoveDateEarly();
-      case "assignment.no_student_record":
-        return m.assignmentNoStudentRecord();
       case "auth.invalid_credentials":
         return m.authInvalidCredentials();
       case "badges.not_young":
@@ -885,10 +799,6 @@ export function getMessageFromError(error: unknown): string {
         return m.accountNotYoung();
       case "account.disabled":
         return m.accountDisabled();
-      case "grading.score_exceeds_max":
-        return m.gradingScoreExceedsMax();
-      case "assignment.due_in_past":
-        return m.assignmentDueInPast();
       case "calendar.ends_before":
         return m.calEndsBefore();
       case "calendar.times_needed":
@@ -908,11 +818,17 @@ export function getMessageFromError(error: unknown): string {
     }
     if (error.message.startsWith("validation."))
       return validationMessage({ message: error.message });
-    if (error.message.startsWith("assignment.incomplete:"))
-      return m.assignmentIncomplete();
     if (error.message.startsWith(REGISTERS_AFTER))
       return m.enrollmentRegistersAfter({
         date: formatDate(error.message.slice(REGISTERS_AFTER.length)),
+      });
+    if (error.message.startsWith(PERIOD_REGISTERS_AFTER))
+      return m.periodsRegistersAfter({
+        date: formatDate(error.message.slice(PERIOD_REGISTERS_AFTER.length)),
+      });
+    if (error.message.startsWith(PERIOD_COVER_AFTER))
+      return m.periodsCoverAfter({
+        date: formatDate(error.message.slice(PERIOD_COVER_AFTER.length)),
       });
     return error.message;
   }

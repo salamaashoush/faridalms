@@ -1,4 +1,8 @@
 import { paintDaysSchema, targetDaysSchema } from "@faridalms/domain/calendar";
+import {
+  periodsQuerySchema,
+  savePeriodsSchema,
+} from "@faridalms/domain/timetable";
 import { saveYearSchema, yearLifecycleSchema } from "@faridalms/domain/years";
 import { createServerFn } from "@tanstack/react-start";
 
@@ -36,3 +40,11 @@ export const paintYearDays = createServerFn({ method: "POST" })
 export const setYearTarget = createServerFn({ method: "POST" })
   .validator(checked(targetDaysSchema))
   .handler(({ data }) => backend().years.target(data));
+
+export const getYearPeriods = createServerFn({ method: "GET" })
+  .validator(checked(periodsQuerySchema))
+  .handler(({ data }) => record(backend().years.periods(data)));
+
+export const saveYearPeriods = createServerFn({ method: "POST" })
+  .validator(checked(savePeriodsSchema))
+  .handler(({ data }) => backend().years.savePeriods(data));

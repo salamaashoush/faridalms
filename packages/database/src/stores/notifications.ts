@@ -64,11 +64,12 @@ export async function insertNotifications(
   }));
 }
 
-/** People who already hold an unread notification about the same subject. */
+/** People who already hold an unread notification of the same kind about the same subject. */
 export async function holdingUnread(
   tx: Tx,
   input: {
     tenantId: string;
+    kind: NotificationKind;
     subjectType: string;
     subjectId: string;
     userIds: readonly string[];
@@ -77,7 +78,8 @@ export async function holdingUnread(
   if (input.userIds.length === 0) return new Set();
   const rows = await tx.execute<{ user_id: string }>(sql`
     select distinct user_id from core.notifications
-    where tenant_id = ${input.tenantId}::uuid and subject_type = ${input.subjectType}
+    where tenant_id = ${input.tenantId}::uuid and kind = ${input.kind}
+      and subject_type = ${input.subjectType}
       and subject_id = ${input.subjectId}::uuid and status = 'active' and read_at is null
       and created_at > statement_timestamp() - interval '14 days'
       and user_id = any(${uuidArray(input.userIds)})`);

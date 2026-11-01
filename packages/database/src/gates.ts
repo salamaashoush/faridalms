@@ -53,7 +53,7 @@ outside_allowed(name, role, privilege) as (values
   ('ops.sms_suppressions', 'worker', 'INSERT'), ('ops.sms_suppressions', 'worker', 'DELETE'),
   ('pgboss.queue', 'app', 'SELECT')),
 definer_allowed(proc) as (values
-  ('app.tenant_lifecycle()'), ('app.search(text,text[],uuid[],real,uuid,integer)'), ('app.index_user()'),
+  ('app.tenant_lifecycle()'), ('app.search(text,text[],uuid[],real,uuid,integer,uuid)'), ('app.index_user()'),
   ('app.index_user_orgs()'), ('app.index_document()'), ('app.index_translation()'),
   ('app.index_host()'), ('app.index_message()'),
   ('app.ensure_partitions(integer,date)'), ('app.change_year_span(uuid,daterange,integer)'))

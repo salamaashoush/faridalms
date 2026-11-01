@@ -164,6 +164,18 @@ const LINES: Record<"en" | "ar", Record<NotificationKind, Line>> = {
         : p.received
           ? `We received the application for ${p.title || p.titleAr || "your child"}${p.gradeName ? ` to ${p.gradeName}` : ""}. Its number is ${p.reference ?? ""}.`
           : `New application for ${p.title || p.titleAr || "a child"}${p.gradeName ? ` to ${p.gradeName}` : ""}.`,
+    assignment: (p) =>
+      `New work${p.studentName ? ` for ${p.studentName}` : ""}${p.className ? ` in ${p.className}` : ""}: ${p.title ?? ""}${p.date ? `, due ${p.date}` : ""}.`,
+    feedback: (p) =>
+      p.studentName
+        ? p.revise
+          ? `${p.studentName}'s work on ${p.title ?? "an assignment"} came back to revise.`
+          : `${p.studentName}'s work on ${p.title ?? "an assignment"} was marked and returned.`
+        : p.revise
+          ? `Your work on ${p.title ?? "an assignment"} came back for you to revise.`
+          : `Your work on ${p.title ?? "an assignment"} came back with your teacher's feedback.`,
+    grades: (p) =>
+      `${p.studentName ? `${p.studentName}'s` : "Your"} grades for ${p.title ?? "the term"}${p.className ? ` in ${p.className}` : ""} are out.`,
     correction: (p) =>
       p.report === "accepted"
         ? `The school updated ${p.studentName ?? "your child"}'s medical summary with the change you asked for.`
@@ -212,6 +224,18 @@ const LINES: Record<"en" | "ar", Record<NotificationKind, Line>> = {
         : p.received
           ? `وصلنا طلب التحاق ${p.titleAr || p.title || "طفلكم"}${p.gradeNameAr || p.gradeName ? ` بـ${p.gradeNameAr || p.gradeName}` : ""}، ورقمه ${p.reference ?? ""}.`
           : `طلب التحاق جديد لـ${p.titleAr || p.title || "أحد الأطفال"}${p.gradeNameAr || p.gradeName ? ` في ${p.gradeNameAr || p.gradeName}` : ""}.`,
+    assignment: (p) =>
+      `واجب جديد${p.studentName ? ` لـ${p.studentName}` : ""}${p.className ? ` في ${p.className}` : ""}: ${p.title ?? ""}${p.date ? `، وموعد تسليمه ${p.date}` : ""}.`,
+    feedback: (p) =>
+      p.studentName
+        ? p.revise
+          ? `أُعيد عمل ${p.studentName} في ${p.title ?? "الواجب"} ليراجعه.`
+          : `صُحِّح عمل ${p.studentName} في ${p.title ?? "الواجب"} وأُعيد إليه.`
+        : p.revise
+          ? `أُعيد إليك عملك في ${p.title ?? "الواجب"} لتراجعه.`
+          : `أُعيد إليك عملك في ${p.title ?? "الواجب"} مع ملاحظات معلمك.`,
+    grades: (p) =>
+      `صدرت ${p.studentName ? `درجات ${p.studentName}` : "درجاتك"} عن ${p.title ?? "الفصل الدراسي"}${p.className ? ` في ${p.className}` : ""}.`,
     correction: (p) =>
       p.report === "accepted"
         ? `حدّثت المدرسة ملخص ${p.studentName ?? "طفلك"} الطبي بالتعديل الذي طلبته.`
