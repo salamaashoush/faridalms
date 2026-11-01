@@ -87,7 +87,7 @@ test("the home page opens with its hero and the school's actions", async ({
   await expect(page.locator("html [dir=rtl]").first()).toBeVisible();
 });
 
-test("a family sends an enquiry and the school finds it in the website's enquiries", async ({
+test("a family sends an enquiry and the school finds it in the enquiry inbox", async ({
   browser,
   page,
 }) => {
@@ -112,7 +112,7 @@ test("a family sends an enquiry and the school finds it in the website's enquiri
   await visitorContext.close();
 
   await signIn(page, "admin");
-  await page.goto("/admin/site?tab=enquiries");
+  await page.goto("/admissions/enquiries");
   await untilHydrated(page);
-  await expect(page.getByText(name).first()).toBeVisible();
+  await expect(page.getByRole("link", { name })).toBeVisible();
 });

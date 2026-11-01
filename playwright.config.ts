@@ -44,6 +44,7 @@ export default defineConfig({
     "young.spec.ts",
     "badges.spec.ts",
     "site.spec.ts",
+    "admissions.spec.ts",
     "hosts.spec.ts",
     "sign-in-page.spec.ts",
     "home.spec.ts",
