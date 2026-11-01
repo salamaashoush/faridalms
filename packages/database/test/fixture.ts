@@ -348,6 +348,19 @@ export async function completeFixture(
     plainText: "How the school uses personal data.",
     createdByUserId: userId,
   });
+  // The collab role sees only collaborative documents. Without one, its
+  // reads touch no row and never reach the tenant check they must fail on.
+  await tx.insert(documents).values({
+    tenantId,
+    hostType: "lesson",
+    hostId: id(),
+    orgId: schoolId,
+    kind: "lesson",
+    schemaVersion: 1,
+    collaborative: true,
+    content: { root: { type: "root", version: 1, children: [] } },
+    plainText: "",
+  });
   await tx.insert(documentTranslations).values({
     tenantId,
     documentId,

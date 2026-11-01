@@ -77,6 +77,9 @@ export function Rollover({
   onClose: () => void;
 }) {
   const data = useSuspenseQuery(rolloverQuery(query)).data;
+  // Saving changes the draft's version, which starts the draft afresh from
+  // what was saved; the confirmation a save led to has to outlive that.
+  const [confirming, setConfirming] = useState(false);
   if (data.state === "applied" && data.outcome)
     return <RolloverApplied data={data} />;
   return (
@@ -85,6 +88,8 @@ export function Rollover({
       data={data}
       query={query}
       onClose={onClose}
+      confirming={confirming}
+      setConfirming={setConfirming}
     />
   );
 }
@@ -297,18 +302,24 @@ function RolloverDraft({
   data,
   query,
   onClose,
+  confirming,
+  setConfirming,
 }: {
   data: Data;
   query: RolloverQuery;
   onClose: () => void;
+  confirming: boolean;
+  setConfirming: (open: boolean) => void;
 }) {
   const queryClient = useQueryClient();
   const leaving = useRef(false);
   const [baseline, setBaseline] = useState(data.plan);
   const [plan, setPlan] = useState(data.plan);
   const [version, setVersion] = useState(data.version);
+  // A plan reconciled with today's placements on reading differs from the
+  // one stored, so it is unsaved until saved again.
+  const [reconciled, setReconciled] = useState(data.reconciled);
   const [problem, setProblem] = useState<string | null>(null);
-  const [confirming, setConfirming] = useState(false);
   const save = useMutation({
     mutationFn: () =>
       saveRollover({ data: { ...query, expectedVersion: version, plan } }),
@@ -372,7 +383,7 @@ function RolloverDraft({
     .filter((group) => group.students.length > 0);
   const planned = new Map(plan.students.map((row) => [row.studentId, row]));
   const total = counts(plan);
-  const dirty = JSON.stringify(plan) !== JSON.stringify(baseline);
+  const dirty = reconciled || JSON.stringify(plan) !== JSON.stringify(baseline);
   const takenCode = plan.classes.find(
     (row) =>
       row.include &&
@@ -417,6 +428,7 @@ function RolloverDraft({
             }
             setVersion(saved.version);
             setBaseline(plan);
+            setReconciled(false);
             await queryClient.invalidateQueries({ queryKey: ["years"] });
             toast.success(m.rolloverSaved());
           }
@@ -427,7 +439,7 @@ function RolloverDraft({
         pending={save.isPending}
         error={failure}
       >
-        {data.reconciled ? (
+        {reconciled ? (
           <p className="rounded-lg bg-muted p-3 text-sm leading-5">
             {m.rolloverReconciled()}
           </p>

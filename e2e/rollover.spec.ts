@@ -27,12 +27,17 @@ async function resolveBlockers(page: Page) {
   }
 }
 
+/** Reviews and applies the plan, unless the form says what still needs a decision. */
 async function applyPlan(page: Page) {
   await page.getByRole("button", { name: "Review and apply" }).click();
-  await page
+  const confirm = page
     .getByRole("dialog")
-    .getByRole("button", { name: "Apply rollover" })
-    .click();
+    .getByRole("button", { name: "Apply rollover" });
+  const problem = page.getByRole("alert").filter({
+    has: page.getByRole("heading", { name: "There is a problem" }),
+  });
+  await expect(confirm.or(problem)).toBeVisible();
+  if (await confirm.isVisible()) await confirm.click();
 }
 
 test("an administrator rolls the current year into the next and opens a new class", async ({
@@ -77,20 +82,28 @@ test("an administrator rolls the current year into the next and opens a new clas
   await page.getByRole("button", { name: "Save plan" }).click();
   await expect(page.getByText("Plan saved")).toBeVisible();
 
-  await applyPlan(page);
   const summary = page.getByText(/^Applied from /);
   const stale = page.getByText(/changed since the plan was saved/);
-  await expect(summary.or(stale)).toBeVisible();
-  // A student placed after the save makes the draft stale; it reconciles with
-  // who is placed now and is applied again, as a person would.
-  if (await stale.isVisible()) {
+  const blocked = page.getByRole("alert").filter({
+    has: page.getByRole("heading", { name: "There is a problem" }),
+  });
+  await applyPlan(page);
+  await expect(summary.or(stale).or(blocked)).toBeVisible();
+  // Students other specs add or place after the save make the draft stale.
+  // Read again, the plan is reconciled with who is placed now, so it is
+  // unsaved until saved; it is settled, saved and applied again, as a person
+  // would, until no placement moved in between.
+  for (let round = 0; round < 5 && !(await summary.isVisible()); round += 1) {
     await page.keyboard.press("Escape");
     await page.reload();
     await untilHydrated(page);
     await resolveBlockers(page);
-    await page.getByRole("button", { name: "Save plan" }).click();
-    await expect(page.getByText("Plan saved")).toBeVisible();
+    if (await page.getByText(/^Placements changed since/).isVisible()) {
+      await page.getByRole("button", { name: "Save plan" }).click();
+      await expect(page.getByText("Plan saved").last()).toBeVisible();
+    }
     await applyPlan(page);
+    await expect(summary.or(stale).or(blocked)).toBeVisible();
   }
   await expect(summary).toBeVisible();
 
