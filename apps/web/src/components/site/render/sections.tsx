@@ -2627,6 +2627,67 @@ function EnquiryForm({ section, context }: Props<"form">) {
   );
 }
 
+/**
+ * The portal's sign-in among the page's own sections: the school's words in
+ * its theme, and the form the platform draws. The builder shows where the
+ * form goes; the portal hands the section its form, or the page of the flow
+ * a person is in.
+ */
+function SignIn({ section, context, first }: Props<"signIn">) {
+  const { data, variant } = section;
+  const t = { locale: context.locale };
+  const system = context.system;
+  const words = system?.ownWords ? null : (
+    <div
+      data-stagger
+      className={cn(
+        "grid content-start gap-5",
+        variant === "stacked" &&
+          "justify-items-center text-center [&_.site-eyebrow]:mx-auto",
+      )}
+    >
+      <Eyebrow field="eyebrow">{data.eyebrow}</Eyebrow>
+      <Heading level={first ? 1 : 2} size="display" field="heading">
+        {data.heading}
+      </Heading>
+      <Lead field="text">{data.text}</Lead>
+    </div>
+  );
+  const form = system ? (
+    <div className="portal-system site-card bg-card p-6 text-card-foreground @3xl/site:p-8">
+      {system.node}
+    </div>
+  ) : (
+    <div aria-hidden className="site-card grid gap-4 p-6 @3xl/site:p-8">
+      <span className="site-label">
+        {m.siteSignInPreviewLogin({}, t)}
+        <span className="site-input block h-11" />
+      </span>
+      <span className="site-label">
+        {m.siteSignInPreviewPassword({}, t)}
+        <span className="site-input block h-11" />
+      </span>
+      <span className="site-button justify-self-stretch text-center">
+        {m.siteSignInPreviewSubmit({}, t)}
+      </span>
+      <span className="site-muted text-sm">{m.siteSignInPreview({}, t)}</span>
+    </div>
+  );
+  if (variant === "split" && words)
+    return (
+      <div className="grid items-center gap-12 @3xl/site:grid-cols-[1fr_minmax(0,28rem)] @4xl/site:gap-16">
+        {words}
+        <div className="relative">{form}</div>
+      </div>
+    );
+  return (
+    <div className="relative mx-auto grid max-w-xl gap-10">
+      {words}
+      {form}
+    </div>
+  );
+}
+
 function QuickLinks({ section, context }: Props<"quickLinks">) {
   const { data, variant } = section;
   return (
@@ -2990,6 +3051,8 @@ export function SiteSection({
         return <QuickLinks section={section} context={context} first={first} />;
       case "embed":
         return <Embed section={section} context={context} first={first} />;
+      case "signIn":
+        return <SignIn section={section} context={context} first={first} />;
     }
     return null;
   })();

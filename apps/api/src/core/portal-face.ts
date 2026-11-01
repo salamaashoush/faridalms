@@ -1,23 +1,55 @@
-import type { ContentDocument } from "@faridalms/domain/content";
+import type { PostalAddress } from "@faridalms/database/tables/tenancy";
 import type { Theme } from "@faridalms/domain/site-theme";
-import type { SiteLocale } from "@faridalms/domain/website";
+import type {
+  PageSection,
+  SiteLocale,
+  SocialLink,
+} from "@faridalms/domain/website";
 
 import {
   publicationsOf,
+  publicMenu,
+  publicPortalPages,
   publicSchool,
-  publishedSignIn,
   siteSettings,
 } from "@faridalms/database/stores/site";
+import { platformName } from "@faridalms/domain/hosts";
+import { buildTemplate, PORTAL_PAGE } from "@faridalms/domain/site-templates";
 import {
   resolveTheme,
   siteChromeSchema,
   siteThemeSchema,
 } from "@faridalms/domain/site-theme";
+import { pageSectionSchema } from "@faridalms/domain/website";
 import * as v from "valibot";
 
 import type { RequestContext } from "./context";
 
 import { withPublicSite } from "./site";
+
+interface FaceLink {
+  id: string;
+  label: string;
+  href: string;
+}
+
+/** The website's frame around the portal page, while the website is live. */
+export interface FaceFrame {
+  /** Where the website answers; the frame's own links lead there. */
+  siteHost: string;
+  tagline: string;
+  utility: FaceLink[];
+  actions: (FaceLink & { style: "primary" | "secondary" })[];
+  menu: {
+    id: string;
+    parentId: string | null;
+    label: string;
+    href: string;
+  }[];
+  footerColumns: { id: string; title: string; links: FaceLink[] }[];
+  footerNote: string;
+  socialLinks: SocialLink[];
+}
 
 export interface PortalFace {
   school: string;
@@ -25,12 +57,24 @@ export interface PortalFace {
   /** Null while the school has never styled its website: the portal keeps the platform's look. */
   theme: Theme | null;
   logoKey: string | null;
-  /** The sign-in page as published, in the language asked when it has one; null for the default. */
+  contact: {
+    address: PostalAddress | null;
+    phone: string | null;
+    email: string | null;
+  };
+  frame: FaceFrame | null;
+  /**
+   * The portal page of the school's site as published, in the language
+   * asked when it has one, or the builder's starter page until the school
+   * publishes its own. Each section says the language it is shown in.
+   */
   page: {
-    body: ContentDocument;
     locale: SiteLocale;
+    title: string;
+    sections: { section: PageSection; locale: SiteLocale }[];
     media: Record<string, string>;
-  } | null;
+    starter: boolean;
+  };
 }
 
 const TTL_MS = 60_000;
@@ -45,10 +89,33 @@ export function forgetFace(slug: string) {
   cache.delete(`${slug}:ar`);
 }
 
+/** Published sections read through the schema, so later fields get their defaults. */
+function shownSections(content: Record<string, unknown>) {
+  const listed = Array.isArray(content.sections) ? content.sections : [];
+  return listed.flatMap((item: unknown) => {
+    const shown = item as { section?: unknown; locale?: unknown };
+    const read = v.safeParse(pageSectionSchema, shown.section);
+    const locale: SiteLocale = shown.locale === "ar" ? "ar" : "en";
+    return read.success ? [{ section: read.output, locale }] : [];
+  });
+}
+
+function starterPage(locale: SiteLocale): PortalFace["page"] {
+  const built = buildTemplate(PORTAL_PAGE.template, locale);
+  return {
+    locale,
+    title: locale === "ar" ? PORTAL_PAGE.title[1] : PORTAL_PAGE.title[0],
+    sections: built.content.map((section) => ({ section, locale })),
+    media: {},
+    starter: true,
+  };
+}
+
 /**
  * What a stranger sees of a school before signing in: its names, logo,
- * theme and the sign-in page's published words. Read as the site role,
- * which reaches nothing unpublished, and kept for a minute.
+ * theme, its website's frame while the website is live, and the portal
+ * page of its site. Read as the site role, which reaches nothing
+ * unpublished, and kept for a minute.
  */
 export async function portalFace(
   context: RequestContext,
@@ -58,6 +125,7 @@ export async function portalFace(
   const key = `${slug}:${locale}`;
   const hit = cache.get(key);
   if (hit && Date.now() - hit.at < TTL_MS) return hit.value;
+  const directory = await context.directory.bySlug(slug);
   const value = await withPublicSite(
     context,
     slug,
@@ -65,7 +133,7 @@ export async function portalFace(
       const [school, settings, pages] = await Promise.all([
         publicSchool(tx, schoolId),
         siteSettings(tx, tenantId, schoolId),
-        publishedSignIn(tx, schoolId),
+        publicPortalPages(tx, schoolId),
       ]);
       const chrome = v.safeParse(siteChromeSchema, settings?.chrome ?? {});
       const theme = v.safeParse(siteThemeSchema, settings?.theme ?? {});
@@ -80,13 +148,55 @@ export async function portalFace(
               })
             ).find((row) => row.fileId === logoFileId)
           : undefined;
-      const page =
+      const published =
         pages.find((row) => row.locale === locale) ??
         pages.find((row) => row.locale === settings?.primaryLocale) ??
         pages[0];
-      const content = page?.content as
-        | { body?: ContentDocument; locale?: SiteLocale }
-        | undefined;
+      const say = (words: { en: string; ar: string }) =>
+        words[locale] || words[settings?.primaryLocale ?? "en"];
+      const frame: FaceFrame | null =
+        settings?.live && chrome.success
+          ? {
+              siteHost:
+                directory?.hosts.site ??
+                platformName(slug, "site", context.domains),
+              tagline:
+                (locale === "ar" ? settings.taglineAr : settings.taglineEn) ||
+                (settings.primaryLocale === "ar"
+                  ? settings.taglineAr
+                  : settings.taglineEn),
+              utility: chrome.output.utility.map((item) => ({
+                id: item.id,
+                label: say(item.label),
+                href: item.href,
+              })),
+              actions: chrome.output.actions.map((item) => ({
+                id: item.id,
+                label: say(item.label),
+                href: item.href,
+                style: item.style,
+              })),
+              menu: (await publicMenu(tx, { orgId: schoolId, locale })).map(
+                (entry) => ({
+                  id: entry.pageId,
+                  parentId: entry.parentId,
+                  label: entry.title,
+                  href: entry.isHome ? "/" : `/pages/${entry.slug}`,
+                }),
+              ),
+              footerColumns: chrome.output.footerColumns.map((column) => ({
+                id: column.id,
+                title: say(column.title),
+                links: column.links.map((item) => ({
+                  id: item.id,
+                  label: say(item.label),
+                  href: item.href,
+                })),
+              })),
+              footerNote: say(chrome.output.footerNote),
+              socialLinks: settings.socialLinks,
+            }
+          : null;
       return {
         school: slug,
         name: { en: school?.nameEn ?? null, ar: school?.nameAr ?? null },
@@ -94,14 +204,21 @@ export async function portalFace(
           ? resolveTheme(theme.success ? theme.output : null)
           : null,
         logoKey: logo?.publicKey ?? null,
-        page:
-          page && content?.body
-            ? {
-                body: content.body,
-                locale: content.locale ?? page.locale,
-                media: page.media,
-              }
-            : null,
+        contact: {
+          address: school?.address ?? null,
+          phone: school?.phone ?? null,
+          email: school?.email ?? null,
+        },
+        frame,
+        page: published
+          ? {
+              locale: published.locale,
+              title: published.title,
+              sections: shownSections(published.content),
+              media: published.media,
+              starter: false,
+            }
+          : starterPage(locale),
       };
     },
   );

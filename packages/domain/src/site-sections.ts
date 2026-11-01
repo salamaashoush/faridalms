@@ -238,6 +238,7 @@ export const SECTION_CATEGORIES = [
   "people",
   "dynamic",
   "conversion",
+  "system",
 ] as const;
 export type SectionCategory = (typeof SECTION_CATEGORIES)[number];
 
@@ -659,10 +660,48 @@ export const SECTION_SPECS = {
     variants: ["inset"],
     fields: { heading, embed: { kind: "embed" } },
   },
+  /**
+   * The portal's sign-in form among the page's own sections: the school
+   * writes its words and picks its layout, and the platform draws the form.
+   */
+  signIn: {
+    category: "system",
+    variants: ["split", "stacked"],
+    fields: { eyebrow: t(80), heading, text: intro },
+  },
 } as const satisfies Record<string, SectionSpec>;
 
 export type SectionType = keyof typeof SECTION_SPECS;
 export const SECTION_TYPES = Object.keys(SECTION_SPECS) as SectionType[];
+
+/**
+ * Where a page is served: the website's own host, or the portal's for a
+ * door that holds a session, such as sign-in. Both are made in the same
+ * builder from the same sections.
+ */
+export const PAGE_KINDS = ["site", "portal"] as const;
+export type PageKind = (typeof PAGE_KINDS)[number];
+
+/** The section that holds what only the platform can draw on a portal page. */
+export const PORTAL_SECTION = "signIn" satisfies SectionType;
+
+/** Sections the builder places itself: never offered, removed or copied. */
+export const isSystemSection = (type: SectionType) =>
+  SECTION_SPECS[type].category === "system";
+
+/**
+ * Whether a page's sections suit its kind: a portal page holds its system
+ * section exactly once, and a website page holds none.
+ */
+export function sectionsFitKind(
+  kind: PageKind,
+  sections: readonly { type: SectionType }[],
+): boolean {
+  const system = sections.filter((section) => isSystemSection(section.type));
+  return kind === "portal"
+    ? system.length === 1 && system[0]?.type === PORTAL_SECTION
+    : system.length === 0;
+}
 type SpecOf<T extends SectionType> = (typeof SECTION_SPECS)[T];
 export type SectionData<T extends SectionType> = DataOf<SpecOf<T>["fields"]>;
 export type SectionVariant<T extends SectionType> =

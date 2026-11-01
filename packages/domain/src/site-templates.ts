@@ -838,6 +838,29 @@ const ENQUIRY_FORM = FORM(
   ],
 );
 
+const SIGN_IN = section(
+  "signIn",
+  "split",
+  (b) => ({
+    eyebrow: b.w(["Families, students and staff", "الأسر والطلاب والموظفون"]),
+    heading: b.w(["Sign in", "تسجيل الدخول"]),
+    text: b.w([
+      "Use the email or sign-in name you received from the school.",
+      "استخدم البريد الإلكتروني أو اسم الدخول الذي حصلت عليه من المدرسة.",
+    ]),
+  }),
+  { scheme: "soft" },
+);
+
+const SIGN_IN_HELP = section("contact", "details", (b) => ({
+  heading: b.w(["Need help signing in?", "تحتاج إلى مساعدة في الدخول؟"]),
+  text: b.w([
+    "The school office can send you a new link or tell you your sign-in name.",
+    "يمكن لمكتب المدرسة أن يرسل إليك رابطًا جديدًا أو أن يخبرك باسم الدخول.",
+  ]),
+  mapHref: "",
+}));
+
 /** A sample of every section, for the builder to show and insert. */
 const SAMPLES: Record<SectionType, (b: Builder) => PageSection> = {
   hero: HERO_HOME,
@@ -878,6 +901,7 @@ const SAMPLES: Record<SectionType, (b: Builder) => PageSection> = {
   quickLinks: QUICK_LINKS,
   embed: EMBED,
   form: ENQUIRY_FORM,
+  signIn: SIGN_IN,
 };
 
 /**
@@ -980,9 +1004,14 @@ export const PAGE_TEMPLATES = {
     ),
     FAQ,
   ],
+  portal: [SIGN_IN, SIGN_IN_HELP],
 } satisfies Record<string, ((b: Builder) => PageSection)[]>;
 export type PageTemplate = keyof typeof PAGE_TEMPLATES;
-export const PAGE_TEMPLATE_IDS = Object.keys(PAGE_TEMPLATES) as PageTemplate[];
+/** A template a website page starts from; the portal page has its own. */
+export type SiteTemplate = Exclude<PageTemplate, "portal">;
+export const PAGE_TEMPLATE_IDS = (
+  Object.keys(PAGE_TEMPLATES) as PageTemplate[]
+).filter((template): template is SiteTemplate => template !== "portal");
 
 /**
  * Builds a template in both languages with the same section and item ids,
@@ -1054,6 +1083,17 @@ const CONTACT_PAGE: StarterPage = {
   slug: "contact",
   title: ["Contact", "تواصل معنا"],
   template: "contact",
+};
+
+/**
+ * The portal's sign-in page every school starts with: the form among a few
+ * of the school's own words, which the portal shows until the school
+ * publishes its own.
+ */
+export const PORTAL_PAGE: StarterPage = {
+  slug: "sign-in",
+  title: ["Sign in", "تسجيل الدخول"],
+  template: "portal",
 };
 
 /** Whole sites a school can start from: a theme and a set of pages. */

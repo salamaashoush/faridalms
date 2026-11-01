@@ -1,5 +1,6 @@
-import { contentPlainText } from "@faridalms/domain/content";
-import { plainContent } from "@faridalms/domain/content-conversion";
+import type { PageSection } from "@faridalms/domain/website";
+
+import { newSection } from "@faridalms/domain/website";
 import { SQL } from "bun";
 import { describe, expect, test } from "bun:test";
 
@@ -12,41 +13,63 @@ import {
   testDirectory,
 } from "./harness";
 
+const visitor = () => client("").site;
+
 const stranger = (network = "198.51.100.20") =>
   client("", undefined, "en", { "x-forwarded-for": network }).identity;
 
-const words = (face: { page: { body: unknown } | null }) =>
-  face.page ? contentPlainText(face.page.body as never) : null;
+type Face = Awaited<ReturnType<ReturnType<typeof stranger>["portalFace"]>>;
+
+/** The words over the sign-in form, as the face shows them. */
+const formHeading = (face: Face) =>
+  face.page.sections.find((item) => item.section.type === "signIn")?.section
+    .data;
 
 describe("the portal's face", () => {
-  test("a stranger sees the school's names, theme and published sign-in page, and nothing else", async () => {
+  test("a stranger sees the school's names, theme, frame and published portal page, and nothing else", async () => {
     const face = await stranger().portalFace({
       school: "northwind",
       locale: "en",
     });
     expect(Object.keys(face).toSorted()).toEqual(
-      ["logoKey", "name", "page", "school", "theme"].toSorted(),
+      [
+        "contact",
+        "frame",
+        "logoKey",
+        "name",
+        "page",
+        "school",
+        "theme",
+      ].toSorted(),
     );
     expect(face.name).toEqual({
       en: "Northwind International College",
       ar: "كلية نورثويند الدولية",
     });
     expect(face.theme?.id).toBe("meridian");
-    expect(words(face)).toContain("Welcome to Northwind");
+    expect(face.page.starter).toBe(false);
+    expect(formHeading(face)).toMatchObject({
+      heading: "Welcome to Northwind International College",
+    });
+    expect(face.frame?.menu.map((entry) => entry.href)).toContain("/");
+    expect(face.frame?.siteHost).toBe("northwind.example.net");
     const arabic = await stranger().portalFace({
       school: "northwind",
       locale: "ar",
     });
-    expect(arabic.page?.locale).toBe("ar");
-    expect(words(arabic)).toContain("أهلًا بكم في كلية نورثويند الدولية");
+    expect(arabic.page.locale).toBe("ar");
+    expect(formHeading(arabic)).toMatchObject({
+      heading: "أهلًا بكم في كلية نورثويند الدولية",
+    });
   });
 
-  test("a school that wrote no sign-in page shows none, so the portal draws its own welcome", async () => {
+  test("a school that never published its portal page shows the builder's starter", async () => {
     const face = await stranger().portalFace({
       school: "northwind-east",
       locale: "en",
     });
-    expect(face.page).toBeNull();
+    expect(face.page.starter).toBe(true);
+    expect(formHeading(face)).toMatchObject({ heading: "Sign in" });
     expect(face.name.en).toBe("Northwind East School");
   });
 
@@ -59,84 +82,187 @@ describe("the portal's face", () => {
   });
 });
 
-describe("the sign-in page in the site studio", () => {
-  test("edits stay private until they are published, and taking it down restores the default", async () => {
-    const api = await signedIn("northwind-east", login("principal", 0, 1));
-    const before = await api.site.signInPage();
-    expect(before.published).toBe(false);
-    expect(before.body).toBeNull();
-    expect(await rejection(api.site.publishSignInPage())).toMatchObject({
-      code: "CONFLICT",
-      message: "site.empty",
-    });
+const signInWords = (section: PageSection, heading: string): PageSection =>
+  section.type === "signIn"
+    ? { ...section, data: { ...section.data, heading } }
+    : section;
 
-    await api.site.saveSignInPage({
-      body: plainContent("Welcome to Northwind East. Ask the office for help."),
-      translation: plainContent("أهلًا بكم في نورثويند الشرقية."),
-    });
+describe("the portal page in the site builder", () => {
+  test("is a page of the site: edits stay private until published, and it keeps its form", async () => {
+    const api = await signedIn("northwind-east", login("principal", 0, 1));
+    const before = await api.site.overview();
+    expect(before.pages.some((row) => row.kind === "portal")).toBe(false);
+    const { id } = await api.site.startPortalPage();
+    expect((await api.site.startPortalPage()).id).toBe(id);
+    const opened = await api.site.page({ id });
+    expect(opened).toMatchObject({ kind: "portal", slug: "sign-in" });
+    const save = (
+      sections: PageSection[],
+      translation: PageSection[] | null,
+      version: number,
+      extra: { slug?: string; inMenu?: boolean } = {},
+    ) =>
+      api.site.savePage({
+        id,
+        expectedVersion: version,
+        parentId: "",
+        slug: extra.slug ?? "sign-in",
+        titleEn: "Sign in",
+        titleAr: "تسجيل الدخول",
+        inMenu: extra.inMenu ?? false,
+        content: { sections, description: "", reviewed: [] },
+        translation: translation
+          ? { sections: translation, description: "", reviewed: [] }
+          : null,
+      });
+    const form = opened.content.sections.find(
+      (section) => section.type === "signIn",
+    );
+    if (!form) throw new Error("the starter has no sign-in section");
+    for (const sections of [
+      opened.content.sections.filter((section) => section !== form),
+      [...opened.content.sections, { ...form, id: crypto.randomUUID() }],
+    ])
+      expect(
+        await rejection(save(sections, null, opened.version)),
+      ).toMatchObject({ code: "BAD_REQUEST", message: "site.system_section" });
+
+    const saved = await save(
+      opened.content.sections.map((section) =>
+        signInWords(section, "Welcome to Northwind East"),
+      ),
+      (opened.translation?.sections ?? []).map((section) =>
+        signInWords(section, "أهلًا بكم في نورثويند الشرقية"),
+      ),
+      opened.version,
+      { slug: "elsewhere", inMenu: true },
+    );
+    const kept = await api.site.page({ id });
+    expect(kept).toMatchObject({ slug: "sign-in", inMenu: false });
     const face = () =>
       stranger().portalFace({ school: "northwind-east", locale: "ar" });
-    expect((await face()).page).toBeNull();
+    expect((await face()).page.starter).toBe(true);
 
-    await api.site.publishSignInPage();
-    expect(words(await face())).toBe("أهلًا بكم في نورثويند الشرقية.");
-    const english = await stranger().portalFace({
-      school: "northwind-east",
-      locale: "en",
+    const published = await api.site.publishPage({
+      id,
+      expectedVersion: saved.version,
+      publishAt: "",
     });
-    expect(words(english)).toBe(
-      "Welcome to Northwind East. Ask the office for help.",
+    expect(formHeading(await face())).toMatchObject({
+      heading: "أهلًا بكم في نورثويند الشرقية",
+    });
+    expect(
+      formHeading(
+        await stranger().portalFace({
+          school: "northwind-east",
+          locale: "en",
+        }),
+      ),
+    ).toMatchObject({ heading: "Welcome to Northwind East" });
+    // The website never serves it: it is the portal's.
+    expect(
+      await rejection(
+        visitor().publicSitePage({
+          school: "northwind-east",
+          locale: "en",
+          slug: "sign-in",
+        }),
+      ),
+    ).toMatchObject({ code: "NOT_FOUND" });
+
+    const edited = await save(
+      kept.content.sections.map((section) =>
+        signInWords(section, "A welcome nobody has published"),
+      ),
+      null,
+      published.version,
     );
-
-    await api.site.saveSignInPage({
-      body: plainContent("A new welcome nobody has published."),
-      translation: plainContent("ترحيب جديد لم يُنشر بعد."),
-    });
-    expect(words(await face())).toBe("أهلًا بكم في نورثويند الشرقية.");
-    expect((await api.site.overview()).signIn).toEqual({
-      written: true,
-      published: true,
-      changed: true,
+    expect(formHeading(await face())).toMatchObject({
+      heading: "أهلًا بكم في نورثويند الشرقية",
     });
 
-    await api.site.unpublishSignInPage();
-    expect((await face()).page).toBeNull();
-    expect((await api.site.signInPage()).published).toBe(false);
+    for (const refused of [
+      api.site.removeSitePage({ id }),
+      api.site.movePage({ id, parentId: "", position: 0 }),
+    ])
+      expect(await rejection(refused)).toMatchObject({
+        code: "CONFLICT",
+        message: "site.portal_page",
+      });
+
+    await api.site.unpublishPage({ id, expectedVersion: edited.version });
+    expect((await face()).page.starter).toBe(true);
   });
 
   test("a page without a translation shows its original in the other language", async () => {
     const api = await signedIn("acme", login("principal", 1));
-    await api.site.saveSignInPage({
-      body: plainContent("Welcome to Acme."),
+    const { id } = await api.site.startPortalPage();
+    const opened = await api.site.page({ id });
+    const saved = await api.site.savePage({
+      id,
+      expectedVersion: opened.version,
+      parentId: "",
+      slug: "sign-in",
+      titleEn: "Sign in",
+      titleAr: "",
+      inMenu: false,
+      content: {
+        sections: opened.content.sections.map((section) =>
+          signInWords(section, "Welcome to Acme"),
+        ),
+        description: "",
+        reviewed: [],
+      },
       translation: null,
     });
-    await api.site.publishSignInPage();
+    const published = await api.site.publishPage({
+      id,
+      expectedVersion: saved.version,
+      publishAt: "",
+    });
     const arabic = await stranger().portalFace({
       school: "acme",
       locale: "ar",
     });
-    expect(arabic.page?.locale).toBe("en");
-    expect(words(arabic)).toBe("Welcome to Acme.");
-    await api.site.unpublishSignInPage();
+    expect(arabic.page.sections[0]?.locale).toBe("en");
+    expect(formHeading(arabic)).toMatchObject({ heading: "Welcome to Acme" });
+    await api.site.unpublishPage({ id, expectedVersion: published.version });
   });
 
-  test("only those who manage the website write the sign-in page", async () => {
-    const teacher = await signedIn("northwind", login("teacher"));
+  test("a website page cannot hold the sign-in form", async () => {
+    const api = await signedIn("northwind", login("principal"));
     expect(
       await rejection(
-        teacher.site.saveSignInPage({
-          body: plainContent("Not mine to write"),
+        api.site.savePage({
+          id: "",
+          expectedVersion: 0,
+          parentId: "",
+          slug: "log-in-here",
+          titleEn: "Log in here",
+          titleAr: "",
+          inMenu: true,
+          content: {
+            sections: [newSection("signIn")],
+            description: "",
+            reviewed: [],
+          },
           translation: null,
         }),
       ),
-    ).toMatchObject({ code: "FORBIDDEN" });
-    expect(await rejection(teacher.site.publishSignInPage())).toMatchObject({
+    ).toMatchObject({ code: "BAD_REQUEST", message: "site.system_section" });
+  });
+
+  test("only those who manage the website start the portal page", async () => {
+    const teacher = await signedIn("northwind", login("teacher"));
+    expect(await rejection(teacher.site.startPortalPage())).toMatchObject({
       code: "FORBIDDEN",
     });
   });
 
-  test("the page is an editor document, so markup and script links are refused", async () => {
+  test("its words are editor documents, so markup and script links are refused", async () => {
     const api = await signedIn("northwind", login("principal"));
+    const { id } = await api.site.startPortalPage();
+    const opened = await api.site.page({ id });
     const markup = {
       root: {
         type: "root",
@@ -166,15 +292,33 @@ describe("the sign-in page in the site studio", () => {
         ],
       },
     };
-    for (const body of [markup, scripted])
+    for (const body of [markup, scripted]) {
+      const text = newSection("text");
       expect(
         await rejection(
-          api.site.saveSignInPage({ body: body as never, translation: null }),
+          api.site.savePage({
+            id,
+            expectedVersion: opened.version,
+            parentId: "",
+            slug: "sign-in",
+            titleEn: "Sign in",
+            titleAr: "",
+            inMenu: false,
+            content: {
+              sections: [
+                ...opened.content.sections,
+                { ...text, data: { ...text.data, body: body as never } },
+              ],
+              description: "",
+              reviewed: [],
+            },
+            translation: null,
+          }),
         ),
       ).toMatchObject({ code: "BAD_REQUEST" });
+    }
   });
 });
-
 describe("the school finder", () => {
   test("finds schools by name in either language, with only their names and portal", async () => {
     const found = await stranger("198.51.100.21").findSchools({

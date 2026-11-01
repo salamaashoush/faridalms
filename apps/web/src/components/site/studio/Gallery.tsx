@@ -4,9 +4,10 @@ import type {
   SectionType,
   SiteLocale,
 } from "@faridalms/domain/site-sections";
-import type { PageTemplate } from "@faridalms/domain/site-templates";
+import type { SiteTemplate } from "@faridalms/domain/site-templates";
 
 import {
+  isSystemSection,
   SECTION_CATEGORIES,
   SECTION_SPECS,
   SECTION_TYPES,
@@ -166,8 +167,10 @@ export function SectionGallery({
   const [category, setCategory] = useState<SectionCategory | "all">("all");
   const [query, setQuery] = useState("");
   const needle = query.trim().toLocaleLowerCase();
+  // The builder places a system section itself; none is offered to add.
   const types = SECTION_TYPES.filter(
     (type) =>
+      !isSystemSection(type) &&
       (category === "all" || SECTION_SPECS[type].category === category) &&
       (!needle ||
         `${SECTION_LABEL[type]()} ${SECTION_HINT[type]()}`
@@ -197,7 +200,12 @@ export function SectionGallery({
             </div>
             <fieldset className="flex flex-wrap gap-1">
               <legend className="sr-only">{m.siteSectionGroups()}</legend>
-              {(["all", ...SECTION_CATEGORIES] as const).map((option) => (
+              {(
+                [
+                  "all",
+                  ...SECTION_CATEGORIES.filter((option) => option !== "system"),
+                ] as const
+              ).map((option) => (
                 <button
                   key={option}
                   type="button"
@@ -243,7 +251,7 @@ export function TemplateGallery({
   onPick,
 }: {
   context: RenderContext;
-  onPick: (template: PageTemplate) => void;
+  onPick: (template: SiteTemplate) => void;
 }) {
   const built = useMemo(
     () =>

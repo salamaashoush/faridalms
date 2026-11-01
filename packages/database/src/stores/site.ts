@@ -7,6 +7,7 @@ import type {
   BannerTone,
   EnquiryAnswer,
   EnquiryPurpose,
+  PageKind,
   SiteLocale,
   SiteState,
   SocialLink,
@@ -127,6 +128,7 @@ export interface PageRow {
   id: string;
   version: number;
   orgId: string;
+  kind: PageKind;
   parentId: string | null;
   position: number;
   slug: string;
@@ -143,6 +145,7 @@ type PageRecord = {
   id: string;
   version: number;
   org_id: string;
+  kind: PageKind;
   parent_id: string | null;
   position: number;
   slug: string;
@@ -155,7 +158,7 @@ type PageRecord = {
   revised_at: string | null;
 };
 
-const pageColumns = sql`id, version, org_id, parent_id, position, slug, is_home, in_menu,
+const pageColumns = sql`id, version, org_id, kind, parent_id, position, slug, is_home, in_menu,
   title_en, title_ar, state, ${isoOf(sql`published_at`)} as published_at,
   ${isoOf(sql`revised_at`)} as revised_at`;
 
@@ -164,6 +167,7 @@ function pageOf(row: PageRecord): PageRow {
     id: row.id,
     version: row.version,
     orgId: row.org_id,
+    kind: row.kind,
     parentId: row.parent_id,
     position: row.position,
     slug: row.slug,
@@ -216,12 +220,14 @@ export async function insertPage(
     orgId: string;
     authorId: string;
     isHome?: boolean;
+    kind?: PageKind;
   },
 ): Promise<{ id: string; version: number }> {
   const [row] = await tx.execute<{ id: string; version: number }>(sql`
-    insert into core.site_pages (tenant_id, org_id, parent_id, position, slug, is_home, in_menu,
-      title_en, title_ar, author_user_id)
-    values (${input.tenantId}::uuid, ${input.orgId}::uuid, ${input.parentId}::uuid,
+    insert into core.site_pages (tenant_id, org_id, kind, parent_id, position, slug, is_home,
+      in_menu, title_en, title_ar, author_user_id)
+    values (${input.tenantId}::uuid, ${input.orgId}::uuid, ${input.kind ?? "site"},
+      ${input.parentId}::uuid,
       (select coalesce(max(position) + 1, 0) from core.site_pages
         where tenant_id = ${input.tenantId}::uuid and org_id = ${input.orgId}::uuid
           and parent_id is not distinct from ${input.parentId}::uuid and status = 'active'),
@@ -335,9 +341,10 @@ export async function writePublishedPage(
     returning id`);
   if (updated) return;
   await tx.execute(sql`
-    insert into core.site_published_pages (tenant_id, page_id, org_id, locale, slug, parent_id,
-      position, is_home, in_menu, title, content, media, visible_from)
-    values (${input.tenantId}::uuid, ${page.id}::uuid, ${input.orgId}::uuid, ${input.locale},
+    insert into core.site_published_pages (tenant_id, page_id, org_id, kind, locale, slug,
+      parent_id, position, is_home, in_menu, title, content, media, visible_from)
+    values (${input.tenantId}::uuid, ${page.id}::uuid, ${input.orgId}::uuid, ${page.kind},
+      ${input.locale},
       ${page.slug}, ${page.parentId}::uuid, ${page.position}, ${page.isHome}, ${page.inMenu},
       ${input.title}, ${input.content}::jsonb, ${input.media}::jsonb,
       ${input.visibleFrom}::timestamptz)`);
@@ -504,57 +511,6 @@ export async function withdrawPost(
     update core.site_published_posts set status = 'tobedeleted'
     where tenant_id = ${input.tenantId}::uuid and post_id = ${input.postId}::uuid
       and status = 'active'`);
-}
-
-/** Writes the sign-in page's copy in one language for strangers. */
-export async function writePublishedSignIn(
-  tx: Tx,
-  input: {
-    tenantId: string;
-    orgId: string;
-    locale: SiteLocale;
-    content: Record<string, unknown>;
-    media: Record<string, string>;
-  },
-): Promise<void> {
-  const [updated] = await tx.execute<{ id: string }>(sql`
-    update core.site_published_sign_in
-    set content = ${input.content}::jsonb, media = ${input.media}::jsonb
-    where tenant_id = ${input.tenantId}::uuid and org_id = ${input.orgId}::uuid
-      and locale = ${input.locale} and status = 'active'
-    returning id`);
-  if (updated) return;
-  await tx.execute(sql`
-    insert into core.site_published_sign_in (tenant_id, org_id, locale, content, media)
-    values (${input.tenantId}::uuid, ${input.orgId}::uuid, ${input.locale},
-      ${input.content}::jsonb, ${input.media}::jsonb)`);
-}
-
-/** Takes the sign-in page's copies down, or those in languages the site no longer speaks. */
-export async function withdrawSignIn(
-  tx: Tx,
-  input: { tenantId: string; orgId: string; keep?: readonly SiteLocale[] },
-): Promise<void> {
-  await tx.execute(sql`
-    update core.site_published_sign_in set status = 'tobedeleted'
-    where tenant_id = ${input.tenantId}::uuid and org_id = ${input.orgId}::uuid
-      and status = 'active' and not (locale = any(${textArray(input.keep ?? [])}))`);
-}
-
-export interface PublishedSignIn {
-  locale: SiteLocale;
-  content: Record<string, unknown>;
-  media: Record<string, string>;
-}
-
-/** The sign-in page's published copies; the site role reads them too. */
-export async function publishedSignIn(
-  tx: Tx,
-  orgId: string,
-): Promise<PublishedSignIn[]> {
-  return tx.execute<PublishedSignIn>(sql`
-    select locale, content, media from core.site_published_sign_in
-    where org_id = ${orgId}::uuid and status = 'active'`);
 }
 
 export interface Publication {
@@ -735,6 +691,7 @@ export async function publicMenu(
   }>(sql`
     select page_id, parent_id, slug, is_home, title from core.site_published_pages
     where org_id = ${input.orgId}::uuid and locale = ${input.locale} and in_menu
+      and kind = 'site'
     order by is_home desc, position, page_id`);
   return rows.map((row) => ({
     pageId: row.page_id,
@@ -760,6 +717,7 @@ export async function publicPage(
   }>(sql`
     select page_id, slug, is_home, title, content, media from core.site_published_pages
     where org_id = ${input.orgId}::uuid and locale = ${input.locale} and ${which}
+      and kind = 'site'
     limit 1`);
   return row
     ? {
@@ -771,6 +729,34 @@ export async function publicPage(
         media: row.media,
       }
     : null;
+}
+
+/**
+ * The portal's sign-in page as strangers read it in each language it was
+ * published in. The site role reads it, as it reads the website's pages.
+ */
+export async function publicPortalPages(
+  tx: Tx,
+  orgId: string,
+): Promise<(PublicPage & { locale: SiteLocale })[]> {
+  const rows = await tx.execute<{
+    page_id: string;
+    locale: SiteLocale;
+    title: string;
+    content: Record<string, unknown>;
+    media: Record<string, string>;
+  }>(sql`
+    select page_id, locale, title, content, media from core.site_published_pages
+    where org_id = ${orgId}::uuid and kind = 'portal'`);
+  return rows.map((row) => ({
+    pageId: row.page_id,
+    slug: "",
+    isHome: false,
+    locale: row.locale,
+    title: row.title,
+    content: row.content,
+    media: row.media,
+  }));
 }
 
 export interface PublicPost {

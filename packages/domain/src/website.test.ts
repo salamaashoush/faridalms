@@ -10,11 +10,13 @@ import {
   SECTION_SPECS,
   SECTION_TYPES,
   sectionIssues,
+  sectionsFitKind,
 } from "./site-sections";
 import {
   buildSection,
   buildTemplate,
   PAGE_TEMPLATE_IDS,
+  PORTAL_PAGE,
   STARTER_IDS,
   starterChrome,
   STARTERS,
@@ -360,5 +362,22 @@ describe("free-form blocks", () => {
     expect(one).toHaveLength(1);
     expect(one[0]?.blocks).toHaveLength(count);
     expect(fitColumns(content.data.columns, "1-1-1-1")).toHaveLength(4);
+  });
+});
+
+describe("the portal's sign-in page", () => {
+  it("starts with the sign-in form once, and no website page holds it", () => {
+    const portal = buildTemplate(PORTAL_PAGE.template, "ar");
+    expect(sectionsFitKind("portal", portal.content)).toBe(true);
+    expect(sectionsFitKind("portal", portal.translation)).toBe(true);
+    expect(sectionsFitKind("site", portal.content)).toBe(false);
+    for (const template of PAGE_TEMPLATE_IDS)
+      expect(
+        sectionsFitKind("site", buildTemplate(template, "en").content),
+      ).toBe(true);
+    const [form] = portal.content;
+    if (!form) throw new Error("the portal starter is empty");
+    expect(sectionsFitKind("portal", [...portal.content, form])).toBe(false);
+    expect(sectionsFitKind("portal", portal.content.slice(1))).toBe(false);
   });
 });

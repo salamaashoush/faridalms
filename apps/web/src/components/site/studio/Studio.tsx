@@ -4,7 +4,11 @@ import type { PageTemplate } from "@faridalms/domain/site-templates";
 import { Tabs } from "@base-ui/react/tabs";
 import { buildTemplate } from "@faridalms/domain/site-templates";
 import { resolveTheme } from "@faridalms/domain/site-theme";
-import { sectionComplete, sectionWritten } from "@faridalms/domain/website";
+import {
+  isSystemSection,
+  sectionComplete,
+  sectionWritten,
+} from "@faridalms/domain/website";
 import { Button } from "@faridalms/ui/button";
 import { cn } from "@faridalms/ui/cn";
 import {
@@ -305,13 +309,15 @@ export function SiteStudio({
 
   const pages = useMemo(
     () => [
-      ...overview.pages.map((row) => ({
-        href: row.isHome ? "/" : `/pages/${row.slug}`,
-        title:
-          (languages.primary === "ar" ? row.titleAr : row.titleEn) ||
-          row.titleEn ||
-          row.titleAr,
-      })),
+      ...overview.pages
+        .filter((row) => row.kind === "site")
+        .map((row) => ({
+          href: row.isHome ? "/" : `/pages/${row.slug}`,
+          title:
+            (languages.primary === "ar" ? row.titleAr : row.titleEn) ||
+            row.titleEn ||
+            row.titleAr,
+        })),
       { href: "/news", title: m.siteNews() },
     ],
     [overview.pages, languages.primary],
@@ -474,11 +480,13 @@ export function SiteStudio({
       return next;
     });
   const duplicate = (id: string) => {
+    const shown = page.sections.find((section) => section.id === id);
+    if (!shown || isSystemSection(shown.type)) return;
     const copyId = crypto.randomUUID();
     updatePage((current) => {
       const index = current.sections.findIndex((section) => section.id === id);
       const original = current.sections[index];
-      if (!original) return current;
+      if (!original || isSystemSection(original.type)) return current;
       const itemIds = new Map<string, string>();
       const fresh = (section: PageSection) =>
         ({
@@ -511,7 +519,11 @@ export function SiteStudio({
     setSelected(copyId);
   };
   const remove = (id: string) => {
-    setSections((current) => current.filter((section) => section.id !== id));
+    setSections((current) =>
+      current.filter(
+        (section) => section.id !== id || isSystemSection(section.type),
+      ),
+    );
     if (selected === id) setSelected(null);
   };
 
@@ -820,11 +832,12 @@ export function SiteStudio({
         draft={page}
         languages={languages}
         isHome={Boolean(existing?.isHome)}
+        portal={existing?.kind === "portal"}
         parents={
           existing
             ? existing.parents
             : overview.pages
-                .filter((row) => !row.isHome)
+                .filter((row) => !row.isHome && row.kind === "site")
                 .map((row) => ({
                   id: row.id,
                   title:
@@ -1066,7 +1079,10 @@ export function SiteStudio({
                 ? m.siteUnsaved()
                 : m.siteAllSaved()}
           </output>
-          {published && pageId && !existing?.isHome ? (
+          {published &&
+          pageId &&
+          !existing?.isHome &&
+          existing?.kind !== "portal" ? (
             <ButtonLink
               to="/site/$school/pages/$slug"
               params={{ school: user.school.slug, slug: page.slug }}

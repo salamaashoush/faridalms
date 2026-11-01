@@ -2,7 +2,6 @@ import * as v from "valibot";
 
 import type { Palette } from "./site-theme";
 
-import { contentDocumentSchema } from "./content";
 import { contrast, mix } from "./site-theme";
 
 const LOCALES = ["en", "ar"] as const;
@@ -18,13 +17,6 @@ export const portalFaceSchema = v.object({
   school: slug,
   locale: v.optional(v.picklist(LOCALES), "en"),
 });
-
-/** The sign-in page's words in the site's first language, and the other when it has one. */
-export const saveSignInPageSchema = v.object({
-  body: contentDocumentSchema,
-  translation: v.nullable(contentDocumentSchema),
-});
-export type SaveSignInPage = v.InferOutput<typeof saveSignInPageSchema>;
 
 /** What a person types to find their school; codes are short, names longer. */
 export const findSchoolsSchema = v.object({

@@ -8,6 +8,7 @@ import { normaliseIdentifier } from "@faridalms/domain/identifiers";
 import { addDays, teachingWeeks } from "@faridalms/domain/school";
 import {
   buildTemplate,
+  PORTAL_PAGE,
   STARTERS,
   starterChrome,
 } from "@faridalms/domain/site-templates";
@@ -49,7 +50,6 @@ import {
   setPageState,
   writePublishedPage,
   writePublishedPost,
-  writePublishedSignIn,
 } from "./stores/site";
 import { reviewTranslation } from "./stores/translations";
 import {
@@ -1269,7 +1269,7 @@ async function seedSchool(
   await seedEvents(tx, tenantId, schoolId, yearId);
   await seedNotifications(tx, tenantId, schoolId);
   await seedLearning(tx, tenantId, schoolId, yearId);
-  // One school of the group keeps the product's own welcome, so both show.
+  // One school of the group keeps the builder's starter page, so both show.
   await seedSite(
     tx,
     tenantId,
@@ -2710,51 +2710,81 @@ interface SignInWelcome {
   office: string;
 }
 
-/** A school's sign-in page, published in both languages: a welcome and where to ask for help. */
-async function seedSignInPage(
+/**
+ * A school's portal sign-in page, published in both languages: the starter
+ * page with the school's welcome over the form and where to ask for help.
+ */
+async function seedPortalPage(
   tx: Tx,
   tenantId: string,
   schoolId: string,
   userId: string,
   school: SignInWelcome,
 ) {
-  const host = { type: "site_sign_in", id: schoolId };
-  const body = headedContent([
-    {
-      heading: `Welcome to ${school.en}`,
-      body: plainContent(
-        "Families, students and staff sign in here for classes, homework, messages and the school calendar.",
-      ),
-    },
-    {
-      heading: "Need help signing in?",
-      body: plainContent(
-        `Students: ask your class teacher. Families and staff: write to ${school.office}, Sunday to Thursday, 8:00 to 15:00.`,
-      ),
-    },
-  ]);
-  const translation = headedContent([
-    {
-      heading: `أهلًا بكم في ${school.ar}`,
-      body: plainContent(
-        "يدخل أولياء الأمور والطلاب والعاملون من هنا لمتابعة الفصول والواجبات والرسائل وتقويم المدرسة.",
-      ),
-    },
-    {
-      heading: "هل تحتاج إلى مساعدة في الدخول؟",
-      body: plainContent(
-        `الطلاب: اسألوا معلم الفصل. أولياء الأمور والعاملون: راسلوا مكتب المدرسة على ${school.office} من الأحد إلى الخميس، من الثامنة صباحًا حتى الثالثة عصرًا.`,
-      ),
-    },
-  ]);
+  const built = buildTemplate(PORTAL_PAGE.template, "en");
+  const words = (
+    sections: typeof built.content,
+    locale: "en" | "ar",
+  ): typeof built.content =>
+    sections.map((section) => {
+      if (section.type === "signIn")
+        return {
+          ...section,
+          data: {
+            ...section.data,
+            heading:
+              locale === "ar"
+                ? `أهلًا بكم في ${school.ar}`
+                : `Welcome to ${school.en}`,
+            text:
+              locale === "ar"
+                ? "يدخل أولياء الأمور والطلاب والعاملون من هنا لمتابعة الفصول والواجبات والرسائل وتقويم المدرسة."
+                : "Families, students and staff sign in here for classes, homework, messages and the school calendar.",
+          },
+        };
+      if (section.type === "contact")
+        return {
+          ...section,
+          data: {
+            ...section.data,
+            text:
+              locale === "ar"
+                ? `الطلاب: اسألوا معلم الفصل. أولياء الأمور والعاملون: راسلوا مكتب المدرسة على ${school.office} من الأحد إلى الخميس، من الثامنة صباحًا حتى الثالثة عصرًا.`
+                : `Students: ask your class teacher. Families and staff: write to ${school.office}, Sunday to Thursday, 8:00 to 15:00.`,
+          },
+        };
+      return section;
+    });
+  const content = {
+    sections: words(built.content, "en"),
+    description: "",
+    reviewed: [],
+  };
+  const translation = {
+    sections: words(built.translation, "ar"),
+    description: "",
+    reviewed: built.translation.map((row) => row.id),
+  };
+  const created = await insertPage(tx, {
+    tenantId,
+    orgId: schoolId,
+    authorId: userId,
+    kind: "portal",
+    parentId: null,
+    slug: PORTAL_PAGE.slug,
+    titleEn: PORTAL_PAGE.title[0],
+    titleAr: PORTAL_PAGE.title[1],
+    inMenu: false,
+  });
+  const host = { type: "site_page", id: created.id };
   const original = await saveDocument(tx, {
     tenantId,
     orgId: schoolId,
     host,
-    kind: "rich_text",
+    kind: "page",
     locale: "en",
-    content: body as unknown as Record<string, unknown>,
-    plainText: contentPlainText(body),
+    content,
+    plainText: pagePlainText(content),
     mediaIds: [],
     userId,
   });
@@ -2764,21 +2794,51 @@ async function seedSignInPage(
     host,
     originalId: original.id,
     locale: "ar",
-    kind: "rich_text",
-    content: translation as unknown as Record<string, unknown>,
-    plainText: contentPlainText(translation),
+    kind: "page",
+    content: translation,
+    plainText: pagePlainText(translation),
     mediaIds: [],
     userId,
   });
+  const publishedAt = "2026-09-01T07:00:00.000Z";
+  await setPageState(tx, {
+    tenantId,
+    id: created.id,
+    expectedVersion: created.version,
+    state: "published",
+    publishedAt,
+  });
   await snapshotPublish(tx, { tenantId, documentId: original.id, userId });
   await snapshotPublish(tx, { tenantId, documentId: other.id, userId });
+  const page = {
+    id: created.id,
+    version: created.version + 1,
+    orgId: schoolId,
+    kind: "portal" as const,
+    parentId: null,
+    position: 0,
+    slug: PORTAL_PAGE.slug,
+    isHome: false,
+    inMenu: false,
+    titleEn: PORTAL_PAGE.title[0],
+    titleAr: PORTAL_PAGE.title[1],
+    state: "published" as const,
+    publishedAt,
+    revisedAt: null,
+  };
   for (const locale of ["en", "ar"] as const)
-    await writePublishedSignIn(tx, {
+    await writePublishedPage(tx, {
       tenantId,
       orgId: schoolId,
+      page,
       locale,
-      content: { body: locale === "ar" ? translation : body, locale },
+      title: locale === "ar" ? PORTAL_PAGE.title[1] : PORTAL_PAGE.title[0],
+      content: {
+        sections: localizedSections(content, translation, "en", locale),
+        description: "",
+      },
       media: {},
+      visibleFrom: publishedAt,
     });
 }
 
@@ -2899,7 +2959,7 @@ async function seedSite(
     nameAr: "فعاليات",
   });
 
-  if (welcome) await seedSignInPage(tx, tenantId, schoolId, userId, welcome);
+  if (welcome) await seedPortalPage(tx, tenantId, schoolId, userId, welcome);
 
   const starter = STARTERS.international;
   const publishedAt = "2026-09-01T07:00:00.000Z";
@@ -2959,6 +3019,7 @@ async function seedSite(
       id: created.id,
       version: created.version + 1,
       orgId: schoolId,
+      kind: "site" as const,
       parentId: null,
       position,
       slug: plan.slug,
