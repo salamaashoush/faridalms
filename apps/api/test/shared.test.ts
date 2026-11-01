@@ -229,7 +229,7 @@ describe("shared blocks", () => {
     });
     expect(
       (await office.shared.uses({ id: kept.id })).map((row) => row.hostType),
-    ).toEqual(["site_post"]);
+    ).toEqual(["news"]);
     await office.news.publish({ id: post.id, expectedVersion: post.version });
 
     // A change after publishing waits for the next one to reach the website.

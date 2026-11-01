@@ -2,6 +2,7 @@ import * as v from "valibot";
 
 import type { Picture } from "./commons";
 import type { ContentDocument } from "./content";
+import type { PublishIssue } from "./content-checks";
 import type { EmbedProvider } from "./embed";
 
 import { pictureEntries, pictureFocusSchema, pictureNeedsAlt } from "./commons";
@@ -10,7 +11,7 @@ import {
   contentFileIds,
   contentPlainText,
 } from "./content";
-import { contentIssues, hasFirstLevelHeading } from "./content-checks";
+import { publishIssues } from "./content-checks";
 import { embedProviders, isEmbedId } from "./embed";
 import { MAX_QUESTIONS, optionsOf, QUESTION_KINDS } from "./enquiries";
 import { isSiteHref, isVagueLink, MAX_BUTTON_LABEL } from "./site-links";
@@ -1436,12 +1437,11 @@ export function mapSectionBodies(
   } as PageSection;
 }
 
+type BodyIssue = Exclude<PublishIssue, "order" | "consent">;
+
 export type SiteIssueCode =
-  | "alt"
-  | "heading"
-  | "link"
+  | BodyIssue
   | "action"
-  | "captions"
   | "label"
   | "form_contact"
   | "form_question";
@@ -1450,16 +1450,16 @@ export interface SiteIssue {
   code: SiteIssueCode;
 }
 
+const bodyIssue = (code: PublishIssue): code is BodyIssue =>
+  code !== "order" && code !== "consent";
+
 /**
- * What a rich body must not do on a page: hide pictures, say "click here",
- * or compete with the section's own heading through a first-level one.
+ * What a rich body must not do on a page, by the one check list for words
+ * under a heading of their own: hide pictures, say "click here", play
+ * uncaptioned, or compete with the section's own heading.
  */
 export function bodyIssues(body: ContentDocument): SiteIssueCode[] {
-  const found = new Set<SiteIssueCode>(
-    contentIssues(body).filter((code) => code !== "order"),
-  );
-  if (hasFirstLevelHeading(body)) found.add("heading");
-  return [...found];
+  return publishIssues(body, { underHeading: true }).filter(bodyIssue);
 }
 
 function scalarIssues(field: ScalarField, value: unknown): SiteIssueCode[] {

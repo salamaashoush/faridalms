@@ -1,8 +1,5 @@
-import type {
-  AnnouncementState,
-  AudienceScope,
-  Urgency,
-} from "@faridalms/domain/announcements";
+import type { AudienceScope, Urgency } from "@faridalms/domain/announcements";
+import type { PublicationPhase } from "@faridalms/domain/publication";
 
 import type { Tone } from "~/components/system/status";
 
@@ -22,14 +19,14 @@ export const URGENCY_TONE: Record<Urgency, Tone> = {
   urgent: "danger",
 };
 
-export const STATE_LABEL: Record<AnnouncementState, () => string> = {
+export const STATE_LABEL: Record<PublicationPhase, () => string> = {
   draft: m.annStateDraft,
   scheduled: m.annStateScheduled,
   published: m.annStatePublished,
   archived: m.annStateArchived,
 };
 
-export const STATE_TONE: Record<AnnouncementState, Tone> = {
+export const STATE_TONE: Record<PublicationPhase, Tone> = {
   draft: "neutral",
   scheduled: "info",
   published: "success",

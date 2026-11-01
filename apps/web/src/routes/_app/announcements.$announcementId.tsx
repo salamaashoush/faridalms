@@ -228,20 +228,16 @@ function AnnouncementPage() {
   };
   const width = useReaderWidth();
   const title = (locale === "ar" ? data.titleAr : data.titleEn) || data.title;
-  const printing = usePrint(
-    data.body
-      ? {
-          title,
-          content: shownIn({
-            body: data.body,
-            translation: data.translation,
-            primary: data.primaryLocale,
-            locale: data.translation ? locale : data.primaryLocale,
-          }),
-          link: `/announcements/${data.id}`,
-        }
-      : null,
-  );
+  const printing = usePrint({
+    title,
+    content: shownIn({
+      body: data.body,
+      translation: data.translation,
+      primary: data.primaryLocale,
+      locale: data.translation ? locale : data.primaryLocale,
+    }),
+    link: `/announcements/${data.id}`,
+  });
   const reached = data.report?.length ?? 0;
   const readCount = (data.report ?? []).filter((row) => row.readAt).length;
   const facts: HeaderFact[] = [
@@ -307,7 +303,7 @@ function AnnouncementPage() {
               }
         }
         action={
-          data.canManage && data.state !== "archived"
+          data.canManage && data.shown !== "archived"
             ? {
                 label: m.annEdit(),
                 icon: Pencil,
@@ -328,7 +324,7 @@ function AnnouncementPage() {
                   icon: Copy,
                   onSelect: () => void copy(),
                 },
-                ...(data.state === "published"
+                ...(data.shown === "published"
                   ? [
                       {
                         label: m.annSendUpdate(),
@@ -341,7 +337,7 @@ function AnnouncementPage() {
                       },
                     ]
                   : []),
-                ...(data.state === "archived"
+                ...(data.shown === "archived"
                   ? []
                   : [
                       {
@@ -365,15 +361,13 @@ function AnnouncementPage() {
           })}
         </p>
       ) : null}
-      {data.body ? (
-        <TranslatedView
-          body={data.body}
-          translation={data.translation}
-          primary={data.primaryLocale}
-          locale={data.translation ? locale : data.primaryLocale}
-          onLocaleChange={setLocale}
-        />
-      ) : null}
+      <TranslatedView
+        body={data.body}
+        translation={data.translation}
+        primary={data.primaryLocale}
+        locale={data.translation ? locale : data.primaryLocale}
+        onLocaleChange={setLocale}
+      />
       {data.requiresAck && !data.canManage ? (
         <div className="flex flex-wrap items-center gap-3 rounded-lg bg-muted/50 px-5 py-4">
           {data.acknowledgedAt ? (

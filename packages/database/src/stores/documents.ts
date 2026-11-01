@@ -460,13 +460,14 @@ export interface PublishedVersion {
   plainText: string;
 }
 
-/** The last published snapshot of a document, what its readers see. */
-export async function publishedVersion(
+/** A document's published snapshots, the one its readers see first. */
+export async function publishedVersions(
   tx: Tx,
   tenantId: string,
   documentId: string,
-): Promise<PublishedVersion | null> {
-  const [row] = await tx.execute<{
+  limit: number,
+): Promise<PublishedVersion[]> {
+  const rows = await tx.execute<{
     id: string;
     document_version: number;
     content: Record<string, unknown>;
@@ -475,15 +476,23 @@ export async function publishedVersion(
     select id, document_version, content, plain_text from core.document_versions
     where tenant_id = ${tenantId}::uuid and document_id = ${documentId}::uuid
       and reason = 'publish' and redacted_at is null
-    order by created_at desc, document_version desc limit 1`);
-  return row
-    ? {
-        id: row.id,
-        documentVersion: row.document_version,
-        content: row.content,
-        plainText: row.plain_text,
-      }
-    : null;
+    order by created_at desc, document_version desc limit ${limit}`);
+  return rows.map((row) => ({
+    id: row.id,
+    documentVersion: row.document_version,
+    content: row.content,
+    plainText: row.plain_text,
+  }));
+}
+
+/** The last published snapshot of a document, what its readers see. */
+export async function publishedVersion(
+  tx: Tx,
+  tenantId: string,
+  documentId: string,
+): Promise<PublishedVersion | null> {
+  const [row] = await publishedVersions(tx, tenantId, documentId, 1);
+  return row ?? null;
 }
 
 /** One snapshot of a document, by its own id, as it was taken. */

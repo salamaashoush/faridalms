@@ -173,7 +173,7 @@ functions run, for its own school.
 
 A school's website is data in the cell: settings with its theme and chrome
 (`site_settings`), a page tree that is also the menu (`site_pages`), and
-news posts (`site_posts`); its first language and its logo are the school's
+news posts (`broadcasts` of kind `news`); its first language and its logo are the school's
 own (`orgs.default_locale`, `orgs.logo_file_id`). A page's content is a `page` document of
 sections, each `{ id, type, variant, style, data }`, whose fields are
 declared once per type in `packages/domain/src/site-sections.ts`; that
@@ -217,9 +217,16 @@ the record it belongs to (`host_type`, `host_id`) and of one of four kinds:
 `rich_text`, `page`, `lesson` or `transcript`. Pictures, files, video,
 embeds and questions are blocks of the document, never fields beside it,
 and whatever another surface needs from the words (plain text, the files
-it shows) is derived from it on the server. A host that publishes keeps
-the version it showed in `document_versions`; news, lessons and assignment
-briefs show readers that published version. Translations are documents of
+it shows) is derived from it on the server. Every host that publishes
+does so through one module, `apps/api/src/core/publication.ts`: its words
+are checked by the one check list (`publishIssues`) and against consent to
+the pictures they show, both languages are snapshotted in
+`document_versions`, and readers always read that published copy, never a
+draft. A publication is a draft, published or archived; published with its
+time still to come is scheduled (`phaseOf` in
+`packages/domain/src/publication.ts`). Announcements and news are the two
+kinds of one broadcast (`core.broadcasts`, its audiences and recipients),
+told through `notify` when they go out. Translations are documents of
 their own linked to their source, and a frozen document (a sent message,
 the wording of a privacy notice) cannot change.
 
@@ -340,8 +347,12 @@ messages and replies, absences, events, reminders, consents, mentions,
 library notices, enquiries, applications, answers to the medical-summary
 changes a family asked for, and the teaching events: work
 set, work returned or sent back, and a period's grades released, each told
-to the students and to their guardians who take notices. Work set to open
-later is told when it opens, by a clock in the API process. Both tables are
+to the students and to their guardians who take notices. Whatever was
+set to go out later (an announcement, a news post, work set to open later)
+is told when it goes live, by the publication clock in the API process.
+The clock runs as the `worker` role on the database's clock and claims what
+is due, so two replicas never tell it twice. One taken back first is never
+told. Both tables are
 partitioned by month.
 
 The delivery worker runs in the API process as the `worker` role every 30 seconds. It claims due rows per tenant with row locks, so two replicas never send the same one. A person's digest items leave as one message and a conversation's message to a contact leaves whole, in the recipient's language, from server-side templates. The worker records the provider's receipt, or the failure with the next attempt after a backoff of one, five, 30, 120 and 720 minutes, giving up after five tries. Holders of `school:manage` read the delivery log.

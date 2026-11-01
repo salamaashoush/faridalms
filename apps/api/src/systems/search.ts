@@ -13,13 +13,12 @@ import { reachOf } from "@faridalms/database/stores/audiences";
 import { orgPath } from "@faridalms/database/stores/identity";
 import { childrenOf } from "@faridalms/database/stores/persons";
 import {
-  announcementsAmong,
   assignmentsAmong,
+  broadcastsAmong,
   candidates,
   classesAmong,
   eventsAmong,
   learningAmong,
-  newsAmong,
   peopleAmong,
   studentsAmong,
   threadsAmong,
@@ -48,7 +47,7 @@ const TYPES: Record<SearchKind, readonly string[]> = {
   assignments: ["assignment"],
   learning: ["learning_module", "lesson"],
   announcements: ["announcement"],
-  news: ["site_post"],
+  news: ["news"],
   events: ["calendar_event"],
   messages: ["message_thread"],
 };
@@ -59,7 +58,7 @@ const TARGET: Record<string, SearchTarget> = {
   learning_module: "module",
   lesson: "lesson",
   announcement: "announcement",
-  site_post: "news",
+  news: "news",
   calendar_event: "event",
   message_thread: "thread",
 };
@@ -166,11 +165,24 @@ async function resolverOf(
     case "announcements": {
       const manage = can(context, "announcements:manage");
       return (ids) =>
-        announcementsAmong(context.tx, { ...base, ids, viewerId, manage });
+        broadcastsAmong(context.tx, {
+          ...base,
+          kind: "announcement",
+          ids,
+          viewerId,
+          manage,
+        });
     }
     case "news": {
       const manage = can(context, "news:manage");
-      return (ids) => newsAmong(context.tx, { ...base, ids, viewerId, manage });
+      return (ids) =>
+        broadcastsAmong(context.tx, {
+          ...base,
+          kind: "news",
+          ids,
+          viewerId,
+          manage,
+        });
     }
     case "events": {
       const reach = await calendarReach(context);

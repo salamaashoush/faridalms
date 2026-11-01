@@ -11,10 +11,10 @@ import { createApp } from "./app";
 import { startProgramReruns } from "./coding/rerun";
 import { createJavaScriptRunner, createPythonRunner } from "./coding/run";
 import { startAdmissionsClock } from "./core/admissions-clock";
-import { startCourseworkClock } from "./core/coursework-clock";
 import { createKeyRing } from "./core/keys";
 import { createLoginIndex, startLoginIndex } from "./core/login-index";
 import { startPartitionUpkeep } from "./core/partitions";
+import { startPublicationClock } from "./core/publication";
 import { turnstileFrom } from "./core/turnstile";
 import { env } from "./env";
 import { createFilesHost, linkKey } from "./files/links";
@@ -263,9 +263,10 @@ const stopAdmissionsClock = env.CELL_WORKER_URL
     })
   : null;
 
-// Work assigned to open later tells its students and families once it opens.
-const stopCourseworkClock = env.CELL_WORKER_URL
-  ? startCourseworkClock({
+// Whatever was set to go out later is told to its readers once it is out:
+// announcements, news and work set to open later.
+const stopPublicationClock = env.CELL_WORKER_URL
+  ? startPublicationClock({
       cell,
       directory,
       cellId: env.CELL_ID,
@@ -322,7 +323,7 @@ async function shutdown() {
   await stopDelivery?.();
   await stopUpkeep?.();
   await stopQuizClock?.();
-  await stopCourseworkClock?.();
+  await stopPublicationClock?.();
   await stopAdmissionsClock?.();
   await stopPartitions?.();
   await stopProgramReruns?.();
