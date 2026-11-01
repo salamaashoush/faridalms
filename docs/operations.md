@@ -657,6 +657,61 @@ share the queue without double sending. A failed delivery retries after 1,
 5, 30, 120 and 720 minutes and stops after the fifth attempt; a provider
 answering 4xx other than 429 is treated as permanent.
 
+## Conversations by email
+
+A message in a conversation with someone outside the school's accounts (a
+family that enquired through the website, say) leaves through the same
+worker as an email in the school's name: the whole message, its files
+attached up to 20 MiB, under the conversation's subject, from
+`EMAIL_FROM`'s address. Each such delivery is in the notification log
+beside everyone else's.
+
+Without `INBOUND_EMAIL_DOMAIN` the family's answer goes to the school's own
+address (its contact email in settings) and staff carry it on in the app.
+With it, every such email carries a reply address
+`r+<tenant>.<token>@<INBOUND_EMAIL_DOMAIN>` whose token names one family's
+place in one conversation, and the answer comes back into the conversation:
+
+1. Pick a subdomain used for nothing else, such as `reply.example.com`.
+   Resend recommends a subdomain so the domain's own mail is untouched.
+2. In Resend, **Domains**, add it (or enable receiving on it) and publish
+   the MX record Resend shows for it, at the lowest priority value of the
+   subdomain's MX records. Resend's dashboard shows the domain as receiving
+   once the record is found.
+3. In Resend, **Webhooks**, add an endpoint
+   `https://api.<PORTAL_DOMAIN>/callbacks/resend` for the event
+   `email.received`, and copy its signing secret (`whsec_...`).
+4. Set `INBOUND_EMAIL_DOMAIN=reply.example.com` and
+   `RESEND_WEBHOOK_SECRET=whsec_...`; both need `RESEND_API_KEY`, which reads
+   each received email's text, headers, checks and attachments from
+   Resend's receiving API. Restart the API.
+5. Send yourself a reply from an enquiry: the API logs one line per
+   received email, `{"inbound":"posted"}` or the reason it was not.
+
+What the endpoint does with an email:
+
+- It answers 401 unless the Svix signature over the raw body checks out
+  with the secret and its timestamp is within five minutes, so replays and
+  forgeries stop there. Resend retries a non-2xx for about a day, and a
+  retried email is taken once (its id is unique in the conversation).
+- Mail with `Auto-Submitted`, `Precedence: bulk|junk|list`, vendor
+  auto-reply headers, a list's headers, a bounce, a daemon or no-reply
+  sender, or our own sending or receiving domain is dropped, so two
+  machines never answer each other. More than 20 emails into one
+  conversation in an hour are dropped too.
+- It is posted only when it comes from the family's own address and passed
+  its domain's DMARC (or, without a DMARC policy, DKIM or SPF). Anything
+  else is held as an internal entry the team reads and the family never
+  sees. Received mail is always the outside contact's: nothing in it can
+  make it a staff member's message.
+- Quoted history, signatures and "sent from my phone" lines are cut. Up to
+  five attachments of at most 10 MiB each (and `MAX_UPLOAD_BYTES`) are kept,
+  through the same checks as an upload (type, size, `CLAMD_ADDRESS`) and
+  counted against the school's storage; the rest are named in the entry.
+
+`RESEND_API_URL` sends Resend's API calls to another server (an egress proxy,
+or the end-to-end suite's stand-in in `scripts/e2e-resend.ts`).
+
 ## Capacity and maintenance
 
 Each API replica opens, per cell, `CELL_POOL_SIZE` (default 10) connections
