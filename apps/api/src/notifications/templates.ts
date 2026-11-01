@@ -12,6 +12,100 @@ import { formatDayIn, formattingLocale } from "@faridalms/domain/school";
 export interface Rendered {
   subject: string;
   text: string;
+  /** The same message laid out for mail clients that show HTML. */
+  html?: string;
+  /** The name the email is sent under: always the school's, never the platform's. */
+  fromName?: string;
+}
+
+const POWERED = { en: "Powered by Farida LMS", ar: "تعمل بنظام فريدة LMS" };
+
+/** What one email says, before it is laid out as text and as HTML. */
+interface Letter {
+  locale: "en" | "ar";
+  school: string;
+  heading: string;
+  paragraphs: readonly string[];
+  /** Short labelled values, such as a sign-in name. */
+  facts?: readonly (readonly [string, string])[];
+  action?: { label: string; href: string };
+  /** The small print under the action, such as who the link is for. */
+  note?: string;
+  /** Words already laid out as safe HTML, such as a message's document, drawn after the paragraphs. */
+  bodyHtml?: string;
+  /** A line above everything, such as where a reply should be written. */
+  preface?: string;
+}
+
+const OR_PASTE = {
+  en: "If the button does not open, copy this link into your browser:",
+  ar: "إن لم يفتح الزر، فانسخ هذا الرابط في المتصفح:",
+};
+
+/**
+ * One layout for every email a school sends: its name at the top, the
+ * words, one clear action, and the platform only as small print. Inline
+ * styles and tables, because mail clients drop stylesheets; the text part
+ * carries the same words and the link itself.
+ */
+function letter(input: Letter): Rendered & { html: string; fromName: string } {
+  const { locale, school } = input;
+  const dir = locale === "ar" ? "rtl" : "ltr";
+  const align = locale === "ar" ? "right" : "left";
+  const font =
+    locale === "ar"
+      ? "Tahoma, 'Segoe UI', Arial, sans-serif"
+      : "-apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif";
+  const facts = (input.facts ?? [])
+    .map(
+      ([label, value]) =>
+        `<tr><td style="width:1%;white-space:nowrap;padding:6px 0;padding-inline-end:16px;color:#6b7280;font-size:13px">${escapeHtml(label)}</td><td dir="ltr" style="padding:6px 0;font-size:14px;font-weight:600;color:#111827;text-align:${align}">${escapeHtml(value)}</td></tr>`,
+    )
+    .join("");
+  const html = [
+    `<!doctype html><html lang="${locale}" dir="${dir}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="color-scheme" content="light"><title>${escapeHtml(input.heading)}</title></head>`,
+    `<body style="margin:0;padding:0;background:#f3f4f6">`,
+    `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f3f4f6"><tr><td align="center" style="padding:32px 16px">`,
+    `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" dir="${dir}" style="max-width:560px;font-family:${font};text-align:${align}">`,
+    input.preface
+      ? `<tr><td style="padding:0 4px 12px;font-size:12px;color:#6b7280">${escapeHtml(input.preface)}</td></tr>`
+      : "",
+    `<tr><td style="padding:0 4px 16px;font-size:16px;font-weight:700;color:#111827">${escapeHtml(school)}</td></tr>`,
+    `<tr><td style="background:#ffffff;border:1px solid #e5e7eb;border-radius:12px;padding:32px">`,
+    `<h1 style="margin:0 0 16px;font-size:22px;line-height:1.3;color:#111827">${escapeHtml(input.heading)}</h1>`,
+    ...input.paragraphs.map(
+      (paragraph) =>
+        `<p style="margin:0 0 14px;font-size:15px;line-height:1.6;color:#374151">${escapeHtml(paragraph).replaceAll("\n", "<br>")}</p>`,
+    ),
+    input.bodyHtml
+      ? `<div style="font-size:15px;line-height:1.6;color:#374151">${input.bodyHtml}</div>`
+      : "",
+    facts
+      ? `<table role="presentation" cellpadding="0" cellspacing="0" style="margin:4px 0 18px;width:100%;border-top:1px solid #f3f4f6;border-bottom:1px solid #f3f4f6">${facts}</table>`
+      : "",
+    input.action
+      ? `<table role="presentation" cellpadding="0" cellspacing="0" style="margin:8px 0 20px"><tr><td style="border-radius:8px;background:#111827"><a href="${escapeHtml(input.action.href)}" style="display:inline-block;padding:12px 22px;font-size:15px;font-weight:600;color:#ffffff;text-decoration:none">${escapeHtml(input.action.label)}</a></td></tr></table>` +
+        `<p style="margin:0 0 14px;font-size:12px;line-height:1.5;color:#6b7280">${escapeHtml(OR_PASTE[locale])}<br><a dir="ltr" href="${escapeHtml(input.action.href)}" style="color:#4b5563;word-break:break-all">${escapeHtml(input.action.href)}</a></p>`
+      : "",
+    input.note
+      ? `<p style="margin:16px 0 0;padding-top:16px;border-top:1px solid #f3f4f6;font-size:13px;line-height:1.5;color:#6b7280">${escapeHtml(input.note)}</p>`
+      : "",
+    `</td></tr>`,
+    `<tr><td style="padding:16px 4px 0;font-size:12px;color:#9ca3af">${escapeHtml(school)} · ${POWERED[locale]}</td></tr>`,
+    `</table></td></tr></table></body></html>`,
+  ].join("");
+  const text = [
+    input.preface ?? "",
+    input.heading,
+    ...input.paragraphs,
+    ...(input.facts ?? []).map(([label, value]) => `${label}: ${value}`),
+    input.action ? `${input.action.label}:\n${input.action.href}` : "",
+    input.note ?? "",
+    `-- \n${school}\n${POWERED[locale]}`,
+  ]
+    .filter(Boolean)
+    .join("\n\n");
+  return { subject: "", text, html, fromName: school };
 }
 
 const escapeHtml = (value: string) =>
@@ -45,27 +139,28 @@ export function conversationMessage(input: {
   /** Files too large to attach, named so the family can ask for them. */
   keptBack: readonly string[];
 }): Rendered & { html: string } {
-  const dir = input.locale === "ar" ? "rtl" : "ltr";
   const marker = input.repliesReturn ? REPLY_MARKER[input.locale] : "";
   const kept = input.keptBack.length
     ? KEPT_AT_SCHOOL[input.locale](input.keptBack.join(", "))
     : "";
-  const words = input.content
-    ? contentHtml(input.content, { fileHref: () => null })
-    : `<p>${escapeHtml(input.text).replaceAll("\n", "<br>")}</p>`;
+  const laid = letter({
+    locale: input.locale,
+    school: input.school,
+    heading: input.subject,
+    paragraphs: input.content ? [] : [input.text],
+    bodyHtml: input.content
+      ? contentHtml(input.content, { fileHref: () => null })
+      : undefined,
+    note: kept || undefined,
+    preface: marker || undefined,
+  });
   return {
+    ...laid,
     subject: input.subject,
+    // The words alone, so a reply quotes them as the family read them.
     text: [marker, input.text, kept, `-- \n${input.school}`]
       .filter(Boolean)
       .join("\n\n"),
-    html: [
-      `<div dir="${dir}" lang="${input.locale}">`,
-      marker ? `<p style="color:#6b7280">${escapeHtml(marker)}</p>` : "",
-      words,
-      kept ? `<p style="color:#6b7280">${escapeHtml(kept)}</p>` : "",
-      `<p style="color:#6b7280">${escapeHtml(input.school)}</p>`,
-      "</div>",
-    ].join(""),
   };
 }
 
@@ -244,8 +339,8 @@ const LINES: Record<"en" | "ar", Record<NotificationKind, Line>> = {
 };
 
 const SIGN_IN = {
-  en: "Sign in to the school app to read more.",
-  ar: "سجّل الدخول إلى تطبيق المدرسة لقراءة المزيد.",
+  en: "Sign in to the school's portal to read more.",
+  ar: "سجّل الدخول إلى بوابة المدرسة لقراءة المزيد.",
 };
 
 const DIGEST = {
@@ -311,12 +406,25 @@ export function render(input: {
     };
   if (lines.length === 1)
     return {
+      ...letter({
+        locale: input.locale,
+        school: input.school,
+        heading: first ?? "",
+        paragraphs: [SIGN_IN[input.locale]],
+      }),
       subject: `${input.school}: ${first ?? ""}`,
-      text: `${first ?? ""}\n\n${SIGN_IN[input.locale]}`,
     };
   return {
+    ...letter({
+      locale: input.locale,
+      school: input.school,
+      heading: DIGEST[input.locale](lines.length),
+      paragraphs: [
+        lines.map((line) => `• ${line}`).join("\n"),
+        SIGN_IN[input.locale],
+      ],
+    }),
     subject: `${input.school}: ${DIGEST[input.locale](lines.length)}`,
-    text: `${lines.map((line) => `- ${line}`).join("\n")}\n\n${SIGN_IN[input.locale]}`,
   };
 }
 
@@ -335,24 +443,32 @@ export function inviteMessage(input: {
 }): Rendered {
   return input.locale === "ar"
     ? {
+        ...letter({
+          locale: "ar",
+          school: input.school,
+          heading: `حساب ${input.student} جاهز`,
+          paragraphs: [
+            `فتحت ${input.school} حساب دخول لـ ${input.student} على بوابتها. اختاروا له كلمة مرور ليبدأ.`,
+          ],
+          facts: [["اسم الدخول", input.loginName]],
+          action: { label: "اختيار كلمة المرور", href: input.link },
+          note: `يعمل الرابط مرة واحدة خلال ${input.days} أيام، وهو لأسرتكم فقط فلا ترسلوه إلى أحد. إن لم تنتظروا هذه الرسالة فأبلغوا مكتب المدرسة.`,
+        }),
         subject: `${input.school}: اختر كلمة مرور ${input.student}`,
-        text: [
-          `فتحت المدرسة حساب دخول لـ ${input.student} في تطبيقها.`,
-          `اسم الدخول: ${input.loginName}`,
-          `اختر كلمة المرور من هذا الرابط، وهو يعمل مرة واحدة خلال ${input.days} أيام:`,
-          input.link,
-          "هذا الرابط لأسرتكم فقط، فلا ترسلوه إلى أحد. إن لم تنتظروا هذه الرسالة فأبلغوا مكتب المدرسة.",
-        ].join("\n\n"),
       }
     : {
+        ...letter({
+          locale: "en",
+          school: input.school,
+          heading: `${input.student}'s sign-in is ready`,
+          paragraphs: [
+            `${input.school} has opened a sign-in for ${input.student} on its portal. Choose a password to get started.`,
+          ],
+          facts: [["Sign-in name", input.loginName]],
+          action: { label: "Choose the password", href: input.link },
+          note: `The link works once, within ${input.days} days, and is for your family only, so please do not forward it. If you did not expect this email, tell the school office.`,
+        }),
         subject: `${input.school}: choose ${input.student}'s password`,
-        text: [
-          `The school has opened a sign-in for ${input.student} in its app.`,
-          `Sign-in name: ${input.loginName}`,
-          `Choose the password from this link, which works once, within ${input.days} days:`,
-          input.link,
-          "The link is for your family only, so please do not forward it. If you did not expect this email, tell the school office.",
-        ].join("\n\n"),
       };
 }
 
@@ -370,24 +486,32 @@ export function adultInviteMessage(input: {
 }): Rendered {
   return input.locale === "ar"
     ? {
+        ...letter({
+          locale: "ar",
+          school: input.school,
+          heading: `مرحبًا ${input.name}`,
+          paragraphs: [
+            `فتحت ${input.school} لك حساب دخول على بوابتها. اختر كلمة مرورك لتبدأ.`,
+          ],
+          facts: [["اسم الدخول", input.loginName]],
+          action: { label: "اختيار كلمة المرور", href: input.link },
+          note: `يعمل الرابط مرة واحدة خلال ${input.days} أيام، وهو لك وحدك فلا ترسله إلى أحد. إن لم تنتظر هذه الرسالة فأبلغ مكتب المدرسة.`,
+        }),
         subject: `${input.school}: اختر كلمة مرورك`,
-        text: [
-          `مرحبًا ${input.name}، فتحت المدرسة لك حساب دخول في تطبيقها.`,
-          `اسم الدخول: ${input.loginName}`,
-          `اختر كلمة المرور من هذا الرابط، وهو يعمل مرة واحدة خلال ${input.days} أيام:`,
-          input.link,
-          "هذا الرابط لك وحدك، فلا ترسله إلى أحد. إن لم تنتظر هذه الرسالة فأبلغ مكتب المدرسة.",
-        ].join("\n\n"),
       }
     : {
+        ...letter({
+          locale: "en",
+          school: input.school,
+          heading: `Welcome, ${input.name}`,
+          paragraphs: [
+            `${input.school} has opened a sign-in for you on its portal. Choose your password to get started.`,
+          ],
+          facts: [["Sign-in name", input.loginName]],
+          action: { label: "Choose your password", href: input.link },
+          note: `The link works once, within ${input.days} days, and is for you only, so please do not forward it. If you did not expect this email, tell the school office.`,
+        }),
         subject: `${input.school}: choose your password`,
-        text: [
-          `Hello ${input.name}, the school has opened a sign-in for you in its app.`,
-          `Sign-in name: ${input.loginName}`,
-          `Choose your password from this link, which works once, within ${input.days} days:`,
-          input.link,
-          "The link is for you only, so please do not forward it. If you did not expect this email, tell the school office.",
-        ].join("\n\n"),
       };
 }
 
@@ -404,22 +528,30 @@ export function resetMessage(input: {
 }): Rendered {
   return input.locale === "ar"
     ? {
+        ...letter({
+          locale: "ar",
+          school: input.school,
+          heading: "اختر كلمة مرور جديدة",
+          paragraphs: [`طلب أحدهم كلمة مرور جديدة لحسابك في ${input.school}.`],
+          facts: [["اسم الدخول", input.loginName]],
+          action: { label: "اختيار كلمة مرور جديدة", href: input.link },
+          note: `يعمل الرابط مرة واحدة خلال ${input.minutes} دقيقة، وسيُسجَّل خروجك من كل الأجهزة الأخرى. إن لم تطلب ذلك فتجاهل هذه الرسالة، فكلمة مرورك لم تتغير.`,
+        }),
         subject: `${input.school}: اختر كلمة مرور جديدة`,
-        text: [
-          `طلب أحدهم كلمة مرور جديدة لاسم الدخول ${input.loginName}.`,
-          `اختر كلمة المرور الجديدة من هذا الرابط، وهو يعمل مرة واحدة خلال ${input.minutes} دقيقة:`,
-          input.link,
-          "سيُسجَّل خروجك من كل الأجهزة الأخرى. إن لم تطلب ذلك فتجاهل هذه الرسالة، فكلمة مرورك لم تتغير.",
-        ].join("\n\n"),
       }
     : {
+        ...letter({
+          locale: "en",
+          school: input.school,
+          heading: "Choose a new password",
+          paragraphs: [
+            `Someone asked for a new password for your ${input.school} account.`,
+          ],
+          facts: [["Sign-in name", input.loginName]],
+          action: { label: "Choose a new password", href: input.link },
+          note: `The link works once, within ${input.minutes} minutes, and every other device will be signed out. If you did not ask for this, ignore this email; your password has not changed.`,
+        }),
         subject: `${input.school}: choose a new password`,
-        text: [
-          `Someone asked for a new password for the sign-in name ${input.loginName}.`,
-          `Choose the new password from this link, which works once, within ${input.minutes} minutes:`,
-          input.link,
-          "Every other device will be signed out. If you did not ask for this, ignore this email; your password has not changed.",
-        ].join("\n\n"),
       };
 }
 
@@ -437,24 +569,32 @@ export function registerMessage(input: {
 }): Rendered {
   return input.locale === "ar"
     ? {
+        ...letter({
+          locale: "ar",
+          school: input.school,
+          heading: `مرحبًا ${input.name}`,
+          paragraphs: [
+            `شكرًا لتسجيلك لدى ${input.school}. أكّد بريدك واختر كلمة المرور، ثم ابدأ طلب الالتحاق واحفظه وعد إليه متى شئت.`,
+          ],
+          facts: [["اسم الدخول", input.loginName]],
+          action: { label: "تأكيد البريد", href: input.link },
+          note: `يعمل الرابط مرة واحدة خلال ${input.days} أيام. إن لم تسجّل لدى المدرسة فتجاهل هذه الرسالة، ولن يُفتح أي حساب.`,
+        }),
         subject: `${input.school}: أكّد بريدك لتبدأ طلب الالتحاق`,
-        text: [
-          `مرحبًا ${input.name}، شكرًا لتسجيلك لدى ${input.school}.`,
-          `اسم الدخول: ${input.loginName}`,
-          `أكّد بريدك واختر كلمة المرور من هذا الرابط، وهو يعمل مرة واحدة خلال ${input.days} أيام. بعدها تستطيع بدء طلب الالتحاق وحفظه والعودة إليه متى شئت:`,
-          input.link,
-          "إن لم تسجّل لدى المدرسة فتجاهل هذه الرسالة، ولن يُفتح أي حساب.",
-        ].join("\n\n"),
       }
     : {
+        ...letter({
+          locale: "en",
+          school: input.school,
+          heading: `Welcome, ${input.name}`,
+          paragraphs: [
+            `Thank you for registering with ${input.school}. Confirm your email and choose your password, then start an application, save it and come back to it whenever you like.`,
+          ],
+          facts: [["Sign-in name", input.loginName]],
+          action: { label: "Confirm your email", href: input.link },
+          note: `The link works once, within ${input.days} days. If you did not register with the school, ignore this email and no account will open.`,
+        }),
         subject: `${input.school}: confirm your email to start applying`,
-        text: [
-          `Hello ${input.name}, thank you for registering with ${input.school}.`,
-          `Sign-in name: ${input.loginName}`,
-          `Confirm your email and choose your password from this link, which works once, within ${input.days} days. You can then start an application, save it and come back to it whenever you like:`,
-          input.link,
-          "If you did not register with the school, ignore this email and no account will open.",
-        ].join("\n\n"),
       };
 }
 
@@ -471,27 +611,33 @@ export function alreadyRegisteredMessage(input: {
 }): Rendered {
   return input.locale === "ar"
     ? {
+        ...letter({
+          locale: "ar",
+          school: input.school,
+          heading: "لديك حساب بالفعل",
+          paragraphs: [
+            `طلب أحدهم التسجيل لدى ${input.school} بهذا البريد، ولديك حساب به بالفعل. سجّل الدخول لتقدّم طلب الالتحاق من حسابك.`,
+            `وإن نسيت كلمة المرور فاختر كلمة جديدة من هنا:\n${input.reset}`,
+          ],
+          facts: [["اسم الدخول", input.loginName]],
+          action: { label: "تسجيل الدخول", href: input.signIn },
+          note: "إن لم تطلب ذلك فتجاهل هذه الرسالة.",
+        }),
         subject: `${input.school}: لديك حساب بالفعل`,
-        text: [
-          `طلب أحدهم التسجيل لدى ${input.school} بهذا البريد، ولديك حساب به بالفعل.`,
-          `اسم الدخول: ${input.loginName}`,
-          `سجّل الدخول من هنا لتقدّم طلب الالتحاق من حسابك:`,
-          input.signIn,
-          `وإن نسيت كلمة المرور فاختر كلمة جديدة من هنا:`,
-          input.reset,
-          "إن لم تطلب ذلك فتجاهل هذه الرسالة.",
-        ].join("\n\n"),
       }
     : {
+        ...letter({
+          locale: "en",
+          school: input.school,
+          heading: "You already have an account",
+          paragraphs: [
+            `Someone asked to register with ${input.school} using this email, and it already has an account. Sign in to apply from your account.`,
+            `If you have forgotten your password, choose a new one here:\n${input.reset}`,
+          ],
+          facts: [["Sign-in name", input.loginName]],
+          action: { label: "Sign in", href: input.signIn },
+          note: "If you did not ask for this, ignore this email.",
+        }),
         subject: `${input.school}: you already have an account`,
-        text: [
-          `Someone asked to register with ${input.school} using this email, and it already has an account.`,
-          `Sign-in name: ${input.loginName}`,
-          `Sign in here to apply from your account:`,
-          input.signIn,
-          `If you have forgotten your password, choose a new one here:`,
-          input.reset,
-          "If you did not ask for this, ignore this email.",
-        ].join("\n\n"),
       };
 }
