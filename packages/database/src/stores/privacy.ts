@@ -19,8 +19,7 @@ import {
   recordsRequests,
   retentionSettings,
 } from "../tables/privacy";
-import { textArray, uuidArray } from "./sql";
-import { STAFF_ROLES } from "./staff";
+import { uuidArray } from "./sql";
 
 type Tx = CellTransaction;
 
@@ -121,7 +120,7 @@ export async function leaversOf(
       select r.user_id, 'staff', r.org_id, r.valid_during
       from core.user_roles r
       where r.tenant_id = ${scope.tenantId}::uuid and r.status = 'active'
-        and r.role = any(${textArray([...STAFF_ROLES])})
+        and r.role = any(app.staff_roles())
     ), people as (
       select user_id, kind,
              max(upper(valid_during)) - 1 as left_on,
@@ -302,7 +301,7 @@ export async function hadAtSchool(
         or exists (select 1 from core.user_roles r
                    where r.tenant_id = ${scope.tenantId}::uuid and r.user_id = ${scope.userId}::uuid
                      and r.org_id = ${scope.orgId}::uuid and r.status = 'active'
-                     and r.role = any(${textArray([...STAFF_ROLES])})) as found`);
+                     and r.role = any(app.staff_roles())) as found`);
   return rows[0]?.found ?? false;
 }
 

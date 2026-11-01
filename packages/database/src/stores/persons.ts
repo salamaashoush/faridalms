@@ -12,12 +12,27 @@ import { bounds, uuidArray } from "./sql";
 
 type Tx = CellTransaction;
 
-export async function isVisiblePerson(tx: Tx, scope: Scope, userId: string) {
-  const rows = await tx.execute<{ ok: boolean }>(sql`
-    select ${userId}::uuid in (
-      select user_id from app.visible_people(${scope.viewerId}::uuid, ${scope.schoolId}::uuid,
-        ${scope.today}::date, ${scope.schoolWide})) as ok`);
-  return rows[0]?.ok ?? false;
+/** A person's whole record, or the limited profile of a teacher or someone the viewer talks to. */
+export type PersonReach = "record" | "profile";
+
+/**
+ * How far the viewer reaches each of these people, as `app.reached_people`
+ * decides; anyone left out of the map is not reached at all.
+ */
+export async function personReach(
+  tx: Tx,
+  scope: Scope,
+  userIds: readonly string[],
+): Promise<Map<string, PersonReach>> {
+  if (userIds.length === 0) return new Map();
+  const rows = await tx.execute<{ user_id: string; record: boolean }>(sql`
+    select p.user_id, p.record
+    from app.reached_people(${scope.viewerId}::uuid, ${scope.schoolId}::uuid, ${scope.today}::date,
+      ${scope.schoolWide}) p
+    where p.user_id = any(${uuidArray(userIds)})`);
+  return new Map(
+    rows.map((row) => [row.user_id, row.record ? "record" : "profile"]),
+  );
 }
 
 export interface RoleHeld {
@@ -106,7 +121,8 @@ export interface ChildLink {
   fullNameEn: string | null;
   fullNameAr: string | null;
   relationId: string;
-  portalAccess: boolean;
+  /** Whether the link lets the person follow the child in the portal today. */
+  follows: boolean;
   /** Full rights decide for the child; restricted ones only follow. */
   educationalRights: "full" | "restricted" | "none";
   /** A legal guardian the office has confirmed, who may consent for the child. */
@@ -126,13 +142,13 @@ export async function childrenOf(
     full_name_en: string | null;
     full_name_ar: string | null;
     relation_descriptor_id: string;
-    portal_access: boolean;
+    follows: boolean;
     educational_rights: "full" | "restricted" | "none";
     consents: boolean;
     visible: boolean;
   }>(sql`
-    select r.id, r.student_user_id, u.full_name_en, u.full_name_ar, r.relation_descriptor_id, r.portal_access,
-           r.educational_rights,
+    select r.id, r.student_user_id, u.full_name_en, u.full_name_ar, r.relation_descriptor_id,
+           app.guardian_permits(r, ${scope.today}::date, 'follow') as follows, r.educational_rights,
            coalesce(r.legal_guardian, false) and r.verified_at is not null and r.educational_rights = 'full' as consents,
            r.student_user_id in (select student_user_id from app.visible_students(${scope.viewerId}::uuid,
              ${scope.schoolId}::uuid, ${scope.today}::date, ${scope.schoolWide})) as visible
@@ -149,7 +165,7 @@ export async function childrenOf(
       fullNameEn: row.full_name_en,
       fullNameAr: row.full_name_ar,
       relationId: row.relation_descriptor_id,
-      portalAccess: row.portal_access,
+      follows: row.follows,
       educationalRights: row.educational_rights,
       consents: row.consents,
       visible: row.visible,
@@ -337,8 +353,8 @@ export async function searchReached(
                    and r.status = 'active' and r.valid_during @> ${scope.today}::date) as roles
     from core.users u
     where u.tenant_id = ${scope.tenantId}::uuid and u.status = 'active'
-      and u.id in (select result_id from app.search(${q}, array['user'], ${uuidArray(path)}))
-      and u.id in ${reached(scope)}
+      and u.id in (select result_id from app.search(${q}, array['user'], ${uuidArray(path)},
+        within => array${reached(scope)}))
     order by u.full_name_en, u.full_name_ar
     limit 20`);
   return rows.map((row) => ({

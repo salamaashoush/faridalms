@@ -127,7 +127,7 @@ export async function effectiveAccess(
           and s.role = 'student' and s.status = 'active' and s.org_id in ${path}
           and s.valid_during @> ${input.today}::date
         where r.tenant_id = ${input.tenantId}::uuid and r.related_user_id = ${input.userId}::uuid
-          and r.status = 'active' and r.portal_access and r.valid_during @> ${input.today}::date
+          and app.guardian_permits(r, ${input.today}::date, 'follow')
       ) as found`);
     if (!portal[0]?.found)
       contexts = contexts.filter((context) => context !== "family");

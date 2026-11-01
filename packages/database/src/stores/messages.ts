@@ -15,19 +15,11 @@ import type {
   ThreadKind,
   ThreadRole,
 } from "../tables/messaging";
+import type { Scope } from "./students";
 
 import { escapeLike, isoOf, textArray, uuidArray } from "./sql";
 
 type Tx = CellTransaction;
-
-export interface Reach {
-  tenantId: string;
-  schoolId: string;
-  viewerId: string;
-  on: string;
-  /** The viewer may reach every student of the school and their families. */
-  schoolWide: boolean;
-}
 
 export type PersonKind = "staff" | "guardian" | "student";
 
@@ -44,8 +36,6 @@ export interface Messageable {
   }[];
 }
 
-const STAFF_ROLES = sql`('teacher', 'aide', 'counselor', 'principal', 'site_administrator',
-  'district_administrator', 'system_administrator', 'proctor', 'staff')`;
 const OFFICE_ROLES = sql`('principal', 'site_administrator', 'staff', 'counselor')`;
 
 /**
@@ -55,28 +45,23 @@ const OFFICE_ROLES = sql`('principal', 'site_administrator', 'staff', 'counselor
  * reaches their own teachers. Guardians without portal access, or kept
  * apart from the school's messages, are never offered.
  */
-function reachable(reach: Reach): SQL {
+function reachable(reach: Scope): SQL {
   return sql`
     with viewer as (
-      select
-        exists (select 1 from core.user_roles r
-          where r.tenant_id = ${reach.tenantId}::uuid and r.user_id = ${reach.viewerId}::uuid
-            and r.org_id = ${reach.schoolId}::uuid and r.status = 'active'
-            and r.valid_during @> ${reach.on}::date and r.role in ${STAFF_ROLES}) as staff
+      select app.is_staff(${reach.viewerId}::uuid, ${reach.schoolId}::uuid, ${reach.today}::date) as staff
     ), students as (
       select student_user_id as user_id
-      from app.visible_students(${reach.viewerId}::uuid, ${reach.schoolId}::uuid, ${reach.on}::date, ${reach.schoolWide})
+      from app.visible_students(${reach.viewerId}::uuid, ${reach.schoolId}::uuid, ${reach.today}::date, ${reach.schoolWide})
       where (select staff from viewer)
     ), children as (
       select l.student_user_id as user_id from core.user_relationships l
       where l.tenant_id = ${reach.tenantId}::uuid and l.related_user_id = ${reach.viewerId}::uuid
-        and l.status = 'active' and l.portal_access and l.valid_during @> ${reach.on}::date
-        and not coalesce(l.communication_isolated, false)
+        and app.guardian_permits(l, ${reach.today}::date, 'contact')
     ), learners as (
       select ${reach.viewerId}::uuid as user_id
       where exists (select 1 from core.enrollments e
         where e.tenant_id = ${reach.tenantId}::uuid and e.user_id = ${reach.viewerId}::uuid
-          and e.role = 'student' and e.status = 'active' and e.valid_during @> ${reach.on}::date)
+          and e.role = 'student' and e.status = 'active' and e.valid_during @> ${reach.today}::date)
       union
       select user_id from children
     ), their_classes as (
@@ -85,29 +70,28 @@ function reachable(reach: Reach): SQL {
       join core.classes c on c.tenant_id = k.tenant_id
         and (c.id = k.id or c.homeroom_class_id = k.id) and c.status = 'active'
       where e.tenant_id = ${reach.tenantId}::uuid and e.role = 'student' and e.status = 'active'
-        and e.valid_during @> ${reach.on}::date and e.user_id in (select user_id from learners)
+        and e.valid_during @> ${reach.today}::date and e.user_id in (select user_id from learners)
     ), candidates(user_id, kind) as (
       select r.user_id, 'staff' from core.user_roles r
       where (select staff from viewer) and r.tenant_id = ${reach.tenantId}::uuid
         and r.org_id = ${reach.schoolId}::uuid and r.status = 'active'
-        and r.valid_during @> ${reach.on}::date and r.role in ${STAFF_ROLES}
+        and r.valid_during @> ${reach.today}::date and r.role = any (app.staff_roles())
       union
       select s.user_id, 'student' from students s
       union
       select l.related_user_id, 'guardian' from core.user_relationships l
-      where l.tenant_id = ${reach.tenantId}::uuid and l.status = 'active' and l.portal_access
-        and l.valid_during @> ${reach.on}::date and not coalesce(l.communication_isolated, false)
+      where l.tenant_id = ${reach.tenantId}::uuid and app.guardian_permits(l, ${reach.today}::date, 'contact')
         and l.student_user_id in (select user_id from students)
       union
       select e.user_id, 'staff' from core.enrollments e
       where e.tenant_id = ${reach.tenantId}::uuid and e.role in ('teacher', 'aide')
-        and e.status = 'active' and e.valid_during @> ${reach.on}::date
+        and e.status = 'active' and e.valid_during @> ${reach.today}::date
         and e.class_id in (select id from their_classes)
       union
       select r.user_id, 'staff' from core.user_roles r
       where exists (select 1 from children) and r.tenant_id = ${reach.tenantId}::uuid
         and r.org_id = ${reach.schoolId}::uuid and r.status = 'active'
-        and r.valid_during @> ${reach.on}::date and r.role in ${OFFICE_ROLES}
+        and r.valid_during @> ${reach.today}::date and r.role in ${OFFICE_ROLES}
     )
     select distinct on (c.user_id) c.user_id, c.kind from candidates c
     where c.user_id <> ${reach.viewerId}::uuid
@@ -121,7 +105,7 @@ function reachable(reach: Reach): SQL {
  */
 export async function messageable(
   tx: Tx,
-  reach: Reach,
+  reach: Scope,
   filter: {
     q: string;
     limit: number;
@@ -169,7 +153,7 @@ export async function messageable(
              from core.user_relationships l
              join core.users s on s.tenant_id = l.tenant_id and s.id = l.student_user_id
              where r.kind = 'guardian' and l.tenant_id = r.tenant_id and l.related_user_id = r.user_id
-               and l.status = 'active' and l.valid_during @> ${reach.on}::date), '[]'::jsonb) as children
+               and l.status = 'active' and l.valid_during @> ${reach.today}::date), '[]'::jsonb) as children
     from ranked r
     where ${after === null}::boolean
       or (r.rank, r.sort_name, r.user_id) > (${after?.rank ?? 0}::int, ${after?.name ?? ""}::text,
@@ -216,8 +200,7 @@ export async function messagingChildren(
     from core.user_relationships l
     join core.users s on s.tenant_id = l.tenant_id and s.id = l.student_user_id and s.status = 'active'
     where l.tenant_id = ${input.tenantId}::uuid and l.related_user_id = ${input.viewerId}::uuid
-      and l.status = 'active' and l.portal_access and l.valid_during @> ${input.on}::date
-      and not coalesce(l.communication_isolated, false)
+      and app.guardian_permits(l, ${input.on}::date, 'contact')
     order by s.full_name_en, s.id`);
   return rows.map((row) => ({
     userId: row.user_id,
@@ -229,7 +212,7 @@ export async function messagingChildren(
 /** Which of these people the viewer may not write to. */
 export async function unreachable(
   tx: Tx,
-  reach: Reach,
+  reach: Scope,
   userIds: readonly string[],
 ): Promise<string[]> {
   if (userIds.length === 0) return [];
@@ -248,8 +231,7 @@ export async function messagingGuardians(
   const rows = await tx.execute<{ user_id: string }>(sql`
     select distinct l.related_user_id as user_id from core.user_relationships l
     where l.tenant_id = ${input.tenantId}::uuid and l.student_user_id = ${input.studentId}::uuid
-      and l.status = 'active' and l.portal_access and l.valid_during @> ${input.on}::date
-      and not coalesce(l.communication_isolated, false)
+      and app.guardian_permits(l, ${input.on}::date, 'contact')
     order by 1`);
   return rows.map((row) => row.user_id);
 }
@@ -262,8 +244,7 @@ export async function noticeGuardians(
   const rows = await tx.execute<{ user_id: string }>(sql`
     select distinct l.related_user_id as user_id from core.user_relationships l
     where l.tenant_id = ${input.tenantId}::uuid and l.student_user_id = ${input.studentId}::uuid
-      and l.status = 'active' and l.receives_notifications and l.valid_during @> ${input.on}::date
-      and not coalesce(l.communication_isolated, false)
+      and app.guardian_permits(l, ${input.on}::date, 'notice')
     order by 1`);
   return rows.map((row) => row.user_id);
 }
@@ -1198,36 +1179,6 @@ export async function draftsOf(
       rows.length > reader.limit && last
         ? { at: last.updated_at, id: last.id }
         : null,
-  };
-}
-
-/**
- * Which of these people the viewer may already open, as a student's
- * record or a person's, by the same reach rules those records apply.
- */
-export async function openable(
-  tx: Tx,
-  input: {
-    schoolId: string;
-    viewerId: string;
-    on: string;
-    schoolWide: boolean;
-    userIds: readonly string[];
-  },
-): Promise<{ students: string[]; people: string[] }> {
-  if (input.userIds.length === 0) return { students: [], people: [] };
-  const rows = await tx.execute<{ user_id: string; student: boolean }>(sql`
-    select t.user_id,
-      t.user_id in (select student_user_id from app.visible_students(${input.viewerId}::uuid,
-        ${input.schoolId}::uuid, ${input.on}::date, ${input.schoolWide})) as student
-    from unnest(${uuidArray(input.userIds)}) as t(user_id)
-    where t.user_id in (select student_user_id from app.visible_students(${input.viewerId}::uuid,
-        ${input.schoolId}::uuid, ${input.on}::date, ${input.schoolWide}))
-      or t.user_id in (select user_id from app.visible_people(${input.viewerId}::uuid,
-        ${input.schoolId}::uuid, ${input.on}::date, ${input.schoolWide}))`);
-  return {
-    students: rows.filter((row) => row.student).map((row) => row.user_id),
-    people: rows.filter((row) => !row.student).map((row) => row.user_id),
   };
 }
 

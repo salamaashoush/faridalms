@@ -155,6 +155,50 @@ describe("the guardian predicate", () => {
     ).toEqual({ follow: false, contact: false, health: false });
   });
 
+  test("the school's notices go where the link takes them, and calls to any linked adult, but neither to one it cut off", async () => {
+    const { a } = harness();
+    const link = await confirmedMother(a.tenantId);
+    const purposes = async (change: string | null) => {
+      const result = await probe<{ notice: boolean; call: boolean }>(
+        "app",
+        a.tenantId,
+        [
+          ...(change
+            ? [
+                {
+                  text: `update core.user_relationships set ${change} where tenant_id = $1 and id = $2`,
+                  params: [a.tenantId, link.id],
+                },
+              ]
+            : []),
+          {
+            text: `select app.guardian_permits(r, $3::date, 'notice') as notice,
+                          app.guardian_permits(r, $3::date, 'call') as call
+                   from core.user_relationships r where r.tenant_id = $1 and r.id = $2`,
+            params: [a.tenantId, link.id, TODAY],
+          },
+        ],
+      );
+      if (result.error) throw new Error(result.error.message);
+      return result.rows[0];
+    };
+    expect(await purposes("receives_notifications = true")).toEqual({
+      notice: true,
+      call: true,
+    });
+    expect(
+      await purposes("receives_notifications = false, portal_access = false"),
+    ).toEqual({ notice: false, call: true });
+    expect(
+      await purposes(
+        "receives_notifications = true, communication_isolated = true",
+      ),
+    ).toEqual({ notice: false, call: false });
+    expect(
+      await purposes(`valid_during = daterange('2024-09-01', '${TODAY}')`),
+    ).toEqual({ notice: false, call: false });
+  });
+
   test("a purpose the rule does not know is an error, not a refusal", async () => {
     const { a } = harness();
     const link = await confirmedMother(a.tenantId);

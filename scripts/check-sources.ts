@@ -11,6 +11,7 @@ import {
   CATALOGUE,
   CEDS_GRADE_LEVELS,
 } from "@faridalms/domain/descriptors/catalogue";
+import { STAFF_ROLES } from "@faridalms/domain/workspace";
 import { Glob, SQL } from "bun";
 
 const problems: string[] = [];
@@ -48,6 +49,16 @@ const TIME_HELPERS = new Set([
   "apps/web/src/utils/datetime.ts",
   "packages/domain/src/school.ts",
 ]);
+// Which guardians the school may do something for, who counts as staff and
+// how far a viewer reaches are each decided in one place; a pasted copy is
+// how a parent the school cut off gets sent a message.
+const GUARDIAN_RULE =
+  /\b\w+\.(?:portal_access|receives_notifications)\s+and\b|\bnot\s+(?:coalesce\(\s*)?\w+\.communication_isolated\b/i;
+const STAFF_LIST = /'teacher',\s*'aide',\s*'counselor'/;
+const REACH_FLAG = /\bschoolWide\s*:/;
+const PAGE_GATE = /capabilities\.includes\([^)]*\)\s*\)?\s*throw\s+redirect/;
+const REACH_STORE =
+  /\b(?:isVisibleStudent|reachedStudents|personReach|reachesClass|teachesClass)\b[^;]*from\s+["']@faridalms\/database\/stores\//;
 
 for (const { path, text } of await sources()) {
   if (path === "scripts/check-sources.ts") continue;
@@ -74,6 +85,23 @@ for (const { path, text } of await sources()) {
     problems.push(
       `${path}: a pg-boss singleton key not built by the tenant helper`,
     );
+  if (GUARDIAN_RULE.test(text))
+    problems.push(
+      `${path}: writes the guardian rule out; use app.guardian_permits`,
+    );
+  if (
+    !path.startsWith("packages/database/src/tables/") &&
+    STAFF_LIST.test(text)
+  )
+    problems.push(`${path}: lists the staff roles; use app.staff_roles()`);
+  if (
+    path.startsWith("apps/api/src/") &&
+    path !== "apps/api/src/core/reach.ts" &&
+    (REACH_FLAG.test(text) || REACH_STORE.test(text))
+  )
+    problems.push(`${path}: decides reach outside core/reach.ts`);
+  if (path.startsWith("apps/web/src/routes/") && PAGE_GATE.test(text))
+    problems.push(`${path}: gates a page by hand; use requirePage`);
   if (
     !TIME_HELPERS.has(path) &&
     (path.startsWith("apps/") || path.startsWith("packages/editor/")) &&
@@ -91,11 +119,20 @@ const FORBIDDEN_IN_MIGRATIONS = [
   /owner\s+to\s+(?!"?cell_owner"?\b|"?directory_owner"?\b)/i,
   /bypassrls/i,
 ];
+// Migrations from the one reach model on call its functions rather than
+// writing the rules out again.
+const REACH_MODEL = "20261101152025_reach_model";
 for (const folder of Object.values(MIGRATIONS))
   for await (const path of new Glob(`${folder}/*/migration.sql`).scan(".")) {
     const text = await Bun.file(path).text();
     for (const pattern of FORBIDDEN_IN_MIGRATIONS)
       if (pattern.test(text)) problems.push(`${path}: matches ${pattern}`);
+    const name = path.split("/").at(-2) ?? "";
+    if (
+      name > REACH_MODEL &&
+      (GUARDIAN_RULE.test(text) || STAFF_LIST.test(text))
+    )
+      problems.push(`${path}: writes the guardian rule or the staff roles out`);
   }
 
 for (const namespace of CATALOGUE)
@@ -139,6 +176,11 @@ if (url) {
     for (const { ns } of pinned)
       if (!seeded.has(ns))
         problems.push(`namespace ${ns} is pinned but not seeded`);
+    const [staff]: { roles: string[] }[] = await client.unsafe(
+      "select app.staff_roles() as roles",
+    );
+    if (JSON.stringify(staff?.roles) !== JSON.stringify(STAFF_ROLES))
+      problems.push("app.staff_roles() and STAFF_ROLES name different roles");
   } finally {
     await client.close();
   }

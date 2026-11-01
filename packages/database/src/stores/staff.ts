@@ -10,18 +10,6 @@ import { textArray, uuidArray } from "./sql";
 
 type Tx = CellTransaction;
 
-export const STAFF_ROLES = [
-  "teacher",
-  "aide",
-  "counselor",
-  "principal",
-  "site_administrator",
-  "district_administrator",
-  "system_administrator",
-  "proctor",
-  "staff",
-] as const satisfies readonly NaturalRole[];
-
 export interface StaffFilter {
   q: string;
   /** The search as an E.164 number, when it reads as one. */
@@ -67,7 +55,7 @@ export async function staffDirectory(
       : sql`coalesce(full_name_en, full_name_ar) collate "en-x-icu"`;
   const order =
     filter.sort === "role"
-      ? sql`array_position(${textArray([...STAFF_ROLES])}, roles[1]) ${direction}, ${nameKey}, id`
+      ? sql`array_position(app.staff_roles(), roles[1]) ${direction}, ${nameKey}, id`
       : filter.sort === "signedIn"
         ? sql`last_sign_in_at ${direction} nulls last, ${nameKey}, id`
         : sql`${nameKey} ${direction}, id`;
@@ -78,7 +66,11 @@ export async function staffDirectory(
       : filter.phone
         ? sql`phone = ${filter.phone}`
         : sql`(lower(email) = lower(${q})
-               or id in (select result_id from app.search(${q}, array['user'], ${uuidArray(path)})))`;
+               or id in (select result_id from app.search(${q}, array['user'], ${uuidArray(path)},
+                 within => array(select r.user_id from core.user_roles r
+                   where r.tenant_id = ${scope.tenantId}::uuid and r.org_id = any(${uuidArray(path)})
+                     and r.status = 'active' and r.valid_during @> ${scope.today}::date
+                     and r.role = any(app.staff_roles())))))`;
   const rows = await tx.execute<{
     id: string;
     full_name_en: string | null;
@@ -104,11 +96,11 @@ export async function staffDirectory(
       from core.user_roles r
       where r.tenant_id = ${scope.tenantId}::uuid and r.org_id = any(${uuidArray(path)})
         and r.status = 'active' and r.valid_during @> ${scope.today}::date
-        and r.role = any(${textArray([...STAFF_ROLES])})
+        and r.role = any(app.staff_roles())
       group by r.user_id
     ), listed as (
       select u.id, u.full_name_en, u.full_name_ar, u.photo_file_id,
-             array(select x from unnest(h.roles) x order by array_position(${textArray([...STAFF_ROLES])}, x)) as roles,
+             array(select x from unnest(h.roles) x order by array_position(app.staff_roles(), x)) as roles,
              h.position_id, h.title_en, h.title_ar,
              (select c.value from core.contact_points c
                 where c.tenant_id = u.tenant_id and c.user_id = u.id and c.status = 'active' and c.kind = 'email'
@@ -171,7 +163,7 @@ export async function setStaffRoles(
   }>(sql`
     select id, role, lower(valid_during)::text as starts from core.user_roles
     where tenant_id = ${scope.tenantId}::uuid and user_id = ${userId}::uuid and org_id = ${scope.schoolId}::uuid
-      and status = 'active' and role = any(${textArray([...STAFF_ROLES])})
+      and status = 'active' and role = any(app.staff_roles())
       and (upper_inf(valid_during) or upper(valid_during) > ${scope.today}::date)`);
   const wanted = new Set<NaturalRole>(input.roles);
   for (const row of held) {

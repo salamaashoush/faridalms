@@ -2275,8 +2275,7 @@ async function seedMessages(
            coalesce((select array_agg(l.related_user_id order by l.related_user_id)
              from core.user_relationships l
              where l.tenant_id = s.tenant_id and l.student_user_id = s.user_id
-               and l.status = 'active' and l.portal_access
-               and not coalesce(l.communication_isolated, false))::text[], '{}')::text as guardians
+               and app.guardian_permits(l, ${YEAR.start}::date, 'contact'))::text[], '{}')::text as guardians
     from core.classes c
     join core.enrollments t on t.tenant_id = c.tenant_id and t.class_id = c.id
       and t.role = 'teacher' and t.is_primary
