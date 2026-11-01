@@ -1,8 +1,10 @@
 import * as v from "valibot";
 
+import type { Picture } from "./commons";
 import type { ContentDocument } from "./content";
 import type { EmbedProvider } from "./embed";
 
+import { pictureEntries, pictureFocusSchema, pictureNeedsAlt } from "./commons";
 import {
   contentDocumentSchema,
   contentFileIds,
@@ -105,23 +107,10 @@ export type ScalarField =
 type ColumnsField = { kind: "columns"; max: number };
 export type Field = ScalarField | ItemsField | ColumnsField;
 
-/** Where a picture's subject sits, in percent, so any crop keeps it in view. */
-export interface SiteFocus {
-  x: number;
-  y: number;
-}
-export interface SiteImage {
-  fileId: string | null;
-  alt: string;
-  focus?: SiteFocus;
-}
-export interface SiteMedia {
+export interface SiteMedia extends Picture {
   kind: "image" | "video";
-  fileId: string | null;
-  alt: string;
   posterFileId: string | null;
   captionsFileId: string | null;
-  focus?: SiteFocus;
 }
 export interface SiteLink {
   id: string;
@@ -138,7 +127,7 @@ type ScalarValue<F> = F extends TextField
   : F extends RichField
     ? ContentDocument
     : F extends ImageField
-      ? SiteImage
+      ? Picture
       : F extends MediaField
         ? SiteMedia
         : F extends LinksField
@@ -743,8 +732,7 @@ const hrefSchema = v.pipe(
   v.check(isSiteHref, "site.link"),
 );
 
-const percent = v.pipe(v.number(), v.integer(), v.minValue(0), v.maxValue(100));
-const focusSchema = v.optional(v.object({ x: percent, y: percent }));
+const focusSchema = v.optional(pictureFocusSchema);
 
 export const sectionStyleSchema = v.object({
   scheme: v.optional(v.picklist(SCHEMES), "canvas"),
@@ -800,19 +788,13 @@ function scalarSchema(field: ScalarField): v.GenericSchema {
     case "rich":
       return contentDocumentSchema;
     case "image":
-      return v.object({
-        fileId: v.nullable(id),
-        alt: v.pipe(v.string(), v.maxLength(300)),
-        focus: focusSchema,
-      });
+      return v.object(pictureEntries);
     case "media":
       return v.object({
         kind: v.picklist(["image", "video"]),
-        fileId: v.nullable(id),
-        alt: v.pipe(v.string(), v.maxLength(300)),
+        ...pictureEntries,
         posterFileId: v.nullable(id),
         captionsFileId: v.nullable(id),
-        focus: focusSchema,
       });
     case "links":
       return v.pipe(
@@ -1104,7 +1086,7 @@ function scalarWords(field: ScalarField, value: unknown): string[] {
       return [contentPlainText(value as ContentDocument)];
     case "image":
     case "media":
-      return [(value as SiteImage).alt];
+      return [(value as Picture).alt];
     case "links":
       return (value as SiteLink[]).map((link) => link.label);
     default:
@@ -1154,8 +1136,8 @@ function scalarOverlay(
     case "image":
     case "media":
       return {
-        ...(original as SiteImage),
-        alt: (translated as SiteImage | undefined)?.alt ?? "",
+        ...(original as Picture),
+        alt: (translated as Picture | undefined)?.alt ?? "",
       };
     case "links": {
       const byId = new Map(
@@ -1182,7 +1164,7 @@ function scalarBlank(field: ScalarField, original: unknown): unknown {
       return emptyBody();
     case "image":
     case "media":
-      return { ...(original as SiteImage), alt: "" };
+      return { ...(original as Picture), alt: "" };
     case "links":
       return (original as SiteLink[]).map((link) => ({ ...link, label: "" }));
     default:
@@ -1328,7 +1310,7 @@ export function sectionComplete(
 function scalarFiles(field: ScalarField, value: unknown): string[] {
   switch (field.kind) {
     case "image":
-      return [(value as SiteImage).fileId].filter((fileId): fileId is string =>
+      return [(value as Picture).fileId].filter((fileId): fileId is string =>
         Boolean(fileId),
       );
     case "media": {
@@ -1457,15 +1439,14 @@ export function bodyIssues(body: ContentDocument): SiteIssueCode[] {
 function scalarIssues(field: ScalarField, value: unknown): SiteIssueCode[] {
   switch (field.kind) {
     case "image": {
-      const image = value as SiteImage;
-      return image.fileId && !image.alt.trim() ? ["alt"] : [];
+      return pictureNeedsAlt(value as Picture) ? ["alt"] : [];
     }
     case "media": {
       const media = value as SiteMedia;
       if (!media.fileId) return [];
       if (media.kind === "video")
         return media.captionsFileId ? [] : ["captions"];
-      return media.alt.trim() ? [] : ["alt"];
+      return pictureNeedsAlt(media) ? ["alt"] : [];
     }
     case "links":
       return (value as SiteLink[]).flatMap((link): SiteIssueCode[] => {

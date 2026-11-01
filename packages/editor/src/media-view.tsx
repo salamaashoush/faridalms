@@ -27,6 +27,7 @@ import {
 
 export function MediaPlayer({
   src,
+  poster,
   captions,
   captionsLang,
   video,
@@ -39,6 +40,8 @@ export function MediaPlayer({
   descriptions,
 }: {
   src: string | undefined;
+  /** A still to show before a video plays, where the media service has made none. */
+  poster?: string | undefined;
   captions: string | undefined;
   /** The captions' language, when it is not the page's. */
   captionsLang?: string | undefined;
@@ -63,6 +66,7 @@ export function MediaPlayer({
   return video ? (
     <StreamingVideo
       src={src}
+      poster={poster}
       captions={track}
       locale={locale}
       element={element}
@@ -99,6 +103,7 @@ interface Stream {
  */
 function StreamingVideo({
   src,
+  poster,
   captions,
   locale,
   element,
@@ -108,6 +113,7 @@ function StreamingVideo({
   descriptions,
 }: {
   src: string;
+  poster: string | undefined;
   captions: PlayerCaptions | null;
   locale: string;
   element?: Ref<HTMLVideoElement>;
@@ -161,7 +167,7 @@ function StreamingVideo({
     <VideoSurface
       src={"upload" in source ? source.upload : null}
       stream={stream?.master ?? null}
-      poster={stream?.poster ?? null}
+      poster={stream?.poster ?? poster ?? null}
       thumbnails={stream?.thumbnails ?? null}
       captions={captions}
       locale={locale}

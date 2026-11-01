@@ -19,6 +19,7 @@
     "./video-recorder": "./src/video-recorder.tsx",
     "./media-view": "./src/media-view.tsx",
     "./player": "./src/player.tsx",
+    "./picture-credit": "./src/picture-credit.tsx",
     "./format": "./src/format.ts",
     "./files": "./src/files.tsx",
     "./picture-library": "./src/plugins/picture-library.tsx",
