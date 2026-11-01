@@ -9031,5 +9031,12 @@
   "personNoTeaching": "لا توجد فصول في هذا العام.",
   "personTeachingAide": "مساعد",
   "personTeachingIn": "في {class}",
-  "periodsDays": "الأيام"
+  "periodsDays": "الأيام",
+  "profileBreadcrumb": "الملف التعريفي",
+  "profileRole": "الدور",
+  "profileMessage": "إرسال رسالة",
+  "profileTeachesYou": "في فصولك",
+  "profileTeachesChild": "في فصول أبنائك",
+  "profileTeachesYouNone": "لا توجد فصول لك هذا العام.",
+  "profileTeachesChildNone": "لا توجد فصول لأبنائك هذا العام."
 }

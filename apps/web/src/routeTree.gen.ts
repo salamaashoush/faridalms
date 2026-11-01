@@ -98,6 +98,7 @@ import { Route as AppNewsIndexRouteImport } from './routes/_app/news.index'
 import { Route as AppNewsPostIdRouteImport } from './routes/_app/news.$postId'
 import { Route as AppPeopleUserIdRouteImport } from './routes/_app/people.$userId'
 import { Route as AppPracticeModuleIdRouteImport } from './routes/_app/practice.$moduleId'
+import { Route as AppProfilesUserIdRouteImport } from './routes/_app/profiles.$userId'
 import { Route as AppRegistersClassIdRouteImport } from './routes/_app/registers.$classId'
 import { Route as AppStandardsIndexRouteImport } from './routes/_app/standards/index'
 import { Route as AppStandardsFrameworkIdRouteImport } from './routes/_app/standards/$frameworkId'
@@ -593,6 +594,11 @@ const AppPracticeModuleIdRoute = AppPracticeModuleIdRouteImport.update({
   path: '/practice/$moduleId',
   getParentRoute: () => AppRoute,
 } as any)
+const AppProfilesUserIdRoute = AppProfilesUserIdRouteImport.update({
+  id: '/profiles/$userId',
+  path: '/profiles/$userId',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppRegistersClassIdRoute = AppRegistersClassIdRouteImport.update({
   id: '/registers/$classId',
   path: '/registers/$classId',
@@ -900,6 +906,7 @@ export interface FileRoutesByFullPath {
   '/news/$postId': typeof AppNewsPostIdRoute
   '/people/$userId': typeof AppPeopleUserIdRoute
   '/practice/$moduleId': typeof AppPracticeModuleIdRoute
+  '/profiles/$userId': typeof AppProfilesUserIdRoute
   '/registers/$classId': typeof AppRegistersClassIdRoute
   '/standards/$frameworkId': typeof AppStandardsFrameworkIdRoute
   '/standards/map': typeof AppStandardsMapRoute
@@ -1027,6 +1034,7 @@ export interface FileRoutesByTo {
   '/news/$postId': typeof AppNewsPostIdRoute
   '/people/$userId': typeof AppPeopleUserIdRoute
   '/practice/$moduleId': typeof AppPracticeModuleIdRoute
+  '/profiles/$userId': typeof AppProfilesUserIdRoute
   '/registers/$classId': typeof AppRegistersClassIdRoute
   '/standards/$frameworkId': typeof AppStandardsFrameworkIdRoute
   '/standards/map': typeof AppStandardsMapRoute
@@ -1162,6 +1170,7 @@ export interface FileRoutesById {
   '/_app/news/$postId': typeof AppNewsPostIdRoute
   '/_app/people/$userId': typeof AppPeopleUserIdRoute
   '/_app/practice/$moduleId': typeof AppPracticeModuleIdRoute
+  '/_app/profiles/$userId': typeof AppProfilesUserIdRoute
   '/_app/registers/$classId': typeof AppRegistersClassIdRoute
   '/_app/standards/$frameworkId': typeof AppStandardsFrameworkIdRoute
   '/_app/standards/map': typeof AppStandardsMapRoute
@@ -1296,6 +1305,7 @@ export interface FileRouteTypes {
     | '/news/$postId'
     | '/people/$userId'
     | '/practice/$moduleId'
+    | '/profiles/$userId'
     | '/registers/$classId'
     | '/standards/$frameworkId'
     | '/standards/map'
@@ -1423,6 +1433,7 @@ export interface FileRouteTypes {
     | '/news/$postId'
     | '/people/$userId'
     | '/practice/$moduleId'
+    | '/profiles/$userId'
     | '/registers/$classId'
     | '/standards/$frameworkId'
     | '/standards/map'
@@ -1557,6 +1568,7 @@ export interface FileRouteTypes {
     | '/_app/news/$postId'
     | '/_app/people/$userId'
     | '/_app/practice/$moduleId'
+    | '/_app/profiles/$userId'
     | '/_app/registers/$classId'
     | '/_app/standards/$frameworkId'
     | '/_app/standards/map'
@@ -2259,6 +2271,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppPracticeModuleIdRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/profiles/$userId': {
+      id: '/_app/profiles/$userId'
+      path: '/profiles/$userId'
+      fullPath: '/profiles/$userId'
+      preLoaderRoute: typeof AppProfilesUserIdRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/_app/registers/$classId': {
       id: '/_app/registers/$classId'
       path: '/registers/$classId'
@@ -2736,6 +2755,7 @@ interface AppRouteChildren {
   AppNewsPostIdRoute: typeof AppNewsPostIdRoute
   AppPeopleUserIdRoute: typeof AppPeopleUserIdRoute
   AppPracticeModuleIdRoute: typeof AppPracticeModuleIdRoute
+  AppProfilesUserIdRoute: typeof AppProfilesUserIdRoute
   AppRegistersClassIdRoute: typeof AppRegistersClassIdRoute
   AppStandardsFrameworkIdRoute: typeof AppStandardsFrameworkIdRoute
   AppStandardsMapRoute: typeof AppStandardsMapRoute
@@ -2786,6 +2806,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppNewsPostIdRoute: AppNewsPostIdRoute,
   AppPeopleUserIdRoute: AppPeopleUserIdRoute,
   AppPracticeModuleIdRoute: AppPracticeModuleIdRoute,
+  AppProfilesUserIdRoute: AppProfilesUserIdRoute,
   AppRegistersClassIdRoute: AppRegistersClassIdRoute,
   AppStandardsFrameworkIdRoute: AppStandardsFrameworkIdRoute,
   AppStandardsMapRoute: AppStandardsMapRoute,
@@ -2893,13 +2914,3 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
-
-import type { getRouter } from './router.tsx'
-import type { startInstance } from './start.ts'
-declare module '@tanstack/react-start' {
-  interface Register {
-    ssr: true
-    router: Awaited<ReturnType<typeof getRouter>>
-    config: Awaited<ReturnType<typeof startInstance.getOptions>>
-  }
-}

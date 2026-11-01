@@ -1,12 +1,14 @@
 import type { LinkProps } from "@tanstack/react-router";
-import type { ReactNode } from "react";
+import type { ReactElement, ReactNode } from "react";
 
 import { cn } from "@faridalms/ui/cn";
 import { Link } from "@tanstack/react-router";
 
+import type { RecordLink } from "~/components/people/PersonLink";
 import type { Tone } from "~/components/system/status";
 
 import { classTitle } from "~/components/classes/format";
+import { PersonLink } from "~/components/people/PersonLink";
 import {
   phoneLink,
   RecordList,
@@ -72,11 +74,14 @@ export function HomeItem({
   status,
 }: {
   title: ReactNode;
-  facts?: (string | null | undefined)[];
+  /** Short facts; one that is an element, such as a link, carries its own key. */
+  facts?: (string | ReactElement | null | undefined)[];
   summary?: string;
   status?: ReactNode;
 }) {
-  const shown = (facts ?? []).filter(Boolean);
+  const shown = (facts ?? []).filter((fact): fact is string | ReactElement =>
+    Boolean(fact),
+  );
   // The title's first line and the status share one row box, as tall as
   // the title's link is on a phone, so the two line up.
   const row = "flex min-h-5 items-center max-md:min-h-10";
@@ -87,7 +92,7 @@ export function HomeItem({
         {shown.length ? (
           <span className="text-[13px] leading-[18px] text-muted-foreground">
             {shown.map((fact, index) => (
-              <span key={fact}>
+              <span key={typeof fact === "string" ? fact : String(fact.key)}>
                 {index ? " · " : null}
                 <span className="whitespace-nowrap">{fact}</span>
               </span>
@@ -119,8 +124,10 @@ export interface Slot {
   classTitleEn: string | null;
   classTitleAr: string | null;
   roomCode: string | null;
+  teacherId: string | null;
   teacherNameEn: string | null;
   teacherNameAr: string | null;
+  teacherLink: RecordLink;
   when: "now" | "next" | null;
   register: "not_started" | "in_progress" | "submitted" | null;
 }
@@ -193,9 +200,16 @@ export function Lessons({
               period,
               time,
               slot.roomCode ? m.homeRoom({ room: slot.roomCode }) : null,
-              showTeacher
-                ? inLocale(slot.teacherNameEn, slot.teacherNameAr)
-                : null,
+              showTeacher && slot.teacherId ? (
+                <PersonLink
+                  key="teacher"
+                  userId={slot.teacherId}
+                  link={slot.teacherLink}
+                  className="underline-offset-2 hover:text-foreground hover:underline focus-visible:underline"
+                >
+                  <bdi>{inLocale(slot.teacherNameEn, slot.teacherNameAr)}</bdi>
+                </PersonLink>
+              ) : null,
             ]}
             status={
               register ? (

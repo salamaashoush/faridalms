@@ -8633,5 +8633,12 @@
   "personNoTeaching": "No classes in this year.",
   "personTeachingAide": "Assistant",
   "personTeachingIn": "In {class}",
-  "periodsDays": "Days"
+  "periodsDays": "Days",
+  "profileBreadcrumb": "Profile",
+  "profileRole": "Role",
+  "profileMessage": "Send a message",
+  "profileTeachesYou": "In your classes",
+  "profileTeachesChild": "In your children's classes",
+  "profileTeachesYouNone": "None of your classes this year.",
+  "profileTeachesChildNone": "None of your children's classes this year."
 }

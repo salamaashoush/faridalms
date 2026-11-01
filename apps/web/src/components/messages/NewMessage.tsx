@@ -103,6 +103,7 @@ const NOBODY: readonly Named[] = [];
 export function NewMessage({
   canStartFamily,
   about,
+  to,
   childrenToName = NOBODY,
   draft: opened,
   onClose,
@@ -111,6 +112,8 @@ export function NewMessage({
 }: {
   canStartFamily: boolean;
   about?: readonly { id: string; name: string }[];
+  /** Someone to write to directly, as from their profile. */
+  to?: { id: string; name: string };
   /** A guardian's children, any of whom a message may be about. */
   childrenToName?: readonly Named[];
   draft?: OpenedDraft;
@@ -123,7 +126,7 @@ export function NewMessage({
   const queryClient = useQueryClient();
   const hydrated = useHydrated();
   const [kind, setKind] = useState<StartKind>(
-    opened?.kind ?? (canStartFamily ? "family" : "direct"),
+    opened?.kind ?? (canStartFamily && !to ? "family" : "direct"),
   );
   const [search, setSearch] = useState("");
   const [picked, setPicked] = useState<string[]>(() =>
@@ -135,7 +138,9 @@ export function NewMessage({
         : opened.recipients.map((row) => row.userId)
       : about?.[0]
         ? [about[0].id]
-        : [],
+        : to
+          ? [to.id]
+          : [],
   );
   const several = about !== undefined && about.length > 1;
   const [labels, setLabels] = useState<ReadonlyMap<string, string>>(
@@ -147,6 +152,7 @@ export function NewMessage({
         ...(opened?.kind === "family" && opened.student
           ? [[opened.student.id, nameOf(opened.student)] as const]
           : []),
+        ...(to ? [[to.id, to.name] as const] : []),
       ]),
   );
   const [child, setChild] = useState(
