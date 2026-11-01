@@ -1,4 +1,5 @@
 import { Button } from "@faridalms/ui/button";
+import { cn } from "@faridalms/ui/cn";
 import {
   Dialog,
   DialogContent,
@@ -108,13 +109,25 @@ export function PhotoDialog({
     if (!next) {
       forget();
       setPlaced(null);
+      setCamera(false);
     }
     onOpenChange(next);
   };
 
+  const [camera, setCamera] = useState(false);
   const pick = async (capture: boolean) => {
+    // A phone's own camera app is the better camera there; a computer
+    // ignores the capture hint and would open the file chooser, so it gets
+    // a live view in the dialog when it has a camera to give one.
+    if (capture && liveCameraFits()) {
+      setCamera(true);
+      return;
+    }
     const file = await choose(capture);
-    if (!file) return;
+    if (file) place(file);
+  };
+  const place = (file: Blob) => {
+    setCamera(false);
     forget();
     const url = URL.createObjectURL(file);
     shown.current = url;
@@ -283,17 +296,45 @@ export function PhotoDialog({
                 />
               </label>
             </>
-          ) : photoUrl ? (
-            <img
-              src={photoUrl}
-              alt=""
-              className="size-40 rounded-full object-cover"
+          ) : camera ? (
+            <LiveCamera
+              onTaken={place}
+              onCancel={() => setCamera(false)}
+              onUnavailable={() => {
+                setCamera(false);
+                void choose(true).then((file) => {
+                  if (file) place(file);
+                });
+              }}
             />
-          ) : null}
-          <div className="flex flex-wrap justify-center gap-2">
+          ) : (
+            <div
+              className="grid place-items-center overflow-hidden rounded-lg bg-muted"
+              style={{ width: VIEW, height: VIEW }}
+            >
+              {photoUrl ? (
+                <img
+                  src={photoUrl}
+                  alt=""
+                  className="size-48 rounded-full object-cover shadow-sm"
+                />
+              ) : (
+                <span
+                  aria-hidden
+                  className="grid size-48 place-items-center rounded-full bg-background text-5xl font-semibold text-muted-foreground"
+                >
+                  {initialsOf(name)}
+                </span>
+              )}
+            </div>
+          )}
+          <div
+            className={cn("grid w-full grid-cols-2 gap-2", camera && "hidden")}
+          >
             <Button
               type="button"
               variant="outline"
+              className="w-full"
               disabled={busy}
               onClick={() => void pick(true)}
             >
@@ -303,6 +344,7 @@ export function PhotoDialog({
             <Button
               type="button"
               variant="outline"
+              className="w-full"
               disabled={busy}
               onClick={() => void pick(false)}
             >
@@ -311,31 +353,148 @@ export function PhotoDialog({
             </Button>
           </div>
         </div>
-        <DialogFooter className="gap-2 sm:justify-between">
-          {photoUrl && !placed ? (
-            <Button
-              type="button"
-              variant="ghost"
-              className="text-destructive"
-              disabled={busy}
-              onClick={() => remove.mutate()}
-            >
-              <Trash2 aria-hidden />
-              {m.photoRemove()}
-            </Button>
-          ) : (
-            <span />
-          )}
-          {placed ? (
-            <Button type="button" disabled={busy} onClick={() => save.mutate()}>
-              {save.isPending ? (
-                <LoaderCircle className="animate-spin" aria-hidden />
-              ) : null}
-              {m.photoSave()}
-            </Button>
-          ) : null}
-        </DialogFooter>
+        {(photoUrl && !placed && !camera) || placed ? (
+          <DialogFooter className="gap-2 sm:justify-between">
+            {photoUrl && !placed ? (
+              <Button
+                type="button"
+                variant="ghost"
+                className="text-destructive"
+                disabled={busy}
+                onClick={() => remove.mutate()}
+              >
+                <Trash2 aria-hidden />
+                {m.photoRemove()}
+              </Button>
+            ) : (
+              <span />
+            )}
+            {placed ? (
+              <Button
+                type="button"
+                disabled={busy}
+                onClick={() => save.mutate()}
+              >
+                {save.isPending ? (
+                  <LoaderCircle className="animate-spin" aria-hidden />
+                ) : null}
+                {m.photoSave()}
+              </Button>
+            ) : null}
+          </DialogFooter>
+        ) : null}
       </DialogContent>
     </Dialog>
+  );
+}
+
+/** Whether a live view is the way to take a photo here: a camera, and no phone camera app to hand it to. */
+function liveCameraFits() {
+  return (
+    typeof navigator !== "undefined" &&
+    // Absent outside a secure origin, whatever the types say.
+    "mediaDevices" in navigator &&
+    typeof navigator.mediaDevices.getUserMedia === "function" &&
+    !window.matchMedia("(pointer: coarse)").matches
+  );
+}
+
+function initialsOf(name: string) {
+  return name
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((part) => part[0])
+    .join("")
+    .toUpperCase();
+}
+
+/**
+ * The computer's camera, seen as a mirror in the square the photo is placed
+ * in. The frame taken is turned the right way round, as the person sees
+ * themselves once saved.
+ */
+function LiveCamera({
+  onTaken,
+  onCancel,
+  onUnavailable,
+}: {
+  onTaken: (photo: Blob) => void;
+  onCancel: () => void;
+  onUnavailable: () => void;
+}) {
+  const video = useRef<HTMLVideoElement>(null);
+  const [ready, setReady] = useState(false);
+  const fallBack = useRef(onUnavailable);
+  useEffect(() => {
+    fallBack.current = onUnavailable;
+  });
+  useEffect(() => {
+    let stream: MediaStream | null = null;
+    let stopped = false;
+    navigator.mediaDevices
+      .getUserMedia({
+        video: { facingMode: "user", width: { ideal: 1280 } },
+        audio: false,
+      })
+      .then((opened) => {
+        if (stopped) {
+          for (const track of opened.getTracks()) track.stop();
+          return;
+        }
+        stream = opened;
+        if (video.current) video.current.srcObject = opened;
+      })
+      .catch(() => fallBack.current());
+    return () => {
+      stopped = true;
+      for (const track of stream?.getTracks() ?? []) track.stop();
+    };
+  }, []);
+  const take = () => {
+    const frame = video.current;
+    if (!frame?.videoWidth) return;
+    const canvas = document.createElement("canvas");
+    canvas.width = frame.videoWidth;
+    canvas.height = frame.videoHeight;
+    const draw = canvas.getContext("2d");
+    if (!draw) return;
+    draw.translate(canvas.width, 0);
+    draw.scale(-1, 1);
+    draw.drawImage(frame, 0, 0);
+    canvas.toBlob((blob) => blob && onTaken(blob), "image/jpeg", 0.92);
+  };
+  return (
+    <>
+      <div
+        className="relative overflow-hidden rounded-lg bg-muted"
+        style={{ width: VIEW, height: VIEW }}
+      >
+        <video
+          ref={video}
+          autoPlay
+          playsInline
+          muted
+          onLoadedData={() => setReady(true)}
+          className="size-full -scale-x-100 object-cover"
+        />
+        <span className="pointer-events-none absolute inset-0 rounded-full shadow-[0_0_0_999px_rgb(0_0_0/0.45)]" />
+        {ready ? null : (
+          <LoaderCircle
+            aria-hidden
+            className="absolute inset-0 m-auto size-6 animate-spin text-muted-foreground"
+          />
+        )}
+      </div>
+      <div className="grid w-full grid-cols-2 gap-2">
+        <Button type="button" variant="outline" onClick={onCancel}>
+          {m.commonCancel()}
+        </Button>
+        <Button type="button" disabled={!ready} onClick={take}>
+          <Camera aria-hidden />
+          {m.photoCapture()}
+        </Button>
+      </div>
+    </>
   );
 }
