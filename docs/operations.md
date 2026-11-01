@@ -64,10 +64,10 @@ container and expects a clean exit within the grace period.
 Every school answers on two platform names, set by two variables that the
 API, the web and the console all receive:
 
-- `PORTAL_DOMAIN` (production `faridalms.com`): `<slug>.<PORTAL_DOMAIN>` is
+- `PORTAL_DOMAIN` (`example.com`, say): `<slug>.<PORTAL_DOMAIN>` is
   the school's portal, where people sign in and work. The bare domain asks
   for the school's code, prefilled from the one the browser chose last.
-- `SITES_DOMAIN` (production `faridalms.site`): `<slug>.<SITES_DOMAIN>` is
+- `SITES_DOMAIN` (`example.net`, say): `<slug>.<SITES_DOMAIN>` is
   the school's public website, served from its root. It reads no session,
   sets no cookie and answers 404 to anything that is not a page of the
   website, including sign-in, which its links send to the portal.

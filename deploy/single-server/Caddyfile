@@ -2,8 +2,8 @@
 # so the same file serves production, a staging domain and the local smoke
 # test (docs/operations.md, "School addresses").
 #
-#   PORTAL_DOMAIN         faridalms.com: the product site and every portal
-#   SITES_DOMAIN          faridalms.site: every school's website
+#   PORTAL_DOMAIN         example.com: the product site and every portal
+#   SITES_DOMAIN          example.net: every school's website
 #   CLOUDFLARE_API_TOKEN  issues the two wildcard certificates by DNS-01
 #   EDGE_TLS              cloudflare (default), or internal for a local run
 #   EDGE_LOG_LEVEL        INFO (default); DEBUG logs each proxied request

@@ -20,8 +20,8 @@ x-service: &service
 
 x-cell-secret: &cell-secret ${CELL_SECRET:?Set CELL_SECRET, 32 random bytes in base64}
 x-provision-secret: &provision-secret ${PROVISION_SECRET:?Set PROVISION_SECRET, 32 random bytes in base64}
-x-portal-domain: &portal-domain ${PORTAL_DOMAIN:?Set PORTAL_DOMAIN, for example faridalms.com}
-x-sites-domain: &sites-domain ${SITES_DOMAIN:?Set SITES_DOMAIN, for example faridalms.site}
+x-portal-domain: &portal-domain ${PORTAL_DOMAIN:?Set PORTAL_DOMAIN, for example example.com}
+x-sites-domain: &sites-domain ${SITES_DOMAIN:?Set SITES_DOMAIN, for example example.net}
 
 # The file store, as the API and the media service read it alike.
 x-storage: &storage

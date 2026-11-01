@@ -2,17 +2,19 @@
 
 One cell on one machine: Postgres, the API, the web, collaboration, the
 media service, the operator console with its provisioner, the edge (Caddy)
-and a nightly backup, all from images CI publishes. The production machine
-is a Hetzner CAX21 (4 Arm64 vCPU, 8 GB, 80 GB disk, 4 GB swap) running
-Docker as the `deploy` user, behind a cloud firewall that admits TCP 22, 80
-and 443, UDP 443 and ICMP.
+and a nightly backup, all from images CI publishes. It is sized for a
+machine with 4 vCPU, 8 GB of memory, 80 GB of disk and 4 GB of swap (a
+Hetzner CAX21, say), running Docker as a `deploy` user behind a firewall
+that admits TCP 22, 80 and 443, UDP 443 and ICMP.
+
+The examples use `example.com` for `PORTAL_DOMAIN`, `example.net` for
+`SITES_DOMAIN` and `203.0.113.10` for the server; put your own in their
+place.
 
 What is here:
 
 - `compose.yaml`: the stack. The only file the server needs besides `.env`.
 - `env.example`: every setting, with how to generate each secret.
-- `env.op`: the production `.env` as references into 1Password, for
-  `op inject`.
 - `Caddyfile`, `backup.sh`: built into the `edge` and `backup` images, so
   the routing and the backup move with the image tag.
 - `restore.md`: restoring the databases and the files, as `smoke.sh` tests it.
@@ -21,18 +23,18 @@ What is here:
 
 ## Routing
 
-| Name                                      | Service         |
-| ----------------------------------------- | --------------- |
-| `faridalms.com`, `<slug>.faridalms.com`   | web:3000        |
-| `www.faridalms.com`                       | 308 to the apex |
-| `ops.faridalms.com`                       | ops:3004        |
-| `collab.faridalms.com` (WebSocket)        | collab:3002     |
-| `api.faridalms.com`                       | api:3001        |
-| `faridalms.site`, `<slug>.faridalms.site` | web:3000        |
-| `files.faridalms.site`                    | api:3003        |
-| `play.faridalms.site`                     | 308 to `files.` |
-| `media.faridalms.site`                    | media:3104      |
-| a school's own name                       | web:3000        |
+| Name                                | Service         |
+| ----------------------------------- | --------------- |
+| `example.com`, `<slug>.example.com` | web:3000        |
+| `www.example.com`                   | 308 to the apex |
+| `ops.example.com`                   | ops:3004        |
+| `collab.example.com` (WebSocket)    | collab:3002     |
+| `api.example.com`                   | api:3001        |
+| `example.net`, `<slug>.example.net` | web:3000        |
+| `files.example.net`                 | api:3003        |
+| `play.example.net`                  | 308 to `files.` |
+| `media.example.net`                 | media:3104      |
+| a school's own name                 | web:3000        |
 
 `files.` is `FILES_ORIGIN` and `PLAY_URL` both: the play page, the coding
 studio and the micro:bit editor are served by the API's files host, and the
@@ -40,7 +42,7 @@ play page names that host in its policy, which Safari needs for a page with
 no origin. The `play.` name redirects there and serves nothing itself. Every label above is reserved, so
 no school can take it as its slug.
 
-`api.faridalms.com` is for native clients (the repository's README, "API");
+`api.example.com` is for native clients (the repository's README, "API");
 the web calls the
 API inside the network. The edge answers 404 there for `/edge/ask`, the
 question Caddy asks before it issues a certificate for a school's own name,
@@ -82,8 +84,8 @@ On a workstation, with this repository:
 
 1. **DNS at Cloudflare**, every record DNS only (grey cloud, no proxy):
 
-   - `A faridalms.com` and `A *.faridalms.com` to `203.0.113.10`
-   - `A faridalms.site` and `A *.faridalms.site` to `203.0.113.10`
+   - `A example.com` and `A *.example.com` to `203.0.113.10`
+   - `A example.net` and `A *.example.net` to `203.0.113.10`
 
    Add the matching `AAAA` records only after giving Docker IPv6 (see
    "IPv6" below); without it every IPv6 visitor would share one address in
@@ -92,12 +94,15 @@ On a workstation, with this repository:
 
 2. **Cloudflare API token**: My Profile, API Tokens, Create Token, "Edit
    zone DNS" template; permissions Zone, DNS, Edit and Zone, Zone, Read;
-   zone resources `faridalms.com` and `faridalms.site` only. Caddy uses it
-   to answer the DNS-01 challenge for the two wildcard certificates.
+   zone resources `example.com` and `example.net` only. Caddy uses it
+   to answer the DNS-01 challenge for the two wildcard certificates. If the
+   token is limited to the server's IPv4 address, call the API from the
+   server's own shell with `curl -4`: the host prefers IPv6, which the
+   token refuses (containers have IPv4 only, so Caddy is unaffected).
 
-3. **Hetzner Object Storage**: in the Cloud Console, in Helsinki, create the
-   buckets `faridalms-files` and `faridalms-media`, both private, and an S3
-   key pair. The keys go in `.env` and nowhere else.
+3. **Object storage**: create two private buckets, `faridalms-files` and
+   `faridalms-media`, and an S3 key pair (with Hetzner Object Storage, in
+   the Cloud Console; `env.example` has its endpoint). The keys go in `.env` and nowhere else.
 
 4. **Google sign-in for the console** (the operator signs in with a Google
    account):
@@ -108,7 +113,7 @@ On a workstation, with this repository:
       verification. While the app is in Testing, add your own address as a
       test user, or publish it.
    2. Credentials, Create credentials, OAuth client ID, type Web application,
-      authorised redirect URI `https://ops.faridalms.com/auth/callback`
+      authorised redirect URI `https://ops.example.com/auth/callback`
       (the console's `/auth/callback` route; nothing else).
    3. Put the client ID and secret in `.env` with
       `OPS_OIDC_ISSUER=https://accounts.google.com` and your address in
@@ -116,52 +121,41 @@ On a workstation, with this repository:
       marks it verified (`email_verified`), and leaves `OPS_OIDC_GROUP`
       unset, since a personal Google account has no groups.
 
-5. **A token to pull images**: the repository is private, so its packages
-   are too. Create a classic personal access token with only
-   `read:packages`, for the server alone.
+5. **A token to pull images**, if the images are private: a classic
+   personal access token with only `read:packages`, for the server alone.
 
 On the server, as `deploy`:
 
-6. Copy the stack across:
+6. Copy the stack across and lock the configuration down:
 
    ```sh
    ssh deploy@203.0.113.10 mkdir -p farida
-   scp deploy/single-server/compose.yaml deploy@203.0.113.10:farida/
+   scp deploy/single-server/compose.yaml deploy/single-server/env.example deploy@203.0.113.10:farida/
+   ssh deploy@203.0.113.10
+   cd farida
+   cp env.example .env && chmod 600 .env
    ```
 
-7. Render `.env` from 1Password straight onto the server, so the secrets
-   never touch the workstation's disk. `env.op` names every field of the
-   "Faridalms" item; the generated secrets already live there, so a
-   redeploy renders the same values (a new `CELL_KEK` would make the cell
-   unreadable):
-
-   ```sh
-   { op inject -i deploy/single-server/env.op
-     echo "IMAGE_TAG=$(git rev-parse origin/main)"
-   } | ssh deploy@203.0.113.10 'umask 077 && cat > farida/.env'
-   ```
-
-   For a server without the item, copy `env.example` instead and generate
-   each secret there:
+7. Fill in `.env`. Generate each secret on the server:
 
    ```sh
    openssl rand -hex 32     # POSTGRES_PASSWORD, CELL_ROLE_PASSWORD
    openssl rand -base64 32  # CELL_KEK, CELL_SECRET, PROVISION_SECRET, OPS_SESSION_SECRET
    ```
 
-   Either way the email gateway (`RESEND_API_KEY` with `EMAIL_FROM`, or
-   `EMAIL_WEBHOOK_URL`) must be set: without it nobody can be invited or
-   reset a password, and the console cannot create a school. The backups do
-   not carry `.env`, and without `CELL_KEK` a restored cell cannot read its
-   encrypted fields.
+   Set `IMAGE_TAG` to the commit to run, `EDGE_IPV4` to the server's
+   address, and the email gateway (`RESEND_API_KEY` with `EMAIL_FROM`, or
+   `EMAIL_WEBHOOK_URL`): without it nobody can be invited or reset a
+   password, and the console cannot create a school. Then copy `.env` into a
+   password manager. The backups do not carry it, and without `CELL_KEK` a
+   restored cell cannot read its encrypted fields. A password manager with a
+   CLI can render it instead (`op inject` from a template of references, for
+   instance), so the secrets never sit on a workstation's disk.
 
-8. Log in to the registry and start:
+8. Log in to the registry if the images are private, and start:
 
    ```sh
-   op read "op://<vault>/<item>/<registry token>" |
-     ssh deploy@203.0.113.10 docker login ghcr.io -u salamaashoush --password-stdin
-   ssh deploy@203.0.113.10
-   cd farida
+   echo "$TOKEN" | docker login ghcr.io -u <account> --password-stdin
    docker compose pull
    docker compose up -d
    docker compose ps
@@ -177,18 +171,19 @@ On the server, as `deploy`:
    ```sh
    docker compose exec postgres psql -U postgres -d directory -c "
      insert into cells (id, jurisdiction, provider, region, app_host, api_base_url, state)
-     values ('eu-1', 'FI', 'hetzner', 'hel1', 'faridalms.com', 'http://api:3001', 'open')
+     values ('eu-1', 'FI', 'hetzner', 'hel1', 'example.com', 'http://api:3001', 'open')
      on conflict (id) do nothing"
    ```
 
-   Use the `CELL_ID` and `PORTAL_DOMAIN` from `.env`.
+   Use the `CELL_ID` and `PORTAL_DOMAIN` from `.env`, the two-letter
+   country the data lives in, and the provider and region of the server.
 
-10. Create the first school: open `https://ops.faridalms.com`, sign in with
+10. Create the first school: open `https://ops.example.com`, sign in with
     Google, New school. The provisioner creates it and emails its first
     administrator a link to choose a password (docs/operations.md,
     "Registering a school"). The school's portal is then
-    `https://<slug>.faridalms.com` and its website
-    `https://<slug>.faridalms.site`.
+    `https://<slug>.example.com` and its website
+    `https://<slug>.example.net`.
 
 11. Configure backups (below) and run one by hand.
 
