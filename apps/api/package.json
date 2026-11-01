@@ -9,6 +9,7 @@
   "scripts": {
     "dev": "bun --watch src/index.ts",
     "start": "bun src/index.ts",
+    "studio": "farida-studio vendor/scratch",
     "build": "bun build src/index.ts --target=bun --outdir=dist && bun build src/coding/python-worker.ts src/coding/javascript-worker.ts --target=bun --outdir=dist"
   },
   "dependencies": {
@@ -29,6 +30,7 @@
     "@faridalms/editor": "workspace:*",
     "@faridalms/makecode": "workspace:*",
     "@faridalms/puzzles": "workspace:*",
+    "@faridalms/studio": "github:salamaashoush/farida-studio#v1.0.0",
     "@hocuspocus/provider": "^4.8.0",
     "@lexical/yjs": "^0.53.0",
     "@orpc/client": "^1.16.1",

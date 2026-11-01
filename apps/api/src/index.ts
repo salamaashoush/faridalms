@@ -101,11 +101,9 @@ const filesServer = Bun.serve({
     origin: filesOrigin,
     libraries: fileURLToPath(new URL("../vendor", import.meta.url)),
     studio: createStudio({
-      page: fileURLToPath(new URL("../studio", import.meta.url)),
-      scratch:
+      dir:
         env.SCRATCH_DIR ??
         fileURLToPath(new URL("../vendor/scratch", import.meta.url)),
-      sourceUrl: env.SOURCE_URL ?? null,
     }),
     makecode: createMakeCode({
       editor:

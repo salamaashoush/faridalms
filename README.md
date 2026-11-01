@@ -101,11 +101,9 @@ not in a public issue.
 Farida LMS is free software under the GNU Affero General Public License,
 version 3 only ([LICENSE](LICENSE)). Copyright (C) 2026 Salama Ashoush.
 
-Whoever runs a changed copy for other people over a network must offer them
-its source (section 13 of the licence). `SOURCE_URL` on the API names where
-that is.
-
-The coding studio is built on the Scratch editor, also under the AGPL.
-Scratch is a trademark of the Scratch Foundation, which does not endorse this
-project. Pictures in the library, fonts and the Scratch media library keep
-their own licences.
+The coding studio is the Scratch editor in a page of its own,
+[farida-studio](https://github.com/salamaashoush/farida-studio), published
+separately under the AGPL; the platform frames it from another site and
+talks to it only by messages. Scratch is a trademark of the Scratch
+Foundation, which does not endorse this project. Pictures in the library,
+fonts and the Scratch media library keep their own licences.

@@ -1,9 +1,9 @@
+import { PAGE } from "@faridalms/studio";
 import { describe, expect, test } from "bun:test";
 import { randomBytes } from "node:crypto";
-import { mkdir, mkdtemp, writeFile } from "node:fs/promises";
+import { cp, mkdir, mkdtemp, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { fileURLToPath } from "node:url";
 
 import {
   createFilesHost,
@@ -301,14 +301,11 @@ describe("the coding studio", () => {
     await writeFile(join(scratch, "editor", CHUNK), "");
     await writeFile(join(scratch, "library", SPRITE), "<svg/>");
     await writeFile(join(scratch, "secret.txt"), "not the studio's");
+    await cp(PAGE, join(scratch, "page"), { recursive: true });
     const host = createFilesHost({
       files: seeded().files,
       key,
-      studio: createStudio({
-        page: fileURLToPath(new URL("../studio", import.meta.url)),
-        scratch,
-        sourceUrl: "https://example.com/farida",
-      }),
+      studio: createStudio({ dir: scratch }),
     });
     return (path: string, headers?: Record<string, string>) =>
       host(new Request(`${FILES_ORIGIN}${path}`, { headers }));
@@ -381,10 +378,10 @@ describe("the coding studio", () => {
 
   test("says where its source is published", async () => {
     const get = await studioHost();
-    const source = await get("/studio/SOURCE");
+    const source = await get("/studio/SOURCE.txt");
     expect(source.headers.get("content-type")).toContain("text/plain");
     const text = await source.text();
     expect(text).toContain("https://www.gnu.org/licenses/agpl-3.0.html");
-    expect(text).toContain("Source: https://example.com/farida");
+    expect(text).toContain("https://github.com/salamaashoush/farida-studio");
   });
 });

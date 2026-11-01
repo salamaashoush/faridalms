@@ -427,18 +427,21 @@ which the teacher splits.
 ## Coding studio
 
 Coding questions open the block-coding studio: the Scratch editor with a
-small page of ours (`apps/api/studio`) that lets the lesson around it keep
+small page of ours that lets the lesson around it keep
 the project. The files host serves it at `/studio/`, beside the page
 students' web pages play in, so it has no server, domain or setting of its
 own. `PLAY_URL` on the web, the files host as browsers reach it, is what
 turns it on; unset, editors offer no coding questions and a coding question
 already in a lesson says the studio is not set up.
 
-Install fetches the editor (`@scratch/scratch-gui`, pinned by version and
-checksum) and mirrors its library of sprites, backdrops and sounds, about
-1,350 files and 60 MB, into `apps/api/vendor/scratch`
-(`apps/api/scripts/scratch.ts`); the API image carries both, and
-`SCRATCH_DIR` names another place for them. The editor's bundle was built to
+The page is its own package, `@faridalms/studio`
+([farida-studio](https://github.com/salamaashoush/farida-studio)), published
+under the AGPL with the Scratch editor it runs. Install runs its
+`farida-studio` command, which puts the page, the editor
+(`@scratch/scratch-gui`, pinned by version and checksum) and the editor's
+library of sprites, backdrops and sounds, about 1,350 files and 60 MB, into
+`apps/api/vendor/scratch`; the API image carries that directory, and
+`SCRATCH_DIR` names another place for it. The editor's bundle was built to
 sit at the root of its host, so the files host also answers `/chunks/` and
 `/static/` with the editor's files.
 
@@ -459,9 +462,9 @@ over `postMessage` and talks to no project server. In development the files
 host must be another site from the web, such as `http://localhost:3103`
 beside `http://127.0.0.1:3100`, since ports alone do not separate cookies.
 
-The studio's Source link names where the source of the running copy is
-published, as the licence asks of whoever runs a changed copy for other
-people: set `SOURCE_URL` on the API.
+The studio's Source link opens the package's `SOURCE.txt`, which names the
+release it serves and where its source is, as the AGPL asks. A changed copy
+of the studio is a fork of the package, with its own notice.
 
 ## micro:bit editor
 

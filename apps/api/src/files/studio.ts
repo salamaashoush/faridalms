@@ -18,6 +18,7 @@ const PAGE = new Set([
   "host.css",
   "logo.svg",
   "fullscreen.svg",
+  "SOURCE.txt",
 ]);
 const LIBRARY = /^library\/([0-9a-f]{32}\.[a-z0-9]+)$/;
 /** The editor names its chunks and pictures by a hash of what they hold. */
@@ -47,32 +48,14 @@ const headers = {
 
 const missing = () => new Response(null, { status: 404, headers });
 
-/** The studio's pages and files, or null for an address outside it. */
-export function createStudio(options: {
-  /** The studio's own page, apps/api/studio. */
-  page: string;
-  /** The editor and its library, as apps/api/scripts/scratch.ts fetches them. */
-  scratch: string;
-  /** Where the source of this running copy is published. */
-  sourceUrl: string | null;
-}) {
-  const editor = resolve(options.scratch, "editor");
-  const source = [
-    "This studio is part of Farida LMS, free software under the GNU Affero",
-    "General Public License, version 3",
-    "(https://www.gnu.org/licenses/agpl-3.0.html). It is built on the Scratch",
-    "editor; Scratch is a trademark of the Scratch Foundation, which does not",
-    "endorse this studio.",
-    "",
-    `Source: ${options.sourceUrl ?? "ask the school that runs this studio"}`,
-    "",
-    "The sprites, backdrops and sounds in its library are Scratch's, under the",
-    "Creative Commons Attribution-ShareAlike 2.0 licence",
-    "(https://creativecommons.org/licenses/by-sa/2.0/): Scratch is developed by",
-    "the Lifelong Kindergarten Group at the MIT Media Lab. See",
-    "http://scratch.mit.edu.",
-    "",
-  ].join("\n");
+/**
+ * The studio's pages and files, or null for an address outside it. `dir` is
+ * what `farida-studio` (the @faridalms/studio package) puts together: its
+ * page, the Scratch editor and the editor's library.
+ */
+export function createStudio(options: { dir: string }) {
+  const page = join(options.dir, "page");
+  const editor = resolve(options.dir, "editor");
 
   return async (request: Request): Promise<Response | null> => {
     const path = new URL(request.url).pathname;
@@ -86,20 +69,11 @@ export function createStudio(options: {
     } catch {
       return missing();
     }
-    if (name === "SOURCE")
-      return new Response(source, {
-        headers: {
-          ...headers,
-          "content-type": "text/plain; charset=utf-8",
-          "cache-control": "no-cache",
-        },
-      });
-
     const library = LIBRARY.exec(name)?.[1];
     const target = PAGE.has(name)
-      ? join(options.page, name)
+      ? join(page, name)
       : library
-        ? join(options.scratch, "library", library)
+        ? join(options.dir, "library", library)
         : resolve(editor, name);
     if (!PAGE.has(name) && !library && !target.startsWith(editor + sep))
       return missing();

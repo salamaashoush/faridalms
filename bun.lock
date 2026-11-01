@@ -69,6 +69,7 @@
         "@faridalms/editor": "workspace:*",
         "@faridalms/makecode": "workspace:*",
         "@faridalms/puzzles": "workspace:*",
+        "@faridalms/studio": "github:salamaashoush/farida-studio#v1.0.0",
         "@hocuspocus/provider": "^4.8.0",
         "@lexical/yjs": "^0.53.0",
         "@orpc/client": "^1.16.1",
@@ -516,6 +517,8 @@
     "@faridalms/ops": ["@faridalms/ops@workspace:apps/ops"],
 
     "@faridalms/puzzles": ["@faridalms/puzzles@workspace:packages/puzzles"],
+
+    "@faridalms/studio": ["@faridalms/studio@github:salamaashoush/farida-studio#dab0041", { "bin": { "farida-studio": "./install.ts" } }, "salamaashoush-farida-studio-dab0041", "sha512-Vl6mfHNO7qELiogx85AzuYtr33N7WH0G68zgLCeHM6SH0YWjzWAPFOKfPT9IsPFrTCWlwB3XEqO10EaCBdHeVA=="],
 
     "@faridalms/ui": ["@faridalms/ui@workspace:packages/ui"],
 

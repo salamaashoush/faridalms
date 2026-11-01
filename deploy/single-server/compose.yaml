@@ -145,8 +145,6 @@ services:
       EMAIL_WEBHOOK_URL: ${EMAIL_WEBHOOK_URL:-}
       SMS_WEBHOOK_URL: ${SMS_WEBHOOK_URL:-}
       NOTIFY_WEBHOOK_TOKEN: ${NOTIFY_WEBHOOK_TOKEN:-}
-      # The AGPL asks whoever runs a changed copy to offer its source.
-      SOURCE_URL: ${SOURCE_URL:-}
       TRUSTED_PROXY_HOPS: 1
     networks: [front, data]
     depends_on:
