@@ -191,6 +191,38 @@ describe("enrolment", () => {
     });
   });
 
+  test("a backdated move cannot reach over a register already taken", async () => {
+    const api = await principal();
+    const list = (await api.classes.directory({})).rows.filter(
+      (row) => row.students > 0,
+    );
+    const homeroom = list.at(-1);
+    const other = list[0];
+    if (!homeroom || !other) throw new Error("seed homerooms");
+    const marked = "2026-09-15";
+    const student = (await api.classes.record({ id: homeroom.id, on: marked }))
+      .roster[0];
+    if (!student) throw new Error("seed student");
+    const before = await api.classes.history({ studentId: student.userId });
+    expect(
+      await rejection(
+        api.classes.enrol({
+          studentId: student.userId,
+          classId: other.id,
+          from: marked,
+        }),
+      ),
+    ).toMatchObject({
+      code: "CONFLICT",
+      message: expect.stringMatching(
+        /^enrollment\.registers_after:\d{4}-\d{2}-\d{2}$/,
+      ),
+    });
+    expect(await api.classes.history({ studentId: student.userId })).toEqual(
+      before,
+    );
+  });
+
   test("withdrawing keeps the days already spent in the class", async () => {
     const api = await principal();
     const list = (await api.classes.directory({})).rows.filter(
