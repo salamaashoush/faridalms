@@ -25,6 +25,7 @@ import { schoolYears } from "@faridalms/database/stores/years";
 import {
   admissionReportSchema,
   answerOfferSchema,
+  APPLICATION_STATES,
   applicationReference,
   boardSchema,
   canMove,
@@ -56,7 +57,6 @@ import {
   releaseDecisions,
 } from "../core/decisions";
 import { enrol } from "../core/enrolment";
-import { notify } from "../core/notify";
 import {
   audit,
   can,
@@ -566,19 +566,6 @@ export const saveEvent = writeProcedure
       subjectUserId: row.applicantUserId,
       details: { applicationId: row.id, kind: input.kind, date: input.date },
     });
-    await notify(
-      context,
-      fields.attendeeIds.filter((each) => each !== context.actor.userId),
-      {
-        kind: "reminder",
-        subject: { type: "admission_application", id: row.id },
-        params: {
-          title: row.applicant.nameEn ?? row.applicant.nameAr ?? "",
-          titleAr: row.applicant.nameAr ?? undefined,
-          date: input.date,
-        },
-      },
-    );
     return { id, version };
   });
 
@@ -716,6 +703,10 @@ export const reports = readProcedure
         origin,
         funnel: funnel(reached.filter((row) => row.origin === origin)),
       })),
-      times,
+      times: times.toSorted(
+        (a, b) =>
+          APPLICATION_STATES.indexOf(a.state) -
+          APPLICATION_STATES.indexOf(b.state),
+      ),
     };
   });

@@ -222,8 +222,9 @@ describe("deciding", () => {
   });
 
   test("the intake's day releases decisions on the clock, and an offer lapses after its last day", async () => {
+    // A day before the seeded intakes', so the clock releases only this one.
     const { intakeId } = await intakeFor("Grade 10", {
-      decisionsOn: "2027-04-15",
+      decisionsOn: "2027-04-10",
     });
     const office = await officer();
     const { api: family } = await registeredFamily("salama.clock@example.com");
@@ -233,18 +234,19 @@ describe("deciding", () => {
     await decide(office, [id], "offer");
     const channels = { email: false, sms: false };
     await runAdmissionsClock(seeded().cell, tenantId(), {
-      now: new Date("2027-04-14T12:00:00Z"),
+      now: new Date("2027-04-09T12:00:00Z"),
       channels,
     });
     expect((await mineOf(family, id)).state).toBe("in_review");
     await runAdmissionsClock(seeded().cell, tenantId(), {
-      now: new Date("2027-04-15T12:00:00Z"),
+      now: new Date("2027-04-10T12:00:00Z"),
       channels,
     });
     const offered = await mineOf(family, id);
     expect(offered.state).toBe("offered");
+    expect(offered.offerExpiresOn).toBe("2027-04-24");
     await runAdmissionsClock(seeded().cell, tenantId(), {
-      now: new Date("2099-01-01T12:00:00Z"),
+      now: new Date("2027-04-25T12:00:00Z"),
       channels,
     });
     expect((await mineOf(family, id)).state).toBe("offer_expired");
