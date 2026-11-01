@@ -209,6 +209,22 @@ describe("publishing a page", () => {
     expect(served.status).toBe(200);
     expect(served.headers.get("content-type")).toBe("image/png");
 
+    const both = await api.documents.history({
+      hostType: "site_page",
+      hostId: about.id,
+    });
+    expect(
+      both.languages.toSorted((a, b) => (a ?? "").localeCompare(b ?? "")),
+    ).toEqual(["ar", "en"]);
+    const shownIn = new Set(
+      both.versions
+        .filter((row) => row.reason === "publish")
+        .map((row) => row.locale),
+    );
+    expect(
+      [...shownIn].toSorted((a, b) => (a ?? "").localeCompare(b ?? "")),
+    ).toEqual(["ar", "en"]);
+
     const edited = await api.site.savePage({
       id: about.id,
       expectedVersion: published.version,
@@ -234,14 +250,33 @@ describe("publishing a page", () => {
     const changed = await api.site.page({ id: about.id });
     expect(changed.revisedAt).not.toBeNull();
 
-    const snapshot = changed.history.find(
+    // The page's earlier versions come from the one history every document
+    // keeps, in each language it is written in.
+    const history = await api.documents.history({
+      hostType: "site_page",
+      hostId: about.id,
+    });
+    const snapshot = history.versions.find(
       (row) => row.reason === "publish" && row.locale === "en",
     );
     if (!snapshot) throw new Error("no publish snapshot");
-    await api.site.restorePage({
-      id: about.id,
+    const brought = await api.documents.restore({
+      hostType: "site_page",
+      hostId: about.id,
       locale: "en",
       documentVersion: snapshot.documentVersion,
+    });
+    if (brought.kind !== "page") throw new Error("a page comes back as a page");
+    await api.site.savePage({
+      id: about.id,
+      expectedVersion: changed.version,
+      parentId: "",
+      slug: "about",
+      titleEn: "Who we are",
+      titleAr: "من نحن",
+      inMenu: true,
+      content: brought.page,
+      translation: null,
     });
     const restored = await api.site.page({ id: about.id });
     expect(restored.content.sections.length).toBe(

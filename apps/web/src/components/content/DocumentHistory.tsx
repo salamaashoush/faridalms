@@ -1,5 +1,3 @@
-import type { ContentDocument } from "@faridalms/domain/content";
-
 import { Button } from "@faridalms/ui/button";
 import {
   Sheet,
@@ -12,6 +10,7 @@ import { useMutation, useQuery } from "@tanstack/react-query";
 import { RotateCcw } from "lucide-react";
 import { toast } from "sonner";
 
+import { LOCALE_NAME } from "~/components/content/languages";
 import { inLocale } from "~/hooks/useCurrentUser";
 import * as m from "~/i18n/messages";
 import { getLocale, getTextDirection } from "~/i18n/runtime";
@@ -28,10 +27,13 @@ const REASON: Record<Reason, () => string> = {
   import: m.docVersionImported,
 };
 
+/** What a restore brings back: a document's words, or a website page's sections. */
+export type Restored = Awaited<ReturnType<typeof restoreDocumentVersion>>;
+
 /**
- * A document's earlier versions, in a sheet beside it. Restoring one puts it
- * in the editor as the working copy; it reaches readers only when saved or
- * shown as any other edit would.
+ * A document's earlier versions in each language it is written in, in a
+ * sheet beside it. Restoring one puts it in the editor as the working copy;
+ * it reaches readers only when saved or shown as any other edit would.
  */
 export function DocumentHistory({
   open,
@@ -44,7 +46,7 @@ export function DocumentHistory({
   onOpenChange: (open: boolean) => void;
   hostType: string;
   hostId: string;
-  onRestore: (content: ContentDocument) => void;
+  onRestore: (restored: Restored) => void;
 }) {
   const versions = useQuery({
     queryKey: ["documents", "history", hostType, hostId],
@@ -52,10 +54,20 @@ export function DocumentHistory({
     enabled: open,
   });
   const restore = useMutation({
-    mutationFn: (documentVersion: number) =>
-      restoreDocumentVersion({ data: { hostType, hostId, documentVersion } }),
+    mutationFn: (row: {
+      documentVersion: number;
+      locale: "en" | "ar" | null;
+    }) =>
+      restoreDocumentVersion({
+        data: {
+          hostType,
+          hostId,
+          documentVersion: row.documentVersion,
+          ...(row.locale ? { locale: row.locale } : {}),
+        },
+      }),
     onSuccess: (result) => {
-      onRestore(result.content);
+      onRestore(result);
       onOpenChange(false);
       toast.success(m.docRestored());
     },
@@ -63,6 +75,7 @@ export function DocumentHistory({
   });
   const end = getTextDirection(getLocale()) === "rtl" ? "left" : "right";
   const rows = versions.data?.versions ?? [];
+  const bilingual = (versions.data?.languages.length ?? 0) > 1;
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent
@@ -88,12 +101,15 @@ export function DocumentHistory({
                 const who = inLocale(row.createdByNameEn, row.createdByNameAr);
                 return (
                   <li
-                    key={`${row.documentVersion}-${row.reason}-${row.createdAt}`}
+                    key={`${row.locale ?? ""}-${row.documentVersion}-${row.reason}-${row.createdAt}`}
                     className="flex items-center justify-between gap-4 py-3"
                   >
                     <div className="grid min-w-0 gap-0.5">
                       <span className="text-sm leading-5 font-medium">
                         {REASON[row.reason]()}
+                        {bilingual && row.locale
+                          ? ` · ${LOCALE_NAME[row.locale]()}`
+                          : ""}
                       </span>
                       <span className="text-[13px] leading-[18px] text-muted-foreground">
                         {[formatInstant(row.createdAt), who]
@@ -107,7 +123,7 @@ export function DocumentHistory({
                       size="sm"
                       className="max-md:h-10"
                       disabled={restore.isPending}
-                      onClick={() => restore.mutate(row.documentVersion)}
+                      onClick={() => restore.mutate(row)}
                     >
                       <RotateCcw aria-hidden />
                       {m.docRestore()}

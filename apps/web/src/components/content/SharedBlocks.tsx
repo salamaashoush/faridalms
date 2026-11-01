@@ -533,7 +533,9 @@ function EditDialog({ id, onClose }: { id: string; onClose: () => void }) {
             onOpenChange={setHistory}
             hostType="shared_block"
             hostId={id}
-            onRestore={(to) => {
+            onRestore={(restored) => {
+              if (restored.kind !== "document") return;
+              const to = restored.content;
               setDraft((before) =>
                 before
                   ? { ...before, content: to }

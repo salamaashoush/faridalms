@@ -1,9 +1,12 @@
+import type { PageTemplate } from "@faridalms/domain/site-templates";
+
 import { PAGE_TEMPLATE_IDS } from "@faridalms/domain/site-templates";
 import { resolveTheme } from "@faridalms/domain/site-theme";
 import { WORKSPACE_HOME } from "@faridalms/domain/workspace";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { createFileRoute, redirect } from "@tanstack/react-router";
 import { ArrowLeft } from "lucide-react";
+import { useState } from "react";
 import * as v from "valibot";
 
 import { ButtonLink } from "~/components/app/ButtonLink";
@@ -103,16 +106,32 @@ function TemplateChooser() {
 
 function EditorPage() {
   const { id, template, panel } = Route.useSearch();
+  const navigate = Route.useNavigate();
   const overview = useSuspenseQuery(siteOverviewQuery).data;
-  if (id) return <ExistingStudio id={id} />;
-  if (!template) return <TemplateChooser />;
+  // A new page stays the same builder once its first save gives it an
+  // address, so what is being typed is never interrupted.
+  const [started, setStarted] = useState<{
+    template: PageTemplate;
+    id: string | null;
+  } | null>(null);
+  const fresh = template ?? started?.template;
+  if (id && started?.id !== id) return <ExistingStudio id={id} />;
+  if (!fresh) return <TemplateChooser />;
   return (
     <SiteStudio
-      key={template}
+      key={fresh}
       existing={null}
       overview={overview}
-      template={template}
+      template={fresh}
       initialPanel={panel ?? "page"}
+      onCreated={(created) => {
+        setStarted({ template: fresh, id: created });
+        void navigate({
+          search: { id: created },
+          replace: true,
+          ignoreBlocker: true,
+        });
+      }}
     />
   );
 }

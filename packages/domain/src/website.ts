@@ -292,12 +292,6 @@ export const movePageSchema = v.object({
   position: v.pipe(v.number(), v.integer(), v.minValue(0), v.maxValue(999)),
 });
 
-export const restoreSchema = v.object({
-  id,
-  locale: v.picklist(SITE_LOCALES),
-  documentVersion: version(1),
-});
-
 export const saveCategorySchema = v.object({
   id: optionalId,
   expectedVersion: version(0),

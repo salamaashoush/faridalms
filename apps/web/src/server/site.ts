@@ -10,7 +10,6 @@ import {
   publicPostsSchema,
   publicSiteSchema,
   publishSchema,
-  restoreSchema,
   saveCategorySchema,
   savePageSchema,
   saveSettingsSchema,
@@ -56,10 +55,6 @@ export const moveSitePage = createServerFn({ method: "POST" })
 export const removeSitePage = createServerFn({ method: "POST" })
   .validator(byId)
   .handler(({ data }) => backend().site.removeSitePage(data));
-
-export const restoreSitePage = createServerFn({ method: "POST" })
-  .validator(checked(restoreSchema))
-  .handler(({ data }) => backend().site.restorePage(data));
 
 export const saveSiteCategory = createServerFn({ method: "POST" })
   .validator(checked(saveCategorySchema))

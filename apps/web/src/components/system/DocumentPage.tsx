@@ -64,7 +64,7 @@ export interface PrimaryAction {
   disabled?: boolean;
 }
 
-function SaveIndicator({
+export function SaveIndicator({
   state,
   onRetry,
 }: {
@@ -103,6 +103,69 @@ function SaveIndicator({
       </span>
     );
   return null;
+}
+
+/** Why a draft with changes cannot be stored yet, in place of the save state. */
+export function NotSaved({ reason }: { reason: string }) {
+  return (
+    <span
+      className="inline-flex min-w-0 items-center gap-1.5 text-[13px] text-muted-foreground"
+      aria-live="polite"
+    >
+      <TriangleAlert className="size-3.5 shrink-0" aria-hidden />
+      <span className="truncate max-sm:sr-only">{reason}</span>
+    </span>
+  );
+}
+
+/**
+ * Changes readers would see at once, held back until Update: what waits,
+ * and the ways to drop or apply it.
+ */
+export function HeldChanges({
+  waiting,
+  onDiscard,
+  onUpdate,
+  pending,
+  updateLabel,
+  quiet = false,
+}: {
+  waiting?: string;
+  onDiscard?: () => void;
+  onUpdate: () => void;
+  pending?: boolean;
+  updateLabel?: string;
+  /** Beside a surface's own primary action, Update is not the primary one. */
+  quiet?: boolean;
+}) {
+  return (
+    <>
+      <span className="hidden text-[13px] text-muted-foreground sm:inline">
+        {waiting ?? m.docUnsaved()}
+      </span>
+      {onDiscard ? (
+        <Button
+          type="button"
+          variant="ghost"
+          size="sm"
+          disabled={pending}
+          onClick={onDiscard}
+        >
+          {m.docDiscard()}
+        </Button>
+      ) : null}
+      <Button
+        type="button"
+        size="sm"
+        variant={quiet ? "outline" : "default"}
+        disabled={pending}
+        onClick={onUpdate}
+      >
+        {pending ? <LoaderCircle className="animate-spin" aria-hidden /> : null}
+        {updateLabel ?? m.docUpdate()}
+      </Button>
+    </>
+  );
 }
 
 /**
@@ -266,42 +329,12 @@ export function DocumentPage({
             {unpublished.waiting ? (
               <SaveIndicator state={saveState} onRetry={onRetry} />
             ) : null}
-            <span className="hidden text-[13px] text-muted-foreground sm:inline">
-              {unpublished.waiting ?? m.docUnsaved()}
-            </span>
-            {unpublished.onDiscard ? (
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                disabled={unpublished.pending}
-                onClick={unpublished.onDiscard}
-              >
-                {m.docDiscard()}
-              </Button>
-            ) : null}
-            <Button
-              type="button"
-              size="sm"
-              disabled={unpublished.pending}
-              onClick={unpublished.onUpdate}
-            >
-              {unpublished.pending ? (
-                <LoaderCircle className="animate-spin" aria-hidden />
-              ) : null}
-              {unpublished.updateLabel ?? m.docUpdate()}
-            </Button>
+            <HeldChanges {...unpublished} />
           </>
         ) : (
           <>
             {notSaved ? (
-              <span
-                className="inline-flex min-w-0 items-center gap-1.5 text-[13px] text-muted-foreground"
-                aria-live="polite"
-              >
-                <TriangleAlert className="size-3.5 shrink-0" aria-hidden />
-                <span className="truncate max-sm:sr-only">{notSaved}</span>
-              </span>
+              <NotSaved reason={notSaved} />
             ) : (
               <SaveIndicator state={saveState} onRetry={onRetry} />
             )}
@@ -429,7 +462,10 @@ export function DocumentPage({
           onOpenChange={setHistoryOpen}
           hostType={history.hostType}
           hostId={history.hostId}
-          onRestore={history.onRestore}
+          onRestore={(restored) => {
+            if (restored.kind === "document")
+              history.onRestore(restored.content);
+          }}
         />
       ) : null}
     </>
