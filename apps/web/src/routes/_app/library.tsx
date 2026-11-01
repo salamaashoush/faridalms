@@ -1,11 +1,14 @@
-import { kindsWritten, TEMPLATE_KINDS } from "@faridalms/domain/templates";
-import { WORKSPACE_HOME } from "@faridalms/domain/workspace";
+import {
+  kindsWritten,
+  TEMPLATE_AUTHORS,
+  TEMPLATE_KINDS,
+} from "@faridalms/domain/templates";
 import {
   useQuery,
   useQueryClient,
   useSuspenseQuery,
 } from "@tanstack/react-query";
-import { createFileRoute, redirect } from "@tanstack/react-router";
+import { createFileRoute } from "@tanstack/react-router";
 import { BookMarked, Eye, Trash2 } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
@@ -29,6 +32,7 @@ import { currentUserQuery } from "~/queries/user";
 import { removeTemplate } from "~/server/templates";
 import { formatDate } from "~/utils/datetime";
 import { getMessageFromError } from "~/utils/error";
+import { requirePage } from "~/utils/page-access";
 
 const searchSchema = v.object({
   tab: v.fallback(
@@ -49,8 +53,7 @@ export const Route = createFileRoute("/_app/library")({
   loaderDeps: ({ search }) => search,
   loader: async ({ context, deps }) => {
     const user = await context.queryClient.ensureQueryData(currentUserQuery);
-    if (kindsWritten(user.capabilities).length === 0)
-      throw redirect({ to: WORKSPACE_HOME[user.workspace] });
+    requirePage(user, ...Object.values(TEMPLATE_AUTHORS).flat());
     await context.queryClient.ensureQueryData(
       libraryQuery({ kind: deps.kind, subjectId: deps.subjectId, q: deps.q }),
     );

@@ -5,7 +5,6 @@ import type {
 } from "@faridalms/domain/admissions";
 
 import { NEEDS_KINDS, WITHDRAW_REASONS } from "@faridalms/domain/admissions";
-import { WORKSPACE_HOME } from "@faridalms/domain/workspace";
 import { Button } from "@faridalms/ui/button";
 import { Textarea } from "@faridalms/ui/textarea";
 import {
@@ -13,7 +12,7 @@ import {
   useQueryClient,
   useSuspenseQuery,
 } from "@tanstack/react-query";
-import { createFileRoute, Link, redirect } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { CalendarX, Eye, FileText, PlayCircle, Undo2 } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
@@ -68,6 +67,7 @@ import {
 } from "~/server/admissions";
 import { formatInstant, formatDate, formatList } from "~/utils/datetime";
 import { getMessageFromError } from "~/utils/error";
+import { requirePage } from "~/utils/page-access";
 
 export const Route = createFileRoute(
   "/_app/admissions/applications/$applicationId",
@@ -78,11 +78,7 @@ export const Route = createFileRoute(
   },
   loader: async ({ context, params }) => {
     const user = await context.queryClient.ensureQueryData(currentUserQuery);
-    if (
-      !user.capabilities.includes("admissions:read") &&
-      !user.capabilities.includes("admissions:manage")
-    )
-      throw redirect({ to: WORKSPACE_HOME[user.workspace] });
+    requirePage(user, "admissions:read", "admissions:manage");
     await context.queryClient.ensureQueryData(
       applicationQuery(params.applicationId),
     );

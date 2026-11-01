@@ -9,7 +9,6 @@ import {
   removeBankQuestion,
   updateBankQuestion,
 } from "@faridalms/database/stores/bank";
-import { teachesClass } from "@faridalms/database/stores/classes";
 import { documentOf, saveDocument } from "@faridalms/database/stores/documents";
 import { questionAskedOf } from "@faridalms/database/stores/quizzes";
 import {
@@ -23,8 +22,8 @@ import { ORPCError } from "@orpc/server";
 
 import type { UnitContext } from "../core/context";
 
-import { scopeOf } from "../core/coursework-access";
 import { audit, can, readProcedure, writeProcedure } from "../core/procedure";
+import { teaches } from "../core/reach";
 import { placeMedia, registerHostReader } from "../files/authorize";
 
 const hostOf = (id: string) => ({ type: "bank_question", id });
@@ -57,9 +56,7 @@ async function askedOrTaught(context: UnitContext, id: string) {
   if (!can(context, "submissions:grade")) return false;
   const classes = [...new Set(asked.map((row) => row.classId))];
   const taught = await Promise.all(
-    classes.map((classId) =>
-      teachesClass(context.tx, scopeOf(context), classId),
-    ),
+    classes.map((classId) => teaches(context, "teaching", classId)),
   );
   return taught.some(Boolean);
 }

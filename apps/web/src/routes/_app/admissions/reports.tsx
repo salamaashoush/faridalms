@@ -1,12 +1,7 @@
 import type { FunnelStage } from "@faridalms/domain/admissions";
 
-import { WORKSPACE_HOME } from "@faridalms/domain/workspace";
 import { useSuspenseQuery } from "@tanstack/react-query";
-import {
-  createFileRoute,
-  redirect,
-  stripSearchParams,
-} from "@tanstack/react-router";
+import { createFileRoute, stripSearchParams } from "@tanstack/react-router";
 import { ChartColumn } from "lucide-react";
 import * as v from "valibot";
 
@@ -25,6 +20,7 @@ import * as m from "~/i18n/messages";
 import { admissionReportsQuery } from "~/queries/admissions";
 import { currentUserQuery } from "~/queries/user";
 import { formatNumber } from "~/utils/datetime";
+import { requirePage } from "~/utils/page-access";
 
 const searchSchema = v.object({
   year: v.optional(v.union([v.literal(""), v.pipe(v.string(), v.uuid())]), ""),
@@ -38,11 +34,7 @@ export const Route = createFileRoute("/_app/admissions/reports")({
   loaderDeps: ({ search }) => search,
   loader: async ({ context, deps }) => {
     const user = await context.queryClient.ensureQueryData(currentUserQuery);
-    if (
-      !user.capabilities.includes("admissions:read") &&
-      !user.capabilities.includes("admissions:manage")
-    )
-      throw redirect({ to: WORKSPACE_HOME[user.workspace] });
+    requirePage(user, "admissions:read", "admissions:manage");
     await context.queryClient.ensureQueryData(admissionReportsQuery(deps.year));
   },
   component: ReportsPage,

@@ -19,11 +19,7 @@ import type { ScratchFeature } from "@faridalms/domain/scratch-project";
 
 import { arrangementsOf } from "@faridalms/database/stores/arrangements";
 import { reachOf } from "@faridalms/database/stores/audiences";
-import {
-  classesTaughtBy,
-  rosterOf,
-  teachesClass,
-} from "@faridalms/database/stores/classes";
+import { classesTaughtBy, rosterOf } from "@faridalms/database/stores/classes";
 import { groupsOf, namesOf } from "@faridalms/database/stores/coursework";
 import {
   contentsOf,
@@ -112,7 +108,6 @@ import {
   recordEvidence,
   standardsByIds,
 } from "@faridalms/database/stores/standards";
-import { isVisibleStudent } from "@faridalms/database/stores/students";
 import { insertTemplate } from "@faridalms/database/stores/templates";
 import { gridOwners } from "@faridalms/database/stores/timetable";
 import {
@@ -258,6 +253,7 @@ import {
   writeProcedure as anyWrite,
 } from "../core/procedure";
 import { wordsIssues } from "../core/publication";
+import { requireStudent, requireTaught, teaches } from "../core/reach";
 import { applyRemarks } from "../core/remarks";
 import {
   registerArea,
@@ -288,14 +284,6 @@ const readProcedure = anyRead.use(async ({ context, next }) => {
 const writeProcedure = anyWrite.use(async ({ context, next }) => {
   await switchedOn(context);
   return next();
-});
-
-const scopeOf = (context: UnitContext) => ({
-  tenantId: context.tenantId,
-  schoolId: context.schoolId,
-  today: context.today,
-  viewerId: context.actor.userId,
-  schoolWide: can(context, "classes:manage"),
 });
 
 async function currentYear(context: UnitContext) {
@@ -345,8 +333,7 @@ async function learner(context: UnitContext, studentId: string) {
     return { studentId: target, own: true };
   }
   requireCapability(context, "children:read");
-  if (!(await isVisibleStudent(context.tx, scopeOf(context), target)))
-    throw new ORPCError("NOT_FOUND");
+  await requireStudent(context, "teaching", target);
   return { studentId: target, own: false };
 }
 
@@ -2324,8 +2311,7 @@ export const nextLessons = readProcedure.handler(async ({ context }) => {
 /** A teacher of the class, or someone who keeps the school's classes. */
 async function soundKeeper(context: UnitContext, classId: string) {
   requireCapability(context, "learning:author", "classes:manage");
-  if (!(await teachesClass(context.tx, scopeOf(context), classId)))
-    throw new ORPCError("NOT_FOUND");
+  await requireTaught(context, "teaching", classId);
 }
 
 /** The lessons of a module a student has finished, for mixed review. */
@@ -2500,9 +2486,9 @@ export const moduleGlossary = readProcedure
     const row = await moduleById(context.tx, context.tenantId, input.id);
     if (!row || row.orgId !== context.schoolId)
       throw new ORPCError("NOT_FOUND");
-    const teaches = await mayEditModule(context, row);
+    const editing = await mayEditModule(context, row);
     let lessons: { id: string; title: string }[];
-    if (teaches)
+    if (editing)
       lessons = await lessonsOf(context.tx, context.tenantId, row.id);
     else {
       const { studentId } = await learner(context, input.studentId);
@@ -2522,7 +2508,7 @@ export const moduleGlossary = readProcedure
     const found = [];
     for (const part of lessons) {
       const shown = await publishedLesson(context, part.id);
-      const written = teaches
+      const written = editing
         ? await documentOf(context.tx, context.tenantId, {
             type: "lesson",
             id: part.id,
@@ -3992,7 +3978,7 @@ export const answers = readProcedure
       tagged.length > 0 &&
       classes.some((item) => item.id === input.classId && item.young) &&
       can(context, "submissions:grade") &&
-      (await teachesClass(context.tx, scopeOf(context), input.classId));
+      (await teaches(context, "teaching", input.classId));
     const goals = judging
       ? {
           standards: await standardsByIds(context.tx, {

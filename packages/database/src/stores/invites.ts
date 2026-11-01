@@ -312,8 +312,7 @@ export async function decidingGuardians(
     select r.student_user_id, r.related_user_id from core.user_relationships r
     where r.tenant_id = ${input.tenantId}::uuid and r.status = 'active'
       and r.student_user_id = any(${uuidArray(input.studentIds)})
-      and r.valid_during @> ${input.today}::date and r.educational_rights = 'full'
-      and r.receives_notifications and not coalesce(r.communication_isolated, false)
+      and r.educational_rights = 'full' and app.guardian_permits(r, ${input.today}::date, 'notice')
     order by r.primary_contact desc, r.contact_priority nulls last, r.id`);
   return rows.map((row) => ({
     studentId: row.student_user_id,

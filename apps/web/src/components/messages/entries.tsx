@@ -4,7 +4,6 @@ import type { LucideIcon } from "lucide-react";
 import type { ReactNode } from "react";
 
 import { cn } from "@faridalms/ui/cn";
-import { Link } from "@tanstack/react-router";
 import {
   ArrowRightLeft,
   Mail,
@@ -14,7 +13,10 @@ import {
   Users,
 } from "lucide-react";
 
+import type { RecordLink } from "~/components/people/PersonLink";
+
 import { enquiryEventText } from "~/components/admissions/labels";
+import { PersonLink } from "~/components/people/PersonLink";
 import { inLocale } from "~/hooks/useCurrentUser";
 import * as m from "~/i18n/messages";
 
@@ -80,9 +82,9 @@ export function entryTitle(
 }
 
 /**
- * A name in a conversation, leading to the person's or the student's
- * record where the server says the viewer may already open it, and plain
- * text everywhere else.
+ * A name in a conversation, leading to the student's record, the person's
+ * record or their profile as far as the server says the viewer reaches
+ * them, and plain text everywhere else.
  */
 export function NameLink({
   userId,
@@ -91,7 +93,7 @@ export function NameLink({
   className,
 }: {
   userId: string | null;
-  link: "student" | "person" | null;
+  link: RecordLink;
   children: ReactNode;
   className?: string;
 }) {
@@ -100,17 +102,9 @@ export function NameLink({
     className,
   );
   if (!userId || !link) return <bdi className={className}>{children}</bdi>;
-  return link === "student" ? (
-    <Link
-      to="/students/$studentId"
-      params={{ studentId: userId }}
-      className={style}
-    >
+  return (
+    <PersonLink userId={userId} link={link} className={style}>
       <bdi>{children}</bdi>
-    </Link>
-  ) : (
-    <Link to="/people/$userId" params={{ userId }} className={style}>
-      <bdi>{children}</bdi>
-    </Link>
+    </PersonLink>
   );
 }

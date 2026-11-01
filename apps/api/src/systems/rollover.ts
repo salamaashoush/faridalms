@@ -49,6 +49,7 @@ import {
   requireCapability,
   writeProcedure,
 } from "../core/procedure";
+import { scopeFor } from "../core/reach";
 
 async function yearsOf(context: UnitContext, query: RolloverQuery) {
   const years = await schoolYears(
@@ -80,23 +81,13 @@ async function sourceHomerooms(
   context: UnitContext,
   year: { id: string; endsBefore: string },
 ) {
-  return homeroomDirectory(
-    context.tx,
-    {
-      tenantId: context.tenantId,
-      schoolId: context.schoolId,
-      today: context.today,
-      viewerId: context.actor.userId,
-      schoolWide: true,
-    },
-    {
-      yearId: year.id,
-      on: addDays(year.endsBefore, -1),
-      q: "",
-      gradeIds: [],
-      locale: localeOf(context),
-    },
-  );
+  return homeroomDirectory(context.tx, scopeFor(context, "school"), {
+    yearId: year.id,
+    on: addDays(year.endsBefore, -1),
+    q: "",
+    gradeIds: [],
+    locale: localeOf(context),
+  });
 }
 
 /**
@@ -407,13 +398,7 @@ export const apply = writeProcedure
       entryTypes?.find((row) => row.meaning === "continuing")?.id ?? null;
     const exitOf = (meaning: string) =>
       exitTypes?.find((row) => row.meaning === meaning)?.id ?? null;
-    const scope = {
-      tenantId: context.tenantId,
-      schoolId: context.schoolId,
-      today: context.today,
-      viewerId: context.actor.userId,
-      schoolWide: true,
-    };
+    const scope = scopeFor(context, "school");
     const calendarId = await calendarFor(tx, context.tenantId, target.id);
     const byStudent = new Map(students.map((row) => [row.studentId, row]));
     let placed = 0;

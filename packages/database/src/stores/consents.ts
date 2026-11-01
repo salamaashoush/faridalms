@@ -386,7 +386,8 @@ export async function answerersOf(
     userId: string;
     nameEn: string | null;
     nameAr: string | null;
-    portalAccess: boolean;
+    /** Whether the school may ask them in the portal: `app.guardian_permits` for contact. */
+    contactable: boolean;
   }[]
 > {
   if (input.studentIds.length === 0) return [];
@@ -396,9 +397,10 @@ export async function answerersOf(
     related_user_id: string;
     full_name_en: string | null;
     full_name_ar: string | null;
-    portal_access: boolean;
+    contactable: boolean;
   }>(sql`
-    select r.id, r.student_user_id, r.related_user_id, u.full_name_en, u.full_name_ar, r.portal_access
+    select r.id, r.student_user_id, r.related_user_id, u.full_name_en, u.full_name_ar,
+           app.guardian_permits(r, ${input.today}::date, 'contact') as contactable
     from core.user_relationships r
     join core.users u on u.tenant_id = r.tenant_id and u.id = r.related_user_id and u.status = 'active'
     where r.tenant_id = ${input.tenantId}::uuid and r.student_user_id = any(${uuidArray(input.studentIds)})
@@ -411,7 +413,7 @@ export async function answerersOf(
     userId: row.related_user_id,
     nameEn: row.full_name_en,
     nameAr: row.full_name_ar,
-    portalAccess: row.portal_access,
+    contactable: row.contactable,
   }));
 }
 

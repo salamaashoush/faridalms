@@ -6,6 +6,8 @@ import {
   loadBroadcastEditor,
 } from "~/components/broadcasts/BroadcastEditorPage";
 import * as m from "~/i18n/messages";
+import { currentUserQuery } from "~/queries/user";
+import { requirePage } from "~/utils/page-access";
 
 export const Route = createFileRoute("/_app/news-editor")({
   staticData: { breadcrumb: m.newsEditorBreadcrumb, section: "/news" },
@@ -15,8 +17,13 @@ export const Route = createFileRoute("/_app/news-editor")({
     template: v.optional(v.pipe(v.string(), v.uuid())),
   }),
   loaderDeps: ({ search }) => search,
-  loader: ({ context, deps }) =>
-    loadBroadcastEditor("news", context.queryClient, deps),
+  loader: async ({ context, deps }) => {
+    requirePage(
+      await context.queryClient.ensureQueryData(currentUserQuery),
+      "news:manage",
+    );
+    await loadBroadcastEditor("news", context.queryClient, deps);
+  },
   component: EditorPage,
 });
 

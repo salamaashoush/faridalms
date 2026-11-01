@@ -1,5 +1,5 @@
 import type { Descriptor } from "@faridalms/database/stores/descriptors";
-import type { Scope } from "@faridalms/database/stores/students";
+import type { PersonReach } from "@faridalms/database/stores/persons";
 import type { SignInRefusal } from "@faridalms/domain/first-sign-in";
 import type { ContactLabel, StudentStatus } from "@faridalms/domain/people";
 
@@ -19,7 +19,6 @@ import {
   classesTaughtBy,
   endStudentEnrollmentsFrom,
   homeroomsOn,
-  reachesClass,
   reopenStudentEnrollments,
   teachersOf,
 } from "@faridalms/database/stores/classes";
@@ -39,6 +38,7 @@ import {
   settleInvites,
   voidInvite,
 } from "@faridalms/database/stores/invites";
+import { unreachable } from "@faridalms/database/stores/messages";
 import {
   noticesAbout,
   reachability,
@@ -46,7 +46,6 @@ import {
 import {
   childrenOf,
   contactsOf,
-  isVisiblePerson,
   replaceAddress,
   replaceContact,
   rolesAt,
@@ -57,7 +56,6 @@ import {
 import {
   schoolRoleIds,
   setStaffRoles,
-  STAFF_ROLES,
   staffDirectory,
 } from "@faridalms/database/stores/staff";
 import {
@@ -71,7 +69,6 @@ import {
   guardiansOf,
   insertPerson,
   insertRelationship,
-  isVisibleStudent,
   nameColumns,
   peopleByContact,
   person as readPerson,
@@ -132,6 +129,7 @@ import {
 } from "@faridalms/domain/people";
 import { toE164 } from "@faridalms/domain/phone";
 import { addDays } from "@faridalms/domain/school";
+import { STAFF_ROLES } from "@faridalms/domain/workspace";
 import { ORPCError } from "@orpc/server";
 import { randomInt } from "node:crypto";
 import * as v from "valibot";
@@ -150,6 +148,14 @@ import {
   requireCapability,
   writeProcedure,
 } from "../core/procedure";
+import {
+  reachesClass,
+  reachesPerson,
+  reachesStudent,
+  requirePerson,
+  requireStudent,
+  scopeFor,
+} from "../core/reach";
 import { issueBadgeSecret } from "../core/session";
 import { emailSignInLink } from "../core/sign-in-link";
 import { registerHostReader } from "../files/authorize";
@@ -158,22 +164,12 @@ import { inviteMessage } from "../notifications/templates";
 const id = v.pipe(v.string(), v.uuid());
 const STAFF_ROLE_SET: ReadonlySet<string> = new Set(STAFF_ROLES);
 
-function scopeOf(context: UnitContext): Scope {
-  return {
-    tenantId: context.tenantId,
-    schoolId: context.schoolId,
-    today: context.today,
-    viewerId: context.actor.userId,
-    schoolWide: can(context, "people:manage"),
-  };
-}
-
 // A person's photo is seen by whoever may see the person.
 registerHostReader(
   "person",
   async (context, personId) =>
     personId === context.actor.userId ||
-    isVisiblePerson(context.tx, scopeOf(context), personId),
+    (await reachesPerson(context, "people", personId)) !== null,
 );
 
 const PHOTO_TYPES = new Set(["image/jpeg", "image/png", "image/webp"]);
@@ -191,10 +187,7 @@ export const setPhoto = writeProcedure
       context.actor.workspace !== "me";
     if (!own) {
       requireCapability(context, "people:manage", "staff:manage");
-      if (
-        !(await isVisiblePerson(context.tx, scopeOf(context), input.personId))
-      )
-        throw new ORPCError("NOT_FOUND");
+      await requirePerson(context, "people", input.personId);
     }
     if (input.fileId) {
       const [file] = await filesByIds(context.tx, context.tenantId, [
@@ -234,11 +227,6 @@ async function countryOf(context: UnitContext) {
   return (
     (await schoolProfile(context.tx, context.schoolId))?.countryCode ?? "EG"
   );
-}
-
-async function requireStudent(context: UnitContext, studentId: string) {
-  if (!(await isVisibleStudent(context.tx, scopeOf(context), studentId)))
-    throw new ORPCError("NOT_FOUND");
 }
 
 /** The choices the people forms offer, labelled as this school labels them. */
@@ -334,7 +322,7 @@ export const students = readProcedure
         : [];
     const { rows, total } = await studentDirectory(
       context.tx,
-      scopeOf(context),
+      scopeFor(context, "people"),
       {
         yearId: year.id,
         working: year.id === working?.id,
@@ -416,8 +404,8 @@ export const student = readProcedure
   .input(v.object({ id }))
   .handler(async ({ input, context }) => {
     requireCapability(context, "people:read", "people:manage");
-    await requireStudent(context, input.id);
-    const scope = scopeOf(context);
+    await requireStudent(context, "people", input.id);
+    const scope = scopeFor(context, "people");
     const record = await readPerson(context.tx, input.id);
     if (!record) throw new ORPCError("NOT_FOUND");
     const [reference, history, guardians, years] = await Promise.all([
@@ -488,8 +476,12 @@ export const studentNotices = readProcedure
   .input(v.object({ id }))
   .handler(async ({ input, context }) => {
     requireCapability(context, "people:manage");
-    await requireStudent(context, input.id);
-    const guardians = await guardiansOf(context.tx, scopeOf(context), input.id);
+    await requireStudent(context, "people", input.id);
+    const guardians = await guardiansOf(
+      context.tx,
+      scopeFor(context, "people"),
+      input.id,
+    );
     return noticesAbout(context.tx, {
       tenantId: context.tenantId,
       orgId: context.schoolId,
@@ -505,7 +497,7 @@ export const studentHistory = readProcedure
   )
   .handler(async ({ input, context }) => {
     requireCapability(context, "people:manage", "audit:read");
-    await requireStudent(context, input.id);
+    await requireStudent(context, "people", input.id);
     return historyOf(context.tx, context.tenantId, input.id, {
       limit: 50,
       before: input.before,
@@ -517,7 +509,7 @@ export const matches = readProcedure
   .handler(async ({ input, context }) => {
     requireCapability(context, "people:manage");
     const columns = nameColumns(input.names);
-    return studentMatches(context.tx, scopeOf(context), {
+    return studentMatches(context.tx, scopeFor(context, "people"), {
       fullNameEn: columns.fullNameEn,
       fullNameAr: columns.fullNameAr,
       birthDate: input.birthDate,
@@ -671,7 +663,7 @@ export const saveStudent = writeProcedure
   .input(saveStudentSchema)
   .handler(async ({ input, context }) => {
     requireCapability(context, "people:manage");
-    const scope = scopeOf(context);
+    const scope = scopeFor(context, "people");
     const tx = context.tx;
     const referenceSystem = await descriptorId(
       tx,
@@ -681,7 +673,7 @@ export const saveStudent = writeProcedure
     );
     let studentId: string;
     if (input.id) {
-      await requireStudent(context, input.id);
+      await requireStudent(context, "people", input.id);
       const before = await readPerson(tx, input.id);
       if (!before) throw new ORPCError("NOT_FOUND");
       const updated = await updatePerson(tx, {
@@ -794,7 +786,7 @@ export const saveRelationship = writeProcedure
   .input(saveRelationshipSchema)
   .handler(async ({ input, context }) => {
     requireCapability(context, "people:manage", "guardians:manage");
-    await requireStudent(context, input.studentId);
+    await requireStudent(context, "people", input.studentId);
     if (!input.relationshipId) {
       const relationshipId = await linkGuardian(
         context,
@@ -866,7 +858,7 @@ export const endLink = writeProcedure
       input.relationshipId,
     );
     if (!existing) throw new ORPCError("NOT_FOUND");
-    await requireStudent(context, existing.studentUserId);
+    await requireStudent(context, "people", existing.studentUserId);
     const ended = await endRelationship(context.tx, {
       tenantId: context.tenantId,
       relationshipId: input.relationshipId,
@@ -905,12 +897,15 @@ function labelFrom(list: Descriptor[], value: string | null) {
 /**
  * The classes a member of staff teaches or assists in the working year, as
  * they stand today or on the year's nearest day, each marked with whether
- * the viewer may open it.
+ * the viewer may open it. A profile lists only the classes the viewer, or a
+ * child they follow, is in, and opens none of them: families and students
+ * keep to their own pages.
  */
 async function teachingOf(
   context: UnitContext,
   userId: string,
   subjects: Descriptor[],
+  view: PersonReach,
 ) {
   const year = workingYear(
     await schoolYears(context.tx, context.tenantId, context.schoolId),
@@ -923,54 +918,125 @@ async function teachingOf(
     yearId: year.id,
     on,
   });
-  const classScope = {
-    ...scopeOf(context),
-    schoolWide: can(context, "classes:manage") || can(context, "people:manage"),
-  };
-  const open = await Promise.all(
-    taught.map((row) => reachesClass(context.tx, classScope, row.id, on)),
+  const reached = await Promise.all(
+    taught.map((row) =>
+      reachesClass(context, view === "record" ? "classes" : "own", row.id, on),
+    ),
   );
   return {
     year: { id: year.id, titleEn: year.titleEn, titleAr: year.titleAr },
-    classes: taught.map((row, index) => ({
-      id: row.id,
-      code: row.code,
-      titleEn: row.titleEn,
-      titleAr: row.titleAr,
-      classType: row.classType,
-      role: row.role,
-      homeroomTitleEn: row.homeroomTitleEn,
-      homeroomTitleAr: row.homeroomTitleAr,
-      subject: labelFrom(subjects, row.subjectId),
-      canOpen: open[index] ?? false,
+    classes: taught.flatMap((row, index) =>
+      view === "record" || reached[index]
+        ? [
+            {
+              id: row.id,
+              code: row.code,
+              titleEn: row.titleEn,
+              titleAr: row.titleAr,
+              classType: row.classType,
+              role: row.role,
+              homeroomTitleEn: row.homeroomTitleEn,
+              homeroomTitleAr: row.homeroomTitleAr,
+              subject: labelFrom(subjects, row.subjectId),
+              canOpen: view === "record" && (reached[index] ?? false),
+            },
+          ]
+        : [],
+    ),
+  };
+}
+
+const labelsOf = (context: UnitContext, namespace: string) =>
+  descriptorsFor(context.tx, {
+    tenantId: context.tenantId,
+    schoolId: context.schoolId,
+    namespace,
+    today: context.today,
+    includeRetired: true,
+  });
+
+/**
+ * The limited profile a family or a student opens for a teacher of their
+ * classes, or for someone they share a conversation with: who they are,
+ * what they teach the viewer's children and whether the viewer may write to
+ * them, never the rest of the record. Anyone the viewer reaches at all has
+ * one.
+ */
+export const profile = readProcedure
+  .input(v.object({ id }))
+  .handler(async ({ input, context }) => {
+    if (
+      input.id !== context.actor.userId &&
+      !(await reachesPerson(context, "people", input.id))
+    )
+      throw new ORPCError("NOT_FOUND");
+    const record = await readPerson(context.tx, input.id);
+    if (!record) throw new ORPCError("NOT_FOUND");
+    return profileOf(context, record);
+  });
+
+async function profileOf(
+  context: UnitContext,
+  record: NonNullable<Awaited<ReturnType<typeof readPerson>>>,
+) {
+  const [roles, positions] = await Promise.all([
+    rolesAt(context.tx, context, record.id),
+    labelsOf(context, "staff_position"),
+  ]);
+  const current = roles.filter(
+    (role) => role.from <= context.today && STAFF_ROLE_SET.has(role.role),
+  );
+  const teaching = current.length
+    ? await teachingOf(
+        context,
+        record.id,
+        await labelsOf(context, "subject"),
+        "profile",
+      )
+    : null;
+  const message =
+    record.id !== context.actor.userId &&
+    can(context, "messages:send") &&
+    (await unreachable(context.tx, scopeFor(context, "classes"), [record.id]))
+      .length === 0;
+  return {
+    id: record.id,
+    givenNameAr: record.givenNameAr,
+    familyNameAr: record.familyNameAr,
+    fullNameAr: record.fullNameAr,
+    givenNameEn: record.givenNameEn,
+    familyNameEn: record.familyNameEn,
+    fullNameEn: record.fullNameEn,
+    preferredGivenName: record.preferredGivenName,
+    photoFileId: record.photoFileId,
+    roles: current.map((role) => ({
+      id: role.id,
+      role: role.role,
+      titleEn: role.titleEn,
+      titleAr: role.titleAr,
+      position: labelFrom(positions, role.positionId),
     })),
+    teaching,
+    access: { message },
   };
 }
 
 /**
  * A person's record at this school: a guardian, a member of staff, or the
  * viewer themselves. Contact details show to staff who read contacts and to
- * the person; linked students only where the viewer reaches them.
+ * the person; linked students only where the viewer reaches them. Someone
+ * the viewer reaches only as far as a profile is not found here.
  */
 export const person = readProcedure
   .input(v.object({ id }))
   .handler(async ({ input, context }) => {
-    const scope = scopeOf(context);
+    const scope = scopeFor(context, "people");
     const self = input.id === context.actor.userId;
-    if (!self && !(await isVisiblePerson(context.tx, scope, input.id)))
-      throw new ORPCError("NOT_FOUND");
+    if (!self) await requirePerson(context, "people", input.id);
     const record = await readPerson(context.tx, input.id);
     if (!record) throw new ORPCError("NOT_FOUND");
     const manage = can(context, "people:manage");
     const seesContacts = self || manage || can(context, "contacts:read");
-    const labels = (namespace: string) =>
-      descriptorsFor(context.tx, {
-        tenantId: context.tenantId,
-        schoolId: context.schoolId,
-        namespace,
-        today: context.today,
-        includeRetired: true,
-      });
     const [roles, contacts, children, account, relations, positions] =
       await Promise.all([
         rolesAt(context.tx, scope, input.id),
@@ -979,13 +1045,18 @@ export const person = readProcedure
           : Promise.resolve(null),
         childrenOf(context.tx, scope, input.id),
         accountOf(context.tx, context.tenantId, input.id),
-        labels("relation"),
-        labels("staff_position"),
+        labelsOf(context, "relation"),
+        labelsOf(context, "staff_position"),
       ]);
     const personal = manage || self;
     const staffMember = roles.some((role) => STAFF_ROLE_SET.has(role.role));
     const teaching = staffMember
-      ? await teachingOf(context, input.id, await labels("subject"))
+      ? await teachingOf(
+          context,
+          input.id,
+          await labelsOf(context, "subject"),
+          "record",
+        )
       : null;
     const signIn =
       !self && (staffMember ? can(context, "staff:manage") : manage);
@@ -1038,8 +1109,7 @@ export const personHistory = readProcedure
   )
   .handler(async ({ input, context }) => {
     requireCapability(context, "people:manage", "audit:read");
-    if (!(await isVisiblePerson(context.tx, scopeOf(context), input.id)))
-      throw new ORPCError("NOT_FOUND");
+    await requirePerson(context, "people", input.id);
     return historyOf(context.tx, context.tenantId, input.id, {
       limit: 50,
       before: input.before,
@@ -1054,7 +1124,7 @@ export const staff = readProcedure
       ? toE164(input.q, await countryOf(context))
       : null;
     const [{ rows, total }, positions] = await Promise.all([
-      staffDirectory(context.tx, scopeOf(context), {
+      staffDirectory(context.tx, scopeFor(context, "people"), {
         q: input.q,
         phone,
         roles: input.role,
@@ -1102,16 +1172,19 @@ export const staffMember = readProcedure
   .input(v.object({ id }))
   .handler(async ({ input, context }) => {
     requireCapability(context, "staff:manage");
-    if (!(await isVisiblePerson(context.tx, scopeOf(context), input.id)))
-      throw new ORPCError("NOT_FOUND");
+    await requirePerson(context, "people", input.id);
     const record = await readPerson(context.tx, input.id);
     if (!record) throw new ORPCError("NOT_FOUND");
     const [roles, contacts] = await Promise.all([
-      rolesAt(context.tx, scopeOf(context), input.id),
+      rolesAt(context.tx, scopeFor(context, "people"), input.id),
       contactsOf(context.tx, context.tenantId, input.id),
     ]);
     const staffRoles = roles.filter((role) => STAFF_ROLE_SET.has(role.role));
-    const here = await schoolRoleIds(context.tx, scopeOf(context), input.id);
+    const here = await schoolRoleIds(
+      context.tx,
+      scopeFor(context, "people"),
+      input.id,
+    );
     const first = staffRoles.find((role) => here.has(role.id));
     return {
       id: record.id,
@@ -1148,8 +1221,8 @@ async function requireRolesGrantable(
   roles: readonly string[],
 ) {
   const [held, builtins] = await Promise.all([
-    rolesAt(context.tx, scopeOf(context), userId),
-    rolesForSchool(context.tx, scopeOf(context)),
+    rolesAt(context.tx, scopeFor(context, "people"), userId),
+    rolesForSchool(context.tx, scopeFor(context, "people")),
   ]);
   const current = new Set(held.map((row) => row.role));
   for (const added of roles.filter((role) => !current.has(role)))
@@ -1172,8 +1245,7 @@ export const saveStaff = writeProcedure
       });
     let userId: string;
     if (input.id) {
-      if (!(await isVisiblePerson(tx, scopeOf(context), input.id)))
-        throw new ORPCError("NOT_FOUND");
+      await requirePerson(context, "people", input.id);
       const before = await readPerson(tx, input.id);
       if (!before) throw new ORPCError("NOT_FOUND");
       const updated = await updatePerson(tx, {
@@ -1252,7 +1324,7 @@ export const saveStaff = writeProcedure
       });
     await requireRolesGrantable(context, userId, input.roles);
     await guardingAccess(context, () =>
-      setStaffRoles(tx, scopeOf(context), userId, {
+      setStaffRoles(tx, scopeFor(context, "people"), userId, {
         roles: input.roles,
         positionId: input.positionId || null,
         titleEn: input.titleEn,
@@ -1275,10 +1347,10 @@ export const saveStaff = writeProcedure
  * managers for everyone else, and nobody for their own account here.
  */
 async function requireSignInManager(context: UnitContext, userId: string) {
-  const scope = scopeOf(context);
+  const scope = scopeFor(context, "people");
   const reached =
-    (await isVisiblePerson(context.tx, scope, userId)) ||
-    (await isVisibleStudent(context.tx, scope, userId));
+    (await reachesPerson(context, "people", userId)) === "record" ||
+    (await reachesStudent(context, "people", userId));
   if (!reached) throw new ORPCError("NOT_FOUND");
   if (userId === context.actor.userId)
     throw new ORPCError("FORBIDDEN", { message: "account.self" });
@@ -1527,7 +1599,11 @@ async function emailPlan(context: UnitContext, seeds: readonly SignInSeed[]) {
 async function pickedSeeds(context: UnitContext, studentIds: string[]) {
   requireCapability(context, "people:manage");
   const wanted = [...new Set(studentIds)];
-  const seeds = await signInSeeds(context.tx, scopeOf(context), wanted);
+  const seeds = await signInSeeds(
+    context.tx,
+    scopeFor(context, "people"),
+    wanted,
+  );
   if (seeds.length !== wanted.length) throw new ORPCError("NOT_FOUND");
   return seeds;
 }
@@ -1800,9 +1876,8 @@ export const saveArrival = writeProcedure
   .input(saveArrivalSchema)
   .handler(async ({ input, context }) => {
     requireCapability(context, "people:manage");
-    const scope = scopeOf(context);
-    if (!(await isVisibleStudent(context.tx, scope, input.studentId)))
-      throw new ORPCError("NOT_FOUND");
+    const scope = scopeFor(context, "people");
+    await requireStudent(context, "people", input.studentId);
     const placement = (
       await placements(context.tx, scope, input.studentId)
     ).find((row) => row.id === input.placementId);
@@ -1850,9 +1925,8 @@ export const recordLeaving = writeProcedure
   .input(recordLeavingSchema)
   .handler(async ({ input, context }) => {
     requireCapability(context, "people:manage");
-    const scope = scopeOf(context);
-    if (!(await isVisibleStudent(context.tx, scope, input.studentId)))
-      throw new ORPCError("NOT_FOUND");
+    const scope = scopeFor(context, "people");
+    await requireStudent(context, "people", input.studentId);
     const placement = (
       await placements(context.tx, scope, input.studentId)
     ).find((row) => row.from <= input.lastDay && input.lastDay < row.to);
@@ -1930,9 +2004,8 @@ export const cancelLeaving = writeProcedure
   .input(cancelLeavingSchema)
   .handler(async ({ input, context }) => {
     requireCapability(context, "people:manage");
-    const scope = scopeOf(context);
-    if (!(await isVisibleStudent(context.tx, scope, input.studentId)))
-      throw new ORPCError("NOT_FOUND");
+    const scope = scopeFor(context, "people");
+    await requireStudent(context, "people", input.studentId);
     const [latest] = await placements(context.tx, scope, input.studentId);
     if (!latest?.exitTypeId)
       throw new ORPCError("BAD_REQUEST", { message: "leaving.none" });
@@ -1965,8 +2038,8 @@ export const siblings = readProcedure
   .input(v.object({ id }))
   .handler(async ({ input, context }) => {
     requireCapability(context, "people:read", "people:manage");
-    await requireStudent(context, input.id);
-    return siblingsOf(context.tx, scopeOf(context), input.id);
+    await requireStudent(context, "people", input.id);
+    return siblingsOf(context.tx, scopeFor(context, "people"), input.id);
   });
 
 /**
@@ -1977,9 +2050,8 @@ export const saveContacts = writeProcedure
   .input(saveContactsSchema)
   .handler(async ({ input, context }) => {
     requireCapability(context, "people:manage", "guardians:manage");
-    const scope = scopeOf(context);
-    if (!(await isVisiblePerson(context.tx, scope, input.userId)))
-      throw new ORPCError("NOT_FOUND");
+    const scope = scopeFor(context, "people");
+    await requirePerson(context, "people", input.userId);
     const roles = await rolesAt(context.tx, scope, input.userId);
     if (
       roles.some((role) => role.role === "student") ||
@@ -2059,5 +2131,5 @@ export const searchPeople = readProcedure
   .input(personSearchSchema)
   .handler(async ({ input, context }) => {
     requireCapability(context, "people:manage", "guardians:manage");
-    return searchReached(context.tx, scopeOf(context), input.q);
+    return searchReached(context.tx, scopeFor(context, "people"), input.q);
   });

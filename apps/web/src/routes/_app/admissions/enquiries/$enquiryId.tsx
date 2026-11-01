@@ -1,7 +1,6 @@
 import type { EnquiryState } from "@faridalms/domain/enquiries";
 
 import { responseMinutes } from "@faridalms/domain/enquiries";
-import { WORKSPACE_HOME } from "@faridalms/domain/workspace";
 import { Button } from "@faridalms/ui/button";
 import { Skeleton } from "@faridalms/ui/skeleton";
 import {
@@ -9,7 +8,7 @@ import {
   useQueryClient,
   useSuspenseQuery,
 } from "@tanstack/react-query";
-import { createFileRoute, Link, redirect } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import {
   CircleCheck,
   Clock,
@@ -57,16 +56,13 @@ import {
 import { formatInstant, formatDate, formatMinutes } from "~/utils/datetime";
 import { numberLocale } from "~/utils/digits";
 import { getMessageFromError } from "~/utils/error";
+import { requirePage } from "~/utils/page-access";
 
 export const Route = createFileRoute("/_app/admissions/enquiries/$enquiryId")({
   staticData: { trail: <EnquiryTrail />, section: "/admissions/enquiries" },
   loader: async ({ context, params }) => {
     const user = await context.queryClient.ensureQueryData(currentUserQuery);
-    if (
-      !user.capabilities.includes("admissions:read") &&
-      !user.capabilities.includes("admissions:manage")
-    )
-      throw redirect({ to: WORKSPACE_HOME[user.workspace] });
+    requirePage(user, "admissions:read", "admissions:manage");
     const enquiry = await context.queryClient.ensureQueryData(
       enquiryQuery(params.enquiryId),
     );

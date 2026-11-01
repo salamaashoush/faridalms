@@ -10,13 +10,8 @@ import {
   ENQUIRY_STATES,
   enquiryListSchema,
 } from "@faridalms/domain/enquiries";
-import { WORKSPACE_HOME } from "@faridalms/domain/workspace";
 import { useSuspenseQuery } from "@tanstack/react-query";
-import {
-  createFileRoute,
-  redirect,
-  stripSearchParams,
-} from "@tanstack/react-router";
+import { createFileRoute, stripSearchParams } from "@tanstack/react-router";
 import { Inbox, Plus } from "lucide-react";
 import { useState } from "react";
 import * as v from "valibot";
@@ -39,6 +34,7 @@ import * as m from "~/i18n/messages";
 import { enquiriesQuery } from "~/queries/admissions";
 import { currentUserQuery } from "~/queries/user";
 import { formatInstant, formatNumber } from "~/utils/datetime";
+import { requirePage } from "~/utils/page-access";
 
 const DEFAULT_SEARCH = v.parse(enquiryListSchema, {});
 
@@ -49,11 +45,7 @@ export const Route = createFileRoute("/_app/admissions/enquiries/")({
   loaderDeps: ({ search }) => search,
   loader: async ({ context, deps }) => {
     const user = await context.queryClient.ensureQueryData(currentUserQuery);
-    if (
-      !user.capabilities.includes("admissions:read") &&
-      !user.capabilities.includes("admissions:manage")
-    )
-      throw redirect({ to: WORKSPACE_HOME[user.workspace] });
+    requirePage(user, "admissions:read", "admissions:manage");
     await context.queryClient.ensureQueryData(enquiriesQuery(deps));
   },
   component: EnquiriesPage,

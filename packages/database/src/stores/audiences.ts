@@ -34,9 +34,6 @@ function ownerSql(owner: AudienceOwner) {
   };
 }
 
-const STAFF_ROLES = sql`('teacher', 'aide', 'counselor', 'principal', 'site_administrator',
-  'district_administrator', 'system_administrator', 'proctor', 'staff')`;
-
 /** The people each audience names on a day: staff, students and their portal guardians. */
 function audienceSql(
   input: { tenantId: string; schoolId: string; on: string },
@@ -50,13 +47,12 @@ function audienceSql(
       and c.status = 'active' and ${classFilter}`;
   const guardiansOf = (students: SQL) => sql`
     select l.related_user_id from core.user_relationships l
-    where l.tenant_id = ${input.tenantId}::uuid and l.status = 'active' and l.portal_access
-      and l.valid_during @> ${input.on}::date and not coalesce(l.communication_isolated, false)
+    where l.tenant_id = ${input.tenantId}::uuid and app.guardian_permits(l, ${input.on}::date, 'contact')
       and l.student_user_id in (${students})`;
   const staff = sql`
     select r.user_id from core.user_roles r
     where r.tenant_id = ${input.tenantId}::uuid and r.org_id = ${input.schoolId}::uuid
-      and r.status = 'active' and r.valid_during @> ${input.on}::date and r.role in ${STAFF_ROLES}`;
+      and r.status = 'active' and r.valid_during @> ${input.on}::date and r.role = any (app.staff_roles())`;
   const teachersOf = (classFilter: SQL) => sql`
     select e.user_id from core.enrollments e
     join core.classes c on c.tenant_id = e.tenant_id and c.id = e.class_id
@@ -243,8 +239,7 @@ export async function reachOf(
     with children as (
       select l.student_user_id as user_id from core.user_relationships l
       where l.tenant_id = ${input.tenantId}::uuid and l.related_user_id = ${input.userId}::uuid
-        and l.status = 'active' and l.portal_access and l.valid_during @> ${input.on}::date
-        and not coalesce(l.communication_isolated, false)
+        and app.guardian_permits(l, ${input.on}::date, 'contact')
     ), enrolled as (
       select e.user_id, e.class_id from core.enrollments e
       join core.classes c on c.tenant_id = e.tenant_id and c.id = e.class_id
@@ -270,7 +265,7 @@ export async function reachOf(
       exists (select 1 from core.user_roles r
         where r.tenant_id = ${input.tenantId}::uuid and r.user_id = ${input.userId}::uuid
           and r.org_id = ${input.schoolId}::uuid and r.status = 'active'
-          and r.valid_during @> ${input.on}::date and r.role in ${STAFF_ROLES}) as staff,
+          and r.valid_during @> ${input.on}::date and r.role = any (app.staff_roles())) as staff,
       exists (select 1 from enrolled where user_id = ${input.userId}::uuid) as student,
       exists (select 1 from enrolled where user_id <> ${input.userId}::uuid) as guardian,
       coalesce((select json_agg(distinct class_id) from member), '[]'::json) as class_ids,

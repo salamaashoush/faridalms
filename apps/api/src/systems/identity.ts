@@ -57,7 +57,6 @@ import * as v from "valibot";
 
 import type { SchoolContext } from "../core/context";
 
-import { scopeOf } from "../core/coursework-access";
 import { featuresOf } from "../core/features";
 import { sendPasswordReset } from "../core/password-reset";
 import {
@@ -75,6 +74,7 @@ import {
   schoolZone,
   writeProcedure,
 } from "../core/procedure";
+import { scopeFor } from "../core/reach";
 import { confirmRegistration } from "../core/registration";
 import {
   attemptKey,
@@ -627,7 +627,7 @@ export const childSession = writeProcedure
     requireCapability(context, "children:read");
     const links = await childrenOf(
       context.tx,
-      scopeOf(context),
+      scopeFor(context, "teaching"),
       context.actor.userId,
     );
     if (!links.some((link) => link.studentId === input.studentId))

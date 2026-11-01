@@ -24,7 +24,6 @@ import {
   classById,
   classesTaughtBy,
   rosterOf,
-  teachesClass,
 } from "@faridalms/database/stores/classes";
 import {
   isShared,
@@ -124,7 +123,6 @@ import {
   resumeSitting,
 } from "@faridalms/database/stores/quizzes";
 import { recordRubricEvidence } from "@faridalms/database/stores/standards";
-import { isVisibleStudent } from "@faridalms/database/stores/students";
 import {
   reviewTranslation,
   translationReview,
@@ -235,7 +233,6 @@ import {
   learnerAssignment,
   ownSchedule,
   requireOpenYear,
-  scopeOf,
   taughtAssignment,
 } from "../core/coursework-access";
 import { gradeReader } from "../core/grades";
@@ -252,6 +249,13 @@ import {
   writeProcedure,
 } from "../core/procedure";
 import { registerGoLive, tellLive, wordsIssues } from "../core/publication";
+import {
+  reachesStudent,
+  requireStudent,
+  requireTaught,
+  scopeFor,
+  teaches,
+} from "../core/reach";
 import {
   teachingScope,
   tellAssigned,
@@ -384,7 +388,7 @@ async function readable(
   if (!owner) return false;
   const teacher =
     (can(context, "assignments:author") || can(context, "submissions:grade")) &&
-    (await teachesClass(context.tx, scopeOf(context), owner.classId));
+    (await teaches(context, "teaching", owner.classId));
   if (host.type === "submission")
     return owner.studentId === context.actor.userId;
   if (teacher) return true;
@@ -401,11 +405,7 @@ async function readable(
         }))) ||
       (can(context, "children:read") &&
         owner.studentId !== null &&
-        (await isVisibleStudent(
-          context.tx,
-          scopeOf(context),
-          owner.studentId,
-        )) &&
+        (await reachesStudent(context, "teaching", owner.studentId)) &&
         (await isShared(context.tx, context.tenantId, host.id)))
     );
   if (
@@ -423,8 +423,7 @@ async function readable(
     assignmentId: owner.assignmentId,
   });
   for (const row of work)
-    if (await isVisibleStudent(context.tx, scopeOf(context), row.studentId))
-      return true;
+    if (await reachesStudent(context, "teaching", row.studentId)) return true;
   return false;
 }
 
@@ -449,10 +448,10 @@ registerHostWriter("assignment", async (context, hostId) => {
 registerArea("class", {
   reader: async (context, classId) =>
     (can(context, "assignments:author") || can(context, "submissions:grade")) &&
-    (await teachesClass(context.tx, scopeOf(context), classId)),
+    (await teaches(context, "teaching", classId)),
   writer: async (context, classId) =>
     can(context, "assignments:author") &&
-    (await teachesClass(context.tx, scopeOf(context), classId)),
+    (await teaches(context, "teaching", classId)),
   holders: {
     assignment: async (context, assignmentId) => {
       const owner = await courseworkHost(context.tx, context.tenantId, {
@@ -504,7 +503,7 @@ registerHostReader("attempt_feedback", async (context, attemptId) => {
   if (
     owner &&
     can(context, "submissions:grade") &&
-    (await teachesClass(context.tx, scopeOf(context), owner.classId))
+    (await teaches(context, "teaching", owner.classId))
   )
     return true;
   const assessment = await assessmentOf(
@@ -581,13 +580,17 @@ export const list = readProcedure
         rows: [],
         counts: { to_grade: 0, assigned: 0, scheduled: 0, drafts: 0, past: 0 },
       };
-    const rows = await teacherAssignments(context.tx, scopeOf(context), {
-      yearId: year.id,
-      classId: input.classId,
-      q: input.q,
-      now: context.now,
-      graceMs: GRACE_MS,
-    });
+    const rows = await teacherAssignments(
+      context.tx,
+      scopeFor(context, "teaching"),
+      {
+        yearId: year.id,
+        classId: input.classId,
+        q: input.q,
+        now: context.now,
+        graceMs: GRACE_MS,
+      },
+    );
     const phased = rows.map((row) => ({
       ...row,
       phase: assignmentPhase(row, context.now),
@@ -727,7 +730,7 @@ export const reusable = readProcedure
   .input(reusableSchema)
   .handler(async ({ input, context }) => {
     requireCapability(context, "assignments:author");
-    return reusableAssignments(context.tx, scopeOf(context), {
+    return reusableAssignments(context.tx, scopeFor(context, "teaching"), {
       q: input.q,
       limit: 30,
     });
@@ -749,11 +752,11 @@ export const reuse = writeProcedure
       !source ||
       source.orgId !== context.schoolId ||
       (source.authorUserId !== context.actor.userId &&
-        !(await teachesClass(tx, scopeOf(context), source.classId)))
+        !(await teaches(context, "teaching", source.classId)))
     )
       throw new ORPCError("NOT_FOUND");
     const classRow = await classById(tx, context, input.classId);
-    if (!classRow || !(await teachesClass(tx, scopeOf(context), classRow.id)))
+    if (!classRow || !(await teaches(context, "teaching", classRow.id)))
       throw new ORPCError("NOT_FOUND");
     await requireOpenYear(context, classRow.schoolYearId);
     const categories = await classCategories(tx, {
@@ -861,7 +864,7 @@ export const save = writeProcedure
       });
     const tx = context.tx;
     const classRow = await classById(tx, context, input.classId);
-    if (!classRow || !(await teachesClass(tx, scopeOf(context), classRow.id)))
+    if (!classRow || !(await teaches(context, "teaching", classRow.id)))
       throw new ORPCError("NOT_FOUND");
     await requireOpenYear(context, classRow.schoolYearId);
     if (
@@ -2877,8 +2880,7 @@ export const mine = readProcedure.handler(async ({ context }) => {
 
 /** A student's work this year as their family or school reads it: released results only. */
 async function workOf(context: UnitContext, studentId: string) {
-  if (!(await isVisibleStudent(context.tx, scopeOf(context), studentId)))
-    throw new ORPCError("NOT_FOUND");
+  await requireStudent(context, "teaching", studentId);
   const year = await currentYear(context);
   if (!year) return { rows: [], now: context.now.toISOString() };
   const rows = await learnerAssignments(context.tx, {
@@ -2897,10 +2899,7 @@ export const shared = readProcedure
   .input(v.object({ studentId: id }))
   .handler(async ({ input, context }) => {
     requireCapability(context, "children:read");
-    if (
-      !(await isVisibleStudent(context.tx, scopeOf(context), input.studentId))
-    )
-      throw new ORPCError("NOT_FOUND");
+    await requireStudent(context, "teaching", input.studentId);
     return {
       pieces: await sharedWorkOf(context.tx, {
         tenantId: context.tenantId,
@@ -2941,10 +2940,7 @@ export const childBrief = readProcedure
   .handler(async ({ input, context }) => {
     requireCapability(context, "children:read");
     requireCapability(context, "assignments:read");
-    if (
-      !(await isVisibleStudent(context.tx, scopeOf(context), input.studentId))
-    )
-      throw new ORPCError("NOT_FOUND");
+    await requireStudent(context, "teaching", input.studentId);
     const stored = await assignmentById(
       context.tx,
       context.tenantId,
@@ -3044,10 +3040,7 @@ export const groups = readProcedure
   .handler(async ({ input, context }) => {
     requireCapability(context, "assignments:author");
     const classRow = await classById(context.tx, context, input.classId);
-    if (
-      !classRow ||
-      !(await teachesClass(context.tx, scopeOf(context), classRow.id))
-    )
+    if (!classRow || !(await teaches(context, "teaching", classRow.id)))
       throw new ORPCError("NOT_FOUND");
     const years = await schoolYears(
       context.tx,
@@ -3077,10 +3070,7 @@ export const saveClassGroup = writeProcedure
         message: "validation.name_required",
       });
     const classRow = await classById(context.tx, context, input.classId);
-    if (
-      !classRow ||
-      !(await teachesClass(context.tx, scopeOf(context), classRow.id))
-    )
+    if (!classRow || !(await teaches(context, "teaching", classRow.id)))
       throw new ORPCError("NOT_FOUND");
     const groupId = await saveGroup(context.tx, {
       tenantId: context.tenantId,
@@ -3099,8 +3089,7 @@ export const removeClassGroup = writeProcedure
   .input(v.object({ id, classId: id }))
   .handler(async ({ input, context }) => {
     requireCapability(context, "assignments:author");
-    if (!(await teachesClass(context.tx, scopeOf(context), input.classId)))
-      throw new ORPCError("NOT_FOUND");
+    await requireTaught(context, "teaching", input.classId);
     const known = await groupsOf(context.tx, context.tenantId, input.classId);
     if (!known.some((row) => row.id === input.id))
       throw new ORPCError("NOT_FOUND");

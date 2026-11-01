@@ -1,10 +1,8 @@
 import { intakeWindow } from "@faridalms/domain/admissions";
-import { WORKSPACE_HOME } from "@faridalms/domain/workspace";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import {
   createFileRoute,
   Link,
-  redirect,
   stripSearchParams,
 } from "@tanstack/react-router";
 import { CalendarRange, FileText, Plus } from "lucide-react";
@@ -30,6 +28,7 @@ import {
 } from "~/queries/admissions";
 import { currentUserQuery } from "~/queries/user";
 import { formatDate, formatList, formatNumber } from "~/utils/datetime";
+import { requirePage } from "~/utils/page-access";
 
 const searchSchema = v.object({
   year: v.optional(v.union([v.literal(""), v.pipe(v.string(), v.uuid())]), ""),
@@ -44,11 +43,7 @@ export const Route = createFileRoute("/_app/admissions/intakes/")({
   loaderDeps: ({ search }) => search,
   loader: async ({ context, deps }) => {
     const user = await context.queryClient.ensureQueryData(currentUserQuery);
-    if (
-      !user.capabilities.includes("admissions:read") &&
-      !user.capabilities.includes("admissions:configure")
-    )
-      throw redirect({ to: WORKSPACE_HOME[user.workspace] });
+    requirePage(user, "admissions:read", "admissions:configure");
     await Promise.all([
       context.queryClient.ensureQueryData(intakesQuery(deps.year)),
       context.queryClient.ensureQueryData(intakeOptionsQuery),

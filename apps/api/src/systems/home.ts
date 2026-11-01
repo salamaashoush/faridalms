@@ -62,6 +62,7 @@ import { ORPCError } from "@orpc/server";
 import * as v from "valibot";
 
 import type { UnitContext } from "../core/context";
+import type { RecordLink } from "../core/reach";
 
 import {
   can,
@@ -70,14 +71,7 @@ import {
   readProcedure,
   requireCapability,
 } from "../core/procedure";
-
-const scopeOf = (context: UnitContext) => ({
-  tenantId: context.tenantId,
-  schoolId: context.schoolId,
-  today: context.today,
-  viewerId: context.actor.userId,
-  schoolWide: can(context, "classes:manage"),
-});
+import { recordLinks, scopeFor } from "../core/reach";
 
 async function yearOf(context: UnitContext) {
   return workingYear(
@@ -98,8 +92,11 @@ interface Slot {
   classTitleEn: string | null;
   classTitleAr: string | null;
   roomCode: string | null;
+  teacherId: string | null;
   teacherNameEn: string | null;
   teacherNameAr: string | null;
+  /** How far the viewer reaches whoever teaches it, for a link on the name. */
+  teacherLink: RecordLink;
   /** Whether this is the lesson on now, or the next one today. */
   when: "now" | "next" | null;
   register: "not_started" | "in_progress" | "submitted" | null;
@@ -209,8 +206,10 @@ function slotsOf(
           classTitleEn: meeting.classTitleEn,
           classTitleAr: meeting.classTitleAr,
           roomCode: meeting.roomCode,
+          teacherId: meeting.teacherId,
           teacherNameEn: meeting.teacherNameEn,
           teacherNameAr: meeting.teacherNameAr,
+          teacherLink: null as RecordLink,
           when: null as Slot["when"],
           register: registerOf(meeting.classId, period.id),
           sequence: period.sequence,
@@ -304,17 +303,13 @@ export const teacher = readProcedure.handler(async ({ context }) => {
     }).then((rows) =>
       asHeld(context, rows, context.today, context.actor.userId),
     ),
-    teacherAssignments(
-      context.tx,
-      { ...scopeOf(context), schoolWide: false },
-      {
-        yearId: year.id,
-        classId: "",
-        q: "",
-        now: context.now,
-        graceMs: GRACE_MS,
-      },
-    ),
+    teacherAssignments(context.tx, scopeFor(context, "own"), {
+      yearId: year.id,
+      classId: "",
+      q: "",
+      now: context.now,
+      graceMs: GRACE_MS,
+    }),
     clockOf(context),
   ]);
   const board = await dayBoard(context.tx, {
@@ -540,9 +535,17 @@ async function studentDay(context: UnitContext, studentId: string) {
       row.releasedAt !== null &&
       context.now.getTime() - Date.parse(row.releasedAt) < RECENT_MS,
   }));
+  const slots = slotsOf(meetings, periods, clock, () => null);
+  const linkOf = await recordLinks(
+    context,
+    slots.map((slot) => slot.teacherId),
+  );
   return {
     presence,
-    slots: slotsOf(meetings, periods, clock, () => null),
+    slots: slots.map((slot) => ({
+      ...slot,
+      teacherLink: linkOf(slot.teacherId),
+    })),
     work,
     year,
   };
@@ -585,7 +588,7 @@ export const child = readProcedure
   .input(v.object({ studentId: v.pipe(v.string(), v.uuid()) }))
   .handler(async ({ input, context }) => {
     requireCapability(context, "children:read");
-    const scope = { ...scopeOf(context), schoolWide: false };
+    const scope = scopeFor(context, "own");
     const link = (
       await childrenOf(context.tx, scope, context.actor.userId)
     ).find((row) => row.visible && row.studentId === input.studentId);
@@ -639,7 +642,11 @@ export const family = readProcedure
   .handler(async ({ input, context }) => {
     requireCapability(context, "children:read");
     const links = (
-      await childrenOf(context.tx, scopeOf(context), context.actor.userId)
+      await childrenOf(
+        context.tx,
+        scopeFor(context, "teaching"),
+        context.actor.userId,
+      )
     ).filter((link) => link.visible);
     if (
       input.studentId &&
@@ -950,42 +957,34 @@ export const admin = readProcedure.handler(async ({ context }) => {
   let homerooms: number | null = null;
   if (year && can(context, "people:read")) {
     guardians = (
-      await studentDirectory(
-        context.tx,
-        { ...scopeOf(context), schoolWide: true },
-        {
-          yearId: year.id,
-          working: true,
-          q: "",
-          phone: null,
-          documentHolders: [],
-          gradeIds: [],
-          statuses: [],
-          missingGuardian: true,
-          missingAccount: false,
-          sort: "name",
-          dir: "asc",
-          locale: "en",
-          gradeOrder: [],
-          page: 1,
-          pageSize: 1,
-        },
-      )
+      await studentDirectory(context.tx, scopeFor(context, "school"), {
+        yearId: year.id,
+        working: true,
+        q: "",
+        phone: null,
+        documentHolders: [],
+        gradeIds: [],
+        statuses: [],
+        missingGuardian: true,
+        missingAccount: false,
+        sort: "name",
+        dir: "asc",
+        locale: "en",
+        gradeOrder: [],
+        page: 1,
+        pageSize: 1,
+      })
     ).total;
   }
   if (year && can(context, "classes:read"))
     homerooms = (
-      await homeroomDirectory(
-        context.tx,
-        { ...scopeOf(context), schoolWide: true },
-        {
-          yearId: year.id,
-          on: context.today,
-          q: "",
-          gradeIds: [],
-          locale: "en",
-        },
-      )
+      await homeroomDirectory(context.tx, scopeFor(context, "school"), {
+        yearId: year.id,
+        on: context.today,
+        q: "",
+        gradeIds: [],
+        locale: "en",
+      })
     ).filter((row) => row.teachers.length === 0).length;
   const failed = can(context, "school:manage")
     ? (

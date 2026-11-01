@@ -1,10 +1,5 @@
-import { WORKSPACE_HOME } from "@faridalms/domain/workspace";
 import { useSuspenseQuery } from "@tanstack/react-query";
-import {
-  createFileRoute,
-  redirect,
-  stripSearchParams,
-} from "@tanstack/react-router";
+import { createFileRoute, stripSearchParams } from "@tanstack/react-router";
 import { ExternalLink } from "lucide-react";
 import * as v from "valibot";
 
@@ -19,6 +14,7 @@ import * as m from "~/i18n/messages";
 import { siteHostsQuery, siteOverviewQuery } from "~/queries/site";
 import { currentUserQuery } from "~/queries/user";
 import siteCss from "~/styles/site.css?url";
+import { requirePage } from "~/utils/page-access";
 
 const TABS = ["pages", "categories", "settings", "addresses"] as const;
 
@@ -34,8 +30,7 @@ export const Route = createFileRoute("/_app/admin/site")({
   loaderDeps: ({ search }) => search,
   loader: async ({ context, deps }) => {
     const user = await context.queryClient.ensureQueryData(currentUserQuery);
-    if (!user.capabilities.includes("site:manage"))
-      throw redirect({ to: WORKSPACE_HOME[user.workspace] });
+    requirePage(user, "site:manage");
     await Promise.all([
       context.queryClient.ensureQueryData(siteOverviewQuery),
       deps.tab === "addresses"

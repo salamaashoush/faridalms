@@ -2,7 +2,6 @@ import type {
   HealthChangeRow,
   HealthRow,
 } from "@faridalms/database/stores/records";
-import type { Scope } from "@faridalms/database/stores/students";
 
 import { withPurpose } from "@faridalms/database/context";
 import { decryptField } from "@faridalms/database/crypto";
@@ -50,7 +49,6 @@ import {
 } from "@faridalms/database/stores/records";
 import {
   guardiansOf,
-  isVisibleStudent,
   refreshCustodyAlert,
 } from "@faridalms/database/stores/students";
 import {
@@ -90,25 +88,11 @@ import {
   writeProcedure,
 } from "../core/procedure";
 import { withPurposeFor } from "../core/purpose";
+import { reachesStudent, requireStudent, scopeFor } from "../core/reach";
 import { logFamilyRequest } from "../core/records-requests";
 import { registerHostReader } from "../files/authorize";
 
 const id = v.pipe(v.string(), v.uuid());
-
-function scopeOf(context: UnitContext): Scope {
-  return {
-    tenantId: context.tenantId,
-    schoolId: context.schoolId,
-    today: context.today,
-    viewerId: context.actor.userId,
-    schoolWide: can(context, "people:manage"),
-  };
-}
-
-async function requireStudent(context: UnitContext, studentId: string) {
-  if (!(await isVisibleStudent(context.tx, scopeOf(context), studentId)))
-    throw new ORPCError("NOT_FOUND");
-}
 
 interface HealthPayload {
   text?: string;
@@ -153,7 +137,7 @@ async function reportFiles(context: UnitContext, ids: (string | null)[]) {
 export const health = readProcedure
   .input(v.object({ studentId: id }))
   .handler(async ({ input, context }) => {
-    await requireStudent(context, input.studentId);
+    await requireStudent(context, "people", input.studentId);
     const [rows, kinds] = await withPurposeFor(
       context,
       {
@@ -229,7 +213,7 @@ export const health = readProcedure
 export const saveHealth = writeProcedure
   .input(saveHealthRecordSchema)
   .handler(async ({ input, context }) => {
-    await requireStudent(context, input.studentId);
+    await requireStudent(context, "people", input.studentId);
     const rowId = input.id ?? Bun.randomUUIDv7();
     await withPurposeFor(
       context,
@@ -284,7 +268,7 @@ export const saveHealth = writeProcedure
 export const removeHealth = writeProcedure
   .input(removeHealthRecordSchema)
   .handler(async ({ input, context }) => {
-    await requireStudent(context, input.studentId);
+    await requireStudent(context, "people", input.studentId);
     const gone = await withPurposeFor(
       context,
       {
@@ -407,7 +391,7 @@ async function recordToChange(
 export const attachHealthReport = writeProcedure
   .input(attachHealthReportSchema)
   .handler(async ({ input, context }) => {
-    await requireStudent(context, input.studentId);
+    await requireStudent(context, "people", input.studentId);
     const gone = await withPurposeFor(
       context,
       {
@@ -442,7 +426,7 @@ export const attachHealthReport = writeProcedure
 export const shareReport = writeProcedure
   .input(shareHealthReportSchema)
   .handler(async ({ input, context }) => {
-    await requireStudent(context, input.studentId);
+    await requireStudent(context, "people", input.studentId);
     await withPurposeFor(
       context,
       {
@@ -474,7 +458,7 @@ export const shareReport = writeProcedure
 export const removeReport = writeProcedure
   .input(removeHealthReportSchema)
   .handler(async ({ input, context }) => {
-    await requireStudent(context, input.studentId);
+    await requireStudent(context, "people", input.studentId);
     const gone = await withPurposeFor(
       context,
       {
@@ -520,7 +504,7 @@ export const removeReport = writeProcedure
 export const demographics = readProcedure
   .input(v.object({ userId: id }))
   .handler(async ({ input, context }) => {
-    await requireStudent(context, input.userId);
+    await requireStudent(context, "people", input.userId);
     const row = await withPurposeFor(
       context,
       {
@@ -537,7 +521,7 @@ export const demographics = readProcedure
 export const saveDemographics = writeProcedure
   .input(saveDemographicsSchema)
   .handler(async ({ input, context }) => {
-    await requireStudent(context, input.userId);
+    await requireStudent(context, "people", input.userId);
     await withPurposeFor(
       context,
       {
@@ -568,10 +552,10 @@ export const saveDemographics = writeProcedure
 export const custody = readProcedure
   .input(v.object({ studentId: id }))
   .handler(async ({ input, context }) => {
-    await requireStudent(context, input.studentId);
+    await requireStudent(context, "people", input.studentId);
     const links = await guardiansOf(
       context.tx,
-      scopeOf(context),
+      scopeFor(context, "people"),
       input.studentId,
     );
     const restrictions = await withPurposeFor(
@@ -609,7 +593,7 @@ export const custody = readProcedure
 export const saveCustody = writeProcedure
   .input(saveCustodySchema)
   .handler(async ({ input, context }) => {
-    await requireStudent(context, input.studentId);
+    await requireStudent(context, "people", input.studentId);
     await withPurposeFor(
       context,
       {
@@ -651,12 +635,7 @@ export const saveCustody = writeProcedure
  * the students they may read at all, whose arrangements they apply.
  */
 async function requireArranged(context: UnitContext, studentId: string) {
-  const scope = {
-    ...scopeOf(context),
-    schoolWide: can(context, "people:manage") || can(context, "support:manage"),
-  };
-  if (!(await isVisibleStudent(context.tx, scope, studentId)))
-    throw new ORPCError("NOT_FOUND");
+  await requireStudent(context, "support", studentId);
 }
 
 /** A student's access arrangements, for the staff who teach or support them. */
@@ -791,7 +770,7 @@ const healthKinds = (context: UnitContext) =>
 /** The child's emergency contacts, in the order the office calls them. */
 async function emergencyContactsOf(context: UnitContext, studentId: string) {
   const [links, relations] = await Promise.all([
-    guardiansOf(context.tx, scopeOf(context), studentId),
+    guardiansOf(context.tx, scopeFor(context, "people"), studentId),
     descriptorsFor(context.tx, {
       tenantId: context.tenantId,
       schoolId: context.schoolId,
@@ -827,11 +806,7 @@ async function emergencyContactsOf(context: UnitContext, studentId: string) {
 async function familyLinkTo(context: UnitContext, studentId: string) {
   requireCapability(context, "children:read");
   const link = (
-    await childrenOf(
-      context.tx,
-      { ...scopeOf(context), schoolWide: false },
-      context.actor.userId,
-    )
+    await childrenOf(context.tx, scopeFor(context, "own"), context.actor.userId)
   ).find((row) => row.visible && row.studentId === studentId);
   if (!link) throw new ORPCError("NOT_FOUND");
   const permitting = await permittingLink(context.tx, {
@@ -1095,14 +1070,6 @@ export const askHealthChange = writeProcedure
     );
   });
 
-function reachOf(context: UnitContext) {
-  return {
-    viewerId: context.actor.userId,
-    today: context.today,
-    schoolWide: can(context, "people:manage"),
-  };
-}
-
 /**
  * The changes families asked for that the health staff answer, open ones
  * first by the day they fall due, each beside what the school holds now so
@@ -1113,10 +1080,9 @@ export const healthChanges = readProcedure
   .handler(async ({ input, context }) => {
     requireCapability(context, "health:write");
     const scope = {
-      tenantId: context.tenantId,
+      ...scopeFor(context, "people"),
       orgId: context.schoolId,
       open: input.open,
-      ...reachOf(context),
     };
     const students = await healthQueueStudents(context.tx, scope);
     const { rows, current, kinds } = await withPurposeFor(
@@ -1394,10 +1360,9 @@ export const decideHealthChange = writeProcedure
       },
       async (tx) => {
         const row = await healthChangeOf(tx, {
-          tenantId: context.tenantId,
+          ...scopeFor(context, "people"),
           orgId: context.schoolId,
           requestId: input.id,
-          ...reachOf(context),
         });
         if (!row) throw new ORPCError("NOT_FOUND");
         const payload = await openChange(context, row);
@@ -1474,14 +1439,16 @@ export const decideHealthChange = writeProcedure
  * A record's report opens for the health staff who reach its student, and
  * for a guardian who reads the medical summary once the school shares it.
  */
-registerHostReader("health_record", (context, recordId, file) =>
-  withPurpose(context.tx, "health", async (tx) => {
-    const record = await healthRecordOf(tx, context.tenantId, recordId);
-    if (!file || !record || record.fileId !== file.id) return false;
-    if (can(context, "health:read"))
-      return isVisibleStudent(tx, scopeOf(context), record.studentId);
-    if (!can(context, "children:read")) return false;
-    return (
+registerHostReader("health_record", async (context, recordId, file) => {
+  const record = await withPurpose(context.tx, "health", (tx) =>
+    healthRecordOf(tx, context.tenantId, recordId),
+  );
+  if (!file || !record || record.fileId !== file.id) return false;
+  if (can(context, "health:read"))
+    return reachesStudent(context, "people", record.studentId);
+  if (!can(context, "children:read")) return false;
+  return withPurpose(context.tx, "health", async (tx) =>
+    (
       await familyHealthRecordsOf(tx, {
         tenantId: context.tenantId,
         studentId: record.studentId,
@@ -1492,19 +1459,18 @@ registerHostReader("health_record", (context, recordId, file) =>
     ).some(
       (row) =>
         row.id === recordId && row.fileId === file.id && row.reportShared,
-    );
-  }),
-);
+    ),
+  );
+});
 
 /** A report a family sent with a change opens for the health staff who answer it. */
 registerHostReader("health_change", (context, changeId, file) =>
   withPurpose(context.tx, "health", async (tx) => {
     if (!file || !can(context, "health:write")) return false;
     const change = await healthChangeById(tx, {
-      tenantId: context.tenantId,
+      ...scopeFor(context, "people"),
       orgId: context.schoolId,
       id: changeId,
-      ...reachOf(context),
     });
     return change?.fileId === file.id;
   }),

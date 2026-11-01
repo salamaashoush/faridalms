@@ -1,6 +1,5 @@
 import type { ModuleRow } from "@faridalms/database/stores/learning";
 
-import { teachesClass } from "@faridalms/database/stores/classes";
 import {
   classesOfModule,
   moduleById,
@@ -9,8 +8,8 @@ import { ORPCError } from "@orpc/server";
 
 import type { UnitContext } from "./context";
 
-import { scopeOf } from "./coursework-access";
 import { can } from "./procedure";
+import { teaches } from "./reach";
 
 /** A module of the viewer's school, or not found. */
 export async function moduleOfSchool(context: UnitContext, moduleId: string) {
@@ -26,7 +25,7 @@ export async function mayEditModule(context: UnitContext, row: ModuleRow) {
   if (can(context, "classes:manage")) return true;
   const classes = await classesOfModule(context.tx, context.tenantId, row.id);
   for (const item of classes)
-    if (await teachesClass(context.tx, scopeOf(context), item.id)) return true;
+    if (await teaches(context, "teaching", item.id)) return true;
   return false;
 }
 

@@ -1,4 +1,3 @@
-import type { Scope } from "@faridalms/database/stores/students";
 import type { SchoolYear } from "@faridalms/database/stores/years";
 
 import { lastMarkInClass } from "@faridalms/database/stores/attendance";
@@ -12,9 +11,7 @@ import {
   enrolStudent,
   homeroomDirectory,
   homeroomEnrollments,
-  reachesClass,
   roomsOf,
-  teachesClass,
 } from "@faridalms/database/stores/classes";
 import {
   addSchoolDescriptor,
@@ -22,11 +19,7 @@ import {
   relabelDescriptor,
 } from "@faridalms/database/stores/descriptors";
 import { staffDirectory } from "@faridalms/database/stores/staff";
-import {
-  calendarFor,
-  isVisibleStudent,
-  place,
-} from "@faridalms/database/stores/students";
+import { calendarFor, place } from "@faridalms/database/stores/students";
 import {
   dayIn,
   holdYear,
@@ -56,20 +49,18 @@ import {
   requireCapability,
   writeProcedure,
 } from "../core/procedure";
+import {
+  isStaff,
+  reachesClass,
+  requireStudent,
+  scopeFor,
+  teaches,
+} from "../core/reach";
 import { mayKeepArea } from "../files/authorize";
 
 const id = v.pipe(v.string(), v.uuid());
 
 /** Staff who run classes or people reach every class and student of the school. */
-function scopeOf(context: UnitContext): Scope {
-  return {
-    tenantId: context.tenantId,
-    schoolId: context.schoolId,
-    today: context.today,
-    viewerId: context.actor.userId,
-    schoolWide: can(context, "classes:manage") || can(context, "people:manage"),
-  };
-}
 
 async function yearOf(context: UnitContext, requested: string) {
   const years = await schoolYears(
@@ -135,7 +126,7 @@ export const options = readProcedure.handler(async ({ context }) => {
     load("subject"),
     roomsOf(context.tx, context.tenantId, context.schoolId),
     schoolYears(context.tx, context.tenantId, context.schoolId),
-    staffDirectory(context.tx, scopeOf(context), {
+    staffDirectory(context.tx, scopeFor(context, "classes"), {
       q: "",
       phone: null,
       roles: [],
@@ -168,13 +159,17 @@ export const directory = readProcedure
     requireCapability(context, "classes:read", "classes:manage");
     const { year } = await yearOf(context, input.year);
     if (!year) return { year: null, rows: [], manage: false };
-    const rows = await homeroomDirectory(context.tx, scopeOf(context), {
-      yearId: year.id,
-      on: dayIn(year, context.today),
-      q: input.q,
-      gradeIds: input.grade,
-      locale: localeOf(context),
-    });
+    const rows = await homeroomDirectory(
+      context.tx,
+      scopeFor(context, "classes"),
+      {
+        yearId: year.id,
+        on: dayIn(year, context.today),
+        q: input.q,
+        gradeIds: input.grade,
+        locale: localeOf(context),
+      },
+    );
     return {
       year: yearView(year),
       rows,
@@ -208,14 +203,12 @@ export const record = readProcedure
     const { year } = await yearOf(context, found.schoolYearId);
     if (!year) throw new ORPCError("NOT_FOUND");
     const on = input.on || dayIn(year, context.today);
-    const scope = scopeOf(context);
-    if (!(await reachesClass(context.tx, scope, input.id, on)))
+    const scope = scopeFor(context, "classes");
+    if (!(await reachesClass(context, "classes", input.id, on)))
       throw new ORPCError("NOT_FOUND");
     const detail = await classDetail(context.tx, context, input.id, on);
     if (!detail) throw new ORPCError("NOT_FOUND");
-    const staffViewer =
-      context.actor.profile === "staff" ||
-      context.actor.profile === "staff_admin";
+    const staffViewer = isStaff(context);
     const roster = await classRoster(
       context.tx,
       scope,
@@ -238,7 +231,7 @@ export const record = readProcedure
         /** Takes the class's modules and coursework away as a cartridge. */
         export:
           can(context, "assignments:author") &&
-          (await teachesClass(context.tx, scope, input.id)),
+          (await teaches(context, "classes", input.id)),
       },
     };
   });
@@ -248,10 +241,7 @@ export const history = readProcedure
   .input(v.object({ studentId: id }))
   .handler(async ({ input, context }) => {
     requireCapability(context, "people:read", "people:manage", "classes:read");
-    if (
-      !(await isVisibleStudent(context.tx, scopeOf(context), input.studentId))
-    )
-      throw new ORPCError("NOT_FOUND");
+    await requireStudent(context, "classes", input.studentId);
     return enrollmentHistory(context.tx, context, input.studentId);
   });
 
@@ -286,9 +276,7 @@ export const enrol = writeProcedure
   .input(enrolStudentSchema)
   .handler(async ({ input, context }) => {
     requireCapability(context, "classes:manage", "people:manage");
-    const scope = scopeOf(context);
-    if (!(await isVisibleStudent(context.tx, scope, input.studentId)))
-      throw new ORPCError("NOT_FOUND");
+    await requireStudent(context, "classes", input.studentId);
     const target = await classById(context.tx, context, input.classId);
     if (!target || (target.classType === "scheduled" && target.homeroomClassId))
       throw new ORPCError("NOT_FOUND");
@@ -338,7 +326,7 @@ export const enrol = writeProcedure
       endsBefore: year.endsBefore,
     });
     if (target.gradeId)
-      await place(context.tx, scope, {
+      await place(context.tx, scopeFor(context, "classes"), {
         studentId: input.studentId,
         year,
         gradeId: target.gradeId,
@@ -361,10 +349,7 @@ export const withdraw = writeProcedure
   .input(withdrawStudentSchema)
   .handler(async ({ input, context }) => {
     requireCapability(context, "classes:manage", "people:manage");
-    if (
-      !(await isVisibleStudent(context.tx, scopeOf(context), input.studentId))
-    )
-      throw new ORPCError("NOT_FOUND");
+    await requireStudent(context, "classes", input.studentId);
     const episodes = await enrollmentHistory(
       context.tx,
       context,

@@ -123,8 +123,7 @@ export async function guardiansToCall(
     left join core.descriptors d on d.tenant_id = l.tenant_id and d.id = l.relation_descriptor_id
     where l.tenant_id = ${input.tenantId}::uuid
       and l.student_user_id = any(${uuidArray(input.studentIds)})
-      and l.status = 'active' and l.valid_during @> ${input.day}::date
-      and not coalesce(l.communication_isolated, false)
+      and app.guardian_permits(l, ${input.day}::date, 'call')
     order by l.student_user_id, l.primary_contact desc, l.contact_priority nulls last,
              u.full_name_en`);
   return rows.map((row) => ({

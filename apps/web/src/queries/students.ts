@@ -6,6 +6,7 @@ import { queryOptions } from "@tanstack/react-query";
 import {
   getPeopleOptions,
   getPersonHistory,
+  getPersonProfile,
   getPersonRecord,
   getSiblings,
   getSignInsPlan,
@@ -55,6 +56,12 @@ export const personRecordQuery = (id: string) =>
   queryOptions({
     queryKey: ["people", "person", id],
     queryFn: () => getPersonRecord({ data: { id } }),
+  });
+
+export const personProfileQuery = (id: string) =>
+  queryOptions({
+    queryKey: ["people", "profile", id],
+    queryFn: () => getPersonProfile({ data: { id } }),
   });
 
 export const personHistoryQuery = (id: string) =>

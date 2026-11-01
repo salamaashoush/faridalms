@@ -1,6 +1,5 @@
-import { WORKSPACE_HOME } from "@faridalms/domain/workspace";
 import { useSuspenseQuery } from "@tanstack/react-query";
-import { createFileRoute, Link, redirect } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 
 import {
   BreadcrumbCurrent,
@@ -10,13 +9,13 @@ import { PacedLesson } from "~/components/learning/PacedLesson";
 import * as m from "~/i18n/messages";
 import { pacedQuery } from "~/queries/learning";
 import { currentUserQuery } from "~/queries/user";
+import { requirePage } from "~/utils/page-access";
 
 export const Route = createFileRoute("/_app/teach/live/$pacedId")({
   staticData: { trail: <LiveTrail />, section: "/teach/modules" },
   loader: async ({ context, params }) => {
     const user = await context.queryClient.ensureQueryData(currentUserQuery);
-    if (!user.capabilities.includes("learning:author"))
-      throw redirect({ to: WORKSPACE_HOME[user.workspace] });
+    requirePage(user, "learning:author");
     await context.queryClient.ensureQueryData(pacedQuery(params.pacedId));
   },
   component: LivePage,

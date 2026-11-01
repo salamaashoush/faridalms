@@ -70,6 +70,10 @@ export const getPersonRecord = createServerFn({ method: "GET" })
   .validator(byId)
   .handler(({ data }) => record(backend().people.person(data)));
 
+export const getPersonProfile = createServerFn({ method: "GET" })
+  .validator(byId)
+  .handler(({ data }) => record(backend().people.profile(data)));
+
 export const getPersonHistory = createServerFn({ method: "GET" })
   .validator(byId)
   .handler(({ data }) => record(backend().people.personHistory(data)));

@@ -620,7 +620,7 @@ describe("what a conversation says about its people", () => {
       kind: "direct",
       recipientIds: [keeper.userId],
       studentId: child,
-      content: plainContent("About the multiplication worksheet"),
+      content: plainContent("About the reading homework"),
     });
     const opened = await mother.api.messages.thread({ id: threadId });
     expect(opened.student?.id).toBe(child);
@@ -649,8 +649,15 @@ describe("what a conversation says about its people", () => {
     );
     if (!family) throw new Error("the seed has no family thread for the child");
     const theirs = await mother.api.messages.thread({ id: family.id });
-    expect(theirs.members.every((row) => row.link === null)).toBe(true);
-    expect(theirs.messages.every((row) => row.authorLink === null)).toBe(true);
+    const me = (await mother.api.identity.currentUser()).id;
+    for (const row of theirs.members)
+      expect(row.link).toBe(
+        row.userId === null || row.userId === me ? null : "profile",
+      );
+    for (const row of theirs.messages)
+      expect(row.authorLink).toBe(
+        row.authorId === null || row.authorId === me ? null : "profile",
+      );
 
     const keeper = await teacher();
     const ours = await keeper.api.messages.thread({ id: family.id });

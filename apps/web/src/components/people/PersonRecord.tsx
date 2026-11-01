@@ -185,20 +185,25 @@ function ChildrenSection({ data }: { data: PersonData }) {
   );
 }
 
-function TeachingSection({
+/** The classes someone teaches; a profile names them for the viewer and opens none. */
+export function TeachingSection({
   teaching,
+  title = m.personTeaching(),
+  empty = m.personNoTeaching(),
 }: {
   teaching: NonNullable<PersonData["teaching"]>;
+  title?: string;
+  empty?: string;
 }) {
   return (
     <RecordSection
-      title={m.personTeaching()}
+      title={title}
       description={m.personTeachingHint({
         year: inLocale(teaching.year.titleEn, teaching.year.titleAr),
       })}
     >
       {teaching.classes.length === 0 ? (
-        <RecordEmpty>{m.personNoTeaching()}</RecordEmpty>
+        <RecordEmpty>{empty}</RecordEmpty>
       ) : (
         <RecordList>
           {teaching.classes.map((row) => {

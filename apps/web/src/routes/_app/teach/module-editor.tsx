@@ -1,9 +1,7 @@
-import { WORKSPACE_HOME } from "@faridalms/domain/workspace";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import {
   createFileRoute,
   Link,
-  redirect,
   useCanGoBack,
   useRouter,
 } from "@tanstack/react-router";
@@ -17,6 +15,7 @@ import { ModuleEditor } from "~/components/learning/ModuleEditor";
 import * as m from "~/i18n/messages";
 import { learningOptionsQuery, moduleRecordQuery } from "~/queries/learning";
 import { currentUserQuery } from "~/queries/user";
+import { requirePage } from "~/utils/page-access";
 
 export const Route = createFileRoute("/_app/teach/module-editor")({
   staticData: { trail: <EditorTrail />, section: "/teach/modules" },
@@ -27,8 +26,7 @@ export const Route = createFileRoute("/_app/teach/module-editor")({
   loaderDeps: ({ search }) => ({ id: search.id }),
   loader: async ({ context, deps }) => {
     const user = await context.queryClient.ensureQueryData(currentUserQuery);
-    if (!user.capabilities.includes("learning:author"))
-      throw redirect({ to: WORKSPACE_HOME[user.workspace] });
+    requirePage(user, "learning:author");
     await Promise.all([
       context.queryClient.ensureQueryData(learningOptionsQuery),
       deps.id

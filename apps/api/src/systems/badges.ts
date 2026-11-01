@@ -3,11 +3,7 @@ import {
   issueBadge,
   voidBadges,
 } from "@faridalms/database/stores/badges";
-import {
-  classById,
-  classRoster,
-  teachesClass,
-} from "@faridalms/database/stores/classes";
+import { classById, classRoster } from "@faridalms/database/stores/classes";
 import { youngStudents } from "@faridalms/database/stores/students";
 import {
   classBadgesSchema,
@@ -19,13 +15,13 @@ import { ORPCError } from "@orpc/server";
 import type { UnitContext } from "../core/context";
 
 import { badgeTerm } from "../core/badges";
-import { scopeOf } from "../core/coursework-access";
 import {
   audit,
   readProcedure,
   requireCapability,
   writeProcedure,
 } from "../core/procedure";
+import { scopeFor, teaches } from "../core/reach";
 import { issueBadgeSecret } from "../core/session";
 
 /**
@@ -34,9 +30,9 @@ import { issueBadgeSecret } from "../core/session";
  */
 async function badgeClass(context: UnitContext, classId: string) {
   requireCapability(context, "badges:issue");
-  const scope = scopeOf(context);
+  const scope = scopeFor(context, "teaching");
   const found = await classById(context.tx, scope, classId);
-  if (!found || !(await teachesClass(context.tx, scope, classId)))
+  if (!found || !(await teaches(context, "teaching", classId)))
     throw new ORPCError("NOT_FOUND");
   const roster = await classRoster(
     context.tx,

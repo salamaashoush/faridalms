@@ -121,7 +121,8 @@ export async function studentDirectory(
                 where r.tenant_id = ${scope.tenantId}::uuid and r.student_user_id = u.id and r.status = 'active'
                   and c.status = 'active' and c.kind = 'phone' and c.normalized = ${filter.phone})`
         : sql`(upper(u.reference) = upper(${q})
-               or u.id in (select result_id from app.search(${q}, array['user'], ${uuidArray([scope.schoolId])})))`;
+               or u.id in (select result_id from app.search(${q}, array['user'], ${uuidArray([scope.schoolId])},
+                 within => array${visible(scope)})))`;
   const search =
     filter.documentHolders.length > 0
       ? sql`(${words} or u.id = any(${uuidArray(filter.documentHolders)}))`
@@ -205,15 +206,17 @@ export async function studentDirectory(
   };
 }
 
-export async function isVisibleStudent(
+/** Which of these students the viewer reaches, as `app.visible_students` decides. */
+export async function reachedStudents(
   tx: Tx,
   scope: Scope,
-  studentId: string,
-) {
-  const rows = await tx.execute<{ ok: boolean }>(
-    sql`select ${studentId}::uuid in ${visible(scope)} as ok`,
-  );
-  return rows[0]?.ok ?? false;
+  studentIds: readonly string[],
+): Promise<Set<string>> {
+  if (studentIds.length === 0) return new Set();
+  const rows = await tx.execute<{ user_id: string }>(sql`
+    select t.user_id from unnest(${uuidArray(studentIds)}) as t(user_id)
+    where t.user_id in ${visible(scope)}`);
+  return new Set(rows.map((row) => row.user_id));
 }
 
 export interface SignInSeed {

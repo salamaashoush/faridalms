@@ -1,7 +1,5 @@
 import type { AssignmentRow } from "@faridalms/database/stores/coursework";
-import type { Scope } from "@faridalms/database/stores/students";
 
-import { teachesClass } from "@faridalms/database/stores/classes";
 import {
   assignmentById,
   isRecipient,
@@ -11,17 +9,8 @@ import { ORPCError } from "@orpc/server";
 
 import type { UnitContext } from "./context";
 
-import { can, requireCapability } from "./procedure";
-
-export function scopeOf(context: UnitContext): Scope {
-  return {
-    tenantId: context.tenantId,
-    schoolId: context.schoolId,
-    today: context.today,
-    viewerId: context.actor.userId,
-    schoolWide: can(context, "classes:manage"),
-  };
-}
+import { requireCapability } from "./procedure";
+import { teaches } from "./reach";
 
 export async function requireOpenYear(context: UnitContext, yearId: string) {
   const lifecycle = await holdYear(context.tx, context.tenantId, yearId);
@@ -43,7 +32,7 @@ export async function taughtAssignment(
   if (
     !assignment ||
     assignment.orgId !== context.schoolId ||
-    !(await teachesClass(context.tx, scopeOf(context), assignment.classId))
+    !(await teaches(context, "teaching", assignment.classId))
   )
     throw new ORPCError("NOT_FOUND");
   return assignment;

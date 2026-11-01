@@ -151,8 +151,10 @@ describe("search", () => {
     const thread = inbox.rows[0];
     if (!thread) throw new Error("the seed has no family thread");
     const opened = await family.api.messages.thread({ id: thread.id });
+    // Letters only: a fragment of an id such as "1e31d5" reads as a number.
     const word = (opened.messages[0]?.body ?? "")
       .split(/\W+/)
+      .filter((part) => /^\p{L}+$/u.test(part))
       .toSorted((a, b) => b.length - a.length)[0];
     if (!word) throw new Error("the seeded thread has no words");
 
@@ -169,4 +171,45 @@ describe("search", () => {
     const theirs = await outsider.search.find({ q: word, kind: "messages" });
     expect(ids(theirs, "messages")).not.toContain(thread.id);
   });
+
+  test("a family finds its own conversation however many of the school's say the same word", async () => {
+    const family = await mother();
+    const office = await principal();
+    const word = Array.from(
+      crypto.getRandomValues(new Uint8Array(10)),
+      (byte) => String.fromCodePoint(97 + (byte % 26)),
+    ).join("");
+    const { rows } = await family.api.messages.recipients({});
+    const to = rows.find((row) => row.kind === "staff");
+    if (!to) throw new Error("the family reaches no staff");
+    const { threadId } = await family.api.messages.start({
+      kind: "direct",
+      recipientIds: [to.userId],
+      content: plainContent(`A question about the ${word} outing`),
+    });
+    const staff = (await office.messages.recipients({ among: "people" })).rows
+      .filter((row) => row.kind === "staff")
+      .slice(0, 2)
+      .map((row) => row.userId);
+    if (staff.length < 2) throw new Error("the seed has too few staff");
+    // More than the index used to rank across the whole school before it
+    // asked who could read them, all newer than the family's.
+    await Array.from({ length: 260 }, (_, index) => index).reduce<
+      Promise<unknown>
+    >(
+      (previous, index) =>
+        previous.then(() =>
+          office.messages.start({
+            kind: "group",
+            recipientIds: staff,
+            subject: `Planning ${index}`,
+            content: plainContent(`Planning the ${word} outing`),
+          }),
+        ),
+      Promise.resolve(),
+    );
+
+    const found = await family.api.search.find({ q: word, kind: "messages" });
+    expect(ids(found, "messages")).toEqual([threadId]);
+  }, 120_000);
 });

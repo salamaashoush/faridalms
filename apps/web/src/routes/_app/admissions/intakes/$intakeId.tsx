@@ -1,12 +1,7 @@
 import type { ApplicationState } from "@faridalms/domain/admissions";
 
-import { WORKSPACE_HOME } from "@faridalms/domain/workspace";
 import { useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
-import {
-  createFileRoute,
-  redirect,
-  stripSearchParams,
-} from "@tanstack/react-router";
+import { createFileRoute, stripSearchParams } from "@tanstack/react-router";
 import {
   CheckCheck,
   FileUser,
@@ -47,6 +42,7 @@ import {
 } from "~/server/admissions";
 import { formatDate, formatList, formatNumber } from "~/utils/datetime";
 import { getMessageFromError } from "~/utils/error";
+import { requirePage } from "~/utils/page-access";
 
 /** The board's phases, each the applications in some of an application's states. */
 const PHASES = {
@@ -93,11 +89,7 @@ export const Route = createFileRoute("/_app/admissions/intakes/$intakeId")({
   search: { middlewares: [stripSearchParams(DEFAULT_SEARCH)] },
   loader: async ({ context, params }) => {
     const user = await context.queryClient.ensureQueryData(currentUserQuery);
-    if (
-      !user.capabilities.includes("admissions:read") &&
-      !user.capabilities.includes("admissions:manage")
-    )
-      throw redirect({ to: WORKSPACE_HOME[user.workspace] });
+    requirePage(user, "admissions:read", "admissions:manage");
     await context.queryClient.ensureQueryData(boardQuery(params.intakeId));
   },
   component: BoardPage,

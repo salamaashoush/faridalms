@@ -22,8 +22,10 @@ export interface Candidate {
 }
 
 /**
- * Index hits for a query, best first. The index holds ids only; every caller
- * joins them back through the kind's own reading rule before showing any.
+ * Index hits for a query, best first, among the ids `within` gives: the
+ * kind's own reading rule, so a narrow viewer's hits are ranked and limited
+ * among what they may open rather than lost behind the school's. Every
+ * caller still joins them back through that rule before showing any.
  */
 export async function candidates(
   tx: Tx,
@@ -35,6 +37,7 @@ export async function candidates(
     max: number;
     /** Classes of this year come first. */
     preferYear?: string | null;
+    within: SQL;
   },
 ): Promise<Candidate[]> {
   const rows = await tx.execute<{
@@ -45,7 +48,7 @@ export async function candidates(
     select result_type, result_id, rank
     from app.search(${input.q}, ${textArray(input.types)}, ${uuidArray(input.orgScope)},
       ${input.after?.rank ?? null}::real, ${input.after?.id ?? null}::uuid, ${input.max},
-      ${input.preferYear ?? null}::uuid)`);
+      ${input.preferYear ?? null}::uuid, array${input.within})`);
   return rows.map((row) => ({
     type: row.result_type,
     id: row.result_id,
@@ -122,6 +125,25 @@ interface Among {
   ar: boolean;
 }
 
+/** The students the viewer reaches. */
+export const studentsReached = (scope: Scope) =>
+  sql`(select student_user_id from app.visible_students(${scope.viewerId}::uuid,
+    ${scope.schoolId}::uuid, ${scope.today}::date, ${scope.schoolWide}))`;
+
+/** The staff and family members the viewer reaches, students left to their own kind. */
+export const peopleReached = (scope: Scope) =>
+  sql`(select v.user_id from app.visible_people(${scope.viewerId}::uuid, ${scope.schoolId}::uuid,
+      ${scope.today}::date, ${scope.schoolWide}) v
+    where not exists (select 1 from core.user_roles r
+      where r.tenant_id = ${scope.tenantId}::uuid and r.org_id = ${scope.schoolId}::uuid
+        and r.user_id = v.user_id and r.role = 'student' and r.status = 'active'
+        and r.valid_during @> ${scope.today}::date))`;
+
+/** The classes the viewer reaches. */
+export const classesReached = (scope: Scope) =>
+  sql`(select class_id from app.visible_classes(${scope.viewerId}::uuid,
+    ${scope.schoolId}::uuid, ${scope.today}::date, ${scope.schoolWide}))`;
+
 /** Students among `ids` the viewer reaches, with their grade this year. */
 export async function studentsAmong(tx: Tx, scope: Scope, input: Among) {
   return found(
@@ -136,8 +158,7 @@ export async function studentsAmong(tx: Tx, scope: Scope, input: Among) {
            order by upper(s.valid_during) desc limit 1) as context
       from core.users u
       where u.tenant_id = ${scope.tenantId}::uuid and u.id = any(${uuidArray(input.ids)}) and u.status = 'active'
-        and u.id in (select student_user_id from app.visible_students(${scope.viewerId}::uuid,
-          ${scope.schoolId}::uuid, ${scope.today}::date, ${scope.schoolWide}))`),
+        and u.id in ${studentsReached(scope)}`),
   );
 }
 
@@ -158,9 +179,7 @@ export async function peopleAmong(tx: Tx, scope: Scope, input: Among) {
       from core.users u
       left join held h on h.user_id = u.id
       where u.tenant_id = ${scope.tenantId}::uuid and u.id = any(${uuidArray(input.ids)})
-        and u.status = 'active' and not coalesce('student' = any(h.roles), false)
-        and u.id in (select user_id from app.visible_people(${scope.viewerId}::uuid,
-          ${scope.schoolId}::uuid, ${scope.today}::date, ${scope.schoolWide}))`),
+        and u.status = 'active' and u.id in ${peopleReached(scope)}`),
   );
 }
 
@@ -179,10 +198,27 @@ export async function classesAmong(tx: Tx, scope: Scope, input: Among) {
       from core.classes c
       join core.academic_sessions y on y.tenant_id = c.tenant_id and y.id = c.school_year_id
       where c.tenant_id = ${scope.tenantId}::uuid and c.id = any(${uuidArray(input.ids)}) and c.status = 'active'
-        and c.id in (select class_id from app.visible_classes(${scope.viewerId}::uuid,
-          ${scope.schoolId}::uuid, ${scope.today}::date, ${scope.schoolWide}))`),
+        and c.id in ${classesReached(scope)}`),
   );
 }
+
+interface AssignmentAccess {
+  tenantId: string;
+  schoolId: string;
+  teaching: Scope | null;
+  learners: readonly string[];
+}
+
+const assignmentOpen = (input: AssignmentAccess) => sql`(
+  a.tenant_id = ${input.tenantId}::uuid and a.org_id = ${input.schoolId}::uuid and a.status = 'active'
+  and (${input.teaching ? sql`a.class_id in ${taughtClasses(input.teaching)}` : sql`false`}
+    or (a.state = 'published' and exists (select 1 from core.assignment_recipients r
+      where r.tenant_id = a.tenant_id and r.assignment_id = a.id and r.status = 'active'
+        and r.student_user_id = any(${uuidArray(input.learners)})))))`;
+
+/** The assignments the viewer may open: in a class they teach, or published to one of `learners`. */
+export const assignmentsReached = (input: AssignmentAccess) =>
+  sql`(select a.id from core.assignments a where ${assignmentOpen(input)})`;
 
 /**
  * Assignments among `ids` the viewer may open: in a class they teach, or
@@ -190,7 +226,7 @@ export async function classesAmong(tx: Tx, scope: Scope, input: Among) {
  */
 export async function assignmentsAmong(
   tx: Tx,
-  input: Among & { teaching: Scope | null; learners: readonly string[] },
+  input: Among & AssignmentAccess,
 ) {
   return found(
     await tx.execute<Raw>(sql`
@@ -202,16 +238,14 @@ export async function assignmentsAmong(
       join core.classes c on c.tenant_id = a.tenant_id and c.id = a.class_id
       left join core.documents d on d.tenant_id = a.tenant_id and d.host_type = 'assignment'
         and d.host_id = a.id and d.status = 'active' and d.translation_of_id is null
-      where a.tenant_id = ${input.tenantId}::uuid and a.org_id = ${input.schoolId}::uuid
-        and a.id = any(${uuidArray(input.ids)}) and a.status = 'active'
-        and (${input.teaching ? sql`a.class_id in ${taughtClasses(input.teaching)}` : sql`false`}
-          or (a.state = 'published' and exists (select 1 from core.assignment_recipients r
-            where r.tenant_id = a.tenant_id and r.assignment_id = a.id and r.status = 'active'
-              and r.student_user_id = any(${uuidArray(input.learners)}))))`),
+      where a.id = any(${uuidArray(input.ids)}) and ${assignmentOpen(input)}`),
   );
 }
 
 interface LearningAccess {
+  tenantId: string;
+  schoolId: string;
+  viewerId: string;
   /** Set for those who write modules: the classes they teach and themselves as author. */
   teaching: Scope | null;
   /** The classes whose published modules the viewer may study or follow. */
@@ -235,11 +269,21 @@ const moduleOpen = (access: LearningAccess, viewerId: string) => sql`(
       and x.class_id = any(${uuidArray(access.learnerClassIds)})
       and ${reachedBy(sql`x`, access.learnerIds)})))`;
 
+/** The modules and lessons the viewer may open. */
+export function learningReached(input: LearningAccess) {
+  const open = moduleOpen(input, input.viewerId);
+  return sql`(select m.id from core.learning_modules m
+    where m.tenant_id = ${input.tenantId}::uuid and m.org_id = ${input.schoolId}::uuid
+      and m.status = 'active' and ${open}
+    union all
+    select l.id from core.lessons l
+    join core.learning_modules m on m.tenant_id = l.tenant_id and m.id = l.module_id
+      and m.status = 'active' and m.org_id = ${input.schoolId}::uuid
+    where l.tenant_id = ${input.tenantId}::uuid and l.status = 'active' and ${open})`;
+}
+
 /** Modules and lessons among `ids` the viewer may open. */
-export async function learningAmong(
-  tx: Tx,
-  input: Among & LearningAccess & { viewerId: string },
-) {
+export async function learningAmong(tx: Tx, input: Among & LearningAccess) {
   const open = moduleOpen(input, input.viewerId);
   return found(
     await tx.execute<Raw>(sql`
@@ -262,20 +306,33 @@ export async function learningAmong(
   );
 }
 
+interface BroadcastAccess {
+  tenantId: string;
+  schoolId: string;
+  kind: "announcement" | "news";
+  viewerId: string;
+  manage: boolean;
+}
+
+const broadcastOpen = (input: BroadcastAccess) => sql`(
+  b.tenant_id = ${input.tenantId}::uuid and b.org_id = ${input.schoolId}::uuid
+  and b.kind = ${input.kind} and b.status = 'active'
+  and (${input.manage} or (${liveSql(sql`b.state`, sql`b.publish_at`)}
+    and (b.visibility = 'public' or exists (select 1 from core.broadcast_recipients r
+      where r.tenant_id = b.tenant_id and r.broadcast_id = b.id
+        and r.user_id = ${input.viewerId}::uuid and r.status = 'active')))))`;
+
+/** The broadcasts of one kind the viewer may open, by the rule `broadcastsAmong` reads them with. */
+export const broadcastsReached = (input: BroadcastAccess) =>
+  sql`(select b.id from core.broadcasts b where ${broadcastOpen(input)})`;
+
 /**
  * Broadcasts of one kind among `ids`: every one for those who manage the
  * kind, otherwise those out that reached the viewer or, for news, are on the
  * website. Readers are matched against the words as published, never a
  * draft of the next revision.
  */
-export async function broadcastsAmong(
-  tx: Tx,
-  input: Among & {
-    kind: "announcement" | "news";
-    viewerId: string;
-    manage: boolean;
-  },
-) {
+export async function broadcastsAmong(tx: Tx, input: Among & BroadcastAccess) {
   const text = input.manage
     ? sql`(select d.plain_text from core.documents d where d.tenant_id = b.tenant_id
         and d.host_type = b.kind and d.host_id = b.id and d.status = 'active'
@@ -290,25 +347,46 @@ export async function broadcastsAmong(
         case when ${scheduledSql(sql`b.state`, sql`b.publish_at`)} then 'scheduled'
              when b.state <> 'published' then b.state end as flag, null as roles
       from core.broadcasts b
-      where b.tenant_id = ${input.tenantId}::uuid and b.org_id = ${input.schoolId}::uuid
-        and b.kind = ${input.kind} and b.id = any(${uuidArray(input.ids)}) and b.status = 'active'
-        and (${input.manage} or (${liveSql(sql`b.state`, sql`b.publish_at`)}
-          and (b.visibility = 'public' or exists (select 1 from core.broadcast_recipients r
-            where r.tenant_id = b.tenant_id and r.broadcast_id = b.id
-              and r.user_id = ${input.viewerId}::uuid and r.status = 'active'))))`),
+      where b.id = any(${uuidArray(input.ids)}) and ${broadcastOpen(input)}`),
   );
 }
+
+interface EventAccess {
+  tenantId: string;
+  schoolId: string;
+  viewerId: string;
+  reach: Reach | null;
+}
+
+function eventOpen(input: EventAccess) {
+  const own = sql`e.author_user_id = ${input.viewerId}::uuid`;
+  return sql`(
+    e.tenant_id = ${input.tenantId}::uuid and e.org_id = ${input.schoolId}::uuid and e.status = 'active'
+    and (e.state = 'published' or ${input.reach === null} or ${own})
+    and ${
+      input.reach
+        ? sql`(${own} or ${reaches(
+            {
+              tenantId: input.tenantId,
+              kind: "calendar_event",
+              ownerId: sql`e.id`,
+            },
+            input.reach,
+          )})`
+        : sql`true`
+    })`;
+}
+
+/** The calendar events the viewer may open. */
+export const eventsReached = (input: EventAccess) =>
+  sql`(select e.id from core.calendar_events e where ${eventOpen(input)})`;
 
 /**
  * Calendar events among `ids` whose audience names the viewer or that they
  * wrote; with no reach, all of them. Drafts stay with their author and those
  * who manage the calendar.
  */
-export async function eventsAmong(
-  tx: Tx,
-  input: Among & { reach: Reach | null; viewerId: string },
-) {
-  const own = sql`e.author_user_id = ${input.viewerId}::uuid`;
+export async function eventsAmong(tx: Tx, input: Among & EventAccess) {
   return found(
     await tx.execute<Raw>(sql`
       select e.id, 'calendar_event' as type,
@@ -319,32 +397,30 @@ export async function eventsAmong(
       from core.calendar_events e
       left join core.documents d on d.tenant_id = e.tenant_id and d.host_type = 'calendar_event'
         and d.host_id = e.id and d.status = 'active' and d.translation_of_id is null
-      where e.tenant_id = ${input.tenantId}::uuid and e.org_id = ${input.schoolId}::uuid
-        and e.id = any(${uuidArray(input.ids)}) and e.status = 'active'
-        and (e.state = 'published' or ${input.reach === null} or ${own})
-        and ${
-          input.reach
-            ? sql`(${own} or ${reaches(
-                {
-                  tenantId: input.tenantId,
-                  kind: "calendar_event",
-                  ownerId: sql`e.id`,
-                },
-                input.reach,
-              )})`
-            : sql`true`
-        }`),
+      where e.id = any(${uuidArray(input.ids)}) and ${eventOpen(input)}`),
   );
 }
+
+interface ThreadAccess {
+  tenantId: string;
+  schoolId: string;
+  viewerId: string;
+}
+
+/** The conversations the viewer is still in; in a mailbox's, as one of its contacts. */
+export const threadsReached = (input: ThreadAccess) =>
+  sql`(select t.id from core.message_threads t
+    join core.thread_members m on m.tenant_id = t.tenant_id and m.thread_id = t.id
+      and m.user_id = ${input.viewerId}::uuid and m.status = 'active' and m.left_at is null
+      and (t.mailbox is null or m.role = 'member')
+    where t.tenant_id = ${input.tenantId}::uuid and t.org_id = ${input.schoolId}::uuid
+      and t.status = 'active')`;
 
 /**
  * Conversations among `ids` the viewer is still in, named by their subject
  * or the others in them, with the latest message that matched.
  */
-export async function threadsAmong(
-  tx: Tx,
-  input: Among & { viewerId: string },
-) {
+export async function threadsAmong(tx: Tx, input: Among & ThreadAccess) {
   return found(
     await tx.execute<Raw>(sql`
       select t.id, 'message_thread' as type,
@@ -360,10 +436,6 @@ export async function threadsAmong(
           order by g.created_at desc limit 1) as snippet,
         null as context, ${isoOf(sql`t.last_message_at`)} as "when", null as flag, null as roles
       from core.message_threads t
-      join core.thread_members m on m.tenant_id = t.tenant_id and m.thread_id = t.id
-        and m.user_id = ${input.viewerId}::uuid and m.status = 'active' and m.left_at is null
-        and (t.mailbox is null or m.role = 'member')
-      where t.tenant_id = ${input.tenantId}::uuid and t.org_id = ${input.schoolId}::uuid
-        and t.id = any(${uuidArray(input.ids)}) and t.status = 'active'`),
+      where t.id = any(${uuidArray(input.ids)}) and t.id in ${threadsReached(input)}`),
   );
 }

@@ -6,7 +6,6 @@ import type { BuiltinAccessRole } from "../tables/access";
 import { accessRoleAssignments, accessRoles } from "../tables/access";
 import { orgPath } from "./identity";
 import { bounds, textArray, uuidArray } from "./sql";
-import { STAFF_ROLES } from "./staff";
 
 type Tx = CellTransaction;
 
@@ -68,7 +67,7 @@ export async function accessManagerCount(
       and a.state in ('active', 'locked')
     where u.tenant_id = ${tenantId}::uuid and u.status = 'active'
       and (${userId}::uuid is null or u.id = ${userId}::uuid)
-      and exists (select 1 from held h where h.user_id = u.id and h.role = any(${textArray([...STAFF_ROLES])}))
+      and exists (select 1 from held h where h.user_id = u.id and h.role = any(app.staff_roles()))
       and (u.id in (select user_id from assigned where grants) or u.id in (select user_id from builtin))`);
   return rows[0]?.holders ?? 0;
 }
@@ -459,7 +458,7 @@ export async function capabilityHolders(
     where u.tenant_id = ${scope.tenantId}::uuid and u.status = 'active'
       and exists (select 1 from core.accounts a where a.tenant_id = u.tenant_id and a.user_id = u.id
         and a.status = 'active' and a.state in ('active', 'locked'))
-      and exists (select 1 from held h where h.user_id = u.id and h.role = any(${textArray([...STAFF_ROLES])}))
+      and exists (select 1 from held h where h.user_id = u.id and h.role = any(app.staff_roles()))
       and (u.id in (select user_id from assigned) or u.id in (select user_id from builtin))
     order by coalesce(u.full_name_en, u.full_name_ar), u.id`);
   return rows.map((row) => ({
