@@ -101,6 +101,10 @@ Carbon data table, shadcn tasks).
   faceted filters, a Reset link, and the view or sort menu at the end. The
   search narrows first and the toolbar then wraps, with the view menu kept at
   the end; it never pushes past the page edge.
+- A control in a toolbar or any other row of controls carries its name as
+  `aria-label` (or a placeholder that states it), never a visible label
+  stacked above it: a stacked label shifts the row off its line. Every
+  control in the row shares one height, and the row centres them.
 - Selecting rows replaces the toolbar with a batch bar: "n selected", actions,
   Cancel.
 - Rows are 48px. The whole row opens the record. The last cell is a `•••` menu;

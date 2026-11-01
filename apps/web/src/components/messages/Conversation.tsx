@@ -13,6 +13,13 @@ import { messageFields } from "@faridalms/domain/templates";
 import { Button } from "@faridalms/ui/button";
 import { cn } from "@faridalms/ui/cn";
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@faridalms/ui/select";
+import {
   useInfiniteQuery,
   useMutation,
   useQueryClient,
@@ -25,7 +32,6 @@ import { useEffect, useId, useRef, useState } from "react";
 import { ContentEditor } from "~/components/content/ContentEditor";
 import { ContentView } from "~/components/content/ContentView";
 import { TemplatePicker } from "~/components/content/Templates";
-import { SelectField } from "~/components/system/field";
 import { Segmented } from "~/components/system/panel";
 import { useCurrentUser } from "~/hooks/useCurrentUser";
 import { useDocumentMedia } from "~/hooks/useDocumentMedia";
@@ -322,7 +328,7 @@ function Composer({
       }}
     >
       {thread.canNote ? (
-        <div className="flex flex-wrap items-end gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <Segmented
             label={m.msgComposeAs()}
             value={mode}
@@ -334,16 +340,29 @@ function Composer({
             onChange={setMode}
           />
           {mode === "logged" ? (
-            <SelectField
-              id={`${id}-logged`}
-              label={m.msgLoggedKind()}
+            <Select
               value={logged}
-              options={LOGGED_CONTACTS.map((value) => ({
-                value,
-                label: entryTitle(thread.mailbox, value, {}),
-              }))}
-              onChange={(value) => setLogged(value)}
-            />
+              onValueChange={(value) => {
+                if (value) setLogged(value);
+              }}
+            >
+              <SelectTrigger
+                id={`${id}-logged`}
+                aria-label={m.msgLoggedKind()}
+                className="h-10"
+              >
+                <SelectValue>
+                  {entryTitle(thread.mailbox, logged, {})}
+                </SelectValue>
+              </SelectTrigger>
+              <SelectContent>
+                {LOGGED_CONTACTS.map((value) => (
+                  <SelectItem key={value} value={value}>
+                    {entryTitle(thread.mailbox, value, {})}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           ) : null}
           {mode === "message" ? (
             <div className="ms-auto">
