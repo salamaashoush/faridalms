@@ -561,6 +561,26 @@ export interface Scheme {
  * so every text colour meets WCAG AA on its background (4.5:1 for text, 3:1
  * for buttons against the section).
  */
+/**
+ * The palette a page takes when the person reading it chose a dark screen:
+ * near-black surfaces tinted with the school's colour, light ink, and the
+ * school's colours lifted until they read on the dark.
+ */
+export function darkPalette(palette: Palette): Palette {
+  const canvas = mix(palette.primary, "#0A0D0C", 0.9);
+  const lift = (colour: string) =>
+    [0, 0.2, 0.35, 0.5]
+      .map((amount) => mix(colour, "#FFFFFF", amount))
+      .find((candidate) => contrast(candidate, canvas) >= 4.5) ?? "#FFFFFF";
+  return {
+    canvas,
+    surface: mix(palette.primary, "#141917", 0.82),
+    primary: lift(palette.primary),
+    accent: lift(palette.accent),
+    ink: "#EEF2F0",
+  };
+}
+
 export function schemesOf(palette: Palette): Record<SchemeId, Scheme> {
   const build = (
     background: string,

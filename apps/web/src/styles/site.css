@@ -42,6 +42,24 @@
     font-family: var(--s-font-body);
     line-height: var(--s-line);
   }
+  /* A school's website and portal follow the reader's light or dark choice,
+     decided and switched as the app's are, in colours drawn from the
+     school's palette. Inline scheme variables win over a stylesheet, hence
+     the importance. */
+  .dark .site-root,
+  .dark .site-section {
+    --s-canvas: var(--s-canvas-dark) !important;
+    --s-ink: var(--s-ink-dark) !important;
+    --s-bg: var(--s-bg-dark) !important;
+    --s-fg: var(--s-fg-dark) !important;
+    --s-heading: var(--s-heading-dark) !important;
+    --s-muted: var(--s-muted-dark) !important;
+    --s-link: var(--s-link-dark) !important;
+    --s-border: var(--s-border-dark) !important;
+    --s-card: var(--s-card-dark) !important;
+    --s-btn: var(--s-btn-dark) !important;
+    --s-btn-fg: var(--s-btn-fg-dark) !important;
+  }
   .site-section {
     background: var(--s-bg);
     color: var(--s-fg);
@@ -64,16 +82,16 @@
     text-wrap: balance;
   }
   /* Three type voices, measured against school sites that read as designed:
-     classic 36 to 64px, editorial 44 to 88px, statement 52 to 128px. Arabic
+     classic 32 to 52px, editorial 36 to 64px, statement 40 to 88px. Arabic
      keeps a taller line and never takes Latin's negative tracking. */
   .site-display {
-    font-size: clamp(2.25rem, 1.667rem + 2.593cqi, 4rem);
+    font-size: clamp(2rem, 1.6rem + 1.778cqi, 3.25rem);
     line-height: 1.08;
     letter-spacing: var(--s-display-tracking);
     max-inline-size: 18ch;
   }
   .site-h2 {
-    font-size: clamp(1.75rem, 1.333rem + 1.852cqi, 3rem);
+    font-size: clamp(1.5rem, 1.25rem + 1.111cqi, 2.25rem);
     line-height: 1.12;
     letter-spacing: var(--s-display-tracking);
     max-inline-size: 24ch;
@@ -83,20 +101,20 @@
     line-height: 1.3;
   }
   .site-root[data-scale="editorial"] .site-display {
-    font-size: clamp(2.75rem, 1.833rem + 4.074cqi, 5.5rem);
+    font-size: clamp(2.25rem, 1.667rem + 2.593cqi, 4rem);
     line-height: 1;
   }
   .site-root[data-scale="editorial"] .site-h2 {
-    font-size: clamp(2rem, 1.5rem + 2.222cqi, 3.5rem);
+    font-size: clamp(1.75rem, 1.417rem + 1.481cqi, 2.75rem);
     line-height: 1.05;
   }
   .site-root[data-scale="statement"] .site-display {
-    font-size: clamp(3.25rem, 1.667rem + 7.037cqi, 8rem);
-    line-height: 0.92;
+    font-size: clamp(2.5rem, 1.5rem + 4.444cqi, 5.5rem);
+    line-height: 0.95;
   }
   .site-root[data-scale="statement"] .site-h2 {
-    font-size: clamp(2.25rem, 1.5rem + 3.333cqi, 4.5rem);
-    line-height: 0.98;
+    font-size: clamp(2rem, 1.5rem + 2.222cqi, 3.5rem);
+    line-height: 1;
   }
   .site-root:lang(ar) .site-heading {
     line-height: 1.4;

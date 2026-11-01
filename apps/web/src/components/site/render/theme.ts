@@ -3,12 +3,12 @@ import type { SiteLocale } from "@faridalms/domain/site-sections";
 import type { SchemeId, Theme } from "@faridalms/domain/site-theme";
 import type { CSSProperties } from "react";
 
-import { FONTS, schemesOf } from "@faridalms/domain/site-theme";
+import { darkPalette, FONTS, schemesOf } from "@faridalms/domain/site-theme";
 
 const SPACE = {
-  compact: "clamp(3rem, 2.333rem + 2.963cqi, 5rem)",
-  regular: "clamp(4rem, 2.833rem + 5.185cqi, 7.5rem)",
-  airy: "clamp(5.5rem, 4rem + 6.667cqi, 10rem)",
+  compact: "clamp(2.5rem, 2rem + 2.222cqi, 4rem)",
+  regular: "clamp(3rem, 2.333rem + 2.963cqi, 5rem)",
+  airy: "clamp(4rem, 3rem + 4.444cqi, 7rem)",
 } as const;
 
 /** Faces with a real italic, which the italic emphasis borrows; others fall back to Fraunces. */
@@ -75,6 +75,8 @@ export function themeStyle(theme: Theme, locale: SiteLocale): CSSProperties {
     "--s-primary": theme.palette.primary,
     "--s-accent": theme.palette.accent,
     "--s-ink": theme.palette.ink,
+    "--s-canvas-dark": darkPalette(theme.palette).canvas,
+    "--s-ink-dark": darkPalette(theme.palette).ink,
   } as CSSProperties;
 }
 
@@ -94,6 +96,12 @@ export function themeAttributes(theme: Theme, editing = false) {
 /** One colour scheme as the variables a section's contents read. */
 export function schemeStyle(theme: Theme, scheme: SchemeId): CSSProperties {
   const colours = schemesOf(theme.palette)[scheme];
+  // The school's own colour and its ink bands are already dark, and read as
+  // well on a dark screen as on a light one.
+  const dark =
+    scheme === "brand" || scheme === "ink"
+      ? colours
+      : schemesOf(darkPalette(theme.palette))[scheme];
   return {
     "--s-bg": colours.background,
     "--s-fg": colours.body,
@@ -104,6 +112,15 @@ export function schemeStyle(theme: Theme, scheme: SchemeId): CSSProperties {
     "--s-card": colours.card,
     "--s-btn": colours.button,
     "--s-btn-fg": colours.buttonText,
+    "--s-bg-dark": dark.background,
+    "--s-fg-dark": dark.body,
+    "--s-heading-dark": dark.heading,
+    "--s-muted-dark": dark.muted,
+    "--s-link-dark": dark.link,
+    "--s-border-dark": dark.border,
+    "--s-card-dark": dark.card,
+    "--s-btn-dark": dark.button,
+    "--s-btn-fg-dark": dark.buttonText,
   } as CSSProperties;
 }
 

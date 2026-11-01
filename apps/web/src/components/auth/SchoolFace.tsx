@@ -18,6 +18,7 @@ import { opensOnPicture, PageSections } from "~/components/site/render/page";
 import { publicMediaUrl } from "~/components/site/render/parts";
 import { panelDoor } from "~/components/site/render/sections";
 import { LocaleToggle } from "~/components/theme/LocaleToggle";
+import { ThemeToggle } from "~/components/theme/ThemeToggle";
 import { inLocale } from "~/hooks/useCurrentUser";
 import * as m from "~/i18n/messages";
 import { getLocale } from "~/i18n/runtime";
@@ -192,6 +193,7 @@ export function PortalPage({
       <div className="flex flex-wrap items-center justify-center gap-2 border-t bg-background">
         <PlatformFooter />
         <LocaleToggle />
+        <ThemeToggle />
       </div>
     </div>
   );

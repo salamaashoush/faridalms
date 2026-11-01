@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 
+import { ThemeToggle } from "~/components/theme/ThemeToggle";
 import * as m from "~/i18n/messages";
 
 import type { RenderContext } from "./parts";
@@ -687,6 +688,9 @@ function FooterBase({
           <a href={frame.signInHref} className="hover:underline">
             {m.sitePortalSignIn({}, t)}
           </a>
+        )}
+        {context.editing ? null : (
+          <ThemeToggle className="text-current hover:bg-current/10 hover:text-current" />
         )}
       </div>
     </div>
