@@ -832,7 +832,7 @@ export function SiteStudio({
         draft={page}
         languages={languages}
         isHome={Boolean(existing?.isHome)}
-        portal={existing?.kind === "portal"}
+        portal={existing?.kind === "portal" ? existing.slug : false}
         parents={
           existing
             ? existing.parents

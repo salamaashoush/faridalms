@@ -729,7 +729,7 @@ export const resolveHost = publicProcedure
 export const portalFace = publicProcedure
   .input(portalFaceSchema)
   .handler(({ input, context }) =>
-    readFace(context, input.school, input.locale),
+    readFace(context, input.school, input.locale, input.door),
   );
 
 const FINDER_WINDOW_MS = 60_000;

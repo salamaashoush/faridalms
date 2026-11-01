@@ -6,7 +6,7 @@ import type {
   SiteLocale,
   SiteMedia,
 } from "@faridalms/domain/site-sections";
-import type { CSSProperties, FormEvent } from "react";
+import type { CSSProperties, FormEvent, ReactNode } from "react";
 
 import {
   answerLimit,
@@ -2629,14 +2629,25 @@ function EnquiryForm({ section, context }: Props<"form">) {
 }
 
 /**
- * The portal's sign-in among the page's own sections: the school's words in
- * its theme, and the form the platform draws. The builder shows where the
- * form goes; the portal hands the section its form, or the page of the flow
- * a person is in.
+ * A door of the portal among the page's own sections: the school's words in
+ * its theme, and what the platform draws there (the sign-in form, the
+ * registration form, the application). The builder shows where it goes;
+ * the portal hands the section its form, or the page of the flow a person
+ * is in.
  */
-function SignIn({ section, context, first }: Props<"signIn">) {
-  const { data, variant } = section;
-  const t = { locale: context.locale };
+function Door({
+  data,
+  variant,
+  context,
+  first,
+  preview,
+}: {
+  data: { eyebrow: string; heading: string; text: string };
+  variant: "split" | "stacked";
+  context: RenderContext;
+  first: boolean;
+  preview: ReactNode;
+}) {
   const system = context.system;
   const words = system?.ownWords ? null : (
     <div
@@ -2660,18 +2671,7 @@ function SignIn({ section, context, first }: Props<"signIn">) {
     </div>
   ) : (
     <div aria-hidden className="site-card grid gap-4 p-6 @3xl/site:p-8">
-      <span className="site-label">
-        {m.siteSignInPreviewLogin({}, t)}
-        <span className="site-input block h-11" />
-      </span>
-      <span className="site-label">
-        {m.siteSignInPreviewPassword({}, t)}
-        <span className="site-input block h-11" />
-      </span>
-      <span className="site-button justify-self-stretch text-center">
-        {m.siteSignInPreviewSubmit({}, t)}
-      </span>
-      <span className="site-muted text-sm">{m.siteSignInPreview({}, t)}</span>
+      {preview}
     </div>
   );
   if (variant === "split" && words)
@@ -2682,10 +2682,105 @@ function SignIn({ section, context, first }: Props<"signIn">) {
       </div>
     );
   return (
-    <div className="relative mx-auto grid max-w-xl gap-10">
+    <div
+      className={cn(
+        "relative mx-auto grid gap-10",
+        system?.wide ? "max-w-3xl" : "max-w-xl",
+      )}
+    >
       {words}
       {form}
     </div>
+  );
+}
+
+const PreviewField = ({ label }: { label: string }) => (
+  <span className="site-label">
+    {label}
+    <span className="site-input block h-11" />
+  </span>
+);
+
+function SignIn({ section, context, first }: Props<"signIn">) {
+  const t = { locale: context.locale };
+  return (
+    <Door
+      data={section.data}
+      variant={section.variant}
+      context={context}
+      first={first}
+      preview={
+        <>
+          <PreviewField label={m.siteSignInPreviewLogin({}, t)} />
+          <PreviewField label={m.siteSignInPreviewPassword({}, t)} />
+          <span className="site-button justify-self-stretch text-center">
+            {m.siteSignInPreviewSubmit({}, t)}
+          </span>
+          <span className="site-muted text-sm">
+            {m.siteSignInPreview({}, t)}
+          </span>
+        </>
+      }
+    />
+  );
+}
+
+function Register({ section, context, first }: Props<"register">) {
+  const t = { locale: context.locale };
+  return (
+    <Door
+      data={section.data}
+      variant={section.variant}
+      context={context}
+      first={first}
+      preview={
+        <>
+          <PreviewField label={m.siteRegisterPreviewName({}, t)} />
+          <PreviewField label={m.siteRegisterPreviewEmail({}, t)} />
+          <span className="site-button justify-self-stretch text-center">
+            {m.siteRegisterPreviewSubmit({}, t)}
+          </span>
+          <span className="site-muted text-sm">
+            {m.siteRegisterPreview({}, t)}
+          </span>
+        </>
+      }
+    />
+  );
+}
+
+function Apply({ section, context, first }: Props<"apply">) {
+  const t = { locale: context.locale };
+  return (
+    <Door
+      data={section.data}
+      variant={section.variant}
+      context={context}
+      first={first}
+      preview={
+        <>
+          <span className="flex flex-wrap gap-2">
+            {[
+              m.siteApplyPreviewChild({}, t),
+              m.siteApplyPreviewFamily({}, t),
+              m.siteApplyPreviewDocuments({}, t),
+              m.siteApplyPreviewSend({}, t),
+            ].map((step) => (
+              <span
+                key={step}
+                className="site-label rounded-full border px-3 py-1"
+              >
+                {step}
+              </span>
+            ))}
+          </span>
+          <PreviewField label={m.siteApplyPreviewName({}, t)} />
+          <span className="site-muted text-sm">
+            {m.siteApplyPreview({}, t)}
+          </span>
+        </>
+      }
+    />
   );
 }
 
@@ -3054,6 +3149,10 @@ export function SiteSection({
         return <Embed section={section} context={context} first={first} />;
       case "signIn":
         return <SignIn section={section} context={context} first={first} />;
+      case "register":
+        return <Register section={section} context={context} first={first} />;
+      case "apply":
+        return <Apply section={section} context={context} first={first} />;
     }
     return null;
   })();

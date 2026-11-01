@@ -1,0 +1,2 @@
+DROP INDEX "core"."site_pages_portal_key";--> statement-breakpoint
+ALTER TABLE "core"."site_pages" ADD CONSTRAINT "site_pages_door_check" CHECK (kind = 'site' or slug in ('sign-in', 'register', 'apply'));

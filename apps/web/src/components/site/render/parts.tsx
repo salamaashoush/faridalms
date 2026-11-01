@@ -103,7 +103,12 @@ export interface RenderContext {
    * page of the flow being shown (a reset, a welcome, a badge), which says
    * its own heading in place of the section's words.
    */
-  system?: { node: ReactNode; ownWords: boolean };
+  system?: {
+    node: ReactNode;
+    ownWords: boolean;
+    /** A long flow, such as the application, takes the page's wider column. */
+    wide?: boolean;
+  };
 }
 
 export const publicMediaUrl = (key: string) => `/public-media/${key}`;

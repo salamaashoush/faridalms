@@ -95,7 +95,7 @@ async function intakeFor(grade: string) {
 /** The secret in the last registration link sent to an address. */
 function registrationLink(address: string) {
   const message = seeded().mail.sent.findLast((row) => row.to === address);
-  const secret = /welcome\?school=northwind#([A-Za-z0-9_-]{43})/.exec(
+  const secret = /\/\/northwind\.[^/\s]+\/welcome#([A-Za-z0-9_-]{43})/.exec(
     message?.text ?? "",
   )?.[1];
   return { message, secret };
@@ -245,7 +245,7 @@ describe("registering to apply", () => {
     expect(answer).toEqual({ registered: true });
     const sent = seeded().mail.sent.findLast((row) => row.to === address);
     expect(sent?.subject).toContain("already have an account");
-    expect(sent?.text).not.toMatch(/welcome\?/);
+    expect(sent?.text).not.toMatch(/\/welcome#/);
   });
 
   test("a form filled faster than a person types is answered and dropped", async () => {
@@ -636,5 +636,56 @@ describe("an application", () => {
     const overview = await api.privacy.overview();
     const applicant = overview.review.find((row) => row.kind === "applicant");
     expect(applicant).toMatchObject({ dueOn: "2100-12-31" });
+  });
+});
+
+describe("the portal's doors", () => {
+  test("registering and applying are pages of the site, each holding its own form", async () => {
+    const stranger = client("northwind-east").identity;
+    for (const door of ["register", "apply"] as const) {
+      const face = await stranger.portalFace({
+        school: "northwind-east",
+        locale: "en",
+        door,
+      });
+      expect(face.page.starter).toBe(true);
+      expect(face.page.sections.map((row) => row.section.type)).toContain(door);
+    }
+    const api = await signedIn("northwind-east", login("principal", 0, 1));
+    const { id } = await api.site.startPortalPage({ door: "register" });
+    const page = await api.site.page({ id });
+    expect(page).toMatchObject({ kind: "portal", slug: "register" });
+    const signInPage = await api.site.page({
+      id: (await api.site.startPortalPage({ door: "sign-in" })).id,
+    });
+    const signIn = signInPage.content.sections.find(
+      (section) => section.type === "signIn",
+    );
+    if (!signIn) throw new Error("the sign-in page has no sign-in form");
+    // The registration door holds the registration form, never sign-in's.
+    expect(
+      await rejection(
+        api.site.savePage({
+          id,
+          expectedVersion: page.version,
+          parentId: "",
+          slug: "register",
+          titleEn: "Register",
+          titleAr: "التسجيل",
+          inMenu: false,
+          content: {
+            sections: [
+              ...page.content.sections.filter(
+                (section) => section.type !== "register",
+              ),
+              signIn,
+            ],
+            description: "",
+            reviewed: [],
+          },
+          translation: null,
+        }),
+      ),
+    ).toMatchObject({ code: "BAD_REQUEST", message: "site.system_section" });
   });
 });

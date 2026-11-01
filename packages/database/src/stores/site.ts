@@ -732,12 +732,14 @@ export async function publicPage(
 }
 
 /**
- * The portal's sign-in page as strangers read it in each language it was
- * published in. The site role reads it, as it reads the website's pages.
+ * A door of the portal, its sign-in page by default, as strangers read it in
+ * each language it was published in. The site role reads it, as it reads
+ * the website's pages.
  */
 export async function publicPortalPages(
   tx: Tx,
   orgId: string,
+  door = "sign-in",
 ): Promise<(PublicPage & { locale: SiteLocale })[]> {
   const rows = await tx.execute<{
     page_id: string;
@@ -747,10 +749,10 @@ export async function publicPortalPages(
     media: Record<string, string>;
   }>(sql`
     select page_id, locale, title, content, media from core.site_published_pages
-    where org_id = ${orgId}::uuid and kind = 'portal'`);
+    where org_id = ${orgId}::uuid and kind = 'portal' and slug = ${door}`);
   return rows.map((row) => ({
     pageId: row.page_id,
-    slug: "",
+    slug: door,
     isHome: false,
     locale: row.locale,
     title: row.title,

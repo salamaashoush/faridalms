@@ -669,6 +669,18 @@ export const SECTION_SPECS = {
     variants: ["split", "stacked"],
     fields: { eyebrow: t(80), heading, text: intro },
   },
+  /** The family registration form, on the portal page a family registers on to apply. */
+  register: {
+    category: "system",
+    variants: ["split", "stacked"],
+    fields: { eyebrow: t(80), heading, text: intro },
+  },
+  /** The application itself, on the portal page a signed-in family applies on. */
+  apply: {
+    category: "system",
+    variants: ["stacked", "split"],
+    fields: { eyebrow: t(80), heading, text: intro },
+  },
 } as const satisfies Record<string, SectionSpec>;
 
 export type SectionType = keyof typeof SECTION_SPECS;
@@ -682,24 +694,40 @@ export const SECTION_TYPES = Object.keys(SECTION_SPECS) as SectionType[];
 export const PAGE_KINDS = ["site", "portal"] as const;
 export type PageKind = (typeof PAGE_KINDS)[number];
 
-/** The section that holds what only the platform can draw on a portal page. */
-export const PORTAL_SECTION = "signIn" satisfies SectionType;
+/**
+ * The doors of a school's portal, each a portal page at its own address
+ * holding the one system section only the platform can draw there.
+ */
+export const PORTAL_DOORS = {
+  "sign-in": "signIn",
+  register: "register",
+  apply: "apply",
+} as const satisfies Record<string, SectionType>;
+export type PortalDoor = keyof typeof PORTAL_DOORS;
+export const PORTAL_DOOR_SLUGS = Object.keys(PORTAL_DOORS) as PortalDoor[];
+
+export const isPortalDoor = (slug: string): slug is PortalDoor =>
+  slug in PORTAL_DOORS;
+
+/** The section that holds the sign-in form on the portal's sign-in page. */
+export const PORTAL_SECTION = PORTAL_DOORS["sign-in"];
 
 /** Sections the builder places itself: never offered, removed or copied. */
 export const isSystemSection = (type: SectionType) =>
   SECTION_SPECS[type].category === "system";
 
 /**
- * Whether a page's sections suit its kind: a portal page holds its system
- * section exactly once, and a website page holds none.
+ * Whether a page's sections suit its kind: a portal page holds its door's
+ * system section exactly once, and a website page holds none.
  */
 export function sectionsFitKind(
   kind: PageKind,
   sections: readonly { type: SectionType }[],
+  door: PortalDoor = "sign-in",
 ): boolean {
   const system = sections.filter((section) => isSystemSection(section.type));
   return kind === "portal"
-    ? system.length === 1 && system[0]?.type === PORTAL_SECTION
+    ? system.length === 1 && system[0]?.type === PORTAL_DOORS[door]
     : system.length === 0;
 }
 type SpecOf<T extends SectionType> = (typeof SECTION_SPECS)[T];

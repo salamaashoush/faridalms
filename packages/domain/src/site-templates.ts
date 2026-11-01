@@ -1,6 +1,7 @@
 import type {
   IconId,
   PageSection,
+  PortalDoor,
   SectionOf,
   SectionType,
   SiteLocale,
@@ -852,6 +853,43 @@ const SIGN_IN = section(
   { scheme: "soft" },
 );
 
+const REGISTER = section(
+  "register",
+  "split",
+  (b) => ({
+    eyebrow: b.w(["Admissions", "القبول"]),
+    heading: b.w(["Register to apply", "سجّل للتقديم"]),
+    text: b.w([
+      "Create your family's account once. You can then start an application, save it and come back to it.",
+      "أنشئ حساب أسرتك مرة واحدة، ثم ابدأ طلب الالتحاق واحفظه وعد إليه متى شئت.",
+    ]),
+  }),
+  { scheme: "soft" },
+);
+
+const APPLY = section(
+  "apply",
+  "stacked",
+  (b) => ({
+    eyebrow: b.w(["Admissions", "القبول"]),
+    heading: b.w(["Apply for a place", "التقديم لطلب مقعد"]),
+    text: b.w([
+      "Your application is saved as you go, so you can stop and finish it later.",
+      "يُحفظ طلبك أولًا بأول، فيمكنك التوقف وإكماله لاحقًا.",
+    ]),
+  }),
+  { scheme: "canvas" },
+);
+
+const APPLY_HELP = section("contact", "details", (b) => ({
+  heading: b.w(["Questions about applying?", "أسئلة عن التقديم؟"]),
+  text: b.w([
+    "The admissions office is happy to help with the form or the documents.",
+    "يسعد مكتب القبول بالمساعدة في الاستمارة أو المستندات.",
+  ]),
+  mapHref: "",
+}));
+
 const SIGN_IN_HELP = section("contact", "details", (b) => ({
   heading: b.w(["Need help signing in?", "تحتاج إلى مساعدة في الدخول؟"]),
   text: b.w([
@@ -902,6 +940,8 @@ const SAMPLES: Record<SectionType, (b: Builder) => PageSection> = {
   embed: EMBED,
   form: ENQUIRY_FORM,
   signIn: SIGN_IN,
+  register: REGISTER,
+  apply: APPLY,
 };
 
 /**
@@ -1005,13 +1045,22 @@ export const PAGE_TEMPLATES = {
     FAQ,
   ],
   portal: [SIGN_IN, SIGN_IN_HELP],
+  portalRegister: [REGISTER, APPLY_HELP],
+  portalApply: [APPLY, APPLY_HELP],
 } satisfies Record<string, ((b: Builder) => PageSection)[]>;
 export type PageTemplate = keyof typeof PAGE_TEMPLATES;
 /** A template a website page starts from; the portal page has its own. */
-export type SiteTemplate = Exclude<PageTemplate, "portal">;
+const PORTAL_TEMPLATES = ["portal", "portalRegister", "portalApply"] as const;
+export type SiteTemplate = Exclude<
+  PageTemplate,
+  (typeof PORTAL_TEMPLATES)[number]
+>;
 export const PAGE_TEMPLATE_IDS = (
   Object.keys(PAGE_TEMPLATES) as PageTemplate[]
-).filter((template): template is SiteTemplate => template !== "portal");
+).filter(
+  (template): template is SiteTemplate =>
+    !(PORTAL_TEMPLATES as readonly string[]).includes(template),
+);
 
 /**
  * Builds a template in both languages with the same section and item ids,
@@ -1094,6 +1143,21 @@ export const PORTAL_PAGE: StarterPage = {
   slug: "sign-in",
   title: ["Sign in", "تسجيل الدخول"],
   template: "portal",
+};
+
+/** The starter page of each door of the portal, which strangers see until the school publishes its own. */
+export const PORTAL_PAGES: Record<PortalDoor, StarterPage> = {
+  "sign-in": PORTAL_PAGE,
+  register: {
+    slug: "register",
+    title: ["Register", "التسجيل"],
+    template: "portalRegister",
+  },
+  apply: {
+    slug: "apply",
+    title: ["Apply", "التقديم"],
+    template: "portalApply",
+  },
 };
 
 /** Whole sites a school can start from: a theme and a set of pages. */

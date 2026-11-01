@@ -21,6 +21,7 @@ import {
   LayoutGrid,
   LayoutPanelTop,
   Link2,
+  FileUser,
   LogIn,
   ListChecks,
   ListCollapse,
@@ -41,6 +42,7 @@ import {
   BarChart3,
   Code2,
   Mail,
+  UserPlus,
 } from "lucide-react";
 import { useId, useState } from "react";
 
@@ -80,6 +82,8 @@ export const SECTION_ICON: Record<PageSection["type"], LucideIcon> = {
   quickLinks: Link2,
   embed: Code2,
   signIn: LogIn,
+  register: UserPlus,
+  apply: FileUser,
 };
 
 /** A short line saying what a section holds, from its heading or first words. */

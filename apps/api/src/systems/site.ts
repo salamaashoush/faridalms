@@ -1,5 +1,6 @@
 import type { PageRow } from "@faridalms/database/stores/site";
 import type { ContentDocument } from "@faridalms/domain/content";
+import type { PortalDoor } from "@faridalms/domain/site-sections";
 import type { StarterPage } from "@faridalms/domain/site-templates";
 import type {
   PageContent,
@@ -50,8 +51,12 @@ import {
 import { readAnswers } from "@faridalms/domain/enquiries";
 import { clientAddress } from "@faridalms/domain/forwarded";
 import {
+  isPortalDoor,
+  PORTAL_DOOR_SLUGS,
+} from "@faridalms/domain/site-sections";
+import {
   buildTemplate,
-  PORTAL_PAGE,
+  PORTAL_PAGES,
   STARTERS,
   starterChrome,
 } from "@faridalms/domain/site-templates";
@@ -457,9 +462,11 @@ export const savePage = writeProcedure
     let version: number;
     const row = input.id ? await pageOfSchool(context, input.id) : null;
     const kind = row?.kind ?? "site";
+    const door = row && isPortalDoor(row.slug) ? row.slug : undefined;
     if (
-      !sectionsFitKind(kind, input.content.sections) ||
-      (input.translation && !sectionsFitKind(kind, input.translation.sections))
+      !sectionsFitKind(kind, input.content.sections, door) ||
+      (input.translation &&
+        !sectionsFitKind(kind, input.translation.sections, door))
     )
       throw new ORPCError("BAD_REQUEST", { message: "site.system_section" });
     // The portal's page keeps its place: at its own address, out of the menu.
@@ -876,16 +883,19 @@ async function startPage(
   return inserted.id;
 }
 
-/** The school's portal page, made from the starter the first time it is asked for. */
+/** A door's portal page, the sign-in page unless named, made from its starter the first time it is asked for. */
 async function portalPage(
   context: UnitContext,
   settings: { primaryLocale: SiteLocale; bilingual: boolean },
+  door: PortalDoor = "sign-in",
 ): Promise<{ id: string; created: boolean }> {
   const pages = await sitePages(context.tx, context.tenantId, context.schoolId);
-  const existing = pages.find((row) => row.kind === "portal");
+  const existing = pages.find(
+    (row) => row.kind === "portal" && row.slug === door,
+  );
   if (existing) return { id: existing.id, created: false };
   return {
-    id: await startPage(context, settings, PORTAL_PAGE, {
+    id: await startPage(context, settings, PORTAL_PAGES[door], {
       kind: "portal",
       home: false,
     }),
@@ -950,18 +960,28 @@ export const applyStarter = writeProcedure
  * has one, otherwise a draft made from the starter, which strangers see
  * until the school publishes it.
  */
-export const startPortalPage = writeProcedure.handler(async ({ context }) => {
-  requireCapability(context, "site:manage");
-  const portal = await portalPage(context, await settingsFor(context));
-  if (portal.created)
-    await audit(context, {
-      action: "site.page_create",
-      objectType: "site_page",
-      objectId: portal.id,
-      details: { slug: PORTAL_PAGE.slug },
-    });
-  return { id: portal.id };
-});
+export const startPortalPage = writeProcedure
+  .input(
+    v.optional(
+      v.object({
+        door: v.optional(v.picklist(PORTAL_DOOR_SLUGS), "sign-in"),
+      }),
+      {},
+    ),
+  )
+  .handler(async ({ input, context }) => {
+    requireCapability(context, "site:manage");
+    const { door } = input;
+    const portal = await portalPage(context, await settingsFor(context), door);
+    if (portal.created)
+      await audit(context, {
+        action: "site.page_create",
+        objectType: "site_page",
+        objectId: portal.id,
+        details: { slug: PORTAL_PAGES[door].slug },
+      });
+    return { id: portal.id };
+  });
 
 async function liveSettings(
   tx: UnitContext["tx"],

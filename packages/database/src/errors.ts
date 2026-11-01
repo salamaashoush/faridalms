@@ -99,7 +99,6 @@ export const CONFLICTS: Record<string, string> = {
   admission_form_versions_tenant_id_form_id_number_key: "form.stale",
   admission_intakes_grade_key: "intake.exists",
   admission_items_key: "application.stale",
-  site_pages_portal_key: "site.stale",
   user_roles_role_excl: "role.overlapping",
   user_relationships_excl: "relationship.overlapping",
   accounts_tenant_id_webauthn_user_handle_key: "account.handle_taken",
