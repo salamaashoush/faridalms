@@ -20,6 +20,7 @@ import { env } from "./env";
 import { createFilesHost, linkKey } from "./files/links";
 import { createMakeCode } from "./files/makecode";
 import { createScanner } from "./files/scan";
+import { fileKeys } from "./files/sealed";
 import {
   bucketEndpoint,
   DiskFileStore,
@@ -101,6 +102,7 @@ const stores =
         ),
       };
 const cellSecret = new Uint8Array(Buffer.from(env.CELL_SECRET, "base64"));
+const keys = createKeyRing(kek, env.CELL_ID);
 const filesPort = env.FILES_PORT ?? env.API_PORT + 2;
 const filesOrigin = (
   env.FILES_ORIGIN ?? `http://127.0.0.1:${filesPort}`
@@ -110,6 +112,7 @@ const filesServer = Bun.serve({
   fetch: createFilesHost({
     files: stores.files,
     key: linkKey(cellSecret),
+    keys: fileKeys({ cell, keys }),
     origin: filesOrigin,
     libraries: fileURLToPath(new URL("../vendor", import.meta.url)),
     studio: createStudio({
@@ -162,7 +165,7 @@ const server = Bun.serve({
   fetch: createApp({
     cell,
     directory,
-    keys: createKeyRing(kek, env.CELL_ID),
+    keys,
     cellId: env.CELL_ID,
     cellSecret,
     domains,

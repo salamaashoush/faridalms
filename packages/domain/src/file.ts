@@ -2,7 +2,7 @@ import * as v from "valibot";
 
 /**
  * What a person may upload a file for; the purposes the cell's files table
- * pins. Health reports and imports have flows of their own.
+ * pins. Imports have a flow of their own.
  */
 export const FILE_PURPOSES = [
   "attachment",
@@ -12,10 +12,52 @@ export const FILE_PURPOSES = [
   "avatar",
   "evidence",
   "admission_document",
+  "health_report",
+  "message_attachment",
 ] as const;
 export const MESSAGE_ATTACHMENT_LIMIT = 5;
 export const MESSAGE_ATTACHMENT_BYTES = 10 * 1024 * 1024;
 export type FilePurpose = (typeof FILE_PURPOSES)[number];
+
+export type FileGate = "health" | "custody";
+export const FILE_GATES: readonly FileGate[] = ["health", "custody"];
+
+/**
+ * The purposes whose rows the cell hides until a special-category purpose
+ * is set, and the purpose that opens each. Their bytes rest encrypted
+ * under the school's own files key.
+ */
+const GATED: Record<string, FileGate> = {
+  health_report: "health",
+  evidence: "custody",
+  legal_document: "custody",
+};
+
+/** The purpose a file of this purpose is read and written under, if any. */
+export const fileGate = (purpose: string): FileGate | null =>
+  GATED[purpose] ?? null;
+
+/** What a medical report may be: a letter, a scan or a photograph of one. */
+export const HEALTH_REPORT_EXTENSIONS: readonly string[] = [
+  "pdf",
+  "png",
+  "jpg",
+  "jpeg",
+  "webp",
+  "doc",
+  "docx",
+  "txt",
+];
+
+/**
+ * A medical report is stored under a generic name, so neither a download
+ * nor a log says what it is; the name it was given is sealed in the health
+ * record it belongs to.
+ */
+export const healthReportName = (name: string) => {
+  const extension = fileExtension(name);
+  return extension ? `medical-report.${extension}` : "medical-report";
+};
 
 export interface FileSummary {
   id: string;
@@ -458,6 +500,15 @@ export const initiateUploadSchema = v.pipe(
   v.forward(
     v.check(
       (value) => acceptedMediaType(value.name, value.mediaType),
+      "validation.file_type",
+    ),
+    ["name"],
+  ),
+  v.forward(
+    v.check(
+      (value) =>
+        value.purpose !== "health_report" ||
+        HEALTH_REPORT_EXTENSIONS.includes(fileExtension(value.name)),
       "validation.file_type",
     ),
     ["name"],

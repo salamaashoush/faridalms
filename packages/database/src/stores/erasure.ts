@@ -5,6 +5,7 @@ import { sql } from "drizzle-orm";
 
 import type { CellTransaction } from "../context";
 
+import { withPurpose } from "../context";
 import { erasureApprovals, erasureItems } from "../tables/documents";
 import { uuidArray } from "./sql";
 
@@ -77,9 +78,11 @@ export function contactErasurePlan(
  * The documents and files erasing a person takes with them: the drafts and
  * handed-in copies of their work, the files those hold, what they recorded,
  * drew or built to answer a lesson, their photo, and for an applicant the
- * letters their family was sent and the documents the application held. A file another record
- * still needs (published, kept as consent evidence, about someone else, or
- * placed in a document that is not being erased) stays.
+ * letters their family was sent and the documents the application held,
+ * and the medical reports their health records and their family's changes
+ * hold. A file another record still needs (published, kept as consent
+ * evidence, about someone else, or placed in a document that is not being
+ * erased) stays.
  */
 export async function erasurePlan(
   tx: Tx,
@@ -122,6 +125,16 @@ export async function erasurePlan(
       and not exists (select 1 from core.orgs o where o.tenant_id = f.tenant_id and o.logo_file_id = f.id)
       and not exists (select 1 from core.users u where u.tenant_id = f.tenant_id and u.photo_file_id = f.id
                         and u.id <> ${s}::uuid)`);
+  const reports = await withPurpose(tx, "health", (inner) =>
+    inner.execute<{ id: string }>(sql`
+      select f.id from core.files f
+      where f.tenant_id = ${t}::uuid and f.purpose = 'health_report'
+        and ((f.host_type = 'health_record' and f.host_id in (
+              select id from health.records where tenant_id = ${t}::uuid and student_user_id = ${s}::uuid))
+          or (f.host_type = 'health_change' and f.host_id in (
+              select id from health.requested_changes
+              where tenant_id = ${t}::uuid and student_user_id = ${s}::uuid)))`),
+  );
   // What they wrote in conversations, and the conversations and enquiries
   // only about them as the outside contact their account was linked to.
   const contacts = sql`(select id from core.message_contacts
@@ -153,6 +166,7 @@ export async function erasurePlan(
     files: [
       ...new Set([
         ...files.map((row) => row.id),
+        ...reports.map((row) => row.id),
         ...conversations.files,
         ...written.flatMap((row) => (row.file_id ? [row.file_id] : [])),
       ]),
@@ -614,9 +628,12 @@ export async function eraseSubject(
     sql`(reviewer_user_id = ${s}::uuid or author_user_id = ${s}::uuid)`,
   );
 
+  // Medical reports are among the files only while the health purpose is set.
+  await purpose("health");
   const keys = await tx.execute<{ storage_key: string }>(sql`
     select storage_key from core.files where tenant_id = ${t}::uuid and id in ${listed("file")}`);
   await remove("files", sql`core.files`, sql`id in ${listed("file")}`);
+  await purpose("");
 
   await run(
     "audit_payloads",

@@ -1,4 +1,5 @@
 import type { Cell } from "@faridalms/database/context";
+import type { KeyEncryptionKey } from "@faridalms/database/crypto";
 import type { Directory } from "@faridalms/database/directory/client";
 import type { SeededTenant } from "@faridalms/database/seed";
 import type { DnsFindings } from "@faridalms/domain/hosts";
@@ -37,6 +38,7 @@ import { createKeyRing } from "../src/core/keys";
 import { createLoginIndex } from "../src/core/login-index";
 import { LOCALE_HEADER, SCHOOL_HEADER } from "../src/core/procedure";
 import { createFilesHost, linkKey } from "../src/files/links";
+import { fileKeys } from "../src/files/sealed";
 import { DiskFileStore, PUBLIC_KEY } from "../src/files/store";
 import { createHostChecks } from "../src/hosts/checks";
 import { streamLinkKey } from "../src/media/streams";
@@ -89,6 +91,8 @@ interface State {
   cell: Cell;
   directory: Directory;
   cellSecret: Uint8Array<ArrayBuffer>;
+  /** The cell's key-encryption key, for a test that rotates a school's data key. */
+  kek: KeyEncryptionKey;
   logins: ReturnType<typeof createLoginIndex>;
   /** The cell's host access, as the API process holds it. */
   hosts: NonNullable<ApiDependencies["hosts"]>;
@@ -170,9 +174,11 @@ export async function setUp() {
     PUBLIC_KEY,
   );
   const cellSecret = new Uint8Array(randomBytes(32));
+  const keys = createKeyRing(kek, "eg-1");
   const filesHost = createFilesHost({
     files,
     key: linkKey(cellSecret),
+    keys: fileKeys({ cell, keys }),
     origin: FILES_ORIGIN,
     libraries: join(import.meta.dir, "..", "vendor"),
   });
@@ -180,7 +186,7 @@ export async function setUp() {
   const dependencies: ApiDependencies = {
     cell,
     directory,
-    keys: createKeyRing(kek, "eg-1"),
+    keys,
     cellId: "eg-1",
     cellSecret,
     domains: DOMAINS,
@@ -232,6 +238,7 @@ export async function setUp() {
     cell,
     directory,
     cellSecret,
+    kek,
     hosts,
     logins,
     collabUrl: urlFor(cellName, "collab"),
