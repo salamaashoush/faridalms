@@ -265,6 +265,71 @@ export const removeHealthRecordSchema = v.object({
   expectedVersion: version,
 });
 
+/**
+ * The kinds of health record a permitted guardian reads in the child's
+ * medical summary and may ask the school to change, by their meaning.
+ * Everything else the school records stays with its health staff.
+ */
+export const FAMILY_HEALTH_KINDS = [
+  "allergy",
+  "chronic_condition",
+  "medication",
+  "dietary_requirement",
+  "doctor",
+] as const;
+export type FamilyHealthKind = (typeof FAMILY_HEALTH_KINDS)[number];
+
+/**
+ * A guardian's proposed change to the medical summary: a record of one of
+ * the family's kinds to add, or to change from the version they read, or a
+ * new phone for one of the child's emergency contacts.
+ */
+export const askHealthChangeSchema = v.variant("target", [
+  v.object({
+    target: v.literal("record"),
+    studentId: id,
+    kind: v.picklist(FAMILY_HEALTH_KINDS),
+    recordId: v.optional(id),
+    expectedVersion: v.optional(version),
+    text: v.pipe(v.string(), v.trim(), v.minLength(1), v.maxLength(2000)),
+    severity: v.optional(
+      v.union([v.literal(""), v.picklist(HEALTH_SEVERITIES)]),
+      "",
+    ),
+  }),
+  v.object({
+    target: v.literal("contact"),
+    studentId: id,
+    relationshipId: id,
+    phone: v.pipe(v.string(), v.trim(), v.minLength(1), v.maxLength(40)),
+  }),
+]);
+export type AskHealthChangeInput = v.InferInput<typeof askHealthChangeSchema>;
+
+export const healthChangesSchema = v.object({
+  open: v.optional(v.boolean(), true),
+});
+
+/**
+ * The office's answer to a change: accepting applies it to the version of
+ * the record the office compared, declining says why.
+ */
+export const decideHealthChangeSchema = v.variant("decision", [
+  v.object({
+    id,
+    decision: v.literal("accepted"),
+    expectedVersion: v.optional(version),
+  }),
+  v.object({
+    id,
+    decision: v.literal("declined"),
+    reason: v.pipe(v.string(), v.trim(), v.minLength(1), v.maxLength(1000)),
+  }),
+]);
+export type DecideHealthChangeInput = v.InferInput<
+  typeof decideHealthChangeSchema
+>;
+
 const countryCode = v.pipe(v.string(), v.regex(/^[A-Z]{2}$/));
 
 export const saveDemographicsSchema = v.object({
@@ -279,6 +344,16 @@ export const saveDemographicsSchema = v.object({
     v.maxLength(6),
   ),
 });
+
+export const CONTACT_LABELS = [
+  "mobile",
+  "home",
+  "work",
+  "personal",
+  "emergency",
+  "other",
+] as const;
+export type ContactLabel = (typeof CONTACT_LABELS)[number];
 
 export const postalAddressSchema = v.object({
   lines: v.pipe(

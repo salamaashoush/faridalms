@@ -1,3 +1,4 @@
+import type { HealthChangeRow } from "@faridalms/database/stores/records";
 import type { Scope } from "@faridalms/database/stores/students";
 
 import { decryptField, encryptField } from "@faridalms/database/crypto";
@@ -7,12 +8,26 @@ import {
 } from "@faridalms/database/stores/arrangements";
 import { arrangeDue } from "@faridalms/database/stores/coursework";
 import { descriptorsFor } from "@faridalms/database/stores/descriptors";
+import { schoolProfile } from "@faridalms/database/stores/identity";
+import {
+  childrenOf,
+  permittingLink,
+  replaceContact,
+} from "@faridalms/database/stores/persons";
+import { closeRequest, requestById } from "@faridalms/database/stores/privacy";
 import {
   demographicsOf,
+  familyHealthChanges,
+  familyHealthRecordsOf,
+  healthChangeOf,
+  healthChangeQueue,
+  healthQueueStudents,
   healthRecordsOf,
+  insertHealthChange,
   insertHealthRecord,
   refreshMedicalAlert,
   removeHealthRecord,
+  resealHealthChange,
   restrictionsOf,
   saveDemographicsRow,
   saveRestriction,
@@ -30,20 +45,34 @@ import {
   saveArrangementsSchema,
 } from "@faridalms/domain/arrangements";
 import {
+  askHealthChangeSchema,
+  CONTACT_LABELS,
+  decideHealthChangeSchema,
+  FAMILY_HEALTH_KINDS,
   HEALTH_SEVERITIES,
+  healthChangesSchema,
   removeHealthRecordSchema,
   saveCustodySchema,
   saveDemographicsSchema,
   saveHealthRecordSchema,
 } from "@faridalms/domain/people";
+import { toE164 } from "@faridalms/domain/phone";
 import { ORPCError } from "@orpc/server";
 import * as v from "valibot";
 
 import type { UnitContext } from "../core/context";
 
-import { healthCipher } from "../core/health";
-import { audit, can, readProcedure, writeProcedure } from "../core/procedure";
+import { changeCipher, healthCipher, openSealed, seal } from "../core/health";
+import { notify } from "../core/notify";
+import {
+  audit,
+  can,
+  readProcedure,
+  requireCapability,
+  writeProcedure,
+} from "../core/procedure";
 import { withPurposeFor } from "../core/purpose";
+import { logFamilyRequest } from "../core/records-requests";
 
 const id = v.pipe(v.string(), v.uuid());
 
@@ -415,4 +444,668 @@ export const saveArrangements = writeProcedure
       details: { ...input.arrangements },
     });
     return { version };
+  });
+
+// --- the family's medical summary ------------------------------------------
+
+type Severity = (typeof HEALTH_SEVERITIES)[number];
+
+interface RecordValue {
+  text: string;
+  severity: Severity | null;
+}
+
+interface ContactValue {
+  phone: string | null;
+}
+
+type ChangeValue = RecordValue | ContactValue;
+
+interface ChangePayload {
+  before: ChangeValue | null;
+  after: ChangeValue;
+  reason?: string;
+}
+
+const isObject = (value: unknown): value is Record<string, unknown> =>
+  typeof value === "object" && value !== null;
+
+function recordValueOf(value: unknown): RecordValue {
+  const payload = isObject(value) ? value : {};
+  const text = payload.text ?? payload.value;
+  return {
+    text: typeof text === "string" ? text : "",
+    severity: severityOf(
+      typeof payload.severity === "string" ? payload.severity : undefined,
+    ),
+  };
+}
+
+function changeValueOf(value: unknown): ChangeValue | null {
+  if (!isObject(value)) return null;
+  if ("phone" in value)
+    return { phone: typeof value.phone === "string" ? value.phone : null };
+  return recordValueOf(value);
+}
+
+function changePayloadOf(value: unknown): ChangePayload {
+  const payload = isObject(value) ? value : {};
+  return {
+    before: changeValueOf(payload.before),
+    after: changeValueOf(payload.after) ?? { text: "", severity: null },
+    ...(typeof payload.reason === "string" ? { reason: payload.reason } : {}),
+  };
+}
+
+const sameValue = (a: ChangeValue, b: ChangeValue) =>
+  JSON.stringify(a) === JSON.stringify(b);
+
+/** Severity describes an allergy; any other kind keeps none. */
+const severityFor = (kind: string, severity: "" | Severity) =>
+  kind === "allergy" && severity ? severity : null;
+
+function stateOf(outcome: HealthChangeRow["outcome"]) {
+  if (outcome === "completed") return "accepted" as const;
+  if (outcome === "refused") return "declined" as const;
+  if (outcome === "withdrawn") return "withdrawn" as const;
+  return "open" as const;
+}
+
+const healthKinds = (context: UnitContext) =>
+  descriptorsFor(context.tx, {
+    tenantId: context.tenantId,
+    schoolId: context.schoolId,
+    namespace: "health_record_kind",
+    today: context.today,
+    includeRetired: true,
+  });
+
+/** The child's emergency contacts, in the order the office calls them. */
+async function emergencyContactsOf(context: UnitContext, studentId: string) {
+  const [links, relations] = await Promise.all([
+    guardiansOf(context.tx, scopeOf(context), studentId),
+    descriptorsFor(context.tx, {
+      tenantId: context.tenantId,
+      schoolId: context.schoolId,
+      namespace: "relation",
+      today: context.today,
+      includeRetired: true,
+    }),
+  ]);
+  return links
+    .filter((link) => link.emergencyContact)
+    .toSorted((a, b) => (a.contactPriority ?? 99) - (b.contactPriority ?? 99))
+    .map((link) => {
+      const relation = relations.find((row) => row.id === link.relationId);
+      const phone = link.contacts.find((contact) => contact.kind === "phone");
+      return {
+        relationshipId: link.relationshipId,
+        userId: link.userId,
+        fullNameEn: link.fullNameEn,
+        fullNameAr: link.fullNameAr,
+        relation: relation
+          ? { labelEn: relation.labelEn, labelAr: relation.labelAr }
+          : null,
+        phone: phone?.value ?? null,
+        phoneLabel: phone?.label ?? null,
+      };
+    });
+}
+
+/**
+ * A guardian's own link to a child they follow in the portal, and whether it
+ * lets them read the medical summary; not found for any other child.
+ */
+async function familyLinkTo(context: UnitContext, studentId: string) {
+  requireCapability(context, "children:read");
+  const link = (
+    await childrenOf(
+      context.tx,
+      { ...scopeOf(context), schoolWide: false },
+      context.actor.userId,
+    )
+  ).find((row) => row.visible && row.studentId === studentId);
+  if (!link) throw new ORPCError("NOT_FOUND");
+  const permitting = await permittingLink(context.tx, {
+    tenantId: context.tenantId,
+    viewerId: context.actor.userId,
+    studentId,
+    today: context.today,
+    purpose: "health",
+  });
+  return permitting !== null;
+}
+
+async function openChange(context: UnitContext, row: HealthChangeRow) {
+  return changePayloadOf(
+    await openSealed(
+      context,
+      changeCipher(context, row.id, row.keyVersion),
+      row.ciphertext,
+    ),
+  );
+}
+
+/**
+ * A child's medical summary as a guardian the school permits reads it:
+ * allergies, conditions, medicines, diet and doctor, the emergency
+ * contacts, and the changes this guardian has asked for. Notes and plans
+ * the health staff keep are not part of it. Any other guardian learns only
+ * that the summary is not shared with them.
+ */
+export const familyHealth = readProcedure
+  .input(v.object({ studentId: id }))
+  .handler(async ({ input, context }) => {
+    if (!(await familyLinkTo(context, input.studentId)))
+      return { permitted: false as const };
+    const [rows, changes, kinds] = await withPurposeFor(
+      context,
+      {
+        purpose: "health",
+        subjectUserId: input.studentId,
+        reason: "A guardian opened the child's medical summary",
+        write: false,
+        capabilities: ["children:read"],
+      },
+      (tx) =>
+        Promise.all([
+          familyHealthRecordsOf(tx, {
+            tenantId: context.tenantId,
+            studentId: input.studentId,
+            viewerId: context.actor.userId,
+            today: context.today,
+            meanings: FAMILY_HEALTH_KINDS,
+          }),
+          familyHealthChanges(tx, {
+            tenantId: context.tenantId,
+            orgId: context.schoolId,
+            studentId: input.studentId,
+            requestedByUserId: context.actor.userId,
+          }),
+          healthKinds(context),
+        ]),
+    );
+    const meaningOf = (kindId: string | null) =>
+      FAMILY_HEALTH_KINDS.find(
+        (kind) => kind === kinds.find((row) => row.id === kindId)?.meaning,
+      ) ?? null;
+    const records = await Promise.all(
+      rows.flatMap((row) => {
+        const kind = meaningOf(row.kindId);
+        if (!kind) return [];
+        return [
+          openSealed(
+            context,
+            healthCipher(context, row.id, row.keyVersion),
+            row.ciphertext,
+          ).then((held) => ({
+            id: row.id,
+            version: row.version,
+            kind,
+            ...recordValueOf(held),
+          })),
+        ];
+      }),
+    );
+    const asked = await Promise.all(
+      changes.map(async (row) => {
+        const payload = await openChange(context, row);
+        return {
+          id: row.requestId,
+          target: row.target,
+          kind: meaningOf(row.kindId),
+          recordId: row.recordId,
+          relationshipId: row.relationshipId,
+          before: payload.before,
+          after: payload.after,
+          reason: payload.reason ?? null,
+          state: stateOf(row.outcome),
+          askedOn: row.receivedOn,
+          dueOn: row.dueOn,
+        };
+      }),
+    );
+    const contacts = await emergencyContactsOf(context, input.studentId);
+    return {
+      permitted: true as const,
+      records,
+      contacts: contacts.map((contact) => ({
+        relationshipId: contact.relationshipId,
+        fullNameEn: contact.fullNameEn,
+        fullNameAr: contact.fullNameAr,
+        relation: contact.relation,
+        phone: contact.phone,
+      })),
+      changes: asked,
+    };
+  });
+
+/**
+ * A permitted guardian asks the school to add or change one entry of the
+ * medical summary, or an emergency contact's phone. It joins the office's
+ * register as a correction with its deadline, and the record stays as it
+ * is until the health staff accept it.
+ */
+export const askHealthChange = writeProcedure
+  .input(askHealthChangeSchema)
+  .handler(async ({ input, context }) => {
+    if (!(await familyLinkTo(context, input.studentId)))
+      throw new ORPCError("FORBIDDEN", { message: "health.not_permitted" });
+    const country =
+      (await schoolProfile(context.tx, context.schoolId))?.countryCode ?? "EG";
+    return withPurposeFor(
+      context,
+      {
+        purpose: "health",
+        subjectUserId: input.studentId,
+        reason: "A guardian asked to change the child's medical summary",
+        write: true,
+        capabilities: ["children:read"],
+      },
+      async (tx) => {
+        let before: ChangeValue | null = null;
+        let after: ChangeValue;
+        let kindId: string | null = null;
+        let recordId: string | null = null;
+        let relationshipId: string | null = null;
+        if (input.target === "record") {
+          const kind = (await healthKinds(context)).find(
+            (row) => row.meaning === input.kind,
+          );
+          if (!kind)
+            throw new ORPCError("BAD_REQUEST", { message: "health.kind" });
+          kindId = kind.id;
+          after = {
+            text: input.text,
+            severity: severityFor(input.kind, input.severity),
+          };
+          if (input.recordId) {
+            const current = (
+              await familyHealthRecordsOf(tx, {
+                tenantId: context.tenantId,
+                studentId: input.studentId,
+                viewerId: context.actor.userId,
+                today: context.today,
+                meanings: [input.kind],
+              })
+            ).find((row) => row.id === input.recordId);
+            if (!current) throw new ORPCError("NOT_FOUND");
+            if (current.version !== input.expectedVersion)
+              throw new ORPCError("CONFLICT", { message: "conflict.version" });
+            recordId = current.id;
+            before = recordValueOf(
+              await openSealed(
+                context,
+                healthCipher(context, current.id, current.keyVersion),
+                current.ciphertext,
+              ),
+            );
+          }
+        } else {
+          const contact = (
+            await emergencyContactsOf(context, input.studentId)
+          ).find((row) => row.relationshipId === input.relationshipId);
+          if (!contact) throw new ORPCError("NOT_FOUND");
+          const phone = toE164(input.phone, country);
+          if (!phone)
+            throw new ORPCError("BAD_REQUEST", {
+              message: "contact_point.phone_invalid",
+            });
+          relationshipId = contact.relationshipId;
+          before = { phone: contact.phone };
+          after = { phone };
+        }
+        if (before && sameValue(before, after))
+          throw new ORPCError("BAD_REQUEST", {
+            message: "health.change_unchanged",
+          });
+        const request = await logFamilyRequest(context, {
+          studentId: input.studentId,
+          details: null,
+          topic: "health",
+        });
+        const rowId = Bun.randomUUIDv7();
+        const payload: ChangePayload = { before, after };
+        const sealed = await seal(
+          context,
+          (keyVersion) => changeCipher(context, rowId, keyVersion),
+          payload,
+        );
+        const kept = await insertHealthChange(tx, {
+          tenantId: context.tenantId,
+          id: rowId,
+          requestId: request.id,
+          studentId: input.studentId,
+          requestedByUserId: context.actor.userId,
+          today: context.today,
+          target: input.target,
+          kindId,
+          recordId,
+          relationshipId,
+          ...sealed,
+        });
+        if (!kept)
+          throw new ORPCError("FORBIDDEN", { message: "health.not_permitted" });
+        return request;
+      },
+    );
+  });
+
+function reachOf(context: UnitContext) {
+  return {
+    viewerId: context.actor.userId,
+    today: context.today,
+    schoolWide: can(context, "people:manage"),
+  };
+}
+
+/**
+ * The changes families asked for that the health staff answer, open ones
+ * first by the day they fall due, each beside what the school holds now so
+ * the two can be compared.
+ */
+export const healthChanges = readProcedure
+  .input(healthChangesSchema)
+  .handler(async ({ input, context }) => {
+    requireCapability(context, "health:write");
+    const scope = {
+      tenantId: context.tenantId,
+      orgId: context.schoolId,
+      open: input.open,
+      ...reachOf(context),
+    };
+    const students = await healthQueueStudents(context.tx, scope);
+    const { rows, current, kinds } = await withPurposeFor(
+      context,
+      {
+        purpose: "health",
+        subjectUserId: students,
+        reason: "Opened the changes families asked for",
+        write: true,
+      },
+      async (tx) => {
+        const [queue, held, labels] = await Promise.all([
+          healthChangeQueue(tx, scope),
+          Promise.all(
+            students.map((studentId) =>
+              healthRecordsOf(tx, context.tenantId, studentId),
+            ),
+          ),
+          healthKinds(context),
+        ]);
+        return { rows: queue, current: held.flat(), kinds: labels };
+      },
+    );
+    const contacts = new Map(
+      await Promise.all(
+        [
+          ...new Set(
+            rows
+              .filter((row) => row.target === "contact")
+              .map((row) => row.studentId),
+          ),
+        ].map(
+          async (studentId) =>
+            [studentId, await emergencyContactsOf(context, studentId)] as const,
+        ),
+      ),
+    );
+    const changes = await Promise.all(
+      rows.map(async (row) => {
+        const payload = await openChange(context, row);
+        const kind = kinds.find((entry) => entry.id === row.kindId);
+        const record = current.find((entry) => entry.id === row.recordId);
+        const contact = contacts
+          .get(row.studentId)
+          ?.find((entry) => entry.relationshipId === row.relationshipId);
+        const now: ChangeValue | null =
+          row.target === "contact"
+            ? { phone: contact?.phone ?? null }
+            : record
+              ? recordValueOf(
+                  await openSealed(
+                    context,
+                    healthCipher(context, record.id, record.keyVersion),
+                    record.ciphertext,
+                  ),
+                )
+              : null;
+        return {
+          id: row.requestId,
+          studentId: row.studentId,
+          studentNameEn: row.studentNameEn,
+          studentNameAr: row.studentNameAr,
+          requesterNameEn: row.requesterNameEn,
+          requesterNameAr: row.requesterNameAr,
+          target: row.target,
+          kind: kind
+            ? {
+                meaning: kind.meaning,
+                labelEn: kind.labelEn,
+                labelAr: kind.labelAr,
+              }
+            : null,
+          contact: contact
+            ? {
+                fullNameEn: contact.fullNameEn,
+                fullNameAr: contact.fullNameAr,
+                relation: contact.relation,
+              }
+            : null,
+          adds: row.target === "record" && row.recordId === null,
+          missing: row.recordId !== null && !record,
+          now,
+          nowVersion: record?.version ?? null,
+          asked: payload.after,
+          askedBefore: payload.before,
+          reason: payload.reason ?? null,
+          state: stateOf(row.outcome),
+          askedOn: row.receivedOn,
+          dueOn: row.dueOn,
+          decidedAt: row.closedAt,
+        };
+      }),
+    );
+    return { today: context.today, changes };
+  });
+
+const ANSWERED = {
+  accepted: "Accepted from the medical summary changes.",
+  declined: "Declined from the medical summary changes.",
+};
+
+async function applyRecordChange(
+  context: UnitContext,
+  tx: UnitContext["tx"],
+  row: HealthChangeRow,
+  after: RecordValue,
+  expectedVersion: number | undefined,
+) {
+  const severity = after.severity ? { severity: after.severity } : {};
+  if (!row.recordId) {
+    if (!row.kindId) throw new Error("a record change carries its kind");
+    const recordId = Bun.randomUUIDv7();
+    const sealed = await seal(
+      context,
+      (keyVersion) => healthCipher(context, recordId, keyVersion),
+      { text: after.text, ...severity },
+    );
+    await insertHealthRecord(tx, {
+      tenantId: context.tenantId,
+      id: recordId,
+      studentId: row.studentId,
+      kindId: row.kindId,
+      hasAlert: false,
+      recordedOn: context.today,
+      ...sealed,
+    });
+  } else {
+    const current = (
+      await healthRecordsOf(tx, context.tenantId, row.studentId)
+    ).find((record) => record.id === row.recordId);
+    if (!current)
+      throw new ORPCError("CONFLICT", { message: "health.change_stale" });
+    if (current.version !== expectedVersion)
+      throw new ORPCError("CONFLICT", { message: "conflict.version" });
+    const held = await openSealed(
+      context,
+      healthCipher(context, current.id, current.keyVersion),
+      current.ciphertext,
+    );
+    const kept: HealthPayload = isPayload(held) ? held : {};
+    const sealed = await seal(
+      context,
+      (keyVersion) => healthCipher(context, current.id, keyVersion),
+      {
+        ...(kept.action_plan ? { action_plan: kept.action_plan } : {}),
+        text: after.text,
+        ...severity,
+      },
+    );
+    const saved = await updateHealthRecord(tx, {
+      tenantId: context.tenantId,
+      id: current.id,
+      studentId: row.studentId,
+      expectedVersion: current.version,
+      kindId: current.kindId,
+      hasAlert: current.hasAlert,
+      recordedOn: current.recordedOn,
+      ...sealed,
+    });
+    if (!saved)
+      throw new ORPCError("CONFLICT", { message: "conflict.version" });
+  }
+  await refreshMedicalAlert(tx, context.tenantId, row.studentId);
+}
+
+async function applyContactChange(
+  context: UnitContext,
+  row: HealthChangeRow,
+  phone: string | null,
+) {
+  const contact = (await emergencyContactsOf(context, row.studentId)).find(
+    (entry) => entry.relationshipId === row.relationshipId,
+  );
+  if (!contact || !phone)
+    throw new ORPCError("CONFLICT", { message: "health.change_stale" });
+  const label =
+    CONTACT_LABELS.find((known) => known === contact.phoneLabel) ?? "mobile";
+  await replaceContact(context.tx, {
+    tenantId: context.tenantId,
+    userId: contact.userId,
+    kind: "phone",
+    label,
+    value: phone,
+    normalized: phone,
+  });
+  await audit(context, {
+    action: "contacts.update",
+    objectType: "user",
+    objectId: contact.userId,
+    subjectUserId: contact.userId,
+    change: {
+      table: "core.contact_points",
+      before: { phone: contact.phone },
+      after: { phone },
+    },
+  });
+}
+
+/**
+ * The health staff answer a change. Accepting applies it, in this
+ * transaction, to the version of the record they compared; declining keeps
+ * the reason with the change. Either closes the correction request, goes on
+ * the student's history with who asked, and tells that guardian.
+ */
+export const decideHealthChange = writeProcedure
+  .input(decideHealthChangeSchema)
+  .handler(async ({ input, context }) => {
+    requireCapability(context, "health:write");
+    const request = await requestById(context.tx, {
+      tenantId: context.tenantId,
+      orgId: context.schoolId,
+      id: input.id,
+    });
+    if (!request || request.topic !== "health")
+      throw new ORPCError("NOT_FOUND");
+    if (request.outcome)
+      throw new ORPCError("CONFLICT", { message: "health.change_decided" });
+    const change = await withPurposeFor(
+      context,
+      {
+        purpose: "health",
+        subjectUserId: request.subjectUserId,
+        reason:
+          input.decision === "accepted"
+            ? "Applied a change a family asked for"
+            : "Declined a change a family asked for",
+        write: true,
+      },
+      async (tx) => {
+        const row = await healthChangeOf(tx, {
+          tenantId: context.tenantId,
+          orgId: context.schoolId,
+          requestId: input.id,
+          ...reachOf(context),
+        });
+        if (!row) throw new ORPCError("NOT_FOUND");
+        const payload = await openChange(context, row);
+        if (input.decision === "declined") {
+          const sealed = await seal(
+            context,
+            (keyVersion) => changeCipher(context, row.id, keyVersion),
+            { ...payload, reason: input.reason },
+          );
+          await resealHealthChange(tx, {
+            tenantId: context.tenantId,
+            id: row.id,
+            ...sealed,
+          });
+        } else if (row.target === "record" && "text" in payload.after)
+          await applyRecordChange(
+            context,
+            tx,
+            row,
+            payload.after,
+            input.expectedVersion,
+          );
+        else if (row.target === "contact" && "phone" in payload.after)
+          await applyContactChange(context, row, payload.after.phone);
+        else throw new Error("a health change's payload must match its target");
+        const closed = await closeRequest(tx, {
+          tenantId: context.tenantId,
+          orgId: context.schoolId,
+          id: input.id,
+          outcome: input.decision === "accepted" ? "completed" : "refused",
+          note: ANSWERED[input.decision],
+          closedByUserId: context.actor.userId,
+          topic: "health",
+        });
+        if (!closed)
+          throw new ORPCError("CONFLICT", { message: "health.change_decided" });
+        return row;
+      },
+    );
+    await audit(context, {
+      action: `health_change.${input.decision === "accepted" ? "accept" : "decline"}`,
+      objectType: "records_request",
+      objectId: input.id,
+      subjectUserId: change.studentId,
+      studentUserId: change.studentId,
+      details: {
+        requestedBy: change.requestedByUserId,
+        target: change.target,
+      },
+    });
+    await notify(context, [change.requestedByUserId], {
+      kind: "correction",
+      subject: { type: "records_request", id: input.id },
+      params: {
+        studentId: change.studentId,
+        studentName: change.studentNameEn ?? change.studentNameAr ?? "",
+        studentNameAr: change.studentNameAr ?? change.studentNameEn ?? "",
+        report: input.decision,
+      },
+    });
+    return { decision: input.decision };
   });
