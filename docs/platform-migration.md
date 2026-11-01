@@ -1,11 +1,10 @@
 # Platform migration plan
 
-How the backend moves from database-per-school with the original model to
-regional cells with Row-Level Security and a standards-aligned model, while
-real schools keep working. Evidence: [research/backend-architecture.md](research/backend-architecture.md);
+How the backend moved from database-per-school with the original model to
+regional cells with Row-Level Security and a standards-aligned model. Evidence: [research/backend-architecture.md](research/backend-architecture.md);
 decisions: [research/decisions.md](research/decisions.md).
 
-## Where we start
+## Where it started
 
 - A control database (`schools`, sessions, sign-in counters) and one database
   per school with 56 tables: years, terms, weeks and year events; users with a
@@ -58,7 +57,7 @@ Entities, grouped:
 - Communication: `threads`, `thread_members`, `messages`, `message_reads`,
   `announcements` (urgency, pin until, expires, requires acknowledgement,
   comments mode, scheduled for), `announcement_audiences`,
-  `acknowledgements`, `newsletters` and editions, `calendar_events` with
+  `acknowledgements`, school news posts, `calendar_events` with
   audiences, RSVPs and sign-ups, `notification_events`, `notifications`,
   `delivery_ledger`, `notification_preferences`.
 - Learning: `modules`, `lessons`, lesson blocks as documents, completion rules,
@@ -69,9 +68,17 @@ Entities, grouped:
   labels), `audit_log` (append-only, hash-chained, including reads and
   exports), pg-boss tables.
 
-## How real schools move
+## No school moves
 
-Two routes were weighed.
+The importer from the per-school database is retired. No school held data in
+that model when the cell went live, and its schema has since been deleted
+from the code, so there is nothing to export, transform or cut over. A
+verified export and import is still wanted for restoring one school, moving
+a school between cells and offboarding, and it reads and writes the cell's
+own model.
+
+How a real school would have moved was decided before that was known. Two
+routes were weighed.
 
 1. **Expand and contract inside each school database**, then export into the
    cell. Every intermediate state must run in production, so the application
@@ -88,8 +95,8 @@ Two routes were weighed.
 
 Route 2 was chosen (2026-09-26): it is reversible per school at every step, it
 moves each school once, and it lets the rebuilt application use only the new
-model. It needs the same export/import tool the research calls for, which also
-serves single-school restore, moving between cells and offboarding.
+model. It is why the cell schema was built new rather than grown out of the
+old one.
 
 ## Order of work
 
@@ -104,9 +111,5 @@ serves single-school restore, moving between cells and offboarding.
    and collaboration (Hocuspocus on Bun), learning, website.
 3. **Jobs, files and search**: pg-boss in the cell database, S3 pipeline with
    quarantine and scanning, Postgres full text with the Arabic configuration.
-4. **Importer and verification suite** from the legacy per-school database,
-   rehearsed against copies of each real school.
-5. **Cut-over** school by school, with the old database kept read-only for an
-   agreed period.
-6. **Standards surfaces**: OneRoster 1.2 provider (REST and CSV), LTI 1.3
+4. **Standards surfaces**: OneRoster 1.2 provider (REST and CSV), LTI 1.3
    platform, SSO (Google, Entra, SAML), parent invitations and passkeys.

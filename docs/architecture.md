@@ -275,7 +275,18 @@ a conversation marks the viewer's rows read and nobody else's. Messages,
 their documents, delivery rows and file links commit in one transaction,
 and every way into a conversation (the composer, a website enquiry, a reply
 by email, a change a system records) goes through one function,
-`writeEntry` in `apps/api/src/messages/conversations.ts`.
+`writeEntry` in `apps/api/src/messages/conversations.ts`. A guardian writing
+to a teacher may say which of their own children it is about.
+
+What someone is still writing is a draft (`message_drafts`): a reply to a
+conversation, or the first message of one with whom it is for, its words a
+document hosted as `message_draft` with its files, as a sent message's are.
+It is kept as they type, every save naming the version it read so a draft
+changed in another tab or already sent is refused rather than overwritten,
+and only its writer reads it or its files; nothing of it is searchable.
+Sending goes through `writeEntry` like every message, moves the draft's
+files to the entry and lets the draft go in the same transaction, so a
+draft is sent once. Drafts are listed in their writer's Drafts box.
 
 A member is a person or an outside contact (`message_contacts`): someone
 known by the address and name they gave, such as a family that enquired
@@ -326,6 +337,14 @@ The delivery worker runs in the API process as the `worker` role every 30 second
 ## Teaching records
 
 Records are reachable through relationships rather than roles. The database functions `app.visible_students` and `app.visible_people` decide who a viewer reaches on a date. School-wide staff reach every student of the school; a guardian with portal access reaches the children they are linked to; a student reaches themselves; a teacher or aide reaches the students of the classes they currently teach. Staff reach their colleagues, and school-wide staff everyone who holds a role at the school or is linked to one of its students. A capability lets a procedure run but grants no record, so a submitted student or class id is checked against these rules (and `teachesClass` for a class). The API answers `NOT_FOUND` for a record outside the caller's reach so that URLs do not reveal existence, and the web's `record()` turns that, and a `FORBIDDEN` on a record read, into the router's not-found page with a 404 status. Restricted fields (contact details, medical data, other people's children) are left out of the payload rather than hidden in the page.
+
+Portal access is a flag of the guardian link the office keeps: a phone
+number, an address or an emergency contact on file grants nobody anything.
+Reaching a student never opens their health information either; that takes
+`health:read` under the health purpose, and a guardian reads only what their
+own link to the child permits. A name in a conversation links to the
+person's or the student's record only where the viewer may already open it
+under these rules; showing the name grants nothing.
 
 An assignment is authored against a class by its teachers. Its brief is a
 document, with the files it hands out as blocks; its audience (the class,

@@ -198,6 +198,7 @@ under way.
   - `access.spec.ts`, `access-roles.spec.ts`, `academic-context.spec.ts`, `api.spec.ts`, `experience.spec.ts`, `forms.spec.ts`, `management.spec.ts`, `records.spec.ts`, `school-year.spec.ts`, `working-year.spec.ts`.
   - The fixtures of two of them insert through the legacy schema (`e2e/fixtures/recipients.ts`, `academic-year.ts`).
   - **AGENTS.md:162 names `e2e/access.spec.ts` as the guard that walks every nav link for every role, and that guard does not run.**
+  - **Resolved** (`0fefd813`): the exclusion list is gone and all ten specs run against the cell, `access.spec.ts` included; their data comes through the cell API (`e2e/fixtures/school.ts`), and the two legacy fixtures are deleted.
 
 **Why now.** No school data exists yet, so deleting these is cheap today. Once
 a school's lessons are stored in the old shape, every fallback becomes a
@@ -463,6 +464,7 @@ These statements mislead developers and agents:
 - It says sessions last seven days; family sessions last 30 (`core/session.ts:91`).
 - It describes a site file route, `/v1/sites/{slug}/files/{id}/content`, replaced by `file_publications`.
 - It names a `notification_events` table that does not exist.
+- **Resolved** (`2471a676`) for `architecture.md`: it was rewritten against the code and now describes the cell, the directory and row level security, the search index, site sections, the session lifetimes per context, `file_publications`, and `core.notifications` with its deliveries.
 - Foundation 6.12 says hosts hold the foreign key to their document. Only `privacy_notices.document_id` does; the rest are looked up by host. Access is still safe through `files/authorize.ts`.
 
 Rewrite `architecture.md` against the code. Size S.

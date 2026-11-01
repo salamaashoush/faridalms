@@ -291,7 +291,10 @@ the bytes then stream to `PUT /v1/files/{id}/content` with the same bearer
 token, and the API verifies the size, records the SHA-256 and only then marks
 the file ready. Opening a file asks `GET /v1/files/{id}/content`, which
 re-checks the record the file belongs to, records the opening where that is
-watched, and answers with a redirect to a sealed link on the files host. The
+watched, and answers with a redirect to a sealed link on the files host. A
+download keeps its name, cleaned of anything a file system would refuse, in
+an RFC 6266 disposition with an ASCII fallback and a UTF-8 `filename*`, so an
+Arabic name arrives intact. The
 web forwards both routes at `/files/{id}` with the session cookie, so a browser
 never holds a token or a storage location.
 

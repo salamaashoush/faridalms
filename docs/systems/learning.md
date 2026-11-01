@@ -131,6 +131,11 @@ From [../research/early-years.md](../research/early-years.md).
 
 ## Teachers
 
+- A module opens only with at least one lesson, and only when every lesson
+  passes the lesson check: it has words, no suggestion waits for review, it
+  holds no draw from the question bank (only a quiz does), every video has captions
+  and every sound captions or a transcript. Closing a module again keeps
+  its students' progress.
 - Students play the version a teacher last showed them. Saving a lesson in an
   open module shows it at once unless the teacher saves without showing.
   Lessons of a draft module are shown when the module opens.
