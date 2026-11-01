@@ -14,6 +14,7 @@ export const TEMPLATE_KINDS = [
   "event",
   "consent_form",
   "module",
+  "admission_letter",
 ] as const;
 export type TemplateKind = (typeof TEMPLATE_KINDS)[number];
 
@@ -27,6 +28,7 @@ export const TEMPLATE_AUTHORS: Record<TemplateKind, readonly Capability[]> = {
   event: ["calendar:manage", "calendar:author"],
   consent_form: ["privacy:manage"],
   module: ["learning:author"],
+  admission_letter: ["admissions:configure"],
 };
 
 /** The kinds of document someone holding these capabilities writes. */
@@ -51,6 +53,7 @@ export const DOCUMENT_TEMPLATE_KINDS = [
   "announcement",
   "event",
   "consent_form",
+  "admission_letter",
 ] as const satisfies readonly TemplateKind[];
 export type DocumentTemplateKind = (typeof DOCUMENT_TEMPLATE_KINDS)[number];
 
@@ -63,6 +66,22 @@ export const saveTemplateSchema = v.object({
   content: contentDocumentSchema,
 });
 export type SaveTemplate = v.InferOutput<typeof saveTemplateSchema>;
+
+/**
+ * Kinds whose templates the school was given are what the product sends
+ * from, such as the letters of admission: the school edits them and never
+ * removes them.
+ */
+export const KEPT_BUILTIN_KINDS: readonly TemplateKind[] = ["admission_letter"];
+
+/** A template's words changed in place, by its owner, a reviewer, or for one the school was given, by those who write its kind. */
+export const updateTemplateSchema = v.object({
+  id,
+  expectedVersion: v.pipe(v.number(), v.integer(), v.minValue(1)),
+  title: v.pipe(v.string(), v.trim(), v.minLength(1), v.maxLength(120)),
+  content: contentDocumentSchema,
+});
+export type UpdateTemplate = v.InferOutput<typeof updateTemplateSchema>;
 
 export const templateKindSchema = v.object({
   kind: v.picklist(TEMPLATE_KINDS),
