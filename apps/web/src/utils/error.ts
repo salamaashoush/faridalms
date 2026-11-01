@@ -190,6 +190,8 @@ export function getMessageFromError(error: unknown): string {
         return m.errorCourseworkCommentAuthor();
       case "gradebook.not_in_class":
         return m.errorGradebookNotInClass();
+      case "files.not_linkable":
+        return m.errorFileNotLinkable();
       case "file.not_attachable":
         return m.errorFileNotAttachable();
       case "enrollment.future_placement":

@@ -20,6 +20,8 @@ export function validationMessage(issue: { message?: string }): string {
       return m.validationDeductionRequired();
     case "validation.attachments_required":
       return m.validationAttachmentsRequired();
+    case "validation.report_required":
+      return m.validationReportRequired();
     case "validation.rubric_total":
       return m.validationRubricTotal();
     case "validation.file_type":
