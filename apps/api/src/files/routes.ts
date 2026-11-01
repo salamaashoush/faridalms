@@ -15,6 +15,7 @@ import type { RequestContext, SchoolContext } from "../core/context";
 import type { Rejection } from "./ingest";
 
 import { openUnit, schoolOf } from "../core/procedure";
+import { refusalResponse } from "../core/refusal";
 import { canReadFile } from "./authorize";
 import { findFile, withFileGate } from "./gate";
 import { takeChecked } from "./ingest";
@@ -362,7 +363,7 @@ export async function handleFileRequest(
     return problem(405, "METHOD_NOT_ALLOWED", context.requestId);
   } catch (error) {
     if (error instanceof ORPCError)
-      return problem(error.status, error.code, context.requestId);
+      return refusalResponse(error, context.requestId);
     if (error instanceof TenantUnavailableError)
       return error.reason === "unknown"
         ? problem(401, "UNAUTHORIZED", context.requestId)
