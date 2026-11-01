@@ -47,6 +47,7 @@ export default defineConfig({
     "admissions.spec.ts",
     "conversations.spec.ts",
     "applications.spec.ts",
+    "decisions.spec.ts",
     "hosts.spec.ts",
     "sign-in-page.spec.ts",
     "bare-domain.spec.ts",

@@ -3226,6 +3226,18 @@ async function seedAdmissions(
   for (const [index, other] of others.entries()) {
     const adult = person(other.parent[0], other.parent[1], other.parent[2]);
     await insertPerson(tx, tenantId, adult, { primaryOrgId: schoolId });
+    // The family whose decision waits for release signs in, so the offer
+    // can be followed to the family's answer.
+    if (other.state === "decided") {
+      const login = context.login.replace("applicant.", "applicant2.");
+      await giveAccount(tx, tenantId, adult.id, login, context.passwordHash);
+      await openApplicantRole(tx, {
+        ...org,
+        userId: adult.id,
+        today: "2026-10-20",
+      });
+      context.logins.push({ role: "applicant", loginName: login, schoolId });
+    }
     const kid = person(other.child[0], other.child[1], other.child[2]);
     await insertPerson(tx, tenantId, kid, {
       primaryOrgId: schoolId,
