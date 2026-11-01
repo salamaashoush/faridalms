@@ -115,7 +115,7 @@ export type SharedUseHost =
   | "assignment"
   | "module_plan"
   | "announcement"
-  | "site_post"
+  | "news"
   | "site_page";
 
 export interface SharedUse {
@@ -146,10 +146,10 @@ export async function sharedBlockUses(
     place_ar: string | null;
   }>(sql`
     select d.host_type, d.host_id,
-      coalesce(l.title, a.title, m.title, nullif(n.title_en, ''), nullif(p.title_en, ''),
-        nullif(sp.title_en, '')) as title_en,
-      coalesce(l.title, a.title, m.title, nullif(n.title_ar, ''), nullif(p.title_ar, ''),
-        nullif(sp.title_ar, '')) as title_ar,
+      coalesce(l.title, a.title, m.title, nullif(n.title_en, ''), nullif(sp.title_en, ''))
+        as title_en,
+      coalesce(l.title, a.title, m.title, nullif(n.title_ar, ''), nullif(sp.title_ar, ''))
+        as title_ar,
       coalesce(lm.title, c.title_en) as place_en, coalesce(lm.title, c.title_ar) as place_ar
     from core.documents d
     left join core.lessons l on l.tenant_id = d.tenant_id and l.id = d.host_id
@@ -160,17 +160,15 @@ export async function sharedBlockUses(
     left join core.classes c on c.tenant_id = a.tenant_id and c.id = a.class_id
     left join core.learning_modules m on m.tenant_id = d.tenant_id and m.id = d.host_id
       and d.host_type = 'module_plan' and m.status = 'active'
-    left join core.announcements n on n.tenant_id = d.tenant_id and n.id = d.host_id
-      and d.host_type = 'announcement' and n.status = 'active'
-    left join core.site_posts p on p.tenant_id = d.tenant_id and p.id = d.host_id
-      and d.host_type = 'site_post' and p.status = 'active'
+    left join core.broadcasts n on n.tenant_id = d.tenant_id and n.id = d.host_id
+      and d.host_type = n.kind and n.status = 'active'
     left join core.site_pages sp on sp.tenant_id = d.tenant_id and sp.id = d.host_id
       and d.host_type = 'site_page' and sp.status = 'active'
     where d.tenant_id = ${input.tenantId}::uuid and d.org_id = ${input.orgId}::uuid
       and d.status = 'active' and d.frozen_at is null and d.translation_of_id is null
       and d.host_type in ('lesson', 'assignment', 'module_plan', 'announcement',
-        'site_post', 'site_page')
-      and coalesce(l.id, a.id, m.id, n.id, p.id, sp.id) is not null
+        'news', 'site_page')
+      and coalesce(l.id, a.id, m.id, n.id, sp.id) is not null
       and jsonb_path_exists(d.content,
         'lax $.** ? (@.type == "shared" && @.sharedId == $id)',
         jsonb_build_object('id', ${input.id}::text))

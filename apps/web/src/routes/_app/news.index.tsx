@@ -115,7 +115,7 @@ function NewsItem({ row }: { row: NewsRow }) {
       </Link>
       <p className="text-[13px] leading-[18px] text-muted-foreground">
         {[
-          row.publishedAt ? formatInstant(row.publishedAt) : null,
+          row.publishAt ? formatInstant(row.publishAt) : null,
           inLocale(row.authorNameEn, row.authorNameAr),
           row.visibility === "public" ? m.newsWebsite() : null,
         ]
@@ -214,7 +214,7 @@ function managedColumns(): Column<ManagedRow>[] {
     {
       id: "when",
       header: m.annColWhen(),
-      cell: (row) => (row.publishedAt ? formatInstant(row.publishedAt) : "–"),
+      cell: (row) => (row.publishAt ? formatInstant(row.publishAt) : "–"),
     },
     { id: "reach", header: m.annColReach(), cell: (row) => reach(row) },
   ];

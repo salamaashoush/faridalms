@@ -38,8 +38,12 @@ import {
   publishForm as publishAdmissionForm,
   setApplicationState,
 } from "./stores/admissions";
-import { addRecipients } from "./stores/announcements";
 import { audienceUsers, setAudiences } from "./stores/audiences";
+import {
+  addRecipients,
+  insertBroadcast,
+  setBroadcastState,
+} from "./stores/broadcasts";
 import { insertAnswer, insertForm, publishForm } from "./stores/consents";
 import {
   saveDocument,
@@ -55,7 +59,6 @@ import {
   setModuleState,
 } from "./stores/learning";
 import { postMessage } from "./stores/messages";
-import { addPostRecipients, insertPost, setPostState } from "./stores/news";
 import { insertDeliveries, insertNotifications } from "./stores/notifications";
 import { setOrgFeature } from "./stores/school";
 import {
@@ -71,12 +74,12 @@ import { reviewTranslation } from "./stores/translations";
 import {
   academicSessions,
   academicWeeks,
-  announcementAudiences,
-  announcements,
   attendanceRegisters,
   assessments,
   assignmentRecipients,
   assignments,
+  broadcastAudiences,
+  broadcasts,
   accessRoleAssignments,
   accessRoles,
   accounts,
@@ -1425,45 +1428,70 @@ async function seedAnnouncements(tx: Tx, tenantId: string, schoolId: string) {
   ];
   for (const plan of plans) {
     const id = Bun.randomUUIDv7();
-    await tx.insert(announcements).values({
+    await tx.insert(broadcasts).values({
       tenantId,
       id,
       orgId: schoolId,
+      kind: "announcement",
       titleEn: plan.title,
       urgency: plan.urgency,
       state: plan.publishAt ? "published" : "draft",
       publishAt: plan.publishAt,
+      toldAt: plan.publishAt,
       pinnedUntil: plan.pinnedUntil ?? null,
       requiresAck: plan.requiresAck ?? false,
       ackDueOn: plan.ackDueOn ?? null,
       authorUserId: principal.user_id,
     });
-    await tx.insert(announcementAudiences).values({
+    await tx.insert(broadcastAudiences).values({
       tenantId,
-      announcementId: id,
+      broadcastId: id,
       scope: plan.audience.scope,
     });
-    await tx.insert(documents).values({
+    const words = await saveDocument(tx, {
       tenantId,
-      hostType: "announcement",
-      hostId: id,
       orgId: schoolId,
+      host: { type: "announcement", id },
       kind: "rich_text",
       locale: "en",
-      schemaVersion: 1,
       content: plainContent(plan.body) as unknown as Record<string, unknown>,
       plainText: plan.body,
+      mediaIds: [],
+      userId: principal.user_id,
     });
-    if (plan.publishAt)
+    if (plan.publishAt) {
+      await snapshotPublish(tx, {
+        tenantId,
+        documentId: words.id,
+        userId: principal.user_id,
+      });
       await addRecipients(tx, {
         tenantId,
-        announcementId: id,
+        broadcastId: id,
         userIds: await audienceUsers(tx, { tenantId, schoolId, on }, [
           plan.audience,
         ]),
       });
+    }
   }
 }
+
+/** What a seeded news post leaves unset, as the editor would. */
+const newsFields = {
+  titleAr: "",
+  urgency: "normal" as const,
+  pinnedUntil: null,
+  expiresOn: null,
+  requiresAck: false,
+  ackDueOn: null,
+  categoryId: null,
+  excerptEn: "",
+  excerptAr: "",
+  coverFileId: null,
+  coverAltEn: "",
+  coverAltAr: "",
+  pinned: false,
+};
 
 const part = (heading: string, body: string) => ({
   heading,
@@ -1525,28 +1553,22 @@ async function seedSchoolNews(tx: Tx, tenantId: string, schoolId: string) {
   ];
   const audience: Audience = { scope: "school", classId: null, gradeId: null };
   for (const plan of plans) {
-    const created = await insertPost(tx, {
+    const created = await insertBroadcast(tx, {
+      ...newsFields,
       tenantId,
-      orgId: schoolId,
+      schoolId,
       authorId: principal.user_id,
-      categoryId: null,
+      kind: "news",
       slug: plan.slug,
       titleEn: plan.title,
-      titleAr: "",
-      excerptEn: "",
-      excerptAr: "",
-      coverFileId: null,
-      coverAltEn: "",
-      coverAltAr: "",
-      pinned: false,
       visibility: "school",
     });
     await setAudiences(tx, {
       tenantId,
-      owner: { kind: "site_post", id: created.id },
+      owner: { kind: "broadcast", id: created.id },
       audiences: [audience],
     });
-    const host = { type: "site_post", id: created.id };
+    const host = { type: "news", id: created.id };
     const original = await saveDocument(tx, {
       tenantId,
       orgId: schoolId,
@@ -1573,12 +1595,13 @@ async function seedSchoolNews(tx: Tx, tenantId: string, schoolId: string) {
         })
       : null;
     if (!plan.publishAt) continue;
-    await setPostState(tx, {
+    await setBroadcastState(tx, {
       tenantId,
       id: created.id,
       expectedVersion: created.version,
       state: "published",
-      publishedAt: plan.publishAt.toISOString(),
+      publishAt: plan.publishAt.toISOString(),
+      told: "now",
     });
     for (const document of [original, translation])
       if (document)
@@ -1587,9 +1610,9 @@ async function seedSchoolNews(tx: Tx, tenantId: string, schoolId: string) {
           documentId: document.id,
           userId: principal.user_id,
         });
-    await addPostRecipients(tx, {
+    await addRecipients(tx, {
       tenantId,
-      postId: created.id,
+      broadcastId: created.id,
       userIds: await audienceUsers(
         tx,
         { tenantId, schoolId, on: "2026-09-27" },
@@ -1944,15 +1967,20 @@ async function seedEvents(
         classId: audience.classId,
       })),
     );
-    await tx.insert(documents).values({
+    const description = await saveDocument(tx, {
       tenantId,
-      hostType: "calendar_event",
-      hostId: id,
       orgId: schoolId,
+      host: { type: "calendar_event", id },
       kind: "rich_text",
-      schemaVersion: 1,
       content: plainContent(plan.body) as unknown as Record<string, unknown>,
       plainText: plan.body,
+      mediaIds: [],
+      userId: principal.user_id,
+    });
+    await snapshotPublish(tx, {
+      tenantId,
+      documentId: description.id,
+      userId: principal.user_id,
     });
   }
 }
@@ -1967,10 +1995,10 @@ async function seedNotifications(tx: Tx, tenantId: string, schoolId: string) {
     title: string;
     user_id: string;
   }>(sql`
-    select a.id, a.title_en as title, r.user_id from core.announcements a
-    join core.announcement_recipients r on r.tenant_id = a.tenant_id and r.announcement_id = a.id
+    select a.id, a.title_en as title, r.user_id from core.broadcasts a
+    join core.broadcast_recipients r on r.tenant_id = a.tenant_id and r.broadcast_id = a.id
     where a.tenant_id = ${tenantId}::uuid and a.org_id = ${schoolId}::uuid
-      and a.requires_ack and a.state = 'published'`);
+      and a.kind = 'announcement' and a.requires_ack and a.state = 'published'`);
   const inserted = await insertNotifications(tx, {
     tenantId,
     orgId: schoolId,
@@ -3584,23 +3612,22 @@ async function seedSite(
     },
   ];
   for (const plan of posts) {
-    const created = await insertPost(tx, {
+    const created = await insertBroadcast(tx, {
+      ...newsFields,
       tenantId,
-      orgId: schoolId,
+      schoolId,
       authorId: userId,
+      kind: "news",
       categoryId: news?.id ?? null,
       slug: plan.slug,
       titleEn: plan.titleEn,
       titleAr: plan.titleAr,
       excerptEn: plan.excerptEn,
       excerptAr: plan.excerptAr,
-      coverFileId: null,
-      coverAltEn: "",
-      coverAltAr: "",
       pinned: plan.pinned,
       visibility: "public",
     });
-    const host = { type: "site_post", id: created.id };
+    const host = { type: "news", id: created.id };
     const english = plainContent(plan.bodyEn);
     const original = await saveDocument(tx, {
       tenantId,
@@ -3629,19 +3656,20 @@ async function seedSite(
         })
       : null;
     if (!plan.published) continue;
-    await setPostState(tx, {
+    await setBroadcastState(tx, {
       tenantId,
       id: created.id,
       expectedVersion: created.version,
       state: "published",
-      publishedAt,
+      publishAt: publishedAt,
+      told: "now",
     });
     await snapshotPublish(tx, { tenantId, documentId: original.id, userId });
     if (other) {
       await snapshotPublish(tx, { tenantId, documentId: other.id, userId });
       await reviewTranslation(tx, {
         tenantId,
-        host: "site_post",
+        host: "news",
         id: created.id,
         userId,
         reviewed: true,
@@ -3649,25 +3677,9 @@ async function seedSite(
     }
     const post = {
       id: created.id,
-      version: created.version + 1,
-      orgId: schoolId,
       categoryId: news?.id ?? null,
       slug: plan.slug,
-      titleEn: plan.titleEn,
-      titleAr: plan.titleAr,
-      excerptEn: plan.excerptEn,
-      excerptAr: plan.excerptAr,
-      coverFileId: null,
-      coverAltEn: "",
-      coverAltAr: "",
       pinned: plan.pinned,
-      state: "published" as const,
-      visibility: "public" as const,
-      primaryLocale: "en" as const,
-      publishedAt,
-      revisedAt: null,
-      authorNameEn: null,
-      authorNameAr: null,
     };
     for (const locale of ["en", "ar"] as const) {
       const translated = locale === "ar" && arabic;
