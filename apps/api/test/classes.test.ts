@@ -237,10 +237,7 @@ describe("subjects", () => {
     expect(here.find((row) => row.id === shared.id)?.labelEn).toBe(
       "Visual art",
     );
-    const east = await signedIn(
-      "northwind-east",
-      login("principal", 0, 1),
-    );
+    const east = await signedIn("northwind-east", login("principal", 0, 1));
     const there = (await east.classes.subjects()).rows;
     expect(there.find((row) => row.id === shared.id)?.labelEn).toBe("Art");
     expect(there.some((row) => row.id === added.id)).toBe(false);

@@ -46,10 +46,7 @@ describe("access roles", () => {
     );
     expect(after?.scope).toBe("school");
     expect(after?.capabilities).not.toContain("attendance:record");
-    const east = await signedIn(
-      "northwind-east",
-      login("principal", 0, 1),
-    );
+    const east = await signedIn("northwind-east", login("principal", 0, 1));
     const elsewhere = (await east.access.roles()).roles.find(
       (role) => role.builtinKey === "aide",
     );

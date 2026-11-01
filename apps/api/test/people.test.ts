@@ -75,10 +75,7 @@ describe("students", () => {
   test("another school of the same tenant does not show this school's students", async () => {
     const northwind = await signedIn("northwind", login("principal"));
     const [first] = (await northwind.people.students({})).rows;
-    const east = await signedIn(
-      "northwind-east",
-      login("principal", 0, 1),
-    );
+    const east = await signedIn("northwind-east", login("principal", 0, 1));
     expect(
       await rejection(east.people.student({ id: first?.id ?? "" })),
     ).toMatchObject({
