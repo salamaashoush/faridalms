@@ -57,6 +57,9 @@ test("an administrator adds a year with terms, closes it and reopens it with a r
     .getByRole("button", { name: "Close year" })
     .click();
   await expect(page.getByText(`${year.title} is closed`)).toBeVisible();
+  // The sheet hands focus back to its menu's trigger once it has closed,
+  // which shuts a menu opened before then.
+  await expect(page.getByRole("dialog")).toHaveCount(0);
   await expect(page.getByText("Closed", { exact: true })).toBeVisible();
   await expect(page.getByRole("button", { name: "Edit year" })).toHaveCount(0);
 
