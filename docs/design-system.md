@@ -190,10 +190,12 @@ publishing changes state (Notion, Linear, Polaris).
 - Drafts save automatically about 1.5s after the last change and when a field
   loses focus. There is no Save button; Ctrl/Cmd+S saves now. Leaving with a
   save in flight warns.
-- Once published, edits are held back: the save-state slot shows "Unsaved
-  changes · Discard · Update", because readers keep the copy last published
-  until it is updated, whichever client made the edit. Updating asks whether
-  to notify recipients again.
+- Once published, edits still save as they are made but are held back from
+  readers, who keep the copy last published until it is updated, whichever
+  client made the edit: the save-state slot says what waits, with Discard
+  (back to the copy readers have) and Update. Announcements and news are one
+  broadcast editor (`components/broadcasts/BroadcastEditor.tsx`) configured by
+  kind; updating an announcement asks whether to notify recipients again.
 - Body: the document title (30px) above a 720px content column; settings for
   the item (audience, dates, class) sit in a 280px panel beside it and move
   above the content on phones.

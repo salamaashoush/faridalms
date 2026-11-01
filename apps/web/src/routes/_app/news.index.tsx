@@ -1,24 +1,18 @@
 import type { ManageNewsQuery, NewsListQuery } from "@faridalms/domain/news";
 
 import { NEWS_PAGE, NEWS_SORTS, NEWS_TABS } from "@faridalms/domain/news";
-import { cn } from "@faridalms/ui/cn";
 import { useSuspenseQuery } from "@tanstack/react-query";
-import {
-  createFileRoute,
-  Link,
-  stripSearchParams,
-} from "@tanstack/react-router";
-import { CircleCheck, Newspaper, Plus } from "lucide-react";
+import { createFileRoute, stripSearchParams } from "@tanstack/react-router";
+import { Newspaper, Plus } from "lucide-react";
 import * as v from "valibot";
 
-import type { Column, SortDirection } from "~/components/system/DataTable";
+import type { SortDirection } from "~/components/system/DataTable";
 
 import {
-  DataTable,
-  Pagination,
-  RowLink,
-  ViewMenu,
-} from "~/components/system/DataTable";
+  BroadcastItem,
+  ManagedBroadcasts,
+} from "~/components/broadcasts/BroadcastLists";
+import { Pagination, ViewMenu } from "~/components/system/DataTable";
 import {
   EmptyState,
   IndexToolbar,
@@ -30,7 +24,6 @@ import * as m from "~/i18n/messages";
 import { getLocale } from "~/i18n/runtime";
 import { managedNewsQuery, newsQuery } from "~/queries/news";
 import { currentUserQuery } from "~/queries/user";
-import { formatInstant, formatNumber } from "~/utils/datetime";
 
 const TABS = ["latest", ...NEWS_TABS] as const;
 type Tab = (typeof TABS)[number];
@@ -86,53 +79,8 @@ const TAB_LABEL: Record<Tab, () => string> = {
   archived: m.annTabArchived,
 };
 
-type NewsRow = Awaited<
-  ReturnType<NonNullable<ReturnType<typeof newsQuery>["queryFn"]>>
->["rows"][number];
-type ManagedRow = Awaited<
-  ReturnType<NonNullable<ReturnType<typeof managedNewsQuery>["queryFn"]>>
->["rows"][number];
-
 const titleOf = (row: { titleEn: string; titleAr: string }) =>
   inLocale(row.titleEn || null, row.titleAr || null);
-
-function NewsItem({ row }: { row: NewsRow }) {
-  const unread = row.recipient && row.readAt === null;
-  const summary =
-    inLocale(row.excerptEn || null, row.excerptAr || null) || row.summary;
-  return (
-    <li className="grid gap-1.5 py-4">
-      <Link
-        to="/news/$postId"
-        params={{ postId: row.id }}
-        className={cn(
-          "min-w-0 text-base leading-6 hover:text-primary hover:underline",
-          unread ? "font-semibold" : "font-medium",
-        )}
-      >
-        <bdi>{titleOf(row)}</bdi>
-        {unread ? <span className="sr-only"> {m.annUnread()}</span> : null}
-      </Link>
-      <p className="text-[13px] leading-[18px] text-muted-foreground">
-        {[
-          row.publishAt ? formatInstant(row.publishAt) : null,
-          inLocale(row.authorNameEn, row.authorNameAr),
-          row.visibility === "public" ? m.newsWebsite() : null,
-        ]
-          .filter(Boolean)
-          .join(" · ")}
-      </p>
-      {summary ? (
-        <p
-          dir="auto"
-          className="line-clamp-2 text-sm leading-5 text-foreground/90"
-        >
-          {summary.replaceAll(/\s*\n+\s*/g, " · ")}
-        </p>
-      ) : null}
-    </li>
-  );
-}
 
 function Latest({
   search,
@@ -159,7 +107,24 @@ function Latest({
         aria-label={m.newsTitle()}
       >
         {rows.map((row) => (
-          <NewsItem key={row.id} row={row} />
+          <BroadcastItem
+            key={row.id}
+            kind="news"
+            item={{
+              id: row.id,
+              title: titleOf(row),
+              unread: row.recipient && row.readAt === null,
+              pinned: false,
+              urgency: "normal",
+              author: inLocale(row.authorNameEn, row.authorNameAr),
+              when: row.publishAt,
+              website: row.visibility === "public",
+              summary:
+                inLocale(row.excerptEn || null, row.excerptAr || null) ||
+                row.summary,
+              ack: null,
+            }}
+          />
         ))}
       </ul>
       {pages > 1 ? (
@@ -172,74 +137,6 @@ function Latest({
         />
       ) : null}
     </div>
-  );
-}
-
-function ManagedTitle({ row }: { row: ManagedRow }) {
-  return row.state === "draft" ? (
-    <RowLink to="/news-editor" search={{ id: row.id }}>
-      {titleOf(row)}
-    </RowLink>
-  ) : (
-    <RowLink to="/news/$postId" params={{ postId: row.id }}>
-      {titleOf(row)}
-    </RowLink>
-  );
-}
-
-function reach(row: ManagedRow) {
-  if (row.recipients === 0) return "–";
-  return m.annReadOf({
-    count: formatNumber(row.read),
-    total: formatNumber(row.recipients),
-  });
-}
-
-// Built per render: headers read the request's locale, which a module-level
-// array would fix at whichever language first loaded the module on the server.
-function managedColumns(): Column<ManagedRow>[] {
-  return [
-    {
-      id: "title",
-      header: m.annColTitle(),
-      primary: true,
-      cell: (row) => <ManagedTitle row={row} />,
-    },
-    {
-      id: "where",
-      header: m.newsColWhere(),
-      cell: (row) =>
-        row.visibility === "public" ? m.newsWherePublic() : m.newsSchoolOnly(),
-    },
-    {
-      id: "when",
-      header: m.annColWhen(),
-      cell: (row) => (row.publishAt ? formatInstant(row.publishAt) : "–"),
-    },
-    { id: "reach", header: m.annColReach(), cell: (row) => reach(row) },
-  ];
-}
-
-const managedCard = {
-  title: (row: ManagedRow) => <ManagedTitle row={row} />,
-  fact: (row: ManagedRow) => reach(row),
-};
-
-function Managed({ tab, q }: { tab: ManageNewsQuery["tab"]; q: string }) {
-  const { rows } = useSuspenseQuery(managedNewsQuery({ tab, q })).data;
-  return (
-    <DataTable
-      caption={m.newsManagedCaption()}
-      rows={rows}
-      columns={managedColumns()}
-      rowLabel={(row) => titleOf(row)}
-      card={managedCard}
-      empty={{
-        icon: CircleCheck,
-        title: m.newsManagedEmpty(),
-        description: m.newsManagedEmptyBody(),
-      }}
-    />
   );
 }
 
@@ -284,7 +181,7 @@ function NewsPage() {
         }
       />
       {isManage(tab) ? (
-        <Managed tab={tab} q={search.q} />
+        <ManagedBroadcasts kind="news" tab={tab} q={search.q} />
       ) : (
         <Latest
           search={search}
