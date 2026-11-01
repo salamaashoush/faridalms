@@ -51,11 +51,13 @@ bun run db:reset # roles, the cell and directory databases, migrations, seed
 bun run dev
 ```
 
-The web app listens on port 3000 and the API on 3001. `db:reset` recreates
+The web app listens on port 3000 and the API on 3001. Each school signs in
+on its own portal, such as `http://northwind.localhost:3000`; `localhost:3000`
+itself asks for an email and finds the school. `db:reset` recreates
 the local databases with demonstration records, so never point it at a
 database holding work you need to keep; `db:migrate` applies pending
 migrations without touching data. The seed creates a school group, Northwind
-Schools (school codes `northwind` and `northwind-east`), and a standalone
+Schools (`northwind` and `northwind-east`), and a standalone
 school, `acme`; `db:reset` prints every login, and all use the password
 `farida-development-password`.
 

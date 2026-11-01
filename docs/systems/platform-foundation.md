@@ -353,7 +353,21 @@ every change it makes:
   worker finds: SELECT on `hosts` (and `schools.slug`, for the CNAME target),
   INSERT of `hostname`, `school_id`, `role` and `challenge`, and UPDATE of
   `role`, `challenge`, `canonical` and the state columns. It cannot rename a
-  host, move one to another school or delete one.
+  host, move one to another school or delete one. It keeps the cell's
+  tenants' rows of `login_index` (SELECT, INSERT, DELETE), which
+  `directory_reader` reads and `directory_admin` cannot reach.
+
+**Index of sign-in names.** `login_index (key bytea, tenant_id uuid)` lets
+the bare product domain find a person's school from their email. The key is
+HMAC-SHA256 of the normalised name (trimmed, NFC, lower case) under
+`LOGIN_INDEX_KEY`, a platform secret every cell's API holds and the
+directory never does, so the directory still holds no personal data: a row
+names nobody, and testing a name needs the secret. Rows are per tenant, not
+per school, because a person's schools follow memberships that change every
+term, while the name changes rarely; the school is decided in the cell, after
+the password, from the person's access. Each cell rebuilds its tenants' rows
+on start and every 15 minutes, and refreshes a tenant when a unit gives or
+changes a sign-in name. Rotating the key means rebuilding every cell's rows.
 
 Readers cache rows for 60 seconds; a cut-over, cell move or merge also pushes
 an invalidation.
@@ -414,8 +428,18 @@ Sign-in and sessions:
   to a cookie. A browser holds at most five tenant sessions per cell host; the
   account switcher lists them.
 - A school's portal host names the school, so its sign-in asks only for the
-  person; the bare product domain still asks for the school, prefilled from
-  the one the browser chose last. A school's own portal and its platform
+  person. Nobody is asked for a school code anywhere. The bare product
+  domain signs nobody in and sets no session: it asks for an email, then a
+  password (always, so nothing is looked up between the two), finds the
+  tenants holding the name through `directory.login_index`, checks the
+  password in each with that tenant's own limits, and on success returns a
+  one-time handoff (256 bits, stored hashed as a `handoff` login identity in
+  the school's cell, good for 60 seconds, bound to the account, the school
+  and the network) that the school's portal exchanges for its own session at
+  `/auth/handoff`, the secret riding in the fragment. A name and password
+  that open several schools show their names, after the password, to choose
+  from. The browser's last school is remembered there, so the bare domain's
+  sign-in goes straight to that portal. A school's own portal and its platform
   portal are different origins, so a person signs in on the canonical one,
   and the redirect to it happens before sign-in. The web reads the host from
   `Host` alone, never from `X-Forwarded-Host`, which a client can set.
@@ -423,11 +447,11 @@ Sign-in and sessions:
   `Origin` (or `Sec-Fetch-Site: same-origin`) and a CSRF token bound to the
   session; application hosts send `Content-Security-Policy:
   frame-ancestors 'none'` and embed no third-party content.
-- The product domain's apex serves only the school finder: search by school
-  name or slug over the public projection, or identifier-first SSO discovery
-  by the email domain against verified `directory.sso_domains` (the domain is
-  looked up; the address is not stored or logged). It redirects to the cell's
-  host with the school slug.
+- The product domain's apex serves only the product site and the
+  email-first sign-in above, which hands off to the school's portal. SSO
+  discovery by the email domain against verified `directory.sso_domains`
+  (the domain is looked up; the address is not stored or logged) belongs in
+  its first step once a school uses SSO.
 - The WebAuthn relying party id is the product domain for every cell. A
   passkey created on `eg.<product domain>` is valid on `ae.<product domain>`,
   because an RP id may be a registrable suffix of the origin. That avoids

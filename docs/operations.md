@@ -65,11 +65,45 @@ Every school answers on two platform names, set by two variables that the
 API, the web and the console all receive:
 
 - `PORTAL_DOMAIN` (`example.com`, say): `<slug>.<PORTAL_DOMAIN>` is
-  the school's portal, where people sign in and work. The bare domain asks
-  for the school's code, prefilled from the one the browser chose last, or,
-  with `PRODUCT_SITE=on` on the web, shows the product's own site to anyone
-  not signed in, whose demonstration requests the API emails to
-  `PRODUCT_INBOX`. Only the platform's own deployment turns that on.
+  the school's portal, where people sign in and work. Nobody is ever asked
+  for a school code. The bare domain hosts no sign-in and no page of the
+  app: its `/sign-in` asks for an email, then a password, finds the school
+  only once the password is right, and hands the sign-in to that school's
+  portal; a browser that signed in there before goes straight to the
+  school's portal, and "Use another account" starts again. Any other app
+  address on the bare domain goes on to the same address on the remembered
+  school's portal, or to that sign-in. With `PRODUCT_SITE=on` on the web, the
+  bare domain's root shows the product's own site, whose demonstration
+  requests the API emails to `PRODUCT_INBOX` and whose sign-in buttons open
+  that sign-in. Only the platform's own deployment turns that on.
+
+  Each school on its own origin keeps different schools' sessions and
+  storage apart (a script on one school's pages cannot reach another
+  school's session), carries the school's branding and policies, and
+  matches how Slack, Google Workspace and Canvas work, where the root domain
+  only finds your workspace. The web never sets a session cookie on the bare
+  domain, and signs out and clears one a browser still holds there. Links
+  in email (welcome, reset) and on badges point at the school's portal; an
+  older link to the bare domain with `?school=` goes on to that school's
+  portal. The API still takes the school from the host or the
+  `x-farida-school` header, for native apps.
+
+  To find the school from an email, the directory keeps an index of sign-in
+  names (`login_index`) holding only an HMAC of each name under
+  `LOGIN_INDEX_KEY`, never the name, so the directory still holds no
+  personal data. Every cell's API needs the same key (32 random bytes,
+  `openssl rand -base64 32`); each keeps its own tenants' rows current
+  through `DIRECTORY_SYNC_URL` when a sign-in name is given or changed, on
+  start and every 15 minutes. Do not rotate it casually: a new key means
+  every cell rebuilding its index, which they do on their next start. A
+  proved sign-in comes back as a one-time handoff, good for a minute, for
+  that account at that school from that network, carried in the address's
+  fragment to `https://<portal>/auth/handoff`, whose web server exchanges it
+  for the portal's own session. A name and password that open more than one
+  school show those schools' names, after the password, to choose from.
+  Each school's own sign-in limits apply, and the bare domain also counts
+  tries per name and per network.
+
 - `SITES_DOMAIN` (`example.net`, say): `<slug>.<SITES_DOMAIN>` is
   the school's public website, served from its root. It reads no session,
   sets no cookie and answers 404 to anything that is not a page of the
