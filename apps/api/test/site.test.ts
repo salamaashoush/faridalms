@@ -360,36 +360,27 @@ describe("website enquiries", () => {
     ).toEqual({ received: true });
 
     const { api } = await principal();
-    const open = await api.site.enquiries({ handled: false });
+    const open = await api.admissions.enquiries({ state: "open" });
     const names = open.rows.map((row) => row.name);
     expect(names).toContain("Salama Ashoush");
     expect(names).toContain("Another family");
     expect(names).not.toContain("Robot");
     expect(names).not.toContain("Too fast");
     expect(names).not.toContain("One too many");
-    const first = open.rows.find((row) => row.name === "Salama Ashoush");
+    const first = open.rows.find(
+      (row) => row.name === "Salama Ashoush" && row.childYear === "Grade 3",
+    );
     expect(first).toMatchObject({
+      source: "website",
       purpose: "enquiry",
-      childYear: "Grade 3",
-      pageTitle: "Admissions",
+      state: "open",
+      email: "salama@example.com",
     });
     if (!first) throw new Error("no enquiry");
-    await api.site.markEnquiry({
-      id: first.id,
-      expectedVersion: first.version,
-      handled: true,
+    expect(await api.admissions.enquiry({ id: first.id })).toMatchObject({
+      pageTitleEn: "Admissions",
+      message: "Could we visit on Thursday?",
     });
-    const handled = await api.site.enquiries({ handled: true });
-    expect(handled.rows.map((row) => row.id)).toContain(first.id);
-    expect(
-      await rejection(
-        api.site.markEnquiry({
-          id: first.id,
-          expectedVersion: first.version,
-          handled: false,
-        }),
-      ),
-    ).toMatchObject({ message: "conflict.version" });
   });
 });
 

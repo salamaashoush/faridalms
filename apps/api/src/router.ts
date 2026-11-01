@@ -1,5 +1,6 @@
 import * as absenceReportsSystem from "./systems/absence-reports";
 import * as accessSystem from "./systems/access";
+import * as admissionsSystem from "./systems/admissions";
 import * as announcementsSystem from "./systems/announcements";
 import * as attendanceSystem from "./systems/attendance";
 import * as badgesSystem from "./systems/badges";
@@ -80,6 +81,7 @@ export const router = {
   library: librarySystem,
   lti: ltiSystem,
   site: siteSystem,
+  admissions: admissionsSystem,
   product: productSystem,
   hosts: hostsSystem,
   home: homeSystem,

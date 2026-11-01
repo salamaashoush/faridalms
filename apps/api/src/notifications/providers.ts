@@ -4,6 +4,8 @@ export interface OutboundMessage {
   text: string;
   /** What the message delivers, stable across retries of the same send. */
   reference?: string;
+  /** Where the recipient's answer goes, when the sender's address takes none. */
+  replyTo?: string;
 }
 
 export interface Provider {
@@ -41,6 +43,7 @@ export class HttpProvider implements Provider {
         to: message.to,
         subject: message.subject,
         text: message.text,
+        ...(message.replyTo ? { replyTo: message.replyTo } : {}),
       }),
       signal: AbortSignal.timeout(15_000),
     });

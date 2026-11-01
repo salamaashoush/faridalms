@@ -1,3 +1,4 @@
+import type { DirectorySchool } from "@faridalms/database/directory/client";
 import type { PageRow } from "@faridalms/database/stores/site";
 import type { ContentDocument } from "@faridalms/domain/content";
 import type {
@@ -39,10 +40,8 @@ import {
   saveCategory,
   saveSiteSettings,
   schoolToday,
-  setEnquiryHandled,
   setPageState,
   siteCategories,
-  siteEnquiries,
   sitePages,
   siteSettings,
   syncPublishedPlaces,
@@ -52,6 +51,9 @@ import {
   writePublishedPage,
   writePublishedSignIn,
 } from "@faridalms/database/stores/site";
+import { readAnswers } from "@faridalms/domain/enquiries";
+import { clientAddress } from "@faridalms/domain/forwarded";
+import { platformName } from "@faridalms/domain/hosts";
 import {
   contentDocumentSchema,
   contentFileIds,
@@ -75,10 +77,8 @@ import {
   alignTranslation,
   applyStarterSchema,
   bodyIssues,
-  enquiriesQuerySchema,
   enquirySchema,
   localizedSections,
-  markEnquirySchema,
   movePageSchema,
   pageContentSchema,
   pageFileIds,
@@ -101,8 +101,9 @@ import {
 import { ORPCError } from "@orpc/server";
 import * as v from "valibot";
 
-import type { UnitContext } from "../core/context";
+import type { RequestContext, UnitContext } from "../core/context";
 
+import { announceEnquiry } from "../core/enquiries";
 import { forgetFace } from "../core/portal-face";
 import {
   audit,
@@ -1249,6 +1250,8 @@ export const publicSite = publicProcedure
             phone: school.phone,
             email: school.email,
           },
+          /** The public key a form's challenge renders with; null where forms take none. */
+          turnstileKey: context.turnstile?.siteKey ?? null,
           menu,
           categories: categories.map((category) => ({
             slug: category.slug,
@@ -1397,14 +1400,60 @@ const ENQUIRIES_PER_SCHOOL = 60;
 const MIN_FILL_MS = 2500;
 
 /**
+ * Whether a host the challenge was solved on is one this school's website
+ * answers at: its platform names, its own hosts, or the cell's own host,
+ * where the site is reached under `/site/<school>`.
+ */
+async function schoolHost(
+  context: RequestContext,
+  school: DirectorySchool,
+  hostname: string,
+) {
+  const name = hostname.toLowerCase();
+  if (
+    [
+      platformName(school.slug, "site", context.domains),
+      platformName(school.slug, "portal", context.domains),
+      school.hosts.site,
+      school.hosts.portal,
+      school.appHost,
+      context.domains.portal,
+    ].includes(name)
+  )
+    return true;
+  const routed = await context.directory.byHost(name);
+  return routed?.school.schoolId === school.schoolId;
+}
+
+/**
  * A visitor's message from a form section on a published page. A form that
  * came back filled by a script, or faster than a person can type, is
- * answered as if received and dropped, so the script learns nothing.
+ * answered as if received and dropped, so the script learns nothing. Where
+ * Turnstile is set up, its token must check out with Cloudflare first. What
+ * the visitor sends is read against the form as published: the contact
+ * details it asks for, and the school's own questions in the words shown.
  */
 export const submitEnquiry = publicProcedure
   .input(enquirySchema)
-  .handler(({ input, context }) =>
-    withPublicSite(
+  .handler(async ({ input, context }) => {
+    if (input.website || input.elapsed < MIN_FILL_MS) return { received: true };
+    const school = await context.directory.bySlug(input.school);
+    if (!school) throw new ORPCError("NOT_FOUND");
+    const turnstile = context.turnstile;
+    if (
+      turnstile &&
+      !(await turnstile.verify({
+        token: input.turnstile,
+        remoteIp: clientAddress(
+          context.headers.get("x-forwarded-for"),
+          context.trustedProxyHops,
+        ),
+        action: "enquiry",
+        hostAllowed: (hostname) => schoolHost(context, school, hostname),
+      }))
+    )
+      throw new ORPCError("BAD_REQUEST", { message: "site.challenge" });
+    const received = await withPublicSite(
       context,
       input.school,
       async ({ tx, tenantId, schoolId }) => {
@@ -1425,11 +1474,25 @@ export const submitEnquiry = publicProcedure
           .find((section) => section.id === input.sectionId);
         if (!published || form?.type !== "form")
           throw new ORPCError("BAD_REQUEST", { message: "site.form" });
-        if (input.website || input.elapsed < MIN_FILL_MS)
-          return { received: true };
-        if (form.data.phone === "require" && !input.phone)
+        const asks = form.data;
+        const email = asks.email === "hide" ? "" : input.email;
+        const phone = asks.phone === "hide" ? "" : input.phone;
+        if (
+          (asks.email === "require" && !email) ||
+          (asks.phone === "require" && !phone) ||
+          (!email && !phone)
+        )
           throw new ORPCError("BAD_REQUEST", {
             message: "validation.required",
+          });
+        const answers = readAnswers(asks.questions, input.answers);
+        if (!answers.ok)
+          throw new ORPCError("BAD_REQUEST", {
+            message:
+              answers.code === "required"
+                ? "validation.required"
+                : "validation.invalid",
+            data: { questionId: answers.questionId },
           });
         const network = ipPrefix(context.headers, context.trustedProxyHops);
         const networkKey = network
@@ -1450,57 +1513,33 @@ export const submitEnquiry = publicProcedure
           throw new ORPCError("TOO_MANY_REQUESTS", {
             message: "site.too_many",
           });
+        const enquiryId = Bun.randomUUIDv7();
+        const message = asks.message === "hide" ? "" : input.message;
         await insertEnquiry(tx, {
           tenantId,
+          id: enquiryId,
           orgId: schoolId,
           pageId: published.pageId,
           sectionId: form.id,
           locale,
-          purpose: form.data.purpose,
+          purpose: asks.purpose,
           name: input.name,
-          email: input.email,
-          phone: form.data.phone === "hide" ? "" : input.phone,
-          childYear: form.data.grade === "hide" ? "" : input.childYear,
-          message: input.message,
+          email,
+          phone,
+          childName: asks.child === "hide" ? "" : input.childName,
+          childYear: asks.grade === "hide" ? "" : input.childYear,
+          message,
+          answers: answers.answers,
           networkKey,
         });
-        return { received: true };
+        return { id: enquiryId, purpose: asks.purpose, message };
       },
-    ),
-  );
-
-/** The school's website enquiries, open ones or those already dealt with. */
-export const enquiries = readProcedure
-  .input(enquiriesQuerySchema)
-  .handler(async ({ input, context }) => {
-    requireCapability(context, "site:manage");
-    return {
-      rows: await siteEnquiries(context.tx, {
-        tenantId: context.tenantId,
-        orgId: context.schoolId,
-        handled: input.handled,
-        limit: 200,
-      }),
-    };
-  });
-
-export const markEnquiry = writeProcedure
-  .input(markEnquirySchema)
-  .handler(async ({ input, context }) => {
-    requireCapability(context, "site:manage");
-    const version = await setEnquiryHandled(context.tx, {
-      tenantId: context.tenantId,
-      orgId: context.schoolId,
-      id: input.id,
-      expectedVersion: input.expectedVersion,
-      handledBy: input.handled ? context.actor.userId : null,
+    );
+    await announceEnquiry(context, school, {
+      id: received.id,
+      name: input.name,
+      purpose: received.purpose,
+      message: received.message,
     });
-    if (version === null) throw conflict();
-    await audit(context, {
-      action: "site.enquiry_handled",
-      objectType: "site_enquiry",
-      objectId: input.id,
-      details: { handled: input.handled },
-    });
-    return { version };
+    return { received: true };
   });

@@ -1,3 +1,4 @@
+import type { CellTransaction } from "@faridalms/database/context";
 import type {
   NewDelivery,
   NewNotification,
@@ -40,8 +41,38 @@ export async function notify(
   userIds: readonly string[],
   notice: Notice,
 ): Promise<number> {
+  return notifyIn(
+    {
+      tx: context.tx,
+      tenantId: context.tenantId,
+      schoolId: context.schoolId,
+      actorUserId: context.actor.userId,
+      now: context.now,
+      channels: context.channels,
+    },
+    userIds,
+    notice,
+  );
+}
+
+/** Where a notice is written when no signed-in person sends it, such as a visitor's form. */
+export interface NoticeScope {
+  tx: CellTransaction;
+  tenantId: string;
+  schoolId: string;
+  /** Who caused it, who is never told about their own act; null for a visitor. */
+  actorUserId: string | null;
+  now: Date;
+  channels: UnitContext["channels"];
+}
+
+export async function notifyIn(
+  context: NoticeScope,
+  userIds: readonly string[],
+  notice: Notice,
+): Promise<number> {
   const others = [...new Set(userIds)].filter(
-    (userId) => userId !== context.actor.userId,
+    (userId) => userId !== context.actorUserId,
   );
   const holding = notice.collapse
     ? await holdingUnread(context.tx, {
@@ -64,7 +95,7 @@ export async function notify(
   const inserted = await insertNotifications(context.tx, {
     tenantId: context.tenantId,
     orgId: context.schoolId,
-    actorId: context.actor.userId,
+    actorId: context.actorUserId,
     rows,
   });
   const [people, profile] = await Promise.all([

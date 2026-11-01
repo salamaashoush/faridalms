@@ -46,6 +46,7 @@ export class ResendProvider implements Provider {
       to: [message.to],
       subject: message.subject,
       text: message.text,
+      ...(message.replyTo ? { reply_to: [message.replyTo] } : {}),
     });
     const idempotencyKey = `farida/${createHash("sha256")
       .update(message.reference ?? "")

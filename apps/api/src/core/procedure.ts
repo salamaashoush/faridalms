@@ -24,7 +24,7 @@ export const LOCALE_HEADER = "x-farida-locale";
 
 const zones = new Map<string, { at: number; zone: string }>();
 
-async function schoolZone(context: UnitContext["tx"], schoolId: string) {
+export async function schoolZone(context: UnitContext["tx"], schoolId: string) {
   const hit = zones.get(schoolId);
   if (hit && Date.now() - hit.at < 300_000) return hit.zone;
   const school = await schoolProfile(context, schoolId);

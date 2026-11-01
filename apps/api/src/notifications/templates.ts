@@ -10,6 +10,17 @@ export interface Rendered {
 
 type Line = (params: NoticeParams) => string;
 
+const ENQUIRY_EN = {
+  enquiry: "New enquiry",
+  visit: "New visit request",
+  general: "New message",
+};
+const ENQUIRY_AR = {
+  enquiry: "استفسار جديد",
+  visit: "طلب زيارة جديد",
+  general: "رسالة جديدة",
+};
+
 /** One line per notice in the reader's language; the app writes its own from the same params. */
 const LINES: Record<"en" | "ar", Record<NotificationKind, Line>> = {
   en: {
@@ -44,6 +55,10 @@ const LINES: Record<"en" | "ar", Record<NotificationKind, Line>> = {
         : `${p.actorName || "A reviewer"} sent ${p.title ?? "your piece"} back with a note.`,
     reply: (p) =>
       `${p.actorName || "Someone in your class"} replied to your post in ${p.title ?? "a discussion"}.`,
+    enquiry: (p) =>
+      p.assigned
+        ? `${p.actorName || "A colleague"} handed you the enquiry from ${p.title ?? "a family"}.`
+        : `${ENQUIRY_EN[p.purpose ?? "enquiry"]} from ${p.title ?? "a family"}${p.preview ? `: ${p.preview}` : ""}`,
   },
   ar: {
     announcement: (p) =>
@@ -78,6 +93,10 @@ const LINES: Record<"en" | "ar", Record<NotificationKind, Line>> = {
         : `أعاد ${p.actorNameAr || p.actorName || "المراجع"} ${p.title ?? "ما شاركته"} إليك مع ملاحظة.`,
     reply: (p) =>
       `ردّ ${p.actorNameAr || p.actorName || "أحد زملائك"} على مشاركتك في ${p.title ?? "النقاش"}.`,
+    enquiry: (p) =>
+      p.assigned
+        ? `أحال إليك ${p.actorName || "أحد الزملاء"} الاستفسار الوارد من ${p.title ?? "إحدى الأسر"}.`
+        : `${ENQUIRY_AR[p.purpose ?? "enquiry"]} من ${p.title ?? "إحدى الأسر"}${p.preview ? `: ${p.preview}` : ""}`,
   },
 };
 

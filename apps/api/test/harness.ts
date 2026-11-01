@@ -82,6 +82,8 @@ export const VIDEO_BYTES = 2 * 1024 * 1024;
 interface State {
   tenants: SeededTenant[];
   handler: (request: Request) => Promise<Response>;
+  /** What the app was built with, for a test that needs it built otherwise. */
+  dependencies: ApiDependencies;
   filesHost: (request: Request) => Promise<Response>;
   cell: Cell;
   directory: Directory;
@@ -166,7 +168,7 @@ export async function setUp() {
     libraries: join(import.meta.dir, "..", "vendor"),
   });
   const mail = new MemoryProvider();
-  const handler = createApp({
+  const dependencies: ApiDependencies = {
     cell,
     directory,
     keys: createKeyRing(kek, "eg-1"),
@@ -196,7 +198,8 @@ export async function setUp() {
     channels: { email: true, sms: false },
     mail,
     productInbox: "sales@example.com",
-  });
+  };
+  const handler = createApp(dependencies);
   const provisioning = openOwner(urlFor(cellName, "provisioner"));
   const provisionSecret = new Uint8Array(randomBytes(32));
   const provisioner = createProvisioner({
@@ -211,6 +214,7 @@ export async function setUp() {
   state = {
     tenants,
     handler,
+    dependencies,
     mail,
     provisioner,
     provisionSecret,
@@ -275,6 +279,11 @@ export async function setPlan(
   } finally {
     await admin.close();
   }
+}
+
+/** The same app over the same cell, with some of what it was built with replaced. */
+export function handlerWith(overrides: Partial<ApiDependencies>) {
+  return createApp({ ...seeded().dependencies, ...overrides });
 }
 
 export function seeded() {
