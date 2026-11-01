@@ -10,7 +10,6 @@ import { Eye, EyeOff, Pencil, Plus, Trash2 } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 
-import { formatDate } from "~/components/family/format";
 import { ActionMenu } from "~/components/system/ActionMenu";
 import { ComboboxField } from "~/components/system/ComboboxField";
 import { SelectField, TextField } from "~/components/system/field";
@@ -29,6 +28,7 @@ import {
   revealIdentifier,
   saveIdentifier,
 } from "~/server/records";
+import { formatDate } from "~/utils/datetime";
 import { getMessageFromError } from "~/utils/error";
 
 import { matching } from "./RecordSections";

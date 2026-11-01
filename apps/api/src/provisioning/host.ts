@@ -25,6 +25,7 @@ import {
   provisionTenantSchema,
   reissueInviteSchema,
 } from "@faridalms/domain/provisioning";
+import { schoolDate } from "@faridalms/domain/school";
 import { ORPCError } from "@orpc/server";
 import { sql } from "drizzle-orm";
 import * as v from "valibot";
@@ -32,7 +33,6 @@ import * as v from "valibot";
 import type { Provider } from "../notifications/providers";
 import type { ProvisionOperator, TokenCheck } from "./token";
 
-import { dateIn } from "../core/procedure";
 import { emailSignInLink } from "../core/sign-in-link";
 import { createTokenCheck } from "./token";
 
@@ -252,7 +252,7 @@ async function provision(
     const scope = {
       tenantId,
       schoolId: first.schoolId,
-      today: dateIn(firstSpec.timeZone, call.now),
+      today: schoolDate(firstSpec.timeZone, call.now),
     };
     const email = spec.administrator.email;
     const existing = created
@@ -302,7 +302,7 @@ async function reissue(
         {
           tenantId: request.tenantId,
           schoolId: request.schoolId,
-          today: dateIn(profile.timeZone ?? "UTC", call.now),
+          today: schoolDate(profile.timeZone ?? "UTC", call.now),
         },
         request.email,
       );

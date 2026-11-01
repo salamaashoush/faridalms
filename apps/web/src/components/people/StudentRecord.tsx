@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 
+import { ageOn } from "@faridalms/domain/school";
 import { Button } from "@faridalms/ui/button";
 import { cn } from "@faridalms/ui/cn";
 import { useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
@@ -33,7 +34,6 @@ import { initialsOf } from "~/components/app/UserMenu";
 import { StudentAttendance } from "~/components/attendance/StudentAttendance";
 import { StudentConsents } from "~/components/consents/StudentConsents";
 import { StudentCoursework } from "~/components/coursework/StudentCoursework";
-import { ageOn, formatDate } from "~/components/family/format";
 import { NewMessage } from "~/components/messages/NewMessage";
 import { StudentSkills } from "~/components/standards/Progress";
 import { ActionMenu } from "~/components/system/ActionMenu";
@@ -58,6 +58,7 @@ import {
   studentRecordQuery,
 } from "~/queries/students";
 import { cancelLeaving } from "~/server/students";
+import { formatDate } from "~/utils/datetime";
 
 import type { StudentSheet } from "./StudentSheets";
 

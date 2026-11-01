@@ -2,7 +2,6 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { toast } from "sonner";
 
-import { formatDate } from "~/components/family/format";
 import { ComboboxField } from "~/components/system/ComboboxField";
 import { SelectField, TextField } from "~/components/system/field";
 import { SheetForm } from "~/components/system/SheetForm";
@@ -11,7 +10,7 @@ import { getLocale } from "~/i18n/runtime";
 import { classDirectoryQuery } from "~/queries/classes";
 import { enrolStudent, withdrawStudent } from "~/server/classes";
 import { searchPeople } from "~/server/students";
-import { formatNumber } from "~/utils/datetime";
+import { formatDate, formatNumber } from "~/utils/datetime";
 import { getMessageFromError } from "~/utils/error";
 
 import { displayName, lastDay } from "../people/format";

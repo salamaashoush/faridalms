@@ -14,13 +14,13 @@ import type { Column } from "~/components/system/DataTable";
 import type { Tone } from "~/components/system/status";
 import type { deliveryLogQuery as Query } from "~/queries/notifications";
 
-import { formatInstant } from "~/components/coursework/format";
 import { DataTable } from "~/components/system/DataTable";
 import { IndexToolbar, PageHeader } from "~/components/system/IndexPage";
 import { StatusText } from "~/components/system/status";
-import { inLocale, useCurrentUser } from "~/hooks/useCurrentUser";
+import { inLocale } from "~/hooks/useCurrentUser";
 import * as m from "~/i18n/messages";
 import { deliveryLogQuery } from "~/queries/notifications";
+import { formatInstant } from "~/utils/datetime";
 
 const DEFAULT_SEARCH = v.parse(deliveryLogSchema, {});
 
@@ -84,7 +84,7 @@ function State({ row }: { row: Row }) {
 
 // Built per render: headers read the request's locale, which a module-level
 // array would fix at whichever language first loaded the module on the server.
-function columns(timeZone: string): Column<Row>[] {
+function columns(): Column<Row>[] {
   return [
     {
       id: "person",
@@ -110,7 +110,7 @@ function columns(timeZone: string): Column<Row>[] {
     {
       id: "when",
       header: m.ntfColWhen(),
-      cell: (row) => formatInstant(row.sentAt ?? row.dueAt, timeZone),
+      cell: (row) => formatInstant(row.sentAt ?? row.dueAt),
     },
   ];
 }
@@ -124,7 +124,6 @@ const card = {
 function DeliveryLogPage() {
   const search = Route.useSearch();
   const navigate = Route.useNavigate();
-  const user = useCurrentUser();
   const data = useSuspenseQuery(deliveryLogQuery(search)).data;
   const update = (next: Partial<DeliveryLogQuery>) =>
     void navigate({
@@ -188,7 +187,7 @@ function DeliveryLogPage() {
         <DataTable
           caption={m.ntfLogTitle()}
           rows={data.rows}
-          columns={columns(user.school.timeZone)}
+          columns={columns()}
           rowLabel={(row) => inLocale(row.fullNameEn, row.fullNameAr)}
           card={card}
           pagination={{

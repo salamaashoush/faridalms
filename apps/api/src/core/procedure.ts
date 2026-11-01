@@ -11,6 +11,7 @@ import {
   schoolProfile,
   touchSession,
 } from "@faridalms/database/stores/identity";
+import { schoolClock, schoolDate } from "@faridalms/domain/school";
 import { WORKSPACE_OF } from "@faridalms/domain/workspace";
 import { ORPCError, os } from "@orpc/server";
 
@@ -33,13 +34,12 @@ export async function schoolZone(context: UnitContext["tx"], schoolId: string) {
   return zone;
 }
 
-export function dateIn(zone: string, at = new Date()): string {
-  return new Intl.DateTimeFormat("en-CA", {
-    timeZone: zone,
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-  }).format(at);
+/** The school's wall clock at the unit's instant, `HH:MM`. */
+export async function clockOf(context: UnitContext): Promise<string> {
+  return schoolClock(
+    await schoolZone(context.tx, context.schoolId),
+    context.now,
+  );
 }
 
 /** Database and tenant failures become stable domain codes. */
@@ -145,7 +145,7 @@ export async function openUnit<T>(
             : LIFETIME[session.context].idle,
         );
       const schoolId = context.school.schoolId;
-      const today = dateIn(await schoolZone(tx, schoolId), now);
+      const today = schoolDate(await schoolZone(tx, schoolId), now);
       const resolved = await effectiveAccess(tx, {
         tenantId: token.tenantId,
         userId: session.userId,

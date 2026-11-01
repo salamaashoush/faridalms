@@ -10,7 +10,6 @@ import { useCallback, useState } from "react";
 
 import { initialsOf } from "~/components/app/UserMenu";
 import { classTitle } from "~/components/classes/format";
-import { formatStamp } from "~/components/coursework/format";
 import { displayName } from "~/components/people/format";
 import { ActionMenu, runAndReport } from "~/components/system/ActionMenu";
 import { ConfirmDialog } from "~/components/system/ConfirmDialog";
@@ -20,7 +19,7 @@ import { inLocale, useCurrentUser } from "~/hooks/useCurrentUser";
 import * as m from "~/i18n/messages";
 import { classBadgesQuery } from "~/queries/badges";
 import { issueBadges, stopBadge } from "~/server/badges";
-import { formatNumber } from "~/utils/datetime";
+import { formatInstant, formatNumber } from "~/utils/datetime";
 import { getMessageFromError } from "~/utils/error";
 
 import type { PrintedBadge } from "./BadgeSheet";
@@ -32,14 +31,14 @@ type Data = Awaited<
 >;
 type Student = Data["students"][number];
 
-function badgeLine(student: Student, timeZone: string) {
+function badgeLine(student: Student) {
   const badge = student.badge;
   if (!badge) return m.badgesNone();
   if (badge.expired)
-    return m.badgesExpired({ date: formatStamp(badge.expiresAt, timeZone) });
+    return m.badgesExpired({ date: formatInstant(badge.expiresAt, "stamp") });
   return badge.lastUsedAt
-    ? m.badgesUsed({ date: formatStamp(badge.lastUsedAt, timeZone) })
-    : m.badgesUnused({ date: formatStamp(badge.issuedAt, timeZone) });
+    ? m.badgesUsed({ date: formatInstant(badge.lastUsedAt, "stamp") })
+    : m.badgesUnused({ date: formatInstant(badge.issuedAt, "stamp") });
 }
 
 /**
@@ -130,7 +129,7 @@ export function ClassBadges({ classId }: { classId: string }) {
                   <div className="grid min-w-0 flex-1 gap-0.5">
                     <bdi className="text-sm leading-5 font-medium">{name}</bdi>
                     <span className="text-[13px] leading-[18px] text-muted-foreground">
-                      {badgeLine(student, user.school.timeZone)}
+                      {badgeLine(student)}
                     </span>
                   </div>
                   <ActionMenu

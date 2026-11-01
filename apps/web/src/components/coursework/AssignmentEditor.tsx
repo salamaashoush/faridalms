@@ -28,7 +28,6 @@ import {
 } from "@faridalms/domain/coursework";
 import { isCheck } from "@faridalms/domain/learning";
 import { quizOfBrief, sameLesson } from "@faridalms/domain/lesson-content";
-import { zonedInstant, zonedLocal } from "@faridalms/domain/school";
 import {
   CONTENT_LOCALES,
   languageDirection,
@@ -70,7 +69,7 @@ import {
 } from "~/components/system/DocumentPage";
 import { SelectField, TextField } from "~/components/system/field";
 import { useAutosave } from "~/hooks/useAutosave";
-import { inLocale, useCurrentUser } from "~/hooks/useCurrentUser";
+import { inLocale } from "~/hooks/useCurrentUser";
 import * as m from "~/i18n/messages";
 import { classGroupsQuery, courseworkOptionsQuery } from "~/queries/coursework";
 import { classPlanQuery } from "~/queries/grading";
@@ -80,13 +79,19 @@ import {
   reviewBriefTranslation,
   saveAssignment,
 } from "~/server/coursework";
-import { formatMinutes, formatNumber } from "~/utils/datetime";
+import {
+  formatInstant,
+  formatMinutes,
+  formatNumber,
+  instantFromLocal,
+  localInput,
+} from "~/utils/datetime";
 import { getMessageFromError } from "~/utils/error";
 
 import { classTitle } from "../classes/format";
 import { FeedbackBands, keptBands } from "../learning/FeedbackBands";
 import { displayName } from "../people/format";
-import { formatInstant, PHASE_LABEL, PHASE_TONE } from "./format";
+import { PHASE_LABEL, PHASE_TONE } from "./format";
 import { RubricSheet } from "./RubricSheet";
 import { UseAgainSheet } from "./UseAgain";
 import { useDocumentMedia } from "./useDocumentMedia";
@@ -250,12 +255,7 @@ const newQuiz = (): QuizDraft => ({
   bands: [],
 });
 
-function initialDraft(
-  existing: Existing | null,
-  timeZone: string,
-  classId: string,
-): Draft {
-  const local = (iso: string | null) => (iso ? zonedLocal(iso, timeZone) : "");
+function initialDraft(existing: Existing | null, classId: string): Draft {
   if (!existing)
     return {
       classId,
@@ -292,9 +292,9 @@ function initialDraft(
     audience: existing.audience,
     groupIds: existing.selection.groupIds,
     studentIds: existing.selection.studentIds,
-    availableFrom: local(existing.availableFrom),
-    dueAt: local(existing.dueAt),
-    closesAt: local(existing.closesAt),
+    availableFrom: localInput(existing.availableFrom),
+    dueAt: localInput(existing.dueAt),
+    closesAt: localInput(existing.closesAt),
     graded: existing.points !== null,
     points: existing.points === null ? "10" : String(existing.points),
     rubricId: "",
@@ -340,12 +340,6 @@ function initialDraft(
     language: existing.language ?? "auto",
     translation: existing.translation,
   };
-}
-
-function toInstant(local: string, timeZone: string): string {
-  if (!local) return "";
-  const [date = "", time = "00:00"] = local.split("T");
-  return zonedInstant(date, time, timeZone).toISOString();
 }
 
 /**
@@ -400,11 +394,11 @@ function issuesOf(draft: Draft, started: boolean) {
 }
 
 /** The dates and late rule in one sentence, as students will meet them. */
-function scheduleSentence(draft: Draft, timeZone: string) {
-  const at = (local: string) =>
-    formatInstant(toInstant(local, timeZone), timeZone);
+const dueText = (local: string) => formatInstant(instantFromLocal(local));
+
+function scheduleSentence(draft: Draft) {
   const percent = formatNumber(Number(draft.deduction) || 0);
-  const closes = draft.closesAt ? at(draft.closesAt) : null;
+  const closes = draft.closesAt ? dueText(draft.closesAt) : null;
   const late =
     draft.latePolicy === "refuse"
       ? m.courseworkLateRefuseSentence()
@@ -417,10 +411,10 @@ function scheduleSentence(draft: Draft, timeZone: string) {
           : m.courseworkLateAcceptSentence();
   return [
     draft.availableFrom
-      ? m.courseworkShownFrom({ date: at(draft.availableFrom) })
+      ? m.courseworkShownFrom({ date: dueText(draft.availableFrom) })
       : m.courseworkShownNow(),
     draft.dueAt
-      ? m.courseworkDueSentence({ date: at(draft.dueAt) })
+      ? m.courseworkDueSentence({ date: dueText(draft.dueAt) })
       : m.courseworkNoDueSentence(),
     draft.dueAt ? late : null,
   ]
@@ -452,8 +446,6 @@ export function AssignmentEditor({
   onCreated: (id: string) => void;
 }) {
   const options = useSuspenseQuery(courseworkOptionsQuery).data;
-  const user = useCurrentUser();
-  const timeZone = user.school.timeZone;
   const queryClient = useQueryClient();
   // Co-teachers write a brief together once it exists; a new one starts alone.
   const live = useCollaboration(
@@ -470,7 +462,6 @@ export function AssignmentEditor({
   const [start] = useState(() =>
     initialDraft(
       existing,
-      timeZone,
       classId ||
         (
           options.classes.find((row) => row.classType === "scheduled") ??
@@ -550,9 +541,9 @@ export function AssignmentEditor({
         audience: value.audience,
         groupIds: value.audience === "selected" ? value.groupIds : [],
         studentIds: value.audience === "selected" ? value.studentIds : [],
-        availableFrom: toInstant(value.availableFrom, timeZone),
-        dueAt: toInstant(value.dueAt, timeZone),
-        closesAt: toInstant(value.closesAt, timeZone),
+        availableFrom: instantFromLocal(value.availableFrom),
+        dueAt: instantFromLocal(value.dueAt),
+        closesAt: instantFromLocal(value.closesAt),
         latePolicy: value.latePolicy,
         ...(value.latePolicy === "deduct"
           ? { lateDeductionPercent: Number(value.deduction) }
@@ -603,7 +594,7 @@ export function AssignmentEditor({
         translation: value.translation,
       };
     },
-    [shared, timeZone],
+    [shared],
   );
 
   const persist = useCallback(
@@ -717,7 +708,7 @@ export function AssignmentEditor({
 
   const later =
     draft.availableFrom !== "" &&
-    Date.parse(toInstant(draft.availableFrom, timeZone)) > openedAt;
+    Date.parse(instantFromLocal(draft.availableFrom)) > openedAt;
 
   const assign = async () => {
     if (!check()) return;
@@ -735,10 +726,7 @@ export function AssignmentEditor({
       toast.success(
         later
           ? m.courseworkScheduledToast({
-              date: formatInstant(
-                toInstant(draft.availableFrom, timeZone),
-                timeZone,
-              ),
+              date: formatInstant(instantFromLocal(draft.availableFrom)),
             })
           : m.courseworkAssigned(),
       );
@@ -804,9 +792,9 @@ export function AssignmentEditor({
   const phase = assignmentPhase(
     {
       state,
-      availableFrom: toInstant(sent.availableFrom, timeZone) || null,
-      dueAt: toInstant(sent.dueAt, timeZone) || null,
-      closesAt: toInstant(sent.closesAt, timeZone) || null,
+      availableFrom: instantFromLocal(sent.availableFrom) || null,
+      dueAt: instantFromLocal(sent.dueAt) || null,
+      closesAt: instantFromLocal(sent.closesAt) || null,
       latePolicy: sent.latePolicy,
     },
     new Date(openedAt),
@@ -1021,7 +1009,7 @@ export function AssignmentEditor({
           chosenClass ? classTitle(chosenClass) : "",
           draft.dueAt
             ? m.courseworkDueOn({
-                date: formatInstant(toInstant(draft.dueAt, timeZone), timeZone),
+                date: formatInstant(instantFromLocal(draft.dueAt)),
               })
             : m.courseworkNoDueDate(),
           points === null
@@ -1099,7 +1087,7 @@ export function AssignmentEditor({
             </DetailsSection>
             <DetailsSection
               title={m.courseworkSectionDates()}
-              hint={scheduleSentence(draft, timeZone)}
+              hint={scheduleSentence(draft)}
             >
               <TextField
                 id="work-available"

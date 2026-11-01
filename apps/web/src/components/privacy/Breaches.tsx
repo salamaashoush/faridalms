@@ -1,6 +1,5 @@
 import type { BreachLaw, BreachRisk } from "@faridalms/domain/privacy";
 
-import { zonedInstant, zonedLocal } from "@faridalms/domain/school";
 import { Button } from "@faridalms/ui/button";
 import { Checkbox } from "@faridalms/ui/checkbox";
 import { Textarea } from "@faridalms/ui/textarea";
@@ -12,16 +11,21 @@ import { toast } from "sonner";
 import type { Column, RowAction } from "~/components/system/DataTable";
 import type { Tone } from "~/components/system/status";
 
-import { formatStamp } from "~/components/coursework/format";
 import { DataTable } from "~/components/system/DataTable";
 import { FormField, SelectField, TextField } from "~/components/system/field";
 import { SheetForm } from "~/components/system/SheetForm";
 import { StatusText } from "~/components/system/status";
 import { UserText } from "~/components/system/UserText";
-import { useCurrentUser } from "~/hooks/useCurrentUser";
 import * as m from "~/i18n/messages";
 import { breachNotices, closeBreach, saveBreach } from "~/server/privacy";
-import { formatDate, formatNumber, formatRelativeDays } from "~/utils/datetime";
+import {
+  formatDate,
+  formatInstant,
+  formatNumber,
+  formatRelativeDays,
+  instantFromLocal,
+  localInput,
+} from "~/utils/datetime";
 import { getMessageFromError } from "~/utils/error";
 
 import type { PrivacyOverview } from "./DataProtection";
@@ -48,16 +52,12 @@ function useRefresh() {
 type Standing = { tone: Tone; label: string };
 
 /** Where telling the regulator stands, and how urgent it is. */
-function regulatorStanding(
-  row: BreachRow,
-  now: number,
-  timeZone: string,
-): Standing {
+function regulatorStanding(row: BreachRow, now: number): Standing {
   if (row.regulatorNotifiedAt)
     return {
       tone: "success",
       label: m.privacyToldOn({
-        date: formatStamp(row.regulatorNotifiedAt, timeZone),
+        date: formatInstant(row.regulatorNotifiedAt, "stamp"),
       }),
     };
   if (row.regulatorReason)
@@ -70,21 +70,17 @@ function regulatorStanding(
     : {
         tone: "warning",
         label: m.privacyTellBy({
-          date: formatStamp(row.regulatorDueAt, timeZone),
+          date: formatInstant(row.regulatorDueAt, "stamp"),
         }),
       };
 }
 
-function peopleStanding(
-  row: BreachRow,
-  today: string,
-  timeZone: string,
-): Standing {
+function peopleStanding(row: BreachRow, today: string): Standing {
   if (row.peopleNotifiedAt)
     return {
       tone: "success",
       label: m.privacyToldOn({
-        date: formatStamp(row.peopleNotifiedAt, timeZone),
+        date: formatInstant(row.peopleNotifiedAt, "stamp"),
       }),
     };
   if (row.peopleReason) return { tone: "neutral", label: m.privacyNotTold() };
@@ -107,11 +103,7 @@ function BreachTitle({ row }: { row: BreachRow }) {
   return <UserText text={row.title} className="font-medium" />;
 }
 
-function breachColumns(
-  now: number,
-  today: string,
-  timeZone: string,
-): Column<BreachRow>[] {
+function breachColumns(now: number, today: string): Column<BreachRow>[] {
   return [
     {
       id: "title",
@@ -139,13 +131,13 @@ function breachColumns(
     {
       id: "discovered",
       header: m.privacyDiscovered(),
-      cell: (row) => formatStamp(row.discoveredAt, timeZone),
+      cell: (row) => formatInstant(row.discoveredAt, "stamp"),
     },
     {
       id: "regulator",
       header: m.privacyRegulator(),
       cell: (row) => {
-        const { tone, label } = regulatorStanding(row, now, timeZone);
+        const { tone, label } = regulatorStanding(row, now);
         return <StatusText tone={tone}>{label}</StatusText>;
       },
     },
@@ -153,7 +145,7 @@ function breachColumns(
       id: "people",
       header: m.privacyPeopleAffected(),
       cell: (row) => {
-        const { tone, label } = peopleStanding(row, today, timeZone);
+        const { tone, label } = peopleStanding(row, today);
         return <StatusText tone={tone}>{label}</StatusText>;
       },
     },
@@ -197,7 +189,7 @@ function nearest(row: BreachRow, now: number, today: string): Standing {
   };
 }
 
-function breachCard(now: number, today: string, timeZone: string) {
+function breachCard(now: number, today: string) {
   return {
     title: (row: BreachRow) => <BreachTitle row={row} />,
     status: (row: BreachRow) => {
@@ -205,7 +197,7 @@ function breachCard(now: number, today: string, timeZone: string) {
       return <StatusText tone={tone}>{label}</StatusText>;
     },
     fact: (row: BreachRow) =>
-      m.privacyDiscoveredOn({ date: formatStamp(row.discoveredAt, timeZone) }),
+      m.privacyDiscoveredOn({ date: formatInstant(row.discoveredAt, "stamp") }),
   };
 }
 
@@ -222,8 +214,6 @@ export function BreachesTable({
   onNotices: (row: BreachRow) => void;
   onClose: (row: BreachRow) => void;
 }) {
-  const user = useCurrentUser();
-  const timeZone = user.school.timeZone;
   const [now] = useState(() => Date.now());
   const rowActions = (row: BreachRow): RowAction[] =>
     row.closedAt
@@ -249,10 +239,10 @@ export function BreachesTable({
     <DataTable
       caption={m.privacyBreachesCaption()}
       rows={overview.breaches}
-      columns={breachColumns(now, overview.today, timeZone)}
+      columns={breachColumns(now, overview.today)}
       rowLabel={(row) => row.title}
       rowActions={rowActions}
-      card={breachCard(now, overview.today, timeZone)}
+      card={breachCard(now, overview.today)}
       empty={{
         icon: ShieldAlert,
         title: m.privacyNoBreaches(),
@@ -268,12 +258,7 @@ export function BreachesTable({
   );
 }
 
-const localNow = (timeZone: string) => zonedLocal(new Date(), timeZone);
-
-function instantOf(local: string, timeZone: string): string {
-  const [date = "", time = "00:00"] = local.split("T");
-  return zonedInstant(date, time, timeZone).toISOString();
-}
+const localNow = () => localInput(new Date().toISOString());
 
 export function BreachSheet({
   open,
@@ -285,12 +270,10 @@ export function BreachSheet({
   onClose: () => void;
 }) {
   const refresh = useRefresh();
-  const user = useCurrentUser();
-  const timeZone = user.school.timeZone;
   const [title, setTitle] = useState(breach?.title ?? "");
   const [description, setDescription] = useState(breach?.description ?? "");
   const [discovered, setDiscovered] = useState(
-    breach ? zonedLocal(breach.discoveredAt, timeZone) : localNow(timeZone),
+    breach ? localInput(breach.discoveredAt) : localNow(),
   );
   const [law, setLaw] = useState<BreachLaw>(breach?.law ?? "egypt");
   const [risk, setRisk] = useState<BreachRisk>(breach?.risk ?? "risk");
@@ -317,7 +300,7 @@ export function BreachSheet({
           ...(breach ? { id: breach.id } : {}),
           title: title.trim(),
           description: description.trim(),
-          discoveredAt: instantOf(discovered, timeZone),
+          discoveredAt: instantFromLocal(discovered),
           law,
           risk,
           peopleAffected: count,
@@ -493,14 +476,11 @@ export function NoticesSheet({
   onClose: () => void;
 }) {
   const refresh = useRefresh();
-  const user = useCurrentUser();
-  const timeZone = user.school.timeZone;
-  const local = (at: string | null) => (at ? zonedLocal(at, timeZone) : "");
   const [regulatorTold, setRegulatorTold] = useState(
     breach.regulatorNotifiedAt !== null,
   );
   const [regulatorAt, setRegulatorAt] = useState(
-    local(breach.regulatorNotifiedAt) || localNow(timeZone),
+    localInput(breach.regulatorNotifiedAt) || localNow(),
   );
   const [reference, setReference] = useState(breach.regulatorReference ?? "");
   const [regulatorReason, setRegulatorReason] = useState(
@@ -510,7 +490,7 @@ export function NoticesSheet({
     breach.peopleNotifiedAt !== null,
   );
   const [peopleAt, setPeopleAt] = useState(
-    local(breach.peopleNotifiedAt) || localNow(timeZone),
+    localInput(breach.peopleNotifiedAt) || localNow(),
   );
   const [peopleReason, setPeopleReason] = useState(breach.peopleReason ?? "");
   const [tried, setTried] = useState(false);
@@ -521,7 +501,7 @@ export function NoticesSheet({
         data: {
           id: breach.id,
           regulatorNotifiedAt: regulatorTold
-            ? instantOf(regulatorAt, timeZone)
+            ? instantFromLocal(regulatorAt)
             : null,
           regulatorReference:
             regulatorTold && reference.trim() ? reference.trim() : null,
@@ -529,7 +509,7 @@ export function NoticesSheet({
             !regulatorTold && regulatorReason.trim()
               ? regulatorReason.trim()
               : null,
-          peopleNotifiedAt: peopleTold ? instantOf(peopleAt, timeZone) : null,
+          peopleNotifiedAt: peopleTold ? instantFromLocal(peopleAt) : null,
           peopleReason:
             !peopleTold && peopleReason.trim() ? peopleReason.trim() : null,
         },
@@ -561,7 +541,7 @@ export function NoticesSheet({
         {[
           breach.regulatorRequired
             ? m.privacyRegulatorDue({
-                date: formatStamp(breach.regulatorDueAt, timeZone),
+                date: formatInstant(breach.regulatorDueAt, "stamp"),
               })
             : m.privacyRegulatorOptional(),
           breach.peopleRequired

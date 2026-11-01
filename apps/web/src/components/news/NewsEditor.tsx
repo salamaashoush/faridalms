@@ -64,6 +64,7 @@ import {
   reviewNewsTranslation,
   saveNews,
 } from "~/server/news";
+import { instantFromLocal } from "~/utils/datetime";
 import { getMessageFromError } from "~/utils/error";
 
 type Existing = Awaited<
@@ -409,7 +410,7 @@ export function NewsEditor({
         data: {
           id: id.current,
           expectedVersion: version.current,
-          publishAt: later ? new Date(sendAt).toISOString() : "",
+          publishAt: later ? instantFromLocal(sendAt) : "",
         },
       });
       await queryClient.invalidateQueries({ queryKey: ["news"] });

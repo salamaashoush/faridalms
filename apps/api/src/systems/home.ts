@@ -29,7 +29,6 @@ import { changesOn } from "@faridalms/database/stores/cover";
 import { descriptorsFor } from "@faridalms/database/stores/descriptors";
 import { eventsBetween } from "@faridalms/database/stores/events";
 import { expiringDocuments } from "@faridalms/database/stores/identifiers";
-import { schoolProfile } from "@faridalms/database/stores/identity";
 import { studentModules } from "@faridalms/database/stores/learning";
 import { threadsOf, unreadThreads } from "@faridalms/database/stores/messages";
 import { managedPosts, newsFor } from "@faridalms/database/stores/news";
@@ -66,6 +65,7 @@ import type { UnitContext } from "../core/context";
 
 import {
   can,
+  clockOf,
   localeOf,
   readProcedure,
   requireCapability,
@@ -84,17 +84,6 @@ async function yearOf(context: UnitContext) {
     await schoolYears(context.tx, context.tenantId, context.schoolId),
     context.today,
   );
-}
-
-/** The school's wall clock now, `HH:MM`, to say which period is on and which is next. */
-async function clockOf(context: UnitContext): Promise<string> {
-  const profile = await schoolProfile(context.tx, context.schoolId);
-  return new Intl.DateTimeFormat("en-GB", {
-    hour: "2-digit",
-    minute: "2-digit",
-    hourCycle: "h23",
-    timeZone: profile?.timeZone ?? "UTC",
-  }).format(context.now);
 }
 
 interface Slot {

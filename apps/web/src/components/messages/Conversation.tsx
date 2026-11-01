@@ -35,10 +35,11 @@ import {
   saveThreadDraft,
   sendMessage,
 } from "~/server/messages";
+import { formatInstant, schoolDayOf } from "~/utils/datetime";
 import { getMessageFromError } from "~/utils/error";
 
 import { ENTRY_ICON, entryTitle } from "./entries";
-import { dayHeading, dayOf, nameOf, threadTitle, timeOf } from "./format";
+import { dayHeading, nameOf, threadTitle } from "./format";
 import { MembersSheet } from "./MembersSheet";
 
 type Thread = Awaited<
@@ -90,13 +91,11 @@ function Bubble({
   own,
   showAuthor,
   seen,
-  timeZone,
 }: {
   entry: Entry;
   own: boolean;
   showAuthor: boolean;
   seen: number | null;
-  timeZone: string;
 }) {
   return (
     <li className={cn("flex", own ? "justify-end" : "justify-start")}>
@@ -134,7 +133,7 @@ function Bubble({
               <span aria-hidden>·</span>
             </>
           ) : null}
-          {timeOf(entry.createdAt, timeZone)}
+          {formatInstant(entry.createdAt, "time")}
           {seen !== null && seen > 0
             ? ` · ${m.msgSeenBy({ count: seen })}`
             : null}
@@ -153,11 +152,9 @@ function Bubble({
 function InternalEntry({
   entry,
   mailbox,
-  timeZone,
 }: {
   entry: Entry & { kind: Exclude<EntryKind, "message"> };
   mailbox: Thread["mailbox"];
-  timeZone: string;
 }) {
   const Icon = ENTRY_ICON[entry.kind];
   const title = entryTitle(mailbox, entry.kind, entry.details);
@@ -178,7 +175,7 @@ function InternalEntry({
             </>
           ) : null}
           {" · "}
-          {timeOf(entry.createdAt, timeZone)}
+          {formatInstant(entry.createdAt, "time")}
         </span>
         {entry.body ? (
           <span dir="auto" className="sr-only">
@@ -207,7 +204,7 @@ function InternalEntry({
               {" · "}
             </>
           ) : null}
-          {timeOf(entry.createdAt, timeZone)}
+          {formatInstant(entry.createdAt, "time")}
         </span>
       </p>
       <Words entry={entry} />
@@ -469,7 +466,6 @@ export function Conversation({
       ? others.filter((row) => row.outside || row.role === "member")
       : others,
   });
-  const timeZone = user.school.timeZone;
   const lastOwn = thread.messages
     .toReversed()
     .find((entry) => entry.kind === "message" && entry.authorId === user.id);
@@ -545,10 +541,10 @@ export function Conversation({
           </li>
         ) : null}
         {thread.messages.flatMap((entry, index) => {
-          const day = dayOf(entry.createdAt, timeZone);
+          const day = schoolDayOf(entry.createdAt);
           const before = thread.messages[index - 1];
           const heading =
-            before && dayOf(before.createdAt, timeZone) === day ? null : (
+            before && schoolDayOf(before.createdAt) === day ? null : (
               <li
                 key={`day-${day}`}
                 className="py-1 text-center text-[12px] font-medium text-muted-foreground"
@@ -565,14 +561,12 @@ export function Conversation({
                 own={own}
                 showAuthor={!own && (thread.members.length > 2 || thread.team)}
                 seen={seenBy(entry)}
-                timeZone={timeZone}
               />
             ) : (
               <InternalEntry
                 key={entry.id}
                 entry={entry as Entry & { kind: Exclude<EntryKind, "message"> }}
                 mailbox={thread.mailbox}
-                timeZone={timeZone}
               />
             );
           return [...(heading ? [heading] : []), drawn];

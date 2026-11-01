@@ -30,21 +30,24 @@ import { toast } from "sonner";
 import { PersonAvatar } from "~/components/admin/PersonAvatar";
 import { UnsavedChangesGuard } from "~/components/app/UnsavedChangesGuard";
 import { classTitle } from "~/components/classes/format";
-import { formatInstant } from "~/components/coursework/format";
 import { displayName } from "~/components/people/format";
 import { SelectField, TextField } from "~/components/system/field";
 import { RecordHeader } from "~/components/system/RecordPage";
-import { inLocale, useCurrentUser } from "~/hooks/useCurrentUser";
+import { inLocale } from "~/hooks/useCurrentUser";
 import * as m from "~/i18n/messages";
 import { registerQuery } from "~/queries/attendance";
 import { saveRegister } from "~/server/attendance";
-import { formatNumber } from "~/utils/datetime";
+import {
+  formatDate,
+  formatInstant,
+  formatNumber,
+  schoolClockAt,
+} from "~/utils/datetime";
 import { getMessageFromError } from "~/utils/error";
 
 import { CheckInScreen } from "./CheckInScreen";
 import { DayNav } from "./DayNav";
 import {
-  formatDay,
   formatSavedAt,
   labelOf,
   MEANING_LABEL,
@@ -233,7 +236,6 @@ function StudentRow({
   onChange: (next: Draft) => void;
 }) {
   const id = useId();
-  const timeZone = useCurrentUser().school.timeZone;
   const [open, setOpen] = useState(Boolean(draft.note || draft.reasonId));
   const timed =
     draft.meaning !== null && TIMED_MEANINGS.includes(draft.meaning);
@@ -290,7 +292,7 @@ function StudentRow({
                   from: change.from ? MEANING_LABEL[change.from]() : "–",
                   to: change.to ? MEANING_LABEL[change.to]() : "–",
                   name: inLocale(change.byNameEn, change.byNameAr),
-                  when: formatInstant(change.at, timeZone),
+                  when: formatInstant(change.at),
                 })}
                 {change.reason ? (
                   <>
@@ -467,7 +469,6 @@ function Summary({ drafts }: { drafts: Drafts }) {
 
 function RegisterForm({ data }: { data: Data }) {
   const hydrated = useHydrated();
-  const user = useCurrentUser();
   const queryClient = useQueryClient();
   const [initial] = useState(() => draftsOf(data));
   const [drafts, setDrafts] = useState(() => withReports(initial, data));
@@ -533,13 +534,7 @@ function RegisterForm({ data }: { data: Data }) {
   const lateNow = () => {
     const start = data.period.startTime;
     if (data.date !== data.today || !start) return null;
-    const clock = new Intl.DateTimeFormat("en-GB", {
-      hour: "2-digit",
-      minute: "2-digit",
-      hourCycle: "h23",
-      timeZone: user.school.timeZone,
-    }).format(new Date());
-    return minutesLate(start, clock, data.lateness.afterMinutes);
+    return minutesLate(start, schoolClockAt(), data.lateness.afterMinutes);
   };
   return (
     <form
@@ -670,11 +665,10 @@ export function Register({
   onChange: (change: { date?: string; periodId?: string }) => void;
 }) {
   const data = useSuspenseQuery(registerQuery(classId, date, periodId)).data;
-  const user = useCurrentUser();
   const [checking, setChecking] = useState(false);
   const state = data.register?.state ?? "not_started";
   const facts = [
-    { label: m.attDate(), value: formatDay(data.date) },
+    { label: m.attDate(), value: formatDate(data.date, "weekday") },
     ...(data.register
       ? [
           {
@@ -684,11 +678,7 @@ export function Register({
                 data.register.recordedByNameEn,
                 data.register.recordedByNameAr,
               ),
-              time: formatSavedAt(
-                data.register.updatedAt,
-                data.date,
-                user.school.timeZone,
-              ),
+              time: formatSavedAt(data.register.updatedAt, data.date),
             }),
           },
         ]

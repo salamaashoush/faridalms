@@ -1,6 +1,5 @@
 import type { StudentWorkAction } from "@faridalms/domain/coursework";
 
-import { zonedInstant, zonedLocal } from "@faridalms/domain/school";
 import { cn } from "@faridalms/ui/cn";
 import {
   useMutation,
@@ -58,7 +57,6 @@ import {
 import { SheetForm } from "~/components/system/SheetForm";
 import { SheetPanel } from "~/components/system/SheetPanel";
 import { StatusText } from "~/components/system/status";
-import { useCurrentUser } from "~/hooks/useCurrentUser";
 import * as m from "~/i18n/messages";
 import { getLocale } from "~/i18n/runtime";
 import { assignmentRecordQuery } from "~/queries/coursework";
@@ -69,7 +67,12 @@ import {
   extendDueDates,
   publishAssignment,
 } from "~/server/coursework";
-import { formatNumber } from "~/utils/datetime";
+import {
+  formatInstant,
+  formatNumber,
+  instantFromLocal,
+  localInput,
+} from "~/utils/datetime";
 import { getMessageFromError } from "~/utils/error";
 
 import { classTitle } from "../classes/format";
@@ -81,14 +84,7 @@ import {
   useBriefLanguage,
 } from "./BriefLanguage";
 import { Discussion } from "./Discussion";
-import {
-  formatInstant,
-  formatStamp,
-  PHASE_LABEL,
-  PHASE_TONE,
-  STATE_LABEL,
-  STATE_TONE,
-} from "./format";
+import { PHASE_LABEL, PHASE_TONE, STATE_LABEL, STATE_TONE } from "./format";
 import { PeerReviewPanel } from "./PeerReview";
 import { QuizAnswers } from "./QuizAnswers";
 import { UseAgainSheet } from "./UseAgain";
@@ -107,6 +103,8 @@ type Data = Awaited<
 >;
 type WorkRow = Data["work"][number] & { id: string };
 
+const when = (iso: string | null) => (iso ? formatInstant(iso) : null);
+
 function Settings({
   data,
   open,
@@ -116,7 +114,6 @@ function Settings({
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }) {
-  const user = useCurrentUser();
   const late = {
     accept: m.courseworkLateAccept(),
     deduct: m.courseworkLateDeductBy({
@@ -132,8 +129,6 @@ function Settings({
     quiz: m.courseworkFormatQuiz(),
     discussion: m.courseworkFormatDiscussion(),
   }[data.submissionFormat];
-  const when = (iso: string | null) =>
-    iso ? formatInstant(iso, user.school.timeZone) : null;
   return (
     <SheetPanel
       open={open}
@@ -200,7 +195,6 @@ function Brief({ data }: { data: Data }) {
 }
 
 function StateCell({ row }: { row: WorkRow }) {
-  const user = useCurrentUser();
   return (
     <span className="grid gap-0.5">
       <StatusText tone={STATE_TONE[row.learnerState]}>
@@ -209,7 +203,7 @@ function StateCell({ row }: { row: WorkRow }) {
       {row.extended && row.dueAt ? (
         <span className="text-[13px] leading-[18px] text-muted-foreground">
           {m.courseworkOwnDue({
-            date: formatInstant(row.dueAt, user.school.timeZone),
+            date: formatInstant(row.dueAt),
           })}
         </span>
       ) : null}
@@ -237,26 +231,22 @@ function ExtendSheet({
   rows: WorkRow[] | null;
   onOpenChange: (open: boolean) => void;
 }) {
-  const user = useCurrentUser();
-  const timeZone = user.school.timeZone;
   const queryClient = useQueryClient();
   const first = rows?.[0];
   const [value, setValue] = useState(() => {
     const due =
       rows?.length === 1 && first?.extended ? first.dueAt : data.dueAt;
-    return due ? zonedLocal(due, timeZone) : "";
+    return localInput(due);
   });
   const extend = useMutation({
-    mutationFn: () => {
-      const [date = "", time = "00:00"] = value.split("T");
-      return extendDueDates({
+    mutationFn: () =>
+      extendDueDates({
         data: {
           assignmentId: data.id,
           studentIds: (rows ?? []).map((row) => row.studentId),
-          dueAt: value ? zonedInstant(date, time, timeZone).toISOString() : "",
+          dueAt: instantFromLocal(value),
         },
-      });
-    },
+      }),
   });
   return (
     <SheetForm
@@ -319,10 +309,10 @@ function Score({ row, points }: { row: WorkRow; points: number | null }) {
   );
 }
 
-function HandedAt({ row, timeZone }: { row: WorkRow; timeZone: string }) {
+function HandedAt({ row }: { row: WorkRow }) {
   return row.submittedAt ? (
     <Value>
-      {formatStamp(row.submittedAt, timeZone)}
+      {formatInstant(row.submittedAt, "stamp")}
       {row.shared ? (
         <span className="ms-2 text-[13px] text-muted-foreground">
           {m.courseworkSharedMark()}
@@ -338,7 +328,6 @@ function HandedAt({ row, timeZone }: { row: WorkRow; timeZone: string }) {
 // array would fix at whichever language first loaded the module on the server.
 function workColumns(
   points: number | null,
-  timeZone: string,
   assessed: { declarationRequired: boolean } | null,
 ): Column<WorkRow>[] {
   return [
@@ -356,7 +345,7 @@ function workColumns(
     {
       id: "handed",
       header: m.courseworkHandedInAt(),
-      cell: (row) => <HandedAt row={row} timeZone={timeZone} />,
+      cell: (row) => <HandedAt row={row} />,
     },
     {
       id: "score",
@@ -418,7 +407,6 @@ function workCard(
 }
 
 function Work({ data }: { data: Data }) {
-  const user = useCurrentUser();
   const [extending, setExtending] = useState<WorkRow[] | null>(null);
   // Work done on paper is handed in by the teacher; a quiz only by its student.
   const handsIn =
@@ -579,7 +567,7 @@ function Work({ data }: { data: Data }) {
       <DataTable
         caption={m.courseworkWorkCaption()}
         rows={rows}
-        columns={workColumns(data.points, user.school.timeZone, data.assessed)}
+        columns={workColumns(data.points, data.assessed)}
         rowLabel={(row) => displayName(row)}
         rowActions={rowActions}
         batchActions={batch}
@@ -613,7 +601,6 @@ export function AssignmentRecord({
 }) {
   const data = useSuspenseQuery(assignmentRecordQuery(assignmentId)).data;
   const reading = useContext(BriefReading);
-  const user = useCurrentUser();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const refresh = () =>
@@ -640,7 +627,7 @@ export function AssignmentRecord({
     facts.push({
       label: m.courseworkDue(),
       value: m.courseworkDueOn({
-        date: formatInstant(data.dueAt, user.school.timeZone),
+        date: formatInstant(data.dueAt),
       }),
     });
   if (data.points !== null)
@@ -674,11 +661,7 @@ export function AssignmentRecord({
               data.dueAt
                 ? m.courseworkDueOn(
                     {
-                      date: formatInstant(
-                        data.dueAt,
-                        user.school.timeZone,
-                        locale,
-                      ),
+                      date: formatInstant(data.dueAt, "full", locale),
                     },
                     { locale },
                   )

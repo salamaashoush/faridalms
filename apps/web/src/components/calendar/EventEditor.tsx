@@ -61,10 +61,11 @@ import {
   removeCalendarEvent,
   saveCalendarEvent,
 } from "~/server/calendar";
+import { formatSpan } from "~/utils/datetime";
 import { getMessageFromError } from "~/utils/error";
 
 import { EVENT_SHAPES } from "./eventShapes";
-import { CATEGORY_LABEL, whenLabel } from "./format";
+import { CATEGORY_LABEL } from "./format";
 
 type Existing = Awaited<
   ReturnType<NonNullable<ReturnType<typeof calendarEventQuery>["queryFn"]>>
@@ -154,7 +155,7 @@ function draftWhen(draft: Draft) {
     draft.startTime !== "" &&
     draft.endTime !== "" &&
     (endsOn > draft.startsOn || draft.endTime > draft.startTime);
-  return whenLabel(
+  return formatSpan(
     {
       startsOn: draft.startsOn,
       endsOn,
@@ -377,7 +378,7 @@ export function EventEditor({
           facts: (locale) => [
             ...(draft.startsOn && draft.endsOn
               ? [
-                  whenLabel(
+                  formatSpan(
                     {
                       startsOn: draft.startsOn,
                       endsOn: draft.endsOn,

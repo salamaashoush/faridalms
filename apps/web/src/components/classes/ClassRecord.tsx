@@ -26,7 +26,6 @@ import type { HeaderFact, RecordTab } from "~/components/system/RecordPage";
 import { ButtonLink } from "~/components/app/ButtonLink";
 import { initialsOf } from "~/components/app/UserMenu";
 import { ClassAttendance } from "~/components/attendance/ClassAttendance";
-import { formatDate } from "~/components/family/format";
 import { AreaFiles } from "~/components/files/AreaFiles";
 import { ClassGradingSection } from "~/components/grading/ClassGrading";
 import { ClassGoals } from "~/components/standards/Goals";
@@ -47,6 +46,7 @@ import * as m from "~/i18n/messages";
 import { classOptionsQuery, classRecordQuery } from "~/queries/classes";
 import { classSoundsQuery } from "~/queries/learning";
 import { changeClassSounds } from "~/server/learning";
+import { formatDate } from "~/utils/datetime";
 
 import { CheckboxRow } from "../people/fields";
 import { displayName, labelOf } from "../people/format";

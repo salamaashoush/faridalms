@@ -55,6 +55,7 @@ import {
   reviewAnnouncementTranslation,
   saveAnnouncement,
 } from "~/server/announcements";
+import { instantFromLocal, localInput } from "~/utils/datetime";
 import { getMessageFromError } from "~/utils/error";
 
 import { AudienceList, audienceIssue, audienceSummary } from "./AudienceList";
@@ -107,13 +108,6 @@ function draftOf(existing: Existing | null): Draft {
   };
 }
 
-const localOf = (iso: string | null | undefined) => {
-  if (!iso) return "";
-  const date = new Date(iso);
-  const offset = date.getTimezoneOffset() * 60_000;
-  return new Date(date.getTime() - offset).toISOString().slice(0, 16);
-};
-
 /**
  * An announcement written as a document: the title and body take the page,
  * who it reaches and how it behaves sit beside it. Drafts save themselves;
@@ -142,7 +136,7 @@ export function AnnouncementEditor({
   const [state, setState] = useState(existing?.state ?? "draft");
   const [draft, setDraft] = useState<Draft>(() => draftOf(existing));
   const [sent, setSent] = useState<Draft>(draft);
-  const [sendAt, setSendAt] = useState(localOf(existing?.publishAt));
+  const [sendAt, setSendAt] = useState(localInput(existing?.publishAt));
   const [editorKey, setEditorKey] = useState(0);
   const [valid, setValid] = useState(true);
   // Publishing waits for files still uploading, or they would be left out.
@@ -295,7 +289,7 @@ export function AnnouncementEditor({
         data: {
           id: id.current,
           expectedVersion: version.current,
-          publishAt: sendAt ? new Date(sendAt).toISOString() : "",
+          publishAt: instantFromLocal(sendAt),
           sendUpdate: false,
         },
       });

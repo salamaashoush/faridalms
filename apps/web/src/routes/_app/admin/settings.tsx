@@ -25,7 +25,6 @@ import {
 } from "~/components/admin/SubjectCatalogue";
 import { ButtonLink } from "~/components/app/ButtonLink";
 import { AttendanceRules } from "~/components/attendance/AttendanceRules";
-import { formatDate } from "~/components/family/format";
 import { UsageBar } from "~/components/files/UsageBar";
 import { FeaturesCard } from "~/components/learning/FeaturesCard";
 import { lastDay } from "~/components/people/format";
@@ -48,6 +47,7 @@ import {
   schoolStorageQuery,
 } from "~/queries/school-settings";
 import { peopleOptionsQuery } from "~/queries/students";
+import { formatDate } from "~/utils/datetime";
 
 const searchSchema = v.object({
   section: v.optional(

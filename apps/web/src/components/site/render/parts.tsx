@@ -43,7 +43,6 @@ import {
 import { createContext, useContext, useRef, useState } from "react";
 
 import { ContentView } from "~/components/content/ContentView";
-import { numberLocale } from "~/utils/digits";
 import { sitePath } from "~/utils/host";
 
 import { SiteArt } from "./art";
@@ -112,14 +111,6 @@ export interface RenderContext {
 }
 
 export const publicMediaUrl = (key: string) => `/public-media/${key}`;
-
-/** A day in the site's language, which may differ from the reader's own setting. */
-export function siteDate(iso: string, locale: SiteLocale): string {
-  return new Intl.DateTimeFormat(numberLocale(locale), {
-    dateStyle: "medium",
-    timeZone: "UTC",
-  }).format(new Date(iso.length === 10 ? `${iso}T00:00:00Z` : iso));
-}
 
 /**
  * A link a page author wrote: a path inside the site lands at the school's

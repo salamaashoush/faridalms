@@ -8,6 +8,7 @@ import { currentUserQuery } from "~/queries/user";
 import { getWorkspacePreferences } from "~/server/auth";
 import { getFileFacts } from "~/server/files";
 import { leaveBareDomain } from "~/utils/bare-domain";
+import { adoptSchoolZone } from "~/utils/datetime";
 import { rememberDigits } from "~/utils/digits";
 
 async function currentFacts(ids: string[]) {
@@ -41,7 +42,8 @@ export const Route = createFileRoute("/_app")({
 // every signed-in route shares.
 function AppLayout() {
   const preferences = Route.useLoaderData();
-  const { digits } = useCurrentUser().school;
+  const { digits, timeZone } = useCurrentUser().school;
+  adoptSchoolZone(timeZone);
   // A page drawn before the browser knew the school's digits, or after the
   // school changed them, is drawn again in them; it happens once a change.
   useEffect(() => {

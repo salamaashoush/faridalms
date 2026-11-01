@@ -16,7 +16,7 @@ import {
 import * as m from "~/i18n/messages";
 import { schoolProfileQuery } from "~/queries/school-settings";
 import { saveSchoolProfile } from "~/server/school-settings";
-import { numberLocale } from "~/utils/digits";
+import { formatWeekday } from "~/utils/datetime";
 import { getMessageFromError } from "~/utils/error";
 
 function TimeZoneField({
@@ -59,14 +59,6 @@ function TimeZoneField({
 type Profile = Awaited<
   ReturnType<NonNullable<(typeof schoolProfileQuery)["queryFn"]>>
 >;
-
-/** ISO weekdays, 1 for Monday, named in the reader's language. */
-function dayName(day: number) {
-  return new Intl.DateTimeFormat(numberLocale(), {
-    weekday: "long",
-    timeZone: "UTC",
-  }).format(new Date(Date.UTC(2024, 0, day)));
-}
 
 const DAYS = [7, 1, 2, 3, 4, 5, 6];
 
@@ -213,7 +205,7 @@ export function SchoolProfileSection() {
           value={String(draft.weekStart)}
           options={DAYS.map((day) => ({
             value: String(day),
-            label: dayName(day),
+            label: formatWeekday(day),
           }))}
           onChange={(value) => set("weekStart", Number(value))}
           width="name"
@@ -226,7 +218,7 @@ export function SchoolProfileSection() {
             {DAYS.map((day) => (
               <CheckboxRow
                 key={day}
-                label={dayName(day)}
+                label={formatWeekday(day)}
                 checked={draft.weekendDays.includes(day)}
                 onChange={(checked) =>
                   set(

@@ -4,11 +4,12 @@ import type { EnquiryPurpose } from "@faridalms/domain/enquiries";
 import { writeAudit } from "@faridalms/database/audit";
 import { capabilityHolders } from "@faridalms/database/stores/access";
 import { openEnquiryConversation } from "@faridalms/database/stores/enquiries";
+import { schoolDate } from "@faridalms/domain/school";
 
 import type { RequestContext } from "./context";
 
 import { notifyIn } from "./notify";
-import { dateIn, schoolZone } from "./procedure";
+import { schoolZone } from "./procedure";
 
 /**
  * Records that a family sent an enquiry from the website, opens its
@@ -49,7 +50,7 @@ export async function announceEnquiry(
           orgId: school.schoolId,
           details: { source: "website", purpose: enquiry.purpose },
         });
-        const today = dateIn(await schoolZone(tx, school.schoolId), now);
+        const today = schoolDate(await schoolZone(tx, school.schoolId), now);
         const staff = await capabilityHolders(tx, {
           tenantId: school.tenantId,
           schoolId: school.schoolId,

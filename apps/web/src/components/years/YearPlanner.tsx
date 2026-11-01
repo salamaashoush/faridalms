@@ -23,13 +23,16 @@ import { toast } from "sonner";
 
 import { CheckboxRow } from "~/components/people/fields";
 import { SelectField, TextField } from "~/components/system/field";
-import { dayName } from "~/components/timetable/WeekGrid";
 import { inLocale, useCurrentUser } from "~/hooks/useCurrentUser";
 import * as m from "~/i18n/messages";
 import { yearDaysQuery } from "~/queries/years";
 import { paintYearDays, setYearTarget } from "~/server/years";
-import { formatDate, formatMonthLabel, formatNumber } from "~/utils/datetime";
-import { numberLocale } from "~/utils/digits";
+import {
+  formatWeekday,
+  formatDate,
+  formatMonthLabel,
+  formatNumber,
+} from "~/utils/datetime";
 import { getMessageFromError } from "~/utils/error";
 
 type Days = Awaited<
@@ -98,14 +101,6 @@ const OTHER = {
 };
 
 export const meaningOf = (meaning: string) => MEANING[meaning] ?? OTHER;
-
-const longDate = (iso: string) =>
-  new Intl.DateTimeFormat(numberLocale(), {
-    weekday: "long",
-    day: "numeric",
-    month: "long",
-    timeZone: "UTC",
-  }).format(new Date(`${iso}T00:00:00Z`));
 
 interface Run {
   from: string;
@@ -266,10 +261,10 @@ function Month({
               className="pb-1 font-medium text-muted-foreground"
             >
               <abbr
-                title={dayName(isoWeekday(day), "long")}
+                title={formatWeekday(isoWeekday(day), "long")}
                 className="no-underline"
               >
-                {dayName(isoWeekday(day), "short")}
+                {formatWeekday(isoWeekday(day), "short")}
               </abbr>
             </th>
           ))}
@@ -287,7 +282,7 @@ function Month({
               const chosen =
                 selected !== null && selected.from <= day && day <= selected.to;
               const label = [
-                longDate(day),
+                formatDate(day, "weekday"),
                 look.label(),
                 note,
                 entry.provisional ? m.plannerExpected() : "",

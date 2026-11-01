@@ -81,7 +81,7 @@ export const overview = readProcedure.handler(async ({ context }) => {
   ]);
   const sessions = rows.map((row) => viewOf(row, official));
   const added = new Set(rows.map((row) => row.officialSeries));
-  const today = new Date().toISOString().slice(0, 10);
+  const today = context.today;
   return {
     sessions,
     boards,

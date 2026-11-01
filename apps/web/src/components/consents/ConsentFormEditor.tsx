@@ -47,7 +47,7 @@ import {
 import { SelectField } from "~/components/system/field";
 import { SheetPanel } from "~/components/system/SheetPanel";
 import { useAutosave } from "~/hooks/useAutosave";
-import { inLocale, useCurrentUser } from "~/hooks/useCurrentUser";
+import { inLocale } from "~/hooks/useCurrentUser";
 import * as m from "~/i18n/messages";
 import { getLocale } from "~/i18n/runtime";
 import {
@@ -56,12 +56,12 @@ import {
   reviewConsentForm,
   saveConsentForm,
 } from "~/server/consents";
+import { formatInstant } from "~/utils/datetime";
 import { getMessageFromError } from "~/utils/error";
 
 import type { ConsentWording } from "./consentWordings";
 
 import { CONSENT_WORDINGS } from "./consentWordings";
-import { publishedDay } from "./format";
 
 type Data = Awaited<
   ReturnType<NonNullable<ReturnType<typeof consentFormQuery>["queryFn"]>>
@@ -145,7 +145,6 @@ export function ConsentFormEditor({
   onClose: () => void;
 }) {
   const queryClient = useQueryClient();
-  const user = useCurrentUser();
   const id = useRef(data.draft?.id ?? "");
   const version = useRef(data.draft?.version ?? 0);
   const [stored, setStored] = useState(data.draft !== null);
@@ -369,10 +368,7 @@ export function ConsentFormEditor({
                   ? m.consentFormLiveNote({
                       version: data.published.versionLabel,
                       date: data.published.publishedAt
-                        ? publishedDay(
-                            data.published.publishedAt,
-                            user.school.timeZone,
-                          )
+                        ? formatInstant(data.published.publishedAt, "date")
                         : "",
                     })
                   : m.consentFormEditStarts()}

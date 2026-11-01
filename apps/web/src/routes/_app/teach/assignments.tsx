@@ -20,23 +20,18 @@ import type {
 import { ButtonLink } from "~/components/app/ButtonLink";
 import { Value } from "~/components/app/primitives";
 import { classTitle } from "~/components/classes/format";
-import {
-  formatInstant,
-  PHASE_LABEL,
-  PHASE_TONE,
-} from "~/components/coursework/format";
+import { PHASE_LABEL, PHASE_TONE } from "~/components/coursework/format";
 import { UseAgainSheet } from "~/components/coursework/UseAgain";
 import { DataTable, RowLink } from "~/components/system/DataTable";
 import { PageHeader } from "~/components/system/IndexPage";
 import { RecordTabs } from "~/components/system/RecordPage";
 import { StatusText } from "~/components/system/status";
-import { useCurrentUser } from "~/hooks/useCurrentUser";
 import * as m from "~/i18n/messages";
 import {
   courseworkListQuery,
   courseworkOptionsQuery,
 } from "~/queries/coursework";
-import { formatNumber } from "~/utils/datetime";
+import { formatInstant, formatNumber } from "~/utils/datetime";
 
 type Data = Awaited<
   ReturnType<NonNullable<ReturnType<typeof courseworkListQuery>["queryFn"]>>
@@ -99,9 +94,9 @@ function progress(row: Row) {
   return parts.join(" · ");
 }
 
-function Due({ row, timeZone }: { row: Row; timeZone: string }) {
+function Due({ row }: { row: Row }) {
   return row.dueAt ? (
-    <Value>{formatInstant(row.dueAt, timeZone)}</Value>
+    <Value>{formatInstant(row.dueAt)}</Value>
   ) : (
     <span className="text-muted-foreground">{m.courseworkNoDueDate()}</span>
   );
@@ -109,7 +104,7 @@ function Due({ row, timeZone }: { row: Row; timeZone: string }) {
 
 // Built per render: headers read the request's locale, which a module-level
 // array would fix at whichever language first loaded the module on the server.
-function columns(timeZone: string): Column<Row>[] {
+function columns(): Column<Row>[] {
   return [
     {
       id: "title",
@@ -136,7 +131,7 @@ function columns(timeZone: string): Column<Row>[] {
     {
       id: "due",
       header: m.courseworkDue(),
-      cell: (row) => <Due row={row} timeZone={timeZone} />,
+      cell: (row) => <Due row={row} />,
     },
     {
       id: "progress",
@@ -157,7 +152,6 @@ const card = {
 function CourseworkPage() {
   const search = Route.useSearch();
   const navigate = Route.useNavigate();
-  const user = useCurrentUser();
   const data = useSuspenseQuery(courseworkListQuery(search)).data;
   const options = useSuspenseQuery(courseworkOptionsQuery).data;
   const patch = (change: Partial<TeacherListQuery>) => {
@@ -272,7 +266,7 @@ function CourseworkPage() {
         <DataTable
           caption={m.courseworkCaption()}
           rows={data.rows}
-          columns={columns(user.school.timeZone)}
+          columns={columns()}
           rowLabel={(row) => row.title}
           toolbar={toolbar}
           rowActions={rowActions}

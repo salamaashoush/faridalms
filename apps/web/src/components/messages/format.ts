@@ -1,7 +1,11 @@
 import { inLocale } from "~/hooks/useCurrentUser";
 import * as m from "~/i18n/messages";
-import { getLocale } from "~/i18n/runtime";
-import { numberLocale } from "~/utils/digits";
+import {
+  formatDate,
+  formatInstant,
+  formatList,
+  schoolDayOf,
+} from "~/utils/datetime";
 
 interface Named {
   fullNameEn: string | null;
@@ -20,44 +24,14 @@ export function threadTitle(thread: {
   if (thread.subject) return thread.subject;
   const names = thread.others.map(nameOf).filter(Boolean);
   if (names.length === 0) return m.msgOnlyYou();
-  return new Intl.ListFormat(getLocale(), { type: "conjunction" }).format(
-    names,
-  );
+  return formatList(names);
 }
 
-/** A day on the school's clock, as `YYYY-MM-DD`, for grouping messages. */
-export function dayOf(iso: string, timeZone: string): string {
-  return new Intl.DateTimeFormat("en-CA", { timeZone }).format(new Date(iso));
-}
-
-/** The time today, the day this week, the date before that. */
-export function whenShort(iso: string, today: string, timeZone: string) {
-  const at = new Date(iso);
-  const day = dayOf(iso, timeZone);
-  const options: Intl.DateTimeFormatOptions =
-    day === today
-      ? { hour: "numeric", minute: "2-digit" }
-      : { day: "numeric", month: "short" };
-  return new Intl.DateTimeFormat(numberLocale(), {
-    ...options,
-    timeZone,
-  }).format(at);
-}
-
-export function timeOf(iso: string, timeZone: string) {
-  return new Intl.DateTimeFormat(numberLocale(), {
-    hour: "numeric",
-    minute: "2-digit",
-    timeZone,
-  }).format(new Date(iso));
+/** The time today, the date before that, on the school's clock. */
+export function whenShort(iso: string, today: string) {
+  return formatInstant(iso, schoolDayOf(iso) === today ? "time" : "short");
 }
 
 export function dayHeading(day: string, today: string) {
-  if (day === today) return m.msgToday();
-  return new Intl.DateTimeFormat(numberLocale(), {
-    weekday: "long",
-    day: "numeric",
-    month: "long",
-    timeZone: "UTC",
-  }).format(new Date(`${day}T00:00:00Z`));
+  return day === today ? m.msgToday() : formatDate(day, "weekday");
 }

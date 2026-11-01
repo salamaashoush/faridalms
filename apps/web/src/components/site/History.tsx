@@ -6,11 +6,11 @@ import { RotateCcw } from "lucide-react";
 import { toast } from "sonner";
 
 import { LOCALE_NAME } from "~/components/content/languages";
-import { formatInstant } from "~/components/coursework/format";
 import { RecordList } from "~/components/system/RecordPage";
-import { inLocale, useCurrentUser } from "~/hooks/useCurrentUser";
+import { inLocale } from "~/hooks/useCurrentUser";
 import * as m from "~/i18n/messages";
 import { restoreSitePage } from "~/server/site";
+import { formatInstant } from "~/utils/datetime";
 import { getMessageFromError } from "~/utils/error";
 
 import type { Languages } from "./studio/draft";
@@ -45,7 +45,6 @@ export function History({
   rows: Version[];
   languages: Languages;
 }) {
-  const user = useCurrentUser();
   const queryClient = useQueryClient();
   const restore = useMutation({
     mutationFn: (row: Version) => {
@@ -77,7 +76,7 @@ export function History({
                 {languages.other ? ` · ${LOCALE_NAME[row.locale]()}` : ""}
               </span>
               <span className="text-[13px] leading-[18px] text-muted-foreground">
-                {[formatInstant(row.createdAt, user.school.timeZone), who]
+                {[formatInstant(row.createdAt), who]
                   .filter(Boolean)
                   .join(" · ")}
               </span>

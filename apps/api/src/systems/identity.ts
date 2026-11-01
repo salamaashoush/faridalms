@@ -50,6 +50,7 @@ import {
   findSchools as findSchoolsIn,
   portalFaceSchema,
 } from "@faridalms/domain/portal-face";
+import { schoolDate } from "@faridalms/domain/school";
 import { WORKSPACE_OF } from "@faridalms/domain/workspace";
 import { ORPCError } from "@orpc/server";
 import * as v from "valibot";
@@ -67,7 +68,6 @@ import {
 import { portalFace as readFace } from "../core/portal-face";
 import {
   audit,
-  dateIn,
   publicProcedure,
   readProcedure,
   requireCapability,
@@ -116,7 +116,7 @@ export const signIn = schoolProcedure
         });
         if (proof.limited) return { ok: false, code: "auth.too_many_attempts" };
         const { identity } = proof;
-        const today = dateIn(
+        const today = schoolDate(
           (await schoolProfile(tx, schoolId))?.timeZone ?? "UTC",
         );
         const access =
@@ -202,7 +202,7 @@ export const badgeSignIn = schoolProcedure
           return { ok: false, code: "auth.too_many_attempts" };
         }
         const holder = await findBadge(tx, badgeHash(input.secret));
-        const today = dateIn(
+        const today = schoolDate(
           (await schoolProfile(tx, schoolId))?.timeZone ?? "UTC",
         );
         const access =
@@ -354,7 +354,7 @@ async function heldInvite(
             schoolId: context.school.schoolId,
             userId: holder.userId,
             email: loginName,
-            today: dateIn(
+            today: schoolDate(
               await schoolZone(tx, context.school.schoolId),
               new Date(),
             ),

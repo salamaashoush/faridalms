@@ -45,6 +45,15 @@ const SET_STATEMENT =
   /[`'"]\s*(?:set\s+(?:local\s+|session\s+)?(?:role\b|[a-z_]+\.[a-z_]+|[a-z_]+\s*(?:=|to\b))|reset\s+(?:all|role|[a-z_]+\.[a-z_]+)\b)/i;
 const RAW_SQL = /\bsql\.raw\s*\(/;
 const POOL = /from\s+["']drizzle-orm\/bun-sql|new\s+SQL\s*\(/;
+// Dates and times are shown on the school's clock, so they are written only
+// by the helpers that know it; the browser's or the server's own zone shows
+// a family in Cairo a time hours off.
+const OWN_CLOCK =
+  /Intl\.DateTimeFormat|\.toLocale(?:Date|Time)String\(|getTimezoneOffset\(/;
+const TIME_HELPERS = new Set([
+  "apps/web/src/utils/datetime.ts",
+  "packages/domain/src/school.ts",
+]);
 
 for (const { path, text } of await sources()) {
   if (path === "scripts/check-sources.ts") continue;
@@ -71,6 +80,14 @@ for (const { path, text } of await sources()) {
   if (/singletonKey\s*:/.test(text) && !path.endsWith("/jobs.ts"))
     problems.push(
       `${path}: a pg-boss singleton key not built by the tenant helper`,
+    );
+  if (
+    !TIME_HELPERS.has(path) &&
+    (path.startsWith("apps/") || path.startsWith("packages/editor/")) &&
+    OWN_CLOCK.test(text)
+  )
+    problems.push(
+      `${path}: formats or reads a time outside the school's time helpers`,
     );
 }
 

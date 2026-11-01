@@ -25,16 +25,20 @@ import {
   APPLICATION_STATE_TONE,
   PRIORITY_LABEL,
 } from "~/components/admissions/application-labels";
-import { formatInstant } from "~/components/coursework/format";
 import { DataTable, RowLink } from "~/components/system/DataTable";
 import { IndexToolbar, PageHeader } from "~/components/system/IndexPage";
 import { RecordTabs } from "~/components/system/RecordPage";
 import { StatusText } from "~/components/system/status";
-import { inLocale, useCurrentUser } from "~/hooks/useCurrentUser";
+import { inLocale } from "~/hooks/useCurrentUser";
 import * as m from "~/i18n/messages";
 import { applicationsQuery } from "~/queries/admissions";
 import { currentUserQuery } from "~/queries/user";
-import { formatDate, formatList, formatNumber } from "~/utils/datetime";
+import {
+  formatInstant,
+  formatDate,
+  formatList,
+  formatNumber,
+} from "~/utils/datetime";
 
 const DEFAULT_SEARCH = v.parse(applicationListSchema, {});
 
@@ -86,7 +90,7 @@ const State = ({ row }: { row: Row }) => (
   </StatusText>
 );
 
-function columns(timeZone: string): Column<Row>[] {
+function columns(): Column<Row>[] {
   return [
     {
       id: "child",
@@ -131,9 +135,7 @@ function columns(timeZone: string): Column<Row>[] {
       header: m.aplColSent(),
       cell: (row) => (
         <span className="whitespace-nowrap text-muted-foreground">
-          {row.submittedAt
-            ? formatInstant(row.submittedAt, timeZone)
-            : m.aplNotSent()}
+          {row.submittedAt ? formatInstant(row.submittedAt) : m.aplNotSent()}
         </span>
       ),
     },
@@ -171,7 +173,6 @@ const viewLabel = (view: ApplicationView) =>
 function ApplicationsPage() {
   const search = Route.useSearch();
   const navigate = Route.useNavigate();
-  const user = useCurrentUser();
   const data = useSuspenseQuery(applicationsQuery(search)).data;
   const update = (next: Partial<ApplicationListQuery>) =>
     void navigate({
@@ -259,7 +260,7 @@ function ApplicationsPage() {
           <DataTable
             caption={m.aplCaption({ view: viewLabel(search.state) })}
             rows={data.rows}
-            columns={columns(user.school.timeZone)}
+            columns={columns()}
             rowLabel={(row) => inLocale(row.applicantEn, row.applicantAr)}
             card={CARD}
             pagination={{

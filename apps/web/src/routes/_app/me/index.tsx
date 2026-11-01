@@ -4,11 +4,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { House, Play } from "lucide-react";
 
 import { classTitle } from "~/components/classes/format";
-import {
-  formatInstant,
-  STATE_LABEL,
-  STATE_TONE,
-} from "~/components/coursework/format";
+import { STATE_LABEL, STATE_TONE } from "~/components/coursework/format";
 import {
   HomeCard,
   HomeItem,
@@ -25,7 +21,7 @@ import * as m from "~/i18n/messages";
 import { studentHomeQuery } from "~/queries/home";
 import { nextLessonsQuery } from "~/queries/learning";
 import { currentUserQuery } from "~/queries/user";
-import { formatDate, formatNumber } from "~/utils/datetime";
+import { formatInstant, formatDate, formatNumber } from "~/utils/datetime";
 
 export const Route = createFileRoute("/_app/me/")({
   loader: async ({ context }) => {
@@ -53,7 +49,6 @@ function Home() {
  * lessons, a lesson to pick up again, and news from their classes.
  */
 function StudentHome() {
-  const user = useCurrentUser();
   const data = useSuspenseQuery(studentHomeQuery).data;
   const main = [
     data.due.length > 0 ? (
@@ -85,9 +80,7 @@ function StudentHome() {
                   titleEn: row.classTitleEn,
                   titleAr: row.classTitleAr,
                 }),
-                row.dueAt
-                  ? formatInstant(row.dueAt, user.school.timeZone)
-                  : null,
+                row.dueAt ? formatInstant(row.dueAt) : null,
               ]}
               status={
                 <StatusText tone={STATE_TONE[row.state]}>

@@ -6,12 +6,11 @@ import {
 } from "@faridalms/database/stores/events";
 import { schoolProfile } from "@faridalms/database/stores/identity";
 import { calendarIcs } from "@faridalms/domain/calendar";
-import { addDays } from "@faridalms/domain/school";
+import { schoolDate, addDays } from "@faridalms/domain/school";
 
 import type { RequestContext } from "../core/context";
 
 import { portalOrigin } from "../core/portal";
-import { dateIn } from "../core/procedure";
 import { feedLessons } from "./lessons";
 
 const FEED = /^\/feeds\/([a-z0-9-]{1,60})\/([A-Za-z0-9_-]{43})\.ics$/;
@@ -68,7 +67,7 @@ export async function handleCalendarFeed(
       if (!owner) return null;
       const profile = await schoolProfile(tx, school.schoolId);
       const timeZone = profile?.timeZone ?? "UTC";
-      const today = dateIn(timeZone);
+      const today = schoolDate(timeZone);
       const range = {
         tenantId: school.tenantId,
         schoolId: school.schoolId,

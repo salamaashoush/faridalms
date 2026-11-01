@@ -84,7 +84,7 @@ import {
   saveSiteSettings,
   unpublishSitePage,
 } from "~/server/site";
-import { formatNumber } from "~/utils/datetime";
+import { formatNumber, instantFromLocal } from "~/utils/datetime";
 import { getMessageFromError } from "~/utils/error";
 
 import type { SiteFrameModel } from "../render/frame";
@@ -566,9 +566,7 @@ export function SiteStudio({
     bannerEn: settings.bannerEn,
     bannerAr: settings.bannerAr,
     bannerTone: settings.bannerTone,
-    bannerUntil: settings.bannerUntil
-      ? new Date(settings.bannerUntil).toISOString()
-      : "",
+    bannerUntil: settings.bannerUntil ?? "",
   };
   const save = useMutation({
     mutationFn: async (snapshot: StudioDraft) => {
@@ -1322,7 +1320,7 @@ export function SiteStudio({
             <Button
               type="button"
               disabled={!publishAt || busy}
-              onClick={() => void doPublish(new Date(publishAt).toISOString())}
+              onClick={() => void doPublish(instantFromLocal(publishAt))}
             >
               {m.siteSchedule()}
             </Button>

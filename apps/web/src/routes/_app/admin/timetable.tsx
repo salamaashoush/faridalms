@@ -15,7 +15,6 @@ import { RecordTabs } from "~/components/system/RecordPage";
 import { StatusText } from "~/components/system/status";
 import { CoverDay } from "~/components/timetable/Cover";
 import { Planner } from "~/components/timetable/Planner";
-import { dayName } from "~/components/timetable/WeekGrid";
 import {
   roomLabel,
   RoomWeek,
@@ -32,6 +31,7 @@ import {
   timetableGridQuery,
   timetableOptionsQuery,
 } from "~/queries/timetable";
+import { formatWeekday } from "~/utils/datetime";
 
 const VIEWS = ["classes", "teachers", "rooms", "cover", "clashes"] as const;
 type View = (typeof VIEWS)[number];
@@ -155,7 +155,7 @@ function clashColumns(periods: Map<string, string>): Column<Clash>[] {
       id: "when",
       header: m.ttWhen(),
       cell: (row) =>
-        `${dayName(row.weekday)} · ${periods.get(row.periodId) ?? ""}`,
+        `${formatWeekday(row.weekday)} · ${periods.get(row.periodId) ?? ""}`,
     },
     {
       id: "teacher",
@@ -169,7 +169,7 @@ function clashColumns(periods: Map<string, string>): Column<Clash>[] {
 const clashCard = {
   title: (row: Clash) => <ClashGrid row={row} />,
   status: () => <StatusText tone="warning">{m.ttClash()}</StatusText>,
-  fact: (row: Clash) => `${clashLesson(row)} · ${dayName(row.weekday)}`,
+  fact: (row: Clash) => `${clashLesson(row)} · ${formatWeekday(row.weekday)}`,
 };
 
 function Clashes({ from }: { from: string }) {

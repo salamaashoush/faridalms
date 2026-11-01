@@ -14,7 +14,7 @@ import { useEffect, useState } from "react";
 
 import * as m from "~/i18n/messages";
 import { programRunsQuery } from "~/queries/learning";
-import { formatDateTime, formatNumber } from "~/utils/datetime";
+import { formatInstant, formatNumber } from "~/utils/datetime";
 
 import { friendlyError } from "./friendly";
 import { changedLines } from "./lines";
@@ -329,7 +329,7 @@ export function ProgramReplay(input: {
             {attempts > 1
               ? `${m.lrnAttemptIs({ number: formatNumber(step.attempt) })} · `
               : ""}
-            {formatDateTime(step.at)}
+            {formatInstant(step.at, "medium")}
           </p>
         </div>
         {code === null ? null : (

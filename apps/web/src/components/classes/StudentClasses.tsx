@@ -5,7 +5,6 @@ import { Link } from "@tanstack/react-router";
 import { ArrowRightLeft, UserMinus } from "lucide-react";
 import { useState } from "react";
 
-import { formatDate } from "~/components/family/format";
 import {
   phoneLink,
   RecordEmpty,
@@ -17,6 +16,7 @@ import { inLocale } from "~/hooks/useCurrentUser";
 import * as m from "~/i18n/messages";
 import { enrollmentHistoryQuery } from "~/queries/classes";
 import { peopleOptionsQuery } from "~/queries/students";
+import { formatDate } from "~/utils/datetime";
 
 import { lastDay } from "../people/format";
 import { MoveClassSheet, WithdrawSheet } from "./Enrolment";

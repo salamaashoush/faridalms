@@ -2,9 +2,9 @@ import type { YearStanding } from "@faridalms/domain/years";
 
 import type { Tone } from "~/components/system/status";
 
-import { formatDate } from "~/components/family/format";
 import { inLocale } from "~/hooks/useCurrentUser";
 import * as m from "~/i18n/messages";
+import { formatDate } from "~/utils/datetime";
 
 import { lastDay } from "../people/format";
 

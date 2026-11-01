@@ -9,13 +9,12 @@ import { useQuery } from "@tanstack/react-query";
 import { classTitle } from "~/components/classes/format";
 import { ContentView } from "~/components/content/ContentView";
 import { RecordEmpty } from "~/components/system/RecordPage";
-import { useCurrentUser } from "~/hooks/useCurrentUser";
 import * as m from "~/i18n/messages";
 import { getLocale, getTextDirection } from "~/i18n/runtime";
 import { childBriefQuery } from "~/queries/coursework";
+import { formatInstant } from "~/utils/datetime";
 
 import { useBriefLanguage } from "./BriefLanguage";
-import { formatInstant } from "./format";
 
 const fileUrl = (fileId: string) => `/files/${fileId}`;
 
@@ -24,7 +23,6 @@ type Data = Awaited<
 >;
 
 function Read({ data }: { data: Data }) {
-  const user = useCurrentUser();
   const reading = useBriefLanguage({
     title: data.assignment.title,
     brief: data.brief,
@@ -35,7 +33,7 @@ function Read({ data }: { data: Data }) {
     data.assignment.class ? classTitle(data.assignment.class) : null,
     data.assignment.dueAt
       ? m.courseworkDueOn({
-          date: formatInstant(data.assignment.dueAt, user.school.timeZone),
+          date: formatInstant(data.assignment.dueAt),
         })
       : null,
   ].filter(Boolean);

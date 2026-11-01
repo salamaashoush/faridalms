@@ -37,6 +37,7 @@ import { useEffect, useRef, useState } from "react";
 import { ContentView } from "~/components/content/ContentView";
 import * as m from "~/i18n/messages";
 import { submitSiteEnquiry } from "~/server/site";
+import { formatDate, formatInstant, formatMonthShort } from "~/utils/datetime";
 import { numberLocale } from "~/utils/digits";
 
 import type { RenderContext } from "./parts";
@@ -58,7 +59,6 @@ import {
   SectionIntro,
   SiteAnchor,
   SiteIcon,
-  siteDate,
 } from "./parts";
 import { focusStyle } from "./theme";
 import { TurnstileWidget } from "./turnstile";
@@ -576,7 +576,9 @@ function PageHeader({ section, context, first }: Props<"pageHeader">) {
 
 function Announcement({ section, context }: Props<"announcement">) {
   const { data, variant } = section;
-  const date = data.date ? siteDate(data.date, context.locale) : null;
+  const date = data.date
+    ? formatDate(data.date, "medium", context.locale)
+    : null;
   return (
     <div
       className={cn(
@@ -1747,7 +1749,7 @@ function News({ section, context }: Props<"news">) {
                   className="site-muted text-sm"
                   dateTime={item.publishedAt}
                 >
-                  {siteDate(item.publishedAt, context.locale)}
+                  {formatInstant(item.publishedAt, "date", context.locale)}
                 </time>
                 <span className="site-heading site-h3 group-hover:text-[var(--s-link)]">
                   {item.title}
@@ -1785,7 +1787,7 @@ function News({ section, context }: Props<"news">) {
                   />
                   <div className="grid gap-3 p-6 @3xl/site:p-7">
                     <time className="site-eyebrow" dateTime={item.publishedAt}>
-                      {siteDate(item.publishedAt, context.locale)}
+                      {formatInstant(item.publishedAt, "date", context.locale)}
                     </time>
                     <span
                       className={cn(
@@ -1852,20 +1854,13 @@ function Events({ section, context }: Props<"events">) {
   const { data, variant } = section;
   const t = { locale: context.locale };
   const items = listedEvents(data, context);
-  const dayMonth = (date: string) => {
-    if (!date) return { day: "", month: "" };
-    const at = new Date(`${date}T00:00:00Z`);
-    return {
-      day: new Intl.DateTimeFormat(numberLocale(context.locale), {
-        day: "numeric",
-        timeZone: "UTC",
-      }).format(at),
-      month: new Intl.DateTimeFormat(numberLocale(context.locale), {
-        month: "short",
-        timeZone: "UTC",
-      }).format(at),
-    };
-  };
+  const dayMonth = (date: string) =>
+    date
+      ? {
+          day: formatDate(date, "day", context.locale),
+          month: formatMonthShort(date, context.locale),
+        }
+      : { day: "", month: "" };
   return (
     <div>
       <SectionIntro
@@ -1948,7 +1943,9 @@ function Events({ section, context }: Props<"events">) {
 
 function Admissions({ section, context }: Props<"admissions">) {
   const { data, variant } = section;
-  const date = data.date ? siteDate(data.date, context.locale) : null;
+  const date = data.date
+    ? formatDate(data.date, "medium", context.locale)
+    : null;
   if (variant === "banner" || variant === "keyDate")
     return (
       <div className="grid items-center gap-10 @3xl/site:grid-cols-[1fr_auto]">

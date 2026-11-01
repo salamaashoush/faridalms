@@ -458,6 +458,8 @@ export interface DueDelivery {
   params: NoticeParams;
   schoolNameEn: string | null;
   schoolNameAr: string | null;
+  /** The digits the school writes Arabic in, which its mail follows. */
+  digits: "latn" | "arab";
 }
 
 /**
@@ -481,10 +483,11 @@ export async function claimDue(
     params: NoticeParams;
     name_en: string | null;
     name_ar: string | null;
+    digits: "latn" | "arab";
   }>(sql`
     select d.id, d.created_at::text as created_at, d.user_id, d.channel, d.address, d.locale,
            d.attempts, coalesce((d.metadata ->> 'digest')::boolean, false) as digest,
-           n.kind, n.params, o.name_en, o.name_ar
+           n.kind, n.params, o.name_en, o.name_ar, o.digits
     from core.notification_deliveries d
     join core.notifications n on n.tenant_id = d.tenant_id and n.created_at = d.notification_created_at
       and n.id = d.notification_id
@@ -508,6 +511,7 @@ export async function claimDue(
     params: row.params,
     schoolNameEn: row.name_en,
     schoolNameAr: row.name_ar,
+    digits: row.digits,
   }));
 }
 

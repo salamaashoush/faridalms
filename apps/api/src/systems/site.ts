@@ -1040,6 +1040,7 @@ export const publicSite = publicProcedure
           primaryLocale: settings.primaryLocale,
           locales: localesOf(settings),
           digits: school.digits,
+          timeZone: school.timeZone,
           portalHost,
           name: (locale === "ar" ? school.nameAr : null) || school.nameEn,
           tagline:

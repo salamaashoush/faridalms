@@ -34,11 +34,12 @@ import {
   safeFilename,
 } from "@faridalms/domain/file";
 import { limitsOf } from "@faridalms/domain/plans";
+import { schoolDate } from "@faridalms/domain/school";
 
 import type { RequestContext } from "../core/context";
 import type { Inbox } from "../notifications/resend-inbox";
 
-import { dateIn, schoolZone } from "../core/procedure";
+import { schoolZone } from "../core/procedure";
 import { takeChecked } from "../files/ingest";
 import { verifyWebhook } from "../notifications/resend-inbox";
 import { writeEntry } from "./conversations";
@@ -258,7 +259,7 @@ async function takeMail(
           actorUserId: null,
           now,
           channels: context.channels,
-          today: dateIn(await schoolZone(tx, target.orgId), now),
+          today: schoolDate(await schoolZone(tx, target.orgId), now),
         };
         if (prepared.trusted) {
           const entryId = Bun.randomUUIDv7();

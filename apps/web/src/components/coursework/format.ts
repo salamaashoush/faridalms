@@ -4,12 +4,9 @@ import type {
 } from "@faridalms/domain/coursework";
 
 import type { Tone } from "~/components/system/status";
-import type { Locale } from "~/i18n/runtime";
 
 import * as m from "~/i18n/messages";
-import { getLocale } from "~/i18n/runtime";
 import { formatNumber } from "~/utils/datetime";
-import { numberLocale } from "~/utils/digits";
 
 export const STATE_LABEL: Record<LearnerState, () => string> = {
   not_available: m.courseworkStateNotAvailable,
@@ -52,33 +49,6 @@ export const PHASE_TONE: Record<AssignmentPhase, Tone> = {
   closed: "neutral",
   archived: "neutral",
 };
-
-/** An instant on the school's clock, the way due times are read. */
-export function formatInstant(
-  iso: string,
-  timeZone: string,
-  locale: Locale = getLocale(),
-): string {
-  return new Intl.DateTimeFormat(numberLocale(locale), {
-    weekday: "short",
-    day: "numeric",
-    month: "short",
-    hour: "numeric",
-    minute: "2-digit",
-    timeZone,
-  }).format(new Date(iso));
-}
-
-/** An instant in a table cell, where the weekday is noise beside the date. */
-export function formatStamp(iso: string, timeZone: string): string {
-  return new Intl.DateTimeFormat(numberLocale(), {
-    day: "numeric",
-    month: "short",
-    hour: "numeric",
-    minute: "2-digit",
-    timeZone,
-  }).format(new Date(iso));
-}
 
 export function formatScore(score: number | null, points: number | null) {
   if (score === null) return "";

@@ -11,11 +11,12 @@ import type {
 
 import { ContentView } from "~/components/content/ContentView";
 import * as m from "~/i18n/messages";
+import { formatInstant } from "~/utils/datetime";
 
 import type { PublicSite } from "./SiteShell";
 
 import { opensOnPicture, PageSections } from "./render/page";
-import { publicMediaUrl, siteDate } from "./render/parts";
+import { publicMediaUrl } from "./render/parts";
 import { schemeStyle } from "./render/theme";
 import { langSearch, publicContext, SiteShell } from "./SiteShell";
 
@@ -111,7 +112,7 @@ export function PostList({
             ) : null}
             <div className="grid gap-2 p-6">
               <time className="site-muted text-sm" dateTime={post.publishedAt}>
-                {siteDate(post.publishedAt, site.locale)}
+                {formatInstant(post.publishedAt, "date", site.locale)}
               </time>
               <span className="site-heading site-h3">
                 {post.pinned ? (
@@ -184,7 +185,7 @@ export function PublicPostView({
         </Link>
         <h1 className="site-heading site-display max-w-4xl">{post.title}</h1>
         <time className="site-muted" dateTime={post.publishedAt}>
-          {siteDate(post.publishedAt, site.locale)}
+          {formatInstant(post.publishedAt, "date", site.locale)}
         </time>
       </PageBand>
       <article

@@ -10,6 +10,7 @@ import type { HostView } from "~/utils/host";
 import { env } from "~/env";
 import { paraglideMiddleware } from "~/i18n/server";
 import { routeHost, withPlace } from "~/server/place";
+import { overwriteZoneSource } from "~/utils/datetime";
 import {
   DIGITS_COOKIE,
   digitsOfCookie,
@@ -18,14 +19,21 @@ import {
 import { overwriteHostSource } from "~/utils/host";
 import "~/preview-locale";
 
-// Pages for two schools may be drawn at once; each keeps its own digits,
-// which a public website changes to its school's as it is drawn.
-const requestDigits = new AsyncLocalStorage<{ digits: Digits }>();
+// Pages for two schools may be drawn at once; each keeps its own digits
+// and clock, which the page adopts from its school as it is drawn.
+const requestSchool = new AsyncLocalStorage<{ digits: Digits; zone: string }>();
 overwriteDigitsSource(
-  () => requestDigits.getStore()?.digits ?? "latn",
+  () => requestSchool.getStore()?.digits ?? "latn",
   (next) => {
-    const held = requestDigits.getStore();
+    const held = requestSchool.getStore();
     if (held) held.digits = next;
+  },
+);
+overwriteZoneSource(
+  () => requestSchool.getStore()?.zone ?? "UTC",
+  (next) => {
+    const held = requestSchool.getStore();
+    if (held) held.zone = next;
   },
 );
 
@@ -86,8 +94,11 @@ function render(request: Request) {
   // Hand the ORIGINAL request to the handler, not the delocalized one the
   // middleware yields: TanStack Router does its own URL rewriting and the two
   // together produce a redirect loop.
-  return requestDigits.run(
-    { digits: digitsOfCookie(request.headers.get("cookie") ?? "") },
+  return requestSchool.run(
+    {
+      digits: digitsOfCookie(request.headers.get("cookie") ?? ""),
+      zone: "UTC",
+    },
     () => paraglideMiddleware(request, () => handler.fetch(request)),
   );
 }

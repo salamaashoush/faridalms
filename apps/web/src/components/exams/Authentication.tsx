@@ -9,14 +9,13 @@ import { useDocumentMedia } from "~/components/coursework/useDocumentMedia";
 import { FormField } from "~/components/system/field";
 import { SheetForm } from "~/components/system/SheetForm";
 import { StatusText } from "~/components/system/status";
-import { inLocale, useCurrentUser } from "~/hooks/useCurrentUser";
+import { inLocale } from "~/hooks/useCurrentUser";
 import * as m from "~/i18n/messages";
 import { workStandingQuery } from "~/queries/exams";
 import { authenticateWork, recordPaperDeclaration } from "~/server/exams";
-import { formatDate } from "~/utils/datetime";
+import { formatInstant, formatDate } from "~/utils/datetime";
 import { getMessageFromError } from "~/utils/error";
 
-import { formatInstant } from "../coursework/format";
 import { isolatedLine, sessionName } from "./names";
 
 type Standing = NonNullable<
@@ -41,7 +40,6 @@ function useRefresh() {
 
 /** Where a student's declaration stands, with when and whether AI was used. */
 export function DeclarationStatus({ student }: { student: Marks }) {
-  const user = useCurrentUser();
   const declaration = student.declaration;
   if (!student.attemptId)
     return <StatusText tone="neutral">{m.courseworkNotHandedIn()}</StatusText>;
@@ -52,7 +50,7 @@ export function DeclarationStatus({ student }: { student: Marks }) {
   const detail = [
     declaration.kind === "student"
       ? m.declarationSignedOn({
-          date: formatInstant(declaration.declaredAt, user.school.timeZone),
+          date: formatInstant(declaration.declaredAt),
         })
       : null,
     declaration.aiUsed ? m.declarationUsedAi() : null,

@@ -24,7 +24,6 @@ import { ContentEditor } from "~/components/content/ContentEditor";
 import { ContentView } from "~/components/content/ContentView";
 import { ActionMenu } from "~/components/system/ActionMenu";
 import { RecordEmpty, RecordSection } from "~/components/system/RecordPage";
-import { useCurrentUser } from "~/hooks/useCurrentUser";
 import * as m from "~/i18n/messages";
 import { discussionQuery } from "~/queries/coursework";
 import {
@@ -32,11 +31,10 @@ import {
   hideDiscussionPost,
   postInDiscussion,
 } from "~/server/coursework";
-import { formatNumber } from "~/utils/datetime";
+import { formatInstant, formatNumber } from "~/utils/datetime";
 import { getMessageFromError } from "~/utils/error";
 
 import { displayName } from "../people/format";
-import { formatInstant } from "./format";
 import { useDocumentMedia } from "./useDocumentMedia";
 
 type Data = Awaited<
@@ -131,7 +129,6 @@ function PostItem({
   data: Data;
   assignmentId: string;
 }) {
-  const user = useCurrentUser();
   const queryClient = useQueryClient();
   const [editing, setEditing] = useState(false);
   const name = nameOf(post);
@@ -170,7 +167,7 @@ function PostItem({
             ) : null}
             <span className="text-[13px] leading-[18px] text-muted-foreground">
               {[
-                formatInstant(post.createdAt, user.school.timeZone),
+                formatInstant(post.createdAt),
                 post.editedAt ? m.discussionEdited() : null,
               ]
                 .filter(Boolean)
@@ -286,7 +283,6 @@ export function DiscussionPosts({
   standing: Standing;
   posts: MarkedPost[];
 }) {
-  const user = useCurrentUser();
   return (
     <section aria-labelledby="discussion-posts" className="grid gap-4">
       <h2 id="discussion-posts" className="text-base leading-6 font-semibold">
@@ -299,7 +295,7 @@ export function DiscussionPosts({
             <li key={post.id} className="grid gap-2 py-4 first:pt-0 last:pb-0">
               <p className="text-[13px] leading-[18px] text-muted-foreground">
                 {[
-                  formatInstant(post.createdAt, user.school.timeZone),
+                  formatInstant(post.createdAt),
                   post.editedAt ? m.discussionEdited() : null,
                   post.hidden ? m.discussionHidden() : null,
                 ]

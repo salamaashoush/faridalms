@@ -12,11 +12,11 @@ import { useMutation, useQuery } from "@tanstack/react-query";
 import { RotateCcw } from "lucide-react";
 import { toast } from "sonner";
 
-import { formatInstant } from "~/components/coursework/format";
-import { inLocale, useCurrentUser } from "~/hooks/useCurrentUser";
+import { inLocale } from "~/hooks/useCurrentUser";
 import * as m from "~/i18n/messages";
 import { getLocale, getTextDirection } from "~/i18n/runtime";
 import { getDocumentHistory, restoreDocumentVersion } from "~/server/documents";
+import { formatInstant } from "~/utils/datetime";
 import { getMessageFromError } from "~/utils/error";
 
 type Reason = "publish" | "checkpoint" | "before_restore" | "import";
@@ -46,7 +46,6 @@ export function DocumentHistory({
   hostId: string;
   onRestore: (content: ContentDocument) => void;
 }) {
-  const user = useCurrentUser();
   const versions = useQuery({
     queryKey: ["documents", "history", hostType, hostId],
     queryFn: () => getDocumentHistory({ data: { hostType, hostId } }),
@@ -97,10 +96,7 @@ export function DocumentHistory({
                         {REASON[row.reason]()}
                       </span>
                       <span className="text-[13px] leading-[18px] text-muted-foreground">
-                        {[
-                          formatInstant(row.createdAt, user.school.timeZone),
-                          who,
-                        ]
+                        {[formatInstant(row.createdAt), who]
                           .filter(Boolean)
                           .join(" · ")}
                       </span>

@@ -5,12 +5,10 @@ import type { Column } from "~/components/system/DataTable";
 
 import { DataTable, RowLink } from "~/components/system/DataTable";
 import { StatusText } from "~/components/system/status";
-import { inLocale, useCurrentUser } from "~/hooks/useCurrentUser";
+import { inLocale } from "~/hooks/useCurrentUser";
 import * as m from "~/i18n/messages";
 import { consentFormsQuery } from "~/queries/consents";
-import { formatNumber } from "~/utils/datetime";
-
-import { publishedDay } from "./format";
+import { formatInstant, formatNumber } from "~/utils/datetime";
 
 type Data = Awaited<
   ReturnType<NonNullable<(typeof consentFormsQuery)["queryFn"]>>
@@ -28,7 +26,6 @@ function Purpose({ row }: { row: Row }) {
 }
 
 function FormState({ row }: { row: Row }) {
-  const user = useCurrentUser();
   if (!row.published)
     return (
       <StatusText tone={row.draftId ? "info" : "warning"}>
@@ -41,7 +38,7 @@ function FormState({ row }: { row: Row }) {
         {m.consentFormsVersion({
           version: row.published.versionLabel,
           date: row.published.publishedAt
-            ? publishedDay(row.published.publishedAt, user.school.timeZone)
+            ? formatInstant(row.published.publishedAt, "date")
             : "",
         })}
       </span>

@@ -50,21 +50,19 @@ import { FormField, SelectField, TextField } from "~/components/system/field";
 import { FileList } from "~/components/system/FileList";
 import { PageActions } from "~/components/system/PageActions";
 import { RecordEmpty } from "~/components/system/RecordPage";
-import { useCurrentUser } from "~/hooks/useCurrentUser";
 import { useMedia } from "~/hooks/useMedia";
 import * as m from "~/i18n/messages";
 import { getLocale, getTextDirection } from "~/i18n/runtime";
 import { gradingQuery } from "~/queries/coursework";
 import { workStandingQuery } from "~/queries/exams";
 import { actOnWork, assessAttempt, showHeldGrade } from "~/server/coursework";
-import { formatNumber } from "~/utils/datetime";
+import { formatInstant, formatNumber } from "~/utils/datetime";
 import { getMessageFromError } from "~/utils/error";
 
 import { resultText } from "../grading/format";
 import { displayName } from "../people/format";
 import { CommentBankPicker } from "./CommentBank";
 import { DiscussionPosts } from "./Discussion";
-import { formatInstant } from "./format";
 import { StudentPeerReviews } from "./PeerReview";
 import { QuizAttempts } from "./QuizWork";
 import { VoiceFeedback } from "./VoiceFeedback";
@@ -777,7 +775,6 @@ export function Grading({
 }) {
   const data = useSuspenseQuery(gradingQuery(assignmentId, studentId)).data;
   const queryClient = useQueryClient();
-  const user = useCurrentUser();
   const navigate = useNavigate();
   const [grading, setGrading] = useState(false);
   const [active, setActive] = useState<string | null>(null);
@@ -838,7 +835,7 @@ export function Grading({
   const facts = attempt
     ? [
         m.courseworkAttemptNumber({ number: attempt.number }),
-        formatInstant(attempt.submittedAt, user.school.timeZone),
+        formatInstant(attempt.submittedAt),
         attempt.isLate ? m.courseworkLate() : null,
       ].filter(Boolean)
     : [];

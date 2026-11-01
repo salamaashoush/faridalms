@@ -873,6 +873,8 @@ export interface PublicSchool {
   email: string | null;
   /** The digits the school writes Arabic in, which its website follows. */
   digits: "latn" | "arab";
+  /** The school's clock, which every time on its website is shown on. */
+  timeZone: string;
 }
 
 /** What a school's website may say about the school itself. */
@@ -887,8 +889,10 @@ export async function publicSchool(
     phone: string | null;
     email: string | null;
     digits: "latn" | "arab";
+    time_zone: string | null;
   }>(sql`
-    select name_en, name_ar, address, phone, email, digits from core.orgs
+    select name_en, name_ar, address, phone, email, digits, time_zone
+    from core.orgs
     where id = ${orgId}::uuid and status = 'active'`);
   return row
     ? {
@@ -898,6 +902,7 @@ export async function publicSchool(
         phone: row.phone,
         email: row.email,
         digits: row.digits,
+        timeZone: row.time_zone ?? "UTC",
       }
     : null;
 }

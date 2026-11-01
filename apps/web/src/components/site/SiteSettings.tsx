@@ -26,6 +26,7 @@ import {
 } from "~/components/system/SettingsSection";
 import * as m from "~/i18n/messages";
 import { saveSiteSettings } from "~/server/site";
+import { instantFromLocal, localInput } from "~/utils/datetime";
 import { getMessageFromError } from "~/utils/error";
 
 type Settings = Awaited<
@@ -47,14 +48,6 @@ const TONE_LABEL: Record<BannerTone, () => string> = {
   warning: m.siteToneWarning,
   danger: m.siteToneDanger,
 };
-
-/** `2026-09-27T09:30:00.000Z` as the value a local date-time input shows. */
-function localInput(iso: string | null): string {
-  if (!iso) return "";
-  const date = new Date(iso);
-  const offset = date.getTimezoneOffset() * 60_000;
-  return new Date(date.getTime() - offset).toISOString().slice(0, 16);
-}
 
 interface Draft {
   live: boolean;
@@ -109,9 +102,7 @@ export function SiteSettings({ settings }: { settings: Settings }) {
           chrome: settings.chrome,
           expectedVersion: settings.version,
           socialLinks: draft.socialLinks.filter((link) => link.url.trim()),
-          bannerUntil: draft.bannerUntil
-            ? new Date(draft.bannerUntil).toISOString()
-            : "",
+          bannerUntil: instantFromLocal(draft.bannerUntil),
         },
       }),
   });
