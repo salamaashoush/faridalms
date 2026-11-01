@@ -140,6 +140,7 @@ export const VALIDATIONS: Record<string, string> = {
   academic_sessions_year_end_check: "school_year.end_mismatch",
   academic_sessions_tree_check: "academic_session.parent_invalid",
   user_roles_org_type_check: "role.org_invalid",
+  users_birth_date_check: "user.birth_date_early",
   user_relationships_self_check: "relationship.self",
   user_relationships_portal_check: "relationship.portal_without_rights",
   user_relationships_non_relative_check: "relationship.non_relative_portal",
@@ -158,8 +159,7 @@ export type DatabaseErrorKind =
   | "frozen"
   | "stale"
   | "missing"
-  | "retry"
-  | "bug";
+  | "retry";
 
 export interface MappedError {
   kind: DatabaseErrorKind;
@@ -191,7 +191,7 @@ const tableOf = (constraint: string) =>
 
 /**
  * The domain meaning of a database failure, by SQLSTATE and constraint name,
- * or null when the error did not come from Postgres.
+ * or null when it has none: it did not come from Postgres, or it is a bug.
  */
 export function mapDatabaseError(error: unknown): MappedError | null {
   const pg = postgresError(error);
@@ -229,5 +229,5 @@ export function mapDatabaseError(error: unknown): MappedError | null {
   if (state === "P0002") return { kind: "missing", code: "not_found" };
   if (state === "57014" || state === "55P03")
     return { kind: "retry", code: "database.busy" };
-  return { kind: "bug", code: `database.${state}` };
+  return null;
 }

@@ -82,18 +82,9 @@ export interface BroadcastKindRules {
     consent: string;
     nothingToCheck: string;
   };
-  audit: {
-    create: string;
-    update: string;
-    publish: string;
-    schedule: string;
-    revise: string;
-    archive: string;
-    unpublish: string;
-    duplicate: string;
-    checked: string;
-    unchecked: string;
-  };
+  /** The object its audit entries name, and what replacing a copy already out is called. */
+  audit: "announcement" | "news";
+  revised: "update_sent" | "revise";
   /** What a notice of it going out says, and whether it asks something of the reader. */
   notice: (
     row: BroadcastRow,
@@ -366,7 +357,7 @@ export async function saveBroadcast(
   });
   if (cleared.version !== null) version = cleared.version;
   await audit(context, {
-    action: input.id ? rules.audit.update : rules.audit.create,
+    action: input.id ? `${rules.audit}.update` : `${rules.audit}.create`,
     objectType: rules.kind,
     objectId: id,
     details: input.details,
@@ -494,10 +485,10 @@ export async function publishBroadcast(
   }
   await audit(context, {
     action: out
-      ? rules.audit.revise
+      ? `${rules.audit}.${rules.revised}`
       : later
-        ? rules.audit.schedule
-        : rules.audit.publish,
+        ? `${rules.audit}.schedule`
+        : `${rules.audit}.publish`,
     objectType: rules.kind,
     objectId: row.id,
     details: {
@@ -543,7 +534,10 @@ export async function takeDown(
   if (version === null) throw conflict();
   await withdraw?.(row);
   await audit(context, {
-    action: state === "archived" ? rules.audit.archive : rules.audit.unpublish,
+    action:
+      state === "archived"
+        ? `${rules.audit}.archive`
+        : `${rules.audit}.unpublish`,
     objectType: rules.kind,
     objectId: row.id,
   });
@@ -574,7 +568,9 @@ export async function reviewBroadcast(
     reviewed: input.reviewed,
   });
   await audit(context, {
-    action: input.reviewed ? rules.audit.checked : rules.audit.unchecked,
+    action: input.reviewed
+      ? `${rules.audit}.translation_checked`
+      : `${rules.audit}.translation_unchecked`,
     objectType: rules.kind,
     objectId: row.id,
   });
@@ -662,7 +658,7 @@ export async function duplicateBroadcast(
     }
   }
   await audit(context, {
-    action: rules.audit.duplicate,
+    action: `${rules.audit}.duplicate`,
     objectType: rules.kind,
     objectId: created.id,
     details: { from: row.id },

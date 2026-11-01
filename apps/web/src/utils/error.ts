@@ -9,6 +9,127 @@ export const PERIOD_REGISTERS_AFTER = "class_period.registers_after:";
 /** Followed by the first day cover is arranged in a period the change ends. */
 export const PERIOD_COVER_AFTER = "class_period.cover_after:";
 
+const CODE = /^[a-z][a-z0-9_]*\.[a-z0-9_.]+(?::.*)?$/;
+
+/** True for a code the API refused with, false for copy written for a person. */
+export const isErrorCode = (message: string) => CODE.test(message);
+
+/**
+ * Codes the API can answer with that no person can act on, read as the
+ * generic error rather than given copy of their own.
+ */
+const INTERNAL_CODES: ReadonlySet<string> = new Set([
+  "academic_session.parent_invalid",
+  "academic_week.number_taken",
+  "academic_week.overlapping",
+  "access_arrangements.exists",
+  "access_role.other_org",
+  "account.handle_taken",
+  "account.no_password",
+  "administrator.not_found",
+  "announcements.ack_due_without_ack",
+  "application.questions",
+  "assessment.exists",
+  "attendance.check_in_who",
+  "attendance.duplicate_student",
+  "attendance.minutes_not_timed",
+  "auth.invalid_handoff",
+  "auth.invalid_invite",
+  "broadcast_recipient.exists",
+  "calendar.code_taken",
+  "calendar.range",
+  "calendar.school_calendar_exists",
+  "calendar_date.exists",
+  "calendar_grade_level.exists",
+  "caption_draft.exists",
+  "cell.not_open",
+  "class.subject_invalid",
+  "class_period.code_overlapping",
+  "class_period.sequence_overlapping",
+  "contact_point.email_invalid",
+  "contact_point.unverified",
+  "course.code_taken",
+  "coursework.comment_answered",
+  "descriptor.relation_token_invalid",
+  "document.frozen",
+  "document_translation.exists",
+  "document_version.exists",
+  "documents.frozen",
+  "exam.sits_in_month",
+  "external_id.must_be_sealed",
+  "external_id.suffix_forbidden",
+  "family_share.exists",
+  "file.empty",
+  "file.health_report_invalid",
+  "file.trim",
+  "file.trim_unavailable",
+  "file_publication.key_taken",
+  "form.questions",
+  "grading.bands_needed",
+  "grading.one_board",
+  "health_change.exists",
+  "hosts.lookup_failed",
+  "hosts.route_missing",
+  "hosts.tls_pending",
+  "hosts.txt_missing",
+  "identifiers.system",
+  "identity_provider.exists",
+  "identity_provider_org.exists",
+  "intake.fees",
+  "intake.priorities",
+  "learning.band_twice",
+  "learning.checks_repeated",
+  "learning.released",
+  "learning.tiles_needed",
+  "learning.trace_needed",
+  "learning.watch_range",
+  "lesson_code.exists",
+  "lesson_progress.exists",
+  "lesson_projects.exists",
+  "lesson_shares.exists",
+  "lesson_watches.exists",
+  "location.code_taken",
+  "login_identity.badge_taken",
+  "login_identity.handoff_taken",
+  "login_identity.invite_taken",
+  "login_identity.subject_taken",
+  "lti.line_item_exists",
+  "lti.score_exists",
+  "lti.score_maximum",
+  "media.not_drafting",
+  "media.not_encoding",
+  "media.not_vtt",
+  "messages.taken",
+  "org.root_exists",
+  "passkey.exists",
+  "period_grade.exists",
+  "privacy.breach_people_both",
+  "privacy.breach_regulator_both",
+  "product.too_many",
+  "product.unavailable",
+  "quiz_answer.exists",
+  "quiz_draw.exists",
+  "quiz_sitting.exists",
+  "relationship.relation_invalid",
+  "role.org_invalid",
+  "rubric.duplicate_ids",
+  "school.slug_taken",
+  "school_year.current_exists",
+  "session.exists",
+  "site.colour",
+  "site.duplicate_section",
+  "site_post_recipient.exists",
+  "submission.exists",
+  "templates.exists",
+  "tenant.directory_differs",
+  "tenant.not_active",
+  "tenant.not_in_directory",
+  "tenant_key.active_exists",
+  "thread_member.exists",
+  "timetable.change_shape",
+  "validation.revision",
+]);
+
 export class HttpError extends Error {
   readonly status: number;
   readonly data: unknown;
@@ -43,12 +164,12 @@ export function getMessageFromError(error: unknown): string {
   }
   if (hasMessage(error)) {
     switch (error.message) {
-      case "system.moving":
-        return m.systemMoving();
       case "conflict.version":
         return m.errorConflictVersion();
       case "contact_point.phone_invalid":
         return m.errorPhoneInvalid();
+      case "contact_point.exists":
+        return m.errorConflictVersion();
       case "access.last_manager":
         return m.errorAccessLastManager();
       case "access.not_held":
@@ -96,6 +217,8 @@ export function getMessageFromError(error: unknown): string {
         return m.errorYearTransition();
       case "school_year.reason_required":
         return m.yearsReasonRequired();
+      case "school_year.missing":
+        return m.errorSchoolYearMissing();
       case "academic_session.overlapping":
         return m.errorTermsOverlapping();
       case "coursework.quiz_needed":
@@ -227,6 +350,10 @@ export function getMessageFromError(error: unknown): string {
       case "enrollment.outside_year":
       case "enrollment.outside_dates":
         return m.errorEnrollmentOutsideYear();
+      case "enrollment.overlapping":
+        return m.errorAlreadyEnrolled();
+      case "enrollment.homeroom_overlapping":
+        return m.errorConflictVersion();
       case "content.invalid":
         return m.contentInvalid();
       case "bank.prompt_needed":
@@ -241,6 +368,8 @@ export function getMessageFromError(error: unknown): string {
         return m.siteIssueOrder();
       case "content.link":
         return m.siteIssueLink();
+      case "content.heading":
+        return m.siteIssueHeading();
       case "content.captions":
         return m.contentIssueCaptions();
       case "content.unreviewed":
@@ -350,6 +479,8 @@ export function getMessageFromError(error: unknown): string {
         return m.repNeedsTime();
       case "attendance.report_decided":
         return m.repAlreadyDecided();
+      case "attendance.check_in_off":
+        return m.attErrCheckInOff();
       case "timetable.busy":
         return m.ttBusyError();
       case "timetable.outside_year":
@@ -379,6 +510,8 @@ export function getMessageFromError(error: unknown): string {
         return m.ttCoverOwn();
       case "timetable.absence_range":
         return m.ttAbsenceRange();
+      case "timetable.change_exists":
+        return m.errorConflictVersion();
       case "academic_year.closed":
         return m.academicYearClosedError();
       case "rollover.duplicate_class":
@@ -407,28 +540,6 @@ export function getMessageFromError(error: unknown): string {
         return m.rolloverPlanStale();
       case "rollover.exists":
         return m.rolloverExists();
-      case "submission.scheduled":
-        return m.submissionScheduledError();
-      case "submission.closed":
-        return m.submissionClosedError();
-      case "submission.resubmission_closed":
-        return m.submissionResubmissionClosed();
-      case "submission.revision_conflict":
-        return m.submissionRevisionConflict();
-      case "submission.empty":
-        return m.submissionEmpty();
-      case "submission.both_required":
-        return m.submissionBothRequired();
-      case "submission.written_not_accepted":
-        return m.submissionWrittenNotAccepted();
-      case "submission.files_not_accepted":
-        return m.submissionFilesNotAccepted();
-      case "submission.too_many_files":
-        return m.submissionTooManyFiles();
-      case "submission.file_missing":
-        return m.submissionFileMissing();
-      case "submission.file_too_large":
-        return m.submissionFileTooLarge();
       case "file.too_large":
         return m.fileTooLarge();
       case "file.content_mismatch":
@@ -459,6 +570,8 @@ export function getMessageFromError(error: unknown): string {
         return m.examErrBelowBoard();
       case "exam.session_exists":
         return m.examErrSessionExists();
+      case "exam.session_unknown":
+        return m.examErrSeriesUnknown();
       case "coursework.declaration_needed":
         return m.courseworkErrDeclarationNeeded();
       case "coursework.ai_use_missing":
@@ -491,6 +604,14 @@ export function getMessageFromError(error: unknown): string {
         return m.courseworkErrCategoryUnknown();
       case "grading.weights_total":
         return m.gradingCategoryIncomplete();
+      case "grading.level_repeated":
+        return m.errorConflictVersion();
+      case "grading.scale_unknown":
+        return m.gradingErrScaleUnknown();
+      case "grading.programme_unknown":
+        return m.gradingErrProgrammeUnknown();
+      case "grading.title_needed":
+        return m.examTitleNeeded();
       case "privacy.person_unknown":
         return m.privacyErrPersonUnknown();
       case "privacy.hold_unknown":
@@ -543,6 +664,13 @@ export function getMessageFromError(error: unknown): string {
         return m.fileQuotaModule();
       case "file.quota_person":
         return m.fileQuotaPerson();
+      case "file.not_ready":
+        return m.errorFileNotAttachable();
+      case "file.not_pending":
+      case "file.part_missing":
+        return m.fileErrUploadAgain();
+      case "file.failed":
+        return m.fileUploadFailed();
       case "site.slug_taken":
         return m.siteErrSlugTaken();
       case "site.home":
@@ -588,6 +716,8 @@ export function getMessageFromError(error: unknown): string {
         return m.siteErrStale();
       case "site.challenge":
         return m.siteErrChallenge();
+      case "site.slug":
+        return m.siteSlugNeeded();
       case "enquiry.reach":
         return m.admErrReach();
       case "enquiry.assignee":
@@ -606,12 +736,20 @@ export function getMessageFromError(error: unknown): string {
         return m.errIntakeGrade();
       case "intake.exists":
         return m.errIntakeExists();
+      case "intake.dates":
+        return m.itkErrDates();
+      case "intake.ages":
+        return m.itkErrAges();
+      case "intake.checklist":
+        return m.itkErrChecklist();
       case "form.question_unready":
         return m.errFormQuestionUnready();
       case "form.unchanged":
         return m.errFormUnchanged();
       case "form.stale":
         return m.errFormStale();
+      case "form.name":
+        return m.afmErrName();
       case "admissions.full":
         return m.errAdmissionsFull();
       case "enrol.not_matched":
@@ -711,6 +849,8 @@ export function getMessageFromError(error: unknown): string {
         return m.lrnErrNoPython();
       case "files.no_captions":
         return m.fileErrNoCaptions();
+      case "files.not_linkable":
+        return m.errorFileNotAttachable();
       case "learning.locked":
         return m.lrnErrLocked();
       case "learning.not_done":
@@ -748,6 +888,14 @@ export function getMessageFromError(error: unknown): string {
       case "learning.unreviewed":
       case "coursework.unreviewed":
         return m.lrnErrUnreviewed();
+      case "coursework.assessed_exists":
+      case "coursework.authenticated_already":
+      case "coursework.class_fixed":
+        return m.errorConflictVersion();
+      case "coursework.no_declaration":
+        return m.courseworkErrNoDeclaration();
+      case "coursework.not_assessed":
+        return m.courseworkErrNotAssessed();
       case "learning.option":
         return m.lrnErrOption();
       case "learning.pass_score":
@@ -800,6 +948,18 @@ export function getMessageFromError(error: unknown): string {
         return m.lrnErrDuplicateIds();
       case "learning.sort_group":
         return m.lrnErrSortGroup();
+      case "learning.reading":
+        return m.lrnErrReading();
+      case "learning.share_unsent":
+        return m.lrnErrShareUnsent();
+      case "learning.project_file":
+        return m.projectFileBad();
+      case "learning.project_file_taken":
+        return m.projectFileTaken();
+      case "learning.project_too_large":
+        return m.projectTooLarge();
+      case "learning.project_page":
+        return m.projectPageNeeded();
       case "module_class.exists":
         return m.lrnErrClassTwice();
       case "student.reference_taken":
@@ -812,6 +972,8 @@ export function getMessageFromError(error: unknown): string {
         return m.accountNotYoung();
       case "account.disabled":
         return m.accountDisabled();
+      case "account.exists":
+        return m.errorConflictVersion();
       case "calendar.ends_before":
         return m.calEndsBefore();
       case "calendar.times_needed":
@@ -820,6 +982,8 @@ export function getMessageFromError(error: unknown): string {
         return m.calCancelFirst();
       case "calendar.audience":
         return m.calAudienceNotAllowed();
+      case "calendar.title_needed":
+        return m.calTitleNeeded();
       case "lti.url":
       case "lti.https":
         return m.ltiErrUrl();
@@ -828,6 +992,60 @@ export function getMessageFromError(error: unknown): string {
       case "lti.client_exists":
       case "lti.key_exists":
         return m.ltiErrRace();
+      case "org.identifier_taken":
+        return m.errorSchoolIdentifierTaken();
+      case "org_feature.exists":
+        return m.errorConflictVersion();
+      case "descriptor.code_taken":
+        return m.errorSubjectCodeTaken();
+      case "descriptor_override.exists":
+        return m.errorConflictVersion();
+      case "calendar_feed.exists":
+        return m.ltiErrRace();
+      case "file_subject.exists":
+        return m.errorConflictVersion();
+      case "user.username_taken":
+        return m.signInLoginTaken();
+      case "user.birth_date_early":
+        return m.errorBirthDateTooEarly();
+      case "placement.overlapping":
+        return m.errorPlacementOverlapping();
+      case "class_group_member.exists":
+        return m.errorConflictVersion();
+      case "assignment_recipient.exists":
+        return m.errorConflictVersion();
+      case "submission_attempt.number_taken":
+        return m.errorConflictVersion();
+      case "role.overlapping":
+        return m.errorConflictVersion();
+      case "relationship.overlapping":
+        return m.errorRelationshipExists();
+      case "relationship.portal_without_rights":
+        return m.errorPortalWithoutRights();
+      case "relationship.non_relative_portal":
+        return m.errorNonRelativePortal();
+      case "relationship.self":
+        return m.errorRelationshipSelf();
+      case "access_role.builtin_exists":
+        return m.errorConflictVersion();
+      case "access_role_assignment.overlapping":
+        return m.errorAccessAssignmentOverlapping();
+      case "document_file.exists":
+        return m.errorConflictVersion();
+      case "user_preference.exists":
+        return m.errorConflictVersion();
+      case "database.busy":
+        return m.errorDatabaseBusy();
+      case "validation.required":
+        return m.errorValidationRequired();
+      case "validation.invalid":
+        return m.errorValidationInvalid();
+      case "tenant.read_only":
+        return m.errorTenantReadOnly();
+      case "login_identity.login_name_taken":
+        return m.signInLoginTaken();
+      case "fee.amount":
+        return m.itkErrFee();
     }
     if (error.message.startsWith("validation."))
       return validationMessage({ message: error.message });
@@ -843,7 +1061,14 @@ export function getMessageFromError(error: unknown): string {
       return m.periodsCoverAfter({
         date: formatDate(error.message.slice(PERIOD_COVER_AFTER.length)),
       });
-    return error.message;
+    if (error.message.endsWith(".conflict")) return m.errorConflictVersion();
+    if (error.message.endsWith(".reference_invalid"))
+      return m.errorReferenceGone();
+    if (error.message.endsWith(".invalid")) return m.errorInvalidGeneric();
+    if (!isErrorCode(error.message)) return error.message;
+    if (import.meta.env.DEV && !INTERNAL_CODES.has(error.message))
+      console.warn(`No copy in utils/error.ts reads ${error.message}`);
+    return m.notificationErrorMessage();
   }
   return m.notificationErrorMessage();
 }

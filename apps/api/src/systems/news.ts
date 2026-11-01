@@ -76,18 +76,8 @@ const rules = defineKind({
     consent: "news.consent",
     nothingToCheck: "news.nothing_to_check",
   },
-  audit: {
-    create: "news.create",
-    update: "news.update",
-    publish: "news.publish",
-    schedule: "news.schedule",
-    revise: "news.revise",
-    archive: "news.archive",
-    unpublish: "news.unpublish",
-    duplicate: "news.duplicate",
-    checked: "news.translation_checked",
-    unchecked: "news.translation_unchecked",
-  },
+  audit: "news",
+  revised: "revise",
   notice: (row, words) => ({
     kind: "news",
     params: {

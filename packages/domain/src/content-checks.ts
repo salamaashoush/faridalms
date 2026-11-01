@@ -10,6 +10,17 @@ import { isVagueLink } from "./site-links";
  */
 export type ContentIssue = "alt" | "order" | "link";
 
+/** The refusal the API answers a document with when it has the issue. */
+export const CONTENT_ISSUE_CODE = {
+  alt: "content.alt",
+  order: "content.order",
+  link: "content.link",
+  heading: "content.heading",
+  captions: "content.captions",
+  unreviewed: "content.unreviewed",
+  consent: "content.consent",
+} as const satisfies { [Issue in PublishIssue]: `content.${Issue}` };
+
 const LEVEL: Partial<Record<NonNullable<ContentNode["tag"]>, number>> = {
   h1: 1,
   h2: 2,

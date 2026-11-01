@@ -23,7 +23,7 @@ import {
   narrationWordsSchema,
   textDirection,
 } from "./content";
-import { publishIssues } from "./content-checks";
+import { CONTENT_ISSUE_CODE, publishIssues } from "./content-checks";
 import { emptyContent } from "./content-conversion";
 import {
   crosswordLayout,
@@ -1261,7 +1261,7 @@ export function lessonIssue(lesson: {
       return "learning.gate_score";
   }
   const [problem] = issues;
-  return problem ? `content.${problem}` : null;
+  return problem ? CONTENT_ISSUE_CODE[problem] : null;
 }
 
 function gapText(block: GapsBlock): string {

@@ -68,8 +68,6 @@ function toApiError(error: unknown): unknown {
         message: mapped.code,
         data: { retryAfter: 5 },
       });
-    case "bug":
-      return error;
   }
   return error;
 }

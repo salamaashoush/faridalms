@@ -40,6 +40,7 @@ import {
   saveConsentFormSchema,
 } from "@faridalms/domain/consents";
 import { contentFileIds, contentPlainText } from "@faridalms/domain/content";
+import { CONTENT_ISSUE_CODE } from "@faridalms/domain/content-checks";
 import { ageOn } from "@faridalms/domain/school";
 import { ORPCError } from "@orpc/server";
 import * as v from "valibot";
@@ -343,7 +344,9 @@ export const publishForm = writeProcedure
       throw new ORPCError("BAD_REQUEST", { message: "consents.empty" });
     const [problem] = await wordsIssues(context, [body, translation]);
     if (problem)
-      throw new ORPCError("BAD_REQUEST", { message: `content.${problem}` });
+      throw new ORPCError("BAD_REQUEST", {
+        message: CONTENT_ISSUE_CODE[problem],
+      });
     const version = await publishFormRow(context.tx, {
       tenantId: context.tenantId,
       id: row.id,

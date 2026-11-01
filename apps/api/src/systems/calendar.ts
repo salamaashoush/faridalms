@@ -36,6 +36,7 @@ import {
   saveEventSchema,
 } from "@faridalms/domain/calendar";
 import { contentFileIds, contentPlainText } from "@faridalms/domain/content";
+import { CONTENT_ISSUE_CODE } from "@faridalms/domain/content-checks";
 import { ORPCError } from "@orpc/server";
 import * as v from "valibot";
 
@@ -75,7 +76,9 @@ async function checkDescription(
 ) {
   const [problem] = await wordsIssues(context, [description]);
   if (problem)
-    throw new ORPCError("BAD_REQUEST", { message: `content.${problem}` });
+    throw new ORPCError("BAD_REQUEST", {
+      message: CONTENT_ISSUE_CODE[problem],
+    });
 }
 
 /** The description its audience reads now, and the people it newly mentions told. */

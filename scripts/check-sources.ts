@@ -1,5 +1,6 @@
 /**
- * Gate 3: static checks on the TypeScript source and the migrations. With a
+ * Gate 3: static checks on the TypeScript source and the migrations, and that
+ * every error code the API raises is read in the person's language. With a
  * cell database URL it also checks the catalogue facts the source must match:
  * every unique key and exclusion constraint maps to a domain code, and every
  * descriptor namespace a generated `*_ns` column pins is seeded.
@@ -12,6 +13,8 @@ import {
   CEDS_GRADE_LEVELS,
 } from "@faridalms/domain/descriptors/catalogue";
 import { Glob, SQL } from "bun";
+
+import { errorCodeProblems } from "./error-codes";
 
 const problems: string[] = [];
 
@@ -49,7 +52,8 @@ const TIME_HELPERS = new Set([
   "packages/domain/src/school.ts",
 ]);
 
-for (const { path, text } of await sources()) {
+const files = await sources();
+for (const { path, text } of files) {
   if (path === "scripts/check-sources.ts") continue;
   const context = path === "packages/database/src/context.ts";
   const runner = path === "packages/database/src/migrate.ts";
@@ -83,6 +87,8 @@ for (const { path, text } of await sources()) {
       `${path}: formats or reads a time outside the school's time helpers`,
     );
 }
+
+problems.push(...errorCodeProblems(files));
 
 const FORBIDDEN_IN_MIGRATIONS = [
   /disable\s+row\s+level\s+security/i,

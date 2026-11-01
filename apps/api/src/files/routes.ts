@@ -28,12 +28,12 @@ import { StoreError } from "./store";
 const PATH = /^\/v1\/files\/([0-9a-f-]{36})\/content$/;
 const PARTS = /^\/v1\/files\/([0-9a-f-]{36})\/parts(?:\/(\d{1,4}))?$/;
 
-const REJECTED_STATUS: Record<Rejection, number> = {
-  too_large: 413,
-  size_mismatch: 400,
-  content_mismatch: 422,
-  infected: 422,
-  scan_unavailable: 503,
+const REJECTED: Record<Rejection, { status: number; code: string }> = {
+  too_large: { status: 413, code: "file.too_large" },
+  size_mismatch: { status: 400, code: "file.size_mismatch" },
+  content_mismatch: { status: 422, code: "file.content_mismatch" },
+  infected: { status: 422, code: "file.infected" },
+  scan_unavailable: { status: 503, code: "file.scan_unavailable" },
 };
 
 function problem(status: number, code: string, requestId: string) {
@@ -143,11 +143,8 @@ async function accept(
       state: "rejected",
       reason: checked.reason,
     });
-    return problem(
-      REJECTED_STATUS[checked.reason],
-      `file.${checked.reason}`,
-      context.requestId,
-    );
+    const { status, code } = REJECTED[checked.reason];
+    return problem(status, code, context.requestId);
   }
   const settled = await settle(context, fileId, {
     state: "ready",

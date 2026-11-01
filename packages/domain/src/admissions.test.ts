@@ -176,6 +176,10 @@ describe("an intake", () => {
     expect(issue({ fees: [{ kind: "application", amount: 10.005 }] })).toBe(
       "fee.amount",
     );
+    for (const amount of [19.99, 1.15, 0.29, 0.07, 4.35, 99_999_999.99])
+      expect(
+        issue({ fees: [{ kind: "application", amount }] }),
+      ).toBeUndefined();
   });
 
   it("ranks the rules an applicant meets in the intake's order", () => {

@@ -145,13 +145,11 @@ end $$;
 alter table core.documents enable trigger documents_frozen_guard;
 
 -- The website's copy of a post now belongs to its broadcast. The next
--- migration drops the post tables before it moves this key, which their
--- removal would otherwise refuse, so the key moves here first. A new key is
--- checked against every row, which forced row level security would hide
--- from the owner without a tenant bound, so it rests until the key is in
--- place and the migration after the next forces it again.
-alter table core.site_published_posts no force row level security;
+-- migration drops the post tables, which this key would otherwise stop, so
+-- it moves here. Its existing rows are not checked again: forced row level
+-- security hides them from the owner, and each one names a post that has
+-- just become a broadcast with the same id, as the counts above confirm.
 alter table core.site_published_posts
   drop constraint site_published_posts_tenant_id_post_id_fkey,
   add constraint site_published_posts_tenant_id_post_id_fkey
-    foreign key (tenant_id, post_id) references core.broadcasts (tenant_id, id);
+    foreign key (tenant_id, post_id) references core.broadcasts (tenant_id, id) not valid;

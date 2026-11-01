@@ -10,6 +10,7 @@ import {
   seenSchema,
 } from "@faridalms/domain/announcements";
 import { contentPlainText } from "@faridalms/domain/content";
+import { CONTENT_ISSUE_CODE } from "@faridalms/domain/content-checks";
 import { reviewTranslationSchema } from "@faridalms/domain/translations";
 import { ORPCError } from "@orpc/server";
 import * as v from "valibot";
@@ -50,18 +51,8 @@ const rules = defineKind({
     consent: "announcements.consent",
     nothingToCheck: "announcements.nothing_to_check",
   },
-  audit: {
-    create: "announcement.create",
-    update: "announcement.update",
-    publish: "announcement.publish",
-    schedule: "announcement.schedule",
-    revise: "announcement.update_sent",
-    archive: "announcement.archive",
-    unpublish: "announcement.unpublish",
-    duplicate: "announcement.duplicate",
-    checked: "announcement.translation_checked",
-    unchecked: "announcement.translation_unchecked",
-  },
+  audit: "announcement",
+  revised: "update_sent",
   notice: (row, words, updated) => ({
     kind: row.urgency === "urgent" ? "urgent" : "announcement",
     params: {
@@ -177,7 +168,9 @@ export const publish = writeProcedure
           consent: true,
         });
         if (problem)
-          throw new ORPCError("BAD_REQUEST", { message: `content.${problem}` });
+          throw new ORPCError("BAD_REQUEST", {
+            message: CONTENT_ISSUE_CODE[problem],
+          });
       },
     }),
   );

@@ -4,7 +4,7 @@ import type { PublishIssue } from "./content-checks";
 import type { CheckBlock, LessonDocument } from "./learning";
 
 import { contentDocumentSchema, contentPlainText } from "./content";
-import { publishIssues } from "./content-checks";
+import { CONTENT_ISSUE_CODE, publishIssues } from "./content-checks";
 import { declarationSchema } from "./exams";
 import {
   checkBlocks,
@@ -387,7 +387,7 @@ export function assignIssues(
   if (brief.includes("unreviewed")) issues.push("coursework.unreviewed");
   for (const code of brief)
     if (code !== "unreviewed" && code !== "heading")
-      issues.push(`content.${code}`);
+      issues.push(CONTENT_ISSUE_CODE[code]);
   if (
     input.audience === "selected" &&
     input.groupIds.length === 0 &&
