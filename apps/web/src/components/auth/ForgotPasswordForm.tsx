@@ -19,6 +19,8 @@ import { discoverReset, requestPasswordReset } from "~/server/auth";
 import { getMessageFromError } from "~/utils/error";
 import { hostView } from "~/utils/host";
 
+import { useHumanCheck } from "./HumanCheck";
+
 /**
  * Asks for a link that replaces a forgotten password. What comes back reads
  * the same whether or not the name has an account, so the page never says
@@ -28,13 +30,16 @@ export function ForgotPasswordForm() {
   const hydrated = useHydrated();
   const everySchool = useServerFn(discoverReset);
   const thisSchool = useServerFn(requestPasswordReset);
+  const bare = hostView().bare;
+  const human = useHumanCheck("reset", bare);
   const request = useMutation({
     // The bare portal domain asks every school holding the name; a
     // school's portal asks only itself.
     mutationFn: (loginName: string) =>
-      hostView().bare
-        ? everySchool({ data: { loginName } })
+      bare
+        ? everySchool({ data: { loginName, human: human.token } })
         : thisSchool({ data: { loginName } }),
+    onSettled: () => human.spend(),
     meta: { inlineError: true },
   });
   const form = useForm({
@@ -115,12 +120,13 @@ export function ForgotPasswordForm() {
             {getMessageFromError(request.error)}
           </p>
         ) : null}
+        {bare ? human.widget : null}
         <form.Subscribe selector={(state) => state.isSubmitting}>
           {(isSubmitting) => (
             <Button
               type="submit"
               className="w-full"
-              disabled={isSubmitting || !hydrated}
+              disabled={isSubmitting || !hydrated || (bare && !human.ready)}
             >
               {isSubmitting ? m.forgotSending() : m.forgotSubmit()}
             </Button>

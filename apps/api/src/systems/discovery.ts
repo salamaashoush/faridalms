@@ -11,6 +11,7 @@ import {
   effectiveAccess,
   schoolProfile,
 } from "@faridalms/database/stores/identity";
+import { clientAddress } from "@faridalms/domain/forwarded";
 import {
   discoverResetSchema,
   discoverSignInSchema,
@@ -75,15 +76,34 @@ function bareLimits(context: RequestContext, loginName: string) {
 }
 
 /**
- * Where the bare domain asks the visitor to prove they are a person. The
- * platform asks for no such check yet, so every visitor passes.
+ * Where the bare domain asks the visitor to prove they are a person: the
+ * Turnstile token from its sign-in or reset form, solved on the bare domain
+ * itself for that action. Without Turnstile configured the per-name and
+ * per-network limits are the only check.
  */
 async function humanCheckPasses(
-  _context: RequestContext,
-  _answer: string | undefined,
+  context: RequestContext,
+  answer: string | undefined,
+  action: "sign_in" | "reset",
 ): Promise<boolean> {
-  return true;
+  const turnstile = context.turnstile;
+  if (!turnstile) return true;
+  return turnstile.verify({
+    token: answer ?? "",
+    remoteIp: clientAddress(
+      context.headers.get("x-forwarded-for"),
+      context.trustedProxyHops,
+    ),
+    action,
+    hostAllowed: (hostname) =>
+      Promise.resolve(hostname === context.domains.portal),
+  });
 }
+
+/** The public key the bare domain's forms render their human check with, if any. */
+export const humanCheck = publicProcedure.handler(({ context }) => ({
+  siteKey: context.turnstile?.siteKey ?? null,
+}));
 
 const refused = () =>
   new ORPCError("BAD_REQUEST", { message: "auth.invalid_credentials" });
@@ -190,7 +210,8 @@ export const discoverSignIn = publicProcedure
   .input(discoverSignInSchema)
   .handler(async ({ input, context }): Promise<Discovered> => {
     bareLimits(context, input.loginName);
-    if (!(await humanCheckPasses(context, input.human))) throw refused();
+    if (!(await humanCheckPasses(context, input.human, "sign_in")))
+      throw refused();
     const logins = context.logins;
     const tenants = logins ? await logins.tenantsOf(input.loginName) : [];
     const local = new Set(
@@ -348,7 +369,7 @@ export const discoverReset = publicProcedure
   .input(discoverResetSchema)
   .handler(async ({ input, context }) => {
     bareLimits(context, input.loginName);
-    if (!(await humanCheckPasses(context, input.human)))
+    if (!(await humanCheckPasses(context, input.human, "reset")))
       return { requested: true };
     const tenants = context.logins
       ? await context.logins.tenantsOf(input.loginName)

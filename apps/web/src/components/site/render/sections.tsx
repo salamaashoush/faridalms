@@ -2573,6 +2573,7 @@ function EnquiryForm({ section, context }: Props<"form">) {
         {turnstileKey ? (
           <TurnstileWidget
             siteKey={turnstileKey}
+            action="enquiry"
             locale={context.locale}
             generation={challenge}
             onToken={setToken}

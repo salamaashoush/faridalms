@@ -48,11 +48,14 @@ function loadTurnstile(): Promise<TurnstileApi> {
  */
 export function TurnstileWidget({
   siteKey,
+  action,
   locale,
   generation,
   onToken,
 }: {
   siteKey: string;
+  /** The form it guards, which the server checks the token was solved for. */
+  action: "enquiry" | "sign_in" | "reset";
   locale: "en" | "ar";
   generation: number;
   onToken: (token: string) => void;
@@ -71,7 +74,7 @@ export function TurnstileWidget({
         widget.current =
           api.render(container.current, {
             sitekey: siteKey,
-            action: "enquiry",
+            action,
             language: locale,
             theme: "auto",
             size: "flexible",
@@ -87,7 +90,7 @@ export function TurnstileWidget({
       if (widget.current) window.turnstile?.remove(widget.current);
       widget.current = null;
     };
-  }, [siteKey, locale]);
+  }, [siteKey, action, locale]);
   useEffect(() => {
     if (generation > 0 && widget.current) {
       handOn.current("");

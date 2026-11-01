@@ -19,6 +19,7 @@ import { loginSchema } from "~/schema/auth";
 import { discoverSignIn } from "~/server/auth";
 import { getMessageFromError } from "~/utils/error";
 
+import { useHumanCheck } from "./HumanCheck";
 import { DEMO_ACCOUNTS, DEMO_PASSWORD } from "./SignInForm";
 
 type School = { slug: string; nameEn: string | null; nameAr: string | null };
@@ -39,10 +40,14 @@ export function BareSignIn() {
   const [password, setPassword] = useState("");
   const [schools, setSchools] = useState<School[] | null>(null);
   const discover = useServerFn(discoverSignIn);
+  const human = useHumanCheck("sign_in");
   const signIn = useMutation({
     meta: { inlineError: true },
     mutationFn: (school?: string) =>
-      discover({ data: { loginName: name, password, school } }),
+      discover({
+        data: { loginName: name, password, school, human: human.token },
+      }),
+    onSettled: () => human.spend(),
     onSuccess: (answer) => {
       if ("href" in answer) window.location.assign(answer.href);
       else setSchools(answer.schools);
@@ -74,7 +79,7 @@ export function BareSignIn() {
             <li key={school.slug}>
               <button
                 type="button"
-                disabled={signIn.isPending}
+                disabled={signIn.isPending || !human.ready}
                 onClick={() => signIn.mutate(school.slug)}
                 className="flex min-h-14 w-full items-center gap-3 rounded-lg border bg-card px-4 py-3 text-start hover:bg-accent focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
               >
@@ -92,6 +97,7 @@ export function BareSignIn() {
             </li>
           ))}
         </ul>
+        {human.widget}
         {signIn.error ? (
           <p role="alert" className="text-sm text-destructive">
             {getMessageFromError(signIn.error)}
@@ -147,7 +153,7 @@ export function BareSignIn() {
           noValidate
           onSubmit={(event) => {
             event.preventDefault();
-            if (password) signIn.mutate(undefined);
+            if (password && human.ready) signIn.mutate(undefined);
           }}
         >
           <FieldGroup>
@@ -203,10 +209,11 @@ export function BareSignIn() {
                 {m.authForgotPassword()}
               </Link>
             </Field>
+            {human.widget}
             <Button
               type="submit"
               className="w-full"
-              disabled={signIn.isPending || !password}
+              disabled={signIn.isPending || !password || !human.ready}
             >
               {signIn.isPending
                 ? m.authSignInFormSubmitting()

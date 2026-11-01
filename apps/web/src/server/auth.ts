@@ -291,6 +291,12 @@ export const discoverSignIn = createServerFn({ method: "POST" })
     },
   );
 
+/** The public key the bare domain's forms render their human check with, if any. */
+export const getHumanCheck = createServerFn({ method: "GET" }).handler(() => {
+  bareOnly();
+  return backend(null).identity.humanCheck();
+});
+
 /** A forgotten password asked for on the bare portal domain. */
 export const discoverReset = createServerFn({ method: "POST" })
   .validator(checked(discoverResetSchema))
