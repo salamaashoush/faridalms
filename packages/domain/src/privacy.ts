@@ -7,6 +7,8 @@ export interface RetentionRules {
   studentRule: StudentRetention | null;
   studentValue: number | null;
   staffYears: number | null;
+  /** Months an unsuccessful or withdrawn application is kept after its intake closes. */
+  applicantMonths: number | null;
 }
 
 const whole = (min: number, max: number) =>
@@ -17,6 +19,7 @@ export const saveRetentionSchema = v.pipe(
     studentRule: v.nullable(v.picklist(STUDENT_RETENTION)),
     studentValue: v.nullable(whole(1, 100)),
     staffYears: v.nullable(whole(1, 100)),
+    applicantMonths: v.nullable(whole(1, 120)),
   }),
   v.check(
     (input) => (input.studentRule === null) === (input.studentValue === null),
@@ -56,11 +59,15 @@ export function addYears(iso: string, years: number): string {
 export function reviewDueOn(
   rules: RetentionRules,
   person: {
-    kind: "student" | "staff";
+    kind: "student" | "staff" | "applicant";
     leftOn: string;
     birthDate: string | null;
   },
 ): string | null {
+  if (person.kind === "applicant")
+    return rules.applicantMonths === null
+      ? null
+      : addMonths(person.leftOn, rules.applicantMonths);
   if (person.kind === "staff")
     return rules.staffYears === null
       ? null

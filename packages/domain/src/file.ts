@@ -11,6 +11,7 @@ export const FILE_PURPOSES = [
   "site_media",
   "avatar",
   "evidence",
+  "admission_document",
 ] as const;
 export const MESSAGE_ATTACHMENT_LIMIT = 5;
 export const MESSAGE_ATTACHMENT_BYTES = 10 * 1024 * 1024;

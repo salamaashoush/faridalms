@@ -16,6 +16,7 @@ export const NOTIFICATION_KINDS = [
   "library",
   "reply",
   "enquiry",
+  "application",
 ] as const;
 export type NotificationKind = (typeof NOTIFICATION_KINDS)[number];
 
@@ -49,6 +50,11 @@ export interface NoticeParams {
   /** What a family's enquiry is about, and whether it was handed to the reader. */
   purpose?: "enquiry" | "visit" | "general";
   assigned?: boolean;
+  /** The grade an application is for, its number, and whether the reader is the family that sent it. */
+  gradeName?: string;
+  gradeNameAr?: string;
+  reference?: string;
+  received?: boolean;
 }
 
 /** Urgent notices reach everyone on every channel, so nobody can turn them off. */
@@ -64,6 +70,7 @@ export const CHOOSABLE_KINDS = [
   "library",
   "reply",
   "enquiry",
+  "application",
 ] as const;
 export type ChoosableKind = (typeof CHOOSABLE_KINDS)[number];
 
@@ -110,6 +117,7 @@ export const DEFAULT_PREFERENCES: Preferences = {
     library: "digest",
     reply: "digest",
     enquiry: "instant",
+    application: "instant",
   },
   sms: {
     announcement: "off",
@@ -123,6 +131,7 @@ export const DEFAULT_PREFERENCES: Preferences = {
     library: "off",
     reply: "off",
     enquiry: "off",
+    application: "off",
   },
   quietFrom: "21:00",
   quietTo: "07:00",
