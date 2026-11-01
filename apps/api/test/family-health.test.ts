@@ -661,7 +661,7 @@ describe("medical reports", () => {
       id: recordId,
       expectedVersion: changed.version,
       kindId: await kindId(office.api, mother.studentId, "chronic_condition"),
-      hasAlert: true,
+      hasAlert: false,
       text: "Type 1 diabetes, pump fitted",
     });
     const edited = await held();
