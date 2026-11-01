@@ -3,12 +3,14 @@ import { createFileRoute, stripSearchParams } from "@tanstack/react-router";
 import * as v from "valibot";
 
 import { BreadcrumbCurrent } from "~/components/app/WorkspaceBreadcrumb";
+import { areaViewSearch } from "~/components/files/AreaFiles";
 import { MODULE_TABS, ModuleRecord } from "~/components/learning/ModuleRecord";
 import { ModuleOutline } from "~/components/learning/StudentModules";
 import { moduleOutlineQuery, moduleRecordQuery } from "~/queries/learning";
 
 const searchSchema = v.object({
   tab: v.fallback(v.optional(v.picklist(MODULE_TABS), "lessons"), "lessons"),
+  ...areaViewSearch,
   classId: v.fallback(
     v.optional(v.union([v.literal(""), v.pipe(v.string(), v.uuid())]), ""),
     "",
@@ -71,7 +73,7 @@ function ModuleTrail() {
 
 function ModulePage() {
   const { moduleId } = Route.useParams();
-  const { tab, classId, studentId } = Route.useSearch();
+  const { tab, classId, studentId, ...files } = Route.useSearch();
   const { auth } = Route.useRouteContext();
   const navigate = Route.useNavigate();
   if (learns(auth.workspace))
@@ -87,6 +89,13 @@ function ModulePage() {
       onClass={(next) => {
         void navigate({
           search: (previous) => ({ ...previous, classId: next }),
+        });
+      }}
+      files={files}
+      onFiles={(next) => {
+        void navigate({
+          search: (previous) => ({ ...previous, ...next }),
+          replace: true,
         });
       }}
     />

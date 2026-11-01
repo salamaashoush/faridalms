@@ -173,7 +173,8 @@ functions run, for its own school.
 
 A school's website is data in the cell: settings with its theme and chrome
 (`site_settings`), a page tree that is also the menu (`site_pages`), and
-news posts (`site_posts`). A page's content is a `page` document of
+news posts (`site_posts`); its first language and its logo are the school's
+own (`orgs.default_locale`, `orgs.logo_file_id`). A page's content is a `page` document of
 sections, each `{ id, type, variant, style, data }`, whose fields are
 declared once per type in `packages/domain/src/site-sections.ts`; that
 declaration drives validation, the builder's inspector, the translation
@@ -409,7 +410,11 @@ with its duration.
 
 English and Arabic are rendered on the server. The language follows the
 language cookie, then `Accept-Language`, then the base locale, and changing
-it reloads so the next document is rendered in the new language. Logical
+it reloads so the next document is rendered in the new language. Every
+date and time is shown and entered on the school's clock in its digits:
+each request adopts the school's zone as it does its digits, and only
+`apps/web/src/utils/datetime.ts` and `packages/domain/src/school.ts`
+format them, which the source checks hold. Logical
 CSS properties and local font assets support right-to-left layout without
 remote font requests. shadcn components stay registry-owned; product
 styling and translated controls live in wrappers.

@@ -1,6 +1,6 @@
 import type { Ref } from "react";
 
-import { STAFF_ROLE_CHOICES } from "@faridalms/domain/people";
+import { saveStaffSchema, STAFF_ROLE_CHOICES } from "@faridalms/domain/people";
 import { Button } from "@faridalms/ui/button";
 import {
   useMutation,
@@ -20,14 +20,14 @@ import { peopleOptionsQuery } from "~/queries/students";
 import { saveStaff } from "~/server/staff";
 import { findGuardians } from "~/server/students";
 import { formatList } from "~/utils/datetime";
-import { getMessageFromError } from "~/utils/error";
+import { refusalOf } from "~/utils/error";
+import { schemaErrors } from "~/utils/validation";
 
 import type { NamesDraft } from "./fields";
 
 import {
   CheckboxRow,
   EMPTY_NAMES,
-  hasName,
   NameFields,
   namesFrom,
   namesInput,
@@ -52,13 +52,18 @@ interface Draft {
 
 type Field = keyof Draft;
 
+const FIELD_OF: Partial<Record<string, Field>> = {
+  names: "names",
+  email: "email",
+  phone: "phone",
+  roles: "roles",
+};
+
 /** Refusals from the server that are about one field, shown on that field. */
-const FIELD_ERRORS: Record<string, Field> = {
+const FIELD_ERRORS: Partial<Record<string, Field>> = {
   "contact_point.phone_invalid": "phone",
   "contact_point.email_invalid": "email",
 };
-
-const EMAIL = /^[^\s@]+@[^\s@]+$/;
 
 function initialDraft(member: Member | null): Draft {
   if (!member)
@@ -196,6 +201,17 @@ export function StaffEditor({
     setDraft((current) => ({ ...current, [key]: value }));
   };
 
+  const payloadOf = (value: Draft, existingUserId?: string) => ({
+    ...(member ? { id: member.id, expectedVersion: member.version } : {}),
+    ...(existingUserId ? { existingUserId } : {}),
+    names: namesInput(value.names),
+    email: value.email.trim(),
+    phone: value.phone.trim(),
+    roles: value.roles,
+    positionId: value.positionId,
+    titleEn: value.titleEn,
+    titleAr: value.titleAr,
+  });
   const mutation = useMutation({
     mutationFn: ({
       value,
@@ -203,39 +219,19 @@ export function StaffEditor({
     }: {
       value: Draft;
       existingUserId?: string;
-    }) =>
-      saveStaff({
-        data: {
-          ...(member ? { id: member.id, expectedVersion: member.version } : {}),
-          ...(existingUserId ? { existingUserId } : {}),
-          names: namesInput(value.names),
-          email: value.email.trim(),
-          phone: value.phone.trim(),
-          roles: value.roles,
-          positionId: value.positionId,
-          titleEn: value.titleEn,
-          titleAr: value.titleAr,
-        },
-      }),
+    }) => saveStaff({ data: payloadOf(value, existingUserId) }),
     meta: { inlineError: true },
   });
 
-  const validate = (value: Draft) => {
-    const found: typeof errors = {};
-    if (!hasName(value.names)) found.names = m.validationNameRequired();
-    if (!value.email.trim()) found.email = m.validationRequired();
-    else if (!EMAIL.test(value.email.trim())) found.email = m.validationEmail();
-    if (value.roles.length === 0) found.roles = m.validationRoleRequired();
-    return found;
-  };
+  const validate = (value: Draft) =>
+    schemaErrors(saveStaffSchema, payloadOf(value), (key) => FIELD_OF[key]);
 
   const save = async (existingUserId?: string) => {
     try {
       await mutation.mutateAsync({ value: draft, existingUserId });
     } catch (error) {
-      const field =
-        error instanceof Error ? FIELD_ERRORS[error.message] : undefined;
-      if (field) setErrors({ [field]: getMessageFromError(error) });
+      const refused = refusalOf(error, FIELD_ERRORS);
+      if (refused?.field) setErrors({ [refused.field]: refused.message });
       return;
     }
     await queryClient.invalidateQueries({ queryKey: ["people"] });
@@ -274,11 +270,8 @@ export function StaffEditor({
     await save();
   };
 
-  const failure =
-    mutation.error &&
-    !(mutation.error instanceof Error && FIELD_ERRORS[mutation.error.message])
-      ? getMessageFromError(mutation.error)
-      : null;
+  const refusal = refusalOf(mutation.error, FIELD_ERRORS);
+  const failure = refusal && !refusal.field ? refusal.message : null;
 
   return (
     <RecordForm

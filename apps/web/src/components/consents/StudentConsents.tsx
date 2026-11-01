@@ -12,7 +12,6 @@ import { ClipboardPen } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 
-import { formatDate } from "~/components/family/format";
 import { FormField, SelectField, TextField } from "~/components/system/field";
 import { FileField } from "~/components/system/FileField";
 import {
@@ -26,6 +25,7 @@ import { inLocale } from "~/hooks/useCurrentUser";
 import * as m from "~/i18n/messages";
 import { studentConsentsQuery } from "~/queries/consents";
 import { recordConsent } from "~/server/consents";
+import { formatDate } from "~/utils/datetime";
 import { getMessageFromError } from "~/utils/error";
 
 import { DECISION_LABEL, DECISION_TONE } from "./format";

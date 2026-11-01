@@ -28,7 +28,6 @@ export async function schoolSettings(
       countryCode: orgs.countryCode,
       phone: orgs.phone,
       email: orgs.email,
-      websiteUrl: orgs.websiteUrl,
       logoFileId: orgs.logoFileId,
     })
     .from(orgs)
@@ -60,7 +59,6 @@ export async function updateSchool(
     arabicMath: "ltr" | "rtl";
     phone: string | null;
     email: string | null;
-    websiteUrl: string | null;
     logoFileId: string | null;
   },
 ) {

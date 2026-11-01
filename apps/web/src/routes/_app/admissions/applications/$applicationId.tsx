@@ -42,7 +42,6 @@ import {
 } from "~/components/admissions/Decisions";
 import { FamilyConversation } from "~/components/admissions/FamilyConversation";
 import { BreadcrumbCurrent } from "~/components/app/WorkspaceBreadcrumb";
-import { formatInstant } from "~/components/coursework/format";
 import { ActionMenu } from "~/components/system/ActionMenu";
 import { FormField, SelectField } from "~/components/system/field";
 import {
@@ -56,7 +55,7 @@ import {
 } from "~/components/system/RecordPage";
 import { SheetForm } from "~/components/system/SheetForm";
 import { StatusText } from "~/components/system/status";
-import { inLocale, useCurrentUser } from "~/hooks/useCurrentUser";
+import { inLocale } from "~/hooks/useCurrentUser";
 import * as m from "~/i18n/messages";
 import { applicationQuery } from "~/queries/admissions";
 import { currentUserQuery } from "~/queries/user";
@@ -67,7 +66,7 @@ import {
   noteApplication,
   withdrawForFamily,
 } from "~/server/admissions";
-import { formatDate, formatList } from "~/utils/datetime";
+import { formatInstant, formatDate, formatList } from "~/utils/datetime";
 import { getMessageFromError } from "~/utils/error";
 
 export const Route = createFileRoute(
@@ -117,8 +116,6 @@ function useRefresh() {
 function ApplicationPage() {
   const { applicationId } = Route.useParams();
   const row = useSuspenseQuery(applicationQuery(applicationId)).data;
-  const user = useCurrentUser();
-  const timeZone = user.school.timeZone;
   const refresh = useRefresh();
   const [withdrawing, setWithdrawing] = useState(false);
   const review = useMutation({
@@ -269,13 +266,13 @@ function ApplicationPage() {
               childName={inLocale(row.child.nameEn, row.child.nameAr)}
               manages={row.manages}
             />
-            <HistorySection row={row} timeZone={timeZone} />
+            <HistorySection row={row} />
           </>
         }
         aside={
           <>
             <DecisionSection row={row} />
-            <Aside row={row} timeZone={timeZone} />
+            <Aside row={row} />
           </>
         }
       />
@@ -583,13 +580,7 @@ function entryText(entry: Application["entries"][number]): string {
   return m.aplEntryNote();
 }
 
-function HistorySection({
-  row,
-  timeZone,
-}: {
-  row: Application;
-  timeZone: string;
-}) {
+function HistorySection({ row }: { row: Application }) {
   return (
     <RecordSection
       title={m.aplSectionHistory()}
@@ -605,7 +596,7 @@ function HistorySection({
                   {entry.author
                     ? `${inLocale(entry.author.nameEn, entry.author.nameAr)} · `
                     : ""}
-                  {formatInstant(entry.createdAt, timeZone)}
+                  {formatInstant(entry.createdAt)}
                 </span>
               </span>
               {entry.body ? (
@@ -686,7 +677,7 @@ function NoteComposer({ applicationId }: { applicationId: string }) {
   );
 }
 
-function Aside({ row, timeZone }: { row: Application; timeZone: string }) {
+function Aside({ row }: { row: Application }) {
   const found =
     row.matches.students.length +
     row.matches.guardians.length +
@@ -699,7 +690,7 @@ function Aside({ row, timeZone }: { row: Application; timeZone: string }) {
             {row.reference ? <bdi dir="ltr">{row.reference}</bdi> : null}
           </Fact>
           <Fact label={m.aplColSent()} wide>
-            {row.submittedAt ? formatInstant(row.submittedAt, timeZone) : null}
+            {row.submittedAt ? formatInstant(row.submittedAt) : null}
           </Fact>
           <Fact label={m.aplFieldForm()} wide>
             {row.formNumber === null

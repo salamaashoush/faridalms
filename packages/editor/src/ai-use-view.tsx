@@ -1,5 +1,6 @@
 import type { AiEvidence } from "@faridalms/domain/content";
 
+import { formatDayIn } from "@faridalms/domain/school";
 import { ChevronDown, Paperclip, Sparkles } from "lucide-react";
 
 import type { FileStrings } from "./files";
@@ -24,15 +25,6 @@ export interface AiUseFields {
   prompt: string;
   use: string;
   evidence: AiEvidence[];
-}
-
-function formatDay(date: string, locale: string) {
-  return new Intl.DateTimeFormat(locale, {
-    day: "numeric",
-    month: "long",
-    year: "numeric",
-    timeZone: "UTC",
-  }).format(new Date(`${date}T00:00:00Z`));
 }
 
 /**
@@ -68,7 +60,9 @@ export function AiUseView({
         <span className="min-w-0 flex-1 truncate text-muted-foreground">
           {fields.tool ? <bdi>{fields.tool}</bdi> : null}
           {fields.tool && fields.date ? " · " : null}
-          {fields.date ? <bdi>{formatDay(fields.date, locale)}</bdi> : null}
+          {fields.date ? (
+            <bdi>{formatDayIn(fields.date, "full", locale)}</bdi>
+          ) : null}
         </span>
         {fields.evidence.length ? (
           <span className="inline-flex shrink-0 items-center gap-1 text-xs text-muted-foreground">

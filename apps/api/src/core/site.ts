@@ -127,3 +127,37 @@ export async function withdrawMedia(
     for (const key of keys) await context.publicMedia.remove(key);
   });
 }
+
+const logoHost = (tenantId: string, schoolId: string): Host => ({
+  tenantId,
+  hostType: "org",
+  hostId: schoolId,
+});
+
+/**
+ * Makes the school's logo the one public copy its website and sign-in pages
+ * show, withdrawing any it showed before; none clears it.
+ */
+export function publishLogo(
+  context: UnitContext,
+  logoFileId: string | null,
+): Promise<Record<string, string>> {
+  return publishMedia(
+    context,
+    logoHost(context.tenantId, context.schoolId),
+    logoFileId ? [logoFileId] : [],
+  );
+}
+
+/** Where strangers fetch the school's logo, or null while it has none. */
+export async function logoKey(
+  tx: CellTransaction,
+  tenantId: string,
+  school: { id: string; logoFileId: string | null },
+): Promise<string | null> {
+  if (!school.logoFileId) return null;
+  const shown = await publicationsOf(tx, logoHost(tenantId, school.id));
+  return (
+    shown.find((row) => row.fileId === school.logoFileId)?.publicKey ?? null
+  );
+}

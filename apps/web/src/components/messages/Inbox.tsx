@@ -47,13 +47,11 @@ function ThreadItem({
   row,
   selected,
   today,
-  timeZone,
   onOpen,
 }: {
   row: Row;
   selected: boolean;
   today: string;
-  timeZone: string;
   onOpen: () => void;
 }) {
   const people = row.mailbox
@@ -101,7 +99,7 @@ function ThreadItem({
             })}
           </span>
           <span className="shrink-0 text-[13px] leading-[18px] text-muted-foreground tabular-nums">
-            {whenShort(row.lastMessageAt, today, timeZone)}
+            {whenShort(row.lastMessageAt, today)}
           </span>
         </span>
         {row.mailbox ? (
@@ -238,7 +236,6 @@ function ThreadList({
               row={row}
               selected={row.id === search.thread}
               today={user.today}
-              timeZone={user.school.timeZone}
               onOpen={() => onSearch({ thread: row.id })}
             />
           ))}

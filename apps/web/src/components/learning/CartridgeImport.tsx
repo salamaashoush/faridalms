@@ -9,11 +9,11 @@ import { useState } from "react";
 import { toast } from "sonner";
 
 import { classTitle } from "~/components/classes/format";
-import { uploadDocumentFile } from "~/components/coursework/useDocumentMedia";
 import { CheckboxRow } from "~/components/people/fields";
 import { ComboboxField } from "~/components/system/ComboboxField";
 import { FormField } from "~/components/system/field";
 import { SheetForm } from "~/components/system/SheetForm";
+import { uploadDocumentFile } from "~/hooks/useDocumentMedia";
 import * as m from "~/i18n/messages";
 import { availableToolsQuery } from "~/queries/lti";
 import { saveBankQuestion } from "~/server/bank";

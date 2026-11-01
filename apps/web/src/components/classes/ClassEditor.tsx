@@ -1,3 +1,4 @@
+import { saveClassSchema } from "@faridalms/domain/classes";
 import { Button } from "@faridalms/ui/button";
 import {
   useMutation,
@@ -14,7 +15,8 @@ import { inLocale } from "~/hooks/useCurrentUser";
 import * as m from "~/i18n/messages";
 import { classOptionsQuery, classRecordQuery } from "~/queries/classes";
 import { saveClass } from "~/server/classes";
-import { getMessageFromError } from "~/utils/error";
+import { refusalOf } from "~/utils/error";
+import { schemaErrors } from "~/utils/validation";
 
 import { displayName, labelOf } from "../people/format";
 
@@ -40,7 +42,12 @@ interface Draft {
 
 type Field = "code" | "titles" | "subjects";
 
-const CODE = /^[A-Za-z0-9_.-]{1,40}$/;
+const FIELD_OF: Partial<Record<string, Field>> = {
+  code: "code",
+  titleEn: "titles",
+  titleAr: "titles",
+  subjects: "subjects",
+};
 
 /** Refusals from the server that are about one field, shown on that field. */
 const FIELD_ERRORS: Partial<Record<string, Field>> = {
@@ -117,43 +124,30 @@ export function ClassEditor({
     .toSorted((a, b) => Number(b.teaches) - Number(a.teaches))
     .map((row) => ({ value: row.id, label: displayName(row) }));
   const noTeacher = { value: "none", label: m.classesNoTeacherYet() };
+  const payload = {
+    ...(record ? { id: record.id, expectedVersion: record.version } : {}),
+    yearId,
+    code: draft.code.trim(),
+    titleEn: draft.titleEn,
+    titleAr: draft.titleAr,
+    gradeId: draft.gradeId,
+    locationId: draft.locationId,
+    homeroomTeacherId: draft.homeroomTeacherId,
+    subjects: draft.subjects
+      .filter((row) => row.subjectId)
+      .map((row) => ({
+        subjectId: row.subjectId,
+        teacherIds: row.teacherId ? [row.teacherId] : [],
+      })),
+  };
   const mutation = useMutation({
-    mutationFn: () =>
-      saveClass({
-        data: {
-          ...(record ? { id: record.id, expectedVersion: record.version } : {}),
-          yearId,
-          code: draft.code.trim(),
-          titleEn: draft.titleEn,
-          titleAr: draft.titleAr,
-          gradeId: draft.gradeId,
-          locationId: draft.locationId,
-          homeroomTeacherId: draft.homeroomTeacherId,
-          subjects: draft.subjects
-            .filter((row) => row.subjectId)
-            .map((row) => ({
-              subjectId: row.subjectId,
-              teacherIds: row.teacherId ? [row.teacherId] : [],
-            })),
-        },
-      }),
+    mutationFn: () => saveClass({ data: payload }),
     meta: { inlineError: true },
   });
-  const validate = () => {
-    const found: typeof errors = {};
-    if (!CODE.test(draft.code.trim())) found.code = m.validationClassCode();
-    if (!draft.titleEn.trim() && !draft.titleAr.trim())
-      found.titles = m.validationNameRequired();
-    const chosen = draft.subjects.map((row) => row.subjectId).filter(Boolean);
-    if (new Set(chosen).size !== chosen.length)
-      found.subjects = m.classesSubjectTwice();
-    return found;
-  };
-  const failure =
-    mutation.error &&
-    !(mutation.error instanceof Error && FIELD_ERRORS[mutation.error.message])
-      ? getMessageFromError(mutation.error)
-      : null;
+  const validate = () =>
+    schemaErrors(saveClassSchema, payload, (key) => FIELD_OF[key]);
+  const refusal = refusalOf(mutation.error, FIELD_ERRORS);
+  const failure = refusal && !refusal.field ? refusal.message : null;
   return (
     <RecordForm
       title={record ? m.classesEdit() : m.classesAdd()}
@@ -169,9 +163,8 @@ export function ClassEditor({
         try {
           await mutation.mutateAsync();
         } catch (error) {
-          const field =
-            error instanceof Error ? FIELD_ERRORS[error.message] : undefined;
-          if (field) setErrors({ [field]: getMessageFromError(error) });
+          const refused = refusalOf(error, FIELD_ERRORS);
+          if (refused?.field) setErrors({ [refused.field]: refused.message });
           return;
         }
         await queryClient.invalidateQueries({ queryKey: ["classes"] });

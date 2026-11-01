@@ -30,7 +30,6 @@ import {
   STATE_LABEL,
   STATE_TONE,
 } from "~/components/admissions/labels";
-import { formatInstant } from "~/components/coursework/format";
 import { DataTable, RowLink } from "~/components/system/DataTable";
 import { IndexToolbar, PageHeader } from "~/components/system/IndexPage";
 import { RecordTabs } from "~/components/system/RecordPage";
@@ -39,7 +38,7 @@ import { inLocale, useCurrentUser } from "~/hooks/useCurrentUser";
 import * as m from "~/i18n/messages";
 import { enquiriesQuery } from "~/queries/admissions";
 import { currentUserQuery } from "~/queries/user";
-import { formatNumber } from "~/utils/datetime";
+import { formatInstant, formatNumber } from "~/utils/datetime";
 
 const DEFAULT_SEARCH = v.parse(enquiryListSchema, {});
 
@@ -107,7 +106,7 @@ const State = ({ row }: { row: Row }) => (
 
 // Built per render: headers read the request's locale, which a module-level
 // array would fix at whichever language first loaded the module on the server.
-function columns(timeZone: string): Column<Row>[] {
+function columns(): Column<Row>[] {
   return [
     {
       id: "family",
@@ -140,7 +139,7 @@ function columns(timeZone: string): Column<Row>[] {
       header: m.admColReceived(),
       cell: (row) => (
         <span className="whitespace-nowrap text-muted-foreground">
-          {formatInstant(row.createdAt, timeZone)}
+          {formatInstant(row.createdAt)}
         </span>
       ),
     },
@@ -152,11 +151,11 @@ function columns(timeZone: string): Column<Row>[] {
   ];
 }
 
-const card = (timeZone: string) => ({
+const card = () => ({
   title: (row: Row) => <Family row={row} />,
   status: (row: Row) => <State row={row} />,
   fact: (row: Row) =>
-    `${PURPOSE_LABEL[row.purpose]()} · ${SOURCE_LABEL[row.source]()} · ${formatInstant(row.createdAt, timeZone)}`,
+    `${PURPOSE_LABEL[row.purpose]()} · ${SOURCE_LABEL[row.source]()} · ${formatInstant(row.createdAt)}`,
 });
 
 const VIEW_LABEL: Record<EnquiryView, () => string> = {
@@ -278,9 +277,9 @@ function EnquiriesPage() {
           <DataTable
             caption={m.admCaption({ view: VIEW_LABEL[search.state]() })}
             rows={data.rows}
-            columns={columns(user.school.timeZone)}
+            columns={columns()}
             rowLabel={(row) => row.name}
-            card={card(user.school.timeZone)}
+            card={card()}
             pagination={{
               page: data.page,
               pages: data.pages,

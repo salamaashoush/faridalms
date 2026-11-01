@@ -4,7 +4,7 @@ import { levelSchema } from "@faridalms/puzzles/level";
 import * as v from "valibot";
 
 import type { FootnoteSource } from "./citations";
-import type { PictureCredit } from "./commons";
+import type { PictureCredit, PictureFocus } from "./commons";
 import type { EmbedProvider } from "./embed";
 import type { LtiLink } from "./lti";
 import type { MathForm } from "./math-forms";
@@ -13,7 +13,7 @@ import type { ScratchFeature } from "./scratch-project";
 
 import { MAX_DESCRIPTION_TEXT, parseDescriptions } from "./chapters";
 import { footnoteSourceSchema } from "./citations";
-import { pictureCreditSchema } from "./commons";
+import { pictureCreditSchema, pictureFocusSchema } from "./commons";
 import { embedProviders, isEmbedId } from "./embed";
 import { ltiLinkSchema } from "./lti";
 import { MATH_FORMS } from "./math-forms";
@@ -333,6 +333,8 @@ export interface ContentNode {
   decorative?: boolean;
   /** Who made a picture taken from an open collection, and under which licence. */
   credit?: PictureCredit;
+  /** Where a picture's subject sits, so a crop of it, such as a card's cover, keeps it in view. */
+  focus?: PictureFocus;
   /** Mathematics written in LaTeX; `direction` rtl sets it in Arabic notation. */
   latex?: string;
   /** Mathematics on a line of its own rather than in the text. */
@@ -620,6 +622,7 @@ const nodeShape: v.GenericSchema<ContentNode> = v.pipe(
     alt: v.optional(v.pipe(v.string(), v.maxLength(500))),
     decorative: v.optional(v.boolean()),
     credit: v.optional(pictureCreditSchema),
+    focus: v.optional(pictureFocusSchema),
     latex: v.optional(v.pipe(v.string(), v.maxLength(MAX_LATEX))),
     block: v.optional(v.boolean()),
     caption: v.optional(v.pipe(v.string(), v.maxLength(1000))),

@@ -3,7 +3,7 @@ import type { ExamBoard, ExamSeries } from "@faridalms/domain/exams";
 
 import { examSessionsOf } from "@faridalms/database/stores/exams";
 
-import type { UnitContext } from "./context";
+import type { UnitContext } from "../core/context";
 
 export interface ExamSessionView {
   id: string;

@@ -14,13 +14,11 @@ import {
   RecordList,
   RecordSection,
 } from "~/components/system/RecordPage";
-import { useCurrentUser } from "~/hooks/useCurrentUser";
 import * as m from "~/i18n/messages";
 import { getLocale, getTextDirection } from "~/i18n/runtime";
 import { sharedWorkQuery } from "~/queries/coursework";
 import { getSharedPiece } from "~/server/coursework";
-
-import { formatInstant } from "./format";
+import { formatInstant } from "~/utils/datetime";
 
 const fileUrl = (fileId: string) => `/files/${fileId}`;
 
@@ -63,7 +61,6 @@ function Piece({
 
 /** Work a child's teachers chose to share with the family, to read in full. */
 export function SharedWork({ studentId }: { studentId: string }) {
-  const user = useCurrentUser();
   const pieces = useQuery(sharedWorkQuery(studentId)).data?.pieces ?? [];
   const [open, setOpen] = useState<{ attemptId: string; title: string }>();
   return (
@@ -82,10 +79,7 @@ export function SharedWork({ studentId }: { studentId: string }) {
                   {piece.title}
                 </bdi>
                 <span className="text-[13px] leading-[18px] text-muted-foreground">
-                  {[
-                    piece.classCode,
-                    formatInstant(piece.sharedAt, user.school.timeZone),
-                  ].join(" · ")}
+                  {[piece.classCode, formatInstant(piece.sharedAt)].join(" · ")}
                 </span>
               </div>
               <Button

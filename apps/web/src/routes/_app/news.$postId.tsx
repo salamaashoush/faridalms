@@ -19,7 +19,6 @@ import type { HeaderFact } from "~/components/system/RecordPage";
 import { audienceLabel } from "~/components/announcements/format";
 import { BreadcrumbCurrent } from "~/components/app/WorkspaceBreadcrumb";
 import { shownIn, TranslatedView } from "~/components/content/TranslatedView";
-import { formatInstant } from "~/components/coursework/format";
 import { usePrint } from "~/components/print/usePrint";
 import { DataTable } from "~/components/system/DataTable";
 import {
@@ -34,7 +33,7 @@ import {
 } from "~/components/system/RecordPage";
 import { SheetPanel } from "~/components/system/SheetPanel";
 import { StatusText } from "~/components/system/status";
-import { inLocale, useCurrentUser } from "~/hooks/useCurrentUser";
+import { inLocale } from "~/hooks/useCurrentUser";
 import * as m from "~/i18n/messages";
 import { getLocale } from "~/i18n/runtime";
 import { newsPostQuery } from "~/queries/news";
@@ -44,7 +43,7 @@ import {
   markNewsSeen,
   publishNews,
 } from "~/server/news";
-import { formatNumber } from "~/utils/datetime";
+import { formatInstant, formatNumber } from "~/utils/datetime";
 import { getMessageFromError } from "~/utils/error";
 
 export const Route = createFileRoute("/_app/news/$postId")({
@@ -68,11 +67,9 @@ function NewsTrail() {
   return <BreadcrumbCurrent>{titleOf(data)}</BreadcrumbCurrent>;
 }
 
-function Read({ row, timeZone }: { row: ReportRow; timeZone: string }) {
+function Read({ row }: { row: ReportRow }) {
   return row.readAt ? (
-    <StatusText tone="success">
-      {formatInstant(row.readAt, timeZone)}
-    </StatusText>
+    <StatusText tone="success">{formatInstant(row.readAt)}</StatusText>
   ) : (
     <StatusText tone="neutral">{m.annNotRead()}</StatusText>
   );
@@ -80,7 +77,7 @@ function Read({ row, timeZone }: { row: ReportRow; timeZone: string }) {
 
 // Built per render: headers read the request's locale, which a module-level
 // array would fix at whichever language first loaded the module on the server.
-function reportColumns(timeZone: string): Column<ReportRow>[] {
+function reportColumns(): Column<ReportRow>[] {
   return [
     {
       id: "name",
@@ -91,17 +88,17 @@ function reportColumns(timeZone: string): Column<ReportRow>[] {
     {
       id: "read",
       header: m.annColRead(),
-      cell: (row) => <Read row={row} timeZone={timeZone} />,
+      cell: (row) => <Read row={row} />,
     },
   ];
 }
 
-function reportCard(timeZone: string) {
+function reportCard() {
   return {
     title: (row: ReportRow) => (
       <bdi>{inLocale(row.fullNameEn, row.fullNameAr)}</bdi>
     ),
-    status: (row: ReportRow) => <Read row={row} timeZone={timeZone} />,
+    status: (row: ReportRow) => <Read row={row} />,
   };
 }
 
@@ -114,7 +111,6 @@ function Report({
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }) {
-  const user = useCurrentUser();
   const rows: ReportRow[] = (data.report ?? []).map((row) => ({
     ...row,
     id: row.userId,
@@ -134,9 +130,9 @@ function Report({
       <DataTable
         caption={m.annReport()}
         rows={rows}
-        columns={reportColumns(user.school.timeZone)}
+        columns={reportColumns()}
         rowLabel={(row) => inLocale(row.fullNameEn, row.fullNameAr)}
-        card={reportCard(user.school.timeZone)}
+        card={reportCard()}
         empty={{ title: m.newsNotSent() }}
       />
     </SheetPanel>
@@ -170,7 +166,6 @@ function Notice({
 
 function NewsPostPage() {
   const { postId } = Route.useParams();
-  const user = useCurrentUser();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const data = useSuspenseQuery(newsPostQuery(postId)).data;
@@ -247,7 +242,7 @@ function NewsPostPage() {
       ? [
           {
             label: scheduled ? m.newsGoesOut() : m.annSent(),
-            value: formatInstant(data.publishedAt, user.school.timeZone),
+            value: formatInstant(data.publishedAt),
           },
         ]
       : []),
@@ -353,7 +348,7 @@ function NewsPostPage() {
       {data.updatedAt ? (
         <p className="text-[13px] leading-[18px] text-muted-foreground">
           {m.annUpdatedOn({
-            date: formatInstant(data.updatedAt, user.school.timeZone),
+            date: formatInstant(data.updatedAt),
           })}
         </p>
       ) : null}

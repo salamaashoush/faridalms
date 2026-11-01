@@ -15,11 +15,11 @@ import {
 import { StatusText } from "~/components/system/status";
 import * as m from "~/i18n/messages";
 import { getLocale } from "~/i18n/runtime";
-import { numberLocale } from "~/utils/digits";
+import { formatDate, formatInstant, schoolDayOf } from "~/utils/datetime";
 
 import { classTitle } from "../classes/format";
 import { resultText } from "../grading/format";
-import { formatInstant, STATE_LABEL, STATE_TONE } from "./format";
+import { STATE_LABEL, STATE_TONE } from "./format";
 
 export interface LearnerItem {
   assignmentId: string;
@@ -59,29 +59,16 @@ const titleOf = (item: LearnerItem) =>
     ? item.translationTitle
     : item.title;
 
-function dayKey(iso: string | null, timeZone: string) {
-  if (!iso) return "";
-  return new Intl.DateTimeFormat("en-CA", { timeZone }).format(new Date(iso));
-}
-
 function dayLabel(key: string) {
-  if (!key) return m.courseworkNoDueDate();
-  return new Intl.DateTimeFormat(numberLocale(), {
-    weekday: "long",
-    day: "numeric",
-    month: "long",
-    timeZone: "UTC",
-  }).format(new Date(`${key}T00:00:00Z`));
+  return key ? formatDate(key, "weekday") : m.courseworkNoDueDate();
 }
 
 function Item({
   item,
-  timeZone,
   linked,
   onOpen,
 }: {
   item: LearnerItem;
-  timeZone: string;
   linked: boolean;
   onOpen?: (item: LearnerItem) => void;
 }) {
@@ -91,9 +78,7 @@ function Item({
       titleEn: item.classTitleEn,
       titleAr: item.classTitleAr,
     }),
-    item.dueAt
-      ? m.courseworkDueOn({ date: formatInstant(item.dueAt, timeZone) })
-      : null,
+    item.dueAt ? m.courseworkDueOn({ date: formatInstant(item.dueAt) }) : null,
     item.state === "returned" && item.effectiveScore !== null
       ? resultText(item.grade, item.effectiveScore, item.points, "learner")
       : null,
@@ -141,19 +126,17 @@ function Item({
 /** Work grouped under the day it is due, earliest first. */
 export function ByDay({
   items,
-  timeZone,
   linked,
   empty,
 }: {
   items: LearnerItem[];
-  timeZone: string;
   linked: boolean;
   empty: string;
 }) {
   if (items.length === 0) return <RecordEmpty>{empty}</RecordEmpty>;
   const days = new Map<string, LearnerItem[]>();
   for (const item of items) {
-    const key = dayKey(item.dueAt, timeZone);
+    const key = item.dueAt ? schoolDayOf(item.dueAt) : "";
     days.set(key, [...(days.get(key) ?? []), item]);
   }
   return (
@@ -162,12 +145,7 @@ export function ByDay({
         <RecordSection key={key || "none"} title={dayLabel(key)}>
           <RecordList>
             {group.map((item) => (
-              <Item
-                key={item.assignmentId}
-                item={item}
-                timeZone={timeZone}
-                linked={linked}
-              />
+              <Item key={item.assignmentId} item={item} linked={linked} />
             ))}
           </RecordList>
         </RecordSection>
@@ -179,14 +157,12 @@ export function ByDay({
 export function WorkSection({
   title,
   items,
-  timeZone,
   linked,
   onOpen,
   empty,
 }: {
   title: string;
   items: LearnerItem[];
-  timeZone: string;
   linked: boolean;
   /** Opens a piece where the list does not link to it, as a family's does. */
   onOpen?: (item: LearnerItem) => void;
@@ -202,7 +178,6 @@ export function WorkSection({
             <Item
               key={item.assignmentId}
               item={item}
-              timeZone={timeZone}
               linked={linked}
               onOpen={onOpen}
             />

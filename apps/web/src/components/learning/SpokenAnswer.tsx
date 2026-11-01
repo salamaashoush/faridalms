@@ -9,7 +9,7 @@ import { Check, CircleCheck, LoaderCircle, Video } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 
-import { useDocumentMedia } from "~/components/coursework/useDocumentMedia";
+import { useDocumentMedia } from "~/hooks/useDocumentMedia";
 import * as m from "~/i18n/messages";
 import { getLocale } from "~/i18n/runtime";
 import { formatNumber } from "~/utils/datetime";

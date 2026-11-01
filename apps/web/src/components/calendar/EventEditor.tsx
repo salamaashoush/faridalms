@@ -41,7 +41,6 @@ import { contentIssueMessages } from "~/components/content/checks";
 import { ContentEditor } from "~/components/content/ContentEditor";
 import { sectionsContent } from "~/components/content/shapes";
 import { useStartFrom } from "~/components/content/Templates";
-import { useDocumentMedia } from "~/components/coursework/useDocumentMedia";
 import { sayIn } from "~/components/learning/starters";
 import { CheckboxRow } from "~/components/people/fields";
 import {
@@ -53,6 +52,7 @@ import {
 import { SelectField, TextField } from "~/components/system/field";
 import { useAutosave } from "~/hooks/useAutosave";
 import { inLocale } from "~/hooks/useCurrentUser";
+import { useDocumentMedia } from "~/hooks/useDocumentMedia";
 import * as m from "~/i18n/messages";
 import { getLocale } from "~/i18n/runtime";
 import { calendarEventQuery, calendarOptionsQuery } from "~/queries/calendar";
@@ -61,10 +61,11 @@ import {
   removeCalendarEvent,
   saveCalendarEvent,
 } from "~/server/calendar";
+import { formatSpan } from "~/utils/datetime";
 import { getMessageFromError } from "~/utils/error";
 
 import { EVENT_SHAPES } from "./eventShapes";
-import { CATEGORY_LABEL, whenLabel } from "./format";
+import { CATEGORY_LABEL } from "./format";
 
 type Existing = Awaited<
   ReturnType<NonNullable<ReturnType<typeof calendarEventQuery>["queryFn"]>>
@@ -154,7 +155,7 @@ function draftWhen(draft: Draft) {
     draft.startTime !== "" &&
     draft.endTime !== "" &&
     (endsOn > draft.startsOn || draft.endTime > draft.startTime);
-  return whenLabel(
+  return formatSpan(
     {
       startsOn: draft.startsOn,
       endsOn,
@@ -377,7 +378,7 @@ export function EventEditor({
           facts: (locale) => [
             ...(draft.startsOn && draft.endsOn
               ? [
-                  whenLabel(
+                  formatSpan(
                     {
                       startsOn: draft.startsOn,
                       endsOn: draft.endsOn,

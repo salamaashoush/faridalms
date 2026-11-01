@@ -21,12 +21,12 @@ import {
 } from "lucide-react";
 import { useState } from "react";
 
+import type { AreaView } from "~/components/files/AreaFiles";
 import type { HeaderFact, RecordTab } from "~/components/system/RecordPage";
 
 import { ButtonLink } from "~/components/app/ButtonLink";
 import { initialsOf } from "~/components/app/UserMenu";
 import { ClassAttendance } from "~/components/attendance/ClassAttendance";
-import { formatDate } from "~/components/family/format";
 import { AreaFiles } from "~/components/files/AreaFiles";
 import { ClassGradingSection } from "~/components/grading/ClassGrading";
 import { ClassGoals } from "~/components/standards/Goals";
@@ -47,6 +47,7 @@ import * as m from "~/i18n/messages";
 import { classOptionsQuery, classRecordQuery } from "~/queries/classes";
 import { classSoundsQuery } from "~/queries/learning";
 import { changeClassSounds } from "~/server/learning";
+import { formatDate } from "~/utils/datetime";
 
 import { CheckboxRow } from "../people/fields";
 import { displayName, labelOf } from "../people/format";
@@ -402,10 +403,14 @@ export function ClassRecord({
   classId,
   tab,
   onTab,
+  files,
+  onFiles,
 }: {
   classId: string;
   tab: ClassTab;
   onTab: (tab: ClassTab) => void;
+  files: AreaView;
+  onFiles: (view: AreaView) => void;
 }) {
   const data = useSuspenseQuery(classRecordQuery(classId)).data;
   const options = useSuspenseQuery(classOptionsQuery).data;
@@ -471,7 +476,12 @@ export function ClassRecord({
         <ClassGoals classId={data.id} />
       </Deferred>
     ) : active === "files" ? (
-      <AreaFiles area={{ type: "class", id: data.id }} title={title} />
+      <AreaFiles
+        area={{ type: "class", id: data.id }}
+        title={title}
+        view={files}
+        onView={onFiles}
+      />
     ) : (
       <RecordColumns
         main={

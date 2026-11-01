@@ -12,7 +12,6 @@ import { toast } from "sonner";
 
 import type { Tone } from "~/components/system/status";
 
-import { formatInstant } from "~/components/coursework/format";
 import { ConfirmDialog } from "~/components/system/ConfirmDialog";
 import { SelectField, TextField } from "~/components/system/field";
 import {
@@ -20,7 +19,6 @@ import {
   SettingsSection,
 } from "~/components/system/SettingsSection";
 import { StatusBadge } from "~/components/system/status";
-import { useCurrentUser } from "~/hooks/useCurrentUser";
 import * as m from "~/i18n/messages";
 import { siteHostsQuery } from "~/queries/site";
 import {
@@ -29,6 +27,7 @@ import {
   makeSiteHostCanonical,
   removeSiteHost,
 } from "~/server/site";
+import { formatInstant } from "~/utils/datetime";
 import { getMessageFromError } from "~/utils/error";
 import { hostHref } from "~/utils/host";
 
@@ -98,7 +97,6 @@ function DnsRecord({
 }
 
 function HostCard({ host }: { host: Host }) {
-  const user = useCurrentUser();
   const queryClient = useQueryClient();
   const [confirming, setConfirming] = useState(false);
   const refresh = () =>
@@ -154,7 +152,7 @@ function HostCard({ host }: { host: Host }) {
       <p className="text-[13px] leading-[18px] text-muted-foreground">
         {host.checkedAt
           ? m.siteAddressesLastCheck({
-              when: formatInstant(host.checkedAt, user.school.timeZone),
+              when: formatInstant(host.checkedAt),
             })
           : m.siteAddressesNotChecked()}
         {problem ? ` ${problem()}` : null}

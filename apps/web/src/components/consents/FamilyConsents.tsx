@@ -11,20 +11,20 @@ import { useState } from "react";
 import { toast } from "sonner";
 
 import { shownIn, TranslatedView } from "~/components/content/TranslatedView";
-import { formatDate } from "~/components/family/format";
 import { displayName } from "~/components/people/format";
 import { usePrint } from "~/components/print/usePrint";
 import { EmptyState } from "~/components/system/IndexPage";
 import { RecordList, RecordSection } from "~/components/system/RecordPage";
 import { StatusText } from "~/components/system/status";
-import { inLocale, useCurrentUser } from "~/hooks/useCurrentUser";
+import { inLocale } from "~/hooks/useCurrentUser";
 import * as m from "~/i18n/messages";
 import { getLocale } from "~/i18n/runtime";
 import { familyConsentsQuery } from "~/queries/consents";
 import { answerConsent } from "~/server/consents";
+import { formatInstant, formatDate } from "~/utils/datetime";
 import { getMessageFromError } from "~/utils/error";
 
-import { DECISION_LABEL, DECISION_TONE, publishedDay } from "./format";
+import { DECISION_LABEL, DECISION_TONE } from "./format";
 
 type Data = Awaited<
   ReturnType<NonNullable<(typeof familyConsentsQuery)["queryFn"]>>
@@ -136,7 +136,6 @@ function ChildAnswer({ child, form }: { child: Child; form: Form }) {
 }
 
 function FormCard({ form, family }: { form: Form; family: Child[] }) {
-  const user = useCurrentUser();
   const open = family.some(
     (child) => child.mayAnswer && waiting(answerTo(child, form), form),
   );
@@ -181,7 +180,7 @@ function FormCard({ form, family }: { form: Form; family: Child[] }) {
       description={
         form.publishedAt
           ? m.consentFormFrom({
-              date: publishedDay(form.publishedAt, user.school.timeZone),
+              date: formatInstant(form.publishedAt, "date"),
             })
           : undefined
       }

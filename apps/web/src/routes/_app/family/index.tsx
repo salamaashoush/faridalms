@@ -20,7 +20,6 @@ import * as v from "valibot";
 import type { Tone } from "~/components/system/status";
 
 import { classTitle } from "~/components/classes/format";
-import { formatInstant } from "~/components/coursework/format";
 import {
   HomeCard,
   HomeItem,
@@ -31,11 +30,11 @@ import { displayName } from "~/components/people/format";
 import { EmptyState, PageHeader } from "~/components/system/IndexPage";
 import { RecordColumns } from "~/components/system/RecordPage";
 import { StatusText } from "~/components/system/status";
-import { inLocale, useCurrentUser } from "~/hooks/useCurrentUser";
+import { inLocale } from "~/hooks/useCurrentUser";
 import * as m from "~/i18n/messages";
 import { familyHomeQuery } from "~/queries/home";
 import { startChildMode } from "~/server/auth";
-import { formatDate } from "~/utils/datetime";
+import { formatInstant, formatDate } from "~/utils/datetime";
 
 export const Route = createFileRoute("/_app/family/")({
   validateSearch: v.object({
@@ -140,15 +139,7 @@ function HandOver({ child }: { child: Child }) {
   );
 }
 
-function ChildCard({
-  child,
-  timeZone,
-  single,
-}: {
-  child: Child;
-  timeZone: string;
-  single: boolean;
-}) {
+function ChildCard({ child, single }: { child: Child; single: boolean }) {
   const presence = PRESENCE[child.presence];
   return (
     <HomeCard
@@ -220,7 +211,7 @@ function ChildCard({
                       titleEn: row.classTitleEn,
                       titleAr: row.classTitleAr,
                     }),
-                    row.dueAt ? formatInstant(row.dueAt, timeZone) : null,
+                    row.dueAt ? formatInstant(row.dueAt) : null,
                   ]}
                 />
               ))}
@@ -243,7 +234,6 @@ function ChildCard({
  */
 function FamilyHome() {
   const { child } = Route.useSearch();
-  const user = useCurrentUser();
   const data = useSuspenseQuery(familyHomeQuery(child)).data;
   const aside = [
     data.messages.unread > 0 ? (
@@ -387,7 +377,6 @@ function FamilyHome() {
             <ChildCard
               key={row.studentId}
               child={row}
-              timeZone={user.school.timeZone}
               single={data.children.length === 1}
             />
           ))}

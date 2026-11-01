@@ -39,6 +39,7 @@ export const restoreDocumentVersion = createServerFn({ method: "POST" })
       v.object({
         ...hostSchema.entries,
         documentVersion: v.pipe(v.number(), v.integer(), v.minValue(1)),
+        locale: v.optional(v.picklist(["en", "ar"])),
       }),
     ),
   )

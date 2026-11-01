@@ -12,10 +12,14 @@ import type { calendarRangeQuery } from "~/queries/calendar";
 
 import { EmptyState } from "~/components/system/IndexPage";
 import { StatusBadge } from "~/components/system/status";
-import { dayName } from "~/components/timetable/WeekGrid";
 import { useCurrentUser } from "~/hooks/useCurrentUser";
 import * as m from "~/i18n/messages";
-import { formatNumber, secondaryDate } from "~/utils/datetime";
+import {
+  formatWeekday,
+  formatDate,
+  formatNumber,
+  secondaryDate,
+} from "~/utils/datetime";
 
 import {
   CATEGORY_LABEL,
@@ -23,7 +27,6 @@ import {
   eventTitle,
   specialDayLabel,
   timeLabel,
-  weekdayDate,
 } from "./format";
 
 type Range = Awaited<
@@ -116,8 +119,11 @@ export function MonthGrid({
               scope="col"
               className="border-b px-2 py-2 text-start text-xs leading-4 font-medium text-muted-foreground"
             >
-              <abbr title={dayName(isoWeekday(day))} className="no-underline">
-                {dayName(isoWeekday(day), "short")}
+              <abbr
+                title={formatWeekday(isoWeekday(day))}
+                className="no-underline"
+              >
+                {formatWeekday(isoWeekday(day), "short")}
               </abbr>
             </th>
           ))}
@@ -295,9 +301,7 @@ export function Agenda({
         const holiday = special.get(day);
         const on = events.filter((event) => onDay(event, day));
         const notes = [
-          secondary
-            ? secondaryDate(day, secondary, { day: "numeric", month: "long" })
-            : "",
+          secondary ? secondaryDate(day, secondary, "dayMonth") : "",
           holiday ? specialDayLabel(holiday) : "",
         ].filter(Boolean);
         return (
@@ -336,7 +340,7 @@ function DayMark({ day, today }: { day: string; today: string }) {
         aria-hidden
         className="text-xs leading-4 font-medium text-muted-foreground uppercase"
       >
-        {dayName(isoWeekday(day), "short")}
+        {formatWeekday(isoWeekday(day), "short")}
       </span>
       <span
         aria-hidden
@@ -349,8 +353,8 @@ function DayMark({ day, today }: { day: string; today: string }) {
       </span>
       <span className="sr-only">
         {day === today
-          ? `${weekdayDate(day)}, ${m.calToday()}`
-          : weekdayDate(day)}
+          ? `${formatDate(day, "weekday")}, ${m.calToday()}`
+          : formatDate(day, "weekday")}
       </span>
     </h2>
   );
@@ -399,7 +403,7 @@ export function MonthCompact({
               key={day}
               className="text-center text-xs leading-4 font-medium text-muted-foreground"
             >
-              {dayName(isoWeekday(day), "short")}
+              {formatWeekday(isoWeekday(day), "short")}
             </span>
           ))}
         </div>
@@ -424,8 +428,8 @@ export function MonthCompact({
                   aria-pressed={day === selected}
                   aria-label={
                     kinds.length
-                      ? `${weekdayDate(day)}, ${m.calHasEvents()}`
-                      : weekdayDate(day)
+                      ? `${formatDate(day, "weekday")}, ${m.calHasEvents()}`
+                      : formatDate(day, "weekday")
                   }
                   onClick={() => setSelected(day)}
                   className="group grid h-14 content-start justify-items-center gap-1 pt-1 disabled:opacity-30"
@@ -459,13 +463,10 @@ export function MonthCompact({
       </fieldset>
       <section aria-live="polite" className="grid gap-1 border-t pt-3">
         <h2 className="flex flex-wrap items-baseline gap-x-2 text-sm leading-5 font-semibold">
-          {weekdayDate(selected)}
+          {formatDate(selected, "weekday")}
           {secondary ? (
             <span className="text-[13px] font-normal text-muted-foreground">
-              {secondaryDate(selected, secondary, {
-                day: "numeric",
-                month: "long",
-              })}
+              {secondaryDate(selected, secondary, "dayMonth")}
             </span>
           ) : null}
         </h2>

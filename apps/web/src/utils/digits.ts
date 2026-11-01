@@ -1,5 +1,7 @@
 import type { Digits } from "@faridalms/domain/people";
 
+import { formattingLocale } from "@faridalms/domain/school";
+
 import { getLocale } from "~/i18n/runtime";
 
 /** Where the school's choice of digits travels with each page, as the language does. */
@@ -62,7 +64,7 @@ export function rememberDigits(next: Digits): boolean {
  * pinned to the school's digits, as browsers and regions disagree on them.
  */
 export function numberLocale(locale: string = getLocale()): string {
-  return locale === "ar" ? `ar-u-nu-${digits()}` : locale;
+  return formattingLocale(locale, digits());
 }
 
 /**

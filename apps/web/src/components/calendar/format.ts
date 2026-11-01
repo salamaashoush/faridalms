@@ -11,12 +11,8 @@ import {
   Users,
 } from "lucide-react";
 
-import type { Locale } from "~/i18n/runtime";
-
 import { inLocale } from "~/hooks/useCurrentUser";
 import * as m from "~/i18n/messages";
-import { getLocale } from "~/i18n/runtime";
-import { numberLocale } from "~/utils/digits";
 
 export const CATEGORY_LABEL: Record<CalendarCategory, () => string> = {
   general: m.calCatGeneral,
@@ -61,52 +57,11 @@ export interface Timed {
   endTime: string | null;
 }
 
-const day = (iso: string, options: Intl.DateTimeFormatOptions) =>
-  new Intl.DateTimeFormat(numberLocale(), {
-    ...options,
-    timeZone: "UTC",
-  }).format(new Date(`${iso}T00:00:00Z`));
-
-export function weekdayDate(iso: string) {
-  return day(iso, { weekday: "long", day: "numeric", month: "long" });
-}
-
-export function shortDate(iso: string) {
-  return day(iso, { day: "numeric", month: "short" });
-}
-
 /** The time of an event within its day, or that it runs all day. */
 export function timeLabel(event: Timed) {
   return event.startTime && event.endTime
     ? m.ttTimeRange({ from: event.startTime, to: event.endTime })
     : m.calAllDay();
-}
-
-const instant = (date: string, time: string | null) =>
-  new Date(`${date}T${time ?? "00:00"}:00Z`);
-
-/**
- * When an event happens: its days and, if timed, its hours, in full or
- * short. The locale lays out the range, so Arabic reads it in its own order.
- */
-export function whenLabel(
-  event: Timed,
-  style: "long" | "short" = "long",
-  locale: Locale = getLocale(),
-) {
-  const timed = event.startTime !== null && event.endTime !== null;
-  return new Intl.DateTimeFormat(numberLocale(locale), {
-    weekday: style,
-    day: "numeric",
-    month: style,
-    ...(timed
-      ? { hour: "2-digit", minute: "2-digit", hourCycle: "h23" }
-      : undefined),
-    timeZone: "UTC",
-  }).formatRange(
-    instant(event.startsOn, event.startTime),
-    instant(event.endsOn, event.endTime),
-  );
 }
 
 export function specialDayLabel(special: {

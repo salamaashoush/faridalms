@@ -20,7 +20,7 @@ import { DataTable } from "~/components/system/DataTable";
 import { FormField, SelectField, TextField } from "~/components/system/field";
 import { SheetForm } from "~/components/system/SheetForm";
 import { StatusText } from "~/components/system/status";
-import { inLocale, useCurrentUser } from "~/hooks/useCurrentUser";
+import { inLocale } from "~/hooks/useCurrentUser";
 import * as m from "~/i18n/messages";
 import { frontDeskQuery } from "~/queries/attendance";
 import {
@@ -29,6 +29,7 @@ import {
   signStudentIn,
   signStudentOut,
 } from "~/server/attendance";
+import { schoolClockAt } from "~/utils/datetime";
 import { getMessageFromError } from "~/utils/error";
 
 import { DayNav } from "./DayNav";
@@ -96,16 +97,6 @@ const card = {
   status: direction,
   fact: (row: Movement) => [row.at, detailOf(row)].filter(Boolean).join(" · "),
 };
-
-/** The school's clock now, as `HH:MM`. */
-function clockIn(timeZone: string) {
-  return new Intl.DateTimeFormat("en-GB", {
-    hour: "2-digit",
-    minute: "2-digit",
-    hourCycle: "h23",
-    timeZone,
-  }).format(new Date());
-}
 
 /**
  * Reception's book of late arrivals and early departures. Signing a child
@@ -187,13 +178,12 @@ function SignSheet({
   reasons: Data["reasons"];
   onClose: () => void;
 }) {
-  const user = useCurrentUser();
   const queryClient = useQueryClient();
   const signIn = useServerFn(signStudentIn);
   const signOut = useServerFn(signStudentOut);
   const [search, setSearch] = useState("");
   const [studentId, setStudentId] = useState("");
-  const [at, setAt] = useState(() => clockIn(user.school.timeZone));
+  const [at, setAt] = useState(() => schoolClockAt());
   const [reasonId, setReasonId] = useState("");
   const [collector, setCollector] = useState("");
   const [otherName, setOtherName] = useState("");

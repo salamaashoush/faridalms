@@ -19,13 +19,13 @@ import { UnsavedChangesGuard } from "~/components/app/UnsavedChangesGuard";
 import { useCollaboration } from "~/components/content/collaboration";
 import { ContentEditor } from "~/components/content/ContentEditor";
 import { useStartFrom } from "~/components/content/Templates";
-import { useDocumentMedia } from "~/components/coursework/useDocumentMedia";
 import {
   DetailsPanel,
   DetailsSection,
   DocumentPage,
 } from "~/components/system/DocumentPage";
 import { useAutosave } from "~/hooks/useAutosave";
+import { useDocumentMedia } from "~/hooks/useDocumentMedia";
 import * as m from "~/i18n/messages";
 import { getLocale } from "~/i18n/runtime";
 import { moduleRecordQuery, planQuery } from "~/queries/learning";

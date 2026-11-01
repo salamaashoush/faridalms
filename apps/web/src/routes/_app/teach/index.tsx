@@ -4,7 +4,6 @@ import { Sun } from "lucide-react";
 
 import { eventTitle } from "~/components/calendar/format";
 import { classTitle } from "~/components/classes/format";
-import { formatInstant } from "~/components/coursework/format";
 import {
   HomeCard,
   HomeItem,
@@ -15,10 +14,10 @@ import {
 import { EmptyState, PageHeader } from "~/components/system/IndexPage";
 import { RecordColumns } from "~/components/system/RecordPage";
 import { StatusText } from "~/components/system/status";
-import { inLocale, useCurrentUser } from "~/hooks/useCurrentUser";
+import { inLocale } from "~/hooks/useCurrentUser";
 import * as m from "~/i18n/messages";
 import { teacherHomeQuery } from "~/queries/home";
-import { formatDate, formatNumber } from "~/utils/datetime";
+import { formatInstant, formatDate, formatNumber } from "~/utils/datetime";
 
 export const Route = createFileRoute("/_app/teach/")({
   loader: ({ context }) =>
@@ -31,9 +30,7 @@ export const Route = createFileRoute("/_app/teach/")({
  * them and what is coming. Each card has one way on and goes when empty.
  */
 function TodayPage() {
-  const user = useCurrentUser();
   const data = useSuspenseQuery(teacherHomeQuery).data;
-  const zone = user.school.timeZone;
   const cards = [
     data.slots.length > 0 ? (
       <HomeCard
@@ -117,7 +114,7 @@ function TodayPage() {
                   titleEn: row.classTitleEn,
                   titleAr: row.classTitleAr,
                 }),
-                row.dueAt ? formatInstant(row.dueAt, zone) : null,
+                row.dueAt ? formatInstant(row.dueAt) : null,
               ]}
               status={
                 <span className="text-[13px] text-muted-foreground tabular-nums">

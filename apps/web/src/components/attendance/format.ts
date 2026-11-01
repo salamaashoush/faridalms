@@ -7,6 +7,7 @@ import type { Tone } from "~/components/system/status";
 
 import { inLocale } from "~/hooks/useCurrentUser";
 import * as m from "~/i18n/messages";
+import { formatInstant, schoolDayOf } from "~/utils/datetime";
 import { numberLocale } from "~/utils/digits";
 
 export const MEANING_LABEL: Record<AttendanceMeaning, () => string> = {
@@ -61,39 +62,15 @@ export function formatRate(rate: number): string {
   }).format(rate / 100);
 }
 
-/** A school day with its weekday, as a register is named. */
-export function formatDay(iso: string): string {
-  return new Intl.DateTimeFormat(numberLocale(), {
-    weekday: "long",
-    day: "numeric",
-    month: "long",
-    timeZone: "UTC",
-  }).format(new Date(`${iso}T00:00:00Z`));
-}
-
 /**
  * When a register was saved, on the school's clock: the time alone when it
  * was saved on the register's own day, otherwise the day too.
  */
-export function formatSavedAt(
-  iso: string,
-  registerDay: string,
-  timeZone: string,
-): string {
-  const at = new Date(iso);
-  const day = new Intl.DateTimeFormat("en-CA", { timeZone }).format(at);
-  return new Intl.DateTimeFormat(numberLocale(), {
-    ...(day === registerDay ? {} : { day: "numeric", month: "short" }),
-    hour: "numeric",
-    minute: "2-digit",
-    timeZone,
-  }).format(at);
-}
-
-export function shiftDay(iso: string, days: number): string {
-  const day = new Date(`${iso}T00:00:00Z`);
-  day.setUTCDate(day.getUTCDate() + days);
-  return day.toISOString().slice(0, 10);
+export function formatSavedAt(iso: string, registerDay: string): string {
+  return formatInstant(
+    iso,
+    schoolDayOf(iso) === registerDay ? "time" : "stamp",
+  );
 }
 
 /** A mark as a family or office reads it: "Late, 12 minutes". */

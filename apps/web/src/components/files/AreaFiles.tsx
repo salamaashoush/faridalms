@@ -26,17 +26,18 @@ import {
 } from "lucide-react";
 import { useRef, useState } from "react";
 import { toast } from "sonner";
+import * as v from "valibot";
 
 import type { Column, RowAction } from "~/components/system/DataTable";
 
 import { fileStrings } from "~/components/content/strings";
-import { useDocumentMedia } from "~/components/coursework/useDocumentMedia";
 import { UsageBar } from "~/components/files/UsageBar";
 import { DataTable } from "~/components/system/DataTable";
 import { TextField } from "~/components/system/field";
 import { RecordEmpty, RecordList } from "~/components/system/RecordPage";
 import { SheetForm } from "~/components/system/SheetForm";
 import { SheetPanel } from "~/components/system/SheetPanel";
+import { useDocumentMedia } from "~/hooks/useDocumentMedia";
 import * as m from "~/i18n/messages";
 import { getLocale } from "~/i18n/runtime";
 import { areaFilesQuery } from "~/queries/files";
@@ -53,8 +54,27 @@ import { getMessageFromError } from "~/utils/error";
 type AreaFile = Awaited<
   ReturnType<NonNullable<ReturnType<typeof areaFilesQuery>["queryFn"]>>
 >["files"][number];
-type Sort = "added" | "name" | "size";
-type Kind = "pictures" | "documents" | "audio" | "video" | "other";
+const SORTS = ["added", "name", "size"] as const;
+const KINDS = ["pictures", "documents", "audio", "video", "other"] as const;
+type Sort = (typeof SORTS)[number];
+type Kind = (typeof KINDS)[number];
+
+/** What a files tab shows, kept in the address of the record it sits on. */
+export const areaViewSearch = {
+  fileSearch: v.fallback(
+    v.optional(v.pipe(v.string(), v.maxLength(100)), ""),
+    "",
+  ),
+  fileKinds: v.fallback(v.optional(v.array(v.picklist(KINDS)), []), []),
+  fileSort: v.fallback(v.optional(v.picklist(SORTS), "added"), "added"),
+  fileOrder: v.fallback(
+    v.optional(v.picklist(["asc", "desc"]), "desc"),
+    "desc",
+  ),
+};
+export type AreaView = v.InferOutput<
+  v.ObjectSchema<typeof areaViewSearch, undefined>
+>;
 
 const TRASH_DAYS = 30;
 
@@ -220,7 +240,17 @@ interface Pending {
  * and listed with where each file is used. Deleting moves a file to a trash
  * kept for 30 days; the documents showing it show it as removed meanwhile.
  */
-export function AreaFiles({ area, title }: { area: Area; title: string }) {
+export function AreaFiles({
+  area,
+  title,
+  view,
+  onView,
+}: {
+  area: Area;
+  title: string;
+  view: AreaView;
+  onView: (view: AreaView) => void;
+}) {
   const { files, usage } = useSuspenseQuery(areaFilesQuery(area, false)).data;
   const queryClient = useQueryClient();
   const media = useDocumentMedia(area);
@@ -232,12 +262,15 @@ export function AreaFiles({ area, title }: { area: Area; title: string }) {
   const replacement = useRef<HTMLInputElement>(null);
   const [replacing, setReplacing] = useState<AreaFile | null>(null);
   const [versionsOf, setVersionsOf] = useState<AreaFile | null>(null);
-  const [search, setSearch] = useState("");
-  const [kinds, setKinds] = useState<string[]>([]);
-  const [sort, setSort] = useState<{ value: Sort; direction: "asc" | "desc" }>({
-    value: "added",
-    direction: "desc",
-  });
+  const search = view.fileSearch;
+  const kinds: string[] = view.fileKinds;
+  const sort = { value: view.fileSort, direction: view.fileOrder };
+  const setSearch = (fileSearch: string) => onView({ ...view, fileSearch });
+  const setKinds = (next: string[]) =>
+    onView({
+      ...view,
+      fileKinds: KINDS.filter((kind) => next.includes(kind)),
+    });
   const [pending, setPending] = useState<Pending[]>([]);
   const [viewing, setViewing] = useState<AreaFile | null>(null);
   const [renaming, setRenaming] = useState<AreaFile | null>(null);
@@ -486,14 +519,14 @@ export function AreaFiles({ area, title }: { area: Area; title: string }) {
             },
           ],
           onReset: () => {
-            setSearch("");
-            setKinds([]);
+            onView({ ...view, fileSearch: "", fileKinds: [] });
           },
         }}
         sort={{
           value: sort.value,
           direction: sort.direction,
-          onChange: (value, direction) => setSort({ value, direction }),
+          onChange: (value, direction) =>
+            onView({ ...view, fileSort: value, fileOrder: direction }),
         }}
         card={areaCard(area)}
         empty={{

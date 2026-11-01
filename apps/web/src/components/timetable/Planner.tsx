@@ -26,18 +26,12 @@ import { inLocale, useCurrentUser } from "~/hooks/useCurrentUser";
 import * as m from "~/i18n/messages";
 import { timetableGridQuery, timetableOptionsQuery } from "~/queries/timetable";
 import { checkPlacement, clearCell, placeMeeting } from "~/server/timetable";
-import { formatDate } from "~/utils/datetime";
+import { formatWeekday, formatDate } from "~/utils/datetime";
 import { getMessageFromError } from "~/utils/error";
 
 import type { GridPeriod } from "./WeekGrid";
 
-import {
-  dayName,
-  FreeCell,
-  MeetingCard,
-  periodName,
-  WeekGrid,
-} from "./WeekGrid";
+import { FreeCell, MeetingCard, periodName, WeekGrid } from "./WeekGrid";
 import { roomLabel, teacherLabel, todayOf } from "./Weeks";
 
 type Grid = Awaited<
@@ -124,7 +118,7 @@ function PlaceSheet({
           if (!open) onClose();
         }}
         title={m.ttCellTitle({
-          day: dayName(cell.day),
+          day: formatWeekday(cell.day),
           period: periodName(cell.period),
         })}
         pending={save.isPending}
@@ -309,7 +303,7 @@ function PlannerCell({
       disabled={!hydrated}
       onClick={onOpen}
       aria-label={m.ttEditCell({
-        day: dayName(cell.day),
+        day: formatWeekday(cell.day),
         period: periodName(cell.period),
       })}
       className={cn(

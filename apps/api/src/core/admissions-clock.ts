@@ -3,6 +3,7 @@ import type { Directory } from "@faridalms/database/directory/client";
 
 import { clockDue } from "@faridalms/database/stores/admission-decisions";
 import { schoolProfile } from "@faridalms/database/stores/identity";
+import { schoolDate } from "@faridalms/domain/school";
 
 import type { UnitContext } from "./context";
 import type { AdmissionScope } from "./decisions";
@@ -14,7 +15,6 @@ import {
   moveApplication,
   releaseDecisions,
 } from "./decisions";
-import { dateIn } from "./procedure";
 
 /**
  * Does what the calendar asks of one tenant's admissions: decisions whose
@@ -50,7 +50,7 @@ export async function runAdmissionsClock(
           actorUserId: null,
           now: input.now,
           channels: input.channels,
-          today: dateIn(school?.timeZone ?? "UTC", input.now),
+          today: schoolDate(school?.timeZone ?? "UTC", input.now),
         };
         const releases = [];
         for (const release of due.releases.filter(

@@ -27,8 +27,7 @@ import { roleLabel } from "~/components/people/format";
 import { useCurrentUser } from "~/hooks/useCurrentUser";
 import * as m from "~/i18n/messages";
 import { getLocale } from "~/i18n/runtime";
-import { formatDate, formatList } from "~/utils/datetime";
-import { numberLocale } from "~/utils/digits";
+import { formatDate, formatInstant, formatList } from "~/utils/datetime";
 
 export const SEARCH_KIND_LABEL: Record<SearchKind, () => string> = {
   students: m.searchKindStudents,
@@ -71,13 +70,8 @@ const MESSAGES = {
 export const HIT_ROW =
   "flex items-start gap-3 rounded-md px-3 py-2 text-sm outline-none hover:bg-muted focus-visible:bg-muted focus-visible:ring-2 focus-visible:ring-ring";
 
-function whenLabel(when: string, timeZone: string) {
-  if (when.length === 10) return formatDate(when);
-  return new Intl.DateTimeFormat(numberLocale(), {
-    dateStyle: "medium",
-    timeZone,
-  }).format(new Date(when));
-}
+const whenLabel = (when: string) =>
+  when.length === 10 ? formatDate(when) : formatInstant(when, "date");
 
 /** The query's words marked in a title, matched without regard to case. */
 function Marked({ text, q }: { text: string; q: string }) {
@@ -139,7 +133,6 @@ function HitBody({
   q: string;
   icon: LucideIcon;
 }) {
-  const user = useCurrentUser();
   const context =
     hit.roles.length > 0 ? formatList(hit.roles.map(roleLabel)) : hit.context;
   return (
@@ -160,7 +153,7 @@ function HitBody({
           ) : null}
           {hit.when ? (
             <span className="ms-auto shrink-0 text-xs text-muted-foreground tabular-nums">
-              {whenLabel(hit.when, user.school.timeZone)}
+              {whenLabel(hit.when)}
             </span>
           ) : null}
         </span>

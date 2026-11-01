@@ -14,8 +14,8 @@ import {
   sittingsOf,
 } from "@faridalms/database/stores/quizzes";
 import { isLate, QUIZ_GRACE_MS } from "@faridalms/domain/coursework";
+import { schoolDate } from "@faridalms/domain/school";
 
-import { dateIn } from "./procedure";
 import { handInAttempt } from "./quiz";
 
 /**
@@ -54,7 +54,7 @@ export async function handInTimedOut(
         const unit = {
           tx,
           tenantId,
-          today: dateIn(school?.timeZone ?? "UTC", endsAt),
+          today: schoolDate(school?.timeZone ?? "UTC", endsAt),
         };
         // An attempt handed in another way, or work withdrawn since, only
         // has its clock stopped.

@@ -5,6 +5,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { LoaderCircle, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 
+import { useDocumentMedia } from "~/hooks/useDocumentMedia";
 import * as m from "~/i18n/messages";
 import { getLocale } from "~/i18n/runtime";
 import {
@@ -12,8 +13,6 @@ import {
   removeFeedbackRecording,
 } from "~/server/coursework";
 import { getMessageFromError } from "~/utils/error";
-
-import { useDocumentMedia } from "./useDocumentMedia";
 
 interface Recording {
   id: string;

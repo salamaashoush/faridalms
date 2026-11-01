@@ -2,9 +2,9 @@ import type { TranslationState } from "@faridalms/domain/translations";
 
 import { cn } from "@faridalms/ui/cn";
 
-import { formatInstant } from "~/components/coursework/format";
-import { inLocale, useCurrentUser } from "~/hooks/useCurrentUser";
+import { inLocale } from "~/hooks/useCurrentUser";
 import * as m from "~/i18n/messages";
+import { formatInstant } from "~/utils/datetime";
 
 interface Review {
   at: string;
@@ -23,7 +23,6 @@ export function TranslationNote({
   review: Review | null;
   language: string;
 }) {
-  const user = useCurrentUser();
   const text =
     state === "missing"
       ? m.translationMissing({ language })
@@ -34,7 +33,7 @@ export function TranslationNote({
           : review
             ? m.translationReviewed({
                 name: inLocale(review.byEn, review.byAr),
-                date: formatInstant(review.at, user.school.timeZone),
+                date: formatInstant(review.at),
               })
             : "";
   return (

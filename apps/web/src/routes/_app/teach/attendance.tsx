@@ -13,7 +13,6 @@ import type { Column, RowAction } from "~/components/system/DataTable";
 
 import { DayNav } from "~/components/attendance/DayNav";
 import {
-  formatDay,
   MEANING_LABEL,
   STATE_LABEL,
   STATE_TONE,
@@ -25,7 +24,7 @@ import { StatusText } from "~/components/system/status";
 import { inLocale } from "~/hooks/useCurrentUser";
 import * as m from "~/i18n/messages";
 import { attendanceDayQuery } from "~/queries/attendance";
-import { formatNumber } from "~/utils/datetime";
+import { formatDate, formatNumber } from "~/utils/datetime";
 
 const DEFAULT_SEARCH = v.parse(dayQuerySchema, {});
 
@@ -202,7 +201,7 @@ function TeacherAttendancePage() {
       />
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
         <h2 className="text-base leading-6 font-semibold">
-          {formatDay(data.date)}
+          {formatDate(data.date, "weekday")}
         </h2>
         <DayNav
           id="attendance-date"

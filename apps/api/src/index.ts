@@ -14,7 +14,6 @@ import { startAdmissionsClock } from "./core/admissions-clock";
 import { createKeyRing } from "./core/keys";
 import { createLoginIndex, startLoginIndex } from "./core/login-index";
 import { startPartitionUpkeep } from "./core/partitions";
-import { startQuizClock } from "./core/quiz-clock";
 import { turnstileFrom } from "./core/turnstile";
 import { env } from "./env";
 import { createFilesHost, linkKey } from "./files/links";
@@ -34,6 +33,7 @@ import { emailGateway, resendInbox } from "./notifications/gateway";
 import { createProvider } from "./notifications/providers";
 import { startDelivery } from "./notifications/scheduler";
 import { createProvisioner } from "./provisioning/host";
+import { startQuizClock } from "./quizzes/clock";
 
 const cell = openCell(
   {

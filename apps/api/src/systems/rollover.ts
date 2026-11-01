@@ -41,7 +41,7 @@ import * as v from "valibot";
 
 import type { UnitContext } from "../core/context";
 
-import { writeHomeroom } from "../core/homerooms";
+import { writeHomeroom } from "../classes/homerooms";
 import {
   audit,
   localeOf,

@@ -1,8 +1,8 @@
+import type { Picture } from "@faridalms/domain/commons";
 import type { ContentDocument } from "@faridalms/domain/content";
 import type {
   IconId,
   PageSection,
-  SiteImage,
   SiteLink as Link,
   SiteLocale,
   SiteMedia,
@@ -11,6 +11,8 @@ import type { Divider, Theme } from "@faridalms/domain/site-theme";
 import type { LucideIcon } from "lucide-react";
 import type { CSSProperties, ReactNode } from "react";
 
+import { MediaPlayer } from "@faridalms/editor/media-view";
+import { PictureCreditLine } from "@faridalms/editor/picture-credit";
 import { cn } from "@faridalms/ui/cn";
 import {
   Award,
@@ -43,7 +45,7 @@ import {
 import { createContext, useContext, useRef, useState } from "react";
 
 import { ContentView } from "~/components/content/ContentView";
-import { numberLocale } from "~/utils/digits";
+import * as m from "~/i18n/messages";
 import { sitePath } from "~/utils/host";
 
 import { SiteArt } from "./art";
@@ -132,14 +134,6 @@ export interface RenderContext {
 }
 
 export const publicMediaUrl = (key: string) => `/public-media/${key}`;
-
-/** A day in the site's language, which may differ from the reader's own setting. */
-export function siteDate(iso: string, locale: SiteLocale): string {
-  return new Intl.DateTimeFormat(numberLocale(locale), {
-    dateStyle: "medium",
-    timeZone: "UTC",
-  }).format(new Date(iso.length === 10 ? `${iso}T00:00:00Z` : iso));
-}
 
 /**
  * A link a page author wrote: a path inside the site lands at the school's
@@ -470,7 +464,7 @@ export function Prose({
  * A picture, or where none is chosen yet, artwork in the theme's colours.
  * A feature picture takes the theme's image shape.
  */
-export function Picture({
+export function SitePicture({
   image,
   context,
   className,
@@ -480,7 +474,7 @@ export function Picture({
   art = true,
   phoneRatio,
 }: {
-  image: SiteImage;
+  image: Picture;
   context: RenderContext;
   className?: string;
   ratio?: string;
@@ -494,7 +488,7 @@ export function Picture({
   const body = src ? (
     <img
       src={src}
-      alt={image.alt}
+      alt={image.decorative ? "" : image.alt}
       loading="lazy"
       className={cn("site-media", art && "site-photo", className)}
       style={{ ...ratioStyle(ratio, phoneRatio), ...focusStyle(image.focus) }}
@@ -518,7 +512,16 @@ export function Picture({
       <ImageIcon className="size-8 opacity-40" />
     </div>
   ) : null;
-  return feature && body ? <div className="site-feature">{body}</div> : body;
+  const framed =
+    feature && body ? <div className="site-feature">{body}</div> : body;
+  return src && image.credit ? (
+    <figure className="grid gap-1.5">
+      {framed}
+      <PictureCreditLine credit={image.credit} className="site-muted text-xs" />
+    </figure>
+  ) : (
+    framed
+  );
 }
 
 /**
@@ -544,7 +547,7 @@ export function MediaView({
 }) {
   if (media.kind === "image")
     return (
-      <Picture
+      <SitePicture
         image={media}
         context={context}
         className={className}
@@ -557,7 +560,7 @@ export function MediaView({
   const src = media.fileId ? context.fileUrl(media.fileId) : null;
   if (!src)
     return (
-      <Picture
+      <SitePicture
         image={{ fileId: null, alt: "" }}
         context={context}
         className={className}
@@ -574,17 +577,19 @@ export function MediaView({
     ? context.fileUrl(media.captionsFileId)
     : null;
   return captions ? (
-    <video
-      controls
-      preload="metadata"
-      crossOrigin="anonymous"
-      poster={poster}
-      className={cn("site-media bg-black", className)}
+    <div
+      className={cn("site-media overflow-hidden", className)}
       style={ratioStyle(ratio ?? "16 / 9", phoneRatio)}
     >
-      <source src={src} type="video/mp4" />
-      <track kind="captions" src={captions} srcLang={context.locale} default />
-    </video>
+      <MediaPlayer
+        src={src}
+        poster={poster}
+        captions={captions}
+        video
+        locale={context.locale}
+        captionsLabel={m.editorCaptions({}, { locale: context.locale })}
+      />
+    </div>
   ) : null;
 }
 

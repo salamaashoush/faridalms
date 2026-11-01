@@ -37,6 +37,7 @@ import { useEffect, useRef, useState } from "react";
 import { ContentView } from "~/components/content/ContentView";
 import * as m from "~/i18n/messages";
 import { submitSiteEnquiry } from "~/server/site";
+import { formatDate, formatInstant, formatMonthShort } from "~/utils/datetime";
 import { numberLocale } from "~/utils/digits";
 
 import type { RenderContext, SiteIntake } from "./parts";
@@ -50,7 +51,7 @@ import {
   Heading,
   Lead,
   MediaView,
-  Picture,
+  SitePicture,
   Prose,
   publicMediaUrl,
   SectionFrame,
@@ -58,7 +59,6 @@ import {
   SectionIntro,
   SiteAnchor,
   SiteIcon,
-  siteDate,
 } from "./parts";
 import { focusStyle } from "./theme";
 import { TurnstileWidget } from "./turnstile";
@@ -232,7 +232,7 @@ function Hero({ section, context, first }: Props<"hero">) {
             />
           </div>
           <div className="absolute end-0 top-[8%] aspect-[4/3] w-[42%] overflow-hidden rounded-[max(var(--s-radius),0.75rem)] shadow-xl ring-8 ring-[var(--s-bg)]">
-            <Picture
+            <SitePicture
               image={second?.image ?? { fileId: null, alt: "" }}
               context={context}
               seed={second?.id ?? `${section.id}-2`}
@@ -240,7 +240,7 @@ function Hero({ section, context, first }: Props<"hero">) {
             />
           </div>
           <div className="absolute start-0 bottom-[6%] aspect-square w-[36%] overflow-hidden rounded-full shadow-xl ring-8 ring-[var(--s-bg)]">
-            <Picture
+            <SitePicture
               image={third?.image ?? { fileId: null, alt: "" }}
               context={context}
               seed={third?.id ?? `${section.id}-3`}
@@ -447,7 +447,7 @@ function Slides({ section, context, first }: Props<"slides">) {
                 at === current ? "opacity-100" : "opacity-0",
               )}
             >
-              <Picture
+              <SitePicture
                 image={slide.image}
                 context={context}
                 ratio="4 / 5"
@@ -576,7 +576,9 @@ function PageHeader({ section, context, first }: Props<"pageHeader">) {
 
 function Announcement({ section, context }: Props<"announcement">) {
   const { data, variant } = section;
-  const date = data.date ? siteDate(data.date, context.locale) : null;
+  const date = data.date
+    ? formatDate(data.date, "medium", context.locale)
+    : null;
   return (
     <div
       className={cn(
@@ -622,7 +624,7 @@ function Welcome({ section, context }: Props<"welcome">) {
   return (
     <div className="grid items-center gap-12 @3xl/site:grid-cols-[5fr_7fr] @4xl/site:gap-20">
       <div className={cn(variant === "portraitEnd" && "@3xl/site:order-2")}>
-        <Picture
+        <SitePicture
           image={data.portrait}
           context={context}
           ratio="4 / 5"
@@ -740,7 +742,7 @@ function Cards({ section, context }: Props<"cards">) {
           const body =
             variant === "imageButtons" ? (
               <div className="site-zoom relative isolate aspect-[4/5] overflow-hidden rounded-[var(--s-radius)]">
-                <Picture
+                <SitePicture
                   image={item.image}
                   context={context}
                   seed={item.id}
@@ -767,7 +769,7 @@ function Cards({ section, context }: Props<"cards">) {
               <div className="site-card flex h-full flex-col overflow-hidden text-start">
                 {variant === "grid" || variant === "scroller" ? (
                   <div className="overflow-hidden">
-                    <Picture
+                    <SitePicture
                       image={item.image}
                       context={context}
                       ratio="3 / 2"
@@ -832,7 +834,7 @@ function Divisions({ section, context }: Props<"divisions">) {
                 className="site-card site-zoom grid items-center overflow-hidden text-start @3xl/site:grid-cols-[18rem_1fr_auto]"
               >
                 <div className="overflow-hidden">
-                  <Picture
+                  <SitePicture
                     image={item.image}
                     context={context}
                     ratio="16 / 10"
@@ -861,7 +863,7 @@ function Divisions({ section, context }: Props<"divisions">) {
                 context={context}
                 className="site-zoom group relative isolate block aspect-[3/4] overflow-hidden rounded-[var(--s-radius)] text-start"
               >
-                <Picture
+                <SitePicture
                   image={item.image}
                   context={context}
                   seed={item.id}
@@ -996,7 +998,7 @@ function Pillars({ section, context }: Props<"pillars">) {
             className="grid items-center gap-10 @3xl/site:grid-cols-2 @4xl/site:gap-20"
           >
             <div className={cn(index % 2 === 1 && "@3xl/site:order-2")}>
-              <Picture
+              <SitePicture
                 image={item.image}
                 context={context}
                 ratio="5 / 4"
@@ -1075,7 +1077,7 @@ function QuoteSection({ section, context }: Props<"quote">) {
       )}
     >
       {variant === "portrait" ? (
-        <Picture
+        <SitePicture
           image={data.portrait}
           context={context}
           ratio="1 / 1"
@@ -1173,7 +1175,7 @@ function Voices({ section, context }: Props<"voices">) {
               </blockquote>
               <figcaption className="mt-auto flex items-center gap-3 border-t border-[var(--s-border)] pt-5">
                 {item.portrait.fileId ? (
-                  <Picture
+                  <SitePicture
                     image={item.portrait}
                     context={context}
                     ratio="1 / 1"
@@ -1221,7 +1223,7 @@ function People({ section, context }: Props<"people">) {
         {data.items.map((item) => (
           <li key={item.id} className="grid content-start gap-4 text-start">
             <div className="site-feature">
-              <Picture
+              <SitePicture
                 image={item.portrait}
                 context={context}
                 ratio="4 / 5"
@@ -1426,7 +1428,7 @@ function Gallery({ section, context }: Props<"gallery">) {
       >
         {data.items.map((item, index) => {
           const picture = (
-            <Picture
+            <SitePicture
               image={item.image}
               context={context}
               seed={item.id}
@@ -1603,7 +1605,7 @@ function Logo({
       className="grid place-items-center opacity-70 grayscale transition hover:opacity-100 hover:grayscale-0"
     >
       {item.image.fileId ? (
-        <Picture
+        <SitePicture
           image={{ ...item.image, alt: item.image.alt || item.name }}
           context={context}
           art={false}
@@ -1747,7 +1749,7 @@ function News({ section, context }: Props<"news">) {
                   className="site-muted text-sm"
                   dateTime={item.publishedAt}
                 >
-                  {siteDate(item.publishedAt, context.locale)}
+                  {formatInstant(item.publishedAt, "date", context.locale)}
                 </time>
                 <span className="site-heading site-h3 group-hover:text-[var(--s-link)]">
                   {item.title}
@@ -1785,7 +1787,7 @@ function News({ section, context }: Props<"news">) {
                   />
                   <div className="grid gap-3 p-6 @3xl/site:p-7">
                     <time className="site-eyebrow" dateTime={item.publishedAt}>
-                      {siteDate(item.publishedAt, context.locale)}
+                      {formatInstant(item.publishedAt, "date", context.locale)}
                     </time>
                     <span
                       className={cn(
@@ -1852,20 +1854,13 @@ function Events({ section, context }: Props<"events">) {
   const { data, variant } = section;
   const t = { locale: context.locale };
   const items = listedEvents(data, context);
-  const dayMonth = (date: string) => {
-    if (!date) return { day: "", month: "" };
-    const at = new Date(`${date}T00:00:00Z`);
-    return {
-      day: new Intl.DateTimeFormat(numberLocale(context.locale), {
-        day: "numeric",
-        timeZone: "UTC",
-      }).format(at),
-      month: new Intl.DateTimeFormat(numberLocale(context.locale), {
-        month: "short",
-        timeZone: "UTC",
-      }).format(at),
-    };
-  };
+  const dayMonth = (date: string) =>
+    date
+      ? {
+          day: formatDate(date, "day", context.locale),
+          month: formatMonthShort(date, context.locale),
+        }
+      : { day: "", month: "" };
   return (
     <div>
       <SectionIntro
@@ -2027,18 +2022,36 @@ function IntakeCards({
               <p className="site-muted">
                 {upcoming
                   ? m.siteIntakeOpens(
-                      { date: siteDate(intake.opensOn, context.locale) },
+                      {
+                        date: formatDate(
+                          intake.opensOn,
+                          "medium",
+                          context.locale,
+                        ),
+                      },
                       t,
                     )
                   : m.siteIntakeCloses(
-                      { date: siteDate(intake.closesOn, context.locale) },
+                      {
+                        date: formatDate(
+                          intake.closesOn,
+                          "medium",
+                          context.locale,
+                        ),
+                      },
                       t,
                     )}
               </p>
               {intake.decisionsOn ? (
                 <p className="site-muted text-sm">
                   {m.siteIntakeDecisions(
-                    { date: siteDate(intake.decisionsOn, context.locale) },
+                    {
+                      date: formatDate(
+                        intake.decisionsOn,
+                        "medium",
+                        context.locale,
+                      ),
+                    },
                     t,
                   )}
                 </p>
@@ -2104,7 +2117,9 @@ function Admissions({ section, context }: Props<"admissions">) {
       </div>
     );
   }
-  const date = data.date ? siteDate(data.date, context.locale) : null;
+  const date = data.date
+    ? formatDate(data.date, "medium", context.locale)
+    : null;
   if (variant === "banner" || variant === "keyDate")
     return (
       <div className="grid items-center gap-10 @3xl/site:grid-cols-[1fr_auto]">
@@ -2199,7 +2214,7 @@ function RegisterApply({ section, context }: Props<"registerApply">) {
       ) : notYet && named ? (
         <p className="site-muted">
           {m.siteIntakeOpens(
-            { date: siteDate(named.opensOn, context.locale) },
+            { date: formatDate(named.opensOn, "medium", context.locale) },
             t,
           )}
         </p>
@@ -3139,7 +3154,7 @@ function BlockView({
     case "image": {
       const { image, shape, ratio } = block.data;
       const picture = (
-        <Picture
+        <SitePicture
           image={image}
           context={context}
           seed={block.id}

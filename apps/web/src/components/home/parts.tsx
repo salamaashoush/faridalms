@@ -16,7 +16,7 @@ import { StatusBadge, StatusText } from "~/components/system/status";
 import { UserText } from "~/components/system/UserText";
 import { inLocale } from "~/hooks/useCurrentUser";
 import * as m from "~/i18n/messages";
-import { numberLocale } from "~/utils/digits";
+import { formatTime } from "~/utils/datetime";
 
 export const itemLink = cn(
   "justify-self-start text-sm leading-5 font-medium hover:text-primary hover:underline",
@@ -134,16 +134,6 @@ const REGISTER: Record<
   submitted: { label: m.homeRegisterTaken, tone: "success" },
 };
 
-/** `08:30` as the reader's clock shows it. */
-export function formatClock(time: string): string {
-  const [hours = 0, minutes = 0] = time.split(":").map(Number);
-  return new Intl.DateTimeFormat(numberLocale(), {
-    hour: "numeric",
-    minute: "2-digit",
-    timeZone: "UTC",
-  }).format(new Date(Date.UTC(2000, 0, 1, hours, minutes)));
-}
-
 /**
  * A day's lessons in order, the one on now and the next one marked. For a
  * teacher each lesson with a register links to it.
@@ -165,7 +155,7 @@ export function Lessons({
           inLocale(slot.periodNameEn, slot.periodNameAr) || slot.periodCode;
         const time =
           slot.startTime && slot.endTime
-            ? `${formatClock(slot.startTime)}–${formatClock(slot.endTime)}`
+            ? `${formatTime(slot.startTime)}–${formatTime(slot.endTime)}`
             : null;
         const name = classTitle({
           code: slot.classCode,

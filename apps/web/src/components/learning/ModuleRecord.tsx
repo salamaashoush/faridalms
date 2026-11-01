@@ -34,6 +34,7 @@ import {
 import { useState } from "react";
 import { toast } from "sonner";
 
+import type { AreaView } from "~/components/files/AreaFiles";
 import type { Column, RowAction } from "~/components/system/DataTable";
 import type { Facet } from "~/components/system/IndexPage";
 import type { HeaderFact, RecordTab } from "~/components/system/RecordPage";
@@ -851,12 +852,16 @@ export function ModuleRecord({
   classId,
   onTab,
   onClass,
+  files,
+  onFiles,
 }: {
   moduleId: string;
   tab: ModuleTab;
   classId: string;
   onTab: (tab: ModuleTab) => void;
   onClass: (classId: string) => void;
+  files: AreaView;
+  onFiles: (view: AreaView) => void;
 }) {
   const data = useSuspenseQuery(moduleRecordQuery(moduleId)).data;
   const navigate = useNavigate();
@@ -1045,6 +1050,8 @@ export function ModuleRecord({
           <AreaFiles
             area={{ type: "module", id: data.id }}
             title={data.title}
+            view={files}
+            onView={onFiles}
           />
         ) : (
           <ClassTab

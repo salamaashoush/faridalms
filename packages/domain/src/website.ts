@@ -243,7 +243,6 @@ export const saveSettingsSchema = v.object({
   theme: siteThemeSchema,
   chrome: siteChromeSchema,
   live: v.boolean(),
-  primaryLocale: v.picklist(SITE_LOCALES),
   bilingual: v.boolean(),
   taglineEn: v.pipe(v.string(), v.trim(), v.maxLength(200)),
   taglineAr: v.pipe(v.string(), v.trim(), v.maxLength(200)),
@@ -291,12 +290,6 @@ export const movePageSchema = v.object({
   id,
   parentId: optionalId,
   position: v.pipe(v.number(), v.integer(), v.minValue(0), v.maxValue(999)),
-});
-
-export const restoreSchema = v.object({
-  id,
-  locale: v.picklist(SITE_LOCALES),
-  documentVersion: version(1),
 });
 
 export const saveCategorySchema = v.object({

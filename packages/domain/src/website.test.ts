@@ -323,7 +323,7 @@ describe("free-form blocks", () => {
     const { content, translation } = buildSection("blocks", "columns", "en");
     if (content.type !== "blocks" || translation.type !== "blocks")
       throw new Error("blocks");
-    const withPicture = {
+    const pictured = (decorative: boolean) => ({
       ...content,
       data: {
         ...content.data,
@@ -333,14 +333,20 @@ describe("free-form blocks", () => {
             block.type === "image"
               ? {
                   ...block,
-                  data: { ...block.data, image: { fileId: picture, alt: "" } },
+                  data: {
+                    ...block.data,
+                    image: { fileId: picture, alt: "", decorative },
+                  },
                 }
               : block,
           ),
         })),
       },
-    };
+    });
+    const withPicture = pictured(false);
     expect(sectionIssues(withPicture)).toContain("alt");
+    // A picture that only decorates has nothing to describe.
+    expect(sectionIssues(pictured(true))).not.toContain("alt");
     const shown = overlay(withPicture, translation);
     if (shown.type !== "blocks") throw new Error("blocks");
     const blocks = shown.data.columns.flatMap((column) => column.blocks);

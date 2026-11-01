@@ -8,7 +8,6 @@ import { Plus, XCircle } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 
-import { formatDate } from "~/components/family/format";
 import { ActionMenu } from "~/components/system/ActionMenu";
 import { SelectField, TextField } from "~/components/system/field";
 import {
@@ -22,6 +21,7 @@ import { inLocale } from "~/hooks/useCurrentUser";
 import * as m from "~/i18n/messages";
 import { accessRolesQuery, personAccessQuery } from "~/queries/access";
 import { assignAccessRole, endAccessAssignment } from "~/server/access";
+import { formatDate } from "~/utils/datetime";
 import { getMessageFromError } from "~/utils/error";
 
 import {

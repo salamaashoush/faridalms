@@ -16,7 +16,7 @@ import {
 import { StatusText } from "~/components/system/status";
 import { inLocale } from "~/hooks/useCurrentUser";
 import * as m from "~/i18n/messages";
-import { formatDateTime } from "~/utils/datetime";
+import { formatInstant } from "~/utils/datetime";
 
 import { formatPhone } from "./format";
 
@@ -97,7 +97,7 @@ export function AccountSection({
           </Fact>
           <Fact label={m.accountLastSignIn()}>
             {account.lastSignInAt
-              ? formatDateTime(account.lastSignInAt)
+              ? formatInstant(account.lastSignInAt, "medium")
               : m.accountNeverSignedIn()}
           </Fact>
         </Facts>
@@ -156,7 +156,7 @@ export function HistorySection({ entries }: { entries: Entry[] }) {
               </span>
               <span className="text-[13px] leading-[18px] text-muted-foreground">
                 {[
-                  formatDateTime(entry.occurredAt),
+                  formatInstant(entry.occurredAt, "medium"),
                   entry.actorNameEn || entry.actorNameAr
                     ? inLocale(entry.actorNameEn, entry.actorNameAr)
                     : m.historySystem(),

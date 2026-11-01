@@ -16,10 +16,10 @@ import { inLocale } from "~/hooks/useCurrentUser";
 import * as m from "~/i18n/messages";
 import { attendanceBoardQuery } from "~/queries/attendance";
 import { remindTeachers } from "~/server/attendance";
-import { formatNumber } from "~/utils/datetime";
+import { formatDate, formatNumber } from "~/utils/datetime";
 
 import { DayNav } from "./DayNav";
-import { formatDay, MEANING_LABEL, STATE_LABEL, STATE_TONE } from "./format";
+import { MEANING_LABEL, STATE_LABEL, STATE_TONE } from "./format";
 
 type Data = Awaited<
   ReturnType<NonNullable<ReturnType<typeof attendanceBoardQuery>["queryFn"]>>
@@ -179,7 +179,7 @@ export function Board({
     <div className="grid gap-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h2 className="text-base leading-6 font-semibold">
-          {formatDay(data.date)}
+          {formatDate(data.date, "weekday")}
         </h2>
         <DayNav
           id="board-date"

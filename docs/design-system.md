@@ -26,14 +26,15 @@ Colours live in `apps/web/src/styles/globals.css` as CSS variables and are
 exposed to Tailwind. Components use the semantic names only
 (`bg-background`, `text-muted-foreground`, `border`, `bg-primary`).
 
-| Role                                | Use                                                                           |
-| ----------------------------------- | ----------------------------------------------------------------------------- |
-| background / foreground             | the canvas and body text                                                      |
-| card, popover                       | raised surfaces                                                               |
-| muted / muted-foreground            | secondary surfaces and text                                                   |
-| accent                              | hover and focus on rows, cards and menu items                                 |
-| primary                             | the one accent: primary buttons, links, focus ring, selected rows (a 5% tint) |
-| success, warning, info, destructive | status only                                                                   |
+| Role                                | Use                                                                                |
+| ----------------------------------- | ---------------------------------------------------------------------------------- |
+| background / foreground             | the canvas and body text                                                           |
+| card, popover                       | raised surfaces                                                                    |
+| muted / muted-foreground            | secondary surfaces and text                                                        |
+| accent                              | hover and focus on rows, cards and menu items                                      |
+| primary                             | the one accent: primary buttons, links, focus ring, selected rows (a 5% tint)      |
+| success, warning, info, destructive | status only                                                                        |
+| brand (`brand-*`)                   | the platform's green: school sidebar, product site bands, an unstyled sign-in page |
 
 Radius: 8px base (`rounded-lg`), 6px for controls (`rounded-md`), 12px for
 dialogs (`rounded-xl`). Spacing follows a 4px grid.
@@ -312,8 +313,8 @@ above where a marketing page needs to, and only there.
   range input, so mirroring is something a visitor moves rather than reads
   about.
 - **Brand colour leads.** The header, hero, security band and footer use
-  the school-sidebar green (`#153f3a`) with the pale accent (`#dcedcf`) for
-  primary actions on it; teal stays the accent on the light sections. In
+  the brand tokens, the school-sidebar green (`brand`) with the pale accent
+  (`brand-accent`) for primary actions on it, never colour literals; teal stays the accent on the light sections. In
   dark mode the canvas leans green (`.dark .product-site`) so the bands
   belong to the page.
 - **One motif.** The eight-pointed star of the region's geometric patterns,

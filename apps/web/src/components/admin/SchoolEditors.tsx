@@ -16,7 +16,7 @@ import {
 import * as m from "~/i18n/messages";
 import { schoolProfileQuery } from "~/queries/school-settings";
 import { saveSchoolProfile } from "~/server/school-settings";
-import { numberLocale } from "~/utils/digits";
+import { formatWeekday } from "~/utils/datetime";
 import { getMessageFromError } from "~/utils/error";
 
 function TimeZoneField({
@@ -60,14 +60,6 @@ type Profile = Awaited<
   ReturnType<NonNullable<(typeof schoolProfileQuery)["queryFn"]>>
 >;
 
-/** ISO weekdays, 1 for Monday, named in the reader's language. */
-function dayName(day: number) {
-  return new Intl.DateTimeFormat(numberLocale(), {
-    weekday: "long",
-    timeZone: "UTC",
-  }).format(new Date(Date.UTC(2024, 0, day)));
-}
-
 const DAYS = [7, 1, 2, 3, 4, 5, 6];
 
 interface ProfileDraft {
@@ -83,7 +75,6 @@ interface ProfileDraft {
   arabicMath: "ltr" | "rtl";
   phone: string;
   email: string;
-  websiteUrl: string;
   logoFileId: string;
 }
 
@@ -93,7 +84,7 @@ function draftOf(profile: Profile): ProfileDraft {
     nameAr: profile.nameAr ?? "",
     identifier: profile.identifier ?? "",
     timeZone: profile.timeZone ?? "",
-    defaultLocale: profile.defaultLocale ?? "ar",
+    defaultLocale: profile.defaultLocale,
     weekStart: profile.weekStart,
     weekendDays: [...profile.weekendDays],
     secondaryCalendar: profile.secondaryCalendar ?? "",
@@ -101,7 +92,6 @@ function draftOf(profile: Profile): ProfileDraft {
     arabicMath: profile.arabicMath,
     phone: profile.phone ?? "",
     email: profile.email ?? "",
-    websiteUrl: profile.websiteUrl ?? "",
     logoFileId: profile.logoFileId ?? "",
   };
 }
@@ -213,7 +203,7 @@ export function SchoolProfileSection() {
           value={String(draft.weekStart)}
           options={DAYS.map((day) => ({
             value: String(day),
-            label: dayName(day),
+            label: formatWeekday(day),
           }))}
           onChange={(value) => set("weekStart", Number(value))}
           width="name"
@@ -226,7 +216,7 @@ export function SchoolProfileSection() {
             {DAYS.map((day) => (
               <CheckboxRow
                 key={day}
-                label={dayName(day)}
+                label={formatWeekday(day)}
                 checked={draft.weekendDays.includes(day)}
                 onChange={(checked) =>
                   set(
@@ -307,17 +297,6 @@ export function SchoolProfileSection() {
           autoComplete="off"
           value={draft.email}
           onChange={(event) => set("email", event.target.value)}
-        />
-        <TextField
-          id="school-website"
-          label={m.settingsSchoolWebsite()}
-          optional
-          type="url"
-          dir="ltr"
-          width="name"
-          autoComplete="off"
-          value={draft.websiteUrl}
-          onChange={(event) => set("websiteUrl", event.target.value)}
         />
         <fieldset className="grid gap-1.5">
           <legend className="mb-1.5 text-sm leading-5 font-medium">

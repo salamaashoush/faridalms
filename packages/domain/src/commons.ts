@@ -40,6 +40,41 @@ export const pictureCreditSchema = v.pipe(
   ),
 );
 
+/** Where a picture's subject sits, in percent, so any crop keeps it in view. */
+export interface PictureFocus {
+  x: number;
+  y: number;
+}
+
+const percent = v.pipe(v.number(), v.integer(), v.minValue(0), v.maxValue(100));
+
+export const pictureFocusSchema = v.object({ x: percent, y: percent });
+
+/**
+ * A picture as every surface keeps it, a document's or a website's: the
+ * file, the words for those who cannot see it unless it only decorates,
+ * who made it, and where its subject sits.
+ */
+export interface Picture {
+  fileId: string | null;
+  alt: string;
+  decorative?: boolean;
+  credit?: PictureCredit;
+  focus?: PictureFocus;
+}
+
+export const pictureEntries = {
+  fileId: v.nullable(v.pipe(v.string(), v.uuid())),
+  alt: v.pipe(v.string(), v.maxLength(300)),
+  decorative: v.optional(v.boolean()),
+  credit: v.optional(pictureCreditSchema),
+  focus: v.optional(pictureFocusSchema),
+};
+
+/** Whether a shown picture still lacks the words a reader who cannot see it needs. */
+export const pictureNeedsAlt = (picture: Picture) =>
+  Boolean(picture.fileId) && !picture.decorative && !picture.alt.trim();
+
 /** The site a credited picture came from, named as it names itself; none for a teacher's own. */
 export function creditSource(credit: PictureCredit): string {
   if (!credit.source) return "";

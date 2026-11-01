@@ -8,10 +8,10 @@ import { useState } from "react";
 import { toast } from "sonner";
 
 import { ContentEditor } from "~/components/content/ContentEditor";
-import { useDocumentMedia } from "~/components/coursework/useDocumentMedia";
 import { ComboboxField } from "~/components/system/ComboboxField";
 import { FormField, SelectField, TextField } from "~/components/system/field";
 import { SheetForm } from "~/components/system/SheetForm";
+import { useDocumentMedia } from "~/hooks/useDocumentMedia";
 import * as m from "~/i18n/messages";
 import { getLocale } from "~/i18n/runtime";
 import { messageRecipientsQuery } from "~/queries/messages";

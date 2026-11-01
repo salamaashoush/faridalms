@@ -11,25 +11,22 @@ import type {
 
 import { publicIntakes } from "@faridalms/database/stores/admissions";
 import {
-  contentToRestore,
   documentOf,
   dropTranslation,
   saveDocument,
   saveTranslation,
   snapshotPublish,
   translationOf,
-  versionsOf,
 } from "@faridalms/database/stores/documents";
 import { publicEvents } from "@faridalms/database/stores/events";
+import { schoolProfile } from "@faridalms/database/stores/identity";
 import {
   insertEnquiry,
   insertPage,
-  markRevised,
   pageById,
   placePage,
   publicCategories,
   publicMenu,
-  publicationsOf,
   publicPage,
   publicPost,
   publicPosts,
@@ -84,7 +81,6 @@ import {
   publicPostsSchema,
   publicSiteSchema,
   publishSchema,
-  restoreSchema,
   saveCategorySchema,
   savePageSchema,
   saveSettingsSchema,
@@ -110,9 +106,18 @@ import {
 } from "../core/procedure";
 import { attemptKey, ipPrefix } from "../core/session";
 import { inlinePageShared } from "../core/shared";
-import { publishMedia, withPublicSite, withdrawMedia } from "../core/site";
+import {
+  logoKey,
+  publishMedia,
+  withPublicSite,
+  withdrawMedia,
+} from "../core/site";
 import { servesSchool } from "../core/turnstile";
-import { placeMedia, registerHostReader } from "../files/authorize";
+import {
+  placeMedia,
+  registerHostReader,
+  registerHostWriter,
+} from "../files/authorize";
 
 const id = v.pipe(v.string(), v.uuid());
 
@@ -148,7 +153,12 @@ async function settingsFor(context: UnitContext) {
     context.tenantId,
     context.schoolId,
   );
-  return row ? normalised(row) : DEFAULT_SETTINGS;
+  if (row) return normalised(row);
+  const school = await schoolProfile(context.tx, context.schoolId);
+  return {
+    ...DEFAULT_SETTINGS,
+    primaryLocale: school?.defaultLocale ?? DEFAULT_SETTINGS.primaryLocale,
+  };
 }
 
 const otherLocale = (locale: SiteLocale): SiteLocale =>
@@ -217,23 +227,6 @@ function localesOf(settings: {
     : [settings.primaryLocale];
 }
 
-async function history(
-  context: UnitContext,
-  ids: { originalId: string | null; translationId: string | null },
-  primary: SiteLocale,
-) {
-  const of = async (documentId: string | null, locale: SiteLocale) =>
-    documentId
-      ? (await versionsOf(context.tx, context.tenantId, documentId)).map(
-          (row) => ({ ...row, locale }),
-        )
-      : [];
-  return [
-    ...(await of(ids.originalId, primary)),
-    ...(await of(ids.translationId, otherLocale(primary))),
-  ].toSorted((a, b) => b.createdAt.localeCompare(a.createdAt));
-}
-
 const shownState = (
   row: { state: string; publishedAt: string | null },
   now: Date,
@@ -248,6 +241,9 @@ const PREVIEW_POSTS = 6;
 // Pages are written by whoever manages the site, so each of them opens the
 // pictures and files the others put in.
 registerHostReader("site_page", (context) =>
+  Promise.resolve(can(context, "site:manage")),
+);
+registerHostWriter("site_page", (context) =>
   Promise.resolve(can(context, "site:manage")),
 );
 
@@ -287,13 +283,12 @@ export const overview = readProcedure.handler(async ({ context }) => {
         today: context.today,
       }),
     ]);
-  const logo = settings.id
-    ? await publicationsOf(context.tx, {
-        tenantId: context.tenantId,
-        hostType: "site_settings",
-        hostId: settings.id,
+  const logo = school
+    ? await logoKey(context.tx, context.tenantId, {
+        id: context.schoolId,
+        logoFileId: school.logoFileId,
       })
-    : [];
+    : null;
   return {
     settings,
     pages: pages.map((row) => ({
@@ -311,9 +306,7 @@ export const overview = readProcedure.handler(async ({ context }) => {
         email: school?.email ?? null,
       },
     },
-    logoKey:
-      logo.find((row) => row.fileId === settings.chrome.logoFileId)
-        ?.publicKey ?? null,
+    logoKey: logo,
     news: { en: newsEn.rows, ar: newsAr.rows },
     events,
     intakes,
@@ -332,21 +325,6 @@ export const saveSettings = writeProcedure
       bannerUntil: input.bannerUntil || null,
     });
     if (version === null) throw conflict();
-    const saved = await siteSettings(
-      context.tx,
-      context.tenantId,
-      context.schoolId,
-    );
-    if (saved)
-      await publishMedia(
-        context,
-        {
-          tenantId: context.tenantId,
-          hostType: "site_settings",
-          hostId: saved.id,
-        },
-        input.chrome.logoFileId ? [input.chrome.logoFileId] : [],
-      );
     forgetFace(context.school.slug);
     await audit(context, {
       action: "site.settings",
@@ -376,7 +354,7 @@ function issuesByLocale(
   return found;
 }
 
-/** A page with both languages of its sections, what stops it publishing, and its history. */
+/** A page with both languages of its sections and what stops it publishing. */
 export const page = readProcedure
   .input(v.object({ id }))
   .handler(async ({ input, context }) => {
@@ -415,7 +393,6 @@ export const page = readProcedure
         documents.translation,
         settings,
       ),
-      history: await history(context, documents, settings.primaryLocale),
       parents: pages
         .filter(
           (other) =>
@@ -739,65 +716,6 @@ export const removeSitePage = writeProcedure
   });
 
 /** Brings an earlier version of one language back as the page's working copy. */
-export const restorePage = writeProcedure
-  .input(restoreSchema)
-  .handler(async ({ input, context }) => {
-    const row = await pageOfSchool(context, input.id);
-    const settings = await settingsFor(context);
-    const documents = await pageDocuments(context, row.id);
-    const primary = input.locale === settings.primaryLocale;
-    const documentId = primary ? documents.originalId : documents.translationId;
-    if (!documentId || !documents.originalId) throw new ORPCError("NOT_FOUND");
-    const restored = await contentToRestore(context.tx, {
-      tenantId: context.tenantId,
-      documentId,
-      documentVersion: input.documentVersion,
-      userId: context.actor.userId,
-    });
-    if (!restored) throw new ORPCError("NOT_FOUND");
-    const content = parsed(pageContentSchema, restored, EMPTY_PAGE);
-    const host = pageHost(row.id);
-    if (primary)
-      await saveDocument(context.tx, {
-        tenantId: context.tenantId,
-        orgId: context.schoolId,
-        host,
-        kind: "page",
-        locale: settings.primaryLocale,
-        content,
-        plainText: pagePlainText(content),
-        mediaIds: pageFileIds(content),
-        userId: context.actor.userId,
-      });
-    else {
-      const aligned = alignTranslation(documents.content, content);
-      await saveTranslation(context.tx, {
-        tenantId: context.tenantId,
-        orgId: context.schoolId,
-        host,
-        originalId: documents.originalId,
-        locale: input.locale,
-        kind: "page",
-        content: aligned,
-        plainText: pagePlainText(aligned),
-        mediaIds: pageFileIds(aligned),
-        userId: context.actor.userId,
-      });
-    }
-    await markRevised(context.tx, {
-      tenantId: context.tenantId,
-      kind: "page",
-      id: row.id,
-    });
-    await audit(context, {
-      action: "site.page_restore",
-      objectType: "site_page",
-      objectId: row.id,
-      details: { locale: input.locale, documentVersion: input.documentVersion },
-    });
-    return { restored: true };
-  });
-
 export const saveSiteCategory = writeProcedure
   .input(saveCategorySchema)
   .handler(async ({ input, context }) => {
@@ -1019,15 +937,10 @@ export const publicSite = publicProcedure
       async ({ tx, tenantId, schoolId, portalHost, now }) => {
         const settings = await liveSettings(tx, tenantId, schoolId);
         const locale = resolveLocale(settings, input.locale);
-        const [school, menu, categories, logo] = await Promise.all([
+        const [school, menu, categories] = await Promise.all([
           publicSchool(tx, schoolId),
           publicMenu(tx, { orgId: schoolId, locale }),
           publicCategories(tx, schoolId),
-          publicationsOf(tx, {
-            tenantId,
-            hostType: "site_settings",
-            hostId: settings.id,
-          }),
         ]);
         const say = (words: { en: string; ar: string }) =>
           words[locale] || words[settings.primaryLocale];
@@ -1047,6 +960,7 @@ export const publicSite = publicProcedure
           primaryLocale: settings.primaryLocale,
           locales: localesOf(settings),
           digits: school.digits,
+          timeZone: school.timeZone,
           portalHost,
           name: (locale === "ar" ? school.nameAr : null) || school.nameEn,
           tagline:
@@ -1057,9 +971,10 @@ export const publicSite = publicProcedure
           banner: bannerOn ? { text: banner, tone: settings.bannerTone } : null,
           socialLinks: settings.socialLinks,
           theme: resolveTheme(settings.theme),
-          logoKey:
-            logo.find((row) => row.fileId === chrome.logoFileId)?.publicKey ??
-            null,
+          logoKey: await logoKey(tx, tenantId, {
+            id: schoolId,
+            logoFileId: school.logoFileId,
+          }),
           utility: chrome.utility.map((item) => ({
             id: item.id,
             label: say(item.label),

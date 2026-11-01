@@ -34,7 +34,7 @@ import { inLocale } from "~/hooks/useCurrentUser";
 import * as m from "~/i18n/messages";
 import { staffQuery } from "~/queries/staff";
 import { downloadCsv } from "~/utils/csv";
-import { formatDateTime, formatList } from "~/utils/datetime";
+import { formatInstant, formatList } from "~/utils/datetime";
 
 type Sort = StaffDirectoryQuery["sort"];
 type Data = Awaited<
@@ -85,7 +85,7 @@ function SignIn({ account }: { account: StaffRow["account"] }) {
     return <StatusText tone="warning">{m.accountNeverSignedIn()}</StatusText>;
   return (
     <span className="text-muted-foreground">
-      {formatDateTime(account.lastSignInAt)}
+      {formatInstant(account.lastSignInAt, "medium")}
     </span>
   );
 }
