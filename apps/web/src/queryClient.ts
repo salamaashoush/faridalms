@@ -1,4 +1,5 @@
 import { MutationCache, QueryCache, QueryClient } from "@tanstack/react-query";
+import { isNotFound, isRedirect } from "@tanstack/react-router";
 import { toast } from "sonner";
 import { deserialize, serialize } from "superjson";
 
@@ -48,8 +49,15 @@ function unwrapServerFnMessage(message: string): string {
 // rejected value. Asking again returns the same answer, and every mutation
 // waits for its retries through the invalidation below, so only failures
 // without a code are retried.
+// A record the API will not show, or a page that moved, answers the same on
+// every try; retrying it only keeps the visitor waiting for the same page.
 function worthRetrying(failureCount: number, error: Error) {
-  return failureCount < 3 && !isErrorCode(unwrapServerFnMessage(error.message));
+  return (
+    failureCount < 3 &&
+    !isNotFound(error) &&
+    !isRedirect(error) &&
+    !isErrorCode(unwrapServerFnMessage(error.message))
+  );
 }
 
 function onError(error: Error) {
