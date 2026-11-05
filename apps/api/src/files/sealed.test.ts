@@ -100,6 +100,7 @@ async function sealed(size: number) {
 
 describe("sealed files", () => {
   it("rest as ciphertext of a known size and leave no plaintext behind", async () => {
+    const kept: { plain: Uint8Array; atRest: Uint8Array }[] = [];
     for (const size of [
       1,
       SEGMENT_BYTES,
@@ -108,13 +109,19 @@ describe("sealed files", () => {
     ]) {
       const { store, plain, read } = await sealed(size);
       expect(store.objects.has(PLAIN)).toBe(false);
-      const atRest = store.objects.get(SEALED);
-      expect(atRest?.byteLength).toBe(sealedSize(size));
-      expect(
-        Buffer.from(atRest ?? []).includes(Buffer.from(plain.slice(0, 32))),
-      ).toBe(false);
+      const atRest = store.objects.get(SEALED) ?? new Uint8Array(0);
+      expect(atRest.byteLength).toBe(sealedSize(size));
       expect(await read()).toEqual(plain);
+      kept.push({ plain, atRest });
     }
+    // A needle of a few bytes turns up in random ciphertext by chance: the
+    // one byte of the smallest file sits in its 34 about one run in eight.
+    const plaintextLeft = kept
+      .filter(({ plain }) => plain.byteLength >= 16)
+      .some(({ plain, atRest }) =>
+        Buffer.from(atRest).includes(Buffer.from(plain.slice(0, 32))),
+      );
+    expect(plaintextLeft).toBe(false);
   });
 
   it("open any range, reading only the segments it falls in", async () => {
