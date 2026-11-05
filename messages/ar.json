@@ -9394,5 +9394,6 @@
   "itkLetterSchool": "خطاب المدرسة",
   "itkErrLetter": "اختر أحد خطابات القبول الخاصة بالمدرسة.",
   "ntfGradeShown": "ظهرت درجتك",
-  "ntfGradeShownFor": "ظهرت درجة {name}"
+  "ntfGradeShownFor": "ظهرت درجة {name}",
+  "courseworkSharedComments": "تعليقات المعلم"
 }

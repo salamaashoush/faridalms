@@ -2937,9 +2937,27 @@ export const sharedPiece = readProcedure
     requireCapability(context, "children:read");
     const host = { type: "submission_attempt", id: input.attemptId };
     if (!(await readable(context, host))) throw new ORPCError("NOT_FOUND");
-    const document = await documentOf(context.tx, context.tenantId, host);
+    const [document, assessment, comments] = await Promise.all([
+      documentOf(context.tx, context.tenantId, host),
+      assessmentOf(context.tx, context.tenantId, input.attemptId),
+      commentsOf(context.tx, context.tenantId, input.attemptId),
+    ]);
+    const stored = (document?.content ?? null) as ContentDocument | null;
+    const returned = Boolean(
+      assessment?.releasedAt ?? assessment?.commentsReleasedAt,
+    );
     return {
-      content: (document?.content ?? null) as ContentDocument | null,
+      content: stored ? withBlockIds(stored) : null,
+      // The teacher's comments, once returned, without the child's answers
+      // and replies, which stay between the child and the teacher.
+      comments: returned
+        ? comments.map((row) => ({
+            ...row,
+            anchor: row.anchor as unknown as CommentAnchor,
+            studentState: null,
+            replies: [],
+          }))
+        : [],
     };
   });
 

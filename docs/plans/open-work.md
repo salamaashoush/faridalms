@@ -81,7 +81,6 @@ From `school-front-door.md`; slices 1 to 9 are merged.
 - Timetables: more than one timetable per year, rotating day cycles, and
   one period with different times on different days. Today the last one
   needs separate periods.
-- Teachers' comments on passages are not shown to families.
 - Files:
   - Custody papers (`legal_document`) are sealed by the pipeline but have
     no upload flow.

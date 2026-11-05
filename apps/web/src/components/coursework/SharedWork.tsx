@@ -20,6 +20,8 @@ import { sharedWorkQuery } from "~/queries/coursework";
 import { getSharedPiece } from "~/server/coursework";
 import { formatInstant } from "~/utils/datetime";
 
+import { CommentedWork, CommentList } from "./WorkComments";
+
 const fileUrl = (fileId: string) => `/files/${fileId}`;
 
 function Piece({
@@ -35,6 +37,9 @@ function Piece({
     queryKey: ["coursework", "shared-piece", attemptId],
     queryFn: () => getSharedPiece({ data: { attemptId } }),
   });
+  const [active, setActive] = useState<string | null>(null);
+  const [reveal, setReveal] = useState(0);
+  const [passages, setPassages] = useState<Record<string, string>>({});
   const end = getTextDirection(getLocale()) === "rtl" ? "left" : "right";
   return (
     <Sheet open onOpenChange={(open) => !open && onClose()}>
@@ -49,7 +54,40 @@ function Piece({
         </SheetHeader>
         <div className="min-h-0 flex-1 overflow-y-auto px-5 py-5">
           {piece.data?.content ? (
-            <ContentView document={piece.data.content} fileUrl={fileUrl} />
+            piece.data.comments.length ? (
+              <div className="grid gap-5">
+                <CommentedWork
+                  document={piece.data.content}
+                  comments={piece.data.comments}
+                  active={active}
+                  reveal={reveal}
+                  onPassages={setPassages}
+                  onOpen={setActive}
+                />
+                <section
+                  aria-labelledby={`shared-comments-${attemptId}`}
+                  className="grid gap-3"
+                >
+                  <h3
+                    id={`shared-comments-${attemptId}`}
+                    className="text-sm leading-5 font-semibold"
+                  >
+                    {m.courseworkSharedComments()}
+                  </h3>
+                  <CommentList
+                    comments={piece.data.comments}
+                    passages={passages}
+                    active={active}
+                    onShow={(id) => {
+                      setActive(id);
+                      setReveal((count) => count + 1);
+                    }}
+                  />
+                </section>
+              </div>
+            ) : (
+              <ContentView document={piece.data.content} fileUrl={fileUrl} />
+            )
           ) : (
             <div aria-busy="true" className="min-h-24" />
           )}

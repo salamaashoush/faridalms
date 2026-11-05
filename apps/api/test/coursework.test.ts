@@ -775,6 +775,23 @@ describe("handing in and returning work", () => {
         (row) => row.subjectId === saved.id,
       ),
     ).toHaveLength(told.length);
+    // Shared with the family, it carries the teacher's comment, not the
+    // child's answers to it.
+    await teacher.api.coursework.act({
+      assignmentId: saved.id,
+      action: "share",
+      studentIds: [me.id],
+    });
+    const family = await signedIn(
+      "northwind",
+      login("student").replace("student", "parent"),
+    );
+    const piece = await family.coursework.sharedPiece({
+      attemptId: attempt.id,
+    });
+    expect(piece.comments).toMatchObject([
+      { body: "Say more.", studentState: null, replies: [] },
+    ]);
   });
 
   test("voice feedback is heard by the student only once the work is returned", async () => {
