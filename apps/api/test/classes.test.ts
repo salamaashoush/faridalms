@@ -1,3 +1,4 @@
+import { addDays } from "@faridalms/domain/school";
 import { describe, expect, test } from "bun:test";
 
 import { login, rejection, signedIn } from "./harness";
@@ -233,10 +234,13 @@ describe("enrolment", () => {
     const record = await api.classes.record({ id: homeroom.id });
     const student = record.roster.find((row) => row.from < record.on);
     if (!student) throw new Error("seed student");
+    // Other suites take today's registers in some homerooms, and a student
+    // marked on the day cannot leave before it; tomorrow is clear of them.
     await api.classes.withdraw({
       studentId: student.userId,
       enrollmentId: student.enrollmentId,
       expectedVersion: student.version,
+      on: addDays(record.on, 1),
     });
     const history = await api.classes.history({ studentId: student.userId });
     const episode = history.find((row) => row.id === student.enrollmentId);

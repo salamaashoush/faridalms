@@ -2,6 +2,7 @@ import type { ContentDocument } from "@faridalms/domain/content";
 
 import { openDirectorySync } from "@faridalms/database/directory/client";
 import { plainContent } from "@faridalms/domain/content-conversion";
+import { WARN_SHARE } from "@faridalms/domain/plans";
 import { SQL } from "bun";
 import { describe, expect, test } from "bun:test";
 import { sql } from "drizzle-orm";
@@ -625,17 +626,21 @@ describe("storage caps", () => {
       (sum, file) => ({ usedBytes: sum.usedBytes + file.sizeBytes }),
       { usedBytes: 0 },
     );
+    // Other suites may have filled this class already, and the warning is a
+    // share of the limit, so the limit and the sizes follow what is there.
+    const classBytes = 5 * usedBytes + 5000;
+    const nearLimit = Math.ceil(classBytes * WARN_SHARE) - usedBytes;
     try {
-      await setPlan(school.id, { classBytes: usedBytes + 1000 });
+      await setPlan(school.id, { classBytes });
       expect(await declare(teacher.api, 10, area)).toMatchObject({
         warning: null,
       });
-      expect((await declare(teacher.api, 900, area)).warning).toMatchObject({
-        scope: "class",
-      });
-      expect(await rejection(declare(teacher.api, 2000, area))).toMatchObject({
-        message: "file.quota_class",
-      });
+      expect(
+        (await declare(teacher.api, nearLimit, area)).warning,
+      ).toMatchObject({ scope: "class" });
+      expect(
+        await rejection(declare(teacher.api, classBytes - usedBytes + 1, area)),
+      ).toMatchObject({ message: "file.quota_class" });
 
       await setPlan(school.id, { personBytes: 1 });
       expect(
