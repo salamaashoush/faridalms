@@ -72,8 +72,8 @@ import {
   readProcedure,
   requireCapability,
   schoolProcedure,
+  sessionProcedure,
   schoolZone,
-  writeProcedure,
 } from "../core/procedure";
 import { scopeFor } from "../core/reach";
 import { confirmRegistration } from "../core/registration";
@@ -108,7 +108,7 @@ export const signIn = schoolProcedure
     const { tenantId, schoolId } = context.school;
     const outcome = await context.cell.withTenant<Outcome>(
       { tenantId, requestId: context.requestId, actor: { kind: "user" } },
-      "write",
+      "session",
       async (tx) => {
         const proof = await provePassword(tx, context, {
           tenantId,
@@ -183,7 +183,7 @@ export const badgeSignIn = schoolProcedure
     const { tenantId, schoolId } = context.school;
     const outcome = await context.cell.withTenant<Outcome>(
       { tenantId, requestId: context.requestId, actor: { kind: "user" } },
-      "write",
+      "session",
       async (tx) => {
         const network = ipPrefix(context.headers, context.trustedProxyHops);
         const networkKey = network
@@ -322,7 +322,7 @@ async function heldInvite(
   const { tenantId } = context.school;
   const outcome = await context.cell.withTenant(
     { tenantId, requestId: context.requestId, actor: { kind: "user" } },
-    "write",
+    "session",
     async (tx) => {
       const network = ipPrefix(context.headers, context.trustedProxyHops);
       const networkKey = network
@@ -454,7 +454,7 @@ export const requestPasswordReset = schoolProcedure
  * enough to take the account; wrong tries are counted as wrong sign-ins
  * are. Every other device is signed out, and this one stays in.
  */
-export const changePassword = writeProcedure
+export const changePassword = sessionProcedure
   .input(changePasswordSchema)
   .handler(async ({ input, context }) => {
     const held = await signInOf(
@@ -517,7 +517,7 @@ export const changePassword = writeProcedure
     return { changed: true };
   });
 
-export const signOut = writeProcedure.handler(async ({ context }) => {
+export const signOut = sessionProcedure.handler(async ({ context }) => {
   await revokeSession(context.tx, context.actor.sessionId, "sign_out");
   await audit(context, {
     action: "account.sign_out",
@@ -581,6 +581,7 @@ export const currentUser = readProcedure.handler(async ({ context }) => {
     },
     // What the platform says about the school's contract is for those who run it.
     contract: can(context, "school:manage") ? contractOf(context.school) : null,
+    paused: context.paused,
     today: context.today,
   };
 });
@@ -589,7 +590,7 @@ export const currentUser = readProcedure.handler(async ({ context }) => {
  * Moving between the staff, family and student contexts is a privilege
  * change, so it issues a new session and revokes the old one.
  */
-export const switchContext = writeProcedure
+export const switchContext = sessionProcedure
   .input(switchContextSchema)
   .handler(async ({ input, context }) => {
     if (!context.actor.contexts.includes(input.context))
@@ -641,7 +642,7 @@ export const switchContext = writeProcedure
  * stays open for the way back. It lives as a shared-device session, so a
  * tablet put down and forgotten closes it within the half hour.
  */
-export const childSession = writeProcedure
+export const childSession = sessionProcedure
   .input(childSessionSchema)
   .handler(async ({ input, context }) => {
     if (context.actor.context !== "family") throw new ORPCError("FORBIDDEN");

@@ -114,6 +114,8 @@ export interface UnitContext extends SchoolContext {
   /** Today in the school's time zone, one clock for the unit of work. */
   today: string;
   now: Date;
+  /** The school's account is paused: it reads, and writes nothing but its sessions. */
+  paused: boolean;
   /**
    * Work outside the database that must wait until the unit commits, such as
    * deleting stored bytes a record no longer points at; a rollback skips it.

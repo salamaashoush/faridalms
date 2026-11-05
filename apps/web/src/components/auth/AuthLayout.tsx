@@ -111,7 +111,13 @@ export function AuthLayout({
 }) {
   return face ? (
     <PortalPage face={face} ownWords={ownWords} door={door}>
-      {children}
+      {face.paused ? (
+        <p className="text-sm leading-6 text-muted-foreground">
+          {m.portalPaused()}
+        </p>
+      ) : (
+        children
+      )}
     </PortalPage>
   ) : (
     <PlatformLayout>{children}</PlatformLayout>

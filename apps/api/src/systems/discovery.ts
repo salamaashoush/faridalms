@@ -137,7 +137,7 @@ async function tryTenant(
   const schools = await schoolsOf(context, tenantId);
   return context.cell.withTenant<TenantOutcome>(
     { tenantId, requestId: context.requestId, actor: { kind: "user" } },
-    "write",
+    "session",
     async (tx) => {
       const proof = await provePassword(tx, context, { tenantId, ...input });
       if (proof.limited) return { kind: "limited" };
@@ -216,7 +216,7 @@ export const discoverSignIn = publicProcedure
               requestId: context.requestId,
               actor: { kind: "user" },
             },
-            "write",
+            "session",
             (tx) => refuseSignIn(tx, outcome.tenantId, outcome.proof),
           );
       if (outcomes.some((outcome) => outcome.kind === "limited"))
@@ -250,7 +250,7 @@ export const discoverSignIn = publicProcedure
         requestId: context.requestId,
         actor: { kind: "user" },
       },
-      "write",
+      "session",
       async (tx) => {
         await issueHandoff(tx, {
           tenantId: outcome.tenantId,
@@ -297,7 +297,7 @@ export const redeemHandoff = schoolProcedure
     const network = ipPrefix(context.headers, context.trustedProxyHops);
     const session = await context.cell.withTenant(
       { tenantId, requestId: context.requestId, actor: { kind: "user" } },
-      "write",
+      "session",
       async (tx) => {
         const held = await spendHandoff(tx, tenantId, badgeHash(input.token));
         if (!held || !held.fresh || held.schoolId !== schoolId) return null;

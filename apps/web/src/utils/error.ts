@@ -158,6 +158,7 @@ const INTERNAL_CODES: ReadonlySet<string> = new Set([
   "tenant.directory_differs",
   "tenant.not_active",
   "tenant.not_in_directory",
+  "tenant.not_settable",
   "tenant_key.active_exists",
   "thread_member.exists",
   "timetable.change_shape",
@@ -1084,6 +1085,8 @@ export function getMessageFromError(error: unknown): string {
         return m.errorValidationRequired();
       case "validation.invalid":
         return m.errorValidationInvalid();
+      case "tenant.paused":
+        return m.schoolPaused();
       case "tenant.read_only":
         return m.errorTenantReadOnly();
       case "login_identity.login_name_taken":

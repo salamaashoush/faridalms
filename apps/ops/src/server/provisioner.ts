@@ -3,6 +3,7 @@ import type {
   ProvisionTenant,
   ReissueInvite,
   ReissueResult,
+  SetLifecycle,
 } from "@faridalms/domain/provisioning";
 
 import {
@@ -71,6 +72,13 @@ export const provisionTenant = (operator: Operator, request: ProvisionTenant) =>
 export const reissueInvite = (operator: Operator, request: ReissueInvite) =>
   post<ReissueResult>(operator, "/v1/invites", request);
 
+export const setLifecycle = (operator: Operator, request: SetLifecycle) =>
+  post<{ before: string; lifecycle: string }>(
+    operator,
+    "/v1/tenants/lifecycle",
+    request,
+  );
+
 /** What an operator is told when the cell refuses or cannot be reached. */
 export function explain(answer: { code: string; message: string | null }) {
   switch (answer.message ?? answer.code) {
@@ -87,6 +95,8 @@ export function explain(answer: { code: string; message: string | null }) {
       return "The cell does not see these schools in its directory. Check that the console and the cell use the same directory.";
     case "tenant.not_active":
       return "The cell holds this tenant, but it is not active.";
+    case "tenant.not_settable":
+      return "The tenant is being created, moved or closed, so it cannot be paused or reopened now.";
     case "login_identity.login_name_taken":
       return "Someone in this tenant already signs in with that email.";
     case "account.disabled":

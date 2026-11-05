@@ -11,12 +11,13 @@ import {
 } from "@faridalms/domain/provisioning";
 import { addDays } from "@faridalms/domain/school";
 import { DEFAULT_PERIODS, isoWeekday } from "@faridalms/domain/timetable";
+import { SQL } from "bun";
 import { afterAll, describe, expect, test } from "bun:test";
 import { SignJWT } from "jose";
 import { randomBytes } from "node:crypto";
 import * as v from "valibot";
 
-import { client, rejection, seeded, testDirectory } from "./harness";
+import { client, rejection, seeded, testCell, testDirectory } from "./harness";
 
 const OPERATOR = "operator-under-test";
 const operatorDirectory = openDirectoryAdmin(testDirectory().operatorUrl);
@@ -424,6 +425,47 @@ describe("creating a school from the operator console", () => {
       status: 404,
       body: { message: "administrator.not_found" },
     });
+  });
+
+  test("a tenant is paused, suspended and reopened in its cell, named in its audit log", async () => {
+    const email = "salama@pinegrove.example.com";
+    const { ids, body } = await begin(standalone("pinegrove", email));
+    expect((await call("/v1/tenants", body)).status).toBe(200);
+    const move = (lifecycle: string) =>
+      call("/v1/tenants/lifecycle", {
+        tenantId: ids.tenantId,
+        lifecycle,
+        reason: "Invoice unpaid for 60 days",
+      });
+    expect(await move("read_only")).toMatchObject({
+      status: 200,
+      body: { before: "active", lifecycle: "read_only" },
+    });
+    expect(await move("suspended")).toMatchObject({
+      status: 200,
+      body: { before: "read_only", lifecycle: "suspended" },
+    });
+    expect(await move("active")).toMatchObject({
+      status: 200,
+      body: { before: "suspended", lifecycle: "active" },
+    });
+    const sql = new SQL(testCell().adminUrl);
+    try {
+      const rows = await sql<{ details: { reason: string } }[]>`
+        select details from audit.log
+        where tenant_id = ${ids.tenantId}::uuid and action = 'tenant.lifecycle'`;
+      expect(rows).toHaveLength(3);
+      expect(rows[0]?.details.reason).toBe("Invoice unpaid for 60 days");
+    } finally {
+      await sql.close();
+    }
+    expect(
+      await call("/v1/tenants/lifecycle", {
+        tenantId: crypto.randomUUID(),
+        lifecycle: "read_only",
+        reason: "No such tenant",
+      }),
+    ).toMatchObject({ status: 409, body: { message: "tenant.not_settable" } });
   });
 
   test("a call without a good token is refused before anything is read", async () => {

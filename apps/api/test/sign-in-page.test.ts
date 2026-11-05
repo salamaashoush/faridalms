@@ -38,6 +38,7 @@ describe("the portal's face", () => {
         "logoKey",
         "name",
         "page",
+        "paused",
         "school",
         "theme",
         "turnstileKey",

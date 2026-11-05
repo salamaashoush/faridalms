@@ -17,13 +17,19 @@ import { saveEntitlementsSchema } from "@faridalms/domain/plans";
 import {
   newSchoolSchema,
   reissueInviteSchema,
+  setLifecycleSchema,
 } from "@faridalms/domain/provisioning";
 import { createServerFn } from "@tanstack/react-start";
 import { randomBytes } from "node:crypto";
 import * as v from "valibot";
 
 import { opsEnv } from "./env";
-import { explain, provisionTenant, reissueInvite } from "./provisioner";
+import {
+  explain,
+  provisionTenant,
+  reissueInvite,
+  setLifecycle,
+} from "./provisioner";
 import { currentOperator, requireOperator } from "./session";
 
 const byId = v.object({ id: v.pipe(v.string(), v.uuid()) });
@@ -228,6 +234,31 @@ const resendSchema = v.object({
   schoolId: v.pipe(v.string(), v.uuid()),
   email: reissueInviteSchema.entries.email,
 });
+
+/**
+ * Pauses, suspends or reopens a school's tenant: its cell first, which
+ * enforces it, then the directory, which explains it.
+ */
+export const setSchoolLifecycle = createServerFn({ method: "POST" })
+  .validator((input: v.InferInput<typeof setLifecycleSchema>) =>
+    v.parse(setLifecycleSchema, input),
+  )
+  .handler(
+    async ({
+      data,
+    }): Promise<{ ok: true } | { ok: false; message: string }> => {
+      const operator = requireOperator();
+      const answer = await setLifecycle(operator, data);
+      if (!answer.ok) return { ok: false, message: explain(answer) };
+      await directory().setTenantState({
+        tenantId: data.tenantId,
+        state: data.lifecycle,
+        operatorId: operator.id,
+        reason: data.reason,
+      });
+      return { ok: true };
+    },
+  );
 
 export const resendInvite = createServerFn({ method: "POST" })
   .validator((input: v.InferInput<typeof resendSchema>) =>

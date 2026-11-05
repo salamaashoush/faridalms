@@ -232,6 +232,16 @@ export type ProvisionTenant = v.InferOutput<typeof provisionTenantSchema>;
  * A new link for a school's administrator: the one with this email, or the
  * school's first administrator when none is given.
  */
+/** How far a tenant's people may use it: the console's only lifecycle moves. */
+export const TENANT_LIFECYCLES = ["active", "read_only", "suspended"] as const;
+
+export const setLifecycleSchema = v.object({
+  tenantId: id,
+  lifecycle: v.picklist(TENANT_LIFECYCLES),
+  reason: v.pipe(v.string(), v.trim(), v.minLength(1), v.maxLength(500)),
+});
+export type SetLifecycle = v.InferOutput<typeof setLifecycleSchema>;
+
 export const reissueInviteSchema = v.object({
   tenantId: id,
   schoolId: id,

@@ -10,9 +10,10 @@ import type {
   ProvisionTenant,
   ReissueInvite,
   ReissueResult,
+  SetLifecycle,
 } from "@faridalms/domain/provisioning";
 
-import { writeAudit } from "@faridalms/database/audit";
+import { changeOf, writeAudit } from "@faridalms/database/audit";
 import { schoolProfile } from "@faridalms/database/stores/identity";
 import { replaceContact } from "@faridalms/database/stores/persons";
 import {
@@ -20,10 +21,15 @@ import {
   setStaffRoles,
 } from "@faridalms/database/stores/staff";
 import { insertPerson, nameColumns } from "@faridalms/database/stores/students";
-import { createTenant, tenantLifecycle } from "@faridalms/database/tenants";
+import {
+  createTenant,
+  setTenantLifecycle,
+  tenantLifecycle,
+} from "@faridalms/database/tenants";
 import {
   provisionTenantSchema,
   reissueInviteSchema,
+  setLifecycleSchema,
 } from "@faridalms/domain/provisioning";
 import { schoolDate } from "@faridalms/domain/school";
 import { ORPCError } from "@orpc/server";
@@ -348,6 +354,35 @@ export const reissueInvite = (
   request: ReissueInvite,
 ) => reissue(directCall(deps, operatorId), request);
 
+/** Pauses, suspends or reopens a tenant, named in its own audit log. */
+async function setLifecycle(call: Call, request: SetLifecycle) {
+  return call.deps.owner.asOwner(
+    request.tenantId,
+    call.requestId,
+    async (tx) => {
+      const before = await setTenantLifecycle(
+        tx,
+        request.tenantId,
+        request.lifecycle,
+      );
+      if (before === null)
+        throw new ORPCError("CONFLICT", { message: "tenant.not_settable" });
+      await writeAudit(tx, request.tenantId, {
+        action: "tenant.lifecycle",
+        objectType: "tenant",
+        objectId: request.tenantId,
+        details: { operatorId: call.operator.id, reason: request.reason },
+        change: changeOf(
+          "ops.tenant_registry",
+          { lifecycle: before },
+          { lifecycle: request.lifecycle },
+        ),
+      });
+      return { before, lifecycle: request.lifecycle };
+    },
+  );
+}
+
 const ROUTES = {
   "/v1/tenants": async (call: Call, body: unknown) => {
     const parsed = v.safeParse(provisionTenantSchema, body);
@@ -359,6 +394,12 @@ const ROUTES = {
     const parsed = v.safeParse(reissueInviteSchema, body);
     return parsed.success
       ? reissue(call, parsed.output)
+      : invalid(parsed.issues);
+  },
+  "/v1/tenants/lifecycle": async (call: Call, body: unknown) => {
+    const parsed = v.safeParse(setLifecycleSchema, body);
+    return parsed.success
+      ? setLifecycle(call, parsed.output)
       : invalid(parsed.issues);
   },
 } as const;

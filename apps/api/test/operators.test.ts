@@ -90,6 +90,46 @@ describe("the operator console's directory access", () => {
     }
   });
 
+  test("records a paused tenant and its schools' access, and reopens it", async () => {
+    const { tenants } = seeded();
+    const tenant = tenants[1];
+    const school = tenant?.schools[0];
+    if (!tenant || !school) throw new Error("no acme");
+    const admin = openDirectoryAdmin(testDirectory().operatorUrl);
+    const state = async () => {
+      const row = await admin.school(school.id);
+      return { state: row?.tenantState, access: row?.entitlements.access };
+    };
+    try {
+      await admin.setTenantState({
+        tenantId: tenant.tenantId,
+        state: "read_only",
+        operatorId: "salama-test",
+        reason: "Invoice unpaid for 60 days",
+      });
+      expect(await state()).toEqual({
+        state: "read_only",
+        access: "read_only",
+      });
+    } finally {
+      await admin.setTenantState({
+        tenantId: tenant.tenantId,
+        state: "active",
+        operatorId: "salama-test",
+        reason: "Paid",
+      });
+    }
+    expect(await state()).toEqual({ state: "active", access: "full" });
+    const [latest] = await admin.changes({ id: tenant.tenantId });
+    expect(latest).toMatchObject({
+      action: "tenant.lifecycle",
+      before: { state: "read_only" },
+      after: { state: "active" },
+      reason: "Paid",
+    });
+    await admin.close();
+  });
+
   test("a school the directory holds no entitlements for has Basic", () => {
     expect(BASIC_ENTITLEMENTS.modules).toEqual([...BASIC_MODULES]);
     expect(availableModules(BASIC_ENTITLEMENTS)).not.toContain("website");

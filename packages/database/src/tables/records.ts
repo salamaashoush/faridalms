@@ -294,6 +294,7 @@ export type TenantLifecycle =
   | "provisioning"
   | "importing"
   | "active"
+  | "read_only"
   | "frozen"
   | "suspended"
   | "offboarding";
@@ -311,7 +312,7 @@ export const tenantRegistry = ops.table(
     ck(
       "tenant_registry",
       "lifecycle",
-      sql`lifecycle in ('provisioning', 'importing', 'active', 'frozen', 'suspended', 'offboarding')`,
+      sql`lifecycle in ('provisioning', 'importing', 'active', 'read_only', 'frozen', 'suspended', 'offboarding')`,
     ),
   ],
 );

@@ -42,7 +42,7 @@ export async function sendPasswordReset(
   const { tenantId } = input;
   return context.cell.withTenant(
     { tenantId, requestId: context.requestId, actor: { kind: "user" } },
-    "write",
+    "session",
     async (tx) => {
       const network = ipPrefix(context.headers, context.trustedProxyHops);
       const nameTries = await countAttempt(

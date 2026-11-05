@@ -1,0 +1,38 @@
+{
+  "type": "diff",
+  "version": "9",
+  "dialect": "postgres",
+  "id": "b1a44acf-396c-476a-9e4c-0ee294ae84cf",
+  "prevIds": [
+    "4e5fe4b6-a79a-41ab-a18c-7951715c9936"
+  ],
+  "footprints": [
+    {
+      "statementType": "alter_check",
+      "statementTarget": [
+        "table",
+        "ops",
+        "tenant_registry"
+      ],
+      "writes": [
+        "s|ck|ops.tenant_registry.tenant_registry_lifecycle_check"
+      ],
+      "reads": [
+        "n|tbl|ops.tenant_registry",
+        "n|sch|ops",
+        "n|col|ops.tenant_registry.lifecycle",
+        "e|col|ops.tenant_registry.lifecycle"
+      ],
+      "sqlHash": "078e09c73d573726"
+    }
+  ],
+  "deltas": [
+    {
+      "op": "alter",
+      "key": "checks\u0000[\"ops\",\"tenant_registry\",\"tenant_registry_lifecycle_check\"]",
+      "set": {
+        "value": "lifecycle in ('provisioning', 'importing', 'active', 'read_only', 'frozen', 'suspended', 'offboarding')"
+      }
+    }
+  ]
+}

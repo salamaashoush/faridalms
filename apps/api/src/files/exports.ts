@@ -266,7 +266,7 @@ async function exported(
   const scoped: SchoolContext = { ...context, school };
   let found: Awaited<ReturnType<typeof build>>;
   try {
-    found = await openUnit(scoped, "write", (unit) =>
+    found = await openUnit(scoped, "session", (unit) =>
       build({ ...scoped, ...unit }),
     );
   } catch (error) {

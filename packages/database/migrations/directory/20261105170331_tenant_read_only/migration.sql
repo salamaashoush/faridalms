@@ -1,0 +1,1 @@
+ALTER TABLE "tenants" DROP CONSTRAINT "tenants_state_check", ADD CONSTRAINT "tenants_state_check" CHECK (state in ('provisioning', 'importing', 'active', 'read_only', 'frozen', 'suspended', 'offboarding', 'offboarded'));

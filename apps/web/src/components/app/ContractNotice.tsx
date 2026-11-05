@@ -18,22 +18,23 @@ const counted = (value: { count: number; limit: number }) => ({
 
 /** What the platform tells a school's administrators about their contract. */
 export function ContractNotice() {
-  const { contract, today } = useCurrentUser();
-  if (!contract) return null;
+  const { contract, paused, today } = useCurrentUser();
+  if (!contract && !paused) return null;
   const trial =
-    contract.trialEndsOn && contract.trialEndsOn >= today
+    contract?.trialEndsOn && contract.trialEndsOn >= today
       ? m.contractTrialEnds({ date: formatDate(contract.trialEndsOn, "full") })
       : null;
   const shown = [
-    contract.notice ? NOTICE[contract.notice]() : null,
+    paused ? m.schoolPaused() : null,
+    contract?.notice ? NOTICE[contract.notice]() : null,
     trial,
-    contract.students
+    contract?.students
       ? m.contractOverStudents(counted(contract.students))
       : null,
-    contract.staffAccounts
+    contract?.staffAccounts
       ? m.contractOverStaff(counted(contract.staffAccounts))
       : null,
-    contract.emails ? m.contractOverEmails(counted(contract.emails)) : null,
+    contract?.emails ? m.contractOverEmails(counted(contract.emails)) : null,
   ].filter((line) => line !== null);
   if (shown.length === 0) return null;
   return (

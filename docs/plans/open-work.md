@@ -16,7 +16,13 @@ From `foundations.md`. W1 to W5 are merged.
     table that does not;
   - one question and answer model shared by quizzes, forms and admission
     forms;
-  - saved sections on the templates and shared-block systems;
+  - saved sections on the templates and shared-block systems. A page
+    keeps its sections as section JSON in each language, not as a content
+    document, so neither system holds one as it stands: either each learns
+    a section kind (a template whose body is a section in both languages,
+    and a shared section a page names and draws when it is shown), or
+    sections get a small library of their own. The owner's call before it
+    is built;
   - a shared person-name type in place of about 20 differently named
     field pairs;
 - **Finding 21** (plan modules and feature switches): one module
@@ -40,6 +46,14 @@ From `foundations.md`. W1 to W5 are merged.
   service and Bun's SQL client has no LISTEN. The lifecycle slice's
   per-unit tenant registry check could carry the entitlements revision
   instead; that is the owner's call.
+- **Business console lifecycle** (its plan's slice 4): the console pauses,
+  suspends and reopens a tenant through the provisioner, which the cell
+  enforces at once. A paused school signs in, reads and keeps its sessions
+  and exports, and refuses every other write with `tenant.paused`, which
+  everyone in it is told; a suspended school's own portal says it is
+  paused. Left: `restricted` access refusing new modules, custom domains
+  and text-message top-ups; and browser tests of the banner and the paused
+  page, which need a way for a spec to set a tenant's state.
 
 ## Bugs found and not yet fixed
 

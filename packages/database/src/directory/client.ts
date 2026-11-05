@@ -9,6 +9,7 @@ import { drizzle } from "drizzle-orm/bun-sql/postgres";
 
 import type { EntitlementColumns } from "./entitlements";
 import type { HostActor } from "./hosts";
+import type { DirectoryTenantState } from "./schema";
 
 import { entitlementColumns, entitledOf } from "./entitlements";
 import {
@@ -46,6 +47,7 @@ export interface DirectorySchool {
    */
   hosts: { portal: string | null; site: string | null };
   entitlements: SchoolEntitlements;
+  tenantState: DirectoryTenantState;
   /** What the cell last measured, which soft limits are held to; null before it first reports. */
   counts: {
     students: number;
@@ -135,6 +137,7 @@ export function openDirectory(url: string, ttlMs = 60_000) {
         portalHost: canonicalHost("portal"),
         siteHost: canonicalHost("site"),
         entitlements: entitlementColumns,
+        tenantState: tenants.state,
         counts: {
           students: schoolUsage.students,
           staffAccounts: schoolUsage.staffAccounts,

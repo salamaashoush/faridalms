@@ -25,15 +25,21 @@ export interface UnitOfWork {
   };
 }
 
-export type Access = "read" | "write";
+/**
+ * What a unit does: reads, writes, or keeps a session (signing in or out,
+ * a password, an export), which a paused school still may.
+ */
+export type Access = "read" | "write" | "session";
 
 /**
  * The tenant is unknown, allows no sign-in, or (for a write) is not active.
  * Callers answer `unknown` exactly like an invalid token, so the response
- * reveals nothing about which tenants exist, and `read_only` with 503.
+ * reveals nothing about which tenants exist; `read_only` (a move, for
+ * minutes) with 503; and `paused` (the school's account, for as long as it
+ * lasts) with 403.
  */
 export class TenantUnavailableError extends Error {
-  constructor(readonly reason: "unknown" | "read_only") {
+  constructor(readonly reason: "unknown" | "read_only" | "paused") {
     super(`Tenant unavailable: ${reason}`);
     this.name = "TenantUnavailableError";
   }
@@ -41,6 +47,7 @@ export class TenantUnavailableError extends Error {
 
 const SIGN_IN_STATES: ReadonlySet<TenantLifecycle> = new Set([
   "active",
+  "read_only",
   "frozen",
 ]);
 
@@ -86,7 +93,13 @@ async function unit<T>(
     const { lifecycle, now } = await beginUnit(tx, work);
     if (lifecycle === null || !SIGN_IN_STATES.has(lifecycle))
       throw new TenantUnavailableError("unknown");
-    if (access === "write" && lifecycle !== "active")
+    if (access === "write" && lifecycle === "read_only")
+      throw new TenantUnavailableError("paused");
+    if (
+      access !== "read" &&
+      lifecycle !== "active" &&
+      lifecycle !== "read_only"
+    )
       throw new TenantUnavailableError("read_only");
     return run(tx, lifecycle, now);
   });

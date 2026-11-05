@@ -77,6 +77,8 @@ export interface PortalFace {
   };
   /** The public key a form on the page renders Turnstile with; null where it is not set up. */
   turnstileKey: string | null;
+  /** The school's portal is suspended: its page says so, and nobody signs in. */
+  paused: boolean;
 }
 
 const TTL_MS = 60_000;
@@ -130,6 +132,20 @@ export async function portalFace(
   const hit = cache.get(key);
   if (hit && Date.now() - hit.at < TTL_MS) return hit.value;
   const directory = await context.directory.bySlug(slug);
+  // A suspended tenant answers nothing from its cell; its own portal says
+  // it is paused with only the names the directory already shows.
+  if (directory?.tenantState === "suspended")
+    return {
+      school: slug,
+      name: { en: directory.nameEn, ar: directory.nameAr },
+      theme: null,
+      logoKey: null,
+      contact: { address: null, phone: null, email: null },
+      frame: null,
+      page: starterPage(door, locale),
+      turnstileKey: null,
+      paused: true,
+    };
   const value = await withPublicSite(
     context,
     slug,
@@ -219,6 +235,7 @@ export async function portalFace(
             }
           : starterPage(door, locale),
         turnstileKey: context.turnstile?.siteKey ?? null,
+        paused: false,
       };
     },
   );

@@ -326,3 +326,22 @@ export async function tenantLifecycle(
   );
   return rows[0]?.lifecycle ?? null;
 }
+
+/**
+ * Moves an active, paused or suspended tenant to another of those states,
+ * answering where it stood; null when it stands anywhere else, such as
+ * moving cells or being created.
+ */
+export async function setTenantLifecycle(
+  tx: CellTransaction,
+  tenantId: string,
+  lifecycle: "active" | "read_only" | "suspended",
+): Promise<TenantLifecycle | null> {
+  const rows = await tx.execute<{ before: TenantLifecycle }>(sql`
+    update ops.tenant_registry r set lifecycle = ${lifecycle}, changed_at = statement_timestamp()
+    from (select lifecycle from ops.tenant_registry where tenant_id = ${tenantId}::uuid) old
+    where r.tenant_id = ${tenantId}::uuid
+      and old.lifecycle in ('active', 'read_only', 'suspended')
+    returning old.lifecycle as before`);
+  return rows[0]?.before ?? null;
+}

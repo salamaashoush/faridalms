@@ -446,6 +446,55 @@ export function openDirectoryAdmin(url: string) {
         });
         return true;
       }),
+    /**
+     * Records a tenant paused, suspended or reopened, after its cell has
+     * moved it: the tenant's state, and its schools' access, which the
+     * portal reads to explain it.
+     */
+    setTenantState: async (input: {
+      tenantId: string;
+      state: "active" | "read_only" | "suspended";
+      operatorId: string;
+      reason: string;
+    }) =>
+      db.transaction(async (tx) => {
+        const [before] = await tx
+          .select({ state: tenants.state })
+          .from(tenants)
+          .where(eq(tenants.id, input.tenantId))
+          .for("update");
+        if (!before) return false;
+        await tx
+          .update(tenants)
+          .set({ state: input.state, updatedAt: new Date() })
+          .where(eq(tenants.id, input.tenantId));
+        await tx
+          .update(schoolEntitlements)
+          .set({
+            access: input.state === "read_only" ? "read_only" : "full",
+            revision: sql`${schoolEntitlements.revision} + 1`,
+            updatedAt: new Date(),
+          })
+          .where(
+            inArray(
+              schoolEntitlements.schoolId,
+              tx
+                .select({ id: schools.id })
+                .from(schools)
+                .where(eq(schools.tenantId, input.tenantId)),
+            ),
+          );
+        await tx.insert(changes).values({
+          actor: `operator:${input.operatorId}`,
+          subjectType: "tenant",
+          subjectId: input.tenantId,
+          action: "tenant.lifecycle",
+          before: { state: before.state },
+          after: { state: input.state },
+          reason: input.reason,
+        });
+        return true;
+      }),
     /** A school's own hosts, as the console lists them. */
     hosts: (schoolId: string) => schoolHosts(db, schoolId),
     addHost: (input: {

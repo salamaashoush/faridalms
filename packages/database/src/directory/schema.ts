@@ -33,6 +33,7 @@ export type DirectoryTenantState =
   | "provisioning"
   | "importing"
   | "active"
+  | "read_only"
   | "frozen"
   | "suspended"
   | "offboarding"
@@ -106,7 +107,7 @@ export const tenants = pgTable(
     ),
     check(
       "tenants_state_check",
-      sql`state in ('provisioning', 'importing', 'active', 'frozen', 'suspended', 'offboarding', 'offboarded')`,
+      sql`state in ('provisioning', 'importing', 'active', 'read_only', 'frozen', 'suspended', 'offboarding', 'offboarded')`,
     ),
     check("tenants_check", sql`num_nonnulls(name_en, name_ar) >= 1`),
     check(

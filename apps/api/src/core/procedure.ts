@@ -48,10 +48,12 @@ function toApiError(error: unknown): unknown {
   if (error instanceof TenantUnavailableError)
     return error.reason === "unknown"
       ? new ORPCError("UNAUTHORIZED")
-      : new ORPCError("SERVICE_UNAVAILABLE", {
-          message: "tenant.read_only",
-          data: { retryAfter: 60 },
-        });
+      : error.reason === "paused"
+        ? new ORPCError("FORBIDDEN", { message: "tenant.paused" })
+        : new ORPCError("SERVICE_UNAVAILABLE", {
+            message: "tenant.read_only",
+            data: { retryAfter: 60 },
+          });
   const mapped = mapDatabaseError(error);
   if (!mapped) return error;
   switch (mapped.kind) {
@@ -134,7 +136,8 @@ export async function openUnit<T>(
           sessionId: session.id,
         },
       });
-      if (lifecycle === "active")
+      // A paused school still reads, and its sessions last while it does.
+      if (lifecycle === "active" || lifecycle === "read_only")
         await touchSession(
           tx,
           session,
@@ -159,6 +162,7 @@ export async function openUnit<T>(
         schoolId,
         today,
         now,
+        paused: lifecycle === "read_only",
         actor: {
           userId: session.userId,
           accountId: session.accountId,
@@ -203,6 +207,8 @@ function unit(access: Access) {
 export const readProcedure = unit("read");
 /** Writes; they need an active tenant. */
 export const writeProcedure = unit("write");
+/** A session's own writes, which a paused school still makes: signing out, a password, a context. */
+export const sessionProcedure = unit("session");
 
 export function can(context: UnitContext, capability: Capability): boolean {
   return context.actor.capabilities.has(capability);

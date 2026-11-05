@@ -4,6 +4,7 @@ import type { SchoolNotice } from "@faridalms/domain/plans";
 
 import { BASIC_MODULES, MODULE_IDS } from "@faridalms/domain/modules";
 import { DEFAULT_LIMITS, SCHOOL_NOTICES } from "@faridalms/domain/plans";
+import { TENANT_LIFECYCLES } from "@faridalms/domain/provisioning";
 import { Badge } from "@faridalms/ui/badge";
 import { Button } from "@faridalms/ui/button";
 import { Checkbox } from "@faridalms/ui/checkbox";
@@ -18,7 +19,12 @@ import { ChangeList } from "../components/ChangeList";
 import { Hosts } from "../components/Hosts";
 import { Usage } from "../components/Usage";
 import { formatBytes, formatWhen, MODULE_NAMES } from "../format";
-import { getSchool, resendInvite, saveEntitlements } from "../server/directory";
+import {
+  getSchool,
+  resendInvite,
+  saveEntitlements,
+  setSchoolLifecycle,
+} from "../server/directory";
 
 export const Route = createFileRoute("/schools/$schoolId")({
   loader: ({ params }) => getSchool({ data: { id: params.schoolId } }),
@@ -107,6 +113,7 @@ const TENANT_STATES: Record<DirectoryTenantState, string> = {
   provisioning: "Provisioning",
   importing: "Importing",
   active: "Active",
+  read_only: "Paused (read only)",
   frozen: "Frozen",
   suspended: "Suspended",
   offboarding: "Offboarding",
@@ -451,11 +458,137 @@ function SchoolPage() {
       {school.tenantState === "active" ? (
         <AdministratorLink schoolId={school.id} />
       ) : null}
+      {isMove(school.tenantState) ? (
+        <Lifecycle
+          tenantId={school.tenantId}
+          state={school.tenantState}
+          group={school.tenantKind === "school_group"}
+        />
+      ) : null}
       <section className="grid gap-3">
         <h2 className="text-base font-semibold">History</h2>
         <ChangeList changes={changes} />
       </section>
     </div>
+  );
+}
+
+type TenantLifecycleMove = (typeof TENANT_LIFECYCLES)[number];
+
+const isMove = (state: DirectoryTenantState): state is TenantLifecycleMove =>
+  (TENANT_LIFECYCLES as readonly string[]).includes(state);
+
+const LIFECYCLE_HINT: Record<TenantLifecycleMove, string> = {
+  active: "Everyone uses the school as normal.",
+  read_only:
+    "Everyone signs in and reads; nothing can be changed, and everyone is told the account is paused. Administrators can still export.",
+  suspended:
+    "Nobody signs in. The school's own portal says it is paused; the bare domain says nothing.",
+};
+
+/**
+ * Pauses, suspends or reopens the school's tenant, every school of a group
+ * with it, with the reason the change log keeps.
+ */
+function Lifecycle({
+  tenantId,
+  state,
+  group,
+}: {
+  tenantId: string;
+  state: TenantLifecycleMove;
+  group: boolean;
+}) {
+  const router = useRouter();
+  const set = useServerFn(setSchoolLifecycle);
+  const [lifecycle, setLifecycle] = useState(state);
+  const [reason, setReason] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [answer, setAnswer] = useState<string | null>(null);
+  return (
+    <form
+      className="grid max-w-2xl gap-4 rounded-lg border p-6"
+      onSubmit={async (event) => {
+        event.preventDefault();
+        if (!reason.trim()) {
+          toast.error("Say why, for the change log.");
+          return;
+        }
+        setSaving(true);
+        setAnswer(null);
+        try {
+          const out = await set({
+            data: { tenantId, lifecycle, reason: reason.trim() },
+          });
+          if (out.ok) {
+            toast.success("Access changed.");
+            setReason("");
+            await router.invalidate();
+          } else setAnswer(out.message);
+        } catch {
+          setAnswer("Access could not be changed.");
+        } finally {
+          setSaving(false);
+        }
+      }}
+    >
+      <div className="grid gap-1">
+        <h2 className="text-base font-semibold">Access</h2>
+        <p className="text-sm text-muted-foreground">
+          {group
+            ? "Applies to every school of the group."
+            : "Applies to the school."}{" "}
+          The cell enforces it at once.
+        </p>
+      </div>
+      <fieldset className="grid gap-2 text-sm">
+        <legend className="sr-only">Access</legend>
+        {TENANT_LIFECYCLES.map((choice) => (
+          <div key={choice} className="flex items-start gap-2">
+            <input
+              id={`lifecycle-${choice}`}
+              type="radio"
+              name="lifecycle"
+              value={choice}
+              checked={lifecycle === choice}
+              onChange={() => setLifecycle(choice)}
+              className="mt-1"
+            />
+            <label htmlFor={`lifecycle-${choice}`} className="grid gap-0.5">
+              <span className="font-medium">{TENANT_STATES[choice]}</span>
+              <span className="text-xs text-muted-foreground">
+                {LIFECYCLE_HINT[choice]}
+              </span>
+            </label>
+          </div>
+        ))}
+      </fieldset>
+      <div className="grid gap-1.5 text-sm">
+        <label htmlFor="lifecycle-reason" className="font-medium">
+          Why
+        </label>
+        <Textarea
+          id="lifecycle-reason"
+          required
+          maxLength={500}
+          value={reason}
+          onChange={(event) => setReason(event.target.value)}
+          placeholder="For example: invoice 2026-014 unpaid for 60 days"
+        />
+      </div>
+      {answer ? (
+        <p role="alert" className="text-sm text-destructive">
+          {answer}
+        </p>
+      ) : null}
+      <Button
+        type="submit"
+        disabled={saving || lifecycle === state}
+        className="justify-self-start"
+      >
+        {saving ? "Saving…" : "Change access"}
+      </Button>
+    </form>
   );
 }
 
