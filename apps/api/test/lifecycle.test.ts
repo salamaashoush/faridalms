@@ -91,7 +91,7 @@ describe("a paused school", () => {
     try {
       const face = await client("", undefined, "en", {
         "x-forwarded-for": "198.51.100.77",
-      }).identity.portalFace({ school: "acme", locale: "en" });
+      }).identity.portalFace({ school: "acme" });
       expect(face).toMatchObject({
         school: "acme",
         name: { en: "Acme School" },

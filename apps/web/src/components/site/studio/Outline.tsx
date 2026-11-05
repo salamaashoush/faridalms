@@ -22,8 +22,6 @@ import {
   LayoutPanelTop,
   Link2,
   DoorOpen,
-  FileUser,
-  LogIn,
   ListChecks,
   ListCollapse,
   Megaphone,
@@ -43,7 +41,6 @@ import {
   BarChart3,
   Code2,
   Mail,
-  UserPlus,
 } from "lucide-react";
 import { useId, useState } from "react";
 
@@ -82,9 +79,6 @@ export const SECTION_ICON: Record<PageSection["type"], LucideIcon> = {
   form: Send,
   quickLinks: Link2,
   embed: Code2,
-  signIn: LogIn,
-  register: UserPlus,
-  apply: FileUser,
   registerApply: DoorOpen,
 };
 

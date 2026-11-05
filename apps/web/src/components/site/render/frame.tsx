@@ -3,76 +3,76 @@ import type { CSSProperties, ReactNode } from "react";
 
 import { cn } from "@faridalms/ui/cn";
 import {
+  IconBrandFacebook,
+  IconBrandInstagram,
+  IconBrandLinkedin,
+  IconBrandTiktok,
+  IconBrandWhatsapp,
+  IconBrandX,
+  IconBrandYoutube,
+} from "@tabler/icons-react";
+import { useHydrated } from "@tanstack/react-router";
+import {
+  ArrowRight,
   ChevronDown,
-  ChevronRight,
+  Globe,
   Info,
   Menu,
+  Moon,
   OctagonAlert,
+  Sun,
   TriangleAlert,
   X,
 } from "lucide-react";
+import { useTheme } from "next-themes";
 import { useEffect, useRef, useState } from "react";
 
-import { ThemeToggle } from "~/components/theme/ThemeToggle";
 import * as m from "~/i18n/messages";
+import { numberLocale } from "~/utils/digits";
 
+import type { SiteFrameModel } from "./frame-model";
 import type { RenderContext } from "./parts";
 
+import {
+  childrenOf,
+  footerColumns,
+  navEntries,
+  navFits,
+  primaryAction,
+  quietActions,
+  topLevel,
+  utilityLinks,
+} from "./frame-model";
 import { useReveal } from "./motion";
 import { SiteAnchor } from "./parts";
 import { ContactList } from "./sections";
 import {
   duotoneTables,
+  overMediaStyle,
   schemeStyle,
   themeAttributes,
   themeStyle,
 } from "./theme";
 
-export interface FrameLink {
-  id: string;
-  label: string;
-  href: string;
-}
+export type { FrameLink, FrameMenuEntry, SiteFrameModel } from "./frame-model";
 
-export interface FrameMenuEntry extends FrameLink {
-  parentId: string | null;
-}
-
-/** Everything the frame around a page shows, already in the language shown. */
-export interface SiteFrameModel {
-  name: string;
-  tagline: string;
-  logoUrl: string | null;
-  banner: { text: string; tone: "info" | "warning" | "danger" } | null;
-  utility: FrameLink[];
-  actions: (FrameLink & { style: "primary" | "secondary" })[];
-  menu: FrameMenuEntry[];
-  footerColumns: { id: string; title: string; links: FrameLink[] }[];
-  footerNote: string;
-  dock: boolean;
-  socialLinks: { kind: SocialKind; url: string }[];
-  /** The other language's address of this page, when the site speaks two. */
-  otherLanguage: { locale: SiteLocale; href: string } | null;
-  currentHref: string;
-  /** The school's portal sign-in, on the portal's own host. */
-  signInHref: string;
-  /** Where the name and logo lead; the website's home when unset. */
-  homeHref?: string;
-}
-
-const SOCIAL_NAME: Record<SocialKind, string> = {
-  facebook: "Facebook",
-  instagram: "Instagram",
-  x: "X",
-  youtube: "YouTube",
-  linkedin: "LinkedIn",
-  tiktok: "TikTok",
-  whatsapp: "WhatsApp",
+const SOCIAL: Record<
+  SocialKind,
+  { name: string; icon: typeof IconBrandFacebook }
+> = {
+  facebook: { name: "Facebook", icon: IconBrandFacebook },
+  instagram: { name: "Instagram", icon: IconBrandInstagram },
+  x: { name: "X", icon: IconBrandX },
+  youtube: { name: "YouTube", icon: IconBrandYoutube },
+  linkedin: { name: "LinkedIn", icon: IconBrandLinkedin },
+  tiktok: { name: "TikTok", icon: IconBrandTiktok },
+  whatsapp: { name: "WhatsApp", icon: IconBrandWhatsapp },
 };
 
-const LANGUAGE_NAME: Record<SiteLocale, string> = {
-  en: "English",
-  ar: "العربية",
+/** Each language named in itself, in full and as a header shows it. */
+const LANGUAGE: Record<SiteLocale, { name: string; short: string }> = {
+  en: { name: "English", short: "EN" },
+  ar: { name: "العربية", short: "عربي" },
 };
 
 const BANNER_ICON = {
@@ -81,151 +81,174 @@ const BANNER_ICON = {
   danger: OctagonAlert,
 } as const;
 
+type FrameProps = { frame: SiteFrameModel; context: RenderContext };
+
 function Brand({
   frame,
   context,
   large = false,
-}: {
-  frame: SiteFrameModel;
-  context: RenderContext;
-  large?: boolean;
-}) {
+}: FrameProps & { large?: boolean }) {
   return (
     <SiteAnchor
       href={frame.homeHref ?? "/"}
       context={context}
       className={cn(
-        "flex min-w-0 shrink-0 items-center gap-3",
-        large && "flex-col text-center",
+        "site-brand",
+        large && "@5xl/site:flex-col @5xl/site:text-center",
       )}
     >
       {frame.logoUrl ? (
         <img
           src={frame.logoUrl}
           alt=""
-          className={cn(
-            "w-auto shrink-0 object-contain",
-            large ? "h-16" : "h-10",
-          )}
+          className={cn("site-brand-logo", large && "@5xl/site:h-14")}
         />
       ) : null}
-      <span className="grid min-w-0">
-        <span
-          className={cn(
-            "site-heading leading-tight font-semibold whitespace-nowrap",
-            large ? "text-2xl" : "text-lg",
-          )}
-        >
+      <span
+        className={cn(
+          "grid min-w-0",
+          large && "@5xl/site:justify-items-center",
+        )}
+      >
+        <span className={cn("site-brand-name", large && "@5xl/site:text-2xl")}>
           {frame.name}
         </span>
         {frame.tagline ? (
-          <span className="site-muted truncate text-xs">{frame.tagline}</span>
+          <span className="site-brand-tagline">{frame.tagline}</span>
         ) : null}
       </span>
     </SiteAnchor>
   );
 }
 
-function LanguageLink({
+/**
+ * The way to the page in the other language, named in that language and
+ * set in its own face: a small globe and "عربي" on an English page, "EN"
+ * on an Arabic one.
+ */
+function LanguageSwitch({
   frame,
   context,
+  full = false,
   className,
-}: {
-  frame: SiteFrameModel;
-  context: RenderContext;
-  className?: string;
-}) {
+}: FrameProps & { full?: boolean; className?: string }) {
   const other = frame.otherLanguage;
   if (!other) return null;
-  const words = LANGUAGE_NAME[other.locale];
+  const words = LANGUAGE[other.locale];
+  const body = (
+    <>
+      <Globe aria-hidden className="size-4 shrink-0" />
+      <span
+        lang={other.locale}
+        dir={other.locale === "ar" ? "rtl" : "ltr"}
+        className="site-language-label"
+      >
+        {full ? words.name : words.short}
+      </span>
+    </>
+  );
+  const shared = {
+    lang: other.locale,
+    className: cn("site-tool", full && "site-tool-wide", className),
+    title: words.name,
+  } as const;
   return context.editing ? (
-    <span lang={other.locale} className={className}>
-      {words}
-    </span>
+    <span {...shared}>{body}</span>
   ) : (
     <a
+      {...shared}
       href={other.href}
-      lang={other.locale}
       hrefLang={other.locale}
-      className={className}
+      aria-label={full ? undefined : words.name}
     >
-      {words}
+      {body}
     </a>
   );
 }
 
-/** The frame's actions; beside a crowded menu only the filled ones stay until the screen is wide. */
-function FrameActions({
-  frame,
+/**
+ * Light or dark, beside the language. The page follows the reader's
+ * device until they choose; their choice is kept as the app keeps it.
+ */
+function ThemeSwitch({
   context,
   className,
-  compact = false,
 }: {
-  frame: SiteFrameModel;
   context: RenderContext;
   className?: string;
-  compact?: boolean;
 }) {
-  if (frame.actions.length === 0) return null;
+  const { resolvedTheme, setTheme } = useTheme();
+  // The reader's choice is known only in the browser; until then the icons
+  // follow the page's class and the button claims no state.
+  const mounted = useHydrated();
+  const t = { locale: context.locale };
+  const icons = (
+    <>
+      <Moon aria-hidden className="size-[1.125rem] dark:hidden" />
+      <Sun aria-hidden className="hidden size-[1.125rem] dark:block" />
+    </>
+  );
+  if (context.editing)
+    return (
+      <span aria-hidden className={cn("site-tool site-tool-icon", className)}>
+        {icons}
+      </span>
+    );
+  const dark = mounted && resolvedTheme === "dark";
   return (
-    <div className={cn("flex items-center gap-2", className)}>
-      {frame.actions.map((action) => (
-        <SiteAnchor
-          key={action.id}
-          href={action.href}
-          context={context}
-          className={cn(
-            "site-button min-h-10 px-4 py-2 text-sm whitespace-nowrap",
-            compact && action.style === "secondary" && "@max-7xl/site:hidden",
-          )}
-          variant={action.style === "secondary" ? "secondary" : undefined}
-        >
-          {action.label}
-        </SiteAnchor>
-      ))}
+    <button
+      type="button"
+      className={cn("site-tool site-tool-icon", className)}
+      aria-label={m.siteDarkMode({}, t)}
+      aria-pressed={mounted ? dark : undefined}
+      title={m.siteDarkMode({}, t)}
+      onClick={() => setTheme(dark ? "light" : "dark")}
+    >
+      {icons}
+    </button>
+  );
+}
+
+/** The language and the light or dark choice, the header's tools. */
+function Tools({ frame, context }: FrameProps) {
+  return (
+    <div className="site-tools @max-3xl/site:hidden">
+      <LanguageSwitch frame={frame} context={context} />
+      <ThemeSwitch context={context} />
     </div>
   );
 }
 
-function UtilityBar({
-  frame,
-  context,
-  withActions,
-}: {
-  frame: SiteFrameModel;
-  context: RenderContext;
-  withActions?: boolean;
-}) {
-  if (frame.utility.length === 0 && !frame.otherLanguage && !withActions)
-    return null;
+/**
+ * The header's actions: the quieter ones said in words while there is room,
+ * then the one filled button.
+ */
+function BarActions({ frame, context }: FrameProps) {
+  const primary = primaryAction(frame);
+  const quiet = quietActions(frame);
+  if (!primary && quiet.length === 0) return null;
   return (
-    <div
-      className="site-section @max-4xl/site:hidden"
-      style={schemeStyle(context.theme, "ink")}
-    >
-      <div className="mx-auto flex max-w-[84rem] items-center justify-end gap-5 px-8 py-2 text-sm">
-        <ul className="flex flex-wrap items-center gap-5">
-          {frame.utility.map((item) => (
-            <li key={item.id}>
-              <SiteAnchor
-                href={item.href}
-                context={context}
-                className="opacity-85 hover:underline hover:opacity-100"
-              >
-                {item.label}
-              </SiteAnchor>
-            </li>
-          ))}
-        </ul>
-        <LanguageLink
-          frame={frame}
+    <div className="flex items-center gap-1 @max-3xl/site:hidden">
+      {quiet.map((action) => (
+        <SiteAnchor
+          key={action.id}
+          href={action.href}
           context={context}
-          className="font-medium hover:underline"
-        />
-        {withActions ? (
-          <FrameActions frame={frame} context={context} className="ms-2" />
-        ) : null}
-      </div>
+          className="site-navlink @max-7xl/site:hidden"
+        >
+          {action.label}
+        </SiteAnchor>
+      ))}
+      {primary ? (
+        <SiteAnchor
+          href={primary.href}
+          context={context}
+          className="site-button ms-2"
+          size="sm"
+        >
+          {primary.label}
+        </SiteAnchor>
+      ) : null}
     </div>
   );
 }
@@ -233,52 +256,43 @@ function UtilityBar({
 function DesktopNav({
   frame,
   context,
-  centered,
-}: {
-  frame: SiteFrameModel;
-  context: RenderContext;
-  centered?: boolean;
-}) {
+  className,
+}: FrameProps & { className?: string }) {
   const t = { locale: context.locale };
-  const top = frame.menu.filter((entry) => !entry.parentId);
-  const below = (entry: FrameMenuEntry) =>
-    frame.menu.filter((item) => item.parentId === entry.id);
   return (
-    <nav aria-label={m.siteNavigation({}, t)} className="@max-5xl/site:hidden">
-      <ul
-        className={cn("flex items-center gap-1", centered && "justify-center")}
-      >
-        {top.map((entry) => {
-          const children = below(entry);
-          const current = entry.href === frame.currentHref;
+    <nav aria-label={m.siteNavigation({}, t)} className={className}>
+      <ul className="flex items-center justify-center">
+        {navEntries(frame).map((entry) => {
+          const below = childrenOf(frame, entry);
           return (
             <li key={entry.id} className="group relative">
               <SiteAnchor
                 href={entry.href}
                 context={context}
-                className={cn(
-                  "inline-flex min-h-11 items-center gap-1 rounded-[var(--s-radius)] px-2.5 text-[0.95rem] font-medium whitespace-nowrap hover:text-[var(--s-link)]",
-                  current &&
-                    "text-[var(--s-link)] underline decoration-2 underline-offset-8",
-                )}
+                current={entry.href === frame.currentHref}
+                className="site-navlink"
               >
                 {entry.label}
-                {children.length ? (
-                  <ChevronDown aria-hidden className="size-4 opacity-60" />
+                {below.length ? (
+                  <ChevronDown
+                    aria-hidden
+                    className="size-3.5 opacity-60 transition-transform duration-200 group-focus-within:rotate-180 group-hover:rotate-180"
+                  />
                 ) : null}
               </SiteAnchor>
-              {children.length ? (
-                <div className="invisible absolute start-0 top-full z-30 pt-2 opacity-0 transition group-focus-within:visible group-focus-within:opacity-100 group-hover:visible group-hover:opacity-100">
+              {below.length ? (
+                <div className="invisible absolute start-1/2 top-full z-30 -translate-x-1/2 pt-2 opacity-0 transition duration-200 group-focus-within:visible group-focus-within:opacity-100 group-hover:visible group-hover:opacity-100 rtl:translate-x-1/2">
                   <ul
-                    className="site-section grid min-w-60 gap-0.5 rounded-[var(--s-radius)] border border-[var(--s-border)] p-2 shadow-xl"
+                    className="site-section grid min-w-64 gap-0.5 rounded-[var(--s-radius-sm)] p-2 text-start shadow-[var(--s-shadow-lift)] ring-1 ring-[var(--s-border)]"
                     style={schemeStyle(context.theme, "canvas")}
                   >
-                    {children.map((item) => (
+                    {below.map((item) => (
                       <li key={item.id}>
                         <SiteAnchor
                           href={item.href}
                           context={context}
-                          className="block rounded-[var(--s-radius)] px-3 py-2 text-sm hover:bg-[var(--s-card)]"
+                          current={item.href === frame.currentHref}
+                          className="block rounded-[var(--s-radius-sm)] px-3 py-2.5 text-[0.9375rem] transition-colors hover:bg-[color-mix(in_oklab,var(--s-fg)_7%,transparent)] aria-[current=page]:text-[var(--s-link)]"
                         >
                           {item.label}
                         </SiteAnchor>
@@ -295,55 +309,108 @@ function DesktopNav({
   );
 }
 
+function MenuButton({
+  open,
+  onToggle,
+  context,
+  className,
+  labelled = false,
+}: {
+  open: boolean;
+  onToggle: () => void;
+  context: RenderContext;
+  className?: string;
+  /** Whether the word "Menu" shows beside the icon. */
+  labelled?: boolean;
+}) {
+  const t = { locale: context.locale };
+  const Glyph = open ? X : Menu;
+  const label = open ? m.siteCloseMenu({}, t) : m.siteMenu({}, t);
+  return (
+    <button
+      type="button"
+      onClick={onToggle}
+      aria-expanded={open}
+      aria-label={labelled ? undefined : label}
+      className={cn(
+        "site-tool",
+        labelled ? "site-tool-wide" : "site-tool-icon",
+        className,
+      )}
+    >
+      <Glyph aria-hidden className="size-5" />
+      {labelled ? <span>{label}</span> : null}
+    </button>
+  );
+}
+
+/**
+ * The menu opened from the menu button: every page large, each with the
+ * pages under it, and beside them what the bar above cannot show at this
+ * width, so nothing appears twice on the screen.
+ */
 function MenuPanel({
   frame,
   context,
   onClose,
-}: {
-  frame: SiteFrameModel;
-  context: RenderContext;
-  onClose: () => void;
-}) {
+}: FrameProps & { onClose: () => void }) {
   const t = { locale: context.locale };
-  const top = frame.menu.filter((entry) => !entry.parentId);
+  const top = topLevel(frame);
+  const utility = utilityLinks(frame);
+  const quiet = quietActions(frame);
+  const primary = primaryAction(frame);
+  useEffect(() => {
+    if (context.editing) return undefined;
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === "Escape") onClose();
+    };
+    const root = document.documentElement;
+    const before = root.style.overflow;
+    root.style.overflow = "hidden";
+    window.addEventListener("keydown", onKey);
+    return () => {
+      root.style.overflow = before;
+      window.removeEventListener("keydown", onKey);
+    };
+  }, [context.editing, onClose]);
   return (
     <div
-      className="site-section absolute inset-x-0 top-full z-40 border-t border-[var(--s-border)] shadow-2xl @max-3xl/site:h-[calc(100svh-4.5rem)] @max-3xl/site:overflow-y-auto"
+      className="site-section site-menu-panel"
       style={schemeStyle(context.theme, "canvas")}
     >
       <nav
         aria-label={m.siteNavigation({}, t)}
-        className="mx-auto grid max-w-[84rem] gap-6 px-5 py-6 @3xl/site:px-8 @4xl/site:grid-cols-3"
+        className="site-container grid gap-10 py-8 @3xl/site:py-14 @5xl/site:grid-cols-[minmax(0,2fr)_minmax(0,1fr)] @5xl/site:gap-16"
       >
-        <ul className="grid divide-y divide-[var(--s-border)] @4xl/site:col-span-2 @4xl/site:grid-cols-2 @4xl/site:gap-x-8 @4xl/site:divide-y-0">
+        <ul className="grid content-start gap-x-10 @3xl/site:grid-cols-2 @3xl/site:gap-y-7">
           {top.map((entry) => {
-            const children = frame.menu.filter(
-              (item) => item.parentId === entry.id,
-            );
+            const below = childrenOf(frame, entry);
             return (
-              <li key={entry.id}>
+              <li
+                key={entry.id}
+                className="border-b border-[var(--s-border)] @3xl/site:border-0"
+              >
                 <SiteAnchor
                   href={entry.href}
                   context={context}
-                  className={cn(
-                    "site-heading flex min-h-14 items-center justify-between gap-4 py-2 text-xl font-semibold",
-                    entry.href === frame.currentHref && "text-[var(--s-link)]",
-                  )}
+                  current={entry.href === frame.currentHref}
+                  className="site-menu-link"
                 >
                   {entry.label}
-                  <ChevronRight
+                  <ArrowRight
                     aria-hidden
-                    className="size-5 opacity-40 rtl:-scale-x-100"
+                    className="site-arrow size-5 opacity-40 rtl:-scale-x-100"
                   />
                 </SiteAnchor>
-                {children.length ? (
-                  <ul className="mb-2 grid gap-0.5 border-s border-[var(--s-border)] ps-4">
-                    {children.map((item) => (
+                {below.length ? (
+                  <ul className="grid gap-0.5 pb-4 @3xl/site:mt-2 @3xl/site:pb-0">
+                    {below.map((item) => (
                       <li key={item.id}>
                         <SiteAnchor
                           href={item.href}
                           context={context}
-                          className="site-muted block py-1.5"
+                          current={item.href === frame.currentHref}
+                          className="site-muted block py-1.5 transition-colors hover:text-[var(--s-fg)] aria-[current=page]:text-[var(--s-link)]"
                         >
                           {item.label}
                         </SiteAnchor>
@@ -355,15 +422,41 @@ function MenuPanel({
             );
           })}
         </ul>
-        <div className="grid content-start gap-4">
-          {frame.utility.length ? (
+        <div className="grid content-start gap-8 @5xl/site:border-s @5xl/site:border-[var(--s-border)] @5xl/site:ps-12">
+          {quiet.length || primary ? (
+            <div className="grid gap-3">
+              {quiet.map((action) => (
+                <SiteAnchor
+                  key={action.id}
+                  href={action.href}
+                  context={context}
+                  className="site-button justify-between"
+                  variant="secondary"
+                >
+                  {action.label}
+                  <ArrowRight aria-hidden className="rtl:-scale-x-100" />
+                </SiteAnchor>
+              ))}
+              {primary ? (
+                <SiteAnchor
+                  href={primary.href}
+                  context={context}
+                  className="site-button justify-between"
+                >
+                  {primary.label}
+                  <ArrowRight aria-hidden className="rtl:-scale-x-100" />
+                </SiteAnchor>
+              ) : null}
+            </div>
+          ) : null}
+          {utility.length ? (
             <ul className="grid gap-1">
-              {frame.utility.map((item) => (
+              {utility.map((item) => (
                 <li key={item.id}>
                   <SiteAnchor
                     href={item.href}
                     context={context}
-                    className="site-muted block py-1"
+                    className="site-muted block py-1.5 transition-colors hover:text-[var(--s-fg)]"
                   >
                     {item.label}
                   </SiteAnchor>
@@ -371,64 +464,24 @@ function MenuPanel({
               ))}
             </ul>
           ) : null}
-          <LanguageLink
-            frame={frame}
-            context={context}
-            className="font-semibold"
-          />
-          <FrameActions frame={frame} context={context} className="flex-wrap" />
+          <div className="site-small hidden @5xl/site:block">
+            <ContactList context={context} />
+          </div>
+          <div className="flex flex-wrap items-center gap-2 @3xl/site:hidden">
+            <LanguageSwitch frame={frame} context={context} full />
+            <ThemeSwitch context={context} />
+          </div>
         </div>
       </nav>
-      <button
-        type="button"
-        onClick={onClose}
-        className="sr-only focus:not-sr-only focus:m-2"
-      >
-        {m.siteCloseMenu({}, t)}
-      </button>
     </div>
-  );
-}
-
-function MenuButton({
-  open,
-  onToggle,
-  context,
-  always,
-}: {
-  open: boolean;
-  onToggle: () => void;
-  context: RenderContext;
-  always?: boolean;
-}) {
-  const t = { locale: context.locale };
-  return (
-    <button
-      type="button"
-      onClick={onToggle}
-      aria-expanded={open}
-      className={cn(
-        "inline-flex min-h-11 items-center gap-2 rounded-[var(--s-radius)] px-3 font-medium",
-        !always && "@5xl/site:hidden",
-      )}
-    >
-      {open ? (
-        <X aria-hidden className="size-5" />
-      ) : (
-        <Menu aria-hidden className="size-5" />
-      )}
-      <span className={cn(!always && "sr-only")}>
-        {open ? m.siteCloseMenu({}, t) : m.siteMenu({}, t)}
-      </span>
-    </button>
   );
 }
 
 type Pin = "top" | "shown" | "hidden";
 
 /**
- * Where the pinned bar stands: out of the way near the top, shown as soon
- * as a visitor scrolls back up, hidden again while they read on down.
+ * Where the header stands as the page scrolls: at rest near the top,
+ * tucked away while a visitor reads on down, back as soon as they scroll up.
  */
 function usePin(enabled: boolean): Pin {
   const [pin, setPin] = useState<Pin>("top");
@@ -438,16 +491,17 @@ function usePin(enabled: boolean): Pin {
     const onScroll = () => {
       const y = window.scrollY;
       const next: Pin | null =
-        y < 320
+        y < 120
           ? "top"
-          : y < last - 4
-            ? "shown"
-            : y > last + 4
-              ? "hidden"
+          : y > last + 6 && y > 320
+            ? "hidden"
+            : y < last - 6
+              ? "shown"
               : null;
       if (next) setPin(next);
       last = y;
     };
+    onScroll();
     window.addEventListener("scroll", onScroll, { passive: true });
     return () => window.removeEventListener("scroll", onScroll);
   }, [enabled]);
@@ -455,189 +509,90 @@ function usePin(enabled: boolean): Pin {
 }
 
 /**
- * A compact bar that slides down from the top when a visitor scrolls back
- * up, so the menu and the admissions actions are never a long scroll away.
+ * The one header of every page, always a single row, in the theme's
+ * arrangement: classic (the name, the pages, the tools and the action),
+ * centred (the menu, the name in the middle, the tools and the action),
+ * overlay (classic, laid over the opening picture until the page scrolls)
+ * or minimal (the name, the tools, the action and the menu). The menu
+ * button stays on a wide screen whenever the menu holds what the row
+ * cannot: the pages of a centred or minimal header, or the school's own
+ * links.
  */
-function PinnedBar({
-  frame,
-  context,
-  pin,
-}: {
-  frame: SiteFrameModel;
-  context: RenderContext;
-  pin: Pin;
-}) {
-  const [open, setOpen] = useState(false);
-  const shown = pin === "shown" || open;
-  return (
-    <div
-      aria-hidden={!shown}
-      inert={!shown}
-      className={cn(
-        "site-section fixed inset-x-0 top-0 z-40 border-b border-[var(--s-border)] shadow-[0_4px_20px_rgb(0_0_0/0.08)] transition-transform duration-[350ms] ease-[cubic-bezier(.165,.84,.44,1)] motion-reduce:transition-none",
-        shown ? "translate-y-0" : "-translate-y-full",
-      )}
-      style={schemeStyle(context.theme, "canvas")}
-    >
-      <div className="mx-auto flex max-w-[84rem] items-center gap-4 px-5 py-2 @3xl/site:px-8">
-        <Brand frame={frame} context={context} />
-        <div className="ms-auto flex items-center gap-2">
-          <DesktopNav frame={frame} context={context} />
-          <FrameActions
-            frame={frame}
-            context={context}
-            compact
-            className="ms-2 @max-5xl/site:hidden"
-          />
-          <MenuButton
-            open={open}
-            onToggle={() => setOpen((value) => !value)}
-            context={context}
-          />
-        </div>
-      </div>
-      {open ? (
-        <MenuPanel
-          frame={frame}
-          context={context}
-          onClose={() => setOpen(false)}
-        />
-      ) : null}
-    </div>
-  );
-}
-
-function Header(props: {
-  frame: SiteFrameModel;
-  context: RenderContext;
-  overlay: boolean;
-}) {
-  const pin = usePin(!props.context.editing);
-  return (
-    <>
-      <HeaderBar {...props} />
-      {props.context.editing ? null : (
-        <PinnedBar frame={props.frame} context={props.context} pin={pin} />
-      )}
-    </>
-  );
-}
-
-function HeaderBar({
+function Header({
   frame,
   context,
   overlay,
-}: {
-  frame: SiteFrameModel;
-  context: RenderContext;
-  overlay: boolean;
-}) {
+}: FrameProps & { overlay: boolean }) {
   const [open, setOpen] = useState(false);
+  const pin = usePin(!context.editing);
   const style = context.theme.header;
-  const panel = open ? (
-    <MenuPanel frame={frame} context={context} onClose={() => setOpen(false)} />
-  ) : null;
+  const inline = style === "classic" || style === "overlay";
+  const fits = navFits(frame);
   const toggle = () => setOpen((value) => !value);
-  if (style === "centered")
-    return (
-      <header
-        className="site-section relative z-30 border-b border-[var(--s-border)]"
-        style={schemeStyle(context.theme, "canvas")}
-      >
-        <UtilityBar frame={frame} context={context} withActions />
-        <div className="mx-auto grid max-w-[84rem] gap-4 px-5 py-4 @3xl/site:px-8 @4xl/site:justify-items-center @4xl/site:py-6">
-          <div className="flex items-center justify-between gap-4 @4xl/site:justify-center">
-            <Brand frame={frame} context={context} large />
-            <MenuButton open={open} onToggle={toggle} context={context} />
-          </div>
-          <DesktopNav frame={frame} context={context} centered />
-        </div>
-        {panel}
-      </header>
-    );
-  if (style === "minimal")
-    return (
-      <header
-        className="site-section relative z-30"
-        style={schemeStyle(context.theme, "canvas")}
-      >
-        <div className="mx-auto flex max-w-[84rem] items-center gap-4 px-5 py-4 @3xl/site:px-8">
-          <Brand frame={frame} context={context} />
-          <div className="ms-auto flex items-center gap-3">
-            <LanguageLink
-              frame={frame}
-              context={context}
-              className="font-medium @max-3xl/site:hidden"
-            />
-            <FrameActions
-              frame={frame}
-              context={context}
-              className="@max-3xl/site:hidden"
-            />
-            <MenuButton
-              open={open}
-              onToggle={toggle}
-              context={context}
-              always
-            />
-          </div>
-        </div>
-        {panel}
-      </header>
-    );
-  const transparent = style === "overlay" && overlay && !open;
+  const close = () => setOpen(false);
+  const transparent = style === "overlay" && overlay && pin === "top" && !open;
+  const menuAlways = !inline || utilityLinks(frame).length > 0;
+  const menu = (labelled: boolean, className?: string) => (
+    <MenuButton
+      open={open}
+      onToggle={toggle}
+      context={context}
+      labelled={labelled}
+      className={className}
+    />
+  );
+  const tools = (
+    <>
+      <Tools frame={frame} context={context} />
+      <span aria-hidden className="site-tool-divider @max-3xl/site:hidden" />
+      <BarActions frame={frame} context={context} />
+    </>
+  );
   return (
     <header
-      className={cn(
-        "site-section z-30",
-        transparent
-          ? "absolute inset-x-0 top-0 bg-transparent"
-          : "relative border-b border-[var(--s-border)]",
-      )}
+      className="site-section site-header"
+      data-overlay={style === "overlay" && overlay ? "" : undefined}
+      data-transparent={transparent ? "" : undefined}
+      data-hidden={pin === "hidden" && !open ? "" : undefined}
+      data-raised={pin === "shown" || open ? "" : undefined}
       style={{
         ...schemeStyle(context.theme, "canvas"),
-        ...(transparent
-          ? {
-              "--s-bg": "transparent",
-              "--s-fg": "#fff",
-              "--s-heading": "#fff",
-              "--s-muted": "rgba(255,255,255,.8)",
-              "--s-link": "#fff",
-              "--s-btn": "#fff",
-              "--s-btn-fg": "#111",
-            }
-          : {}),
+        ...(transparent ? overMediaStyle : {}),
       }}
     >
-      {transparent ? (
-        <div
-          aria-hidden
-          className="pointer-events-none absolute inset-0 -z-10 bg-gradient-to-b from-black/55 to-transparent"
-        />
-      ) : (
-        <UtilityBar frame={frame} context={context} />
-      )}
-      <div className="mx-auto flex max-w-[84rem] items-center gap-4 px-5 py-3 @3xl/site:px-8">
-        <Brand frame={frame} context={context} />
-        <div className="ms-auto flex items-center gap-2">
-          <DesktopNav frame={frame} context={context} />
-          {transparent ? (
-            <LanguageLink
-              frame={frame}
-              context={context}
-              className="px-2 font-medium @max-5xl/site:hidden"
-            />
-          ) : null}
-          <FrameActions
-            frame={frame}
-            context={context}
-            compact
-            className="ms-2 @max-5xl/site:hidden"
-          />
-          <MenuButton open={open} onToggle={toggle} context={context} />
+      {style === "centered" ? (
+        <div className="site-container site-bar flex justify-between gap-4 @3xl/site:grid @3xl/site:grid-cols-[1fr_auto_1fr]">
+          <div className="flex items-center @max-3xl/site:hidden">
+            {menu(true)}
+          </div>
+          <Brand frame={frame} context={context} />
+          <div className="flex items-center justify-end gap-2">
+            {tools}
+            {menu(false, "@3xl/site:hidden")}
+          </div>
         </div>
-      </div>
-      {panel}
+      ) : (
+        <div
+          className={cn(
+            "site-container site-bar",
+            inline
+              ? "grid grid-cols-[auto_1fr_auto] gap-6"
+              : "flex justify-between gap-4",
+          )}
+        >
+          <Brand frame={frame} context={context} />
+          {inline ? (
+            <DesktopNav frame={frame} context={context} className={fits.show} />
+          ) : null}
+          <div className="flex items-center justify-end gap-2">
+            {tools}
+            {menu(!inline, menuAlways ? undefined : fits.menu)}
+          </div>
+        </div>
+      )}
+      {open ? (
+        <MenuPanel frame={frame} context={context} onClose={close} />
+      ) : null}
     </header>
   );
 }
@@ -645,85 +600,114 @@ function HeaderBar({
 function Socials({ frame }: { frame: SiteFrameModel }) {
   if (frame.socialLinks.length === 0) return null;
   return (
-    <ul className="flex flex-wrap gap-x-5 gap-y-2 text-sm">
-      {frame.socialLinks.map((link) => (
-        <li key={link.url}>
-          <a
-            href={link.url}
-            rel="noopener noreferrer"
-            className="hover:underline"
-          >
-            {SOCIAL_NAME[link.kind]}
-          </a>
-        </li>
-      ))}
+    <ul className="flex flex-wrap gap-2">
+      {frame.socialLinks.map((link) => {
+        const social = SOCIAL[link.kind];
+        const Glyph = social.icon;
+        return (
+          <li key={link.url}>
+            <a
+              href={link.url}
+              rel="noopener noreferrer"
+              aria-label={social.name}
+              title={social.name}
+              className="site-icon-button"
+            >
+              <Glyph aria-hidden stroke={1.75} />
+            </a>
+          </li>
+        );
+      })}
     </ul>
   );
 }
 
-function FooterBase({
-  frame,
+function FooterColumns({
   context,
+  columns,
 }: {
-  frame: SiteFrameModel;
   context: RenderContext;
+  columns: ReturnType<typeof footerColumns>;
 }) {
+  return (
+    <>
+      {columns.map((column) => (
+        <div key={column.id} className="grid content-start gap-4">
+          <h2 className="site-footer-title">{column.title}</h2>
+          <ul className="grid gap-2.5">
+            {column.links.map((link) => (
+              <li key={link.id}>
+                <SiteAnchor
+                  href={link.href}
+                  context={context}
+                  className="site-footer-link"
+                >
+                  {link.label}
+                </SiteAnchor>
+              </li>
+            ))}
+          </ul>
+        </div>
+      ))}
+    </>
+  );
+}
+
+function FooterBase({ frame, context }: FrameProps) {
   const t = { locale: context.locale };
+  const year = context.today
+    ? new Intl.NumberFormat(numberLocale(context.locale), {
+        useGrouping: false,
+      }).format(Number(context.today.slice(0, 4)))
+    : null;
   return (
     <div className="border-t border-[var(--s-border)]">
-      <div className="mx-auto flex max-w-[84rem] flex-wrap items-center gap-x-6 gap-y-2 px-5 py-5 text-sm @3xl/site:px-8">
-        {frame.footerNote ? (
-          <p className="site-muted me-auto">{frame.footerNote}</p>
-        ) : (
-          <span className="me-auto" />
-        )}
-        <LanguageLink
-          frame={frame}
-          context={context}
-          className="hover:underline"
-        />
+      <div className="site-container flex flex-wrap items-center gap-x-6 gap-y-3 py-6 text-[0.8125rem]">
+        <p className="site-muted me-auto">
+          {year
+            ? m.siteCopyright({ year, name: frame.name }, t)
+            : m.siteCopyrightName({ name: frame.name }, t)}
+          {frame.footerNote ? (
+            <span className="ms-3 border-s border-[var(--s-border)] ps-3">
+              {frame.footerNote}
+            </span>
+          ) : null}
+        </p>
         {context.editing ? (
-          <span>{m.sitePortalSignIn({}, t)}</span>
+          <span className="font-medium">{m.sitePortalSignIn({}, t)}</span>
         ) : (
-          <a href={frame.signInHref} className="hover:underline">
+          <a href={frame.signInHref} className="font-medium hover:underline">
             {m.sitePortalSignIn({}, t)}
           </a>
         )}
-        {context.editing ? null : (
-          <ThemeToggle className="text-current hover:bg-current/10 hover:text-current" />
-        )}
+        <LanguageSwitch frame={frame} context={context} full />
       </div>
     </div>
   );
 }
 
-function Footer({
-  frame,
-  context,
-}: {
-  frame: SiteFrameModel;
-  context: RenderContext;
-}) {
+function Footer({ frame, context }: FrameProps) {
   const t = { locale: context.locale };
   const style = context.theme.footer;
-  const columns = frame.footerColumns.length
-    ? frame.footerColumns
-    : [
-        {
-          id: "menu",
-          title: m.siteNavigation({}, t),
-          links: frame.menu.filter((entry) => !entry.parentId),
-        },
-      ];
+  const columns = footerColumns(frame, m.siteNavigation({}, t));
+  const about = (
+    <div className="grid content-start gap-6">
+      <Brand frame={frame} context={context} />
+      <div className="site-small">
+        <ContactList context={context} />
+      </div>
+      <Socials frame={frame} />
+    </div>
+  );
   if (style === "compact")
     return (
       <footer
-        className="site-section"
+        className="site-section border-t border-[var(--s-border)]"
         style={schemeStyle(context.theme, "soft")}
       >
-        <div className="mx-auto flex max-w-[84rem] flex-wrap items-center gap-x-8 gap-y-4 px-5 py-8 @3xl/site:px-8">
+        <div className="site-container flex flex-wrap items-center gap-x-10 gap-y-6 py-10">
           <Brand frame={frame} context={context} />
-          <ul className="flex flex-wrap gap-x-5 gap-y-2 text-sm">
+          <ul className="flex flex-wrap gap-x-6 gap-y-2">
             {columns
               .flatMap((column) => column.links)
               .map((link) => (
@@ -731,7 +715,7 @@ function Footer({
                   <SiteAnchor
                     href={link.href}
                     context={context}
-                    className="hover:underline"
+                    className="site-footer-link"
                   >
                     {link.label}
                   </SiteAnchor>
@@ -745,80 +729,62 @@ function Footer({
         <FooterBase frame={frame} context={context} />
       </footer>
     );
-  if (style === "contact")
-    return (
-      <footer
-        className="site-section"
-        style={schemeStyle(context.theme, "brand")}
-      >
-        <div className="mx-auto grid max-w-[84rem] gap-10 px-5 py-14 @3xl/site:px-8 @4xl/site:grid-cols-[1.2fr_1fr]">
-          <div className="grid content-start gap-5">
-            <Brand frame={frame} context={context} />
-            <p className="site-heading site-h2">{m.siteComeAndSee({}, t)}</p>
-            <FrameActions
-              frame={frame}
-              context={context}
-              className="flex-wrap"
-            />
-          </div>
-          <div className="grid content-start gap-6">
-            <ContactList context={context} />
-            <Socials frame={frame} />
-          </div>
-        </div>
-        <FooterBase frame={frame} context={context} />
-      </footer>
-    );
+  const contact = style === "contact";
   return (
-    <footer className="site-section" style={schemeStyle(context.theme, "ink")}>
+    <footer
+      className="site-section border-t border-[var(--s-border)]"
+      style={schemeStyle(context.theme, contact ? "brand" : "ink")}
+    >
+      {contact ? (
+        <div className="site-container flex flex-wrap items-end justify-between gap-8 border-b border-[var(--s-border)] py-16 @3xl/site:py-20">
+          <p className="site-heading site-h2">{m.siteComeAndSee({}, t)}</p>
+          {frame.actions.length ? (
+            <div className="site-actions">
+              {frame.actions.map((action) => (
+                <SiteAnchor
+                  key={action.id}
+                  href={action.href}
+                  context={context}
+                  className="site-button"
+                  size="lg"
+                  variant={
+                    action.style === "secondary" ? "secondary" : undefined
+                  }
+                >
+                  {action.label}
+                </SiteAnchor>
+              ))}
+            </div>
+          ) : null}
+        </div>
+      ) : null}
       <div
-        className="mx-auto grid max-w-[84rem] gap-10 px-5 py-14 @3xl/site:grid-cols-2 @3xl/site:px-8 @5xl/site:grid-cols-[1.4fr_repeat(var(--columns),minmax(0,1fr))]"
+        className="site-container grid gap-x-10 gap-y-12 py-16 @3xl/site:grid-cols-2 @3xl/site:py-20 @5xl/site:grid-cols-[minmax(0,1.6fr)_repeat(var(--columns),minmax(0,1fr))]"
         style={{ "--columns": columns.length } as CSSProperties}
       >
-        <div className="grid content-start gap-5">
-          <Brand frame={frame} context={context} />
-          <ContactList context={context} />
-          <Socials frame={frame} />
-        </div>
-        {columns.map((column) => (
-          <div key={column.id} className="grid content-start gap-3">
-            <h2 className="text-sm font-semibold tracking-wide uppercase opacity-80">
-              {column.title}
-            </h2>
-            <ul className="grid gap-2">
-              {column.links.map((link) => (
-                <li key={link.id}>
-                  <SiteAnchor
-                    href={link.href}
-                    context={context}
-                    className="hover:underline"
-                  >
-                    {link.label}
-                  </SiteAnchor>
-                </li>
-              ))}
-            </ul>
-          </div>
-        ))}
+        {about}
+        <FooterColumns context={context} columns={columns} />
       </div>
       <FooterBase frame={frame} context={context} />
     </footer>
   );
 }
 
-function Banner({ frame }: { frame: SiteFrameModel }) {
+function Banner({ frame, context }: FrameProps) {
   if (!frame.banner) return null;
   const Icon = BANNER_ICON[frame.banner.tone];
+  const info = frame.banner.tone === "info";
   return (
     <div
       className={cn(
-        "px-5 py-2.5 text-sm font-medium",
-        frame.banner.tone === "info" && "bg-[var(--s-primary)] text-white",
+        "text-[0.875rem] font-medium",
+        info && "site-section",
         frame.banner.tone === "warning" && "bg-[#FFE08A] text-[#3D2E00]",
         frame.banner.tone === "danger" && "bg-[#B42318] text-white",
       )}
+      style={info ? schemeStyle(context.theme, "brand") : undefined}
     >
-      <p className="mx-auto flex max-w-[84rem] items-center justify-center gap-2 text-center">
+      <p className="site-container flex min-h-10 items-center justify-center gap-2 py-2 text-center">
         <Icon aria-hidden className="size-4 shrink-0" />
         {frame.banner.text}
       </p>
@@ -827,29 +793,22 @@ function Banner({ frame }: { frame: SiteFrameModel }) {
 }
 
 /** Up to three actions a phone keeps within reach at the bottom of every page. */
-function Dock({
-  frame,
-  context,
-}: {
-  frame: SiteFrameModel;
-  context: RenderContext;
-}) {
+function Dock({ frame, context }: FrameProps) {
   if (!frame.dock || frame.actions.length === 0) return null;
   return (
     <div
-      className="site-section sticky bottom-0 z-30 border-t border-[var(--s-border)] @4xl/site:hidden"
+      className="site-section sticky bottom-0 z-30 border-t border-[var(--s-border)] @3xl/site:hidden"
       style={schemeStyle(context.theme, "canvas")}
     >
-      <div className="grid auto-cols-fr grid-flow-col gap-2 px-3 py-2 pb-[max(0.5rem,env(safe-area-inset-bottom))]">
-        {frame.actions.map((action, index) => (
+      <div className="grid auto-cols-fr grid-flow-col gap-2 px-3 py-2.5 pb-[max(0.625rem,env(safe-area-inset-bottom))]">
+        {frame.actions.map((action) => (
           <SiteAnchor
             key={action.id}
             href={action.href}
             context={context}
-            className="site-button min-h-11 justify-center px-2 py-2 text-sm"
-            variant={
-              index === frame.actions.length - 1 ? undefined : "secondary"
-            }
+            className="site-button px-2"
+            size="sm"
+            variant={action.style === "secondary" ? "secondary" : undefined}
           >
             {action.label}
           </SiteAnchor>
@@ -888,7 +847,7 @@ export function SiteFrame({
       ref={root}
       lang={context.locale}
       dir={context.locale === "ar" ? "rtl" : "ltr"}
-      className="site-root relative flex min-h-full flex-col overflow-x-clip"
+      className="site-root relative flex min-h-full flex-col"
       {...themeAttributes(context.theme, context.editing)}
       style={{
         ...themeStyle(context.theme, context.locale),
@@ -916,15 +875,13 @@ export function SiteFrame({
           </feComponentTransfer>
         </filter>
       </svg>
-      {bare ? null : <Banner frame={frame} />}
-      <div className="relative flex flex-1 flex-col">
-        {bare ? null : (
-          <Header frame={frame} context={context} overlay={overlay} />
-        )}
-        <main id="site-main" className="flex-1">
-          {children}
-        </main>
-      </div>
+      {bare ? null : <Banner frame={frame} context={context} />}
+      {bare ? null : (
+        <Header frame={frame} context={context} overlay={overlay} />
+      )}
+      <main id="site-main" className="flex-1 overflow-x-clip">
+        {children}
+      </main>
       {bare ? null : (
         <>
           <Footer frame={frame} context={context} />

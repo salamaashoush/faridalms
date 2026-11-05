@@ -3,12 +3,20 @@ import type { SiteLocale } from "@faridalms/domain/site-sections";
 import type { SchemeId, Theme } from "@faridalms/domain/site-theme";
 import type { CSSProperties } from "react";
 
-import { darkPalette, FONTS, schemesOf } from "@faridalms/domain/site-theme";
+import {
+  artPalette,
+  contrast,
+  darkPalette,
+  FONTS,
+  mix,
+  schemesOf,
+} from "@faridalms/domain/site-theme";
 
+/** Section padding for each density, measured against school sites that read as designed. */
 const SPACE = {
-  compact: "clamp(2.5rem, 2rem + 2.222cqi, 4rem)",
-  regular: "clamp(3rem, 2.333rem + 2.963cqi, 5rem)",
-  airy: "clamp(4rem, 3rem + 4.444cqi, 7rem)",
+  compact: "clamp(3rem, 2.333rem + 2.963cqi, 5rem)",
+  regular: "clamp(4rem, 2.833rem + 5.185cqi, 7.5rem)",
+  airy: "clamp(5rem, 3.667rem + 5.926cqi, 9rem)",
 } as const;
 
 /** Faces with a real italic, which the italic emphasis borrows; others fall back to Fraunces. */
@@ -32,10 +40,19 @@ export function themeStyle(theme: Theme, locale: SiteLocale): CSSProperties {
   const body = arabic
     ? stack(theme.fonts.bodyArabic, "notoSansArabic")
     : stack(theme.fonts.bodyLatin, "inter");
+  const art = artPalette(theme.palette);
   return {
     "--s-font-heading": heading,
     "--s-font-body": body,
+    // Words in the other script, such as the language switch, keep their own face.
+    "--s-font-latin": stack(theme.fonts.bodyLatin, "inter"),
+    "--s-font-arabic": stack(theme.fonts.bodyArabic, "notoSansArabic"),
     "--s-radius": `${theme.radius}px`,
+    "--s-art-deep": art.deep,
+    "--s-art-base": art.base,
+    "--s-art-bright": art.bright,
+    "--s-art-light": art.light,
+    "--s-art-accent": art.accent,
     "--s-button-radius":
       theme.button === "pill"
         ? "999px"
@@ -93,14 +110,29 @@ export function themeAttributes(theme: Theme, editing = false) {
   };
 }
 
+/** A band's colour lightened until it stands apart from the dark page. */
+function distinct(colour: string, palette: Theme["palette"]): string {
+  const page = darkPalette(palette).canvas;
+  for (let amount = 0; amount <= 0.3; amount += 0.02) {
+    const candidate = mix(colour, "#FFFFFF", amount);
+    if (contrast(candidate, page) >= 1.3) return candidate;
+  }
+  return mix(colour, "#FFFFFF", 0.3);
+}
+
 /** One colour scheme as the variables a section's contents read. */
 export function schemeStyle(theme: Theme, scheme: SchemeId): CSSProperties {
   const colours = schemesOf(theme.palette)[scheme];
-  // The school's own colour and its ink bands are already dark, and read as
-  // well on a dark screen as on a light one.
+  // The school's own colour and its ink bands are already dark and keep
+  // their colours on a dark screen, raised only where they would otherwise
+  // melt into the dark page, as a black brand would.
   const dark =
     scheme === "brand" || scheme === "ink"
-      ? colours
+      ? schemesOf({
+          ...theme.palette,
+          primary: distinct(theme.palette.primary, theme.palette),
+          ink: distinct(theme.palette.ink, theme.palette),
+        })[scheme]
       : schemesOf(darkPalette(theme.palette))[scheme];
   return {
     "--s-bg": colours.background,

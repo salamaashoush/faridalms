@@ -1,10 +1,6 @@
-import type { PortalDoor } from "@faridalms/domain/site-sections";
-import type { LucideIcon } from "lucide-react";
+import type { PageBatchAction } from "@faridalms/domain/website";
 
-import {
-  isPortalDoor,
-  PORTAL_DOOR_SLUGS,
-} from "@faridalms/domain/site-sections";
+import { Badge } from "@faridalms/ui/badge";
 import { Button } from "@faridalms/ui/button";
 import {
   Dialog,
@@ -18,23 +14,28 @@ import { useNavigate } from "@tanstack/react-router";
 import {
   ArrowDown,
   ArrowUp,
+  ExternalLink,
   EyeOff,
   FileText,
-  FileUser,
   IndentDecrease,
   IndentIncrease,
-  LogIn,
+  ListMinus,
+  ListPlus,
   Paintbrush,
   Pencil,
   Plus,
+  Send,
   Sparkles,
   Trash2,
-  UserPlus,
 } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 
-import type { Column, RowAction } from "~/components/system/DataTable";
+import type {
+  BatchAction,
+  Column,
+  RowAction,
+} from "~/components/system/DataTable";
 import type { siteOverviewQuery } from "~/queries/site";
 
 import { ButtonLink } from "~/components/app/ButtonLink";
@@ -43,13 +44,10 @@ import { DataTable, RowLink } from "~/components/system/DataTable";
 import { StatusText } from "~/components/system/status";
 import { useCurrentUser } from "~/hooks/useCurrentUser";
 import * as m from "~/i18n/messages";
-import {
-  moveSitePage,
-  removeSitePage,
-  startPortalPage,
-  unpublishSitePage,
-} from "~/server/site";
+import { batchSitePages, moveSitePage } from "~/server/site";
+import { formatNumber } from "~/utils/datetime";
 import { getMessageFromError } from "~/utils/error";
+import { sitePath } from "~/utils/host";
 
 import { STATE_LABEL, STATE_TONE } from "./format";
 import { Starters } from "./Starters";
@@ -60,25 +58,17 @@ type Overview = Awaited<
 type Page = Overview["pages"][number];
 type Row = Page & { depth: number; siblings: Page[]; index: number };
 
-/**
- * The website's page tree flattened in menu order, each page knowing its
- * depth and siblings, then the portal's sign-in page, which has no place in
- * the menu.
- */
+/** The page tree flattened in menu order, each page knowing its depth and siblings. */
 function flatten(pages: Page[]): Row[] {
   const rows: Row[] = [];
-  const site = pages.filter((page) => page.kind === "site");
   const visit = (parentId: string | null, depth: number) => {
-    const siblings = site.filter((page) => page.parentId === parentId);
+    const siblings = pages.filter((page) => page.parentId === parentId);
     siblings.forEach((page, index) => {
       rows.push({ ...page, depth, siblings, index });
       visit(page.id, depth + 1);
     });
   };
   visit(null, 0);
-  for (const page of pages)
-    if (page.kind === "portal")
-      rows.push({ ...page, depth: 0, siblings: [page], index: 0 });
   return rows;
 }
 
@@ -87,23 +77,43 @@ const titleOf = (page: Page, primary: "en" | "ar") =>
   page.titleEn ||
   page.titleAr;
 
+const report = (error: unknown) => toast.error(getMessageFromError(error));
+
+const pageCard = (primary: "en" | "ar") => ({
+  title: (row: Row) => <Title row={row} primary={primary} />,
+  status: (row: Row) => <State row={row} />,
+});
+
+/** Which of the chosen pages an action can be done to. */
+const takes: Record<PageBatchAction, (row: Row) => boolean> = {
+  publish: (row) => row.state !== "published" || row.changed,
+  unpublish: (row) => row.state === "published",
+  showInMenu: (row) => !row.inMenu,
+  hideFromMenu: (row) => row.inMenu,
+  remove: (row) => !row.isHome,
+};
+
+const DONE: Record<PageBatchAction, (input: { count: string }) => string> = {
+  publish: m.siteBatchPublished,
+  unpublish: m.siteBatchUnpublished,
+  showInMenu: m.siteBatchShown,
+  hideFromMenu: m.siteBatchHidden,
+  remove: m.siteBatchRemoved,
+};
+
 function Title({ row, primary }: { row: Row; primary: "en" | "ar" }) {
   return (
     <div
-      className="flex min-w-0 items-center"
+      className="flex min-w-0 items-center gap-2"
       style={{ paddingInlineStart: `${row.depth * 1.25}rem` }}
     >
       <RowLink to="/admin/site-page-editor" search={{ id: row.id }}>
         {titleOf(row, primary)}
       </RowLink>
-      {row.kind === "portal" ? (
-        <span className="ms-2 text-[13px] text-muted-foreground">
-          {isPortalDoor(row.slug) ? DOOR_LABEL[row.slug]() : null}
-        </span>
-      ) : row.isHome ? (
-        <span className="ms-2 text-[13px] text-muted-foreground">
+      {row.isHome ? (
+        <Badge variant="secondary" className="shrink-0">
           {m.siteHome()}
-        </span>
+        </Badge>
       ) : null}
     </div>
   );
@@ -140,11 +150,7 @@ function columns(primary: "en" | "ar"): Column<Row>[] {
       header: m.siteAddress(),
       cell: (row) => (
         <span dir="ltr" className="text-sm text-muted-foreground">
-          {row.kind === "portal"
-            ? m.sitePortalDoorAddress({ path: `/${row.slug}` })
-            : row.isHome
-              ? "/"
-              : `/pages/${row.slug}`}
+          {row.isHome ? "/" : `/pages/${row.slug}`}
         </span>
       ),
     },
@@ -156,104 +162,7 @@ function columns(primary: "en" | "ar"): Column<Row>[] {
   ];
 }
 
-const pageCard = (primary: "en" | "ar") => ({
-  title: (row: Row) => <Title row={row} primary={primary} />,
-  status: (row: Row) => <State row={row} />,
-});
-
-const DOOR_LABEL: Record<PortalDoor, () => string> = {
-  "sign-in": m.sitePortalPage,
-  register: m.sitePortalRegisterPage,
-  apply: m.sitePortalApplyPage,
-};
-
-const DOOR_STARTER: Record<PortalDoor, () => string> = {
-  "sign-in": m.sitePortalPageStarter,
-  register: m.sitePortalRegisterStarter,
-  apply: m.sitePortalApplyStarter,
-};
-
-const DOOR_EDIT: Record<PortalDoor, () => string> = {
-  "sign-in": m.sitePortalPageEdit,
-  register: m.sitePortalRegisterEdit,
-  apply: m.sitePortalApplyEdit,
-};
-
-const DOOR_ICON: Record<PortalDoor, LucideIcon> = {
-  "sign-in": LogIn,
-  register: UserPlus,
-  apply: FileUser,
-};
-
-/**
- * A door of the portal before the school has made its page: the portal
- * shows the builder's starter page until the school edits and publishes
- * its own.
- */
-function PortalPageStart({ door }: { door: PortalDoor }) {
-  const navigate = useNavigate();
-  const queryClient = useQueryClient();
-  const [opening, setOpening] = useState(false);
-  const Icon = DOOR_ICON[door];
-  const open = async () => {
-    setOpening(true);
-    try {
-      const { id } = await startPortalPage({ data: { door } });
-      await queryClient.invalidateQueries({ queryKey: ["site"] });
-      await navigate({ to: "/admin/site-page-editor", search: { id } });
-    } catch (error) {
-      toast.error(getMessageFromError(error));
-      setOpening(false);
-    }
-  };
-  return (
-    <section
-      aria-labelledby={`portal-page-${door}`}
-      className="flex flex-wrap items-center gap-4 rounded-lg border bg-card p-4"
-    >
-      <span
-        aria-hidden
-        className="grid size-10 shrink-0 place-items-center rounded-md bg-muted text-muted-foreground"
-      >
-        <Icon className="size-5" />
-      </span>
-      <div className="grid min-w-0 flex-1 gap-0.5">
-        <h2 id={`portal-page-${door}`} className="text-sm font-semibold">
-          {DOOR_LABEL[door]()}
-        </h2>
-        <p className="text-[13px] text-muted-foreground">
-          {DOOR_STARTER[door]()}
-        </p>
-      </div>
-      <Button
-        type="button"
-        variant="outline"
-        disabled={opening}
-        onClick={() => void open()}
-      >
-        <Pencil aria-hidden />
-        {DOOR_EDIT[door]()}
-      </Button>
-    </section>
-  );
-}
-
-/** Each door of the portal the school has not made a page for yet. */
-function PortalDoorsToMake({ pages }: { pages: readonly Page[] }) {
-  const made = new Set(
-    pages.filter((page) => page.kind === "portal").map((page) => page.slug),
-  );
-  const missing = PORTAL_DOOR_SLUGS.filter((door) => !made.has(door));
-  return missing.length ? (
-    <div className="grid gap-3">
-      {missing.map((door) => (
-        <PortalPageStart key={door} door={door} />
-      ))}
-    </div>
-  ) : null;
-}
-
-/** The site's pages as its menu tree: reorder, nest, publish and open each. */
+/** The website's pages as one list: open, order, nest, publish and remove them, one by one or many at once. */
 export function SitePages({ overview }: { overview: Overview }) {
   const user = useCurrentUser();
   const [starting, setStarting] = useState(false);
@@ -261,25 +170,70 @@ export function SitePages({ overview }: { overview: Overview }) {
   const queryClient = useQueryClient();
   const primary = overview.settings.primaryLocale;
   const rows = flatten(overview.pages);
-  const run = async (action: () => Promise<unknown>, done?: string) => {
+  const refresh = () => queryClient.invalidateQueries({ queryKey: ["site"] });
+  const move = async (row: Row, parentId: string | null, position: number) => {
     try {
-      await action();
-      await queryClient.invalidateQueries({ queryKey: ["site"] });
-      if (done) toast.success(done);
+      await moveSitePage({
+        data: { id: row.id, parentId: parentId ?? "", position },
+      });
+      await refresh();
     } catch (error) {
-      toast.error(getMessageFromError(error));
+      report(error);
     }
   };
-  const move = (row: Row, parentId: string | null, position: number) =>
-    run(() =>
-      moveSitePage({
-        data: { id: row.id, parentId: parentId ?? "", position },
-      }),
-    );
+  /**
+   * Does an action to the chosen pages that can take it, all of them or
+   * none, and says how many it did and how many it had to leave.
+   */
+  const apply = async (action: PageBatchAction, chosen: Row[]) => {
+    const fit = chosen.filter(takes[action]);
+    if (fit.length === 0) {
+      toast.info(m.siteBatchNone());
+      return;
+    }
+    try {
+      await batchSitePages({
+        data: {
+          action,
+          pages: fit.map((row) => ({
+            id: row.id,
+            expectedVersion: row.version,
+          })),
+        },
+      });
+    } catch (error) {
+      const pageId =
+        error && typeof error === "object" && "data" in error
+          ? (error.data as { pageId?: string } | undefined)?.pageId
+          : undefined;
+      const stopped = fit.find((row) => row.id === pageId);
+      await refresh();
+      throw new Error(
+        stopped
+          ? m.siteBatchStopped({
+              title: titleOf(stopped, primary),
+              reason: getMessageFromError(error),
+            })
+          : getMessageFromError(error),
+        { cause: error },
+      );
+    }
+    await refresh();
+    toast.success(DONE[action]({ count: formatNumber(fit.length) }), {
+      description:
+        fit.length < chosen.length
+          ? m.siteBatchSkipped({
+              count: formatNumber(chosen.length - fit.length),
+            })
+          : undefined,
+    });
+  };
+  const one = (action: PageBatchAction, row: Row) => () =>
+    apply(action, [row]).catch(report);
   const rowActions = (row: Row): RowAction[] => {
     const before = row.siblings[row.index - 1];
     const parent = overview.pages.find((page) => page.id === row.parentId);
-    return [
+    const actions: (RowAction | false)[] = [
       {
         label: m.siteEditPage(),
         icon: Pencil,
@@ -287,79 +241,108 @@ export function SitePages({ overview }: { overview: Overview }) {
         onSelect: () =>
           navigate({ to: "/admin/site-page-editor", search: { id: row.id } }),
       },
-      ...(row.kind === "site" && row.index > 0
-        ? [
-            {
-              label: m.siteMoveUp(),
-              icon: ArrowUp,
-              onSelect: () => move(row, row.parentId, row.index - 1),
-            },
-          ]
-        : []),
-      ...(row.kind === "site" && row.index < row.siblings.length - 1
-        ? [
-            {
-              label: m.siteMoveDown(),
-              icon: ArrowDown,
-              onSelect: () => move(row, row.parentId, row.index + 1),
-            },
-          ]
-        : []),
-      ...(before && row.kind === "site" && !row.isHome && !before.isHome
-        ? [
-            {
-              label: m.siteNestUnder({ title: titleOf(before, primary) }),
-              icon: IndentIncrease,
-              onSelect: () => move(row, before.id, 999),
-            },
-          ]
-        : []),
-      ...(parent
-        ? [
-            {
-              label: m.siteMoveOut(),
-              icon: IndentDecrease,
-              onSelect: () => move(row, parent.parentId, 999),
-            },
-          ]
-        : []),
-      ...(row.state === "published"
-        ? [
-            {
-              label: m.siteUnpublish(),
-              icon: EyeOff,
-              onSelect: () =>
-                run(
-                  () =>
-                    unpublishSitePage({
-                      data: { id: row.id, expectedVersion: row.version },
-                    }),
-                  m.siteUnpublished(),
-                ),
-            },
-          ]
-        : []),
-      ...(!row.isHome && row.kind === "site"
-        ? [
-            {
-              label: m.siteRemovePage(),
-              icon: Trash2,
-              destructive: true as const,
-              confirm: {
-                title: m.siteRemovePageTitle({ title: titleOf(row, primary) }),
-                body: m.siteRemovePageBody(),
-                label: m.siteRemovePage(),
-              },
-              onSelect: () =>
-                run(
-                  () => removeSitePage({ data: { id: row.id } }),
-                  m.siteRemoved(),
-                ),
-            },
-          ]
-        : []),
+      row.state === "published" && {
+        label: m.siteViewPage(),
+        icon: ExternalLink,
+        onSelect: () => {
+          window.open(
+            sitePath(user.school.slug, row.isHome ? "/" : `/pages/${row.slug}`),
+            "_blank",
+            "noopener",
+          );
+        },
+      },
+      takes.publish(row) && {
+        label: m.sitePublish(),
+        icon: Send,
+        onSelect: one("publish", row),
+      },
+      takes.unpublish(row) && {
+        label: m.siteUnpublish(),
+        icon: EyeOff,
+        onSelect: one("unpublish", row),
+      },
+      takes.showInMenu(row) && {
+        label: m.siteShowInMenu(),
+        icon: ListPlus,
+        onSelect: one("showInMenu", row),
+      },
+      takes.hideFromMenu(row) && {
+        label: m.siteHideFromMenu(),
+        icon: ListMinus,
+        onSelect: one("hideFromMenu", row),
+      },
+      row.index > 0 && {
+        label: m.siteMoveUp(),
+        icon: ArrowUp,
+        onSelect: () => move(row, row.parentId, row.index - 1),
+      },
+      row.index < row.siblings.length - 1 && {
+        label: m.siteMoveDown(),
+        icon: ArrowDown,
+        onSelect: () => move(row, row.parentId, row.index + 1),
+      },
+      before !== undefined &&
+        !row.isHome &&
+        !before.isHome && {
+          label: m.siteNestUnder({ title: titleOf(before, primary) }),
+          icon: IndentIncrease,
+          onSelect: () => move(row, before.id, 999),
+        },
+      parent !== undefined && {
+        label: m.siteMoveOut(),
+        icon: IndentDecrease,
+        onSelect: () => move(row, parent.parentId, 999),
+      },
+      takes.remove(row) && {
+        label: m.siteRemovePage(),
+        icon: Trash2,
+        destructive: true as const,
+        confirm: {
+          title: m.siteRemovePageTitle({ title: titleOf(row, primary) }),
+          body: m.siteRemovePageBody(),
+          label: m.siteRemovePage(),
+        },
+        onSelect: one("remove", row),
+      },
     ];
+    return actions.filter((action): action is RowAction => Boolean(action));
   };
+  const batch: BatchAction<Row>[] = [
+    {
+      label: m.sitePublish(),
+      icon: Send,
+      onSelect: (chosen) => apply("publish", chosen),
+    },
+    {
+      label: m.siteUnpublish(),
+      icon: EyeOff,
+      onSelect: (chosen) => apply("unpublish", chosen),
+    },
+    {
+      label: m.siteShowInMenu(),
+      icon: ListPlus,
+      onSelect: (chosen) => apply("showInMenu", chosen),
+    },
+    {
+      label: m.siteHideFromMenu(),
+      icon: ListMinus,
+      onSelect: (chosen) => apply("hideFromMenu", chosen),
+    },
+    {
+      label: m.siteRemovePage(),
+      icon: Trash2,
+      destructive: true,
+      confirm: (chosen) => ({
+        title: m.siteBatchRemoveTitle({
+          count: formatNumber(chosen.filter(takes.remove).length),
+        }),
+        body: m.siteBatchRemoveBody(),
+        label: m.siteRemovePage(),
+      }),
+      onSelect: (chosen) => apply("remove", chosen),
+    },
+  ];
   const create = (
     <ButtonLink to="/admin/site-page-editor" search={{}}>
       <Plus aria-hidden />
@@ -397,7 +380,6 @@ export function SitePages({ overview }: { overview: Overview }) {
           </ButtonLink>
         </div>
         {starters(false)}
-        <PortalDoorsToMake pages={overview.pages} />
       </div>
     );
   return (
@@ -424,13 +406,13 @@ export function SitePages({ overview }: { overview: Overview }) {
         ) : null}
         {create}
       </div>
-      <PortalDoorsToMake pages={overview.pages} />
       <DataTable
         caption={m.sitePagesCaption()}
         rows={rows}
         columns={columns(primary)}
         rowLabel={(row) => titleOf(row, primary)}
         rowActions={rowActions}
+        batchActions={batch}
         card={pageCard(primary)}
         empty={{
           icon: FileText,

@@ -1,7 +1,6 @@
 import type {
   IconId,
   PageSection,
-  PortalDoor,
   SectionOf,
   SectionType,
   SiteLocale,
@@ -37,6 +36,25 @@ const section: Section = (type, variant, data, style) => (b) => {
     data: { ...blank.data, ...data(b) },
   };
 };
+
+/**
+ * A section as it sits on one page: the same words, in that page's colour
+ * rhythm and, where the page wants it, another of the section's layouts.
+ */
+const on =
+  (
+    make: (b: Builder) => PageSection,
+    style: Partial<PageSection["style"]>,
+    variant?: string,
+  ) =>
+  (b: Builder): PageSection => {
+    const made = make(b);
+    return {
+      ...made,
+      ...(variant ? { variant } : {}),
+      style: { ...made.style, ...style },
+    } as PageSection;
+  };
 
 const link = (b: Builder, label: Words, href: string) => ({
   id: b.id(),
@@ -133,16 +151,29 @@ const ADMISSIONS_INTAKES = section("admissions", "triad", (b) => ({
   ]),
 }));
 
-const REGISTER_APPLY = section("registerApply", "banner", (b) => ({
-  eyebrow: b.w(["Admissions", "القبول"]),
-  heading: b.w(["Ready to apply?", "هل أنتم مستعدون للتقديم؟"]),
-  text: b.w([
-    "Register as a family once, then apply for each child and come back to the application whenever you like.",
-    "سجّلوا أسرتكم مرة واحدة، ثم قدّموا لكل طفل وعودوا إلى الطلب متى شئتم.",
-  ]),
-  intake: "",
-  button: b.w(["Register and apply", "سجّل وقدّم"]),
-}));
+/** Where the header's actions lead: the forms themselves, not the pages the menu already lists. */
+const ANCHOR = {
+  enquiry: "enquire",
+  visit: "book-a-visit",
+  general: "message",
+  apply: "apply",
+} as const;
+
+const REGISTER_APPLY = section(
+  "registerApply",
+  "banner",
+  (b) => ({
+    eyebrow: b.w(["Admissions", "القبول"]),
+    heading: b.w(["Ready to *apply*?", "هل أنتم مستعدون *للتقديم*؟"]),
+    text: b.w([
+      "Register as a family once, then apply for each child and come back to the application whenever you like.",
+      "سجّلوا أسرتكم مرة واحدة، ثم قدّموا لكل طفل وعودوا إلى الطلب متى شئتم.",
+    ]),
+    intake: "",
+    button: b.w(["Register and apply", "سجّل وقدّم"]),
+  }),
+  { scheme: "brand", anchor: ANCHOR.apply },
+);
 
 const STATS = section(
   "stats",
@@ -189,8 +220,8 @@ const DIVISIONS = section("divisions", "tall", (b) => ({
       title: b.w(["Early years", "رياض الأطفال"]),
       ages: b.w(["Ages 3 to 5", "من ٣ إلى ٥ سنوات"]),
       text: b.w([
-        "Learning through play and discovery.",
-        "التعلّم باللعب والاكتشاف.",
+        "Learning through play, stories and discovery, indoors and out.",
+        "التعلّم باللعب والقصص والاكتشاف، داخل الفصل وخارجه.",
       ]),
       image: noImage,
       href: "/pages/academics",
@@ -200,8 +231,8 @@ const DIVISIONS = section("divisions", "tall", (b) => ({
       title: b.w(["Primary", "الابتدائية"]),
       ages: b.w(["Ages 5 to 11", "من ٥ إلى ١١ سنة"]),
       text: b.w([
-        "Strong foundations in every subject.",
-        "أسس متينة في كل مادة.",
+        "Strong foundations in reading, number and science, in two languages.",
+        "أسس متينة في القراءة والحساب والعلوم، بلغتين.",
       ]),
       image: noImage,
       href: "/pages/academics",
@@ -211,8 +242,8 @@ const DIVISIONS = section("divisions", "tall", (b) => ({
       title: b.w(["Secondary", "الثانوية"]),
       ages: b.w(["Ages 11 to 18", "من ١١ إلى ١٨ سنة"]),
       text: b.w([
-        "Ambitious study towards university.",
-        "دراسة طموحة نحو الجامعة.",
+        "Ambitious study and guidance towards the university of their choice.",
+        "دراسة طموحة وإرشاد نحو الجامعة التي يختارونها.",
       ]),
       image: noImage,
       href: "/pages/academics",
@@ -221,16 +252,16 @@ const DIVISIONS = section("divisions", "tall", (b) => ({
 }));
 
 const WELCOME = section("welcome", "portraitStart", (b) => ({
-  heading: b.w(["A welcome from our principal", "كلمة المدير"]),
+  heading: b.w(["A welcome from our *principal*", "كلمة *مديرة* المدرسة"]),
   body: plainContent(
     b.w([
-      "Thank you for your interest in our school. We are a community where curiosity is encouraged and kindness is expected.\nWe look forward to welcoming your family.",
-      "شكرًا لاهتمامكم بمدرستنا. نحن مجتمع يشجّع الفضول ويتوقّع اللطف من الجميع.\nنتطلّع إلى الترحيب بأسرتكم.",
+      "Thank you for your interest in our school. We are a community where curiosity is encouraged, kindness is expected and every child is known well by the adults who teach them.\nThe best way to understand a school is to see it on an ordinary day. Come and visit: our students will show you round, and we will answer every question you bring.",
+      "شكرًا لاهتمامكم بمدرستنا. نحن مجتمع يشجّع الفضول ويتوقّع اللطف، ويعرف فيه المعلّمون كل طفل معرفة جيدة.\nأفضل طريقة لفهم أي مدرسة أن تروها في يوم عادي. زورونا وسيرافقكم طلابنا في جولة، وسنجيب عن كل أسئلتكم.",
     ]),
   ),
   portrait: noImage,
-  name: b.w(["The Principal", "مدير المدرسة"]),
-  role: b.w(["Principal", "المدير"]),
+  name: b.w(["Dr Amal Nasser", "د. أمل ناصر"]),
+  role: b.w(["Principal", "مديرة المدرسة"]),
 }));
 
 const VOICES = section(
@@ -242,33 +273,33 @@ const VOICES = section(
       {
         id: b.id(),
         quote: b.w([
-          "My children run in every morning.",
-          "يدخل أطفالي المدرسة كل صباح وهم متحمّسون.",
+          "My children run in every morning. The teachers know them well and tell us how they are doing before we have to ask.",
+          "يدخل أطفالي المدرسة كل صباح وهم متحمّسون. المعلّمون يعرفونهم جيدًا ويخبروننا بأحوالهم قبل أن نسأل.",
         ]),
-        name: b.w(["A parent", "وليّ أمر"]),
-        role: b.w(["Parent of two", "أب لطفلين"]),
+        name: b.w(["Layla Hassan", "ليلى حسن"]),
+        role: b.w(["Parent of two", "أمّ لطفلين"]),
         audience: "parent" as const,
         portrait: noImage,
       },
       {
         id: b.id(),
         quote: b.w([
-          "Teachers here really listen.",
-          "المعلّمون هنا يستمعون حقًا.",
+          "Teachers here really listen. When I wanted to start a robotics club, they helped me find the room and the kit.",
+          "المعلّمون هنا يستمعون حقًا. حين أردت تأسيس نادٍ للروبوتات ساعدوني في إيجاد القاعة والأدوات.",
         ]),
-        name: b.w(["A student", "طالبة"]),
-        role: b.w(["Grade 10", "الصف العاشر"]),
+        name: b.w(["Omar Saleh", "عمر صالح"]),
+        role: b.w(["Student, Grade 10", "طالب في الصف العاشر"]),
         audience: "student" as const,
         portrait: noImage,
       },
       {
         id: b.id(),
         quote: b.w([
-          "A place where I grow as a teacher.",
-          "مكان أنمو فيه كمعلّم.",
+          "It is a place where I keep growing as a teacher, with colleagues who share what works and time to plan together.",
+          "مكان أواصل فيه النمو كمعلّمة، مع زملاء يتبادلون ما ينجح ووقت للتخطيط معًا.",
         ]),
-        name: b.w(["A teacher", "معلّم"]),
-        role: b.w(["Science department", "قسم العلوم"]),
+        name: b.w(["Sara Mansour", "سارة منصور"]),
+        role: b.w(["Head of science", "رئيسة قسم العلوم"]),
         audience: "staff" as const,
         portrait: noImage,
       },
@@ -290,28 +321,40 @@ const PILLARS = section("pillars", "icons", (b) => ({
     {
       id: b.id(),
       title: b.w(["Curiosity", "الفضول"]),
-      text: b.w(["We ask good questions.", "نطرح الأسئلة الجيدة."]),
+      text: b.w([
+        "Children learn to ask good questions and to enjoy finding the answers out for themselves.",
+        "يتعلّم الأطفال طرح الأسئلة الجيدة ويستمتعون بالبحث عن إجاباتها بأنفسهم.",
+      ]),
       icon: "lightbulb" as const,
       image: noImage,
     },
     {
       id: b.id(),
       title: b.w(["Kindness", "اللطف"]),
-      text: b.w(["We look after each other.", "يهتمّ بعضنا ببعض."]),
+      text: b.w([
+        "We look after one another, and every child is known by name by the adults around them.",
+        "يرعى بعضنا بعضًا، ويعرف الكبار من حول كل طفل اسمه وما يحتاج إليه.",
+      ]),
       icon: "heart" as const,
       image: noImage,
     },
     {
       id: b.id(),
-      title: b.w(["Excellence", "التميّز"]),
-      text: b.w(["We aim high in all we do.", "نطمح عاليًا في كل ما نفعل."]),
+      title: b.w(["Ambition", "الطموح"]),
+      text: b.w([
+        "High expectations in every subject, with the support each learner needs to meet them.",
+        "توقّعات عالية في كل مادة، مع الدعم الذي يحتاجه كل متعلّم ليبلغها.",
+      ]),
       icon: "star" as const,
       image: noImage,
     },
     {
       id: b.id(),
-      title: b.w(["Community", "المجتمع"]),
-      text: b.w(["We learn together.", "نتعلّم معًا."]),
+      title: b.w(["Belonging", "الانتماء"]),
+      text: b.w([
+        "Families, students and staff work as one community, in two languages and many cultures.",
+        "تعمل الأسر والطلاب والمعلّمون مجتمعًا واحدًا، بلغتين وثقافات كثيرة.",
+      ]),
       icon: "users" as const,
       image: noImage,
     },
@@ -344,22 +387,34 @@ const STEPS = section("steps", "horizontal", (b) => ({
     {
       id: b.id(),
       title: b.w(["Enquire", "استفسر"]),
-      text: b.w(["Tell us about your child.", "أخبرنا عن طفلك."]),
+      text: b.w([
+        "Tell us about your child and the year they would join. We reply within two working days.",
+        "أخبرنا عن طفلك والصف الذي سيلتحق به، وسنرد خلال يومي عمل.",
+      ]),
     },
     {
       id: b.id(),
       title: b.w(["Visit", "زُرنا"]),
-      text: b.w(["Tour the school and meet us.", "تجوّل في المدرسة وقابلنا."]),
+      text: b.w([
+        "Tour the school with our students and meet the head of the stage your child would join.",
+        "تجوّل في المدرسة مع طلابنا وقابل رئيس المرحلة التي سيلتحق بها طفلك.",
+      ]),
     },
     {
       id: b.id(),
       title: b.w(["Assessment", "التقييم"]),
-      text: b.w(["A friendly meeting and assessment.", "لقاء وتقييم ودّيان."]),
+      text: b.w([
+        "A relaxed morning with us, so we can understand how your child learns best.",
+        "صباح هادئ معنا لنفهم كيف يتعلّم طفلك على أفضل وجه.",
+      ]),
     },
     {
       id: b.id(),
       title: b.w(["Offer", "القبول"]),
-      text: b.w(["We confirm your child's place.", "نؤكّد مقعد طفلك."]),
+      text: b.w([
+        "We confirm your child's place and help you prepare for the first day.",
+        "نؤكّد مقعد طفلك ونساعدكم على الاستعداد لليوم الأول.",
+      ]),
     },
   ],
 }));
@@ -393,16 +448,38 @@ const FAQ = section("accordion", "accordion", (b) => ({
         "متى يبدأ اليوم الدراسي؟",
       ]),
       text: b.w([
-        "Doors open at 7:30 and lessons begin at 8:00.",
-        "تُفتح الأبواب الساعة ٧:٣٠ وتبدأ الحصص الساعة ٨:٠٠.",
+        "Doors open at 7:30 and lessons begin at 8:00. The day ends at 14:30, with clubs running until 16:00.",
+        "تُفتح الأبواب الساعة ٧:٣٠ وتبدأ الحصص الساعة ٨:٠٠. ينتهي اليوم الدراسي الساعة ١٤:٣٠، وتستمر الأندية حتى الساعة ١٦:٠٠.",
       ]),
     },
     {
       id: b.id(),
       title: b.w(["Is there a bus service?", "هل توجد حافلات؟"]),
       text: b.w([
-        "Yes, buses cover most of the city.",
-        "نعم، تغطي الحافلات معظم أنحاء المدينة.",
+        "Yes. Supervised buses cover most of the city, and the transport office can tell you the nearest stop.",
+        "نعم. تغطي حافلات بإشراف مرافقين معظم أنحاء المدينة، ويرشدكم مكتب النقل إلى أقرب محطة.",
+      ]),
+    },
+    {
+      id: b.id(),
+      title: b.w([
+        "Can my child join during the year?",
+        "هل يمكن لطفلي الالتحاق خلال العام؟",
+      ]),
+      text: b.w([
+        "Often, yes. Where a class has room we welcome new students at any point, after a visit and an assessment morning.",
+        "نعم في الغالب. حين يتوفّر مقعد في الفصل نرحّب بالطلاب الجدد في أي وقت، بعد زيارة وصباح تقييم.",
+      ]),
+    },
+    {
+      id: b.id(),
+      title: b.w([
+        "How do you support children learning in a new language?",
+        "كيف تدعمون الأطفال الذين يتعلّمون بلغة جديدة؟",
+      ]),
+      text: b.w([
+        "Specialist teachers work with small groups each day until a child is confident in class.",
+        "يعمل معلّمون متخصّصون مع مجموعات صغيرة كل يوم حتى يشعر الطفل بالثقة داخل الفصل.",
       ]),
     },
   ],
@@ -417,6 +494,55 @@ const CONTACT = section("contact", "details", (b) => ({
   mapHref: "",
 }));
 
+const CONTACT_MAP = section("contact", "map", (b) => ({
+  heading: b.w(["Find *us*", "*موقعنا*"]),
+  text: b.w([
+    "Our office is open Sunday to Thursday, 7:30 to 15:30. Visitors sign in at the main gate.",
+    "مكتبنا مفتوح من الأحد إلى الخميس، من ٧:٣٠ إلى ١٥:٣٠. يسجّل الزوّار دخولهم عند البوابة الرئيسية.",
+  ]),
+  mapHref: "",
+}));
+
+const VISIT_STORY = section("imageText", "mediaEnd", (b) => ({
+  eyebrow: b.w(["Open mornings", "أيام الأبواب المفتوحة"]),
+  heading: b.w(["See a *school day* for yourself", "شاهد *يومًا دراسيًا* بنفسك"]),
+  body: plainContent(
+    b.w([
+      "Tours run every Tuesday and Thursday morning and take about an hour. Our students show you round, so you see classes, clubs and lunch as they really are.\nAfterwards you meet the head of the stage your child would join, and we answer every question you bring.",
+      "تُقام الجولات صباح كل ثلاثاء وخميس وتستغرق نحو ساعة. يرافقكم طلابنا لتروا الفصول والأندية والغداء كما هي فعلًا.\nبعد الجولة تقابلون رئيس المرحلة التي سيلتحق بها طفلكم، ونجيب عن كل أسئلتكم.",
+    ]),
+  ),
+  media: {
+    kind: "image" as const,
+    fileId: null,
+    alt: "",
+    posterFileId: null,
+    captionsFileId: null,
+  },
+  actions: [
+    link(b, ["Book a visit", "احجز زيارة"], `/pages/visit#${ANCHOR.visit}`),
+  ],
+}));
+
+const STATEMENT = section(
+  "text",
+  "statement",
+  (b) => ({
+    eyebrow: b.w(["Who we are", "من نحن"]),
+    heading: b.w([
+      "A school where every child is *known well*, taught with *ambition* and sent out ready to shape the world.",
+      "مدرسة يُعرف فيها كل طفل *معرفة حقيقية*، ويتعلّم *بطموح*، ويتخرّج مستعدًا ليصنع عالمه.",
+    ]),
+    body: plainContent(
+      b.w([
+        "From the first morning in the early years to the last examination, our teachers know each student, their strengths and what will stretch them next.",
+        "من الصباح الأول في رياض الأطفال حتى آخر امتحان، يعرف معلّمونا كل طالب ونقاط قوّته وما يحتاج إليه ليتقدّم.",
+      ]),
+    ),
+  }),
+  { scheme: "brand", align: "center" },
+);
+
 const TEXT = (heading: Words, body: Words) =>
   section("text", "narrow", (b) => ({
     eyebrow: "",
@@ -430,28 +556,28 @@ const QUICK_LINKS = section("quickLinks", "tiles", (b) => ({
     {
       id: b.id(),
       title: b.w(["Term dates", "مواعيد الفصول"]),
-      text: "",
+      text: b.w(["Holidays and key days", "العطل والأيام المهمة"]),
       icon: "calendar" as const,
       href: "/news",
     },
     {
       id: b.id(),
       title: b.w(["Uniform", "الزيّ المدرسي"]),
-      text: "",
+      text: b.w(["What to wear, and where", "ماذا يُلبس ومن أين"]),
       icon: "shield" as const,
       href: "",
     },
     {
       id: b.id(),
       title: b.w(["Transport", "المواصلات"]),
-      text: "",
+      text: b.w(["Bus routes and stops", "خطوط الحافلات ومحطاتها"]),
       icon: "bus" as const,
       href: "",
     },
     {
       id: b.id(),
       title: b.w(["Lunch menu", "قائمة الغداء"]),
-      text: "",
+      text: b.w(["This week's meals", "وجبات هذا الأسبوع"]),
       icon: "utensils" as const,
       href: "",
     },
@@ -459,31 +585,37 @@ const QUICK_LINKS = section("quickLinks", "tiles", (b) => ({
 }));
 
 const CARDS_PROGRAMMES = section("cards", "icons", (b) => ({
-  heading: b.w(["Learning here", "التعلّم هنا"]),
-  text: "",
+  heading: b.w(["Learning *here*", "التعلّم *هنا*"]),
+  text: b.w([
+    "A broad curriculum, taught in small classes by teachers who know each child.",
+    "منهج واسع، في فصول صغيرة، مع معلّمين يعرفون كل طفل.",
+  ]),
   columns: "3" as const,
   items: [
     card(
       b,
       ["Languages", "اللغات"],
       [
-        "Arabic, English and French from the early years.",
-        "العربية والإنجليزية والفرنسية منذ السنوات الأولى.",
+        "Arabic and English every day from the early years, with French added in primary.",
+        "العربية والإنجليزية يوميًا منذ السنوات الأولى، وتُضاف الفرنسية في المرحلة الابتدائية.",
       ],
       "globe",
     ),
     card(
       b,
       ["Science and technology", "العلوم والتقنية"],
-      ["Laboratories, robotics and coding.", "مختبرات وروبوتات وبرمجة."],
+      [
+        "Hands-on laboratories, robotics and coding, from first experiments to university-level projects.",
+        "مختبرات عملية وروبوتات وبرمجة، من التجارب الأولى إلى مشاريع بمستوى جامعي.",
+      ],
       "flask",
     ),
     card(
       b,
       ["Arts and sport", "الفنون والرياضة"],
       [
-        "Music, drama, art and a full sports programme.",
-        "موسيقى ومسرح وفنون وبرنامج رياضي متكامل.",
+        "Music, drama, art and a full sports programme, with performances and fixtures every term.",
+        "موسيقى ومسرح وفنون وبرنامج رياضي متكامل، مع عروض ومباريات في كل فصل.",
       ],
       "palette",
     ),
@@ -512,8 +644,8 @@ const IMAGE_TEXT = section("imageText", "mediaStart", (b) => ({
   ]),
   body: plainContent(
     b.w([
-      "More than sixty activities each week, from robotics to choir.",
-      "أكثر من ستين نشاطًا كل أسبوع، من الروبوتات إلى الكورال.",
+      "More than sixty activities run each week, from robotics and debating to choir and football.\nEvery student finds something they love, and many find something they did not know they could do.",
+      "أكثر من ستين نشاطًا كل أسبوع، من الروبوتات والمناظرات إلى الكورال وكرة القدم.\nيجد كل طالب ما يحبّه، ويكتشف كثيرون ما لم يعرفوا أنهم قادرون عليه.",
     ]),
   ),
   actions: [link(b, ["Explore activities", "اكتشف الأنشطة"], "/pages/about")],
@@ -595,13 +727,19 @@ const TIMELINE = section("timeline", "vertical", (b) => ({
       b,
       "1998",
       ["Founded", "التأسيس"],
-      ["Opened with forty pupils.", "افتُتحت بأربعين طالبًا."],
+      [
+        "Opened in a converted house with forty pupils and six teachers.",
+        "افتُتحت في منزل مُجدَّد بأربعين طالبًا وستة معلّمين.",
+      ],
     ),
     milestone(
       b,
       "2010",
       ["Secondary opens", "افتتاح الثانوية"],
-      ["Our first graduates.", "أول دفعة من الخريجين."],
+      [
+        "Our first graduates leave for universities at home and abroad.",
+        "أول دفعة من الخريجين تلتحق بجامعات في الداخل والخارج.",
+      ],
     ),
     milestone(
       b,
@@ -843,13 +981,17 @@ const FORM = (
               },
             ]
           : [],
-      submit: b.w(["Send", "أرسل"]),
+      submit: b.w(
+        purpose === "visit"
+          ? ["Request a visit", "اطلب زيارة"]
+          : ["Send", "أرسل"],
+      ),
       thanks: b.w([
         "Thank you. We will reply within two working days.",
         "شكرًا لك. سنرد خلال يومي عمل.",
       ]),
     }),
-    { scheme: "soft" },
+    { scheme: "soft", anchor: ANCHOR[purpose] },
   );
 
 const ENQUIRY_FORM = FORM(
@@ -860,96 +1002,6 @@ const ENQUIRY_FORM = FORM(
     "أخبرنا قليلًا عن طفلك وسنتواصل معك.",
   ],
 );
-
-const SIGN_IN = section(
-  "signIn",
-  "panel",
-  (b) => ({
-    eyebrow: b.w(["Families, students and staff", "الأسر والطلاب والموظفون"]),
-    heading: b.w(["Sign in", "تسجيل الدخول"]),
-    text: b.w([
-      "Use the email or sign-in name you received from the school.",
-      "استخدم البريد الإلكتروني أو اسم الدخول الذي حصلت عليه من المدرسة.",
-    ]),
-    points: [
-      {
-        id: b.id(),
-        icon: "book" as const,
-        title: b.w(["Learning", "التعلم"]),
-        text: b.w([
-          "Lessons, homework and feedback in one place.",
-          "الدروس والواجبات والملاحظات في مكان واحد.",
-        ]),
-      },
-      {
-        id: b.id(),
-        icon: "users" as const,
-        title: b.w(["Families", "الأسر"]),
-        text: b.w([
-          "Messages, reports and news from the school.",
-          "الرسائل والتقارير وأخبار المدرسة.",
-        ]),
-      },
-      {
-        id: b.id(),
-        icon: "globe" as const,
-        title: b.w(["English and Arabic", "العربية والإنجليزية"]),
-        text: b.w([
-          "Read everything in the language you choose.",
-          "اقرأ كل شيء باللغة التي تختارها.",
-        ]),
-      },
-    ],
-    helpHeading: b.w(["Need help signing in?", "تحتاج إلى مساعدة في الدخول؟"]),
-    helpText: b.w([
-      "The school office can send you a new link or tell you your sign-in name.",
-      "يمكن لمكتب المدرسة أن يرسل إليك رابطًا جديدًا أو أن يخبرك باسم الدخول.",
-    ]),
-  }),
-  { scheme: "canvas" },
-);
-
-const REGISTER = section(
-  "register",
-  "panel",
-  (b) => ({
-    eyebrow: b.w(["Admissions", "القبول"]),
-    heading: b.w(["Register to apply", "سجّل للتقديم"]),
-    text: b.w([
-      "Create your family's account once. You can then start an application, save it and come back to it.",
-      "أنشئ حساب أسرتك مرة واحدة، ثم ابدأ طلب الالتحاق واحفظه وعد إليه متى شئت.",
-    ]),
-    helpHeading: b.w(["Questions about applying?", "أسئلة عن التقديم؟"]),
-    helpText: b.w([
-      "The admissions office is happy to help with the form or the documents.",
-      "يسعد مكتب القبول بالمساعدة في الاستمارة أو المستندات.",
-    ]),
-  }),
-  { scheme: "canvas" },
-);
-
-const APPLY = section(
-  "apply",
-  "stacked",
-  (b) => ({
-    eyebrow: b.w(["Admissions", "القبول"]),
-    heading: b.w(["Apply for a place", "التقديم لطلب مقعد"]),
-    text: b.w([
-      "Your application is saved as you go, so you can stop and finish it later.",
-      "يُحفظ طلبك أولًا بأول، فيمكنك التوقف وإكماله لاحقًا.",
-    ]),
-  }),
-  { scheme: "canvas" },
-);
-
-const APPLY_HELP = section("contact", "details", (b) => ({
-  heading: b.w(["Questions about applying?", "أسئلة عن التقديم؟"]),
-  text: b.w([
-    "The admissions office is happy to help with the form or the documents.",
-    "يسعد مكتب القبول بالمساعدة في الاستمارة أو المستندات.",
-  ]),
-  mapHref: "",
-}));
 
 /** A sample of every section, for the builder to show and insert. */
 const SAMPLES: Record<SectionType, (b: Builder) => PageSection> = {
@@ -992,9 +1044,6 @@ const SAMPLES: Record<SectionType, (b: Builder) => PageSection> = {
   quickLinks: QUICK_LINKS,
   embed: EMBED,
   form: ENQUIRY_FORM,
-  signIn: SIGN_IN,
-  register: REGISTER,
-  apply: APPLY,
 };
 
 /**
@@ -1021,100 +1070,166 @@ export function buildSection<T extends SectionType>(
   };
 }
 
+const CANVAS = { scheme: "canvas" } as const;
+const SOFT = { scheme: "soft" } as const;
+const BRAND = { scheme: "brand" } as const;
+
 export const PAGE_TEMPLATES = {
   blank: [],
-  homeClassic: [HERO_HOME, STATS, DIVISIONS, WELCOME, ADMISSIONS_TRIAD, NEWS],
-  homeStory: [HERO_HOME, PILLARS, VOICES, DIVISIONS, NEWS, ADMISSIONS_TRIAD],
-  homeAdmissions: [HERO_HOME, ADMISSIONS_TRIAD, STEPS, STATS, VOICES],
-  homeCommunity: [SLIDES, QUICK_LINKS, NEWS, VOICES, CONTACT],
+  // Established: a full picture, the school in a sentence on its own
+  // colour, the stages joined in the theme's shape, the head's letter.
+  homeClassic: [
+    HERO_HOME,
+    STATEMENT,
+    on(DIVISIONS, CANVAS, "rail"),
+    on(WELCOME, SOFT),
+    on(QUOTE, CANVAS),
+    on(NEWS, SOFT, "list"),
+    on(ADMISSIONS_TRIAD, BRAND),
+  ],
+  // International: a collage opening, numbers, values and stages, voices
+  // to scroll through.
+  homeStory: [
+    on(HERO_HOME, CANVAS, "collage"),
+    on(STATS, SOFT),
+    on(PILLARS, CANVAS),
+    on(DIVISIONS, SOFT),
+    on(VOICES, CANVAS, "carousel"),
+    on(NEWS, SOFT),
+    REGISTER_APPLY,
+  ],
+  homeAdmissions: [
+    HERO_HOME,
+    on(ADMISSIONS_TRIAD, BRAND),
+    on(STEPS, CANVAS),
+    on(STATS, SOFT),
+    on(VOICES, CANVAS),
+  ],
+  // Young families: a warm split opening, the everyday links, what
+  // children learn, a gallery and how to join.
+  homeCommunity: [
+    on(HERO_HOME, SOFT, "split"),
+    on(QUICK_LINKS, CANVAS),
+    on(CARDS_PROGRAMMES, SOFT),
+    on(VOICES, CANVAS),
+    on(GALLERY, SOFT, "masonry"),
+    on(STEPS, CANVAS),
+    on(ADMISSIONS_TRIAD, BRAND),
+  ],
+  // Bold and new: words before pictures, values in motion, then the proof.
+  homeStatement: [
+    on(HERO_HOME, CANVAS, "type"),
+    on(PILLARS, { scheme: "accent", spacing: "s" }, "ticker"),
+    on(VISIT_STORY, CANVAS, "overlap"),
+    on(STATS, SOFT),
+    on(QUOTE, { scheme: "ink", align: "start" }),
+    on(NEWS, CANVAS, "list"),
+    REGISTER_APPLY,
+  ],
+  // A welcome: the whole screen first, a sentence that sums the school up,
+  // values beside pictures, the numbers, and families' voices.
+  homeWelcome: [
+    on(HERO_HOME, CANVAS),
+    on(STATEMENT, CANVAS),
+    on(PILLARS, SOFT, "alternating"),
+    on(STATS, CANVAS, "overImage"),
+    on(VOICES, SOFT, "tabs"),
+    on(NEWS, CANVAS, "featured"),
+    on(ADMISSIONS_TRIAD, BRAND),
+  ],
   about: [
     PAGE_HEADER(
-      ["About us", "من نحن"],
-      ["Our story, our values and our people.", "قصتنا وقيمنا وأهلنا."],
+      ["About *us*", "*من* نحن"],
+      [
+        "Our story, the values we teach by and the people who make the school what it is.",
+        "قصتنا والقيم التي نعلّم بها والأشخاص الذين يصنعون مدرستنا.",
+      ],
     ),
-    WELCOME,
-    PILLARS,
-    STATS,
+    on(WELCOME, CANVAS),
+    on(PILLARS, SOFT),
+    on(TIMELINE, CANVAS),
+    on(STATS, BRAND),
   ],
   admissions: [
     PAGE_HEADER(
       ["Admissions", "القبول"],
-      ["Joining us is simple.", "الالتحاق بنا سهل."],
+      [
+        "Joining us is simple. Here is how it works, what it costs and who to ask.",
+        "الالتحاق بنا سهل. إليكم كيف يتم، وما تكلفته، ومن تسألون.",
+      ],
     ),
-    STEPS,
-    ADMISSIONS_INTAKES,
+    on(STEPS, CANVAS),
+    on(ADMISSIONS_INTAKES, SOFT),
     REGISTER_APPLY,
-    FAQ,
-    ENQUIRY_FORM,
+    on(FAQ, CANVAS),
+    on(ENQUIRY_FORM, SOFT),
   ],
   visit: [
     PAGE_HEADER(
-      ["Visit us", "زُرنا"],
-      ["Come and see a school day.", "تعال وشاهد يومًا دراسيًا."],
+      ["Visit *us*", "*زُرنا*"],
+      [
+        "The best way to know a school is to see it on an ordinary day.",
+        "أفضل طريقة لمعرفة أي مدرسة أن تراها في يوم عادي.",
+      ],
     ),
-    TEXT(
-      ["Open mornings", "أيام الأبواب المفتوحة"],
-      ["Join a tour led by our students.", "انضم إلى جولة يقودها طلابنا."],
-    ),
+    on(VISIT_STORY, CANVAS),
     FORM(
       "visit",
       ["Book a visit", "احجز زيارة"],
       [
-        "Choose a morning that suits you and we will confirm by email.",
-        "اختر صباحًا يناسبك وسنؤكد لك بالبريد الإلكتروني.",
+        "Tell us which mornings suit you and the year your child would join. We will confirm by email.",
+        "أخبرنا بالأيام التي تناسبك والصف الذي سيلتحق به طفلك، وسنؤكد لك بالبريد الإلكتروني.",
       ],
     ),
-    CONTACT,
+    on(CONTACT_MAP, CANVAS),
   ],
   academics: [
     PAGE_HEADER(
       ["Academics", "المسار الأكاديمي"],
-      ["A curriculum that stretches every learner.", "منهج يتحدّى كل متعلّم."],
+      [
+        "A curriculum that stretches every learner, from first words to final exams.",
+        "منهج يتحدّى كل متعلّم، من الكلمات الأولى حتى الامتحانات النهائية.",
+      ],
     ),
-    CARDS_PROGRAMMES,
-    DIVISIONS,
+    on(CARDS_PROGRAMMES, CANVAS),
+    on(DIVISIONS, SOFT),
+    on(IMAGE_TEXT, CANVAS),
   ],
   parents: [
     PAGE_HEADER(
       ["Parents", "أولياء الأمور"],
       [
-        "Everything families need, in one place.",
-        "كل ما تحتاجه الأسر في مكان واحد.",
+        "Everything families need through the year, in one place.",
+        "كل ما تحتاجه الأسر طوال العام، في مكان واحد.",
       ],
     ),
-    QUICK_LINKS,
-    NEWS,
+    on(QUICK_LINKS, CANVAS),
+    on(NEWS, SOFT),
+    on(CONTACT, CANVAS),
   ],
   contact: [
     PAGE_HEADER(
-      ["Contact", "تواصل معنا"],
-      ["We would love to hear from you.", "يسعدنا أن نسمع منكم."],
+      ["Contact *us*", "*تواصل* معنا"],
+      [
+        "We would love to hear from you, whether you are a family, a neighbour or a future colleague.",
+        "يسعدنا أن نسمع منكم، أسرةً كنتم أو جيرانًا أو زملاء في المستقبل.",
+      ],
     ),
-    CONTACT,
+    on(CONTACT_MAP, CANVAS),
     FORM(
       "general",
       ["Send us a message", "أرسل لنا رسالة"],
-      ["We read every message.", "نقرأ كل رسالة."],
+      [
+        "We read every message and reply within two working days.",
+        "نقرأ كل رسالة ونرد خلال يومي عمل.",
+      ],
     ),
-    FAQ,
+    on(FAQ, CANVAS),
   ],
-  portal: [SIGN_IN],
-  portalRegister: [REGISTER],
-  portalApply: [APPLY, APPLY_HELP],
 } satisfies Record<string, ((b: Builder) => PageSection)[]>;
 export type PageTemplate = keyof typeof PAGE_TEMPLATES;
-/** A template a website page starts from; the portal page has its own. */
-const PORTAL_TEMPLATES = ["portal", "portalRegister", "portalApply"] as const;
-export type SiteTemplate = Exclude<
-  PageTemplate,
-  (typeof PORTAL_TEMPLATES)[number]
->;
-export const PAGE_TEMPLATE_IDS = (
-  Object.keys(PAGE_TEMPLATES) as PageTemplate[]
-).filter(
-  (template): template is SiteTemplate =>
-    !(PORTAL_TEMPLATES as readonly string[]).includes(template),
-);
+export type SiteTemplate = PageTemplate;
+export const PAGE_TEMPLATE_IDS = Object.keys(PAGE_TEMPLATES) as PageTemplate[];
 
 /**
  * Builds a template in both languages with the same section and item ids,
@@ -1187,33 +1302,6 @@ const CONTACT_PAGE: StarterPage = {
   title: ["Contact", "تواصل معنا"],
   template: "contact",
 };
-
-/**
- * The portal's sign-in page every school starts with: the form among a few
- * of the school's own words, which the portal shows until the school
- * publishes its own.
- */
-export const PORTAL_PAGE: StarterPage = {
-  slug: "sign-in",
-  title: ["Sign in", "تسجيل الدخول"],
-  template: "portal",
-};
-
-/** The starter page of each door of the portal, which strangers see until the school publishes its own. */
-export const PORTAL_PAGES: Record<PortalDoor, StarterPage> = {
-  "sign-in": PORTAL_PAGE,
-  register: {
-    slug: "register",
-    title: ["Register", "التسجيل"],
-    template: "portalRegister",
-  },
-  apply: {
-    slug: "apply",
-    title: ["Apply", "التقديم"],
-    template: "portalApply",
-  },
-};
-
 /** Whole sites a school can start from: a theme and a set of pages. */
 export const STARTERS = {
   heritage: {
@@ -1245,12 +1333,20 @@ export const STARTERS = {
   },
   arabicFirst: {
     theme: "oasis",
-    pages: [HOME, ABOUT, ACADEMICS, ADMISSIONS, VISIT, PARENTS, CONTACT_PAGE],
+    pages: [
+      { ...HOME, template: "homeWelcome" },
+      ABOUT,
+      ACADEMICS,
+      ADMISSIONS,
+      VISIT,
+      PARENTS,
+      CONTACT_PAGE,
+    ],
   },
   launch: {
     theme: "editorial",
     pages: [
-      { ...HOME, template: "homeAdmissions" },
+      { ...HOME, template: "homeStatement" },
       ADMISSIONS,
       VISIT,
       CONTACT_PAGE,
@@ -1263,53 +1359,56 @@ export const STARTER_IDS = Object.keys(STARTERS) as StarterId[];
 /** The frame a starter site comes with: the admissions actions and a sitemap footer. */
 const freshId = () => crypto.randomUUID();
 
+/** The pages a family weighing the school looks for, which the footer gathers under "Join us". */
+const JOINING = new Set(["admissions", "visit", "contact"]);
+
 export function starterChrome(pages: StarterPage[]): SiteChrome {
   const has = (slug: string) => pages.some((page) => page.slug === slug);
-  const target = (slug: string) =>
-    has(slug) ? `/pages/${slug}` : "/pages/contact";
+  const target = (slug: string, anchor: string) =>
+    has(slug) ? `/pages/${slug}#${anchor}` : `/pages/contact#${ANCHOR.general}`;
+  const column = (title: Words, chosen: StarterPage[]) => ({
+    id: freshId(),
+    title: { en: title[0], ar: title[1] },
+    links: chosen.map((page) => ({
+      id: freshId(),
+      label: { en: page.title[0], ar: page.title[1] },
+      href: `/pages/${page.slug}`,
+    })),
+  });
+  const inner = pages.filter((page) => !page.home);
   return {
-    utility: [
-      { id: freshId(), label: { en: "News", ar: "الأخبار" }, href: "/news" },
-      {
-        id: freshId(),
-        label: { en: "Contact", ar: "تواصل معنا" },
-        href: target("contact"),
-      },
-    ],
+    // News joins the menu by itself, so a new site's header is one row.
+    utility: [],
     actions: [
       {
         id: freshId(),
         label: { en: "Enquire", ar: "استفسر" },
-        href: target("admissions"),
+        href: target("admissions", ANCHOR.enquiry),
         style: "secondary",
       },
       {
         id: freshId(),
         label: { en: "Visit", ar: "زُرنا" },
-        href: target("visit"),
+        href: target("visit", ANCHOR.visit),
         style: "secondary",
       },
       {
         id: freshId(),
         label: { en: "Apply", ar: "قدّم الآن" },
-        href: target("admissions"),
+        href: target("admissions", ANCHOR.apply),
         style: "primary",
       },
     ],
     footerColumns: [
-      {
-        id: freshId(),
-        title: { en: "School", ar: "المدرسة" },
-        links: pages
-          .filter((page) => !page.home)
-          .slice(0, 6)
-          .map((page) => ({
-            id: freshId(),
-            label: { en: page.title[0], ar: page.title[1] },
-            href: `/pages/${page.slug}`,
-          })),
-      },
-    ],
+      column(
+        ["Explore", "تعرّف علينا"],
+        inner.filter((page) => !JOINING.has(page.slug)),
+      ),
+      column(
+        ["Join us", "انضم إلينا"],
+        inner.filter((page) => JOINING.has(page.slug)),
+      ),
+    ].filter((entry) => entry.links.length > 0),
     footerNote: { en: "", ar: "" },
     dock: true,
   };

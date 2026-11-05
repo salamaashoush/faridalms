@@ -1,0 +1,204 @@
+{
+  "type": "diff",
+  "version": "9",
+  "dialect": "postgres",
+  "id": "b9302d90-49f2-4ab7-a83f-54244a5136e0",
+  "prevIds": [
+    "6d1ec017-93ff-4f18-ac3c-adb32b886107"
+  ],
+  "footprints": [
+    {
+      "statementType": "drop_check",
+      "statementTarget": [
+        "table",
+        "core",
+        "site_pages"
+      ],
+      "writes": [
+        "s|ck|core.site_pages.site_pages_kind_check",
+        "n|ck|core.site_pages.site_pages_kind_check",
+        "e|ck|core.site_pages.site_pages_kind_check",
+        "n|con|core.site_pages.site_pages_kind_check"
+      ],
+      "reads": [
+        "n|tbl|core.site_pages",
+        "n|sch|core",
+        "e|col|core.site_pages.kind"
+      ]
+    },
+    {
+      "statementType": "drop_check",
+      "statementTarget": [
+        "table",
+        "core",
+        "site_pages"
+      ],
+      "writes": [
+        "s|ck|core.site_pages.site_pages_portal_check",
+        "n|ck|core.site_pages.site_pages_portal_check",
+        "e|ck|core.site_pages.site_pages_portal_check",
+        "n|con|core.site_pages.site_pages_portal_check"
+      ],
+      "reads": [
+        "n|tbl|core.site_pages",
+        "n|sch|core",
+        "e|col|core.site_pages.kind",
+        "e|col|core.site_pages.is_home",
+        "e|col|core.site_pages.in_menu",
+        "e|col|core.site_pages.parent_id"
+      ]
+    },
+    {
+      "statementType": "drop_check",
+      "statementTarget": [
+        "table",
+        "core",
+        "site_pages"
+      ],
+      "writes": [
+        "s|ck|core.site_pages.site_pages_door_check",
+        "n|ck|core.site_pages.site_pages_door_check",
+        "e|ck|core.site_pages.site_pages_door_check",
+        "n|con|core.site_pages.site_pages_door_check"
+      ],
+      "reads": [
+        "n|tbl|core.site_pages",
+        "n|sch|core",
+        "e|col|core.site_pages.kind",
+        "e|col|core.site_pages.slug"
+      ]
+    },
+    {
+      "statementType": "drop_check",
+      "statementTarget": [
+        "table",
+        "core",
+        "site_published_pages"
+      ],
+      "writes": [
+        "s|ck|core.site_published_pages.site_published_pages_kind_check",
+        "n|ck|core.site_published_pages.site_published_pages_kind_check",
+        "e|ck|core.site_published_pages.site_published_pages_kind_check",
+        "n|con|core.site_published_pages.site_published_pages_kind_check"
+      ],
+      "reads": [
+        "n|tbl|core.site_published_pages",
+        "n|sch|core",
+        "e|col|core.site_published_pages.kind"
+      ]
+    },
+    {
+      "statementType": "drop_column",
+      "statementTarget": [
+        "column",
+        "core",
+        "site_pages",
+        "kind"
+      ],
+      "writes": [
+        "s|col|core.site_pages.kind",
+        "n|col|core.site_pages.kind",
+        "e|col|core.site_pages.kind"
+      ],
+      "reads": [
+        "n|tbl|core.site_pages",
+        "n|sch|core"
+      ]
+    },
+    {
+      "statementType": "drop_column",
+      "statementTarget": [
+        "column",
+        "core",
+        "site_published_pages",
+        "kind"
+      ],
+      "writes": [
+        "s|col|core.site_published_pages.kind",
+        "n|col|core.site_published_pages.kind",
+        "e|col|core.site_published_pages.kind"
+      ],
+      "reads": [
+        "n|tbl|core.site_published_pages",
+        "n|sch|core"
+      ]
+    },
+    {
+      "statementType": "create_index",
+      "statementTarget": [
+        "index",
+        "core",
+        "site_pages",
+        "site_pages_slug_key"
+      ],
+      "writes": [
+        "s|idx|core.site_pages_slug_key",
+        "n|idx|core.site_pages_slug_key",
+        "e|idx|core.site_pages_slug_key",
+        "n|rel|core.site_pages_slug_key"
+      ],
+      "reads": [
+        "n|tbl|core.site_pages",
+        "n|sch|core",
+        "n|col|core.site_pages.tenant_id",
+        "n|col|core.site_pages.org_id",
+        "n|col|core.site_pages.slug"
+      ]
+    }
+  ],
+  "deltas": [
+    {
+      "op": "drop",
+      "key": "columns\u0000[\"core\",\"site_pages\",\"kind\"]"
+    },
+    {
+      "op": "drop",
+      "key": "columns\u0000[\"core\",\"site_published_pages\",\"kind\"]"
+    },
+    {
+      "op": "drop",
+      "key": "checks\u0000[\"core\",\"site_pages\",\"site_pages_kind_check\"]"
+    },
+    {
+      "op": "drop",
+      "key": "checks\u0000[\"core\",\"site_pages\",\"site_pages_portal_check\"]"
+    },
+    {
+      "op": "drop",
+      "key": "checks\u0000[\"core\",\"site_published_pages\",\"site_published_pages_kind_check\"]"
+    },
+    {
+      "op": "drop",
+      "key": "checks\u0000[\"core\",\"site_pages\",\"site_pages_door_check\"]"
+    },
+    {
+      "op": "alter",
+      "key": "indexes\u0000[\"core\",\"site_pages_slug_key\"]",
+      "set": {
+        "columns": [
+          {
+            "value": "tenant_id",
+            "isExpression": false,
+            "asc": true,
+            "nullsFirst": false,
+            "opclass": null
+          },
+          {
+            "value": "org_id",
+            "isExpression": false,
+            "asc": true,
+            "nullsFirst": false,
+            "opclass": null
+          },
+          {
+            "value": "slug",
+            "isExpression": false,
+            "asc": true,
+            "nullsFirst": false,
+            "opclass": null
+          }
+        ]
+      }
+    }
+  ]
+}

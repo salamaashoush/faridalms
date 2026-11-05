@@ -10,23 +10,25 @@ import {
   SECTION_SPECS,
   SECTION_TYPES,
   sectionIssues,
-  sectionsFitKind,
 } from "./site-sections";
 import {
   buildSection,
   buildTemplate,
   PAGE_TEMPLATE_IDS,
-  PORTAL_PAGE,
   STARTER_IDS,
   starterChrome,
   STARTERS,
 } from "./site-templates";
 import {
+  artPalette,
   contrast,
+  darkPalette,
+  fromOklch,
   resolveTheme,
   schemesOf,
   THEME_IDS,
   THEMES,
+  toOklch,
 } from "./site-theme";
 import {
   alignTranslation,
@@ -234,6 +236,74 @@ describe("themes", () => {
     }
   });
 
+  it("keep every theme readable on a dark screen in the school's own hue", () => {
+    for (const id of THEME_IDS) {
+      const { palette } = THEMES[id];
+      const dark = darkPalette(palette);
+      const schemes = schemesOf(dark);
+      for (const scheme of Object.values(schemes)) {
+        expect(contrast(scheme.body, scheme.background)).toBeGreaterThanOrEqual(
+          4.5,
+        );
+        expect(
+          contrast(scheme.buttonText, scheme.button),
+        ).toBeGreaterThanOrEqual(4.5);
+      }
+    }
+  });
+
+  it("keep a coloured brand's hue when lifting it for a dark screen", () => {
+    const coloured = THEME_IDS.filter(
+      (id) => toOklch(THEMES[id].palette.primary).c >= 0.035,
+    );
+    expect(coloured.length).toBeGreaterThan(0);
+    for (const id of coloured) {
+      const { palette } = THEMES[id];
+      const lifted = toOklch(darkPalette(palette).primary);
+      expect(Math.abs(lifted.h - toOklch(palette.primary).h)).toBeLessThan(6);
+    }
+  });
+
+  it("give canvas and soft sections a button colour that also reads as text", () => {
+    // Shared app components drawn in a section (the editor's reader, its links)
+    // use the button colour for their links too.
+    for (const id of THEME_IDS)
+      for (const palette of [
+        THEMES[id].palette,
+        darkPalette(THEMES[id].palette),
+      ]) {
+        const schemes = schemesOf(palette);
+        for (const scheme of [schemes.canvas, schemes.soft])
+          expect(
+            contrast(scheme.button, scheme.background),
+          ).toBeGreaterThanOrEqual(4.5);
+      }
+  });
+
+  it("turn a black brand white on a dark screen, never a mid grey", () => {
+    const dark = darkPalette({ ...THEMES.editorial.palette });
+    expect(toOklch(dark.primary).l).toBeGreaterThan(0.9);
+  });
+
+  it("raise cards above a dark background rather than sink them", () => {
+    for (const id of THEME_IDS) {
+      const soft = schemesOf(darkPalette(THEMES[id].palette)).soft;
+      expect(toOklch(soft.card).l).toBeGreaterThan(toOklch(soft.background).l);
+    }
+  });
+
+  it("draw artwork deep enough for white words in every theme", () => {
+    for (const id of THEME_IDS)
+      expect(
+        contrast("#FFFFFF", artPalette(THEMES[id].palette).deep),
+      ).toBeGreaterThanOrEqual(7);
+  });
+
+  it("convert to OKLCH and back without drift", () => {
+    for (const colour of ["#0B3D91", "#F5C400", "#101010", "#C8643B"])
+      expect(fromOklch(toOklch(colour))).toBe(colour.toLowerCase());
+  });
+
   it("layer a school's choices over its theme", () => {
     const theme = resolveTheme({
       id: "heritage",
@@ -298,13 +368,28 @@ describe("templates", () => {
         "/news",
         ...pages.map((page) => `/pages/${page.slug}`),
       ]);
+      const anchors = new Map(
+        pages.map((page) => [
+          `/pages/${page.slug}`,
+          new Set(
+            buildTemplate(page.template, "en").content.map(
+              (row) => row.style.anchor,
+            ),
+          ),
+        ]),
+      );
       const linked = [
         ...pages.flatMap((page) =>
           hrefs(buildTemplate(page.template, "en").content),
         ),
         ...hrefs(starterChrome(pages)),
       ];
-      expect(linked.filter((href) => !known.has(href))).toEqual([]);
+      const dead = linked.filter((href) => {
+        const [path = "", anchor] = href.split("#");
+        if (!known.has(path)) return true;
+        return anchor !== undefined && !anchors.get(path)?.has(anchor);
+      });
+      expect(dead).toEqual([]);
     }
   });
 
@@ -368,22 +453,5 @@ describe("free-form blocks", () => {
     expect(one).toHaveLength(1);
     expect(one[0]?.blocks).toHaveLength(count);
     expect(fitColumns(content.data.columns, "1-1-1-1")).toHaveLength(4);
-  });
-});
-
-describe("the portal's sign-in page", () => {
-  it("starts with the sign-in form once, and no website page holds it", () => {
-    const portal = buildTemplate(PORTAL_PAGE.template, "ar");
-    expect(sectionsFitKind("portal", portal.content)).toBe(true);
-    expect(sectionsFitKind("portal", portal.translation)).toBe(true);
-    expect(sectionsFitKind("site", portal.content)).toBe(false);
-    for (const template of PAGE_TEMPLATE_IDS)
-      expect(
-        sectionsFitKind("site", buildTemplate(template, "en").content),
-      ).toBe(true);
-    const [form] = portal.content;
-    if (!form) throw new Error("the portal starter is empty");
-    expect(sectionsFitKind("portal", [...portal.content, form])).toBe(false);
-    expect(sectionsFitKind("portal", portal.content.slice(1))).toBe(false);
   });
 });

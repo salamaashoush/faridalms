@@ -30,141 +30,152 @@ function sequence(seed: string) {
   };
 }
 
-const COLOURS = [
-  "var(--s-primary)",
-  "var(--s-accent)",
-  "var(--s-surface)",
-  "var(--s-canvas)",
-  "var(--s-ink)",
-] as const;
+/**
+ * The art ramp the theme sets on the site's root: tones of the school's
+ * main hue and its accent, so every composition is one family.
+ */
+const DEEP = "var(--s-art-deep)";
+const BASE = "var(--s-art-base)";
+const BRIGHT = "var(--s-art-bright)";
+const LIGHT = "var(--s-art-light)";
+const ACCENT = "var(--s-art-accent)";
 
-type Draw = (
-  next: () => number,
-  pick: (from: readonly string[]) => string,
-) => ReactNode;
+type Draw = (next: () => number) => ReactNode;
 
+/**
+ * Compositions on a 400 by 300 field, each on a dark ground so words or a
+ * scrim laid over them stay legible, and each using the accent only as a
+ * crisp shape.
+ */
 const COMPOSITIONS: Draw[] = [
-  (next, pick) => {
-    const [a, b] = [pick(COLOURS.slice(0, 2)), pick(COLOURS.slice(0, 2))];
+  // Arches standing on the ground, with a sun.
+  (next) => {
+    const sun = 250 + next() * 90;
     return (
       <>
-        <rect width="400" height="300" fill="var(--s-surface)" />
-        <path d="M40 300 V170 a80 80 0 0 1 160 0 V300 Z" fill={a} />
+        <rect width="400" height="300" fill={BASE} />
+        <path d="M30 300V176a70 70 0 0 1 140 0V300Z" fill={DEEP} />
+        <path d="M150 300V146a80 80 0 0 1 160 0V300Z" fill={BRIGHT} />
+        <path d="M290 300V196a55 55 0 0 1 110 0V300Z" fill={DEEP} />
+        <circle cx={sun} cy="70" r="26" fill={ACCENT} />
+      </>
+    );
+  },
+  // A low sun behind layered hills.
+  (next) => {
+    const x = 120 + next() * 160;
+    return (
+      <>
+        <rect width="400" height="300" fill={DEEP} />
+        <circle cx={x} cy="190" r="96" fill={ACCENT} />
         <path
-          d="M220 300 V130 a70 70 0 0 1 140 0 V300 Z"
-          fill={b === a ? "var(--s-accent)" : b}
-          opacity="0.9"
+          d="M0 210C90 170 170 230 250 200S370 160 400 176V300H0Z"
+          fill={BASE}
         />
-        <circle
-          cx={300 - next() * 80}
-          cy={60 + next() * 20}
-          r="26"
-          fill="var(--s-canvas)"
+        <path
+          d="M0 250C80 226 180 270 280 244S380 226 400 232V300H0Z"
+          fill={BRIGHT}
         />
       </>
     );
   },
-  (next) => (
-    <>
-      <rect width="400" height="300" fill="var(--s-primary)" />
-      <circle
-        cx={260 + next() * 60}
-        cy={170}
-        r="150"
-        fill="var(--s-accent)"
-        opacity="0.85"
-      />
-      <circle cx={90} cy={90 + next() * 40} r="46" fill="var(--s-canvas)" />
-      <g fill="var(--s-canvas)" opacity="0.35">
-        {Array.from({ length: 30 }, (_, index) => (
-          <circle
-            key={index}
-            cx={30 + (index % 6) * 22}
-            cy={190 + Math.floor(index / 6) * 20}
-            r="3"
-          />
-        ))}
-      </g>
-    </>
-  ),
-  (next, pick) => (
-    <>
-      <rect width="400" height="300" fill="var(--s-canvas)" />
-      {[0, 1, 2, 3].map((index) => (
-        <path
-          key={index}
-          d={`M${index * 100} 300 A100 100 0 0 1 ${index * 100 + 100} 200 L${index * 100 + 100} 300 Z`}
-          transform={
-            index % 2
-              ? `rotate(${next() > 0.5 ? 0 : 90} ${index * 100 + 50} 250)`
-              : undefined
-          }
-          fill={pick(COLOURS.slice(0, 3))}
-        />
-      ))}
-      {[0, 1, 2, 3].map((index) => (
+  // A Bauhaus grid of quarter and half circles.
+  (next) => {
+    const tiles: ReactNode[] = [];
+    const fills = [BASE, BRIGHT, DEEP, LIGHT];
+    for (let row = 0; row < 3; row++)
+      for (let column = 0; column < 4; column++) {
+        const x = column * 100;
+        const y = row * 100;
+        const turn = Math.floor(next() * 4) * 90;
+        const fill = fills[Math.floor(next() * fills.length)] ?? BASE;
+        const accent = next() > 0.86;
+        tiles.push(
+          <g
+            key={`${row}-${column}`}
+            transform={`rotate(${turn} ${x + 50} ${y + 50})`}
+          >
+            {next() > 0.5 ? (
+              <path
+                d={`M${x} ${y + 100}V${y}A100 100 0 0 1 ${x + 100} ${y + 100}Z`}
+                fill={accent ? ACCENT : fill}
+              />
+            ) : (
+              <path
+                d={`M${x} ${y + 100}A50 50 0 0 1 ${x + 100} ${y + 100}Z`}
+                fill={accent ? ACCENT : fill}
+              />
+            )}
+          </g>,
+        );
+      }
+    return (
+      <>
+        <rect width="400" height="300" fill={DEEP} />
+        {tiles}
+      </>
+    );
+  },
+  // Broad diagonal bands with a ring.
+  (next) => {
+    const angle = -24 + next() * 10;
+    return (
+      <>
+        <rect width="400" height="300" fill={DEEP} />
+        <g transform={`rotate(${angle} 200 150)`}>
+          <rect x="-120" y="40" width="640" height="70" fill={BASE} />
+          <rect x="-120" y="130" width="640" height="70" fill={BRIGHT} />
+          <rect x="-120" y="220" width="640" height="70" fill={BASE} />
+        </g>
         <circle
-          key={index}
-          cx={index * 100 + 50}
-          cy="110"
-          r={20 + next() * 30}
-          fill={pick([
-            "var(--s-primary)",
-            "var(--s-accent)",
-            "var(--s-surface)",
-          ])}
+          cx={300 - next() * 60}
+          cy="84"
+          r="34"
+          fill="none"
+          stroke={ACCENT}
+          strokeWidth="14"
         />
-      ))}
-    </>
-  ),
-  () => (
-    <>
-      <rect width="400" height="300" fill="var(--s-surface)" />
-      <path
-        d="M0 210 C80 170 140 250 220 210 S340 160 400 190 V300 H0 Z"
-        fill="var(--s-primary)"
-      />
-      <path
-        d="M0 250 C90 220 170 290 260 250 S360 220 400 240 V300 H0 Z"
-        fill="var(--s-accent)"
-      />
-      <circle cx="300" cy="90" r="40" fill="var(--s-accent)" opacity="0.8" />
-    </>
-  ),
-  (next) => (
-    <>
-      <rect width="400" height="300" fill="var(--s-ink)" />
-      <g transform={`rotate(${-20 + next() * 10} 200 150)`}>
-        <rect x="-60" y="60" width="520" height="46" fill="var(--s-primary)" />
-        <rect x="-60" y="130" width="520" height="46" fill="var(--s-accent)" />
-        <rect
-          x="-60"
-          y="200"
-          width="520"
-          height="46"
-          fill="var(--s-surface)"
-          opacity="0.9"
+      </>
+    );
+  },
+  // Two leaves meeting, the theme's organic shape.
+  (next) => {
+    const lift = next() * 30;
+    return (
+      <>
+        <rect width="400" height="300" fill={DEEP} />
+        <path
+          d={`M40 ${280 - lift}C40 150 120 60 250 60C250 190 170 ${280 - lift} 40 ${280 - lift}Z`}
+          fill={BASE}
         />
-      </g>
-    </>
-  ),
+        <path
+          d="M200 300C200 200 270 130 380 130C380 230 310 300 200 300Z"
+          fill={BRIGHT}
+        />
+        <circle cx="320" cy="64" r="18" fill={ACCENT} />
+      </>
+    );
+  },
 ];
 
-/** Soft light from the palette with a fine grain, for backdrops words sit on. */
+/**
+ * Soft light in the school's own hue with a fine grain, for backdrops words
+ * sit on; the accent is a crisp ring, never a blur, so it never muddies.
+ */
 function Mesh({ seed }: { seed: string }) {
   const next = sequence(`${seed}-mesh`);
   const id = `mesh-${hash(seed).toString(36)}`;
   const glows = [
-    { colour: "var(--s-accent)", r: 170 },
-    { colour: "var(--s-primary)", r: 210 },
-    { colour: "var(--s-surface)", r: 120 },
-    { colour: "var(--s-accent)", r: 110 },
+    { colour: BRIGHT, r: 180, opacity: 0.9 },
+    { colour: BASE, r: 220, opacity: 1 },
+    { colour: BRIGHT, r: 120, opacity: 0.7 },
   ];
+  const ring = { x: 300 + next() * 80, y: 40 + next() * 60 };
   return (
     <>
       <defs>
         <filter id={`${id}-blur`} x="-50%" y="-50%" width="200%" height="200%">
-          <feGaussianBlur stdDeviation="55" />
+          <feGaussianBlur stdDeviation="60" />
         </filter>
         <filter id={`${id}-grain`}>
           <feTurbulence
@@ -175,24 +186,48 @@ function Mesh({ seed }: { seed: string }) {
           />
           <feColorMatrix type="saturate" values="0" />
         </filter>
+        <linearGradient id={`${id}-floor`} x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0.35" stopColor={DEEP} stopOpacity="0" />
+          <stop offset="1" stopColor={DEEP} stopOpacity="0.9" />
+        </linearGradient>
       </defs>
-      <rect width="400" height="300" fill="var(--s-ink)" />
-      <g filter={`url(#${id}-blur)`} opacity="0.95">
-        {glows.map((glow) => (
+      <rect width="400" height="300" fill={DEEP} />
+      <g filter={`url(#${id}-blur)`}>
+        {glows.map((glow, index) => (
           <circle
-            key={`${glow.colour}-${glow.r}`}
-            cx={40 + next() * 320}
-            cy={30 + next() * 240}
-            r={glow.r * (0.7 + next() * 0.5)}
+            key={index}
+            cx={60 + next() * 300}
+            cy={20 + next() * 160}
+            r={glow.r * (0.75 + next() * 0.4)}
             fill={glow.colour}
+            opacity={glow.opacity}
           />
         ))}
       </g>
+      <rect width="400" height="300" fill={`url(#${id}-floor)`} />
+      <circle
+        cx={ring.x}
+        cy={ring.y}
+        r="120"
+        fill="none"
+        stroke={ACCENT}
+        strokeOpacity="0.85"
+        strokeWidth="1.5"
+      />
+      <circle
+        cx={ring.x}
+        cy={ring.y}
+        r="160"
+        fill="none"
+        stroke={LIGHT}
+        strokeOpacity="0.18"
+        strokeWidth="1"
+      />
       <rect
         width="400"
         height="300"
         filter={`url(#${id}-grain)`}
-        opacity="0.12"
+        opacity="0.1"
       />
     </>
   );
@@ -216,21 +251,7 @@ export function SiteArt({
   /** The proportions on a phone, where a tall picture would fill the screen. */
   phoneRatio?: string;
 }) {
-  if (kind === "mesh")
-    return (
-      <svg
-        aria-hidden
-        viewBox="0 0 400 300"
-        preserveAspectRatio="xMidYMid slice"
-        className={cn("site-media block", className)}
-        style={ratioStyle(ratio, phoneRatio)}
-      >
-        <Mesh seed={seed} />
-      </svg>
-    );
   const next = sequence(seed);
-  const pick = (from: readonly string[]) =>
-    from[Math.floor(next() * from.length)] ?? from[0] ?? "var(--s-primary)";
   const draw =
     COMPOSITIONS[Math.floor(next() * COMPOSITIONS.length)] ?? COMPOSITIONS[0];
   return (
@@ -241,7 +262,7 @@ export function SiteArt({
       className={cn("site-media block", className)}
       style={ratioStyle(ratio, phoneRatio)}
     >
-      {draw?.(next, pick)}
+      {kind === "mesh" ? <Mesh seed={seed} /> : draw?.(next)}
     </svg>
   );
 }

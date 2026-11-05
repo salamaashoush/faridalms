@@ -187,17 +187,12 @@ directory and reads as the `site` role, with no session involved, and a
 school whose site is not live answers not found. The builder and its
 themes are described in [systems/website.md](systems/website.md).
 
-Every front door a school has is a page of this site, made in the same
-builder from the same sections, theme and chrome and drawn by the same
-renderer. What only the platform can provide is a system section: a
-section the builder places and styles like any other but whose behaviour
-belongs to its system. The enquiry form is one, on website pages. A door
-that holds a session is a page of the `portal` kind, served on the portal
-host at `/sign-in`, `/register` and `/apply` and kept out of the menu:
-each holds its door's system section exactly once (the sign-in form, the
-family registration form, the application). Until the school publishes a
-door's page, the portal shows its starter. The website host only links or
-posts to these doors.
+The website's own front doors (the enquiry form, the open intakes, the way
+in to applying) are sections of its pages, made in the builder and drawn
+by its renderer. The doors that hold a session are not: sign-in,
+registration and applying are the app's own pages on the portal host, in
+the app's design system, carrying the school's logo, name and main colour
+from `identity.portalFace`. The website host only links or posts to them.
 
 An enquiry is written by the `site` role, only as an unworked website
 enquiry, after Turnstile (where configured), a hidden field, a minimum fill

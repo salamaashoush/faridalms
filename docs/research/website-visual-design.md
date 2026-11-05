@@ -143,3 +143,44 @@ None of these builders enforces contrast; this builder does.
 - A smart hide/show header and a motto footer.
 - Grow-on-scroll video.
 - Scroll-filled statements.
+
+## 5. Component craft
+
+Measured 2026-11-05 from live computed styles at 1440 and 390px: Tailwind's
+public templates Salient and Radiant, the Squarespace 7.1 Julian school demo,
+Bryanston, Korowa, Avenues and the Framer template Harbor. It followed a
+review of the builder's own output, whose faults were structural: headers and
+sections on two different content edges, three header actions of equal
+weight repeated in the menu panel and the dock, and colours mixed with white
+in sRGB, which turned a black brand's buttons mid-grey on dark screens and
+blurred artwork into grey and olive.
+
+- **One edge.** Salient wraps header, sections and footer in one
+  `max-w-7xl` (1280px) container; Korowa starts logo, headings and footer
+  columns at the same x. The two least finished sites measured (Avenues,
+  Harbor) each use three different edges.
+- **Header.** 64 to 80px on desktop, 56 to 64px on phones. Nav at 15 to 16px,
+  weight 500. Exactly one filled action (36 to 48px tall); everything else is
+  a text link. A full-screen menu keeps the bar and its action visible above
+  it and does not repeat that action inside.
+- **Rhythm.** Eyebrow to heading 8px, heading to lead 16 to 24px, lead to
+  content 40 to 64px. Section padding 80 to 128px (Salient `py-20 sm:py-32`),
+  card padding 24 to 32px, card-grid gaps 32px.
+- **Buttons.** 40px (`px-4`, 14 to 15px, weight 600) is the common size; 48px
+  for heroes. Secondary is a 1px ring at the same height; tertiary is words
+  and an arrow, used for "All news" and inside cards.
+- **Cards.** News 3:2, people 4:5 or 1:1. Meta at 13 to 14px, muted,
+  tabular, above the title. Testimonial quotes 20 to 24px.
+- **Footer.** Brand block over two of six columns, then three or four link
+  columns. Social links are icons in 40 to 48px targets on every site
+  measured. A bottom bar at 12 to 14px holds the copyright, legal links and
+  language.
+- **Colour.** Tailwind v4 and Radix build ramps in OKLCH with chroma peaking
+  mid-ramp; Material 3's monochrome scheme makes a black brand's dark-mode
+  primary white with the brand colour as its text. Tints made by mixing with
+  white or by alpha are what wash a palette to grey
+  ([Ottosson](https://bottosson.github.io/posts/oklab/),
+  [CSS Color 4 gamut mapping](https://www.w3.org/TR/css-color-4/#gamut-mapping)).
+- **Artwork.** Built from the theme's own ramp, never hues outside it, with
+  grain at 8 to 15% to stop banding, seeded so it is stable, and a scrim
+  that keeps words over it at 4.5:1.

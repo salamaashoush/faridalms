@@ -15,6 +15,7 @@ import { MediaPlayer } from "@faridalms/editor/media-view";
 import { PictureCreditLine } from "@faridalms/editor/picture-credit";
 import { cn } from "@faridalms/ui/cn";
 import {
+  ArrowRight,
   Award,
   BookOpen,
   Bus,
@@ -120,19 +121,6 @@ export interface RenderContext {
   editing?: boolean;
   /** The public key a form's Cloudflare challenge renders with; none where forms take no challenge. */
   turnstileKey?: string | null;
-  /**
-   * On the portal, what its system section holds: the sign-in form, or the
-   * page of the flow being shown (a reset, a welcome, a badge), which says
-   * its own heading in place of the section's words.
-   */
-  system?: {
-    node: ReactNode;
-    ownWords: boolean;
-    /** A long flow, such as the application, takes the page's wider column. */
-    wide?: boolean;
-    /** The school's logo and name, which a door laid out as a whole page heads itself with. */
-    mark?: ReactNode;
-  };
 }
 
 export const publicMediaUrl = (key: string) => `/public-media/${key}`;
@@ -189,6 +177,9 @@ export function iconOf(icon: IconId): LucideIcon | null {
   return icon === "none" ? null : ICON[icon];
 }
 
+export type ButtonVariant = "secondary" | "ghost";
+export type ButtonSize = "sm" | "lg";
+
 export function SiteAnchor({
   href,
   context,
@@ -196,17 +187,28 @@ export function SiteAnchor({
   children,
   style,
   variant,
+  size,
+  current,
 }: {
   href: string;
   context: RenderContext;
   className?: string;
   children: ReactNode;
   style?: CSSProperties;
-  variant?: "secondary";
+  variant?: ButtonVariant;
+  size?: ButtonSize;
+  /** The link leads to the page being shown. */
+  current?: boolean;
 }) {
   if (context.editing || !href)
     return (
-      <span className={className} style={style} data-variant={variant}>
+      <span
+        className={className}
+        style={style}
+        data-variant={variant}
+        data-size={size}
+        aria-current={current ? "page" : undefined}
+      >
         {children}
       </span>
     );
@@ -217,6 +219,8 @@ export function SiteAnchor({
       className={className}
       style={style}
       data-variant={variant}
+      data-size={size}
+      aria-current={current ? "page" : undefined}
       rel={target.startsWith("/") ? undefined : "noopener noreferrer"}
     >
       {children}
@@ -224,19 +228,22 @@ export function SiteAnchor({
   );
 }
 
+/** A section's buttons: the first filled, the rest outlined beside it. */
 export function Actions({
   actions,
   context,
   className,
+  size,
 }: {
   actions: Link[];
   context: RenderContext;
   className?: string;
+  size?: ButtonSize;
 }) {
   const shown = actions.filter((action) => action.label.trim());
   if (shown.length === 0) return null;
   return (
-    <div className={cn("flex flex-wrap gap-3", className)}>
+    <div className={cn("site-actions", className)}>
       {shown.map((action, index) => (
         <SiteAnchor
           key={action.id}
@@ -244,11 +251,70 @@ export function Actions({
           context={context}
           className="site-button"
           variant={index === 0 ? undefined : "secondary"}
+          size={size}
         >
           {action.label}
         </SiteAnchor>
       ))}
     </div>
+  );
+}
+
+/** Words and an arrow: the quiet way onwards beside a heading or under a card. */
+export function TextLink({
+  href,
+  context,
+  children,
+  className,
+}: {
+  /** Without one, the words sit inside a link that already wraps them. */
+  href?: string;
+  context: RenderContext;
+  children: ReactNode;
+  className?: string;
+}) {
+  const body = (
+    <>
+      {children}
+      <ArrowRight aria-hidden className="size-4 rtl:-scale-x-100" />
+    </>
+  );
+  return href === undefined ? (
+    <span className={cn("site-textlink", className)}>{body}</span>
+  ) : (
+    <SiteAnchor
+      href={href}
+      context={context}
+      className={cn("site-textlink", className)}
+    >
+      {body}
+    </SiteAnchor>
+  );
+}
+
+/**
+ * The shade under words laid over a picture. Over a photograph it is black;
+ * over the theme's artwork it is the art's own deepest tone, so the colour
+ * stays rich instead of turning grey.
+ */
+export function Scrim({
+  photo,
+  strength = "m",
+}: {
+  photo: boolean;
+  strength?: "m" | "l";
+}) {
+  const shade = photo ? "rgb(0 0 0)" : "var(--s-art-deep)";
+  const deep = strength === "l" ? 82 : 70;
+  const mid = Math.round(deep * 0.45);
+  return (
+    <div
+      aria-hidden
+      className="pointer-events-none absolute inset-0"
+      style={{
+        background: `linear-gradient(to top, color-mix(in oklab, ${shade} ${deep}%, transparent) 0%, color-mix(in oklab, ${shade} ${mid}%, transparent) 45%, transparent 85%)`,
+      }}
+    />
   );
 }
 
@@ -387,7 +453,14 @@ export function Emphasised({ children }: { children: string }) {
   });
 }
 
-const SIZE = { display: "site-display", h2: "site-h2", h3: "site-h3" } as const;
+const SIZE = {
+  xl: "site-display-xl",
+  display: "site-display",
+  statement: "site-statement",
+  h2: "site-h2",
+  h3: "site-h3",
+  h4: "site-h4",
+} as const;
 
 export function Heading({
   children,
@@ -435,10 +508,7 @@ export function Lead({
       field={field}
       value={children}
       multiline
-      className={cn(
-        "site-muted text-lg leading-[1.6] whitespace-pre-line",
-        className,
-      )}
+      className={cn("site-lead", className)}
     >
       {children}
     </Editable>
@@ -654,8 +724,7 @@ const FULL_BLEED: Partial<Record<PageSection["type"], string>> = {
 export const fullBleed = (section: PageSection) =>
   FULL_BLEED[section.type] === section.variant;
 
-const SPACING = { s: 0.6, m: 1, l: 1.45 } as const;
-const WIDTH = { contained: "72rem", wide: "84rem", full: "none" } as const;
+const SPACING = { s: 0.6, m: 1, l: 1.4 } as const;
 
 function DividerShape({
   divider,
@@ -766,12 +835,11 @@ export function SectionFrame({
       <DividerShape divider={style.dividerTop} edge="top" />
       <div
         data-reveal
-        className={cn(
-          "relative mx-auto w-full",
-          !full && "px-5 @3xl/site:px-8",
-        )}
+        className={cn("relative", full ? "w-full" : "site-container")}
+        data-width={
+          full || style.width === "contained" ? undefined : style.width
+        }
         style={{
-          maxWidth: full ? "none" : WIDTH[style.width],
           paddingBlockStart: padded
             ? `calc(var(--s-space) * ${SPACING[style.spacing] * (joined ? 0.3 : 1)})`
             : undefined,
@@ -787,25 +855,19 @@ export function SectionFrame({
   );
 }
 
+/** A section's eyebrow, heading and lead above its content, aligned as the section is. */
 export function SectionIntro({
   eyebrow = "",
   heading,
   text = "",
-  center,
 }: {
   eyebrow?: string;
   heading: string;
   text?: string;
-  center?: boolean;
 }) {
   if (!eyebrow && !heading && !text) return null;
   return (
-    <div
-      className={cn(
-        "mb-10 grid max-w-3xl gap-3",
-        center && "mx-auto justify-items-center text-center",
-      )}
-    >
+    <div className="site-intro">
       <Eyebrow field="eyebrow">{eyebrow}</Eyebrow>
       <Heading field="heading">{heading}</Heading>
       <Lead field="text">{text}</Lead>

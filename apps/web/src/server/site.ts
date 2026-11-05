@@ -1,10 +1,9 @@
-import type { PortalDoor } from "@faridalms/domain/site-sections";
-
 import { addHostSchema, hostRefSchema } from "@faridalms/domain/hosts";
 import {
   applyStarterSchema,
   enquirySchema,
   movePageSchema,
+  pageBatchSchema,
   publicPageSchema,
   publicPostSchema,
   publicPostsSchema,
@@ -56,6 +55,10 @@ export const removeSitePage = createServerFn({ method: "POST" })
   .validator(byId)
   .handler(({ data }) => backend().site.removeSitePage(data));
 
+export const batchSitePages = createServerFn({ method: "POST" })
+  .validator(checked(pageBatchSchema))
+  .handler(({ data }) => backend().site.batchPages(data));
+
 export const saveSiteCategory = createServerFn({ method: "POST" })
   .validator(checked(saveCategorySchema))
   .handler(({ data }) => backend().site.saveSiteCategory(data));
@@ -103,7 +106,3 @@ export const makeSiteHostCanonical = createServerFn({ method: "POST" })
 export const checkSiteHost = createServerFn({ method: "POST" })
   .validator(checked(hostRefSchema))
   .handler(({ data }) => backend().hosts.check(data));
-
-export const startPortalPage = createServerFn({ method: "POST" })
-  .validator((input: { door: PortalDoor }) => input)
-  .handler(({ data }) => backend().site.startPortalPage(data));

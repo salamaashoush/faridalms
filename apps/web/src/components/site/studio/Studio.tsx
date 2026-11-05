@@ -4,11 +4,7 @@ import type { PageTemplate } from "@faridalms/domain/site-templates";
 import { Tabs } from "@base-ui/react/tabs";
 import { buildTemplate } from "@faridalms/domain/site-templates";
 import { resolveTheme } from "@faridalms/domain/site-theme";
-import {
-  isSystemSection,
-  sectionComplete,
-  sectionWritten,
-} from "@faridalms/domain/website";
+import { sectionComplete, sectionWritten } from "@faridalms/domain/website";
 import { Button } from "@faridalms/ui/button";
 import { cn } from "@faridalms/ui/cn";
 import {
@@ -100,6 +96,7 @@ import type { Languages, PageDraft, StudioDraft } from "./draft";
 import type { Inserted } from "./Gallery";
 
 import { STATE_LABEL, STATE_TONE } from "../format";
+import { withNews } from "../render/frame-model";
 import { Canvas } from "./Canvas";
 import {
   canvasSections,
@@ -323,15 +320,13 @@ export function SiteStudio({
 
   const pages = useMemo(
     () => [
-      ...overview.pages
-        .filter((row) => row.kind === "site")
-        .map((row) => ({
-          href: row.isHome ? "/" : `/pages/${row.slug}`,
-          title:
-            (languages.primary === "ar" ? row.titleAr : row.titleEn) ||
-            row.titleEn ||
-            row.titleAr,
-        })),
+      ...overview.pages.map((row) => ({
+        href: row.isHome ? "/" : `/pages/${row.slug}`,
+        title:
+          (languages.primary === "ar" ? row.titleAr : row.titleEn) ||
+          row.titleEn ||
+          row.titleAr,
+      })),
       { href: "/news", title: m.siteNews() },
     ],
     [overview.pages, languages.primary],
@@ -368,45 +363,37 @@ export function SiteStudio({
       href: link.href,
       style: link.style,
     })),
-    menu: [
-      ...overview.pages
-        .filter((row) => (row.id === pageId ? page.inMenu : row.inMenu))
-        .map((row) => ({
-          id: row.id,
-          parentId: row.id === pageId ? page.parentId || null : row.parentId,
-          label:
-            row.id === pageId
-              ? titleIn(locale)
-              : (locale === "ar" ? row.titleAr : row.titleEn) ||
-                row.titleEn ||
-                row.titleAr,
-          href: row.isHome
-            ? "/"
-            : `/pages/${row.id === pageId ? page.slug : row.slug}`,
-        })),
-      ...(pageId || !page.inMenu
-        ? []
-        : [
-            {
-              id: "new",
-              parentId: page.parentId || null,
-              label: titleIn(locale) || m.siteNewPage(),
-              href: `/pages/${page.slug}`,
-            },
-          ]),
-      ...([...chrome.utility, ...chrome.actions].some(
-        (link) => link.href === "/news",
-      )
-        ? []
-        : [
-            {
-              id: "news",
-              parentId: null,
-              label: m.siteNews({}, { locale }),
-              href: "/news",
-            },
-          ]),
-    ],
+    menu: withNews(
+      [
+        ...overview.pages
+          .filter((row) => (row.id === pageId ? page.inMenu : row.inMenu))
+          .map((row) => ({
+            id: row.id,
+            parentId: row.id === pageId ? page.parentId || null : row.parentId,
+            label:
+              row.id === pageId
+                ? titleIn(locale)
+                : (locale === "ar" ? row.titleAr : row.titleEn) ||
+                  row.titleEn ||
+                  row.titleAr,
+            href: row.isHome
+              ? "/"
+              : `/pages/${row.id === pageId ? page.slug : row.slug}`,
+          })),
+        ...(pageId || !page.inMenu
+          ? []
+          : [
+              {
+                id: "new",
+                parentId: page.parentId || null,
+                label: titleIn(locale) || m.siteNewPage(),
+                href: `/pages/${page.slug}`,
+              },
+            ]),
+      ],
+      [...chrome.utility, ...chrome.actions],
+      m.siteNews({}, { locale }),
+    ),
     footerColumns: chrome.footerColumns.map((column) => ({
       id: column.id,
       title: say(column.title),
@@ -500,12 +487,12 @@ export function SiteStudio({
     });
   const duplicate = (id: string) => {
     const shown = page.sections.find((section) => section.id === id);
-    if (!shown || isSystemSection(shown.type)) return;
+    if (!shown) return;
     const copyId = crypto.randomUUID();
     updatePage((current) => {
       const index = current.sections.findIndex((section) => section.id === id);
       const original = current.sections[index];
-      if (!original || isSystemSection(original.type)) return current;
+      if (!original) return current;
       const itemIds = new Map<string, string>();
       const fresh = (section: PageSection) =>
         ({
@@ -538,11 +525,7 @@ export function SiteStudio({
     setSelected(copyId);
   };
   const remove = (id: string) => {
-    setSections((current) =>
-      current.filter(
-        (section) => section.id !== id || isSystemSection(section.type),
-      ),
-    );
+    setSections((current) => current.filter((section) => section.id !== id));
     if (selected === id) setSelected(null);
   };
 
@@ -862,12 +845,11 @@ export function SiteStudio({
         draft={page}
         languages={languages}
         isHome={Boolean(existing?.isHome)}
-        portal={existing?.kind === "portal" ? existing.slug : false}
         parents={
           existing
             ? existing.parents
             : overview.pages
-                .filter((row) => !row.isHome && row.kind === "site")
+                .filter((row) => !row.isHome)
                 .map((row) => ({
                   id: row.id,
                   title:
@@ -1126,10 +1108,7 @@ export function SiteStudio({
               quiet
             />
           ) : null}
-          {published &&
-          pageId &&
-          !existing?.isHome &&
-          existing?.kind !== "portal" ? (
+          {published && pageId && !existing?.isHome ? (
             <ButtonLink
               to="/site/$school/pages/$slug"
               params={{ school: user.school.slug, slug: page.slug }}

@@ -30,6 +30,8 @@ import {
   Pause,
   Phone,
   Play,
+  Plus,
+  Quote,
   X,
 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
@@ -54,13 +56,15 @@ import {
   SitePicture,
   Prose,
   publicMediaUrl,
+  Scrim,
   SectionFrame,
   fullBleed,
   SectionIntro,
   SiteAnchor,
   SiteIcon,
+  TextLink,
 } from "./parts";
-import { focusStyle, schemeStyle } from "./theme";
+import { focusStyle, overMediaStyle } from "./theme";
 import { TurnstileWidget } from "./turnstile";
 
 type Props<T extends PageSection["type"]> = {
@@ -88,22 +92,35 @@ const HEIGHT: Record<string, string> = {
   screen: "min-h-[85svh] @3xl/site:min-h-[100svh]",
 };
 
-/** Words over a photograph read white; the scrim below keeps them legible. */
-const OVER_PICTURE = {
-  "--s-fg": "#fff",
-  "--s-heading": "#fff",
-  "--s-muted": "rgba(255,255,255,.86)",
-  "--s-link": "#fff",
-  "--s-btn": "#fff",
-  "--s-btn-fg": "#111",
-  "--s-border": "rgba(255,255,255,.35)",
-  "--s-em": "var(--s-accent)",
-} as CSSProperties;
-
 const Arrow = ({ className }: { className?: string }) => (
   <ArrowRight
     aria-hidden
-    className={cn("size-4 rtl:-scale-x-100", className)}
+    className={cn("site-arrow size-4 rtl:-scale-x-100", className)}
+  />
+);
+
+/**
+ * How many columns a row of items takes: the school's choice where it made
+ * one, else as many as fill whole rows, so two news posts never leave a
+ * third column standing empty.
+ */
+function columnsFor(count: number, max: 2 | 3 | 4 = 3): "2" | "3" | "4" {
+  if (count <= 2 || max === 2) return "2";
+  if (count <= max) return String(count) as "3" | "4";
+  if (count % max === 0) return String(max) as "3" | "4";
+  if (max === 4 && count % 3 === 0) return "3";
+  if (count === 4) return "2";
+  return String(max) as "3" | "4";
+}
+
+/** The quotation mark that opens a voice, mirrored for Arabic. */
+const QuoteMark = ({ className }: { className?: string }) => (
+  <Quote
+    aria-hidden
+    className={cn(
+      "size-8 fill-current stroke-none text-[var(--s-link)] ltr:rotate-180 rtl:-scale-y-100",
+      className,
+    )}
   />
 );
 
@@ -145,35 +162,21 @@ function Backdrop({
       ) : (
         <SiteArt seed={seed} kind="mesh" className="rounded-none" />
       )}
-      <div className="absolute inset-0 bg-gradient-to-t from-black/75 via-black/30 to-black/5" />
-      <div className="bg-gradient-to-e absolute inset-0 from-black/45 to-transparent" />
+      <Scrim photo={Boolean(src)} strength="l" />
     </div>
   );
 }
 
 function Hero({ section, context, first }: Props<"hero">) {
   const { data, variant } = section;
-  const center = section.style.align === "center";
-  const title = (
-    <Heading level={first ? 1 : 2} field="heading">
-      {data.heading}
-    </Heading>
-  );
   const words = (
-    <div
-      data-stagger
-      className={cn("grid gap-6", center && "justify-items-center text-center")}
-    >
+    <div data-stagger className="site-stack">
       <Eyebrow field="eyebrow">{data.eyebrow}</Eyebrow>
-      {title}
-      <Lead className="max-w-2xl text-[1.15rem]" field="text">
-        {data.text}
-      </Lead>
-      <Actions
-        actions={data.actions}
-        context={context}
-        className={cn("mt-2", center && "justify-center")}
-      />
+      <Heading level={first ? 1 : 2} size="display" field="heading">
+        {data.heading}
+      </Heading>
+      <Lead field="text">{data.text}</Lead>
+      <Actions actions={data.actions} context={context} size="lg" />
     </div>
   );
   if (variant === "fullbleed")
@@ -183,27 +186,22 @@ function Hero({ section, context, first }: Props<"hero">) {
           "relative isolate flex items-end overflow-hidden",
           HEIGHT[data.height],
         )}
-        style={OVER_PICTURE}
+        style={overMediaStyle}
       >
         <Backdrop media={data.media} context={context} seed={section.id} />
-        <div
-          className={cn(
-            "mx-auto w-full max-w-[84rem] px-5 pt-44 pb-16 @3xl/site:px-8 @3xl/site:pb-24",
-            center && "grid justify-items-center",
-          )}
-        >
-          <div className="max-w-4xl">{words}</div>
+        <div className="site-container pt-[calc(var(--s-space)*1.6)] pb-[var(--s-space)]">
+          {words}
         </div>
       </div>
     );
   if (variant === "split")
     return (
-      <div className="grid items-center gap-12 py-[calc(var(--s-space)*0.25)] @3xl/site:grid-cols-[1.05fr_1fr] @4xl/site:gap-16">
+      <div className="site-split">
         {words}
         <div className="relative">
           <div
             aria-hidden
-            className="absolute start-8 -inset-e-4 top-8 -bottom-4 -z-10 rounded-[max(var(--s-radius),1rem)] bg-[var(--s-accent)] opacity-90 @4xl/site:-inset-e-6 @4xl/site:-bottom-6"
+            className="absolute start-8 -inset-e-4 top-8 -bottom-4 -z-10 rounded-[var(--s-radius)] bg-[var(--s-accent)] @4xl/site:-inset-e-6 @4xl/site:-bottom-6"
           />
           <MediaView
             media={data.media}
@@ -220,7 +218,7 @@ function Hero({ section, context, first }: Props<"hero">) {
   if (variant === "collage") {
     const [second, third] = data.more;
     return (
-      <div className="grid items-center gap-12 @3xl/site:grid-cols-[1fr_1.1fr] @4xl/site:gap-16">
+      <div className="site-split">
         {words}
         <div className="relative mx-auto aspect-square w-full max-w-xl">
           <div className="site-feature absolute inset-y-[4%] start-[14%] w-[60%]">
@@ -231,7 +229,7 @@ function Hero({ section, context, first }: Props<"hero">) {
               className="size-full rounded-none"
             />
           </div>
-          <div className="absolute end-0 top-[8%] aspect-[4/3] w-[42%] overflow-hidden rounded-[max(var(--s-radius),0.75rem)] shadow-xl ring-8 ring-[var(--s-bg)]">
+          <div className="absolute end-0 top-[8%] aspect-[4/3] w-[42%] overflow-hidden rounded-[var(--s-radius)] shadow-[var(--s-shadow-lift)] ring-8 ring-[var(--s-bg)]">
             <SitePicture
               image={second?.image ?? { fileId: null, alt: "" }}
               context={context}
@@ -239,7 +237,7 @@ function Hero({ section, context, first }: Props<"hero">) {
               className="size-full rounded-none"
             />
           </div>
-          <div className="absolute start-0 bottom-[6%] aspect-square w-[36%] overflow-hidden rounded-full shadow-xl ring-8 ring-[var(--s-bg)]">
+          <div className="absolute start-0 bottom-[6%] aspect-square w-[36%] overflow-hidden rounded-full shadow-[var(--s-shadow-lift)] ring-8 ring-[var(--s-bg)]">
             <SitePicture
               image={third?.image ?? { fileId: null, alt: "" }}
               context={context}
@@ -261,25 +259,21 @@ function Hero({ section, context, first }: Props<"hero">) {
   }
   if (variant === "statement")
     return (
-      <div className="relative grid gap-10 py-[calc(var(--s-space)*0.25)]">
-        <div className="relative z-10 grid gap-8 @3xl/site:max-w-[72%]">
+      <div className="relative grid gap-10">
+        <div
+          data-stagger
+          className="site-stack relative z-10 @3xl/site:max-w-[70%]"
+        >
           <Eyebrow field="eyebrow">{data.eyebrow}</Eyebrow>
-          <Heading
-            level={first ? 1 : 2}
-            size="display"
-            className="max-w-none text-[clamp(3rem,1rem+8.5cqi,9.5rem)] leading-[0.92]"
-            field="heading"
-          >
+          <Heading level={first ? 1 : 2} size="xl" field="heading">
             {data.heading}
           </Heading>
           <div className="grid items-end gap-6 @3xl/site:grid-cols-[1fr_auto]">
-            <Lead className="max-w-xl text-[1.15rem]" field="text">
-              {data.text}
-            </Lead>
-            <Actions actions={data.actions} context={context} />
+            <Lead field="text">{data.text}</Lead>
+            <Actions actions={data.actions} context={context} size="lg" />
           </div>
         </div>
-        <div className="site-feature -rotate-2 shadow-2xl @3xl/site:absolute @3xl/site:end-0 @3xl/site:top-[10%] @3xl/site:w-[30%]">
+        <div className="site-feature -rotate-2 shadow-[var(--s-shadow-lift)] @3xl/site:absolute @3xl/site:end-0 @3xl/site:top-[8%] @3xl/site:w-[28%]">
           <MediaView
             media={data.media}
             context={context}
@@ -293,33 +287,28 @@ function Hero({ section, context, first }: Props<"hero">) {
     );
   if (variant === "inset")
     return (
-      <div className="grid justify-items-center gap-12 text-center">
-        <div data-stagger className="grid max-w-4xl justify-items-center gap-6">
-          <Eyebrow field="eyebrow">{data.eyebrow}</Eyebrow>
-          {title}
-          <Lead className="text-[1.15rem]" field="text">
-            {data.text}
-          </Lead>
-          <Actions
-            actions={data.actions}
-            context={context}
-            className="justify-center"
-          />
-        </div>
-        <div className="w-full">
-          <MediaView
-            media={data.media}
-            context={context}
-            ratio="21 / 9"
-            seed={section.id}
-            feature
-          />
-        </div>
+      <div className="grid gap-[var(--s-intro-gap)]">
+        {words}
+        <MediaView
+          media={data.media}
+          context={context}
+          ratio="21 / 9"
+          seed={section.id}
+          feature
+          phoneRatio="4 / 3"
+        />
       </div>
     );
   return (
-    <div className="grid gap-8 py-[calc(var(--s-space)*0.4)] [&_h1]:text-[clamp(2.9rem,1.4rem+5.6cqi,6.5rem)] [&_h2]:text-[clamp(2.9rem,1.4rem+5.6cqi,6.5rem)]">
-      <div className="max-w-5xl">{words}</div>
+    <div className="grid gap-[var(--s-intro-gap)]">
+      <div data-stagger className="site-stack">
+        <Eyebrow field="eyebrow">{data.eyebrow}</Eyebrow>
+        <Heading level={first ? 1 : 2} size="xl" field="heading">
+          {data.heading}
+        </Heading>
+        <Lead field="text">{data.text}</Lead>
+        <Actions actions={data.actions} context={context} size="lg" />
+      </div>
       <div aria-hidden className="h-px w-full bg-[var(--s-border)]" />
     </div>
   );
@@ -402,13 +391,13 @@ function Slides({ section, context, first }: Props<"slides">) {
     </div>
   );
   const words = (slide: (typeof slides)[number], at: number) => (
-    <div className="grid max-w-3xl gap-5">
+    <div className="site-stack">
       <Eyebrow>{slide.eyebrow}</Eyebrow>
       <Heading level={level(at)} size="display">
         {slide.heading}
       </Heading>
-      <Lead className="text-[1.15rem]">{slide.text}</Lead>
-      <Actions actions={slide.actions} context={context} className="mt-1" />
+      <Lead>{slide.text}</Lead>
+      <Actions actions={slide.actions} context={context} size="lg" />
     </div>
   );
   if (variant === "split")
@@ -416,7 +405,7 @@ function Slides({ section, context, first }: Props<"slides">) {
       <section
         aria-roledescription="carousel"
         aria-label={withoutEmphasis(slides[0]?.heading ?? "")}
-        className="grid items-center gap-10 @3xl/site:grid-cols-2 @4xl/site:gap-16"
+        className="site-split"
       >
         <div className="grid">
           {slides.map((slide, at) => (
@@ -469,7 +458,7 @@ function Slides({ section, context, first }: Props<"slides">) {
         "relative isolate grid overflow-hidden",
         HEIGHT[data.height],
       )}
-      style={OVER_PICTURE}
+      style={overMediaStyle}
     >
       {slides.map((slide, at) => {
         const src = slide.image.fileId
@@ -502,17 +491,16 @@ function Slides({ section, context, first }: Props<"slides">) {
               ) : (
                 <SiteArt seed={slide.id} kind="mesh" className="rounded-none" />
               )}
-              <div className="absolute inset-0 bg-gradient-to-t from-black/75 via-black/30 to-black/5" />
-              <div className="bg-gradient-to-e absolute inset-0 from-black/45 to-transparent" />
+              <Scrim photo={Boolean(src)} strength="l" />
             </div>
-            <div className="mx-auto w-full max-w-[84rem] px-5 pt-44 pb-32 @3xl/site:px-8">
+            <div className="site-container pt-[calc(var(--s-space)*1.6)] pb-[calc(var(--s-space)+5rem)]">
               {words(slide, at)}
             </div>
           </div>
         );
       })}
       <div className="pointer-events-none absolute inset-x-0 bottom-0">
-        <div className="pointer-events-auto mx-auto flex w-full max-w-[84rem] px-5 pb-10 text-white @3xl/site:px-8">
+        <div className="site-container pointer-events-auto flex pb-[calc(var(--s-space)*0.6)] text-white">
           {controls}
         </div>
       </div>
@@ -522,46 +510,31 @@ function Slides({ section, context, first }: Props<"slides">) {
 
 function PageHeader({ section, context, first }: Props<"pageHeader">) {
   const { data, variant } = section;
-  const center = section.style.align === "center";
   const words = (
-    <div
-      data-stagger
-      className={cn(
-        "grid max-w-3xl gap-5",
-        center && "mx-auto justify-items-center",
-      )}
-    >
+    <div data-stagger className="site-stack">
       <Eyebrow field="eyebrow">{data.eyebrow}</Eyebrow>
       <Heading level={first ? 1 : 2} size="display" field="heading">
         {data.heading}
       </Heading>
-      <Lead className="text-[1.15rem]" field="text">
-        {data.text}
-      </Lead>
+      <Lead field="text">{data.text}</Lead>
     </div>
   );
   if (variant === "banner")
     return (
       <div
-        className="relative isolate flex min-h-[21rem] items-end overflow-hidden @3xl/site:min-h-[28rem]"
-        style={OVER_PICTURE}
+        className="relative isolate flex min-h-[22rem] items-end overflow-hidden @3xl/site:min-h-[30rem]"
+        style={overMediaStyle}
       >
         <Backdrop media={data.media} context={context} seed={section.id} />
-        <div className="mx-auto w-full max-w-[84rem] px-5 pt-40 pb-12 @3xl/site:px-8 @3xl/site:pb-16">
+        <div className="site-container pt-[calc(var(--s-space)*1.6)] pb-[calc(var(--s-space)*0.8)]">
           {words}
         </div>
       </div>
     );
-  return (
-    <div
-      className={cn(
-        "grid items-center gap-10",
-        variant === "image" &&
-          "@3xl/site:grid-cols-[1.2fr_1fr] @4xl/site:gap-16",
-      )}
-    >
-      {words}
-      {variant === "image" ? (
+  if (variant === "image")
+    return (
+      <div className="site-split" data-ratio="7-5">
+        {words}
         <MediaView
           media={data.media}
           context={context}
@@ -569,9 +542,9 @@ function PageHeader({ section, context, first }: Props<"pageHeader">) {
           seed={section.id}
           feature
         />
-      ) : null}
-    </div>
-  );
+      </div>
+    );
+  return words;
 }
 
 function Announcement({ section, context }: Props<"announcement">) {
@@ -583,19 +556,14 @@ function Announcement({ section, context }: Props<"announcement">) {
     <div
       className={cn(
         "flex flex-wrap items-center gap-x-6 gap-y-4",
-        variant === "card" && "site-card p-6 @3xl/site:p-8",
+        variant === "card" && "site-card p-[var(--s-card-pad)]",
       )}
     >
-      <span
-        aria-hidden
-        className="grid size-11 shrink-0 place-items-center rounded-full bg-[color-mix(in_srgb,var(--s-fg)_12%,transparent)]"
-      >
-        <Megaphone className="size-5 rtl:-scale-x-100" />
+      <span aria-hidden className="site-icon-tile">
+        <Megaphone className="rtl:-scale-x-100" />
       </span>
-      <p className="me-auto text-lg leading-snug font-semibold">
-        {date ? (
-          <span className="site-muted me-3 font-medium">{date}</span>
-        ) : null}
+      <p className="me-auto grid gap-0.5 text-[1.125rem] leading-snug font-semibold">
+        {date ? <span className="site-meta">{date}</span> : null}
         {data.text}
       </p>
       <Actions actions={data.actions} context={context} />
@@ -606,24 +574,24 @@ function Announcement({ section, context }: Props<"announcement">) {
 function Welcome({ section, context }: Props<"welcome">) {
   const { data, variant } = section;
   const signature = (
-    <p className="mt-4 grid gap-0.5 border-s-2 border-[var(--s-link)] ps-4">
-      <span className="site-heading text-lg">{data.name}</span>
-      <span className="site-muted text-sm">{data.role}</span>
+    <p className="mt-2 grid gap-0.5 border-s-2 border-[var(--s-link)] ps-4">
+      <span className="site-heading site-h4">{data.name}</span>
+      <span className="site-meta">{data.role}</span>
     </p>
   );
-  if (variant === "letter")
-    return (
-      <div className="mx-auto grid max-w-3xl gap-6">
-        <Heading field="heading">{data.heading}</Heading>
-        <div className="text-lg">
-          <Prose body={data.body} context={context} />
-        </div>
-        {signature}
+  const words = (
+    <div className="site-stack">
+      <Heading field="heading">{data.heading}</Heading>
+      <div className="text-[1.125rem]">
+        <Prose body={data.body} context={context} />
       </div>
-    );
+      {signature}
+    </div>
+  );
+  if (variant === "letter") return <div className="site-narrow">{words}</div>;
   return (
-    <div className="grid items-center gap-12 @3xl/site:grid-cols-[5fr_7fr] @4xl/site:gap-20">
-      <div className={cn(variant === "portraitEnd" && "@3xl/site:order-2")}>
+    <div className="site-split" data-ratio="5-7">
+      <div data-order={variant === "portraitEnd" ? "end" : undefined}>
         <SitePicture
           image={data.portrait}
           context={context}
@@ -634,31 +602,31 @@ function Welcome({ section, context }: Props<"welcome">) {
           className="max-h-[38rem]"
         />
       </div>
-      <div className="grid gap-6">
-        <Heading field="heading">{data.heading}</Heading>
-        <div className="text-lg">
-          <Prose body={data.body} context={context} />
-        </div>
-        {signature}
-      </div>
+      {words}
     </div>
   );
 }
 
 function Text({ section, context }: Props<"text">) {
   const { data, variant } = section;
+  if (variant === "statement")
+    return (
+      <div data-stagger className="site-stack site-narrow gap-8" data-wide>
+        <Eyebrow field="eyebrow">{data.eyebrow}</Eyebrow>
+        <Heading size="statement" field="heading">
+          {data.heading}
+        </Heading>
+        <div className="site-lead w-full">
+          <Prose body={data.body} context={context} />
+        </div>
+      </div>
+    );
   return (
-    <div
-      className={cn(
-        "grid gap-6",
-        variant === "narrow" ? "mx-auto max-w-3xl" : "",
-      )}
-    >
+    <div className={cn("site-stack", variant === "narrow" && "site-narrow")}>
       <Eyebrow field="eyebrow">{data.eyebrow}</Eyebrow>
       <Heading field="heading">{data.heading}</Heading>
       <div
         className={cn(
-          "text-[1.075rem]",
           variant === "columns" && "@4xl/site:columns-2 @4xl/site:gap-14",
         )}
       >
@@ -674,21 +642,23 @@ function ImageText({ section, context }: Props<"imageText">) {
     <div
       data-stagger
       className={cn(
-        "grid gap-6",
+        "site-stack",
         variant === "overlap" &&
-          "site-card relative z-10 p-8 shadow-xl @3xl/site:-ms-28 @4xl/site:p-12",
+          "site-card relative z-10 p-[var(--s-card-pad)] shadow-[var(--s-shadow-lift)] @3xl/site:-ms-20 @4xl/site:p-12",
       )}
       style={variant === "overlap" ? { background: "var(--s-bg)" } : undefined}
     >
       <Eyebrow field="eyebrow">{data.eyebrow}</Eyebrow>
       <Heading field="heading">{data.heading}</Heading>
       <Prose body={data.body} context={context} />
-      <Actions actions={data.actions} context={context} className="mt-1" />
+      <Actions actions={data.actions} context={context} />
     </div>
   );
   return (
-    <div className="grid items-center gap-12 @3xl/site:grid-cols-2 @4xl/site:gap-20">
-      <div className={cn(variant === "mediaEnd" && "@3xl/site:order-2")}>
+    <div
+      className={cn("site-split", variant === "overlap" && "@3xl/site:gap-0")}
+    >
+      <div data-order={variant === "mediaEnd" ? "end" : undefined}>
         <MediaView
           media={data.media}
           context={context}
@@ -702,69 +672,80 @@ function ImageText({ section, context }: Props<"imageText">) {
   );
 }
 
-/**
- * On a phone a row of cards becomes a rail that scrolls sideways, the next
- * card peeking in, instead of a column many screens long.
- */
-const PHONE_RAIL =
-  "-mx-5 flex snap-x snap-mandatory gap-4 overflow-x-auto scroll-px-5 px-5 pb-3 [&>li]:w-[78cqi] [&>li]:shrink-0 [&>li]:snap-start @3xl/site:mx-0 @3xl/site:grid @3xl/site:gap-6 @3xl/site:overflow-visible @3xl/site:px-0 @3xl/site:pb-0 @3xl/site:[&>li]:w-auto";
-
-const COLUMNS = {
-  "2": "@3xl/site:grid-cols-2",
-  "3": "@3xl/site:grid-cols-2 @5xl/site:grid-cols-3",
-  "4": "@3xl/site:grid-cols-2 @5xl/site:grid-cols-4",
-} as const;
-
 function IconTile({ icon }: { icon: IconId }) {
   if (icon === "none") return null;
   return (
-    <span className="grid size-12 place-items-center rounded-[max(var(--s-radius),0.75rem)] bg-[color-mix(in_srgb,var(--s-link)_14%,transparent)] text-[var(--s-link)]">
-      <SiteIcon icon={icon} className="size-6" />
+    <span className="site-icon-tile">
+      <SiteIcon icon={icon} />
     </span>
+  );
+}
+
+/** A picture with its words laid over the lower part, the way into a page. */
+function PictureTile({
+  image,
+  seed,
+  context,
+  ratio,
+  children,
+}: {
+  image: SectionOf<"cards">["data"]["items"][number]["image"];
+  seed: string;
+  context: RenderContext;
+  ratio: string;
+  children: ReactNode;
+}) {
+  return (
+    <div
+      className="site-zoom group relative isolate overflow-hidden rounded-[var(--s-radius)] text-start"
+      style={{ aspectRatio: ratio, ...overMediaStyle }}
+    >
+      <SitePicture
+        image={image}
+        context={context}
+        seed={seed}
+        className="absolute inset-0 -z-10 rounded-none"
+      />
+      <div className="absolute inset-0 -z-10">
+        <Scrim photo={Boolean(image.fileId)} />
+      </div>
+      <div className="absolute inset-x-0 bottom-0 grid gap-2 p-[var(--s-card-pad)]">
+        {children}
+      </div>
+    </div>
   );
 }
 
 function Cards({ section, context }: Props<"cards">) {
   const { data, variant } = section;
-  const center = section.style.align === "center";
+  const t = { locale: context.locale };
   return (
     <div>
-      <SectionIntro heading={data.heading} text={data.text} center={center} />
+      <SectionIntro heading={data.heading} text={data.text} />
       <ul
         data-stagger
-        className={cn(
-          variant === "scroller"
-            ? "-mx-5 flex snap-x snap-mandatory gap-5 overflow-x-auto px-5 pb-4 @3xl/site:-mx-8 @3xl/site:px-8 [&>li]:w-[min(22rem,80cqi)] [&>li]:shrink-0 [&>li]:snap-start"
-            : cn("grid gap-6", COLUMNS[data.columns]),
-        )}
+        className={variant === "scroller" ? "site-rail" : "site-grid"}
+        data-cols={variant === "scroller" ? undefined : data.columns}
       >
         {data.items.map((item) => {
           const body =
             variant === "imageButtons" ? (
-              <div className="site-zoom relative isolate aspect-[4/5] overflow-hidden rounded-[var(--s-radius)]">
-                <SitePicture
-                  image={item.image}
-                  context={context}
-                  seed={item.id}
-                  className="absolute inset-0 -z-10 rounded-none"
-                />
-                <div
-                  aria-hidden
-                  className="absolute inset-0 -z-10 bg-gradient-to-t from-black/75 via-black/15 to-transparent"
-                />
-                <span className="absolute inset-x-0 bottom-0 flex items-end justify-between gap-3 p-6 text-start text-white">
-                  <span
-                    className="site-heading site-h3"
-                    style={{ color: "inherit" }}
-                  >
-                    {item.title}
-                  </span>
-                  <ArrowUpRight
-                    aria-hidden
-                    className="size-6 shrink-0 rtl:-scale-x-100"
-                  />
+              <PictureTile
+                image={item.image}
+                seed={item.id}
+                context={context}
+                ratio="4 / 5"
+              >
+                <span className="flex items-end justify-between gap-3">
+                  <span className="site-heading site-h3">{item.title}</span>
+                  {item.href ? (
+                    <ArrowUpRight
+                      aria-hidden
+                      className="site-arrow size-6 shrink-0 rtl:-scale-x-100"
+                    />
+                  ) : null}
                 </span>
-              </div>
+              </PictureTile>
             ) : (
               <div className="site-card flex h-full flex-col overflow-hidden text-start">
                 {variant === "grid" || variant === "scroller" ? (
@@ -775,21 +756,17 @@ function Cards({ section, context }: Props<"cards">) {
                       ratio="3 / 2"
                       seed={item.id}
                       className="rounded-none"
-                      phoneRatio="16 / 9"
                     />
                   </div>
                 ) : null}
-                <div className="grid flex-1 content-start gap-3 p-6 @3xl/site:p-7">
+                <div className="site-card-body">
                   {variant === "icons" ? <IconTile icon={item.icon} /> : null}
                   <Heading level={3}>{item.title}</Heading>
-                  {item.text ? (
-                    <p className="site-muted leading-relaxed">{item.text}</p>
-                  ) : null}
+                  {item.text ? <p className="site-text">{item.text}</p> : null}
                   {item.href ? (
-                    <span className="site-link mt-auto inline-flex items-center gap-1.5 pt-2 text-sm">
-                      {m.siteLearnMore({}, { locale: context.locale })}
-                      <Arrow />
-                    </span>
+                    <TextLink context={context} className="mt-auto pt-2">
+                      {m.siteLearnMore({}, t)}
+                    </TextLink>
                   ) : null}
                 </div>
               </div>
@@ -819,13 +796,51 @@ function Divisions({ section, context }: Props<"divisions">) {
   const { data, variant } = section;
   return (
     <div>
-      <SectionIntro
-        heading={data.heading}
-        text={data.text}
-        center={section.style.align === "center"}
-      />
-      {variant === "rows" ? (
-        <ul data-stagger className="grid gap-5">
+      <SectionIntro heading={data.heading} text={data.text} />
+      {variant === "rail" ? (
+        <ul
+          data-stagger
+          className="site-feature site-joined"
+          style={{ "--count": data.items.length } as CSSProperties}
+        >
+          {data.items.map((item) => (
+            <li key={item.id} className="relative isolate">
+              <SiteAnchor
+                href={item.href}
+                context={context}
+                className="site-zoom group block h-full text-start"
+              >
+                <SitePicture
+                  image={item.image}
+                  context={context}
+                  seed={item.id}
+                  className="absolute inset-0 -z-10 size-full rounded-none"
+                />
+                <div className="absolute inset-0 -z-10">
+                  <Scrim photo={Boolean(item.image.fileId)} />
+                </div>
+                <div
+                  className="flex h-full flex-col justify-between gap-6 p-[var(--s-card-pad)]"
+                  style={overMediaStyle}
+                >
+                  <span className="site-heading site-h3">{item.title}</span>
+                  <span className="grid gap-1.5">
+                    <span className="site-meta text-[var(--s-fg)]">
+                      {item.ages}
+                    </span>
+                    {item.text ? (
+                      <span className="site-small text-[var(--s-muted)]">
+                        {item.text}
+                      </span>
+                    ) : null}
+                  </span>
+                </div>
+              </SiteAnchor>
+            </li>
+          ))}
+        </ul>
+      ) : variant === "rows" ? (
+        <ul data-stagger className="grid gap-4">
           {data.items.map((item) => (
             <li key={item.id}>
               <SiteAnchor
@@ -833,7 +848,7 @@ function Divisions({ section, context }: Props<"divisions">) {
                 context={context}
                 className="site-card site-zoom grid items-center overflow-hidden text-start @3xl/site:grid-cols-[18rem_1fr_auto]"
               >
-                <div className="overflow-hidden">
+                <div className="h-full overflow-hidden">
                   <SitePicture
                     image={item.image}
                     context={context}
@@ -842,58 +857,49 @@ function Divisions({ section, context }: Props<"divisions">) {
                     className="rounded-none"
                   />
                 </div>
-                <div className="grid gap-1.5 p-6 @3xl/site:px-8">
+                <div className="grid gap-2 p-[var(--s-card-pad)]">
                   <span className="site-eyebrow">{item.ages}</span>
                   <Heading level={3}>{item.title}</Heading>
-                  <p className="site-muted">{item.text}</p>
+                  {item.text ? <p className="site-text">{item.text}</p> : null}
                 </div>
                 {item.href ? (
-                  <Arrow className="me-8 hidden size-6 text-[var(--s-link)] @3xl/site:block" />
+                  <Arrow className="me-[var(--s-card-pad)] hidden size-6 text-[var(--s-link)] @3xl/site:block" />
                 ) : null}
               </SiteAnchor>
             </li>
           ))}
         </ul>
       ) : (
-        <ul data-stagger className={cn(PHONE_RAIL, "@3xl/site:grid-cols-3")}>
+        <ul
+          data-stagger
+          className="site-grid"
+          data-cols={columnsFor(data.items.length)}
+          data-rail
+        >
           {data.items.map((item) => (
             <li key={item.id}>
-              <SiteAnchor
-                href={item.href}
-                context={context}
-                className="site-zoom group relative isolate block aspect-[3/4] overflow-hidden rounded-[var(--s-radius)] text-start"
-              >
-                <SitePicture
+              <SiteAnchor href={item.href} context={context} className="block">
+                <PictureTile
                   image={item.image}
-                  context={context}
                   seed={item.id}
-                  className="absolute inset-0 -z-10 rounded-none"
-                />
-                <div
-                  aria-hidden
-                  className="absolute inset-0 -z-10 bg-gradient-to-t from-black/80 via-black/25 to-transparent"
-                />
-                <div className="absolute inset-x-0 bottom-0 grid gap-1.5 p-7 text-white">
-                  <span className="text-sm font-medium opacity-90">
+                  context={context}
+                  ratio="3 / 4"
+                >
+                  <span className="site-meta text-[var(--s-fg)]">
                     {item.ages}
                   </span>
-                  <span
-                    className="site-heading site-h2"
-                    style={{ color: "inherit" }}
-                  >
-                    {item.title}
-                  </span>
+                  <span className="site-heading site-h2">{item.title}</span>
                   {item.text ? (
-                    <span className="max-w-xs text-sm opacity-90">
+                    <span className="site-small max-w-xs text-[var(--s-muted)]">
                       {item.text}
                     </span>
                   ) : null}
                   {item.href ? (
-                    <span className="mt-3 inline-grid size-10 place-items-center rounded-full bg-white text-black transition-transform group-hover:translate-x-1 rtl:group-hover:-translate-x-1">
+                    <span className="mt-3 inline-grid size-11 place-items-center rounded-full bg-white text-black">
                       <Arrow />
                     </span>
                   ) : null}
-                </div>
+                </PictureTile>
               </SiteAnchor>
             </li>
           ))}
@@ -919,16 +925,13 @@ function Figure({
     !context.editing && context.theme.motion !== "none",
   );
   return (
-    <div className="grid content-start gap-2 border-s border-[var(--s-border)] ps-6">
-      <dd
-        ref={ref}
-        className="site-heading order-1 text-[clamp(2.75rem,1.8rem+3.2cqi,4.5rem)] leading-none font-bold text-[var(--s-link)] tabular-nums"
-      >
+    <div className="grid content-start gap-3 border-s border-[var(--s-border)] ps-6 text-start">
+      <dd ref={ref} className="site-figure order-1">
         {value}
       </dd>
-      <dt className="order-2 text-base font-semibold">{label}</dt>
+      <dt className="order-2 font-semibold">{label}</dt>
       {caption ? (
-        <dd className="site-muted order-3 text-sm">{caption}</dd>
+        <dd className="site-text site-small order-3">{caption}</dd>
       ) : null}
     </div>
   );
@@ -936,16 +939,8 @@ function Figure({
 
 function Stats({ section, context }: Props<"stats">) {
   const { data, variant } = section;
-  const figures = (
-    <dl
-      data-stagger
-      className={cn(
-        "grid gap-x-8 gap-y-12",
-        data.items.length > 3
-          ? "grid-cols-2 @4xl/site:grid-cols-4"
-          : "grid-cols-1 @3xl/site:grid-cols-3",
-      )}
-    >
+  const figures = (columns: "2" | "3" | "4") => (
+    <dl data-stagger className="site-grid gap-y-12" data-cols={columns}>
       {data.items.map((item) => (
         <Figure
           key={item.id}
@@ -958,17 +953,10 @@ function Stats({ section, context }: Props<"stats">) {
     </dl>
   );
   return (
-    <div className="grid gap-12">
-      <Heading
-        className={
-          section.style.align === "center" ? "mx-auto max-w-3xl" : "max-w-3xl"
-        }
-        field="heading"
-      >
-        {data.heading}
-      </Heading>
+    <div>
+      <SectionIntro heading={data.heading} />
       {variant === "overImage" ? (
-        <div className="grid items-center gap-12 @3xl/site:grid-cols-2 @4xl/site:gap-16">
+        <div className="site-split">
           <MediaView
             media={data.media}
             context={context}
@@ -976,81 +964,137 @@ function Stats({ section, context }: Props<"stats">) {
             seed={section.id}
             feature
           />
-          <div className="[&_dl]:grid-cols-2">{figures}</div>
+          {figures("2")}
         </div>
       ) : (
-        figures
+        figures(columnsFor(data.items.length, 4))
       )}
-      {data.source ? <p className="site-muted text-sm">{data.source}</p> : null}
+      {data.source ? <p className="site-meta mt-10">{data.source}</p> : null}
+    </div>
+  );
+}
+
+/**
+ * A school's values as words too large to sit still, moving across the
+ * band with a pause button, and wrapping in place for anyone who asks for
+ * less motion.
+ */
+function Ticker({
+  section,
+  context,
+}: {
+  section: SectionOf<"pillars">;
+  context: RenderContext;
+}) {
+  const { data } = section;
+  const [paused, setPaused] = useState(false);
+  const t = { locale: context.locale };
+  const words = data.items.map((item) => item.title).filter(Boolean);
+  const run = (copy: number) => (
+    <ul
+      key={copy}
+      aria-hidden={copy === 1}
+      className="flex shrink-0 items-center"
+    >
+      {words.map((word, index) => (
+        <li key={`${copy}-${index}`} className="flex items-center">
+          <span className="site-ticker-word">{word}</span>
+          <span aria-hidden className="site-ticker-mark" />
+        </li>
+      ))}
+    </ul>
+  );
+  return (
+    <div className="grid gap-[var(--s-intro-gap)]">
+      {data.heading || data.text ? (
+        <div className="[&_.site-intro]:mb-0">
+          <SectionIntro heading={data.heading} text={data.text} />
+        </div>
+      ) : null}
+      <div className="site-ticker">
+        <div className="site-marquee" data-paused={paused || undefined}>
+          {[0, 1].map(run)}
+        </div>
+      </div>
+      {context.editing ? null : (
+        <div className="flex justify-end">
+          <button
+            type="button"
+            onClick={() => setPaused((value) => !value)}
+            aria-label={
+              paused ? m.sitePlayMarquee({}, t) : m.sitePauseMarquee({}, t)
+            }
+            className="site-icon-button motion-reduce:hidden"
+          >
+            {paused ? <Play aria-hidden /> : <Pause aria-hidden />}
+          </button>
+        </div>
+      )}
     </div>
   );
 }
 
 function Pillars({ section, context }: Props<"pillars">) {
   const { data, variant } = section;
+  const numeral = (index: number) =>
+    new Intl.NumberFormat(numberLocale(context.locale), {
+      minimumIntegerDigits: 2,
+    }).format(index + 1);
+  if (variant === "ticker")
+    return <Ticker section={section} context={context} />;
   if (variant === "alternating")
     return (
-      <div className="grid gap-20">
-        <SectionIntro heading={data.heading} text={data.text} center />
-        {data.items.map((item, index) => (
-          <div
-            key={item.id}
-            className="grid items-center gap-10 @3xl/site:grid-cols-2 @4xl/site:gap-20"
-          >
-            <div className={cn(index % 2 === 1 && "@3xl/site:order-2")}>
-              <SitePicture
-                image={item.image}
-                context={context}
-                ratio="5 / 4"
-                seed={item.id}
-                feature
-              />
+      <div>
+        <SectionIntro heading={data.heading} text={data.text} />
+        <div className="grid gap-[var(--s-split-gap)]">
+          {data.items.map((item, index) => (
+            <div key={item.id} className="site-split">
+              <div data-order={index % 2 === 1 ? "end" : undefined}>
+                <SitePicture
+                  image={item.image}
+                  context={context}
+                  ratio="5 / 4"
+                  seed={item.id}
+                  feature
+                />
+              </div>
+              <div className="site-stack">
+                <span className="site-numeral">{numeral(index)}</span>
+                <Heading>{item.title}</Heading>
+                <p className="site-lead">{item.text}</p>
+              </div>
             </div>
-            <div className="grid gap-4">
-              <span className="site-heading text-5xl font-bold text-[var(--s-link)] tabular-nums opacity-30">
-                {new Intl.NumberFormat(numberLocale(context.locale), {
-                  minimumIntegerDigits: 2,
-                }).format(index + 1)}
-              </span>
-              <Heading>{item.title}</Heading>
-              <p className="site-muted text-lg leading-relaxed">{item.text}</p>
-            </div>
-          </div>
-        ))}
+          ))}
+        </div>
       </div>
     );
   return (
     <div>
-      <SectionIntro
-        heading={data.heading}
-        text={data.text}
-        center={section.style.align === "center"}
-      />
+      <SectionIntro heading={data.heading} text={data.text} />
       <ol
         data-stagger
-        className="grid gap-x-10 gap-y-8 @3xl/site:grid-cols-2 @3xl/site:gap-y-12 @5xl/site:grid-cols-4"
+        className="site-grid gap-y-10"
+        data-cols={columnsFor(data.items.length, 4)}
       >
         {data.items.map((item, index) => (
           <li
             key={item.id}
             className={cn(
-              "grid content-start gap-4",
+              "grid content-start gap-3 text-start",
               // On a phone an icon sits beside its words, not above them.
               variant === "icons" &&
-                "grid-cols-[3rem_1fr] gap-x-4 gap-y-1.5 @3xl/site:grid-cols-1 @3xl/site:gap-4 [&>*:first-child]:row-span-2 @3xl/site:[&>*:first-child]:row-span-1",
+                "grid-cols-[3rem_1fr] gap-x-4 @3xl/site:grid-cols-1 [&>*:first-child]:row-span-2 @3xl/site:[&>*:first-child]:row-span-1 @3xl/site:[&>*:first-child]:mb-2",
             )}
           >
             {variant === "numbered" ? (
-              <span className="site-heading border-b border-[var(--s-border)] pb-4 text-5xl font-bold text-[var(--s-link)] tabular-nums">
-                {new Intl.NumberFormat(numberLocale(context.locale), {
-                  minimumIntegerDigits: 2,
-                }).format(index + 1)}
+              <span className="site-numeral mb-2 border-b border-[var(--s-border)] pb-4">
+                {numeral(index)}
               </span>
             ) : (
               <IconTile icon={item.icon} />
             )}
             <Heading level={3}>{item.title}</Heading>
-            <p className="site-muted leading-relaxed">{item.text}</p>
+            {item.text ? <p className="site-text">{item.text}</p> : null}
           </li>
         ))}
       </ol>
@@ -1063,18 +1107,17 @@ function QuoteSection({ section, context }: Props<"quote">) {
   const who = (
     <figcaption className="grid gap-0.5">
       <span className="font-semibold">{data.name}</span>
-      {data.role ? (
-        <span className="site-muted text-sm">{data.role}</span>
-      ) : null}
+      {data.role ? <span className="site-meta">{data.role}</span> : null}
     </figcaption>
   );
   return (
     <figure
       className={cn(
-        "mx-auto grid max-w-5xl gap-8",
+        "site-narrow grid gap-8",
         variant === "portrait" &&
-          "items-center @3xl/site:grid-cols-[14rem_1fr] @3xl/site:gap-14",
+          "items-center @3xl/site:grid-cols-[12rem_1fr] @3xl/site:gap-12",
       )}
+      data-wide
     >
       {variant === "portrait" ? (
         <SitePicture
@@ -1082,30 +1125,18 @@ function QuoteSection({ section, context }: Props<"quote">) {
           context={context}
           ratio="1 / 1"
           seed={section.id}
-          className="rounded-full"
+          className="max-w-48 rounded-full"
         />
       ) : null}
-      <div
-        className={cn(
-          "grid gap-8",
-          section.style.align === "center" && "justify-items-center",
-        )}
-      >
+      <div className="site-stack gap-6">
         {variant === "badge" && data.badge !== "none" ? (
-          <span className="site-eyebrow rounded-full border border-[var(--s-border)] px-4 py-1.5">
+          <span className="site-eyebrow rounded-full px-4 py-1.5 ring-1 ring-[var(--s-border)]">
             {BADGE_NAME[data.badge]}
           </span>
         ) : (
-          <span
-            aria-hidden
-            className="site-heading -mb-10 text-[7rem] leading-none text-[var(--s-link)] opacity-80"
-          >
-            {context.locale === "ar" ? "«" : "“"}
-          </span>
+          <QuoteMark className="size-10" />
         )}
-        <blockquote className="site-heading text-[clamp(1.5rem,1rem+2cqi,2.75rem)] leading-[1.25] font-medium">
-          {data.quote}
-        </blockquote>
+        <blockquote className="site-quote">{data.quote}</blockquote>
         {who}
       </div>
     </figure>
@@ -1129,12 +1160,9 @@ function Voices({ section, context }: Props<"voices">) {
       : data.items;
   return (
     <div>
-      <SectionIntro
-        heading={data.heading}
-        center={section.style.align === "center"}
-      />
+      <SectionIntro heading={data.heading} />
       {variant === "tabs" && audiences.length > 1 ? (
-        <div role="tablist" className="mb-10 flex flex-wrap gap-2">
+        <div role="tablist" className="site-actions mb-[var(--s-intro-gap)]">
           {["all", ...audiences].map((value) => (
             <button
               key={value}
@@ -1142,11 +1170,9 @@ function Voices({ section, context }: Props<"voices">) {
               role="tab"
               aria-selected={tab === value}
               onClick={() => setTab(value)}
-              className={cn(
-                "rounded-full border border-[var(--s-border)] px-5 py-2 text-sm font-semibold transition-colors",
-                tab === value &&
-                  "border-transparent bg-[var(--s-btn)] text-[var(--s-btn-fg)]",
-              )}
+              className="site-button"
+              data-size="sm"
+              data-variant={tab === value ? undefined : "secondary"}
             >
               {value === "all" ? m.siteAudienceAll({}, t) : audience[value]}
             </button>
@@ -1155,22 +1181,22 @@ function Voices({ section, context }: Props<"voices">) {
       ) : null}
       <ul
         data-stagger
-        className={cn(
+        className={variant === "carousel" ? "site-rail" : "site-grid"}
+        style={
           variant === "carousel"
-            ? "-mx-5 flex snap-x snap-mandatory gap-6 overflow-x-auto px-5 pb-4 @3xl/site:-mx-8 @3xl/site:px-8 [&>li]:w-[min(26rem,85cqi)] [&>li]:shrink-0 [&>li]:snap-start"
-            : cn(PHONE_RAIL, "@3xl/site:grid-cols-2 @5xl/site:grid-cols-3"),
-        )}
+            ? ({ "--s-rail-item": "26rem" } as CSSProperties)
+            : undefined
+        }
+        data-cols={
+          variant === "carousel" ? undefined : columnsFor(items.length)
+        }
+        data-rail
       >
         {items.map((item) => (
           <li key={item.id}>
-            <figure className="site-card flex h-full flex-col gap-6 p-8 text-start">
-              <span
-                aria-hidden
-                className="site-heading -mb-6 text-6xl leading-none text-[var(--s-link)]"
-              >
-                {context.locale === "ar" ? "«" : "“"}
-              </span>
-              <blockquote className="text-lg leading-relaxed">
+            <figure className="site-card flex h-full flex-col gap-5 p-[var(--s-card-pad)] text-start">
+              <QuoteMark />
+              <blockquote className="site-quote" data-size="s">
                 {item.quote}
               </blockquote>
               <figcaption className="mt-auto flex items-center gap-3 border-t border-[var(--s-border)] pt-5">
@@ -1180,19 +1206,19 @@ function Voices({ section, context }: Props<"voices">) {
                     context={context}
                     ratio="1 / 1"
                     seed={item.id}
-                    className="size-12 shrink-0 rounded-full"
+                    className="size-11 shrink-0 rounded-full"
                   />
                 ) : (
                   <span
                     aria-hidden
-                    className="site-heading grid size-12 shrink-0 place-items-center rounded-full bg-[var(--s-btn)] text-lg text-[var(--s-btn-fg)]"
+                    className="site-heading grid size-11 shrink-0 place-items-center rounded-full bg-[color-mix(in_oklab,var(--s-link)_14%,transparent)] text-[var(--s-link)]"
                   >
                     {item.name.trim().charAt(0)}
                   </span>
                 )}
                 <span className="grid">
                   <span className="font-semibold">{item.name}</span>
-                  <span className="site-muted text-sm">{item.role}</span>
+                  <span className="site-meta">{item.role}</span>
                 </span>
               </figcaption>
             </figure>
@@ -1207,18 +1233,19 @@ function People({ section, context }: Props<"people">) {
   const { data, variant } = section;
   return (
     <div>
-      <SectionIntro
-        heading={data.heading}
-        text={data.text}
-        center={section.style.align === "center"}
-      />
+      <SectionIntro heading={data.heading} text={data.text} />
       <ul
         data-stagger
-        className={cn(
+        className={
           variant === "carousel"
-            ? "-mx-5 flex snap-x snap-mandatory gap-6 overflow-x-auto px-5 pb-4 @3xl/site:-mx-8 @3xl/site:px-8 [&>li]:w-[min(17rem,70cqi)] [&>li]:shrink-0 [&>li]:snap-start"
-            : "grid grid-cols-2 gap-x-6 gap-y-10 @3xl/site:grid-cols-3 @5xl/site:grid-cols-4",
-        )}
+            ? "site-rail"
+            : "grid grid-cols-2 gap-x-[var(--s-grid-gap)] gap-y-10 @3xl/site:grid-cols-3 @5xl/site:grid-cols-4"
+        }
+        style={
+          variant === "carousel"
+            ? ({ "--s-rail-item": "17rem" } as CSSProperties)
+            : undefined
+        }
       >
         {data.items.map((item) => (
           <li key={item.id} className="grid content-start gap-4 text-start">
@@ -1231,12 +1258,12 @@ function People({ section, context }: Props<"people">) {
                 className="rounded-none"
               />
             </div>
-            <span className="grid gap-0.5">
-              <span className="site-heading site-h3">{item.name}</span>
-              <span className="site-link text-sm">{item.role}</span>
+            <span className="grid gap-1">
+              <span className="site-heading site-h4">{item.name}</span>
+              <span className="site-meta">{item.role}</span>
             </span>
             {item.text ? (
-              <p className="site-muted text-sm leading-relaxed">{item.text}</p>
+              <p className="site-text site-small">{item.text}</p>
             ) : null}
           </li>
         ))}
@@ -1281,8 +1308,8 @@ function Video({ section, context }: Props<"video">) {
   );
   if (variant === "beside")
     return (
-      <div className="grid items-center gap-12 @3xl/site:grid-cols-[2fr_3fr] @4xl/site:gap-16">
-        <div data-stagger className="grid gap-5">
+      <div className="site-split" data-ratio="2-3">
+        <div data-stagger className="site-stack">
           <Heading field="heading">{data.heading}</Heading>
           <Lead field="text">{data.text}</Lead>
           <Actions actions={data.actions} context={context} />
@@ -1292,19 +1319,12 @@ function Video({ section, context }: Props<"video">) {
     );
   return (
     <div
-      className={cn("grid gap-10", variant === "inset" && "mx-auto max-w-5xl")}
+      className={cn(variant === "inset" && "site-narrow")}
+      data-wide={variant === "inset" || undefined}
     >
-      <SectionIntro
-        heading={data.heading}
-        text={data.text}
-        center={section.style.align === "center"}
-      />
+      <SectionIntro heading={data.heading} text={data.text} />
       {player}
-      <Actions
-        actions={data.actions}
-        context={context}
-        className={section.style.align === "center" ? "justify-center" : ""}
-      />
+      <Actions actions={data.actions} context={context} className="mt-8" />
     </div>
   );
 }
@@ -1412,19 +1432,21 @@ function Gallery({ section, context }: Props<"gallery">) {
   });
   return (
     <div>
-      <SectionIntro
-        heading={data.heading}
-        center={section.style.align === "center"}
-      />
+      <SectionIntro heading={data.heading} />
       <ul
         data-stagger
         className={cn(
           variant === "masonry"
-            ? "columns-2 gap-4 @4xl/site:columns-3 [&>li]:mb-4 [&>li]:break-inside-avoid"
+            ? "columns-2 gap-3 @3xl/site:gap-4 @4xl/site:columns-3 [&>li]:mb-3 [&>li]:break-inside-avoid @3xl/site:[&>li]:mb-4"
             : variant === "carousel"
-              ? "-mx-5 flex snap-x snap-mandatory gap-4 overflow-x-auto px-5 pb-4 @3xl/site:-mx-8 @3xl/site:px-8 [&>li]:w-[min(30rem,85cqi)] [&>li]:shrink-0 [&>li]:snap-start"
+              ? "site-rail"
               : "grid auto-rows-[minmax(8rem,18cqi)] grid-cols-2 gap-3 @3xl/site:gap-4 @4xl/site:grid-cols-4",
         )}
+        style={
+          variant === "carousel"
+            ? ({ "--s-rail-item": "30rem" } as CSSProperties)
+            : undefined
+        }
       >
         {data.items.map((item, index) => {
           const picture = (
@@ -1484,16 +1506,13 @@ function Timeline({ section }: Props<"timeline">) {
   const { data, variant } = section;
   return (
     <div>
-      <SectionIntro
-        heading={data.heading}
-        center={section.style.align === "center"}
-      />
+      <SectionIntro heading={data.heading} />
       <ol
         data-stagger
         className={cn(
           variant === "horizontal"
             ? "flex snap-x gap-10 overflow-x-auto border-t-2 border-[var(--s-border)] pt-10 pb-4 [&>li]:w-72 [&>li]:shrink-0 [&>li]:snap-start"
-            : "grid gap-12 border-s-2 border-[var(--s-border)] ps-10",
+            : "site-narrow grid gap-12 border-s-2 border-[var(--s-border)] ps-10",
         )}
       >
         {data.items.map((item) => (
@@ -1507,11 +1526,9 @@ function Timeline({ section }: Props<"timeline">) {
                   : "-start-[calc(3rem+1px)] top-2",
               )}
             />
-            <span className="site-heading text-3xl font-bold text-[var(--s-link)]">
-              {item.year}
-            </span>
+            <span className="site-numeral text-[2rem]">{item.year}</span>
             <span className="site-heading site-h3">{item.title}</span>
-            <p className="site-muted leading-relaxed">{item.text}</p>
+            {item.text ? <p className="site-text">{item.text}</p> : null}
           </li>
         ))}
       </ol>
@@ -1525,11 +1542,7 @@ function Accordion({ section }: Props<"accordion">) {
   if (variant === "tabs")
     return (
       <div>
-        <SectionIntro
-          heading={data.heading}
-          text={data.text}
-          center={section.style.align === "center"}
-        />
+        <SectionIntro heading={data.heading} text={data.text} />
         <div
           role="tablist"
           className="mb-8 flex flex-wrap gap-2 border-b border-[var(--s-border)]"
@@ -1554,39 +1567,43 @@ function Accordion({ section }: Props<"accordion">) {
         </div>
         <p
           role="tabpanel"
-          className="max-w-3xl text-lg leading-relaxed whitespace-pre-line"
+          className="site-narrow text-[1.125rem] leading-relaxed whitespace-pre-line"
         >
           {data.items[open]?.text}
         </p>
       </div>
     );
-  return (
-    <div
-      className={cn(
-        variant === "columns"
-          ? "grid gap-12 @3xl/site:grid-cols-[2fr_3fr] @4xl/site:gap-20"
-          : "mx-auto max-w-3xl",
-      )}
-    >
-      <SectionIntro heading={data.heading} text={data.text} />
-      <div className="divide-y divide-[var(--s-border)] border-y border-[var(--s-border)]">
-        {data.items.map((item) => (
-          <details key={item.id} className="group py-6 text-start">
-            <summary className="flex cursor-pointer list-none items-center justify-between gap-6 text-lg font-semibold [&::-webkit-details-marker]:hidden">
-              {item.title}
-              <span
-                aria-hidden
-                className="grid size-9 shrink-0 place-items-center rounded-full border border-[var(--s-border)] text-xl leading-none transition-transform duration-300 group-open:rotate-45"
-              >
-                +
-              </span>
-            </summary>
-            <p className="site-muted mt-4 max-w-2xl leading-relaxed whitespace-pre-line">
-              {item.text}
-            </p>
-          </details>
-        ))}
+  const list = (
+    <div className="divide-y divide-[var(--s-border)] border-y border-[var(--s-border)]">
+      {data.items.map((item) => (
+        <details key={item.id} className="group text-start">
+          <summary className="flex min-h-16 cursor-pointer list-none items-center justify-between gap-6 py-4 text-[1.125rem] font-semibold [&::-webkit-details-marker]:hidden">
+            {item.title}
+            <span aria-hidden className="site-icon-button size-9">
+              <Plus className="size-4 transition-transform duration-300 group-open:rotate-45" />
+            </span>
+          </summary>
+          <p className="site-text max-w-2xl pb-6 whitespace-pre-line">
+            {item.text}
+          </p>
+        </details>
+      ))}
+    </div>
+  );
+  if (variant === "columns")
+    return (
+      <div
+        className="site-split items-start [&_.site-intro]:mb-0"
+        data-ratio="2-3"
+      >
+        <SectionIntro heading={data.heading} text={data.text} />
+        {list}
       </div>
+    );
+  return (
+    <div className="site-narrow">
+      <SectionIntro heading={data.heading} text={data.text} />
+      {list}
     </div>
   );
 }
@@ -1624,12 +1641,11 @@ function Logos({ section, context }: Props<"logos">) {
   const { data, variant } = section;
   const [paused, setPaused] = useState(false);
   const t = { locale: context.locale };
+  const heading = <Eyebrow field="heading">{data.heading}</Eyebrow>;
   if (variant === "marquee")
     return (
       <div className="grid gap-10">
-        <Heading level={3} className="text-center" field="heading">
-          {data.heading}
-        </Heading>
+        {heading}
         <div className="relative overflow-hidden [mask-image:linear-gradient(to_right,transparent,black_12%,black_88%,transparent)]">
           <div
             className="site-marquee gap-16"
@@ -1668,15 +1684,14 @@ function Logos({ section, context }: Props<"logos">) {
     );
   return (
     <div className="grid gap-10">
-      <Heading level={3} className="text-center" field="heading">
-        {data.heading}
-      </Heading>
+      {heading}
       <ul
         data-stagger
         className={cn(
           variant === "grid"
             ? "grid grid-cols-2 gap-8 @3xl/site:grid-cols-4"
-            : "flex flex-wrap items-center justify-center gap-x-16 gap-y-8",
+            : "flex flex-wrap items-center gap-x-16 gap-y-8",
+          section.style.align === "center" && "justify-center",
         )}
       >
         {data.items.map((item) => (
@@ -1718,19 +1733,14 @@ function News({ section, context }: Props<"news">) {
   const items = context.news.slice(0, data.count);
   return (
     <div>
-      <div className="mb-12 flex flex-wrap items-end justify-between gap-4">
+      <div className="site-intro-row">
         <Heading field="heading">{data.heading}</Heading>
-        <SiteAnchor
-          href="/news"
-          context={context}
-          className="site-link inline-flex items-center gap-1.5"
-        >
+        <TextLink href="/news" context={context}>
           {m.siteAllNews({}, t)}
-          <Arrow />
-        </SiteAnchor>
+        </TextLink>
       </div>
       {items.length === 0 ? (
-        <p className="site-muted">
+        <p className="site-text">
           {context.editing ? m.siteNewsPreview({}, t) : m.siteNoNews({}, t)}
         </p>
       ) : variant === "list" ? (
@@ -1745,10 +1755,7 @@ function News({ section, context }: Props<"news">) {
                 context={context}
                 className="group grid items-center gap-2 py-6 text-start @3xl/site:grid-cols-[11rem_1fr_auto] @3xl/site:gap-10"
               >
-                <time
-                  className="site-muted text-sm"
-                  dateTime={item.publishedAt}
-                >
+                <time className="site-meta" dateTime={item.publishedAt}>
                   {formatInstant(item.publishedAt, "date", context.locale)}
                 </time>
                 <span className="site-heading site-h3 group-hover:text-[var(--s-link)]">
@@ -1762,12 +1769,9 @@ function News({ section, context }: Props<"news">) {
       ) : (
         <ul
           data-stagger
-          className={cn(
-            "grid gap-6",
-            variant === "featured"
-              ? "@3xl/site:grid-cols-2"
-              : "@3xl/site:grid-cols-2 @5xl/site:grid-cols-3",
-          )}
+          className="site-grid"
+          data-cols={variant === "featured" ? "2" : columnsFor(items.length)}
+          data-rail
         >
           {items.map((item, index) => {
             const lead = variant === "featured" && index === 0;
@@ -1785,8 +1789,8 @@ function News({ section, context }: Props<"news">) {
                     item={item}
                     className={lead ? "aspect-[4/3]" : "aspect-[3/2]"}
                   />
-                  <div className="grid gap-3 p-6 @3xl/site:p-7">
-                    <time className="site-eyebrow" dateTime={item.publishedAt}>
+                  <div className="site-card-body">
+                    <time className="site-meta" dateTime={item.publishedAt}>
                       {formatInstant(item.publishedAt, "date", context.locale)}
                     </time>
                     <span
@@ -1798,7 +1802,7 @@ function News({ section, context }: Props<"news">) {
                       {item.title}
                     </span>
                     {item.excerpt ? (
-                      <span className="site-muted leading-relaxed">
+                      <span className="site-text line-clamp-3">
                         {item.excerpt}
                       </span>
                     ) : null}
@@ -1863,12 +1867,9 @@ function Events({ section, context }: Props<"events">) {
       : { day: "", month: "" };
   return (
     <div>
-      <SectionIntro
-        heading={data.heading}
-        center={section.style.align === "center"}
-      />
+      <SectionIntro heading={data.heading} />
       {items.length === 0 ? (
-        <p className="site-muted">
+        <p className="site-text">
           {context.editing && data.source !== "typed"
             ? m.siteEventsFromCalendar({}, t)
             : m.siteEventsNone({}, t)}
@@ -1876,11 +1877,8 @@ function Events({ section, context }: Props<"events">) {
       ) : null}
       <ul
         data-stagger
-        className={cn(
-          variant === "cards"
-            ? "grid gap-6 @3xl/site:grid-cols-2 @5xl/site:grid-cols-3"
-            : "grid gap-3",
-        )}
+        className={variant === "cards" ? "site-grid" : "grid gap-3"}
+        data-cols={variant === "cards" ? columnsFor(items.length) : undefined}
       >
         {items.map((item) => {
           const { day, month } = dayMonth(item.date);
@@ -1890,11 +1888,12 @@ function Events({ section, context }: Props<"events">) {
                 href={item.href}
                 context={context}
                 className={cn(
-                  "site-card group flex items-center gap-6 p-5 text-start",
-                  variant === "cards" && "h-full flex-col items-start p-7",
+                  "site-card group flex items-center gap-5 p-4 text-start @3xl/site:gap-6 @3xl/site:p-5",
+                  variant === "cards" &&
+                    "h-full flex-col items-start p-[var(--s-card-pad)]",
                 )}
               >
-                <span className="grid min-h-[4.5rem] min-w-[4.5rem] shrink-0 place-items-center rounded-[max(var(--s-radius),0.75rem)] bg-[var(--s-btn)] px-3 py-3 text-[var(--s-btn-fg)]">
+                <span className="grid min-h-[4.5rem] min-w-[4.5rem] shrink-0 place-items-center rounded-[var(--s-radius-sm)] bg-[var(--s-btn)] px-3 py-3 text-[var(--s-btn-fg)]">
                   {day ? (
                     <>
                       <span
@@ -1966,17 +1965,21 @@ function PortalLink({
   href,
   context,
   className,
+  size,
   children,
 }: {
   href: string;
   context: RenderContext;
   className?: string;
+  size?: "lg";
   children: ReactNode;
 }) {
   return context.editing ? (
-    <span className={className}>{children}</span>
+    <span className={className} data-size={size}>
+      {children}
+    </span>
   ) : (
-    <a href={href} className={className}>
+    <a href={href} className={className} data-size={size}>
       {children}
     </a>
   );
@@ -2002,17 +2005,15 @@ function IntakeCards({
   return (
     <ul
       data-stagger
-      className={cn(
-        "grid gap-6",
-        compact ? "" : "@3xl/site:grid-cols-2 @5xl/site:grid-cols-3",
-      )}
+      className={compact ? "grid gap-4" : "site-grid"}
+      data-cols={compact ? undefined : columnsFor(intakes.length)}
     >
       {intakes.map((intake) => {
         const upcoming = context.today ? context.today < intake.opensOn : false;
         return (
           <li
             key={intake.id}
-            className="site-card grid content-between gap-6 p-6 text-start @3xl/site:p-8"
+            className="site-card grid content-between gap-6 p-[var(--s-card-pad)] text-start"
           >
             <div className="grid gap-3">
               <span className="site-eyebrow">
@@ -2095,12 +2096,8 @@ function Admissions({ section, context }: Props<"admissions">) {
         ? (context.intakes ?? []).slice(0, 1)
         : (context.intakes ?? []);
     return (
-      <div className="grid gap-8">
-        <SectionIntro
-          heading={data.heading}
-          text={data.text}
-          center={variant === "triad"}
-        />
+      <div>
+        <SectionIntro heading={data.heading} text={data.text} />
         {intakes.length ? (
           <IntakeCards
             intakes={intakes}
@@ -2108,7 +2105,10 @@ function Admissions({ section, context }: Props<"admissions">) {
             compact={variant !== "triad"}
           />
         ) : (
-          <p className="site-muted text-center">
+          <p className="site-card site-text flex items-center gap-4 p-[var(--s-card-pad)] text-start">
+            <span aria-hidden className="site-icon-tile">
+              <CalendarDays />
+            </span>
             {context.editing
               ? m.siteIntakesFromAdmissions({}, { locale: context.locale })
               : m.siteIntakesNone({}, { locale: context.locale })}
@@ -2122,41 +2122,42 @@ function Admissions({ section, context }: Props<"admissions">) {
     : null;
   if (variant === "banner" || variant === "keyDate")
     return (
-      <div className="grid items-center gap-10 @3xl/site:grid-cols-[1fr_auto]">
-        <div data-stagger className="grid max-w-3xl gap-4">
+      <div className="grid items-end gap-10 @3xl/site:grid-cols-[1fr_auto]">
+        <div data-stagger className="site-stack">
           {variant === "keyDate" && date ? (
             <span className="site-eyebrow">{date}</span>
           ) : null}
-          <Heading size="display" field="heading">
-            {data.heading}
-          </Heading>
-          <Lead className="text-[1.15rem]" field="text">
-            {data.text}
-          </Lead>
+          <Heading field="heading">{data.heading}</Heading>
+          <Lead field="text">{data.text}</Lead>
         </div>
         <Actions
           actions={data.items.flatMap((item) => item.actions)}
           context={context}
+          size="lg"
         />
       </div>
     );
   return (
     <div>
-      <SectionIntro heading={data.heading} text={data.text} center />
-      <ol data-stagger className="grid gap-6 @3xl/site:grid-cols-3">
+      <SectionIntro heading={data.heading} text={data.text} />
+      <ol
+        data-stagger
+        className="site-grid"
+        data-cols={columnsFor(data.items.length)}
+      >
         {data.items.map((item, index) => (
           <li
             key={item.id}
-            className="site-card relative grid content-between gap-6 p-6 text-start @3xl/site:gap-8 @3xl/site:p-8"
+            className="site-card grid content-between gap-8 p-[var(--s-card-pad)] text-start"
           >
             <div className="grid gap-3">
-              <span className="site-heading text-4xl font-bold text-[var(--s-link)] tabular-nums opacity-40 @3xl/site:text-5xl">
+              <span className="site-numeral">
                 {new Intl.NumberFormat(numberLocale(context.locale)).format(
                   index + 1,
                 )}
               </span>
               <Heading level={3}>{item.title}</Heading>
-              <p className="site-muted leading-relaxed">{item.text}</p>
+              {item.text ? <p className="site-text">{item.text}</p> : null}
             </div>
             <Actions actions={item.actions} context={context} />
           </li>
@@ -2183,22 +2184,18 @@ function RegisterApply({ section, context }: Props<"registerApply">) {
   return (
     <div
       className={cn(
-        "grid items-center gap-8",
+        "grid gap-8",
         variant === "banner"
-          ? "@3xl/site:grid-cols-[1fr_auto]"
-          : "site-card mx-auto max-w-2xl p-8 text-center @3xl/site:p-12",
+          ? "items-end @3xl/site:grid-cols-[1fr_auto]"
+          : "site-card site-narrow p-[var(--s-card-pad)] @3xl/site:p-12",
       )}
     >
-      <div data-stagger className="grid gap-4">
-        {data.eyebrow ? (
-          <span className="site-eyebrow">{data.eyebrow}</span>
-        ) : null}
-        <Heading size="display" field="heading">
-          {data.heading}
-        </Heading>
+      <div data-stagger className="site-stack">
+        <Eyebrow field="eyebrow">{data.eyebrow}</Eyebrow>
+        <Heading field="heading">{data.heading}</Heading>
         <Lead field="text">{data.text}</Lead>
         {named ? (
-          <p className="site-muted">
+          <p className="site-text">
             {m.siteRegisterApplyFor(
               {
                 grade: intakeGrade(named, context.locale),
@@ -2222,10 +2219,8 @@ function RegisterApply({ section, context }: Props<"registerApply">) {
         <PortalLink
           href={context.applyHref(named?.id ?? null)}
           context={context}
-          className={cn(
-            "site-button",
-            variant === "card" && "justify-self-center",
-          )}
+          className="site-button justify-self-start"
+          size="lg"
         >
           {label}
         </PortalLink>
@@ -2240,17 +2235,13 @@ function Steps({ section, context }: Props<"steps">) {
     new Intl.NumberFormat(numberLocale(context.locale)).format(index + 1);
   return (
     <div>
-      <SectionIntro
-        heading={data.heading}
-        text={data.text}
-        center={section.style.align === "center"}
-      />
+      <SectionIntro heading={data.heading} text={data.text} />
       <ol
         data-stagger
         className={cn(
           variant === "horizontal"
             ? "grid gap-0 @3xl/site:grid-cols-2 @3xl/site:gap-10 @5xl/site:grid-cols-4"
-            : "mx-auto grid max-w-3xl gap-0",
+            : "site-narrow grid gap-0",
         )}
       >
         {data.items.map((item, index) => (
@@ -2263,12 +2254,14 @@ function Steps({ section, context }: Props<"steps">) {
                 : "grid-cols-[3.5rem_1fr] gap-6 pb-10 before:absolute before:start-7 before:top-14 before:bottom-0 before:w-px before:bg-[var(--s-border)] last:before:hidden",
             )}
           >
-            <span className="relative z-10 grid size-14 place-items-center rounded-full bg-[var(--s-btn)] text-xl font-bold text-[var(--s-btn-fg)]">
+            <span className="site-heading relative z-10 grid size-14 place-items-center rounded-full bg-[var(--s-btn)] text-xl text-[var(--s-btn-fg)]">
               {number(index)}
             </span>
-            <span className="grid gap-1.5">
+            <span className="grid gap-1.5 pt-3 @3xl/site:pt-0">
               <span className="site-heading site-h3">{item.title}</span>
-              <span className="site-muted leading-relaxed">{item.text}</span>
+              {item.text ? (
+                <span className="site-text">{item.text}</span>
+              ) : null}
             </span>
           </li>
         ))}
@@ -2280,7 +2273,7 @@ function Steps({ section, context }: Props<"steps">) {
 function Fees({ section }: Props<"fees">) {
   const { data, variant } = section;
   return (
-    <div className="mx-auto grid max-w-4xl gap-8">
+    <div className="site-narrow" data-wide>
       <SectionIntro heading={data.heading} text={data.text} />
       {variant === "table" ? (
         <div className="site-card overflow-x-auto">
@@ -2288,15 +2281,18 @@ function Fees({ section }: Props<"fees">) {
             <tbody className="divide-y divide-[var(--s-border)]">
               {data.items.map((item) => (
                 <tr key={item.id}>
-                  <th scope="row" className="p-5 text-start font-semibold">
+                  <th
+                    scope="row"
+                    className="px-[var(--s-card-pad)] py-5 text-start font-semibold"
+                  >
                     {item.label}
                     {item.note ? (
-                      <span className="site-muted block text-sm font-normal">
+                      <span className="site-meta mt-1 block font-normal">
                         {item.note}
                       </span>
                     ) : null}
                   </th>
-                  <td className="site-heading p-5 text-end text-xl tabular-nums">
+                  <td className="site-heading px-[var(--s-card-pad)] py-5 text-end text-xl tabular-nums">
                     {item.value}
                   </td>
                 </tr>
@@ -2382,28 +2378,25 @@ function Contact({ section, context }: Props<"contact">) {
   const { data, variant } = section;
   const t = { locale: context.locale };
   return (
-    <div
-      className={cn(
-        "grid gap-12",
-        variant === "map" &&
-          "items-center @3xl/site:grid-cols-2 @4xl/site:gap-16",
-      )}
-    >
-      <div className="grid content-start gap-6">
+    <div className={cn(variant === "map" && "site-split")}>
+      <div className="site-stack">
         <Heading field="heading">{data.heading}</Heading>
         <Lead field="text">{data.text}</Lead>
-        <div className="text-lg">
+        <div className="text-[1.125rem]">
           <ContactList context={context} />
         </div>
         {data.mapHref ? (
-          <SiteAnchor
-            href={data.mapHref}
-            context={context}
-            className="site-button justify-self-start"
-          >
-            <Link2 aria-hidden className="size-4" />
-            {m.siteOpenMap({}, t)}
-          </SiteAnchor>
+          <div className="site-actions">
+            <SiteAnchor
+              href={data.mapHref}
+              context={context}
+              className="site-button"
+              variant="secondary"
+            >
+              <Link2 aria-hidden />
+              {m.siteOpenMap({}, t)}
+            </SiteAnchor>
+          </div>
         ) : null}
       </div>
       {variant === "map" ? (
@@ -2414,8 +2407,8 @@ function Contact({ section, context }: Props<"contact">) {
             className="rounded-none"
           />
           <span className="absolute inset-0 grid place-items-center">
-            <span className="grid size-16 place-items-center rounded-full bg-[var(--s-canvas)] text-[var(--s-primary)] shadow-xl">
-              <MapPin aria-hidden className="size-8" />
+            <span className="grid size-16 place-items-center rounded-full bg-white text-[var(--s-art-deep)] shadow-[var(--s-shadow-lift)]">
+              <MapPin aria-hidden className="size-7" />
             </span>
           </span>
         </div>
@@ -2659,7 +2652,7 @@ function EnquiryForm({ section, context }: Props<"form">) {
               ? m.siteFormFailed({}, t)
               : null;
   const words = (
-    <div data-stagger className="grid content-start gap-5">
+    <div data-stagger className="site-stack">
       <Eyebrow field="eyebrow">{data.eyebrow}</Eyebrow>
       <Heading field="heading">{data.heading}</Heading>
       <Lead field="text">{data.text}</Lead>
@@ -2667,7 +2660,7 @@ function EnquiryForm({ section, context }: Props<"form">) {
   );
   const form =
     state === "sent" ? (
-      <output className="site-card grid content-center justify-items-start gap-4 p-8">
+      <output className="site-card grid content-center justify-items-start gap-4 p-[var(--s-card-pad)] text-start">
         <span className="grid size-12 place-items-center rounded-full bg-[var(--s-btn)] text-[var(--s-btn-fg)]">
           <Check aria-hidden className="size-6" />
         </span>
@@ -2677,8 +2670,8 @@ function EnquiryForm({ section, context }: Props<"form">) {
       <form
         onSubmit={(event) => void send(event)}
         className={cn(
-          "grid gap-4",
-          variant === "card" && "site-card p-6 @3xl/site:p-8",
+          "grid gap-5 text-start",
+          variant === "card" && "site-card p-[var(--s-card-pad)]",
         )}
         noValidate={false}
       >
@@ -2819,21 +2812,25 @@ function EnquiryForm({ section, context }: Props<"form">) {
           />
         ) : null}
         {failure ? (
-          <p role="alert" className="text-sm font-semibold text-[#B42318]">
+          <p
+            role="alert"
+            className="text-sm font-semibold text-[#B42318] dark:text-[#FDA29B]"
+          >
             {failure}
           </p>
         ) : null}
-        <div className="flex flex-wrap items-center gap-4">
+        <div className="flex flex-wrap items-center gap-x-5 gap-y-3">
           <button
             type="submit"
             className="site-button"
+            data-size="lg"
             disabled={!hydrated || state === "sending" || context.editing}
           >
             {state === "sending"
               ? m.siteFormSending({}, t)
               : data.submit || m.siteFormSend({}, t)}
           </button>
-          <p className="site-muted text-sm">
+          <p className="site-meta">
             {context.editing
               ? m.siteFormPreview({}, t)
               : m.siteFormPrivacy({}, t)}
@@ -2843,7 +2840,7 @@ function EnquiryForm({ section, context }: Props<"form">) {
     );
   if (variant === "split")
     return (
-      <div className="grid items-start gap-12 @3xl/site:grid-cols-[2fr_3fr] @4xl/site:gap-16">
+      <div className="site-split items-start" data-ratio="2-3">
         <div className="grid gap-8">
           {words}
           {data.media.fileId ? (
@@ -2860,341 +2857,10 @@ function EnquiryForm({ section, context }: Props<"form">) {
       </div>
     );
   return (
-    <div className="relative mx-auto grid max-w-3xl gap-10">
-      <div className="text-center [&_.site-eyebrow]:mx-auto">{words}</div>
-      {form}
-    </div>
-  );
-}
-
-/**
- * A door of the portal among the page's own sections: the school's words in
- * its theme, and what the platform draws there (the sign-in form, the
- * registration form, the application). The builder shows where it goes;
- * the portal hands the section its form, or the page of the flow a person
- * is in.
- */
-function Door({
-  data,
-  variant,
-  context,
-  first,
-  preview,
-}: {
-  data: {
-    eyebrow: string;
-    heading: string;
-    text: string;
-    points?: { id: string; icon: IconId; title: string; text: string }[];
-    helpHeading?: string;
-    helpText?: string;
-  };
-  variant: "panel" | "split" | "stacked";
-  context: RenderContext;
-  first: boolean;
-  preview: ReactNode;
-}) {
-  const system = context.system;
-  if (variant === "panel")
-    return (
-      <DoorPanel
-        data={data}
-        context={context}
-        first={first}
-        preview={preview}
-      />
-    );
-  const words = system?.ownWords ? null : (
-    <div
-      data-stagger
-      className={cn(
-        "grid content-start gap-5",
-        variant === "stacked" &&
-          "justify-items-center text-center [&_.site-eyebrow]:mx-auto",
-      )}
-    >
-      <Eyebrow field="eyebrow">{data.eyebrow}</Eyebrow>
-      <Heading level={first ? 1 : 2} size="display" field="heading">
-        {data.heading}
-      </Heading>
-      <Lead field="text">{data.text}</Lead>
-    </div>
-  );
-  const form = (
-    <div className="grid gap-6">
-      {system ? (
-        <div className="portal-system site-card bg-card p-6 text-card-foreground @3xl/site:p-8">
-          {system.node}
-        </div>
-      ) : (
-        <div aria-hidden className="site-card grid gap-4 p-6 @3xl/site:p-8">
-          {preview}
-        </div>
-      )}
-      <DoorHelp
-        heading={data.helpHeading}
-        text={data.helpText}
-        contact={context.contact}
-      />
-    </div>
-  );
-  if (variant === "split" && words)
-    return (
-      <div className="grid items-center gap-12 @3xl/site:grid-cols-[1fr_minmax(0,28rem)] @4xl/site:gap-16">
-        {words}
-        <div className="relative">{form}</div>
-      </div>
-    );
-  return (
-    <div
-      className={cn(
-        "relative mx-auto grid gap-10",
-        system?.wide ? "max-w-3xl" : "max-w-xl",
-      )}
-    >
+    <div className="site-narrow relative grid gap-10">
       {words}
       {form}
     </div>
-  );
-}
-
-/** Where to turn when the form does not let someone in, under the form itself, with the school's own ways to reach it. */
-function DoorHelp({
-  heading,
-  text,
-  contact,
-}: {
-  heading?: string;
-  text?: string;
-  contact: RenderContext["contact"];
-}) {
-  if (!heading?.trim() && !text?.trim()) return null;
-  return (
-    <div className="grid gap-1.5 border-t border-[var(--s-border)] pt-6 text-sm">
-      {heading?.trim() ? (
-        <h2 dir="auto" className="font-semibold text-[var(--s-heading)]">
-          {heading}
-        </h2>
-      ) : null}
-      {text?.trim() ? (
-        <p dir="auto" className="site-muted leading-relaxed">
-          {text}
-        </p>
-      ) : null}
-      {contact?.email || contact?.phone ? (
-        <p className="flex flex-wrap gap-x-4 gap-y-1">
-          {contact.email ? (
-            <a
-              dir="ltr"
-              href={`mailto:${contact.email}`}
-              className="text-[var(--s-link)] underline-offset-4 hover:underline"
-            >
-              {contact.email}
-            </a>
-          ) : null}
-          {contact.phone ? (
-            <a
-              dir="ltr"
-              href={`tel:${contact.phone.replace(/\s+/g, "")}`}
-              className="text-[var(--s-link)] underline-offset-4 hover:underline"
-            >
-              {contact.phone}
-            </a>
-          ) : null}
-        </p>
-      ) : null}
-    </div>
-  );
-}
-
-/** A door laid out as a whole page: the school's words on its own colour beside the form. */
-export const panelDoor = (section: PageSection) =>
-  (section.type === "signIn" || section.type === "register") &&
-  section.variant === "panel";
-
-function DoorPanel({
-  data,
-  context,
-  first,
-  preview,
-}: {
-  data: {
-    eyebrow: string;
-    heading: string;
-    text: string;
-    points?: { id: string; icon: IconId; title: string; text: string }[];
-    helpHeading?: string;
-    helpText?: string;
-  };
-  context: RenderContext;
-  first: boolean;
-  preview: ReactNode;
-}) {
-  const system = context.system;
-  const points = (data.points ?? []).filter(
-    (point) => point.title.trim() || point.text.trim(),
-  );
-  const words = (
-    <>
-      <Eyebrow field="eyebrow">{data.eyebrow}</Eyebrow>
-      <Heading level={first ? 1 : 2} size="display" field="heading">
-        {data.heading}
-      </Heading>
-      <Lead field="text">{data.text}</Lead>
-    </>
-  );
-  return (
-    <div className="grid min-h-[min(100dvh,56rem)] @4xl/site:grid-cols-[1fr_1.05fr]">
-      <div
-        style={schemeStyle(context.theme, "brand")}
-        className="site-section relative hidden flex-col overflow-hidden p-12 @4xl/site:flex @6xl/site:p-16"
-      >
-        {system?.mark ?? null}
-        <div
-          data-stagger
-          className="relative z-10 my-auto grid max-w-lg gap-6 py-16"
-        >
-          {words}
-          {points.length > 0 ? (
-            <ul className="mt-6 grid gap-7">
-              {points.map((point) => (
-                <li key={point.id} className="flex gap-4">
-                  {point.icon === "none" ? null : (
-                    <span className="grid size-10 shrink-0 place-items-center rounded-xl border border-current/15 bg-current/5">
-                      <SiteIcon icon={point.icon} className="size-5" />
-                    </span>
-                  )}
-                  <div>
-                    <h3 dir="auto" className="text-sm font-medium">
-                      {point.title}
-                    </h3>
-                    <p dir="auto" className="site-muted mt-1 text-sm">
-                      {point.text}
-                    </p>
-                  </div>
-                </li>
-              ))}
-            </ul>
-          ) : null}
-        </div>
-        <div
-          aria-hidden
-          className="pointer-events-none absolute -end-40 -bottom-56 size-[520px] rounded-full border-[80px] border-current/[0.04]"
-        />
-      </div>
-      <div className="flex flex-col">
-        <div className="flex flex-1 items-center justify-center px-6 py-12 @3xl/site:px-12">
-          <div className="grid w-full max-w-[400px] gap-8">
-            <div className="grid gap-4 @4xl/site:hidden">
-              {system?.mark ?? null}
-              {system?.ownWords ? null : words}
-            </div>
-            {system ? (
-              <div className="portal-system">{system.node}</div>
-            ) : (
-              <div aria-hidden className="grid gap-4">
-                {preview}
-              </div>
-            )}
-            <DoorHelp
-              heading={data.helpHeading}
-              text={data.helpText}
-              contact={context.contact}
-            />
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-const PreviewField = ({ label }: { label: string }) => (
-  <span className="site-label">
-    {label}
-    <span className="site-input block h-11" />
-  </span>
-);
-
-function SignIn({ section, context, first }: Props<"signIn">) {
-  const t = { locale: context.locale };
-  return (
-    <Door
-      data={section.data}
-      variant={section.variant}
-      context={context}
-      first={first}
-      preview={
-        <>
-          <PreviewField label={m.siteSignInPreviewLogin({}, t)} />
-          <PreviewField label={m.siteSignInPreviewPassword({}, t)} />
-          <span className="site-button justify-self-stretch text-center">
-            {m.siteSignInPreviewSubmit({}, t)}
-          </span>
-          <span className="site-muted text-sm">
-            {m.siteSignInPreview({}, t)}
-          </span>
-        </>
-      }
-    />
-  );
-}
-
-function Register({ section, context, first }: Props<"register">) {
-  const t = { locale: context.locale };
-  return (
-    <Door
-      data={section.data}
-      variant={section.variant}
-      context={context}
-      first={first}
-      preview={
-        <>
-          <PreviewField label={m.siteRegisterPreviewName({}, t)} />
-          <PreviewField label={m.siteRegisterPreviewEmail({}, t)} />
-          <span className="site-button justify-self-stretch text-center">
-            {m.siteRegisterPreviewSubmit({}, t)}
-          </span>
-          <span className="site-muted text-sm">
-            {m.siteRegisterPreview({}, t)}
-          </span>
-        </>
-      }
-    />
-  );
-}
-
-function Apply({ section, context, first }: Props<"apply">) {
-  const t = { locale: context.locale };
-  return (
-    <Door
-      data={section.data}
-      variant={section.variant}
-      context={context}
-      first={first}
-      preview={
-        <>
-          <span className="flex flex-wrap gap-2">
-            {[
-              m.siteApplyPreviewChild({}, t),
-              m.siteApplyPreviewFamily({}, t),
-              m.siteApplyPreviewDocuments({}, t),
-              m.siteApplyPreviewSend({}, t),
-            ].map((step) => (
-              <span
-                key={step}
-                className="site-label rounded-full border px-3 py-1"
-              >
-                {step}
-              </span>
-            ))}
-          </span>
-          <PreviewField label={m.siteApplyPreviewName({}, t)} />
-          <span className="site-muted text-sm">
-            {m.siteApplyPreview({}, t)}
-          </span>
-        </>
-      }
-    />
   );
 }
 
@@ -3202,17 +2868,14 @@ function QuickLinks({ section, context }: Props<"quickLinks">) {
   const { data, variant } = section;
   return (
     <div>
-      <SectionIntro
-        heading={data.heading}
-        center={section.style.align === "center"}
-      />
+      <SectionIntro heading={data.heading} />
       <ul
         data-stagger
-        className={cn(
+        className={
           variant === "list"
             ? "grid gap-3 @3xl/site:grid-cols-2"
-            : "grid grid-cols-2 gap-4 @3xl/site:grid-cols-4",
-        )}
+            : "grid grid-cols-2 gap-[var(--s-grid-gap)] @3xl/site:grid-cols-4"
+        }
       >
         {data.items.map((item) => (
           <li key={item.id}>
@@ -3220,7 +2883,7 @@ function QuickLinks({ section, context }: Props<"quickLinks">) {
               href={item.href}
               context={context}
               className={cn(
-                "site-card group flex h-full gap-4 p-6 text-start",
+                "site-card group flex h-full gap-4 p-5 text-start @3xl/site:p-6",
                 variant === "list" ? "items-center" : "flex-col",
                 variant === "audience" && "min-h-44 justify-end",
               )}
@@ -3229,30 +2892,25 @@ function QuickLinks({ section, context }: Props<"quickLinks">) {
                   ? {
                       background: "var(--s-btn)",
                       color: "var(--s-btn-fg)",
-                      borderColor: "transparent",
+                      boxShadow: "none",
                     }
                   : undefined
               }
             >
-              <SiteIcon
-                icon={item.icon}
-                className={cn(
-                  "size-8",
-                  variant === "audience" ? "" : "text-[var(--s-link)]",
-                )}
-              />
+              {variant === "audience" ? (
+                <SiteIcon icon={item.icon} className="size-7" />
+              ) : (
+                <IconTile icon={item.icon} />
+              )}
               <span className="grid flex-1 gap-1">
-                <span className="text-lg font-semibold">{item.title}</span>
+                <span className="text-[1.0625rem] font-semibold">
+                  {item.title}
+                </span>
                 {item.text ? (
-                  <span className="text-sm opacity-80">{item.text}</span>
+                  <span className="site-small opacity-80">{item.text}</span>
                 ) : null}
               </span>
-              <Arrow
-                className={cn(
-                  "transition-transform group-hover:translate-x-1 rtl:group-hover:-translate-x-1",
-                  variant === "list" ? "" : "self-end",
-                )}
-              />
+              <Arrow className={variant === "list" ? "" : "self-end"} />
             </SiteAnchor>
           </li>
         ))}
@@ -3264,7 +2922,7 @@ function QuickLinks({ section, context }: Props<"quickLinks">) {
 function Embed({ section, context }: Props<"embed">) {
   const { data } = section;
   return (
-    <div className="mx-auto grid max-w-4xl gap-8">
+    <div className="site-narrow grid gap-8" data-wide>
       <Heading field="heading">{data.heading}</Heading>
       {data.embed ? (
         <div className="site-feature">
@@ -3287,7 +2945,7 @@ const LAYOUT: Record<string, string> = {
   "1-2": "@3xl/site:grid-cols-[1fr_2fr]",
   "1-1-1": "@3xl/site:grid-cols-3",
   "1-1-1-1": "@3xl/site:grid-cols-2 @5xl/site:grid-cols-4",
-  "1": "mx-auto max-w-3xl",
+  "1": "site-narrow",
 };
 
 const RATIO: Record<string, string> = {
@@ -3321,11 +2979,7 @@ function BlockView({
       );
     }
     case "paragraph":
-      return (
-        <div className="text-[1.075rem]">
-          <Prose body={block.data.body} context={context} />
-        </div>
-      );
+      return <Prose body={block.data.body} context={context} />;
     case "image": {
       const { image, shape, ratio } = block.data;
       const picture = (
@@ -3352,7 +3006,7 @@ function BlockView({
         <ul className="grid gap-3">
           {block.data.items.map((item) => (
             <li key={item.id} className="flex items-start gap-3">
-              <span className="mt-0.5 grid size-7 shrink-0 place-items-center rounded-full bg-[color-mix(in_srgb,var(--s-link)_14%,transparent)] text-[var(--s-link)]">
+              <span className="mt-0.5 grid size-7 shrink-0 place-items-center rounded-full bg-[color-mix(in_oklab,var(--s-link)_14%,transparent)] text-[var(--s-link)]">
                 {item.icon === "none" ? (
                   <Check aria-hidden className="size-4" />
                 ) : (
@@ -3454,12 +3108,11 @@ function Blocks({ section, context }: Props<"blocks">) {
         eyebrow={data.eyebrow}
         heading={data.heading}
         text={data.text}
-        center={section.style.align === "center"}
       />
       <div
         data-stagger
         className={cn(
-          "grid gap-12 @4xl/site:gap-16",
+          "grid gap-[var(--s-split-gap)]",
           LAYOUT[data.layout],
           data.valign === "center" && "items-center",
         )}
@@ -3494,7 +3147,7 @@ export function SiteSection({
   joined?: boolean;
 }) {
   const t = { locale: context.locale };
-  const full = fullBleed(section) || panelDoor(section);
+  const full = fullBleed(section);
   const body = (() => {
     switch (section.type) {
       case "hero":
@@ -3565,12 +3218,6 @@ export function SiteSection({
         return <QuickLinks section={section} context={context} first={first} />;
       case "embed":
         return <Embed section={section} context={context} first={first} />;
-      case "signIn":
-        return <SignIn section={section} context={context} first={first} />;
-      case "register":
-        return <Register section={section} context={context} first={first} />;
-      case "apply":
-        return <Apply section={section} context={context} first={first} />;
     }
     return null;
   })();

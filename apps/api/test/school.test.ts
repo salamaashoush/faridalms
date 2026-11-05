@@ -54,10 +54,7 @@ describe("the school's logo", () => {
       locale: "en",
     });
     expect(shell.logoKey).toMatch(/^p\//);
-    const face = await client("").identity.portalFace({
-      school: "northwind",
-      locale: "en",
-    });
+    const face = await client("").identity.portalFace({ school: "northwind" });
     expect(face.logoKey).toBe(shell.logoKey);
 
     // A save that leaves the logo out keeps it.

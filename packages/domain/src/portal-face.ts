@@ -4,7 +4,6 @@ import type { Palette } from "./site-theme";
 
 import { contrast, mix } from "./site-theme";
 
-const LOCALES = ["en", "ar"] as const;
 const slug = v.pipe(
   v.string(),
   v.trim(),
@@ -13,12 +12,7 @@ const slug = v.pipe(
   v.regex(/^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$/),
 );
 
-export const portalFaceSchema = v.object({
-  school: slug,
-  locale: v.optional(v.picklist(LOCALES), "en"),
-  /** Which door's page: the sign-in page unless another is named. */
-  door: v.optional(v.picklist(["sign-in", "register", "apply"]), "sign-in"),
-});
+export const portalFaceSchema = v.object({ school: slug });
 
 /** What a person types to find their school; codes are short, names longer. */
 export const findSchoolsSchema = v.object({

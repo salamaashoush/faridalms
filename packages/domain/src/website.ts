@@ -281,6 +281,35 @@ export const publishSchema = v.object({
 
 export const siteRefSchema = v.object({ id, expectedVersion: version(1) });
 
+/** What can be done to many pages at once from the page list. */
+export const PAGE_BATCH_ACTIONS = [
+  "publish",
+  "unpublish",
+  "showInMenu",
+  "hideFromMenu",
+  "remove",
+] as const;
+export type PageBatchAction = (typeof PAGE_BATCH_ACTIONS)[number];
+
+/**
+ * One action on several pages, done for all of them or for none: a page
+ * that cannot take it (a check fails, someone else changed it) leaves every
+ * page as it was and says which one stopped it.
+ */
+export const pageBatchSchema = v.object({
+  action: v.picklist(PAGE_BATCH_ACTIONS),
+  pages: v.pipe(
+    v.array(siteRefSchema),
+    v.minLength(1),
+    v.maxLength(100),
+    v.check(
+      (pages) => new Set(pages.map((page) => page.id)).size === pages.length,
+      "site.batch_duplicate",
+    ),
+  ),
+});
+export type PageBatch = v.InferOutput<typeof pageBatchSchema>;
+
 export const applyStarterSchema = v.object({
   starter: v.picklist(STARTER_IDS),
   /** Also take the starter's theme, and its frame when the site has none yet. */

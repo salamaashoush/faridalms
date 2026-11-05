@@ -1,10 +1,8 @@
 import type { PageRow } from "@faridalms/database/stores/site";
 import type { ContentDocument } from "@faridalms/domain/content";
-import type { PortalDoor } from "@faridalms/domain/site-sections";
 import type { StarterPage } from "@faridalms/domain/site-templates";
 import type {
   PageContent,
-  PageKind,
   SiteIssue,
   SiteLocale,
 } from "@faridalms/domain/website";
@@ -38,6 +36,7 @@ import {
   saveCategory,
   saveSiteSettings,
   schoolToday,
+  setPageInMenu,
   setPageState,
   siteCategories,
   sitePages,
@@ -52,12 +51,7 @@ import { clientAddress } from "@faridalms/domain/forwarded";
 import { paged, pageWindow } from "@faridalms/domain/paging";
 import { phaseOf } from "@faridalms/domain/publication";
 import {
-  isPortalDoor,
-  PORTAL_DOOR_SLUGS,
-} from "@faridalms/domain/site-sections";
-import {
   buildTemplate,
-  PORTAL_PAGES,
   STARTERS,
   starterChrome,
 } from "@faridalms/domain/site-templates";
@@ -74,6 +68,7 @@ import {
   enquirySchema,
   localizedSections,
   movePageSchema,
+  pageBatchSchema,
   pageContentSchema,
   pageFileIds,
   pageIssues,
@@ -87,7 +82,6 @@ import {
   saveCategorySchema,
   savePageSchema,
   saveSettingsSchema,
-  sectionsFitKind,
   SITE_POSTS_PAGE_SIZE,
   siteRefSchema,
   translationGaps,
@@ -402,10 +396,7 @@ export const page = readProcedure
         settings,
       ),
       parents: pages
-        .filter(
-          (other) =>
-            !below.has(other.id) && !other.isHome && other.kind === "site",
-        )
+        .filter((other) => !below.has(other.id) && !other.isHome)
         .map((other) => ({
           id: other.id,
           title: titleIn(other, settings.primaryLocale, settings.primaryLocale),
@@ -422,7 +413,7 @@ async function checkParent(
   const pages = await sitePages(context.tx, context.tenantId, context.schoolId);
   const byId = new Map(pages.map((row) => [row.id, row]));
   const parent = byId.get(parentId);
-  if (!parent || parent.isHome || parent.kind === "portal")
+  if (!parent || parent.isHome)
     throw new ORPCError("BAD_REQUEST", { message: "site.parent" });
   for (
     let at: PageRow | undefined = parent;
@@ -453,22 +444,8 @@ export const savePage = writeProcedure
     let pageId = input.id;
     let version: number;
     const row = input.id ? await pageOfSchool(context, input.id) : null;
-    const kind = row?.kind ?? "site";
-    const door = row && isPortalDoor(row.slug) ? row.slug : undefined;
-    if (
-      !sectionsFitKind(kind, input.content.sections, door) ||
-      (input.translation &&
-        !sectionsFitKind(kind, input.translation.sections, door))
-    )
-      throw new ORPCError("BAD_REQUEST", { message: "site.system_section" });
-    // The portal's page keeps its place: at its own address, out of the menu.
-    if (row?.kind === "portal") {
-      fields.parentId = null;
-      fields.slug = row.slug;
-      fields.inMenu = false;
-    }
     if (row) {
-      if ((row.isHome || row.kind === "portal") && fields.parentId)
+      if (row.isHome && fields.parentId)
         throw new ORPCError("BAD_REQUEST", { message: "site.parent" });
       if (fields.parentId !== row.parentId)
         await checkParent(context, row.id, fields.parentId);
@@ -555,124 +532,130 @@ export const savePage = writeProcedure
  */
 export const publishPage = writeProcedure
   .input(publishSchema)
-  .handler(async ({ input, context }) => {
-    const row = await pageOfSchool(context, input.id);
-    const settings = await settingsFor(context);
-    const documents = await pageDocuments(context, row.id);
-    if (!documents.originalId || documents.content.sections.length === 0)
-      throw new ORPCError("CONFLICT", { message: "site.empty" });
-    // Visitors read a copy that stands on its own, so the shared blocks the
-    // page shows go out as they read now, checked and their pictures public.
-    const content = await inlinePageShared(context, documents.content);
-    const written = documents.translation
-      ? await inlinePageShared(context, documents.translation)
-      : null;
-    const issues = issuesByLocale(content, written, settings);
-    if (issues.en.length + issues.ar.length > 0)
-      throw new ORPCError("CONFLICT", { message: "site.issues" });
-    const translation = settings.bilingual ? written : null;
-    const media = await publishMedia(
-      context,
-      { tenantId: context.tenantId, hostType: "site_page", hostId: row.id },
-      [
-        ...new Set([
-          ...pageFileIds(content),
-          ...(translation ? pageFileIds(translation) : []),
-        ]),
-      ],
-    );
+  .handler(({ input, context }) => publishOne(context, input));
+
+async function publishOne(
+  context: UnitContext,
+  input: { id: string; expectedVersion: number; publishAt?: string },
+) {
+  const row = await pageOfSchool(context, input.id);
+  const settings = await settingsFor(context);
+  const documents = await pageDocuments(context, row.id);
+  if (!documents.originalId || documents.content.sections.length === 0)
+    throw new ORPCError("CONFLICT", { message: "site.empty" });
+  // Visitors read a copy that stands on its own, so the shared blocks the
+  // page shows go out as they read now, checked and their pictures public.
+  const content = await inlinePageShared(context, documents.content);
+  const written = documents.translation
+    ? await inlinePageShared(context, documents.translation)
+    : null;
+  const issues = issuesByLocale(content, written, settings);
+  if (issues.en.length + issues.ar.length > 0)
+    throw new ORPCError("CONFLICT", { message: "site.issues" });
+  const translation = settings.bilingual ? written : null;
+  const media = await publishMedia(
+    context,
+    { tenantId: context.tenantId, hostType: "site_page", hostId: row.id },
+    [
+      ...new Set([
+        ...pageFileIds(content),
+        ...(translation ? pageFileIds(translation) : []),
+      ]),
+    ],
+  );
+  await snapshotPublish(context.tx, {
+    tenantId: context.tenantId,
+    documentId: documents.originalId,
+    userId: context.actor.userId,
+  });
+  if (translation && documents.translationId)
     await snapshotPublish(context.tx, {
       tenantId: context.tenantId,
-      documentId: documents.originalId,
+      documentId: documents.translationId,
       userId: context.actor.userId,
     });
-    if (translation && documents.translationId)
-      await snapshotPublish(context.tx, {
-        tenantId: context.tenantId,
-        documentId: documents.translationId,
-        userId: context.actor.userId,
-      });
-    const publishedAt = input.publishAt || context.now.toISOString();
-    const version = await setPageState(context.tx, {
-      tenantId: context.tenantId,
-      id: row.id,
-      expectedVersion: input.expectedVersion,
-      state: "published",
-      publishedAt,
-    });
-    if (version === null) throw conflict();
-    await withdrawPage(context.tx, {
-      tenantId: context.tenantId,
-      pageId: row.id,
-    });
-    for (const locale of localesOf(settings))
-      await writePublishedPage(context.tx, {
-        tenantId: context.tenantId,
-        orgId: context.schoolId,
-        page: row,
-        locale,
-        title: titleIn(row, locale, settings.primaryLocale),
-        content: {
-          sections: localizedSections(
-            content,
-            translation,
-            settings.primaryLocale,
-            locale,
-          ),
-          description:
-            (locale !== settings.primaryLocale && translation?.description) ||
-            content.description,
-        },
-        media,
-        visibleFrom: publishedAt,
-      });
-    if (row.kind === "portal") forgetFace(context.school.slug);
-    await audit(context, {
-      action: "site.page_publish",
-      objectType: "site_page",
-      objectId: row.id,
-      details: { publishedAt },
-    });
-    return { version };
+  const publishedAt = input.publishAt || context.now.toISOString();
+  const version = await setPageState(context.tx, {
+    tenantId: context.tenantId,
+    id: row.id,
+    expectedVersion: input.expectedVersion,
+    state: "published",
+    publishedAt,
   });
+  if (version === null) throw conflict();
+  await withdrawPage(context.tx, {
+    tenantId: context.tenantId,
+    pageId: row.id,
+  });
+  for (const locale of localesOf(settings))
+    await writePublishedPage(context.tx, {
+      tenantId: context.tenantId,
+      orgId: context.schoolId,
+      page: row,
+      locale,
+      title: titleIn(row, locale, settings.primaryLocale),
+      content: {
+        sections: localizedSections(
+          content,
+          translation,
+          settings.primaryLocale,
+          locale,
+        ),
+        description:
+          (locale !== settings.primaryLocale && translation?.description) ||
+          content.description,
+      },
+      media,
+      visibleFrom: publishedAt,
+    });
+  await audit(context, {
+    action: "site.page_publish",
+    objectType: "site_page",
+    objectId: row.id,
+    details: { publishedAt },
+  });
+  return { version };
+}
 
 export const unpublishPage = writeProcedure
   .input(siteRefSchema)
-  .handler(async ({ input, context }) => {
-    const row = await pageOfSchool(context, input.id);
-    const version = await setPageState(context.tx, {
-      tenantId: context.tenantId,
-      id: row.id,
-      expectedVersion: input.expectedVersion,
-      state: "draft",
-      publishedAt: null,
-    });
-    if (version === null) throw conflict();
-    await withdrawPage(context.tx, {
-      tenantId: context.tenantId,
-      pageId: row.id,
-    });
-    await withdrawMedia(context, {
-      tenantId: context.tenantId,
-      hostType: "site_page",
-      hostId: row.id,
-    });
-    if (row.kind === "portal") forgetFace(context.school.slug);
-    await audit(context, {
-      action: "site.page_unpublish",
-      objectType: "site_page",
-      objectId: row.id,
-    });
-    return { version };
+  .handler(({ input, context }) => unpublishOne(context, input));
+
+async function unpublishOne(
+  context: UnitContext,
+  input: { id: string; expectedVersion: number },
+) {
+  const row = await pageOfSchool(context, input.id);
+  const version = await setPageState(context.tx, {
+    tenantId: context.tenantId,
+    id: row.id,
+    expectedVersion: input.expectedVersion,
+    state: "draft",
+    publishedAt: null,
   });
+  if (version === null) throw conflict();
+  await withdrawPage(context.tx, {
+    tenantId: context.tenantId,
+    pageId: row.id,
+  });
+  await withdrawMedia(context, {
+    tenantId: context.tenantId,
+    hostType: "site_page",
+    hostId: row.id,
+  });
+  await audit(context, {
+    action: "site.page_unpublish",
+    objectType: "site_page",
+    objectId: row.id,
+  });
+  return { version };
+}
 
 export const movePage = writeProcedure
   .input(movePageSchema)
   .handler(async ({ input, context }) => {
     const row = await pageOfSchool(context, input.id);
     const parentId = input.parentId || null;
-    if (row.kind === "portal")
-      throw new ORPCError("CONFLICT", { message: "site.portal_page" });
     if (row.isHome && parentId)
       throw new ORPCError("BAD_REQUEST", { message: "site.parent" });
     await checkParent(context, row.id, parentId);
@@ -692,35 +675,99 @@ export const movePage = writeProcedure
 
 export const removeSitePage = writeProcedure
   .input(v.object({ id }))
+  .handler(({ input, context }) => removeOne(context, input.id));
+
+async function removeOne(context: UnitContext, pageId: string) {
+  const row = await pageOfSchool(context, pageId);
+  if (row.isHome) throw new ORPCError("CONFLICT", { message: "site.home" });
+  const pages = await sitePages(context.tx, context.tenantId, context.schoolId);
+  if (pages.some((other) => other.parentId === row.id))
+    throw new ORPCError("CONFLICT", { message: "site.has_children" });
+  await withdrawPage(context.tx, {
+    tenantId: context.tenantId,
+    pageId: row.id,
+  });
+  await withdrawMedia(context, {
+    tenantId: context.tenantId,
+    hostType: "site_page",
+    hostId: row.id,
+  });
+  await removePage(context.tx, { tenantId: context.tenantId, id: row.id });
+  await audit(context, {
+    action: "site.page_delete",
+    objectType: "site_page",
+    objectId: row.id,
+    details: { slug: row.slug },
+  });
+  return { removed: true };
+}
+
+async function showInMenu(
+  context: UnitContext,
+  input: { id: string; expectedVersion: number },
+  inMenu: boolean,
+) {
+  const row = await pageOfSchool(context, input.id);
+  const version = await setPageInMenu(context.tx, {
+    tenantId: context.tenantId,
+    id: row.id,
+    expectedVersion: input.expectedVersion,
+    inMenu,
+  });
+  if (version === null) throw conflict();
+  await audit(context, {
+    action: inMenu ? "site.page_menu_show" : "site.page_menu_hide",
+    objectType: "site_page",
+    objectId: row.id,
+  });
+  return version;
+}
+
+/**
+ * One action on several pages in one unit of work, so they all take it or
+ * none does. The page that stops it is named, so the list can say which.
+ * Pages are removed deepest first, so a page and the pages under it can go
+ * together.
+ */
+export const batchPages = writeProcedure
+  .input(pageBatchSchema)
   .handler(async ({ input, context }) => {
-    const row = await pageOfSchool(context, input.id);
-    if (row.isHome) throw new ORPCError("CONFLICT", { message: "site.home" });
-    if (row.kind === "portal")
-      throw new ORPCError("CONFLICT", { message: "site.portal_page" });
-    const pages = await sitePages(
+    requireCapability(context, "site:manage");
+    const tree = await sitePages(
       context.tx,
       context.tenantId,
       context.schoolId,
     );
-    if (pages.some((other) => other.parentId === row.id))
-      throw new ORPCError("CONFLICT", { message: "site.has_children" });
-    await withdrawPage(context.tx, {
-      tenantId: context.tenantId,
-      pageId: row.id,
-    });
-    await withdrawMedia(context, {
-      tenantId: context.tenantId,
-      hostType: "site_page",
-      hostId: row.id,
-    });
-    await removePage(context.tx, { tenantId: context.tenantId, id: row.id });
-    await audit(context, {
-      action: "site.page_delete",
-      objectType: "site_page",
-      objectId: row.id,
-      details: { slug: row.slug },
-    });
-    return { removed: true };
+    const parentOf = new Map(tree.map((row) => [row.id, row.parentId]));
+    const depth = (pageId: string): number => {
+      const parent = parentOf.get(pageId);
+      return parent ? depth(parent) + 1 : 0;
+    };
+    const pages =
+      input.action === "remove"
+        ? input.pages.toSorted((a, b) => depth(b.id) - depth(a.id))
+        : input.pages;
+    for (const target of pages) {
+      try {
+        if (input.action === "publish") await publishOne(context, target);
+        else if (input.action === "unpublish")
+          await unpublishOne(context, target);
+        else if (input.action === "remove") await removeOne(context, target.id);
+        else await showInMenu(context, target, input.action === "showInMenu");
+      } catch (error) {
+        if (!(error instanceof ORPCError)) throw error;
+        throw new ORPCError(error.code, {
+          message: error.message,
+          data: { pageId: target.id },
+        });
+      }
+    }
+    if (input.action === "showInMenu" || input.action === "hideFromMenu")
+      await syncPublishedPlaces(context.tx, {
+        tenantId: context.tenantId,
+        orgId: context.schoolId,
+      });
+    return { done: pages.length };
   });
 
 export const saveSiteCategory = writeProcedure
@@ -761,19 +808,18 @@ async function startPage(
   context: UnitContext,
   settings: { primaryLocale: SiteLocale; bilingual: boolean },
   plan: StarterPage,
-  place: { kind: PageKind; home: boolean },
+  home: boolean,
 ): Promise<string> {
   const inserted = await insertPage(context.tx, {
     tenantId: context.tenantId,
     orgId: context.schoolId,
     authorId: context.actor.userId,
-    kind: place.kind,
     parentId: null,
     slug: plan.slug,
     titleEn: plan.title[0],
     titleAr: plan.title[1],
-    inMenu: place.kind === "site",
-    isHome: place.home,
+    inMenu: true,
+    isHome: home,
   });
   const built = buildTemplate(plan.template, settings.primaryLocale);
   const content: PageContent = {
@@ -815,31 +861,10 @@ async function startPage(
   return inserted.id;
 }
 
-/** A door's portal page, the sign-in page unless named, made from its starter the first time it is asked for. */
-async function portalPage(
-  context: UnitContext,
-  settings: { primaryLocale: SiteLocale; bilingual: boolean },
-  door: PortalDoor = "sign-in",
-): Promise<{ id: string; created: boolean }> {
-  const pages = await sitePages(context.tx, context.tenantId, context.schoolId);
-  const existing = pages.find(
-    (row) => row.kind === "portal" && row.slug === door,
-  );
-  if (existing) return { id: existing.id, created: false };
-  return {
-    id: await startPage(context, settings, PORTAL_PAGES[door], {
-      kind: "portal",
-      home: false,
-    }),
-    created: true,
-  };
-}
-
 /**
- * Starts a site from a starter: its theme and frame, each of its pages as a
- * draft with placeholder words in both languages, and the portal's sign-in
- * page when the school has none. Pages whose address is already taken are
- * left as they are.
+ * Starts a site from a starter: its theme and frame, and each of its pages
+ * as a draft with placeholder words in both languages. Pages whose address
+ * is already taken are left as they are.
  */
 export const applyStarter = writeProcedure
   .input(applyStarterSchema)
@@ -847,23 +872,25 @@ export const applyStarter = writeProcedure
     requireCapability(context, "site:manage");
     const settings = await settingsFor(context);
     const starter = STARTERS[input.starter];
-    const pages = (
-      await sitePages(context.tx, context.tenantId, context.schoolId)
-    ).filter((row) => row.kind === "site");
+    const pages = await sitePages(
+      context.tx,
+      context.tenantId,
+      context.schoolId,
+    );
     const existing = new Set(pages.map((row) => row.slug));
     const hasHome = pages.some((row) => row.isHome);
     const created: string[] = [];
     for (const plan of starter.pages) {
       if (existing.has(plan.slug)) continue;
       created.push(
-        await startPage(context, settings, plan, {
-          kind: "site",
-          home: Boolean(plan.home) && !hasHome,
-        }),
+        await startPage(
+          context,
+          settings,
+          plan,
+          Boolean(plan.home) && !hasHome,
+        ),
       );
     }
-    const portal = await portalPage(context, settings);
-    if (portal.created) created.push(portal.id);
     if (input.withTheme) {
       const version = await saveSiteSettings(context.tx, {
         tenantId: context.tenantId,
@@ -885,34 +912,6 @@ export const applyStarter = writeProcedure
       details: { starter: input.starter, pages: created.length },
     });
     return { created };
-  });
-
-/**
- * Opens the portal's sign-in page in the builder: the school's own once it
- * has one, otherwise a draft made from the starter, which strangers see
- * until the school publishes it.
- */
-export const startPortalPage = writeProcedure
-  .input(
-    v.optional(
-      v.object({
-        door: v.optional(v.picklist(PORTAL_DOOR_SLUGS), "sign-in"),
-      }),
-      {},
-    ),
-  )
-  .handler(async ({ input, context }) => {
-    requireCapability(context, "site:manage");
-    const { door } = input;
-    const portal = await portalPage(context, await settingsFor(context), door);
-    if (portal.created)
-      await audit(context, {
-        action: "site.page_create",
-        objectType: "site_page",
-        objectId: portal.id,
-        details: { slug: PORTAL_PAGES[door].slug },
-      });
-    return { id: portal.id };
   });
 
 async function liveSettings(

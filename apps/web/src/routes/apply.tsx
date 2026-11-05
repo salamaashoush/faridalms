@@ -10,12 +10,11 @@ import {
   StartApplication,
 } from "~/components/admissions/ApplicationForm";
 import { AuthLayout } from "~/components/auth/AuthLayout";
-import { faceName, PortalPage } from "~/components/auth/SchoolFace";
+import { faceName, PortalHelp } from "~/components/auth/SchoolFace";
 import * as m from "~/i18n/messages";
 import { draftQuery, myApplicationsQuery } from "~/queries/admissions";
 import { faceQueryFor } from "~/queries/portal";
 import { currentUserQuery } from "~/queries/user";
-import siteCss from "~/styles/site.css?url";
 import { leaveBareDomain } from "~/utils/bare-domain";
 
 const id = v.pipe(v.string(), v.uuid());
@@ -31,7 +30,7 @@ export const Route = createFileRoute("/apply")({
   beforeLoad: ({ context, location }) =>
     leaveBareDomain(context.auth, location.href),
   loader: async ({ context, deps }) => {
-    const query = faceQueryFor(context.auth.school, "apply");
+    const query = faceQueryFor(context.auth.school);
     const face = query
       ? await context.queryClient.ensureQueryData(query)
       : null;
@@ -51,7 +50,6 @@ export const Route = createFileRoute("/apply")({
   },
   head: ({ loaderData }) => ({
     meta: loaderData?.face ? [{ title: faceName(loaderData.face) }] : [],
-    links: [{ rel: "stylesheet", href: siteCss }],
   }),
   component: ApplyPage,
 });
@@ -119,9 +117,8 @@ function Flow() {
 }
 
 /**
- * The portal's apply door: the apply page of the school's site, drawn in its
- * theme and frame, its system section holding the application. A family
- * that is not signed in is pointed to register or sign in first.
+ * The portal's apply page, the app's own in the school's name and colour.
+ * A family that is not signed in is pointed to register or sign in first.
  */
 function ApplyPage() {
   const { face, applies } = Route.useLoaderData();
@@ -137,15 +134,10 @@ function ApplyPage() {
   ) : (
     <NotFamily />
   );
-  if (!face) return <AuthLayout>{body}</AuthLayout>;
   return (
-    <PortalPage
-      face={face}
-      door="apply"
-      ownWords={Boolean(application)}
-      wide={Boolean(application)}
-    >
+    <AuthLayout face={face} wide={Boolean(application)}>
       {body}
-    </PortalPage>
+      <PortalHelp face={face} topic="apply" />
+    </AuthLayout>
   );
 }

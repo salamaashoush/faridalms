@@ -66,6 +66,57 @@ card and button colours, and every text pair is checked for WCAG AA (4.5:1
 body, 3:1 large text and controls); a failing pair falls back to black or
 white. A section picks a scheme; it never picks a colour.
 
+Colour is computed in OKLCH (`packages/domain/src/site-theme.ts`), never by
+mixing with white in sRGB, which washes a palette to grey:
+
+- **Dark screens** keep each school colour's hue and chroma and raise only
+  its lightness until it reads at 5.5:1; a black or grey brand becomes
+  near-white, never a mid grey. Pages are near-black tinted with the brand's
+  hue, cards are raised lighter than the section they sit on, and a brand or
+  ink band that would melt into the dark page is lifted until it stands apart.
+- **Artwork** uses one ramp (`artPalette`): deep, base, bright and light
+  tones of the main hue and the accent. The deep tone holds white words at
+  7:1, so words over artwork sit on a scrim of the art's own deep tone, not
+  black. A neutral brand gets charcoal tones, and its accent is drawn only as
+  crisp shapes, since a bright colour blurred into near-black turns olive.
+
+## Layout and rhythm
+
+`apps/web/src/styles/site.css` is the site's design system; sections use its
+primitives and do not set their own widths, gaps or type sizes.
+
+- **One edge.** The banner, header, every section and the footer share one
+  container (80rem with a fluid gutter), so their content starts on the same
+  line. `wide` and `full` widths widen that container; nothing else sets one.
+- **Reading measure.** Narrow content (a text section, a letter, the FAQ, a
+  stacked form) is 44rem and aligns as its section does: at the container's
+  start edge, or centred only when the section is centred.
+- **Primitives.** `site-stack` (eyebrow, heading, lead, actions),
+  `site-intro` above a section's content, `site-grid` with a column count,
+  `site-split` for media beside words, `site-rail` for carousels, and
+  `site-card` with `site-card-body`. A row of items takes as many columns as
+  fill whole rows, so two news posts never leave a third column empty.
+- **Type ramp.** `site-display-xl`, `site-display`, `site-h2`, `site-h3`,
+  `site-h4`, `site-lead`, `site-text`, `site-small` and `site-meta`.
+- **Actions.** One button shape in three sizes (40, 48 and 56px): filled for
+  the main action, outlined beside it, ghost in the header, and words with an
+  arrow (`TextLink`) for "All news" and "Learn more".
+- **Shape follows the theme.** Cards, tiles, inputs and dropdowns take the
+  theme radius; a square theme stays square everywhere.
+
+## Frame
+
+- **Header.** The bar holds the name, the menu and one filled action. The
+  school's utility links and its quieter actions sit in a small row above,
+  and any of them that leads to a page the menu already lists is left out,
+  so no page is offered twice side by side.
+- **Menu panel.** Pages large, each with the pages under it, and beside them
+  only what the bar cannot show at that width. On phones the dock holds the
+  actions, so the panel does not repeat them.
+- **Footer.** The school's name, contact details and social icons, then its
+  link columns; the bottom bar holds the copyright, the language, the portal
+  sign-in and the light or dark choice.
+
 Seven themes ship: Heritage, Meridian, Bright Start, Oasis, Editorial,
 Evergreen and Civic (palettes and fonts in the research, section 4.2). Fonts
 are OFL, self-hosted through Fontsource, and every theme names a Latin and an
@@ -115,15 +166,11 @@ dates, contact, enquiry form, quick links and embed.
 - **Register and apply:** the way in to applying, a link to the portal's
   apply door, preset to the intake the builder picks or open to all; a
   closed intake says so instead.
-- **Portal doors:** the portal's sign-in, registration and apply pages are
-  pages of the site of the `portal` kind, at `/sign-in`, `/register` and
-  `/apply` on the portal host, out of the menu. Each holds its door's
-  system section exactly once (Sign-in form, Registration form, Apply),
-  which the school words and lays out like any section and the platform
-  draws: the sign-in form, the family registration form with Turnstile,
-  and the application, which asks a stranger to register or sign in
-  first. Until the school publishes a door's page, the portal shows its
-  starter.
+- **The portal's pages are not website pages.** Sign-in, registration and
+  applying (`/sign-in`, `/register` and `/apply` on the portal host) are the
+  app's own pages in its own design system, branded with the school's logo,
+  name and main colour, with its office's email and phone for help. The
+  builder does not make or style them; the website links to them.
 - **No photographs yet:** where a picture belongs but none is chosen, the
   section draws artwork from the palette, seeded by the section so it never
   changes between visits. Heroes get a mesh gradient with grain; other slots
@@ -153,6 +200,15 @@ Visit, Academics, Division, Parents, News, Contact and more) and whole-site
 starters (Independent heritage, International, Early years, Arabic-first
 national, One-page launch) are domain data: sections with placeholder words
 in both languages and no stock photographs.
+
+- Sample words read like a real school's, a sentence or two per item, so a
+  starter looks composed before the school edits it.
+- Each page sets its own colour rhythm (canvas, soft and brand alternating),
+  so two bands of one colour meet only where the page means them to.
+- A starter's header actions lead to the forms themselves (`#enquire`,
+  `#book-a-visit`, `#apply`), not to pages the menu already lists, and its
+  footer groups pages under "Explore" and "Join us". The domain tests refuse
+  a starter link whose page or anchor does not exist.
 
 ## Enquiries
 

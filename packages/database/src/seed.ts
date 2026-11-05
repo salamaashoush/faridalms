@@ -11,7 +11,6 @@ import { contentOfLesson } from "@faridalms/domain/lesson-content";
 import { addDays, teachingWeeks } from "@faridalms/domain/school";
 import {
   buildTemplate,
-  PORTAL_PAGE,
   STARTERS,
   starterChrome,
 } from "@faridalms/domain/site-templates";
@@ -940,6 +939,12 @@ async function seedSchool(
     if (value === undefined) throw new Error("empty list");
     return value;
   };
+  // The office's own address and number, which the portal's help and the
+  // website's contact section both read from the school's profile.
+  await tx.execute(sql`
+    update core.orgs set email = ${`office@${context.domain}`},
+      phone = ${"+20 2 2735 0100"}
+    where tenant_id = ${tenantId}::uuid and id = ${schoolId}::uuid`);
   const { yearId, calendarId } = await seedYear(tx, tenantId, schoolId);
   const positions = await descriptorIds(tx, tenantId, "staff_position");
   const grades = await descriptorIds(tx, tenantId, "grade_level");
@@ -1274,19 +1279,7 @@ async function seedSchool(
   await seedEvents(tx, tenantId, schoolId, yearId);
   await seedNotifications(tx, tenantId, schoolId);
   await seedLearning(tx, tenantId, schoolId, yearId);
-  // One school of the group keeps the builder's starter page, so both show.
-  await seedSite(
-    tx,
-    tenantId,
-    schoolId,
-    plan.slug === "northwind-east"
-      ? null
-      : {
-          en: plan.nameEn,
-          ar: plan.nameAr,
-          office: `office@${context.domain}`,
-        },
-  );
+  await seedSite(tx, tenantId, schoolId);
   await seedEnquiries(tx, tenantId, schoolId, office.id);
   if (plan.slug === "northwind")
     await seedAdmissions(tx, tenantId, schoolId, {
@@ -2859,137 +2852,6 @@ export async function seedCell(
   return result;
 }
 
-interface SignInWelcome {
-  en: string;
-  ar: string;
-  office: string;
-}
-
-/**
- * A school's portal sign-in page, published in both languages: the starter
- * page with the school's welcome over the form and where to ask for help.
- */
-async function seedPortalPage(
-  tx: Tx,
-  tenantId: string,
-  schoolId: string,
-  userId: string,
-  school: SignInWelcome,
-) {
-  const built = buildTemplate(PORTAL_PAGE.template, "en");
-  const words = (
-    sections: typeof built.content,
-    locale: "en" | "ar",
-  ): typeof built.content =>
-    sections.map((section) => {
-      if (section.type === "signIn")
-        return {
-          ...section,
-          data: {
-            ...section.data,
-            heading:
-              locale === "ar"
-                ? `أهلًا بكم في ${school.ar}`
-                : `Welcome to ${school.en}`,
-            text:
-              locale === "ar"
-                ? "يدخل أولياء الأمور والطلاب والعاملون من هنا لمتابعة الفصول والواجبات والرسائل وتقويم المدرسة."
-                : "Families, students and staff sign in here for classes, homework, messages and the school calendar.",
-            helpText:
-              locale === "ar"
-                ? `الطلاب: اسألوا معلم الفصل. أولياء الأمور والعاملون: راسلوا مكتب المدرسة على ${school.office} من الأحد إلى الخميس، من الثامنة صباحًا حتى الثالثة عصرًا.`
-                : `Students: ask your class teacher. Families and staff: write to ${school.office}, Sunday to Thursday, 8:00 to 15:00.`,
-          },
-        };
-      return section;
-    });
-  const content = {
-    sections: words(built.content, "en"),
-    description: "",
-    reviewed: [],
-  };
-  const translation = {
-    sections: words(built.translation, "ar"),
-    description: "",
-    reviewed: built.translation.map((row) => row.id),
-  };
-  const created = await insertPage(tx, {
-    tenantId,
-    orgId: schoolId,
-    authorId: userId,
-    kind: "portal",
-    parentId: null,
-    slug: PORTAL_PAGE.slug,
-    titleEn: PORTAL_PAGE.title[0],
-    titleAr: PORTAL_PAGE.title[1],
-    inMenu: false,
-  });
-  const host = { type: "site_page", id: created.id };
-  const original = await saveDocument(tx, {
-    tenantId,
-    orgId: schoolId,
-    host,
-    kind: "page",
-    locale: "en",
-    content,
-    plainText: pagePlainText(content),
-    mediaIds: [],
-    userId,
-  });
-  const other = await saveTranslation(tx, {
-    tenantId,
-    orgId: schoolId,
-    host,
-    originalId: original.id,
-    locale: "ar",
-    kind: "page",
-    content: translation,
-    plainText: pagePlainText(translation),
-    mediaIds: [],
-    userId,
-  });
-  const publishedAt = "2026-09-01T07:00:00.000Z";
-  await setPageState(tx, {
-    tenantId,
-    id: created.id,
-    expectedVersion: created.version,
-    state: "published",
-    publishedAt,
-  });
-  await snapshotPublish(tx, { tenantId, documentId: original.id, userId });
-  await snapshotPublish(tx, { tenantId, documentId: other.id, userId });
-  const page = {
-    id: created.id,
-    version: created.version + 1,
-    orgId: schoolId,
-    kind: "portal" as const,
-    parentId: null,
-    position: 0,
-    slug: PORTAL_PAGE.slug,
-    isHome: false,
-    inMenu: false,
-    titleEn: PORTAL_PAGE.title[0],
-    titleAr: PORTAL_PAGE.title[1],
-    state: "published" as const,
-    publishedAt,
-    revisedAt: null,
-  };
-  for (const locale of ["en", "ar"] as const)
-    await writePublishedPage(tx, {
-      tenantId,
-      orgId: schoolId,
-      page,
-      locale,
-      title: locale === "ar" ? PORTAL_PAGE.title[1] : PORTAL_PAGE.title[0],
-      content: {
-        sections: localizedSections(content, translation, "en", locale),
-        description: "",
-      },
-      media: {},
-      visibleFrom: publishedAt,
-    });
-}
-
 const seedChecklist = (labels: [string, string, string][]) =>
   labels.map(([kind, en, ar], index) => ({
     key: `0192f0a4-7a1c-7b5a-9a2e-6e6f1f2a3d${String(index).padStart(2, "0")}`,
@@ -3462,12 +3324,7 @@ async function seedEnquiries(
   }
 }
 
-async function seedSite(
-  tx: Tx,
-  tenantId: string,
-  schoolId: string,
-  welcome: SignInWelcome | null,
-) {
+async function seedSite(tx: Tx, tenantId: string, schoolId: string) {
   const [principal] = await tx.execute<{ user_id: string }>(sql`
     select r.user_id from core.user_roles r
     where r.tenant_id = ${tenantId}::uuid and r.org_id = ${schoolId}::uuid
@@ -3511,8 +3368,6 @@ async function seedSite(
     nameEn: "Events",
     nameAr: "فعاليات",
   });
-
-  if (welcome) await seedPortalPage(tx, tenantId, schoolId, userId, welcome);
 
   const starter = STARTERS.international;
   const publishedAt = "2026-09-01T07:00:00.000Z";

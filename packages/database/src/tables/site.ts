@@ -42,7 +42,6 @@ import { users } from "./people";
 import { orgs, tenants } from "./tenancy";
 
 export type SiteLocale = "en" | "ar";
-export type PageKind = "site" | "portal";
 export type PostVisibility = "public" | "school";
 export type SiteState = "draft" | "published" | "archived";
 export type BannerTone = "info" | "warning" | "danger";
@@ -142,7 +141,6 @@ export const sitePages = core.table.withRLS(
   {
     ...tenantColumns(),
     orgId: uuid("org_id").notNull(),
-    kind: text("kind").$type<PageKind>().notNull().default("site"),
     parentId: uuid("parent_id"),
     position: smallint("position").notNull().default(0),
     slug: text("slug").notNull(),
@@ -181,21 +179,8 @@ export const sitePages = core.table.withRLS(
       sql`(state = 'published') = (published_at is not null)`,
     ),
     ck("site_pages", "home", sql`not is_home or parent_id is null`),
-    ck("site_pages", "kind", sql`kind in ('site', 'portal')`),
-    ck(
-      "site_pages",
-      "portal",
-      sql`kind = 'site' or (not is_home and not in_menu and parent_id is null)`,
-    ),
-    // A portal page is one of the portal's doors, at the door's own address;
-    // the slug key keeps each door to one page.
-    ck(
-      "site_pages",
-      "door",
-      sql`kind = 'site' or slug in ('sign-in', 'register', 'apply')`,
-    ),
     uniqueIndex("site_pages_slug_key")
-      .on(t.tenantId, t.orgId, t.kind, t.slug)
+      .on(t.tenantId, t.orgId, t.slug)
       .where(sql`status = 'active'`),
     uniqueIndex("site_pages_home_key")
       .on(t.tenantId, t.orgId)
@@ -256,7 +241,6 @@ export const sitePublishedPages = core.table.withRLS(
     ...tenantColumns(),
     pageId: uuid("page_id").notNull(),
     orgId: uuid("org_id").notNull(),
-    kind: text("kind").$type<PageKind>().notNull().default("site"),
     locale: text("locale").$type<SiteLocale>().notNull(),
     slug: text("slug").notNull(),
     parentId: uuid("parent_id"),
@@ -282,7 +266,6 @@ export const sitePublishedPages = core.table.withRLS(
     ),
     fk("site_published_pages", [t.tenantId, t.orgId], [orgs.tenantId, orgs.id]),
     ck("site_published_pages", "locale", sql`locale in ('en', 'ar')`),
-    ck("site_published_pages", "kind", sql`kind in ('site', 'portal')`),
     ck(
       "site_published_pages",
       "title",

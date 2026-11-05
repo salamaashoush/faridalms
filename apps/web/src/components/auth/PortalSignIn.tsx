@@ -3,27 +3,23 @@ import { getRouteApi } from "@tanstack/react-router";
 import * as m from "~/i18n/messages";
 import { bareHref } from "~/utils/host";
 
+import { faceName, PortalHeading, PortalHelp } from "./SchoolFace";
 import { SignInForm } from "./SignInForm";
 
 const auth = getRouteApi("/_auth");
 
-/**
- * Sign-in on a school's own portal, which names the school. Inside the
- * school's portal page the Sign-in section says the words over the form;
- * the platform's own page, drawn when the school's cannot be read, says
- * its own.
- */
+/** Sign-in on a school's own portal, which welcomes people in the school's name. */
 export function PortalSignIn({ redirect }: { redirect?: string }) {
   const face = auth.useLoaderData();
   return (
     <>
-      {face ? null : (
-        <div className="mb-8">
-          <h1 className="mb-2 text-[32px] leading-10 font-semibold text-foreground">
-            {m.authSignInTitle()}
-          </h1>
-          <p className="text-muted-foreground">{m.authSignInBody()}</p>
-        </div>
+      {face ? (
+        <PortalHeading
+          title={m.portalWelcome({ school: faceName(face) })}
+          lead={m.portalSignInLead()}
+        />
+      ) : (
+        <PortalHeading title={m.authSignInTitle()} lead={m.authSignInBody()} />
       )}
       <SignInForm redirect={redirect} />
       <p className="mt-8 text-center text-sm text-muted-foreground">
@@ -34,6 +30,7 @@ export function PortalSignIn({ redirect }: { redirect?: string }) {
           {m.authAnotherAccount()}
         </a>
       </p>
+      <PortalHelp face={face} topic="sign-in" />
     </>
   );
 }

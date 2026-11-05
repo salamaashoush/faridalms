@@ -745,15 +745,12 @@ export const resolveHost = publicProcedure
 
 /**
  * How a school's portal looks to someone not yet signed in: its names,
- * logo, website theme and the sign-in page it published. Only what the
- * school already shows strangers, kept briefly, so drawing a sign-in page
- * does not reach the cell each time.
+ * logo, colour and the way back to its website. Only what the school
+ * already shows strangers.
  */
 export const portalFace = publicProcedure
   .input(portalFaceSchema)
-  .handler(({ input, context }) =>
-    readFace(context, input.school, input.locale, input.door),
-  );
+  .handler(({ input, context }) => readFace(context, input.school));
 
 const FINDER_WINDOW_MS = 60_000;
 const FINDER_PER_NETWORK = 30;

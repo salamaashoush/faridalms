@@ -39,9 +39,7 @@ export const Route = createFileRoute("/site/$school")({
     } catch (error) {
       if (!isNotFound(error)) throw error;
       // A school whose website is not open still has its portal's face.
-      await context.queryClient.ensureQueryData(
-        portalFaceQuery(params.school, faceLocale(deps.lang)),
-      );
+      await context.queryClient.ensureQueryData(portalFaceQuery(params.school));
       throw error;
     }
   },
@@ -83,9 +81,7 @@ function SiteMissing() {
   const { school } = Route.useParams();
   const { lang } = Route.useSearch();
   const site = useKnownSite();
-  const face = useQueryClient().getQueryData(
-    portalFaceQuery(school, faceLocale(lang)).queryKey,
-  );
+  const face = useQueryClient().getQueryData(portalFaceQuery(school).queryKey);
   if (site) return <KnownSite site={site} school={school} kind="missing" />;
   return face ? (
     <SiteNotOpen face={face} locale={faceLocale(lang)} />

@@ -2,7 +2,6 @@ import type { SiteLocale } from "@faridalms/domain/site-sections";
 import type { Theme } from "@faridalms/domain/site-theme";
 import type { CSSProperties, ReactNode } from "react";
 
-import { isSystemSection } from "@faridalms/domain/site-sections";
 import { Button } from "@faridalms/ui/button";
 import { cn } from "@faridalms/ui/cn";
 import { ArrowDown, ArrowUp, Copy, EyeOff, Plus, Trash2 } from "lucide-react";
@@ -111,8 +110,6 @@ function SectionChrome({
 }) {
   const label = SECTION_LABEL[item.section.type]();
   const t = { locale };
-  // A system section is the page's own: it moves, but is never copied or removed.
-  const fixed = isSystemSection(item.section.type);
   return (
     <div
       data-section={item.section.id}
@@ -184,30 +181,26 @@ function SectionChrome({
           >
             <ArrowDown aria-hidden />
           </Button>
-          {fixed ? null : (
-            <>
-              <Button
-                type="button"
-                size="icon-sm"
-                variant="ghost"
-                className="text-white hover:bg-white/15 hover:text-white"
-                aria-label={m.siteDuplicateSection()}
-                onClick={onDuplicate}
-              >
-                <Copy aria-hidden />
-              </Button>
-              <Button
-                type="button"
-                size="icon-sm"
-                variant="ghost"
-                className="text-white hover:bg-white/15 hover:text-white"
-                aria-label={m.siteRemoveSection()}
-                onClick={onRemove}
-              >
-                <Trash2 aria-hidden />
-              </Button>
-            </>
-          )}
+          <Button
+            type="button"
+            size="icon-sm"
+            variant="ghost"
+            className="text-white hover:bg-white/15 hover:text-white"
+            aria-label={m.siteDuplicateSection()}
+            onClick={onDuplicate}
+          >
+            <Copy aria-hidden />
+          </Button>
+          <Button
+            type="button"
+            size="icon-sm"
+            variant="ghost"
+            className="text-white hover:bg-white/15 hover:text-white"
+            aria-label={m.siteRemoveSection()}
+            onClick={onRemove}
+          >
+            <Trash2 aria-hidden />
+          </Button>
         </div>
       ) : null}
       {item.hidden ? (

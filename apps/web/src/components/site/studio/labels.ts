@@ -60,9 +60,6 @@ export const SECTION_LABEL: Record<SectionType, () => string> = {
   form: m.siteTypeForm,
   quickLinks: m.siteTypeQuickLinks,
   embed: m.siteTypeEmbed,
-  signIn: m.siteTypeSignIn,
-  register: m.siteTypeRegister,
-  apply: m.siteTypeApply,
   registerApply: m.siteTypeRegisterApply,
 };
 
@@ -96,9 +93,6 @@ export const SECTION_HINT: Record<SectionType, () => string> = {
   form: m.siteTypeHintForm,
   quickLinks: m.siteTypeHintQuickLinks,
   embed: m.siteTypeHintEmbed,
-  signIn: m.siteTypeHintSignIn,
-  register: m.siteTypeHintRegister,
-  apply: m.siteTypeHintApply,
   registerApply: m.siteTypeHintRegisterApply,
 };
 
@@ -138,6 +132,7 @@ export const VARIANT_LABEL: {
   text: {
     narrow: m.siteVariantTextNarrow,
     columns: m.siteVariantTextColumns,
+    statement: m.siteVariantTextStatement,
   },
   imageText: {
     mediaStart: m.siteVariantImageTextMediaStart,
@@ -153,6 +148,7 @@ export const VARIANT_LABEL: {
   divisions: {
     tall: m.siteVariantDivisionsTall,
     rows: m.siteVariantDivisionsRows,
+    rail: m.siteVariantDivisionsRail,
   },
   stats: {
     row: m.siteVariantStatsRow,
@@ -163,6 +159,7 @@ export const VARIANT_LABEL: {
     icons: m.siteVariantPillarsIcons,
     numbered: m.siteVariantPillarsNumbered,
     alternating: m.siteVariantPillarsAlternating,
+    ticker: m.siteVariantPillarsTicker,
   },
   quote: {
     large: m.siteVariantQuoteLarge,
@@ -245,20 +242,6 @@ export const VARIANT_LABEL: {
   embed: {
     inset: m.siteVariantEmbedInset,
   },
-  signIn: {
-    panel: m.siteVariantDoorPanel,
-    split: m.siteVariantSignInSplit,
-    stacked: m.siteVariantSignInStacked,
-  },
-  register: {
-    panel: m.siteVariantDoorPanel,
-    split: m.siteVariantDoorSplit,
-    stacked: m.siteVariantDoorStacked,
-  },
-  apply: {
-    stacked: m.siteVariantDoorStacked,
-    split: m.siteVariantDoorSplit,
-  },
 };
 
 export const CATEGORY_LABEL: Record<SectionCategory, () => string> = {
@@ -267,7 +250,6 @@ export const CATEGORY_LABEL: Record<SectionCategory, () => string> = {
   people: m.siteGroupPeople,
   dynamic: m.siteGroupDynamic,
   conversion: m.siteGroupConversion,
-  system: m.siteGroupSystem,
 };
 
 /** The label of each field, by its name in the section declaration. */
@@ -435,6 +417,8 @@ export const TEMPLATE_LABEL: Record<SiteTemplate, () => string> = {
   homeStory: m.siteTemplateHomeStory,
   homeAdmissions: m.siteTemplateHomeAdmissions,
   homeCommunity: m.siteTemplateHomeCommunity,
+  homeStatement: m.siteTemplateHomeStatement,
+  homeWelcome: m.siteTemplateHomeWelcome,
   about: m.siteTemplateAbout,
   admissions: m.siteTemplateAdmissions,
   visit: m.siteTemplateVisit,
@@ -449,6 +433,8 @@ export const TEMPLATE_HINT: Record<SiteTemplate, () => string> = {
   homeStory: m.siteTemplateHintHomeStory,
   homeAdmissions: m.siteTemplateHintHomeAdmissions,
   homeCommunity: m.siteTemplateHintHomeCommunity,
+  homeStatement: m.siteTemplateHintHomeStatement,
+  homeWelcome: m.siteTemplateHintHomeWelcome,
   about: m.siteTemplateHintAbout,
   admissions: m.siteTemplateHintAdmissions,
   visit: m.siteTemplateHintVisit,

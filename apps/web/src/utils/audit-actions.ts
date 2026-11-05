@@ -249,6 +249,8 @@ export const AUDIT_ACTION_LABEL: Record<string, () => string> = {
   "site.page_delete": m.auditSitePageDelete,
   "site.page_publish": m.auditSitePagePublish,
   "site.page_unpublish": m.auditSitePageUnpublish,
+  "site.page_menu_show": m.auditSitePageMenuShow,
+  "site.page_menu_hide": m.auditSitePageMenuHide,
   "site.page_update": m.auditSitePageUpdate,
   "site.settings": m.auditSiteSettings,
   "site.starter": m.auditSiteStarter,

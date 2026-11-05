@@ -7,7 +7,6 @@ import type {
   BannerTone,
   EnquiryAnswer,
   EnquiryPurpose,
-  PageKind,
   SiteLocale,
   SiteState,
   SocialLink,
@@ -133,7 +132,6 @@ export interface PageRow {
   id: string;
   version: number;
   orgId: string;
-  kind: PageKind;
   parentId: string | null;
   position: number;
   slug: string;
@@ -150,7 +148,6 @@ type PageRecord = {
   id: string;
   version: number;
   org_id: string;
-  kind: PageKind;
   parent_id: string | null;
   position: number;
   slug: string;
@@ -163,7 +160,7 @@ type PageRecord = {
   revised_at: string | null;
 };
 
-const pageColumns = sql`id, version, org_id, kind, parent_id, position, slug, is_home, in_menu,
+const pageColumns = sql`id, version, org_id, parent_id, position, slug, is_home, in_menu,
   title_en, title_ar, state, ${isoOf(sql`published_at`)} as published_at,
   ${isoOf(sql`revised_at`)} as revised_at`;
 
@@ -172,7 +169,6 @@ function pageOf(row: PageRecord): PageRow {
     id: row.id,
     version: row.version,
     orgId: row.org_id,
-    kind: row.kind,
     parentId: row.parent_id,
     position: row.position,
     slug: row.slug,
@@ -225,13 +221,12 @@ export async function insertPage(
     orgId: string;
     authorId: string;
     isHome?: boolean;
-    kind?: PageKind;
   },
 ): Promise<{ id: string; version: number }> {
   const [row] = await tx.execute<{ id: string; version: number }>(sql`
-    insert into core.site_pages (tenant_id, org_id, kind, parent_id, position, slug, is_home,
+    insert into core.site_pages (tenant_id, org_id, parent_id, position, slug, is_home,
       in_menu, title_en, title_ar, author_user_id)
-    values (${input.tenantId}::uuid, ${input.orgId}::uuid, ${input.kind ?? "site"},
+    values (${input.tenantId}::uuid, ${input.orgId}::uuid,
       ${input.parentId}::uuid,
       (select coalesce(max(position) + 1, 0) from core.site_pages
         where tenant_id = ${input.tenantId}::uuid and org_id = ${input.orgId}::uuid
@@ -257,6 +252,27 @@ export async function updatePage(
     set slug = ${input.slug}, title_en = ${input.titleEn}, title_ar = ${input.titleAr},
         in_menu = ${input.inMenu},
         revised_at = case when state = 'published' then statement_timestamp() else revised_at end
+    where tenant_id = ${input.tenantId}::uuid and id = ${input.id}::uuid
+      and version = ${input.expectedVersion} and status = 'active'
+    returning version`);
+  return row?.version ?? null;
+}
+
+/**
+ * Shows a page in the menu or leaves it out. The menu is not part of what
+ * a page publishes, so a published page is not marked as changed.
+ */
+export async function setPageInMenu(
+  tx: Tx,
+  input: {
+    tenantId: string;
+    id: string;
+    expectedVersion: number;
+    inMenu: boolean;
+  },
+): Promise<number | null> {
+  const [row] = await tx.execute<{ version: number }>(sql`
+    update core.site_pages set in_menu = ${input.inMenu}
     where tenant_id = ${input.tenantId}::uuid and id = ${input.id}::uuid
       and version = ${input.expectedVersion} and status = 'active'
     returning version`);
@@ -346,9 +362,9 @@ export async function writePublishedPage(
     returning id`);
   if (updated) return;
   await tx.execute(sql`
-    insert into core.site_published_pages (tenant_id, page_id, org_id, kind, locale, slug,
+    insert into core.site_published_pages (tenant_id, page_id, org_id, locale, slug,
       parent_id, position, is_home, in_menu, title, content, media, visible_from)
-    values (${input.tenantId}::uuid, ${page.id}::uuid, ${input.orgId}::uuid, ${page.kind},
+    values (${input.tenantId}::uuid, ${page.id}::uuid, ${input.orgId}::uuid,
       ${input.locale},
       ${page.slug}, ${page.parentId}::uuid, ${page.position}, ${page.isHome}, ${page.inMenu},
       ${input.title}, ${input.content}::jsonb, ${input.media}::jsonb,
@@ -697,7 +713,6 @@ export async function publicMenu(
   }>(sql`
     select page_id, parent_id, slug, is_home, title from core.site_published_pages
     where org_id = ${input.orgId}::uuid and locale = ${input.locale} and in_menu
-      and kind = 'site'
     order by is_home desc, position, page_id`);
   return rows.map((row) => ({
     pageId: row.page_id,
@@ -723,7 +738,6 @@ export async function publicPage(
   }>(sql`
     select page_id, slug, is_home, title, content, media from core.site_published_pages
     where org_id = ${input.orgId}::uuid and locale = ${input.locale} and ${which}
-      and kind = 'site'
     limit 1`);
   return row
     ? {
@@ -735,36 +749,6 @@ export async function publicPage(
         media: row.media,
       }
     : null;
-}
-
-/**
- * A door of the portal, its sign-in page by default, as strangers read it in
- * each language it was published in. The site role reads it, as it reads
- * the website's pages.
- */
-export async function publicPortalPages(
-  tx: Tx,
-  orgId: string,
-  door = "sign-in",
-): Promise<(PublicPage & { locale: SiteLocale })[]> {
-  const rows = await tx.execute<{
-    page_id: string;
-    locale: SiteLocale;
-    title: string;
-    content: Record<string, unknown>;
-    media: Record<string, string>;
-  }>(sql`
-    select page_id, locale, title, content, media from core.site_published_pages
-    where org_id = ${orgId}::uuid and kind = 'portal' and slug = ${door}`);
-  return rows.map((row) => ({
-    pageId: row.page_id,
-    slug: door,
-    isHome: false,
-    locale: row.locale,
-    title: row.title,
-    content: row.content,
-    media: row.media,
-  }));
 }
 
 export interface PublicPost {

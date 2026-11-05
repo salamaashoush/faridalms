@@ -282,7 +282,7 @@ export const THEMES: Record<ThemeId, Theme> = {
     palette: {
       canvas: "#FFF9EF",
       surface: "#FFEFD2",
-      primary: "#1E6FD9",
+      primary: "#1A64C6",
       accent: "#FFC845",
       ink: "#1F2937",
     },
@@ -517,17 +517,118 @@ export function contrast(a: string, b: string): number {
   return (light + 0.05) / (dark + 0.05);
 }
 
-/** A colour a fraction of the way from one to another. */
-export function mix(from: string, to: string, amount: number): string {
-  const a = channels(from);
-  const b = channels(to);
-  return `#${a
-    .map((channel, index) =>
-      Math.round(channel + ((b[index] ?? 0) - channel) * amount),
-    )
-    .map((channel) => channel.toString(16).padStart(2, "0"))
-    .join("")}`;
+/** A colour in OKLCH: lightness 0 to 1, chroma from 0, hue in degrees. */
+export interface Oklch {
+  l: number;
+  c: number;
+  h: number;
 }
+
+const toLinear = (channel: number) => {
+  const c = channel / 255;
+  return c <= 0.040_45 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4;
+};
+const fromLinear = (c: number) =>
+  c <= 0.003_130_8 ? 12.92 * c : 1.055 * c ** (1 / 2.4) - 0.055;
+
+function toOklab(colour: string): [number, number, number] {
+  const [r, g, b] = channels(colour).map(toLinear) as [number, number, number];
+  const l = Math.cbrt(
+    0.412_221_470_8 * r + 0.536_332_536_3 * g + 0.051_445_992_9 * b,
+  );
+  const m = Math.cbrt(
+    0.211_903_498_2 * r + 0.680_699_545_1 * g + 0.107_396_956_6 * b,
+  );
+  const s = Math.cbrt(
+    0.088_302_461_9 * r + 0.281_718_837_6 * g + 0.629_978_700_5 * b,
+  );
+  return [
+    0.210_454_255_3 * l + 0.793_617_785 * m - 0.004_072_046_8 * s,
+    1.977_998_495_1 * l - 2.428_592_205 * m + 0.450_593_709_9 * s,
+    0.025_904_037_1 * l + 0.782_771_766_2 * m - 0.808_675_766 * s,
+  ];
+}
+
+/** Linear sRGB of an OKLab colour, which may fall outside the gamut. */
+function labToLinear(
+  L: number,
+  a: number,
+  b: number,
+): [number, number, number] {
+  const l = (L + 0.396_337_777_4 * a + 0.215_803_757_3 * b) ** 3;
+  const m = (L - 0.105_561_345_8 * a - 0.063_854_172_8 * b) ** 3;
+  const s = (L - 0.089_484_177_5 * a - 1.291_485_548 * b) ** 3;
+  return [
+    4.076_741_662_1 * l - 3.307_711_591_3 * m + 0.230_969_929_2 * s,
+    -1.268_438_004_6 * l + 2.609_757_401_1 * m - 0.341_319_396_5 * s,
+    -0.004_196_086_3 * l - 0.703_418_614_7 * m + 1.707_614_701 * s,
+  ];
+}
+
+export function toOklch(colour: string): Oklch {
+  const [l, a, b] = toOklab(colour);
+  const c = Math.hypot(a, b);
+  const h = (Math.atan2(b, a) * 180) / Math.PI;
+  return { l, c, h: h < 0 ? h + 360 : h };
+}
+
+const inGamut = (rgb: number[]) =>
+  rgb.every((channel) => channel >= -0.000_1 && channel <= 1.000_1);
+
+const hexOf = (rgb: number[]) =>
+  `#${rgb
+    .map((channel) =>
+      Math.round(Math.min(1, Math.max(0, fromLinear(channel))) * 255)
+        .toString(16)
+        .padStart(2, "0"),
+    )
+    .join("")}`;
+
+/**
+ * The colour an OKLCH value names, keeping its lightness and hue and giving
+ * up only as much chroma as the screen cannot show.
+ */
+export function fromOklch({ l, c, h }: Oklch): string {
+  const lightness = Math.min(1, Math.max(0, l));
+  const angle = (h * Math.PI) / 180;
+  const at = (chroma: number) =>
+    labToLinear(lightness, chroma * Math.cos(angle), chroma * Math.sin(angle));
+  if (inGamut(at(c))) return hexOf(at(c));
+  let low = 0;
+  let high = c;
+  for (let step = 0; step < 20; step++) {
+    const mid = (low + high) / 2;
+    if (inGamut(at(mid))) low = mid;
+    else high = mid;
+  }
+  return hexOf(at(low));
+}
+
+/** The same colour at another lightness, its hue kept and its chroma scaled. */
+export function tone(colour: string, lightness: number, chroma = 1): string {
+  const { c, h } = toOklch(colour);
+  return fromOklch({ l: lightness, c: c * chroma, h });
+}
+
+/** A colour a fraction of the way from one to another, mixed in OKLab so it never passes through grey. */
+export function mix(from: string, to: string, amount: number): string {
+  const a = toOklab(from);
+  const b = toOklab(to);
+  const [L, A, B] = a.map(
+    (channel, index) => channel + ((b[index] ?? 0) - channel) * amount,
+  ) as [number, number, number];
+  const rgb = labToLinear(L, A, B);
+  return inGamut(rgb)
+    ? hexOf(rgb)
+    : fromOklch({
+        l: L,
+        c: Math.hypot(A, B),
+        h: ((Math.atan2(B, A) * 180) / Math.PI + 360) % 360,
+      });
+}
+
+/** Chroma below which a colour reads as grey rather than as a hue. */
+const NEUTRAL = 0.035;
 
 /** The first colour that reads on the background at the ratio asked, else black or white. */
 function readable(
@@ -557,30 +658,85 @@ export interface Scheme {
 }
 
 /**
+ * A school colour lifted to read on a dark page: its hue and chroma kept and
+ * its lightness raised until it clears 4.5:1 with room to spare. A colour
+ * with no hue to keep (a black brand) becomes near-white, never a mid grey.
+ */
+function lifted(colour: string, background: string): string {
+  const { l, c: own, h } = toOklch(colour);
+  if (own < NEUTRAL) return fromOklch({ l: 0.94, c: own, h });
+  // The same chroma looks weaker at a higher lightness.
+  const c = Math.min(own * 1.3, 0.2);
+  for (
+    let lightness = Math.max(l, 0.62);
+    lightness <= 0.92;
+    lightness += 0.02
+  ) {
+    const candidate = fromOklch({ l: lightness, c, h });
+    if (contrast(candidate, background) >= 5.5) return candidate;
+  }
+  return fromOklch({ l: 0.92, c, h });
+}
+
+/**
+ * The palette a page takes when the person reading it chose a dark screen:
+ * near-black surfaces tinted with the school's hue, light ink, and the
+ * school's colours lifted in lightness alone so they stay recognisably its
+ * own.
+ */
+export function darkPalette(palette: Palette): Palette {
+  const { c, h } = toOklch(palette.primary);
+  const tint = Math.min(c * 0.35, 0.022);
+  const canvas = fromOklch({ l: 0.17, c: tint, h });
+  return {
+    canvas,
+    surface: fromOklch({ l: 0.215, c: tint, h }),
+    primary: lifted(palette.primary, canvas),
+    accent: lifted(palette.accent, canvas),
+    ink: fromOklch({ l: 0.95, c: Math.min(tint, 0.008), h }),
+  };
+}
+
+/** The colours artwork is drawn in where no photograph has been chosen. */
+export interface ArtPalette {
+  /** The darkest tone, which words in white sit on. */
+  deep: string;
+  base: string;
+  bright: string;
+  light: string;
+  accent: string;
+}
+
+/**
+ * Artwork colours in one family: tones of the school's main hue, from deep
+ * enough for white words to pale, and its accent. A school whose main colour
+ * is black or grey gets charcoal tones; its accent is then drawn as crisp
+ * shapes only, since a bright colour blurred into near-black turns olive.
+ */
+export function artPalette(palette: Palette): ArtPalette {
+  const primary = toOklch(palette.primary);
+  const accent = toOklch(palette.accent);
+  const neutral = primary.c < NEUTRAL;
+  const { h } = primary;
+  const c = neutral ? Math.min(primary.c, 0.012) : Math.max(primary.c, 0.08);
+  return {
+    deep: fromOklch({ l: neutral ? 0.19 : 0.26, c: c * 0.8, h }),
+    base: fromOklch({ l: neutral ? 0.3 : 0.4, c, h }),
+    bright: fromOklch({ l: neutral ? 0.5 : 0.58, c: c * 1.1, h }),
+    light: fromOklch({ l: 0.92, c: c * 0.3, h }),
+    accent: fromOklch({
+      l: Math.min(Math.max(accent.l, 0.62), 0.84),
+      c: accent.c,
+      h: accent.h,
+    }),
+  };
+}
+
+/**
  * The five colour schemes a section chooses from, generated from the palette
  * so every text colour meets WCAG AA on its background (4.5:1 for text, 3:1
  * for buttons against the section).
  */
-/**
- * The palette a page takes when the person reading it chose a dark screen:
- * near-black surfaces tinted with the school's colour, light ink, and the
- * school's colours lifted until they read on the dark.
- */
-export function darkPalette(palette: Palette): Palette {
-  const canvas = mix(palette.primary, "#0A0D0C", 0.9);
-  const lift = (colour: string) =>
-    [0, 0.2, 0.35, 0.5]
-      .map((amount) => mix(colour, "#FFFFFF", amount))
-      .find((candidate) => contrast(candidate, canvas) >= 4.5) ?? "#FFFFFF";
-  return {
-    canvas,
-    surface: mix(palette.primary, "#141917", 0.82),
-    primary: lift(palette.primary),
-    accent: lift(palette.accent),
-    ink: "#EEF2F0",
-  };
-}
-
 export function schemesOf(palette: Palette): Record<SchemeId, Scheme> {
   const build = (
     background: string,
@@ -600,8 +756,12 @@ export function schemesOf(palette: Palette): Record<SchemeId, Scheme> {
         mix(body, background, 0.2),
       ]),
       link: readable(background, [palette.primary, palette.accent, body]),
-      border: mix(body, background, 0.82),
-      card,
+      border: mix(body, background, 0.84),
+      // On a dark background a card is raised by being lighter, never sunk.
+      card:
+        luminance(background) < 0.18 && luminance(card) <= luminance(background)
+          ? mix(background, "#FFFFFF", 0.06)
+          : card,
       button,
       buttonText: readable(button, ["#FFFFFF", palette.canvas, palette.ink]),
     };

@@ -26,7 +26,6 @@ export function PagePanel({
   draft,
   languages,
   isHome,
-  portal = false,
   parents,
   errors,
   onHistory,
@@ -36,8 +35,6 @@ export function PagePanel({
   draft: PageDraft;
   languages: Languages;
   isHome: boolean;
-  /** A door of the portal keeps its own address, out of the website's menu. */
-  portal?: string | false;
   parents: { id: string; title: string }[];
   errors: { title: string | null; slug: string | null };
   /** Opens the page's earlier versions, once it is stored. */
@@ -83,88 +80,70 @@ export function PagePanel({
             </StudioField>
           );
         })}
-        {portal ? (
-          <p className="text-sm text-muted-foreground">
-            {portal === "register"
-              ? m.sitePortalRegisterAddress()
-              : portal === "apply"
-                ? m.sitePortalApplyAddress()
-                : m.sitePortalPageAddress()}
-          </p>
-        ) : (
-          <>
-            <StudioField
-              id="page-slug"
-              label={m.siteSlug()}
-              hint={
-                errors.slug ? (
-                  <span className="text-destructive">{errors.slug}</span>
-                ) : isHome ? (
-                  m.siteHomeAddress()
-                ) : (
-                  m.sitePageSlugHint({ slug: draft.slug || "…" })
-                )
+        <StudioField
+          id="page-slug"
+          label={m.siteSlug()}
+          hint={
+            errors.slug ? (
+              <span className="text-destructive">{errors.slug}</span>
+            ) : isHome ? (
+              m.siteHomeAddress()
+            ) : (
+              m.sitePageSlugHint({ slug: draft.slug || "…" })
+            )
+          }
+        >
+          <Input
+            id="page-slug"
+            dir="ltr"
+            value={draft.slug}
+            maxLength={80}
+            autoComplete="off"
+            aria-invalid={errors.slug ? true : undefined}
+            className="max-md:h-10"
+            onChange={(event) => {
+              onSlugTouched();
+              onChange({ slug: event.target.value.toLowerCase() }, "page:slug");
+            }}
+          />
+        </StudioField>
+        {isHome ? null : (
+          <StudioField
+            id="page-parent"
+            label={m.siteParent()}
+            hint={m.siteParentHint()}
+          >
+            <Select
+              value={draft.parentId || "none"}
+              onValueChange={(value) =>
+                onChange({
+                  parentId: value && value !== "none" ? value : "",
+                })
               }
             >
-              <Input
-                id="page-slug"
-                dir="ltr"
-                value={draft.slug}
-                maxLength={80}
-                autoComplete="off"
-                aria-invalid={errors.slug ? true : undefined}
-                className="max-md:h-10"
-                onChange={(event) => {
-                  onSlugTouched();
-                  onChange(
-                    { slug: event.target.value.toLowerCase() },
-                    "page:slug",
-                  );
-                }}
-              />
-            </StudioField>
-            {isHome ? null : (
-              <StudioField
-                id="page-parent"
-                label={m.siteParent()}
-                hint={m.siteParentHint()}
-              >
-                <Select
-                  value={draft.parentId || "none"}
-                  onValueChange={(value) =>
-                    onChange({
-                      parentId: value && value !== "none" ? value : "",
-                    })
-                  }
-                >
-                  <SelectTrigger
-                    id="page-parent"
-                    className="w-full max-md:h-10"
-                  >
-                    <SelectValue>
-                      {parents.find((page) => page.id === draft.parentId)
-                        ?.title ?? m.siteNoParent()}
-                    </SelectValue>
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="none">{m.siteNoParent()}</SelectItem>
-                    {parents.map((page) => (
-                      <SelectItem key={page.id} value={page.id}>
-                        {page.title}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </StudioField>
-            )}
-            <CheckboxRow
-              label={m.siteShowInMenu()}
-              hint={m.siteShowInMenuHint()}
-              checked={draft.inMenu}
-              onChange={(inMenu) => onChange({ inMenu })}
-            />
-          </>
+              <SelectTrigger id="page-parent" className="w-full max-md:h-10">
+                <SelectValue>
+                  {parents.find((page) => page.id === draft.parentId)?.title ??
+                    m.siteNoParent()}
+                </SelectValue>
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="none">{m.siteNoParent()}</SelectItem>
+                {parents.map((page) => (
+                  <SelectItem key={page.id} value={page.id}>
+                    {page.title}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </StudioField>
         )}
+        <CheckboxRow
+          label={m.siteShowInMenu()}
+          hint={m.siteShowInMenuHint()}
+          checked={draft.inMenu}
+          onChange={(inMenu) => onChange({ inMenu })}
+        />
       </PanelGroup>
       <PanelGroup
         title={m.siteSearchDescription()}

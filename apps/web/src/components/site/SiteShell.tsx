@@ -18,6 +18,7 @@ import type {
 } from "./render/parts";
 
 import { SiteFrame } from "./render/frame";
+import { withNews } from "./render/frame-model";
 import { publicMediaUrl } from "./render/parts";
 
 export type PublicSite = Awaited<
@@ -88,26 +89,16 @@ function frameOf(
     banner: site.banner,
     utility: site.utility,
     actions: site.actions,
-    menu: [
-      ...site.menu.map((entry) => ({
+    menu: withNews(
+      site.menu.map((entry) => ({
         id: entry.pageId,
         parentId: entry.parentId,
         label: entry.title,
         href: entry.isHome ? "/" : `/pages/${entry.slug}`,
       })),
-      ...([...site.utility, ...site.actions].some(
-        (link) => link.href === "/news",
-      )
-        ? []
-        : [
-            {
-              id: "news",
-              parentId: null,
-              label: m.siteNews({}, { locale: site.locale }),
-              href: "/news",
-            },
-          ]),
-    ],
+      [...site.utility, ...site.actions],
+      m.siteNews({}, { locale: site.locale }),
+    ),
     footerColumns: site.footerColumns,
     footerNote: site.footerNote,
     dock: site.dock,

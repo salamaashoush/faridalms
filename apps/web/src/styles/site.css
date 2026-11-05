@@ -33,14 +33,33 @@
    corner) still wins over these defaults, as it does in the app. */
 @layer components {
   /* The public site's own vocabulary. Colours come from the section's scheme
-     variables and faces from the theme's; nothing here is a fixed colour. */
+     variables and faces from the theme's; nothing here is a fixed colour,
+     and every measure a section uses is one of the tokens below, so the
+     header, every section and the footer share one set of edges. */
   .site-root {
     --s-ease: cubic-bezier(0.25, 1, 0.5, 1);
+    --s-container: 80rem;
+    --s-container-wide: 96rem;
+    --s-gutter: clamp(1.25rem, 0.5rem + 3.333cqi, 3rem);
+    --s-measure: 44rem;
+    --s-intro-gap: clamp(2.25rem, 1.75rem + 2.222cqi, 3.75rem);
+    --s-stack: 1.25rem;
+    --s-grid-gap: clamp(1rem, 0.5rem + 1.778cqi, 2rem);
+    --s-split-gap: clamp(2.5rem, 1rem + 5.333cqi, 6rem);
+    --s-card-pad: clamp(1.5rem, 1.25rem + 1.111cqi, 2.25rem);
+    --s-radius-sm: min(var(--s-radius), 0.75rem);
+    --s-shadow:
+      0 1px 2px rgb(16 24 40 / 0.05), 0 10px 28px -10px rgb(16 24 40 / 0.16);
+    --s-shadow-lift:
+      0 2px 4px rgb(16 24 40 / 0.06), 0 22px 40px -14px rgb(16 24 40 / 0.24);
     container: site / inline-size;
     background: var(--s-canvas);
     color: var(--s-ink);
     font-family: var(--s-font-body);
+    font-size: 1.0625rem;
     line-height: var(--s-line);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
   }
   /* A school's website and portal follow the reader's light or dark choice,
      decided and switched as the app's are, in colours drawn from the
@@ -60,6 +79,11 @@
     --s-btn: var(--s-btn-dark) !important;
     --s-btn-fg: var(--s-btn-fg-dark) !important;
   }
+  .dark .site-root {
+    --s-shadow: 0 1px 2px rgb(0 0 0 / 0.3), 0 12px 32px -12px rgb(0 0 0 / 0.6);
+    --s-shadow-lift:
+      0 2px 4px rgb(0 0 0 / 0.3), 0 24px 44px -14px rgb(0 0 0 / 0.7);
+  }
   .site-section {
     background: var(--s-bg);
     color: var(--s-fg);
@@ -69,51 +93,258 @@
     --card: var(--s-card);
     --card-foreground: var(--s-fg);
     --border: var(--s-border);
+    --input: var(--s-border);
     --muted-foreground: var(--s-muted);
-    --primary: var(--s-link);
+    --primary: var(--s-btn);
+    --primary-foreground: var(--s-btn-fg);
+    --ring: var(--s-link);
   }
+
+  /* Layout. One container for every band of the page, a narrower measure
+     for reading, and grids whose gaps come from the same scale. */
+  .site-container {
+    inline-size: 100%;
+    max-inline-size: calc(var(--s-container) + 2 * var(--s-gutter));
+    margin-inline: auto;
+    padding-inline: var(--s-gutter);
+  }
+  .site-container[data-width="wide"] {
+    max-inline-size: calc(var(--s-container-wide) + 2 * var(--s-gutter));
+  }
+  .site-container[data-width="full"] {
+    max-inline-size: none;
+  }
+  .site-narrow {
+    inline-size: 100%;
+    max-inline-size: var(--s-measure);
+  }
+  .site-narrow[data-wide] {
+    max-inline-size: 60rem;
+  }
+  .site-intro {
+    display: grid;
+    gap: 1rem;
+    max-inline-size: var(--s-measure);
+    margin-block-end: var(--s-intro-gap);
+  }
+  .site-section.text-center .site-narrow,
+  .site-section.text-center .site-intro {
+    margin-inline: auto;
+  }
+  .site-section.text-center .site-intro,
+  .site-section.text-center .site-stack {
+    justify-items: center;
+  }
+  /* A heading with its way onwards at the far end, as news has. */
+  .site-intro-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: end;
+    justify-content: space-between;
+    gap: 1rem 2rem;
+    margin-block-end: var(--s-intro-gap);
+  }
+  .site-stack {
+    display: grid;
+    align-content: start;
+    gap: var(--s-stack);
+  }
+  .site-stack > .site-actions {
+    margin-block-start: 0.5rem;
+  }
+  .site-actions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.75rem;
+  }
+  .site-section.text-center .site-actions {
+    justify-content: center;
+  }
+  .site-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: var(--s-grid-gap);
+  }
+  .site-split {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    align-items: center;
+    gap: var(--s-split-gap);
+  }
+  @container site (width >= 40rem) {
+    .site-grid[data-cols="2"],
+    .site-grid[data-cols="3"],
+    .site-grid[data-cols="4"] {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+  }
+  @container site (width >= 48rem) {
+    .site-split {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+    .site-split[data-ratio="5-7"] {
+      grid-template-columns: 5fr 7fr;
+    }
+    .site-split[data-ratio="7-5"] {
+      grid-template-columns: 7fr 5fr;
+    }
+    .site-split[data-ratio="2-3"] {
+      grid-template-columns: 2fr 3fr;
+    }
+    .site-split[data-ratio="1-2"] {
+      grid-template-columns: 1fr 2fr;
+    }
+    .site-split[data-ratio="2-1"] {
+      grid-template-columns: 2fr 1fr;
+    }
+    .site-split[data-ratio="form"] {
+      grid-template-columns: minmax(0, 1fr) minmax(0, 30rem);
+    }
+    .site-split > [data-order="end"] {
+      order: 2;
+    }
+  }
+  @container site (width >= 64rem) {
+    .site-grid[data-cols="3"] {
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+    .site-grid[data-cols="4"] {
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+    }
+  }
+  /* On a phone a row of cards becomes a rail that scrolls sideways, the
+     next card peeking in, instead of a column many screens long. */
+  @container site (width < 40rem) {
+    .site-grid[data-rail] {
+      display: flex;
+      gap: 1rem;
+      margin-inline: calc(var(--s-gutter) * -1);
+      padding-inline: var(--s-gutter);
+      padding-block-end: 0.75rem;
+      overflow-x: auto;
+      scroll-snap-type: x mandatory;
+      scroll-padding-inline: var(--s-gutter);
+      scrollbar-width: none;
+    }
+    .site-grid[data-rail] > * {
+      flex: 0 0 82%;
+      scroll-snap-align: start;
+    }
+  }
+  /* A rail at every width, for carousels. */
+  .site-rail {
+    display: flex;
+    gap: var(--s-grid-gap);
+    margin-inline: calc(var(--s-gutter) * -1);
+    padding-inline: var(--s-gutter);
+    padding-block-end: 1rem;
+    overflow-x: auto;
+    scroll-snap-type: x mandatory;
+    scroll-padding-inline: var(--s-gutter);
+    scrollbar-width: thin;
+  }
+  .site-rail > * {
+    flex: 0 0 min(var(--s-rail-item, 22rem), 82%);
+    scroll-snap-align: start;
+  }
+
+  /* Type. Three voices, measured against school sites that read as
+     designed; Arabic keeps a taller line and never takes Latin's negative
+     tracking. */
   .site-heading {
     font-family: var(--s-font-heading);
     color: var(--s-heading);
     text-transform: var(--s-heading-case);
     letter-spacing: var(--s-heading-tracking);
-    line-height: 1.12;
+    line-height: 1.15;
     font-weight: var(--s-heading-weight, 650);
     text-wrap: balance;
   }
-  /* Three type voices, measured against school sites that read as designed:
-     classic 32 to 52px, editorial 36 to 64px, statement 40 to 88px. Arabic
-     keeps a taller line and never takes Latin's negative tracking. */
   .site-display {
-    font-size: clamp(2rem, 1.6rem + 1.778cqi, 3.25rem);
-    line-height: 1.08;
+    font-size: clamp(2.5rem, 1.833rem + 2.963cqi, 4.25rem);
+    line-height: 1.05;
     letter-spacing: var(--s-display-tracking);
     max-inline-size: 18ch;
   }
   .site-h2 {
-    font-size: clamp(1.5rem, 1.25rem + 1.111cqi, 2.25rem);
+    font-size: clamp(1.875rem, 1.5rem + 1.667cqi, 2.75rem);
     line-height: 1.12;
     letter-spacing: var(--s-display-tracking);
     max-inline-size: 24ch;
   }
+  /* The largest voice, for a hero that is all words. */
+  .site-display-xl {
+    max-inline-size: 16ch;
+    font-size: clamp(3rem, 1rem + 8cqi, 8.5rem);
+    line-height: 0.95;
+    letter-spacing: var(--s-display-tracking);
+  }
+  .site-root:lang(ar) .site-display-xl {
+    line-height: 1.2;
+  }
   .site-h3 {
-    font-size: clamp(1.15rem, 1rem + 0.5cqi, 1.4rem);
+    font-size: clamp(1.25rem, 1.125rem + 0.556cqi, 1.5rem);
+    line-height: 1.25;
+  }
+  /* A sentence that says what the school is, set large enough to stop on. */
+  .site-statement {
+    max-inline-size: 30ch;
+    font-size: clamp(1.75rem, 1.1rem + 2.6cqi, 3.25rem);
+    line-height: 1.2;
+    letter-spacing: var(--s-display-tracking);
+    text-wrap: balance;
+  }
+  .site-root:lang(ar) .site-statement {
+    line-height: 1.55;
+  }
+  .site-section.text-center .site-statement {
+    margin-inline: auto;
+  }
+  /* Words someone said, set in the heading face at a reading weight. */
+  .site-quote {
+    font-family: var(--s-font-heading);
+    color: var(--s-heading);
+    font-size: clamp(1.5rem, 1.1rem + 1.778cqi, 2.5rem);
+    font-weight: 500;
+    line-height: 1.3;
+    text-wrap: pretty;
+  }
+  .site-quote[data-size="s"] {
+    font-size: clamp(1.125rem, 1.05rem + 0.333cqi, 1.3125rem);
+    line-height: 1.5;
+  }
+  .site-root:lang(ar) .site-quote {
+    line-height: 1.6;
+  }
+  /* A figure a stats band counts up to. */
+  .site-figure {
+    font-family: var(--s-font-heading);
+    color: var(--s-link);
+    font-size: clamp(2.75rem, 1.8rem + 3.2cqi, 4.5rem);
+    font-weight: var(--s-heading-weight, 650);
+    line-height: 1;
+    letter-spacing: var(--s-display-tracking);
+    font-variant-numeric: tabular-nums;
+  }
+  .site-h4 {
+    font-size: 1.125rem;
     line-height: 1.3;
   }
   .site-root[data-scale="editorial"] .site-display {
-    font-size: clamp(2.25rem, 1.667rem + 2.593cqi, 4rem);
+    font-size: clamp(2.75rem, 1.75rem + 4.444cqi, 5.5rem);
     line-height: 1;
   }
   .site-root[data-scale="editorial"] .site-h2 {
-    font-size: clamp(1.75rem, 1.417rem + 1.481cqi, 2.75rem);
-    line-height: 1.05;
+    font-size: clamp(2rem, 1.5rem + 2.222cqi, 3.25rem);
+    line-height: 1.06;
   }
   .site-root[data-scale="statement"] .site-display {
-    font-size: clamp(2.5rem, 1.5rem + 4.444cqi, 5.5rem);
-    line-height: 0.95;
+    font-size: clamp(3rem, 1.5rem + 6.667cqi, 7rem);
+    line-height: 0.94;
   }
   .site-root[data-scale="statement"] .site-h2 {
-    font-size: clamp(2rem, 1.5rem + 2.222cqi, 3.5rem);
+    font-size: clamp(2.25rem, 1.5rem + 3.333cqi, 4rem);
     line-height: 1;
   }
   .site-root:lang(ar) .site-heading {
@@ -124,6 +355,36 @@
   }
   .site-root:lang(ar) .site-h2 {
     line-height: 1.35;
+  }
+  .site-section.text-center .site-display,
+  .site-section.text-center .site-h2 {
+    margin-inline: auto;
+  }
+  .site-lead {
+    max-inline-size: 40rem;
+    color: var(--s-muted);
+    font-size: clamp(1.125rem, 1.05rem + 0.333cqi, 1.3125rem);
+    line-height: 1.55;
+    white-space: pre-line;
+    text-wrap: pretty;
+  }
+  .site-root:lang(ar) .site-lead {
+    line-height: 1.8;
+  }
+  .site-text {
+    color: var(--s-muted);
+    line-height: 1.6;
+  }
+  .site-small {
+    font-size: 0.9375rem;
+    line-height: 1.55;
+  }
+  .site-meta {
+    color: var(--s-muted);
+    font-size: 0.8125rem;
+    font-weight: 500;
+    line-height: 1.4;
+    font-variant-numeric: tabular-nums;
   }
   .site-root p {
     text-wrap: pretty;
@@ -155,7 +416,7 @@
   }
   .site-root[data-emphasis="underline"] .site-em {
     text-decoration: underline;
-    text-decoration-color: var(--s-accent);
+    text-decoration-color: var(--s-em, var(--s-accent));
     text-decoration-thickness: 0.12em;
     text-underline-offset: 0.14em;
     text-decoration-skip-ink: none;
@@ -168,7 +429,7 @@
     font-style: normal;
   }
   .site-root:lang(ar)[data-emphasis="italic"] .site-em {
-    color: var(--s-link);
+    color: var(--s-em, var(--s-link));
   }
   .site-root:lang(ar)[data-emphasis="underline"] .site-em {
     text-underline-offset: 0.35em;
@@ -178,27 +439,390 @@
     inline-size: fit-content;
     align-items: center;
     gap: 0.75rem;
-    font-size: 0.78rem;
+    font-size: 0.75rem;
     font-weight: 700;
     line-height: 1.4;
     letter-spacing: var(--s-eyebrow-tracking);
     text-transform: var(--s-eyebrow-case);
     color: var(--s-link);
   }
+  .site-root:lang(ar) .site-eyebrow {
+    font-size: 0.875rem;
+  }
   .site-root[data-eyebrow="rule"] .site-eyebrow::before {
     content: "";
     inline-size: 2rem;
-    block-size: 2px;
+    block-size: 1.5px;
     background: currentColor;
   }
   .site-root[data-eyebrow="pill"] .site-eyebrow {
-    padding: 0.3rem 0.8rem;
+    padding: 0.375rem 0.875rem;
     border-radius: 999px;
-    background: color-mix(in srgb, var(--s-link) 12%, transparent);
+    background: color-mix(in oklab, var(--s-link) 12%, transparent);
   }
   .site-muted {
     color: var(--s-muted);
   }
+
+  /* Actions. One shape for every button on the site, in three sizes:
+     filled for the main action, outlined beside it, quiet in the header. */
+  .site-button {
+    --s-button-h: 3rem;
+    --s-button-px: 1.5rem;
+    display: inline-flex;
+    min-block-size: var(--s-button-h);
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    padding-block: 0.5rem;
+    padding-inline: var(--s-button-px);
+    border-radius: var(--s-button-radius);
+    background: var(--s-btn);
+    color: var(--s-btn-fg);
+    font-family: var(--s-font-body);
+    font-size: 0.9375rem;
+    font-weight: 600;
+    line-height: 1.2;
+    text-align: center;
+    text-decoration: none;
+    text-wrap: balance;
+    transition:
+      background-color 160ms ease,
+      box-shadow 160ms ease,
+      color 160ms ease,
+      transform 160ms ease;
+  }
+  .site-button:hover {
+    background: color-mix(in oklab, var(--s-btn) 86%, var(--s-btn-fg));
+  }
+  .site-button:active {
+    transform: translateY(1px);
+  }
+  .site-button[data-size="sm"] {
+    --s-button-h: 2.5rem;
+    --s-button-px: 1.125rem;
+    font-size: 0.875rem;
+    white-space: nowrap;
+  }
+  .site-button[data-size="lg"] {
+    --s-button-h: 3.5rem;
+    --s-button-px: 1.875rem;
+    font-size: 1rem;
+  }
+  .site-button[data-variant="secondary"] {
+    background: transparent;
+    color: var(--s-fg);
+    box-shadow: inset 0 0 0 1.5px
+      color-mix(in oklab, var(--s-fg) 38%, transparent);
+  }
+  .site-button[data-variant="secondary"]:hover {
+    background: color-mix(in oklab, var(--s-fg) 7%, transparent);
+    box-shadow: inset 0 0 0 1.5px var(--s-fg);
+  }
+  .site-button[data-variant="ghost"] {
+    background: transparent;
+    color: var(--s-fg);
+  }
+  .site-button[data-variant="ghost"]:hover {
+    background: color-mix(in oklab, var(--s-fg) 8%, transparent);
+  }
+  .site-button:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
+  }
+  .site-button svg {
+    inline-size: 1.125em;
+    block-size: 1.125em;
+    flex-shrink: 0;
+  }
+  /* The third kind of action: words and an arrow, for "all news" and
+     "learn more", which would be too loud as buttons. */
+  .site-textlink {
+    display: inline-flex;
+    inline-size: fit-content;
+    align-items: center;
+    gap: 0.375rem;
+    color: var(--s-link);
+    font-weight: 600;
+    text-decoration: underline;
+    text-decoration-color: transparent;
+    text-decoration-thickness: 1.5px;
+    text-underline-offset: 0.3em;
+    transition: text-decoration-color 160ms ease;
+  }
+  .site-textlink:hover,
+  a:hover .site-textlink {
+    text-decoration-color: currentColor;
+  }
+  .site-textlink svg,
+  .site-arrow {
+    transition: translate 250ms var(--s-ease);
+  }
+  .site-textlink:hover svg,
+  a:hover .site-textlink svg,
+  a:hover .site-arrow {
+    translate: 3px 0;
+  }
+  .site-root:dir(rtl) .site-textlink:hover svg,
+  .site-root:dir(rtl) a:hover .site-textlink svg,
+  .site-root:dir(rtl) a:hover .site-arrow {
+    translate: -3px 0;
+  }
+  .site-link {
+    color: var(--s-link);
+    font-weight: 600;
+    text-underline-offset: 0.2em;
+  }
+  .site-link:hover {
+    text-decoration: underline;
+  }
+  /* A button that holds only an icon, in the theme's button shape. */
+  .site-icon-button {
+    display: inline-grid;
+    inline-size: 2.75rem;
+    block-size: 2.75rem;
+    flex-shrink: 0;
+    place-items: center;
+    border-radius: var(--s-button-radius);
+    color: inherit;
+    box-shadow: inset 0 0 0 1px var(--s-border);
+    transition:
+      background-color 160ms ease,
+      box-shadow 160ms ease;
+  }
+  .site-icon-button:hover {
+    background: color-mix(in oklab, currentColor 8%, transparent);
+    box-shadow: inset 0 0 0 1px currentColor;
+  }
+  .site-icon-button svg {
+    inline-size: 1.25rem;
+    block-size: 1.25rem;
+  }
+
+  /* The header: one row in three zones (the name, the pages, the tools and
+     the action), sticky, tucked away while a visitor reads on down and back
+     when they scroll up. An overlay header lies over the opening picture
+     until the page moves, then turns solid. */
+  .site-header {
+    --s-bar-h: 3.75rem;
+    position: sticky;
+    inset-block-start: 0;
+    z-index: 40;
+    border-block-end: 1px solid var(--s-border);
+    transition:
+      transform 380ms cubic-bezier(0.165, 0.84, 0.44, 1),
+      background-color 250ms ease,
+      border-color 250ms ease,
+      box-shadow 250ms ease;
+  }
+  @container site (width >= 64rem) {
+    .site-header {
+      --s-bar-h: 4.25rem;
+    }
+  }
+  .site-header[data-hidden] {
+    transform: translateY(-100%);
+  }
+  .site-header[data-raised] {
+    box-shadow: var(--s-shadow);
+  }
+  .site-header[data-overlay] {
+    margin-block-end: calc(var(--s-bar-h) * -1 - 1px);
+  }
+  .site-header[data-transparent] {
+    background: linear-gradient(to bottom, rgb(0 0 0 / 0.42), transparent);
+    border-block-end-color: transparent;
+  }
+  .site-bar {
+    min-block-size: var(--s-bar-h);
+    align-items: center;
+  }
+  .site-brand {
+    display: flex;
+    min-inline-size: 0;
+    flex-shrink: 0;
+    align-items: center;
+    gap: 0.75rem;
+  }
+  .site-brand-logo {
+    block-size: 2.25rem;
+    inline-size: auto;
+    flex-shrink: 0;
+    object-fit: contain;
+  }
+  @container site (width >= 64rem) {
+    .site-brand-logo {
+      block-size: 2.5rem;
+    }
+  }
+  .site-brand-name {
+    overflow: hidden;
+    color: var(--s-heading);
+    font-family: var(--s-font-heading);
+    font-size: 1.0625rem;
+    font-weight: 650;
+    line-height: 1.2;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  @container site (width >= 48rem) {
+    .site-brand-name {
+      font-size: 1.1875rem;
+    }
+  }
+  .site-brand-tagline {
+    overflow: hidden;
+    color: var(--s-muted);
+    font-size: 0.75rem;
+    line-height: 1.3;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  @container site (width < 48rem) {
+    .site-brand-tagline {
+      display: none;
+    }
+  }
+  /* The header's tools: the language and light or dark, quiet controls of
+     one size, set apart from the action by a hairline. */
+  .site-tools {
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+  }
+  .site-tool {
+    display: inline-flex;
+    min-block-size: 2.5rem;
+    min-inline-size: 2.5rem;
+    align-items: center;
+    justify-content: center;
+    gap: 0.4rem;
+    padding-inline: 0.625rem;
+    border-radius: var(--s-button-radius);
+    color: var(--s-fg);
+    font-size: 0.875rem;
+    font-weight: 600;
+    line-height: 1;
+    transition:
+      background-color 160ms ease,
+      color 160ms ease;
+  }
+  .site-tool:hover {
+    background: color-mix(in oklab, var(--s-fg) 8%, transparent);
+  }
+  .site-tool-icon {
+    padding-inline: 0;
+  }
+  .site-tool-wide {
+    padding-inline: 0.875rem;
+    box-shadow: inset 0 0 0 1px var(--s-border);
+  }
+  .site-language-label:lang(ar) {
+    font-family: var(--s-font-arabic);
+    font-size: 0.9375rem;
+  }
+  .site-language-label:lang(en) {
+    font-family: var(--s-font-latin);
+    letter-spacing: 0.02em;
+  }
+  .site-tool-divider {
+    inline-size: 1px;
+    block-size: 1.5rem;
+    margin-inline: 0.375rem;
+    background: var(--s-border);
+  }
+  /* The menu opened from the button: the page's full height below the bar,
+     the pages large. */
+  .site-menu-panel {
+    position: absolute;
+    inset-inline: 0;
+    inset-block-start: 100%;
+    max-block-size: calc(100dvh - var(--s-bar-h));
+    overflow-y: auto;
+    border-block-start: 1px solid var(--s-border);
+    box-shadow: var(--s-shadow-lift);
+    animation: site-menu-in 280ms var(--s-ease);
+  }
+  @container site (width < 48rem) {
+    .site-menu-panel {
+      block-size: calc(100dvh - var(--s-bar-h));
+    }
+  }
+  .site-menu-link {
+    display: flex;
+    min-block-size: 3.5rem;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    color: var(--s-heading);
+    font-family: var(--s-font-heading);
+    font-size: 1.375rem;
+    font-weight: var(--s-heading-weight, 650);
+    letter-spacing: var(--s-display-tracking);
+    line-height: 1.2;
+    transition: color 160ms ease;
+  }
+  @container site (width >= 48rem) {
+    .site-menu-link {
+      min-block-size: 0;
+      justify-content: flex-start;
+      font-size: clamp(1.625rem, 1rem + 1.6cqi, 2.25rem);
+    }
+  }
+  .site-menu-link:hover,
+  .site-menu-link[aria-current="page"] {
+    color: var(--s-link);
+  }
+  .site-navlink {
+    position: relative;
+    display: inline-flex;
+    min-block-size: 2.75rem;
+    align-items: center;
+    gap: 0.25rem;
+    padding-inline: 0.75rem;
+    color: var(--s-fg);
+    font-size: 0.9375rem;
+    font-weight: 500;
+    white-space: nowrap;
+  }
+  .site-navlink::after {
+    content: "";
+    position: absolute;
+    inset-inline: 0.75rem;
+    inset-block-end: 0.375rem;
+    block-size: 2px;
+    background: currentColor;
+    transform: scaleX(0);
+    transform-origin: left;
+    transition: transform 280ms var(--s-ease);
+  }
+  .site-root:dir(rtl) .site-navlink::after {
+    transform-origin: right;
+  }
+  .site-navlink:hover::after,
+  .site-navlink[aria-current="page"]::after {
+    transform: scaleX(1);
+  }
+  .site-footer-title {
+    color: var(--s-muted);
+    font-size: 0.8125rem;
+    font-weight: 600;
+    letter-spacing: var(--s-eyebrow-tracking);
+    text-transform: var(--s-eyebrow-case);
+  }
+  .site-footer-link {
+    color: var(--s-fg);
+    font-size: 0.9375rem;
+    opacity: 0.85;
+    text-underline-offset: 0.25em;
+    transition: opacity 160ms ease;
+  }
+  .site-footer-link:hover {
+    opacity: 1;
+    text-decoration: underline;
+  }
+
+  /* Surfaces. */
   .site-card {
     background: var(--s-card);
     border-radius: var(--s-radius);
@@ -208,23 +832,58 @@
   }
   .site-root[data-card="outlined"] .site-card {
     background: transparent;
-    border: 1px solid var(--s-border);
+    box-shadow: inset 0 0 0 1px var(--s-border);
   }
   .site-root[data-card="raised"] .site-card {
-    box-shadow:
-      0 1px 2px rgb(15 23 42 / 0.06),
-      0 12px 32px -12px rgb(15 23 42 / 0.18);
+    box-shadow: var(--s-shadow);
   }
   a.site-card:hover,
   a:hover > .site-card {
     transform: translateY(-3px);
   }
+  .site-root[data-card="outlined"] a.site-card:hover,
+  .site-root[data-card="outlined"] a:hover > .site-card {
+    box-shadow: inset 0 0 0 1px
+      color-mix(in oklab, var(--s-fg) 45%, transparent);
+  }
   .site-root[data-card="raised"] a.site-card:hover,
   .site-root[data-card="raised"] a:hover > .site-card {
-    box-shadow:
-      0 2px 4px rgb(15 23 42 / 0.06),
-      0 20px 40px -12px rgb(15 23 42 / 0.25);
+    box-shadow: var(--s-shadow-lift);
   }
+  /* A column, so a closing link can take the bottom of a card in a row of unequal ones. */
+  .site-card-body {
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.75rem;
+    padding: var(--s-card-pad);
+  }
+  .site-icon-tile {
+    display: grid;
+    inline-size: 3rem;
+    block-size: 3rem;
+    flex-shrink: 0;
+    place-items: center;
+    border-radius: var(--s-radius-sm);
+    background: color-mix(in oklab, var(--s-link) 12%, transparent);
+    color: var(--s-link);
+  }
+  .site-icon-tile svg {
+    inline-size: 1.5rem;
+    block-size: 1.5rem;
+  }
+  /* A large numeral set in the heading face, as steps and pillars use. */
+  .site-numeral {
+    font-family: var(--s-font-heading);
+    color: var(--s-link);
+    font-size: clamp(2.5rem, 2rem + 2.222cqi, 3.5rem);
+    font-weight: var(--s-heading-weight, 650);
+    line-height: 1;
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* Pictures. */
   .site-media {
     border-radius: var(--s-radius);
     object-fit: cover;
@@ -242,6 +901,7 @@
     transition: transform 700ms var(--s-ease);
   }
   a:hover .site-card .site-media,
+  a:hover .site-zoom .site-media,
   a.site-card:hover .site-media,
   a.site-zoom:hover .site-media {
     transform: scale(1.04);
@@ -258,17 +918,37 @@
     border-radius: max(var(--s-radius), 1rem);
   }
   .site-root[data-image="arch"] .site-feature {
-    border-radius: 999rem 999rem max(var(--s-radius), 0.75rem)
-      max(var(--s-radius), 0.75rem);
+    border-radius: 999rem 999rem var(--s-radius) var(--s-radius);
   }
   .site-root[data-image="leaf"] .site-feature {
     border-start-start-radius: 3.5rem;
     border-end-end-radius: 3.5rem;
-    border-start-end-radius: 0.75rem;
-    border-end-start-radius: 0.75rem;
+    border-start-end-radius: var(--s-radius-sm);
+    border-end-start-radius: var(--s-radius-sm);
   }
   .site-feature .site-media {
     border-radius: 0;
+  }
+  /* Pictures joined into one shape, the theme's, side by side on a wide
+     screen and stacked on a phone. */
+  .site-joined {
+    display: grid;
+    grid-auto-rows: minmax(14rem, auto);
+    gap: 2px;
+    background: var(--s-bg);
+  }
+  .site-joined > li {
+    overflow: hidden;
+  }
+  /* An arch as wide as the page would cut the words in its corners away. */
+  .site-root[data-image="arch"] .site-joined {
+    border-radius: 5rem 5rem var(--s-radius) var(--s-radius);
+  }
+  @container site (width >= 48rem) {
+    .site-joined {
+      grid-template-columns: repeat(var(--count, 3), minmax(0, 1fr));
+      grid-auto-rows: clamp(24rem, 18rem + 14cqi, 34rem);
+    }
   }
   /* One tone for photographs from many phones; artwork keeps its colours. */
   .site-root[data-tone="warm"] .site-photo {
@@ -291,7 +971,7 @@
   }
   .site-pattern-dots {
     background-image: radial-gradient(
-      color-mix(in srgb, var(--s-fg) 22%, transparent) 1.2px,
+      color-mix(in oklab, var(--s-fg) 22%, transparent) 1.2px,
       transparent 1.6px
     );
     background-size: 22px 22px;
@@ -299,12 +979,12 @@
   .site-pattern-grid {
     background-image:
       linear-gradient(
-        color-mix(in srgb, var(--s-fg) 10%, transparent) 1px,
+        color-mix(in oklab, var(--s-fg) 10%, transparent) 1px,
         transparent 1px
       ),
       linear-gradient(
         90deg,
-        color-mix(in srgb, var(--s-fg) 10%, transparent) 1px,
+        color-mix(in oklab, var(--s-fg) 10%, transparent) 1px,
         transparent 1px
       );
     background-size: 48px 48px;
@@ -312,7 +992,7 @@
   .site-pattern-lines {
     background-image: repeating-linear-gradient(
       135deg,
-      color-mix(in srgb, var(--s-fg) 9%, transparent) 0 1px,
+      color-mix(in oklab, var(--s-fg) 9%, transparent) 0 1px,
       transparent 1px 14px
     );
   }
@@ -322,6 +1002,64 @@
     opacity: 0.35;
     mix-blend-mode: overlay;
   }
+
+  /* Forms. */
+  .site-label {
+    display: grid;
+    gap: 0.5rem;
+    font-size: 0.875rem;
+    font-weight: 600;
+  }
+  .site-input {
+    inline-size: 100%;
+    min-block-size: 3rem;
+    padding: 0.75rem 1rem;
+    border: 1px solid color-mix(in oklab, var(--s-fg) 28%, var(--s-bg));
+    border-radius: var(--s-radius-sm);
+    background: var(--s-bg);
+    color: var(--s-fg);
+    font: inherit;
+    font-weight: 400;
+    transition:
+      border-color 200ms var(--s-ease),
+      box-shadow 200ms var(--s-ease);
+  }
+  .site-input:hover {
+    border-color: color-mix(in oklab, var(--s-fg) 45%, var(--s-bg));
+  }
+  .site-input:focus {
+    outline: none;
+    border-color: var(--s-link);
+    box-shadow: 0 0 0 3px color-mix(in oklab, var(--s-link) 25%, transparent);
+  }
+  .site-root :focus-visible {
+    outline: 2px solid var(--s-link, currentColor);
+    outline-offset: 3px;
+  }
+  /* Always the full column: the editor's reader measures itself by its
+     container, so a stack that centres its items would shrink it to nothing. */
+  .site-prose {
+    inline-size: 100%;
+    color: var(--s-fg);
+  }
+  /* The editor's reader sets its own size for the app; on the site its
+     words take the site's body size, line and paragraph spacing. */
+  .site-prose .fe {
+    font-size: inherit;
+    line-height: var(--s-line);
+  }
+  .site-prose .fe .fe-p + .fe-p {
+    margin-block-start: 0.75em;
+  }
+  .site-prose h2,
+  .site-prose h3 {
+    font-family: var(--s-font-heading);
+    color: var(--s-heading);
+  }
+  .site-prose a {
+    color: var(--s-link);
+  }
+
   /* Words that take typing in the builder's canvas. */
   .site-editable {
     cursor: text;
@@ -335,80 +1073,7 @@
   .site-editable:focus {
     outline: 2px solid #2563eb;
   }
-  .site-button {
-    display: inline-flex;
-    min-height: 2.75rem;
-    align-items: center;
-    justify-content: center;
-    gap: 0.5rem;
-    padding-inline: 1.25rem;
-    border-radius: var(--s-button-radius);
-    background: var(--s-btn);
-    color: var(--s-btn-fg);
-    font-weight: 600;
-    font-size: 0.95rem;
-    transition: filter 150ms;
-  }
-  .site-button:hover {
-    filter: brightness(1.08);
-  }
-  .site-button[data-variant="secondary"] {
-    background: transparent;
-    color: var(--s-fg);
-    box-shadow: inset 0 0 0 1.5px currentColor;
-  }
-  .site-label {
-    display: grid;
-    gap: 0.5rem;
-    font-size: 0.9rem;
-    font-weight: 600;
-  }
-  .site-input {
-    inline-size: 100%;
-    min-block-size: 3rem;
-    padding: 0.75rem 1rem;
-    border: 1px solid var(--s-border);
-    border-radius: max(calc(var(--s-radius) * 0.6), 0.375rem);
-    background: color-mix(in srgb, var(--s-bg) 70%, white);
-    color: var(--s-fg);
-    font: inherit;
-    font-weight: 400;
-    transition:
-      border-color 200ms var(--s-ease),
-      box-shadow 200ms var(--s-ease);
-  }
-  .site-input:focus {
-    outline: none;
-    border-color: var(--s-link);
-    box-shadow: 0 0 0 3px color-mix(in srgb, var(--s-link) 25%, transparent);
-  }
-  .site-button:disabled {
-    opacity: 0.6;
-    cursor: not-allowed;
-  }
-  .site-link {
-    color: var(--s-link);
-    font-weight: 600;
-    text-underline-offset: 0.2em;
-  }
-  .site-link:hover {
-    text-decoration: underline;
-  }
-  .site-root :focus-visible {
-    outline: 2px solid var(--s-link, currentColor);
-    outline-offset: 3px;
-  }
-  .site-prose {
-    color: var(--s-fg);
-  }
-  .site-prose h2,
-  .site-prose h3 {
-    font-family: var(--s-font-heading);
-    color: var(--s-heading);
-  }
-  .site-prose a {
-    color: var(--s-link);
-  }
+
   /* Sections rise into view once scripts run; without them, and for anyone
      who asks for less motion, everything is simply there. */
   .site-root[data-motion-ready] [data-reveal] {
@@ -439,6 +1104,59 @@
   .site-root[data-motion="lively"] {
     --s-rise: 24px;
   }
+  /* Values in words too big to sit still, across the whole width of the
+     page, every other word drawn in outline. */
+  .site-ticker {
+    margin-inline: calc((100% - 100cqi) / 2);
+    overflow: hidden;
+    padding-block: clamp(1rem, 0.5rem + 1.5cqi, 2rem);
+    border-block: 1px solid var(--s-border);
+  }
+  .site-ticker .site-marquee {
+    animation-duration: 55s;
+  }
+  .site-ticker-word {
+    padding-inline: clamp(1.25rem, 0.5rem + 2cqi, 2.75rem);
+    color: var(--s-heading);
+    font-family: var(--s-font-heading);
+    font-size: clamp(2.75rem, 1.5rem + 5cqi, 6.5rem);
+    font-weight: var(--s-heading-weight, 650);
+    letter-spacing: var(--s-display-tracking);
+    line-height: 1.15;
+    text-transform: var(--s-heading-case);
+    white-space: nowrap;
+  }
+  .site-root:not(:lang(ar)) .site-ticker li:nth-child(even) .site-ticker-word {
+    color: transparent;
+    -webkit-text-stroke: 1.5px var(--s-heading);
+  }
+  .site-ticker-mark {
+    inline-size: clamp(0.875rem, 0.5rem + 1cqi, 1.5rem);
+    block-size: clamp(0.875rem, 0.5rem + 1cqi, 1.5rem);
+    flex-shrink: 0;
+    background: var(--s-link);
+    clip-path: polygon(
+      50% 0,
+      62% 38%,
+      100% 50%,
+      62% 62%,
+      50% 100%,
+      38% 62%,
+      0 50%,
+      38% 38%
+    );
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .site-ticker .site-marquee,
+    .site-ticker ul {
+      inline-size: auto;
+      flex-wrap: wrap;
+      justify-content: center;
+    }
+    .site-ticker ul[aria-hidden="true"] {
+      display: none;
+    }
+  }
   .site-marquee {
     display: flex;
     inline-size: max-content;
@@ -468,9 +1186,12 @@
       transform: none !important;
     }
   }
-  .site-section.text-center .site-display,
-  .site-section.text-center .site-h2 {
-    margin-inline: auto;
+}
+
+@keyframes site-menu-in {
+  from {
+    opacity: 0;
+    transform: translateY(-0.5rem);
   }
 }
 
