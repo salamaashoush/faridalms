@@ -619,6 +619,47 @@ export async function saveRestriction(
     do update set contact_restrictions = excluded.contact_restrictions, status = 'active'`);
 }
 
+/**
+ * Gives a guardian link its court order, or takes it away with null,
+ * keeping whatever restriction the link has; returns the order it held.
+ */
+export async function setCourtOrder(
+  tx: Tx,
+  input: { tenantId: string; relationshipId: string; fileId: string | null },
+): Promise<string | null> {
+  const [before] = await tx.execute<{ court_order_file_id: string | null }>(sql`
+    select court_order_file_id from core.relationship_restrictions
+    where tenant_id = ${input.tenantId}::uuid and relationship_id = ${input.relationshipId}::uuid
+      and status = 'active'
+    for update`);
+  await tx.execute(sql`
+    insert into core.relationship_restrictions (tenant_id, relationship_id, court_order_file_id)
+    values (${input.tenantId}::uuid, ${input.relationshipId}::uuid, ${input.fileId}::uuid)
+    on conflict (tenant_id, relationship_id)
+    do update set court_order_file_id = excluded.court_order_file_id, status = 'active'`);
+  return before?.court_order_file_id ?? null;
+}
+
+/** The link a custody paper belongs to, and the student the link is for. */
+export async function courtOrderLink(
+  tx: Tx,
+  tenantId: string,
+  relationshipId: string,
+): Promise<{ studentId: string; fileId: string | null } | null> {
+  const [row] = await tx.execute<{
+    student_user_id: string;
+    court_order_file_id: string | null;
+  }>(sql`
+    select l.student_user_id, r.court_order_file_id
+    from core.user_relationships l
+    left join core.relationship_restrictions r on r.tenant_id = l.tenant_id
+      and r.relationship_id = l.id and r.status = 'active'
+    where l.tenant_id = ${tenantId}::uuid and l.id = ${relationshipId}::uuid`);
+  return row
+    ? { studentId: row.student_user_id, fileId: row.court_order_file_id }
+    : null;
+}
+
 /** The derived custody flags every staff member sees; false when the link changed. */
 export async function updateCustodyFlags(
   tx: Tx,

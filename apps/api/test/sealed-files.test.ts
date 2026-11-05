@@ -55,7 +55,7 @@ function letter(words: string) {
 async function upload(
   session: Session,
   input: {
-    purpose: "health_report" | "evidence";
+    purpose: "health_report" | "evidence" | "legal_document";
     name: string;
     body: Uint8Array<ArrayBuffer>;
   },
@@ -75,13 +75,17 @@ async function upload(
   return file;
 }
 
-/** What the files row says about where and how its bytes rest, read behind the health purpose. */
-async function stored(tenantId: string, fileId: string) {
+/** What the files row says about where and how its bytes rest, read behind its purpose. */
+async function stored(
+  tenantId: string,
+  fileId: string,
+  purpose: "health" | "custody" = "health",
+) {
   const [row] = await seeded().cell.withWorker(
     { tenantId, requestId: crypto.randomUUID(), actor: { kind: "system" } },
     "read",
     (tx) =>
-      withPurpose(tx, "health", (inner) =>
+      withPurpose(tx, purpose, (inner) =>
         inner.execute<{
           name: string;
           storage_key: string;
@@ -398,5 +402,56 @@ describe("medical reports at rest", () => {
       expect(read.status).toBe(200);
       expect(new Uint8Array(await read.arrayBuffer())).toEqual(body);
     }
+  });
+});
+
+describe("custody papers", () => {
+  test("are sealed under a plain name, kept on a guardian's link and open for custody staff alone", async () => {
+    const office = await sessionFor(
+      "northwind",
+      loginAt("northwind", "principal"),
+    );
+    const tenantId = tenantOf("northwind");
+    const studentId =
+      (await office.api.people.students({ q: "NO1012" })).rows[0]?.id ?? "";
+    const [link] = (await office.api.records.custody({ studentId })).links;
+    if (!link) throw new Error("the seeded student has no guardian link");
+    const file = await upload(office, {
+      purpose: "legal_document",
+      name: "Family court order 2026.pdf",
+      body: letter("The court grants the mother sole custody."),
+    });
+    expect(await stored(tenantId, file.id, "custody")).toMatchObject({
+      name: "court-order.pdf",
+      encryption: "tenant_dek",
+    });
+
+    await office.api.records.attachCourtOrder({
+      studentId,
+      relationshipId: link.relationshipId,
+      order: { fileId: file.id, name: file.name },
+    });
+    const kept = (await office.api.records.custody({ studentId })).links.find(
+      (row) => row.relationshipId === link.relationshipId,
+    );
+    expect(kept?.courtOrder?.fileId).toBe(file.id);
+
+    const path = `/v1/files/${file.id}/content`;
+    expect((await raw("northwind", office.token, path)).status).toBe(200);
+    const teacher = await sessionFor(
+      "northwind",
+      loginAt("northwind", "teacher"),
+    );
+    expect((await raw("northwind", teacher.token, path)).status).toBe(404);
+
+    await office.api.records.removeCourtOrder({
+      studentId,
+      relationshipId: link.relationshipId,
+    });
+    expect(
+      (await office.api.records.custody({ studentId })).links.find(
+        (row) => row.relationshipId === link.relationshipId,
+      )?.courtOrder,
+    ).toBeNull();
   });
 });

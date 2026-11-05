@@ -9022,5 +9022,7 @@
   "modulesIncluded": "Included",
   "modulesNotInPlan": "Not in your plan",
   "codingUnavailable": "This school does not run code, so the program was not run.",
-  "codingNotHere": "This question asks for a program, and this school does not run code."
+  "codingNotHere": "This question asks for a program, and this school does not run code.",
+  "custodyOrder": "Court order",
+  "custodyOrderHint": "A court order or other custody paper, kept sealed and opened only by the staff who keep custody records."
 }

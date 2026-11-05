@@ -42,6 +42,8 @@ import {
   restrictionsOf,
   saveDemographicsRow,
   saveRestriction,
+  setCourtOrder,
+  courtOrderLink,
   setHealthReport,
   shareHealthReport,
   updateCustodyFlags,
@@ -59,6 +61,7 @@ import {
 import { healthReportName, safeFilename } from "@faridalms/domain/file";
 import {
   askHealthChangeSchema,
+  attachCourtOrderSchema,
   attachHealthReportSchema,
   CONTACT_LABELS,
   decideHealthChangeSchema,
@@ -67,6 +70,7 @@ import {
   healthChangesSchema,
   removeHealthRecordSchema,
   removeHealthReportSchema,
+  removeCourtOrderSchema,
   saveCustodySchema,
   saveDemographicsSchema,
   saveHealthRecordSchema,
@@ -563,7 +567,7 @@ export const custody = readProcedure
       scopeFor(context, "people"),
       input.studentId,
     );
-    const restrictions = await withPurposeFor(
+    const { restrictions, orders } = await withPurposeFor(
       context,
       {
         purpose: "custody",
@@ -571,12 +575,23 @@ export const custody = readProcedure
         reason: "Opened the student's custody records",
         write: false,
       },
-      (tx) =>
-        restrictionsOf(
+      async (tx) => {
+        const found = await restrictionsOf(
           tx,
           context.tenantId,
           links.map((link) => link.relationshipId),
-        ),
+        );
+        return {
+          restrictions: found,
+          orders: await filesByIds(
+            tx,
+            context.tenantId,
+            found.flatMap((row) =>
+              row.courtOrderFileId ? [row.courtOrderFileId] : [],
+            ),
+          ),
+        };
+      },
     );
     return {
       links: links.map((link) => ({
@@ -593,9 +608,129 @@ export const custody = readProcedure
         contactRestrictions:
           restrictions.find((row) => row.relationshipId === link.relationshipId)
             ?.contactRestrictions ?? null,
+        courtOrder: courtOrderOf(
+          orders,
+          restrictions.find((row) => row.relationshipId === link.relationshipId)
+            ?.courtOrderFileId ?? null,
+        ),
       })),
       canWrite: can(context, "custody:write"),
     };
+  });
+
+function courtOrderOf(
+  files: readonly {
+    id: string;
+    name: string;
+    mediaType: string;
+    sizeBytes: number;
+  }[],
+  fileId: string | null,
+) {
+  const file = fileId ? files.find((row) => row.id === fileId) : undefined;
+  return file
+    ? {
+        fileId: file.id,
+        name: file.name,
+        mediaType: file.mediaType,
+        sizeBytes: file.sizeBytes,
+      }
+    : null;
+}
+
+/** The link a custody paper is for, one of the student's guardians. */
+async function custodyLink(
+  context: UnitContext,
+  tx: UnitContext["tx"],
+  input: { studentId: string; relationshipId: string },
+) {
+  const link = await courtOrderLink(tx, context.tenantId, input.relationshipId);
+  if (!link || link.studentId !== input.studentId)
+    throw new ORPCError("NOT_FOUND");
+  return link;
+}
+
+/** Keeps a court order or other custody paper on a guardian's link, replacing any it held. */
+export const attachCourtOrder = writeProcedure
+  .input(attachCourtOrderSchema)
+  .handler(async ({ input, context }) => {
+    requireCapability(context, "custody:write");
+    await requireStudent(context, "people", input.studentId);
+    const gone = await withPurposeFor(
+      context,
+      {
+        purpose: "custody",
+        subjectUserId: input.studentId,
+        reason: "Kept a custody paper on a guardian's link",
+        write: true,
+      },
+      async (tx) => {
+        await custodyLink(context, tx, input);
+        const placed = await linkFiles(tx, {
+          tenantId: context.tenantId,
+          userId: context.actor.userId,
+          ids: [input.order.fileId],
+          purpose: "legal_document",
+          host: { type: "relationship_restriction", id: input.relationshipId },
+        });
+        if (placed.length !== 1)
+          throw new ORPCError("CONFLICT", { message: "files.not_linkable" });
+        const before = await setCourtOrder(tx, {
+          tenantId: context.tenantId,
+          relationshipId: input.relationshipId,
+          fileId: input.order.fileId,
+        });
+        return before && before !== input.order.fileId
+          ? retireFile(tx, {
+              tenantId: context.tenantId,
+              id: before,
+              host: {
+                type: "relationship_restriction",
+                id: input.relationshipId,
+              },
+            })
+          : null;
+      },
+    );
+    dropBytes(context, gone);
+    return { saved: true };
+  });
+
+/** Takes a guardian link's custody paper away. */
+export const removeCourtOrder = writeProcedure
+  .input(removeCourtOrderSchema)
+  .handler(async ({ input, context }) => {
+    requireCapability(context, "custody:write");
+    await requireStudent(context, "people", input.studentId);
+    const gone = await withPurposeFor(
+      context,
+      {
+        purpose: "custody",
+        subjectUserId: input.studentId,
+        reason: "Removed a custody paper from a guardian's link",
+        write: true,
+      },
+      async (tx) => {
+        await custodyLink(context, tx, input);
+        const before = await setCourtOrder(tx, {
+          tenantId: context.tenantId,
+          relationshipId: input.relationshipId,
+          fileId: null,
+        });
+        return before
+          ? retireFile(tx, {
+              tenantId: context.tenantId,
+              id: before,
+              host: {
+                type: "relationship_restriction",
+                id: input.relationshipId,
+              },
+            })
+          : null;
+      },
+    );
+    dropBytes(context, gone);
+    return { removed: true };
   });
 
 export const saveCustody = writeProcedure
@@ -1447,6 +1582,20 @@ export const decideHealthChange = writeProcedure
  * A record's report opens for the health staff who reach its student, and
  * for a guardian who reads the medical summary once the school shares it.
  */
+// A custody paper opens for the staff who read custody records of a
+// student they reach, and for nobody else.
+registerHostReader(
+  "relationship_restriction",
+  async (context, relationshipId, file) => {
+    if (!file || !can(context, "custody:read")) return false;
+    const link = await withPurpose(context.tx, "custody", (tx) =>
+      courtOrderLink(tx, context.tenantId, relationshipId),
+    );
+    if (!link || link.fileId !== file.id) return false;
+    return reachesStudent(context, "people", link.studentId);
+  },
+);
+
 registerHostReader("health_record", async (context, recordId, file) => {
   const record = await withPurpose(context.tx, "health", (tx) =>
     healthRecordOf(tx, context.tenantId, recordId),

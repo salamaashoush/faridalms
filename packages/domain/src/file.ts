@@ -13,6 +13,7 @@ export const FILE_PURPOSES = [
   "evidence",
   "admission_document",
   "health_report",
+  "legal_document",
   "message_attachment",
 ] as const;
 export const MESSAGE_ATTACHMENT_LIMIT = 5;
@@ -58,6 +59,20 @@ export const healthReportName = (name: string) => {
   const extension = fileExtension(name);
   return extension ? `medical-report.${extension}` : "medical-report";
 };
+
+/** A custody paper, such as a court order, is stored as plainly as a medical report. */
+export const legalDocumentName = (name: string) => {
+  const extension = fileExtension(name);
+  return extension ? `court-order.${extension}` : "court-order";
+};
+
+/** The stored name of a file of a purpose whose own name would say too much. */
+export const storedName = (purpose: string, name: string) =>
+  purpose === "health_report"
+    ? healthReportName(name)
+    : purpose === "legal_document"
+      ? legalDocumentName(name)
+      : name;
 
 export interface FileSummary {
   id: string;
@@ -507,7 +522,8 @@ export const initiateUploadSchema = v.pipe(
   v.forward(
     v.check(
       (value) =>
-        value.purpose !== "health_report" ||
+        (value.purpose !== "health_report" &&
+          value.purpose !== "legal_document") ||
         HEALTH_REPORT_EXTENSIONS.includes(fileExtension(value.name)),
       "validation.file_type",
     ),

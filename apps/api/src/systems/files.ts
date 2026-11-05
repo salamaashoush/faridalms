@@ -27,7 +27,7 @@ import {
 import {
   fileAreaSchema,
   fileFamily,
-  healthReportName,
+  storedName,
   initiateUploadSchema,
   picturedSchema,
   safeFilename,
@@ -83,6 +83,8 @@ const UPLOADERS: Record<FilePurpose, Capability[] | null> = {
   admission_document: ["applications:submit", "admissions:manage"],
   // The health staff's report on a record, or a family's for a change they ask for.
   health_report: ["health:write", "children:read"],
+  // A court order or other custody paper, kept by the staff who keep custody.
+  legal_document: ["custody:write"],
   // Whoever writes in a conversation; the conversation they put it in decides who reads it.
   message_attachment: ["messages:send"],
 };
@@ -121,7 +123,7 @@ export const initiate = writeProcedure
         userId: context.actor.userId,
         orgId: context.schoolId,
         purpose: input.purpose,
-        name: input.purpose === "health_report" ? healthReportName(name) : name,
+        name: storedName(input.purpose, name),
         mediaType,
         sizeBytes: input.sizeBytes,
         trim: input.trim,

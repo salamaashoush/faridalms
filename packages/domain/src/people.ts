@@ -465,6 +465,18 @@ export const saveCustodySchema = v.object({
   pickup: v.nullable(v.picklist(["allowed", "not_allowed", "ask_office"])),
 });
 
+export const attachCourtOrderSchema = v.object({
+  studentId: id,
+  relationshipId: id,
+  order: v.object(healthReportSchema.entries, "validation.report_required"),
+});
+export type AttachCourtOrderInput = v.InferInput<typeof attachCourtOrderSchema>;
+
+export const removeCourtOrderSchema = v.object({
+  studentId: id,
+  relationshipId: id,
+});
+
 export const personSearchSchema = v.object({
   q: v.pipe(v.string(), v.trim(), v.minLength(2), v.maxLength(100)),
 });

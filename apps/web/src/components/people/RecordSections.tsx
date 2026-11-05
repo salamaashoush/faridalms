@@ -48,6 +48,8 @@ import {
   removeHealth,
   removeHealthReport,
   saveArrangements,
+  attachCourtOrder,
+  removeCourtOrder,
   saveCustody,
   saveDemographics,
   saveHealth,
@@ -971,9 +973,21 @@ function CustodySheet({
   const [restrictions, setRestrictions] = useState(
     link.contactRestrictions ?? "",
   );
+  const [order, setOrder] = useState<FileSummary[]>(
+    link.courtOrder
+      ? [
+          {
+            id: link.courtOrder.fileId,
+            name: link.courtOrder.name,
+            mediaType: link.courtOrder.mediaType,
+            sizeBytes: link.courtOrder.sizeBytes,
+          },
+        ]
+      : [],
+  );
   const mutation = useMutation({
-    mutationFn: () =>
-      saveCustody({
+    mutationFn: async () => {
+      await saveCustody({
         data: {
           studentId,
           relationshipId: link.relationshipId,
@@ -983,7 +997,16 @@ function CustodySheet({
           communicationIsolated: isolated,
           pickup,
         },
-      }),
+      });
+      const kept = order[0];
+      if (kept?.id === (link.courtOrder?.fileId ?? undefined)) return;
+      const which = { studentId, relationshipId: link.relationshipId };
+      await (kept
+        ? attachCourtOrder({
+            data: { ...which, order: { fileId: kept.id, name: kept.name } },
+          })
+        : removeCourtOrder({ data: which }));
+    },
     meta: { inlineError: true },
   });
   return (
@@ -1069,6 +1092,17 @@ function CustodySheet({
         value={restrictions}
         onChange={(event) => setRestrictions(event.target.value)}
       />
+      <FileField
+        id="custody-order"
+        label={m.custodyOrder()}
+        hint={m.custodyOrderHint()}
+        purpose="legal_document"
+        value={order}
+        onChange={setOrder}
+        maxFiles={1}
+        maxBytes={MAX_FILE_BYTES}
+        optional
+      />
     </SheetForm>
   );
 }
@@ -1124,6 +1158,20 @@ export function CustodySection({ studentId }: { studentId: string }) {
                       <span className="text-sm leading-5">
                         <bdi>{link.contactRestrictions}</bdi>
                       </span>
+                    ) : null}
+                    {link.courtOrder ? (
+                      <div className="mt-1.5">
+                        <FileList
+                          files={[
+                            {
+                              id: link.courtOrder.fileId,
+                              name: link.courtOrder.name,
+                              mediaType: link.courtOrder.mediaType,
+                              sizeBytes: link.courtOrder.sizeBytes,
+                            },
+                          ]}
+                        />
+                      </div>
                     ) : null}
                   </div>
                   {data.canWrite ? (

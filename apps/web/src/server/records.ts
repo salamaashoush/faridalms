@@ -13,6 +13,8 @@ import {
   healthChangesSchema,
   removeHealthRecordSchema,
   removeHealthReportSchema,
+  attachCourtOrderSchema,
+  removeCourtOrderSchema,
   saveCustodySchema,
   saveDemographicsSchema,
   saveHealthRecordSchema,
@@ -105,3 +107,11 @@ export const getHealthChanges = createServerFn({ method: "GET" })
 export const decideHealthChange = createServerFn({ method: "POST" })
   .validator(checked(decideHealthChangeSchema))
   .handler(({ data }) => backend().records.decideHealthChange(data));
+
+export const attachCourtOrder = createServerFn({ method: "POST" })
+  .validator(checked(attachCourtOrderSchema))
+  .handler(({ data }) => backend().records.attachCourtOrder(data));
+
+export const removeCourtOrder = createServerFn({ method: "POST" })
+  .validator(checked(removeCourtOrderSchema))
+  .handler(({ data }) => backend().records.removeCourtOrder(data));

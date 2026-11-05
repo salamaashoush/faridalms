@@ -86,8 +86,6 @@ From `school-front-door.md`; slices 1 to 9 are merged.
   one period with different times on different days. Today the last one
   needs separate periods.
 - Files:
-  - Custody papers (`legal_document`) are sealed by the pipeline but have
-    no upload flow.
   - There is no job that re-encrypts sealed files after a key rotation; the
     encrypted fields have none either.
 - Broadcasts: the web keeps one server-bridge file per kind because the API
