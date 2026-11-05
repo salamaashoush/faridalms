@@ -1,5 +1,7 @@
+import { MODULE_IDS } from "@faridalms/domain/modules";
 import { saveSchoolSchema, setFeatureSchema } from "@faridalms/domain/people";
 import { createServerFn } from "@tanstack/react-start";
+import * as v from "valibot";
 
 import { backend } from "./backend";
 import { checked } from "./input";
@@ -23,3 +25,10 @@ export const setSchoolFeature = createServerFn({ method: "POST" })
 export const getSchoolStorage = createServerFn({ method: "GET" }).handler(() =>
   backend().school.storage(),
 );
+
+const askSchema = v.object({ module: v.picklist(MODULE_IDS) });
+
+/** Asks the platform about a module the school's plan does not have. */
+export const askAboutModule = createServerFn({ method: "POST" })
+  .validator(checked(askSchema))
+  .handler(({ data }) => backend().school.askAboutModule(data));

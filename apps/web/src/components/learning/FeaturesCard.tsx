@@ -1,6 +1,7 @@
-import type { SwitchedModule } from "@faridalms/domain/modules";
+import type { ModuleId, SwitchedModule } from "@faridalms/domain/modules";
 
 import { MODULE_IDS, SWITCHED_MODULES } from "@faridalms/domain/modules";
+import { Button } from "@faridalms/ui/button";
 import { Checkbox } from "@faridalms/ui/checkbox";
 import {
   useMutation,
@@ -14,7 +15,7 @@ import { StatusText } from "~/components/system/status";
 import { useCurrentUser } from "~/hooks/useCurrentUser";
 import * as m from "~/i18n/messages";
 import { schoolFeaturesQuery } from "~/queries/school-settings";
-import { setSchoolFeature } from "~/server/school-settings";
+import { askAboutModule, setSchoolFeature } from "~/server/school-settings";
 import { getMessageFromError } from "~/utils/error";
 import { MODULE_LABEL } from "~/utils/modules";
 
@@ -127,13 +128,56 @@ export function FeaturesCard() {
               className="flex items-center justify-between gap-3 text-sm leading-5"
             >
               <span>{MODULE_LABEL[id]()}</span>
-              <StatusText tone={user.modules[id] ? "success" : "neutral"}>
-                {user.modules[id] ? m.modulesIncluded() : m.modulesNotInPlan()}
-              </StatusText>
+              <span className="flex items-center gap-2">
+                <StatusText tone={user.modules[id] ? "success" : "neutral"}>
+                  {user.modules[id]
+                    ? m.modulesIncluded()
+                    : m.modulesNotInPlan()}
+                </StatusText>
+                {!user.modules[id] && data.canAsk ? (
+                  <AskAbout module={id} />
+                ) : null}
+              </span>
             </li>
           ))}
         </ul>
       </div>
     </SettingsSection>
+  );
+}
+
+/**
+ * Asks the platform about a module the plan does not have: the business
+ * hears of it as a lead and gets in touch.
+ */
+function AskAbout({ module }: { module: ModuleId }) {
+  const ask = useMutation({
+    mutationFn: () => askAboutModule({ data: { module } }),
+    meta: { inlineError: true },
+  });
+  if (ask.isSuccess)
+    return (
+      <output className="text-xs text-muted-foreground">
+        {m.modulesAsked()}
+      </output>
+    );
+  return (
+    <span className="flex items-center gap-2">
+      <Button
+        type="button"
+        variant="link"
+        size="sm"
+        className="h-auto p-0 text-xs"
+        disabled={ask.isPending}
+        onClick={() => ask.mutate()}
+      >
+        {m.modulesAskAbout()}
+      </Button>
+      {ask.error ? (
+        <span role="alert" className="text-xs text-destructive">
+          {getMessageFromError(ask.error)}
+        </span>
+      ) : null}
+    </span>
   );
 }

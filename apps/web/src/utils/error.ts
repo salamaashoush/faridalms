@@ -111,6 +111,7 @@ const INTERNAL_CODES: ReadonlySet<string> = new Set([
   "identity_provider_org.exists",
   "intake.fees",
   "intake.priorities",
+  "intake.unavailable",
   "learning.band_twice",
   "learning.checks_repeated",
   "learning.released",
@@ -596,6 +597,10 @@ export function getMessageFromError(error: unknown): string {
         return m.fileReplaceKind();
       case "feature.not_in_plan":
         return m.featureNotInPlanError();
+      case "module.in_plan":
+        return m.errorModuleInPlan();
+      case "intake.not_sent":
+        return m.errorIntakeNotSent();
       case "exam.series_unknown":
         return m.examErrSeriesUnknown();
       case "exam.board_unknown":
