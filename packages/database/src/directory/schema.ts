@@ -1,6 +1,7 @@
 import type { ExamBoard } from "@faridalms/domain/exams";
 import type { HostRole, HostState } from "@faridalms/domain/hosts";
 
+import { MODULE_IDS } from "@faridalms/domain/modules";
 import { sql } from "drizzle-orm";
 import {
   bigint,
@@ -297,7 +298,9 @@ export const schoolPlans = pgTable(
     check("school_plans_person_bytes_check", sql`person_bytes > 0`),
     check(
       "school_plans_modules_check",
-      sql`modules <@ array['elearning', 'early_years', 'video', 'coding']::text[]`,
+      sql.raw(
+        `modules <@ array[${MODULE_IDS.map((id) => `'${id}'`).join(", ")}]::text[]`,
+      ),
     ),
   ],
 );

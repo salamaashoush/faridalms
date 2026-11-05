@@ -1,0 +1,38 @@
+{
+  "type": "diff",
+  "version": "9",
+  "dialect": "postgres",
+  "id": "fd11fc26-52f5-415b-9e87-63ef92c6b991",
+  "prevIds": [
+    "57fc5590-0c0a-4177-927d-ed85e7d01a53"
+  ],
+  "footprints": [
+    {
+      "statementType": "alter_check",
+      "statementTarget": [
+        "table",
+        "public",
+        "school_plans"
+      ],
+      "writes": [
+        "s|ck|public.school_plans.school_plans_modules_check"
+      ],
+      "reads": [
+        "n|tbl|public.school_plans",
+        "n|sch|public",
+        "n|col|public.school_plans.modules",
+        "e|col|public.school_plans.modules"
+      ],
+      "sqlHash": "f9c03be0cff082f8"
+    }
+  ],
+  "deltas": [
+    {
+      "op": "alter",
+      "key": "checks\u0000[\"public\",\"school_plans\",\"school_plans_modules_check\"]",
+      "set": {
+        "value": "modules <@ array['coursework', 'peer_review', 'gradebook', 'attendance', 'timetable', 'news', 'website', 'custom_domains', 'admissions', 'student_records', 'badges', 'standards', 'exams', 'elearning', 'early_years', 'coding', 'video', 'integrations', 'sso', 'sms']::text[]"
+      }
+    }
+  ]
+}
