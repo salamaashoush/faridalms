@@ -297,7 +297,7 @@ export function BreachSheet({
     mutationFn: () =>
       saveBreach({
         data: {
-          ...(breach ? { id: breach.id } : {}),
+          ...(breach ? { id: breach.id, expectedVersion: breach.version } : {}),
           title: title.trim(),
           description: description.trim(),
           discoveredAt: instantFromLocal(discovered),

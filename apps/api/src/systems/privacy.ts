@@ -335,12 +335,17 @@ export const saveRequest = writeProcedure
         ...scopeOf(context),
         id: input.id,
       });
+      if (input.expectedVersion === undefined)
+        throw new ORPCError("BAD_REQUEST", { message: "validation.required" });
       const updated = await updateRequest(context.tx, {
         ...scopeOf(context),
         id: input.id,
+        expectedVersion: input.expectedVersion,
         ...fields,
         keepExtension: before?.dueOn === fields.dueOn,
       });
+      if (!updated && before && before.version !== input.expectedVersion)
+        throw new ORPCError("CONFLICT", { message: "conflict.version" });
       if (!updated)
         throw new ORPCError("NOT_FOUND", {
           message: "privacy.request_closed",
@@ -473,15 +478,24 @@ export const saveBreach = writeProcedure
   .input(saveBreachSchema)
   .handler(async ({ input, context }) => {
     requireCapability(context, "privacy:manage");
-    const { id: given, ...fields } = input;
+    const { id: given, expectedVersion, ...fields } = input;
     if (given) {
+      if (expectedVersion === undefined)
+        throw new ORPCError("BAD_REQUEST", { message: "validation.required" });
       const updated = await updateBreach(context.tx, {
         ...scopeOf(context),
         id: given,
+        expectedVersion,
         ...fields,
       });
-      if (!updated)
+      if (!updated) {
+        const before = (await breachesOf(context.tx, scopeOf(context))).find(
+          (row) => row.id === given,
+        );
+        if (before && !before.closedAt && before.version !== expectedVersion)
+          throw new ORPCError("CONFLICT", { message: "conflict.version" });
         throw new ORPCError("NOT_FOUND", { message: "privacy.breach_closed" });
+      }
     }
     const id =
       given ??

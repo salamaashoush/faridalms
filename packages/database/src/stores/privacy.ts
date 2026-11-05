@@ -468,9 +468,15 @@ export async function openRequestsBy(
  */
 export async function updateRequest(
   tx: Tx,
-  input: OrgScope & RequestFields & { id: string; keepExtension: boolean },
+  input: OrgScope &
+    RequestFields & {
+      id: string;
+      expectedVersion: number;
+      keepExtension: boolean;
+    },
 ): Promise<{ id: string } | null> {
-  const { tenantId, orgId, id, keepExtension, ...fields } = input;
+  const { tenantId, orgId, id, expectedVersion, keepExtension, ...fields } =
+    input;
   const [row] = await tx
     .update(recordsRequests)
     .set(
@@ -483,6 +489,7 @@ export async function updateRequest(
         eq(recordsRequests.tenantId, tenantId),
         eq(recordsRequests.orgId, orgId),
         eq(recordsRequests.id, id),
+        eq(recordsRequests.version, expectedVersion),
         eq(recordsRequests.status, "active"),
         isNull(recordsRequests.outcome),
         isNull(recordsRequests.topic),
@@ -560,6 +567,7 @@ export async function closeRequest(
 
 export interface BreachRow {
   id: string;
+  version: number;
   title: string;
   description: string;
   discoveredAt: string;
@@ -577,6 +585,7 @@ export interface BreachRow {
 
 const breachColumns = {
   id: breaches.id,
+  version: breaches.version,
   title: breaches.title,
   description: breaches.description,
   discoveredAt: breaches.discoveredAt,
@@ -662,13 +671,18 @@ const openBreach = (scope: OrgScope & { id: string }) =>
 /** Changes an open breach's facts; false when it is closed or not the school's. */
 export async function updateBreach(
   tx: Tx,
-  input: OrgScope & BreachFields & { id: string },
+  input: OrgScope & BreachFields & { id: string; expectedVersion: number },
 ): Promise<boolean> {
-  const { tenantId, orgId, id, ...fields } = input;
+  const { tenantId, orgId, id, expectedVersion, ...fields } = input;
   const rows = await tx
     .update(breaches)
     .set({ ...fields, discoveredAt: new Date(fields.discoveredAt) })
-    .where(openBreach({ tenantId, orgId, id }))
+    .where(
+      and(
+        openBreach({ tenantId, orgId, id }),
+        eq(breaches.version, expectedVersion),
+      ),
+    )
     .returning({ id: breaches.id });
   return rows.length > 0;
 }

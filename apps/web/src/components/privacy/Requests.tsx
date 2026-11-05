@@ -261,7 +261,9 @@ export function RequestSheet({
     mutationFn: () =>
       saveRequest({
         data: {
-          ...(request ? { id: request.id } : {}),
+          ...(request
+            ? { id: request.id, expectedVersion: request.version }
+            : {}),
           subjectUserId: subjectId,
           requestedBy: requestedBy.trim(),
           relation,

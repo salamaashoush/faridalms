@@ -192,13 +192,28 @@ describe("retention review", () => {
         api.privacy.extendRequest({ id: us.id, reason: "Complex." }),
       ),
     ).toMatchObject({ message: "privacy.no_extension" });
+    const read = (await api.privacy.overview()).requests.find(
+      (row) => row.id === uk.id,
+    );
     const edited = await api.privacy.saveRequest({
       ...base,
       id: uk.id,
+      expectedVersion: read?.version ?? 0,
       law: "uk_gdpr",
       details: "Asked for exam scripts too.",
     });
     expect(edited.dueOn).toBe("2026-04-02");
+    // A change made from what was read before the last one is refused.
+    expect(
+      await rejection(
+        api.privacy.saveRequest({
+          ...base,
+          id: uk.id,
+          expectedVersion: read?.version ?? 0,
+          law: "uk_gdpr",
+        }),
+      ),
+    ).toMatchObject({ code: "CONFLICT", message: "conflict.version" });
     expect(
       (await api.privacy.overview()).requests.find((row) => row.id === uk.id)
         ?.extendedTo,

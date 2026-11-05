@@ -206,6 +206,7 @@ const note = (max: number) =>
 export const saveRequestSchema = v.pipe(
   v.object({
     id: v.optional(v.pipe(v.string(), v.uuid())),
+    expectedVersion: v.optional(v.pipe(v.number(), v.integer(), v.minValue(1))),
     subjectUserId: v.pipe(v.string(), v.uuid()),
     requestedBy: note(120),
     relation: v.picklist(REQUEST_RELATIONS),
@@ -302,6 +303,7 @@ const optionalNote = (max: number) =>
 
 export const saveBreachSchema = v.object({
   id: v.optional(v.pipe(v.string(), v.uuid())),
+  expectedVersion: v.optional(v.pipe(v.number(), v.integer(), v.minValue(1))),
   title: note(120),
   description: note(4000),
   discoveredAt: instantString,
