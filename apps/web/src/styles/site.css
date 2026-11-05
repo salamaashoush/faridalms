@@ -325,7 +325,12 @@
     font-weight: var(--s-heading-weight, 650);
     line-height: 1;
     letter-spacing: var(--s-display-tracking);
-    font-variant-numeric: tabular-nums;
+    font-variant-numeric: lining-nums proportional-nums;
+  }
+  /* Tabular digits leave wide gaps in serif display faces ("1 2:1"), so they
+     hold the width steady only while a figure counts up. */
+  .site-figure[data-counting] {
+    font-variant-numeric: lining-nums tabular-nums;
   }
   .site-h4 {
     font-size: 1.125rem;
@@ -880,7 +885,7 @@
     font-size: clamp(2.5rem, 2rem + 2.222cqi, 3.5rem);
     font-weight: var(--s-heading-weight, 650);
     line-height: 1;
-    font-variant-numeric: tabular-nums;
+    font-variant-numeric: lining-nums proportional-nums;
   }
 
   /* Pictures. */

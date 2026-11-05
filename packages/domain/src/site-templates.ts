@@ -1388,7 +1388,7 @@ export function starterChrome(pages: StarterPage[]): SiteChrome {
       },
       {
         id: freshId(),
-        label: { en: "Visit", ar: "زُرنا" },
+        label: { en: "Book a visit", ar: "احجز زيارة" },
         href: target("visit", ANCHOR.visit),
         style: "secondary",
       },

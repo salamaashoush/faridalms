@@ -53,7 +53,7 @@ describe("the public website", () => {
     expect(shell.theme.id).toBe("meridian");
     expect(shell.actions.map((action) => action.label)).toEqual([
       "استفسر",
-      "زُرنا",
+      "احجز زيارة",
       "قدّم الآن",
     ]);
 

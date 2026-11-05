@@ -234,6 +234,15 @@ function Mesh({ seed }: { seed: string }) {
 }
 
 /**
+ * Where a picture sits among siblings (the tiles of one section), so
+ * neighbours never draw the same composition by chance.
+ */
+export interface ArtSet {
+  id: string;
+  index: number;
+}
+
+/**
  * Artwork drawn from the theme's colours where a picture belongs but none
  * has been chosen yet, so a new site looks composed rather than broken.
  */
@@ -243,6 +252,7 @@ export function SiteArt({
   ratio,
   kind = "shapes",
   phoneRatio,
+  set,
 }: {
   seed: string;
   className?: string;
@@ -250,10 +260,14 @@ export function SiteArt({
   kind?: "shapes" | "mesh";
   /** The proportions on a phone, where a tall picture would fill the screen. */
   phoneRatio?: string;
+  set?: ArtSet;
 }) {
   const next = sequence(seed);
+  const pick = Math.floor(next() * COMPOSITIONS.length);
   const draw =
-    COMPOSITIONS[Math.floor(next() * COMPOSITIONS.length)] ?? COMPOSITIONS[0];
+    COMPOSITIONS[
+      set ? (hash(set.id) + set.index) % COMPOSITIONS.length : pick
+    ] ?? COMPOSITIONS[0];
   return (
     <svg
       aria-hidden

@@ -49,6 +49,8 @@ import { ContentView } from "~/components/content/ContentView";
 import * as m from "~/i18n/messages";
 import { sitePath } from "~/utils/host";
 
+import type { ArtSet } from "./art";
+
 import { SiteArt } from "./art";
 import { focusStyle, overMediaStyle, ratioStyle, schemeStyle } from "./theme";
 
@@ -545,6 +547,7 @@ export function SitePicture({
   feature = false,
   art = true,
   phoneRatio,
+  set,
 }: {
   image: Picture;
   context: RenderContext;
@@ -555,6 +558,7 @@ export function SitePicture({
   art?: boolean;
   /** The proportions on a phone, where a tall picture would fill the screen. */
   phoneRatio?: string;
+  set?: ArtSet;
 }) {
   const src = image.fileId ? context.fileUrl(image.fileId) : null;
   const body = src ? (
@@ -571,6 +575,7 @@ export function SitePicture({
       className={className}
       ratio={ratio}
       phoneRatio={phoneRatio}
+      set={set}
     />
   ) : context.editing ? (
     <div
@@ -608,6 +613,7 @@ export function MediaView({
   seed,
   feature = false,
   phoneRatio,
+  set,
 }: {
   media: SiteMedia;
   context: RenderContext;
@@ -616,6 +622,7 @@ export function MediaView({
   seed?: string;
   feature?: boolean;
   phoneRatio?: string;
+  set?: ArtSet;
 }) {
   if (media.kind === "image")
     return (
@@ -627,6 +634,7 @@ export function MediaView({
         seed={seed}
         feature={feature}
         phoneRatio={phoneRatio}
+        set={set}
       />
     );
   const src = media.fileId ? context.fileUrl(media.fileId) : null;
@@ -640,6 +648,7 @@ export function MediaView({
         seed={seed}
         feature={feature}
         phoneRatio={phoneRatio}
+        set={set}
       />
     );
   const poster = media.posterFileId

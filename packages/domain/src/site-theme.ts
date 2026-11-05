@@ -719,16 +719,19 @@ export function artPalette(palette: Palette): ArtPalette {
   const neutral = primary.c < NEUTRAL;
   const { h } = primary;
   const c = neutral ? Math.min(primary.c, 0.012) : Math.max(primary.c, 0.08);
+  const deep = fromOklch({ l: neutral ? 0.19 : 0.26, c: c * 0.8, h });
+  // Only as light as it must be to read as a shape on the deep ground (3:1):
+  // a fixed floor washed a crimson out to salmon.
+  let lightness = Math.min(accent.l, 0.84);
+  const accentAt = (l: number) => fromOklch({ l, c: accent.c, h: accent.h });
+  while (lightness < 0.84 && contrast(accentAt(lightness), deep) < 3)
+    lightness += 0.01;
   return {
-    deep: fromOklch({ l: neutral ? 0.19 : 0.26, c: c * 0.8, h }),
+    deep,
     base: fromOklch({ l: neutral ? 0.3 : 0.4, c, h }),
     bright: fromOklch({ l: neutral ? 0.5 : 0.58, c: c * 1.1, h }),
     light: fromOklch({ l: 0.92, c: c * 0.3, h }),
-    accent: fromOklch({
-      l: Math.min(Math.max(accent.l, 0.62), 0.84),
-      c: accent.c,
-      h: accent.h,
-    }),
+    accent: accentAt(lightness),
   };
 }
 
