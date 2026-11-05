@@ -2,7 +2,14 @@ import { expect, test } from "@playwright/test";
 
 import type { RoleKey } from "./fixtures/sign-in";
 
-import { ACCOUNTS, signIn, untilHydrated } from "./fixtures/sign-in";
+import {
+  ACCOUNTS,
+  PASSWORD,
+  portal,
+  signIn,
+  signInWith,
+  untilHydrated,
+} from "./fixtures/sign-in";
 
 /**
  * Navigation is the contract: a role only ever sees links to sections it can
@@ -36,6 +43,89 @@ test.describe("navigation offers nothing that 404s", () => {
         await untilHydrated(page);
       }
     });
+  }
+});
+
+/**
+ * A school entitled to Basic alone: its menus hold no module it lacks, so
+ * nothing it is offered 404s, and a module's page it lacks is not found.
+ */
+const BASIC: Record<RoleKey, { email: string; home: string }> = {
+  admin: { email: "principal.fernhill@fernhill.example.com", home: "/admin" },
+  teacher: { email: "teacher1.fernhill@fernhill.example.com", home: "/teach" },
+  parent: { email: "parent1001@fernhill.example.com", home: "/family" },
+  student: { email: "student1001@fernhill.example.com", home: "/me" },
+};
+
+test.describe("a school with Basic alone offers nothing it does not have", () => {
+  for (const role of Object.keys(BASIC) as RoleKey[]) {
+    test(`every ${role} nav link resolves`, async ({ page }) => {
+      const account = BASIC[role];
+      await signInWith(page, account.email, PASSWORD, account.home, "fernhill");
+      await untilHydrated(page);
+      const hrefs = await page
+        .getByRole("navigation")
+        .getByRole("link")
+        .evaluateAll((links) =>
+          links
+            .map((link) => link.getAttribute("href"))
+            .filter(
+              (href): href is string => href !== null && href.startsWith("/"),
+            ),
+        );
+      expect(hrefs.length).toBeGreaterThan(0);
+      for (const href of new Set(hrefs)) {
+        const response = await page.goto(
+          new URL(href, portal("fernhill")).href,
+        );
+        expect(response?.status(), `${href} should not error`).toBeLessThan(
+          400,
+        );
+        await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
+        await expect(
+          page.getByRole("heading", { name: "Page not found", exact: true }),
+          `${href} should be the school's`,
+        ).toHaveCount(0);
+        await untilHydrated(page);
+      }
+    });
+  }
+
+  test("an administrator finds no module the school lacks", async ({
+    page,
+  }) => {
+    await signInWith(page, BASIC.admin.email, PASSWORD, "/admin", "fernhill");
+    await untilHydrated(page);
+    const navigation = page.getByRole("navigation").first();
+    for (const name of ["Enquiries", "Website", "Exams and grading"])
+      await expect(
+        navigation.getByRole("link", { name, exact: true }),
+      ).toHaveCount(0);
+    await page.goto(new URL("/admin/site", portal("fernhill")).href);
+    await expect(
+      page.getByRole("heading", { name: "Page not found", exact: true }),
+    ).toBeVisible();
+  });
+});
+
+test("every tab of a Basic school's records opens", async ({ page }) => {
+  await signInWith(page, BASIC.admin.email, PASSWORD, "/admin", "fernhill");
+  for (const list of ["/admin/students", "/admin/classes", "/admin/staff"]) {
+    await page.goto(new URL(list, portal("fernhill")).href);
+    await untilHydrated(page);
+    await page.getByRole("table").getByRole("link").first().click();
+    const tabs = page.getByRole("tab");
+    await expect(tabs.first()).toBeVisible();
+    for (const name of await tabs.allTextContents()) {
+      await page.getByRole("tab", { name, exact: true }).click();
+      await expect(
+        page.getByRole("tab", { name, exact: true }),
+      ).toHaveAttribute("aria-selected", "true");
+      await expect(
+        page.getByText(/^(Something went wrong|Page not found)/),
+        `${list} ${name}`,
+      ).toHaveCount(0);
+    }
   }
 });
 

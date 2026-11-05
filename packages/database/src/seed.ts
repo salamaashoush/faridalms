@@ -201,6 +201,8 @@ export interface SeededSchool {
   slug: string;
   nameEn: string;
   nameAr: string;
+  /** Entitled to Basic alone, where every other seeded school has everything. */
+  basic: boolean;
 }
 
 export interface SeededTenant extends ProvisionedTenant {
@@ -546,6 +548,7 @@ interface SchoolPlan {
   nameAr: string;
   grades: string[];
   studentsPerGrade: number;
+  basic?: boolean;
 }
 
 const TAUGHT_SUBJECTS = ["arabic", "english", "mathematics", "science"];
@@ -2752,13 +2755,43 @@ export const SEED_TENANTS: {
     domain: "acme.example.com",
     seed: 11,
   },
+  {
+    spec: {
+      kind: "school",
+      nameEn: "Fernhill School",
+      nameAr: "مدرسة فيرنهيل",
+      defaultLocale: "en",
+      jurisdictions: ["EG"],
+      schools: [
+        {
+          nameEn: "Fernhill School",
+          nameAr: "مدرسة فيرنهيل",
+          timeZone: "Africa/Cairo",
+          countryCode: "EG",
+          defaultLocale: "en",
+        },
+      ],
+    },
+    schools: [
+      {
+        slug: "fernhill",
+        nameEn: "Fernhill School",
+        nameAr: "مدرسة فيرنهيل",
+        grades: ["grade_8"],
+        studentsPerGrade: 3,
+        basic: true,
+      },
+    ],
+    domain: "fernhill.example.com",
+    seed: 13,
+  },
 ];
 
 /**
  * The development seed: a school group of two schools, with a teacher who
- * works at both and a family with children at both, and a standalone school
- * in another jurisdiction. Every adult and some students can sign in with
- * `SEED_PASSWORD`.
+ * works at both and a family with children at both, a standalone school in
+ * another jurisdiction, and a small school entitled to Basic alone. Every
+ * adult and some students can sign in with `SEED_PASSWORD`.
  */
 export async function seedCell(
   owner: ReturnType<typeof openOwner>,
@@ -2818,6 +2851,7 @@ export async function seedCell(
         slug: school.slug,
         nameEn: school.nameEn,
         nameAr: school.nameAr,
+        basic: school.basic ?? false,
       })),
       logins,
     });
