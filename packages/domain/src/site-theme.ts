@@ -250,8 +250,8 @@ export const THEMES: Record<ThemeId, Theme> = {
   meridian: {
     id: "meridian",
     palette: {
-      canvas: "#F8F9FB",
-      surface: "#EAF0F7",
+      canvas: "#FFFFFF",
+      surface: "#EEF3F9",
       primary: "#0B3D91",
       accent: "#0FA3A3",
       ink: "#0F172A",

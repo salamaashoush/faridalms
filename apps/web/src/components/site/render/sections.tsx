@@ -34,13 +34,13 @@ import {
   Quote,
   X,
 } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 
 import { ContentView } from "~/components/content/ContentView";
 import * as m from "~/i18n/messages";
 import { submitSiteEnquiry } from "~/server/site";
 import { formatDate, formatInstant, formatMonthShort } from "~/utils/datetime";
-import { numberLocale } from "~/utils/digits";
+import { arabicDigits, numberLocale } from "~/utils/digits";
 
 import type { RenderContext, SiteIntake } from "./parts";
 
@@ -690,12 +690,15 @@ function PictureTile({
   seed,
   context,
   ratio,
+  strength,
   children,
 }: {
   image: SectionOf<"cards">["data"]["items"][number]["image"];
   seed: string;
   context: RenderContext;
   ratio: string;
+  /** Deeper for a title with a sentence under it than for a title alone. */
+  strength?: "m" | "l";
   children: ReactNode;
 }) {
   return (
@@ -710,7 +713,7 @@ function PictureTile({
         className="absolute inset-0 -z-10 rounded-none"
       />
       <div className="absolute inset-0 -z-10">
-        <Scrim photo={Boolean(image.fileId)} />
+        <Scrim photo={Boolean(image.fileId)} strength={strength} />
       </div>
       <div className="absolute inset-x-0 bottom-0 grid gap-2 p-[var(--s-card-pad)]">
         {children}
@@ -719,77 +722,229 @@ function PictureTile({
   );
 }
 
+/**
+ * How many items a carousel shows at once at each width: whole ones when
+ * they all fit, else that many and a quarter of the next, so a visitor sees
+ * there is more.
+ */
+function lanes(count: number, wide: number): CSSProperties {
+  const lane = (fit: number) =>
+    count > fit
+      ? { per: fit + 0.25, gaps: fit }
+      : { per: count, gaps: count - 1 };
+  const [phone, tablet, desktop] = [lane(1), lane(2), lane(wide)];
+  return {
+    "--s-per-1": phone.per,
+    "--s-gaps-1": phone.gaps,
+    "--s-per-2": tablet.per,
+    "--s-gaps-2": tablet.gaps,
+    "--s-per-3": desktop.per,
+    "--s-gaps-3": desktop.gaps,
+  } as CSSProperties;
+}
+
+/**
+ * A row that scrolls sideways, starting on the page's edge and running out
+ * to the screen's, with previous and next beside its heading that stop at
+ * either end, in either reading direction.
+ */
+function Carousel({
+  section,
+  context,
+  heading,
+  text = "",
+  count,
+  wide,
+  children,
+}: {
+  section: PageSection;
+  context: RenderContext;
+  heading: string;
+  text?: string;
+  count: number;
+  /** Whole items in view on a wide screen. */
+  wide: number;
+  children: ReactNode;
+}) {
+  const t = { locale: context.locale };
+  const id = useId();
+  const list = useRef<HTMLUListElement>(null);
+  const [ends, setEnds] = useState({ start: true, end: false });
+  useEffect(() => {
+    const element = list.current;
+    if (!element || count === 0) return undefined;
+    const measure = () => {
+      // Right-to-left rows scroll towards negative offsets.
+      const travelled = Math.abs(element.scrollLeft);
+      const room = element.scrollWidth - element.clientWidth;
+      setEnds({ start: travelled <= 1, end: travelled >= room - 1 });
+    };
+    measure();
+    element.addEventListener("scroll", measure, { passive: true });
+    const observer = new ResizeObserver(measure);
+    observer.observe(element);
+    for (const item of element.children) observer.observe(item);
+    return () => {
+      element.removeEventListener("scroll", measure);
+      observer.disconnect();
+    };
+  }, [count]);
+  const go = (by: 1 | -1) => {
+    const element = list.current;
+    const item = element?.firstElementChild;
+    if (!element || !(item instanceof HTMLElement)) return;
+    const style = getComputedStyle(element);
+    const step = item.offsetWidth + (Number.parseFloat(style.columnGap) || 0);
+    element.scrollBy({
+      left: step * by * (style.direction === "rtl" ? -1 : 1),
+      behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches
+        ? "auto"
+        : "smooth",
+    });
+  };
+  const centred = section.style.align === "center";
+  const controls = (
+    <div
+      className={cn(
+        // A phone swipes; the next item peeking in says there is more.
+        "hidden shrink-0 gap-2 @2xl/site:flex",
+        ends.start && ends.end && "invisible",
+        centred ? "mt-8 justify-center" : "ms-auto",
+      )}
+    >
+      <button
+        type="button"
+        onClick={() => go(-1)}
+        disabled={ends.start}
+        aria-controls={id}
+        aria-label={m.siteCarouselPrevious({}, t)}
+        className="site-icon-button"
+      >
+        <ChevronLeft aria-hidden className="rtl:-scale-x-100" />
+      </button>
+      <button
+        type="button"
+        onClick={() => go(1)}
+        disabled={ends.end}
+        aria-controls={id}
+        aria-label={m.siteCarouselNext({}, t)}
+        className="site-icon-button"
+      >
+        <ChevronRight aria-hidden className="rtl:-scale-x-100" />
+      </button>
+    </div>
+  );
+  return (
+    <div>
+      {centred ? (
+        <SectionIntro heading={heading} text={text} />
+      ) : (
+        <div className="site-intro-row [&_.site-intro]:mb-0">
+          <SectionIntro heading={heading} text={text} />
+          {controls}
+        </div>
+      )}
+      <ul
+        ref={list}
+        id={id}
+        aria-label={withoutEmphasis(heading) || undefined}
+        data-stagger
+        className="site-carousel"
+        style={lanes(count, wide)}
+      >
+        {children}
+      </ul>
+      {centred ? controls : null}
+    </div>
+  );
+}
+
 function Cards({ section, context }: Props<"cards">) {
   const { data, variant } = section;
   const t = { locale: context.locale };
+  const items = data.items.map((item) => {
+    const body =
+      variant === "imageButtons" ? (
+        <PictureTile
+          image={item.image}
+          seed={item.id}
+          context={context}
+          ratio="4 / 5"
+        >
+          <span className="flex items-end justify-between gap-3">
+            <span className="site-heading site-h3">{item.title}</span>
+            {item.href ? (
+              <ArrowUpRight
+                aria-hidden
+                className="site-arrow size-6 shrink-0 rtl:-scale-x-100"
+              />
+            ) : null}
+          </span>
+        </PictureTile>
+      ) : (
+        <div className="site-card flex h-full flex-col overflow-hidden text-start">
+          {variant === "grid" || variant === "scroller" ? (
+            <div className="overflow-hidden">
+              <SitePicture
+                image={item.image}
+                context={context}
+                ratio="3 / 2"
+                seed={item.id}
+                className="rounded-none"
+              />
+            </div>
+          ) : null}
+          <div className="site-card-body">
+            {variant === "icons" ? <IconTile icon={item.icon} /> : null}
+            <Heading level={3}>{item.title}</Heading>
+            {item.text ? <p className="site-text">{item.text}</p> : null}
+            {item.href ? (
+              <TextLink context={context} className="mt-auto pt-2">
+                {m.siteLearnMore({}, t)}
+              </TextLink>
+            ) : null}
+          </div>
+        </div>
+      );
+    return (
+      <li key={item.id}>
+        {item.href ? (
+          <SiteAnchor
+            href={item.href}
+            context={context}
+            className="site-zoom block h-full"
+          >
+            {body}
+          </SiteAnchor>
+        ) : (
+          body
+        )}
+      </li>
+    );
+  });
+  if (variant === "scroller")
+    return (
+      <Carousel
+        section={section}
+        context={context}
+        heading={data.heading}
+        text={data.text}
+        count={data.items.length}
+        wide={Number(data.columns)}
+      >
+        {items}
+      </Carousel>
+    );
   return (
     <div>
       <SectionIntro heading={data.heading} text={data.text} />
       <ul
         data-stagger
-        className={variant === "scroller" ? "site-rail" : "site-grid"}
-        data-cols={variant === "scroller" ? undefined : data.columns}
+        className="site-grid"
+        data-cols={data.columns}
+        data-fill={variant === "icons" ? "" : undefined}
       >
-        {data.items.map((item) => {
-          const body =
-            variant === "imageButtons" ? (
-              <PictureTile
-                image={item.image}
-                seed={item.id}
-                context={context}
-                ratio="4 / 5"
-              >
-                <span className="flex items-end justify-between gap-3">
-                  <span className="site-heading site-h3">{item.title}</span>
-                  {item.href ? (
-                    <ArrowUpRight
-                      aria-hidden
-                      className="site-arrow size-6 shrink-0 rtl:-scale-x-100"
-                    />
-                  ) : null}
-                </span>
-              </PictureTile>
-            ) : (
-              <div className="site-card flex h-full flex-col overflow-hidden text-start">
-                {variant === "grid" || variant === "scroller" ? (
-                  <div className="overflow-hidden">
-                    <SitePicture
-                      image={item.image}
-                      context={context}
-                      ratio="3 / 2"
-                      seed={item.id}
-                      className="rounded-none"
-                    />
-                  </div>
-                ) : null}
-                <div className="site-card-body">
-                  {variant === "icons" ? <IconTile icon={item.icon} /> : null}
-                  <Heading level={3}>{item.title}</Heading>
-                  {item.text ? <p className="site-text">{item.text}</p> : null}
-                  {item.href ? (
-                    <TextLink context={context} className="mt-auto pt-2">
-                      {m.siteLearnMore({}, t)}
-                    </TextLink>
-                  ) : null}
-                </div>
-              </div>
-            );
-          return (
-            <li key={item.id}>
-              {item.href ? (
-                <SiteAnchor
-                  href={item.href}
-                  context={context}
-                  className="site-zoom block h-full"
-                >
-                  {body}
-                </SiteAnchor>
-              ) : (
-                body
-              )}
-            </li>
-          );
-        })}
+        {items}
       </ul>
     </div>
   );
@@ -797,6 +952,7 @@ function Cards({ section, context }: Props<"cards">) {
 
 function Divisions({ section, context }: Props<"divisions">) {
   const { data, variant } = section;
+  const columns = columnsFor(data.items.length, 4);
   return (
     <div>
       <SectionIntro heading={data.heading} text={data.text} />
@@ -849,36 +1005,35 @@ function Divisions({ section, context }: Props<"divisions">) {
               <SiteAnchor
                 href={item.href}
                 context={context}
-                className="site-card site-zoom grid items-center overflow-hidden text-start @3xl/site:grid-cols-[18rem_1fr_auto]"
+                className="site-card site-zoom grid overflow-hidden text-start @3xl/site:grid-cols-[14rem_minmax(0,1fr)] @5xl/site:grid-cols-[16rem_minmax(0,1fr)]"
               >
-                <div className="h-full overflow-hidden">
+                <div className="overflow-hidden">
                   <SitePicture
                     image={item.image}
                     context={context}
                     ratio="16 / 10"
+                    phoneRatio="2 / 1"
                     seed={item.id}
                     className="rounded-none"
                   />
                 </div>
-                <div className="grid gap-2 p-[var(--s-card-pad)]">
-                  <span className="site-eyebrow">{item.ages}</span>
-                  <Heading level={3}>{item.title}</Heading>
+                {/* On a wide screen the stage and its sentence sit side by side, so a row reads as one line of a table. */}
+                <div className="grid content-center items-center gap-x-[var(--s-grid-gap)] gap-y-3 p-[var(--s-card-pad)] @5xl/site:grid-cols-[minmax(0,2fr)_minmax(0,3fr)_auto]">
+                  <div className="grid justify-items-start gap-2">
+                    <span className="site-eyebrow">{item.ages}</span>
+                    <Heading level={3}>{item.title}</Heading>
+                  </div>
                   {item.text ? <p className="site-text">{item.text}</p> : null}
+                  {item.href ? (
+                    <Arrow className="hidden size-6 text-[var(--s-link)] @5xl/site:block" />
+                  ) : null}
                 </div>
-                {item.href ? (
-                  <Arrow className="me-[var(--s-card-pad)] hidden size-6 text-[var(--s-link)] @3xl/site:block" />
-                ) : null}
               </SiteAnchor>
             </li>
           ))}
         </ul>
       ) : (
-        <ul
-          data-stagger
-          className="site-grid"
-          data-cols={columnsFor(data.items.length)}
-          data-rail
-        >
+        <ul data-stagger className="site-grid" data-cols={columns} data-rail>
           {data.items.map((item) => (
             <li key={item.id}>
               <SiteAnchor href={item.href} context={context} className="block">
@@ -886,14 +1041,23 @@ function Divisions({ section, context }: Props<"divisions">) {
                   image={item.image}
                   seed={item.id}
                   context={context}
-                  ratio="3 / 4"
+                  ratio={columns === "4" ? "3 / 4" : "4 / 5"}
+                  strength="l"
                 >
                   <span className="site-meta text-[var(--s-fg)]">
                     {item.ages}
                   </span>
-                  <span className="site-heading site-h2">{item.title}</span>
+                  <span
+                    className={cn(
+                      "site-heading",
+                      columns === "4" ? "site-h3" : "site-h2",
+                    )}
+                  >
+                    {item.title}
+                  </span>
                   {item.text ? (
-                    <span className="site-small max-w-xs text-[var(--s-muted)]">
+                    // Three lines held for every stage's sentence, so the titles of a row line up.
+                    <span className="site-small min-h-[3lh] max-w-xs text-[var(--s-muted)]">
                       {item.text}
                     </span>
                   ) : null}
@@ -923,16 +1087,19 @@ function Figure({
   caption?: string;
   context: RenderContext;
 }) {
+  // In the school's Arabic-Indic digits a figure stands still, as counting
+  // up runs in Latin ones.
+  const shown = context.locale === "ar" ? arabicDigits(value) : value;
   const ref = useCountUp(
-    value,
+    shown,
     !context.editing && context.theme.motion !== "none",
   );
   return (
-    <div className="grid content-start gap-3 border-s border-[var(--s-border)] ps-6 text-start">
+    <div className="site-stat">
+      <dt className="site-stat-label order-2">{label}</dt>
       <dd ref={ref} className="site-figure order-1">
-        {value}
+        {shown}
       </dd>
-      <dt className="order-2 font-semibold">{label}</dt>
       {caption ? (
         <dd className="site-text site-small order-3">{caption}</dd>
       ) : null}
@@ -943,7 +1110,12 @@ function Figure({
 function Stats({ section, context }: Props<"stats">) {
   const { data, variant } = section;
   const figures = (columns: "2" | "3" | "4") => (
-    <dl data-stagger className="site-grid gap-y-12" data-cols={columns}>
+    <dl
+      data-stagger
+      className="site-grid gap-y-12"
+      data-cols={columns}
+      data-keep
+    >
       {data.items.map((item) => (
         <Figure
           key={item.id}
@@ -1163,10 +1335,54 @@ function Voices({ section, context }: Props<"voices">) {
     alumni: m.siteAudienceAlumni({}, t),
   };
   const audiences = [...new Set(data.items.map((item) => item.audience))];
-  const items =
+  const shown =
     variant === "tabs" && tab !== "all"
       ? data.items.filter((item) => item.audience === tab)
       : data.items;
+  const items = shown.map((item) => (
+    <li key={item.id}>
+      <figure className="site-card flex h-full flex-col gap-5 p-[var(--s-card-pad)] text-start">
+        <QuoteMark />
+        <blockquote className="site-quote" data-size="s">
+          {item.quote}
+        </blockquote>
+        <figcaption className="mt-auto flex items-center gap-3 border-t border-[var(--s-border)] pt-5">
+          {item.portrait.fileId ? (
+            <SitePicture
+              image={item.portrait}
+              context={context}
+              ratio="1 / 1"
+              seed={item.id}
+              className="size-11 shrink-0 rounded-full"
+            />
+          ) : (
+            <span
+              aria-hidden
+              className="site-heading grid size-11 shrink-0 place-items-center rounded-full bg-[color-mix(in_oklab,var(--s-link)_14%,transparent)] text-[var(--s-link)]"
+            >
+              {item.name.trim().charAt(0)}
+            </span>
+          )}
+          <span className="grid">
+            <span className="font-semibold">{item.name}</span>
+            <span className="site-meta">{item.role}</span>
+          </span>
+        </figcaption>
+      </figure>
+    </li>
+  ));
+  if (variant === "carousel")
+    return (
+      <Carousel
+        section={section}
+        context={context}
+        heading={data.heading}
+        count={items.length}
+        wide={3}
+      >
+        {items}
+      </Carousel>
+    );
   return (
     <div>
       <SectionIntro heading={data.heading} />
@@ -1190,49 +1406,11 @@ function Voices({ section, context }: Props<"voices">) {
       ) : null}
       <ul
         data-stagger
-        className={variant === "carousel" ? "site-rail" : "site-grid"}
-        style={
-          variant === "carousel"
-            ? ({ "--s-rail-item": "26rem" } as CSSProperties)
-            : undefined
-        }
-        data-cols={
-          variant === "carousel" ? undefined : columnsFor(items.length)
-        }
+        className="site-grid"
+        data-cols={columnsFor(items.length)}
         data-rail
       >
-        {items.map((item) => (
-          <li key={item.id}>
-            <figure className="site-card flex h-full flex-col gap-5 p-[var(--s-card-pad)] text-start">
-              <QuoteMark />
-              <blockquote className="site-quote" data-size="s">
-                {item.quote}
-              </blockquote>
-              <figcaption className="mt-auto flex items-center gap-3 border-t border-[var(--s-border)] pt-5">
-                {item.portrait.fileId ? (
-                  <SitePicture
-                    image={item.portrait}
-                    context={context}
-                    ratio="1 / 1"
-                    seed={item.id}
-                    className="size-11 shrink-0 rounded-full"
-                  />
-                ) : (
-                  <span
-                    aria-hidden
-                    className="site-heading grid size-11 shrink-0 place-items-center rounded-full bg-[color-mix(in_oklab,var(--s-link)_14%,transparent)] text-[var(--s-link)]"
-                  >
-                    {item.name.trim().charAt(0)}
-                  </span>
-                )}
-                <span className="grid">
-                  <span className="font-semibold">{item.name}</span>
-                  <span className="site-meta">{item.role}</span>
-                </span>
-              </figcaption>
-            </figure>
-          </li>
-        ))}
+        {items}
       </ul>
     </div>
   );
@@ -1240,42 +1418,52 @@ function Voices({ section, context }: Props<"voices">) {
 
 function People({ section, context }: Props<"people">) {
   const { data, variant } = section;
+  const items = data.items.map((item) => (
+    <li key={item.id} className="grid content-start gap-4 text-start">
+      <div className="site-feature">
+        <SitePicture
+          image={item.portrait}
+          context={context}
+          ratio="4 / 5"
+          seed={item.id}
+          className="rounded-none"
+        />
+      </div>
+      <span className="grid gap-1">
+        <span className="site-heading site-h4">{item.name}</span>
+        <span className="site-meta">{item.role}</span>
+      </span>
+      {item.text ? <p className="site-text site-small">{item.text}</p> : null}
+    </li>
+  ));
+  if (variant === "carousel")
+    return (
+      <Carousel
+        section={section}
+        context={context}
+        heading={data.heading}
+        text={data.text}
+        count={items.length}
+        wide={4}
+      >
+        {items}
+      </Carousel>
+    );
   return (
     <div>
       <SectionIntro heading={data.heading} text={data.text} />
       <ul
         data-stagger
-        className={
-          variant === "carousel"
-            ? "site-rail"
-            : "grid grid-cols-2 gap-x-[var(--s-grid-gap)] gap-y-10 @3xl/site:grid-cols-3 @5xl/site:grid-cols-4"
-        }
-        style={
-          variant === "carousel"
-            ? ({ "--s-rail-item": "17rem" } as CSSProperties)
-            : undefined
-        }
+        className={cn(
+          "grid grid-cols-2 gap-x-[var(--s-grid-gap)] gap-y-10",
+          {
+            "2": "",
+            "3": "@3xl/site:grid-cols-3",
+            "4": "@5xl/site:grid-cols-4",
+          }[columnsFor(items.length, 4)],
+        )}
       >
-        {data.items.map((item) => (
-          <li key={item.id} className="grid content-start gap-4 text-start">
-            <div className="site-feature">
-              <SitePicture
-                image={item.portrait}
-                context={context}
-                ratio="4 / 5"
-                seed={item.id}
-                className="rounded-none"
-              />
-            </div>
-            <span className="grid gap-1">
-              <span className="site-heading site-h4">{item.name}</span>
-              <span className="site-meta">{item.role}</span>
-            </span>
-            {item.text ? (
-              <p className="site-text site-small">{item.text}</p>
-            ) : null}
-          </li>
-        ))}
+        {items}
       </ul>
     </div>
   );

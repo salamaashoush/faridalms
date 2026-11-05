@@ -1498,6 +1498,414 @@ export function buildSection<T extends SectionType>(
   };
 }
 
+// The international starter's own words: a school that backs its claims
+// with figures, shows its four stages and lets families speak.
+const INTL_HERO = section("hero", "collage", (b) => ({
+  eyebrow: b.w([
+    "International school, ages 3 to 18",
+    "مدرسة دولية، من ٣ إلى ١٨ سنة",
+  ]),
+  heading: b.w([
+    "Curious minds, *global* futures",
+    "عقول فضولية ومستقبل *عالمي*",
+  ]),
+  text: b.w([
+    "Students from forty-five countries learn in English and Arabic, from their first morning in the early years to the university of their choice.",
+    "يتعلّم طلاب من خمس وأربعين دولة بالعربية والإنجليزية، من صباحهم الأول في رياض الأطفال حتى الجامعة التي يختارونها.",
+  ]),
+  more: [
+    { id: b.id(), image: noImage },
+    { id: b.id(), image: noImage },
+  ],
+  actions: [
+    link(b, ["Book a visit", "احجز زيارة"], `/pages/visit#${ANCHOR.visit}`),
+    link(b, ["Explore academics", "اكتشف مناهجنا"], "/pages/academics"),
+  ],
+  height: "l" as const,
+}));
+
+const figure = (b: Builder, value: string, label: Words, caption: Words) => ({
+  id: b.id(),
+  value,
+  label: b.w(label),
+  caption: b.w(caption),
+});
+
+const INTL_FIGURES = section("stats", "captions", (b) => ({
+  heading: b.w(["The school in *numbers*", "المدرسة *بالأرقام*"]),
+  items: [
+    figure(
+      b,
+      "1,200",
+      ["students", "طالب وطالبة"],
+      [
+        "From the early years to Grade 12, on one campus.",
+        "من رياض الأطفال حتى الصف الثاني عشر، في حرم واحد.",
+      ],
+    ),
+    figure(
+      b,
+      "45",
+      ["nationalities", "جنسية"],
+      [
+        "Families from every continent, learning as one community.",
+        "أسر من كل القارات تتعلّم مجتمعًا واحدًا.",
+      ],
+    ),
+    figure(
+      b,
+      "12:1",
+      ["students per teacher", "طالبًا لكل معلّم"],
+      [
+        "Small classes, so every child is known well.",
+        "فصول صغيرة يُعرف فيها كل طفل معرفة جيدة.",
+      ],
+    ),
+    figure(
+      b,
+      "98%",
+      ["university offers", "قبولًا جامعيًا"],
+      [
+        "Graduates holding an offer from their first-choice university.",
+        "من الخريجين نالوا قبولًا من جامعتهم الأولى.",
+      ],
+    ),
+  ],
+  source: b.w([
+    "Figures for the 2026 to 2027 school year.",
+    "أرقام العام الدراسي ٢٠٢٦–٢٠٢٧.",
+  ]),
+}));
+
+/** The four stages: on the home page the way into academics, on academics itself rows that lead nowhere else. */
+const INTL_STAGES = (variant: "tall" | "rows", href: string) =>
+  section("divisions", variant, (b) => ({
+    heading: b.w(["Four stages, *one* school", "أربع مراحل في مدرسة *واحدة*"]),
+    text: b.w([
+      "Each stage builds on the last, led by a head who knows every child in it.",
+      "تبني كل مرحلة على ما قبلها، ويقودها رئيس يعرف كل طفل فيها.",
+    ]),
+    items: [
+      {
+        id: b.id(),
+        title: b.w(["Early years", "رياض الأطفال"]),
+        ages: b.w(["Ages 3 to 5", "من ٣ إلى ٥ سنوات"]),
+        text: b.w([
+          "Learning through play, stories and discovery, indoors and out.",
+          "التعلّم باللعب والقصص والاكتشاف، داخل الفصل وخارجه.",
+        ]),
+        image: noImage,
+        href,
+      },
+      {
+        id: b.id(),
+        title: b.w(["Primary", "الابتدائية"]),
+        ages: b.w(["Ages 5 to 11", "من ٥ إلى ١١ سنة"]),
+        text: b.w([
+          "Strong foundations in reading, number and science, in two languages.",
+          "أسس متينة في القراءة والحساب والعلوم، بلغتين.",
+        ]),
+        image: noImage,
+        href,
+      },
+      {
+        id: b.id(),
+        title: b.w(["Middle school", "المتوسطة"]),
+        ages: b.w(["Ages 11 to 14", "من ١١ إلى ١٤ سنة"]),
+        text: b.w([
+          "Wider subjects, more choice and the habits of independent study.",
+          "مواد أوسع وخيارات أكثر وعادات الدراسة المستقلة.",
+        ]),
+        image: noImage,
+        href,
+      },
+      {
+        id: b.id(),
+        title: b.w(["High school", "الثانوية"]),
+        ages: b.w(["Ages 14 to 18", "من ١٤ إلى ١٨ سنة"]),
+        text: b.w([
+          "Demanding courses and guidance towards the university of their choice.",
+          "مقررات رصينة وإرشاد نحو الجامعة التي يختارونها.",
+        ]),
+        image: noImage,
+        href,
+      },
+    ],
+  }));
+
+const INTL_WHY = section("cards", "icons", (b) => ({
+  heading: b.w(["Why families *choose* us", "لماذا *تختارنا* الأسر"]),
+  text: b.w([
+    "What parents tell us made the difference when they first visited.",
+    "ما تقول الأسر إنه صنع الفرق في زيارتها الأولى.",
+  ]),
+  columns: "3" as const,
+  items: [
+    card(
+      b,
+      ["Two languages, many cultures", "لغتان وثقافات كثيرة"],
+      [
+        "Every child becomes fluent in English and Arabic, alongside classmates from forty-five countries.",
+        "يتقن كل طفل العربية والإنجليزية، مع زملاء من خمس وأربعين دولة.",
+      ],
+      "globe",
+    ),
+    card(
+      b,
+      ["Guidance at every step", "إرشاد في كل خطوة"],
+      [
+        "An adviser follows each student from the first morning to university applications, with time set aside every week.",
+        "يرافق مرشد كل طالب من صباحه الأول حتى التقديم للجامعات، بوقت مخصّص كل أسبوع.",
+      ],
+      "compass",
+    ),
+    card(
+      b,
+      ["Ready for university", "مستعدّون للجامعة"],
+      [
+        "Graduates go on to leading universities around the world, most with an offer from their first choice.",
+        "يلتحق خريجونا بجامعات رائدة حول العالم، وينال أكثرهم القبول من خيارهم الأول.",
+      ],
+      "graduation",
+    ),
+  ],
+}));
+
+const voice = (
+  b: Builder,
+  quote: Words,
+  name: Words,
+  role: Words,
+  audience: "student" | "parent" | "staff" | "alumni",
+) => ({
+  id: b.id(),
+  quote: b.w(quote),
+  name: b.w(name),
+  role: b.w(role),
+  audience,
+  portrait: noImage,
+});
+
+const INTL_VOICES = section("voices", "carousel", (b) => ({
+  heading: b.w(["In their *own* words", "*بكلماتهم* هم"]),
+  items: [
+    voice(
+      b,
+      [
+        "My children run in every morning. The teachers know them well and tell us how they are doing before we have to ask.",
+        "يدخل أطفالي المدرسة كل صباح وهم متحمّسون. المعلّمون يعرفونهم جيدًا ويخبروننا بأحوالهم قبل أن نسأل.",
+      ],
+      ["Layla Hassan", "ليلى حسن"],
+      ["Parent of two", "أمّ لطفلين"],
+      "parent",
+    ),
+    voice(
+      b,
+      [
+        "Teachers here really listen. When I wanted to start a robotics club, they helped me find the room and the kit.",
+        "المعلّمون هنا يستمعون حقًا. حين أردت تأسيس نادٍ للروبوتات ساعدوني في إيجاد القاعة والأدوات.",
+      ],
+      ["Omar Saleh", "عمر صالح"],
+      ["Student, Grade 10", "طالب في الصف العاشر"],
+      "student",
+    ),
+    voice(
+      b,
+      [
+        "We moved here in the middle of a school year. Within a week our daughter had friends, and the office had answered every question we had.",
+        "انتقلنا إلى هنا في منتصف العام الدراسي، وخلال أسبوع كوّنت ابنتنا صداقات، وأجاب المكتب عن كل أسئلتنا.",
+      ],
+      ["Daniel Okafor", "دانيال أوكافور"],
+      ["Parent, new to the city", "وليّ أمر، جديد في المدينة"],
+      "parent",
+    ),
+    voice(
+      b,
+      [
+        "It is a place where I keep growing as a teacher, with colleagues who share what works and time to plan together.",
+        "مكان أواصل فيه النمو كمعلّمة، مع زملاء يتبادلون ما ينجح ووقت للتخطيط معًا.",
+      ],
+      ["Sara Mansour", "سارة منصور"],
+      ["Head of science", "رئيسة قسم العلوم"],
+      "staff",
+    ),
+    voice(
+      b,
+      [
+        "I arrived at university knowing how to plan my own work and when to ask for help. I learned both here.",
+        "وصلت إلى الجامعة وأنا أعرف كيف أنظّم عملي ومتى أطلب المساعدة، وقد تعلّمت الأمرين هنا.",
+      ],
+      ["Nour Adel", "نور عادل"],
+      [
+        "Class of 2024, now reading engineering",
+        "خريجة دفعة ٢٠٢٤، تدرس الهندسة",
+      ],
+      "alumni",
+    ),
+  ],
+}));
+
+const INTL_SUBJECTS = section("cards", "icons", (b) => ({
+  heading: b.w(["What students *learn*", "ماذا *يتعلّم* طلابنا"]),
+  text: b.w([
+    "A broad curriculum in two languages, taught in small classes by teachers who know each child.",
+    "منهج واسع بلغتين، في فصول صغيرة، مع معلّمين يعرفون كل طفل.",
+  ]),
+  columns: "3" as const,
+  items: [
+    card(
+      b,
+      ["Languages", "اللغات"],
+      [
+        "Arabic and English every day from the early years, with French added in primary.",
+        "العربية والإنجليزية يوميًا منذ السنوات الأولى، وتُضاف الفرنسية في المرحلة الابتدائية.",
+      ],
+      "globe",
+    ),
+    card(
+      b,
+      ["Mathematics", "الرياضيات"],
+      [
+        "From counting and pattern in the early years to calculus and statistics in the final years.",
+        "من العدّ والأنماط في السنوات الأولى إلى التفاضل والإحصاء في السنوات الأخيرة.",
+      ],
+      "lightbulb",
+    ),
+    card(
+      b,
+      ["Sciences", "العلوم"],
+      [
+        "Biology, chemistry and physics in working laboratories, with a project of their own every term.",
+        "الأحياء والكيمياء والفيزياء في مختبرات مجهّزة، مع مشروع خاص في كل فصل دراسي.",
+      ],
+      "flask",
+    ),
+    card(
+      b,
+      ["Humanities", "العلوم الإنسانية"],
+      [
+        "History, geography and global politics, read from more than one point of view.",
+        "التاريخ والجغرافيا والسياسة العالمية، من أكثر من وجهة نظر.",
+      ],
+      "map",
+    ),
+    card(
+      b,
+      ["The arts", "الفنون"],
+      [
+        "Music, drama and visual art, with performances and exhibitions every term.",
+        "الموسيقى والمسرح والفنون البصرية، مع عروض ومعارض في كل فصل.",
+      ],
+      "palette",
+    ),
+    card(
+      b,
+      ["Sport", "الرياضة"],
+      [
+        "Swimming, athletics and team sports, with fixtures against schools across the city.",
+        "السباحة وألعاب القوى والرياضات الجماعية، مع مباريات أمام مدارس من أنحاء المدينة.",
+      ],
+      "trophy",
+    ),
+  ],
+}));
+
+const INTL_TEACHING = section("imageText", "mediaStart", (b) => ({
+  eyebrow: b.w(["How we teach", "كيف نُعلّم"]),
+  heading: b.w([
+    "Lessons that ask students to *think*",
+    "دروس تدعو الطلاب إلى *التفكير*",
+  ]),
+  body: plainContent(
+    b.w([
+      "Teachers plan together across each stage, so what a child learns one year builds on the last. Lessons begin with a question, and students spend as long explaining their thinking as writing answers down.\nWe report to families three times a year, and you are welcome to sit in on a lesson when you visit.",
+      "يخطّط المعلّمون معًا في كل مرحلة، فيبني ما يتعلّمه الطفل في عام على ما سبقه. تبدأ الدروس بسؤال، ويقضي الطلاب في شرح تفكيرهم وقتًا يعادل ما يقضونه في كتابة الإجابات.\nنرسل تقارير إلى الأسر ثلاث مرات في العام، ويسعدنا أن تحضروا درسًا في أثناء زيارتكم.",
+    ]),
+  ),
+  media: {
+    kind: "image" as const,
+    fileId: null,
+    alt: "",
+    posterFileId: null,
+    captionsFileId: null,
+  },
+  actions: [
+    link(b, ["See a lesson", "احضر درسًا"], `/pages/visit#${ANCHOR.visit}`),
+  ],
+}));
+
+const INTL_RESULTS = section(
+  "stats",
+  "captions",
+  (b) => ({
+    heading: b.w(["Results that *open doors*", "نتائج *تفتح الأبواب*"]),
+    items: [
+      figure(
+        b,
+        "98%",
+        ["university offers", "قبولًا جامعيًا"],
+        [
+          "Graduates holding an offer from their first-choice university.",
+          "من الخريجين نالوا قبولًا من جامعتهم الأولى.",
+        ],
+      ),
+      figure(
+        b,
+        "92%",
+        ["top grades in English", "تقديرات عليا في الإنجليزية"],
+        [
+          "Students at the two highest grades in their final examinations.",
+          "من الطلاب نالوا أعلى تقديرين في الامتحانات النهائية.",
+        ],
+      ),
+      figure(
+        b,
+        "24",
+        ["countries of study", "دولة للدراسة"],
+        [
+          "Where our last five year groups went on to university.",
+          "التحق فيها خريجو آخر خمس دفعات بالجامعات.",
+        ],
+      ),
+    ],
+    source: b.w([
+      "School results, class of 2026.",
+      "نتائج المدرسة، دفعة ٢٠٢٦.",
+    ]),
+  }),
+  { align: "center" },
+);
+
+const INTL_HEADS = section("people", "grid", (b) => ({
+  heading: b.w(["Heads of *stage*", "رؤساء *المراحل*"]),
+  text: b.w([
+    "The people who know your child's stage best, and whom you will meet when you visit.",
+    "هم الأقرب إلى مرحلة طفلكم، وستقابلونهم حين تزوروننا.",
+  ]),
+  items: [
+    person(
+      b,
+      ["Mariam Fawzy", "مريم فوزي"],
+      ["Head of early years", "رئيسة رياض الأطفال"],
+    ),
+    person(
+      b,
+      ["James Whitfield", "جيمس ويتفيلد"],
+      ["Head of primary", "رئيس المرحلة الابتدائية"],
+    ),
+    person(
+      b,
+      ["Hana Youssef", "هناء يوسف"],
+      ["Head of middle school", "رئيسة المرحلة المتوسطة"],
+    ),
+    person(
+      b,
+      ["Karim Adel", "كريم عادل"],
+      ["Head of high school", "رئيس المرحلة الثانوية"],
+    ),
+  ],
+}));
+
 const CANVAS = { scheme: "canvas" } as const;
 const SOFT = { scheme: "soft" } as const;
 const BRAND = { scheme: "brand" } as const;
@@ -1515,14 +1923,15 @@ export const PAGE_TEMPLATES = {
     on(NEWS, SOFT, "list"),
     on(ADMISSIONS_TRIAD, BRAND),
   ],
-  // International: a collage opening, numbers, values and stages, voices
-  // to scroll through.
+  // International: a collage opening, figures that back its claims, the
+  // four stages, why families choose the school and their voices to scroll
+  // through. Card sections sit on the soft surface, where cards read crisp.
   homeStory: [
-    on(HERO_HOME, CANVAS, "collage"),
-    on(STATS, SOFT),
-    on(PILLARS, CANVAS),
-    on(DIVISIONS, SOFT),
-    on(VOICES, CANVAS, "carousel"),
+    on(INTL_HERO, CANVAS),
+    on(INTL_FIGURES, SOFT),
+    on(INTL_STAGES("tall", "/pages/academics"), CANVAS),
+    on(INTL_WHY, SOFT),
+    on(INTL_VOICES, CANVAS),
     on(NEWS, SOFT),
     REGISTER_APPLY,
   ],
@@ -1623,9 +2032,12 @@ export const PAGE_TEMPLATES = {
         "منهج يتحدّى كل متعلّم، من الكلمات الأولى حتى الامتحانات النهائية.",
       ],
     ),
-    on(CARDS_PROGRAMMES, CANVAS),
-    on(DIVISIONS, SOFT),
-    on(IMAGE_TEXT, CANVAS),
+    on(INTL_STAGES("rows", ""), CANVAS),
+    on(INTL_SUBJECTS, SOFT),
+    on(INTL_TEACHING, CANVAS),
+    on(INTL_RESULTS, BRAND),
+    on(INTL_HEADS, CANVAS),
+    REGISTER_APPLY,
   ],
   parents: [
     PAGE_HEADER(

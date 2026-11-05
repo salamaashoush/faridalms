@@ -5645,6 +5645,8 @@
   "siteRemoveBlock": "أزل {block}",
   "sitePreviousSlide": "الشريحة السابقة",
   "siteNextSlide": "الشريحة التالية",
+  "siteCarouselPrevious": "السابق",
+  "siteCarouselNext": "التالي",
   "sitePauseSlides": "أوقف الشرائح",
   "sitePlaySlides": "شغّل الشرائح",
   "siteShowSlide": "اعرض الشريحة {number} من {count}",

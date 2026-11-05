@@ -178,10 +178,13 @@
     .site-grid[data-cols="4"] {
       grid-template-columns: repeat(2, minmax(0, 1fr));
     }
-    /* Two across leaves an odd last item alone in half a row. */
+    /* Two across would leave an odd last item at the start of an empty
+       half row; it keeps its width and centres under the pair instead. */
     .site-grid[data-cols="3"] > :last-child:nth-child(odd),
     .site-grid[data-cols="4"] > :last-child:nth-child(odd) {
       grid-column: 1 / -1;
+      justify-self: center;
+      inline-size: calc((100% - var(--s-grid-gap)) / 2);
     }
   }
   @container site (width >= 48rem) {
@@ -190,6 +193,8 @@
     }
     .site-grid[data-cols="3"] > :last-child:nth-child(odd) {
       grid-column: auto;
+      justify-self: stretch;
+      inline-size: auto;
     }
   }
   @container site (width >= 48rem) {
@@ -224,6 +229,8 @@
     }
     .site-grid[data-cols="4"] > :last-child:nth-child(odd) {
       grid-column: auto;
+      justify-self: stretch;
+      inline-size: auto;
     }
   }
   /* On a phone a row of cards becomes a rail that scrolls sideways, the
@@ -1348,6 +1355,100 @@
   .site-root [data-quick="audience"] a:hover .site-quick-arrow {
     background: var(--s-btn-fg);
     color: var(--s-btn);
+  }
+
+  /* Cards, divisions, stats, voices and people (sections.tsx). */
+
+  /* A figure under a hairline, a short bar of the accent marking where it
+     starts; centred with its section. */
+  .site-stat {
+    position: relative;
+    display: grid;
+    align-content: start;
+    gap: 0.75rem;
+    padding-block-start: 1.5rem;
+    border-block-start: 1px solid var(--s-border);
+    text-align: start;
+  }
+  .site-stat::before {
+    content: "";
+    position: absolute;
+    inset-block-start: -1px;
+    inset-inline-start: 0;
+    inline-size: 2.5rem;
+    block-size: 3px;
+    background: var(--s-accent);
+  }
+  .site-section.text-center .site-stat {
+    justify-items: center;
+    text-align: center;
+  }
+  .site-section.text-center .site-stat::before {
+    inset-inline-start: calc(50% - 1.25rem);
+  }
+  /* Three figures are narrow enough to stay one row on a tablet. */
+  @container site (width >= 40rem) {
+    .site-grid[data-cols="3"][data-keep] {
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+  }
+  .site-stat-label {
+    color: var(--s-heading);
+    font-weight: 600;
+  }
+  /* A carousel begins on the page's edge and runs out to the screen's, so
+     the item after the last whole one shows there is more; its last item
+     still comes to rest on the page's far edge. The lanes come from the
+     section: whole items when all fit, else a quarter of the next. */
+  .site-carousel {
+    --s-per: var(--s-per-1);
+    --s-gaps: var(--s-gaps-1);
+    /* From the container's widths rather than a percentage, which the
+       scroll padding would read against the row itself. */
+    --s-bleed: max(var(--s-gutter), (100cqi - var(--s-container)) / 2);
+    display: flex;
+    gap: var(--s-grid-gap);
+    margin-inline: calc(var(--s-bleed) * -1);
+    padding-inline: var(--s-bleed);
+    /* Room for a raised card's shadow, which the scroll box would clip. */
+    margin-block: -0.5rem -1.75rem;
+    padding-block: 0.5rem 1.75rem;
+    overflow-x: auto;
+    overscroll-behavior-x: contain;
+    scroll-snap-type: x mandatory;
+    scroll-padding-inline: var(--s-bleed);
+    scrollbar-width: none;
+  }
+  .site-container[data-width="wide"] .site-carousel {
+    --s-bleed: max(var(--s-gutter), (100cqi - var(--s-container-wide)) / 2);
+  }
+  .site-container[data-width="full"] .site-carousel {
+    --s-bleed: var(--s-gutter);
+  }
+  .site-carousel::-webkit-scrollbar {
+    display: none;
+  }
+  .site-carousel > * {
+    flex: 0 0 calc((100% - var(--s-gaps) * var(--s-grid-gap)) / var(--s-per));
+    scroll-snap-align: start;
+  }
+  @container site (width >= 40rem) {
+    .site-carousel {
+      --s-per: var(--s-per-2);
+      --s-gaps: var(--s-gaps-2);
+    }
+  }
+  @container site (width >= 64rem) {
+    .site-carousel {
+      --s-per: var(--s-per-3);
+      --s-gaps: var(--s-gaps-3);
+    }
+  }
+  .site-icon-button:disabled {
+    opacity: 0.35;
+    cursor: default;
+    box-shadow: inset 0 0 0 1px var(--s-border);
+    background: transparent;
   }
 }
 

@@ -5333,6 +5333,8 @@
   "siteRemoveBlock": "Remove {block}",
   "sitePreviousSlide": "Previous slide",
   "siteNextSlide": "Next slide",
+  "siteCarouselPrevious": "Previous",
+  "siteCarouselNext": "Next",
   "sitePauseSlides": "Pause slides",
   "sitePlaySlides": "Play slides",
   "siteShowSlide": "Show slide {number} of {count}",
