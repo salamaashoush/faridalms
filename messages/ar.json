@@ -9386,5 +9386,11 @@
   "ntfAdmissionEventMoved": "تغيّر موعد: {kind}",
   "ntfAdmissionEventCancelled": "أُلغي موعد: {kind}",
   "calCatAdmissions": "القبول",
-  "calAdmissionTitle": "{kind}: {name}"
+  "calAdmissionTitle": "{kind}: {name}",
+  "itkSectionLetters": "الخطابات",
+  "itkSectionLettersHint": "الخطابات التي ترسلها دورة القبول هذه في كل مرحلة. اترك أيًّا منها على خطاب المدرسة لإرساله.",
+  "itkLetterEn": "{letter} بالإنجليزية",
+  "itkLetterAr": "{letter} بالعربية",
+  "itkLetterSchool": "خطاب المدرسة",
+  "itkErrLetter": "اختر أحد خطابات القبول الخاصة بالمدرسة."
 }

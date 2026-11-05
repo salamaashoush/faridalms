@@ -1,4 +1,4 @@
-import type { AdmissionQuestion } from "@faridalms/domain/admissions";
+import type { IntakeLetters,AdmissionQuestion } from "@faridalms/domain/admissions";
 
 import { client, login, seeded, signedIn } from "./harness";
 
@@ -44,6 +44,7 @@ export async function intakeFor(
     /** No age range, for a child whose age is set by someone else's record. */
     anyAge?: boolean;
     interview?: boolean;
+    letters?: IntakeLetters;
   } = {},
 ) {
   const api = await officer();
@@ -101,6 +102,7 @@ export async function intakeFor(
       "returning_student",
       "additional_needs",
     ],
+    letters: more.letters ?? {},
   });
   return { intakeId: intake.id, formId: form.id };
 }

@@ -1,0 +1,2 @@
+ALTER TABLE "core"."admission_intakes" ADD COLUMN "letters" jsonb DEFAULT '{}' NOT NULL;--> statement-breakpoint
+ALTER TABLE "core"."admission_intakes" ADD CONSTRAINT "admission_intakes_letters_check" CHECK (jsonb_typeof(letters) = 'object' and octet_length(letters::text) <= 4096);

@@ -3073,6 +3073,7 @@ async function seedAdmissions(
       "returning_student",
       "additional_needs",
     ],
+    letters: {},
   });
   await insertIntake(tx, {
     ...org,
@@ -3102,6 +3103,7 @@ async function seedAdmissions(
     minAgeMonths: 72,
     maxAgeMonths: 107,
     priorities: ["sibling", "returning_student"],
+    letters: {},
   });
 
   const parent = person(["Salama", "سلامة"], ["Ashoush", "عشوش"], "male");

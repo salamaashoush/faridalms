@@ -58,8 +58,6 @@ From `foundations.md`. W1 to W5 are merged.
 
 From `school-front-door.md`; slices 1 to 9 are merged.
 
-- **Letters per intake.** An intake cannot choose its own letter templates
-  yet. There is one per phase and language for the whole school.
 - **Privacy and terms pages,** as website-builder pages, once their text is
   approved.
 - **LTI issuer.** It still uses the bare domain. A second cell needs the

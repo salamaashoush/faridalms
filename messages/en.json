@@ -8988,5 +8988,11 @@
   "ntfAdmissionEventMoved": "{kind} moved",
   "ntfAdmissionEventCancelled": "{kind} called off",
   "calCatAdmissions": "Admissions",
-  "calAdmissionTitle": "{kind}: {name}"
+  "calAdmissionTitle": "{kind}: {name}",
+  "itkSectionLetters": "Letters",
+  "itkSectionLettersHint": "The letters this intake sends at each step. Leave one on the school's letter to send that.",
+  "itkLetterEn": "{letter}, in English",
+  "itkLetterAr": "{letter}, in Arabic",
+  "itkLetterSchool": "The school's letter",
+  "itkErrLetter": "Choose one of the school's admission letters."
 }

@@ -1,3 +1,5 @@
+import type { IntakeLetters } from "@faridalms/domain/admissions";
+
 import {
   formsOf,
   insertForm,
@@ -9,6 +11,10 @@ import {
 } from "@faridalms/database/stores/admissions";
 import { descriptorsFor } from "@faridalms/database/stores/descriptors";
 import { schoolProfile } from "@faridalms/database/stores/identity";
+import {
+  templateById,
+  templatesOf,
+} from "@faridalms/database/stores/templates";
 import { schoolYears } from "@faridalms/database/stores/years";
 import {
   formRefSchema,
@@ -79,13 +85,19 @@ async function formOf(context: UnitContext, id: string) {
  */
 export const options = readProcedure.handler(async ({ context }) => {
   readsAdmissions(context);
-  const [years, gradeRows, forms, school, consents] = await Promise.all([
-    entryYears(context),
-    grades(context),
-    formsOf(context.tx, org(context)),
-    schoolProfile(context.tx, context.schoolId),
-    admissionConsents(context),
-  ]);
+  const [years, gradeRows, forms, school, consents, letters] =
+    await Promise.all([
+      entryYears(context),
+      grades(context),
+      formsOf(context.tx, org(context)),
+      schoolProfile(context.tx, context.schoolId),
+      admissionConsents(context),
+      templatesOf(context.tx, {
+        ...org(context),
+        viewerId: context.actor.userId,
+        kind: "admission_letter",
+      }),
+    ]);
   const country = school?.countryCode ?? null;
   return {
     years: years.map((year) => ({
@@ -114,6 +126,7 @@ export const options = readProcedure.handler(async ({ context }) => {
       labelAr: consent.labelAr,
       published: consent.notice !== null,
     })),
+    letters: letters.map((letter) => ({ id: letter.id, title: letter.title })),
     configures: can(context, "admissions:configure"),
     privacy: can(context, "privacy:manage"),
   };
@@ -154,6 +167,22 @@ export const intake = readProcedure
  * grade are fixed once made; the form it uses must have been published, so
  * families never meet questions the office is still writing.
  */
+/** Refuses a letter that is not one of the school's admission letters. */
+async function requireLetters(context: UnitContext, letters: IntakeLetters) {
+  const ids = new Set(
+    Object.values(letters).flatMap((choice) => Object.values(choice)),
+  );
+  for (const id of ids) {
+    const template = await templateById(context.tx, context.tenantId, id);
+    if (
+      !template ||
+      template.kind !== "admission_letter" ||
+      template.orgId !== context.schoolId
+    )
+      throw new ORPCError("BAD_REQUEST", { message: "intake.letter" });
+  }
+}
+
 export const saveIntake = writeProcedure
   .input(saveIntakeSchema)
   .handler(async ({ input, context }) => {
@@ -177,7 +206,9 @@ export const saveIntake = writeProcedure
       minAgeMonths: input.minAgeMonths,
       maxAgeMonths: input.maxAgeMonths,
       priorities: input.priorities,
+      letters: input.letters,
     };
+    await requireLetters(context, input.letters);
     if (input.id) {
       const before = await intakeOf(context, input.id);
       if (
@@ -212,6 +243,7 @@ export const saveIntake = writeProcedure
             minAgeMonths: before.minAgeMonths,
             maxAgeMonths: before.maxAgeMonths,
             priorities: before.priorities,
+            letters: before.letters,
           },
           after: fields,
         },

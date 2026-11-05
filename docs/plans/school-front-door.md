@@ -309,7 +309,7 @@ site administrator and an "Admissions officer" built-in role.
 
 An enquiries inbox; a board per intake and grade by phase, with capacity; an
 application page (answers, checklist, events, notes, history); bulk decide,
-release and convert; templates for each phase's letter; reports of the
+release and convert; templates for each phase's letter, which an intake may replace with its own; reports of the
 funnel by stage, source, grade and intake, and time in stage.
 
 ## 7. Order of work

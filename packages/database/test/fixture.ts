@@ -1157,6 +1157,7 @@ export async function completeFixture(
     minAgeMonths: 48,
     maxAgeMonths: 71,
     priorities: ["sibling"],
+    letters: {},
   });
   const admission = await insertApplication(tx, {
     tenantId,

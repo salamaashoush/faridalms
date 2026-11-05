@@ -11,6 +11,7 @@ import type {
   Decision,
   Fee,
   ItemState,
+  IntakeLetters,
   PriorityRule,
 } from "@faridalms/domain/admissions";
 import type { EnquiryAnswer } from "@faridalms/domain/enquiries";
@@ -223,6 +224,7 @@ export interface IntakeRow {
   minAgeMonths: number | null;
   maxAgeMonths: number | null;
   priorities: PriorityRule[];
+  letters: IntakeLetters;
   /** Applications sent and not ended, and drafts still open. */
   live: number;
   drafts: number;
@@ -240,6 +242,7 @@ const intakeColumns = sql`i.id, i.version, i.school_year_id, y.title_en as year_
     and v.form_id = i.form_id order by v.number desc limit 1) as form_version_id,
   i.checklist, i.currency, i.fees, i.decisions_on::text as decisions_on, i.offer_days,
   i.age_cutoff_on::text as age_cutoff_on, i.min_age_months, i.max_age_months, i.priorities,
+  i.letters,
   (select count(*)::int from core.admission_applications a where a.tenant_id = i.tenant_id
     and a.intake_id = i.id and a.status = 'active' and a.state = any(${textArray(LIVE_STATES)})) as live,
   (select count(*)::int from core.admission_applications a where a.tenant_id = i.tenant_id
@@ -285,6 +288,7 @@ type IntakeRecord = {
   min_age_months: number | null;
   max_age_months: number | null;
   priorities: PriorityRule[];
+  letters: IntakeLetters;
   live: number;
   drafts: number;
 };
@@ -318,6 +322,7 @@ const intakeOf = (row: IntakeRecord): IntakeRow => ({
   minAgeMonths: row.min_age_months,
   maxAgeMonths: row.max_age_months,
   priorities: row.priorities,
+  letters: row.letters,
   live: row.live,
   drafts: row.drafts,
 });
@@ -355,6 +360,7 @@ export interface IntakeFields {
   minAgeMonths: number | null;
   maxAgeMonths: number | null;
   priorities: PriorityRule[];
+  letters: IntakeLetters;
 }
 
 export async function insertIntake(
@@ -364,13 +370,13 @@ export async function insertIntake(
   const [row] = await tx.execute<{ id: string; version: number }>(sql`
     insert into core.admission_intakes (tenant_id, org_id, school_year_id, grade_level_descriptor_id,
       opens_on, closes_on, capacity, form_id, checklist, currency, fees, decisions_on, offer_days,
-      age_cutoff_on, min_age_months, max_age_months, priorities)
+      age_cutoff_on, min_age_months, max_age_months, priorities, letters)
     values (${input.tenantId}::uuid, ${input.orgId}::uuid, ${input.schoolYearId}::uuid,
       ${input.gradeId}::uuid, ${input.opensOn}::date, ${input.closesOn}::date, ${input.capacity},
       ${input.formId}::uuid, ${JSON.stringify(input.checklist)}::text::jsonb, ${input.currency},
       ${JSON.stringify(input.fees)}::text::jsonb, ${input.decisionsOn}::date, ${input.offerDays},
       ${input.ageCutoffOn}::date, ${input.minAgeMonths}, ${input.maxAgeMonths},
-      ${textArray(input.priorities)})
+      ${textArray(input.priorities)}, ${JSON.stringify(input.letters)}::text::jsonb)
     returning id, version`);
   if (!row) throw new Error("The intake was not created");
   return row;
@@ -392,7 +398,8 @@ export async function updateIntake(
       fees = ${JSON.stringify(input.fees)}::text::jsonb, decisions_on = ${input.decisionsOn}::date,
       offer_days = ${input.offerDays}, age_cutoff_on = ${input.ageCutoffOn}::date,
       min_age_months = ${input.minAgeMonths}, max_age_months = ${input.maxAgeMonths},
-      priorities = ${textArray(input.priorities)}
+      priorities = ${textArray(input.priorities)},
+      letters = ${JSON.stringify(input.letters)}::text::jsonb
     where tenant_id = ${input.tenantId}::uuid and org_id = ${input.orgId}::uuid
       and id = ${input.id}::uuid and version = ${input.expectedVersion} and status = 'active'
     returning version`);

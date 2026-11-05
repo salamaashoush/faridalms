@@ -13,6 +13,7 @@ import type {
   Fee,
   ItemState,
   LetterKind,
+  IntakeLetters,
   PriorityRule,
 } from "@faridalms/domain/admissions";
 import type { EnquiryAnswer } from "@faridalms/domain/enquiries";
@@ -182,10 +183,19 @@ export const admissionIntakes = core.table.withRLS(
       .$type<PriorityRule[]>()
       .notNull()
       .default(sql`'{}'`),
+    letters: jsonb("letters")
+      .$type<IntakeLetters>()
+      .notNull()
+      .default(sql`'{}'`),
     ...entityColumns(),
   },
   (t): PgTableExtraConfigValue[] => [
     pk("admission_intakes", t.tenantId, t.id),
+    ck(
+      "admission_intakes",
+      "letters",
+      sql`jsonb_typeof(letters) = 'object' and octet_length(letters::text) <= 4096`,
+    ),
     ...baseConstraints("admission_intakes", t, tenants),
     fk(
       "admission_intakes",

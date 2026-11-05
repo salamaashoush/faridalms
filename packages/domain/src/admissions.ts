@@ -419,6 +419,23 @@ export function intakeWindow(
   return "open";
 }
 
+const letterChoice = v.optional(
+  v.object({ en: v.optional(id), ar: v.optional(id) }),
+  {},
+);
+
+/**
+ * The letter templates an intake sends in place of the school's, by phase
+ * and language. A phase or language left out sends the school's own.
+ */
+export const intakeLettersSchema = v.object({
+  offer: letterChoice,
+  waitlist: letterChoice,
+  decline: letterChoice,
+  welcome: letterChoice,
+});
+export type IntakeLetters = v.InferInput<typeof intakeLettersSchema>;
+
 const intakeFields = {
   schoolYearId: id,
   gradeId: id,
@@ -438,6 +455,7 @@ const intakeFields = {
     v.array(v.picklist(PRIORITY_RULES)),
     v.maxLength(PRIORITY_RULES.length),
   ),
+  letters: v.optional(intakeLettersSchema, {}),
 };
 
 export const saveIntakeSchema = v.pipe(

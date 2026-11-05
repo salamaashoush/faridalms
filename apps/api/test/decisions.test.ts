@@ -603,6 +603,50 @@ describe("letters", () => {
       "Omar Ashoush is on the waiting list for Grade 6",
     );
   });
+  test("an intake sends its own letter in place of the school's, and only an admission letter", async () => {
+    const office = await officer();
+    const own = await office.templates.save({
+      kind: "admission_letter",
+      title: "A place in Grade 7 for {child}",
+      description: "",
+      subjectId: "",
+      content: plainContent(
+        "Dear {family},\n\n{child} has a place at {school}.",
+      ),
+    });
+    const lesson = await (
+      await principal()
+    ).templates.save({
+      kind: "lesson",
+      title: "Not a letter",
+      description: "",
+      subjectId: "",
+      content: plainContent("A lesson."),
+    });
+    await laterYear();
+    expect(
+      await rejection(
+        intakeFor("Grade 7", {
+          year: "2033–2034",
+          anyAge: true,
+          letters: { offer: { en: lesson.id } },
+        }),
+      ),
+    ).toMatchObject({ code: "BAD_REQUEST", message: "intake.letter" });
+    const { intakeId } = await intakeFor("Grade 7", {
+      year: "2033–2034",
+      anyAge: true,
+      letters: { offer: { en: own.id } },
+    });
+    const { api: family } = await registeredFamily("salama.own@example.com");
+    const { id } = await inReview(family, intakeId, {
+      birthDate: "2015-01-01",
+    });
+    await decide(office, [id], "offer");
+    await release(office, [id]);
+    const row = await mineOf(family, id);
+    expect(row.letters[0]?.title).toBe("A place in Grade 7 for Omar Ashoush");
+  });
 });
 
 describe("the website's doors into admissions", () => {

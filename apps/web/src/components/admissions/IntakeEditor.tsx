@@ -2,6 +2,7 @@ import type {
   ChecklistItem,
   Currency,
   FeeKind,
+  IntakeLetters,
   PriorityRule,
   SaveIntake,
 } from "@faridalms/domain/admissions";
@@ -10,6 +11,7 @@ import {
   CHECKLIST_KINDS,
   CURRENCIES,
   FEE_KINDS,
+  LETTER_KINDS,
   PRIORITY_RULES,
 } from "@faridalms/domain/admissions";
 import { Button } from "@faridalms/ui/button";
@@ -32,6 +34,7 @@ import { getMessageFromError } from "~/utils/error";
 import {
   CHECKLIST_KIND_LABEL,
   FEE_KIND_LABEL,
+  LETTER_LABEL,
   named,
   PRIORITY_LABEL,
 } from "./application-labels";
@@ -60,6 +63,7 @@ export interface IntakeDraft {
   maxYears: string;
   maxMonths: string;
   priorities: PriorityRule[];
+  letters: IntakeLetters;
 }
 
 const split = (months: number | null) =>
@@ -93,6 +97,7 @@ export function intakeDraft(
     minAgeMonths: number | null;
     maxAgeMonths: number | null;
     priorities: PriorityRule[];
+    letters: IntakeLetters;
   },
   year?: string,
 ): IntakeDraft {
@@ -127,6 +132,7 @@ export function intakeDraft(
     maxYears: max.years,
     maxMonths: max.months,
     priorities: intake?.priorities ?? [...PRIORITY_RULES],
+    letters: intake?.letters ?? {},
   };
 }
 
@@ -153,6 +159,12 @@ function saveInput(draft: IntakeDraft): SaveIntake {
     minAgeMonths: joined(draft.minYears, draft.minMonths),
     maxAgeMonths: joined(draft.maxYears, draft.maxMonths),
     priorities: draft.priorities,
+    letters: {
+      offer: draft.letters.offer ?? {},
+      waitlist: draft.letters.waitlist ?? {},
+      decline: draft.letters.decline ?? {},
+      welcome: draft.letters.welcome ?? {},
+    },
   };
 }
 
@@ -566,6 +578,42 @@ export function IntakeEditor({
           onChange={(event) => set("offerDays", event.target.value)}
           errors={shown("offerDays")}
         />
+      </FormSection>
+
+      <FormSection
+        title={m.itkSectionLetters()}
+        description={m.itkSectionLettersHint()}
+      >
+        {LETTER_KINDS.map((kind) => (
+          <div key={kind} className="grid gap-3 sm:grid-cols-2">
+            {(["en", "ar"] as const).map((locale) => (
+              <SelectField
+                key={locale}
+                id={`intake-letter-${kind}-${locale}`}
+                label={(locale === "en" ? m.itkLetterEn : m.itkLetterAr)({
+                  letter: LETTER_LABEL[kind](),
+                })}
+                value={draft.letters[kind]?.[locale] ?? ""}
+                options={[
+                  { value: "", label: m.itkLetterSchool() },
+                  ...options.letters.map((letter) => ({
+                    value: letter.id,
+                    label: letter.title,
+                  })),
+                ]}
+                onChange={(id) =>
+                  set("letters", {
+                    ...draft.letters,
+                    [kind]: {
+                      ...draft.letters[kind],
+                      [locale]: id || undefined,
+                    },
+                  })
+                }
+              />
+            ))}
+          </div>
+        ))}
       </FormSection>
 
       <FormSection

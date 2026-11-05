@@ -777,6 +777,8 @@ export function getMessageFromError(error: unknown): string {
         return m.itkErrDates();
       case "intake.ages":
         return m.itkErrAges();
+      case "intake.letter":
+        return m.itkErrLetter();
       case "intake.checklist":
         return m.itkErrChecklist();
       case "form.question_unready":

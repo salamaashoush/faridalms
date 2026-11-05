@@ -24,7 +24,10 @@ import {
 } from "@faridalms/database/stores/admissions";
 import { documentOf, insertFrozen } from "@faridalms/database/stores/documents";
 import { schoolProfile } from "@faridalms/database/stores/identity";
-import { templateByKey } from "@faridalms/database/stores/templates";
+import {
+  templateById,
+  templateByKey,
+} from "@faridalms/database/stores/templates";
 import {
   fillLetter,
   fillLetterText,
@@ -146,10 +149,11 @@ async function letterFields(
 }
 
 /**
- * Writes the family the letter a move sends, from the school's template
- * for it in the language they applied in, its fields filled and its words
- * frozen as sent; then hands it to whatever else carries letters. Without
- * the template in that language, the school's other one is used.
+ * Writes the family the letter a move sends, from the template for it in
+ * the language they applied in, its fields filled and its words frozen as
+ * sent; then hands it to whatever else carries letters. The intake's own
+ * letter comes first, then the school's, then either in the other
+ * language.
  */
 export async function sendLetter(
   scope: AdmissionScope,
@@ -160,13 +164,18 @@ export async function sendLetter(
 ): Promise<string | null> {
   const org = { tenantId: scope.tenantId, orgId: scope.schoolId };
   const other = row.locale === "ar" ? "en" : "ar";
-  const own = await templateByKey(scope.tx, {
-    ...org,
-    key: letterKey(kind, row.locale),
-  });
-  const template =
-    own ??
-    (await templateByKey(scope.tx, { ...org, key: letterKey(kind, other) }));
+  const chosen = intake.letters[kind] ?? {};
+  const inLanguage = async (locale: "en" | "ar") => {
+    const id = chosen[locale];
+    const own = id ? await templateById(scope.tx, scope.tenantId, id) : null;
+    return own &&
+      own.kind === "admission_letter" &&
+      own.orgId === scope.schoolId
+      ? own
+      : templateByKey(scope.tx, { ...org, key: letterKey(kind, locale) });
+  };
+  const own = await inLanguage(row.locale);
+  const template = own ?? (await inLanguage(other));
   if (!template) return null;
   const locale = own ? row.locale : other;
   const source = templateHost(template.id);
