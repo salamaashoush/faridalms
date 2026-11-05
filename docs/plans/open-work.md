@@ -66,8 +66,6 @@ From `school-front-door.md`; slices 1 to 9 are merged.
   and `attendance_contacts`. Each migrated entry records `migratedFrom`, so
   first copy anything an older release wrote after the move.
 - Staff search over internal entries.
-- Guardians who join later are not added to an existing attendance
-  conversation.
 - Presence ("someone is replying").
 - Merging two contacts who write from different addresses.
 - Accepting a held email into the conversation as the family's.

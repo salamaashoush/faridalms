@@ -6,10 +6,12 @@ import { writeAudit } from "@faridalms/database/audit";
 import { capabilityHolders } from "@faridalms/database/stores/access";
 import { saveDocument } from "@faridalms/database/stores/documents";
 import {
+  addMembers,
   createThread,
   linkOutsideParticipant,
   mailedMembers,
   membersOf,
+  messagingGuardians,
   postMessage,
   threadById,
 } from "@faridalms/database/stores/messages";
@@ -128,6 +130,19 @@ export async function writeEntry(
 ): Promise<{ id: string; createdAt: string }> {
   const thread = await threadById(scope.tx, scope.tenantId, input.threadId);
   if (!thread) throw new Error("conversation not found");
+  // The attendance office's conversation about a child is with the child's
+  // family as it is today: a guardian linked since it began joins it.
+  if (thread.mailbox === "attendance" && thread.studentId)
+    await addMembers(scope.tx, {
+      tenantId: scope.tenantId,
+      threadId: thread.id,
+      userIds: await messagingGuardians(scope.tx, {
+        tenantId: scope.tenantId,
+        studentId: thread.studentId,
+        on: scope.today,
+      }),
+      role: "member",
+    });
   const plainText = input.content ? contentPlainText(input.content) : "";
 
   const posted = await postMessage(scope.tx, {

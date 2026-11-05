@@ -14,6 +14,7 @@ import { INBOUND_PATH, MAIL_PER_HOUR } from "../src/messages/inbound";
 import { deliverTenant } from "../src/notifications/deliver";
 import { signWebhook } from "../src/notifications/resend-inbox";
 import {
+  client,
   handlerWith,
   login,
   raw,
@@ -545,5 +546,74 @@ describe("the attendance office's calls", () => {
     expect(
       (await family.api.messages.thread({ id: thread.id })).messages,
     ).toEqual([]);
+  });
+
+  test("take in a guardian linked after the conversation began", async () => {
+    const office = await principal();
+    const child = await (
+      await sessionFor("northwind", login("student"))
+    ).api.identity.currentUser();
+    const day = new Date().toISOString().slice(0, 10);
+    await office.api.followUp.logContact({
+      studentId: child.id,
+      date: day,
+      outcome: "no_answer",
+      note: "",
+    });
+    const options = await office.api.people.options();
+    const uncle =
+      options.relations.find((row) => row.code === "uncle") ??
+      options.relations[0];
+    if (!uncle) throw new Error("no relation");
+    await office.api.people.saveRelationship({
+      studentId: child.id,
+      person: {
+        names: {
+          en: { given: "Tarek", family: "Ashoush" },
+          ar: { given: "طارق", family: "عشوش" },
+        },
+        phone: "",
+      },
+      flags: {
+        relationId: uncle.id,
+        legalGuardian: true,
+        portalAccess: true,
+        receivesNotifications: true,
+        primaryContact: false,
+        emergencyContact: false,
+        residence: "none",
+        pickup: "allowed",
+      },
+    });
+    const link = (
+      await office.api.people.student({ id: child.id })
+    ).guardians?.find((row) => row.fullNameEn === "Tarek Ashoush");
+    if (!link) throw new Error("link missing");
+    await office.api.people.saveSignIn({
+      userId: link.userId,
+      loginName: "tarek.ashoush@example.com",
+      password: "a long guardian password",
+    });
+    const session = await client("northwind").identity.signIn({
+      loginName: "tarek.ashoush@example.com",
+      password: "a long guardian password",
+    });
+    const joined = client("northwind", session.token);
+    const listed = await office.api.messages.inbox({ box: "attendance" });
+    const thread = listed.rows.find((row) => row.studentId === child.id);
+    if (!thread) throw new Error("no attendance conversation");
+    expect(
+      await rejection(joined.messages.thread({ id: thread.id })),
+    ).toMatchObject({ code: "NOT_FOUND" });
+    await office.api.followUp.logContact({
+      studentId: child.id,
+      date: day,
+      outcome: "left_message",
+      note: "",
+    });
+    // In it now, the guardian reads what the office writes to the family.
+    expect((await joined.messages.thread({ id: thread.id })).messages).toEqual(
+      [],
+    );
   });
 });
