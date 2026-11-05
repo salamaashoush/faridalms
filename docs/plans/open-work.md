@@ -40,6 +40,24 @@ From `foundations.md`. W1, W3, W4 and W5 are merged.
 
 ## Bugs found and not yet fixed
 
+- **CI browsers.** Firefox and WebKit e2e fail on CI, so a push never
+  publishes. Until they pass, publish by hand: run CI on main with
+  `publish_without_e2e`. The failures:
+  - WebKit `management.spec.ts:299`: a navigation cuts off `getAuthState`
+    in the root `beforeLoad`, and WebKit reports it as an uncaught
+    TypeError rather than an AbortError.
+  - Firefox and WebKit `messages.spec.ts:156` (Markdown draft).
+  - Firefox `admissions.spec.ts:39` and `people.spec.ts:407` (both failing
+    before November).
+  - WebKit `coursework.spec.ts:277` (once).
+- A school whose website is not live shows the platform's generic 404.
+  It should show a page in the school's name that links to its portal.
+- School pages use Farida's favicon; a school with a logo should use it.
+- The phone week view of the calendar shows no per-day "+" to add an
+  event, even for people who may add one.
+- A staff edit form was reported not to scroll; it scrolls when opened
+  directly, so the path that reaches it stuck is not known yet.
+
 - `ensureCourse` can generate a course code that is already taken.
 - The guardian-link and custody screens do not check the two relationship
   rules before saving, so the person learns of them only from the refusal.
@@ -126,6 +144,9 @@ From `school-front-door.md`; slices 1 to 8 are merged.
   copy of the cell first.
 
 ## Known flaky tests
+
+- `apps/api/src/files/sealed.test.ts` "rest as ciphertext" failed once in a
+  full unit run and passes alone.
 
 - Both micro:bit specs fail on macOS: the MakeCode editor drops the first
   typed character. They pass on Linux CI.
