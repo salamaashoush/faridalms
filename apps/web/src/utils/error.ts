@@ -11,6 +11,35 @@ export const PERIOD_COVER_AFTER = "class_period.cover_after:";
 
 const CODE = /^[a-z][a-z0-9_]*\.[a-z0-9_.]+(?::.*)?$/;
 
+/**
+ * oRPC's own English for a refusal that carries no code, which no person
+ * should read as written. Any other uncoded message is copy written for a
+ * person and passes through untouched.
+ */
+const UNCODED: Partial<Record<string, () => string>> = {
+  "Bad Request": m.errorInvalidGeneric,
+  "Input validation failed": m.errorInvalidGeneric,
+  Unauthorized: m.errorSignedOut,
+  Forbidden: m.errorForbidden,
+  "Not Found": m.errorNotFoundRecord,
+  "Payload Too Large": m.errorTooLarge,
+  "Too Many Requests": m.errorTooManyAttempts,
+  "Method Not Supported": m.notificationErrorMessage,
+  "Not Acceptable": m.notificationErrorMessage,
+  "Request Timeout": m.notificationErrorMessage,
+  Conflict: m.notificationErrorMessage,
+  "Precondition Failed": m.notificationErrorMessage,
+  "Unsupported Media Type": m.notificationErrorMessage,
+  "Unprocessable Content": m.notificationErrorMessage,
+  "Client Closed Request": m.notificationErrorMessage,
+  "Internal Server Error": m.notificationErrorMessage,
+  "Output validation failed": m.notificationErrorMessage,
+  "Not Implemented": m.notificationErrorMessage,
+  "Bad Gateway": m.notificationErrorMessage,
+  "Service Unavailable": m.notificationErrorMessage,
+  "Gateway Timeout": m.notificationErrorMessage,
+};
+
 /** True for a code the API refused with, false for copy written for a person. */
 export const isErrorCode = (message: string) => CODE.test(message);
 
@@ -1065,7 +1094,8 @@ export function getMessageFromError(error: unknown): string {
     if (error.message.endsWith(".reference_invalid"))
       return m.errorReferenceGone();
     if (error.message.endsWith(".invalid")) return m.errorInvalidGeneric();
-    if (!isErrorCode(error.message)) return error.message;
+    if (!isErrorCode(error.message))
+      return UNCODED[error.message]?.() ?? error.message;
     if (import.meta.env.DEV && !INTERNAL_CODES.has(error.message))
       console.warn(`No copy in utils/error.ts reads ${error.message}`);
     return m.notificationErrorMessage();

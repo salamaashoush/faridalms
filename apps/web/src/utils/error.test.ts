@@ -67,3 +67,23 @@ describe("a refusal nothing words", () => {
     );
   });
 });
+
+describe("words that arrive without a code", () => {
+  it("read oRPC's English defaults in the reader's words", () => {
+    const cases: [string, string][] = [
+      ["Not Found", m.errorNotFoundRecord()],
+      ["Input validation failed", m.errorInvalidGeneric()],
+      ["Forbidden", m.errorForbidden()],
+      ["Unauthorized", m.errorSignedOut()],
+      ["Internal Server Error", m.notificationErrorMessage()],
+    ];
+    for (const [words, copy] of cases)
+      expect(getMessageFromError(new Error(words))).toBe(copy);
+  });
+
+  it("pass copy already written for a person through", () => {
+    expect(getMessageFromError(new Error(m.errorForbidden()))).toBe(
+      m.errorForbidden(),
+    );
+  });
+});

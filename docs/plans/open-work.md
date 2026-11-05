@@ -23,8 +23,6 @@ From `foundations.md`. W1 to W5 are merged.
   - one audience semantics;
   - a shared person-name type in place of about 20 differently named
     field pairs;
-  - oRPC's default English messages ("Not Found", "Input validation
-    failed") reach people as written; route them through the error copy.
 - **Finding 21** (plan modules and feature switches) belongs to the
   business console, outside this repository.
 
