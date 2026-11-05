@@ -40,16 +40,6 @@ From `foundations.md`. W1, W3, W4 and W5 are merged.
 
 ## Bugs found and not yet fixed
 
-- **CI browsers.** Firefox and WebKit e2e fail on CI, so a push never
-  publishes. Until they pass, publish by hand: run CI on main with
-  `publish_without_e2e`. The failures:
-  - WebKit `management.spec.ts:299`: a navigation cuts off `getAuthState`
-    in the root `beforeLoad`, and WebKit reports it as an uncaught
-    TypeError rather than an AbortError.
-  - Firefox and WebKit `messages.spec.ts:156` (Markdown draft).
-  - Firefox `admissions.spec.ts:39` and `people.spec.ts:407` (both failing
-    before November).
-  - WebKit `coursework.spec.ts:277` (once).
 - A school whose website is not live shows the platform's generic 404.
   It should show a page in the school's name that links to its portal.
 - School pages use Farida's favicon; a school with a logo should use it.
@@ -140,9 +130,6 @@ From `school-front-door.md`; slices 1 to 8 are merged.
 
 ## Known flaky tests
 
-- `apps/api/src/files/sealed.test.ts` "rest as ciphertext" failed once in a
-  full unit run and passes alone.
-
 - Both micro:bit specs fail on macOS: the MakeCode editor drops the first
   typed character. They pass on Linux CI.
 - `school-year.spec.ts:249` once opened the year editor with an empty name
@@ -150,5 +137,9 @@ From `school-front-door.md`; slices 1 to 8 are merged.
 - `records.spec.ts:95` once timed out opening the language submenu.
 - `badges.spec.ts:50` once landed on `/family` instead of `/me`. It likely
   comes from the spec's own tests sharing KG2A.
+- WebKit `management.spec.ts:22` once kept "Class name in Arabic" invalid
+  after the English name was filled. The form moves focus a frame after
+  Save, which may land inside Playwright's fill; not confirmed.
+- WebKit `coursework.spec.ts:277` failed once.
 - Firefox does not launch on some macOS machines. CI runs it under
   `xvfb-run`.
