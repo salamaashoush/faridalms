@@ -307,6 +307,22 @@ describe("themes", () => {
     ).toBeLessThan(6);
   });
 
+  it("tint tiles in the link's own hue, never a grey, on every section", () => {
+    for (const id of THEME_IDS)
+      for (const palette of [
+        THEMES[id].palette,
+        darkPalette(THEMES[id].palette),
+      ])
+        for (const scheme of Object.values(schemesOf(palette))) {
+          const link = toOklch(scheme.link);
+          if (link.c < 0.035) continue;
+          const tint = toOklch(scheme.tint);
+          expect(tint.c).toBeGreaterThan(0.02);
+          const apart = Math.abs(tint.h - link.h) % 360;
+          expect(Math.min(apart, 360 - apart)).toBeLessThan(8);
+        }
+  });
+
   it("raise cards above a dark background rather than sink them", () => {
     for (const id of THEME_IDS) {
       const soft = schemesOf(darkPalette(THEMES[id].palette)).soft;

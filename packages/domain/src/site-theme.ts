@@ -645,6 +645,26 @@ export interface Scheme {
   card: string;
   button: string;
   buttonText: string;
+  /** A quiet fill in the link's hue for icon tiles and tags. */
+  tint: string;
+}
+
+/**
+ * A fill in the link's own hue a step off the background. Mixing the link
+ * into the background instead cancels to grey wherever the two are
+ * complementary (a blue link on a cream section); a link with no hue of its
+ * own (white on a brand band) is laid over the band instead.
+ */
+function tintOf(link: string, background: string): string {
+  const ink = toOklch(link);
+  if (ink.c < NEUTRAL) return mix(background, link, 0.16);
+  const ground = toOklch(background);
+  const dark = ground.l < 0.5;
+  return fromOklch({
+    l: dark ? ground.l + 0.08 : ground.l - 0.045,
+    c: Math.min(Math.max(ink.c * 0.4, 0.025), ink.c, 0.07),
+    h: ink.h,
+  });
 }
 
 /**
@@ -777,6 +797,7 @@ export function schemesOf(palette: Palette): Record<SchemeId, Scheme> {
     preferButton: string[],
   ): Scheme => {
     const body = readable(background, preferText);
+    const link = readable(background, [palette.primary, palette.accent, body]);
     const button =
       preferButton.find((colour) => contrast(colour, background) >= 3) ?? body;
     return {
@@ -787,7 +808,7 @@ export function schemesOf(palette: Palette): Record<SchemeId, Scheme> {
         mix(body, background, 0.35),
         mix(body, background, 0.2),
       ]),
-      link: readable(background, [palette.primary, palette.accent, body]),
+      link,
       border: mix(body, background, 0.84),
       // On a dark background a card is raised by being lighter, never sunk.
       card:
@@ -796,6 +817,7 @@ export function schemesOf(palette: Palette): Record<SchemeId, Scheme> {
           : card,
       button,
       buttonText: readable(button, ["#FFFFFF", palette.canvas, palette.ink]),
+      tint: tintOf(link, background),
     };
   };
   return {

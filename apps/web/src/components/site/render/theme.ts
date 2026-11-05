@@ -134,6 +134,7 @@ export function schemeStyle(theme: Theme, scheme: SchemeId): CSSProperties {
     "--s-card": colours.card,
     "--s-btn": colours.button,
     "--s-btn-fg": colours.buttonText,
+    "--s-tint": colours.tint,
     "--s-bg-dark": dark.background,
     "--s-fg-dark": dark.body,
     "--s-heading-dark": dark.heading,
@@ -143,6 +144,7 @@ export function schemeStyle(theme: Theme, scheme: SchemeId): CSSProperties {
     "--s-card-dark": dark.card,
     "--s-btn-dark": dark.button,
     "--s-btn-fg-dark": dark.buttonText,
+    "--s-tint-dark": dark.tint,
     ...(band && edged ? { "--s-edge-dark": dark.border } : {}),
   } as CSSProperties;
 }

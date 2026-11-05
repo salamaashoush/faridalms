@@ -65,7 +65,7 @@ describe("the public website", () => {
     const [hero] = home.sections;
     expect(hero?.section).toMatchObject({
       type: "hero",
-      data: { heading: "مدرسة يُعرف فيها *كل طفل* ويُتحدّى" },
+      data: { heading: "عقول فضولية ومستقبل *عالمي*" },
     });
     expect(home.news.map((row) => row.title)).toContain("أهلًا بعودتكم");
 

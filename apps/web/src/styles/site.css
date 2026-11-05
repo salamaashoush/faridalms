@@ -78,6 +78,7 @@
     --s-card: var(--s-card-dark) !important;
     --s-btn: var(--s-btn-dark) !important;
     --s-btn-fg: var(--s-btn-fg-dark) !important;
+    --s-tint: var(--s-tint-dark) !important;
     --s-edge: var(--s-edge-dark, transparent);
   }
   .dark .site-root {
@@ -500,11 +501,7 @@
   .site-root[data-eyebrow="pill"] .site-eyebrow {
     padding: 0.375rem 0.875rem;
     border-radius: 999px;
-    background: color-mix(
-      in oklab,
-      var(--s-link) 14%,
-      oklch(from var(--s-bg) l 0 0)
-    );
+    background: var(--s-tint);
   }
   .site-muted {
     color: var(--s-muted);
@@ -686,7 +683,7 @@
   .site-brand {
     display: flex;
     min-inline-size: 0;
-    flex-shrink: 0;
+    flex-shrink: 1;
     align-items: center;
     gap: 0.75rem;
   }
@@ -912,13 +909,7 @@
     flex-shrink: 0;
     place-items: center;
     border-radius: var(--s-radius-sm);
-    /* Mixed into a grey of the section's lightness rather than over the
-       surface, so a blue tint on a yellow card stays blue, not grey. */
-    background: color-mix(
-      in oklab,
-      var(--s-link) 16%,
-      oklch(from var(--s-bg) l 0 0)
-    );
+    background: var(--s-tint);
     color: var(--s-link);
   }
   .site-icon-tile svg {

@@ -859,7 +859,7 @@ export function SiteFrame({
       {context.editing ? null : (
         <a
           href="#site-main"
-          className="sr-only focus:not-sr-only focus:absolute focus:start-4 focus:top-4 focus:z-50 focus:rounded-md focus:bg-black focus:px-3 focus:py-2 focus:text-white"
+          className="sr-only start-0 top-0 m-0 focus:not-sr-only focus:absolute focus:start-4 focus:top-4 focus:z-50 focus:rounded-md focus:bg-black focus:px-3 focus:py-2 focus:text-white"
         >
           {m.siteSkipToContent({}, t)}
         </a>
