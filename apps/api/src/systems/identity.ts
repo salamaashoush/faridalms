@@ -67,6 +67,7 @@ import {
 import { portalFace as readFace } from "../core/portal-face";
 import {
   audit,
+  can,
   publicProcedure,
   readProcedure,
   requireCapability,
@@ -560,6 +561,13 @@ export const currentUser = readProcedure.handler(async ({ context }) => {
       arabicMath: school.arabicMath,
       logoFileId: school.logoFileId,
     },
+    // What the platform says about the school's contract is for those who run it.
+    contract: can(context, "school:manage")
+      ? {
+          notice: context.school.entitlements.notice,
+          trialEndsOn: context.school.entitlements.trialEndsOn,
+        }
+      : null,
     today: context.today,
   };
 });

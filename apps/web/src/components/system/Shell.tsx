@@ -57,6 +57,7 @@ import { useCallback, useState } from "react";
 
 import type { NavItem } from "~/components/app/navigation";
 
+import { ContractNotice } from "~/components/app/ContractNotice";
 import { GrownUpGate } from "~/components/app/GrownUpGate";
 import { MOBILE_TABS, NAVIGATION } from "~/components/app/navigation";
 import { NotificationBell } from "~/components/app/NotificationBell";
@@ -488,6 +489,7 @@ export function Shell({
             )}
           </header>
           <div className="flex flex-1 flex-col px-4 py-6 pb-24 sm:px-6 md:pb-10">
+            <ContractNotice />
             {children}
           </div>
           <MobileTabs />

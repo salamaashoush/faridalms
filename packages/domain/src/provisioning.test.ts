@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 
 import type { NewSchoolInput } from "./provisioning";
 
+import { BASIC_ENTITLEMENTS, settableOf } from "./plans";
 import {
   newSchoolSchema,
   provisionTenantSchema,
@@ -57,7 +58,7 @@ describe("a new school", () => {
         givenNameAr: null,
         email: "salama@northwind.example.com",
       },
-      plan: null,
+      entitlements: settableOf(BASIC_ENTITLEMENTS),
     });
     expect(v.parse(newSchoolSchema, spec)).toEqual(spec);
   });
