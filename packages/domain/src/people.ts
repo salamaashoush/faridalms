@@ -427,8 +427,33 @@ export function addressLine(address: {
     .join(", ");
 }
 
+/**
+ * What the contacts sheet shows of a person: their first phone and email
+ * and their address, as the rows hold them. A save names what it showed,
+ * since those rows are replaced rather than versioned.
+ */
+export function shownContacts(
+  contacts: readonly { kind: string; value: string }[],
+) {
+  const first = (kind: string) =>
+    contacts.find((contact) => contact.kind === kind)?.value ?? "";
+  return {
+    phone: first("phone"),
+    email: first("email"),
+    address: first("postal"),
+  };
+}
+
+const shownContactsSchema = v.object({
+  phone: v.pipe(v.string(), v.maxLength(400)),
+  email: v.pipe(v.string(), v.maxLength(400)),
+  address: v.pipe(v.string(), v.maxLength(400)),
+});
+
 export const saveContactsSchema = v.object({
   userId: id,
+  /** What the sheet showed, refused as stale if the rows no longer hold it. */
+  expected: shownContactsSchema,
   phone: v.optional(phone, ""),
   email: v.optional(v.union([v.literal(""), v.pipe(email, v.email())]), ""),
   address: postalAddressSchema,

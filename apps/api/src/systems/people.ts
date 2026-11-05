@@ -122,6 +122,7 @@ import {
   saveStaffSchema,
   saveStudentSchema,
   setPhotoSchema,
+  shownContacts,
   staffDirectorySchema,
   studentDirectorySchema,
   studentMatchesSchema,
@@ -131,6 +132,7 @@ import { toE164 } from "@faridalms/domain/phone";
 import { addDays } from "@faridalms/domain/school";
 import { STAFF_ROLES } from "@faridalms/domain/workspace";
 import { ORPCError } from "@orpc/server";
+import { sql } from "drizzle-orm";
 import { randomInt } from "node:crypto";
 import * as v from "valibot";
 
@@ -2063,7 +2065,19 @@ export const saveContacts = writeProcedure
       throw new ORPCError("BAD_REQUEST", {
         message: "contact_point.phone_invalid",
       });
+    // One save of a person's contacts at a time, each against what it read.
+    await context.tx.execute(sql`
+      select 1 from core.users
+      where tenant_id = ${context.tenantId}::uuid and id = ${input.userId}::uuid
+      for update`);
     const before = await contactsOf(context.tx, context.tenantId, input.userId);
+    const held = shownContacts(before);
+    if (
+      held.phone !== input.expected.phone ||
+      held.email !== input.expected.email ||
+      held.address !== input.expected.address
+    )
+      throw new ORPCError("CONFLICT", { message: "conflict.version" });
     // The sheet shows a person's first phone and email, so a save replaces
     // those rows under whatever label they were recorded with.
     const labelOf = (kind: "phone" | "email", fallback: ContactLabel) => {

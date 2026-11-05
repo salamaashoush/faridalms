@@ -1,3 +1,4 @@
+import { shownContacts } from "@faridalms/domain/people";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { toast } from "sonner";
@@ -61,6 +62,7 @@ export function ContactsSheet({
       saveContacts({
         data: {
           userId,
+          expected: shownContacts(contacts),
           phone,
           email,
           address: {

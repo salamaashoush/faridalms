@@ -1,4 +1,5 @@
 import { plainContent } from "@faridalms/domain/content-conversion";
+import { shownContacts } from "@faridalms/domain/people";
 import { addDays } from "@faridalms/domain/school";
 import { describe, expect, test } from "bun:test";
 
@@ -1214,8 +1215,10 @@ describe("families", () => {
     const adultId =
       (await api.people.student({ id: studentId })).guardians?.[0]?.userId ??
       "";
+    const read = await api.people.person({ id: adultId });
     await api.people.saveContacts({
       userId: adultId,
+      expected: shownContacts(read.contacts ?? []),
       phone: "0100 555 0707",
       email: "Salama@Example.com",
       address: {
@@ -1247,12 +1250,31 @@ describe("families", () => {
     expect(person.access.contacts).toBe(true);
     await api.people.saveContacts({
       userId: adultId,
+      expected: shownContacts(person.contacts ?? []),
       phone: "0100 555 0707",
       email: "",
       address: { lines: [], city: "", region: "", postalCode: "", country: "" },
     });
     const cleared = await api.people.person({ id: adultId });
     expect(cleared.contacts?.map((row) => row.kind)).toEqual(["phone"]);
+    // A sheet opened before that save would put back what it showed.
+    expect(
+      await rejection(
+        api.people.saveContacts({
+          userId: adultId,
+          expected: shownContacts(person.contacts ?? []),
+          phone: "0100 555 0707",
+          email: "salama@example.com",
+          address: {
+            lines: [],
+            city: "",
+            region: "",
+            postalCode: "",
+            country: "",
+          },
+        }),
+      ),
+    ).toMatchObject({ code: "CONFLICT", message: "conflict.version" });
   });
 
   test("a teacher cannot change contacts and a parent cannot read siblings", async () => {
@@ -1267,6 +1289,7 @@ describe("families", () => {
       await rejection(
         teacher.people.saveContacts({
           userId: adultId,
+          expected: { phone: "", email: "", address: "" },
           phone: "",
           email: "",
           address: {
