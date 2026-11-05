@@ -477,6 +477,76 @@ describe("events", () => {
       result: "A warm, curious child.",
     });
   });
+  test("the staff at a booked event are told when it is booked, moved and called off", async () => {
+    await laterYear();
+    const { intakeId } = await intakeFor("Grade 8", {
+      year: "2033–2034",
+      anyAge: true,
+    });
+    const office = await officer();
+    const head = await principal();
+    const me = await head.identity.currentUser();
+    const { api: family } = await registeredFamily("salama.tour@example.com");
+    const { id } = await inReview(family, intakeId, {
+      birthDate: "2019-01-01",
+    });
+    const team = await office.decisions.attendees();
+    expect(team.some((row) => row.id === me.id)).toBe(true);
+    const tour = {
+      applicationId: id,
+      kind: "tour" as const,
+      itemId: "",
+      startTime: "09:00",
+      endTime: "09:45",
+      location: "Front office",
+      attendeeIds: [me.id],
+    };
+    const booked = await office.decisions.saveEvent({
+      ...tour,
+      expectedVersion: 0,
+      date: "2027-03-01",
+    });
+    const about = async () =>
+      (await head.notifications.list({ tab: "all" })).rows.filter(
+        (row) => row.subjectId === booked.id,
+      );
+    expect(await about()).toMatchObject([
+      {
+        kind: "admission_event",
+        params: { eventKind: "tour", date: "2027-03-01", applicationId: id },
+      },
+    ]);
+    // It is on the staff calendar of those who run admissions, as the tour it is.
+    const week = await head.calendar.range({
+      from: "2027-02-28",
+      to: "2027-03-06",
+      child: "",
+    });
+    expect(week.events.find((row) => row.id === booked.id)).toMatchObject({
+      category: "admissions",
+      startsOn: "2027-03-01",
+      startTime: "09:00",
+      admission: { applicationId: id, kind: "tour" },
+    });
+    const moved = await office.decisions.saveEvent({
+      ...tour,
+      id: booked.id,
+      expectedVersion: booked.version,
+      date: "2027-03-02",
+    });
+    expect((await about())[0]?.params).toMatchObject({
+      date: "2027-03-02",
+      updated: true,
+    });
+    await office.decisions.recordEvent({
+      applicationId: id,
+      id: booked.id,
+      expectedVersion: moved.version,
+      outcome: "cancelled",
+      result: "",
+    });
+    expect((await about())[0]?.params).toMatchObject({ cancelled: true });
+  });
 });
 
 describe("letters", () => {

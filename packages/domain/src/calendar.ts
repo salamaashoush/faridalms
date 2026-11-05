@@ -18,6 +18,10 @@ export const CALENDAR_CATEGORIES = [
 ] as const;
 export type CalendarCategory = (typeof CALENDAR_CATEGORIES)[number];
 
+/** What the calendar shows: the kinds of event written, and the tours, assessments and interviews admissions books. */
+export const SHOWN_CATEGORIES = [...CALENDAR_CATEGORIES, "admissions"] as const;
+export type ShownCategory = (typeof SHOWN_CATEGORIES)[number];
+
 /** The longest window one request reads: six weeks of a month grid, with room. */
 export const MAX_RANGE_DAYS = 120;
 

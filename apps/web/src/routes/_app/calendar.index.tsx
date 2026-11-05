@@ -1,9 +1,10 @@
-import type { CalendarCategory } from "@faridalms/domain/calendar";
+import type { ShownCategory } from "@faridalms/domain/calendar";
 import type { IsoWeekday } from "@faridalms/domain/timetable";
 import type { Workspace } from "@faridalms/domain/workspace";
 
 import {
   CALENDAR_CATEGORIES,
+  SHOWN_CATEGORIES,
   monthWeeks,
   weekOf,
 } from "@faridalms/domain/calendar";
@@ -58,10 +59,7 @@ const searchSchema = v.object({
     "",
   ),
   /** Kinds of event switched off in the legend. */
-  hide: v.fallback(
-    v.optional(v.array(v.picklist(CALENDAR_CATEGORIES)), []),
-    [],
-  ),
+  hide: v.fallback(v.optional(v.array(v.picklist(SHOWN_CATEGORIES)), []), []),
   child: v.fallback(
     v.optional(v.union([v.literal(""), v.pipe(v.string(), v.uuid())]), ""),
     "",
@@ -159,6 +157,7 @@ function CalendarPage() {
     canAuthor,
     canManage,
     children,
+    admissions,
   } = useSuspenseQuery(
     calendarRangeQuery({
       from: window.from,
@@ -168,7 +167,8 @@ function CalendarPage() {
   ).data;
   const hidden = new Set(search.hide);
   const events = all.filter((event) => !hidden.has(event.category));
-  const toggle = (category: CalendarCategory) =>
+  const categories = admissions ? SHOWN_CATEGORIES : CALENDAR_CATEGORIES;
+  const toggle = (category: ShownCategory) =>
     void navigate({
       search: (previous) => ({
         ...previous,
@@ -185,7 +185,8 @@ function CalendarPage() {
   const actions = {
     canAdd: canAuthor,
     movable: (event: (typeof all)[number]) =>
-      canManage || (canAuthor && event.authorUserId === user.id),
+      event.admission === null &&
+      (canManage || (canAuthor && event.authorUserId === user.id)),
     reschedule: (
       event: (typeof all)[number],
       change: { move?: number; extend?: number },
@@ -305,6 +306,7 @@ function CalendarPage() {
             <div className="flex items-center gap-2 max-md:ms-auto">
               <div className="md:hidden">
                 <KindFilter
+                  categories={categories}
                   hidden={hidden}
                   onToggle={toggle}
                   onShowAll={showAll}
@@ -336,7 +338,7 @@ function CalendarPage() {
         ) : null}
         <fieldset className="flex flex-wrap items-center gap-1.5 max-md:hidden">
           <legend className="sr-only">{m.calLegend()}</legend>
-          {CALENDAR_CATEGORIES.map((category) => (
+          {categories.map((category) => (
             <button
               key={category}
               type="button"

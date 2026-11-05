@@ -1,4 +1,5 @@
 import type { ApplicationRow } from "@faridalms/database/stores/admissions";
+import type { EventKind } from "@faridalms/domain/admissions";
 
 import { capabilityHolders } from "@faridalms/database/stores/access";
 import {
@@ -57,6 +58,7 @@ import {
   releaseDecisions,
 } from "../core/decisions";
 import { enrol } from "../core/enrolment";
+import { notify } from "../core/notify";
 import {
   audit,
   can,
@@ -80,6 +82,40 @@ async function rowOf(context: UnitContext, id: string) {
   const row = await applicationIn(admissionScope(context), id);
   if (!row) throw new ORPCError("NOT_FOUND");
   return row;
+}
+
+/** Tells the staff at a tour, assessment or interview that it was booked, moved or called off. */
+async function tellAttendees(
+  context: UnitContext,
+  row: {
+    id: string;
+    applicant: { nameEn: string | null; nameAr: string | null };
+  },
+  event: {
+    id: string;
+    kind: EventKind;
+    startsOn: string;
+    startTime: string;
+    location: string;
+  },
+  userIds: readonly string[],
+  change: { updated?: true; cancelled?: true } = {},
+) {
+  if (userIds.length === 0) return;
+  await notify(context, userIds, {
+    kind: "admission_event",
+    subject: { type: "admission_event", id: event.id },
+    params: {
+      title: row.applicant.nameEn ?? row.applicant.nameAr ?? "",
+      titleAr: row.applicant.nameAr ?? undefined,
+      eventKind: event.kind,
+      date: event.startsOn,
+      startTime: event.startTime.slice(0, 5),
+      location: event.location || undefined,
+      applicationId: row.id,
+      ...change,
+    },
+  });
 }
 
 /** Runs a decision's work, turning a row that changed meanwhile into the usual stale-write answer. */
@@ -526,6 +562,14 @@ export const saveEvent = writeProcedure
     };
     let id = input.id;
     let version: number | null;
+    const before = id
+      ? (
+          await eventsOf(context.tx, {
+            tenantId: context.tenantId,
+            applicationIds: [row.id],
+          })
+        ).find((each) => each.id === id)
+      : undefined;
     if (id) {
       version = await updateEvent(context.tx, {
         ...org(context),
@@ -559,6 +603,25 @@ export const saveEvent = writeProcedure
       details,
       authorUserId: context.actor.userId,
     });
+    const booked = {
+      id,
+      kind: input.kind,
+      startsOn: input.date,
+      startTime: input.startTime,
+      location: input.location,
+    };
+    const dropped = (before?.attendees ?? [])
+      .map((each) => each.id)
+      .filter((each) => !fields.attendeeIds.includes(each));
+    await tellAttendees(
+      context,
+      row,
+      booked,
+      fields.attendeeIds,
+      before ? { updated: true } : {},
+    );
+    if (before)
+      await tellAttendees(context, row, booked, dropped, { cancelled: true });
     await audit(context, {
       action: input.id ? "admission_event.update" : "admission_event.create",
       objectType: "admission_event",
@@ -626,6 +689,14 @@ export const recordEvent = writeProcedure
         });
       }
     }
+    if (input.outcome === "cancelled" && event.outcome !== "cancelled")
+      await tellAttendees(
+        context,
+        row,
+        event,
+        event.attendees.map((each) => each.id),
+        { cancelled: true },
+      );
     const details = { eventId: event.id, kind: event.kind, to: input.outcome };
     await insertApplicationEntry(context.tx, {
       ...org(context),

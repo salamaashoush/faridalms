@@ -216,6 +216,17 @@ const OUTCOME_AR: Record<NonNullable<NoticeParams["outcome"]>, Line> = {
 };
 
 /** One line per notice in the reader's language; the app writes its own from the same params. */
+const EVENT_EN = {
+  tour: "Tour",
+  assessment: "Assessment",
+  interview: "Interview",
+} as const;
+const EVENT_AR = {
+  tour: { a: "جولة", the: "الجولة", cancelled: "أُلغيت الجولة" },
+  assessment: { a: "تقييم", the: "التقييم", cancelled: "أُلغي التقييم" },
+  interview: { a: "مقابلة", the: "المقابلة", cancelled: "أُلغيت المقابلة" },
+} as const;
+
 const LINES: Record<"en" | "ar", Record<NotificationKind, Line>> = {
   en: {
     announcement: (p) =>
@@ -277,6 +288,13 @@ const LINES: Record<"en" | "ar", Record<NotificationKind, Line>> = {
         : `The school answered the change you asked for in ${p.studentName ?? "your child"}'s medical summary and did not make it.`,
     reenrolment: (p) =>
       `Will ${p.studentName ?? "your child"} return to school${p.title ? ` in ${p.title}` : " next year"}? Tell the school in the family app.`,
+    admission_event: (p) => {
+      const what = `${EVENT_EN[p.eventKind ?? "tour"]} with ${p.title || p.titleAr || "an applicant"}`;
+      const when = `${p.date ?? ""}${p.startTime ? ` at ${p.startTime}` : ""}`;
+      return p.cancelled
+        ? `Called off: the ${what.charAt(0).toLowerCase()}${what.slice(1)} on ${when}.`
+        : `${p.updated ? "Moved: " : ""}${what} on ${when}${p.location ? `, ${p.location}` : ""}.`;
+    },
   },
   ar: {
     announcement: (p) =>
@@ -339,6 +357,16 @@ const LINES: Record<"en" | "ar", Record<NotificationKind, Line>> = {
         : `لم تعتمد المدرسة التعديل الذي طلبته على ملخص ${p.studentName ?? "طفلك"} الطبي.`,
     reenrolment: (p) =>
       `هل يعود ${p.studentNameAr || p.studentName || "طفلك"} إلى المدرسة${p.titleAr || p.title ? ` في ${p.titleAr || p.title}` : " في العام القادم"}؟ أخبروا المدرسة في تطبيق الأسرة.`,
+    admission_event: (p) => {
+      const kind = EVENT_AR[p.eventKind ?? "tour"];
+      const name = p.titleAr || p.title || "متقدّم";
+      const when = `${p.date ?? ""}${p.startTime ? ` الساعة ${p.startTime}` : ""}`;
+      if (p.cancelled) return `${kind.cancelled} مع ${name} يوم ${when}.`;
+      const where = p.location ? `، ${p.location}` : "";
+      return p.updated
+        ? `تغيّر موعد ${kind.the} مع ${name}: يوم ${when}${where}.`
+        : `${kind.a} مع ${name} يوم ${when}${where}.`;
+    },
   },
 };
 

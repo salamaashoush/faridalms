@@ -1,6 +1,5 @@
-import type { CalendarCategory } from "@faridalms/domain/calendar";
+import type { ShownCategory } from "@faridalms/domain/calendar";
 
-import { CALENDAR_CATEGORIES } from "@faridalms/domain/calendar";
 import { Button } from "@faridalms/ui/button";
 import {
   DropdownMenu,
@@ -23,15 +22,17 @@ import { CategoryIcon } from "./views";
  * chips would not fit on a line.
  */
 export function KindFilter({
+  categories,
   hidden,
   onToggle,
   onShowAll,
 }: {
-  hidden: ReadonlySet<CalendarCategory>;
-  onToggle: (category: CalendarCategory) => void;
+  categories: readonly ShownCategory[];
+  hidden: ReadonlySet<ShownCategory>;
+  onToggle: (category: ShownCategory) => void;
   onShowAll: () => void;
 }) {
-  const total = CALENDAR_CATEGORIES.length;
+  const total = categories.length;
   return (
     <DropdownMenu>
       <DropdownMenuTrigger
@@ -46,7 +47,7 @@ export function KindFilter({
           : m.calKinds()}
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-56">
-        {CALENDAR_CATEGORIES.map((category) => (
+        {categories.map((category) => (
           <DropdownMenuCheckboxItem
             key={category}
             checked={!hidden.has(category)}

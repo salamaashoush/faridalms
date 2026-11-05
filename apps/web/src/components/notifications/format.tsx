@@ -11,6 +11,7 @@ import { Link } from "@tanstack/react-router";
 import {
   AtSign,
   BookMarked,
+  CalendarClock,
   CalendarDays,
   ClipboardCheck,
   ClipboardList,
@@ -29,9 +30,10 @@ import {
   UserX,
 } from "lucide-react";
 
+import { EVENT_KIND_LABEL } from "~/components/admissions/application-labels";
 import { inLocale } from "~/hooks/useCurrentUser";
 import * as m from "~/i18n/messages";
-import { formatDate } from "~/utils/datetime";
+import { formatDate, formatTime } from "~/utils/datetime";
 
 export interface Notice {
   id: string;
@@ -65,6 +67,7 @@ export const KIND_ICON: Record<NotificationKind, LucideIcon> = {
   grades: GraduationCap,
   correction: HeartPulse,
   reenrolment: School,
+  admission_event: CalendarClock,
 };
 
 /** What a notice about an application's move is headed, for the family and for the office. */
@@ -287,6 +290,28 @@ export function noticeText(notice: Notice): { title: string; body: string } {
           year: both(params.title, params.titleAr),
         }),
       };
+    case "admission_event": {
+      const kind = EVENT_KIND_LABEL[params.eventKind ?? "tour"]();
+      return {
+        title: params.cancelled
+          ? m.ntfAdmissionEventCancelled({ kind })
+          : params.updated
+            ? m.ntfAdmissionEventMoved({ kind })
+            : m.ntfAdmissionEvent({ kind }),
+        body: [
+          title,
+          [
+            date ? formatDate(date, "weekday") : "",
+            params.startTime ? formatTime(params.startTime) : "",
+          ]
+            .filter(Boolean)
+            .join(" "),
+          params.location ?? "",
+        ]
+          .filter(Boolean)
+          .join(" · "),
+      };
+    }
   }
   return { title: "", body: "" };
 }
@@ -526,6 +551,16 @@ export function NoticeLink({
           {children}
         </Link>
       );
+    case "admission_event":
+      return notice.params.applicationId ? (
+        <Link
+          {...rest}
+          to="/admissions/applications/$applicationId"
+          params={{ applicationId: notice.params.applicationId }}
+        >
+          {children}
+        </Link>
+      ) : null;
   }
   return null;
 }

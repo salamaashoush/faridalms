@@ -270,7 +270,9 @@ exits: declined_by_school, withdrawn, offer_declined, offer_expired,
 interview, fee, reference. Each is `pending` → `received` → `verified` |
 `waived` | `rejected`. Documents are file blocks in the application, held
 under the school's storage limits. **Events** (tour, assessment, interview)
-have a slot, attendees and a result.
+have a slot, attendees and a result. They show on the staff calendar of
+those who run admissions and of each attendee, and attendees are told when
+one is booked, moved or called off.
 
 ### 6.5 Conversion
 

@@ -23,6 +23,7 @@ export const NOTIFICATION_KINDS = [
   "grades",
   "correction",
   "reenrolment",
+  "admission_event",
 ] as const;
 export type NotificationKind = (typeof NOTIFICATION_KINDS)[number];
 
@@ -73,6 +74,11 @@ export interface NoticeParams {
   until?: string;
   /** Work sent back for the student to revise, rather than returned marked. */
   revise?: boolean;
+  /** A tour, assessment or interview the reader attends: when, where, and for which application. */
+  eventKind?: "tour" | "assessment" | "interview";
+  startTime?: string;
+  location?: string;
+  applicationId?: string;
 }
 
 export const APPLICATION_OUTCOMES = [
@@ -106,6 +112,7 @@ export const CHOOSABLE_KINDS = [
   "grades",
   "correction",
   "reenrolment",
+  "admission_event",
 ] as const;
 export type ChoosableKind = (typeof CHOOSABLE_KINDS)[number];
 
@@ -158,6 +165,7 @@ export const DEFAULT_PREFERENCES: Preferences = {
     grades: "instant",
     correction: "instant",
     reenrolment: "instant",
+    admission_event: "instant",
   },
   sms: {
     announcement: "off",
@@ -177,6 +185,7 @@ export const DEFAULT_PREFERENCES: Preferences = {
     grades: "off",
     correction: "off",
     reenrolment: "off",
+    admission_event: "off",
   },
   quietFrom: "21:00",
   quietTo: "07:00",

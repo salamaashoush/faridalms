@@ -1,6 +1,8 @@
 import type { AudienceInput } from "@faridalms/domain/announcements";
+import type { ShownCategory } from "@faridalms/domain/calendar";
 import type { ContentDocument } from "@faridalms/domain/content";
 
+import { bookedBetween } from "@faridalms/database/stores/admission-decisions";
 import {
   audiencesOf,
   audienceUsers,
@@ -54,7 +56,7 @@ import {
   publishWords,
   wordsIssues,
 } from "../core/publication";
-import { scopeFor, teaches } from "../core/reach";
+import { isStaff, scopeFor, teaches } from "../core/reach";
 import { registerHostReader, placeMedia } from "../files/authorize";
 
 const id = v.pipe(v.string(), v.uuid());
@@ -217,7 +219,9 @@ export const range = readProcedure
   .input(rangeQuerySchema)
   .handler(async ({ input, context }) => {
     const { reach, children } = await reachFor(context, input.child);
-    const [events, days] = await Promise.all([
+    const admissions =
+      can(context, "admissions:read") || can(context, "admissions:manage");
+    const [events, days, booked] = await Promise.all([
       eventsBetween(context.tx, {
         tenantId: context.tenantId,
         schoolId: context.schoolId,
@@ -233,10 +237,54 @@ export const range = readProcedure
         from: input.from,
         to: input.to,
       }),
+      // A family's view of a child's calendar holds no admissions work.
+      input.child || !isStaff(context)
+        ? Promise.resolve([])
+        : bookedBetween(context.tx, {
+            tenantId: context.tenantId,
+            orgId: context.schoolId,
+            from: input.from,
+            to: input.to,
+            attendeeId: admissions ? null : context.actor.userId,
+          }),
     ]);
     return {
-      events,
+      events: [
+        ...events.map((row) => ({
+          ...row,
+          category: row.category as ShownCategory,
+          admission: null,
+        })),
+        ...booked.map((row) => ({
+          id: row.id,
+          version: 1,
+          orgId: context.schoolId,
+          titleEn: row.applicantNameEn,
+          titleAr: row.applicantNameAr,
+          category: "admissions" as ShownCategory,
+          startsOn: row.startsOn,
+          endsOn: row.startsOn,
+          startTime: row.startTime,
+          endTime: row.endTime,
+          location: row.location || null,
+          provisional: false,
+          cancelled: row.outcome === "cancelled",
+          state: "published" as const,
+          public: false,
+          publishedAt: null,
+          updateSentAt: null,
+          authorUserId: "",
+          authorNameEn: null,
+          authorNameAr: null,
+          admission: { applicationId: row.applicationId, kind: row.kind },
+        })),
+      ].toSorted(
+        (a, b) =>
+          a.startsOn.localeCompare(b.startsOn) ||
+          (a.startTime ?? "").localeCompare(b.startTime ?? ""),
+      ),
       days,
+      admissions: booked.length > 0 || admissions,
       canManage: manages(context),
       canAuthor: manages(context) || can(context, "calendar:author"),
       children: children.map((child) => ({

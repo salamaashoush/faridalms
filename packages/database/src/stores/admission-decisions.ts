@@ -523,6 +523,71 @@ export async function eventsOf(
   }));
 }
 
+/** A tour, assessment or interview as the staff calendar shows it. */
+export interface BookedEvent {
+  id: string;
+  applicationId: string;
+  kind: EventKind;
+  startsOn: string;
+  startTime: string;
+  endTime: string;
+  location: string;
+  outcome: EventOutcome;
+  applicantNameEn: string | null;
+  applicantNameAr: string | null;
+}
+
+/**
+ * The school's tours, assessments and interviews between two days, in the
+ * order they happen; with `attendeeId`, only those that person attends.
+ */
+export async function bookedBetween(
+  tx: Tx,
+  input: {
+    tenantId: string;
+    orgId: string;
+    from: string;
+    to: string;
+    attendeeId: string | null;
+  },
+): Promise<BookedEvent[]> {
+  const rows = await tx.execute<{
+    id: string;
+    application_id: string;
+    kind: EventKind;
+    starts_on: string;
+    start_time: string;
+    end_time: string;
+    location: string;
+    outcome: EventOutcome;
+    name_en: string | null;
+    name_ar: string | null;
+  }>(sql`
+    select e.id, e.application_id, e.kind, to_char(e.starts_on, 'YYYY-MM-DD') as starts_on,
+      to_char(e.start_time, 'HH24:MI') as start_time, to_char(e.end_time, 'HH24:MI') as end_time,
+      e.location, e.outcome, u.full_name_en as name_en, u.full_name_ar as name_ar
+    from core.admission_events e
+    join core.admission_applications a on a.tenant_id = e.tenant_id and a.id = e.application_id
+    join core.users u on u.tenant_id = a.tenant_id and u.id = a.applicant_user_id
+    where e.tenant_id = ${input.tenantId}::uuid and e.org_id = ${input.orgId}::uuid
+      and e.status = 'active' and e.starts_on between ${input.from}::date and ${input.to}::date
+      and (${input.attendeeId}::uuid is null or ${input.attendeeId}::uuid = any(e.attendee_user_ids))
+    order by e.starts_on, e.start_time, e.id
+    limit 1000`);
+  return rows.map((row) => ({
+    id: row.id,
+    applicationId: row.application_id,
+    kind: row.kind,
+    startsOn: row.starts_on,
+    startTime: row.start_time,
+    endTime: row.end_time,
+    location: row.location,
+    outcome: row.outcome,
+    applicantNameEn: row.name_en,
+    applicantNameAr: row.name_ar,
+  }));
+}
+
 export interface EventFields {
   itemId: string | null;
   kind: EventKind;

@@ -1,5 +1,10 @@
 import type { IsoWeekday } from "@faridalms/domain/timetable";
-import type { DragEvent, KeyboardEvent, ReactNode } from "react";
+import type {
+  ComponentProps,
+  DragEvent,
+  KeyboardEvent,
+  ReactNode,
+} from "react";
 
 import { monthWeeks, onDay, weekOf } from "@faridalms/domain/calendar";
 import { addDays, daysBetween } from "@faridalms/domain/school";
@@ -141,6 +146,37 @@ function keyChange(event: KeyboardEvent): Change | null {
   return event.shiftKey ? { extend: step } : { move: step };
 }
 
+/**
+ * Where an event opens: the calendar's own sheet, or for a tour, assessment
+ * or interview, the application it was booked for.
+ */
+function EventLink({
+  event,
+  ...rest
+}: { event: CalendarEvent } & Omit<
+  ComponentProps<"a">,
+  "href" | "onDragStart" | "onDragEnd" | "onKeyDown"
+> &
+  Pick<
+    ComponentProps<typeof Link>,
+    "onDragStart" | "onDragEnd" | "onKeyDown"
+  >) {
+  return event.admission ? (
+    <Link
+      {...rest}
+      to="/admissions/applications/$applicationId"
+      params={{ applicationId: event.admission.applicationId }}
+    />
+  ) : (
+    <Link
+      {...rest}
+      from="/calendar/"
+      to="/calendar"
+      search={(previous) => ({ ...previous, event: event.id })}
+    />
+  );
+}
+
 function EventChip({
   event,
   day,
@@ -161,10 +197,8 @@ function EventChip({
         drag?.dragging?.event.id === event.id && "opacity-50",
       )}
     >
-      <Link
-        from="/calendar/"
-        to="/calendar"
-        search={(previous) => ({ ...previous, event: event.id })}
+      <EventLink
+        event={event}
         title={eventTitle(event)}
         draggable={movable}
         onDragStart={
@@ -202,7 +236,7 @@ function EventChip({
           </span>
         ) : null}
         <bdi className="truncate">{eventTitle(event)}</bdi>
-      </Link>
+      </EventLink>
       {movable && last && drag ? (
         <span
           draggable
@@ -506,17 +540,15 @@ function AgendaItem({ event }: { event: CalendarEvent }) {
       </span>
       <div className="grid min-w-0 gap-1">
         <div className="flex flex-wrap items-center gap-2">
-          <Link
-            from="/calendar/"
-            to="/calendar"
-            search={(previous) => ({ ...previous, event: event.id })}
+          <EventLink
+            event={event}
             className={cn(
               "min-w-0 text-sm leading-5 font-medium hover:text-primary hover:underline",
               event.cancelled && "text-muted-foreground line-through",
             )}
           >
             <bdi>{eventTitle(event)}</bdi>
-          </Link>
+          </EventLink>
           {event.state === "draft" ? (
             <StatusBadge tone="neutral">{m.calDraft()}</StatusBadge>
           ) : null}

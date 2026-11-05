@@ -8982,5 +8982,11 @@
   "auditPrivacyNoticeTranslationUnchecked": "Consent form translation unchecked",
   "annReportSearch": "Find someone",
   "annReportNoMatch": "Nobody it reached has that name.",
-  "sharedShowMore": "Show more"
+  "sharedShowMore": "Show more",
+  "ntfKindAdmissionEvent": "Tours, assessments and interviews you attend",
+  "ntfAdmissionEvent": "{kind} booked with you",
+  "ntfAdmissionEventMoved": "{kind} moved",
+  "ntfAdmissionEventCancelled": "{kind} called off",
+  "calCatAdmissions": "Admissions",
+  "calAdmissionTitle": "{kind}: {name}"
 }

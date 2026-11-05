@@ -9380,5 +9380,11 @@
   "auditPrivacyNoticeTranslationUnchecked": "أُلغيت مراجعة ترجمة نموذج الموافقة",
   "annReportSearch": "البحث عن شخص",
   "annReportNoMatch": "لا أحد ممن وصلهم بهذا الاسم.",
-  "sharedShowMore": "عرض المزيد"
+  "sharedShowMore": "عرض المزيد",
+  "ntfKindAdmissionEvent": "الجولات والتقييمات والمقابلات التي تحضرها",
+  "ntfAdmissionEvent": "حُجز موعد معك: {kind}",
+  "ntfAdmissionEventMoved": "تغيّر موعد: {kind}",
+  "ntfAdmissionEventCancelled": "أُلغي موعد: {kind}",
+  "calCatAdmissions": "القبول",
+  "calAdmissionTitle": "{kind}: {name}"
 }

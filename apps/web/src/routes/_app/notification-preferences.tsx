@@ -58,6 +58,7 @@ const KIND_LABEL: Record<ChoosableKind, () => string> = {
   grades: m.ntfKindGrades,
   correction: m.ntfKindCorrection,
   reenrolment: m.ntfKindReenrolment,
+  admission_event: m.ntfKindAdmissionEvent,
 };
 
 const EMAIL_LABEL: Record<EmailMode, () => string> = {
