@@ -1,4 +1,6 @@
-import { queryOptions } from "@tanstack/react-query";
+import type { Keyset } from "@faridalms/domain/paging";
+
+import { infiniteQueryOptions, queryOptions } from "@tanstack/react-query";
 
 import {
   getYear,
@@ -20,9 +22,12 @@ export const yearQuery = (id: string) =>
   });
 
 export const yearHistoryQuery = (id: string) =>
-  queryOptions({
+  infiniteQueryOptions({
     queryKey: ["years", "history", id],
-    queryFn: () => getYearHistory({ data: { id } }),
+    queryFn: ({ pageParam }) =>
+      getYearHistory({ data: { id, after: pageParam } }),
+    initialPageParam: null as Keyset | null,
+    getNextPageParam: (last) => last.next ?? undefined,
   });
 
 export const yearDaysQuery = (id: string) =>

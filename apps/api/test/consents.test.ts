@@ -392,7 +392,9 @@ describe("pictures of students", () => {
     expect(read.coverAlt).toBe("Children on the field");
 
     await answerFor(family, "photo_school_website", false);
-    const history = await office.people.studentHistory({ id: studentId });
+    const { rows: history } = await office.people.studentHistory({
+      id: studentId,
+    });
     expect(history.map((entry) => entry.action)).toContain("file.unpublish");
   });
 

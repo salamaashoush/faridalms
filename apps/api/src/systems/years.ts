@@ -1,3 +1,4 @@
+import { historyOf } from "@faridalms/database/stores/history";
 import {
   givePeriods,
   PeriodChangeError,
@@ -10,7 +11,6 @@ import {
   createYear,
   dayIn,
   holdYear,
-  objectHistory,
   paintDays,
   schoolWeek,
   schoolYears,
@@ -23,6 +23,8 @@ import {
   yearDirectory,
 } from "@faridalms/database/stores/years";
 import { paintDaysSchema, targetDaysSchema } from "@faridalms/domain/calendar";
+import { historyQuerySchema } from "@faridalms/domain/history";
+import { PAGE_SIZE } from "@faridalms/domain/paging";
 import { addDays } from "@faridalms/domain/school";
 import {
   periodsQuerySchema,
@@ -132,16 +134,15 @@ export const record = readProcedure
   });
 
 export const history = readProcedure
-  .input(v.object({ id }))
+  .input(historyQuerySchema)
   .handler(async ({ input, context }) => {
     requireReader(context);
     await yearOf(context, input.id);
-    return objectHistory(
+    return historyOf(
       context.tx,
       context.tenantId,
-      "academic_session",
-      input.id,
-      100,
+      { object: { type: "academic_session", id: input.id } },
+      { limit: PAGE_SIZE, after: input.after },
     );
   });
 

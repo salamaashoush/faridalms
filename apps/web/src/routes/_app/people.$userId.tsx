@@ -32,7 +32,9 @@ export const Route = createFileRoute("/_app/people/$userId")({
         replace: true,
       });
     if (deps.tab === "history")
-      await queryClient.ensureQueryData(personHistoryQuery(params.userId));
+      await queryClient.ensureInfiniteQueryData(
+        personHistoryQuery(params.userId),
+      );
     if (deps.tab === "access")
       await Promise.all([
         queryClient.ensureQueryData(personAccessQuery(params.userId)),

@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 
+import { Button } from "@faridalms/ui/button";
 import { cn } from "@faridalms/ui/cn";
 import { Skeleton } from "@faridalms/ui/skeleton";
 import { Suspense } from "react";
@@ -121,7 +122,39 @@ interface Entry {
   reason?: string | null;
 }
 
-export function HistorySection({ entries }: { entries: Entry[] }) {
+/** A record's history, a page at a time. */
+export function HistoryFeed({
+  feed,
+}: {
+  feed: {
+    data: { pages: readonly { rows: Entry[] }[] };
+    hasNextPage: boolean;
+    isFetchingNextPage: boolean;
+    fetchNextPage: () => Promise<unknown>;
+  };
+}) {
+  return (
+    <HistorySection
+      entries={feed.data.pages.flatMap((page) => page.rows)}
+      more={
+        feed.hasNextPage
+          ? {
+              pending: feed.isFetchingNextPage,
+              onMore: () => void feed.fetchNextPage(),
+            }
+          : undefined
+      }
+    />
+  );
+}
+
+function HistorySection({
+  entries,
+  more,
+}: {
+  entries: Entry[];
+  more?: { pending: boolean; onMore: () => void };
+}) {
   return (
     <RecordSection
       title={m.recordHistory()}
@@ -153,6 +186,17 @@ export function HistorySection({ entries }: { entries: Entry[] }) {
           ))}
         </RecordList>
       )}
+      {more ? (
+        <Button
+          type="button"
+          variant="outline"
+          className="mt-3 justify-self-start max-md:h-10"
+          disabled={more.pending}
+          onClick={more.onMore}
+        >
+          {m.recordHistoryMore()}
+        </Button>
+      ) : null}
     </RecordSection>
   );
 }

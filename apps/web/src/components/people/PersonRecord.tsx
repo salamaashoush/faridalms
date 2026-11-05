@@ -1,7 +1,11 @@
 import type { ReactNode } from "react";
 
 import { cn } from "@faridalms/ui/cn";
-import { useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
+import {
+  useQueryClient,
+  useSuspenseInfiniteQuery,
+  useSuspenseQuery,
+} from "@tanstack/react-query";
 import { Link, useNavigate } from "@tanstack/react-router";
 import { Pencil } from "lucide-react";
 import { useState } from "react";
@@ -28,7 +32,7 @@ import { AccessSection } from "./AccessSection";
 import { ContactsSheet } from "./ContactsSheet";
 import { displayName, labelOf, otherName, roleLabel } from "./format";
 import { PhotoDialog } from "./PhotoDialog";
-import { ContactList, Deferred, HistorySection } from "./record-parts";
+import { ContactList, Deferred, HistoryFeed } from "./record-parts";
 import { SignInSection } from "./SignInSection";
 
 export const PERSON_TABS = [
@@ -265,8 +269,8 @@ export function TeachingSection({
 }
 
 function PersonHistory({ userId }: { userId: string }) {
-  const entries = useSuspenseQuery(personHistoryQuery(userId)).data;
-  return <HistorySection entries={entries} />;
+  const feed = useSuspenseInfiniteQuery(personHistoryQuery(userId));
+  return <HistoryFeed feed={feed} />;
 }
 
 export function PersonRecord({

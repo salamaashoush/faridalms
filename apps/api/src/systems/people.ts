@@ -104,8 +104,9 @@ import {
   loginNameChoices,
   sendSignInLinkSchema,
 } from "@faridalms/domain/first-sign-in";
+import { historyQuerySchema } from "@faridalms/domain/history";
 import { normaliseIdentifier } from "@faridalms/domain/identifiers";
-import { paged } from "@faridalms/domain/paging";
+import { PAGE_SIZE, paged } from "@faridalms/domain/paging";
 import {
   addressLine,
   cancelLeavingSchema,
@@ -494,16 +495,16 @@ export const studentNotices = readProcedure
   });
 
 export const studentHistory = readProcedure
-  .input(
-    v.object({ id, before: v.optional(v.pipe(v.string(), v.isoTimestamp())) }),
-  )
+  .input(historyQuerySchema)
   .handler(async ({ input, context }) => {
     requireCapability(context, "people:manage", "audit:read");
     await requireStudent(context, "people", input.id);
-    return historyOf(context.tx, context.tenantId, input.id, {
-      limit: 50,
-      before: input.before,
-    });
+    return historyOf(
+      context.tx,
+      context.tenantId,
+      { person: input.id },
+      { limit: PAGE_SIZE, after: input.after },
+    );
   });
 
 export const matches = readProcedure
@@ -1106,16 +1107,16 @@ export const person = readProcedure
   });
 
 export const personHistory = readProcedure
-  .input(
-    v.object({ id, before: v.optional(v.pipe(v.string(), v.isoTimestamp())) }),
-  )
+  .input(historyQuerySchema)
   .handler(async ({ input, context }) => {
     requireCapability(context, "people:manage", "audit:read");
     await requirePerson(context, "people", input.id);
-    return historyOf(context.tx, context.tenantId, input.id, {
-      limit: 50,
-      before: input.before,
-    });
+    return historyOf(
+      context.tx,
+      context.tenantId,
+      { person: input.id },
+      { limit: PAGE_SIZE, after: input.after },
+    );
   });
 
 export const staff = readProcedure

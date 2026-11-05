@@ -1,7 +1,8 @@
 import type { CreateSignInsInput } from "@faridalms/domain/first-sign-in";
+import type { Keyset } from "@faridalms/domain/paging";
 import type { StudentDirectoryQuery } from "@faridalms/domain/people";
 
-import { queryOptions } from "@tanstack/react-query";
+import { infiniteQueryOptions, queryOptions } from "@tanstack/react-query";
 
 import {
   getPeopleOptions,
@@ -35,9 +36,12 @@ export const studentRecordQuery = (id: string) =>
   });
 
 export const studentHistoryQuery = (id: string) =>
-  queryOptions({
+  infiniteQueryOptions({
     queryKey: ["people", "student", id, "history"],
-    queryFn: () => getStudentHistory({ data: { id } }),
+    queryFn: ({ pageParam }) =>
+      getStudentHistory({ data: { id, after: pageParam } }),
+    initialPageParam: null as Keyset | null,
+    getNextPageParam: (last) => last.next ?? undefined,
   });
 
 export const studentNoticesQuery = (id: string) =>
@@ -65,9 +69,12 @@ export const personProfileQuery = (id: string) =>
   });
 
 export const personHistoryQuery = (id: string) =>
-  queryOptions({
+  infiniteQueryOptions({
     queryKey: ["people", "person", id, "history"],
-    queryFn: () => getPersonHistory({ data: { id } }),
+    queryFn: ({ pageParam }) =>
+      getPersonHistory({ data: { id, after: pageParam } }),
+    initialPageParam: null as Keyset | null,
+    getNextPageParam: (last) => last.next ?? undefined,
   });
 
 export const siblingsQuery = (id: string) =>

@@ -3,7 +3,11 @@ import type { ReactNode } from "react";
 import { ageOn } from "@faridalms/domain/school";
 import { Button } from "@faridalms/ui/button";
 import { cn } from "@faridalms/ui/cn";
-import { useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
+import {
+  useQueryClient,
+  useSuspenseInfiniteQuery,
+  useSuspenseQuery,
+} from "@tanstack/react-query";
 import { Link, useNavigate } from "@tanstack/react-router";
 import {
   ArrowRightLeft,
@@ -79,7 +83,7 @@ import {
 import { IdentitySection } from "./IdentitySection";
 import { LeaveSchool } from "./LeaveSchool";
 import { PhotoDialog } from "./PhotoDialog";
-import { Deferred, Email, HistorySection, Phone } from "./record-parts";
+import { Deferred, Email, HistoryFeed, Phone } from "./record-parts";
 import {
   ArrangementsSection,
   CustodySection,
@@ -520,8 +524,8 @@ function EnrollmentHistory({ data }: { data: StudentData }) {
 }
 
 function StudentHistory({ studentId }: { studentId: string }) {
-  const entries = useSuspenseQuery(studentHistoryQuery(studentId)).data;
-  return <HistorySection entries={entries} />;
+  const feed = useSuspenseInfiniteQuery(studentHistoryQuery(studentId));
+  return <HistoryFeed feed={feed} />;
 }
 
 export function StudentRecord({

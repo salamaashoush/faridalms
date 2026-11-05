@@ -2,6 +2,7 @@ import {
   createSignInsSchema,
   sendSignInLinkSchema,
 } from "@faridalms/domain/first-sign-in";
+import { historyQuerySchema } from "@faridalms/domain/history";
 import {
   accountStateSchema,
   cancelLeavingSchema,
@@ -37,7 +38,7 @@ export const getStudentRecord = createServerFn({ method: "GET" })
   .handler(({ data }) => record(backend().people.student(data)));
 
 export const getStudentHistory = createServerFn({ method: "GET" })
-  .validator(byId)
+  .validator(checked(historyQuerySchema))
   .handler(({ data }) => record(backend().people.studentHistory(data)));
 
 export const getStudentNotices = createServerFn({ method: "GET" })
@@ -75,7 +76,7 @@ export const getPersonProfile = createServerFn({ method: "GET" })
   .handler(({ data }) => record(backend().people.profile(data)));
 
 export const getPersonHistory = createServerFn({ method: "GET" })
-  .validator(byId)
+  .validator(checked(historyQuerySchema))
   .handler(({ data }) => record(backend().people.personHistory(data)));
 
 export const saveSignIn = createServerFn({ method: "POST" })

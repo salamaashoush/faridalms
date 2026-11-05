@@ -161,7 +161,9 @@ describe("taking a register", () => {
       ...corrected,
       correction: "The hall clock was ten minutes fast.",
     });
-    const history = await office.people.studentHistory({ id: late.id });
+    const { rows: history } = await office.people.studentHistory({
+      id: late.id,
+    });
     expect(
       history.some((entry) => entry.action === "attendance.mark_change"),
     ).toBe(true);

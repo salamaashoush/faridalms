@@ -106,7 +106,9 @@ describe("the family's medical summary", () => {
       ),
     ).toBe(true);
 
-    const history = await office.people.studentHistory({ id: studentId });
+    const { rows: history } = await office.people.studentHistory({
+      id: studentId,
+    });
     expect(
       history.some(
         (entry) =>
@@ -196,7 +198,9 @@ describe("the family's medical summary", () => {
           notice.params.report === "accepted",
       ),
     ).toBe(true);
-    const history = await office.people.studentHistory({ id: studentId });
+    const { rows: history } = await office.people.studentHistory({
+      id: studentId,
+    });
     expect(history.map((entry) => entry.action)).toContain(
       "health_change.accept",
     );

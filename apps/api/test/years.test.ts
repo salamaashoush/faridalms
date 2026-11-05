@@ -256,7 +256,7 @@ describe("the school day", () => {
     });
     expect(renamed.changes).toEqual([year.startsOn, CHANGED]);
 
-    const history = await api.years.history({ id: year.id });
+    const { rows: history } = await api.years.history({ id: year.id });
     expect(history[0]?.action).toBe("class_periods.replace");
   });
 
@@ -474,7 +474,7 @@ describe("school years", () => {
       (row) => row.id === old.id,
     );
     expect(reopened).toMatchObject({ lifecycle: "upcoming", standing: "open" });
-    const events = await api.years.history({ id: old.id });
+    const { rows: events } = await api.years.history({ id: old.id });
     expect(events.map((event) => event.action).slice(0, 2)).toEqual([
       "academic_session.reopened",
       "academic_session.closed",

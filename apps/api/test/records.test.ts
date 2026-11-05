@@ -24,7 +24,9 @@ describe("health records", () => {
       actionPlan: "EpiPen in the office",
     });
     expect(health.records.some((row) => row.text === "O+")).toBe(true);
-    const history = await api.people.studentHistory({ id: studentId });
+    const { rows: history } = await api.people.studentHistory({
+      id: studentId,
+    });
     expect(history.map((entry) => entry.action)).toContain(
       "health_record.read",
     );

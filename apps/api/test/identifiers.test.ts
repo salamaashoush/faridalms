@@ -47,7 +47,9 @@ describe("identity documents", () => {
     expect((await office.identifiers.reveal({ id: saved.id })).number).toBe(
       number,
     );
-    const history = await office.people.studentHistory({ id: student.id });
+    const { rows: history } = await office.people.studentHistory({
+      id: student.id,
+    });
     expect(history.map((entry) => entry.action)).toContain(
       "external_id.reveal",
     );

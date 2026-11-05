@@ -44,7 +44,9 @@ export const Route = createFileRoute("/_app/students/$studentId")({
         replace: true,
       });
     if (deps.tab === "history")
-      await queryClient.ensureQueryData(studentHistoryQuery(params.studentId));
+      await queryClient.ensureInfiniteQueryData(
+        studentHistoryQuery(params.studentId),
+      );
   },
   component: StudentPage,
 });

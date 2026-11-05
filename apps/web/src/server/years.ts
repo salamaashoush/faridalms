@@ -1,4 +1,5 @@
 import { paintDaysSchema, targetDaysSchema } from "@faridalms/domain/calendar";
+import { historyQuerySchema } from "@faridalms/domain/history";
 import {
   periodsQuerySchema,
   savePeriodsSchema,
@@ -18,7 +19,7 @@ export const getYear = createServerFn({ method: "GET" })
   .handler(({ data }) => record(backend().years.record(data)));
 
 export const getYearHistory = createServerFn({ method: "GET" })
-  .validator(byId)
+  .validator(checked(historyQuerySchema))
   .handler(({ data }) => record(backend().years.history(data)));
 
 export const saveYear = createServerFn({ method: "POST" })

@@ -1292,6 +1292,15 @@ describe("handing in and returning work", () => {
     expect(
       await rejection(family.coursework.sharedPiece({ attemptId })),
     ).toMatchObject({ code: "NOT_FOUND" });
+    // A hand-in names the student only as the one the record is about, and
+    // still reaches their history.
+    const principal = await signedIn("northwind", login("principal"));
+    const { rows: history } = await principal.people.studentHistory({
+      id: me.id,
+    });
+    expect(history.map((entry) => entry.action)).toContain(
+      "submission.hand_in",
+    );
 
     const office = await sessionFor("northwind", login("principal"));
     expect(

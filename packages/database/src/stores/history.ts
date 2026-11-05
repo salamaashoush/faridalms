@@ -1,6 +1,11 @@
+import type { Feed, Keyset } from "@faridalms/domain/paging";
+
+import { feedOf } from "@faridalms/domain/paging";
 import { sql } from "drizzle-orm";
 
 import type { CellTransaction } from "../context";
+
+import { isoOf } from "./sql";
 
 export interface HistoryEntry {
   id: string;
@@ -10,18 +15,33 @@ export interface HistoryEntry {
   actorNameEn: string | null;
   actorNameAr: string | null;
   changed: string[];
+  reason: string | null;
 }
 
 /**
- * What happened to a person, newest first: every audited change whose subject
- * they are. Values stay in the payloads; this shows who changed which fields.
+ * A person's history holds what was done to them and what was done about
+ * them as a student: a hand-in or a mark names the student only in
+ * `student_user_id`, the column disclosures are counted by.
+ */
+export type HistoryAbout =
+  | { person: string }
+  | { object: { type: string; id: string } };
+
+/**
+ * Every audited event about a person or a record, newest first. Values stay
+ * in the payloads; this shows who changed which fields, and the reason given.
  */
 export async function historyOf(
   tx: CellTransaction,
   tenantId: string,
-  subjectUserId: string,
-  options: { limit: number; before?: string },
-): Promise<HistoryEntry[]> {
+  about: HistoryAbout,
+  page: { limit: number; after: Keyset | null },
+): Promise<Feed<HistoryEntry, Keyset>> {
+  const which =
+    "person" in about
+      ? sql`(l.subject_user_id = ${about.person}::uuid or l.student_user_id = ${about.person}::uuid)`
+      : sql`l.object_type = ${about.object.type} and l.object_id = ${about.object.id}::uuid`;
+  const after = page.after;
   const rows = await tx.execute<{
     id: string;
     occurred_at: string;
@@ -30,22 +50,33 @@ export async function historyOf(
     actor_en: string | null;
     actor_ar: string | null;
     details: { changed?: string[] };
+    reason: string | null;
   }>(sql`
-    select l.id, l.occurred_at::text as occurred_at, l.action, l.outcome,
-           a.full_name_en as actor_en, a.full_name_ar as actor_ar, l.details
+    select l.id, ${isoOf(sql`l.occurred_at`)} as occurred_at, l.action, l.outcome,
+           a.full_name_en as actor_en, a.full_name_ar as actor_ar, l.details,
+           p.after ->> 'reason' as reason
     from audit.log l
     left join core.users a on a.tenant_id = l.tenant_id and a.id = l.actor_user_id
-    where l.tenant_id = ${tenantId}::uuid and l.subject_user_id = ${subjectUserId}::uuid
-      and (${options.before ?? null}::timestamptz is null or l.occurred_at < ${options.before ?? null}::timestamptz)
-    order by l.occurred_at desc, l.id desc
-    limit ${options.limit}`);
-  return rows.map((row) => ({
-    id: row.id,
-    occurredAt: row.occurred_at,
-    action: row.action,
-    outcome: row.outcome,
-    actorNameEn: row.actor_en,
-    actorNameAr: row.actor_ar,
-    changed: Array.isArray(row.details.changed) ? row.details.changed : [],
-  }));
+    left join audit.payloads p on p.tenant_id = l.tenant_id and p.event_id = l.id
+      and p.occurred_at = l.occurred_at
+    where l.tenant_id = ${tenantId}::uuid and ${which}
+      and (${after === null}::boolean
+        or (date_trunc('milliseconds', l.occurred_at), l.id)
+          < (${after?.at ?? null}::timestamptz, ${after?.id ?? null}::uuid))
+    order by date_trunc('milliseconds', l.occurred_at) desc, l.id desc
+    limit ${page.limit + 1}`);
+  return feedOf(
+    rows.map((row) => ({
+      id: row.id,
+      occurredAt: row.occurred_at,
+      action: row.action,
+      outcome: row.outcome,
+      actorNameEn: row.actor_en,
+      actorNameAr: row.actor_ar,
+      changed: Array.isArray(row.details.changed) ? row.details.changed : [],
+      reason: row.reason,
+    })),
+    page.limit,
+    (row) => ({ at: row.occurredAt, id: row.id }),
+  );
 }

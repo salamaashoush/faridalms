@@ -131,7 +131,9 @@ describe("students", () => {
     expect(record.guardians?.[0]?.contacts[0]?.normalized).toBe(
       "+201005550101",
     );
-    const history = await api.people.studentHistory({ id: created.id });
+    const { rows: history } = await api.people.studentHistory({
+      id: created.id,
+    });
     expect(history.map((entry) => entry.action)).toEqual(
       expect.arrayContaining([
         "user.create",
@@ -297,7 +299,9 @@ describe("person records", () => {
       manage: true,
       history: true,
     });
-    const history = await api.people.personHistory({ id: guardian.userId });
+    const { rows: history } = await api.people.personHistory({
+      id: guardian.userId,
+    });
     expect(Array.isArray(history)).toBe(true);
   });
 
@@ -625,7 +629,7 @@ describe("sign-in", () => {
       expect(me.id).toBe(slip.studentId);
     }
     expect(
-      (await api.people.studentHistory({ id: numbered })).map(
+      (await api.people.studentHistory({ id: numbered })).rows.map(
         (entry) => entry.action,
       ),
     ).toContain("account.create");
@@ -847,7 +851,7 @@ describe("a link to choose a student's password", () => {
         message: "auth.invalid_invite",
       });
     expect(
-      (await api.people.studentHistory({ id: studentId })).map(
+      (await api.people.studentHistory({ id: studentId })).rows.map(
         (entry) => entry.action,
       ),
     ).toEqual(
@@ -1025,7 +1029,7 @@ describe("leaving the school", () => {
     expect(classes).toHaveLength(1);
     expect(classes[0]?.to).toBe(today);
     expect(
-      (await api.people.studentHistory({ id: studentId })).map(
+      (await api.people.studentHistory({ id: studentId })).rows.map(
         (entry) => entry.action,
       ),
     ).toContain("student.leave");
@@ -1073,7 +1077,7 @@ describe("leaving the school", () => {
       (await family.home.family({})).children.map((row) => row.studentId),
     ).toEqual([studentId]);
     expect(
-      (await api.people.studentHistory({ id: studentId })).map(
+      (await api.people.studentHistory({ id: studentId })).rows.map(
         (entry) => entry.action,
       ),
     ).toContain("student.return");

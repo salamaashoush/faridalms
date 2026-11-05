@@ -1,11 +1,14 @@
 import { cn } from "@faridalms/ui/cn";
-import { useSuspenseQuery } from "@tanstack/react-query";
+import {
+  useSuspenseInfiniteQuery,
+  useSuspenseQuery,
+} from "@tanstack/react-query";
 import { Link, useNavigate } from "@tanstack/react-router";
 import { Pencil } from "lucide-react";
 
 import type { HeaderFact, RecordTab } from "~/components/system/RecordPage";
 
-import { HistorySection } from "~/components/people/record-parts";
+import { HistoryFeed } from "~/components/people/record-parts";
 import {
   Fact,
   Facts,
@@ -121,8 +124,8 @@ function SummarySection({ year }: { year: YearData }) {
 }
 
 function YearHistory({ yearId }: { yearId: string }) {
-  const entries = useSuspenseQuery(yearHistoryQuery(yearId)).data;
-  return <HistorySection entries={entries} />;
+  const feed = useSuspenseInfiniteQuery(yearHistoryQuery(yearId));
+  return <HistoryFeed feed={feed} />;
 }
 
 export function YearRecord({
