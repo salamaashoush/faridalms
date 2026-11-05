@@ -1,6 +1,7 @@
 import { expect, test } from "@playwright/test";
 
-import { signIn, untilHydrated } from "./fixtures/sign-in";
+import { signedInApi } from "./fixtures/api";
+import { PASSWORD, portal, signIn, untilHydrated } from "./fixtures/sign-in";
 
 test("an administrator builds a bilingual page from sections and visitors read it in either language", async ({
   browser,
@@ -140,4 +141,43 @@ test("a family sends an enquiry and the school finds it in the enquiry inbox", a
   await page.goto("/admissions/enquiries");
   await untilHydrated(page);
   await expect(page.getByRole("link", { name })).toBeVisible();
+});
+
+test("a school whose website is not open shows its own page, which leads to its portal", async ({
+  page,
+}) => {
+  const { api } = await signedInApi(
+    "principal.acme@acme.example.com",
+    PASSWORD,
+    "acme",
+  );
+  const live = async (open: boolean) => {
+    const { settings } = await api.site.overview();
+    await api.site.saveSettings({
+      expectedVersion: settings.version,
+      theme: settings.theme,
+      chrome: settings.chrome,
+      live: open,
+      bilingual: settings.bilingual,
+      taglineEn: settings.taglineEn,
+      taglineAr: settings.taglineAr,
+      socialLinks: settings.socialLinks,
+      bannerEn: settings.bannerEn,
+      bannerAr: settings.bannerAr,
+      bannerTone: settings.bannerTone,
+      bannerUntil: settings.bannerUntil ?? "",
+    });
+  };
+  await live(false);
+  try {
+    const response = await page.goto("/site/acme");
+    expect(response?.status()).toBe(404);
+    await expect(
+      page.getByRole("heading", { name: "This website is not open yet" }),
+    ).toBeVisible();
+    await page.getByRole("link", { name: "Go to the school's portal" }).click();
+    await expect(page).toHaveURL(`${portal("acme")}/sign-in`);
+  } finally {
+    await live(true);
+  }
 });

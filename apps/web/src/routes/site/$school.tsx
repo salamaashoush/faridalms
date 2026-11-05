@@ -1,8 +1,14 @@
+import type { SiteLocale } from "@faridalms/domain/website";
 import type { ErrorComponentProps } from "@tanstack/react-router";
 
 import { SITE_LOCALES } from "@faridalms/domain/website";
 import { useQueryClient } from "@tanstack/react-query";
-import { createFileRoute, Outlet, useRouter } from "@tanstack/react-router";
+import {
+  createFileRoute,
+  isNotFound,
+  Outlet,
+  useRouter,
+} from "@tanstack/react-router";
 import * as v from "valibot";
 
 import type { PublicSite } from "~/components/site/SiteShell";
@@ -10,6 +16,9 @@ import type { PublicSite } from "~/components/site/SiteShell";
 import { DefaultCatchBoundary } from "~/components/DefaultCatchBoundary";
 import { NotFound } from "~/components/NotFound";
 import { SiteStatus } from "~/components/site/PublicPage";
+import { SiteNotOpen } from "~/components/site/SiteNotOpen";
+import { getLocale } from "~/i18n/runtime";
+import { portalFaceQuery } from "~/queries/portal";
 import { publicSiteQuery } from "~/queries/site";
 import siteCss from "~/styles/site.css?url";
 import { adoptSchoolZone } from "~/utils/datetime";
@@ -21,10 +30,20 @@ export const Route = createFileRoute("/site/$school")({
     lang: v.fallback(v.optional(v.picklist(SITE_LOCALES)), undefined),
   }),
   loaderDeps: ({ search }) => ({ lang: search.lang }),
-  loader: ({ context, params, deps }) =>
-    context.queryClient.ensureQueryData(
-      publicSiteQuery(params.school, deps.lang),
-    ),
+  loader: async ({ context, params, deps }) => {
+    try {
+      return await context.queryClient.ensureQueryData(
+        publicSiteQuery(params.school, deps.lang),
+      );
+    } catch (error) {
+      if (!isNotFound(error)) throw error;
+      // A school whose website is not open still has its portal's face.
+      await context.queryClient.ensureQueryData(
+        portalFaceQuery(params.school, faceLocale(deps.lang)),
+      );
+      throw error;
+    }
+  },
   head: ({ loaderData }) => ({
     meta: loaderData ? [{ title: loaderData.name }] : [],
     links: [{ rel: "stylesheet", href: siteCss }],
@@ -56,11 +75,22 @@ function useKnownSite(): PublicSite | undefined {
   return useQueryClient().getQueryData(publicSiteQuery(school, lang).queryKey);
 }
 
+const faceLocale = (lang: SiteLocale | undefined) =>
+  lang ?? (getLocale() === "ar" ? "ar" : "en");
+
 function SiteMissing() {
   const { school } = Route.useParams();
+  const { lang } = Route.useSearch();
   const site = useKnownSite();
-  if (!site) return <NotFound />;
-  return <KnownSite site={site} school={school} kind="missing" />;
+  const face = useQueryClient().getQueryData(
+    portalFaceQuery(school, faceLocale(lang)).queryKey,
+  );
+  if (site) return <KnownSite site={site} school={school} kind="missing" />;
+  return face ? (
+    <SiteNotOpen face={face} locale={faceLocale(lang)} />
+  ) : (
+    <NotFound />
+  );
 }
 
 function SiteFailed(props: ErrorComponentProps) {

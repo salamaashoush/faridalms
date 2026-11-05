@@ -22,7 +22,7 @@ import { ThemeToggle } from "~/components/theme/ThemeToggle";
 import { inLocale } from "~/hooks/useCurrentUser";
 import * as m from "~/i18n/messages";
 import { getLocale } from "~/i18n/runtime";
-import { hostHref } from "~/utils/host";
+import { hostHref, portalHref } from "~/utils/host";
 
 /**
  * The look of a school that never styled its website: the platform's own
@@ -90,7 +90,10 @@ export function SchoolMark({
 }
 
 /** The website's frame around the portal page, its links leading to the website's own host. */
-function frameOf(face: PortalFace): SiteFrameModel {
+function frameOf(face: PortalFace, onSite: boolean): SiteFrameModel {
+  // Drawn inside the website, the portal's own paths are another host's.
+  const portal = (path: string) =>
+    onSite ? portalHref(face.school, path) : path;
   const site = face.frame;
   const out = (href: string) =>
     site && href.startsWith("/") && !href.startsWith("//")
@@ -115,8 +118,8 @@ function frameOf(face: PortalFace): SiteFrameModel {
     socialLinks: site?.socialLinks ?? [],
     otherLanguage: null,
     currentHref: "",
-    signInHref: "/sign-in",
-    homeHref: site ? hostHref(site.siteHost, "/") : "/sign-in",
+    signInHref: portal("/sign-in"),
+    homeHref: site ? hostHref(site.siteHost, "/") : portal("/sign-in"),
   };
 }
 
@@ -132,6 +135,7 @@ export function PortalPage({
   ownWords,
   door = "sign-in",
   wide = false,
+  onSite = false,
   children,
 }: {
   face: PortalFace;
@@ -140,6 +144,8 @@ export function PortalPage({
   /** Which door's page this is, whose system section holds the flow. */
   door?: PortalDoor;
   wide?: boolean;
+  /** Drawn on the school's website rather than its portal. */
+  onSite?: boolean;
   children: ReactNode;
 }) {
   const locale = getLocale() === "ar" ? "ar" : "en";
@@ -179,7 +185,7 @@ export function PortalPage({
   return (
     <div {...accent} className={cn(accent.className, "min-h-dvh")}>
       <SiteFrame
-        frame={frameOf(face)}
+        frame={frameOf(face, onSite)}
         context={context}
         overlay={opensOnPicture(sections)}
         bare={bare}
