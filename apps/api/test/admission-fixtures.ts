@@ -1,4 +1,7 @@
-import type { IntakeLetters,AdmissionQuestion } from "@faridalms/domain/admissions";
+import type {
+  IntakeLetters,
+  AdmissionQuestion,
+} from "@faridalms/domain/admissions";
 
 import { client, login, seeded, signedIn } from "./harness";
 
