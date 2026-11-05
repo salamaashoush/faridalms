@@ -101,6 +101,15 @@ const canonicalHost = (role: HostRole) =>
 // names a client makes up.
 const MAX_CACHED = 10_000;
 
+/** The tenant a cached school or routed host belongs to, if it is one. */
+function tenantOf(value: unknown): string | null {
+  if (typeof value !== "object" || value === null) return null;
+  if ("tenantId" in value && typeof value.tenantId === "string")
+    return value.tenantId;
+  if ("school" in value) return tenantOf(value.school);
+  return null;
+}
+
 /**
  * Read access to the global directory: which tenant and cell serve a school
  * slug or a school's own host. Rows are cached for a minute, as the directory
@@ -111,11 +120,17 @@ export function openDirectory(url: string, ttlMs = 60_000) {
     client: new SQL({ url, max: 4, idleTimeout: 30, connectionTimeout: 10 }),
   });
   const cache = new Map<string, { at: number; value: unknown }>();
+  const seenVersions = new Map<string, number>();
   let series: { at: number; value: ExamSeries[] } | null = null;
+  // Moves whenever rows are dropped, so a lookup that began before is not
+  // kept: it may have read what the drop was for.
+  let generation = 0;
   const cached = async <T>(key: string, load: () => Promise<T>): Promise<T> => {
     const hit = cache.get(key);
     if (hit && Date.now() - hit.at < ttlMs) return hit.value as T;
+    const began = generation;
     const value = await load();
+    if (began !== generation) return value;
     cache.delete(key);
     if (cache.size >= MAX_CACHED) {
       const oldest = cache.keys().next();
@@ -187,8 +202,21 @@ export function openDirectory(url: string, ttlMs = 60_000) {
           );
         return row !== undefined;
       }),
+    /**
+     * Notes the entitlements version a unit of work read from the tenant's
+     * cell, and drops every row held for the tenant when it is one this
+     * server has not seen: the console changed what its schools may use.
+     */
+    observeEntitlements: (tenantId: string, version: number) => {
+      if (seenVersions.get(tenantId) === version) return;
+      seenVersions.set(tenantId, version);
+      generation += 1;
+      for (const [key, hit] of cache)
+        if (tenantOf(hit.value) === tenantId) cache.delete(key);
+    },
     /** Drops what is cached about a host, after a check changed it here. */
     forgetHost: (hostname: string, slug?: string) => {
+      generation += 1;
       cache.delete(`host:${hostname}`);
       cache.delete(`ask:${hostname}`);
       if (slug) cache.delete(`slug:${slug}`);

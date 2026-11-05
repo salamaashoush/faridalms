@@ -1,0 +1,47 @@
+{
+  "type": "diff",
+  "version": "9",
+  "dialect": "postgres",
+  "id": "fe166e83-1d11-4393-9423-58222cb74f44",
+  "prevIds": [
+    "b1a44acf-396c-476a-9e4c-0ee294ae84cf"
+  ],
+  "footprints": [
+    {
+      "statementType": "add_column",
+      "statementTarget": [
+        "column",
+        "ops",
+        "tenant_registry",
+        "entitlements_version"
+      ],
+      "writes": [
+        "s|col|ops.tenant_registry.entitlements_version",
+        "n|col|ops.tenant_registry.entitlements_version",
+        "e|col|ops.tenant_registry.entitlements_version"
+      ],
+      "reads": [
+        "n|tbl|ops.tenant_registry",
+        "n|sch|ops"
+      ]
+    }
+  ],
+  "deltas": [
+    {
+      "op": "create",
+      "row": {
+        "schema": "ops",
+        "table": "tenant_registry",
+        "name": "entitlements_version",
+        "type": "integer",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": "0",
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    }
+  ]
+}

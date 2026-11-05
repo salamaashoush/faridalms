@@ -157,6 +157,7 @@ const INTERNAL_CODES: ReadonlySet<string> = new Set([
   "templates.exists",
   "tenant.directory_differs",
   "tenant.not_active",
+  "tenant.not_in_cell",
   "tenant.not_in_directory",
   "tenant.not_settable",
   "tenant_key.active_exists",

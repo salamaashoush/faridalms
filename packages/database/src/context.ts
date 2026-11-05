@@ -60,13 +60,16 @@ const SIGN_IN_STATES: ReadonlySet<TenantLifecycle> = new Set([
 async function beginUnit(tx: CellTransaction, work: UnitOfWork) {
   const rows = await tx.execute<{
     lifecycle: TenantLifecycle | null;
+    entitlements_version: number | null;
     now: string | Date;
   }>(
-    sql`select app.begin_unit(${work.tenantId}::uuid, ${work.actor.userId ?? null}::uuid, ${work.actor.accountId ?? null}::uuid, ${work.actor.sessionId ?? null}::uuid, ${work.requestId}, ${work.actor.kind}) as lifecycle, transaction_timestamp() as now`,
+    sql`select u.lifecycle, u.entitlements_version, transaction_timestamp() as now
+      from app.begin_unit(${work.tenantId}::uuid, ${work.actor.userId ?? null}::uuid, ${work.actor.accountId ?? null}::uuid, ${work.actor.sessionId ?? null}::uuid, ${work.requestId}, ${work.actor.kind}) u`,
   );
   const row = rows[0];
   return {
     lifecycle: row?.lifecycle ?? null,
+    entitlementsVersion: row?.entitlements_version ?? 0,
     now: row ? new Date(row.now) : new Date(),
   };
 }
@@ -87,10 +90,11 @@ async function unit<T>(
     tx: CellTransaction,
     lifecycle: TenantLifecycle,
     now: Date,
+    entitlementsVersion: number,
   ) => Promise<T>,
 ): Promise<T> {
   return pool.transaction(async (tx) => {
-    const { lifecycle, now } = await beginUnit(tx, work);
+    const { lifecycle, now, entitlementsVersion } = await beginUnit(tx, work);
     if (lifecycle === null || !SIGN_IN_STATES.has(lifecycle))
       throw new TenantUnavailableError("unknown");
     if (access === "write" && lifecycle === "read_only")
@@ -101,7 +105,7 @@ async function unit<T>(
       lifecycle !== "read_only"
     )
       throw new TenantUnavailableError("read_only");
-    return run(tx, lifecycle, now);
+    return run(tx, lifecycle, now, entitlementsVersion);
   });
 }
 
@@ -142,6 +146,7 @@ export function openCell(urls: CellUrls, size = 10) {
         tx: CellTransaction,
         lifecycle: TenantLifecycle,
         now: Date,
+        entitlementsVersion: number,
       ) => Promise<T>,
     ) => unit(pools.app, work, access, run),
     withSite: <T>(

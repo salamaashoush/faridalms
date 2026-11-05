@@ -123,7 +123,11 @@ export async function openUnit<T>(
       actor: { kind: "user" },
     },
     access,
-    async (tx, lifecycle, now) => {
+    async (tx, lifecycle, now, entitlementsVersion) => {
+      context.directory.observeEntitlements(
+        token.tenantId,
+        entitlementsVersion,
+      );
       const session = await findSession(tx, token.tenantId, token.tokenHash);
       if (!session) throw new ORPCError("UNAUTHORIZED");
       await bindActor(tx, {

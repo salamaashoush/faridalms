@@ -307,6 +307,12 @@ export const tenantRegistry = ops.table(
     changedAt: instant("changed_at")
       .notNull()
       .default(sql`statement_timestamp()`),
+    /**
+     * Counts the operator console's changes to what the tenant's schools may
+     * use. Each unit of work reads it, so a server drops the directory rows
+     * it holds for the tenant the moment the count moves.
+     */
+    entitlementsVersion: integer("entitlements_version").notNull().default(0),
   },
   (): PgTableExtraConfigValue[] => [
     ck(

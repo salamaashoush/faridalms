@@ -265,6 +265,12 @@ export const setLifecycleSchema = v.object({
 });
 export type SetLifecycle = v.InferOutput<typeof setLifecycleSchema>;
 
+/** Tells a cell the directory changed what a tenant's schools may use. */
+export const entitlementsChangedSchema = v.object({ tenantId: id });
+export type EntitlementsChanged = v.InferOutput<
+  typeof entitlementsChangedSchema
+>;
+
 export const reissueInviteSchema = v.object({
   tenantId: id,
   schoolId: id,

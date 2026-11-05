@@ -4,6 +4,7 @@ import {
   openDirectoryAdmin,
   SlugTakenError,
 } from "@faridalms/database/directory/admin";
+import { openDirectory } from "@faridalms/database/directory/client";
 import { CAPABILITIES } from "@faridalms/domain/capabilities";
 import {
   newSchoolSchema,
@@ -466,6 +467,63 @@ describe("creating a school from the operator console", () => {
         reason: "No such tenant",
       }),
     ).toMatchObject({ status: 409, body: { message: "tenant.not_settable" } });
+  });
+
+  test("a change to what a tenant may use reaches a server's held rows once its cell is told", async () => {
+    const email = "salama@larchwood.example.com";
+    const { ids, body } = await begin(standalone("larchwood", email));
+    expect((await call("/v1/tenants", body)).status).toBe(200);
+    const { api } = await choosePassword(
+      "larchwood",
+      linkTo(email, "larchwood").secret,
+    );
+    const versionOf = () =>
+      seeded().cell.withTenant(
+        {
+          tenantId: ids.tenantId,
+          requestId: crypto.randomUUID(),
+          actor: { kind: "system" },
+        },
+        "read",
+        async (_tx, _lifecycle, _now, version) => version,
+      );
+    expect(await versionOf()).toBe(0);
+
+    // A server holding the school's row for a minute, as each cell does.
+    const held = openDirectory(testDirectory().readerUrl, 60_000);
+    const sql = new SQL(testDirectory().adminUrl);
+    const notice = (value: string) =>
+      sql`update school_entitlements set notice = ${value}
+        where school_id = ${ids.schoolIds[0] ?? ""}::uuid`;
+    const shown = async () =>
+      (await held.bySlug("larchwood"))?.entitlements.notice ?? null;
+    try {
+      expect(await shown()).toBeNull();
+      await notice("payment_overdue");
+      expect(await shown()).toBeNull();
+      // The first version a server sees for a tenant drops what it holds.
+      held.observeEntitlements(ids.tenantId, await versionOf());
+      expect(await shown()).toBe("payment_overdue");
+
+      await notice("plan_ends_soon");
+      held.observeEntitlements(ids.tenantId, await versionOf());
+      expect(await shown()).toBe("payment_overdue");
+      expect(
+        await call("/v1/tenants/entitlements", { tenantId: ids.tenantId }),
+      ).toMatchObject({ status: 200, body: { version: 1 } });
+      held.observeEntitlements(ids.tenantId, await versionOf());
+      expect(await shown()).toBe("plan_ends_soon");
+    } finally {
+      await sql.close();
+      await held.close();
+    }
+    expect((await api.identity.currentUser()).contract?.notice).toBe(
+      "plan_ends_soon",
+    );
+
+    expect(
+      await call("/v1/tenants/entitlements", { tenantId: crypto.randomUUID() }),
+    ).toMatchObject({ status: 404, body: { message: "tenant.not_in_cell" } });
   });
 
   test("a call without a good token is refused before anything is read", async () => {

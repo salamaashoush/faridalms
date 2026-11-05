@@ -6,6 +6,7 @@ import type {
 } from "@faridalms/database/directory/client";
 import type { PlatformDomains } from "@faridalms/domain/hosts";
 import type {
+  EntitlementsChanged,
   ProvisionResult,
   ProvisionTenant,
   ReissueInvite,
@@ -23,10 +24,12 @@ import {
 import { insertPerson, nameColumns } from "@faridalms/database/stores/students";
 import {
   createTenant,
+  noteEntitlementsChanged,
   setTenantLifecycle,
   tenantLifecycle,
 } from "@faridalms/database/tenants";
 import {
+  entitlementsChangedSchema,
   provisionTenantSchema,
   reissueInviteSchema,
   setLifecycleSchema,
@@ -383,6 +386,23 @@ async function setLifecycle(call: Call, request: SetLifecycle) {
   );
 }
 
+/**
+ * Counts a change the console made to what a tenant's schools may use, so
+ * every server drops its directory rows for the tenant on its next unit.
+ */
+async function entitlementsChanged(call: Call, request: EntitlementsChanged) {
+  return call.deps.owner.asOwner(
+    request.tenantId,
+    call.requestId,
+    async (tx) => {
+      const version = await noteEntitlementsChanged(tx, request.tenantId);
+      if (version === null)
+        throw new ORPCError("NOT_FOUND", { message: "tenant.not_in_cell" });
+      return { version };
+    },
+  );
+}
+
 const ROUTES = {
   "/v1/tenants": async (call: Call, body: unknown) => {
     const parsed = v.safeParse(provisionTenantSchema, body);
@@ -400,6 +420,12 @@ const ROUTES = {
     const parsed = v.safeParse(setLifecycleSchema, body);
     return parsed.success
       ? setLifecycle(call, parsed.output)
+      : invalid(parsed.issues);
+  },
+  "/v1/tenants/entitlements": async (call: Call, body: unknown) => {
+    const parsed = v.safeParse(entitlementsChangedSchema, body);
+    return parsed.success
+      ? entitlementsChanged(call, parsed.output)
       : invalid(parsed.issues);
   },
 } as const;

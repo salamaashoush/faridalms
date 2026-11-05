@@ -345,3 +345,18 @@ export async function setTenantLifecycle(
     returning old.lifecycle as before`);
   return rows[0]?.before ?? null;
 }
+
+/**
+ * Counts one more change to what the tenant's schools may use, answering
+ * the new count; null when the cell holds no such tenant.
+ */
+export async function noteEntitlementsChanged(
+  tx: CellTransaction,
+  tenantId: string,
+): Promise<number | null> {
+  const rows = await tx.execute<{ version: number }>(sql`
+    update ops.tenant_registry set entitlements_version = entitlements_version + 1
+    where tenant_id = ${tenantId}::uuid
+    returning entitlements_version as version`);
+  return rows[0]?.version ?? null;
+}
