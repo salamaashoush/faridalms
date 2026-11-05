@@ -3344,7 +3344,7 @@ async function seedSite(tx: Tx, tenantId: string, schoolId: string) {
       { kind: "facebook", url: "https://www.facebook.com/example" },
     ],
     bannerEn: "Open morning on 10 October: book a tour on the Visit page.",
-    bannerAr: "صباح الأبواب المفتوحة يوم ١٠ أكتوبر: احجز جولة من صفحة الزيارة.",
+    bannerAr: "صباح الأبواب المفتوحة يوم 10 أكتوبر: احجز جولة من صفحة الزيارة.",
     bannerTone: "info",
     bannerUntil: null,
     theme: { id: STARTERS.international.theme, palette: {}, fonts: {} },

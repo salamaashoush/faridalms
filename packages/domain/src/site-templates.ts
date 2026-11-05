@@ -2954,6 +2954,350 @@ const EY_FIND_US = section("contact", "map", (b) => ({
   mapHref: "",
 }));
 
+/** Where the nursery parents page's own quick links lead. */
+const EY_PARENTS_ANCHOR = {
+  pack: "what-to-pack",
+  routines: "meals-and-naps",
+  unwell: "sickness-and-absence",
+} as const;
+
+const EY_PARENTS_NOTICE = section(
+  "announcement",
+  "strip",
+  (b) => ({
+    text: b.w([
+      "Parents' mornings are next week: fifteen minutes with your child's key person to look through their learning journal together.",
+      "لقاءات الأهل في الأسبوع القادم: ربع ساعة مع المربية الرئيسية لطفلكم لتتصفّحوا معًا سجلّ تعلّمه.",
+    ]),
+    date: "",
+    actions: [
+      link(
+        b,
+        ["Choose a time", "اختاروا موعدًا"],
+        `/pages/parents#${ANCHOR.general}`,
+      ),
+    ],
+  }),
+  { scheme: "accent", spacing: "s" },
+);
+
+const EY_PARENTS_LINKS = section("quickLinks", "tiles", (b) => ({
+  heading: b.w(["Little things that *matter*", "تفاصيل صغيرة لها *أهميتها*"]),
+  items: [
+    quickLink(
+      b,
+      ["Drop-off and pick-up", "الوصول والاستلام"],
+      ["Times, and who may collect", "المواعيد ومن يحقّ له الاستلام"],
+      "clock",
+      `/pages/parents#${PARENTS_ANCHOR.day}`,
+    ),
+    quickLink(
+      b,
+      ["What to pack", "تجهيز الحقيبة"],
+      ["Everything in a named bag", "كل شيء في حقيبة باسم طفلكم"],
+      "star",
+      `/pages/parents#${EY_PARENTS_ANCHOR.pack}`,
+    ),
+    quickLink(
+      b,
+      ["Meals and naps", "الوجبات والقيلولة"],
+      ["Menus, allergies and rest", "قوائم الطعام والحساسية والراحة"],
+      "utensils",
+      `/pages/parents#${EY_PARENTS_ANCHOR.routines}`,
+    ),
+    quickLink(
+      b,
+      ["If your child is unwell", "إذا مرض طفلكم"],
+      ["When to keep them at home", "متى يبقى في البيت"],
+      "heart",
+      `/pages/parents#${EY_PARENTS_ANCHOR.unwell}`,
+    ),
+    quickLink(
+      b,
+      ["Report an absence", "الإبلاغ عن غياب"],
+      ["Let us know before 8:30", "أخبرونا قبل الساعة 8:30"],
+      "mail",
+      `/pages/parents#${ANCHOR.general}`,
+    ),
+    quickLink(
+      b,
+      ["News and term dates", "الأخبار ومواعيد الفصول"],
+      [
+        "Holidays, events and letters home",
+        "العطل والفعاليات والرسائل إلى الأسر",
+      ],
+      "calendar",
+      "/news",
+    ),
+  ],
+}));
+
+const EY_PARENTS_DAY = section(
+  "timeline",
+  "vertical",
+  (b) => ({
+    heading: b.w(["The rhythm of the *day*", "*إيقاع* اليوم"]),
+    items: [
+      moment(
+        b,
+        "7:30",
+        ["Drop-off opens", "بدء الاستقبال"],
+        [
+          "Come into your child's room and hand over to their key person, with a word about the night and the morning so far.",
+          "ادخلوا مع طفلكم إلى غرفته وسلّموه إلى مربيته الرئيسية، مع كلمة عن ليلته وصباحه.",
+        ],
+      ),
+      moment(
+        b,
+        "8:30",
+        ["Drop-off closes", "انتهاء الاستقبال"],
+        [
+          "Arriving by now lets your child join circle time and start the day with friends. Running late? Send us a message and we will look out for you.",
+          "الوصول قبل هذا الموعد يتيح لطفلكم أن يشارك في حلقة الصباح ويبدأ يومه مع أصدقائه. وإن تأخّرتم فراسلونا وسنكون في انتظاركم.",
+        ],
+      ),
+      moment(
+        b,
+        "11:30",
+        ["Lunch, then rest", "الغداء ثم الراحة"],
+        [
+          "A hot lunch together, then a nap or quiet stories, following the routine you know works at home.",
+          "غداء ساخن معًا، ثم قيلولة أو قصص هادئة، وفق الروتين الذي تعرفون أنه يناسب طفلكم في البيت.",
+        ],
+      ),
+      moment(
+        b,
+        "12:30",
+        ["Morning pick-up", "استلام الفترة الصباحية"],
+        [
+          "Children in the morning session go home after lunch, collected from their room.",
+          "يعود أطفال الفترة الصباحية إلى البيت بعد الغداء، ويُستلمون من غرفهم.",
+        ],
+      ),
+      moment(
+        b,
+        "14:00",
+        ["Home time", "وقت العودة"],
+        [
+          "Collection from the garden gate, only by the adults you have named, with a quick word about the day.",
+          "الاستلام من بوابة الحديقة، ولا يُسلَّم الطفل إلا لمن سمّيتموهم من الكبار، مع كلمة سريعة عن يومه.",
+        ],
+      ),
+      moment(
+        b,
+        "17:00",
+        ["Extended day ends", "انتهاء اليوم الممتد"],
+        [
+          "After an afternoon snack and quiet play, the last children go home and the nursery closes.",
+          "بعد وجبة خفيفة ولعب هادئ يعود آخر الأطفال إلى بيوتهم وتُغلق الروضة.",
+        ],
+      ),
+    ],
+  }),
+  { anchor: PARENTS_ANCHOR.day },
+);
+
+const EY_KEY_PERSON = section("imageText", "mediaStart", (b) => ({
+  eyebrow: b.w(["Your key person", "المربية الرئيسية"]),
+  heading: b.w(["A familiar *face*, every day", "*وجه* مألوف كل يوم"]),
+  body: plainContent(
+    b.w([
+      "Your child's key person settles them in, knows their routines and is the first person to talk to: at the door each morning, at pick-up, or through the parent portal at any time.\nEach afternoon they add a photo and a short note to the portal, with what your child ate and how long they slept. Every half term their learning journal joins it, and we sit down together to talk it through.",
+      "تتولّى المربية الرئيسية تهيئة طفلكم، وتعرف روتينه، وهي أول من تتحدّثون إليه: عند الباب كل صباح، أو عند الاستلام، أو عبر بوابة أولياء الأمور في أي وقت.\nوفي كل عصر تضيف إلى البوابة صورة وملاحظة قصيرة، فيها ما أكله طفلكم وكم من الوقت نام. ومع كل نصف فصل يُضاف سجلّ تعلّمه، فنجلس معًا لنتحدّث عنه.",
+    ]),
+  ),
+  media: {
+    kind: "image" as const,
+    fileId: null,
+    alt: "",
+    posterFileId: null,
+    captionsFileId: null,
+  },
+  actions: [
+    link(
+      b,
+      ["Message the nursery", "راسلوا الروضة"],
+      `/pages/parents#${ANCHOR.general}`,
+    ),
+  ],
+}));
+
+const EY_PACK = section(
+  "cards",
+  "icons",
+  (b) => ({
+    heading: b.w(["Packing the *bag*", "تجهيز *الحقيبة*"]),
+    text: b.w([
+      "Please label everything with your child's name. Nappies, wipes and meals come from us.",
+      "اكتبوا اسم طفلكم على كل شيء، أما الحفاضات والمناديل المبلّلة والوجبات فنوفّرها نحن.",
+    ]),
+    columns: "3" as const,
+    items: [
+      card(
+        b,
+        ["Every day", "كل يوم"],
+        [
+          "A water bottle your child can open alone and a sun hat, with sun cream put on at home. A comforter, if they nap with one.",
+          "زجاجة ماء يستطيع طفلكم فتحها وحده، وقبعة للشمس مع واقٍ شمسي تضعونه في البيت، ودمية النوم إن كان ينام معها.",
+        ],
+        "sparkles",
+      ),
+      card(
+        b,
+        ["Kept on their peg", "على علّاقته في الغرفة"],
+        [
+          "Two full changes of clothes and soft indoor shoes in a named bag. Wet or muddy things come home, and a fresh set comes back.",
+          "طقمان كاملان من الملابس وحذاء ليّن للداخل في حقيبة باسمه. تعود الملابس المبلّلة أو المتّسخة إلى البيت، ويحلّ مكانها طقم نظيف.",
+        ],
+        "star",
+      ),
+      card(
+        b,
+        ["Best left at home", "ما يبقى في البيت"],
+        [
+          "Toys with small parts, jewellery, sweets and anything precious. Comforters are always welcome.",
+          "الألعاب ذات القطع الصغيرة والحُليّ والحلوى وكل ما هو ثمين. أما دمى النوم فمرحَّب بها دائمًا.",
+        ],
+        "lightbulb",
+      ),
+    ],
+  }),
+  { anchor: EY_PARENTS_ANCHOR.pack },
+);
+
+const EY_ROUTINES = section(
+  "cards",
+  "icons",
+  (b) => ({
+    heading: b.w([
+      "Meals, naps and *routines*",
+      "الوجبات والقيلولة *والروتين*",
+    ]),
+    text: b.w([
+      "We follow your child's routines from home, and note what they eat and how they sleep every day.",
+      "نتبع الروتين الذي اعتاده طفلكم في البيت، وندوّن كل يوم ما يأكله وكيف ينام.",
+    ]),
+    columns: "2" as const,
+    items: [
+      card(
+        b,
+        ["Freshly cooked meals", "وجبات تُطهى طازجة"],
+        [
+          "Breakfast for early arrivals, a mid-morning snack and a hot lunch from our kitchen, with an afternoon snack on the extended day. The week's menu is in the parent portal every Thursday.",
+          "إفطار للقادمين مبكرًا، ووجبة خفيفة في منتصف الصباح، وغداء ساخن من مطبخنا، ووجبة خفيفة بعد الظهر في اليوم الممتد. وتجدون قائمة الأسبوع في بوابة أولياء الأمور كل خميس.",
+        ],
+        "utensils",
+      ),
+      card(
+        b,
+        ["Allergies and diets", "الحساسية والأنظمة الغذائية"],
+        [
+          "Every allergy and diet is recorded, with your child's photo at the serving table, and our cook plans any swaps with you.",
+          "تُسجَّل كل حساسية وكل نظام غذائي مع صورة طفلكم عند طاولة التقديم، ويتّفق طاهينا معكم على أي بدائل.",
+        ],
+        "shield",
+      ),
+      card(
+        b,
+        ["Naps and rest", "القيلولة والراحة"],
+        [
+          "After lunch, children who nap sleep on their own cot in a quiet room, with an adult close by. We keep to the times that suit your child.",
+          "بعد الغداء ينام من يحتاج إلى قيلولة على سريره الخاص في غرفة هادئة، وأحد الكبار قريب منه. ونلتزم بالمواعيد التي تناسب طفلكم.",
+        ],
+        "clock",
+      ),
+      card(
+        b,
+        ["Nappies and the toilet", "الحفاضات واستخدام الحمّام"],
+        [
+          "We change nappies through the day and note each one. When you start toilet training at home, we use the same words and routine here.",
+          "نغيّر الحفاضات على مدار اليوم ونسجّل كل تغيير. وحين تبدؤون تدريب طفلكم على استخدام الحمّام في البيت، نستخدم هنا الكلمات والروتين نفسه.",
+        ],
+        "heart",
+      ),
+    ],
+  }),
+  { anchor: EY_PARENTS_ANCHOR.routines },
+);
+
+const EY_UNWELL = section(
+  "accordion",
+  "columns",
+  (b) => ({
+    heading: b.w(["When plans *change*", "حين *تتغيّر* الخطط"]),
+    text: b.w([
+      "Sickness, absence and late pick-ups, and what to do about each.",
+      "المرض والغياب والتأخّر في الاستلام، وما تفعلونه في كل حالة.",
+    ]),
+    items: [
+      question(
+        b,
+        ["When should my child stay at home?", "متى يبقى طفلي في البيت؟"],
+        [
+          "With a temperature or an infectious illness, and for 48 hours after any sickness or diarrhoea. If you are not sure, send us a message and our nurse will advise.",
+          "إذا كانت لديه حرارة أو مرض معدٍ، ولمدة 48 ساعة بعد أي قيء أو إسهال. وإن لم تكونوا متأكّدين فراسلونا وستنصحكم ممرضتنا.",
+        ],
+      ),
+      question(
+        b,
+        ["How do I report an absence?", "كيف أبلغ عن غياب طفلي؟"],
+        [
+          "Send a message through the form below or the parent portal before 8:30, and tell us why. Your child's key person will check in with you when they are back.",
+          "أرسلوا رسالة عبر النموذج أدناه أو عبر بوابة أولياء الأمور قبل الساعة 8:30، وأخبرونا بالسبب. وستطمئنّ المربية الرئيسية على طفلكم حين يعود.",
+        ],
+      ),
+      question(
+        b,
+        [
+          "What if my child falls ill at nursery?",
+          "ماذا لو مرض طفلي في الروضة؟",
+        ],
+        [
+          "We call you straight away and ask you to collect them within the hour. Until then your child rests somewhere quiet with their key person.",
+          "نتصل بكم فورًا ونطلب منكم الحضور لاستلامه خلال ساعة، وحتى ذلك الحين يرتاح طفلكم في مكان هادئ مع مربيته الرئيسية.",
+        ],
+      ),
+      question(
+        b,
+        ["Can you give my child medicine?", "هل تعطون طفلي الدواء؟"],
+        [
+          "Yes, when a doctor has prescribed it. Bring it in its original box and sign the consent form, and we note every dose in the portal.",
+          "نعم، إذا وصفه الطبيب. أحضروه في علبته الأصلية ووقّعوا نموذج الموافقة، ونسجّل كل جرعة في البوابة.",
+        ],
+      ),
+      question(
+        b,
+        [
+          "Someone else is collecting today. What do I do?",
+          "سيستلم طفلي اليوم شخص آخر، فماذا أفعل؟",
+        ],
+        [
+          "Tell us their name in the portal or by phone, and give them your family password. We will not hand your child to anyone without it.",
+          "أخبرونا باسمه عبر البوابة أو بالهاتف، وأعطوه كلمة السر الخاصة بأسرتكم، فلن نسلّم طفلكم لأحد من دونها.",
+        ],
+      ),
+      question(
+        b,
+        ["What if we are late for pick-up?", "ماذا لو تأخّرنا عن موعد الاستلام؟"],
+        [
+          "Call the office as soon as you know. Your child stays with an adult they know, playing calmly, until you arrive.",
+          "اتصلوا بالمكتب حالما تعرفون. سيبقى طفلكم مع أحد الكبار ممن يعرفهم، يلعب بهدوء حتى تصلوا.",
+        ],
+      ),
+    ],
+  }),
+  { anchor: EY_PARENTS_ANCHOR.unwell },
+);
+
+const EY_PARENTS_MESSAGE = FORM(
+  "general",
+  ["Message the *nursery*", "راسلوا *الروضة*"],
+  [
+    "Report an absence, ask for a word with your child's key person or send any question. The office reads every message the same day.",
+    "أبلغونا عن غياب، أو اطلبوا حديثًا مع المربية الرئيسية لطفلكم، أو أرسلوا أي سؤال. يقرأ المكتب كل رسالة في اليوم نفسه.",
+  ],
+);
+
 // A school still to open: no tours of classes yet, but mornings with the
 // founders, the plans and the people who will teach.
 const LAUNCH_MORNINGS = section("imageText", "mediaEnd", (b) => ({
@@ -3302,9 +3646,28 @@ export const PAGE_TEMPLATES = {
     on(FAQ, { scheme: "soft", anchor: PARENTS_ANCHOR.questions }),
     on(PARENTS_MESSAGE, CANVAS),
   ],
+  // A nursery's families: the handovers at either end of the day, what to
+  // pack, meals and naps, what to do when plans change, and a message form.
+  parentsEarlyYears: [
+    PAGE_HEADER(
+      ["Partners in *care*", "شركاء في *الرعاية*"],
+      [
+        "Drop-off and pick-up, the shape of the day, what to pack and how to reach your child's key person, all in one place.",
+        "مواعيد الوصول والاستلام، وإيقاع اليوم، وما تحزمونه لطفلكم، وطرق التواصل مع مربيته الرئيسية، كلها في مكان واحد.",
+      ],
+    ),
+    EY_PARENTS_NOTICE,
+    on(EY_PARENTS_LINKS, CANVAS),
+    on(EY_PARENTS_DAY, SOFT),
+    on(EY_KEY_PERSON, CANVAS),
+    on(EY_PACK, SOFT),
+    on(EY_ROUTINES, CANVAS),
+    on(EY_UNWELL, SOFT),
+    on(EY_PARENTS_MESSAGE, CANVAS),
+  ],
   contact: [
     PAGE_HEADER(
-      ["Contact *us*", "*تواصل* معنا"],
+      ["Get in *touch*", "*تواصلوا* معنا"],
       [
         "We would love to hear from you, whether you are a family, a neighbour or a future colleague.",
         "يسعدنا أن نسمع منكم، أسرةً كنتم أو جيرانًا أو زملاء في المستقبل.",
@@ -3429,7 +3792,7 @@ export const STARTERS = {
       { ...ABOUT, template: "aboutEarlyYears" },
       { ...ADMISSIONS, template: "admissionsEarlyYears" },
       { ...VISIT, template: "visitEarlyYears" },
-      PARENTS,
+      { ...PARENTS, template: "parentsEarlyYears" },
       CONTACT_PAGE,
     ],
   },

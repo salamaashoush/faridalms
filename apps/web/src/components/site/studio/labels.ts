@@ -430,6 +430,7 @@ export const TEMPLATE_LABEL: Record<SiteTemplate, () => string> = {
   visitLaunch: m.siteTemplateVisitLaunch,
   academics: m.siteTemplateAcademics,
   parents: m.siteTemplateParents,
+  parentsEarlyYears: m.siteTemplateParentsEarlyYears,
   contact: m.siteTemplateContact,
 };
 
@@ -451,6 +452,7 @@ export const TEMPLATE_HINT: Record<SiteTemplate, () => string> = {
   visitLaunch: m.siteTemplateHintVisitLaunch,
   academics: m.siteTemplateHintAcademics,
   parents: m.siteTemplateHintParents,
+  parentsEarlyYears: m.siteTemplateHintParentsEarlyYears,
   contact: m.siteTemplateHintContact,
 };
 
