@@ -16,6 +16,7 @@ export interface ExamBoardRow {
 
 export interface ExamSessionRow {
   id: string;
+  version: number;
   officialSeries: string | null;
   boardId: string | null;
   titleEn: string | null;
@@ -28,6 +29,7 @@ export interface ExamSessionRow {
 
 type SessionRecord = {
   id: string;
+  version: number;
   official_series: string | null;
   board_id: string | null;
   title_en: string | null;
@@ -40,6 +42,7 @@ type SessionRecord = {
 
 const sessionOf = (row: SessionRecord): ExamSessionRow => ({
   id: row.id,
+  version: row.version,
   officialSeries: row.official_series,
   boardId: row.board_id,
   titleEn: row.title_en,
@@ -50,7 +53,7 @@ const sessionOf = (row: SessionRecord): ExamSessionRow => ({
   aiEvidenceRequired: row.ai_evidence_required,
 });
 
-const sessionColumns = sql`id, official_series, board_id, title_en, title_ar,
+const sessionColumns = sql`id, version, official_series, board_id, title_en, title_ar,
   sits_in::text as sits_in, keep_until::text as keep_until,
   declaration_required, ai_evidence_required`;
 
@@ -164,6 +167,7 @@ export async function updateExamSession(
   input: {
     tenantId: string;
     id: string;
+    expectedVersion: number;
     titleEn: string | null;
     titleAr: string | null;
     sitsIn: string;
@@ -171,16 +175,16 @@ export async function updateExamSession(
     declarationRequired: boolean;
     aiEvidenceRequired: boolean;
   },
-): Promise<ExamSessionRow> {
+): Promise<ExamSessionRow | null> {
   const [row] = await tx.execute<SessionRecord>(sql`
     update core.exam_sessions set title_en = ${input.titleEn}, title_ar = ${input.titleAr},
       sits_in = ${input.sitsIn}::date, keep_until = ${input.keepUntil}::date,
       declaration_required = ${input.declarationRequired},
       ai_evidence_required = ${input.aiEvidenceRequired}
     where tenant_id = ${input.tenantId}::uuid and id = ${input.id}::uuid and status = 'active'
+      and version = ${input.expectedVersion}
     returning ${sessionColumns}`);
-  if (!row) throw new Error("exam session not written");
-  return sessionOf(row);
+  return row ? sessionOf(row) : null;
 }
 
 export async function retireExamSession(

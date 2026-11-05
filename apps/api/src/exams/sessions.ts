@@ -7,6 +7,7 @@ import type { UnitContext } from "../core/context";
 
 export interface ExamSessionView {
   id: string;
+  version: number;
   official: { series: string; board: ExamBoard } | null;
   boardId: string | null;
   titleEn: string | null;
@@ -31,6 +32,7 @@ export function viewOf(
   if (!keepUntil) throw new Error(`session ${row.id} has no keep-until date`);
   return {
     id: row.id,
+    version: row.version,
     official: series ? { series: series.id, board: series.board } : null,
     boardId: row.boardId,
     titleEn: row.titleEn,

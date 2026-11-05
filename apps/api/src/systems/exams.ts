@@ -229,11 +229,15 @@ export const saveSession = writeProcedure
         message: "exam.below_board",
         data: { boardKeepUntil: series.keepUntil },
       });
+    if (input.expectedVersion === undefined)
+      throw new ORPCError("BAD_REQUEST", { message: "validation.required" });
     const row = await updateExamSession(context.tx, {
       tenantId: context.tenantId,
       id: before.id,
+      expectedVersion: input.expectedVersion,
       ...next,
     });
+    if (!row) throw new ORPCError("CONFLICT", { message: "conflict.version" });
     await audit(context, {
       action: "exam_session.update",
       objectType: "exam_session",

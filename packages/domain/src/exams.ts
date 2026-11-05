@@ -71,6 +71,8 @@ export const addOfficialSessionSchema = v.object({
  */
 export const saveSessionSchema = v.object({
   id: v.optional(v.pipe(v.string(), v.uuid())),
+  /** The version read, which a change to a session must name. */
+  expectedVersion: v.optional(v.pipe(v.number(), v.integer(), v.minValue(1))),
   boardId: v.optional(v.pipe(v.string(), v.uuid())),
   titleEn: title,
   titleAr: title,

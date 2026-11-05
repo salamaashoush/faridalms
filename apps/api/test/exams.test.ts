@@ -34,6 +34,7 @@ describe("a school's exam sessions", () => {
 
     const change = {
       id: added.id,
+      expectedVersion: added.version,
       titleEn: null,
       titleAr: null,
       sitsIn: added.sitsIn,
@@ -57,22 +58,35 @@ describe("a school's exam sessions", () => {
 
     const shorter = {
       ...change,
+      expectedVersion: longer.version,
       keepUntil: "2027-03-01",
       reason: "Storage is short",
     };
     expect(await rejection(officer.exams.saveSession(shorter))).toMatchObject({
       message: "exam.below_board",
     });
-    expect(
-      await officer.exams.saveSession({ ...shorter, belowBoard: true }),
-    ).toMatchObject({ keepUntil: "2027-03-01", boardKeepUntil: "2027-04-09" });
+    const below = await officer.exams.saveSession({
+      ...shorter,
+      belowBoard: true,
+    });
+    expect(below).toMatchObject({
+      keepUntil: "2027-03-01",
+      boardKeepUntil: "2027-04-09",
+    });
 
     const back = await officer.exams.saveSession({
       ...change,
+      expectedVersion: below.version,
       keepUntil: null,
       reason: "Back to the board's date",
     });
     expect(back).toMatchObject({ keepUntil: "2027-04-09", ownKeepUntil: null });
+    // A change made from what someone read before these is refused.
+    expect(
+      await rejection(
+        officer.exams.saveSession({ ...change, reason: "From an old page" }),
+      ),
+    ).toMatchObject({ code: "CONFLICT", message: "conflict.version" });
 
     const { rows } = await officer.exams.history({});
     expect(rows.slice(0, 4).map((row) => row.action)).toEqual([

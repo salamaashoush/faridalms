@@ -438,7 +438,9 @@ export function SessionSheet({
         return addOfficialSession({ data: { series: draft.series } });
       return saveExamSession({
         data: {
-          ...(session ? { id: session.id } : { boardId: draft.boardId }),
+          ...(session
+            ? { id: session.id, expectedVersion: session.version }
+            : { boardId: draft.boardId }),
           titleEn: draft.titleEn.trim() || null,
           titleAr: draft.titleAr.trim() || null,
           sitsIn: session?.official ? session.sitsIn : `${draft.month}-01`,
