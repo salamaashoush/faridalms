@@ -1,19 +1,9 @@
 import type { ModuleId } from "@faridalms/domain/modules";
-import type { EntitlementsInput, SchoolNotice } from "@faridalms/domain/plans";
-import type {
-  BillingSchedule,
-  LimitKey,
-} from "@faridalms/domain/subscriptions";
+import type { EntitlementsInput } from "@faridalms/domain/plans";
+import type { LimitKey } from "@faridalms/domain/subscriptions";
 
 import { MODULE_IDS } from "@faridalms/domain/modules";
-import { SCHOOL_NOTICES } from "@faridalms/domain/plans";
-import { addDays } from "@faridalms/domain/school";
-import {
-  BILLING_SCHEDULES,
-  LIMIT_KEYS,
-  TRIAL_DAYS,
-  usableModules,
-} from "@faridalms/domain/subscriptions";
+import { LIMIT_KEYS, usableModules } from "@faridalms/domain/subscriptions";
 import { Badge } from "@faridalms/ui/badge";
 import { Button } from "@faridalms/ui/button";
 import { Checkbox } from "@faridalms/ui/checkbox";
@@ -26,6 +16,12 @@ import { toast } from "sonner";
 
 import { failure } from "../actions";
 import { EventList } from "../components/EventList";
+import {
+  SCHEDULE_NAMES,
+  TermsFields,
+  termsDraftOf,
+  termsOf,
+} from "../components/TermsFields";
 import {
   formatDay,
   formatLimit,
@@ -54,12 +50,6 @@ export const Route = createFileRoute("/subscriptions/$subscriptionId")({
 });
 
 type Data = Awaited<ReturnType<typeof getSubscription>>;
-
-const SCHEDULE_NAMES: Record<BillingSchedule, string> = {
-  annual: "Annually in advance",
-  two: "In two instalments",
-  three: "In three instalments",
-};
 
 const GIB = 1024 ** 3;
 
@@ -314,42 +304,19 @@ function TermsForm({ data }: { data: Data }) {
   const router = useRouter();
   const save = useServerFn(saveTerms);
   const { subscription, today } = data;
-  const [state, setState] = useState<"trial" | "active">(
-    subscription.state === "trial" ? "trial" : "active",
-  );
-  const [trialEndsOn, setTrialEndsOn] = useState(
-    subscription.trialEndsOn ?? addDays(today, TRIAL_DAYS),
-  );
-  const [termStartsOn, setTermStartsOn] = useState(
-    subscription.termStartsOn ?? "",
-  );
-  const [termEndsOn, setTermEndsOn] = useState(subscription.termEndsOn ?? "");
-  const [renewal, setRenewal] = useState(subscription.renewal);
-  const [schedule, setSchedule] = useState(subscription.schedule);
-  const [students, setStudents] = useState(
-    subscription.contractedStudents?.toString() ?? "",
-  );
-  const [censusOn, setCensusOn] = useState(subscription.censusOn ?? "");
-  const [notice, setNotice] = useState<SchoolNotice | "">(
-    subscription.notice ?? "",
-  );
+  const [draft, setDraft] = useState(() => termsDraftOf(subscription, today));
   const [reason, setReason] = useState("");
   const [answer, setAnswer] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
-  const field = "grid gap-1.5 text-sm";
-  const select = "h-9 rounded-md border bg-background px-2 text-sm";
   return (
     <form
       aria-label="Terms"
       className="grid max-w-2xl gap-4 rounded-lg border p-6"
       onSubmit={async (event) => {
         event.preventDefault();
-        const contracted = students.trim() === "" ? null : Number(students);
-        if (
-          contracted !== null &&
-          (!Number.isInteger(contracted) || contracted < 1)
-        ) {
-          setAnswer("Contracted students is a whole number, or empty.");
+        const read = termsOf(draft);
+        if (!read.ok) {
+          setAnswer(read.message);
           return;
         }
         setSaving(true);
@@ -358,17 +325,7 @@ function TermsForm({ data }: { data: Data }) {
           const out = await save({
             data: {
               id: subscription.id,
-              terms: {
-                state,
-                trialEndsOn: state === "trial" ? trialEndsOn || null : null,
-                termStartsOn: termStartsOn || null,
-                termEndsOn: termEndsOn || null,
-                renewal,
-                schedule,
-                contractedStudents: contracted,
-                censusOn: censusOn || null,
-                notice: notice || null,
-              },
+              terms: read.terms,
               reason: reason.trim(),
             },
           });
@@ -390,150 +347,8 @@ function TermsForm({ data }: { data: Data }) {
       }}
     >
       <h2 className="text-base font-semibold">Terms</h2>
-      <fieldset className="flex flex-wrap gap-4 text-sm">
-        <legend className="sr-only">Holds</legend>
-        {(["trial", "active"] as const).map((choice) => (
-          <span key={choice} className="flex items-center gap-2">
-            <input
-              id={`terms-${choice}`}
-              type="radio"
-              name="terms-state"
-              checked={state === choice}
-              onChange={() => setState(choice)}
-            />
-            <label htmlFor={`terms-${choice}`}>
-              {choice === "trial" ? "A trial" : "A contract"}
-            </label>
-          </span>
-        ))}
-      </fieldset>
-      <div className="grid items-start gap-4 sm:grid-cols-2">
-        {state === "trial" ? (
-          <div className={field}>
-            <label htmlFor="terms-trial-ends" className="font-medium">
-              Trial's last day
-            </label>
-            <Input
-              id="terms-trial-ends"
-              type="date"
-              required
-              value={trialEndsOn}
-              onChange={(event) => setTrialEndsOn(event.target.value)}
-            />
-            <span className="text-xs text-muted-foreground">
-              The day after, without a contract, the tenant becomes read only.
-            </span>
-          </div>
-        ) : null}
-        <div className={field}>
-          <label htmlFor="terms-starts" className="font-medium">
-            Term starts
-          </label>
-          <Input
-            id="terms-starts"
-            type="date"
-            required={state === "active"}
-            value={termStartsOn}
-            onChange={(event) => setTermStartsOn(event.target.value)}
-          />
-        </div>
-        <div className={field}>
-          <label htmlFor="terms-ends" className="font-medium">
-            Term ends
-          </label>
-          <Input
-            id="terms-ends"
-            type="date"
-            required={termStartsOn !== ""}
-            value={termEndsOn}
-            onChange={(event) => setTermEndsOn(event.target.value)}
-          />
-        </div>
-        <div className={field}>
-          <label htmlFor="terms-renewal" className="font-medium">
-            Renewal
-          </label>
-          <select
-            id="terms-renewal"
-            value={renewal}
-            onChange={(event) =>
-              setRenewal(event.target.value as "auto" | "manual")
-            }
-            className={select}
-          >
-            <option value="auto">Renews on its own</option>
-            <option value="manual">Renewed by hand</option>
-          </select>
-        </div>
-        <div className={field}>
-          <label htmlFor="terms-schedule" className="font-medium">
-            Billing
-          </label>
-          <select
-            id="terms-schedule"
-            value={schedule}
-            onChange={(event) =>
-              setSchedule(event.target.value as BillingSchedule)
-            }
-            className={select}
-          >
-            {BILLING_SCHEDULES.map((choice) => (
-              <option key={choice} value={choice}>
-                {SCHEDULE_NAMES[choice]}
-              </option>
-            ))}
-          </select>
-        </div>
-        <div className={field}>
-          <label htmlFor="terms-students" className="font-medium">
-            Contracted students
-          </label>
-          <Input
-            id="terms-students"
-            inputMode="numeric"
-            value={students}
-            onChange={(event) => setStudents(event.target.value)}
-          />
-        </div>
-        <div className={field}>
-          <label htmlFor="terms-census" className="font-medium">
-            Census day
-          </label>
-          <Input
-            id="terms-census"
-            type="date"
-            value={censusOn}
-            onChange={(event) => setCensusOn(event.target.value)}
-          />
-          <span className="text-xs text-muted-foreground">
-            When students are counted against the contract.
-          </span>
-        </div>
-        <div className={field}>
-          <label htmlFor="terms-notice" className="font-medium">
-            Notice
-          </label>
-          <select
-            id="terms-notice"
-            value={notice}
-            onChange={(event) =>
-              setNotice(event.target.value as SchoolNotice | "")
-            }
-            className={select}
-          >
-            <option value="">None</option>
-            {SCHOOL_NOTICES.map((code) => (
-              <option key={code} value={code}>
-                {NOTICE_NAMES[code]}
-              </option>
-            ))}
-          </select>
-          <span className="text-xs text-muted-foreground">
-            What the schools' administrators are shown.
-          </span>
-        </div>
-      </div>
-      <div className={field}>
+      <TermsFields draft={draft} onChange={setDraft} />
+      <div className="grid gap-1.5 text-sm">
         <label htmlFor="terms-reason" className="font-medium">
           Why
         </label>
