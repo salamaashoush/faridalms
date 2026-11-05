@@ -52,6 +52,11 @@ async function replaceFromMarkdown(
   await expect(dialog).toBeHidden();
 }
 
+// The guardian's replies to Yasmin's teacher are written into one
+// conversation, where a reply being written is one draft per person, so
+// these tests take their turn rather than type into each other's draft.
+test.describe.configure({ mode: "default" });
+
 test("a guardian replies to the teacher's note and the teacher reads it", async ({
   browser,
   page,
