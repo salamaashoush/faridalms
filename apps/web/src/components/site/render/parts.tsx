@@ -307,14 +307,16 @@ export function Scrim({
   strength?: "m" | "l";
 }) {
   const shade = photo ? "rgb(0 0 0)" : "var(--s-art-deep)";
-  const deep = strength === "l" ? 82 : 70;
-  const mid = Math.round(deep * 0.45);
+  // The strong scrim holds its shade up past half the height, where a tile's
+  // sentence sits above its title, before it fades.
+  const [deep, mid, midAt, clearAt] =
+    strength === "l" ? [85, 65, 55, 90] : [70, 32, 45, 85];
   return (
     <div
       aria-hidden
       className="pointer-events-none absolute inset-0"
       style={{
-        background: `linear-gradient(to top, color-mix(in oklab, ${shade} ${deep}%, transparent) 0%, color-mix(in oklab, ${shade} ${mid}%, transparent) 45%, transparent 85%)`,
+        background: `linear-gradient(to top, color-mix(in oklab, ${shade} ${deep}%, transparent) 0%, color-mix(in oklab, ${shade} ${mid}%, transparent) ${midAt}%, transparent ${clearAt}%)`,
       }}
     />
   );
@@ -755,7 +757,9 @@ function DividerShape({
       preserveAspectRatio="none"
       className={cn(
         "pointer-events-none absolute inset-x-0 h-6 w-full @3xl/site:h-10",
-        edge === "top" ? "bottom-full" : "top-full rotate-180",
+        edge === "top"
+          ? "bottom-[calc(100%-1px)]"
+          : "top-[calc(100%-1px)] rotate-180",
       )}
       style={{ fill: "var(--s-bg)" }}
     >

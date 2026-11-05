@@ -736,26 +736,28 @@ function Footer({ frame, context }: FrameProps) {
       style={schemeStyle(context.theme, contact ? "brand" : "ink")}
     >
       {contact ? (
-        <div className="site-container flex flex-wrap items-end justify-between gap-8 border-b border-[var(--s-border)] py-16 @3xl/site:py-20">
-          <p className="site-heading site-h2">{m.siteComeAndSee({}, t)}</p>
-          {frame.actions.length ? (
-            <div className="site-actions">
-              {frame.actions.map((action) => (
-                <SiteAnchor
-                  key={action.id}
-                  href={action.href}
-                  context={context}
-                  className="site-button"
-                  size="lg"
-                  variant={
-                    action.style === "secondary" ? "secondary" : undefined
-                  }
-                >
-                  {action.label}
-                </SiteAnchor>
-              ))}
-            </div>
-          ) : null}
+        <div className="site-container">
+          <div className="flex flex-wrap items-end justify-between gap-8 border-b border-[var(--s-border)] py-16 @3xl/site:py-20">
+            <p className="site-heading site-h2">{m.siteComeAndSee({}, t)}</p>
+            {frame.actions.length ? (
+              <div className="site-actions">
+                {frame.actions.map((action) => (
+                  <SiteAnchor
+                    key={action.id}
+                    href={action.href}
+                    context={context}
+                    className="site-button"
+                    size="lg"
+                    variant={
+                      action.style === "secondary" ? "secondary" : undefined
+                    }
+                  >
+                    {action.label}
+                  </SiteAnchor>
+                ))}
+              </div>
+            ) : null}
+          </div>
         </div>
       ) : null}
       <div

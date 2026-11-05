@@ -189,7 +189,6 @@ export interface Theme {
   header: HeaderStyle;
   footer: FooterStyle;
   headingCase: HeadingCase;
-  divider: Divider;
   headingScale: HeadingScale;
   card: CardStyle;
   image: ImageShape;
@@ -238,7 +237,6 @@ export const THEMES: Record<ThemeId, Theme> = {
     header: "centered",
     footer: "sitemap",
     headingCase: "none",
-    divider: "none",
     headingScale: "editorial",
     card: "outlined",
     image: "arch",
@@ -268,7 +266,6 @@ export const THEMES: Record<ThemeId, Theme> = {
     header: "classic",
     footer: "sitemap",
     headingCase: "none",
-    divider: "none",
     headingScale: "classic",
     card: "raised",
     image: "rounded",
@@ -298,7 +295,6 @@ export const THEMES: Record<ThemeId, Theme> = {
     header: "classic",
     footer: "contact",
     headingCase: "none",
-    divider: "wave",
     headingScale: "classic",
     card: "raised",
     image: "leaf",
@@ -328,7 +324,6 @@ export const THEMES: Record<ThemeId, Theme> = {
     header: "overlay",
     footer: "contact",
     headingCase: "none",
-    divider: "none",
     headingScale: "editorial",
     card: "flat",
     image: "arch",
@@ -358,7 +353,6 @@ export const THEMES: Record<ThemeId, Theme> = {
     header: "minimal",
     footer: "compact",
     headingCase: "none",
-    divider: "none",
     headingScale: "statement",
     card: "flat",
     image: "square",
@@ -388,7 +382,6 @@ export const THEMES: Record<ThemeId, Theme> = {
     header: "centered",
     footer: "sitemap",
     headingCase: "none",
-    divider: "curve",
     headingScale: "editorial",
     card: "outlined",
     image: "leaf",
@@ -418,7 +411,6 @@ export const THEMES: Record<ThemeId, Theme> = {
     header: "classic",
     footer: "sitemap",
     headingCase: "none",
-    divider: "none",
     headingScale: "classic",
     card: "outlined",
     image: "square",
@@ -460,7 +452,6 @@ export const siteThemeSchema = v.object({
   header: v.optional(v.picklist(HEADERS)),
   footer: v.optional(v.picklist(FOOTERS)),
   headingCase: v.optional(v.picklist(HEADING_CASES)),
-  divider: v.optional(v.picklist(DIVIDERS)),
   headingScale: v.optional(v.picklist(HEADING_SCALES)),
   card: v.optional(v.picklist(CARD_STYLES)),
   image: v.optional(v.picklist(IMAGE_SHAPES)),
@@ -485,7 +476,6 @@ export function resolveTheme(choice: SiteTheme | null | undefined): Theme {
     header: choice.header ?? base.header,
     footer: choice.footer ?? base.footer,
     headingCase: choice.headingCase ?? base.headingCase,
-    divider: choice.divider ?? base.divider,
     headingScale: choice.headingScale ?? base.headingScale,
     card: choice.card ?? base.card,
     image: choice.image ?? base.image,

@@ -86,6 +86,9 @@
   }
   .site-section {
     background: var(--s-bg);
+    /* Sections end on fractional pixels; a pixel of their own colour below
+       covers the hairline of page that would otherwise show between two. */
+    box-shadow: 0 1px 0 var(--s-bg);
     color: var(--s-fg);
     /* The app's own tokens, for shared components drawn inside a section. */
     --background: var(--s-bg);

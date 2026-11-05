@@ -42,6 +42,7 @@ import { submitSiteEnquiry } from "~/server/site";
 import { formatDate, formatInstant, formatMonthShort } from "~/utils/datetime";
 import { arabicDigits, numberLocale } from "~/utils/digits";
 
+import type { ArtSet } from "./art";
 import type { RenderContext, SiteIntake } from "./parts";
 
 import { SiteArt } from "./art";
@@ -198,7 +199,7 @@ function Hero({ section, context, first }: Props<"hero">) {
     return (
       <div className="site-split">
         {words}
-        <div className="relative">
+        <div className="relative isolate">
           <div
             aria-hidden
             className="absolute start-8 -inset-e-4 top-8 -bottom-4 -z-10 rounded-[var(--s-radius)] bg-[var(--s-accent)] @4xl/site:-inset-e-6 @4xl/site:-bottom-6"
@@ -441,6 +442,7 @@ function Slides({ section, context, first }: Props<"slides">) {
                 context={context}
                 ratio="4 / 5"
                 seed={slide.id}
+                set={{ id: section.id, index: at }}
                 feature
                 phoneRatio="4 / 3"
                 className="max-h-[40rem]"
@@ -693,6 +695,7 @@ function IconTile({ icon }: { icon: IconId }) {
 function PictureTile({
   image,
   seed,
+  set,
   context,
   ratio,
   strength,
@@ -700,6 +703,7 @@ function PictureTile({
 }: {
   image: SectionOf<"cards">["data"]["items"][number]["image"];
   seed: string;
+  set: ArtSet;
   context: RenderContext;
   ratio: string;
   /** Deeper for a title with a sentence under it than for a title alone. */
@@ -715,6 +719,7 @@ function PictureTile({
         image={image}
         context={context}
         seed={seed}
+        set={set}
         className="absolute inset-0 -z-10 rounded-none"
       />
       <div className="absolute inset-0 -z-10">
@@ -867,12 +872,13 @@ function Carousel({
 function Cards({ section, context }: Props<"cards">) {
   const { data, variant } = section;
   const t = { locale: context.locale };
-  const items = data.items.map((item) => {
+  const items = data.items.map((item, index) => {
     const body =
       variant === "imageButtons" ? (
         <PictureTile
           image={item.image}
           seed={item.id}
+          set={{ id: section.id, index: index }}
           context={context}
           ratio="4 / 5"
         >
@@ -895,6 +901,7 @@ function Cards({ section, context }: Props<"cards">) {
                 context={context}
                 ratio="3 / 2"
                 seed={item.id}
+                set={{ id: section.id, index: index }}
                 className="rounded-none"
               />
             </div>
@@ -967,7 +974,7 @@ function Divisions({ section, context }: Props<"divisions">) {
           className="site-feature site-joined"
           style={{ "--count": data.items.length } as CSSProperties}
         >
-          {data.items.map((item) => (
+          {data.items.map((item, index) => (
             <li key={item.id} className="relative isolate">
               <SiteAnchor
                 href={item.href}
@@ -978,6 +985,7 @@ function Divisions({ section, context }: Props<"divisions">) {
                   image={item.image}
                   context={context}
                   seed={item.id}
+                  set={{ id: section.id, index: index }}
                   className="absolute inset-0 -z-10 size-full rounded-none"
                 />
                 <div className="absolute inset-0 -z-10">
@@ -1005,7 +1013,7 @@ function Divisions({ section, context }: Props<"divisions">) {
         </ul>
       ) : variant === "rows" ? (
         <ul data-stagger className="grid gap-4">
-          {data.items.map((item) => (
+          {data.items.map((item, index) => (
             <li key={item.id}>
               <SiteAnchor
                 href={item.href}
@@ -1019,6 +1027,7 @@ function Divisions({ section, context }: Props<"divisions">) {
                     ratio="16 / 10"
                     phoneRatio="2 / 1"
                     seed={item.id}
+                    set={{ id: section.id, index: index }}
                     className="rounded-none"
                   />
                 </div>
@@ -1039,12 +1048,13 @@ function Divisions({ section, context }: Props<"divisions">) {
         </ul>
       ) : (
         <ul data-stagger className="site-grid" data-cols={columns} data-rail>
-          {data.items.map((item) => (
+          {data.items.map((item, index) => (
             <li key={item.id}>
               <SiteAnchor href={item.href} context={context} className="block">
                 <PictureTile
                   image={item.image}
                   seed={item.id}
+                  set={{ id: section.id, index: index }}
                   context={context}
                   ratio={columns === "4" ? "3 / 4" : "4 / 5"}
                   strength="l"
@@ -1239,6 +1249,7 @@ function Pillars({ section, context }: Props<"pillars">) {
                   context={context}
                   ratio="4 / 3"
                   seed={item.id}
+                  set={{ id: section.id, index: index }}
                   feature
                 />
               </div>
@@ -1355,7 +1366,7 @@ function Voices({ section, context }: Props<"voices">) {
     variant === "tabs" && tab !== "all"
       ? data.items.filter((item) => item.audience === tab)
       : data.items;
-  const items = shown.map((item) => (
+  const items = shown.map((item, index) => (
     <li key={item.id}>
       <figure className="site-card flex h-full flex-col gap-5 p-[var(--s-card-pad)] text-start">
         <QuoteMark />
@@ -1369,6 +1380,7 @@ function Voices({ section, context }: Props<"voices">) {
               context={context}
               ratio="1 / 1"
               seed={item.id}
+              set={{ id: section.id, index: index }}
               className="size-11 shrink-0 rounded-full"
             />
           ) : (
@@ -1434,7 +1446,7 @@ function Voices({ section, context }: Props<"voices">) {
 
 function People({ section, context }: Props<"people">) {
   const { data, variant } = section;
-  const items = data.items.map((item) => (
+  const items = data.items.map((item, index) => (
     <li key={item.id} className="grid content-start gap-4 text-start">
       <div className="site-feature">
         <SitePicture
@@ -1442,6 +1454,7 @@ function People({ section, context }: Props<"people">) {
           context={context}
           ratio="4 / 5"
           seed={item.id}
+          set={{ id: section.id, index: index }}
           className="rounded-none"
         />
       </div>
@@ -1722,6 +1735,7 @@ function Gallery({ section, context }: Props<"gallery">) {
             image={item.image}
             context={context}
             seed={item.id}
+            set={{ id: section.id, index: index }}
             ratio={variant === "carousel" ? "4 / 3" : undefined}
             className={variant === "carousel" ? undefined : "size-full"}
           />

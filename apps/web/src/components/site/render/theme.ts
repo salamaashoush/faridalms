@@ -158,7 +158,9 @@ export function schemeStyle(theme: Theme, scheme: SchemeId): CSSProperties {
 
 /** Words over a photograph or video read white on its darkened overlay. */
 export const overMediaStyle = {
-  "--s-em": "var(--s-accent)",
+  // The art ramp's accent is lifted to read on a deep ground; the raw accent
+  // (a crimson, a navy) can sit at 2:1 there, and Arabic emphasis is colour.
+  "--s-em": "var(--s-art-accent)",
   "--s-fg": "#FFFFFF",
   "--s-heading": "#FFFFFF",
   "--s-muted": "rgba(255,255,255,0.82)",
