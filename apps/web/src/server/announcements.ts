@@ -6,6 +6,7 @@ import {
   saveAnnouncementSchema,
   seenSchema,
 } from "@faridalms/domain/announcements";
+import { reportQuerySchema } from "@faridalms/domain/broadcasts";
 import { reviewTranslationSchema } from "@faridalms/domain/translations";
 import { createServerFn } from "@tanstack/react-start";
 
@@ -55,3 +56,7 @@ export const reviewAnnouncementTranslation = createServerFn({ method: "POST" })
 export const duplicateAnnouncement = createServerFn({ method: "POST" })
   .validator(byId)
   .handler(({ data }) => backend().announcements.duplicate(data));
+
+export const getAnnouncementReport = createServerFn({ method: "GET" })
+  .validator(checked(reportQuerySchema))
+  .handler(({ data }) => backend().announcements.report(data));

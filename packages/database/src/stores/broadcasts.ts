@@ -363,35 +363,66 @@ export interface ReportRow {
   acknowledgedAt: string | null;
 }
 
-/** Who a broadcast reached, those yet to acknowledge or read it first. */
-export async function deliveryReport(
+/** How many a broadcast reached, read it and acknowledged it. */
+export async function deliveryCounts(
   tx: Tx,
   input: { tenantId: string; broadcastId: string },
-): Promise<ReportRow[]> {
+): Promise<{ recipients: number; read: number; acknowledged: number }> {
+  const [row] = await tx.execute<{
+    recipients: number;
+    read: number;
+    acknowledged: number;
+  }>(sql`
+    select count(*)::int as recipients,
+           count(*) filter (where r.read_at is not null)::int as read,
+           count(*) filter (where r.acknowledged_at is not null)::int as acknowledged
+    from core.broadcast_recipients r
+    where r.tenant_id = ${input.tenantId}::uuid and r.broadcast_id = ${input.broadcastId}::uuid
+      and r.status = 'active'`);
+  return row ?? { recipients: 0, read: 0, acknowledged: 0 };
+}
+
+/** A page of whom a broadcast reached, those yet to acknowledge or read it first. */
+export async function deliveryReport(
+  tx: Tx,
+  input: {
+    tenantId: string;
+    broadcastId: string;
+    q: string;
+    limit: number;
+    offset: number;
+  },
+): Promise<{ rows: ReportRow[]; total: number }> {
   const rows = await tx.execute<{
     user_id: string;
     full_name_en: string | null;
     full_name_ar: string | null;
     read_at: string | null;
     acknowledged_at: string | null;
+    total: number;
   }>(sql`
     select r.user_id, u.full_name_en, u.full_name_ar,
-           ${isoOf(sql`r.read_at`)} as read_at, ${isoOf(sql`r.acknowledged_at`)} as acknowledged_at
+           ${isoOf(sql`r.read_at`)} as read_at, ${isoOf(sql`r.acknowledged_at`)} as acknowledged_at,
+           (count(*) over ())::int as total
     from core.broadcast_recipients r
     join core.broadcasts b on b.tenant_id = r.tenant_id and b.id = r.broadcast_id
     join core.users u on u.tenant_id = r.tenant_id and u.id = r.user_id
     where r.tenant_id = ${input.tenantId}::uuid and r.broadcast_id = ${input.broadcastId}::uuid
       and r.status = 'active'
+      and (${holds(input.q, [sql`u.full_name_en`, sql`u.full_name_ar`])})
     order by case when b.requires_ack then r.acknowledged_at end nulls first,
              r.read_at nulls first, u.full_name_en, u.id
-    limit 2000`);
-  return rows.map((row) => ({
-    userId: row.user_id,
-    fullNameEn: row.full_name_en,
-    fullNameAr: row.full_name_ar,
-    readAt: row.read_at,
-    acknowledgedAt: row.acknowledged_at,
-  }));
+    limit ${input.limit} offset ${input.offset}`);
+  return {
+    rows: rows.map((row) => ({
+      userId: row.user_id,
+      fullNameEn: row.full_name_en,
+      fullNameAr: row.full_name_ar,
+      readAt: row.read_at,
+      acknowledgedAt: row.acknowledged_at,
+    })),
+    total: rows[0]?.total ?? 0,
+  };
 }
 
 export type ManageTab = "published" | "scheduled" | "drafts" | "archived";

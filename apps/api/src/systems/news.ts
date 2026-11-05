@@ -11,6 +11,7 @@ import {
   withdrawPost,
   writePublishedPost,
 } from "@faridalms/database/stores/site";
+import { reportQuerySchema } from "@faridalms/domain/broadcasts";
 import {
   contentFileIds,
   contentPlainText,
@@ -52,6 +53,7 @@ import {
   primaryOf,
   publishBroadcast,
   recordOf,
+  reportOf,
   reviewBroadcast,
   saveBroadcast,
   seenBroadcast,
@@ -246,6 +248,10 @@ export const editor = readProcedure
 export const record = readProcedure
   .input(v.object({ id }))
   .handler(({ input, context }) => recordOf(context, rules, input.id));
+
+export const report = readProcedure
+  .input(reportQuerySchema)
+  .handler(({ input, context }) => reportOf(context, rules, input));
 
 export const save = writeProcedure
   .input(saveNewsSchema)

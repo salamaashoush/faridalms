@@ -1,3 +1,4 @@
+import type { ReportQuery } from "@faridalms/domain/broadcasts";
 import type { ManageNewsQuery, NewsListQuery } from "@faridalms/domain/news";
 
 import { queryOptions } from "@tanstack/react-query";
@@ -8,6 +9,7 @@ import {
   getNewsEditor,
   getNewsOptions,
   getNewsPost,
+  getNewsReport,
 } from "~/server/news";
 
 export const newsQuery = (query: NewsListQuery) =>
@@ -39,4 +41,11 @@ export const newsPostQuery = (id: string) =>
   queryOptions({
     queryKey: ["news", "record", id],
     queryFn: () => getNewsPost({ data: { id } }),
+  });
+
+export const newsReportQuery = (query: ReportQuery) =>
+  queryOptions({
+    queryKey: ["news", "report", query],
+    queryFn: () => getNewsReport({ data: query }),
+    placeholderData: (previous) => previous,
   });

@@ -8979,5 +8979,7 @@
   "auditSubmissionUnexcuse": "Excusal from the work taken back",
   "auditSubmissionUnshare": "Work no longer shared with the family",
   "auditPrivacyNoticeTranslationChecked": "Consent form translation checked",
-  "auditPrivacyNoticeTranslationUnchecked": "Consent form translation unchecked"
+  "auditPrivacyNoticeTranslationUnchecked": "Consent form translation unchecked",
+  "annReportSearch": "Find someone",
+  "annReportNoMatch": "Nobody it reached has that name."
 }

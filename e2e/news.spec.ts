@@ -77,6 +77,10 @@ test("the office sends school news in two languages and a family reads it in Ara
   await page.goto(postUrl);
   await untilHydrated(page);
   await page.getByRole("button", { name: /of \d+ read/ }).click();
+  await page
+    .getByRole("dialog")
+    .getByRole("searchbox", { name: "Find someone" })
+    .fill("Sara Sabry");
   await expect(
     page
       .getByRole("dialog")

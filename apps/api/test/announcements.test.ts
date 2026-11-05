@@ -50,10 +50,13 @@ describe("reading announcements", () => {
     expect(opened.report).toBeNull();
 
     const office = await principal();
-    const report = await office.announcements.record({ id: trip.id });
     const me = await family.identity.currentUser();
+    const report = await office.announcements.report({
+      id: trip.id,
+      q: me.nameEn ?? "",
+    });
     expect(
-      report.report?.find((row) => row.userId === me.id)?.acknowledgedAt,
+      report.rows.find((row) => row.userId === me.id)?.acknowledgedAt,
     ).not.toBeNull();
   });
 });

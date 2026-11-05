@@ -11,11 +11,13 @@ import {
   announcementEditorQuery,
   announcementOptionsQuery,
   announcementQuery,
+  announcementReportQuery,
 } from "~/queries/announcements";
 import {
   newsEditorQuery,
   newsOptionsQuery,
   newsPostQuery,
+  newsReportQuery,
 } from "~/queries/news";
 import {
   archiveAnnouncement,
@@ -101,6 +103,7 @@ export interface KindView {
   recordPath: (id: string) => string;
   useEditor: (id: string) => EditorData;
   useRecord: (id: string) => RecordData;
+  reportQuery: typeof announcementReportQuery;
   useOptions: () => Options;
   save: (draft: Draft, id: string, version: number) => Promise<Saved>;
   publish: (input: {
@@ -157,6 +160,7 @@ const announcement: KindView = {
   recordPath: (id) => `/announcements/${id}`,
   useEditor: (id) => useSuspenseQuery(announcementEditorQuery(id)).data,
   useRecord: (id) => useSuspenseQuery(announcementQuery(id)).data,
+  reportQuery: announcementReportQuery,
   useOptions: () => {
     const choices = useSuspenseQuery(announcementOptionsQuery).data;
     return { ...choices, categories: [], site: null };
@@ -219,6 +223,7 @@ const news: KindView = {
   recordPath: (id) => `/news/${id}`,
   useEditor: (id) => useSuspenseQuery(newsEditorQuery(id)).data,
   useRecord: (id) => useSuspenseQuery(newsPostQuery(id)).data,
+  reportQuery: newsReportQuery,
   useOptions: () => useSuspenseQuery(newsOptionsQuery).data,
   save: (draft, id, version) =>
     saveNews({

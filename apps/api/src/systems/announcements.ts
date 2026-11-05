@@ -9,6 +9,7 @@ import {
   saveAnnouncementSchema,
   seenSchema,
 } from "@faridalms/domain/announcements";
+import { reportQuerySchema } from "@faridalms/domain/broadcasts";
 import { contentPlainText } from "@faridalms/domain/content";
 import { CONTENT_ISSUE_CODE } from "@faridalms/domain/content-checks";
 import { paged, pageWindow } from "@faridalms/domain/paging";
@@ -31,6 +32,7 @@ import {
   manage as manageKind,
   publishBroadcast,
   recordOf,
+  reportOf,
   reviewBroadcast,
   saveBroadcast,
   seenBroadcast,
@@ -142,6 +144,10 @@ export const editor = readProcedure
 export const record = readProcedure
   .input(v.object({ id }))
   .handler(({ input, context }) => recordOf(context, rules, input.id));
+
+export const report = readProcedure
+  .input(reportQuerySchema)
+  .handler(({ input, context }) => reportOf(context, rules, input));
 
 export const save = writeProcedure
   .input(saveAnnouncementSchema)

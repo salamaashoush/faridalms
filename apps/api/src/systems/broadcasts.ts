@@ -18,6 +18,7 @@ import {
 import {
   addRecipients,
   broadcastById,
+  deliveryCounts,
   deliveryReport,
   insertBroadcast,
   liveUntold,
@@ -271,7 +272,7 @@ export async function recordOf(
     audiencesOf(context.tx, context.tenantId, owner(row)),
     publishedWords(context, host(row)),
     manages
-      ? deliveryReport(context.tx, {
+      ? deliveryCounts(context.tx, {
           tenantId: context.tenantId,
           broadcastId: row.id,
         })
@@ -316,6 +317,22 @@ export async function recordOf(
     canManage: manages,
     report,
   };
+}
+
+/** A page of whom a broadcast reached, for those who manage the kind. */
+export async function reportOf(
+  context: UnitContext,
+  rules: BroadcastKindRules,
+  input: { id: string; q: string; page: number },
+) {
+  const row = await managed(context, rules, input.id);
+  const { rows, total } = await deliveryReport(context.tx, {
+    tenantId: context.tenantId,
+    broadcastId: row.id,
+    q: input.q,
+    ...pageWindow(input.page),
+  });
+  return paged(rows, total, input.page);
 }
 
 /** Writes a broadcast's settings, audience and words, opening one the first time. */

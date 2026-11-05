@@ -9377,5 +9377,7 @@
   "auditSubmissionUnexcuse": "أُلغي الإعفاء من العمل",
   "auditSubmissionUnshare": "أُوقفت مشاركة العمل مع الأسرة",
   "auditPrivacyNoticeTranslationChecked": "رُوجعت ترجمة نموذج الموافقة",
-  "auditPrivacyNoticeTranslationUnchecked": "أُلغيت مراجعة ترجمة نموذج الموافقة"
+  "auditPrivacyNoticeTranslationUnchecked": "أُلغيت مراجعة ترجمة نموذج الموافقة",
+  "annReportSearch": "البحث عن شخص",
+  "annReportNoMatch": "لا أحد ممن وصلهم بهذا الاسم."
 }

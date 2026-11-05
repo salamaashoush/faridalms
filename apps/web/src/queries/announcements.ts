@@ -1,4 +1,5 @@
 import type { FeedQuery, ManageQuery } from "@faridalms/domain/announcements";
+import type { ReportQuery } from "@faridalms/domain/broadcasts";
 
 import { queryOptions } from "@tanstack/react-query";
 
@@ -7,6 +8,7 @@ import {
   getAnnouncementEditor,
   getAnnouncementFeed,
   getAnnouncementOptions,
+  getAnnouncementReport,
   getManagedAnnouncements,
 } from "~/server/announcements";
 
@@ -39,4 +41,11 @@ export const announcementQuery = (id: string) =>
   queryOptions({
     queryKey: ["announcements", "record", id],
     queryFn: () => getAnnouncement({ data: { id } }),
+  });
+
+export const announcementReportQuery = (query: ReportQuery) =>
+  queryOptions({
+    queryKey: ["announcements", "report", query],
+    queryFn: () => getAnnouncementReport({ data: query }),
+    placeholderData: (previous) => previous,
   });

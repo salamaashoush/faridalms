@@ -1,3 +1,4 @@
+import { reportQuerySchema } from "@faridalms/domain/broadcasts";
 import {
   manageNewsSchema,
   newsListSchema,
@@ -58,3 +59,7 @@ export const duplicateNews = createServerFn({ method: "POST" })
 export const markNewsSeen = createServerFn({ method: "POST" })
   .validator(byId)
   .handler(({ data }) => backend().news.seen(data));
+
+export const getNewsReport = createServerFn({ method: "GET" })
+  .validator(checked(reportQuerySchema))
+  .handler(({ data }) => backend().news.report(data));

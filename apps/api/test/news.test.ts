@@ -86,10 +86,13 @@ describe("reading school news", () => {
     await family.news.seen({ id: september.id });
 
     const office = await principal();
-    const report = await office.news.record({ id: september.id });
     const me = await family.identity.currentUser();
+    const report = await office.news.report({
+      id: september.id,
+      q: me.nameEn ?? "",
+    });
     expect(
-      report.report?.find((row) => row.userId === me.id)?.readAt,
+      report.rows.find((row) => row.userId === me.id)?.readAt,
     ).not.toBeNull();
     expect(
       (await family.news.list({})).rows.some(

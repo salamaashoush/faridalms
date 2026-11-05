@@ -48,6 +48,10 @@ test("the office asks families to acknowledge a notice and sees who did", async 
   await page.goto(announcementUrl);
   await untilHydrated(page);
   await page.getByRole("button", { name: /of \d+ read/ }).click();
+  await page
+    .getByRole("dialog")
+    .getByRole("searchbox", { name: "Find someone" })
+    .fill("Sara Sabry");
   await expect(
     page
       .getByRole("table", { name: "Who it reached" })

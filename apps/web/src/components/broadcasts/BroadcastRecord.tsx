@@ -3,10 +3,11 @@ import type { ContentLocale } from "@faridalms/domain/translations";
 import { otherLocale } from "@faridalms/domain/translations";
 import { Button } from "@faridalms/ui/button";
 import { cn } from "@faridalms/ui/cn";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { Input } from "@faridalms/ui/input";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
-import { Archive, CircleCheck, Copy, Pencil, Send } from "lucide-react";
-import { useEffect, useState } from "react";
+import { Archive, CircleCheck, Copy, Pencil, Search, Send } from "lucide-react";
+import { useDeferredValue, useEffect, useState } from "react";
 import { toast } from "sonner";
 
 import type { Column } from "~/components/system/DataTable";
@@ -45,7 +46,9 @@ import {
 } from "./format";
 import { KINDS } from "./kinds";
 
-type ReportRow = NonNullable<RecordData["report"]>[number] & { id: string };
+type ReportRow = Awaited<
+  ReturnType<NonNullable<ReturnType<KindView["reportQuery"]>["queryFn"]>>
+>["rows"][number] & { id: string };
 
 const titleOf = (data: { titleEn: string; titleAr: string }) =>
   inLocale(data.titleEn || null, data.titleAr || null);
@@ -127,12 +130,18 @@ function Report({
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }) {
-  const rows: ReportRow[] = (data.report ?? []).map((row) => ({
+  const [search, setSearch] = useState("");
+  const q = useDeferredValue(search.trim());
+  const [page, setPage] = useState(1);
+  const report = useQuery({
+    ...view.reportQuery({ id: data.id, q, page }),
+    enabled: open,
+  }).data;
+  const rows: ReportRow[] = (report?.rows ?? []).map((row) => ({
     ...row,
     id: row.userId,
   }));
-  const read = rows.filter((row) => row.readAt).length;
-  const acknowledged = rows.filter((row) => row.acknowledgedAt).length;
+  const counts = data.report ?? { recipients: 0, read: 0, acknowledged: 0 };
   return (
     <SheetPanel
       open={open}
@@ -141,21 +150,50 @@ function Report({
       description={view.copy.reportHint()}
     >
       <Facts short>
-        <Fact label={m.annReached()}>{formatNumber(rows.length)}</Fact>
-        <Fact label={m.annColRead()}>{formatNumber(read)}</Fact>
+        <Fact label={m.annReached()}>{formatNumber(counts.recipients)}</Fact>
+        <Fact label={m.annColRead()}>{formatNumber(counts.read)}</Fact>
         {data.requiresAck ? (
           <Fact label={m.annColAcknowledged()}>
-            {formatNumber(acknowledged)}
+            {formatNumber(counts.acknowledged)}
           </Fact>
         ) : null}
       </Facts>
+      <div className="relative">
+        <Search
+          aria-hidden
+          className="pointer-events-none absolute start-2.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground"
+        />
+        <Input
+          type="search"
+          dir="auto"
+          value={search}
+          aria-label={m.annReportSearch()}
+          placeholder={m.annReportSearch()}
+          onChange={(event) => {
+            setSearch(event.target.value);
+            setPage(1);
+          }}
+          className="ps-8 max-md:h-10"
+        />
+      </div>
       <DataTable
         caption={m.annReport()}
         rows={rows}
         columns={reportColumns(data.requiresAck)}
         rowLabel={(row) => inLocale(row.fullNameEn, row.fullNameAr)}
         card={reportCard(data.requiresAck)}
-        empty={{ title: view.copy.notSent() }}
+        pagination={
+          report
+            ? {
+                page: report.page,
+                pages: report.pages,
+                total: report.total,
+                pageSize: report.pageSize,
+                onPage: setPage,
+              }
+            : undefined
+        }
+        empty={{ title: q ? m.annReportNoMatch() : view.copy.notSent() }}
       />
     </SheetPanel>
   );
@@ -271,7 +309,6 @@ export function BroadcastRecord({
   });
   const scheduled = data.shown === "scheduled";
   const reported = data.canManage && data.report && !data.preview;
-  const readCount = (data.report ?? []).filter((row) => row.readAt).length;
   const facts: HeaderFact[] = [
     {
       label: m.annAuthor(),
@@ -312,8 +349,8 @@ export function BroadcastRecord({
                 onClick={() => setReporting(true)}
               >
                 {m.annReadOf({
-                  count: formatNumber(readCount),
-                  total: formatNumber(data.report?.length ?? 0),
+                  count: formatNumber(data.report?.read ?? 0),
+                  total: formatNumber(data.report?.recipients ?? 0),
                 })}
               </button>
             ),
