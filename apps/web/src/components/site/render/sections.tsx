@@ -575,16 +575,19 @@ function Announcement({ section, context }: Props<"announcement">) {
 
 function Welcome({ section, context }: Props<"welcome">) {
   const { data, variant } = section;
-  const signature = (
-    <p className="mt-2 grid gap-0.5 border-s-2 border-[var(--s-link)] ps-4">
-      <span className="site-heading site-h4">{data.name}</span>
-      <span className="site-meta">{data.role}</span>
-    </p>
-  );
+  const signature =
+    data.name || data.role ? (
+      <p className="site-signature">
+        {data.name ? (
+          <span className="site-heading site-h3">{data.name}</span>
+        ) : null}
+        {data.role ? <span className="site-meta">{data.role}</span> : null}
+      </p>
+    ) : null;
   const words = (
     <div className="site-stack">
       <Heading field="heading">{data.heading}</Heading>
-      <div className="text-[1.125rem]">
+      <div className="site-letter">
         <Prose body={data.body} context={context} />
       </div>
       {signature}
@@ -593,14 +596,16 @@ function Welcome({ section, context }: Props<"welcome">) {
   if (variant === "letter") return <div className="site-narrow">{words}</div>;
   return (
     <div className="site-split" data-ratio="5-7">
-      <div data-order={variant === "portraitEnd" ? "end" : undefined}>
+      <div
+        data-order={variant === "portraitEnd" ? "end" : undefined}
+        className="w-full max-w-[17rem] in-[.text-center]:mx-auto @3xl/site:max-w-none"
+      >
         <SitePicture
           image={data.portrait}
           context={context}
           ratio="4 / 5"
           seed={section.id}
           feature
-          phoneRatio="1 / 1"
           className="max-h-[38rem]"
         />
       </div>
@@ -1285,39 +1290,50 @@ function Pillars({ section, context }: Props<"pillars">) {
 
 function QuoteSection({ section, context }: Props<"quote">) {
   const { data, variant } = section;
-  const who = (
-    <figcaption className="grid gap-0.5">
-      <span className="font-semibold">{data.name}</span>
-      {data.role ? <span className="site-meta">{data.role}</span> : null}
-    </figcaption>
-  );
+  const portrait = variant === "portrait";
+  const who =
+    data.name || data.role ? (
+      <figcaption className="site-stack gap-2">
+        {data.name ? <span className="site-eyebrow">{data.name}</span> : null}
+        {data.role ? <span className="site-meta">{data.role}</span> : null}
+      </figcaption>
+    ) : null;
   return (
     <figure
       className={cn(
-        "site-narrow grid gap-8",
-        variant === "portrait" &&
-          "items-center @3xl/site:grid-cols-[12rem_1fr] @3xl/site:gap-12",
+        "site-narrow grid gap-10",
+        portrait &&
+          "items-center @3xl/site:grid-cols-[minmax(0,14rem)_minmax(0,1fr)] @3xl/site:gap-16",
       )}
       data-wide
     >
-      {variant === "portrait" ? (
-        <SitePicture
-          image={data.portrait}
-          context={context}
-          ratio="1 / 1"
-          seed={section.id}
-          className="max-w-48 rounded-full"
-        />
+      {portrait ? (
+        <div className="w-40 in-[.text-center]:mx-auto @3xl/site:w-full">
+          <SitePicture
+            image={data.portrait}
+            context={context}
+            ratio="4 / 5"
+            seed={section.id}
+            feature
+          />
+        </div>
       ) : null}
-      <div className="site-stack gap-6">
+      <div className="site-stack gap-8">
         {variant === "badge" && data.badge !== "none" ? (
-          <span className="site-eyebrow rounded-full px-4 py-1.5 ring-1 ring-[var(--s-border)]">
+          <span className="site-eyebrow rounded-[var(--s-button-radius)] px-4 py-1.5 ring-1 ring-[var(--s-border)]">
             {BADGE_NAME[data.badge]}
           </span>
         ) : (
-          <QuoteMark className="size-10" />
+          <span aria-hidden className="site-quote-mark">
+            “
+          </span>
         )}
-        <blockquote className="site-quote">{data.quote}</blockquote>
+        <blockquote
+          className="site-quote"
+          data-size={portrait ? undefined : "l"}
+        >
+          {data.quote}
+        </blockquote>
         {who}
       </div>
     </figure>
@@ -1766,29 +1782,28 @@ function Gallery({ section, context }: Props<"gallery">) {
 
 function Timeline({ section }: Props<"timeline">) {
   const { data, variant } = section;
+  if (variant === "horizontal")
+    return (
+      <div>
+        <SectionIntro heading={data.heading} />
+        <ol data-stagger className="site-rail site-timeline-rail">
+          {data.items.map((item) => (
+            <li key={item.id} className="grid content-start gap-3 text-start">
+              <span className="site-timeline-year">{item.year}</span>
+              <span className="site-heading site-h3">{item.title}</span>
+              {item.text ? <p className="site-text">{item.text}</p> : null}
+            </li>
+          ))}
+        </ol>
+      </div>
+    );
   return (
     <div>
       <SectionIntro heading={data.heading} />
-      <ol
-        data-stagger
-        className={cn(
-          variant === "horizontal"
-            ? "flex snap-x gap-10 overflow-x-auto border-t-2 border-[var(--s-border)] pt-10 pb-4 [&>li]:w-72 [&>li]:shrink-0 [&>li]:snap-start"
-            : "site-narrow grid gap-12 border-s-2 border-[var(--s-border)] ps-10",
-        )}
-      >
+      <ol data-stagger className="site-timeline">
         {data.items.map((item) => (
-          <li key={item.id} className="relative grid gap-2 text-start">
-            <span
-              aria-hidden
-              className={cn(
-                "absolute size-4 rounded-full border-4 border-[var(--s-bg)] bg-[var(--s-link)] outline-2 outline-[var(--s-link)]",
-                variant === "horizontal"
-                  ? "start-0 -top-[calc(3rem+1px)]"
-                  : "-start-[calc(3rem+1px)] top-2",
-              )}
-            />
-            <span className="site-numeral text-[2rem]">{item.year}</span>
+          <li key={item.id} className="site-timeline-row">
+            <span className="site-timeline-year">{item.year}</span>
             <span className="site-heading site-h3">{item.title}</span>
             {item.text ? <p className="site-text">{item.text}</p> : null}
           </li>
@@ -1881,7 +1896,11 @@ function Logo({
     <SiteAnchor
       href={item.href}
       context={context}
-      className="grid place-items-center opacity-70 grayscale transition hover:opacity-100 hover:grayscale-0"
+      className={cn(
+        "site-logo",
+        item.image.fileId &&
+          "opacity-70 grayscale transition hover:opacity-100 hover:grayscale-0",
+      )}
     >
       {item.image.fileId ? (
         <SitePicture
@@ -1891,9 +1910,7 @@ function Logo({
           className="h-14 w-auto rounded-none object-contain"
         />
       ) : (
-        <span className="site-heading text-xl tracking-wide whitespace-nowrap">
-          {item.name}
-        </span>
+        <span className="site-logo-name">{item.name}</span>
       )}
     </SiteAnchor>
   );
@@ -1906,7 +1923,7 @@ function Logos({ section, context }: Props<"logos">) {
   const heading = <Eyebrow field="heading">{data.heading}</Eyebrow>;
   if (variant === "marquee")
     return (
-      <div className="grid gap-10">
+      <div className="site-stack gap-10">
         {heading}
         <div className="relative overflow-hidden [mask-image:linear-gradient(to_right,transparent,black_12%,black_88%,transparent)]">
           <div
@@ -1945,19 +1962,25 @@ function Logos({ section, context }: Props<"logos">) {
       </div>
     );
   return (
-    <div className="grid gap-10">
+    <div className="site-stack gap-8">
       {heading}
       <ul
         data-stagger
         className={cn(
-          variant === "grid"
-            ? "grid grid-cols-2 gap-8 @3xl/site:grid-cols-4"
-            : "flex flex-wrap items-center gap-x-16 gap-y-8",
-          section.style.align === "center" && "justify-center",
+          "w-full",
+          variant === "grid" ? "site-logo-grid" : "site-logos",
         )}
+        data-cols={
+          data.items.length <= 4
+            ? data.items.length
+            : columnsFor(data.items.length, 4)
+        }
       >
         {data.items.map((item) => (
-          <li key={item.id} className="grid place-items-center">
+          <li
+            key={item.id}
+            className="grid items-center justify-items-start in-[.text-center]:justify-items-center"
+          >
             <Logo item={item} context={context} />
           </li>
         ))}

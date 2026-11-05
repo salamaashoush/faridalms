@@ -1906,20 +1906,163 @@ const INTL_HEADS = section("people", "grid", (b) => ({
   ],
 }));
 
+const HERITAGE_HERO = section("hero", "fullbleed", (b) => ({
+  eyebrow: b.w(["Founded in 1921", "تأسست عام 1921"]),
+  heading: b.w([
+    "An education of the *mind* and of the *heart*",
+    "تعليم ينمي *العقل* ويهذب *القلب*",
+  ]),
+  text: b.w([
+    "An independent day school for girls and boys aged 3 to 18, where scholarship, service and friendship have gone hand in hand for more than a century.",
+    "مدرسة مستقلة للبنات والبنين من سن الثالثة حتى الثامنة عشرة، يسير فيها العلم والخدمة والصداقة جنبًا إلى جنب منذ أكثر من قرن.",
+  ]),
+  actions: [
+    link(b, ["Enquire", "استفسر"], `/pages/admissions#${ANCHOR.enquiry}`),
+    link(b, ["Book a visit", "احجز زيارة"], `/pages/visit#${ANCHOR.visit}`),
+  ],
+  height: "l" as const,
+}));
+
+/** On the canvas rather than the brand, so it does not run on from the hero's dark picture. */
+const HERITAGE_PURPOSE = section(
+  "text",
+  "statement",
+  (b) => ({
+    eyebrow: b.w(["Our purpose", "رسالتنا"]),
+    heading: b.w([
+      "We teach children to *think for themselves*, to *care for others* and to go out into the world with a sense of purpose.",
+      "نعلّم أبناءنا أن *يفكّروا بأنفسهم* وأن *يرعوا غيرهم*، وأن يخرجوا إلى العالم وفي نفوسهم غاية.",
+    ]),
+    body: plainContent(
+      b.w([
+        "Small classes, a broad and demanding curriculum and a house system that gives every pupil a place to belong, from their first morning to their last examination.",
+        "فصول صغيرة، ومنهج واسع ومتطلّب، ونظام بيوت يمنح كل طالب مكانًا ينتمي إليه، من صباحه الأول حتى امتحانه الأخير.",
+      ]),
+    ),
+  }),
+  { scheme: "canvas", align: "center" },
+);
+
+const HERITAGE_LETTER = section("welcome", "portraitStart", (b) => ({
+  heading: b.w(["A letter from the *Principal*", "رسالة من *مديرة* المدرسة"]),
+  body: plainContent(
+    b.w([
+      "Dear families,\nThank you for thinking of us for your child. A school is best judged not by its buildings or its results, though we are proud of both, but by the way its pupils treat one another when nobody is watching.\nHere every child is known. Their teachers notice when they fall quiet, stretch them when they coast and celebrate when they surprise themselves. That has been our work since the day the school opened.\nI would be delighted to show you round. Come on an ordinary morning and see it for yourself.\nWith warm wishes,",
+      "أعزّاءنا أولياء الأمور،\nشكرًا لأنكم فكّرتم فينا لأبنائكم. لا تُقاس المدرسة بمبانيها ولا بنتائجها، وإن كنّا نفخر بهما، بل بالطريقة التي يعامل بها طلابها بعضهم بعضًا حين لا يراهم أحد.\nهنا يُعرف كل طفل. يلاحظ معلّموه صمته، ويدفعونه إلى الأمام حين يتراخى، ويحتفون به حين يفاجئ نفسه. هذا عملنا منذ اليوم الأول لافتتاح المدرسة.\nيسعدني أن أرافقكم في جولة. تعالوا في صباح عادي وشاهدوا بأنفسكم.\nمع خالص التحيات،",
+    ]),
+  ),
+  portrait: noImage,
+  name: b.w(["Dr Amal Nasser", "د. أمل ناصر"]),
+  role: b.w(["Principal", "مديرة المدرسة"]),
+}));
+
+const HERITAGE_INSPECTION = section(
+  "quote",
+  "large",
+  (b) => ({
+    quote: b.w([
+      "Pupils are articulate, confident and courteous. Their personal development is excellent, and they leave the school ready to take their place in the world.",
+      "الطلاب فصحاء واثقون مهذّبون، ونموّهم الشخصي ممتاز، ويغادرون المدرسة مستعدّين لأخذ مكانهم في العالم.",
+    ]),
+    name: b.w(["Inspection report", "تقرير التفتيش"]),
+    role: b.w([
+      "Whole-school inspection, spring 2025",
+      "التفتيش الشامل للمدرسة، ربيع 2025",
+    ]),
+    portrait: noImage,
+    badge: "none" as const,
+  }),
+  { scheme: "brand", align: "center" },
+);
+
+const HERITAGE_ACCREDITATION = section(
+  "logos",
+  "row",
+  (b) => ({
+    heading: b.w(["Accredited by", "معتمدون من"]),
+    items: (
+      [
+        ["Council of International Schools", "مجلس المدارس الدولية"],
+        ["Cambridge International", "كامبريدج الدولية"],
+        ["British Schools Overseas", "المدارس البريطانية في الخارج"],
+      ] as const
+    ).map((name) => ({
+      id: b.id(),
+      image: noImage,
+      name: b.w(name),
+      href: "",
+    })),
+  }),
+  { scheme: "brand", align: "center" },
+);
+
+const HISTORY = section("timeline", "vertical", (b) => ({
+  heading: b.w(["A *century* of learning", "مئة عام من *التعليم*"]),
+  items: [
+    milestone(
+      b,
+      "1921",
+      ["Founded", "التأسيس"],
+      [
+        "The school opens in a family house by the river, with forty pupils, six teachers and a library of borrowed books.",
+        "تفتح المدرسة أبوابها في بيت عائلي قرب النهر، بأربعين طالبًا وستة معلّمين ومكتبة من كتب مستعارة.",
+      ],
+    ),
+    milestone(
+      b,
+      "1954",
+      ["A school for every age", "مدرسة لكل الأعمار"],
+      [
+        "The senior school opens, and our first leavers go on to universities at home and abroad.",
+        "تُفتتح المرحلة الثانوية، ويلتحق أوائل خرّيجينا بجامعات في الداخل والخارج.",
+      ],
+    ),
+    milestone(
+      b,
+      "1978",
+      ["Two languages, one school", "لغتان ومدرسة واحدة"],
+      [
+        "Arabic and English become equal languages of teaching, from the first year to the last.",
+        "تصبح العربية والإنجليزية لغتين متكافئتين للتدريس، من الصف الأول حتى الأخير.",
+      ],
+    ),
+    milestone(
+      b,
+      "2001",
+      ["Around the old courtyard", "حول الفناء القديم"],
+      [
+        "A new library, laboratories and a theatre open on three sides of the original courtyard.",
+        "تُفتتح مكتبة جديدة ومختبرات ومسرح على ثلاثة جوانب من الفناء الأصلي.",
+      ],
+    ),
+    milestone(
+      b,
+      "2021",
+      ["A hundred years", "مئة عام"],
+      [
+        "We mark our centenary with a bursary fund that today helps one pupil in ten to study here.",
+        "نحتفل بمئويتنا بصندوق للمنح الدراسية يساعد اليوم طالبًا من كل عشرة على الدراسة لدينا.",
+      ],
+    ),
+  ],
+}));
+
 const CANVAS = { scheme: "canvas" } as const;
 const SOFT = { scheme: "soft" } as const;
 const BRAND = { scheme: "brand" } as const;
 
 export const PAGE_TEMPLATES = {
   blank: [],
-  // Established: a full picture, the school in a sentence on its own
-  // colour, the stages joined in the theme's shape, the head's letter.
+  // Established: a full picture, the school's purpose in a sentence, the
+  // stages joined in the theme's shape, the head's letter, the inspectors'
+  // words with the school's accreditations beneath them.
   homeClassic: [
-    HERO_HOME,
-    STATEMENT,
-    on(DIVISIONS, CANVAS, "rail"),
-    on(WELCOME, SOFT),
-    on(QUOTE, CANVAS),
+    HERITAGE_HERO,
+    HERITAGE_PURPOSE,
+    on(DIVISIONS, SOFT, "rail"),
+    on(HERITAGE_LETTER, CANVAS),
+    HERITAGE_INSPECTION,
+    HERITAGE_ACCREDITATION,
     on(NEWS, SOFT, "list"),
     on(ADMISSIONS_TRIAD, BRAND),
   ],
@@ -1980,7 +2123,7 @@ export const PAGE_TEMPLATES = {
   ],
   about: [
     PAGE_HEADER(
-      ["About *us*", "*من* نحن"],
+      ["About *us*", "من *نحن*"],
       [
         "Our story, the values we teach by and the people who make the school what it is.",
         "قصتنا والقيم التي نعلّم بها والأشخاص الذين يصنعون مدرستنا.",
@@ -1988,8 +2131,8 @@ export const PAGE_TEMPLATES = {
     ),
     on(WELCOME, CANVAS),
     on(PILLARS, SOFT),
-    on(TIMELINE, CANVAS),
     on(STATS, BRAND),
+    on(HISTORY, CANVAS),
   ],
   admissions: [
     PAGE_HEADER(
