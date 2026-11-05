@@ -251,19 +251,14 @@ function Band({ face }: { face: PortalFace | null }) {
           ))}
         </ul>
       </div>
-      {face ? (
-        <div className="relative z-10 grid gap-4 text-sm">
-          <ContactLinks face={face} className="opacity-90" />
-          {website ? (
-            <a
-              href={website}
-              className="inline-flex items-center gap-1.5 font-medium underline-offset-4 hover:underline"
-            >
-              {m.portalWebsite()}
-              <ArrowUpRight aria-hidden className="size-4 rtl:-scale-x-100" />
-            </a>
-          ) : null}
-        </div>
+      {website ? (
+        <a
+          href={website}
+          className="relative z-10 inline-flex items-center gap-1.5 self-start text-sm font-medium underline-offset-4 hover:underline"
+        >
+          {m.portalWebsite()}
+          <ArrowUpRight aria-hidden className="size-4 rtl:-scale-x-100" />
+        </a>
       ) : null}
       <div
         className="pointer-events-none absolute -end-40 -bottom-56 size-[520px] rounded-full border-[80px] border-current/[0.05]"
