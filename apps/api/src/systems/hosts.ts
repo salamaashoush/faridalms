@@ -1,6 +1,6 @@
 import type { SchoolHost } from "@faridalms/database/directory/hosts";
 
-import { HostTakenError } from "@faridalms/database/directory/hosts";
+import { HostRefusedError } from "@faridalms/database/directory/hosts";
 import {
   addHostSchema,
   customHostProblem,
@@ -87,7 +87,7 @@ export const add = writeProcedure
         reason: REASON.add,
       });
     } catch (error) {
-      if (error instanceof HostTakenError)
+      if (error instanceof HostRefusedError)
         throw new ORPCError("CONFLICT", { message: error.code });
       throw error;
     }

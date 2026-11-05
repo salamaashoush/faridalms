@@ -22,7 +22,7 @@ import { refusalResponse } from "../core/refusal";
 import { canReadFile } from "./authorize";
 import { findFile, withFileGate } from "./gate";
 import { takeChecked } from "./ingest";
-import { hasVideo, uploadLimit } from "./limit";
+import { hasVideo, streamsMore, uploadLimit } from "./limit";
 import { linkSeconds, sealLink } from "./links";
 import { fileKeys } from "./sealed";
 import { StoreError } from "./store";
@@ -154,12 +154,22 @@ async function accept(
     const { status, code } = REJECTED[checked.reason];
     return problem(status, code, context.requestId);
   }
+  const stream =
+    context.mediaOrigin !== null &&
+    hasVideo(context.school.entitlements) &&
+    (!file.mediaType.startsWith("video/") ||
+      (await openUnit(context, "read", (unit) =>
+        streamsMore(unit.tx, {
+          tenantId: unit.tenantId,
+          schoolId: unit.schoolId,
+          entitlements: context.school.entitlements,
+        }),
+      )));
   const settled = await settle(context, file, {
     state: "ready",
     sha256: checked.sha256,
     scanEngine: context.scanner ? "clamd" : null,
-    stream:
-      context.mediaOrigin !== null && hasVideo(context.school.entitlements),
+    stream,
     keyVersion: checked.keyVersion,
   });
   if (!settled) return problem(409, "file.not_pending", context.requestId);

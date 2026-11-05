@@ -745,6 +745,8 @@ export function getMessageFromError(error: unknown): string {
         return m.siteErrHostTaken();
       case "hosts.exists":
         return m.siteErrHostExists();
+      case "hosts.limit_reached":
+        return m.siteErrHostLimit();
       case "hosts.platform":
         return m.siteErrHostPlatform();
       case "hosts.invalid":

@@ -1,5 +1,7 @@
+import type { CellTransaction } from "@faridalms/database/context";
 import type { SchoolEntitlements } from "@faridalms/domain/plans";
 
+import { streamedVideoMs } from "@faridalms/database/stores/files";
 import { isDocumentVideo, MAX_VIDEO_BYTES } from "@faridalms/domain/file";
 import { availableModules } from "@faridalms/domain/plans";
 
@@ -28,3 +30,23 @@ export function uploadLimit(
  */
 export const hasVideo = (entitlements: SchoolEntitlements) =>
   availableModules(entitlements).includes("video");
+
+/**
+ * Whether a school streams one more video: it has video, and its streamed
+ * videos have not reached the hours it is entitled to. Past them a video
+ * plays as uploaded.
+ */
+export async function streamsMore(
+  tx: CellTransaction,
+  school: {
+    tenantId: string;
+    schoolId: string;
+    entitlements: SchoolEntitlements;
+  },
+): Promise<boolean> {
+  if (!hasVideo(school.entitlements)) return false;
+  const hours = school.entitlements.videoHours;
+  if (hours === null) return true;
+  const kept = await streamedVideoMs(tx, school.tenantId, school.schoolId);
+  return kept < hours * 3_600_000;
+}

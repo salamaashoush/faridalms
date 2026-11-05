@@ -31,6 +31,7 @@ import {
   fileFamily,
   storedName,
   initiateUploadSchema,
+  isDocumentVideo,
   picturedSchema,
   safeFilename,
   SPEECH_LANGUAGES,
@@ -54,7 +55,7 @@ import {
 import { studentsReached } from "../core/reach";
 import { canReadFile, mayKeepArea, mayWorkOn } from "../files/authorize";
 import { withFileGate } from "../files/gate";
-import { uploadLimit } from "../files/limit";
+import { hasVideo, streamsMore, uploadLimit } from "../files/limit";
 
 /** Who may upload for each purpose; none, anyone signed in, its use checked where it is put. */
 const FULL: Record<StorageScope, string> = {
@@ -119,6 +120,15 @@ export const initiate = writeProcedure
     if (input.trim && context.mediaOrigin === null)
       throw new ORPCError("BAD_REQUEST", { message: "file.trim_unavailable" });
     const warning = await roomFor(context, input);
+    const videoHoursReached =
+      context.mediaOrigin !== null &&
+      isDocumentVideo(input.purpose, mediaType) &&
+      hasVideo(context.school.entitlements) &&
+      !(await streamsMore(context.tx, {
+        tenantId: context.tenantId,
+        schoolId: context.schoolId,
+        entitlements: context.school.entitlements,
+      }));
     const name = safeFilename(input.name);
     const file = await withFileGate(context.tx, input.purpose, (tx) =>
       initiateFile(tx, {
@@ -141,6 +151,8 @@ export const initiate = writeProcedure
       // A file larger than this goes up in parts of this size.
       partBytes: context.uploadPartBytes ?? UPLOAD_PART_BYTES,
       warning,
+      // The school's streamed videos fill its hours, so this one plays as uploaded.
+      videoHoursReached,
     };
   });
 

@@ -905,6 +905,22 @@ export function schoolStorage(tx: Tx, tenantId: string, orgId: string) {
   );
 }
 
+/**
+ * How long the school's streamed videos run together: those streamed or
+ * waiting to be, counted once their length is known.
+ */
+export async function streamedVideoMs(
+  tx: Tx,
+  tenantId: string,
+  orgId: string,
+): Promise<number> {
+  const [row] = await tx.execute<{ ms: string | number | null }>(sql`
+    select sum(duration_ms) as ms from core.files
+    where tenant_id = ${tenantId}::uuid and org_id = ${orgId}::uuid and status = 'active'
+      and stream_state in ('queued', 'encoding', 'ready')`);
+  return Number(row?.ms ?? 0);
+}
+
 /** A class's or module's area, with the previous versions it keeps. */
 export function areaStorage(
   tx: Tx,

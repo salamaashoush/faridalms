@@ -9,6 +9,7 @@ import {
   login,
   rejection,
   seeded,
+  setPlan,
   signedIn,
   testDirectory,
 } from "./harness";
@@ -298,6 +299,24 @@ describe("a school's own address", () => {
         northwind.hosts.check({ hostname: "portal.acme-school.example.org" }),
       ),
     ).toMatchObject({ code: "NOT_FOUND" });
+  });
+
+  test("is refused past the number of hosts the school is entitled to", async () => {
+    const acmeApi = await signedIn("acme", login("principal", 1));
+    const held = (await acmeApi.hosts.list()).hosts.length;
+    await setPlan(acme().id, { customDomains: held });
+    try {
+      expect(
+        await rejection(
+          acmeApi.hosts.add({
+            hostname: "learn.acme-school.example.org",
+            role: "site",
+          }),
+        ),
+      ).toMatchObject({ code: "CONFLICT", message: "hosts.limit_reached" });
+    } finally {
+      await setPlan(acme().id, null);
+    }
   });
 
   test("needs the website's managers", async () => {

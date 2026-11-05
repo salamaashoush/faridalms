@@ -312,6 +312,7 @@ export async function setPlan(
     personBytes?: number;
     modules?: string[];
     customDomains?: number | null;
+    videoHours?: number | null;
   } | null,
 ) {
   const admin = new SQL(urlFor(directoryName));
@@ -319,6 +320,7 @@ export async function setPlan(
     ...DEFAULT_LIMITS,
     modules: [...MODULE_IDS],
     customDomains: null,
+    videoHours: null,
     ...plan,
   };
   try {
@@ -327,7 +329,8 @@ export async function setPlan(
         class_bytes = ${next.classBytes}, module_bytes = ${next.moduleBytes},
         person_bytes = ${next.personBytes},
         modules = ${`{${next.modules.join(",")}}`}::text[],
-        custom_domains = ${next.customDomains}, revision = revision + 1
+        custom_domains = ${next.customDomains}, video_hours = ${next.videoHours},
+        revision = revision + 1
       where school_id = ${schoolId}::uuid`;
   } finally {
     await admin.close();

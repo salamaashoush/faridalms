@@ -258,6 +258,35 @@ describe("video streams", () => {
     }
   });
 
+  test("a video past the school's video hours plays as uploaded, and the uploader is told", async () => {
+    const school = seeded().tenants[0]?.schools.find(
+      (row) => row.slug === "northwind",
+    );
+    if (!school) throw new Error("no northwind school");
+    const teacher = await sessionFor("northwind", login("teacher"));
+    const declared = await teacher.api.files.initiate({
+      purpose: "document_media",
+      name: "within.mp4",
+      mediaType: "video/mp4",
+      sizeBytes: mp4().size,
+    });
+    expect(declared.videoHoursReached).toBe(false);
+    await setPlan(school.id, { videoHours: 0 });
+    try {
+      const over = await teacher.api.files.initiate({
+        purpose: "document_media",
+        name: "past.mp4",
+        mediaType: "video/mp4",
+        sizeBytes: mp4().size,
+      });
+      expect(over.videoHoursReached).toBe(true);
+      const fileId = await uploadVideo(teacher, "past-the-hours.mp4");
+      expect(await claimVideo(fileId)).toBeNull();
+    } finally {
+      await setPlan(school.id, null);
+    }
+  });
+
   test("a video a worker hands back loses none of its tries", async () => {
     const teacher = await sessionFor("northwind", login("teacher"));
     const fileId = await uploadVideo(teacher, "handed-back.mp4");

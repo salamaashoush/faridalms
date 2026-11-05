@@ -106,6 +106,7 @@ export async function uploadDocumentFile(
   );
   options.onProgress?.(1);
   warnNearlyFull(initiated.warning);
+  if (initiated.videoHoursReached) toast.info(m.fileVideoHoursReached());
   return {
     fileId: initiated.id,
     name: initiated.name,

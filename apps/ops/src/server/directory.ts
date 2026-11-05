@@ -4,7 +4,7 @@ import {
   openDirectoryAdmin,
   SlugTakenError,
 } from "@faridalms/database/directory/admin";
-import { HostTakenError } from "@faridalms/database/directory/hosts";
+import { HostRefusedError } from "@faridalms/database/directory/hosts";
 import { saveSeriesSchema } from "@faridalms/domain/exams";
 import {
   addHostSchema,
@@ -320,13 +320,15 @@ export const addHost = createServerFn({ method: "POST" })
           reason: data.reason,
         });
       } catch (error) {
-        if (error instanceof HostTakenError)
+        if (error instanceof HostRefusedError)
           return {
             ok: false,
-            message:
-              error.code === "hosts.exists"
-                ? "The school already has this host."
-                : "Another school holds this host.",
+            message: {
+              "hosts.exists": "The school already has this host.",
+              "hosts.taken": "Another school holds this host.",
+              "hosts.limit_reached":
+                "The school already has as many hosts as its entitlements allow.",
+            }[error.code],
           };
         throw error;
       }

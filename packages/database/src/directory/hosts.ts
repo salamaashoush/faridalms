@@ -1,9 +1,21 @@
 import type { HostRole, HostState, HostStatus } from "@faridalms/domain/hosts";
 import type { BunSQLDatabase } from "drizzle-orm/bun-sql/postgres";
 
-import { and, asc, eq, inArray, isNull, lt, ne, or, sql } from "drizzle-orm";
+import { BASIC_ENTITLEMENTS } from "@faridalms/domain/plans";
+import {
+  and,
+  asc,
+  count,
+  eq,
+  inArray,
+  isNull,
+  lt,
+  ne,
+  or,
+  sql,
+} from "drizzle-orm";
 
-import { changes, hosts } from "./schema";
+import { changes, hosts, schoolEntitlements } from "./schema";
 
 /** Who changed a host, as `directory.changes` names them. */
 export type HostActor = `operator:${string}` | `cell:${string}`;
@@ -35,10 +47,12 @@ export interface ClaimedHost {
  * The name is already bound: `hosts.exists` to this school, `hosts.taken`
  * to another one, which only an operator may release.
  */
-export class HostTakenError extends Error {
-  constructor(readonly code: "hosts.exists" | "hosts.taken") {
+export class HostRefusedError extends Error {
+  constructor(
+    readonly code: "hosts.exists" | "hosts.taken" | "hosts.limit_reached",
+  ) {
     super(code);
-    this.name = "HostTakenError";
+    this.name = "HostRefusedError";
   }
 }
 
@@ -122,9 +136,26 @@ export async function addHost(
       .where(eq(hosts.hostname, input.hostname))
       .for("update");
     if (held && held.schoolId !== input.schoolId)
-      throw new HostTakenError("hosts.taken");
+      throw new HostRefusedError("hosts.taken");
     if (held && held.state !== "removed")
-      throw new HostTakenError("hosts.exists");
+      throw new HostRefusedError("hosts.exists");
+    const [entitled] = await tx
+      .select({ customDomains: schoolEntitlements.customDomains })
+      .from(schoolEntitlements)
+      .where(eq(schoolEntitlements.schoolId, input.schoolId));
+    const allowed = entitled
+      ? entitled.customDomains
+      : BASIC_ENTITLEMENTS.customDomains;
+    if (allowed !== null) {
+      const [kept] = await tx
+        .select({ n: count() })
+        .from(hosts)
+        .where(
+          and(eq(hosts.schoolId, input.schoolId), ne(hosts.state, "removed")),
+        );
+      if ((kept?.n ?? 0) >= allowed)
+        throw new HostRefusedError("hosts.limit_reached");
+    }
     if (held)
       await tx
         .update(hosts)
