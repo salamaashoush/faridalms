@@ -28,6 +28,7 @@ import {
 } from "@faridalms/domain/attendance";
 import { SCHOOL_DAY_MEANINGS } from "@faridalms/domain/calendar";
 import { plainContent } from "@faridalms/domain/content-conversion";
+import { paged, pageWindow } from "@faridalms/domain/paging";
 import { addDays } from "@faridalms/domain/school";
 import { isoWeekday } from "@faridalms/domain/timetable";
 
@@ -124,6 +125,7 @@ export const day = readProcedure
         schoolId: context.schoolId,
         from: year.startsOn,
         before: due,
+        ...pageWindow(input.overduePage),
       }),
       attendanceReport(context.tx, {
         tenantId: context.tenantId,
@@ -135,11 +137,13 @@ export const day = readProcedure
         q: "",
       }),
     ]);
-    const support = rates
+    const chronic = rates
       .map((row) => ({ row, summary: summarise(row.counts) }))
       .filter(({ summary }) => isChronic(summary, rules.chronicPercent))
-      .toSorted((a, b) => (a.summary.rate ?? 0) - (b.summary.rate ?? 0))
-      .slice(0, 200)
+      .toSorted((a, b) => (a.summary.rate ?? 0) - (b.summary.rate ?? 0));
+    const window = pageWindow(input.supportPage);
+    const support = chronic
+      .slice(window.offset, window.offset + window.limit)
       .map(({ row, summary }) => ({
         studentId: row.id,
         fullNameEn: row.nameEn,
@@ -182,8 +186,8 @@ export const day = readProcedure
               at: contact.at,
             })),
         })),
-        overdue,
-        support,
+        overdue: paged(overdue.rows, overdue.total, input.overduePage),
+        support: paged(support, chronic.length, input.supportPage),
       },
     };
   });

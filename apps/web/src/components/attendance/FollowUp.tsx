@@ -40,8 +40,8 @@ type FollowUpData = NonNullable<
   >["followUp"]
 >;
 type Call = FollowUpData["calls"][number];
-type Overdue = FollowUpData["overdue"][number] & { id: string };
-type Support = FollowUpData["support"][number] & { id: string };
+type Overdue = FollowUpData["overdue"]["rows"][number] & { id: string };
+type Support = FollowUpData["support"]["rows"][number] & { id: string };
 
 const OUTCOME_LABEL: Record<ContactOutcome, () => string> = {
   reached: m.fupReached,
@@ -254,7 +254,18 @@ export function FollowUp({
   date: string;
   onDate: (date: string) => void;
 }) {
-  const data = useSuspenseQuery(followUpQuery(date)).data.followUp;
+  const [overduePage, setOverduePage] = useState(1);
+  const [supportPage, setSupportPage] = useState(1);
+  // Another day's lists start again at their first pages.
+  const [shownDate, setShownDate] = useState(date);
+  if (date !== shownDate) {
+    setShownDate(date);
+    setOverduePage(1);
+    setSupportPage(1);
+  }
+  const data = useSuspenseQuery(
+    followUpQuery({ date, overduePage, supportPage }),
+  ).data.followUp;
   const navigate = useNavigate();
   const [logging, setLogging] = useState<Call | null>(null);
   if (!data) return <EmptyState icon={CalendarX2} title={m.attNoYear()} />;
@@ -319,7 +330,10 @@ export function FollowUp({
         </div>
         <DataTable
           caption={m.fupOverdue()}
-          rows={data.overdue.map((row) => ({ ...row, id: row.studentId }))}
+          rows={data.overdue.rows.map((row) => ({
+            ...row,
+            id: row.studentId,
+          }))}
           columns={overdueColumns()}
           rowLabel={nameOf}
           rowActions={giveReason}
@@ -331,6 +345,17 @@ export function FollowUp({
                 date: formatDate(row.oldest),
               }),
           }}
+          pagination={
+            data.overdue.pages > 1
+              ? {
+                  page: data.overdue.page,
+                  pages: data.overdue.pages,
+                  total: data.overdue.total,
+                  pageSize: data.overdue.pageSize,
+                  onPage: setOverduePage,
+                }
+              : undefined
+          }
           empty={{ icon: CircleCheck, title: m.fupNoOverdue() }}
         />
       </section>
@@ -345,7 +370,10 @@ export function FollowUp({
         </div>
         <DataTable
           caption={m.fupSupport()}
-          rows={data.support.map((row) => ({ ...row, id: row.studentId }))}
+          rows={data.support.rows.map((row) => ({
+            ...row,
+            id: row.studentId,
+          }))}
           columns={supportColumns()}
           rowLabel={nameOf}
           card={{
@@ -357,6 +385,17 @@ export function FollowUp({
                 sessions: formatNumber(row.sessions),
               })}`,
           }}
+          pagination={
+            data.support.pages > 1
+              ? {
+                  page: data.support.page,
+                  pages: data.support.pages,
+                  total: data.support.total,
+                  pageSize: data.support.pageSize,
+                  onPage: setSupportPage,
+                }
+              : undefined
+          }
           empty={{ icon: ShieldAlert, title: m.fupNoSupport() }}
         />
       </section>

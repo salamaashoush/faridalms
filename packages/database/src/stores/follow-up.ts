@@ -202,17 +202,25 @@ export interface OverdueRow {
  */
 export async function overdueReasons(
   tx: Tx,
-  input: { tenantId: string; schoolId: string; from: string; before: string },
-): Promise<OverdueRow[]> {
+  input: {
+    tenantId: string;
+    schoolId: string;
+    from: string;
+    before: string;
+    limit: number;
+    offset: number;
+  },
+): Promise<{ rows: OverdueRow[]; total: number }> {
   const rows = await tx.execute<{
     student_user_id: string;
     full_name_en: string | null;
     full_name_ar: string | null;
     marks: number;
     oldest: string;
+    total: number;
   }>(sql`
     select e.student_user_id, u.full_name_en, u.full_name_ar, count(*)::int as marks,
-           to_char(min(e.taken_on), 'YYYY-MM-DD') as oldest
+           to_char(min(e.taken_on), 'YYYY-MM-DD') as oldest, (count(*) over ())::int as total
     from core.attendance_events e
     join core.attendance_registers g on g.tenant_id = e.tenant_id and g.id = e.register_id
     join core.users u on u.tenant_id = e.tenant_id and u.id = e.student_user_id
@@ -221,13 +229,16 @@ export async function overdueReasons(
       and e.status = 'active' and e.category_meaning = 'absent'
       and e.reason_descriptor_id is null and ${unreported(sql`e.taken_on`)}
     group by e.student_user_id, u.full_name_en, u.full_name_ar
-    order by min(e.taken_on), u.full_name_en
-    limit 200`);
-  return rows.map((row) => ({
-    studentId: row.student_user_id,
-    fullNameEn: row.full_name_en,
-    fullNameAr: row.full_name_ar,
-    marks: row.marks,
-    oldest: row.oldest,
-  }));
+    order by min(e.taken_on), u.full_name_en, e.student_user_id
+    limit ${input.limit} offset ${input.offset}`);
+  return {
+    rows: rows.map((row) => ({
+      studentId: row.student_user_id,
+      fullNameEn: row.full_name_en,
+      fullNameAr: row.full_name_ar,
+      marks: row.marks,
+      oldest: row.oldest,
+    })),
+    total: rows[0]?.total ?? 0,
+  };
 }

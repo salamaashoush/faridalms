@@ -1,4 +1,8 @@
-import type { AbsencesQuery, ReportQuery } from "@faridalms/domain/attendance";
+import type {
+  AbsencesQuery,
+  FollowUpQuery,
+  ReportQuery,
+} from "@faridalms/domain/attendance";
 
 import { queryOptions } from "@tanstack/react-query";
 
@@ -79,10 +83,11 @@ export const absenceReportInboxQuery = (open = true) =>
     queryFn: () => getAbsenceReportInbox({ data: { open } }),
   });
 
-export const followUpQuery = (date = "") =>
+export const followUpQuery = (query: FollowUpQuery = {}) =>
   queryOptions({
-    queryKey: ["attendance", "follow-up", date],
-    queryFn: () => getFollowUp({ data: { date } }),
+    queryKey: ["attendance", "follow-up", query],
+    queryFn: () => getFollowUp({ data: query }),
+    placeholderData: (previous) => previous,
   });
 
 export const frontDeskQuery = (date = "") =>

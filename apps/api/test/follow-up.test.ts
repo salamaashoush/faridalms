@@ -57,6 +57,9 @@ describe("following up absences", () => {
     });
 
     const before = await office.followUp.day({ date });
+    // Overdue reasons and children needing support come a page at a time.
+    for (const list of [before.followUp?.overdue, before.followUp?.support])
+      expect(list).toMatchObject({ page: 1, pageSize: 25 });
     const call = before.followUp?.calls.find((row) => row.studentId === me.id);
     expect(call).toBeDefined();
     expect(call?.guardians.length).toBeGreaterThan(0);

@@ -234,7 +234,10 @@ export type DecideReport = v.InferOutput<typeof decideReportSchema>;
 
 export const followUpQuerySchema = v.object({
   date: v.optional(v.union([v.literal(""), isoDate]), ""),
+  overduePage: pageField,
+  supportPage: pageField,
 });
+export type FollowUpQuery = v.InferInput<typeof followUpQuerySchema>;
 
 export const logContactSchema = v.object({
   studentId: id,

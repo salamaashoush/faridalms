@@ -69,7 +69,9 @@ export const Route = createFileRoute("/_app/admin/attendance")({
     else if (deps.tab === "desk")
       await queryClient.ensureQueryData(frontDeskQuery(deps.date));
     else if (deps.tab === "follow")
-      await queryClient.ensureQueryData(followUpQuery(deps.date));
+      await queryClient.ensureQueryData(
+        followUpQuery({ date: deps.date, overduePage: 1, supportPage: 1 }),
+      );
     else if (deps.tab === "reported")
       await queryClient.ensureQueryData(
         absenceReportInboxQuery(deps.inbox === "waiting"),
