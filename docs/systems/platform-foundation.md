@@ -1274,8 +1274,18 @@ Three kinds, never mixed:
 - Every index on a tenant table leads with `tenant_id`.
 - Indexes serving live lists are partial `where status = 'active'`; indexes
   serving delta reads (section 4.9) are not.
-- List pagination is keyset on `(sort key ..., id)` with a matching index; the
-  OneRoster provider alone uses limit and offset, as its binding requires [BA].
+- Lists come in two shapes, both from `packages/domain/src/paging.ts`.
+  A list a person pages through by number (a directory, a log, the
+  enquiries) takes `page` and answers with `Page`: its rows, the total,
+  the page, the page count and the page size, so a screen never repeats
+  the server's size. Its offset is bounded by `page <= 10000`. A feed
+  read newest first (conversations, drafts, recipients, a thread's
+  earlier entries) takes the keyset of the row the previous request
+  ended on and answers with `Feed`, its rows and `next`, read one row
+  past the limit so `next` is null exactly when nothing follows. Keysets
+  are `(sort key ..., id)` with a matching index. The OneRoster provider
+  uses limit and offset, as its binding requires [BA].
+- No list is cut at a fixed count without a way to the rest.
 - Full-text, trigram, `LIKE`, jsonb containment and range operators are not
   leakproof, so on an RLS table the planner will not use their indexes before
   the policy ([R2] finding 1: 15.9 ms seq scan against 0.025 ms). Such searches

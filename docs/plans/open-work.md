@@ -9,8 +9,15 @@ larger than a few days of work gets its own plan beside this file.
 From `foundations.md`. W1 to W5 are merged.
 
 - **W6, conventions and records** (findings 13 to 18 and the P2 items):
-  - one pagination shape. Paging was added in several places at once, so
-    it needs aligning;
+  - lists still cut at a fixed count with no way to the rest. Every
+    other list now pages through `paging.ts`. Left: the follow-up
+    dashboard's overdue reasons and support lists (200 each), the shared
+    blocks picker (100) and a block's uses (200), a broadcast's delivery
+    report (2000), a student's marks other than present (200), a
+    register's change history (300), the comment bank (500), whom a kept
+    question was asked of (500), a file area (1000) and a calendar range
+    (1000). Some are previews or pickers narrowed by search, so each needs
+    judging before it is paged;
   - history tabs fed by the audit log, with one history screen;
   - erasure for the tables `erasure-rules.ts` marks `to_erase`, and the
     owner's and the lawyer's review of every proposed rule (the list is in
