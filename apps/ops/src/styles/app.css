@@ -1,2 +1,3 @@
 @import "tailwindcss";
 @import "@faridalms/ui/theme.css";
+@source "../../../../packages/documents/src";

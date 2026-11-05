@@ -1,0 +1,15 @@
+{
+  "name": "@faridalms/documents",
+  "private": true,
+  "license": "FSL-1.1-ALv2",
+  "type": "module",
+  "exports": {
+    "./*": "./src/*.tsx"
+  },
+  "dependencies": {
+    "@faridalms/domain": "workspace:*"
+  },
+  "peerDependencies": {
+    "react": "^19.3.1"
+  }
+}

@@ -6,6 +6,7 @@
 @import "@fontsource-variable/noto-naskh-arabic";
 
 @plugin "@tailwindcss/typography";
+@source "../../../../packages/documents/src";
 @source "../../../../packages/editor/src";
 @source "../../../../packages/puzzles/src";
 @source "../../../../packages/makecode/src";

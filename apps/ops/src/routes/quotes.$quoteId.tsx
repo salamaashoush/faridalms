@@ -1,3 +1,4 @@
+import { QuoteDocument } from "@faridalms/documents/QuoteDocument";
 import { quoteReference } from "@faridalms/domain/quotes";
 import { Badge } from "@faridalms/ui/badge";
 import { Button, buttonVariants } from "@faridalms/ui/button";
@@ -14,7 +15,6 @@ import { toast } from "sonner";
 import * as v from "valibot";
 
 import { failure } from "../actions";
-import { QuoteDocument } from "../components/QuoteDocument";
 import { QuoteForm } from "../components/QuoteForm";
 import { formatWhen, QUOTE_STATE_NAMES } from "../format";
 import { accept, changeQuote, getQuote, sendQuote } from "../server/quotes";

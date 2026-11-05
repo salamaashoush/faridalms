@@ -10,6 +10,7 @@
   },
   "dependencies": {
     "@faridalms/database": "workspace:*",
+    "@faridalms/documents": "workspace:*",
     "@faridalms/domain": "workspace:*",
     "@faridalms/ui": "workspace:*",
     "@tanstack/react-form": "^1.33.5",
