@@ -53,6 +53,20 @@ type Entry = Thread["messages"][number];
 
 const fileUrl = (fileId: string) => `/files/${fileId}`;
 
+const documentOf = (entry: Entry) =>
+  entry.content ?? (entry.body ? plainContent(entry.body) : null);
+
+/**
+ * Whether an entry is paragraphs of words alone, whose bubble can take the
+ * width of its text. A list, a table, a file or a picture measures itself
+ * against its container and has no width of its own, so its bubble takes
+ * the room it is given rather than collapsing to nothing.
+ */
+const wordsOnly = (entry: Entry) =>
+  (documentOf(entry)?.root.children ?? []).every(
+    (node) => node.type === "paragraph",
+  );
+
 /** What an entry says: its document, or for one written before documents, its text. */
 function Words({ entry, fit = false }: { entry: Entry; fit?: boolean }) {
   if (entry.redacted)
@@ -61,18 +75,12 @@ function Words({ entry, fit = false }: { entry: Entry; fit?: boolean }) {
         {m.msgRemoved()}
       </p>
     );
-  const document =
-    entry.content ?? (entry.body ? plainContent(entry.body) : null);
+  const document = documentOf(entry);
   if (!document) return null;
   const view = <ContentView document={document} fileUrl={fileUrl} />;
-  // A document measures itself against its container, so it has no width
-  // of its own; a bubble of words takes the width of its text, measured by
-  // the text laid out unseen beside it. One holding a file or a picture
-  // takes the room it is given.
-  const words = (document.root.children ?? []).every(
-    (node) => node.type === "paragraph",
-  );
-  if (!fit || !words)
+  // A bubble of words takes the width of its text, measured by the text
+  // laid out unseen beside it.
+  if (!fit || !wordsOnly(entry))
     return (
       <div dir="auto" className="text-sm leading-5 break-words">
         {view}
@@ -122,12 +130,21 @@ function Bubble({
         <div
           className={cn(
             "max-w-full rounded-2xl px-3.5 py-2",
+            !entry.redacted && !wordsOnly(entry) && "w-full",
             own
-              ? "rounded-ee-md bg-primary text-primary-foreground [--fe-accent:var(--primary-foreground)] [--foreground:var(--primary-foreground)]"
+              ? "rounded-ee-md bg-primary text-primary-foreground"
               : "rounded-es-md bg-muted",
           )}
         >
-          <Words entry={entry} fit />
+          {own ? (
+            // The document reads the app's tokens, so on the bubble's colour
+            // its text, accent and muted words take the bubble's ink.
+            <div className="[--foreground:var(--primary-foreground)] [--muted-foreground:color-mix(in_oklab,var(--primary-foreground)_72%,transparent)] [--primary:var(--primary-foreground)]">
+              <Words entry={entry} fit />
+            </div>
+          ) : (
+            <Words entry={entry} fit />
+          )}
         </div>
         <span className="flex items-center gap-1 px-1 text-[12px] leading-4 text-muted-foreground">
           {entry.authorContactId ? (
