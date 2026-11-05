@@ -189,6 +189,10 @@ const server = Bun.serve({
     },
     mail: gateways.email,
     productInbox: env.PRODUCT_INBOX ?? null,
+    intake:
+      env.INTAKE_URL && env.INTAKE_SECRET
+        ? { url: env.INTAKE_URL, secret: env.INTAKE_SECRET }
+        : null,
     turnstile: turnstileFrom(env),
     inbound,
   }),

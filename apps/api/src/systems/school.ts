@@ -4,16 +4,20 @@ import {
   linkFiles,
   schoolStorage,
 } from "@faridalms/database/stores/files";
-import { schoolFeatures } from "@faridalms/database/stores/identity";
+import { schoolFeatures, viewer } from "@faridalms/database/stores/identity";
+import { contactsOf } from "@faridalms/database/stores/persons";
 import {
   schoolSettings,
   setOrgFeature,
   updateSchool,
 } from "@faridalms/database/stores/school";
+import { MODULE_IDS } from "@faridalms/domain/modules";
 import { saveSchoolSchema, setFeatureSchema } from "@faridalms/domain/people";
 import { availableModules, limitsOf } from "@faridalms/domain/plans";
 import { ORPCError } from "@orpc/server";
+import * as v from "valibot";
 
+import { sendLead, stableIntakeId } from "../core/intake";
 import { forgetFace } from "../core/portal-face";
 import {
   audit,
@@ -103,7 +107,10 @@ export const saveProfile = writeProcedure
     return saved;
   });
 
-/** The school's switches, and which modules its plan lets it switch on. */
+/**
+ * The school's switches, which modules its plan lets it switch on, and
+ * whether its administrators can ask about one it does not have.
+ */
 export const features = readProcedure.handler(async ({ context }) => ({
   switches: await schoolFeatures(
     context.tx,
@@ -111,7 +118,60 @@ export const features = readProcedure.handler(async ({ context }) => ({
     context.schoolId,
   ),
   available: availableModules(context.school.entitlements),
+  canAsk: Boolean(context.intake),
 }));
+
+/**
+ * An administrator asks about a module the school's plan does not have:
+ * the operator console gets a lead naming the school, the module and them.
+ * Asked again the same day, it is the same lead.
+ */
+export const askAboutModule = readProcedure
+  .input(v.object({ module: v.picklist(MODULE_IDS) }))
+  .handler(async ({ input, context }) => {
+    requireCapability(context, "school:manage");
+    if (!context.intake)
+      throw new ORPCError("FORBIDDEN", { message: "intake.unavailable" });
+    if (availableModules(context.school.entitlements).includes(input.module))
+      throw new ORPCError("CONFLICT", { message: "module.in_plan" });
+    const [person, contacts] = await Promise.all([
+      viewer(context.tx, context.actor.userId),
+      contactsOf(context.tx, context.tenantId, context.actor.userId),
+    ]);
+    const email = contacts.find((contact) => contact.kind === "email");
+    const phone = contacts.find((contact) => contact.kind === "phone");
+    const sent = await sendLead(context.intake, {
+      intakeId: stableIntakeId([
+        "module_interest",
+        context.schoolId,
+        input.module,
+        context.today,
+      ]),
+      source: "module_interest",
+      name:
+        person?.fullNameEn ??
+        person?.fullNameAr ??
+        person?.username ??
+        "Unnamed",
+      email: email?.normalized ?? email?.value ?? null,
+      phone: phone?.value ?? null,
+      organisation:
+        context.school.nameEn ?? context.school.nameAr ?? context.school.slug,
+      role: "leader",
+      size: null,
+      country: null,
+      locale: person?.preferredLocale === "ar" ? "ar" : "en",
+      message: null,
+      schoolId: context.schoolId,
+      tenantId: context.tenantId,
+      module: input.module,
+    });
+    if (!sent)
+      throw new ORPCError("SERVICE_UNAVAILABLE", {
+        message: "intake.not_sent",
+      });
+    return { asked: input.module };
+  });
 
 export const setFeature = writeProcedure
   .input(setFeatureSchema)
@@ -155,6 +215,7 @@ export const setFeature = writeProcedure
         context.schoolId,
       ),
       available: availableModules(context.school.entitlements),
+      canAsk: Boolean(context.intake),
     };
   });
 

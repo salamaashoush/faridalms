@@ -1,6 +1,7 @@
 import { demoRequestSchema } from "@faridalms/domain/product";
 import { ORPCError } from "@orpc/server";
 
+import { sendLead } from "../core/intake";
 import { publicProcedure } from "../core/procedure";
 import { ipPrefix } from "../core/session";
 import { bareHumanCheck } from "../core/turnstile";
@@ -39,7 +40,8 @@ const SIZE = {
 
 /**
  * A demonstration request from the product site, emailed to the product's
- * inbox, behind the same guard as a school's enquiry form. Without
+ * inbox and, where the console takes them, sent to it as a lead, behind the
+ * same guard as a school's enquiry form. Without
  * Turnstile, a form filled by a script, or faster than a person can type,
  * is answered as if received and dropped, so the script learns nothing.
  */
@@ -81,5 +83,28 @@ export const requestDemo = publicProcedure
       ].join("\n"),
       reference: `demo/${crypto.randomUUID()}`,
     });
+    if (
+      context.intake &&
+      !(await sendLead(context.intake, {
+        intakeId: crypto.randomUUID(),
+        source: "demo_form",
+        name: input.name,
+        email: input.email,
+        phone: input.phone || null,
+        organisation: input.school,
+        role: input.role,
+        size: input.size ?? null,
+        country: null,
+        locale: input.locale,
+        message: input.message || null,
+        schoolId: null,
+        tenantId: null,
+        module: null,
+      }))
+    )
+      // The email has gone, so the request is not lost; the console misses it.
+      console.error(
+        JSON.stringify({ requestId: context.requestId, intake: "not_sent" }),
+      );
     return { received: true };
   });

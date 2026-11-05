@@ -148,6 +148,11 @@ export const env = v.parse(
         v.pipe(v.string(), v.minLength(1)),
         "127.0.0.1",
       ),
+      // Set together, demonstration requests and a school's questions
+      // about a module also reach the operator console as leads, signed
+      // with the secret the console shares.
+      INTAKE_URL: v.optional(v.pipe(v.string(), v.url())),
+      INTAKE_SECRET: v.optional(bytes(32)),
     }),
     v.check(
       (value) =>
@@ -177,6 +182,12 @@ export const env = v.parse(
         (value.CELL_PROVISION_URL === undefined) ===
         (value.PROVISION_SECRET === undefined),
       "CELL_PROVISION_URL and PROVISION_SECRET are set together or not at all",
+    ),
+    v.check(
+      (value) =>
+        (value.INTAKE_URL === undefined) ===
+        (value.INTAKE_SECRET === undefined),
+      "INTAKE_URL and INTAKE_SECRET are set together or not at all",
     ),
     v.check(
       (value) =>

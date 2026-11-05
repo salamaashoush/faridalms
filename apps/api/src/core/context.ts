@@ -14,6 +14,7 @@ import type { FileStore } from "../files/store";
 import type { HostChecks } from "../hosts/checks";
 import type { InboundMail } from "../messages/inbound";
 import type { Provider } from "../notifications/providers";
+import type { Intake } from "./intake";
 import type { KeyRing } from "./keys";
 import type { LoginIndex } from "./login-index";
 import type { Turnstile } from "./turnstile";
@@ -72,6 +73,11 @@ export interface ApiDependencies {
    * product site takes none.
    */
   productInbox?: string | null;
+  /**
+   * The operator console's lead intake: demonstration requests and a
+   * school's questions about a module go there too; null where it is not.
+   */
+  intake?: Intake | null;
   /**
    * Cloudflare Turnstile for the websites' public forms; null leaves them to
    * the hidden field, the fill time and the per-network and per-school limits.
