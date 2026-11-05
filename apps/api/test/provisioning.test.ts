@@ -334,6 +334,23 @@ describe("creating a school from the operator console", () => {
         ],
       },
     });
+    // Each school keeps its own weekend, which the console waits for.
+    const calendar = await call("/v1/tenants/calendar", {
+      tenantId: body.tenantId,
+    });
+    expect(calendar.body.schools).toHaveLength(2);
+    expect(calendar).toMatchObject({
+      status: 200,
+      body: {
+        schools: expect.arrayContaining([
+          { timeZone: "Africa/Cairo", weekendDays: [5, 6] },
+          { timeZone: "Asia/Dubai", weekendDays: [6, 7] },
+        ]),
+      },
+    });
+    expect(
+      await call("/v1/tenants/calendar", { tenantId: crypto.randomUUID() }),
+    ).toMatchObject({ status: 404, body: { message: "tenant.not_in_cell" } });
     const { api } = await choosePassword(
       "harbour-east",
       linkTo(east, "harbour-east").secret,

@@ -12,7 +12,10 @@ import type {
   ReissueInvite,
   ReissueResult,
   SetLifecycle,
+  TenantCalendar,
+  TenantCalendarRequest,
 } from "@faridalms/domain/provisioning";
+import type { Provider } from "@faridalms/mail/providers";
 
 import { changeOf, writeAudit } from "@faridalms/database/audit";
 import { schoolProfile } from "@faridalms/database/stores/identity";
@@ -27,6 +30,7 @@ import {
   createTenant,
   noteEntitlementsChanged,
   rootOrgOf,
+  schoolCalendars,
   setTenantLifecycle,
   tenantLifecycle,
 } from "@faridalms/database/tenants";
@@ -35,13 +39,13 @@ import {
   provisionTenantSchema,
   reissueInviteSchema,
   setLifecycleSchema,
+  tenantCalendarSchema,
 } from "@faridalms/domain/provisioning";
 import { schoolDate } from "@faridalms/domain/school";
 import { ORPCError } from "@orpc/server";
 import { sql } from "drizzle-orm";
 import * as v from "valibot";
 
-import type { Provider } from "../notifications/providers";
 import type { ProvisionOperator, TokenCheck } from "./token";
 
 import { emailSignInLink } from "../core/sign-in-link";
@@ -463,6 +467,25 @@ async function entitlementsChanged(call: Call, request: EntitlementsChanged) {
   );
 }
 
+/**
+ * When the tenant's schools have their weekend, so the console changes
+ * what they may do between school days rather than during one.
+ */
+async function calendar(
+  call: Call,
+  request: TenantCalendarRequest,
+): Promise<TenantCalendar> {
+  return call.deps.owner.asOwner(
+    request.tenantId,
+    call.requestId,
+    async (tx) => {
+      if ((await tenantLifecycle(tx, request.tenantId)) === null)
+        throw new ORPCError("NOT_FOUND", { message: "tenant.not_in_cell" });
+      return { schools: await schoolCalendars(tx, request.tenantId) };
+    },
+  );
+}
+
 const ROUTES = {
   "/v1/tenants": async (call: Call, body: unknown) => {
     const parsed = v.safeParse(provisionTenantSchema, body);
@@ -486,6 +509,12 @@ const ROUTES = {
     const parsed = v.safeParse(entitlementsChangedSchema, body);
     return parsed.success
       ? entitlementsChanged(call, parsed.output)
+      : invalid(parsed.issues);
+  },
+  "/v1/tenants/calendar": async (call: Call, body: unknown) => {
+    const parsed = v.safeParse(tenantCalendarSchema, body);
+    return parsed.success
+      ? calendar(call, parsed.output)
       : invalid(parsed.issues);
   },
 } as const;

@@ -357,6 +357,22 @@ export async function setTenantLifecycle(
   return rows[0]?.before ?? null;
 }
 
+/** Each of the tenant's schools' time zone and weekend days, as ISO weekdays. */
+export async function schoolCalendars(
+  tx: CellTransaction,
+  tenantId: string,
+): Promise<{ timeZone: string; weekendDays: number[] }[]> {
+  const rows = await tx.execute<{ time_zone: string; weekend_days: number[] }>(
+    sql`select time_zone, weekend_days from core.orgs
+      where tenant_id = ${tenantId}::uuid and type = 'school' and time_zone is not null
+      order by created_at, id`,
+  );
+  return rows.map((row) => ({
+    timeZone: row.time_zone,
+    weekendDays: row.weekend_days,
+  }));
+}
+
 /**
  * Counts one more change to what the tenant's schools may use, answering
  * the new count; null when the cell holds no such tenant.

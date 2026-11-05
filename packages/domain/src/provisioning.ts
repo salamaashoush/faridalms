@@ -1,5 +1,7 @@
 import * as v from "valibot";
 
+import type { SchoolAccess } from "./plans";
+
 import { BASIC_ENTITLEMENTS, entitlementsSchema, settableOf } from "./plans";
 
 /** The audience of the token the operator console signs for the provisioner. */
@@ -314,6 +316,20 @@ export const lifecycleOf = (
 ): (typeof TENANT_LIFECYCLES)[number] =>
   standing === "full" || standing === "restricted" ? "active" : standing;
 
+/**
+ * Where a tenant stands, from its state in the directory and its schools'
+ * access; null while it is anywhere an operator cannot move it from, such
+ * as being created or offboarded.
+ */
+export function standingOf(
+  state: string,
+  access: SchoolAccess,
+): SchoolStanding | null {
+  if (state === "read_only" || state === "suspended") return state;
+  if (state !== "active") return null;
+  return access === "restricted" ? "restricted" : "full";
+}
+
 export const setStandingSchema = v.object({
   tenantId: id,
   standing: v.picklist(SCHOOL_STANDINGS),
@@ -332,6 +348,15 @@ export const entitlementsChangedSchema = v.object({ tenantId: id });
 export type EntitlementsChanged = v.InferOutput<
   typeof entitlementsChangedSchema
 >;
+
+/** Asks a cell for the calendars of a tenant's schools. */
+export const tenantCalendarSchema = v.object({ tenantId: id });
+export type TenantCalendarRequest = v.InferOutput<typeof tenantCalendarSchema>;
+
+/** When a tenant's schools have their weekend, each in its own time zone. */
+export interface TenantCalendar {
+  schools: { timeZone: string; weekendDays: number[] }[];
+}
 
 /**
  * A new link for a school's administrator: the one with this email, or the
