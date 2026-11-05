@@ -724,6 +724,13 @@ describe("usage reports", () => {
       const enrolled = placed?.n ?? 0;
       expect(enrolled).toBeGreaterThan(0);
       expect(row?.students).toBe(enrolled);
+      const days = await admin<{ day: string; sign_ins: number }[]>`
+        select day::text, sign_ins from school_usage_daily
+        where school_id = ${school.id}::uuid order by day`;
+      expect(days.map((item) => item.day)).toContain(today);
+      expect(days.find((item) => item.day === today)?.sign_ins).toBeGreaterThan(
+        0,
+      );
       expect(row?.staff_accounts).toBeGreaterThan(0);
       expect(row?.signed_in_7d).toBeGreaterThan(0);
       expect(row?.signed_in_30d).toBeGreaterThanOrEqual(row?.signed_in_7d ?? 0);

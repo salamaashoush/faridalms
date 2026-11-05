@@ -542,6 +542,7 @@ function contractOf(school: UnitContext["school"]) {
     trialEndsOn: entitled.trialEndsOn,
     students: over(school.counts?.students, entitled.students),
     staffAccounts: over(school.counts?.staffAccounts, entitled.staffAccounts),
+    emails: over(school.counts?.emailsThisMonth, entitled.emailPerMonth),
   };
 }
 

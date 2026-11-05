@@ -47,7 +47,11 @@ export interface DirectorySchool {
   hosts: { portal: string | null; site: string | null };
   entitlements: SchoolEntitlements;
   /** What the cell last measured, which soft limits are held to; null before it first reports. */
-  counts: { students: number; staffAccounts: number } | null;
+  counts: {
+    students: number;
+    staffAccounts: number;
+    emailsThisMonth: number;
+  } | null;
 }
 
 /** What the school finder may say about a school. */
@@ -134,6 +138,7 @@ export function openDirectory(url: string, ttlMs = 60_000) {
         counts: {
           students: schoolUsage.students,
           staffAccounts: schoolUsage.staffAccounts,
+          emailsThisMonth: schoolUsage.emailsThisMonth,
         },
       })
       .from(schools)
@@ -327,21 +332,31 @@ export function openDirectorySync(url: string, actor: HostActor) {
         signedIn7d: number;
         signedIn30d: number;
         videoMinutes: number;
+        emailsThisMonth: number;
+        days: { day: string; emails: number; sms: number; signIns: number }[];
       })[],
       measuredAt: Date,
     ) => {
-      for (const row of rows)
+      for (const row of rows) {
         await client`
           insert into school_usage (school_id, used_bytes, file_count, students, staff_accounts,
-            signed_in_7d, signed_in_30d, video_minutes, measured_at)
+            signed_in_7d, signed_in_30d, video_minutes, emails_this_month, measured_at)
           values (${row.schoolId}::uuid, ${row.usedBytes}, ${row.fileCount}, ${row.students},
             ${row.staffAccounts}, ${row.signedIn7d}, ${row.signedIn30d}, ${row.videoMinutes},
-            ${measuredAt.toISOString()}::timestamptz)
+            ${row.emailsThisMonth}, ${measuredAt.toISOString()}::timestamptz)
           on conflict (school_id) do update set used_bytes = excluded.used_bytes,
             file_count = excluded.file_count, students = excluded.students,
             staff_accounts = excluded.staff_accounts, signed_in_7d = excluded.signed_in_7d,
             signed_in_30d = excluded.signed_in_30d, video_minutes = excluded.video_minutes,
-            measured_at = excluded.measured_at`;
+            emails_this_month = excluded.emails_this_month, measured_at = excluded.measured_at`;
+        for (const day of row.days)
+          await client`
+            insert into school_usage_daily (school_id, day, emails, sms, sign_ins, measured_at)
+            values (${row.schoolId}::uuid, ${day.day}::date, ${day.emails}, ${day.sms},
+              ${day.signIns}, ${measuredAt.toISOString()}::timestamptz)
+            on conflict (school_id, day) do update set emails = excluded.emails,
+              sms = excluded.sms, sign_ins = excluded.sign_ins, measured_at = excluded.measured_at`;
+      }
     },
     close: () => client.close(),
   };

@@ -1707,6 +1707,7 @@
   "contractNoticeLabel": "About your school's plan",
   "contractOverStudents": "Your school has more students than its plan includes ({count} of {limit}). Nobody is turned away; your account manager will be in touch about the difference.",
   "contractOverStaff": "Your school has more staff accounts than its plan includes ({count} of {limit}).",
+  "contractOverEmails": "Your school has sent more emails this month than its plan includes ({count} of {limit}). They keep going out; your account manager will be in touch.",
   "peopleFamilyName": "Family name",
   "peopleGivenName": "First name",
   "peopleMiddleNames": "Middle names",

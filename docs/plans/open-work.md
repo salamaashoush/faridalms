@@ -27,14 +27,15 @@ From `foundations.md`. W1 to W5 are merged.
   within the ordinary upload limit. Schools now read
   `school_entitlements`, and a school without a row has Basic; the seed's
   Fernhill school has Basic alone, and the browser walks its menus and
-  record tabs. Left: email past its month, which
-  needs the daily counters (`school_usage_daily`) the usage plan adds
-  beside the counts the reporter now keeps; an entitlement change
+  record tabs. Left: the daily rows count emails,
+  texts and sign-ins, but not caption minutes or video minutes encoded,
+  which need the time a caption draft or a stream finished; an entitlement
+  change
   taking effect at once rather than within the directory cache's minute;
   and, once every cell runs the release that reads entitlements, dropping
   `school_plans`. Custom domains and video hours are held, and
-  administrators see the contract notice, a trial's end, and students or
-  staff accounts past what the school is entitled to. The plan's
+  administrators see the contract notice, a trial's end, and students,
+  staff accounts or the month's email past what the school is entitled to. The plan's
   refresh call cannot reach the API replicas: the provisioner is its own
   service and Bun's SQL client has no LISTEN. The lifecycle slice's
   per-unit tenant registry check could carry the entitlements revision

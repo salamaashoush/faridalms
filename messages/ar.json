@@ -1793,6 +1793,7 @@
   "contractNoticeLabel": "عن اشتراك مدرستك",
   "contractOverStudents": "لدى مدرستك طلاب أكثر مما يتضمنه اشتراكها ({count} من {limit}). لن يُرفض أحد، وسيتواصل معك مدير حسابك بشأن الفرق.",
   "contractOverStaff": "لدى مدرستك حسابات موظفين أكثر مما يتضمنه اشتراكها ({count} من {limit}).",
+  "contractOverEmails": "أرسلت مدرستك هذا الشهر رسائل بريد أكثر مما يتضمنه اشتراكها ({count} من {limit}). يستمر إرسالها، وسيتواصل معك مدير حسابك.",
   "peopleFamilyName": "اسم العائلة",
   "peopleGivenName": "الاسم الأول",
   "peopleMiddleNames": "الأسماء الوسطى",

@@ -408,6 +408,8 @@ export const schoolUsage = pgTable(
     signedIn30d: integer("signed_in_30d").notNull().default(0),
     /** Streamed video kept, which video hours are held to. */
     videoMinutes: integer("video_minutes").notNull().default(0),
+    /** Emails sent this month of the school's calendar, which the monthly limit is held to. */
+    emailsThisMonth: integer("emails_this_month").notNull().default(0),
     measuredAt: instant("measured_at").notNull(),
   },
   (t) => [
@@ -420,7 +422,38 @@ export const schoolUsage = pgTable(
     check("school_usage_file_count_check", sql`file_count >= 0`),
     check(
       "school_usage_counts_check",
-      sql`students >= 0 and staff_accounts >= 0 and signed_in_7d >= 0 and signed_in_30d >= 0 and video_minutes >= 0`,
+      sql`students >= 0 and staff_accounts >= 0 and signed_in_7d >= 0 and signed_in_30d >= 0 and video_minutes >= 0 and emails_this_month >= 0`,
+    ),
+  ],
+);
+
+/**
+ * What a school sent and who signed in, one row a day of the school's own
+ * calendar, for billing, health and reports. Counts, never people.
+ */
+export const schoolUsageDaily = pgTable(
+  "school_usage_daily",
+  {
+    schoolId: uuid("school_id").notNull(),
+    day: date("day", { mode: "string" }).notNull(),
+    emails: integer("emails").notNull(),
+    sms: integer("sms").notNull(),
+    signIns: integer("sign_ins").notNull(),
+    measuredAt: instant("measured_at").notNull(),
+  },
+  (t) => [
+    primaryKey({
+      name: "school_usage_daily_pkey",
+      columns: [t.schoolId, t.day],
+    }),
+    foreignKey({
+      name: "school_usage_daily_school_id_fkey",
+      columns: [t.schoolId],
+      foreignColumns: [schools.id],
+    }),
+    check(
+      "school_usage_daily_counts_check",
+      sql`emails >= 0 and sms >= 0 and sign_ins >= 0`,
     ),
   ],
 );

@@ -956,6 +956,54 @@ export async function schoolCounts(
   };
 }
 
+export interface DailyCounts {
+  emails: number;
+  sms: number;
+  signIns: number;
+}
+
+/**
+ * What a school sent and who signed in between two instants, for the
+ * day's usage row: email and text messages that went out on its behalf,
+ * through a notification, a conversation or a sign-in link, and sessions
+ * begun in it.
+ */
+export async function schoolSends(
+  tx: Tx,
+  input: { tenantId: string; orgId: string; from: Date; until: Date },
+): Promise<DailyCounts> {
+  const from = input.from.toISOString();
+  const until = input.until.toISOString();
+  const [row] = await tx.execute<{
+    emails: number;
+    sms: number;
+    sign_ins: number;
+  }>(sql`
+    with sent as (
+      select d.channel
+      from core.notification_deliveries d
+      left join core.notifications n on n.tenant_id = d.tenant_id and n.id = d.notification_id
+        and n.created_at = d.notification_created_at
+      left join core.messages m on m.tenant_id = d.tenant_id and m.id = d.message_id
+      left join core.message_threads t on t.tenant_id = m.tenant_id and t.id = m.thread_id
+      where d.tenant_id = ${input.tenantId}::uuid and d.state = 'sent'
+        and d.sent_at >= ${from}::timestamptz and d.sent_at < ${until}::timestamptz
+        and coalesce(d.org_id, n.org_id, t.org_id) = ${input.orgId}::uuid
+    )
+    select
+      (select count(*)::int from sent where channel = 'email') as emails,
+      (select count(*)::int from sent where channel = 'sms') as sms,
+      (select count(*)::int from core.sessions s
+        where s.tenant_id = ${input.tenantId}::uuid and s.active_org_id = ${input.orgId}::uuid
+          and s.authenticated_at >= ${from}::timestamptz
+          and s.authenticated_at < ${until}::timestamptz) as sign_ins`);
+  return {
+    emails: row?.emails ?? 0,
+    sms: row?.sms ?? 0,
+    signIns: row?.sign_ins ?? 0,
+  };
+}
+
 /**
  * How long the school's streamed videos run together: those streamed or
  * waiting to be, counted once their length is known.

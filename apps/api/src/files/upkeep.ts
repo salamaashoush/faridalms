@@ -6,11 +6,12 @@ import type {
 
 import {
   schoolCounts,
+  schoolSends,
   schoolStorage,
   streamedVideoMs,
 } from "@faridalms/database/stores/files";
 import { schoolProfile } from "@faridalms/database/stores/identity";
-import { schoolDate } from "@faridalms/domain/school";
+import { addDays, schoolDate, zonedInstant } from "@faridalms/domain/school";
 
 import type { FileStore } from "./store";
 
@@ -81,6 +82,24 @@ export async function reportTenantUsage(
       const now = new Date();
       for (const school of schools) {
         const profile = await schoolProfile(tx, school.schoolId);
+        const zone = profile?.timeZone ?? "UTC";
+        const today = schoolDate(zone, now);
+        const sends = (from: string, until: Date) =>
+          schoolSends(tx, {
+            tenantId,
+            orgId: school.schoolId,
+            from: zonedInstant(from, "00:00", zone),
+            until,
+          });
+        // Yesterday's row is counted again so its last minutes are not lost.
+        const days = [];
+        for (const day of [addDays(today, -1), today]) {
+          const end = zonedInstant(addDays(day, 1), "00:00", zone);
+          days.push({
+            day,
+            ...(await sends(day, end < now ? end : now)),
+          });
+        }
         measured.push({
           schoolId: school.schoolId,
           ...(await schoolStorage(tx, tenantId, school.schoolId)),
@@ -93,6 +112,8 @@ export async function reportTenantUsage(
           videoMinutes: Math.floor(
             (await streamedVideoMs(tx, tenantId, school.schoolId)) / 60_000,
           ),
+          emailsThisMonth: (await sends(`${today.slice(0, 8)}01`, now)).emails,
+          days,
         });
       }
       return measured;

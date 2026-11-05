@@ -33,6 +33,7 @@ export function ContractNotice() {
     contract.staffAccounts
       ? m.contractOverStaff(counted(contract.staffAccounts))
       : null,
+    contract.emails ? m.contractOverEmails(counted(contract.emails)) : null,
   ].filter((line) => line !== null);
   if (shown.length === 0) return null;
   return (
