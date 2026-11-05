@@ -39,10 +39,10 @@ From `foundations.md`. W1 to W5 are merged.
 - **Finding 21** (plan modules and feature switches): one module
   registry now gates the API, the navigation and the pages, and coding
   questions leave the editor's menus and run nothing at a school without
-  coding. Left for the business console: a notice in place of a block
-  whose module a school lacks, the media worker's check for video, a
-  browser run against a Basic-only school, and entitlements in place of
-  the plan's module list.
+  coding, whose videos play as uploaded within the ordinary upload limit.
+  Left for the business console: a notice in place of a block whose
+  module a school lacks, a browser run against a Basic-only school, and
+  entitlements in place of the plan's module list.
 
 ## Bugs found and not yet fixed
 

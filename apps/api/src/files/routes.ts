@@ -22,7 +22,7 @@ import { refusalResponse } from "../core/refusal";
 import { canReadFile } from "./authorize";
 import { findFile, withFileGate } from "./gate";
 import { takeChecked } from "./ingest";
-import { uploadLimit } from "./limit";
+import { hasVideo, uploadLimit } from "./limit";
 import { linkSeconds, sealLink } from "./links";
 import { fileKeys } from "./sealed";
 import { StoreError } from "./store";
@@ -158,7 +158,7 @@ async function accept(
     state: "ready",
     sha256: checked.sha256,
     scanEngine: context.scanner ? "clamd" : null,
-    stream: context.mediaOrigin !== null,
+    stream: context.mediaOrigin !== null && hasVideo(context.school.plan),
     keyVersion: checked.keyVersion,
   });
   if (!settled) return problem(409, "file.not_pending", context.requestId);

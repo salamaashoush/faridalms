@@ -1,5 +1,6 @@
 import { partKey, readyKey } from "@faridalms/database/stores/files";
 import { plainContent } from "@faridalms/domain/content-conversion";
+import { MODULE_IDS } from "@faridalms/domain/modules";
 import { describe, expect, test } from "bun:test";
 import { createDecipheriv } from "node:crypto";
 
@@ -22,6 +23,7 @@ import {
   rejection,
   seeded,
   sessionFor,
+  setPlan,
   VIDEO_BYTES,
 } from "./harness";
 
@@ -237,6 +239,23 @@ describe("video streams", () => {
       `/v1/files/${fileId}/stream`,
     );
     expect(await shown.json()).toEqual({ state: "failed", master: null });
+  });
+
+  test("a school whose plan leaves video out keeps its videos as uploaded", async () => {
+    const school = seeded().tenants[0]?.schools.find(
+      (row) => row.slug === "northwind",
+    );
+    if (!school) throw new Error("no northwind school");
+    await setPlan(school.id, {
+      modules: MODULE_IDS.filter((module) => module !== "video"),
+    });
+    try {
+      const teacher = await sessionFor("northwind", login("teacher"));
+      const fileId = await uploadVideo(teacher, "assembly.mp4");
+      expect(await claimVideo(fileId)).toBeNull();
+    } finally {
+      await setPlan(school.id, null);
+    }
   });
 
   test("a video a worker hands back loses none of its tries", async () => {
