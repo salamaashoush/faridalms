@@ -550,6 +550,7 @@ export interface Guardian {
   pickup: "allowed" | "not_allowed" | "ask_office" | null;
   educationalRights: "full" | "restricted" | "none";
   communicationIsolated: boolean;
+  accessBasis: string;
   from: string;
   hasAccount: boolean;
   contacts: ContactPoint[];
@@ -578,13 +579,14 @@ export async function guardiansOf(
     pickup: Guardian["pickup"];
     educational_rights: Guardian["educationalRights"];
     communication_isolated: boolean;
+    access_basis: string;
     valid_during: string;
     has_account: boolean;
   }>(sql`
     select r.id, r.version, r.related_user_id, u.full_name_en, u.full_name_ar, r.relation_descriptor_id,
            r.relation_meaning, r.legal_guardian, r.portal_access, r.receives_notifications, r.primary_contact,
            r.emergency_contact, r.contact_priority, r.residence, r.pickup, r.educational_rights,
-           r.communication_isolated, r.valid_during::text as valid_during,
+           r.communication_isolated, r.access_basis, r.valid_during::text as valid_during,
            exists (select 1 from core.accounts a where a.tenant_id = u.tenant_id and a.user_id = u.id
                    and a.status = 'active' and a.state <> 'disabled') as has_account
     from core.user_relationships r
@@ -627,6 +629,7 @@ export async function guardiansOf(
     pickup: row.pickup,
     educationalRights: row.educational_rights,
     communicationIsolated: row.communication_isolated,
+    accessBasis: row.access_basis,
     from: bounds(row.valid_during).from,
     hasAccount: row.has_account,
     contacts: contacts

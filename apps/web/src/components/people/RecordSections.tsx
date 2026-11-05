@@ -7,6 +7,7 @@ import {
   hasArrangements,
   MAX_EXTENSION_DAYS,
 } from "@faridalms/domain/arrangements";
+import { linkRefusal } from "@faridalms/domain/family-roles";
 import { MAX_FILE_BYTES } from "@faridalms/domain/file";
 import { attachHealthReportSchema } from "@faridalms/domain/people";
 import { Button } from "@faridalms/ui/button";
@@ -964,6 +965,7 @@ function CustodySheet({
 }) {
   const refresh = useRefresh(studentId);
   const [rights, setRights] = useState(link.educationalRights);
+  const [rightsError, setRightsError] = useState<string | null>(null);
   const [isolated, setIsolated] = useState(link.communicationIsolated);
   const [pickup, setPickup] = useState(link.pickup);
   const [restrictions, setRestrictions] = useState(
@@ -992,6 +994,14 @@ function CustodySheet({
       pending={mutation.isPending}
       error={mutation.error ? getMessageFromError(mutation.error) : null}
       onSubmit={async () => {
+        const refused = linkRefusal(link.relationMeaning, {
+          portalAccess: link.portalAccess,
+          educationalRights: rights,
+          accessBasis: link.accessBasis,
+        });
+        const said = refused ? getMessageFromError({ message: refused }) : null;
+        setRightsError(said);
+        if (said) return;
         await mutation.mutateAsync().then(
           async () => {
             await refresh();
@@ -1033,9 +1043,13 @@ function CustodySheet({
           { value: "restricted", label: m.custodyRightsRestricted() },
           { value: "none", label: m.custodyRightsNone() },
         ]}
-        onChange={(value) =>
-          setRights(value === "restricted" || value === "none" ? value : "full")
-        }
+        onChange={(value) => {
+          setRightsError(null);
+          setRights(
+            value === "restricted" || value === "none" ? value : "full",
+          );
+        }}
+        errors={rightsError ? [rightsError] : undefined}
         width="name"
       />
       <CheckboxRow

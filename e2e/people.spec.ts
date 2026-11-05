@@ -597,6 +597,18 @@ test("a health alert and a pickup restriction show on the student's header", asy
   const custody = page.getByRole("dialog", {
     name: `Edit custody for Mona Hassan ${unique}`,
   });
+  // She sees Salama in the family app, which needs some right to records.
+  const rights = custody.getByRole("combobox", {
+    name: /^Access to school records/,
+  });
+  await rights.click();
+  await page.getByRole("option", { name: "No access by court order" }).click();
+  await custody.getByRole("button", { name: "Save" }).click();
+  await expect(rights).toHaveAccessibleDescription(
+    /cannot see the student in the family app/,
+  );
+  await rights.click();
+  await page.getByRole("option", { name: "Full access" }).click();
   await custody
     .getByRole("combobox", { name: "May collect the student" })
     .click();
@@ -605,6 +617,25 @@ test("a health alert and a pickup restriction show on the student's header", asy
   await expect(custody).toHaveCount(0);
   await expect(page.getByText("May not collect the student")).toBeVisible();
   await expect(page.getByText("Custody note", { exact: true })).toBeVisible();
+
+  // Someone who is not a relative cannot keep the family app.
+  await page
+    .getByRole("button", { name: `Actions for Mona Hassan ${unique}` })
+    .click();
+  await page.getByRole("menuitem", { name: "Edit link" }).click();
+  const link = page.getByRole("dialog", {
+    name: `Mona Hassan ${unique}'s link to this student`,
+  });
+  await link
+    .getByRole("combobox", { name: /^Relation to the student/ })
+    .click();
+  await page.getByRole("option", { name: "Driver", exact: true }).click();
+  await link.getByRole("button", { name: "Save" }).click();
+  await expect(
+    link.getByRole("checkbox", { name: "Sees the student in the family app" }),
+  ).toHaveAccessibleDescription(/not a relative/);
+  await link.getByRole("button", { name: "Cancel", exact: true }).click();
+  await expect(link).toHaveCount(0);
 });
 
 test("an administrator keeps a guardian's address on the student's family tab", async ({

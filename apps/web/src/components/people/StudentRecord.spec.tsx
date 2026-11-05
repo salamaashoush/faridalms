@@ -65,6 +65,7 @@ function guardian(
     pickup: "allowed",
     educationalRights: "full",
     communicationIsolated: false,
+    accessBasis: "parental_authority",
     from: "2024-09-01",
     hasAccount: true,
     contacts: [],

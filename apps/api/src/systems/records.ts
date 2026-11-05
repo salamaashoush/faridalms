@@ -582,6 +582,9 @@ export const custody = readProcedure
         pickup: link.pickup,
         educationalRights: link.educationalRights,
         communicationIsolated: link.communicationIsolated,
+        portalAccess: link.portalAccess,
+        relationMeaning: link.relationMeaning,
+        accessBasis: link.accessBasis,
         contactRestrictions:
           restrictions.find((row) => row.relationshipId === link.relationshipId)
             ?.contactRestrictions ?? null,

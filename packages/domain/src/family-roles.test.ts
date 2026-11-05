@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { familyRoleFor } from "./family-roles";
+import { familyRoleFor, linkRefusal } from "./family-roles";
 
 const portal = { portalAccess: true, legalGuardian: null };
 
@@ -39,5 +39,39 @@ describe("familyRoleFor", () => {
         accessBasis: "school_designated",
       }),
     ).toBe("relative");
+  });
+});
+
+describe("linkRefusal", () => {
+  const link = {
+    portalAccess: true,
+    educationalRights: "full" as const,
+    accessBasis: "parental_authority",
+  };
+
+  it("refuses the family app to someone with no right to records", () => {
+    expect(linkRefusal("mother", { ...link, educationalRights: "none" })).toBe(
+      "relationship.portal_without_rights",
+    );
+    expect(
+      linkRefusal("mother", {
+        ...link,
+        portalAccess: false,
+        educationalRights: "none",
+      }),
+    ).toBeNull();
+  });
+
+  it("refuses it to a non-relative the school did not designate", () => {
+    expect(linkRefusal("non_relative", link)).toBe(
+      "relationship.non_relative_portal",
+    );
+    expect(
+      linkRefusal("non_relative", {
+        ...link,
+        accessBasis: "school_designated",
+      }),
+    ).toBeNull();
+    expect(linkRefusal("grandparent", link)).toBeNull();
   });
 });

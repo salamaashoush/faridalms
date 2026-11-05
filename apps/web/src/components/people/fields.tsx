@@ -4,6 +4,7 @@ import type {
 } from "@faridalms/domain/people";
 
 import { Checkbox } from "@faridalms/ui/checkbox";
+import { CircleAlert } from "lucide-react";
 import { useId } from "react";
 
 import { SelectField, TextField } from "~/components/system/field";
@@ -172,32 +173,48 @@ export const PARENT_FLAGS: Omit<FlagsDraft, "relationId"> = {
 export function CheckboxRow({
   label,
   hint,
+  error,
   checked,
   onChange,
   disabled,
 }: {
   label: string;
   hint?: string;
+  error?: string | null;
   checked: boolean;
   onChange: (checked: boolean) => void;
   disabled?: boolean;
 }) {
   const id = useId();
+  const described = error ? `${id}-error` : hint ? `${id}-hint` : undefined;
   return (
-    <div className="flex items-start gap-3">
+    <div
+      data-slot="form-field"
+      data-invalid={error ? true : undefined}
+      className="flex items-start gap-3"
+    >
       <Checkbox
         id={id}
         checked={checked}
         disabled={disabled}
         onCheckedChange={(next) => onChange(next)}
         className="mt-0.5"
-        aria-describedby={hint ? `${id}-hint` : undefined}
+        aria-invalid={error ? true : undefined}
+        aria-describedby={described}
       />
       <div className="grid gap-0.5">
         <label htmlFor={id} className="text-sm leading-5 font-medium">
           {label}
         </label>
-        {hint ? (
+        {error ? (
+          <p
+            id={`${id}-error`}
+            className="flex items-start gap-1.5 text-[13px] leading-[18px] text-destructive"
+          >
+            <CircleAlert className="mt-px size-3.5 shrink-0" aria-hidden />
+            {error}
+          </p>
+        ) : hint ? (
           <p
             id={`${id}-hint`}
             className="text-[13px] leading-[18px] text-muted-foreground"
@@ -215,12 +232,14 @@ export function RelationshipFields({
   onChange,
   relations,
   relationError,
+  portalError,
   idPrefix,
 }: {
   value: FlagsDraft;
   onChange: (value: FlagsDraft) => void;
   relations: { value: string; label: string }[];
   relationError?: string | null;
+  portalError?: string | null;
   idPrefix: string;
 }) {
   const set = <K extends keyof FlagsDraft>(key: K, next: FlagsDraft[K]) =>
@@ -243,6 +262,7 @@ export function RelationshipFields({
         <CheckboxRow
           label={m.guardianPortalAccess()}
           hint={m.guardianPortalAccessHint()}
+          error={portalError}
           checked={value.portalAccess}
           onChange={(next) => set("portalAccess", next)}
         />

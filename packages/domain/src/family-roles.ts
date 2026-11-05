@@ -49,6 +49,30 @@ export function familyRoleFor(
 }
 
 /**
+ * Which of the cell's two rules on a guardian link the link breaks, if any:
+ * family app access needs some right to the school's records, and someone
+ * who is not a relative has it only where the school designated them.
+ */
+export function linkRefusal(
+  meaning: string | null,
+  link: {
+    portalAccess: boolean;
+    educationalRights: "full" | "restricted" | "none";
+    accessBasis: string;
+  },
+):
+  | "relationship.portal_without_rights"
+  | "relationship.non_relative_portal"
+  | null {
+  if (!link.portalAccess) return null;
+  if (link.educationalRights === "none")
+    return "relationship.portal_without_rights";
+  return meaning === "non_relative" && link.accessBasis !== "school_designated"
+    ? "relationship.non_relative_portal"
+    : null;
+}
+
+/**
  * What a guardian's link to a child is asked to allow, from the least to
  * the most: following the child in the portal, being contacted about them,
  * and reading their medical summary. `app.guardian_permits` in the cell

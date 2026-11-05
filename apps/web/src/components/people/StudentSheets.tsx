@@ -1,3 +1,4 @@
+import { linkRefusal } from "@faridalms/domain/family-roles";
 import { Button } from "@faridalms/ui/button";
 import { RadioGroup, RadioGroupItem } from "@faridalms/ui/radio-group";
 import {
@@ -98,7 +99,18 @@ function useOptions() {
     sexes: choices(options.sexes),
     relationByCode: (code: string) =>
       options.relations.find((row) => row.code === code)?.id ?? "",
+    meaningOf: (id: string) =>
+      options.relations.find((row) => row.id === id)?.meaning ?? null,
   };
+}
+
+/** Why the cell would refuse this link, said on its family app access. */
+function portalRefusal(
+  meaning: string | null,
+  link: Parameters<typeof linkRefusal>[1],
+) {
+  const refused = linkRefusal(meaning, link);
+  return refused ? getMessageFromError({ message: refused }) : null;
 }
 
 function PersonalSheet({
@@ -295,6 +307,7 @@ function GuardianSheet({
   const options = useOptions();
   const refresh = useRefresh(student.id);
   const [flags, setFlags] = useState<FlagsDraft>(() => flagsOf(guardian));
+  const [portalError, setPortalError] = useState<string | null>(null);
   const mutation = useMutation({
     mutationFn: () =>
       saveRelationship({
@@ -315,6 +328,13 @@ function GuardianSheet({
       pending={mutation.isPending}
       error={mutation.error ? getMessageFromError(mutation.error) : null}
       onSubmit={async () => {
+        const refused = portalRefusal(options.meaningOf(flags.relationId), {
+          portalAccess: flags.portalAccess,
+          educationalRights: guardian.educationalRights,
+          accessBasis: guardian.accessBasis,
+        });
+        setPortalError(refused);
+        if (refused) return;
         await mutation.mutateAsync().then(
           async () => {
             await refresh();
@@ -328,8 +348,12 @@ function GuardianSheet({
       <RelationshipFields
         idPrefix="guardian"
         value={flags}
-        onChange={setFlags}
+        onChange={(next) => {
+          setPortalError(null);
+          setFlags(next);
+        }}
         relations={options.relations}
+        portalError={portalError}
       />
     </SheetForm>
   );
@@ -363,9 +387,11 @@ function AddGuardianSheet({
     primaryContact: (student.guardians ?? []).length === 0,
     relationId: options.relationByCode("mother"),
   });
-  const [errors, setErrors] = useState<{ names?: string; contact?: string }>(
-    {},
-  );
+  const [errors, setErrors] = useState<{
+    names?: string;
+    contact?: string;
+    portal?: string;
+  }>({});
   const [looking, setLooking] = useState(false);
   const lookUp = async () => {
     if (!phone.trim() && !email.trim()) {
@@ -408,10 +434,18 @@ function AddGuardianSheet({
           await lookUp();
           return;
         }
-        if (choice === "new" && !hasName(names)) {
-          setErrors({ names: m.validationNameRequired() });
-          return;
-        }
+        const found: typeof errors = {};
+        if (choice === "new" && !hasName(names))
+          found.names = m.validationNameRequired();
+        // A new link starts with full rights on the parents' authority.
+        const refused = portalRefusal(options.meaningOf(flags.relationId), {
+          portalAccess: flags.portalAccess,
+          educationalRights: "full",
+          accessBasis: "parental_authority",
+        });
+        if (refused) found.portal = refused;
+        setErrors(found);
+        if (Object.keys(found).length > 0) return;
         await mutation.mutateAsync().then(
           async () => {
             await refresh();
@@ -498,8 +532,12 @@ function AddGuardianSheet({
           <RelationshipFields
             idPrefix="new-guardian"
             value={flags}
-            onChange={setFlags}
+            onChange={(next) => {
+              setErrors((current) => ({ ...current, portal: undefined }));
+              setFlags(next);
+            }}
             relations={options.relations}
+            portalError={errors.portal}
           />
         </>
       )}
