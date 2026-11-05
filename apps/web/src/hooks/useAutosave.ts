@@ -73,7 +73,18 @@ export function useAutosave<T>({
   }, []);
 
   useEffect(() => {
-    if (!enabled || serialized === saved.current) return undefined;
+    if (!enabled) return undefined;
+    if (serialized === saved.current) {
+      // Changed back before the save ran: nothing is waiting any more. A save
+      // under way still lands after this, so this value then waits for it.
+      if (running.current) pending.current = serialized;
+      else {
+        if (timer.current) clearTimeout(timer.current);
+        timer.current = null;
+        pending.current = null;
+      }
+      return undefined;
+    }
     pending.current = serialized;
     if (timer.current) clearTimeout(timer.current);
     timer.current = setTimeout(() => void run(), delay);
@@ -133,11 +144,13 @@ export function useAutosave<T>({
     setSavedSnapshot(snapshot);
   }, []);
 
+  const dirty = serialized !== savedSnapshot;
   return {
-    state,
+    // A change waiting for its save is not saved yet, whatever the last save did.
+    state: enabled && dirty && state !== "error" ? "saving" : state,
     flush,
     retry: flush,
-    dirty: serialized !== savedSnapshot,
+    dirty,
     busy: () => running.current || pending.current !== null,
     markSaved,
     settle,
