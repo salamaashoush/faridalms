@@ -8981,5 +8981,6 @@
   "auditPrivacyNoticeTranslationChecked": "Consent form translation checked",
   "auditPrivacyNoticeTranslationUnchecked": "Consent form translation unchecked",
   "annReportSearch": "Find someone",
-  "annReportNoMatch": "Nobody it reached has that name."
+  "annReportNoMatch": "Nobody it reached has that name.",
+  "sharedShowMore": "Show more"
 }

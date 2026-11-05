@@ -3,6 +3,7 @@ import * as v from "valibot";
 import type { ContentDocument, ContentNode } from "./content";
 
 import { contentDocumentSchema } from "./content";
+import { keysetField } from "./paging";
 
 export const SHARED_SCOPES = ["mine", "school"] as const;
 export type SharedScope = (typeof SHARED_SCOPES)[number];
@@ -86,6 +87,7 @@ export type SaveShared = v.InferOutput<typeof saveSharedSchema>;
 export const sharedQuerySchema = v.object({
   search: v.optional(v.pipe(v.string(), v.trim(), v.maxLength(100)), ""),
   scope: v.optional(v.picklist(["all", ...SHARED_SCOPES]), "all"),
+  after: keysetField,
 });
 export type SharedQuery = v.InferOutput<typeof sharedQuerySchema>;
 

@@ -15,6 +15,7 @@ import {
   updateSharedBlock,
 } from "@faridalms/database/stores/shared";
 import { contentFileIds, contentPlainText } from "@faridalms/domain/content";
+import { PAGE_SIZE } from "@faridalms/domain/paging";
 import {
   saveSharedSchema,
   sharedQuerySchema,
@@ -79,13 +80,14 @@ export const list = readProcedure
   .input(sharedQuerySchema)
   .handler(async ({ input, context }) => {
     requireAuthor(context);
-    const rows = await sharedBlocksOf(context.tx, {
+    const { rows, next } = await sharedBlocksOf(context.tx, {
       tenantId: context.tenantId,
       orgId: context.schoolId,
       userId: context.actor.userId,
       ...input,
+      limit: PAGE_SIZE,
     });
-    return rows.map((row) => ({
+    const shown = rows.map((row) => ({
       id: row.id,
       version: row.version,
       title: row.title,
@@ -95,6 +97,7 @@ export const list = readProcedure
       mine: row.ownerUserId === context.actor.userId,
       updatedAt: row.updatedAt,
     }));
+    return { rows: shown, next };
   });
 
 /**

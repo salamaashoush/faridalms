@@ -21,9 +21,9 @@ describe("shared blocks", () => {
       scope: "school",
       content: rules,
     });
-    expect((await other.shared.list({})).map((row) => row.title)).toContain(
-      "Lab safety rules",
-    );
+    expect(
+      (await other.shared.list({})).rows.map((row) => row.title),
+    ).toContain("Lab safety rules");
 
     // A student reading a lesson that shows it may read it, never change it.
     const reader = await student();
@@ -72,9 +72,9 @@ describe("shared blocks", () => {
       scope: "mine",
       content: rules,
     });
-    expect((await other.shared.list({})).map((row) => row.id)).not.toContain(
-      own.id,
-    );
+    expect(
+      (await other.shared.list({})).rows.map((row) => row.id),
+    ).not.toContain(own.id);
     expect(
       await rejection(
         keeper.shared.save({

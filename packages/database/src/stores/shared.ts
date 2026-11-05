@@ -1,3 +1,6 @@
+import type { Feed, Keyset } from "@faridalms/domain/paging";
+
+import { feedOf } from "@faridalms/domain/paging";
 import { sql } from "drizzle-orm";
 
 import type { CellTransaction } from "../context";
@@ -60,9 +63,12 @@ export async function sharedBlocksOf(
     userId: string;
     search: string;
     scope: "all" | SharedScope;
+    limit: number;
+    after: Keyset | null;
   },
-): Promise<SharedBlockRow[]> {
+): Promise<Feed<SharedBlockRow, Keyset>> {
   const words = input.search.trim();
+  const after = input.after;
   const rows = await tx.execute<SharedRecord>(sql`
     select ${columns}
     from core.shared_blocks b
@@ -73,9 +79,15 @@ export async function sharedBlocksOf(
       ${input.scope === "mine" ? sql`and b.owner_user_id = ${input.userId}::uuid` : sql``}
       ${input.scope === "school" ? sql`and b.scope = 'school'` : sql``}
       ${words ? sql`and ${holds(words, [sql`b.title`])}` : sql``}
-    order by b.date_last_modified desc, b.id
-    limit 100`);
-  return rows.map(sharedOf);
+      and (${after === null}::boolean
+        or (date_trunc('milliseconds', b.date_last_modified), b.id)
+          < (${after?.at ?? null}::timestamptz, ${after?.id ?? null}::uuid))
+    order by date_trunc('milliseconds', b.date_last_modified) desc, b.id desc
+    limit ${input.limit + 1}`);
+  return feedOf(rows.map(sharedOf), input.limit, (row) => ({
+    at: row.updatedAt,
+    id: row.id,
+  }));
 }
 
 export async function sharedBlockById(

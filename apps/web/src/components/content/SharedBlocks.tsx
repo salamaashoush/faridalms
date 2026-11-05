@@ -1,4 +1,5 @@
 import type { ContentDocument } from "@faridalms/domain/content";
+import type { Keyset } from "@faridalms/domain/paging";
 import type { SharedScope } from "@faridalms/domain/shared";
 import type { EditorShared } from "@faridalms/editor";
 import type { ReactNode } from "react";
@@ -23,7 +24,12 @@ import {
   SheetHeader,
   SheetTitle,
 } from "@faridalms/ui/sheet";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import {
+  useInfiniteQuery,
+  useMutation,
+  useQuery,
+  useQueryClient,
+} from "@tanstack/react-query";
 import {
   ChevronRight,
   History,
@@ -172,7 +178,7 @@ function KeepDialog({
   );
 }
 
-type Row = Awaited<ReturnType<typeof listShared>>[number];
+type Row = Awaited<ReturnType<typeof listShared>>["rows"][number];
 type Use = Awaited<ReturnType<typeof sharedUses>>[number];
 
 const usesQuery = (id: string) => ({
@@ -339,11 +345,14 @@ function SharedRow({ row, onShow }: { row: Row; onShow: () => void }) {
 function ChooseSheet({ onChoose }: { onChoose: (id: string | null) => void }) {
   const [search, setSearch] = useState("");
   const words = useDeferredValue(search.trim());
-  const listed = useQuery({
+  const listed = useInfiniteQuery({
     queryKey: ["shared", "list", words],
-    queryFn: () => listShared({ data: { search: words, scope: "all" } }),
+    queryFn: ({ pageParam }) =>
+      listShared({ data: { search: words, scope: "all", after: pageParam } }),
+    initialPageParam: null as Keyset | null,
+    getNextPageParam: (last) => last.next ?? undefined,
   });
-  const rows = listed.data ?? [];
+  const rows = listed.data?.pages.flatMap((page) => page.rows) ?? [];
   return (
     <Sheet
       open
@@ -391,6 +400,17 @@ function ChooseSheet({ onChoose }: { onChoose: (id: string | null) => void }) {
               ))}
             </ul>
           )}
+          {listed.hasNextPage ? (
+            <Button
+              type="button"
+              variant="outline"
+              className="my-3 max-md:h-10"
+              disabled={listed.isFetchingNextPage}
+              onClick={() => void listed.fetchNextPage()}
+            >
+              {m.sharedShowMore()}
+            </Button>
+          ) : null}
         </div>
       </SheetContent>
     </Sheet>
