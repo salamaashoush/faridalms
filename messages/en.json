@@ -8977,5 +8977,7 @@
   "auditSubmissionRevise": "Work sent back for changes",
   "auditSubmissionShare": "Work shared with the family",
   "auditSubmissionUnexcuse": "Excusal from the work taken back",
-  "auditSubmissionUnshare": "Work no longer shared with the family"
+  "auditSubmissionUnshare": "Work no longer shared with the family",
+  "auditPrivacyNoticeTranslationChecked": "Consent form translation checked",
+  "auditPrivacyNoticeTranslationUnchecked": "Consent form translation unchecked"
 }

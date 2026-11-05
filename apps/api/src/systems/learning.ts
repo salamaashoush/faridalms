@@ -255,6 +255,7 @@ import {
 import { wordsIssues } from "../core/publication";
 import { requireStudent, requireTaught, teaches } from "../core/reach";
 import { applyRemarks } from "../core/remarks";
+import { checkTranslation } from "../core/translation-review";
 import {
   registerArea,
   registerHostReader,
@@ -1217,8 +1218,6 @@ export const reviewLessonTranslation = writeProcedure
     const row = await lessonById(context.tx, context.tenantId, input.id);
     if (!row) throw new ORPCError("NOT_FOUND");
     await editableModule(context, row.moduleId);
-    if (row.version !== input.expectedVersion)
-      throw new ORPCError("CONFLICT", { message: "conflict.version" });
     const document = await documentOf(context.tx, context.tenantId, {
       type: "lesson",
       id: row.id,
@@ -1226,37 +1225,17 @@ export const reviewLessonTranslation = writeProcedure
     const translation = document
       ? await translationOf(context.tx, context.tenantId, document.id)
       : null;
-    if (
-      input.reviewed &&
-      !documentWritten(
-        translation ? lessonContentOf(translation.content) : null,
-      )
-    )
-      throw new ORPCError("CONFLICT", {
-        message: "learning.nothing_to_check",
-      });
-    const version = await reviewTranslation(context.tx, {
+    return checkTranslation(context, {
       host: "lesson",
-      tenantId: context.tenantId,
       id: row.id,
-      userId: context.actor.userId,
+      version: row.version,
+      expectedVersion: input.expectedVersion,
       reviewed: input.reviewed,
+      translated: documentWritten(
+        translation ? lessonContentOf(translation.content) : null,
+      ),
+      nothingToCheck: "learning.nothing_to_check",
     });
-    await audit(context, {
-      action: input.reviewed
-        ? "lesson.translation_checked"
-        : "lesson.translation_unchecked",
-      objectType: "lesson",
-      objectId: row.id,
-    });
-    return {
-      version: version ?? row.version,
-      review: await translationReview(context.tx, {
-        tenantId: context.tenantId,
-        host: "lesson",
-        id: row.id,
-      }),
-    };
   });
 
 /** Puts a lesson's edits in front of its students. */

@@ -125,13 +125,13 @@ problems.push(...errorCodeProblems(files));
 // it with `?` or `:`. Actions picked from a table are listed in one named
 // `AUDIT_ACTIONS`.
 const AUDITED =
-  /\baction:[^\n]*(?:\n\s+[?:][^\n]*)*|\bAUDIT_ACTIONS\b[^=]*= \{[\s\S]*?\n\}[^;\n]*;/g;
+  /\baction:[^\n]*(?:\n\s+[?:][^\n]*)*|\bAUDIT_ACTIONS\b[^=]*= \{[\s\S]*?\n\}/g;
 const ACTION_CODE = /"([a-z_]+\.[a-z_.]+)"/g;
 const labels = files.find(
   (file) => file.path === "apps/web/src/utils/audit-actions.ts",
 );
 const labelled = new Set(
-  [...(labels?.text ?? "").matchAll(/^\s+"([a-z_.]+)": m\./gm)].map(
+  [...(labels?.text ?? "").matchAll(/^\s+"([a-z_.]+)":\s+m\./gm)].map(
     (match) => match[1],
   ),
 );

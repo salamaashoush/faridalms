@@ -66,6 +66,7 @@ import {
   wordsIssues,
 } from "../core/publication";
 import { sharedInliner } from "../core/shared";
+import { checkTranslation } from "../core/translation-review";
 import { registerHostReader, registerHostWriter } from "../files/authorize";
 
 export type BroadcastAction =
@@ -76,8 +77,6 @@ export type BroadcastAction =
   | "publish"
   | "archive"
   | "unpublish"
-  | "translationChecked"
-  | "translationUnchecked"
   | "duplicate";
 
 /**
@@ -570,34 +569,15 @@ export async function reviewBroadcast(
   input: { id: string; expectedVersion: number; reviewed: boolean },
 ) {
   const row = await managed(context, rules, input.id);
-  if (row.version !== input.expectedVersion) throw conflict();
-  if (
-    input.reviewed &&
-    !documentWritten((await draftWords(context, host(row))).other)
-  )
-    throw new ORPCError("CONFLICT", { message: rules.codes.nothingToCheck });
-  const version = await reviewTranslation(context.tx, {
-    tenantId: context.tenantId,
+  return checkTranslation(context, {
     host: rules.kind,
     id: row.id,
-    userId: context.actor.userId,
+    version: row.version,
+    expectedVersion: input.expectedVersion,
     reviewed: input.reviewed,
+    translated: documentWritten((await draftWords(context, host(row))).other),
+    nothingToCheck: rules.codes.nothingToCheck,
   });
-  await audit(context, {
-    action: input.reviewed
-      ? rules.actions.translationChecked
-      : rules.actions.translationUnchecked,
-    objectType: rules.kind,
-    objectId: row.id,
-  });
-  return {
-    version: version ?? row.version,
-    review: await translationReview(context.tx, {
-      tenantId: context.tenantId,
-      host: rules.kind,
-      id: row.id,
-    }),
-  };
 }
 
 /** A new draft with a broadcast's settings, audience and both languages as they stand. */

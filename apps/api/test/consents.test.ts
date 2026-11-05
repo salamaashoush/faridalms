@@ -278,6 +278,49 @@ describe("answering for a child", () => {
     const after = await family.notifications.list({ tab: "action" });
     expect(after.rows.some((row) => row.subjectId === draft.id)).toBe(false);
   });
+  test("a form's translation is checked only once it is written, and the check is recorded", async () => {
+    const office = await principal();
+    const processing = await purpose(office, "admission_processing");
+    const draft = await office.consents.saveForm({
+      id: "",
+      expectedVersion: 0,
+      purposeId: processing.id,
+      primaryLocale: "en",
+      body: plainContent(
+        "We use what you send us to decide on the application.",
+      ),
+      translation: null,
+    });
+    expect(
+      await rejection(
+        office.consents.reviewForm({
+          id: draft.id,
+          expectedVersion: draft.version,
+          reviewed: true,
+        }),
+      ),
+    ).toMatchObject({ code: "CONFLICT", message: "consents.nothing_to_check" });
+    const translated = await office.consents.saveForm({
+      id: draft.id,
+      expectedVersion: draft.version,
+      purposeId: processing.id,
+      primaryLocale: "en",
+      body: plainContent(
+        "We use what you send us to decide on the application.",
+      ),
+      translation: plainContent("نستخدم ما ترسلونه للبتّ في الطلب."),
+    });
+    const checked = await office.consents.reviewForm({
+      id: draft.id,
+      expectedVersion: translated.version,
+      reviewed: true,
+    });
+    expect(checked.review?.current).toBe(true);
+    await office.consents.discardForm({
+      id: draft.id,
+      expectedVersion: checked.version,
+    });
+  });
 });
 
 /** A picture the office uploads for news: a PNG signature is all the check reads. */

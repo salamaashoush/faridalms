@@ -23,10 +23,7 @@ import { markActed } from "@faridalms/database/stores/notifications";
 import { childrenOf } from "@faridalms/database/stores/persons";
 import { endPublicationsShowing } from "@faridalms/database/stores/site";
 import { person } from "@faridalms/database/stores/students";
-import {
-  reviewTranslation,
-  translationReview,
-} from "@faridalms/database/stores/translations";
+import { translationReview } from "@faridalms/database/stores/translations";
 import { askedAtAdmission } from "@faridalms/domain/admissions";
 import {
   answerConsentSchema,
@@ -41,6 +38,7 @@ import {
 import { contentFileIds, contentPlainText } from "@faridalms/domain/content";
 import { CONTENT_ISSUE_CODE } from "@faridalms/domain/content-checks";
 import { ageOn } from "@faridalms/domain/school";
+import { documentWritten } from "@faridalms/domain/translations";
 import { ORPCError } from "@orpc/server";
 import * as v from "valibot";
 
@@ -57,6 +55,7 @@ import {
 } from "../core/procedure";
 import { publishWords, saveWords, wordsIssues } from "../core/publication";
 import { requireStudent, scopeFor } from "../core/reach";
+import { checkTranslation } from "../core/translation-review";
 import { registerHostReader } from "../files/authorize";
 import { withFileGate } from "../files/gate";
 
@@ -295,22 +294,17 @@ export const reviewForm = writeProcedure
       id: input.id,
     });
     if (!row) throw new ORPCError("NOT_FOUND");
-    if (row.version !== input.expectedVersion) throw conflict();
-    const next = await reviewTranslation(context.tx, {
-      tenantId: context.tenantId,
+    return checkTranslation(context, {
       host: "privacy_notice",
       id: row.id,
-      userId: context.actor.userId,
+      version: row.version,
+      expectedVersion: input.expectedVersion,
       reviewed: input.reviewed,
+      translated: documentWritten(
+        (await consentWords(context, row.id)).translation,
+      ),
+      nothingToCheck: "consents.nothing_to_check",
     });
-    return {
-      version: next ?? row.version,
-      review: await translationReview(context.tx, {
-        tenantId: context.tenantId,
-        host: "privacy_notice",
-        id: row.id,
-      }),
-    };
   });
 
 /**

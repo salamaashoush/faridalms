@@ -74,8 +74,6 @@ const AUDIT_ACTIONS = {
   publish: "news.publish",
   archive: "news.archive",
   unpublish: "news.unpublish",
-  translationChecked: "news.translation_checked",
-  translationUnchecked: "news.translation_unchecked",
   duplicate: "news.duplicate",
 } as const;
 

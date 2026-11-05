@@ -50,8 +50,6 @@ const AUDIT_ACTIONS = {
   publish: "announcement.publish",
   archive: "announcement.archive",
   unpublish: "announcement.unpublish",
-  translationChecked: "announcement.translation_checked",
-  translationUnchecked: "announcement.translation_unchecked",
   duplicate: "announcement.duplicate",
 } as const;
 

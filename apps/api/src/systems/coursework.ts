@@ -264,6 +264,7 @@ import {
   tellAssigned,
   tellReturned,
 } from "../core/teaching-notices";
+import { checkTranslation } from "../core/translation-review";
 import {
   registerArea,
   registerOpenWork,
@@ -1215,35 +1216,16 @@ export const reviewBriefTranslation = writeProcedure
   .handler(async ({ input, context }) => {
     requireCapability(context, "assignments:author");
     const assignment = await taughtAssignment(context, input.id);
-    if (assignment.version !== input.expectedVersion)
-      throw new ORPCError("CONFLICT", { message: "conflict.version" });
     const translation = await readersTranslation(context, assignment, "editor");
-    if (input.reviewed && !documentWritten(translation?.content ?? null))
-      throw new ORPCError("CONFLICT", {
-        message: "coursework.nothing_to_check",
-      });
-    const version = await reviewTranslation(context.tx, {
+    return checkTranslation(context, {
       host: "assignment",
-      tenantId: context.tenantId,
       id: assignment.id,
-      userId: context.actor.userId,
+      version: assignment.version,
+      expectedVersion: input.expectedVersion,
       reviewed: input.reviewed,
+      translated: documentWritten(translation?.content ?? null),
+      nothingToCheck: "coursework.nothing_to_check",
     });
-    await audit(context, {
-      action: input.reviewed
-        ? "assignment.translation_checked"
-        : "assignment.translation_unchecked",
-      objectType: "assignment",
-      objectId: assignment.id,
-    });
-    return {
-      version: version ?? assignment.version,
-      review: await translationReview(context.tx, {
-        tenantId: context.tenantId,
-        host: "assignment",
-        id: assignment.id,
-      }),
-    };
   });
 
 /** The assignment as its teacher reads it: brief and everyone's standing. */
