@@ -35,6 +35,27 @@ export interface AuditChange {
   after: Row | null;
 }
 
+/**
+ * A change to the columns `after` names, read from the row as it was. A
+ * creation passes no row.
+ */
+export function changeOf<After extends object>(
+  table: string,
+  before: Record<keyof After, unknown> | null | undefined,
+  after: After,
+): AuditChange {
+  const now = Object.fromEntries(Object.entries(after));
+  if (!before) return { table, before: null, after: now };
+  const was = new Map(Object.entries(before));
+  return {
+    table,
+    before: Object.fromEntries(
+      Object.keys(now).map((key) => [key, was.get(key) ?? null]),
+    ),
+    after: now,
+  };
+}
+
 export interface AuditEntry {
   action: string;
   objectType: string;
@@ -103,8 +124,8 @@ export async function writeAudit(
   const payload = entry.change ? payloadOf(entry.change) : null;
   const details = {
     ...entry.details,
-    ...(payload && payload.changed.length > 0
-      ? { changed: payload.changed }
+    ...(entry.change && payload && payload.changed.length > 0
+      ? { table: entry.change.table, changed: payload.changed }
       : {}),
   };
   const keepPayload =

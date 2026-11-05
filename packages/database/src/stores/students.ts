@@ -1171,6 +1171,14 @@ export async function relationshipOf(
       studentUserId: userRelationships.studentUserId,
       relatedUserId: userRelationships.relatedUserId,
       version: userRelationships.version,
+      relationMeaning: userRelationships.relationMeaning,
+      legalGuardian: userRelationships.legalGuardian,
+      portalAccess: userRelationships.portalAccess,
+      receivesNotifications: userRelationships.receivesNotifications,
+      primaryContact: userRelationships.primaryContact,
+      emergencyContact: userRelationships.emergencyContact,
+      residence: userRelationships.residence,
+      pickup: userRelationships.pickup,
     })
     .from(userRelationships)
     .where(

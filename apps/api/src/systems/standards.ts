@@ -1,5 +1,6 @@
 import type { ContentDocument } from "@faridalms/domain/content";
 
+import { changeOf } from "@faridalms/database/audit";
 import { classById, rosterOf } from "@faridalms/database/stores/classes";
 import { namesOf } from "@faridalms/database/stores/coursework";
 import { contentsOf } from "@faridalms/database/stores/documents";
@@ -244,6 +245,11 @@ export const saveStandard = writeProcedure
       objectType: "standard",
       objectId: own.standard.id,
       details: { frameworkId: found.id, code: input.code },
+      change: changeOf("core.standards", own.standard, {
+        code: input.code,
+        statement: input.statement,
+        itemType: input.itemType,
+      }),
     });
     return { id: own.standard.id, version };
   });

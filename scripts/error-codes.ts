@@ -27,6 +27,8 @@ const NAME =
 // a constant named for tables or audit actions holds those.
 const NOT_CODE_KEYS = new Set(["action", "audit", "name", "table"]);
 const TABLES = /TABLES?$|^AUDIT_ACTIONS$/;
+// Functions whose first argument names a table: `changeOf("core.classes", ...)`.
+const TABLE_CALLS = new Set(["changeOf"]);
 const COMPARISONS = new Set(["===", "!==", "==", "!="]);
 const PASS_THROUGH = new Set([
   "ConditionalExpression",
@@ -97,6 +99,11 @@ function consumed(node: Node, parents: Node[]): boolean {
     const parent = parents[index];
     if (!parent) return false;
     if (parent.type === "TaggedTemplateExpression") return true;
+    if (parent.type === "CallExpression")
+      return (
+        TABLE_CALLS.has(keyName(parent.callee) ?? "") &&
+        (parent.arguments as unknown[])[0] === child
+      );
     if (parent.type === "SwitchCase") return parent.test === child;
     if (parent.type === "BinaryExpression")
       return COMPARISONS.has(String(parent.operator));

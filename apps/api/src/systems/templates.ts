@@ -1,6 +1,7 @@
 import type { TemplateRow } from "@faridalms/database/stores/templates";
 import type { ContentDocument } from "@faridalms/domain/content";
 
+import { changeOf } from "@faridalms/database/audit";
 import { namesOf } from "@faridalms/database/stores/coursework";
 import { documentOf, saveDocument } from "@faridalms/database/stores/documents";
 import { retireModule } from "@faridalms/database/stores/learning";
@@ -257,6 +258,7 @@ export const update = writeProcedure
       objectType: "document_template",
       objectId: row.id,
       details: { kind: row.kind, title: input.title },
+      change: changeOf("core.document_templates", row, { title: input.title }),
     });
     return { version };
   });

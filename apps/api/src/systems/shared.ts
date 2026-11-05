@@ -1,6 +1,7 @@
 import type { Capability } from "@faridalms/domain/capabilities";
 import type { ContentDocument } from "@faridalms/domain/content";
 
+import { changeOf } from "@faridalms/database/audit";
 import {
   documentOf,
   saveDocument,
@@ -140,8 +141,9 @@ export const save = writeProcedure
       title: input.title,
     };
     let saved: { id: string; version: number };
+    const before = input.id ? await usable(context, input.id) : null;
     if (input.id) {
-      const row = await usable(context, input.id);
+      const row = before;
       if (!row) throw new ORPCError("NOT_FOUND");
       if (row.ownerUserId !== context.actor.userId)
         throw new ORPCError("FORBIDDEN", { message: "shared.not_owner" });
@@ -184,6 +186,10 @@ export const save = writeProcedure
       objectType: "shared_block",
       objectId: saved.id,
       details: { scope: input.scope },
+      change: changeOf("core.shared_blocks", before, {
+        scope: input.scope,
+        title: input.title,
+      }),
     });
     return saved;
   });

@@ -8,6 +8,7 @@ import type { ClassRow } from "@faridalms/database/stores/classes";
 import type { SchoolYear } from "@faridalms/database/stores/years";
 import type { AttendanceMeaning } from "@faridalms/domain/attendance";
 
+import { changeOf } from "@faridalms/database/audit";
 import {
   marksToExplain,
   reportsOn,
@@ -1115,6 +1116,11 @@ export const saveSettings = writeProcedure
   .input(attendanceSettingsSchema)
   .handler(async ({ input, context }) => {
     requireCapability(context, "attendance:manage");
+    const before = await settingsOf(
+      context.tx,
+      context.tenantId,
+      context.schoolId,
+    );
     try {
       const version = await writeSettings(context.tx, {
         tenantId: context.tenantId,
@@ -1124,7 +1130,7 @@ export const saveSettings = writeProcedure
       await audit(context, {
         action: "attendance.settings_update",
         objectType: "attendance_settings",
-        details: {
+        change: changeOf("core.attendance_settings", before, {
           teacherEditDays: input.teacherEditDays,
           noticeDelayMinutes: input.noticeDelayMinutes,
           chronicPercent: input.chronicPercent,
@@ -1133,7 +1139,7 @@ export const saveSettings = writeProcedure
           checkInNfc: input.checkInNfc,
           lateAfterMinutes: input.lateAfterMinutes,
           registerClosesMinutes: input.registerClosesMinutes,
-        },
+        }),
       });
       return { version };
     } catch (error) {

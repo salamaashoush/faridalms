@@ -1,5 +1,6 @@
 import type { SchoolYear } from "@faridalms/database/stores/years";
 
+import { changeOf } from "@faridalms/database/audit";
 import { lastMarkInClass } from "@faridalms/database/stores/attendance";
 import {
   classById,
@@ -239,6 +240,9 @@ export const save = writeProcedure
     const { year } = await yearOf(context, input.yearId);
     if (!year) throw new ORPCError("NOT_FOUND");
     await requireOpen(context, year);
+    const before = input.id
+      ? await classById(context.tx, context, input.id)
+      : null;
     const homeroomId = await writeHomeroom(context, year, input);
     await audit(context, {
       action: input.id ? "class.update" : "class.create",
@@ -249,6 +253,13 @@ export const save = writeProcedure
         subjects: input.subjects.map((row) => row.subjectId),
         homeroomTeacherId: input.homeroomTeacherId || null,
       },
+      change: changeOf("core.classes", before, {
+        code: input.code,
+        titleEn: input.titleEn || null,
+        titleAr: input.titleAr || null,
+        gradeId: input.gradeId || null,
+        locationId: input.locationId || null,
+      }),
     });
     const saved = await classById(context.tx, context, homeroomId);
     return { id: homeroomId, version: saved?.version ?? 1 };
@@ -276,6 +287,7 @@ export const enrol = writeProcedure
         message: "enrollment.outside_year",
       });
     const endedId: string[] = [];
+    let movedFrom: string | null = null;
     if (target.classType === "homeroom") {
       const held = await homeroomEnrollments(context.tx, context, {
         studentId: input.studentId,
@@ -302,6 +314,7 @@ export const enrol = writeProcedure
           on: from,
         });
         endedId.push(current.id);
+        movedFrom = current.classId;
       }
     }
     const enrollmentId = await enrolStudent(context.tx, {
@@ -327,6 +340,11 @@ export const enrol = writeProcedure
       subjectUserId: input.studentId,
       studentUserId: input.studentId,
       details: { classId: target.id, from, ended: endedId },
+      change: changeOf(
+        "core.enrollments",
+        movedFrom === null ? null : { classId: movedFrom },
+        { classId: target.id },
+      ),
     });
     return { id: enrollmentId, moved: endedId.length > 0 };
   });
@@ -430,6 +448,11 @@ export const saveSubject = writeProcedure
         action: "subject.update",
         objectType: "descriptor",
         objectId: input.id,
+        change: changeOf("core.descriptors", known, {
+          labelEn: input.labelEn,
+          labelAr: input.labelAr,
+          color: input.color || null,
+        }),
       });
       return { id: input.id };
     }

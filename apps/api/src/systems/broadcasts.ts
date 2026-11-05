@@ -10,6 +10,7 @@ import type { PublishRules } from "@faridalms/domain/content-checks";
 import type { NoticeParams } from "@faridalms/domain/notifications";
 import type { ContentLocale } from "@faridalms/domain/translations";
 
+import { changeOf } from "@faridalms/database/audit";
 import {
   audiencesOf,
   audienceUsers,
@@ -353,13 +354,13 @@ export async function saveBroadcast(
   requireCapability(context, rules.capability);
   let id = input.id;
   let version: number;
-  if (input.id) {
-    const row = await managed(context, rules, input.id);
-    if (row.state === "archived")
+  const before = input.id ? await managed(context, rules, input.id) : null;
+  if (before) {
+    if (before.state === "archived")
       throw new ORPCError("CONFLICT", { message: rules.codes.archived });
     const next = await updateBroadcast(context.tx, {
       tenantId: context.tenantId,
-      id: row.id,
+      id: before.id,
       expectedVersion: input.expectedVersion,
       ...input.fields,
     });
@@ -395,6 +396,7 @@ export async function saveBroadcast(
     objectType: rules.kind,
     objectId: id,
     details: input.details,
+    change: changeOf("core.broadcasts", before, input.fields),
   });
   return {
     id,

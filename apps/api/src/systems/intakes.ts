@@ -1,5 +1,6 @@
 import type { IntakeLetters } from "@faridalms/domain/admissions";
 
+import { changeOf } from "@faridalms/database/audit";
 import {
   formsOf,
   insertForm,
@@ -316,10 +317,19 @@ export const saveForm = writeProcedure
         action: "admission_form.update",
         objectType: "admission_form",
         objectId: input.id,
-        details: {
-          questions: input.questions.length,
-          before: before.questions.length,
-        },
+        change: changeOf(
+          "core.admission_forms",
+          {
+            nameEn: before.nameEn,
+            nameAr: before.nameAr,
+            questions: before.questions.length,
+          },
+          {
+            nameEn: input.nameEn,
+            nameAr: input.nameAr,
+            questions: input.questions.length,
+          },
+        ),
       });
       return { id: input.id, version };
     }

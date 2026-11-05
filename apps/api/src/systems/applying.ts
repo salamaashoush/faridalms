@@ -1,7 +1,7 @@
 import type { ApplicationRow } from "@faridalms/database/stores/admissions";
 import type { ChildInput, Needs } from "@faridalms/domain/admissions";
 
-import { writeAudit } from "@faridalms/database/audit";
+import { changeOf, writeAudit } from "@faridalms/database/audit";
 import { lookupHmac } from "@faridalms/database/crypto";
 import { capabilityHolders } from "@faridalms/database/stores/access";
 import {
@@ -924,6 +924,28 @@ export const save = writeProcedure
       objectId: row.id,
       subjectUserId: child.id,
       details: { needs: changed.join(",") || null },
+      change: changeOf(
+        "core.users",
+        {
+          ...nameColumns({
+            ar: {
+              given: child.givenNameAr,
+              middle: child.middleNameAr,
+              family: child.familyNameAr,
+            },
+            en: {
+              given: child.givenNameEn,
+              middle: child.middleNameEn,
+              family: child.familyNameEn,
+            },
+          }),
+          birthDate: child.birthDate,
+        },
+        {
+          ...nameColumns(input.child.names),
+          birthDate: input.child.birthDate,
+        },
+      ),
     });
     return { version: version + (noted ? 1 : 0) };
   });

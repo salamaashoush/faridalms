@@ -1,6 +1,7 @@
 import type { ApplicationRow } from "@faridalms/database/stores/admissions";
 import type { EventKind } from "@faridalms/domain/admissions";
 
+import { changeOf } from "@faridalms/database/audit";
 import { capabilityHolders } from "@faridalms/database/stores/access";
 import {
   boardOf,
@@ -628,6 +629,14 @@ export const saveEvent = writeProcedure
       objectId: id,
       subjectUserId: row.applicantUserId,
       details: { applicationId: row.id, kind: input.kind, date: input.date },
+      change: changeOf(
+        "core.admission_events",
+        before && {
+          ...before,
+          attendeeIds: before.attendees.map((each) => each.id),
+        },
+        fields,
+      ),
     });
     return { id, version };
   });

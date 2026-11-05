@@ -251,12 +251,17 @@ export async function enrol(
       objectId: link.relationshipId,
       subjectUserId: studentId,
       studentUserId: studentId,
-      details: {
-        relatedUserId: link.userId,
-        relationMeaning: link.relationMeaning,
-        legalGuardian: link.legalGuardian,
-        portalAccess: link.portalAccess || applying,
-        applicationId: row.id,
+      details: { relatedUserId: link.userId, applicationId: row.id },
+      change: {
+        table: "core.user_relationships",
+        before: {
+          portalAccess: link.portalAccess,
+          receivesNotifications: link.receivesNotifications,
+        },
+        after: {
+          portalAccess: link.portalAccess || applying,
+          receivesNotifications: link.receivesNotifications || applying,
+        },
       },
     });
   }

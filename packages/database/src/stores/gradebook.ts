@@ -116,8 +116,24 @@ export async function savePeriodGrade(
     /** The school's day, which picks the scale bands a new score is graded on. */
     today: string;
   },
-) {
-  await tx.execute(sql`
+): Promise<{
+  before: {
+    score: number | null;
+    maxScore: number;
+    comment: string | null;
+  } | null;
+}> {
+  const rows = await tx.execute<{
+    score: string | null;
+    max_score: string;
+    comment: string | null;
+  }>(sql`
+    with was as (
+      select score, max_score, comment from core.period_grades
+      where tenant_id = ${input.tenantId}::uuid and class_id = ${input.classRow.id}::uuid
+        and grading_period_id = ${input.periodId}::uuid
+        and student_user_id = ${input.studentId}::uuid and status = 'active'
+    ), saved as (
     insert into core.period_grades (tenant_id, org_id, class_id, class_type, school_year_id,
       grading_period_id, student_user_id, score, max_score, comment, recorded_by_user_id,
       grade_scale_version_id)
@@ -140,7 +156,19 @@ export async function savePeriodGrade(
         then core.period_grades.grade_scale_version_id
         else excluded.grade_scale_version_id end,
       score = excluded.score, max_score = excluded.max_score, comment = excluded.comment,
-      recorded_by_user_id = excluded.recorded_by_user_id`);
+      recorded_by_user_id = excluded.recorded_by_user_id
+    returning 1)
+    select was.score, was.max_score, was.comment from was`);
+  const was = rows[0];
+  return {
+    before: was
+      ? {
+          score: was.score === null ? null : Number(was.score),
+          maxScore: Number(was.max_score),
+          comment: was.comment,
+        }
+      : null,
+  };
 }
 
 /** Releases a class's recorded grades for a period, answering whose went out. */

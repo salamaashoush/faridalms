@@ -844,7 +844,16 @@ export const saveRelationship = writeProcedure
       studentUserId: input.studentId,
       change: {
         table: "core.user_relationships",
-        before: null,
+        before: {
+          relationMeaning: existing.relationMeaning,
+          legalGuardian: existing.legalGuardian,
+          portalAccess: existing.portalAccess,
+          receivesNotifications: existing.receivesNotifications,
+          primaryContact: existing.primaryContact,
+          emergencyContact: existing.emergencyContact,
+          residence: existing.residence,
+          pickup: existing.pickup,
+        },
         after: { relationMeaning: meaning, ...flags },
       },
     });

@@ -4,6 +4,7 @@ import type {
   IdentifierValue,
 } from "@faridalms/database/stores/identifiers";
 
+import { changeOf } from "@faridalms/database/audit";
 import { decryptField } from "@faridalms/database/crypto";
 import { descriptorsFor } from "@faridalms/database/stores/descriptors";
 import {
@@ -234,7 +235,17 @@ export const save = writeProcedure
       objectId: rowId,
       subjectUserId: input.studentId,
       studentUserId: input.studentId,
-      details: { meaning, issuingCountry, expiresOn: input.expiresOn || null },
+      details: {
+        meaning,
+        issuingCountry,
+        expiresOn: input.expiresOn || null,
+        numberChanged: existing !== null && input.number !== "",
+      },
+      change: changeOf("core.external_ids", existing, {
+        issuingCountry,
+        from,
+        to,
+      }),
     });
     // An Egyptian ID carries its holder's birth date; one that disagrees
     // with the record means one of the two is wrong.

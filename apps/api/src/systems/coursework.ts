@@ -19,6 +19,7 @@ import type {
 } from "@faridalms/domain/learning";
 import type { ContentLocale } from "@faridalms/domain/translations";
 
+import { changeOf } from "@faridalms/database/audit";
 import { arrangementsOf } from "@faridalms/database/stores/arrangements";
 import { bankTagCounts } from "@faridalms/database/stores/bank";
 import {
@@ -1073,6 +1074,7 @@ export const save = writeProcedure
       objectType: "assignment",
       objectId: assignmentId,
       details: { classId: classRow.id, title: input.title },
+      change: changeOf("core.assignments", stored, fieldsOf(input)),
     });
     return { id: assignmentId, version };
   });

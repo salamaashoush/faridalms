@@ -1,3 +1,4 @@
+import { changeOf } from "@faridalms/database/audit";
 import {
   filesByIds,
   linkFiles,
@@ -123,6 +124,11 @@ export const setFeature = writeProcedure
       )
     )
       throw new ORPCError("FORBIDDEN", { message: "feature.not_in_plan" });
+    const before = await schoolFeatures(
+      context.tx,
+      context.tenantId,
+      context.schoolId,
+    );
     await setOrgFeature(context.tx, {
       tenantId: context.tenantId,
       orgId: context.schoolId,
@@ -134,6 +140,11 @@ export const setFeature = writeProcedure
       objectType: "org",
       objectId: context.schoolId,
       details: { feature: input.feature, enabled: input.enabled },
+      change: changeOf(
+        "core.org_features",
+        { enabled: before[input.feature] },
+        { enabled: input.enabled },
+      ),
     });
     return {
       switches: await schoolFeatures(

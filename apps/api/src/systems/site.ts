@@ -9,6 +9,7 @@ import type {
   SiteLocale,
 } from "@faridalms/domain/website";
 
+import { changeOf } from "@faridalms/database/audit";
 import { publicIntakes } from "@faridalms/database/stores/admissions";
 import {
   documentOf,
@@ -315,11 +316,20 @@ export const saveSettings = writeProcedure
   .input(saveSettingsSchema)
   .handler(async ({ input, context }) => {
     requireCapability(context, "site:manage");
+    const before = await siteSettings(
+      context.tx,
+      context.tenantId,
+      context.schoolId,
+    );
+    const { expectedVersion, ...fields } = {
+      ...input,
+      bannerUntil: input.bannerUntil || null,
+    };
     const version = await saveSiteSettings(context.tx, {
       tenantId: context.tenantId,
       orgId: context.schoolId,
-      ...input,
-      bannerUntil: input.bannerUntil || null,
+      expectedVersion,
+      ...fields,
     });
     if (version === null) throw conflict();
     forgetFace(context.school.slug);
@@ -332,6 +342,7 @@ export const saveSettings = writeProcedure
         bilingual: input.bilingual,
         theme: input.theme.id,
       },
+      change: changeOf("core.site_settings", before, fields),
     });
     return { version };
   });

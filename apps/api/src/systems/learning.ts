@@ -17,6 +17,7 @@ import type {
 } from "@faridalms/domain/learning";
 import type { ScratchFeature } from "@faridalms/domain/scratch-project";
 
+import { changeOf } from "@faridalms/database/audit";
 import { arrangementsOf } from "@faridalms/database/stores/arrangements";
 import { reachOf } from "@faridalms/database/stores/audiences";
 import { classesTaughtBy, rosterOf } from "@faridalms/database/stores/classes";
@@ -913,8 +914,8 @@ export const saveModule = writeProcedure
     };
     let moduleId = input.id;
     let version: number;
+    const before = input.id ? await editableModule(context, input.id) : null;
     if (input.id) {
-      await editableModule(context, input.id);
       const next = await updateModule(context.tx, {
         tenantId: context.tenantId,
         id: input.id,
@@ -950,6 +951,7 @@ export const saveModule = writeProcedure
       objectType: "learning_module",
       objectId: moduleId,
       details: { title: input.title, classes: input.classIds.length },
+      change: changeOf("core.learning_modules", before, fields),
     });
     return { id: moduleId, version };
   });
@@ -1523,6 +1525,7 @@ export const saveLesson = writeProcedure
       objectType: "lesson",
       objectId: lessonId,
       details: { moduleId: owner.id, title: input.title },
+      change: changeOf("core.lessons", stored, fields),
     });
     const published = input.publish && owner.state === "published";
     if (published) {

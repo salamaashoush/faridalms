@@ -1,5 +1,6 @@
 import type { BreachRow, LeaverRow } from "@faridalms/database/stores/privacy";
 
+import { changeOf } from "@faridalms/database/audit";
 import { unsuccessfulApplicants } from "@faridalms/database/stores/admissions";
 import {
   approveErasure as approveErasureOf,
@@ -244,7 +245,7 @@ export const saveRetention = writeProcedure
       action: "privacy_retention.update",
       objectType: "retention_settings",
       objectId: context.schoolId,
-      details: { before, after },
+      change: changeOf("core.retention_settings", before, after),
     });
   });
 
@@ -330,11 +331,10 @@ export const saveRequest = writeProcedure
       dueOn: statutory ?? input.dueOn ?? input.clockFrom,
       details: input.details || null,
     };
+    const before = input.id
+      ? await requestById(context.tx, { ...scopeOf(context), id: input.id })
+      : null;
     if (input.id) {
-      const before = await requestById(context.tx, {
-        ...scopeOf(context),
-        id: input.id,
-      });
       if (input.expectedVersion === undefined)
         throw new ORPCError("BAD_REQUEST", { message: "validation.required" });
       const updated = await updateRequest(context.tx, {
@@ -370,6 +370,7 @@ export const saveRequest = writeProcedure
         clockFrom: input.clockFrom,
         dueOn: fields.dueOn,
       },
+      change: changeOf("core.records_requests", before, fields),
     });
     return { id, dueOn: fields.dueOn };
   });
@@ -479,6 +480,11 @@ export const saveBreach = writeProcedure
   .handler(async ({ input, context }) => {
     requireCapability(context, "privacy:manage");
     const { id: given, expectedVersion, ...fields } = input;
+    const before = given
+      ? (await breachesOf(context.tx, scopeOf(context))).find(
+          (row) => row.id === given,
+        )
+      : undefined;
     if (given) {
       if (expectedVersion === undefined)
         throw new ORPCError("BAD_REQUEST", { message: "validation.required" });
@@ -489,9 +495,6 @@ export const saveBreach = writeProcedure
         ...fields,
       });
       if (!updated) {
-        const before = (await breachesOf(context.tx, scopeOf(context))).find(
-          (row) => row.id === given,
-        );
         if (before && !before.closedAt && before.version !== expectedVersion)
           throw new ORPCError("CONFLICT", { message: "conflict.version" });
         throw new ORPCError("NOT_FOUND", { message: "privacy.breach_closed" });
@@ -515,6 +518,7 @@ export const saveBreach = writeProcedure
         risk: fields.risk,
         peopleAffected: fields.peopleAffected,
       },
+      change: changeOf("core.breaches", before, fields),
     });
     return { id };
   });

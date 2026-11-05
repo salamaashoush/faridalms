@@ -2,6 +2,7 @@ import type { AudienceInput } from "@faridalms/domain/announcements";
 import type { ShownCategory } from "@faridalms/domain/calendar";
 import type { ContentDocument } from "@faridalms/domain/content";
 
+import { changeOf } from "@faridalms/database/audit";
 import { bookedBetween } from "@faridalms/database/stores/admission-decisions";
 import {
   audiencesOf,
@@ -383,9 +384,9 @@ export const save = writeProcedure
     let version: number;
     let told = false;
     let out = false;
-    if (input.id) {
-      const row = await editable(context, input.id);
-      out = row.state === "published";
+    const before = input.id ? await editable(context, input.id) : null;
+    if (before) {
+      out = before.state === "published";
       if (out) await checkDescription(context, input.description);
       told = out && input.sendUpdate;
       const next = await updateEvent(context.tx, {
@@ -453,6 +454,7 @@ export const save = writeProcedure
         startsOn: input.startsOn,
         told,
       },
+      change: changeOf("core.calendar_events", before, fields),
     });
     return { id: eventId, version };
   });

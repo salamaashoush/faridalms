@@ -1,5 +1,6 @@
 import type { ContentDocument } from "@faridalms/domain/content";
 
+import { changeOf } from "@faridalms/database/audit";
 import {
   bankQuestionById,
   bankQuestionsOf,
@@ -152,8 +153,9 @@ export const save = writeProcedure
       tags: input.tags,
     };
     let saved: { id: string; version: number };
+    const before = input.id ? await usable(context, input.id) : null;
     if (input.id) {
-      const row = await usable(context, input.id);
+      const row = before;
       if (!row) throw new ORPCError("NOT_FOUND");
       if (row.ownerUserId !== context.actor.userId)
         throw new ORPCError("FORBIDDEN", { message: "bank.not_owner" });
@@ -190,6 +192,12 @@ export const save = writeProcedure
       objectType: "bank_question",
       objectId: saved.id,
       details: { kind: question.kind, scope: input.scope },
+      change: changeOf("core.bank_questions", before, {
+        scope: input.scope,
+        kind: question.kind,
+        title,
+        tags: input.tags,
+      }),
     });
     return saved;
   });

@@ -55,6 +55,7 @@ export async function save(input: { code: string; last: string }) {
   await audit({
     action: input.code ? "class.update" : "class.create",
     table: "core.classes",
+    change: changeOf("core.classes", null, { code: input.code }),
   });
   await tx.execute(sql\`select * from core.classes where code = 'class.sql'\`);
   return { file: "index.html", host: "youtube.com", locked: LOCKED.closed };

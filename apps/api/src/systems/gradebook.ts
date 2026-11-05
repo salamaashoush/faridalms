@@ -209,7 +209,7 @@ export const savePeriodGrades = writeProcedure
         throw new ORPCError("BAD_REQUEST", {
           message: "gradebook.score_range",
         });
-      await savePeriodGrade(context.tx, {
+      const { before } = await savePeriodGrade(context.tx, {
         tenantId: context.tenantId,
         orgId: context.schoolId,
         classRow,
@@ -221,13 +221,27 @@ export const savePeriodGrades = writeProcedure
         userId: context.actor.userId,
         today: context.today,
       });
+      const after = {
+        score: grade.score,
+        maxScore: input.maxScore,
+        comment: grade.comment || null,
+      };
+      if (
+        !before ||
+        before.score !== after.score ||
+        before.maxScore !== after.maxScore ||
+        before.comment !== after.comment
+      )
+        await audit(context, {
+          action: "period_grade.save",
+          objectType: "class",
+          objectId: classRow.id,
+          subjectUserId: grade.studentId,
+          studentUserId: grade.studentId,
+          details: { periodId: input.periodId },
+          change: { table: "core.period_grades", before, after },
+        });
     }
-    await audit(context, {
-      action: "period_grade.save",
-      objectType: "class",
-      objectId: classRow.id,
-      details: { periodId: input.periodId, students: input.grades.length },
-    });
     return { saved: input.grades.length };
   });
 

@@ -1,3 +1,4 @@
+import { changeOf } from "@faridalms/database/audit";
 import {
   insertTool,
   removeTool as dropTool,
@@ -78,6 +79,7 @@ export const saveTool = writeProcedure
     };
     const scope = { tenantId: context.tenantId, orgId: context.schoolId };
     if (input.id) {
+      const before = await toolById(context.tx, { ...scope, id: input.id });
       const saved = await updateTool(context.tx, {
         ...scope,
         id: input.id,
@@ -91,6 +93,7 @@ export const saveTool = writeProcedure
         objectType: "lti_tool",
         objectId: input.id,
         details: { name: input.name },
+        change: changeOf("core.lti_tools", before, fields),
       });
       return { id: input.id, version: saved.version };
     }
