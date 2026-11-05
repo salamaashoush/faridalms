@@ -158,6 +158,7 @@ import {
 } from "../core/reach";
 import { issueBadgeSecret } from "../core/session";
 import { emailSignInLink } from "../core/sign-in-link";
+import { yearOf } from "../core/years";
 import { registerHostReader } from "../files/authorize";
 import { inviteMessage } from "../notifications/templates";
 
@@ -275,13 +276,8 @@ export const students = readProcedure
   .input(studentDirectorySchema)
   .handler(async ({ input, context }) => {
     requireCapability(context, "people:read", "people:manage");
-    const years = await schoolYears(
-      context.tx,
-      context.tenantId,
-      context.schoolId,
-    );
+    const { years, year } = await yearOf(context, input.year);
     const working = workingYear(years, context.today);
-    const year = years.find((row) => row.id === input.year) ?? working;
     if (!year)
       return {
         year: null,

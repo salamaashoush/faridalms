@@ -66,8 +66,6 @@ From `foundations.md`. W1, W3, W4 and W5 are merged.
   guard.
 - The family "Hand over" button has no error handling; a refused hand-over
   leaves the page with no message.
-- `people.students` falls back to the working year when given an unknown
-  year id instead of refusing.
 
 ## Reach
 

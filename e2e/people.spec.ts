@@ -92,6 +92,16 @@ test("the student list keeps only the filters a reader changed in the URL", asyn
   await expect(page).toHaveURL(/\/admin\/students\?dir=desc$/);
 });
 
+test("a student list link naming a year the school does not have is not found", async ({
+  page,
+}) => {
+  await signIn(page, "admin");
+  await page.goto("/admin/students?year=01a1aa00-0000-7000-8000-000000000000");
+  await expect(
+    page.getByRole("heading", { name: "Page not found" }),
+  ).toBeVisible();
+});
+
 test("record tabs follow the reading direction in Arabic", async ({
   page,
   context,

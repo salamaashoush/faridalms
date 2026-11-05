@@ -29,6 +29,15 @@ describe("students", () => {
     );
   });
 
+  test("a year the school does not have is refused, not swapped for the working year", async () => {
+    const api = await signedIn("northwind", login("principal"));
+    expect(
+      await rejection(
+        api.people.students({ year: "01a1aa00-0000-7000-8000-000000000000" }),
+      ),
+    ).toMatchObject({ code: "NOT_FOUND" });
+  });
+
   test("search finds a student by either script, by reference and by a guardian's phone", async () => {
     const api = await signedIn("northwind", login("principal"));
     const [first] = (await api.people.students({ pageSize: 25 })).rows;

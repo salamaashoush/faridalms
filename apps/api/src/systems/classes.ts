@@ -56,24 +56,10 @@ import {
   scopeFor,
   teaches,
 } from "../core/reach";
+import { yearOf } from "../core/years";
 import { mayKeepArea } from "../files/authorize";
 
 const id = v.pipe(v.string(), v.uuid());
-
-/** Staff who run classes or people reach every class and student of the school. */
-
-async function yearOf(context: UnitContext, requested: string) {
-  const years = await schoolYears(
-    context.tx,
-    context.tenantId,
-    context.schoolId,
-  );
-  const year = requested
-    ? years.find((row) => row.id === requested)
-    : workingYear(years, context.today);
-  if (requested && !year) throw new ORPCError("NOT_FOUND");
-  return { years, year: year ?? null };
-}
 
 /**
  * Ending an enrolment on a day before a register that already marks the

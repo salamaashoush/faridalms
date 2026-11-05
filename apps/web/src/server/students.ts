@@ -30,7 +30,7 @@ export const getPeopleOptions = createServerFn({ method: "GET" }).handler(() =>
 
 export const getStudents = createServerFn({ method: "GET" })
   .validator((input: unknown) => v.parse(studentDirectorySchema, input))
-  .handler(({ data }) => backend().people.students(data));
+  .handler(({ data }) => record(backend().people.students(data)));
 
 export const getStudentRecord = createServerFn({ method: "GET" })
   .validator(byId)
