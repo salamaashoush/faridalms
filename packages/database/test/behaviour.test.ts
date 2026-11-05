@@ -1121,10 +1121,11 @@ describe("search", () => {
         params: [host],
       },
       {
-        text: `select (select count(*)::int from app.search('السباحة', array['site_page'], array[$1::uuid]))
-                    + (select count(*)::int from app.search('السباحة', array['site_page'], array[$2::uuid]))
-                    + (select count(*)::int from app.search('swimming', array['site_page'])) as n`,
-        params: [school, other],
+        // Counted on this host alone: the seeded website has words of its own.
+        text: `select (select count(*)::int from app.search('السباحة', array['site_page'], array[$1::uuid]) where result_id = $3)
+                    + (select count(*)::int from app.search('السباحة', array['site_page'], array[$2::uuid]) where result_id = $3)
+                    + (select count(*)::int from app.search('swimming', array['site_page']) where result_id = $3) as n`,
+        params: [school, other, host],
       },
     ]);
     expect(result.error).toBeUndefined();
@@ -1176,8 +1177,9 @@ describe("documents", () => {
   test("its search entry is rebuilt when its words change, not when only its content does", async () => {
     const { a } = harness();
     const host = Bun.randomUUIDv7();
-    const found = `select (select count(*)::int from app.search('zzqx', array['site_page'])) as marked,
-                          (select count(*)::int from app.search('swimming', array['site_page'])) as swimming`;
+    // Counted on this host alone: the seeded website has words of its own.
+    const found = `select (select count(*)::int from app.search('zzqx', array['site_page']) where result_id = '${host}') as marked,
+                          (select count(*)::int from app.search('swimming', array['site_page']) where result_id = '${host}') as swimming`;
     const result = await probe("cell_owner", a.tenantId, [
       {
         text: `insert into core.documents (tenant_id, host_type, host_id, org_id, kind, schema_version, locale, content, plain_text)
