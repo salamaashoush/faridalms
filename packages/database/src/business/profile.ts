@@ -45,7 +45,16 @@ export async function saveProfile(
           updatedAt: sql`statement_timestamp()`,
         })
         .where(eq(businessProfile.id, 1));
-    else await tx.insert(businessProfile).values({ id: 1, ...fields });
+    else {
+      // Two first saves both find no row to lock; the one that inserts
+      // second has read a version that no longer holds.
+      const inserted = await tx
+        .insert(businessProfile)
+        .values({ id: 1, ...fields })
+        .onConflictDoNothing()
+        .returning({ id: businessProfile.id });
+      if (inserted.length === 0) return false;
+    }
     await recordEvent(tx, {
       operatorId: by,
       action: "business.profile",
