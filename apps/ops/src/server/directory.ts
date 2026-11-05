@@ -1,9 +1,7 @@
 import type { DirectoryAdmin } from "@faridalms/database/directory/admin";
 
-import {
-  openDirectoryAdmin,
-  SlugTakenError,
-} from "@faridalms/database/directory/admin";
+import { openSubscription } from "@faridalms/database/business/subscriptions";
+import { SlugTakenError } from "@faridalms/database/directory/admin";
 import { HostRefusedError } from "@faridalms/database/directory/hosts";
 import { saveSeriesSchema } from "@faridalms/domain/exams";
 import {
@@ -16,7 +14,6 @@ import {
 import { saveEntitlementsSchema } from "@faridalms/domain/plans";
 import {
   newSchoolSchema,
-  lifecycleOf,
   reissueInviteSchema,
   setStandingSchema,
 } from "@faridalms/domain/provisioning";
@@ -25,21 +22,13 @@ import { randomBytes } from "node:crypto";
 import * as v from "valibot";
 
 import { currentAccess, requireArea, requireFreshSignIn } from "./access";
+import { businessDb } from "./business";
+import { directoryAdmin as directory } from "./directory-admin";
 import { opsEnv } from "./env";
-import {
-  explain,
-  provisionTenant,
-  reissueInvite,
-  setLifecycle,
-} from "./provisioner";
+import { explain, provisionTenant, reissueInvite } from "./provisioner";
+import { changeStanding } from "./standing";
 
 const byId = v.object({ id: v.pipe(v.string(), v.uuid()) });
-
-let admin: DirectoryAdmin | null = null;
-const directory = () => {
-  admin ??= openDirectoryAdmin(opsEnv().OPS_DIRECTORY_URL);
-  return admin;
-};
 
 /** Who is signed in and what their roles let them do, or null. */
 export const getAccess = createServerFn({ method: "GET" }).handler(() =>
@@ -63,6 +52,10 @@ export const getSchool = createServerFn({ method: "GET" })
       directory().hosts(data.id),
     ]);
     if (!school) throw new Error("NOT_FOUND");
+    const business = businessDb();
+    const subscription = business
+      ? await openSubscription(business, school.tenantId)
+      : null;
     const env = opsEnv();
     const domains = { portal: env.PORTAL_DOMAIN, sites: env.SITES_DOMAIN };
     const hostChanges = hosts.length
@@ -74,6 +67,11 @@ export const getSchool = createServerFn({ method: "GET" })
       : [];
     return {
       school,
+      /**
+       * With a business database a school's entitlements come from its
+       * subscription; without one an operator sets them here.
+       */
+      sold: business ? { subscriptionId: subscription?.id ?? null } : null,
       platform: {
         site: platformName(school.slug, "site", domains),
         portal: platformName(school.slug, "portal", domains),
@@ -100,6 +98,8 @@ export const saveEntitlements = createServerFn({ method: "POST" })
   .handler(async ({ data }) => {
     const { operator } = await requireArea("entitlements");
     requireFreshSignIn(operator);
+    // The next publication would undo it: the subscription is changed instead.
+    if (businessDb()) throw new Error("SOLD");
     const { schoolId, reason, ...entitlements } = data;
     await directory().saveEntitlements({
       schoolId,
@@ -242,10 +242,7 @@ const resendSchema = v.object({
   email: reissueInviteSchema.entries.email,
 });
 
-/**
- * Pauses, suspends or reopens a school's tenant: its cell first, which
- * enforces it, then the directory, which explains it.
- */
+/** Pauses, suspends, restricts or reopens a school's tenant. */
 export const setSchoolLifecycle = createServerFn({ method: "POST" })
   .validator((input: v.InferInput<typeof setStandingSchema>) =>
     v.parse(setStandingSchema, input),
@@ -256,21 +253,7 @@ export const setSchoolLifecycle = createServerFn({ method: "POST" })
     }): Promise<{ ok: true } | { ok: false; message: string }> => {
       const { operator } = await requireArea("lifecycle");
       requireFreshSignIn(operator);
-      const lifecycle = lifecycleOf(data.standing);
-      const answer = await setLifecycle(operator, {
-        tenantId: data.tenantId,
-        lifecycle,
-        reason: data.reason,
-      });
-      if (!answer.ok) return { ok: false, message: explain(answer) };
-      await directory().setTenantState({
-        tenantId: data.tenantId,
-        state: lifecycle,
-        access: data.standing === "suspended" ? "full" : data.standing,
-        operatorId: operator.id,
-        reason: data.reason,
-      });
-      return { ok: true };
+      return changeStanding(operator, data);
     },
   );
 

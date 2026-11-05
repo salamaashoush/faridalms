@@ -17,6 +17,8 @@ export function failure(error: unknown, fallback: string): string | null {
   }
   if (code === "FORBIDDEN")
     return "Your role does not cover this. Ask an owner of the console.";
+  if (code === "SOLD")
+    return "The school's subscription sets what it may use. Change the subscription instead.";
   if (code === "NO_BUSINESS")
     return "This needs the business database, which this console runs without.";
   return fallback;

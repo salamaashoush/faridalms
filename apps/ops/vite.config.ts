@@ -20,7 +20,10 @@ export default defineConfig({
     tanstackStart({ srcDirectory: "src" }),
     viteReact(),
     // Validates the environment at server start, so a misconfigured
-    // container exits instead of failing on its first request.
-    nitro({ plugins: ["./src/server/preflight.ts"] }),
+    // container exits instead of failing on its first request; then starts
+    // the daily round's hourly check.
+    nitro({
+      plugins: ["./src/server/preflight.ts", "./src/server/scheduler.ts"],
+    }),
   ],
 });
