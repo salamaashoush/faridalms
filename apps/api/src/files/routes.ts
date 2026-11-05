@@ -2,8 +2,11 @@ import type { StoredFile } from "@faridalms/database/stores/files";
 
 import { writeAudit } from "@faridalms/database/audit";
 import { TenantUnavailableError } from "@faridalms/database/context";
-import { studentOf } from "@faridalms/database/stores/coursework";
-import { partKey, settleFile } from "@faridalms/database/stores/files";
+import {
+  partKey,
+  settleFile,
+  studentOfFile,
+} from "@faridalms/database/stores/files";
 import {
   previewable,
   UPLOAD_PART_BYTES,
@@ -277,14 +280,15 @@ async function send(
   const opened = await openUnit(context, "read", async (unit) => {
     const found = await findFile(unit.tx, unit.tenantId, fileId);
     if (!found || found.state !== "ready") return null;
-    if (
-      !(await withFileGate(unit.tx, found.purpose, (tx) =>
-        canReadFile({ ...context, ...unit, tx }, found),
-      ))
-    )
-      return null;
+    const gated = await withFileGate(unit.tx, found.purpose, async (tx) =>
+      (await canReadFile({ ...context, ...unit, tx }, found))
+        ? { student: await studentOfFile(tx, unit.tenantId, found) }
+        : null,
+    );
+    if (!gated) return null;
     return {
       file: found,
+      student: gated.student,
       logged:
         found.uploadedByUserId !== unit.actor.userId &&
         (download || watched(found)),
@@ -299,7 +303,7 @@ async function send(
         objectType: "file",
         objectId: file.id,
         orgId: context.school.schoolId,
-        studentUserId: await studentOf(unit.tx, unit.tenantId, file),
+        studentUserId: opened.student,
         details: {
           hostType: file.hostType,
           hostId: file.hostId,

@@ -4,6 +4,7 @@ import {
   fileById,
   quarantineKey,
   sealedKey,
+  studentOfFile,
 } from "@faridalms/database/stores/files";
 import { describe, expect, test } from "bun:test";
 import { sql } from "drizzle-orm";
@@ -178,6 +179,21 @@ describe("medical reports at rest", () => {
       name: "Dr Hassan letter.pdf",
       shared: false,
     });
+    // Opening it is recorded about the student, so it reaches their
+    // history; the record naming them is read only within its purpose.
+    const unit = {
+      tenantId,
+      requestId: crypto.randomUUID(),
+      actor: { kind: "system" as const },
+    };
+    expect(
+      await seeded().cell.withWorker(unit, "read", (tx) =>
+        withPurpose(tx, "health", async (inner) => {
+          const held = await fileById(inner, tenantId, file.id);
+          return held ? studentOfFile(inner, tenantId, held) : null;
+        }),
+      ),
+    ).toBe(studentId);
 
     const path = `/v1/files/${file.id}/content`;
     const whole = await raw("northwind", office.token, path);

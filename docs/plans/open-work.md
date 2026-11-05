@@ -89,8 +89,6 @@ From `school-front-door.md`; slices 1 to 9 are merged.
     no upload flow.
   - There is no job that re-encrypts sealed files after a key rotation; the
     encrypted fields have none either.
-  - Opening a medical report is audited on the file, not on the student's
-    history.
 - Broadcasts: the web keeps one server-bridge file per kind because the API
   keeps its `announcements` and `news` namespaces.
 

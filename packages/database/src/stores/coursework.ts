@@ -1942,24 +1942,6 @@ export async function namesOf(
   }));
 }
 
-/** The student a piece of work belongs to, for files hosted on it. */
-export async function studentOf(
-  tx: Tx,
-  tenantId: string,
-  file: { hostType: string | null; hostId: string | null },
-): Promise<string | null> {
-  if (file.hostType !== "submission" && file.hostType !== "submission_attempt")
-    return null;
-  const table =
-    file.hostType === "submission"
-      ? sql`core.submissions`
-      : sql`core.submission_attempts`;
-  const [row] = await tx.execute<{ student_user_id: string }>(sql`
-    select student_user_id from ${table}
-    where tenant_id = ${tenantId}::uuid and id = ${file.hostId}::uuid`);
-  return row?.student_user_id ?? null;
-}
-
 export interface PortfolioRow {
   assignmentId: string;
   title: string;

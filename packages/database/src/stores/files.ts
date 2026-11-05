@@ -1279,3 +1279,29 @@ export async function captionDraftReleased(
     returning id`);
   return rows.length > 0;
 }
+
+/**
+ * The student a file is about, for the record of its opening to reach
+ * their history: the one whose work or health record holds it. A health
+ * record is read only inside its purpose, so call this within the file's
+ * gate.
+ */
+export async function studentOfFile(
+  tx: Tx,
+  tenantId: string,
+  file: { hostType: string | null; hostId: string | null },
+): Promise<string | null> {
+  const table =
+    file.hostType === "submission"
+      ? sql`core.submissions`
+      : file.hostType === "submission_attempt"
+        ? sql`core.submission_attempts`
+        : file.hostType === "health_record"
+          ? sql`health.records`
+          : null;
+  if (!table || !file.hostId) return null;
+  const [row] = await tx.execute<{ student_user_id: string }>(sql`
+    select student_user_id from ${table}
+    where tenant_id = ${tenantId}::uuid and id = ${file.hostId}::uuid`);
+  return row?.student_user_id ?? null;
+}
