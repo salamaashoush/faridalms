@@ -1,8 +1,8 @@
 import * as v from "valibot";
 
 import { CAPABILITIES } from "./capabilities";
-import { FEATURES } from "./features";
 import { loginNameSchema } from "./first-sign-in";
+import { SWITCHED_MODULES } from "./modules";
 import { pageField, pageSizeField } from "./paging";
 
 const id = v.pipe(v.string(), v.uuid());
@@ -470,7 +470,7 @@ export const personSearchSchema = v.object({
 });
 
 export const setFeatureSchema = v.object({
-  feature: v.picklist(FEATURES),
+  feature: v.picklist(SWITCHED_MODULES),
   enabled: v.boolean(),
 });
 

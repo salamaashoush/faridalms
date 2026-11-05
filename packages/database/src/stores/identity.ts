@@ -1,10 +1,10 @@
 import type { Capability, Profile } from "@faridalms/domain/capabilities";
-import type { Feature } from "@faridalms/domain/features";
+import type { SwitchedModule } from "@faridalms/domain/modules";
 import type { SessionContext } from "@faridalms/domain/workspace";
 
 import { PROFILE_CAPS } from "@faridalms/domain/capabilities";
 import { YOUNG_STUDENT_GRADES } from "@faridalms/domain/descriptors/catalogue";
-import { FEATURE_DEFAULTS, FEATURES } from "@faridalms/domain/features";
+import { SWITCHED_MODULES } from "@faridalms/domain/modules";
 import {
   ADMINISTRATION_ROLES,
   APPLICANT_ROLE,
@@ -503,9 +503,11 @@ export async function schoolFeatures(
   tx: Tx,
   tenantId: string,
   schoolId: string,
-): Promise<Record<Feature, boolean>> {
+): Promise<Record<SwitchedModule, boolean>> {
   const path = await orgPath(tx, tenantId, schoolId);
-  const result = { ...FEATURE_DEFAULTS };
+  const result = Object.fromEntries(
+    SWITCHED_MODULES.map((id) => [id, false]),
+  ) as Record<SwitchedModule, boolean>;
   if (path.length === 0) return result;
   const rows = await tx
     .select({
@@ -517,7 +519,7 @@ export async function schoolFeatures(
     .where(
       and(eq(orgFeatures.status, "active"), inArray(orgFeatures.orgId, path)),
     );
-  for (const feature of FEATURES) {
+  for (const feature of SWITCHED_MODULES) {
     const nearest = rows
       .filter((row) => row.feature === feature)
       .toSorted((a, b) => path.indexOf(a.orgId) - path.indexOf(b.orgId))[0];

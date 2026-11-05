@@ -176,7 +176,7 @@ export function LessonEditor({
 }) {
   const queryClient = useQueryClient();
   const module = useSuspenseQuery(moduleRecordQuery(moduleId)).data;
-  const earlyYears = useCurrentUser().features.early_years;
+  const earlyYears = useCurrentUser().modules.early_years;
   const open = module.state === "published";
   const media = useDocumentMedia({ type: "module", id: moduleId });
   // Co-teachers write a lesson together once it exists; a new one starts alone.

@@ -235,7 +235,6 @@ import type { SchoolContext, UnitContext } from "../core/context";
 
 import { markedProgram } from "../coding/mark";
 import { projectCode } from "../coding/scratch-file";
-import { featuresOf } from "../core/features";
 import {
   editableModule,
   mayEditModule,
@@ -243,6 +242,7 @@ import {
 } from "../core/learning-access";
 import { templateHost, usableTemplate } from "../core/library";
 import { publishTelling } from "../core/mentions";
+import { modulesOf } from "../core/modules";
 import {
   audit,
   can,
@@ -269,7 +269,7 @@ import { resultOf } from "../lti/grades";
 const id = v.pipe(v.string(), v.uuid());
 
 async function isOn(context: UnitContext) {
-  return (await featuresOf(context)).elearning;
+  return (await modulesOf(context)).elearning;
 }
 
 async function switchedOn(context: UnitContext) {

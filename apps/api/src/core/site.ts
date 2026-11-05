@@ -7,6 +7,7 @@ import {
   recordPublication,
   subjectsWithoutConsent,
 } from "@faridalms/database/stores/site";
+import { availableModules } from "@faridalms/domain/plans";
 import { publicKeyFor } from "@faridalms/domain/website";
 import { ORPCError } from "@orpc/server";
 
@@ -49,6 +50,22 @@ export async function withPublicSite<T>(
         now,
       }),
   );
+}
+
+/**
+ * A school's public website, which only a school with the website module
+ * has; anything else answers as if there were no site. The portal's own
+ * sign-in face reads the site whatever the plan, through `withPublicSite`.
+ */
+export async function withWebsite<T>(
+  context: RequestContext,
+  slug: string,
+  run: (unit: PublicUnit) => Promise<T>,
+): Promise<T> {
+  const school = await context.directory.bySlug(slug);
+  if (!school || !availableModules(school.plan).includes("website"))
+    throw new ORPCError("NOT_FOUND");
+  return withPublicSite(context, slug, run);
 }
 
 interface Host {

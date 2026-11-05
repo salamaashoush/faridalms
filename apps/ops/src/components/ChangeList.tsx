@@ -1,6 +1,6 @@
 import type { Change } from "@faridalms/database/directory/admin";
 
-import { formatBytes, formatDay, formatWhen, MODULE_NAMES } from "../format";
+import { formatBytes, formatDay, formatWhen, moduleName } from "../format";
 
 const LABEL: Record<string, string> = {
   poolBytes: "School pool",
@@ -18,9 +18,7 @@ const LABEL: Record<string, string> = {
 function describe(value: unknown, key: string): string {
   if (value === null || value === undefined) return "default";
   if (key === "modules" && Array.isArray(value))
-    return value
-      .map((module) => MODULE_NAMES[String(module)] ?? module)
-      .join(", ");
+    return value.map((module) => moduleName(String(module))).join(", ");
   if (typeof value === "number") return formatBytes(value);
   if (typeof value === "boolean") return value ? "yes" : "no";
   if (key === "keepUntil" && typeof value === "string") return formatDay(value);

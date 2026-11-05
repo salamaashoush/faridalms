@@ -36,6 +36,7 @@ import {
   mentionNamesSchema,
   SEARCH_PAGE_SIZE,
   SEARCH_PREVIEW_SIZE,
+  kindOn,
   searchableKinds,
   searchFlagOf,
   searchQuerySchema,
@@ -45,7 +46,7 @@ import { ORPCError } from "@orpc/server";
 import type { UnitContext } from "../core/context";
 
 import { calendarReach } from "../core/audiences";
-import { featuresOf } from "../core/features";
+import { modulesOf } from "../core/modules";
 import { can, localeOf, readProcedure } from "../core/procedure";
 import { scopeFor } from "../core/reach";
 
@@ -300,11 +301,10 @@ async function pageOf(
 }
 
 async function kindsFor(context: UnitContext): Promise<SearchKind[]> {
-  const kinds = searchableKinds(context.actor.capabilities);
-  if (!kinds.includes("learning")) return kinds;
-  return (await featuresOf(context)).elearning
-    ? kinds
-    : kinds.filter((kind) => kind !== "learning");
+  const on = await modulesOf(context);
+  return searchableKinds(context.actor.capabilities).filter((kind) =>
+    kindOn(kind, on),
+  );
 }
 
 /** Everything the viewer may open that matches, grouped by kind, or one kind a page at a time. */

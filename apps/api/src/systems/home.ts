@@ -66,6 +66,7 @@ import * as v from "valibot";
 import type { UnitContext } from "../core/context";
 import type { RecordLink } from "../core/reach";
 
+import { modulesOf } from "../core/modules";
 import {
   can,
   clockOf,
@@ -369,10 +370,11 @@ export const teacher = readProcedure.handler(async ({ context }) => {
     clock,
     (classId, periodId) => registers.get(`${classId}:${periodId}`) ?? null,
   );
-  const waiting = work
+  const on = await modulesOf(context);
+  const waiting = (on.coursework ? work : [])
     .filter((row) => row.toGrade > 0)
     .toSorted((a, b) => (a.dueAt ?? "").localeCompare(b.dueAt ?? ""));
-  const due = work
+  const due = (on.coursework ? work : [])
     .filter(
       (row) =>
         row.state !== "draft" &&
@@ -384,7 +386,7 @@ export const teacher = readProcedure.handler(async ({ context }) => {
     .slice(0, 5);
   return {
     today: context.today,
-    slots,
+    slots: on.timetable ? slots : [],
     review: waiting.slice(0, 5).map((row) => ({
       id: row.id,
       title: row.title,
@@ -543,13 +545,16 @@ async function studentDay(context: UnitContext, studentId: string) {
     context,
     slots.map((slot) => slot.teacherId),
   );
+  const on = await modulesOf(context);
   return {
-    presence,
-    slots: slots.map((slot) => ({
-      ...slot,
-      teacherLink: linkOf(slot.teacherId),
-    })),
-    work,
+    presence: on.attendance ? presence : ("none" as const),
+    slots: on.timetable
+      ? slots.map((slot) => ({
+          ...slot,
+          teacherLink: linkOf(slot.teacherId),
+        }))
+      : [],
+    work: on.coursework ? work : [],
     year,
   };
 }
@@ -809,17 +814,18 @@ export const family = readProcedure
           urgency: row.urgency,
           readAt: row.readAt,
         })),
-      news: news[0]
-        ? {
-            id: news[0].id,
-            titleEn: news[0].titleEn,
-            titleAr: news[0].titleAr,
-            excerptEn: news[0].excerptEn,
-            excerptAr: news[0].excerptAr,
-            summary: news[0].summary,
-            readAt: news[0].readAt,
-          }
-        : null,
+      news:
+        (await modulesOf(context)).news && news[0]
+          ? {
+              id: news[0].id,
+              titleEn: news[0].titleEn,
+              titleAr: news[0].titleAr,
+              excerptEn: news[0].excerptEn,
+              excerptAr: news[0].excerptAr,
+              summary: news[0].summary,
+              readAt: news[0].readAt,
+            }
+          : null,
     };
   });
 
@@ -913,6 +919,7 @@ export const student = readProcedure.handler(async ({ context }) => {
 export const admin = readProcedure.handler(async ({ context }) => {
   if (context.actor.workspace !== "admin") throw new ORPCError("FORBIDDEN");
   const year = await yearOf(context);
+  const on = await modulesOf(context);
   const weekStart = addDays(
     context.today,
     -((isoWeekday(context.today) + 6) % 7),
@@ -941,7 +948,7 @@ export const admin = readProcedure.handler(async ({ context }) => {
   } | null = null;
   let attendance: { today: number | null; week: number | null } | null = null;
   let absences: number | null = null;
-  if (year && can(context, "attendance:manage")) {
+  if (year && on.attendance && can(context, "attendance:manage")) {
     const periods = await periodsOn(context.tx, {
       tenantId: context.tenantId,
       schoolId: context.schoolId,
@@ -1061,29 +1068,30 @@ export const admin = readProcedure.handler(async ({ context }) => {
           kind: "announcement" as const,
         }))
     : [];
-  const news = can(context, "news:manage")
-    ? (
-        await managedBroadcasts(context.tx, {
-          tenantId: context.tenantId,
-          schoolId: context.schoolId,
-          kind: "news",
-          tab: "published",
-          q: "",
-          // Only those sent to an audience have a reach to show.
-          limit: 200,
-          offset: 0,
-        })
-      ).rows
-        .filter((row) => row.recipients > 0)
-        .slice(0, 2)
-        .map((row) => ({
-          id: row.id,
-          title: localTitle(context, row),
-          recipients: row.recipients,
-          read: row.read,
-          kind: "news" as const,
-        }))
-    : [];
+  const news =
+    on.news && can(context, "news:manage")
+      ? (
+          await managedBroadcasts(context.tx, {
+            tenantId: context.tenantId,
+            schoolId: context.schoolId,
+            kind: "news",
+            tab: "published",
+            q: "",
+            // Only those sent to an audience have a reach to show.
+            limit: 200,
+            offset: 0,
+          })
+        ).rows
+          .filter((row) => row.recipients > 0)
+          .slice(0, 2)
+          .map((row) => ({
+            id: row.id,
+            title: localTitle(context, row),
+            recipients: row.recipients,
+            read: row.read,
+            kind: "news" as const,
+          }))
+      : [];
   let checklist: {
     yearEnds: string;
     nextYear: boolean;

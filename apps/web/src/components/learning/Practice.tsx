@@ -40,7 +40,7 @@ export function PracticePlayer({
   onRound: (round: number) => void;
 }) {
   const data = useSuspenseQuery(practiceSetQuery(moduleId, round)).data;
-  const earlyYears = useCurrentUser().features.early_years;
+  const earlyYears = useCurrentUser().modules.early_years;
   const navigate = useNavigate();
   const check = useServerFn(checkPractice);
   // A question's id in the review carries its lesson's, since two lessons

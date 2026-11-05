@@ -11,6 +11,7 @@ import { Dialog, DialogTitle, DialogTrigger } from "~/components/app/dialog";
 import { useCurrentUser } from "~/hooks/useCurrentUser";
 import * as m from "~/i18n/messages";
 import { searchQuery } from "~/queries/search";
+import { pageOn } from "~/utils/modules";
 
 import { NAVIGATION } from "./navigation";
 import { HIT_ROW, HitLink, SearchResults } from "./SearchResults";
@@ -122,7 +123,7 @@ export function WorkspaceSearch({
     .filter(
       (item) =>
         (!item.capability || user.capabilities.includes(item.capability)) &&
-        (!item.feature || user.features[item.feature]) &&
+        pageOn(user.modules, item.to) &&
         (typed === "" ||
           item.label().toLocaleLowerCase().includes(typed.toLocaleLowerCase())),
     )

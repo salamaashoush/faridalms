@@ -75,6 +75,7 @@ import {
   setLocale,
 } from "~/i18n/runtime";
 import { logout } from "~/server/auth";
+import { pageOn } from "~/utils/modules";
 
 import {
   PageActionsProvider,
@@ -92,7 +93,7 @@ function useVisibleNavigation() {
       items: section.items.filter(
         (item) =>
           (!item.capability || user.capabilities.includes(item.capability)) &&
-          (!item.feature || user.features[item.feature]) &&
+          pageOn(user.modules, item.to) &&
           (user.profile !== "young_student" || item.young),
       ),
     }))

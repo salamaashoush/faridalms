@@ -1,6 +1,10 @@
 import type { SearchKind } from "@faridalms/domain/search";
 
-import { SEARCH_KINDS, searchableKinds } from "@faridalms/domain/search";
+import {
+  SEARCH_KINDS,
+  kindOn,
+  searchableKinds,
+} from "@faridalms/domain/search";
 import { Button } from "@faridalms/ui/button";
 import { Input } from "@faridalms/ui/input";
 import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
@@ -118,8 +122,8 @@ function SearchPage() {
   const user = useCurrentUser();
   const [draft, setDraft] = useState(search.q);
   const q = search.q.trim();
-  const kinds = searchableKinds(user.capabilities).filter(
-    (kind) => kind !== "learning" || user.features.elearning,
+  const kinds = searchableKinds(user.capabilities).filter((kind) =>
+    kindOn(kind, user.modules),
   );
   const tab =
     search.kind === "all" || kinds.includes(search.kind) ? search.kind : "all";

@@ -111,7 +111,7 @@ import { inlinePageShared } from "../core/shared";
 import {
   logoKey,
   publishMedia,
-  withPublicSite,
+  withWebsite,
   withdrawMedia,
 } from "../core/site";
 import { servesSchool } from "../core/turnstile";
@@ -927,7 +927,7 @@ function resolveLocale(
 export const publicSite = publicProcedure
   .input(publicSiteSchema)
   .handler(({ input, context }) =>
-    withPublicSite(
+    withWebsite(
       context,
       input.school,
       async ({ tx, tenantId, schoolId, portalHost, now }) => {
@@ -1017,142 +1017,130 @@ export const publicSite = publicProcedure
 export const publicSitePage = publicProcedure
   .input(publicPageSchema)
   .handler(({ input, context }) =>
-    withPublicSite(
-      context,
-      input.school,
-      async ({ tx, tenantId, schoolId }) => {
-        const settings = await liveSettings(tx, tenantId, schoolId);
-        const locale = resolveLocale(settings, input.locale);
-        const row = await publicPage(tx, {
-          orgId: schoolId,
-          locale,
-          slug: input.slug,
-        });
-        if (!row) throw new ORPCError("NOT_FOUND");
-        // Published copies are read through the schema, so a section
-        // published before a field existed gets that field's default.
-        const sections = (
-          (row.content.sections ?? []) as ReturnType<typeof localizedSections>
-        ).flatMap((item) => {
-          const read = v.safeParse(pageSectionSchema, item.section);
-          return read.success
-            ? [{ section: read.output, locale: item.locale }]
-            : [];
-        });
-        const wanted = Math.max(
-          0,
-          ...sections.flatMap((item) =>
-            item.section.type === "news" ? [item.section.data.count] : [],
-          ),
-        );
-        const news = wanted
-          ? (
-              await publicPosts(tx, {
-                orgId: schoolId,
-                locale,
-                categoryId: null,
-                limit: wanted,
-                offset: 0,
-              })
-            ).rows
+    withWebsite(context, input.school, async ({ tx, tenantId, schoolId }) => {
+      const settings = await liveSettings(tx, tenantId, schoolId);
+      const locale = resolveLocale(settings, input.locale);
+      const row = await publicPage(tx, {
+        orgId: schoolId,
+        locale,
+        slug: input.slug,
+      });
+      if (!row) throw new ORPCError("NOT_FOUND");
+      // Published copies are read through the schema, so a section
+      // published before a field existed gets that field's default.
+      const sections = (
+        (row.content.sections ?? []) as ReturnType<typeof localizedSections>
+      ).flatMap((item) => {
+        const read = v.safeParse(pageSectionSchema, item.section);
+        return read.success
+          ? [{ section: read.output, locale: item.locale }]
           : [];
-        const coming = Math.max(
-          0,
-          ...sections.flatMap((item) =>
-            item.section.type === "events" &&
-            item.section.data.source === "calendar"
-              ? [item.section.data.count]
-              : [],
-          ),
-        );
-        const today = await schoolToday(tx, schoolId);
-        const events = coming
-          ? await publicEvents(tx, {
+      });
+      const wanted = Math.max(
+        0,
+        ...sections.flatMap((item) =>
+          item.section.type === "news" ? [item.section.data.count] : [],
+        ),
+      );
+      const news = wanted
+        ? (
+            await publicPosts(tx, {
               orgId: schoolId,
-              from: today,
-              limit: coming,
+              locale,
+              categoryId: null,
+              limit: wanted,
+              offset: 0,
             })
-          : [];
-        // Admissions and the way in to applying read the intakes themselves.
-        const intakes = sections.some(
-          (item) =>
-            item.section.type === "registerApply" ||
-            (item.section.type === "admissions" &&
-              item.section.data.source === "intakes"),
-        )
-          ? await publicIntakes(tx, { orgId: schoolId, today })
-          : [];
-        return {
-          locale,
-          title: row.title,
-          isHome: row.isHome,
-          sections,
-          description:
-            typeof row.content.description === "string"
-              ? row.content.description
-              : "",
-          media: row.media,
-          news,
-          events,
-          intakes,
-          today,
-        };
-      },
-    ),
+          ).rows
+        : [];
+      const coming = Math.max(
+        0,
+        ...sections.flatMap((item) =>
+          item.section.type === "events" &&
+          item.section.data.source === "calendar"
+            ? [item.section.data.count]
+            : [],
+        ),
+      );
+      const today = await schoolToday(tx, schoolId);
+      const events = coming
+        ? await publicEvents(tx, {
+            orgId: schoolId,
+            from: today,
+            limit: coming,
+          })
+        : [];
+      // Admissions and the way in to applying read the intakes themselves.
+      const intakes = sections.some(
+        (item) =>
+          item.section.type === "registerApply" ||
+          (item.section.type === "admissions" &&
+            item.section.data.source === "intakes"),
+      )
+        ? await publicIntakes(tx, { orgId: schoolId, today })
+        : [];
+      return {
+        locale,
+        title: row.title,
+        isHome: row.isHome,
+        sections,
+        description:
+          typeof row.content.description === "string"
+            ? row.content.description
+            : "",
+        media: row.media,
+        news,
+        events,
+        intakes,
+        today,
+      };
+    }),
   );
 
 export const publicSitePosts = publicProcedure
   .input(publicPostsSchema)
   .handler(({ input, context }) =>
-    withPublicSite(
-      context,
-      input.school,
-      async ({ tx, tenantId, schoolId }) => {
-        const settings = await liveSettings(tx, tenantId, schoolId);
-        const locale = resolveLocale(settings, input.locale);
-        const categories = await publicCategories(tx, schoolId);
-        const category = input.category
-          ? categories.find((item) => item.slug === input.category)
-          : null;
-        if (input.category && !category) throw new ORPCError("NOT_FOUND");
-        const { rows, total } = await publicPosts(tx, {
-          orgId: schoolId,
-          locale,
-          categoryId: category?.id ?? null,
-          ...pageWindow(input.page, SITE_POSTS_PAGE_SIZE),
-        });
-        return {
-          locale,
-          ...paged(rows, total, input.page, SITE_POSTS_PAGE_SIZE),
-        };
-      },
-    ),
+    withWebsite(context, input.school, async ({ tx, tenantId, schoolId }) => {
+      const settings = await liveSettings(tx, tenantId, schoolId);
+      const locale = resolveLocale(settings, input.locale);
+      const categories = await publicCategories(tx, schoolId);
+      const category = input.category
+        ? categories.find((item) => item.slug === input.category)
+        : null;
+      if (input.category && !category) throw new ORPCError("NOT_FOUND");
+      const { rows, total } = await publicPosts(tx, {
+        orgId: schoolId,
+        locale,
+        categoryId: category?.id ?? null,
+        ...pageWindow(input.page, SITE_POSTS_PAGE_SIZE),
+      });
+      return {
+        locale,
+        ...paged(rows, total, input.page, SITE_POSTS_PAGE_SIZE),
+      };
+    }),
   );
 
 export const publicSitePost = publicProcedure
   .input(publicPostSchema)
   .handler(({ input, context }) =>
-    withPublicSite(
-      context,
-      input.school,
-      async ({ tx, tenantId, schoolId }) => {
-        const settings = await liveSettings(tx, tenantId, schoolId);
-        const locale = resolveLocale(settings, input.locale);
-        const row = await publicPost(tx, {
-          orgId: schoolId,
-          locale,
-          slug: input.slug,
-        });
-        if (!row) throw new ORPCError("NOT_FOUND");
-        const { content, ...visible } = row;
-        return {
-          ...visible,
-          locale,
-          body: content.body as ContentDocument,
-          bodyLocale: (content.locale ?? locale) as SiteLocale,
-        };
-      },
-    ),
+    withWebsite(context, input.school, async ({ tx, tenantId, schoolId }) => {
+      const settings = await liveSettings(tx, tenantId, schoolId);
+      const locale = resolveLocale(settings, input.locale);
+      const row = await publicPost(tx, {
+        orgId: schoolId,
+        locale,
+        slug: input.slug,
+      });
+      if (!row) throw new ORPCError("NOT_FOUND");
+      const { content, ...visible } = row;
+      return {
+        ...visible,
+        locale,
+        body: content.body as ContentDocument,
+        bodyLocale: (content.locale ?? locale) as SiteLocale,
+      };
+    }),
   );
 
 /** Five messages an hour from one network, sixty for a whole school. */
@@ -1194,7 +1182,7 @@ export const submitEnquiry = publicProcedure
       }))
     )
       throw new ORPCError("BAD_REQUEST", { message: "site.challenge" });
-    const received = await withPublicSite(
+    const received = await withWebsite(
       context,
       input.school,
       async ({ tx, tenantId, schoolId }) => {

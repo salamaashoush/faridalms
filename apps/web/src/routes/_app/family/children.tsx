@@ -35,7 +35,7 @@ const link =
 function ChildrenPage() {
   const user = useCurrentUser();
   const children = useSuspenseQuery(personRecordQuery(user.id)).data.children;
-  const modules = user.features.elearning;
+  const modules = user.modules.elearning;
   return (
     <>
       <PageHeader title={m.navChildren()} description={m.homeChildrenHint()} />

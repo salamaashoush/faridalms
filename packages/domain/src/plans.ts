@@ -1,13 +1,8 @@
 import * as v from "valibot";
 
-/** The parts of the product a plan may include, turned on per school. */
-export const SCHOOL_MODULES = [
-  "elearning",
-  "early_years",
-  "video",
-  "coding",
-] as const;
-export type SchoolModule = (typeof SCHOOL_MODULES)[number];
+import type { ModuleId } from "./modules";
+
+import { MODULE_IDS } from "./modules";
 
 const GIB = 1024 * 1024 * 1024;
 const MIB = 1024 * 1024;
@@ -48,11 +43,11 @@ export function limitsOf(plan: SchoolPlan | null): StorageLimits {
   };
 }
 
-export function availableModules(plan: SchoolPlan | null): SchoolModule[] {
+export function availableModules(plan: SchoolPlan | null): ModuleId[] {
   const named = plan?.modules;
   return named
-    ? SCHOOL_MODULES.filter((module) => named.includes(module))
-    : [...SCHOOL_MODULES];
+    ? MODULE_IDS.filter((module) => named.includes(module))
+    : [...MODULE_IDS];
 }
 
 const bytes = v.nullable(
@@ -64,7 +59,7 @@ export const schoolPlanSchema = v.object({
   classBytes: bytes,
   moduleBytes: bytes,
   personBytes: bytes,
-  modules: v.nullable(v.array(v.picklist(SCHOOL_MODULES))),
+  modules: v.nullable(v.array(v.picklist(MODULE_IDS))),
 });
 
 /** A plan as the operator console sets it, with the reason the change log keeps. */

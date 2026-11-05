@@ -133,6 +133,14 @@ authorisation, school isolation or database ownership.
   `app.guardian_permits`, and staff are the roles `app.staff_roles` names;
   `scripts/check-sources.ts` refuses a copy of either, or a `schoolWide` set
   outside `core/reach.ts`.
+- Every API namespace belongs to core or to one module in
+  `packages/domain/src/modules.ts`, and `apps/api/test/router.test.ts`
+  fails for one that belongs to neither. A module's procedures answer
+  `NOT_FOUND` at a school that does not have it, through the router, so
+  a new procedure is gated without being told; a reader that gathers from
+  several modules (home pages, search) asks `modulesOf` itself. The web's
+  pages of a module are listed once in `apps/web/src/utils/modules.ts`,
+  which both the navigation and the route guard read.
 - Every store in `packages/database/src/stores/` receives its transaction
   explicitly. Never introduce a process-global current school or current user.
 - `apps/web/src/server/` contains HTTP bridges and cookie handling only. Web

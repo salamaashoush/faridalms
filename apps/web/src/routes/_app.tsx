@@ -1,5 +1,10 @@
 import { FileFactsProvider } from "@faridalms/editor/file-facts";
-import { createFileRoute, Outlet, redirect } from "@tanstack/react-router";
+import {
+  createFileRoute,
+  notFound,
+  Outlet,
+  redirect,
+} from "@tanstack/react-router";
 import { useEffect } from "react";
 
 import { Shell } from "~/components/system/Shell";
@@ -10,6 +15,7 @@ import { getFileFacts } from "~/server/files";
 import { leaveBareDomain } from "~/utils/bare-domain";
 import { adoptSchoolZone } from "~/utils/datetime";
 import { rememberDigits } from "~/utils/digits";
+import { pageOn } from "~/utils/modules";
 
 async function currentFacts(ids: string[]) {
   const { files } = await getFileFacts({ data: { ids } });
@@ -22,11 +28,15 @@ async function currentFacts(ids: string[]) {
 }
 
 export const Route = createFileRoute("/_app")({
-  beforeLoad: ({ context, location }) => {
+  beforeLoad: async ({ context, location }) => {
     leaveBareDomain(context.auth, location.href);
     if (!context.auth.isAuthenticated) {
       throw redirect({ to: "/sign-in", search: { redirect: location.href } });
     }
+    // A page of a module the school does not have is not there, as its API
+    // answers; the navigation hides it from the same list.
+    const user = await context.queryClient.ensureQueryData(currentUserQuery);
+    if (!pageOn(user.modules, location.pathname)) throw notFound();
   },
   loader: async ({ context }) => {
     // The shell reads this synchronously via useSuspenseQuery, so it has to be

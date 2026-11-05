@@ -1,11 +1,9 @@
 import type { DirectoryTenantState } from "@faridalms/database/directory/schema";
-import type { SchoolModule, SchoolPlan } from "@faridalms/domain/plans";
+import type { ModuleId } from "@faridalms/domain/modules";
+import type { SchoolPlan } from "@faridalms/domain/plans";
 
-import {
-  DEFAULT_LIMITS,
-  limitsOf,
-  SCHOOL_MODULES,
-} from "@faridalms/domain/plans";
+import { MODULE_IDS } from "@faridalms/domain/modules";
+import { DEFAULT_LIMITS, limitsOf } from "@faridalms/domain/plans";
 import { Badge } from "@faridalms/ui/badge";
 import { Button } from "@faridalms/ui/button";
 import { Checkbox } from "@faridalms/ui/checkbox";
@@ -92,8 +90,8 @@ function SchoolPage() {
       ) as Record<Cap, { value: string; unit: Unit }>,
   );
   const [everyModule, setEveryModule] = useState(plan?.modules == null);
-  const [modules, setModules] = useState<SchoolModule[]>(
-    (plan?.modules ?? [...SCHOOL_MODULES]) as SchoolModule[],
+  const [modules, setModules] = useState<ModuleId[]>(
+    (plan?.modules ?? [...MODULE_IDS]) as ModuleId[],
   );
   const [reason, setReason] = useState("");
   const [saving, setSaving] = useState(false);
@@ -232,7 +230,7 @@ function SchoolPage() {
           </span>
           {everyModule
             ? null
-            : SCHOOL_MODULES.map((module) => (
+            : MODULE_IDS.map((module) => (
                 <span key={module} className="flex items-center gap-2 ps-6">
                   <Checkbox
                     id={`plan-module-${module}`}

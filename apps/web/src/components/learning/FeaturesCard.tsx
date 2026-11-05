@@ -1,6 +1,6 @@
-import type { Feature } from "@faridalms/domain/features";
+import type { SwitchedModule } from "@faridalms/domain/modules";
 
-import { FEATURES } from "@faridalms/domain/features";
+import { MODULE_IDS, SWITCHED_MODULES } from "@faridalms/domain/modules";
 import { Checkbox } from "@faridalms/ui/checkbox";
 import {
   useMutation,
@@ -10,12 +10,18 @@ import {
 import { useState } from "react";
 
 import { SettingsSection } from "~/components/system/SettingsSection";
+import { StatusText } from "~/components/system/status";
+import { useCurrentUser } from "~/hooks/useCurrentUser";
 import * as m from "~/i18n/messages";
 import { schoolFeaturesQuery } from "~/queries/school-settings";
 import { setSchoolFeature } from "~/server/school-settings";
 import { getMessageFromError } from "~/utils/error";
+import { MODULE_LABEL } from "~/utils/modules";
 
-const LABEL: Record<Feature, { name: () => string; hint: () => string }> = {
+const LABEL: Record<
+  SwitchedModule,
+  { name: () => string; hint: () => string }
+> = {
   elearning: {
     name: m.learningFeatureToggle,
     hint: m.learningFeatureToggleHint,
@@ -32,11 +38,12 @@ const LABEL: Record<Feature, { name: () => string; hint: () => string }> = {
  */
 export function FeaturesCard() {
   const queryClient = useQueryClient();
+  const user = useCurrentUser();
   const { data } = useSuspenseQuery(schoolFeaturesQuery);
   const [switches, setSwitches] = useState(data.switches);
   const [saved, setSaved] = useState(false);
   const available = new Set<string>(data.available);
-  const changed = FEATURES.filter(
+  const changed = SWITCHED_MODULES.filter(
     (feature) => switches[feature] !== data.switches[feature],
   );
   const mutation = useMutation({
@@ -70,7 +77,7 @@ export function FeaturesCard() {
       isDirty={() => changed.length > 0}
     >
       <div className="grid gap-4">
-        {FEATURES.map((feature) => {
+        {SWITCHED_MODULES.map((feature) => {
           const offered = available.has(feature);
           const id = `feature-${feature}`;
           return (
@@ -106,6 +113,26 @@ export function FeaturesCard() {
             </div>
           );
         })}
+      </div>
+      <div className="grid gap-2 border-t pt-4">
+        <h3 className="text-sm leading-5 font-semibold">
+          {m.modulesInPlanTitle()}
+        </h3>
+        <ul className="grid gap-x-10 gap-y-1.5 sm:grid-cols-2">
+          {MODULE_IDS.filter(
+            (id) => !(SWITCHED_MODULES as readonly string[]).includes(id),
+          ).map((id) => (
+            <li
+              key={id}
+              className="flex items-center justify-between gap-3 text-sm leading-5"
+            >
+              <span>{MODULE_LABEL[id]()}</span>
+              <StatusText tone={user.modules[id] ? "success" : "neutral"}>
+                {user.modules[id] ? m.modulesIncluded() : m.modulesNotInPlan()}
+              </StatusText>
+            </li>
+          ))}
+        </ul>
       </div>
     </SettingsSection>
   );

@@ -804,7 +804,7 @@ export function LessonPlayer({ lessonId }: { lessonId: string }) {
   const paced =
     useQuery({ ...pacingQuery(lessonId), initialData: { paced: data.paced } })
       .data.paced ?? null;
-  const earlyYears = useCurrentUser().features.early_years;
+  const earlyYears = useCurrentUser().modules.early_years;
   const queryClient = useQueryClient();
   const navigate = useNavigate();
   const refresh = () =>
@@ -1384,7 +1384,7 @@ export function LessonPreview({
   // screen and in the language chosen; the computer reader speaks in the
   // browser, so it is tried in the teacher's own view.
   const elsewhere = !framed && (screen !== "desktop" || language !== own);
-  const earlyYears = useCurrentUser().features.early_years;
+  const earlyYears = useCurrentUser().modules.early_years;
   const navigate = useNavigate();
   const [rows, setRows] = useState<StoredTry[]>([]);
   const [round, setRound] = useState(0);

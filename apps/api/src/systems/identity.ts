@@ -57,7 +57,7 @@ import * as v from "valibot";
 
 import type { SchoolContext } from "../core/context";
 
-import { featuresOf } from "../core/features";
+import { modulesOf } from "../core/modules";
 import { sendPasswordReset } from "../core/password-reset";
 import {
   openSession,
@@ -546,7 +546,7 @@ export const currentUser = readProcedure.handler(async ({ context }) => {
     workspace: context.actor.workspace,
     roles: [...context.actor.roles],
     capabilities: [...context.actor.capabilities],
-    features: await featuresOf(context),
+    modules: await modulesOf(context),
     school: {
       id: school.id,
       slug: context.school.slug,

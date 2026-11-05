@@ -2,6 +2,7 @@ import { openDirectoryAdmin } from "@faridalms/database/directory/admin";
 import { describe, expect, test } from "bun:test";
 
 import {
+  client,
   login,
   rejection,
   seeded,
@@ -129,13 +130,28 @@ describe("modules a plan offers", () => {
         feature: "elearning",
         enabled: true,
       });
-      expect((await principal.identity.currentUser()).features).toMatchObject({
+      expect((await principal.identity.currentUser()).modules).toMatchObject({
         elearning: true,
         early_years: false,
       });
 
       await setPlan(school.id, { modules: ["early_years"] });
-      expect((await principal.identity.currentUser()).features.elearning).toBe(
+      // A module the plan leaves out answers as if it were not there; core
+      // answers whatever the plan.
+      expect(await rejection(principal.attendance.settings())).toMatchObject({
+        code: "NOT_FOUND",
+      });
+      expect((await principal.identity.currentUser()).modules).toMatchObject({
+        attendance: false,
+        early_years: false,
+      });
+      // Its public website is not there either.
+      expect(
+        await rejection(
+          client("northwind").site.publicSite({ school: "northwind" }),
+        ),
+      ).toMatchObject({ code: "NOT_FOUND" });
+      expect((await principal.identity.currentUser()).modules.elearning).toBe(
         false,
       );
       const { switches } = await principal.school.features();

@@ -1,5 +1,4 @@
 import type { Capability } from "@faridalms/domain/capabilities";
-import type { Feature } from "@faridalms/domain/features";
 import type { Workspace } from "@faridalms/domain/workspace";
 import type { LucideIcon } from "lucide-react";
 
@@ -44,8 +43,6 @@ export interface NavItem {
   icon: LucideIcon;
   /** Hidden unless the person holds this capability. */
   capability?: Capability;
-  /** Hidden unless the school has switched this area on. */
-  feature?: Feature;
   /** Match the route exactly, for section index pages. */
   exact?: boolean;
   /** Kept for young children, whose home holds everything they open. */
@@ -214,7 +211,6 @@ export const NAVIGATION: Record<Workspace, NavSection[]> = {
           to: "/teach/modules",
           label: m.navModules,
           icon: Layers,
-          feature: "elearning",
         },
         {
           to: "/standards",
@@ -319,7 +315,6 @@ export const NAVIGATION: Record<Workspace, NavSection[]> = {
           to: "/family/modules",
           label: m.navModules,
           icon: Layers,
-          feature: "elearning",
           capability: "children:read",
         },
         {
@@ -370,7 +365,6 @@ export const NAVIGATION: Record<Workspace, NavSection[]> = {
           to: "/me/modules",
           label: m.navModules,
           icon: Layers,
-          feature: "elearning",
         },
       ],
     },
