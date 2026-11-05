@@ -4,6 +4,8 @@ import type { ReactNode } from "react";
 
 import { Suspense, lazy, useMemo, useState } from "react";
 
+import { useCurrentUser } from "~/hooks/useCurrentUser";
+
 import { designerStrings, editorSetting } from "./strings";
 
 const Designer = lazy(() =>
@@ -14,7 +16,7 @@ const Designer = lazy(() =>
 
 /**
  * The puzzle designer an editor opens on a puzzle question, where the
- * document may ask questions at all. The designer is fetched when a
+ * document may ask questions at all and the school has coding. The designer is fetched when a
  * teacher first opens it.
  */
 export function useEditorPuzzles(questions: boolean): {
@@ -25,9 +27,10 @@ export function useEditorPuzzles(questions: boolean): {
     level: Level;
     resolve: (level: Level | undefined) => void;
   } | null>(null);
+  const coding = useCurrentUser().modules.coding;
   const puzzles = useMemo<EditorPuzzles | undefined>(
     () =>
-      questions
+      questions && coding
         ? {
             edit: (level) =>
               new Promise((resolve) => {
@@ -35,7 +38,7 @@ export function useEditorPuzzles(questions: boolean): {
               }),
           }
         : undefined,
-    [questions],
+    [questions, coding],
   );
   const strings = useMemo(() => designerStrings(), []);
   const setting = useMemo(() => editorSetting(), []);

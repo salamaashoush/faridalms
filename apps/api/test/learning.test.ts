@@ -6,6 +6,7 @@ import {
   contentOfLesson,
   lessonOfContent,
 } from "@faridalms/domain/lesson-content";
+import { MODULE_IDS } from "@faridalms/domain/modules";
 import { wordSearch } from "@faridalms/domain/wordsearch";
 import { blankProject, locked, lockOf } from "@faridalms/makecode/project";
 import { PACKS } from "@faridalms/puzzles/levels";
@@ -17,7 +18,15 @@ import { join } from "node:path";
 import { rerunPrograms } from "../src/coding/rerun";
 import { createJavaScriptRunner, createPythonRunner } from "../src/coding/run";
 import { sweepTenantFiles } from "../src/files/sweep";
-import { login, raw, rejection, seeded, sessionFor, signedIn } from "./harness";
+import {
+  login,
+  raw,
+  rejection,
+  seeded,
+  sessionFor,
+  setPlan,
+  signedIn,
+} from "./harness";
 
 const student = () => signedIn("northwind", login("student"));
 const mother = () =>
@@ -796,6 +805,27 @@ describe("code exercises", () => {
       code: "n = int(input())\nprint(n * abs(n))",
     });
     expect(half.check).toMatchObject({ correct: false, fraction: 0.5 });
+    // A school whose plan leaves coding out keeps the question but runs nothing.
+    const school = seeded().tenants[0]?.schools.find(
+      (row) => row.slug === "northwind",
+    );
+    if (!school) throw new Error("no northwind school");
+    await setPlan(school.id, {
+      modules: MODULE_IDS.filter((module) => module !== "coding"),
+    });
+    try {
+      expect(
+        await rejection(
+          pupil.learning.respondProgram({
+            lessonId,
+            blockId: exercise.id,
+            code: "print(1)",
+          }),
+        ),
+      ).toMatchObject({ code: "FORBIDDEN", message: "coding.unavailable" });
+    } finally {
+      await setPlan(school.id, null);
+    }
     const kept = half.check.response;
     if (kept?.type !== "program") throw new Error("program expected");
     expect(kept.results?.[shown.id]).toMatchObject({

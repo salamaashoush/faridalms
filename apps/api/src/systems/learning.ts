@@ -233,7 +233,7 @@ import * as v from "valibot";
 
 import type { SchoolContext, UnitContext } from "../core/context";
 
-import { markedProgram } from "../coding/mark";
+import { markedProgramAt } from "../coding/mark";
 import { projectCode } from "../coding/scratch-file";
 import {
   editableModule,
@@ -3702,7 +3702,7 @@ async function programAnswer<T>(
       throw new ORPCError("CONFLICT", { message: "learning.settled" });
     return found;
   });
-  const response = await markedProgram(context.runners, block, {
+  const response = await markedProgramAt(context, block, {
     type: "program",
     code: input.code,
   });

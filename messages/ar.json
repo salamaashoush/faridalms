@@ -9418,5 +9418,6 @@
   "moduleSms": "الرسائل النصية",
   "modulesInPlanTitle": "ما تشمله خطتكم",
   "modulesIncluded": "مشمول",
-  "modulesNotInPlan": "غير مشمول في خطتكم"
+  "modulesNotInPlan": "غير مشمول في خطتكم",
+  "codingUnavailable": "لا تشغّل هذه المدرسة البرامج، لذا لم يُشغَّل البرنامج."
 }

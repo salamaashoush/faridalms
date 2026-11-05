@@ -225,7 +225,7 @@ import * as v from "valibot";
 import type { UnitContext } from "../core/context";
 import type { AttemptQuizzes } from "../quizzes/quiz";
 
-import { markedProgram } from "../coding/mark";
+import { markedProgramAt } from "../coding/mark";
 import {
   assessedRules,
   attemptMarks,
@@ -3264,7 +3264,7 @@ export const saveQuizProgram = schoolProcedure
       );
       return programOfAttempt(inside, assignment.id, input.blockId);
     });
-    const response = await markedProgram(context.runners, block, {
+    const response = await markedProgramAt(context, block, {
       type: "program",
       code: input.code,
     });
@@ -3561,7 +3561,7 @@ export const practiseQuizProgram = schoolProcedure
         });
       return programOfAttempt(inside, assignment.id, input.blockId);
     });
-    const response = await markedProgram(context.runners, block, {
+    const response = await markedProgramAt(context, block, {
       type: "program",
       code: input.code,
     });

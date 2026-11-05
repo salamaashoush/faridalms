@@ -6,6 +6,7 @@ import { blankOf } from "@faridalms/domain/project";
 import { useQuery } from "@tanstack/react-query";
 import { useMemo, useRef, useState } from "react";
 
+import { useCurrentUser } from "~/hooks/useCurrentUser";
 import * as m from "~/i18n/messages";
 import { getLocale, getTextDirection } from "~/i18n/runtime";
 import { playQuery } from "~/queries/play";
@@ -17,14 +18,15 @@ import { ProjectStudio } from "./ProjectStudio";
  * The studios an editor opens to build a question's starter project: the
  * coding studio, saved through the document's own media, and the web
  * studio, whose files the question keeps itself. Absent where the cell has
- * no studio or the editor cannot store files, which keeps these questions
- * out of its menus.
+ * no studio, the school has no coding or the editor cannot store files,
+ * which keeps these questions out of its menus.
  */
 export function useEditorStudio(media: EditorMedia | undefined): {
   studio: EditorStudio | undefined;
   dialog: ReactNode;
 } {
-  const configured = Boolean(useQuery(playQuery).data);
+  const coding = useCurrentUser().modules.coding;
+  const configured = Boolean(useQuery(playQuery).data) && coding;
   const [open, setOpen] = useState<{
     fileId: string | null;
     resolve: (fileId: string | null | undefined) => void;

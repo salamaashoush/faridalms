@@ -9020,5 +9020,6 @@
   "moduleSms": "Text messages",
   "modulesInPlanTitle": "What your plan includes",
   "modulesIncluded": "Included",
-  "modulesNotInPlan": "Not in your plan"
+  "modulesNotInPlan": "Not in your plan",
+  "codingUnavailable": "This school does not run code, so the program was not run."
 }
