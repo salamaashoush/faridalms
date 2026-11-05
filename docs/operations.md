@@ -247,8 +247,10 @@ student's work on an assignment still open to them is never refused, only
 counted. Bytes shared by copies and previous versions count once.
 
 With `DIRECTORY_SYNC_URL` (the `directory_sync` login) set, each worker-capable
-replica reports every school's storage to the directory every
-`USAGE_REPORT_MS` (default five minutes), for the operator console.
+replica reports every school's storage, its students and staff accounts, who
+signed in within a week and a month, and its streamed video to the directory
+every `USAGE_REPORT_MS` (default five minutes), for the operator console and
+the soft limits a school's administrators are told about.
 
 ## Operator console
 

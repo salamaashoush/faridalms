@@ -4,12 +4,17 @@ import { CircleAlert } from "lucide-react";
 
 import { useCurrentUser } from "~/hooks/useCurrentUser";
 import * as m from "~/i18n/messages";
-import { formatDate } from "~/utils/datetime";
+import { formatDate, formatNumber } from "~/utils/datetime";
 
 const NOTICE: Record<SchoolNotice, () => string> = {
   payment_overdue: m.contractPaymentOverdue,
   plan_ends_soon: m.contractPlanEndsSoon,
 };
+
+const counted = (value: { count: number; limit: number }) => ({
+  count: formatNumber(value.count),
+  limit: formatNumber(value.limit),
+});
 
 /** What the platform tells a school's administrators about their contract. */
 export function ContractNotice() {
@@ -22,6 +27,12 @@ export function ContractNotice() {
   const shown = [
     contract.notice ? NOTICE[contract.notice]() : null,
     trial,
+    contract.students
+      ? m.contractOverStudents(counted(contract.students))
+      : null,
+    contract.staffAccounts
+      ? m.contractOverStaff(counted(contract.staffAccounts))
+      : null,
   ].filter((line) => line !== null);
   if (shown.length === 0) return null;
   return (

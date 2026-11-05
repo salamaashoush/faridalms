@@ -905,6 +905,57 @@ export function schoolStorage(tx: Tx, tenantId: string, orgId: string) {
   );
 }
 
+export interface SchoolCounts {
+  students: number;
+  staffAccounts: number;
+  signedIn7d: number;
+  signedIn30d: number;
+}
+
+/**
+ * What a school's entitlements are measured against: students with a
+ * placement on the day, staff with a sign-in, and the people of the school
+ * who signed in within a week and a month. Counts only, never people.
+ */
+export async function schoolCounts(
+  tx: Tx,
+  input: { tenantId: string; orgId: string; today: string; now: Date },
+): Promise<SchoolCounts> {
+  const week = new Date(input.now.getTime() - 7 * 86_400_000).toISOString();
+  const month = new Date(input.now.getTime() - 30 * 86_400_000).toISOString();
+  const [row] = await tx.execute<{
+    students: number;
+    staff_accounts: number;
+    signed_in_7d: number;
+    signed_in_30d: number;
+  }>(sql`
+    with members as (
+      select distinct r.user_id, r.role = any(app.staff_roles()) as staff
+      from core.user_roles r
+      where r.tenant_id = ${input.tenantId}::uuid and r.org_id = ${input.orgId}::uuid
+        and r.status = 'active' and r.valid_during @> ${input.today}::date
+    ), signing as (
+      select m.user_id, bool_or(m.staff) as staff, max(a.last_authenticated_at) as last_at
+      from members m
+      join core.accounts a on a.tenant_id = ${input.tenantId}::uuid and a.user_id = m.user_id
+        and a.status = 'active' and a.state = 'active'
+      group by m.user_id
+    )
+    select
+      (select count(distinct y.student_user_id)::int from core.student_school_years y
+        where y.tenant_id = ${input.tenantId}::uuid and y.org_id = ${input.orgId}::uuid
+          and y.status = 'active' and y.valid_during @> ${input.today}::date) as students,
+      (select count(*)::int from signing where staff) as staff_accounts,
+      (select count(*)::int from signing where last_at > ${week}::timestamptz) as signed_in_7d,
+      (select count(*)::int from signing where last_at > ${month}::timestamptz) as signed_in_30d`);
+  return {
+    students: row?.students ?? 0,
+    staffAccounts: row?.staff_accounts ?? 0,
+    signedIn7d: row?.signed_in_7d ?? 0,
+    signedIn30d: row?.signed_in_30d ?? 0,
+  };
+}
+
 /**
  * How long the school's streamed videos run together: those streamed or
  * waiting to be, counted once their length is known.

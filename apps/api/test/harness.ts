@@ -313,6 +313,7 @@ export async function setPlan(
     modules?: string[];
     customDomains?: number | null;
     videoHours?: number | null;
+    students?: number | null;
   } | null,
 ) {
   const admin = new SQL(urlFor(directoryName));
@@ -321,6 +322,7 @@ export async function setPlan(
     modules: [...MODULE_IDS],
     customDomains: null,
     videoHours: null,
+    students: null,
     ...plan,
   };
   try {
@@ -330,6 +332,7 @@ export async function setPlan(
         person_bytes = ${next.personBytes},
         modules = ${`{${next.modules.join(",")}}`}::text[],
         custom_domains = ${next.customDomains}, video_hours = ${next.videoHours},
+        students = ${next.students},
         revision = revision + 1
       where school_id = ${schoolId}::uuid`;
   } finally {

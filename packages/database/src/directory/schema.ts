@@ -401,6 +401,13 @@ export const schoolUsage = pgTable(
     schoolId: uuid("school_id").primaryKey(),
     usedBytes: bigint("used_bytes", { mode: "number" }).notNull(),
     fileCount: integer("file_count").notNull(),
+    /** Students with a placement on the day it was measured. */
+    students: integer("students").notNull().default(0),
+    staffAccounts: integer("staff_accounts").notNull().default(0),
+    signedIn7d: integer("signed_in_7d").notNull().default(0),
+    signedIn30d: integer("signed_in_30d").notNull().default(0),
+    /** Streamed video kept, which video hours are held to. */
+    videoMinutes: integer("video_minutes").notNull().default(0),
     measuredAt: instant("measured_at").notNull(),
   },
   (t) => [
@@ -411,6 +418,10 @@ export const schoolUsage = pgTable(
     }),
     check("school_usage_used_bytes_check", sql`used_bytes >= 0`),
     check("school_usage_file_count_check", sql`file_count >= 0`),
+    check(
+      "school_usage_counts_check",
+      sql`students >= 0 and staff_accounts >= 0 and signed_in_7d >= 0 and signed_in_30d >= 0 and video_minutes >= 0`,
+    ),
   ],
 );
 

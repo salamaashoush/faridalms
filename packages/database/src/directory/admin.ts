@@ -44,7 +44,16 @@ export interface OperatorSchool {
   cellId: string;
   region: string;
   entitlements: SchoolEntitlements;
-  usage: { usedBytes: number; fileCount: number; measuredAt: string } | null;
+  usage: {
+    usedBytes: number;
+    fileCount: number;
+    students: number;
+    staffAccounts: number;
+    signedIn7d: number;
+    signedIn30d: number;
+    videoMinutes: number;
+    measuredAt: string;
+  } | null;
 }
 
 export type JsonValue =
@@ -134,6 +143,11 @@ interface SchoolRow {
   entitlements: EntitlementColumns | null;
   usedBytes: number | null;
   fileCount: number | null;
+  students: number | null;
+  staffAccounts: number | null;
+  signedIn7d: number | null;
+  signedIn30d: number | null;
+  videoMinutes: number | null;
   measuredAt: Date | null;
 }
 
@@ -157,6 +171,11 @@ function schoolOf(row: SchoolRow): OperatorSchool {
         ? {
             usedBytes: row.usedBytes,
             fileCount: row.fileCount,
+            students: row.students ?? 0,
+            staffAccounts: row.staffAccounts ?? 0,
+            signedIn7d: row.signedIn7d ?? 0,
+            signedIn30d: row.signedIn30d ?? 0,
+            videoMinutes: row.videoMinutes ?? 0,
             measuredAt: row.measuredAt.toISOString(),
           }
         : null,
@@ -190,6 +209,11 @@ export function openDirectoryAdmin(url: string) {
         entitlements: entitlementColumns,
         usedBytes: schoolUsage.usedBytes,
         fileCount: schoolUsage.fileCount,
+        students: schoolUsage.students,
+        staffAccounts: schoolUsage.staffAccounts,
+        signedIn7d: schoolUsage.signedIn7d,
+        signedIn30d: schoolUsage.signedIn30d,
+        videoMinutes: schoolUsage.videoMinutes,
         measuredAt: schoolUsage.measuredAt,
       })
       .from(schools)

@@ -690,6 +690,56 @@ describe("storage caps", () => {
   });
 });
 
+describe("usage reports", () => {
+  test("count a school's students and staff, and its administrators are told past the students it is entitled to", async () => {
+    const { cell, directory, tenants } = seeded();
+    const tenantId = tenants[0]?.tenantId ?? "";
+    const school = tenants[0]?.schools.find((row) => row.slug === "northwind");
+    if (!school) throw new Error("no northwind school");
+    const principal = await signedIn("northwind", login("principal"));
+    const { syncUrl, adminUrl } = testDirectory();
+    const sync = openDirectorySync(syncUrl, "cell:eg-1");
+    const admin = new SQL(adminUrl);
+    try {
+      await reportTenantUsage(cell, directory, sync, tenantId);
+      const [row] = await admin<
+        {
+          students: number;
+          staff_accounts: number;
+          signed_in_7d: number;
+          signed_in_30d: number;
+        }[]
+      >`select students, staff_accounts, signed_in_7d, signed_in_30d
+        from school_usage where school_id = ${school.id}::uuid`;
+      const { today } = await principal.identity.currentUser();
+      const [placed] = await cell.withWorker(
+        { tenantId, requestId: crypto.randomUUID(), actor: { kind: "system" } },
+        "read",
+        (tx) =>
+          tx.execute<{ n: number }>(sql`
+            select count(distinct student_user_id)::int as n from core.student_school_years
+            where tenant_id = ${tenantId}::uuid and org_id = ${school.id}::uuid
+              and status = 'active' and valid_during @> ${today}::date`),
+      );
+      const enrolled = placed?.n ?? 0;
+      expect(enrolled).toBeGreaterThan(0);
+      expect(row?.students).toBe(enrolled);
+      expect(row?.staff_accounts).toBeGreaterThan(0);
+      expect(row?.signed_in_7d).toBeGreaterThan(0);
+      expect(row?.signed_in_30d).toBeGreaterThanOrEqual(row?.signed_in_7d ?? 0);
+
+      await setPlan(school.id, { students: enrolled - 1 });
+      expect(
+        (await principal.identity.currentUser()).contract?.students,
+      ).toEqual({ count: enrolled, limit: enrolled - 1 });
+    } finally {
+      await setPlan(school.id, null);
+      await sync.close();
+      await admin.close();
+    }
+  });
+});
+
 describe("storage reports", () => {
   test("give the directory each school's storage, counting shared bytes once", async () => {
     const { cell, directory, tenants } = seeded();

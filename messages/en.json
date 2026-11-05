@@ -1705,6 +1705,8 @@
   "contractPlanEndsSoon": "Your school's plan ends soon. Contact your account manager to renew it.",
   "contractTrialEnds": "Your school's trial ends on {date}.",
   "contractNoticeLabel": "About your school's plan",
+  "contractOverStudents": "Your school has more students than its plan includes ({count} of {limit}). Nobody is turned away; your account manager will be in touch about the difference.",
+  "contractOverStaff": "Your school has more staff accounts than its plan includes ({count} of {limit}).",
   "peopleFamilyName": "Family name",
   "peopleGivenName": "First name",
   "peopleMiddleNames": "Middle names",

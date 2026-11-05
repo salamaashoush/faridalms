@@ -203,6 +203,38 @@ function SchoolPage() {
           </p>
         ) : null}
       </section>
+      {school.usage ? (
+        <section className="grid gap-2">
+          <h2 className="text-base font-semibold">Use</h2>
+          <dl className="grid max-w-2xl grid-cols-2 gap-x-6 gap-y-2 text-sm sm:grid-cols-3">
+            {[
+              ["Students", school.usage.students, entitled.students],
+              [
+                "Staff accounts",
+                school.usage.staffAccounts,
+                entitled.staffAccounts,
+              ],
+              ["Signed in this week", school.usage.signedIn7d, null],
+              ["Signed in this month", school.usage.signedIn30d, null],
+              [
+                "Video hours",
+                Math.round(school.usage.videoMinutes / 6) / 10,
+                entitled.videoHours,
+              ],
+            ].map(([label, count, limit]) => (
+              <div key={String(label)} className="grid gap-0.5">
+                <dt className="text-muted-foreground">{label}</dt>
+                <dd className="tabular-nums">
+                  {Number(count).toLocaleString("en")}
+                  {limit === null
+                    ? ""
+                    : ` of ${Number(limit).toLocaleString("en")}`}
+                </dd>
+              </div>
+            ))}
+          </dl>
+        </section>
+      ) : null}
       <form
         className="grid max-w-2xl gap-6 rounded-lg border p-6"
         onSubmit={async (event) => {

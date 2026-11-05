@@ -4,7 +4,13 @@ import type {
   DirectorySync,
 } from "@faridalms/database/directory/client";
 
-import { schoolStorage } from "@faridalms/database/stores/files";
+import {
+  schoolCounts,
+  schoolStorage,
+  streamedVideoMs,
+} from "@faridalms/database/stores/files";
+import { schoolProfile } from "@faridalms/database/stores/identity";
+import { schoolDate } from "@faridalms/domain/school";
 
 import type { FileStore } from "./store";
 
@@ -72,11 +78,23 @@ export async function reportTenantUsage(
     "read",
     async (tx) => {
       const measured = [];
-      for (const school of schools)
+      const now = new Date();
+      for (const school of schools) {
+        const profile = await schoolProfile(tx, school.schoolId);
         measured.push({
           schoolId: school.schoolId,
           ...(await schoolStorage(tx, tenantId, school.schoolId)),
+          ...(await schoolCounts(tx, {
+            tenantId,
+            orgId: school.schoolId,
+            today: schoolDate(profile?.timeZone ?? "UTC", now),
+            now,
+          })),
+          videoMinutes: Math.floor(
+            (await streamedVideoMs(tx, tenantId, school.schoolId)) / 60_000,
+          ),
         });
+      }
       return measured;
     },
   );

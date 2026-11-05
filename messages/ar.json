@@ -1791,6 +1791,8 @@
   "contractPlanEndsSoon": "ينتهي اشتراك مدرستك قريبًا. تواصل مع مدير حسابك لتجديده.",
   "contractTrialEnds": "تنتهي الفترة التجريبية لمدرستك في {date}.",
   "contractNoticeLabel": "عن اشتراك مدرستك",
+  "contractOverStudents": "لدى مدرستك طلاب أكثر مما يتضمنه اشتراكها ({count} من {limit}). لن يُرفض أحد، وسيتواصل معك مدير حسابك بشأن الفرق.",
+  "contractOverStaff": "لدى مدرستك حسابات موظفين أكثر مما يتضمنه اشتراكها ({count} من {limit}).",
   "peopleFamilyName": "اسم العائلة",
   "peopleGivenName": "الاسم الأول",
   "peopleMiddleNames": "الأسماء الوسطى",

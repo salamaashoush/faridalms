@@ -55,7 +55,7 @@ import { WORKSPACE_OF } from "@faridalms/domain/workspace";
 import { ORPCError } from "@orpc/server";
 import * as v from "valibot";
 
-import type { SchoolContext } from "../core/context";
+import type { SchoolContext, UnitContext } from "../core/context";
 
 import { modulesOf } from "../core/modules";
 import { sendPasswordReset } from "../core/password-reset";
@@ -528,6 +528,23 @@ export const signOut = writeProcedure.handler(async ({ context }) => {
   return { signedOut: true };
 });
 
+/** Past a soft limit nothing is refused; the school's administrators are told. */
+function over(count: number | undefined, limit: number | null) {
+  return count !== undefined && limit !== null && count > limit
+    ? { count, limit }
+    : null;
+}
+
+function contractOf(school: UnitContext["school"]) {
+  const entitled = school.entitlements;
+  return {
+    notice: entitled.notice,
+    trialEndsOn: entitled.trialEndsOn,
+    students: over(school.counts?.students, entitled.students),
+    staffAccounts: over(school.counts?.staffAccounts, entitled.staffAccounts),
+  };
+}
+
 /** Who is signed in, where, and what they may do there. */
 export const currentUser = readProcedure.handler(async ({ context }) => {
   const person = await viewer(context.tx, context.actor.userId);
@@ -562,12 +579,7 @@ export const currentUser = readProcedure.handler(async ({ context }) => {
       logoFileId: school.logoFileId,
     },
     // What the platform says about the school's contract is for those who run it.
-    contract: can(context, "school:manage")
-      ? {
-          notice: context.school.entitlements.notice,
-          trialEndsOn: context.school.entitlements.trialEndsOn,
-        }
-      : null,
+    contract: can(context, "school:manage") ? contractOf(context.school) : null,
     today: context.today,
   };
 });

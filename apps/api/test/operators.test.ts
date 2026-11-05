@@ -56,6 +56,8 @@ describe("the operator console's directory access", () => {
       expect((await principal.identity.currentUser()).contract).toEqual({
         notice: "plan_ends_soon",
         trialEndsOn: "2026-12-01",
+        students: null,
+        staffAccounts: null,
       });
       const teacher = await signedIn("northwind", login("teacher"));
       expect((await teacher.identity.currentUser()).contract).toBeNull();
