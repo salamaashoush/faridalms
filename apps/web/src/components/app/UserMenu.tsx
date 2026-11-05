@@ -12,12 +12,12 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@faridalms/ui/dropdown-menu";
-import { useQueryClient } from "@tanstack/react-query";
-import { Link, useRouter } from "@tanstack/react-router";
+import { Link } from "@tanstack/react-router";
 import { ChevronsUpDown } from "lucide-react";
 import { useCallback } from "react";
 
 import { useCurrentUser } from "~/hooks/useCurrentUser";
+import { useSessionChange } from "~/hooks/useSessionChange";
 import * as m from "~/i18n/messages";
 import { logout } from "~/server/auth";
 
@@ -39,17 +39,12 @@ export function initialsOf(name: string): string {
 
 export function UserMenu({ sidebar = false }: { sidebar?: boolean }) {
   const user = useCurrentUser();
-  const router = useRouter();
-  const queryClient = useQueryClient();
+  const sessionChanged = useSessionChange();
 
   const handleLogout = useCallback(async () => {
     await logout();
-    // The cache outlives the session cookie: without this the signed-out tab
-    // still holds the profile and every other authed query.
-    queryClient.clear();
-    await router.invalidate();
-    await router.navigate({ to: "/sign-in" });
-  }, [router, queryClient]);
+    await sessionChanged("/sign-in");
+  }, [sessionChanged]);
 
   return (
     <DropdownMenu>

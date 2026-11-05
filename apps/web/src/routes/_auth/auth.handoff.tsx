@@ -1,10 +1,11 @@
 import { buttonVariants } from "@faridalms/ui/button";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { createFileRoute, Link, useRouter } from "@tanstack/react-router";
+import { useMutation } from "@tanstack/react-query";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { LoaderCircle, TriangleAlert } from "lucide-react";
 import { useEffect, useRef } from "react";
 
+import { useSessionChange } from "~/hooks/useSessionChange";
 import * as m from "~/i18n/messages";
 import { redeemHandoff } from "~/server/auth";
 import { leaveBareDomain } from "~/utils/bare-domain";
@@ -22,17 +23,14 @@ export const Route = createFileRoute("/_auth/auth/handoff")({
  * is spent, and this portal's server turns it into the session.
  */
 function HandoffPage() {
-  const router = useRouter();
-  const queryClient = useQueryClient();
+  const sessionChanged = useSessionChange();
   const redeem = useServerFn(redeemHandoff);
   const started = useRef(false);
   const handoff = useMutation({
     meta: { inlineError: true },
     mutationFn: (token: string) => redeem({ data: { token } }),
     onSuccess: async () => {
-      queryClient.clear();
-      await router.invalidate();
-      await router.navigate({ to: "/", replace: true });
+      await sessionChanged("/", { replace: true });
     },
   });
   const spend = handoff.mutate;

@@ -1,10 +1,10 @@
 import { SidebarMenuButton } from "@faridalms/ui/sidebar";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { useRouter } from "@tanstack/react-router";
+import { useMutation } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { Lock } from "lucide-react";
 import { useState } from "react";
 
+import { useSessionChange } from "~/hooks/useSessionChange";
 import * as m from "~/i18n/messages";
 import { endChildMode } from "~/server/auth";
 
@@ -16,17 +16,14 @@ import { GrownUpQuestion } from "./GrownUpQuestion";
  * answers and a child cannot.
  */
 export function GrownUpGate() {
-  const router = useRouter();
-  const queryClient = useQueryClient();
+  const sessionChanged = useSessionChange();
   const end = useServerFn(endChildMode);
   const [open, setOpen] = useState(false);
   const [round, setRound] = useState(0);
   const leave = useMutation({
     mutationFn: () => end(),
     onSuccess: async () => {
-      queryClient.clear();
-      await router.invalidate();
-      await router.navigate({ to: "/" });
+      await sessionChanged("/");
     },
   });
 

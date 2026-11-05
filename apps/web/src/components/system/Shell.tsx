@@ -37,13 +37,7 @@ import {
   SidebarTrigger,
   useSidebar,
 } from "@faridalms/ui/sidebar";
-import { useQueryClient } from "@tanstack/react-query";
-import {
-  Link,
-  useRouteContext,
-  useRouter,
-  useRouterState,
-} from "@tanstack/react-router";
+import { Link, useRouteContext, useRouterState } from "@tanstack/react-router";
 import {
   Check,
   ChevronsUpDown,
@@ -72,6 +66,7 @@ import { WorkspaceBreadcrumb } from "~/components/app/WorkspaceBreadcrumb";
 import { WorkspaceSearch } from "~/components/app/WorkspaceSearch";
 import { ChangePassword } from "~/components/auth/ChangePassword";
 import { useCurrentUser } from "~/hooks/useCurrentUser";
+import { useSessionChange } from "~/hooks/useSessionChange";
 import * as m from "~/i18n/messages";
 import {
   getLocale,
@@ -121,18 +116,13 @@ function useIsActive() {
 
 function AccountMenu() {
   const user = useCurrentUser();
-  const router = useRouter();
-  const queryClient = useQueryClient();
+  const sessionChanged = useSessionChange();
   const { theme, setTheme } = useTheme();
   const [changingPassword, setChangingPassword] = useState(false);
   const signOut = useCallback(async () => {
     await logout();
-    // The cache outlives the session cookie: without this the signed-out tab
-    // still holds the profile and every other authed query.
-    queryClient.clear();
-    await router.invalidate();
-    await router.navigate({ to: "/sign-in" });
-  }, [router, queryClient]);
+    await sessionChanged("/sign-in");
+  }, [sessionChanged]);
   const current = getLocale();
   const themes = [
     { value: "light", label: m.shellThemeLight(), icon: Sun },

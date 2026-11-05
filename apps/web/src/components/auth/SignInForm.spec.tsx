@@ -15,7 +15,7 @@ vi.mock("@tanstack/react-router", () => ({
   useHydrated: () => true,
   useRouter: () => ({
     navigate: mockNavigate,
-    invalidate: vi.fn(),
+    clearCache: vi.fn(),
   }),
 }));
 

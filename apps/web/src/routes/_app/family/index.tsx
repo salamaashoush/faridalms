@@ -2,16 +2,11 @@ import type { LinkProps } from "@tanstack/react-router";
 
 import { Button } from "@faridalms/ui/button";
 import { cn } from "@faridalms/ui/cn";
-import {
-  useMutation,
-  useQueryClient,
-  useSuspenseQuery,
-} from "@tanstack/react-query";
+import { useMutation, useSuspenseQuery } from "@tanstack/react-query";
 import {
   createFileRoute,
   Link,
   stripSearchParams,
-  useRouter,
 } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { House, LoaderCircle, Smile } from "lucide-react";
@@ -31,6 +26,7 @@ import { EmptyState, PageHeader } from "~/components/system/IndexPage";
 import { RecordColumns } from "~/components/system/RecordPage";
 import { StatusText } from "~/components/system/status";
 import { inLocale } from "~/hooks/useCurrentUser";
+import { useSessionChange } from "~/hooks/useSessionChange";
 import * as m from "~/i18n/messages";
 import { familyHomeQuery } from "~/queries/home";
 import { startChildMode } from "~/server/auth";
@@ -104,16 +100,13 @@ const lesson = (slot: Child["now"], label: string) =>
  * their own home; a grown-up's answer brings the family account back.
  */
 function HandOver({ child }: { child: Child }) {
-  const router = useRouter();
-  const queryClient = useQueryClient();
+  const sessionChanged = useSessionChange();
   const start = useServerFn(startChildMode);
   const name = displayName(child);
   const handOver = useMutation({
     mutationFn: () => start({ data: { studentId: child.studentId } }),
     onSuccess: async () => {
-      queryClient.clear();
-      await router.invalidate();
-      await router.navigate({ to: "/" });
+      await sessionChanged("/");
     },
   });
   return (

@@ -1,8 +1,8 @@
 import { Button } from "@faridalms/ui/button";
 import { Input } from "@faridalms/ui/input";
 import { useForm } from "@tanstack/react-form";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { Link, useRouter, useHydrated } from "@tanstack/react-router";
+import { useMutation } from "@tanstack/react-query";
+import { Link, useHydrated } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
 
@@ -12,6 +12,7 @@ import {
   FieldGroup,
   FieldLabel,
 } from "~/components/app/field";
+import { useSessionChange } from "~/hooks/useSessionChange";
 import * as m from "~/i18n/messages";
 import { loginSchema } from "~/schema/auth";
 import { login } from "~/server/auth";
@@ -40,8 +41,7 @@ export const DEMO_ACCOUNTS = [
 /** Signs a person in to the school whose portal shows the form. */
 export function SignInForm() {
   const hydrated = useHydrated();
-  const router = useRouter();
-  const queryClient = useQueryClient();
+  const sessionChanged = useSessionChange();
 
   const { mutateAsync } = useMutation({
     mutationFn: useServerFn(login),
@@ -50,11 +50,8 @@ export function SignInForm() {
       toast(m.authSignInSuccessTitle(), {
         description: m.authSignInSuccessMessage(),
       });
-      // Identity changed: drop anything the previous session left behind.
-      queryClient.clear();
-      await router.invalidate();
       // "/" resolves to the landing route for whichever role just signed in.
-      await router.navigate({ to: "/" });
+      await sessionChanged("/");
     },
   });
 

@@ -1,7 +1,7 @@
 import { BADGE_SECRET } from "@faridalms/domain/identity-schema";
 import { buttonVariants } from "@faridalms/ui/button";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { createFileRoute, Link, useRouter } from "@tanstack/react-router";
+import { useMutation } from "@tanstack/react-query";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { Clock, LoaderCircle, QrCode, TriangleAlert } from "lucide-react";
 import { useEffect, useEffectEvent, useRef } from "react";
@@ -9,6 +9,7 @@ import * as v from "valibot";
 
 import { AuthLayout } from "~/components/auth/AuthLayout";
 import { ReadAloud } from "~/components/learning/ReadAloud";
+import { useSessionChange } from "~/hooks/useSessionChange";
 import * as m from "~/i18n/messages";
 import { faceQueryFor } from "~/queries/portal";
 import { badgeLogin } from "~/server/auth";
@@ -51,8 +52,7 @@ function isTooMany(error: unknown) {
  */
 function BadgePage() {
   const face = Route.useLoaderData();
-  const router = useRouter();
-  const queryClient = useQueryClient();
+  const sessionChanged = useSessionChange();
   const signIn = useServerFn(badgeLogin);
   const started = useRef(false);
   const login = useMutation({
@@ -62,9 +62,7 @@ function BadgePage() {
       return signIn({ data: { secret } });
     },
     onSuccess: async () => {
-      queryClient.clear();
-      await router.invalidate();
-      await router.navigate({ to: "/", replace: true });
+      await sessionChanged("/", { replace: true });
     },
   });
 
