@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test";
 
-import { signedInApi } from "./fixtures/api";
+import { API_ORIGIN, signedInApi } from "./fixtures/api";
 import { PASSWORD, portal, signIn, untilHydrated } from "./fixtures/sign-in";
 
 test("an administrator builds a bilingual page from sections and visitors read it in either language", async ({
@@ -143,41 +143,101 @@ test("a family sends an enquiry and the school finds it in the enquiry inbox", a
   await expect(page.getByRole("link", { name })).toBeVisible();
 });
 
-test("a school whose website is not open shows its own page, which leads to its portal", async ({
-  page,
-}) => {
-  const { api } = await signedInApi(
-    "principal.acme@acme.example.com",
-    PASSWORD,
-    "acme",
-  );
-  const live = async (open: boolean) => {
-    const { settings } = await api.site.overview();
-    await api.site.saveSettings({
-      expectedVersion: settings.version,
-      theme: settings.theme,
-      chrome: settings.chrome,
-      live: open,
-      bilingual: settings.bilingual,
-      taglineEn: settings.taglineEn,
-      taglineAr: settings.taglineAr,
-      socialLinks: settings.socialLinks,
-      bannerEn: settings.bannerEn,
-      bannerAr: settings.bannerAr,
-      bannerTone: settings.bannerTone,
-      bannerUntil: settings.bannerUntil ?? "",
+// Both change Acme's website, so they take turns.
+test.describe("acme's website", () => {
+  test.describe.configure({ mode: "serial" });
+
+  test("a school whose website is not open shows its own page, which leads to its portal", async ({
+    page,
+  }) => {
+    const { api } = await signedInApi(
+      "principal.acme@acme.example.com",
+      PASSWORD,
+      "acme",
+    );
+    const live = async (open: boolean) => {
+      const { settings } = await api.site.overview();
+      await api.site.saveSettings({
+        expectedVersion: settings.version,
+        theme: settings.theme,
+        chrome: settings.chrome,
+        live: open,
+        bilingual: settings.bilingual,
+        taglineEn: settings.taglineEn,
+        taglineAr: settings.taglineAr,
+        socialLinks: settings.socialLinks,
+        bannerEn: settings.bannerEn,
+        bannerAr: settings.bannerAr,
+        bannerTone: settings.bannerTone,
+        bannerUntil: settings.bannerUntil ?? "",
+      });
+    };
+    await live(false);
+    try {
+      const response = await page.goto("/site/acme");
+      expect(response?.status()).toBe(404);
+      await expect(
+        page.getByRole("heading", { name: "This website is not open yet" }),
+      ).toBeVisible();
+      await page
+        .getByRole("link", { name: "Go to the school's portal" })
+        .click();
+      await expect(page).toHaveURL(`${portal("acme")}/sign-in`);
+    } finally {
+      await live(true);
+    }
+  });
+
+  test("a school's logo is the icon of its website and its sign-in page", async ({
+    page,
+  }) => {
+    const { api, token } = await signedInApi(
+      "principal.acme@acme.example.com",
+      PASSWORD,
+      "acme",
+    );
+    const png = new Uint8Array([
+      0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0, 0,
+    ]);
+    const file = await api.files.initiate({
+      purpose: "document_media",
+      name: "logo.png",
+      mediaType: "image/png",
+      sizeBytes: png.byteLength,
     });
-  };
-  await live(false);
-  try {
-    const response = await page.goto("/site/acme");
-    expect(response?.status()).toBe(404);
-    await expect(
-      page.getByRole("heading", { name: "This website is not open yet" }),
-    ).toBeVisible();
-    await page.getByRole("link", { name: "Go to the school's portal" }).click();
-    await expect(page).toHaveURL(`${portal("acme")}/sign-in`);
-  } finally {
-    await live(true);
-  }
+    const put = await fetch(`${API_ORIGIN}/v1/files/${file.id}/content`, {
+      method: "PUT",
+      headers: { authorization: `Bearer ${token}`, "x-farida-school": "acme" },
+      body: png,
+    });
+    expect(put.ok).toBe(true);
+    const logo = async (logoFileId: string) => {
+      const profile = await api.school.profile();
+      await api.school.saveProfile({
+        expectedVersion: profile.version,
+        nameEn: profile.nameEn ?? "",
+        nameAr: profile.nameAr ?? "",
+        identifier: profile.identifier ?? "",
+        timeZone: profile.timeZone ?? "Africa/Cairo",
+        defaultLocale: profile.defaultLocale,
+        weekStart: profile.weekStart,
+        weekendDays: profile.weekendDays,
+        secondaryCalendar: profile.secondaryCalendar ?? "",
+        phone: profile.phone ?? "",
+        email: profile.email ?? "",
+        logoFileId,
+      });
+    };
+    await logo(file.id);
+    try {
+      const icon = page.locator('link[rel="icon"]');
+      for (const url of ["/site/acme", `${portal("acme")}/sign-in`]) {
+        await page.goto(url);
+        await expect(icon).toHaveCount(1);
+        await expect(icon).toHaveAttribute("href", /^\/public-media\/p\//);
+      }
+    } finally {
+      await logo("");
+    }
+  });
 });

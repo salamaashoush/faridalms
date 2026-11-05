@@ -21,6 +21,7 @@ import { leaveBareDomain } from "~/utils/bare-domain";
 const id = v.pipe(v.string(), v.uuid());
 
 export const Route = createFileRoute("/apply")({
+  staticData: { schoolFace: true },
   validateSearch: v.object({
     application: v.optional(id),
     intake: v.optional(id),

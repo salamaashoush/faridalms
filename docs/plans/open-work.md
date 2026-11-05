@@ -40,7 +40,6 @@ From `foundations.md`. W1, W3, W4 and W5 are merged.
 
 ## Bugs found and not yet fixed
 
-- School pages use Farida's favicon; a school with a logo should use it.
 - A staff edit form was reported not to scroll; it scrolls when opened
   directly, so the path that reaches it stuck is not known yet.
 

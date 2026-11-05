@@ -17,6 +17,7 @@ import siteCss from "~/styles/site.css?url";
 import { leaveBareDomain, linkedSlug } from "~/utils/bare-domain";
 
 export const Route = createFileRoute("/badge")({
+  staticData: { schoolFace: true },
   // Badges printed before each school had its own portal name it here.
   validateSearch: v.object({ school: v.optional(v.string()) }),
   beforeLoad: ({ context, location, search }) =>

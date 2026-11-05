@@ -21,6 +21,7 @@ import { getAuthState } from "~/server/auth";
 import appCss from "~/styles/globals.css?url";
 import { digits } from "~/utils/digits";
 import { hostView } from "~/utils/host";
+import { iconsFor } from "~/utils/icons";
 
 import { DefaultCatchBoundary } from "../components/DefaultCatchBoundary";
 import { NotFound } from "../components/NotFound";
@@ -54,7 +55,7 @@ export const Route = createRootRouteWithContext<AppRouterContext>()({
       await queryClient.ensureQueryData(currentUserQuery);
     }
   },
-  head: () => ({
+  head: ({ matches }) => ({
     meta: [
       {
         charSet: "utf-8",
@@ -70,29 +71,7 @@ export const Route = createRootRouteWithContext<AppRouterContext>()({
       }),
       { name: "theme-color", content: "#153f3a" },
     ],
-    links: [
-      { rel: "stylesheet", href: appCss },
-      {
-        rel: "apple-touch-icon",
-        sizes: "180x180",
-        href: "/apple-touch-icon.png",
-      },
-      {
-        rel: "icon",
-        type: "image/png",
-        sizes: "32x32",
-        href: "/favicon-32x32.png",
-      },
-      {
-        rel: "icon",
-        type: "image/png",
-        sizes: "16x16",
-        href: "/favicon-16x16.png",
-      },
-      { rel: "icon", type: "image/svg+xml", href: "/favicon.svg" },
-      { rel: "manifest", href: "/site.webmanifest" },
-      { rel: "icon", href: "/favicon.ico", sizes: "48x48" },
-    ],
+    links: [{ rel: "stylesheet", href: appCss }, ...iconsFor(matches)],
   }),
   errorComponent: (props) => {
     return (

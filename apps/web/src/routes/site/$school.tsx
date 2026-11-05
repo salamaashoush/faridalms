@@ -26,6 +26,7 @@ import { adoptDigits } from "~/utils/digits";
 
 /** A school's public website. No one signs in here; the address names the school. */
 export const Route = createFileRoute("/site/$school")({
+  staticData: { schoolFace: true },
   validateSearch: v.object({
     lang: v.fallback(v.optional(v.picklist(SITE_LOCALES)), undefined),
   }),

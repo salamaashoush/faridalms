@@ -13,6 +13,7 @@ import { faceQueryFor } from "~/queries/portal";
 import siteCss from "~/styles/site.css?url";
 
 export const Route = createFileRoute("/_auth")({
+  staticData: { schoolFace: true },
   beforeLoad: ({ context }) => {
     if (context.auth.isAuthenticated) {
       // "/" resolves to the role home, so a signed-in visitor never sees

@@ -80,6 +80,8 @@ declare module "@tanstack/react-router" {
     section?: string | readonly string[];
     /** The page takes the whole window, without the sidebar or top bar. */
     immersive?: boolean;
+    /** The page is drawn in a school's face, whose logo becomes its icon. */
+    schoolFace?: boolean;
   }
   interface Register {
     router: ReturnType<typeof getRouter>;
