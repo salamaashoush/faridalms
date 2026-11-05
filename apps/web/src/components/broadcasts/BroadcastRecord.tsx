@@ -183,7 +183,7 @@ function Report({
         rowLabel={(row) => inLocale(row.fullNameEn, row.fullNameAr)}
         card={reportCard(data.requiresAck)}
         pagination={
-          report
+          report && report.pages > 1
             ? {
                 page: report.page,
                 pages: report.pages,
