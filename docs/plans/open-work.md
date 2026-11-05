@@ -9,12 +9,6 @@ larger than a few days of work gets its own plan beside this file.
 From `foundations.md`. W1 to W5 are merged.
 
 - **W6, conventions and records** (findings 13 to 18 and the P2 items):
-  - before and after values on audited updates. A history tab now
-    holds every event about the person or record and words each one,
-    but only about 22 of 228 audit calls pass `change`, so most
-    entries say what happened and not what it was before. The access
-    and exam logs keep their own lists, since each row also names the
-    person or the rules it changed;
   - erasure for the tables `erasure-rules.ts` marks `to_erase`, and the
     owner's and the lawyer's review of every proposed rule (the list is in
     the ops repository, `plans/legal/erasure-registry.md`). Every table

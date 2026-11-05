@@ -150,6 +150,88 @@ describe("students", () => {
     expect(matches.map((match) => match.id)).toContain(created.id);
   });
 
+  test("a student's history shows the old and new value of each field an edit changed", async () => {
+    const api = await signedIn("northwind", login("principal"));
+    const options = await api.people.options();
+    const mother = options.relations.find((row) => row.code === "mother");
+    if (!mother) throw new Error("options");
+    const flags = {
+      relationId: mother.id,
+      legalGuardian: true,
+      portalAccess: false,
+      receivesNotifications: true,
+      primaryContact: true,
+      emergencyContact: true,
+      residence: "primary" as const,
+      pickup: "allowed" as const,
+    };
+    const reference = `NO${crypto.randomUUID().slice(0, 6)}`;
+    const { id } = await api.people.saveStudent({
+      names: names("Salama Ashoush", "سلامة عشوش"),
+      reference,
+      birthDate: "2015-04-01",
+      guardians: [
+        {
+          person: { names: names("Mona Ashoush", "منى عشوش"), phone: "" },
+          flags,
+        },
+      ],
+    });
+    const record = await api.people.student({ id });
+    await api.people.saveStudent({
+      id,
+      expectedVersion: record.version,
+      names: names("Salam Ashoush", "سلامة عشوش"),
+      reference,
+      birthDate: "2015-04-02",
+    });
+    const link = record.guardians?.[0];
+    if (!link) throw new Error("no guardian");
+    await api.people.saveRelationship({
+      studentId: id,
+      relationshipId: link.relationshipId,
+      expectedVersion: link.version,
+      flags: { ...flags, portalAccess: true, pickup: "ask_office" },
+    });
+
+    const { rows } = await api.people.studentHistory({ id });
+    const changesOf = (action: string) =>
+      rows.find((row) => row.action === action)?.changes;
+    expect(changesOf("user.update")).toEqual([
+      {
+        field: "core.users.given_name_en",
+        kind: "text",
+        before: "Salama",
+        after: "Salam",
+      },
+      {
+        field: "core.users.birth_date",
+        kind: "date",
+        before: "2015-04-01",
+        after: "2015-04-02",
+      },
+    ]);
+    expect(changesOf("relationship.update")).toEqual([
+      {
+        field: "core.user_relationships.portal_access",
+        kind: "boolean",
+        before: false,
+        after: true,
+      },
+      {
+        field: "core.user_relationships.pickup",
+        kind: "choice",
+        before: "allowed",
+        after: "ask_office",
+      },
+    ]);
+    expect(changesOf("user.create")).toEqual([]);
+    // The English full name changed too, but only the parts are shown.
+    expect(rows.find((row) => row.action === "user.update")?.changed).toContain(
+      "full_name_en",
+    );
+  });
+
   test("a reference is unique within the school", async () => {
     const api = await signedIn("northwind", login("principal"));
     const [first] = (await api.people.students({})).rows;

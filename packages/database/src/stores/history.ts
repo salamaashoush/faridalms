@@ -1,5 +1,7 @@
+import type { HistoryChange } from "@faridalms/domain/history";
 import type { Feed, Keyset } from "@faridalms/domain/paging";
 
+import { historyChanges } from "@faridalms/domain/history";
 import { feedOf } from "@faridalms/domain/paging";
 import { sql } from "drizzle-orm";
 
@@ -15,6 +17,7 @@ export interface HistoryEntry {
   actorNameEn: string | null;
   actorNameAr: string | null;
   changed: string[];
+  changes: HistoryChange[];
   reason: string | null;
 }
 
@@ -28,8 +31,9 @@ export type HistoryAbout =
   | { object: { type: string; id: string } };
 
 /**
- * Every audited event about a person or a record, newest first. Values stay
- * in the payloads; this shows who changed which fields, and the reason given.
+ * Every audited event about a person or a record, newest first: who changed
+ * which fields, the old and new values of those `HISTORY_FIELDS` shows, and
+ * the reason given.
  */
 export async function historyOf(
   tx: CellTransaction,
@@ -49,12 +53,13 @@ export async function historyOf(
     outcome: HistoryEntry["outcome"];
     actor_en: string | null;
     actor_ar: string | null;
-    details: { changed?: string[] };
-    reason: string | null;
+    details: { changed?: string[]; table?: string };
+    before: Record<string, unknown> | null;
+    after: Record<string, unknown> | null;
   }>(sql`
     select l.id, ${isoOf(sql`l.occurred_at`)} as occurred_at, l.action, l.outcome,
            a.full_name_en as actor_en, a.full_name_ar as actor_ar, l.details,
-           p.after ->> 'reason' as reason
+           p.before, p.after
     from audit.log l
     left join core.users a on a.tenant_id = l.tenant_id and a.id = l.actor_user_id
     left join audit.payloads p on p.tenant_id = l.tenant_id and p.event_id = l.id
@@ -66,16 +71,28 @@ export async function historyOf(
     order by date_trunc('milliseconds', l.occurred_at) desc, l.id desc
     limit ${page.limit + 1}`);
   return feedOf(
-    rows.map((row) => ({
-      id: row.id,
-      occurredAt: row.occurred_at,
-      action: row.action,
-      outcome: row.outcome,
-      actorNameEn: row.actor_en,
-      actorNameAr: row.actor_ar,
-      changed: Array.isArray(row.details.changed) ? row.details.changed : [],
-      reason: row.reason,
-    })),
+    rows.map((row) => {
+      const changed = Array.isArray(row.details.changed)
+        ? row.details.changed
+        : [];
+      const reason = row.after?.reason;
+      return {
+        id: row.id,
+        occurredAt: row.occurred_at,
+        action: row.action,
+        outcome: row.outcome,
+        actorNameEn: row.actor_en,
+        actorNameAr: row.actor_ar,
+        changed,
+        changes: historyChanges(
+          row.details.table,
+          changed,
+          row.before,
+          row.after,
+        ),
+        reason: typeof reason === "string" ? reason : null,
+      };
+    }),
     page.limit,
     (row) => ({ at: row.occurredAt, id: row.id }),
   );

@@ -1,3 +1,4 @@
+import type { HistoryChange } from "@faridalms/domain/history";
 import type { ReactNode } from "react";
 
 import { Button } from "@faridalms/ui/button";
@@ -21,6 +22,7 @@ import { auditActionLabel } from "~/utils/audit-actions";
 import { formatInstant } from "~/utils/datetime";
 
 import { formatPhone } from "./format";
+import { HistoryChanges } from "./history-changes";
 
 export function Phone({ value }: { value: string | null | undefined }) {
   if (!value) return <Value>{null}</Value>;
@@ -119,6 +121,7 @@ interface Entry {
   action: string;
   actorNameEn: string | null;
   actorNameAr: string | null;
+  changes: readonly HistoryChange[];
   reason?: string | null;
 }
 
@@ -177,6 +180,7 @@ function HistorySection({
                     : m.historySystem(),
                 ].join(" · ")}
               </span>
+              <HistoryChanges changes={entry.changes} />
               {entry.reason ? (
                 <span dir="auto" className="text-sm leading-5">
                   {entry.reason}
