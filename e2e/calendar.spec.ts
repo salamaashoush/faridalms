@@ -291,3 +291,49 @@ test("on a phone, each day of the week offers a new event to those who may add o
   await expect(add.first()).toBeVisible();
   await expect(add.first()).toHaveCSS("opacity", "1");
 });
+
+test("an event written in two languages reads in each reader's", async ({
+  browser,
+  page,
+  browserName,
+}) => {
+  const unique = `${browserName} ${crypto.randomUUID().slice(0, 6)}`;
+  const title = `Science evening (${unique})`;
+  await signIn(page, "admin");
+  await page.goto("/event-editor");
+  await untilHydrated(page);
+  await page.getByRole("textbox", { name: "Title in English" }).fill(title);
+  await page.locator("[contenteditable=true]").first().click();
+  await page.keyboard.type("Bring a jar for the experiments.");
+  await page.getByLabel("Starts on").fill(DAY[browserName] ?? "2026-11-13");
+  await page.getByLabel("Starts at").fill("17:00");
+  await page.getByLabel("Ends at").fill("18:00");
+  await page.getByRole("combobox", { name: "Audience 1" }).click();
+  await page.getByRole("option", { name: "Families" }).click();
+  await page.getByText("Also write it in Arabic", { exact: true }).click();
+  await page.getByRole("tab", { name: "العربية" }).click();
+  await page
+    .getByRole("textbox", { name: "Title in Arabic" })
+    .fill(`أمسية العلوم (${unique})`);
+  await page.locator("[contenteditable=true]").first().click();
+  await page.keyboard.type("أحضر برطمانًا للتجارب.");
+  await page.getByRole("button", { name: "Publish", exact: true }).click();
+  await expect(page).toHaveURL(/\/calendar\?.*event=[a-f0-9-]+/);
+
+  const familyContext = await browser.newContext();
+  const family = await familyContext.newPage();
+  await signInWith(
+    family,
+    "parent1007@northwind.example.com",
+    PASSWORD,
+    "/family",
+  );
+  await familyContext.addCookies([
+    { name: "language-tag", value: "ar", url: portal() },
+  ]);
+  await family.goto("/calendar?month=2026-11&view=agenda");
+  await untilHydrated(family);
+  await family.getByRole("link", { name: `أمسية العلوم (${unique})` }).click();
+  await expect(family.getByText("أحضر برطمانًا للتجارب.")).toBeVisible();
+  await familyContext.close();
+});

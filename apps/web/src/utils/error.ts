@@ -435,6 +435,7 @@ export function getMessageFromError(error: unknown): string {
         return m.newsBodyNeeded();
       case "news.nothing_to_check":
       case "consents.nothing_to_check":
+      case "calendar.nothing_to_check":
         return m.translationErrNothingToCheck();
       case "external_id.taken":
         return m.identifiersErrTaken();

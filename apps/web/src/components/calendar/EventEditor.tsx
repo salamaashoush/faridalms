@@ -1,6 +1,7 @@
 import type { AudienceInput } from "@faridalms/domain/announcements";
 import type { CalendarCategory } from "@faridalms/domain/calendar";
 import type { ContentDocument } from "@faridalms/domain/content";
+import type { ContentLocale } from "@faridalms/domain/translations";
 
 import {
   CALENDAR_CATEGORIES,
@@ -8,6 +9,12 @@ import {
 } from "@faridalms/domain/calendar";
 import { contentPlainText } from "@faridalms/domain/content";
 import { emptyContent } from "@faridalms/domain/content-conversion";
+import {
+  CONTENT_LOCALES,
+  documentWritten,
+  otherLocale,
+  translationState,
+} from "@faridalms/domain/translations";
 import { Button } from "@faridalms/ui/button";
 import {
   Dialog,
@@ -17,6 +24,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@faridalms/ui/dialog";
+import { Tabs, TabsList, TabsTrigger } from "@faridalms/ui/tabs";
 import {
   useQuery,
   useQueryClient,
@@ -39,8 +47,11 @@ import {
 } from "~/components/broadcasts/AudienceList";
 import { contentIssueMessages } from "~/components/content/checks";
 import { ContentEditor } from "~/components/content/ContentEditor";
+import { ContentView } from "~/components/content/ContentView";
+import { LOCALE_LABEL, LOCALE_NAME } from "~/components/content/languages";
 import { sectionsContent } from "~/components/content/shapes";
 import { useStartFrom } from "~/components/content/Templates";
+import { TranslationNote } from "~/components/content/TranslationNote";
 import { sayIn } from "~/components/learning/starters";
 import { CheckboxRow } from "~/components/people/fields";
 import {
@@ -50,6 +61,7 @@ import {
   DocumentTitle,
 } from "~/components/system/DocumentPage";
 import { SelectField, TextField } from "~/components/system/field";
+import { SheetPanel } from "~/components/system/SheetPanel";
 import { useAutosave } from "~/hooks/useAutosave";
 import { inLocale } from "~/hooks/useCurrentUser";
 import { useDocumentMedia } from "~/hooks/useDocumentMedia";
@@ -59,6 +71,7 @@ import { calendarEventQuery, calendarOptionsQuery } from "~/queries/calendar";
 import {
   publishCalendarEvent,
   removeCalendarEvent,
+  reviewCalendarTranslation,
   saveCalendarEvent,
 } from "~/server/calendar";
 import { formatSpan } from "~/utils/datetime";
@@ -84,7 +97,10 @@ interface Draft {
   location: string;
   provisional: boolean;
   audiences: AudienceInput[];
+  primaryLocale: ContentLocale;
+  bilingual: boolean;
   description: ContentDocument;
+  translation: ContentDocument;
 }
 
 function draftOf(
@@ -115,7 +131,11 @@ function draftOf(
             ? { scope: "school", classId: "", gradeId: "" }
             : { scope: "class", classId: "", gradeId: "" },
         ],
+    primaryLocale:
+      existing?.primaryLocale ?? (getLocale() === "ar" ? "ar" : "en"),
+    bilingual: existing ? existing.translation !== null : false,
     description: existing?.description ?? emptyContent(),
+    translation: existing?.translation ?? emptyContent(),
   };
 }
 
@@ -225,12 +245,25 @@ export function EventEditor({
   const [tellChoice, setTellChoice] = useState<boolean | null>(null);
   const [asking, setAsking] = useState(false);
   const [detailsOpen, setDetailsOpen] = useState(false);
-  const [pending, setPending] = useState<"publish" | "update" | null>(null);
+  const [pending, setPending] = useState<
+    "publish" | "update" | "review" | null
+  >(null);
+  const [writing, setWriting] = useState<ContentLocale>(draft.primaryLocale);
+  const [review, setReview] = useState(existing?.translationReview ?? null);
+  const [comparing, setComparing] = useState(false);
+  const other = otherLocale(draft.primaryLocale);
+  const translating = draft.bilingual && writing === other;
+  const shownLocale: ContentLocale = translating ? other : draft.primaryLocale;
   const live = state === "published";
   const issues = issuesOf(draft);
   const ready = !Object.values(issues).some(Boolean);
   // A draft saves as it is; only what readers would meet waits for these.
-  const contentProblems = contentIssueMessages(draft.description);
+  const contentProblems = [
+    ...contentIssueMessages(draft.description),
+    ...(draft.bilingual && documentWritten(draft.translation)
+      ? contentIssueMessages(draft.translation)
+      : []),
+  ];
   const reached = latest?.reached ?? existing?.reached ?? 0;
   const cancelled = latest?.cancelled ?? existing?.cancelled ?? false;
   const tellChange = tellChoice ?? materialChange(plan(sent), plan(draft));
@@ -238,11 +271,13 @@ export function EventEditor({
   const persist = useCallback(
     async (value: Draft, sendUpdate = false) => {
       if (!valid) throw new Error("content.invalid");
+      const { bilingual, translation, ...fields } = value;
       const saved = await saveCalendarEvent({
         data: {
           id: id.current,
           expectedVersion: version.current,
-          ...value,
+          ...fields,
+          translation: bilingual ? translation : null,
           titleEn: value.titleEn.trim(),
           titleAr: value.titleAr.trim(),
           startTime: value.allDay ? "" : value.startTime,
@@ -275,6 +310,35 @@ export function EventEditor({
     (description: ContentDocument) => change({ description }),
     [change],
   );
+  const changeTranslation = useCallback(
+    (translation: ContentDocument) => change({ translation }),
+    [change],
+  );
+  const translation = draft.bilingual
+    ? translationState({
+        translation: draft.translation,
+        reviewed: review !== null,
+        current: review?.current ?? false,
+      })
+    : null;
+  // The check is taken against the original as stored, so what is on screen
+  // is saved first.
+  const markReviewed = async (reviewed: boolean) => {
+    setPending("review");
+    try {
+      await persist(draft);
+      autosave.markSaved(draft);
+      const out = await reviewCalendarTranslation({
+        data: { id: id.current, expectedVersion: version.current, reviewed },
+      });
+      version.current = out.version;
+      setReview(out.review);
+    } catch (error) {
+      toast.error(getMessageFromError(error));
+    } finally {
+      setPending(null);
+    }
+  };
   // A school trip's shape makes the event a trip, and so on.
   const applyDescription = (
     description: ContentDocument,
@@ -351,8 +415,8 @@ export function EventEditor({
     }
   };
 
-  const titleKey = getLocale() === "ar" ? "titleAr" : "titleEn";
-  const otherKey = titleKey === "titleAr" ? "titleEn" : "titleAr";
+  const titleKey = shownLocale === "ar" ? "titleAr" : "titleEn";
+  const otherKey = draft.primaryLocale === "ar" ? "titleEn" : "titleAr";
   const changed = live && JSON.stringify(draft) !== JSON.stringify(sent);
   const listed = [
     ...Object.values(issues).filter((issue) => issue !== null),
@@ -484,6 +548,24 @@ export function EventEditor({
                 </ul>
               </div>
             ) : null}
+            {draft.bilingual ? (
+              <Tabs
+                value={writing}
+                onValueChange={(value: ContentLocale) => setWriting(value)}
+              >
+                <TabsList aria-label={m.contentLanguage()}>
+                  <TabsTrigger
+                    value={draft.primaryLocale}
+                    lang={draft.primaryLocale}
+                  >
+                    {LOCALE_LABEL[draft.primaryLocale]()}
+                  </TabsTrigger>
+                  <TabsTrigger value={other} lang={other}>
+                    {LOCALE_LABEL[other]()}
+                  </TabsTrigger>
+                </TabsList>
+              </Tabs>
+            ) : null}
             <DocumentTitle
               id="event-title"
               label={titleKey === "titleEn" ? m.calTitleEn() : m.calTitleAr()}
@@ -585,18 +667,81 @@ export function EventEditor({
                 value={draft.location}
                 onChange={(event) => change({ location: event.target.value })}
               />
-              <TextField
-                id="event-other-title"
-                label={otherKey === "titleAr" ? m.calTitleAr() : m.calTitleEn()}
-                hint={m.calTitleHint()}
-                optional
-                dir={otherKey === "titleAr" ? "rtl" : "ltr"}
-                maxLength={200}
-                autoComplete="off"
-                value={draft[otherKey]}
-                onChange={(event) => change({ [otherKey]: event.target.value })}
+              {draft.bilingual ? null : (
+                <TextField
+                  id="event-other-title"
+                  label={
+                    otherKey === "titleAr" ? m.calTitleAr() : m.calTitleEn()
+                  }
+                  hint={m.calTitleHint()}
+                  optional
+                  dir={otherKey === "titleAr" ? "rtl" : "ltr"}
+                  maxLength={200}
+                  autoComplete="off"
+                  value={draft[otherKey]}
+                  onChange={(event) =>
+                    change({ [otherKey]: event.target.value })
+                  }
+                />
+              )}
+            </DetailsSection>
+            <DetailsSection title={m.contentSectionLanguages()}>
+              <SelectField
+                id="event-language"
+                label={m.contentPrimaryLanguage()}
+                hint={m.contentPrimaryLanguageHint()}
+                value={draft.primaryLocale}
+                options={CONTENT_LOCALES.map((locale) => ({
+                  value: locale,
+                  label: LOCALE_LABEL[locale](),
+                }))}
+                onChange={(primaryLocale) => {
+                  change({ primaryLocale });
+                  setWriting(primaryLocale);
+                }}
+              />
+              <CheckboxRow
+                label={m.contentBilingual({ language: LOCALE_NAME[other]() })}
+                hint={m.contentBilingualHint({
+                  language: LOCALE_NAME[draft.primaryLocale](),
+                })}
+                checked={draft.bilingual}
+                onChange={(bilingual) => {
+                  change({ bilingual });
+                  if (!bilingual) setWriting(draft.primaryLocale);
+                }}
               />
             </DetailsSection>
+            {draft.bilingual && translation ? (
+              <DetailsSection title={m.translationTitle()}>
+                <TranslationNote
+                  state={translation}
+                  review={review}
+                  language={LOCALE_NAME[other]()}
+                />
+                <CheckboxRow
+                  label={m.translationReviewedCheck()}
+                  hint={m.translationReviewedHint({
+                    language: LOCALE_NAME[draft.primaryLocale](),
+                  })}
+                  checked={translation === "reviewed"}
+                  onChange={(checked) => {
+                    if (pending !== "review") void markReviewed(checked);
+                  }}
+                />
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="justify-self-start max-md:h-10"
+                  onClick={() => setComparing(true)}
+                >
+                  {m.translationShowOriginal({
+                    language: LOCALE_NAME[draft.primaryLocale](),
+                  })}
+                </Button>
+              </DetailsSection>
+            ) : null}
             <DetailsSection
               title={m.calSectionFor()}
               hint={m.annAudienceHint()}
@@ -632,18 +777,38 @@ export function EventEditor({
           </DetailsPanel>
         }
       >
-        <ContentEditor
-          key={editorKey}
-          id="event-body"
-          label={m.calDescription()}
-          variant="document"
-          value={draft.description}
-          onChange={changeDescription}
-          onValidityChange={setValid}
-          onUploadingChange={setUploading}
-          media={media}
-        />
+        <div lang={shownLocale} className="min-w-0">
+          <ContentEditor
+            key={`${editorKey}-${shownLocale}`}
+            id="event-body"
+            label={
+              translating
+                ? `${m.calDescription()} (${LOCALE_LABEL[shownLocale]()})`
+                : m.calDescription()
+            }
+            variant="document"
+            value={translating ? draft.translation : draft.description}
+            onChange={translating ? changeTranslation : changeDescription}
+            onValidityChange={setValid}
+            onUploadingChange={setUploading}
+            media={media}
+          />
+        </div>
       </DocumentPage>
+      <SheetPanel
+        open={comparing}
+        onOpenChange={setComparing}
+        title={m.translationOriginalTitle({
+          language: LOCALE_NAME[draft.primaryLocale](),
+        })}
+      >
+        <div lang={draft.primaryLocale}>
+          <ContentView
+            document={draft.description}
+            fileUrl={(fileId) => `/files/${fileId}`}
+          />
+        </div>
+      </SheetPanel>
       <Dialog open={asking} onOpenChange={setAsking}>
         <DialogContent>
           <DialogHeader>

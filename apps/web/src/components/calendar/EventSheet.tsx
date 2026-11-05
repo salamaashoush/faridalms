@@ -1,8 +1,10 @@
+import type { ContentLocale } from "@faridalms/domain/translations";
 import type { ReactNode } from "react";
 
 import { eventIcs } from "@faridalms/domain/calendar";
 import { contentFileIds, contentPlainText } from "@faridalms/domain/content";
 import { emptyContent } from "@faridalms/domain/content-conversion";
+import { otherLocale } from "@faridalms/domain/translations";
 import { Button } from "@faridalms/ui/button";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
@@ -20,13 +22,14 @@ import { toast } from "sonner";
 import type { ActionItem } from "~/components/system/ActionMenu";
 
 import { audienceLabel } from "~/components/broadcasts/format";
-import { ContentView } from "~/components/content/ContentView";
+import { TranslatedView } from "~/components/content/TranslatedView";
 import { usePrint } from "~/components/print/usePrint";
 import { ActionMenu } from "~/components/system/ActionMenu";
 import { SheetPanel } from "~/components/system/SheetPanel";
 import { StatusBadge } from "~/components/system/status";
 import { inLocale, useCurrentUser } from "~/hooks/useCurrentUser";
 import * as m from "~/i18n/messages";
+import { getLocale } from "~/i18n/runtime";
 import { calendarEventQuery } from "~/queries/calendar";
 import {
   cancelCalendarEvent,
@@ -264,6 +267,12 @@ function EventContext({ data }: { data: Data }) {
 
 function EventBody({ data }: { data: Data }) {
   const user = useCurrentUser();
+  const viewer: ContentLocale = getLocale() === "ar" ? "ar" : "en";
+  const [locale, setLocale] = useState<ContentLocale>(
+    data.translation && viewer === otherLocale(data.primaryLocale)
+      ? viewer
+      : data.primaryLocale,
+  );
   const secondary = secondaryDate(
     data.startsOn,
     user.school.secondaryCalendar,
@@ -307,9 +316,12 @@ function EventBody({ data }: { data: Data }) {
       ) : null}
       {described && data.description ? (
         <div className="border-t pt-6">
-          <ContentView
-            document={data.description}
-            fileUrl={(fileId) => `/files/${fileId}`}
+          <TranslatedView
+            body={data.description}
+            translation={data.translation}
+            primary={data.primaryLocale}
+            locale={locale}
+            onLocaleChange={setLocale}
           />
         </div>
       ) : null}

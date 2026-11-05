@@ -31,6 +31,10 @@ const AUDIT_ACTIONS = {
     checked: "assignment.translation_checked",
     unchecked: "assignment.translation_unchecked",
   },
+  calendar_event: {
+    checked: "calendar_event.translation_checked",
+    unchecked: "calendar_event.translation_unchecked",
+  },
 } as const satisfies Record<
   TranslatedHost,
   { checked: string; unchecked: string }

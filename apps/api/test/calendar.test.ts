@@ -219,6 +219,55 @@ describe("keeping the calendar", () => {
   });
 });
 
+describe("an event in two languages", () => {
+  test("keeps its description's translation, checked as any translation is, for its readers", async () => {
+    const office = await principal();
+    const plain = await office.calendar.save(event("One language only"));
+    expect(
+      await rejection(
+        office.calendar.reviewTranslation({
+          id: plain.id,
+          expectedVersion: plain.version,
+          reviewed: true,
+        }),
+      ),
+    ).toMatchObject({ message: "calendar.nothing_to_check" });
+
+    const saved = await office.calendar.save({
+      ...event("Science evening"),
+      titleAr: "أمسية العلوم",
+      primaryLocale: "en",
+      translation: plainContent("جدول أمسية العلوم."),
+    });
+    const draft = await office.calendar.event({ id: saved.id });
+    expect(draft).toMatchObject({
+      primaryLocale: "en",
+      translationReview: null,
+    });
+    expect(JSON.stringify(draft.translation)).toContain("جدول أمسية العلوم");
+
+    const checked = await office.calendar.reviewTranslation({
+      id: saved.id,
+      expectedVersion: saved.version,
+      reviewed: true,
+    });
+    expect(checked.review).toMatchObject({ current: true });
+    await office.calendar.publish({
+      id: saved.id,
+      expectedVersion: checked.version,
+      notify: false,
+    });
+
+    const read = await (await mother()).calendar.event({ id: saved.id });
+    expect(read.primaryLocale).toBe("en");
+    expect(JSON.stringify(read.description)).toContain(
+      "Science evening agenda",
+    );
+    expect(JSON.stringify(read.translation)).toContain("جدول أمسية العلوم");
+    expect(read.translationReview).toBeNull();
+  });
+});
+
 describe("calendar links", () => {
   test("a family's private link carries its events and closed days in their language, and a new link stops the old", async () => {
     const family = await mother();

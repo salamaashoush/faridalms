@@ -6,6 +6,7 @@ import { audienceSchema } from "./announcements";
 import { contentDocumentSchema } from "./content";
 import { addDays, daysBetween, shiftMonth, zonedInstant } from "./school";
 import { isoWeekday } from "./timetable";
+import { CONTENT_LOCALES } from "./translations";
 
 export const CALENDAR_CATEGORIES = [
   "general",
@@ -61,7 +62,10 @@ export const saveEventSchema = v.pipe(
     location: v.pipe(v.string(), v.trim(), v.maxLength(200)),
     provisional: v.boolean(),
     audiences: v.pipe(v.array(audienceSchema), v.minLength(1), v.maxLength(20)),
+    /** The language the description is written in first; from the titles when not said. */
+    primaryLocale: v.optional(v.picklist(CONTENT_LOCALES)),
     description: contentDocumentSchema,
+    translation: v.optional(v.nullable(contentDocumentSchema), null),
     /** Tell a published event's audience about this change. */
     sendUpdate: v.optional(v.boolean(), false),
     /** Also shown on the school's website; the office decides. */

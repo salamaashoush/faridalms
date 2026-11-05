@@ -14,11 +14,6 @@ From `foundations.md`. W1 to W5 are merged.
     the ops repository, `plans/legal/erasure-registry.md`). Every table
     that names a person now declares one, and `db:verify` refuses a new
     table that does not;
-  - bilingual records written the same way everywhere. Every
-    translation is now checked through one review, but a translated
-    lesson or assignment still keeps one title, a website page has no
-    review state, and a calendar event's description is in one
-    language while its title is in two;
   - one question and answer model shared by quizzes, forms and admission
     forms;
   - saved sections on the templates and shared-block systems;

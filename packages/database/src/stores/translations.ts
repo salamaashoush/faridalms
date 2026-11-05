@@ -13,6 +13,7 @@ const HOSTS = {
   privacy_notice: "privacy_notices",
   lesson: "lessons",
   assignment: "assignments",
+  calendar_event: "calendar_events",
 } as const;
 export type TranslatedHost = keyof typeof HOSTS;
 

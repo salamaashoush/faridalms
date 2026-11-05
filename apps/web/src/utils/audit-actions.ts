@@ -51,6 +51,8 @@ export const AUDIT_ACTION_LABEL: Record<string, () => string> = {
   "announcement.schedule": m.auditAnnouncementSchedule,
   "announcement.translation_checked": m.auditAnnouncementTranslationChecked,
   "announcement.translation_unchecked": m.auditAnnouncementTranslationUnchecked,
+  "calendar_event.translation_checked": m.auditCalendarTranslationChecked,
+  "calendar_event.translation_unchecked": m.auditCalendarTranslationUnchecked,
   "announcement.unpublish": m.auditAnnouncementUnpublish,
   "announcement.update": m.auditAnnouncementUpdate,
   "announcement.update_sent": m.auditAnnouncementUpdateSent,

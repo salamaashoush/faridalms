@@ -76,6 +76,16 @@ export const calendarEvents = core.table.withRLS(
     /** When its audience was last told of a change. */
     updateSentAt: instant("update_sent_at"),
     authorUserId: uuid("author_user_id").notNull(),
+    /**
+     * Who checked the description's translation against the original, when,
+     * and a digest of the original's words then.
+     */
+    translationReviewedAt: instant("translation_reviewed_at"),
+    // Keyed to users NOT VALID by the custom migration: drizzle-kit writes a
+    // key on an existing table as validated, and validating reads the table
+    // under forced row security, where a migration has no tenant.
+    translationReviewedByUserId: uuid("translation_reviewed_by_user_id"),
+    translationSourceDigest: text("translation_source_digest"),
     ...entityColumns(),
   },
   (t): PgTableExtraConfigValue[] => [
@@ -86,6 +96,11 @@ export const calendarEvents = core.table.withRLS(
       "calendar_events",
       [t.tenantId, t.authorUserId],
       [users.tenantId, users.id],
+    ),
+    ck(
+      "calendar_events",
+      "translation_review",
+      sql`(translation_reviewed_at is null) = (translation_reviewed_by_user_id is null) and (translation_reviewed_at is null) = (translation_source_digest is null)`,
     ),
     ck(
       "calendar_events",

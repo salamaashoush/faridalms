@@ -5,6 +5,7 @@ import {
   rangeQuerySchema,
   saveEventSchema,
 } from "@faridalms/domain/calendar";
+import { reviewTranslationSchema } from "@faridalms/domain/translations";
 import { createServerFn } from "@tanstack/react-start";
 
 import { backend, record } from "./backend";
@@ -45,3 +46,7 @@ export const getCalendarFeed = createServerFn({ method: "GET" }).handler(() =>
 export const resetCalendarFeed = createServerFn({ method: "POST" }).handler(
   () => backend().calendar.resetFeed(),
 );
+
+export const reviewCalendarTranslation = createServerFn({ method: "POST" })
+  .validator(checked(reviewTranslationSchema))
+  .handler(({ data }) => backend().calendar.reviewTranslation(data));

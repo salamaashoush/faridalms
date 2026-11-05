@@ -8973,6 +8973,8 @@
   "auditAnnouncementUnpublish": "Announcement taken back",
   "auditAnnouncementTranslationChecked": "Announcement translation checked",
   "auditAnnouncementTranslationUnchecked": "Announcement translation unchecked",
+  "auditCalendarTranslationChecked": "Event translation checked",
+  "auditCalendarTranslationUnchecked": "Event translation unchecked",
   "auditAnnouncementDuplicate": "Announcement copied",
   "auditNewsCreate": "News post drafted",
   "auditNewsUpdate": "News post changed",

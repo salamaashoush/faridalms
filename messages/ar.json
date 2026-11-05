@@ -9371,6 +9371,8 @@
   "auditAnnouncementUnpublish": "سُحب إعلان",
   "auditAnnouncementTranslationChecked": "رُوجعت ترجمة الإعلان",
   "auditAnnouncementTranslationUnchecked": "أُلغيت مراجعة ترجمة الإعلان",
+  "auditCalendarTranslationChecked": "رُوجعت ترجمة الفعالية",
+  "auditCalendarTranslationUnchecked": "أُلغيت مراجعة ترجمة الفعالية",
   "auditAnnouncementDuplicate": "نُسخ إعلان",
   "auditNewsCreate": "كُتبت مسودة خبر",
   "auditNewsUpdate": "عُدّل خبر",

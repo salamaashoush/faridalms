@@ -1,6 +1,7 @@
 import type { AudienceInput } from "@faridalms/domain/announcements";
 import type { ShownCategory } from "@faridalms/domain/calendar";
 import type { ContentDocument } from "@faridalms/domain/content";
+import type { ContentLocale } from "@faridalms/domain/translations";
 
 import { changeOf } from "@faridalms/database/audit";
 import { bookedBetween } from "@faridalms/database/stores/admission-decisions";
@@ -11,7 +12,6 @@ import {
   setAudiences,
 } from "@faridalms/database/stores/audiences";
 import { classesTaughtBy } from "@faridalms/database/stores/classes";
-import { saveDocument } from "@faridalms/database/stores/documents";
 import {
   eventById,
   eventReaches,
@@ -26,6 +26,7 @@ import {
   updateEvent,
 } from "@faridalms/database/stores/events";
 import { childrenOf } from "@faridalms/database/stores/persons";
+import { translationReview } from "@faridalms/database/stores/translations";
 import { schoolYears, workingYear } from "@faridalms/database/stores/years";
 import {
   cancelEventSchema,
@@ -34,8 +35,11 @@ import {
   rangeQuerySchema,
   saveEventSchema,
 } from "@faridalms/domain/calendar";
-import { contentFileIds, contentPlainText } from "@faridalms/domain/content";
 import { CONTENT_ISSUE_CODE } from "@faridalms/domain/content-checks";
+import {
+  documentWritten,
+  reviewTranslationSchema,
+} from "@faridalms/domain/translations";
 import { ORPCError } from "@orpc/server";
 import * as v from "valibot";
 
@@ -55,10 +59,12 @@ import {
   draftWords,
   publishedWords,
   publishWords,
+  saveWords,
   wordsIssues,
 } from "../core/publication";
 import { isStaff, scopeFor, teaches } from "../core/reach";
-import { registerHostReader, placeMedia } from "../files/authorize";
+import { checkTranslation } from "../core/translation-review";
+import { registerHostReader } from "../files/authorize";
 
 const id = v.pipe(v.string(), v.uuid());
 
@@ -66,15 +72,26 @@ const manages = (context: UnitContext) => can(context, "calendar:manage");
 
 const host = (eventId: string) => ({ type: "calendar_event", id: eventId });
 
+/** The language an event's description is written in first, from its titles before it had one. */
+const localeOf = (
+  stored: string | null | undefined,
+  row: { titleEn: string | null; titleAr: string | null },
+): ContentLocale =>
+  stored === "ar" || stored === "en"
+    ? stored
+    : row.titleAr && !row.titleEn
+      ? "ar"
+      : "en";
+
 /**
  * What stops an event's description going out to its audience, by the one
  * check list and the consent of everyone its pictures show.
  */
 async function checkDescription(
   context: UnitContext,
-  description: ContentDocument | null,
+  description: readonly (ContentDocument | null)[],
 ) {
-  const [problem] = await wordsIssues(context, [description]);
+  const [problem] = await wordsIssues(context, description);
   if (problem)
     throw new ORPCError("BAD_REQUEST", {
       message: CONTENT_ISSUE_CODE[problem],
@@ -330,13 +347,20 @@ export const event = readProcedure
       manages(context) ||
       (can(context, "calendar:author") &&
         row.authorUserId === context.actor.userId);
-    const [audiences, draft, published] = await Promise.all([
+    const [audiences, draft, published, review] = await Promise.all([
       audiencesOf(context.tx, context.tenantId, {
         kind: "calendar_event",
         id: row.id,
       }),
       draftWords(context, host(row.id)),
       publishedWords(context, host(row.id)),
+      canEdit
+        ? translationReview(context.tx, {
+            tenantId: context.tenantId,
+            host: "calendar_event",
+            id: row.id,
+          })
+        : null,
     ]);
     const reached = canEdit
       ? (
@@ -358,6 +382,9 @@ export const event = readProcedure
       // Its audience reads the description as it went out; those who can
       // change it read what they are writing.
       description: canEdit ? draft.body : (published?.body ?? null),
+      translation: canEdit ? draft.other : (published?.translation ?? null),
+      primaryLocale: localeOf(draft.original?.locale, row),
+      translationReview: review,
       canManage: manages(context),
       canEdit,
     };
@@ -387,7 +414,8 @@ export const save = writeProcedure
     const before = input.id ? await editable(context, input.id) : null;
     if (before) {
       out = before.state === "published";
-      if (out) await checkDescription(context, input.description);
+      if (out)
+        await checkDescription(context, [input.description, input.translation]);
       told = out && input.sendUpdate;
       const next = await updateEvent(context.tx, {
         tenantId: context.tenantId,
@@ -414,19 +442,13 @@ export const save = writeProcedure
       owner: { kind: "calendar_event", id: eventId },
       audiences: input.audiences.map(audienceOf),
     });
-    await saveDocument(context.tx, {
-      tenantId: context.tenantId,
-      orgId: context.schoolId,
-      host: { type: "calendar_event", id: eventId },
-      ...(await placeMedia(
-        context,
-        { type: "calendar_event", id: eventId },
-        input.description,
-        contentFileIds(input.description),
-      )),
-      plainText: contentPlainText(input.description),
-      userId: context.actor.userId,
+    const words = await saveWords(context, host(eventId), {
+      primaryLocale: localeOf(input.primaryLocale, input),
+      body: input.description,
+      translation: input.translation,
+      review: "calendar_event",
     });
+    if (words.version !== null) version = words.version;
     // A published event changes for its audience as it is saved.
     if (out)
       await sendDescription(context, {
@@ -459,15 +481,34 @@ export const save = writeProcedure
     return { id: eventId, version };
   });
 
+/**
+ * Records that the description's translation was checked against the
+ * original as it now reads, or takes the check back.
+ */
+export const reviewTranslation = writeProcedure
+  .input(reviewTranslationSchema)
+  .handler(async ({ input, context }) => {
+    const row = await editable(context, input.id);
+    return checkTranslation(context, {
+      host: "calendar_event",
+      id: row.id,
+      version: row.version,
+      expectedVersion: input.expectedVersion,
+      reviewed: input.reviewed,
+      translated: documentWritten(
+        (await draftWords(context, host(row.id))).other,
+      ),
+      nothingToCheck: "calendar.nothing_to_check",
+    });
+  });
+
 /** Puts a draft on its audience's calendar, telling them now or letting it appear quietly. */
 export const publish = writeProcedure
   .input(publishEventSchema)
   .handler(async ({ input, context }) => {
     const row = await editable(context, input.id);
-    await checkDescription(
-      context,
-      (await draftWords(context, host(row.id))).body,
-    );
+    const words = await draftWords(context, host(row.id));
+    await checkDescription(context, [words.body, words.other]);
     const version = await publishEvent(context.tx, {
       tenantId: context.tenantId,
       id: row.id,
