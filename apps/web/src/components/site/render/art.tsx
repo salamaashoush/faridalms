@@ -166,9 +166,9 @@ function Mesh({ seed }: { seed: string }) {
   const next = sequence(`${seed}-mesh`);
   const id = `mesh-${hash(seed).toString(36)}`;
   const glows = [
-    { colour: BRIGHT, r: 180, opacity: 0.9 },
-    { colour: BASE, r: 220, opacity: 1 },
-    { colour: BRIGHT, r: 120, opacity: 0.7 },
+    { id: "wide", colour: BRIGHT, r: 180, opacity: 0.9 },
+    { id: "base", colour: BASE, r: 220, opacity: 1 },
+    { id: "small", colour: BRIGHT, r: 120, opacity: 0.7 },
   ];
   const ring = { x: 300 + next() * 80, y: 40 + next() * 60 };
   return (
@@ -193,9 +193,9 @@ function Mesh({ seed }: { seed: string }) {
       </defs>
       <rect width="400" height="300" fill={DEEP} />
       <g filter={`url(#${id}-blur)`}>
-        {glows.map((glow, index) => (
+        {glows.map((glow) => (
           <circle
-            key={index}
+            key={glow.id}
             cx={60 + next() * 300}
             cy={20 + next() * 160}
             r={glow.r * (0.75 + next() * 0.4)}

@@ -22,6 +22,7 @@ import {
 import {
   artPalette,
   contrast,
+  darkBands,
   darkPalette,
   fromOklch,
   resolveTheme,
@@ -283,6 +284,27 @@ describe("themes", () => {
   it("turn a black brand white on a dark screen, never a mid grey", () => {
     const dark = darkPalette({ ...THEMES.editorial.palette });
     expect(toOklch(dark.primary).l).toBeGreaterThan(0.9);
+  });
+
+  it("keep a black brand's band near-black on a dark screen, edged rather than grey", () => {
+    const { palette } = THEMES.editorial;
+    const bands = darkBands(palette);
+    const page = darkPalette(palette).canvas;
+    expect(toOklch(bands.primary).l).toBeLessThan(0.3);
+    expect(toOklch(bands.primary).l).toBeGreaterThan(toOklch(page).l);
+    expect(toOklch(bands.ink).l).toBeLessThan(toOklch(page).l);
+    expect(bands.edged).toEqual({ primary: true, ink: true });
+  });
+
+  it("keep a coloured brand's band in its colour, apart from the dark page", () => {
+    const { palette } = THEMES.meridian;
+    const bands = darkBands(palette);
+    const page = darkPalette(palette).canvas;
+    expect(contrast(bands.primary, page)).toBeGreaterThanOrEqual(1.3);
+    expect(bands.edged.primary).toBe(false);
+    expect(
+      Math.abs(toOklch(bands.primary).h - toOklch(palette.primary).h),
+    ).toBeLessThan(6);
   });
 
   it("raise cards above a dark background rather than sink them", () => {

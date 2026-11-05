@@ -78,6 +78,7 @@
     --s-card: var(--s-card-dark) !important;
     --s-btn: var(--s-btn-dark) !important;
     --s-btn-fg: var(--s-btn-fg-dark) !important;
+    --s-edge: var(--s-edge-dark, transparent);
   }
   .dark .site-root {
     --s-shadow: 0 1px 2px rgb(0 0 0 / 0.3), 0 12px 32px -12px rgb(0 0 0 / 0.6);
@@ -88,7 +89,10 @@
     background: var(--s-bg);
     /* Sections end on fractional pixels; a pixel of their own colour below
        covers the hairline of page that would otherwise show between two. */
-    box-shadow: 0 1px 0 var(--s-bg);
+    box-shadow:
+      0 1px 0 var(--s-bg),
+      inset 0 1px 0 var(--s-edge, transparent),
+      inset 0 -1px 0 var(--s-edge, transparent);
     color: var(--s-fg);
     /* The app's own tokens, for shared components drawn inside a section. */
     --background: var(--s-bg);
@@ -1400,10 +1404,26 @@
   .site-section.text-center .site-stat::before {
     inset-inline-start: calc(50% - 1.25rem);
   }
-  /* Three figures are narrow enough to stay one row on a tablet. */
+  /* Figures are short: two across even on a phone, where four in a column
+     run long, and three stay one row on a tablet. */
+  @container site (width < 40rem) {
+    .site-grid[data-compact] {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+    .site-grid[data-compact] > :last-child:nth-child(odd) {
+      grid-column: 1 / -1;
+      justify-self: center;
+      inline-size: calc((100% - var(--s-grid-gap)) / 2);
+    }
+  }
   @container site (width >= 40rem) {
-    .site-grid[data-cols="3"][data-keep] {
+    .site-grid[data-cols="3"][data-compact] {
       grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+    .site-grid[data-cols="3"][data-compact] > :last-child:nth-child(odd) {
+      grid-column: auto;
+      justify-self: stretch;
+      inline-size: auto;
     }
   }
   .site-stat-label {

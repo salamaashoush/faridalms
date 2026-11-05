@@ -1134,7 +1134,7 @@ function Stats({ section, context }: Props<"stats">) {
       data-stagger
       className="site-grid gap-y-12"
       data-cols={columns}
-      data-keep
+      data-compact
     >
       {data.items.map((item) => (
         <Figure
@@ -1184,16 +1184,16 @@ function Ticker({
   const { data } = section;
   const [paused, setPaused] = useState(false);
   const t = { locale: context.locale };
-  const words = data.items.map((item) => item.title).filter(Boolean);
+  const words = data.items.filter((item) => item.title);
   const run = (copy: number) => (
     <ul
       key={copy}
       aria-hidden={copy === 1}
       className="flex shrink-0 items-center"
     >
-      {words.map((word, index) => (
-        <li key={`${copy}-${index}`} className="flex items-center">
-          <span className="site-ticker-word">{word}</span>
+      {words.map((item) => (
+        <li key={`${copy}-${item.id}`} className="flex items-center">
+          <span className="site-ticker-word">{item.title}</span>
           <span aria-hidden className="site-ticker-mark" />
         </li>
       ))}

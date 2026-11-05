@@ -5,10 +5,9 @@ import type { CSSProperties } from "react";
 
 import {
   artPalette,
-  contrast,
+  darkBands,
   darkPalette,
   FONTS,
-  mix,
   schemesOf,
 } from "@faridalms/domain/site-theme";
 
@@ -110,30 +109,21 @@ export function themeAttributes(theme: Theme, editing = false) {
   };
 }
 
-/** A band's colour lightened until it stands apart from the dark page. */
-function distinct(colour: string, palette: Theme["palette"]): string {
-  const page = darkPalette(palette).canvas;
-  for (let amount = 0; amount <= 0.3; amount += 0.02) {
-    const candidate = mix(colour, "#FFFFFF", amount);
-    if (contrast(candidate, page) >= 1.3) return candidate;
-  }
-  return mix(colour, "#FFFFFF", 0.3);
-}
-
 /** One colour scheme as the variables a section's contents read. */
 export function schemeStyle(theme: Theme, scheme: SchemeId): CSSProperties {
   const colours = schemesOf(theme.palette)[scheme];
   // The school's own colour and its ink bands are already dark and keep
-  // their colours on a dark screen, raised only where they would otherwise
-  // melt into the dark page, as a black brand would.
-  const dark =
-    scheme === "brand" || scheme === "ink"
-      ? schemesOf({
-          ...theme.palette,
-          primary: distinct(theme.palette.primary, theme.palette),
-          ink: distinct(theme.palette.ink, theme.palette),
-        })[scheme]
-      : schemesOf(darkPalette(theme.palette))[scheme];
+  // their colours on a dark screen.
+  const band = scheme === "brand" || scheme === "ink";
+  const bands = darkBands(theme.palette);
+  const dark = band
+    ? schemesOf({
+        ...theme.palette,
+        primary: bands.primary,
+        ink: bands.ink,
+      })[scheme]
+    : schemesOf(darkPalette(theme.palette))[scheme];
+  const edged = scheme === "brand" ? bands.edged.primary : bands.edged.ink;
   return {
     "--s-bg": colours.background,
     "--s-fg": colours.body,
@@ -153,6 +143,7 @@ export function schemeStyle(theme: Theme, scheme: SchemeId): CSSProperties {
     "--s-card-dark": dark.card,
     "--s-btn-dark": dark.button,
     "--s-btn-fg-dark": dark.buttonText,
+    ...(band && edged ? { "--s-edge-dark": dark.border } : {}),
   } as CSSProperties;
 }
 

@@ -687,6 +687,45 @@ export function darkPalette(palette: Palette): Palette {
   };
 }
 
+/** The school's band and its ink band on a dark screen, and whether each needs an edge. */
+export interface DarkBands {
+  primary: string;
+  ink: string;
+  /** Too close to the page to part from it by colour, so a hairline marks it. */
+  edged: { primary: boolean; ink: boolean };
+}
+
+/**
+ * Bands on a dark screen. A coloured brand keeps its colour, raised only
+ * until it parts from the page; a black or grey brand lightened that way
+ * becomes a flat mid grey, so it stays near-black, a step above the page,
+ * and takes an edge. The ink band sinks below the page, as a footer does.
+ */
+export function darkBands(palette: Palette): DarkBands {
+  const page = darkPalette(palette).canvas;
+  const { c, h } = toOklch(page);
+  const apart = (colour: string) => {
+    for (let amount = 0; amount <= 0.3; amount += 0.02) {
+      const candidate = mix(colour, "#FFFFFF", amount);
+      if (contrast(candidate, page) >= 1.3) return candidate;
+    }
+    return mix(colour, "#FFFFFF", 0.3);
+  };
+  const primary =
+    toOklch(palette.primary).c < NEUTRAL
+      ? fromOklch({ l: 0.235, c, h })
+      : apart(palette.primary);
+  const ink = fromOklch({ l: 0.115, c, h });
+  return {
+    primary,
+    ink,
+    edged: {
+      primary: contrast(primary, page) < 1.3,
+      ink: contrast(ink, page) < 1.3,
+    },
+  };
+}
+
 /** The colours artwork is drawn in where no photograph has been chosen. */
 export interface ArtPalette {
   /** The darkest tone, which words in white sit on. */
