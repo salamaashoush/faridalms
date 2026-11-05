@@ -2,7 +2,7 @@ import { sql } from "drizzle-orm";
 
 import type { CellTransaction } from "../context";
 
-import { escapeLike, isoOf, uuidArray } from "./sql";
+import { holds, isoOf, uuidArray } from "./sql";
 
 type Tx = CellTransaction;
 
@@ -72,7 +72,7 @@ export async function sharedBlocksOf(
       and (b.scope = 'school' or b.owner_user_id = ${input.userId}::uuid)
       ${input.scope === "mine" ? sql`and b.owner_user_id = ${input.userId}::uuid` : sql``}
       ${input.scope === "school" ? sql`and b.scope = 'school'` : sql``}
-      ${words ? sql`and b.title ilike ${`%${escapeLike(words)}%`}` : sql``}
+      ${words ? sql`and ${holds(words, [sql`b.title`])}` : sql``}
     order by b.date_last_modified desc, b.id
     limit 100`);
   return rows.map(sharedOf);

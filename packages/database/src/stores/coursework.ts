@@ -18,7 +18,7 @@ import type { ClassType } from "../tables/teaching";
 import type { Scope } from "./students";
 
 import { rosterOf, taughtClasses } from "./classes";
-import { escapeLike, isoOf, uuidArray } from "./sql";
+import { holds, isoOf, uuidArray } from "./sql";
 
 type Tx = CellTransaction;
 
@@ -394,7 +394,7 @@ export async function reusableAssignments(
     where a.tenant_id = ${scope.tenantId}::uuid and a.org_id = ${scope.schoolId}::uuid
       and a.status = 'active'
       and (a.author_user_id = ${scope.viewerId}::uuid or a.class_id in ${taughtClasses(scope)})
-      and (${q === ""} or a.title ilike ${`%${escapeLike(q)}%`})
+      and (${holds(q, [sql`a.title`])})
     order by a.created_at desc
     limit ${filter.limit}`);
   return rows.map((row) => ({
@@ -447,7 +447,7 @@ export async function teacherAssignments(
         and a.school_year_id = ${filter.yearId}::uuid and a.status = 'active'
         and a.class_id in ${taughtClasses(scope)}
         and (${filter.classId === ""} or a.class_id = ${filter.classId || null}::uuid)
-        and (${q === ""} or a.title ilike ${`%${q}%`})
+        and (${holds(q, [sql`a.title`])})
     ), learners as (
       select r.assignment_id, r.student_user_id, coalesce(r.due_at, w.due_at) as due_at,
              s.excused, s.id as submission_id,

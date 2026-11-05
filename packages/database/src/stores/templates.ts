@@ -3,7 +3,7 @@ import { sql } from "drizzle-orm";
 import type { CellTransaction } from "../context";
 import type { LibraryState } from "../tables/documents";
 
-import { escapeLike, isoOf } from "./sql";
+import { holds, isoOf } from "./sql";
 
 type Tx = CellTransaction;
 
@@ -98,7 +98,6 @@ export async function templatesOf(
   },
 ): Promise<TemplateRow[]> {
   const q = input.q?.trim() ?? "";
-  const like = `%${escapeLike(q)}%`;
   const rows = await tx.execute<TemplateRecord>(sql`
     select ${columns}
     from core.document_templates t
@@ -112,7 +111,7 @@ export async function templatesOf(
           : sql`and (t.state = 'shared' or t.owner_user_id = ${input.viewerId}::uuid)`
       }
       ${input.subjectId ? sql`and t.subject_descriptor_id = ${input.subjectId}::uuid` : sql``}
-      ${q ? sql`and (t.title ilike ${like} or t.description ilike ${like})` : sql``}
+      ${q ? sql`and (${holds(q, [sql`t.title`, sql`t.description`])})` : sql``}
     order by lower(t.title), t.id
     limit 200`);
   return rows.map(templateOf);

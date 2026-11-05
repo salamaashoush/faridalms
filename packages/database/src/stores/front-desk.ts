@@ -2,7 +2,7 @@ import { sql } from "drizzle-orm";
 
 import type { CellTransaction } from "../context";
 
-import { isoOf, uuidArray } from "./sql";
+import { holds, isoOf, uuidArray } from "./sql";
 
 type Tx = CellTransaction;
 
@@ -21,7 +21,6 @@ export async function findStudents(
   tx: Tx,
   input: { tenantId: string; schoolId: string; day: string; q: string },
 ): Promise<DeskStudent[]> {
-  const like = `%${input.q}%`;
   const rows = await tx.execute<{
     id: string;
     full_name_en: string | null;
@@ -40,7 +39,7 @@ export async function findStudents(
     join core.users u on u.tenant_id = n.tenant_id and u.id = n.user_id
     where n.tenant_id = ${input.tenantId}::uuid and n.org_id = ${input.schoolId}::uuid
       and n.role = 'student' and n.status = 'active' and n.valid_during @> ${input.day}::date
-      and (u.full_name_en ilike ${like} or u.full_name_ar ilike ${like})
+      and (${holds(input.q, [sql`u.full_name_en`, sql`u.full_name_ar`])})
     order by u.full_name_en, u.id
     limit 20`);
   return rows.map((row) => ({

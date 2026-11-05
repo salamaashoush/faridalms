@@ -448,6 +448,27 @@ describe("the enquiry inbox", () => {
     });
   });
 
+  test("the inbox finds a family however the Arabic name is typed", async () => {
+    const { api } = await officer();
+    const logged = await api.admissions.logEnquiry({
+      source: "phone",
+      purpose: "visit",
+      locale: "ar",
+      name: "أحمد سالم المدرسة",
+      email: "",
+      phone: "01012345678",
+      childName: "",
+      childYear: "",
+      message: "يسأل عن الجولات.",
+      assigneeId: "",
+    });
+    const found = await api.admissions.enquiries({
+      state: "all",
+      q: "احمد سالم المدرسه",
+    });
+    expect(found.rows.map((row) => row.id)).toContain(logged.id);
+  });
+
   test("a reply from a school template goes to the family by email and stays in the conversation", async () => {
     const { mail, dependencies } = seeded();
     const { api } = await officer();

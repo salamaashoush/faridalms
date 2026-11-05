@@ -20,7 +20,7 @@ import { sql } from "drizzle-orm";
 
 import type { CellTransaction } from "../context";
 
-import { escapeLike, isoOf, textArray, uuidArray } from "./sql";
+import { holds, isoOf, textArray, uuidArray } from "./sql";
 
 type Tx = CellTransaction;
 interface Org {
@@ -743,13 +743,11 @@ export async function listApplications(
   },
 ): Promise<ApplicationList> {
   const { query } = input;
-  const q = query.q ? `%${escapeLike(query.q)}%` : null;
   const narrowed = sql`a.tenant_id = ${input.tenantId}::uuid and a.org_id = ${input.orgId}::uuid
     and a.status = 'active'
     and (${query.intake || null}::uuid is null or a.intake_id = ${query.intake || null}::uuid)
     and (${input.yearId}::uuid is null or i.school_year_id = ${input.yearId}::uuid)
-    and (${q}::text is null or c.full_name_en ilike ${q} or c.full_name_ar ilike ${q}
-      or p.full_name_en ilike ${q} or p.full_name_ar ilike ${q} or a.reference ilike ${q})`;
+    and (${holds(query.q, [sql`c.full_name_en`, sql`c.full_name_ar`, sql`p.full_name_en`, sql`p.full_name_ar`, sql`a.reference`])})`;
   const from = sql`from core.admission_applications a
     join core.admission_intakes i on i.tenant_id = a.tenant_id and i.id = a.intake_id
     join core.users c on c.tenant_id = a.tenant_id and c.id = a.applicant_user_id

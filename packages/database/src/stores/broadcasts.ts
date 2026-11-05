@@ -9,7 +9,7 @@ import type {
 import type { PostVisibility, SiteLocale } from "../tables/site";
 
 import { liveSql, scheduledSql } from "./publication";
-import { escapeLike, isoOf, uuidArray } from "./sql";
+import { holds, isoOf, uuidArray } from "./sql";
 
 type Tx = CellTransaction;
 
@@ -424,11 +424,10 @@ export async function managedBroadcasts(
     q: string;
   },
 ): Promise<{ rows: ManagedRow[]; counts: Record<ManageTab, number> }> {
-  const needle = `%${escapeLike(input.q)}%`;
   const scope = sql`b.tenant_id = ${input.tenantId}::uuid and b.org_id = ${input.schoolId}::uuid
     and b.kind = ${input.kind} and b.status = 'active'`;
   const search = input.q
-    ? sql`and (b.title_en ilike ${needle} or b.title_ar ilike ${needle})`
+    ? sql`and (${holds(input.q, [sql`b.title_en`, sql`b.title_ar`])})`
     : sql``;
   const rows = await tx.execute<
     BroadcastRecord & { recipients: number; read: number; acknowledged: number }
@@ -479,7 +478,6 @@ export async function announcementFeed(
     q: string;
   },
 ): Promise<FeedRow[]> {
-  const q = input.q ? `%${escapeLike(input.q)}%` : null;
   const rows = await tx.execute<
     BroadcastRecord & {
       summary: string | null;
@@ -501,7 +499,7 @@ export async function announcementFeed(
       and (case when ${input.tab === "past"}
                 then b.expires_on < ${input.today}::date
                 else b.expires_on is null or b.expires_on >= ${input.today}::date end)
-      and (${q}::text is null or b.title_en ilike ${q} or b.title_ar ilike ${q} or t.text ilike ${q})
+      and (${holds(input.q, [sql`b.title_en`, sql`b.title_ar`, sql`t.text`])})
     order by (${input.tab === "current"} and coalesce(b.pinned_until >= ${input.today}::date, false)) desc,
              b.publish_at desc, b.id
     limit 200`);
@@ -540,7 +538,6 @@ export async function newsFor(
     offset: number;
   },
 ): Promise<{ rows: NewsRow[]; total: number }> {
-  const q = input.q ? `%${escapeLike(input.q)}%` : null;
   const dir = input.direction === "asc" ? sql`asc` : sql`desc`;
   const title =
     input.locale === "ar"
@@ -568,7 +565,7 @@ export async function newsFor(
     where b.tenant_id = ${input.tenantId}::uuid and b.org_id = ${input.schoolId}::uuid
       and b.kind = 'news' and b.status = 'active' and ${live}
       and (b.visibility = 'public' or r.id is not null)
-      and (${q}::text is null or b.title_en ilike ${q} or b.title_ar ilike ${q} or t.text ilike ${q})
+      and (${holds(input.q, [sql`b.title_en`, sql`b.title_ar`, sql`t.text`])})
     order by ${order}
     limit ${input.limit} offset ${input.offset}`);
   return {

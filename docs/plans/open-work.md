@@ -12,7 +12,6 @@ From `foundations.md`. W1 to W5 are merged.
   - one version check on every update, one stale-write code and one
     pagination shape. Paging was added in several places at once, so it
     needs aligning;
-  - Arabic normalisation in every filter;
   - history tabs fed by the audit log, with one history screen;
   - erasure declared per table in a registry. A gate covers tables that
     name an outside contact. Every table that names a person still needs

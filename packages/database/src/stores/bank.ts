@@ -2,7 +2,7 @@ import { sql } from "drizzle-orm";
 
 import type { CellTransaction } from "../context";
 
-import { escapeLike, isoOf, textArray, uuidArray } from "./sql";
+import { holds, isoOf, textArray, uuidArray } from "./sql";
 
 type Tx = CellTransaction;
 
@@ -72,7 +72,6 @@ export async function bankQuestionsOf(
   },
 ): Promise<BankQuestionRow[]> {
   const words = input.search.trim();
-  const like = `%${escapeLike(words)}%`;
   const rows = await tx.execute<BankRecord>(sql`
     select ${columns}
     from core.bank_questions q
@@ -86,8 +85,8 @@ export async function bankQuestionsOf(
       ${input.tag ? sql`and ${input.tag} = any(q.tags)` : sql``}
       ${
         words
-          ? sql`and (q.title ilike ${like} or exists (
-              select 1 from unnest(q.tags) as tag where tag ilike ${like}))`
+          ? sql`and (${holds(words, [sql`q.title`])} or exists (
+              select 1 from unnest(q.tags) as tag where ${holds(words, [sql`tag`])}))`
           : sql``
       }
     order by q.date_last_modified desc, q.id

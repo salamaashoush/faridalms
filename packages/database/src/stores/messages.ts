@@ -17,7 +17,7 @@ import type {
 } from "../tables/messaging";
 import type { Scope } from "./students";
 
-import { escapeLike, isoOf, textArray, uuidArray } from "./sql";
+import { holds, isoOf, textArray, uuidArray } from "./sql";
 
 type Tx = CellTransaction;
 
@@ -115,7 +115,6 @@ export async function messageable(
     ids?: readonly string[];
   },
 ): Promise<{ rows: Messageable[]; next: RecipientCursor | null }> {
-  const q = filter.q ? `%${escapeLike(filter.q)}%` : null;
   const after = filter.after;
   const only = filter.ids ? uuidArray(filter.ids) : null;
   const rows = await tx.execute<{
@@ -140,11 +139,11 @@ export async function messageable(
       where ${only === null ? sql`true` : sql`p.user_id = any(${only})`}
         and (${filter.among ?? "all"} = 'all'
           or (p.kind = 'student') = (${filter.among ?? "all"} = 'students'))
-        and (${q}::text is null or u.full_name_en ilike ${q} or u.full_name_ar ilike ${q}
+        and (${holds(filter.q, [sql`u.full_name_en`, sql`u.full_name_ar`])}
              or exists (select 1 from core.user_relationships l
                join core.users s on s.tenant_id = l.tenant_id and s.id = l.student_user_id
                where p.kind = 'guardian' and l.tenant_id = u.tenant_id and l.related_user_id = u.id
-                 and l.status = 'active' and (s.full_name_en ilike ${q} or s.full_name_ar ilike ${q})))
+                 and l.status = 'active' and (${holds(filter.q, [sql`s.full_name_en`, sql`s.full_name_ar`])})))
     )
     select r.user_id, r.kind, r.rank, r.sort_name, r.full_name_en, r.full_name_ar,
            coalesce((select jsonb_agg(jsonb_build_object('user_id', s.id,
@@ -379,7 +378,6 @@ export async function threadsOf(
     after?: Keyset | null;
   },
 ): Promise<{ rows: ThreadSummary[]; next: Keyset | null }> {
-  const q = input.q ? `%${escapeLike(input.q)}%` : null;
   const reader = { ...input, mailboxes: input.mailboxes ?? [] };
   const after = input.after ?? null;
   const rows = await tx.execute<{
@@ -457,17 +455,15 @@ export async function threadsOf(
         or date_trunc('milliseconds', t.last_message_at) < ${after?.at ?? null}::timestamptz
         or (date_trunc('milliseconds', t.last_message_at) = ${after?.at ?? null}::timestamptz
           and t.id > ${after?.id ?? null}::uuid))
-      and (${q}::text is null or t.subject ilike ${q} or s.full_name_en ilike ${q}
-           or s.full_name_ar ilike ${q}
+      and (${holds(input.q, [sql`t.subject`, sql`s.full_name_en`, sql`s.full_name_ar`])}
            or exists (select 1 from core.thread_members o
              left join core.message_contacts c on c.tenant_id = o.tenant_id and c.id = o.contact_id
              left join core.users u on u.tenant_id = o.tenant_id and u.id = o.user_id
              where o.tenant_id = t.tenant_id and o.thread_id = t.id and o.status = 'active'
-               and (u.full_name_en ilike ${q} or u.full_name_ar ilike ${q}
-                 or c.display_name ilike ${q} or c.email ilike ${q}))
+               and (${holds(input.q, [sql`u.full_name_en`, sql`u.full_name_ar`, sql`c.display_name`, sql`c.email`])}))
            or exists (select 1 from core.messages x
              where x.tenant_id = t.tenant_id and x.thread_id = t.id and x.status = 'active'
-               and ${visible(sql`r.team`)} and x.body ilike ${q}))
+               and ${visible(sql`r.team`)} and ${holds(input.q, [sql`x.body`])}))
     order by date_trunc('milliseconds', t.last_message_at) desc, t.id
     limit ${input.limit + 1}`);
   const page = rows.slice(0, input.limit);

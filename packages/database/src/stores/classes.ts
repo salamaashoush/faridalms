@@ -5,7 +5,7 @@ import type { ClassType, EnrollmentRole } from "../tables/teaching";
 import type { Scope } from "./students";
 
 import { classes, courses, enrollments } from "../tables/teaching";
-import { bounds, uuidArray } from "./sql";
+import { bounds, holds, uuidArray } from "./sql";
 
 type Tx = CellTransaction;
 
@@ -162,7 +162,7 @@ export async function homeroomDirectory(
     where c.tenant_id = ${scope.tenantId}::uuid and c.org_id = ${scope.schoolId}::uuid
       and c.school_year_id = ${filter.yearId}::uuid and c.class_type = 'homeroom' and c.status = 'active'
       and c.id in ${reached(scope, filter.on)}
-      and (${q === ""} or c.code ilike ${`%${q}%`} or c.title_en ilike ${`%${q}%`} or c.title_ar ilike ${`%${q}%`})
+      and (${holds(q, [sql`c.code`, sql`c.title_en`, sql`c.title_ar`])})
       and (${filter.gradeIds.length === 0} or c.grade_level_descriptor_id = any(${uuidArray(filter.gradeIds)}))
     order by c.grade_level_descriptor_id, ${nameKey}, c.id`);
   const homerooms = rows.map((row) => ({

@@ -5,7 +5,7 @@ import { sql } from "drizzle-orm";
 import type { CellTransaction } from "../context";
 import type { EvidenceSource } from "../tables/learning";
 
-import { escapeLike, isoOf, uuidArray } from "./sql";
+import { escapeLike, holds, isoOf, uuidArray } from "./sql";
 
 type Tx = CellTransaction;
 
@@ -352,7 +352,6 @@ export async function searchStandards(
   },
 ): Promise<StandardSummaryRow[]> {
   const words = input.query.trim();
-  const like = `%${escapeLike(words)}%`;
   const start = `${escapeLike(words)}%`;
   const rows = await tx.execute<SummaryRecord>(sql`
     select s.id, s.code, s.statement, f.id as framework_id, f.title as framework_title,
@@ -362,7 +361,7 @@ export async function searchStandards(
     where s.tenant_id = ${input.tenantId}::uuid and f.org_id = ${input.orgId}::uuid
       and s.status = 'active' and f.status = 'active'
       ${input.frameworkId ? sql`and f.id = ${input.frameworkId}::uuid` : sql``}
-      ${words ? sql`and (s.code ilike ${like} or s.statement ilike ${like})` : sql``}
+      ${words ? sql`and (${holds(words, [sql`s.code`, sql`s.statement`])})` : sql``}
     order by (s.code ilike ${start}) desc, f.title, s.code collate core.natural, s.position
     limit ${input.limit}`);
   return rows.map(summaryOf);

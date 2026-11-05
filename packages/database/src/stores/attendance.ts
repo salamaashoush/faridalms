@@ -14,7 +14,7 @@ import type { CellTransaction } from "../context";
 import type { RegisterState } from "../tables/attendance";
 import type { ClassType } from "../tables/teaching";
 
-import { isoOf, uuidArray } from "./sql";
+import { holds, isoOf, uuidArray } from "./sql";
 
 type Tx = CellTransaction;
 
@@ -697,8 +697,7 @@ export async function absencesBetween(
       and (case when ${input.unexplainedOnly}
                 then e.category_meaning in ('absent', 'late') and e.reason_descriptor_id is null
                 else e.category_meaning <> 'present' end)
-      and (${input.q === ""} or u.full_name_en ilike ${`%${input.q}%`}
-           or u.full_name_ar ilike ${`%${input.q}%`})
+      and (${holds(input.q, [sql`u.full_name_en`, sql`u.full_name_ar`])})
     order by (e.reason_descriptor_id is null and e.category_meaning in ('absent', 'late')) desc,
              e.taken_on desc, p.sequence, c.code, u.full_name_en, e.id
     limit ${input.limit}`);
@@ -907,7 +906,6 @@ export async function attendanceReport(
     q: string;
   },
 ): Promise<CountedRow[]> {
-  const q = input.q === "" ? null : `%${input.q}%`;
   const rows = await tx.execute<{
     id: string;
     code: string | null;
@@ -940,7 +938,7 @@ export async function attendanceReport(
     where e.tenant_id = ${input.tenantId}::uuid and g.org_id = ${input.schoolId}::uuid
       and g.school_year_id = ${input.yearId}::uuid and p.official_attendance
       and e.taken_on between ${input.from}::date and ${input.to}::date and e.status = 'active'
-      and (${q}::text is null or u.full_name_en ilike ${q} or u.full_name_ar ilike ${q})
+      and (${holds(input.q, [sql`u.full_name_en`, sql`u.full_name_ar`])})
     group by u.id, u.full_name_en, u.full_name_ar
     order by (count(*) filter (where e.category_meaning in ('absent', 'excused')))::numeric
              / greatest(count(*), 1) desc, u.full_name_en, u.id
@@ -964,7 +962,7 @@ export async function attendanceReport(
     where c.tenant_id = ${input.tenantId}::uuid and c.org_id = ${input.schoolId}::uuid
       and c.school_year_id = ${input.yearId}::uuid and c.class_type = 'homeroom'
       and c.status = 'active'
-      and (${q}::text is null or c.title_en ilike ${q} or c.title_ar ilike ${q} or c.code ilike ${q})
+      and (${holds(input.q, [sql`c.title_en`, sql`c.title_ar`, sql`c.code`])})
     group by c.id, c.code, c.title_en, c.title_ar
     order by c.code`,
   );

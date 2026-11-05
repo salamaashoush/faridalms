@@ -15,6 +15,7 @@ import {
   erasurePlan,
   eraseSubject,
 } from "../src/stores/erasure";
+import { holds } from "../src/stores/sql";
 import { appCell, harness, probe, urlFor } from "./harness";
 
 async function one<T>(text: string, params: unknown[] = []): Promise<T> {
@@ -1330,6 +1331,40 @@ describe("courses", () => {
         long,
         `${long.slice(0, 38)}-2`,
       ]);
+    } finally {
+      await cell.close();
+    }
+  });
+});
+
+describe("searching", () => {
+  test("a filter folds Arabic letter forms, vowel marks and case, and takes what is typed literally", async () => {
+    const { a } = harness();
+    const cell = appCell();
+    try {
+      const hits = await cell.withTenant(
+        { tenantId: a.tenantId, requestId: "holds", actor: { kind: "system" } },
+        "read",
+        async (tx) => {
+          const hit = async (typed: string, text: string) => {
+            const [row] = await tx.execute<{ hit: boolean }>(
+              sql`select ${holds(typed, [sql`${text}::text`])} as hit`,
+            );
+            return row?.hit;
+          };
+          return [
+            await hit("احمد", "أحمد سالم"),
+            await hit("مدرسه", "مدرسة النيل"),
+            await hit("محمد", "مُحَمَّد"),
+            await hit("SALAMA", "salama ashoush"),
+            await hit("50%", "50% off"),
+            await hit("50%", "500 pages"),
+            await hit("a_b", "axb"),
+            await hit("", "anything"),
+          ];
+        },
+      );
+      expect(hits).toEqual([true, true, true, true, true, false, false, true]);
     } finally {
       await cell.close();
     }

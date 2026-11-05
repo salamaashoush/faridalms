@@ -14,6 +14,22 @@ export function uuidArray(ids: readonly string[]): SQL {
 /** Text matched literally inside a LIKE pattern, its wildcards escaped. */
 export const escapeLike = (text: string) => text.replace(/[\\%_]/gu, "\\$&");
 
+/**
+ * Whether any of the columns holds what someone typed, read the way people
+ * search: case, the forms of alef, yeh and teh marbuta, and vowel marks are
+ * folded on both sides, and the typed text is taken literally. Nothing
+ * typed matches everything.
+ */
+export function holds(typed: string, columns: readonly SQL[]): SQL {
+  const words = typed.trim();
+  if (!words || columns.length === 0) return sql`true`;
+  const needle = sql`'%' || app.normalize_name(${escapeLike(words)}) || '%'`;
+  return sql`(${sql.join(
+    columns.map((column) => sql`app.normalize_name(${column}) like ${needle}`),
+    sql` or `,
+  )})`;
+}
+
 /** A timestamp as the ISO string the API returns, whatever the session time zone. */
 export const isoOf = (column: SQL) =>
   sql`to_char(${column} at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"')`;

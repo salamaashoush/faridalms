@@ -10,7 +10,7 @@ import type {
   NotificationKind,
 } from "../tables/partitioned";
 
-import { isoOf, uuidArray } from "./sql";
+import { holds, isoOf, uuidArray } from "./sql";
 
 type Tx = CellTransaction;
 
@@ -420,13 +420,11 @@ export async function deliveryLog(
     offset: number;
   },
 ): Promise<{ rows: DeliveryLogRow[]; total: number }> {
-  const q = input.q ? `%${input.q}%` : null;
   const filter = sql`d.tenant_id = ${input.tenantId}::uuid and d.status = 'active'
     and coalesce(n.org_id, h.org_id, d.org_id) = ${input.orgId}::uuid
     and (${input.state} = 'all' or d.state = ${input.state})
     and (${input.channel} = 'all' or d.channel = ${input.channel})
-    and (${q}::text is null or u.full_name_en ilike ${q} or u.full_name_ar ilike ${q}
-      or c.display_name ilike ${q} or n.params ->> 'title' ilike ${q} or h.subject ilike ${q})`;
+    and (${holds(input.q, [sql`u.full_name_en`, sql`u.full_name_ar`, sql`c.display_name`, sql`n.params ->> 'title'`, sql`h.subject`])})`;
   const from = sql`core.notification_deliveries d
     left join core.notifications n on n.tenant_id = d.tenant_id
       and n.created_at = d.notification_created_at and n.id = d.notification_id

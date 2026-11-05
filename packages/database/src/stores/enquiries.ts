@@ -21,7 +21,7 @@ import type { CellTransaction } from "../context";
 
 import { saveDocument } from "./documents";
 import { contactFor, createThread, postMessage } from "./messages";
-import { escapeLike, isoOf } from "./sql";
+import { holds, isoOf } from "./sql";
 
 type Tx = CellTransaction;
 
@@ -81,7 +81,6 @@ export async function listEnquiries(
   },
 ): Promise<EnquiryList> {
   const { query } = input;
-  const q = query.q ? `%${escapeLike(query.q)}%` : null;
   const assignee =
     query.assignee === "me"
       ? input.viewerId
@@ -94,8 +93,7 @@ export async function listEnquiries(
     and (${query.purpose} = 'all' or e.purpose = ${query.purpose})
     and (${query.assignee} <> 'none' or e.assignee_user_id is null)
     and (${assignee}::uuid is null or e.assignee_user_id = ${assignee}::uuid)
-    and (${q}::text is null or e.name ilike ${q} or e.email ilike ${q} or e.phone ilike ${q}
-      or e.child_name ilike ${q})`;
+    and (${holds(query.q, [sql`e.name`, sql`e.email`, sql`e.phone`, sql`e.child_name`])})`;
   const counted = await tx.execute<{ state: EnquiryState; n: number }>(sql`
     select e.state, count(*)::int as n from core.site_enquiries e
     where ${narrowed} group by e.state`);
