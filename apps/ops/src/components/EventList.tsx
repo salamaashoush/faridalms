@@ -22,6 +22,14 @@ const ACTIONS: Record<string, string> = {
   "lead.update": "Details changed",
   "lead.state": "Moved",
   "lead.plan": "Next step set",
+  "invoice.draft": "Drafted",
+  "invoice.update": "Draft changed",
+  "invoice.issue": "Issued",
+  "invoice.credit": "Credited",
+  "invoice.tax_id": "Tax authority's id recorded",
+  "invoice.payment_link": "Payment link made",
+  "payment.record": "Payment recorded",
+  "payment.allocate": "Payment settled against invoices",
 };
 
 const show = (value: unknown) => {
@@ -53,7 +61,7 @@ function differences(event: BusinessEventRow): string[] {
   );
 }
 
-/** What was done to a customer or subscription, newest first, and by whom. */
+/** What was done to a business record, newest first, and by whom. */
 export function EventList({
   events,
   names,

@@ -1,4 +1,9 @@
 import type {
+  InvoiceKind,
+  InvoiceState,
+  PaymentMethod,
+} from "@faridalms/domain/invoices";
+import type {
   ActivityKind,
   LeadSource,
   LeadState,
@@ -186,4 +191,27 @@ export const QUOTE_STATE_NAMES: Record<QuoteState, string> = {
   sent: "Sent",
   accepted: "Accepted",
   superseded: "Superseded",
+};
+
+export const INVOICE_STATE_NAMES: Record<InvoiceState, string> = {
+  draft: "Draft",
+  issued: "Issued",
+  partly_paid: "Partly paid",
+  paid: "Paid",
+  credited: "Credited",
+};
+
+export const INVOICE_KIND_NAMES: Record<InvoiceKind, string> = {
+  instalment: "Instalment",
+  proration: "Started in the term",
+  true_up: "Census true-up",
+  manual: "By hand",
+};
+
+export const PAYMENT_METHOD_NAMES: Record<PaymentMethod, string> = {
+  bank_transfer: "Bank transfer",
+  card: "Card",
+  instapay: "InstaPay",
+  cheque: "Cheque",
+  withholding_certificate: "Withholding certificate",
 };

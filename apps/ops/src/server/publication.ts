@@ -20,6 +20,8 @@ import { entitlementsFor, trialOver } from "@faridalms/domain/subscriptions";
 import { sql } from "drizzle-orm";
 import * as v from "valibot";
 
+import { billingRound } from "./billing";
+
 /**
  * The operator id the console's own daily round acts under, in the business
  * log and, as `operator:console-daily`, in the directory's.
@@ -146,6 +148,10 @@ const roundOutcomeSchema = v.object({
   failed: v.array(v.string()),
   /** Lost leads deleted two years after they were last contacted. */
   leadsDeleted: v.optional(v.number(), 0),
+  /** Invoices the schedule drafted for finance to issue. */
+  invoicesDrafted: v.optional(v.number(), 0),
+  /** Terms that ended and renewed on their own. */
+  renewed: v.optional(v.number(), 0),
 });
 export type RoundOutcome = v.InferOutput<typeof roundOutcomeSchema>;
 
@@ -172,7 +178,8 @@ export async function roundDue(db: BusinessDb, day: string): Promise<boolean> {
  * grandfathered one that keeps what its schools have; every open
  * subscription is published again, so items and overrides that began or
  * ended today reach the cells; and a tenant whose trial is over without a
- * contract becomes read only; a lead lost two years ago is deleted. One
+ * contract becomes read only; the invoices due are drafted and ended terms
+ * renewed; a lead lost two years ago is deleted. One
  * subscription's failure is recorded and the rest go on. Only one console
  * runs it at a time: null when another is.
  */
@@ -193,6 +200,8 @@ export async function dailyRound(
       paused: 0,
       failed: [],
       leadsDeleted: 0,
+      invoicesDrafted: 0,
+      renewed: 0,
     };
     const tenants = tenantsOf(await deps.directory.schools());
     for (const [tenantId, schools] of tenants) {
@@ -246,6 +255,19 @@ export async function dailyRound(
         );
         outcome.failed.push(subscription.id);
       }
+    }
+    try {
+      const billed = await billingRound(deps, day, by);
+      outcome.invoicesDrafted = billed.drafted;
+      outcome.renewed = billed.renewed;
+    } catch (error) {
+      console.error(
+        JSON.stringify({
+          worker: "daily_round",
+          billing: error instanceof Error ? error.message : String(error),
+        }),
+      );
+      outcome.failed.push("billing");
     }
     const cutoff = new Date(`${day}T00:00:00Z`);
     cutoff.setUTCMonth(cutoff.getUTCMonth() - LOST_LEAD_MONTHS);

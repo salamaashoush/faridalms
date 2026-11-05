@@ -319,6 +319,12 @@ services:
       PROVISION_URL: http://provisioner:3005
       PROVISION_SECRET: *provision-secret
       INTAKE_SECRET: *intake-secret
+      # Card payments through Paymob, all four or none; Paymob calls back
+      # at https://ops.<PORTAL_DOMAIN>/payments/paymob.
+      PAYMOB_API_KEY: ${PAYMOB_API_KEY:-}
+      PAYMOB_INTEGRATION_ID: ${PAYMOB_INTEGRATION_ID:-}
+      PAYMOB_HMAC_SECRET: ${PAYMOB_HMAC_SECRET:-}
+      PAYMOB_LIVE: ${PAYMOB_LIVE:-}
       PORTAL_DOMAIN: *portal-domain
       SITES_DOMAIN: *sites-domain
       EDGE_IPV4: ${EDGE_IPV4:-}

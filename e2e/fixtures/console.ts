@@ -1,5 +1,7 @@
+import type { PaymobTransaction } from "@faridalms/domain/paymob";
 import type { Page } from "@playwright/test";
 
+import { paymobHmac } from "@faridalms/domain/paymob";
 import { expect } from "@playwright/test";
 
 import type { StandInPerson } from "../../scripts/e2e-oidc";
@@ -50,6 +52,8 @@ export async function signInAs(page: Page, person: StandInPerson = OWNER) {
 export async function createSchool(
   page: Page,
   school: { slug: string; nameEn: string; nameAr: string },
+  /** Sold under a contract for a plan from today, instead of Basic on a trial. */
+  contract?: { plan: string; students: number; today: string; ends: string },
 ): Promise<string> {
   await page.goto("/schools/new");
   await page.getByRole("button", { name: "Start a new school" }).click();
@@ -73,7 +77,20 @@ export async function createSchool(
   await schools.getByLabel("Address", { exact: true }).fill(school.slug);
   await schools.getByRole("button", { name: "Save and continue" }).click();
 
-  await expect(page.getByRole("form", { name: "Plan" })).toBeVisible();
+  const plan = page.getByRole("form", { name: "Plan" });
+  await expect(plan).toBeVisible();
+  if (contract) {
+    await plan
+      .getByLabel("Plan", { exact: true })
+      .selectOption({ label: `${contract.plan} version 1` });
+    await plan.getByLabel("Quantity").fill(String(contract.students));
+    await plan.getByLabel("A contract").check();
+    await plan.getByLabel("Term starts").fill(contract.today);
+    await plan.getByLabel("Term ends").fill(contract.ends);
+    await plan
+      .getByLabel("Contracted students")
+      .fill(String(contract.students));
+  }
   await page.getByRole("button", { name: "Save and continue" }).click();
   await expect(page.getByRole("form", { name: "Addresses" })).toBeVisible();
   await page.getByRole("button", { name: "Save and continue" }).click();
@@ -121,4 +138,100 @@ export async function addPlan(page: Page, name: string) {
   await form.getByLabel("Why").fill("The launch catalogue");
   await form.getByRole("button", { name: "Save" }).click();
   await expect(page.getByText("Plan saved.")).toBeVisible();
+}
+
+/**
+ * The business's legal details, bank and Egypt's VAT, set once for every
+ * console spec that prints a document; another spec may have set them.
+ */
+export async function businessDetails(page: Page) {
+  await page.goto("/settings");
+  const details = page.getByRole("form", { name: "Legal details" });
+  const name = details.getByLabel("Legal name in English");
+  await expect(name).toBeVisible();
+  if (!(await name.inputValue())) {
+    await name.fill("Acme Learning");
+    await details.getByLabel("Legal name in Arabic").fill("أكمي للتعليم");
+    await details
+      .getByLabel("Address in English")
+      .fill("1 Example Street, Cairo");
+    await details
+      .getByLabel("Address in Arabic")
+      .fill("١ شارع المثال، القاهرة");
+    await details.getByLabel("Tax registration number").fill("100-200-300");
+    await details.getByLabel("Email").fill("billing@example.com");
+    await details
+      .getByLabel("Bank details in English")
+      .fill("Example Bank, IBAN EG00 0000");
+    await details
+      .getByLabel("Bank details in Arabic")
+      .fill("بنك المثال، رقم الحساب EG00 0000");
+    await details.getByLabel("Why").fill("The company's registration");
+    await details.getByRole("button", { name: "Save legal details" }).click();
+    await expect(
+      page.getByText(/^(Legal details saved\.|Someone changed the details)/),
+    ).toBeVisible();
+  }
+  const rate = page.getByRole("form", { name: "Add a rate" });
+  await rate.getByLabel("Country").fill("EG");
+  await rate.getByLabel("Percentage").fill("14");
+  await rate.getByLabel("From").fill("2016-07-01");
+  await rate.getByLabel("Why").fill("Egypt's VAT law");
+  await rate.getByRole("button", { name: "Add rate" }).click();
+  await expect(
+    page.getByText(
+      /^(Rate added\.|A rate for EG already starts on that day\.)/,
+    ),
+  ).toBeVisible();
+}
+
+const paymobOrigin = `http://127.0.0.1:${process.env.E2E_PAYMOB_PORT ?? "3209"}`;
+const consoleOrigin = `http://127.0.0.1:${process.env.E2E_OPS_PORT ?? "3206"}`;
+
+/**
+ * Pays the payment link made for an invoice, as a card holder on Paymob's
+ * page would: the stand-in's link for the reference, then the processed
+ * callback Paymob sends the console, signed with the account's secret.
+ */
+export async function payByCard(
+  reference: string,
+  options: { cents?: number; forged?: boolean } = {},
+) {
+  const links = (await (await fetch(`${paymobOrigin}/e2e/links`)).json()) as {
+    id: number;
+    order: number;
+    amountCents: number;
+    reference: string;
+  }[];
+  const link = links.findLast((row) => row.reference === reference);
+  if (!link) throw new Error(`no payment link for ${reference}`);
+  const obj: PaymobTransaction = {
+    id: 700_000 + link.id,
+    amount_cents: options.cents ?? link.amountCents,
+    created_at: new Date().toISOString().slice(0, 23),
+    currency: "EGP",
+    error_occured: false,
+    has_parent_transaction: false,
+    integration_id: 4_097_558,
+    is_3d_secure: true,
+    is_auth: false,
+    is_capture: false,
+    is_refunded: false,
+    is_standalone_payment: true,
+    is_voided: false,
+    order: { id: link.order },
+    owner: 302_852,
+    pending: false,
+    source_data: { pan: "2346", sub_type: "MasterCard", type: "card" },
+    success: true,
+  };
+  const hmac = paymobHmac(
+    obj,
+    options.forged ? "not the secret" : (process.env.PAYMOB_HMAC_SECRET ?? ""),
+  );
+  return fetch(`${consoleOrigin}/payments/paymob?hmac=${hmac}`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ type: "TRANSACTION", obj }),
+  });
 }

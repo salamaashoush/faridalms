@@ -69,6 +69,18 @@ export function opsEnv() {
         // The secret the cells sign the leads they send with, at
         // /intake/leads; without it, or a business database, none is taken.
         INTAKE_SECRET: v.optional(bytes(32)),
+        // Card payments through Paymob payment links, all four or none:
+        // the account's API key, the card integration's id, the HMAC
+        // secret its callbacks are signed with, and whether the
+        // integration is live. Its region's host, Egypt's by default.
+        PAYMOB_API_KEY: v.optional(v.pipe(v.string(), v.minLength(1))),
+        PAYMOB_INTEGRATION_ID: v.optional(v.pipe(v.string(), v.regex(/^\d+$/))),
+        PAYMOB_HMAC_SECRET: v.optional(v.pipe(v.string(), v.minLength(1))),
+        PAYMOB_LIVE: v.optional(v.picklist(["true", "false"])),
+        PAYMOB_BASE_URL: v.optional(
+          v.pipe(v.string(), v.url()),
+          "https://accept.paymob.com",
+        ),
         // The cells' platform domains and edge address, for the DNS records a
         // school's own host needs; the same values the cells' API holds.
         PORTAL_DOMAIN: domain,
@@ -80,6 +92,18 @@ export function opsEnv() {
           (value.OPS_OIDC_GROUP === undefined) !==
           (value.OPS_OIDC_EMAILS === undefined),
         "Set OPS_OIDC_GROUP or OPS_OIDC_EMAILS, and not both",
+      ),
+      v.check(
+        (value) =>
+          new Set(
+            [
+              value.PAYMOB_API_KEY,
+              value.PAYMOB_INTEGRATION_ID,
+              value.PAYMOB_HMAC_SECRET,
+              value.PAYMOB_LIVE,
+            ].map((setting) => setting === undefined),
+          ).size === 1,
+        "Set PAYMOB_API_KEY, PAYMOB_INTEGRATION_ID, PAYMOB_HMAC_SECRET and PAYMOB_LIVE together, or none",
       ),
     ),
     presentVariables(process.env),

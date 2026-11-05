@@ -1,4 +1,5 @@
 import { Badge } from "@faridalms/ui/badge";
+import { buttonVariants } from "@faridalms/ui/button";
 import { createFileRoute, Link, useRouter } from "@tanstack/react-router";
 import { toast } from "sonner";
 
@@ -6,11 +7,27 @@ import { Agreements } from "../components/Agreements";
 import { ContactCard, ContactForm } from "../components/Contacts";
 import { CustomerForm } from "../components/CustomerForm";
 import { EventList } from "../components/EventList";
-import { formatDay, formatWhen } from "../format";
+import {
+  formatDay,
+  formatMoney,
+  formatWhen,
+  INVOICE_STATE_NAMES,
+  PAYMENT_METHOD_NAMES,
+} from "../format";
+import { useMay } from "../may";
 import { getCustomer } from "../server/customers";
+import { getCustomerBilling } from "../server/invoicing";
 
 export const Route = createFileRoute("/customers/$customerId")({
-  loader: ({ params }) => getCustomer({ data: { id: params.customerId } }),
+  loader: async ({ params }) => {
+    const [customer, billing] = await Promise.all([
+      getCustomer({ data: { id: params.customerId } }),
+      getCustomerBilling({ data: { customerId: params.customerId } }).catch(
+        () => null,
+      ),
+    ]);
+    return { ...customer, billing };
+  },
   component: CustomerPage,
 });
 
@@ -21,8 +38,16 @@ const STATE_NAMES = {
 } as const;
 
 function CustomerPage() {
-  const { customer, contacts, subscriptions, schools, history, names } =
-    Route.useLoaderData();
+  const {
+    customer,
+    contacts,
+    subscriptions,
+    schools,
+    history,
+    names,
+    billing,
+  } = Route.useLoaderData();
+  const mayBill = useMay("billing");
   const router = useRouter();
   return (
     <div className="grid gap-8">
@@ -124,6 +149,70 @@ function CustomerPage() {
         ))}
         <ContactForm customerId={customer.id} contact={null} />
       </section>
+      {billing ? (
+        <section aria-label="Billing" className="grid max-w-3xl gap-3">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <h2 className="text-base font-semibold">Billing</h2>
+            {mayBill ? (
+              <Link
+                to="/invoices/new"
+                search={{ customerId: customer.id }}
+                className={buttonVariants({ variant: "outline", size: "sm" })}
+              >
+                New invoice
+              </Link>
+            ) : null}
+          </div>
+          {billing.invoices.length ? (
+            <ul className="divide-y rounded-lg border text-sm">
+              {billing.invoices.map((invoice) => (
+                <li
+                  key={invoice.id}
+                  className="flex flex-wrap items-center gap-2 px-4 py-3"
+                >
+                  <Link
+                    to="/invoices/$invoiceId"
+                    params={{ invoiceId: invoice.id }}
+                    className="font-medium underline"
+                  >
+                    {invoice.number ?? "Draft"}
+                  </Link>
+                  <Badge variant="secondary">
+                    {INVOICE_STATE_NAMES[invoice.state]}
+                  </Badge>
+                  <span className="text-muted-foreground">
+                    {formatDay(invoice.forDay)} ·{" "}
+                    {formatMoney(invoice.totalMinor, invoice.currency)}
+                    {invoice.state === "draft" || invoice.owedMinor === 0
+                      ? ""
+                      : `, ${formatMoney(invoice.owedMinor, invoice.currency)} owed`}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p className="text-sm text-muted-foreground">No invoices yet.</p>
+          )}
+          {billing.payments.length ? (
+            <ul className="divide-y rounded-lg border text-sm">
+              {billing.payments.map((payment) => (
+                <li
+                  key={payment.id}
+                  className="flex flex-wrap justify-between gap-2 px-4 py-3"
+                >
+                  <span>
+                    {PAYMENT_METHOD_NAMES[payment.method]} · {payment.reference}{" "}
+                    · {formatDay(payment.receivedOn)}
+                  </span>
+                  <span className="tabular-nums">
+                    {formatMoney(payment.amountMinor, payment.currency)}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          ) : null}
+        </section>
+      ) : null}
       <section className="grid gap-3">
         <h2 className="text-base font-semibold">History</h2>
         <EventList events={history} names={names} />

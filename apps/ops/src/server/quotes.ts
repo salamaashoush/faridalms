@@ -35,7 +35,11 @@ const uuid = v.pipe(v.string(), v.uuid());
 const VALID_DAYS = 30;
 /** The largest signed copy or purchase order kept with a quote. */
 const MAX_ATTACHMENT = 10 * 1024 * 1024;
-const ATTACHMENT_TYPES = new Set(["application/pdf", "image/png", "image/jpeg"]);
+const ATTACHMENT_TYPES = new Set([
+  "application/pdf",
+  "image/png",
+  "image/jpeg",
+]);
 
 const REFUSED: Record<QuoteError["code"], string> = {
   not_found: "No such quote.",

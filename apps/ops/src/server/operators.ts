@@ -19,6 +19,9 @@ export async function operatorNames(
   const rows = await listOperators(db);
   return {
     [SYSTEM_OPERATOR]: "Daily round",
+    paymob: "Paymob",
+    "intake:demo_form": "The product site",
+    "intake:module_interest": "A school's administrator",
     ...Object.fromEntries(rows.map((row) => [row.id, row.name])),
   };
 }

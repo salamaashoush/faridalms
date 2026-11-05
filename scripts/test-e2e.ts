@@ -20,6 +20,7 @@ import { SQL } from "bun";
 import { randomBytes } from "node:crypto";
 
 import { OIDC_CLIENT_ID, startOidcStandIn } from "./e2e-oidc";
+import { startPaymobStandIn } from "./e2e-paymob";
 import { startResendStandIn } from "./e2e-resend";
 
 const adminUrl =
@@ -42,6 +43,7 @@ const resendPort = "3207";
 // and the cell's provisioner it calls.
 const opsPort = "3206";
 const oidcPort = "3208";
+const paymobPort = "3209";
 const provisionPort = process.env.PROVISION_PORT ?? "3205";
 const webhookSecret = `whsec_${randomBytes(24).toString("base64")}`;
 
@@ -95,6 +97,7 @@ try {
   }
   const resend = startResendStandIn(Number(resendPort));
   const oidc = await startOidcStandIn(Number(oidcPort));
+  const paymob = startPaymobStandIn(Number(paymobPort));
   const provisionSecret = randomBytes(32).toString("base64");
   const runner = Bun.spawn(
     [
@@ -153,6 +156,13 @@ try {
         PRODUCT_INBOX: "sales@example.com",
         INTAKE_URL: `http://127.0.0.1:${opsPort}/intake/leads`,
         INTAKE_SECRET: randomBytes(32).toString("base64"),
+        // Card payments against the stand-in, whose callbacks a spec signs.
+        PAYMOB_API_KEY: "e2e-api-key",
+        PAYMOB_INTEGRATION_ID: "4097558",
+        PAYMOB_HMAC_SECRET: randomBytes(24).toString("hex"),
+        PAYMOB_LIVE: "false",
+        PAYMOB_BASE_URL: `http://127.0.0.1:${paymobPort}`,
+        E2E_PAYMOB_PORT: paymobPort,
       },
       stdout: "inherit",
       stderr: "inherit",
@@ -163,6 +173,7 @@ try {
   exitCode = await runner.exited;
   await resend.stop(true);
   await oidc.stop(true);
+  await paymob.stop(true);
 } finally {
   await dropDatabase(admin, cellName);
   await dropDatabase(admin, directoryName);

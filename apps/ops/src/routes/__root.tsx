@@ -45,6 +45,7 @@ const NAVIGATION: {
     | "/series"
     | "/changes"
     | "/leads"
+    | "/billing"
     | "/subscriptions"
     | "/customers"
     | "/catalogue"
@@ -66,6 +67,7 @@ const NAVIGATION: {
     business: true,
   },
   { to: "/customers", label: "Customers", area: "customers", business: true },
+  { to: "/billing", label: "Billing", area: "readBilling", business: true },
   { to: "/catalogue", label: "Catalogue", area: "catalogue", business: true },
   { to: "/operators", label: "Operators", area: "operators", business: true },
   { to: "/settings", label: "Settings", area: "settings", business: true },

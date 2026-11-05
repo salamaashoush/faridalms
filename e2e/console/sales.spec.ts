@@ -32,7 +32,9 @@ test("an owner sets the business's legal details and its VAT", async ({
   await rate.getByLabel("Why").fill("Egypt's VAT law");
   await rate.getByRole("button", { name: "Add rate" }).click();
   await expect(page.getByText("Rate added.")).toBeVisible();
-  await expect(page.getByText("14% VAT")).toBeVisible();
+  await expect(
+    page.getByRole("listitem").filter({ hasText: "from 1 Jul 2017" }),
+  ).toContainText("14% VAT");
 });
 
 test("a demonstration request becomes a lead, a quote in both languages, and a customer whose school is ready to set up", async ({

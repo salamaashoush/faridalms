@@ -10,6 +10,7 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as BillingRouteImport } from './routes/billing'
 import { Route as CatalogueRouteImport } from './routes/catalogue'
 import { Route as ChangesRouteImport } from './routes/changes'
 import { Route as NoRoleRouteImport } from './routes/no-role'
@@ -22,9 +23,13 @@ import { Route as AuthLoginRouteImport } from './routes/auth/login'
 import { Route as AuthLogoutRouteImport } from './routes/auth/logout'
 import { Route as CustomersIndexRouteImport } from './routes/customers.index'
 import { Route as CustomersCustomerIdRouteImport } from './routes/customers.$customerId'
+import { Route as IntakeBillingRouteImport } from './routes/intake/billing'
 import { Route as IntakeLeadsRouteImport } from './routes/intake/leads'
+import { Route as InvoicesInvoiceIdRouteImport } from './routes/invoices.$invoiceId'
+import { Route as InvoicesNewRouteImport } from './routes/invoices.new'
 import { Route as LeadsIndexRouteImport } from './routes/leads.index'
 import { Route as LeadsLeadIdRouteImport } from './routes/leads.$leadId'
+import { Route as PaymentsPaymobRouteImport } from './routes/payments/paymob'
 import { Route as ProvisioningDraftIdRouteImport } from './routes/provisioning.$draftId'
 import { Route as QuoteFilesQuoteIdRouteImport } from './routes/quote-files.$quoteId'
 import { Route as QuotesQuoteIdRouteImport } from './routes/quotes.$quoteId'
@@ -37,6 +42,11 @@ import { Route as SubscriptionsSubscriptionIdRouteImport } from './routes/subscr
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const BillingRoute = BillingRouteImport.update({
+  id: '/billing',
+  path: '/billing',
   getParentRoute: () => rootRouteImport,
 } as any)
 const CatalogueRoute = CatalogueRouteImport.update({
@@ -99,9 +109,24 @@ const CustomersCustomerIdRoute = CustomersCustomerIdRouteImport.update({
   path: '/customers/$customerId',
   getParentRoute: () => rootRouteImport,
 } as any)
+const IntakeBillingRoute = IntakeBillingRouteImport.update({
+  id: '/intake/billing',
+  path: '/intake/billing',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const IntakeLeadsRoute = IntakeLeadsRouteImport.update({
   id: '/intake/leads',
   path: '/intake/leads',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const InvoicesInvoiceIdRoute = InvoicesInvoiceIdRouteImport.update({
+  id: '/invoices/$invoiceId',
+  path: '/invoices/$invoiceId',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const InvoicesNewRoute = InvoicesNewRouteImport.update({
+  id: '/invoices/new',
+  path: '/invoices/new',
   getParentRoute: () => rootRouteImport,
 } as any)
 const LeadsIndexRoute = LeadsIndexRouteImport.update({
@@ -112,6 +137,11 @@ const LeadsIndexRoute = LeadsIndexRouteImport.update({
 const LeadsLeadIdRoute = LeadsLeadIdRouteImport.update({
   id: '/leads/$leadId',
   path: '/leads/$leadId',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PaymentsPaymobRoute = PaymentsPaymobRouteImport.update({
+  id: '/payments/paymob',
+  path: '/payments/paymob',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ProvisioningDraftIdRoute = ProvisioningDraftIdRouteImport.update({
@@ -158,6 +188,7 @@ const SubscriptionsSubscriptionIdRoute =
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/billing': typeof BillingRoute
   '/catalogue': typeof CatalogueRoute
   '/changes': typeof ChangesRoute
   '/no-role': typeof NoRoleRoute
@@ -169,8 +200,12 @@ export interface FileRoutesByFullPath {
   '/auth/login': typeof AuthLoginRoute
   '/auth/logout': typeof AuthLogoutRoute
   '/customers/$customerId': typeof CustomersCustomerIdRoute
+  '/intake/billing': typeof IntakeBillingRoute
   '/intake/leads': typeof IntakeLeadsRoute
+  '/invoices/$invoiceId': typeof InvoicesInvoiceIdRoute
+  '/invoices/new': typeof InvoicesNewRoute
   '/leads/$leadId': typeof LeadsLeadIdRoute
+  '/payments/paymob': typeof PaymentsPaymobRoute
   '/provisioning/$draftId': typeof ProvisioningDraftIdRoute
   '/quote-files/$quoteId': typeof QuoteFilesQuoteIdRoute
   '/quotes/$quoteId': typeof QuotesQuoteIdRoute
@@ -184,6 +219,7 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/billing': typeof BillingRoute
   '/catalogue': typeof CatalogueRoute
   '/changes': typeof ChangesRoute
   '/no-role': typeof NoRoleRoute
@@ -195,8 +231,12 @@ export interface FileRoutesByTo {
   '/auth/login': typeof AuthLoginRoute
   '/auth/logout': typeof AuthLogoutRoute
   '/customers/$customerId': typeof CustomersCustomerIdRoute
+  '/intake/billing': typeof IntakeBillingRoute
   '/intake/leads': typeof IntakeLeadsRoute
+  '/invoices/$invoiceId': typeof InvoicesInvoiceIdRoute
+  '/invoices/new': typeof InvoicesNewRoute
   '/leads/$leadId': typeof LeadsLeadIdRoute
+  '/payments/paymob': typeof PaymentsPaymobRoute
   '/provisioning/$draftId': typeof ProvisioningDraftIdRoute
   '/quote-files/$quoteId': typeof QuoteFilesQuoteIdRoute
   '/quotes/$quoteId': typeof QuotesQuoteIdRoute
@@ -211,6 +251,7 @@ export interface FileRoutesByTo {
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/billing': typeof BillingRoute
   '/catalogue': typeof CatalogueRoute
   '/changes': typeof ChangesRoute
   '/no-role': typeof NoRoleRoute
@@ -222,8 +263,12 @@ export interface FileRoutesById {
   '/auth/login': typeof AuthLoginRoute
   '/auth/logout': typeof AuthLogoutRoute
   '/customers/$customerId': typeof CustomersCustomerIdRoute
+  '/intake/billing': typeof IntakeBillingRoute
   '/intake/leads': typeof IntakeLeadsRoute
+  '/invoices/$invoiceId': typeof InvoicesInvoiceIdRoute
+  '/invoices/new': typeof InvoicesNewRoute
   '/leads/$leadId': typeof LeadsLeadIdRoute
+  '/payments/paymob': typeof PaymentsPaymobRoute
   '/provisioning/$draftId': typeof ProvisioningDraftIdRoute
   '/quote-files/$quoteId': typeof QuoteFilesQuoteIdRoute
   '/quotes/$quoteId': typeof QuotesQuoteIdRoute
@@ -239,6 +284,7 @@ export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/billing'
     | '/catalogue'
     | '/changes'
     | '/no-role'
@@ -250,8 +296,12 @@ export interface FileRouteTypes {
     | '/auth/login'
     | '/auth/logout'
     | '/customers/$customerId'
+    | '/intake/billing'
     | '/intake/leads'
+    | '/invoices/$invoiceId'
+    | '/invoices/new'
     | '/leads/$leadId'
+    | '/payments/paymob'
     | '/provisioning/$draftId'
     | '/quote-files/$quoteId'
     | '/quotes/$quoteId'
@@ -265,6 +315,7 @@ export interface FileRouteTypes {
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
+    | '/billing'
     | '/catalogue'
     | '/changes'
     | '/no-role'
@@ -276,8 +327,12 @@ export interface FileRouteTypes {
     | '/auth/login'
     | '/auth/logout'
     | '/customers/$customerId'
+    | '/intake/billing'
     | '/intake/leads'
+    | '/invoices/$invoiceId'
+    | '/invoices/new'
     | '/leads/$leadId'
+    | '/payments/paymob'
     | '/provisioning/$draftId'
     | '/quote-files/$quoteId'
     | '/quotes/$quoteId'
@@ -291,6 +346,7 @@ export interface FileRouteTypes {
   id:
     | '__root__'
     | '/'
+    | '/billing'
     | '/catalogue'
     | '/changes'
     | '/no-role'
@@ -302,8 +358,12 @@ export interface FileRouteTypes {
     | '/auth/login'
     | '/auth/logout'
     | '/customers/$customerId'
+    | '/intake/billing'
     | '/intake/leads'
+    | '/invoices/$invoiceId'
+    | '/invoices/new'
     | '/leads/$leadId'
+    | '/payments/paymob'
     | '/provisioning/$draftId'
     | '/quote-files/$quoteId'
     | '/quotes/$quoteId'
@@ -318,6 +378,7 @@ export interface FileRouteTypes {
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  BillingRoute: typeof BillingRoute
   CatalogueRoute: typeof CatalogueRoute
   ChangesRoute: typeof ChangesRoute
   NoRoleRoute: typeof NoRoleRoute
@@ -329,8 +390,12 @@ export interface RootRouteChildren {
   AuthLoginRoute: typeof AuthLoginRoute
   AuthLogoutRoute: typeof AuthLogoutRoute
   CustomersCustomerIdRoute: typeof CustomersCustomerIdRoute
+  IntakeBillingRoute: typeof IntakeBillingRoute
   IntakeLeadsRoute: typeof IntakeLeadsRoute
+  InvoicesInvoiceIdRoute: typeof InvoicesInvoiceIdRoute
+  InvoicesNewRoute: typeof InvoicesNewRoute
   LeadsLeadIdRoute: typeof LeadsLeadIdRoute
+  PaymentsPaymobRoute: typeof PaymentsPaymobRoute
   ProvisioningDraftIdRoute: typeof ProvisioningDraftIdRoute
   QuoteFilesQuoteIdRoute: typeof QuoteFilesQuoteIdRoute
   QuotesQuoteIdRoute: typeof QuotesQuoteIdRoute
@@ -350,6 +415,13 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/billing': {
+      id: '/billing'
+      path: '/billing'
+      fullPath: '/billing'
+      preLoaderRoute: typeof BillingRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/catalogue': {
@@ -436,11 +508,32 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof CustomersCustomerIdRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/intake/billing': {
+      id: '/intake/billing'
+      path: '/intake/billing'
+      fullPath: '/intake/billing'
+      preLoaderRoute: typeof IntakeBillingRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/intake/leads': {
       id: '/intake/leads'
       path: '/intake/leads'
       fullPath: '/intake/leads'
       preLoaderRoute: typeof IntakeLeadsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/invoices/$invoiceId': {
+      id: '/invoices/$invoiceId'
+      path: '/invoices/$invoiceId'
+      fullPath: '/invoices/$invoiceId'
+      preLoaderRoute: typeof InvoicesInvoiceIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/invoices/new': {
+      id: '/invoices/new'
+      path: '/invoices/new'
+      fullPath: '/invoices/new'
+      preLoaderRoute: typeof InvoicesNewRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/leads/': {
@@ -455,6 +548,13 @@ declare module '@tanstack/react-router' {
       path: '/leads/$leadId'
       fullPath: '/leads/$leadId'
       preLoaderRoute: typeof LeadsLeadIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/payments/paymob': {
+      id: '/payments/paymob'
+      path: '/payments/paymob'
+      fullPath: '/payments/paymob'
+      preLoaderRoute: typeof PaymentsPaymobRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/provisioning/$draftId': {
@@ -518,6 +618,7 @@ declare module '@tanstack/react-router' {
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  BillingRoute: BillingRoute,
   CatalogueRoute: CatalogueRoute,
   ChangesRoute: ChangesRoute,
   NoRoleRoute: NoRoleRoute,
@@ -529,8 +630,12 @@ const rootRouteChildren: RootRouteChildren = {
   AuthLoginRoute: AuthLoginRoute,
   AuthLogoutRoute: AuthLogoutRoute,
   CustomersCustomerIdRoute: CustomersCustomerIdRoute,
+  IntakeBillingRoute: IntakeBillingRoute,
   IntakeLeadsRoute: IntakeLeadsRoute,
+  InvoicesInvoiceIdRoute: InvoicesInvoiceIdRoute,
+  InvoicesNewRoute: InvoicesNewRoute,
   LeadsLeadIdRoute: LeadsLeadIdRoute,
+  PaymentsPaymobRoute: PaymentsPaymobRoute,
   ProvisioningDraftIdRoute: ProvisioningDraftIdRoute,
   QuoteFilesQuoteIdRoute: QuoteFilesQuoteIdRoute,
   QuotesQuoteIdRoute: QuotesQuoteIdRoute,

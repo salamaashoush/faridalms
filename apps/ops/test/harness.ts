@@ -127,3 +127,15 @@ export function business(): BusinessDb {
 export const businessUrl = () => urlFor(businessName, "business_admin");
 /** The test directory as the console reaches it. */
 export const directoryUrl = () => urlFor(directoryName, "directory_admin");
+
+/** What a school's cell last reported of it: its students, for a census. */
+export async function reportStudents(schoolId: string, students: number) {
+  const sql = new SQL(urlFor(directoryName));
+  try {
+    await sql`insert into school_usage (school_id, used_bytes, file_count, students, measured_at)
+      values (${schoolId}, 0, 0, ${students}, now())
+      on conflict (school_id) do update set students = excluded.students, measured_at = now()`;
+  } finally {
+    await sql.close();
+  }
+}

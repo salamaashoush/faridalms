@@ -383,8 +383,44 @@ that is sent. Accepting one keeps the signed copy or purchase order (a PDF
 or image, up to 10 MB) and, in one transaction, makes the customer from its
 lead with its contact, marks the lead won, and begins the school's draft at
 its schools step with what was sold. **Settings** (owners) holds the
-business's legal details in both languages and its VAT rates by country
-from a day; a rate is never changed, only followed by another.
+business's legal details in both languages, its bank details, and its VAT
+rates by country from a day; a rate is never changed, only followed by
+another, and one marked reverse charge prints the wording that the
+customer, a registered business abroad, accounts for the VAT.
+
+**Billing** (owners and finance change it; support reads it). The daily
+round drafts, for each contract, every instalment from a fortnight before
+it falls due (annual at the term's start; two at the start and five months
+on; three at the start, four and seven months on), an invoice for an item
+that starts during the term prorated by the whole months left, a started
+month counting whole, and at the census day a true-up for the students
+counted above the contracted number when more than 5% above it. A term that
+ends renews on its own where the contract says so. Each is drafted once,
+by its schedule key; finance checks a draft, adds the customer's purchase
+order, and issues it. Issuing gives the next number of the year's series
+without a gap (`INV-2026-00001`; credit notes `CN-2026-00001`), locked in the
+transaction that issues it, and the due day 30 days on. An issued invoice
+never changes: a credit note, with its reason and a fresh sign-in, takes
+back what was agreed. A customer that reverse-charges VAT must have its tax
+registration number before an invoice is issued. Finance enters the tax
+authority's id for each invoice and credit note from the e-invoice it
+submits there by hand.
+
+Payments are recorded with their method, reference and what they settle,
+one transfer across invoices or one invoice across transfers, none
+settling more than is owed; a withholding certificate (the 3% an Egyptian
+school deducts) is a payment of its own, and money not yet settled is kept
+for a later invoice. With `PAYMOB_API_KEY`, `PAYMOB_INTEGRATION_ID`,
+`PAYMOB_HMAC_SECRET` and `PAYMOB_LIVE` set, finance makes a Paymob payment
+link for what an invoice in Egyptian pounds owes; Paymob's processed
+callback at `/payments/paymob` is taken only when its HMAC-SHA512 over the
+documented fields checks, and records the card payment once by Paymob's
+transaction id. A school's administrators holding `billing:read` see the
+Billing page in its settings: its issued invoices, what each owes, its
+paper in the school's language, the card link and the bank details, read
+from the console's `/intake/billing` with the signed call the leads use, so
+the cell keeps no invoice data; when the console does not answer, the page
+says billing is unavailable.
 
 The directory's change log names an operator by a digest of the provider's
 issuer and subject, never by name. Every entitlement change requires a
