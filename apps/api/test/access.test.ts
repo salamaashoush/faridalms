@@ -1,3 +1,4 @@
+import { addDays } from "@faridalms/domain/school";
 import { describe, expect, test } from "bun:test";
 
 import { login, rejection, signedIn } from "./harness";
@@ -103,6 +104,40 @@ describe("access roles", () => {
         "access_assignment.end",
       ]),
     );
+  });
+});
+
+describe("an assignment's end", () => {
+  test("is the last day it is held, and may be the day it starts", async () => {
+    const api = await signedIn("northwind", login("principal"));
+    const staff = await api.people.staff({ role: ["teacher"] });
+    const teacherId = staff.rows[1]?.id ?? "";
+    const role = await api.access.saveRole({
+      nameEn: "Salama for a day",
+      capabilities: ["timetable:manage"],
+    });
+    const { today } = await api.people.students({});
+    await api.access.assign({
+      userId: teacherId,
+      accessRoleId: role.id,
+      startsOn: today,
+      endsOn: today,
+    });
+    const held = await api.access.personAccess({ userId: teacherId });
+    expect(held.capabilities).toContain("timetable:manage");
+    expect(
+      held.assignments.find((row) => row.accessRoleId === role.id),
+    ).toMatchObject({ from: today, to: addDays(today, 1) });
+    expect(
+      await rejection(
+        api.access.assign({
+          userId: teacherId,
+          accessRoleId: role.id,
+          startsOn: today,
+          endsOn: addDays(today, -1),
+        }),
+      ),
+    ).toMatchObject({ message: "validation.end_date" });
   });
 });
 

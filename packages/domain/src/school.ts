@@ -283,6 +283,14 @@ export function datesInRange(from: string, to: string): string[] {
   return out;
 }
 
+/** Whether two spans share a day; each runs up to, not including, its end, and one without an end runs on. */
+export function spansOverlap(
+  a: { from: string; to: string | null },
+  b: { from: string; to: string | null },
+): boolean {
+  return (a.to === null || b.from < a.to) && (b.to === null || a.from < b.to);
+}
+
 export function isWithin(date: string, from: string, to: string): boolean {
   return from <= date && date <= to;
 }

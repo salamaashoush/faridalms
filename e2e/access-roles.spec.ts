@@ -177,6 +177,19 @@ test("administrators shape a role in settings and assign it from the person's re
     page.getByText(`Role assigned to ${desk.name}`, { exact: true }),
   ).toBeVisible();
 
+  // The same role again for days it is already held is caught on the form.
+  await page.getByRole("button", { name: "Assign role", exact: true }).click();
+  await assign.getByRole("combobox", { name: /^Role/ }).click();
+  await page.getByRole("option", { name: roleName, exact: true }).click();
+  await assign.getByRole("button", { name: "Save", exact: true }).click();
+  await expect(
+    assign.getByRole("textbox", { name: "Starts on" }),
+  ).toHaveAccessibleDescription(
+    /already has this role for some of these dates/,
+  );
+  await assign.getByRole("button", { name: "Cancel", exact: true }).click();
+  await expect(assign).toHaveCount(0);
+
   const profile = await (
     await signedInApi(desk.email, ACCOUNT_PASSWORD)
   ).api.identity.currentUser();

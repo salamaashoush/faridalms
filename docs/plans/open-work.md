@@ -50,8 +50,6 @@ From `foundations.md`. W1, W3, W4 and W5 are merged.
 
 - The guardian-link and custody screens do not check the two relationship
   rules before saving, so the person learns of them only from the refusal.
-- `access` assignment does not check for an overlapping assignment before
-  saving.
 
 ## Reach
 

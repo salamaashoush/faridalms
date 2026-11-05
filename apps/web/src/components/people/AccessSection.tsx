@@ -1,3 +1,4 @@
+import { addDays, spansOverlap } from "@faridalms/domain/school";
 import { Button } from "@faridalms/ui/button";
 import {
   useMutation,
@@ -49,12 +50,14 @@ function useRefresh() {
 function AssignSheet({
   userId,
   name,
+  assignments,
   open,
   onClose,
   today,
 }: {
   userId: string;
   name: string;
+  assignments: readonly Assignment[];
   open: boolean;
   onClose: () => void;
   today: string;
@@ -70,7 +73,11 @@ function AssignSheet({
   const [startsOn, setStartsOn] = useState(today);
   const [endsOn, setEndsOn] = useState("");
   const [reason, setReason] = useState("");
-  const [errors, setErrors] = useState<{ role?: string; endsOn?: string }>({});
+  const [errors, setErrors] = useState<{
+    role?: string;
+    startsOn?: string;
+    endsOn?: string;
+  }>({});
   const mutation = useMutation({
     mutationFn: () =>
       assignAccessRole({
@@ -95,7 +102,19 @@ function AssignSheet({
       onSubmit={async () => {
         const found: typeof errors = {};
         if (!roleId) found.role = m.validationSelection();
-        if (endsOn && endsOn <= startsOn) found.endsOn = m.validationEndDate();
+        if (endsOn && endsOn < startsOn) found.endsOn = m.validationEndDate();
+        else if (
+          assignments.some(
+            (assignment) =>
+              assignment.atSchool &&
+              assignment.accessRoleId === roleId &&
+              spansOverlap(assignment, {
+                from: startsOn,
+                to: endsOn ? addDays(endsOn, 1) : null,
+              }),
+          )
+        )
+          found.startsOn = m.errorAccessAssignmentOverlapping();
         setErrors(found);
         if (Object.keys(found).length > 0) return;
         await mutation.mutateAsync().then(
@@ -118,7 +137,11 @@ function AssignSheet({
           label: accessRoleName(role),
         }))}
         onChange={(value) => {
-          setErrors((current) => ({ ...current, role: undefined }));
+          setErrors((current) => ({
+            ...current,
+            role: undefined,
+            startsOn: undefined,
+          }));
           setRoleId(value);
         }}
         errors={errors.role ? [errors.role] : undefined}
@@ -136,7 +159,11 @@ function AssignSheet({
         type="date"
         width="date"
         value={startsOn}
-        onChange={(event) => setStartsOn(event.target.value)}
+        onChange={(event) => {
+          setErrors((current) => ({ ...current, startsOn: undefined }));
+          setStartsOn(event.target.value);
+        }}
+        errors={errors.startsOn ? [errors.startsOn] : undefined}
       />
       <TextField
         id="assign-ends"
@@ -147,7 +174,11 @@ function AssignSheet({
         width="date"
         value={endsOn}
         onChange={(event) => {
-          setErrors((current) => ({ ...current, endsOn: undefined }));
+          setErrors((current) => ({
+            ...current,
+            startsOn: undefined,
+            endsOn: undefined,
+          }));
           setEndsOn(event.target.value);
         }}
         errors={errors.endsOn ? [errors.endsOn] : undefined}
@@ -330,6 +361,7 @@ export function AccessSection({
         key={sheet.key}
         userId={userId}
         name={name}
+        assignments={access.assignments}
         open={sheet.open}
         today={today}
         onClose={() => setSheet((current) => ({ ...current, open: false }))}

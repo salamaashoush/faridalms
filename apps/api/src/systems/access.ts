@@ -15,6 +15,7 @@ import {
   endAccessAssignmentSchema,
   saveAccessRoleSchema,
 } from "@faridalms/domain/people";
+import { addDays } from "@faridalms/domain/school";
 import { ORPCError } from "@orpc/server";
 import * as v from "valibot";
 
@@ -185,8 +186,10 @@ export const assign = writeProcedure
     const role = await visibleRole(context, input.accessRoleId);
     requireGrantable(context, role.capabilities);
     const from = input.startsOn ?? context.today;
-    if (input.endsOn && input.endsOn <= from)
+    if (input.endsOn && input.endsOn < from)
       throw new ORPCError("BAD_REQUEST", { message: "validation.end_date" });
+    // The role is held through the day it ends on.
+    const to = input.endsOn ? addDays(input.endsOn, 1) : null;
     const assignmentId = await guardingAccess(context, () =>
       insertAssignment(context.tx, {
         tenantId: context.tenantId,
@@ -194,7 +197,7 @@ export const assign = writeProcedure
         accessRoleId: role.id,
         orgId: context.schoolId,
         from,
-        to: input.endsOn || null,
+        to,
         replacesBuiltin: input.replacesBuiltin,
         grantedByUserId: context.actor.userId,
         reason: input.reason,
@@ -208,7 +211,7 @@ export const assign = writeProcedure
       details: {
         accessRoleId: role.id,
         from,
-        to: input.endsOn || null,
+        to,
         replacesBuiltin: input.replacesBuiltin,
       },
     });
