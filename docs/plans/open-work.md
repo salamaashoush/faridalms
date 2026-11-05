@@ -9,9 +9,17 @@ larger than a few days of work gets its own plan beside this file.
 From `foundations.md`. W1 to W5 are merged.
 
 - **W6, conventions and records** (findings 13 to 18 and the P2 items):
-  - one version check on every update, one stale-write code and one
-    pagination shape. Paging was added in several places at once, so it
-    needs aligning;
+  - one version check on every update. Exam sessions, records requests
+    and breaches now name theirs. Left: templates, badges, cover,
+    descriptors and invites; and contacts and addresses, which are
+    replaced row by row, so the check is that the rows the sheet showed
+    are still the ones held;
+  - one stale-write code: `attendance.stale` and `site.stale` still sit
+    beside `conflict.version`. The register's copy is its own ("Someone
+    saved this register after you opened it"), and an API test asserts
+    `attendance.stale`, so merging waits for the owner;
+  - one pagination shape. Paging was added in several places at once, so
+    it needs aligning;
   - history tabs fed by the audit log, with one history screen;
   - erasure declared per table in a registry. A gate covers tables that
     name an outside contact. Every table that names a person still needs
