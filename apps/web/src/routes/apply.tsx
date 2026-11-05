@@ -58,15 +58,20 @@ export const Route = createFileRoute("/apply")({
 
 /** For someone not signed in: a family registers once, or signs in to carry on. */
 function ApplyGate() {
+  const { intake } = Route.useSearch();
   return (
     <div className="grid gap-4">
       <h2 className="text-xl font-semibold">{m.applyGateTitle()}</h2>
       <p className="text-muted-foreground">{m.applyGateBody()}</p>
       <div className="flex flex-wrap gap-3">
-        <Link to="/register" className={buttonVariants()}>
+        <Link to="/register" search={{ intake }} className={buttonVariants()}>
           {m.applyGateRegister()}
         </Link>
-        <Link to="/sign-in" className={buttonVariants({ variant: "outline" })}>
+        <Link
+          to="/sign-in"
+          search={{ redirect: intake ? `/apply?intake=${intake}` : "/apply" }}
+          className={buttonVariants({ variant: "outline" })}
+        >
           {m.applyGateSignIn()}
         </Link>
       </div>

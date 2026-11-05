@@ -2,7 +2,7 @@ import { expect, test } from "@playwright/test";
 
 import type { RoleKey } from "./fixtures/sign-in";
 
-import { ACCOUNTS, signIn, untilHydrated } from "./fixtures/sign-in";
+import { ACCOUNTS, PASSWORD, signIn, untilHydrated } from "./fixtures/sign-in";
 
 test("unauthenticated visitors are redirected to sign-in", async ({ page }) => {
   await page.goto("/");
@@ -120,4 +120,15 @@ test("a forgotten password is asked for from sign-in, and the answer never says 
   ).toBeVisible();
   await page.getByRole("link", { name: "Back to sign-in" }).click();
   await expect(page).toHaveURL(/\/sign-in/);
+});
+
+test("someone sent to sign in from a page goes back to it", async ({
+  page,
+}) => {
+  await page.goto("/admin/students?dir=desc");
+  await expect(page).toHaveURL(/\/sign-in\?redirect=/);
+  await page.getByRole("textbox", { name: "Email" }).fill(ACCOUNTS.admin.email);
+  await page.getByRole("textbox", { name: "Password" }).fill(PASSWORD);
+  await page.getByRole("button", { name: "Sign In", exact: true }).click();
+  await expect(page).toHaveURL(/\/admin\/students\?dir=desc$/);
 });

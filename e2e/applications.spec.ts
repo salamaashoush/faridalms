@@ -2,6 +2,8 @@ import type { Page } from "@playwright/test";
 
 import { test as base, expect } from "@playwright/test";
 
+import { apiAs } from "./fixtures/api";
+import { RESEND_STAND_IN } from "./fixtures/mail";
 import { PASSWORD, signIn, signInWith } from "./fixtures/sign-in";
 
 // The gate's web server answers every *.localhost name: <school>.localhost
@@ -149,4 +151,54 @@ test("a registered family applies on the apply page and sends it", async ({
   await page.goto(`${origin("northwind.localhost")}/family/applications`);
   await expect(page.getByText("Yusuf Ashoush").first()).toBeVisible();
   await expect(page.getByText("Submitted").first()).toBeVisible();
+});
+
+test("a family who registers from an intake's apply door comes back to that intake", async ({
+  browser,
+  origin,
+}) => {
+  const admin = await apiAs("admin");
+  const [intake] = (await admin.intakes.list({})).intakes;
+  if (!intake) throw new Error("seed intake");
+  const portal = origin("northwind.localhost");
+  const address = `salama.${crypto.randomUUID().slice(0, 6)}@example.com`;
+  const visitor = await (await browser.newContext()).newPage();
+  await visitor.clock.install();
+  await visitor.goto(`${portal}/apply?intake=${intake.id}`);
+  await visitor.getByRole("link", { name: "Register", exact: true }).click();
+  await expect(visitor).toHaveURL(`${portal}/register?intake=${intake.id}`);
+  await visitor.getByRole("textbox", { name: "First name" }).fill("Salama");
+  await visitor.getByRole("textbox", { name: "Family name" }).fill("Ashoush");
+  await visitor.getByRole("textbox", { name: "Email" }).fill(address);
+  await visitor.clock.fastForward(5000);
+  await visitor.getByRole("button", { name: "Register", exact: true }).click();
+  await expect(
+    visitor.getByRole("heading", { name: "Check your email" }),
+  ).toBeVisible();
+
+  let link = "";
+  await expect
+    .poll(async () => {
+      const sent = (await (
+        await fetch(
+          `${RESEND_STAND_IN}/e2e/sent?to=${encodeURIComponent(address)}`,
+        )
+      ).json()) as { text?: string }[];
+      link =
+        /https?:\/\/\S+\/welcome\?\S+/.exec(sent.at(-1)?.text ?? "")?.[0] ?? "";
+      return link;
+    })
+    .toContain(`intake=${intake.id}`);
+  // Mail names the school's canonical https host; the gate serves it here.
+  const sent = new URL(link);
+  await visitor.goto(`${portal}${sent.pathname}${sent.search}${sent.hash}`);
+  const password = "a long enough pass phrase";
+  await visitor.getByLabel("New password").fill(password);
+  await visitor.getByLabel("Type it again").fill(password);
+  await visitor.getByRole("button", { name: "Save password" }).click();
+  await visitor.getByRole("link", { name: "Go to sign-in" }).click();
+  await visitor.getByRole("textbox", { name: "Email" }).fill(address);
+  await visitor.getByRole("textbox", { name: "Password" }).fill(password);
+  await visitor.getByRole("button", { name: "Sign In", exact: true }).click();
+  await expect(visitor).toHaveURL(`${portal}/apply?intake=${intake.id}`);
 });

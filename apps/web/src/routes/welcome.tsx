@@ -25,7 +25,10 @@ import { leaveBareDomain, linkedSlug } from "~/utils/bare-domain";
 export const Route = createFileRoute("/welcome")({
   staticData: { schoolFace: true },
   // Links sent before each school had its own portal name it here.
-  validateSearch: v.object({ school: v.optional(v.string()) }),
+  validateSearch: v.object({
+    school: v.optional(v.string()),
+    intake: v.optional(v.pipe(v.string(), v.uuid())),
+  }),
   beforeLoad: ({ context, location, search }) =>
     leaveBareDomain(context.auth, location.pathname, {
       linked: linkedSlug(search.school),
@@ -138,8 +141,13 @@ function WelcomePage() {
   const failed = invite.error ?? save.error;
   const holder = invite.data;
   const name = holder ? inLocale(holder.name.en, holder.name.ar) : "";
+  const { intake } = Route.useSearch();
   const signIn = (
-    <Link to="/sign-in" className={buttonVariants({ variant: "outline" })}>
+    <Link
+      to="/sign-in"
+      search={{ redirect: intake ? `/apply?intake=${intake}` : undefined }}
+      className={buttonVariants({ variant: "outline" })}
+    >
       {m.welcomeSignIn()}
     </Link>
   );

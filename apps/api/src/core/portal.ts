@@ -35,8 +35,11 @@ export function welcomeLink(
   school: Addressed,
   domains: PlatformDomains,
   secret: string,
+  /** The intake a registering family came to apply for. */
+  intake?: string,
 ) {
   const url = portalUrl(school, domains, "/welcome");
+  if (intake) url.searchParams.set("intake", intake);
   url.hash = secret;
   return url.toString();
 }

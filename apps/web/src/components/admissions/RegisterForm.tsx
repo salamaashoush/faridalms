@@ -58,8 +58,11 @@ function Labelled({
  */
 export function RegisterForm({
   turnstileKey,
+  intake,
 }: {
   turnstileKey: string | null;
+  /** The intake the family came to apply for, kept through to the form. */
+  intake?: string;
 }) {
   const hydrated = useHydrated();
   const send = useServerFn(registerFamily);
@@ -87,6 +90,7 @@ export function RegisterForm({
           turnstile: token,
           website,
           elapsed: Date.now() - opened.current,
+          intake,
         },
       }),
     onSettled: () => setGeneration((value) => value + 1),

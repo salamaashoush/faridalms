@@ -374,7 +374,7 @@ export const register = schoolProcedure
                 input.names.ar.given ??
                 input.email,
               loginName: input.email,
-              link: welcomeLink(school, context.domains, secret),
+              link: welcomeLink(school, context.domains, secret, input.intake),
               days: INVITE_DAYS,
             }),
           });

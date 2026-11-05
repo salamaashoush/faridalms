@@ -883,6 +883,8 @@ export const registerFamilySchema = v.object({
   turnstile: v.optional(v.pipe(v.string(), v.maxLength(2048)), ""),
   website: v.optional(v.pipe(v.string(), v.maxLength(200)), ""),
   elapsed: v.pipe(v.number(), v.minValue(0)),
+  /** The intake the family came to apply for, carried back to the form. */
+  intake: v.optional(v.pipe(v.string(), v.uuid())),
 });
 export type RegisterFamily = v.InferOutput<typeof registerFamilySchema>;
 

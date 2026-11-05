@@ -13,7 +13,7 @@ const auth = getRouteApi("/_auth");
  * the platform's own page, drawn when the school's cannot be read, says
  * its own.
  */
-export function PortalSignIn() {
+export function PortalSignIn({ redirect }: { redirect?: string }) {
   const face = auth.useLoaderData();
   return (
     <>
@@ -25,7 +25,7 @@ export function PortalSignIn() {
           <p className="text-muted-foreground">{m.authSignInBody()}</p>
         </div>
       )}
-      <SignInForm />
+      <SignInForm redirect={redirect} />
       <p className="mt-8 text-center text-sm text-muted-foreground">
         <a
           href={bareHref("/another-account")}

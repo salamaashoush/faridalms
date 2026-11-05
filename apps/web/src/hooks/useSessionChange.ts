@@ -11,13 +11,18 @@ export function useSessionChange() {
   const router = useRouter();
   const queryClient = useQueryClient();
   return useCallback(
-    async (to: "/" | "/sign-in", { replace = false } = {}) => {
+    async (
+      to: "/" | "/sign-in" | { href: string },
+      { replace = false } = {},
+    ) => {
       queryClient.clear();
       // Not `invalidate()`: it reloads the page being left, whose own guard
       // then redirects, so every change of session loaded twice and the
       // address passed through the home page and back.
       router.clearCache();
-      await router.navigate({ to, replace });
+      await (typeof to === "string"
+        ? router.navigate({ to, replace })
+        : router.navigate({ href: to.href, replace }));
     },
     [router, queryClient],
   );

@@ -39,7 +39,7 @@ export const DEMO_ACCOUNTS = [
 ];
 
 /** Signs a person in to the school whose portal shows the form. */
-export function SignInForm() {
+export function SignInForm({ redirect }: { redirect?: string } = {}) {
   const hydrated = useHydrated();
   const sessionChanged = useSessionChange();
 
@@ -50,8 +50,9 @@ export function SignInForm() {
       toast(m.authSignInSuccessTitle(), {
         description: m.authSignInSuccessMessage(),
       });
-      // "/" resolves to the landing route for whichever role just signed in.
-      await sessionChanged("/");
+      // Back to the page that sent them here; else "/", which resolves to
+      // the landing route for whichever role just signed in.
+      await sessionChanged(redirect ? { href: redirect } : "/");
     },
   });
 
