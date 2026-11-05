@@ -955,12 +955,7 @@ function Cards({ section, context }: Props<"cards">) {
   return (
     <div>
       <SectionIntro heading={data.heading} text={data.text} />
-      <ul
-        data-stagger
-        className="site-grid"
-        data-cols={data.columns}
-        data-fill={variant === "icons" ? "" : undefined}
-      >
+      <ul data-stagger className="site-grid" data-cols={data.columns}>
         {items}
       </ul>
     </div>
