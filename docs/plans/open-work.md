@@ -17,9 +17,11 @@ From `foundations.md`. W1 to W5 are merged.
   - one pagination shape. Paging was added in several places at once, so
     it needs aligning;
   - history tabs fed by the audit log, with one history screen;
-  - erasure declared per table in a registry. A gate covers tables that
-    name an outside contact. Every table that names a person still needs
-    one.
+  - erasure for the tables `erasure-rules.ts` marks `to_erase`, and the
+    owner's and the lawyer's review of every proposed rule (the list is in
+    the ops repository, `plans/legal/erasure-registry.md`). Every table
+    that names a person now declares one, and `db:verify` refuses a new
+    table that does not;
   - one translation review;
   - one question and answer model shared by quizzes, forms and admission
     forms;

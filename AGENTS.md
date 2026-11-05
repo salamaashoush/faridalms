@@ -279,6 +279,10 @@ Schema decisions worth not undoing:
   `system_meaning`, so behaviour never depends on a code a school typed.
 - **Rows are tombstoned, not deleted** (`status = 'tobedeleted'`), and every
   update names the `version` it read.
+- **Every table that names a person declares its erasure rule** in
+  `packages/database/src/erasure-rules.ts`: erased by a retention policy,
+  kept as a school record, or erasure still to build. `db:verify` refuses a
+  table with a key to `core.users` that has none.
 
 ---
 
