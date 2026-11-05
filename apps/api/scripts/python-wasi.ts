@@ -15,6 +15,8 @@ import { existsSync, readFileSync } from "node:fs";
 import { mkdir, rm, writeFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
 
+import { download } from "./download";
+
 const VERSION = "3.15.2";
 const WASI_SDK = 33;
 const SOURCE = `https://github.com/brettcannon/cpython-wasi-build/releases/download/v${VERSION}/python-${VERSION}-wasi_sdk-${WASI_SDK}.zip`;
@@ -26,8 +28,7 @@ const STAMP = join(OUT, "VERSION");
 if (existsSync(STAMP) && readFileSync(STAMP, "utf8").trim() === VERSION)
   process.exit(0);
 
-const response = await fetch(SOURCE);
-if (!response.ok) throw new Error(`${SOURCE} answered ${response.status}`);
+const response = await download(SOURCE);
 const zip = new Uint8Array(await response.arrayBuffer());
 const sum = createHash("sha256").update(zip).digest("hex");
 if (sum !== SHA256)

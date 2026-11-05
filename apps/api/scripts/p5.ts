@@ -13,6 +13,8 @@ import { existsSync, readFileSync } from "node:fs";
 import { mkdir, rm, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 
+import { download } from "./download";
+
 const VERSION = "2.3.4";
 const SOURCE = `https://cdn.jsdelivr.net/npm/p5@${VERSION}`;
 const FILES = [
@@ -35,9 +37,7 @@ if (existsSync(STAMP) && readFileSync(STAMP, "utf8").trim() === VERSION)
 
 const fetched = await Promise.all(
   FILES.map(async (file) => {
-    const response = await fetch(`${SOURCE}/${file.from}`);
-    if (!response.ok)
-      throw new Error(`${SOURCE}/${file.from} answered ${response.status}`);
+    const response = await download(`${SOURCE}/${file.from}`);
     const bytes = new Uint8Array(await response.arrayBuffer());
     const sum = createHash("sha256").update(bytes).digest("hex");
     if (sum !== file.sha256)

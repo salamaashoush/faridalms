@@ -28,6 +28,8 @@ import { existsSync, readFileSync } from "node:fs";
 import { mkdir, readdir, readFile, rm, writeFile } from "node:fs/promises";
 import { dirname, extname, join, relative } from "node:path";
 
+import { download } from "./download";
+
 const CORE = {
   name: "pxt-core",
   version: "13.2.17",
@@ -55,15 +57,13 @@ const UNPACKED = join(OUT, "unpacked");
 const LANGUAGES = ["ar"];
 const TRANSLATIONS = "https://makecode.com/api/translations";
 const CONCURRENCY = 4;
-const ATTEMPTS = 4;
 
 async function unpack(
   pack: typeof CORE,
   glob: string[],
 ): Promise<{ root: string; files: string[] }> {
   const url = `https://registry.npmjs.org/${pack.name}/-/${pack.name}-${pack.version}.tgz`;
-  const response = await fetch(url);
-  if (!response.ok) throw new Error(`${url} answered ${response.status}`);
+  const response = await download(url);
   const tarball = new Uint8Array(await response.arrayBuffer());
   const sum = createHash("sha512").update(tarball).digest("base64");
   if (sum !== pack.sha512)
@@ -244,17 +244,7 @@ async function translated(language: string, filename: string): Promise<Words> {
     filename,
     approved: "true",
   })}`;
-  for (let attempt = 1; ; attempt += 1) {
-    const response = await fetch(url);
-    if (response.ok) return (await response.json()) as Words;
-    if (
-      attempt === ATTEMPTS ||
-      (response.status < 500 && response.status !== 429)
-    )
-      throw new Error(`${url} answered ${response.status}`);
-    const wait = Number(response.headers.get("retry-after")) || attempt * 2;
-    await Bun.sleep(wait * 1000);
-  }
+  return (await (await download(url)).json()) as Words;
 }
 
 /** Runs a few at a time, in the order given. */
