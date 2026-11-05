@@ -86,11 +86,16 @@ describe("the notification centre", () => {
     const office = await principal();
     const family = await mother();
     const me = await family.identity.currentUser();
+    const teacher = await (
+      await signedIn("northwind", login("teacher"))
+    ).identity.currentUser();
+    // A direct conversation between the two is continued wherever another
+    // test left it, with its notices; a group one is always new.
     const { threadId } = await office.messages.start({
-      kind: "direct",
-      recipientIds: [me.id],
+      kind: "group",
+      recipientIds: [me.id, teacher.id],
       studentId: "",
-      subject: "",
+      subject: `Busy thread ${crypto.randomUUID().slice(0, 8)}`,
       content: plainContent("Could we speak on Monday?"),
     });
     await office.messages.send({
