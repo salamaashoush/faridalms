@@ -8,6 +8,7 @@ import { sql } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/bun-sql/postgres";
 
 import { currentPurpose, withPurpose } from "../src/context";
+import { ensureCourse } from "../src/stores/classes";
 import { saveDocument } from "../src/stores/documents";
 import {
   approveErasure,
@@ -1266,5 +1267,71 @@ describe("teaching", () => {
     expect(seen.error).toBeUndefined();
     expect(seen.rows[0]?.reached).toBe(taught.reached);
     expect(taught.reached).toBeLessThan(taught.placed);
+  });
+});
+
+describe("courses", () => {
+  test("a course made for a taken code takes the first free one, within the length allowed", async () => {
+    const { a } = harness();
+    const school = await schoolOf(a.tenantId);
+    const subjects = (
+      await harness().su.unsafe(
+        `select id from core.descriptors
+         where tenant_id = $1 and namespace = 'subject' and status = 'active'
+         order by code_value limit 5`,
+        [a.tenantId],
+      )
+    ).map((row: { id: string }) => row.id);
+    expect(subjects).toHaveLength(5);
+    const long = `SALAMA-${"L".repeat(33)}`;
+    const cell = appCell();
+    try {
+      const ids = await cell.withTenant(
+        {
+          tenantId: a.tenantId,
+          requestId: "courses",
+          actor: { kind: "system" },
+        },
+        "write",
+        async (tx) => {
+          const make = (subjectId: string | undefined, code: string) =>
+            ensureCourse(tx, {
+              tenantId: a.tenantId,
+              orgId: school.id,
+              subjectId: subjectId ?? "",
+              gradeId: null,
+              code,
+              titleEn: "Salama course",
+              titleAr: null,
+            });
+          return [
+            await make(subjects[0], "SALAMA-4A"),
+            await make(subjects[1], "SALAMA-4A-3"),
+            await make(subjects[2], "SALAMA-4A"),
+            await make(subjects[3], long),
+            await make(subjects[4], long),
+          ];
+        },
+      );
+      const codes = [];
+      for (const id of ids)
+        codes.push(
+          (
+            await one<{ code: string }>(
+              "select code from core.courses where tenant_id = $1 and id = $2",
+              [a.tenantId, id],
+            )
+          ).code,
+        );
+      expect(codes).toEqual([
+        "SALAMA-4A",
+        "SALAMA-4A-3",
+        "SALAMA-4A-2",
+        long,
+        `${long.slice(0, 38)}-2`,
+      ]);
+    } finally {
+      await cell.close();
+    }
   });
 });

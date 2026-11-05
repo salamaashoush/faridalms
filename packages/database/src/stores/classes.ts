@@ -556,6 +556,8 @@ export async function retireClass(
     .where(and(eq(classes.tenantId, tenantId), eq(classes.id, classId)));
 }
 
+const COURSE_CODE_MAX = 40;
+
 /** The course for a subject at a grade in the school, made on first use. */
 export async function ensureCourse(
   tx: Tx,
@@ -576,19 +578,26 @@ export async function ensureCourse(
       and grade_level_descriptor_id is not distinct from ${input.gradeId}::uuid
     order by created_at limit 1`);
   if (found[0]) return found[0].id;
-  const taken = await tx.execute<{ n: number }>(sql`
-    select count(*)::int as n from core.courses
-    where tenant_id = ${input.tenantId}::uuid and org_id = ${input.orgId}::uuid and status = 'active'
-      and code like ${`${input.code}%`}`);
+  const stem = input.code.slice(0, COURSE_CODE_MAX - 4);
+  const taken = new Set(
+    (
+      await tx.execute<{ code: string }>(sql`
+        select code from core.courses
+        where tenant_id = ${input.tenantId}::uuid and org_id = ${input.orgId}::uuid and status = 'active'
+          and starts_with(code, ${stem})`)
+    ).map((row) => row.code),
+  );
+  let code = input.code;
+  for (let n = 2; taken.has(code); n += 1) {
+    const suffix = `-${n}`;
+    code = `${input.code.slice(0, COURSE_CODE_MAX - suffix.length)}${suffix}`;
+  }
   const [row] = await tx
     .insert(courses)
     .values({
       tenantId: input.tenantId,
       orgId: input.orgId,
-      code:
-        (taken[0]?.n ?? 0) === 0
-          ? input.code
-          : `${input.code}-${(taken[0]?.n ?? 0) + 1}`,
+      code,
       titleEn: input.titleEn,
       titleAr: input.titleAr,
       subjectDescriptorId: input.subjectId,

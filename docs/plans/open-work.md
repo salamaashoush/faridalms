@@ -58,7 +58,6 @@ From `foundations.md`. W1, W3, W4 and W5 are merged.
 - A staff edit form was reported not to scroll; it scrolls when opened
   directly, so the path that reaches it stuck is not known yet.
 
-- `ensureCourse` can generate a course code that is already taken.
 - The guardian-link and custody screens do not check the two relationship
   rules before saving, so the person learns of them only from the refusal.
 - `access` assignment does not check for an overlapping assignment before
