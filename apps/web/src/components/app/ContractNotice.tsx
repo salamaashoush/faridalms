@@ -26,6 +26,7 @@ export function ContractNotice() {
       : null;
   const shown = [
     paused ? m.schoolPaused() : null,
+    contract?.restricted ? m.contractRestricted() : null,
     contract?.notice ? NOTICE[contract.notice]() : null,
     trial,
     contract?.students

@@ -51,9 +51,10 @@ From `foundations.md`. W1 to W5 are merged.
   enforces at once. A paused school signs in, reads and keeps its sessions
   and exports, and refuses every other write with `tenant.paused`, which
   everyone in it is told; a suspended school's own portal says it is
-  paused. Left: `restricted` access refusing new modules, custom domains
-  and text-message top-ups; and browser tests of the banner and the paused
-  page, which need a way for a spec to set a tenant's state.
+  paused; a restricted school works but switches on no module and adds no
+  address of its own. Left: refusing text-message top-ups once there are
+  any, and browser tests of the banners and the paused page, which need a
+  way for a spec to set a tenant's state.
 
 ## Bugs found and not yet fixed
 

@@ -235,6 +235,29 @@ export type ProvisionTenant = v.InferOutput<typeof provisionTenantSchema>;
 /** How far a tenant's people may use it: the console's only lifecycle moves. */
 export const TENANT_LIFECYCLES = ["active", "read_only", "suspended"] as const;
 
+/**
+ * What an operator sets a school to: full or restricted access keep the
+ * tenant active in its cell, where restricted stops it buying or growing.
+ */
+export const SCHOOL_STANDINGS = [
+  "full",
+  "restricted",
+  "read_only",
+  "suspended",
+] as const;
+export type SchoolStanding = (typeof SCHOOL_STANDINGS)[number];
+
+export const lifecycleOf = (
+  standing: SchoolStanding,
+): (typeof TENANT_LIFECYCLES)[number] =>
+  standing === "full" || standing === "restricted" ? "active" : standing;
+
+export const setStandingSchema = v.object({
+  tenantId: id,
+  standing: v.picklist(SCHOOL_STANDINGS),
+  reason: v.pipe(v.string(), v.trim(), v.minLength(1), v.maxLength(500)),
+});
+
 export const setLifecycleSchema = v.object({
   tenantId: id,
   lifecycle: v.picklist(TENANT_LIFECYCLES),

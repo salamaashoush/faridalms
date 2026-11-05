@@ -1,10 +1,11 @@
 import type { DirectoryTenantState } from "@faridalms/database/directory/schema";
 import type { ModuleId } from "@faridalms/domain/modules";
-import type { SchoolNotice } from "@faridalms/domain/plans";
+import type { SchoolAccess, SchoolNotice } from "@faridalms/domain/plans";
+import type { SchoolStanding } from "@faridalms/domain/provisioning";
 
 import { BASIC_MODULES, MODULE_IDS } from "@faridalms/domain/modules";
 import { DEFAULT_LIMITS, SCHOOL_NOTICES } from "@faridalms/domain/plans";
-import { TENANT_LIFECYCLES } from "@faridalms/domain/provisioning";
+import { SCHOOL_STANDINGS } from "@faridalms/domain/provisioning";
 import { Badge } from "@faridalms/ui/badge";
 import { Button } from "@faridalms/ui/button";
 import { Checkbox } from "@faridalms/ui/checkbox";
@@ -458,10 +459,10 @@ function SchoolPage() {
       {school.tenantState === "active" ? (
         <AdministratorLink schoolId={school.id} />
       ) : null}
-      {isMove(school.tenantState) ? (
+      {standingOf(school.tenantState, entitled.access) ? (
         <Lifecycle
           tenantId={school.tenantId}
-          state={school.tenantState}
+          state={standingOf(school.tenantState, entitled.access) ?? "full"}
           group={school.tenantKind === "school_group"}
         />
       ) : null}
@@ -473,13 +474,29 @@ function SchoolPage() {
   );
 }
 
-type TenantLifecycleMove = (typeof TENANT_LIFECYCLES)[number];
+type TenantLifecycleMove = SchoolStanding;
 
-const isMove = (state: DirectoryTenantState): state is TenantLifecycleMove =>
-  (TENANT_LIFECYCLES as readonly string[]).includes(state);
+/** Where the school stands, when it is one an operator may move it from. */
+function standingOf(
+  state: DirectoryTenantState,
+  access: SchoolAccess,
+): SchoolStanding | null {
+  if (state === "read_only" || state === "suspended") return state;
+  if (state !== "active") return null;
+  return access === "restricted" ? "restricted" : "full";
+}
+
+const STANDING_LABEL: Record<SchoolStanding, string> = {
+  full: "Active",
+  restricted: "Restricted",
+  read_only: "Paused (read only)",
+  suspended: "Suspended",
+};
 
 const LIFECYCLE_HINT: Record<TenantLifecycleMove, string> = {
-  active: "Everyone uses the school as normal.",
+  full: "Everyone uses the school as normal.",
+  restricted:
+    "Everything works, but the school cannot switch on modules or add custom domains; its administrators are told why.",
   read_only:
     "Everyone signs in and reads; nothing can be changed, and everyone is told the account is paused. Administrators can still export.",
   suspended:
@@ -518,7 +535,7 @@ function Lifecycle({
         setAnswer(null);
         try {
           const out = await set({
-            data: { tenantId, lifecycle, reason: reason.trim() },
+            data: { tenantId, standing: lifecycle, reason: reason.trim() },
           });
           if (out.ok) {
             toast.success("Access changed.");
@@ -543,7 +560,7 @@ function Lifecycle({
       </div>
       <fieldset className="grid gap-2 text-sm">
         <legend className="sr-only">Access</legend>
-        {TENANT_LIFECYCLES.map((choice) => (
+        {SCHOOL_STANDINGS.map((choice) => (
           <div key={choice} className="flex items-start gap-2">
             <input
               id={`lifecycle-${choice}`}
@@ -555,7 +572,7 @@ function Lifecycle({
               className="mt-1"
             />
             <label htmlFor={`lifecycle-${choice}`} className="grid gap-0.5">
-              <span className="font-medium">{TENANT_STATES[choice]}</span>
+              <span className="font-medium">{STANDING_LABEL[choice]}</span>
               <span className="text-xs text-muted-foreground">
                 {LIFECYCLE_HINT[choice]}
               </span>

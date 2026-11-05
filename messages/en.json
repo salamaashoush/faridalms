@@ -1706,6 +1706,7 @@
   "contractTrialEnds": "Your school's trial ends on {date}.",
   "contractNoticeLabel": "About your school's plan",
   "schoolPaused": "Your school's account is paused. Everything can still be read, but nothing can be changed for now; your school office can tell you more.",
+  "contractRestricted": "Your school's account is restricted: everything works, but modules cannot be switched on and addresses of the school's own cannot be added until your account manager lifts it.",
   "portalPaused": "This school's portal is paused for now, so nobody can sign in. Please contact the school office.",
   "contractOverStudents": "Your school has more students than its plan includes ({count} of {limit}). Nobody is turned away; your account manager will be in touch about the difference.",
   "contractOverStaff": "Your school has more staff accounts than its plan includes ({count} of {limit}).",

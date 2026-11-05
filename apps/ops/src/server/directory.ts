@@ -16,8 +16,9 @@ import {
 import { saveEntitlementsSchema } from "@faridalms/domain/plans";
 import {
   newSchoolSchema,
+  lifecycleOf,
   reissueInviteSchema,
-  setLifecycleSchema,
+  setStandingSchema,
 } from "@faridalms/domain/provisioning";
 import { createServerFn } from "@tanstack/react-start";
 import { randomBytes } from "node:crypto";
@@ -240,19 +241,25 @@ const resendSchema = v.object({
  * enforces it, then the directory, which explains it.
  */
 export const setSchoolLifecycle = createServerFn({ method: "POST" })
-  .validator((input: v.InferInput<typeof setLifecycleSchema>) =>
-    v.parse(setLifecycleSchema, input),
+  .validator((input: v.InferInput<typeof setStandingSchema>) =>
+    v.parse(setStandingSchema, input),
   )
   .handler(
     async ({
       data,
     }): Promise<{ ok: true } | { ok: false; message: string }> => {
       const operator = requireOperator();
-      const answer = await setLifecycle(operator, data);
+      const lifecycle = lifecycleOf(data.standing);
+      const answer = await setLifecycle(operator, {
+        tenantId: data.tenantId,
+        lifecycle,
+        reason: data.reason,
+      });
       if (!answer.ok) return { ok: false, message: explain(answer) };
       await directory().setTenantState({
         tenantId: data.tenantId,
-        state: data.lifecycle,
+        state: lifecycle,
+        access: data.standing === "suspended" ? "full" : data.standing,
         operatorId: operator.id,
         reason: data.reason,
       });

@@ -107,4 +107,37 @@ describe("a paused school", () => {
       await setLifecycle(tenantId, "active");
     }
   });
+
+  test("a restricted school works but cannot switch a module on or add an address", async () => {
+    const school = seeded().tenants[1]?.schools[0];
+    if (!school) throw new Error("no acme");
+    const sql = new SQL(testDirectory().adminUrl);
+    const restrict = (access: string) =>
+      sql`update school_entitlements set access = ${access}
+        where school_id = ${school.id}::uuid`;
+    await restrict("restricted");
+    try {
+      const principal = await signedIn("acme", login("principal", 1));
+      expect(
+        (await principal.identity.currentUser()).contract?.restricted,
+      ).toBe(true);
+      expect(
+        await rejection(
+          principal.school.setFeature({ feature: "elearning", enabled: true }),
+        ),
+      ).toMatchObject({ code: "FORBIDDEN", message: "school.restricted" });
+      expect(
+        await rejection(
+          principal.hosts.add({
+            hostname: "restricted.acme-school.example.org",
+            role: "site",
+          }),
+        ),
+      ).toMatchObject({ code: "FORBIDDEN", message: "school.restricted" });
+      expect((await principal.school.features()).switches).toBeDefined();
+    } finally {
+      await restrict("full");
+      await sql.close();
+    }
+  });
 });

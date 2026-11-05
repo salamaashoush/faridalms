@@ -1,6 +1,7 @@
 import type { ExamBoard, ExamSeries } from "@faridalms/domain/exams";
 import type {
   EntitlementsInput,
+  SchoolAccess,
   SchoolEntitlements,
 } from "@faridalms/domain/plans";
 
@@ -454,6 +455,7 @@ export function openDirectoryAdmin(url: string) {
     setTenantState: async (input: {
       tenantId: string;
       state: "active" | "read_only" | "suspended";
+      access: SchoolAccess;
       operatorId: string;
       reason: string;
     }) =>
@@ -471,7 +473,7 @@ export function openDirectoryAdmin(url: string) {
         await tx
           .update(schoolEntitlements)
           .set({
-            access: input.state === "read_only" ? "read_only" : "full",
+            access: input.access,
             revision: sql`${schoolEntitlements.revision} + 1`,
             updatedAt: new Date(),
           })
@@ -490,7 +492,7 @@ export function openDirectoryAdmin(url: string) {
           subjectId: input.tenantId,
           action: "tenant.lifecycle",
           before: { state: before.state },
-          after: { state: input.state },
+          after: { state: input.state, access: input.access },
           reason: input.reason,
         });
         return true;

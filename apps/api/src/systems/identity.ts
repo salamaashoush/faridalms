@@ -538,6 +538,7 @@ function over(count: number | undefined, limit: number | null) {
 function contractOf(school: UnitContext["school"]) {
   const entitled = school.entitlements;
   return {
+    restricted: entitled.access === "restricted",
     notice: entitled.notice,
     trialEndsOn: entitled.trialEndsOn,
     students: over(school.counts?.students, entitled.students),

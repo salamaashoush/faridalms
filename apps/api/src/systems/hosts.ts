@@ -74,6 +74,8 @@ export const add = writeProcedure
   .input(addHostSchema)
   .handler(async ({ input, context }) => {
     requireCapability(context, "site:manage");
+    if (context.school.entitlements.access === "restricted")
+      throw new ORPCError("FORBIDDEN", { message: "school.restricted" });
     const access = hostAccess(context);
     const problem = customHostProblem(input.hostname, context.domains);
     if (problem) throw new ORPCError("BAD_REQUEST", { message: problem });

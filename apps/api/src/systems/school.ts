@@ -124,6 +124,8 @@ export const setFeature = writeProcedure
       )
     )
       throw new ORPCError("FORBIDDEN", { message: "feature.not_in_plan" });
+    if (input.enabled && context.school.entitlements.access === "restricted")
+      throw new ORPCError("FORBIDDEN", { message: "school.restricted" });
     const before = await schoolFeatures(
       context.tx,
       context.tenantId,

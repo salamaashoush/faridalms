@@ -1085,6 +1085,8 @@ export function getMessageFromError(error: unknown): string {
         return m.errorValidationRequired();
       case "validation.invalid":
         return m.errorValidationInvalid();
+      case "school.restricted":
+        return m.contractRestricted();
       case "tenant.paused":
         return m.schoolPaused();
       case "tenant.read_only":

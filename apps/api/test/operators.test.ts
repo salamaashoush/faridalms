@@ -54,6 +54,7 @@ describe("the operator console's directory access", () => {
       );
       const principal = await signedIn("northwind", login("principal"));
       expect((await principal.identity.currentUser()).contract).toEqual({
+        restricted: false,
         notice: "plan_ends_soon",
         trialEndsOn: "2026-12-01",
         students: null,
@@ -104,6 +105,7 @@ describe("the operator console's directory access", () => {
       await admin.setTenantState({
         tenantId: tenant.tenantId,
         state: "read_only",
+        access: "read_only",
         operatorId: "salama-test",
         reason: "Invoice unpaid for 60 days",
       });
@@ -115,6 +117,7 @@ describe("the operator console's directory access", () => {
       await admin.setTenantState({
         tenantId: tenant.tenantId,
         state: "active",
+        access: "full",
         operatorId: "salama-test",
         reason: "Paid",
       });
@@ -124,7 +127,7 @@ describe("the operator console's directory access", () => {
     expect(latest).toMatchObject({
       action: "tenant.lifecycle",
       before: { state: "read_only" },
-      after: { state: "active" },
+      after: { state: "active", access: "full" },
       reason: "Paid",
     });
     await admin.close();
