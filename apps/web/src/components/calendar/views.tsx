@@ -218,14 +218,23 @@ function EventChip({
   );
 }
 
-/** A link to start a new event on a day, shown to those who may write one. */
-function AddOnDay({ day }: { day: string }) {
+/**
+ * A link to start a new event on a day, shown to those who may write one. In
+ * a grid it appears on hover; in the phone's list of days it is the only
+ * way to add one, so it always shows, at a finger's size.
+ */
+function AddOnDay({ day, listed = false }: { day: string; listed?: boolean }) {
   return (
     <Link
       to="/event-editor"
       search={{ day }}
       aria-label={m.calNewOn({ date: formatDate(day, "weekday") })}
-      className="grid size-6 place-items-center rounded text-muted-foreground opacity-0 group-hover/day:opacity-100 hover:bg-accent hover:text-foreground focus-visible:opacity-100 pointer-coarse:opacity-100"
+      className={cn(
+        "grid place-items-center rounded text-muted-foreground hover:bg-accent hover:text-foreground",
+        listed
+          ? "-ms-3 size-10"
+          : "size-6 opacity-0 group-hover/day:opacity-100 focus-visible:opacity-100 pointer-coarse:opacity-100",
+      )}
     >
       <Plus className="size-3.5" aria-hidden />
     </Link>
@@ -627,7 +636,7 @@ export function Agenda({
               ) : null}
               {everyDay && canAdd ? (
                 <div className="pt-1">
-                  <AddOnDay day={day} />
+                  <AddOnDay day={day} listed />
                 </div>
               ) : null}
             </div>

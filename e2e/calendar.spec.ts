@@ -278,3 +278,16 @@ for (const view of ["agenda", "week", "month"] as const)
     });
     await phone.close();
   });
+
+test("on a phone, each day of the week offers a new event to those who may add one", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await signIn(page, "admin");
+  await page.goto("/calendar?view=week");
+  await untilHydrated(page);
+  const add = page.getByRole("link", { name: /^New event on / });
+  await expect(add).toHaveCount(7);
+  await expect(add.first()).toBeVisible();
+  await expect(add.first()).toHaveCSS("opacity", "1");
+});

@@ -43,8 +43,6 @@ From `foundations.md`. W1, W3, W4 and W5 are merged.
 - A school whose website is not live shows the platform's generic 404.
   It should show a page in the school's name that links to its portal.
 - School pages use Farida's favicon; a school with a logo should use it.
-- The phone week view of the calendar shows no per-day "+" to add an
-  event, even for people who may add one.
 - A staff edit form was reported not to scroll; it scrolls when opened
   directly, so the path that reaches it stuck is not known yet.
 
