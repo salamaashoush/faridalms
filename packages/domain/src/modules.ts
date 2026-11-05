@@ -168,6 +168,8 @@ export const CORE_SYSTEMS = [
   "product",
   "home",
   "search",
+  // A school's invoices, read from the operator console.
+  "billing",
 ] as const;
 
 export const BASIC_MODULES: readonly ModuleId[] = MODULE_IDS.filter(

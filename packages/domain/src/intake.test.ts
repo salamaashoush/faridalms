@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { signIntake, verifyIntake } from "./leads";
+import { signIntake, verifyIntake } from "./intake";
 
 const secret = Buffer.alloc(32, 7).toString("base64");
 

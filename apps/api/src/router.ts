@@ -17,6 +17,7 @@ import * as applyingSystem from "./systems/applying";
 import * as attendanceSystem from "./systems/attendance";
 import * as badgesSystem from "./systems/badges";
 import * as bankSystem from "./systems/bank";
+import * as billingSystem from "./systems/billing";
 import * as calendarSystem from "./systems/calendar";
 import * as classesSystem from "./systems/classes";
 import * as consentsSystem from "./systems/consents";
@@ -108,6 +109,7 @@ export const router = {
   badges: owned("badges", badgesSystem),
   access: owned("access", accessSystem),
   school: owned("school", schoolSystem),
+  billing: owned("billing", billingSystem),
   records: owned("records", recordsSystem),
   classes: owned("classes", classesSystem),
   consents: owned("consents", consentsSystem),

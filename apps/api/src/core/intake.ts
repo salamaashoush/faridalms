@@ -4,7 +4,7 @@ import {
   INTAKE_SIGNATURE_HEADER,
   INTAKE_TIMESTAMP_HEADER,
   signIntake,
-} from "@faridalms/domain/leads";
+} from "@faridalms/domain/intake";
 import { createHash } from "node:crypto";
 
 /** Where leads go, and the secret they are signed with, shared with the console. */

@@ -1,7 +1,7 @@
 import type { RouterClient } from "@orpc/server";
 
 import { SEED_PASSWORD } from "@faridalms/database/seed";
-import { verifyIntake } from "@faridalms/domain/leads";
+import { billingQuery, verifyIntake } from "@faridalms/domain/intake";
 import { createORPCClient } from "@orpc/client";
 import { RPCLink } from "@orpc/client/fetch";
 import { afterAll, describe, expect, test } from "bun:test";
@@ -14,12 +14,61 @@ import { handlerWith, login, rejection, seeded } from "./harness";
 
 const secret = randomBytes(32).toString("base64");
 const received: { body: Record<string, unknown>; signed: boolean }[] = [];
+const asked: { tenantId: string | null; signed: boolean }[] = [];
+let billingAnswers = true;
 
 /** The operator console's intake, as the API meets it. */
 const standIn = Bun.serve({
   port: 0,
   hostname: "127.0.0.1",
   async fetch(request) {
+    const url = new URL(request.url);
+    if (url.pathname === "/intake/billing") {
+      const tenantId = url.searchParams.get("tenantId");
+      asked.push({
+        tenantId,
+        signed: verifyIntake({
+          secret,
+          timestamp: request.headers.get("x-farida-timestamp"),
+          signature: request.headers.get("x-farida-signature"),
+          body: billingQuery(tenantId ?? ""),
+          now: new Date(),
+        }),
+      });
+      if (!billingAnswers) return new Response(null, { status: 503 });
+      return Response.json({
+        customer: {
+          name: "Fernhill Schools",
+          nameAr: null,
+          address: null,
+          taxNumber: "123",
+        },
+        business: null,
+        vatName: { en: "VAT", ar: "ضريبة القيمة المضافة" },
+        invoices: [
+          {
+            id: crypto.randomUUID(),
+            number: "INV-2026-00001",
+            state: "issued",
+            issuedOn: "2026-09-01",
+            dueOn: "2026-10-01",
+            currency: "EGP",
+            language: "en",
+            purchaseOrder: null,
+            vatPercent: 14,
+            reverseCharge: false,
+            subtotalMinor: 100_000,
+            vatMinor: 14_000,
+            totalMinor: 114_000,
+            owedMinor: 114_000,
+            paymentLinkUrl: null,
+            lines: [],
+            credits: [],
+          },
+        ],
+        contacts: [],
+      });
+    }
     const body = await request.text();
     received.push({
       body: JSON.parse(body) as Record<string, unknown>,
@@ -107,19 +156,59 @@ describe("leads for the operator console", () => {
       { asked: "coding" },
     );
     await principal.school.askAboutModule({ module: "coding" });
-    const asked = received.slice(before);
-    expect(asked).toHaveLength(2);
-    expect(asked[0]?.signed).toBe(true);
-    expect(asked[0]?.body).toMatchObject({
+    const questions = received.slice(before);
+    expect(questions).toHaveLength(2);
+    expect(questions[0]?.signed).toBe(true);
+    expect(questions[0]?.body).toMatchObject({
       source: "module_interest",
       module: "coding",
       schoolId: school.id,
       organisation: "Fernhill School",
     });
     // The same question the same day is the same lead to the console.
-    expect(asked[1]?.body.intakeId).toBe(asked[0]?.body.intakeId);
+    expect(questions[1]?.body.intakeId).toBe(questions[0]?.body.intakeId);
     expect(
       await rejection(principal.school.askAboutModule({ module: "news" })),
     ).toMatchObject({ message: "module.in_plan" });
+  });
+
+  test("a school's billing is asked of the console, signed, for its own tenant alone", async () => {
+    const tenant = seeded().tenants.findIndex((row) =>
+      row.schools.some((school) => school.slug === "fernhill"),
+    );
+    const session = await api("fernhill").identity.signIn({
+      loginName: login("principal", tenant),
+      password: SEED_PASSWORD,
+    });
+    const principal = api("fernhill", {
+      authorization: `Bearer ${session.token}`,
+    });
+    const before = asked.length;
+    expect(await principal.billing.overview()).toMatchObject({
+      available: true,
+      invoices: [{ number: "INV-2026-00001", owedMinor: 114_000 }],
+    });
+    expect(asked.slice(before)).toEqual([
+      { tenantId: seeded().tenants[tenant]?.tenantId ?? "", signed: true },
+    ]);
+    billingAnswers = false;
+    try {
+      expect(await principal.billing.overview()).toEqual({ available: false });
+    } finally {
+      billingAnswers = true;
+    }
+
+    // A teacher holds no billing:read.
+    const teacher = await api("fernhill").identity.signIn({
+      loginName: login("teacher", tenant),
+      password: SEED_PASSWORD,
+    });
+    expect(
+      await rejection(
+        api("fernhill", {
+          authorization: `Bearer ${teacher.token}`,
+        }).billing.overview(),
+      ),
+    ).toMatchObject({ code: "FORBIDDEN" });
   });
 });

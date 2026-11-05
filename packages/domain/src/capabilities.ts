@@ -59,6 +59,7 @@ export const CAPABILITIES = [
   "library:review",
   "exams:manage",
   "badges:issue",
+  "billing:read",
 ] as const;
 export type Capability = (typeof CAPABILITIES)[number];
 

@@ -4,6 +4,7 @@ import type { LucideIcon } from "lucide-react";
 
 import {
   Award,
+  BookMarked,
   BookOpen,
   CalendarCheck,
   CalendarDays,
@@ -13,10 +14,9 @@ import {
   ClipboardList,
   FileUser,
   Globe,
-  HeartPulse,
   GraduationCap,
+  HeartPulse,
   House,
-  BookMarked,
   Inbox,
   Layers,
   ListTodo,
@@ -24,10 +24,11 @@ import {
   Mail,
   Megaphone,
   Newspaper,
+  Receipt,
   School,
-  ShieldCheck,
   Send,
   Settings,
+  ShieldCheck,
   Sun,
   Table2,
   UserCheck,
@@ -148,6 +149,12 @@ export const NAVIGATION: Record<Workspace, NavSection[]> = {
       items: [
         { to: "/admin/site", label: m.navWebsite, icon: Globe },
         { to: "/admin/settings", label: m.navSettings, icon: Settings },
+        {
+          to: "/admin/billing",
+          label: m.navBilling,
+          icon: Receipt,
+          capability: "billing:read",
+        },
         {
           to: "/exams",
           label: m.navExams,

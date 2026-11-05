@@ -49,6 +49,7 @@ import { Route as AppAdminAcademicYearEditorRouteImport } from './routes/_app/ad
 import { Route as AppAdminAcademicYearsRouteImport } from './routes/_app/admin/academic-years'
 import { Route as AppAdminAnnouncementEditorRouteImport } from './routes/_app/admin/announcement-editor'
 import { Route as AppAdminAttendanceRouteImport } from './routes/_app/admin/attendance'
+import { Route as AppAdminBillingRouteImport } from './routes/_app/admin/billing'
 import { Route as AppAdminClassEditorRouteImport } from './routes/_app/admin/class-editor'
 import { Route as AppAdminClassesRouteImport } from './routes/_app/admin/classes'
 import { Route as AppAdminMessagesRouteImport } from './routes/_app/admin/messages'
@@ -342,6 +343,11 @@ const AppAdminAnnouncementEditorRoute =
 const AppAdminAttendanceRoute = AppAdminAttendanceRouteImport.update({
   id: '/attendance',
   path: '/attendance',
+  getParentRoute: () => AppAdminRoute,
+} as any)
+const AppAdminBillingRoute = AppAdminBillingRouteImport.update({
+  id: '/billing',
+  path: '/billing',
   getParentRoute: () => AppAdminRoute,
 } as any)
 const AppAdminClassEditorRoute = AppAdminClassEditorRouteImport.update({
@@ -862,6 +868,7 @@ export interface FileRoutesByFullPath {
   '/admin/academic-years': typeof AppAdminAcademicYearsRoute
   '/admin/announcement-editor': typeof AppAdminAnnouncementEditorRoute
   '/admin/attendance': typeof AppAdminAttendanceRoute
+  '/admin/billing': typeof AppAdminBillingRoute
   '/admin/class-editor': typeof AppAdminClassEditorRoute
   '/admin/classes': typeof AppAdminClassesRoute
   '/admin/messages': typeof AppAdminMessagesRoute
@@ -990,6 +997,7 @@ export interface FileRoutesByTo {
   '/admin/academic-years': typeof AppAdminAcademicYearsRoute
   '/admin/announcement-editor': typeof AppAdminAnnouncementEditorRoute
   '/admin/attendance': typeof AppAdminAttendanceRoute
+  '/admin/billing': typeof AppAdminBillingRoute
   '/admin/class-editor': typeof AppAdminClassEditorRoute
   '/admin/classes': typeof AppAdminClassesRoute
   '/admin/messages': typeof AppAdminMessagesRoute
@@ -1126,6 +1134,7 @@ export interface FileRoutesById {
   '/_app/admin/academic-years': typeof AppAdminAcademicYearsRoute
   '/_app/admin/announcement-editor': typeof AppAdminAnnouncementEditorRoute
   '/_app/admin/attendance': typeof AppAdminAttendanceRoute
+  '/_app/admin/billing': typeof AppAdminBillingRoute
   '/_app/admin/class-editor': typeof AppAdminClassEditorRoute
   '/_app/admin/classes': typeof AppAdminClassesRoute
   '/_app/admin/messages': typeof AppAdminMessagesRoute
@@ -1261,6 +1270,7 @@ export interface FileRouteTypes {
     | '/admin/academic-years'
     | '/admin/announcement-editor'
     | '/admin/attendance'
+    | '/admin/billing'
     | '/admin/class-editor'
     | '/admin/classes'
     | '/admin/messages'
@@ -1389,6 +1399,7 @@ export interface FileRouteTypes {
     | '/admin/academic-years'
     | '/admin/announcement-editor'
     | '/admin/attendance'
+    | '/admin/billing'
     | '/admin/class-editor'
     | '/admin/classes'
     | '/admin/messages'
@@ -1524,6 +1535,7 @@ export interface FileRouteTypes {
     | '/_app/admin/academic-years'
     | '/_app/admin/announcement-editor'
     | '/_app/admin/attendance'
+    | '/_app/admin/billing'
     | '/_app/admin/class-editor'
     | '/_app/admin/classes'
     | '/_app/admin/messages'
@@ -1926,6 +1938,13 @@ declare module '@tanstack/react-router' {
       path: '/attendance'
       fullPath: '/admin/attendance'
       preLoaderRoute: typeof AppAdminAttendanceRouteImport
+      parentRoute: typeof AppAdminRoute
+    }
+    '/_app/admin/billing': {
+      id: '/_app/admin/billing'
+      path: '/billing'
+      fullPath: '/admin/billing'
+      preLoaderRoute: typeof AppAdminBillingRouteImport
       parentRoute: typeof AppAdminRoute
     }
     '/_app/admin/class-editor': {
@@ -2587,6 +2606,7 @@ interface AppAdminRouteChildren {
   AppAdminAcademicYearsRoute: typeof AppAdminAcademicYearsRoute
   AppAdminAnnouncementEditorRoute: typeof AppAdminAnnouncementEditorRoute
   AppAdminAttendanceRoute: typeof AppAdminAttendanceRoute
+  AppAdminBillingRoute: typeof AppAdminBillingRoute
   AppAdminClassEditorRoute: typeof AppAdminClassEditorRoute
   AppAdminClassesRoute: typeof AppAdminClassesRoute
   AppAdminMessagesRoute: typeof AppAdminMessagesRoute
@@ -2606,6 +2626,7 @@ const AppAdminRouteChildren: AppAdminRouteChildren = {
   AppAdminAcademicYearsRoute: AppAdminAcademicYearsRoute,
   AppAdminAnnouncementEditorRoute: AppAdminAnnouncementEditorRoute,
   AppAdminAttendanceRoute: AppAdminAttendanceRoute,
+  AppAdminBillingRoute: AppAdminBillingRoute,
   AppAdminClassEditorRoute: AppAdminClassEditorRoute,
   AppAdminClassesRoute: AppAdminClassesRoute,
   AppAdminMessagesRoute: AppAdminMessagesRoute,

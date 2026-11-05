@@ -2,9 +2,9 @@ import { intakeLead } from "@faridalms/database/business/leads";
 import {
   INTAKE_SIGNATURE_HEADER,
   INTAKE_TIMESTAMP_HEADER,
-  leadIntakeSchema,
   verifyIntake,
-} from "@faridalms/domain/leads";
+} from "@faridalms/domain/intake";
+import { leadIntakeSchema } from "@faridalms/domain/leads";
 import { createFileRoute } from "@tanstack/react-router";
 import * as v from "valibot";
 
