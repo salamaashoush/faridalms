@@ -25,6 +25,7 @@ export const OPERATOR_AREAS = {
   notices: ["owner", "support"],
   reports: ["owner", "finance"],
   operators: ["owner"],
+  settings: ["owner"],
 } as const satisfies Record<string, readonly OperatorRole[]>;
 export type OperatorArea = keyof typeof OPERATOR_AREAS;
 

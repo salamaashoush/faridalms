@@ -1,11 +1,23 @@
+import type {
+  ActivityKind,
+  LeadSource,
+  LeadState,
+  LostReason,
+} from "@faridalms/domain/leads";
 import type { ModuleId } from "@faridalms/domain/modules";
 import type { OperatorRole } from "@faridalms/domain/operators";
 import type { EntitlementsInput, SchoolNotice } from "@faridalms/domain/plans";
+import type { DemoRole, DemoSize } from "@faridalms/domain/product";
 import type {
   DraftProgress,
   DraftSpec,
   DraftStep,
 } from "@faridalms/domain/provisioning-draft";
+import type {
+  QuoteLine,
+  QuoteSpec,
+  QuoteState,
+} from "@faridalms/domain/quotes";
 import type {
   AddOnKind,
   BillingSchedule,
@@ -20,6 +32,7 @@ import { sql } from "drizzle-orm";
 import {
   bigint,
   boolean,
+  bytea,
   check,
   date,
   index,
@@ -595,6 +608,201 @@ export const provisioningDrafts = pgTable(
     check(
       "provisioning_drafts_created_check",
       sql`state <> 'created' or tenant_id is not null`,
+    ),
+  ],
+);
+
+/** The business's own legal details: one row, as every quote and invoice prints them. */
+export const businessProfile = pgTable(
+  "business_profile",
+  {
+    id: integer("id").primaryKey().default(1),
+    legalNameEn: text("legal_name_en").notNull(),
+    legalNameAr: text("legal_name_ar").notNull(),
+    addressEn: text("address_en").notNull(),
+    addressAr: text("address_ar").notNull(),
+    taxNumber: text("tax_number").notNull(),
+    commercialRegistry: text("commercial_registry"),
+    email: text("email").notNull(),
+    phone: text("phone"),
+    website: text("website"),
+    version: integer("version").notNull().default(1),
+    updatedAt: instant("updated_at")
+      .notNull()
+      .default(sql`statement_timestamp()`),
+  },
+  () => [check("business_profile_single_check", sql`id = 1`)],
+);
+
+/** VAT by the customer's country, from a day; a rate is never changed, only followed. */
+export const taxRates = pgTable(
+  "tax_rates",
+  {
+    id: uuid("id")
+      .primaryKey()
+      .default(sql`uuidv7()`),
+    country: text("country").notNull(),
+    percent: numeric("percent", { precision: 5, scale: 2 }).notNull(),
+    nameEn: text("name_en").notNull(),
+    nameAr: text("name_ar").notNull(),
+    validFrom: date("valid_from", { mode: "string" }).notNull(),
+    createdBy: text("created_by").notNull(),
+    createdAt: createdAt(),
+  },
+  (t) => [
+    uniqueIndex("tax_rates_country_from_key").on(t.country, t.validFrom),
+    check("tax_rates_country_check", sql`country ~ '^[A-Z]{2}$'`),
+    check("tax_rates_percent_check", sql`percent between 0 and 100`),
+  ],
+);
+
+/**
+ * Someone who may buy: from the product site's demonstration form, a
+ * school asking about a module, or entered by hand. A lost one is deleted
+ * two years after it was last contacted, with its activities.
+ */
+export const leads = pgTable(
+  "leads",
+  {
+    id: uuid("id")
+      .primaryKey()
+      .default(sql`uuidv7()`),
+    intakeId: uuid("intake_id"),
+    source: text("source").$type<LeadSource>().notNull(),
+    state: text("state").$type<LeadState>().notNull().default("new"),
+    name: text("name").notNull(),
+    email: text("email"),
+    phone: text("phone"),
+    organisation: text("organisation").notNull(),
+    role: text("role").$type<DemoRole>(),
+    size: text("size").$type<DemoSize>(),
+    country: text("country"),
+    locale: text("locale").$type<"en" | "ar">().notNull().default("en"),
+    message: text("message"),
+    schoolId: uuid("school_id"),
+    tenantId: uuid("tenant_id"),
+    module: text("module").$type<ModuleId>(),
+    ownerId: text("owner_id"),
+    nextStep: text("next_step"),
+    nextStepOn: date("next_step_on", { mode: "string" }),
+    lostReason: text("lost_reason").$type<LostReason>(),
+    customerId: uuid("customer_id").references(() => customers.id),
+    lastContactAt: instant("last_contact_at")
+      .notNull()
+      .default(sql`statement_timestamp()`),
+    version: integer("version").notNull().default(1),
+    createdAt: createdAt(),
+  },
+  (t) => [
+    uniqueIndex("leads_intake_key").on(t.intakeId),
+    index("leads_state_idx").on(t.state, t.nextStepOn),
+    check(
+      "leads_state_check",
+      sql`state in ('new', 'contacted', 'demo_booked', 'demo_done', 'proposal', 'won', 'lost')`,
+    ),
+    check(
+      "leads_source_check",
+      sql`source in ('demo_form', 'module_interest', 'manual')`,
+    ),
+    check(
+      "leads_lost_check",
+      sql`(state = 'lost') = (lost_reason is not null)`,
+    ),
+    check(
+      "leads_lost_reason_check",
+      sql`lost_reason in ('price', 'timing', 'competitor', 'no_response', 'not_fit')`,
+    ),
+    check("leads_country_check", sql`country ~ '^[A-Z]{2}$'`),
+  ],
+);
+
+/** A call, meeting, email or note on a lead, as it happened. */
+export const leadActivities = pgTable(
+  "lead_activities",
+  {
+    id: uuid("id")
+      .primaryKey()
+      .default(sql`uuidv7()`),
+    leadId: uuid("lead_id")
+      .notNull()
+      .references(() => leads.id, { onDelete: "cascade" }),
+    kind: text("kind").$type<ActivityKind>().notNull(),
+    note: text("note").notNull(),
+    occurredAt: instant("occurred_at")
+      .notNull()
+      .default(sql`statement_timestamp()`),
+    createdBy: text("created_by").notNull(),
+  },
+  (t) => [
+    index("lead_activities_lead_idx").on(t.leadId, t.occurredAt),
+    check(
+      "lead_activities_kind_check",
+      sql`kind in ('call', 'meeting', 'email', 'note')`,
+    ),
+    check(
+      "lead_activities_note_check",
+      sql`char_length(note) between 1 and 4000`,
+    ),
+  ],
+);
+
+/**
+ * An offer to a lead or customer, numbered by year, in versions: a change
+ * after it is sent is a new version that supersedes it. Accepting one keeps
+ * the signed copy or purchase order and starts the school's draft.
+ */
+export const quotes = pgTable(
+  "quotes",
+  {
+    id: uuid("id")
+      .primaryKey()
+      .default(sql`uuidv7()`),
+    number: text("number").notNull(),
+    version: integer("version").notNull().default(1),
+    leadId: uuid("lead_id").references(() => leads.id, {
+      onDelete: "set null",
+    }),
+    customerId: uuid("customer_id").references(() => customers.id),
+    state: text("state").$type<QuoteState>().notNull().default("draft"),
+    spec: jsonb("spec").$type<QuoteSpec>().notNull(),
+    lines: jsonb("lines").$type<QuoteLine[]>().notNull(),
+    currency: text("currency").$type<Currency>().notNull(),
+    country: text("country").notNull(),
+    vatPercent: numeric("vat_percent", { precision: 5, scale: 2 }).notNull(),
+    subtotalMinor: bigint("subtotal_minor", { mode: "number" }).notNull(),
+    vatMinor: bigint("vat_minor", { mode: "number" }).notNull(),
+    totalMinor: bigint("total_minor", { mode: "number" }).notNull(),
+    validUntil: date("valid_until", { mode: "string" }).notNull(),
+    sentAt: instant("sent_at"),
+    acceptedAt: instant("accepted_at"),
+    acceptedBy: text("accepted_by"),
+    attachmentName: text("attachment_name"),
+    attachmentType: text("attachment_type"),
+    attachment: bytea("attachment"),
+    draftId: uuid("draft_id").references(() => provisioningDrafts.id),
+    createdBy: text("created_by").notNull(),
+    createdAt: createdAt(),
+  },
+  (t) => [
+    uniqueIndex("quotes_number_version_key").on(t.number, t.version),
+    index("quotes_lead_idx").on(t.leadId),
+    index("quotes_customer_idx").on(t.customerId),
+    check(
+      "quotes_state_check",
+      sql`state in ('draft', 'sent', 'accepted', 'superseded')`,
+    ),
+    check("quotes_currency_check", sql`currency in ('EGP', 'USD')`),
+    check(
+      "quotes_party_check",
+      sql`lead_id is not null or customer_id is not null`,
+    ),
+    check(
+      "quotes_accepted_check",
+      sql`(state = 'accepted') = (accepted_at is not null and attachment is not null)`,
+    ),
+    check(
+      "quotes_attachment_check",
+      sql`attachment is null or octet_length(attachment) <= 10485760`,
     ),
   ],
 );

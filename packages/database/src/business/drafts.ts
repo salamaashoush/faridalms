@@ -6,7 +6,7 @@ import type {
 
 import { and, desc, eq, sql } from "drizzle-orm";
 
-import type { BusinessDb } from "./client";
+import type { BusinessDb, BusinessTx } from "./client";
 
 import { recordEvent } from "./events";
 import { customers, provisioningDrafts } from "./schema";
@@ -34,24 +34,41 @@ export async function draftById(
   return row ?? null;
 }
 
-export async function startDraft(
-  db: BusinessDb,
-  input: { spec: DraftSpec; by: string },
+interface DraftStart {
+  spec: DraftSpec;
+  /** A draft begun from an accepted quote already knows its customer. */
+  customerId?: string;
+  step?: DraftStep;
+  by: string;
+}
+
+/** Writes a new draft in the caller's transaction, and logs it. */
+export async function insertDraft(
+  tx: BusinessTx,
+  input: DraftStart,
 ): Promise<string> {
-  return db.transaction(async (tx) => {
-    const [created] = await tx
-      .insert(provisioningDrafts)
-      .values({ spec: input.spec, createdBy: input.by })
-      .returning({ id: provisioningDrafts.id });
-    if (!created) throw new Error("draft was not created");
-    await recordEvent(tx, {
-      operatorId: input.by,
-      action: "draft.start",
-      subjectType: "draft",
-      subjectId: created.id,
-    });
-    return created.id;
+  const [created] = await tx
+    .insert(provisioningDrafts)
+    .values({
+      spec: input.spec,
+      customerId: input.customerId ?? null,
+      step: input.step ?? "customer",
+      createdBy: input.by,
+    })
+    .returning({ id: provisioningDrafts.id });
+  if (!created) throw new Error("draft was not created");
+  await recordEvent(tx, {
+    operatorId: input.by,
+    action: "draft.start",
+    subjectType: "draft",
+    subjectId: created.id,
+    after: input.customerId ? { customerId: input.customerId } : null,
   });
+  return created.id;
+}
+
+export function startDraft(db: BusinessDb, input: DraftStart): Promise<string> {
+  return db.transaction((tx) => insertDraft(tx, input));
 }
 
 /**

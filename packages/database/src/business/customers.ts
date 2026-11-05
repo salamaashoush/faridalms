@@ -5,7 +5,7 @@ import type {
 
 import { and, asc, eq, isNull, or } from "drizzle-orm";
 
-import type { BusinessDb } from "./client";
+import type { BusinessDb, BusinessTx } from "./client";
 
 import { recordEvent } from "./events";
 import { contacts, customers, subscriptions } from "./schema";
@@ -50,6 +50,34 @@ export async function customerOfTenant(
   return row ?? null;
 }
 
+type CustomerFields = Omit<CustomerInput, "id" | "expectedVersion" | "reason">;
+
+/** Writes a new customer in the caller's transaction, and logs it. */
+export async function insertCustomer(
+  tx: BusinessTx,
+  input: CustomerFields & {
+    tenantId: string | null;
+    by: string;
+    reason: string;
+  },
+): Promise<string> {
+  const { tenantId, by, reason, ...fields } = input;
+  const [created] = await tx
+    .insert(customers)
+    .values({ ...fields, tenantId })
+    .returning({ id: customers.id });
+  if (!created) throw new Error("customer was not created");
+  await recordEvent(tx, {
+    operatorId: by,
+    action: "customer.create",
+    subjectType: "customer",
+    subjectId: created.id,
+    after: fields,
+    reason,
+  });
+  return created.id;
+}
+
 /**
  * Creates a customer, or changes one if nobody changed it since it was read.
  * Answers its id, or null on a stale save.
@@ -60,22 +88,13 @@ export async function saveCustomer(
 ): Promise<string | null> {
   const { id, expectedVersion, reason, by, tenantId, ...fields } = input;
   return db.transaction(async (tx) => {
-    if (!id) {
-      const [created] = await tx
-        .insert(customers)
-        .values({ ...fields, tenantId: tenantId ?? null })
-        .returning();
-      if (!created) throw new Error("customer was not created");
-      await recordEvent(tx, {
-        operatorId: by,
-        action: "customer.create",
-        subjectType: "customer",
-        subjectId: created.id,
-        after: fields,
+    if (!id)
+      return insertCustomer(tx, {
+        ...fields,
+        tenantId: tenantId ?? null,
+        by,
         reason,
       });
-      return created.id;
-    }
     const [before] = await tx
       .select()
       .from(customers)
@@ -171,27 +190,34 @@ export async function acceptAgreement(
   });
 }
 
+/** Writes a new contact of a customer in the caller's transaction, and logs it. */
+export async function insertContact(
+  tx: BusinessTx,
+  input: Omit<ContactInput, "id"> & { by: string },
+): Promise<string> {
+  const { customerId, by, ...fields } = input;
+  const [created] = await tx
+    .insert(contacts)
+    .values({ ...fields, customerId })
+    .returning({ id: contacts.id });
+  if (!created) throw new Error("contact was not created");
+  await recordEvent(tx, {
+    operatorId: by,
+    action: "contact.create",
+    subjectType: "customer",
+    subjectId: customerId,
+    after: { contactId: created.id, ...fields },
+  });
+  return created.id;
+}
+
 export async function saveContact(
   db: BusinessDb,
   input: ContactInput & { by: string },
 ): Promise<string> {
   const { id, customerId, by, ...fields } = input;
   return db.transaction(async (tx) => {
-    if (!id) {
-      const [created] = await tx
-        .insert(contacts)
-        .values({ ...fields, customerId })
-        .returning({ id: contacts.id });
-      if (!created) throw new Error("contact was not created");
-      await recordEvent(tx, {
-        operatorId: by,
-        action: "contact.create",
-        subjectType: "customer",
-        subjectId: customerId,
-        after: { contactId: created.id, ...fields },
-      });
-      return created.id;
-    }
+    if (!id) return insertContact(tx, { ...fields, customerId, by });
     await tx
       .update(contacts)
       .set(fields)
