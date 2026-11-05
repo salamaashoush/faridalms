@@ -12,9 +12,10 @@ export const PERIOD_COVER_AFTER = "class_period.cover_after:";
 const CODE = /^[a-z][a-z0-9_]*\.[a-z0-9_.]+(?::.*)?$/;
 
 /**
- * oRPC's own English for a refusal that carries no code, which no person
- * should read as written. Any other uncoded message is copy written for a
- * person and passes through untouched.
+ * What reaches the page without a code and no person should read as
+ * written: oRPC's own English for a refusal, and each browser's words for
+ * a request that never arrived. Any other uncoded message is copy written
+ * for a person and passes through untouched.
  */
 const UNCODED: Partial<Record<string, () => string>> = {
   "Bad Request": m.errorInvalidGeneric,
@@ -38,6 +39,10 @@ const UNCODED: Partial<Record<string, () => string>> = {
   "Bad Gateway": m.notificationErrorMessage,
   "Service Unavailable": m.notificationErrorMessage,
   "Gateway Timeout": m.notificationErrorMessage,
+  // What Chromium, WebKit and Firefox say when a request never arrived.
+  "Failed to fetch": m.errorNetwork,
+  "Load failed": m.errorNetwork,
+  "NetworkError when attempting to fetch resource.": m.errorNetwork,
 };
 
 /** True for a code the API refused with, false for copy written for a person. */

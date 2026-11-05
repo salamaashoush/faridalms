@@ -1784,6 +1784,7 @@
   "errorForbidden": "You do not have permission to do this.",
   "errorSignedOut": "Your session has ended. Sign in again to continue.",
   "errorTooLarge": "This is too large to send.",
+  "errorNetwork": "The server could not be reached. Check your connection and try again.",
   "errorValidationRequired": "Something the form needs is missing. Fill in every required field, then try again.",
   "errorValidationInvalid": "Something you entered cannot be accepted. Check your answers, then try again.",
   "lrnErrReading": "This lesson is no longer offered in that language. Reload the lesson to see the languages it has.",

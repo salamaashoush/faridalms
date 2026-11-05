@@ -62,20 +62,20 @@ describe("a refusal nothing words", () => {
     expect(getMessageFromError(new Error(m.lrnImportChoose()))).toBe(
       m.lrnImportChoose(),
     );
-    expect(getMessageFromError(new Error("Failed to fetch"))).toBe(
-      "Failed to fetch",
-    );
   });
 });
 
 describe("words that arrive without a code", () => {
-  it("read oRPC's English defaults in the reader's words", () => {
+  it("read oRPC's English defaults and the browsers' network failures in the reader's words", () => {
     const cases: [string, string][] = [
       ["Not Found", m.errorNotFoundRecord()],
       ["Input validation failed", m.errorInvalidGeneric()],
       ["Forbidden", m.errorForbidden()],
       ["Unauthorized", m.errorSignedOut()],
       ["Internal Server Error", m.notificationErrorMessage()],
+      ["Failed to fetch", m.errorNetwork()],
+      ["Load failed", m.errorNetwork()],
+      ["NetworkError when attempting to fetch resource.", m.errorNetwork()],
     ];
     for (const [words, copy] of cases)
       expect(getMessageFromError(new Error(words))).toBe(copy);
