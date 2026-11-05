@@ -81,6 +81,26 @@ describe("operators by verified email", () => {
     ).not.toBe("not_operator");
   });
 
+  it("keeps the verified address and when the provider signed them in", () => {
+    expect(
+      operatorOf(
+        {
+          ...google,
+          email: "Salama@Example.com",
+          email_verified: true,
+          auth_time: 1_800_000_000,
+        },
+        1_800_000_100,
+      ),
+    ).toMatchObject({ email: "salama@example.com", authAt: 1_800_000_000 });
+    expect(
+      operatorOf(
+        { ...google, email: "salama@example.com", email_verified: true },
+        1_800_000_100,
+      ),
+    ).toMatchObject({ authAt: 1_800_000_100 });
+  });
+
   it("refuses an address that is not listed", () => {
     expect(
       operatorOf({

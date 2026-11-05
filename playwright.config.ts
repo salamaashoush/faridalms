@@ -12,6 +12,7 @@ const apiPort = process.env.E2E_API_PORT ?? "3201";
 const collabPort = process.env.E2E_COLLAB_PORT ?? "3202";
 // The API serves the files host, where students' pages play, two ports up.
 const filesPort = String(Number(apiPort) + 2);
+const opsPort = process.env.E2E_OPS_PORT ?? "3206";
 
 /**
  * See https://playwright.dev/docs/test-configuration.
@@ -46,17 +47,41 @@ export default defineConfig({
   projects: [
     {
       name: "chromium",
+      testIgnore: "console/**",
       use: { ...devices["Desktop Chrome"] },
     },
 
     {
       name: "firefox",
+      testIgnore: "console/**",
       use: { ...devices["Desktop Firefox"] },
     },
 
     {
       name: "webkit",
+      testIgnore: "console/**",
       use: { ...devices["Desktop Safari"] },
+    },
+
+    // The operator console, on its own host; operators use it on a desktop.
+    // Its first operator to sign in becomes the owner, so that sign-in runs
+    // before every other console spec.
+    {
+      name: "console-owner",
+      testMatch: "console/owner.setup.ts",
+      use: {
+        ...devices["Desktop Chrome"],
+        baseURL: `http://127.0.0.1:${opsPort}`,
+      },
+    },
+    {
+      name: "console",
+      testMatch: "console/**/*.spec.ts",
+      dependencies: ["console-owner"],
+      use: {
+        ...devices["Desktop Chrome"],
+        baseURL: `http://127.0.0.1:${opsPort}`,
+      },
     },
 
     /* Test against mobile viewports. */
@@ -111,6 +136,13 @@ export default defineConfig({
         COLLAB_URL: `ws://127.0.0.1:${collabPort}`,
         PLAY_URL: `http://127.0.0.1:${filesPort}`,
       },
+      reuseExistingServer: false,
+      timeout: 120_000,
+    },
+    {
+      command: "bun run --cwd apps/ops build && bun run --cwd apps/ops start",
+      url: `http://127.0.0.1:${opsPort}/sign-in`,
+      env: { PORT: opsPort },
       reuseExistingServer: false,
       timeout: 120_000,
     },

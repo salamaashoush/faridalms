@@ -50,7 +50,8 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD}
     # Sized for 8 GB shared with the apps. Connections: each API replica
     # opens 26 (app 10, site 5, worker 4, retention 1, directory 4,
-    # directory_sync 2), the provisioner 16, collab 4, the console 4, a
+    # directory_sync 2), the provisioner 16, collab 4, the console 8 (its
+    # directory and business databases, 4 each), a
     # migration 1 or 2 and a dump 1; 100 leaves room for a second API during
     # an upgrade and for psql.
     command:
@@ -113,6 +114,7 @@ services:
       DATABASE_ADMIN_URL: postgres://postgres:${POSTGRES_PASSWORD}@postgres:5432/postgres
       CELL_DATABASE: cell
       DIRECTORY_DATABASE: directory
+      BUSINESS_DATABASE: business
       CELL_ROLE_PASSWORD: ${CELL_ROLE_PASSWORD:?Set CELL_ROLE_PASSWORD, 32 random bytes in hex}
       # The cell lists itself in the directory as open for schools.
       CELL_ID: ${CELL_ID:?Set CELL_ID, for example eu-1}
@@ -296,6 +298,7 @@ services:
     image: ${IMAGE_PREFIX:-ghcr.io/salamaashoush/faridalms}-ops:${IMAGE_TAG:?Set IMAGE_TAG to a commit SHA or main}
     environment:
       OPS_DIRECTORY_URL: postgres://directory_admin:${CELL_ROLE_PASSWORD}@postgres:5432/directory
+      BUSINESS_DATABASE_URL: postgres://business_admin:${CELL_ROLE_PASSWORD}@postgres:5432/business
       OPS_ORIGIN: https://ops.${PORTAL_DOMAIN}
       OPS_OIDC_ISSUER: ${OPS_OIDC_ISSUER:-https://accounts.google.com}
       OPS_OIDC_CLIENT_ID: ${OPS_OIDC_CLIENT_ID:-}
@@ -465,6 +468,7 @@ services:
       PGPASSWORD: ${CELL_ROLE_PASSWORD}
       CELL_DATABASE: cell
       DIRECTORY_DATABASE: directory
+      BUSINESS_DATABASE: business
       BACKUP_AT: ${BACKUP_AT:-02:30}
       # Unset, the job logs that it is not configured and does nothing.
       BACKUP_S3_ENDPOINT: ${BACKUP_S3_ENDPOINT:-}

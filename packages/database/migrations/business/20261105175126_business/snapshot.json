@@ -1,0 +1,416 @@
+{
+  "type": "base",
+  "version": "9",
+  "dialect": "postgres",
+  "id": "e3632f82-1309-4870-a282-ca0e31e4a2e4",
+  "prevIds": [
+    "00000000-0000-0000-0000-000000000000"
+  ],
+  "footprints": [
+    {
+      "statementType": "create_table",
+      "statementTarget": [
+        "table",
+        "public",
+        "business_events"
+      ],
+      "writes": [
+        "s|tbl|public.business_events",
+        "n|tbl|public.business_events",
+        "e|tbl|public.business_events",
+        "n|rel|public.business_events",
+        "n|type|public.business_events",
+        "n|rel|public.business_events_pkey"
+      ],
+      "reads": [
+        "n|sch|public"
+      ]
+    },
+    {
+      "statementType": "create_table",
+      "statementTarget": [
+        "table",
+        "public",
+        "operators"
+      ],
+      "writes": [
+        "s|tbl|public.operators",
+        "n|tbl|public.operators",
+        "e|tbl|public.operators",
+        "n|rel|public.operators",
+        "n|type|public.operators",
+        "n|rel|public.operators_pkey"
+      ],
+      "reads": [
+        "n|sch|public"
+      ]
+    },
+    {
+      "statementType": "create_index",
+      "statementTarget": [
+        "index",
+        "public",
+        "business_events",
+        "business_events_subject_idx"
+      ],
+      "writes": [
+        "s|idx|public.business_events_subject_idx",
+        "n|idx|public.business_events_subject_idx",
+        "e|idx|public.business_events_subject_idx",
+        "n|rel|public.business_events_subject_idx"
+      ],
+      "reads": [
+        "n|tbl|public.business_events",
+        "n|sch|public",
+        "n|col|public.business_events.subject_type",
+        "n|col|public.business_events.subject_id"
+      ]
+    },
+    {
+      "statementType": "create_index",
+      "statementTarget": [
+        "index",
+        "public",
+        "business_events",
+        "business_events_occurred_idx"
+      ],
+      "writes": [
+        "s|idx|public.business_events_occurred_idx",
+        "n|idx|public.business_events_occurred_idx",
+        "e|idx|public.business_events_occurred_idx",
+        "n|rel|public.business_events_occurred_idx"
+      ],
+      "reads": [
+        "n|tbl|public.business_events",
+        "n|sch|public",
+        "n|col|public.business_events.occurred_at"
+      ]
+    }
+  ],
+  "ddl": [
+    {
+      "schema": "public",
+      "name": "business_events",
+      "isRlsEnabled": false,
+      "entityType": "tables"
+    },
+    {
+      "schema": "public",
+      "name": "operators",
+      "isRlsEnabled": false,
+      "entityType": "tables"
+    },
+    {
+      "schema": "public",
+      "table": "business_events",
+      "name": "id",
+      "type": "uuid",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": "uuidv7()",
+      "generated": null,
+      "identity": null,
+      "entityType": "columns"
+    },
+    {
+      "schema": "public",
+      "table": "business_events",
+      "name": "occurred_at",
+      "type": "timestamp with time zone",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": "statement_timestamp()",
+      "generated": null,
+      "identity": null,
+      "entityType": "columns"
+    },
+    {
+      "schema": "public",
+      "table": "business_events",
+      "name": "operator_id",
+      "type": "text",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "entityType": "columns"
+    },
+    {
+      "schema": "public",
+      "table": "business_events",
+      "name": "action",
+      "type": "text",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "entityType": "columns"
+    },
+    {
+      "schema": "public",
+      "table": "business_events",
+      "name": "subject_type",
+      "type": "text",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "entityType": "columns"
+    },
+    {
+      "schema": "public",
+      "table": "business_events",
+      "name": "subject_id",
+      "type": "text",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "entityType": "columns"
+    },
+    {
+      "schema": "public",
+      "table": "business_events",
+      "name": "before",
+      "type": "jsonb",
+      "typeSchema": null,
+      "notNull": false,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "entityType": "columns"
+    },
+    {
+      "schema": "public",
+      "table": "business_events",
+      "name": "after",
+      "type": "jsonb",
+      "typeSchema": null,
+      "notNull": false,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "entityType": "columns"
+    },
+    {
+      "schema": "public",
+      "table": "business_events",
+      "name": "reason",
+      "type": "text",
+      "typeSchema": null,
+      "notNull": false,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "entityType": "columns"
+    },
+    {
+      "schema": "public",
+      "table": "operators",
+      "name": "id",
+      "type": "text",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "entityType": "columns"
+    },
+    {
+      "schema": "public",
+      "table": "operators",
+      "name": "name",
+      "type": "text",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "entityType": "columns"
+    },
+    {
+      "schema": "public",
+      "table": "operators",
+      "name": "email",
+      "type": "text",
+      "typeSchema": null,
+      "notNull": false,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "entityType": "columns"
+    },
+    {
+      "schema": "public",
+      "table": "operators",
+      "name": "roles",
+      "type": "text",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 1,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "entityType": "columns"
+    },
+    {
+      "schema": "public",
+      "table": "operators",
+      "name": "state",
+      "type": "text",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": "'active'",
+      "generated": null,
+      "identity": null,
+      "entityType": "columns"
+    },
+    {
+      "schema": "public",
+      "table": "operators",
+      "name": "created_at",
+      "type": "timestamp with time zone",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": "statement_timestamp()",
+      "generated": null,
+      "identity": null,
+      "entityType": "columns"
+    },
+    {
+      "schema": "public",
+      "table": "operators",
+      "name": "last_signed_in_at",
+      "type": "timestamp with time zone",
+      "typeSchema": null,
+      "notNull": false,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "entityType": "columns"
+    },
+    {
+      "schema": "public",
+      "table": "business_events",
+      "name": "business_events_subject_idx",
+      "nameExplicit": true,
+      "columns": [
+        {
+          "value": "subject_type",
+          "isExpression": false,
+          "asc": true,
+          "nullsFirst": false,
+          "opclass": null
+        },
+        {
+          "value": "subject_id",
+          "isExpression": false,
+          "asc": true,
+          "nullsFirst": false,
+          "opclass": null
+        }
+      ],
+      "isUnique": false,
+      "where": null,
+      "with": "",
+      "method": "btree",
+      "concurrently": false,
+      "entityType": "indexes"
+    },
+    {
+      "schema": "public",
+      "table": "business_events",
+      "name": "business_events_occurred_idx",
+      "nameExplicit": true,
+      "columns": [
+        {
+          "value": "occurred_at",
+          "isExpression": false,
+          "asc": true,
+          "nullsFirst": false,
+          "opclass": null
+        }
+      ],
+      "isUnique": false,
+      "where": null,
+      "with": "",
+      "method": "btree",
+      "concurrently": false,
+      "entityType": "indexes"
+    },
+    {
+      "schema": "public",
+      "table": "business_events",
+      "name": "business_events_pkey",
+      "columns": [
+        "id"
+      ],
+      "nameExplicit": false,
+      "entityType": "pks"
+    },
+    {
+      "schema": "public",
+      "table": "operators",
+      "name": "operators_pkey",
+      "columns": [
+        "id"
+      ],
+      "nameExplicit": false,
+      "entityType": "pks"
+    },
+    {
+      "schema": "public",
+      "table": "business_events",
+      "name": "business_events_action_check",
+      "value": "action ~ '^[a-z_]+\\.[a-z_]+$'",
+      "entityType": "checks"
+    },
+    {
+      "schema": "public",
+      "table": "business_events",
+      "name": "business_events_reason_check",
+      "value": "reason is null or char_length(reason) between 1 and 500",
+      "entityType": "checks"
+    },
+    {
+      "schema": "public",
+      "table": "operators",
+      "name": "operators_roles_check",
+      "value": "cardinality(roles) <= 4 and roles <@ array['owner', 'sales', 'support', 'finance']::text[]",
+      "entityType": "checks"
+    },
+    {
+      "schema": "public",
+      "table": "operators",
+      "name": "operators_state_check",
+      "value": "state in ('active', 'disabled')",
+      "entityType": "checks"
+    },
+    {
+      "schema": "public",
+      "table": "operators",
+      "name": "operators_name_check",
+      "value": "char_length(name) between 1 and 200",
+      "entityType": "checks"
+    }
+  ]
+}

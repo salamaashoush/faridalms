@@ -117,6 +117,7 @@
         "scripts/**",
         "packages/database/test/**",
         "apps/api/test/**",
+        "apps/ops/test/**",
         ".husky/**"
       ],
       "rules": {

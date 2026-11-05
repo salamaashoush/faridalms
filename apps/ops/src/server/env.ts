@@ -43,6 +43,10 @@ export function opsEnv() {
       v.object({
         // The directory as `directory_admin`; only this app holds that login.
         OPS_DIRECTORY_URL: v.pipe(v.string(), v.url()),
+        // The business database as `business_admin`: customers, contracts,
+        // invoices and operators' roles. Without it the console is the
+        // self-hosted one: every operator is an owner and nothing is sold.
+        BUSINESS_DATABASE_URL: v.optional(v.pipe(v.string(), v.url())),
         // Where operators reach the console; sign-in returns here.
         OPS_ORIGIN: v.pipe(v.string(), v.url()),
         OPS_OIDC_ISSUER: v.pipe(v.string(), v.url()),

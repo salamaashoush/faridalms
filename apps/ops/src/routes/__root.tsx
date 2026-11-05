@@ -1,5 +1,7 @@
+import type { OperatorArea } from "@faridalms/domain/operators";
 import type { ReactNode } from "react";
 
+import { mayOperate } from "@faridalms/domain/operators";
 import { Button } from "@faridalms/ui/button";
 import { Toaster } from "@faridalms/ui/sonner";
 import {
@@ -12,15 +14,17 @@ import {
 } from "@tanstack/react-router";
 import { ThemeProvider } from "next-themes";
 
-import { getOperator } from "../server/directory";
+import { getAccess } from "../server/directory";
 import appCss from "../styles/app.css?url";
 
 export const Route = createRootRoute({
   beforeLoad: async ({ location }) => {
-    const operator = await getOperator();
-    if (!operator && location.pathname !== "/sign-in")
+    const access = await getAccess();
+    if (!access && location.pathname !== "/sign-in")
       throw redirect({ to: "/sign-in" });
-    return { operator };
+    if (access && access.roles.length === 0 && location.pathname !== "/no-role")
+      throw redirect({ to: "/no-role" });
+    return { access, operator: access?.operator ?? null };
   },
   head: () => ({
     meta: [
@@ -34,8 +38,22 @@ export const Route = createRootRoute({
   component: RootLayout,
 });
 
+/** The console's sections, each shown to the roles that may use it. */
+const NAVIGATION: {
+  to: "/" | "/series" | "/changes" | "/operators";
+  label: string;
+  area: OperatorArea;
+  /** Offered only where the console has its business database. */
+  business?: boolean;
+}[] = [
+  { to: "/", label: "Schools", area: "readTenants" },
+  { to: "/series", label: "Exam sessions", area: "readTenants" },
+  { to: "/changes", label: "Changes", area: "readTenants" },
+  { to: "/operators", label: "Operators", area: "operators", business: true },
+];
+
 function Shell({ children }: { children: ReactNode }) {
-  const { operator } = Route.useRouteContext();
+  const { operator, access } = Route.useRouteContext();
   return (
     <div className="min-h-screen">
       <header className="border-b">
@@ -44,25 +62,20 @@ function Shell({ children }: { children: ReactNode }) {
           {operator ? (
             <>
               <nav aria-label="Console" className="flex gap-1 text-sm">
-                <Link
-                  to="/"
-                  activeOptions={{ exact: true }}
-                  className="rounded-md px-2.5 py-1.5 text-muted-foreground hover:bg-muted hover:text-foreground data-[status=active]:font-medium data-[status=active]:text-foreground"
-                >
-                  Schools
-                </Link>
-                <Link
-                  to="/series"
-                  className="rounded-md px-2.5 py-1.5 text-muted-foreground hover:bg-muted hover:text-foreground data-[status=active]:font-medium data-[status=active]:text-foreground"
-                >
-                  Exam sessions
-                </Link>
-                <Link
-                  to="/changes"
-                  className="rounded-md px-2.5 py-1.5 text-muted-foreground hover:bg-muted hover:text-foreground data-[status=active]:font-medium data-[status=active]:text-foreground"
-                >
-                  Changes
-                </Link>
+                {NAVIGATION.filter(
+                  (item) =>
+                    (!item.business || access?.business) &&
+                    mayOperate(access?.roles ?? [], item.area),
+                ).map((item) => (
+                  <Link
+                    key={item.to}
+                    to={item.to}
+                    activeOptions={{ exact: item.to === "/" }}
+                    className="rounded-md px-2.5 py-1.5 text-muted-foreground hover:bg-muted hover:text-foreground data-[status=active]:font-medium data-[status=active]:text-foreground"
+                  >
+                    {item.label}
+                  </Link>
+                ))}
               </nav>
               <form
                 method="post"

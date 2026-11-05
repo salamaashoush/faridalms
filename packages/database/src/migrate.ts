@@ -9,6 +9,7 @@ import { readMigrationFiles } from "drizzle-orm/migrator";
 export const MIGRATIONS = {
   cell: "packages/database/migrations/cell",
   directory: "packages/database/migrations/directory",
+  business: "packages/database/migrations/business",
 } as const;
 
 export interface MigrationResult {
@@ -22,7 +23,10 @@ export interface MigrationResult {
  */
 export async function migrate(
   url: string,
-  options: { folder: string; owner: "cell_owner" | "directory_owner" },
+  options: {
+    folder: string;
+    owner: "cell_owner" | "directory_owner" | "business_owner";
+  },
 ): Promise<MigrationResult> {
   const client = new SQL({ url, max: 1 });
   try {

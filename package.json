@@ -38,11 +38,13 @@
     "ready": "bun run lint && bun run type-check && bun run test --run && bun run db:verify && bun run test:api && bun run test:e2e",
     "smoke:containers": "bun --env-file=.env scripts/smoke-containers.ts",
     "db:generate:directory": "bun --bun drizzle-kit generate --config packages/database/drizzle.directory.config.ts",
+    "db:generate:business": "bun --bun drizzle-kit generate --config packages/database/drizzle.business.config.ts",
     "db:provision": "bun --env-file-if-exists=.env scripts/db.ts provision",
     "db:create": "bun --env-file-if-exists=.env scripts/db.ts create",
     "db:verify": "bun --env-file-if-exists=.env scripts/db-verify.ts",
     "test:db": "bun --env-file-if-exists=.env test --preload ./packages/database/test/setup.ts packages/database/test",
-    "test:api": "bun --env-file-if-exists=.env test --preload ./apps/api/test/setup.ts apps/api/test"
+    "test:api": "bun --env-file-if-exists=.env test --preload ./apps/api/test/setup.ts apps/api/test",
+    "test:ops": "bun --env-file-if-exists=.env test --preload ./apps/ops/test/setup.ts apps/ops/test"
   },
   "dependencies": {
     "@faridalms/api-client": "workspace:*",
@@ -71,6 +73,7 @@
     "drizzle-kit": "1.0.0-rc.5",
     "happy-dom": "^21.0.4",
     "husky": "^9.1.7",
+    "jose": "^6.2.14",
     "lint-staged": "^17.6.0",
     "nitro": "3.0.261029-rc",
     "oxfmt": "^0.75.0",

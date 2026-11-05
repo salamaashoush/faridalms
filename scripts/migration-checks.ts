@@ -1,7 +1,7 @@
 const FORBIDDEN = [
   /disable\s+row\s+level\s+security/i,
   /no\s+force\s+row\s+level\s+security/i,
-  /owner\s+to\s+(?!"?cell_owner"?\b|"?directory_owner"?\b)/i,
+  /owner\s+to\s+(?!"?cell_owner"?\b|"?directory_owner"?\b|"?business_owner"?\b)/i,
   /bypassrls/i,
 ];
 

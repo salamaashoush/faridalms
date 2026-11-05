@@ -1,7 +1,7 @@
 # Restoring a cell
 
 The backup bucket holds, for each night, `db/<date>/` with a custom-format
-dump of `cell` and of `directory`, the cluster's roles without passwords
+dump of `cell`, of `directory` and of `business`, the cluster's roles without passwords
 (`roles.sql`, for comparison) and `SHA256SUMS`; and under `files/` a copy of
 each file bucket. `smoke.sh` runs these steps against MinIO on every run of
 it and checks that the restored cell holds the same rows, that the seeded
@@ -37,7 +37,8 @@ until the restored cell has been checked.
    docker compose stop api web collab media provisioner ops backup
    docker compose exec postgres psql -U postgres -d postgres \
      -c "alter database cell rename to cell_before_restore" \
-     -c "alter database directory rename to directory_before_restore"
+     -c "alter database directory rename to directory_before_restore" \
+     -c "alter database business rename to business_before_restore"
    ```
 
 4. Make sure every role exists with the passwords in `.env` (roles are
@@ -48,7 +49,7 @@ until the restored cell has been checked.
    ```sh
    docker compose run --rm migrate bun migrate.js provision
    export PGPASSWORD=$(sed -n 's/^POSTGRES_PASSWORD=//p' .env)
-   for database in cell directory; do
+   for database in cell directory business; do
      docker compose run --rm -v farida-restore:/restore -e PGUSER=postgres -e PGPASSWORD \
        --entrypoint pg_restore backup --create --exit-on-error --dbname=postgres "/restore/$database.dump"
    done
@@ -68,7 +69,8 @@ until the restored cell has been checked.
 
    ```sh
    docker compose exec postgres psql -U postgres -d postgres \
-     -c "drop database cell_before_restore" -c "drop database directory_before_restore"
+     -c "drop database cell_before_restore" -c "drop database directory_before_restore" \
+     -c "drop database business_before_restore"
    docker volume rm farida-restore
    ```
 

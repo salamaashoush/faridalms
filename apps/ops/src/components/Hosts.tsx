@@ -10,6 +10,7 @@ import { toast } from "sonner";
 
 import type { getSchool } from "../server/directory";
 
+import { failure } from "../actions";
 import { formatWhen } from "../format";
 import {
   addHost,
@@ -90,8 +91,9 @@ function HostRow({ schoolId, host }: { schoolId: string; host: Host }) {
       await action();
       toast.success(done);
       await router.invalidate();
-    } catch {
-      toast.error("That did not work.");
+    } catch (error) {
+      const said = failure(error, "That did not work.");
+      if (said) toast.error(said);
     } finally {
       setBusy(false);
     }
@@ -236,8 +238,9 @@ export function Hosts({
               toast.success("Added as pending.");
               await router.invalidate();
             }
-          } catch {
-            toast.error("The host could not be added.");
+          } catch (error) {
+            const said = failure(error, "The host could not be added.");
+            if (said) toast.error(said);
           } finally {
             setSaving(false);
           }

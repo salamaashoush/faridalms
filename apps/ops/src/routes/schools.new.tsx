@@ -29,6 +29,7 @@ import { useState } from "react";
 
 import type { CreateSchoolOutcome } from "../server/directory";
 
+import { failure } from "../actions";
 import { MODULE_NAMES } from "../format";
 import { createSchool, listCells } from "../server/directory";
 
@@ -135,12 +136,12 @@ function NewSchool() {
       setOutcome(null);
       try {
         setOutcome(await create({ data: { ...value, entitlements } }));
-      } catch {
-        setOutcome({
-          ok: false,
-          takenSlugs: [],
-          message: "The console could not save the school. Try again.",
-        });
+      } catch (error) {
+        const said = failure(
+          error,
+          "The console could not save the school. Try again.",
+        );
+        if (said) setOutcome({ ok: false, takenSlugs: [], message: said });
       }
     },
   });

@@ -16,6 +16,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { useState } from "react";
 import { toast } from "sonner";
 
+import { failure } from "../actions";
 import { ChangeList } from "../components/ChangeList";
 import { Hosts } from "../components/Hosts";
 import { Usage } from "../components/Usage";
@@ -280,8 +281,9 @@ function SchoolPage() {
               "Entitlements saved. Cells apply them within a minute.",
             );
             await router.invalidate();
-          } catch {
-            toast.error("The entitlements could not be saved.");
+          } catch (error) {
+            const said = failure(error, "The entitlements could not be saved.");
+            if (said) toast.error(said);
           } finally {
             setSaving(false);
           }
@@ -542,8 +544,8 @@ function Lifecycle({
             setReason("");
             await router.invalidate();
           } else setAnswer(out.message);
-        } catch {
-          setAnswer("Access could not be changed.");
+        } catch (error) {
+          setAnswer(failure(error, "Access could not be changed."));
         } finally {
           setSaving(false);
         }
@@ -636,8 +638,9 @@ function AdministratorLink({ schoolId }: { schoolId: string }) {
             }),
           );
           await router.invalidate();
-        } catch {
-          setAnswer({ ok: false, message: "The link could not be sent." });
+        } catch (error) {
+          const said = failure(error, "The link could not be sent.");
+          if (said) setAnswer({ ok: false, message: said });
         } finally {
           setSending(false);
         }

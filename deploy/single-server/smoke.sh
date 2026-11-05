@@ -298,7 +298,8 @@ no_deletes() {
 bucket_holds() {
   s3 'http://minio:9000/backups?list-type=2' >"$work/listing.xml" || return 1
   local key
-  for key in "db/$day/roles.sql" "db/$day/cell.dump" "db/$day/directory.dump" "db/$day/SHA256SUMS" \
+  for key in "db/$day/roles.sql" "db/$day/cell.dump" "db/$day/directory.dump" "db/$day/business.dump" \
+    "db/$day/SHA256SUMS" \
     "files/faridalms-files/t/"; do
     grep -q "<Key>$key" "$work/listing.xml" || { echo "missing $key"; return 1; }
   done
@@ -315,9 +316,10 @@ restore() {
   backup --user root -v "${project}_restore:/restore" backup fetch "$day" /restore &&
     compose stop api web collab media provisioner ops backup &&
     psql_cell -d postgres -c "alter database cell rename to cell_before_restore" \
-      -c "alter database directory rename to directory_before_restore" &&
+      -c "alter database directory rename to directory_before_restore" \
+      -c "alter database business rename to business_before_restore" &&
     compose run --rm -T migrate bun migrate.js provision || return 1
-  for database in cell directory; do
+  for database in cell directory business; do
     compose run --rm -T -v "${project}_restore:/restore" -e PGUSER=postgres -e PGPASSWORD="$POSTGRES_PASSWORD" \
       --entrypoint pg_restore backup --create --exit-on-error --dbname=postgres "/restore/$database.dump" ||
       return 1
@@ -358,6 +360,7 @@ check "the dumps are fetched, checked and restored, and the stack comes back" re
 check "a lost file is copied back from the backup bucket" restore_files
 check "the restored cell holds what the old one did" same_rows cell
 check "the restored directory holds what the old one did" same_rows directory
+check "the restored business database holds what the old one did" same_rows business
 check "the principal signs in on the restored cell" restored_sign_in
 check "a session and a file from before the restore still open" restored_file
 

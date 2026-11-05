@@ -1,10 +1,12 @@
 /**
- * Provisions, creates and migrates a cell and its directory. This is the
+ * Provisions, creates and migrates a cell, its directory and the business
+ * database. This is the
  * entry the production image runs, so it never imports the seed and offers
  * nothing that drops or overwrites data.
  */
 import { migrate, MIGRATIONS } from "@faridalms/database/migrate";
 import {
+  createBusinessDatabase,
   createCellDatabase,
   createDirectoryDatabase,
   grantCellConnect,
@@ -20,6 +22,7 @@ export interface CellDatabases {
   adminUrl: string;
   cell: string;
   directory: string;
+  business: string;
   rolePassword?: string;
 }
 
@@ -43,8 +46,8 @@ export async function provision(admin: SQL, target: CellDatabases) {
 }
 
 /**
- * Creates the cell and directory databases that do not exist yet, and lets
- * every login connect to an existing cell.
+ * Creates the cell, directory and business databases that do not exist
+ * yet, and lets every login connect to an existing cell.
  */
 export async function createMissing(admin: SQL, target: CellDatabases) {
   const exists = async (name: string) =>
@@ -54,6 +57,8 @@ export async function createMissing(admin: SQL, target: CellDatabases) {
   else await grantCellConnect(admin, target.cell);
   if (!(await exists(target.directory)))
     await createDirectoryDatabase(admin, target.directory);
+  if (!(await exists(target.business)))
+    await createBusinessDatabase(admin, target.business);
 }
 
 export async function migrateAll(target: CellDatabases) {
@@ -65,8 +70,12 @@ export async function migrateAll(target: CellDatabases) {
     folder: MIGRATIONS.directory,
     owner: "directory_owner",
   });
+  const business = await migrate(adminUrlFor(target, target.business), {
+    folder: MIGRATIONS.business,
+    owner: "business_owner",
+  });
   console.info(
-    `Applied ${cell.applied.length} cell and ${directory.applied.length} directory migrations.`,
+    `Applied ${cell.applied.length} cell, ${directory.applied.length} directory and ${business.applied.length} business migrations.`,
   );
 }
 
@@ -116,6 +125,7 @@ if (import.meta.main) {
         DATABASE_ADMIN_URL: v.pipe(v.string(), v.url()),
         CELL_DATABASE: v.optional(databaseName, "cell"),
         DIRECTORY_DATABASE: v.optional(databaseName, "directory"),
+        BUSINESS_DATABASE: v.optional(databaseName, "business"),
         CELL_ROLE_PASSWORD: v.optional(v.pipe(v.string(), v.minLength(16))),
         // Set together, the cell lists itself in the directory once migrated.
         CELL_ID: v.optional(
@@ -162,6 +172,7 @@ if (import.meta.main) {
     adminUrl: config.DATABASE_ADMIN_URL,
     cell: config.CELL_DATABASE,
     directory: config.DIRECTORY_DATABASE,
+    business: config.BUSINESS_DATABASE,
     rolePassword: config.CELL_ROLE_PASSWORD,
   };
   const command = process.argv[2] ?? "migrate";

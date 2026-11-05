@@ -1,11 +1,13 @@
 /**
- * Builds a cell and a directory from empty databases, fails if drizzle-kit
+ * Builds a cell, a directory and a business database from empty databases,
+ * fails if drizzle-kit
  * would write a migration (schema and migrations disagree), then runs the
  * catalogue check, the source checks and the isolation and behaviour suites.
  * The throwaway databases are dropped however it ends.
  */
 import { migrate, MIGRATIONS } from "@faridalms/database/migrate";
 import {
+  createBusinessDatabase,
   createCellDatabase,
   createDirectoryDatabase,
   dropDatabase,
@@ -23,6 +25,7 @@ const admin =
 const suffix = crypto.randomUUID().replaceAll("-", "").slice(0, 12);
 const cellName = `cell_verify_${suffix}`;
 const directoryName = `directory_verify_${suffix}`;
+const businessName = `business_verify_${suffix}`;
 const urlOf = (name: string) => {
   const url = new URL(admin);
   url.pathname = `/${name}`;
@@ -81,6 +84,7 @@ try {
   );
   await createCellDatabase(client, cellName);
   await createDirectoryDatabase(client, directoryName);
+  await createBusinessDatabase(client, businessName);
   await migrate(urlOf(cellName), {
     folder: MIGRATIONS.cell,
     owner: "cell_owner",
@@ -88,6 +92,10 @@ try {
   await migrate(urlOf(directoryName), {
     folder: MIGRATIONS.directory,
     owner: "directory_owner",
+  });
+  await migrate(urlOf(businessName), {
+    folder: MIGRATIONS.business,
+    owner: "business_owner",
   });
   console.info("Migrations apply to empty databases.");
 
@@ -107,6 +115,13 @@ try {
     }))
   )
     failures.push("drizzle-kit would write a directory migration");
+  if (
+    !(await generateWritesNothing({
+      schema: "packages/database/src/business/schema.ts",
+      out: MIGRATIONS.business,
+    }))
+  )
+    failures.push("drizzle-kit would write a business migration");
 
   if ((await run(["bun", "scripts/check-rls.ts", urlOf(cellName)])) !== 0)
     failures.push("catalogue check");
@@ -125,6 +140,7 @@ try {
 } finally {
   await dropDatabase(client, cellName);
   await dropDatabase(client, directoryName);
+  await dropDatabase(client, businessName);
   await client.close();
 }
 

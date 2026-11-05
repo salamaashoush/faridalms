@@ -11,6 +11,8 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as ChangesRouteImport } from './routes/changes'
+import { Route as NoRoleRouteImport } from './routes/no-role'
+import { Route as OperatorsRouteImport } from './routes/operators'
 import { Route as SeriesRouteImport } from './routes/series'
 import { Route as SignInRouteImport } from './routes/sign-in'
 import { Route as AuthCallbackRouteImport } from './routes/auth/callback'
@@ -27,6 +29,16 @@ const IndexRoute = IndexRouteImport.update({
 const ChangesRoute = ChangesRouteImport.update({
   id: '/changes',
   path: '/changes',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const NoRoleRoute = NoRoleRouteImport.update({
+  id: '/no-role',
+  path: '/no-role',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const OperatorsRoute = OperatorsRouteImport.update({
+  id: '/operators',
+  path: '/operators',
   getParentRoute: () => rootRouteImport,
 } as any)
 const SeriesRoute = SeriesRouteImport.update({
@@ -68,6 +80,8 @@ const SchoolsNewRoute = SchoolsNewRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/changes': typeof ChangesRoute
+  '/no-role': typeof NoRoleRoute
+  '/operators': typeof OperatorsRoute
   '/series': typeof SeriesRoute
   '/sign-in': typeof SignInRoute
   '/auth/callback': typeof AuthCallbackRoute
@@ -79,6 +93,8 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/changes': typeof ChangesRoute
+  '/no-role': typeof NoRoleRoute
+  '/operators': typeof OperatorsRoute
   '/series': typeof SeriesRoute
   '/sign-in': typeof SignInRoute
   '/auth/callback': typeof AuthCallbackRoute
@@ -91,6 +107,8 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/changes': typeof ChangesRoute
+  '/no-role': typeof NoRoleRoute
+  '/operators': typeof OperatorsRoute
   '/series': typeof SeriesRoute
   '/sign-in': typeof SignInRoute
   '/auth/callback': typeof AuthCallbackRoute
@@ -104,6 +122,8 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/changes'
+    | '/no-role'
+    | '/operators'
     | '/series'
     | '/sign-in'
     | '/auth/callback'
@@ -115,6 +135,8 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/changes'
+    | '/no-role'
+    | '/operators'
     | '/series'
     | '/sign-in'
     | '/auth/callback'
@@ -126,6 +148,8 @@ export interface FileRouteTypes {
     | '__root__'
     | '/'
     | '/changes'
+    | '/no-role'
+    | '/operators'
     | '/series'
     | '/sign-in'
     | '/auth/callback'
@@ -138,6 +162,8 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   ChangesRoute: typeof ChangesRoute
+  NoRoleRoute: typeof NoRoleRoute
+  OperatorsRoute: typeof OperatorsRoute
   SeriesRoute: typeof SeriesRoute
   SignInRoute: typeof SignInRoute
   AuthCallbackRoute: typeof AuthCallbackRoute
@@ -161,6 +187,20 @@ declare module '@tanstack/react-router' {
       path: '/changes'
       fullPath: '/changes'
       preLoaderRoute: typeof ChangesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/no-role': {
+      id: '/no-role'
+      path: '/no-role'
+      fullPath: '/no-role'
+      preLoaderRoute: typeof NoRoleRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/operators': {
+      id: '/operators'
+      path: '/operators'
+      fullPath: '/operators'
+      preLoaderRoute: typeof OperatorsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/series': {
@@ -218,6 +258,8 @@ declare module '@tanstack/react-router' {
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   ChangesRoute: ChangesRoute,
+  NoRoleRoute: NoRoleRoute,
+  OperatorsRoute: OperatorsRoute,
   SeriesRoute: SeriesRoute,
   SignInRoute: SignInRoute,
   AuthCallbackRoute: AuthCallbackRoute,

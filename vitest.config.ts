@@ -28,6 +28,7 @@ export default defineConfig({
             // (bun run test:db); vitest runs on Node, where Bun SQL is absent.
             "packages/database/test/**",
             "apps/api/test/**",
+            "apps/ops/test/**",
           ],
         },
       },

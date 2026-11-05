@@ -7,13 +7,21 @@ import { seal, unseal } from "./seal";
 export interface Operator {
   /** Opaque: a digest of the identity provider's issuer and subject. */
   id: string;
-  /** Shown in the console only; never stored. */
+  /** Kept in the business database's operators, never in the directory. */
   name: string;
+  email: string | null;
+  /** When the identity provider last asked them to sign in, in seconds. */
+  authAt: number;
 }
 
 export const SESSION_HOURS = 8;
 
-const operatorSchema = v.object({ id: v.string(), name: v.string() });
+const operatorSchema = v.object({
+  id: v.string(),
+  name: v.string(),
+  email: v.nullable(v.string()),
+  authAt: v.number(),
+});
 
 const secure = () => opsEnv().OPS_ORIGIN.startsWith("https://");
 /** `__Host-` binds the cookie to the console's own host over HTTPS. */

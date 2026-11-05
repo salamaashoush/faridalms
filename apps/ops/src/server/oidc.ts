@@ -60,6 +60,7 @@ function admitted(
  */
 export function operatorOf(
   claims: Record<string, unknown>,
+  now = Math.floor(Date.now() / 1000),
 ): Operator | "not_operator" {
   if (
     !admitted(claims, opsEnv()) ||
@@ -75,5 +76,10 @@ export function operatorOf(
     [claims.name, claims.email, claims.preferred_username].find(
       (value): value is string => typeof value === "string" && value !== "",
     ) ?? id.slice(0, 8);
-  return { id, name };
+  const email =
+    claims.email_verified === true && typeof claims.email === "string"
+      ? claims.email.trim().toLowerCase()
+      : null;
+  const authAt = typeof claims.auth_time === "number" ? claims.auth_time : now;
+  return { id, name, email, authAt };
 }

@@ -2,6 +2,7 @@ import { openOwner } from "@faridalms/database/context";
 import { localKek } from "@faridalms/database/crypto";
 import { registerTenants } from "@faridalms/database/directory/seed";
 import {
+  createBusinessDatabase,
   createCellDatabase,
   createDirectoryDatabase,
   dropDatabase,
@@ -28,6 +29,10 @@ const config = v.parse(
       v.pipe(v.string(), v.regex(/^[a-z][a-z0-9_]*$/)),
       "directory",
     ),
+    BUSINESS_DATABASE: v.optional(
+      v.pipe(v.string(), v.regex(/^[a-z][a-z0-9_]*$/)),
+      "business",
+    ),
     CELL_ROLE_PASSWORD: v.optional(v.pipe(v.string(), v.minLength(16))),
     CELL_KEK: v.optional(v.pipe(v.string(), v.base64())),
     CELL_ID: v.optional(
@@ -43,6 +48,7 @@ const target: CellDatabases = {
   adminUrl: config.DATABASE_ADMIN_URL,
   cell: config.CELL_DATABASE,
   directory: config.DIRECTORY_DATABASE,
+  business: config.BUSINESS_DATABASE,
   rolePassword: config.CELL_ROLE_PASSWORD,
 };
 
@@ -121,8 +127,10 @@ try {
     await provision(admin, target);
     await dropDatabase(admin, config.CELL_DATABASE);
     await dropDatabase(admin, config.DIRECTORY_DATABASE);
+    await dropDatabase(admin, config.BUSINESS_DATABASE);
     await createCellDatabase(admin, config.CELL_DATABASE);
     await createDirectoryDatabase(admin, config.DIRECTORY_DATABASE);
+    await createBusinessDatabase(admin, config.BUSINESS_DATABASE);
     await migrateAll(target);
     await seed();
   } else {

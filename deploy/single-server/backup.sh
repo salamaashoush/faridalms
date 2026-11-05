@@ -4,6 +4,7 @@
 #   db/<date>/roles.sql       the cluster's roles, without passwords
 #   db/<date>/<cell>.dump     pg_dump -Fc of the cell
 #   db/<date>/<directory>.dump
+#   db/<date>/<business>.dump the operator console's business database
 #   db/<date>/SHA256SUMS
 #   files/<bucket>/...        a copy of each file bucket, added to nightly
 #
@@ -74,23 +75,24 @@ run() {
   configured || return 0
   remotes
   echo running >"$STATUS"
-  local day cell directory bucket database
+  local day cell directory business bucket database
   day=$(date -u +%F)
   cell="${CELL_DATABASE:-cell}"
   directory="${DIRECTORY_DATABASE:-directory}"
+  business="${BUSINESS_DATABASE:-business}"
   WORK=$(mktemp -d)
   trap finished EXIT
   local work="$WORK"
 
-  log "dumping roles, $cell and $directory"
+  log "dumping roles, $cell, $directory and $business"
   pg_dumpall --roles-only --no-role-passwords --database=postgres >"$work/roles.sql"
-  for database in "$cell" "$directory"; do
+  for database in "$cell" "$directory" "$business"; do
     pg_dump --format=custom --no-unlogged-table-data --exclude-schema=staging \
       --dbname="$database" --file="$work/$database.dump"
     # A dump that pg_restore cannot list would not restore either.
     pg_restore --list "$work/$database.dump" >/dev/null
   done
-  (cd "$work" && sha256sum roles.sql "$cell.dump" "$directory.dump" >SHA256SUMS)
+  (cd "$work" && sha256sum roles.sql "$cell.dump" "$directory.dump" "$business.dump" >SHA256SUMS)
 
   log "uploading db/$day/"
   rclone copy "$work" "backup:$BACKUP_S3_BUCKET/db/$day" --stats-one-line --stats=0 -v

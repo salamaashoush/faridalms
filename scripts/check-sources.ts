@@ -83,6 +83,7 @@ for (const { path, text } of files) {
     context ||
     runner ||
     path.startsWith("packages/database/src/directory/") ||
+    path === "packages/database/src/business/client.ts" ||
     path.startsWith("scripts/");
   if (!poolAllowed && POOL.test(text))
     problems.push(`${path}: opens a database pool outside the context module`);
@@ -123,7 +124,8 @@ problems.push(...errorCodeProblems(files));
 // its code: an action written without a label fails here. An action chosen
 // by a condition names each choice, on its line or the lines that continue
 // it with `?` or `:`. Actions picked from a table are listed in one named
-// `AUDIT_ACTIONS`.
+// `AUDIT_ACTIONS`. The business database's events are the company's own,
+// read in the English-only console and never in a school's history.
 const AUDITED =
   /\baction:[^\n]*(?:\n\s+[?:][^\n]*)*|\bAUDIT_ACTIONS\b[^=]*= \{[\s\S]*?\n\}/g;
 const ACTION_CODE = /"([a-z_]+\.[a-z_.]+)"/g;
@@ -142,6 +144,7 @@ for (const file of files) {
   )
     continue;
   if (file.path.endsWith(".test.ts")) continue;
+  if (file.path.startsWith("packages/database/src/business/")) continue;
   for (const [written] of file.text.matchAll(AUDITED))
     for (const [, action] of written.matchAll(ACTION_CODE))
       if (action && !labelled.has(action))

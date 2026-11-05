@@ -29,7 +29,9 @@ bun run lint         # oxlint (type-aware) + message-catalogue parity
 bun run format:write # oxfmt
 bun run type-check   # tsc --noEmit
 bun run test         # vitest
-bun run test:e2e     # playwright, builds and serves the production bundle
+bun run test:api     # the API against a throwaway cell and directory (Bun's runner)
+bun run test:ops     # the console's business stores against throwaway databases
+bun run test:e2e     # playwright, builds and serves the production bundles
 ```
 
 `apps/media` is Rust and outside `bun run ready`. After changing it, run
@@ -265,9 +267,13 @@ migration rules in 9). `bun run db:up` starts Postgres in Docker on port
   opens pools or calls `set_config`; `app.tenant_id()` raises when the tenant
   is not bound to the current transaction. Special-category tables (health,
   demographics, custody) are invisible until `withPurpose` sets their purpose.
-- `bun run db:reset` provisions the roles, recreates `CELL_DATABASE` and
-  `DIRECTORY_DATABASE`, migrates and seeds a school group of two schools and a
-  standalone school; it prints the logins. `bun run db:verify` builds a cell
+- `bun run db:reset` provisions the roles, recreates `CELL_DATABASE`,
+  `DIRECTORY_DATABASE` and `BUSINESS_DATABASE`, migrates and seeds a school
+  group of two schools, a standalone school and a Basic-only school; it
+  prints the logins. The business database (customers, contracts, invoices,
+  operators) is the operator console's alone, as `business_admin`; no cell
+  connects to it. Its schema is `packages/database/src/business/schema.ts`
+  and its migrations come from `bun run db:generate:business`. `bun run db:verify` builds a cell
   from an empty database, fails if `drizzle-kit generate` would write a file,
   and runs the catalogue check (`scripts/check-rls.ts`), the source checks
   (`scripts/check-sources.ts`) and the isolation and behaviour suites
@@ -312,7 +318,9 @@ Schema decisions worth not undoing:
 actually break here — SSR, sessions, locale, hydration — are invisible to `tsc`.
 
 Run `bun run test:e2e`. It builds and serves the **production** bundle across
-Chromium, Firefox and WebKit. Every one of the following was caught there and by
+Chromium, Firefox and WebKit, and the operator console as the `console`
+project, signing operators in through a stand-in OpenID Connect provider
+(`scripts/e2e-oidc.ts`). Every one of the following was caught there and by
 nothing else:
 
 - a `Secure` session cookie that made sign-in silently impossible in Safari,

@@ -19,6 +19,7 @@ export const LOGIN_ROLES = [
   "directory_reader",
   "directory_admin",
   "directory_sync",
+  "business_admin",
 ] as const;
 export type LoginRole = (typeof LOGIN_ROLES)[number];
 
@@ -40,6 +41,8 @@ const ROLES: readonly { name: string; options: string }[] = [
   { name: "directory_reader", options: "login nobypassrls" },
   { name: "directory_admin", options: "login nobypassrls" },
   { name: "directory_sync", options: "login nobypassrls" },
+  { name: "business_owner", options: "nologin nobypassrls" },
+  { name: "business_admin", options: "login nobypassrls" },
 ];
 
 const SETTINGS: readonly [role: string, setting: string, value: string][] = [
@@ -73,6 +76,7 @@ const SETTINGS: readonly [role: string, setting: string, value: string][] = [
     "directory_reader",
     "directory_admin",
     "directory_sync",
+    "business_admin",
   ].map((role): [string, string, string] => [role, "timezone", "UTC"]),
 ];
 
@@ -146,6 +150,22 @@ export async function createDirectoryDatabase(admin: SQL, name: string) {
     `grant connect on database ${identifier(name)} to migrator, directory_reader, directory_admin, directory_sync, backup_dump`,
   );
   await admin.unsafe("grant directory_owner to migrator");
+}
+
+/**
+ * The business database: customers, contracts, invoices and the console's
+ * operators. Only the operator console connects, as `business_admin`; no
+ * cell ever does, so nothing commercial sits beside a school's data.
+ */
+export async function createBusinessDatabase(admin: SQL, name: string) {
+  await admin.unsafe(
+    `create database ${identifier(name)} owner business_owner template template0 encoding 'UTF8' locale_provider builtin builtin_locale 'C.UTF-8'`,
+  );
+  await admin.unsafe(`revoke all on database ${identifier(name)} from public`);
+  await admin.unsafe(
+    `grant connect on database ${identifier(name)} to migrator, business_admin, backup_dump`,
+  );
+  await admin.unsafe("grant business_owner to migrator");
 }
 
 export async function dropDatabase(admin: SQL, name: string) {

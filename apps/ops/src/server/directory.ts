@@ -24,6 +24,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { randomBytes } from "node:crypto";
 import * as v from "valibot";
 
+import { currentAccess, requireArea, requireFreshSignIn } from "./access";
 import { opsEnv } from "./env";
 import {
   explain,
@@ -31,7 +32,6 @@ import {
   reissueInvite,
   setLifecycle,
 } from "./provisioner";
-import { currentOperator, requireOperator } from "./session";
 
 const byId = v.object({ id: v.pipe(v.string(), v.uuid()) });
 
@@ -41,19 +41,22 @@ const directory = () => {
   return admin;
 };
 
-export const getOperator = createServerFn({ method: "GET" }).handler(() =>
-  currentOperator(),
+/** Who is signed in and what their roles let them do, or null. */
+export const getAccess = createServerFn({ method: "GET" }).handler(() =>
+  currentAccess(),
 );
 
-export const listSchools = createServerFn({ method: "GET" }).handler(() => {
-  requireOperator();
-  return directory().schools();
-});
+export const listSchools = createServerFn({ method: "GET" }).handler(
+  async () => {
+    await requireArea("readTenants");
+    return directory().schools();
+  },
+);
 
 export const getSchool = createServerFn({ method: "GET" })
   .validator((input: v.InferInput<typeof byId>) => v.parse(byId, input))
   .handler(async ({ data }) => {
-    requireOperator();
+    await requireArea("readTenants");
     const [school, changes, hosts] = await Promise.all([
       directory().school(data.id),
       directory().changes({ id: data.id }),
@@ -95,7 +98,8 @@ export const saveEntitlements = createServerFn({ method: "POST" })
     v.parse(saveEntitlementsSchema, input),
   )
   .handler(async ({ data }) => {
-    const operator = requireOperator();
+    const { operator } = await requireArea("entitlements");
+    requireFreshSignIn(operator);
     const { schoolId, reason, ...entitlements } = data;
     await directory().saveEntitlements({
       schoolId,
@@ -106,14 +110,16 @@ export const saveEntitlements = createServerFn({ method: "POST" })
     return { ok: true };
   });
 
-export const listChanges = createServerFn({ method: "GET" }).handler(() => {
-  requireOperator();
-  return directory().changes();
-});
+export const listChanges = createServerFn({ method: "GET" }).handler(
+  async () => {
+    await requireArea("readTenants");
+    return directory().changes();
+  },
+);
 
 export const listSeries = createServerFn({ method: "GET" }).handler(
   async () => {
-    requireOperator();
+    await requireArea("readTenants");
     const [series, changes] = await Promise.all([
       directory().series(),
       directory().changes({ type: "exam_series" }),
@@ -127,7 +133,7 @@ export const saveSeries = createServerFn({ method: "POST" })
     v.parse(saveSeriesSchema, input),
   )
   .handler(async ({ data }) => {
-    const operator = requireOperator();
+    const { operator } = await requireArea("tenants");
     const { reason, ...series } = data;
     const id = await directory().saveSeries({
       ...series,
@@ -137,8 +143,8 @@ export const saveSeries = createServerFn({ method: "POST" })
     return { id };
   });
 
-export const listCells = createServerFn({ method: "GET" }).handler(() => {
-  requireOperator();
+export const listCells = createServerFn({ method: "GET" }).handler(async () => {
+  await requireArea("readTenants");
   return directory().openCells();
 });
 
@@ -166,7 +172,7 @@ export const createSchool = createServerFn({ method: "POST" })
     v.parse(newSchoolSchema, input),
   )
   .handler(async ({ data }): Promise<CreateSchoolOutcome> => {
-    const operator = requireOperator();
+    const { operator } = await requireArea("tenants");
     let begun: Awaited<ReturnType<DirectoryAdmin["beginTenant"]>>;
     try {
       begun = await directory().beginTenant({
@@ -248,7 +254,8 @@ export const setSchoolLifecycle = createServerFn({ method: "POST" })
     async ({
       data,
     }): Promise<{ ok: true } | { ok: false; message: string }> => {
-      const operator = requireOperator();
+      const { operator } = await requireArea("lifecycle");
+      requireFreshSignIn(operator);
       const lifecycle = lifecycleOf(data.standing);
       const answer = await setLifecycle(operator, {
         tenantId: data.tenantId,
@@ -278,7 +285,7 @@ export const resendInvite = createServerFn({ method: "POST" })
       | { ok: true; sentTo: string; reset: boolean }
       | { ok: false; message: string }
     > => {
-      const operator = requireOperator();
+      const { operator } = await requireArea("tenants");
       const school = await directory().school(data.schoolId);
       if (!school) throw new Error("NOT_FOUND");
       if (school.tenantState !== "active")
@@ -334,7 +341,7 @@ export const addHost = createServerFn({ method: "POST" })
     async ({
       data,
     }): Promise<{ ok: true } | { ok: false; message: string }> => {
-      const operator = requireOperator();
+      const { operator } = await requireArea("tenants");
       const env = opsEnv();
       const problem = customHostProblem(data.hostname, {
         portal: env.PORTAL_DOMAIN,
@@ -383,7 +390,7 @@ export const removeHost = createServerFn({ method: "POST" })
       ),
   )
   .handler(async ({ data }) => {
-    const operator = requireOperator();
+    const { operator } = await requireArea("tenants");
     return {
       ok: await directory().removeHost({ ...data, operatorId: operator.id }),
     };
@@ -398,7 +405,7 @@ export const makeHostCanonical = createServerFn({ method: "POST" })
       ),
   )
   .handler(async ({ data }) => {
-    const operator = requireOperator();
+    const { operator } = await requireArea("tenants");
     return {
       ok: await directory().makeCanonical({
         ...data,
@@ -413,6 +420,6 @@ export const checkHost = createServerFn({ method: "POST" })
     v.parse(schoolHostSchema, input),
   )
   .handler(async ({ data }) => {
-    requireOperator();
+    await requireArea("tenants");
     return { ok: await directory().requestCheck(data) };
   });

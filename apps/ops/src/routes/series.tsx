@@ -19,6 +19,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { useState } from "react";
 import { toast } from "sonner";
 
+import { failure } from "../actions";
 import { ChangeList } from "../components/ChangeList";
 import { BOARD_NAMES, formatDay, formatMonth } from "../format";
 import { listSeries, saveSeries } from "../server/directory";
@@ -149,10 +150,12 @@ function SeriesPage() {
             setReason("");
             toast.success("Session saved. Cells see it within a minute.");
             await router.invalidate();
-          } catch {
-            toast.error(
+          } catch (error) {
+            const said = failure(
+              error,
               "The session could not be saved. Keep-until must come after the session.",
             );
+            if (said) toast.error(said);
           } finally {
             setSaving(false);
           }

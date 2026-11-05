@@ -257,11 +257,12 @@ database restore (`restore.md`).
 ## Backups
 
 The `backup` service runs every night at `BACKUP_AT` (UTC, default 02:30):
-`pg_dump -Fc` of `cell` and `directory` as the `backup_dump` login, the
+`pg_dump -Fc` of `cell`, `directory` and `business` as the `backup_dump` login, the
 roles without their passwords, and a copy of both file buckets, to one
 bucket at another provider:
 
-- `db/<date>/cell.dump`, `db/<date>/directory.dump`, `db/<date>/roles.sql`
+- `db/<date>/cell.dump`, `db/<date>/directory.dump`,
+  `db/<date>/business.dump`, `db/<date>/roles.sql`
   and `db/<date>/SHA256SUMS`;
 - `files/<FILE_BUCKET>/...` and `files/<PUBLIC_MEDIA_BUCKET>/...`, to which
   each night adds what is new or changed.

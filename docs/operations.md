@@ -281,11 +281,27 @@ password in the console and operators are never school accounts. Settings:
   (eight hours).
 - `PROVISION_URL` and `PROVISION_SECRET`: the cell's provisioner and the
   secret it shares with the console (see "Registering a school").
+- `BUSINESS_DATABASE_URL`, optional: the business database as
+  `business_admin`, which holds customers, contracts, invoices and the
+  operators' roles. Without it the console is the self-hosted one: every
+  operator is an owner, entitlements are edited directly and nothing is
+  sold.
 
-The change log names an operator by a digest of the provider's issuer and
-subject, never by name. Every plan change requires a reason and lands in the
-log in the same transaction. Cells read plans with the directory's 60-second
-cache.
+With the business database, the first operator to sign in owns the console;
+anyone after holds no role until an owner gives them one on the Operators
+page: owner (everything), sales (leads, quotes, customers), support
+(schools, support requests, notices) or finance (invoices, payments,
+reports). Roles are read on every request, so a change applies at once.
+Changing a school's entitlements or its access asks the operator to sign in
+again first (the provider is asked with `max_age=0`), unless they did within
+the last five minutes. Every business action is a row of the append-only
+`business_events`, with the operator, the record before and after, and the
+reason.
+
+The directory's change log names an operator by a digest of the provider's
+issuer and subject, never by name. Every entitlement change requires a
+reason and lands in the log in the same transaction. Cells read entitlements
+with the directory's 60-second cache.
 
 ## Private files
 
