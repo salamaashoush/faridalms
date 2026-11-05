@@ -66,6 +66,19 @@ const summaryOf = (en: string, ar: string, words: ContentDocument | null) =>
   (en || ar || (words ? contentPlainText(words) : "")).slice(0, 160);
 
 /** A news post: a broadcast that can also be on the school's website. */
+const AUDIT_ACTIONS = {
+  create: "news.create",
+  update: "news.update",
+  revise: "news.revise",
+  schedule: "news.schedule",
+  publish: "news.publish",
+  archive: "news.archive",
+  unpublish: "news.unpublish",
+  translationChecked: "news.translation_checked",
+  translationUnchecked: "news.translation_unchecked",
+  duplicate: "news.duplicate",
+} as const;
+
 const rules = defineKind({
   kind: "news",
   capability: "news:manage",
@@ -76,8 +89,7 @@ const rules = defineKind({
     consent: "news.consent",
     nothingToCheck: "news.nothing_to_check",
   },
-  audit: "news",
-  revised: "revise",
+  actions: AUDIT_ACTIONS,
   notice: (row, words) => ({
     kind: "news",
     params: {

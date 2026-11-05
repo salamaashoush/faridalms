@@ -92,6 +92,11 @@ import { reachesStudent, requireStudent, scopeFor } from "../core/reach";
 import { logFamilyRequest } from "../core/records-requests";
 import { registerHostReader } from "../files/authorize";
 
+const AUDIT_ACTIONS = {
+  accepted: "health_change.accept",
+  declined: "health_change.decline",
+} as const;
+
 const id = v.pipe(v.string(), v.uuid());
 
 interface HealthPayload {
@@ -1415,7 +1420,7 @@ export const decideHealthChange = writeProcedure
     );
     dropBytes(context, change.gone);
     await audit(context, {
-      action: `health_change.${input.decision === "accepted" ? "accept" : "decline"}`,
+      action: AUDIT_ACTIONS[input.decision],
       objectType: "records_request",
       objectId: input.id,
       subjectUserId: change.studentId,

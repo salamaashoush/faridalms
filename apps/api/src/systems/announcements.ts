@@ -42,6 +42,19 @@ import {
 const id = v.pipe(v.string(), v.uuid());
 
 /** An announcement: a broadcast to its audience that can ask to be acknowledged. */
+const AUDIT_ACTIONS = {
+  create: "announcement.create",
+  update: "announcement.update",
+  revise: "announcement.update_sent",
+  schedule: "announcement.schedule",
+  publish: "announcement.publish",
+  archive: "announcement.archive",
+  unpublish: "announcement.unpublish",
+  translationChecked: "announcement.translation_checked",
+  translationUnchecked: "announcement.translation_unchecked",
+  duplicate: "announcement.duplicate",
+} as const;
+
 const rules = defineKind({
   kind: "announcement",
   capability: "announcements:manage",
@@ -52,8 +65,7 @@ const rules = defineKind({
     consent: "announcements.consent",
     nothingToCheck: "announcements.nothing_to_check",
   },
-  audit: "announcement",
-  revised: "update_sent",
+  actions: AUDIT_ACTIONS,
   notice: (row, words, updated) => ({
     kind: row.urgency === "urgent" ? "urgent" : "announcement",
     params: {

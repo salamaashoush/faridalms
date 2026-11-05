@@ -9,6 +9,7 @@ import type {
   CommentAnchor,
   Rubric,
   SaveAssignment,
+  StudentWorkAction,
   TeacherTab,
 } from "@faridalms/domain/coursework";
 import type {
@@ -290,6 +291,16 @@ import {
   rescoreQuiz,
   responsesOf,
 } from "../quizzes/quiz";
+
+const AUDIT_ACTIONS = {
+  return: "submission.return",
+  revise: "submission.revise",
+  excuse: "submission.excuse",
+  unexcuse: "submission.unexcuse",
+  hand_in: "submission.hand_in",
+  share: "submission.share",
+  unshare: "submission.unshare",
+} as const satisfies Record<StudentWorkAction, string>;
 
 const id = v.pipe(v.string(), v.uuid());
 
@@ -1556,7 +1567,7 @@ export const act = writeProcedure
       input.action === "revise",
     );
     await audit(context, {
-      action: `submission.${input.action}`,
+      action: AUDIT_ACTIONS[input.action],
       objectType: "assignment",
       objectId: assignment.id,
       details: { students: chosen.map((row) => row.studentId) },

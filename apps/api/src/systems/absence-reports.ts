@@ -42,6 +42,11 @@ import { requireStudent, scopeFor } from "../core/reach";
 import { registerHostReader } from "../files/authorize";
 import { withFileGate } from "../files/gate";
 
+const AUDIT_ACTIONS = {
+  accepted: "attendance.report_accepted",
+  declined: "attendance.report_declined",
+} as const;
+
 /** The links of a family member to the children they follow; none for anyone else. */
 async function familyLinks(context: UnitContext): Promise<ChildLink[]> {
   if (context.actor.context !== "family" || !can(context, "children:read"))
@@ -339,7 +344,7 @@ export const decide = writeProcedure
       },
     });
     await audit(context, {
-      action: `attendance.report_${input.decision}`,
+      action: AUDIT_ACTIONS[input.decision],
       objectType: "absence_report",
       objectId: input.id,
       subjectUserId: found.studentId,

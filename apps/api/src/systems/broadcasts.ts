@@ -68,6 +68,18 @@ import {
 import { sharedInliner } from "../core/shared";
 import { registerHostReader, registerHostWriter } from "../files/authorize";
 
+export type BroadcastAction =
+  | "create"
+  | "update"
+  | "revise"
+  | "schedule"
+  | "publish"
+  | "archive"
+  | "unpublish"
+  | "translationChecked"
+  | "translationUnchecked"
+  | "duplicate";
+
 /**
  * What tells the two kinds apart where they behave differently: who writes
  * them, the codes their refusals carry, how they are told, and what more a
@@ -83,9 +95,8 @@ export interface BroadcastKindRules {
     consent: string;
     nothingToCheck: string;
   };
-  /** The object its audit entries name, and what replacing a copy already out is called. */
-  audit: "announcement" | "news";
-  revised: "update_sent" | "revise";
+  /** What its audit entries are called, replacing a copy already out among them. */
+  actions: Record<BroadcastAction, string>;
   /** What a notice of it going out says, and whether it asks something of the reader. */
   notice: (
     row: BroadcastRow,
@@ -364,7 +375,7 @@ export async function saveBroadcast(
   });
   if (cleared.version !== null) version = cleared.version;
   await audit(context, {
-    action: input.id ? `${rules.audit}.update` : `${rules.audit}.create`,
+    action: input.id ? rules.actions.update : rules.actions.create,
     objectType: rules.kind,
     objectId: id,
     details: input.details,
@@ -492,10 +503,10 @@ export async function publishBroadcast(
   }
   await audit(context, {
     action: out
-      ? `${rules.audit}.${rules.revised}`
+      ? rules.actions.revise
       : later
-        ? `${rules.audit}.schedule`
-        : `${rules.audit}.publish`,
+        ? rules.actions.schedule
+        : rules.actions.publish,
     objectType: rules.kind,
     objectId: row.id,
     details: {
@@ -542,9 +553,7 @@ export async function takeDown(
   await withdraw?.(row);
   await audit(context, {
     action:
-      state === "archived"
-        ? `${rules.audit}.archive`
-        : `${rules.audit}.unpublish`,
+      state === "archived" ? rules.actions.archive : rules.actions.unpublish,
     objectType: rules.kind,
     objectId: row.id,
   });
@@ -576,8 +585,8 @@ export async function reviewBroadcast(
   });
   await audit(context, {
     action: input.reviewed
-      ? `${rules.audit}.translation_checked`
-      : `${rules.audit}.translation_unchecked`,
+      ? rules.actions.translationChecked
+      : rules.actions.translationUnchecked,
     objectType: rules.kind,
     objectId: row.id,
   });
@@ -665,7 +674,7 @@ export async function duplicateBroadcast(
     }
   }
   await audit(context, {
-    action: `${rules.audit}.duplicate`,
+    action: rules.actions.duplicate,
     objectType: rules.kind,
     objectId: created.id,
     details: { from: row.id },

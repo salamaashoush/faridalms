@@ -60,6 +60,11 @@ import {
 import { officialSeries, sessionViews, viewOf } from "../exams/sessions";
 import { hostAccess, registerHostReader } from "../files/authorize";
 
+const AUDIT_ACTIONS = {
+  confirmed: "coursework.confirmed",
+  not_confirmed: "coursework.not_confirmed",
+} as const;
+
 function refuse(message: string): never {
   throw new ORPCError("BAD_REQUEST", { message });
 }
@@ -568,7 +573,7 @@ export const authenticate = writeProcedure
       userId: context.actor.userId,
     });
     await audit(context, {
-      action: `coursework.${input.outcome}`,
+      action: AUDIT_ACTIONS[input.outcome],
       objectType: "submission_attempt",
       objectId: input.attemptId,
       studentUserId: attempt.studentId,
