@@ -1,7 +1,9 @@
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { CircleAlert } from "lucide-react";
+import { useState } from "react";
 
 import { classTitle } from "~/components/classes/format";
+import { Pagination } from "~/components/system/DataTable";
 import {
   Fact,
   Facts,
@@ -20,7 +22,7 @@ import { formatRate, labelOf, markText, MEANING_TONE } from "./format";
 type Data = Awaited<
   ReturnType<NonNullable<ReturnType<typeof studentAttendanceQuery>["queryFn"]>>
 >;
-type Mark = Data["marks"][number];
+type Mark = Data["marks"]["rows"][number];
 
 function MarkRow({ mark, reasons }: { mark: Mark; reasons: Data["reasons"] }) {
   const reason = reasons.find((row) => row.id === mark.reasonId);
@@ -60,7 +62,9 @@ function MarkRow({ mark, reasons }: { mark: Mark; reasons: Data["reasons"] }) {
 
 /** A student's year of attendance, as they, their family and staff read it. */
 export function StudentAttendance({ studentId = "" }: { studentId?: string }) {
-  const data = useSuspenseQuery(studentAttendanceQuery(studentId)).data;
+  const [page, setPage] = useState(1);
+  const data = useSuspenseQuery(studentAttendanceQuery(studentId, page)).data;
+  const { marks } = data;
   const { summary } = data;
   return (
     <div className="grid gap-6">
@@ -95,15 +99,26 @@ export function StudentAttendance({ studentId = "" }: { studentId?: string }) {
         )}
       </RecordSection>
       <RecordSection title={m.attMarksTitle()} description={m.attMarksHint()}>
-        {data.marks.length === 0 ? (
+        {marks.rows.length === 0 ? (
           <RecordEmpty>{m.attNoMarks()}</RecordEmpty>
         ) : (
           <RecordList>
-            {data.marks.map((mark) => (
+            {marks.rows.map((mark) => (
               <MarkRow key={mark.id} mark={mark} reasons={data.reasons} />
             ))}
           </RecordList>
         )}
+        {marks.pages > 1 ? (
+          <div className="mt-4">
+            <Pagination
+              page={marks.page}
+              pages={marks.pages}
+              total={marks.total}
+              pageSize={marks.pageSize}
+              onPage={setPage}
+            />
+          </div>
+        ) : null}
       </RecordSection>
     </div>
   );

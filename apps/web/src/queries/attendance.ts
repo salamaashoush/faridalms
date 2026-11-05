@@ -54,11 +54,11 @@ export const attendanceSettingsQuery = queryOptions({
   queryFn: () => getAttendanceSettings(),
 });
 
-export const studentAttendanceQuery = (studentId = "") =>
+export const studentAttendanceQuery = (studentId = "", page = 1) =>
   queryOptions({
-    queryKey: ["attendance", "student", studentId],
-    queryFn: () =>
-      getStudentAttendance({ data: studentId ? { studentId } : {} }),
+    queryKey: ["attendance", "student", studentId, page],
+    queryFn: () => getStudentAttendance({ data: { studentId, page } }),
+    placeholderData: (previous) => previous,
   });
 
 export const classAttendanceQuery = (classId: string) =>

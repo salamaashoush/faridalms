@@ -2,6 +2,7 @@ import type {
   Descriptor,
   MarkChange,
   PeriodRow,
+  StudentMark,
 } from "@faridalms/database/stores/attendance";
 import type { ClassRow } from "@faridalms/database/stores/classes";
 import type { SchoolYear } from "@faridalms/database/stores/years";
@@ -29,7 +30,8 @@ import {
   registerFor,
   saveSettings as writeSettings,
   settingsOf,
-  studentAttendance,
+  attendanceCounts,
+  studentMarks,
   undoCheckIn as undoCheckInMark,
   writeRegister,
 } from "@faridalms/database/stores/attendance";
@@ -68,10 +70,12 @@ import {
   remindSchema,
   reportQuerySchema,
   saveRegisterSchema,
+  studentAttendanceSchema,
   summarise,
   teacherMayEdit,
   undoCheckInSchema,
 } from "@faridalms/domain/attendance";
+import { paged, pageWindow } from "@faridalms/domain/paging";
 import { addDays } from "@faridalms/domain/school";
 import { isoWeekday } from "@faridalms/domain/timetable";
 import { ORPCError } from "@orpc/server";
@@ -1144,10 +1148,10 @@ export const saveSettings = writeProcedure
  * any student staff reach.
  */
 export const student = readProcedure
-  .input(v.object({ studentId: v.optional(id) }))
+  .input(studentAttendanceSchema)
   .handler(async ({ input, context }) => {
     requireCapability(context, "attendance:read");
-    const studentId = input.studentId ?? context.actor.userId;
+    const studentId = input.studentId || context.actor.userId;
     if (
       studentId !== context.actor.userId &&
       !(await reachesStudent(context, "attendance", studentId))
@@ -1165,26 +1169,28 @@ export const student = readProcedure
         summary: summarise(emptyCounts()),
         chronic: false,
         chronicPercent: rules.chronicPercent,
-        marks: [],
+        marks: paged<StudentMark>([], 0, 1),
         reasons: [],
       };
     const last = lastDay(year);
-    const [found, codes] = await Promise.all([
-      studentAttendance(context.tx, {
-        tenantId: context.tenantId,
-        studentId,
-        from: year.startsOn,
-        to: last < context.today ? last : context.today,
-      }),
+    const span = {
+      tenantId: context.tenantId,
+      studentId,
+      from: year.startsOn,
+      to: last < context.today ? last : context.today,
+    };
+    const [counts, marks, codes] = await Promise.all([
+      attendanceCounts(context.tx, span),
+      studentMarks(context.tx, { ...span, ...pageWindow(input.page) }),
       attendanceCodes(context.tx, context.tenantId),
     ]);
-    const summary = summarise(found.counts);
+    const summary = summarise(counts);
     return {
       year: { id: year.id, titleEn: year.titleEn, titleAr: year.titleAr },
       summary,
       chronic: isChronic(summary, rules.chronicPercent),
       chronicPercent: rules.chronicPercent,
-      marks: found.marks,
+      marks: paged(marks.rows, marks.total, input.page),
       reasons: codesView(codes).reasons,
     };
   });

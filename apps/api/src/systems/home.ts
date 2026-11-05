@@ -9,7 +9,7 @@ import {
   attendanceReport,
   dayBoard,
   periodsOn,
-  studentAttendance,
+  attendanceCounts,
 } from "@faridalms/database/stores/attendance";
 import { reachOf } from "@faridalms/database/stores/audiences";
 import {
@@ -465,7 +465,7 @@ async function studentDay(context: UnitContext, studentId: string) {
     return { presence: "none" as const, slots: [], work: [], year: null };
   const [attendance, unexplained, groups, periods, rows, clock] =
     await Promise.all([
-      studentAttendance(context.tx, {
+      attendanceCounts(context.tx, {
         tenantId: context.tenantId,
         studentId,
         from: context.today,
@@ -507,7 +507,7 @@ async function studentDay(context: UnitContext, studentId: string) {
           context.today,
         )
       : [];
-  const counts = attendance.counts;
+  const counts = attendance;
   const presence =
     counts.absent > 0 || counts.excused > 0
       ? unexplained

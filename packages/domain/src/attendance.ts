@@ -1,5 +1,6 @@
 import * as v from "valibot";
 
+import { pageField } from "./paging";
 import { addDays } from "./school";
 
 /**
@@ -413,4 +414,13 @@ export const undoCheckInSchema = v.object({
   date: isoDate,
   periodId: id,
   studentId: id,
+});
+
+/** A student's year of attendance; without `studentId`, the reader's own. */
+export const studentAttendanceSchema = v.object({
+  studentId: v.optional(
+    v.union([v.literal(""), v.pipe(v.string(), v.uuid())]),
+    "",
+  ),
+  page: pageField,
 });

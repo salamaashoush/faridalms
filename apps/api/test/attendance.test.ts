@@ -353,7 +353,9 @@ describe("following up absences", () => {
     const record = await office.attendance.student({
       studentId: absence.studentId,
     });
-    expect(record.marks.find((mark) => mark.id === absence.id)).toMatchObject({
+    expect(
+      record.marks.rows.find((mark) => mark.id === absence.id),
+    ).toMatchObject({
       meaning: "excused",
       reasonId: illness.id,
     });

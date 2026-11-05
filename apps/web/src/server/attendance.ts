@@ -10,6 +10,7 @@ import {
   pickupQuerySchema,
   signInSchema,
   signOutSchema,
+  studentAttendanceSchema,
   logContactSchema,
   reportInboxSchema,
   withdrawReportSchema,
@@ -23,7 +24,6 @@ import {
   undoCheckInSchema,
 } from "@faridalms/domain/attendance";
 import { createServerFn } from "@tanstack/react-start";
-import * as v from "valibot";
 
 import { backend, record } from "./backend";
 import { byId, checked } from "./input";
@@ -65,9 +65,7 @@ export const saveAttendanceSettings = createServerFn({ method: "POST" })
   .handler(({ data }) => backend().attendance.saveSettings(data));
 
 export const getStudentAttendance = createServerFn({ method: "GET" })
-  .validator(
-    checked(v.object({ studentId: v.optional(v.pipe(v.string(), v.uuid())) })),
-  )
+  .validator(checked(studentAttendanceSchema))
   .handler(({ data }) => record(backend().attendance.student(data)));
 
 export const getClassAttendance = createServerFn({ method: "GET" })

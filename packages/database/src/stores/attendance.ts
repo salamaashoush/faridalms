@@ -805,17 +805,11 @@ export interface StudentMark {
   note: string | null;
 }
 
-/**
- * One student's year: daily counts from the registers that count as daily
- * attendance, and every mark other than present from any register.
- */
-export async function studentAttendance(
+/** A student's counts of each mark from the registers that count as daily attendance. */
+export async function attendanceCounts(
   tx: Tx,
   input: { tenantId: string; studentId: string; from: string; to: string },
-): Promise<{
-  counts: Record<AttendanceMeaning, number>;
-  marks: StudentMark[];
-}> {
+): Promise<Record<AttendanceMeaning, number>> {
   const [counts] = await tx.execute<Record<AttendanceMeaning, number>>(sql`
     select count(*) filter (where e.category_meaning = 'present')::int as present,
            count(*) filter (where e.category_meaning = 'absent')::int as absent,
@@ -828,6 +822,23 @@ export async function studentAttendance(
     where e.tenant_id = ${input.tenantId}::uuid and e.student_user_id = ${input.studentId}::uuid
       and e.taken_on between ${input.from}::date and ${input.to}::date and e.status = 'active'
       and p.official_attendance`);
+  return (
+    counts ?? { present: 0, absent: 0, late: 0, excused: 0, left_early: 0 }
+  );
+}
+
+/** A page of a student's marks other than present, from any register, newest first. */
+export async function studentMarks(
+  tx: Tx,
+  input: {
+    tenantId: string;
+    studentId: string;
+    from: string;
+    to: string;
+    limit: number;
+    offset: number;
+  },
+): Promise<{ rows: StudentMark[]; total: number }> {
   const rows = await tx.execute<{
     id: string;
     taken_on: string;
@@ -841,10 +852,11 @@ export async function studentAttendance(
     reason_descriptor_id: string | null;
     minutes: number | null;
     note: string | null;
+    total: number;
   }>(sql`
     select e.id, to_char(e.taken_on, 'YYYY-MM-DD') as taken_on, c.code, c.title_en, c.title_ar,
            p.name_en, p.name_ar, p.official_attendance, e.category_meaning,
-           e.reason_descriptor_id, e.minutes, e.note
+           e.reason_descriptor_id, e.minutes, e.note, (count(*) over ())::int as total
     from core.attendance_events e
     join core.attendance_registers g on g.tenant_id = e.tenant_id and g.id = e.register_id
     join core.classes c on c.tenant_id = g.tenant_id and c.id = g.class_id
@@ -852,17 +864,10 @@ export async function studentAttendance(
     where e.tenant_id = ${input.tenantId}::uuid and e.student_user_id = ${input.studentId}::uuid
       and e.taken_on between ${input.from}::date and ${input.to}::date and e.status = 'active'
       and e.category_meaning <> 'present'
-    order by e.taken_on desc, p.sequence
-    limit 200`);
+    order by e.taken_on desc, p.sequence, e.id
+    limit ${input.limit} offset ${input.offset}`);
   return {
-    counts: counts ?? {
-      present: 0,
-      absent: 0,
-      late: 0,
-      excused: 0,
-      left_early: 0,
-    },
-    marks: rows.map((row) => ({
+    rows: rows.map((row) => ({
       id: row.id,
       date: row.taken_on,
       classCode: row.code,
@@ -876,6 +881,7 @@ export async function studentAttendance(
       minutes: row.minutes,
       note: row.note,
     })),
+    total: rows[0]?.total ?? 0,
   };
 }
 
