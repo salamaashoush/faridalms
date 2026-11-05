@@ -11,6 +11,7 @@ import {
 } from "@faridalms/domain/announcements";
 import { contentPlainText } from "@faridalms/domain/content";
 import { CONTENT_ISSUE_CODE } from "@faridalms/domain/content-checks";
+import { paged, pageWindow } from "@faridalms/domain/paging";
 import { reviewTranslationSchema } from "@faridalms/domain/translations";
 import { ORPCError } from "@orpc/server";
 import * as v from "valibot";
@@ -97,19 +98,21 @@ const fieldsOf = (
 
 export const feed = readProcedure
   .input(feedQuerySchema)
-  .handler(async ({ input, context }) => ({
-    rows: (
-      await announcementFeed(context.tx, {
-        tenantId: context.tenantId,
-        schoolId: context.schoolId,
-        viewerId: context.actor.userId,
-        today: context.today,
-        tab: input.tab,
-        q: input.q,
-      })
-    ).map(titled(context)),
-    canManage: can(context, "announcements:manage"),
-  }));
+  .handler(async ({ input, context }) => {
+    const { rows, total } = await announcementFeed(context.tx, {
+      tenantId: context.tenantId,
+      schoolId: context.schoolId,
+      viewerId: context.actor.userId,
+      today: context.today,
+      tab: input.tab,
+      q: input.q,
+      ...pageWindow(input.page),
+    });
+    return {
+      ...paged(rows.map(titled(context)), total, input.page),
+      canManage: can(context, "announcements:manage"),
+    };
+  });
 
 export const manage = readProcedure
   .input(manageQuerySchema)

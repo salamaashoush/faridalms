@@ -680,7 +680,9 @@ export const family = readProcedure
         today: context.today,
         tab: "current",
         q: "",
-      }),
+        limit: 3,
+        offset: 0,
+      }).then(({ rows }) => rows),
       newsFor(context.tx, {
         tenantId: context.tenantId,
         schoolId: context.schoolId,
@@ -843,7 +845,9 @@ export const student = readProcedure.handler(async ({ context }) => {
       today: context.today,
       tab: "current",
       q: "",
-    }),
+      limit: 3,
+      offset: 0,
+    }).then(({ rows }) => rows),
   ]);
   const modules = can(context, "learning:read")
     ? await studentModules(context.tx, {
@@ -1044,6 +1048,8 @@ export const admin = readProcedure.handler(async ({ context }) => {
           kind: "announcement",
           tab: "published",
           q: "",
+          limit: 3,
+          offset: 0,
         })
       ).rows
         .slice(0, 3)
@@ -1063,6 +1069,9 @@ export const admin = readProcedure.handler(async ({ context }) => {
           kind: "news",
           tab: "published",
           q: "",
+          // Only those sent to an audience have a reach to show.
+          limit: 200,
+          offset: 0,
         })
       ).rows
         .filter((row) => row.recipients > 0)

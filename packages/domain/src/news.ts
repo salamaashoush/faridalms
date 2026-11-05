@@ -46,6 +46,7 @@ export type NewsListQuery = v.InferOutput<typeof newsListSchema>;
 export const manageNewsSchema = v.object({
   tab: v.fallback(v.optional(v.picklist(NEWS_TABS), "published"), "published"),
   q: v.fallback(v.optional(words(100), ""), ""),
+  page: v.fallback(pageField, 1),
 });
 export type ManageNewsQuery = v.InferOutput<typeof manageNewsSchema>;
 

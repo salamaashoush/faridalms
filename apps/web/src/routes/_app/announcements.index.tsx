@@ -1,6 +1,7 @@
 import type { ManageQuery } from "@faridalms/domain/announcements";
 
 import { MANAGE_TABS } from "@faridalms/domain/announcements";
+import { pageField } from "@faridalms/domain/paging";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { createFileRoute, stripSearchParams } from "@tanstack/react-router";
 import { Megaphone, Plus } from "lucide-react";
@@ -10,6 +11,7 @@ import {
   BroadcastItem,
   ManagedBroadcasts,
 } from "~/components/broadcasts/BroadcastLists";
+import { Pagination } from "~/components/system/DataTable";
 import {
   EmptyState,
   IndexToolbar,
@@ -29,6 +31,7 @@ type Tab = (typeof TABS)[number];
 const searchSchema = v.object({
   tab: v.fallback(v.optional(v.picklist(TABS), "current"), "current"),
   q: v.optional(v.pipe(v.string(), v.maxLength(100)), ""),
+  page: v.fallback(pageField, 1),
 });
 const DEFAULT_SEARCH = v.parse(searchSchema, {});
 
@@ -44,11 +47,15 @@ export const Route = createFileRoute("/_app/announcements/")({
     const { queryClient } = context;
     if (isManage(deps.tab))
       await queryClient.ensureQueryData(
-        managedAnnouncementsQuery({ tab: deps.tab, q: deps.q }),
+        managedAnnouncementsQuery({
+          tab: deps.tab,
+          q: deps.q,
+          page: deps.page,
+        }),
       );
     else
       await queryClient.ensureQueryData(
-        announcementFeedQuery({ tab: deps.tab, q: deps.q }),
+        announcementFeedQuery({ tab: deps.tab, q: deps.q, page: deps.page }),
       );
   },
   component: AnnouncementsPage,
@@ -63,8 +70,19 @@ const TAB_LABEL: Record<Tab, () => string> = {
   archived: m.annTabArchived,
 };
 
-function Feed({ tab, q }: { tab: "current" | "past"; q: string }) {
-  const { rows } = useSuspenseQuery(announcementFeedQuery({ tab, q })).data;
+function Feed({
+  tab,
+  q,
+  page,
+  onPage,
+}: {
+  tab: "current" | "past";
+  q: string;
+  page: number;
+  onPage: (page: number) => void;
+}) {
+  const data = useSuspenseQuery(announcementFeedQuery({ tab, q, page })).data;
+  const { rows } = data;
   if (rows.length === 0)
     return (
       <EmptyState
@@ -74,31 +92,42 @@ function Feed({ tab, q }: { tab: "current" | "past"; q: string }) {
       />
     );
   return (
-    <ul
-      className="divide-y rounded-lg border bg-card px-5"
-      aria-label={m.annTitle()}
-    >
-      {rows.map((row) => (
-        <BroadcastItem
-          key={row.id}
-          kind="announcement"
-          item={{
-            id: row.id,
-            title: row.title,
-            unread: row.readAt === null,
-            pinned: row.pinned,
-            urgency: row.urgency,
-            author: inLocale(row.authorNameEn, row.authorNameAr),
-            when: row.publishAt,
-            website: false,
-            summary: row.summary,
-            ack: row.requiresAck
-              ? { acknowledgedAt: row.acknowledgedAt, ackDueOn: row.ackDueOn }
-              : null,
-          }}
+    <div className="grid gap-4">
+      <ul
+        className="divide-y rounded-lg border bg-card px-5"
+        aria-label={m.annTitle()}
+      >
+        {rows.map((row) => (
+          <BroadcastItem
+            key={row.id}
+            kind="announcement"
+            item={{
+              id: row.id,
+              title: row.title,
+              unread: row.readAt === null,
+              pinned: row.pinned,
+              urgency: row.urgency,
+              author: inLocale(row.authorNameEn, row.authorNameAr),
+              when: row.publishAt,
+              website: false,
+              summary: row.summary,
+              ack: row.requiresAck
+                ? { acknowledgedAt: row.acknowledgedAt, ackDueOn: row.ackDueOn }
+                : null,
+            }}
+          />
+        ))}
+      </ul>
+      {data.pages > 1 ? (
+        <Pagination
+          page={data.page}
+          pages={data.pages}
+          total={data.total}
+          pageSize={data.pageSize}
+          onPage={onPage}
         />
-      ))}
-    </ul>
+      ) : null}
+    </div>
   );
 }
 
@@ -108,6 +137,8 @@ function AnnouncementsPage() {
   const user = useCurrentUser();
   const manages = user.capabilities.includes("announcements:manage");
   const tabs = TABS.filter((tab) => manages || !isManage(tab));
+  const onPage = (page: number) =>
+    void navigate({ search: (previous) => ({ ...previous, page }) });
   return (
     <>
       <PageHeader
@@ -134,7 +165,9 @@ function AnnouncementsPage() {
             search={{
               value: search.q,
               onChange: (q) =>
-                void navigate({ search: (previous) => ({ ...previous, q }) }),
+                void navigate({
+                  search: (previous) => ({ ...previous, q, page: 1 }),
+                }),
               label: m.annSearch(),
               placeholder: m.annSearchPlaceholder(),
             }}
@@ -144,9 +177,16 @@ function AnnouncementsPage() {
               kind="announcement"
               tab={search.tab}
               q={search.q}
+              page={search.page}
+              onPage={onPage}
             />
           ) : (
-            <Feed tab={search.tab} q={search.q} />
+            <Feed
+              tab={search.tab}
+              q={search.q}
+              page={search.page}
+              onPage={onPage}
+            />
           )}
         </div>
       </RecordTabs>

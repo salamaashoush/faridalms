@@ -45,6 +45,7 @@ import {
 } from "@faridalms/database/stores/translations";
 import { contentFileIds, contentPlainText } from "@faridalms/domain/content";
 import { emptyContent } from "@faridalms/domain/content-conversion";
+import { paged, pageWindow } from "@faridalms/domain/paging";
 import { isLater, isLive, phaseOf } from "@faridalms/domain/publication";
 import { documentWritten, otherLocale } from "@faridalms/domain/translations";
 import { ORPCError } from "@orpc/server";
@@ -195,6 +196,7 @@ export function manage(
   input: {
     tab: "drafts" | "scheduled" | "published" | "archived";
     q: string;
+    page: number;
   },
 ) {
   requireCapability(context, rules.capability);
@@ -204,8 +206,9 @@ export function manage(
     kind: rules.kind,
     tab: input.tab,
     q: input.q,
+    ...pageWindow(input.page),
   }).then(({ rows, counts }) => ({
-    rows: rows.map(titled(context)),
+    ...paged(rows.map(titled(context)), counts[input.tab], input.page),
     counts,
   }));
 }

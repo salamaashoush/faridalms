@@ -1,6 +1,7 @@
 import type { ManageNewsQuery, NewsListQuery } from "@faridalms/domain/news";
 
 import { NEWS_SORTS, NEWS_TABS } from "@faridalms/domain/news";
+import { pageField } from "@faridalms/domain/paging";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { createFileRoute, stripSearchParams } from "@tanstack/react-router";
 import { Newspaper, Plus } from "lucide-react";
@@ -33,10 +34,7 @@ const searchSchema = v.object({
   q: v.optional(v.pipe(v.string(), v.maxLength(100)), ""),
   sort: v.fallback(v.optional(v.picklist(NEWS_SORTS), "date"), "date"),
   dir: v.fallback(v.optional(v.picklist(["asc", "desc"]), "desc"), "desc"),
-  page: v.fallback(
-    v.optional(v.pipe(v.number(), v.integer(), v.minValue(1)), 1),
-    1,
-  ),
+  page: v.fallback(pageField, 1),
 });
 const DEFAULT_SEARCH = v.parse(searchSchema, {});
 type NewsSearch = v.InferOutput<typeof searchSchema>;
@@ -64,7 +62,7 @@ export const Route = createFileRoute("/_app/news/")({
     const user = await queryClient.ensureQueryData(currentUserQuery);
     if (isManage(deps.tab) && user.capabilities.includes("news:manage"))
       await queryClient.ensureQueryData(
-        managedNewsQuery({ tab: deps.tab, q: deps.q }),
+        managedNewsQuery({ tab: deps.tab, q: deps.q, page: deps.page }),
       );
     else await queryClient.ensureQueryData(newsQuery(latestOf(deps)));
   },
@@ -146,6 +144,8 @@ function NewsPage() {
   const user = useCurrentUser();
   const manages = user.capabilities.includes("news:manage");
   const tab = manages ? search.tab : "latest";
+  const onPage = (page: number) =>
+    void navigate({ search: (previous) => ({ ...previous, page }) });
   const body = (
     <div className="grid gap-4">
       <IndexToolbar
@@ -181,14 +181,15 @@ function NewsPage() {
         }
       />
       {isManage(tab) ? (
-        <ManagedBroadcasts kind="news" tab={tab} q={search.q} />
-      ) : (
-        <Latest
-          search={search}
-          onPage={(page) =>
-            void navigate({ search: (previous) => ({ ...previous, page }) })
-          }
+        <ManagedBroadcasts
+          kind="news"
+          tab={tab}
+          q={search.q}
+          page={search.page}
+          onPage={onPage}
         />
+      ) : (
+        <Latest search={search} onPage={onPage} />
       )}
     </div>
   );

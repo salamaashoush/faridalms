@@ -422,6 +422,8 @@ export async function managedBroadcasts(
     kind: BroadcastKind;
     tab: ManageTab;
     q: string;
+    limit: number;
+    offset: number;
   },
 ): Promise<{ rows: ManagedRow[]; counts: Record<ManageTab, number> }> {
   const scope = sql`b.tenant_id = ${input.tenantId}::uuid and b.org_id = ${input.schoolId}::uuid
@@ -438,7 +440,7 @@ export async function managedBroadcasts(
     from ${from}
     where ${scope} and ${tabFilter[input.tab]} ${search}
     order by b.pinned desc, coalesce(b.publish_at, b.date_last_modified) desc, b.id
-    limit 200`);
+    limit ${input.limit} offset ${input.offset}`);
   const [counts] = await tx.execute<Record<ManageTab, number>>(sql`
     select
       count(*) filter (where ${tabFilter.published})::int as published,
@@ -476,18 +478,22 @@ export async function announcementFeed(
     today: string;
     tab: "current" | "past";
     q: string;
+    limit: number;
+    offset: number;
   },
-): Promise<FeedRow[]> {
+): Promise<{ rows: FeedRow[]; total: number }> {
   const rows = await tx.execute<
     BroadcastRecord & {
       summary: string | null;
       pinned_now: boolean;
       read_at: string | null;
       acknowledged_at: string | null;
+      total: number;
     }
   >(sql`
     select ${columns}, left(t.text, 240) as summary,
            coalesce(b.pinned_until >= ${input.today}::date, false) as pinned_now,
+           (count(*) over ())::int as total,
            ${isoOf(sql`r.read_at`)} as read_at, ${isoOf(sql`r.acknowledged_at`)} as acknowledged_at
     from core.broadcast_recipients r
     join ${from} on b.tenant_id = r.tenant_id and b.id = r.broadcast_id
@@ -502,14 +508,17 @@ export async function announcementFeed(
       and (${holds(input.q, [sql`b.title_en`, sql`b.title_ar`, sql`t.text`])})
     order by (${input.tab === "current"} and coalesce(b.pinned_until >= ${input.today}::date, false)) desc,
              b.publish_at desc, b.id
-    limit 200`);
-  return rows.map((row) => ({
-    ...rowOf(row),
-    summary: row.summary ?? "",
-    pinned: row.pinned_now,
-    readAt: row.read_at,
-    acknowledgedAt: row.acknowledged_at,
-  }));
+    limit ${input.limit} offset ${input.offset}`);
+  return {
+    rows: rows.map((row) => ({
+      ...rowOf(row),
+      summary: row.summary ?? "",
+      pinned: row.pinned_now,
+      readAt: row.read_at,
+      acknowledgedAt: row.acknowledged_at,
+    })),
+    total: rows[0]?.total ?? 0,
+  };
 }
 
 export interface NewsRow extends BroadcastRow {

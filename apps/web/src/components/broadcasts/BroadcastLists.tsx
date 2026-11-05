@@ -222,16 +222,21 @@ export function ManagedBroadcasts({
   kind,
   tab,
   q,
+  page,
+  onPage,
 }: {
   kind: BroadcastKind;
   tab: ManageTab;
   q: string;
+  page: number;
+  onPage: (page: number) => void;
 }) {
-  const { rows } = useSuspenseQuery(
+  const data = useSuspenseQuery(
     kind === "announcement"
-      ? managedAnnouncementsQuery({ tab, q })
-      : managedNewsQuery({ tab, q }),
+      ? managedAnnouncementsQuery({ tab, q, page })
+      : managedNewsQuery({ tab, q, page }),
   ).data;
+  const { rows } = data;
   return (
     <DataTable
       caption={
@@ -241,6 +246,13 @@ export function ManagedBroadcasts({
       columns={managedColumns(kind)}
       rowLabel={(row) => titleOf(row)}
       card={managedCard(kind)}
+      pagination={{
+        page: data.page,
+        pages: data.pages,
+        total: data.total,
+        pageSize: data.pageSize,
+        onPage,
+      }}
       empty={{
         icon: CircleCheck,
         title:

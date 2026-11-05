@@ -1,6 +1,7 @@
 import * as v from "valibot";
 
 import { contentDocumentSchema } from "./content";
+import { pageField } from "./paging";
 import { CONTENT_LOCALES } from "./translations";
 
 export const URGENCIES = ["normal", "important", "urgent"] as const;
@@ -40,6 +41,7 @@ export type AudienceInput = v.InferOutput<typeof audienceSchema>;
 export const feedQuerySchema = v.object({
   tab: v.optional(v.picklist(["current", "past"]), "current"),
   q: v.optional(v.pipe(v.string(), v.trim(), v.maxLength(100)), ""),
+  page: pageField,
 });
 export type FeedQuery = v.InferOutput<typeof feedQuerySchema>;
 
@@ -52,6 +54,7 @@ export const MANAGE_TABS = [
 export const manageQuerySchema = v.object({
   tab: v.optional(v.picklist(MANAGE_TABS), "published"),
   q: v.optional(v.pipe(v.string(), v.trim(), v.maxLength(100)), ""),
+  page: pageField,
 });
 export type ManageQuery = v.InferOutput<typeof manageQuerySchema>;
 
