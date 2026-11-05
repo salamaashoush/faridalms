@@ -1,9 +1,9 @@
 import type {
   InboxBox,
-  Keyset,
   RecipientCursor,
   StartKind,
 } from "@faridalms/domain/messages";
+import type { Keyset } from "@faridalms/domain/paging";
 import type { SQL } from "drizzle-orm";
 
 import { feedOf } from "@faridalms/domain/paging";

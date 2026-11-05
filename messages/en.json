@@ -8886,5 +8886,6 @@
   "rolloverAnswerFor": "Family's answer for {name}",
   "rolloverRecordReturning": "Record: returning",
   "rolloverRecordUndecided": "Record: undecided",
-  "rolloverRecordLeaving": "Record: leaving"
+  "rolloverRecordLeaving": "Record: leaving",
+  "courseworkSharedMore": "Show more"
 }

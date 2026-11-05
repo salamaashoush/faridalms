@@ -4,6 +4,7 @@ import type { Capability } from "./capabilities";
 import type { ContentDocument } from "./content";
 
 import { contentDocumentSchema, contentPlainText } from "./content";
+import { keysetField } from "./paging";
 
 /** The conversations a person can start themselves. */
 export const THREAD_KINDS = ["direct", "group", "family"] as const;
@@ -109,18 +110,11 @@ export type InboxView = (typeof INBOX_VIEWS)[number];
 /** How many conversations or drafts one request answers with. */
 export const INBOX_PAGE = 50;
 
-/** Where the next page starts: after the row the previous one ended on. */
-const keyset = v.optional(
-  v.nullable(v.object({ at: v.pipe(v.string(), v.isoTimestamp()), id })),
-  null,
-);
-export type Keyset = { at: string; id: string };
-
 export const inboxQuerySchema = v.object({
   show: v.optional(v.picklist(["all", "unread"]), "all"),
   box: v.optional(v.picklist(INBOX_BOXES), "all"),
   q: v.optional(v.pipe(v.string(), v.trim(), v.maxLength(100)), ""),
-  after: keyset,
+  after: keysetField,
 });
 export type InboxQuery = v.InferInput<typeof inboxQuerySchema>;
 
@@ -196,7 +190,7 @@ export type SaveDraft = v.InferInput<typeof draftSchema>;
 
 export const draftRefSchema = v.object({ id, version });
 
-export const draftsQuerySchema = v.object({ after: keyset });
+export const draftsQuerySchema = v.object({ after: keysetField });
 
 export const membersSchema = v.object({
   threadId: id,

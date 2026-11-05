@@ -15,6 +15,7 @@ import {
   MAX_PROGRAM_CHARS,
   responseSchema,
 } from "./learning";
+import { keysetField } from "./paging";
 import { MAX_QUESTION_STANDARDS } from "./standards";
 import { CONTENT_LOCALES } from "./translations";
 
@@ -922,4 +923,9 @@ export const editDiscussionPostSchema = v.object({
 export const hideDiscussionPostSchema = v.object({
   id,
   hidden: v.boolean(),
+});
+
+export const sharedWorkQuerySchema = v.object({
+  studentId: id,
+  after: keysetField,
 });

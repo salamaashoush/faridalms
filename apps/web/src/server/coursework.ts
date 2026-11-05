@@ -25,6 +25,7 @@ import {
   saveQuizAnswerSchema,
   saveRubricSchema,
   studentWorkActionSchema,
+  sharedWorkQuerySchema,
   teacherListSchema,
   reuseSchema,
 } from "@faridalms/domain/coursework";
@@ -78,7 +79,7 @@ export const getMyCoursework = createServerFn({ method: "GET" }).handler(() =>
 );
 
 export const getSharedWork = createServerFn({ method: "GET" })
-  .validator(checked(v.object({ studentId: uuid })))
+  .validator(checked(sharedWorkQuerySchema))
   .handler(({ data }) => backend().coursework.shared(data));
 
 export const getSharedPiece = createServerFn({ method: "GET" })

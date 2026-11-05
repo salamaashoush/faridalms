@@ -1,6 +1,8 @@
 import type { FeedbackBand } from "@faridalms/domain/learning";
+import type { Feed, Keyset } from "@faridalms/domain/paging";
 import type { ContentLocale } from "@faridalms/domain/translations";
 
+import { feedOf } from "@faridalms/domain/paging";
 import { sql } from "drizzle-orm";
 
 import type { CellTransaction } from "../context";
@@ -882,16 +884,23 @@ export interface SharedPiece {
 /** The work a student's teachers have shared with their family, newest first. */
 export async function sharedWorkOf(
   tx: Tx,
-  input: { tenantId: string; studentId: string },
-): Promise<SharedPiece[]> {
+  input: {
+    tenantId: string;
+    studentId: string;
+    limit: number;
+    after: Keyset | null;
+  },
+): Promise<Feed<SharedPiece, Keyset>> {
+  const after = input.after;
   const rows = await tx.execute<{
+    id: string;
     attempt_id: string;
     assignment_id: string;
     title: string;
     class_code: string;
     shared_at: string;
   }>(sql`
-    select h.attempt_id, a.id as assignment_id, a.title, c.code as class_code,
+    select h.id, h.attempt_id, a.id as assignment_id, a.title, c.code as class_code,
       ${isoOf(sql`h.created_at`)} as shared_at
     from core.family_shares h
     join core.submission_attempts t on t.tenant_id = h.tenant_id and t.id = h.attempt_id
@@ -902,15 +911,25 @@ export async function sharedWorkOf(
     join core.classes c on c.tenant_id = a.tenant_id and c.id = a.class_id
     where h.tenant_id = ${input.tenantId}::uuid and h.student_user_id = ${input.studentId}::uuid
       and h.status = 'active'
-    order by h.created_at desc
-    limit 200`);
-  return rows.map((row) => ({
-    attemptId: row.attempt_id,
-    assignmentId: row.assignment_id,
-    title: row.title,
-    classCode: row.class_code,
-    sharedAt: row.shared_at,
+      and (${after === null}::boolean
+        or (date_trunc('milliseconds', h.created_at), h.id)
+          < (${after?.at ?? null}::timestamptz, ${after?.id ?? null}::uuid))
+    order by date_trunc('milliseconds', h.created_at) desc, h.id desc
+    limit ${input.limit + 1}`);
+  const feed = feedOf(rows, input.limit, (row) => ({
+    at: row.shared_at,
+    id: row.id,
   }));
+  return {
+    rows: feed.rows.map((row) => ({
+      attemptId: row.attempt_id,
+      assignmentId: row.assignment_id,
+      title: row.title,
+      classCode: row.class_code,
+      sharedAt: row.shared_at,
+    })),
+    next: feed.next,
+  };
 }
 
 /** The student's submission for the assignment, created the first time. */

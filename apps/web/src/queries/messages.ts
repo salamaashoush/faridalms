@@ -1,8 +1,5 @@
-import type {
-  InboxQuery,
-  Keyset,
-  RecipientCursor,
-} from "@faridalms/domain/messages";
+import type { InboxQuery, RecipientCursor } from "@faridalms/domain/messages";
+import type { Keyset } from "@faridalms/domain/paging";
 
 import { infiniteQueryOptions, queryOptions } from "@tanstack/react-query";
 

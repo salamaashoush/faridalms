@@ -1,6 +1,7 @@
 import type { TeacherListQuery } from "@faridalms/domain/coursework";
+import type { Keyset } from "@faridalms/domain/paging";
 
-import { queryOptions } from "@tanstack/react-query";
+import { infiniteQueryOptions, queryOptions } from "@tanstack/react-query";
 
 import {
   getSharedWork,
@@ -100,9 +101,12 @@ export const myCourseworkQuery = queryOptions({
 });
 
 export const sharedWorkQuery = (studentId: string) =>
-  queryOptions({
+  infiniteQueryOptions({
     queryKey: ["coursework", "shared", studentId],
-    queryFn: () => getSharedWork({ data: { studentId } }),
+    queryFn: ({ pageParam }) =>
+      getSharedWork({ data: { studentId, after: pageParam } }),
+    initialPageParam: null as Keyset | null,
+    getNextPageParam: (last) => last.next ?? undefined,
   });
 
 export const childBriefQuery = (studentId: string, assignmentId: string) =>

@@ -189,6 +189,7 @@ import {
   studentWorkActionSchema,
   quizIssue,
   quizPoints,
+  sharedWorkQuerySchema,
   teacherListSchema,
 } from "@faridalms/domain/coursework";
 import { DECLARATION_STATEMENT } from "@faridalms/domain/exams";
@@ -209,6 +210,7 @@ import {
   quizOfBrief,
 } from "@faridalms/domain/lesson-content";
 import { translatedQuiz } from "@faridalms/domain/lesson-translation";
+import { PAGE_SIZE } from "@faridalms/domain/paging";
 import { practised, practiceStanding } from "@faridalms/domain/practice";
 import { isLater } from "@faridalms/domain/publication";
 import {
@@ -2896,16 +2898,16 @@ async function workOf(context: UnitContext, studentId: string) {
 
 /** The work teachers have shared with a child's family, newest first. */
 export const shared = readProcedure
-  .input(v.object({ studentId: id }))
+  .input(sharedWorkQuerySchema)
   .handler(async ({ input, context }) => {
     requireCapability(context, "children:read");
     await requireStudent(context, "teaching", input.studentId);
-    return {
-      pieces: await sharedWorkOf(context.tx, {
-        tenantId: context.tenantId,
-        studentId: input.studentId,
-      }),
-    };
+    return sharedWorkOf(context.tx, {
+      tenantId: context.tenantId,
+      studentId: input.studentId,
+      limit: PAGE_SIZE,
+      after: input.after,
+    });
   });
 
 /** One shared piece of work, as the family reads it. */

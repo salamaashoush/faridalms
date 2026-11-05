@@ -1280,7 +1280,7 @@ describe("handing in and returning work", () => {
     const piece = await family.coursework.sharedPiece({ attemptId });
     expect(JSON.stringify(piece.content)).toContain("My answers are attached.");
     expect(
-      (await family.coursework.shared({ studentId: me.id })).pieces.map(
+      (await family.coursework.shared({ studentId: me.id })).rows.map(
         (row) => row.attemptId,
       ),
     ).toContain(attemptId);

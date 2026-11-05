@@ -5,7 +5,7 @@ import {
   SheetHeader,
   SheetTitle,
 } from "@faridalms/ui/sheet";
-import { useQuery } from "@tanstack/react-query";
+import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
 import { useState } from "react";
 
 import { ContentView } from "~/components/content/ContentView";
@@ -61,7 +61,8 @@ function Piece({
 
 /** Work a child's teachers chose to share with the family, to read in full. */
 export function SharedWork({ studentId }: { studentId: string }) {
-  const pieces = useQuery(sharedWorkQuery(studentId)).data?.pieces ?? [];
+  const shared = useInfiniteQuery(sharedWorkQuery(studentId));
+  const pieces = shared.data?.pages.flatMap((page) => page.rows) ?? [];
   const [open, setOpen] = useState<{ attemptId: string; title: string }>();
   return (
     <RecordSection title={m.courseworkSharedTitle()}>
@@ -96,6 +97,17 @@ export function SharedWork({ studentId }: { studentId: string }) {
           ))}
         </RecordList>
       )}
+      {shared.hasNextPage ? (
+        <Button
+          type="button"
+          variant="outline"
+          className="justify-self-start max-md:h-10"
+          disabled={shared.isFetchingNextPage}
+          onClick={() => void shared.fetchNextPage()}
+        >
+          {m.courseworkSharedMore()}
+        </Button>
+      ) : null}
       {open ? (
         <Piece
           attemptId={open.attemptId}

@@ -43,6 +43,18 @@ export function paged<Row>(
   };
 }
 
+/** Where a feed ordered by time then id starts: after the row the previous page ended on. */
+export const keysetField = v.optional(
+  v.nullable(
+    v.object({
+      at: v.pipe(v.string(), v.isoTimestamp()),
+      id: v.pipe(v.string(), v.uuid()),
+    }),
+  ),
+  null,
+);
+export type Keyset = { at: string; id: string };
+
 export interface Feed<Row, Cursor> {
   rows: Row[];
   next: Cursor | null;
