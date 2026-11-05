@@ -1382,6 +1382,11 @@ describe("a link for an adult's own password", () => {
     expect(
       await rejection(open.identity.acceptInvite({ secret, password })),
     ).toMatchObject({ message: "auth.invalid_invite" });
+    // The invitation is in the delivery log like every other email.
+    const log = await api.notifications.deliveries({ q: "Salama" });
+    expect(
+      log.rows.find((row) => row.userId === id && row.kind === "invite"),
+    ).toMatchObject({ channel: "email", state: "sent" });
   });
 
   test("a forgotten password is replaced from an emailed link, and every session ends", async () => {
@@ -1395,6 +1400,10 @@ describe("a link for an adult's own password", () => {
     ).toEqual({ requested: true });
     const { message, secret } = linkTo(address);
     expect(message.subject).toContain("choose a new password");
+    const log = await api.notifications.deliveries({ q: "Salama" });
+    expect(
+      log.rows.find((row) => row.userId === id && row.kind === "reset"),
+    ).toMatchObject({ channel: "email", state: "sent" });
     expect(await open.identity.invite({ secret })).toMatchObject({
       loginName: address,
       reset: true,

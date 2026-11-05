@@ -8,7 +8,10 @@ import {
   issueInvite,
   reserveLoginName,
 } from "@faridalms/database/stores/invites";
-import { reachability } from "@faridalms/database/stores/notifications";
+import {
+  logLinkDelivery,
+  reachability,
+} from "@faridalms/database/stores/notifications";
 import { INVITE_DAYS } from "@faridalms/domain/first-sign-in";
 import { ORPCError } from "@orpc/server";
 
@@ -30,7 +33,10 @@ export async function emailSignInLink(
   input: {
     tenantId: string;
     userId: string;
-    school: Pick<DirectorySchool, "hosts" | "slug" | "nameEn" | "nameAr">;
+    school: Pick<
+      DirectorySchool,
+      "schoolId" | "hosts" | "slug" | "nameEn" | "nameAr"
+    >;
     domains: PlatformDomains;
     /**
      * The sign-in name to keep for someone who has no password yet; by
@@ -109,11 +115,22 @@ export async function emailSignInLink(
     days: INVITE_DAYS,
   });
   // A gateway may refuse by throwing before it returns a promise.
+  let receipt: string | null;
   try {
-    await input.mail.send({ to: reach.email, ...message });
+    ({ receipt } = await input.mail.send({ to: reach.email, ...message }));
   } catch {
     throw new ORPCError("BAD_GATEWAY", { message: "sign_in.not_sent" });
   }
+  await logLinkDelivery(tx, {
+    tenantId: input.tenantId,
+    orgId: input.school.schoolId,
+    userId: input.userId,
+    purpose: reset ? "reset" : "invite",
+    address: reach.email,
+    locale,
+    receipt,
+    error: null,
+  });
   return {
     accountId: invite.accountId,
     created: invite.created,

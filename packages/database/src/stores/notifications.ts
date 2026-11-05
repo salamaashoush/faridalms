@@ -186,6 +186,35 @@ export async function insertDeliveries(
     )}`);
 }
 
+/**
+ * Records a sign-in link emailed to a person, an invitation or a reset, in
+ * the delivery log beside every other email. The link went within the
+ * request, so the row says how it went rather than waiting to be sent.
+ */
+export async function logLinkDelivery(
+  tx: Tx,
+  input: {
+    tenantId: string;
+    orgId: string;
+    userId: string;
+    purpose: "invite" | "reset";
+    address: string;
+    locale: "ar" | "en";
+    receipt: string | null;
+    error: string | null;
+  },
+): Promise<void> {
+  const sent = input.error === null;
+  await tx.execute(sql`
+    insert into core.notification_deliveries (tenant_id, user_id, link_purpose, org_id, channel,
+      address, locale, state, reason, due_at, attempts, last_error, receipt, sent_at)
+    values (${input.tenantId}::uuid, ${input.userId}::uuid, ${input.purpose},
+      ${input.orgId}::uuid, 'email', ${input.address}, ${input.locale},
+      ${sent ? "sent" : "failed"}, ${sent ? null : "provider_error"}, statement_timestamp(), 1,
+      ${input.error?.slice(0, 500) ?? null}, ${input.receipt},
+      ${sent ? sql`statement_timestamp()` : null})`);
+}
+
 export interface NotificationRow {
   id: string;
   createdAt: string;
@@ -363,7 +392,7 @@ export interface DeliveryLogRow {
   sentAt: string | null;
   attempts: number;
   lastError: string | null;
-  kind: NotificationKind;
+  kind: NotificationKind | "message" | "invite" | "reset";
   title: string | null;
   /** The person told; null for an outside contact a conversation wrote to. */
   userId: string | null;
@@ -386,7 +415,7 @@ export async function deliveryLog(
 ): Promise<{ rows: DeliveryLogRow[]; total: number }> {
   const q = input.q ? `%${input.q}%` : null;
   const filter = sql`d.tenant_id = ${input.tenantId}::uuid and d.status = 'active'
-    and coalesce(n.org_id, h.org_id) = ${input.orgId}::uuid
+    and coalesce(n.org_id, h.org_id, d.org_id) = ${input.orgId}::uuid
     and (${input.state} = 'all' or d.state = ${input.state})
     and (${input.channel} = 'all' or d.channel = ${input.channel})
     and (${q}::text is null or u.full_name_en ilike ${q} or u.full_name_ar ilike ${q}
@@ -410,7 +439,7 @@ export async function deliveryLog(
     sent_at: string | null;
     attempts: number;
     last_error: string | null;
-    kind: NotificationKind;
+    kind: DeliveryLogRow["kind"];
     title: string | null;
     user_id: string | null;
     full_name_en: string | null;
@@ -418,7 +447,7 @@ export async function deliveryLog(
   }>(sql`
     select d.id, ${isoOf(sql`d.created_at`)} as created_at, d.channel, d.state, d.reason,
            ${isoOf(sql`d.due_at`)} as due_at, ${isoOf(sql`d.sent_at`)} as sent_at, d.attempts,
-           d.last_error, coalesce(n.kind, 'message') as kind,
+           d.last_error, coalesce(n.kind, d.link_purpose, 'message') as kind,
            coalesce(n.params ->> 'title', h.subject) as title, d.user_id,
            coalesce(u.full_name_en, c.display_name) as full_name_en,
            coalesce(u.full_name_ar, c.display_name) as full_name_ar

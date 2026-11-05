@@ -10,8 +10,6 @@ From `foundations.md`. W1, W3, W4 and W5 are merged.
 
 - **W2, the rest of the outbox.** Teaching events already go through
   `notify`. Left:
-  - invitations and password resets written to the delivery log like every
-    other email;
   - an email to someone with no preferred language goes in the school's
     language, not English. The template code does not know the person's
     school today.
@@ -40,8 +38,10 @@ From `foundations.md`. W1, W3, W4 and W5 are merged.
 
 ## Bugs found and not yet fixed
 
-- A staff edit form was reported not to scroll; it scrolls when opened
-  directly, so the path that reaches it stuck is not known yet.
+- A staff edit form was reported not to scroll. It scrolls when opened
+  directly, from the staff list's row menu and from the person's record,
+  on desktop and phone in Chromium and WebKit, so the path that reaches
+  it stuck is not known yet.
 
 ## Reach
 

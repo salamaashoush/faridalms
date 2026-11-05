@@ -3793,6 +3793,8 @@
   "ntfLogEmptyBody": "يظهر هنا البريد والرسائل النصية مع صدور الإشعارات.",
   "ntfAll": "الكل",
   "ntfColAbout": "الموضوع",
+  "ntfLinkInvite": "دعوة لاختيار كلمة مرور",
+  "ntfLinkReset": "رابط إعادة تعيين كلمة المرور",
   "ntfColChannel": "القناة",
   "ntfColState": "الحالة",
   "ntfColWhen": "الوقت",

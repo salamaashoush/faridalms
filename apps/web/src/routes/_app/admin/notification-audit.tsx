@@ -34,6 +34,13 @@ export const Route = createFileRoute("/_app/admin/notification-audit")({
   component: DeliveryLogPage,
 });
 
+/** What a delivery was about: its notice's or conversation's title, or the sign-in link it carried. */
+function aboutOf(row: Row) {
+  if (row.kind === "invite") return m.ntfLinkInvite();
+  if (row.kind === "reset") return m.ntfLinkReset();
+  return row.title;
+}
+
 type Row = Awaited<
   ReturnType<NonNullable<ReturnType<typeof Query>["queryFn"]>>
 >["rows"][number];
@@ -95,7 +102,7 @@ function columns(): Column<Row>[] {
     {
       id: "about",
       header: m.ntfColAbout(),
-      cell: (row) => <bdi className="truncate">{row.title ?? "–"}</bdi>,
+      cell: (row) => <bdi className="truncate">{aboutOf(row) ?? "–"}</bdi>,
     },
     {
       id: "channel",
@@ -118,7 +125,7 @@ function columns(): Column<Row>[] {
 const card = {
   title: (row: Row) => <bdi>{inLocale(row.fullNameEn, row.fullNameAr)}</bdi>,
   status: (row: Row) => <State row={row} />,
-  fact: (row: Row) => `${CHANNEL_LABEL[row.channel]()} · ${row.title ?? ""}`,
+  fact: (row: Row) => `${CHANNEL_LABEL[row.channel]()} · ${aboutOf(row) ?? ""}`,
 };
 
 function DeliveryLogPage() {

@@ -6,7 +6,10 @@ import {
   findPasswordIdentity,
 } from "@faridalms/database/stores/identity";
 import { issueInvite, voidInvite } from "@faridalms/database/stores/invites";
-import { reachability } from "@faridalms/database/stores/notifications";
+import {
+  logLinkDelivery,
+  reachability,
+} from "@faridalms/database/stores/notifications";
 import { RESET_MINUTES } from "@faridalms/domain/first-sign-in";
 
 import type { RequestContext, SchoolContext } from "./context";
@@ -84,7 +87,7 @@ export async function sendPasswordReset(
         (reach.locale === "ar" ? school.nameAr : school.nameEn) ??
         school.nameEn ??
         "";
-      const sent = await mail
+      const outcome = await mail
         .send({
           to: reach.email,
           ...resetMessage({
@@ -96,9 +99,22 @@ export async function sendPasswordReset(
           }),
         })
         .then(
-          () => true,
-          () => false,
+          ({ receipt }) => ({ receipt, error: null }),
+          (failure: unknown) => ({
+            receipt: null,
+            error: failure instanceof Error ? failure.message : "not sent",
+          }),
         );
+      const sent = outcome.error === null;
+      await logLinkDelivery(tx, {
+        tenantId,
+        orgId: school.schoolId,
+        userId: identity.userId,
+        purpose: "reset",
+        address: reach.email,
+        locale: reach.locale,
+        ...outcome,
+      });
       if (!sent) await voidInvite(tx, tenantId, link.identityId);
       await writeAudit(tx, tenantId, {
         action: "account.reset_requested",

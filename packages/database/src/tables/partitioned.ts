@@ -167,6 +167,9 @@ export const notificationDeliveries = core.table("notification_deliveries", {
   userId: uuid("user_id"),
   contactId: uuid("contact_id"),
   messageId: uuid("message_id"),
+  // Or it is a sign-in link the school emailed, sent at once and logged.
+  linkPurpose: text("link_purpose").$type<"invite" | "reset">(),
+  orgId: uuid("org_id"),
   channel: text("channel").$type<DeliveryChannel>().notNull(),
   address: text("address"),
   locale: text("locale").$type<"ar" | "en">().notNull(),
