@@ -9,15 +9,11 @@ larger than a few days of work gets its own plan beside this file.
 From `foundations.md`. W1 to W5 are merged.
 
 - **W6, conventions and records** (findings 13 to 18 and the P2 items):
-  - lists still cut at a fixed count with no way to the rest. Every
-    other list now pages through `paging.ts`. Left: the follow-up
-    dashboard's overdue reasons and support lists (200 each), the shared
-    blocks picker (100) and a block's uses (200), a broadcast's delivery
-    report (2000), a student's marks other than present (200), a
-    register's change history (300), the comment bank (500), whom a kept
-    question was asked of (500), a file area (1000) and a calendar range
-    (1000). Some are previews or pickers narrowed by search, so each needs
-    judging before it is paged;
+  - a file area still lists its newest 1000 files. Its screen sorts,
+    searches and filters them in the browser, so paging it needs those
+    on the server first. Every other list pages through `paging.ts`, or
+    has a bound far above its real size (a register's changes, a
+    calendar range, the comment bank, whom a question was asked of);
   - before and after values on audited updates. A history tab now
     holds every event about the person or record and words each one,
     but only about 22 of 228 audit calls pass `change`, so most
@@ -29,7 +25,11 @@ From `foundations.md`. W1 to W5 are merged.
     the ops repository, `plans/legal/erasure-registry.md`). Every table
     that names a person now declares one, and `db:verify` refuses a new
     table that does not;
-  - one translation review;
+  - bilingual records written the same way everywhere. Every
+    translation is now checked through one review, but a translated
+    lesson or assignment still keeps one title, a website page has no
+    review state, and a calendar event's description is in one
+    language while its title is in two;
   - one question and answer model shared by quizzes, forms and admission
     forms;
   - saved sections on the templates and shared-block systems;
@@ -126,5 +126,7 @@ From `school-front-door.md`; slices 1 to 9 are merged.
   after the English name was filled. The form moves focus a frame after
   Save, which may land inside Playwright's fill; not confirmed.
 - WebKit `coursework.spec.ts:277` failed once.
+- `calendar.spec.ts:119` once left a dragged event a day short under the
+  full four-worker run; it passed on each of two repeats alone.
 - Firefox does not launch on some macOS machines. CI runs it under
   `xvfb-run`.

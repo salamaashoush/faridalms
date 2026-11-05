@@ -1285,7 +1285,9 @@ Three kinds, never mixed:
   past the limit so `next` is null exactly when nothing follows. Keysets
   are `(sort key ..., id)` with a matching index. The OneRoster provider
   uses limit and offset, as its binding requires [BA].
-- No list is cut at a fixed count without a way to the rest.
+- No list a person reads is cut at a fixed count without a way to the
+  rest. A fixed bound only guards a read whose real size sits far below
+  it, such as one register's changes or one month of the calendar.
 - Full-text, trigram, `LIKE`, jsonb containment and range operators are not
   leakproof, so on an RLS table the planner will not use their indexes before
   the policy ([R2] finding 1: 15.9 ms seq scan against 0.025 ms). Such searches
