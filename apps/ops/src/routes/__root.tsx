@@ -40,7 +40,14 @@ export const Route = createRootRoute({
 
 /** The console's sections, each shown to the roles that may use it. */
 const NAVIGATION: {
-  to: "/" | "/series" | "/changes" | "/operators";
+  to:
+    | "/"
+    | "/series"
+    | "/changes"
+    | "/subscriptions"
+    | "/customers"
+    | "/catalogue"
+    | "/operators";
   label: string;
   area: OperatorArea;
   /** Offered only where the console has its business database. */
@@ -49,6 +56,14 @@ const NAVIGATION: {
   { to: "/", label: "Schools", area: "readTenants" },
   { to: "/series", label: "Exam sessions", area: "readTenants" },
   { to: "/changes", label: "Changes", area: "readTenants" },
+  {
+    to: "/subscriptions",
+    label: "Subscriptions",
+    area: "readSubscriptions",
+    business: true,
+  },
+  { to: "/customers", label: "Customers", area: "customers", business: true },
+  { to: "/catalogue", label: "Catalogue", area: "catalogue", business: true },
   { to: "/operators", label: "Operators", area: "operators", business: true },
 ];
 
@@ -61,7 +76,10 @@ function Shell({ children }: { children: ReactNode }) {
           <span className="text-sm font-semibold">Farida operators</span>
           {operator ? (
             <>
-              <nav aria-label="Console" className="flex gap-1 text-sm">
+              <nav
+                aria-label="Console"
+                className="flex flex-wrap gap-1 text-sm"
+              >
                 {NAVIGATION.filter(
                   (item) =>
                     (!item.business || access?.business) &&

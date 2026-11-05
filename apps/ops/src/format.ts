@@ -1,6 +1,9 @@
 import type { ModuleId } from "@faridalms/domain/modules";
+import type { SchoolNotice } from "@faridalms/domain/plans";
+import type { Currency, LimitKey } from "@faridalms/domain/subscriptions";
 
 import { MODULE_IDS } from "@faridalms/domain/modules";
+import { STORAGE_KEYS } from "@faridalms/domain/subscriptions";
 
 const KIB = 1024;
 const units = ["bytes", "KB", "MB", "GB", "TB"] as const;
@@ -16,8 +19,8 @@ export function formatBytes(bytes: number): string {
   return `${shown.toLocaleString("en")} ${units[unit]}`;
 }
 
-export function formatWhen(iso: string): string {
-  return new Date(iso).toLocaleString("en-GB", {
+export function formatWhen(when: string | Date): string {
+  return new Date(when).toLocaleString("en-GB", {
     dateStyle: "medium",
     timeStyle: "short",
   });
@@ -73,3 +76,44 @@ export function formatDay(isoDate: string): string {
     timeZone: "UTC",
   });
 }
+
+export const LIMIT_NAMES: Record<LimitKey, string> = {
+  poolBytes: "School pool",
+  classBytes: "Each class",
+  moduleBytes: "Each module",
+  personBytes: "Each person",
+  students: "Students",
+  staffAccounts: "Staff accounts",
+  videoHours: "Video hours",
+  customDomains: "Custom domains",
+  emailPerMonth: "Emails a month",
+  captionMinutes: "Caption minutes a year",
+};
+
+export const isStorageKey = (key: LimitKey) =>
+  (STORAGE_KEYS as readonly LimitKey[]).includes(key);
+
+export function formatLimit(key: LimitKey, value: number | null): string {
+  if (value === null) return "Unlimited";
+  return isStorageKey(key) ? formatBytes(value) : value.toLocaleString("en");
+}
+
+/** An amount kept in minor units (piastres, cents), shown in the currency. */
+export function formatMoney(minor: number, currency: Currency): string {
+  return new Intl.NumberFormat("en", { style: "currency", currency }).format(
+    minor / 100,
+  );
+}
+
+/** What an operator typed as money, in minor units, or null if it is not money. */
+export function minorOf(typed: string): number | null {
+  const amount = Number(typed.replaceAll(",", ""));
+  return typed.trim() === "" || !Number.isFinite(amount) || amount < 0
+    ? null
+    : Math.round(amount * 100);
+}
+
+export const NOTICE_NAMES: Record<SchoolNotice, string> = {
+  payment_overdue: "Payment overdue",
+  plan_ends_soon: "Plan ends soon",
+};

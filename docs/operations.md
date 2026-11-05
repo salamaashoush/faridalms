@@ -298,10 +298,49 @@ the last five minutes. Every business action is a row of the append-only
 `business_events`, with the operator, the record before and after, and the
 reason.
 
+With the business database a school's entitlements come from its tenant's
+subscription, and the school's page shows them with a link to it rather than
+a form. The pieces:
+
+- **Catalogue** (owners): plans and add-ons, each sold as numbered versions.
+  A version is written once and never changed (the `business_admin` login
+  has no update on it but `retired_at`); a new price, module or limit is a
+  new version, and a contract keeps the version it bought. Prices are kept
+  in minor units, per student a year, per school a year or once.
+- **Customers** (owners, sales, finance): the legal details invoices carry,
+  the contacts, and which version of the terms and of the data processing
+  agreement each accepted.
+- **Subscriptions** (read by every role, changed by owners and sales): a
+  trial with its last day, or a contract with its term, renewal, billing
+  schedule and contracted students; items, each a plan or add-on version
+  for some or all of the tenant's schools from a day; and overrides, a
+  module given or taken away or a limit set, for a while and with a reason.
+  An item or override is ended by its date, never deleted. A tenant holds
+  one open subscription.
+
+A school's entitlements are its plan's (Basic where none covers it), then
+its add-ons, then the overrides in force, a school's own over one for every
+school. The subscription page shows what publishing today would change for
+each school; **Publish now** writes it to the directory at once (and asks
+for a fresh sign-in), and each publication is kept with the subscription's
+revision, so "why does this school have coding" has an answer.
+
+The **daily round** runs on its own: each hour the console checks whether
+today's round (by Cairo's calendar) has run, and runs it if not, under an
+advisory lock so two consoles never run it together. It gives every tenant
+without a subscription a grandfathered one whose overrides keep each school
+exactly as it was (a trial or notice set by hand becomes the
+subscription's), publishes what began or ended that day, and makes a tenant
+read only through its cell when its trial is over without a contract. A
+grandfathered subscription stops being one when it is given a contract's
+term. Owners see when it last ran on the Subscriptions page and can run it
+there at once.
+
 The directory's change log names an operator by a digest of the provider's
 issuer and subject, never by name. Every entitlement change requires a
 reason and lands in the log in the same transaction. Cells read entitlements
-with the directory's 60-second cache.
+with the directory's 60-second cache; a tenant's access, paused or
+suspended, applies at once through its cell.
 
 ## Private files
 

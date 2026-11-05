@@ -39,3 +39,35 @@ export async function signInAs(page: Page, person: StandInPerson = OWNER) {
   await page.getByRole("link", { name: "Sign in", exact: true }).click();
   await expect(page).not.toHaveURL(/\/sign-in/);
 }
+
+/**
+ * Creates a school of its own through New school, in the run's cell, so a
+ * spec that changes what a school may use never touches the seeded ones.
+ * Answers the school's id.
+ */
+export async function createSchool(
+  page: Page,
+  school: { slug: string; nameEn: string; nameAr: string },
+): Promise<string> {
+  await page.goto("/schools/new");
+  await expect(
+    page.getByRole("button", { name: "Create school" }),
+  ).toBeEnabled();
+  await page.getByLabel("Name in English", { exact: true }).fill(school.nameEn);
+  await page.getByLabel("Name in Arabic", { exact: true }).fill(school.nameAr);
+  await page.getByLabel("Address", { exact: true }).fill(school.slug);
+  await page.getByLabel("Given name in English").fill("Salama");
+  await page.getByLabel("Family name in English").fill("Ashoush");
+  await page.getByLabel("Given name in Arabic").fill("سلامة");
+  await page.getByLabel("Family name in Arabic").fill("عشوش");
+  await page
+    .getByLabel("Email", { exact: true })
+    .fill(`salama@${school.slug}.example.com`);
+  await page.getByRole("button", { name: "Create school" }).click();
+  await expect(
+    page.getByRole("heading", { name: "School created" }),
+  ).toBeVisible({ timeout: 60_000 });
+  await page.getByRole("link", { name: "Open the school" }).click();
+  await expect(page).toHaveURL(/\/schools\/[0-9a-f-]{36}$/);
+  return new URL(page.url()).pathname.split("/").at(-1) ?? "";
+}

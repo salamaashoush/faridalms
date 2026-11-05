@@ -4,27 +4,10 @@ import { signWebhook } from "../apps/api/src/notifications/resend-inbox";
 import {
   API_ORIGIN as api,
   RESEND_STAND_IN as resend,
+  sentTo,
   WEBHOOK_SECRET as secret,
 } from "./fixtures/mail";
 import { openWith, signIn, untilHydrated } from "./fixtures/sign-in";
-
-/** The email the API sent to an address with these words, once the delivery worker has sent it. */
-async function sentTo(address: string, words: string) {
-  let found: { reply_to?: string[]; subject?: string } | undefined;
-  await expect
-    .poll(
-      async () => {
-        const sent = (await (
-          await fetch(`${resend}/e2e/sent?to=${encodeURIComponent(address)}`)
-        ).json()) as { text?: string; reply_to?: string[]; subject?: string }[];
-        found = sent.find((email) => email.text?.includes(words));
-        return Boolean(found);
-      },
-      { timeout: 75_000, intervals: [2_000] },
-    )
-    .toBe(true);
-  return found;
-}
 
 /** The family answers by email: Resend receives it and tells the API, signed. */
 async function familyAnswers(input: {

@@ -1,3 +1,5 @@
+import type { BusinessDb } from "@faridalms/database/business/client";
+
 import {
   listOperators,
   setOperator,
@@ -8,6 +10,18 @@ import * as v from "valibot";
 
 import { requireArea } from "./access";
 import { requireBusiness } from "./business";
+import { SYSTEM_OPERATOR } from "./publication";
+
+/** Each operator's name by id, for a history that says who did what. */
+export async function operatorNames(
+  db: BusinessDb,
+): Promise<Record<string, string>> {
+  const rows = await listOperators(db);
+  return {
+    [SYSTEM_OPERATOR]: "Daily round",
+    ...Object.fromEntries(rows.map((row) => [row.id, row.name])),
+  };
+}
 
 const saveOperatorSchema = v.object({
   id: v.pipe(v.string(), v.minLength(1), v.maxLength(64)),
