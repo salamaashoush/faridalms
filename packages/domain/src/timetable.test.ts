@@ -56,6 +56,7 @@ describe("one day's lesson changes", () => {
     classId: "01a0e2ff-cf61-7440-862a-a2f67c1c0d11",
     periodId: "01a0e2ff-cf61-7440-862a-a2f67c1c0d12",
     on: "2026-10-05",
+    expected: "",
   };
   const cover = "01a0e2ff-cf61-7440-862a-a2f67c1c0d13";
 
