@@ -100,7 +100,11 @@ export async function notifyIn(
     rows,
   });
   const [people, profile] = await Promise.all([
-    reachability(context.tx, { tenantId: context.tenantId, userIds: targets }),
+    reachability(context.tx, {
+      tenantId: context.tenantId,
+      orgId: context.schoolId,
+      userIds: targets,
+    }),
     schoolProfile(context.tx, context.schoolId),
   ]);
   const byUser = new Map(people.map((person) => [person.userId, person]));

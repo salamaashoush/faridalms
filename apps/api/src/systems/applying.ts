@@ -1165,6 +1165,7 @@ export const submit = writeProcedure
 
     const [reach] = await reachability(context.tx, {
       tenantId: context.tenantId,
+      orgId: context.schoolId,
       userIds: [context.actor.userId],
     });
     const scope = scopeFor(context, "school");

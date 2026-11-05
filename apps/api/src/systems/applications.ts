@@ -189,6 +189,7 @@ export const application = readProcedure
       }),
       reachability(context.tx, {
         tenantId: context.tenantId,
+        orgId: context.schoolId,
         userIds: [row.familyUserId],
       }),
       currentAnswers(context.tx, {

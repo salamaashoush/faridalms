@@ -1558,6 +1558,7 @@ async function emailPlan(context: UnitContext, seeds: readonly SignInSeed[]) {
     (
       await reachability(context.tx, {
         tenantId: context.tenantId,
+        orgId: context.schoolId,
         userIds: [...new Set(guardians.map((row) => row.guardianId))],
       })
     ).map((row) => [row.userId, row]),

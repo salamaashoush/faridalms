@@ -119,7 +119,12 @@ export interface Reachability {
  */
 export async function reachability(
   tx: Tx,
-  input: { tenantId: string; userIds: readonly string[] },
+  input: {
+    tenantId: string;
+    /** The school writing, whose language is used for someone who chose none. */
+    orgId: string;
+    userIds: readonly string[];
+  },
 ): Promise<Reachability[]> {
   if (input.userIds.length === 0) return [];
   const rows = await tx.execute<{
@@ -129,7 +134,9 @@ export async function reachability(
     email: string | null;
     phone: string | null;
   }>(sql`
-    select u.id as user_id, u.preferred_locale as locale,
+    select u.id as user_id,
+      coalesce(u.preferred_locale, (select o.default_locale from core.orgs o
+        where o.tenant_id = u.tenant_id and o.id = ${input.orgId}::uuid)) as locale,
       (select p.value from core.user_preferences p
         where p.tenant_id = u.tenant_id and p.user_id = u.id and p.key = 'notifications'
           and p.status = 'active') as preferences,

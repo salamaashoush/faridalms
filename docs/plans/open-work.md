@@ -6,13 +6,8 @@ larger than a few days of work gets its own plan beside this file.
 
 ## Foundations, wave 3
 
-From `foundations.md`. W1, W3, W4 and W5 are merged.
+From `foundations.md`. W1 to W5 are merged.
 
-- **W2, the rest of the outbox.** Teaching events already go through
-  `notify`. Left:
-  - an email to someone with no preferred language goes in the school's
-    language, not English. The template code does not know the person's
-    school today.
 - **W6, conventions and records** (findings 13 to 18 and the P2 items):
   - one version check on every update, one stale-write code and one
     pagination shape. Paging was added in several places at once, so it

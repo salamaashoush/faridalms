@@ -1389,6 +1389,21 @@ describe("a link for an adult's own password", () => {
     ).toMatchObject({ channel: "email", state: "sent" });
   });
 
+  test("someone who chose no language is written to in the school's", async () => {
+    const address = "salama.east@northwind.example.com";
+    const api = await signedIn("northwind-east", login("principal", 0, 1));
+    const saved = await api.people.saveStaff({
+      names: names("Salama Nour", "سلامة نور"),
+      email: address,
+      roles: ["teacher"],
+    });
+    await api.people.sendSignInLink({ userId: saved.id, loginName: address });
+    const message = seeded()
+      .mail.sent.filter((row) => row.to === address)
+      .at(-1);
+    expect(message?.subject).toContain("اختر كلمة مرورك");
+  });
+
   test("a forgotten password is replaced from an emailed link, and every session ends", async () => {
     const address = "salama.reset@northwind.example.com";
     const { api, id } = await newStaff(address);

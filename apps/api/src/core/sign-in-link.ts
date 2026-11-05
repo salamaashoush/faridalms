@@ -55,6 +55,7 @@ export async function emailSignInLink(
 ) {
   const [reach] = await reachability(tx, {
     tenantId: input.tenantId,
+    orgId: input.school.schoolId,
     userIds: [input.userId],
   });
   const invitee = await inviteeOf(tx, input.tenantId, input.userId);

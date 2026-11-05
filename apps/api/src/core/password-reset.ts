@@ -69,6 +69,7 @@ export async function sendPasswordReset(
       if (!school) return false;
       const [reach] = await reachability(tx, {
         tenantId,
+        orgId: school.schoolId,
         userIds: [identity.userId],
       });
       if (!reach?.email) return false;
