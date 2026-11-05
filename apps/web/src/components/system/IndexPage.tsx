@@ -37,6 +37,7 @@ import {
   SheetTitle,
   SheetTrigger,
 } from "@faridalms/ui/sheet";
+import { useRouterState } from "@tanstack/react-router";
 import { ChevronDown, ListFilter, Search, SearchX, X } from "lucide-react";
 import { useEffect, useId, useRef, useState } from "react";
 
@@ -242,16 +243,22 @@ function SearchInput({
       setDraft(value);
     }
   }
+  // The list stays on screen while a row's page loads. A search sent then
+  // would replace that navigation and bring the person back to the list.
+  const leaving = useRouterState({
+    select: (state) =>
+      state.location.pathname !== state.resolvedLocation?.pathname,
+  });
   useEffect(() => {
     const timer =
-      draft === sent
+      draft === sent || leaving
         ? undefined
         : setTimeout(() => {
             setSent(draft);
             onChangeRef.current(draft);
           }, 250);
     return () => clearTimeout(timer);
-  }, [draft, sent]);
+  }, [draft, sent, leaving]);
   return (
     <div className="relative min-w-0 flex-1 md:max-w-60 md:basis-44">
       <Search
