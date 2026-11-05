@@ -26,12 +26,14 @@ function resend(
   const provider = new ResendProvider(
     "re_test",
     "Farida <no-reply@mail.example.com>",
-    fetcher,
-    async (ms) => {
-      slept.push(ms);
-      now += ms;
+    {
+      fetcher,
+      sleep: async (ms) => {
+        slept.push(ms);
+        now += ms;
+      },
+      clock: () => now,
     },
-    () => now,
   );
   return { provider, requests, slept };
 }

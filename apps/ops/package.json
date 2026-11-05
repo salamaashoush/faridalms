@@ -12,6 +12,7 @@
     "@faridalms/database": "workspace:*",
     "@faridalms/documents": "workspace:*",
     "@faridalms/domain": "workspace:*",
+    "@faridalms/mail": "workspace:*",
     "@faridalms/ui": "workspace:*",
     "@tanstack/react-form": "^1.33.5",
     "@tanstack/react-query": "^5.105.0",

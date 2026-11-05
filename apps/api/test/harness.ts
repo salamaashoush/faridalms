@@ -23,6 +23,7 @@ import {
 import { SEED_PASSWORD, seedCell } from "@faridalms/database/seed";
 import { MODULE_IDS } from "@faridalms/domain/modules";
 import { DEFAULT_LIMITS } from "@faridalms/domain/plans";
+import { MemoryProvider } from "@faridalms/mail/providers";
 import { createORPCClient } from "@orpc/client";
 import { RPCLink } from "@orpc/client/fetch";
 import { SQL } from "bun";
@@ -44,7 +45,6 @@ import { fileKeys } from "../src/files/sealed";
 import { DiskFileStore, PUBLIC_KEY } from "../src/files/store";
 import { createHostChecks } from "../src/hosts/checks";
 import { streamLinkKey } from "../src/media/streams";
-import { MemoryProvider } from "../src/notifications/providers";
 import { createProvisioner } from "../src/provisioning/host";
 
 const adminUrl =

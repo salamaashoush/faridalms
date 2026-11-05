@@ -4,6 +4,8 @@ import {
   openDirectory,
   openDirectorySync,
 } from "@faridalms/database/directory/client";
+import { emailGateway } from "@faridalms/mail/gateway";
+import { createProvider } from "@faridalms/mail/providers";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -31,8 +33,7 @@ import { createStudio } from "./files/studio";
 import { startFileUpkeep } from "./files/upkeep";
 import { createHostChecks } from "./hosts/checks";
 import { streamLinkKey } from "./media/streams";
-import { emailGateway, resendInbox } from "./notifications/gateway";
-import { createProvider } from "./notifications/providers";
+import { resendInbox } from "./notifications/gateway";
 import { startDelivery } from "./notifications/scheduler";
 import { createProvisioner } from "./provisioning/host";
 import { startQuizClock } from "./quizzes/clock";

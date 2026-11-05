@@ -10,6 +10,7 @@
  * With compose: `docker compose run --rm admin create-school --help`.
  */
 import type { NewSchool } from "@faridalms/domain/provisioning";
+import type { Provider } from "@faridalms/mail/providers";
 
 import { openOwner } from "@faridalms/database/context";
 import { localKek } from "@faridalms/database/crypto";
@@ -21,16 +22,15 @@ import { openDirectory } from "@faridalms/database/directory/client";
 import { BASIC_MODULES, MODULE_IDS } from "@faridalms/domain/modules";
 import { BASIC_ENTITLEMENTS, settableOf } from "@faridalms/domain/plans";
 import { newSchoolSchema } from "@faridalms/domain/provisioning";
+import { emailGateway } from "@faridalms/mail/gateway";
 import { ORPCError } from "@orpc/server";
 import { parseArgs } from "node:util";
 import * as v from "valibot";
 
 import type { AdminEnv } from "./admin-env";
-import type { Provider } from "./notifications/providers";
 import type { ProvisioningDependencies } from "./provisioning/host";
 
 import { adminEnv } from "./admin-env";
-import { emailGateway } from "./notifications/gateway";
 import { provisionTenant, reissueInvite } from "./provisioning/host";
 
 /** How the directory's change log names whoever ran this. */

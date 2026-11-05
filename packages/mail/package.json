@@ -1,0 +1,9 @@
+{
+  "name": "@faridalms/mail",
+  "private": true,
+  "license": "FSL-1.1-ALv2",
+  "type": "module",
+  "exports": {
+    "./*": "./src/*.ts"
+  }
+}

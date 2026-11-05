@@ -7,13 +7,13 @@ import type {
 import type { Capability, Profile } from "@faridalms/domain/capabilities";
 import type { PlatformDomains } from "@faridalms/domain/hosts";
 import type { SessionContext, Workspace } from "@faridalms/domain/workspace";
+import type { Provider } from "@faridalms/mail/providers";
 
 import type { CodeRunner } from "../coding/run";
 import type { FileScanner } from "../files/scan";
 import type { FileStore } from "../files/store";
 import type { HostChecks } from "../hosts/checks";
 import type { InboundMail } from "../messages/inbound";
-import type { Provider } from "../notifications/providers";
 import type { Intake } from "./intake";
 import type { KeyRing } from "./keys";
 import type { LoginIndex } from "./login-index";

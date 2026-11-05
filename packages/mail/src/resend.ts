@@ -31,14 +31,27 @@ const seconds = (value: string | null): number | null => {
 export class ResendProvider implements Provider {
   private remaining: number | null = null;
   private resetAt = 0;
+  private readonly fetcher: typeof fetch;
+  private readonly sleep: (ms: number) => Promise<unknown>;
+  private readonly clock: () => number;
+  private readonly agent: string;
 
   constructor(
     private readonly apiKey: string,
     private readonly from: string,
-    private readonly fetcher: typeof fetch = fetch,
-    private readonly sleep: (ms: number) => Promise<unknown> = Bun.sleep,
-    private readonly clock: () => number = Date.now,
-  ) {}
+    options: {
+      fetcher?: typeof fetch;
+      sleep?: (ms: number) => Promise<unknown>;
+      clock?: () => number;
+      /** Which of the platform's servers is sending, for Resend's logs. */
+      agent?: string;
+    } = {},
+  ) {
+    this.fetcher = options.fetcher ?? fetch;
+    this.sleep = options.sleep ?? Bun.sleep;
+    this.clock = options.clock ?? Date.now;
+    this.agent = options.agent ?? "faridalms-api";
+  }
 
   async send(message: OutboundMessage) {
     const body = JSON.stringify({
@@ -84,7 +97,7 @@ export class ResendProvider implements Provider {
       headers: {
         authorization: `Bearer ${this.apiKey}`,
         "content-type": "application/json",
-        "user-agent": "faridalms-api",
+        "user-agent": this.agent,
         "idempotency-key": idempotencyKey,
       },
       body,

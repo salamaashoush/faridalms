@@ -4,6 +4,7 @@ import type {
   DueDelivery,
 } from "@faridalms/database/stores/notifications";
 import type { ContentDocument } from "@faridalms/domain/content";
+import type { OutboundMessage, Provider } from "@faridalms/mail/providers";
 
 import { keepReplyKey } from "@faridalms/database/stores/messages";
 import {
@@ -13,12 +14,11 @@ import {
 } from "@faridalms/database/stores/notifications";
 import { replyAddress } from "@faridalms/domain/email-replies";
 import { retryDelayMs } from "@faridalms/domain/notifications";
+import { ProviderError } from "@faridalms/mail/providers";
 
 import type { FileStore } from "../files/store";
-import type { OutboundMessage, Provider } from "./providers";
 
 import { replyKey, replyToken } from "../messages/reply";
-import { ProviderError } from "./providers";
 import { conversationMessage, render } from "./templates";
 
 /** What a conversation's email needs beyond a provider: where replies come back, and the files it carries. */

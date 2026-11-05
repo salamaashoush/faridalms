@@ -1,6 +1,7 @@
 import type { CellTransaction } from "@faridalms/database/context";
 import type { DirectorySchool } from "@faridalms/database/directory/client";
 import type { PlatformDomains } from "@faridalms/domain/hosts";
+import type { Provider } from "@faridalms/mail/providers";
 
 import { signInOf, takenLoginNames } from "@faridalms/database/stores/accounts";
 import {
@@ -14,8 +15,6 @@ import {
 } from "@faridalms/database/stores/notifications";
 import { INVITE_DAYS } from "@faridalms/domain/first-sign-in";
 import { ORPCError } from "@orpc/server";
-
-import type { Provider } from "../notifications/providers";
 
 import { adultInviteMessage } from "../notifications/templates";
 import { welcomeLink } from "./portal";

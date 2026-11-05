@@ -16,6 +16,7 @@
     "@bjorn3/browser_wasi_shim": "0.4.2",
     "@faridalms/database": "workspace:*",
     "@faridalms/domain": "workspace:*",
+    "@faridalms/mail": "workspace:*",
     "@jitl/quickjs-singlefile-mjs-release-sync": "0.32.0",
     "@orpc/openapi": "^1.16.1",
     "@orpc/server": "^1.16.1",

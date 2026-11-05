@@ -1,10 +1,10 @@
 import { plainContent } from "@faridalms/domain/content-conversion";
 import { DEFAULT_PREFERENCES } from "@faridalms/domain/notifications";
 import { addDays } from "@faridalms/domain/school";
+import { MemoryProvider } from "@faridalms/mail/providers";
 import { describe, expect, test } from "bun:test";
 
 import { deliverTenant } from "../src/notifications/deliver";
-import { MemoryProvider } from "../src/notifications/providers";
 import { login, rejection, seeded, sessionFor, signedIn } from "./harness";
 
 const principal = () => signedIn("northwind", login("principal"));
