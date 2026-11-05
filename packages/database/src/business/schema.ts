@@ -1,3 +1,4 @@
+import type { DunningStep } from "@faridalms/domain/dunning";
 import type {
   InvoiceKind,
   InvoiceLine,
@@ -33,6 +34,7 @@ import type {
   PriceUnit,
   SubscriptionState,
 } from "@faridalms/domain/subscriptions";
+import type { TaskKind } from "@faridalms/domain/tasks";
 
 import { sql } from "drizzle-orm";
 import {
@@ -46,6 +48,7 @@ import {
   jsonb,
   numeric,
   pgTable,
+  primaryKey,
   text,
   timestamp,
   uniqueIndex,
@@ -314,6 +317,8 @@ export const customers = pgTable(
     country: text("country").notNull(),
     currency: text("currency").$type<Currency>().notNull(),
     tenantId: uuid("tenant_id"),
+    /** The operator who looks after the customer and is asked to call it. */
+    accountOwnerId: text("account_owner_id"),
     termsVersion: text("terms_version"),
     termsAcceptedAt: instant("terms_accepted_at"),
     dpaVersion: text("dpa_version"),
@@ -1013,5 +1018,125 @@ export const paymentAllocations = pgTable(
     index("payment_allocations_invoice_idx").on(t.invoiceId),
     index("payment_allocations_payment_idx").on(t.paymentId),
     check("payment_allocations_amount_check", sql`amount_minor > 0`),
+  ],
+);
+
+/**
+ * A stop of a customer's dunning clock, both days included: a purchase
+ * order in process, a disputed amount, a government approval.
+ */
+export const dunningPauses = pgTable(
+  "dunning_pauses",
+  {
+    id: uuid("id")
+      .primaryKey()
+      .default(sql`uuidv7()`),
+    customerId: uuid("customer_id")
+      .notNull()
+      .references(() => customers.id),
+    startsOn: date("starts_on", { mode: "string" }).notNull(),
+    endsOn: date("ends_on", { mode: "string" }).notNull(),
+    reason: text("reason").notNull(),
+    createdBy: text("created_by").notNull(),
+    createdAt: createdAt(),
+  },
+  (t) => [
+    index("dunning_pauses_customer_idx").on(t.customerId, t.endsOn),
+    check("dunning_pauses_days_check", sql`ends_on >= starts_on`),
+    check(
+      "dunning_pauses_reason_check",
+      sql`char_length(reason) between 1 and 500`,
+    ),
+  ],
+);
+
+/** A step of the clock taken for an invoice: its email sent, once. */
+export const dunningSteps = pgTable(
+  "dunning_steps",
+  {
+    invoiceId: uuid("invoice_id")
+      .notNull()
+      .references(() => invoices.id),
+    step: text("step").$type<DunningStep>().notNull(),
+    takenOn: date("taken_on", { mode: "string" }).notNull(),
+    /** Who the email went to; empty when no contact or no mail was set up. */
+    emailedTo: text("emailed_to")
+      .array()
+      .notNull()
+      .default(sql`'{}'`),
+    createdAt: createdAt(),
+  },
+  (t) => [
+    primaryKey({ columns: [t.invoiceId, t.step] }),
+    check(
+      "dunning_steps_step_check",
+      sql`step in ('upcoming', 'due', 'overdue_7', 'overdue_14', 'restrict_notice', 'restricted', 'read_only_notice', 'read_only', 'suspend_notice', 'suspended', 'ended')`,
+    ),
+  ],
+);
+
+/**
+ * What the clock last set a tenant to, so a payment undoes the clock's own
+ * change and never an operator's. No row is full access.
+ */
+export const dunningStandings = pgTable(
+  "dunning_standings",
+  {
+    tenantId: uuid("tenant_id").primaryKey(),
+    customerId: uuid("customer_id")
+      .notNull()
+      .references(() => customers.id),
+    standing: text("standing")
+      .$type<"restricted" | "read_only" | "suspended">()
+      .notNull(),
+    since: date("since", { mode: "string" }).notNull(),
+  },
+  () => [
+    check(
+      "dunning_standings_standing_check",
+      sql`standing in ('restricted', 'read_only', 'suspended')`,
+    ),
+  ],
+);
+
+/** Something an operator is asked to do for a customer, by a day. */
+export const tasks = pgTable(
+  "tasks",
+  {
+    id: uuid("id")
+      .primaryKey()
+      .default(sql`uuidv7()`),
+    customerId: uuid("customer_id")
+      .notNull()
+      .references(() => customers.id),
+    kind: text("kind").$type<TaskKind>().notNull(),
+    invoiceId: uuid("invoice_id").references(() => invoices.id),
+    /** What made it, so it is made once. */
+    key: text("key").notNull(),
+    title: text("title").notNull(),
+    dueOn: date("due_on", { mode: "string" }).notNull(),
+    assigneeId: text("assignee_id"),
+    doneAt: instant("done_at"),
+    doneBy: text("done_by"),
+    outcome: text("outcome"),
+    createdBy: text("created_by").notNull(),
+    createdAt: createdAt(),
+  },
+  (t) => [
+    uniqueIndex("tasks_key").on(t.key),
+    index("tasks_open_idx")
+      .on(t.dueOn)
+      .where(sql`done_at is null`),
+    index("tasks_customer_idx").on(t.customerId),
+    check("tasks_kind_check", sql`kind in ('call', 'contract_end')`),
+    check("tasks_title_check", sql`char_length(title) between 1 and 300`),
+    check(
+      "tasks_done_check",
+      sql`(done_at is null) = (done_by is null) and (done_at is null) = (outcome is null)`,
+    ),
+    check(
+      "tasks_outcome_check",
+      sql`outcome is null or char_length(outcome) between 1 and 1000`,
+    ),
   ],
 );

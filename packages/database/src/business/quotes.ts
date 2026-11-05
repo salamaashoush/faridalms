@@ -327,6 +327,12 @@ export async function acceptQuote(
     let customerId = held.customerId;
     if (!customerId) {
       if (!input.newCustomer) throw new QuoteError("not_open");
+      const [lead] = held.leadId
+        ? await tx
+            .select({ ownerId: leads.ownerId })
+            .from(leads)
+            .where(eq(leads.id, held.leadId))
+        : [];
       customerId = await insertCustomer(tx, {
         legalNameEn: input.newCustomer.legalNameEn,
         legalNameAr: null,
@@ -336,6 +342,7 @@ export async function acceptQuote(
         country: input.newCustomer.country,
         currency: held.currency,
         tenantId: null,
+        accountOwnerId: lead?.ownerId ?? null,
         by: input.by,
         reason: `Accepted quote ${held.number}`,
       });

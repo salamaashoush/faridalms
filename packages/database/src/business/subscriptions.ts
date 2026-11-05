@@ -1,4 +1,4 @@
-import type { EntitlementsInput } from "@faridalms/domain/plans";
+import type { EntitlementsInput, SchoolNotice } from "@faridalms/domain/plans";
 import type {
   Currency,
   EndPartsInput,
@@ -184,7 +184,6 @@ async function heldOpen(tx: BusinessTx, id: string): Promise<SubscriptionRow> {
   return row;
 }
 
-/** Opens a tenant's subscription; a tenant holds one in force at a time. */
 /**
  * Opens a tenant's subscription, with the items it was sold, in one
  * transaction; a tenant holds one in force at a time.
@@ -277,6 +276,40 @@ export async function setTerms(
       after: input.terms,
       reason: input.reason,
     });
+  });
+}
+
+/**
+ * Shows or takes down a notice to the school's administrators, moving the
+ * revision so the next publication carries it. False when it already says so.
+ */
+export async function setNotice(
+  db: BusinessDb,
+  input: {
+    id: string;
+    notice: SchoolNotice | null;
+    by: string;
+    reason: string;
+  },
+): Promise<boolean> {
+  return db.transaction(async (tx) => {
+    const before = await heldOpen(tx, input.id);
+    if (before.notice === input.notice) return false;
+    await tx
+      .update(subscriptions)
+      .set({ notice: input.notice })
+      .where(eq(subscriptions.id, input.id));
+    await bump(tx, input.id);
+    await recordEvent(tx, {
+      operatorId: input.by,
+      action: "subscription.notice",
+      subjectType: "subscription",
+      subjectId: input.id,
+      before: { notice: before.notice },
+      after: { notice: input.notice },
+      reason: input.reason,
+    });
+    return true;
   });
 }
 

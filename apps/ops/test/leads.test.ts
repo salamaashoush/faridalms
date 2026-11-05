@@ -223,6 +223,13 @@ describe("a quote", () => {
       state: "draft",
     });
 
+    await planLead(business(), {
+      id: leadId,
+      ownerId: OWNER,
+      nextStep: "Collect the signed quote",
+      nextStepOn: "2026-11-06",
+      by: OWNER,
+    });
     const accepted = await acceptQuote(business(), {
       id: revised,
       attachment: {
@@ -256,6 +263,8 @@ describe("a quote", () => {
     });
     const customer = await customerById(business(), accepted.customerId);
     expect(customer?.customer.legalNameEn).toBe("Rowan Schools");
+    // Whoever worked the lead looks after the customer it became.
+    expect(customer?.customer.accountOwnerId).toBe(OWNER);
     expect(customer?.contacts.map((contact) => contact.name)).toEqual([
       "Salama Ashoush",
     ]);

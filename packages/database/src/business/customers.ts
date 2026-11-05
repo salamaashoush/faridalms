@@ -57,14 +57,15 @@ export async function insertCustomer(
   tx: BusinessTx,
   input: CustomerFields & {
     tenantId: string | null;
+    accountOwnerId?: string | null;
     by: string;
     reason: string;
   },
 ): Promise<string> {
-  const { tenantId, by, reason, ...fields } = input;
+  const { tenantId, accountOwnerId = null, by, reason, ...fields } = input;
   const [created] = await tx
     .insert(customers)
-    .values({ ...fields, tenantId })
+    .values({ ...fields, tenantId, accountOwnerId })
     .returning({ id: customers.id });
   if (!created) throw new Error("customer was not created");
   await recordEvent(tx, {
@@ -155,6 +156,35 @@ export async function linkTenant(
       subjectType: "customer",
       subjectId: input.customerId,
       after: { tenantId: input.tenantId },
+    });
+    return true;
+  });
+}
+
+/** Names the operator who looks after a customer, or nobody. */
+export async function setAccountOwner(
+  db: BusinessDb,
+  input: { customerId: string; ownerId: string | null; by: string },
+): Promise<boolean> {
+  return db.transaction(async (tx) => {
+    const [before] = await tx
+      .select({ ownerId: customers.accountOwnerId })
+      .from(customers)
+      .where(eq(customers.id, input.customerId))
+      .for("update");
+    if (!before) return false;
+    if (before.ownerId === input.ownerId) return true;
+    await tx
+      .update(customers)
+      .set({ accountOwnerId: input.ownerId })
+      .where(eq(customers.id, input.customerId));
+    await recordEvent(tx, {
+      operatorId: input.by,
+      action: "customer.owner",
+      subjectType: "customer",
+      subjectId: input.customerId,
+      before: { accountOwnerId: before.ownerId },
+      after: { accountOwnerId: input.ownerId },
     });
     return true;
   });
