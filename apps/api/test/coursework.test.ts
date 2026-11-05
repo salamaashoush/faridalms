@@ -764,6 +764,17 @@ describe("handing in and returning work", () => {
       (await student.api.coursework.work({ id: saved.id })).attempts[0]
         ?.assessment,
     ).toMatchObject({ gradeHeld: false, score: 5 });
+    // The student hears the grade is out, after the notice of its return.
+    const told = (
+      await student.api.notifications.list({ tab: "all" })
+    ).rows.filter((row) => row.subjectId === saved.id);
+    expect(told[0]?.params).toMatchObject({ gradeShown: true });
+    await teacher.api.coursework.showGrade({ attemptId: attempt.id });
+    expect(
+      (await student.api.notifications.list({ tab: "all" })).rows.filter(
+        (row) => row.subjectId === saved.id,
+      ),
+    ).toHaveLength(told.length);
   });
 
   test("voice feedback is heard by the student only once the work is returned", async () => {

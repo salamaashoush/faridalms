@@ -262,6 +262,7 @@ import {
 import {
   teachingScope,
   tellAssigned,
+  tellGradeShown,
   tellReturned,
 } from "../core/teaching-notices";
 import { checkTranslation } from "../core/translation-review";
@@ -1976,6 +1977,32 @@ async function answerableComment(context: UnitContext, commentId: string) {
 }
 
 /** A held grade goes out once every comment on its attempt is answered. */
+/** Shows held grades and tells each student and family theirs is shown. */
+async function showHeld(context: UnitContext, attemptIds: readonly string[]) {
+  if (
+    (await releaseAssessments(context.tx, context.tenantId, attemptIds)) === 0
+  )
+    return;
+  for (const attemptId of attemptIds) {
+    const attempt = await attemptById(context.tx, context.tenantId, attemptId);
+    if (!attempt) continue;
+    const assignment = await assignmentById(
+      context.tx,
+      context.tenantId,
+      attempt.assignmentId,
+    );
+    if (!assignment) continue;
+    const learners = (
+      await namesOf(context.tx, context.tenantId, [attempt.studentId])
+    ).map((row) => ({
+      studentId: row.id,
+      fullNameEn: row.fullNameEn,
+      fullNameAr: row.fullNameAr,
+    }));
+    await tellGradeShown(teachingScope(context), assignment, learners);
+  }
+}
+
 async function releaseIfAnswered(context: UnitContext, attemptId: string) {
   const assessment = await assessmentOf(
     context.tx,
@@ -1985,7 +2012,7 @@ async function releaseIfAnswered(context: UnitContext, attemptId: string) {
   if (!assessment?.commentsReleasedAt || assessment.releasedAt) return;
   if ((await unansweredComments(context.tx, context.tenantId, attemptId)) > 0)
     return;
-  await releaseAssessments(context.tx, context.tenantId, [attemptId]);
+  await showHeld(context, [attemptId]);
 }
 
 /** Shows a held grade at once, without waiting for the student's answers. */
@@ -1993,7 +2020,7 @@ export const showGrade = writeProcedure
   .input(showGradeSchema)
   .handler(async ({ input, context }) => {
     const attempt = await commentableAttempt(context, input.attemptId);
-    await releaseAssessments(context.tx, context.tenantId, [attempt.id]);
+    await showHeld(context, [attempt.id]);
     return { shown: true };
   });
 

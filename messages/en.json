@@ -8994,5 +8994,7 @@
   "itkLetterEn": "{letter}, in English",
   "itkLetterAr": "{letter}, in Arabic",
   "itkLetterSchool": "The school's letter",
-  "itkErrLetter": "Choose one of the school's admission letters."
+  "itkErrLetter": "Choose one of the school's admission letters.",
+  "ntfGradeShown": "Your grade is shown",
+  "ntfGradeShownFor": "{name}'s grade is shown"
 }

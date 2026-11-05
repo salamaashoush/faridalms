@@ -9392,5 +9392,7 @@
   "itkLetterEn": "{letter} بالإنجليزية",
   "itkLetterAr": "{letter} بالعربية",
   "itkLetterSchool": "خطاب المدرسة",
-  "itkErrLetter": "اختر أحد خطابات القبول الخاصة بالمدرسة."
+  "itkErrLetter": "اختر أحد خطابات القبول الخاصة بالمدرسة.",
+  "ntfGradeShown": "ظهرت درجتك",
+  "ntfGradeShownFor": "ظهرت درجة {name}"
 }

@@ -238,13 +238,17 @@ export function noticeText(notice: Notice): { title: string; body: string } {
     case "feedback": {
       const name = both(params.studentName, params.studentNameAr);
       return {
-        title: params.revise
+        title: params.gradeShown
           ? name
-            ? m.ntfReviseFor({ name })
-            : m.ntfRevise()
-          : name
-            ? m.ntfFeedbackFor({ name })
-            : m.ntfFeedback(),
+            ? m.ntfGradeShownFor({ name })
+            : m.ntfGradeShown()
+          : params.revise
+            ? name
+              ? m.ntfReviseFor({ name })
+              : m.ntfRevise()
+            : name
+              ? m.ntfFeedbackFor({ name })
+              : m.ntfFeedback(),
         body: [title, both(params.className, params.classNameAr)]
           .filter(Boolean)
           .join(" · "),

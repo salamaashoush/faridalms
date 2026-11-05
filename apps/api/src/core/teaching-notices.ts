@@ -157,6 +157,24 @@ export async function tellReturned(
   });
 }
 
+/** Tells students, and their families, that a grade held back on returned work is now shown. */
+export async function tellGradeShown(
+  scope: TeachingScope,
+  assignment: Assignment,
+  learners: readonly Learner[],
+): Promise<number> {
+  if (learners.length === 0) return 0;
+  return tellLearners(scope, learners, {
+    kind: "feedback",
+    subject: { type: "assignment", id: assignment.id },
+    params: {
+      ...titlesOf(assignment),
+      ...(await classNames(scope, assignment.classId)),
+      gradeShown: true,
+    },
+  });
+}
+
 /** Tells students, and their families, that a class's grades for a period are out. */
 export async function tellPeriodGrades(
   scope: TeachingScope,
