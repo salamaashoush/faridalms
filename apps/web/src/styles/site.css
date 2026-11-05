@@ -1191,6 +1191,91 @@
       transform: none !important;
     }
   }
+
+  /* Gallery, steps, quick links and announcement. */
+  /* A masonry's rows are a quarter of a column wide, so a picture's span
+     is its proportion; the frame is the container its width is read from. */
+  .site-masonry-frame {
+    container-type: inline-size;
+  }
+  .site-masonry {
+    --s-gap: 0.75rem;
+    --s-cols: var(--s-columns-2);
+    display: grid;
+    grid-template-columns: repeat(var(--s-cols), minmax(0, 1fr));
+    grid-auto-rows: calc(
+      (100cqi - (var(--s-cols) - 1) * var(--s-gap)) / var(--s-cols) / 4 -
+        var(--s-gap) * 0.75
+    );
+    gap: var(--s-gap);
+  }
+  .site-masonry > li {
+    grid-row: var(--s-at-2);
+    grid-column: var(--s-in-2);
+  }
+  @container site (width >= 48rem) {
+    .site-masonry {
+      --s-gap: 1rem;
+    }
+  }
+  @container site (width >= 56rem) {
+    .site-masonry {
+      --s-cols: var(--s-columns-3);
+    }
+    .site-masonry > li {
+      grid-row: var(--s-at-3);
+      grid-column: var(--s-in-3);
+    }
+  }
+  /* A marker in the theme's button shape: a circle on a pill theme, a
+     square on a square one. */
+  .site-marker {
+    display: grid;
+    flex-shrink: 0;
+    place-items: center;
+    border-radius: var(--s-button-radius);
+    background: var(--s-btn);
+    color: var(--s-btn-fg);
+    font-variant-numeric: lining-nums tabular-nums;
+  }
+  .site-quick-arrow {
+    display: grid;
+    inline-size: 2.5rem;
+    block-size: 2.5rem;
+    flex-shrink: 0;
+    place-items: center;
+    border-radius: var(--s-button-radius);
+    color: var(--s-link);
+    box-shadow: inset 0 0 0 1px var(--s-border);
+    transition:
+      background-color 200ms var(--s-ease),
+      color 200ms var(--s-ease),
+      box-shadow 200ms var(--s-ease);
+  }
+  a:hover .site-quick-arrow {
+    background: var(--s-btn);
+    color: var(--s-btn-fg);
+    box-shadow: none;
+  }
+  /* Tiles for each audience are filled in the button colour, whatever the
+     theme's card style. */
+  .site-root [data-quick="audience"] .site-card {
+    background: var(--s-btn);
+    color: var(--s-btn-fg);
+    box-shadow: none;
+  }
+  .site-root [data-quick="audience"] .site-heading,
+  .site-root [data-quick="audience"] .site-quick-arrow {
+    color: inherit;
+  }
+  .site-root [data-quick="audience"] .site-quick-arrow {
+    box-shadow: inset 0 0 0 1px
+      color-mix(in oklab, currentColor 45%, transparent);
+  }
+  .site-root [data-quick="audience"] a:hover .site-quick-arrow {
+    background: var(--s-btn-fg);
+    color: var(--s-btn);
+  }
 }
 
 @keyframes site-menu-in {

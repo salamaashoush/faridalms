@@ -1003,6 +1003,426 @@ const ENQUIRY_FORM = FORM(
   ],
 );
 
+const EY_HERO = section("hero", "split", (b) => ({
+  eyebrow: b.w(["Nursery, ages 2 to 6", "للأطفال من سنتين إلى ست سنوات"]),
+  heading: b.w(["A happy place to *start*", "مكان سعيد *للبداية*"]),
+  text: b.w([
+    "A warm, bilingual nursery where children play, wonder and grow in confidence, with a team who know every child well.",
+    "روضة دافئة ثنائية اللغة، يلعب فيها الأطفال ويكتشفون وتنمو ثقتهم بأنفسهم، مع فريق يعرف كل طفل جيدًا.",
+  ]),
+  actions: [
+    link(b, ["Book a visit", "احجزوا زيارة"], `/pages/visit#${ANCHOR.visit}`),
+    link(
+      b,
+      ["Ask a question", "اسألونا"],
+      `/pages/admissions#${ANCHOR.enquiry}`,
+    ),
+  ],
+  height: "m" as const,
+}));
+
+const EY_NOTICE = section(
+  "announcement",
+  "strip",
+  (b) => ({
+    text: b.w([
+      "Stay-and-play mornings every Saturday this term: come with your child and meet the team.",
+      "صباحات لعب مفتوحة كل سبت في هذا الفصل: تعالوا مع طفلكم وتعرّفوا على الفريق.",
+    ]),
+    date: "",
+    actions: [
+      link(b, ["Book a place", "احجزوا مكانًا"], `/pages/visit#${ANCHOR.visit}`),
+    ],
+  }),
+  { scheme: "accent", spacing: "s" },
+);
+
+/** Where the parents page's own quick links lead. */
+const PARENTS_ANCHOR = { day: "school-day", questions: "questions" } as const;
+
+const quickLink = (
+  b: Builder,
+  title: Words,
+  text: Words,
+  icon: IconId,
+  href: string,
+) => ({ id: b.id(), title: b.w(title), text: b.w(text), icon, href });
+
+const EY_QUICK_LINKS = section("quickLinks", "tiles", (b) => ({
+  heading: b.w(["For our *families*", "*لأسرنا*"]),
+  items: [
+    quickLink(
+      b,
+      ["Book a visit", "احجزوا زيارة"],
+      ["Come and see a morning at play", "تعالوا وشاهدوا صباحًا من اللعب"],
+      "map",
+      `/pages/visit#${ANCHOR.visit}`,
+    ),
+    quickLink(
+      b,
+      ["Our day", "يومنا"],
+      ["From drop-off to home time", "من الوصول حتى العودة إلى البيت"],
+      "clock",
+      `/pages/parents#${PARENTS_ANCHOR.day}`,
+    ),
+    quickLink(
+      b,
+      ["News and term dates", "الأخبار ومواعيد الفصول"],
+      [
+        "Holidays, events and letters home",
+        "العطل والفعاليات والرسائل إلى الأسر",
+      ],
+      "calendar",
+      "/news",
+    ),
+    quickLink(
+      b,
+      ["Ask a question", "اسألونا"],
+      ["We reply within two working days", "نرد خلال يومي عمل"],
+      "mail",
+      `/pages/admissions#${ANCHOR.enquiry}`,
+    ),
+  ],
+}));
+
+const EY_LEARNING = section("cards", "icons", (b) => ({
+  heading: b.w(["How children *learn* here", "كيف *يتعلّم* أطفالنا"]),
+  text: b.w([
+    "Days built around play, with gentle routines and plenty of time outdoors.",
+    "أيام تقوم على اللعب، بروتين هادئ ووقت وافر في الهواء الطلق.",
+  ]),
+  columns: "4" as const,
+  items: [
+    card(
+      b,
+      ["Play with a purpose", "لعب له هدف"],
+      [
+        "Sand, water, blocks and role play, each set up so children explore, count and talk as they go.",
+        "رمل وماء ومكعّبات ولعب أدوار، يُهيّأ كل منها ليستكشف الأطفال ويعدّوا ويتحدّثوا وهم يلعبون.",
+      ],
+      "sparkles",
+    ),
+    card(
+      b,
+      ["Two languages, every day", "لغتان كل يوم"],
+      [
+        "Songs, stories and conversation in Arabic and English, so both feel like home.",
+        "أغانٍ وقصص وأحاديث بالعربية والإنجليزية، حتى تصبح اللغتان مألوفتين كلغة البيت.",
+      ],
+      "book",
+    ),
+    card(
+      b,
+      ["Outdoors in every season", "في الهواء الطلق طوال العام"],
+      [
+        "A shaded garden for digging, planting, climbing and running, every single day.",
+        "حديقة مظلّلة للحفر والزراعة والتسلّق والجري، كل يوم.",
+      ],
+      "leaf",
+    ),
+    card(
+      b,
+      ["Music and making", "موسيقى وصنع"],
+      [
+        "Singing, painting, clay and simple instruments, with something small to take home most weeks.",
+        "غناء ورسم وصلصال وآلات بسيطة، ومعظم الأسابيع يعود الطفل إلى البيت بشيء صنعه بيديه.",
+      ],
+      "music",
+    ),
+  ],
+}));
+
+const EY_STATS = section(
+  "stats",
+  "row",
+  (b) => ({
+    heading: b.w([
+      "Small enough to know *every* child",
+      "صغيرة بما يكفي لنعرف *كل* طفل",
+    ]),
+    items: [
+      {
+        id: b.id(),
+        value: "1:4",
+        label: b.w([
+          "adults to children under three",
+          "بالغ لكل أربعة أطفال دون الثالثة",
+        ]),
+        caption: "",
+      },
+      {
+        id: b.id(),
+        value: "16",
+        label: b.w(["children in a class, at most", "طفلًا في الفصل كحدّ أقصى"]),
+        caption: "",
+      },
+      {
+        id: b.id(),
+        value: "10",
+        label: b.w(["years caring for little ones", "سنوات في رعاية الصغار"]),
+        caption: "",
+      },
+      {
+        id: b.id(),
+        value: "3,000",
+        label: b.w([
+          "square metres of garden and play",
+          "متر مربع من الحدائق والملاعب",
+        ]),
+        caption: "",
+      },
+    ],
+    source: "",
+  }),
+  { scheme: "brand", align: "center" },
+);
+
+const EY_GALLERY = section("gallery", "masonry", (b) => ({
+  heading: b.w(["Everyday *moments*", "لحظات من *يومنا*"]),
+  items: Array.from({ length: 6 }, () => ({ id: b.id(), image: noImage })),
+}));
+
+const parentVoice = (b: Builder, quote: Words, name: Words, role: Words) => ({
+  id: b.id(),
+  quote: b.w(quote),
+  name: b.w(name),
+  role: b.w(role),
+  audience: "parent" as const,
+  portrait: noImage,
+});
+
+const EY_VOICES = section(
+  "voices",
+  "grid",
+  (b) => ({
+    heading: b.w(["What parents *say*", "ماذا تقول *الأسر*"]),
+    items: [
+      parentVoice(
+        b,
+        [
+          "Our daughter cried on the first morning and ran in on the third. The team made settling in easy for all of us.",
+          "بكت ابنتنا في الصباح الأول، وفي الثالث دخلت راكضة. جعل الفريق التأقلم سهلًا علينا جميعًا.",
+        ],
+        ["Nour Haddad", "نور حدّاد"],
+        ["Parent, Kindergarten 1", "أمّ لطفلة في الروضة الأولى"],
+      ),
+      parentVoice(
+        b,
+        [
+          "Every afternoon we get a photo and a few lines about his day. It is the moment I look forward to most.",
+          "تصلنا كل يوم صورة وبضعة أسطر عن يومه، وهي اللحظة التي أنتظرها أكثر من غيرها.",
+        ],
+        ["Karim Aziz", "كريم عزيز"],
+        ["Parent, Nursery", "أب لطفل في الحضانة"],
+      ),
+      parentVoice(
+        b,
+        [
+          "He comes home singing in two languages and telling us about the snails in the garden.",
+          "يعود إلى البيت يغنّي بلغتين ويحكي لنا عن الحلزونات في الحديقة.",
+        ],
+        ["Mona Fahmy", "منى فهمي"],
+        ["Parent of two", "أمّ لطفلين"],
+      ),
+      parentVoice(
+        b,
+        [
+          "We moved here in the middle of the year. Within a week our son had a best friend and a favourite song.",
+          "انتقلنا إلى هنا في منتصف العام، وخلال أسبوع صار لابننا صديق مقرّب وأغنية مفضّلة.",
+        ],
+        ["Hana Saeed", "هناء سعيد"],
+        ["Parent, Kindergarten 2", "أمّ لطفل في الروضة الثانية"],
+      ),
+    ],
+  }),
+  { scheme: "soft" },
+);
+
+const EY_STEPS = section("steps", "horizontal", (b) => ({
+  heading: b.w(["Joining us, *step by step*", "الانضمام إلينا *خطوة بخطوة*"]),
+  text: b.w([
+    "Most children start in September, and we welcome new families all year whenever a place is free.",
+    "يبدأ معظم الأطفال في سبتمبر، ونرحّب بأسر جديدة طوال العام كلما توفّر مقعد.",
+  ]),
+  items: [
+    {
+      id: b.id(),
+      title: b.w(["Come and play", "تعالوا والعبوا معنا"]),
+      text: b.w([
+        "Visit with your child on a stay-and-play morning and see the rooms, the garden and the team.",
+        "زوروا الروضة مع طفلكم في صباح لعب مفتوح، وتعرّفوا على الغرف والحديقة والفريق.",
+      ]),
+    },
+    {
+      id: b.id(),
+      title: b.w(["Tell us about your child", "حدّثونا عن طفلكم"]),
+      text: b.w([
+        "Register online and tell us about routines, languages at home and what helps your child feel settled.",
+        "سجّلوا عبر الإنترنت وأخبرونا عن روتين طفلكم واللغات في البيت وما يساعده على الاطمئنان.",
+      ]),
+    },
+    {
+      id: b.id(),
+      title: b.w(["Settling in gently", "تأقلم بهدوء"]),
+      text: b.w([
+        "Short sessions with a parent close by, growing a little longer each day.",
+        "جلسات قصيرة بقرب أحد الوالدين، تطول قليلًا كل يوم.",
+      ]),
+    },
+    {
+      id: b.id(),
+      title: b.w(["A full, happy day", "يوم كامل وسعيد"]),
+      text: b.w([
+        "When your child is ready they stay the whole day, and you hear how it went at the end of each one.",
+        "حين يصبح طفلكم مستعدًا يبقى اليوم كله، ونخبركم في نهاية كل يوم كيف مضى.",
+      ]),
+    },
+  ],
+}));
+
+const PARENTS_NOTICE = section(
+  "announcement",
+  "strip",
+  (b) => ({
+    text: b.w([
+      "Parent and teacher meetings are next week. Send us a message to choose a time that suits you.",
+      "لقاءات أولياء الأمور والمعلّمين في الأسبوع القادم. راسلونا لاختيار الوقت الذي يناسبكم.",
+    ]),
+    date: "",
+    actions: [
+      link(
+        b,
+        ["Choose a time", "اختاروا موعدًا"],
+        `/pages/parents#${ANCHOR.general}`,
+      ),
+    ],
+  }),
+  { scheme: "accent", spacing: "s" },
+);
+
+const PARENTS_LINKS = section("quickLinks", "tiles", (b) => ({
+  heading: b.w(["Everyday *essentials*", "ما تحتاجونه *كل يوم*"]),
+  items: [
+    quickLink(
+      b,
+      ["The school day", "اليوم الدراسي"],
+      ["Times from drop-off to home time", "المواعيد من الوصول حتى الانصراف"],
+      "clock",
+      `/pages/parents#${PARENTS_ANCHOR.day}`,
+    ),
+    quickLink(
+      b,
+      ["News and term dates", "الأخبار ومواعيد الفصول"],
+      [
+        "Holidays, events and letters home",
+        "العطل والفعاليات والرسائل إلى الأسر",
+      ],
+      "calendar",
+      "/news",
+    ),
+    quickLink(
+      b,
+      ["Report an absence", "الإبلاغ عن غياب"],
+      ["Let us know before 8:30", "أخبرونا قبل الساعة 8:30"],
+      "heart",
+      `/pages/parents#${ANCHOR.general}`,
+    ),
+    quickLink(
+      b,
+      ["Questions families ask", "أسئلة تطرحها الأسر"],
+      ["Buses, joining mid-year and more", "الحافلات والالتحاق خلال العام وغيرها"],
+      "lightbulb",
+      `/pages/parents#${PARENTS_ANCHOR.questions}`,
+    ),
+    quickLink(
+      b,
+      ["A place for a sibling", "مقعد لأخ أو أخت"],
+      ["Brothers and sisters apply first", "الأولوية في القبول للإخوة"],
+      "users",
+      "/pages/admissions",
+    ),
+    quickLink(
+      b,
+      ["The office", "مكتب المدرسة"],
+      ["Phone, email and opening hours", "الهاتف والبريد ومواعيد العمل"],
+      "phone",
+      "/pages/contact",
+    ),
+  ],
+}));
+
+const moment = (b: Builder, time: string, title: Words, text: Words) => ({
+  id: b.id(),
+  year: time,
+  title: b.w(title),
+  text: b.w(text),
+});
+
+const PARENTS_DAY = section(
+  "timeline",
+  "vertical",
+  (b) => ({
+    heading: b.w(["A day with *us*", "يوم *معنا*"]),
+    items: [
+      moment(
+        b,
+        "7:30",
+        ["Doors open", "تُفتح الأبواب"],
+        [
+          "Breakfast club and a calm start, with staff at the gate to greet every child.",
+          "نادي الإفطار وبداية هادئة، ويستقبل فريقنا كل طفل عند البوابة.",
+        ],
+      ),
+      moment(
+        b,
+        "8:00",
+        ["Learning begins", "يبدأ التعلّم"],
+        [
+          "The morning's main lessons, while everyone is fresh.",
+          "دروس الصباح الأساسية والجميع في كامل نشاطهم.",
+        ],
+      ),
+      moment(
+        b,
+        "11:30",
+        ["Lunch and play", "الغداء واللعب"],
+        [
+          "A hot lunch cooked on site, then time outside.",
+          "غداء ساخن يُطهى في المدرسة، ثم وقت في الساحة.",
+        ],
+      ),
+      moment(
+        b,
+        "14:30",
+        ["Home time", "وقت الانصراف"],
+        [
+          "Collection from the main gate, or the bus home.",
+          "الاستلام من البوابة الرئيسية، أو العودة بالحافلة.",
+        ],
+      ),
+      moment(
+        b,
+        "16:00",
+        ["Clubs finish", "تنتهي الأندية"],
+        [
+          "After-school clubs and supervised homework end for the day.",
+          "تنتهي أندية ما بعد المدرسة والدراسة بإشراف.",
+        ],
+      ),
+    ],
+  }),
+  { scheme: "soft", anchor: PARENTS_ANCHOR.day },
+);
+
+const PARENTS_MESSAGE = FORM(
+  "general",
+  ["Message the *office*", "راسلوا *المكتب*"],
+  [
+    "Tell us about an absence, ask for a meeting or send any question. The office reads every message the same day.",
+    "أخبرونا عن غياب، أو اطلبوا لقاءً، أو أرسلوا أي سؤال. يقرأ المكتب كل رسالة في اليوم نفسه.",
+  ],
+);
+
 /** A sample of every section, for the builder to show and insert. */
 const SAMPLES: Record<SectionType, (b: Builder) => PageSection> = {
   hero: HERO_HOME,
@@ -1105,16 +1525,18 @@ export const PAGE_TEMPLATES = {
     on(STATS, SOFT),
     on(VOICES, CANVAS),
   ],
-  // Young families: a warm split opening, the everyday links, what
-  // children learn, a gallery and how to join.
+  // Young families: a warm split opening, this term's invitation, the
+  // everyday links, how children learn, everyday moments, parents' words
+  // and joining in clear steps; the footer's call to visit closes it.
   homeCommunity: [
-    on(HERO_HOME, SOFT, "split"),
-    on(QUICK_LINKS, CANVAS),
-    on(CARDS_PROGRAMMES, SOFT),
-    on(VOICES, CANVAS),
-    on(GALLERY, SOFT, "masonry"),
-    on(STEPS, CANVAS),
-    on(ADMISSIONS_TRIAD, BRAND),
+    on(EY_HERO, SOFT),
+    EY_NOTICE,
+    on(EY_QUICK_LINKS, CANVAS),
+    on(EY_LEARNING, { scheme: "soft", dividerTop: "wave" }),
+    on(EY_STATS, { dividerTop: "wave" }),
+    on(EY_GALLERY, CANVAS),
+    on(EY_VOICES, { dividerTop: "wave" }),
+    on(EY_STEPS, CANVAS),
   ],
   // Bold and new: words before pictures, values in motion, then the proof.
   homeStatement: [
@@ -1203,9 +1625,12 @@ export const PAGE_TEMPLATES = {
         "كل ما تحتاجه الأسر طوال العام، في مكان واحد.",
       ],
     ),
-    on(QUICK_LINKS, CANVAS),
-    on(NEWS, SOFT),
-    on(CONTACT, CANVAS),
+    PARENTS_NOTICE,
+    on(PARENTS_LINKS, CANVAS),
+    PARENTS_DAY,
+    on(NEWS, CANVAS),
+    on(FAQ, { scheme: "soft", anchor: PARENTS_ANCHOR.questions }),
+    on(PARENTS_MESSAGE, CANVAS),
   ],
   contact: [
     PAGE_HEADER(

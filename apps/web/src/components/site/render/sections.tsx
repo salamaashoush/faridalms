@@ -343,7 +343,7 @@ function Slides({ section, context, first }: Props<"slides">) {
         type="button"
         onClick={() => go(-1)}
         aria-label={m.sitePreviousSlide({}, t)}
-        className="grid size-11 place-items-center rounded-full border border-[var(--s-border)] backdrop-blur-sm transition-colors hover:bg-white/15"
+        className="site-icon-button backdrop-blur-sm"
       >
         <ChevronLeft aria-hidden className="size-5 rtl:-scale-x-100" />
       </button>
@@ -368,7 +368,7 @@ function Slides({ section, context, first }: Props<"slides">) {
         type="button"
         onClick={() => go(1)}
         aria-label={m.siteNextSlide({}, t)}
-        className="grid size-11 place-items-center rounded-full border border-[var(--s-border)] backdrop-blur-sm transition-colors hover:bg-white/15"
+        className="site-icon-button backdrop-blur-sm"
       >
         <ChevronRight aria-hidden className="size-5 rtl:-scale-x-100" />
       </button>
@@ -379,7 +379,7 @@ function Slides({ section, context, first }: Props<"slides">) {
           aria-label={
             paused ? m.sitePlaySlides({}, t) : m.sitePauseSlides({}, t)
           }
-          className="ms-1 grid size-11 place-items-center rounded-full border border-[var(--s-border)] backdrop-blur-sm motion-reduce:hidden"
+          className="site-icon-button ms-1 backdrop-blur-sm motion-reduce:hidden"
         >
           {paused ? (
             <Play aria-hidden className="size-4" />
@@ -555,17 +555,19 @@ function Announcement({ section, context }: Props<"announcement">) {
   return (
     <div
       className={cn(
-        "flex flex-wrap items-center gap-x-6 gap-y-4",
+        "flex flex-wrap items-center justify-between gap-x-8 gap-y-5",
         variant === "card" && "site-card p-[var(--s-card-pad)]",
       )}
     >
-      <span aria-hidden className="site-icon-tile">
-        <Megaphone className="rtl:-scale-x-100" />
-      </span>
-      <p className="me-auto grid gap-0.5 text-[1.125rem] leading-snug font-semibold">
-        {date ? <span className="site-meta">{date}</span> : null}
-        {data.text}
-      </p>
+      <div className="flex min-w-0 flex-[1_1_28rem] items-center gap-4 @3xl/site:gap-5">
+        <span aria-hidden className="site-marker size-11 @3xl/site:size-12">
+          <Megaphone className="size-5 rtl:-scale-x-100" />
+        </span>
+        <p className="grid gap-0.5 text-[1.0625rem] leading-[calc(var(--s-line)-0.2)] font-semibold @3xl/site:text-[1.125rem]">
+          {date ? <span className="site-meta">{date}</span> : null}
+          {data.text}
+        </p>
+      </div>
       <Actions actions={data.actions} context={context} />
     </div>
   );
@@ -1394,7 +1396,7 @@ function Lightbox({
         type="button"
         onClick={onClose}
         aria-label={m.siteClosePhoto({}, t)}
-        className="absolute end-4 top-4 grid size-11 place-items-center rounded-full bg-white/10 hover:bg-white/20"
+        className="absolute end-4 top-4 grid size-11 place-items-center rounded-[var(--s-button-radius)] bg-white/10 hover:bg-white/20"
       >
         <X aria-hidden className="size-5" />
       </button>
@@ -1404,7 +1406,7 @@ function Lightbox({
             type="button"
             onClick={() => onGo((index - 1 + count) % count)}
             aria-label={m.sitePreviousPhoto({}, t)}
-            className="absolute start-4 top-1/2 grid size-12 -translate-y-1/2 place-items-center rounded-full bg-white/10 hover:bg-white/20"
+            className="absolute start-4 top-1/2 grid size-12 -translate-y-1/2 place-items-center rounded-[var(--s-button-radius)] bg-white/10 hover:bg-white/20"
           >
             <ChevronLeft aria-hidden className="size-6 rtl:-scale-x-100" />
           </button>
@@ -1412,7 +1414,7 @@ function Lightbox({
             type="button"
             onClick={() => onGo((index + 1) % count)}
             aria-label={m.siteNextPhoto({}, t)}
-            className="absolute end-4 top-1/2 grid size-12 -translate-y-1/2 place-items-center rounded-full bg-white/10 hover:bg-white/20"
+            className="absolute end-4 top-1/2 grid size-12 -translate-y-1/2 place-items-center rounded-[var(--s-button-radius)] bg-white/10 hover:bg-white/20"
           >
             <ChevronRight aria-hidden className="size-6 rtl:-scale-x-100" />
           </button>
@@ -1420,6 +1422,55 @@ function Lightbox({
       ) : null}
     </dialog>
   );
+}
+
+/**
+ * Where each picture of a bento grid sits: in groups of four, one large,
+ * two small and one wide, the large one changing sides each group, so
+ * every row of four (and of two on a phone) is filled. A last group of
+ * one, two or three shares a row between them.
+ */
+function bentoSpan(index: number, count: number): string {
+  const grouped = count - (count % 4);
+  if (index < grouped) {
+    const odd = Math.floor(index / 4) % 2 === 1;
+    const group = odd
+      ? ["", "", "col-span-2 row-span-2", "col-span-2"]
+      : ["col-span-2 row-span-2", "", "", "col-span-2"];
+    return group[index % 4] ?? "";
+  }
+  const rest = count % 4;
+  if (rest === 1) return "col-span-2 @4xl/site:col-span-4";
+  if (rest === 2) return "@4xl/site:col-span-2";
+  return index === grouped ? "col-span-2" : "";
+}
+
+const TALL = 5;
+const SHORT = 3;
+
+/**
+ * A masonry of tall and short pictures packed into the shortest column,
+ * then the last picture in each column stretched to the tallest, so the
+ * columns end on one line. Positions are in rows a quarter of a column
+ * wide, worked out for two columns and for three.
+ */
+function masonry(count: number, columns: number) {
+  const heights = Array.from({ length: columns }, () => 0);
+  const last = Array.from({ length: columns }, () => -1);
+  const placed = Array.from({ length: count }, (_, index) => {
+    const column = heights.indexOf(Math.min(...heights));
+    const row = heights[column] ?? 0;
+    const span = index % 3 === 0 ? TALL : SHORT;
+    heights[column] = row + span;
+    last[column] = index;
+    return { column, row, span };
+  });
+  const tallest = Math.max(...heights);
+  last.forEach((index, column) => {
+    const item = placed[index];
+    if (item) item.span += tallest - (heights[column] ?? tallest);
+  });
+  return placed;
 }
 
 function Gallery({ section, context }: Props<"gallery">) {
@@ -1430,67 +1481,83 @@ function Gallery({ section, context }: Props<"gallery">) {
     const src = item.image.fileId ? context.fileUrl(item.image.fileId) : null;
     return src ? [{ id: item.id, src, alt: item.image.alt }] : [];
   });
+  const count = data.items.length;
+  const two = masonry(count, Math.min(2, count));
+  const three = masonry(count, Math.min(3, count));
+  const list = (
+    <ul
+      data-stagger
+      className={cn(
+        variant === "masonry"
+          ? "site-masonry"
+          : variant === "carousel"
+            ? "site-rail"
+            : "grid auto-rows-[minmax(8rem,18cqi)] grid-cols-2 gap-3 @3xl/site:gap-4 @4xl/site:grid-cols-4",
+      )}
+      style={
+        variant === "carousel"
+          ? ({ "--s-rail-item": "30rem" } as CSSProperties)
+          : variant === "masonry"
+            ? ({
+                "--s-columns-2": Math.min(2, count),
+                "--s-columns-3": Math.min(3, count),
+              } as CSSProperties)
+            : undefined
+      }
+    >
+      {data.items.map((item, index) => {
+        const picture = (
+          <SitePicture
+            image={item.image}
+            context={context}
+            seed={item.id}
+            ratio={variant === "carousel" ? "4 / 3" : undefined}
+            className={variant === "carousel" ? undefined : "size-full"}
+          />
+        );
+        const at = photos.findIndex((photo) => photo.id === item.id);
+        const small = two[index];
+        const large = three[index];
+        return (
+          <li
+            key={item.id}
+            className={cn(variant === "grid" && bentoSpan(index, count))}
+            style={
+              variant === "masonry" && small && large
+                ? ({
+                    "--s-at-2": `${small.row + 1} / span ${small.span}`,
+                    "--s-in-2": small.column + 1,
+                    "--s-at-3": `${large.row + 1} / span ${large.span}`,
+                    "--s-in-3": large.column + 1,
+                  } as CSSProperties)
+                : undefined
+            }
+          >
+            {at >= 0 && !context.editing ? (
+              <button
+                type="button"
+                onClick={() => setOpen(at)}
+                aria-label={m.siteOpenPhoto({ alt: item.image.alt }, t)}
+                className="site-zoom block size-full cursor-zoom-in overflow-hidden rounded-[var(--s-radius)]"
+              >
+                {picture}
+              </button>
+            ) : (
+              picture
+            )}
+          </li>
+        );
+      })}
+    </ul>
+  );
   return (
     <div>
       <SectionIntro heading={data.heading} />
-      <ul
-        data-stagger
-        className={cn(
-          variant === "masonry"
-            ? "columns-2 gap-3 @3xl/site:gap-4 @4xl/site:columns-3 [&>li]:mb-3 [&>li]:break-inside-avoid @3xl/site:[&>li]:mb-4"
-            : variant === "carousel"
-              ? "site-rail"
-              : "grid auto-rows-[minmax(8rem,18cqi)] grid-cols-2 gap-3 @3xl/site:gap-4 @4xl/site:grid-cols-4",
-        )}
-        style={
-          variant === "carousel"
-            ? ({ "--s-rail-item": "30rem" } as CSSProperties)
-            : undefined
-        }
-      >
-        {data.items.map((item, index) => {
-          const picture = (
-            <SitePicture
-              image={item.image}
-              context={context}
-              seed={item.id}
-              ratio={
-                variant === "masonry"
-                  ? index % 3 === 0
-                    ? "3 / 4"
-                    : "4 / 3"
-                  : variant === "carousel"
-                    ? "4 / 3"
-                    : undefined
-              }
-              className={variant === "grid" ? "size-full" : undefined}
-            />
-          );
-          const at = photos.findIndex((photo) => photo.id === item.id);
-          return (
-            <li
-              key={item.id}
-              className={cn(
-                variant === "grid" && index === 0 && "col-span-2 row-span-2",
-                variant === "grid" && index === 3 && "@4xl/site:col-span-2",
-              )}
-            >
-              {at >= 0 && !context.editing ? (
-                <button
-                  type="button"
-                  onClick={() => setOpen(at)}
-                  aria-label={m.siteOpenPhoto({ alt: item.image.alt }, t)}
-                  className="site-zoom block size-full cursor-zoom-in overflow-hidden rounded-[var(--s-radius)]"
-                >
-                  {picture}
-                </button>
-              ) : (
-                picture
-              )}
-            </li>
-          );
-        })}
-      </ul>
+      {variant === "masonry" ? (
+        <div className="site-masonry-frame">{list}</div>
+      ) : (
+        list
+      )}
       <Lightbox
         photos={photos}
         index={open}
@@ -2233,6 +2300,10 @@ function Steps({ section, context }: Props<"steps">) {
   const { data, variant } = section;
   const number = (index: number) =>
     new Intl.NumberFormat(numberLocale(context.locale)).format(index + 1);
+  const count = data.items.length;
+  // Steps that fit one row are joined by a line from marker to marker.
+  const row = count <= 3;
+  const wide = count <= 4;
   return (
     <div>
       <SectionIntro heading={data.heading} text={data.text} />
@@ -2240,7 +2311,13 @@ function Steps({ section, context }: Props<"steps">) {
         data-stagger
         className={cn(
           variant === "horizontal"
-            ? "grid gap-0 @3xl/site:grid-cols-2 @3xl/site:gap-10 @5xl/site:grid-cols-4"
+            ? cn(
+                "grid gap-0 @3xl/site:gap-10",
+                count === 3 ? "@3xl/site:grid-cols-3" : "@3xl/site:grid-cols-2",
+                count === 4
+                  ? "@5xl/site:grid-cols-4"
+                  : count > 4 && "@5xl/site:grid-cols-3",
+              )
             : "site-narrow grid gap-0",
         )}
       >
@@ -2250,11 +2327,17 @@ function Steps({ section, context }: Props<"steps">) {
             className={cn(
               "relative grid content-start gap-4 text-start",
               variant === "horizontal"
-                ? "grid-cols-[3.5rem_1fr] gap-x-5 pb-8 before:absolute before:start-7 before:top-14 before:bottom-0 before:w-px before:bg-[var(--s-border)] last:before:hidden @3xl/site:grid-cols-1 @3xl/site:gap-4 @3xl/site:pb-0 @3xl/site:before:hidden @5xl/site:after:absolute @5xl/site:after:start-16 @5xl/site:after:top-7 @5xl/site:after:h-px @5xl/site:after:w-[calc(100%-3rem)] @5xl/site:after:bg-[var(--s-border)] @5xl/site:last:after:hidden"
+                ? cn(
+                    "grid-cols-[3.5rem_1fr] gap-x-5 pb-8 before:absolute before:start-7 before:top-14 before:bottom-0 before:w-px before:bg-[var(--s-border)] last:before:hidden @3xl/site:grid-cols-1 @3xl/site:gap-4 @3xl/site:pb-0 @3xl/site:before:hidden",
+                    index < count - 1 &&
+                      "after:absolute after:start-[4.25rem] after:top-7 after:hidden after:h-px after:w-[calc(100%-2.5rem)] after:bg-[var(--s-border)]",
+                    index < count - 1 && row && "@3xl/site:after:block",
+                    index < count - 1 && wide && "@5xl/site:after:block",
+                  )
                 : "grid-cols-[3.5rem_1fr] gap-6 pb-10 before:absolute before:start-7 before:top-14 before:bottom-0 before:w-px before:bg-[var(--s-border)] last:before:hidden",
             )}
           >
-            <span className="site-heading relative z-10 grid size-14 place-items-center rounded-full bg-[var(--s-btn)] text-xl text-[var(--s-btn-fg)]">
+            <span className="site-heading site-marker relative z-10 size-14 text-xl">
               {number(index)}
             </span>
             <span className="grid gap-1.5 pt-3 @3xl/site:pt-0">
@@ -2866,15 +2949,27 @@ function EnquiryForm({ section, context }: Props<"form">) {
 
 function QuickLinks({ section, context }: Props<"quickLinks">) {
   const { data, variant } = section;
+  const count = data.items.length;
+  const columns = columnsFor(count, 4);
   return (
     <div>
       <SectionIntro heading={data.heading} />
       <ul
         data-stagger
+        data-quick={variant}
         className={
           variant === "list"
             ? "grid gap-3 @3xl/site:grid-cols-2"
-            : "grid grid-cols-2 gap-[var(--s-grid-gap)] @3xl/site:grid-cols-4"
+            : cn(
+                "grid grid-cols-2 gap-3 @3xl/site:gap-[var(--s-grid-gap)]",
+                // A lone last tile on a phone takes the whole row.
+                count % 2 === 1 && "[&>li:last-child]:col-span-2",
+                columns === "3"
+                  ? "@3xl/site:grid-cols-3 @3xl/site:[&>li:last-child]:col-span-1"
+                  : columns === "4"
+                    ? "@3xl/site:grid-cols-2 @5xl/site:grid-cols-4 @5xl/site:[&>li:last-child]:col-span-1"
+                    : "@3xl/site:grid-cols-2",
+              )
         }
       >
         {data.items.map((item) => (
@@ -2883,34 +2978,45 @@ function QuickLinks({ section, context }: Props<"quickLinks">) {
               href={item.href}
               context={context}
               className={cn(
-                "site-card group flex h-full gap-4 p-5 text-start @3xl/site:p-6",
-                variant === "list" ? "items-center" : "flex-col",
-                variant === "audience" && "min-h-44 justify-end",
+                "site-card group flex h-full text-start",
+                variant === "list"
+                  ? "min-h-16 items-center gap-4 p-4 @3xl/site:p-5"
+                  : "min-h-40 flex-col gap-6 p-5 @3xl/site:min-h-48 @3xl/site:p-6",
               )}
-              style={
-                variant === "audience"
-                  ? {
-                      background: "var(--s-btn)",
-                      color: "var(--s-btn-fg)",
-                      boxShadow: "none",
-                    }
-                  : undefined
-              }
             >
-              {variant === "audience" ? (
-                <SiteIcon icon={item.icon} className="size-7" />
+              {variant === "list" ? (
+                <>
+                  <IconTile icon={item.icon} />
+                  <span className="grid flex-1 gap-0.5">
+                    <span className="site-heading site-h4">{item.title}</span>
+                    {item.text ? (
+                      <span className="site-small site-muted">{item.text}</span>
+                    ) : null}
+                  </span>
+                  <Arrow className="shrink-0 text-[var(--s-link)]" />
+                </>
               ) : (
-                <IconTile icon={item.icon} />
+                <>
+                  <span className="flex items-start justify-between gap-4">
+                    {variant === "audience" ? (
+                      <SiteIcon icon={item.icon} className="size-8" />
+                    ) : (
+                      <IconTile icon={item.icon} />
+                    )}
+                    {item.href ? (
+                      <span aria-hidden className="site-quick-arrow ms-auto">
+                        <Arrow />
+                      </span>
+                    ) : null}
+                  </span>
+                  <span className="mt-auto grid gap-1">
+                    <span className="site-heading site-h4">{item.title}</span>
+                    {item.text ? (
+                      <span className="site-small opacity-80">{item.text}</span>
+                    ) : null}
+                  </span>
+                </>
               )}
-              <span className="grid flex-1 gap-1">
-                <span className="text-[1.0625rem] font-semibold">
-                  {item.title}
-                </span>
-                {item.text ? (
-                  <span className="site-small opacity-80">{item.text}</span>
-                ) : null}
-              </span>
-              <Arrow className={variant === "list" ? "" : "self-end"} />
             </SiteAnchor>
           </li>
         ))}
