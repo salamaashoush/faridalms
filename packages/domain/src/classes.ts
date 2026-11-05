@@ -105,6 +105,9 @@ export const saveSubjectSchema = v.pipe(
       v.union([v.literal(""), v.pipe(v.string(), v.regex(/^#[0-9a-f]{6}$/i))]),
       "",
     ),
+    expected: v.optional(
+      v.object({ labelEn: v.string(), labelAr: v.string() }),
+    ),
   }),
   v.forward(
     v.check(
@@ -112,5 +115,9 @@ export const saveSubjectSchema = v.pipe(
       "validation.name_required",
     ),
     ["labelEn"],
+  ),
+  v.check(
+    (value) => !value.id || value.expected !== undefined,
+    "validation.invalid",
   ),
 );

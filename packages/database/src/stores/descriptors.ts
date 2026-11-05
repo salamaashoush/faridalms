@@ -117,6 +117,20 @@ export async function addSchoolDescriptor(
 }
 
 /**
+ * Holds a value until the transaction ends, so a relabel compares against
+ * labels nobody else is changing.
+ */
+export async function lockDescriptor(
+  tx: CellTransaction,
+  input: { tenantId: string; descriptorId: string },
+) {
+  await tx.execute(sql`
+    select 1 from core.descriptors
+    where tenant_id = ${input.tenantId}::uuid and id = ${input.descriptorId}::uuid
+    for update`);
+}
+
+/**
  * Relabels a value at a school: its own value is changed in place, a shared
  * one through an override at the school, so other schools keep their labels.
  */

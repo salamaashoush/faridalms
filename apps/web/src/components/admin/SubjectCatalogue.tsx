@@ -225,7 +225,15 @@ export function SubjectSheet({
   const mutation = useMutation({
     mutationFn: (value: SubjectDraft) =>
       saveSubject({
-        data: { ...(subject ? { id: subject.id } : {}), ...value },
+        data: {
+          ...(subject
+            ? {
+                id: subject.id,
+                expected: { labelEn: subject.name, labelAr: subject.nameAr },
+              }
+            : {}),
+          ...value,
+        },
       }),
     meta: { inlineError: true },
   });

@@ -267,7 +267,26 @@ describe("subjects", () => {
       code: "art",
       labelEn: "Visual art",
       labelAr: "الفنون البصرية",
+      expected: {
+        labelEn: shared.labelEn ?? "",
+        labelAr: shared.labelAr ?? "",
+      },
     });
+    // A sheet opened before that save would put back what it showed.
+    expect(
+      await rejection(
+        api.classes.saveSubject({
+          id: shared.id,
+          code: "art",
+          labelEn: "Fine art",
+          labelAr: "الفنون الجميلة",
+          expected: {
+            labelEn: shared.labelEn ?? "",
+            labelAr: shared.labelAr ?? "",
+          },
+        }),
+      ),
+    ).toMatchObject({ code: "CONFLICT", message: "conflict.version" });
     const here = (await api.classes.subjects()).rows;
     expect(here.find((row) => row.id === added.id)?.schoolOnly).toBe(true);
     expect(here.find((row) => row.id === shared.id)?.labelEn).toBe(

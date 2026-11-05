@@ -16,6 +16,7 @@ import {
 import {
   addSchoolDescriptor,
   descriptorsFor,
+  lockDescriptor,
   relabelDescriptor,
 } from "@faridalms/database/stores/descriptors";
 import { staffDirectory } from "@faridalms/database/stores/staff";
@@ -402,6 +403,10 @@ export const saveSubject = writeProcedure
       color: input.color || null,
     };
     if (input.id) {
+      await lockDescriptor(context.tx, {
+        tenantId: context.tenantId,
+        descriptorId: input.id,
+      });
       const known = (
         await descriptorsFor(context.tx, {
           tenantId: context.tenantId,
@@ -412,6 +417,11 @@ export const saveSubject = writeProcedure
         })
       ).find((row) => row.id === input.id);
       if (!known) throw new ORPCError("NOT_FOUND");
+      if (
+        (known.labelEn ?? "") !== input.expected?.labelEn ||
+        (known.labelAr ?? "") !== input.expected.labelAr
+      )
+        throw new ORPCError("CONFLICT", { message: "conflict.version" });
       await relabelDescriptor(context.tx, {
         ...fields,
         descriptorId: input.id,
