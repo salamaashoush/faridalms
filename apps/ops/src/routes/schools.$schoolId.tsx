@@ -1,10 +1,10 @@
 import type { DirectoryTenantState } from "@faridalms/database/directory/schema";
 import type { ModuleId } from "@faridalms/domain/modules";
-import type { SchoolAccess, SchoolNotice } from "@faridalms/domain/plans";
+import type { SchoolNotice } from "@faridalms/domain/plans";
 import type { SchoolStanding } from "@faridalms/domain/provisioning";
 
 import { availableModules, SCHOOL_NOTICES } from "@faridalms/domain/plans";
-import { SCHOOL_STANDINGS } from "@faridalms/domain/provisioning";
+import { SCHOOL_STANDINGS, standingOf } from "@faridalms/domain/provisioning";
 import { LIMIT_KEYS } from "@faridalms/domain/subscriptions";
 import { Badge } from "@faridalms/ui/badge";
 import { Button } from "@faridalms/ui/button";
@@ -33,6 +33,7 @@ import {
   LIMIT_NAMES,
   MODULE_NAMES,
   NOTICE_NAMES,
+  STANDING_NAMES,
 } from "../format";
 import {
   getSchool,
@@ -380,23 +381,6 @@ function EntitlementsForm({ school }: { school: School }) {
 
 type TenantLifecycleMove = SchoolStanding;
 
-/** Where the school stands, when it is one an operator may move it from. */
-function standingOf(
-  state: DirectoryTenantState,
-  access: SchoolAccess,
-): SchoolStanding | null {
-  if (state === "read_only" || state === "suspended") return state;
-  if (state !== "active") return null;
-  return access === "restricted" ? "restricted" : "full";
-}
-
-const STANDING_LABEL: Record<SchoolStanding, string> = {
-  full: "Active",
-  restricted: "Restricted",
-  read_only: "Paused (read only)",
-  suspended: "Suspended",
-};
-
 const LIFECYCLE_HINT: Record<TenantLifecycleMove, string> = {
   full: "Everyone uses the school as normal.",
   restricted:
@@ -476,7 +460,7 @@ function Lifecycle({
               className="mt-1"
             />
             <label htmlFor={`lifecycle-${choice}`} className="grid gap-0.5">
-              <span className="font-medium">{STANDING_LABEL[choice]}</span>
+              <span className="font-medium">{STANDING_NAMES[choice]}</span>
               <span className="text-xs text-muted-foreground">
                 {LIFECYCLE_HINT[choice]}
               </span>

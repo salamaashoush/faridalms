@@ -1,4 +1,14 @@
+import type { Operator } from "./session";
+
 import { opsEnv } from "./env";
+
+/** Who a card payment is recorded by, and who gives access back after it. */
+export const PAYMOB_OPERATOR: Operator = {
+  id: "paymob",
+  name: "Paymob",
+  email: null,
+  authAt: 0,
+};
 
 /** Paymob as the console reaches it, or null where card payments are not set up. */
 export function paymob() {

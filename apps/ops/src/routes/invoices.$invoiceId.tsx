@@ -18,6 +18,7 @@ import {
   linesOf,
 } from "../components/InvoiceLinesForm";
 import {
+  DUNNING_STEP_NAMES,
   formatDay,
   formatMoney,
   INVOICE_KIND_NAMES,
@@ -190,6 +191,7 @@ function InvoicePage() {
           ) : null}
           {data.cards && open && mayBill ? <PaymentLink data={data} /> : null}
           <Settlements data={data} />
+          <Reminders data={data} />
           {mayBill && open && data.unsettled.length ? (
             <SettleFromPayment data={data} />
           ) : null}
@@ -534,6 +536,32 @@ function SettleFromPayment({ data }: { data: Data }) {
         Settle
       </Button>
     </form>
+  );
+}
+
+/** The steps of the clock taken for the invoice, and who each email went to. */
+function Reminders({ data }: { data: Data }) {
+  if (data.reminders.length === 0) return null;
+  return (
+    <section aria-label="Reminders" className="grid max-w-2xl gap-2">
+      <h2 className="text-base font-semibold">Reminders</h2>
+      <ul className="divide-y rounded-lg border text-sm">
+        {data.reminders.map((reminder) => (
+          <li
+            key={reminder.step}
+            className="flex flex-wrap justify-between gap-2 px-4 py-3"
+          >
+            <span>{DUNNING_STEP_NAMES[reminder.step]}</span>
+            <span className="text-muted-foreground">
+              {formatDay(reminder.takenOn)} ·{" "}
+              {reminder.emailedTo.length
+                ? reminder.emailedTo.join(", ")
+                : "nobody emailed"}
+            </span>
+          </li>
+        ))}
+      </ul>
+    </section>
   );
 }
 

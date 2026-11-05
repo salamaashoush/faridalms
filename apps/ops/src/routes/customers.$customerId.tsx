@@ -1,12 +1,17 @@
 import { Badge } from "@faridalms/ui/badge";
-import { buttonVariants } from "@faridalms/ui/button";
+import { Button, buttonVariants } from "@faridalms/ui/button";
 import { createFileRoute, Link, useRouter } from "@tanstack/react-router";
+import { useServerFn } from "@tanstack/react-start";
+import { useState } from "react";
 import { toast } from "sonner";
 
+import { failure } from "../actions";
 import { Agreements } from "../components/Agreements";
+import { ClockPauses } from "../components/ClockPauses";
 import { ContactCard, ContactForm } from "../components/Contacts";
 import { CustomerForm } from "../components/CustomerForm";
 import { EventList } from "../components/EventList";
+import { TaskList } from "../components/TaskList";
 import {
   formatDay,
   formatMoney,
@@ -17,6 +22,7 @@ import {
 import { useMay } from "../may";
 import { getCustomer } from "../server/customers";
 import { getCustomerBilling } from "../server/invoicing";
+import { setCustomerOwner } from "../server/receivables";
 
 export const Route = createFileRoute("/customers/$customerId")({
   loader: async ({ params }) => {
@@ -30,6 +36,75 @@ export const Route = createFileRoute("/customers/$customerId")({
   },
   component: CustomerPage,
 });
+
+const SELECT = "h-9 rounded-md border bg-background px-2 text-sm";
+
+/** Who looks after the customer: asked to call when an invoice is two weeks overdue. */
+function AccountOwner({
+  customerId,
+  ownerId,
+  owners,
+}: {
+  customerId: string;
+  ownerId: string | null;
+  owners: readonly { id: string; name: string }[];
+}) {
+  const router = useRouter();
+  const save = useServerFn(setCustomerOwner);
+  const [chosen, setChosen] = useState(ownerId ?? "");
+  const [saving, setSaving] = useState(false);
+  return (
+    <form
+      aria-label="Account owner"
+      className="flex flex-wrap items-end gap-2"
+      onSubmit={async (event) => {
+        event.preventDefault();
+        setSaving(true);
+        try {
+          const out = await save({
+            data: { customerId, ownerId: chosen || null },
+          });
+          if (out.ok) {
+            toast.success("Account owner saved.");
+            await router.invalidate();
+          } else toast.error(out.message);
+        } catch (error) {
+          const said = failure(error, "The account owner could not be saved.");
+          if (said) toast.error(said);
+        } finally {
+          setSaving(false);
+        }
+      }}
+    >
+      <div className="grid gap-1.5 text-sm">
+        <label htmlFor="account-owner" className="font-medium">
+          Looked after by
+        </label>
+        <select
+          id="account-owner"
+          value={chosen}
+          onChange={(event) => setChosen(event.target.value)}
+          className={SELECT}
+        >
+          <option value="">Nobody yet</option>
+          {owners.map((owner) => (
+            <option key={owner.id} value={owner.id}>
+              {owner.name}
+            </option>
+          ))}
+        </select>
+      </div>
+      <Button
+        type="submit"
+        size="sm"
+        variant="outline"
+        disabled={saving || chosen === (ownerId ?? "")}
+      >
+        Save
+      </Button>
+    </form>
+  );
+}
 
 const STATE_NAMES = {
   trial: "Trial",
@@ -45,6 +120,9 @@ function CustomerPage() {
     schools,
     history,
     names,
+    owners,
+    tasks,
+    today,
     billing,
   } = Route.useLoaderData();
   const mayBill = useMay("billing");
@@ -65,6 +143,12 @@ function CustomerPage() {
           </p>
         ) : null}
       </div>
+      <AccountOwner
+        key={customer.accountOwnerId ?? ""}
+        customerId={customer.id}
+        ownerId={customer.accountOwnerId}
+        owners={owners}
+      />
       <CustomerForm
         key={customer.version}
         customer={customer}
@@ -211,8 +295,17 @@ function CustomerPage() {
               ))}
             </ul>
           ) : null}
+          <ClockPauses
+            customerId={customer.id}
+            pauses={billing.pauses}
+            today={today}
+          />
         </section>
       ) : null}
+      <section aria-label="Tasks" className="grid max-w-3xl gap-3">
+        <h2 className="text-base font-semibold">Tasks</h2>
+        <TaskList rows={tasks} names={names} today={today} />
+      </section>
       <section className="grid gap-3">
         <h2 className="text-base font-semibold">History</h2>
         <EventList events={history} names={names} />

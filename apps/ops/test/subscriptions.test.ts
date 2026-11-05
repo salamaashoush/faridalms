@@ -1,3 +1,5 @@
+import type { SchoolStanding } from "@faridalms/domain/provisioning";
+
 import {
   catalogue,
   retireVersion,
@@ -22,10 +24,9 @@ import { BASIC_MODULES } from "@faridalms/domain/modules";
 import { SQL } from "bun";
 import { describe, expect, test } from "bun:test";
 
+import { dailyRound, roundDue } from "../src/server/daily-round";
 import {
-  dailyRound,
   publishSubscription,
-  roundDue,
   SYSTEM_OPERATOR,
 } from "../src/server/publication";
 import { business, businessUrl, directory, tenantWith } from "./harness";
@@ -36,7 +37,13 @@ const told: string[] = [];
 const deps = () => ({
   business: business(),
   directory: directory(),
-  pauseTenant: async (tenantId: string, reason: string) => {
+  setStanding: async (
+    tenantId: string,
+    standing: SchoolStanding,
+    reason: string,
+  ) => {
+    if (standing !== "read_only")
+      throw new Error(`only an ended trial changes access here: ${standing}`);
     paused.push({ tenantId, reason });
     return true;
   },
@@ -44,6 +51,9 @@ const deps = () => ({
     told.push(tenantId);
     return true;
   },
+  calendar: async () => [],
+  mail: null,
+  now: () => new Date(),
 });
 const OWNER = "op-owner";
 
@@ -467,7 +477,7 @@ describe("the daily round", () => {
     });
     const refusing = {
       ...deps(),
-      pauseTenant: async () => false,
+      setStanding: async () => false,
     };
     const round = await dailyRound(refusing, "2027-02-02");
     expect(round?.failed).toContain(subscriptionId);

@@ -10,7 +10,8 @@ import { businessToday } from "@faridalms/domain/subscriptions";
 import { createFileRoute } from "@tanstack/react-router";
 
 import { businessDb } from "../../server/business";
-import { paymob } from "../../server/paymob";
+import { PAYMOB_OPERATOR, paymob } from "../../server/paymob";
+import { settleClockAs } from "../../server/round";
 
 const answer = (status: number) =>
   new Response(null, { status, headers: { "cache-control": "no-store" } });
@@ -19,7 +20,8 @@ const answer = (status: number) =>
  * Where Paymob tells the console a transaction was processed. Taken only
  * when its HMAC checks; a successful payment for an invoice's link is
  * recorded once, by Paymob's transaction id, against what the invoice
- * still owes. Anything else is acknowledged and left.
+ * still owes, and what the dunning clock took from the school is given
+ * back. Anything else is acknowledged and left.
  */
 export const Route = createFileRoute("/payments/paymob")({
   server: {
@@ -59,7 +61,7 @@ export const Route = createFileRoute("/payments/paymob")({
         const owed = detail?.owedMinor ?? 0;
         const open =
           invoice.state === "issued" || invoice.state === "partly_paid";
-        await recordPayment(db, {
+        const recorded = await recordPayment(db, {
           customerId: invoice.customerId,
           method: "card",
           currency: invoice.currency,
@@ -77,8 +79,9 @@ export const Route = createFileRoute("/payments/paymob")({
                   },
                 ]
               : [],
-          by: "paymob",
+          by: PAYMOB_OPERATOR.id,
         });
+        if (recorded) await settleClockAs(PAYMOB_OPERATOR, invoice.customerId);
         return answer(200);
       },
     },

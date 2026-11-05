@@ -422,6 +422,25 @@ from the console's `/intake/billing` with the signed call the leads use, so
 the cell keeps no invoice data; when the console does not answer, the page
 says billing is unavailable.
 
+**Dunning.** Each unpaid invoice runs on a clock of days since it fell due,
+taken forward by the daily round: a reminder to the customer's billing
+contacts a week before, on the day, and 7 and 14 days after, when the
+customer's account owner is given a call to make and the school's
+administrators see that a payment is overdue; a notice at 21 days, then
+restricted access at 30; a notice at 45, read-only at 60; a notice at 75,
+suspended at 90; and at 120 a task to end the contract. Emails go in the
+invoice's language from `EMAIL_FROM` (in the single-server compose,
+`BILLING_EMAIL_FROM`) through `RESEND_API_KEY`, replies to the business's
+own address; unset, the steps are kept and nobody is emailed. Less access
+waits for a weekend day at every one of the tenant's schools, each in its
+own time zone, read from the cell through the provisioner
+(`/v1/tenants/calendar`). A customer's clock can be paused between two days
+with a reason, for a purchase order or a dispute; paying at least half of an
+invoice moves it back a step; a payment, a settlement or a credit gives back
+at once what the clock took and takes the notice down, though never what an
+operator changed by hand. The Receivables page ages what is owed and lists
+the calls to make.
+
 The directory's change log names an operator by a digest of the provider's
 issuer and subject, never by name. Every entitlement change requires a
 reason and lands in the log in the same transaction. Cells hold directory

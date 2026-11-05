@@ -5,6 +5,8 @@ import type {
   ReissueInvite,
   ReissueResult,
   SetLifecycle,
+  TenantCalendar,
+  TenantCalendarRequest,
 } from "@faridalms/domain/provisioning";
 
 import {
@@ -85,6 +87,12 @@ export const entitlementsChanged = (
   operator: Operator,
   request: EntitlementsChanged,
 ) => post<{ version: number }>(operator, "/v1/tenants/entitlements", request);
+
+/** When the tenant's schools have their weekend, each in its own time zone. */
+export const tenantCalendar = (
+  operator: Operator,
+  request: TenantCalendarRequest,
+) => post<TenantCalendar>(operator, "/v1/tenants/calendar", request);
 
 /** What an operator is told when the cell refuses or cannot be reached. */
 export function explain(answer: { code: string; message: string | null }) {

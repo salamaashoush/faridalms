@@ -2,7 +2,7 @@ import type { PaymentMethod } from "@faridalms/domain/invoices";
 
 import { PAYMENT_METHODS } from "@faridalms/domain/invoices";
 import { Badge } from "@faridalms/ui/badge";
-import { Button } from "@faridalms/ui/button";
+import { Button, buttonVariants } from "@faridalms/ui/button";
 import { Input } from "@faridalms/ui/input";
 import {
   Table,
@@ -103,7 +103,15 @@ function Billing() {
   return (
     <div className="grid gap-8">
       <div className="grid gap-1">
-        <h1 className="text-2xl font-semibold">Billing</h1>
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <h1 className="text-2xl font-semibold">Billing</h1>
+          <Link
+            to="/receivables"
+            className={buttonVariants({ variant: "outline", size: "sm" })}
+          >
+            Receivables
+          </Link>
+        </div>
         <p className="text-sm text-muted-foreground">
           The daily round drafts each contract's invoices before they fall due;
           finance checks and issues them, records what is paid and credits what

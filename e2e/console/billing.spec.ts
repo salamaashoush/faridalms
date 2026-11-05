@@ -8,11 +8,11 @@ import {
   createSchool,
   OWNER,
   payByCard,
+  schoolAdministrator,
   signInAs,
   unique,
 } from "../fixtures/console";
-import { sentTo } from "../fixtures/mail";
-import { PASSWORD, portal, signInWith } from "../fixtures/sign-in";
+import { portal } from "../fixtures/sign-in";
 
 test("a contract is invoiced, paid by transfer and card, credited, and shown to its school", async ({
   browser,
@@ -109,24 +109,7 @@ test("a contract is invoiced, paid by transfer and card, credited, and shown to 
   await expect(history.getByText("Credited", { exact: true })).toBeVisible();
 
   // The school's administrator sees the invoice, settled, and its paper.
-  const invite = await sentTo(`salama@${slug}.example.com`, "/welcome#");
-  const secret = /\/welcome#(\S+)/.exec(invite?.text ?? "")?.[1];
-  const context = await browser.newContext();
-  const school = await context.newPage();
-  await school.goto(`${portal(slug)}/welcome#${secret}`);
-  await school.getByLabel("New password").fill(PASSWORD);
-  await school.getByLabel("Type it again").fill(PASSWORD);
-  await school.getByRole("button", { name: "Save password" }).click();
-  await expect(
-    school.getByRole("status").filter({ hasText: "Password saved" }),
-  ).toBeVisible();
-  await signInWith(
-    school,
-    `salama@${slug}.example.com`,
-    PASSWORD,
-    "/admin",
-    slug,
-  );
+  const { page: school, context } = await schoolAdministrator(browser, slug);
   await school.goto(`${portal(slug)}/admin/billing`);
   const listed = school.getByRole("listitem", { name: `Invoice ${number}` });
   await expect(listed).toContainText("Paid");

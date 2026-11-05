@@ -1,15 +1,17 @@
 import type { BusinessDb } from "@faridalms/database/business/client";
+import type { OperatorArea } from "@faridalms/domain/operators";
 
 import {
   listOperators,
   setOperator,
 } from "@faridalms/database/business/operators";
-import { OPERATOR_ROLES } from "@faridalms/domain/operators";
+import { mayOperate, OPERATOR_ROLES } from "@faridalms/domain/operators";
 import { createServerFn } from "@tanstack/react-start";
 import * as v from "valibot";
 
 import { requireArea } from "./access";
 import { requireBusiness } from "./business";
+import { PAYMOB_OPERATOR } from "./paymob";
 import { SYSTEM_OPERATOR } from "./publication";
 
 /** Each operator's name by id, for a history that says who did what. */
@@ -19,11 +21,19 @@ export async function operatorNames(
   const rows = await listOperators(db);
   return {
     [SYSTEM_OPERATOR]: "Daily round",
-    paymob: "Paymob",
+    [PAYMOB_OPERATOR.id]: PAYMOB_OPERATOR.name,
     "intake:demo_form": "The product site",
     "intake:module_interest": "A school's administrator",
     ...Object.fromEntries(rows.map((row) => [row.id, row.name])),
   };
+}
+
+/** The active operators who may work in an area, to name one for something. */
+export async function operatorsWhoMay(db: BusinessDb, area: OperatorArea) {
+  const rows = await listOperators(db);
+  return rows
+    .filter((row) => row.state === "active" && mayOperate(row.roles, area))
+    .map((row) => ({ id: row.id, name: row.name }));
 }
 
 const saveOperatorSchema = v.object({

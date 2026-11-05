@@ -1,5 +1,3 @@
-import { savePlanVersion } from "@faridalms/database/business/catalogue";
-import { saveCustomer } from "@faridalms/database/business/customers";
 import {
   creditInvoice,
   InvoiceError,
@@ -11,94 +9,15 @@ import {
 import { addTaxRate } from "@faridalms/database/business/profile";
 import {
   addItem,
-  createSubscription,
   openSubscription,
 } from "@faridalms/database/business/subscriptions";
-import { BASIC_MODULES } from "@faridalms/domain/modules";
 import { describe, expect, test } from "bun:test";
 
 import { billingRound } from "../src/server/billing";
-import { business, directory, reportStudents, tenantWith } from "./harness";
+import { business, contract, directory, reportStudents } from "./harness";
 
 const OWNER = "op-owner";
-const GIB = 1024 ** 3;
 const deps = () => ({ business: business(), directory: directory() });
-
-async function contract(slug: string) {
-  const { tenantId, schoolIds } = await tenantWith([slug]);
-  const plan = await savePlanVersion(business(), {
-    code: `plan_${slug.replaceAll("-", "_")}`,
-    nameEn: "Standard",
-    nameAr: "القياسية",
-    modules: [...BASIC_MODULES],
-    limits: {
-      poolBytes: 100 * GIB,
-      classBytes: GIB,
-      moduleBytes: GIB,
-      personBytes: GIB / 2,
-      students: null,
-      staffAccounts: null,
-      videoHours: null,
-      customDomains: null,
-      emailPerMonth: null,
-      captionMinutes: null,
-    },
-    prices: [
-      {
-        currency: "EGP",
-        unit: "student_year",
-        amountMinor: 35_000,
-        minimumMinor: 0,
-      },
-    ],
-    validFrom: "2026-09-01",
-    reason: "Sold",
-    by: OWNER,
-  });
-  const customerId = await saveCustomer(business(), {
-    legalNameEn: `${slug} schools`,
-    legalNameAr: null,
-    taxNumber: "123-456-789",
-    commercialRegistry: null,
-    address: null,
-    country: "EG",
-    currency: "EGP",
-    reason: "Signed",
-    by: OWNER,
-    tenantId,
-  });
-  if (!customerId) throw new Error("customer");
-  const subscriptionId = await createSubscription(business(), {
-    customerId,
-    tenantId,
-    currency: "EGP",
-    terms: {
-      state: "active",
-      termStartsOn: "2026-09-01",
-      termEndsOn: "2027-09-01",
-      trialEndsOn: null,
-      renewal: "auto",
-      schedule: "three",
-      contractedStudents: 300,
-      censusOn: "2026-10-31",
-      notice: null,
-    },
-    items: [
-      {
-        planVersionId: plan,
-        addOnVersionId: null,
-        quantity: 300,
-        unitPriceMinor: 35_000,
-        discountPercent: 0,
-        schoolIds: [],
-        startsOn: "2026-09-01",
-      },
-    ],
-    by: OWNER,
-    reason: "Signed",
-  });
-  return { tenantId, schoolIds, customerId, subscriptionId, plan };
-}
 
 describe("the billing schedule", () => {
   test("drafts each instalment once, before it falls due, with VAT", async () => {

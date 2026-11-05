@@ -325,6 +325,11 @@ services:
       PAYMOB_INTEGRATION_ID: ${PAYMOB_INTEGRATION_ID:-}
       PAYMOB_HMAC_SECRET: ${PAYMOB_HMAC_SECRET:-}
       PAYMOB_LIVE: ${PAYMOB_LIVE:-}
+      # Reminders to customers' billing contacts, through the same Resend
+      # account, from the business's billing address; the key goes only
+      # with an address, since the console refuses one without the other.
+      RESEND_API_KEY: ${BILLING_EMAIL_FROM:+${RESEND_API_KEY:-}}
+      EMAIL_FROM: ${BILLING_EMAIL_FROM:-}
       PORTAL_DOMAIN: *portal-domain
       SITES_DOMAIN: *sites-domain
       EDGE_IPV4: ${EDGE_IPV4:-}

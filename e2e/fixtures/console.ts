@@ -1,12 +1,17 @@
 import type { PaymobTransaction } from "@faridalms/domain/paymob";
-import type { Page } from "@playwright/test";
+import type { Browser, Locator, Page } from "@playwright/test";
 
 import { paymobHmac } from "@faridalms/domain/paymob";
+import { addDays } from "@faridalms/domain/school";
+import { businessToday } from "@faridalms/domain/subscriptions";
 import { expect } from "@playwright/test";
+import { execFileSync } from "node:child_process";
 
 import type { StandInPerson } from "../../scripts/e2e-oidc";
 
 import { OIDC_PERSON_COOKIE } from "../../scripts/e2e-oidc";
+import { sentTo } from "./mail";
+import { PASSWORD, portal, signInWith } from "./sign-in";
 
 const oidcOrigin = `http://127.0.0.1:${process.env.E2E_OIDC_PORT ?? "3208"}`;
 
@@ -27,6 +32,22 @@ export const FINANCE: StandInPerson = {
   email: "finance@example.com",
   name: "Fatma Finance",
 };
+
+/**
+ * Waits until React has hydrated a form the server rendered. What is typed
+ * into it before then is replaced by React's own state, and a submit runs
+ * no handler, so a spec that fills a form straight after loading the page
+ * waits for this first.
+ */
+export async function hydrated(form: Locator) {
+  await expect
+    .poll(() =>
+      form.evaluate((element) =>
+        Object.keys(element).some((key) => key.startsWith("__reactProps")),
+      ),
+    )
+    .toBe(true);
+}
 
 /** Signs in to the console as a person the identity provider stand-in knows. */
 export async function signInAs(page: Page, person: StandInPerson = OWNER) {
@@ -147,8 +168,8 @@ export async function addPlan(page: Page, name: string) {
 export async function businessDetails(page: Page) {
   await page.goto("/settings");
   const details = page.getByRole("form", { name: "Legal details" });
+  await hydrated(details);
   const name = details.getByLabel("Legal name in English");
-  await expect(name).toBeVisible();
   if (!(await name.inputValue())) {
     await name.fill("Acme Learning");
     await details.getByLabel("Legal name in Arabic").fill("أكمي للتعليم");
@@ -233,5 +254,55 @@ export async function payByCard(
     method: "POST",
     headers: { "content-type": "application/json" },
     body: JSON.stringify({ type: "TRANSACTION", obj }),
+  });
+}
+
+/**
+ * The school's first administrator, as createSchool names them: chooses a
+ * password from the welcome email and signs in to the school's portal, in
+ * a browser context of their own.
+ */
+export async function schoolAdministrator(browser: Browser, slug: string) {
+  const email = `salama@${slug}.example.com`;
+  const invite = await sentTo(email, "/welcome#");
+  const secret = /\/welcome#(\S+)/.exec(invite?.text ?? "")?.[1];
+  const context = await browser.newContext();
+  const page = await context.newPage();
+  await page.goto(`${portal(slug)}/welcome#${secret}`);
+  await page.getByLabel("New password").fill(PASSWORD);
+  await page.getByLabel("Type it again").fill(PASSWORD);
+  await page.getByRole("button", { name: "Save password" }).click();
+  await expect(
+    page.getByRole("status").filter({ hasText: "Password saved" }),
+  ).toBeVisible();
+  await signInWith(page, email, PASSWORD, "/admin", slug);
+  return { page, context };
+}
+
+const BACKDATE = `
+const { SQL } = await import("bun");
+const sql = new SQL(process.env.BUSINESS_DATABASE_URL);
+const rows = await sql\`update invoices set due_on = \${process.env.DUE_ON}, issued_on = \${process.env.ISSUED_ON}
+  where number = \${process.env.INVOICE_NUMBER} returning id\`;
+await sql.close();
+if (rows.length !== 1) throw new Error("no such invoice");
+`;
+
+/**
+ * Moves an issued invoice's dates back as if the days had passed: due that
+ * many days ago, issued its thirty days before. A browser test cannot wait
+ * out a payment term, and Playwright runs on Node, so Bun's SQL client does
+ * it in a child process as the console's own database user.
+ */
+export function asIfOverdue(number: string, days: number) {
+  const dueOn = addDays(businessToday(), -days);
+  execFileSync("bun", ["--eval", BACKDATE], {
+    env: {
+      ...process.env,
+      INVOICE_NUMBER: number,
+      DUE_ON: dueOn,
+      ISSUED_ON: addDays(dueOn, -30),
+    },
+    stdio: "inherit",
   });
 }

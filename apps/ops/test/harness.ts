@@ -1,7 +1,10 @@
 import type { BusinessDb } from "@faridalms/database/business/client";
 import type { DirectoryAdmin } from "@faridalms/database/directory/admin";
 
+import { savePlanVersion } from "@faridalms/database/business/catalogue";
 import { openBusiness } from "@faridalms/database/business/client";
+import { saveCustomer } from "@faridalms/database/business/customers";
+import { createSubscription } from "@faridalms/database/business/subscriptions";
 import { openDirectoryAdmin } from "@faridalms/database/directory/admin";
 import { migrate, MIGRATIONS } from "@faridalms/database/migrate";
 import {
@@ -11,7 +14,7 @@ import {
   LOGIN_ROLES,
   provisionRoles,
 } from "@faridalms/database/provision";
-import { MODULE_IDS } from "@faridalms/domain/modules";
+import { BASIC_MODULES, MODULE_IDS } from "@faridalms/domain/modules";
 import { DEFAULT_LIMITS } from "@faridalms/domain/plans";
 import { SQL } from "bun";
 import { randomBytes } from "node:crypto";
@@ -138,4 +141,87 @@ export async function reportStudents(schoolId: string, students: number) {
   } finally {
     await sql.close();
   }
+}
+
+const CONTRACT_OPERATOR = "op-owner";
+const GIB = 1024 ** 3;
+
+/**
+ * A tenant with one school, run by a customer on a three-instalment
+ * contract for 300 students at 350.00 a year from 1 September 2026.
+ */
+export async function contract(slug: string) {
+  const { tenantId, schoolIds } = await tenantWith([slug]);
+  const plan = await savePlanVersion(business(), {
+    code: `plan_${slug.replaceAll("-", "_")}`,
+    nameEn: "Standard",
+    nameAr: "القياسية",
+    modules: [...BASIC_MODULES],
+    limits: {
+      poolBytes: 100 * GIB,
+      classBytes: GIB,
+      moduleBytes: GIB,
+      personBytes: GIB / 2,
+      students: null,
+      staffAccounts: null,
+      videoHours: null,
+      customDomains: null,
+      emailPerMonth: null,
+      captionMinutes: null,
+    },
+    prices: [
+      {
+        currency: "EGP",
+        unit: "student_year",
+        amountMinor: 35_000,
+        minimumMinor: 0,
+      },
+    ],
+    validFrom: "2026-09-01",
+    reason: "Sold",
+    by: CONTRACT_OPERATOR,
+  });
+  const customerId = await saveCustomer(business(), {
+    legalNameEn: `${slug} schools`,
+    legalNameAr: null,
+    taxNumber: "123-456-789",
+    commercialRegistry: null,
+    address: null,
+    country: "EG",
+    currency: "EGP",
+    reason: "Signed",
+    by: CONTRACT_OPERATOR,
+    tenantId,
+  });
+  if (!customerId) throw new Error("customer");
+  const subscriptionId = await createSubscription(business(), {
+    customerId,
+    tenantId,
+    currency: "EGP",
+    terms: {
+      state: "active",
+      termStartsOn: "2026-09-01",
+      termEndsOn: "2027-09-01",
+      trialEndsOn: null,
+      renewal: "auto",
+      schedule: "three",
+      contractedStudents: 300,
+      censusOn: "2026-10-31",
+      notice: null,
+    },
+    items: [
+      {
+        planVersionId: plan,
+        addOnVersionId: null,
+        quantity: 300,
+        unitPriceMinor: 35_000,
+        discountPercent: 0,
+        schoolIds: [],
+        startsOn: "2026-09-01",
+      },
+    ],
+    by: CONTRACT_OPERATOR,
+    reason: "Signed",
+  });
+  return { tenantId, schoolIds, customerId, subscriptionId, plan };
 }

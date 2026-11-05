@@ -2,6 +2,7 @@ import {
   customerById,
   listCustomers,
 } from "@faridalms/database/business/customers";
+import { pausesOf, stepsOf } from "@faridalms/database/business/dunning";
 import { eventsOf } from "@faridalms/database/business/events";
 import {
   allocatePayment,
@@ -32,6 +33,7 @@ import { requireBusiness } from "./business";
 import { opsEnv } from "./env";
 import { operatorNames } from "./operators";
 import { createPaymentLink, paymob } from "./paymob";
+import { settleClockAs } from "./round";
 
 type Outcome<T = object> = ({ ok: true } & T) | { ok: false; message: string };
 
@@ -129,7 +131,10 @@ export const getOpenInvoices = createServerFn({ method: "GET" })
     }));
   });
 
-/** An invoice, what paid and credited it, who it is for, and its history. */
+/**
+ * An invoice, what paid and credited it, who it is for, the reminders its
+ * clock sent, and its history.
+ */
 export const getInvoice = createServerFn({ method: "GET" })
   .validator((input: { id: string }) => v.parse(v.object({ id: uuid }), input))
   .handler(async ({ data }) => {
@@ -137,13 +142,15 @@ export const getInvoice = createServerFn({ method: "GET" })
     const db = requireBusiness();
     const detail = await invoiceById(db, data.id);
     if (!detail) throw new Error("NOT_FOUND");
-    const [found, business, history, names, rate] = await Promise.all([
-      customerById(db, detail.invoice.customerId),
-      profile(db),
-      eventsOf(db, "invoice", data.id),
-      operatorNames(db),
-      vatFor(detail.invoice.country),
-    ]);
+    const [found, business, history, names, rate, reminders] =
+      await Promise.all([
+        customerById(db, detail.invoice.customerId),
+        profile(db),
+        eventsOf(db, "invoice", data.id),
+        operatorNames(db),
+        vatFor(detail.invoice.country),
+        stepsOf(db, [data.id]),
+      ]);
     if (!found) throw new Error("NOT_FOUND");
     const kept = await unsettledPayments(db, found.customer.id);
     return {
@@ -162,6 +169,7 @@ export const getInvoice = createServerFn({ method: "GET" })
       history,
       names,
       vatName: rate ? { en: rate.nameEn, ar: rate.nameAr } : null,
+      reminders,
       cards: paymob() !== null,
       today: businessToday(),
     };
@@ -267,10 +275,13 @@ export const recordCustomerPayment = createServerFn({ method: "POST" })
   )
   .handler(async ({ data }) => {
     const { operator } = await requireArea("billing");
-    return refused(async () => {
+    const out = await refused(async () => {
       await recordPayment(requireBusiness(), { ...data, by: operator.id });
       return {};
     });
+    if (out.ok && data.allocations.length > 0)
+      await settleClockAs(operator, data.customerId);
+    return out;
   });
 
 const creditInput = v.object({
@@ -287,13 +298,18 @@ export const credit = createServerFn({ method: "POST" })
   .handler(async ({ data }) => {
     const { operator } = await requireArea("billing");
     requireFreshSignIn(operator);
-    return refused(async () => ({
+    const out = await refused(async () => ({
       number: await creditInvoice(requireBusiness(), {
         ...data,
         issuedOn: businessToday(),
         by: operator.id,
       }),
     }));
+    const credited = out.ok
+      ? await invoiceById(requireBusiness(), data.invoiceId)
+      : null;
+    if (credited) await settleClockAs(operator, credited.invoice.customerId);
+    return out;
   });
 
 const taxInput = v.object({
@@ -373,7 +389,7 @@ export const makePaymentLink = createServerFn({ method: "POST" })
     }
   });
 
-/** A customer's invoices and payments, for its page. */
+/** A customer's invoices, payments and pauses of its clock, for its page. */
 export const getCustomerBilling = createServerFn({ method: "GET" })
   .validator((input: { customerId: string }) =>
     v.parse(v.object({ customerId: uuid }), input),
@@ -381,9 +397,10 @@ export const getCustomerBilling = createServerFn({ method: "GET" })
   .handler(async ({ data }) => {
     await requireArea("readBilling");
     const db = requireBusiness();
-    const [rows, paid] = await Promise.all([
+    const [rows, paid, pauses] = await Promise.all([
       listInvoices(db, { customerId: data.customerId }),
       paymentsOf(db, data.customerId),
+      pausesOf(db, [data.customerId]),
     ]);
     const invoices = rows.map(({ invoice }) => invoice);
     const owed = await outstanding(db, invoices);
@@ -393,6 +410,7 @@ export const getCustomerBilling = createServerFn({ method: "GET" })
         owedMinor: owed.get(invoice.id) ?? 0,
       })),
       payments: paid,
+      pauses,
     };
   });
 
@@ -409,7 +427,7 @@ export const settleFromPayment = createServerFn({ method: "POST" })
   )
   .handler(async ({ data }) => {
     const { operator } = await requireArea("billing");
-    return refused(async () => {
+    const out = await refused(async () => {
       await allocatePayment(requireBusiness(), {
         paymentId: data.paymentId,
         allocations: [
@@ -419,4 +437,9 @@ export const settleFromPayment = createServerFn({ method: "POST" })
       });
       return {};
     });
+    const settled = out.ok
+      ? await invoiceById(requireBusiness(), data.invoiceId)
+      : null;
+    if (settled) await settleClockAs(operator, settled.invoice.customerId);
+    return out;
   });

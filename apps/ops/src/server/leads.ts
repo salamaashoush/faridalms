@@ -9,31 +9,21 @@ import {
   saveLead,
   setLeadState,
 } from "@faridalms/database/business/leads";
-import { listOperators } from "@faridalms/database/business/operators";
 import { quotesFor } from "@faridalms/database/business/quotes";
 import {
   ACTIVITY_KINDS,
   leadSchema,
   leadStateSchema,
 } from "@faridalms/domain/leads";
-import { mayOperate } from "@faridalms/domain/operators";
 import { businessToday } from "@faridalms/domain/subscriptions";
 import { createServerFn } from "@tanstack/react-start";
 import * as v from "valibot";
 
 import { requireArea } from "./access";
 import { requireBusiness } from "./business";
-import { operatorNames } from "./operators";
+import { operatorNames, operatorsWhoMay } from "./operators";
 
 const uuid = v.pipe(v.string(), v.uuid());
-
-/** The operators who may work a lead: owners and sales. */
-async function sellers() {
-  const rows = await listOperators(requireBusiness());
-  return rows
-    .filter((row) => row.state === "active" && mayOperate(row.roles, "leads"))
-    .map((row) => ({ id: row.id, name: row.name }));
-}
 
 /** Every lead, and the next steps due today or earlier. */
 export const getLeads = createServerFn({ method: "GET" }).handler(async () => {
@@ -58,7 +48,7 @@ export const getLead = createServerFn({ method: "GET" })
       quotesFor(db, { leadId: data.id }),
       eventsOf(db, "lead", data.id),
       operatorNames(db),
-      sellers(),
+      operatorsWhoMay(db, "leads"),
     ]);
     if (!found) throw new Error("NOT_FOUND");
     return { ...found, quotes, history, names, owners, today: businessToday() };
@@ -136,7 +126,9 @@ export const planLeadStep = createServerFn({ method: "POST" })
       const { operator } = await requireArea("leads");
       if (
         data.ownerId &&
-        !(await sellers()).some((seller) => seller.id === data.ownerId)
+        !(await operatorsWhoMay(requireBusiness(), "leads")).some(
+          (seller) => seller.id === data.ownerId,
+        )
       )
         return { ok: false, message: "Choose an owner or sales operator." };
       await planLead(requireBusiness(), { ...data, by: operator.id });

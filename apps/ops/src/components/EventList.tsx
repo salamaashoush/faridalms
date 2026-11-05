@@ -30,10 +30,18 @@ const ACTIONS: Record<string, string> = {
   "invoice.payment_link": "Payment link made",
   "payment.record": "Payment recorded",
   "payment.allocate": "Payment settled against invoices",
+  "subscription.notice": "Notice changed",
+  "customer.owner": "Account owner changed",
+  "dunning.pause": "Reminders paused",
+  "dunning.pause_end": "Pause ended",
+  "dunning.standing": "Access changed for an unpaid invoice",
+  "task.create": "Task added",
+  "task.done": "Task done",
 };
 
-const show = (value: unknown) => {
+const show = (value: unknown, names: Record<string, string>) => {
   if (value === null || value === undefined) return "none";
+  if (typeof value === "string" && names[value]) return names[value];
   return typeof value === "string" ||
     typeof value === "number" ||
     typeof value === "boolean"
@@ -41,8 +49,14 @@ const show = (value: unknown) => {
     : JSON.stringify(value);
 };
 
-/** The fields a change set to something new, when the event kept both sides. */
-function differences(event: BusinessEventRow): string[] {
+/**
+ * The fields a change set to something new, when the event kept both
+ * sides; an operator's id reads as their name.
+ */
+function differences(
+  event: BusinessEventRow,
+  names: Record<string, string>,
+): string[] {
   const before = event.before;
   const after = event.after;
   if (
@@ -57,7 +71,7 @@ function differences(event: BusinessEventRow): string[] {
   return Object.keys(after).flatMap((key) =>
     JSON.stringify(before[key] ?? null) === JSON.stringify(after[key] ?? null)
       ? []
-      : [`${key}: ${show(before[key])} → ${show(after[key])}`],
+      : [`${key}: ${show(before[key], names)} → ${show(after[key], names)}`],
   );
 }
 
@@ -85,7 +99,7 @@ export function EventList({
             </span>
           </div>
           <ul className="text-muted-foreground">
-            {differences(event).map((line) => (
+            {differences(event, names).map((line) => (
               <li key={line}>{line}</li>
             ))}
           </ul>

@@ -7,14 +7,19 @@ import {
   saveCustomer,
 } from "@faridalms/database/business/customers";
 import { eventsOf } from "@faridalms/database/business/events";
-import { contactSchema, customerSchema } from "@faridalms/domain/subscriptions";
+import { listTasks } from "@faridalms/database/business/tasks";
+import {
+  businessToday,
+  contactSchema,
+  customerSchema,
+} from "@faridalms/domain/subscriptions";
 import { createServerFn } from "@tanstack/react-start";
 import * as v from "valibot";
 
 import { requireArea } from "./access";
 import { requireBusiness } from "./business";
 import { directoryAdmin } from "./directory-admin";
-import { operatorNames } from "./operators";
+import { operatorNames, operatorsWhoMay } from "./operators";
 
 const uuid = v.pipe(v.string(), v.uuid());
 
@@ -25,16 +30,21 @@ export const getCustomers = createServerFn({ method: "GET" }).handler(
   },
 );
 
-/** A customer, its contacts, subscriptions, the schools it runs and its history. */
+/**
+ * A customer, its contacts, subscriptions, the schools it runs, its tasks
+ * and its history, with who may look after it.
+ */
 export const getCustomer = createServerFn({ method: "GET" })
   .validator((input: { id: string }) => v.parse(v.object({ id: uuid }), input))
   .handler(async ({ data }) => {
     await requireArea("customers");
     const db = requireBusiness();
-    const [found, history, names] = await Promise.all([
+    const [found, history, names, owners, tasks] = await Promise.all([
       customerById(db, data.id),
       eventsOf(db, "customer", data.id),
       operatorNames(db),
+      operatorsWhoMay(db, "customers"),
+      listTasks(db, { customerId: data.id }),
     ]);
     if (!found) throw new Error("NOT_FOUND");
     const tenantId = found.customer.tenantId;
@@ -46,7 +56,15 @@ export const getCustomer = createServerFn({ method: "GET" })
             name: school.nameEn ?? school.nameAr ?? school.slug,
           }))
       : [];
-    return { ...found, schools, history, names };
+    return {
+      ...found,
+      schools,
+      history,
+      names,
+      owners,
+      tasks,
+      today: businessToday(),
+    };
   });
 
 export const saveCustomerDetails = createServerFn({ method: "POST" })

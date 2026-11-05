@@ -1,3 +1,4 @@
+import type { AgingBucket, DunningStep } from "@faridalms/domain/dunning";
 import type {
   InvoiceKind,
   InvoiceState,
@@ -12,6 +13,7 @@ import type {
 import type { ModuleId } from "@faridalms/domain/modules";
 import type { SchoolNotice } from "@faridalms/domain/plans";
 import type { DemoRole, DemoSize } from "@faridalms/domain/product";
+import type { SchoolStanding } from "@faridalms/domain/provisioning";
 import type { DraftStep } from "@faridalms/domain/provisioning-draft";
 import type { QuoteState } from "@faridalms/domain/quotes";
 import type { Currency, LimitKey } from "@faridalms/domain/subscriptions";
@@ -214,4 +216,33 @@ export const PAYMENT_METHOD_NAMES: Record<PaymentMethod, string> = {
   instapay: "InstaPay",
   cheque: "Cheque",
   withholding_certificate: "Withholding certificate",
+};
+
+export const DUNNING_STEP_NAMES: Record<DunningStep, string> = {
+  upcoming: "Due in a week",
+  due: "Due today",
+  overdue_7: "7 days overdue",
+  overdue_14: "14 days overdue",
+  restrict_notice: "Told access will be restricted",
+  restricted: "Access restricted",
+  read_only_notice: "Told it will become read-only",
+  read_only: "Read-only",
+  suspend_notice: "Told it will be suspended",
+  suspended: "Suspended",
+  ended: "Contract ended",
+};
+
+export const AGING_BUCKET_NAMES: Record<AgingBucket, string> = {
+  current: "Not yet due",
+  days_1_30: "1 to 30 days",
+  days_31_60: "31 to 60 days",
+  days_61_90: "61 to 90 days",
+  over_90: "Over 90 days",
+};
+
+export const STANDING_NAMES: Record<SchoolStanding, string> = {
+  full: "Active",
+  restricted: "Restricted",
+  read_only: "Paused (read only)",
+  suspended: "Suspended",
 };

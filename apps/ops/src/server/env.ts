@@ -81,6 +81,15 @@ export function opsEnv() {
           v.pipe(v.string(), v.url()),
           "https://accept.paymob.com",
         ),
+        // Email to customers' billing contacts, through Resend, from the
+        // business's billing address (EMAIL_FROM, such as
+        // `Billing <billing@example.com>`); both or neither. Unset, the
+        // clock still runs and notes that it emailed nobody.
+        RESEND_API_KEY: v.optional(v.pipe(v.string(), v.minLength(1))),
+        EMAIL_FROM: v.optional(v.pipe(v.string(), v.minLength(3))),
+        // Another server answering as Resend's API, such as the end-to-end
+        // gate's stand-in. Unset, Resend's own.
+        RESEND_API_URL: v.optional(v.pipe(v.string(), v.url())),
         // The cells' platform domains and edge address, for the DNS records a
         // school's own host needs; the same values the cells' API holds.
         PORTAL_DOMAIN: domain,
@@ -104,6 +113,12 @@ export function opsEnv() {
             ].map((setting) => setting === undefined),
           ).size === 1,
         "Set PAYMOB_API_KEY, PAYMOB_INTEGRATION_ID, PAYMOB_HMAC_SECRET and PAYMOB_LIVE together, or none",
+      ),
+      v.check(
+        (value) =>
+          (value.RESEND_API_KEY === undefined) ===
+          (value.EMAIL_FROM === undefined),
+        "Set RESEND_API_KEY and EMAIL_FROM together, or neither",
       ),
     ),
     presentVariables(process.env),
