@@ -319,7 +319,7 @@ async function seedYear(tx: Tx, tenantId: string, schoolId: string) {
     type: "school_year",
     schoolYearId: yearId,
     titleEn: "2026–2027",
-    titleAr: "٢٠٢٦–٢٠٢٧",
+    titleAr: "2026–2027",
     span: `[${YEAR.start},${YEAR.end})`,
     schoolYear: YEAR.schoolYear,
     lifecycle: "current",
@@ -419,7 +419,7 @@ async function seedYear(tx: Tx, tenantId: string, schoolId: string) {
           code === "Library"
             ? "المكتبة"
             : code.startsWith("Lab")
-              ? "المعمل ١"
+              ? "المعمل 1"
               : `الغرفة ${code}`,
         capacity: code === "Library" ? 60 : 30,
       }),
@@ -1532,7 +1532,7 @@ async function seedSchoolNews(tx: Tx, tenantId: string, schoolId: string) {
         ),
         part(
           "مواعيد أكتوبر",
-          "رحلة المتحف في ١٥ أكتوبر، ويليها لقاء أولياء الأمور في نهاية الشهر.",
+          "رحلة المتحف في 15 أكتوبر، ويليها لقاء أولياء الأمور في نهاية الشهر.",
         ),
         part("الأندية", "تبدأ أندية الشطرنج والروبوتات والكورال الأسبوع المقبل."),
       ]),
@@ -2886,7 +2886,7 @@ async function seedAdmissions(
     type: "school_year",
     schoolYearId: yearId,
     titleEn: "2027–2028",
-    titleAr: "٢٠٢٧–٢٠٢٨",
+    titleAr: "2027–2028",
     span: "[2027-09-12,2028-06-16)",
     schoolYear: 2028,
     lifecycle: "upcoming",

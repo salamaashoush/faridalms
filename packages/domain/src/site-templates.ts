@@ -972,7 +972,7 @@ const FORM = (
     "form",
     "split",
     (b) => ({
-      eyebrow: b.w(["Get in touch", "تواصل معنا"]),
+      eyebrow: b.w(["Write to us", "راسلونا"]),
       heading: b.w(heading),
       text: b.w(text),
       purpose,

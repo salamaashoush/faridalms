@@ -700,7 +700,7 @@ export function darkPalette(palette: Palette): Palette {
   const canvas = fromOklch({ l: 0.17, c: tint, h });
   return {
     canvas,
-    surface: fromOklch({ l: 0.215, c: tint, h }),
+    surface: fromOklch({ l: 0.235, c: tint, h }),
     primary: lifted(palette.primary, canvas),
     accent: lifted(palette.accent, canvas),
     ink: fromOklch({ l: 0.95, c: Math.min(tint, 0.008), h }),
@@ -733,7 +733,7 @@ export function darkBands(palette: Palette): DarkBands {
   };
   const primary =
     toOklch(palette.primary).c < NEUTRAL
-      ? fromOklch({ l: 0.235, c, h })
+      ? fromOklch({ l: 0.27, c, h })
       : apart(palette.primary);
   const ink = fromOklch({ l: 0.115, c, h });
   return {
