@@ -143,6 +143,7 @@ import type { UnitContext } from "../core/context";
 import { guardingAccess, requireGrantable } from "../core/access";
 import { badgeTerm } from "../core/badges";
 import { refreshLoginsAfter } from "../core/login-index";
+import { modulesOf } from "../core/modules";
 import { welcomeLink } from "../core/portal";
 import {
   audit,
@@ -439,6 +440,7 @@ export const student = readProcedure
       })),
       context.today,
     );
+    const modules = await modulesOf(context);
     return {
       ...record,
       reference: reference?.identifier ?? null,
@@ -460,16 +462,25 @@ export const student = readProcedure
         identifiers:
           can(context, "people:manage") || can(context, "identifiers:read"),
         contacts: guardians !== null,
-        health: can(context, "health:read"),
-        support: can(context, "people:read") || can(context, "support:manage"),
-        demographics: can(context, "demographics:read"),
-        custody: can(context, "custody:read"),
+        health: modules.student_records && can(context, "health:read"),
+        support:
+          modules.student_records &&
+          (can(context, "people:read") || can(context, "support:manage")),
+        demographics:
+          modules.student_records && can(context, "demographics:read"),
+        custody: modules.student_records && can(context, "custody:read"),
         history: can(context, "people:manage") || can(context, "audit:read"),
-        attendance: can(context, "attendance:read"),
-        timetable: can(context, "timetable:read"),
+        attendance: modules.attendance && can(context, "attendance:read"),
+        timetable: modules.timetable && can(context, "timetable:read"),
         message: can(context, "messages:send"),
         coursework:
-          can(context, "people:read") && can(context, "assignments:read"),
+          modules.coursework &&
+          can(context, "people:read") &&
+          can(context, "assignments:read"),
+        skills:
+          modules.standards &&
+          can(context, "people:read") &&
+          can(context, "assignments:read"),
       },
     };
   });

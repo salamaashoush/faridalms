@@ -42,7 +42,11 @@ import {
   RecordTabs,
 } from "~/components/system/RecordPage";
 import { ClassWeek } from "~/components/timetable/Weeks";
-import { inLocale, useCapability } from "~/hooks/useCurrentUser";
+import {
+  inLocale,
+  useCapability,
+  useCurrentUser,
+} from "~/hooks/useCurrentUser";
 import * as m from "~/i18n/messages";
 import { classOptionsQuery, classRecordQuery } from "~/queries/classes";
 import { classSoundsQuery } from "~/queries/learning";
@@ -415,8 +419,9 @@ export function ClassRecord({
   const data = useSuspenseQuery(classRecordQuery(classId)).data;
   const options = useSuspenseQuery(classOptionsQuery).data;
   const navigate = useNavigate();
-  const seesAttendance = useCapability("attendance:read");
-  const seesTimetable = useCapability("timetable:read");
+  const modules = useCurrentUser().modules;
+  const seesAttendance = useCapability("attendance:read") && modules.attendance;
+  const seesTimetable = useCapability("timetable:read") && modules.timetable;
   const keepsExams = useCapability("exams:manage");
   const keepsClasses = useCapability("classes:manage");
   const teaches = useCapability("assignments:author");
@@ -451,8 +456,8 @@ export function ClassRecord({
     (value) =>
       (value !== "attendance" || seesAttendance) &&
       (value !== "timetable" || seesTimetable) &&
-      (value !== "skills" || grades) &&
-      (value !== "goals" || (grades && youngClass)) &&
+      (value !== "skills" || (grades && modules.standards)) &&
+      (value !== "goals" || (grades && youngClass && modules.standards)) &&
       (value !== "files" || data.access.files),
   );
   const active = available.includes(tab) ? tab : "overview";

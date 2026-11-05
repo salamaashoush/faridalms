@@ -34,7 +34,9 @@ export const Route = createFileRoute("/_app/family/grades")({
     if (child)
       await Promise.all([
         context.queryClient.ensureQueryData(studentGradesQuery(child)),
-        context.queryClient.ensureQueryData(studentProgressQuery(child)),
+        user.modules.standards
+          ? context.queryClient.ensureQueryData(studentProgressQuery(child))
+          : null,
       ]);
   },
   component: FamilyGradesPage,
@@ -68,7 +70,9 @@ function FamilyGradesPage() {
           {children.length > 1 ? <IndexToolbar facets={[childFacet]} /> : null}
           <div className="grid gap-10">
             <StudentGrades studentId={current} />
-            <SkillsSection studentId={current} />
+            {user.modules.standards ? (
+              <SkillsSection studentId={current} />
+            ) : null}
           </div>
         </div>
       ) : (

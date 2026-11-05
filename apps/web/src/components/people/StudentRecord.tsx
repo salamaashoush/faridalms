@@ -142,7 +142,7 @@ export function studentTabsFor(
     family: access.contacts,
     enrollment: true,
     coursework: access.coursework,
-    skills: access.coursework,
+    skills: access.skills,
     attendance: access.attendance,
     health: access.health,
     support: access.support,
