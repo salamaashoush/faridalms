@@ -9,6 +9,7 @@ import {
 } from "@faridalms/database/stores/access";
 import { effectiveAccess } from "@faridalms/database/stores/identity";
 import { CAPABILITIES } from "@faridalms/domain/capabilities";
+import { paged, pageWindow } from "@faridalms/domain/paging";
 import {
   accessChangesSchema,
   assignAccessRoleSchema,
@@ -31,7 +32,6 @@ import {
 import { requirePerson } from "../core/reach";
 
 const id = v.pipe(v.string(), v.uuid());
-const PAGE_SIZE = 25;
 
 function scopeOf(context: UnitContext) {
   return {
@@ -246,14 +246,10 @@ export const changes = readProcedure
   .input(accessChangesSchema)
   .handler(async ({ input, context }) => {
     requireCapability(context, "access:manage", "audit:read");
-    const { rows, total } = await accessChanges(context.tx, context.tenantId, {
-      limit: PAGE_SIZE,
-      offset: (input.page - 1) * PAGE_SIZE,
-    });
-    return {
-      rows,
-      total,
-      page: input.page,
-      pages: Math.max(1, Math.ceil(total / PAGE_SIZE)),
-    };
+    const { rows, total } = await accessChanges(
+      context.tx,
+      context.tenantId,
+      pageWindow(input.page),
+    );
+    return paged(rows, total, input.page);
   });

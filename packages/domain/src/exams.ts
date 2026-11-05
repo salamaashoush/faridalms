@@ -1,5 +1,7 @@
 import * as v from "valibot";
 
+import { pageField } from "./paging";
+
 /**
  * The exam boards whose sessions the platform keeps: their coursework rules
  * ask for declarations, acknowledged AI use with evidence, and the work kept
@@ -91,7 +93,7 @@ export const retireSessionSchema = v.object({
 });
 
 export const examHistorySchema = v.object({
-  page: v.optional(v.pipe(v.number(), v.integer(), v.minValue(1)), 1),
+  page: pageField,
 });
 
 /** A session's settings as its history records them. */

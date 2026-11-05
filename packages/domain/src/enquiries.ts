@@ -1,5 +1,7 @@
 import * as v from "valibot";
 
+import { pageField } from "./paging";
+
 /**
  * Where an enquiry came from. It is set once, when the enquiry is made:
  * the website's forms write `website`; staff log the rest by hand.
@@ -216,7 +218,6 @@ const email = v.optional(
 
 export const ENQUIRY_VIEWS = ["all", ...ENQUIRY_STATES] as const;
 export type EnquiryView = (typeof ENQUIRY_VIEWS)[number];
-export const ENQUIRIES_PAGE_SIZE = 25;
 
 export const enquiryListSchema = v.object({
   state: v.optional(v.picklist(ENQUIRY_VIEWS), "open"),
@@ -225,7 +226,7 @@ export const enquiryListSchema = v.object({
   /** Someone's id, `me`, `none` for nobody yet, or `all`. */
   assignee: v.optional(v.union([v.picklist(["all", "me", "none"]), id]), "all"),
   q: v.optional(v.pipe(v.string(), v.trim(), v.maxLength(100)), ""),
-  page: v.optional(v.pipe(v.number(), v.integer(), v.minValue(1)), 1),
+  page: pageField,
 });
 export type EnquiryListQuery = v.InferOutput<typeof enquiryListSchema>;
 

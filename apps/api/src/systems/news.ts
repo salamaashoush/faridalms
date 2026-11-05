@@ -18,12 +18,12 @@ import {
 } from "@faridalms/domain/content";
 import {
   manageNewsSchema,
-  NEWS_PAGE,
   newsListSchema,
   newsRefSchema,
   publishNewsSchema,
   saveNewsSchema,
 } from "@faridalms/domain/news";
+import { paged, pageWindow } from "@faridalms/domain/paging";
 import {
   documentWritten,
   otherLocale,
@@ -185,14 +185,10 @@ export const list = readProcedure
       sort: input.sort,
       direction: input.direction,
       locale: input.locale,
-      limit: NEWS_PAGE,
-      offset: (input.page - 1) * NEWS_PAGE,
+      ...pageWindow(input.page),
     });
     return {
-      rows,
-      total,
-      page: input.page,
-      pages: Math.max(1, Math.ceil(total / NEWS_PAGE)),
+      ...paged(rows, total, input.page),
       canManage: can(context, "news:manage"),
     };
   });

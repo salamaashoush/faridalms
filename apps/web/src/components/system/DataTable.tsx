@@ -2,6 +2,7 @@ import type { LucideIcon } from "lucide-react";
 import type { ComponentProps, MouseEvent, ReactNode, Ref } from "react";
 
 import { Checkbox as CheckboxPrimitive } from "@base-ui/react/checkbox";
+import { PAGE_SIZES } from "@faridalms/domain/paging";
 import { Button } from "@faridalms/ui/button";
 import { Checkbox } from "@faridalms/ui/checkbox";
 import { cn } from "@faridalms/ui/cn";
@@ -377,8 +378,6 @@ function RowActions({
   );
 }
 
-const PAGE_SIZES = [25, 50];
-
 export function Pagination({
   page,
   pages,
@@ -483,7 +482,7 @@ export interface DataTablePagination {
   pages: number;
   total: number;
   pageSize: number;
-  pageSizes?: number[];
+  pageSizes?: readonly number[];
   onPage: (page: number) => void;
   onPageSize?: (size: number) => void;
 }

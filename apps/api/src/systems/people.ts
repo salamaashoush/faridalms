@@ -105,6 +105,7 @@ import {
   sendSignInLinkSchema,
 } from "@faridalms/domain/first-sign-in";
 import { normaliseIdentifier } from "@faridalms/domain/identifiers";
+import { paged } from "@faridalms/domain/paging";
 import {
   addressLine,
   cancelLeavingSchema,
@@ -284,10 +285,7 @@ export const students = readProcedure
       return {
         year: null,
         today: context.today,
-        rows: [],
-        total: 0,
-        page: 1,
-        pages: 1,
+        ...paged([], 0, 1, input.pageSize),
       };
     const grades = await descriptorsFor(context.tx, {
       tenantId: context.tenantId,
@@ -354,19 +352,25 @@ export const students = readProcedure
         lifecycle: year.lifecycle,
       },
       today: context.today,
-      rows: rows.map((row) => {
-        const grade = row.gradeId ? byId.get(row.gradeId) : undefined;
-        return {
-          ...row,
-          grade: grade
-            ? { id: grade.id, labelEn: grade.labelEn, labelAr: grade.labelAr }
-            : null,
-          homeroom: homerooms.get(row.id) ?? null,
-        };
-      }),
-      total,
-      page: input.page,
-      pages: Math.max(1, Math.ceil(total / input.pageSize)),
+      ...paged(
+        rows.map((row) => {
+          const grade = row.gradeId ? byId.get(row.gradeId) : undefined;
+          return {
+            ...row,
+            grade: grade
+              ? {
+                  id: grade.id,
+                  labelEn: grade.labelEn,
+                  labelAr: grade.labelAr,
+                }
+              : null,
+            homeroom: homerooms.get(row.id) ?? null,
+          };
+        }),
+        total,
+        input.page,
+        input.pageSize,
+      ),
     };
   });
 
@@ -1143,24 +1147,26 @@ export const staff = readProcedure
     const manage = can(context, "staff:manage");
     const contacts = manage || can(context, "contacts:read");
     return {
-      rows: rows.map((row) => ({
-        id: row.id,
-        fullNameEn: row.fullNameEn,
-        fullNameAr: row.fullNameAr,
-        photoFileId: row.photoFileId,
-        roles: row.roles,
-        titleEn: row.titleEn,
-        titleAr: row.titleAr,
-        position: labelFrom(positions, row.positionId),
-        email: contacts ? row.email : null,
-        phone: contacts ? row.phone : null,
-        account: manage
-          ? { state: row.accountState, lastSignInAt: row.lastSignInAt }
-          : null,
-      })),
-      total,
-      page: input.page,
-      pages: Math.max(1, Math.ceil(total / input.pageSize)),
+      ...paged(
+        rows.map((row) => ({
+          id: row.id,
+          fullNameEn: row.fullNameEn,
+          fullNameAr: row.fullNameAr,
+          photoFileId: row.photoFileId,
+          roles: row.roles,
+          titleEn: row.titleEn,
+          titleAr: row.titleAr,
+          position: labelFrom(positions, row.positionId),
+          email: contacts ? row.email : null,
+          phone: contacts ? row.phone : null,
+          account: manage
+            ? { state: row.accountState, lastSignInAt: row.lastSignInAt }
+            : null,
+        })),
+        total,
+        input.page,
+        input.pageSize,
+      ),
       manage,
     };
   });

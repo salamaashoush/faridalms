@@ -3,6 +3,7 @@ import * as v from "valibot";
 import { CAPABILITIES } from "./capabilities";
 import { FEATURES } from "./features";
 import { loginNameSchema } from "./first-sign-in";
+import { pageField, pageSizeField } from "./paging";
 
 const id = v.pipe(v.string(), v.uuid());
 const version = v.pipe(v.number(), v.integer(), v.minValue(1));
@@ -66,11 +67,8 @@ export const studentDirectorySchema = v.object({
   missing: v.optional(v.array(v.picklist(["guardian", "account"])), []),
   sort: v.optional(v.picklist(["name", "reference", "grade"]), "name"),
   dir: v.optional(v.picklist(["asc", "desc"]), "asc"),
-  page: v.optional(
-    v.pipe(v.number(), v.integer(), v.minValue(1), v.maxValue(10000)),
-    1,
-  ),
-  pageSize: v.optional(v.picklist([25, 50]), 25),
+  page: pageField,
+  pageSize: pageSizeField,
 });
 export type StudentDirectoryQuery = v.InferOutput<
   typeof studentDirectorySchema
@@ -208,11 +206,8 @@ export const staffDirectorySchema = v.object({
   role: v.optional(v.array(v.string()), []),
   sort: v.optional(v.picklist(["name", "role", "signedIn"]), "name"),
   dir: v.optional(v.picklist(["asc", "desc"]), "asc"),
-  page: v.optional(
-    v.pipe(v.number(), v.integer(), v.minValue(1), v.maxValue(10000)),
-    1,
-  ),
-  pageSize: v.optional(v.picklist([25, 50]), 25),
+  page: pageField,
+  pageSize: pageSizeField,
 });
 export type StaffDirectoryQuery = v.InferOutput<typeof staffDirectorySchema>;
 
@@ -556,10 +551,7 @@ export const assignAccessRoleSchema = v.object({
 });
 
 export const accessChangesSchema = v.object({
-  page: v.optional(
-    v.pipe(v.number(), v.integer(), v.minValue(1), v.maxValue(10000)),
-    1,
-  ),
+  page: pageField,
 });
 
 export const endAccessAssignmentSchema = v.object({

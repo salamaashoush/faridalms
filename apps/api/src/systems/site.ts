@@ -48,6 +48,7 @@ import {
 } from "@faridalms/database/stores/site";
 import { readAnswers } from "@faridalms/domain/enquiries";
 import { clientAddress } from "@faridalms/domain/forwarded";
+import { paged, pageWindow } from "@faridalms/domain/paging";
 import { phaseOf } from "@faridalms/domain/publication";
 import {
   isPortalDoor,
@@ -1118,10 +1119,12 @@ export const publicSitePosts = publicProcedure
           orgId: schoolId,
           locale,
           categoryId: category?.id ?? null,
-          limit: SITE_POSTS_PAGE_SIZE,
-          offset: (input.page - 1) * SITE_POSTS_PAGE_SIZE,
+          ...pageWindow(input.page, SITE_POSTS_PAGE_SIZE),
         });
-        return { locale, rows, total, pageSize: SITE_POSTS_PAGE_SIZE };
+        return {
+          locale,
+          ...paged(rows, total, input.page, SITE_POSTS_PAGE_SIZE),
+        };
       },
     ),
   );

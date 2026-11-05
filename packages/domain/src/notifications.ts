@@ -1,5 +1,6 @@
 import * as v from "valibot";
 
+import { pageField } from "./paging";
 import { addDays, zonedInstant, zonedLocal } from "./school";
 import { isoWeekday } from "./timetable";
 
@@ -215,7 +216,7 @@ export const savePreferencesSchema = v.object({
 export const NOTIFICATION_TABS = ["action", "all"] as const;
 export const listNotificationsSchema = v.object({
   tab: v.optional(v.picklist(NOTIFICATION_TABS), "all"),
-  page: v.optional(v.pipe(v.number(), v.integer(), v.minValue(1)), 1),
+  page: pageField,
 });
 
 export const markReadSchema = v.object({
@@ -237,7 +238,7 @@ export const deliveryLogSchema = v.object({
   state: v.optional(v.picklist(["all", ...DELIVERY_STATES]), "all"),
   channel: v.optional(v.picklist(["all", ...DELIVERY_CHANNELS]), "all"),
   q: v.optional(v.pipe(v.string(), v.trim(), v.maxLength(100)), ""),
-  page: v.optional(v.pipe(v.number(), v.integer(), v.minValue(1)), 1),
+  page: pageField,
 });
 export type DeliveryLogQuery = v.InferOutput<typeof deliveryLogSchema>;
 

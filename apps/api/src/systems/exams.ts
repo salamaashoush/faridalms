@@ -38,6 +38,7 @@ import {
   saveSessionSchema,
   setCourseworkSchema,
 } from "@faridalms/domain/exams";
+import { paged, pageWindow } from "@faridalms/domain/paging";
 import { ORPCError } from "@orpc/server";
 
 import type { UnitContext } from "../core/context";
@@ -58,8 +59,6 @@ import {
 } from "../core/procedure";
 import { officialSeries, sessionViews, viewOf } from "../exams/sessions";
 import { hostAccess, registerHostReader } from "../files/authorize";
-
-const HISTORY_PAGE = 25;
 
 function refuse(message: string): never {
   throw new ORPCError("BAD_REQUEST", { message });
@@ -288,12 +287,12 @@ export const history = readProcedure
   .input(examHistorySchema)
   .handler(async ({ input, context }) => {
     requireCapability(context, "exams:manage");
-    return examChanges(context.tx, {
+    const { rows, total } = await examChanges(context.tx, {
       tenantId: context.tenantId,
       orgId: context.schoolId,
-      limit: HISTORY_PAGE,
-      offset: (input.page - 1) * HISTORY_PAGE,
+      ...pageWindow(input.page),
     });
+    return paged(rows, total, input.page);
   });
 
 // Whoever reads the attempt a paper declaration covers reads its scan, and

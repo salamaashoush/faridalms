@@ -10,6 +10,7 @@ import type {
 
 import { isSafeContentUrl } from "./content";
 import { MAX_QUESTIONS } from "./enquiries";
+import { pageField } from "./paging";
 import {
   bodyIssues,
   overlay,
@@ -319,10 +320,7 @@ export const publicPostsSchema = v.object({
   school,
   locale,
   category: v.optional(v.union([v.literal(""), siteSlugSchema]), ""),
-  page: v.optional(
-    v.pipe(v.number(), v.integer(), v.minValue(1), v.maxValue(1000)),
-    1,
-  ),
+  page: pageField,
 });
 export const publicPostSchema = v.object({
   school,

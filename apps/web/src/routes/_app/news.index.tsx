@@ -1,6 +1,6 @@
 import type { ManageNewsQuery, NewsListQuery } from "@faridalms/domain/news";
 
-import { NEWS_PAGE, NEWS_SORTS, NEWS_TABS } from "@faridalms/domain/news";
+import { NEWS_SORTS, NEWS_TABS } from "@faridalms/domain/news";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { createFileRoute, stripSearchParams } from "@tanstack/react-router";
 import { Newspaper, Plus } from "lucide-react";
@@ -89,7 +89,7 @@ function Latest({
   search: NewsSearch;
   onPage: (page: number) => void;
 }) {
-  const { rows, page, pages, total } = useSuspenseQuery(
+  const { rows, page, pages, total, pageSize } = useSuspenseQuery(
     newsQuery(latestOf(search)),
   ).data;
   if (rows.length === 0)
@@ -132,7 +132,7 @@ function Latest({
           page={page}
           pages={pages}
           total={total}
-          pageSize={NEWS_PAGE}
+          pageSize={pageSize}
           onPage={onPage}
         />
       ) : null}

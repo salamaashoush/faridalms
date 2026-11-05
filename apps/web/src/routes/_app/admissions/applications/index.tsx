@@ -5,7 +5,6 @@ import type {
 
 import {
   applicationListSchema,
-  APPLICATIONS_PAGE_SIZE,
   LIVE_STATES,
 } from "@faridalms/domain/admissions";
 import { useSuspenseQuery } from "@tanstack/react-query";
@@ -259,7 +258,7 @@ function ApplicationsPage() {
               page: data.page,
               pages: data.pages,
               total: data.total,
-              pageSize: APPLICATIONS_PAGE_SIZE,
+              pageSize: data.pageSize,
               onPage: (page) =>
                 void navigate({
                   search: (previous) => ({ ...previous, page }),

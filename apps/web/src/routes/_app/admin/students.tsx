@@ -1,5 +1,6 @@
 import type { StudentDirectoryQuery } from "@faridalms/domain/people";
 
+import { PAGE_SIZES } from "@faridalms/domain/paging";
 import { studentDirectorySchema } from "@faridalms/domain/people";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { createFileRoute, stripSearchParams } from "@tanstack/react-router";
@@ -59,7 +60,6 @@ type Data = Awaited<
 >;
 type StudentRow = Data["rows"][number];
 
-const PAGE_SIZES = [25, 50] as const;
 const DEFAULT_SEARCH = v.parse(studentDirectorySchema, {});
 
 export const Route = createFileRoute("/_app/admin/students")({
@@ -450,8 +450,7 @@ function StudentsPage() {
           page: data.page,
           pages: data.pages,
           total: data.total,
-          pageSize: search.pageSize,
-          pageSizes: [...PAGE_SIZES],
+          pageSize: data.pageSize,
           onPage: (page) => patch({ page }),
           onPageSize: (size) => {
             const pageSize = PAGE_SIZES.find((option) => option === size);

@@ -201,7 +201,7 @@ function DeliveryLogPage() {
             page: data.page,
             pages: data.pages,
             total: data.total,
-            pageSize: 30,
+            pageSize: data.pageSize,
             onPage: (page) =>
               void navigate({ search: (previous) => ({ ...previous, page }) }),
           }}

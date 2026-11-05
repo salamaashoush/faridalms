@@ -60,7 +60,7 @@ function NewsPage() {
     }),
   ).data;
   const t = { locale: shell.locale };
-  const pages = Math.max(1, Math.ceil(data.total / data.pageSize));
+  const { pages } = data;
   const to = (change: { category?: string; page?: number }) => ({
     ...langSearch(shell),
     category: change.category ?? search.category,

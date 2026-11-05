@@ -1,5 +1,6 @@
 import type { StaffDirectoryQuery } from "@faridalms/domain/people";
 
+import { PAGE_SIZES } from "@faridalms/domain/paging";
 import {
   STAFF_ROLE_CHOICES,
   staffDirectorySchema,
@@ -42,7 +43,6 @@ type Data = Awaited<
 >;
 type StaffRow = Data["rows"][number];
 
-const PAGE_SIZES = [25, 50] as const;
 const DEFAULT_SEARCH = v.parse(staffDirectorySchema, {});
 const FACET_ROLES = [...STAFF_ROLE_CHOICES, "district_administrator"];
 
@@ -293,8 +293,7 @@ function StaffPage() {
           page: data.page,
           pages: data.pages,
           total: data.total,
-          pageSize: search.pageSize,
-          pageSizes: [...PAGE_SIZES],
+          pageSize: data.pageSize,
           onPage: (page) => patch({ page }),
           onPageSize: (size) => {
             const pageSize = PAGE_SIZES.find((option) => option === size);

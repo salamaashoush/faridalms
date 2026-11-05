@@ -17,6 +17,7 @@ import {
   preferencesOf,
   savePreferencesSchema,
 } from "@faridalms/domain/notifications";
+import { paged, pageWindow } from "@faridalms/domain/paging";
 
 import {
   audit,
@@ -44,16 +45,14 @@ export const list = readProcedure
       notificationsOf(context.tx, {
         ...mine(context),
         tab: input.tab,
-        limit: PAGE,
-        offset: (input.page - 1) * PAGE,
+        ...pageWindow(input.page, PAGE),
       }),
       unreadCount(context.tx, mine(context)),
     ]);
     return {
       ...page,
       ...counts,
-      page: input.page,
-      pages: Math.max(1, Math.ceil(page.total / PAGE)),
+      ...paged(page.rows, page.total, input.page, PAGE),
     };
   });
 
@@ -133,12 +132,10 @@ export const deliveries = readProcedure
       state: input.state,
       channel: input.channel,
       q: input.q,
-      limit: PAGE,
-      offset: (input.page - 1) * PAGE,
+      ...pageWindow(input.page, PAGE),
     });
     return {
       ...result,
-      page: input.page,
-      pages: Math.max(1, Math.ceil(result.total / PAGE)),
+      ...paged(result.rows, result.total, input.page, PAGE),
     };
   });

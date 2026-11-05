@@ -9,6 +9,7 @@ import {
   QUESTION_KINDS,
   readAnswers,
 } from "./enquiries";
+import { pageField } from "./paging";
 import { personNamesSchema } from "./people";
 
 const id = v.pipe(v.string(), v.uuid());
@@ -777,14 +778,13 @@ export const APPLICATION_VIEWS = [
   ...APPLICATION_STATES,
 ] as const;
 export type ApplicationView = (typeof APPLICATION_VIEWS)[number];
-export const APPLICATIONS_PAGE_SIZE = 25;
 
 export const applicationListSchema = v.object({
   intake: v.optional(v.union([v.literal(""), id]), ""),
   year: v.optional(v.union([v.literal(""), id]), ""),
   state: v.optional(v.picklist(APPLICATION_VIEWS), "live"),
   q: v.optional(v.pipe(v.string(), v.trim(), v.maxLength(100)), ""),
-  page: v.optional(v.pipe(v.number(), v.integer(), v.minValue(1)), 1),
+  page: pageField,
 });
 export type ApplicationListQuery = v.InferOutput<typeof applicationListSchema>;
 

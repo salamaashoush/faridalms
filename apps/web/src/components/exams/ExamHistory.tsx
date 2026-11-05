@@ -12,8 +12,6 @@ import { formatDate, formatInstant, formatMonthLabel } from "~/utils/datetime";
 
 import { sessionName } from "./names";
 
-const PAGE = 25;
-
 const ACTION: Record<string, () => string> = {
   "exam_session.create": m.examHistoryAdded,
   "exam_session.update": m.examHistoryChanged,
@@ -127,12 +125,12 @@ export function ExamHistory({
                 );
               })}
             </ol>
-            {history.total > PAGE ? (
+            {history.pages > 1 ? (
               <Pagination
-                page={page}
-                pages={Math.ceil(history.total / PAGE)}
+                page={history.page}
+                pages={history.pages}
                 total={history.total}
-                pageSize={PAGE}
+                pageSize={history.pageSize}
                 onPage={setPage}
               />
             ) : null}

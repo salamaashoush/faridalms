@@ -29,7 +29,6 @@ import {
   applicationListSchema,
   applicationNoteSchema,
   applicationRefSchema,
-  APPLICATIONS_PAGE_SIZE,
   attachDocumentSchema,
   canMove,
   letterRefSchema,
@@ -43,6 +42,7 @@ import {
   withdrawApplicationSchema,
 } from "@faridalms/domain/admissions";
 import { SYSTEM_KEPT_MEANINGS } from "@faridalms/domain/identifiers";
+import { paged, pageWindow } from "@faridalms/domain/paging";
 import { ORPCError } from "@orpc/server";
 
 import type { UnitContext } from "../core/context";
@@ -100,15 +100,13 @@ export const list = readProcedure
         ...org(context),
         query: input,
         yearId: input.intake ? null : yearId,
-        limit: APPLICATIONS_PAGE_SIZE,
-        offset: (input.page - 1) * APPLICATIONS_PAGE_SIZE,
+        ...pageWindow(input.page),
       }),
       yearId ? intakesOf(context.tx, { ...org(context), yearId }) : [],
     ]);
     return {
       ...listed,
-      page: input.page,
-      pages: Math.max(1, Math.ceil(listed.total / APPLICATIONS_PAGE_SIZE)),
+      ...paged(listed.rows, listed.total, input.page),
       yearId,
       years: years.map((year) => ({
         id: year.id,

@@ -22,7 +22,6 @@ import { publicSchool } from "@faridalms/database/stores/site";
 import { plainContent } from "@faridalms/domain/content-conversion";
 import {
   assignEnquirySchema,
-  ENQUIRIES_PAGE_SIZE,
   enquiryListSchema,
   enquiryRefSchema,
   logEnquirySchema,
@@ -30,6 +29,7 @@ import {
   nextStates,
 } from "@faridalms/domain/enquiries";
 import { LOGGED_CONTACTS } from "@faridalms/domain/messages";
+import { paged, pageWindow } from "@faridalms/domain/paging";
 import { ORPCError } from "@orpc/server";
 
 import type { UnitContext } from "../core/context";
@@ -191,15 +191,13 @@ export const enquiries = readProcedure
         orgId: context.schoolId,
         viewerId: context.actor.userId,
         query: input,
-        limit: ENQUIRIES_PAGE_SIZE,
-        offset: (input.page - 1) * ENQUIRIES_PAGE_SIZE,
+        ...pageWindow(input.page),
       }),
       assignable(context),
     ]);
     return {
       ...list,
-      page: input.page,
-      pages: Math.max(1, Math.ceil(list.total / ENQUIRIES_PAGE_SIZE)),
+      ...paged(list.rows, list.total, input.page),
       staff,
       manages: can(context, "admissions:manage"),
     };

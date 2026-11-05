@@ -199,7 +199,7 @@ function AccessChanges() {
               page={data.page}
               pages={data.pages}
               total={data.total}
-              pageSize={25}
+              pageSize={data.pageSize}
               onPage={setPage}
             />
           ) : null}

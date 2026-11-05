@@ -4,7 +4,6 @@ import type {
 } from "@faridalms/domain/enquiries";
 
 import {
-  ENQUIRIES_PAGE_SIZE,
   ENQUIRY_PURPOSES,
   ENQUIRY_SOURCES,
   ENQUIRY_STATES,
@@ -276,7 +275,7 @@ function EnquiriesPage() {
               page: data.page,
               pages: data.pages,
               total: data.total,
-              pageSize: ENQUIRIES_PAGE_SIZE,
+              pageSize: data.pageSize,
               onPage: (page) =>
                 void navigate({
                   search: (previous) => ({ ...previous, page }),
