@@ -31,6 +31,7 @@ import * as m from "~/i18n/messages";
 import { familyHomeQuery } from "~/queries/home";
 import { startChildMode } from "~/server/auth";
 import { formatInstant, formatDate } from "~/utils/datetime";
+import { getMessageFromError } from "~/utils/error";
 
 export const Route = createFileRoute("/_app/family/")({
   validateSearch: v.object({
@@ -105,6 +106,7 @@ function HandOver({ child }: { child: Child }) {
   const name = displayName(child);
   const handOver = useMutation({
     mutationFn: () => start({ data: { studentId: child.studentId } }),
+    meta: { inlineError: true },
     onSuccess: async () => {
       await sessionChanged("/");
     },
@@ -125,9 +127,15 @@ function HandOver({ child }: { child: Child }) {
         )}
         <bdi>{m.familyHandOver({ name })}</bdi>
       </Button>
-      <p className="text-[13px] leading-[18px] text-muted-foreground">
-        {m.familyHandOverHint({ name })}
-      </p>
+      {handOver.error ? (
+        <p role="alert" className="text-[13px] leading-[18px] text-destructive">
+          {getMessageFromError(handOver.error)}
+        </p>
+      ) : (
+        <p className="text-[13px] leading-[18px] text-muted-foreground">
+          {m.familyHandOverHint({ name })}
+        </p>
+      )}
     </div>
   );
 }
@@ -257,7 +265,7 @@ function FamilyHome() {
                   </bdi>
                 </Link>
               }
-              facts={[thread.lastBody?.slice(0, 80)]}
+              summary={thread.lastBody ?? undefined}
             />
           ))}
         </HomeList>

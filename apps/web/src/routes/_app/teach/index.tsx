@@ -159,7 +159,7 @@ function TodayPage() {
                   </bdi>
                 </Link>
               }
-              facts={[thread.lastBody?.slice(0, 80)]}
+              summary={thread.lastBody ?? undefined}
             />
           ))}
         </HomeList>

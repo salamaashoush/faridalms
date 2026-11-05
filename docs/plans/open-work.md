@@ -64,8 +64,6 @@ From `foundations.md`. W1, W3, W4 and W5 are merged.
   saving.
 - A student can rename a project's only page away: there is no only-page
   guard.
-- The family "Hand over" button has no error handling; a refused hand-over
-  leaves the page with no message.
 
 ## Reach
 
