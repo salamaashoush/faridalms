@@ -9,6 +9,7 @@ import { createPortal } from "react-dom";
 import { ButtonLink } from "~/components/app/ButtonLink";
 import { Subscribe } from "~/components/calendar/Subscribe";
 import { classTitle } from "~/components/classes/format";
+import { PersonLink } from "~/components/people/PersonLink";
 import { EmptyState } from "~/components/system/IndexPage";
 import { inLocale, useCurrentUser } from "~/hooks/useCurrentUser";
 import * as m from "~/i18n/messages";
@@ -61,6 +62,32 @@ export function teacherLabel(meeting: Labelled): string | null {
     : null;
 }
 
+type Lines = (meeting: Meeting) => { teacher?: ReactNode; room?: ReactNode };
+
+/** Who teaches it, as a link to as much of them as the reader reaches. */
+function TeacherName({ meeting }: { meeting: Meeting }) {
+  const name = teacherLabel(meeting);
+  if (!name) return null;
+  return (
+    <PersonLink
+      userId={meeting.change?.coverId ?? meeting.teacherId}
+      link={meeting.teacherLink}
+      className="hover:text-foreground hover:underline"
+    >
+      {name}
+    </PersonLink>
+  );
+}
+
+const teacherAndRoom: Lines = (meeting) => ({
+  teacher: <TeacherName meeting={meeting} />,
+  room: roomLabel(meeting),
+});
+const teacherOnly: Lines = (meeting) => ({
+  teacher: <TeacherName meeting={meeting} />,
+});
+const roomOnly: Lines = (meeting) => ({ room: roomLabel(meeting) });
+
 export function meetingTitle(meeting: Meeting): string {
   return classTitle({
     code: meeting.classCode,
@@ -104,11 +131,7 @@ function changeLine(meeting: Meeting, own: boolean): string | null {
   return m.ttRoomChanged();
 }
 
-function weekCell(
-  lines: (meeting: Meeting) => (string | null)[],
-  cell: CardCell | undefined,
-  own: boolean,
-) {
+function weekCell(lines: Lines, cell: CardCell | undefined, own: boolean) {
   return function renderCell({
     meeting,
     day,
@@ -122,7 +145,7 @@ function weekCell(
     const card = (
       <MeetingCard
         title={meetingTitle(meeting)}
-        lines={lines(meeting)}
+        {...lines(meeting)}
         flagged={meeting.clashing}
         change={changeLine(meeting, own)}
         cancelled={meeting.change?.cancelled ?? false}
@@ -145,7 +168,7 @@ export function Week({
 }: {
   week: Week | null;
   caption: string;
-  lines: (meeting: Meeting) => (string | null)[];
+  lines: Lines;
   cell?: CardCell;
   /** A teacher's own week, where covers name who covers whom. */
   own?: boolean;
@@ -287,7 +310,7 @@ export function StudentWeek({ studentId = "" }: { studentId?: string }) {
     <Week
       week={week}
       caption={m.ttStudentCaption()}
-      lines={(meeting) => [teacherLabel(meeting), roomLabel(meeting)]}
+      lines={teacherAndRoom}
       subscribe={studentId === ""}
       pending={pending}
       onWeek={onWeek}
@@ -297,13 +320,7 @@ export function StudentWeek({ studentId = "" }: { studentId?: string }) {
 
 export function RoomWeek({ roomId, on }: { roomId: string; on: string }) {
   const { week } = useSuspenseQuery(roomWeekQuery(roomId, on)).data;
-  return (
-    <Week
-      week={week}
-      caption={m.ttRoomCaption()}
-      lines={(meeting) => [teacherLabel(meeting)]}
-    />
-  );
+  return <Week week={week} caption={m.ttRoomCaption()} lines={teacherOnly} />;
 }
 
 /**
@@ -327,7 +344,7 @@ export function TeacherWeek({
     <Week
       week={week}
       caption={m.ttTeacherCaption()}
-      lines={(meeting) => [roomLabel(meeting)]}
+      lines={roomOnly}
       cell={cell}
       own
       subscribe={on === undefined && teacherId === ""}
@@ -359,7 +376,7 @@ export function ClassWeek({ classId }: { classId: string }) {
       <Week
         week={data.week}
         caption={m.ttClassCaption()}
-        lines={(meeting) => [teacherLabel(meeting), roomLabel(meeting)]}
+        lines={teacherAndRoom}
         pending={pending}
         onWeek={onWeek}
       />

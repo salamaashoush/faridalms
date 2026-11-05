@@ -48,9 +48,6 @@ From `foundations.md`. W1 to W5 are merged.
 
 ## Reach
 
-- Teacher names on the timetable week grid do not link to the teacher's
-  profile yet: each lesson card's lines are plain strings, so the card
-  needs to take links. Lessons and messages already link.
 - A staff session without `people:read` now counts as staff in Messages,
   because staff is decided by role. Confirm that is the wanted rule.
 

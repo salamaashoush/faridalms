@@ -50,7 +50,12 @@ import {
   requireCapability,
   writeProcedure,
 } from "../core/procedure";
-import { reachesClass, reachesStudent, teaches } from "../core/reach";
+import {
+  reachesClass,
+  reachesStudent,
+  recordLinks,
+  teaches,
+} from "../core/reach";
 
 async function currentYear(context: UnitContext) {
   return workingYear(
@@ -178,7 +183,27 @@ function changeView(change: LessonChange | undefined) {
  * A dated week's meetings with each one's change for its day. A teacher's
  * week also holds the lessons they cover, marked as covers.
  */
+/**
+ * A week's lessons with how far the viewer reaches the teacher each shows,
+ * the one covering it where someone does.
+ */
 async function weekLessons(
+  context: UnitContext,
+  meetings: MeetingRow[],
+  days: readonly string[],
+  coverId?: string,
+) {
+  const lessons = await lessonsOfWeek(context, meetings, days, coverId);
+  const shown = (lesson: (typeof lessons)[number]) =>
+    lesson.change?.coverId ?? lesson.teacherId;
+  const linkOf = await recordLinks(context, lessons.map(shown));
+  return lessons.map((lesson) => ({
+    ...lesson,
+    teacherLink: linkOf(shown(lesson)),
+  }));
+}
+
+async function lessonsOfWeek(
   context: UnitContext,
   meetings: MeetingRow[],
   days: readonly string[],

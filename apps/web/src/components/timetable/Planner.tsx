@@ -290,7 +290,8 @@ function PlannerCell({
         titleEn: cell.meeting.classTitleEn,
         titleAr: cell.meeting.classTitleAr,
       })}
-      lines={[teacherLabel(cell.meeting), roomLabel(cell.meeting)]}
+      teacher={teacherLabel(cell.meeting)}
+      room={roomLabel(cell.meeting)}
       flagged={cell.meeting.clashing}
     />
   ) : (

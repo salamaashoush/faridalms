@@ -150,6 +150,15 @@ describe("reading weeks", () => {
     );
     const child = await parent.timetable.studentWeek({ studentId: me.id });
     expect(child.week?.meetings.length).toBe(own.week?.meetings.length);
+    // The office reaches each teacher's record from the week; the family
+    // reaches no more than a profile.
+    const office = await signedIn("northwind", login("principal"));
+    const seen = await office.timetable.studentWeek({ studentId: me.id });
+    const taught = seen.week?.meetings.find((row) => row.teacherId !== null);
+    expect(taught?.teacherLink).toBe("person");
+    expect(
+      child.week?.meetings.every((row) => row.teacherLink !== "person"),
+    ).toBe(true);
   });
 
   test("a week carries its dates and the days the school is shut", async () => {

@@ -290,14 +290,16 @@ export function WeekGrid<T extends GridMeeting>({
  */
 export function MeetingCard({
   title,
-  lines,
+  teacher = null,
+  room = null,
   flagged = false,
   change = null,
   cancelled = false,
   note = null,
 }: {
   title: ReactNode;
-  lines: (string | null)[];
+  teacher?: ReactNode;
+  room?: ReactNode;
   flagged?: boolean;
   change?: string | null;
   cancelled?: boolean;
@@ -343,14 +345,16 @@ export function MeetingCard({
           {note}
         </span>
       ) : null}
-      {lines.filter(Boolean).map((line) => (
-        <span
-          key={line}
-          className="truncate text-[13px] leading-[18px] text-muted-foreground"
-        >
-          {line}
+      {teacher ? (
+        <span className="truncate text-[13px] leading-[18px] text-muted-foreground">
+          {teacher}
         </span>
-      ))}
+      ) : null}
+      {room ? (
+        <span className="truncate text-[13px] leading-[18px] text-muted-foreground">
+          {room}
+        </span>
+      ) : null}
       {flagged ? (
         <span className="text-[13px] leading-[18px] text-warning-foreground dark:text-warning">
           {m.ttClash()}
