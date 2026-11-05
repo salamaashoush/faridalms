@@ -18,7 +18,12 @@ From `foundations.md`. W1 to W5 are merged.
     question was asked of (500), a file area (1000) and a calendar range
     (1000). Some are previews or pickers narrowed by search, so each needs
     judging before it is paged;
-  - history tabs fed by the audit log, with one history screen;
+  - before and after values on audited updates. A history tab now
+    holds every event about the person or record and words each one,
+    but only about 22 of 228 audit calls pass `change`, so most
+    entries say what happened and not what it was before. The access
+    and exam logs keep their own lists, since each row also names the
+    person or the rules it changed;
   - erasure for the tables `erasure-rules.ts` marks `to_erase`, and the
     owner's and the lawyer's review of every proposed rule (the list is in
     the ops repository, `plans/legal/erasure-registry.md`). Every table
