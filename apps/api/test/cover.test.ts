@@ -49,6 +49,10 @@ describe("covering lessons", () => {
     expect(open.every((row) => row.change === null)).toBe(true);
 
     const key = { classId: lesson.classId, periodId: lesson.periodId, on: DAY };
+    const changeOf = async (classId: string, periodId: string) =>
+      (await office.cover.day({ on: DAY })).cover?.lessons.find(
+        (row) => row.classId === classId && row.periodId === periodId,
+      )?.change?.id ?? "";
     const { candidates } = await office.cover.options(key);
     expect(candidates.some((row) => row.userId === away.id)).toBe(false);
     const cover = teachers.find(
@@ -62,13 +66,22 @@ describe("covering lessons", () => {
     );
 
     expect(
-      await rejection(office.cover.changeLesson({ ...key, coverId: away.id })),
+      await rejection(
+        office.cover.changeLesson({ ...key, expected: "", coverId: away.id }),
+      ),
     ).toMatchObject({ code: "BAD_REQUEST" });
     await office.cover.changeLesson({
       ...key,
+      expected: "",
       coverId: cover.id,
       note: "p. 42",
     });
+    // A sheet opened before that would replace a change it never saw.
+    expect(
+      await rejection(
+        office.cover.changeLesson({ ...key, expected: "", cancelled: true }),
+      ),
+    ).toMatchObject({ code: "CONFLICT", message: "conflict.version" });
 
     const { week } = await cover.api.timetable.teacherWeek({ on: DAY });
     const covered = week?.meetings.find(
@@ -100,6 +113,7 @@ describe("covering lessons", () => {
       classId: other.classId,
       periodId: other.periodId,
       on: DAY,
+      expected: await changeOf(other.classId, other.periodId),
       cancelled: true,
     });
     const { rows } = await office.attendance.board({ date: DAY });
@@ -122,7 +136,10 @@ describe("covering lessons", () => {
       )?.change?.cancelled,
     ).toBe(true);
 
-    await office.cover.clearLessonChange(key);
+    await office.cover.clearLessonChange({
+      ...key,
+      expected: await changeOf(lesson.classId, lesson.periodId),
+    });
     expect(
       await rejection(
         cover.api.attendance.register({
@@ -139,6 +156,7 @@ describe("covering lessons", () => {
       classId: other.classId,
       periodId: other.periodId,
       on: DAY,
+      expected: await changeOf(other.classId, other.periodId),
     });
   });
 

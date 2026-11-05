@@ -9,6 +9,7 @@ import {
   changesOn,
   clearChange,
   coverCandidates,
+  heldChange,
   insertAbsence,
   removeAbsence,
   setChange,
@@ -235,6 +236,7 @@ export const day = readProcedure
                 : false,
               change: change
                 ? {
+                    id: change.id,
                     coverId: change.coverId,
                     coverNameEn: change.coverNameEn,
                     coverNameAr: change.coverNameAr,
@@ -409,6 +411,8 @@ export const changeLesson = writeProcedure
       periodId: input.periodId,
       day: input.on,
     };
+    if ((await heldChange(context.tx, key)) !== input.expected)
+      throw new ORPCError("CONFLICT", { message: "conflict.version" });
     const { previousCoverId } = await clearChange(context.tx, key);
     if (input.coverId) {
       if (input.coverId === lesson.teacherId)
@@ -495,12 +499,15 @@ export const clearLessonChange = writeProcedure
     const year = await yearOn(context, input.on);
     const classRow = await classById(context.tx, context, input.classId);
     if (!classRow) throw new ORPCError("NOT_FOUND");
-    const { previousCoverId } = await clearChange(context.tx, {
+    const key = {
       tenantId: context.tenantId,
       classId: input.classId,
       periodId: input.periodId,
       day: input.on,
-    });
+    };
+    if ((await heldChange(context.tx, key)) !== input.expected)
+      throw new ORPCError("CONFLICT", { message: "conflict.version" });
+    const { previousCoverId } = await clearChange(context.tx, key);
     if (previousCoverId)
       await notify(context, [previousCoverId], {
         kind: "reminder",

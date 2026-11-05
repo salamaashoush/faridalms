@@ -531,7 +531,12 @@ function ArrangeSheet({
   const [roomId, setRoomId] = useState(lesson.change?.roomId ?? KEEP);
   const [note, setNote] = useState(lesson.change?.note ?? "");
   const cancelled = cover === CANCEL;
-  const key = { classId: lesson.classId, periodId: lesson.periodId, on };
+  const key = {
+    classId: lesson.classId,
+    periodId: lesson.periodId,
+    on,
+    expected: lesson.change?.id ?? "",
+  };
   const save = useMutation({
     mutationFn: () =>
       cover === KEEP && roomId === KEEP

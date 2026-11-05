@@ -141,6 +141,12 @@ const lesson = {
   on: isoDate,
 };
 
+/**
+ * The change the sheet showed, or "" for none. A lesson's change is
+ * replaced, never edited in place, so its id is what was shown.
+ */
+const expectedChange = { expected: v.union([v.literal(""), id]) };
+
 export const coverOptionsSchema = v.object(lesson);
 
 /**
@@ -150,6 +156,7 @@ export const coverOptionsSchema = v.object(lesson);
 export const changeLessonSchema = v.pipe(
   v.object({
     ...lesson,
+    ...expectedChange,
     coverId: optionalId,
     roomId: optionalId,
     cancelled: v.optional(v.boolean(), false),
@@ -165,7 +172,7 @@ export const changeLessonSchema = v.pipe(
 );
 export type ChangeLesson = v.InferOutput<typeof changeLessonSchema>;
 
-export const clearChangeSchema = v.object(lesson);
+export const clearChangeSchema = v.object({ ...lesson, ...expectedChange });
 
 export const PERIOD_KINDS = [
   "lesson",

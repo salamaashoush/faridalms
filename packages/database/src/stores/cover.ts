@@ -224,6 +224,17 @@ export async function setChange(
   return previous;
 }
 
+/** The id of a lesson's change on a day, held until the transaction ends; "" for none. */
+export async function heldChange(tx: Tx, input: ChangeKey): Promise<string> {
+  const [row] = await tx.execute<{ id: string }>(sql`
+    select id from core.lesson_changes
+    where tenant_id = ${input.tenantId}::uuid and class_id = ${input.classId}::uuid
+      and class_period_id = ${input.periodId}::uuid and day_on = ${input.day}::date
+      and status = 'active'
+    for update`);
+  return row?.id ?? "";
+}
+
 /** Puts a lesson back as the timetable has it, returning who covered it. */
 export async function clearChange(
   tx: Tx,
