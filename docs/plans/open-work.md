@@ -110,8 +110,9 @@ From `school-front-door.md`; slices 1 to 9 are merged.
 - `school-year.spec.ts:249` once opened the year editor with an empty name
   after a reload. The cause has not been found.
 - `records.spec.ts:95` once timed out opening the language submenu.
-- `badges.spec.ts:50` once landed on `/family` instead of `/me`. It likely
-  comes from the spec's own tests sharing KG2A.
+- `badges.spec.ts:50` once landed on `/family` instead of `/me`, and
+  `badges.spec.ts:13` once found no badge sheet under the full run; both
+  passed alone. They likely come from the spec's own tests sharing KG2A.
 - WebKit `management.spec.ts:22` once kept "Class name in Arabic" invalid
   after the English name was filled. The form moves focus a frame after
   Save, which may land inside Playwright's fill; not confirmed.

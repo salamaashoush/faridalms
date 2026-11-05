@@ -1,4 +1,4 @@
-const ATTEMPTS = 4;
+const ATTEMPTS = 6;
 
 /**
  * Fetches what install vendors, asking again while the host answers with a
@@ -14,7 +14,9 @@ export async function download(url: string): Promise<Response> {
       (response.status < 500 && response.status !== 429)
     )
       throw new Error(`${url} answered ${response.status}`);
-    const wait = Number(response.headers.get("retry-after")) || attempt * 2;
+    // Doubling from two seconds waits about a minute in all, which a release
+    // host's 504s have outlasted at a quarter of that.
+    const wait = Number(response.headers.get("retry-after")) || 2 ** attempt;
     await Bun.sleep(wait * 1000);
   }
 }
