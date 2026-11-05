@@ -158,7 +158,8 @@ async function accept(
     state: "ready",
     sha256: checked.sha256,
     scanEngine: context.scanner ? "clamd" : null,
-    stream: context.mediaOrigin !== null && hasVideo(context.school.plan),
+    stream:
+      context.mediaOrigin !== null && hasVideo(context.school.entitlements),
     keyVersion: checked.keyVersion,
   });
   if (!settled) return problem(409, "file.not_pending", context.requestId);

@@ -63,7 +63,7 @@ export async function withWebsite<T>(
   run: (unit: PublicUnit) => Promise<T>,
 ): Promise<T> {
   const school = await context.directory.bySlug(slug);
-  if (!school || !availableModules(school.plan).includes("website"))
+  if (!school || !availableModules(school.entitlements).includes("website"))
     throw new ORPCError("NOT_FOUND");
   return withPublicSite(context, slug, run);
 }

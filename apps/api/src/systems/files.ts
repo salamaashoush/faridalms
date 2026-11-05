@@ -163,7 +163,7 @@ async function roomFor(
     (await mayWorkOn(context, destination.id))
   )
     return null;
-  const limits = limitsOf(context.school.plan);
+  const limits = limitsOf(context.school.entitlements);
   const scopes: { scope: StorageScope; used: StorageUse; limit: number }[] = [
     {
       scope: "school",
@@ -223,7 +223,7 @@ export const area = readProcedure
   .input(areaQuerySchema)
   .handler(async ({ input, context }) => {
     await keptArea(context, input.area);
-    const limits = limitsOf(context.school.plan);
+    const limits = limitsOf(context.school.entitlements);
     const [{ rows, total }, kinds] = await Promise.all([
       areaFiles(context.tx, context.tenantId, input.area, input.trashed, {
         ...input,

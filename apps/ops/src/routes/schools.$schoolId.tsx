@@ -1,9 +1,9 @@
 import type { DirectoryTenantState } from "@faridalms/database/directory/schema";
 import type { ModuleId } from "@faridalms/domain/modules";
-import type { SchoolPlan } from "@faridalms/domain/plans";
+import type { SchoolNotice } from "@faridalms/domain/plans";
 
-import { MODULE_IDS } from "@faridalms/domain/modules";
-import { DEFAULT_LIMITS, limitsOf } from "@faridalms/domain/plans";
+import { BASIC_MODULES, MODULE_IDS } from "@faridalms/domain/modules";
+import { DEFAULT_LIMITS, SCHOOL_NOTICES } from "@faridalms/domain/plans";
 import { Badge } from "@faridalms/ui/badge";
 import { Button } from "@faridalms/ui/button";
 import { Checkbox } from "@faridalms/ui/checkbox";
@@ -18,7 +18,7 @@ import { ChangeList } from "../components/ChangeList";
 import { Hosts } from "../components/Hosts";
 import { Usage } from "../components/Usage";
 import { formatBytes, formatWhen, MODULE_NAMES } from "../format";
-import { getSchool, resendInvite, savePlan } from "../server/directory";
+import { getSchool, resendInvite, saveEntitlements } from "../server/directory";
 
 export const Route = createFileRoute("/schools/$schoolId")({
   loader: ({ params }) => getSchool({ data: { id: params.schoolId } }),
@@ -51,6 +51,58 @@ const CAPS: { key: Cap; label: string; hint: string }[] = [
   },
 ];
 
+type Count =
+  | "students"
+  | "staffAccounts"
+  | "videoHours"
+  | "customDomains"
+  | "emailPerMonth"
+  | "captionMinutes";
+
+const COUNTS: { key: Count; label: string; hint: string }[] = [
+  {
+    key: "students",
+    label: "Students",
+    hint: "Soft: past it the administrators are told; enrolling is never refused.",
+  },
+  {
+    key: "staffAccounts",
+    label: "Staff accounts",
+    hint: "Soft, as students.",
+  },
+  {
+    key: "videoHours",
+    label: "Video hours",
+    hint: "Streamed video kept. A video past it plays as uploaded.",
+  },
+  {
+    key: "customDomains",
+    label: "Custom domains",
+    hint: "Hosts of its own the school may add.",
+  },
+  {
+    key: "emailPerMonth",
+    label: "Emails a month",
+    hint: "Soft: catches a runaway sender.",
+  },
+  {
+    key: "captionMinutes",
+    label: "Caption minutes a year",
+    hint: "Minutes of caption drafting.",
+  },
+];
+
+const NOTICES: Record<SchoolNotice, string> = {
+  payment_overdue: "Payment overdue",
+  plan_ends_soon: "Plan ends soon",
+};
+
+const ACCESS = {
+  full: "Full",
+  restricted: "Restricted",
+  read_only: "Read only",
+} as const;
+
 const TENANT_STATES: Record<DirectoryTenantState, string> = {
   provisioning: "Provisioning",
   importing: "Importing",
@@ -71,6 +123,13 @@ function asField(bytes: number | null): { value: string; unit: Unit } {
     : { value: String(Math.round(bytes / MIB)), unit: "MB" };
 }
 
+function asCount(value: string): number | null {
+  const amount = Number(value);
+  return value.trim() === "" || !Number.isInteger(amount) || amount < 0
+    ? null
+    : amount;
+}
+
 function asBytes(field: { value: string; unit: Unit }): number | null {
   const amount = Number(field.value);
   if (field.value.trim() === "" || !Number.isFinite(amount) || amount <= 0)
@@ -81,22 +140,28 @@ function asBytes(field: { value: string; unit: Unit }): number | null {
 function SchoolPage() {
   const { school, changes, hosts, platform } = Route.useLoaderData();
   const router = useRouter();
-  const save = useServerFn(savePlan);
-  const plan: SchoolPlan | null = school.plan;
+  const save = useServerFn(saveEntitlements);
+  const entitled = school.entitlements;
   const [caps, setCaps] = useState(
     () =>
       Object.fromEntries(
-        CAPS.map(({ key }) => [key, asField(plan?.[key] ?? null)]),
+        CAPS.map(({ key }) => [key, asField(entitled[key])]),
       ) as Record<Cap, { value: string; unit: Unit }>,
   );
-  const [everyModule, setEveryModule] = useState(plan?.modules == null);
-  const [modules, setModules] = useState<ModuleId[]>(
-    (plan?.modules ?? [...MODULE_IDS]) as ModuleId[],
+  const [counts, setCounts] = useState(
+    () =>
+      Object.fromEntries(
+        COUNTS.map(({ key }) => [key, entitled[key]?.toString() ?? ""]),
+      ) as Record<Count, string>,
+  );
+  const [modules, setModules] = useState<ModuleId[]>(entitled.modules);
+  const [trialEndsOn, setTrialEndsOn] = useState(entitled.trialEndsOn ?? "");
+  const [notice, setNotice] = useState<SchoolNotice | "">(
+    entitled.notice ?? "",
   );
   const [reason, setReason] = useState("");
   const [saving, setSaving] = useState(false);
   const name = school.nameEn ?? school.nameAr ?? school.slug;
-  const limits = limitsOf(plan);
   return (
     <div className="grid gap-8">
       <div className="grid gap-1">
@@ -129,7 +194,7 @@ function SchoolPage() {
         <h2 className="text-base font-semibold">Storage</h2>
         <Usage
           usedBytes={school.usage?.usedBytes ?? null}
-          limitBytes={limits.poolBytes}
+          limitBytes={entitled.poolBytes}
         />
         {school.usage ? (
           <p className="text-xs text-muted-foreground">
@@ -151,28 +216,43 @@ function SchoolPage() {
             await save({
               data: {
                 schoolId: school.id,
-                poolBytes: asBytes(caps.poolBytes),
-                classBytes: asBytes(caps.classBytes),
-                moduleBytes: asBytes(caps.moduleBytes),
-                personBytes: asBytes(caps.personBytes),
-                modules: everyModule ? null : modules,
+                poolBytes: asBytes(caps.poolBytes) ?? DEFAULT_LIMITS.poolBytes,
+                classBytes:
+                  asBytes(caps.classBytes) ?? DEFAULT_LIMITS.classBytes,
+                moduleBytes:
+                  asBytes(caps.moduleBytes) ?? DEFAULT_LIMITS.moduleBytes,
+                personBytes:
+                  asBytes(caps.personBytes) ?? DEFAULT_LIMITS.personBytes,
+                students: asCount(counts.students),
+                staffAccounts: asCount(counts.staffAccounts),
+                videoHours: asCount(counts.videoHours),
+                customDomains: asCount(counts.customDomains),
+                emailPerMonth: asCount(counts.emailPerMonth),
+                captionMinutes: asCount(counts.captionMinutes),
+                trialEndsOn: trialEndsOn || null,
+                notice: notice || null,
+                modules,
                 reason: reason.trim(),
               },
             });
             setReason("");
-            toast.success("Plan saved. Cells apply it within a minute.");
+            toast.success(
+              "Entitlements saved. Cells apply them within a minute.",
+            );
             await router.invalidate();
           } catch {
-            toast.error("The plan could not be saved.");
+            toast.error("The entitlements could not be saved.");
           } finally {
             setSaving(false);
           }
         }}
       >
         <div className="grid gap-1">
-          <h2 className="text-base font-semibold">Plan</h2>
+          <h2 className="text-base font-semibold">Entitlements</h2>
           <p className="text-sm text-muted-foreground">
-            Leave a limit empty for the platform's default.
+            Revision {entitled.revision} · access {ACCESS[entitled.access]}. An
+            empty storage limit takes the platform's default; any other empty
+            limit is unlimited.
           </p>
         </div>
         <div className="grid items-start gap-4 sm:grid-cols-2">
@@ -218,41 +298,106 @@ function SchoolPage() {
         </div>
         <fieldset className="grid gap-3 text-sm">
           <legend className="mb-1 font-medium">Modules</legend>
-          <span className="flex items-center gap-2">
-            <Checkbox
-              id="plan-every-module"
-              checked={everyModule}
-              onCheckedChange={(checked) => setEveryModule(checked)}
-            />
-            <label htmlFor="plan-every-module">
-              Every module, including ones added later
-            </label>
+          <span className="flex gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => setModules([...BASIC_MODULES])}
+            >
+              Basic
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => setModules([...MODULE_IDS])}
+            >
+              Every module
+            </Button>
           </span>
-          {everyModule
-            ? null
-            : MODULE_IDS.map((module) => (
-                <span key={module} className="flex items-center gap-2 ps-6">
-                  <Checkbox
-                    id={`plan-module-${module}`}
-                    checked={modules.includes(module)}
-                    onCheckedChange={(checked) =>
-                      setModules((current) =>
-                        checked
-                          ? [...current, module]
-                          : current.filter((item) => item !== module),
-                      )
-                    }
-                  />
-                  <label htmlFor={`plan-module-${module}`}>
-                    {MODULE_NAMES[module]}
-                  </label>
-                </span>
-              ))}
+          {MODULE_IDS.map((module) => (
+            <span key={module} className="flex items-center gap-2">
+              <Checkbox
+                id={`plan-module-${module}`}
+                checked={modules.includes(module)}
+                onCheckedChange={(checked) =>
+                  setModules((current) =>
+                    checked
+                      ? [...current, module]
+                      : current.filter((item) => item !== module),
+                  )
+                }
+              />
+              <label htmlFor={`plan-module-${module}`}>
+                {MODULE_NAMES[module]}
+              </label>
+            </span>
+          ))}
           <p className="text-xs text-muted-foreground">
             The school's administrators turn available modules on or off in
             their settings.
           </p>
         </fieldset>
+        <div className="grid items-start gap-4 sm:grid-cols-2">
+          {COUNTS.map(({ key, label, hint }) => (
+            <div key={key} className="grid gap-1.5 text-sm">
+              <label htmlFor={`plan-${key}`} className="font-medium">
+                {label}
+              </label>
+              <Input
+                id={`plan-${key}`}
+                inputMode="numeric"
+                value={counts[key]}
+                placeholder="Unlimited"
+                onChange={(event) =>
+                  setCounts((current) => ({
+                    ...current,
+                    [key]: event.target.value,
+                  }))
+                }
+              />
+              <span className="text-xs text-muted-foreground">{hint}</span>
+            </div>
+          ))}
+          <div className="grid gap-1.5 text-sm">
+            <label htmlFor="plan-trial" className="font-medium">
+              Trial ends on
+            </label>
+            <Input
+              id="plan-trial"
+              type="date"
+              value={trialEndsOn}
+              onChange={(event) => setTrialEndsOn(event.target.value)}
+            />
+            <span className="text-xs text-muted-foreground">
+              Empty for a school that is not on trial.
+            </span>
+          </div>
+          <div className="grid gap-1.5 text-sm">
+            <label htmlFor="plan-notice" className="font-medium">
+              Notice
+            </label>
+            <select
+              id="plan-notice"
+              value={notice}
+              onChange={(event) =>
+                setNotice(event.target.value as SchoolNotice | "")
+              }
+              className="h-9 rounded-md border bg-background px-2 text-sm"
+            >
+              <option value="">None</option>
+              {SCHOOL_NOTICES.map((code) => (
+                <option key={code} value={code}>
+                  {NOTICES[code]}
+                </option>
+              ))}
+            </select>
+            <span className="text-xs text-muted-foreground">
+              What the school's administrators are shown.
+            </span>
+          </div>
+        </div>
         <div className="grid gap-1.5 text-sm">
           <label htmlFor="plan-reason" className="font-medium">
             Why
@@ -267,7 +412,7 @@ function SchoolPage() {
           />
         </div>
         <Button type="submit" disabled={saving} className="justify-self-start">
-          {saving ? "Saving…" : "Save plan"}
+          {saving ? "Saving…" : "Save entitlements"}
         </Button>
       </form>
       <Hosts schoolId={school.id} platform={platform} hosts={hosts} />

@@ -13,7 +13,7 @@ import {
   hostRefSchema,
   platformName,
 } from "@faridalms/domain/hosts";
-import { savePlanSchema } from "@faridalms/domain/plans";
+import { saveEntitlementsSchema } from "@faridalms/domain/plans";
 import {
   newSchoolSchema,
   reissueInviteSchema,
@@ -83,17 +83,16 @@ export const getSchool = createServerFn({ method: "GET" })
     };
   });
 
-export const savePlan = createServerFn({ method: "POST" })
-  .validator((input: v.InferInput<typeof savePlanSchema>) =>
-    v.parse(savePlanSchema, input),
+export const saveEntitlements = createServerFn({ method: "POST" })
+  .validator((input: v.InferInput<typeof saveEntitlementsSchema>) =>
+    v.parse(saveEntitlementsSchema, input),
   )
   .handler(async ({ data }) => {
     const operator = requireOperator();
-    const { schoolId, reason, ...plan } = data;
-    const defaults = Object.values(plan).every((value) => value === null);
-    await directory().savePlan({
+    const { schoolId, reason, ...entitlements } = data;
+    await directory().saveEntitlements({
       schoolId,
-      plan: defaults ? null : plan,
+      entitlements,
       operatorId: operator.id,
       reason,
     });
@@ -176,7 +175,7 @@ export const createSchool = createServerFn({ method: "POST" })
           nameEn: school.nameEn,
           nameAr: school.nameAr,
         })),
-        plan: data.plan,
+        entitlements: data.entitlements,
         operatorId: operator.id,
       });
     } catch (error) {

@@ -100,7 +100,7 @@ async function begin(input: NewSchoolInput) {
       nameEn: school.nameEn,
       nameAr: school.nameAr,
     })),
-    plan: spec.plan,
+    entitlements: spec.entitlements,
     operatorId: OPERATOR,
   });
   return {

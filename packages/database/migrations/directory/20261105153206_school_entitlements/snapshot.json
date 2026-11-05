@@ -1,0 +1,429 @@
+{
+  "type": "diff",
+  "version": "9",
+  "dialect": "postgres",
+  "id": "587cced4-7415-401d-b9be-b6007f165bb9",
+  "prevIds": [
+    "05891bd3-c6e3-4c03-bce7-df61bff06fa2"
+  ],
+  "footprints": [
+    {
+      "statementType": "create_table",
+      "statementTarget": [
+        "table",
+        "public",
+        "school_entitlements"
+      ],
+      "writes": [
+        "s|tbl|public.school_entitlements",
+        "n|tbl|public.school_entitlements",
+        "e|tbl|public.school_entitlements",
+        "n|rel|public.school_entitlements",
+        "n|type|public.school_entitlements",
+        "n|rel|public.school_entitlements_pkey"
+      ],
+      "reads": [
+        "n|sch|public"
+      ]
+    },
+    {
+      "statementType": "create_fk",
+      "statementTarget": [
+        "table",
+        "public",
+        "school_entitlements"
+      ],
+      "writes": [
+        "s|fk|public.school_entitlements.school_entitlements_school_id_fkey",
+        "n|fk|public.school_entitlements.school_entitlements_school_id_fkey",
+        "e|fk|public.school_entitlements.school_entitlements_school_id_fkey",
+        "n|con|public.school_entitlements.school_entitlements_school_id_fkey"
+      ],
+      "reads": [
+        "n|tbl|public.school_entitlements",
+        "n|sch|public",
+        "n|tbl|public.schools",
+        "n|sch|public",
+        "n|col|public.school_entitlements.school_id",
+        "n|col|public.schools.id",
+        "e|uniqueness|public.schools.id"
+      ]
+    }
+  ],
+  "deltas": [
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "name": "school_entitlements",
+        "isRlsEnabled": false,
+        "entityType": "tables"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "school_entitlements",
+        "name": "school_id",
+        "type": "uuid",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "school_entitlements",
+        "name": "modules",
+        "type": "text",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 1,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "school_entitlements",
+        "name": "pool_bytes",
+        "type": "bigint",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "school_entitlements",
+        "name": "class_bytes",
+        "type": "bigint",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "school_entitlements",
+        "name": "module_bytes",
+        "type": "bigint",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "school_entitlements",
+        "name": "person_bytes",
+        "type": "bigint",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "school_entitlements",
+        "name": "students",
+        "type": "integer",
+        "typeSchema": null,
+        "notNull": false,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "school_entitlements",
+        "name": "staff_accounts",
+        "type": "integer",
+        "typeSchema": null,
+        "notNull": false,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "school_entitlements",
+        "name": "video_hours",
+        "type": "integer",
+        "typeSchema": null,
+        "notNull": false,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "school_entitlements",
+        "name": "custom_domains",
+        "type": "integer",
+        "typeSchema": null,
+        "notNull": false,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "school_entitlements",
+        "name": "email_per_month",
+        "type": "integer",
+        "typeSchema": null,
+        "notNull": false,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "school_entitlements",
+        "name": "caption_minutes",
+        "type": "integer",
+        "typeSchema": null,
+        "notNull": false,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "school_entitlements",
+        "name": "access",
+        "type": "text",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": "'full'",
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "school_entitlements",
+        "name": "trial_ends_on",
+        "type": "date",
+        "typeSchema": null,
+        "notNull": false,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "school_entitlements",
+        "name": "notice",
+        "type": "text",
+        "typeSchema": null,
+        "notNull": false,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "school_entitlements",
+        "name": "revision",
+        "type": "integer",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": "1",
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "school_entitlements",
+        "name": "updated_at",
+        "type": "timestamp with time zone",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": "statement_timestamp()",
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "school_entitlements",
+        "name": "school_entitlements_school_id_fkey",
+        "nameExplicit": true,
+        "columns": [
+          "school_id"
+        ],
+        "schemaTo": "public",
+        "tableTo": "schools",
+        "columnsTo": [
+          "id"
+        ],
+        "onUpdate": "NO ACTION",
+        "onDelete": "NO ACTION",
+        "entityType": "fks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "school_entitlements",
+        "name": "school_entitlements_pkey",
+        "columns": [
+          "school_id"
+        ],
+        "nameExplicit": false,
+        "entityType": "pks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "school_entitlements",
+        "name": "school_entitlements_modules_check",
+        "value": "modules <@ array['coursework', 'peer_review', 'gradebook', 'attendance', 'timetable', 'news', 'website', 'custom_domains', 'admissions', 'student_records', 'badges', 'standards', 'exams', 'elearning', 'early_years', 'coding', 'video', 'integrations', 'sso', 'sms']::text[]",
+        "entityType": "checks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "school_entitlements",
+        "name": "school_entitlements_bytes_check",
+        "value": "pool_bytes > 0 and class_bytes > 0 and module_bytes > 0 and person_bytes > 0",
+        "entityType": "checks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "school_entitlements",
+        "name": "school_entitlements_limits_check",
+        "value": "coalesce(students, 0) >= 0 and coalesce(staff_accounts, 0) >= 0\n        and coalesce(video_hours, 0) >= 0 and coalesce(custom_domains, 0) >= 0\n        and coalesce(email_per_month, 0) >= 0 and coalesce(caption_minutes, 0) >= 0",
+        "entityType": "checks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "school_entitlements",
+        "name": "school_entitlements_access_check",
+        "value": "access in ('full', 'restricted', 'read_only')",
+        "entityType": "checks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "school_entitlements",
+        "name": "school_entitlements_notice_check",
+        "value": "notice in ('payment_overdue', 'plan_ends_soon')",
+        "entityType": "checks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "school_entitlements",
+        "name": "school_entitlements_revision_check",
+        "value": "revision > 0",
+        "entityType": "checks"
+      }
+    }
+  ]
+}

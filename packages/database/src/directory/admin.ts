@@ -1,13 +1,18 @@
 import type { ExamBoard, ExamSeries } from "@faridalms/domain/exams";
-import type { SchoolPlan } from "@faridalms/domain/plans";
+import type {
+  EntitlementsInput,
+  SchoolEntitlements,
+} from "@faridalms/domain/plans";
 
 import { seriesId } from "@faridalms/domain/exams";
 import { SQL } from "bun";
-import { and, asc, desc, eq, inArray } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, sql } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/bun-sql/postgres";
 
+import type { EntitlementColumns } from "./entitlements";
 import type { DirectoryTenantState } from "./schema";
 
+import { entitlementColumns, entitledOf } from "./entitlements";
 import {
   addHost,
   makeCanonical,
@@ -19,7 +24,7 @@ import {
   cells,
   changes,
   examSeries,
-  schoolPlans,
+  schoolEntitlements,
   schools,
   schoolUsage,
   tenants,
@@ -38,7 +43,7 @@ export interface OperatorSchool {
   tenantNameAr: string | null;
   cellId: string;
   region: string;
-  plan: SchoolPlan | null;
+  entitlements: SchoolEntitlements;
   usage: { usedBytes: number; fileCount: number; measuredAt: string } | null;
 }
 
@@ -82,7 +87,7 @@ export interface NewTenant {
     nameEn: string | null;
     nameAr: string | null;
   }[];
-  plan: SchoolPlan | null;
+  entitlements: EntitlementsInput;
   operatorId: string;
 }
 
@@ -126,12 +131,7 @@ interface SchoolRow {
   tenantNameAr: string | null;
   cellId: string;
   region: string;
-  planned: string | null;
-  poolBytes: number | null;
-  classBytes: number | null;
-  moduleBytes: number | null;
-  personBytes: number | null;
-  modules: string[] | null;
+  entitlements: EntitlementColumns | null;
   usedBytes: number | null;
   fileCount: number | null;
   measuredAt: Date | null;
@@ -151,15 +151,7 @@ function schoolOf(row: SchoolRow): OperatorSchool {
     tenantNameAr: row.tenantNameAr,
     cellId: row.cellId,
     region: row.region,
-    plan: row.planned
-      ? {
-          poolBytes: row.poolBytes,
-          classBytes: row.classBytes,
-          moduleBytes: row.moduleBytes,
-          personBytes: row.personBytes,
-          modules: row.modules,
-        }
-      : null,
+    entitlements: entitledOf(row.entitlements),
     usage:
       row.usedBytes !== null && row.fileCount !== null && row.measuredAt
         ? {
@@ -195,12 +187,7 @@ export function openDirectoryAdmin(url: string) {
         tenantNameAr: tenants.nameAr,
         cellId: cells.id,
         region: cells.region,
-        planned: schoolPlans.schoolId,
-        poolBytes: schoolPlans.poolBytes,
-        classBytes: schoolPlans.classBytes,
-        moduleBytes: schoolPlans.moduleBytes,
-        personBytes: schoolPlans.personBytes,
-        modules: schoolPlans.modules,
+        entitlements: entitlementColumns,
         usedBytes: schoolUsage.usedBytes,
         fileCount: schoolUsage.fileCount,
         measuredAt: schoolUsage.measuredAt,
@@ -208,7 +195,7 @@ export function openDirectoryAdmin(url: string) {
       .from(schools)
       .innerJoin(tenants, eq(tenants.id, schools.tenantId))
       .innerJoin(cells, eq(cells.id, tenants.cellId))
-      .leftJoin(schoolPlans, eq(schoolPlans.schoolId, schools.id))
+      .leftJoin(schoolEntitlements, eq(schoolEntitlements.schoolId, schools.id))
       .leftJoin(schoolUsage, eq(schoolUsage.schoolId, schools.id));
   return {
     schools: async () => (await select().orderBy(schools.slug)).map(schoolOf),
@@ -216,46 +203,41 @@ export function openDirectoryAdmin(url: string) {
       const [row] = await select().where(eq(schools.id, id));
       return row ? schoolOf(row) : null;
     },
-    /** Sets a school's plan, or returns it to the defaults with null. */
-    savePlan: async (input: {
+    /**
+     * Sets what a school is entitled to. Access is the lifecycle's and
+     * stays as it is; each save takes the next revision.
+     */
+    saveEntitlements: async (input: {
       schoolId: string;
-      plan: SchoolPlan | null;
+      entitlements: EntitlementsInput;
       operatorId: string;
       reason: string;
     }) =>
       db.transaction(async (tx) => {
         const [before] = await tx
-          .select()
-          .from(schoolPlans)
-          .where(eq(schoolPlans.schoolId, input.schoolId))
+          .select(entitlementColumns)
+          .from(schoolEntitlements)
+          .where(eq(schoolEntitlements.schoolId, input.schoolId))
           .for("update");
-        if (input.plan === null)
-          await tx
-            .delete(schoolPlans)
-            .where(eq(schoolPlans.schoolId, input.schoolId));
-        else
-          await tx
-            .insert(schoolPlans)
-            .values({ schoolId: input.schoolId, ...input.plan })
-            .onConflictDoUpdate({
-              target: schoolPlans.schoolId,
-              set: { ...input.plan, updatedAt: new Date() },
-            });
+        const [saved] = await tx
+          .insert(schoolEntitlements)
+          .values({ schoolId: input.schoolId, ...input.entitlements })
+          .onConflictDoUpdate({
+            target: schoolEntitlements.schoolId,
+            set: {
+              ...input.entitlements,
+              revision: sql`${schoolEntitlements.revision} + 1`,
+              updatedAt: new Date(),
+            },
+          })
+          .returning({ revision: schoolEntitlements.revision });
         await tx.insert(changes).values({
           actor: `operator:${input.operatorId}`,
           subjectType: "school",
           subjectId: input.schoolId,
-          action: "plan.update",
-          before: before
-            ? {
-                poolBytes: before.poolBytes,
-                classBytes: before.classBytes,
-                moduleBytes: before.moduleBytes,
-                personBytes: before.personBytes,
-                modules: before.modules,
-              }
-            : null,
-          after: input.plan,
+          action: "entitlements.update",
+          before: before ?? null,
+          after: { ...input.entitlements, revision: saved?.revision ?? 1 },
           reason: input.reason,
         });
       }),
@@ -296,22 +278,25 @@ export function openDirectoryAdmin(url: string) {
             .innerJoin(tenants, eq(tenants.id, schools.tenantId))
             .where(inArray(schools.slug, slugs))
             .for("update");
-          const plan = input.plan;
-          const plans = async (schoolIds: string[]) => {
-            if (!plan) return;
+          const entitle = async (schoolIds: string[]) => {
             await tx
-              .insert(schoolPlans)
-              .values(schoolIds.map((schoolId) => ({ schoolId, ...plan })))
+              .insert(schoolEntitlements)
+              .values(
+                schoolIds.map((schoolId) => ({
+                  schoolId,
+                  ...input.entitlements,
+                })),
+              )
               .onConflictDoUpdate({
-                target: schoolPlans.schoolId,
-                set: { ...plan, updatedAt: new Date() },
+                target: schoolEntitlements.schoolId,
+                set: { ...input.entitlements, updatedAt: new Date() },
               });
           };
           const after = {
             kind: input.kind,
             cellId: input.cellId,
             schools: slugs,
-            plan: input.plan,
+            entitlements: input.entitlements,
           };
           if (held.length === 0) {
             await tx.insert(tenants).values({
@@ -333,7 +318,7 @@ export function openDirectoryAdmin(url: string) {
                 placement: "cell" as const,
               })),
             );
-            await plans(input.schools.map((school) => school.id));
+            await entitle(input.schools.map((school) => school.id));
             await tx.insert(changes).values({
               actor: `operator:${input.operatorId}`,
               subjectType: "tenant",
@@ -394,7 +379,7 @@ export function openDirectoryAdmin(url: string) {
                 })
                 .where(eq(schools.id, id));
           }
-          await plans(ids);
+          await entitle(ids);
           await tx.insert(changes).values({
             actor: `operator:${input.operatorId}`,
             subjectType: "tenant",

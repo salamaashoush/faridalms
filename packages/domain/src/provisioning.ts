@@ -1,6 +1,6 @@
 import * as v from "valibot";
 
-import { schoolPlanSchema } from "./plans";
+import { BASIC_ENTITLEMENTS, entitlementsSchema, settableOf } from "./plans";
 
 /** The audience of the token the operator console signs for the provisioner. */
 export const PROVISION_AUDIENCE = "farida-provision";
@@ -145,7 +145,8 @@ export const administratorSchema = v.pipe(
 /**
  * A school or group as an operator creates it: its names and addresses, where
  * its schools are and which language they start in, the first administrator
- * who is emailed a link to choose a password, and optionally a plan. A
+ * who is emailed a link to choose a password, and what its schools are
+ * entitled to, Basic unless the operator says otherwise. A
  * standalone school takes its tenant's names from the school.
  */
 export const newSchoolSchema = v.pipe(
@@ -176,7 +177,9 @@ export const newSchoolSchema = v.pipe(
       ),
     ),
     administrator: administratorSchema,
-    plan: v.optional(v.nullable(schoolPlanSchema), null),
+    entitlements: v.optional(entitlementsSchema, () =>
+      settableOf(BASIC_ENTITLEMENTS),
+    ),
   }),
   v.forward(
     v.check(

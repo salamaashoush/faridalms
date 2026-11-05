@@ -1,4 +1,4 @@
-import { availableModules, limitsOf } from "@faridalms/domain/plans";
+import { availableModules } from "@faridalms/domain/plans";
 import { Badge } from "@faridalms/ui/badge";
 import { buttonVariants } from "@faridalms/ui/button";
 import { Input } from "@faridalms/ui/input";
@@ -39,8 +39,8 @@ function Schools() {
         <div className="grid gap-1">
           <h1 className="text-2xl font-semibold">Schools</h1>
           <p className="text-sm text-muted-foreground">
-            Every school on the platform, with its storage and the modules its
-            plan includes. Usage is what each school's cell last reported.
+            Every school on the platform, with its storage and the modules it is
+            entitled to. Usage is what each school's cell last reported.
           </p>
         </div>
         <Link to="/schools/new" className={buttonVariants()}>
@@ -94,7 +94,7 @@ function Schools() {
                 <TableCell>
                   <Usage
                     usedBytes={school.usage?.usedBytes ?? null}
-                    limitBytes={limitsOf(school.plan).poolBytes}
+                    limitBytes={school.entitlements.poolBytes}
                   />
                   {school.usage ? (
                     <div className="text-xs text-muted-foreground">
@@ -104,7 +104,7 @@ function Schools() {
                 </TableCell>
                 <TableCell>
                   <span className="flex flex-wrap gap-1">
-                    {availableModules(school.plan).map((module) => (
+                    {availableModules(school.entitlements).map((module) => (
                       <Badge key={module} variant="secondary">
                         {MODULE_NAMES[module]}
                       </Badge>

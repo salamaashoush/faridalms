@@ -238,9 +238,9 @@ data.
 
 Each school has a storage pool, and caps for each class's and module's files
 and for each person's own work (answers, hand-ins, messages, uploads not yet
-placed). The defaults are 100 GB, 1 GB, 1 GB and 500 MB; a school's plan in
-the directory (`school_plans`, set by the operator console) overrides any of
-them. An upload that would not fit is refused when it is declared, with
+placed). The defaults are 100 GB, 1 GB, 1 GB and 500 MB; a school's
+entitlements in the directory (`school_entitlements`, set by the operator
+console) override any of them. An upload that would not fit is refused when it is declared, with
 `file.quota_school`, `file.quota_class`, `file.quota_module` or
 `file.quota_person`; past 80% the upload's answer carries a warning. A
 student's work on an assignment still open to them is never refused, only
@@ -253,8 +253,10 @@ replica reports every school's storage to the directory every
 ## Operator console
 
 `apps/ops` is the platform operators' console: every school with its storage
-against its pool, each school's plan (pool, class, module and person caps, and
-which modules it may use) and the directory's change log. It runs on its own
+against its pool, each school's entitlements (the modules it may use, pool,
+class, module and person caps, its other limits, a trial end and a notice for
+its administrators) and the directory's change log. A school with no row is
+entitled to Basic. It runs on its own
 host (`ops.<product domain>`), is its own deployable, and is the only process
 holding the `directory_admin` login. Run it with `bun run --cwd apps/ops dev`
 (port 3004).

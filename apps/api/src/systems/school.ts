@@ -110,7 +110,7 @@ export const features = readProcedure.handler(async ({ context }) => ({
     context.tenantId,
     context.schoolId,
   ),
-  available: availableModules(context.school.plan),
+  available: availableModules(context.school.entitlements),
 }));
 
 export const setFeature = writeProcedure
@@ -119,7 +119,7 @@ export const setFeature = writeProcedure
     requireCapability(context, "school:manage");
     if (
       input.enabled &&
-      !availableModules(context.school.plan).some(
+      !availableModules(context.school.entitlements).some(
         (module) => module === input.feature,
       )
     )
@@ -152,7 +152,7 @@ export const setFeature = writeProcedure
         context.tenantId,
         context.schoolId,
       ),
-      available: availableModules(context.school.plan),
+      available: availableModules(context.school.entitlements),
     };
   });
 
@@ -164,5 +164,8 @@ export const storage = readProcedure.handler(async ({ context }) => {
     context.tenantId,
     context.schoolId,
   );
-  return { ...used, limitBytes: limitsOf(context.school.plan).poolBytes };
+  return {
+    ...used,
+    limitBytes: limitsOf(context.school.entitlements).poolBytes,
+  };
 });

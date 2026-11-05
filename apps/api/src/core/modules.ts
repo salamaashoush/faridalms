@@ -25,7 +25,9 @@ export function modulesOf(
         context.tenantId,
         context.schoolId,
       );
-      const entitled = new Set<string>(availableModules(context.school.plan));
+      const entitled = new Set<string>(
+        availableModules(context.school.entitlements),
+      );
       return modulesOn({
         entitled: (id) => entitled.has(id),
         switchedOn: (id) =>

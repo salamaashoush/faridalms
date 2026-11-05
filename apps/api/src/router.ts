@@ -1,5 +1,5 @@
 import type { ModuleId } from "@faridalms/domain/modules";
-import type { SchoolPlan } from "@faridalms/domain/plans";
+import type { SchoolEntitlements } from "@faridalms/domain/plans";
 
 import { moduleOfSystem } from "@faridalms/domain/modules";
 import { availableModules } from "@faridalms/domain/plans";
@@ -86,7 +86,7 @@ const isUnit = (context: unknown): context is UnitContext =>
 
 const hasSchool = (
   context: unknown,
-): context is { school: { plan: SchoolPlan | null } } =>
+): context is { school: { entitlements: SchoolEntitlements } } =>
   typeof context === "object" && context !== null && "school" in context;
 
 /**
@@ -97,7 +97,7 @@ const hasSchool = (
 async function answers(context: unknown, module: ModuleId): Promise<boolean> {
   if (isUnit(context)) return (await modulesOf(context))[module];
   if (hasSchool(context))
-    return availableModules(context.school.plan).includes(module);
+    return availableModules(context.school.entitlements).includes(module);
   return true;
 }
 

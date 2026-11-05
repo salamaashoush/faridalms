@@ -3,7 +3,7 @@ import type {
   ProgramBlock,
   ProgramResult,
 } from "@faridalms/domain/learning";
-import type { SchoolPlan } from "@faridalms/domain/plans";
+import type { SchoolEntitlements } from "@faridalms/domain/plans";
 
 import { outputMatches } from "@faridalms/domain/learning";
 import { availableModules } from "@faridalms/domain/plans";
@@ -80,14 +80,14 @@ export async function markedProgram(
 export async function markedProgramAt(
   context: {
     runners: { python: CodeRunner | null; javascript: CodeRunner };
-    school: { plan: SchoolPlan | null };
+    school: { entitlements: SchoolEntitlements };
   },
   block: ProgramBlock,
   response: Extract<LessonResponse, { type: "program" }>,
 ): Promise<LessonResponse> {
   // A run holds no unit of work open, and coding is no switch a school
   // sets, so the plan alone says whether the school has it.
-  if (!availableModules(context.school.plan).includes("coding"))
+  if (!availableModules(context.school.entitlements).includes("coding"))
     throw new ORPCError("FORBIDDEN", { message: "coding.unavailable" });
   return markedProgram(context.runners, block, response);
 }

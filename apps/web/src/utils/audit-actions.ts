@@ -202,6 +202,7 @@ export const AUDIT_ACTION_LABEL: Record<string, () => string> = {
   "person.photo_set": m.auditPersonPhotoSet,
   "placement.change": m.auditPlacementChange,
   "plan.update": m.auditPlanUpdate,
+  "entitlements.update": m.auditEntitlementsUpdate,
   "privacy_breach.close": m.auditPrivacyBreachClose,
   "privacy_breach.log": m.auditPrivacyBreachLog,
   "privacy_breach.notices": m.auditPrivacyBreachNotices,

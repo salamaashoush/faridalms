@@ -1,14 +1,16 @@
 import type { ExamSeries } from "@faridalms/domain/exams";
 import type { HostRole } from "@faridalms/domain/hosts";
-import type { SchoolPlan } from "@faridalms/domain/plans";
+import type { SchoolEntitlements } from "@faridalms/domain/plans";
 
 import { CERTIFIED_STATES } from "@faridalms/domain/hosts";
 import { SQL } from "bun";
 import { and, asc, eq, inArray, ne, sql } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/bun-sql/postgres";
 
+import type { EntitlementColumns } from "./entitlements";
 import type { HostActor } from "./hosts";
 
+import { entitlementColumns, entitledOf } from "./entitlements";
 import {
   addHost,
   claimDue,
@@ -24,7 +26,7 @@ import {
   examSeries,
   hosts,
   loginIndex,
-  schoolPlans,
+  schoolEntitlements,
   schools,
   tenants,
 } from "./schema";
@@ -42,8 +44,7 @@ export interface DirectorySchool {
    * links and redirects use; null where the platform name serves it.
    */
   hosts: { portal: string | null; site: string | null };
-  /** Null when the school runs on the platform's defaults. */
-  plan: SchoolPlan | null;
+  entitlements: SchoolEntitlements;
 }
 
 /** What the school finder may say about a school. */
@@ -62,34 +63,22 @@ export interface RoutedHost {
   role: HostRole;
 }
 
-interface PlannedRow extends Omit<DirectorySchool, "plan" | "hosts"> {
+interface EntitledRow extends Omit<DirectorySchool, "entitlements" | "hosts"> {
   portalHost: string | null;
   siteHost: string | null;
-  planned: string | null;
-  poolBytes: number | null;
-  classBytes: number | null;
-  moduleBytes: number | null;
-  personBytes: number | null;
-  modules: string[] | null;
+  entitlements: EntitlementColumns | null;
 }
 
 function schoolOf({
-  planned,
-  poolBytes,
-  classBytes,
-  moduleBytes,
-  personBytes,
-  modules,
   portalHost,
   siteHost,
+  entitlements,
   ...school
-}: PlannedRow): DirectorySchool {
+}: EntitledRow): DirectorySchool {
   return {
     ...school,
     hosts: { portal: portalHost, site: siteHost },
-    plan: planned
-      ? { poolBytes, classBytes, moduleBytes, personBytes, modules }
-      : null,
+    entitlements: entitledOf(entitlements),
   };
 }
 
@@ -138,17 +127,15 @@ export function openDirectory(url: string, ttlMs = 60_000) {
         appHost: cells.appHost,
         portalHost: canonicalHost("portal"),
         siteHost: canonicalHost("site"),
-        planned: schoolPlans.schoolId,
-        poolBytes: schoolPlans.poolBytes,
-        classBytes: schoolPlans.classBytes,
-        moduleBytes: schoolPlans.moduleBytes,
-        personBytes: schoolPlans.personBytes,
-        modules: schoolPlans.modules,
+        entitlements: entitlementColumns,
       })
       .from(schools)
       .innerJoin(tenants, eq(tenants.id, schools.tenantId))
       .innerJoin(cells, eq(cells.id, tenants.cellId))
-      .leftJoin(schoolPlans, eq(schoolPlans.schoolId, schools.id));
+      .leftJoin(
+        schoolEntitlements,
+        eq(schoolEntitlements.schoolId, schools.id),
+      );
   return {
     bySlug: (slug: string) =>
       cached(`slug:${slug}`, async () => {

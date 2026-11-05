@@ -8794,6 +8794,7 @@
   "auditPeriodGradeSave": "Period grade saved",
   "auditPlacementChange": "Class changed",
   "auditPlanUpdate": "Plan changed",
+  "auditEntitlementsUpdate": "Entitlements changed",
   "auditPrivacyBreachClose": "Data breach closed",
   "auditPrivacyBreachNotices": "Breach notices sent",
   "auditPrivacyErasureApprove": "Erasure approved",

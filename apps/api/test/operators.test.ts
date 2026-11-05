@@ -1,5 +1,12 @@
+import type { ModuleId } from "@faridalms/domain/modules";
+
 import { openDirectoryAdmin } from "@faridalms/database/directory/admin";
-import { MODULE_IDS } from "@faridalms/domain/modules";
+import { BASIC_MODULES, MODULE_IDS } from "@faridalms/domain/modules";
+import {
+  availableModules,
+  BASIC_ENTITLEMENTS,
+  settableOf,
+} from "@faridalms/domain/plans";
 import { describe, expect, test } from "bun:test";
 
 import {
@@ -13,50 +20,69 @@ import {
 } from "./harness";
 
 describe("the operator console's directory access", () => {
-  test("sets a school's plan, records who and why, and the cell reads it", async () => {
+  test("sets a school's entitlements, records who and why, and the cell reads them", async () => {
     const { directory, tenants } = seeded();
     const school = tenants[0]?.schools.find((row) => row.slug === "northwind");
     if (!school) throw new Error("no northwind school");
     const admin = openDirectoryAdmin(testDirectory().operatorUrl);
+    const seededEntitlements = settableOf(
+      (await admin.school(school.id))?.entitlements ?? BASIC_ENTITLEMENTS,
+    );
     try {
       const listed = await admin.schools();
       expect(listed.some((row) => row.id === school.id)).toBe(true);
-      const plan = {
+      const larger = {
+        ...settableOf(BASIC_ENTITLEMENTS),
         poolBytes: 200 * 1024 ** 3,
-        classBytes: null,
         moduleBytes: 2 * 1024 ** 3,
-        personBytes: null,
-        modules: ["elearning", "early_years"],
+        modules: [...BASIC_MODULES, "elearning", "early_years"] as ModuleId[],
+        students: 450,
+        customDomains: 2,
+        trialEndsOn: "2026-12-01",
+        notice: "plan_ends_soon" as const,
       };
-      await admin.savePlan({
+      await admin.saveEntitlements({
         schoolId: school.id,
-        plan,
+        entitlements: larger,
         operatorId: "salama-test",
         reason: "Upgraded to the larger plan",
       });
-      expect((await admin.school(school.id))?.plan).toEqual(plan);
-      expect((await directory.bySlug("northwind"))?.plan).toEqual(plan);
+      const saved = (await admin.school(school.id))?.entitlements;
+      expect(saved).toMatchObject({ ...larger, access: "full" });
+      expect((await directory.bySlug("northwind"))?.entitlements).toEqual(
+        saved ?? BASIC_ENTITLEMENTS,
+      );
 
-      await admin.savePlan({
+      await admin.saveEntitlements({
         schoolId: school.id,
-        plan: null,
+        entitlements: seededEntitlements,
         operatorId: "salama-test",
-        reason: "Back to the defaults",
+        reason: "Back to what the seed gave it",
       });
-      expect((await admin.school(school.id))?.plan).toBeNull();
+      const restored = (await admin.school(school.id))?.entitlements;
+      expect(restored).toMatchObject(seededEntitlements);
+      expect(restored?.revision).toBe((saved?.revision ?? 0) + 1);
       const [latest, earlier] = await admin.changes({ id: school.id });
       expect(latest).toMatchObject({
         actor: "operator:salama-test",
         subjectType: "school",
-        action: "plan.update",
-        before: plan,
-        after: null,
-        reason: "Back to the defaults",
+        action: "entitlements.update",
+        before: { ...larger, access: "full" },
+        after: seededEntitlements,
+        reason: "Back to what the seed gave it",
       });
-      expect(earlier).toMatchObject({ before: null, after: plan });
+      expect(earlier).toMatchObject({
+        action: "entitlements.update",
+        after: larger,
+      });
     } finally {
       await admin.close();
     }
+  });
+
+  test("a school the directory holds no entitlements for has Basic", () => {
+    expect(BASIC_ENTITLEMENTS.modules).toEqual([...BASIC_MODULES]);
+    expect(availableModules(BASIC_ENTITLEMENTS)).not.toContain("website");
   });
 });
 

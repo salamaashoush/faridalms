@@ -18,6 +18,8 @@ import {
   SlugTakenError,
 } from "@faridalms/database/directory/admin";
 import { openDirectory } from "@faridalms/database/directory/client";
+import { BASIC_MODULES, MODULE_IDS } from "@faridalms/domain/modules";
+import { BASIC_ENTITLEMENTS, settableOf } from "@faridalms/domain/plans";
 import { newSchoolSchema } from "@faridalms/domain/provisioning";
 import { ORPCError } from "@orpc/server";
 import { parseArgs } from "node:util";
@@ -39,10 +41,14 @@ const USAGE = `Usage:
                 --admin-name <given family> --country <XX> --time-zone <Area/City>
                 [--name-ar <name>] [--admin-name-ar <given family>]
                 [--locale en|ar] [--jurisdiction <XX>] [--print-link]
+                [--modules all|<id,id,...>]
   invite --slug <code> [--email <administrator's email>] [--print-link]
 
 --print-link prints the email, with its link, instead of sending it: for a
-server with no email gateway, or to hand the link over yourself.`;
+server with no email gateway, or to hand the link over yourself.
+
+--modules gives the school more than Basic: every module, or the ones named
+(${MODULE_IDS.join(", ")}).`;
 
 /** Shows the message the administrator would have been sent. */
 const printer: Provider = {
@@ -63,6 +69,18 @@ function nameParts(full: string | undefined) {
 }
 
 class UsageError extends Error {}
+
+function modulesFrom(flag: string | undefined): string[] {
+  if (flag === undefined) return [...BASIC_MODULES];
+  if (flag === "all") return [...MODULE_IDS];
+  const named = flag.split(",").map((id) => id.trim());
+  const unknown = named.filter(
+    (id) => !(MODULE_IDS as readonly string[]).includes(id),
+  );
+  if (unknown.length)
+    throw new UsageError(`unknown modules: ${unknown.join(", ")}`);
+  return named;
+}
 
 function schoolFrom(
   flags: Record<string, string | boolean | undefined>,
@@ -105,7 +123,10 @@ function schoolFrom(
       familyNameAr: arabic.family,
       email: text("admin-email"),
     },
-    plan: null,
+    entitlements: {
+      ...settableOf(BASIC_ENTITLEMENTS),
+      modules: modulesFrom(text("modules")),
+    },
   });
   if (!parsed.success)
     throw new UsageError(
@@ -132,6 +153,7 @@ async function main() {
       "time-zone": { type: "string" },
       locale: { type: "string" },
       jurisdiction: { type: "string" },
+      modules: { type: "string" },
       "print-link": { type: "boolean" },
       help: { type: "boolean" },
     },
@@ -178,7 +200,7 @@ async function main() {
           nameEn: school.nameEn,
           nameAr: school.nameAr,
         })),
-        plan: null,
+        entitlements: spec.entitlements,
         operatorId: OPERATOR,
       });
       const result = await provisionTenant(deps, OPERATOR, {

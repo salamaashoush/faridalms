@@ -4,6 +4,11 @@ import type { ComponentProps } from "react";
 
 import { INVITE_DAYS } from "@faridalms/domain/first-sign-in";
 import { BASIC_MODULES, MODULE_IDS } from "@faridalms/domain/modules";
+import {
+  BASIC_ENTITLEMENTS,
+  DEFAULT_LIMITS,
+  settableOf,
+} from "@faridalms/domain/plans";
 import { newSchoolSchema } from "@faridalms/domain/provisioning";
 import { Button, buttonVariants } from "@faridalms/ui/button";
 import { Checkbox } from "@faridalms/ui/checkbox";
@@ -92,7 +97,6 @@ function NewSchool() {
   const create = useServerFn(createSchool);
   const [outcome, setOutcome] = useState<CreateSchoolOutcome | null>(null);
   const [jurisdictions, setJurisdictions] = useState("EG");
-  const [everyModule, setEveryModule] = useState(false);
   const [modules, setModules] = useState<ModuleId[]>([...BASIC_MODULES]);
   const [poolGb, setPoolGb] = useState("");
   // Schools have no id until the cell creates them, so each row gets a key
@@ -123,19 +127,14 @@ function NewSchool() {
         poolGb.trim() !== "" && Number.isFinite(pool) && pool > 0
           ? Math.round(pool * GIB)
           : null;
-      const plan: NewSchoolInput["plan"] =
-        everyModule && poolBytes === null
-          ? null
-          : {
-              poolBytes,
-              classBytes: null,
-              moduleBytes: null,
-              personBytes: null,
-              modules: everyModule ? null : modules,
-            };
+      const entitlements: NewSchoolInput["entitlements"] = {
+        ...settableOf(BASIC_ENTITLEMENTS),
+        poolBytes: poolBytes ?? DEFAULT_LIMITS.poolBytes,
+        modules,
+      };
       setOutcome(null);
       try {
-        setOutcome(await create({ data: { ...value, plan } }));
+        setOutcome(await create({ data: { ...value, entitlements } }));
       } catch {
         setOutcome({
           ok: false,
@@ -185,7 +184,6 @@ function NewSchool() {
               form.reset();
               setRowKeys([crypto.randomUUID()]);
               setJurisdictions("EG");
-              setEveryModule(false);
               setModules([...BASIC_MODULES]);
               setPoolGb("");
               setOutcome(null);
@@ -578,10 +576,10 @@ function NewSchool() {
       </FieldSet>
 
       <FieldSet>
-        <FieldLegend>Plan</FieldLegend>
+        <FieldLegend>Entitlements</FieldLegend>
         <FieldDescription>
-          Optional: leave both for the platform's defaults. Each school gets the
-          same plan, which its page can change later.
+          Basic and the default storage unless you choose more. Each school gets
+          the same, which its page can change later.
         </FieldDescription>
         <div className="grid max-w-xs gap-1.5 text-sm">
           <label htmlFor="plan-pool" className="font-medium">
@@ -596,36 +594,42 @@ function NewSchool() {
           />
         </div>
         <div className="grid gap-3 text-sm">
-          <span className="flex items-center gap-2">
-            <Checkbox
-              id="plan-every-module"
-              checked={everyModule}
-              onCheckedChange={(checked) => setEveryModule(checked)}
-            />
-            <label htmlFor="plan-every-module">
-              Every module, including ones added later
-            </label>
+          <span className="flex gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => setModules([...BASIC_MODULES])}
+            >
+              Basic
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => setModules([...MODULE_IDS])}
+            >
+              Every module
+            </Button>
           </span>
-          {everyModule
-            ? null
-            : MODULE_IDS.map((module) => (
-                <span key={module} className="flex items-center gap-2 ps-6">
-                  <Checkbox
-                    id={`plan-module-${module}`}
-                    checked={modules.includes(module)}
-                    onCheckedChange={(checked) =>
-                      setModules((current) =>
-                        checked
-                          ? [...current, module]
-                          : current.filter((item) => item !== module),
-                      )
-                    }
-                  />
-                  <label htmlFor={`plan-module-${module}`}>
-                    {MODULE_NAMES[module]}
-                  </label>
-                </span>
-              ))}
+          {MODULE_IDS.map((module) => (
+            <span key={module} className="flex items-center gap-2">
+              <Checkbox
+                id={`plan-module-${module}`}
+                checked={modules.includes(module)}
+                onCheckedChange={(checked) =>
+                  setModules((current) =>
+                    checked
+                      ? [...current, module]
+                      : current.filter((item) => item !== module),
+                  )
+                }
+              />
+              <label htmlFor={`plan-module-${module}`}>
+                {MODULE_NAMES[module]}
+              </label>
+            </span>
+          ))}
         </div>
       </FieldSet>
 

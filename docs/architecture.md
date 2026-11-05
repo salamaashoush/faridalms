@@ -239,7 +239,7 @@ may read the files it holds (`registerHostReader` in
 `apps/api/src/files/authorize.ts`), and every read is authorised through
 the record that links the file; a file whose host has no reader is readable
 only by its uploader. Classes and modules keep their files in areas with
-storage limits from the school's plan. Medical reports, absence notes and
+storage limits from the school's entitlements. Medical reports, absence notes and
 custody papers are special-category files. Their rows sit behind the health
 or custody purpose like the records they belong to, which the one pipeline
 sets at every step (`apps/api/src/files/gate.ts`). After their checks their
@@ -435,8 +435,10 @@ A pass claims its rows before working them, so every replica may run it.
 The operator console (`apps/ops`) runs on its own host, signs operators in
 through OpenID Connect and never through a school account, and is the only
 process holding `directory_admin`. It lists schools with their storage,
-sets each school's plan (storage pool and caps, and which modules it may
-use) with a reason that lands in the change log, and creates schools. A
+sets each school's entitlements (which modules it may use, its storage pool
+and caps, and its other limits) with a reason that lands in the change log,
+and creates schools, each entitled to Basic unless the operator chooses
+more. A
 new school is written to the directory as provisioning, then created in the
 cell by the provisioner, which receives a short-lived token signed for that
 one call; the provisioner creates the tenant as the owner and emails its

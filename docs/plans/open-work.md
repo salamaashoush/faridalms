@@ -29,9 +29,13 @@ From `foundations.md`. W1 to W5 are merged.
   questions leave the editor's menus and run nothing at a school without
   coding, where a coding question kept in a document says the school
   does not run code; a school without video plays its videos as uploaded
-  within the ordinary upload limit. Left for the business console: a
-  browser run against a Basic-only school, and entitlements in place of
-  the plan's module list.
+  within the ordinary upload limit. Schools now read
+  `school_entitlements`, and a school without a row has Basic. Left: a
+  browser run against a Basic-only school; the limit checks (students and
+  staff accounts told past their count, custom domains refused past theirs,
+  video past its hours played as uploaded, email past its month told); the
+  provisioner's refresh call; and, once every cell runs the release that
+  reads entitlements, dropping `school_plans`.
 
 ## Bugs found and not yet fixed
 

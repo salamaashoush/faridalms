@@ -33,7 +33,7 @@ import {
   MESSAGE_ATTACHMENT_LIMIT,
   safeFilename,
 } from "@faridalms/domain/file";
-import { limitsOf } from "@faridalms/domain/plans";
+import { BASIC_ENTITLEMENTS, limitsOf } from "@faridalms/domain/plans";
 import { schoolDate } from "@faridalms/domain/school";
 
 import type { RequestContext } from "../core/context";
@@ -159,7 +159,9 @@ async function takeMail(
         const school = (
           await context.directory.schoolsOfTenant(routed.tenantId)
         ).find((row) => row.schoolId === target.orgId);
-        const pool = limitsOf(school?.plan ?? null).poolBytes;
+        const pool = limitsOf(
+          school?.entitlements ?? BASIC_ENTITLEMENTS,
+        ).poolBytes;
         let used = (await schoolStorage(tx, routed.tenantId, target.orgId))
           .usedBytes;
         for (const attachment of email.attachments) {

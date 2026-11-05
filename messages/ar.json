@@ -9192,6 +9192,7 @@
   "auditPeriodGradeSave": "حُفظت درجة الفترة",
   "auditPlacementChange": "تغيّر الفصل",
   "auditPlanUpdate": "تغيّرت الخطة",
+  "auditEntitlementsUpdate": "تغيّرت صلاحيات الاشتراك",
   "auditPrivacyBreachClose": "أُغلق حادث تسرب البيانات",
   "auditPrivacyBreachNotices": "أُرسلت إشعارات التسرب",
   "auditPrivacyErasureApprove": "اعتُمد المحو",

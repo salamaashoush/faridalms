@@ -1,4 +1,4 @@
-import type { SchoolPlan } from "@faridalms/domain/plans";
+import type { SchoolEntitlements } from "@faridalms/domain/plans";
 
 import { isDocumentVideo, MAX_VIDEO_BYTES } from "@faridalms/domain/file";
 import { availableModules } from "@faridalms/domain/plans";
@@ -12,12 +12,12 @@ export function uploadLimit(
   context: {
     maxUploadBytes: number;
     maxVideoBytes?: number;
-    school: { plan: SchoolPlan | null };
+    school: { entitlements: SchoolEntitlements };
   },
   file: { purpose: string; mediaType: string },
 ): number {
   return isDocumentVideo(file.purpose, file.mediaType) &&
-    hasVideo(context.school.plan)
+    hasVideo(context.school.entitlements)
     ? Math.max(context.maxUploadBytes, context.maxVideoBytes ?? MAX_VIDEO_BYTES)
     : context.maxUploadBytes;
 }
@@ -26,5 +26,5 @@ export function uploadLimit(
  * Whether a school streams its videos and takes them at the video
  * allowance; without the module a video plays as it was uploaded.
  */
-export const hasVideo = (plan: SchoolPlan | null) =>
-  availableModules(plan).includes("video");
+export const hasVideo = (entitlements: SchoolEntitlements) =>
+  availableModules(entitlements).includes("video");

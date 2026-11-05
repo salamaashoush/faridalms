@@ -1,5 +1,6 @@
 import type { ExamBoard } from "@faridalms/domain/exams";
 import type { HostRole, HostState } from "@faridalms/domain/hosts";
+import type { SchoolAccess, SchoolNotice } from "@faridalms/domain/plans";
 
 import { sql } from "drizzle-orm";
 import {
@@ -301,6 +302,69 @@ export const schoolPlans = pgTable(
       // a test saves a plan naming every module in packages/domain/src/modules.ts.
       sql`modules <@ array['coursework', 'peer_review', 'gradebook', 'attendance', 'timetable', 'news', 'website', 'custom_domains', 'admissions', 'student_records', 'badges', 'standards', 'exams', 'elearning', 'early_years', 'coding', 'video', 'integrations', 'sso', 'sms']::text[]`,
     ),
+  ],
+);
+
+/**
+ * What a school is entitled to, as the operator console publishes it: its
+ * modules, its storage, its other limits (null where unlimited), how far it
+ * may use the platform, and a notice for its administrators. A school with
+ * no row has Basic. No price, name or contact is kept here.
+ */
+export const schoolEntitlements = pgTable(
+  "school_entitlements",
+  {
+    schoolId: uuid("school_id").primaryKey(),
+    modules: text("modules").array().notNull(),
+    poolBytes: bigint("pool_bytes", { mode: "number" }).notNull(),
+    classBytes: bigint("class_bytes", { mode: "number" }).notNull(),
+    moduleBytes: bigint("module_bytes", { mode: "number" }).notNull(),
+    personBytes: bigint("person_bytes", { mode: "number" }).notNull(),
+    students: integer("students"),
+    staffAccounts: integer("staff_accounts"),
+    videoHours: integer("video_hours"),
+    customDomains: integer("custom_domains"),
+    emailPerMonth: integer("email_per_month"),
+    captionMinutes: integer("caption_minutes"),
+    access: text("access").$type<SchoolAccess>().notNull().default("full"),
+    trialEndsOn: date("trial_ends_on", { mode: "string" }),
+    notice: text("notice").$type<SchoolNotice>(),
+    revision: integer("revision").notNull().default(1),
+    updatedAt: instant("updated_at")
+      .notNull()
+      .default(sql`statement_timestamp()`),
+  },
+  (t) => [
+    foreignKey({
+      name: "school_entitlements_school_id_fkey",
+      columns: [t.schoolId],
+      foreignColumns: [schools.id],
+    }),
+    check(
+      "school_entitlements_modules_check",
+      // The registry's ids, written out because a check is fixed DDL;
+      // a test saves entitlements naming every module in packages/domain/src/modules.ts.
+      sql`modules <@ array['coursework', 'peer_review', 'gradebook', 'attendance', 'timetable', 'news', 'website', 'custom_domains', 'admissions', 'student_records', 'badges', 'standards', 'exams', 'elearning', 'early_years', 'coding', 'video', 'integrations', 'sso', 'sms']::text[]`,
+    ),
+    check(
+      "school_entitlements_bytes_check",
+      sql`pool_bytes > 0 and class_bytes > 0 and module_bytes > 0 and person_bytes > 0`,
+    ),
+    check(
+      "school_entitlements_limits_check",
+      sql`coalesce(students, 0) >= 0 and coalesce(staff_accounts, 0) >= 0
+        and coalesce(video_hours, 0) >= 0 and coalesce(custom_domains, 0) >= 0
+        and coalesce(email_per_month, 0) >= 0 and coalesce(caption_minutes, 0) >= 0`,
+    ),
+    check(
+      "school_entitlements_access_check",
+      sql`access in ('full', 'restricted', 'read_only')`,
+    ),
+    check(
+      "school_entitlements_notice_check",
+      sql`notice in ('payment_overdue', 'plan_ends_soon')`,
+    ),
+    check("school_entitlements_revision_check", sql`revision > 0`),
   ],
 );
 

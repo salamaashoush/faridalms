@@ -21,6 +21,8 @@ import {
   provisionRoles,
 } from "@faridalms/database/provision";
 import { SEED_PASSWORD, seedCell } from "@faridalms/database/seed";
+import { MODULE_IDS } from "@faridalms/domain/modules";
+import { DEFAULT_LIMITS } from "@faridalms/domain/plans";
 import { createORPCClient } from "@orpc/client";
 import { RPCLink } from "@orpc/client/fetch";
 import { SQL } from "bun";
@@ -296,7 +298,11 @@ export async function timeHasCome(
   }
 }
 
-/** Writes a school's plan in the test directory, as the operator console would. */
+/**
+ * Changes some of a school's entitlements in the test directory, as the
+ * operator console would; null puts back what the seed gave it, every module
+ * and the default storage.
+ */
 export async function setPlan(
   schoolId: string,
   plan: {
@@ -305,22 +311,24 @@ export async function setPlan(
     moduleBytes?: number;
     personBytes?: number;
     modules?: string[];
+    customDomains?: number | null;
   } | null,
 ) {
   const admin = new SQL(urlFor(directoryName));
+  const next = {
+    ...DEFAULT_LIMITS,
+    modules: [...MODULE_IDS],
+    customDomains: null,
+    ...plan,
+  };
   try {
-    if (plan === null)
-      await admin`delete from school_plans where school_id = ${schoolId}::uuid`;
-    else
-      await admin`
-        insert into school_plans (school_id, pool_bytes, class_bytes, module_bytes,
-          person_bytes, modules)
-        values (${schoolId}::uuid, ${plan.poolBytes ?? null}, ${plan.classBytes ?? null},
-          ${plan.moduleBytes ?? null}, ${plan.personBytes ?? null},
-          ${plan.modules ? `{${plan.modules.join(",")}}` : null}::text[])
-        on conflict (school_id) do update set pool_bytes = excluded.pool_bytes,
-          class_bytes = excluded.class_bytes, module_bytes = excluded.module_bytes,
-          person_bytes = excluded.person_bytes, modules = excluded.modules`;
+    await admin`
+      update school_entitlements set pool_bytes = ${next.poolBytes},
+        class_bytes = ${next.classBytes}, module_bytes = ${next.moduleBytes},
+        person_bytes = ${next.personBytes},
+        modules = ${`{${next.modules.join(",")}}`}::text[],
+        custom_domains = ${next.customDomains}, revision = revision + 1
+      where school_id = ${schoolId}::uuid`;
   } finally {
     await admin.close();
   }
