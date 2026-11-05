@@ -1,7 +1,6 @@
 import type { ExamBoard } from "@faridalms/domain/exams";
 import type { HostRole, HostState } from "@faridalms/domain/hosts";
 
-import { MODULE_IDS } from "@faridalms/domain/modules";
 import { sql } from "drizzle-orm";
 import {
   bigint,
@@ -298,9 +297,9 @@ export const schoolPlans = pgTable(
     check("school_plans_person_bytes_check", sql`person_bytes > 0`),
     check(
       "school_plans_modules_check",
-      sql.raw(
-        `modules <@ array[${MODULE_IDS.map((id) => `'${id}'`).join(", ")}]::text[]`,
-      ),
+      // The registry's ids, written out because a check is fixed DDL;
+      // a test saves a plan naming every module in packages/domain/src/modules.ts.
+      sql`modules <@ array['coursework', 'peer_review', 'gradebook', 'attendance', 'timetable', 'news', 'website', 'custom_domains', 'admissions', 'student_records', 'badges', 'standards', 'exams', 'elearning', 'early_years', 'coding', 'video', 'integrations', 'sso', 'sms']::text[]`,
     ),
   ],
 );

@@ -1,4 +1,5 @@
 import { openDirectoryAdmin } from "@faridalms/database/directory/admin";
+import { MODULE_IDS } from "@faridalms/domain/modules";
 import { describe, expect, test } from "bun:test";
 
 import {
@@ -145,6 +146,9 @@ describe("modules a plan offers", () => {
         attendance: false,
         early_years: false,
       });
+      // A plan may name every module the registry has.
+      await setPlan(school.id, { modules: [...MODULE_IDS] });
+      await setPlan(school.id, { modules: ["early_years"] });
       // Its public website is not there either.
       expect(
         await rejection(
