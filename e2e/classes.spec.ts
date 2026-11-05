@@ -188,3 +188,47 @@ test("a teacher opens their class without enrolment or editing controls", async 
     roster.getByRole("button", { name: /^Actions for/ }),
   ).toHaveCount(0);
 });
+
+test("a teacher finds a class's file by its name and its kind", async ({
+  page,
+}) => {
+  const unique = crypto.randomUUID().slice(0, 8);
+  const notes = `notes-${unique}.txt`;
+  const picture = `board-${unique}.png`;
+  await signIn(page, "teacher");
+  await page.goto("/teach/classes");
+  await untilHydrated(page);
+  await page
+    .getByRole("table")
+    .getByRole("link", { name: "7A", exact: true })
+    .click();
+  await page.getByRole("tab", { name: "Files", exact: true }).click();
+  await page.locator("input[type=file][multiple]").setInputFiles([
+    {
+      name: notes,
+      mimeType: "text/plain",
+      buffer: Buffer.from("Bring a ruler on Sunday."),
+    },
+    {
+      name: picture,
+      mimeType: "image/png",
+      buffer: Buffer.from(
+        "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==",
+        "base64",
+      ),
+    },
+  ]);
+  const table = page.getByRole("table");
+  await page
+    .getByRole("searchbox", { name: "Search files", exact: true })
+    .fill(unique);
+  await expect(table.getByText(notes, { exact: true })).toBeVisible();
+  await expect(table.getByText(picture, { exact: true })).toBeVisible();
+
+  await page.getByRole("button", { name: "Type", exact: true }).click();
+  await page.getByRole("menuitemcheckbox", { name: /^Pictures/ }).click();
+  await page.keyboard.press("Escape");
+  await expect(table.getByText(picture, { exact: true })).toBeVisible();
+  await expect(table.getByText(notes, { exact: true })).toHaveCount(0);
+  await expect(page).toHaveURL(/fileKinds=/);
+});

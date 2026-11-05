@@ -1,11 +1,16 @@
-import type { SpeechLanguage } from "@faridalms/domain/file";
+import type {
+  AreaSort,
+  FileKind,
+  SpeechLanguage,
+} from "@faridalms/domain/file";
 
+import { FAMILY_OF_EXTENSION, KIND_OF_FAMILY } from "@faridalms/domain/file";
 import { sql } from "drizzle-orm";
 
 import type { CellTransaction } from "../context";
 import type { FileDerivative, FilePurpose, FileState } from "../tables/files";
 
-import { isoOf, uuidArray } from "./sql";
+import { holds, isoOf, uuidArray } from "./sql";
 
 type Tx = CellTransaction;
 
@@ -599,14 +604,55 @@ export interface AreaFile {
   usedIn: { hostType: string; hostId: string; title: string }[];
 }
 
-/** A class's or module's file area, or what of it waits in the trash. */
+/**
+ * A file's kind as a file area is narrowed by: its extension's family
+ * where the extension is known, else its media type, as `fileFamily` says.
+ */
+const kindOfFile = (() => {
+  const extension = sql`lower(substring(f.name from '\.([A-Za-z0-9]{1,10})$'))`;
+  const byKind = new Map<FileKind, string[]>();
+  for (const [ext, family] of Object.entries(FAMILY_OF_EXTENSION)) {
+    const kind = KIND_OF_FAMILY[family];
+    byKind.set(kind, [...(byKind.get(kind) ?? []), ext]);
+  }
+  const known = [...byKind].map(
+    ([kind, exts]) =>
+      sql`when ${extension} in (${sql.join(
+        exts.map((ext) => sql`${ext}`),
+        sql`, `,
+      )}) then ${kind}`,
+  );
+  return sql`(case ${sql.join(known, sql` `)}
+    when lower(f.media_type) like 'image/%' then 'pictures'
+    when lower(f.media_type) like 'audio/%' then 'audio'
+    when lower(f.media_type) like 'video/%' then 'video'
+    else 'other' end)`;
+})();
+
+/** A page of a class's or module's file area, or of what of it waits in the trash. */
 export async function areaFiles(
   tx: Tx,
   tenantId: string,
   area: { type: string; id: string },
   trashed: boolean,
-): Promise<AreaFile[]> {
+  view: {
+    q: string;
+    kinds: readonly FileKind[];
+    sort: AreaSort;
+    order: "asc" | "desc";
+    limit: number;
+    offset: number;
+  },
+): Promise<{ rows: AreaFile[]; total: number }> {
+  const dir = view.order === "asc" ? sql`asc` : sql`desc`;
+  const order =
+    view.sort === "name"
+      ? sql`lower(f.name) ${dir}, f.id`
+      : view.sort === "size"
+        ? sql`f.size_bytes ${dir}, f.id`
+        : sql`coalesce(f.trashed_at, f.created_at) ${dir}, f.id`;
   const rows = await tx.execute<{
+    total: number;
     id: string;
     name: string;
     media_type: string;
@@ -619,6 +665,7 @@ export async function areaFiles(
   }>(sql`
     select f.id, f.name, f.media_type, f.size_bytes, ${isoOf(sql`f.created_at`)} as created_at,
       f.uploaded_by_user_id, ${isoOf(sql`f.trashed_at`)} as trashed_at,
+      (count(*) over ())::int as total,
       (select count(*) from core.files v
         where v.tenant_id = f.tenant_id and v.host_type = 'file_version'
           and v.host_id = f.id and v.status = 'active') as versions,
@@ -639,19 +686,50 @@ export async function areaFiles(
     where f.tenant_id = ${tenantId}::uuid and f.host_type = ${area.type}
       and f.host_id = ${area.id}::uuid and f.status = 'active' and f.state = 'ready'
       and (f.trashed_at is not null) = ${trashed}
-    order by coalesce(f.trashed_at, f.created_at) desc
-    limit 1000`);
-  return rows.map((row) => ({
-    id: row.id,
-    name: row.name,
-    mediaType: row.media_type,
-    sizeBytes: Number(row.size_bytes),
-    createdAt: row.created_at,
-    uploadedByUserId: row.uploaded_by_user_id,
-    trashedAt: row.trashed_at,
-    versions: Number(row.versions),
-    usedIn: row.used_in,
-  }));
+      and (${holds(view.q, [sql`f.name`])})
+      ${
+        view.kinds.length
+          ? sql`and ${kindOfFile} in (${sql.join(
+              view.kinds.map((kind) => sql`${kind}`),
+              sql`, `,
+            )})`
+          : sql``
+      }
+    order by ${order}
+    limit ${view.limit} offset ${view.offset}`);
+  return {
+    total: rows[0]?.total ?? 0,
+    rows: rows.map((row) => ({
+      id: row.id,
+      name: row.name,
+      mediaType: row.media_type,
+      sizeBytes: Number(row.size_bytes),
+      createdAt: row.created_at,
+      uploadedByUserId: row.uploaded_by_user_id,
+      trashedAt: row.trashed_at,
+      versions: Number(row.versions),
+      usedIn: row.used_in,
+    })),
+  };
+}
+
+/** How many of an area's files, or its trash, are of each kind, among those a search finds. */
+export async function areaKindCounts(
+  tx: Tx,
+  tenantId: string,
+  area: { type: string; id: string },
+  trashed: boolean,
+  q: string,
+): Promise<Partial<Record<FileKind, number>>> {
+  const rows = await tx.execute<{ kind: FileKind; count: number }>(sql`
+    select ${kindOfFile} as kind, count(*)::int as count
+    from core.files f
+    where f.tenant_id = ${tenantId}::uuid and f.host_type = ${area.type}
+      and f.host_id = ${area.id}::uuid and f.status = 'active' and f.state = 'ready'
+      and (f.trashed_at is not null) = ${trashed}
+      and (${holds(q, [sql`f.name`])})
+    group by 1`);
+  return Object.fromEntries(rows.map((row) => [row.kind, row.count]));
 }
 
 /** Renames a file in an area; false when it is not there. */

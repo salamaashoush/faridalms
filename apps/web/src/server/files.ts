@@ -1,4 +1,5 @@
 import {
+  areaQuerySchema,
   fileAreaSchema,
   initiateUploadSchema,
   picturedSchema,
@@ -20,7 +21,7 @@ export const getFileAbilities = createServerFn({ method: "GET" }).handler(() =>
 );
 
 export const getAreaFiles = createServerFn({ method: "GET" })
-  .validator(checked(v.object({ area: fileAreaSchema, trashed: v.boolean() })))
+  .validator(checked(areaQuerySchema))
   .handler(({ data }) => backend().files.area(data));
 
 export const addToArea = createServerFn({ method: "POST" })

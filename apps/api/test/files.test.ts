@@ -444,14 +444,32 @@ describe("files in documents", () => {
     });
     const area = { type: "class" as const, id: target.id };
     const listed = await teacher.api.files.area({ area, trashed: false });
-    expect(listed.files.some((row) => row.id === file.id)).toBe(true);
+    expect(listed.files.rows.some((row) => row.id === file.id)).toBe(true);
+    const found = listed.files.rows.find((row) => row.id === file.id);
+    if (!found) throw new Error("the worksheet is not listed");
+    const named = await teacher.api.files.area({
+      area,
+      trashed: false,
+      q: found.name.slice(0, 6),
+    });
+    expect(named.files.rows.map((row) => row.id)).toContain(file.id);
+    const elsewhere = await teacher.api.files.area({
+      area,
+      trashed: false,
+      kinds: ["audio"],
+    });
+    expect(elsewhere.files.rows.some((row) => row.id === file.id)).toBe(false);
+    expect(listed.files).toMatchObject({ page: 1, pageSize: 25 });
+    expect(Object.values(listed.kinds).reduce((sum, n) => sum + n, 0)).toBe(
+      listed.files.total,
+    );
     await teacher.api.files.trashInArea({ area, id: file.id, trashed: true });
     const { cell, files, tenants } = seeded();
     const tenantId = tenants[0]?.tenantId ?? "";
     const day = 24 * 60 * 60 * 1000;
     const path = `/v1/files/${file.id}/content`;
     const inTrash = async () =>
-      (await teacher.api.files.area({ area, trashed: true })).files.some(
+      (await teacher.api.files.area({ area, trashed: true })).files.rows.some(
         (row) => row.id === file.id,
       );
     expect((await raw("northwind", teacher.token, path)).status).toBe(404);
@@ -620,12 +638,10 @@ describe("storage caps", () => {
     if (!target)
       throw new Error("the student is in none of the teacher's classes");
     const area = { type: "class" as const, id: target.id };
+    // What the class's quota counts, every file it keeps with its versions.
     const { usedBytes } = (
       await teacher.api.files.area({ area, trashed: false })
-    ).files.reduce(
-      (sum, file) => ({ usedBytes: sum.usedBytes + file.sizeBytes }),
-      { usedBytes: 0 },
-    );
+    ).usage;
     // Other suites may have filled this class already, and the warning is a
     // share of the limit, so the limit and the sizes follow what is there.
     const classBytes = 5 * usedBytes + 5000;

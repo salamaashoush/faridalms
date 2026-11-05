@@ -9,11 +9,6 @@ larger than a few days of work gets its own plan beside this file.
 From `foundations.md`. W1 to W5 are merged.
 
 - **W6, conventions and records** (findings 13 to 18 and the P2 items):
-  - a file area still lists its newest 1000 files. Its screen sorts,
-    searches and filters them in the browser, so paging it needs those
-    on the server first. Every other list pages through `paging.ts`, or
-    has a bound far above its real size (a register's changes, a
-    calendar range, the comment bank, whom a question was asked of);
   - before and after values on audited updates. A history tab now
     holds every event about the person or record and words each one,
     but only about 22 of 228 audit calls pass `change`, so most

@@ -1,5 +1,7 @@
 import * as v from "valibot";
 
+import { pageField } from "./paging";
+
 /**
  * What a person may upload a file for; the purposes the cell's files table
  * pins. Imports have a flow of their own.
@@ -328,7 +330,8 @@ export type FileFamily =
   | "archive"
   | "other";
 
-const FAMILY: Record<string, FileFamily> = {
+/** The family each known extension names; others go by their media type. */
+export const FAMILY_OF_EXTENSION: Record<string, FileFamily> = {
   pdf: "pdf",
   doc: "document",
   docx: "document",
@@ -347,7 +350,7 @@ const FAMILY: Record<string, FileFamily> = {
 
 /** What kind of thing a file is, for its icon and how it opens. */
 export function fileFamily(name: string, mediaType: string): FileFamily {
-  const known = FAMILY[fileExtension(name)];
+  const known = FAMILY_OF_EXTENSION[fileExtension(name)];
   if (known) return known;
   const type = mediaType.toLowerCase();
   if (type.startsWith("image/")) return "image";
@@ -455,6 +458,44 @@ export const fileAreaSchema = v.object({
   type: v.picklist(FILE_AREAS),
   id: v.pipe(v.string(), v.uuid()),
 });
+
+/** The kinds a file area is narrowed to, each a group of file families. */
+export const FILE_KINDS = [
+  "pictures",
+  "documents",
+  "audio",
+  "video",
+  "other",
+] as const;
+export type FileKind = (typeof FILE_KINDS)[number];
+
+export const KIND_OF_FAMILY: Record<FileFamily, FileKind> = {
+  image: "pictures",
+  pdf: "documents",
+  document: "documents",
+  sheet: "documents",
+  slides: "documents",
+  text: "documents",
+  audio: "audio",
+  video: "video",
+  archive: "other",
+  other: "other",
+};
+
+export const AREA_SORTS = ["added", "name", "size"] as const;
+export type AreaSort = (typeof AREA_SORTS)[number];
+
+/** A page of a file area, or of what of it waits in the trash. */
+export const areaQuerySchema = v.object({
+  area: fileAreaSchema,
+  trashed: v.boolean(),
+  q: v.optional(v.pipe(v.string(), v.trim(), v.maxLength(100)), ""),
+  kinds: v.optional(v.array(v.picklist(FILE_KINDS)), []),
+  sort: v.optional(v.picklist(AREA_SORTS), "added"),
+  order: v.optional(v.picklist(["asc", "desc"]), "desc"),
+  page: pageField,
+});
+export type AreaQuery = v.InferInput<typeof areaQuerySchema>;
 
 /**
  * The languages a recording's captions can be drafted in from what it says:

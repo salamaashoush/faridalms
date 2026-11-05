@@ -9,6 +9,7 @@ import type {
 import {
   adoptFiles,
   areaFiles,
+  areaKindCounts,
   captionDraftOf,
   areaStorage,
   fileById,
@@ -25,6 +26,7 @@ import {
   trashAreaFile,
 } from "@faridalms/database/stores/files";
 import {
+  areaQuerySchema,
   fileAreaSchema,
   fileFamily,
   storedName,
@@ -35,6 +37,7 @@ import {
   tagPicturedSchema,
   UPLOAD_PART_BYTES,
 } from "@faridalms/domain/file";
+import { paged, pageWindow } from "@faridalms/domain/paging";
 import { limitsOf, WARN_SHARE } from "@faridalms/domain/plans";
 import { ORPCError } from "@orpc/server";
 import * as v from "valibot";
@@ -217,17 +220,26 @@ const areaFileSchema = v.object({
 
 /** A class's or module's files, with the lessons and assignments showing each. */
 export const area = readProcedure
-  .input(v.object({ area: fileAreaSchema, trashed: v.boolean() }))
+  .input(areaQuerySchema)
   .handler(async ({ input, context }) => {
     await keptArea(context, input.area);
     const limits = limitsOf(context.school.plan);
-    return {
-      files: await areaFiles(
+    const [{ rows, total }, kinds] = await Promise.all([
+      areaFiles(context.tx, context.tenantId, input.area, input.trashed, {
+        ...input,
+        ...pageWindow(input.page),
+      }),
+      areaKindCounts(
         context.tx,
         context.tenantId,
         input.area,
         input.trashed,
+        input.q,
       ),
+    ]);
+    return {
+      files: paged(rows, total, input.page),
+      kinds,
       usage: {
         ...(await areaStorage(context.tx, context.tenantId, input.area)),
         limitBytes:

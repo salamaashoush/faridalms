@@ -1,6 +1,6 @@
-import type { FileArea, FileFamily } from "@faridalms/domain/file";
+import type { FileArea, FileKind } from "@faridalms/domain/file";
 
-import { fileFamily } from "@faridalms/domain/file";
+import { FILE_KINDS, fileFamily } from "@faridalms/domain/file";
 import { useRefreshFileFacts } from "@faridalms/editor/file-facts";
 import { FileIcon, fileMeta, FileViewer } from "@faridalms/editor/files";
 import { Button } from "@faridalms/ui/button";
@@ -53,11 +53,10 @@ import { getMessageFromError } from "~/utils/error";
 
 type AreaFile = Awaited<
   ReturnType<NonNullable<ReturnType<typeof areaFilesQuery>["queryFn"]>>
->["files"][number];
+>["files"]["rows"][number];
 const SORTS = ["added", "name", "size"] as const;
-const KINDS = ["pictures", "documents", "audio", "video", "other"] as const;
 type Sort = (typeof SORTS)[number];
-type Kind = (typeof KINDS)[number];
+type Kind = FileKind;
 
 /** What a files tab shows, kept in the address of the record it sits on. */
 export const areaViewSearch = {
@@ -65,7 +64,7 @@ export const areaViewSearch = {
     v.optional(v.pipe(v.string(), v.maxLength(100)), ""),
     "",
   ),
-  fileKinds: v.fallback(v.optional(v.array(v.picklist(KINDS)), []), []),
+  fileKinds: v.fallback(v.optional(v.array(v.picklist(FILE_KINDS)), []), []),
   fileSort: v.fallback(v.optional(v.picklist(SORTS), "added"), "added"),
   fileOrder: v.fallback(
     v.optional(v.picklist(["asc", "desc"]), "desc"),
@@ -78,19 +77,6 @@ export type AreaView = v.InferOutput<
 
 const TRASH_DAYS = 30;
 
-const KIND_OF: Record<FileFamily, Kind> = {
-  image: "pictures",
-  pdf: "documents",
-  document: "documents",
-  sheet: "documents",
-  slides: "documents",
-  text: "documents",
-  audio: "audio",
-  video: "video",
-  archive: "other",
-  other: "other",
-};
-
 const KIND_LABEL: Record<Kind, () => string> = {
   pictures: m.filesTypePictures,
   documents: m.filesTypeDocuments,
@@ -98,9 +84,6 @@ const KIND_LABEL: Record<Kind, () => string> = {
   video: m.filesTypeVideo,
   other: m.filesTypeOther,
 };
-
-const kindOf = (file: AreaFile) =>
-  KIND_OF[fileFamily(file.name, file.mediaType)];
 
 const factsOf = (file: AreaFile) =>
   fileMeta(
@@ -251,7 +234,30 @@ export function AreaFiles({
   view: AreaView;
   onView: (view: AreaView) => void;
 }) {
-  const { files, usage } = useSuspenseQuery(areaFilesQuery(area, false)).data;
+  const search = view.fileSearch;
+  const kinds: Kind[] = view.fileKinds;
+  const sort = { value: view.fileSort, direction: view.fileOrder };
+  const [page, setPage] = useState(1);
+  // Another search, kind or order starts again at the first page.
+  const asked = `${search}|${kinds.join(",")}|${sort.value}|${sort.direction}`;
+  const [askedFor, setAskedFor] = useState(asked);
+  if (asked !== askedFor) {
+    setAskedFor(asked);
+    setPage(1);
+  }
+  const {
+    files,
+    usage,
+    kinds: kindTotals,
+  } = useSuspenseQuery(
+    areaFilesQuery(area, false, {
+      q: search.trim(),
+      kinds,
+      sort: sort.value,
+      order: sort.direction,
+      page,
+    }),
+  ).data;
   const queryClient = useQueryClient();
   const media = useDocumentMedia(area);
   const add = useServerFn(addToArea);
@@ -262,14 +268,11 @@ export function AreaFiles({
   const replacement = useRef<HTMLInputElement>(null);
   const [replacing, setReplacing] = useState<AreaFile | null>(null);
   const [versionsOf, setVersionsOf] = useState<AreaFile | null>(null);
-  const search = view.fileSearch;
-  const kinds: string[] = view.fileKinds;
-  const sort = { value: view.fileSort, direction: view.fileOrder };
   const setSearch = (fileSearch: string) => onView({ ...view, fileSearch });
   const setKinds = (next: string[]) =>
     onView({
       ...view,
-      fileKinds: KINDS.filter((kind) => next.includes(kind)),
+      fileKinds: FILE_KINDS.filter((kind) => next.includes(kind)),
     });
   const [pending, setPending] = useState<Pending[]>([]);
   const [viewing, setViewing] = useState<AreaFile | null>(null);
@@ -310,22 +313,7 @@ export function AreaFiles({
     }
   };
 
-  const query = search.trim().toLocaleLowerCase();
-  const shown = files
-    .filter(
-      (file) =>
-        (!query || file.name.toLocaleLowerCase().includes(query)) &&
-        (kinds.length === 0 || kinds.includes(kindOf(file))),
-    )
-    .toSorted((a, b) => {
-      const order =
-        sort.value === "name"
-          ? a.name.localeCompare(b.name, getLocale())
-          : sort.value === "size"
-            ? a.sizeBytes - b.sizeBytes
-            : a.createdAt.localeCompare(b.createdAt);
-      return sort.direction === "asc" ? order : -order;
-    });
+  const shown = files.rows;
 
   const columns = areaColumns(area, setViewing);
 
@@ -386,10 +374,6 @@ export function AreaFiles({
       },
     },
   ];
-
-  const kindCounts = new Map<Kind, number>();
-  for (const file of files)
-    kindCounts.set(kindOf(file), (kindCounts.get(kindOf(file)) ?? 0) + 1);
 
   return (
     <div className="grid gap-4">
@@ -509,10 +493,10 @@ export function AreaFiles({
             {
               id: "kind",
               label: m.filesType(),
-              options: (Object.keys(KIND_LABEL) as Kind[]).map((kind) => ({
+              options: FILE_KINDS.map((kind) => ({
                 value: kind,
                 label: KIND_LABEL[kind](),
-                count: kindCounts.get(kind) ?? 0,
+                count: kindTotals[kind] ?? 0,
               })),
               selected: kinds,
               onChange: setKinds,
@@ -529,6 +513,17 @@ export function AreaFiles({
             onView({ ...view, fileSort: value, fileOrder: direction }),
         }}
         card={areaCard(area)}
+        pagination={
+          files.pages > 1
+            ? {
+                page: files.page,
+                pages: files.pages,
+                total: files.total,
+                pageSize: files.pageSize,
+                onPage: setPage,
+              }
+            : undefined
+        }
         empty={{
           icon: FolderOpen,
           title: m.filesEmpty(),
@@ -649,7 +644,7 @@ function TrashSheet({
   const trashed = useQuery({ ...areaFilesQuery(area, true), enabled: open });
   const restore = useServerFn(trashInArea);
   const [busy, setBusy] = useState<string | null>(null);
-  const files = trashed.data?.files ?? [];
+  const files = trashed.data?.files.rows ?? [];
   return (
     <SheetPanel
       open={open}
