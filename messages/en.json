@@ -8788,6 +8788,7 @@
   "auditGradingScaleRegrade": "Grades recalculated",
   "auditGradingScaleRetire": "Grading scale retired",
   "auditHostAdd": "Address added",
+  "auditSsoDomainAdd": "Sign-in domain added",
   "auditHostCanonical": "Main address chosen",
   "auditHostRemove": "Address removed",
   "auditLessonCopy": "Lesson copied",

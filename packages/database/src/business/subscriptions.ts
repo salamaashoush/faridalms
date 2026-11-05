@@ -185,6 +185,10 @@ async function heldOpen(tx: BusinessTx, id: string): Promise<SubscriptionRow> {
 }
 
 /** Opens a tenant's subscription; a tenant holds one in force at a time. */
+/**
+ * Opens a tenant's subscription, with the items it was sold, in one
+ * transaction; a tenant holds one in force at a time.
+ */
 export async function createSubscription(
   db: BusinessDb,
   input: {
@@ -192,6 +196,7 @@ export async function createSubscription(
     tenantId: string;
     currency: Currency;
     terms: SubscriptionTerms;
+    items?: Omit<SubscriptionItemInput, "subscriptionId" | "reason">[];
     grandfathered?: boolean;
     by: string;
     reason: string;
@@ -223,6 +228,12 @@ export async function createSubscription(
       },
       reason: input.reason,
     });
+    for (const item of input.items ?? [])
+      await insertItem(
+        tx,
+        { ...item, subscriptionId: created.id, reason: input.reason },
+        input.by,
+      );
     return created.id;
   });
 }
@@ -269,41 +280,51 @@ export async function setTerms(
   });
 }
 
+/** Writes an item of a version still sold, and moves the subscription's revision. */
+async function insertItem(
+  tx: BusinessTx,
+  input: SubscriptionItemInput,
+  by: string,
+): Promise<string> {
+  const { reason, ...item } = input;
+  const table = item.planVersionId ? planVersions : addOnVersions;
+  const versionId = item.planVersionId ?? item.addOnVersionId ?? "";
+  const [version] = await tx
+    .select({ retiredAt: table.retiredAt })
+    .from(table)
+    .where(eq(table.id, versionId));
+  if (!version) throw new SubscriptionError("version_missing");
+  if (version.retiredAt) throw new SubscriptionError("version_retired");
+  const [created] = await tx
+    .insert(subscriptionItems)
+    .values({
+      ...item,
+      discountPercent: String(item.discountPercent),
+      createdBy: by,
+    })
+    .returning({ id: subscriptionItems.id });
+  if (!created) throw new Error("item was not created");
+  await bump(tx, item.subscriptionId);
+  await recordEvent(tx, {
+    operatorId: by,
+    action: "subscription.item_add",
+    subjectType: "subscription",
+    subjectId: item.subscriptionId,
+    after: { itemId: created.id, ...item },
+    reason,
+  });
+  return created.id;
+}
+
 /** Adds a plan or add-on version to a subscription from a day. */
 export async function addItem(
   db: BusinessDb,
   input: SubscriptionItemInput & { by: string },
 ): Promise<string> {
-  const { reason, by, ...item } = input;
+  const { by, ...item } = input;
   return db.transaction(async (tx) => {
     await heldOpen(tx, item.subscriptionId);
-    const table = item.planVersionId ? planVersions : addOnVersions;
-    const versionId = item.planVersionId ?? item.addOnVersionId ?? "";
-    const [version] = await tx
-      .select({ retiredAt: table.retiredAt })
-      .from(table)
-      .where(eq(table.id, versionId));
-    if (!version) throw new SubscriptionError("version_missing");
-    if (version.retiredAt) throw new SubscriptionError("version_retired");
-    const [created] = await tx
-      .insert(subscriptionItems)
-      .values({
-        ...item,
-        discountPercent: String(item.discountPercent),
-        createdBy: by,
-      })
-      .returning({ id: subscriptionItems.id });
-    if (!created) throw new Error("item was not created");
-    await bump(tx, item.subscriptionId);
-    await recordEvent(tx, {
-      operatorId: by,
-      action: "subscription.item_add",
-      subjectType: "subscription",
-      subjectId: item.subscriptionId,
-      after: { itemId: created.id, ...item },
-      reason,
-    });
-    return created.id;
+    return insertItem(tx, item, by);
   });
 }
 

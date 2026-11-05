@@ -43,6 +43,8 @@ export async function signInAs(page: Page, person: StandInPerson = OWNER) {
 /**
  * Creates a school of its own through New school, in the run's cell, so a
  * spec that changes what a school may use never touches the seeded ones.
+ * It walks the draft: a new customer, the school, Basic on a trial, its
+ * first administrator, the data processing agreement, then creates it.
  * Answers the school's id.
  */
 export async function createSchool(
@@ -50,22 +52,51 @@ export async function createSchool(
   school: { slug: string; nameEn: string; nameAr: string },
 ): Promise<string> {
   await page.goto("/schools/new");
-  await expect(
-    page.getByRole("button", { name: "Create school" }),
-  ).toBeEnabled();
-  await page.getByLabel("Name in English", { exact: true }).fill(school.nameEn);
-  await page.getByLabel("Name in Arabic", { exact: true }).fill(school.nameAr);
-  await page.getByLabel("Address", { exact: true }).fill(school.slug);
-  await page.getByLabel("Given name in English").fill("Salama");
-  await page.getByLabel("Family name in English").fill("Ashoush");
-  await page.getByLabel("Given name in Arabic").fill("سلامة");
-  await page.getByLabel("Family name in Arabic").fill("عشوش");
-  await page
+  await page.getByRole("button", { name: "Start a new school" }).click();
+  await expect(page.getByRole("form", { name: "Customer" })).toBeVisible();
+
+  await page.getByRole("button", { name: "New customer" }).click();
+  const customer = page.getByRole("form", { name: "New customer" });
+  await customer.getByLabel("Legal name in English").fill(school.nameEn);
+  await customer.getByLabel("Why").fill("Signed up at the fair");
+  await customer.getByRole("button", { name: "Create customer" }).click();
+  await expect(page.getByLabel("Sold to")).toHaveValue(/.+/);
+  await page.getByRole("button", { name: "Save and continue" }).click();
+
+  const schools = page.getByRole("form", { name: "Schools" });
+  await schools
+    .getByLabel("Name in English", { exact: true })
+    .fill(school.nameEn);
+  await schools
+    .getByLabel("Name in Arabic", { exact: true })
+    .fill(school.nameAr);
+  await schools.getByLabel("Address", { exact: true }).fill(school.slug);
+  await schools.getByRole("button", { name: "Save and continue" }).click();
+
+  await expect(page.getByRole("form", { name: "Plan" })).toBeVisible();
+  await page.getByRole("button", { name: "Save and continue" }).click();
+  await expect(page.getByRole("form", { name: "Addresses" })).toBeVisible();
+  await page.getByRole("button", { name: "Save and continue" }).click();
+
+  const people = page.getByRole("form", { name: "People" });
+  await people.getByLabel("Given name in English").fill("Salama");
+  await people.getByLabel("Family name in English").fill("Ashoush");
+  await people.getByLabel("Given name in Arabic").fill("سلامة");
+  await people.getByLabel("Family name in Arabic").fill("عشوش");
+  await people
     .getByLabel("Email", { exact: true })
     .fill(`salama@${school.slug}.example.com`);
-  await page.getByRole("button", { name: "Create school" }).click();
+  await people.getByRole("button", { name: "Save and continue" }).click();
+
+  const agreements = page.getByRole("form", { name: "Record an acceptance" });
+  await agreements
+    .getByLabel("Agreement")
+    .selectOption({ label: "Data processing agreement" });
+  await agreements.getByLabel("Version accepted").fill("2026-11");
+  await agreements.getByRole("button", { name: "Record acceptance" }).click();
+  await page.getByRole("button", { name: "Create the school" }).click();
   await expect(
-    page.getByRole("heading", { name: "School created" }),
+    page.getByRole("heading", { name: `${school.nameEn} created` }),
   ).toBeVisible({ timeout: 60_000 });
   await page.getByRole("link", { name: "Open the school" }).click();
   await expect(page).toHaveURL(/\/schools\/[0-9a-f-]{36}$/);

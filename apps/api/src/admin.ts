@@ -116,13 +116,15 @@ function schoolFrom(
         countryCode: country,
       },
     ],
-    administrator: {
-      givenNameEn: english.given,
-      familyNameEn: english.family,
-      givenNameAr: arabic.given,
-      familyNameAr: arabic.family,
-      email: text("admin-email"),
-    },
+    administrators: [
+      {
+        givenNameEn: english.given,
+        familyNameEn: english.family,
+        givenNameAr: arabic.given,
+        familyNameAr: arabic.family,
+        email: text("admin-email"),
+      },
+    ],
     entitlements: {
       ...settableOf(BASIC_ENTITLEMENTS),
       modules: modulesFrom(text("modules")),
@@ -216,9 +218,10 @@ async function main() {
       console.info(
         `${result.created ? "Created" : "Already there:"} ${slug}, at https://${slug}.${env.PORTAL_DOMAIN} (website https://${slug}.${env.SITES_DOMAIN}).`,
       );
-      console.info(
-        `${flags["print-link"] ? "The link above is for" : "Sent a link to"} ${result.sentTo}, who signs in as ${result.loginName}.`,
-      );
+      for (const link of result.sent)
+        console.info(
+          `${flags["print-link"] ? "The link above is for" : "Sent a link to"} ${link.sentTo}, who signs in as ${link.loginName}.`,
+        );
     } else {
       const slug = typeof flags.slug === "string" ? flags.slug : "";
       if (!slug) throw new UsageError("--slug is required");

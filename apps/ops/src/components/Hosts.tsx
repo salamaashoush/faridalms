@@ -100,7 +100,7 @@ function HostRow({ schoolId, host }: { schoolId: string; host: Host }) {
   };
 
   return (
-    <li className="grid gap-3 rounded-lg border p-4">
+    <li aria-label={host.hostname} className="grid gap-3 rounded-lg border p-4">
       <div className="flex flex-wrap items-center gap-2">
         <span className="font-mono text-sm font-semibold break-all">
           {host.hostname}
@@ -219,6 +219,7 @@ export function Hosts({
         <p className="text-sm text-muted-foreground">No hosts of its own.</p>
       )}
       <form
+        aria-label="Add a host"
         className="grid gap-3 rounded-lg border p-4 sm:grid-cols-[1fr_auto]"
         onSubmit={async (event) => {
           event.preventDefault();

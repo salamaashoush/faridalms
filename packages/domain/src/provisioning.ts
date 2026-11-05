@@ -142,74 +142,140 @@ export const administratorSchema = v.pipe(
   ),
 );
 
+export type AdministratorInput = v.InferInput<typeof administratorSchema>;
+
+const tenantEntries = {
+  kind: v.picklist(["school", "school_group"]),
+  nameEn: optionalText(160),
+  nameAr: optionalText(160),
+  cellId: v.pipe(
+    v.string(),
+    v.regex(/^[a-z]{2}-[0-9]{1,2}$/, "Choose a cell."),
+  ),
+  defaultLocale: v.picklist(["en", "ar"]),
+  jurisdictions: v.pipe(
+    v.array(countryCode),
+    v.minLength(1, "Name at least one jurisdiction."),
+    v.maxLength(10, "Name at most ten jurisdictions."),
+    v.check(
+      (codes) => new Set(codes).size === codes.length,
+      "Name each jurisdiction once.",
+    ),
+  ),
+  schools: v.pipe(
+    v.array(newSchoolSiteSchema),
+    v.minLength(1, "Add a school."),
+    v.maxLength(
+      MAX_GROUP_SCHOOLS,
+      `A group starts with at most ${MAX_GROUP_SCHOOLS} schools.`,
+    ),
+  ),
+};
+
+type TenantShape = {
+  kind: "school" | "school_group";
+  nameEn: string | null;
+  nameAr: string | null;
+  schools: { nameEn: string | null; nameAr: string | null; slug: string }[];
+};
+
+const oneSchoolAlone = (spec: TenantShape) =>
+  spec.kind === "school_group" || spec.schools.length === 1;
+const groupNamed = (spec: TenantShape) => spec.kind === "school" || named(spec);
+const distinctAddresses = (spec: TenantShape) =>
+  new Set(spec.schools.map((school) => school.slug)).size ===
+  spec.schools.length;
+
+/** A standalone school's tenant takes its names from the school. */
+function namedAfterSchool<T extends TenantShape>(spec: T): T {
+  const [first] = spec.schools;
+  return spec.kind === "school" && first
+    ? { ...spec, nameEn: first.nameEn, nameAr: first.nameAr }
+    : spec;
+}
+
+const ONE_SCHOOL = "A standalone school has exactly one school.";
+const GROUP_NAME = "Give the group a name in English or Arabic.";
+const OWN_ADDRESS = "Give each school its own address.";
+
 /**
- * A school or group as an operator creates it: its names and addresses, where
- * its schools are and which language they start in, the first administrator
- * who is emailed a link to choose a password, and what its schools are
- * entitled to, Basic unless the operator says otherwise. A
- * standalone school takes its tenant's names from the school.
+ * A school or group as it is set up before anyone runs it: its names and
+ * addresses, where its schools are and which language they start in.
+ */
+export const tenantSpecSchema = v.pipe(
+  v.object(tenantEntries),
+  v.forward(
+    v.check((spec) => oneSchoolAlone(spec), ONE_SCHOOL),
+    ["schools"],
+  ),
+  v.forward(
+    v.check((spec) => groupNamed(spec), GROUP_NAME),
+    ["nameEn"],
+  ),
+  v.forward(
+    v.check((spec) => distinctAddresses(spec), OWN_ADDRESS),
+    ["schools"],
+  ),
+  v.transform((spec) => namedAfterSchool(spec)),
+);
+export type TenantSpec = v.InferOutput<typeof tenantSpecSchema>;
+export type TenantSpecInput = v.InferInput<typeof tenantSpecSchema>;
+
+/**
+ * A school or group as an operator creates it: the tenant, each school's
+ * first administrator and a group's own administrator, each emailed a link
+ * to choose a password, and what its schools are entitled to, Basic unless
+ * the operator says otherwise.
  */
 export const newSchoolSchema = v.pipe(
   v.object({
-    kind: v.picklist(["school", "school_group"]),
-    nameEn: optionalText(160),
-    nameAr: optionalText(160),
-    cellId: v.pipe(
-      v.string(),
-      v.regex(/^[a-z]{2}-[0-9]{1,2}$/, "Choose a cell."),
-    ),
-    defaultLocale: v.picklist(["en", "ar"]),
-    jurisdictions: v.pipe(
-      v.array(countryCode),
-      v.minLength(1, "Name at least one jurisdiction."),
-      v.maxLength(10, "Name at most ten jurisdictions."),
-      v.check(
-        (codes) => new Set(codes).size === codes.length,
-        "Name each jurisdiction once.",
-      ),
-    ),
-    schools: v.pipe(
-      v.array(newSchoolSiteSchema),
-      v.minLength(1, "Add a school."),
-      v.maxLength(
-        MAX_GROUP_SCHOOLS,
-        `A group starts with at most ${MAX_GROUP_SCHOOLS} schools.`,
-      ),
-    ),
-    administrator: administratorSchema,
+    ...tenantEntries,
+    /** Each school's first administrator, in the order of the schools. */
+    administrators: v.array(administratorSchema),
+    /** A group's administrator, who runs every school of it. */
+    groupAdministrator: v.optional(v.nullable(administratorSchema), null),
     entitlements: v.optional(entitlementsSchema, () =>
       settableOf(BASIC_ENTITLEMENTS),
     ),
   }),
   v.forward(
-    v.check(
-      (spec) => spec.kind === "school_group" || spec.schools.length === 1,
-      "A standalone school has exactly one school.",
-    ),
+    v.check((spec) => oneSchoolAlone(spec), ONE_SCHOOL),
+    ["schools"],
+  ),
+  v.forward(
+    v.check((spec) => groupNamed(spec), GROUP_NAME),
+    ["nameEn"],
+  ),
+  v.forward(
+    v.check((spec) => distinctAddresses(spec), OWN_ADDRESS),
     ["schools"],
   ),
   v.forward(
     v.check(
-      (spec) => spec.kind === "school" || named(spec),
-      "Give the group a name in English or Arabic.",
+      (spec) => spec.administrators.length === spec.schools.length,
+      "Give each school its first administrator.",
     ),
-    ["nameEn"],
+    ["administrators"],
   ),
   v.forward(
     v.check(
       (spec) =>
-        new Set(spec.schools.map((school) => school.slug)).size ===
-        spec.schools.length,
-      "Give each school its own address.",
+        spec.kind === "school_group" || spec.groupAdministrator === null,
+      "Only a group has a group administrator.",
     ),
-    ["schools"],
+    ["groupAdministrator"],
   ),
-  v.transform((spec) => {
-    const [first] = spec.schools;
-    return spec.kind === "school" && first
-      ? { ...spec, nameEn: first.nameEn, nameAr: first.nameAr }
-      : spec;
-  }),
+  v.forward(
+    v.check((spec) => {
+      const emails = [
+        ...spec.administrators.map((person) => person.email),
+        ...(spec.groupAdministrator ? [spec.groupAdministrator.email] : []),
+      ];
+      return new Set(emails).size === emails.length;
+    }, "Give each administrator their own email; a group administrator already runs every school."),
+    ["administrators"],
+  ),
+  v.transform((spec) => namedAfterSchool(spec)),
 );
 export type NewSchool = v.InferOutput<typeof newSchoolSchema>;
 export type NewSchoolInput = v.InferInput<typeof newSchoolSchema>;
@@ -228,10 +294,6 @@ export const provisionTenantSchema = v.pipe(
 );
 export type ProvisionTenant = v.InferOutput<typeof provisionTenantSchema>;
 
-/**
- * A new link for a school's administrator: the one with this email, or the
- * school's first administrator when none is given.
- */
 /** How far a tenant's people may use it: the console's only lifecycle moves. */
 export const TENANT_LIFECYCLES = ["active", "read_only", "suspended"] as const;
 
@@ -271,6 +333,10 @@ export type EntitlementsChanged = v.InferOutput<
   typeof entitlementsChangedSchema
 >;
 
+/**
+ * A new link for a school's administrator: the one with this email, or the
+ * school's first administrator when none is given.
+ */
 export const reissueInviteSchema = v.object({
   tenantId: id,
   schoolId: id,
@@ -281,11 +347,10 @@ export type ReissueInvite = v.InferOutput<typeof reissueInviteSchema>;
 export interface ProvisionResult {
   tenantId: string;
   schoolIds: string[];
-  /** False when the cell already held the tenant and only a link was sent. */
+  /** False when the cell already held the tenant and only links were sent. */
   created: boolean;
-  /** Where the link went and the sign-in name it opens. */
-  sentTo: string;
-  loginName: string;
+  /** Each link: the school it runs, none for the group's, where it went and the sign-in name it opens. */
+  sent: { schoolId: string | null; sentTo: string; loginName: string }[];
 }
 
 export interface ReissueResult {

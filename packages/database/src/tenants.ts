@@ -316,6 +316,17 @@ export async function createTenant(
   return { tenantId, rootOrgId, schoolIds };
 }
 
+/** The org a tenant's people belong to above its schools: its group, or its one school. */
+export async function rootOrgOf(
+  tx: CellTransaction,
+  tenantId: string,
+): Promise<string | null> {
+  const rows = await tx.execute<{ root_org_id: string }>(
+    sql`select root_org_id from core.tenants where tenant_id = ${tenantId}::uuid`,
+  );
+  return rows[0]?.root_org_id ?? null;
+}
+
 /** Where a tenant stands in the cell's registry; null when it has none. */
 export async function tenantLifecycle(
   tx: CellTransaction,

@@ -3,7 +3,7 @@ import type {
   CustomerInput,
 } from "@faridalms/domain/subscriptions";
 
-import { and, asc, eq } from "drizzle-orm";
+import { and, asc, eq, isNull, or } from "drizzle-orm";
 
 import type { BusinessDb } from "./client";
 
@@ -104,6 +104,40 @@ export async function saveCustomer(
       reason,
     });
     return id;
+  });
+}
+
+/**
+ * Records the tenant a customer runs, once its schools exist. False when
+ * the customer already runs another.
+ */
+export async function linkTenant(
+  db: BusinessDb,
+  input: { customerId: string; tenantId: string; by: string },
+): Promise<boolean> {
+  return db.transaction(async (tx) => {
+    const [linked] = await tx
+      .update(customers)
+      .set({ tenantId: input.tenantId })
+      .where(
+        and(
+          eq(customers.id, input.customerId),
+          or(
+            isNull(customers.tenantId),
+            eq(customers.tenantId, input.tenantId),
+          ),
+        ),
+      )
+      .returning({ id: customers.id });
+    if (!linked) return false;
+    await recordEvent(tx, {
+      operatorId: input.by,
+      action: "customer.tenant",
+      subjectType: "customer",
+      subjectId: input.customerId,
+      after: { tenantId: input.tenantId },
+    });
+    return true;
   });
 }
 

@@ -76,13 +76,15 @@ function standalone(slug: string, email: string): NewSchoolInput {
         countryCode: "EG",
       },
     ],
-    administrator: {
-      givenNameEn: "Salama",
-      familyNameEn: "Ashoush",
-      givenNameAr: "سلامة",
-      familyNameAr: "عشوش",
-      email,
-    },
+    administrators: [
+      {
+        givenNameEn: "Salama",
+        familyNameEn: "Ashoush",
+        givenNameAr: "سلامة",
+        familyNameAr: "عشوش",
+        email,
+      },
+    ],
   };
 }
 
@@ -138,8 +140,7 @@ describe("creating a school from the operator console", () => {
     expect(created.body).toMatchObject({
       tenantId: body.tenantId,
       created: true,
-      sentTo: email,
-      loginName: email,
+      sent: [{ schoolId: body.schoolIds[0], sentTo: email, loginName: email }],
     });
 
     const { message, secret } = linkTo(email, "riverside");
@@ -288,10 +289,12 @@ describe("creating a school from the operator console", () => {
     });
   });
 
-  test("a group's administrator runs its first school", async () => {
-    const email = "salama@harbour.example.com";
+  test("each school of a group has its own administrator, and the group's runs them all", async () => {
+    const east = "salama@harbour.example.com";
+    const west = "mona@harbour.example.com";
+    const group = "omar@harbour.example.com";
     const { body } = await begin({
-      ...standalone("harbour-east", email),
+      ...standalone("harbour-east", east),
       kind: "school_group",
       nameEn: "Harbour Schools",
       nameAr: "مدارس الميناء",
@@ -309,26 +312,76 @@ describe("creating a school from the operator console", () => {
           countryCode: "AE",
         },
       ],
+      administrators: [
+        { givenNameEn: "Salama", familyNameEn: "Ashoush", email: east },
+        { givenNameEn: "Mona", familyNameEn: "Hassan", email: west },
+      ],
+      groupAdministrator: {
+        givenNameEn: "Omar",
+        familyNameEn: "Farouk",
+        email: group,
+      },
     });
     const created = await call("/v1/tenants", body);
-    expect(created).toMatchObject({ status: 200, body: { created: true } });
+    expect(created).toMatchObject({
+      status: 200,
+      body: {
+        created: true,
+        sent: [
+          { schoolId: body.schoolIds[0], sentTo: east },
+          { schoolId: body.schoolIds[1], sentTo: west },
+          { schoolId: null, sentTo: group },
+        ],
+      },
+    });
     const { api } = await choosePassword(
       "harbour-east",
-      linkTo(email, "harbour-east").secret,
+      linkTo(east, "harbour-east").secret,
     );
     expect(await api.identity.currentUser()).toMatchObject({
       workspace: "admin",
       school: { slug: "harbour-east" },
     });
-    // The first administrator belongs to the group's first school only.
+    // A school's administrator belongs to that school only.
     expect(
       await rejection(
         client("harbour-west").identity.signIn({
-          loginName: email,
+          loginName: east,
           password: "a long password the administrator chose",
         }),
       ),
     ).toMatchObject({ message: "auth.invalid_credentials" });
+    const westAdmin = await choosePassword(
+      "harbour-west",
+      linkTo(west, "harbour-west").secret,
+    );
+    expect(await westAdmin.api.identity.currentUser()).toMatchObject({
+      workspace: "admin",
+      school: { slug: "harbour-west" },
+    });
+
+    // The group's administrator, whose link opens at the first school, runs both.
+    const groupAdmin = await choosePassword(
+      "harbour-east",
+      linkTo(group, "harbour-east").secret,
+    );
+    expect(await groupAdmin.api.identity.currentUser()).toMatchObject({
+      workspace: "admin",
+      roles: ["district_administrator"],
+    });
+    const atWest = await client("harbour-west").identity.signIn({
+      loginName: group,
+      password: groupAdmin.password,
+    });
+    expect(
+      await client("harbour-west", atWest.token).identity.currentUser(),
+    ).toMatchObject({ workspace: "admin", school: { slug: "harbour-west" } });
+
+    // Asked again, nothing is created twice and each is sent a new link.
+    expect(await call("/v1/tenants", body)).toMatchObject({
+      status: 200,
+      body: { created: false, sent: [{}, {}, {}] },
+    });
   });
 
   test("an email the gateway refuses leaves nothing in the cell, and the retry creates the school", async () => {
@@ -355,7 +408,7 @@ describe("creating a school from the operator console", () => {
     const created = await call("/v1/tenants", again);
     expect(created).toMatchObject({
       status: 200,
-      body: { created: true, sentTo: email },
+      body: { created: true, sent: [{ sentTo: email }] },
     });
     await choosePassword("brookside", linkTo(email, "brookside").secret);
   });
@@ -369,7 +422,10 @@ describe("creating a school from the operator console", () => {
     const retried = await call("/v1/tenants", body);
     expect(retried).toMatchObject({
       status: 200,
-      body: { created: false, sentTo: email, loginName: email },
+      body: {
+        created: false,
+        sent: [{ sentTo: email, loginName: email }],
+      },
     });
     const second = linkTo(email, "millbrook").secret;
     expect(second).not.toBe(first);
@@ -384,10 +440,12 @@ describe("creating a school from the operator console", () => {
       ...body,
       spec: {
         ...body.spec,
-        administrator: {
-          ...body.spec.administrator,
-          email: "someone.else@millbrook.example.com",
-        },
+        administrators: [
+          {
+            ...body.spec.administrators[0],
+            email: "someone.else@millbrook.example.com",
+          },
+        ],
       },
     });
     expect(elsewhere).toMatchObject({

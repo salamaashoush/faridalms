@@ -1,5 +1,6 @@
 import type { ModuleId } from "@faridalms/domain/modules";
 import type { SchoolNotice } from "@faridalms/domain/plans";
+import type { DraftStep } from "@faridalms/domain/provisioning-draft";
 import type { Currency, LimitKey } from "@faridalms/domain/subscriptions";
 
 import { MODULE_IDS } from "@faridalms/domain/modules";
@@ -116,4 +117,13 @@ export function minorOf(typed: string): number | null {
 export const NOTICE_NAMES: Record<SchoolNotice, string> = {
   payment_overdue: "Payment overdue",
   plan_ends_soon: "Plan ends soon",
+};
+
+export const DRAFT_STEP_NAMES: Record<DraftStep, string> = {
+  customer: "Customer",
+  schools: "Schools",
+  plan: "Plan",
+  addresses: "Addresses",
+  people: "People",
+  review: "Review",
 };

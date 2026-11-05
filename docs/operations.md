@@ -171,18 +171,36 @@ cell's provisioner:
    the directory as `provisioning`, with ids it chooses and a `tenant.create`
    change naming the operator. An address already in use is refused there.
 2. It calls the provisioner with those ids. In one transaction as
-   `cell_owner`, the provisioner creates the tenant, adds the first
-   administrator to the first school as a person with the built-in
-   `system_administrator` role (every capability) and their email, and emails
-   them a one-use link to choose a password, valid for seven days. The
-   school's address in the link comes from the directory's cell row. If the
-   email is not sent, nothing is kept.
+   `cell_owner`, the provisioner creates the tenant, adds each school's first
+   administrator as a person with the built-in `system_administrator` role
+   (every capability) at that school, and a group's own administrator, if
+   it has one, with the group administrator's role at the group, which
+   reaches every school of it. Each is emailed a one-use link to choose a
+   password, valid for seven days; a group administrator's opens at the
+   group's first school. The school's address in the link comes from the
+   directory's cell row. If an email is not sent, nothing is kept.
 3. The console marks the tenant `active` with a `tenant.activate` change.
 
 A failure leaves the directory row `provisioning`, and the school's page
 says so. Submitting the same addresses again finishes it with the same ids:
-a tenant the cell already holds is not created twice, its administrator
-with that email is only sent a new link. On a school's page, **Send the
+a tenant the cell already holds is not created twice, and each
+administrator it already has is only sent a new link.
+
+With the business database, New school is a draft in six steps kept in
+`provisioning_drafts` as each is left, so it can be finished later or by
+someone else: the customer (one that runs no tenant yet), the schools, the
+plan and add-ons with a trial or contract (showing the modules that result,
+with their requirements), hosts of its own and single sign-on domains, the
+administrators and the customer's contacts, and a review. **Create** is
+refused until the customer has accepted the data processing agreement. It
+then runs the steps above with the subscription between them: the
+directory rows, the subscription with what was sold, the provisioner, the
+first publication of its entitlements, its hosts (pending) and sign-in
+domains (unverified), and activation. Each step done is recorded on the
+draft, so after a refusal, such as a host another school holds, the
+operator corrects that step and creating resumes where it stopped with the
+same ids. Without the business database New school stays the one form
+above, with the entitlements set by hand. On a school's page, **Send the
 administrator a new link** replaces an expired link, for the first
 administrator or the one whose email is given; someone who has already
 chosen a password chooses a new one. Each send is an audit entry in the

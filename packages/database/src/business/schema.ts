@@ -2,6 +2,11 @@ import type { ModuleId } from "@faridalms/domain/modules";
 import type { OperatorRole } from "@faridalms/domain/operators";
 import type { EntitlementsInput, SchoolNotice } from "@faridalms/domain/plans";
 import type {
+  DraftProgress,
+  DraftSpec,
+  DraftStep,
+} from "@faridalms/domain/provisioning-draft";
+import type {
   AddOnKind,
   BillingSchedule,
   ContactRole,
@@ -547,5 +552,49 @@ export const entitlementPublications = pgTable(
   },
   (t) => [
     index("entitlement_publications_school_idx").on(t.schoolId, t.publishedAt),
+  ],
+);
+
+/**
+ * A school being set up in the console, step by step, for a customer. It is
+ * saved as each step is left, so it can be resumed; creating it records how
+ * far it got, so a failure resumes there with the same ids.
+ */
+export const provisioningDrafts = pgTable(
+  "provisioning_drafts",
+  {
+    id: uuid("id")
+      .primaryKey()
+      .default(sql`uuidv7()`),
+    customerId: uuid("customer_id").references(() => customers.id),
+    state: text("state")
+      .$type<"draft" | "created" | "abandoned">()
+      .notNull()
+      .default("draft"),
+    step: text("step").$type<DraftStep>().notNull().default("customer"),
+    spec: jsonb("spec").$type<DraftSpec>().notNull(),
+    progress: jsonb("progress").$type<DraftProgress>().notNull().default({}),
+    tenantId: uuid("tenant_id"),
+    version: integer("version").notNull().default(1),
+    createdBy: text("created_by").notNull(),
+    createdAt: createdAt(),
+    updatedAt: instant("updated_at")
+      .notNull()
+      .default(sql`statement_timestamp()`),
+  },
+  (t) => [
+    index("provisioning_drafts_state_idx").on(t.state, t.updatedAt),
+    check(
+      "provisioning_drafts_state_check",
+      sql`state in ('draft', 'created', 'abandoned')`,
+    ),
+    check(
+      "provisioning_drafts_step_check",
+      sql`step in ('customer', 'schools', 'plan', 'addresses', 'people', 'review')`,
+    ),
+    check(
+      "provisioning_drafts_created_check",
+      sql`state <> 'created' or tenant_id is not null`,
+    ),
   ],
 );

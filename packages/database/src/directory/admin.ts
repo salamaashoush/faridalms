@@ -29,6 +29,7 @@ import {
   schoolEntitlements,
   schools,
   schoolUsage,
+  ssoDomains,
   tenants,
 } from "./schema";
 
@@ -499,6 +500,49 @@ export function openDirectoryAdmin(url: string) {
       }),
     /** A school's own hosts, as the console lists them. */
     hosts: (schoolId: string) => schoolHosts(db, schoolId),
+    /** The domains a tenant's people sign in with through its identity provider. */
+    ssoDomains: (tenantId: string) =>
+      db
+        .select({
+          domain: ssoDomains.domain,
+          verificationMethod: ssoDomains.verificationMethod,
+          verifiedAt: ssoDomains.verifiedAt,
+        })
+        .from(ssoDomains)
+        .where(eq(ssoDomains.tenantId, tenantId))
+        .orderBy(asc(ssoDomains.domain)),
+    /**
+     * Records a domain a tenant's people sign in with, unverified until its
+     * DNS record is found. Answers false when another tenant holds it.
+     */
+    addSsoDomain: (input: {
+      tenantId: string;
+      domain: string;
+      operatorId: string;
+      reason: string;
+    }) =>
+      db.transaction(async (tx) => {
+        const [held] = await tx
+          .select({ tenantId: ssoDomains.tenantId })
+          .from(ssoDomains)
+          .where(eq(ssoDomains.domain, input.domain));
+        if (held) return held.tenantId === input.tenantId;
+        await tx.insert(ssoDomains).values({
+          domain: input.domain,
+          tenantId: input.tenantId,
+          verificationMethod: "dns_txt",
+        });
+        await tx.insert(changes).values({
+          actor: `operator:${input.operatorId}`,
+          subjectType: "sso_domain",
+          subjectId: input.domain,
+          action: "sso_domain.add",
+          before: null,
+          after: { tenantId: input.tenantId, verificationMethod: "dns_txt" },
+          reason: input.reason,
+        });
+        return true;
+      }),
     addHost: (input: {
       schoolId: string;
       hostname: string;

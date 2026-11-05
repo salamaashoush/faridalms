@@ -18,6 +18,7 @@ import { changeOf, writeAudit } from "@faridalms/database/audit";
 import { schoolProfile } from "@faridalms/database/stores/identity";
 import { replaceContact } from "@faridalms/database/stores/persons";
 import {
+  giveGroupAdministrator,
   schoolAdministrator,
   setStaffRoles,
 } from "@faridalms/database/stores/staff";
@@ -25,6 +26,7 @@ import { insertPerson, nameColumns } from "@faridalms/database/stores/students";
 import {
   createTenant,
   noteEntitlementsChanged,
+  rootOrgOf,
   setTenantLifecycle,
   tenantLifecycle,
 } from "@faridalms/database/tenants";
@@ -44,6 +46,8 @@ import type { ProvisionOperator, TokenCheck } from "./token";
 
 import { emailSignInLink } from "../core/sign-in-link";
 import { createTokenCheck } from "./token";
+
+type Administrator = ProvisionTenant["spec"]["administrators"][number];
 
 /**
  * The built-in role a new school's first administrator holds: the only one
@@ -114,11 +118,21 @@ async function placedSchools(
   return placed;
 }
 
+/**
+ * Creates an administrator: a school's, holding the first administrator's
+ * role there, or the group's, holding the group administrator's role at the
+ * group, which reaches each of its schools.
+ */
 async function addAdministrator(
   tx: CellTransaction,
   call: Call,
-  scope: { tenantId: string; schoolId: string; today: string },
-  person: ProvisionTenant["spec"]["administrator"],
+  scope: {
+    tenantId: string;
+    orgId: string;
+    orgType: "school" | "school_group";
+    today: string;
+  },
+  person: Administrator,
 ) {
   const names = {
     en: {
@@ -134,14 +148,14 @@ async function addAdministrator(
   };
   const { id: userId } = await insertPerson(tx, {
     tenantId: scope.tenantId,
-    schoolId: scope.schoolId,
+    schoolId: scope.orgId,
     names,
   });
   await writeAudit(tx, scope.tenantId, {
     action: "user.create",
     objectType: "user",
     objectId: userId,
-    orgId: scope.schoolId,
+    orgId: scope.orgId,
     subjectUserId: userId,
     details: { operatorId: call.operator.id },
     change: { table: "core.users", before: null, after: nameColumns(names) },
@@ -154,20 +168,36 @@ async function addAdministrator(
     value: person.email,
     normalized: person.email,
   });
-  await setStaffRoles(tx, scope, userId, {
-    roles: [FIRST_ADMINISTRATOR_ROLE],
-    positionId: null,
-    titleEn: null,
-    titleAr: null,
-  });
+  const role =
+    scope.orgType === "school_group"
+      ? "district_administrator"
+      : FIRST_ADMINISTRATOR_ROLE;
+  if (scope.orgType === "school_group")
+    await giveGroupAdministrator(
+      tx,
+      { tenantId: scope.tenantId, groupId: scope.orgId, today: scope.today },
+      userId,
+    );
+  else
+    await setStaffRoles(
+      tx,
+      { tenantId: scope.tenantId, schoolId: scope.orgId, today: scope.today },
+      userId,
+      {
+        roles: [FIRST_ADMINISTRATOR_ROLE],
+        positionId: null,
+        titleEn: null,
+        titleAr: null,
+      },
+    );
   await writeAudit(tx, scope.tenantId, {
     action: "role.change",
     objectType: "user",
     objectId: userId,
-    orgId: scope.schoolId,
+    orgId: scope.orgId,
     subjectUserId: userId,
     details: {
-      roles: [FIRST_ADMINISTRATOR_ROLE],
+      roles: [role],
       positionId: null,
       operatorId: call.operator.id,
     },
@@ -213,11 +243,11 @@ async function sendLink(
 }
 
 /**
- * Creates the tenant and its first administrator and emails them a link, all
- * in one owner transaction, so a failed email leaves nothing behind. A
- * tenant the cell already holds is not created again: its administrator with
- * this email is sent a new link, which is what a retry after a lost answer
- * needs.
+ * Creates the tenant, each school's first administrator and a group's own,
+ * and emails each a link, all in one owner transaction, so a failed email
+ * leaves nothing behind. A tenant the cell already holds is not created
+ * again: each administrator it already has is sent a new link, which is
+ * what a retry after a lost answer needs.
  */
 async function provision(
   call: Call,
@@ -258,33 +288,63 @@ async function provision(
         },
         { kek: call.deps.kek, cell: call.deps.cellId },
       );
-    const scope = {
-      tenantId,
-      schoolId: first.schoolId,
-      today: schoolDate(firstSpec.timeZone, call.now),
-    };
-    const email = spec.administrator.email;
-    const existing = created
-      ? null
-      : await schoolAdministrator(tx, scope, email);
-    if (!created && !existing)
-      throw new ORPCError("CONFLICT", { message: "administrator.not_found" });
-    const userId =
-      existing ?? (await addAdministrator(tx, call, scope, spec.administrator));
-    const sent = await sendLink(tx, call, {
-      tenantId,
-      school: first,
-      userId,
-      loginName: email,
-      locale: spec.defaultLocale,
-    });
-    return {
-      tenantId,
-      schoolIds: [...schoolIds],
-      created,
-      sentTo: sent.sentTo,
-      loginName: sent.loginName,
-    };
+    const administrators: {
+      school: DirectorySchool;
+      orgId: string;
+      orgType: "school" | "school_group";
+      person: Administrator | undefined;
+      today: string;
+    }[] = placed.map((school, index) => ({
+      school,
+      orgId: school.schoolId,
+      orgType: "school",
+      person: spec.administrators[index],
+      today: schoolDate(spec.schools[index]?.timeZone ?? "UTC", call.now),
+    }));
+    if (spec.groupAdministrator) {
+      const groupId = await rootOrgOf(tx, tenantId);
+      if (!groupId) throw new ORPCError("BAD_REQUEST");
+      administrators.push({
+        school: first,
+        orgId: groupId,
+        orgType: "school_group",
+        person: spec.groupAdministrator,
+        today: schoolDate(firstSpec.timeZone, call.now),
+      });
+    }
+    const sent: ProvisionResult["sent"] = [];
+    for (const { school, orgId, orgType, person, today } of administrators) {
+      if (!person) throw new ORPCError("BAD_REQUEST");
+      const scope = { tenantId, schoolId: orgId, today };
+      const existing = created
+        ? null
+        : await schoolAdministrator(tx, scope, person.email);
+      if (!created && !existing)
+        throw new ORPCError("CONFLICT", {
+          message: "administrator.not_found",
+        });
+      const userId =
+        existing ??
+        (await addAdministrator(
+          tx,
+          call,
+          { tenantId, orgId, orgType, today },
+          person,
+        ));
+      const link = await sendLink(tx, call, {
+        tenantId,
+        school,
+        userId,
+        loginName: person.email,
+        locale: spec.defaultLocale,
+      });
+      sent.push({
+        schoolId: orgType === "school" ? orgId : null,
+        sentTo: link.sentTo,
+        loginName: link.loginName,
+      });
+    }
+    return { tenantId, schoolIds: [...schoolIds], created, sent };
   });
 }
 

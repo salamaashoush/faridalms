@@ -200,6 +200,23 @@ export async function setStaffRoles(
     );
 }
 
+/** Makes a person the administrator of the group, who runs each of its schools. */
+export async function giveGroupAdministrator(
+  tx: Tx,
+  scope: { tenantId: string; groupId: string; today: string },
+  userId: string,
+) {
+  await tx.insert(userRoles).values({
+    tenantId: scope.tenantId,
+    userId,
+    orgId: scope.groupId,
+    orgType: "school_group",
+    role: "district_administrator",
+    validDuring: `[${scope.today},)`,
+    source: "manual",
+  });
+}
+
 /** Ids of the roles a person holds at the school itself, as against its group. */
 export async function schoolRoleIds(
   tx: Tx,
@@ -214,10 +231,10 @@ export async function schoolRoleIds(
 }
 
 /**
- * The person a new link to run the school goes to: the one holding a school
- * administrator role there today with the email given, or without one the
- * longest-serving such person, the first administrator the school was made
- * with. Null when nobody matches.
+ * The person a new link to run the school, or the group, goes to: the one
+ * holding an administrator role there today with the email given, or
+ * without one the longest-serving such person, the first administrator it
+ * was made with. Null when nobody matches.
  */
 export async function schoolAdministrator(
   tx: Tx,
@@ -229,7 +246,7 @@ export async function schoolAdministrator(
     join core.users u on u.tenant_id = r.tenant_id and u.id = r.user_id and u.status = 'active'
     where r.tenant_id = ${scope.tenantId}::uuid and r.org_id = ${scope.schoolId}::uuid
       and r.status = 'active' and r.valid_during @> ${scope.today}::date
-      and r.role in ('system_administrator', 'site_administrator')
+      and r.role in ('system_administrator', 'site_administrator', 'district_administrator')
       and (${email}::text is null or exists (
         select 1 from core.contact_points c
         where c.tenant_id = r.tenant_id and c.user_id = r.user_id and c.kind = 'email'

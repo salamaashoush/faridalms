@@ -66,7 +66,8 @@ const TENANT_STATES: Record<DirectoryTenantState, string> = {
 type School = Awaited<ReturnType<typeof getSchool>>["school"];
 
 function SchoolPage() {
-  const { school, changes, hosts, platform, sold } = Route.useLoaderData();
+  const { school, changes, hosts, platform, sold, ssoDomains } =
+    Route.useLoaderData();
   const entitled = school.entitlements;
   const name = school.nameEn ?? school.nameAr ?? school.slug;
   return (
@@ -151,6 +152,27 @@ function SchoolPage() {
         <EntitlementsForm school={school} />
       )}
       <Hosts schoolId={school.id} platform={platform} hosts={hosts} />
+      {ssoDomains.length ? (
+        <section aria-label="Sign-in domains" className="grid max-w-3xl gap-2">
+          <h2 className="text-base font-semibold">Sign-in domains</h2>
+          <p className="text-sm text-muted-foreground">
+            The domains its people sign in with through its own identity
+            provider, for the whole tenant.
+          </p>
+          <ul className="grid gap-1 text-sm">
+            {ssoDomains.map((domain) => (
+              <li key={domain.domain} className="flex items-center gap-2">
+                <span className="font-mono">{domain.domain}</span>
+                <Badge variant="outline">
+                  {domain.verifiedAt
+                    ? `Verified ${formatWhen(domain.verifiedAt)}`
+                    : "Not verified"}
+                </Badge>
+              </li>
+            ))}
+          </ul>
+        </section>
+      ) : null}
       {school.tenantState === "active" ? (
         <AdministratorLink schoolId={school.id} />
       ) : null}

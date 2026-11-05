@@ -50,14 +50,13 @@ async function setTrial(page: Page, lastDay: string, reason: string) {
   await expect(page.getByText("Terms saved.")).toBeVisible();
 }
 
-/** Opens the subscription the daily round gave a school's tenant. */
-async function openSubscriptionOf(page: Page, schoolName: string) {
-  await runRound(page);
+/** Opens a school's subscription from the school's own page, where it now is. */
+async function openSubscriptionFromSchool(page: Page) {
   await page
-    .getByRole("row", { name: new RegExp(schoolName) })
-    .getByRole("link")
+    .getByRole("region", { name: "Entitlements" })
+    .getByRole("link", { name: "subscription" })
     .click();
-  await expect(page.getByRole("heading", { name: schoolName })).toBeVisible();
+  await expect(page).toHaveURL(/\/subscriptions\/[0-9a-f-]{36}$/);
 }
 
 test("an owner sells a plan, versions it and retires the old version", async ({
@@ -147,7 +146,9 @@ test("a customer keeps its contacts, agreements and history", async ({
   await expect(page.getByText("taxNumber: none → 123-456-789")).toBeVisible();
 });
 
-test("a school's subscription sets what it may use", async ({ page }) => {
+test("a trial sold with its school becomes a contract with a plan, which the school has at once", async ({
+  page,
+}) => {
   await signInAs(page, OWNER);
   const planName = `Coding plan ${unique()}`;
   await addPlan(page, planName);
@@ -158,13 +159,14 @@ test("a school's subscription sets what it may use", async ({ page }) => {
     nameEn: schoolName,
     nameAr: "مدرسة البتولا",
   });
-  // The school's own page sends an operator to its subscription.
+  // The school's own page shows what it has and sends an operator to its subscription.
   await expect(
     page.getByRole("button", { name: "Save entitlements" }),
   ).toHaveCount(0);
-
-  await openSubscriptionOf(page, schoolName);
-  await expect(page.getByText("Grandfathered").first()).toBeVisible();
+  await openSubscriptionFromSchool(page);
+  await expect(
+    page.getByRole("heading", { name: schoolName }).getByText("Trial"),
+  ).toBeVisible();
   const card = page.getByRole("listitem", { name: schoolName });
   await expect(card.getByText("Published as it stands.")).toBeVisible();
 
@@ -193,13 +195,19 @@ test("a school's subscription sets what it may use", async ({ page }) => {
     page.getByText("The school starts coding on Monday"),
   ).toBeVisible();
 
-  // Its overrides kept the school as it was; they end from tomorrow.
-  const tomorrow = addDays(businessToday(), 1);
-  await page.getByRole("button", { name: /^Choose all/ }).click();
-  const end = page.getByRole("form", { name: /^End \d+ chosen$/ });
-  await end.getByLabel("First day without it").fill(tomorrow);
-  await end.getByLabel("Why").fill("The plan replaces them");
-  await end.getByRole("button", { name: /^End \d+ chosen$/ }).click();
+  // A pilot of badges, given today and ended from tomorrow.
+  const override = page.getByRole("form", { name: "Add an override" });
+  await override.getByLabel("Module").selectOption({ label: "Badges" });
+  await override.getByLabel("Why").fill("A pilot of badges");
+  await override.getByRole("button", { name: "Add override" }).click();
+  await expect(card.getByText("Gains Badges")).toBeVisible();
+  await page.getByRole("button", { name: "Choose all 1" }).click();
+  const end = page.getByRole("form", { name: "End 1 chosen" });
+  await end
+    .getByLabel("First day without it")
+    .fill(addDays(businessToday(), 1));
+  await end.getByLabel("Why").fill("The pilot is a day long");
+  await end.getByRole("button", { name: "End 1 chosen" }).click();
   await expect(page.getByText(/^Ends /)).toBeVisible();
 
   const terms = page.getByRole("form", { name: "Terms" });
@@ -207,16 +215,121 @@ test("a school's subscription sets what it may use", async ({ page }) => {
   await terms.getByLabel("Term starts").fill(businessToday());
   await terms.getByLabel("Term ends").fill(addDays(businessToday(), 365));
   await terms.getByLabel("Contracted students").fill("300");
-  await terms.getByLabel("Why").fill("Renewed under a contract");
+  await terms.getByLabel("Why").fill("Signed for the school year");
   await terms.getByRole("button", { name: "Save terms" }).click();
   await expect(page.getByText("Terms saved.")).toBeVisible();
-  await expect(page.getByText("Grandfathered")).toHaveCount(0);
+  await expect(
+    page.getByRole("heading", { name: schoolName }).getByText("Active"),
+  ).toBeVisible();
 
   await card.getByRole("link", { name: schoolName }).click();
   const entitlements = page.getByRole("region", { name: "Entitlements" });
   await expect(entitlements.getByText("Coding and blocks")).toBeVisible();
-  await entitlements.getByRole("link", { name: "subscription" }).click();
-  await expect(page).toHaveURL(/\/subscriptions\/[0-9a-f-]{36}$/);
+});
+
+test("a group set up as a draft is left, resumed, and finished after a refusal", async ({
+  page,
+}) => {
+  await signInAs(page, OWNER);
+  const slug = `e2e-${unique()}`;
+  const taken = `www.${slug}.example.com`;
+  // Another school already holds the host the draft will ask for.
+  await createSchool(page, {
+    slug: `${slug}-first`,
+    nameEn: `First ${slug}`,
+    nameAr: "الأولى",
+  });
+  const host = page.getByRole("form", { name: "Add a host" });
+  await host.getByLabel("Hostname").fill(taken);
+  await host.getByLabel("Why").fill("Its own website");
+  await host.getByRole("button", { name: "Add host" }).click();
+  await expect(page.getByText("Added as pending.")).toBeVisible();
+
+  await page.goto("/schools/new");
+  await page.getByRole("button", { name: "Start a new school" }).click();
+  await page.getByRole("button", { name: "New customer" }).click();
+  const customer = page.getByRole("form", { name: "New customer" });
+  const customerName = `Harbour Schools ${slug}`;
+  await customer.getByLabel("Legal name in English").fill(customerName);
+  await customer.getByLabel("Why").fill("Two schools signed together");
+  await customer.getByRole("button", { name: "Create customer" }).click();
+  await expect(page.getByLabel("Sold to")).toHaveValue(/.+/);
+  await page.getByRole("button", { name: "Save and continue" }).click();
+
+  const schools = page.getByRole("form", { name: "Schools" });
+  await schools.getByLabel("Kind").selectOption("school_group");
+  await schools.getByLabel("Group name in English").fill(customerName);
+  await schools
+    .getByLabel("Name in English", { exact: true })
+    .fill("Harbour East");
+  await schools.getByLabel("Address", { exact: true }).fill(`${slug}-east`);
+  await schools.getByRole("button", { name: "Add a school" }).click();
+  await schools.locator("#school-1-name-en").fill("Harbour West");
+  await schools.locator("#school-1-slug").fill(`${slug}-west`);
+  await schools.getByRole("button", { name: "Save and continue" }).click();
+  await expect(page.getByRole("form", { name: "Plan" })).toBeVisible();
+
+  // Left at the plan, and found again among the drafts.
+  await page.goto("/schools/new");
+  await page
+    .getByRole("listitem")
+    .filter({ hasText: customerName })
+    .getByRole("link", { name: "Harbour East, Harbour West" })
+    .click();
+  await expect(page.getByRole("form", { name: "Plan" })).toBeVisible();
+  await page.getByRole("button", { name: "Save and continue" }).click();
+
+  const addresses = page.getByRole("form", { name: "Addresses" });
+  await addresses.getByRole("button", { name: "Add a host" }).click();
+  await addresses.getByLabel("Hostname").fill(taken);
+  await addresses.getByRole("button", { name: "Save and continue" }).click();
+
+  const people = page.getByRole("form", { name: "People" });
+  await people.locator("#admin-0-givenNameEn").fill("Salama");
+  await people.locator("#admin-0-email").fill(`salama@${slug}.example.com`);
+  await people.locator("#admin-1-givenNameEn").fill("Mona");
+  await people.locator("#admin-1-email").fill(`mona@${slug}.example.com`);
+  await people
+    .getByRole("checkbox", { name: "Someone runs every school of the group" })
+    .check();
+  await people.locator("#group-admin-givenNameEn").fill("Omar");
+  await people.locator("#group-admin-email").fill(`omar@${slug}.example.com`);
+  await people.getByRole("button", { name: "Save and continue" }).click();
+
+  // No school is created before the customer accepts the data processing agreement.
+  const create = page.getByRole("button", { name: "Create the school" });
+  await expect(create).toBeDisabled();
+  const agreements = page.getByRole("form", { name: "Record an acceptance" });
+  await agreements
+    .getByLabel("Agreement")
+    .selectOption({ label: "Data processing agreement" });
+  await agreements.getByLabel("Version accepted").fill("2026-11");
+  await agreements.getByRole("button", { name: "Record acceptance" }).click();
+  await create.click();
+  await expect(page.getByRole("alert")).toContainText(
+    `Another school holds ${taken}.`,
+    { timeout: 60_000 },
+  );
+
+  // The host is changed and creating resumes where it stopped.
+  await page.getByRole("link", { name: "4. Addresses" }).click();
+  await addresses.getByLabel("Hostname").fill(`www.${slug}-east.example.com`);
+  await addresses.getByRole("button", { name: "Save and continue" }).click();
+  await page.getByRole("link", { name: "6. Review" }).click();
+  await page
+    .getByRole("button", { name: "Finish creating the school" })
+    .click();
+  await expect(
+    page.getByRole("heading", { name: "Harbour East, Harbour West created" }),
+  ).toBeVisible({ timeout: 60_000 });
+  await expect(page.getByText(/as the group's administrator/)).toBeVisible();
+  await expect(
+    page.getByText(`mona@${slug}.example.com was emailed`),
+  ).toBeVisible();
+  await page.getByRole("link", { name: "Open the school" }).click();
+  await expect(
+    page.getByRole("listitem", { name: `www.${slug}-east.example.com` }),
+  ).toContainText("Pending");
 });
 
 test("a school's administrators see its trial's days left, then that it is paused", async ({
@@ -232,7 +345,7 @@ test("a school's administrators see its trial's days left, then that it is pause
     nameEn: schoolName,
     nameAr: "مدرسة الأرز",
   });
-  await openSubscriptionOf(page, schoolName);
+  await openSubscriptionFromSchool(page);
   await setTrial(page, addDays(businessToday(), 3), "A month's trial");
   const publish = page.getByRole("form", { name: "Publish" });
   await publish.getByLabel("Why now").fill("The trial starts today");

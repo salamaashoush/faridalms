@@ -26,11 +26,13 @@ const school: NewSchoolInput = {
       countryCode: "eg",
     },
   ],
-  administrator: {
-    givenNameEn: "Salama",
-    familyNameEn: "Ashoush",
-    email: " Salama@Northwind.Example.com ",
-  },
+  administrators: [
+    {
+      givenNameEn: "Salama",
+      familyNameEn: "Ashoush",
+      email: " Salama@Northwind.Example.com ",
+    },
+  ],
 };
 
 const issues = (input: unknown) => {
@@ -53,11 +55,14 @@ describe("a new school", () => {
           countryCode: "EG",
         },
       ],
-      administrator: {
-        givenNameEn: "Salama",
-        givenNameAr: null,
-        email: "salama@northwind.example.com",
-      },
+      administrators: [
+        {
+          givenNameEn: "Salama",
+          givenNameAr: null,
+          email: "salama@northwind.example.com",
+        },
+      ],
+      groupAdministrator: null,
       entitlements: settableOf(BASIC_ENTITLEMENTS),
     });
     expect(v.parse(newSchoolSchema, spec)).toEqual(spec);
@@ -100,12 +105,12 @@ describe("a new school", () => {
           timeZone: "Cairo",
         },
       ],
-      administrator: { email: "not an address" },
+      administrators: [{ email: "not an address" }],
     });
     expect(flat.nested).toMatchObject({
       "schools.0.nameEn": ["Give the school a name in English or Arabic."],
       "schools.0.timeZone": ["Use an IANA time zone, such as Africa/Cairo."],
-      "administrator.email": ["Enter an email address."],
+      "administrators.0.email": ["Enter an email address."],
     });
     expect(
       issues({
@@ -140,11 +145,62 @@ describe("a new school", () => {
       ...group,
       nameAr: "مجموعة الشمال",
       schools: [school.schools[0], second],
+      administrators: [
+        ...school.administrators,
+        { givenNameEn: "Mona", email: "mona@southwind.example.com" },
+      ],
     });
     expect(spec).toMatchObject({ nameEn: null, nameAr: "مجموعة الشمال" });
     expect(
       issues({ ...school, jurisdictions: ["EG", "eg"] }).nested?.jurisdictions,
     ).toEqual(["Name each jurisdiction once."]);
+  });
+
+  it("gives each school its administrator, a group its own, and each their own email", () => {
+    const second = { ...school.schools[0], slug: "southwind" };
+    const group = {
+      ...school,
+      kind: "school_group",
+      nameEn: "Northwind Schools",
+      schools: [school.schools[0], second],
+      administrators: [
+        ...school.administrators,
+        { givenNameEn: "Mona", email: "mona@southwind.example.com" },
+      ],
+    };
+    expect(
+      issues({ ...group, administrators: school.administrators }).nested
+        ?.administrators,
+    ).toEqual(["Give each school its first administrator."]);
+    expect(
+      issues({
+        ...group,
+        groupAdministrator: {
+          givenNameEn: "Salama",
+          email: "salama@northwind.example.com",
+        },
+      }).nested?.administrators,
+    ).toEqual([
+      "Give each administrator their own email; a group administrator already runs every school.",
+    ]);
+    expect(
+      issues({
+        ...school,
+        groupAdministrator: {
+          givenNameEn: "Omar",
+          email: "omar@northwind.example.com",
+        },
+      }).nested?.groupAdministrator,
+    ).toEqual(["Only a group has a group administrator."]);
+    expect(
+      v.parse(newSchoolSchema, {
+        ...group,
+        groupAdministrator: {
+          givenNameEn: "Omar",
+          email: "omar@northwind.example.com",
+        },
+      }).groupAdministrator,
+    ).toMatchObject({ email: "omar@northwind.example.com" });
   });
 
   it("needs one id per school when the console calls the cell, and an optional email for a new link", () => {

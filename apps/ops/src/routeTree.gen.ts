@@ -21,6 +21,7 @@ import { Route as AuthLoginRouteImport } from './routes/auth/login'
 import { Route as AuthLogoutRouteImport } from './routes/auth/logout'
 import { Route as CustomersIndexRouteImport } from './routes/customers.index'
 import { Route as CustomersCustomerIdRouteImport } from './routes/customers.$customerId'
+import { Route as ProvisioningDraftIdRouteImport } from './routes/provisioning.$draftId'
 import { Route as SchoolsSchoolIdRouteImport } from './routes/schools.$schoolId'
 import { Route as SchoolsNewRouteImport } from './routes/schools.new'
 import { Route as SubscriptionsIndexRouteImport } from './routes/subscriptions.index'
@@ -86,6 +87,11 @@ const CustomersCustomerIdRoute = CustomersCustomerIdRouteImport.update({
   path: '/customers/$customerId',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ProvisioningDraftIdRoute = ProvisioningDraftIdRouteImport.update({
+  id: '/provisioning/$draftId',
+  path: '/provisioning/$draftId',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const SchoolsSchoolIdRoute = SchoolsSchoolIdRouteImport.update({
   id: '/schools/$schoolId',
   path: '/schools/$schoolId',
@@ -120,6 +126,7 @@ export interface FileRoutesByFullPath {
   '/auth/login': typeof AuthLoginRoute
   '/auth/logout': typeof AuthLogoutRoute
   '/customers/$customerId': typeof CustomersCustomerIdRoute
+  '/provisioning/$draftId': typeof ProvisioningDraftIdRoute
   '/schools/$schoolId': typeof SchoolsSchoolIdRoute
   '/schools/new': typeof SchoolsNewRoute
   '/subscriptions/$subscriptionId': typeof SubscriptionsSubscriptionIdRoute
@@ -138,6 +145,7 @@ export interface FileRoutesByTo {
   '/auth/login': typeof AuthLoginRoute
   '/auth/logout': typeof AuthLogoutRoute
   '/customers/$customerId': typeof CustomersCustomerIdRoute
+  '/provisioning/$draftId': typeof ProvisioningDraftIdRoute
   '/schools/$schoolId': typeof SchoolsSchoolIdRoute
   '/schools/new': typeof SchoolsNewRoute
   '/subscriptions/$subscriptionId': typeof SubscriptionsSubscriptionIdRoute
@@ -157,6 +165,7 @@ export interface FileRoutesById {
   '/auth/login': typeof AuthLoginRoute
   '/auth/logout': typeof AuthLogoutRoute
   '/customers/$customerId': typeof CustomersCustomerIdRoute
+  '/provisioning/$draftId': typeof ProvisioningDraftIdRoute
   '/schools/$schoolId': typeof SchoolsSchoolIdRoute
   '/schools/new': typeof SchoolsNewRoute
   '/subscriptions/$subscriptionId': typeof SubscriptionsSubscriptionIdRoute
@@ -177,6 +186,7 @@ export interface FileRouteTypes {
     | '/auth/login'
     | '/auth/logout'
     | '/customers/$customerId'
+    | '/provisioning/$draftId'
     | '/schools/$schoolId'
     | '/schools/new'
     | '/subscriptions/$subscriptionId'
@@ -195,6 +205,7 @@ export interface FileRouteTypes {
     | '/auth/login'
     | '/auth/logout'
     | '/customers/$customerId'
+    | '/provisioning/$draftId'
     | '/schools/$schoolId'
     | '/schools/new'
     | '/subscriptions/$subscriptionId'
@@ -213,6 +224,7 @@ export interface FileRouteTypes {
     | '/auth/login'
     | '/auth/logout'
     | '/customers/$customerId'
+    | '/provisioning/$draftId'
     | '/schools/$schoolId'
     | '/schools/new'
     | '/subscriptions/$subscriptionId'
@@ -232,6 +244,7 @@ export interface RootRouteChildren {
   AuthLoginRoute: typeof AuthLoginRoute
   AuthLogoutRoute: typeof AuthLogoutRoute
   CustomersCustomerIdRoute: typeof CustomersCustomerIdRoute
+  ProvisioningDraftIdRoute: typeof ProvisioningDraftIdRoute
   SchoolsSchoolIdRoute: typeof SchoolsSchoolIdRoute
   SchoolsNewRoute: typeof SchoolsNewRoute
   SubscriptionsSubscriptionIdRoute: typeof SubscriptionsSubscriptionIdRoute
@@ -325,6 +338,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof CustomersCustomerIdRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/provisioning/$draftId': {
+      id: '/provisioning/$draftId'
+      path: '/provisioning/$draftId'
+      fullPath: '/provisioning/$draftId'
+      preLoaderRoute: typeof ProvisioningDraftIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/schools/$schoolId': {
       id: '/schools/$schoolId'
       path: '/schools/$schoolId'
@@ -368,6 +388,7 @@ const rootRouteChildren: RootRouteChildren = {
   AuthLoginRoute: AuthLoginRoute,
   AuthLogoutRoute: AuthLogoutRoute,
   CustomersCustomerIdRoute: CustomersCustomerIdRoute,
+  ProvisioningDraftIdRoute: ProvisioningDraftIdRoute,
   SchoolsSchoolIdRoute: SchoolsSchoolIdRoute,
   SchoolsNewRoute: SchoolsNewRoute,
   SubscriptionsSubscriptionIdRoute: SubscriptionsSubscriptionIdRoute,

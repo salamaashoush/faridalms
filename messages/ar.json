@@ -9190,6 +9190,7 @@
   "auditGradingScaleRegrade": "أُعيد حساب الدرجات",
   "auditGradingScaleRetire": "أُوقف سلّم التقييم",
   "auditHostAdd": "أُضيف عنوان",
+  "auditSsoDomainAdd": "أُضيف نطاق تسجيل الدخول",
   "auditHostCanonical": "اختير العنوان الرئيسي",
   "auditHostRemove": "حُذف عنوان",
   "auditLessonCopy": "نُسخ الدرس",
