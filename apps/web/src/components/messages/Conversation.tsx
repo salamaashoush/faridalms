@@ -513,14 +513,14 @@ export function Conversation({
   const [reading, setReading] = useState(false);
   const earlier = useInfiniteQuery({
     ...earlierEntriesQuery(threadId, oldest),
-    enabled: reading && thread.hasMore && oldest !== "",
+    enabled: reading && thread.next !== null && oldest !== "",
   });
   const entries = [
     ...(earlier.data?.pages.toReversed().flatMap((page) => page.messages) ??
       []),
     ...thread.messages,
   ];
-  const further = reading ? earlier.hasNextPage : thread.hasMore;
+  const further = reading ? earlier.hasNextPage : thread.next !== null;
   const others = thread.members.filter((row) => row.userId !== user.id);
   const title = threadTitle({
     subject: thread.mailbox ? null : thread.subject,

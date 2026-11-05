@@ -205,8 +205,10 @@ export const thread = readProcedure
       limit: THREAD_PAGE + 1,
       internal: team,
     });
-    const hasMore = fetched.length > THREAD_PAGE;
-    const rows = hasMore ? fetched.slice(1) : fetched;
+    // Read newest first and shown oldest first, so the row past the page is
+    // the oldest one fetched.
+    const rows = fetched.length > THREAD_PAGE ? fetched.slice(1) : fetched;
+    const next = fetched.length > THREAD_PAGE ? (rows[0]?.id ?? null) : null;
     const staff = isStaff(context);
     const [[student], draft] = await Promise.all([
       row.studentId
@@ -305,7 +307,7 @@ export const thread = readProcedure
         redacted: message.redacted,
         createdAt: message.createdAt,
       })),
-      hasMore,
+      next,
     };
   });
 

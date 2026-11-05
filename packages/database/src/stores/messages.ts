@@ -6,6 +6,7 @@ import type {
 } from "@faridalms/domain/messages";
 import type { SQL } from "drizzle-orm";
 
+import { feedOf } from "@faridalms/domain/paging";
 import { sql } from "drizzle-orm";
 
 import type { CellTransaction } from "../context";
@@ -159,10 +160,13 @@ export async function messageable(
         ${after?.id ?? null}::uuid)
     order by r.rank, r.sort_name, r.user_id
     limit ${filter.limit + 1}`);
-  const page = rows.slice(0, filter.limit);
-  const last = page.at(-1);
+  const feed = feedOf(rows, filter.limit, (row) => ({
+    rank: row.rank,
+    name: row.sort_name,
+    id: row.user_id,
+  }));
   return {
-    rows: page.map((row) => ({
+    rows: feed.rows.map((row) => ({
       userId: row.user_id,
       kind: row.kind,
       fullNameEn: row.full_name_en,
@@ -173,10 +177,7 @@ export async function messageable(
         fullNameAr: child.full_name_ar,
       })),
     })),
-    next:
-      rows.length > filter.limit && last
-        ? { rank: last.rank, name: last.sort_name, id: last.user_id }
-        : null,
+    next: feed.next,
   };
 }
 
@@ -466,10 +467,12 @@ export async function threadsOf(
                and ${visible(sql`r.team`)} and ${holds(input.q, [sql`x.body`])}))
     order by date_trunc('milliseconds', t.last_message_at) desc, t.id
     limit ${input.limit + 1}`);
-  const page = rows.slice(0, input.limit);
-  const last = page.at(-1);
+  const feed = feedOf(rows, input.limit, (row) => ({
+    at: row.last_message_at,
+    id: row.id,
+  }));
   return {
-    rows: page.map((row) => ({
+    rows: feed.rows.map((row) => ({
       id: row.id,
       kind: row.kind,
       mailbox: row.mailbox,
@@ -490,10 +493,7 @@ export async function threadsOf(
       others: row.others.map(named),
       owner: row.owner ? named(row.owner) : null,
     })),
-    next:
-      rows.length > input.limit && last
-        ? { at: last.last_message_at, id: last.id }
-        : null,
+    next: feed.next,
   };
 }
 
@@ -1155,10 +1155,12 @@ export async function draftsOf(
           and d.id > ${after?.id ?? null}::uuid))
     order by date_trunc('milliseconds', d.date_last_modified) desc, d.id
     limit ${reader.limit + 1}`);
-  const page = rows.slice(0, reader.limit);
-  const last = page.at(-1);
+  const feed = feedOf(rows, reader.limit, (row) => ({
+    at: row.updated_at,
+    id: row.id,
+  }));
   return {
-    rows: page.map((row) => ({
+    rows: feed.rows.map((row) => ({
       id: row.id,
       version: row.version,
       threadId: row.thread_id,
@@ -1171,10 +1173,7 @@ export async function draftsOf(
       hasFiles: row.has_files,
       to: row.to.map(named),
     })),
-    next:
-      rows.length > reader.limit && last
-        ? { at: last.updated_at, id: last.id }
-        : null,
+    next: feed.next,
   };
 }
 

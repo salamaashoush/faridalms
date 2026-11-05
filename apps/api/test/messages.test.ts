@@ -590,13 +590,13 @@ describe("paging", () => {
     );
     const latest = await keeper.api.messages.thread({ id: threadId });
     expect(latest.messages).toHaveLength(100);
-    expect(latest.hasMore).toBe(true);
+    expect(latest.next).toBe(latest.messages[0]?.id ?? "");
     expect(latest.messages[0]?.body).toBe("Entry 5");
     const earlier = await keeper.api.messages.thread({
       id: threadId,
       before: latest.messages[0]?.id ?? "",
     });
-    expect(earlier.hasMore).toBe(false);
+    expect(earlier.next).toBeNull();
     expect(earlier.messages.map((entry) => entry.body)).toEqual([
       "Entry 0",
       "Entry 1",

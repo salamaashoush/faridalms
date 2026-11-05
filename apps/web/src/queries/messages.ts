@@ -42,8 +42,7 @@ export const earlierEntriesQuery = (id: string, before: string) =>
     queryKey: ["messages", "thread", id, "earlier", before],
     queryFn: ({ pageParam }) => getThread({ data: { id, before: pageParam } }),
     initialPageParam: before,
-    getNextPageParam: (last) =>
-      last.hasMore ? last.messages[0]?.id : undefined,
+    getNextPageParam: (last) => last.next ?? undefined,
   });
 
 export const messageRecipientsQuery = (
