@@ -8,17 +8,10 @@ import { SheetPanel } from "~/components/system/SheetPanel";
 import { inLocale } from "~/hooks/useCurrentUser";
 import * as m from "~/i18n/messages";
 import { examHistoryQuery } from "~/queries/exams";
+import { auditActionLabel } from "~/utils/audit-actions";
 import { formatDate, formatInstant, formatMonthLabel } from "~/utils/datetime";
 
 import { sessionName } from "./names";
-
-const ACTION: Record<string, () => string> = {
-  "exam_session.create": m.examHistoryAdded,
-  "exam_session.update": m.examHistoryChanged,
-  "exam_session.retire": m.examHistoryRetired,
-  "exam_board.create": m.examHistoryBoardAdded,
-  "exam_board.update": m.examHistoryBoardChanged,
-};
 
 function subject(details: ExamChangeDetails): string {
   if (details.series) {
@@ -101,7 +94,7 @@ export function ExamHistory({
                 return (
                   <li key={row.id} className="grid gap-1 text-sm leading-5">
                     <span className="font-medium" dir="auto">
-                      {(ACTION[row.action] ?? m.examHistoryChanged)()}
+                      {auditActionLabel(row.action)}
                       {": "}
                       <bdi>{subject(row.details)}</bdi>
                     </span>

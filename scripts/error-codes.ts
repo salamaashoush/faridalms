@@ -24,9 +24,9 @@ const SUFFIX = /^\.[a-z][a-z0-9_]*$/;
 const NAME =
   /\.(?:html|css|js|mjs|json|xml|txt|py|wasm|vtt|m3u8|jpg|png|svg|zip|com|org|be|aspx)$/;
 // Values of these properties are audit actions, tables and job names, and
-// a constant named for tables holds table names.
+// a constant named for tables or audit actions holds those.
 const NOT_CODE_KEYS = new Set(["action", "audit", "name", "table"]);
-const TABLES = /TABLES?$/;
+const TABLES = /TABLES?$|^AUDIT_ACTIONS$/;
 const COMPARISONS = new Set(["===", "!==", "==", "!="]);
 const PASS_THROUGH = new Set([
   "ConditionalExpression",

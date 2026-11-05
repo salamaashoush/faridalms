@@ -19,6 +19,15 @@ const OBJECT: Record<Purpose, string> = {
   custody: "relationship_restriction",
 };
 
+const AUDIT_ACTIONS: Record<Purpose, { read: string; write: string }> = {
+  health: { read: "health_record.read", write: "health_record.write" },
+  demographics: { read: "demographics.read", write: "demographics.write" },
+  custody: {
+    read: "relationship_restriction.read",
+    write: "relationship_restriction.write",
+  },
+};
+
 /**
  * Special-category rows are invisible until their purpose is set. This checks
  * the capability, records the access with its subject and reason, then runs
@@ -54,7 +63,7 @@ export async function withPurposeFor<T>(
       : [...new Set(use.subjectUserId)];
   for (const subjectUserId of subjects)
     await audit(context, {
-      action: `${OBJECT[use.purpose]}.${use.write ? "write" : "read"}`,
+      action: AUDIT_ACTIONS[use.purpose][use.write ? "write" : "read"],
       objectType: OBJECT[use.purpose],
       subjectUserId,
       studentUserId: subjectUserId,

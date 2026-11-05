@@ -29,6 +29,7 @@ import { inLocale } from "~/hooks/useCurrentUser";
 import * as m from "~/i18n/messages";
 import { accessChangesQuery, accessRolesQuery } from "~/queries/access";
 import { saveAccessRole } from "~/server/access";
+import { auditActionLabel } from "~/utils/audit-actions";
 import { formatInstant, formatNumber } from "~/utils/datetime";
 import { getMessageFromError } from "~/utils/error";
 
@@ -143,17 +144,6 @@ export function AccessRolesPanel({
   );
 }
 
-const ACTION_LABEL: Record<string, () => string> = {
-  "access_role.create": m.accessActionRoleCreated,
-  "access_role.update": m.accessActionRoleUpdated,
-  "access_role.override": m.accessActionRoleUpdated,
-  "access_assignment.create": m.accessActionAssigned,
-  "access_assignment.end": m.accessActionAssignmentEnded,
-  "role.change": m.accessActionStaffRoles,
-  "account.disable": m.accessActionSignInDisabled,
-  "account.enable": m.accessActionSignInEnabled,
-};
-
 function AccessChanges() {
   const [page, setPage] = useState(1);
   const { data } = useSuspenseQuery(accessChangesQuery(page));
@@ -173,7 +163,7 @@ function AccessChanges() {
                 className="flex flex-wrap items-baseline gap-x-3 gap-y-0.5 py-2.5 text-sm leading-5"
               >
                 <span className="font-medium">
-                  {ACTION_LABEL[row.action]?.() ?? row.action}
+                  {auditActionLabel(row.action)}
                 </span>
                 <span dir="auto" className="min-w-0">
                   <Value>

@@ -58,7 +58,8 @@ export async function save(input: { code: string; last: string }) {
   });
   await tx.execute(sql\`select * from core.classes where code = 'class.sql'\`);
   return { file: "index.html", host: "youtube.com", locked: LOCKED.closed };
-}`,
+}
+const AUDIT_ACTIONS = { read: "class.read", write: "class.write" } as const;`,
   },
   {
     path: "packages/database/src/errors.ts",

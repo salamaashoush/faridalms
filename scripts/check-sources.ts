@@ -120,8 +120,13 @@ for (const { path, text } of files) {
 problems.push(...errorCodeProblems(files));
 
 // Every action the audit log records reads as words in a history, never as
-// its code: an action written without a label fails here.
-const AUDITED = /\baction: "([a-z_]+\.[a-z_.]+)"/g;
+// its code: an action written without a label fails here. An action chosen
+// by a condition names each choice, on its line or the lines that continue
+// it with `?` or `:`. Actions picked from a table are listed in one named
+// `AUDIT_ACTIONS`.
+const AUDITED =
+  /\baction:[^\n]*(?:\n\s+[?:][^\n]*)*|\bAUDIT_ACTIONS\b[^=]*= \{[\s\S]*?\n\};/g;
+const ACTION_CODE = /"([a-z_]+\.[a-z_.]+)"/g;
 const labels = files.find(
   (file) => file.path === "apps/web/src/utils/audit-actions.ts",
 );
@@ -137,11 +142,12 @@ for (const file of files) {
   )
     continue;
   if (file.path.endsWith(".test.ts")) continue;
-  for (const [, action] of file.text.matchAll(AUDITED))
-    if (action && !labelled.has(action))
-      problems.push(
-        `${file.path}: audits "${action}" with no label in apps/web/src/utils/audit-actions.ts`,
-      );
+  for (const [written] of file.text.matchAll(AUDITED))
+    for (const [, action] of written.matchAll(ACTION_CODE))
+      if (action && !labelled.has(action))
+        problems.push(
+          `${file.path}: audits "${action}" with no label in apps/web/src/utils/audit-actions.ts`,
+        );
 }
 
 // Migrations from the one reach model on call its functions rather than
