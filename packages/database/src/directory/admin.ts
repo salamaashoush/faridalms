@@ -10,6 +10,7 @@ import { SQL } from "bun";
 import { and, asc, desc, eq, inArray, sql } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/bun-sql/postgres";
 
+import type { JsonValue } from "../json";
 import type { EntitlementColumns } from "./entitlements";
 import type { DirectoryTenantState } from "./schema";
 
@@ -42,6 +43,8 @@ export interface OperatorSchool {
   tenantState: DirectoryTenantState;
   tenantNameEn: string | null;
   tenantNameAr: string | null;
+  /** The countries the tenant's data is held under; the first is its own. */
+  tenantJurisdictions: string[];
   cellId: string;
   region: string;
   entitlements: SchoolEntitlements;
@@ -57,13 +60,7 @@ export interface OperatorSchool {
   } | null;
 }
 
-export type JsonValue =
-  | string
-  | number
-  | boolean
-  | null
-  | JsonValue[]
-  | { [key: string]: JsonValue };
+export type { JsonValue };
 
 export interface Change {
   id: string;
@@ -139,6 +136,7 @@ interface SchoolRow {
   tenantState: DirectoryTenantState;
   tenantNameEn: string | null;
   tenantNameAr: string | null;
+  tenantJurisdictions: string[];
   cellId: string;
   region: string;
   entitlements: EntitlementColumns | null;
@@ -164,6 +162,7 @@ function schoolOf(row: SchoolRow): OperatorSchool {
     tenantState: row.tenantState,
     tenantNameEn: row.tenantNameEn,
     tenantNameAr: row.tenantNameAr,
+    tenantJurisdictions: row.tenantJurisdictions,
     cellId: row.cellId,
     region: row.region,
     entitlements: entitledOf(row.entitlements),
@@ -205,6 +204,7 @@ export function openDirectoryAdmin(url: string) {
         tenantState: tenants.state,
         tenantNameEn: tenants.nameEn,
         tenantNameAr: tenants.nameAr,
+        tenantJurisdictions: tenants.jurisdictions,
         cellId: cells.id,
         region: cells.region,
         entitlements: entitlementColumns,

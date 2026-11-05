@@ -18,6 +18,7 @@ export const OPERATOR_AREAS = {
   customers: ["owner", "sales", "finance"],
   catalogue: ["owner"],
   subscriptions: ["owner", "sales"],
+  readSubscriptions: ["owner", "sales", "support", "finance"],
   billing: ["owner", "finance"],
   readBilling: ["owner", "support", "finance"],
   support: ["owner", "support"],

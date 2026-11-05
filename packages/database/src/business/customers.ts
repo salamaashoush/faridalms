@@ -1,0 +1,198 @@
+import type {
+  ContactInput,
+  CustomerInput,
+} from "@faridalms/domain/subscriptions";
+
+import { and, asc, eq } from "drizzle-orm";
+
+import type { BusinessDb } from "./client";
+
+import { recordEvent } from "./events";
+import { contacts, customers, subscriptions } from "./schema";
+
+export type CustomerRow = typeof customers.$inferSelect;
+export type ContactRow = typeof contacts.$inferSelect;
+
+export function listCustomers(db: BusinessDb): Promise<CustomerRow[]> {
+  return db.select().from(customers).orderBy(asc(customers.legalNameEn));
+}
+
+/** A customer with its active contacts and every subscription it has held. */
+export async function customerById(db: BusinessDb, id: string) {
+  const [customer] = await db
+    .select()
+    .from(customers)
+    .where(eq(customers.id, id));
+  if (!customer) return null;
+  const [people, held] = await Promise.all([
+    db
+      .select()
+      .from(contacts)
+      .where(and(eq(contacts.customerId, id), eq(contacts.status, "active")))
+      .orderBy(asc(contacts.name)),
+    db
+      .select()
+      .from(subscriptions)
+      .where(eq(subscriptions.customerId, id))
+      .orderBy(asc(subscriptions.createdAt)),
+  ]);
+  return { customer, contacts: people, subscriptions: held };
+}
+
+export async function customerOfTenant(
+  db: BusinessDb,
+  tenantId: string,
+): Promise<CustomerRow | null> {
+  const [row] = await db
+    .select()
+    .from(customers)
+    .where(eq(customers.tenantId, tenantId));
+  return row ?? null;
+}
+
+/**
+ * Creates a customer, or changes one if nobody changed it since it was read.
+ * Answers its id, or null on a stale save.
+ */
+export async function saveCustomer(
+  db: BusinessDb,
+  input: CustomerInput & { by: string; tenantId?: string | null },
+): Promise<string | null> {
+  const { id, expectedVersion, reason, by, tenantId, ...fields } = input;
+  return db.transaction(async (tx) => {
+    if (!id) {
+      const [created] = await tx
+        .insert(customers)
+        .values({ ...fields, tenantId: tenantId ?? null })
+        .returning();
+      if (!created) throw new Error("customer was not created");
+      await recordEvent(tx, {
+        operatorId: by,
+        action: "customer.create",
+        subjectType: "customer",
+        subjectId: created.id,
+        after: fields,
+        reason,
+      });
+      return created.id;
+    }
+    const [before] = await tx
+      .select()
+      .from(customers)
+      .where(eq(customers.id, id))
+      .for("update");
+    if (!before || before.version !== expectedVersion) return null;
+    await tx
+      .update(customers)
+      .set({ ...fields, version: before.version + 1 })
+      .where(eq(customers.id, id));
+    await recordEvent(tx, {
+      operatorId: by,
+      action: "customer.update",
+      subjectType: "customer",
+      subjectId: id,
+      before: {
+        legalNameEn: before.legalNameEn,
+        legalNameAr: before.legalNameAr,
+        taxNumber: before.taxNumber,
+        commercialRegistry: before.commercialRegistry,
+        address: before.address,
+        country: before.country,
+        currency: before.currency,
+      },
+      after: fields,
+      reason,
+    });
+    return id;
+  });
+}
+
+/** Records the version of the terms or the data processing agreement a customer accepted. */
+export async function acceptAgreement(
+  db: BusinessDb,
+  input: {
+    customerId: string;
+    agreement: "terms" | "dpa";
+    version: string;
+    by: string;
+  },
+): Promise<void> {
+  await db.transaction(async (tx) => {
+    const now = new Date();
+    await tx
+      .update(customers)
+      .set(
+        input.agreement === "terms"
+          ? { termsVersion: input.version, termsAcceptedAt: now }
+          : { dpaVersion: input.version, dpaAcceptedAt: now },
+      )
+      .where(eq(customers.id, input.customerId));
+    await recordEvent(tx, {
+      operatorId: input.by,
+      action: input.agreement === "terms" ? "customer.terms" : "customer.dpa",
+      subjectType: "customer",
+      subjectId: input.customerId,
+      after: { version: input.version, acceptedAt: now.toISOString() },
+    });
+  });
+}
+
+export async function saveContact(
+  db: BusinessDb,
+  input: ContactInput & { by: string },
+): Promise<string> {
+  const { id, customerId, by, ...fields } = input;
+  return db.transaction(async (tx) => {
+    if (!id) {
+      const [created] = await tx
+        .insert(contacts)
+        .values({ ...fields, customerId })
+        .returning({ id: contacts.id });
+      if (!created) throw new Error("contact was not created");
+      await recordEvent(tx, {
+        operatorId: by,
+        action: "contact.create",
+        subjectType: "customer",
+        subjectId: customerId,
+        after: { contactId: created.id, ...fields },
+      });
+      return created.id;
+    }
+    await tx
+      .update(contacts)
+      .set(fields)
+      .where(and(eq(contacts.id, id), eq(contacts.customerId, customerId)));
+    await recordEvent(tx, {
+      operatorId: by,
+      action: "contact.update",
+      subjectType: "customer",
+      subjectId: customerId,
+      after: { contactId: id, ...fields },
+    });
+    return id;
+  });
+}
+
+export async function removeContact(
+  db: BusinessDb,
+  input: { customerId: string; id: string; by: string },
+): Promise<void> {
+  await db.transaction(async (tx) => {
+    await tx
+      .update(contacts)
+      .set({ status: "removed" })
+      .where(
+        and(
+          eq(contacts.id, input.id),
+          eq(contacts.customerId, input.customerId),
+        ),
+      );
+    await recordEvent(tx, {
+      operatorId: input.by,
+      action: "contact.remove",
+      subjectType: "customer",
+      subjectId: input.customerId,
+      after: { contactId: input.id },
+    });
+  });
+}

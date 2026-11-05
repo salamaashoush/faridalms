@@ -73,7 +73,8 @@ describe("operators", () => {
     const sql = new SQL(businessUrl());
     try {
       const events = await sql<{ action: string; reason: string | null }[]>`
-        select action, reason from business_events order by occurred_at`;
+        select action, reason from business_events
+        where subject_type = 'operator' order by occurred_at`;
       expect(events.map((row) => row.action)).toEqual([
         "operator.first_owner",
         "operator.update",

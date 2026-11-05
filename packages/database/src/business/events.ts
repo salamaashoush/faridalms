@@ -1,14 +1,19 @@
+import { and, desc, eq } from "drizzle-orm";
+
+import type { JsonValue } from "../json";
 import type { BusinessDb, BusinessTx } from "./client";
 
 import { businessEvents } from "./schema";
+
+export type BusinessEventRow = typeof businessEvents.$inferSelect;
 
 export interface BusinessEvent {
   operatorId: string;
   action: string;
   subjectType: string;
   subjectId: string;
-  before?: unknown;
-  after?: unknown;
+  before?: JsonValue;
+  after?: JsonValue;
   reason?: string | null;
 }
 
@@ -26,4 +31,37 @@ export async function recordEvent(
     after: event.after ?? null,
     reason: event.reason ?? null,
   });
+}
+
+/** What was done to one subject, newest first. */
+export function eventsOf(
+  db: BusinessDb,
+  subjectType: string,
+  subjectId: string,
+): Promise<BusinessEventRow[]> {
+  return db
+    .select()
+    .from(businessEvents)
+    .where(
+      and(
+        eq(businessEvents.subjectType, subjectType),
+        eq(businessEvents.subjectId, subjectId),
+      ),
+    )
+    .orderBy(desc(businessEvents.occurredAt))
+    .limit(200);
+}
+
+/** The latest event of an action, as the daily round finds its last run. */
+export async function lastEvent(
+  db: BusinessDb,
+  action: string,
+): Promise<BusinessEventRow | null> {
+  const [row] = await db
+    .select()
+    .from(businessEvents)
+    .where(eq(businessEvents.action, action))
+    .orderBy(desc(businessEvents.occurredAt))
+    .limit(1);
+  return row ?? null;
 }
