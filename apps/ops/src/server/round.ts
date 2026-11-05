@@ -6,7 +6,7 @@ import type { Operator } from "./session";
 import { requireBusiness } from "./business";
 import { directoryAdmin } from "./directory-admin";
 import { dailyRound, roundDue, SYSTEM_OPERATOR } from "./publication";
-import { changeStanding } from "./standing";
+import { changeStanding, tellCell } from "./standing";
 
 /** Who the scheduled round acts as, toward the cells and in the logs. */
 const SYSTEM: Operator = {
@@ -21,6 +21,7 @@ export function publishing(operator: Operator): Publishing {
   return {
     business: requireBusiness(),
     directory: directoryAdmin(),
+    entitlementsChanged: (tenantId) => tellCell(operator, tenantId),
     pauseTenant: async (tenantId, reason) =>
       (
         await changeStanding(operator, {

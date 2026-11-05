@@ -254,7 +254,7 @@ function EntitlementsForm({ school }: { school: School }) {
         }
         setSaving(true);
         try {
-          await save({
+          const out = await save({
             data: {
               schoolId: school.id,
               ...limitsOf(limits),
@@ -266,7 +266,9 @@ function EntitlementsForm({ school }: { school: School }) {
           });
           setReason("");
           toast.success(
-            "Entitlements saved. Cells apply them within a minute.",
+            out.atOnce
+              ? "Entitlements saved. The school has them now."
+              : "Entitlements saved. Its cell could not be told, so the school has them within a minute.",
           );
           await router.invalidate();
         } catch (error) {

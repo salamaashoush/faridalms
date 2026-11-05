@@ -29,7 +29,7 @@ import {
   previewSubscription,
   publishSubscription,
 } from "./publication";
-import { runRoundAs } from "./round";
+import { publishing, runRoundAs } from "./round";
 
 type Outcome = { ok: true } | { ok: false; message: string };
 
@@ -237,7 +237,7 @@ export const publishNow = createServerFn({ method: "POST" })
   .handler(async ({ data }) => {
     const { operator } = await requireArea("subscriptions");
     requireFreshSignIn(operator);
-    return publishSubscription(deps(), {
+    return publishSubscription(publishing(operator), {
       subscriptionId: data.id,
       day: businessToday(),
       by: operator.id,

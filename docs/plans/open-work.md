@@ -35,26 +35,28 @@ From `foundations.md`. W1 to W5 are merged.
   Fernhill school has Basic alone, and the browser walks its menus and
   record tabs. Left: the daily rows count emails,
   texts and sign-ins, but not caption minutes or video minutes encoded,
-  which need the time a caption draft or a stream finished; an entitlement
-  change
-  taking effect at once rather than within the directory cache's minute;
-  and, once every cell runs the release that reads entitlements, dropping
-  `school_plans`. Custom domains and video hours are held, and
+  which need the time a caption draft or a stream finished; and, once every
+  cell runs the release that reads entitlements, dropping `school_plans`.
+  Custom domains and video hours are held, and
   administrators see the contract notice, a trial's end, and students,
-  staff accounts or the month's email past what the school is entitled to. The plan's
-  refresh call cannot reach the API replicas: the provisioner is its own
-  service and Bun's SQL client has no LISTEN. The lifecycle slice's
-  per-unit tenant registry check could carry the entitlements revision
-  instead; that is the owner's call.
+  staff accounts or the month's email past what the school is entitled
+  to. An entitlement change applies from the next request: the console tells the cell, whose
+  tenant registry counts it, and each unit of work reads the count.
 - **Business console lifecycle** (its plan's slice 4): the console pauses,
   suspends and reopens a tenant through the provisioner, which the cell
   enforces at once. A paused school signs in, reads and keeps its sessions
   and exports, and refuses every other write with `tenant.paused`, which
   everyone in it is told; a suspended school's own portal says it is
   paused; a restricted school works but switches on no module and adds no
-  address of its own. Left: refusing text-message top-ups once there are
-  any, and browser tests of the banners and the paused page, which need a
-  way for a spec to set a tenant's state.
+  address of its own. A console browser test pauses a school whose trial
+  is over and its administrator sees the banner. Left: refusing
+  text-message top-ups once there are any, and a browser test of a
+  suspended school's own page.
+- **Business console sales** (its plan's slice 6): the catalogue, customers
+  and subscriptions live in the business database, and a school's
+  entitlements are its subscription's, published at once or by the daily
+  round, which also grandfathers tenants from before and pauses a trial
+  that is over.
 
 ## Bugs found and not yet fixed
 

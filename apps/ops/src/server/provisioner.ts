@@ -1,4 +1,5 @@
 import type {
+  EntitlementsChanged,
   ProvisionResult,
   ProvisionTenant,
   ReissueInvite,
@@ -79,6 +80,12 @@ export const setLifecycle = (operator: Operator, request: SetLifecycle) =>
     request,
   );
 
+/** Tells the tenant's cell its schools' entitlements changed, so it reads them now. */
+export const entitlementsChanged = (
+  operator: Operator,
+  request: EntitlementsChanged,
+) => post<{ version: number }>(operator, "/v1/tenants/entitlements", request);
+
 /** What an operator is told when the cell refuses or cannot be reached. */
 export function explain(answer: { code: string; message: string | null }) {
   switch (answer.message ?? answer.code) {
@@ -95,6 +102,8 @@ export function explain(answer: { code: string; message: string | null }) {
       return "The cell does not see these schools in its directory. Check that the console and the cell use the same directory.";
     case "tenant.not_active":
       return "The cell holds this tenant, but it is not active.";
+    case "tenant.not_in_cell":
+      return "The cell holds no such tenant.";
     case "tenant.not_settable":
       return "The tenant is being created, moved or closed, so it cannot be paused or reopened now.";
     case "login_identity.login_name_taken":

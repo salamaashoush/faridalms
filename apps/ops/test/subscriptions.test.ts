@@ -32,11 +32,16 @@ import { business, businessUrl, directory, tenantWith } from "./harness";
 
 const GIB = 1024 ** 3;
 const paused: { tenantId: string; reason: string }[] = [];
+const told: string[] = [];
 const deps = () => ({
   business: business(),
   directory: directory(),
   pauseTenant: async (tenantId: string, reason: string) => {
     paused.push({ tenantId, reason });
+    return true;
+  },
+  entitlementsChanged: async (tenantId: string) => {
+    told.push(tenantId);
     return true;
   },
 });
@@ -248,6 +253,9 @@ describe("a subscription", () => {
       reason: "Signed",
     });
     expect(out.published.toSorted()).toEqual([oakfield, east].toSorted());
+    // The tenant's cell is told once, for both its schools.
+    expect(out.atOnce).toBe(true);
+    expect(told.filter((id) => id === tenantId)).toEqual([tenantId]);
     expect((await entitlementsOf(oakfield))?.modules).toContain("coding");
     expect((await entitlementsOf(east))?.modules).toContain("badges");
     expect((await entitlementsOf(east))?.modules).not.toContain("coding");
@@ -267,6 +275,7 @@ describe("a subscription", () => {
         })
       ).published,
     ).toEqual([]);
+    expect(told.filter((id) => id === tenantId)).toHaveLength(1);
 
     expect(
       await endParts(business(), {

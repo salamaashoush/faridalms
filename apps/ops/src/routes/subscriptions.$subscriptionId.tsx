@@ -252,8 +252,11 @@ function Schools({ data, mayPublish }: { data: Data; mayPublish: boolean }) {
               const out = await publish({
                 data: { id: data.subscription.id, reason: reason.trim() },
               });
+              const schools = `${out.published.length} ${out.published.length === 1 ? "school" : "schools"}`;
               toast.success(
-                `Published to ${out.published.length} ${out.published.length === 1 ? "school" : "schools"}. Cells apply it within a minute.`,
+                out.atOnce
+                  ? `Published to ${schools}. They have it now.`
+                  : `Published to ${schools}. Their cell could not be told, so they have it within a minute.`,
               );
               setReason("");
               await router.invalidate();

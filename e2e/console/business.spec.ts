@@ -185,7 +185,9 @@ test("a school's subscription sets what it may use", async ({ page }) => {
     .getByLabel("Why now")
     .fill("The school starts coding on Monday");
   await publish.getByRole("button", { name: "Publish now" }).click();
-  await expect(page.getByText(/^Published to 1 school\./)).toBeVisible();
+  await expect(
+    page.getByText("Published to 1 school. They have it now."),
+  ).toBeVisible();
   await expect(card.getByText("Published as it stands.")).toBeVisible();
   await expect(
     page.getByText("The school starts coding on Monday"),
@@ -235,7 +237,9 @@ test("a school's administrators see its trial's days left, then that it is pause
   const publish = page.getByRole("form", { name: "Publish" });
   await publish.getByLabel("Why now").fill("The trial starts today");
   await publish.getByRole("button", { name: "Publish now" }).click();
-  await expect(page.getByText(/^Published to 1 school\./)).toBeVisible();
+  await expect(
+    page.getByText("Published to 1 school. They have it now."),
+  ).toBeVisible();
   const subscription = page.url();
 
   // The school's first administrator takes the emailed link and signs in.
@@ -258,6 +262,19 @@ test("a school's administrators see its trial's days left, then that it is pause
   });
   await expect(notice).toContainText(
     /Your school's trial ends on .+, in 3 days\./,
+  );
+
+  // A change reaches the school as soon as it is published, not a minute on.
+  await page.goto(subscription);
+  await setTrial(page, addDays(businessToday(), 5), "Two more days to decide");
+  await publish.getByLabel("Why now").fill("The trial is extended");
+  await publish.getByRole("button", { name: "Publish now" }).click();
+  await expect(
+    page.getByText("Published to 1 school. They have it now."),
+  ).toBeVisible();
+  await school.reload();
+  await expect(notice).toContainText(
+    /Your school's trial ends on .+, in 5 days\./,
   );
 
   // The trial is over without a contract: the round makes it read only.

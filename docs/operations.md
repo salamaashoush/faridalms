@@ -338,9 +338,15 @@ there at once.
 
 The directory's change log names an operator by a digest of the provider's
 issuer and subject, never by name. Every entitlement change requires a
-reason and lands in the log in the same transaction. Cells read entitlements
-with the directory's 60-second cache; a tenant's access, paused or
-suspended, applies at once through its cell.
+reason and lands in the log in the same transaction. Cells hold directory
+rows for a minute, so after writing entitlements the console tells the
+tenant's cell through the provisioner (`/v1/tenants/entitlements`), which
+counts the change in its tenant registry. Every unit of work reads that count
+with the tenant's lifecycle, and a server drops the rows it holds for the
+tenant when the count moves, so the change applies from the next request. If
+the cell cannot be told, the operator is told so and the change applies
+within the minute. A tenant's lifecycle, paused or suspended, is enforced by
+its cell at once.
 
 ## Private files
 

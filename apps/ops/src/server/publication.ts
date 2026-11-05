@@ -32,6 +32,12 @@ export interface Publishing {
    * false when the cell refused or could not be reached.
    */
   pauseTenant: (tenantId: string, reason: string) => Promise<boolean>;
+  /**
+   * Tells the tenant's cell its entitlements changed, so its servers read
+   * them at once; false when it could not, and they read them within the
+   * directory cache's minute.
+   */
+  entitlementsChanged: (tenantId: string) => Promise<boolean>;
 }
 
 /** Whether two entitlements say the same, field by field, whatever their key order. */
@@ -76,13 +82,14 @@ export async function previewSubscription(
 
 /**
  * Writes a subscription's result to the directory for every school whose
- * entitlements it changes, and records each publication. The directory is
- * written first: a publication is only recorded for what cells will read.
+ * entitlements it changes, records each publication, then tells the
+ * tenant's cell. The directory is written first: a publication is only
+ * recorded for what cells will read.
  */
 export async function publishSubscription(
-  deps: Pick<Publishing, "business" | "directory">,
+  deps: Pick<Publishing, "business" | "directory" | "entitlementsChanged">,
   input: { subscriptionId: string; day: string; by: string; reason: string },
-): Promise<{ published: string[] }> {
+): Promise<{ published: string[]; atOnce: boolean }> {
   const preview = await previewSubscription(
     deps,
     input.subscriptionId,
@@ -108,7 +115,10 @@ export async function publishSubscription(
     });
     published.push(school.id);
   }
-  return { published };
+  const atOnce =
+    published.length > 0 &&
+    (await deps.entitlementsChanged(preview.detail.subscription.tenantId));
+  return { published, atOnce };
 }
 
 function tenantsOf(schools: readonly OperatorSchool[]) {

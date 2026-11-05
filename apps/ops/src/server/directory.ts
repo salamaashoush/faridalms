@@ -26,7 +26,7 @@ import { businessDb } from "./business";
 import { directoryAdmin as directory } from "./directory-admin";
 import { opsEnv } from "./env";
 import { explain, provisionTenant, reissueInvite } from "./provisioner";
-import { changeStanding } from "./standing";
+import { changeStanding, tellCell } from "./standing";
 
 const byId = v.object({ id: v.pipe(v.string(), v.uuid()) });
 
@@ -107,7 +107,11 @@ export const saveEntitlements = createServerFn({ method: "POST" })
       operatorId: operator.id,
       reason,
     });
-    return { ok: true };
+    const school = await directory().school(schoolId);
+    return {
+      ok: true,
+      atOnce: school ? await tellCell(operator, school.tenantId) : false,
+    };
   });
 
 export const listChanges = createServerFn({ method: "GET" }).handler(
