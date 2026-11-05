@@ -1113,12 +1113,13 @@
     outline: 2px solid #2563eb;
   }
 
-  /* Sections rise into view once scripts run; without them, and for anyone
-     who asks for less motion, everything is simply there. */
+  /* Sections rise into view once scripts run; without them everything is
+     simply there. The rise is short and settles fast, so a section reads as
+     arriving rather than travelling, and a list follows it item by item. */
   .site-root[data-motion-ready] [data-reveal] {
     transition:
-      opacity 800ms var(--s-ease),
-      transform 600ms var(--s-ease);
+      opacity 700ms var(--s-ease),
+      transform 800ms var(--s-ease);
   }
   .site-root[data-motion-ready] [data-reveal]:not([data-shown]) {
     opacity: 0;
@@ -1126,9 +1127,9 @@
   }
   .site-root[data-motion-ready] [data-reveal] [data-stagger] > * {
     transition:
-      opacity 800ms var(--s-ease),
-      transform 600ms var(--s-ease);
-    transition-delay: calc(var(--s-index, 0) * 80ms + 100ms);
+      opacity 700ms var(--s-ease),
+      transform 800ms var(--s-ease);
+    transition-delay: calc(var(--s-index, 0) * 80ms + 80ms);
   }
   .site-root[data-motion-ready]
     [data-reveal]:not([data-shown])
@@ -1142,6 +1143,13 @@
   }
   .site-root[data-motion="lively"] {
     --s-rise: 24px;
+  }
+  @media print {
+    .site-root[data-motion-ready] [data-reveal],
+    .site-root[data-motion-ready] [data-reveal] [data-stagger] > * {
+      opacity: 1 !important;
+      transform: none !important;
+    }
   }
   /* Values in words too big to sit still, across the whole width of the
      page, every other word drawn in outline. */
@@ -1201,8 +1209,11 @@
     inline-size: max-content;
     animation: site-marquee 40s linear infinite;
   }
+  /* Still while someone reads it, points into it, or scrolls it away. */
   .site-marquee:hover,
-  .site-marquee[data-paused] {
+  .site-marquee:focus-within,
+  .site-marquee[data-paused],
+  .site-marquee[data-offscreen] {
     animation-play-state: paused;
   }
   /* Right to left the strip starts at the right edge and overflows to the
@@ -1257,7 +1268,8 @@
       0 0 0 0.75rem color-mix(in oklab, var(--s-btn) 18%, transparent),
       var(--s-shadow-lift);
   }
-  /* Less motion means no travel, zoom or loops; sections still fade in, briefly. */
+  /* Less motion means no travel, zoom or loops; sections still fade in,
+     which the reveal plays itself. */
   @media (prefers-reduced-motion: reduce) {
     .site-root * {
       scroll-behavior: auto !important;
@@ -1266,7 +1278,6 @@
     .site-root [data-reveal],
     .site-root [data-reveal] [data-stagger] > * {
       transform: none !important;
-      transition: opacity 200ms linear !important;
       transition-delay: 0ms !important;
     }
     .site-root .site-card,
@@ -1631,6 +1642,89 @@
   }
   a.site-logo:hover .site-logo-name {
     color: var(--s-link);
+  }
+
+  /* Admissions, applying, questions, the enquiry form, news and events. */
+
+  /* Why the way in is not open yet, under the words that invite it. */
+  .site-status {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.75rem;
+    max-inline-size: var(--s-measure);
+    padding-block-start: 1.25rem;
+    border-block-start: 1px solid var(--s-border);
+    color: var(--s-fg);
+    font-weight: 500;
+    line-height: 1.5;
+  }
+  .site-status-icon {
+    inline-size: 1.25rem;
+    block-size: 1.25rem;
+    flex-shrink: 0;
+    margin-block-start: 0.125rem;
+    color: var(--s-link);
+  }
+  /* Where a list will be once there is something in it. */
+  .site-empty {
+    display: flex;
+    align-items: center;
+    gap: 1.25rem;
+    padding: var(--s-card-pad);
+    border: 1px dashed color-mix(in oklab, var(--s-fg) 28%, var(--s-bg));
+    border-radius: var(--s-radius);
+    text-align: start;
+  }
+  .site-faq {
+    interpolate-size: allow-keywords;
+  }
+  .site-faq details::details-content {
+    block-size: 0;
+    overflow: clip;
+    transition:
+      block-size 450ms var(--s-ease),
+      content-visibility 450ms allow-discrete;
+  }
+  .site-faq details[open]::details-content {
+    block-size: auto;
+  }
+  .site-faq summary:hover {
+    color: var(--s-link);
+  }
+  /* Two fields to a row once each has room for a name or an address:
+     sooner on a form of its own, later where it shares the width. */
+  .site-fields {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 1.25rem 1rem;
+  }
+  .site-fields > [data-wide] {
+    grid-column: 1 / -1;
+  }
+  @container site (width >= 48rem) {
+    .site-fields:not([data-split]) {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+  }
+  @container site (width >= 64rem) {
+    .site-fields[data-split] {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+  }
+  /* Fields read as fields on any band: the card colour, not the band's own. */
+  .site-enquiry .site-input {
+    background: var(--s-card);
+  }
+  @container site (width >= 48rem) {
+    .site-form-aside {
+      position: sticky;
+      inset-block-start: 7rem;
+    }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .site-faq details::details-content {
+      transition: none;
+    }
   }
 }
 

@@ -583,6 +583,7 @@ export const SECTION_SPECS = {
       text: intro,
       intake: { kind: "intake" },
       button: t(25),
+      closed: { kind: "links", max: 1 },
     },
   },
   steps: {

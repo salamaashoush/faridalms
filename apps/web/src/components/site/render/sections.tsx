@@ -6,7 +6,12 @@ import type {
   SiteLocale,
   SiteMedia,
 } from "@faridalms/domain/site-sections";
-import type { CSSProperties, FormEvent, ReactNode } from "react";
+import type {
+  CSSProperties,
+  FormEvent,
+  KeyboardEvent as ReactKeyboardEvent,
+  ReactNode,
+} from "react";
 
 import {
   answerLimit,
@@ -39,7 +44,7 @@ import { useEffect, useId, useRef, useState } from "react";
 import { ContentView } from "~/components/content/ContentView";
 import * as m from "~/i18n/messages";
 import { submitSiteEnquiry } from "~/server/site";
-import { formatDate, formatInstant, formatMonthShort } from "~/utils/datetime";
+import { formatDate, formatMonthShort, schoolDayOf } from "~/utils/datetime";
 import { arabicDigits, numberLocale } from "~/utils/digits";
 
 import type { ArtSet } from "./art";
@@ -1827,29 +1832,52 @@ function Timeline({ section }: Props<"timeline">) {
   );
 }
 
-function Accordion({ section }: Props<"accordion">) {
+function Accordion({ section, context }: Props<"accordion">) {
   const { data, variant } = section;
   const [open, setOpen] = useState(0);
-  if (variant === "tabs")
+  const tabs = useRef<HTMLDivElement>(null);
+  if (variant === "tabs") {
+    const tabId = (index: number) => `${section.id}-tab-${index}`;
+    const choose = (index: number) => {
+      const count = data.items.length;
+      const next = (index + count) % count;
+      setOpen(next);
+      const buttons =
+        tabs.current?.querySelectorAll<HTMLButtonElement>('[role="tab"]');
+      buttons?.[next]?.focus();
+    };
+    const arrows = (event: ReactKeyboardEvent) => {
+      const step =
+        event.key === "ArrowRight" ? 1 : event.key === "ArrowLeft" ? -1 : 0;
+      if (step === 0) return;
+      event.preventDefault();
+      choose(open + step * (context.locale === "ar" ? -1 : 1));
+    };
     return (
       <div>
         <SectionIntro heading={data.heading} text={data.text} />
         <div
+          ref={tabs}
           role="tablist"
-          className="mb-8 flex flex-wrap gap-2 border-b border-[var(--s-border)]"
+          aria-label={withoutEmphasis(data.heading) || undefined}
+          className="mb-8 flex flex-wrap gap-x-2 border-b border-[var(--s-border)]"
         >
           {data.items.map((item, index) => (
             <button
               key={item.id}
+              id={tabId(index)}
               type="button"
               role="tab"
               aria-selected={open === index}
+              aria-controls={`${section.id}-panel`}
+              tabIndex={open === index ? 0 : -1}
               onClick={() => setOpen(index)}
+              onKeyDown={arrows}
               className={cn(
-                "-mb-px border-b-2 px-4 py-3 text-sm font-semibold transition-colors",
+                "-mb-px min-h-11 border-b-2 px-4 py-3 text-sm font-semibold transition-colors",
                 open === index
                   ? "border-[var(--s-link)] text-[var(--s-link)]"
-                  : "site-muted border-transparent",
+                  : "site-muted border-transparent hover:text-[var(--s-heading)]",
               )}
             >
               {item.title}
@@ -1857,24 +1885,33 @@ function Accordion({ section }: Props<"accordion">) {
           ))}
         </div>
         <p
+          id={`${section.id}-panel`}
           role="tabpanel"
+          aria-labelledby={tabId(open)}
           className="site-narrow text-[1.125rem] leading-relaxed whitespace-pre-line"
         >
           {data.items[open]?.text}
         </p>
       </div>
     );
+  }
   const list = (
-    <div className="divide-y divide-[var(--s-border)] border-y border-[var(--s-border)]">
+    <div
+      data-stagger
+      className="site-faq divide-y divide-[var(--s-border)] border-y border-[var(--s-border)]"
+    >
       {data.items.map((item) => (
         <details key={item.id} className="group text-start">
-          <summary className="flex min-h-16 cursor-pointer list-none items-center justify-between gap-6 py-4 text-[1.125rem] font-semibold [&::-webkit-details-marker]:hidden">
+          <summary className="site-heading site-h4 flex min-h-16 cursor-pointer list-none items-center justify-between gap-6 py-5 font-semibold @3xl/site:text-[1.25rem] [&::-webkit-details-marker]:hidden">
             {item.title}
-            <span aria-hidden className="site-icon-button size-9">
+            <span
+              aria-hidden
+              className="site-icon-button size-10 shrink-0 transition-colors group-open:bg-[var(--s-btn)] group-open:text-[var(--s-btn-fg)]"
+            >
               <Plus className="size-4 transition-transform duration-300 group-open:rotate-45" />
             </span>
           </summary>
-          <p className="site-text max-w-2xl pb-6 whitespace-pre-line">
+          <p className="site-text max-w-2xl pb-7 whitespace-pre-line @3xl/site:pe-16">
             {item.text}
           </p>
         </details>
@@ -2003,15 +2040,27 @@ function Logos({ section, context }: Props<"logos">) {
   );
 }
 
+/** The day a post went out, its month in words in either language. */
+const postedOn = (instant: string, locale: SiteLocale) =>
+  formatDate(schoolDayOf(instant), "full", locale);
+
 function Cover({
   item,
   className,
+  grow = false,
 }: {
   item: RenderContext["news"][number];
   className?: string;
+  /** Fills whatever height its card is given, as the lead of a row does. */
+  grow?: boolean;
 }) {
   return (
-    <div className="overflow-hidden">
+    <div
+      className={cn(
+        "overflow-hidden",
+        grow && "relative @3xl/site:min-h-64 @3xl/site:flex-1",
+      )}
+    >
       {item.coverKey ? (
         <img
           src={publicMediaUrl(item.coverKey)}
@@ -2055,12 +2104,12 @@ function News({ section, context }: Props<"news">) {
                 className="group grid items-center gap-2 py-6 text-start @3xl/site:grid-cols-[11rem_1fr_auto] @3xl/site:gap-10"
               >
                 <time className="site-meta" dateTime={item.publishedAt}>
-                  {formatInstant(item.publishedAt, "date", context.locale)}
+                  {postedOn(item.publishedAt, context.locale)}
                 </time>
                 <span className="site-heading site-h3 group-hover:text-[var(--s-link)]">
                   {item.title}
                 </span>
-                <Arrow className="hidden text-[var(--s-link)] @3xl/site:block" />
+                <Arrow className="hidden text-[var(--s-link)] transition-transform duration-300 group-hover:translate-x-1 @3xl/site:block rtl:group-hover:-translate-x-1" />
               </SiteAnchor>
             </li>
           ))}
@@ -2086,11 +2135,16 @@ function News({ section, context }: Props<"news">) {
                 >
                   <Cover
                     item={item}
-                    className={lead ? "aspect-[4/3]" : "aspect-[3/2]"}
+                    grow={lead}
+                    className={
+                      lead
+                        ? "aspect-[4/3] @3xl/site:absolute @3xl/site:inset-0 @3xl/site:aspect-auto @3xl/site:size-full"
+                        : "aspect-[3/2]"
+                    }
                   />
-                  <div className="site-card-body">
+                  <div className={cn("site-card-body", lead && "flex-none")}>
                     <time className="site-meta" dateTime={item.publishedAt}>
-                      {formatInstant(item.publishedAt, "date", context.locale)}
+                      {postedOn(item.publishedAt, context.locale)}
                     </time>
                     <span
                       className={cn(
@@ -2309,57 +2363,38 @@ function IntakeCards({
     >
       {intakes.map((intake) => {
         const upcoming = context.today ? context.today < intake.opensOn : false;
+        const date = (day: string) => formatDate(day, "full", context.locale);
         return (
           <li
             key={intake.id}
-            className="site-card grid content-between gap-6 p-[var(--s-card-pad)] text-start"
+            className="site-card grid content-between gap-8 p-[var(--s-card-pad)] text-start"
           >
-            <div className="grid gap-3">
-              <span className="site-eyebrow">
-                {intakeYear(intake, context.locale)}
-              </span>
-              <Heading level={3}>{intakeGrade(intake, context.locale)}</Heading>
-              <p className="site-muted">
-                {upcoming
-                  ? m.siteIntakeOpens(
-                      {
-                        date: formatDate(
-                          intake.opensOn,
-                          "medium",
-                          context.locale,
-                        ),
-                      },
-                      t,
-                    )
-                  : m.siteIntakeCloses(
-                      {
-                        date: formatDate(
-                          intake.closesOn,
-                          "medium",
-                          context.locale,
-                        ),
-                      },
-                      t,
-                    )}
-              </p>
+            <div className="grid gap-5">
+              <div className="grid gap-2">
+                <span className="site-eyebrow">
+                  {intakeYear(intake, context.locale)}
+                </span>
+                <Heading level={3}>
+                  {intakeGrade(intake, context.locale)}
+                </Heading>
+              </div>
+              {upcoming ? null : (
+                <p className="site-text">
+                  {m.siteIntakeCloses({ date: date(intake.closesOn) }, t)}
+                </p>
+              )}
               {intake.decisionsOn ? (
-                <p className="site-muted text-sm">
-                  {m.siteIntakeDecisions(
-                    {
-                      date: formatDate(
-                        intake.decisionsOn,
-                        "medium",
-                        context.locale,
-                      ),
-                    },
-                    t,
-                  )}
+                <p className="site-meta">
+                  {m.siteIntakeDecisions({ date: date(intake.decisionsOn) }, t)}
                 </p>
               ) : null}
               {intake.fees.length ? (
-                <dl className="grid gap-1 text-sm">
+                <dl className="grid gap-2 border-t border-[var(--s-border)] pt-4 text-sm">
                   {intake.fees.map((fee) => (
-                    <div key={fee.kind} className="flex justify-between gap-4">
+                    <div
+                      key={fee.kind}
+                      className="flex flex-wrap items-baseline justify-between gap-x-4 [&>*]:whitespace-nowrap"
+                    >
                       <dt className="site-muted">
                         {(FEE_WORDS[fee.kind] ?? m.itkFeeOther)({}, t)}
                       </dt>
@@ -2371,7 +2406,14 @@ function IntakeCards({
                 </dl>
               ) : null}
             </div>
-            {upcoming || !context.applyHref ? null : (
+            {upcoming ? (
+              <p className="site-status">
+                <CalendarDays aria-hidden className="site-status-icon" />
+                <span>
+                  {m.siteIntakeOpens({ date: date(intake.opensOn) }, t)}
+                </span>
+              </p>
+            ) : context.applyHref ? (
               <PortalLink
                 href={context.applyHref(intake.id)}
                 context={context}
@@ -2379,7 +2421,7 @@ function IntakeCards({
               >
                 {m.siteIntakeApply({}, t)}
               </PortalLink>
-            )}
+            ) : null}
           </li>
         );
       })}
@@ -2404,13 +2446,15 @@ function Admissions({ section, context }: Props<"admissions">) {
             compact={variant !== "triad"}
           />
         ) : (
-          <p className="site-card site-text flex items-center gap-4 p-[var(--s-card-pad)] text-start">
+          <p className="site-empty">
             <span aria-hidden className="site-icon-tile">
               <CalendarDays />
             </span>
-            {context.editing
-              ? m.siteIntakesFromAdmissions({}, { locale: context.locale })
-              : m.siteIntakesNone({}, { locale: context.locale })}
+            <span className="site-heading site-h4 font-semibold">
+              {context.editing
+                ? m.siteIntakesFromAdmissions({}, { locale: context.locale })
+                : m.siteIntakesNone({}, { locale: context.locale })}
+            </span>
           </p>
         )}
       </div>
@@ -2474,18 +2518,54 @@ function Admissions({ section, context }: Props<"admissions">) {
 function RegisterApply({ section, context }: Props<"registerApply">) {
   const { data, variant } = section;
   const t = { locale: context.locale };
+  const intakes = context.intakes ?? [];
   const named = data.intake
-    ? (context.intakes ?? []).find((intake) => intake.id === data.intake)
+    ? intakes.find((intake) => intake.id === data.intake)
     : null;
-  const notYet = named && context.today ? context.today < named.opensOn : false;
-  const gone = Boolean(data.intake) && !named && !context.editing;
+  const opened = (intake: SiteIntake) =>
+    !context.today || context.today >= intake.opensOn;
+  const date = (day: string) => formatDate(day, "full", context.locale);
+  // Applying is only offered while there is something to apply for; until
+  // then the band says why and sends families to the way the school chose.
+  const soonest = intakes.toSorted((a, b) =>
+    a.opensOn.localeCompare(b.opensOn),
+  )[0];
+  const closed: string | null = data.intake
+    ? named
+      ? opened(named)
+        ? null
+        : m.siteRegisterApplyOpensOn({ date: date(named.opensOn) }, t)
+      : context.editing
+        ? null
+        : m.siteRegisterApplyClosed({}, t)
+    : intakes.some(opened)
+      ? null
+      : soonest
+        ? m.siteRegisterApplyOpensOn({ date: date(soonest.opensOn) }, t)
+        : m.siteRegisterApplyNotOpen({}, t);
   const label = data.button.trim() || m.siteRegisterApplyButton({}, t);
+  const banner = variant === "banner";
+  const action =
+    closed !== null ? (
+      <Actions actions={data.closed} context={context} size="lg" />
+    ) : context.applyHref ? (
+      <div className="site-actions">
+        <PortalLink
+          href={context.applyHref(named?.id ?? null)}
+          context={context}
+          className="site-button"
+          size="lg"
+        >
+          {label}
+        </PortalLink>
+      </div>
+    ) : null;
   return (
     <div
       className={cn(
         "grid gap-8",
-        variant === "banner"
-          ? "items-end @3xl/site:grid-cols-[1fr_auto]"
+        banner
+          ? "items-end @3xl/site:grid-cols-[minmax(0,1fr)_auto] @3xl/site:gap-16"
           : "site-card site-narrow p-[var(--s-card-pad)] @3xl/site:p-12",
       )}
     >
@@ -2493,8 +2573,8 @@ function RegisterApply({ section, context }: Props<"registerApply">) {
         <Eyebrow field="eyebrow">{data.eyebrow}</Eyebrow>
         <Heading field="heading">{data.heading}</Heading>
         <Lead field="text">{data.text}</Lead>
-        {named ? (
-          <p className="site-text">
+        {named && closed === null ? (
+          <p className="site-text font-semibold">
             {m.siteRegisterApplyFor(
               {
                 grade: intakeGrade(named, context.locale),
@@ -2504,26 +2584,14 @@ function RegisterApply({ section, context }: Props<"registerApply">) {
             )}
           </p>
         ) : null}
+        {closed === null ? null : (
+          <p className="site-status">
+            <CalendarDays aria-hidden className="site-status-icon" />
+            <span>{closed}</span>
+          </p>
+        )}
       </div>
-      {gone ? (
-        <p className="site-muted">{m.siteRegisterApplyClosed({}, t)}</p>
-      ) : notYet && named ? (
-        <p className="site-muted">
-          {m.siteIntakeOpens(
-            { date: formatDate(named.opensOn, "medium", context.locale) },
-            t,
-          )}
-        </p>
-      ) : context.applyHref ? (
-        <PortalLink
-          href={context.applyHref(named?.id ?? null)}
-          context={context}
-          className="site-button justify-self-start"
-          size="lg"
-        >
-          {label}
-        </PortalLink>
-      ) : null}
+      {action}
     </div>
   );
 }
@@ -2908,17 +2976,51 @@ type Question = SectionOf<"form">["data"]["questions"][number];
 /** How long ago a moment was, read when the form is sent. */
 const since = (start: number) => Date.now() - start;
 
+/** A question whose answer needs the whole row: a paragraph, or a few options laid out side by side. */
+const takesRow = (question: Question) =>
+  question.answer === "long" ||
+  (question.answer === "choice" && optionsOf(question.options).length <= 4);
+
+/**
+ * The fields that take the whole row in a form of two columns: those that
+ * need it, and the first of any run of half-width fields whose count is
+ * odd, so no row ends half empty.
+ */
+function wideFields(halves: number, questions: Question[]): Set<string> {
+  const wide = new Set<string>();
+  let run = halves;
+  let first = "name";
+  const close = () => {
+    if (run % 2 === 1) wide.add(first);
+  };
+  for (const question of questions) {
+    if (takesRow(question)) {
+      close();
+      wide.add(question.id);
+      run = 0;
+    } else {
+      if (run === 0) first = question.id;
+      run += 1;
+    }
+  }
+  close();
+  return wide;
+}
+
 /** One of the school's own questions, drawn as the kind of answer it takes. */
 function QuestionField({
   question,
   id,
   context,
+  wide,
 }: {
   question: Question;
   id: string;
   context: RenderContext;
+  wide: boolean;
 }) {
   const t = { locale: context.locale };
+  const row = wide || undefined;
   const required = question.required === "required";
   const name = `answer:${question.id}`;
   const hintId = question.hint ? `${id}-hint` : undefined;
@@ -2950,7 +3052,8 @@ function QuestionField({
     if (options.length <= 4)
       return (
         <fieldset
-          className="site-label @3xl/site:col-span-2"
+          className="site-label"
+          data-wide={row}
           aria-describedby={hintId}
         >
           <legend className="mb-2">{label}</legend>
@@ -2978,7 +3081,7 @@ function QuestionField({
         </fieldset>
       );
     return (
-      <label htmlFor={id} className="site-label">
+      <label htmlFor={id} className="site-label" data-wide={row}>
         {label}
         {hint}
         <select {...shared} className="site-input" defaultValue="">
@@ -2996,7 +3099,7 @@ function QuestionField({
   }
   if (question.answer === "long")
     return (
-      <label htmlFor={id} className="site-label @3xl/site:col-span-2">
+      <label htmlFor={id} className="site-label" data-wide={row}>
         {label}
         {hint}
         <textarea
@@ -3007,7 +3110,7 @@ function QuestionField({
       </label>
     );
   return (
-    <label htmlFor={id} className="site-label">
+    <label htmlFor={id} className="site-label" data-wide={row}>
       {label}
       {hint}
       <input
@@ -3031,6 +3134,7 @@ function EnquiryForm({ section, context }: Props<"form">) {
   const { data, variant } = section;
   const t = { locale: context.locale };
   const opened = useRef(0);
+  const thanks = useRef<HTMLOutputElement>(null);
   const [state, setState] = useState<FormState>("idle");
   const [token, setToken] = useState("");
   const [challenge, setChallenge] = useState(0);
@@ -3040,6 +3144,10 @@ function EnquiryForm({ section, context }: Props<"form">) {
   useEffect(() => {
     opened.current = Date.now();
   }, []);
+  // The button that was pressed is gone once the thanks replaces the form.
+  useEffect(() => {
+    if (state === "sent") thanks.current?.focus();
+  }, [state]);
   const questions = data.questions.filter((question) =>
     context.editing ? question.label.trim() !== "" : questionComplete(question),
   );
@@ -3120,6 +3228,13 @@ function EnquiryForm({ section, context }: Props<"form">) {
             : state === "failed"
               ? m.siteFormFailed({}, t)
               : null;
+  const wide = wideFields(
+    1 +
+      [data.email, data.phone, data.child, data.grade].filter(
+        (choice) => choice !== "hide",
+      ).length,
+    questions,
+  );
   const words = (
     <div data-stagger className="site-stack">
       <Eyebrow field="eyebrow">{data.eyebrow}</Eyebrow>
@@ -3129,7 +3244,11 @@ function EnquiryForm({ section, context }: Props<"form">) {
   );
   const form =
     state === "sent" ? (
-      <output className="site-card grid content-center justify-items-start gap-4 p-[var(--s-card-pad)] text-start">
+      <output
+        ref={thanks}
+        tabIndex={-1}
+        className="site-card grid content-center justify-items-start gap-4 p-[var(--s-card-pad)] text-start outline-none"
+      >
         <span className="grid size-12 place-items-center rounded-full bg-[var(--s-btn)] text-[var(--s-btn-fg)]">
           <Check aria-hidden className="size-6" />
         </span>
@@ -3149,8 +3268,15 @@ function EnquiryForm({ section, context }: Props<"form">) {
             {m.siteFormReachHint({}, t)}
           </p>
         ) : null}
-        <div className="grid gap-4 @3xl/site:grid-cols-2">
-          <label htmlFor={id("name")} className="site-label">
+        <div
+          className="site-fields"
+          data-split={variant === "split" || undefined}
+        >
+          <label
+            htmlFor={id("name")}
+            className="site-label"
+            data-wide={wide.has("name") || undefined}
+          >
             {m.siteFormName({}, t)}
             <input
               id={id("name")}
@@ -3241,6 +3367,7 @@ function EnquiryForm({ section, context }: Props<"form">) {
               question={question}
               id={id(question.id)}
               context={context}
+              wide={wide.has(question.id)}
             />
           ))}
         </div>
@@ -3309,8 +3436,8 @@ function EnquiryForm({ section, context }: Props<"form">) {
     );
   if (variant === "split")
     return (
-      <div className="site-split items-start" data-ratio="2-3">
-        <div className="grid gap-8">
+      <div className="site-enquiry site-split items-start" data-ratio="2-3">
+        <div className="site-form-aside grid gap-8">
           {words}
           {data.media.fileId ? (
             <MediaView
@@ -3326,7 +3453,7 @@ function EnquiryForm({ section, context }: Props<"form">) {
       </div>
     );
   return (
-    <div className="site-narrow relative grid gap-10">
+    <div className="site-enquiry site-narrow relative grid gap-10">
       {words}
       {form}
     </div>

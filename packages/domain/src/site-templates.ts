@@ -179,6 +179,13 @@ const REGISTER_APPLY = section(
     ]),
     intake: "",
     button: b.w(["Register and apply", "سجّل وقدّم"]),
+    closed: [
+      link(
+        b,
+        ["Ask about joining", "اسألوا عن الالتحاق"],
+        `/pages/admissions#${ANCHOR.enquiry}`,
+      ),
+    ],
   }),
   { scheme: "brand", anchor: ANCHOR.apply },
 );
@@ -1431,6 +1438,147 @@ const PARENTS_MESSAGE = FORM(
   ],
 );
 
+/** A school that is still to open: one message, said large, before any picture. */
+const LAUNCH_HERO = section("hero", "type", (b) => ({
+  eyebrow: b.w(["Opening September 2027", "نفتح أبوابنا في سبتمبر ٢٠٢٧"]),
+  heading: b.w([
+    "A new school for *curious* minds",
+    "مدرسة جديدة *للعقول* الفضولية",
+  ]),
+  text: b.w([
+    "We open next September with small classes, two languages and a founding team of teachers. Come and meet us before the doors open.",
+    "نفتتح في سبتمبر القادم بفصول صغيرة ولغتين وفريق مؤسِّس من المعلّمين. تعالوا للقائنا قبل أن تُفتح الأبواب.",
+  ]),
+  actions: [
+    link(
+      b,
+      ["Register interest", "سجّلوا اهتمامكم"],
+      `/pages/admissions#${ANCHOR.enquiry}`,
+    ),
+    link(b, ["Book a visit", "احجزوا زيارة"], `/pages/visit#${ANCHOR.visit}`),
+  ],
+  height: "l" as const,
+}));
+
+const LAUNCH_STORY = section("imageText", "overlap", (b) => ({
+  eyebrow: b.w(["Before we open", "قبل الافتتاح"]),
+  heading: b.w(["Meet the *founding* team", "تعرّفوا على *الفريق المؤسِّس*"]),
+  body: plainContent(
+    b.w([
+      "Come to an information morning at the new campus. Walk the classrooms as they take shape, meet the principal and the teachers who will start the school, and ask everything you want to know.\nMornings run every Saturday from 10:00 until the doors open.",
+      "احضروا صباحًا تعريفيًا في الحرم الجديد. تجوّلوا في الفصول وهي تكتمل، وقابلوا المديرة والمعلّمين الذين سيبدؤون المدرسة، واسألوا عن كل ما تريدون معرفته.\nتُقام اللقاءات صباح كل سبت من الساعة ١٠:٠٠ حتى يوم الافتتاح.",
+    ]),
+  ),
+  media: {
+    kind: "image" as const,
+    fileId: null,
+    alt: "",
+    posterFileId: null,
+    captionsFileId: null,
+  },
+  actions: [
+    link(b, ["Book a morning", "احجزوا موعدًا"], `/pages/visit#${ANCHOR.visit}`),
+  ],
+}));
+
+const LAUNCH_STATS = section("stats", "row", (b) => ({
+  heading: b.w(["Small by *design*", "صغيرة *عن قصد*"]),
+  items: [
+    {
+      id: b.id(),
+      value: "20",
+      label: b.w(["children in a class, at most", "طفلًا في الفصل كحدّ أقصى"]),
+      caption: "",
+    },
+    {
+      id: b.id(),
+      value: "2",
+      label: b.w(["languages, every day", "لغتان كل يوم"]),
+      caption: "",
+    },
+    {
+      id: b.id(),
+      value: "12",
+      label: b.w(["founding teachers", "معلّمًا مؤسِّسًا"]),
+      caption: "",
+    },
+    {
+      id: b.id(),
+      value: "1:10",
+      label: b.w([
+        "adults to children in the early years",
+        "نسبة الكبار إلى الأطفال في السنوات الأولى",
+      ]),
+      caption: "",
+    },
+  ],
+  source: "",
+}));
+
+const LAUNCH_QUOTE = section(
+  "quote",
+  "large",
+  (b) => ({
+    quote: b.w([
+      "We are building the school we always wanted to teach in: small enough to know every child, ambitious enough to stretch each one.",
+      "نبني المدرسة التي طالما تمنّينا أن نعلّم فيها: صغيرة بما يكفي لنعرف كل طفل، وطموحة بما يكفي لنتحدّى كلًّا منهم.",
+    ]),
+    name: b.w(["Dr Amal Nasser", "د. أمل ناصر"]),
+    role: b.w(["Founding principal", "المديرة المؤسِّسة"]),
+    portrait: noImage,
+    badge: "none" as const,
+  }),
+  { scheme: "ink" },
+);
+
+const LAUNCH_STEPS = section("steps", "horizontal", (b) => ({
+  heading: b.w([
+    "Four steps to a *founding* place",
+    "أربع خطوات نحو *مقعد مؤسِّس*",
+  ]),
+  text: "",
+  items: [
+    {
+      id: b.id(),
+      title: b.w(["Register interest", "سجّلوا اهتمامكم"]),
+      text: b.w([
+        "Tell us about your child and the year they would join. We reply within two working days.",
+        "أخبرونا عن طفلكم والصف الذي سيلتحق به، وسنرد خلال يومي عمل.",
+      ]),
+    },
+    {
+      id: b.id(),
+      title: b.w(["Meet us", "قابلونا"]),
+      text: b.w([
+        "Come to an information morning at the new campus and meet the founding team.",
+        "احضروا صباحًا تعريفيًا في الحرم الجديد وقابلوا الفريق المؤسِّس.",
+      ]),
+    },
+    {
+      id: b.id(),
+      title: b.w(["Assessment", "التقييم"]),
+      text: b.w([
+        "A relaxed morning with us, so we can understand how your child learns best.",
+        "صباح هادئ معنا لنفهم كيف يتعلّم طفلكم على أفضل وجه.",
+      ]),
+    },
+    {
+      id: b.id(),
+      title: b.w(["A founding place", "مقعد مؤسِّس"]),
+      text: b.w([
+        "We confirm your child's place and help you prepare for the very first day.",
+        "نؤكّد مقعد طفلكم ونساعدكم على الاستعداد لليوم الأول.",
+      ]),
+    },
+  ],
+}));
+
+const LAUNCH_NEWS = section("news", "list", (b) => ({
+  heading: b.w(["Notes from the *founding* year", "من يوميات *عام التأسيس*"]),
+  count: 3,
+  category: "",
+}));
+
 /** A sample of every section, for the builder to show and insert. */
 const SAMPLES: Record<SectionType, (b: Builder) => PageSection> = {
   hero: HERO_HOME,
@@ -2098,15 +2246,17 @@ export const PAGE_TEMPLATES = {
     on(EY_VOICES, { dividerTop: "wave" }),
     on(EY_STEPS, CANVAS),
   ],
-  // Bold and new: words before pictures, values in motion, then the proof.
+  // Bold and new: words before pictures, values in motion, the proof, then
+  // the way in, closing on the same colour the values opened on.
   homeStatement: [
-    on(HERO_HOME, CANVAS, "type"),
+    on(LAUNCH_HERO, CANVAS),
     on(PILLARS, { scheme: "accent", spacing: "s" }, "ticker"),
-    on(VISIT_STORY, CANVAS, "overlap"),
-    on(STATS, SOFT),
-    on(QUOTE, { scheme: "ink", align: "start" }),
-    on(NEWS, CANVAS, "list"),
-    REGISTER_APPLY,
+    on(LAUNCH_STORY, CANVAS),
+    on(LAUNCH_STATS, SOFT),
+    on(LAUNCH_QUOTE, { align: "center" }),
+    on(LAUNCH_NEWS, SOFT),
+    on(LAUNCH_STEPS, CANVAS),
+    on(REGISTER_APPLY, { scheme: "accent" }),
   ],
   // A welcome: the whole screen first, a sentence that sums the school up,
   // values beside pictures, the numbers, the way in, and families' voices.
@@ -2144,8 +2294,10 @@ export const PAGE_TEMPLATES = {
     ),
     on(STEPS, CANVAS),
     on(ADMISSIONS_INTAKES, SOFT),
+    on(FAQ, CANVAS, "columns"),
+    // The way in last, right above the form a family is sent to while
+    // nothing is open.
     REGISTER_APPLY,
-    on(FAQ, CANVAS),
     on(ENQUIRY_FORM, SOFT),
   ],
   visit: [
@@ -2214,7 +2366,7 @@ export const PAGE_TEMPLATES = {
         "نقرأ كل رسالة ونرد خلال يومي عمل.",
       ],
     ),
-    on(FAQ, CANVAS),
+    on(FAQ, CANVAS, "columns"),
   ],
 } satisfies Record<string, ((b: Builder) => PageSection)[]>;
 export type PageTemplate = keyof typeof PAGE_TEMPLATES;

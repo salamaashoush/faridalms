@@ -256,6 +256,7 @@ export const CATEGORY_LABEL: Record<SectionCategory, () => string> = {
 export const FIELD_LABEL: Record<string, () => string> = {
   intake: m.siteFieldIntake,
   button: m.siteFieldButton,
+  closed: m.siteFieldClosed,
   eyebrow: m.siteFieldEyebrow,
   heading: m.siteFieldHeading,
   text: m.siteFieldText,
@@ -501,6 +502,7 @@ export const ISSUE_LABEL: Record<SiteIssueCode, () => string> = {
 /** A line under a field's label, where its declaration alone would not say enough. */
 export const FIELD_HINT: Record<string, () => string> = {
   intake: m.siteFieldIntakeHint,
+  closed: m.siteFieldClosedHint,
   options: m.siteFieldOptionsHint,
   questions: m.siteFieldQuestionsHint,
 };
