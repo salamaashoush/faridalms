@@ -141,8 +141,20 @@ test("a teacher sets a web project, a student builds it from several files and h
   await expect(
     played(studio).getByRole("heading", { name: "The red panda" }),
   ).toBeVisible();
-  await studio.getByRole("button", { name: "New file" }).click();
   const name = student.getByRole("textbox", { name: "File name" });
+  // The one page keeps a page's name.
+  await studio.getByRole("button", { name: "More for index.html" }).click();
+  await student.getByRole("menuitem", { name: "Rename" }).click();
+  await name.fill("notes.js");
+  await student.getByRole("button", { name: "Rename", exact: true }).click();
+  await expect(
+    student.getByText(/^A project needs a page or a program/),
+  ).toBeVisible();
+  await student.getByRole("button", { name: "Cancel", exact: true }).click();
+  await expect(
+    studio.getByRole("button", { name: "index.html" }),
+  ).toBeVisible();
+  await studio.getByRole("button", { name: "New file" }).click();
   await name.fill("about me.html");
   await student.getByRole("button", { name: "Add file" }).click();
   await expect(

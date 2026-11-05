@@ -10,6 +10,7 @@ import {
   languageOf,
   MAX_PROJECT_BYTES,
   MAX_PROJECT_FILES,
+  opensOrRuns,
   projectBytes,
 } from "@faridalms/domain/project";
 import { Button } from "@faridalms/ui/button";
@@ -533,6 +534,16 @@ export function WebProjectStudio({
               others={files
                 .filter((file) => file.id !== naming.id)
                 .map((file) => file.name)}
+              keeps={(to) =>
+                naming.id === null ||
+                opensOrRuns(
+                  plain(
+                    files.map((file) =>
+                      file.id === naming.id ? { ...file, name: to } : file,
+                    ),
+                  ),
+                )
+              }
               onName={(to) => name(naming.id, to)}
               onCancel={() => setNaming(null)}
             />
@@ -692,14 +703,23 @@ function FileTabs({
 }
 
 /** Names a new file, or gives one another name. */
+const NAME_ISSUES = {
+  "learning.project_file": m.projectFileBad,
+  "learning.project_file_taken": m.projectFileTaken,
+  "learning.project_page": m.projectPageNeeded,
+} as const;
+
 function NameDialog({
   file,
   others,
+  keeps,
   onName,
   onCancel,
 }: {
   file: Open | null;
   others: readonly string[];
+  /** Whether the project still opens or runs with the file under this name. */
+  keeps: (name: string) => boolean;
   onName: (name: string) => void;
   onCancel: () => void;
 }) {
@@ -707,13 +727,10 @@ function NameDialog({
   const field = useRef<HTMLInputElement>(null);
   const [name, setName] = useState(file?.name ?? "");
   const [tried, setTried] = useState(false);
-  const issue = fileNameIssue(name.trim(), others);
-  const said =
-    tried && issue
-      ? issue === "learning.project_file_taken"
-        ? m.projectFileTaken()
-        : m.projectFileBad()
-      : null;
+  const issue =
+    fileNameIssue(name.trim(), others) ??
+    (keeps(name.trim()) ? null : "learning.project_page");
+  const said = tried && issue ? NAME_ISSUES[issue]() : null;
   return (
     <Dialog
       open

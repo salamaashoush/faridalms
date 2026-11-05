@@ -122,6 +122,17 @@ export function programFile(files: readonly ProjectFile[]): ProjectFile | null {
   return language === "microbit" ? programOf(files) : null;
 }
 
+/** Whether a project still has a page to open, a program to run, or a device it is for. */
+export function opensOrRuns(files: readonly ProjectFile[]): boolean {
+  return (
+    isDeviceProject(files) ||
+    files.some((file) => {
+      const kind = fileKind(file.name);
+      return kind === "html" || kind === "py";
+    })
+  );
+}
+
 /**
  * A project as a student keeps or hands it in: at least a page to open, a
  * program to run, or what a device project is.
@@ -131,15 +142,7 @@ export const projectFilesSchema = v.pipe(
   v.minLength(1),
   v.maxLength(MAX_PROJECT_FILES),
   v.check((files) => distinct(files), "learning.project_file_taken"),
-  v.check(
-    (files) =>
-      isDeviceProject(files) ||
-      files.some((file) => {
-        const kind = fileKind(file.name);
-        return kind === "html" || kind === "py";
-      }),
-    "learning.project_page",
-  ),
+  v.check((files) => opensOrRuns(files), "learning.project_page"),
   v.check(
     (files) => projectBytes(files) <= MAX_PROJECT_BYTES,
     "learning.project_too_large",

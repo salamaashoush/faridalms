@@ -52,8 +52,6 @@ From `foundations.md`. W1, W3, W4 and W5 are merged.
   rules before saving, so the person learns of them only from the refusal.
 - `access` assignment does not check for an overlapping assignment before
   saving.
-- A student can rename a project's only page away: there is no only-page
-  guard.
 
 ## Reach
 
