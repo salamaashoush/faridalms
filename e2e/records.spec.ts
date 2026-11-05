@@ -282,7 +282,9 @@ test("a teacher's record lists what they teach, and their students' records name
   const teaching = page.getByRole("region", { name: "Teaching" });
   await expect(teaching.getByText(/^Classes and subjects in /)).toBeVisible();
   await expect(teaching.getByText("Homeroom teacher")).toBeVisible();
-  await teaching.getByRole("link", { name: homeroom.titleEn ?? "" }).click();
+  await teaching
+    .getByRole("link", { name: homeroom.titleEn ?? "", exact: true })
+    .click();
   await expect(page).toHaveURL(new RegExp(`/classes/${homeroom.id}`));
 
   await page.goto(`/students/${pupil.userId}`);
