@@ -13,7 +13,22 @@ import * as m from "~/i18n/messages";
 import { getLocale } from "~/i18n/runtime";
 import { requestDemo } from "~/server/product";
 
-type State = "idle" | "sending" | "sent" | "failed" | "limited" | "unavailable";
+import { useHumanCheck } from "../auth/HumanCheck";
+
+type State =
+  | "idle"
+  | "sending"
+  | "sent"
+  | "failed"
+  | "limited"
+  | "unavailable"
+  | "challenge";
+
+const FAILURES: Partial<Record<string, State>> = {
+  "product.too_many": "limited",
+  "product.unavailable": "unavailable",
+  "site.challenge": "challenge",
+};
 
 const ROLE_LABEL = {
   leader: m.productRoleLeader,
@@ -66,6 +81,7 @@ function Field({
  */
 export function DemoForm() {
   const [state, setState] = useState<State>("idle");
+  const human = useHumanCheck("demo");
   const opened = useRef(0);
   const hydrated = useHydrated();
   useEffect(() => {
@@ -74,7 +90,7 @@ export function DemoForm() {
 
   const send = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    if (!hydrated || state === "sending") return;
+    if (!hydrated || state === "sending" || !human.ready) return;
     const form = new FormData(event.currentTarget);
     const read = (key: string) => {
       const value = form.get(key);
@@ -95,18 +111,15 @@ export function DemoForm() {
           message: read("message"),
           website: read("website"),
           elapsed: Date.now() - opened.current,
+          human: human.token,
         },
       });
       setState("sent");
     } catch (error) {
       const message = error instanceof Error ? error.message : "";
-      setState(
-        message === "product.too_many"
-          ? "limited"
-          : message === "product.unavailable"
-            ? "unavailable"
-            : "failed",
-      );
+      setState(FAILURES[message] ?? "failed");
+      // A token answers once, so another try needs a fresh one.
+      human.spend();
     }
   };
 
@@ -129,7 +142,9 @@ export function DemoForm() {
         ? m.productDemoLimited()
         : state === "unavailable"
           ? m.productDemoUnavailable()
-          : null;
+          : state === "challenge"
+            ? m.siteErrChallenge()
+            : null;
 
   return (
     <form
@@ -231,6 +246,7 @@ export function DemoForm() {
           autoComplete="off"
         />
       </div>
+      {human.widget}
       {problem ? (
         <p
           role="alert"
@@ -244,7 +260,7 @@ export function DemoForm() {
         type="submit"
         size="lg"
         className="w-full px-5 sm:w-auto sm:justify-self-start"
-        disabled={state === "sending"}
+        disabled={state === "sending" || !human.ready}
       >
         {state === "sending" ? m.productDemoSending() : m.productDemoSend()}
       </Button>

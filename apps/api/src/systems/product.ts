@@ -3,6 +3,7 @@ import { ORPCError } from "@orpc/server";
 
 import { publicProcedure } from "../core/procedure";
 import { ipPrefix } from "../core/session";
+import { bareHumanCheck } from "../core/turnstile";
 
 /** Faster than a person can type a name, a school and an address. */
 const MIN_FILL_MS = 3000;
@@ -38,8 +39,9 @@ const SIZE = {
 
 /**
  * A demonstration request from the product site, emailed to the product's
- * inbox. A form filled by a script, or faster than a person can type, is
- * answered as if received and dropped, so the script learns nothing.
+ * inbox, behind the same guard as a school's enquiry form. Without
+ * Turnstile, a form filled by a script, or faster than a person can type,
+ * is answered as if received and dropped, so the script learns nothing.
  */
 export const requestDemo = publicProcedure
   .input(demoRequestSchema)
@@ -48,7 +50,13 @@ export const requestDemo = publicProcedure
       throw new ORPCError("SERVICE_UNAVAILABLE", {
         message: "product.unavailable",
       });
-    if (input.website || input.elapsed < MIN_FILL_MS) return { received: true };
+    // As on a school's enquiry form: where Turnstile is set up its answer is
+    // the proof of a person, and the hidden field and the fill time are the
+    // fallback without it, since browsers autofill both.
+    if (!context.turnstile && (input.website || input.elapsed < MIN_FILL_MS))
+      return { received: true };
+    if (!(await bareHumanCheck(context, input.human, "demo")))
+      throw new ORPCError("BAD_REQUEST", { message: "site.challenge" });
     const now = Date.now();
     const network =
       ipPrefix(context.headers, context.trustedProxyHops) ?? "unknown";

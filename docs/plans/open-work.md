@@ -22,8 +22,6 @@ From `foundations.md`. W1 to W5 are merged.
     forms;
   - saved sections on the templates and shared-block systems;
   - one audience semantics;
-  - the product site's demonstration form behind the enquiry form's spam
-    guard;
   - a shared person-name type in place of about 20 differently named
     field pairs;
   - oRPC's default English messages ("Not Found", "Input validation

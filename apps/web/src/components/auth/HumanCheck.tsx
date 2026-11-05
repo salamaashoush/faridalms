@@ -7,11 +7,15 @@ import { getLocale } from "~/i18n/runtime";
 import { getHumanCheck } from "~/server/auth";
 
 /**
- * The bare domain's human check, when the platform runs one: the widget to
+ * The bare domain's human check, when the platform runs one, for its
+ * sign-in, reset and the product site's demonstration form: the widget to
  * place in a form, the token it gave, whether the form may send, and
  * `spend` to ask for a fresh token after each try, since a token works once.
  */
-export function useHumanCheck(action: "sign_in" | "reset", enabled = true) {
+export function useHumanCheck(
+  action: "sign_in" | "reset" | "demo",
+  enabled = true,
+) {
   const fetchKey = useServerFn(getHumanCheck);
   const siteKey =
     useQuery({

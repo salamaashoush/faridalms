@@ -1,5 +1,6 @@
 import type { DirectorySchool } from "@faridalms/database/directory/client";
 
+import { clientAddress } from "@faridalms/domain/forwarded";
 import { platformName } from "@faridalms/domain/hosts";
 
 import type { RequestContext } from "./context";
@@ -130,4 +131,29 @@ export async function servesSchool(
     return true;
   const routed = await context.directory.byHost(name);
   return routed?.school.schoolId === school.schoolId;
+}
+
+/**
+ * Where the bare domain asks the visitor to prove they are a person: the
+ * Turnstile token from its sign-in, reset or demonstration form, solved on the bare domain
+ * itself for that action. Without Turnstile configured it passes, and each
+ * form's own limits are the only check.
+ */
+export async function bareHumanCheck(
+  context: RequestContext,
+  answer: string | undefined,
+  action: "sign_in" | "reset" | "demo",
+): Promise<boolean> {
+  const turnstile = context.turnstile;
+  if (!turnstile) return true;
+  return turnstile.verify({
+    token: answer ?? "",
+    remoteIp: clientAddress(
+      context.headers.get("x-forwarded-for"),
+      context.trustedProxyHops,
+    ),
+    action,
+    hostAllowed: (hostname) =>
+      Promise.resolve(hostname === context.domains.portal),
+  });
 }

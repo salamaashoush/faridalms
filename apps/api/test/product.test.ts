@@ -1,6 +1,13 @@
+import type { RouterClient } from "@orpc/server";
+
+import { createORPCClient } from "@orpc/client";
+import { RPCLink } from "@orpc/client/fetch";
 import { describe, expect, test } from "bun:test";
 
-import { client, rejection, seeded } from "./harness";
+import type { AppRouter } from "../src/router";
+
+import { createTurnstile } from "../src/core/turnstile";
+import { client, DOMAINS, handlerWith, rejection, seeded } from "./harness";
 
 const request = (overrides: Record<string, unknown> = {}) => ({
   locale: "en" as const,
@@ -69,5 +76,53 @@ describe("demonstration requests", () => {
         client("").product.requestDemo(request({ email: "not an address" })),
       ),
     ).toMatchObject({ code: "BAD_REQUEST" });
+  });
+});
+
+describe("the demonstration form's guard", () => {
+  test("is the enquiry form's: where Turnstile is set up, its answer for this form on the bare domain decides", async () => {
+    const answers = new Map<string, Record<string, unknown>>([
+      ["good", { success: true, action: "demo", hostname: DOMAINS.portal }],
+      [
+        "sign-in",
+        { success: true, action: "sign_in", hostname: DOMAINS.portal },
+      ],
+      [
+        "elsewhere",
+        { success: true, action: "demo", hostname: "evil.example.org" },
+      ],
+    ]);
+    const turnstile = createTurnstile({
+      siteKey: "site-key",
+      secretKey: "secret-key",
+      retryDelaysMs: [],
+      fetch: (async (_url: string, init?: RequestInit) => {
+        const body = JSON.parse(
+          typeof init?.body === "string" ? init.body : "{}",
+        ) as Record<string, unknown>;
+        return Response.json(
+          answers.get(String(body.response)) ?? { success: false },
+        );
+      }) as typeof fetch,
+    });
+    const handler = handlerWith({ turnstile });
+    const api: RouterClient<AppRouter> = createORPCClient(
+      new RPCLink({
+        url: "http://api.test/rpc",
+        headers: () => ({ "x-forwarded-for": "198.18.0.77" }),
+        fetch: (sent, init) => handler(new Request(sent, init)),
+      }),
+    );
+    const product = api.product;
+    const before = toInbox().length;
+    for (const human of [undefined, "sign-in", "elsewhere"])
+      expect(
+        await rejection(product.requestDemo(request({ human }))),
+      ).toMatchObject({ message: "site.challenge" });
+    // A person who passed the challenge is not dropped for a quick fill.
+    expect(
+      await product.requestDemo(request({ human: "good", elapsed: 400 })),
+    ).toEqual({ received: true });
+    expect(toInbox().length).toBe(before + 1);
   });
 });

@@ -35,5 +35,6 @@ export const demoRequestSchema = v.object({
   message: optionalText(2000),
   website: v.optional(v.pipe(v.string(), v.maxLength(200)), ""),
   elapsed: v.pipe(v.number(), v.integer(), v.minValue(0)),
+  human: v.optional(v.pipe(v.string(), v.maxLength(4096))),
 });
 export type DemoRequest = v.InferOutput<typeof demoRequestSchema>;
