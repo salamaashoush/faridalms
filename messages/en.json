@@ -9021,5 +9021,6 @@
   "modulesInPlanTitle": "What your plan includes",
   "modulesIncluded": "Included",
   "modulesNotInPlan": "Not in your plan",
-  "codingUnavailable": "This school does not run code, so the program was not run."
+  "codingUnavailable": "This school does not run code, so the program was not run.",
+  "codingNotHere": "This question asks for a program, and this school does not run code."
 }

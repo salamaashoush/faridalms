@@ -78,6 +78,7 @@ import { CodingAnswer } from "~/components/coding/CodingAnswer";
 import { friendlyError } from "~/components/coding/friendly";
 import { WebProjectAnswer } from "~/components/coding/WebProjectAnswer";
 import { editorSetting, puzzleStrings } from "~/components/puzzles/strings";
+import { useCurrentUser } from "~/hooks/useCurrentUser";
 import { getLocale } from "~/i18n/runtime";
 import { formatList, formatNumber, formatPercent } from "~/utils/datetime";
 import { getMessageFromError } from "~/utils/error";
@@ -3683,6 +3684,9 @@ export function CheckBlockView({
   );
 }
 
+/** Questions a student answers by running or building a program. */
+const RUNS_CODE = new Set<string>(["program", "scratch", "project", "puzzle"]);
+
 function CheckBody({
   block,
   view,
@@ -3695,6 +3699,16 @@ function CheckBody({
   const young = useContext(YoungContext);
   const mode = useContext(CheckModeContext);
   const legend = useId();
+  const m = useCheckMessages();
+  const coding = useCurrentUser().modules.coding;
+  // A coding question stays in the document at a school without coding,
+  // which says so rather than offering a program it would not run.
+  if (!coding && RUNS_CODE.has(block.type))
+    return (
+      <p className="rounded-md border border-dashed px-3 py-2.5 text-sm leading-5 text-muted-foreground">
+        {m.codingNotHere()}
+      </p>
+    );
   // A question whose feedback waits is answered as in a quiz, then read as
   // a returned one; once shown before it was answered, it answers at once.
   if (
