@@ -36,10 +36,15 @@ describe("a draft of a new school", () => {
     });
     if (!customerId) throw new Error("customer");
 
-    const [first] = spec.tenant.schools;
     const named = {
       ...spec,
-      tenant: { ...spec.tenant, schools: [{ ...first, slug: "larch" }] },
+      tenant: {
+        ...spec.tenant,
+        schools: spec.tenant.schools.map((school) => ({
+          ...school,
+          slug: "larch",
+        })),
+      },
     };
     expect(
       await saveDraft(business(), {
