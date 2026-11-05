@@ -1,5 +1,6 @@
 import type { SchoolNotice } from "@faridalms/domain/plans";
 
+import { daysBetween } from "@faridalms/domain/school";
 import { CircleAlert } from "lucide-react";
 
 import { useCurrentUser } from "~/hooks/useCurrentUser";
@@ -16,14 +17,25 @@ const counted = (value: { count: number; limit: number }) => ({
   limit: formatNumber(value.limit),
 });
 
+/** The trial's last day and the days left until it; nothing once it is over. */
+function trialLine(endsOn: string, today: string): string | null {
+  if (endsOn < today) return null;
+  if (endsOn === today) return m.contractTrialEndsToday();
+  const days = daysBetween(today, endsOn) - 1;
+  return m.contractTrialEnds({
+    count: days,
+    value: formatNumber(days),
+    date: formatDate(endsOn, "full"),
+  });
+}
+
 /** What the platform tells a school's administrators about their contract. */
 export function ContractNotice() {
   const { contract, paused, today } = useCurrentUser();
   if (!contract && !paused) return null;
-  const trial =
-    contract?.trialEndsOn && contract.trialEndsOn >= today
-      ? m.contractTrialEnds({ date: formatDate(contract.trialEndsOn, "full") })
-      : null;
+  const trial = contract?.trialEndsOn
+    ? trialLine(contract.trialEndsOn, today)
+    : null;
   const shown = [
     paused ? m.schoolPaused() : null,
     contract?.restricted ? m.contractRestricted() : null,

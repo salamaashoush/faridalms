@@ -1789,7 +1789,26 @@
   "historyNow": "أصبح",
   "contractPaymentOverdue": "تأخر سداد دفعة من اشتراك مدرستك. تواصل مع مدير حسابك لتحتفظ مدرستك بكامل الصلاحيات.",
   "contractPlanEndsSoon": "ينتهي اشتراك مدرستك قريبًا. تواصل مع مدير حسابك لتجديده.",
-  "contractTrialEnds": "تنتهي الفترة التجريبية لمدرستك في {date}.",
+  "contractTrialEnds": [
+    {
+      "declarations": [
+        "input count",
+        "input value",
+        "input date",
+        "local countPlural = count: plural"
+      ],
+      "selectors": ["countPlural"],
+      "match": {
+        "countPlural=zero": "تنتهي الفترة التجريبية لمدرستك في {date}، بعد {value} يوم.",
+        "countPlural=one": "تنتهي الفترة التجريبية لمدرستك في {date}، بعد يوم واحد.",
+        "countPlural=two": "تنتهي الفترة التجريبية لمدرستك في {date}، بعد يومين.",
+        "countPlural=few": "تنتهي الفترة التجريبية لمدرستك في {date}، بعد {value} أيام.",
+        "countPlural=many": "تنتهي الفترة التجريبية لمدرستك في {date}، بعد {value} يومًا.",
+        "countPlural=*": "تنتهي الفترة التجريبية لمدرستك في {date}، بعد {value} يوم."
+      }
+    }
+  ],
+  "contractTrialEndsToday": "تنتهي الفترة التجريبية لمدرستك اليوم.",
   "contractNoticeLabel": "عن اشتراك مدرستك",
   "schoolPaused": "حساب مدرستك متوقف مؤقتًا. ما زال بالإمكان الاطلاع على كل شيء، لكن لا يمكن تغيير شيء الآن؛ يمكن لمكتب المدرسة أن يخبرك بالمزيد.",
   "contractRestricted": "حساب مدرستك مقيّد: كل شيء يعمل، لكن لا يمكن تشغيل وحدات جديدة ولا إضافة عناوين خاصة بالمدرسة حتى يرفع مدير حسابك القيد.",
