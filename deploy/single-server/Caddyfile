@@ -86,6 +86,10 @@
 
 	@ops host ops.{$PORTAL_DOMAIN}
 	handle @ops {
+		# The cells send leads on the internal network, never through here.
+		handle /intake/* {
+			respond 404
+		}
 		encode zstd gzip
 		reverse_proxy ops:3004
 	}

@@ -145,7 +145,10 @@ OpenID Connect provider:
    and who may sign in: `OPS_OIDC_EMAILS` (verified addresses), or
    `OPS_OIDC_GROUP` with a provider that has groups. Set `PROVISION_SECRET`
    and `OPS_SESSION_SECRET` (`openssl rand -base64 32` each).
-3. `docker compose up -d`.
+3. Optionally `INTAKE_SECRET` (the same command), for demonstration requests
+   and schools' questions about a module to reach the console as leads, on
+   the internal `intake` network; the edge never serves `/intake/` itself.
+4. `docker compose up -d`.
 
 ## Routing
 

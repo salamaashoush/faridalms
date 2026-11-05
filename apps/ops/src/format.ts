@@ -1,6 +1,14 @@
+import type {
+  ActivityKind,
+  LeadSource,
+  LeadState,
+  LostReason,
+} from "@faridalms/domain/leads";
 import type { ModuleId } from "@faridalms/domain/modules";
 import type { SchoolNotice } from "@faridalms/domain/plans";
+import type { DemoRole, DemoSize } from "@faridalms/domain/product";
 import type { DraftStep } from "@faridalms/domain/provisioning-draft";
+import type { QuoteState } from "@faridalms/domain/quotes";
 import type { Currency, LimitKey } from "@faridalms/domain/subscriptions";
 
 import { MODULE_IDS } from "@faridalms/domain/modules";
@@ -126,4 +134,56 @@ export const DRAFT_STEP_NAMES: Record<DraftStep, string> = {
   addresses: "Addresses",
   people: "People",
   review: "Review",
+};
+
+export const LEAD_STATE_NAMES: Record<LeadState, string> = {
+  new: "New",
+  contacted: "Contacted",
+  demo_booked: "Demo booked",
+  demo_done: "Demo done",
+  proposal: "Proposal",
+  won: "Won",
+  lost: "Lost",
+};
+
+export const LOST_REASON_NAMES: Record<LostReason, string> = {
+  price: "Price",
+  timing: "Timing",
+  competitor: "Chose a competitor",
+  no_response: "No response",
+  not_fit: "Not a fit",
+};
+
+export const LEAD_SOURCE_NAMES: Record<LeadSource, string> = {
+  demo_form: "Demo form",
+  module_interest: "Asked about a module",
+  manual: "Entered by hand",
+};
+
+export const ACTIVITY_NAMES: Record<ActivityKind, string> = {
+  call: "Call",
+  meeting: "Meeting",
+  email: "Email",
+  note: "Note",
+};
+
+export const SIZE_NAMES: Record<DemoSize, string> = {
+  under_200: "Fewer than 200 students",
+  "200_1000": "200 to 1,000 students",
+  over_1000: "More than 1,000 students",
+};
+
+export const ROLE_NAMES: Record<DemoRole, string> = {
+  leader: "School leader",
+  teacher: "Teacher",
+  it: "IT",
+  parent: "Parent",
+  other: "Other",
+};
+
+export const QUOTE_STATE_NAMES: Record<QuoteState, string> = {
+  draft: "Draft",
+  sent: "Sent",
+  accepted: "Accepted",
+  superseded: "Superseded",
 };

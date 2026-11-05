@@ -17,6 +17,11 @@ const ACTIONS: Record<string, string> = {
   "subscription.item_end": "Items ended",
   "subscription.override_add": "Override added",
   "subscription.override_end": "Overrides ended",
+  "customer.tenant": "Runs its tenant",
+  "lead.create": "Lead added",
+  "lead.update": "Details changed",
+  "lead.state": "Moved",
+  "lead.plan": "Next step set",
 };
 
 const show = (value: unknown) => {

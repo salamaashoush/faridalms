@@ -66,6 +66,9 @@ export function opsEnv() {
         // app alone, and trusting only calls signed with the shared secret.
         PROVISION_URL: v.pipe(v.string(), v.url()),
         PROVISION_SECRET: bytes(32),
+        // The secret the cells sign the leads they send with, at
+        // /intake/leads; without it, or a business database, none is taken.
+        INTAKE_SECRET: v.optional(bytes(32)),
         // The cells' platform domains and edge address, for the DNS records a
         // school's own host needs; the same values the cells' API holds.
         PORTAL_DOMAIN: domain,

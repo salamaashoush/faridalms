@@ -129,7 +129,8 @@ function DailyRound({
           {names[round.by] ?? "a former operator"}, for{" "}
           {formatDay(round.outcome.day)}: {round.outcome.grandfathered} given a
           subscription, {round.outcome.published} schools published,{" "}
-          {round.outcome.paused} trials paused
+          {round.outcome.paused} trials paused, {round.outcome.leadsDeleted}{" "}
+          lost leads deleted
           {round.outcome.failed.length
             ? `, ${round.outcome.failed.length} could not be finished and are logged`
             : ""}

@@ -15,13 +15,20 @@ import { Route as ChangesRouteImport } from './routes/changes'
 import { Route as NoRoleRouteImport } from './routes/no-role'
 import { Route as OperatorsRouteImport } from './routes/operators'
 import { Route as SeriesRouteImport } from './routes/series'
+import { Route as SettingsRouteImport } from './routes/settings'
 import { Route as SignInRouteImport } from './routes/sign-in'
 import { Route as AuthCallbackRouteImport } from './routes/auth/callback'
 import { Route as AuthLoginRouteImport } from './routes/auth/login'
 import { Route as AuthLogoutRouteImport } from './routes/auth/logout'
 import { Route as CustomersIndexRouteImport } from './routes/customers.index'
 import { Route as CustomersCustomerIdRouteImport } from './routes/customers.$customerId'
+import { Route as IntakeLeadsRouteImport } from './routes/intake/leads'
+import { Route as LeadsIndexRouteImport } from './routes/leads.index'
+import { Route as LeadsLeadIdRouteImport } from './routes/leads.$leadId'
 import { Route as ProvisioningDraftIdRouteImport } from './routes/provisioning.$draftId'
+import { Route as QuoteFilesQuoteIdRouteImport } from './routes/quote-files.$quoteId'
+import { Route as QuotesQuoteIdRouteImport } from './routes/quotes.$quoteId'
+import { Route as QuotesNewRouteImport } from './routes/quotes.new'
 import { Route as SchoolsSchoolIdRouteImport } from './routes/schools.$schoolId'
 import { Route as SchoolsNewRouteImport } from './routes/schools.new'
 import { Route as SubscriptionsIndexRouteImport } from './routes/subscriptions.index'
@@ -57,6 +64,11 @@ const SeriesRoute = SeriesRouteImport.update({
   path: '/series',
   getParentRoute: () => rootRouteImport,
 } as any)
+const SettingsRoute = SettingsRouteImport.update({
+  id: '/settings',
+  path: '/settings',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const SignInRoute = SignInRouteImport.update({
   id: '/sign-in',
   path: '/sign-in',
@@ -87,9 +99,39 @@ const CustomersCustomerIdRoute = CustomersCustomerIdRouteImport.update({
   path: '/customers/$customerId',
   getParentRoute: () => rootRouteImport,
 } as any)
+const IntakeLeadsRoute = IntakeLeadsRouteImport.update({
+  id: '/intake/leads',
+  path: '/intake/leads',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const LeadsIndexRoute = LeadsIndexRouteImport.update({
+  id: '/leads/',
+  path: '/leads/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const LeadsLeadIdRoute = LeadsLeadIdRouteImport.update({
+  id: '/leads/$leadId',
+  path: '/leads/$leadId',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ProvisioningDraftIdRoute = ProvisioningDraftIdRouteImport.update({
   id: '/provisioning/$draftId',
   path: '/provisioning/$draftId',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const QuoteFilesQuoteIdRoute = QuoteFilesQuoteIdRouteImport.update({
+  id: '/quote-files/$quoteId',
+  path: '/quote-files/$quoteId',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const QuotesQuoteIdRoute = QuotesQuoteIdRouteImport.update({
+  id: '/quotes/$quoteId',
+  path: '/quotes/$quoteId',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const QuotesNewRoute = QuotesNewRouteImport.update({
+  id: '/quotes/new',
+  path: '/quotes/new',
   getParentRoute: () => rootRouteImport,
 } as any)
 const SchoolsSchoolIdRoute = SchoolsSchoolIdRouteImport.update({
@@ -121,16 +163,23 @@ export interface FileRoutesByFullPath {
   '/no-role': typeof NoRoleRoute
   '/operators': typeof OperatorsRoute
   '/series': typeof SeriesRoute
+  '/settings': typeof SettingsRoute
   '/sign-in': typeof SignInRoute
   '/auth/callback': typeof AuthCallbackRoute
   '/auth/login': typeof AuthLoginRoute
   '/auth/logout': typeof AuthLogoutRoute
   '/customers/$customerId': typeof CustomersCustomerIdRoute
+  '/intake/leads': typeof IntakeLeadsRoute
+  '/leads/$leadId': typeof LeadsLeadIdRoute
   '/provisioning/$draftId': typeof ProvisioningDraftIdRoute
+  '/quote-files/$quoteId': typeof QuoteFilesQuoteIdRoute
+  '/quotes/$quoteId': typeof QuotesQuoteIdRoute
+  '/quotes/new': typeof QuotesNewRoute
   '/schools/$schoolId': typeof SchoolsSchoolIdRoute
   '/schools/new': typeof SchoolsNewRoute
   '/subscriptions/$subscriptionId': typeof SubscriptionsSubscriptionIdRoute
   '/customers/': typeof CustomersIndexRoute
+  '/leads/': typeof LeadsIndexRoute
   '/subscriptions/': typeof SubscriptionsIndexRoute
 }
 export interface FileRoutesByTo {
@@ -140,16 +189,23 @@ export interface FileRoutesByTo {
   '/no-role': typeof NoRoleRoute
   '/operators': typeof OperatorsRoute
   '/series': typeof SeriesRoute
+  '/settings': typeof SettingsRoute
   '/sign-in': typeof SignInRoute
   '/auth/callback': typeof AuthCallbackRoute
   '/auth/login': typeof AuthLoginRoute
   '/auth/logout': typeof AuthLogoutRoute
   '/customers/$customerId': typeof CustomersCustomerIdRoute
+  '/intake/leads': typeof IntakeLeadsRoute
+  '/leads/$leadId': typeof LeadsLeadIdRoute
   '/provisioning/$draftId': typeof ProvisioningDraftIdRoute
+  '/quote-files/$quoteId': typeof QuoteFilesQuoteIdRoute
+  '/quotes/$quoteId': typeof QuotesQuoteIdRoute
+  '/quotes/new': typeof QuotesNewRoute
   '/schools/$schoolId': typeof SchoolsSchoolIdRoute
   '/schools/new': typeof SchoolsNewRoute
   '/subscriptions/$subscriptionId': typeof SubscriptionsSubscriptionIdRoute
   '/customers': typeof CustomersIndexRoute
+  '/leads': typeof LeadsIndexRoute
   '/subscriptions': typeof SubscriptionsIndexRoute
 }
 export interface FileRoutesById {
@@ -160,16 +216,23 @@ export interface FileRoutesById {
   '/no-role': typeof NoRoleRoute
   '/operators': typeof OperatorsRoute
   '/series': typeof SeriesRoute
+  '/settings': typeof SettingsRoute
   '/sign-in': typeof SignInRoute
   '/auth/callback': typeof AuthCallbackRoute
   '/auth/login': typeof AuthLoginRoute
   '/auth/logout': typeof AuthLogoutRoute
   '/customers/$customerId': typeof CustomersCustomerIdRoute
+  '/intake/leads': typeof IntakeLeadsRoute
+  '/leads/$leadId': typeof LeadsLeadIdRoute
   '/provisioning/$draftId': typeof ProvisioningDraftIdRoute
+  '/quote-files/$quoteId': typeof QuoteFilesQuoteIdRoute
+  '/quotes/$quoteId': typeof QuotesQuoteIdRoute
+  '/quotes/new': typeof QuotesNewRoute
   '/schools/$schoolId': typeof SchoolsSchoolIdRoute
   '/schools/new': typeof SchoolsNewRoute
   '/subscriptions/$subscriptionId': typeof SubscriptionsSubscriptionIdRoute
   '/customers/': typeof CustomersIndexRoute
+  '/leads/': typeof LeadsIndexRoute
   '/subscriptions/': typeof SubscriptionsIndexRoute
 }
 export interface FileRouteTypes {
@@ -181,16 +244,23 @@ export interface FileRouteTypes {
     | '/no-role'
     | '/operators'
     | '/series'
+    | '/settings'
     | '/sign-in'
     | '/auth/callback'
     | '/auth/login'
     | '/auth/logout'
     | '/customers/$customerId'
+    | '/intake/leads'
+    | '/leads/$leadId'
     | '/provisioning/$draftId'
+    | '/quote-files/$quoteId'
+    | '/quotes/$quoteId'
+    | '/quotes/new'
     | '/schools/$schoolId'
     | '/schools/new'
     | '/subscriptions/$subscriptionId'
     | '/customers/'
+    | '/leads/'
     | '/subscriptions/'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -200,16 +270,23 @@ export interface FileRouteTypes {
     | '/no-role'
     | '/operators'
     | '/series'
+    | '/settings'
     | '/sign-in'
     | '/auth/callback'
     | '/auth/login'
     | '/auth/logout'
     | '/customers/$customerId'
+    | '/intake/leads'
+    | '/leads/$leadId'
     | '/provisioning/$draftId'
+    | '/quote-files/$quoteId'
+    | '/quotes/$quoteId'
+    | '/quotes/new'
     | '/schools/$schoolId'
     | '/schools/new'
     | '/subscriptions/$subscriptionId'
     | '/customers'
+    | '/leads'
     | '/subscriptions'
   id:
     | '__root__'
@@ -219,16 +296,23 @@ export interface FileRouteTypes {
     | '/no-role'
     | '/operators'
     | '/series'
+    | '/settings'
     | '/sign-in'
     | '/auth/callback'
     | '/auth/login'
     | '/auth/logout'
     | '/customers/$customerId'
+    | '/intake/leads'
+    | '/leads/$leadId'
     | '/provisioning/$draftId'
+    | '/quote-files/$quoteId'
+    | '/quotes/$quoteId'
+    | '/quotes/new'
     | '/schools/$schoolId'
     | '/schools/new'
     | '/subscriptions/$subscriptionId'
     | '/customers/'
+    | '/leads/'
     | '/subscriptions/'
   fileRoutesById: FileRoutesById
 }
@@ -239,16 +323,23 @@ export interface RootRouteChildren {
   NoRoleRoute: typeof NoRoleRoute
   OperatorsRoute: typeof OperatorsRoute
   SeriesRoute: typeof SeriesRoute
+  SettingsRoute: typeof SettingsRoute
   SignInRoute: typeof SignInRoute
   AuthCallbackRoute: typeof AuthCallbackRoute
   AuthLoginRoute: typeof AuthLoginRoute
   AuthLogoutRoute: typeof AuthLogoutRoute
   CustomersCustomerIdRoute: typeof CustomersCustomerIdRoute
+  IntakeLeadsRoute: typeof IntakeLeadsRoute
+  LeadsLeadIdRoute: typeof LeadsLeadIdRoute
   ProvisioningDraftIdRoute: typeof ProvisioningDraftIdRoute
+  QuoteFilesQuoteIdRoute: typeof QuoteFilesQuoteIdRoute
+  QuotesQuoteIdRoute: typeof QuotesQuoteIdRoute
+  QuotesNewRoute: typeof QuotesNewRoute
   SchoolsSchoolIdRoute: typeof SchoolsSchoolIdRoute
   SchoolsNewRoute: typeof SchoolsNewRoute
   SubscriptionsSubscriptionIdRoute: typeof SubscriptionsSubscriptionIdRoute
   CustomersIndexRoute: typeof CustomersIndexRoute
+  LeadsIndexRoute: typeof LeadsIndexRoute
   SubscriptionsIndexRoute: typeof SubscriptionsIndexRoute
 }
 
@@ -296,6 +387,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof SeriesRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/settings': {
+      id: '/settings'
+      path: '/settings'
+      fullPath: '/settings'
+      preLoaderRoute: typeof SettingsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/sign-in': {
       id: '/sign-in'
       path: '/sign-in'
@@ -338,11 +436,53 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof CustomersCustomerIdRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/intake/leads': {
+      id: '/intake/leads'
+      path: '/intake/leads'
+      fullPath: '/intake/leads'
+      preLoaderRoute: typeof IntakeLeadsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/leads/': {
+      id: '/leads/'
+      path: '/leads'
+      fullPath: '/leads/'
+      preLoaderRoute: typeof LeadsIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/leads/$leadId': {
+      id: '/leads/$leadId'
+      path: '/leads/$leadId'
+      fullPath: '/leads/$leadId'
+      preLoaderRoute: typeof LeadsLeadIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/provisioning/$draftId': {
       id: '/provisioning/$draftId'
       path: '/provisioning/$draftId'
       fullPath: '/provisioning/$draftId'
       preLoaderRoute: typeof ProvisioningDraftIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/quote-files/$quoteId': {
+      id: '/quote-files/$quoteId'
+      path: '/quote-files/$quoteId'
+      fullPath: '/quote-files/$quoteId'
+      preLoaderRoute: typeof QuoteFilesQuoteIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/quotes/$quoteId': {
+      id: '/quotes/$quoteId'
+      path: '/quotes/$quoteId'
+      fullPath: '/quotes/$quoteId'
+      preLoaderRoute: typeof QuotesQuoteIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/quotes/new': {
+      id: '/quotes/new'
+      path: '/quotes/new'
+      fullPath: '/quotes/new'
+      preLoaderRoute: typeof QuotesNewRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/schools/$schoolId': {
@@ -383,16 +523,23 @@ const rootRouteChildren: RootRouteChildren = {
   NoRoleRoute: NoRoleRoute,
   OperatorsRoute: OperatorsRoute,
   SeriesRoute: SeriesRoute,
+  SettingsRoute: SettingsRoute,
   SignInRoute: SignInRoute,
   AuthCallbackRoute: AuthCallbackRoute,
   AuthLoginRoute: AuthLoginRoute,
   AuthLogoutRoute: AuthLogoutRoute,
   CustomersCustomerIdRoute: CustomersCustomerIdRoute,
+  IntakeLeadsRoute: IntakeLeadsRoute,
+  LeadsLeadIdRoute: LeadsLeadIdRoute,
   ProvisioningDraftIdRoute: ProvisioningDraftIdRoute,
+  QuoteFilesQuoteIdRoute: QuoteFilesQuoteIdRoute,
+  QuotesQuoteIdRoute: QuotesQuoteIdRoute,
+  QuotesNewRoute: QuotesNewRoute,
   SchoolsSchoolIdRoute: SchoolsSchoolIdRoute,
   SchoolsNewRoute: SchoolsNewRoute,
   SubscriptionsSubscriptionIdRoute: SubscriptionsSubscriptionIdRoute,
   CustomersIndexRoute: CustomersIndexRoute,
+  LeadsIndexRoute: LeadsIndexRoute,
   SubscriptionsIndexRoute: SubscriptionsIndexRoute,
 }
 export const routeTree = rootRouteImport

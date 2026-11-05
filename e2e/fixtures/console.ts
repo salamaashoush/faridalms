@@ -102,3 +102,23 @@ export async function createSchool(
   await expect(page).toHaveURL(/\/schools\/[0-9a-f-]{36}$/);
   return new URL(page.url()).pathname.split("/").at(-1) ?? "";
 }
+
+/** A short random suffix, so what a spec makes is its own. */
+export const unique = () => Math.random().toString(36).slice(2, 8);
+
+/** A plan with Basic and coding, priced per student, as the catalogue sells it. */
+export async function addPlan(page: Page, name: string) {
+  await page.goto("/catalogue");
+  await page.getByRole("button", { name: "New plan" }).click();
+  const form = page.getByRole("form", { name: "New plan" });
+  await form.getByLabel("Code").fill(`e2e_${unique()}`);
+  await form.getByLabel("Name in English").fill(name);
+  await form.getByLabel("Name in Arabic").fill("الخطة التجريبية");
+  await form.getByRole("checkbox", { name: "Coding and blocks" }).check();
+  await form.getByLabel("Students", { exact: true }).fill("400");
+  await form.getByRole("button", { name: "Add a price" }).click();
+  await form.getByLabel("Amount").fill("350");
+  await form.getByLabel("Why").fill("The launch catalogue");
+  await form.getByRole("button", { name: "Save" }).click();
+  await expect(page.getByText("Plan saved.")).toBeVisible();
+}

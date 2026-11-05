@@ -299,6 +299,8 @@ password in the console and operators are never school accounts. Settings:
   (eight hours).
 - `PROVISION_URL` and `PROVISION_SECRET`: the cell's provisioner and the
   secret it shares with the console (see "Registering a school").
+- `INTAKE_SECRET`, optional: 32 random bytes, base64, shared with the
+  cells' API, which signs the leads it sends with it.
 - `BUSINESS_DATABASE_URL`, optional: the business database as
   `business_admin`, which holds customers, contracts, invoices and the
   operators' roles. Without it the console is the self-hosted one: every
@@ -353,6 +355,36 @@ read only through its cell when its trial is over without a contract. A
 grandfathered subscription stops being one when it is given a contract's
 term. Owners see when it last ran on the Subscriptions page and can run it
 there at once.
+
+**Leads** (owners and sales) arrive three ways: the product site's
+demonstration form, a school's administrator choosing **Ask about this** on
+a module its plan does not have, and by hand. A cell sends the first two to
+the console's `POST /intake/leads` on the internal network, the body signed
+with HMAC-SHA256 under `INTAKE_SECRET` over its timestamp and itself, and
+refused more than five minutes old; each carries an intake id, so a resend
+makes no second lead, and a school asking about the same module twice in a
+day is one lead. The API sends them only with `INTAKE_URL` and
+`INTAKE_SECRET` set, and the edge answers 404 for `/intake/` on the
+console's public host. A lead moves from new to contacted, demo booked,
+demo done, proposal, and won or lost with a reason from a fixed list; it
+has an owner, a next step with its day (the Leads page lists those due),
+and calls, meetings, emails and notes. Its log names its source and
+organisation, never the person, and the daily round deletes a lead lost and
+last contacted two years ago, with its activities and any quote no customer
+accepted.
+
+**Quotes** are built from the catalogue for a lead or customer and
+numbered by year (`Q-2026-0001`). A draft changes in place; once marked
+sent, a change is a new version that supersedes the others. VAT is the
+rate in force in the customer's country (Settings), and the quote shows the
+lines after discount, the subtotal, VAT, total, term and instalments, in
+English or Arabic, laid out for the browser to print or save as the PDF
+that is sent. Accepting one keeps the signed copy or purchase order (a PDF
+or image, up to 10 MB) and, in one transaction, makes the customer from its
+lead with its contact, marks the lead won, and begins the school's draft at
+its schools step with what was sold. **Settings** (owners) holds the
+business's legal details in both languages and its VAT rates by country
+from a day; a rate is never changed, only followed by another.
 
 The directory's change log names an operator by a digest of the provider's
 issuer and subject, never by name. Every entitlement change requires a

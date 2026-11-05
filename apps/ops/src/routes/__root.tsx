@@ -44,10 +44,12 @@ const NAVIGATION: {
     | "/"
     | "/series"
     | "/changes"
+    | "/leads"
     | "/subscriptions"
     | "/customers"
     | "/catalogue"
-    | "/operators";
+    | "/operators"
+    | "/settings";
   label: string;
   area: OperatorArea;
   /** Offered only where the console has its business database. */
@@ -56,6 +58,7 @@ const NAVIGATION: {
   { to: "/", label: "Schools", area: "readTenants" },
   { to: "/series", label: "Exam sessions", area: "readTenants" },
   { to: "/changes", label: "Changes", area: "readTenants" },
+  { to: "/leads", label: "Leads", area: "leads", business: true },
   {
     to: "/subscriptions",
     label: "Subscriptions",
@@ -65,13 +68,14 @@ const NAVIGATION: {
   { to: "/customers", label: "Customers", area: "customers", business: true },
   { to: "/catalogue", label: "Catalogue", area: "catalogue", business: true },
   { to: "/operators", label: "Operators", area: "operators", business: true },
+  { to: "/settings", label: "Settings", area: "settings", business: true },
 ];
 
 function Shell({ children }: { children: ReactNode }) {
   const { operator, access } = Route.useRouteContext();
   return (
     <div className="min-h-screen">
-      <header className="border-b">
+      <header className="border-b print:hidden">
         <div className="mx-auto flex min-h-14 w-full max-w-6xl flex-wrap items-center gap-x-6 gap-y-1 px-6 py-2">
           <span className="text-sm font-semibold">Farida operators</span>
           {operator ? (
@@ -111,7 +115,9 @@ function Shell({ children }: { children: ReactNode }) {
           ) : null}
         </div>
       </header>
-      <main className="mx-auto w-full max-w-6xl px-6 py-8">{children}</main>
+      <main className="mx-auto w-full max-w-6xl px-6 py-8 print:p-0">
+        {children}
+      </main>
     </div>
   );
 }

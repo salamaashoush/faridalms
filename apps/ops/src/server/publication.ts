@@ -6,6 +6,7 @@ import type {
 import type { EntitlementsInput } from "@faridalms/domain/plans";
 
 import { lastEvent, recordEvent } from "@faridalms/database/business/events";
+import { purgeLostLeads } from "@faridalms/database/business/leads";
 import {
   grandfatherTenant,
   openSubscriptions,
@@ -13,6 +14,7 @@ import {
   subscriptionDetail,
   termsOf,
 } from "@faridalms/database/business/subscriptions";
+import { LOST_LEAD_MONTHS } from "@faridalms/domain/leads";
 import { settableOf } from "@faridalms/domain/plans";
 import { entitlementsFor, trialOver } from "@faridalms/domain/subscriptions";
 import { sql } from "drizzle-orm";
@@ -142,6 +144,8 @@ const roundOutcomeSchema = v.object({
   paused: v.number(),
   /** Subscriptions the round could not publish or pause, to look at. */
   failed: v.array(v.string()),
+  /** Lost leads deleted two years after they were last contacted. */
+  leadsDeleted: v.optional(v.number(), 0),
 });
 export type RoundOutcome = v.InferOutput<typeof roundOutcomeSchema>;
 
@@ -168,8 +172,9 @@ export async function roundDue(db: BusinessDb, day: string): Promise<boolean> {
  * grandfathered one that keeps what its schools have; every open
  * subscription is published again, so items and overrides that began or
  * ended today reach the cells; and a tenant whose trial is over without a
- * contract becomes read only. One subscription's failure is recorded and
- * the rest go on. Only one console runs it at a time: null when another is.
+ * contract becomes read only; a lead lost two years ago is deleted. One
+ * subscription's failure is recorded and the rest go on. Only one console
+ * runs it at a time: null when another is.
  */
 export async function dailyRound(
   deps: Publishing,
@@ -187,6 +192,7 @@ export async function dailyRound(
       published: 0,
       paused: 0,
       failed: [],
+      leadsDeleted: 0,
     };
     const tenants = tenantsOf(await deps.directory.schools());
     for (const [tenantId, schools] of tenants) {
@@ -241,6 +247,9 @@ export async function dailyRound(
         outcome.failed.push(subscription.id);
       }
     }
+    const cutoff = new Date(`${day}T00:00:00Z`);
+    cutoff.setUTCMonth(cutoff.getUTCMonth() - LOST_LEAD_MONTHS);
+    outcome.leadsDeleted = await purgeLostLeads(deps.business, cutoff);
     await recordEvent(tx, {
       operatorId: by,
       action: ROUND_ACTION,

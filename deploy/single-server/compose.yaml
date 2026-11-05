@@ -27,6 +27,9 @@ x-service: &service
 x-cell-secret: &cell-secret ${CELL_SECRET:?Set CELL_SECRET, 32 random bytes in base64}
 # Only the console and its provisioner use it, so it may be unset without them.
 x-provision-secret: &provision-secret ${PROVISION_SECRET:-}
+# Shared by the API, which signs the leads it sends, and the console, which
+# takes them; unset, no lead is sent.
+x-intake-secret: &intake-secret ${INTAKE_SECRET:-}
 x-portal-domain: &portal-domain ${PORTAL_DOMAIN:?Set PORTAL_DOMAIN, for example example.com}
 x-sites-domain: &sites-domain ${SITES_DOMAIN:?Set SITES_DOMAIN, for example example.net}
 
@@ -165,11 +168,16 @@ services:
       RESEND_WEBHOOK_SECRET: ${RESEND_WEBHOOK_SECRET:-}
       # Where the product site's demonstration requests are emailed.
       PRODUCT_INBOX: ${PRODUCT_INBOX:-}
+      # The console's lead intake on the internal network, given only with
+      # its secret: demonstration requests and schools' questions about a
+      # module reach it as leads.
+      INTAKE_URL: ${INTAKE_SECRET:+http://ops:3004/intake/leads}
+      INTAKE_SECRET: *intake-secret
       # Cloudflare Turnstile on the schools' website forms, both or neither.
       TURNSTILE_SITE_KEY: ${TURNSTILE_SITE_KEY:-}
       TURNSTILE_SECRET_KEY: ${TURNSTILE_SECRET_KEY:-}
       TRUSTED_PROXY_HOPS: 1
-    networks: [front, data]
+    networks: [front, data, intake]
     depends_on:
       migrate:
         condition: service_completed_successfully
@@ -310,10 +318,11 @@ services:
       OPS_SESSION_SECRET: ${OPS_SESSION_SECRET:-}
       PROVISION_URL: http://provisioner:3005
       PROVISION_SECRET: *provision-secret
+      INTAKE_SECRET: *intake-secret
       PORTAL_DOMAIN: *portal-domain
       SITES_DOMAIN: *sites-domain
       EDGE_IPV4: ${EDGE_IPV4:-}
-    networks: [front, data, provision]
+    networks: [front, data, provision, intake]
     depends_on:
       migrate:
         condition: service_completed_successfully
@@ -509,6 +518,9 @@ networks:
   provisioner-data: {}
   # The console's calls to the provisioner. No way out.
   provision:
+    internal: true
+  # The API's leads to the console. No way out.
+  intake:
     internal: true
 
 volumes:

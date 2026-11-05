@@ -147,6 +147,12 @@ try {
           "salama@example.com,sales@example.com,finance@example.com,support@example.com",
         OPS_SESSION_SECRET: randomBytes(32).toString("base64"),
         PROVISION_URL: `http://127.0.0.1:${provisionPort}`,
+        // The product site's demonstration requests, emailed to the stand-in
+        // and sent to the console as leads, as the cells send them.
+        PRODUCT_SITE: "on",
+        PRODUCT_INBOX: "sales@example.com",
+        INTAKE_URL: `http://127.0.0.1:${opsPort}/intake/leads`,
+        INTAKE_SECRET: randomBytes(32).toString("base64"),
       },
       stdout: "inherit",
       stderr: "inherit",
