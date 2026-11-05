@@ -22,7 +22,6 @@ From `foundations.md`. W1 to W5 are merged.
   - one question and answer model shared by quizzes, forms and admission
     forms;
   - saved sections on the templates and shared-block systems;
-  - one audience semantics;
   - a shared person-name type in place of about 20 differently named
     field pairs;
 - **Finding 21** (plan modules and feature switches): one module

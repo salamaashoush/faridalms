@@ -151,6 +151,101 @@ describe("coursework for a teacher", () => {
     expect(record.phase).toBe("assigned");
   });
 
+  test("a student who joins a class is given its open work for the whole class, not work already due", async () => {
+    const { api: teacher } = await arabicTeacher();
+    const principal = await signedIn("northwind", login("principal"));
+    const { classes } = await teacher.coursework.options();
+    const target = classes.find((row) => row.classType === "scheduled");
+    if (!target) throw new Error("seed class");
+    const { homeroom } = await principal.classes.record({ id: target.id });
+    if (!homeroom) throw new Error("the class follows no homeroom");
+    const from = (await principal.classes.directory({})).rows.findLast(
+      (row) => row.students > 0 && row.id !== homeroom.id,
+    );
+    if (!from) throw new Error("seed homerooms");
+    const newcomer = (
+      await principal.classes.record({ id: from.id })
+    ).roster.at(-1);
+    if (!newcomer) throw new Error("seed student");
+    const set = async (title: string, dueAt: Date) => {
+      const saved = await teacher.coursework.save(
+        draft(target.id, title, { dueAt: dueAt.toISOString() }),
+      );
+      await teacher.coursework.publish({
+        id: saved.id,
+        expectedVersion: saved.version,
+      });
+      return saved.id;
+    };
+    const open = await set(
+      "Open to newcomers",
+      new Date(Date.now() + 86_400_000),
+    );
+    const past = await set(
+      "Due before they came",
+      new Date(Date.now() - 86_400_000),
+    );
+    const takes = async (id: string) =>
+      (await teacher.coursework.record({ id })).work.some(
+        (row) => row.studentId === newcomer.userId,
+      );
+    expect(await takes(open)).toBe(false);
+
+    await principal.classes.enrol({
+      studentId: newcomer.userId,
+      classId: homeroom.id,
+    });
+    try {
+      expect(await takes(open)).toBe(true);
+      expect(await takes(past)).toBe(false);
+    } finally {
+      await principal.classes.enrol({
+        studentId: newcomer.userId,
+        classId: from.id,
+      });
+    }
+  });
+
+  test("a student added to a group is given the group's open work", async () => {
+    const { api } = await arabicTeacher();
+    const { classes } = await api.coursework.options();
+    const target = classes.find((row) => row.classType === "scheduled");
+    if (!target) throw new Error("seed class");
+    const { roster, groups } = await api.coursework.groups({
+      classId: target.id,
+    });
+    const grouped = new Set(groups.flatMap((group) => group.studentIds));
+    const [first, second] = roster.filter((pupil) => !grouped.has(pupil.id));
+    if (!first || !second) throw new Error("seed roster");
+    const { id: groupId } = await api.coursework.saveClassGroup({
+      classId: target.id,
+      titleEn: "Joiners",
+      studentIds: [first.id],
+    });
+    const saved = await api.coursework.save(
+      draft(target.id, "For the joiners", {
+        audience: "selected",
+        groupIds: [groupId],
+        dueAt: new Date(Date.now() + 86_400_000).toISOString(),
+      }),
+    );
+    await api.coursework.publish({
+      id: saved.id,
+      expectedVersion: saved.version,
+    });
+    await api.coursework.saveClassGroup({
+      id: groupId,
+      classId: target.id,
+      titleEn: "Joiners",
+      studentIds: [first.id, second.id],
+    });
+    const { work } = await api.coursework.record({ id: saved.id });
+    expect(work.map((row) => row.studentId).toSorted()).toEqual(
+      [first.id, second.id].toSorted(),
+    );
+    await api.coursework.removeClassGroup({ id: groupId, classId: target.id });
+  });
+
   test("an assignment with nothing to read cannot go out", async () => {
     const { api } = await arabicTeacher();
     const { classes } = await api.coursework.options();

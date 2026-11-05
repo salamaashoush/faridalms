@@ -28,6 +28,7 @@ import {
   rosterOf,
 } from "@faridalms/database/stores/classes";
 import {
+  joinOpenWork,
   isShared,
   shareAttempts,
   sharedWorkOf,
@@ -3123,6 +3124,12 @@ export const saveClassGroup = writeProcedure
       titleAr: input.titleAr || null,
       studentIds: input.studentIds,
       userId: context.actor.userId,
+    });
+    await joinOpenWork(context.tx, {
+      tenantId: context.tenantId,
+      studentIds: input.studentIds,
+      classId: classRow.id,
+      groupId,
     });
     return { id: groupId };
   });

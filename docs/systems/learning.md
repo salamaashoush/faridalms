@@ -163,6 +163,12 @@ From [../research/early-years.md](../research/early-years.md).
   closes once marked. A teacher may choose several waiting answers, or all
   of them, and give them one mark and feedback together.
 
+- Work for a whole class or for groups follows who is in them. A module
+  reaches whoever is in its class or groups today. A student who joins a
+  class, or one of its groups, is given its published assignments that are
+  neither due nor closed yet; work already due stays with those it was set
+  for, and a student who leaves keeps on record the work they were given.
+
 ## Graded quizzes
 
 - A quiz is an assignment format that asks the same kinds of questions as a

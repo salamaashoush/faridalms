@@ -14,6 +14,7 @@ import {
   homeroomEnrollments,
   roomsOf,
 } from "@faridalms/database/stores/classes";
+import { joinOpenWork } from "@faridalms/database/stores/coursework";
 import {
   addSchoolDescriptor,
   descriptorsFor,
@@ -324,6 +325,11 @@ export const enrol = writeProcedure
       studentId: input.studentId,
       from,
       endsBefore: year.endsBefore,
+    });
+    await joinOpenWork(context.tx, {
+      tenantId: context.tenantId,
+      studentIds: [input.studentId],
+      classId: target.id,
     });
     if (target.gradeId)
       await place(context.tx, scopeFor(context, "classes"), {

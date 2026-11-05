@@ -612,6 +612,52 @@ export async function setRecipients(
 }
 
 /**
+ * Gives students who join a class, or one of its groups, the published work
+ * set for the whole class or for that group which is still open, as a
+ * class's modules reach whoever is in it. Work already due or closed stays
+ * with those it was set for. Returns how many recipients were added.
+ */
+export async function joinOpenWork(
+  tx: Tx,
+  input: {
+    tenantId: string;
+    studentIds: readonly string[];
+    /** A homeroom reaches the subject classes that follow it. */
+    classId: string;
+    groupId?: string;
+  },
+): Promise<number> {
+  if (input.studentIds.length === 0) return 0;
+  const reached = input.groupId
+    ? sql`exists (select 1 from core.assignment_recipients g
+        where g.tenant_id = a.tenant_id and g.assignment_id = a.id and g.status = 'active'
+          and g.group_id = ${input.groupId}::uuid)`
+    : sql`a.audience = 'class'`;
+  const rows = await tx.execute<{ assignment_id: string }>(sql`
+    insert into core.assignment_recipients (tenant_id, assignment_id, student_user_id, source, group_id)
+    select a.tenant_id, a.id, s.id, ${input.groupId ? "group" : "class"},
+      ${input.groupId ?? null}::uuid
+    from core.assignments a
+    join core.classes c on c.tenant_id = a.tenant_id and c.id = a.class_id
+    cross join unnest(${uuidArray(input.studentIds)}) as s(id)
+    where a.tenant_id = ${input.tenantId}::uuid and a.status = 'active' and a.state = 'published'
+      and (a.class_id = ${input.classId}::uuid or c.homeroom_class_id = ${input.classId}::uuid)
+      and (a.due_at is null or a.due_at > now())
+      and (a.closes_at is null or a.closes_at > now())
+      and ${reached}
+      and not exists (select 1 from core.assignment_recipients r
+        where r.tenant_id = a.tenant_id and r.assignment_id = a.id
+          and r.student_user_id = s.id and r.status = 'active')
+    returning assignment_id`);
+  if (rows.length > 0)
+    await arrangeDue(tx, {
+      tenantId: input.tenantId,
+      studentIds: input.studentIds,
+    });
+  return rows.length;
+}
+
+/**
  * Gives recipients whose access arrangements add days to every due date
  * their own due time, the assignment's plus those days, and takes back one
  * their arrangements no longer give; a due time a teacher set stands. For
@@ -1768,10 +1814,11 @@ export async function saveGroup(
       and not (student_user_id = any(${uuidArray(input.studentIds)}))`);
   await tx.execute(sql`
     insert into core.class_group_members (tenant_id, group_id, student_user_id)
-    select ${input.tenantId}::uuid, ${groupId}::uuid, id from unnest(${uuidArray(input.studentIds)}) as id
+    select ${input.tenantId}::uuid, ${groupId}::uuid, s.student_id
+    from unnest(${uuidArray(input.studentIds)}) as s(student_id)
     where not exists (select 1 from core.class_group_members m
       where m.tenant_id = ${input.tenantId}::uuid and m.group_id = ${groupId}::uuid
-        and m.student_user_id = id and m.status = 'active')`);
+        and m.student_user_id = s.student_id and m.status = 'active')`);
   return groupId;
 }
 
