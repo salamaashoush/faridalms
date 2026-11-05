@@ -479,8 +479,6 @@ export function getMessageFromError(error: unknown): string {
         return m.messageDraftConflict();
       case "privacy.contact_linked":
         return m.msgContactLinked();
-      case "attendance.stale":
-        return m.attStale();
       case "attendance.outside_year":
         return m.attendanceOutsideYear();
       case "attendance.future":
@@ -746,8 +744,6 @@ export function getMessageFromError(error: unknown): string {
         return m.siteErrHostInvalid();
       case "hosts.unavailable":
         return m.siteAddressesUnavailable();
-      case "site.stale":
-        return m.siteErrStale();
       case "site.challenge":
         return m.siteErrChallenge();
       case "site.slug":

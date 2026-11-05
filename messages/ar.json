@@ -4790,7 +4790,6 @@
   "siteErrTitle": "أدخل عنوانًا باللغة الأولى للموقع.",
   "siteErrLink": "استخدم صفحة من الموقع مثل ‎/pages/about، أو عنوان https كاملًا.",
   "siteErrEmbed": "لا يمكن عرض هذا الفيديو أو المستند.",
-  "siteErrStale": "غيّر أحدهم هذا في الوقت نفسه. أعد التحميل وحاول مجددًا.",
   "homeAbsent": "غائب اليوم",
   "homeAbsentUnexplained": "غائب اليوم دون سبب",
   "homeAllChildren": "كل الأبناء",

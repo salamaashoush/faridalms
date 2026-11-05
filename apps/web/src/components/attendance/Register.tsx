@@ -654,7 +654,10 @@ function RegisterForm({
               role="alert"
               className="basis-full text-[13px] leading-[18px] text-destructive"
             >
-              {getMessageFromError(save.error)}
+              {/* Another save of this register, said in its own words. */}
+              {save.error.message === "conflict.version"
+                ? m.attStale()
+                : getMessageFromError(save.error)}
             </p>
           ) : null}
         </div>

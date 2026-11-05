@@ -14,10 +14,6 @@ From `foundations.md`. W1 to W5 are merged.
     descriptors and invites; and contacts and addresses, which are
     replaced row by row, so the check is that the rows the sheet showed
     are still the ones held;
-  - one stale-write code: `attendance.stale` and `site.stale` still sit
-    beside `conflict.version`. The register's copy is its own ("Someone
-    saved this register after you opened it"), and an API test asserts
-    `attendance.stale`, so merging waits for the owner;
   - one pagination shape. Paging was added in several places at once, so
     it needs aligning;
   - history tabs fed by the audit log, with one history screen;

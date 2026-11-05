@@ -4530,7 +4530,6 @@
   "siteErrTitle": "Enter a title in the site's first language.",
   "siteErrLink": "Use a page of this site such as /pages/about, or a full https address.",
   "siteErrEmbed": "That video or document cannot be shown.",
-  "siteErrStale": "Someone changed this at the same time. Reload and try again.",
   "homeAbsent": "Absent today",
   "homeAbsentUnexplained": "Absent today, no reason given",
   "homeAllChildren": "All children",

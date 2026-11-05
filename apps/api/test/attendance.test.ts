@@ -120,7 +120,7 @@ describe("taking a register", () => {
           marks: [],
         }),
       ),
-    ).toMatchObject({ code: "CONFLICT", message: "attendance.stale" });
+    ).toMatchObject({ code: "CONFLICT", message: "conflict.version" });
 
     const board = await office.attendance.board({ date });
     const row = board.rows.find(

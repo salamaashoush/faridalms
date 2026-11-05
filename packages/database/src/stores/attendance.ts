@@ -19,7 +19,7 @@ import { holds, isoOf, uuidArray } from "./sql";
 type Tx = CellTransaction;
 
 export class AttendanceConflict extends Error {
-  constructor(readonly code: "attendance.stale" | "attendance.not_roster") {
+  constructor(readonly code: "conflict.version" | "attendance.not_roster") {
     super(code);
     this.name = "AttendanceConflict";
   }
@@ -83,7 +83,7 @@ export async function saveSettings(
               ${input.lateAfterMinutes}, ${input.registerClosesMinutes})
       on conflict do nothing
       returning version`);
-    if (!rows[0]) throw new AttendanceConflict("attendance.stale");
+    if (!rows[0]) throw new AttendanceConflict("conflict.version");
     return rows[0].version;
   }
   const rows = await tx.execute<{ version: number }>(sql`
@@ -99,7 +99,7 @@ export async function saveSettings(
     where tenant_id = ${input.tenantId}::uuid and org_id = ${input.schoolId}::uuid
       and status = 'active' and version = ${input.expectedVersion}
     returning version`);
-  if (!rows[0]) throw new AttendanceConflict("attendance.stale");
+  if (!rows[0]) throw new AttendanceConflict("conflict.version");
   return rows[0].version;
 }
 
@@ -391,7 +391,7 @@ export async function writeRegister(
   let version: number;
   if (!existing) {
     if (input.expectedVersion !== 0)
-      throw new AttendanceConflict("attendance.stale");
+      throw new AttendanceConflict("conflict.version");
     const rows = await tx.execute<{ id: string; version: number }>(sql`
       insert into core.attendance_registers
         (tenant_id, org_id, class_id, class_type, school_year_id, class_period_id, taken_on,
@@ -402,11 +402,11 @@ export async function writeRegister(
               case when ${input.state} = 'submitted' then statement_timestamp() end)
       on conflict do nothing
       returning id, version`);
-    if (!rows[0]) throw new AttendanceConflict("attendance.stale");
+    if (!rows[0]) throw new AttendanceConflict("conflict.version");
     ({ id: registerId, version } = rows[0]);
   } else {
     if (existing.version !== input.expectedVersion)
-      throw new AttendanceConflict("attendance.stale");
+      throw new AttendanceConflict("conflict.version");
     const rows = await tx.execute<{ id: string; version: number }>(sql`
       update core.attendance_registers
       set state = ${input.state}, recorded_by_user_id = ${input.actorId}::uuid,
@@ -415,7 +415,7 @@ export async function writeRegister(
       where tenant_id = ${input.tenantId}::uuid and id = ${existing.id}::uuid
         and version = ${input.expectedVersion}
       returning id, version`);
-    if (!rows[0]) throw new AttendanceConflict("attendance.stale");
+    if (!rows[0]) throw new AttendanceConflict("conflict.version");
     ({ id: registerId, version } = rows[0]);
   }
   const before = new Map(
@@ -1129,7 +1129,7 @@ export async function checkInMark(
       returning id`);
     registerId = made?.id ?? (await registerFor(tx, input))?.id;
   }
-  if (!registerId) throw new AttendanceConflict("attendance.stale");
+  if (!registerId) throw new AttendanceConflict("conflict.version");
   const added = await tx.execute<{ id: string }>(sql`
     insert into core.attendance_events
       (tenant_id, taken_on, register_id, recorded_by_user_id, student_user_id,
