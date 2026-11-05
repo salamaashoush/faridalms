@@ -327,7 +327,11 @@ and the full gate.
 8. **Decisions, offers, waitlist, conversion** (6.4, 6.5), staff screens and
    reports (6.8).
 9. **Re-enrolment**: each returning student's intention for next year
-   (returning, undecided, leaving) feeding the existing rollover.
+   (returning, undecided, leaving) feeding the existing rollover. The
+   office asks once a year from the rollover; each guardian who decides for
+   a child gets a notice and answers on the family home, and the office
+   may record an answer. A child whose family says they leave starts the
+   rollover as leaving, unless an outcome is already recorded.
 
 Deferred: online payment and refunds, e-signed contracts, financial aid,
 lotteries, agent portals and appeals, ministry integrations (Egypt MoE,

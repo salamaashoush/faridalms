@@ -21,6 +21,7 @@ export const NOTIFICATION_KINDS = [
   "feedback",
   "grades",
   "correction",
+  "reenrolment",
 ] as const;
 export type NotificationKind = (typeof NOTIFICATION_KINDS)[number];
 
@@ -103,6 +104,7 @@ export const CHOOSABLE_KINDS = [
   "feedback",
   "grades",
   "correction",
+  "reenrolment",
 ] as const;
 export type ChoosableKind = (typeof CHOOSABLE_KINDS)[number];
 
@@ -154,6 +156,7 @@ export const DEFAULT_PREFERENCES: Preferences = {
     feedback: "digest",
     grades: "instant",
     correction: "instant",
+    reenrolment: "instant",
   },
   sms: {
     announcement: "off",
@@ -172,6 +175,7 @@ export const DEFAULT_PREFERENCES: Preferences = {
     feedback: "off",
     grades: "off",
     correction: "off",
+    reenrolment: "off",
   },
   quietFrom: "21:00",
   quietTo: "07:00",

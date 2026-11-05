@@ -2,7 +2,11 @@ import { describe, expect, it } from "vitest";
 
 import type { RolloverPlan } from "./rollover";
 
-import { rolloverPlanIssue, rolloverYearsIssue } from "./rollover";
+import {
+  firstOutcome,
+  rolloverPlanIssue,
+  rolloverYearsIssue,
+} from "./rollover";
 
 const key = (n: number) => `00000000-0000-4000-8000-00000000000${n}`;
 
@@ -119,5 +123,17 @@ describe("rolloverYearsIssue", () => {
     expect(rolloverYearsIssue(source, target, "2026-08-01")).toBe(
       "rollover.source_not_started",
     );
+  });
+});
+
+describe("firstOutcome", () => {
+  it("starts a leaving family's child as leaving, unless the office already decided", () => {
+    expect(firstOutcome(null, "leaving")).toBe("leave");
+    expect(firstOutcome(null, "returning")).toBe("promote");
+    expect(firstOutcome(null, "undecided")).toBe("promote");
+    expect(firstOutcome(null, null)).toBe("promote");
+    expect(firstOutcome("retain", "leaving")).toBe("retain");
+    expect(firstOutcome("promote", "leaving")).toBe("promote");
+    expect(firstOutcome("graduate", null)).toBe("graduate");
   });
 });

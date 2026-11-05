@@ -129,6 +129,8 @@ export const AUDIT_ACTION_LABEL: Record<string, () => string> = {
   "privacy_erasure.run": m.auditPrivacyErasureRun,
   "privacy_hold.place": m.auditPrivacyHoldPlace,
   "privacy_hold.release": m.auditPrivacyHoldRelease,
+  "reenrolment.intention": m.auditReenrolmentIntention,
+  "reenrolment.open": m.auditReenrolmentOpen,
   "privacy_request.close": m.auditPrivacyRequestClose,
   "privacy_request.extend": m.auditPrivacyRequestExtend,
   "privacy_request.log": m.auditPrivacyRequestLog,

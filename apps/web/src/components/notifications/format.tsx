@@ -14,16 +14,17 @@ import {
   CalendarDays,
   ClipboardCheck,
   ClipboardList,
+  FileUser,
   GraduationCap,
+  HeartPulse,
   Megaphone,
-  MessageSquareText,
   MessageSquare,
+  MessageSquareText,
   Newspaper,
   Reply,
+  School,
   ShieldCheck,
   Siren,
-  FileUser,
-  HeartPulse,
   UserPlus,
   UserX,
 } from "lucide-react";
@@ -63,6 +64,7 @@ export const KIND_ICON: Record<NotificationKind, LucideIcon> = {
   feedback: MessageSquareText,
   grades: GraduationCap,
   correction: HeartPulse,
+  reenrolment: School,
 };
 
 /** What a notice about an application's move is headed, for the family and for the office. */
@@ -275,6 +277,15 @@ export function noticeText(notice: Notice): { title: string; body: string } {
           name: both(params.studentName, params.studentNameAr),
         }),
         body: m.ntfCorrectionBody(),
+      };
+    case "reenrolment":
+      return {
+        title: m.ntfReenrolmentTitle({
+          name: both(params.studentName, params.studentNameAr),
+        }),
+        body: m.ntfReenrolmentBody({
+          year: both(params.title, params.titleAr),
+        }),
       };
   }
   return { title: "", body: "" };
@@ -501,6 +512,16 @@ export function NoticeLink({
           {...rest}
           to="/family/health"
           search={{ studentId: notice.params.studentId || undefined }}
+        >
+          {children}
+        </Link>
+      );
+    case "reenrolment":
+      return (
+        <Link
+          {...rest}
+          to="/family"
+          search={{ child: notice.params.studentId || undefined }}
         >
           {children}
         </Link>

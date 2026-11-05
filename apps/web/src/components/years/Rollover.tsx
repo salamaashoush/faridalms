@@ -1,4 +1,5 @@
 import type {
+  NextYearIntention,
   NextYearOutcome,
   RolloverClass,
   RolloverPlan,
@@ -6,7 +7,11 @@ import type {
   RolloverStudent,
 } from "@faridalms/domain/rollover";
 
-import { rolloverPlanIssue } from "@faridalms/domain/rollover";
+import {
+  NEXT_YEAR_INTENTIONS,
+  rolloverPlanIssue,
+} from "@faridalms/domain/rollover";
+import { Button } from "@faridalms/ui/button";
 import { Checkbox } from "@faridalms/ui/checkbox";
 import { cn } from "@faridalms/ui/cn";
 import {
@@ -18,6 +23,10 @@ import { Link } from "@tanstack/react-router";
 import { useRef, useState } from "react";
 import { toast } from "sonner";
 
+import type { Tone } from "~/components/system/status";
+
+import { ActionMenu } from "~/components/system/ActionMenu";
+import { ConfirmDialog } from "~/components/system/ConfirmDialog";
 import { SelectField, TextField } from "~/components/system/field";
 import { PageHeader } from "~/components/system/IndexPage";
 import { FormSection, RecordForm } from "~/components/system/RecordForm";
@@ -29,11 +38,17 @@ import {
   RecordSection,
 } from "~/components/system/RecordPage";
 import { SheetForm } from "~/components/system/SheetForm";
+import { StatusText } from "~/components/system/status";
 import { inLocale } from "~/hooks/useCurrentUser";
 import * as m from "~/i18n/messages";
 import { classOptionsQuery } from "~/queries/classes";
 import { rolloverQuery } from "~/queries/rollover";
-import { applyRollover, saveRollover } from "~/server/rollover";
+import {
+  applyRollover,
+  openReenrolment,
+  saveRollover,
+  setIntention,
+} from "~/server/rollover";
 import { formatDate, formatNumber } from "~/utils/datetime";
 import { getMessageFromError } from "~/utils/error";
 
@@ -238,15 +253,100 @@ function ClassRow({
   );
 }
 
+const INTENTION = {
+  returning: {
+    tone: "success",
+    label: m.rolloverFamilyReturning,
+    record: m.rolloverRecordReturning,
+  },
+  undecided: {
+    tone: "neutral",
+    label: m.rolloverFamilyUndecided,
+    record: m.rolloverRecordUndecided,
+  },
+  leaving: {
+    tone: "warning",
+    label: m.rolloverFamilyLeaving,
+    record: m.rolloverRecordLeaving,
+  },
+} satisfies Record<
+  NextYearIntention,
+  { tone: Tone; label: () => string; record: () => string }
+>;
+
+/**
+ * Whether the families of the year are being asked about the next, and
+ * what they answered so far; asking sends each deciding guardian a notice.
+ */
+function FamilyPlans({ data }: { data: Data }) {
+  const [confirming, setConfirming] = useState(false);
+  const ask = useMutation({
+    mutationFn: () => openReenrolment({ data: { yearId: data.source.id } }),
+    meta: { inlineError: true },
+  });
+  const opened = data.source.reenrolmentOpenedAt;
+  const count = (intention: NextYearIntention | null) =>
+    data.students.filter((row) => row.intention === intention).length;
+  return (
+    <FormSection
+      title={m.rolloverFamiliesTitle()}
+      description={m.rolloverFamiliesHint({ year: yearTitle(data.target) })}
+    >
+      {opened ? (
+        <p className="text-sm leading-5">
+          {m.rolloverAskedOn({ date: formatDate(opened.slice(0, 10)) })}
+          {" · "}
+          {m.rolloverAnswers({
+            returning: formatNumber(count("returning")),
+            undecided: formatNumber(count("undecided")),
+            leaving: formatNumber(count("leaving")),
+            none: formatNumber(count(null)),
+          })}
+        </p>
+      ) : (
+        <Button
+          type="button"
+          variant="outline"
+          className="justify-self-start max-md:h-10"
+          onClick={() => setConfirming(true)}
+        >
+          {m.rolloverAskFamilies()}
+        </Button>
+      )}
+      {ask.error ? (
+        <p role="alert" className="text-[13px] leading-[18px] text-destructive">
+          {getMessageFromError(ask.error)}
+        </p>
+      ) : null}
+      <ConfirmDialog
+        open={confirming}
+        title={m.rolloverAskTitle({ year: yearTitle(data.target) })}
+        body={m.rolloverAskBody()}
+        confirmLabel={m.rolloverAskConfirm()}
+        destructive={false}
+        pending={ask.isPending}
+        onConfirm={async () => {
+          await ask.mutateAsync().catch(() => undefined);
+          setConfirming(false);
+        }}
+        onCancel={() => setConfirming(false)}
+      />
+    </FormSection>
+  );
+}
+
 function StudentRow({
   student,
   row,
   targets,
+  asking,
   onChange,
 }: {
   student: Data["students"][number];
   row: RolloverStudent;
   targets: { value: string; label: string }[];
+  /** Whether the family is being asked now, so the office may record its answer. */
+  asking: boolean;
   onChange: (change: Partial<RolloverStudent>) => void;
 }) {
   const name = displayName({
@@ -254,9 +354,32 @@ function StudentRow({
     fullNameAr: student.fullNameAr,
   });
   const leaving = !staying(row.outcome);
+  const record = useMutation({
+    mutationFn: (intention: NextYearIntention) =>
+      setIntention({ data: { studentId: student.id, intention } }),
+  });
   return (
     <li className="grid gap-2 py-3 sm:grid-cols-[minmax(0,1fr)_10rem_12rem] sm:items-center sm:gap-3">
-      <bdi className="text-sm leading-5 font-medium">{name}</bdi>
+      <div className="flex min-w-0 items-center justify-between gap-2">
+        <div className="grid min-w-0 gap-0.5">
+          <bdi className="text-sm leading-5 font-medium">{name}</bdi>
+          {student.intention ? (
+            <StatusText tone={INTENTION[student.intention].tone}>
+              {INTENTION[student.intention].label()}
+            </StatusText>
+          ) : null}
+        </div>
+        {asking ? (
+          <ActionMenu
+            label={m.rolloverAnswerFor({ name })}
+            className="max-md:size-10"
+            actions={NEXT_YEAR_INTENTIONS.map((intention) => ({
+              label: INTENTION[intention].record(),
+              onSelect: () => record.mutateAsync(intention),
+            }))}
+          />
+        ) : null}
+      </div>
       <SelectField
         id={`roll-outcome-${student.id}`}
         label={m.rolloverDecisionFor({ name })}
@@ -444,6 +567,7 @@ function RolloverDraft({
             {m.rolloverReconciled()}
           </p>
         ) : null}
+        {data.state === "applied" ? null : <FamilyPlans data={data} />}
         <FormSection
           title={m.rolloverClasses()}
           description={m.rolloverClassesHint()}
@@ -482,6 +606,7 @@ function RolloverDraft({
                     const row = planned.get(student.id);
                     return row ? (
                       <StudentRow
+                        asking={Boolean(data.source.reenrolmentOpenedAt)}
                         key={student.id}
                         student={student}
                         row={row}

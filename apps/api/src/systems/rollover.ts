@@ -4,6 +4,7 @@ import type {
   RolloverPlan,
   RolloverQuery,
   RolloverStudent,
+  NextYearIntention,
 } from "@faridalms/domain/rollover";
 
 import {
@@ -11,6 +12,8 @@ import {
   homeroomDirectory,
 } from "@faridalms/database/stores/classes";
 import { descriptorsFor } from "@faridalms/database/stores/descriptors";
+import { decidingGuardians } from "@faridalms/database/stores/invites";
+import { markActed } from "@faridalms/database/stores/notifications";
 import { copyPeriods } from "@faridalms/database/stores/periods";
 import {
   markRolloverApplied,
@@ -19,6 +22,9 @@ import {
   saveRolloverDraft,
   setNextYearOutcomes,
   studentsAtYearEnd,
+  openReenrolment as openReenrolmentIn,
+  openReenrolments,
+  recordIntention,
 } from "@faridalms/database/stores/rollovers";
 import {
   calendarFor,
@@ -33,6 +39,9 @@ import {
   rolloverQuerySchema,
   rolloverYearsIssue,
   saveRolloverSchema,
+  firstOutcome,
+  openReenrolmentSchema,
+  setIntentionSchema,
 } from "@faridalms/domain/rollover";
 import { addDays } from "@faridalms/domain/school";
 import { ORPCError } from "@orpc/server";
@@ -42,14 +51,17 @@ import * as v from "valibot";
 import type { UnitContext } from "../core/context";
 
 import { writeHomeroom } from "../classes/homerooms";
+import { notify } from "../core/notify";
 import {
   audit,
+  can,
   localeOf,
   readProcedure,
   requireCapability,
   writeProcedure,
 } from "../core/procedure";
 import { scopeFor } from "../core/reach";
+import { yearAfter, yearOf } from "../core/years";
 
 async function yearsOf(context: UnitContext, query: RolloverQuery) {
   const years = await schoolYears(
@@ -135,15 +147,15 @@ function propose(
 }
 
 function defaultStudent(
-  row: { studentId: string; classId: string | null; outcome: string | null },
+  row: {
+    studentId: string;
+    classId: string | null;
+    outcome: string | null;
+    intention: NextYearIntention | null;
+  },
   keys: Map<string, string>,
 ): RolloverStudent {
-  const outcome =
-    row.outcome === "retain" ||
-    row.outcome === "leave" ||
-    row.outcome === "graduate"
-      ? row.outcome
-      : "promote";
+  const outcome = firstOutcome(row.outcome, row.intention);
   return {
     studentId: row.studentId,
     outcome,
@@ -186,6 +198,7 @@ function yearView(row: SchoolYear) {
     startsOn: row.startsOn,
     endsBefore: row.endsBefore,
     lifecycle: row.lifecycle,
+    reenrolmentOpenedAt: row.reenrolmentOpenedAt,
   };
 }
 
@@ -252,6 +265,7 @@ export const preview = readProcedure
         fullNameAr: row.fullNameAr,
         gradeId: row.gradeId,
         classId: row.classId,
+        intention: row.intention,
       })),
     };
   });
@@ -487,4 +501,115 @@ export const apply = writeProcedure
       details: { sourceYearId: source.id, ...outcome, classes: created.length },
     });
     return outcome;
+  });
+
+/**
+ * Asks the families of every student placed in a year whether each child
+ * returns the year after: once a year, a notice to the guardians who
+ * decide for the child. Their answers feed the rollover's first outcomes.
+ */
+export const openReenrolment = writeProcedure
+  .input(openReenrolmentSchema)
+  .handler(async ({ input, context }) => {
+    requireCapability(context, "years:manage");
+    const { years, year } = await yearOf(context, input.yearId);
+    if (!year) throw new ORPCError("NOT_FOUND");
+    const next = yearAfter(years, year);
+    if (!next)
+      throw new ORPCError("CONFLICT", {
+        message: "reenrolment.no_next_year",
+      });
+    const opened = await openReenrolmentIn(context.tx, {
+      tenantId: context.tenantId,
+      schoolId: context.schoolId,
+      yearId: year.id,
+    });
+    if (!opened)
+      throw new ORPCError("CONFLICT", { message: "reenrolment.opened" });
+    const placed = await studentsAtYearEnd(context.tx, {
+      tenantId: context.tenantId,
+      schoolId: context.schoolId,
+      year,
+    });
+    const deciding = await decidingGuardians(context.tx, {
+      tenantId: context.tenantId,
+      studentIds: placed.map((row) => row.studentId),
+      today: context.today,
+    });
+    let asked = 0;
+    for (const student of placed) {
+      const guardians = deciding
+        .filter((row) => row.studentId === student.studentId)
+        .map((row) => row.guardianId);
+      // One notice per child, each naming the child its answer is for.
+      asked += await notify(context, guardians, {
+        kind: "reenrolment",
+        subject: { type: "student_school_year", id: student.placementId },
+        needsAction: true,
+        params: {
+          studentId: student.studentId,
+          studentName: student.fullNameEn ?? undefined,
+          studentNameAr: student.fullNameAr ?? undefined,
+          title: next.titleEn ?? next.titleAr ?? undefined,
+          titleAr: next.titleAr ?? next.titleEn ?? undefined,
+        },
+      });
+    }
+    await audit(context, {
+      action: "reenrolment.open",
+      objectType: "academic_session",
+      objectId: year.id,
+      details: { nextYearId: next.id, asked },
+    });
+    return { asked };
+  });
+
+/**
+ * Records whether a student returns next year, while their family is being
+ * asked: by a guardian who decides for the child, or by the office for them.
+ */
+export const setIntention = writeProcedure
+  .input(setIntentionSchema)
+  .handler(async ({ input, context }) => {
+    const office = can(context, "years:manage");
+    const deciding = await decidingGuardians(context.tx, {
+      tenantId: context.tenantId,
+      studentIds: [input.studentId],
+      today: context.today,
+    });
+    if (
+      !office &&
+      !deciding.some((row) => row.guardianId === context.actor.userId)
+    )
+      throw new ORPCError("FORBIDDEN");
+    const [open] = await openReenrolments(context.tx, {
+      tenantId: context.tenantId,
+      schoolId: context.schoolId,
+      studentIds: [input.studentId],
+      today: context.today,
+    });
+    if (!open)
+      throw new ORPCError("CONFLICT", { message: "reenrolment.closed" });
+    await recordIntention(context.tx, {
+      tenantId: context.tenantId,
+      placementId: open.placementId,
+      intention: input.intention,
+      byUserId: context.actor.userId,
+    });
+    // One answer stands for the child, so no guardian is still asked.
+    for (const { guardianId } of deciding)
+      await markActed(context.tx, {
+        tenantId: context.tenantId,
+        userId: guardianId,
+        subjectType: "student_school_year",
+        subjectId: open.placementId,
+      });
+    await audit(context, {
+      action: "reenrolment.intention",
+      objectType: "student_school_year",
+      objectId: open.placementId,
+      subjectUserId: input.studentId,
+      details: { intention: input.intention, by: office ? "office" : "family" },
+    });
+    return { intention: input.intention };
   });

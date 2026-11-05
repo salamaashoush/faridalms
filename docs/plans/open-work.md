@@ -47,10 +47,8 @@ From `foundations.md`. W1 to W5 are merged.
 
 ## Front door
 
-From `school-front-door.md`; slices 1 to 8 are merged.
+From `school-front-door.md`; slices 1 to 9 are merged.
 
-- **Slice 9, re-enrolment:** each returning student's intention for next
-  year (returning, undecided, leaving) feeding the existing rollover.
 - **Register and apply loses the intake.** A visitor who arrives without an
   account loses the intake preset at registration, because sign-in and the
   welcome page have no return path. Carry the intake through the welcome

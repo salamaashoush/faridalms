@@ -55,6 +55,8 @@ export const academicSessions = core.table.withRLS(
     span: daterange("span").notNull(),
     schoolYear: smallint("school_year").notNull(),
     lifecycle: text("lifecycle").$type<YearLifecycle>(),
+    /** When the school asked families whether each student returns the year after. */
+    reenrolmentOpenedAt: instant("reenrolment_opened_at"),
     sequence: smallint("sequence").notNull().default(1),
     ...entityColumns(),
   },

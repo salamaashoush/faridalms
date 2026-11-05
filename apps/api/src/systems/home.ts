@@ -30,10 +30,12 @@ import { changesOn } from "@faridalms/database/stores/cover";
 import { descriptorsFor } from "@faridalms/database/stores/descriptors";
 import { eventsBetween } from "@faridalms/database/stores/events";
 import { expiringDocuments } from "@faridalms/database/stores/identifiers";
+import { decidingGuardians } from "@faridalms/database/stores/invites";
 import { studentModules } from "@faridalms/database/stores/learning";
 import { threadsOf, unreadThreads } from "@faridalms/database/stores/messages";
 import { deliveryLog } from "@faridalms/database/stores/notifications";
 import { childrenOf } from "@faridalms/database/stores/persons";
+import { openReenrolments } from "@faridalms/database/stores/rollovers";
 import {
   person as readPerson,
   placements,
@@ -72,6 +74,7 @@ import {
   requireCapability,
 } from "../core/procedure";
 import { recordLinks, scopeFor } from "../core/reach";
+import { yearAfter } from "../core/years";
 
 async function yearOf(context: UnitContext) {
   return workingYear(
@@ -697,6 +700,39 @@ export const family = readProcedure
       today: context.today,
     });
     const children = [];
+    const chosenIds = chosen.map((link) => link.studentId);
+    const [asking, deciding, years] = await Promise.all([
+      openReenrolments(context.tx, {
+        tenantId: context.tenantId,
+        schoolId: context.schoolId,
+        studentIds: chosenIds,
+        today: context.today,
+      }),
+      decidingGuardians(context.tx, {
+        tenantId: context.tenantId,
+        studentIds: chosenIds,
+        today: context.today,
+      }),
+      schoolYears(context.tx, context.tenantId, context.schoolId),
+    ]);
+    // What the school asks of each child's next year, for a guardian who decides for them.
+    const nextYearOf = (studentId: string) => {
+      const open = asking.find((row) => row.studentId === studentId);
+      const decides = deciding.some(
+        (row) =>
+          row.studentId === studentId &&
+          row.guardianId === context.actor.userId,
+      );
+      const year = open && years.find((row) => row.id === open.yearId);
+      const next = year ? yearAfter(years, year) : null;
+      return open && decides && next
+        ? {
+            intention: open.intention,
+            titleEn: next.titleEn,
+            titleAr: next.titleAr,
+          }
+        : null;
+    };
     for (const link of chosen) {
       const day = await studentDay(context, link.studentId);
       const attention = [
@@ -738,6 +774,7 @@ export const family = readProcedure
         fullNameEn: link.fullNameEn,
         fullNameAr: link.fullNameAr,
         young: young.has(link.studentId),
+        nextYear: nextYearOf(link.studentId),
         presence: day.presence,
         now: day.slots.find((slot) => slot.when === "now") ?? null,
         next: day.slots.find((slot) => slot.when === "next") ?? null,

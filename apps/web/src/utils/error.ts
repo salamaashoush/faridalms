@@ -546,6 +546,12 @@ export function getMessageFromError(error: unknown): string {
         return m.errorConflictVersion();
       case "academic_year.closed":
         return m.academicYearClosedError();
+      case "reenrolment.no_next_year":
+        return m.reenrolNoNextYear();
+      case "reenrolment.opened":
+        return m.reenrolAlreadyAsked();
+      case "reenrolment.closed":
+        return m.reenrolClosed();
       case "rollover.duplicate_class":
         return m.rolloverDuplicateClass();
       case "rollover.duplicate_code":

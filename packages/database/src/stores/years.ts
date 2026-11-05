@@ -11,7 +11,7 @@ import {
   calendarDates,
   calendars,
 } from "../tables/calendar";
-import { bounds, textArray } from "./sql";
+import { bounds, isoOf, textArray } from "./sql";
 
 export interface SchoolYear {
   id: string;
@@ -22,6 +22,8 @@ export interface SchoolYear {
   schoolYear: number;
   lifecycle: YearLifecycle;
   version: number;
+  /** When families were asked whether their children return the year after. */
+  reenrolmentOpenedAt: string | null;
 }
 
 export async function schoolYears(
@@ -37,8 +39,10 @@ export async function schoolYears(
     school_year: number;
     lifecycle: YearLifecycle;
     version: number;
+    reenrolment_opened_at: string | null;
   }>(sql`
-    select id, title_en, title_ar, span::text as span, school_year, lifecycle, version
+    select id, title_en, title_ar, span::text as span, school_year, lifecycle, version,
+      ${isoOf(sql`reenrolment_opened_at`)} as reenrolment_opened_at
     from core.academic_sessions
     where tenant_id = ${tenantId}::uuid and org_id = ${schoolId}::uuid
       and type = 'school_year' and status = 'active'
@@ -54,6 +58,7 @@ export async function schoolYears(
       schoolYear: row.school_year,
       lifecycle: row.lifecycle,
       version: row.version,
+      reenrolmentOpenedAt: row.reenrolment_opened_at,
     };
   });
 }

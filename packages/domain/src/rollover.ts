@@ -14,6 +14,35 @@ export const NEXT_YEAR_OUTCOMES = [
 ] as const;
 export type NextYearOutcome = (typeof NEXT_YEAR_OUTCOMES)[number];
 
+/** What a family says of a student's next year when the school asks. */
+export const NEXT_YEAR_INTENTIONS = [
+  "returning",
+  "undecided",
+  "leaving",
+] as const;
+export type NextYearIntention = (typeof NEXT_YEAR_INTENTIONS)[number];
+
+/**
+ * Where a student starts in a rollover the office has not drafted: the
+ * outcome already recorded, else leaving when the family said the child
+ * leaves, else promoted. The office still decides each.
+ */
+export function firstOutcome(
+  saved: string | null,
+  intention: NextYearIntention | null,
+): NextYearOutcome {
+  if (saved === "retain" || saved === "leave" || saved === "graduate")
+    return saved;
+  return saved === null && intention === "leaving" ? "leave" : "promote";
+}
+
+export const openReenrolmentSchema = v.object({ yearId: id });
+
+export const setIntentionSchema = v.object({
+  studentId: id,
+  intention: v.picklist(NEXT_YEAR_INTENTIONS),
+});
+
 /** A class of the target year, proposed from a homeroom of the source year. */
 export const rolloverClassSchema = v.object({
   key: id,

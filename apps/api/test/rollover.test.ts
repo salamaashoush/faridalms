@@ -156,3 +156,66 @@ describe("year rollover", () => {
     expect(preview.issue).toBe("rollover.source_not_started");
   });
 });
+
+describe("re-enrolment", () => {
+  test("families are asked once, one answer settles the question, and the rollover reads it", async () => {
+    const api = await principal();
+    const { source } = await yearsOf(api);
+    const { id: targetId } = await api.years.save({
+      titleEn: "2061–2062",
+      titleAr: "",
+      startsOn: "2061-09-04",
+      endsOn: "2062-06-08",
+      terms: [],
+    });
+    const { asked } = await api.rollover.openReenrolment({
+      yearId: source.id,
+    });
+    expect(asked).toBeGreaterThan(0);
+    expect(
+      await rejection(api.rollover.openReenrolment({ yearId: source.id })),
+    ).toMatchObject({ code: "CONFLICT", message: "reenrolment.opened" });
+
+    const family = await signedIn("northwind", login("parent"));
+    const [child] = (await family.home.family({})).children;
+    if (!child) throw new Error("seed child");
+    const waiting = await family.notifications.list({ tab: "action" });
+    expect(
+      waiting.rows.some(
+        (row) =>
+          row.kind === "reenrolment" &&
+          row.params.studentId === child.studentId,
+      ),
+    ).toBe(true);
+    const teacher = await signedIn("northwind", login("teacher"));
+    expect(
+      await rejection(
+        teacher.rollover.setIntention({
+          studentId: child.studentId,
+          intention: "leaving",
+        }),
+      ),
+    ).toMatchObject({ code: "FORBIDDEN" });
+    expect(
+      await family.rollover.setIntention({
+        studentId: child.studentId,
+        intention: "leaving",
+      }),
+    ).toEqual({ intention: "leaving" });
+    expect(
+      (await family.notifications.list({ tab: "action" })).rows.some(
+        (row) =>
+          row.kind === "reenrolment" &&
+          row.params.studentId === child.studentId,
+      ),
+    ).toBe(false);
+
+    const preview = await api.rollover.preview({
+      sourceYearId: source.id,
+      targetYearId: targetId,
+    });
+    expect(
+      preview.students.find((row) => row.id === child.studentId)?.intention,
+    ).toBe("leaving");
+  });
+});

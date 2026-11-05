@@ -1,7 +1,10 @@
+import type { NextYearIntention } from "@faridalms/domain/rollover";
 import type { LinkProps } from "@tanstack/react-router";
 
+import { NEXT_YEAR_INTENTIONS } from "@faridalms/domain/rollover";
 import { Button } from "@faridalms/ui/button";
 import { cn } from "@faridalms/ui/cn";
+import { RadioGroup, RadioGroupItem } from "@faridalms/ui/radio-group";
 import { useMutation, useSuspenseQuery } from "@tanstack/react-query";
 import {
   createFileRoute,
@@ -10,6 +13,7 @@ import {
 } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { House, LoaderCircle, Smile } from "lucide-react";
+import { useState } from "react";
 import * as v from "valibot";
 
 import type { Tone } from "~/components/system/status";
@@ -30,6 +34,7 @@ import { useSessionChange } from "~/hooks/useSessionChange";
 import * as m from "~/i18n/messages";
 import { familyHomeQuery } from "~/queries/home";
 import { startChildMode } from "~/server/auth";
+import { setIntention } from "~/server/rollover";
 import { formatInstant, formatDate } from "~/utils/datetime";
 import { getMessageFromError } from "~/utils/error";
 
@@ -140,6 +145,73 @@ function HandOver({ child }: { child: Child }) {
   );
 }
 
+const INTENTION_LABEL = {
+  returning: m.familyNextYearReturning,
+  undecided: m.familyNextYearUndecided,
+  leaving: m.familyNextYearLeaving,
+} satisfies Record<NextYearIntention, () => string>;
+
+/**
+ * The school's question about a child's next year, for a guardian who
+ * decides for them: each choice is kept as it is made, and can change
+ * while the school is asking.
+ */
+function NextYear({
+  child,
+  nextYear,
+}: {
+  child: Child;
+  nextYear: NonNullable<Child["nextYear"]>;
+}) {
+  const save = useServerFn(setIntention);
+  const [chosen, setChosen] = useState(nextYear.intention);
+  const answer = useMutation({
+    mutationFn: (intention: NextYearIntention) =>
+      save({ data: { studentId: child.studentId, intention } }),
+    meta: { inlineError: true },
+  });
+  const legend = m.familyNextYearTitle({
+    name: displayName(child),
+    year: inLocale(nextYear.titleEn, nextYear.titleAr),
+  });
+  return (
+    <fieldset className="grid gap-2 border-t pt-4">
+      <legend className="float-start mb-1 text-sm font-semibold">
+        <bdi>{legend}</bdi>
+      </legend>
+      <RadioGroup
+        value={chosen ?? ""}
+        onValueChange={(value) => {
+          const intention = NEXT_YEAR_INTENTIONS.find((item) => item === value);
+          if (!intention) return;
+          setChosen(intention);
+          answer.mutate(intention);
+        }}
+        className="grid gap-1"
+      >
+        {NEXT_YEAR_INTENTIONS.map((intention) => (
+          <label
+            key={intention}
+            className="flex min-h-8 items-center gap-3 text-sm leading-5 max-md:min-h-10"
+          >
+            <RadioGroupItem value={intention} disabled={answer.isPending} />
+            {INTENTION_LABEL[intention]()}
+          </label>
+        ))}
+      </RadioGroup>
+      {answer.error ? (
+        <p role="alert" className="text-[13px] leading-[18px] text-destructive">
+          {getMessageFromError(answer.error)}
+        </p>
+      ) : (
+        <p className="text-[13px] leading-[18px] text-muted-foreground">
+          {chosen ? m.familyNextYearKept() : m.familyNextYearHint()}
+        </p>
+      )}
+    </fieldset>
+  );
+}
+
 function ChildCard({ child, single }: { child: Child; single: boolean }) {
   const presence = PRESENCE[child.presence];
   return (
@@ -221,6 +293,9 @@ function ChildCard({ child, single }: { child: Child; single: boolean }) {
         ) : null}
         {!presence && child.attention.length === 0 && child.due.length === 0 ? (
           <p className="text-sm text-muted-foreground">{m.homeChildClear()}</p>
+        ) : null}
+        {child.nextYear ? (
+          <NextYear child={child} nextYear={child.nextYear} />
         ) : null}
         {child.young ? <HandOver child={child} /> : null}
       </div>

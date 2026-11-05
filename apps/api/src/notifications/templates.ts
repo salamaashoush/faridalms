@@ -275,6 +275,8 @@ const LINES: Record<"en" | "ar", Record<NotificationKind, Line>> = {
       p.report === "accepted"
         ? `The school updated ${p.studentName ?? "your child"}'s medical summary with the change you asked for.`
         : `The school answered the change you asked for in ${p.studentName ?? "your child"}'s medical summary and did not make it.`,
+    reenrolment: (p) =>
+      `Will ${p.studentName ?? "your child"} return to school${p.title ? ` in ${p.title}` : " next year"}? Tell the school in the family app.`,
   },
   ar: {
     announcement: (p) =>
@@ -335,6 +337,8 @@ const LINES: Record<"en" | "ar", Record<NotificationKind, Line>> = {
       p.report === "accepted"
         ? `حدّثت المدرسة ملخص ${p.studentName ?? "طفلك"} الطبي بالتعديل الذي طلبته.`
         : `لم تعتمد المدرسة التعديل الذي طلبته على ملخص ${p.studentName ?? "طفلك"} الطبي.`,
+    reenrolment: (p) =>
+      `هل يعود ${p.studentNameAr || p.studentName || "طفلك"} إلى المدرسة${p.titleAr || p.title ? ` في ${p.titleAr || p.title}` : " في العام القادم"}؟ أخبروا المدرسة في تطبيق الأسرة.`,
   },
 };
 

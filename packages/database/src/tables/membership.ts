@@ -52,6 +52,12 @@ export const studentSchoolYears = core.table.withRLS(
       .notNull()
       .generatedAlwaysAs(sql`'school_exit_type'`),
     nextYearOutcome: text("next_year_outcome").$type<NextYearOutcome>(),
+    /** Whether the family means the student to return next year, as they or the office said. */
+    nextYearIntention: text("next_year_intention").$type<
+      "returning" | "undecided" | "leaving"
+    >(),
+    intentionByUserId: uuid("intention_by_user_id"),
+    intentionAt: instant("intention_at"),
     /** The school a student came from, as their papers or family say. */
     previousSchool: text("previous_school"),
     /** Where a student who left went on to, as the family told the office. */
@@ -118,6 +124,17 @@ export const studentSchoolYears = core.table.withRLS(
       "next_year_outcome",
       sql`next_year_outcome in ('promote', 'retain', 'leave', 'graduate')`,
     ),
+    ck(
+      "student_school_years",
+      "next_year_intention",
+      sql`next_year_intention in ('returning', 'undecided', 'leaving')`,
+    ),
+    ck(
+      "student_school_years",
+      "intention_recorded",
+      sql`(next_year_intention is null) = (intention_at is null)`,
+    ),
+
     ck(
       "student_school_years",
       "source",
