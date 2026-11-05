@@ -1,5 +1,6 @@
 import { businessToday } from "@faridalms/domain/subscriptions";
 import { Button } from "@faridalms/ui/button";
+import { Checkbox } from "@faridalms/ui/checkbox";
 import { Input } from "@faridalms/ui/input";
 import { Textarea } from "@faridalms/ui/textarea";
 import { createFileRoute, useRouter } from "@tanstack/react-router";
@@ -49,6 +50,8 @@ function Profile({ data }: { data: Data }) {
     email: held?.email ?? "",
     phone: held?.phone ?? "",
     website: held?.website ?? "",
+    bankDetailsEn: held?.bankDetailsEn ?? "",
+    bankDetailsAr: held?.bankDetailsAr ?? "",
   });
   const [reason, setReason] = useState("");
   const [answer, setAnswer] = useState<string | null>(null);
@@ -144,6 +147,31 @@ function Profile({ data }: { data: Data }) {
         {text("email", "Email", { required: true, dir: "ltr", type: "email" })}
         {text("phone", "Phone", { dir: "ltr", type: "tel" })}
         {text("website", "Website", { dir: "ltr" })}
+        <div className="grid gap-1.5 text-sm sm:col-span-2 sm:grid-cols-2 sm:gap-4">
+          <div className="grid gap-1.5">
+            <label htmlFor="profile-bankDetailsEn" className="font-medium">
+              Bank details in English
+            </label>
+            <Textarea
+              id="profile-bankDetailsEn"
+              value={fields.bankDetailsEn}
+              onChange={set("bankDetailsEn")}
+              placeholder="Bank, account name, IBAN, SWIFT"
+            />
+          </div>
+          <div className="grid gap-1.5">
+            <label htmlFor="profile-bankDetailsAr" className="font-medium">
+              Bank details in Arabic
+            </label>
+            <Textarea
+              id="profile-bankDetailsAr"
+              dir="rtl"
+              lang="ar"
+              value={fields.bankDetailsAr}
+              onChange={set("bankDetailsAr")}
+            />
+          </div>
+        </div>
       </div>
       <div className="grid gap-1.5 text-sm">
         <label htmlFor="profile-reason" className="font-medium">
@@ -184,6 +212,7 @@ function Rates({ data }: { data: Data }) {
     validFrom: businessToday(),
     reason: "",
   });
+  const [reverseCharge, setReverseCharge] = useState(false);
   const [saving, setSaving] = useState(false);
   const set =
     (key: keyof typeof fields) => (event: { target: { value: string } }) =>
@@ -204,6 +233,7 @@ function Rates({ data }: { data: Data }) {
               <span className="font-medium">{rate.country}</span>
               <span>
                 {Number(rate.percent)}% {rate.nameEn}
+                {rate.reverseCharge ? ", reverse charge" : ""}
               </span>
               <span dir="rtl" lang="ar" className="text-muted-foreground">
                 {rate.nameAr}
@@ -225,7 +255,11 @@ function Rates({ data }: { data: Data }) {
           setSaving(true);
           try {
             const out = await add({
-              data: { ...fields, percent: Number(fields.percent) },
+              data: {
+                ...fields,
+                percent: Number(fields.percent),
+                reverseCharge,
+              },
             });
             if (out.ok) {
               toast.success("Rate added.");
@@ -269,6 +303,17 @@ function Rates({ data }: { data: Data }) {
             </div>
           ))}
         </div>
+        <span className="flex items-center gap-2 text-sm">
+          <Checkbox
+            id="rate-reverse"
+            checked={reverseCharge}
+            onCheckedChange={(checked) => setReverseCharge(checked)}
+          />
+          <label htmlFor="rate-reverse">
+            Reverse charge: the customer, a registered business abroad, accounts
+            for the VAT
+          </label>
+        </span>
         <div className="grid gap-1.5 text-sm">
           <label htmlFor="rate-reason" className="font-medium">
             Why

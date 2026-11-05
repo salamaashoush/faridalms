@@ -63,6 +63,12 @@ export type SubscriptionState = (typeof SUBSCRIPTION_STATES)[number];
 export const BILLING_SCHEDULES = ["annual", "two", "three"] as const;
 export type BillingSchedule = (typeof BILLING_SCHEDULES)[number];
 
+export const INSTALMENT_COUNT: Record<BillingSchedule, number> = {
+  annual: 1,
+  two: 2,
+  three: 3,
+};
+
 export const CONTACT_ROLES = [
   "billing",
   "decision_maker",

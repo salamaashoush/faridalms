@@ -1,4 +1,10 @@
 import type {
+  InvoiceKind,
+  InvoiceLine,
+  InvoiceState,
+  PaymentMethod,
+} from "@faridalms/domain/invoices";
+import type {
   ActivityKind,
   LeadSource,
   LeadState,
@@ -626,6 +632,9 @@ export const businessProfile = pgTable(
     email: text("email").notNull(),
     phone: text("phone"),
     website: text("website"),
+    /** Where to transfer, as invoices and the school's Billing page print it. */
+    bankDetailsEn: text("bank_details_en"),
+    bankDetailsAr: text("bank_details_ar"),
     version: integer("version").notNull().default(1),
     updatedAt: instant("updated_at")
       .notNull()
@@ -645,6 +654,11 @@ export const taxRates = pgTable(
     percent: numeric("percent", { precision: 5, scale: 2 }).notNull(),
     nameEn: text("name_en").notNull(),
     nameAr: text("name_ar").notNull(),
+    /**
+     * The customer accounts for the VAT itself: a registered business
+     * abroad, invoiced at the rate here with the reverse-charge wording.
+     */
+    reverseCharge: boolean("reverse_charge").notNull().default(false),
     validFrom: date("valid_from", { mode: "string" }).notNull(),
     createdBy: text("created_by").notNull(),
     createdAt: createdAt(),
@@ -804,5 +818,200 @@ export const quotes = pgTable(
       "quotes_attachment_check",
       sql`attachment is null or octet_length(attachment) <= 10485760`,
     ),
+  ],
+);
+
+/**
+ * The last number given in a series and year, so invoices and credit notes
+ * are numbered without a gap: the row is locked while the next is given,
+ * in the transaction that issues the document.
+ */
+export const documentNumbers = pgTable(
+  "document_numbers",
+  {
+    series: text("series").$type<"INV" | "CN">().notNull(),
+    year: integer("year").notNull(),
+    last: integer("last").notNull(),
+  },
+  (t) => [
+    uniqueIndex("document_numbers_key").on(t.series, t.year),
+    check("document_numbers_series_check", sql`series in ('INV', 'CN')`),
+  ],
+);
+
+/**
+ * An invoice to a customer: a draft until finance issues it, then a number
+ * and dates that never change. An issued invoice is never edited, only
+ * credited and invoiced again, because the tax authority holds it.
+ */
+export const invoices = pgTable(
+  "invoices",
+  {
+    id: uuid("id")
+      .primaryKey()
+      .default(sql`uuidv7()`),
+    customerId: uuid("customer_id")
+      .notNull()
+      .references(() => customers.id),
+    subscriptionId: uuid("subscription_id").references(() => subscriptions.id),
+    kind: text("kind").$type<InvoiceKind>().notNull(),
+    /** What a scheduled invoice is for, so it is drafted once. */
+    scheduleKey: text("schedule_key"),
+    state: text("state").$type<InvoiceState>().notNull().default("draft"),
+    number: text("number"),
+    issuedOn: date("issued_on", { mode: "string" }),
+    dueOn: date("due_on", { mode: "string" }),
+    /** The day it is for: an instalment's, a true-up's census. */
+    forDay: date("for_day", { mode: "string" }).notNull(),
+    currency: text("currency").$type<Currency>().notNull(),
+    country: text("country").notNull(),
+    language: text("language").$type<"en" | "ar">().notNull().default("en"),
+    purchaseOrder: text("purchase_order"),
+    vatPercent: numeric("vat_percent", { precision: 5, scale: 2 }).notNull(),
+    reverseCharge: boolean("reverse_charge").notNull().default(false),
+    subtotalMinor: bigint("subtotal_minor", { mode: "number" }).notNull(),
+    vatMinor: bigint("vat_minor", { mode: "number" }).notNull(),
+    totalMinor: bigint("total_minor", { mode: "number" }).notNull(),
+    /** The tax authority's id for it, once finance issues it there. */
+    taxAuthorityId: text("tax_authority_id"),
+    paymentLinkId: text("payment_link_id"),
+    paymentOrderId: text("payment_order_id"),
+    paymentLinkUrl: text("payment_link_url"),
+    createdBy: text("created_by").notNull(),
+    createdAt: createdAt(),
+  },
+  (t) => [
+    uniqueIndex("invoices_number_key").on(t.number),
+    uniqueIndex("invoices_schedule_key").on(t.scheduleKey),
+    uniqueIndex("invoices_payment_order_key").on(t.paymentOrderId),
+    index("invoices_customer_idx").on(t.customerId, t.forDay),
+    index("invoices_state_idx").on(t.state, t.dueOn),
+    check(
+      "invoices_state_check",
+      sql`state in ('draft', 'issued', 'partly_paid', 'paid', 'credited')`,
+    ),
+    check(
+      "invoices_kind_check",
+      sql`kind in ('instalment', 'proration', 'true_up', 'manual')`,
+    ),
+    check("invoices_currency_check", sql`currency in ('EGP', 'USD')`),
+    check(
+      "invoices_issued_check",
+      sql`(state = 'draft') = (number is null) and (number is null) = (issued_on is null) and (issued_on is null) = (due_on is null)`,
+    ),
+  ],
+);
+
+export const invoiceLines = pgTable(
+  "invoice_lines",
+  {
+    id: uuid("id")
+      .primaryKey()
+      .default(sql`uuidv7()`),
+    invoiceId: uuid("invoice_id")
+      .notNull()
+      .references(() => invoices.id, { onDelete: "cascade" }),
+    position: integer("position").notNull(),
+    descriptionEn: text("description_en").notNull(),
+    descriptionAr: text("description_ar").notNull(),
+    itemCode: text("item_code"),
+    periodStart: date("period_start", { mode: "string" }),
+    periodEnd: date("period_end", { mode: "string" }),
+    quantity: integer("quantity").notNull(),
+    unitPriceMinor: bigint("unit_price_minor", { mode: "number" }).notNull(),
+    discountPercent: numeric("discount_percent", { precision: 5, scale: 2 })
+      .notNull()
+      .default("0"),
+  },
+  (t) => [
+    uniqueIndex("invoice_lines_position_key").on(t.invoiceId, t.position),
+    check("invoice_lines_quantity_check", sql`quantity > 0`),
+  ],
+);
+
+/** A credit against one issued invoice, numbered like it, with why. */
+export const creditNotes = pgTable(
+  "credit_notes",
+  {
+    id: uuid("id")
+      .primaryKey()
+      .default(sql`uuidv7()`),
+    invoiceId: uuid("invoice_id")
+      .notNull()
+      .references(() => invoices.id),
+    number: text("number").notNull(),
+    issuedOn: date("issued_on", { mode: "string" }).notNull(),
+    reason: text("reason").notNull(),
+    lines: jsonb("lines").$type<InvoiceLine[]>().notNull(),
+    subtotalMinor: bigint("subtotal_minor", { mode: "number" }).notNull(),
+    vatMinor: bigint("vat_minor", { mode: "number" }).notNull(),
+    totalMinor: bigint("total_minor", { mode: "number" }).notNull(),
+    taxAuthorityId: text("tax_authority_id"),
+    createdBy: text("created_by").notNull(),
+    createdAt: createdAt(),
+  },
+  (t) => [
+    uniqueIndex("credit_notes_number_key").on(t.number),
+    index("credit_notes_invoice_idx").on(t.invoiceId),
+    check(
+      "credit_notes_reason_check",
+      sql`char_length(reason) between 1 and 500`,
+    ),
+  ],
+);
+
+/** Money received from a customer, by how and with what reference. */
+export const payments = pgTable(
+  "payments",
+  {
+    id: uuid("id")
+      .primaryKey()
+      .default(sql`uuidv7()`),
+    customerId: uuid("customer_id")
+      .notNull()
+      .references(() => customers.id),
+    method: text("method").$type<PaymentMethod>().notNull(),
+    currency: text("currency").$type<Currency>().notNull(),
+    amountMinor: bigint("amount_minor", { mode: "number" }).notNull(),
+    feeMinor: bigint("fee_minor", { mode: "number" }).notNull().default(0),
+    receivedOn: date("received_on", { mode: "string" }).notNull(),
+    reference: text("reference").notNull(),
+    /** A card payment's transaction at the provider, so it is recorded once. */
+    providerTransactionId: text("provider_transaction_id"),
+    createdBy: text("created_by").notNull(),
+    createdAt: createdAt(),
+  },
+  (t) => [
+    uniqueIndex("payments_provider_key").on(t.providerTransactionId),
+    index("payments_customer_idx").on(t.customerId, t.receivedOn),
+    check(
+      "payments_method_check",
+      sql`method in ('bank_transfer', 'card', 'instapay', 'cheque', 'withholding_certificate')`,
+    ),
+    check("payments_amount_check", sql`amount_minor > 0 and fee_minor >= 0`),
+    check("payments_currency_check", sql`currency in ('EGP', 'USD')`),
+  ],
+);
+
+/** How much of a payment settles which invoice; one transfer may pay two. */
+export const paymentAllocations = pgTable(
+  "payment_allocations",
+  {
+    id: uuid("id")
+      .primaryKey()
+      .default(sql`uuidv7()`),
+    paymentId: uuid("payment_id")
+      .notNull()
+      .references(() => payments.id),
+    invoiceId: uuid("invoice_id")
+      .notNull()
+      .references(() => invoices.id),
+    amountMinor: bigint("amount_minor", { mode: "number" }).notNull(),
+    createdAt: createdAt(),
+  },
+  (t) => [
+    index("payment_allocations_invoice_idx").on(t.invoiceId),
+    index("payment_allocations_payment_idx").on(t.paymentId),
+    check("payment_allocations_amount_check", sql`amount_minor > 0`),
   ],
 );

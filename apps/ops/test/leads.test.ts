@@ -278,6 +278,8 @@ describe("the business's own details", () => {
       email: "billing@example.com",
       phone: null,
       website: null,
+      bankDetailsEn: null,
+      bankDetailsAr: null,
       reason: "Registered",
     };
     const held = await profile(business());
@@ -303,6 +305,7 @@ describe("the business's own details", () => {
       percent: 14,
       nameEn: "VAT",
       nameAr: "ضريبة القيمة المضافة",
+      reverseCharge: false,
       validFrom: "2017-07-01",
       reason: "The law",
     };

@@ -2,7 +2,12 @@ import * as v from "valibot";
 
 import type { BillingSchedule, PriceUnit } from "./subscriptions";
 
-import { BILLING_SCHEDULES, CURRENCIES } from "./subscriptions";
+import { netMinor, splitMinor, vatMinor } from "./money";
+import {
+  BILLING_SCHEDULES,
+  CURRENCIES,
+  INSTALMENT_COUNT,
+} from "./subscriptions";
 
 export const QUOTE_STATES = [
   "draft",
@@ -96,12 +101,6 @@ export interface QuoteTotals {
   instalmentsMinor: number[];
 }
 
-const INSTALMENTS: Record<BillingSchedule, number> = {
-  annual: 1,
-  two: 2,
-  three: 3,
-};
-
 /**
  * A quote's amounts in minor units: each line after its discount, rounded
  * to the minor unit, the subtotal, VAT on it at the rate given, the total,
@@ -114,25 +113,18 @@ export function quoteTotals(input: {
 }): QuoteTotals {
   const lines = input.lines.map((line) => ({
     ...line,
-    netMinor: Math.round(
-      line.quantity * line.unitPriceMinor * (1 - line.discountPercent / 100),
-    ),
+    netMinor: netMinor(line),
   }));
   const subtotalMinor = lines.reduce((sum, line) => sum + line.netMinor, 0);
-  const vatMinor = Math.round((subtotalMinor * input.vatPercent) / 100);
-  const totalMinor = subtotalMinor + vatMinor;
-  const count = INSTALMENTS[input.schedule];
-  const each = Math.floor(totalMinor / count);
-  const instalmentsMinor = Array.from({ length: count }, (_, index) =>
-    index === count - 1 ? totalMinor - each * (count - 1) : each,
-  );
+  const vat = vatMinor(subtotalMinor, input.vatPercent);
+  const totalMinor = subtotalMinor + vat;
   return {
     lines,
     subtotalMinor,
     vatPercent: input.vatPercent,
-    vatMinor,
+    vatMinor: vat,
     totalMinor,
-    instalmentsMinor,
+    instalmentsMinor: splitMinor(totalMinor, INSTALMENT_COUNT[input.schedule]),
   };
 }
 

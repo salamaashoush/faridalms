@@ -23,6 +23,8 @@ export const businessProfileSchema = v.object({
   email: v.pipe(v.string(), v.trim(), v.toLowerCase(), v.email()),
   phone: optionalText(40),
   website: optionalText(200),
+  bankDetailsEn: optionalText(1000),
+  bankDetailsAr: optionalText(1000),
   reason: text(500),
 });
 export type BusinessProfileInput = v.InferOutput<typeof businessProfileSchema>;
@@ -36,6 +38,8 @@ export const taxRateSchema = v.object({
   percent: v.pipe(v.number(), v.minValue(0), v.maxValue(100)),
   nameEn: text(60),
   nameAr: text(60),
+  /** The customer accounts for the VAT: a registered business abroad. */
+  reverseCharge: v.optional(v.boolean(), false),
   validFrom: v.pipe(v.string(), v.isoDate()),
   reason: text(500),
 });
