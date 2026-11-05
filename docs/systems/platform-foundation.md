@@ -1069,6 +1069,21 @@ Notes on the functions:
 - Ed-Fi's `_etag` maps to the same value on export ([R1] section 5 item 8).
 - A document's `version` is its revision; there is no separate revision
   counter.
+- **A record kept as replaced rows has no one version to name.** Contacts,
+  a lesson's cover and a school's label for a shared value are each several
+  rows, or a row that may not exist yet. The save carries `expected`, what
+  the screen showed: the shown contact values, the id of the change in
+  force (`""` for none), the shown labels. The server locks the owning row
+  `for update`, reads the record again and answers `CONFLICT`
+  `conflict.version` when it differs. It compares what was shown rather
+  than row ids where rows also change in place, as contacts do when a
+  bounce or a verification is recorded. This is the RFC 9110 strong
+  validator applied to a representation, not to a row.
+- **A command takes no version.** Issuing or stopping a badge, sending an
+  invite, linking an account or removing a piece acts on the current state
+  and is refused by that state's own check (already stopped, already
+  linked), so a version would only refuse a request that is still right.
+  A review moves a piece only out of `pending`, which is its guard.
 
 ### 4.9 date_last_modified and delta reads
 

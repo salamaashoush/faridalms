@@ -9,11 +9,6 @@ larger than a few days of work gets its own plan beside this file.
 From `foundations.md`. W1 to W5 are merged.
 
 - **W6, conventions and records** (findings 13 to 18 and the P2 items):
-  - one version check on every update. Exam sessions, records requests
-    and breaches now name theirs. Left: templates, badges, cover,
-    descriptors and invites; and contacts and addresses, which are
-    replaced row by row, so the check is that the rows the sheet showed
-    are still the ones held;
   - one pagination shape. Paging was added in several places at once, so
     it needs aligning;
   - history tabs fed by the audit log, with one history screen;
