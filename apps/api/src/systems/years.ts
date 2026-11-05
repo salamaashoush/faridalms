@@ -191,6 +191,7 @@ export const save = writeProcedure
       };
     }
     const before = await yearOf(context, input.id);
+    const termsBefore = await termsOf(context.tx, context.tenantId, input.id);
     await updateYear(context.tx, {
       ...values,
       id: input.id,
@@ -206,7 +207,8 @@ export const save = writeProcedure
           titleEn: before.titleEn,
           titleAr: before.titleAr,
           startsOn: before.startsOn,
-          endsBefore: before.endsBefore,
+          endsOn: addDays(before.endsBefore, -1),
+          terms: termsBefore.length,
         },
         after: {
           titleEn: input.titleEn,
