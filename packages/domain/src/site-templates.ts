@@ -233,7 +233,7 @@ const DIVISIONS = section("divisions", "tall", (b) => ({
     {
       id: b.id(),
       title: b.w(["Early years", "رياض الأطفال"]),
-      ages: b.w(["Ages 3 to 5", "من ٣ إلى ٥ سنوات"]),
+      ages: b.w(["Ages 3 to 5", "من 3 إلى 5 سنوات"]),
       text: b.w([
         "Learning through play, stories and discovery, indoors and out.",
         "التعلّم باللعب والقصص والاكتشاف، داخل الفصل وخارجه.",
@@ -244,7 +244,7 @@ const DIVISIONS = section("divisions", "tall", (b) => ({
     {
       id: b.id(),
       title: b.w(["Primary", "الابتدائية"]),
-      ages: b.w(["Ages 5 to 11", "من ٥ إلى ١١ سنة"]),
+      ages: b.w(["Ages 5 to 11", "من 5 إلى 11 سنة"]),
       text: b.w([
         "Strong foundations in reading, number and science, in two languages.",
         "أسس متينة في القراءة والحساب والعلوم، بلغتين.",
@@ -255,7 +255,7 @@ const DIVISIONS = section("divisions", "tall", (b) => ({
     {
       id: b.id(),
       title: b.w(["Secondary", "الثانوية"]),
-      ages: b.w(["Ages 11 to 18", "من ١١ إلى ١٨ سنة"]),
+      ages: b.w(["Ages 11 to 18", "من 11 إلى 18 سنة"]),
       text: b.w([
         "Ambitious study and guidance towards the university of their choice.",
         "دراسة طموحة وإرشاد نحو الجامعة التي يختارونها.",
@@ -464,7 +464,7 @@ const FAQ = section("accordion", "accordion", (b) => ({
       ]),
       text: b.w([
         "Doors open at 7:30 and lessons begin at 8:00. The day ends at 14:30, with clubs running until 16:00.",
-        "تُفتح الأبواب الساعة ٧:٣٠ وتبدأ الحصص الساعة ٨:٠٠. ينتهي اليوم الدراسي الساعة ١٤:٣٠، وتستمر الأندية حتى الساعة ١٦:٠٠.",
+        "تُفتح الأبواب الساعة 7:30 وتبدأ الحصص الساعة 8:00. ينتهي اليوم الدراسي الساعة 14:30، وتستمر الأندية حتى الساعة 16:00.",
       ]),
     },
     {
@@ -504,16 +504,16 @@ const CONTACT = section("contact", "details", (b) => ({
   heading: b.w(["Get in touch", "تواصل معنا"]),
   text: b.w([
     "Our office is open Sunday to Thursday, 7:30 to 15:30.",
-    "مكتبنا مفتوح من الأحد إلى الخميس، من ٧:٣٠ إلى ١٥:٣٠.",
+    "مكتبنا مفتوح من الأحد إلى الخميس، من 7:30 إلى 15:30.",
   ]),
   mapHref: "",
 }));
 
 const CONTACT_MAP = section("contact", "map", (b) => ({
-  heading: b.w(["Find *us*", "*موقعنا*"]),
+  heading: b.w(["How to *find* us", "كيف *تصلون* إلينا"]),
   text: b.w([
     "Our office is open Sunday to Thursday, 7:30 to 15:30. Visitors sign in at the main gate.",
-    "مكتبنا مفتوح من الأحد إلى الخميس، من ٧:٣٠ إلى ١٥:٣٠. يسجّل الزوّار دخولهم عند البوابة الرئيسية.",
+    "مكتبنا مفتوح من الأحد إلى الخميس، من 7:30 إلى 15:30. يسجّل الزوّار دخولهم عند البوابة الرئيسية.",
   ]),
   mapHref: "",
 }));
@@ -1064,7 +1064,7 @@ const quickLink = (
 ) => ({ id: b.id(), title: b.w(title), text: b.w(text), icon, href });
 
 const EY_QUICK_LINKS = section("quickLinks", "tiles", (b) => ({
-  heading: b.w(["For our *families*", "*لأسرنا*"]),
+  heading: b.w(["For our *families*", "في خدمة *أسرنا*"]),
   items: [
     quickLink(
       b,
@@ -1377,7 +1377,7 @@ const PARENTS_DAY = section(
   "timeline",
   "vertical",
   (b) => ({
-    heading: b.w(["A day with *us*", "يوم *معنا*"]),
+    heading: b.w(["A day at *school*", "يوم في *المدرسة*"]),
     items: [
       moment(
         b,
@@ -1440,7 +1440,7 @@ const PARENTS_MESSAGE = FORM(
 
 /** A school that is still to open: one message, said large, before any picture. */
 const LAUNCH_HERO = section("hero", "type", (b) => ({
-  eyebrow: b.w(["Opening September 2027", "نفتح أبوابنا في سبتمبر ٢٠٢٧"]),
+  eyebrow: b.w(["Opening September 2027", "نفتح أبوابنا في سبتمبر 2027"]),
   heading: b.w([
     "A new school for *curious* minds",
     "مدرسة جديدة *للعقول* الفضولية",
@@ -1466,7 +1466,7 @@ const LAUNCH_STORY = section("imageText", "overlap", (b) => ({
   body: plainContent(
     b.w([
       "Come to an information morning at the new campus. Walk the classrooms as they take shape, meet the principal and the teachers who will start the school, and ask everything you want to know.\nMornings run every Saturday from 10:00 until the doors open.",
-      "احضروا صباحًا تعريفيًا في الحرم الجديد. تجوّلوا في الفصول وهي تكتمل، وقابلوا المديرة والمعلّمين الذين سيبدؤون المدرسة، واسألوا عن كل ما تريدون معرفته.\nتُقام اللقاءات صباح كل سبت من الساعة ١٠:٠٠ حتى يوم الافتتاح.",
+      "احضروا صباحًا تعريفيًا في الحرم الجديد. تجوّلوا في الفصول وهي تكتمل، وقابلوا المديرة والمعلّمين الذين سيبدؤون المدرسة، واسألوا عن كل ما تريدون معرفته.\nتُقام اللقاءات صباح كل سبت من الساعة 10:00 حتى يوم الافتتاح.",
     ]),
   ),
   media: {
@@ -1651,7 +1651,7 @@ export function buildSection<T extends SectionType>(
 const INTL_HERO = section("hero", "collage", (b) => ({
   eyebrow: b.w([
     "International school, ages 3 to 18",
-    "مدرسة دولية، من ٣ إلى ١٨ سنة",
+    "مدرسة دولية، من 3 إلى 18 سنة",
   ]),
   heading: b.w([
     "Curious minds, *global* futures",
@@ -1721,7 +1721,7 @@ const INTL_FIGURES = section("stats", "captions", (b) => ({
   ],
   source: b.w([
     "Figures for the 2026 to 2027 school year.",
-    "أرقام العام الدراسي ٢٠٢٦–٢٠٢٧.",
+    "أرقام العام الدراسي 2026–2027.",
   ]),
 }));
 
@@ -1737,7 +1737,7 @@ const INTL_STAGES = (variant: "tall" | "rows", href: string) =>
       {
         id: b.id(),
         title: b.w(["Early years", "رياض الأطفال"]),
-        ages: b.w(["Ages 3 to 5", "من ٣ إلى ٥ سنوات"]),
+        ages: b.w(["Ages 3 to 5", "من 3 إلى 5 سنوات"]),
         text: b.w([
           "Learning through play, stories and discovery, indoors and out.",
           "التعلّم باللعب والقصص والاكتشاف، داخل الفصل وخارجه.",
@@ -1748,7 +1748,7 @@ const INTL_STAGES = (variant: "tall" | "rows", href: string) =>
       {
         id: b.id(),
         title: b.w(["Primary", "الابتدائية"]),
-        ages: b.w(["Ages 5 to 11", "من ٥ إلى ١١ سنة"]),
+        ages: b.w(["Ages 5 to 11", "من 5 إلى 11 سنة"]),
         text: b.w([
           "Strong foundations in reading, number and science, in two languages.",
           "أسس متينة في القراءة والحساب والعلوم، بلغتين.",
@@ -1759,7 +1759,7 @@ const INTL_STAGES = (variant: "tall" | "rows", href: string) =>
       {
         id: b.id(),
         title: b.w(["Middle school", "المتوسطة"]),
-        ages: b.w(["Ages 11 to 14", "من ١١ إلى ١٤ سنة"]),
+        ages: b.w(["Ages 11 to 14", "من 11 إلى 14 سنة"]),
         text: b.w([
           "Wider subjects, more choice and the habits of independent study.",
           "مواد أوسع وخيارات أكثر وعادات الدراسة المستقلة.",
@@ -1770,7 +1770,7 @@ const INTL_STAGES = (variant: "tall" | "rows", href: string) =>
       {
         id: b.id(),
         title: b.w(["High school", "الثانوية"]),
-        ages: b.w(["Ages 14 to 18", "من ١٤ إلى ١٨ سنة"]),
+        ages: b.w(["Ages 14 to 18", "من 14 إلى 18 سنة"]),
         text: b.w([
           "Demanding courses and guidance towards the university of their choice.",
           "مقررات رصينة وإرشاد نحو الجامعة التي يختارونها.",
@@ -1886,7 +1886,7 @@ const INTL_VOICES = section("voices", "carousel", (b) => ({
       ["Nour Adel", "نور عادل"],
       [
         "Class of 2024, now reading engineering",
-        "خريجة دفعة ٢٠٢٤، تدرس الهندسة",
+        "خريجة دفعة 2024، تدرس الهندسة",
       ],
       "alumni",
     ),
@@ -2018,7 +2018,7 @@ const INTL_RESULTS = section(
     ],
     source: b.w([
       "School results, class of 2026.",
-      "نتائج المدرسة، دفعة ٢٠٢٦.",
+      "نتائج المدرسة، دفعة 2026.",
     ]),
   }),
   { align: "center" },
@@ -2195,6 +2195,862 @@ const HISTORY = section("timeline", "vertical", (b) => ({
   ],
 }));
 
+// About, for a school of any age or kind: why it exists, the principal's
+// welcome, its values, figures and how it began, with no founding year a
+// school would have to correct.
+const ABOUT_PURPOSE = section(
+  "text",
+  "statement",
+  (b) => ({
+    eyebrow: b.w(["Our purpose", "رسالتنا"]),
+    heading: b.w([
+      "We want every child to leave us *confident* in themselves, *generous* to others and ready to keep learning all their life.",
+      "نريد لكل طفل أن يغادرنا *واثقًا* بنفسه، *كريمًا* مع غيره، مستعدًا لأن يواصل التعلّم طوال حياته.",
+    ]),
+    body: plainContent(
+      b.w([
+        "Everything else follows from that: small classes, teachers who know each child well, languages taught with real care, and a day with room for sport, the arts and friendship as well as study.",
+        "ومن هذه الغاية ينبع كل ما عداها: فصول صغيرة، ومعلّمون يعرفون كل طفل جيدًا، ولغات تُدرَّس بعناية حقيقية، ويوم دراسي يتّسع للرياضة والفنون والصداقة إلى جانب الدراسة.",
+      ]),
+    ),
+  }),
+  { align: "center" },
+);
+
+const ABOUT_WELCOME = section("welcome", "portraitEnd", (b) => ({
+  heading: b.w(["A word from our *principal*", "كلمة *مديرة* المدرسة"]),
+  body: plainContent(
+    b.w([
+      "Thank you for taking the time to find out about us. Choosing a school is one of the biggest decisions a family makes, and we do not take your trust lightly.\nWhat I hope you notice when you visit is how well our teachers know the children in front of them: what each one finds easy, what they find hard and what will help them take the next step. That knowledge is the heart of the school.\nCome and see us on an ordinary morning. I would be glad to answer your questions myself.",
+      "شكرًا لأنكم خصّصتم وقتًا للتعرّف إلينا. إن اختيار المدرسة من أهمّ القرارات التي تتخذها الأسرة، ونحن نقدّر الثقة التي تضعونها فينا.\nأرجو أن تلاحظوا حين تزوروننا مدى معرفة معلّمينا بالأطفال الذين بين أيديهم: ما يسهل على كل منهم وما يصعب عليه، وما يعينه على الخطوة التالية. هذه المعرفة هي قلب المدرسة.\nتعالوا وزورونا في صباح عادي، ويسعدني أن أجيب عن أسئلتكم بنفسي.",
+    ]),
+  ),
+  portrait: noImage,
+  name: b.w(["Dr Amal Nasser", "د. أمل ناصر"]),
+  role: b.w(["Principal", "مديرة المدرسة"]),
+}));
+
+const pillar = (b: Builder, title: Words, text: Words, icon: IconId) => ({
+  id: b.id(),
+  title: b.w(title),
+  text: b.w(text),
+  icon,
+  image: noImage,
+});
+
+const ABOUT_VALUES = section("pillars", "icons", (b) => ({
+  heading: b.w(["What we *value*", "ما *نؤمن* به"]),
+  text: b.w([
+    "Four commitments we hold ourselves to, in every classroom and every year.",
+    "أربعة التزامات نأخذ بها أنفسنا، في كل فصل وفي كل عام.",
+  ]),
+  items: [
+    pillar(
+      b,
+      ["Curiosity", "الفضول"],
+      [
+        "Lessons start with a question, and children learn to enjoy working the answer out for themselves.",
+        "تبدأ الدروس بسؤال، ويتعلّم الأطفال متعة الوصول إلى الإجابة بأنفسهم.",
+      ],
+      "lightbulb",
+    ),
+    pillar(
+      b,
+      ["Care", "الرعاية"],
+      [
+        "Every child is known by name and by need, and no one is left to struggle quietly.",
+        "يُعرف كل طفل باسمه وبما يحتاج إليه، ولا يُترك أحد يعاني في صمت.",
+      ],
+      "heart",
+    ),
+    pillar(
+      b,
+      ["Ambition", "الطموح"],
+      [
+        "High expectations in every subject, with the support each child needs to reach them.",
+        "توقّعات عالية في كل مادة، مع الدعم الذي يحتاجه كل طفل ليبلغها.",
+      ],
+      "star",
+    ),
+    pillar(
+      b,
+      ["Belonging", "الانتماء"],
+      [
+        "Families, students and staff work as one community, and every voice is heard.",
+        "تعمل الأسر والطلاب والمعلّمون مجتمعًا واحدًا يُسمع فيه كل صوت.",
+      ],
+      "users",
+    ),
+  ],
+}));
+
+const ABOUT_FIGURES = section(
+  "stats",
+  "captions",
+  (b) => ({
+    heading: b.w(["The school at a *glance*", "المدرسة في *لمحة*"]),
+    items: [
+      figure(
+        b,
+        "1,200",
+        ["students", "طالب وطالبة"],
+        [
+          "From the early years to the final year of school.",
+          "من رياض الأطفال حتى السنة الأخيرة في المدرسة.",
+        ],
+      ),
+      figure(
+        b,
+        "12:1",
+        ["students per teacher", "طالبًا لكل معلّم"],
+        [
+          "Small classes, so no child goes unnoticed.",
+          "فصول صغيرة لا يغيب فيها طفل عن الأنظار.",
+        ],
+      ),
+      figure(
+        b,
+        "60",
+        ["clubs and teams", "ناديًا وفريقًا"],
+        [
+          "Running every week, from robotics to choir.",
+          "كل أسبوع، من الروبوتات إلى الكورال.",
+        ],
+      ),
+      figure(
+        b,
+        "98%",
+        ["university offers", "قبولًا جامعيًا"],
+        [
+          "Graduates holding an offer from their first-choice university.",
+          "من الخريجين نالوا قبولًا من جامعتهم الأولى.",
+        ],
+      ),
+    ],
+    source: b.w([
+      "Figures for the 2026 to 2027 school year.",
+      "أرقام العام الدراسي 2026–2027.",
+    ]),
+  }),
+  { align: "center" },
+);
+
+const ABOUT_STORY = section("imageText", "mediaStart", (b) => ({
+  eyebrow: b.w(["Our story", "قصتنا"]),
+  heading: b.w([
+    "A small beginning, a *lasting* idea",
+    "بداية صغيرة وفكرة *باقية*",
+  ]),
+  body: plainContent(
+    b.w([
+      "We began with a handful of classes in a converted family house: a few dozen children, and teachers who believed a school could be both demanding and kind.\nThe house is still at the heart of the campus, joined now by laboratories, a library and playing fields, and the belief has not changed. Many of our teachers have been with us for more than a decade, and some of today's parents were once our students.",
+      "بدأنا ببضعة فصول في بيت عائلي مُجدَّد: عشرات من الأطفال، ومعلّمون آمنوا بأن المدرسة يمكن أن تكون متطلّبة ورحيمة في آن واحد.\nلا يزال ذلك البيت في قلب الحرم، وقد أحاطت به اليوم مختبرات ومكتبة وملاعب، أما الإيمان فلم يتغيّر. كثير من معلّمينا معنا منذ أكثر من عشر سنوات، وبعض أولياء الأمور اليوم كانوا يومًا طلابًا لدينا.",
+    ]),
+  ),
+  media: {
+    kind: "image" as const,
+    fileId: null,
+    alt: "",
+    posterFileId: null,
+    captionsFileId: null,
+  },
+  actions: [
+    link(b, ["Book a visit", "احجزوا زيارة"], `/pages/visit#${ANCHOR.visit}`),
+  ],
+}));
+
+// The nursery's own About, Admissions and Visit: rooms by age, the day,
+// settling in and ratios, in the voice of a setting for children of 2 to 6.
+const EY_ABOUT_WELCOME = section("welcome", "portraitStart", (b) => ({
+  heading: b.w(["Welcome to our *nursery*", "أهلًا بكم في *روضتنا*"]),
+  body: plainContent(
+    b.w([
+      "Starting nursery is a big step, for children and for their parents. We have spent more than ten years learning how to make that step feel small: a key person who comes to know your child almost as well as you do, rooms that feel like home and a garden that is never more than a door away.\nWe would love you to see it for yourself. Come to a stay-and-play morning with your little one, and stay as long as you like.",
+      "بدء الروضة خطوة كبيرة للأطفال ولأسرهم معًا. وقد أمضينا أكثر من عشر سنوات نتعلّم كيف نجعل هذه الخطوة تبدو صغيرة: مربية رئيسية تعرف طفلكم كما تعرفونه تقريبًا، وغرف تشبه البيت، وحديقة لا يفصلها عن الأطفال سوى باب.\nيسعدنا أن تروا ذلك بأنفسكم. تعالوا مع صغيركم إلى صباح لعب مفتوح، وابقوا ما شئتم.",
+    ]),
+  ),
+  portrait: noImage,
+  name: b.w(["Rania Kamal", "رانيا كمال"]),
+  role: b.w(["Head of nursery", "مديرة الروضة"]),
+}));
+
+const room = (b: Builder, title: Words, ages: Words, text: Words) => ({
+  id: b.id(),
+  title: b.w(title),
+  ages: b.w(ages),
+  text: b.w(text),
+  image: noImage,
+  href: "",
+});
+
+const EY_ROOMS = section("divisions", "tall", (b) => ({
+  heading: b.w(["Four rooms, one *family*", "أربع غرف وأسرة *واحدة*"]),
+  text: b.w([
+    "Children move up a room each September, with their friends and familiar faces beside them.",
+    "ينتقل الأطفال إلى الغرفة التالية كل سبتمبر، ومعهم أصدقاؤهم ووجوه يعرفونها.",
+  ]),
+  items: [
+    room(
+      b,
+      ["Toddlers", "البراعم"],
+      ["Ages 2 to 3", "من 2 إلى 3 سنوات"],
+      [
+        "Small groups, plenty of cuddles and a gentle rhythm of play, food, sleep and fresh air.",
+        "مجموعات صغيرة وحنان وافر، وإيقاع هادئ من اللعب والطعام والنوم والهواء الطلق.",
+      ],
+    ),
+    room(
+      b,
+      ["Nursery", "الحضانة"],
+      ["Ages 3 to 4", "من 3 إلى 4 سنوات"],
+      [
+        "First friendships, first songs in two languages and plenty of time to explore.",
+        "صداقات أولى وأغانٍ أولى بلغتين، ووقت وافر للاستكشاف.",
+      ],
+    ),
+    room(
+      b,
+      ["Kindergarten 1", "الروضة الأولى"],
+      ["Ages 4 to 5", "من 4 إلى 5 سنوات"],
+      [
+        "Stories, early mark-making and counting woven into play, indoors and out.",
+        "قصص وخربشات أولى وعدّ يتخلّل اللعب، داخل الغرفة وخارجها.",
+      ],
+    ),
+    room(
+      b,
+      ["Kindergarten 2", "الروضة الثانية"],
+      ["Ages 5 to 6", "من 5 إلى 6 سنوات"],
+      [
+        "Letters, numbers and the confidence to start big school, ready for Grade 1.",
+        "الحروف والأعداد والثقة اللازمة لبدء المدرسة، استعدادًا للصف الأول.",
+      ],
+    ),
+  ],
+}));
+
+const EY_DAY = section("timeline", "vertical", (b) => ({
+  heading: b.w(["A day at *nursery*", "يوم في *الروضة*"]),
+  items: [
+    moment(
+      b,
+      "7:30",
+      ["Hello and breakfast", "الاستقبال والإفطار"],
+      [
+        "A warm welcome from your child's key person, and breakfast together for early arrivals.",
+        "تستقبل المربية الرئيسية طفلكم بابتسامة، ويتناول القادمون مبكرًا الإفطار معًا.",
+      ],
+    ),
+    moment(
+      b,
+      "8:30",
+      ["Circle time", "حلقة الصباح"],
+      [
+        "Songs, the weather and the plan for the day, in Arabic and English.",
+        "أغانٍ وحديث عن الطقس وخطة اليوم، بالعربية والإنجليزية.",
+      ],
+    ),
+    moment(
+      b,
+      "9:00",
+      ["Play and explore", "اللعب والاستكشاف"],
+      [
+        "Free choice across the room and the garden, with small-group activities along the way.",
+        "يختار الأطفال ما يلعبون به في الغرفة والحديقة، مع أنشطة في مجموعات صغيرة.",
+      ],
+    ),
+    moment(
+      b,
+      "11:30",
+      ["Lunch", "الغداء"],
+      [
+        "A hot meal cooked in our kitchen, eaten together at small tables.",
+        "وجبة ساخنة تُطهى في مطبخنا، يتناولها الأطفال معًا حول طاولات صغيرة.",
+      ],
+    ),
+    moment(
+      b,
+      "12:15",
+      ["Rest", "وقت الراحة"],
+      [
+        "A nap for the youngest, and quiet stories for everyone else.",
+        "قيلولة للأصغر سنًا، وقصص هادئة لغيرهم.",
+      ],
+    ),
+    moment(
+      b,
+      "14:00",
+      ["Home time", "وقت العودة"],
+      [
+        "Collection with a note and a photo from the day. The extended day runs until 17:00.",
+        "الاستلام مع ملاحظة وصورة من يوم طفلكم، ويستمر اليوم الممتد حتى الساعة 17:00.",
+      ],
+    ),
+  ],
+}));
+
+const EY_PLAY = section("pillars", "icons", (b) => ({
+  heading: b.w(["Learning through *play*", "التعلّم *باللعب*"]),
+  text: b.w([
+    "Young children learn best by doing, so our days are built around what they choose to do.",
+    "يتعلّم الصغار على أفضل وجه حين يفعلون بأنفسهم، لذا نبني أيامنا حول ما يختارون فعله.",
+  ]),
+  items: [
+    pillar(
+      b,
+      ["Following their interests", "نتبع اهتماماتهم"],
+      [
+        "If a child is fascinated by snails, the week fills with snails: counting them, drawing them, reading about them and building them a home.",
+        "إذا شُغف طفل بالحلزونات امتلأ الأسبوع بها: يعدّها ويرسمها ويقرأ عنها ويبني لها بيتًا.",
+      ],
+      "leaf",
+    ),
+    pillar(
+      b,
+      ["Two languages, naturally", "لغتان بطريقة طبيعية"],
+      [
+        "Every room has an Arabic-speaking and an English-speaking adult, so children hear both all day and answer in whichever comes first.",
+        "في كل غرفة مربية تتحدث العربية وأخرى تتحدث الإنجليزية، فيسمع الأطفال اللغتين طوال اليوم ويجيبون بأيّهما سبقت إلى ألسنتهم.",
+      ],
+      "book",
+    ),
+    pillar(
+      b,
+      ["Noticing every step", "نلاحظ كل خطوة"],
+      [
+        "Key persons watch, listen and note what each child can do, and share it with you in a photo and a short note every day.",
+        "تراقب المربيات وتصغي وتدوّن ما يستطيع كل طفل فعله، وتشاركنه معكم بصورة وملاحظة قصيرة كل يوم.",
+      ],
+      "heart",
+    ),
+  ],
+}));
+
+const EY_RATIOS = section(
+  "stats",
+  "captions",
+  (b) => ({
+    heading: b.w(["More adults, more *attention*", "كبار أكثر واهتمام *أوفر*"]),
+    items: [
+      figure(
+        b,
+        "1:4",
+        [
+          "adults to children aged 2 to 3",
+          "نسبة الكبار إلى الأطفال من سنتين إلى ثلاث",
+        ],
+        [
+          "Two adults with every group of eight toddlers.",
+          "اثنان من الكبار مع كل ثمانية أطفال من البراعم.",
+        ],
+      ),
+      figure(
+        b,
+        "1:8",
+        [
+          "adults to children aged 3 to 6",
+          "نسبة الكبار إلى الأطفال من ثلاث إلى ست",
+        ],
+        [
+          "A teacher and an assistant in every room of sixteen.",
+          "معلّمة ومساعدة في كل غرفة من ستة عشر طفلًا.",
+        ],
+      ),
+      figure(
+        b,
+        "16",
+        ["children in a room, at most", "طفلًا في الغرفة كحدّ أقصى"],
+        [
+          "Small enough to feel like a family.",
+          "عدد صغير يجعل الغرفة أشبه بأسرة.",
+        ],
+      ),
+      figure(
+        b,
+        "100%",
+        [
+          "of staff trained in first aid",
+          "من الفريق مدرَّبون على الإسعافات الأولية",
+        ],
+        [
+          "Paediatric first aid, refreshed every year.",
+          "إسعافات أولية للأطفال، يُجدَّد التدريب عليها كل عام.",
+        ],
+      ),
+    ],
+    source: "",
+  }),
+  { align: "center" },
+);
+
+const EY_CARE = section("cards", "icons", (b) => ({
+  heading: b.w(["Safe, well and *cared* for", "في *أمان* ورعاية"]),
+  text: b.w([
+    "The care behind every happy day, written down in our policies and shared with every family.",
+    "الرعاية التي تقف وراء كل يوم سعيد، مكتوبة في سياساتنا ومتاحة لكل أسرة.",
+  ]),
+  columns: "3" as const,
+  items: [
+    card(
+      b,
+      ["Safer recruitment", "تعيين آمن"],
+      [
+        "Every adult is checked and referenced before they join us, and trained in safeguarding every year.",
+        "يخضع كل من يعمل معنا للتحقق والتزكية قبل انضمامه، ويتدرّب على حماية الطفل كل عام.",
+      ],
+      "award",
+    ),
+    card(
+      b,
+      ["Safe collection", "استلام آمن"],
+      [
+        "Children go home only with the adults you name, and a password covers any change on the day.",
+        "لا يغادر الطفل إلا مع من تسمّونهم من الكبار، وتُستخدم كلمة سر لأي تغيير طارئ.",
+      ],
+      "users",
+    ),
+    card(
+      b,
+      ["Meals and allergies", "الوجبات والحساسية"],
+      [
+        "Fresh meals cooked on site, with every allergy and diet recorded and checked at each table.",
+        "وجبات طازجة تُطهى في الروضة، مع تسجيل كل حساسية ونظام غذائي ومراجعتها عند كل طاولة.",
+      ],
+      "utensils",
+    ),
+    card(
+      b,
+      ["Sleep and rest", "النوم والراحة"],
+      [
+        "A quiet room with a cot for every child who naps, and an adult checking on them throughout.",
+        "غرفة هادئة فيها سرير لكل طفل يأخذ قيلولة، وأحد الكبار يتفقّدهم طوال الوقت.",
+      ],
+      "clock",
+    ),
+    card(
+      b,
+      ["Health and medicines", "الصحة والأدوية"],
+      [
+        "A nurse on site every morning, and medicines given only with your written consent.",
+        "ممرضة في الروضة كل صباح، ولا يُعطى أي دواء إلا بموافقتكم الكتابية.",
+      ],
+      "heart",
+    ),
+    card(
+      b,
+      ["A secure site", "مبنى آمن"],
+      [
+        "One staffed entrance, a fenced garden and every visitor signed in at the door.",
+        "مدخل واحد يقف عنده فريقنا، وحديقة مسوّرة، وكل زائر يسجّل دخوله عند الباب.",
+      ],
+      "shield",
+    ),
+  ],
+}));
+
+const EY_TEAM = section("people", "grid", (b) => ({
+  heading: b.w(["The people your child will *know*", "من سيعرفهم *طفلكم*"]),
+  text: b.w([
+    "Every child has a key person: the adult who settles them in, knows their routines and is your first point of contact.",
+    "لكل طفل مربية رئيسية تتولّى تهيئته وتعرف روتينه، وهي أول من تتواصلون معه.",
+  ]),
+  items: [
+    person(
+      b,
+      ["Rania Kamal", "رانيا كمال"],
+      ["Head of nursery", "مديرة الروضة"],
+    ),
+    person(
+      b,
+      ["Youssef Sami", "يوسف سامي"],
+      ["Deputy head and inclusion lead", "نائب المديرة ومسؤول الدمج"],
+    ),
+    person(
+      b,
+      ["Laila Mourad", "ليلى مراد"],
+      ["Toddler room leader", "مشرفة غرفة البراعم"],
+    ),
+    person(
+      b,
+      ["Emma Clarke", "إيما كلارك"],
+      ["Kindergarten teacher", "معلّمة الروضة"],
+    ),
+  ],
+}));
+
+const session = (b: Builder, label: Words, value: Words, note: Words) => ({
+  id: b.id(),
+  label: b.w(label),
+  value: b.w(value),
+  note: b.w(note),
+});
+
+const EY_SESSIONS = section("fees", "table", (b) => ({
+  heading: b.w(["Sessions and *hours*", "الفترات *والمواعيد*"]),
+  text: b.w([
+    "Choose the pattern that suits your family, from Sunday to Thursday. Meals, snacks and nappies are included.",
+    "اختاروا ما يناسب أسرتكم، من الأحد إلى الخميس. الوجبات والوجبات الخفيفة والحفاضات مشمولة.",
+  ]),
+  items: [
+    session(
+      b,
+      ["Mornings", "الفترة الصباحية"],
+      ["7:30 to 12:30", "من 7:30 إلى 12:30"],
+      ["Lunch included", "تشمل الغداء"],
+    ),
+    session(
+      b,
+      ["Nursery day", "اليوم الكامل"],
+      ["7:30 to 14:00", "من 7:30 إلى 14:00"],
+      ["Our most popular session", "الفترة الأكثر طلبًا"],
+    ),
+    session(
+      b,
+      ["Extended day", "اليوم الممتد"],
+      ["7:30 to 17:00", "من 7:30 إلى 17:00"],
+      [
+        "With an afternoon snack and quiet play",
+        "مع وجبة خفيفة بعد الظهر ولعب هادئ",
+      ],
+    ),
+    session(
+      b,
+      ["Three mornings a week", "ثلاثة صباحات في الأسبوع"],
+      ["7:30 to 12:30", "من 7:30 إلى 12:30"],
+      ["For toddlers only", "للبراعم فقط"],
+    ),
+  ],
+}));
+
+const EY_SETTLING = section("imageText", "mediaStart", (b) => ({
+  eyebrow: b.w(["Settling in", "التأقلم"]),
+  heading: b.w(["At your child's *pace*", "على *إيقاع* طفلكم"]),
+  body: plainContent(
+    b.w([
+      "Most children settle within two weeks. On the first days you stay with your child in the room; then you leave for a short while, a little longer each day, until a wave at the door is enough.\nYour child's key person plans it with you, and we call you if they need you. We will never ask you to leave a child who is not ready.",
+      "يتأقلم معظم الأطفال خلال أسبوعين. في الأيام الأولى تبقون مع طفلكم في الغرفة، ثم تغادرون لوقت قصير يطول قليلًا كل يوم، حتى تكفي تلويحة عند الباب.\nتخطّط المربية الرئيسية لذلك معكم، ونتصل بكم إن احتاجكم طفلكم. لن نطلب منكم أبدًا أن تتركوا طفلًا ليس مستعدًا بعد.",
+    ]),
+  ),
+  media: {
+    kind: "image" as const,
+    fileId: null,
+    alt: "",
+    posterFileId: null,
+    captionsFileId: null,
+  },
+  actions: [
+    link(
+      b,
+      ["Book a stay-and-play", "احجزوا صباح لعب"],
+      `/pages/visit#${ANCHOR.visit}`,
+    ),
+  ],
+}));
+
+const EY_BRING = section("pillars", "numbered", (b) => ({
+  heading: b.w(["What to *bring*", "ماذا *تحضرون* معكم"]),
+  text: b.w([
+    "Label everything with your child's name, and we provide the rest.",
+    "اكتبوا اسم طفلكم على كل شيء، ونحن نوفّر الباقي.",
+  ]),
+  items: [
+    pillar(
+      b,
+      ["A change of clothes", "ملابس احتياطية"],
+      [
+        "Two full sets in a named bag, for messy play and little accidents.",
+        "طقمان كاملان في حقيبة باسم الطفل، للعب الفوضوي والحوادث الصغيرة.",
+      ],
+      "none",
+    ),
+    pillar(
+      b,
+      ["A water bottle", "زجاجة ماء"],
+      [
+        "One your child can open alone. We refill it through the day.",
+        "زجاجة يستطيع طفلكم فتحها وحده، ونعيد ملأها طوال اليوم.",
+      ],
+      "none",
+    ),
+    pillar(
+      b,
+      ["A sun hat", "قبعة للشمس"],
+      [
+        "We play outside every day, so a hat, with sun cream put on at home.",
+        "نلعب في الخارج كل يوم، فلا تنسوا القبعة وواقي الشمس قبل الخروج من البيت.",
+      ],
+      "none",
+    ),
+    pillar(
+      b,
+      ["Something from home", "شيء من البيت"],
+      [
+        "A favourite toy or blanket helps in the first weeks and at nap time.",
+        "لعبة أو بطانية مفضّلة تساعد في الأسابيع الأولى وفي وقت القيلولة.",
+      ],
+      "none",
+    ),
+    pillar(
+      b,
+      ["Indoor shoes", "حذاء للداخل"],
+      [
+        "Soft shoes with a strap your child can fasten alone.",
+        "حذاء ليّن بلاصق يستطيع طفلكم إغلاقه وحده.",
+      ],
+      "none",
+    ),
+    pillar(
+      b,
+      ["A family photo", "صورة للأسرة"],
+      [
+        "For the family wall in the room, so home is never far away.",
+        "لجدار الأسر في الغرفة، حتى يبقى البيت قريبًا دائمًا.",
+      ],
+      "none",
+    ),
+  ],
+}));
+
+const EY_PLACES = section("admissions", "triad", (b) => ({
+  source: "intakes" as const,
+  heading: b.w(["Places for *next* year", "المقاعد المتاحة للعام *القادم*"]),
+  text: b.w([
+    "Each room's dates and fees, as the nursery office has set them.",
+    "مواعيد كل غرفة ورسومها كما حدّدها مكتب الروضة.",
+  ]),
+}));
+
+const question = (b: Builder, title: Words, text: Words) => ({
+  id: b.id(),
+  title: b.w(title),
+  text: b.w(text),
+});
+
+const EY_FAQ = section("accordion", "columns", (b) => ({
+  heading: b.w(["Questions parents *ask*", "أسئلة *يطرحها* الأهل"]),
+  text: "",
+  items: [
+    question(
+      b,
+      ["What age can my child start?", "في أي سن يمكن أن يبدأ طفلي؟"],
+      [
+        "From two. Children join the room for their age in September, and can start during the year whenever a place is free.",
+        "من سن الثانية. ينضم الأطفال إلى غرفة عمرهم في سبتمبر، ويمكنهم البدء خلال العام متى توفّر مقعد.",
+      ],
+    ),
+    question(
+      b,
+      [
+        "Does my child need to be toilet trained?",
+        "هل يجب أن يكون طفلي قد تعلّم استخدام الحمّام؟",
+      ],
+      [
+        "No. We change nappies and help with toilet training when your child is ready, working with you at home.",
+        "لا. نغيّر الحفاضات ونساعد على تعلّم استخدام الحمّام حين يصبح طفلكم مستعدًا، بالتنسيق معكم في البيت.",
+      ],
+    ),
+    question(
+      b,
+      ["What if my child is unwell?", "ماذا لو مرض طفلي؟"],
+      [
+        "Please keep them at home until they are well, and for 48 hours after any sickness or diarrhoea. If they fall ill with us, we call you straight away.",
+        "أبقوه في البيت حتى يتعافى، ولمدة 48 ساعة بعد أي قيء أو إسهال. وإذا مرض عندنا نتصل بكم فورًا.",
+      ],
+    ),
+    question(
+      b,
+      [
+        "Can you cater for allergies and special diets?",
+        "هل تراعون الحساسية والأنظمة الغذائية الخاصة؟",
+      ],
+      [
+        "Yes. Tell us when you register, and our cook plans your child's meals with you.",
+        "نعم. أخبرونا عند التسجيل، ويخطّط طاهينا وجبات طفلكم معكم.",
+      ],
+    ),
+    question(
+      b,
+      ["Do brothers and sisters get priority?", "هل للإخوة أولوية؟"],
+      [
+        "Yes. Places are offered first to the brothers and sisters of children already with us.",
+        "نعم. تُعرض المقاعد أولًا على إخوة الأطفال الملتحقين بنا.",
+      ],
+    ),
+  ],
+}));
+
+const EY_STAY_AND_PLAY = section("imageText", "mediaEnd", (b) => ({
+  eyebrow: b.w(["Stay-and-play mornings", "صباحات اللعب المفتوحة"]),
+  heading: b.w(["Play first, *questions* after", "اللعب أولًا ثم *الأسئلة*"]),
+  body: plainContent(
+    b.w([
+      "Stay-and-play mornings run every Saturday from 9:30 to 11:00. Your child plays in the rooms and the garden alongside ours, while you see how a nursery day really works.\nWe finish with songs at circle time, then coffee with the head of nursery and time for your questions. Brothers and sisters are welcome, and buggies fit through every door.",
+      "تُقام صباحات اللعب المفتوحة كل سبت من الساعة 9:30 حتى 11:00. يلعب طفلكم في الغرف والحديقة مع أطفالنا، بينما ترون كيف يمضي يوم الروضة فعلًا.\nنختم بالأغاني في حلقة الصباح، ثم قهوة مع مديرة الروضة ووقت لأسئلتكم. الإخوة مرحَّب بهم، وعربات الأطفال تمرّ من كل باب.",
+    ]),
+  ),
+  media: {
+    kind: "image" as const,
+    fileId: null,
+    alt: "",
+    posterFileId: null,
+    captionsFileId: null,
+  },
+  actions: [
+    link(b, ["Book a morning", "احجزوا صباحًا"], `/pages/visit#${ANCHOR.visit}`),
+  ],
+}));
+
+const step = (b: Builder, title: Words, text: Words) => ({
+  id: b.id(),
+  title: b.w(title),
+  text: b.w(text),
+});
+
+const EY_VISIT_STEPS = section("steps", "horizontal", (b) => ({
+  heading: b.w(["What to *expect*", "ماذا *تتوقّعون*"]),
+  text: "",
+  items: [
+    step(
+      b,
+      ["Arrive and say hello", "الوصول والتعارف"],
+      [
+        "We meet you at the garden gate, show you where to leave the buggy and introduce the room leaders.",
+        "نستقبلكم عند بوابة الحديقة، ونريكم مكان عربة الطفل، ونعرّفكم إلى مشرفات الغرف.",
+      ],
+    ),
+    step(
+      b,
+      ["Play together", "نلعب معًا"],
+      [
+        "Explore the rooms and the garden at your child's pace. Join in, or sit back and watch.",
+        "استكشفوا الغرف والحديقة على إيقاع طفلكم. شاركوه اللعب أو اجلسوا وتابعوا.",
+      ],
+    ),
+    step(
+      b,
+      ["Circle time", "حلقة الصباح"],
+      [
+        "Songs and a story in Arabic and English, so your child hears both.",
+        "أغانٍ وقصة بالعربية والإنجليزية، ليسمع طفلكم اللغتين.",
+      ],
+    ),
+    step(
+      b,
+      ["Questions over coffee", "أسئلة مع القهوة"],
+      [
+        "Sit down with the head of nursery to talk about sessions, settling in and places.",
+        "اجلسوا مع مديرة الروضة للحديث عن الفترات والتأقلم والمقاعد.",
+      ],
+    ),
+  ],
+}));
+
+const EY_FIND_US = section("contact", "map", (b) => ({
+  heading: b.w(["How to *find* us", "كيف *تصلون* إلينا"]),
+  text: b.w([
+    "Come in through the garden gate on the side street, where there is room for buggies and short-stay parking. The office is open Sunday to Thursday, 7:30 to 17:00.",
+    "ادخلوا من بوابة الحديقة في الشارع الجانبي، حيث مكان لعربات الأطفال ومواقف للتوقف القصير. المكتب مفتوح من الأحد إلى الخميس، من 7:30 إلى 17:00.",
+  ]),
+  mapHref: "",
+}));
+
+// A school still to open: no tours of classes yet, but mornings with the
+// founders, the plans and the people who will teach.
+const LAUNCH_MORNINGS = section("imageText", "mediaEnd", (b) => ({
+  eyebrow: b.w(["Founders' mornings", "صباحات المؤسِّسين"]),
+  heading: b.w(["A school you can help *shape*", "مدرسة تشاركون في *صنعها*"]),
+  body: plainContent(
+    b.w([
+      "Founders' mornings run every Saturday at 10:00 and last about an hour and a half. We start with coffee and the plans on the table, then walk the site in hard hats: the classrooms, the library and the playground as they take shape.\nFounding families have a say most families never get: the clubs we start with, the uniform, even the names of the houses. Bring your questions, and your ideas.",
+      "تُقام صباحات المؤسِّسين كل سبت الساعة 10:00 وتستغرق نحو ساعة ونصف. نبدأ بالقهوة والمخطّطات على الطاولة، ثم نتجوّل في الموقع بخوذ السلامة بين الفصول والمكتبة والملعب وهي تكتمل أمام أعينكم.\nللأسر المؤسِّسة رأي لا يُتاح لغيرها: في الأندية التي نبدأ بها، وفي الزيّ المدرسي، بل وفي أسماء البيوت المدرسية. أحضروا أسئلتكم وأفكاركم.",
+    ]),
+  ),
+  media: {
+    kind: "image" as const,
+    fileId: null,
+    alt: "",
+    posterFileId: null,
+    captionsFileId: null,
+  },
+  actions: [
+    link(b, ["Book a morning", "احجزوا موعدًا"], `/pages/visit#${ANCHOR.visit}`),
+  ],
+}));
+
+const season = (b: Builder, when: Words, title: Words, text: Words) => ({
+  id: b.id(),
+  year: b.w(when),
+  title: b.w(title),
+  text: b.w(text),
+});
+
+const LAUNCH_PLANS = section("timeline", "horizontal", (b) => ({
+  heading: b.w(["From building site to *school*", "من موقع بناء إلى *مدرسة*"]),
+  items: [
+    season(
+      b,
+      ["Now", "الآن"],
+      ["Building under way", "البناء جارٍ"],
+      [
+        "Work is well under way on the new campus, designed around a shaded central courtyard.",
+        "يتواصل العمل في الحرم الجديد، المصمَّم حول فناء مركزي مظلَّل.",
+      ],
+    ),
+    season(
+      b,
+      ["Spring", "الربيع"],
+      ["The founding teachers", "المعلّمون المؤسِّسون"],
+      [
+        "Twelve teachers join the principal and plan the first year together.",
+        "ينضم اثنا عشر معلّمًا إلى المديرة ويخطّطون معًا للعام الأول.",
+      ],
+    ),
+    season(
+      b,
+      ["Summer", "الصيف"],
+      ["A first look inside", "نظرة أولى من الداخل"],
+      [
+        "Furniture and books arrive, and founding families see the finished rooms.",
+        "يصل الأثاث والكتب، وتشاهد الأسر المؤسِّسة الغرف مكتملة.",
+      ],
+    ),
+    season(
+      b,
+      ["September", "سبتمبر"],
+      ["Doors open", "افتتاح الأبواب"],
+      [
+        "Our first children walk in, and the founding year begins.",
+        "يدخل أطفالنا الأوائل، ويبدأ عام التأسيس.",
+      ],
+    ),
+  ],
+}));
+
+const LAUNCH_LETTER = section("welcome", "portraitStart", (b) => ({
+  heading: b.w([
+    "A letter from the founding *principal*",
+    "رسالة من *المديرة* المؤسِّسة",
+  ]),
+  body: plainContent(
+    b.w([
+      "Dear families,\nEvery school begins with a few families willing to trust an idea before there is a building to show them. If you are reading this, you may be one of them, and I would very much like to meet you.\nI have taught and led schools for twenty years, and this is the one I have always wanted to build: small enough for every child to be known, ambitious enough for every child to be stretched, and open to the families who make it.\nCome to a founders' morning and tell me what you hope for your child. Those conversations are shaping the school.\nWith warm wishes,",
+      "أعزّاءنا أولياء الأمور،\nتبدأ كل مدرسة بأسر قليلة تثق بفكرة قبل أن يكون هناك مبنى تراه. إن كنتم تقرؤون هذه الكلمات فقد تكونون منهم، ويسعدني كثيرًا أن ألقاكم.\nعملتُ في التعليم وقيادة المدارس عشرين عامًا، وهذه هي المدرسة التي طالما تمنّيت أن أبنيها: صغيرة بما يكفي ليُعرف فيها كل طفل، وطموحة بما يكفي ليُتحدّى فيها كل طفل، ومفتوحة للأسر التي تصنعها.\nاحضروا صباح المؤسِّسين وحدّثوني عمّا تتمنّونه لطفلكم، فهذه الأحاديث هي التي تصنع المدرسة.\nمع خالص التحيات،",
+    ]),
+  ),
+  portrait: noImage,
+  name: b.w(["Dr Amal Nasser", "د. أمل ناصر"]),
+  role: b.w(["Founding principal", "المديرة المؤسِّسة"]),
+}));
+
+const LAUNCH_FIND_US = section("contact", "map", (b) => ({
+  heading: b.w(["Finding the *site*", "الوصول إلى *الموقع*"]),
+  text: b.w([
+    "The campus is still being built, so please come to the site office at the north gate, where there is parking. The office is open Sunday to Thursday, 9:00 to 16:00, and on Saturday mornings for visits.",
+    "لا يزال الحرم قيد البناء، لذا نرجو التوجّه إلى مكتب الموقع عند البوابة الشمالية حيث تتوفّر المواقف. المكتب مفتوح من الأحد إلى الخميس من 9:00 إلى 16:00، وصباح السبت للزيارات.",
+  ]),
+  mapHref: "",
+}));
+
 const CANVAS = { scheme: "canvas" } as const;
 const SOFT = { scheme: "soft" } as const;
 const BRAND = { scheme: "brand" } as const;
@@ -2271,9 +3127,25 @@ export const PAGE_TEMPLATES = {
     on(VOICES, SOFT, "tabs"),
     on(NEWS, CANVAS, "featured"),
   ],
+  // Any school: its purpose in a sentence, the principal's word, values,
+  // figures and how it began, closing on the way to a visit.
   about: [
     PAGE_HEADER(
-      ["About *us*", "من *نحن*"],
+      ["Get to know our *school*", "تعرّفوا على *مدرستنا*"],
+      [
+        "What we believe, how we teach and where we began.",
+        "ما نؤمن به، وكيف نعلّم، ومن أين بدأنا.",
+      ],
+    ),
+    on(ABOUT_PURPOSE, CANVAS),
+    on(ABOUT_WELCOME, SOFT),
+    on(ABOUT_VALUES, CANVAS),
+    on(ABOUT_FIGURES, BRAND),
+    on(ABOUT_STORY, CANVAS),
+  ],
+  aboutHeritage: [
+    PAGE_HEADER(
+      ["About the *school*", "عن *المدرسة*"],
       [
         "Our story, the values we teach by and the people who make the school what it is.",
         "قصتنا والقيم التي نعلّم بها والأشخاص الذين يصنعون مدرستنا.",
@@ -2283,6 +3155,24 @@ export const PAGE_TEMPLATES = {
     on(PILLARS, SOFT),
     on(STATS, BRAND),
     on(HISTORY, CANVAS),
+  ],
+  // A nursery: who looks after the children, the rooms by age, the day,
+  // how they learn, the ratios, how they are kept safe and the team.
+  aboutEarlyYears: [
+    PAGE_HEADER(
+      ["A nursery built around *play*", "روضة قوامها *اللعب*"],
+      [
+        "Who we are, how a day unfolds and how we keep every child safe, happy and learning.",
+        "من نحن، وكيف يمضي اليوم، وكيف نحرص على أن يكون كل طفل آمنًا سعيدًا يتعلّم.",
+      ],
+    ),
+    on(EY_ABOUT_WELCOME, CANVAS),
+    on(EY_ROOMS, SOFT),
+    on(EY_DAY, CANVAS),
+    on(EY_PLAY, SOFT),
+    on(EY_RATIOS, { scheme: "brand", dividerTop: "wave" }),
+    on(EY_CARE, CANVAS),
+    on(EY_TEAM, SOFT),
   ],
   admissions: [
     PAGE_HEADER(
@@ -2318,6 +3208,69 @@ export const PAGE_TEMPLATES = {
       ],
     ),
     on(CONTACT_MAP, CANVAS),
+  ],
+  admissionsEarlyYears: [
+    PAGE_HEADER(
+      ["Joining our *nursery*", "الانضمام إلى *روضتنا*"],
+      [
+        "Places for children aged 2 to 6, and a settling-in that goes at your child's pace.",
+        "مقاعد للأطفال من سنتين إلى ست سنوات، وتأقلم يسير على إيقاع طفلكم.",
+      ],
+    ),
+    on(EY_SESSIONS, CANVAS),
+    on(EY_SETTLING, SOFT),
+    on(EY_BRING, CANVAS),
+    on(EY_PLACES, SOFT),
+    on(EY_FAQ, CANVAS),
+    REGISTER_APPLY,
+    on(ENQUIRY_FORM, SOFT),
+  ],
+  visitEarlyYears: [
+    PAGE_HEADER(
+      ["Come and *play*", "تعالوا *والعبوا* معنا"],
+      [
+        "Bring your child to a stay-and-play morning. It is the easiest way for you both to get to know us.",
+        "أحضروا طفلكم إلى صباح لعب مفتوح، فهو أسهل طريقة لتتعرّفوا إلينا معًا.",
+      ],
+    ),
+    on(EY_STAY_AND_PLAY, CANVAS),
+    on(EY_VISIT_STEPS, SOFT),
+    on(
+      FORM(
+        "visit",
+        ["Book your *morning*", "احجزوا *صباحكم*"],
+        [
+          "Tell us your child's age and which Saturday suits you. We will confirm by email, with directions.",
+          "أخبرونا بعمر طفلكم والسبت الذي يناسبكم، وسنؤكّد لكم بالبريد الإلكتروني مع إرشادات الوصول.",
+        ],
+      ),
+      CANVAS,
+    ),
+    on(EY_FIND_US, SOFT),
+  ],
+  // A school still to open: the founders' mornings, the plans to opening day
+  // and the founding principal's letter. It closes on the canvas because the
+  // compact footer is soft.
+  visitLaunch: [
+    PAGE_HEADER(
+      ["Meet us before we *open*", "قابلونا قبل *الافتتاح*"],
+      [
+        "Our doors open in September 2027. Until then, come to a founders' morning, see the plans and meet the people who will teach your child.",
+        "تُفتح أبوابنا في سبتمبر 2027. وحتى ذلك الحين، احضروا أحد صباحات المؤسِّسين، واطّلعوا على المخطّطات، وقابلوا من سيعلّمون أطفالكم.",
+      ],
+    ),
+    on(LAUNCH_MORNINGS, CANVAS),
+    on(LAUNCH_PLANS, SOFT),
+    on(LAUNCH_LETTER, CANVAS),
+    FORM(
+      "visit",
+      ["Book a founders' *morning*", "احجزوا *صباح* المؤسِّسين"],
+      [
+        "Choose a Saturday and tell us the year your child would join. We will confirm by email, with directions to the site office.",
+        "اختاروا يوم سبت وأخبرونا بالصف الذي سيلتحق به طفلكم، وسنؤكّد لكم بالبريد الإلكتروني مع إرشادات الوصول إلى مكتب الموقع.",
+      ],
+    ),
+    on(LAUNCH_FIND_US, CANVAS),
   ],
   academics: [
     PAGE_HEADER(
@@ -2448,7 +3401,14 @@ const CONTACT_PAGE: StarterPage = {
 export const STARTERS = {
   heritage: {
     theme: "heritage",
-    pages: [HOME, ABOUT, ACADEMICS, ADMISSIONS, VISIT, CONTACT_PAGE],
+    pages: [
+      HOME,
+      { ...ABOUT, template: "aboutHeritage" },
+      ACADEMICS,
+      ADMISSIONS,
+      VISIT,
+      CONTACT_PAGE,
+    ],
   },
   international: {
     theme: "meridian",
@@ -2466,9 +3426,9 @@ export const STARTERS = {
     theme: "brightStart",
     pages: [
       { ...HOME, template: "homeCommunity" },
-      ABOUT,
-      ADMISSIONS,
-      VISIT,
+      { ...ABOUT, template: "aboutEarlyYears" },
+      { ...ADMISSIONS, template: "admissionsEarlyYears" },
+      { ...VISIT, template: "visitEarlyYears" },
       PARENTS,
       CONTACT_PAGE,
     ],
@@ -2490,7 +3450,7 @@ export const STARTERS = {
     pages: [
       { ...HOME, template: "homeStatement" },
       ADMISSIONS,
-      VISIT,
+      { ...VISIT, template: "visitLaunch" },
       CONTACT_PAGE,
     ],
   },
