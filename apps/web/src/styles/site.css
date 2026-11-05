@@ -1047,15 +1047,6 @@
     inline-size: 100%;
     color: var(--s-fg);
   }
-  /* The editor's reader sets its own size for the app; on the site its
-     words take the site's body size, line and paragraph spacing. */
-  .site-prose .fe {
-    font-size: inherit;
-    line-height: var(--s-line);
-  }
-  .site-prose .fe .fe-p + .fe-p {
-    margin-block-start: 0.75em;
-  }
   .site-prose h2,
   .site-prose h3 {
     font-family: var(--s-font-heading);
@@ -1171,8 +1162,57 @@
   .site-marquee[data-paused] {
     animation-play-state: paused;
   }
+  /* Right to left the strip starts at the right edge and overflows to the
+     left, so it travels right; run the other way it leaves the band empty. */
   .site-root:dir(rtl) .site-marquee {
-    animation-direction: reverse;
+    animation-name: site-marquee-rtl;
+  }
+
+  /* Section renderers: contact. The ways to reach the school, each a row
+     with its icon and what it is, and the pin over a map not yet drawn. */
+  .site-contact-ways {
+    display: grid;
+  }
+  .site-contact-ways > li + li {
+    border-block-start: 1px solid var(--s-border);
+  }
+  .site-contact-way {
+    display: flex;
+    min-block-size: 3rem;
+    align-items: center;
+    gap: 1rem;
+    padding-block: 1rem;
+    text-align: start;
+  }
+  .site-contact-ways > li:first-child .site-contact-way {
+    padding-block-start: 0;
+  }
+  .site-contact-ways > li:last-child .site-contact-way {
+    padding-block-end: 0;
+  }
+  .site-contact-value {
+    color: var(--s-heading);
+    font-size: 1.125rem;
+    font-weight: 600;
+    line-height: 1.4;
+    overflow-wrap: anywhere;
+  }
+  a.site-contact-way:hover .site-contact-value {
+    color: var(--s-link);
+    text-decoration: underline;
+    text-underline-offset: 0.25em;
+  }
+  .site-map-pin {
+    display: grid;
+    inline-size: 4rem;
+    block-size: 4rem;
+    place-items: center;
+    border-radius: 999px;
+    background: var(--s-btn);
+    color: var(--s-btn-fg);
+    box-shadow:
+      0 0 0 0.75rem color-mix(in oklab, var(--s-btn) 18%, transparent),
+      var(--s-shadow-lift);
   }
   /* Less motion means no travel, zoom or loops; sections still fade in, briefly. */
   @media (prefers-reduced-motion: reduce) {
@@ -1278,6 +1318,19 @@
   }
 }
 
+/* The editor's reader sets its own size for the app; on the site its words
+   take the size and line of whatever holds them (the body, a lead) and the
+   site's paragraph spacing. These sit outside the components layer because
+   the editor's stylesheet is unlayered, and an unlayered rule beats a
+   layered one whatever its specificity. */
+.site-prose .fe {
+  font-size: inherit;
+  line-height: inherit;
+}
+.site-prose .fe .fe-p + .fe-p {
+  margin-block-start: 0.75em;
+}
+
 @keyframes site-menu-in {
   from {
     opacity: 0;
@@ -1288,5 +1341,11 @@
 @keyframes site-marquee {
   to {
     transform: translateX(-50%);
+  }
+}
+
+@keyframes site-marquee-rtl {
+  to {
+    transform: translateX(50%);
   }
 }

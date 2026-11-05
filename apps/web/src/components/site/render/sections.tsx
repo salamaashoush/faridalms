@@ -659,12 +659,13 @@ function ImageText({ section, context }: Props<"imageText">) {
   return (
     <div
       className={cn("site-split", variant === "overlap" && "@3xl/site:gap-0")}
+      data-ratio={variant === "overlap" ? "7-5" : undefined}
     >
       <div data-order={variant === "mediaEnd" ? "end" : undefined}>
         <MediaView
           media={data.media}
           context={context}
-          ratio="5 / 4"
+          ratio={variant === "overlap" ? "4 / 3" : "5 / 4"}
           seed={section.id}
           feature
         />
@@ -1050,20 +1051,26 @@ function Pillars({ section, context }: Props<"pillars">) {
         <SectionIntro heading={data.heading} text={data.text} />
         <div className="grid gap-[var(--s-split-gap)]">
           {data.items.map((item, index) => (
-            <div key={item.id} className="site-split">
+            <div
+              key={item.id}
+              className="site-split"
+              data-ratio={index % 2 === 1 ? "7-5" : "5-7"}
+            >
               <div data-order={index % 2 === 1 ? "end" : undefined}>
                 <SitePicture
                   image={item.image}
                   context={context}
-                  ratio="5 / 4"
+                  ratio="4 / 3"
                   seed={item.id}
                   feature
                 />
               </div>
-              <div className="site-stack">
+              <div data-stagger className="site-stack">
                 <span className="site-numeral">{numeral(index)}</span>
-                <Heading>{item.title}</Heading>
-                <p className="site-lead">{item.text}</p>
+                <Heading level={data.heading ? 3 : 2} size="h2">
+                  {item.title}
+                </Heading>
+                {item.text ? <p className="site-lead">{item.text}</p> : null}
               </div>
             </div>
           ))}
@@ -2457,45 +2464,199 @@ export function ContactList({ context }: { context: RenderContext }) {
   );
 }
 
+type ContactWay = {
+  key: string;
+  icon: typeof MapPin;
+  label: string;
+  value: string;
+  href: string | null;
+  dir: "auto" | "ltr";
+};
+
+/** The school's address, phone and email, each with its icon and what it is. */
+function contactWays(context: RenderContext): ContactWay[] {
+  const t = { locale: context.locale };
+  const contact = context.contact;
+  if (!contact) return [];
+  const address = [
+    ...(contact.address?.lines ?? []),
+    contact.address?.city,
+    contact.address?.country,
+  ]
+    .filter(Boolean)
+    .join(", ");
+  return [
+    address
+      ? {
+          key: "address",
+          icon: MapPin,
+          label: m.siteContactAddress({}, t),
+          value: address,
+          href: null,
+          dir: "auto" as const,
+        }
+      : null,
+    contact.phone
+      ? {
+          key: "phone",
+          icon: Phone,
+          label: m.siteContactPhone({}, t),
+          value: contact.phone,
+          href: `tel:${contact.phone}`,
+          dir: "ltr" as const,
+        }
+      : null,
+    contact.email
+      ? {
+          key: "email",
+          icon: Mail,
+          label: m.siteContactEmail({}, t),
+          value: contact.email,
+          href: `mailto:${contact.email}`,
+          dir: "ltr" as const,
+        }
+      : null,
+  ].filter((way) => way !== null);
+}
+
+function ContactWays({
+  ways,
+  context,
+}: {
+  ways: ContactWay[];
+  context: RenderContext;
+}) {
+  if (ways.length === 0) return null;
+  return (
+    <ul className="site-contact-ways">
+      {ways.map((way) => {
+        const body = (
+          <>
+            <span aria-hidden className="site-icon-tile">
+              <way.icon />
+            </span>
+            <span className="grid min-w-0 gap-0.5">
+              <span className="site-meta">{way.label}</span>
+              <span className="site-contact-value">
+                <span dir={way.dir}>{way.value}</span>
+              </span>
+            </span>
+          </>
+        );
+        return (
+          <li key={way.key}>
+            {way.href && !context.editing ? (
+              <a href={way.href} className="site-contact-way">
+                {body}
+              </a>
+            ) : (
+              <span className="site-contact-way">{body}</span>
+            )}
+          </li>
+        );
+      })}
+    </ul>
+  );
+}
+
+const tone = (colour: string, amount: number) =>
+  `color-mix(in oklab, ${colour} ${amount}%, var(--s-bg))`;
+
+/**
+ * Where a map belongs and none is drawn: streets, a park and a river in the
+ * section's own colours, with the school's pin in the middle.
+ */
+function MapPlaceholder() {
+  return (
+    <div aria-hidden className="site-feature relative isolate">
+      <svg
+        viewBox="0 0 400 300"
+        preserveAspectRatio="xMidYMid slice"
+        className="site-media block"
+        style={
+          { "--s-ratio": "4 / 3", "--s-phone-ratio": "4 / 3" } as CSSProperties
+        }
+      >
+        <rect
+          width="400"
+          height="300"
+          style={{ fill: tone("var(--s-fg)", 7) }}
+        />
+        <path
+          d="M250 -10 C 230 80, 300 140, 270 210 S 300 290, 330 320 L 420 320 L 420 -10 Z"
+          style={{ fill: tone("var(--s-link)", 13) }}
+        />
+        <path
+          d="M-10 250 C 80 230, 140 270, 210 240 S 330 200, 410 230"
+          style={{
+            fill: "none",
+            stroke: tone("var(--s-link)", 26),
+            strokeWidth: 16,
+          }}
+        />
+        <g style={{ stroke: "var(--s-bg)", strokeWidth: 5 }}>
+          {[40, 95, 150, 205].map((y) => (
+            <line key={`h${y}`} x1="-10" y1={y} x2="410" y2={y} />
+          ))}
+          {[55, 120, 185, 330].map((x) => (
+            <line key={`v${x}`} x1={x} y1="-10" x2={x} y2="310" />
+          ))}
+        </g>
+        <path
+          d="M-10 190 L 410 60"
+          style={{ stroke: "var(--s-bg)", strokeWidth: 13 }}
+        />
+        <path
+          d="M150 -10 L 150 310"
+          style={{ stroke: "var(--s-bg)", strokeWidth: 11 }}
+        />
+      </svg>
+      <span className="absolute inset-0 grid place-items-center">
+        <span className="site-map-pin">
+          <MapPin className="size-7" />
+        </span>
+      </span>
+    </div>
+  );
+}
+
 function Contact({ section, context }: Props<"contact">) {
   const { data, variant } = section;
   const t = { locale: context.locale };
-  return (
-    <div className={cn(variant === "map" && "site-split")}>
-      <div className="site-stack">
-        <Heading field="heading">{data.heading}</Heading>
-        <Lead field="text">{data.text}</Lead>
-        <div className="text-[1.125rem]">
-          <ContactList context={context} />
-        </div>
-        {data.mapHref ? (
-          <div className="site-actions">
-            <SiteAnchor
-              href={data.mapHref}
-              context={context}
-              className="site-button"
-              variant="secondary"
-            >
-              <Link2 aria-hidden />
-              {m.siteOpenMap({}, t)}
-            </SiteAnchor>
-          </div>
-        ) : null}
-      </div>
-      {variant === "map" ? (
-        <div className="site-feature relative">
-          <SiteArt
-            seed={`${section.id}-map`}
-            ratio="4 / 3"
-            className="rounded-none"
-          />
-          <span className="absolute inset-0 grid place-items-center">
-            <span className="grid size-16 place-items-center rounded-full bg-white text-[var(--s-art-deep)] shadow-[var(--s-shadow-lift)]">
-              <MapPin aria-hidden className="size-7" />
-            </span>
-          </span>
+  const found = contactWays(context);
+  const ways = <ContactWays ways={found} context={context} />;
+  const words = (
+    <div data-stagger className="site-stack">
+      <Heading field="heading">{data.heading}</Heading>
+      <Lead field="text">{data.text}</Lead>
+      {variant === "map" ? ways : null}
+      {data.mapHref ? (
+        <div className="site-actions">
+          <SiteAnchor
+            href={data.mapHref}
+            context={context}
+            className="site-button"
+            variant="secondary"
+          >
+            <Link2 aria-hidden />
+            {m.siteOpenMap({}, t)}
+          </SiteAnchor>
         </div>
       ) : null}
+    </div>
+  );
+  if (variant === "map")
+    return (
+      <div className="site-split">
+        {words}
+        <MapPlaceholder />
+      </div>
+    );
+  if (found.length === 0) return words;
+  return (
+    <div className="site-split">
+      {words}
+      <div className="site-card p-[var(--s-card-pad)]">{ways}</div>
     </div>
   );
 }

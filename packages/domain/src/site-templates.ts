@@ -94,6 +94,14 @@ const HERO_HOME = section("hero", "fullbleed", (b) => ({
   height: "l" as const,
 }));
 
+/** The home page's opening, filling the first screen. */
+const WELCOME_HERO = (b: Builder): PageSection => {
+  const made = HERO_HOME(b);
+  return made.type === "hero"
+    ? { ...made, data: { ...made.data, height: "screen" } }
+    : made;
+};
+
 const ADMISSIONS_TRIAD = section(
   "admissions",
   "triad",
@@ -1549,15 +1557,17 @@ export const PAGE_TEMPLATES = {
     REGISTER_APPLY,
   ],
   // A welcome: the whole screen first, a sentence that sums the school up,
-  // values beside pictures, the numbers, and families' voices.
+  // values beside pictures, the numbers, the way in, and families' voices.
+  // The news closes on the canvas so the footer's own colour does not run
+  // straight on from a band of the same colour.
   homeWelcome: [
-    on(HERO_HOME, CANVAS),
+    on(WELCOME_HERO, CANVAS),
     on(STATEMENT, CANVAS),
     on(PILLARS, SOFT, "alternating"),
     on(STATS, CANVAS, "overImage"),
+    on(ADMISSIONS_TRIAD, BRAND),
     on(VOICES, SOFT, "tabs"),
     on(NEWS, CANVAS, "featured"),
-    on(ADMISSIONS_TRIAD, BRAND),
   ],
   about: [
     PAGE_HEADER(
@@ -1588,7 +1598,7 @@ export const PAGE_TEMPLATES = {
   ],
   visit: [
     PAGE_HEADER(
-      ["Visit *us*", "*زُرنا*"],
+      ["Come and *visit*", "تفضّلوا *بزيارتنا*"],
       [
         "The best way to know a school is to see it on an ordinary day.",
         "أفضل طريقة لمعرفة أي مدرسة أن تراها في يوم عادي.",
