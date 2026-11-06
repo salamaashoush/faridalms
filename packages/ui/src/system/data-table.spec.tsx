@@ -76,4 +76,43 @@ describe("DataTable", () => {
       await screen.findByRole("heading", { name: "Add your first school" }),
     ).toBeInTheDocument();
   });
+
+  it("sums its amounts in a row of their own, under the rows they sum", async () => {
+    interface Owed {
+      id: string;
+      name: string;
+      owed: number;
+    }
+    const columns: Column<Owed>[] = [
+      { id: "name", header: "Customer", primary: true, cell: (row) => row.name },
+      {
+        id: "owed",
+        header: "Owed",
+        align: "end",
+        cell: (row) => `EGP ${row.owed}`,
+      },
+    ];
+    renderPageWithSystem(() => (
+      <DataTable
+        caption="Owed by age"
+        rows={[
+          { id: "a", name: "Aspen", owed: 100 },
+          { id: "b", name: "Birch", owed: 250 },
+        ]}
+        columns={columns}
+        rowLabel={(row) => row.name}
+        card={{ title: (row) => row.name }}
+        empty={{ title: "Nothing is owed" }}
+        totals={[{ id: "EGP", label: "Total in EGP", cells: { owed: "EGP 350" } }]}
+      />
+    ));
+    const table = await screen.findByRole("table", { name: "Owed by age" });
+    const total = within(table).getByRole("row", { name: /Total in EGP/ });
+    expect(
+      within(total).getByRole("rowheader", { name: "Total in EGP" }),
+    ).toBeInTheDocument();
+    expect(within(total).getByRole("cell", { name: "EGP 350" })).toHaveClass(
+      "text-end",
+    );
+  });
 });

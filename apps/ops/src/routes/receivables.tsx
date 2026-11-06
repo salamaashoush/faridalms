@@ -1,21 +1,14 @@
 import type { AgingBucket } from "@faridalms/domain/dunning";
 import type { Currency } from "@faridalms/domain/subscriptions";
+import type { Column, DataTableCard } from "@faridalms/ui/system/data-table";
 
 import { AGING_BUCKETS } from "@faridalms/domain/dunning";
-import { EmptyState } from "@faridalms/ui/system/empty-state";
+import { DataTable, RowLink } from "@faridalms/ui/system/data-table";
 import { Metric, MetricGrid } from "@faridalms/ui/system/metrics";
 import { PageHeader } from "@faridalms/ui/system/page-header";
 import { useDesignSystem } from "@faridalms/ui/system/provider";
 import { RecordSection } from "@faridalms/ui/system/record-page";
 import { StatusBadge } from "@faridalms/ui/system/status";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@faridalms/ui/table";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { Wallet } from "lucide-react";
 
@@ -51,6 +44,89 @@ function totalsOf(rows: Data["rows"]) {
     totals.set(row.currency, held);
   }
   return [...totals];
+}
+
+type Owing = Data["rows"][number] & { id: string };
+
+const COLUMNS: Column<Owing>[] = [
+  {
+    id: "customer",
+    header: "Customer",
+    primary: true,
+    cell: (row) => (
+      <span className="flex min-w-0 items-center gap-2">
+        <RowLink
+          to="/customers/$customerId"
+          params={{ customerId: row.customerId }}
+        >
+          {row.customerName}
+        </RowLink>
+        <Held row={row} />
+      </span>
+    ),
+  },
+  ...AGING_BUCKETS.map((bucket): Column<Owing> => ({
+    id: bucket,
+    header: AGING_BUCKET_NAMES[bucket],
+    align: "end",
+    cell: (row) =>
+      row.buckets[bucket] ? formatMoney(row.buckets[bucket], row.currency) : "",
+  })),
+  {
+    id: "oldest",
+    header: "Oldest",
+    cell: (row) =>
+      row.oldest ? (
+        <span className="text-muted-foreground">
+          <Link
+            to="/invoices/$invoiceId"
+            params={{ invoiceId: row.oldest.invoiceId }}
+            className="relative text-foreground hover:text-primary hover:underline"
+          >
+            {row.oldest.number}
+          </Link>
+          {row.oldest.step ? `, ${DUNNING_STEP_NAMES[row.oldest.step]}` : ""}
+        </span>
+      ) : null,
+  },
+];
+
+const CARD: DataTableCard<Owing> = {
+  title: (row) => (
+    <RowLink
+      to="/customers/$customerId"
+      params={{ customerId: row.customerId }}
+    >
+      {row.customerName}
+    </RowLink>
+  ),
+  status: (row) => <Held row={row} />,
+  fact: (row) =>
+    formatMoney(
+      AGING_BUCKETS.reduce((sum, bucket) => sum + row.buckets[bucket], 0),
+      row.currency,
+    ),
+};
+
+interface HeldProps {
+  row: Owing;
+}
+
+/** Whether the clock has held back the customer's schools, and any pause of it. */
+function Held({ row }: HeldProps) {
+  if (!row.held && !row.pausedUntil) return null;
+  return (
+    <span className="flex flex-wrap gap-1.5">
+      {row.held ? (
+        <StatusBadge tone="danger">{STANDING_NAMES[row.held]}</StatusBadge>
+      ) : null}
+      {row.pausedUntil ? (
+        <StatusBadge tone="info">
+          Paused until {formatDay(row.pausedUntil)}
+        </StatusBadge>
+      ) : null}
+    </span>
+  );
 }
 
 /**
@@ -102,106 +178,31 @@ function Receivables() {
             />
           </MetricGrid>
         ) : null}
-        <section aria-label="Owed by age" className="grid gap-3">
+        <div className="grid gap-3">
           <h2 className="text-base leading-6 font-semibold">Owed by age</h2>
-          {data.rows.length ? (
-            <div className="overflow-hidden rounded-lg border bg-card">
-              <div className="overflow-x-auto">
-                <Table>
-                  <TableHeader className="bg-muted/40">
-                    <TableRow>
-                      <TableHead className="h-10 ps-4">Customer</TableHead>
-                      {AGING_BUCKETS.map((bucket) => (
-                        <TableHead key={bucket} className="h-10 text-end">
-                          {AGING_BUCKET_NAMES[bucket]}
-                        </TableHead>
-                      ))}
-                      <TableHead className="h-10 pe-4">Oldest</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {data.rows.map((row) => (
-                      <TableRow key={row.customerId} className="h-12">
-                        <TableCell className="ps-4">
-                          <span className="flex flex-wrap items-center gap-2">
-                            <Link
-                              to="/customers/$customerId"
-                              params={{ customerId: row.customerId }}
-                              className="font-medium hover:text-primary hover:underline"
-                            >
-                              {row.customerName}
-                            </Link>
-                            {row.held ? (
-                              <StatusBadge tone="danger">
-                                {STANDING_NAMES[row.held]}
-                              </StatusBadge>
-                            ) : null}
-                            {row.pausedUntil ? (
-                              <StatusBadge tone="info">
-                                Paused until {formatDay(row.pausedUntil)}
-                              </StatusBadge>
-                            ) : null}
-                          </span>
-                        </TableCell>
-                        {AGING_BUCKETS.map((bucket) => (
-                          <TableCell
-                            key={bucket}
-                            className="text-end tabular-nums"
-                          >
-                            {row.buckets[bucket]
-                              ? formatMoney(row.buckets[bucket], row.currency)
-                              : ""}
-                          </TableCell>
-                        ))}
-                        <TableCell className="pe-4 text-muted-foreground">
-                          {row.oldest ? (
-                            <>
-                              <Link
-                                to="/invoices/$invoiceId"
-                                params={{ invoiceId: row.oldest.invoiceId }}
-                                className="text-foreground hover:text-primary hover:underline"
-                              >
-                                {row.oldest.number}
-                              </Link>
-                              {row.oldest.step
-                                ? `, ${DUNNING_STEP_NAMES[row.oldest.step]}`
-                                : ""}
-                            </>
-                          ) : null}
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                    {totals.map(([currency, buckets]) => (
-                      <TableRow
-                        key={currency}
-                        className="h-12 bg-muted/40 font-medium"
-                      >
-                        <TableCell className="ps-4">
-                          Total in {currency}
-                        </TableCell>
-                        {AGING_BUCKETS.map((bucket) => (
-                          <TableCell
-                            key={bucket}
-                            className="text-end tabular-nums"
-                          >
-                            {formatMoney(buckets[bucket], currency)}
-                          </TableCell>
-                        ))}
-                        <TableCell className="pe-4" />
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </div>
-            </div>
-          ) : (
-            <EmptyState
-              icon={Wallet}
-              title="Nothing is owed"
-              description="Every issued invoice is paid."
-            />
-          )}
-        </section>
+          <DataTable
+            caption="Owed by age"
+            rows={data.rows.map((row) => ({ ...row, id: row.customerId }))}
+            columns={COLUMNS}
+            rowLabel={(row) => row.customerName}
+            card={CARD}
+            totals={totals.map(([currency, buckets]) => ({
+              id: currency,
+              label: `Total in ${currency}`,
+              cells: Object.fromEntries(
+                AGING_BUCKETS.map((bucket) => [
+                  bucket,
+                  formatMoney(buckets[bucket], currency),
+                ]),
+              ),
+            }))}
+            empty={{
+              icon: Wallet,
+              title: "Nothing is owed",
+              description: "Every issued invoice is paid.",
+            }}
+          />
+        </div>
         <RecordSection
           title="Calls to make"
           description="Asked of each account owner when an invoice is two weeks overdue."

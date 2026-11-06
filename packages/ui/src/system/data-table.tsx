@@ -37,7 +37,7 @@ import {
   Minus,
   SlidersHorizontal,
 } from "lucide-react";
-import { useRef, useState } from "react";
+import { Fragment, useRef, useState } from "react";
 
 import type { ActionItem, Confirmation } from "./action-menu";
 import type { EmptyStateProps } from "./empty-state";
@@ -65,11 +65,28 @@ export interface Column<T, S extends string = string> {
   sort?: S;
   /** The name column: it takes the free width and holds the row's link. */
   primary?: boolean;
+  /** Amounts and counts sit at the end, so their digits line up. */
+  align?: "start" | "end";
   className?: string;
 }
 
-/** A row's action; at most one is pulled out of the menu with `inline`. */
-export type RowAction = ActionItem & { inline?: boolean };
+/**
+ * A summing row under the table, such as a currency's total: a label, and
+ * a value for each column it sums, by column id.
+ */
+export interface DataTableTotal {
+  id: string;
+  label: string;
+  cells: Readonly<Record<string, ReactNode>>;
+}
+
+/** Where a row's action shows: at most one is pulled out of the menu. */
+export interface RowActionPlacement {
+  inline?: boolean;
+}
+
+/** A row's action, in its menu unless it is the one shown `inline`. */
+export type RowAction = ActionItem & RowActionPlacement;
 
 interface BatchActionBase<T> {
   label: string;
@@ -524,6 +541,7 @@ export interface DataTablePagination {
 }
 
 const EMPTY = new Set<string>();
+const NO_TOTALS: readonly DataTableTotal[] = [];
 
 // The primary column takes whatever width the others leave and truncates its
 // link there, so a long name cannot push the table into sideways scrolling.
@@ -544,6 +562,7 @@ export interface DataTableProps<T extends { id: string }, S extends string> {
   pagination?: DataTablePagination;
   card: DataTableCard<T>;
   empty: EmptyStateProps;
+  totals?: readonly DataTableTotal[];
 }
 
 /**
@@ -562,6 +581,7 @@ export function DataTable<T extends { id: string }, S extends string>({
   pagination,
   card,
   empty,
+  totals = NO_TOTALS,
 }: DataTableProps<T, S>) {
   const { strings, formatNumber } = useDesignSystem();
   const [hidden, setHidden] = useState<ReadonlySet<string>>(EMPTY);
@@ -685,6 +705,7 @@ export function DataTable<T extends { id: string }, S extends string>({
                           className={cn(
                             "h-10 px-3 text-start text-[13px] leading-[18px] font-medium whitespace-nowrap text-muted-foreground first:ps-4",
                             column.primary && fillColumn,
+                            column.align === "end" && "text-end",
                             column.className,
                           )}
                         >
@@ -758,6 +779,7 @@ export function DataTable<T extends { id: string }, S extends string>({
                             className={cn(
                               "px-3 py-0 whitespace-nowrap first:ps-4",
                               column.primary && fillColumn,
+                              column.align === "end" && "text-end tabular-nums",
                               column.className,
                             )}
                           >
@@ -776,6 +798,42 @@ export function DataTable<T extends { id: string }, S extends string>({
                     );
                   })}
                 </tbody>
+                {totals.length ? (
+                  <tfoot className="border-t bg-muted/40 font-medium">
+                    {totals.map((total) => (
+                      <tr key={total.id} className="h-12">
+                        {visible.map((column, index) =>
+                          index === 0 ? (
+                            <th
+                              key={column.id}
+                              scope="row"
+                              colSpan={selectable ? 2 : 1}
+                              className="px-3 py-0 text-start font-medium whitespace-nowrap first:ps-4"
+                            >
+                              {total.label}
+                            </th>
+                          ) : (
+                            <td
+                              key={column.id}
+                              colSpan={
+                                rowActions && index === visible.length - 1
+                                  ? 2
+                                  : 1
+                              }
+                              className={cn(
+                                "px-3 py-0 whitespace-nowrap",
+                                column.align === "end" &&
+                                  "text-end tabular-nums",
+                              )}
+                            >
+                              {total.cells[column.id]}
+                            </td>
+                          ),
+                        )}
+                      </tr>
+                    ))}
+                  </tfoot>
+                ) : null}
               </table>
             </div>
           </div>
@@ -814,6 +872,27 @@ export function DataTable<T extends { id: string }, S extends string>({
                     className="relative"
                   />
                 ) : null}
+              </li>
+            ))}
+            {totals.map((total) => (
+              <li key={total.id} className="grid gap-1.5 bg-muted/40 px-4 py-3">
+                <p className="text-sm leading-5 font-medium">{total.label}</p>
+                <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-0.5 text-[13px] leading-[18px]">
+                  {columns.flatMap((column) =>
+                    total.cells[column.id] === undefined
+                      ? []
+                      : [
+                          <Fragment key={column.id}>
+                            <dt className="text-muted-foreground">
+                              {column.header}
+                            </dt>
+                            <dd className="text-end tabular-nums">
+                              {total.cells[column.id]}
+                            </dd>
+                          </Fragment>,
+                        ],
+                  )}
+                </dl>
               </li>
             ))}
           </ul>
