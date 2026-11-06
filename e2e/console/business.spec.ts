@@ -6,9 +6,11 @@ import { expect, test } from "@playwright/test";
 
 import {
   addPlan,
+  choose,
   createSchool,
   FINANCE,
   OWNER,
+  recordHeader,
   signInAs,
   unique,
 } from "../fixtures/console";
@@ -31,7 +33,7 @@ async function runRound(page: Page) {
 /** Makes the open subscription a trial whose last day is the one given. */
 async function setTrial(page: Page, lastDay: string, reason: string) {
   const terms = page.getByRole("form", { name: "Terms" });
-  await terms.getByLabel("A trial").check();
+  await terms.getByRole("radio", { name: "A trial" }).check();
   await terms.getByLabel("Trial's last day").fill(lastDay);
   await terms.getByLabel("Why").fill(reason);
   await terms.getByRole("button", { name: "Save terms" }).click();
@@ -58,7 +60,7 @@ test("an owner sells a plan, versions it and retires the old version", async ({
   await expect(plan.getByText("EGP 350.00 per student a year")).toBeVisible();
 
   await plan.getByRole("button", { name: "New version" }).click();
-  const next = plan.getByRole("form", { name: `New version of ${name}` });
+  const next = page.getByRole("form", { name: `New version of ${name}` });
   await next.getByLabel("Students", { exact: true }).fill("500");
   await next.getByLabel("Why").fill("More students for the price");
   await next.getByRole("button", { name: "Save" }).click();
@@ -66,7 +68,7 @@ test("an owner sells a plan, versions it and retires the old version", async ({
   await expect(plan.getByText("Version 2")).toBeVisible();
 
   await plan.getByRole("button", { name: "Retire" }).last().click();
-  const retire = plan.getByRole("form", { name: "Retire version 1" });
+  const retire = page.getByRole("form", { name: "Retire version 1" });
   await retire.getByLabel("Why").fill("Replaced by version 2");
   await retire.getByRole("button", { name: "Retire this version" }).click();
   await expect(
@@ -80,7 +82,7 @@ test("an owner sells a plan, versions it and retires the old version", async ({
   await addOn.getByLabel("Code").fill(`e2e_${unique()}`);
   await addOn.getByLabel("Name in English").fill(addOnName);
   await addOn.getByLabel("Name in Arabic").fill("الفيديو");
-  await addOn.getByLabel("Module").selectOption({ label: "Video" });
+  await choose(addOn, "Module", "Video");
   await addOn.getByLabel("Why").fill("Sold on its own");
   await addOn.getByRole("button", { name: "Save" }).click();
   await expect(page.getByText("Add-on saved.")).toBeVisible();
@@ -102,6 +104,7 @@ test("a customer keeps its contacts, agreements and history", async ({
   await form.getByRole("button", { name: "Create customer" }).click();
   await expect(page.getByRole("heading", { name })).toBeVisible();
 
+  await page.getByRole("button", { name: "Add contact" }).click();
   const contact = page.getByRole("form", { name: "New contact" });
   await contact.getByLabel("Name").fill("Salama Ashoush");
   await contact.getByLabel("Email").fill("salama@oakfield.example.com");
@@ -112,10 +115,9 @@ test("a customer keeps its contacts, agreements and history", async ({
     page.getByRole("article", { name: "Salama Ashoush" }),
   ).toBeVisible();
 
+  await page.getByRole("button", { name: "Record acceptance" }).click();
   const agreements = page.getByRole("form", { name: "Record an acceptance" });
-  await agreements
-    .getByLabel("Agreement")
-    .selectOption({ label: "Data processing agreement" });
+  await choose(agreements, "Agreement", "Data processing agreement");
   await agreements.getByLabel("Version accepted").fill("2026-11");
   await agreements.getByRole("button", { name: "Record acceptance" }).click();
   await expect(page.getByText(/^version 2026-11, accepted/)).toBeVisible();
@@ -153,15 +155,13 @@ test("a trial sold with its school becomes a contract with a plan, which the sch
   ).toHaveCount(0);
   await openSubscriptionFromSchool(page);
   await expect(
-    page.getByRole("heading", { name: schoolName }).getByText("Trial"),
+    recordHeader(page).getByText("Trial", { exact: true }),
   ).toBeVisible();
   const card = page.getByRole("listitem", { name: schoolName });
   await expect(card.getByText("Published as it stands.")).toBeVisible();
 
   const item = page.getByRole("form", { name: "Add an item" });
-  await item
-    .getByLabel("What")
-    .selectOption({ label: `${planName} version 1` });
+  await choose(item, "What", `Plan: ${planName} version 1`);
   await expect(item.getByLabel("Unit price (EGP)")).toHaveValue("350.00");
   await item.getByLabel("Why").fill("Signed the order form");
   await item.getByRole("button", { name: "Add item" }).click();
@@ -185,7 +185,7 @@ test("a trial sold with its school becomes a contract with a plan, which the sch
 
   // A pilot of badges, given today and ended from tomorrow.
   const override = page.getByRole("form", { name: "Add an override" });
-  await override.getByLabel("Module").selectOption({ label: "Badges" });
+  await choose(override, "Module", "Badges");
   await override.getByLabel("Why").fill("A pilot of badges");
   await override.getByRole("button", { name: "Add override" }).click();
   await expect(card.getByText("Gains Badges")).toBeVisible();
@@ -199,7 +199,7 @@ test("a trial sold with its school becomes a contract with a plan, which the sch
   await expect(page.getByText(/^Ends /)).toBeVisible();
 
   const terms = page.getByRole("form", { name: "Terms" });
-  await terms.getByLabel("A contract").check();
+  await terms.getByRole("radio", { name: "A contract" }).check();
   await terms.getByLabel("Term starts").fill(businessToday());
   await terms.getByLabel("Term ends").fill(addDays(businessToday(), 365));
   await terms.getByLabel("Contracted students").fill("300");
@@ -207,7 +207,7 @@ test("a trial sold with its school becomes a contract with a plan, which the sch
   await terms.getByRole("button", { name: "Save terms" }).click();
   await expect(page.getByText("Terms saved.")).toBeVisible();
   await expect(
-    page.getByRole("heading", { name: schoolName }).getByText("Active"),
+    recordHeader(page).getByText("Active", { exact: true }),
   ).toBeVisible();
 
   await card.getByRole("link", { name: schoolName }).click();
@@ -241,11 +241,11 @@ test("a group set up as a draft is left, resumed, and finished after a refusal",
   await customer.getByLabel("Legal name in English").fill(customerName);
   await customer.getByLabel("Why").fill("Two schools signed together");
   await customer.getByRole("button", { name: "Create customer" }).click();
-  await expect(page.getByLabel("Sold to")).toHaveValue(/.+/);
+  await expect(page.getByLabel("Sold to")).not.toContainText("Choose");
   await page.getByRole("button", { name: "Save and continue" }).click();
 
   const schools = page.getByRole("form", { name: "Schools" });
-  await schools.getByLabel("Kind").selectOption("school_group");
+  await choose(schools, "Kind", "A school group with one or more schools");
   await schools.getByLabel("Group name in English").fill(customerName);
   await schools
     .getByLabel("Name in English", { exact: true })
@@ -260,7 +260,7 @@ test("a group set up as a draft is left, resumed, and finished after a refusal",
   // Left at the plan, and found again among the drafts.
   await page.goto("/schools/new");
   await page
-    .getByRole("listitem")
+    .getByRole("row")
     .filter({ hasText: customerName })
     .getByRole("link", { name: "Harbour East, Harbour West" })
     .click();
@@ -287,10 +287,9 @@ test("a group set up as a draft is left, resumed, and finished after a refusal",
   // No school is created before the customer accepts the data processing agreement.
   const create = page.getByRole("button", { name: "Create the school" });
   await expect(create).toBeDisabled();
+  await page.getByRole("button", { name: "Record acceptance" }).click();
   const agreements = page.getByRole("form", { name: "Record an acceptance" });
-  await agreements
-    .getByLabel("Agreement")
-    .selectOption({ label: "Data processing agreement" });
+  await choose(agreements, "Agreement", "Data processing agreement");
   await agreements.getByLabel("Version accepted").fill("2026-11");
   await agreements.getByRole("button", { name: "Record acceptance" }).click();
   await create.click();
@@ -389,9 +388,7 @@ test("a school's administrators see its trial's days left, then that it is pause
   await expect(page.getByText(/[1-9]\d* trials paused/)).toBeVisible();
   await page.goto(`/schools/${schoolId}`);
   await expect(
-    page
-      .getByRole("heading", { name: schoolName })
-      .getByText("Paused (read only)"),
+    recordHeader(page).getByText("Paused (read only)", { exact: true }),
   ).toBeVisible();
   await school.reload();
   await expect(notice).toContainText(
@@ -410,6 +407,10 @@ test("finance reads customers and subscriptions but not the catalogue", async ({
   const finance = await financeContext.newPage();
   await signInAs(finance, FINANCE);
   await page.reload();
+  await page
+    .getByRole("row", { name: new RegExp(FINANCE.name) })
+    .getByRole("button", { name: "Change" })
+    .click();
   const card = page.getByRole("form", { name: FINANCE.name });
   await card.getByRole("checkbox", { name: /^Finance/ }).check();
   await card.getByLabel("Why").fill("Joined to handle invoices");

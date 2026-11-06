@@ -1,7 +1,7 @@
 import { businessToday } from "@faridalms/domain/subscriptions";
 import { expect, test } from "@playwright/test";
 
-import { addPlan, OWNER, signInAs, unique } from "../fixtures/console";
+import { addPlan, choose, OWNER, signInAs, unique } from "../fixtures/console";
 import { BARE, PASSWORD, portal, signInWith } from "../fixtures/sign-in";
 
 // The business's details and VAT come first: the quotes below print them.
@@ -64,7 +64,7 @@ test("a demonstration request becomes a lead, a quote in both languages, and a c
   await signInAs(page, OWNER);
   const planName = `Standard ${unique()}`;
   await addPlan(page, planName);
-  await page.getByRole("link", { name: "Leads" }).click();
+  await page.getByRole("link", { name: "Leads", exact: true }).click();
   await page
     .getByRole("region", { name: "Pipeline" })
     .getByRole("link", { name: school })
@@ -76,7 +76,7 @@ test("a demonstration request becomes a lead, a quote in both languages, and a c
   await details.getByRole("button", { name: "Save details" }).click();
   await expect(page.getByText("Details saved.")).toBeVisible();
   const next = page.getByRole("form", { name: "Next step" });
-  await next.getByLabel("Owner").selectOption({ label: OWNER.name });
+  await choose(next, "Owner", OWNER.name);
   await next.getByLabel("What").fill("Send the quote");
   await next.getByLabel("By").fill(businessToday());
   await next.getByRole("button", { name: "Save next step" }).click();
@@ -88,9 +88,7 @@ test("a demonstration request becomes a lead, a quote in both languages, and a c
 
   await page.getByRole("link", { name: "New quote" }).click();
   const quote = page.getByRole("form", { name: "Quote" });
-  await quote
-    .getByLabel("Plan")
-    .selectOption({ label: `${planName} version 1` });
+  await choose(quote, "Plan", `${planName} version 1`);
   await expect(quote.getByLabel("Unit price (EGP)")).toHaveValue("350.00");
   await quote.getByLabel("Quantity").fill("300");
   await quote.getByRole("button", { name: "Save the quote" }).click();
@@ -167,7 +165,7 @@ test("a school's administrator asks about a module its plan does not have, and t
   await portalContext.close();
 
   await signInAs(page, OWNER);
-  await page.getByRole("link", { name: "Leads" }).click();
+  await page.getByRole("link", { name: "Leads", exact: true }).click();
   const lead = page
     .getByRole("region", { name: "Pipeline" })
     .getByRole("listitem")

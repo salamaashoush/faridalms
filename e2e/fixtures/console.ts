@@ -85,7 +85,7 @@ export async function createSchool(
   await customer.getByLabel("Legal name in English").fill(school.nameEn);
   await customer.getByLabel("Why").fill("Signed up at the fair");
   await customer.getByRole("button", { name: "Create customer" }).click();
-  await expect(page.getByLabel("Sold to")).toHaveValue(/.+/);
+  await expect(page.getByLabel("Sold to")).not.toContainText("Choose");
   await page.getByRole("button", { name: "Save and continue" }).click();
 
   const schools = page.getByRole("form", { name: "Schools" });
@@ -101,11 +101,9 @@ export async function createSchool(
   const plan = page.getByRole("form", { name: "Plan" });
   await expect(plan).toBeVisible();
   if (contract) {
-    await plan
-      .getByLabel("Plan", { exact: true })
-      .selectOption({ label: `${contract.plan} version 1` });
+    await choose(plan, "Plan", `${contract.plan} version 1`);
     await plan.getByLabel("Quantity").fill(String(contract.students));
-    await plan.getByLabel("A contract").check();
+    await plan.getByRole("radio", { name: "A contract" }).check();
     await plan.getByLabel("Term starts").fill(contract.today);
     await plan.getByLabel("Term ends").fill(contract.ends);
     await plan
@@ -126,10 +124,9 @@ export async function createSchool(
     .fill(`salama@${school.slug}.example.com`);
   await people.getByRole("button", { name: "Save and continue" }).click();
 
+  await page.getByRole("button", { name: "Record acceptance" }).click();
   const agreements = page.getByRole("form", { name: "Record an acceptance" });
-  await agreements
-    .getByLabel("Agreement")
-    .selectOption({ label: "Data processing agreement" });
+  await choose(agreements, "Agreement", "Data processing agreement");
   await agreements.getByLabel("Version accepted").fill("2026-11");
   await agreements.getByRole("button", { name: "Record acceptance" }).click();
   await page.getByRole("button", { name: "Create the school" }).click();
@@ -139,6 +136,34 @@ export async function createSchool(
   await page.getByRole("link", { name: "Open the school" }).click();
   await expect(page).toHaveURL(/\/schools\/[0-9a-f-]{36}$/);
   return new URL(page.url()).pathname.split("/").at(-1) ?? "";
+}
+
+/**
+ * Picks an option of a design-system select: opens it by its label, then
+ * chooses the option by its name from the list it pops up.
+ */
+export async function choose(
+  scope: Page | Locator,
+  label: string,
+  option: string,
+) {
+  const page = "page" in scope ? scope.page() : scope;
+  // A select is named by its label, then the choice it holds.
+  const named = new RegExp(
+    `^${label.replaceAll(/[.*+?^${}()|[\]\\]/g, "\\$&")}(?: |$)`,
+  );
+  await scope.getByRole("combobox", { name: named }).click();
+  await page.getByRole("option", { name: option, exact: true }).click();
+}
+
+/**
+ * A record page's header: its name, and the status and facts beside it,
+ * which sit next to the heading rather than inside it.
+ */
+export function recordHeader(page: Page): Locator {
+  return page
+    .locator("header")
+    .filter({ has: page.getByRole("heading", { level: 1 }) });
 }
 
 /** A short random suffix, so what a spec makes is its own. */

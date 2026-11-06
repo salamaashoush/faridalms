@@ -5,9 +5,11 @@ import { expect, test } from "@playwright/test";
 import {
   addPlan,
   businessDetails,
+  choose,
   createSchool,
   OWNER,
   payByCard,
+  recordHeader,
   schoolAdministrator,
   signInAs,
   unique,
@@ -68,8 +70,9 @@ test("a contract is invoiced, paid by transfer and card, credited, and shown to 
 
   // Part by bank transfer, recorded by finance.
   await page.goto("/billing");
+  await page.getByRole("button", { name: "Record a payment" }).click();
   const payment = page.getByRole("form", { name: "Record a payment" });
-  await payment.getByLabel("From").selectOption({ label: schoolName });
+  await choose(payment, "From", schoolName);
   await payment.getByLabel(/^Amount/).fill("20000");
   await payment.getByLabel("Reference").fill("Transfer 4411");
   await payment.getByLabel(new RegExp(`^${number}:`)).fill("20000");
@@ -84,11 +87,9 @@ test("a contract is invoiced, paid by transfer and card, credited, and shown to 
   expect((await payByCard(number, { cents: 1_990_000 })).status).toBe(200);
   await page.goto(invoiceUrl);
   await expect(
-    page.getByRole("heading", { name: number }).getByText("Paid"),
+    recordHeader(page).getByText("Paid", { exact: true }),
   ).toBeVisible();
-  const paid = page
-    .getByRole("heading", { name: "Paid", exact: true })
-    .locator("..");
+  const paid = page.getByRole("region", { name: "Paid", exact: true });
   await expect(paid.getByRole("listitem")).toHaveCount(2);
 
   const creditNote = page.getByRole("form", { name: "Credit it" });
@@ -102,9 +103,7 @@ test("a contract is invoiced, paid by transfer and card, credited, and shown to 
   await creditNote.getByLabel("Why").fill("Agreed with the school");
   await creditNote.getByRole("button", { name: "Issue credit note" }).click();
   await expect(page.getByText(/^Credited as CN-\d{4}-\d{5}\./)).toBeVisible();
-  const history = page
-    .getByRole("heading", { name: "History", exact: true })
-    .locator("..");
+  const history = page.getByRole("region", { name: "History", exact: true });
   await expect(history.getByText("Issued", { exact: true })).toBeVisible();
   await expect(history.getByText("Credited", { exact: true })).toBeVisible();
 

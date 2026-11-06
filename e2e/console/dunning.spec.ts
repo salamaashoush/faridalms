@@ -6,6 +6,7 @@ import {
   addPlan,
   asIfOverdue,
   businessDetails,
+  choose,
   createSchool,
   hydrated,
   OWNER,
@@ -47,9 +48,10 @@ test("an unpaid invoice reminds, asks for a call, restricts the school at its we
   await page.getByRole("link", { name: schoolName }).click();
   const owner = page.getByRole("form", { name: "Account owner" });
   await hydrated(owner);
-  await owner.getByLabel("Looked after by").selectOption({ label: OWNER.name });
+  await choose(owner, "Looked after by", OWNER.name);
   await owner.getByRole("button", { name: "Save" }).click();
   await expect(page.getByText("Account owner saved.")).toBeVisible();
+  await page.getByRole("button", { name: "Add contact" }).click();
   const contact = page.getByRole("form", { name: "New contact" });
   await contact.getByLabel("Name", { exact: true }).fill("Mona Hassan");
   await contact.getByLabel("Email").fill(billing);
@@ -133,10 +135,12 @@ test("an unpaid invoice reminds, asks for a call, restricts the school at its we
   );
 
   // The call made, and the clock paused while the school's approval runs.
-  await call
+  await call.getByRole("button", { name: /^Close / }).click();
+  const closing = page.getByRole("form", { name: /^Close: Call about / });
+  await closing
     .getByLabel("What came of it")
     .fill("The bursar is paying this week");
-  await call.getByRole("button", { name: "Done" }).click();
+  await closing.getByRole("button", { name: "Done" }).click();
   await expect(page.getByText("Task done.")).toBeVisible();
   await expect(call).toHaveCount(0);
   await page.goto(customerUrl);
@@ -151,9 +155,10 @@ test("an unpaid invoice reminds, asks for a call, restricts the school at its we
 
   // Paid: access back at once, and the notice gone.
   await page.goto("/billing");
+  await page.getByRole("button", { name: "Record a payment" }).click();
   const payment = page.getByRole("form", { name: "Record a payment" });
   await hydrated(payment);
-  await payment.getByLabel("From").selectOption({ label: schoolName });
+  await choose(payment, "From", schoolName);
   await payment.getByLabel(/^Amount/).fill("39900");
   await payment.getByLabel("Reference").fill("Transfer 5120");
   await payment.getByLabel(new RegExp(`^${number}:`)).fill("39900");

@@ -16,6 +16,10 @@ test("an owner gives a newcomer a role, which takes effect at once", async ({
 
   await signInAs(page, OWNER);
   await page.getByRole("link", { name: "Operators" }).click();
+  await page
+    .getByRole("row", { name: new RegExp(SALES.name) })
+    .getByRole("button", { name: "Change" })
+    .click();
   const card = page.getByRole("form", { name: SALES.name });
   await card.getByRole("checkbox", { name: /^Sales/ }).check();
   await card.getByLabel("Why").fill("Joined to sell to schools");
@@ -32,6 +36,10 @@ test("an owner gives a newcomer a role, which takes effect at once", async ({
 test("the console keeps an owner", async ({ page }) => {
   await signInAs(page, OWNER);
   await page.getByRole("link", { name: "Operators" }).click();
+  await page
+    .getByRole("row", { name: new RegExp(OWNER.name) })
+    .getByRole("button", { name: "Change" })
+    .click();
   const card = page.getByRole("form", { name: OWNER.name });
   await card.getByRole("checkbox", { name: /^Owner/ }).uncheck();
   await card.getByRole("checkbox", { name: /^Support/ }).check();
