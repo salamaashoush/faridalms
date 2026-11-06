@@ -15,18 +15,18 @@ build their screens from it. A screen never re-creates one of these with
 its own markup; when a screen needs something the package lacks, the
 package gains it first, with a test and a line in this table.
 
-| Rule           | Module                                                                                                                 |
-| -------------- | ---------------------------------------------------------------------------------------------------------------------- |
-| Shell          | `app-shell` (`AppShell`, `ShellBrand`, `ShellAccount`, `ThemeSubmenu`, breadcrumb steps), `page-actions`               |
-| Index page     | `page-header`, `index-toolbar`, `data-table`, `empty-state`                                                            |
-| Record page    | `record-page` (`RecordHeader`, `RecordTabs`, `RecordColumns`, `RecordSection`, `Facts`, `Fact`, `RecordList`), `value` |
-| Section sheets | `sheet-form` (edits), `sheet-panel` (reads)                                                                            |
-| Record form    | `record-form` (`RecordForm`, `FormSection`, danger zone), `unsaved-changes-guard`                                      |
-| Settings page  | `settings-section` (`SettingsPage`, `SettingsSection`, `SettingsGroup`)                                                |
-| Forms          | `form-field` (`FormField`, `TextField`, `SelectField`, `ChoiceField`, `FieldError`), `combobox-field`                  |
-| Status         | `status` (`StatusBadge`, `StatusText`, `toneSurface`)                                                                  |
-| Feedback       | `action-menu` (`ActionMenu`, `useRunAndReport`), `confirm-dialog`, `dialog`                                            |
-| Side panels    | `panel` (`PanelGroup`, `Segmented`)                                                                                    |
+| Rule           | Module                                                                                                                      |
+| -------------- | --------------------------------------------------------------------------------------------------------------------------- |
+| Shell          | `app-shell` (`AppShell`, `ShellBrand`, `ShellAccount`, `ThemeSubmenu`, breadcrumb steps), `page-actions`                    |
+| Index page     | `page-header`, `index-toolbar`, `data-table`, `empty-state`                                                                 |
+| Record page    | `record-page` (`RecordHeader`, `RecordTabs`, `RecordColumns`, `RecordSection`, `Facts`, `Fact`, `RecordList`), `value`      |
+| Section sheets | `sheet-form` (edits), `sheet-panel` (reads)                                                                                 |
+| Record form    | `record-form` (`RecordForm`, `FormSection`, danger zone), `unsaved-changes-guard`                                           |
+| Settings page  | `settings-section` (`SettingsPage`, `SettingsSection`, `SettingsGroup`)                                                     |
+| Forms          | `form-field` (`FormField`, `TextField`, `SelectField`, `ChoiceField`, `CheckboxGroupField`, `FieldError`), `combobox-field` |
+| Status         | `status` (`StatusBadge`, `StatusText`, `toneSurface`)                                                                       |
+| Feedback       | `action-menu` (`ActionMenu`, `useRunAndReport`), `confirm-dialog`, `dialog`                                                 |
+| Side panels    | `panel` (`PanelGroup`, `Segmented`)                                                                                         |
 
 The package says nothing in a language of its own. Each app wraps its pages
 in `DesignSystemProvider` with a `DesignSystemValue`: the strings the
@@ -253,6 +253,18 @@ Creating or editing a student, a class, a staff member (Carbon, Primer, GOV.UK).
   filters when that is where it started.
 - Destructive actions sit in a final "Danger zone" section and confirm.
 
+### Steps
+
+A record built over several sittings (a new school sold to a customer) is
+kept as a draft and filled in step by step (GOV.UK question pages, Polaris).
+
+- The steps are a row of links under the header, numbered, the current one
+  filled, those before it ticked; any step can be reopened.
+- Each step is one form of sections. "Save and continue" sits at the bottom,
+  start side, with Back beside it; the step's error appears above them.
+- Leaving a step saves it, so a draft can be finished later or by someone
+  else; the last step reviews everything before the record is made.
+
 ### Settings page
 
 School settings, website settings, notification preferences.
@@ -318,6 +330,15 @@ danger. Labels are one or two words, sentence case, past tense for outcomes
 | Pending, Needs review, Late      | warning        |
 | Overdue, Missing, Failed, Absent | danger         |
 | Archived                         | neutral, muted |
+
+## Metrics
+
+A home page or a board may open with a strip of metrics: the counts its
+work is measured by (Polaris, Carbon). At most five; each is a 13px label,
+the value at 24px in tabular figures, and at most one line under it, toned
+only when it reports a state ("2 need help"). A metric that counts a list
+opens it from the whole tile, its label naming the link. Metrics never
+replace the list itself: the records follow below.
 
 ## Feedback
 

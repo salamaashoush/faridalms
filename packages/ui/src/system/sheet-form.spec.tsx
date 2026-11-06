@@ -51,6 +51,9 @@ describe("SheetForm", () => {
     const sheet = await screen.findByRole("dialog", {
       name: "Edit Salama's details",
     });
+    expect(
+      screen.getByRole("form", { name: "Edit Salama's details" }),
+    ).toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "Save" }));
     const last = screen.getByRole("textbox", { name: "Last name" });
     await waitFor(() => expect(last).toHaveFocus());

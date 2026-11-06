@@ -2,6 +2,7 @@ import type { ComponentProps, ReactNode } from "react";
 
 import { cn } from "../cn";
 import { Input } from "../input";
+import { Checkbox } from "../checkbox";
 import { RadioGroup, RadioGroupItem } from "../radio-group";
 import {
   Select,
@@ -353,6 +354,103 @@ export function ChoiceField<T extends string>({
           </label>
         ))}
       </RadioGroup>
+      {error ? (
+        <p
+          id={`${id}-error`}
+          className="flex items-start gap-1.5 text-[13px] leading-[18px] text-destructive"
+        >
+          <CircleAlert className="mt-px size-3.5 shrink-0" aria-hidden />
+          {error}
+        </p>
+      ) : null}
+    </fieldset>
+  );
+}
+
+export interface CheckboxGroupFieldProps<T extends string> {
+  label: string;
+  value: readonly T[];
+  options: readonly ChoiceOption<T>[];
+  onChange: (value: T[]) => void;
+  hint?: ReactNode;
+  errors?: FieldIssue[];
+  /** Controls above the choices, such as shortcuts that pick a set. */
+  actions?: ReactNode;
+  /** Lays the choices out in columns once the form is wide enough. */
+  columns?: boolean;
+}
+
+/**
+ * Several choices among a few, each a checkbox with its label beside it.
+ * The group is named by its legend and keeps the order of its options.
+ */
+export function CheckboxGroupField<T extends string>({
+  label,
+  value,
+  options,
+  onChange,
+  hint,
+  errors,
+  actions,
+  columns = false,
+}: CheckboxGroupFieldProps<T>) {
+  const id = useId();
+  const error = useFirstError(errors);
+  const describedBy =
+    [hint && !error ? `${id}-hint` : null, error ? `${id}-error` : null]
+      .filter(Boolean)
+      .join(" ") || undefined;
+  return (
+    <fieldset
+      data-slot="form-field"
+      data-invalid={error ? true : undefined}
+      aria-describedby={describedBy}
+      className="grid min-w-0 content-start gap-2"
+    >
+      <legend className="mb-2 text-sm leading-5 font-medium">{label}</legend>
+      {hint && !error ? (
+        <p
+          id={`${id}-hint`}
+          className="-mt-1 text-[13px] leading-[18px] text-muted-foreground"
+        >
+          {hint}
+        </p>
+      ) : null}
+      {actions ? <div className="flex flex-wrap gap-2">{actions}</div> : null}
+      <div className={cn("grid gap-2.5", columns && "@md:grid-cols-2")}>
+        {options.map((option) => (
+          <label
+            key={option.value}
+            htmlFor={`${id}-${option.value}`}
+            className="flex items-start gap-3"
+          >
+            <Checkbox
+              id={`${id}-${option.value}`}
+              checked={value.includes(option.value)}
+              onCheckedChange={(checked) =>
+                onChange(
+                  options
+                    .map((candidate) => candidate.value)
+                    .filter((candidate) =>
+                      candidate === option.value
+                        ? checked
+                        : value.includes(candidate),
+                    ),
+                )
+              }
+              className="mt-0.5"
+            />
+            <span className="grid gap-0.5">
+              <span className="text-sm leading-5">{option.label}</span>
+              {option.hint ? (
+                <span className="text-[13px] leading-[18px] text-muted-foreground">
+                  {option.hint}
+                </span>
+              ) : null}
+            </span>
+          </label>
+        ))}
+      </div>
       {error ? (
         <p
           id={`${id}-error`}

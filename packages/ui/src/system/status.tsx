@@ -19,7 +19,8 @@ export const toneSurface: Record<Tone, string> = {
   danger: "bg-destructive/10 text-destructive",
 };
 
-const dotTone: Record<Tone, string> = {
+/** The dot that marks a tone beside its words. */
+export const dotTone: Record<Tone, string> = {
   neutral: "bg-muted-foreground/60",
   accent: "bg-primary",
   info: "bg-info",

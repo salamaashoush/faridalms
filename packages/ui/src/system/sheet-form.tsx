@@ -10,6 +10,7 @@ import {
   SheetTitle,
 } from "../sheet";
 import { CircleAlert, LoaderCircle, X } from "lucide-react";
+import { useId } from "react";
 
 import { useEndSide, useSystemStrings } from "./provider";
 
@@ -49,6 +50,7 @@ export function SheetForm({
 }: SheetFormProps) {
   const strings = useSystemStrings();
   const side = useEndSide();
+  const titleId = useId();
   return (
     <Sheet
       open={open}
@@ -64,6 +66,7 @@ export function SheetForm({
       >
         <form
           noValidate
+          aria-labelledby={titleId}
           className="flex min-h-0 flex-1 flex-col"
           onSubmit={(event) => {
             event.preventDefault();
@@ -79,7 +82,10 @@ export function SheetForm({
           }}
         >
           <SheetHeader className="border-b px-6 py-4 pe-14 max-md:pe-16">
-            <SheetTitle className="text-base leading-6 font-semibold">
+            <SheetTitle
+              id={titleId}
+              className="text-base leading-6 font-semibold"
+            >
               {title}
             </SheetTitle>
           </SheetHeader>

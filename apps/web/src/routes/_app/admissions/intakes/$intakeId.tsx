@@ -3,6 +3,7 @@ import type { BatchAction, Column } from "@faridalms/ui/system/data-table";
 
 import { BreadcrumbCurrent } from "@faridalms/ui/system/app-shell";
 import { DataTable, RowLink } from "@faridalms/ui/system/data-table";
+import { Metric, MetricGrid } from "@faridalms/ui/system/metrics";
 import { RecordHeader, RecordTabs } from "@faridalms/ui/system/record-page";
 import { StatusText } from "@faridalms/ui/system/status";
 import { useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
@@ -192,7 +193,11 @@ const CARD = {
 };
 
 /** The places of the intake, each counted with its label. */
-function Places({ board }: { board: Board }) {
+interface PlacesProps {
+  board: Board;
+}
+
+function Places({ board }: PlacesProps) {
   const { places } = board;
   const facts = [
     { label: m.brdPlaces(), value: places.capacity },
@@ -202,21 +207,17 @@ function Places({ board }: { board: Board }) {
     { label: m.brdToOffer(), value: places.toOffer },
   ];
   return (
-    <section
-      aria-label={m.brdPlacesTitle()}
-      className="mb-6 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5"
-    >
-      {facts.map((fact) => (
-        <div key={fact.label} className="rounded-lg border bg-card p-4">
-          <p className="text-[13px] leading-[18px] text-muted-foreground">
-            {fact.label}
-          </p>
-          <p className="text-2xl font-semibold tabular-nums">
-            {formatNumber(fact.value)}
-          </p>
-        </div>
-      ))}
-    </section>
+    <div className="mb-6">
+      <MetricGrid label={m.brdPlacesTitle()}>
+        {facts.map((fact) => (
+          <Metric
+            key={fact.label}
+            label={fact.label}
+            value={formatNumber(fact.value)}
+          />
+        ))}
+      </MetricGrid>
+    </div>
   );
 }
 
