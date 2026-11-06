@@ -42,12 +42,16 @@ function badgeLine(student: Student) {
     : m.badgesUnused({ date: formatInstant(badge.issuedAt, "stamp") });
 }
 
+export interface ClassBadgesProps {
+  classId: string;
+}
+
 /**
  * A teacher's sign-in badges for one class: who holds a working badge, new
  * badges printed for everyone or for one child who lost theirs, and a badge
  * stopped when it went missing.
  */
-export function ClassBadges({ classId }: { classId: string }) {
+export function ClassBadges({ classId }: ClassBadgesProps) {
   const user = useCurrentUser();
   const queryClient = useQueryClient();
   const data = useSuspenseQuery(classBadgesQuery(classId)).data;

@@ -90,13 +90,12 @@ const KIND_TONE: Record<CommentKind, string> = {
 };
 
 /** What a comment asks of the student and the criterion it is about. */
-function CommentTags({
-  comment,
-  criteria,
-}: {
+interface CommentTagsProps {
   comment: WorkComment;
   criteria?: Criterion[];
-}) {
+}
+
+function CommentTags({ comment, criteria }: CommentTagsProps) {
   const criterion = criteria?.find((row) => row.id === comment.criterionId);
   if (!comment.kind && !criterion) return null;
   return (
@@ -150,7 +149,11 @@ const spotAt = (element: Element, selector: string, last: DOMRect): Spot => ({
 const markOf = (id: string) => `mark[data-comments~="${CSS.escape(id)}"]`;
 const DRAFT = "mark[data-draft]";
 
-function CommentMeta({ comment }: { comment: WorkComment }) {
+interface CommentMetaProps {
+  comment: WorkComment;
+}
+
+function CommentMeta({ comment }: CommentMetaProps) {
   return (
     <span className="text-[13px] leading-[18px] text-muted-foreground">
       {[
@@ -172,17 +175,16 @@ const STATE_TONE: Record<CommentState, string> = {
   unclear: "text-amber-700 dark:text-amber-300",
 };
 
+interface ThreadSummaryProps {
+  comment: WorkComment;
+  reader?: "grader" | "student" | "answering";
+}
+
 /**
  * What the student answered and the replies since. The student reads their
  * answer in their own words, or not at all where its button shows it.
  */
-function ThreadSummary({
-  comment,
-  reader = "grader",
-}: {
-  comment: WorkComment;
-  reader?: "grader" | "student" | "answering";
-}) {
+function ThreadSummary({ comment, reader = "grader" }: ThreadSummaryProps) {
   const state = reader === "answering" ? null : comment.studentState;
   if (!state && !comment.replies.length) return null;
   return (
@@ -226,17 +228,16 @@ function ThreadSummary({
   );
 }
 
+interface RespondProps {
+  comment: WorkComment;
+  answering: boolean;
+}
+
 /**
  * The student's side of a comment: saying it is fixed or not understood,
  * and replying. A grader replies here too.
  */
-function Respond({
-  comment,
-  answering,
-}: {
-  comment: WorkComment;
-  answering: boolean;
-}) {
+function Respond({ comment, answering }: RespondProps) {
   const queryClient = useQueryClient();
   const [reply, setReply] = useState("");
   const settle = () =>
@@ -316,15 +317,13 @@ function Respond({
   );
 }
 
-function SmallCheck({
-  label,
-  checked,
-  onChange,
-}: {
+interface SmallCheckProps {
   label: string;
   checked: boolean;
   onChange: (checked: boolean) => void;
-}) {
+}
+
+function SmallCheck({ label, checked, onChange }: SmallCheckProps) {
   const id = useId();
   return (
     <div className="flex items-center gap-2">
@@ -344,6 +343,16 @@ function SmallCheck({
 }
 
 /** Writes a comment on a passage, or changes the grader's own. */
+interface ComposerProps {
+  attemptId: string;
+  passage: Passage;
+  comment?: WorkComment;
+  criteria?: Criterion[];
+  field: RefObject<HTMLTextAreaElement | null>;
+  onDirty: (dirty: boolean) => void;
+  onDone: (id: string | null) => void;
+}
+
 function Composer({
   attemptId,
   passage,
@@ -352,15 +361,7 @@ function Composer({
   field,
   onDirty,
   onDone,
-}: {
-  attemptId: string;
-  passage: Passage;
-  comment?: WorkComment;
-  criteria?: Criterion[];
-  field: RefObject<HTMLTextAreaElement | null>;
-  onDirty: (dirty: boolean) => void;
-  onDone: (id: string | null) => void;
-}) {
+}: ComposerProps) {
   const queryClient = useQueryClient();
   const [body, setBody] = useState(comment?.body ?? "");
   const [kind, setKind] = useState<CommentKind | "">(comment?.kind ?? "");
@@ -560,6 +561,24 @@ function Composer({
   );
 }
 
+export interface CommentedWorkProps {
+  document: ContentDocument;
+  comments: WorkComment[];
+  /** A block to start a comment on, chosen without selecting its words. */
+  commentOn?: { block: string; at: number };
+  /** The work is the viewer's own and returned, so its comments take answers. */
+  answering?: boolean;
+  criteria?: Criterion[];
+  active: string | null;
+  /** Scrolls to the active comment and opens it each time it changes. */
+  reveal?: number;
+  /** The attempt a grader comments on; readers only read. */
+  attemptId?: string;
+  onOpen: (id: string | null) => void;
+  /** Told the words each comment points at, as the work reads them. */
+  onPassages?: (passages: Record<string, string>) => void;
+}
+
 /**
  * Handed-in work with its comments marked on the passages they were made
  * on. A marked passage opens its comment where it stands; a grader who
@@ -576,23 +595,7 @@ export function CommentedWork({
   commentOn,
   onOpen,
   onPassages,
-}: {
-  document: ContentDocument;
-  comments: WorkComment[];
-  /** A block to start a comment on, chosen without selecting its words. */
-  commentOn?: { block: string; at: number };
-  /** The work is the viewer's own and returned, so its comments take answers. */
-  answering?: boolean;
-  criteria?: Criterion[];
-  active: string | null;
-  /** Scrolls to the active comment and opens it each time it changes. */
-  reveal?: number;
-  /** The attempt a grader comments on; readers only read. */
-  attemptId?: string;
-  onOpen: (id: string | null) => void;
-  /** Told the words each comment points at, as the work reads them. */
-  onPassages?: (passages: Record<string, string>) => void;
-}) {
+}: CommentedWorkProps) {
   const user = useCurrentUser();
   const queryClient = useQueryClient();
   const root = useRef<HTMLDivElement>(null);
@@ -963,14 +966,7 @@ export function CommentedWork({
 }
 
 /** The comments on one attempt, each under the passage it was made on. */
-export function CommentList({
-  comments,
-  criteria,
-  passages,
-  active,
-  onShow,
-  mine = false,
-}: {
+export interface CommentListProps {
   comments: WorkComment[];
   criteria?: Criterion[];
   /** The comments are on the viewer's own work. */
@@ -979,7 +975,16 @@ export function CommentList({
   active: string | null;
   /** Scrolls to the passage; none for comments on work no longer shown. */
   onShow?: (id: string) => void;
-}) {
+}
+
+export function CommentList({
+  comments,
+  criteria,
+  passages,
+  active,
+  onShow,
+  mine = false,
+}: CommentListProps) {
   return (
     <ul className="grid gap-3">
       {comments.map((comment) => {

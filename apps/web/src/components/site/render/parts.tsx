@@ -163,13 +163,12 @@ const ICON: Record<Exclude<IconId, "none">, LucideIcon> = {
   clock: Clock,
 };
 
-export function SiteIcon({
-  icon,
-  className,
-}: {
+export interface SiteIconProps {
   icon: IconId;
   className?: string;
-}) {
+}
+
+export function SiteIcon({ icon, className }: SiteIconProps) {
   if (icon === "none") return null;
   const Icon = ICON[icon];
   return <Icon aria-hidden className={className} />;
@@ -182,16 +181,7 @@ export function iconOf(icon: IconId): LucideIcon | null {
 export type ButtonVariant = "secondary" | "ghost";
 export type ButtonSize = "sm" | "lg";
 
-export function SiteAnchor({
-  href,
-  context,
-  className,
-  children,
-  style,
-  variant,
-  size,
-  current,
-}: {
+export interface SiteAnchorProps {
   href: string;
   context: RenderContext;
   className?: string;
@@ -201,7 +191,18 @@ export function SiteAnchor({
   size?: ButtonSize;
   /** The link leads to the page being shown. */
   current?: boolean;
-}) {
+}
+
+export function SiteAnchor({
+  href,
+  context,
+  className,
+  children,
+  style,
+  variant,
+  size,
+  current,
+}: SiteAnchorProps) {
   if (context.editing || !href)
     return (
       <span
@@ -231,17 +232,14 @@ export function SiteAnchor({
 }
 
 /** A section's buttons: the first filled, the rest outlined beside it. */
-export function Actions({
-  actions,
-  context,
-  className,
-  size,
-}: {
+export interface ActionsProps {
   actions: Link[];
   context: RenderContext;
   className?: string;
   size?: ButtonSize;
-}) {
+}
+
+export function Actions({ actions, context, className, size }: ActionsProps) {
   const shown = actions.filter((action) => action.label.trim());
   if (shown.length === 0) return null;
   return (
@@ -263,18 +261,20 @@ export function Actions({
 }
 
 /** Words and an arrow: the quiet way onwards beside a heading or under a card. */
-export function TextLink({
-  href,
-  context,
-  children,
-  className,
-}: {
+export interface TextLinkProps {
   /** Without one, the words sit inside a link that already wraps them. */
   href?: string;
   context: RenderContext;
   children: ReactNode;
   className?: string;
-}) {
+}
+
+export function TextLink({
+  href,
+  context,
+  children,
+  className,
+}: TextLinkProps) {
   const body = (
     <>
       {children}
@@ -294,18 +294,17 @@ export function TextLink({
   );
 }
 
+export interface ScrimProps {
+  photo: boolean;
+  strength?: "m" | "l";
+}
+
 /**
  * The shade under words laid over a picture. Over a photograph it is black;
  * over the theme's artwork it is the art's own deepest tone, so the colour
  * stays rich instead of turning grey.
  */
-export function Scrim({
-  photo,
-  strength = "m",
-}: {
-  photo: boolean;
-  strength?: "m" | "l";
-}) {
+export function Scrim({ photo, strength = "m" }: ScrimProps) {
   const shade = photo ? "rgb(0 0 0)" : "var(--s-art-deep)";
   // The strong scrim holds its shade up past half the height, where a tile's
   // sentence sits above its title, before it fades.
@@ -364,6 +363,15 @@ function showRaw(element: HTMLElement, raw: string, caret = raw.length) {
   getSelection()?.collapse(element.firstChild ?? element, caret);
 }
 
+interface EditableProps {
+  tag: "h1" | "h2" | "h3" | "p";
+  field?: string;
+  value: string;
+  multiline?: boolean;
+  className?: string;
+  children: ReactNode;
+}
+
 /**
  * Words a school can type over in the builder: on focus the element shows
  * its raw text, asterisks and all; on leaving, the words are saved and the
@@ -376,14 +384,7 @@ function Editable({
   multiline = false,
   className,
   children,
-}: {
-  tag: "h1" | "h2" | "h3" | "p";
-  field?: string;
-  value: string;
-  multiline?: boolean;
-  className?: string;
-  children: ReactNode;
-}) {
+}: EditableProps) {
   const edit = useContext(TextEditContext);
   const [round, setRound] = useState(0);
   if (!edit || !field) return <Tag className={className}>{children}</Tag>;
@@ -425,13 +426,12 @@ function Editable({
   );
 }
 
-export function Eyebrow({
-  children,
-  field,
-}: {
+export interface EyebrowProps {
   children: string;
   field?: string;
-}) {
+}
+
+export function Eyebrow({ children, field }: EyebrowProps) {
   return children ? (
     <Editable tag="p" field={field} value={children} className="site-eyebrow">
       {children}
@@ -440,7 +440,11 @@ export function Eyebrow({
 }
 
 /** Words a school wraps in asterisks, set in the theme's second voice. */
-export function Emphasised({ children }: { children: string }) {
+export interface EmphasisedProps {
+  children: string;
+}
+
+export function Emphasised({ children }: EmphasisedProps) {
   const parts = children.split(EMPHASIS);
   if (parts.length === 1) return children;
   let offset = 0;
@@ -466,20 +470,22 @@ const SIZE = {
   h4: "site-h4",
 } as const;
 
-export function Heading({
-  children,
-  level = 2,
-  size,
-  className,
-  field,
-}: {
+export interface HeadingProps {
   children: string;
   level?: 1 | 2 | 3;
   size?: keyof typeof SIZE;
   className?: string;
   /** The section field these words come from, for typing over them in the builder. */
   field?: string;
-}) {
+}
+
+export function Heading({
+  children,
+  level = 2,
+  size,
+  className,
+  field,
+}: HeadingProps) {
   if (!children) return null;
   return (
     <Editable
@@ -497,15 +503,13 @@ export function Heading({
   );
 }
 
-export function Lead({
-  children,
-  className,
-  field,
-}: {
+export interface LeadProps {
   children: string;
   className?: string;
   field?: string;
-}) {
+}
+
+export function Lead({ children, className, field }: LeadProps) {
   return children ? (
     <Editable
       tag="p"
@@ -519,13 +523,12 @@ export function Lead({
   ) : null;
 }
 
-export function Prose({
-  body,
-  context,
-}: {
+export interface ProseProps {
   body: ContentDocument;
   context: RenderContext;
-}) {
+}
+
+export function Prose({ body, context }: ProseProps) {
   return (
     <div className="site-prose">
       <ContentView
@@ -534,6 +537,19 @@ export function Prose({
       />
     </div>
   );
+}
+
+export interface SitePictureProps {
+  image: Picture;
+  context: RenderContext;
+  className?: string;
+  ratio?: string;
+  seed?: string;
+  feature?: boolean;
+  art?: boolean;
+  /** The proportions on a phone, where a tall picture would fill the screen. */
+  phoneRatio?: string;
+  set?: ArtSet;
 }
 
 /**
@@ -550,18 +566,7 @@ export function SitePicture({
   art = true,
   phoneRatio,
   set,
-}: {
-  image: Picture;
-  context: RenderContext;
-  className?: string;
-  ratio?: string;
-  seed?: string;
-  feature?: boolean;
-  art?: boolean;
-  /** The proportions on a phone, where a tall picture would fill the screen. */
-  phoneRatio?: string;
-  set?: ArtSet;
-}) {
+}: SitePictureProps) {
   const src = image.fileId ? context.fileUrl(image.fileId) : null;
   const body = src ? (
     <img
@@ -603,6 +608,17 @@ export function SitePicture({
   );
 }
 
+export interface MediaViewProps {
+  media: SiteMedia;
+  context: RenderContext;
+  className?: string;
+  ratio?: string;
+  seed?: string;
+  feature?: boolean;
+  phoneRatio?: string;
+  set?: ArtSet;
+}
+
 /**
  * A picture or a video. A video plays only when asked, with its captions;
  * an autoplaying background is decorative and always has a pause button.
@@ -616,16 +632,7 @@ export function MediaView({
   feature = false,
   phoneRatio,
   set,
-}: {
-  media: SiteMedia;
-  context: RenderContext;
-  className?: string;
-  ratio?: string;
-  seed?: string;
-  feature?: boolean;
-  phoneRatio?: string;
-  set?: ArtSet;
-}) {
+}: MediaViewProps) {
   if (media.kind === "image")
     return (
       <SitePicture
@@ -677,17 +684,19 @@ export function MediaView({
 }
 
 /** A decorative, muted background film, paused on request and for reduced motion. */
+export interface BackgroundVideoProps {
+  src: string;
+  poster?: string;
+  pauseLabel: string;
+  playLabel: string;
+}
+
 export function BackgroundVideo({
   src,
   poster,
   pauseLabel,
   playLabel,
-}: {
-  src: string;
-  poster?: string;
-  pauseLabel: string;
-  playLabel: string;
-}) {
+}: BackgroundVideoProps) {
   const video = useRef<HTMLVideoElement>(null);
   const [playing, setPlaying] = useState(true);
   return (
@@ -737,13 +746,12 @@ export const fullBleed = (section: PageSection) =>
 
 const SPACING = { s: 0.6, m: 1, l: 1.4 } as const;
 
-function DividerShape({
-  divider,
-  edge,
-}: {
+interface DividerShapeProps {
   divider: Divider;
   edge: "top" | "bottom";
-}) {
+}
+
+function DividerShape({ divider, edge }: DividerShapeProps) {
   if (divider === "none") return null;
   const paths: Record<Exclude<Divider, "none">, string> = {
     curve: "M0,40 C360,0 1080,0 1440,40 L1440,40 L0,40 Z",
@@ -768,6 +776,18 @@ function DividerShape({
   );
 }
 
+export interface SectionFrameProps {
+  section: PageSection;
+  context: RenderContext;
+  children: ReactNode;
+  /** The section fills the width whatever its width setting says. */
+  full?: boolean;
+  padded?: boolean;
+  /** It continues the section above on the same colour, so the two share one gap. */
+  joined?: boolean;
+  labels: { pause: string; play: string };
+}
+
 /**
  * The frame every section sits in: its colour scheme or background media,
  * its spacing, width and alignment, its dividers and its anchor.
@@ -780,17 +800,7 @@ export function SectionFrame({
   padded = true,
   joined = false,
   labels,
-}: {
-  section: PageSection;
-  context: RenderContext;
-  children: ReactNode;
-  /** The section fills the width whatever its width setting says. */
-  full?: boolean;
-  padded?: boolean;
-  /** It continues the section above on the same colour, so the two share one gap. */
-  joined?: boolean;
-  labels: { pause: string; play: string };
-}) {
+}: SectionFrameProps) {
   const style = section.style;
   const background = style.background;
   const backgroundSrc =
@@ -869,15 +879,17 @@ export function SectionFrame({
 }
 
 /** A section's eyebrow, heading and lead above its content, aligned as the section is. */
+export interface SectionIntroProps {
+  eyebrow?: string;
+  heading: string;
+  text?: string;
+}
+
 export function SectionIntro({
   eyebrow = "",
   heading,
   text = "",
-}: {
-  eyebrow?: string;
-  heading: string;
-  text?: string;
-}) {
+}: SectionIntroProps) {
   if (!eyebrow && !heading && !text) return null;
   return (
     <div className="site-intro">

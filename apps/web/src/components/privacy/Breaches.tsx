@@ -102,7 +102,11 @@ function peopleStanding(row: BreachRow, today: string): Standing {
       };
 }
 
-function BreachTitle({ row }: { row: BreachRow }) {
+interface BreachTitleProps {
+  row: BreachRow;
+}
+
+function BreachTitle({ row }: BreachTitleProps) {
   return <UserText text={row.title} className="font-medium" />;
 }
 
@@ -204,19 +208,21 @@ function breachCard(now: number, today: string) {
   };
 }
 
+export interface BreachesTableProps {
+  overview: PrivacyOverview;
+  onAdd: () => void;
+  onEdit: (row: BreachRow) => void;
+  onNotices: (row: BreachRow) => void;
+  onClose: (row: BreachRow) => void;
+}
+
 export function BreachesTable({
   overview,
   onAdd,
   onEdit,
   onNotices,
   onClose,
-}: {
-  overview: PrivacyOverview;
-  onAdd: () => void;
-  onEdit: (row: BreachRow) => void;
-  onNotices: (row: BreachRow) => void;
-  onClose: (row: BreachRow) => void;
-}) {
+}: BreachesTableProps) {
   const [now] = useState(() => Date.now());
   const rowActions = (row: BreachRow): RowAction[] =>
     row.closedAt
@@ -263,15 +269,13 @@ export function BreachesTable({
 
 const localNow = () => localInput(new Date().toISOString());
 
-export function BreachSheet({
-  open,
-  breach,
-  onClose,
-}: {
+export interface BreachSheetProps {
   open: boolean;
   breach: BreachRow | null;
   onClose: () => void;
-}) {
+}
+
+export function BreachSheet({ open, breach, onClose }: BreachSheetProps) {
   const refresh = useRefresh();
   const [title, setTitle] = useState(breach?.title ?? "");
   const [description, setDescription] = useState(breach?.description ?? "");
@@ -408,6 +412,18 @@ export function BreachSheet({
 }
 
 /** One notice: told at a time, or not told with the reason why. */
+interface NoticeProps {
+  id: string;
+  label: string;
+  told: boolean;
+  onTold: (next: boolean) => void;
+  at: string;
+  onAt: (next: string) => void;
+  reason: string;
+  onReason: (next: string) => void;
+  errors: { at: string | null; reason: string | null };
+}
+
 function Notice({
   id,
   label,
@@ -418,17 +434,7 @@ function Notice({
   reason,
   onReason,
   errors,
-}: {
-  id: string;
-  label: string;
-  told: boolean;
-  onTold: (next: boolean) => void;
-  at: string;
-  onAt: (next: string) => void;
-  reason: string;
-  onReason: (next: string) => void;
-  errors: { at: string | null; reason: string | null };
-}) {
+}: NoticeProps) {
   return (
     <fieldset className="grid gap-3">
       <legend className="mb-1 text-sm leading-5 font-medium">{label}</legend>
@@ -469,15 +475,13 @@ function Notice({
   );
 }
 
-export function NoticesSheet({
-  open,
-  breach,
-  onClose,
-}: {
+export interface NoticesSheetProps {
   open: boolean;
   breach: BreachRow;
   onClose: () => void;
-}) {
+}
+
+export function NoticesSheet({ open, breach, onClose }: NoticesSheetProps) {
   const refresh = useRefresh();
   const [regulatorTold, setRegulatorTold] = useState(
     breach.regulatorNotifiedAt !== null,
@@ -597,15 +601,17 @@ export function NoticesSheet({
   );
 }
 
+export interface CloseBreachSheetProps {
+  open: boolean;
+  breach: BreachRow;
+  onClose: () => void;
+}
+
 export function CloseBreachSheet({
   open,
   breach,
   onClose,
-}: {
-  open: boolean;
-  breach: BreachRow;
-  onClose: () => void;
-}) {
+}: CloseBreachSheetProps) {
   const refresh = useRefresh();
   const [actions, setActions] = useState(breach.actions ?? "");
   const [tried, setTried] = useState(false);

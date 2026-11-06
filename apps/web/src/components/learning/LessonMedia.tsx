@@ -10,13 +10,12 @@ import { getLocale } from "~/i18n/runtime";
 const fileUrl = (fileId: string) => `/files/${fileId}`;
 
 /** A lesson's picture, sound, video or file, with its caption and transcript. */
-export function Media({
-  block,
-  watch,
-}: {
+export interface MediaProps {
   block: Extract<LessonBlock, { type: "media" }>;
   watch?: ((fileId: string) => MediaWatch | undefined) | undefined;
-}) {
+}
+
+export function Media({ block, watch }: MediaProps) {
   const src = fileUrl(block.fileId);
   const captions = block.captionsFileId ? fileUrl(block.captionsFileId) : null;
   return (

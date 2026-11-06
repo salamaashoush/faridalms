@@ -24,6 +24,13 @@ export function fileSizeLabel(bytes: number): string {
   });
 }
 
+export interface FileListProps {
+  files: FileSummary[];
+  onRemove?: (id: string) => void;
+  disabled?: boolean;
+  emptyLabel?: string;
+}
+
 /**
  * Files outside a document, such as work handed in or a message's
  * attachments, shown as the same cards and viewer a document uses. The web's
@@ -34,12 +41,7 @@ export function FileList({
   onRemove,
   disabled = false,
   emptyLabel,
-}: {
-  files: FileSummary[];
-  onRemove?: (id: string) => void;
-  disabled?: boolean;
-  emptyLabel?: string;
-}) {
+}: FileListProps) {
   if (files.length === 0)
     return emptyLabel ? (
       <p className="text-sm text-muted-foreground">{emptyLabel}</p>

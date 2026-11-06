@@ -101,13 +101,12 @@ import { YoungSpelling } from "./young/YoungSpelling";
 import { YoungTracing } from "./young/YoungTracing";
 
 /** A part's picture over its words; with no words, its description names it. */
-function PartView({
-  part,
-  size = "small",
-}: {
+interface PartViewProps {
   part: StudentPart;
   size?: "small" | "card";
-}) {
+}
+
+function PartView({ part, size = "small" }: PartViewProps) {
   const m = useCheckMessages();
   const picture = part.picture;
   return (
@@ -143,20 +142,18 @@ function PartView({
 const partLabel = (part: StudentPart) =>
   textOfMath(part.text, getLocale()) || part.picture?.alt || "";
 
+interface VoicedProps {
+  part: StudentPart;
+  card: boolean;
+  children: ReactNode;
+}
+
 /**
  * A part with its speaker beside it. The speaker is a button of its own, so
  * it sits over a choosable card rather than inside it, and playing a part
  * never chooses it.
  */
-function Voiced({
-  part,
-  card,
-  children,
-}: {
-  part: StudentPart;
-  card: boolean;
-  children: ReactNode;
-}) {
+function Voiced({ part, card, children }: VoicedProps) {
   const reader = useContext(ReaderContext);
   if (!part.narration && !reader) return children;
   return (
@@ -307,7 +304,11 @@ function useCheck(
   return { editing, setEditing, respond, reveal };
 }
 
-function Verdict({ view }: { view: CheckView }) {
+interface VerdictProps {
+  view: CheckView;
+}
+
+function Verdict({ view }: VerdictProps) {
   const m = useCheckMessages();
   const mode = useContext(CheckModeContext);
   if (view.correct)
@@ -357,15 +358,13 @@ const MATH_NOTES = {
 } as const satisfies Record<MathNote, keyof Messages>;
 
 /** What a student learns from a try: right or not, what they chose meant, the hints so far, and once settled the answer and why. */
-function Outcome({
-  view,
-  keyText,
-  keyCode,
-}: {
+interface OutcomeProps {
   view: CheckView;
   keyText?: string;
   keyCode?: string[];
-}) {
+}
+
+function Outcome({ view, keyText, keyCode }: OutcomeProps) {
   const m = useCheckMessages();
   return (
     <>
@@ -407,17 +406,14 @@ function Outcome({
 }
 
 /** What a question says under its answer, by mode. */
-function CheckStatus({
-  view,
-  editing,
-  keyText,
-  keyCode,
-}: {
+interface CheckStatusProps {
   view: CheckView | undefined;
   editing: boolean;
   keyText?: string;
   keyCode?: string[];
-}) {
+}
+
+function CheckStatus({ view, editing, keyText, keyCode }: CheckStatusProps) {
   const m = useCheckMessages();
   const mode = useContext(CheckModeContext);
   if (mode === "review")
@@ -461,6 +457,15 @@ function spokenOf(block: CheckStudentBlock): string {
   return parts.filter(Boolean).join(". ");
 }
 
+interface CheckCardProps {
+  block: CheckStudentBlock;
+  onSubmit?: () => void;
+  legendId: string;
+  children: ReactNode;
+  status: ReactNode;
+  actions: ReactNode;
+}
+
 function CheckCard({
   block,
   onSubmit,
@@ -468,14 +473,7 @@ function CheckCard({
   children,
   status,
   actions,
-}: {
-  block: CheckStudentBlock;
-  onSubmit?: () => void;
-  legendId: string;
-  children: ReactNode;
-  status: ReactNode;
-  actions: ReactNode;
-}) {
+}: CheckCardProps) {
   const m = useCheckMessages();
   const young = useContext(YoungContext);
   const mode = useContext(CheckModeContext);
@@ -575,6 +573,16 @@ function CheckCard({
 }
 
 /** Try again, or give up and see the answer, once a try was wrong. */
+interface RetryProps {
+  view: CheckView | undefined;
+  editing: boolean;
+  settled: boolean;
+  canCheck: boolean;
+  pending: boolean;
+  onTryAgain: () => void;
+  onReveal: () => void;
+}
+
 function Retry({
   view,
   editing,
@@ -583,15 +591,7 @@ function Retry({
   pending,
   onTryAgain,
   onReveal,
-}: {
-  view: CheckView | undefined;
-  editing: boolean;
-  settled: boolean;
-  canCheck: boolean;
-  pending: boolean;
-  onTryAgain: () => void;
-  onReveal: () => void;
-}) {
+}: RetryProps) {
   const m = useCheckMessages();
   const mode = useContext(CheckModeContext);
   if (mode === "review" || (mode === "practice" && settled)) return null;
@@ -666,7 +666,11 @@ const choiceRow =
 
 type Mark = "right" | "wrong" | null;
 
-function MarkIcon({ mark }: { mark: Mark }) {
+interface MarkIconProps {
+  mark: Mark;
+}
+
+function MarkIcon({ mark }: MarkIconProps) {
   const m = useCheckMessages();
   if (mark === null) return null;
   const Icon = mark === "right" ? CircleCheck : CircleX;
@@ -713,7 +717,12 @@ const markBorder = (mark: Mark) =>
     mark === "wrong" && "border-destructive/50",
   );
 
-function RightPart({ mark, text }: { mark: Mark; text: string | undefined }) {
+interface RightPartProps {
+  mark: Mark;
+  text: string | undefined;
+}
+
+function RightPart({ mark, text }: RightPartProps) {
   const m = useCheckMessages();
   if (mark !== "wrong" || text === undefined) return null;
   return (
@@ -731,6 +740,18 @@ const markRow = (editing: boolean, mark: Mark) =>
     mark === "wrong" && "border-destructive/40 bg-destructive/5",
   );
 
+interface OptionListProps {
+  options: StudentPart[];
+  multiple: boolean;
+  legend: string;
+  locked: boolean;
+  selected: string[];
+  onSelect: (next: (current: string[]) => string[]) => void;
+  editing: boolean;
+  markOf: (optionId: string) => Mark;
+  chooseAll: string;
+}
+
 /**
  * A question's options to pick from: one as radio buttons, several as
  * checkboxes, and options with pictures as a grid of cards.
@@ -745,17 +766,7 @@ function OptionList({
   editing,
   markOf,
   chooseAll,
-}: {
-  options: StudentPart[];
-  multiple: boolean;
-  legend: string;
-  locked: boolean;
-  selected: string[];
-  onSelect: (next: (current: string[]) => string[]) => void;
-  editing: boolean;
-  markOf: (optionId: string) => Mark;
-  chooseAll: string;
-}) {
+}: OptionListProps) {
   const young = useContext(YoungContext);
   // Options with pictures read as a grid of cards, the way children choose.
   const pictured = options.some((option) => option.picture);
@@ -852,15 +863,13 @@ function OptionList({
   );
 }
 
-function ChoiceCheck({
-  block,
-  view,
-  driver,
-}: {
+interface ChoiceCheckProps {
   block: Of<"choice">;
   view: CheckView | undefined;
   driver: CheckDriver;
-}) {
+}
+
+function ChoiceCheck({ block, view, driver }: ChoiceCheckProps) {
   const m = useCheckMessages();
   const legend = useId();
   const { editing, setEditing, respond, reveal } = useCheck(
@@ -927,21 +936,18 @@ function ChoiceCheck({
   );
 }
 
-/**
- * How many of a class chose each option of a poll, as bars of its share of
- * those who answered; the student's own answer named, never anyone else's.
- */
-function PollTally({
-  options,
-  counts,
-  answered,
-  mine,
-}: {
+interface PollTallyProps {
   options: StudentPart[];
   counts: Record<string, number>;
   answered: number;
   mine: string[];
-}) {
+}
+
+/**
+ * How many of a class chose each option of a poll, as bars of its share of
+ * those who answered; the student's own answer named, never anyone else's.
+ */
+function PollTally({ options, counts, answered, mine }: PollTallyProps) {
   const m = useCheckMessages();
   return (
     <div className="grid gap-3">
@@ -991,17 +997,14 @@ function PollTally({
 }
 
 /** A poll's class results as the server counts them, asked again as others answer. */
-function PollResults({
-  query,
-  options,
-  mine,
-  fallback,
-}: {
+interface PollResultsProps {
   query: ReturnType<typeof pollResultsQuery>;
   options: StudentPart[];
   mine: string[];
   fallback: ReactNode;
-}) {
+}
+
+function PollResults({ query, options, mine, fallback }: PollResultsProps) {
   const { data } = useQuery(query);
   if (!data) return fallback;
   return (
@@ -1014,20 +1017,18 @@ function PollResults({
   );
 }
 
+interface PollCheckProps {
+  block: Of<"poll">;
+  view: CheckView | undefined;
+  driver: CheckDriver;
+}
+
 /**
  * A question with no right answer: the student votes once and, if their
  * teacher shares it, then sees how their class answered, as Moodle's
  * choice activity can show its results after answering.
  */
-function PollCheck({
-  block,
-  view,
-  driver,
-}: {
-  block: Of<"poll">;
-  view: CheckView | undefined;
-  driver: CheckDriver;
-}) {
+function PollCheck({ block, view, driver }: PollCheckProps) {
   const m = useCheckMessages();
   const legend = useId();
   const { editing, setEditing, respond } = useCheck(block.id, view, driver);
@@ -1136,15 +1137,13 @@ function PollCheck({
   );
 }
 
-function TypedCheck({
-  block,
-  view,
-  driver,
-}: {
+interface TypedCheckProps {
   block: Of<"text"> | Of<"number">;
   view: CheckView | undefined;
   driver: CheckDriver;
-}) {
+}
+
+function TypedCheck({ block, view, driver }: TypedCheckProps) {
   const m = useCheckMessages();
   const legend = useId();
   const field = useId();
@@ -1249,15 +1248,13 @@ function TypedCheck({
 }
 
 /** A formula as the answer, written in MathLive's field and marked by what it means. */
-function MathCheck({
-  block,
-  view,
-  driver,
-}: {
+interface MathCheckProps {
   block: Of<"math">;
   view: CheckView | undefined;
   driver: CheckDriver;
-}) {
+}
+
+function MathCheck({ block, view, driver }: MathCheckProps) {
   const m = useCheckMessages();
   const legend = useId();
   const { editing, setEditing, respond, reveal } = useCheck(
@@ -1335,21 +1332,16 @@ interface BankDrop {
 }
 
 /** One word of a bank: pressed onto the next empty place, or dragged onto any. */
-function BankWord({
-  word,
-  used,
-  locked,
-  label,
-  onUse,
-  drop,
-}: {
+interface BankWordProps {
   word: string;
   used: boolean;
   locked: boolean;
   label: string;
   onUse: () => void;
   drop: BankDrop | undefined;
-}) {
+}
+
+function BankWord({ word, used, locked, label, onUse, drop }: BankWordProps) {
   const drag = useCardDrag({
     locked: locked || !drop,
     pile: drop?.pile ?? "",
@@ -1379,6 +1371,16 @@ function BankWord({
 }
 
 /** Words or labels to place, each pressed to put it in the next empty place, or dragged where it goes. */
+interface WordBankProps {
+  title: string;
+  words: string[];
+  used: string[];
+  locked: boolean;
+  labelOf: (word: string) => string;
+  onUse: (word: string) => void;
+  drop?: BankDrop;
+}
+
 function WordBank({
   title,
   words,
@@ -1387,15 +1389,7 @@ function WordBank({
   labelOf,
   onUse,
   drop,
-}: {
-  title: string;
-  words: string[];
-  used: string[];
-  locked: boolean;
-  labelOf: (word: string) => string;
-  onUse: (word: string) => void;
-  drop?: BankDrop;
-}) {
+}: WordBankProps) {
   return (
     <div className="grid gap-1.5">
       <p className="text-[13px] leading-[18px] font-medium text-muted-foreground">
@@ -1423,6 +1417,12 @@ function WordBank({
   );
 }
 
+interface LabellingCheckProps {
+  block: Of<"labelling">;
+  view: CheckView | undefined;
+  driver: CheckDriver;
+}
+
 /**
  * A picture with numbered places, each given a label from the bank: dragged
  * onto its place, pressed onto the next empty one, or chosen for each place
@@ -1430,15 +1430,7 @@ function WordBank({
  * The places keep to the picture, which reads the same way in either
  * language.
  */
-function LabellingCheck({
-  block,
-  view,
-  driver,
-}: {
-  block: Of<"labelling">;
-  view: CheckView | undefined;
-  driver: CheckDriver;
-}) {
+function LabellingCheck({ block, view, driver }: LabellingCheckProps) {
   const m = useCheckMessages();
   const legend = useId();
   const { editing, setEditing, respond, reveal } = useCheck(
@@ -1612,15 +1604,13 @@ function LabellingCheck({
   );
 }
 
-function GapsCheck({
-  block,
-  view,
-  driver,
-}: {
+interface GapsCheckProps {
   block: Of<"gaps">;
   view: CheckView | undefined;
   driver: CheckDriver;
-}) {
+}
+
+function GapsCheck({ block, view, driver }: GapsCheckProps) {
   const m = useCheckMessages();
   const legend = useId();
   const { editing, setEditing, respond, reveal } = useCheck(
@@ -1762,6 +1752,12 @@ function squareAt(x: number, y: number): [number, number] | null {
   return [Number(square.dataset.row), Number(square.dataset.col)];
 }
 
+interface WordSearchCheckProps {
+  block: Of<"wordsearch">;
+  view: CheckView | undefined;
+  driver: CheckDriver;
+}
+
 /**
  * Words hidden in a grid of letters: a student drags across a word, or
  * presses its first letter and then its last, and a stretch that spells one
@@ -1769,15 +1765,7 @@ function squareAt(x: number, y: number): [number, number] | null {
  * presses one, so a keyboard finds words as a finger does; rows read from
  * the right when the words are Arabic.
  */
-function WordSearchCheck({
-  block,
-  view,
-  driver,
-}: {
-  block: Of<"wordsearch">;
-  view: CheckView | undefined;
-  driver: CheckDriver;
-}) {
+function WordSearchCheck({ block, view, driver }: WordSearchCheckProps) {
   const m = useCheckMessages();
   const legend = useId();
   const { editing, setEditing, respond, reveal } = useCheck(
@@ -1994,6 +1982,12 @@ type Entry = Of<"crossword">["entries"][number];
 const way = (entry: Pick<Entry, "across">, m: Messages) =>
   entry.across ? m.lrnCrosswordAcross() : m.lrnCrosswordDown();
 
+interface CrosswordCheckProps {
+  block: Of<"crossword">;
+  view: CheckView | undefined;
+  driver: CheckDriver;
+}
+
 /**
  * A crossword: its grid of squares to type a letter in, and its clues
  * across and down. Typing moves on along the word being filled, the arrow
@@ -2001,15 +1995,7 @@ const way = (entry: Pick<Entry, "across">, m: Messages) =>
  * again changes which word is filled. Words across read from the right
  * when they are Arabic, as Arabic crosswords are printed.
  */
-function CrosswordCheck({
-  block,
-  view,
-  driver,
-}: {
-  block: Of<"crossword">;
-  view: CheckView | undefined;
-  driver: CheckDriver;
-}) {
+function CrosswordCheck({ block, view, driver }: CrosswordCheckProps) {
   const m = useCheckMessages();
   const legend = useId();
   const { editing, setEditing, respond, reveal } = useCheck(
@@ -2294,20 +2280,18 @@ function CrosswordCheck({
   );
 }
 
+interface HighlightCheckProps {
+  block: Of<"highlight">;
+  view: CheckView | undefined;
+  driver: CheckDriver;
+}
+
 /**
  * Words picked out of a passage: each word a button pressed in or out, so
  * a keyboard and a screen reader pick as a finger does. Once marked, each
  * pick says whether it was right, and once settled the words missed show.
  */
-function HighlightCheck({
-  block,
-  view,
-  driver,
-}: {
-  block: Of<"highlight">;
-  view: CheckView | undefined;
-  driver: CheckDriver;
-}) {
+function HighlightCheck({ block, view, driver }: HighlightCheckProps) {
   const m = useCheckMessages();
   const legend = useId();
   const { editing, setEditing, respond, reveal } = useCheck(
@@ -2390,15 +2374,13 @@ function HighlightCheck({
   );
 }
 
-function MatchingCheck({
-  block,
-  view,
-  driver,
-}: {
+interface MatchingCheckProps {
   block: Of<"matching">;
   view: CheckView | undefined;
   driver: CheckDriver;
-}) {
+}
+
+function MatchingCheck({ block, view, driver }: MatchingCheckProps) {
   const m = useCheckMessages();
   const legend = useId();
   const { editing, setEditing, respond, reveal } = useCheck(
@@ -2507,15 +2489,13 @@ function MatchingCheck({
   );
 }
 
-function OrderingCheck({
-  block,
-  view,
-  driver,
-}: {
+interface OrderingCheckProps {
   block: Of<"ordering">;
   view: CheckView | undefined;
   driver: CheckDriver;
-}) {
+}
+
+function OrderingCheck({ block, view, driver }: OrderingCheckProps) {
   const m = useCheckMessages();
   const legend = useId();
   const { editing, setEditing, respond, reveal } = useCheck(
@@ -2664,15 +2644,13 @@ const poolRow =
 const codeText =
   "min-w-0 flex-1 font-mono text-[13px] leading-5 whitespace-pre-wrap [font-variant-ligatures:none] [overflow-wrap:anywhere]";
 
-function ParsonsCheck({
-  block,
-  view,
-  driver,
-}: {
+interface ParsonsCheckProps {
   block: Of<"parsons">;
   view: CheckView | undefined;
   driver: CheckDriver;
-}) {
+}
+
+function ParsonsCheck({ block, view, driver }: ParsonsCheckProps) {
   const m = useCheckMessages();
   const legend = useId();
   const programId = useId();
@@ -2972,17 +2950,14 @@ const testText =
   "font-mono text-[13px] leading-5 whitespace-pre-wrap [font-variant-ligatures:none] [overflow-wrap:anywhere]";
 
 /** One test of a code exercise: what it gives, what it expects, how it went. */
-function ProgramTest({
-  title,
-  test,
-  result,
-  language,
-}: {
+interface ProgramTestProps {
   title: string;
   test: { input: string; expected: string } | null;
   result: ProgramResult | undefined;
   language: "python" | "javascript";
-}) {
+}
+
+function ProgramTest({ title, test, result, language }: ProgramTestProps) {
   const m = useCheckMessages();
   const mark: Mark = result ? (result.passed ? "right" : "wrong") : null;
   const friendly = result?.error
@@ -3066,15 +3041,13 @@ function keptRun({ code, input, end, printed }: RunReport): ProgramRun | null {
   };
 }
 
-function ProgramCheck({
-  block,
-  view,
-  driver,
-}: {
+interface ProgramCheckProps {
   block: Of<"program">;
   view: CheckView | undefined;
   driver: CheckDriver;
-}) {
+}
+
+function ProgramCheck({ block, view, driver }: ProgramCheckProps) {
   const m = useCheckMessages();
   const legend = useId();
   const mode = useContext(CheckModeContext);
@@ -3190,21 +3163,19 @@ function ProgramCheck({
   );
 }
 
+interface PuzzleCheckProps {
+  block: Of<"puzzle">;
+  view: CheckView | undefined;
+  driver: CheckDriver;
+}
+
 /**
  * A puzzle: the program a student builds, and the run that shows what it
  * does. Running a program is answering with it, so each program run is a
  * try, a wrong one opening the next hint as any wrong answer does. The
  * server runs the program again to mark it; the board here only shows.
  */
-function PuzzleCheck({
-  block,
-  view,
-  driver,
-}: {
-  block: Of<"puzzle">;
-  view: CheckView | undefined;
-  driver: CheckDriver;
-}) {
+function PuzzleCheck({ block, view, driver }: PuzzleCheckProps) {
   const m = useCheckMessages();
   const legend = useId();
   const mode = useContext(CheckModeContext);
@@ -3290,15 +3261,13 @@ function PuzzleCheck({
 const groupChip =
   "min-h-8 cursor-pointer rounded-full border px-3 py-1 text-[13px] leading-5 outline-none transition-colors hover:bg-muted/50 focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 data-checked:border-primary data-checked:bg-primary data-checked:text-primary-foreground data-disabled:cursor-default data-disabled:hover:bg-transparent data-disabled:data-checked:hover:bg-primary max-md:min-h-10";
 
-function SortingCheck({
-  block,
-  view,
-  driver,
-}: {
+interface SortingCheckProps {
   block: Of<"sorting">;
   view: CheckView | undefined;
   driver: CheckDriver;
-}) {
+}
+
+function SortingCheck({ block, view, driver }: SortingCheckProps) {
   const legend = useId();
   const { editing, setEditing, respond, reveal } = useCheck(
     block.id,
@@ -3391,19 +3360,17 @@ function SortingCheck({
   );
 }
 
+interface SpokenCheckProps {
+  block: Of<"written">;
+  view: CheckView | undefined;
+  driver: CheckDriver;
+}
+
 /**
  * A question answered by speaking: the student records, listens and sends;
  * one with a passage asks them to read it aloud, set large for reading.
  */
-function SpokenCheck({
-  block,
-  view,
-  driver,
-}: {
-  block: Of<"written">;
-  view: CheckView | undefined;
-  driver: CheckDriver;
-}) {
+function SpokenCheck({ block, view, driver }: SpokenCheckProps) {
   const mode = useContext(CheckModeContext);
   const locked = (view?.marked ?? false) || mode === "review";
   return (
@@ -3432,15 +3399,13 @@ function SpokenCheck({
 }
 
 /** A question answered with a drawing or a photo, looked at by the teacher. */
-function PictureCheck({
-  block,
-  view,
-  driver,
-}: {
+interface PictureCheckProps {
   block: Of<"written">;
   view: CheckView | undefined;
   driver: CheckDriver;
-}) {
+}
+
+function PictureCheck({ block, view, driver }: PictureCheckProps) {
   const mode = useContext(CheckModeContext);
   const young = useContext(YoungContext);
   return (
@@ -3461,15 +3426,13 @@ function PictureCheck({
   );
 }
 
-function CodingCheck({
-  block,
-  view,
-  driver,
-}: {
+interface CodingCheckProps {
   block: Of<"scratch">;
   view: CheckView | undefined;
   driver: CheckDriver;
-}) {
+}
+
+function CodingCheck({ block, view, driver }: CodingCheckProps) {
   const mode = useContext(CheckModeContext);
   return (
     <CheckCard block={block} legendId={useId()} status={null} actions={null}>
@@ -3485,15 +3448,13 @@ function CodingCheck({
   );
 }
 
-function ProjectCheck({
-  block,
-  view,
-  driver,
-}: {
+interface ProjectCheckProps {
   block: Of<"project">;
   view: CheckView | undefined;
   driver: CheckDriver;
-}) {
+}
+
+function ProjectCheck({ block, view, driver }: ProjectCheckProps) {
   const mode = useContext(CheckModeContext);
   return (
     <CheckCard block={block} legendId={useId()} status={null} actions={null}>
@@ -3512,15 +3473,13 @@ function ProjectCheck({
   );
 }
 
-function WrittenCheck({
-  block,
-  view,
-  driver,
-}: {
+interface WrittenCheckProps {
   block: Of<"written">;
   view: CheckView | undefined;
   driver: CheckDriver;
-}) {
+}
+
+function WrittenCheck({ block, view, driver }: WrittenCheckProps) {
   const m = useCheckMessages();
   const legend = useId();
   const field = useId();
@@ -3654,15 +3613,13 @@ const placesCards = (block: CheckStudentBlock, young: boolean) => {
   return parts !== null && (young || parts.some((part) => part.picture));
 };
 
-export function CheckBlockView({
-  block,
-  view,
-  driver,
-}: {
+export interface CheckBlockViewProps {
   block: CheckStudentBlock;
   view: CheckView | undefined;
   driver: CheckDriver;
-}) {
+}
+
+export function CheckBlockView({ block, view, driver }: CheckBlockViewProps) {
   const asked = useMutation({
     mutationFn: () => driver.hint?.(block.id) ?? Promise.resolve(),
     onError: (error) => toast.error(getMessageFromError(error)),
@@ -3687,15 +3644,13 @@ export function CheckBlockView({
 /** Questions a student answers by running or building a program. */
 const RUNS_CODE = new Set<string>(["program", "scratch", "project", "puzzle"]);
 
-function CheckBody({
-  block,
-  view,
-  driver,
-}: {
+interface CheckBodyProps {
   block: CheckStudentBlock;
   view: CheckView | undefined;
   driver: CheckDriver;
-}) {
+}
+
+function CheckBody({ block, view, driver }: CheckBodyProps) {
   const young = useContext(YoungContext);
   const mode = useContext(CheckModeContext);
   const legend = useId();

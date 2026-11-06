@@ -63,19 +63,15 @@ function subjectOf(classRow: {
   return classTitle(classRow);
 }
 
-function PlaceSheet({
-  grid,
-  options,
-  cell,
-  from,
-  onClose,
-}: {
+interface PlaceSheetProps {
   grid: Grid;
   options: Options;
   cell: Cell;
   from: string;
   onClose: () => void;
-}) {
+}
+
+function PlaceSheet({ grid, options, cell, from, onClose }: PlaceSheetProps) {
   const queryClient = useQueryClient();
   const [choice, setChoice] = useState<Choice>(() => ({
     meetingClassId: cell.meeting?.classId ?? "",
@@ -273,15 +269,13 @@ function PlaceSheet({
   );
 }
 
-function PlannerCell({
-  cell,
-  editable,
-  onOpen,
-}: {
+interface PlannerCellProps {
   cell: Cell;
   editable: boolean;
   onOpen: () => void;
-}) {
+}
+
+function PlannerCell({ cell, editable, onOpen }: PlannerCellProps) {
   const hydrated = useHydrated();
   const content = cell.meeting ? (
     <MeetingCard
@@ -330,7 +324,12 @@ function plannerCell(editable: boolean, onOpen: (cell: Cell) => void) {
 }
 
 /** One homeroom's week, each cell edited from the day changes apply. */
-export function Planner({ classId, from }: { classId: string; from: string }) {
+export interface PlannerProps {
+  classId: string;
+  from: string;
+}
+
+export function Planner({ classId, from }: PlannerProps) {
   const options = useSuspenseQuery(timetableOptionsQuery).data;
   const grid = useSuspenseQuery(timetableGridQuery(classId, from)).data;
   const user = useCurrentUser();

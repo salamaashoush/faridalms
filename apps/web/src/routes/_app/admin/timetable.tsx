@@ -118,7 +118,11 @@ type Clash = Awaited<
   ReturnType<NonNullable<ReturnType<typeof clashesQuery>["queryFn"]>>
 >["rows"][number];
 
-function ClashGrid({ row }: { row: Clash }) {
+interface ClashGridProps {
+  row: Clash;
+}
+
+function ClashGrid({ row }: ClashGridProps) {
   return (
     <RowLink
       to="/admin/timetable"
@@ -173,7 +177,11 @@ const clashCard = {
   fact: (row: Clash) => `${clashLesson(row)} · ${formatWeekday(row.weekday)}`,
 };
 
-function Clashes({ from }: { from: string }) {
+interface ClashesProps {
+  from: string;
+}
+
+function Clashes({ from }: ClashesProps) {
   const data = useSuspenseQuery(clashesQuery(from)).data;
   const periods = new Map(
     data.periods.map((period) => [

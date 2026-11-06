@@ -9,18 +9,17 @@ import { PortalHeading, PortalLayout } from "~/components/auth/SchoolFace";
 import * as m from "~/i18n/messages";
 import { portalHref } from "~/utils/host";
 
+export interface SiteNotOpenProps {
+  face: PortalFace;
+  locale: SiteLocale;
+}
+
 /**
  * A school's website before it opens: the portal's own page in the school's
  * name and colour, sending visitors to the portal rather than the
  * platform's bare 404.
  */
-export function SiteNotOpen({
-  face,
-  locale,
-}: {
-  face: PortalFace;
-  locale: SiteLocale;
-}) {
+export function SiteNotOpen({ face, locale }: SiteNotOpenProps) {
   const t = { locale };
   const school =
     (locale === "ar" ? face.name.ar : face.name.en) ||

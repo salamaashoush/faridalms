@@ -47,17 +47,14 @@ const SIZE_LABEL = {
 const SELECT =
   "h-9 w-full rounded-md border border-input bg-transparent px-2.5 text-base shadow-xs outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 md:text-sm dark:bg-input/30";
 
-function Field({
-  id,
-  label,
-  optional,
-  children,
-}: {
+interface FieldProps {
   id: string;
   label: string;
   optional?: boolean;
   children: ReactNode;
-}) {
+}
+
+function Field({ id, label, optional, children }: FieldProps) {
   return (
     <div className="grid gap-2">
       <Label htmlFor={id}>

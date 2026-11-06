@@ -26,6 +26,15 @@ function labelEvery(steps: number) {
   return Math.ceil((steps + 1) / MAX_LABELS);
 }
 
+export interface NumberLineProps {
+  line: { from: number; to: number; step: number };
+  value: number | null;
+  onChange: (value: number) => void;
+  disabled: boolean;
+  /** Whether the placed answer was right, once checked. */
+  mark: "right" | "wrong" | null;
+}
+
 /**
  * A number line a student places their answer on, from `from` to `to` in
  * steps: a range control the keyboard moves a step at a time, over ticks
@@ -38,14 +47,7 @@ export function NumberLine({
   onChange,
   disabled,
   mark,
-}: {
-  line: { from: number; to: number; step: number };
-  value: number | null;
-  onChange: (value: number) => void;
-  disabled: boolean;
-  /** Whether the placed answer was right, once checked. */
-  mark: "right" | "wrong" | null;
-}) {
+}: NumberLineProps) {
   const id = useId();
   const places = placesOf(line.from, line.to, line.step);
   const every = labelEvery(places.length - 1);
@@ -130,13 +132,12 @@ export function NumberLine({
 }
 
 /** A number line as paper prints it: its ticks and labels, and the answer once shown. */
-export function NumberLineDrawing({
-  line,
-  value,
-}: {
+export interface NumberLineDrawingProps {
   line: { from: number; to: number; step: number };
   value: number | null;
-}) {
+}
+
+export function NumberLineDrawing({ line, value }: NumberLineDrawingProps) {
   const places = placesOf(line.from, line.to, line.step);
   const every = labelEvery(places.length - 1);
   const at = (place: number) =>

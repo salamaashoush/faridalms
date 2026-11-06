@@ -175,21 +175,19 @@ function saveInput(draft: IntakeDraft): SaveIntake {
 const wholeIn = (value: string, min: number, max: number) =>
   /^\d+$/.test(value.trim()) && Number(value) >= min && Number(value) <= max;
 
+export interface IntakeEditorProps {
+  options: Options;
+  initial: IntakeDraft;
+  onDone: () => void;
+}
+
 /**
  * An intake's settings in one column: which year and grade, when families
  * may apply and how many places there are, the form and the checklist they
  * meet, what it costs, decisions and offers, the ages it takes, and the
  * order families are preferred in.
  */
-export function IntakeEditor({
-  options,
-  initial,
-  onDone,
-}: {
-  options: Options;
-  initial: IntakeDraft;
-  onDone: () => void;
-}) {
+export function IntakeEditor({ options, initial, onDone }: IntakeEditorProps) {
   const queryClient = useQueryClient();
   const [draft, setDraft] = useState(initial);
   const [tried, setTried] = useState(false);
@@ -684,6 +682,16 @@ export function IntakeEditor({
   );
 }
 
+interface AgeFieldProps {
+  id: string;
+  label: string;
+  years: string;
+  months: string;
+  onYears: (value: string) => void;
+  onMonths: (value: string) => void;
+  error?: string | null;
+}
+
 function AgeField({
   id,
   label,
@@ -692,15 +700,7 @@ function AgeField({
   onYears,
   onMonths,
   error,
-}: {
-  id: string;
-  label: string;
-  years: string;
-  months: string;
-  onYears: (value: string) => void;
-  onMonths: (value: string) => void;
-  error?: string | null;
-}) {
+}: AgeFieldProps) {
   return (
     <FormField
       id={id}

@@ -39,19 +39,15 @@ export const Route = createFileRoute("/_app/event-editor")({
   component: EditorPage,
 });
 
-function Existing({
-  id,
-  day,
-  manages,
-  onClose,
-  onCreated,
-}: {
+interface ExistingProps {
   id: string;
   day: string;
   manages: boolean;
   onClose: (id?: string) => void;
   onCreated: (id: string) => void;
-}) {
+}
+
+function Existing({ id, day, manages, onClose, onCreated }: ExistingProps) {
   const existing = useSuspenseQuery(calendarEventQuery(id)).data;
   return (
     <EventEditor
@@ -65,19 +61,15 @@ function Existing({
   );
 }
 
-function Started({
-  template,
-  day,
-  manages,
-  onClose,
-  onCreated,
-}: {
+interface StartedProps {
   template: string;
   day: string;
   manages: boolean;
   onClose: (id?: string) => void;
   onCreated: (id: string) => void;
-}) {
+}
+
+function Started({ template, day, manages, onClose, onCreated }: StartedProps) {
   const piece = useSuspenseQuery(templateQuery(template)).data;
   return (
     <EventEditor

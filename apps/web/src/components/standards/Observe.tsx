@@ -23,6 +23,14 @@ const LEVELS: readonly { value: MasteryLevel; label: () => string }[] = [
 const labelOf = (standard: { code: string; statement: string }) =>
   standard.code ? `${standard.code} ${standard.statement}` : standard.statement;
 
+export interface ObserveSheetProps {
+  studentId: string;
+  /** The class it was seen in, which its Skills tab then counts it for. */
+  classId?: string;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+}
+
 /**
  * A teacher records what they saw a student do against a standard, with no
  * question asked: the standard, the level they judged, and a few words. It
@@ -33,13 +41,7 @@ export function ObserveSheet({
   classId = "",
   open,
   onOpenChange,
-}: {
-  studentId: string;
-  /** The class it was seen in, which its Skills tab then counts it for. */
-  classId?: string;
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-}) {
+}: ObserveSheetProps) {
   const queryClient = useQueryClient();
   const [search, setSearch] = useState("");
   const [standard, setStandard] = useState<{

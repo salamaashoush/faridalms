@@ -47,6 +47,15 @@ function useRefresh() {
     ]);
 }
 
+interface AssignSheetProps {
+  userId: string;
+  name: string;
+  assignments: readonly Assignment[];
+  open: boolean;
+  onClose: () => void;
+  today: string;
+}
+
 function AssignSheet({
   userId,
   name,
@@ -54,14 +63,7 @@ function AssignSheet({
   open,
   onClose,
   today,
-}: {
-  userId: string;
-  name: string;
-  assignments: readonly Assignment[];
-  open: boolean;
-  onClose: () => void;
-  today: string;
-}) {
+}: AssignSheetProps) {
   const roles = useSuspenseQuery(accessRolesQuery).data;
   const refresh = useRefresh();
   const held = new Set<string>(roles.grantable);
@@ -197,15 +199,13 @@ function AssignSheet({
   );
 }
 
-function AssignmentItem({
-  assignment,
-  name,
-  onEnd,
-}: {
+interface AssignmentItemProps {
   assignment: Assignment;
   name: string;
   onEnd: () => Promise<void>;
-}) {
+}
+
+function AssignmentItem({ assignment, name, onEnd }: AssignmentItemProps) {
   const role = accessRoleName({
     builtinKey: assignment.builtinKey,
     nameEn: assignment.roleNameEn,
@@ -268,15 +268,13 @@ function AssignmentItem({
 }
 
 /** What a member of staff may do at this school, and the roles that give it. */
-export function AccessSection({
-  userId,
-  name,
-  today,
-}: {
+export interface AccessSectionProps {
   userId: string;
   name: string;
   today: string;
-}) {
+}
+
+export function AccessSection({ userId, name, today }: AccessSectionProps) {
   const access = useSuspenseQuery(personAccessQuery(userId)).data;
   const refresh = useRefresh();
   const [sheet, setSheet] = useState({ open: false, key: 0 });

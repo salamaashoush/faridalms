@@ -64,17 +64,19 @@ export const sourceOf = (framework: { caseIdentifier: string | null }) =>
         : m.standardsSourceOwn();
 
 /** A framework's name and what it is, new or as kept. */
+export interface FrameworkSheetProps {
+  open: boolean;
+  onClose: () => void;
+  framework: FrameworkRow | null;
+  onSaved: (id: string) => void | Promise<unknown>;
+}
+
 export function FrameworkSheet({
   open,
   onClose,
   framework,
   onSaved,
-}: {
-  open: boolean;
-  onClose: () => void;
-  framework: FrameworkRow | null;
-  onSaved: (id: string) => void | Promise<unknown>;
-}) {
+}: FrameworkSheetProps) {
   const [title, setTitle] = useState(framework?.title ?? "");
   const [description, setDescription] = useState(framework?.description ?? "");
   const [assessed, setAssessed] = useState(framework?.assessed ?? true);
@@ -142,6 +144,14 @@ export function FrameworkSheet({
   );
 }
 
+export interface ImportCaseSheetProps {
+  open: boolean;
+  onClose: () => void;
+  /** The framework to update, or none to make a new one. */
+  frameworkId: string;
+  onImported: (id: string) => void | Promise<unknown>;
+}
+
 /**
  * A CASE package read from a file, checked and counted before anything is
  * sent: what CASE editors and the CASE Network export as JSON.
@@ -151,13 +161,7 @@ export function ImportCaseSheet({
   onClose,
   frameworkId,
   onImported,
-}: {
-  open: boolean;
-  onClose: () => void;
-  /** The framework to update, or none to make a new one. */
-  frameworkId: string;
-  onImported: (id: string) => void | Promise<unknown>;
-}) {
+}: ImportCaseSheetProps) {
   const [found, setFound] = useState<{
     casePackage: CasePackage;
     title: string;
@@ -241,15 +245,7 @@ export function ImportCaseSheet({
 }
 
 /** One standard's code, statement and level, and where it sits in the tree. */
-export function StandardSheet({
-  open,
-  onClose,
-  frameworkId,
-  standards,
-  standard,
-  parentId,
-  onSaved,
-}: {
+export interface StandardSheetProps {
   open: boolean;
   onClose: () => void;
   frameworkId: string;
@@ -259,7 +255,17 @@ export function StandardSheet({
   /** Where a new standard goes. */
   parentId: string;
   onSaved: () => void | Promise<unknown>;
-}) {
+}
+
+export function StandardSheet({
+  open,
+  onClose,
+  frameworkId,
+  standards,
+  standard,
+  parentId,
+  onSaved,
+}: StandardSheetProps) {
   const [code, setCode] = useState(standard?.code ?? "");
   const [statement, setStatement] = useState(standard?.statement ?? "");
   const [itemType, setItemType] = useState(standard?.itemType ?? "");
@@ -386,6 +392,13 @@ export function StandardSheet({
 export const labelOf = (row: { code: string; statement: string }) =>
   row.code ? `${row.code} ${row.statement}` : row.statement;
 
+export interface StandardsTreeProps {
+  standards: readonly StandardRow[];
+  canManage: boolean;
+  onEdit: (row: StandardRow) => void;
+  onAddUnder: (parentId: string) => void;
+}
+
 /**
  * A framework as a tree of its standards, each line its code, statement and
  * level, with what a keeper of standards may do to it. Branches open and
@@ -396,12 +409,7 @@ export function StandardsTree({
   canManage,
   onEdit,
   onAddUnder,
-}: {
-  standards: readonly StandardRow[];
-  canManage: boolean;
-  onEdit: (row: StandardRow) => void;
-  onAddUnder: (parentId: string) => void;
-}) {
+}: StandardsTreeProps) {
   const queryClient = useQueryClient();
   const refresh = () =>
     queryClient.invalidateQueries({ queryKey: ["standards"] });

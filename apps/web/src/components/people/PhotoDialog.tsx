@@ -68,6 +68,15 @@ function choose(capture: boolean): Promise<File | null> {
   });
 }
 
+export interface PhotoDialogProps {
+  personId: string;
+  name: string;
+  photoUrl: string | null;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  onSaved: (fileId: string | null) => void;
+}
+
 /**
  * Changes a person's photo: taken there and then or chosen from the device,
  * placed in the circle by dragging and zooming, and kept as a 512 pixel
@@ -81,14 +90,7 @@ export function PhotoDialog({
   open,
   onOpenChange,
   onSaved,
-}: {
-  personId: string;
-  name: string;
-  photoUrl: string | null;
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-  onSaved: (fileId: string | null) => void;
-}) {
+}: PhotoDialogProps) {
   const initiate = useServerFn(initiateUpload);
   const change = useServerFn(changePhoto);
   const [placed, setPlaced] = useState<Placed | null>(null);
@@ -409,20 +411,18 @@ function initialsOf(name: string) {
     .toUpperCase();
 }
 
+interface LiveCameraProps {
+  onTaken: (photo: Blob) => void;
+  onCancel: () => void;
+  onUnavailable: () => void;
+}
+
 /**
  * The computer's camera, seen as a mirror in the square the photo is placed
  * in. The frame taken is turned the right way round, as the person sees
  * themselves once saved.
  */
-function LiveCamera({
-  onTaken,
-  onCancel,
-  onUnavailable,
-}: {
-  onTaken: (photo: Blob) => void;
-  onCancel: () => void;
-  onUnavailable: () => void;
-}) {
+function LiveCamera({ onTaken, onCancel, onUnavailable }: LiveCameraProps) {
   const video = useRef<HTMLVideoElement>(null);
   const [ready, setReady] = useState(false);
   const fallBack = useRef(onUnavailable);

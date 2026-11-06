@@ -158,6 +158,15 @@ function conditionOf(draft: Draft): LessonCondition | null | undefined {
   return { lessonId: draft.conditionLessonId, atLeast, below };
 }
 
+export interface LessonEditorProps {
+  existing: Existing | null;
+  moduleId: string;
+  /** The library piece a new lesson starts from. */
+  template?: StartingPiece;
+  onClose: () => void;
+  onCreated: (id: string) => void;
+}
+
 /**
  * A lesson written as one document: its text, media, questions and continue
  * gates in the page, what finishes it beside them. Edits save as they are
@@ -170,14 +179,7 @@ export function LessonEditor({
   template,
   onClose,
   onCreated,
-}: {
-  existing: Existing | null;
-  moduleId: string;
-  /** The library piece a new lesson starts from. */
-  template?: StartingPiece;
-  onClose: () => void;
-  onCreated: (id: string) => void;
-}) {
+}: LessonEditorProps) {
   const queryClient = useQueryClient();
   const module = useSuspenseQuery(moduleRecordQuery(moduleId)).data;
   const earlyYears = useCurrentUser().modules.early_years;

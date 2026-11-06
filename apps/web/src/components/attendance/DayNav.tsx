@@ -5,25 +5,20 @@ import { ChevronLeft, ChevronRight } from "lucide-react";
 
 import * as m from "~/i18n/messages";
 
-/**
- * Steps a page one school day at a time, or jumps to a date. Arrows follow
- * the reading direction, so "previous" points to the start side.
- */
-export function DayNav({
-  id,
-  date,
-  min,
-  max,
-  today,
-  onChange,
-}: {
+export interface DayNavProps {
   id: string;
   date: string;
   min: string;
   max: string;
   today: string;
   onChange: (date: string) => void;
-}) {
+}
+
+/**
+ * Steps a page one school day at a time, or jumps to a date. Arrows follow
+ * the reading direction, so "previous" points to the start side.
+ */
+export function DayNav({ id, date, min, max, today, onChange }: DayNavProps) {
   const previous = addDays(date, -1);
   const next = addDays(date, 1);
   const inRange = (day: string) => day >= min && day <= max;

@@ -38,13 +38,12 @@ interface Written {
 }
 
 /** What a review said: the rubric's levels, then the two prompts. */
-function ReviewText({
-  rubric,
-  review,
-}: {
+interface ReviewTextProps {
   rubric: Rubric | null;
   review: Written;
-}) {
+}
+
+function ReviewText({ rubric, review }: ReviewTextProps) {
   return (
     <div className="grid gap-3">
       {rubric ? (
@@ -82,12 +81,16 @@ function ReviewText({
   );
 }
 
+export interface PeerReviewPanelProps {
+  assignmentId: string;
+}
+
 /**
  * Peer review as an assignment's teacher runs it: hand the reviews out
  * among the work handed in, bring later work in, read every review and
  * hide one, then release them to the authors.
  */
-export function PeerReviewPanel({ assignmentId }: { assignmentId: string }) {
+export function PeerReviewPanel({ assignmentId }: PeerReviewPanelProps) {
   const queryClient = useQueryClient();
   const data = useQuery(peerOverviewQuery(assignmentId)).data;
   const start = useServerFn(startPeerReview);
@@ -260,6 +263,11 @@ export function PeerReviewPanel({ assignmentId }: { assignmentId: string }) {
   );
 }
 
+export interface StudentPeerReviewsProps {
+  assignmentId: string;
+  studentId: string;
+}
+
 /**
  * A student's part in peer review, for their teacher marking them: the
  * reviews of their work and those they wrote, with names, as the teacher
@@ -268,10 +276,7 @@ export function PeerReviewPanel({ assignmentId }: { assignmentId: string }) {
 export function StudentPeerReviews({
   assignmentId,
   studentId,
-}: {
-  assignmentId: string;
-  studentId: string;
-}) {
+}: StudentPeerReviewsProps) {
   const data = useQuery(peerOverviewQuery(assignmentId)).data;
   if (!data?.startedAt) return null;
   const names = new Map(
@@ -336,17 +341,14 @@ type Mine = Awaited<
 >;
 type ToGive = Mine["toGive"][number];
 
-function ReviewForm({
-  assignmentId,
-  rubric,
-  review,
-  onSent,
-}: {
+interface ReviewFormProps {
   assignmentId: string;
   rubric: Rubric | null;
   review: ToGive;
   onSent: () => void;
-}) {
+}
+
+function ReviewForm({ assignmentId, rubric, review, onSent }: ReviewFormProps) {
   const queryClient = useQueryClient();
   const send = useServerFn(sendPeerReview);
   const [levels, setLevels] = useState<Record<string, string>>(
@@ -456,15 +458,13 @@ function ReviewForm({
   );
 }
 
-function GiveItem({
-  assignmentId,
-  data,
-  review,
-}: {
+interface GiveItemProps {
   assignmentId: string;
   data: Mine;
   review: ToGive;
-}) {
+}
+
+function GiveItem({ assignmentId, data, review }: GiveItemProps) {
   const [open, setOpen] = useState(!review.sentAt);
   const headingId = useId();
   const title = review.author
@@ -526,11 +526,15 @@ function GiveItem({
   );
 }
 
+export interface PeerReviewWorkProps {
+  assignmentId: string;
+}
+
 /**
  * Peer review on a student's own page: the classmates' work they review,
  * and, once their teacher releases them, the reviews of their own.
  */
-export function PeerReviewWork({ assignmentId }: { assignmentId: string }) {
+export function PeerReviewWork({ assignmentId }: PeerReviewWorkProps) {
   const data = useQuery(myPeerReviewsQuery(assignmentId)).data;
   if (!data) return null;
   const how = data.anonymous

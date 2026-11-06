@@ -36,7 +36,11 @@ export const Route = createFileRoute("/_app/teach/grading")({
   component: GradingPage,
 });
 
-function Title({ row }: { row: Row }) {
+interface TitleProps {
+  row: Row;
+}
+
+function Title({ row }: TitleProps) {
   return (
     <RowLink
       to="/assignments/$assignmentId"

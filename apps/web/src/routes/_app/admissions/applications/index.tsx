@@ -55,7 +55,11 @@ type Data = Awaited<
 >;
 type Row = Data["rows"][number];
 
-function Child({ row }: { row: Row }) {
+interface ChildProps {
+  row: Row;
+}
+
+function Child({ row }: ChildProps) {
   return (
     <span className="grid min-w-0 gap-0.5">
       <RowLink
@@ -75,7 +79,11 @@ function Child({ row }: { row: Row }) {
   );
 }
 
-const State = ({ row }: { row: Row }) => (
+interface StateProps {
+  row: Row;
+}
+
+const State = ({ row }: StateProps) => (
   <StatusText tone={APPLICATION_STATE_TONE[row.state]}>
     {APPLICATION_STATE_LABEL[row.state]()}
   </StatusText>

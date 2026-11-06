@@ -101,15 +101,17 @@ function roleCard(nameLink: NameLink) {
   };
 }
 
+export interface AccessRolesPanelProps {
+  nameLink: NameLink;
+  onEdit: (role: AccessRole) => void;
+  onDuplicate: (role: AccessRole) => void;
+}
+
 export function AccessRolesPanel({
   nameLink,
   onEdit,
   onDuplicate,
-}: {
-  nameLink: NameLink;
-  onEdit: (role: AccessRole) => void;
-  onDuplicate: (role: AccessRole) => void;
-}) {
+}: AccessRolesPanelProps) {
   const { data } = useSuspenseQuery(accessRolesQuery);
   const rowActions = (role: AccessRole): RowAction[] => [
     ...(role.editable
@@ -234,17 +236,14 @@ function draftFor(
   };
 }
 
-export function RoleSheet({
-  open,
-  role,
-  copyOf,
-  onClose,
-}: {
+export interface RoleSheetProps {
   open: boolean;
   role?: AccessRole;
   copyOf?: AccessRole;
   onClose: () => void;
-}) {
+}
+
+export function RoleSheet({ open, role, copyOf, onClose }: RoleSheetProps) {
   const { data } = useSuspenseQuery(accessRolesQuery);
   const queryClient = useQueryClient();
   const [draft, setDraft] = useState(() =>

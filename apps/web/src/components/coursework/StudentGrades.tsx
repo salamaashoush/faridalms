@@ -11,7 +11,11 @@ import { classTitle } from "../classes/format";
 import { resultText } from "../grading/format";
 
 /** Released term grades, one section per term, one row per class. */
-export function StudentGrades({ studentId = "" }: { studentId?: string }) {
+export interface StudentGradesProps {
+  studentId?: string;
+}
+
+export function StudentGrades({ studentId = "" }: StudentGradesProps) {
   const data = useSuspenseQuery(studentGradesQuery(studentId)).data;
   if (data.rows.length === 0)
     return (

@@ -39,15 +39,15 @@ function adviceText(advice: YoungAdvice): string {
   return "";
 }
 
+export interface YoungAdviceListProps {
+  blocks: readonly LessonBlock[];
+}
+
 /**
  * What would make the lesson fit young children better, beside the switch
  * that turns young mode on. Advice, not a block on showing the lesson.
  */
-export function YoungAdviceList({
-  blocks,
-}: {
-  blocks: readonly LessonBlock[];
-}) {
+export function YoungAdviceList({ blocks }: YoungAdviceListProps) {
   const advice = youngAdvice(blocks);
   if (advice.length === 0)
     return (

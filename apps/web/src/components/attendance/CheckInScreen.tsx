@@ -39,6 +39,13 @@ const firstOf = (student: {
   inLocale(student.firstEn, student.firstAr) ||
   inLocale(student.fullNameEn, student.fullNameAr);
 
+export interface CheckInScreenProps {
+  classId: string;
+  date: string;
+  periodId: string;
+  onClose: () => void;
+}
+
 /**
  * The classroom's screen while children mark themselves in: a big tile of
  * each child's photo and first name, in a new order every day so they look
@@ -51,12 +58,7 @@ export function CheckInScreen({
   date,
   periodId,
   onClose,
-}: {
-  classId: string;
-  date: string;
-  periodId: string;
-  onClose: () => void;
-}) {
+}: CheckInScreenProps) {
   const queryClient = useQueryClient();
   const data = useSuspenseQuery(registerQuery(classId, date, periodId)).data;
   const checkIn = useServerFn(checkInToRegister);

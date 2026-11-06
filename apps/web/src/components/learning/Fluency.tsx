@@ -11,13 +11,12 @@ import * as m from "~/i18n/messages";
 import { formatNumber, formatPercent } from "~/utils/datetime";
 
 /** What a marked reading comes to, in one line. */
-export function FluencySummary({
-  passage,
-  mark,
-}: {
+export interface FluencySummaryProps {
   passage: string;
   mark: FluencyMark;
-}) {
+}
+
+export function FluencySummary({ passage, mark }: FluencySummaryProps) {
   const result = fluencyOf(readingWords(passage).length, mark);
   return (
     <p className="text-[13px] leading-[18px] text-muted-foreground tabular-nums">
@@ -46,20 +45,18 @@ function placedLines(passage: string) {
   return lines;
 }
 
+export interface FluencyMarkerProps {
+  passage: string;
+  mark: FluencyMark;
+  onChange: (mark: FluencyMark) => void;
+}
+
 /**
  * A passage read aloud, marked as its teacher listens: each word tapped
  * when it was misread, left out or told, and the word the reading stopped
  * at when it stopped short, as a running record is taken.
  */
-export function FluencyMarker({
-  passage,
-  mark,
-  onChange,
-}: {
-  passage: string;
-  mark: FluencyMark;
-  onChange: (mark: FluencyMark) => void;
-}) {
+export function FluencyMarker({ passage, mark, onChange }: FluencyMarkerProps) {
   const id = useId();
   const [tapping, setTapping] = useState<"errors" | "stop">("errors");
   const words = readingWords(passage);

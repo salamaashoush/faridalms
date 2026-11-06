@@ -71,17 +71,14 @@ export interface AnswerGoals {
 const LEVEL_CHOICES = ["none", "emerging", "expected"] as const;
 type LevelChoice = (typeof LEVEL_CHOICES)[number];
 
-function GoalJudge({
-  goal,
-  level,
-  name,
-  onJudge,
-}: {
+interface GoalJudgeProps {
   goal: AnswerGoals["standards"][number];
   level: GoalLevel | null;
   name: string;
   onJudge: (level: GoalLevel | null) => Promise<unknown>;
-}) {
+}
+
+function GoalJudge({ goal, level, name, onJudge }: GoalJudgeProps) {
   const save = useMutation({
     mutationFn: onJudge,
     onError: (error) => toast.error(getMessageFromError(error)),
@@ -108,17 +105,19 @@ function GoalJudge({
 }
 
 /** Where the child stands against the goals the question is tagged with. */
+interface AnswerGoalJudgementsProps {
+  question: BoardQuestion;
+  answer: BoardAnswer;
+  name: string;
+  goals: AnswerGoals;
+}
+
 function AnswerGoalJudgements({
   question,
   answer,
   name,
   goals,
-}: {
-  question: BoardQuestion;
-  answer: BoardAnswer;
-  name: string;
-  goals: AnswerGoals;
-}) {
+}: AnswerGoalJudgementsProps) {
   const tagged = goals.standards.filter((goal) =>
     question.standards.includes(goal.id),
   );
@@ -149,17 +148,14 @@ function AnswerGoalJudgements({
 const answerKey = (answer: BoardAnswer) =>
   answer.attemptId ?? `${answer.studentId}-${answer.try}`;
 
-function MarkForm({
-  question,
-  answers,
-  mark,
-  onDone,
-}: {
+interface MarkFormProps {
   question: BoardQuestion;
   answers: readonly BoardAnswer[];
   mark: Marker;
   onDone: () => void;
-}) {
+}
+
+function MarkForm({ question, answers, mark, onDone }: MarkFormProps) {
   const id = useId();
   const graded = question.points > 0;
   // Several chosen start empty: their own marks differ, if they have any.
@@ -269,13 +265,18 @@ function MarkForm({
   );
 }
 
+interface GalleryOfferProps {
+  answer: BoardAnswer;
+  name: string;
+}
+
 /**
  * A project a student offered to the class gallery, for their teacher to
  * show to the class, keep out, or take down again. A student who has sent
  * a newer project since offered the one before it, which is what the class
  * would see: that one opens from here, so nothing is shown unseen.
  */
-function GalleryOffer({ answer, name }: { answer: BoardAnswer; name: string }) {
+function GalleryOffer({ answer, name }: GalleryOfferProps) {
   const [looking, setLooking] = useState(false);
   const queryClient = useQueryClient();
   const decide = useMutation({
@@ -365,16 +366,7 @@ function GalleryOffer({ answer, name }: { answer: BoardAnswer; name: string }) {
   );
 }
 
-function AnswerCard({
-  question,
-  answer,
-  name,
-  remixOf,
-  mark,
-  goals,
-  chosen,
-  onChoose,
-}: {
+interface AnswerCardProps {
   question: BoardQuestion;
   answer: BoardAnswer;
   name: string;
@@ -385,7 +377,18 @@ function AnswerCard({
   chosen: boolean;
   /** Offered while the answer waits, to mark it with others alike. */
   onChoose?: (chosen: boolean) => void;
-}) {
+}
+
+function AnswerCard({
+  question,
+  answer,
+  name,
+  remixOf,
+  mark,
+  goals,
+  chosen,
+  onChoose,
+}: AnswerCardProps) {
   const [editing, setEditing] = useState(false);
   const graded = question.points > 0;
   return (
@@ -536,6 +539,15 @@ function AnswerCard({
 }
 
 /** One question's answers, those waiting first, any of which the teacher may choose to mark alike. */
+interface QuestionAnswersProps {
+  question: BoardQuestion;
+  answers: readonly BoardAnswer[];
+  names: ReadonlyMap<string, string>;
+  total: number;
+  mark: Marker;
+  goals?: AnswerGoals;
+}
+
 function QuestionAnswers({
   question,
   answers,
@@ -543,14 +555,7 @@ function QuestionAnswers({
   total,
   mark,
   goals,
-}: {
-  question: BoardQuestion;
-  answers: readonly BoardAnswer[];
-  names: ReadonlyMap<string, string>;
-  total: number;
-  mark: Marker;
-  goals?: AnswerGoals;
-}) {
+}: QuestionAnswersProps) {
   const [chosen, setChosen] = useState<ReadonlySet<string>>(new Set());
   const ordered = answers.toSorted(
     (a, b) => Number(a.marked) - Number(b.marked),
@@ -662,14 +667,7 @@ function QuestionAnswers({
 }
 
 /** Answers a teacher marks question by question, words or coding projects. */
-export function AnswerBoard({
-  students,
-  questions,
-  answers,
-  mark,
-  goals,
-  empty,
-}: {
+export interface AnswerBoardProps {
   students: readonly {
     id: string;
     fullNameEn: string | null;
@@ -680,7 +678,16 @@ export function AnswerBoard({
   mark: Marker;
   goals?: AnswerGoals;
   empty: { title: string; description: string };
-}) {
+}
+
+export function AnswerBoard({
+  students,
+  questions,
+  answers,
+  mark,
+  goals,
+  empty,
+}: AnswerBoardProps) {
   const names = new Map(
     students.map((student) => [student.id, displayName(student)]),
   );
@@ -712,13 +719,12 @@ export function AnswerBoard({
 }
 
 /** The answers of one class a teacher marks, words or coding projects, question by question. */
-export function Answers({
-  moduleId,
-  classId,
-}: {
+export interface AnswersProps {
   moduleId: string;
   classId: string;
-}) {
+}
+
+export function Answers({ moduleId, classId }: AnswersProps) {
   const query = useQuery(writtenAnswersQuery(moduleId, classId));
   const queryClient = useQueryClient();
   if (!query.data) return <div aria-busy="true" className="min-h-40" />;

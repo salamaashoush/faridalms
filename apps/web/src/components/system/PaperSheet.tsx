@@ -7,6 +7,17 @@ import { createPortal } from "react-dom";
 
 import * as m from "~/i18n/messages";
 
+export interface PaperSheetProps {
+  title: string;
+  hint: string;
+  /** What was left as it was, for the office to know. */
+  notes?: readonly string[];
+  /** What did not make it onto the paper, for the office to act on. */
+  warnings?: readonly string[];
+  onDone: () => void;
+  children: ReactNode;
+}
+
 /**
  * Something made for paper and shown once, such as sign-in badges or slips:
  * the sheet covers the app while open and is all that prints. Closing it
@@ -19,16 +30,7 @@ export function PaperSheet({
   warnings = [],
   onDone,
   children,
-}: {
-  title: string;
-  hint: string;
-  /** What was left as it was, for the office to know. */
-  notes?: readonly string[];
-  /** What did not make it onto the paper, for the office to act on. */
-  warnings?: readonly string[];
-  onDone: () => void;
-  children: ReactNode;
-}) {
+}: PaperSheetProps) {
   const titleId = useId();
   const sheet = useRef<HTMLDialogElement>(null);
   const print = useRef<HTMLButtonElement>(null);

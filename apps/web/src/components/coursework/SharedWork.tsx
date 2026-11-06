@@ -24,15 +24,13 @@ import { CommentedWork, CommentList } from "./WorkComments";
 
 const fileUrl = (fileId: string) => `/files/${fileId}`;
 
-function Piece({
-  attemptId,
-  title,
-  onClose,
-}: {
+interface PieceProps {
   attemptId: string;
   title: string;
   onClose: () => void;
-}) {
+}
+
+function Piece({ attemptId, title, onClose }: PieceProps) {
   const piece = useQuery({
     queryKey: ["coursework", "shared-piece", attemptId],
     queryFn: () => getSharedPiece({ data: { attemptId } }),
@@ -98,7 +96,11 @@ function Piece({
 }
 
 /** Work a child's teachers chose to share with the family, to read in full. */
-export function SharedWork({ studentId }: { studentId: string }) {
+export interface SharedWorkProps {
+  studentId: string;
+}
+
+export function SharedWork({ studentId }: SharedWorkProps) {
   const shared = useInfiniteQuery(sharedWorkQuery(studentId));
   const pieces = shared.data?.pages.flatMap((page) => page.rows) ?? [];
   const [open, setOpen] = useState<{ attemptId: string; title: string }>();

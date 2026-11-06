@@ -69,13 +69,12 @@ function differences(details: ExamChangeDetails): string[] {
 }
 
 /** Every change to the school's exam sessions and boards, with who and why. */
-export function ExamHistory({
-  open,
-  onOpenChange,
-}: {
+export interface ExamHistoryProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-}) {
+}
+
+export function ExamHistory({ open, onOpenChange }: ExamHistoryProps) {
   const [page, setPage] = useState(1);
   const history = useQuery({ ...examHistoryQuery(page), enabled: open }).data;
   return (

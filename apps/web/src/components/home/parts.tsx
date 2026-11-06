@@ -25,6 +25,13 @@ export const itemLink = cn(
   phoneLink,
 );
 
+export interface HomeCardProps {
+  title: string;
+  description?: ReactNode;
+  action?: { label: string; link: LinkProps };
+  children: ReactNode;
+}
+
 /**
  * One card of a home page: what it is about, a short list, and the one thing
  * to do about it. A card with nothing in it is not shown at all.
@@ -34,12 +41,7 @@ export function HomeCard({
   description,
   action,
   children,
-}: {
-  title: string;
-  description?: ReactNode;
-  action?: { label: string; link: LinkProps };
-  children: ReactNode;
-}) {
+}: HomeCardProps) {
   return (
     <RecordSection
       title={title}
@@ -63,22 +65,23 @@ export function HomeCard({
   );
 }
 
-export function HomeList({ children }: { children: ReactNode }) {
+export interface HomeListProps {
+  children: ReactNode;
+}
+
+export function HomeList({ children }: HomeListProps) {
   return <RecordList>{children}</RecordList>;
 }
 
-export function HomeItem({
-  title,
-  facts,
-  summary,
-  status,
-}: {
+export interface HomeItemProps {
   title: ReactNode;
   /** Short facts; one that is an element, such as a link, carries its own key. */
   facts?: (string | ReactElement | null | undefined)[];
   summary?: string;
   status?: ReactNode;
-}) {
+}
+
+export function HomeItem({ title, facts, summary, status }: HomeItemProps) {
   const shown = (facts ?? []).filter((fact): fact is string | ReactElement =>
     Boolean(fact),
   );
@@ -141,6 +144,13 @@ const REGISTER: Record<
   submitted: { label: m.homeRegisterTaken, tone: "success" },
 };
 
+export interface LessonsProps {
+  slots: Slot[];
+  /** The day to open registers on; without it lessons do not link to registers. */
+  registerDate?: string;
+  showTeacher?: boolean;
+}
+
 /**
  * A day's lessons in order, the one on now and the next one marked. For a
  * teacher each lesson with a register links to it.
@@ -149,12 +159,7 @@ export function Lessons({
   slots,
   registerDate,
   showTeacher = false,
-}: {
-  slots: Slot[];
-  /** The day to open registers on; without it lessons do not link to registers. */
-  registerDate?: string;
-  showTeacher?: boolean;
-}) {
+}: LessonsProps) {
   return (
     <HomeList>
       {slots.map((slot) => {

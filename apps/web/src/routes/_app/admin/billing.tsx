@@ -64,7 +64,11 @@ function BillingPage() {
   );
 }
 
-function Billing({ billing }: { billing: SchoolBilling }) {
+interface BillingProps {
+  billing: SchoolBilling;
+}
+
+function Billing({ billing }: BillingProps) {
   const { today } = useCurrentUser();
   const language = getLocale() === "ar" ? "ar" : "en";
   const [shown, setShown] = useState<{

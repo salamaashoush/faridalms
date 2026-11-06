@@ -60,12 +60,17 @@ function monthsOf(year: { startsOn: string; endsBefore: string }) {
 
 const nextDay = (isoDate: string) => isoOf(dayOf(isoDate) + DAY_MS);
 
+export interface YearMapProps {
+  map: YearData;
+  today: string;
+}
+
 /**
  * A class's units laid along its school year: the months and terms as a
  * scale, each unit a bar from its first day to its last, and today marked.
  * A phone shows each unit's days as words, which the bars only draw.
  */
-export function YearMap({ map, today }: { map: YearData; today: string }) {
+export function YearMap({ map, today }: YearMapProps) {
   const [dating, setDating] = useState<{ key: number; unit: Unit | null }>({
     key: 0,
     unit: null,
@@ -215,20 +220,22 @@ export function YearMap({ map, today }: { map: YearData; today: string }) {
 /** Two weeks of school days, as a first guess at a unit's length. */
 const TWO_WEEKS = 13 * DAY_MS;
 
-function DatesSheet({
-  classId,
-  year,
-  unit,
-  suggested,
-  onClose,
-}: {
+interface DatesSheetProps {
   classId: string;
   year: { startsOn: string; endsBefore: string };
   unit: Unit;
   /** Where a unit with no dates yet starts: after the last one placed. */
   suggested: string;
   onClose: () => void;
-}) {
+}
+
+function DatesSheet({
+  classId,
+  year,
+  unit,
+  suggested,
+  onClose,
+}: DatesSheetProps) {
   const queryClient = useQueryClient();
   const lastDay = isoOf(dayOf(year.endsBefore) - DAY_MS);
   const [startsOn, setStartsOn] = useState(unit.startsOn ?? suggested);

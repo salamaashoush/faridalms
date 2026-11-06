@@ -75,7 +75,11 @@ const CHANNEL_LABEL: Record<Row["channel"], () => string> = {
   sms: m.ntfSms,
 };
 
-function State({ row }: { row: Row }) {
+interface StateProps {
+  row: Row;
+}
+
+function State({ row }: StateProps) {
   return (
     <span className="grid gap-0.5">
       <StatusText tone={STATE_TONE[row.state]}>

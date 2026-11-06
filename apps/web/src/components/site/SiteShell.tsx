@@ -114,6 +114,14 @@ function frameOf(
   };
 }
 
+export interface SiteShellProps {
+  site: PublicSite;
+  school: string;
+  overlay?: boolean;
+  media?: Record<string, string>;
+  children: ReactNode;
+}
+
 /**
  * A school's public website around one of its pages. Links inside the site
  * move through the router, so a visitor does not reload the whole site to
@@ -125,13 +133,7 @@ export function SiteShell({
   overlay = false,
   media,
   children,
-}: {
-  site: PublicSite;
-  school: string;
-  overlay?: boolean;
-  media?: Record<string, string>;
-  children: ReactNode;
-}) {
+}: SiteShellProps) {
   const router = useRouter();
   const location = useLocation();
   const root = useRef<HTMLDivElement>(null);

@@ -79,17 +79,14 @@ export interface Asked {
   lessonId: string;
 }
 
-function Replay({
-  asked,
-  blockId,
-  studentId,
-  name,
-}: {
+interface ReplayProps {
   asked: Asked;
   blockId: string;
   studentId: string;
   name: string;
-}) {
+}
+
+function Replay({ asked, blockId, studentId, name }: ReplayProps) {
   return (
     <Dialog>
       <DialogTrigger
@@ -114,6 +111,13 @@ function Replay({
   );
 }
 
+export interface QuestionCardProps {
+  question: Question;
+  names: Map<string, string>;
+  asked: Asked;
+  named?: boolean;
+}
+
 /**
  * How a class answered one question. With names hidden, a screen others can
  * see shows the counts alone, as Pear Deck keeps names to the teacher.
@@ -123,12 +127,7 @@ export function QuestionCard({
   names,
   asked,
   named = true,
-}: {
-  question: Question;
-  names: Map<string, string>;
-  asked: Asked;
-  named?: boolean;
-}) {
+}: QuestionCardProps) {
   const students = [...names.keys()];
   const standing = (wanted: CheckStanding) =>
     students.filter((id) => question.standings[id] === wanted);
@@ -320,20 +319,18 @@ const YOUNG_MARK: Record<
   },
 };
 
+interface YoungGridProps {
+  lesson: Lesson;
+  questions: Question[];
+  names: Map<string, string>;
+}
+
 /**
  * A young lesson read child by child: each question shows whether the child
  * got it on the first try, with help, or not yet. Screen practice informs
  * what the teacher sees in class; it is no judgement of development.
  */
-function YoungGrid({
-  lesson,
-  questions,
-  names,
-}: {
-  lesson: Lesson;
-  questions: Question[];
-  names: Map<string, string>;
-}) {
+function YoungGrid({ lesson, questions, names }: YoungGridProps) {
   return (
     <div className="grid gap-3">
       <ul className="flex flex-wrap gap-x-5 gap-y-2 text-[13px] leading-[18px] text-muted-foreground">
@@ -408,23 +405,20 @@ function YoungGrid({
   );
 }
 
+export interface ReleaseProps {
+  lessonId: string;
+  classId: string;
+  release: { released: boolean; students: readonly string[] };
+  names: ReadonlyMap<string, string> | null;
+}
+
 /**
  * A teacher shows the class how it did on a lesson's questions that wait
  * for them, or one student ahead of it; once shown, it stays shown, as
  * returned work does. Without names, as on a screen the class can see, only
  * the class can be shown.
  */
-export function Release({
-  lessonId,
-  classId,
-  release,
-  names,
-}: {
-  lessonId: string;
-  classId: string;
-  release: { released: boolean; students: readonly string[] };
-  names: ReadonlyMap<string, string> | null;
-}) {
+export function Release({ lessonId, classId, release, names }: ReleaseProps) {
   const queryClient = useQueryClient();
   const show = useMutation({
     mutationFn: (studentId?: string) =>
@@ -504,18 +498,17 @@ export function Release({
   );
 }
 
+export interface ClassQuestionsProps {
+  moduleId: string;
+  classId: string;
+}
+
 /**
  * How a class did on each question, from every student's first attempt:
  * where each stands, and for a choice who first picked which option, so a
  * common wrong idea shows. Only the teacher sees it.
  */
-export function ClassQuestions({
-  moduleId,
-  classId,
-}: {
-  moduleId: string;
-  classId: string;
-}) {
+export function ClassQuestions({ moduleId, classId }: ClassQuestionsProps) {
   const query = useQuery(classQuestionsQuery(moduleId, classId));
   if (!query.data) return <div aria-busy="true" className="min-h-40" />;
   const { students, lessons } = query.data;

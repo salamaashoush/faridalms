@@ -25,17 +25,14 @@ function namesFrom(given: string, family: string) {
     : { ar: empty, en: parts };
 }
 
-function Labelled({
-  id,
-  label,
-  error,
-  children,
-}: {
+interface LabelledProps {
   id: string;
   label: string;
   error?: string | null;
   children: ReactNode;
-}) {
+}
+
+function Labelled({ id, label, error, children }: LabelledProps) {
   return (
     <div className="grid gap-2" data-invalid={error ? true : undefined}>
       <label htmlFor={id} className="text-sm font-medium">
@@ -51,19 +48,18 @@ function Labelled({
   );
 }
 
+export interface RegisterFormProps {
+  turnstileKey: string | null;
+  /** The intake the family came to apply for, kept through to the form. */
+  intake?: string;
+}
+
 /**
  * A parent registers to apply: a name, an address to confirm and a phone.
  * Whatever happened, the page says to check the inbox, so it never tells a
  * stranger whether the address has an account.
  */
-export function RegisterForm({
-  turnstileKey,
-  intake,
-}: {
-  turnstileKey: string | null;
-  /** The intake the family came to apply for, kept through to the form. */
-  intake?: string;
-}) {
+export function RegisterForm({ turnstileKey, intake }: RegisterFormProps) {
   const hydrated = useHydrated();
   const send = useServerFn(registerFamily);
   const opened = useRef(0);

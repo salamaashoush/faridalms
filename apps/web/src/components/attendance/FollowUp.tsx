@@ -54,15 +54,15 @@ const nameOf = (row: {
   fullNameAr: string | null;
 }) => inLocale(row.fullNameEn, row.fullNameAr);
 
-function StudentLink({
-  row,
-}: {
+interface StudentLinkProps {
   row: {
     studentId: string;
     fullNameEn: string | null;
     fullNameAr: string | null;
   };
-}) {
+}
+
+function StudentLink({ row }: StudentLinkProps) {
   return (
     <RowLink
       to="/students/$studentId"
@@ -131,7 +131,12 @@ function supportColumns(): Column<Support>[] {
   ];
 }
 
-function CallRow({ call, onLog }: { call: Call; onLog: (call: Call) => void }) {
+interface CallRowProps {
+  call: Call;
+  onLog: (call: Call) => void;
+}
+
+function CallRow({ call, onLog }: CallRowProps) {
   const reached = call.contacts.some((row) => row.outcome === "reached");
   return (
     <li className="grid gap-3 py-4 md:grid-cols-[minmax(0,14rem)_minmax(0,1fr)_auto] md:items-start">
@@ -241,18 +246,17 @@ function CallRow({ call, onLog }: { call: Call; onLog: (call: Call) => void }) {
   );
 }
 
+export interface FollowUpProps {
+  date: string;
+  onDate: (date: string) => void;
+}
+
 /**
  * What the office follows up: today's calls about absences nobody
  * explained, reasons now overdue, and the children missing enough of the
  * year to need support.
  */
-export function FollowUp({
-  date,
-  onDate,
-}: {
-  date: string;
-  onDate: (date: string) => void;
-}) {
+export function FollowUp({ date, onDate }: FollowUpProps) {
   const [overduePage, setOverduePage] = useState(1);
   const [supportPage, setSupportPage] = useState(1);
   // Another day's lists start again at their first pages.
@@ -409,15 +413,13 @@ export function FollowUp({
   );
 }
 
-function ContactSheet({
-  call,
-  date,
-  onClose,
-}: {
+interface ContactSheetProps {
   call: Call;
   date: string;
   onClose: () => void;
-}) {
+}
+
+function ContactSheet({ call, date, onClose }: ContactSheetProps) {
   const queryClient = useQueryClient();
   const log = useServerFn(logAttendanceContact);
   const [outcome, setOutcome] = useState<ContactOutcome>("reached");

@@ -52,13 +52,12 @@ export function faceAccent(face: PortalFace | null) {
 }
 
 /** The school's logo and name. */
-export function SchoolMark({
-  face,
-  className,
-}: {
+export interface SchoolMarkProps {
   face: PortalFace;
   className?: string;
-}) {
+}
+
+export function SchoolMark({ face, className }: SchoolMarkProps) {
   return (
     <span className={cn("flex min-w-0 items-center gap-3", className)}>
       {face.logoKey ? (
@@ -87,7 +86,11 @@ function PlatformMark() {
 }
 
 /** The platform's name and its legal documents, small, under every sign-in page. */
-export function PlatformFooter({ className }: { className?: string }) {
+export interface PlatformFooterProps {
+  className?: string;
+}
+
+export function PlatformFooter({ className }: PlatformFooterProps) {
   return (
     <footer
       className={cn(
@@ -121,13 +124,12 @@ export function PlatformFooter({ className }: { className?: string }) {
 }
 
 /** The school office's own ways to be reached. */
-function ContactLinks({
-  face,
-  className,
-}: {
+interface ContactLinksProps {
   face: PortalFace;
   className?: string;
-}) {
+}
+
+function ContactLinks({ face, className }: ContactLinksProps) {
   const { email, phone } = face.contact;
   if (!email && !phone) return null;
   return (
@@ -161,13 +163,12 @@ function ContactLinks({
 }
 
 /** Where to turn when the form does not let someone in: the school office. */
-export function PortalHelp({
-  face,
-  topic,
-}: {
+export interface PortalHelpProps {
   face: PortalFace | null;
   topic: "sign-in" | "apply";
-}) {
+}
+
+export function PortalHelp({ face, topic }: PortalHelpProps) {
   if (!face) return null;
   return (
     <section className="mt-10 grid gap-2 border-t pt-6 text-sm">
@@ -183,13 +184,12 @@ export function PortalHelp({
 }
 
 /** A heading and a sentence over a portal page's form. */
-export function PortalHeading({
-  title,
-  lead,
-}: {
+export interface PortalHeadingProps {
   title: string;
   lead?: string;
-}) {
+}
+
+export function PortalHeading({ title, lead }: PortalHeadingProps) {
   return (
     <div className="mb-8 grid gap-2">
       <h1
@@ -203,7 +203,11 @@ export function PortalHeading({
   );
 }
 
-function Band({ face }: { face: PortalFace | null }) {
+interface BandProps {
+  face: PortalFace | null;
+}
+
+function Band({ face }: BandProps) {
   const features = [
     {
       icon: BookOpen,
@@ -268,6 +272,12 @@ function Band({ face }: { face: PortalFace | null }) {
   );
 }
 
+export interface PortalLayoutProps {
+  face: PortalFace | null;
+  wide?: boolean;
+  children: ReactNode;
+}
+
 /**
  * Every page before sign-in, the app's own in its own design system: a band
  * in the school's colour with its name and logo beside the form, or the
@@ -278,11 +288,7 @@ export function PortalLayout({
   face,
   wide = false,
   children,
-}: {
-  face: PortalFace | null;
-  wide?: boolean;
-  children: ReactNode;
-}) {
+}: PortalLayoutProps) {
   const accent = faceAccent(face);
   const mark = face ? <SchoolMark face={face} /> : <PlatformMark />;
   return (

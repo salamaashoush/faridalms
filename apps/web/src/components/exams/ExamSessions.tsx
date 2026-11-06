@@ -48,7 +48,11 @@ function useRefresh() {
   return () => queryClient.invalidateQueries({ queryKey: ["exams"] });
 }
 
-function KeepUntil({ session }: { session: ExamSession }) {
+interface KeepUntilProps {
+  session: ExamSession;
+}
+
+function KeepUntil({ session }: KeepUntilProps) {
   const below =
     session.boardKeepUntil !== null &&
     session.keepUntil < session.boardKeepUntil;
@@ -70,7 +74,11 @@ function KeepUntil({ session }: { session: ExamSession }) {
   );
 }
 
-function Rules({ session }: { session: ExamSession }) {
+interface RulesProps {
+  session: ExamSession;
+}
+
+function Rules({ session }: RulesProps) {
   const rules = [
     session.declarationRequired ? m.examRuleDeclaration() : null,
     session.aiEvidenceRequired ? m.examRuleAiEvidence() : null,
@@ -164,17 +172,19 @@ const boardCard = {
   fact: keptBy,
 };
 
+export interface SessionsTableProps {
+  overview: ExamOverview;
+  onAdd: () => void;
+  onEdit: (session: ExamSession) => void;
+  onRetire: (session: ExamSession) => void;
+}
+
 export function SessionsTable({
   overview,
   onAdd,
   onEdit,
   onRetire,
-}: {
-  overview: ExamOverview;
-  onAdd: () => void;
-  onEdit: (session: ExamSession) => void;
-  onRetire: (session: ExamSession) => void;
-}) {
+}: SessionsTableProps) {
   const rowActions = (row: ExamSession): RowAction[] => [
     { label: m.examChangeSession(), icon: Pencil, onSelect: () => onEdit(row) },
     {
@@ -206,13 +216,12 @@ export function SessionsTable({
   );
 }
 
-export function BoardsTable({
-  overview,
-  onEdit,
-}: {
+export interface BoardsTableProps {
   overview: ExamOverview;
   onEdit: (board: ExamBoardRow) => void;
-}) {
+}
+
+export function BoardsTable({ overview, onEdit }: BoardsTableProps) {
   const rows: BoardRow[] = [
     ...overview.boards.map((board) => ({
       id: board.id,
@@ -247,15 +256,13 @@ export function BoardsTable({
   );
 }
 
-export function BoardSheet({
-  open,
-  board,
-  onClose,
-}: {
+export interface BoardSheetProps {
   open: boolean;
   board?: ExamBoardRow;
   onClose: () => void;
-}) {
+}
+
+export function BoardSheet({ open, board, onClose }: BoardSheetProps) {
   const refresh = useRefresh();
   const [titleEn, setTitleEn] = useState(board?.titleEn ?? "");
   const [titleAr, setTitleAr] = useState(board?.titleAr ?? "");
@@ -320,15 +327,13 @@ export function BoardSheet({
   );
 }
 
-function ReasonField({
-  value,
-  onChange,
-  missing,
-}: {
+interface ReasonFieldProps {
   value: string;
   onChange: (value: string) => void;
   missing: boolean;
-}) {
+}
+
+function ReasonField({ value, onChange, missing }: ReasonFieldProps) {
   return (
     <FormField
       id="exam-reason"
@@ -410,6 +415,13 @@ function seriesLabel(series: ExamSeries) {
   });
 }
 
+export interface SessionSheetProps {
+  open: boolean;
+  session?: ExamSession;
+  overview: ExamOverview;
+  onClose: () => void;
+}
+
 /**
  * Adds a session, from the boards' official list or for one of the school's
  * own boards, or changes one. A change says why; keeping work for less time
@@ -420,12 +432,7 @@ export function SessionSheet({
   session,
   overview,
   onClose,
-}: {
-  open: boolean;
-  session?: ExamSession;
-  overview: ExamOverview;
-  onClose: () => void;
-}) {
+}: SessionSheetProps) {
   const refresh = useRefresh();
   const [draft, setDraft] = useState(() => draftOf(session, overview));
   const [tried, setTried] = useState(false);
@@ -681,15 +688,13 @@ export function SessionSheet({
   );
 }
 
-export function RetireSheet({
-  open,
-  session,
-  onClose,
-}: {
+export interface RetireSheetProps {
   open: boolean;
   session: ExamSession;
   onClose: () => void;
-}) {
+}
+
+export function RetireSheet({ open, session, onClose }: RetireSheetProps) {
   const refresh = useRefresh();
   const [reason, setReason] = useState("");
   const [tried, setTried] = useState(false);

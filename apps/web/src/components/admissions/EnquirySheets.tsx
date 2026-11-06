@@ -53,15 +53,13 @@ function staffOptions(staff: readonly StaffOption[]) {
 }
 
 /** English or Arabic, as a pair of buttons named by the field's label. */
-function LanguageField({
-  value,
-  hint,
-  onChange,
-}: {
+interface LanguageFieldProps {
   value: "en" | "ar";
   hint?: string;
   onChange: (value: "en" | "ar") => void;
-}) {
+}
+
+function LanguageField({ value, hint, onChange }: LanguageFieldProps) {
   return (
     <div className="grid justify-items-start gap-2">
       <span className="text-sm leading-5 font-medium">
@@ -88,6 +86,12 @@ function useRefresh() {
   return () => queryClient.invalidateQueries({ queryKey: ["admissions"] });
 }
 
+export interface LogEnquirySheetProps {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  staff: readonly StaffOption[];
+}
+
 /**
  * An enquiry taken by phone, at the desk, at an event or from a referral:
  * who it is from and how to reach them, what they asked, and who takes it.
@@ -96,11 +100,7 @@ export function LogEnquirySheet({
   open,
   onOpenChange,
   staff,
-}: {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-  staff: readonly StaffOption[];
-}) {
+}: LogEnquirySheetProps) {
   const user = useCurrentUser();
   const refresh = useRefresh();
   const navigate = useNavigate();
@@ -301,17 +301,19 @@ export interface EnquiryTarget {
 }
 
 /** Hands the enquiry to someone who works enquiries, or to nobody. */
+export interface AssignSheetProps {
+  enquiry: EnquiryTarget;
+  staff: readonly StaffOption[];
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+}
+
 export function AssignSheet({
   enquiry,
   staff,
   open,
   onOpenChange,
-}: {
-  enquiry: EnquiryTarget;
-  staff: readonly StaffOption[];
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-}) {
+}: AssignSheetProps) {
   const refresh = useRefresh();
   const [chosen, setChosen] = useState(enquiry.assignee?.id ?? NOBODY);
   const save = useMutation({
@@ -360,15 +362,13 @@ export function AssignSheet({
 }
 
 /** Ends an enquiry the family did not take further, saying why. */
-export function CloseSheet({
-  enquiry,
-  open,
-  onOpenChange,
-}: {
+export interface CloseSheetProps {
   enquiry: EnquiryTarget;
   open: boolean;
   onOpenChange: (open: boolean) => void;
-}) {
+}
+
+export function CloseSheet({ enquiry, open, onOpenChange }: CloseSheetProps) {
   const refresh = useRefresh();
   const [reason, setReason] = useState<CloseReason>("answered");
   const [note, setNote] = useState("");

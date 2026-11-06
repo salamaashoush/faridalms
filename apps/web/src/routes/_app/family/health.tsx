@@ -66,15 +66,13 @@ type Summary = Extract<
   { permitted: true }
 >;
 
-function Summary({
-  studentId,
-  name,
-  summary,
-}: {
+interface SummaryProps {
   studentId: string;
   name: string;
   summary: Summary;
-}) {
+}
+
+function Summary({ studentId, name, summary }: SummaryProps) {
   const [asking, setAsking] = useState<{ key: number; value: Asking | null }>({
     key: 0,
     value: null,
@@ -306,7 +304,12 @@ function Summary({
   );
 }
 
-function ChildHealth({ studentId, name }: { studentId: string; name: string }) {
+interface ChildHealthProps {
+  studentId: string;
+  name: string;
+}
+
+function ChildHealth({ studentId, name }: ChildHealthProps) {
   const summary = useSuspenseQuery(familyHealthQuery(studentId)).data;
   return (
     <>

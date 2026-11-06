@@ -3,20 +3,18 @@ import { cn } from "@faridalms/ui/cn";
 
 import { getLocale } from "~/i18n/runtime";
 
+export interface UserTextProps {
+  text: string;
+  lines?: 1 | 2;
+  className?: string;
+}
+
 /**
  * Text someone wrote, cut to one line or two. It takes its own direction so
  * the cut falls at its end in either script, and aligns to the page's start
  * so it lines up with the labels around it.
  */
-export function UserText({
-  text,
-  lines = 1,
-  className,
-}: {
-  text: string;
-  lines?: 1 | 2;
-  className?: string;
-}) {
+export function UserText({ text, lines = 1, className }: UserTextProps) {
   const own = textDirection(text);
   const page = getLocale() === "ar" ? "rtl" : "ltr";
   return (

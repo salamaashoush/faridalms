@@ -11,6 +11,14 @@ import { commentBankQuery } from "~/queries/coursework";
 import { removeFromCommentBank, saveToCommentBank } from "~/server/coursework";
 import { getMessageFromError } from "~/utils/error";
 
+export interface CommentBankPickerProps {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  onPick: (picked: { id: string; body: string }) => void;
+  /** An icon alone, for the tight row under a comment. */
+  compact?: boolean;
+}
+
 /**
  * The grader's kept comments, searched and picked into what they are
  * writing. Their own can be taken out; those shared by colleagues are only
@@ -21,13 +29,7 @@ export function CommentBankPicker({
   onOpenChange,
   onPick,
   compact = false,
-}: {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-  onPick: (picked: { id: string; body: string }) => void;
-  /** An icon alone, for the tight row under a comment. */
-  compact?: boolean;
-}) {
+}: CommentBankPickerProps) {
   const [search, setSearch] = useState("");
   const queryClient = useQueryClient();
   const bank = useQuery({ ...commentBankQuery, enabled: open }).data;

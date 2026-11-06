@@ -10,7 +10,11 @@ import { formatNumber } from "~/utils/datetime";
  * fills in once known rather than holding the shell back, and says what
  * it counts to a screen reader.
  */
-export function UnreadMessagesCount({ className }: { className?: string }) {
+export interface UnreadMessagesCountProps {
+  className?: string;
+}
+
+export function UnreadMessagesCount({ className }: UnreadMessagesCountProps) {
   const unread = useQuery(unreadThreadsQuery).data?.threads;
   if (!unread) return null;
   return (

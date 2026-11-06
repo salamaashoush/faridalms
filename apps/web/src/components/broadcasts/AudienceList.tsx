@@ -58,20 +58,22 @@ export function audienceIssue(audiences: AudienceInput[]): string | null {
 }
 
 /** Who a broadcast goes to: the whole school, a group of people, classes or grades. */
-export function AudienceList({
-  value,
-  onChange,
-  choices,
-  error,
-  scopes = AUDIENCE_SCOPES,
-}: {
+export interface AudienceListProps {
   value: AudienceInput[];
   onChange: (next: AudienceInput[]) => void;
   choices: AudienceChoices;
   error: string | null;
   /** The scopes this author may address; teachers reach only their classes. */
   scopes?: readonly AudienceScope[];
-}) {
+}
+
+export function AudienceList({
+  value,
+  onChange,
+  choices,
+  error,
+  scopes = AUDIENCE_SCOPES,
+}: AudienceListProps) {
   const setAt = (index: number, next: AudienceInput) =>
     onChange(value.map((row, at) => (at === index ? next : row)));
   return (

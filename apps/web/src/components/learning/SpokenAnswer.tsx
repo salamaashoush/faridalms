@@ -107,13 +107,12 @@ export const recordingUrl = (
     : null);
 
 /** A teacher's mark on a spoken answer, or that it is with them. */
-export function SpokenStatus({
-  block,
-  view,
-}: {
+export interface SpokenStatusProps {
   block: Pick<Written, "points">;
   view: CheckView | undefined;
-}) {
+}
+
+export function SpokenStatus({ block, view }: SpokenStatusProps) {
   if (!view || view.tries === 0) return null;
   if (!view.marked)
     return (
@@ -148,17 +147,19 @@ export function SpokenStatus({
 }
 
 /** A spoken answer for older students: record, listen or watch back, send. */
+export interface SpokenRecorderProps {
+  block: Written;
+  view: CheckView | undefined;
+  driver: CheckDriver;
+  locked: boolean;
+}
+
 export function SpokenRecorder({
   block,
   view,
   driver,
   locked,
-}: {
-  block: Written;
-  view: CheckView | undefined;
-  driver: CheckDriver;
-  locked: boolean;
-}) {
+}: SpokenRecorderProps) {
   const { send, heard } = useSpokenAnswer(block, driver);
   const [filming, setFilming] = useState(false);
   const url = recordingUrl(view, heard);

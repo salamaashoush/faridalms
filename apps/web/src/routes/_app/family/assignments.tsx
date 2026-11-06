@@ -40,15 +40,13 @@ export const Route = createFileRoute("/_app/family/assignments")({
   component: FamilyCourseworkPage,
 });
 
-function ChildWork({
-  studentId,
-  open,
-  onOpen,
-}: {
+interface ChildWorkProps {
   studentId: string;
   open: string | undefined;
   onOpen: (assignmentId: string | undefined) => void;
-}) {
+}
+
+function ChildWork({ studentId, open, onOpen }: ChildWorkProps) {
   const { rows, now } = useSuspenseQuery(childCourseworkQuery(studentId)).data;
   const at = Date.parse(now);
   const missing = rows.filter((row) => row.state === "missing");

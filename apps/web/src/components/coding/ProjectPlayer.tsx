@@ -12,6 +12,13 @@ import { useStudioFrame } from "./useStudioFrame";
 /** The studio's player is its stage under a bar with the flag and stop: 480 by 360 and 44 more. */
 const PLAYER_RATIO = "480 / 404";
 
+export interface ProjectPlayerProps {
+  projectUrl: string;
+  /** A picture of the stage to show until the project runs. */
+  stage: string | null;
+  label: string;
+}
+
 /**
  * A project to run in place, as a project page on the Scratch website runs
  * one: its stage first, and the player only once someone presses the flag,
@@ -21,12 +28,7 @@ export function ProjectPlayer({
   projectUrl,
   stage,
   label,
-}: {
-  projectUrl: string;
-  /** A picture of the stage to show until the project runs. */
-  stage: string | null;
-  label: string;
-}) {
+}: ProjectPlayerProps) {
   const configured = Boolean(useQuery(playQuery).data);
   const [playing, setPlaying] = useState(false);
   if (playing && configured)
@@ -60,7 +62,12 @@ export function ProjectPlayer({
   );
 }
 
-function Playing({ projectUrl, label }: { projectUrl: string; label: string }) {
+interface PlayingProps {
+  projectUrl: string;
+  label: string;
+}
+
+function Playing({ projectUrl, label }: PlayingProps) {
   const studio = useStudioFrame({
     projectUrl,
     mode: "player",

@@ -68,7 +68,12 @@ function whatOf(row: Change) {
     : m.healthChangesEdit({ kind });
 }
 
-function ChangeStatus({ row, today }: { row: Change; today: string }) {
+interface ChangeStatusProps {
+  row: Change;
+  today: string;
+}
+
+function ChangeStatus({ row, today }: ChangeStatusProps) {
   if (row.state !== "open") {
     const state = CHANGE_STATE[row.state];
     return <StatusText tone={state.tone}>{state.label()}</StatusText>;
@@ -141,12 +146,17 @@ function cardOf(today: string) {
 
 type Answer = "accepted" | "declined";
 
+interface ReviewSheetProps {
+  row: Change;
+  onClose: () => void;
+}
+
 /**
  * What the school holds beside what the family asked for, and the answer:
  * accept, which applies it to the record as compared, or decline with the
  * reason the family will read.
  */
-function ReviewSheet({ row, onClose }: { row: Change; onClose: () => void }) {
+function ReviewSheet({ row, onClose }: ReviewSheetProps) {
   const queryClient = useQueryClient();
   const [answer, setAnswer] = useState<Answer>("accepted");
   const [reason, setReason] = useState("");

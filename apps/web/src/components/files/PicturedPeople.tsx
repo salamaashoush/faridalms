@@ -22,13 +22,12 @@ type Person = Data["files"][number]["people"][number];
 /** Where the pictures are going: the public website, or news inside the school. */
 export type PictureChannel = "website" | "news";
 
-function Answer({
-  person,
-  channel,
-}: {
+interface AnswerProps {
   person: Person;
   channel: PictureChannel;
-}) {
+}
+
+function Answer({ person, channel }: AnswerProps) {
   const answer = person[channel];
   return (
     <StatusText tone={answer === "granted" ? "success" : "warning"}>
@@ -41,17 +40,14 @@ function Answer({
   );
 }
 
-function PeopleSheet({
-  fileId,
-  channel,
-  open,
-  onClose,
-}: {
+interface PeopleSheetProps {
   fileId: string;
   channel: PictureChannel;
   open: boolean;
   onClose: () => void;
-}) {
+}
+
+function PeopleSheet({ fileId, channel, open, onClose }: PeopleSheetProps) {
   const queryClient = useQueryClient();
   const picture = useQuery(picturedQuery([fileId])).data?.files[0] ?? null;
   const [picked, setPicked] = useState<string[] | null>(null);

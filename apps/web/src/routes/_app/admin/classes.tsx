@@ -49,7 +49,11 @@ export const Route = createFileRoute("/_app/admin/classes")({
   component: ClassesPage,
 });
 
-function ClassName({ row }: { row: ClassRow }) {
+interface ClassNameProps {
+  row: ClassRow;
+}
+
+function ClassName({ row }: ClassNameProps) {
   return (
     <RowLink to="/classes/$classId" params={{ classId: row.id }} search={{}}>
       {classTitle(row)}
@@ -57,7 +61,11 @@ function ClassName({ row }: { row: ClassRow }) {
   );
 }
 
-function Teacher({ row }: { row: ClassRow }) {
+interface TeacherProps {
+  row: ClassRow;
+}
+
+function Teacher({ row }: TeacherProps) {
   const teacher = row.teachers[0];
   return teacher ? (
     <bdi>{displayName(teacher)}</bdi>

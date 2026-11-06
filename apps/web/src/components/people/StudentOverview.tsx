@@ -24,17 +24,16 @@ import { studentNoticesQuery } from "~/queries/students";
 import { studentWeekQuery } from "~/queries/timetable";
 import { formatInstant, formatList, formatNumber } from "~/utils/datetime";
 
+export interface StudentTodayProps {
+  studentId: string;
+  today: string;
+}
+
 /**
  * A student's lessons today, in the order of the day, as the timetable has
  * them with the day's changes: who covers, where it moved, what is off.
  */
-export function StudentToday({
-  studentId,
-  today,
-}: {
-  studentId: string;
-  today: string;
-}) {
+export function StudentToday({ studentId, today }: StudentTodayProps) {
   const { week } = useSuspenseQuery(studentWeekQuery(studentId)).data;
   if (!week) return null;
   const day = todayOf(today);
@@ -98,13 +97,15 @@ export function StudentToday({
 }
 
 /** How a student's year of registers stands so far, with the way to every mark. */
+export interface StudentAttendanceSummaryProps {
+  studentId: string;
+  onOpen: () => void;
+}
+
 export function StudentAttendanceSummary({
   studentId,
   onOpen,
-}: {
-  studentId: string;
-  onOpen: () => void;
-}) {
+}: StudentAttendanceSummaryProps) {
   const { summary } = useSuspenseQuery(studentAttendanceQuery(studentId)).data;
   return (
     <RecordSection
@@ -138,12 +139,16 @@ export function StudentAttendanceSummary({
   );
 }
 
+export interface StudentNoticesProps {
+  studentId: string;
+}
+
 /**
  * What the school last told the student's guardians, and which of them has
  * read each notice, so the office knows what a family already knows before
  * it rings them.
  */
-export function StudentNotices({ studentId }: { studentId: string }) {
+export function StudentNotices({ studentId }: StudentNoticesProps) {
   const notices = useSuspenseQuery(studentNoticesQuery(studentId)).data;
   return (
     <RecordSection

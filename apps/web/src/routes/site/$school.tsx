@@ -108,15 +108,14 @@ function SiteFailed(props: ErrorComponentProps) {
   );
 }
 
-function KnownSite({
-  site,
-  ...rest
-}: {
+interface KnownSiteProps {
   site: PublicSite;
   school: string;
   kind: "missing" | "failed";
   onRetry?: () => void;
-}) {
+}
+
+function KnownSite({ site, ...rest }: KnownSiteProps) {
   adoptSchool(site);
   return <SiteStatus site={site} {...rest} />;
 }

@@ -44,7 +44,12 @@ const answerTo = (child: Child, form: Form): Answer | null =>
 const waiting = (answer: Answer | null, form: Form) =>
   !answer || answer.due || answer.formId !== form.id;
 
-function ChildAnswer({ child, form }: { child: Child; form: Form }) {
+interface ChildAnswerProps {
+  child: Child;
+  form: Form;
+}
+
+function ChildAnswer({ child, form }: ChildAnswerProps) {
   const queryClient = useQueryClient();
   const answer = answerTo(child, form);
   const [changing, setChanging] = useState(false);
@@ -135,7 +140,12 @@ function ChildAnswer({ child, form }: { child: Child; form: Form }) {
   );
 }
 
-function FormCard({ form, family }: { form: Form; family: Child[] }) {
+interface FormCardProps {
+  form: Form;
+  family: Child[];
+}
+
+function FormCard({ form, family }: FormCardProps) {
   const open = family.some(
     (child) => child.mayAnswer && waiting(answerTo(child, form), form),
   );

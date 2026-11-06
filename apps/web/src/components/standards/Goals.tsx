@@ -74,7 +74,11 @@ export const GOAL_LEVEL: Record<
 };
 
 /** A judgement by its shape and colour, so neither alone carries it. */
-export function GoalMark({ level }: { level: GoalLevel | null }) {
+export interface GoalMarkProps {
+  level: GoalLevel | null;
+}
+
+export function GoalMark({ level }: GoalMarkProps) {
   if (!level)
     return (
       <span className="text-sm leading-5 text-muted-foreground">
@@ -98,18 +102,15 @@ interface GoalGroup {
 export const goalName = (goal: Pick<Goal, "code" | "statement">) =>
   goal.code ? `${goal.code} ${goal.statement}` : goal.statement;
 
-function GoalPicker({
-  groups,
-  value,
-  judged,
-  onChange,
-}: {
+interface GoalPickerProps {
   groups: readonly GoalGroup[];
   value: string;
   /** How many children each goal is judged for, of how many. */
   judged: (goalId: string) => string;
   onChange: (id: string) => void;
-}) {
+}
+
+function GoalPicker({ groups, value, judged, onChange }: GoalPickerProps) {
   const goals = groups.flatMap((group) => group.goals);
   const at = goals.findIndex((goal) => goal.id === value);
   const previous = goals[at - 1];
@@ -190,19 +191,21 @@ function GoalPicker({
 const LEVEL_CHOICES = ["none", "emerging", "expected"] as const;
 type LevelChoice = (typeof LEVEL_CHOICES)[number];
 
+interface ChildRowProps {
+  classId: string;
+  student: Student;
+  goal: Goal;
+  judgement: Judgement | undefined;
+  canJudge: boolean;
+}
+
 function ChildRow({
   classId,
   student,
   goal,
   judgement,
   canJudge,
-}: {
-  classId: string;
-  student: Student;
-  goal: Goal;
-  judgement: Judgement | undefined;
-  canJudge: boolean;
-}) {
+}: ChildRowProps) {
   const queryClient = useQueryClient();
   const judge = useServerFn(judgeGoal);
   const noteId = useId();
@@ -326,7 +329,12 @@ function ChildRow({
   );
 }
 
-function NoGoals({ canAdd, classId }: { canAdd: boolean; classId: string }) {
+interface NoGoalsProps {
+  canAdd: boolean;
+  classId: string;
+}
+
+function NoGoals({ canAdd, classId }: NoGoalsProps) {
   const queryClient = useQueryClient();
   const add = useServerFn(addEarlyGoals);
   const adding = useMutation({
@@ -362,12 +370,16 @@ function NoGoals({ canAdd, classId }: { canAdd: boolean; classId: string }) {
   );
 }
 
+export interface ClassGoalsProps {
+  classId: string;
+}
+
 /**
  * A class's children against the goals of a framework, one goal at a time,
  * each judged by their teacher from all they know of the child: expected,
  * or emerging while not yet there.
  */
-export function ClassGoals({ classId }: { classId: string }) {
+export function ClassGoals({ classId }: ClassGoalsProps) {
   const [frameworkId, setFrameworkId] = useState("");
   const data = useSuspenseQuery(classGoalsQuery(classId, frameworkId)).data;
   const groups = goalGroups(data.goals);
@@ -460,17 +472,16 @@ type StudentData = Awaited<
   ReturnType<NonNullable<ReturnType<typeof studentProgressQuery>["queryFn"]>>
 >;
 
+export interface StudentGoalsProps {
+  frameworks: StudentData["goalFrameworks"];
+  judgements: StudentData["judgements"];
+}
+
 /**
  * Where a child stands against each goal of the frameworks they have been
  * judged on, the goals not yet judged included, as their profile reads.
  */
-export function StudentGoals({
-  frameworks,
-  judgements,
-}: {
-  frameworks: StudentData["goalFrameworks"];
-  judgements: StudentData["judgements"];
-}) {
+export function StudentGoals({ frameworks, judgements }: StudentGoalsProps) {
   const judged = new Map(judgements.map((row) => [row.standardId, row]));
   return frameworks.map((framework) => {
     const groups = goalGroups(framework.goals);

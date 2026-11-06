@@ -49,7 +49,11 @@ const countAt = (funnel: Funnel, stage: FunnelStage) =>
   funnel.find((row) => row.stage === stage)?.count ?? 0;
 
 /** How many applications reached each stage, as bars against those sent. */
-function FunnelBars({ funnel }: { funnel: Funnel }) {
+interface FunnelBarsProps {
+  funnel: Funnel;
+}
+
+function FunnelBars({ funnel }: FunnelBarsProps) {
   const sent = countAt(funnel, "submitted");
   return (
     <ol className="grid gap-3">

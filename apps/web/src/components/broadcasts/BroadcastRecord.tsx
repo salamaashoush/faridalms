@@ -53,19 +53,22 @@ const titleOf = (data: { titleEn: string; titleAr: string }) =>
   inLocale(data.titleEn || null, data.titleAr || null);
 
 /** A broadcast's title in the reader's language, for its breadcrumb. */
-export function BroadcastTrail({
-  kind,
-  id,
-}: {
+export interface BroadcastTrailProps {
   kind: BroadcastKind;
   id: string;
-}) {
+}
+
+export function BroadcastTrail({ kind, id }: BroadcastTrailProps) {
   return (
     <BreadcrumbCurrent>{titleOf(KINDS[kind].useRecord(id))}</BreadcrumbCurrent>
   );
 }
 
-function Read({ row }: { row: ReportRow }) {
+interface ReadProps {
+  row: ReportRow;
+}
+
+function Read({ row }: ReadProps) {
   return row.readAt ? (
     <StatusText tone="success">{formatInstant(row.readAt)}</StatusText>
   ) : (
@@ -73,7 +76,11 @@ function Read({ row }: { row: ReportRow }) {
   );
 }
 
-function Acknowledged({ row }: { row: ReportRow }) {
+interface AcknowledgedProps {
+  row: ReportRow;
+}
+
+function Acknowledged({ row }: AcknowledgedProps) {
   return row.acknowledgedAt ? (
     <StatusText tone="success">{formatInstant(row.acknowledgedAt)}</StatusText>
   ) : (
@@ -118,17 +125,14 @@ function reportCard(withAck: boolean) {
   };
 }
 
-function Report({
-  view,
-  data,
-  open,
-  onOpenChange,
-}: {
+interface ReportProps {
   view: KindView;
   data: RecordData;
   open: boolean;
   onOpenChange: (open: boolean) => void;
-}) {
+}
+
+function Report({ view, data, open, onOpenChange }: ReportProps) {
   const [search, setSearch] = useState("");
   const q = useDeferredValue(search.trim());
   const [page, setPage] = useState(1);
@@ -198,13 +202,12 @@ function Report({
   );
 }
 
-function Notice({
-  children,
-  action,
-}: {
+interface NoticeProps {
   children: string;
   action?: { label: string; onClick: () => void; pending: boolean };
-}) {
+}
+
+function Notice({ children, action }: NoticeProps) {
   return (
     <div className="flex flex-wrap items-center gap-3 rounded-lg border border-warning/60 bg-warning/10 px-4 py-3">
       <p className="min-w-0 flex-1 text-sm leading-5">{children}</p>
@@ -223,18 +226,17 @@ function Notice({
   );
 }
 
+export interface BroadcastRecordProps {
+  kind: BroadcastKind;
+  id: string;
+}
+
 /**
  * One broadcast as its reader sees it: the copy that went out, in the
  * reader's language where it has one. Those who manage the kind also see who
  * it reached, edits still waiting, and a draft never sent as a preview.
  */
-export function BroadcastRecord({
-  kind,
-  id,
-}: {
-  kind: BroadcastKind;
-  id: string;
-}) {
+export function BroadcastRecord({ kind, id }: BroadcastRecordProps) {
   const view = KINDS[kind];
   const navigate = useNavigate();
   const queryClient = useQueryClient();

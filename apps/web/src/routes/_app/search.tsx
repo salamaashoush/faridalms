@@ -46,7 +46,11 @@ export const Route = createFileRoute("/_app/search")({
   component: SearchPage,
 });
 
-function Nothing({ q }: { q: string }) {
+interface NothingProps {
+  q: string;
+}
+
+function Nothing({ q }: NothingProps) {
   return (
     <EmptyState
       icon={SearchX}
@@ -56,7 +60,11 @@ function Nothing({ q }: { q: string }) {
   );
 }
 
-function AllKinds({ q }: { q: string }) {
+interface AllKindsProps {
+  q: string;
+}
+
+function AllKinds({ q }: AllKindsProps) {
   const results = useQuery(searchQuery(q));
   if (results.isPending)
     return (
@@ -78,7 +86,12 @@ function AllKinds({ q }: { q: string }) {
   );
 }
 
-function OneKind({ q, kind }: { q: string; kind: SearchKind }) {
+interface OneKindProps {
+  q: string;
+  kind: SearchKind;
+}
+
+function OneKind({ q, kind }: OneKindProps) {
   const results = useInfiniteQuery(searchKindQuery(q, kind));
   if (results.isPending)
     return (

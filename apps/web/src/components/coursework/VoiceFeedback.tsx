@@ -31,13 +31,12 @@ const recorderStrings = () => ({
 });
 
 /** The recordings on an attempt, played back as they will be heard. */
-export function Recordings({
-  recordings,
-  onRemove,
-}: {
+export interface RecordingsProps {
   recordings: Recording[];
   onRemove?: (recording: Recording) => void;
-}) {
+}
+
+export function Recordings({ recordings, onRemove }: RecordingsProps) {
   return (
     <ul className="grid gap-2">
       {recordings.map((recording) => (
@@ -69,13 +68,12 @@ export function Recordings({
 }
 
 /** Voice feedback on one attempt, recorded in the grade sheet. */
-export function VoiceFeedback({
-  attemptId,
-  recordings,
-}: {
+export interface VoiceFeedbackProps {
   attemptId: string;
   recordings: Recording[];
-}) {
+}
+
+export function VoiceFeedback({ attemptId, recordings }: VoiceFeedbackProps) {
   const queryClient = useQueryClient();
   const media = useDocumentMedia();
   const settle = () =>

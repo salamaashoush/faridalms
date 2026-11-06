@@ -48,7 +48,11 @@ type YearData = Awaited<
   ReturnType<NonNullable<ReturnType<typeof yearQuery>["queryFn"]>>
 >;
 
-function TermsSection({ year }: { year: YearData }) {
+interface TermsSectionProps {
+  year: YearData;
+}
+
+function TermsSection({ year }: TermsSectionProps) {
   return (
     <RecordSection title={m.yearsTerms()} description={m.yearsTermsHint()}>
       {year.terms.length === 0 ? (
@@ -74,15 +78,13 @@ function TermsSection({ year }: { year: YearData }) {
   );
 }
 
-function CountLink({
-  to,
-  year,
-  children,
-}: {
+interface CountLinkProps {
   to: "/admin/classes" | "/admin/students";
   year: string;
   children: number;
-}) {
+}
+
+function CountLink({ to, year, children }: CountLinkProps) {
   return (
     <Link
       to={to}
@@ -94,7 +96,11 @@ function CountLink({
   );
 }
 
-function SummarySection({ year }: { year: YearData }) {
+interface SummarySectionProps {
+  year: YearData;
+}
+
+function SummarySection({ year }: SummarySectionProps) {
   return (
     <RecordSection title={m.yearsSummary()}>
       <Facts>
@@ -123,23 +129,24 @@ function SummarySection({ year }: { year: YearData }) {
   );
 }
 
-function YearHistory({ yearId }: { yearId: string }) {
+interface YearHistoryProps {
+  yearId: string;
+}
+
+function YearHistory({ yearId }: YearHistoryProps) {
   const feed = useSuspenseInfiniteQuery(yearHistoryQuery(yearId));
   return <HistoryFeed feed={feed} />;
 }
 
-export function YearRecord({
-  yearId,
-  tab,
-  on,
-  onTab,
-}: {
+export interface YearRecordProps {
   yearId: string;
   tab: YearTab;
   /** The day the periods tab reads the school day on; empty for today. */
   on: string;
   onTab: (tab: YearTab) => void;
-}) {
+}
+
+export function YearRecord({ yearId, tab, on, onTab }: YearRecordProps) {
   const year = useSuspenseQuery(yearQuery(yearId)).data;
   const years = useSuspenseQuery(yearsQuery).data.years;
   const navigate = useNavigate();

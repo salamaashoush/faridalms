@@ -92,11 +92,11 @@ function shown(change: HistoryChange, value: HistoryValue) {
 }
 
 /** The old and new value of each field an entry changed. */
-export function HistoryChanges({
-  changes,
-}: {
+export interface HistoryChangesProps {
   changes: readonly HistoryChange[];
-}) {
+}
+
+export function HistoryChanges({ changes }: HistoryChangesProps) {
   if (changes.length === 0) return null;
   return (
     <dl className="mt-1 grid gap-1 text-[13px] leading-[18px]">

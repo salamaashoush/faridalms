@@ -3,19 +3,21 @@ import type { ReactNode } from "react";
 import { ChevronDown } from "lucide-react";
 
 /** A field in a studio panel: its label above the control, and a hint below. */
+export interface StudioFieldProps {
+  id?: string;
+  label: string;
+  hint?: ReactNode;
+  children: ReactNode;
+  counter?: ReactNode;
+}
+
 export function StudioField({
   id,
   label,
   hint,
   children,
   counter,
-}: {
-  id?: string;
-  label: string;
-  hint?: ReactNode;
-  children: ReactNode;
-  counter?: ReactNode;
-}) {
+}: StudioFieldProps) {
   return (
     <div className="grid min-w-0 gap-1.5">
       <div className="flex items-baseline justify-between gap-2">
@@ -39,17 +41,19 @@ export function StudioField({
 }
 
 /** A disclosure inside a panel, closed until opened. */
+export interface DisclosureProps {
+  summary: ReactNode;
+  children: ReactNode;
+  defaultOpen?: boolean;
+  actions?: ReactNode;
+}
+
 export function Disclosure({
   summary,
   children,
   defaultOpen = false,
   actions,
-}: {
-  summary: ReactNode;
-  children: ReactNode;
-  defaultOpen?: boolean;
-  actions?: ReactNode;
-}) {
+}: DisclosureProps) {
   return (
     <details open={defaultOpen} className="group rounded-lg border bg-card">
       <summary className="flex min-h-11 cursor-pointer list-none items-center gap-2 px-3 text-sm font-medium [&::-webkit-details-marker]:hidden">

@@ -9,12 +9,16 @@ import { readBadgeCards } from "./nfc";
 /** A card still on the device is not read twice in this time. */
 const AGAIN_MS = 5000;
 
+export interface CardReaderProps {
+  onBadge: (secret: string) => void;
+}
+
 /**
  * Reads the cards children tap on an Android device. Chrome asks the
  * teacher's leave once, after a tap on the button, and then reads until
  * the screen closes.
  */
-export function CardReader({ onBadge }: { onBadge: (secret: string) => void }) {
+export function CardReader({ onBadge }: CardReaderProps) {
   const [state, setState] = useState<"idle" | "reading" | "failed">("idle");
   const [attempt, setAttempt] = useState(0);
   const seen = useRef(new Map<string, number>());

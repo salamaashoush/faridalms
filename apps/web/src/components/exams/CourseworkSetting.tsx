@@ -19,6 +19,12 @@ const boardOf = (session: {
   boardId: string | null;
 }) => session.official?.board ?? session.boardId;
 
+export interface CourseworkSettingProps {
+  assignmentId: string;
+  /** The board of the class's programme, whose sessions come first. */
+  board: string | null;
+}
+
 /**
  * Sets an assignment as assessed coursework for one of the school's exam
  * sessions, saved as soon as it is chosen. Schools without sessions see
@@ -27,11 +33,7 @@ const boardOf = (session: {
 export function CourseworkSetting({
   assignmentId,
   board,
-}: {
-  assignmentId: string;
-  /** The board of the class's programme, whose sessions come first. */
-  board: string | null;
-}) {
+}: CourseworkSettingProps) {
   const queryClient = useQueryClient();
   const overview = useQuery(examOverviewQuery).data;
   const current = useQuery({

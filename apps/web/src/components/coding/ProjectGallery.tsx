@@ -22,6 +22,19 @@ import { ProjectStudio } from "./ProjectStudio";
 
 const failed = (error: unknown) => toast.error(getMessageFromError(error));
 
+export interface ProjectGalleryProps {
+  lessonId: string;
+  blockId: string;
+  /** The student's project is marked, so it can no longer begin again. */
+  settled: boolean;
+  onRemixed?: (files: ProjectFile[]) => void;
+  onBuild?: (from: {
+    studentId: string;
+    name: string;
+    projectUrl: string;
+  }) => void;
+}
+
 /**
  * A project question's class gallery, under a student's own project: where
  * their offer to show it stands, and the classmates' projects their
@@ -37,18 +50,7 @@ export function ProjectGallery({
   settled,
   onRemixed,
   onBuild,
-}: {
-  lessonId: string;
-  blockId: string;
-  /** The student's project is marked, so it can no longer begin again. */
-  settled: boolean;
-  onRemixed?: (files: ProjectFile[]) => void;
-  onBuild?: (from: {
-    studentId: string;
-    name: string;
-    projectUrl: string;
-  }) => void;
-}) {
+}: ProjectGalleryProps) {
   const queryClient = useQueryClient();
   const query = galleryQuery(lessonId, blockId);
   const data = useQuery(query).data;

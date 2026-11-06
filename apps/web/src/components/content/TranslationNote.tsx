@@ -14,15 +14,17 @@ interface Review {
 }
 
 /** Where a translation stands against its original, and who checked it. */
+export interface TranslationNoteProps {
+  state: TranslationState;
+  review: Review | null;
+  language: string;
+}
+
 export function TranslationNote({
   state,
   review,
   language,
-}: {
-  state: TranslationState;
-  review: Review | null;
-  language: string;
-}) {
+}: TranslationNoteProps) {
   const text =
     state === "missing"
       ? m.translationMissing({ language })

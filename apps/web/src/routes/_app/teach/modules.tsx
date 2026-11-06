@@ -65,7 +65,11 @@ const TAB_LABEL: Record<(typeof TABS)[number], () => string> = {
   archived: m.lrnTabArchived,
 };
 
-function Title({ row }: { row: Row }) {
+interface TitleProps {
+  row: Row;
+}
+
+function Title({ row }: TitleProps) {
   return (
     <RowLink to="/modules/$moduleId" params={{ moduleId: row.id }} search={{}}>
       {row.title}
@@ -73,7 +77,11 @@ function Title({ row }: { row: Row }) {
   );
 }
 
-function State({ row }: { row: Row }) {
+interface StateProps {
+  row: Row;
+}
+
+function State({ row }: StateProps) {
   const state = shownState(row);
   return (
     <StatusText tone={STATE_TONE[state]}>{STATE_LABEL[state]()}</StatusText>

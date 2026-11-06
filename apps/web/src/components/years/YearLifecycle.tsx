@@ -54,6 +54,14 @@ const COPY: Record<
   },
 };
 
+export interface YearLifecycleSheetProps {
+  year: LifecycleYear;
+  action: YearAction;
+  current: LifecycleYear | null;
+  open: boolean;
+  onClose: () => void;
+}
+
 /**
  * One lifecycle step on a year, explained before it is taken. Reopening asks
  * why, and the reason stays in the year's history.
@@ -64,13 +72,7 @@ export function YearLifecycleSheet({
   current,
   open,
   onClose,
-}: {
-  year: LifecycleYear;
-  action: YearAction;
-  current: LifecycleYear | null;
-  open: boolean;
-  onClose: () => void;
-}) {
+}: YearLifecycleSheetProps) {
   const queryClient = useQueryClient();
   const [reason, setReason] = useState("");
   const [error, setError] = useState<string | null>(null);

@@ -201,16 +201,7 @@ function usePlacing({
 
 type Placing = ReturnType<typeof usePlacing>;
 
-/**
- * A card a child can pick up: by a tap, or by dragging it to a place; a
- * short press is a tap.
- */
-function Piece({
-  part,
-  placing,
-  small = false,
-  compact = false,
-}: {
+interface PieceProps {
   part: StudentPart;
   placing: Placing;
   small?: boolean;
@@ -219,7 +210,13 @@ function Piece({
    * one in a hand of cards, smaller on a phone alone.
    */
   compact?: boolean | "phone";
-}) {
+}
+
+/**
+ * A card a child can pick up: by a tap, or by dragging it to a place; a
+ * short press is a tap.
+ */
+function Piece({ part, placing, small = false, compact = false }: PieceProps) {
   const held = placing.held === part.id;
   const mark = placing.markOf(part.id);
   const locked = placing.locked(part.id);
@@ -294,19 +291,15 @@ function Piece({
 }
 
 /** An empty place a held card can be put in. */
-function Spot({
-  id,
-  label,
-  placing,
-  className,
-  children,
-}: {
+interface SpotProps {
   id: string;
   label: string;
   placing: Placing;
   className?: string;
   children?: ReactNode;
-}) {
+}
+
+function Spot({ id, label, placing, className, children }: SpotProps) {
   return (
     <button
       type="button"
@@ -327,12 +320,7 @@ function Spot({
 }
 
 /** The cards still to place, and a way to put a picked-up card back among them. */
-function Pile({
-  pieces,
-  placing,
-  small,
-  foot = false,
-}: {
+interface PileProps {
   pieces: StudentPart[];
   placing: Placing;
   small?: boolean;
@@ -341,7 +329,9 @@ function Pile({
    * scroll above it: a pile below the places was out of sight on a phone.
    */
   foot?: boolean;
-}) {
+}
+
+function Pile({ pieces, placing, small, foot = false }: PileProps) {
   const left = pieces.filter((piece) => !placing.placement[piece.id]);
   const back = placing.held && placing.placement[placing.held];
   if (left.length === 0 && !back) return null;
@@ -382,13 +372,12 @@ function Pile({
 }
 
 /** What follows every placing board: what was said, help once stuck, and the outcome. */
-function Footer({
-  placing,
-  view,
-}: {
+interface FooterProps {
   placing: Placing;
   view: CheckView | undefined;
-}) {
+}
+
+function Footer({ placing, view }: FooterProps) {
   return (
     <>
       <p aria-live="polite" className="sr-only">
@@ -416,15 +405,13 @@ function Footer({
 }
 
 /** Matching as children do it: each card is taken to the one it goes with. */
-export function YoungMatching({
-  block,
-  view,
-  driver,
-}: {
+export interface YoungMatchingProps {
   block: Matching;
   view: CheckView | undefined;
   driver: CheckDriver;
-}) {
+}
+
+export function YoungMatching({ block, view, driver }: YoungMatchingProps) {
   const placing = usePlacing({
     block,
     view,
@@ -518,15 +505,13 @@ export function YoungMatching({
 }
 
 /** Sorting as children do it: each card is put in its group's box. */
-export function YoungSorting({
-  block,
-  view,
-  driver,
-}: {
+export interface YoungSortingProps {
   block: Sorting;
   view: CheckView | undefined;
   driver: CheckDriver;
-}) {
+}
+
+export function YoungSorting({ block, view, driver }: YoungSortingProps) {
   const placing = usePlacing({
     block,
     view,
@@ -614,15 +599,13 @@ export function YoungSorting({
 }
 
 /** Ordering as children do it: cards go one by one into numbered places. */
-export function YoungOrdering({
-  block,
-  view,
-  driver,
-}: {
+export interface YoungOrderingProps {
   block: Ordering;
   view: CheckView | undefined;
   driver: CheckDriver;
-}) {
+}
+
+export function YoungOrdering({ block, view, driver }: YoungOrderingProps) {
   const slots = block.items.map((_, index) => `slot-${index}`);
   const placing = usePlacing({
     block,

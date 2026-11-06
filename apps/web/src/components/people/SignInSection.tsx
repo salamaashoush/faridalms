@@ -23,15 +23,7 @@ interface Account {
 
 const MIN_PASSWORD = 15;
 
-function SignInSheet({
-  userId,
-  name,
-  account,
-  suggestedLogin,
-  way,
-  open,
-  onClose,
-}: {
+interface SignInSheetProps {
   userId: string;
   name: string;
   account: Account | null;
@@ -40,7 +32,17 @@ function SignInSheet({
   way: "password" | "link";
   open: boolean;
   onClose: () => void;
-}) {
+}
+
+function SignInSheet({
+  userId,
+  name,
+  account,
+  suggestedLogin,
+  way,
+  open,
+  onClose,
+}: SignInSheetProps) {
   const queryClient = useQueryClient();
   const creating = !account?.loginName;
   const linking = way === "link";
@@ -162,6 +164,18 @@ function SignInSheet({
   );
 }
 
+export interface SignInSectionProps {
+  userId: string;
+  name: string;
+  account: Account | null;
+  manage: boolean;
+  suggestedLogin?: string;
+  description: string;
+  none: string;
+  /** An adult may be emailed a link to choose their own password. */
+  emailLink?: boolean;
+}
+
 /**
  * The record's sign-in: its state, and for someone who manages it, the sheet
  * that opens or changes it and the switch that disables it.
@@ -175,17 +189,7 @@ export function SignInSection({
   description,
   none,
   emailLink = false,
-}: {
-  userId: string;
-  name: string;
-  account: Account | null;
-  manage: boolean;
-  suggestedLogin?: string;
-  description: string;
-  none: string;
-  /** An adult may be emailed a link to choose their own password. */
-  emailLink?: boolean;
-}) {
+}: SignInSectionProps) {
   const queryClient = useQueryClient();
   const [sheet, setSheet] = useState({
     open: false,

@@ -39,7 +39,11 @@ function useRefresh() {
 }
 
 /** Where a student's declaration stands, with when and whether AI was used. */
-export function DeclarationStatus({ student }: { student: Marks }) {
+export interface DeclarationStatusProps {
+  student: Marks;
+}
+
+export function DeclarationStatus({ student }: DeclarationStatusProps) {
   const declaration = student.declaration;
   if (!student.attemptId)
     return <StatusText tone="neutral">{m.courseworkNotHandedIn()}</StatusText>;
@@ -72,7 +76,11 @@ export function DeclarationStatus({ student }: { student: Marks }) {
 }
 
 /** The teacher's word on the work, in a line. */
-export function AuthenticationStatus({ student }: { student: Marks }) {
+export interface AuthenticationStatusProps {
+  student: Marks;
+}
+
+export function AuthenticationStatus({ student }: AuthenticationStatusProps) {
   const authentication = student.authentication;
   if (!authentication)
     return (
@@ -85,15 +93,13 @@ export function AuthenticationStatus({ student }: { student: Marks }) {
   );
 }
 
-function PaperSheet({
-  open,
-  attemptId,
-  onClose,
-}: {
+interface PaperSheetProps {
   open: boolean;
   attemptId: string;
   onClose: () => void;
-}) {
+}
+
+function PaperSheet({ open, attemptId, onClose }: PaperSheetProps) {
   const refresh = useRefresh();
   const media = useDocumentMedia();
   const input = useRef<HTMLInputElement>(null);
@@ -182,17 +188,19 @@ function PaperSheet({
   );
 }
 
+interface AuthenticateSheetProps {
+  open: boolean;
+  attemptId: string;
+  outcome: "confirmed" | "not_confirmed";
+  onClose: () => void;
+}
+
 function AuthenticateSheet({
   open,
   attemptId,
   outcome,
   onClose,
-}: {
-  open: boolean;
-  attemptId: string;
-  outcome: "confirmed" | "not_confirmed";
-  onClose: () => void;
-}) {
+}: AuthenticateSheetProps) {
   const refresh = useRefresh();
   const [note, setNote] = useState("");
   const [tried, setTried] = useState(false);
@@ -274,6 +282,11 @@ function AuthenticateSheet({
   );
 }
 
+export interface CourseworkStandingProps {
+  assignmentId: string;
+  studentId: string;
+}
+
 /**
  * Assessed coursework beside the grade: the session it counts for, the
  * student's declaration and the teacher's word on the work, which a grade
@@ -282,10 +295,7 @@ function AuthenticateSheet({
 export function CourseworkStanding({
   assignmentId,
   studentId,
-}: {
-  assignmentId: string;
-  studentId: string;
-}) {
+}: CourseworkStandingProps) {
   const standing = useQuery(workStandingQuery(assignmentId)).data;
   // A sheet keeps its content while it closes; each opening starts afresh.
   const [sheet, setSheet] = useState<{
@@ -421,13 +431,15 @@ export function CourseworkStanding({
 }
 
 /** Where a student's assessed coursework stands, for a list of the class's work. */
+export interface CourseworkMarksProps {
+  student: Marks;
+  declarationRequired: boolean;
+}
+
 export function CourseworkMarks({
   student,
   declarationRequired,
-}: {
-  student: Marks;
-  declarationRequired: boolean;
-}) {
+}: CourseworkMarksProps) {
   const step = courseworkStep(student, declarationRequired);
   return step ? <StatusText tone={step.tone}>{step.label}</StatusText> : null;
 }

@@ -83,15 +83,13 @@ const PALETTE_ROLES = [
   "ink",
 ] as const satisfies readonly (keyof Palette)[];
 
-function ThemeCard({
-  id,
-  selected,
-  onPick,
-}: {
+interface ThemeCardProps {
   id: ThemeId;
   selected: boolean;
   onPick: () => void;
-}) {
+}
+
+function ThemeCard({ id, selected, onPick }: ThemeCardProps) {
   const theme = THEMES[id];
   const heading = `"${FONTS[theme.fonts.headingLatin].family}", ${FONTS[theme.fonts.headingLatin].fallback}`;
   const arabic = `"${FONTS[theme.fonts.headingArabic].family}", ${FONTS[theme.fonts.headingArabic].fallback}`;
@@ -149,19 +147,15 @@ const face = (font: FontId) => ({
   fontFamily: `"${FONTS[font].family}", ${FONTS[font].fallback}`,
 });
 
-function FontSelect({
-  id,
-  label,
-  value,
-  script,
-  onChange,
-}: {
+interface FontSelectProps {
   id: string;
   label: string;
   value: FontId;
   script: "latin" | "arabic";
   onChange: (font: FontId) => void;
-}) {
+}
+
+function FontSelect({ id, label, value, script, onChange }: FontSelectProps) {
   return (
     <StudioField id={id} label={label}>
       <Select value={value} onValueChange={(next) => next && onChange(next)}>
@@ -187,17 +181,16 @@ function FontSelect({
   );
 }
 
+export interface StylesPanelProps {
+  theme: SiteTheme;
+  onChange: (next: SiteTheme, key?: string) => void;
+}
+
 /**
  * The site's look, set once for every page: a theme, then the colours,
  * faces, shapes, header and footer a school changes on top of it.
  */
-export function StylesPanel({
-  theme,
-  onChange,
-}: {
-  theme: SiteTheme;
-  onChange: (next: SiteTheme, key?: string) => void;
-}) {
+export function StylesPanel({ theme, onChange }: StylesPanelProps) {
   const resolved = resolveTheme(theme);
   const warnings = paletteWarnings(resolved.palette);
   const set = <K extends keyof SiteTheme>(key: K, value: SiteTheme[K]) =>
@@ -485,6 +478,15 @@ export function StylesPanel({
   );
 }
 
+interface BilingualProps {
+  id: string;
+  label: string;
+  value: { en: string; ar: string };
+  languages: Languages;
+  max: number;
+  onChange: (value: { en: string; ar: string }) => void;
+}
+
 function Bilingual({
   id,
   label,
@@ -492,14 +494,7 @@ function Bilingual({
   languages,
   max,
   onChange,
-}: {
-  id: string;
-  label: string;
-  value: { en: string; ar: string };
-  languages: Languages;
-  max: number;
-  onChange: (value: { en: string; ar: string }) => void;
-}) {
+}: BilingualProps) {
   const locales = languages.other
     ? [languages.primary, languages.other]
     : [languages.primary];
@@ -535,6 +530,16 @@ function moved<T>(items: T[], index: number, by: -1 | 1): T[] {
   return next;
 }
 
+interface LinkListProps<T extends ChromeLink> {
+  id: string;
+  links: T[];
+  max: number;
+  languages: Languages;
+  pages: { href: string; title: string }[];
+  make: () => T;
+  onChange: (links: T[]) => void;
+}
+
 function LinkList<T extends ChromeLink>({
   id,
   links,
@@ -543,15 +548,7 @@ function LinkList<T extends ChromeLink>({
   pages,
   make,
   onChange,
-}: {
-  id: string;
-  links: T[];
-  max: number;
-  languages: Languages;
-  pages: { href: string; title: string }[];
-  make: () => T;
-  onChange: (links: T[]) => void;
-}) {
+}: LinkListProps<T>) {
   const list = `${id}-pages`;
   return (
     <div className="grid gap-2">
@@ -670,6 +667,14 @@ function LinkList<T extends ChromeLink>({
 
 const blank = () => ({ en: "", ar: "" });
 
+export interface FramePanelProps {
+  chrome: SiteChrome;
+  languages: Languages;
+  pages: { href: string; title: string }[];
+  logoUrl: string | null;
+  onChange: (next: SiteChrome, key?: string) => void;
+}
+
 /**
  * The frame every page shares: the school's logo, the links above the menu,
  * the actions beside it, the footer and the phone dock.
@@ -680,13 +685,7 @@ export function FramePanel({
   pages,
   logoUrl,
   onChange,
-}: {
-  chrome: SiteChrome;
-  languages: Languages;
-  pages: { href: string; title: string }[];
-  logoUrl: string | null;
-  onChange: (next: SiteChrome, key?: string) => void;
-}) {
+}: FramePanelProps) {
   const set = <K extends keyof SiteChrome>(key: K, value: SiteChrome[K]) =>
     onChange({ ...chrome, [key]: value }, `chrome:${key}`);
   return (

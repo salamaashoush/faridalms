@@ -69,18 +69,17 @@ function detail(row: LiveRow, questions: number, now: string): string {
   }
 }
 
+export interface ClassLiveProps {
+  moduleId: string;
+  classId: string;
+}
+
 /**
  * The class during a lesson, for the teacher walking the room: who needs
  * them first, then who is getting on, then who has not started. It asks
  * again every ten seconds and is never shown to students.
  */
-export function ClassLive({
-  moduleId,
-  classId,
-}: {
-  moduleId: string;
-  classId: string;
-}) {
+export function ClassLive({ moduleId, classId }: ClassLiveProps) {
   const data = useQuery(moduleLiveQuery(moduleId, classId)).data;
   if (!data) return null;
   if (data.students.length === 0)

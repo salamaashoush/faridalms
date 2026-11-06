@@ -121,24 +121,22 @@ function reviewColumns(
   ];
 }
 
-function StandingStatus({
-  row,
-  today,
-  pending,
-}: {
+interface StandingStatusProps {
   row: ReviewRow;
   today: string;
   pending: ReadonlySet<string>;
-}) {
+}
+
+function StandingStatus({ row, today, pending }: StandingStatusProps) {
   const { tone, label } = standing(row, today, pending);
   return <StatusText tone={tone}>{label}</StatusText>;
 }
 
-export function PersonName({
-  row,
-}: {
+export interface PersonNameProps {
   row: { fullNameEn: string | null; fullNameAr: string | null };
-}) {
+}
+
+export function PersonName({ row }: PersonNameProps) {
   return (
     <span className="truncate font-medium" dir="auto">
       {displayName(row)}
@@ -203,6 +201,15 @@ function reviewOrder(rows: ReviewRow[]): ReviewRow[] {
   );
 }
 
+export interface ReviewTableProps {
+  overview: PrivacyOverview;
+  onHold: (row: ReviewRow) => void;
+  onRelease: (hold: HoldRow) => void;
+  onRules: () => void;
+  onErase: (row: ReviewRow) => void;
+  onRun: (row: ReviewRow) => void;
+}
+
 export function ReviewTable({
   overview,
   onHold,
@@ -210,14 +217,7 @@ export function ReviewTable({
   onRules,
   onErase,
   onRun,
-}: {
-  overview: PrivacyOverview;
-  onHold: (row: ReviewRow) => void;
-  onRelease: (hold: HoldRow) => void;
-  onRules: () => void;
-  onErase: (row: ReviewRow) => void;
-  onRun: (row: ReviewRow) => void;
-}) {
+}: ReviewTableProps) {
   const holdOf = new Map(overview.holds.map((row) => [row.subjectUserId, row]));
   const pending = new Set(
     overview.erasures
@@ -332,15 +332,13 @@ export function ReviewTable({
   );
 }
 
-export function HoldsTable({
-  overview,
-  onAdd,
-  onRelease,
-}: {
+export interface HoldsTableProps {
   overview: PrivacyOverview;
   onAdd: () => void;
   onRelease: (hold: HoldRow) => void;
-}) {
+}
+
+export function HoldsTable({ overview, onAdd, onRelease }: HoldsTableProps) {
   return (
     <DataTable
       caption={m.privacyHoldsCaption()}
@@ -379,13 +377,12 @@ function studentRuleText(rules: Rules): string {
     : m.privacyRuleYears({ count: rules.studentValue, value });
 }
 
-export function RetentionSection({
-  rules,
-  onEdit,
-}: {
+export interface RetentionSectionProps {
   rules: Rules;
   onEdit: () => void;
-}) {
+}
+
+export function RetentionSection({ rules, onEdit }: RetentionSectionProps) {
   return (
     <RecordSection
       title={m.privacyRulesTitle()}
@@ -416,15 +413,13 @@ export function RetentionSection({
 
 const KEEP = "keep";
 
-export function RetentionSheet({
-  open,
-  rules,
-  onClose,
-}: {
+export interface RetentionSheetProps {
   open: boolean;
   rules: Rules;
   onClose: () => void;
-}) {
+}
+
+export function RetentionSheet({ open, rules, onClose }: RetentionSheetProps) {
   const refresh = useRefresh();
   const [rule, setRule] = useState<StudentRetention | typeof KEEP>(
     rules.studentRule ?? KEEP,
@@ -560,15 +555,13 @@ export function RetentionSheet({
 }
 
 /** A hold on someone named already, or on a person searched for. */
-export function HoldSheet({
-  open,
-  person,
-  onClose,
-}: {
+export interface HoldSheetProps {
   open: boolean;
   person: { id: string; name: string } | null;
   onClose: () => void;
-}) {
+}
+
+export function HoldSheet({ open, person, onClose }: HoldSheetProps) {
   const refresh = useRefresh();
   const [search, setSearch] = useState("");
   const [picked, setPicked] = useState("");
@@ -653,15 +646,13 @@ export function HoldSheet({
   );
 }
 
-export function ReleaseSheet({
-  open,
-  hold,
-  onClose,
-}: {
+export interface ReleaseSheetProps {
   open: boolean;
   hold: HoldRow;
   onClose: () => void;
-}) {
+}
+
+export function ReleaseSheet({ open, hold, onClose }: ReleaseSheetProps) {
   const refresh = useRefresh();
   const mutation = useMutation({
     mutationFn: () => releaseHold({ data: { id: hold.id } }),

@@ -25,6 +25,16 @@ import { PageSections } from "./render/page";
 import { Viewport } from "./studio/Canvas";
 import { STARTER_HINT, STARTER_LABEL, THEME_LABEL } from "./studio/labels";
 
+interface StarterCardProps {
+  starter: StarterId;
+  locale: SiteLocale;
+  school: string;
+  news: NewsItem[];
+  contact: SiteContact;
+  pending: boolean;
+  onUse: () => void;
+}
+
 function StarterCard({
   starter,
   locale,
@@ -33,15 +43,7 @@ function StarterCard({
   contact,
   pending,
   onUse,
-}: {
-  starter: StarterId;
-  locale: SiteLocale;
-  school: string;
-  news: NewsItem[];
-  contact: SiteContact;
-  pending: boolean;
-  onUse: () => void;
-}) {
+}: StarterCardProps) {
   const plan = STARTERS[starter];
   const home = plan.pages.find((page) => page.home) ?? plan.pages[0];
   const sections = useMemo(
@@ -110,6 +112,14 @@ function StarterCard({
   );
 }
 
+export interface StartersProps {
+  locale: SiteLocale;
+  school: string;
+  news: NewsItem[];
+  contact: SiteContact;
+  hasPages: boolean;
+}
+
 /**
  * Whole sites to start from: each a theme and a set of pages with sample
  * words in both languages, drafted for the school to rewrite. Pages whose
@@ -121,13 +131,7 @@ export function Starters({
   news,
   contact,
   hasPages,
-}: {
-  locale: SiteLocale;
-  school: string;
-  news: NewsItem[];
-  contact: SiteContact;
-  hasPages: boolean;
-}) {
+}: StartersProps) {
   const queryClient = useQueryClient();
   const [withTheme, setWithTheme] = useState(true);
   const apply = useMutation({

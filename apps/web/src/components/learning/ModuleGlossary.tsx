@@ -23,6 +23,11 @@ import { ReadAloud } from "./ReadAloud";
 
 const fileUrl = (fileId: string) => `/files/${fileId}`;
 
+export interface ModuleGlossaryProps {
+  moduleId: string;
+  studentId?: string;
+}
+
 /**
  * A module's glossary: every word its lessons define, once each, in the
  * reader's alphabetical order, with the lesson that defines it, so a
@@ -32,10 +37,7 @@ const fileUrl = (fileId: string) => `/files/${fileId}`;
 export function ModuleGlossary({
   moduleId,
   studentId = "",
-}: {
-  moduleId: string;
-  studentId?: string;
-}) {
+}: ModuleGlossaryProps) {
   const found = useQuery(moduleGlossaryQuery(moduleId, studentId));
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState("");

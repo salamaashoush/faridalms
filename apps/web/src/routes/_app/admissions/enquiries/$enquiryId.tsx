@@ -90,22 +90,22 @@ function waited(minutes: number) {
   }).format(Math.round(minutes / (24 * 60)));
 }
 
-/**
- * The enquiry's conversation in the admissions mailbox, drawn by Messages:
- * the family's words, every reply, note, logged contact and change, and
- * the composer that writes to the family or for colleagues. An enquiry
- * whose arrival could not open one gets one when staff first work it.
- */
-function EnquiryConversation({
-  enquiry,
-}: {
+interface EnquiryConversationProps {
   enquiry: {
     id: string;
     threadId: string | null;
     childName: string;
     manages: boolean;
   };
-}) {
+}
+
+/**
+ * The enquiry's conversation in the admissions mailbox, drawn by Messages:
+ * the family's words, every reply, note, logged contact and change, and
+ * the composer that writes to the family or for colleagues. An enquiry
+ * whose arrival could not open one gets one when staff first work it.
+ */
+function EnquiryConversation({ enquiry }: EnquiryConversationProps) {
   const queryClient = useQueryClient();
   const open = useMutation({
     mutationFn: () => openEnquiryConversation({ data: { id: enquiry.id } }),

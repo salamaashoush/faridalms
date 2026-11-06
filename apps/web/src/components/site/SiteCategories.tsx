@@ -40,7 +40,11 @@ const blank: Draft = {
 const nameOf = (row: Category) =>
   inLocale(row.nameEn || null, row.nameAr || null);
 
-function Name({ row }: { row: Category }) {
+interface NameProps {
+  row: Category;
+}
+
+function Name({ row }: NameProps) {
   return <span className="font-medium">{nameOf(row)}</span>;
 }
 
@@ -75,7 +79,11 @@ const categoryCard = {
 };
 
 /** How news is grouped; visitors filter the news page by these. */
-export function SiteCategories({ categories }: { categories: Category[] }) {
+export interface SiteCategoriesProps {
+  categories: Category[];
+}
+
+export function SiteCategories({ categories }: SiteCategoriesProps) {
   const queryClient = useQueryClient();
   const [draft, setDraft] = useState<Draft | null>(null);
   const [shown, setShown] = useState(false);

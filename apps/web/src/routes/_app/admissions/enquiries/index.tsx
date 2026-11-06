@@ -55,7 +55,11 @@ type Data = Awaited<
 >;
 type Row = Data["rows"][number];
 
-function Family({ row }: { row: Row }) {
+interface FamilyProps {
+  row: Row;
+}
+
+function Family({ row }: FamilyProps) {
   return (
     <span className="grid min-w-0 gap-0.5">
       <RowLink
@@ -72,7 +76,11 @@ function Family({ row }: { row: Row }) {
   );
 }
 
-function About({ row }: { row: Row }) {
+interface AboutProps {
+  row: Row;
+}
+
+function About({ row }: AboutProps) {
   const child = [row.childName, row.childYear].filter(Boolean).join(" · ");
   return (
     <span className="grid min-w-0 gap-0.5">
@@ -89,7 +97,11 @@ function About({ row }: { row: Row }) {
   );
 }
 
-const State = ({ row }: { row: Row }) => (
+interface StateProps {
+  row: Row;
+}
+
+const State = ({ row }: StateProps) => (
   <StatusText tone={STATE_TONE[row.state]}>
     {STATE_LABEL[row.state]()}
   </StatusText>

@@ -61,15 +61,13 @@ function PlanTrail() {
   );
 }
 
-function StartedEditor({
-  moduleId,
-  template,
-  onClose,
-}: {
+interface StartedEditorProps {
   moduleId: string;
   template: string;
   onClose: () => void;
-}) {
+}
+
+function StartedEditor({ moduleId, template, onClose }: StartedEditorProps) {
   const piece = useSuspenseQuery(templateQuery(template)).data;
   return <PlanEditor moduleId={moduleId} template={piece} onClose={onClose} />;
 }

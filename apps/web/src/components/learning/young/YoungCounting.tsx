@@ -56,7 +56,11 @@ function scatter(count: number, seed: string) {
 }
 
 /** One thing to count: the teacher's picture, or a round counter. */
-function Thing({ block }: { block: Counting }) {
+interface ThingProps {
+  block: Counting;
+}
+
+function Thing({ block }: ThingProps) {
   return block.picture ? (
     <StoredImage
       src={`/files/${block.picture.fileId}`}
@@ -80,15 +84,13 @@ const sayNumber = (count: number, prompt: string) =>
   );
 
 /** Ten frames: rows of five cells, as many frames as the count needs. */
-function Frames({
-  total,
-  filled,
-  render,
-}: {
+interface FramesProps {
   total: number;
   filled: number;
   render: (index: number) => React.ReactNode;
-}) {
+}
+
+function Frames({ total, filled, render }: FramesProps) {
   const frames = Math.max(1, Math.ceil(total / 10));
   return (
     <div className="flex flex-wrap justify-center gap-4">
@@ -117,6 +119,12 @@ function Frames({
   );
 }
 
+export interface YoungCountingProps {
+  block: Counting;
+  view: CheckView | undefined;
+  driver: CheckDriver;
+}
+
 /**
  * Counting as young children do it. Asked how many, they tap each thing as
  * they count it, hearing its number, then tap the number they reached; a
@@ -124,15 +132,7 @@ function Frames({
  * number at once (Development Matters: "quickly revealing and hiding").
  * Asked to make a number, they fill ten frames one tap at a time and check.
  */
-export function YoungCounting({
-  block,
-  view,
-  driver,
-}: {
-  block: Counting;
-  view: CheckView | undefined;
-  driver: CheckDriver;
-}) {
+export function YoungCounting({ block, view, driver }: YoungCountingProps) {
   const [counted, setCounted] = useState<number[]>([]);
   const [tried, setTried] = useState<number[]>([]);
   const [made, setMade] = useState(
@@ -381,6 +381,15 @@ export function YoungCounting({
 }
 
 /** One thing to count, tapped as the child counts it and numbered once counted. */
+interface CountButtonProps {
+  index: number;
+  counted: number[];
+  onCount: (index: number) => void;
+  block: Counting;
+  className?: string;
+  style?: React.CSSProperties;
+}
+
 function CountButton({
   index,
   counted,
@@ -388,14 +397,7 @@ function CountButton({
   block,
   className,
   style,
-}: {
-  index: number;
-  counted: number[];
-  onCount: (index: number) => void;
-  block: Counting;
-  className?: string;
-  style?: React.CSSProperties;
-}) {
+}: CountButtonProps) {
   const at = counted.indexOf(index);
   return (
     <button

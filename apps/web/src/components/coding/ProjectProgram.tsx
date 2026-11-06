@@ -15,6 +15,13 @@ export interface ProgramHandle {
   run: () => void;
 }
 
+export interface ProjectProgramProps {
+  files: readonly ProjectFile[];
+  /** Takes all the room it is given, scrolling what does not fit. */
+  fill?: boolean;
+  ref?: Ref<ProgramHandle>;
+}
+
 /**
  * A Python project as it runs: its main file, with the project's other
  * files there to import, and what the run prints and draws.
@@ -23,12 +30,7 @@ export function ProjectProgram({
   files,
   fill = false,
   ref,
-}: {
-  files: readonly ProjectFile[];
-  /** Takes all the room it is given, scrolling what does not fit. */
-  fill?: boolean;
-  ref?: Ref<ProgramHandle>;
-}) {
+}: ProjectProgramProps) {
   const program = useProgramRun("python");
   const main = mainOf(files);
   const run = () => {

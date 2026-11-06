@@ -7,18 +7,20 @@ import { useDocumentMedia } from "~/hooks/useDocumentMedia";
 import * as m from "~/i18n/messages";
 
 /** Uploads a picture as document media and shows what is chosen. */
-export function PictureField({
-  fileId,
-  label,
-  onChange,
-  onPeople,
-}: {
+export interface PictureFieldProps {
   fileId: string | null;
   label: string;
   onChange: (fileId: string | null) => void;
   /** Names who the picture shows, where that decides where it may go. */
   onPeople?: (fileId: string) => void;
-}) {
+}
+
+export function PictureField({
+  fileId,
+  label,
+  onChange,
+  onPeople,
+}: PictureFieldProps) {
   const media = useDocumentMedia();
   const input = useRef<HTMLInputElement>(null);
   const [busy, setBusy] = useState(false);

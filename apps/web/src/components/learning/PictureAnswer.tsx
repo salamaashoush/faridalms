@@ -163,6 +163,14 @@ function redraw(
   compose(canvas, picture, layer);
 }
 
+interface DrawingPadProps {
+  young: boolean;
+  pending: boolean;
+  /** The picture drawn and coloured over, as a colouring page. */
+  background?: { src: string; alt: string } | null;
+  onDone: (file: File) => void;
+}
+
 /**
  * A page to draw on with a finger, a pen or a mouse: eight colours, a thin
  * and a thick pen, a paint bucket that fills an area, an eraser, undo, and
@@ -171,18 +179,7 @@ function redraw(
  * child draws and fills over it, and the eraser takes away only their own
  * marks.
  */
-function DrawingPad({
-  young,
-  pending,
-  background,
-  onDone,
-}: {
-  young: boolean;
-  pending: boolean;
-  /** The picture drawn and coloured over, as a colouring page. */
-  background?: { src: string; alt: string } | null;
-  onDone: (file: File) => void;
-}) {
+function DrawingPad({ young, pending, background, onDone }: DrawingPadProps) {
   const canvas = useRef<HTMLCanvasElement>(null);
   // The child's own marks, kept apart from the picture under them; made in
   // the browser once the page is there, as a server has no canvas.
@@ -456,15 +453,13 @@ function DrawingPad({
 }
 
 /** A photo taken with the device's camera, or chosen where there is none. */
-function PhotoPicker({
-  young,
-  pending,
-  onDone,
-}: {
+interface PhotoPickerProps {
   young: boolean;
   pending: boolean;
   onDone: (file: File) => void;
-}) {
+}
+
+function PhotoPicker({ young, pending, onDone }: PhotoPickerProps) {
   const input = useRef<HTMLInputElement>(null);
   const [taken, setTaken] = useState<{ file: File; url: string } | null>(null);
   useEffect(
@@ -541,6 +536,14 @@ function PhotoPicker({
   );
 }
 
+export interface PictureAnswerProps {
+  block: Written;
+  view: CheckView | undefined;
+  driver: CheckDriver;
+  young: boolean;
+  locked: boolean;
+}
+
 /**
  * A question answered with a drawing or a photo. The picture is stored
  * first, then answered with, as a spoken answer is; until the teacher marks
@@ -552,13 +555,7 @@ export function PictureAnswer({
   driver,
   young,
   locked,
-}: {
-  block: Written;
-  view: CheckView | undefined;
-  driver: CheckDriver;
-  young: boolean;
-  locked: boolean;
-}) {
+}: PictureAnswerProps) {
   const media = useDocumentMedia();
   const [seen, setSeen] = useState<string | null>(null);
   const [again, setAgain] = useState(false);

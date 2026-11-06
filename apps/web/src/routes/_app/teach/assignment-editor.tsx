@@ -62,7 +62,11 @@ function EditorTrail() {
   );
 }
 
-function EditTrail({ id }: { id: string }) {
+interface EditTrailProps {
+  id: string;
+}
+
+function EditTrail({ id }: EditTrailProps) {
   const existing = useSuspenseQuery(assignmentEditorQuery(id)).data;
   return (
     <>
@@ -82,15 +86,13 @@ function EditTrail({ id }: { id: string }) {
   );
 }
 
-function ExistingEditor({
-  id,
-  onClose,
-  onCreated,
-}: {
+interface ExistingEditorProps {
   id: string;
   onClose: (saved?: string) => void;
   onCreated: (id: string) => void;
-}) {
+}
+
+function ExistingEditor({ id, onClose, onCreated }: ExistingEditorProps) {
   const existing = useSuspenseQuery(assignmentEditorQuery(id)).data;
   return (
     <AssignmentEditor
@@ -102,17 +104,14 @@ function ExistingEditor({
   );
 }
 
-function NewEditor({
-  classId,
-  template,
-  onClose,
-  onCreated,
-}: {
+interface NewEditorProps {
   classId?: string;
   template: string;
   onClose: (saved?: string) => void;
   onCreated: (id: string) => void;
-}) {
+}
+
+function NewEditor({ classId, template, onClose, onCreated }: NewEditorProps) {
   const piece = useSuspenseQuery(templateQuery(template)).data;
   return (
     <AssignmentEditor

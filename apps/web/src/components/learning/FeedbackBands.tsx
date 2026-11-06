@@ -8,6 +8,13 @@ import { useId } from "react";
 
 import * as m from "~/i18n/messages";
 
+export interface FeedbackBandsProps {
+  bands: FeedbackBand[];
+  onChange: (bands: FeedbackBand[]) => void;
+  /** When the student reads the message, and what the score counts. */
+  hint?: string;
+}
+
 /**
  * Messages a scored lesson, quiz or mixed review gives by score, each for a
  * score from its own up to the next: a few words of encouragement, or
@@ -17,12 +24,7 @@ export function FeedbackBands({
   bands,
   onChange,
   hint = m.bandsHint(),
-}: {
-  bands: FeedbackBand[];
-  onChange: (bands: FeedbackBand[]) => void;
-  /** When the student reads the message, and what the score counts. */
-  hint?: string;
-}) {
+}: FeedbackBandsProps) {
   const id = useId();
   const change = (index: number, patch: Partial<FeedbackBand>) =>
     onChange(

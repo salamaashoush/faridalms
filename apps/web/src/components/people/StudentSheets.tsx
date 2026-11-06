@@ -113,15 +113,13 @@ function portalRefusal(
   return refused ? getMessageFromError({ message: refused }) : null;
 }
 
-function PersonalSheet({
-  student,
-  open,
-  onClose,
-}: {
+interface PersonalSheetProps {
   student: StudentData;
   open: boolean;
   onClose: () => void;
-}) {
+}
+
+function PersonalSheet({ student, open, onClose }: PersonalSheetProps) {
   const options = useOptions();
   const refresh = useRefresh(student.id);
   const [names, setNames] = useState<NamesDraft>(() => namesFrom(student));
@@ -206,15 +204,13 @@ function PersonalSheet({
   );
 }
 
-function GradeSheet({
-  student,
-  open,
-  onClose,
-}: {
+interface GradeSheetProps {
   student: StudentData;
   open: boolean;
   onClose: () => void;
-}) {
+}
+
+function GradeSheet({ student, open, onClose }: GradeSheetProps) {
   const options = useOptions();
   const refresh = useRefresh(student.id);
   const current =
@@ -293,17 +289,19 @@ function flagsOf(guardian: Guardian): FlagsDraft {
   };
 }
 
+interface GuardianSheetProps {
+  student: StudentData;
+  guardian: Guardian;
+  open: boolean;
+  onClose: () => void;
+}
+
 function GuardianSheet({
   student,
   guardian,
   open,
   onClose,
-}: {
-  student: StudentData;
-  guardian: Guardian;
-  open: boolean;
-  onClose: () => void;
-}) {
+}: GuardianSheetProps) {
   const options = useOptions();
   const refresh = useRefresh(student.id);
   const [flags, setFlags] = useState<FlagsDraft>(() => flagsOf(guardian));
@@ -361,20 +359,18 @@ function GuardianSheet({
 
 type Match = Awaited<ReturnType<typeof findGuardians>>[number];
 
+interface AddGuardianSheetProps {
+  student: StudentData;
+  open: boolean;
+  onClose: () => void;
+}
+
 /**
  * Adds a guardian. The phone or email comes first, so someone the school
  * already holds is linked rather than created a second time; a person known
  * only at another school of the group shows as a minimal card.
  */
-function AddGuardianSheet({
-  student,
-  open,
-  onClose,
-}: {
-  student: StudentData;
-  open: boolean;
-  onClose: () => void;
-}) {
+function AddGuardianSheet({ student, open, onClose }: AddGuardianSheetProps) {
   const options = useOptions();
   const refresh = useRefresh(student.id);
   const [phone, setPhone] = useState("");
@@ -555,19 +551,17 @@ function AddGuardianSheet({
   );
 }
 
+interface ArrivalSheetProps {
+  student: StudentData;
+  open: boolean;
+  onClose: () => void;
+}
+
 /**
  * How a student came to the school: as what kind of entrant, and from which
  * school. It is kept on their first placement here.
  */
-function ArrivalSheet({
-  student,
-  open,
-  onClose,
-}: {
-  student: StudentData;
-  open: boolean;
-  onClose: () => void;
-}) {
+function ArrivalSheet({ student, open, onClose }: ArrivalSheetProps) {
   const options = useOptions();
   const refresh = useRefresh(student.id);
   const first = student.placements.at(-1);
@@ -631,17 +625,19 @@ function ArrivalSheet({
   );
 }
 
+export interface StudentSheetsProps {
+  student: StudentData;
+  sheet: StudentSheet;
+  open: boolean;
+  onClose: () => void;
+}
+
 export function StudentSheets({
   student,
   sheet,
   open,
   onClose,
-}: {
-  student: StudentData;
-  sheet: StudentSheet;
-  open: boolean;
-  onClose: () => void;
-}) {
+}: StudentSheetsProps) {
   if (sheet.kind === "personal")
     return <PersonalSheet student={student} open={open} onClose={onClose} />;
   if (sheet.kind === "grade")

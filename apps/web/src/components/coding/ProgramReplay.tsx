@@ -74,13 +74,12 @@ const codeOf = (step: Step | undefined) =>
       ? step.check.code
       : null;
 
-function RunResult({
-  run,
-  language,
-}: {
+interface RunResultProps {
   run: Run;
   language: Replay["language"];
-}) {
+}
+
+function RunResult({ run, language }: RunResultProps) {
   const name = run.error?.split(":")[0] ?? "";
   const why = run.error ? friendlyError(language, name) : null;
   return (

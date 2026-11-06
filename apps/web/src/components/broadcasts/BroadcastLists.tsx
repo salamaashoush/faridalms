@@ -29,17 +29,14 @@ type ManageTab = "drafts" | "scheduled" | "published" | "archived";
 const titleOf = (row: { titleEn: string; titleAr: string }) =>
   inLocale(row.titleEn || null, row.titleAr || null);
 
-function BroadcastLink({
-  kind,
-  id,
-  className,
-  children,
-}: {
+interface BroadcastLinkProps {
   kind: BroadcastKind;
   id: string;
   className: string;
   children: React.ReactNode;
-}) {
+}
+
+function BroadcastLink({ kind, id, className, children }: BroadcastLinkProps) {
   return kind === "announcement" ? (
     <Link
       to="/announcements/$announcementId"
@@ -56,10 +53,7 @@ function BroadcastLink({
 }
 
 /** One broadcast as its readers' list shows it, of either kind. */
-export function BroadcastItem({
-  kind,
-  item,
-}: {
+export interface BroadcastItemProps {
   kind: BroadcastKind;
   item: {
     id: string;
@@ -74,7 +68,9 @@ export function BroadcastItem({
     /** For one that asks to be acknowledged, whether this reader has. */
     ack: { acknowledgedAt: string | null; ackDueOn: string | null } | null;
   };
-}) {
+}
+
+export function BroadcastItem({ kind, item }: BroadcastItemProps) {
   return (
     <li className="grid gap-1.5 py-4">
       <div className="flex flex-wrap items-center gap-2">
@@ -135,7 +131,12 @@ export function BroadcastItem({
   );
 }
 
-function ManagedTitle({ kind, row }: { kind: BroadcastKind; row: ManagedRow }) {
+interface ManagedTitleProps {
+  kind: BroadcastKind;
+  row: ManagedRow;
+}
+
+function ManagedTitle({ kind, row }: ManagedTitleProps) {
   const title = titleOf(row);
   if (row.state !== "draft")
     return kind === "announcement" ? (
@@ -217,19 +218,21 @@ function managedCard(kind: BroadcastKind) {
 }
 
 /** The broadcasts of one kind those who manage it work through, on one tab. */
+export interface ManagedBroadcastsProps {
+  kind: BroadcastKind;
+  tab: ManageTab;
+  q: string;
+  page: number;
+  onPage: (page: number) => void;
+}
+
 export function ManagedBroadcasts({
   kind,
   tab,
   q,
   page,
   onPage,
-}: {
-  kind: BroadcastKind;
-  tab: ManageTab;
-  q: string;
-  page: number;
-  onPage: (page: number) => void;
-}) {
+}: ManagedBroadcastsProps) {
   const data = useSuspenseQuery(
     kind === "announcement"
       ? managedAnnouncementsQuery({ tab, q, page })

@@ -63,7 +63,11 @@ function titleOf(row: StaffRow) {
   return roles.has(title.toLowerCase()) ? null : title;
 }
 
-function StaffName({ row }: { row: StaffRow }) {
+interface StaffNameProps {
+  row: StaffRow;
+}
+
+function StaffName({ row }: StaffNameProps) {
   return (
     <RowLink to="/people/$userId" params={{ userId: row.id }} search={{}}>
       {displayName(row)}
@@ -71,11 +75,19 @@ function StaffName({ row }: { row: StaffRow }) {
   );
 }
 
-function Roles({ row }: { row: StaffRow }) {
+interface RolesProps {
+  row: StaffRow;
+}
+
+function Roles({ row }: RolesProps) {
   return <span>{formatList(row.roles.map(roleLabel))}</span>;
 }
 
-function SignIn({ account }: { account: StaffRow["account"] }) {
+interface SignInProps {
+  account: StaffRow["account"];
+}
+
+function SignIn({ account }: SignInProps) {
   if (!account) return <Value>{null}</Value>;
   if (!account.state)
     return <StatusText tone="neutral">{m.studentsNoAccount()}</StatusText>;

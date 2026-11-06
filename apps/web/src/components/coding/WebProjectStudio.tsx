@@ -572,6 +572,17 @@ export function WebProjectStudio({
   );
 }
 
+interface FileTabsProps {
+  files: readonly Open[];
+  active: number;
+  full: boolean;
+  onlyPage: (file: Open) => boolean;
+  onTurn: (id: number) => void;
+  onAdd: () => void;
+  onRename: (file: Open) => void;
+  onRemove: (file: Open) => void;
+}
+
 function FileTabs({
   files,
   active,
@@ -581,16 +592,7 @@ function FileTabs({
   onAdd,
   onRename,
   onRemove,
-}: {
-  files: readonly Open[];
-  active: number;
-  full: boolean;
-  onlyPage: (file: Open) => boolean;
-  onTurn: (id: number) => void;
-  onAdd: () => void;
-  onRename: (file: Open) => void;
-  onRemove: (file: Open) => void;
-}) {
+}: FileTabsProps) {
   const list = useRef<HTMLDivElement>(null);
   // A file turned to from elsewhere, as a new one is, may sit out of view.
   useEffect(() => {
@@ -709,20 +711,22 @@ const NAME_ISSUES = {
   "learning.project_page": m.projectPageNeeded,
 } as const;
 
-function NameDialog({
-  file,
-  others,
-  keeps,
-  onName,
-  onCancel,
-}: {
+interface NameDialogProps {
   file: Open | null;
   others: readonly string[];
   /** Whether the project still opens or runs with the file under this name. */
   keeps: (name: string) => boolean;
   onName: (name: string) => void;
   onCancel: () => void;
-}) {
+}
+
+function NameDialog({
+  file,
+  others,
+  keeps,
+  onName,
+  onCancel,
+}: NameDialogProps) {
   const hintId = useId();
   const field = useRef<HTMLInputElement>(null);
   const [name, setName] = useState(file?.name ?? "");

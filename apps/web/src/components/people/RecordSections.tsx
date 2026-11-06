@@ -96,19 +96,21 @@ type Health = Awaited<
 >;
 type HealthRecord = Health["records"][number];
 
+interface HealthSheetProps {
+  studentId: string;
+  kinds: Health["kinds"];
+  record: HealthRecord | null;
+  open: boolean;
+  onClose: () => void;
+}
+
 function HealthSheet({
   studentId,
   kinds,
   record,
   open,
   onClose,
-}: {
-  studentId: string;
-  kinds: Health["kinds"];
-  record: HealthRecord | null;
-  open: boolean;
-  onClose: () => void;
-}) {
+}: HealthSheetProps) {
   const refresh = useRefresh(studentId);
   const [kindId, setKindId] = useState(record?.kindId ?? kinds[0]?.id ?? "");
   const [text, setText] = useState(record?.text ?? "");
@@ -232,22 +234,19 @@ function HealthSheet({
   );
 }
 
+interface ReportSheetProps {
+  studentId: string;
+  record: HealthRecord;
+  open: boolean;
+  onClose: () => void;
+}
+
 /**
  * Gives a health record its report, such as a doctor's letter, and says
  * whether the family may open it. The file is uploaded as a medical
  * report, so it rests encrypted for the school.
  */
-function ReportSheet({
-  studentId,
-  record,
-  open,
-  onClose,
-}: {
-  studentId: string;
-  record: HealthRecord;
-  open: boolean;
-  onClose: () => void;
-}) {
+function ReportSheet({ studentId, record, open, onClose }: ReportSheetProps) {
   const refresh = useRefresh(studentId);
   const [files, setFiles] = useState<FileSummary[]>([]);
   const [shared, setShared] = useState(record.report?.shared ?? false);
@@ -316,11 +315,11 @@ function ReportSheet({
 }
 
 /** A record's report as its card, and whether the family may open it. */
-function RecordReport({
-  report,
-}: {
+interface RecordReportProps {
   report: NonNullable<HealthRecord["report"]>;
-}) {
+}
+
+function RecordReport({ report }: RecordReportProps) {
   return (
     <div className="mt-2 grid gap-1.5">
       <FileList
@@ -340,7 +339,11 @@ function RecordReport({
   );
 }
 
-export function HealthSection({ studentId }: { studentId: string }) {
+export interface HealthSectionProps {
+  studentId: string;
+}
+
+export function HealthSection({ studentId }: HealthSectionProps) {
   const data = useSuspenseQuery(healthQuery(studentId)).data;
   const refresh = useRefresh(studentId);
   const [sheet, setSheet] = useState<{
@@ -564,17 +567,19 @@ export function matching(
   );
 }
 
+interface DemographicsSheetProps {
+  studentId: string;
+  data: Demographics;
+  open: boolean;
+  onClose: () => void;
+}
+
 function DemographicsSheet({
   studentId,
   data,
   open,
   onClose,
-}: {
-  studentId: string;
-  data: Demographics;
-  open: boolean;
-  onClose: () => void;
-}) {
+}: DemographicsSheetProps) {
   const refresh = useRefresh(studentId);
   const options = useSuspenseQuery(peopleOptionsQuery).data;
   const religions = options.religions;
@@ -687,7 +692,11 @@ function DemographicsSheet({
   );
 }
 
-export function DemographicsSection({ studentId }: { studentId: string }) {
+export interface DemographicsSectionProps {
+  studentId: string;
+}
+
+export function DemographicsSection({ studentId }: DemographicsSectionProps) {
   const data = useSuspenseQuery(demographicsQuery(studentId)).data;
   const options = useSuspenseQuery(peopleOptionsQuery).data;
   const [sheet, setSheet] = useState({ open: false, key: 0 });
@@ -781,17 +790,19 @@ const extensionLabel = (days: number) =>
     ? m.arrangementsNone()
     : m.arrangementsExtensionDays({ count: days });
 
+interface ArrangementsSheetProps {
+  studentId: string;
+  data: ArrangementsData;
+  open: boolean;
+  onClose: () => void;
+}
+
 function ArrangementsSheet({
   studentId,
   data,
   open,
   onClose,
-}: {
-  studentId: string;
-  data: ArrangementsData;
-  open: boolean;
-  onClose: () => void;
-}) {
+}: ArrangementsSheetProps) {
   const refresh = useRefresh(studentId);
   const [value, setValue] = useState(data.arrangements);
   const mutation = useMutation({
@@ -878,7 +889,11 @@ function ArrangementsSheet({
 }
 
 /** A student's access arrangements, which their quizzes and due dates apply. */
-export function ArrangementsSection({ studentId }: { studentId: string }) {
+export interface ArrangementsSectionProps {
+  studentId: string;
+}
+
+export function ArrangementsSection({ studentId }: ArrangementsSectionProps) {
   const data = useSuspenseQuery(arrangementsQuery(studentId)).data;
   const [sheet, setSheet] = useState({ open: false, key: 0 });
   const value = data.arrangements;
@@ -954,17 +969,14 @@ const PICKUP_LABEL: Record<
   ask_office: m.custodyPickupAskOffice,
 };
 
-function CustodySheet({
-  studentId,
-  link,
-  open,
-  onClose,
-}: {
+interface CustodySheetProps {
   studentId: string;
   link: CustodyLink;
   open: boolean;
   onClose: () => void;
-}) {
+}
+
+function CustodySheet({ studentId, link, open, onClose }: CustodySheetProps) {
   const refresh = useRefresh(studentId);
   const [rights, setRights] = useState(link.educationalRights);
   const [rightsError, setRightsError] = useState<string | null>(null);
@@ -1107,7 +1119,11 @@ function CustodySheet({
   );
 }
 
-export function CustodySection({ studentId }: { studentId: string }) {
+export interface CustodySectionProps {
+  studentId: string;
+}
+
+export function CustodySection({ studentId }: CustodySectionProps) {
   const data = useSuspenseQuery(custodyQuery(studentId)).data;
   const [sheet, setSheet] = useState<{
     value: CustodyLink | null;

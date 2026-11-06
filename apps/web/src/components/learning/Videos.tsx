@@ -49,20 +49,18 @@ function peaksOf(again: readonly number[], duration: number): number[] {
   return [...new Set(times)];
 }
 
+interface RetentionProps {
+  recording: Recording;
+  total: number;
+  label: string;
+}
+
 /**
  * How many of the class had watched each moment, as an area: where it
  * falls away is where students stopped, and the marks below are the
  * questions the video stops for.
  */
-function Retention({
-  recording,
-  total,
-  label,
-}: {
-  recording: Recording;
-  total: number;
-  label: string;
-}) {
+function Retention({ recording, total, label }: RetentionProps) {
   const { curve, again, stops, durationSeconds } = recording;
   if (!durationSeconds || curve.length === 0 || total === 0) return null;
   const x = (index: number) => ((index + 0.5) / curve.length) * WIDTH;
@@ -162,13 +160,12 @@ function Retention({
   );
 }
 
-function RecordingCard({
-  recording,
-  students,
-}: {
+interface RecordingCardProps {
   recording: Recording;
   students: Data["students"];
-}) {
+}
+
+function RecordingCard({ recording, students }: RecordingCardProps) {
   const duration = recording.durationSeconds ?? 0;
   const share = (id: string) =>
     duration ? Math.min(1, (recording.watched[id] ?? 0) / duration) : 0;
@@ -237,18 +234,17 @@ function RecordingCard({
   );
 }
 
+export interface ClassVideosProps {
+  moduleId: string;
+  classId: string;
+}
+
 /**
  * How a class watched the videos and recordings of a module: for each,
  * how many watched each moment and how far each student got, so a teacher
  * sees where students stop and who has yet to watch.
  */
-export function ClassVideos({
-  moduleId,
-  classId,
-}: {
-  moduleId: string;
-  classId: string;
-}) {
+export function ClassVideos({ moduleId, classId }: ClassVideosProps) {
   const query = useQuery(classVideosQuery(moduleId, classId));
   if (!query.data) return <div aria-busy="true" className="min-h-40" />;
   const { students, recordings } = query.data;

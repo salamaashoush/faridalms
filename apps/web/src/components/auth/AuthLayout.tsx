@@ -4,6 +4,13 @@ import type { PortalFace } from "~/queries/portal";
 
 import { PortalLayout } from "./SchoolFace";
 
+export interface AuthLayoutProps {
+  face?: PortalFace | null;
+  /** A long flow, such as an application, takes the page's whole width. */
+  wide?: boolean;
+  children: ReactNode;
+}
+
 /**
  * The frame of every page before sign-in: the portal's own page, in the
  * school's name and colour on a school's portal and the platform's where no
@@ -13,12 +20,7 @@ export function AuthLayout({
   face = null,
   wide = false,
   children,
-}: {
-  face?: PortalFace | null;
-  /** A long flow, such as an application, takes the page's whole width. */
-  wide?: boolean;
-  children: ReactNode;
-}) {
+}: AuthLayoutProps) {
   return (
     <PortalLayout face={face} wide={wide}>
       {children}

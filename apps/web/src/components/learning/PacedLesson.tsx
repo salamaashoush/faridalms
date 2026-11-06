@@ -70,12 +70,7 @@ const hereOf = (data: Paced) =>
   });
 
 /** Opens a lesson led live: at once for a module's only class, or for the class chosen. */
-export function TeachLiveDialog({
-  lesson,
-  classes,
-  open,
-  onClose,
-}: {
+export interface TeachLiveDialogProps {
   lesson: { id: string; title: string };
   classes: {
     id: string;
@@ -85,7 +80,14 @@ export function TeachLiveDialog({
   }[];
   open: boolean;
   onClose: () => void;
-}) {
+}
+
+export function TeachLiveDialog({
+  lesson,
+  classes,
+  open,
+  onClose,
+}: TeachLiveDialogProps) {
   const navigate = useNavigate();
   const [classId, setClassId] = useState(classes[0]?.id ?? "");
   const start = useMutation({
@@ -153,15 +155,13 @@ export function TeachLiveDialog({
   );
 }
 
-function People({
-  rows,
-  named,
-  empty,
-}: {
+interface PeopleProps {
   rows: Paced["students"];
   named: boolean;
   empty: string;
-}) {
+}
+
+function People({ rows, named, empty }: PeopleProps) {
   if (rows.length === 0) return <RecordEmpty>{empty}</RecordEmpty>;
   if (!named)
     return (
@@ -180,13 +180,17 @@ function People({
   );
 }
 
+export interface PacedLessonProps {
+  pacedId: string;
+}
+
 /**
  * A lesson the teacher leads live, from their own screen: the parts to take
  * the class through, a pause, how the class answers the open part with
  * names kept here, and who has come into the lesson. The board for the
  * room opens apart and shows the answers without names.
  */
-export function PacedLesson({ pacedId }: { pacedId: string }) {
+export function PacedLesson({ pacedId }: PacedLessonProps) {
   const query = pacedQuery(pacedId);
   const data = useSuspenseQuery(query).data;
   const queryClient = useQueryClient();
@@ -436,6 +440,15 @@ export function PacedLesson({ pacedId }: { pacedId: string }) {
   );
 }
 
+interface OpenAnswersProps {
+  question: OpenQuestion;
+  /** Null while names are hidden from the screen. */
+  names: Map<string, string> | null;
+  shown: Shown;
+  busy: boolean;
+  onShow: (shown: Shown) => void;
+}
+
 /**
  * A question of the open part answered in words or a picture: each
  * student's answer, any one of which the teacher puts on the board for the
@@ -448,14 +461,7 @@ function OpenAnswers({
   shown,
   busy,
   onShow,
-}: {
-  question: OpenQuestion;
-  /** Null while names are hidden from the screen. */
-  names: Map<string, string> | null;
-  shown: Shown;
-  busy: boolean;
-  onShow: (shown: Shown) => void;
-}) {
+}: OpenAnswersProps) {
   return (
     <section className="grid gap-3 rounded-lg border p-4">
       <h3 dir="auto" className="text-sm leading-5 font-medium">
@@ -531,6 +537,12 @@ function OpenAnswers({
   );
 }
 
+interface BoardOpenQuestionProps {
+  question: OpenQuestion;
+  shown: Shown;
+  students: number;
+}
+
 /**
  * A question answered in words or a picture, on the board: how many have
  * answered, and the one answer the teacher put up, without its writer's name.
@@ -539,11 +551,7 @@ function BoardOpenQuestion({
   question,
   shown,
   students,
-}: {
-  question: OpenQuestion;
-  shown: Shown;
-  students: number;
-}) {
+}: BoardOpenQuestionProps) {
   const answer =
     shown?.blockId === question.id
       ? question.answers.find((item) => item.studentId === shown.studentId)
@@ -590,13 +598,12 @@ const BOARD_STANDINGS: readonly CheckStanding[] = [
   "missed",
 ];
 
-function BoardQuestion({
-  question,
-  revealed,
-}: {
+interface BoardQuestionProps {
   question: Question;
   revealed: boolean;
-}) {
+}
+
+function BoardQuestion({ question, revealed }: BoardQuestionProps) {
   const students = Object.keys(question.standings);
   const answered = students.filter(
     (id) => question.standings[id] !== "unseen",
@@ -679,12 +686,16 @@ function BoardQuestion({
   );
 }
 
+export interface PacedBoardProps {
+  pacedId: string;
+}
+
 /**
  * The class board for the room's screen: the open part's questions and how
  * the class has answered them, never who; the right answers once the
  * teacher shows them.
  */
-export function PacedBoard({ pacedId }: { pacedId: string }) {
+export function PacedBoard({ pacedId }: PacedBoardProps) {
   const data = useSuspenseQuery(pacedQuery(pacedId)).data;
   const part = data.parts[data.step];
   return (

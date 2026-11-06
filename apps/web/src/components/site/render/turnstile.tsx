@@ -40,6 +40,15 @@ function loadTurnstile(): Promise<TurnstileApi> {
   return loading;
 }
 
+export interface TurnstileWidgetProps {
+  siteKey: string;
+  /** The form it guards, which the server checks the token was solved for. */
+  action: "enquiry" | "sign_in" | "reset" | "register" | "demo";
+  locale: "en" | "ar";
+  generation: number;
+  onToken: (token: string) => void;
+}
+
 /**
  * Cloudflare Turnstile's check, rendered into the form. It hands its token
  * up as it is solved and takes it back when it expires; `generation` going
@@ -52,14 +61,7 @@ export function TurnstileWidget({
   locale,
   generation,
   onToken,
-}: {
-  siteKey: string;
-  /** The form it guards, which the server checks the token was solved for. */
-  action: "enquiry" | "sign_in" | "reset" | "register" | "demo";
-  locale: "en" | "ar";
-  generation: number;
-  onToken: (token: string) => void;
-}) {
+}: TurnstileWidgetProps) {
   const container = useRef<HTMLDivElement>(null);
   const widget = useRef<string | null>(null);
   const handOn = useRef(onToken);

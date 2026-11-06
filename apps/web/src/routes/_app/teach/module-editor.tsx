@@ -46,7 +46,11 @@ function EditorTrail() {
   );
 }
 
-function EditTrail({ id }: { id: string }) {
+interface EditTrailProps {
+  id: string;
+}
+
+function EditTrail({ id }: EditTrailProps) {
   const existing = useSuspenseQuery(moduleRecordQuery(id)).data;
   return (
     <>
@@ -62,13 +66,12 @@ function EditTrail({ id }: { id: string }) {
   );
 }
 
-function ExistingEditor({
-  id,
-  onClose,
-}: {
+interface ExistingEditorProps {
   id: string;
   onClose: (saved?: string) => void;
-}) {
+}
+
+function ExistingEditor({ id, onClose }: ExistingEditorProps) {
   const existing = useSuspenseQuery(moduleRecordQuery(id)).data;
   return (
     <ModuleEditor

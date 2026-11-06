@@ -24,7 +24,11 @@ import { recentNotificationsQuery } from "~/queries/notifications";
 import { markNotificationsRead } from "~/server/notifications";
 import { formatAgo, formatNumber } from "~/utils/datetime";
 
-export function NotificationBell({ className }: { className?: string }) {
+export interface NotificationBellProps {
+  className?: string;
+}
+
+export function NotificationBell({ className }: NotificationBellProps) {
   const user = useCurrentUser();
   const queryClient = useQueryClient();
   const recent = useQuery(recentNotificationsQuery);

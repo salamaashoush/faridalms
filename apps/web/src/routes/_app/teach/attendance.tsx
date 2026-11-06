@@ -100,7 +100,11 @@ function rowsOf(data: Data): Row[] {
   });
 }
 
-function ClassLink({ row }: { row: Row }) {
+interface ClassLinkProps {
+  row: Row;
+}
+
+function ClassLink({ row }: ClassLinkProps) {
   return (
     <RowLink
       to="/registers/$classId"
@@ -112,7 +116,11 @@ function ClassLink({ row }: { row: Row }) {
   );
 }
 
-function State({ row }: { row: Row }) {
+interface StateProps {
+  row: Row;
+}
+
+function State({ row }: StateProps) {
   return (
     <StatusText tone={STATE_TONE[row.state]}>
       {STATE_LABEL[row.state]()}

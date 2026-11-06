@@ -59,13 +59,12 @@ import { ContentView, SharedBlock } from "./ContentView";
 import { DocumentHistory } from "./DocumentHistory";
 
 /** Who may use a shared block: only its teacher, or any at the school. */
-function ScopeField({
-  scope,
-  onChange,
-}: {
+interface ScopeFieldProps {
   scope: SharedScope;
   onChange: (scope: SharedScope) => void;
-}) {
+}
+
+function ScopeField({ scope, onChange }: ScopeFieldProps) {
   return (
     <fieldset className="grid gap-2">
       <legend className="mb-2 text-sm font-medium">{m.sharedKeepIn()}</legend>
@@ -92,13 +91,12 @@ function ScopeField({
   );
 }
 
-function KeepDialog({
-  content,
-  onClose,
-}: {
+interface KeepDialogProps {
   content: ContentDocument;
   onClose: (id: string | null) => void;
-}) {
+}
+
+function KeepDialog({ content, onClose }: KeepDialogProps) {
   const queryClient = useQueryClient();
   const titleId = useId();
   const [title, setTitle] = useState(() =>
@@ -198,7 +196,11 @@ const USE_KIND: Record<Use["hostType"], () => string> = {
 const WEBSITE = new Set<Use["hostType"]>(["site_page", "news"]);
 
 /** Which documents show a shared block, named on request, so a change is made knowing what it reaches. */
-function SharedUses({ id }: { id: string }) {
+interface SharedUsesProps {
+  id: string;
+}
+
+function SharedUses({ id }: SharedUsesProps) {
   const uses = useQuery(usesQuery(id));
   const [open, setOpen] = useState(false);
   const rows = uses.data ?? [];
@@ -256,7 +258,12 @@ function SharedUses({ id }: { id: string }) {
 }
 
 /** One shared block: its name and whose it is, and how it reads on request. */
-function SharedRow({ row, onShow }: { row: Row; onShow: () => void }) {
+interface SharedRowProps {
+  row: Row;
+  onShow: () => void;
+}
+
+function SharedRow({ row, onShow }: SharedRowProps) {
   const queryClient = useQueryClient();
   const [looking, setLooking] = useState(false);
   const [removing, setRemoving] = useState(false);
@@ -342,7 +349,11 @@ function SharedRow({ row, onShow }: { row: Row; onShow: () => void }) {
   );
 }
 
-function ChooseSheet({ onChoose }: { onChoose: (id: string | null) => void }) {
+interface ChooseSheetProps {
+  onChoose: (id: string | null) => void;
+}
+
+function ChooseSheet({ onChoose }: ChooseSheetProps) {
   const [search, setSearch] = useState("");
   const words = useDeferredValue(search.trim());
   const listed = useInfiniteQuery({
@@ -417,11 +428,16 @@ function ChooseSheet({ onChoose }: { onChoose: (id: string | null) => void }) {
   );
 }
 
+interface EditDialogProps {
+  id: string;
+  onClose: () => void;
+}
+
 /**
  * Changes a shared block where it is kept, so every document showing it
  * shows the change. Only the teacher who kept it may.
  */
-function EditDialog({ id, onClose }: { id: string; onClose: () => void }) {
+function EditDialog({ id, onClose }: EditDialogProps) {
   const queryClient = useQueryClient();
   const block = useQuery(sharedBlockQuery(id));
   const media = useDocumentMedia();

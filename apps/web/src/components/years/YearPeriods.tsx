@@ -122,19 +122,15 @@ const draftOf = (period: Period, key: number): Draft => ({
   weekdays: [...period.weekdays],
 });
 
-function DayChoices({
-  legend,
-  days,
-  value,
-  onChange,
-  error,
-}: {
+interface DayChoicesProps {
   legend: string;
   days: readonly number[];
   value: readonly number[];
   onChange: (next: number[]) => void;
   error?: string;
-}) {
+}
+
+function DayChoices({ legend, days, value, onChange, error }: DayChoicesProps) {
   const id = useId();
   return (
     <fieldset
@@ -188,15 +184,13 @@ const fieldOf = (key: string, path: readonly unknown[]): Field | undefined => {
     : "periods";
 };
 
-function PeriodsSheet({
-  data,
-  open,
-  onClose,
-}: {
+interface PeriodsSheetProps {
   data: PeriodsData;
   open: boolean;
   onClose: () => void;
-}) {
+}
+
+function PeriodsSheet({ data, open, onClose }: PeriodsSheetProps) {
   const queryClient = useQueryClient();
   const segment = segmentOf(data);
   const lastDay = addDays(segment.until, -1);
@@ -429,7 +423,11 @@ function PeriodsSheet({
   );
 }
 
-function PeriodList({ data }: { data: PeriodsData }) {
+interface PeriodListProps {
+  data: PeriodsData;
+}
+
+function PeriodList({ data }: PeriodListProps) {
   if (data.periods.length === 0)
     return <RecordEmpty>{m.periodsNone()}</RecordEmpty>;
   return (
@@ -461,11 +459,16 @@ function PeriodList({ data }: { data: PeriodsData }) {
   );
 }
 
+export interface YearPeriodsProps {
+  yearId: string;
+  on: string;
+}
+
 /**
  * A year's school day: its periods with their times and days, as they stand
  * on the day being read, and the dates the day changes shape on.
  */
-export function YearPeriods({ yearId, on }: { yearId: string; on: string }) {
+export function YearPeriods({ yearId, on }: YearPeriodsProps) {
   const data = useSuspenseQuery(yearPeriodsQuery(yearId, on)).data;
   const [sheet, setSheet] = useState({ open: false, key: 0 });
   const segment = segmentOf(data);

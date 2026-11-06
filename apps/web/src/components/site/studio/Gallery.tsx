@@ -47,13 +47,12 @@ import {
 const THUMB_WIDTH = 1200;
 
 /** A section drawn small, for choosing; it cannot be focused or clicked into. */
-function Thumbnail({
-  section,
-  context,
-}: {
+interface ThumbnailProps {
   section: PageSection;
   context: RenderContext;
-}) {
+}
+
+function Thumbnail({ section, context }: ThumbnailProps) {
   return (
     <div
       aria-hidden
@@ -81,17 +80,14 @@ export interface Inserted {
   translation: PageSection;
 }
 
-function TypeCard({
-  type,
-  context,
-  primary,
-  onPick,
-}: {
+interface TypeCardProps {
   type: SectionType;
   context: RenderContext;
   primary: SiteLocale;
   onPick: (inserted: Inserted) => void;
-}) {
+}
+
+function TypeCard({ type, context, primary, onPick }: TypeCardProps) {
   const variants = SECTION_SPECS[type].variants as readonly string[];
   const [variant, setVariant] = useState(variants[0] ?? "");
   const sample = useMemo(
@@ -150,19 +146,21 @@ function TypeCard({
 }
 
 /** Every section the page can take, drawn in the site's own theme, grouped by what it is for. */
+export interface SectionGalleryProps {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  context: RenderContext;
+  primary: SiteLocale;
+  onPick: (inserted: Inserted) => void;
+}
+
 export function SectionGallery({
   open,
   onOpenChange,
   context,
   primary,
   onPick,
-}: {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-  context: RenderContext;
-  primary: SiteLocale;
-  onPick: (inserted: Inserted) => void;
-}) {
+}: SectionGalleryProps) {
   const [category, setCategory] = useState<SectionCategory | "all">("all");
   const [query, setQuery] = useState("");
   const needle = query.trim().toLocaleLowerCase();
@@ -238,13 +236,12 @@ export function SectionGallery({
 }
 
 /** The page templates, each drawn in the site's theme, for starting a new page. */
-export function TemplateGallery({
-  context,
-  onPick,
-}: {
+export interface TemplateGalleryProps {
   context: RenderContext;
   onPick: (template: SiteTemplate) => void;
-}) {
+}
+
+export function TemplateGallery({ context, onPick }: TemplateGalleryProps) {
   const built = useMemo(
     () =>
       Object.fromEntries(

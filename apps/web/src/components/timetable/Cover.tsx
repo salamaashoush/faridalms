@@ -81,7 +81,11 @@ function roomOf(lesson: Lesson) {
 }
 
 /** Where a lesson stands that day, as one short status. */
-function LessonState({ lesson }: { lesson: Lesson }) {
+interface LessonStateProps {
+  lesson: Lesson;
+}
+
+function LessonState({ lesson }: LessonStateProps) {
   const change = lesson.change;
   if (change?.cancelled)
     return <StatusText tone="neutral">{m.ttCancelled()}</StatusText>;
@@ -214,11 +218,15 @@ function suitability(candidate: {
     .join(" · ");
 }
 
+export interface CoverDayProps {
+  on: string;
+}
+
 /**
  * A day's cover: who is away, then the lessons they leave and every lesson
  * changed for the day, each arranged in a panel with the best cover first.
  */
-export function CoverDay({ on }: { on: string }) {
+export function CoverDay({ on }: CoverDayProps) {
   const data = useSuspenseQuery(coverDayQuery(on)).data.cover;
   const queryClient = useQueryClient();
   const endAbsence = useServerFn(endStaffAbsence);
@@ -347,6 +355,15 @@ export function CoverDay({ on }: { on: string }) {
   );
 }
 
+interface AbsenceSheetProps {
+  open: boolean;
+  day: string;
+  teachers: Day["teachers"];
+  periods: Day["periods"];
+  onClose: () => void;
+  onSaved: () => Promise<unknown>;
+}
+
 function AbsenceSheet({
   open,
   day,
@@ -354,14 +371,7 @@ function AbsenceSheet({
   periods,
   onClose,
   onSaved,
-}: {
-  open: boolean;
-  day: string;
-  teachers: Day["teachers"];
-  periods: Day["periods"];
-  onClose: () => void;
-  onSaved: () => Promise<unknown>;
-}) {
+}: AbsenceSheetProps) {
   const record = useServerFn(recordStaffAbsence);
   const [userId, setUserId] = useState("");
   const [from, setFrom] = useState(day);
@@ -502,6 +512,14 @@ function AbsenceSheet({
 const KEEP = "";
 const CANCEL = "cancel";
 
+interface ArrangeSheetProps {
+  lesson: Lesson;
+  on: string;
+  title: string;
+  onClose: () => void;
+  onSaved: () => Promise<unknown>;
+}
+
 /**
  * Arranges one lesson for its day: a cover teacher from those free then,
  * best first; another room; or no lesson at all.
@@ -512,13 +530,7 @@ function ArrangeSheet({
   title,
   onClose,
   onSaved,
-}: {
-  lesson: Lesson;
-  on: string;
-  title: string;
-  onClose: () => void;
-  onSaved: () => Promise<unknown>;
-}) {
+}: ArrangeSheetProps) {
   const options = useQuery(
     coverOptionsQuery({
       classId: lesson.classId,

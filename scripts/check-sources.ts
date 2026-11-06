@@ -118,6 +118,24 @@ for (const { path, text } of files) {
     );
 }
 
+// A component's props are a named interface beside it, so a screen can see
+// what it may pass and a reviewer what changed; an inline object type hides
+// both. The design system and both apps are held to it.
+const INLINE_PROPS = [
+  /function\s+[A-Z]\w*(?:<[^>(]*>)?\(\{[^)]*?\}\s*:\s*\{/s,
+  /const\s+[A-Z]\w*\s*=\s*\(\{[^)]*?\}\s*:\s*\{/s,
+];
+const PROPS_ROOTS = ["apps/web/src", "apps/ops/src", "packages/ui/src/system"];
+for (const root of PROPS_ROOTS)
+  for await (const path of new Glob(`${root}/**/*.tsx`).scan(".")) {
+    if (IGNORED.some((pattern) => pattern.test(path))) continue;
+    const text = await Bun.file(path).text();
+    if (INLINE_PROPS.some((pattern) => pattern.test(text)))
+      problems.push(
+        `${path}: a component types its props inline; name an interface`,
+      );
+  }
+
 problems.push(...errorCodeProblems(files));
 
 // Every action the audit log records reads as words in a history, never as

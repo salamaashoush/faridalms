@@ -26,6 +26,16 @@ import { WebPreview } from "./WebPreview";
 
 type Project = Extract<StudentBlock, { type: "project" }>;
 
+export interface WebProjectAnswerProps {
+  block: Project;
+  view: CheckView | undefined;
+  driver: CheckDriver;
+  mode: CheckMode;
+  locked: boolean;
+  /** Where the answer stands with the teacher, said under its own buttons. */
+  status: ReactNode;
+}
+
 /**
  * A web project as its student meets it: the page their files make, and
  * the studio to write them in. In a lesson the project is kept as they
@@ -40,15 +50,7 @@ export function WebProjectAnswer({
   mode,
   locked,
   status,
-}: {
-  block: Project;
-  view: CheckView | undefined;
-  driver: CheckDriver;
-  mode: CheckMode;
-  locked: boolean;
-  /** Where the answer stands with the teacher, said under its own buttons. */
-  status: ReactNode;
-}) {
+}: WebProjectAnswerProps) {
   const own = useContext(OwnProjectsContext);
   const queryClient = useQueryClient();
   const sent = view?.response?.type === "project" ? view.response.files : null;

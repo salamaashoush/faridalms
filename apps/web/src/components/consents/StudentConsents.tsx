@@ -56,7 +56,11 @@ const nameOf = (person: { nameEn: string | null; nameAr: string | null }) =>
 const purposeLabel = (purpose: Purpose) =>
   inLocale(purpose.labelEn, purpose.labelAr) || purpose.code;
 
-function AnswerLine({ answer }: { answer: Answer }) {
+interface AnswerLineProps {
+  answer: Answer;
+}
+
+function AnswerLine({ answer }: AnswerLineProps) {
   return (
     <span className="text-[13px] leading-[18px] text-muted-foreground">
       {[
@@ -89,12 +93,16 @@ function AnswerLine({ answer }: { answer: Answer }) {
   );
 }
 
+export interface StudentConsentsProps {
+  studentId: string;
+}
+
 /**
  * What the student's legal guardians agreed to, purpose by purpose, with who
  * answered, how and when. The office records answers given on paper or in
  * person; families answer in the app.
  */
-export function StudentConsents({ studentId }: { studentId: string }) {
+export function StudentConsents({ studentId }: StudentConsentsProps) {
   const data = useSuspenseQuery(studentConsentsQuery(studentId)).data;
   const [sheet, setSheet] = useState<{
     purpose: Purpose | null;
@@ -216,19 +224,21 @@ export function StudentConsents({ studentId }: { studentId: string }) {
   );
 }
 
+interface RecordSheetProps {
+  studentId: string;
+  purpose: Purpose;
+  data: Data;
+  open: boolean;
+  onClose: () => void;
+}
+
 function RecordSheet({
   studentId,
   purpose,
   data,
   open,
   onClose,
-}: {
-  studentId: string;
-  purpose: Purpose;
-  data: Data;
-  open: boolean;
-  onClose: () => void;
-}) {
+}: RecordSheetProps) {
   const queryClient = useQueryClient();
   const [relationshipId, setRelationshipId] = useState(
     data.answerers[0]?.relationshipId ?? "",

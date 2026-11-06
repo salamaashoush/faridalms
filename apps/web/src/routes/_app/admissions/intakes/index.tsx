@@ -62,7 +62,11 @@ type Form = Awaited<
 >["forms"][number];
 
 /** An intake opens its board, where its applications are worked through. */
-function Grade({ row }: { row: Intake }) {
+interface GradeProps {
+  row: Intake;
+}
+
+function Grade({ row }: GradeProps) {
   return (
     <RowLink
       to="/admissions/intakes/$intakeId"
@@ -157,7 +161,11 @@ function formColumns(): Column<Form>[] {
   ];
 }
 
-function Published({ row }: { row: Form }) {
+interface PublishedProps {
+  row: Form;
+}
+
+function Published({ row }: PublishedProps) {
   if (!row.published)
     return <StatusText tone="neutral">{m.afmNeverPublished()}</StatusText>;
   return (
@@ -185,14 +193,23 @@ const intakeCard = (today: string) => ({
     }),
 });
 
-function Window({ row, today }: { row: Intake; today: string }) {
+interface WindowProps {
+  row: Intake;
+  today: string;
+}
+
+function Window({ row, today }: WindowProps) {
   const window = intakeWindow(row, today);
   return (
     <StatusText tone={WINDOW_TONE[window]}>{WINDOW_LABEL[window]()}</StatusText>
   );
 }
 
-function FormName({ row }: { row: Form }) {
+interface FormNameProps {
+  row: Form;
+}
+
+function FormName({ row }: FormNameProps) {
   return (
     <RowLink
       to="/admissions/form-editor"

@@ -67,18 +67,15 @@ type Data = Awaited<
 >;
 type Attempt = Data["attempts"][number];
 
-function RubricResult({
-  data,
-  scores,
-  comments,
-  remarks,
-}: {
+interface RubricResultProps {
   data: Data;
   scores: Record<string, string> | null;
   comments: Record<string, string> | null;
   /** The comments on passages linked to each criterion. */
   remarks: { criterionId: string | null }[];
-}) {
+}
+
+function RubricResult({ data, scores, comments, remarks }: RubricResultProps) {
   const rubric = data.assignment.rubric;
   if (!rubric || !scores) return null;
   const linked = (id: string) =>
@@ -134,7 +131,12 @@ function RubricResult({
   );
 }
 
-function AttemptItem({ data, attempt }: { data: Data; attempt: Attempt }) {
+interface AttemptItemProps {
+  data: Data;
+  attempt: Attempt;
+}
+
+function AttemptItem({ data, attempt }: AttemptItemProps) {
   const assessment = attempt.assessment;
   const [active, setActive] = useState<string | null>(null);
   const [reveal, setReveal] = useState(0);
@@ -236,7 +238,11 @@ function AttemptItem({ data, attempt }: { data: Data; attempt: Attempt }) {
   );
 }
 
-function YourWork({ data }: { data: Data }) {
+interface YourWorkProps {
+  data: Data;
+}
+
+function YourWork({ data }: YourWorkProps) {
   const queryClient = useQueryClient();
   const media = useDocumentMedia({ type: "work", id: data.assignment.id });
   const format = data.assignment.submissionFormat;
@@ -433,7 +439,11 @@ function YourWork({ data }: { data: Data }) {
 }
 
 /** Work a teacher handed in for the student still waits for their declaration. */
-function OutstandingDeclaration({ data }: { data: Data }) {
+interface OutstandingDeclarationProps {
+  data: Data;
+}
+
+function OutstandingDeclaration({ data }: OutstandingDeclarationProps) {
   const standing = useQuery(myStandingQuery(data.assignment.id)).data;
   const [open, setOpen] = useState(false);
   if (
@@ -462,7 +472,11 @@ function OutstandingDeclaration({ data }: { data: Data }) {
   );
 }
 
-export function LearnerWork({ assignmentId }: { assignmentId: string }) {
+export interface LearnerWorkProps {
+  assignmentId: string;
+}
+
+export function LearnerWork({ assignmentId }: LearnerWorkProps) {
   const data = useSuspenseQuery(myWorkQuery(assignmentId)).data;
   const width = useReaderWidth();
   const standing = useQuery(myStandingQuery(assignmentId)).data;

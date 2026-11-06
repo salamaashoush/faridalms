@@ -87,6 +87,16 @@ const templatesQuery = (kind: TemplateKind) => ({
   queryFn: () => listTemplates({ data: { kind } }),
 });
 
+export interface TemplatePickerProps {
+  kind: TemplateKind;
+  /** Fills the page; a shape the product offers comes with it. */
+  onApply: (content: ContentDocument, shape?: BuiltInPiece) => void;
+  /** Ready-made young activities, whose pictures are stored through this. */
+  starters?: EditorMedia;
+  /** Shapes the product offers for this kind, ahead of the school's own. */
+  builtIn?: BuiltInGroup;
+}
+
 /**
  * Offered on an empty document: the templates the school keeps for this
  * kind, any of which fills the page to start from.
@@ -96,15 +106,7 @@ export function TemplatePicker({
   onApply,
   starters,
   builtIn,
-}: {
-  kind: TemplateKind;
-  /** Fills the page; a shape the product offers comes with it. */
-  onApply: (content: ContentDocument, shape?: BuiltInPiece) => void;
-  /** Ready-made young activities, whose pictures are stored through this. */
-  starters?: EditorMedia;
-  /** Shapes the product offers for this kind, ahead of the school's own. */
-  builtIn?: BuiltInGroup;
-}) {
+}: TemplatePickerProps) {
   const queryClient = useQueryClient();
   const rows = useQuery(templatesQuery(kind)).data ?? [];
   const apply = useMutation({
@@ -347,12 +349,7 @@ export function useStartFrom(
 }
 
 /** Keeps the document as a template the whole school can start from. */
-export function SaveTemplateDialog({
-  open,
-  onOpenChange,
-  piece,
-  suggestedTitle,
-}: {
+export interface SaveTemplateDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   /** A document kept as it stands, or a whole module with its lessons. */
@@ -360,7 +357,14 @@ export function SaveTemplateDialog({
     | { kind: DocumentTemplateKind; content: ContentDocument }
     | { kind: "module"; moduleId: string };
   suggestedTitle: string;
-}) {
+}
+
+export function SaveTemplateDialog({
+  open,
+  onOpenChange,
+  piece,
+  suggestedTitle,
+}: SaveTemplateDialogProps) {
   const queryClient = useQueryClient();
   const reviews = useCapability("library:review");
   const subjects = useQuery(subjectsQuery).data?.rows ?? [];

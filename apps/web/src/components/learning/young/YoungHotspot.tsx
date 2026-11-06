@@ -45,6 +45,12 @@ function inReadingOrder(places: readonly Place[], rtl: boolean): Place[] {
   });
 }
 
+export interface YoungHotspotProps {
+  block: Hotspot;
+  view: CheckView | undefined;
+  driver: CheckDriver;
+}
+
 /**
  * Finding things in a picture. A tap on a place marks it found at once and
  * asks nothing of the server; only a tap on nothing, or the last find, is
@@ -53,15 +59,7 @@ function inReadingOrder(places: readonly Place[], rtl: boolean): Place[] {
  * reader a child chooses among the named places instead, which counts as a
  * tap in the middle of the place chosen.
  */
-export function YoungHotspot({
-  block,
-  view,
-  driver,
-}: {
-  block: Hotspot;
-  view: CheckView | undefined;
-  driver: CheckDriver;
-}) {
+export function YoungHotspot({ block, view, driver }: YoungHotspotProps) {
   const regions = placesToFind(block.places);
   const listed = inReadingOrder(block.places, getTextDirection() === "rtl");
   const settled = Boolean(view && (view.correct || view.revealed));

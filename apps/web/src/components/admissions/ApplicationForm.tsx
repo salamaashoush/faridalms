@@ -120,17 +120,14 @@ const hasName = (names: Names) =>
     (parts) => parts.given.trim() && parts.family.trim(),
   );
 
-function NamesFields({
-  id,
-  names,
-  onChange,
-  error,
-}: {
+interface NamesFieldsProps {
   id: string;
   names: Names;
   onChange: (names: Names) => void;
   error?: string | null;
-}) {
+}
+
+function NamesFields({ id, names, onChange, error }: NamesFieldsProps) {
   const set = (script: "ar" | "en", part: keyof Names["en"], value: string) =>
     onChange({ ...names, [script]: { ...names[script], [part]: value } });
   return (
@@ -207,19 +204,21 @@ interface ChildDraft {
   documentCountry: string;
 }
 
+interface ChildFieldsProps {
+  child: ChildDraft;
+  options: Mine["options"];
+  onChange: (child: ChildDraft) => void;
+  tried: boolean;
+  documentShown?: string | null;
+}
+
 function ChildFields({
   child,
   options,
   onChange,
   tried,
   documentShown,
-}: {
-  child: ChildDraft;
-  options: Mine["options"];
-  onChange: (child: ChildDraft) => void;
-  tried: boolean;
-  documentShown?: string | null;
-}) {
+}: ChildFieldsProps) {
   const set = <K extends keyof ChildDraft>(key: K, value: ChildDraft[K]) =>
     onChange({ ...child, [key]: value });
   return (
@@ -325,6 +324,11 @@ const childInput = (child: ChildDraft) => ({
 const childReady = (child: ChildDraft) =>
   hasName(child.names) && Boolean(child.birthDate) && Boolean(child.sexId);
 
+export interface StartApplicationProps {
+  intakeId?: string;
+  onStarted: (id: string) => void;
+}
+
 /**
  * Starts an application: the intake, then a child the family applied for
  * before or a new one. The child is saved as a person from here, so nothing
@@ -333,10 +337,7 @@ const childReady = (child: ChildDraft) =>
 export function StartApplication({
   intakeId,
   onStarted,
-}: {
-  intakeId?: string;
-  onStarted: (id: string) => void;
-}) {
+}: StartApplicationProps) {
   const queryClient = useQueryClient();
   const mine = useSuspenseQuery(myApplicationsQuery).data;
   const [chosenIntake, setChosenIntake] = useState(
@@ -452,7 +453,11 @@ export function StartApplication({
   );
 }
 
-function IntakeFacts({ intake }: { intake: Mine["intakes"][number] }) {
+interface IntakeFactsProps {
+  intake: Mine["intakes"][number];
+}
+
+function IntakeFacts({ intake }: IntakeFactsProps) {
   return (
     <dl className="grid gap-x-6 gap-y-2 rounded-lg border bg-muted/30 px-4 py-3 text-sm sm:grid-cols-2">
       <div>
@@ -477,17 +482,14 @@ function IntakeFacts({ intake }: { intake: Mine["intakes"][number] }) {
   );
 }
 
-function Question({
-  question,
-  value,
-  onChange,
-  error,
-}: {
+interface QuestionProps {
   question: AdmissionQuestion;
   value: string;
   onChange: (value: string) => void;
   error?: string | null;
-}) {
+}
+
+function Question({ question, value, onChange, error }: QuestionProps) {
   const shown = questionIn(question, getLocale() === "ar" ? "ar" : "en");
   const id = `question-${question.id}`;
   const errors = error ? [error] : undefined;
@@ -575,6 +577,13 @@ function blankSchool(): PreviousSchool {
   };
 }
 
+export interface ApplicationStepsProps {
+  applicationId: string;
+  step: ApplyStep;
+  onStep: (step: ApplyStep) => void;
+  onSent: (reference: string) => void;
+}
+
 /**
  * The application itself, one step at a time, saved on the server as the
  * family moves on, so they can stop and come back after signing in again.
@@ -584,12 +593,7 @@ export function ApplicationSteps({
   step,
   onStep,
   onSent,
-}: {
-  applicationId: string;
-  step: ApplyStep;
-  onStep: (step: ApplyStep) => void;
-  onSent: (reference: string) => void;
-}) {
+}: ApplicationStepsProps) {
   const queryClient = useQueryClient();
   const data = useSuspenseQuery(draftQuery(applicationId)).data;
   const locale = getLocale() === "ar" ? "ar" : "en";
@@ -883,17 +887,14 @@ export function ApplicationSteps({
   );
 }
 
-function FamilyStep({
-  form,
-  onChange,
-  options,
-  tried,
-}: {
+interface FamilyStepProps {
   form: FormAnswers;
   onChange: (form: FormAnswers) => void;
   options: Draft["options"];
   tried: boolean;
-}) {
+}
+
+function FamilyStep({ form, onChange, options, tried }: FamilyStepProps) {
   const relations = [
     { value: "", label: m.applyChoose() },
     ...options.relations.map((row) => ({
@@ -1057,15 +1058,13 @@ function FamilyStep({
 const yearOf = (value: string) =>
   /^\d{4}$/.test(value.trim()) ? Number(value) : null;
 
-function SchoolsStep({
-  form,
-  onChange,
-  tried,
-}: {
+interface SchoolsStepProps {
   form: FormAnswers;
   onChange: (form: FormAnswers) => void;
   tried: boolean;
-}) {
+}
+
+function SchoolsStep({ form, onChange, tried }: SchoolsStepProps) {
   const setSchool = (index: number, patch: Partial<PreviousSchool>) =>
     onChange({
       ...form,
@@ -1205,7 +1204,11 @@ function SchoolsStep({
 }
 
 /** The checklist's documents, each uploaded through the files system and filed under its step. */
-export function DocumentsStep({ data }: { data: Draft }) {
+export interface DocumentsStepProps {
+  data: Draft;
+}
+
+export function DocumentsStep({ data }: DocumentsStepProps) {
   const queryClient = useQueryClient();
   const documents = data.items.filter((item) => item.kind === "document");
   const others = data.items.filter((item) => item.kind !== "document");
@@ -1284,17 +1287,14 @@ export function DocumentsStep({ data }: { data: Draft }) {
   );
 }
 
-function SendStep({
-  data,
-  agreed,
-  onAgree,
-  tried,
-}: {
+interface SendStepProps {
   data: Draft;
   agreed: Record<string, boolean>;
   onAgree: (noticeId: string, value: boolean) => void;
   tried: boolean;
-}) {
+}
+
+function SendStep({ data, agreed, onAgree, tried }: SendStepProps) {
   const [locale, setLocale] = useState<ContentLocale>(
     getLocale() === "ar" ? "ar" : "en",
   );

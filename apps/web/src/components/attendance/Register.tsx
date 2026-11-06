@@ -149,19 +149,21 @@ const ACCESS_NOTE = {
   not_school_day: m.attNotSchoolDay,
 } as const;
 
+interface MarkChoiceProps {
+  name: string;
+  student: Student;
+  draft: Draft;
+  disabled: boolean;
+  onMark: (meaning: AttendanceMeaning) => void;
+}
+
 function MarkChoice({
   name,
   student,
   draft,
   disabled,
   onMark,
-}: {
-  name: string;
-  student: Student;
-  draft: Draft;
-  disabled: boolean;
-  onMark: (meaning: AttendanceMeaning) => void;
-}) {
+}: MarkChoiceProps) {
   return (
     <fieldset className="flex shrink-0 gap-1" disabled={disabled}>
       <legend className="sr-only">
@@ -203,20 +205,7 @@ const REPORTED: Record<
   early: m.attReportedEarly,
 };
 
-function StudentRow({
-  student,
-  draft,
-  earlier,
-  report,
-  movements,
-  history,
-  via,
-  reasons,
-  lateNow,
-  closesMinutes,
-  disabled,
-  onChange,
-}: {
+interface StudentRowProps {
   student: Student;
   draft: Draft;
   earlier: Data["earlier"];
@@ -234,7 +223,22 @@ function StudentRow({
   reasons: Data["reasons"];
   disabled: boolean;
   onChange: (next: Draft) => void;
-}) {
+}
+
+function StudentRow({
+  student,
+  draft,
+  earlier,
+  report,
+  movements,
+  history,
+  via,
+  reasons,
+  lateNow,
+  closesMinutes,
+  disabled,
+  onChange,
+}: StudentRowProps) {
   const id = useId();
   const [open, setOpen] = useState(Boolean(draft.note || draft.reasonId));
   const timed =
@@ -443,7 +447,11 @@ function StudentRow({
   );
 }
 
-function Summary({ drafts }: { drafts: Drafts }) {
+interface SummaryProps {
+  drafts: Drafts;
+}
+
+function Summary({ drafts }: SummaryProps) {
   const counts = new Map<AttendanceMeaning | null, number>();
   for (const draft of Object.values(drafts))
     counts.set(draft.meaning, (counts.get(draft.meaning) ?? 0) + 1);
@@ -467,13 +475,12 @@ function Summary({ drafts }: { drafts: Drafts }) {
   );
 }
 
-function RegisterForm({
-  data,
-  onDirtyChange,
-}: {
+interface RegisterFormProps {
   data: Data;
   onDirtyChange: (dirty: boolean) => void;
-}) {
+}
+
+function RegisterForm({ data, onDirtyChange }: RegisterFormProps) {
   const hydrated = useHydrated();
   const queryClient = useQueryClient();
   const [initial, setInitial] = useState(() => draftsOf(data));
@@ -667,17 +674,14 @@ function RegisterForm({
   );
 }
 
-export function Register({
-  classId,
-  date,
-  periodId,
-  onChange,
-}: {
+export interface RegisterProps {
   classId: string;
   date: string;
   periodId: string;
   onChange: (change: { date?: string; periodId?: string }) => void;
-}) {
+}
+
+export function Register({ classId, date, periodId, onChange }: RegisterProps) {
   const data = useSuspenseQuery(registerQuery(classId, date, periodId)).data;
   const [checking, setChecking] = useState(false);
   // Marks being made stay on screen when the register is read again, as it

@@ -22,6 +22,16 @@ import { ProjectPlayer } from "./ProjectPlayer";
 
 type Coding = Extract<StudentBlock, { type: "scratch" }>;
 
+export interface CodingAnswerProps {
+  block: Coding;
+  view: CheckView | undefined;
+  driver: CheckDriver;
+  mode: CheckMode;
+  locked: boolean;
+  /** Where the answer stands with the teacher, said above the class gallery. */
+  status: ReactNode;
+}
+
 /**
  * A coding question as its student meets it: their project's stage as they
  * last left it, and the studio to build it in. Every save goes to the
@@ -37,15 +47,7 @@ export function CodingAnswer({
   mode,
   locked,
   status,
-}: {
-  block: Coding;
-  view: CheckView | undefined;
-  driver: CheckDriver;
-  mode: CheckMode;
-  locked: boolean;
-  /** Where the answer stands with the teacher, said above the class gallery. */
-  status: ReactNode;
-}) {
+}: CodingAnswerProps) {
   const media = useDocumentMedia();
   const own = useContext(OwnProjectsContext);
   const queryClient = useQueryClient();

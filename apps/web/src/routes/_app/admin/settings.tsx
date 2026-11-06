@@ -251,13 +251,12 @@ function roleLink(role: AccessRole, name: string) {
   );
 }
 
-function SubjectsTab({
-  search,
-  patch,
-}: {
+interface SubjectsTabProps {
   search: Search;
   patch: (change: Partial<Search>, replace?: boolean) => void;
-}) {
+}
+
+function SubjectsTab({ search, patch }: SubjectsTabProps) {
   const subjects = (
     useQuery({ ...subjectsQuery, enabled: search.section === "subjects" }).data
       ?.rows ?? []
@@ -311,13 +310,12 @@ function SubjectsTab({
   );
 }
 
-function AccessTab({
-  search,
-  patch,
-}: {
+interface AccessTabProps {
   search: Search;
   patch: (change: Partial<Search>, replace?: boolean) => void;
-}) {
+}
+
+function AccessTab({ search, patch }: AccessTabProps) {
   const roles = useSuspenseQuery(accessRolesQuery).data;
   const sheet = useUrlSheet(search.role);
   const editing =

@@ -7,20 +7,19 @@ import { formatNumber } from "~/utils/datetime";
 
 import { featureNames } from "./scratch-checks";
 
+export interface ProjectChecksProps {
+  asked: readonly ScratchFeature[];
+  /** What the saved project was found to have; none where no save was read. */
+  has: readonly string[] | null | undefined;
+}
+
 /**
  * What a coding question asks every project to do, each ticked where the
  * student's last saved project does it. It is a list to work to and to
  * mark beside: it gives no points, since a project can have every block
  * asked for and still not work.
  */
-export function ProjectChecks({
-  asked,
-  has,
-}: {
-  asked: readonly ScratchFeature[];
-  /** What the saved project was found to have; none where no save was read. */
-  has: readonly string[] | null | undefined;
-}) {
+export function ProjectChecks({ asked, has }: ProjectChecksProps) {
   if (asked.length === 0) return null;
   const names = featureNames();
   const met = asked.filter((feature) => has?.includes(feature)).length;
@@ -79,16 +78,16 @@ function noteText(note: { kind: string; message?: string }): string | null {
   return note.kind === "forever" ? m.scratchNoteForever() : null;
 }
 
+export interface ProjectNotesProps {
+  notes: readonly { kind: string; message?: string }[] | null | undefined;
+}
+
 /**
  * What the server noted in a saved project as worth a second look: the
  * mistakes beginners make most, put as what the project does, for the
  * student to weigh and the teacher to ask about. They mark nothing.
  */
-export function ProjectNotes({
-  notes,
-}: {
-  notes: readonly { kind: string; message?: string }[] | null | undefined;
-}) {
+export function ProjectNotes({ notes }: ProjectNotesProps) {
   const said = (notes ?? []).flatMap((note) => {
     const text = noteText(note);
     return text ? [{ key: `${note.kind}:${note.message ?? ""}`, text }] : [];

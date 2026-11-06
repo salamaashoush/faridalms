@@ -443,6 +443,15 @@ function scheduleSentence(draft: Draft) {
 /** The fields as they are compared for unsent edits, without the brief. */
 const fieldsOf = (value: Draft) => JSON.stringify({ ...value, brief: null });
 
+export interface AssignmentEditorProps {
+  existing: Existing | null;
+  classId?: string;
+  /** The library piece a new assignment starts from. */
+  template?: StartingPiece;
+  onClose: (id?: string) => void;
+  onCreated: (id: string) => void;
+}
+
 /**
  * An assignment written as a document: the title and brief take the page,
  * the class, dates, grading and hand-in rules sit beside them. Drafts save
@@ -455,14 +464,7 @@ export function AssignmentEditor({
   template,
   onClose,
   onCreated,
-}: {
-  existing: Existing | null;
-  classId?: string;
-  /** The library piece a new assignment starts from. */
-  template?: StartingPiece;
-  onClose: (id?: string) => void;
-  onCreated: (id: string) => void;
-}) {
+}: AssignmentEditorProps) {
   const options = useSuspenseQuery(courseworkOptionsQuery).data;
   const queryClient = useQueryClient();
   // Co-teachers write a brief together once it exists; a new one starts alone.

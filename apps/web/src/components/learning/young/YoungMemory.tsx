@@ -55,20 +55,18 @@ function dealt(block: Matching): Card[] {
   return cards;
 }
 
+export interface YoungMemoryProps {
+  block: Matching;
+  view: CheckView | undefined;
+  driver: CheckDriver;
+}
+
 /**
  * Matching played as memory pairs, as practice: the cards lie face down and
  * the child turns two at a time; a pair stays face up, two that differ turn
  * back after a moment. Finding every pair answers the question.
  */
-export function YoungMemory({
-  block,
-  view,
-  driver,
-}: {
-  block: Matching;
-  view: CheckView | undefined;
-  driver: CheckDriver;
-}) {
+export function YoungMemory({ block, view, driver }: YoungMemoryProps) {
   const cards = useMemo(() => dealt(block), [block]);
   const settled = Boolean(view && (view.correct || view.revealed));
   const [found, setFound] = useState<string[]>([]);

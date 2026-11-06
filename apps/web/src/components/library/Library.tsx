@@ -49,6 +49,13 @@ export type Piece = Awaited<
   ReturnType<NonNullable<ReturnType<typeof libraryQuery>["queryFn"]>>
 >["rows"][number];
 
+export interface PieceSheetProps {
+  piece: Piece;
+  reviewing: boolean;
+  open: boolean;
+  onClose: () => void;
+}
+
 /**
  * A library piece as it reads, with what can be done with it: started in a
  * module or class as the teacher's own copy, or, waiting for review, shared
@@ -59,12 +66,7 @@ export function PieceSheet({
   reviewing,
   open,
   onClose,
-}: {
-  piece: Piece;
-  reviewing: boolean;
-  open: boolean;
-  onClose: () => void;
-}) {
+}: PieceSheetProps) {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const reviews = useCapability("library:review");

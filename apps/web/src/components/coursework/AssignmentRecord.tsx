@@ -104,15 +104,13 @@ type WorkRow = Data["work"][number] & { id: string };
 
 const when = (iso: string | null) => (iso ? formatInstant(iso) : null);
 
-function Settings({
-  data,
-  open,
-  onOpenChange,
-}: {
+interface SettingsProps {
   data: Data;
   open: boolean;
   onOpenChange: (open: boolean) => void;
-}) {
+}
+
+function Settings({ data, open, onOpenChange }: SettingsProps) {
   const late = {
     accept: m.courseworkLateAccept(),
     deduct: m.courseworkLateDeductBy({
@@ -170,7 +168,11 @@ function Settings({
   );
 }
 
-function Brief({ data }: { data: Data }) {
+interface BriefProps {
+  data: Data;
+}
+
+function Brief({ data }: BriefProps) {
   const reading = useBriefLanguage({
     title: data.title,
     brief: data.brief,
@@ -194,7 +196,11 @@ function Brief({ data }: { data: Data }) {
   );
 }
 
-function StateCell({ row }: { row: WorkRow }) {
+interface StateCellProps {
+  row: WorkRow;
+}
+
+function StateCell({ row }: StateCellProps) {
   return (
     <span className="grid gap-0.5">
       <StatusText tone={STATE_TONE[row.learnerState]}>
@@ -222,15 +228,13 @@ function StateCell({ row }: { row: WorkRow }) {
 }
 
 /** A due time of their own for the chosen students, on the school's clock. */
-function ExtendSheet({
-  data,
-  rows,
-  onOpenChange,
-}: {
+interface ExtendSheetProps {
   data: Data;
   rows: WorkRow[] | null;
   onOpenChange: (open: boolean) => void;
-}) {
+}
+
+function ExtendSheet({ data, rows, onOpenChange }: ExtendSheetProps) {
   const queryClient = useQueryClient();
   const first = rows?.[0];
   const [value, setValue] = useState(() => {
@@ -285,11 +289,20 @@ function ExtendSheet({
   );
 }
 
-function StudentName({ row }: { row: WorkRow }) {
+interface StudentNameProps {
+  row: WorkRow;
+}
+
+function StudentName({ row }: StudentNameProps) {
   return <bdi className="font-medium">{displayName(row)}</bdi>;
 }
 
-function Score({ row, points }: { row: WorkRow; points: number | null }) {
+interface ScoreProps {
+  row: WorkRow;
+  points: number | null;
+}
+
+function Score({ row, points }: ScoreProps) {
   if (row.effectiveScore === null && row.score === null)
     return <Value notApplicable>{null}</Value>;
   return (
@@ -309,7 +322,11 @@ function Score({ row, points }: { row: WorkRow; points: number | null }) {
   );
 }
 
-function HandedAt({ row }: { row: WorkRow }) {
+interface HandedAtProps {
+  row: WorkRow;
+}
+
+function HandedAt({ row }: HandedAtProps) {
   return row.submittedAt ? (
     <Value>
       {formatInstant(row.submittedAt, "stamp")}
@@ -406,7 +423,11 @@ function workCard(
   };
 }
 
-function Work({ data }: { data: Data }) {
+interface WorkProps {
+  data: Data;
+}
+
+function Work({ data }: WorkProps) {
   const [extending, setExtending] = useState<WorkRow[] | null>(null);
   // Work done on paper is handed in by the teacher; a quiz only by its student.
   const handsIn =
@@ -590,15 +611,17 @@ function Work({ data }: { data: Data }) {
   );
 }
 
+export interface AssignmentRecordProps {
+  assignmentId: string;
+  tab: RecordTabValue;
+  onTab: (tab: RecordTabValue) => void;
+}
+
 export function AssignmentRecord({
   assignmentId,
   tab,
   onTab,
-}: {
-  assignmentId: string;
-  tab: RecordTabValue;
-  onTab: (tab: RecordTabValue) => void;
-}) {
+}: AssignmentRecordProps) {
   const data = useSuspenseQuery(assignmentRecordQuery(assignmentId)).data;
   const reading = useContext(BriefReading);
   const navigate = useNavigate();

@@ -25,6 +25,12 @@ import { CheckBlockView, isCheckBlock, isSettled } from "./Checks";
 import { YoungContext } from "./ReadAloud";
 import { YoungLesson } from "./young/YoungLesson";
 
+export interface PracticePlayerProps {
+  moduleId: string;
+  round: number;
+  onRound: (round: number) => void;
+}
+
 /**
  * A mixed review of a module: questions from finished lessons, the ones
  * missed the first time first, each marked by the API and kept nowhere, so
@@ -34,11 +40,7 @@ export function PracticePlayer({
   moduleId,
   round,
   onRound,
-}: {
-  moduleId: string;
-  round: number;
-  onRound: (round: number) => void;
-}) {
+}: PracticePlayerProps) {
   const data = useSuspenseQuery(practiceSetQuery(moduleId, round)).data;
   const earlyYears = useCurrentUser().modules.early_years;
   const navigate = useNavigate();

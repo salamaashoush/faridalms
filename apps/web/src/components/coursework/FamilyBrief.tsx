@@ -23,7 +23,11 @@ type Data = Awaited<
   ReturnType<NonNullable<ReturnType<typeof childBriefQuery>["queryFn"]>>
 >;
 
-function Read({ data }: { data: Data }) {
+interface ReadProps {
+  data: Data;
+}
+
+function Read({ data }: ReadProps) {
   const reading = useBriefLanguage({
     title: data.assignment.title,
     brief: data.brief,
@@ -63,13 +67,12 @@ function Read({ data }: { data: Data }) {
   );
 }
 
-function Result({
-  data,
-  result,
-}: {
+interface ResultProps {
   data: Data;
   result: NonNullable<Data["result"]>;
-}) {
+}
+
+function Result({ data, result }: ResultProps) {
   const criteria = data.assignment.rubric?.criteria ?? [];
   const scored =
     result.score !== null || result.grade
@@ -142,18 +145,20 @@ function Result({
 }
 
 /** A piece of a child's work as their family reads it, in either language of its brief. */
-export function FamilyBrief({
-  studentId,
-  assignmentId,
-  title,
-  onClose,
-}: {
+export interface FamilyBriefProps {
   studentId: string;
   assignmentId: string;
   /** Its title as the list gave it, while the brief is on its way. */
   title: string;
   onClose: () => void;
-}) {
+}
+
+export function FamilyBrief({
+  studentId,
+  assignmentId,
+  title,
+  onClose,
+}: FamilyBriefProps) {
   const brief = useQuery(childBriefQuery(studentId, assignmentId));
   const end = getTextDirection(getLocale()) === "rtl" ? "left" : "right";
   return (

@@ -83,13 +83,12 @@ function counts(plan: RolloverPlan) {
   };
 }
 
-export function Rollover({
-  query,
-  onClose,
-}: {
+export interface RolloverProps {
   query: RolloverQuery;
   onClose: () => void;
-}) {
+}
+
+export function Rollover({ query, onClose }: RolloverProps) {
   const data = useSuspenseQuery(rolloverQuery(query)).data;
   // Saving changes the draft's version, which starts the draft afresh from
   // what was saved; the confirmation a save led to has to outlive that.
@@ -108,7 +107,11 @@ export function Rollover({
   );
 }
 
-function RolloverApplied({ data }: { data: Data }) {
+interface RolloverAppliedProps {
+  data: Data;
+}
+
+function RolloverApplied({ data }: RolloverAppliedProps) {
   const outcome = data.outcome;
   if (!outcome) return null;
   return (
@@ -146,17 +149,14 @@ function RolloverApplied({ data }: { data: Data }) {
   );
 }
 
-function ClassRow({
-  row,
-  source,
-  data,
-  onChange,
-}: {
+interface ClassRowProps {
   row: RolloverClass;
   source: Data["homerooms"][number] | undefined;
   data: Data;
   onChange: (change: Partial<RolloverClass>) => void;
-}) {
+}
+
+function ClassRow({ row, source, data, onChange }: ClassRowProps) {
   const options = useSuspenseQuery(classOptionsQuery).data;
   const name = source ? classTitle(source) : row.code;
   const taken = data.takenCodes.some(
@@ -273,11 +273,15 @@ const INTENTION = {
   { tone: Tone; label: () => string; record: () => string }
 >;
 
+interface FamilyPlansProps {
+  data: Data;
+}
+
 /**
  * Whether the families of the year are being asked about the next, and
  * what they answered so far; asking sends each deciding guardian a notice.
  */
-function FamilyPlans({ data }: { data: Data }) {
+function FamilyPlans({ data }: FamilyPlansProps) {
   const [confirming, setConfirming] = useState(false);
   const ask = useMutation({
     mutationFn: () => openReenrolment({ data: { yearId: data.source.id } }),
@@ -334,20 +338,22 @@ function FamilyPlans({ data }: { data: Data }) {
   );
 }
 
-function StudentRow({
-  student,
-  row,
-  targets,
-  asking,
-  onChange,
-}: {
+interface StudentRowProps {
   student: Data["students"][number];
   row: RolloverStudent;
   targets: { value: string; label: string }[];
   /** Whether the family is being asked now, so the office may record its answer. */
   asking: boolean;
   onChange: (change: Partial<RolloverStudent>) => void;
-}) {
+}
+
+function StudentRow({
+  student,
+  row,
+  targets,
+  asking,
+  onChange,
+}: StudentRowProps) {
   const name = displayName({
     fullNameEn: student.fullNameEn,
     fullNameAr: student.fullNameAr,
@@ -420,19 +426,21 @@ const PLAN_MESSAGE: Record<string, () => string> = {
   "rollover.missing_target": m.rolloverMissingTarget,
 };
 
+interface RolloverDraftProps {
+  data: Data;
+  query: RolloverQuery;
+  onClose: () => void;
+  confirming: boolean;
+  setConfirming: (open: boolean) => void;
+}
+
 function RolloverDraft({
   data,
   query,
   onClose,
   confirming,
   setConfirming,
-}: {
-  data: Data;
-  query: RolloverQuery;
-  onClose: () => void;
-  confirming: boolean;
-  setConfirming: (open: boolean) => void;
-}) {
+}: RolloverDraftProps) {
   const queryClient = useQueryClient();
   const leaving = useRef(false);
   const [baseline, setBaseline] = useState(data.plan);

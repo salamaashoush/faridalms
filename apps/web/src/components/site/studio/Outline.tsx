@@ -93,6 +93,17 @@ function gist(section: PageSection): string {
   return "";
 }
 
+export interface OutlineProps {
+  sections: PageSection[];
+  selected: string | null;
+  locale: SiteLocale;
+  problems: Set<string>;
+  untranslated: Set<string>;
+  onSelect: (id: string) => void;
+  onReorder: (from: number, to: number) => void;
+  onAdd: () => void;
+}
+
 /**
  * The page's sections in order: select one to edit it, drag or use the
  * arrows to reorder, and see which have problems or lack a translation.
@@ -106,16 +117,7 @@ export function Outline({
   onSelect,
   onReorder,
   onAdd,
-}: {
-  sections: PageSection[];
-  selected: string | null;
-  locale: SiteLocale;
-  problems: Set<string>;
-  untranslated: Set<string>;
-  onSelect: (id: string) => void;
-  onReorder: (from: number, to: number) => void;
-  onAdd: () => void;
-}) {
+}: OutlineProps) {
   const [dragging, setDragging] = useState<number | null>(null);
   const [over, setOver] = useState<number | null>(null);
   const hintId = useId();

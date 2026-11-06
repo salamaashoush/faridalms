@@ -11,7 +11,11 @@ import { useTheme } from "next-themes";
 
 import * as m from "~/i18n/messages";
 
-export function ThemeToggle({ className }: { className?: string }) {
+export interface ThemeToggleProps {
+  className?: string;
+}
+
+export function ThemeToggle({ className }: ThemeToggleProps) {
   const { setTheme } = useTheme();
 
   return (

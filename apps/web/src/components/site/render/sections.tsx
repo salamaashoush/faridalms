@@ -98,7 +98,11 @@ const HEIGHT: Record<string, string> = {
   screen: "min-h-[85svh] @3xl/site:min-h-[100svh]",
 };
 
-const Arrow = ({ className }: { className?: string }) => (
+interface IconProps {
+  className?: string;
+}
+
+const Arrow = ({ className }: IconProps) => (
   <ArrowRight
     aria-hidden
     className={cn("site-arrow size-4 rtl:-scale-x-100", className)}
@@ -120,7 +124,7 @@ function columnsFor(count: number, max: 2 | 3 | 4 = 3): "2" | "3" | "4" {
 }
 
 /** The quotation mark that opens a voice, mirrored for Arabic. */
-const QuoteMark = ({ className }: { className?: string }) => (
+const QuoteMark = ({ className }: IconProps) => (
   <Quote
     aria-hidden
     className={cn(
@@ -131,15 +135,13 @@ const QuoteMark = ({ className }: { className?: string }) => (
 );
 
 /** The picture, film or artwork a full-bleed opening sits on. */
-function Backdrop({
-  media,
-  context,
-  seed,
-}: {
+interface BackdropProps {
   media: SiteMedia;
   context: RenderContext;
   seed: string;
-}) {
+}
+
+function Backdrop({ media, context, seed }: BackdropProps) {
   const t = { locale: context.locale };
   const src = media.fileId ? context.fileUrl(media.fileId) : null;
   return (
@@ -687,7 +689,11 @@ function ImageText({ section, context }: Props<"imageText">) {
   );
 }
 
-function IconTile({ icon }: { icon: IconId }) {
+interface IconTileProps {
+  icon: IconId;
+}
+
+function IconTile({ icon }: IconTileProps) {
   if (icon === "none") return null;
   return (
     <span className="site-icon-tile">
@@ -697,15 +703,7 @@ function IconTile({ icon }: { icon: IconId }) {
 }
 
 /** A picture with its words laid over the lower part, the way into a page. */
-function PictureTile({
-  image,
-  seed,
-  set,
-  context,
-  ratio,
-  strength,
-  children,
-}: {
+interface PictureTileProps {
   image: SectionOf<"cards">["data"]["items"][number]["image"];
   seed: string;
   set: ArtSet;
@@ -714,7 +712,17 @@ function PictureTile({
   /** Deeper for a title with a sentence under it than for a title alone. */
   strength?: "m" | "l";
   children: ReactNode;
-}) {
+}
+
+function PictureTile({
+  image,
+  seed,
+  set,
+  context,
+  ratio,
+  strength,
+  children,
+}: PictureTileProps) {
   return (
     <div
       className="site-zoom group relative isolate overflow-hidden rounded-[var(--s-radius)] text-start"
@@ -758,6 +766,17 @@ function lanes(count: number, wide: number): CSSProperties {
   } as CSSProperties;
 }
 
+interface CarouselProps {
+  section: PageSection;
+  context: RenderContext;
+  heading: string;
+  text?: string;
+  count: number;
+  /** Whole items in view on a wide screen. */
+  wide: number;
+  children: ReactNode;
+}
+
 /**
  * A row that scrolls sideways, starting on the page's edge and running out
  * to the screen's, with previous and next beside its heading that stop at
@@ -771,16 +790,7 @@ function Carousel({
   count,
   wide,
   children,
-}: {
-  section: PageSection;
-  context: RenderContext;
-  heading: string;
-  text?: string;
-  count: number;
-  /** Whole items in view on a wide screen. */
-  wide: number;
-  children: ReactNode;
-}) {
+}: CarouselProps) {
   const t = { locale: context.locale };
   const id = useId();
   const list = useRef<HTMLUListElement>(null);
@@ -1091,17 +1101,14 @@ function Divisions({ section, context }: Props<"divisions">) {
   );
 }
 
-function Figure({
-  value,
-  label,
-  caption,
-  context,
-}: {
+interface FigureProps {
   value: string;
   label: string;
   caption?: string;
   context: RenderContext;
-}) {
+}
+
+function Figure({ value, label, caption, context }: FigureProps) {
   // In the school's Arabic-Indic digits a figure stands still, as counting
   // up runs in Latin ones.
   const shown = context.locale === "ar" ? arabicDigits(value) : value;
@@ -1164,18 +1171,17 @@ function Stats({ section, context }: Props<"stats">) {
   );
 }
 
+interface TickerProps {
+  section: SectionOf<"pillars">;
+  context: RenderContext;
+}
+
 /**
  * A school's values as words too large to sit still, moving across the
  * band with a pause button, and wrapping in place for anyone who asks for
  * less motion.
  */
-function Ticker({
-  section,
-  context,
-}: {
-  section: SectionOf<"pillars">;
-  context: RenderContext;
-}) {
+function Ticker({ section, context }: TickerProps) {
   const { data } = section;
   const [paused, setPaused] = useState(false);
   const t = { locale: context.locale };
@@ -1555,23 +1561,19 @@ function Video({ section, context }: Props<"video">) {
   );
 }
 
-/**
- * A photograph opened large, over the page, with the others a step away.
- * The native dialog traps focus and closes on Escape.
- */
-function Lightbox({
-  photos,
-  index,
-  context,
-  onClose,
-  onGo,
-}: {
+interface LightboxProps {
   photos: { id: string; src: string; alt: string }[];
   index: number | null;
   context: RenderContext;
   onClose: () => void;
   onGo: (index: number) => void;
-}) {
+}
+
+/**
+ * A photograph opened large, over the page, with the others a step away.
+ * The native dialog traps focus and closes on Escape.
+ */
+function Lightbox({ photos, index, context, onClose, onGo }: LightboxProps) {
   const t = { locale: context.locale };
   const dialog = useRef<HTMLDialogElement>(null);
   const count = photos.length;
@@ -1931,13 +1933,12 @@ function Accordion({ section, context }: Props<"accordion">) {
   );
 }
 
-function Logo({
-  item,
-  context,
-}: {
+interface LogoProps {
   item: SectionOf<"logos">["data"]["items"][number];
   context: RenderContext;
-}) {
+}
+
+function Logo({ item, context }: LogoProps) {
   return (
     <SiteAnchor
       href={item.href}
@@ -2039,16 +2040,14 @@ function Logos({ section, context }: Props<"logos">) {
 const postedOn = (instant: string, locale: SiteLocale) =>
   formatDate(schoolDayOf(instant), "full", locale);
 
-function Cover({
-  item,
-  className,
-  grow = false,
-}: {
+interface CoverProps {
   item: RenderContext["news"][number];
   className?: string;
   /** Fills whatever height its card is given, as the lead of a row does. */
   grow?: boolean;
-}) {
+}
+
+function Cover({ item, className, grow = false }: CoverProps) {
   return (
     <div
       className={cn(
@@ -2307,19 +2306,21 @@ const intakeYear = (intake: SiteIntake, locale: "en" | "ar") =>
     : (intake.yearTitleEn ?? intake.yearTitleAr)) ?? "";
 
 /** A link into the portal, which the builder shows without following. */
+interface PortalLinkProps {
+  href: string;
+  context: RenderContext;
+  className?: string;
+  size?: "lg";
+  children: ReactNode;
+}
+
 function PortalLink({
   href,
   context,
   className,
   size,
   children,
-}: {
-  href: string;
-  context: RenderContext;
-  className?: string;
-  size?: "lg";
-  children: ReactNode;
-}) {
+}: PortalLinkProps) {
   return context.editing ? (
     <span className={className} data-size={size}>
       {children}
@@ -2332,15 +2333,13 @@ function PortalLink({
 }
 
 /** Each intake still to close: its grade and year, when families apply, its fees and the way in. */
-function IntakeCards({
-  intakes,
-  context,
-  compact,
-}: {
+interface IntakeCardsProps {
   intakes: SiteIntake[];
   context: RenderContext;
   compact: boolean;
-}) {
+}
+
+function IntakeCards({ intakes, context, compact }: IntakeCardsProps) {
   const t = { locale: context.locale };
   const money = (currency: string, amount: number) =>
     new Intl.NumberFormat(numberLocale(context.locale), {
@@ -2695,7 +2694,11 @@ function Fees({ section }: Props<"fees">) {
   );
 }
 
-export function ContactList({ context }: { context: RenderContext }) {
+export interface ContactListProps {
+  context: RenderContext;
+}
+
+export function ContactList({ context }: ContactListProps) {
   const contact = context.contact;
   if (!contact) return null;
   const address = [
@@ -2805,13 +2808,12 @@ function contactWays(context: RenderContext): ContactWay[] {
   ].filter((way) => way !== null);
 }
 
-function ContactWays({
-  ways,
-  context,
-}: {
+interface ContactWaysProps {
   ways: ContactWay[];
   context: RenderContext;
-}) {
+}
+
+function ContactWays({ ways, context }: ContactWaysProps) {
   if (ways.length === 0) return null;
   return (
     <ul className="site-contact-ways">
@@ -3001,17 +3003,14 @@ function wideFields(halves: number, questions: Question[]): Set<string> {
 }
 
 /** One of the school's own questions, drawn as the kind of answer it takes. */
-function QuestionField({
-  question,
-  id,
-  context,
-  wide,
-}: {
+interface QuestionFieldProps {
   question: Question;
   id: string;
   context: RenderContext;
   wide: boolean;
-}) {
+}
+
+function QuestionField({ question, id, context, wide }: QuestionFieldProps) {
   const t = { locale: context.locale };
   const row = wide || undefined;
   const required = question.required === "required";
@@ -3569,13 +3568,12 @@ const RATIO: Record<string, string> = {
 const SPACER: Record<string, string> = { s: "h-4", m: "h-10", l: "h-20" };
 
 /** One block of a free-form section. */
-function BlockView({
-  block,
-  context,
-}: {
+interface BlockViewProps {
   block: SiteBlock;
   context: RenderContext;
-}) {
+}
+
+function BlockView({ block, context }: BlockViewProps) {
   switch (block.type) {
     case "heading": {
       const { eyebrow, text, size } = block.data;
@@ -3769,19 +3767,21 @@ export function hasContent(
   return true;
 }
 
+export interface SiteSectionProps {
+  section: PageSection;
+  shownIn: SiteLocale;
+  context: RenderContext;
+  first: boolean;
+  joined?: boolean;
+}
+
 export function SiteSection({
   section,
   shownIn,
   context,
   first,
   joined = false,
-}: {
-  section: PageSection;
-  shownIn: SiteLocale;
-  context: RenderContext;
-  first: boolean;
-  joined?: boolean;
-}) {
+}: SiteSectionProps) {
   const t = { locale: context.locale };
   const full = fullBleed(section);
   const body = (() => {

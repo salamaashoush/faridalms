@@ -26,6 +26,16 @@ const UNZOOM = { zoom: "calc(1 / var(--canvas-zoom, 1))" } as CSSProperties;
 export const DEVICES = { desktop: 1440, tablet: 820, phone: 390 } as const;
 export type Device = keyof typeof DEVICES;
 
+export interface ViewportProps {
+  width: number;
+  theme: Theme;
+  locale: SiteLocale;
+  fit?: boolean;
+  scale?: number;
+  className?: string;
+  children: ReactNode;
+}
+
 /**
  * A site drawn at a fixed width and zoomed to fit, so its container queries
  * see the device's width and not the space the studio has.
@@ -38,15 +48,7 @@ export function Viewport({
   scale: fixedScale,
   className,
   children,
-}: {
-  width: number;
-  theme: Theme;
-  locale: SiteLocale;
-  fit?: boolean;
-  scale?: number;
-  className?: string;
-  children: ReactNode;
-}) {
+}: ViewportProps) {
   const outer = useRef<HTMLDivElement>(null);
   const [scale, setScale] = useState(fixedScale ?? 1);
   useLayoutEffect(() => {
@@ -81,6 +83,21 @@ export function Viewport({
   );
 }
 
+interface SectionChromeProps {
+  item: CanvasSection;
+  index: number;
+  count: number;
+  selected: boolean;
+  locale: SiteLocale;
+  onSelect: () => void;
+  onMove: (by: -1 | 1) => void;
+  onDuplicate: () => void;
+  onRemove: () => void;
+  onInsert: (at: number) => void;
+  onText: (field: string, value: string) => void;
+  children: ReactNode;
+}
+
 function SectionChrome({
   item,
   index,
@@ -94,20 +111,7 @@ function SectionChrome({
   onInsert,
   onText,
   children,
-}: {
-  item: CanvasSection;
-  index: number;
-  count: number;
-  selected: boolean;
-  locale: SiteLocale;
-  onSelect: () => void;
-  onMove: (by: -1 | 1) => void;
-  onDuplicate: () => void;
-  onRemove: () => void;
-  onInsert: (at: number) => void;
-  onText: (field: string, value: string) => void;
-  children: ReactNode;
-}) {
+}: SectionChromeProps) {
   const label = SECTION_LABEL[item.section.type]();
   const t = { locale };
   return (
@@ -222,6 +226,22 @@ function SectionChrome({
   );
 }
 
+export interface CanvasProps {
+  device: Device;
+  locale: SiteLocale;
+  frame: SiteFrameModel;
+  context: RenderContext;
+  sections: CanvasSection[];
+  title: string;
+  selected: string | null;
+  onSelect: (id: string) => void;
+  onMove: (id: string, by: -1 | 1) => void;
+  onDuplicate: (id: string) => void;
+  onRemove: (id: string) => void;
+  onInsert: (at: number) => void;
+  onText: (id: string, field: string, value: string) => void;
+}
+
 /**
  * The page being built, drawn by the same components visitors see, with the
  * site's frame around it, at the chosen device width and language.
@@ -240,21 +260,7 @@ export function Canvas({
   onRemove,
   onInsert,
   onText,
-}: {
-  device: Device;
-  locale: SiteLocale;
-  frame: SiteFrameModel;
-  context: RenderContext;
-  sections: CanvasSection[];
-  title: string;
-  selected: string | null;
-  onSelect: (id: string) => void;
-  onMove: (id: string, by: -1 | 1) => void;
-  onDuplicate: (id: string) => void;
-  onRemove: (id: string) => void;
-  onInsert: (at: number) => void;
-  onText: (id: string, field: string, value: string) => void;
-}) {
+}: CanvasProps) {
   const scroller = useRef<HTMLDivElement>(null);
   useEffect(() => {
     if (!selected) return;

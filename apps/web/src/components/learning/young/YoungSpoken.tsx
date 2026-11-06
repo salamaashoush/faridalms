@@ -17,7 +17,11 @@ import { playSound } from "./sounds";
 type Written = Extract<StudentBlock, { type: "written" }>;
 
 /** A ring that fills as the recording uses up its time. */
-function Ring({ share }: { share: number }) {
+interface RingProps {
+  share: number;
+}
+
+function Ring({ share }: RingProps) {
   const length = 2 * Math.PI * 56;
   return (
     <svg
@@ -50,20 +54,18 @@ function Ring({ share }: { share: number }) {
 
 const big = "relative size-30 rounded-full shadow-md";
 
+export interface YoungSpokenProps {
+  block: Written;
+  view: CheckView | undefined;
+  driver: CheckDriver;
+}
+
 /**
  * A spoken answer as a young child gives it: one big button to start and
  * stop, a ring showing the time left, then play it back, send it or try
  * again. Sent answers can be redone until the teacher has marked them.
  */
-export function YoungSpoken({
-  block,
-  view,
-  driver,
-}: {
-  block: Written;
-  view: CheckView | undefined;
-  driver: CheckDriver;
-}) {
+export function YoungSpoken({ block, view, driver }: YoungSpokenProps) {
   const { send, heard } = useSpokenAnswer(block, driver);
   const [state, setState] = useState<"idle" | "recording" | "recorded">("idle");
   const [elapsed, setElapsed] = useState(0);

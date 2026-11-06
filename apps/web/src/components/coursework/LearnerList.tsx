@@ -63,15 +63,13 @@ function dayLabel(key: string) {
   return key ? formatDate(key, "weekday") : m.courseworkNoDueDate();
 }
 
-function Item({
-  item,
-  linked,
-  onOpen,
-}: {
+interface ItemProps {
   item: LearnerItem;
   linked: boolean;
   onOpen?: (item: LearnerItem) => void;
-}) {
+}
+
+function Item({ item, linked, onOpen }: ItemProps) {
   const facts = [
     classTitle({
       code: item.classCode,
@@ -124,15 +122,13 @@ function Item({
 }
 
 /** Work grouped under the day it is due, earliest first. */
-export function ByDay({
-  items,
-  linked,
-  empty,
-}: {
+export interface ByDayProps {
   items: LearnerItem[];
   linked: boolean;
   empty: string;
-}) {
+}
+
+export function ByDay({ items, linked, empty }: ByDayProps) {
   if (items.length === 0) return <RecordEmpty>{empty}</RecordEmpty>;
   const days = new Map<string, LearnerItem[]>();
   for (const item of items) {
@@ -154,20 +150,22 @@ export function ByDay({
   );
 }
 
-export function WorkSection({
-  title,
-  items,
-  linked,
-  onOpen,
-  empty,
-}: {
+export interface WorkSectionProps {
   title: string;
   items: LearnerItem[];
   linked: boolean;
   /** Opens a piece where the list does not link to it, as a family's does. */
   onOpen?: (item: LearnerItem) => void;
   empty: string;
-}) {
+}
+
+export function WorkSection({
+  title,
+  items,
+  linked,
+  onOpen,
+  empty,
+}: WorkSectionProps) {
   return (
     <RecordSection title={title}>
       {items.length === 0 ? (

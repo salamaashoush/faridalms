@@ -123,7 +123,12 @@ function useRefresh() {
   return () => queryClient.invalidateQueries({ queryKey: ["learning"] });
 }
 
-function LessonTitle({ row, data }: { row: Lesson; data: Data }) {
+interface LessonTitleProps {
+  row: Lesson;
+  data: Data;
+}
+
+function LessonTitle({ row, data }: LessonTitleProps) {
   const before = row.condition
     ? data.lessons.find((item) => item.id === row.condition?.lessonId)
     : undefined;
@@ -202,7 +207,11 @@ function lessonCard(data: Data) {
   };
 }
 
-function Lessons({ data }: { data: Data }) {
+interface LessonsProps {
+  data: Data;
+}
+
+function Lessons({ data }: LessonsProps) {
   const navigate = useNavigate();
   const refresh = useRefresh();
   const [copying, setCopying] = useState<{
@@ -363,7 +372,11 @@ function Lessons({ data }: { data: Data }) {
   );
 }
 
-function About({ data }: { data: Data }) {
+interface AboutProps {
+  data: Data;
+}
+
+function About({ data }: AboutProps) {
   return (
     <RecordSection title={m.lrnAbout()}>
       <Facts>
@@ -447,19 +460,15 @@ function pathOf(data: Progress, lessonId: string, studentId: string) {
   )?.state;
 }
 
-function CellMark({
-  cell,
-  path,
-  lesson,
-  student,
-  onToggle,
-}: {
+interface CellMarkProps {
   cell: Cell | undefined;
   path: "off" | "pending" | undefined;
   lesson: Progress["lessons"][number];
   student: StudentRow;
   onToggle: (done: boolean) => void;
-}) {
+}
+
+function CellMark({ cell, path, lesson, student, onToggle }: CellMarkProps) {
   const done = Boolean(cell?.completedAt);
   const name = displayName(student);
   if (path === "off")
@@ -537,15 +546,13 @@ function doneOf(data: Progress, student: StudentRow) {
 type ToolColumn = Progress["tools"][number];
 
 /** A student's score in a tool's column, as the tool last reported it. */
-function ToolMark({
-  data,
-  column,
-  student,
-}: {
+interface ToolMarkProps {
   data: Progress;
   column: ToolColumn;
   student: StudentRow;
-}) {
+}
+
+function ToolMark({ data, column, student }: ToolMarkProps) {
   const score = data.toolScores.find(
     (row) => row.lineItemId === column.id && row.studentId === student.id,
   );
@@ -573,7 +580,11 @@ function ToolMark({
   );
 }
 
-function StudentName({ row }: { row: StudentRow }) {
+interface StudentNameProps {
+  row: StudentRow;
+}
+
+function StudentName({ row }: StudentNameProps) {
   return <bdi className="font-medium">{displayName(row)}</bdi>;
 }
 
@@ -618,7 +629,12 @@ function matrixColumns(
   ];
 }
 
-function Matrix({ moduleId, classId }: { moduleId: string; classId: string }) {
+interface MatrixProps {
+  moduleId: string;
+  classId: string;
+}
+
+function Matrix({ moduleId, classId }: MatrixProps) {
   const refresh = useRefresh();
   const query = useQuery(moduleProgressQuery(moduleId, classId));
   const toggle = useMutation({
@@ -752,17 +768,14 @@ function Matrix({ moduleId, classId }: { moduleId: string; classId: string }) {
   );
 }
 
-function ClassTab({
-  data,
-  classId,
-  onClass,
-  view: View,
-}: {
+interface ClassTabProps {
   data: Data;
   classId: string;
   onClass: (classId: string) => void;
   view: (props: { moduleId: string; classId: string }) => ReactNode;
-}) {
+}
+
+function ClassTab({ data, classId, onClass, view: View }: ClassTabProps) {
   const current = data.classes.some((row) => row.id === classId)
     ? classId
     : (data.classes[0]?.id ?? "");
@@ -794,11 +807,15 @@ function ClassTab({
   );
 }
 
+interface ModulePlanProps {
+  moduleId: string;
+}
+
 /**
  * The module's unit plan as its teachers read it, beside how the questions
  * in its lessons cover the standards it names.
  */
-function ModulePlan({ moduleId }: { moduleId: string }) {
+function ModulePlan({ moduleId }: ModulePlanProps) {
   const query = useQuery(planQuery(moduleId));
   const navigate = useNavigate();
   if (!query.data) return <div aria-busy="true" className="min-h-40" />;
@@ -847,6 +864,16 @@ function ModulePlan({ moduleId }: { moduleId: string }) {
 }
 
 /** A module for those who teach it: its lessons, and how each student is getting on. */
+export interface ModuleRecordProps {
+  moduleId: string;
+  tab: ModuleTab;
+  classId: string;
+  onTab: (tab: ModuleTab) => void;
+  onClass: (classId: string) => void;
+  files: AreaView;
+  onFiles: (view: AreaView) => void;
+}
+
 export function ModuleRecord({
   moduleId,
   tab,
@@ -855,15 +882,7 @@ export function ModuleRecord({
   onClass,
   files,
   onFiles,
-}: {
-  moduleId: string;
-  tab: ModuleTab;
-  classId: string;
-  onTab: (tab: ModuleTab) => void;
-  onClass: (classId: string) => void;
-  files: AreaView;
-  onFiles: (view: AreaView) => void;
-}) {
+}: ModuleRecordProps) {
   const data = useSuspenseQuery(moduleRecordQuery(moduleId)).data;
   const navigate = useNavigate();
   const refresh = useRefresh();

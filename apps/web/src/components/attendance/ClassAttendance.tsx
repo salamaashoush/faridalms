@@ -18,7 +18,11 @@ type Data = Awaited<
 >;
 type Row = Data["students"][number];
 
-function StudentLink({ row }: { row: Row }) {
+interface StudentLinkProps {
+  row: Row;
+}
+
+function StudentLink({ row }: StudentLinkProps) {
   return (
     <RowLink
       to="/students/$studentId"
@@ -79,7 +83,11 @@ const card = {
 };
 
 /** Each student's marks in this class, with the way into today's register. */
-export function ClassAttendance({ classId }: { classId: string }) {
+export interface ClassAttendanceProps {
+  classId: string;
+}
+
+export function ClassAttendance({ classId }: ClassAttendanceProps) {
   const data = useSuspenseQuery(classAttendanceQuery(classId)).data;
   const user = useCurrentUser();
   return (

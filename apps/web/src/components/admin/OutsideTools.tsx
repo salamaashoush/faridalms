@@ -28,7 +28,12 @@ type Data = Awaited<ReturnType<NonNullable<(typeof ltiToolsQuery)["queryFn"]>>>;
 type Tool = Data["tools"][number];
 
 /** A value a tool's maker copies into their side of the registration. */
-function Copyable({ label, value }: { label: string; value: string }) {
+interface CopyableProps {
+  label: string;
+  value: string;
+}
+
+function Copyable({ label, value }: CopyableProps) {
   return (
     <div className="grid min-w-0 gap-0.5">
       <span className="text-[13px] leading-[18px] text-muted-foreground">
@@ -63,15 +68,13 @@ const lines = (text: string) =>
     .map((line) => line.trim())
     .filter(Boolean);
 
-function ToolSheet({
-  open,
-  tool,
-  onClose,
-}: {
+interface ToolSheetProps {
   open: boolean;
   tool: Tool | null;
   onClose: () => void;
-}) {
+}
+
+function ToolSheet({ open, tool, onClose }: ToolSheetProps) {
   const queryClient = useQueryClient();
   const save = useServerFn(saveLtiTool);
   const [name, setName] = useState(tool?.name ?? "");

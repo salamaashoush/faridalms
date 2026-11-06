@@ -90,7 +90,12 @@ const factsOf = (file: AreaFile) =>
     getLocale(),
   );
 
-function UsedIn({ file, area }: { file: AreaFile; area: Area }) {
+interface UsedInProps {
+  file: AreaFile;
+  area: Area;
+}
+
+function UsedIn({ file, area }: UsedInProps) {
   if (file.usedIn.length === 0)
     return <span className="text-muted-foreground">{m.filesNotUsed()}</span>;
   return (
@@ -217,22 +222,19 @@ interface Pending {
   error: string | null;
 }
 
+export interface AreaFilesProps {
+  area: Area;
+  title: string;
+  view: AreaView;
+  onView: (view: AreaView) => void;
+}
+
 /**
  * A class's or module's file area: everything its documents show, kept once
  * and listed with where each file is used. Deleting moves a file to a trash
  * kept for 30 days; the documents showing it show it as removed meanwhile.
  */
-export function AreaFiles({
-  area,
-  title,
-  view,
-  onView,
-}: {
-  area: Area;
-  title: string;
-  view: AreaView;
-  onView: (view: AreaView) => void;
-}) {
+export function AreaFiles({ area, title, view, onView }: AreaFilesProps) {
   const search = view.fileSearch;
   const kinds: Kind[] = view.fileKinds;
   const sort = { value: view.fileSort, direction: view.fileOrder };
@@ -576,17 +578,14 @@ export function AreaFiles({
   );
 }
 
-function RenameSheet({
-  area,
-  file,
-  onClose,
-  onRenamed,
-}: {
+interface RenameSheetProps {
   area: Area;
   file: AreaFile;
   onClose: () => void;
   onRenamed: () => Promise<unknown>;
-}) {
+}
+
+function RenameSheet({ area, file, onClose, onRenamed }: RenameSheetProps) {
   const rename = useServerFn(renameInArea);
   const refreshFacts = useRefreshFileFacts();
   const [name, setName] = useState(file.name);
@@ -629,17 +628,14 @@ function RenameSheet({
   );
 }
 
-function TrashSheet({
-  area,
-  open,
-  onOpenChange,
-  onRestored,
-}: {
+interface TrashSheetProps {
   area: Area;
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onRestored: () => Promise<unknown>;
-}) {
+}
+
+function TrashSheet({ area, open, onOpenChange, onRestored }: TrashSheetProps) {
   const trashed = useQuery({ ...areaFilesQuery(area, true), enabled: open });
   const restore = useServerFn(trashInArea);
   const [busy, setBusy] = useState<string | null>(null);
@@ -712,17 +708,19 @@ function TrashSheet({
   );
 }
 
+interface VersionsSheetProps {
+  area: Area;
+  file: AreaFile | null;
+  onOpenChange: (open: boolean) => void;
+  onRestored: (id: string) => Promise<unknown>;
+}
+
 function VersionsSheet({
   area,
   file,
   onOpenChange,
   onRestored,
-}: {
-  area: Area;
-  file: AreaFile | null;
-  onOpenChange: (open: boolean) => void;
-  onRestored: (id: string) => Promise<unknown>;
-}) {
+}: VersionsSheetProps) {
   const fetchVersions = useServerFn(getFileVersions);
   const restore = useServerFn(replaceInArea);
   const listed = useQuery({

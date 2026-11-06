@@ -9,7 +9,11 @@ import { TO_DO, WorkSection } from "./LearnerList";
 import { StudentGrades } from "./StudentGrades";
 
 /** A student's work and term results on their record: what is missing first. */
-export function StudentCoursework({ studentId }: { studentId: string }) {
+export interface StudentCourseworkProps {
+  studentId: string;
+}
+
+export function StudentCoursework({ studentId }: StudentCourseworkProps) {
   const { rows } = useSuspenseQuery(studentCourseworkQuery(studentId)).data;
   const props = { linked: false };
   return (

@@ -34,7 +34,11 @@ export const Route = createFileRoute("/_app/admin/academic-years")({
   component: YearsPage,
 });
 
-function YearName({ row }: { row: YearRow }) {
+interface YearNameProps {
+  row: YearRow;
+}
+
+function YearName({ row }: YearNameProps) {
   return (
     <RowLink to="/years/$yearId" params={{ yearId: row.id }} search={{}}>
       {yearTitle(row)}
@@ -42,7 +46,11 @@ function YearName({ row }: { row: YearRow }) {
   );
 }
 
-function Standing({ row }: { row: YearRow }) {
+interface StandingProps {
+  row: YearRow;
+}
+
+function Standing({ row }: StandingProps) {
   return (
     <StatusText tone={STANDING_TONE[row.standing]}>
       {STANDING_LABEL[row.standing]()}
@@ -50,7 +58,11 @@ function Standing({ row }: { row: YearRow }) {
   );
 }
 
-function Count({ value }: { value: number }) {
+interface CountProps {
+  value: number;
+}
+
+function Count({ value }: CountProps) {
   return <span className="tabular-nums">{formatNumber(value)}</span>;
 }
 

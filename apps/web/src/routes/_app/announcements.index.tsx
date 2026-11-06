@@ -68,17 +68,14 @@ const TAB_LABEL: Record<Tab, () => string> = {
   archived: m.annTabArchived,
 };
 
-function Feed({
-  tab,
-  q,
-  page,
-  onPage,
-}: {
+interface FeedProps {
   tab: "current" | "past";
   q: string;
   page: number;
   onPage: (page: number) => void;
-}) {
+}
+
+function Feed({ tab, q, page, onPage }: FeedProps) {
   const data = useSuspenseQuery(announcementFeedQuery({ tab, q, page })).data;
   const { rows } = data;
   if (rows.length === 0)

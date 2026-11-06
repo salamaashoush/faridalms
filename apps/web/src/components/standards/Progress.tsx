@@ -77,13 +77,12 @@ const percent = (score: number) =>
   m.skillsPercent({ value: formatNumber(Math.round(score * 100)) });
 
 /** A level by its shape and colour, so neither alone carries it. */
-function MasteryMark({
-  mastery,
-  labelled = false,
-}: {
+interface MasteryMarkProps {
   mastery: Pick<Mastery, "level" | "score"> | undefined;
   labelled?: boolean;
-}) {
+}
+
+function MasteryMark({ mastery, labelled = false }: MasteryMarkProps) {
   if (!mastery)
     return (
       <span className="inline-flex items-center gap-1.5 text-muted-foreground">
@@ -117,7 +116,11 @@ function MasteryMark({
   );
 }
 
-function Legend({ unassessed = true }: { unassessed?: boolean }) {
+interface LegendProps {
+  unassessed?: boolean;
+}
+
+function Legend({ unassessed = true }: LegendProps) {
   return (
     <div className="grid gap-1">
       <ul className="flex flex-wrap gap-x-5 gap-y-1">
@@ -146,7 +149,11 @@ function Legend({ unassessed = true }: { unassessed?: boolean }) {
   );
 }
 
-function Code({ standard }: { standard: Standard }) {
+interface CodeProps {
+  standard: Standard;
+}
+
+function Code({ standard }: CodeProps) {
   return (
     <span className="font-mono text-[13px] font-medium">
       {standard.code || "·"}
@@ -154,7 +161,11 @@ function Code({ standard }: { standard: Standard }) {
   );
 }
 
-function StandardList({ standards }: { standards: readonly Standard[] }) {
+interface StandardListProps {
+  standards: readonly Standard[];
+}
+
+function StandardList({ standards }: StandardListProps) {
   return (
     <ol className="grid gap-x-6 gap-y-1 text-[13px] leading-[18px] text-muted-foreground md:grid-cols-2">
       {standards.map((standard) => (
@@ -183,7 +194,11 @@ const secureOf = (
   total: formatNumber(standards.length),
 });
 
-function StudentName({ row }: { row: Student }) {
+interface StudentNameProps {
+  row: Student;
+}
+
+function StudentName({ row }: StudentNameProps) {
   return (
     <RowLink
       to="/students/$studentId"
@@ -231,7 +246,11 @@ interface StandardRow extends Standard {
   counts: Record<MasteryLevel | "none", number>;
 }
 
-function StandardName({ row }: { row: Standard }) {
+interface StandardNameProps {
+  row: Standard;
+}
+
+function StandardName({ row }: StandardNameProps) {
   return (
     <span className="flex min-w-0 gap-2">
       <Code standard={row} />
@@ -270,12 +289,16 @@ function standardColumns(): Column<StandardRow>[] {
   ];
 }
 
+export interface ClassSkillsProps {
+  classId: string;
+}
+
 /**
  * A class's standards as its own lessons and quizzes gave evidence on them:
  * each student against each standard, then each standard across the class,
  * where the ones it has yet to secure stand out.
  */
-export function ClassSkills({ classId }: { classId: string }) {
+export function ClassSkills({ classId }: ClassSkillsProps) {
   const data = useSuspenseQuery(classProgressQuery(classId)).data;
   const [observing, setObserving] = useState<string | null>(null);
   if (data.standards.length === 0)
@@ -356,7 +379,11 @@ const SOURCE_ICON: Record<
 };
 
 /** Takes back an observation its teacher recorded, from the list it shows in. */
-function TakeBack({ id }: { id: string }) {
+interface TakeBackProps {
+  id: string;
+}
+
+function TakeBack({ id }: TakeBackProps) {
   const queryClient = useQueryClient();
   const take = useMutation({
     mutationFn: () => removeObservation({ data: { id } }),
@@ -382,18 +409,17 @@ function TakeBack({ id }: { id: string }) {
   );
 }
 
+interface SittingsProps {
+  studentId: string;
+  standardId: string;
+}
+
 /**
  * The lessons, quiz attempts, graded rubrics and observations a mark was
  * worked out from, latest first, each its answers on the standard averaged,
  * as the decaying average reads them.
  */
-function Sittings({
-  studentId,
-  standardId,
-}: {
-  studentId: string;
-  standardId: string;
-}) {
+function Sittings({ studentId, standardId }: SittingsProps) {
   const query = useQuery(standardSittingsQuery(studentId, standardId));
   if (!query.data) return <div aria-busy="true" className="min-h-10" />;
   // A row that can be taken back keeps the others' figures in line with it.
@@ -457,15 +483,17 @@ function Sittings({
 }
 
 /** A standard with where the student stands on it, opening onto the work behind it. */
+interface StandardProgressProps {
+  studentId: string;
+  standard: Standard;
+  mastery: Mastery | undefined;
+}
+
 function StandardProgress({
   studentId,
   standard,
   mastery,
-}: {
-  studentId: string;
-  standard: Standard;
-  mastery: Mastery | undefined;
-}) {
+}: StandardProgressProps) {
   const [open, setOpen] = useState(false);
   const panel = useId();
   return (
@@ -506,7 +534,11 @@ function StandardProgress({
 }
 
 /** One student's standards, framework by framework, from every class; their teachers record observations here. */
-export function StudentSkills({ studentId }: { studentId: string }) {
+export interface StudentSkillsProps {
+  studentId: string;
+}
+
+export function StudentSkills({ studentId }: StudentSkillsProps) {
   const data = useSuspenseQuery(studentProgressQuery(studentId)).data;
   const observes = useCapability("submissions:grade") && studentId !== "";
   const [observing, setObserving] = useState(false);
@@ -590,12 +622,16 @@ export function StudentSkills({ studentId }: { studentId: string }) {
   );
 }
 
+export interface SkillsSectionProps {
+  studentId: string;
+}
+
 /**
  * A student's skills under their grades, for them and their family, once
  * any are assessed; nothing at all before, so a school that tags no
  * questions shows grades alone.
  */
-export function SkillsSection({ studentId }: { studentId: string }) {
+export function SkillsSection({ studentId }: SkillsSectionProps) {
   const data = useSuspenseQuery(studentProgressQuery(studentId)).data;
   const heading = useId();
   if (data.standards.length === 0 && data.goalFrameworks.length === 0)

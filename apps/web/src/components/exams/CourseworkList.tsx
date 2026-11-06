@@ -19,7 +19,11 @@ type Row = Awaited<
   ReturnType<NonNullable<(typeof courseworkListQuery)["queryFn"]>>
 >[number];
 
-function Progress({ row }: { row: Row }) {
+interface ProgressProps {
+  row: Row;
+}
+
+function Progress({ row }: ProgressProps) {
   return (
     <span className="grid gap-1 text-sm leading-5">
       <span>
@@ -37,7 +41,11 @@ function Progress({ row }: { row: Row }) {
   );
 }
 
-function Flag({ row }: { row: Row }) {
+interface FlagProps {
+  row: Row;
+}
+
+function Flag({ row }: FlagProps) {
   return row.notConfirmed ? (
     <StatusBadge tone="danger">
       {m.examFlagged({ count: formatNumber(row.notConfirmed) })}
@@ -119,7 +127,11 @@ function card(onOpen: (row: Row) => void) {
 }
 
 /** Every piece of assessed coursework in the school, for its exams officers. */
-export function CourseworkList({ onOpen }: { onOpen: (row: Row) => void }) {
+export interface CourseworkListProps {
+  onOpen: (row: Row) => void;
+}
+
+export function CourseworkList({ onOpen }: CourseworkListProps) {
   const rows = useSuspenseQuery(courseworkListQuery).data;
   return (
     <DataTable
@@ -145,17 +157,19 @@ export function CourseworkList({ onOpen }: { onOpen: (row: Row) => void }) {
 }
 
 /** One piece of coursework, student by student. */
+export interface CourseworkStudentsProps {
+  open: boolean;
+  assignmentId: string;
+  title: string;
+  onOpenChange: (open: boolean) => void;
+}
+
 export function CourseworkStudents({
   open,
   assignmentId,
   title,
   onOpenChange,
-}: {
-  open: boolean;
-  assignmentId: string;
-  title: string;
-  onOpenChange: (open: boolean) => void;
-}) {
+}: CourseworkStudentsProps) {
   const detail = useQuery({
     ...courseworkStudentsQuery(assignmentId),
     enabled: open,

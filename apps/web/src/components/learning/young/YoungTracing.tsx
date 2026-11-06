@@ -31,6 +31,12 @@ const pointsOf = (stroke: readonly number[]) => {
 const calm = () =>
   window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
+export interface YoungTracingProps {
+  block: Tracing;
+  view: CheckView | undefined;
+  driver: CheckDriver;
+}
+
 /**
  * Tracing a letter or number with a finger: the teacher's strokes show as a
  * wide road, the next one starting at a green dot. Each stroke the child
@@ -38,15 +44,7 @@ const calm = () =>
  * runs; a good one turns green and the next dot appears, a miss fades for
  * another go, and after two misses the stroke is shown being written.
  */
-export function YoungTracing({
-  block,
-  view,
-  driver,
-}: {
-  block: Tracing;
-  view: CheckView | undefined;
-  driver: CheckDriver;
-}) {
+export function YoungTracing({ block, view, driver }: YoungTracingProps) {
   const settled = Boolean(view && (view.correct || view.revealed));
   const [done, setDone] = useState<Stroke[]>(
     view?.response?.type === "tracing" ? view.response.strokes : [],

@@ -24,6 +24,11 @@ const FOLLOW = "follow";
 const title = (row: { titleEn: string | null; titleAr: string | null }) =>
   inLocale(row.titleEn, row.titleAr);
 
+export interface ClassGradingSectionProps {
+  classId: string;
+  canEdit: boolean;
+}
+
 /**
  * The programme a class belongs to and the scale it grades on, each its
  * own or followed from the default, for the people who keep them.
@@ -31,10 +36,7 @@ const title = (row: { titleEn: string | null; titleAr: string | null }) =>
 export function ClassGradingSection({
   classId,
   canEdit,
-}: {
-  classId: string;
-  canEdit: boolean;
-}) {
+}: ClassGradingSectionProps) {
   const queryClient = useQueryClient();
   const plan = useQuery(classPlanQuery(classId)).data;
   const overview = useQuery({ ...gradingOverviewQuery, enabled: canEdit }).data;
@@ -123,6 +125,16 @@ export function ClassGradingSection({
   );
 }
 
+interface ClassGradingSheetProps {
+  open: boolean;
+  classId: string;
+  programmeId: string | null;
+  scaleId: string | null;
+  overview: GradingOverview;
+  onClose: () => void;
+  onSaved: () => Promise<unknown>;
+}
+
 function ClassGradingSheet({
   open,
   classId,
@@ -131,15 +143,7 @@ function ClassGradingSheet({
   overview,
   onClose,
   onSaved,
-}: {
-  open: boolean;
-  classId: string;
-  programmeId: string | null;
-  scaleId: string | null;
-  overview: GradingOverview;
-  onClose: () => void;
-  onSaved: () => Promise<unknown>;
-}) {
+}: ClassGradingSheetProps) {
   const [programme, setProgramme] = useState(programmeId ?? FOLLOW);
   const [scale, setScale] = useState(scaleId ?? FOLLOW);
   const mutation = useMutation({

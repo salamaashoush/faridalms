@@ -10,7 +10,12 @@ export interface PrintedSlip {
   password: string;
 }
 
-function Line({ label, value }: { label: string; value: string }) {
+interface LineProps {
+  label: string;
+  value: string;
+}
+
+function Line({ label, value }: LineProps) {
   return (
     <div className="grid grid-cols-[26mm_1fr] items-baseline gap-[2mm]">
       <dt className="text-[8pt] leading-tight text-neutral-600">{label}</dt>
@@ -19,6 +24,14 @@ function Line({ label, value }: { label: string; value: string }) {
       </dd>
     </div>
   );
+}
+
+export interface SignInSlipsProps {
+  slips: PrintedSlip[];
+  schoolName: string;
+  notes?: readonly string[];
+  warnings?: readonly string[];
+  onDone: () => void;
 }
 
 /**
@@ -32,13 +45,7 @@ export function SignInSlips({
   notes,
   warnings,
   onDone,
-}: {
-  slips: PrintedSlip[];
-  schoolName: string;
-  notes?: readonly string[];
-  warnings?: readonly string[];
-  onDone: () => void;
-}) {
+}: SignInSlipsProps) {
   const address = window.location.host;
   return (
     <PaperSheet

@@ -39,7 +39,12 @@ type Data = Awaited<
 >;
 type Row = Data["rows"][number];
 
-function Expiry({ row, today }: { row: Row; today: string }) {
+interface ExpiryProps {
+  row: Row;
+  today: string;
+}
+
+function Expiry({ row, today }: ExpiryProps) {
   if (!row.expiresOn) return null;
   const date = formatDate(row.expiresOn);
   if (row.expiresOn < today)
@@ -53,7 +58,12 @@ function Expiry({ row, today }: { row: Row; today: string }) {
   );
 }
 
-function DocumentNumber({ row, canReveal }: { row: Row; canReveal: boolean }) {
+interface DocumentNumberProps {
+  row: Row;
+  canReveal: boolean;
+}
+
+function DocumentNumber({ row, canReveal }: DocumentNumberProps) {
   const [shown, setShown] = useState<string | null>(null);
   const reveal = useMutation({
     mutationFn: () => revealIdentifier({ data: { id: row.id } }),
@@ -82,19 +92,21 @@ function DocumentNumber({ row, canReveal }: { row: Row; canReveal: boolean }) {
   );
 }
 
+interface IdentitySheetProps {
+  studentId: string;
+  data: Data;
+  row: Row | null;
+  open: boolean;
+  onClose: () => void;
+}
+
 function IdentitySheet({
   studentId,
   data,
   row,
   open,
   onClose,
-}: {
-  studentId: string;
-  data: Data;
-  row: Row | null;
-  open: boolean;
-  onClose: () => void;
-}) {
+}: IdentitySheetProps) {
   const queryClient = useQueryClient();
   const [systemId, setSystemId] = useState(
     row?.systemId ?? data.systems[0]?.id ?? "",
@@ -223,12 +235,16 @@ function IdentitySheet({
   );
 }
 
+export interface IdentitySectionProps {
+  studentId: string;
+}
+
 /**
  * The student's identity documents and the numbers other systems give them.
  * Document numbers are sealed and show masked; seeing one in full is a
  * separate permission and every look is recorded.
  */
-export function IdentitySection({ studentId }: { studentId: string }) {
+export function IdentitySection({ studentId }: IdentitySectionProps) {
   const data = useSuspenseQuery(identifiersQuery(studentId)).data;
   const queryClient = useQueryClient();
   const [sheet, setSheet] = useState<{

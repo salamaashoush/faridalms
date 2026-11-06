@@ -141,19 +141,18 @@ export function useProgramRun(
 
 export type ProgramRunState = ReturnType<typeof useProgramRun>;
 
+export interface RunOutputProps {
+  run: ProgramRunState;
+  /** The code as it stands, which says whether it reads anything. */
+  code: string;
+}
+
 /**
  * What a program is given and gives back, under its code: the lines it may
  * read when it asks for them, what it drew, what it printed, and why it
  * stopped when it did not end well.
  */
-export function RunOutput({
-  run,
-  code,
-}: {
-  run: ProgramRunState;
-  /** The code as it stands, which says whether it reads anything. */
-  code: string;
-}) {
+export function RunOutput({ run, code }: RunOutputProps) {
   const inputId = useId();
   const { language, end, busy, phase, output, drawing } = run;
   const note = end ? endNote(end) : null;

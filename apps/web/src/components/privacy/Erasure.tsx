@@ -64,6 +64,13 @@ function bases(overview: PrivacyOverview, row: ReviewRow): ErasureBasis[] {
   ];
 }
 
+export interface ErasureSheetProps {
+  open: boolean;
+  overview: PrivacyOverview;
+  person: ReviewRow;
+  onClose: () => void;
+}
+
 /**
  * Erasing someone cannot be undone, so the sheet says exactly what goes and
  * what stays, and asks for the person's name typed out before it runs.
@@ -73,12 +80,7 @@ export function ErasureSheet({
   overview,
   person,
   onClose,
-}: {
-  open: boolean;
-  overview: PrivacyOverview;
-  person: ReviewRow;
-  onClose: () => void;
-}) {
+}: ErasureSheetProps) {
   const refresh = useRefresh();
   const options = bases(overview, person);
   const [basis, setBasis] = useState<ErasureBasis>(
@@ -181,15 +183,17 @@ export function ErasureSheet({
 }
 
 /** Runs an erasure approved earlier that did not finish. */
+export interface RunErasureDialogProps {
+  open: boolean;
+  person: ReviewRow;
+  onClose: () => void;
+}
+
 export function RunErasureDialog({
   open,
   person,
   onClose,
-}: {
-  open: boolean;
-  person: ReviewRow;
-  onClose: () => void;
-}) {
+}: RunErasureDialogProps) {
   const refresh = useRefresh();
   const run = useMutation({
     mutationFn: () => runErasure({ data: { subjectUserId: person.userId } }),
@@ -218,7 +222,11 @@ export function RunErasureDialog({
   );
 }
 
-function ErasureLine({ row }: { row: ErasureRow }) {
+interface ErasureLineProps {
+  row: ErasureRow;
+}
+
+function ErasureLine({ row }: ErasureLineProps) {
   const facts = [
     BASIS_LABEL[row.basis](),
     m.privacyApprovedBy({
@@ -252,7 +260,11 @@ function ErasureLine({ row }: { row: ErasureRow }) {
 }
 
 /** The proof of each erasure, kept after the person's data is gone. */
-export function ErasuresSection({ overview }: { overview: PrivacyOverview }) {
+export interface ErasuresSectionProps {
+  overview: PrivacyOverview;
+}
+
+export function ErasuresSection({ overview }: ErasuresSectionProps) {
   if (overview.erasures.length === 0) return null;
   return (
     <RecordSection

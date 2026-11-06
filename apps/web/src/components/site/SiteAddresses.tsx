@@ -58,15 +58,13 @@ const PROBLEM: Record<string, () => string> = {
 };
 
 /** One DNS record to create, as a provider's form asks for it. */
-function DnsRecord({
-  type,
-  name,
-  value,
-}: {
+interface DnsRecordProps {
   type: string;
   name: string;
   value: string;
-}) {
+}
+
+function DnsRecord({ type, name, value }: DnsRecordProps) {
   return (
     <div className="grid gap-1 rounded-md border bg-muted/40 px-3 py-2 text-[13px] leading-[18px] sm:grid-cols-[4rem_minmax(0,1fr)_minmax(0,1fr)] sm:gap-3">
       <div>
@@ -95,7 +93,11 @@ function DnsRecord({
   );
 }
 
-function HostCard({ host }: { host: Host }) {
+interface HostCardProps {
+  host: Host;
+}
+
+function HostCard({ host }: HostCardProps) {
   const queryClient = useQueryClient();
   const [confirming, setConfirming] = useState(false);
   const refresh = () =>

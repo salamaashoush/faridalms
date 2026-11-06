@@ -61,6 +61,18 @@ function continues(
   );
 }
 
+export interface PageSectionsProps {
+  sections: ShownSection[];
+  title: string;
+  context: RenderContext;
+  /** The builder wraps each section to select and move it. */
+  renderSection?: (
+    item: ShownSection,
+    index: number,
+    rendered: ReactNode,
+  ) => ReactNode;
+}
+
 /**
  * A page's sections, each in the language it is shown in, less any with
  * nothing to show a visitor yet. A page that does not open with a hero or
@@ -72,17 +84,7 @@ export function PageSections({
   title,
   context,
   renderSection,
-}: {
-  sections: ShownSection[];
-  title: string;
-  context: RenderContext;
-  /** The builder wraps each section to select and move it. */
-  renderSection?: (
-    item: ShownSection,
-    index: number,
-    rendered: ReactNode,
-  ) => ReactNode;
-}) {
+}: PageSectionsProps) {
   const page = sections.map((item) => item.section);
   const shown = sections.filter((item) =>
     hasContent(item.section, page, context),

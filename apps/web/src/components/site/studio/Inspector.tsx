@@ -46,15 +46,13 @@ import {
   WIDTH_LABEL,
 } from "./labels";
 
-function VariantPicker({
-  section,
-  context,
-  onChange,
-}: {
+interface VariantPickerProps {
   section: PageSection;
   context: RenderContext;
   onChange: (variant: string) => void;
-}) {
+}
+
+function VariantPicker({ section, context, onChange }: VariantPickerProps) {
   const variants = SECTION_SPECS[section.type].variants as readonly string[];
   const labels = VARIANT_LABEL[section.type] as Record<string, () => string>;
   return (
@@ -103,15 +101,13 @@ function VariantPicker({
   );
 }
 
-function SchemePicker({
-  value,
-  context,
-  onChange,
-}: {
+interface SchemePickerProps {
   value: SchemeId;
   context: RenderContext;
   onChange: (scheme: SchemeId) => void;
-}) {
+}
+
+function SchemePicker({ value, context, onChange }: SchemePickerProps) {
   const schemes = schemesOf(context.theme.palette);
   return (
     <fieldset className="grid grid-cols-5 gap-1.5">
@@ -137,6 +133,21 @@ function SchemePicker({
   );
 }
 
+export interface InspectorProps {
+  section: PageSection;
+  shown: PageSection;
+  locale: SiteLocale;
+  languages: Languages;
+  fieldContext: FieldContext;
+  renderContext: RenderContext;
+  issues: SiteIssueCode[];
+  reviewed: boolean;
+  onChange: (next: PageSection, key?: string) => void;
+  onWords: (next: PageSection, key?: string) => void;
+  onReviewed: (reviewed: boolean) => void;
+  onClose: () => void;
+}
+
 /**
  * The selected section's settings: its words and pictures, its layout and
  * its look. In the other language only its words change; everything else
@@ -155,20 +166,7 @@ export function Inspector({
   onWords,
   onReviewed,
   onClose,
-}: {
-  section: PageSection;
-  shown: PageSection;
-  locale: SiteLocale;
-  languages: Languages;
-  fieldContext: FieldContext;
-  renderContext: RenderContext;
-  issues: SiteIssueCode[];
-  reviewed: boolean;
-  onChange: (next: PageSection, key?: string) => void;
-  onWords: (next: PageSection, key?: string) => void;
-  onReviewed: (reviewed: boolean) => void;
-  onClose: () => void;
-}) {
+}: InspectorProps) {
   const uploading = useUpload(fieldContext.media);
   const wordsOnly = fieldContext.wordsOnly;
   const otherLocale = languages.other;

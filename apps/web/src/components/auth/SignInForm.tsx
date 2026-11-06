@@ -35,7 +35,12 @@ export const DEMO_ACCOUNTS = [
 ];
 
 /** Signs a person in to the school whose portal shows the form. */
-export function SignInForm({ redirect }: { redirect?: string } = {}) {
+export interface SignInFormProps {
+  /** Where to go once signed in. */
+  redirect?: string;
+}
+
+export function SignInForm({ redirect }: SignInFormProps = {}) {
   const hydrated = useHydrated();
   const sessionChanged = useSessionChange();
 

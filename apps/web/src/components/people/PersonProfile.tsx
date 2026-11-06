@@ -17,12 +17,16 @@ import { formatList } from "~/utils/datetime";
 import { displayName, labelOf, otherName, roleLabel } from "./format";
 import { TeachingSection } from "./PersonRecord";
 
+export interface PersonProfileProps {
+  userId: string;
+}
+
 /**
  * The limited profile of a teacher of the viewer's classes, or of someone
  * they share a conversation with: name, photo and role, what they teach the
  * viewer or their children, and a way to write to them.
  */
-export function PersonProfile({ userId }: { userId: string }) {
+export function PersonProfile({ userId }: PersonProfileProps) {
   const data = useSuspenseQuery(personProfileQuery(userId)).data;
   const { workspace } = useCurrentUser();
   const navigate = useNavigate();

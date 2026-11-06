@@ -22,6 +22,13 @@ export function declarationReady(
   return draft.agreed && draft.aiUsed !== null;
 }
 
+export interface DeclarationFieldsProps {
+  value: DeclarationDraft;
+  onChange: (value: DeclarationDraft) => void;
+  evidenceRequired: boolean;
+  tried: boolean;
+}
+
 /**
  * What a student agrees to when handing in assessed coursework, in our own
  * words covering what JCQ, Cambridge and the IB ask a candidate to confirm,
@@ -32,12 +39,7 @@ export function DeclarationFields({
   onChange,
   evidenceRequired,
   tried,
-}: {
-  value: DeclarationDraft;
-  onChange: (value: DeclarationDraft) => void;
-  evidenceRequired: boolean;
-  tried: boolean;
-}) {
+}: DeclarationFieldsProps) {
   const id = useId();
   return (
     <div className="grid gap-5">
@@ -106,17 +108,19 @@ export function DeclarationFields({
 }
 
 /** Signs the declaration for work a teacher handed in for the student. */
+export interface DeclareSheetProps {
+  open: boolean;
+  attemptId: string;
+  evidenceRequired: boolean;
+  onClose: () => void;
+}
+
 export function DeclareSheet({
   open,
   attemptId,
   evidenceRequired,
   onClose,
-}: {
-  open: boolean;
-  attemptId: string;
-  evidenceRequired: boolean;
-  onClose: () => void;
-}) {
+}: DeclareSheetProps) {
   const queryClient = useQueryClient();
   const [draft, setDraft] = useState(NO_DECLARATION);
   const [tried, setTried] = useState(false);

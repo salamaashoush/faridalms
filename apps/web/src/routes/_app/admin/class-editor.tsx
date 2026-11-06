@@ -53,7 +53,11 @@ function EditorTrail() {
   );
 }
 
-function EditTrail({ classId }: { classId: string }) {
+interface EditTrailProps {
+  classId: string;
+}
+
+function EditTrail({ classId }: EditTrailProps) {
   const record = useSuspenseQuery(classRecordQuery(classId)).data;
   return (
     <>

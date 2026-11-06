@@ -27,11 +27,15 @@ import { useLtiHref } from "./lti";
 import { useMentionNames } from "./mentions";
 import { aiUseStrings, fileStrings } from "./strings";
 
+export interface SharedBlockProps {
+  id: string;
+}
+
 /**
  * A shared block as part of the page, drawn as it now is: whoever reads the
  * document reads it, and a change to it shows the next time it is read.
  */
-export function SharedBlock({ id }: { id: string }) {
+export function SharedBlock({ id }: SharedBlockProps) {
   const block = useQuery(sharedBlockQuery(id));
   if (block.isPending) return <div aria-busy="true" className="min-h-12" />;
   if (!block.data)
@@ -70,21 +74,19 @@ function mentionHref(mention: Mention): string | null {
   }
 }
 
+export interface WholeDocumentProps {
+  parts: readonly { type: string; content?: ContentDocument }[];
+  lang?: ContentLocale | null;
+  children: ReactNode;
+}
+
 /**
  * A document handed out in parts, as a lesson's blocks are: each part drawn
  * inside it lists the whole document's terms in its glossary and sources in
  * its bibliography, numbers its footnotes on from the parts before, and
  * reads in the language its author set.
  */
-export function WholeDocument({
-  parts,
-  lang,
-  children,
-}: {
-  parts: readonly { type: string; content?: ContentDocument }[];
-  lang?: ContentLocale | null;
-  children: ReactNode;
-}) {
+export function WholeDocument({ parts, lang, children }: WholeDocumentProps) {
   const whole = useMemo(
     () => ({
       terms: partsTerms(parts),
@@ -99,20 +101,7 @@ export function WholeDocument({
   );
 }
 
-export function ContentView({
-  document,
-  fileUrl,
-  className,
-  marks,
-  activeMark,
-  renderBlock,
-  replace,
-  locale = getLocale(),
-  watch,
-  predicted,
-  runs = true,
-  lang,
-}: {
+export interface ContentViewProps {
   document: ContentDocument;
   fileUrl?: (fileId: string) => string;
   className?: string;
@@ -132,7 +121,22 @@ export function ContentView({
   runs?: boolean;
   /** The language the document is written in; without it, read from its words. */
   lang?: ContentLocale;
-}) {
+}
+
+export function ContentView({
+  document,
+  fileUrl,
+  className,
+  marks,
+  activeMark,
+  renderBlock,
+  replace,
+  locale = getLocale(),
+  watch,
+  predicted,
+  runs = true,
+  lang,
+}: ContentViewProps) {
   const ltiHref = useLtiHref();
   const mentionName = useMentionNames(document);
   return (

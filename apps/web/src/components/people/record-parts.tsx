@@ -24,7 +24,11 @@ import { formatInstant } from "~/utils/datetime";
 import { formatPhone } from "./format";
 import { HistoryChanges } from "./history-changes";
 
-export function Phone({ value }: { value: string | null | undefined }) {
+export interface PhoneProps {
+  value: string | null | undefined;
+}
+
+export function Phone({ value }: PhoneProps) {
   if (!value) return <Value>{null}</Value>;
   return (
     <a
@@ -37,7 +41,11 @@ export function Phone({ value }: { value: string | null | undefined }) {
   );
 }
 
-export function Email({ value }: { value: string | null | undefined }) {
+export interface EmailProps {
+  value: string | null | undefined;
+}
+
+export function Email({ value }: EmailProps) {
   if (!value) return <Value>{null}</Value>;
   return (
     <a
@@ -50,7 +58,11 @@ export function Email({ value }: { value: string | null | undefined }) {
   );
 }
 
-export function Deferred({ children }: { children: ReactNode }) {
+export interface DeferredProps {
+  children: ReactNode;
+}
+
+export function Deferred({ children }: DeferredProps) {
   return (
     <Suspense fallback={<Skeleton className="h-40 w-full rounded-lg" />}>
       {children}
@@ -64,17 +76,19 @@ interface Account {
   lastSignInAt: string | null;
 }
 
+export interface AccountSectionProps {
+  account: Account | null;
+  description: string;
+  none: string;
+  action?: ReactNode;
+}
+
 export function AccountSection({
   account,
   description,
   none,
   action,
-}: {
-  account: Account | null;
-  description: string;
-  none: string;
-  action?: ReactNode;
-}) {
+}: AccountSectionProps) {
   return (
     <RecordSection
       title={m.studentSignInAccount()}
@@ -126,16 +140,16 @@ interface Entry {
 }
 
 /** A record's history, a page at a time. */
-export function HistoryFeed({
-  feed,
-}: {
+export interface HistoryFeedProps {
   feed: {
     data: { pages: readonly { rows: Entry[] }[] };
     hasNextPage: boolean;
     isFetchingNextPage: boolean;
     fetchNextPage: () => Promise<unknown>;
   };
-}) {
+}
+
+export function HistoryFeed({ feed }: HistoryFeedProps) {
   return (
     <HistorySection
       entries={feed.data.pages.flatMap((page) => page.rows)}
@@ -151,13 +165,12 @@ export function HistoryFeed({
   );
 }
 
-function HistorySection({
-  entries,
-  more,
-}: {
+interface HistorySectionProps {
   entries: Entry[];
   more?: { pending: boolean; onMore: () => void };
-}) {
+}
+
+function HistorySection({ entries, more }: HistorySectionProps) {
   return (
     <RecordSection
       title={m.recordHistory()}
@@ -212,16 +225,16 @@ const CONTACT_LABEL = {
 } as const;
 
 /** A person's phones, email addresses and address, each under what it is. */
-export function ContactList({
-  contacts,
-}: {
+export interface ContactListProps {
   contacts: readonly {
     id: string;
     kind: keyof typeof CONTACT_LABEL;
     value: string;
     normalized: string | null;
   }[];
-}) {
+}
+
+export function ContactList({ contacts }: ContactListProps) {
   return contacts.length === 0 ? (
     <RecordEmpty>{m.personNoContacts()}</RecordEmpty>
   ) : (

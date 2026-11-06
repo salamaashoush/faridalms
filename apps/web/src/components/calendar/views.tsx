@@ -46,13 +46,12 @@ export type SpecialDay = Range["days"][number];
 
 const MAX_IN_CELL = 3;
 
-export function CategoryIcon({
-  category,
-  className,
-}: {
+export interface CategoryIconProps {
   category: CalendarEvent["category"];
   className?: string;
-}) {
+}
+
+export function CategoryIcon({ category, className }: CategoryIconProps) {
   const { icon: Icon, colour } = CATEGORY_MARK[category];
   return (
     <Icon
@@ -146,21 +145,24 @@ function keyChange(event: KeyboardEvent): Change | null {
   return event.shiftKey ? { extend: step } : { move: step };
 }
 
+interface EventLinkProps
+  extends
+    Omit<
+      ComponentProps<"a">,
+      "href" | "onDragStart" | "onDragEnd" | "onKeyDown"
+    >,
+    Pick<
+      ComponentProps<typeof Link>,
+      "onDragStart" | "onDragEnd" | "onKeyDown"
+    > {
+  event: CalendarEvent;
+}
+
 /**
  * Where an event opens: the calendar's own sheet, or for a tour, assessment
  * or interview, the application it was booked for.
  */
-function EventLink({
-  event,
-  ...rest
-}: { event: CalendarEvent } & Omit<
-  ComponentProps<"a">,
-  "href" | "onDragStart" | "onDragEnd" | "onKeyDown"
-> &
-  Pick<
-    ComponentProps<typeof Link>,
-    "onDragStart" | "onDragEnd" | "onKeyDown"
-  >) {
+function EventLink({ event, ...rest }: EventLinkProps) {
   return event.admission ? (
     <Link
       {...rest}
@@ -177,17 +179,14 @@ function EventLink({
   );
 }
 
-function EventChip({
-  event,
-  day,
-  actions,
-  drag,
-}: {
+interface EventChipProps {
   event: CalendarEvent;
   day: string;
   actions?: GridActions;
   drag?: ReturnType<typeof useDrag>;
-}) {
+}
+
+function EventChip({ event, day, actions, drag }: EventChipProps) {
   const movable = Boolean(actions?.movable(event) && drag);
   const last = day === event.endsOn;
   return (
@@ -252,12 +251,17 @@ function EventChip({
   );
 }
 
+interface AddOnDayProps {
+  day: string;
+  listed?: boolean;
+}
+
 /**
  * A link to start a new event on a day, shown to those who may write one. In
  * a grid it appears on hover; in the phone's list of days it is the only
  * way to add one, so it always shows, at a finger's size.
  */
-function AddOnDay({ day, listed = false }: { day: string; listed?: boolean }) {
+function AddOnDay({ day, listed = false }: AddOnDayProps) {
   return (
     <Link
       to="/event-editor"
@@ -276,7 +280,11 @@ function AddOnDay({ day, listed = false }: { day: string; listed?: boolean }) {
 }
 
 /** How to move and resize events without a pointer, for those who may. */
-export function MoveHint({ children }: { children?: ReactNode }) {
+export interface MoveHintProps {
+  children?: ReactNode;
+}
+
+export function MoveHint({ children }: MoveHintProps) {
   return (
     <p
       id="calendar-move-hint"
@@ -285,6 +293,16 @@ export function MoveHint({ children }: { children?: ReactNode }) {
       {children ?? m.calMoveHint()}
     </p>
   );
+}
+
+export interface MonthGridProps {
+  month: string;
+  weekStart: IsoWeekday;
+  weekend: readonly number[];
+  today: string;
+  events: CalendarEvent[];
+  days: SpecialDay[];
+  actions?: GridActions;
 }
 
 /**
@@ -299,15 +317,7 @@ export function MonthGrid({
   events,
   days,
   actions,
-}: {
-  month: string;
-  weekStart: IsoWeekday;
-  weekend: readonly number[];
-  today: string;
-  events: CalendarEvent[];
-  days: SpecialDay[];
-  actions?: GridActions;
-}) {
+}: MonthGridProps) {
   const secondary = useCurrentUser().school.secondaryCalendar;
   const drag = useDrag(actions);
   const weeks = monthWeeks(month, weekStart);
@@ -417,6 +427,16 @@ export function MonthGrid({
   );
 }
 
+export interface WeekGridProps {
+  day: string;
+  weekStart: IsoWeekday;
+  weekend: readonly number[];
+  today: string;
+  events: CalendarEvent[];
+  days: SpecialDay[];
+  actions?: GridActions;
+}
+
 /**
  * One week of days side by side, each listing everything on it, for
  * planning a week at a time with room to drag events between its days.
@@ -429,15 +449,7 @@ export function WeekGrid({
   events,
   days,
   actions,
-}: {
-  day: string;
-  weekStart: IsoWeekday;
-  weekend: readonly number[];
-  today: string;
-  events: CalendarEvent[];
-  days: SpecialDay[];
-  actions?: GridActions;
-}) {
+}: WeekGridProps) {
   const secondary = useCurrentUser().school.secondaryCalendar;
   const drag = useDrag(actions);
   const week = weekOf(anchor, weekStart);
@@ -532,7 +544,11 @@ export function WeekGrid({
   );
 }
 
-function AgendaItem({ event }: { event: CalendarEvent }) {
+interface AgendaItemProps {
+  event: CalendarEvent;
+}
+
+function AgendaItem({ event }: AgendaItemProps) {
   return (
     <li className="grid grid-cols-[6.5rem_minmax(0,1fr)] gap-3 py-2.5 max-sm:grid-cols-1 max-sm:gap-1">
       <span className="text-sm leading-5 text-muted-foreground tabular-nums">
@@ -577,16 +593,7 @@ function AgendaItem({ event }: { event: CalendarEvent }) {
 }
 
 /** Day by day, only the days with something on them. */
-export function Agenda({
-  from,
-  to,
-  today,
-  events,
-  days,
-  className,
-  everyDay = false,
-  canAdd = false,
-}: {
+export interface AgendaProps {
   from: string;
   to: string;
   today: string;
@@ -596,7 +603,18 @@ export function Agenda({
   /** A week on a phone lists every day, so a quiet day still shows its date. */
   everyDay?: boolean;
   canAdd?: boolean;
-}) {
+}
+
+export function Agenda({
+  from,
+  to,
+  today,
+  events,
+  days,
+  className,
+  everyDay = false,
+  canAdd = false,
+}: AgendaProps) {
   const secondary = useCurrentUser().school.secondaryCalendar;
   const span: string[] = [];
   if (everyDay)
@@ -680,7 +698,12 @@ export function Agenda({
 }
 
 /** A day as a calendar app marks it: the weekday over its number, today filled. */
-function DayMark({ day, today }: { day: string; today: string }) {
+interface DayMarkProps {
+  day: string;
+  today: string;
+}
+
+function DayMark({ day, today }: DayMarkProps) {
   return (
     <h2 className="grid content-start justify-items-center gap-0.5 pt-1.5 text-center">
       <span
@@ -709,6 +732,15 @@ function DayMark({ day, today }: { day: string; today: string }) {
 
 const MAX_DOTS = 3;
 
+export interface MonthCompactProps {
+  month: string;
+  weekStart: IsoWeekday;
+  weekend: readonly number[];
+  today: string;
+  events: CalendarEvent[];
+  days: SpecialDay[];
+}
+
 /**
  * A month on a phone: the days with a dot for each kind of event on them,
  * and the chosen day's events beneath, the way phone calendars show a month.
@@ -720,14 +752,7 @@ export function MonthCompact({
   today,
   events,
   days,
-}: {
-  month: string;
-  weekStart: IsoWeekday;
-  weekend: readonly number[];
-  today: string;
-  events: CalendarEvent[];
-  days: SpecialDay[];
-}) {
+}: MonthCompactProps) {
   const secondary = useCurrentUser().school.secondaryCalendar;
   const weeks = monthWeeks(month, weekStart);
   const special = new Map(days.map((row) => [row.day, row]));

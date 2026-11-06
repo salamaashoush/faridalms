@@ -98,19 +98,21 @@ const scaleCard = {
     row.versions[0] ? bandsLine(row.versions[0].bands) : "",
 };
 
+export interface ScalesTableProps {
+  overview: GradingOverview;
+  onAdd: () => void;
+  onRename: (row: ScaleRow) => void;
+  onBands: (row: ScaleRow) => void;
+  onRetire: (row: ScaleRow) => void;
+}
+
 export function ScalesTable({
   overview,
   onAdd,
   onRename,
   onBands,
   onRetire,
-}: {
-  overview: GradingOverview;
-  onAdd: () => void;
-  onRename: (row: ScaleRow) => void;
-  onBands: (row: ScaleRow) => void;
-  onRetire: (row: ScaleRow) => void;
-}) {
+}: ScalesTableProps) {
   const rowActions = (row: ScaleRow): RowAction[] => [
     {
       label: m.gradingChangeBands(),
@@ -202,15 +204,13 @@ function bandsProblem(drafts: readonly BandDraft[]): string | null {
 }
 
 /** The bands of a scale, highest first, each a grade's names, lower bound and GPA. */
-function BandsEditor({
-  value,
-  onChange,
-  problem,
-}: {
+interface BandsEditorProps {
   value: BandDraft[];
   onChange: (value: BandDraft[]) => void;
   problem: string | null;
-}) {
+}
+
+function BandsEditor({ value, onChange, problem }: BandsEditorProps) {
   const set = (key: string, change: Partial<BandDraft>) =>
     onChange(
       value.map((draft) =>
@@ -347,13 +347,12 @@ function BandsEditor({
   );
 }
 
-function DisplayField({
-  value,
-  onChange,
-}: {
+interface DisplayFieldProps {
   value: GradeDisplay;
   onChange: (value: GradeDisplay) => void;
-}) {
+}
+
+function DisplayField({ value, onChange }: DisplayFieldProps) {
   return (
     <fieldset className="grid gap-3">
       <legend className="mb-2 text-sm leading-5 font-medium">
@@ -379,17 +378,19 @@ function DisplayField({
 }
 
 /** Adds a scale from a preset the school then adjusts, or renames one. */
+export interface ScaleSheetProps {
+  open: boolean;
+  scale?: ScaleRow;
+  overview: GradingOverview;
+  onClose: () => void;
+}
+
 export function ScaleSheet({
   open,
   scale,
   overview,
   onClose,
-}: {
-  open: boolean;
-  scale?: ScaleRow;
-  overview: GradingOverview;
-  onClose: () => void;
-}) {
+}: ScaleSheetProps) {
   const refresh = useRefresh();
   const first = overview.presets[0];
   const [preset, setPreset] = useState(first?.key ?? "");
@@ -496,21 +497,18 @@ export function ScaleSheet({
   );
 }
 
-/**
- * New bands for a scale from a date, with the reason kept in the history.
- * Grades already given keep the bands they were given under.
- */
-export function BandsSheet({
-  open,
-  scale,
-  today,
-  onClose,
-}: {
+export interface BandsSheetProps {
   open: boolean;
   scale: ScaleRow;
   today: string;
   onClose: () => void;
-}) {
+}
+
+/**
+ * New bands for a scale from a date, with the reason kept in the history.
+ * Grades already given keep the bands they were given under.
+ */
+export function BandsSheet({ open, scale, today, onClose }: BandsSheetProps) {
   const refresh = useRefresh();
   const [bands, setBands] = useState<BandDraft[]>(() =>
     (scale.versions[0]?.bands ?? []).map(draftOf),
@@ -594,15 +592,17 @@ export function BandsSheet({
   );
 }
 
+export interface RetireScaleSheetProps {
+  open: boolean;
+  scale: ScaleRow;
+  onClose: () => void;
+}
+
 export function RetireScaleSheet({
   open,
   scale,
   onClose,
-}: {
-  open: boolean;
-  scale: ScaleRow;
-  onClose: () => void;
-}) {
+}: RetireScaleSheetProps) {
   const refresh = useRefresh();
   const [reason, setReason] = useState("");
   const [tried, setTried] = useState(false);

@@ -103,13 +103,12 @@ function questionVoice(step: StudentBlock[]) {
   return question ? promptVoice(question) : null;
 }
 
-function YoungContent({
-  block,
-  watch,
-}: {
+interface YoungContentProps {
   block: Content;
   watch?: ((fileId: string) => MediaWatch | undefined) | undefined;
-}) {
+}
+
+function YoungContent({ block, watch }: YoungContentProps) {
   return (
     <ContentView
       document={block.content}
@@ -143,13 +142,12 @@ function YoungContent({
 }
 
 /** A question's words, big, with the speaker that reads them and the help a child can ask for. */
-function Prompt({
-  block,
-  help,
-}: {
+interface PromptProps {
   block: CheckStudentBlock;
   help?: ReactNode;
-}) {
+}
+
+function Prompt({ block, help }: PromptProps) {
   return (
     <div
       dir={textDirection(block.prompt) ?? undefined}
@@ -171,20 +169,18 @@ function Prompt({
   );
 }
 
+interface YoungHelpProps {
+  block: CheckStudentBlock;
+  view: CheckView | undefined;
+  driver: CheckDriver;
+}
+
 /**
  * Help a young child asks for: the question's next hint, said aloud and
  * kept under the question with its speaker. It costs what a miss would, as
  * a hint does for older students, and goes once the hints run out.
  */
-function YoungHelp({
-  block,
-  view,
-  driver,
-}: {
-  block: CheckStudentBlock;
-  view: CheckView | undefined;
-  driver: CheckDriver;
-}) {
+function YoungHelp({ block, view, driver }: YoungHelpProps) {
   const ask = useMutation({
     mutationFn: () => driver.hint?.(block.id) ?? Promise.resolve(),
     onError: (error) => toast.error(getMessageFromError(error)),
@@ -225,17 +221,14 @@ function YoungHelp({
   );
 }
 
-function StepBlock({
-  block,
-  view,
-  driver,
-  watch,
-}: {
+interface StepBlockProps {
   block: StudentBlock;
   view: CheckView | undefined;
   driver: CheckDriver;
   watch?: ((fileId: string) => MediaWatch | undefined) | undefined;
-}) {
+}
+
+function StepBlock({ block, view, driver, watch }: StepBlockProps) {
   if (block.type === "content")
     return <YoungContent block={block} watch={watch} />;
   if (block.type === "media") return <Media block={block} watch={watch} />;
@@ -293,7 +286,12 @@ function StepBlock({
 }
 
 /** How far through the lesson a child is, as a track of screens, without numbers. */
-function Track({ at, total }: { at: number; total: number }) {
+interface TrackProps {
+  at: number;
+  total: number;
+}
+
+function Track({ at, total }: TrackProps) {
   return (
     <div className="flex min-w-0 flex-1 flex-wrap items-center justify-center gap-2.5">
       <span className="sr-only">
@@ -329,30 +327,7 @@ const HOLDOVER_MS = 400;
 /** After a pause question is answered, the video plays on this long after. */
 const PLAY_ON_MS = 1500;
 
-/**
- * A lesson for young children, one screen at a time over the whole window:
- * a big start button (whose tap also lets the page play sound), each screen
- * read aloud as it opens, answers by tapping, and a big arrow on once every
- * question on the screen is settled. The end says so and points onward.
- */
-export function YoungLesson({
-  title,
-  blocks,
-  checks,
-  driver,
-  position,
-  onReach,
-  onClose,
-  onFinish,
-  retry,
-  next,
-  badge,
-  readAlong = true,
-  classSounds = true,
-  watch,
-  language,
-  languages,
-}: {
+export interface YoungLessonProps {
   title: string;
   blocks: StudentBlock[];
   checks: Record<string, CheckView>;
@@ -380,7 +355,32 @@ export function YoungLesson({
     pending: boolean;
     onChoose: (locale: ContentLocale) => void;
   } | null;
-}) {
+}
+
+/**
+ * A lesson for young children, one screen at a time over the whole window:
+ * a big start button (whose tap also lets the page play sound), each screen
+ * read aloud as it opens, answers by tapping, and a big arrow on once every
+ * question on the screen is settled. The end says so and points onward.
+ */
+export function YoungLesson({
+  title,
+  blocks,
+  checks,
+  driver,
+  position,
+  onReach,
+  onClose,
+  onFinish,
+  retry,
+  next,
+  badge,
+  readAlong = true,
+  classSounds = true,
+  watch,
+  language,
+  languages,
+}: YoungLessonProps) {
   const steps = useMemo(() => lessonSteps(blocks), [blocks]);
   const hydrated = useHydrated();
   const [at, setAt] = useState<number | "start" | "end">("start");

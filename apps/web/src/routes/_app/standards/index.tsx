@@ -33,7 +33,11 @@ export const Route = createFileRoute("/_app/standards/")({
   component: FrameworksPage,
 });
 
-function FrameworkName({ row }: { row: FrameworkRow }) {
+interface FrameworkNameProps {
+  row: FrameworkRow;
+}
+
+function FrameworkName({ row }: FrameworkNameProps) {
   return (
     <RowLink
       to="/standards/$frameworkId"

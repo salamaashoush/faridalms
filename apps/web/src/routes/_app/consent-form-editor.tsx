@@ -30,15 +30,13 @@ export const Route = createFileRoute("/_app/consent-form-editor")({
   component: EditorPage,
 });
 
-function Started({
-  template,
-  data,
-  onClose,
-}: {
+interface StartedProps {
   template: string;
   data: Parameters<typeof ConsentFormEditor>[0]["data"];
   onClose: () => void;
-}) {
+}
+
+function Started({ template, data, onClose }: StartedProps) {
   const piece = useSuspenseQuery(templateQuery(template)).data;
   return <ConsentFormEditor data={data} template={piece} onClose={onClose} />;
 }

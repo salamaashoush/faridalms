@@ -13,18 +13,17 @@ import { ProjectProgram } from "./ProjectProgram";
 import { ProjectStudio } from "./ProjectStudio";
 import { WebPreview } from "./WebPreview";
 
+export interface WebProjectViewProps {
+  files: readonly ProjectFile[];
+  title: string;
+}
+
 /**
  * A student's project as their teacher reads it: the page its files make,
  * or its program, and the project itself to open and try. Nothing the
  * teacher changes there is kept.
  */
-export function WebProjectView({
-  files,
-  title,
-}: {
-  files: readonly ProjectFile[];
-  title: string;
-}) {
+export function WebProjectView({ files, title }: WebProjectViewProps) {
   const [page, setPage] = useState<string | null>(null);
   const [open, setOpen] = useState(false);
   const drawn = useMemo(() => playedPage(files, page), [files, page]);

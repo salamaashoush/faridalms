@@ -46,7 +46,11 @@ export function typedAddress(url: string): string {
 const TYPED = 60;
 
 /** A frame of a video, left out when it cannot be had or the card is narrow. */
-function Still({ src }: { src: string }) {
+interface StillProps {
+  src: string;
+}
+
+function Still({ src }: StillProps) {
   const [failed, setFailed] = useState(false);
   return failed ? null : (
     <img
@@ -56,6 +60,18 @@ function Still({ src }: { src: string }) {
       className="hidden h-[2.5cm] w-auto shrink-0 rounded-[3px] border border-neutral-300 object-cover @min-[11cm]:block"
     />
   );
+}
+
+export interface PaperOnlineProps {
+  kind: string;
+  title: string | undefined;
+  hint: string;
+  link: string | undefined;
+  /** An address short enough to type, for a reader without a camera. */
+  address?: string | undefined;
+  /** A frame of the video, which tells one recording from another. */
+  still?: string | null | undefined;
+  children?: ReactNode;
 }
 
 /**
@@ -70,17 +86,7 @@ export function PaperOnline({
   address,
   still,
   children,
-}: {
-  kind: string;
-  title: string | undefined;
-  hint: string;
-  link: string | undefined;
-  /** An address short enough to type, for a reader without a camera. */
-  address?: string | undefined;
-  /** A frame of the video, which tells one recording from another. */
-  still?: string | null | undefined;
-  children?: ReactNode;
-}) {
+}: PaperOnlineProps) {
   return (
     <div className="paper-question @container my-[0.5em] grid gap-[0.6em] rounded-[4px] border border-neutral-400 p-[0.7em]">
       <div className="flex items-center gap-[0.9em]">
@@ -143,13 +149,12 @@ function useStill(src: string, video: boolean) {
   return still;
 }
 
-function PaperRecording({
-  node,
-  paper,
-}: {
+interface PaperRecordingProps {
   node: ContentNode;
   paper: PaperFacts;
-}) {
+}
+
+function PaperRecording({ node, paper }: PaperRecordingProps) {
   const { locale } = paper;
   const video = (node.mime ?? "").startsWith("video/");
   const still = useStill(paper.fileUrl(node.fileId ?? ""), video);
@@ -194,13 +199,12 @@ function PaperRecording({
   );
 }
 
-function PaperPicture({
-  node,
-  paper,
-}: {
+interface PaperPictureProps {
   node: ContentNode;
   paper: PaperFacts;
-}) {
+}
+
+function PaperPicture({ node, paper }: PaperPictureProps) {
   const diagram = node.type === "diagram";
   return (
     <figure
@@ -234,7 +238,12 @@ function PaperPicture({
   );
 }
 
-function PaperFile({ node, paper }: { node: ContentNode; paper: PaperFacts }) {
+interface PaperFileProps {
+  node: ContentNode;
+  paper: PaperFacts;
+}
+
+function PaperFile({ node, paper }: PaperFileProps) {
   const { locale } = paper;
   const file = {
     name: node.name ?? "",
@@ -255,7 +264,12 @@ function PaperFile({ node, paper }: { node: ContentNode; paper: PaperFacts }) {
 }
 
 /** Lines to write on, under the words that say what to write. */
-function WriteOn({ label, lines }: { label: string; lines: number }) {
+interface WriteOnProps {
+  label: string;
+  lines: number;
+}
+
+function WriteOn({ label, lines }: WriteOnProps) {
   return (
     <div className="grid gap-[0.1em]">
       <p className="text-[0.85em] font-semibold">{label}</p>
@@ -268,20 +282,18 @@ function WriteOn({ label, lines }: { label: string; lines: number }) {
   );
 }
 
+interface PaperRunnableProps {
+  node: ContentNode;
+  drawn: ReactNode;
+  paper: PaperFacts;
+}
+
 /**
  * Code a student runs on screen. Paper cannot run it: a block that waits
  * for a prediction asks for it in writing, which is the same thinking, and
  * one that only runs carries the code that opens it.
  */
-function PaperRunnable({
-  node,
-  drawn,
-  paper,
-}: {
-  node: ContentNode;
-  drawn: ReactNode;
-  paper: PaperFacts;
-}) {
+function PaperRunnable({ node, drawn, paper }: PaperRunnableProps) {
   const { locale } = paper;
   const page = node.language === "html";
   return (
@@ -299,7 +311,12 @@ function PaperRunnable({
   );
 }
 
-function PaperAiUse({ node, paper }: { node: ContentNode; paper: PaperFacts }) {
+interface PaperAiUseProps {
+  node: ContentNode;
+  paper: PaperFacts;
+}
+
+function PaperAiUse({ node, paper }: PaperAiUseProps) {
   const { locale } = paper;
   const facts = [
     { label: m.editorAiUseTool({}, { locale }), value: node.aiTool ?? "" },

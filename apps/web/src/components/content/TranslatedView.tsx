@@ -25,21 +25,18 @@ export function shownIn(input: {
     : input.body;
 }
 
-/**
- * A document in one language. Until the translation is written the original
- * shows in its place, saying so, rather than the reader meeting a blank page.
- */
-function WrittenIn({
-  body,
-  translation,
-  primary,
-  locale,
-}: {
+interface WrittenInProps {
   body: ContentDocument;
   translation: ContentDocument | null;
   primary: ContentLocale;
   locale: ContentLocale;
-}) {
+}
+
+/**
+ * A document in one language. Until the translation is written the original
+ * shows in its place, saying so, rather than the reader meeting a blank page.
+ */
+function WrittenIn({ body, translation, primary, locale }: WrittenInProps) {
   const translated = locale !== primary && documentWritten(translation);
   const shown = translated && translation ? translation : body;
   const shownLocale = translated ? locale : primary;
@@ -61,19 +58,21 @@ function WrittenIn({
 }
 
 /** A document to read, with a switch between its languages when it has two. */
+export interface TranslatedViewProps {
+  body: ContentDocument;
+  translation: ContentDocument | null;
+  primary: ContentLocale;
+  locale: ContentLocale;
+  onLocaleChange: (locale: ContentLocale) => void;
+}
+
 export function TranslatedView({
   body,
   translation,
   primary,
   locale,
   onLocaleChange,
-}: {
-  body: ContentDocument;
-  translation: ContentDocument | null;
-  primary: ContentLocale;
-  locale: ContentLocale;
-  onLocaleChange: (locale: ContentLocale) => void;
-}) {
+}: TranslatedViewProps) {
   if (!translation)
     return (
       <WrittenIn

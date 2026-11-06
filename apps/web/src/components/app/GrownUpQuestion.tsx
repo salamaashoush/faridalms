@@ -19,6 +19,13 @@ import { formatNumber } from "~/utils/datetime";
 const factor = () => 6 + Math.floor(Math.random() * 4);
 const question = () => ({ a: factor(), b: factor() });
 
+export interface GrownUpQuestionProps {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  onPass: () => void;
+  pending?: boolean;
+}
+
 /**
  * A question a grown-up answers and a young child cannot, before leaving a
  * screen a child holds or stands at. A wrong answer asks another; mount it
@@ -29,12 +36,7 @@ export function GrownUpQuestion({
   onOpenChange,
   onPass,
   pending = false,
-}: {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-  onPass: () => void;
-  pending?: boolean;
-}) {
+}: GrownUpQuestionProps) {
   const [asked, setAsked] = useState(question);
   const [answer, setAnswer] = useState("");
   const [missed, setMissed] = useState(false);

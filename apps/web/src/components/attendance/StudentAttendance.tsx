@@ -24,7 +24,12 @@ type Data = Awaited<
 >;
 type Mark = Data["marks"]["rows"][number];
 
-function MarkRow({ mark, reasons }: { mark: Mark; reasons: Data["reasons"] }) {
+interface MarkRowProps {
+  mark: Mark;
+  reasons: Data["reasons"];
+}
+
+function MarkRow({ mark, reasons }: MarkRowProps) {
   const reason = reasons.find((row) => row.id === mark.reasonId);
   const where = [
     classTitle({
@@ -61,7 +66,11 @@ function MarkRow({ mark, reasons }: { mark: Mark; reasons: Data["reasons"] }) {
 }
 
 /** A student's year of attendance, as they, their family and staff read it. */
-export function StudentAttendance({ studentId = "" }: { studentId?: string }) {
+export interface StudentAttendanceProps {
+  studentId?: string;
+}
+
+export function StudentAttendance({ studentId = "" }: StudentAttendanceProps) {
   const [page, setPage] = useState(1);
   const data = useSuspenseQuery(studentAttendanceQuery(studentId, page)).data;
   const { marks } = data;

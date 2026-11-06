@@ -42,13 +42,12 @@ export const Route = createFileRoute("/_app/lessons/$lessonId")({
   errorComponent: LessonError,
 });
 
-function Trail({
-  module,
-  title,
-}: {
+interface TrailProps {
   module: { id: string; title: string };
   title: string;
-}) {
+}
+
+function Trail({ module, title }: TrailProps) {
   return (
     <>
       <BreadcrumbStep
@@ -67,13 +66,21 @@ function Trail({
   );
 }
 
-function PlayerTrail({ id }: { id: string }) {
+interface PlayerTrailProps {
+  id: string;
+}
+
+function PlayerTrail({ id }: PlayerTrailProps) {
   // A locked lesson fails to open; the page explains why and the trail stays empty.
   const { data } = useQuery({ ...lessonQuery(id), retry: false });
   return data ? <Trail module={data.module} title={data.title} /> : null;
 }
 
-function PreviewTrail({ id }: { id: string }) {
+interface PreviewTrailProps {
+  id: string;
+}
+
+function PreviewTrail({ id }: PreviewTrailProps) {
   const data = useSuspenseQuery(lessonEditorQuery(id)).data;
   return <Trail module={data.module} title={data.title} />;
 }

@@ -68,7 +68,12 @@ const wordsOnly = (entry: Entry) =>
   );
 
 /** What an entry says: its document, or for one written before documents, its text. */
-function Words({ entry, fit = false }: { entry: Entry; fit?: boolean }) {
+interface WordsProps {
+  entry: Entry;
+  fit?: boolean;
+}
+
+function Words({ entry, fit = false }: WordsProps) {
   if (entry.redacted)
     return (
       <p className="text-sm leading-5 text-muted-foreground italic">
@@ -98,17 +103,14 @@ function Words({ entry, fit = false }: { entry: Entry; fit?: boolean }) {
   );
 }
 
-function Bubble({
-  entry,
-  own,
-  showAuthor,
-  seen,
-}: {
+interface BubbleProps {
   entry: Entry;
   own: boolean;
   showAuthor: boolean;
   seen: number | null;
-}) {
+}
+
+function Bubble({ entry, own, showAuthor, seen }: BubbleProps) {
   return (
     <li className={cn("flex", own ? "justify-end" : "justify-start")}>
       <div
@@ -164,19 +166,18 @@ function Bubble({
   );
 }
 
+interface InternalEntryProps {
+  entry: Entry & { kind: Exclude<EntryKind, "message"> };
+  mailbox: Thread["mailbox"];
+}
+
 /**
  * An entry only the team reads: a note, a contact logged, a recorded
  * change, or mail held back. Laid across the conversation rather than as a
  * bubble, and marked internal, so nobody mistakes it for something the
  * family was sent.
  */
-function InternalEntry({
-  entry,
-  mailbox,
-}: {
-  entry: Entry & { kind: Exclude<EntryKind, "message"> };
-  mailbox: Thread["mailbox"];
-}) {
+function InternalEntry({ entry, mailbox }: InternalEntryProps) {
   const Icon = ENTRY_ICON[entry.kind];
   const title = entryTitle(mailbox, entry.kind, entry.details);
   const author = nameOf({
@@ -239,19 +240,18 @@ function InternalEntry({
 
 type Mode = "message" | "note" | "logged";
 
+interface ComposerProps {
+  thread: Thread;
+  fields?: { child?: string };
+}
+
 /**
  * Writes into the conversation. A team writes a message to everyone, a
  * note for each other, or a call, meeting or email that happened outside
  * the app; anyone else writes a message. A message someone overtook is
  * held back until the writer has read what came in, or sends it anyway.
  */
-function Composer({
-  thread,
-  fields,
-}: {
-  thread: Thread;
-  fields?: { child?: string };
-}) {
+function Composer({ thread, fields }: ComposerProps) {
   const hydrated = useHydrated();
   const user = useCurrentUser();
   const queryClient = useQueryClient();
@@ -470,6 +470,16 @@ function Composer({
   );
 }
 
+export interface ConversationProps {
+  threadId: string;
+  onBack?: () => void;
+  /** Drawn within a record's page rather than as Messages' second pane. */
+  embedded?: boolean;
+  /** What a template's fields are filled with beyond the conversation's own. */
+  fields?: { child?: string };
+  header?: ReactNode;
+}
+
 /**
  * One conversation: its entries grouped by day, the composer underneath.
  * A page that belongs to a conversation, such as an enquiry's, draws it
@@ -481,15 +491,7 @@ export function Conversation({
   embedded = false,
   fields,
   header,
-}: {
-  threadId: string;
-  onBack?: () => void;
-  /** Drawn within a record's page rather than as Messages' second pane. */
-  embedded?: boolean;
-  /** What a template's fields are filled with beyond the conversation's own. */
-  fields?: { child?: string };
-  header?: ReactNode;
-}) {
+}: ConversationProps) {
   const user = useCurrentUser();
   const queryClient = useQueryClient();
   const thread = useSuspenseQuery(threadQuery(threadId)).data;

@@ -64,7 +64,11 @@ export function personTabsFor(
   };
 }
 
-function RolesSection({ data }: { data: PersonData }) {
+interface RolesSectionProps {
+  data: PersonData;
+}
+
+function RolesSection({ data }: RolesSectionProps) {
   return (
     <RecordSection title={m.personRoles()}>
       {data.roles.length === 0 ? (
@@ -106,13 +110,12 @@ function RolesSection({ data }: { data: PersonData }) {
   );
 }
 
-function ContactsSection({
-  contacts,
-  onEdit,
-}: {
+interface ContactsSectionProps {
   contacts: NonNullable<PersonData["contacts"]>;
   onEdit?: () => void;
-}) {
+}
+
+function ContactsSection({ contacts, onEdit }: ContactsSectionProps) {
   return (
     <RecordSection
       title={m.personContactDetails()}
@@ -123,7 +126,11 @@ function ContactsSection({
   );
 }
 
-function ChildrenSection({ data }: { data: PersonData }) {
+interface ChildrenSectionProps {
+  data: PersonData;
+}
+
+function ChildrenSection({ data }: ChildrenSectionProps) {
   const { capabilities, workspace } = useCurrentUser();
   const opensRecords =
     capabilities.includes("people:read") ||
@@ -189,15 +196,17 @@ function ChildrenSection({ data }: { data: PersonData }) {
 }
 
 /** The classes someone teaches; a profile names them for the viewer and opens none. */
+export interface TeachingSectionProps {
+  teaching: NonNullable<PersonData["teaching"]>;
+  title?: string;
+  empty?: string;
+}
+
 export function TeachingSection({
   teaching,
   title = m.personTeaching(),
   empty = m.personNoTeaching(),
-}: {
-  teaching: NonNullable<PersonData["teaching"]>;
-  title?: string;
-  empty?: string;
-}) {
+}: TeachingSectionProps) {
   return (
     <RecordSection
       title={title}
@@ -267,20 +276,22 @@ export function TeachingSection({
   );
 }
 
-function PersonHistory({ userId }: { userId: string }) {
+interface PersonHistoryProps {
+  userId: string;
+}
+
+function PersonHistory({ userId }: PersonHistoryProps) {
   const feed = useSuspenseInfiniteQuery(personHistoryQuery(userId));
   return <HistoryFeed feed={feed} />;
 }
 
-export function PersonRecord({
-  userId,
-  tab,
-  onTab,
-}: {
+export interface PersonRecordProps {
   userId: string;
   tab: PersonTab;
   onTab: (tab: PersonTab) => void;
-}) {
+}
+
+export function PersonRecord({ userId, tab, onTab }: PersonRecordProps) {
   const data = useSuspenseQuery(personRecordQuery(userId)).data;
   const queryClient = useQueryClient();
   const [photoOpen, setPhotoOpen] = useState(false);

@@ -58,18 +58,15 @@ function useSeen(holder: RefObject<HTMLElement | null>) {
   return seen;
 }
 
-function ProjectCard({
-  project,
-  name,
-  now,
-  here,
-}: {
+interface ProjectCardProps {
   project: LiveProject;
   name: string;
   now: string;
   /** The student is still in the lesson, so a long pause may mean they are stuck. */
   here: boolean;
-}) {
+}
+
+function ProjectCard({ project, name, now, here }: ProjectCardProps) {
   const holder = useRef<HTMLDivElement>(null);
   const seen = useSeen(holder);
   // The class is asked about every few seconds; a page is played again
@@ -142,23 +139,20 @@ function ProjectCard({
   );
 }
 
+interface StudioCardProps {
+  studio: LiveStudio;
+  name: string;
+  now: string;
+  here: boolean;
+}
+
 /**
  * A coding project on the teacher's view of the class: its stage as the
  * student last saved it, since a studio saves after a pause in the work
  * and not as each block moves. Opened, it is the project itself, to run
  * and read with the room; nothing changed there is kept.
  */
-function StudioCard({
-  studio,
-  name,
-  now,
-  here,
-}: {
-  studio: LiveStudio;
-  name: string;
-  now: string;
-  here: boolean;
-}) {
+function StudioCard({ studio, name, now, here }: StudioCardProps) {
   const [open, setOpen] = useState(false);
   const idle = minutesBetween(studio.savedAt, now);
   return (
@@ -209,6 +203,15 @@ function StudioCard({
   );
 }
 
+export interface LiveProjectsProps {
+  projects: readonly LiveProject[];
+  studios: readonly LiveStudio[];
+  names: ReadonlyMap<string, string>;
+  /** The students still in a lesson. */
+  here: ReadonlySet<string>;
+  now: string;
+}
+
 /**
  * The projects a class is building, each as its student last left it: who
  * has an error on the page, who has changed nothing for a while, and any
@@ -220,14 +223,7 @@ export function LiveProjects({
   names,
   here,
   now,
-}: {
-  projects: readonly LiveProject[];
-  studios: readonly LiveStudio[];
-  names: ReadonlyMap<string, string>;
-  /** The students still in a lesson. */
-  here: ReadonlySet<string>;
-  now: string;
-}) {
+}: LiveProjectsProps) {
   if (projects.length + studios.length === 0) return null;
   const nameOf = (item: { studentId: string }) =>
     names.get(item.studentId) ?? "";

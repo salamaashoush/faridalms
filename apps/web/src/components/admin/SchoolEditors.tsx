@@ -19,15 +19,13 @@ import { saveSchoolProfile } from "~/server/school-settings";
 import { formatWeekday } from "~/utils/datetime";
 import { getMessageFromError } from "~/utils/error";
 
-function TimeZoneField({
-  value,
-  onChange,
-  errors,
-}: {
+interface TimeZoneFieldProps {
   value: string;
   onChange: (value: string) => void;
   errors?: (string | { message?: string } | undefined)[];
-}) {
+}
+
+function TimeZoneField({ value, onChange, errors }: TimeZoneFieldProps) {
   const [search, setSearch] = useState("");
   const zones = useMemo(() => Intl.supportedValuesOf("timeZone"), []);
   const needle = search.trim().toLocaleLowerCase().replaceAll(" ", "_");

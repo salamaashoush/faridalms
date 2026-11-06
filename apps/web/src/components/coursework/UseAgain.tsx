@@ -15,6 +15,14 @@ import { reuseAssignment } from "~/server/coursework";
 import { formatDate } from "~/utils/datetime";
 import { getMessageFromError } from "~/utils/error";
 
+export interface UseAgainSheetProps {
+  source: { id: string; title: string } | null;
+  /** The class to offer first, where the teacher is working now. */
+  classId?: string;
+  open: boolean;
+  onClose: () => void;
+}
+
 /**
  * Sets an assignment again as a new draft in one of the teacher's classes,
  * as Classroom's "Reuse post" does: the one given, or one found among the
@@ -25,13 +33,7 @@ export function UseAgainSheet({
   classId,
   open,
   onClose,
-}: {
-  source: { id: string; title: string } | null;
-  /** The class to offer first, where the teacher is working now. */
-  classId?: string;
-  open: boolean;
-  onClose: () => void;
-}) {
+}: UseAgainSheetProps) {
   const navigate = useNavigate();
   const classes = useQuery(courseworkOptionsQuery).data?.classes ?? [];
   const [chosen, setChosen] = useState(source?.id ?? "");

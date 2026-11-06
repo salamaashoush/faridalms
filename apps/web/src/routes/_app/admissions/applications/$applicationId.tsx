@@ -283,7 +283,11 @@ function ApplicationPage() {
   );
 }
 
-function ChildSection({ row }: { row: Application }) {
+interface ChildSectionProps {
+  row: Application;
+}
+
+function ChildSection({ row }: ChildSectionProps) {
   return (
     <RecordSection title={m.aplSectionChild()}>
       <Facts>
@@ -316,13 +320,12 @@ function ChildSection({ row }: { row: Application }) {
   );
 }
 
-function ContactFacts({
-  email,
-  phone,
-}: {
+interface ContactFactsProps {
   email: string | null;
   phone: string | null;
-}) {
+}
+
+function ContactFacts({ email, phone }: ContactFactsProps) {
   return (
     <>
       <Fact label={m.admFieldEmail()} wide>
@@ -351,7 +354,11 @@ function ContactFacts({
   );
 }
 
-function FamilySection({ row }: { row: Application }) {
+interface FamilySectionProps {
+  row: Application;
+}
+
+function FamilySection({ row }: FamilySectionProps) {
   return (
     <RecordSection
       title={m.aplSectionFamily()}
@@ -404,7 +411,11 @@ function FamilySection({ row }: { row: Application }) {
   );
 }
 
-function ChecklistSection({ row }: { row: Application }) {
+interface ChecklistSectionProps {
+  row: Application;
+}
+
+function ChecklistSection({ row }: ChecklistSectionProps) {
   const refresh = useRefresh();
   const move = useMutation({
     mutationFn: (input: {
@@ -491,7 +502,11 @@ function ChecklistSection({ row }: { row: Application }) {
 }
 
 /** Health and needs stay closed until asked for, since each look is recorded. */
-function NeedsSection({ row }: { row: Application }) {
+interface NeedsSectionProps {
+  row: Application;
+}
+
+function NeedsSection({ row }: NeedsSectionProps) {
   const read = useMutation({
     mutationFn: () => getApplicationNeeds({ data: { id: row.id } }),
   });
@@ -575,7 +590,11 @@ function entryText(entry: Application["entries"][number]): string {
   return m.aplEntryNote();
 }
 
-function HistorySection({ row }: { row: Application }) {
+interface HistorySectionProps {
+  row: Application;
+}
+
+function HistorySection({ row }: HistorySectionProps) {
   return (
     <RecordSection
       title={m.aplSectionHistory()}
@@ -610,7 +629,11 @@ function HistorySection({ row }: { row: Application }) {
   );
 }
 
-function NoteComposer({ applicationId }: { applicationId: string }) {
+interface NoteComposerProps {
+  applicationId: string;
+}
+
+function NoteComposer({ applicationId }: NoteComposerProps) {
   const refresh = useRefresh();
   const [body, setBody] = useState("");
   const [tried, setTried] = useState(false);
@@ -672,7 +695,11 @@ function NoteComposer({ applicationId }: { applicationId: string }) {
   );
 }
 
-function Aside({ row }: { row: Application }) {
+interface AsideProps {
+  row: Application;
+}
+
+function Aside({ row }: AsideProps) {
   const found =
     row.matches.students.length +
     row.matches.guardians.length +
@@ -804,15 +831,13 @@ function Aside({ row }: { row: Application }) {
   );
 }
 
-function WithdrawSheet({
-  row,
-  open,
-  onOpenChange,
-}: {
+interface WithdrawSheetProps {
   row: Application;
   open: boolean;
   onOpenChange: (open: boolean) => void;
-}) {
+}
+
+function WithdrawSheet({ row, open, onOpenChange }: WithdrawSheetProps) {
   const refresh = useRefresh();
   const [reason, setReason] = useState<WithdrawReason>("family_request");
   const [note, setNote] = useState("");

@@ -98,19 +98,21 @@ const one = (row: Application) => [
 ];
 
 /** Chooses a decision for applications under review; the families hear nothing until it is released. */
+export interface DecideSheetProps {
+  applications: { id: string; expectedVersion: number }[];
+  current?: Decision | null;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  onDone?: () => void;
+}
+
 export function DecideSheet({
   applications,
   current,
   open,
   onOpenChange,
   onDone,
-}: {
-  applications: { id: string; expectedVersion: number }[];
-  current?: Decision | null;
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-  onDone?: () => void;
-}) {
+}: DecideSheetProps) {
   const refresh = useRefresh();
   const [decision, setDecision] = useState<Decision>(current ?? "offer");
   const [note, setNote] = useState("");
@@ -181,15 +183,13 @@ export function DecideSheet({
 }
 
 /** Records what a family told the office about their offer. */
-function AnswerSheet({
-  row,
-  open,
-  onOpenChange,
-}: {
+interface AnswerSheetProps {
   row: Application;
   open: boolean;
   onOpenChange: (open: boolean) => void;
-}) {
+}
+
+function AnswerSheet({ row, open, onOpenChange }: AnswerSheetProps) {
   const refresh = useRefresh();
   const [answer, setAnswer] = useState<OfferAnswer>("accept");
   const [note, setNote] = useState("");
@@ -250,15 +250,13 @@ function AnswerSheet({
 }
 
 /** Moves an application to an intake of a later year. */
-function DeferSheet({
-  row,
-  open,
-  onOpenChange,
-}: {
+interface DeferSheetProps {
   row: Application;
   open: boolean;
   onOpenChange: (open: boolean) => void;
-}) {
+}
+
+function DeferSheet({ row, open, onOpenChange }: DeferSheetProps) {
   const refresh = useRefresh();
   const [intakeId, setIntakeId] = useState(row.laterIntakes[0]?.id ?? "");
   const [note, setNote] = useState("");
@@ -324,20 +322,18 @@ function DeferSheet({
   );
 }
 
+interface EnrolSheetProps {
+  row: Application;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+}
+
 /**
  * Enrols an accepted applicant: as a new student under a reference, or as
  * the school's own student matching found, which the office confirms is
  * the same child. A summary says what enrolling does before it is done.
  */
-function EnrolSheet({
-  row,
-  open,
-  onOpenChange,
-}: {
-  row: Application;
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-}) {
+function EnrolSheet({ row, open, onOpenChange }: EnrolSheetProps) {
   const refresh = useRefresh();
   const [studentId, setStudentId] = useState("");
   const [reference, setReference] = useState(row.reference ?? "");
@@ -427,17 +423,14 @@ function EnrolSheet({
 type EventRow = Application["events"][number];
 
 /** Books a tour, assessment or interview, or moves one still to happen. */
-function EventSheet({
-  row,
-  event,
-  open,
-  onOpenChange,
-}: {
+interface EventSheetProps {
   row: Application;
   event: EventRow | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
-}) {
+}
+
+function EventSheet({ row, event, open, onOpenChange }: EventSheetProps) {
   const refresh = useRefresh();
   const team = useQuery(attendeesQuery).data ?? [];
   const steps = row.items.filter(
@@ -571,17 +564,14 @@ function EventSheet({
 }
 
 /** Records what came of an event, with the office's notes. */
-function OutcomeSheet({
-  row,
-  event,
-  open,
-  onOpenChange,
-}: {
+interface OutcomeSheetProps {
   row: Application;
   event: EventRow;
   open: boolean;
   onOpenChange: (open: boolean) => void;
-}) {
+}
+
+function OutcomeSheet({ row, event, open, onOpenChange }: OutcomeSheetProps) {
   const refresh = useRefresh();
   const [outcome, setOutcome] = useState<"attended" | "missed" | "cancelled">(
     "attended",
@@ -642,13 +632,12 @@ function OutcomeSheet({
   );
 }
 
-function LetterBody({
-  id,
-  reader,
-}: {
+interface LetterBodyProps {
   id: string;
   reader: "office" | "family";
-}) {
+}
+
+function LetterBody({ id, reader }: LetterBodyProps) {
   const letter = useSuspenseQuery(letterQuery(id, reader)).data;
   return (
     <div
@@ -662,15 +651,13 @@ function LetterBody({
 }
 
 /** A letter as the family was sent it. */
-export function LetterDialog({
-  letter,
-  reader,
-  onClose,
-}: {
+export interface LetterDialogProps {
   letter: { id: string; title: string; createdAt: string } | null;
   reader: "office" | "family";
   onClose: () => void;
-}) {
+}
+
+export function LetterDialog({ letter, reader, onClose }: LetterDialogProps) {
   return (
     <Dialog open={letter !== null} onOpenChange={(open) => !open && onClose()}>
       <DialogContent className="sm:max-w-2xl">
@@ -693,7 +680,11 @@ export function LetterDialog({
 }
 
 /** The letters the family was sent, each opened as they read it. */
-export function LettersSection({ row }: { row: Application }) {
+export interface LettersSectionProps {
+  row: Application;
+}
+
+export function LettersSection({ row }: LettersSectionProps) {
   const [open, setOpen] = useState<Application["letters"][number] | null>(null);
   return (
     <RecordSection title={m.decLettersTitle()} description={m.decLettersHint()}>
@@ -729,7 +720,11 @@ export function LettersSection({ row }: { row: Application }) {
 }
 
 /** Tours, assessments and interviews booked for the application. */
-export function EventsSection({ row }: { row: Application }) {
+export interface EventsSectionProps {
+  row: Application;
+}
+
+export function EventsSection({ row }: EventsSectionProps) {
   const [editing, setEditing] = useState<EventRow | "new" | null>(null);
   const [recording, setRecording] = useState<EventRow | null>(null);
   const open = row.manages && row.state !== "draft" && row.studentId === null;
@@ -839,7 +834,11 @@ export function EventsSection({ row }: { row: Application }) {
 }
 
 /** Where the decision stands: what was decided, whether the family knows, and the offer's days. */
-export function DecisionSection({ row }: { row: Application }) {
+export interface DecisionSectionProps {
+  row: Application;
+}
+
+export function DecisionSection({ row }: DecisionSectionProps) {
   if (!row.decision && !row.deferredFromId && !row.deferredToId) return null;
   return (
     <RecordSection title={m.decSectionTitle()}>

@@ -43,20 +43,18 @@ export const Route = createFileRoute("/_app/family/details")({
   component: FamilyDetailsPage,
 });
 
+interface CorrectionSheetProps {
+  studentId: string;
+  name: string;
+  onClose: () => void;
+}
+
 /**
  * Asks the school office to correct what it holds. The request joins the
  * office's register of records requests, which gives it a day to be
  * answered by; that day is told back once it is sent.
  */
-function CorrectionSheet({
-  studentId,
-  name,
-  onClose,
-}: {
-  studentId: string;
-  name: string;
-  onClose: () => void;
-}) {
+function CorrectionSheet({ studentId, name, onClose }: CorrectionSheetProps) {
   const [details, setDetails] = useState("");
   const [missing, setMissing] = useState(false);
   const mutation = useMutation({
@@ -109,12 +107,16 @@ function CorrectionSheet({
   );
 }
 
+interface ChildDetailsProps {
+  studentId: string;
+}
+
 /**
  * What the school holds about one child, as a guardian reads it: who the
  * child is and where they are placed, and how the school reaches this
  * guardian. A guardian who decides for the child can ask for a correction.
  */
-function ChildDetails({ studentId }: { studentId: string }) {
+function ChildDetails({ studentId }: ChildDetailsProps) {
   const user = useCurrentUser();
   const child = useSuspenseQuery(childDetailsQuery(studentId)).data;
   const me = useSuspenseQuery(personRecordQuery(user.id)).data;

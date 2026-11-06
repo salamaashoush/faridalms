@@ -11,16 +11,16 @@ const EVERY_MS = 300;
 /** A badge still in front of the camera is not read twice in this time. */
 const AGAIN_MS = 5000;
 
+export interface BadgeCameraProps {
+  onBadge: (secret: string) => void;
+}
+
 /**
  * A camera a child holds their badge up to. It reads each badge once while
  * it stays in view and hands its secret on; the front camera faces a
  * classroom board's children, and the back one serves a teacher's tablet.
  */
-export function BadgeCamera({
-  onBadge,
-}: {
-  onBadge: (secret: string) => void;
-}) {
+export function BadgeCamera({ onBadge }: BadgeCameraProps) {
   const video = useRef<HTMLVideoElement>(null);
   const [facing, setFacing] = useState<"user" | "environment">("user");
   const [failed, setFailed] = useState(false);

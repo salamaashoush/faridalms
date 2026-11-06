@@ -111,17 +111,14 @@ type DraftRow = Awaited<
 const marker =
   "shrink-0 rounded-sm bg-muted px-1.5 text-[11px] leading-[18px] font-medium";
 
-function ThreadItem({
-  row,
-  selected,
-  today,
-  onOpen,
-}: {
+interface ThreadItemProps {
   row: Row;
   selected: boolean;
   today: string;
   onOpen: () => void;
-}) {
+}
+
+function ThreadItem({ row, selected, today, onOpen }: ThreadItemProps) {
   const people = row.mailbox
     ? row.others.filter((other) => other.userId !== row.owner?.userId)
     : row.others;
@@ -234,15 +231,13 @@ function ThreadItem({
   );
 }
 
-function MoreButton({
-  label,
-  pending,
-  onMore,
-}: {
+interface MoreButtonProps {
   label: string;
   pending: boolean;
   onMore: () => void;
-}) {
+}
+
+function MoreButton({ label, pending, onMore }: MoreButtonProps) {
   return (
     <div className="flex justify-center border-t p-3">
       <Button
@@ -276,17 +271,14 @@ function draftTitle(row: DraftRow) {
   return m.msgDraftNoOne();
 }
 
-function DraftItem({
-  row,
-  today,
-  onOpen,
-  onDelete,
-}: {
+interface DraftItemProps {
   row: DraftRow;
   today: string;
   onOpen: () => void;
   onDelete: () => void;
-}) {
+}
+
+function DraftItem({ row, today, onOpen, onDelete }: DraftItemProps) {
   const title = draftTitle(row);
   return (
     <li className="flex items-stretch">
@@ -342,11 +334,11 @@ function DraftItem({
   );
 }
 
-function DraftList({
-  onSearch,
-}: {
+interface DraftListProps {
   onSearch: (change: Partial<MessagesSearch>) => void;
-}) {
+}
+
+function DraftList({ onSearch }: DraftListProps) {
   const user = useCurrentUser();
   const queryClient = useQueryClient();
   const drafts = useSuspenseInfiniteQuery(draftsQuery);
@@ -418,13 +410,12 @@ function DraftList({
   );
 }
 
-function ThreadList({
-  search,
-  onSearch,
-}: {
+interface ThreadListProps {
   search: MessagesSearch;
   onSearch: (change: Partial<MessagesSearch>) => void;
-}) {
+}
+
+function ThreadList({ search, onSearch }: ThreadListProps) {
   const user = useCurrentUser();
   const inbox = useSuspenseInfiniteQuery(inboxQuery(inboxOf(search)));
   const first = inbox.data.pages[0];
@@ -589,17 +580,16 @@ function ComposeSheet({
   );
 }
 
+export interface MessagesPageProps {
+  search: MessagesSearch;
+  onSearch: (change: Partial<MessagesSearch>, replace?: boolean) => void;
+}
+
 /**
  * Conversations beside the open one from 1024px; below that the list and the
  * conversation take the screen in turn.
  */
-export function MessagesPage({
-  search,
-  onSearch,
-}: {
-  search: MessagesSearch;
-  onSearch: (change: Partial<MessagesSearch>, replace?: boolean) => void;
-}) {
+export function MessagesPage({ search, onSearch }: MessagesPageProps) {
   const inbox = useSuspenseInfiniteQuery(inboxQuery(inboxOf(search))).data
     .pages[0];
   const open = search.thread !== "";

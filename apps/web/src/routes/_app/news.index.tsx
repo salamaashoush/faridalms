@@ -77,13 +77,12 @@ const TAB_LABEL: Record<Tab, () => string> = {
 const titleOf = (row: { titleEn: string; titleAr: string }) =>
   inLocale(row.titleEn || null, row.titleAr || null);
 
-function Latest({
-  search,
-  onPage,
-}: {
+interface LatestProps {
   search: NewsSearch;
   onPage: (page: number) => void;
-}) {
+}
+
+function Latest({ search, onPage }: LatestProps) {
   const { rows, page, pages, total, pageSize } = useSuspenseQuery(
     newsQuery(latestOf(search)),
   ).data;

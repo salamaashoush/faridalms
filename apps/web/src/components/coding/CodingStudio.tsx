@@ -29,21 +29,7 @@ const STUDIO_FITS = "(min-width: 1024px)";
 
 export type SaveState = "idle" | "saving" | "saved" | "failed";
 
-/**
- * The coding studio over the page: the block-coding editor runs in a frame
- * on its own domain, and this page keeps the project. A project is saved
- * some seconds after the last change, and always before the studio closes,
- * so a child's work is never lost to a closed tab or a stray Escape.
- */
-export function CodingStudio({
-  projectUrl,
-  mode,
-  title,
-  onSave,
-  begun = false,
-  action,
-  onClose,
-}: {
+export interface CodingStudioProps {
   /** Where the project to open is read from; none opens the studio's starter. */
   projectUrl: string | null;
   mode: "editor" | "player";
@@ -58,7 +44,23 @@ export function CodingStudio({
   /** Something to do with a project only looked at, beside its way out. */
   action?: { label: string; onSelect: () => void };
   onClose: () => void;
-}) {
+}
+
+/**
+ * The coding studio over the page: the block-coding editor runs in a frame
+ * on its own domain, and this page keeps the project. A project is saved
+ * some seconds after the last change, and always before the studio closes,
+ * so a child's work is never lost to a closed tab or a stray Escape.
+ */
+export function CodingStudio({
+  projectUrl,
+  mode,
+  title,
+  onSave,
+  begun = false,
+  action,
+  onClose,
+}: CodingStudioProps) {
   const done = useRef<HTMLButtonElement>(null);
   const wide = useMedia(STUDIO_FITS);
   // Once the studio is open it stays, so turning a tablet never loses work.
@@ -237,7 +239,11 @@ export function CodingStudio({
   );
 }
 
-export function SaveStatus({ state }: { state: SaveState }) {
+export interface SaveStatusProps {
+  state: SaveState;
+}
+
+export function SaveStatus({ state }: SaveStatusProps) {
   if (state === "saving")
     return (
       <span className="text-[13px] text-muted-foreground" aria-live="polite">

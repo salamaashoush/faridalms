@@ -5,19 +5,17 @@ import { TriangleAlert } from "lucide-react";
 import { fileSizeLabel } from "~/components/system/FileList";
 import * as m from "~/i18n/messages";
 
+export interface UsageBarProps {
+  usedBytes: number;
+  limitBytes: number;
+  className?: string;
+}
+
 /**
  * How full a storage limit is, warning once it passes the warning share. The
  * bar only draws what the line above it says.
  */
-export function UsageBar({
-  usedBytes,
-  limitBytes,
-  className,
-}: {
-  usedBytes: number;
-  limitBytes: number;
-  className?: string;
-}) {
+export function UsageBar({ usedBytes, limitBytes, className }: UsageBarProps) {
   const share = limitBytes > 0 ? usedBytes / limitBytes : 1;
   const nearly = share >= WARN_SHARE;
   const label = m.filesUsage({

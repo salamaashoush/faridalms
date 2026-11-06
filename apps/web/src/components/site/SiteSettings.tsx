@@ -76,7 +76,11 @@ const GROUPS = {
 } as const satisfies Record<string, readonly (keyof Draft)[]>;
 
 /** The website as a whole: whether it is live, its languages, links and banner. */
-export function SiteSettings({ settings }: { settings: Settings }) {
+export interface SiteSettingsProps {
+  settings: Settings;
+}
+
+export function SiteSettings({ settings }: SiteSettingsProps) {
   const queryClient = useQueryClient();
   const initial = draftOf(settings);
   const [draft, setDraft] = useState(initial);

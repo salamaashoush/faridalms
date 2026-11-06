@@ -81,22 +81,19 @@ export function entryTitle(
   return ENTRY_LABEL[kind]();
 }
 
+export interface NameLinkProps {
+  userId: string | null;
+  link: RecordLink;
+  children: ReactNode;
+  className?: string;
+}
+
 /**
  * A name in a conversation, leading to the student's record, the person's
  * record or their profile as far as the server says the viewer reaches
  * them, and plain text everywhere else.
  */
-export function NameLink({
-  userId,
-  link,
-  children,
-  className,
-}: {
-  userId: string | null;
-  link: RecordLink;
-  children: ReactNode;
-  className?: string;
-}) {
+export function NameLink({ userId, link, children, className }: NameLinkProps) {
   const style = cn(
     "underline-offset-2 hover:underline focus-visible:underline",
     className,

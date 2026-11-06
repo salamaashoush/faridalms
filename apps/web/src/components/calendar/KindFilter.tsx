@@ -17,6 +17,13 @@ import { formatNumber } from "~/utils/datetime";
 import { CATEGORY_LABEL } from "./format";
 import { CategoryIcon } from "./views";
 
+export interface KindFilterProps {
+  categories: readonly ShownCategory[];
+  hidden: ReadonlySet<ShownCategory>;
+  onToggle: (category: ShownCategory) => void;
+  onShowAll: () => void;
+}
+
 /**
  * The kinds of event to show, as one button on a phone where the legend's
  * chips would not fit on a line.
@@ -26,12 +33,7 @@ export function KindFilter({
   hidden,
   onToggle,
   onShowAll,
-}: {
-  categories: readonly ShownCategory[];
-  hidden: ReadonlySet<ShownCategory>;
-  onToggle: (category: ShownCategory) => void;
-  onShowAll: () => void;
-}) {
+}: KindFilterProps) {
   const total = categories.length;
   return (
     <DropdownMenu>

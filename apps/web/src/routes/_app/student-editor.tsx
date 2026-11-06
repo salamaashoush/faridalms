@@ -54,7 +54,11 @@ function EditorTrail() {
   );
 }
 
-function EditTrail({ studentId }: { studentId: string }) {
+interface EditTrailProps {
+  studentId: string;
+}
+
+function EditTrail({ studentId }: EditTrailProps) {
   const record = useSuspenseQuery(studentRecordQuery(studentId)).data;
   return (
     <>

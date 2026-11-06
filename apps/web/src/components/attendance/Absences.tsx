@@ -36,7 +36,11 @@ type Data = Awaited<
 >;
 type Row = Data["rows"][number];
 
-function StudentLink({ row }: { row: Row }) {
+interface StudentLinkProps {
+  row: Row;
+}
+
+function StudentLink({ row }: StudentLinkProps) {
   return (
     <RowLink
       to="/students/$studentId"
@@ -48,7 +52,11 @@ function StudentLink({ row }: { row: Row }) {
   );
 }
 
-function Mark({ row }: { row: Row }) {
+interface MarkProps {
+  row: Row;
+}
+
+function Mark({ row }: MarkProps) {
   return (
     <StatusText tone={MEANING_TONE[row.meaning]}>{markText(row)}</StatusText>
   );
@@ -65,7 +73,12 @@ function where(row: Row) {
   ].join(" · ");
 }
 
-function Reason({ row, reasons }: { row: Row; reasons: Data["reasons"] }) {
+interface ReasonProps {
+  row: Row;
+  reasons: Data["reasons"];
+}
+
+function Reason({ row, reasons }: ReasonProps) {
   const reason = reasons.find((entry) => entry.id === row.reasonId);
   if (reason) return <span>{labelOf(reason)}</span>;
   if (row.meaning === "absent" || row.meaning === "late")
@@ -104,15 +117,13 @@ function excusable(row: Row) {
   return row.meaning === "absent" || (row.meaning === "late" && !row.reasonId);
 }
 
-function ExcuseSheet({
-  rows,
-  reasons,
-  onClose,
-}: {
+interface ExcuseSheetProps {
   rows: Row[];
   reasons: Data["reasons"];
   onClose: () => void;
-}) {
+}
+
+function ExcuseSheet({ rows, reasons, onClose }: ExcuseSheetProps) {
   const queryClient = useQueryClient();
   const [reasonId, setReasonId] = useState(reasons[0]?.id ?? "");
   const [note, setNote] = useState("");
@@ -175,13 +186,12 @@ function ExcuseSheet({
   );
 }
 
-export function Absences({
-  query,
-  onChange,
-}: {
+export interface AbsencesProps {
   query: AbsencesQuery;
   onChange: (change: Partial<AbsencesQuery>) => void;
-}) {
+}
+
+export function Absences({ query, onChange }: AbsencesProps) {
   const data = useSuspenseQuery(absencesQuery(query)).data;
   const [excusing, setExcusing] = useState<Row[] | null>(null);
   const showFacet: Facet = {

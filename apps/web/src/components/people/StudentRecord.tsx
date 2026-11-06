@@ -178,13 +178,12 @@ function useLabels() {
   };
 }
 
-function PersonalSection({
-  data,
-  onEdit,
-}: {
+interface PersonalSectionProps {
   data: StudentData;
   onEdit?: () => void;
-}) {
+}
+
+function PersonalSection({ data, onEdit }: PersonalSectionProps) {
   const labels = useLabels();
   const age = ageOn(data.birthDate, data.today);
   return (
@@ -219,13 +218,12 @@ function PersonalSection({
   );
 }
 
-function PlacementSection({
-  data,
-  onEdit,
-}: {
+interface PlacementSectionProps {
   data: StudentData;
   onEdit?: () => void;
-}) {
+}
+
+function PlacementSection({ data, onEdit }: PlacementSectionProps) {
   const labels = useLabels();
   const placement = data.placement;
   return (
@@ -252,17 +250,16 @@ function PlacementSection({
   );
 }
 
+interface ArrivalSectionProps {
+  data: StudentData;
+  onEdit?: () => void;
+}
+
 /**
  * How a student came to the school, from their first placement here: the
  * day, as what kind of entrant, and the school they came from.
  */
-function ArrivalSection({
-  data,
-  onEdit,
-}: {
-  data: StudentData;
-  onEdit?: () => void;
-}) {
+function ArrivalSection({ data, onEdit }: ArrivalSectionProps) {
   const labels = useLabels();
   const first = data.placements.at(-1);
   if (!first) return null;
@@ -286,11 +283,15 @@ function ArrivalSection({
   );
 }
 
+interface DepartureSectionProps {
+  data: StudentData;
+}
+
 /**
  * How a student left: their last day, why, where they went, and the day
  * they and their family stop reading the record.
  */
-function DepartureSection({ data }: { data: StudentData }) {
+function DepartureSection({ data }: DepartureSectionProps) {
   const labels = useLabels();
   const [latest] = data.placements;
   if (!latest?.exitTypeId) return null;
@@ -312,13 +313,12 @@ function DepartureSection({ data }: { data: StudentData }) {
   );
 }
 
-function GuardianItem({
-  guardian,
-  actions,
-}: {
+interface GuardianItemProps {
   guardian: Guardian;
   actions?: ReactNode;
-}) {
+}
+
+function GuardianItem({ guardian, actions }: GuardianItemProps) {
   const labels = useLabels();
   const phone = guardian.contacts.find((contact) => contact.kind === "phone");
   const email = guardian.contacts.find((contact) => contact.kind === "email");
@@ -377,15 +377,13 @@ function GuardianItem({
   );
 }
 
-function GuardiansSection({
-  data,
-  onAdd,
-  itemActions,
-}: {
+interface GuardiansSectionProps {
   data: StudentData;
   onAdd?: () => void;
   itemActions?: (guardian: Guardian) => ReactNode;
-}) {
+}
+
+function GuardiansSection({ data, onAdd, itemActions }: GuardiansSectionProps) {
   const guardians = data.guardians ?? [];
   return (
     <RecordSection
@@ -422,7 +420,11 @@ function GuardiansSection({
 }
 
 /** Students who share a parent or guardian with this one. */
-function SiblingsSection({ studentId }: { studentId: string }) {
+interface SiblingsSectionProps {
+  studentId: string;
+}
+
+function SiblingsSection({ studentId }: SiblingsSectionProps) {
   const siblings = useSuspenseQuery(siblingsQuery(studentId)).data;
   return (
     <RecordSection title={m.siblingsTitle()} description={m.siblingsHint()}>
@@ -458,7 +460,11 @@ function SiblingsSection({ studentId }: { studentId: string }) {
   );
 }
 
-function EnrollmentHistory({ data }: { data: StudentData }) {
+interface EnrollmentHistoryProps {
+  data: StudentData;
+}
+
+function EnrollmentHistory({ data }: EnrollmentHistoryProps) {
   const labels = useLabels();
   return (
     <RecordSection
@@ -522,9 +528,21 @@ function EnrollmentHistory({ data }: { data: StudentData }) {
   );
 }
 
-function StudentHistory({ studentId }: { studentId: string }) {
+interface StudentHistoryProps {
+  studentId: string;
+}
+
+function StudentHistory({ studentId }: StudentHistoryProps) {
   const feed = useSuspenseInfiniteQuery(studentHistoryQuery(studentId));
   return <HistoryFeed feed={feed} />;
+}
+
+export interface StudentRecordProps {
+  studentId: string;
+  tab: StudentTab;
+  onTab: (tab: StudentTab) => void;
+  /** Opens a conversation begun from here with the student's guardians. */
+  onConversation?: (threadId: string) => void;
 }
 
 export function StudentRecord({
@@ -532,13 +550,7 @@ export function StudentRecord({
   tab,
   onTab,
   onConversation,
-}: {
-  studentId: string;
-  tab: StudentTab;
-  onTab: (tab: StudentTab) => void;
-  /** Opens a conversation begun from here with the student's guardians. */
-  onConversation?: (threadId: string) => void;
-}) {
+}: StudentRecordProps) {
   const data = useSuspenseQuery(studentRecordQuery(studentId)).data;
   const queryClient = useQueryClient();
   const [photoOpen, setPhotoOpen] = useState(false);
@@ -1020,17 +1032,19 @@ export function StudentRecord({
   );
 }
 
+interface GuardianMenuProps {
+  guardian: Guardian;
+  onEdit: () => void;
+  onContacts: () => void;
+  onEnd: () => Promise<void>;
+}
+
 function GuardianMenu({
   guardian,
   onEdit,
   onContacts,
   onEnd,
-}: {
-  guardian: Guardian;
-  onEdit: () => void;
-  onContacts: () => void;
-  onEnd: () => Promise<void>;
-}) {
+}: GuardianMenuProps) {
   const name = displayName(guardian);
   return (
     <ActionMenu

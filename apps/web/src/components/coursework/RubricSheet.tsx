@@ -100,6 +100,18 @@ function rubricOf(criteria: readonly CriterionDraft[]): Rubric | null {
   return parsed.success ? parsed.output : null;
 }
 
+export interface RubricSheetProps {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  rubric: Rubric | null;
+  /** The teacher's own rubric it began as, which saving changes too. */
+  kept: { id: string; title: string } | null;
+  /** The rubric written, and the id it is kept under, or empty. */
+  onUse: (rubric: Rubric, keptId: string) => void;
+  /** The rubric it began as is no longer among the teacher's own. */
+  onForget: () => void;
+}
+
 /**
  * Writes the rubric a piece of work is graded by: criteria, each with the
  * levels a grader chooses between, their points and what work at each
@@ -113,17 +125,7 @@ export function RubricSheet({
   kept,
   onUse,
   onForget,
-}: {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-  rubric: Rubric | null;
-  /** The teacher's own rubric it began as, which saving changes too. */
-  kept: { id: string; title: string } | null;
-  /** The rubric written, and the id it is kept under, or empty. */
-  onUse: (rubric: Rubric, keptId: string) => void;
-  /** The rubric it began as is no longer among the teacher's own. */
-  onForget: () => void;
-}) {
+}: RubricSheetProps) {
   const queryClient = useQueryClient();
   const [criteria, setCriteria] = useState(() => draftOf(rubric));
   const [keep, setKeep] = useState(false);

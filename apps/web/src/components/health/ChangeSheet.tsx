@@ -70,6 +70,13 @@ const REFUSED: Partial<Record<string, Field>> = {
 const isField = (key: string): key is Field =>
   key === "text" || key === "severity" || key === "phone" || key === "report";
 
+export interface ChangeSheetProps {
+  studentId: string;
+  name: string;
+  asking: Asking;
+  onClose: () => void;
+}
+
 /**
  * Asks the school to add or change one entry of a child's medical summary.
  * What is sent waits for the school's health staff; the summary shows it
@@ -80,12 +87,7 @@ export function ChangeSheet({
   name,
   asking,
   onClose,
-}: {
-  studentId: string;
-  name: string;
-  asking: Asking;
-  onClose: () => void;
-}) {
+}: ChangeSheetProps) {
   const queryClient = useQueryClient();
   const record = asking.target === "record" ? asking.record : null;
   const [text, setText] = useState(record?.text ?? "");

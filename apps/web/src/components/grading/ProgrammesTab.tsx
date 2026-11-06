@@ -103,17 +103,19 @@ function programmeCard(names: ReturnType<typeof useNames>) {
   };
 }
 
+export interface ProgrammesTableProps {
+  overview: GradingOverview;
+  onAdd: () => void;
+  onEdit: (row: ProgrammeRow) => void;
+  onRetire: (row: ProgrammeRow) => void;
+}
+
 export function ProgrammesTable({
   overview,
   onAdd,
   onEdit,
   onRetire,
-}: {
-  overview: GradingOverview;
-  onAdd: () => void;
-  onEdit: (row: ProgrammeRow) => void;
-  onRetire: (row: ProgrammeRow) => void;
-}) {
+}: ProgrammesTableProps) {
   const names = useNames(overview);
   const rowActions = (row: ProgrammeRow): RowAction[] => [
     {
@@ -158,6 +160,13 @@ interface CategoryDraft {
   weight: string;
 }
 
+interface CategoriesEditorProps {
+  value: CategoryDraft[];
+  onChange: (value: CategoryDraft[]) => void;
+  total: number;
+  problem: string | null;
+}
+
 /**
  * How the programme's work weighs in a term grade. Weights add up to 100;
  * with none, every piece of work counts by its points.
@@ -167,12 +176,7 @@ function CategoriesEditor({
   onChange,
   total,
   problem,
-}: {
-  value: CategoryDraft[];
-  onChange: (value: CategoryDraft[]) => void;
-  total: number;
-  problem: string | null;
-}) {
+}: CategoriesEditorProps) {
   const set = (key: string, change: Partial<CategoryDraft>) =>
     onChange(
       value.map((row) => (row.key === key ? { ...row, ...change } : row)),
@@ -280,17 +284,19 @@ function CategoriesEditor({
   );
 }
 
+export interface ProgrammeSheetProps {
+  open: boolean;
+  programme?: ProgrammeRow;
+  overview: GradingOverview;
+  onClose: () => void;
+}
+
 export function ProgrammeSheet({
   open,
   programme,
   overview,
   onClose,
-}: {
-  open: boolean;
-  programme?: ProgrammeRow;
-  overview: GradingOverview;
-  onClose: () => void;
-}) {
+}: ProgrammeSheetProps) {
   const queryClient = useQueryClient();
   const names = useNames(overview);
   const [titleEn, setTitleEn] = useState(programme?.titleEn ?? "");
@@ -462,15 +468,17 @@ export function ProgrammeSheet({
   );
 }
 
+export interface RetireProgrammeDialogProps {
+  open: boolean;
+  programme: ProgrammeRow;
+  onClose: () => void;
+}
+
 export function RetireProgrammeDialog({
   open,
   programme,
   onClose,
-}: {
-  open: boolean;
-  programme: ProgrammeRow;
-  onClose: () => void;
-}) {
+}: RetireProgrammeDialogProps) {
   const queryClient = useQueryClient();
   const mutation = useMutation({
     mutationFn: () => retireProgramme({ data: { id: programme.id } }),

@@ -62,7 +62,12 @@ function download(data: Data, timeZone: string) {
   URL.revokeObjectURL(link.href);
 }
 
-function Property({ label, children }: { label: string; children: ReactNode }) {
+interface PropertyProps {
+  label: string;
+  children: ReactNode;
+}
+
+function Property({ label, children }: PropertyProps) {
   return (
     <>
       <dt className="text-[13px] leading-5 text-muted-foreground">{label}</dt>
@@ -179,7 +184,12 @@ function useEventActions(data: Data, onClose: () => void) {
   return { publish, addToCalendar, menu };
 }
 
-function EventFooter({ data, onClose }: { data: Data; onClose: () => void }) {
+interface EventFooterProps {
+  data: Data;
+  onClose: () => void;
+}
+
+function EventFooter({ data, onClose }: EventFooterProps) {
   const navigate = useNavigate();
   const { publish, addToCalendar, menu } = useEventActions(data, onClose);
   const printing = usePrint({
@@ -246,7 +256,11 @@ function EventFooter({ data, onClose }: { data: Data; onClose: () => void }) {
   );
 }
 
-function EventContext({ data }: { data: Data }) {
+interface EventContextProps {
+  data: Data;
+}
+
+function EventContext({ data }: EventContextProps) {
   return (
     <>
       <span className="inline-flex items-center gap-1.5 text-[13px] leading-5 text-muted-foreground">
@@ -264,7 +278,11 @@ function EventContext({ data }: { data: Data }) {
   );
 }
 
-function EventBody({ data }: { data: Data }) {
+interface EventBodyProps {
+  data: Data;
+}
+
+function EventBody({ data }: EventBodyProps) {
   const user = useCurrentUser();
   const viewer: ContentLocale = getLocale() === "ar" ? "ar" : "en";
   const [locale, setLocale] = useState<ContentLocale>(
@@ -328,17 +346,16 @@ function EventBody({ data }: { data: Data }) {
   );
 }
 
+export interface EventSheetProps {
+  eventId: string | null;
+  onClose: () => void;
+}
+
 /**
  * An event opened over the calendar it belongs to, so reading one never
  * loses the month behind it. Its address can be shared and reopens here.
  */
-export function EventSheet({
-  eventId,
-  onClose,
-}: {
-  eventId: string | null;
-  onClose: () => void;
-}) {
+export function EventSheet({ eventId, onClose }: EventSheetProps) {
   // The last event shown stays while the panel slides shut.
   const [shown, setShown] = useState(eventId);
   if (eventId !== null && eventId !== shown) setShown(eventId);

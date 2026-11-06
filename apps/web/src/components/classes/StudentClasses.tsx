@@ -34,7 +34,11 @@ export interface Homeroom {
 }
 
 /** The teachers who keep a student's class, each opening their record. */
-export function HomeroomTeachers({ homeroom }: { homeroom: Homeroom }) {
+export interface HomeroomTeachersProps {
+  homeroom: Homeroom;
+}
+
+export function HomeroomTeachers({ homeroom }: HomeroomTeachersProps) {
   return (
     <span>
       {homeroom.teachers.map((teacher, index) => (
@@ -75,20 +79,18 @@ function useSeat(studentId: string, today: string) {
   return { episodes, current, year, closed: year?.lifecycle === "closed" };
 }
 
+export interface MoveStudentProps {
+  student: { id: string; name: string };
+  today: string;
+  onClose: () => void;
+}
+
 /**
  * Moves a student to another class from anywhere on their record: the
  * sheet their classes open, with what it needs read here. Nothing opens
  * where the year takes no moves.
  */
-export function MoveStudent({
-  student,
-  today,
-  onClose,
-}: {
-  student: { id: string; name: string };
-  today: string;
-  onClose: () => void;
-}) {
+export function MoveStudent({ student, today, onClose }: MoveStudentProps) {
   const { current, year, closed } = useSeat(student.id, today);
   if (!year || closed) return null;
   return (
@@ -105,17 +107,19 @@ export function MoveStudent({
   );
 }
 
+export interface StudentClassesProps {
+  student: { id: string; name: string };
+  today: string;
+  manage: boolean;
+  homeroom: Homeroom | null;
+}
+
 export function StudentClasses({
   student,
   today,
   manage,
   homeroom,
-}: {
-  student: { id: string; name: string };
-  today: string;
-  manage: boolean;
-  homeroom: Homeroom | null;
-}) {
+}: StudentClassesProps) {
   const { episodes, current, year, closed } = useSeat(student.id, today);
   const [sheet, setSheet] = useState<{ which: Sheet; key: number }>({
     which: null,

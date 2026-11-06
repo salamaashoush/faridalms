@@ -146,11 +146,15 @@ export function FeaturesCard() {
   );
 }
 
+interface AskAboutProps {
+  module: ModuleId;
+}
+
 /**
  * Asks the platform about a module the plan does not have: the business
  * hears of it as a lead and gets in touch.
  */
-function AskAbout({ module }: { module: ModuleId }) {
+function AskAbout({ module }: AskAboutProps) {
   const ask = useMutation({
     mutationFn: () => askAboutModule({ data: { module } }),
     meta: { inlineError: true },

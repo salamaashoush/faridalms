@@ -74,7 +74,12 @@ const whenLabel = (when: string) =>
   when.length === 10 ? formatDate(when) : formatInstant(when, "date");
 
 /** The query's words marked in a title, matched without regard to case. */
-function Marked({ text, q }: { text: string; q: string }) {
+interface MarkedProps {
+  text: string;
+  q: string;
+}
+
+function Marked({ text, q }: MarkedProps) {
   const words = q
     .toLocaleLowerCase()
     .split(/\s+/)
@@ -106,7 +111,11 @@ function Marked({ text, q }: { text: string; q: string }) {
   return parts;
 }
 
-function Snippet({ snippet }: { snippet: string }) {
+interface SnippetProps {
+  snippet: string;
+}
+
+function Snippet({ snippet }: SnippetProps) {
   let offset = 0;
   return matchedRuns(snippet).map((run) => {
     const at = offset;
@@ -124,15 +133,13 @@ function Snippet({ snippet }: { snippet: string }) {
   });
 }
 
-function HitBody({
-  hit,
-  q,
-  icon: Icon,
-}: {
+interface HitBodyProps {
   hit: SearchHit;
   q: string;
   icon: LucideIcon;
-}) {
+}
+
+function HitBody({ hit, q, icon: Icon }: HitBodyProps) {
   const context =
     hit.roles.length > 0 ? formatList(hit.roles.map(roleLabel)) : hit.context;
   return (
@@ -177,19 +184,21 @@ function HitBody({
 }
 
 /** A result, linked to the page it opens for this workspace. */
+export interface HitLinkProps {
+  hit: SearchHit;
+  q: string;
+  workspace: Workspace;
+  onNavigate?: (hit: SearchHit) => void;
+  className?: string;
+}
+
 export function HitLink({
   hit,
   q,
   workspace,
   onNavigate,
   className,
-}: {
-  hit: SearchHit;
-  q: string;
-  workspace: Workspace;
-  onNavigate?: (hit: SearchHit) => void;
-  className?: string;
-}) {
+}: HitLinkProps) {
   const shared = {
     className: cn(HIT_ROW, className),
     onClick: () => onNavigate?.(hit),
@@ -273,18 +282,20 @@ export function HitLink({
 }
 
 /** Results grouped by kind, each group ending in a way to all of its kind when there is more. */
-export function SearchResults({
-  groups,
-  q,
-  onNavigate,
-  onMore,
-}: {
+export interface SearchResultsProps {
   groups: SearchGroup[];
   q: string;
   onNavigate?: (hit: SearchHit) => void;
   /** Opens every result of one kind; without it the group links to the search page. */
   onMore?: (kind: SearchKind) => void;
-}) {
+}
+
+export function SearchResults({
+  groups,
+  q,
+  onNavigate,
+  onMore,
+}: SearchResultsProps) {
   const user = useCurrentUser();
   return (
     <div className="grid gap-4">

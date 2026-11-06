@@ -24,6 +24,12 @@ type Spelling = Extract<StudentBlock, { type: "spelling" }>;
 const tile =
   "grid min-h-20 min-w-20 touch-manipulation place-items-center rounded-2xl border-2 bg-card px-4 text-4xl font-bold shadow-sm outline-none select-none focus-visible:ring-4 focus-visible:ring-ring/50";
 
+export interface YoungSpellingProps {
+  block: Spelling;
+  view: CheckView | undefined;
+  driver: CheckDriver;
+}
+
 /**
  * Building a word from tiles: each tap puts a tile in the next empty place
  * and a tap on a placed tile takes it back. Once every place is filled the
@@ -31,15 +37,7 @@ const tile =
  * built word is drawn as one run, so Arabic letters join as they would be
  * written rather than standing apart.
  */
-export function YoungSpelling({
-  block,
-  view,
-  driver,
-}: {
-  block: Spelling;
-  view: CheckView | undefined;
-  driver: CheckDriver;
-}) {
+export function YoungSpelling({ block, view, driver }: YoungSpellingProps) {
   const settled = Boolean(view && (view.correct || view.revealed));
   const [placed, setPlaced] = useState<(string | null)[]>(() =>
     Array.from({ length: block.places }, () => null),

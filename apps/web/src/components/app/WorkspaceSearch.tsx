@@ -45,7 +45,12 @@ function readRecent(userId: string): SearchHit[] {
   }
 }
 
-function SectionTitle({ id, children }: { id: string; children: string }) {
+interface SectionTitleProps {
+  id: string;
+  children: string;
+}
+
+function SectionTitle({ id, children }: SectionTitleProps) {
   return (
     <h3
       id={id}
@@ -56,7 +61,11 @@ function SectionTitle({ id, children }: { id: string; children: string }) {
   );
 }
 
-function Key({ children }: { children: string }) {
+interface KeyProps {
+  children: string;
+}
+
+function Key({ children }: KeyProps) {
   return (
     <kbd className="rounded border bg-muted px-1 font-sans text-[11px] leading-4 text-foreground">
       {children}
@@ -64,16 +73,16 @@ function Key({ children }: { children: string }) {
   );
 }
 
+export interface WorkspaceSearchProps {
+  variant?: "bar" | "sidebar";
+}
+
 /**
  * Search across what the viewer may open, from anywhere (Ctrl/Cmd+K). Before
  * anything is typed it offers what they opened lately and the pages of their
  * workspace; Enter opens every result on the search page.
  */
-export function WorkspaceSearch({
-  variant = "bar",
-}: {
-  variant?: "bar" | "sidebar";
-}) {
+export function WorkspaceSearch({ variant = "bar" }: WorkspaceSearchProps) {
   const hydrated = useHydrated();
   const user = useCurrentUser();
   const navigate = useNavigate();

@@ -17,7 +17,11 @@ type Row = Data["purposes"][number];
 
 const labelOf = (row: Row) => inLocale(row.labelEn, row.labelAr) || row.code;
 
-function Purpose({ row }: { row: Row }) {
+interface PurposeProps {
+  row: Row;
+}
+
+function Purpose({ row }: PurposeProps) {
   return (
     <RowLink to="/consent-form-editor" search={{ purpose: row.id }}>
       {labelOf(row)}
@@ -25,7 +29,11 @@ function Purpose({ row }: { row: Row }) {
   );
 }
 
-function FormState({ row }: { row: Row }) {
+interface FormStateProps {
+  row: Row;
+}
+
+function FormState({ row }: FormStateProps) {
   if (!row.published)
     return (
       <StatusText tone={row.draftId ? "info" : "warning"}>

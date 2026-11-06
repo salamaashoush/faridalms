@@ -41,7 +41,11 @@ export type InboxView = "waiting" | "all";
 const studentOf = (row: Report) =>
   inLocale(row.studentNameEn, row.studentNameAr);
 
-function Decision({ row }: { row: Report }) {
+interface DecisionProps {
+  row: Report;
+}
+
+function Decision({ row }: DecisionProps) {
   return (
     <StatusText tone={DECISION_TONE[row.decision]}>
       {row.decision === "pending"
@@ -51,7 +55,11 @@ function Decision({ row }: { row: Report }) {
   );
 }
 
-function Detail({ row }: { row: Report }) {
+interface DetailProps {
+  row: Report;
+}
+
+function Detail({ row }: DetailProps) {
   return (
     <span className="grid gap-0.5">
       <span>{reasonOf(row)}</span>
@@ -109,18 +117,17 @@ const card = {
   fact: (row: Report) => `${reportWhat(row)} · ${reasonOf(row)}`,
 };
 
+export interface ReportInboxProps {
+  view: InboxView;
+  onView: (view: InboxView) => void;
+}
+
 /**
  * What families have reported, for the office to accept or decline: an
  * accepted absence gives the marks on its days their reason, before or
  * after the registers are taken.
  */
-export function ReportInbox({
-  view,
-  onView,
-}: {
-  view: InboxView;
-  onView: (view: InboxView) => void;
-}) {
+export function ReportInbox({ view, onView }: ReportInboxProps) {
   const data = useSuspenseQuery(
     absenceReportInboxQuery(view === "waiting"),
   ).data;
@@ -200,15 +207,13 @@ export function ReportInbox({
   );
 }
 
-function DeclineSheet({
-  report,
-  onClose,
-  onDone,
-}: {
+interface DeclineSheetProps {
   report: Report;
   onClose: () => void;
   onDone: () => Promise<unknown>;
-}) {
+}
+
+function DeclineSheet({ report, onClose, onDone }: DeclineSheetProps) {
   const decide = useServerFn(decideAbsenceReport);
   const [note, setNote] = useState("");
   const save = useMutation({

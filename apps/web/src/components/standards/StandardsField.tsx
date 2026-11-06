@@ -13,6 +13,14 @@ type Known = { code: string; statement: string };
 const labelOf = (standard: Known) =>
   standard.code ? `${standard.code} ${standard.statement}` : standard.statement;
 
+export interface StandardsFieldProps {
+  label: string;
+  hint?: string;
+  value: readonly string[];
+  onChange: (value: string[]) => void;
+  max?: number;
+}
+
 /**
  * The school's standards something counts toward: those chosen, each with
  * its code and statement, then a search over every framework to add more.
@@ -23,13 +31,7 @@ export function StandardsField({
   value,
   onChange,
   max = MAX_QUESTION_STANDARDS,
-}: {
-  label: string;
-  hint?: string;
-  value: readonly string[];
-  onChange: (value: string[]) => void;
-  max?: number;
-}) {
+}: StandardsFieldProps) {
   const [search, setSearch] = useState("");
   const [first] = useState(value);
   const [picked, setPicked] = useState<ReadonlyMap<string, Known>>(

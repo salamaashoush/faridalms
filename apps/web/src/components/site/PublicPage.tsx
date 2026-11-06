@@ -30,18 +30,20 @@ type Post = Awaited<
   ReturnType<NonNullable<ReturnType<typeof publicPostQuery>["queryFn"]>>
 >;
 
-export function PublicPageView({
-  page,
-  site,
-  school,
-  slug,
-}: {
+export interface PublicPageViewProps {
   page: Page;
   site: PublicSite;
   school: string;
   /** The page's address, "" for the home page. */
   slug: string;
-}) {
+}
+
+export function PublicPageView({
+  page,
+  site,
+  school,
+  slug,
+}: PublicPageViewProps) {
   return (
     <SiteShell
       site={site}
@@ -66,13 +68,12 @@ export function PublicPageView({
 }
 
 /** The top of a page the site draws itself, such as the news list or a post. */
-function PageBand({
-  site,
-  children,
-}: {
+interface PageBandProps {
   site: PublicSite;
   children: ReactNode;
-}) {
+}
+
+function PageBand({ site, children }: PageBandProps) {
   return (
     <section className="site-section" style={schemeStyle(site.theme, "soft")}>
       <div className="mx-auto grid max-w-[72rem] gap-4 px-5 py-[calc(var(--s-space)*0.6)] @3xl/site:px-8">
@@ -82,15 +83,13 @@ function PageBand({
   );
 }
 
-export function PostList({
-  posts,
-  site,
-  school,
-}: {
+export interface PostListProps {
   posts: Posts["rows"];
   site: PublicSite;
   school: string;
-}) {
+}
+
+export function PostList({ posts, site, school }: PostListProps) {
   const t = { locale: site.locale };
   if (posts.length === 0)
     return <p className="site-muted">{m.siteNoNews({}, t)}</p>;
@@ -135,22 +134,19 @@ export function PostList({
   );
 }
 
+export interface SiteStatusProps {
+  site: PublicSite;
+  school: string;
+  kind: "missing" | "failed";
+  onRetry?: () => void;
+}
+
 /**
  * What a visitor sees at an address the website does not have, or when a
  * page fails to load: the school's own frame, theme and menu around a few
  * words in the site's language and the ways back in.
  */
-export function SiteStatus({
-  site,
-  school,
-  kind,
-  onRetry,
-}: {
-  site: PublicSite;
-  school: string;
-  kind: "missing" | "failed";
-  onRetry?: () => void;
-}) {
+export function SiteStatus({ site, school, kind, onRetry }: SiteStatusProps) {
   const t = { locale: site.locale };
   const context = publicContext(site, school);
   return (
@@ -186,17 +182,14 @@ export function SiteStatus({
   );
 }
 
-export function NewsFrame({
-  site,
-  school,
-  title,
-  children,
-}: {
+export interface NewsFrameProps {
   site: PublicSite;
   school: string;
   title: string;
   children: ReactNode;
-}) {
+}
+
+export function NewsFrame({ site, school, title, children }: NewsFrameProps) {
   return (
     <SiteShell site={site} school={school}>
       <PageBand site={site}>
@@ -214,15 +207,13 @@ export function NewsFrame({
   );
 }
 
-export function PublicPostView({
-  post,
-  site,
-  school,
-}: {
+export interface PublicPostViewProps {
   post: Post;
   site: PublicSite;
   school: string;
-}) {
+}
+
+export function PublicPostView({ post, site, school }: PublicPostViewProps) {
   const t = { locale: site.locale };
   const bodyLocale: SiteLocale = post.bodyLocale;
   return (

@@ -32,7 +32,12 @@ type Row = Mine["rows"][number];
 const finished = (row: { lessons: number; completed: number }) =>
   row.lessons > 0 && row.completed === row.lessons;
 
-function ModuleItem({ row, studentId }: { row: Row; studentId: string }) {
+interface ModuleItemProps {
+  row: Row;
+  studentId: string;
+}
+
+function ModuleItem({ row, studentId }: ModuleItemProps) {
   const percent = row.lessons ? (row.completed / row.lessons) * 100 : 0;
   return (
     <li className="grid gap-2 py-4">
@@ -87,7 +92,11 @@ function ModuleItem({ row, studentId }: { row: Row; studentId: string }) {
 }
 
 /** A student's modules, the unfinished ones first, each with how far along it is. */
-export function StudentModuleList({ studentId }: { studentId: string }) {
+export interface StudentModuleListProps {
+  studentId: string;
+}
+
+export function StudentModuleList({ studentId }: StudentModuleListProps) {
   const { rows } = useSuspenseQuery(myModulesQuery(studentId)).data;
   const going = rows.filter((row) => !finished(row));
   const done = rows.filter(finished);
@@ -120,13 +129,12 @@ export function StudentModuleList({ studentId }: { studentId: string }) {
 const STATE_ICON = { done: CircleCheck, open: Play, locked: Lock } as const;
 
 /** A module as its student meets it: which lessons are done, which open, which wait. */
-export function ModuleOutline({
-  moduleId,
-  studentId,
-}: {
+export interface ModuleOutlineProps {
   moduleId: string;
   studentId: string;
-}) {
+}
+
+export function ModuleOutline({ moduleId, studentId }: ModuleOutlineProps) {
   const data = useSuspenseQuery(moduleOutlineQuery(moduleId, studentId)).data;
   const navigate = useNavigate();
   const done = data.lessons.filter((lesson) => lesson.state === "done").length;

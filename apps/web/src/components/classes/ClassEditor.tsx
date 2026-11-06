@@ -81,28 +81,29 @@ function initialDraft(record: ClassData | null): Draft {
   };
 }
 
-export function ExistingClassEditor({
-  id,
-  onClose,
-}: {
+export interface ExistingClassEditorProps {
   id: string;
   onClose: () => void;
-}) {
+}
+
+export function ExistingClassEditor({ id, onClose }: ExistingClassEditorProps) {
   const record = useSuspenseQuery(classRecordQuery(id)).data;
   return (
     <ClassEditor yearId={record.year.id} record={record} onClose={onClose} />
   );
 }
 
+export interface ClassEditorProps {
+  yearId: string;
+  record?: ClassData | null;
+  onClose: () => void;
+}
+
 export function ClassEditor({
   yearId,
   record = null,
   onClose,
-}: {
-  yearId: string;
-  record?: ClassData | null;
-  onClose: () => void;
-}) {
+}: ClassEditorProps) {
   const options = useSuspenseQuery(classOptionsQuery).data;
   const queryClient = useQueryClient();
   const year = options.years.find((row) => row.id === yearId);

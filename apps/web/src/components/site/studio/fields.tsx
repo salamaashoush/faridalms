@@ -128,19 +128,15 @@ export function useUpload(media: EditorMedia) {
   return { busy, upload };
 }
 
-export function FilePick({
-  accept,
-  label,
-  busy,
-  onFile,
-  icon,
-}: {
+export interface FilePickProps {
   accept: string[];
   label: string;
   busy: boolean;
   onFile: (file: File | undefined) => void;
   icon?: ReactNode;
-}) {
+}
+
+export function FilePick({ accept, label, busy, onFile, icon }: FilePickProps) {
   const input = useRef<HTMLInputElement>(null);
   return (
     <>
@@ -171,6 +167,17 @@ export function FilePick({
   );
 }
 
+interface TextControlProps {
+  id: string;
+  label: string;
+  value: string;
+  max: number;
+  multiline?: boolean;
+  locale: SiteLocale;
+  hint?: string;
+  onChange: (value: string) => void;
+}
+
 function TextControl({
   id,
   label,
@@ -180,16 +187,7 @@ function TextControl({
   locale,
   hint,
   onChange,
-}: {
-  id: string;
-  label: string;
-  value: string;
-  max: number;
-  multiline?: boolean;
-  locale: SiteLocale;
-  hint?: string;
-  onChange: (value: string) => void;
-}) {
+}: TextControlProps) {
   const near = value.length > max * 0.8;
   const props = { id, value, maxLength: max, lang: locale, dir: dirOf(locale) };
   return (
@@ -222,17 +220,14 @@ function TextControl({
   );
 }
 
-function AltText({
-  id,
-  value,
-  locale,
-  onChange,
-}: {
+interface AltTextProps {
   id: string;
   value: string;
   locale: SiteLocale;
   onChange: (alt: string) => void;
-}) {
+}
+
+function AltText({ id, value, locale, onChange }: AltTextProps) {
   return (
     <StudioField id={id} label={m.siteAltText()} hint={m.siteAltHint()}>
       <Input
@@ -248,13 +243,12 @@ function AltText({
   );
 }
 
-function Thumb({
-  fileId,
-  video = false,
-}: {
+interface ThumbProps {
   fileId: string | null;
   video?: boolean;
-}) {
+}
+
+function Thumb({ fileId, video = false }: ThumbProps) {
   return (
     <div className="grid aspect-[16/10] w-28 shrink-0 place-items-center overflow-hidden rounded-md border bg-muted">
       {fileId && !video ? (
@@ -279,15 +273,17 @@ const percent = (value: number) =>
   Math.min(100, Math.max(0, Math.round(value)));
 
 /** The spot every crop of a picture keeps in view, set by dragging a dot onto it. */
+export interface FocusPickerProps {
+  src: string;
+  value?: PictureFocus;
+  onChange: (focus: PictureFocus) => void;
+}
+
 export function FocusPicker({
   src,
   value = CENTRE,
   onChange,
-}: {
-  src: string;
-  value?: PictureFocus;
-  onChange: (focus: PictureFocus) => void;
-}) {
+}: FocusPickerProps) {
   const place = (event: PointerEvent<HTMLDivElement>) => {
     const box = event.currentTarget.getBoundingClientRect();
     onChange({
@@ -341,19 +337,21 @@ export function FocusPicker({
   );
 }
 
+interface ImageControlProps {
+  id: string;
+  label: string;
+  value: Picture;
+  context: FieldContext;
+  onChange: (value: Picture) => void;
+}
+
 function ImageControl({
   id,
   label,
   value,
   context,
   onChange,
-}: {
-  id: string;
-  label: string;
-  value: Picture;
-  context: FieldContext;
-  onChange: (value: Picture) => void;
-}) {
+}: ImageControlProps) {
   const { busy, upload } = useUpload(context.media);
   const framed = context.wordsOnly ? null : value.fileId;
   return (
@@ -427,19 +425,21 @@ function ImageControl({
   );
 }
 
+interface MediaControlProps {
+  id: string;
+  label: string;
+  value: SiteMedia;
+  context: FieldContext;
+  onChange: (value: SiteMedia) => void;
+}
+
 function MediaControl({
   id,
   label,
   value,
   context,
   onChange,
-}: {
-  id: string;
-  label: string;
-  value: SiteMedia;
-  context: FieldContext;
-  onChange: (value: SiteMedia) => void;
-}) {
+}: MediaControlProps) {
   const { busy, upload } = useUpload(context.media);
   const video = value.kind === "video";
   const framed = video || context.wordsOnly ? null : value.fileId;
@@ -577,19 +577,15 @@ function MediaControl({
   );
 }
 
-function HrefInput({
-  id,
-  value,
-  context,
-  onChange,
-  label,
-}: {
+interface HrefInputProps {
   id: string;
   value: string;
   context: FieldContext;
   onChange: (value: string) => void;
   label?: string;
-}) {
+}
+
+function HrefInput({ id, value, context, onChange, label }: HrefInputProps) {
   const list = `${id}-pages`;
   return (
     <>
@@ -628,6 +624,15 @@ function moved<T>(items: T[], index: number, by: -1 | 1): T[] {
   return next;
 }
 
+interface LinksControlProps {
+  id: string;
+  label: string;
+  value: SiteLink[];
+  max: number;
+  context: FieldContext;
+  onChange: (value: SiteLink[]) => void;
+}
+
 function LinksControl({
   id,
   label,
@@ -635,14 +640,7 @@ function LinksControl({
   max,
   context,
   onChange,
-}: {
-  id: string;
-  label: string;
-  value: SiteLink[];
-  max: number;
-  context: FieldContext;
-  onChange: (value: SiteLink[]) => void;
-}) {
+}: LinksControlProps) {
   const set = (index: number, change: Partial<SiteLink>) =>
     onChange(
       value.map((link, at) => (at === index ? { ...link, ...change } : link)),
@@ -723,15 +721,13 @@ function LinksControl({
   );
 }
 
-function IconControl({
-  label,
-  value,
-  onChange,
-}: {
+interface IconControlProps {
   label: string;
   value: IconId;
   onChange: (value: IconId) => void;
-}) {
+}
+
+function IconControl({ label, value, onChange }: IconControlProps) {
   return (
     <StudioField label={label}>
       <Popover.Root>
@@ -781,17 +777,14 @@ function IconControl({
   );
 }
 
-function EmbedControl({
-  id,
-  label,
-  value,
-  onChange,
-}: {
+interface EmbedControlProps {
   id: string;
   label: string;
   value: SiteEmbed | null;
   onChange: (value: SiteEmbed | null) => void;
-}) {
+}
+
+function EmbedControl({ id, label, value, onChange }: EmbedControlProps) {
   const [address, setAddress] = useState("");
   const [wrong, setWrong] = useState(false);
   return (
@@ -849,14 +842,7 @@ function EmbedControl({
   );
 }
 
-function ChoiceControl({
-  id,
-  name,
-  label,
-  options,
-  value,
-  onChange,
-}: {
+interface ChoiceControlProps {
   /** Unique on the panel, since items repeat the same field. */
   id: string;
   name: string;
@@ -864,7 +850,16 @@ function ChoiceControl({
   options: readonly string[];
   value: string;
   onChange: (value: string) => void;
-}) {
+}
+
+function ChoiceControl({
+  id,
+  name,
+  label,
+  options,
+  value,
+  onChange,
+}: ChoiceControlProps) {
   const text = (option: string) =>
     name === "badge"
       ? BADGE_NAME[option as (typeof BADGES)[number]] || m.siteBadgeNone()
@@ -904,6 +899,15 @@ function ChoiceControl({
 }
 
 /** One of the school's intakes, or every intake open, for a section that leads into applying. */
+interface IntakeControlProps {
+  id: string;
+  label: string;
+  hint?: string;
+  value: string;
+  intakes: FieldContext["intakes"];
+  onChange: (value: string) => void;
+}
+
 function IntakeControl({
   id,
   label,
@@ -911,14 +915,7 @@ function IntakeControl({
   value,
   intakes,
   onChange,
-}: {
-  id: string;
-  label: string;
-  hint?: string;
-  value: string;
-  intakes: FieldContext["intakes"];
-  onChange: (value: string) => void;
-}) {
+}: IntakeControlProps) {
   const options = [{ id: "", label: m.siteIntakeAny() }, ...intakes];
   const shown =
     options.find((option) => option.id === value)?.label ?? m.siteIntakeGone();
@@ -940,24 +937,20 @@ function IntakeControl({
   );
 }
 
-/**
- * A rich body. The editor keeps its own words as they are typed, so a
- * change made to the page from outside it, as an undo is, is put into it;
- * otherwise the next key pressed would bring the undone words back.
- */
-function RichControl({
-  id,
-  label,
-  value,
-  media,
-  onChange,
-}: {
+interface RichControlProps {
   id: string;
   label: string;
   value: ContentDocument;
   media: EditorMedia;
   onChange: (value: ContentDocument) => void;
-}) {
+}
+
+/**
+ * A rich body. The editor keeps its own words as they are typed, so a
+ * change made to the page from outside it, as an undo is, is put into it;
+ * otherwise the next key pressed would bring the undone words back.
+ */
+function RichControl({ id, label, value, media, onChange }: RichControlProps) {
   const written = useRef(JSON.stringify(value));
   const [replace, setReplace] = useState<{
     to: ContentDocument;
@@ -1002,6 +995,15 @@ const hasWords = (field: Field): boolean =>
 const EMPHASISABLE = new Set(["heading"]);
 
 /** One field of a section, drawn from its declaration. */
+export interface FieldControlProps {
+  name: string;
+  field: Field;
+  value: unknown;
+  context: FieldContext;
+  onChange: (value: unknown) => void;
+  prefix: string;
+}
+
 export function FieldControl({
   name,
   field,
@@ -1009,14 +1011,7 @@ export function FieldControl({
   context,
   onChange,
   prefix,
-}: {
-  name: string;
-  field: Field;
-  value: unknown;
-  context: FieldContext;
-  onChange: (value: unknown) => void;
-  prefix: string;
-}) {
+}: FieldControlProps) {
   const id = `${prefix}-${name}`;
   const label = labelOf(name);
   if (context.wordsOnly && !hasWords(field)) return null;
@@ -1192,21 +1187,18 @@ export function FieldControl({
   return null;
 }
 
-/**
- * The blocks of each column: open one to edit it, add blocks from the
- * list, and move them within their column.
- */
-function ColumnsControl({
-  id,
-  value,
-  context,
-  onChange,
-}: {
+interface ColumnsControlProps {
   id: string;
   value: SiteColumn[];
   context: FieldContext;
   onChange: (value: SiteColumn[]) => void;
-}) {
+}
+
+/**
+ * The blocks of each column: open one to edit it, add blocks from the
+ * list, and move them within their column.
+ */
+function ColumnsControl({ id, value, context, onChange }: ColumnsControlProps) {
   const setColumn = (index: number, blocks: SiteBlock[]) =>
     onChange(
       value.map((column, at) =>
@@ -1363,6 +1355,16 @@ function summaryOf(item: Item, index: number): string {
   return m.siteItemNumber({ number: formatNumber(index + 1) });
 }
 
+interface ItemsControlProps {
+  id: string;
+  label: string;
+  hint?: string;
+  field: Extract<Field, { kind: "items" }>;
+  value: Record<string, unknown>[];
+  context: FieldContext;
+  onChange: (value: unknown) => void;
+}
+
 function ItemsControl({
   id,
   label,
@@ -1371,15 +1373,7 @@ function ItemsControl({
   value,
   context,
   onChange,
-}: {
-  id: string;
-  label: string;
-  hint?: string;
-  field: Extract<Field, { kind: "items" }>;
-  value: Record<string, unknown>[];
-  context: FieldContext;
-  onChange: (value: unknown) => void;
-}) {
+}: ItemsControlProps) {
   const items = value as Item[];
   const set = (index: number, key: string, next: unknown) =>
     onChange(

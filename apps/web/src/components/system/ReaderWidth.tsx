@@ -35,13 +35,12 @@ export function useReaderWidth() {
   return { wide, toggle };
 }
 
-export function ReaderWidthToggle({
-  wide,
-  onToggle,
-}: {
+export interface ReaderWidthToggleProps {
   wide: boolean;
   onToggle: () => void;
-}) {
+}
+
+export function ReaderWidthToggle({ wide, onToggle }: ReaderWidthToggleProps) {
   const Icon = wide ? FoldHorizontal : UnfoldHorizontal;
   return (
     <Tooltip>

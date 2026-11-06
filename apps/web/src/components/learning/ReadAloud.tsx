@@ -227,6 +227,17 @@ export function sayInOrder(items: Voice[]) {
   readNext();
 }
 
+export interface ReadAloudProps {
+  text: string;
+  narration?: string | null;
+  /** When each word starts in the recording, to light it. */
+  words?: number[] | null;
+  /** Whether the browser's voice may stand in for a missing recording. */
+  voice?: boolean;
+  size?: "small" | "default" | "card" | "large";
+  className?: string;
+}
+
 /**
  * A speaker that reads what sits beside it: the teacher's recording when
  * there is one, else, where `voice` allows, the browser's own voice for a
@@ -239,16 +250,7 @@ export function ReadAloud({
   voice = true,
   size = "default",
   className,
-}: {
-  text: string;
-  narration?: string | null;
-  /** When each word starts in the recording, to light it. */
-  words?: number[] | null;
-  /** Whether the browser's voice may stand in for a missing recording. */
-  voice?: boolean;
-  size?: "small" | "default" | "card" | "large";
-  className?: string;
-}) {
+}: ReadAloudProps) {
   const voices = useSyncExternalStore(
     subscribeVoices,
     voiceLanguages,

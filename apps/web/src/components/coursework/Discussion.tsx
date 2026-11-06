@@ -48,6 +48,16 @@ const written = (content: ContentDocument) =>
   contentPlainText(content).trim().length > 0;
 
 /** Writes a post, a reply under one, or a change to the writer's own. */
+interface PostEditorProps {
+  assignmentId: string;
+  label: string;
+  initial?: ContentDocument;
+  submitLabel: string;
+  onSend: (content: ContentDocument) => Promise<unknown>;
+  onDone: () => void;
+  onCancel?: () => void;
+}
+
 function PostEditor({
   assignmentId,
   label,
@@ -56,15 +66,7 @@ function PostEditor({
   onSend,
   onDone,
   onCancel,
-}: {
-  assignmentId: string;
-  label: string;
-  initial?: ContentDocument;
-  submitLabel: string;
-  onSend: (content: ContentDocument) => Promise<unknown>;
-  onDone: () => void;
-  onCancel?: () => void;
-}) {
+}: PostEditorProps) {
   const queryClient = useQueryClient();
   const media = useDocumentMedia({ type: "work", id: assignmentId });
   const [content, setContent] = useState(initial ?? emptyContent());
@@ -119,15 +121,13 @@ function PostEditor({
   );
 }
 
-function PostItem({
-  post,
-  data,
-  assignmentId,
-}: {
+interface PostItemProps {
   post: Post;
   data: Data;
   assignmentId: string;
-}) {
+}
+
+function PostItem({ post, data, assignmentId }: PostItemProps) {
   const queryClient = useQueryClient();
   const [editing, setEditing] = useState(false);
   const name = nameOf(post);
@@ -220,14 +220,13 @@ interface Standing {
 }
 
 /** How far a student has met what the discussion asks: an answer, then replies. */
-function Progress({
-  standing,
-  pending,
-}: {
+interface ProgressProps {
   standing: Standing;
   /** What the first line says until an answer is posted. */
   pending: string;
-}) {
+}
+
+function Progress({ standing, pending }: ProgressProps) {
   const items = [
     {
       key: "answer",
@@ -271,17 +270,16 @@ type MarkedPost = Post & {
   } | null;
 };
 
+export interface DiscussionPostsProps {
+  standing: Standing;
+  posts: MarkedPost[];
+}
+
 /**
  * One student's posts as their teacher marks them: each in the order
  * written, a reply led by the words it answers.
  */
-export function DiscussionPosts({
-  standing,
-  posts,
-}: {
-  standing: Standing;
-  posts: MarkedPost[];
-}) {
+export function DiscussionPosts({ standing, posts }: DiscussionPostsProps) {
   return (
     <section aria-labelledby="discussion-posts" className="grid gap-4">
       <h2 id="discussion-posts" className="text-base leading-6 font-semibold">
@@ -327,20 +325,19 @@ export function DiscussionPosts({
   );
 }
 
+export interface DiscussionProps {
+  assignmentId: string;
+  /** Shown as a record's tab, which names it already. */
+  tab?: boolean;
+}
+
 /**
  * A discussion set as coursework, read the same way by its students and
  * its teachers: posts in the order written, each with its replies beneath.
  * A student answers first, then replies; a teacher posts, and hides a post
  * from the class without taking it from its author.
  */
-export function Discussion({
-  assignmentId,
-  tab = false,
-}: {
-  assignmentId: string;
-  /** Shown as a record's tab, which names it already. */
-  tab?: boolean;
-}) {
+export function Discussion({ assignmentId, tab = false }: DiscussionProps) {
   const query = useQuery(discussionQuery(assignmentId));
   const [composing, setComposing] = useState({ key: 0, open: false });
   const [replying, setReplying] = useState<string | null>(null);

@@ -86,18 +86,15 @@ const NO_ANSWERS: CheckDriver = {
 };
 
 /** A quiz's blocks in one mode, questions answered or reviewed through their views. */
-function QuizBlocks({
-  blocks,
-  views,
-  driver,
-  practice,
-}: {
+interface QuizBlocksProps {
   blocks: StudentBlock[];
   views: Record<string, CheckView | undefined>;
   driver: CheckDriver;
   /** In a practice quiz: the questions checked as they are answered, and how. */
   practice?: { views: Record<string, CheckView>; driver: CheckDriver };
-}) {
+}
+
+function QuizBlocks({ blocks, views, driver, practice }: QuizBlocksProps) {
   return (
     <WholeDocument parts={blocks}>
       <div className="grid gap-4">
@@ -132,7 +129,11 @@ function QuizBlocks({
   );
 }
 
-function Results({ quiz }: { quiz: LearnerQuiz }) {
+interface ResultsProps {
+  quiz: LearnerQuiz;
+}
+
+function Results({ quiz }: ResultsProps) {
   const [shown, setShown] = useState(quiz.results.at(-1)?.number ?? 0);
   const result = quiz.results.find((item) => item.number === shown);
   return (
@@ -193,20 +194,18 @@ function Results({ quiz }: { quiz: LearnerQuiz }) {
   );
 }
 
-/**
- * The time left on a timed attempt, said aloud with five minutes and with
- * one minute to go. At zero it calls `onTimeUp`, once.
- */
-function QuizClock({
-  endsAt,
-  onTimeUp,
-  action,
-}: {
+interface QuizClockProps {
   endsAt: string;
   onTimeUp: () => void;
   /** What the student may do with the clock, beside it. */
   action?: ReactNode;
-}) {
+}
+
+/**
+ * The time left on a timed attempt, said aloud with five minutes and with
+ * one minute to go. At zero it calls `onTimeUp`, once.
+ */
+function QuizClock({ endsAt, onTimeUp, action }: QuizClockProps) {
   const hydrated = useHydrated();
   const [now, setNow] = useState(() => Date.now());
   const timeUp = useEffectEvent(onTimeUp);
@@ -240,19 +239,18 @@ function QuizClock({
   );
 }
 
+export interface QuizWorkProps {
+  data: Work;
+  /** The language the student reads the brief in, which its questions follow. */
+  reading?: string | undefined;
+}
+
 /**
  * A quiz as its student takes it: every answer is kept as it is given, and
  * handing in marks the whole attempt. Earlier attempts show what the quiz
  * lets them see.
  */
-export function QuizWork({
-  data,
-  reading,
-}: {
-  data: Work;
-  /** The language the student reads the brief in, which its questions follow. */
-  reading?: string | undefined;
-}) {
+export function QuizWork({ data, reading }: QuizWorkProps) {
   const quiz = data.quiz;
   // The questions in the translation's words carry the same ids, so the
   // answers kept so far stand in either language.
@@ -566,19 +564,21 @@ export function QuizWork({
   );
 }
 
+interface MarkFormProps {
+  attemptId: string;
+  blockId: string;
+  points: number;
+  view: CheckView | undefined;
+  onMarked: () => Promise<unknown>;
+}
+
 function MarkForm({
   attemptId,
   blockId,
   points,
   view,
   onMarked,
-}: {
-  attemptId: string;
-  blockId: string;
-  points: number;
-  view: CheckView | undefined;
-  onMarked: () => Promise<unknown>;
-}) {
+}: MarkFormProps) {
   const [value, setValue] = useState(
     view?.credit === null || view?.credit === undefined
       ? ""
@@ -671,13 +671,12 @@ interface GraderQuiz {
 }
 
 /** A student's quiz attempts as their teacher marks them: every answer marked, written ones waiting for points. */
-export function QuizAttempts({
-  quiz,
-  onMarked,
-}: {
+export interface QuizAttemptsProps {
   quiz: GraderQuiz;
   onMarked: () => Promise<unknown>;
-}) {
+}
+
+export function QuizAttempts({ quiz, onMarked }: QuizAttemptsProps) {
   const [shown, setShown] = useState(quiz.attempts.at(-1)?.number ?? 0);
   const attempt = quiz.attempts.find((item) => item.number === shown);
   if (!attempt)

@@ -58,7 +58,11 @@ type Book = Awaited<
   ReturnType<NonNullable<ReturnType<typeof classBookQuery>["queryFn"]>>
 >;
 
-function Sheet({ book }: { book: Book }) {
+interface SheetProps {
+  book: Book;
+}
+
+function Sheet({ book }: SheetProps) {
   const queryClient = useQueryClient();
   const initial = Object.fromEntries(
     book.students.map((student) => {
@@ -353,12 +357,7 @@ function GradebookPage() {
   );
 }
 
-function Book({
-  classId,
-  periodId,
-  onChange,
-  classes,
-}: {
+interface BookProps {
   classId: string;
   periodId: string;
   onChange: (change: { classId?: string; periodId?: string }) => void;
@@ -369,7 +368,9 @@ function Book({
     titleAr: string | null;
     classType: string;
   }[];
-}) {
+}
+
+function Book({ classId, periodId, onChange, classes }: BookProps) {
   const book = useSuspenseQuery(classBookQuery(classId, periodId)).data;
   const classFacet: Facet = {
     id: "class",

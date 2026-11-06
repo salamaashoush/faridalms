@@ -49,19 +49,21 @@ function isTooMany(error: unknown) {
   );
 }
 
+interface NoticeProps {
+  tone: "primary" | "warning";
+  icon: typeof Clock;
+  title: string;
+  body?: string;
+  spinning?: boolean;
+}
+
 function Notice({
   tone,
   icon: Icon,
   title,
   body,
   spinning = false,
-}: {
-  tone: "primary" | "warning";
-  icon: typeof Clock;
-  title: string;
-  body?: string;
-  spinning?: boolean;
-}) {
+}: NoticeProps) {
   return (
     <div className="grid justify-items-start gap-4">
       <span

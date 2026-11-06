@@ -42,7 +42,11 @@ function EditorTrail() {
   );
 }
 
-function EditTrail({ yearId }: { yearId: string }) {
+interface EditTrailProps {
+  yearId: string;
+}
+
+function EditTrail({ yearId }: EditTrailProps) {
   const year = useSuspenseQuery(yearQuery(yearId)).data;
   return (
     <>
@@ -56,13 +60,12 @@ function EditTrail({ yearId }: { yearId: string }) {
   );
 }
 
-function ExistingYear({
-  id,
-  onClose,
-}: {
+interface ExistingYearProps {
   id: string;
   onClose: (id?: string) => void;
-}) {
+}
+
+function ExistingYear({ id, onClose }: ExistingYearProps) {
   const year = useSuspenseQuery(yearQuery(id)).data;
   return <YearEditor key={year.id} year={year} onClose={onClose} />;
 }

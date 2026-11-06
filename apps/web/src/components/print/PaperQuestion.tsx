@@ -62,15 +62,13 @@ function placed<T extends { type: string }>(segments: T[]) {
   });
 }
 
-function Pic({
-  picture,
-  fileUrl,
-  className,
-}: {
+interface PicProps {
   picture: Picture | null | undefined;
   fileUrl: (fileId: string) => string;
   className?: string;
-}) {
+}
+
+function Pic({ picture, fileUrl, className }: PicProps) {
   return picture ? (
     <StoredImage
       src={fileUrl(picture.fileId)}
@@ -81,13 +79,12 @@ function Pic({
   ) : null;
 }
 
-function Part({
-  part,
-  fileUrl,
-}: {
+interface PartProps {
   part: { text: string; picture?: Picture | null };
   fileUrl: (fileId: string) => string;
-}) {
+}
+
+function Part({ part, fileUrl }: PartProps) {
   return (
     <span className="inline-flex flex-col items-start gap-1">
       <Pic picture={part.picture} fileUrl={fileUrl} />
@@ -101,13 +98,12 @@ function Part({
 }
 
 /** A box to write in, holding the answer on a teacher's copy. */
-function Box({
-  answer,
-  wide = false,
-}: {
+interface BoxProps {
   answer?: string | null;
   wide?: boolean;
-}) {
+}
+
+function Box({ answer, wide = false }: BoxProps) {
   return (
     <span
       className={cn(
@@ -120,7 +116,11 @@ function Box({
   );
 }
 
-function Lines({ count }: { count: number }) {
+interface LinesProps {
+  count: number;
+}
+
+function Lines({ count }: LinesProps) {
   return (
     <div aria-hidden className="grid">
       {range(count).map((line) => (
@@ -131,7 +131,12 @@ function Lines({ count }: { count: number }) {
 }
 
 /** Ten frames to colour in: rows of five, as many frames as the count needs. */
-function TenFrames({ count, filled }: { count: number; filled: number }) {
+interface TenFramesProps {
+  count: number;
+  filled: number;
+}
+
+function TenFrames({ count, filled }: TenFramesProps) {
   const frames = Math.max(1, Math.ceil(count / 10));
   return (
     <div className="flex flex-wrap gap-3">
@@ -179,21 +184,19 @@ function matchingLetters(
     );
 }
 
+interface PaperPuzzleProps {
+  level: Level;
+  answers: boolean;
+  locale: "ar" | "en";
+}
+
 /**
  * A puzzle on paper: its board, then somewhere to write the program. A row
  * of arrows is drawn one to a box; a program of blocks is written a block
  * to a line, from the blocks the puzzle names. A teacher's copy carries
  * the teacher's own program.
  */
-function PaperPuzzle({
-  level,
-  answers,
-  locale,
-}: {
-  level: Level;
-  answers: boolean;
-  locale: "ar" | "en";
-}) {
+function PaperPuzzle({ level, answers, locale }: PaperPuzzleProps) {
   const strings = puzzleStrings(locale);
   const names = blockNames(locale);
   const at = { locale };
@@ -347,6 +350,16 @@ export function keyOf(block: LessonBlock, rtl: boolean): string | null {
   }
 }
 
+export interface PaperQuestionProps {
+  block: LessonBlock;
+  number: number;
+  answers: boolean;
+  rtl: boolean;
+  fileUrl: (fileId: string) => string;
+  /** The document's own address, for a question only a screen can answer. */
+  online?: string | undefined;
+}
+
 /**
  * A question as it is answered on paper, from the same question the player
  * marks. A teacher's copy shows each answer in its place, in grey, so the
@@ -359,15 +372,7 @@ export function PaperQuestion({
   rtl,
   fileUrl,
   online,
-}: {
-  block: LessonBlock;
-  number: number;
-  answers: boolean;
-  rtl: boolean;
-  fileUrl: (fileId: string) => string;
-  /** The document's own address, for a question only a screen can answer. */
-  online?: string | undefined;
-}) {
+}: PaperQuestionProps) {
   const locale = rtl ? "ar" : "en";
   if (
     block.type === "content" ||

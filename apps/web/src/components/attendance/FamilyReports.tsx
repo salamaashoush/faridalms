@@ -95,13 +95,12 @@ export function reasonOf(report: {
   return inLocale(report.reasonEn, report.reasonAr);
 }
 
-function ReportRow({
-  report,
-  onWithdraw,
-}: {
+interface ReportRowProps {
   report: Report;
   onWithdraw: (report: Report) => void;
-}) {
+}
+
+function ReportRow({ report, onWithdraw }: ReportRowProps) {
   return (
     <li className="flex flex-wrap items-start justify-between gap-x-6 gap-y-2 py-3">
       <div className="grid min-w-0 gap-0.5">
@@ -151,18 +150,17 @@ function ReportRow({
   );
 }
 
+export interface FamilyReportsProps {
+  studentId: string;
+  name: string;
+}
+
 /**
  * What a family has told the school about a child's absences, and the way
  * to tell it more: a day away, a late arrival, an early leave, or leave
  * asked ahead, each answered by the office.
  */
-export function FamilyReports({
-  studentId,
-  name,
-}: {
-  studentId: string;
-  name: string;
-}) {
+export function FamilyReports({ studentId, name }: FamilyReportsProps) {
   const data = useSuspenseQuery(myAbsenceReportsQuery(studentId)).data;
   const queryClient = useQueryClient();
   const withdraw = useServerFn(withdrawAbsenceReport);
@@ -232,19 +230,21 @@ export function FamilyReports({
   );
 }
 
+interface ReportSheetProps {
+  open: boolean;
+  studentId: string;
+  data: Data;
+  onClose: () => void;
+  onSaved: () => Promise<unknown>;
+}
+
 function ReportSheet({
   open,
   studentId,
   data,
   onClose,
   onSaved,
-}: {
-  open: boolean;
-  studentId: string;
-  data: Data;
-  onClose: () => void;
-  onSaved: () => Promise<unknown>;
-}) {
+}: ReportSheetProps) {
   const send = useServerFn(reportAbsence);
   const [kind, setKind] = useState<AbsenceReportKind>("absent");
   const [from, setFrom] = useState(data.today);

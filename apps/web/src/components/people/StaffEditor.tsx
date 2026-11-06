@@ -89,17 +89,14 @@ function initialDraft(member: Member | null): Draft {
   };
 }
 
-function Matches({
-  people,
-  onChoose,
-  pending,
-  ref,
-}: {
+interface MatchesProps {
   people: Found[];
   onChoose: (id: string) => void;
   pending: boolean;
   ref: Ref<HTMLDivElement>;
-}) {
+}
+
+function Matches({ people, onChoose, pending, ref }: MatchesProps) {
   const titleId = useId();
   return (
     <div
@@ -154,24 +151,22 @@ function Matches({
   );
 }
 
-export function ExistingStaffEditor({
-  id,
-  onClose,
-}: {
+export interface ExistingStaffEditorProps {
   id: string;
   onClose: () => void;
-}) {
+}
+
+export function ExistingStaffEditor({ id, onClose }: ExistingStaffEditorProps) {
   const member = useSuspenseQuery(staffMemberQuery(id)).data;
   return <StaffEditor member={member} onClose={onClose} />;
 }
 
-export function StaffEditor({
-  member = null,
-  onClose,
-}: {
+export interface StaffEditorProps {
   member?: Member | null;
   onClose: () => void;
-}) {
+}
+
+export function StaffEditor({ member = null, onClose }: StaffEditorProps) {
   const adding = member === null;
   const options = useSuspenseQuery(peopleOptionsQuery).data;
   const queryClient = useQueryClient();

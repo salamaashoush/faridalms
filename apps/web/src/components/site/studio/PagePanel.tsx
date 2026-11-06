@@ -22,16 +22,7 @@ import type { Languages, PageDraft } from "./draft";
 import { StudioField } from "./controls";
 
 /** The page itself: its titles, address, place in the menu, search description, and the way to its earlier versions. */
-export function PagePanel({
-  draft,
-  languages,
-  isHome,
-  parents,
-  errors,
-  onHistory,
-  onChange,
-  onSlugTouched,
-}: {
+export interface PagePanelProps {
   draft: PageDraft;
   languages: Languages;
   isHome: boolean;
@@ -41,7 +32,18 @@ export function PagePanel({
   onHistory?: () => void;
   onChange: (change: Partial<PageDraft>, key?: string) => void;
   onSlugTouched: () => void;
-}) {
+}
+
+export function PagePanel({
+  draft,
+  languages,
+  isHome,
+  parents,
+  errors,
+  onHistory,
+  onChange,
+  onSlugTouched,
+}: PagePanelProps) {
   const locales = languages.other
     ? [languages.primary, languages.other]
     : [languages.primary];

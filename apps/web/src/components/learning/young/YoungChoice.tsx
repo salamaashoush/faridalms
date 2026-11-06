@@ -42,19 +42,18 @@ export const FoundContext = createContext<{
   find: (blockId: string) => void;
 }>({ found: new Set(), find: () => {} });
 
+export interface YoungPartProps {
+  part: StudentPart;
+  compact?: boolean | "phone";
+}
+
 /**
  * A part as a young child meets it: a big picture, its words beneath.
  * Put away in a group it is drawn smaller, to leave the screen to the
  * cards still to place; in a hand of cards at the foot of a phone's
  * screen it is smaller there, to leave the screen to the places.
  */
-export function YoungPart({
-  part,
-  compact = false,
-}: {
-  part: StudentPart;
-  compact?: boolean | "phone";
-}) {
+export function YoungPart({ part, compact = false }: YoungPartProps) {
   return (
     <span className="flex w-full flex-col items-center justify-center gap-2 text-center">
       {part.picture ? (
@@ -121,6 +120,13 @@ export function outcomeWords(
   return hint ? `${m.lrnYoungNotYet()} ${hint}` : m.lrnYoungNotYet();
 }
 
+export interface YoungOutcomeProps {
+  view: CheckView | undefined;
+  praise?: string;
+  /** The child taps the answer once it is shown. */
+  taps?: boolean;
+}
+
 /**
  * What a young child is told after a try, in words a grown-up can read to
  * them as well: right, not yet, or the answer; then the teacher's hint,
@@ -130,12 +136,7 @@ export function YoungOutcome({
   view,
   praise = m.lrnYoungRight(),
   taps = false,
-}: {
-  view: CheckView | undefined;
-  praise?: string;
-  /** The child taps the answer once it is shown. */
-  taps?: boolean;
-}) {
+}: YoungOutcomeProps) {
   if (!view) return null;
   const hint = youngHint(view);
   // A hint asked for before any try comes on its own, with nothing to judge.
@@ -198,21 +199,19 @@ const columns = (count: number, pictured: boolean) =>
         ? "grid-cols-2 sm:grid-cols-4"
         : "grid-cols-2 sm:grid-cols-3";
 
+export interface YoungChoiceProps {
+  block: Choice;
+  view: CheckView | undefined;
+  driver: CheckDriver;
+}
+
 /**
  * A choice as young children make it: big cards, and a tap answers at once.
  * Misses climb Sesame Workshop's ladder: the first greys the card out, the
  * second says the question's hint, and after that the right card lights up
  * for the child to tap. Several right answers are chosen, then checked.
  */
-export function YoungChoice({
-  block,
-  view,
-  driver,
-}: {
-  block: Choice;
-  view: CheckView | undefined;
-  driver: CheckDriver;
-}) {
+export function YoungChoice({ block, view, driver }: YoungChoiceProps) {
   const cards = useRef(new Map<string, HTMLElement>());
   const { found, find } = useContext(FoundContext);
   const [submitted, setSubmitted] = useState<string[]>([]);

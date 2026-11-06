@@ -129,6 +129,13 @@ function draftOf(data: Data): Draft {
   };
 }
 
+export interface ConsentFormEditorProps {
+  data: Data;
+  /** A library piece the form starts from, while it says nothing yet. */
+  template?: StartingPiece;
+  onClose: () => void;
+}
+
 /**
  * The words a school asks families to agree to for one purpose. Edits go to
  * a draft that saves itself; publishing freezes it as a new version and asks
@@ -138,12 +145,7 @@ export function ConsentFormEditor({
   data,
   template,
   onClose,
-}: {
-  data: Data;
-  /** A library piece the form starts from, while it says nothing yet. */
-  template?: StartingPiece;
-  onClose: () => void;
-}) {
+}: ConsentFormEditorProps) {
   const queryClient = useQueryClient();
   const id = useRef(data.draft?.id ?? "");
   const version = useRef(data.draft?.version ?? 0);

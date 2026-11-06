@@ -185,6 +185,15 @@ function wordsProblems(view: KindView, draft: Draft): string[] {
   );
 }
 
+export interface BroadcastEditorProps {
+  kind: BroadcastKind;
+  existing: EditorData | null;
+  /** The library piece a new one starts from. */
+  template?: StartingPiece;
+  onClose: (id?: string) => void;
+  onCreated: (id: string) => void;
+}
+
 /**
  * A broadcast written as a document: an announcement to its audience, or a
  * news post to its audience, the website or both. The title and words take
@@ -199,14 +208,7 @@ export function BroadcastEditor({
   template,
   onClose,
   onCreated,
-}: {
-  kind: BroadcastKind;
-  existing: EditorData | null;
-  /** The library piece a new one starts from. */
-  template?: StartingPiece;
-  onClose: (id?: string) => void;
-  onCreated: (id: string) => void;
-}) {
+}: BroadcastEditorProps) {
   const view = KINDS[kind];
   const options = view.useOptions();
   const queryClient = useQueryClient();
@@ -870,15 +872,17 @@ export function BroadcastEditor({
 }
 
 /** How an announcement behaves for its readers: urgency, pinning, expiry and acknowledgement. */
+interface AnnouncementSettingsProps {
+  draft: Draft;
+  field: (name: string) => string;
+  onChange: (patch: Partial<Draft>) => void;
+}
+
 function AnnouncementSettings({
   draft,
   field,
   onChange,
-}: {
-  draft: Draft;
-  field: (name: string) => string;
-  onChange: (patch: Partial<Draft>) => void;
-}) {
+}: AnnouncementSettingsProps) {
   return (
     <>
       <SelectField
@@ -931,6 +935,19 @@ function AnnouncementSettings({
 }
 
 /** What a news post carries for its cards and the website: summary, picture and address. */
+interface NewsSettingsProps {
+  draft: Draft;
+  shown: ContentLocale;
+  excerptKey: "excerptEn" | "excerptAr";
+  altKey: "coverAltEn" | "coverAltAr";
+  options: Options;
+  problems: string[];
+  field: (name: string) => string;
+  onPeople: (fileId: string) => void;
+  onChange: (patch: Partial<Draft>) => void;
+  onSlug: () => void;
+}
+
 function NewsSettings({
   draft,
   shown,
@@ -942,18 +959,7 @@ function NewsSettings({
   onPeople,
   onChange,
   onSlug,
-}: {
-  draft: Draft;
-  shown: ContentLocale;
-  excerptKey: "excerptEn" | "excerptAr";
-  altKey: "coverAltEn" | "coverAltAr";
-  options: Options;
-  problems: string[];
-  field: (name: string) => string;
-  onPeople: (fileId: string) => void;
-  onChange: (patch: Partial<Draft>) => void;
-  onSlug: () => void;
-}) {
+}: NewsSettingsProps) {
   return (
     <>
       <DetailsSection title={m.newsSummary()} hint={m.newsSummaryHint()}>

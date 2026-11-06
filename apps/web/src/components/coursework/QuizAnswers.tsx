@@ -6,7 +6,11 @@ import { quizAnswersQuery } from "~/queries/coursework";
 import { markQuizAnswer } from "~/server/coursework";
 
 /** A quiz's answers its teacher judges, question by question across the class. */
-export function QuizAnswers({ assignmentId }: { assignmentId: string }) {
+export interface QuizAnswersProps {
+  assignmentId: string;
+}
+
+export function QuizAnswers({ assignmentId }: QuizAnswersProps) {
   const query = useQuery(quizAnswersQuery(assignmentId));
   const queryClient = useQueryClient();
   if (!query.data) return <div aria-busy="true" className="min-h-40" />;

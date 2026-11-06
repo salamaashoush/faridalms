@@ -158,11 +158,15 @@ const COMPOSITIONS: Draw[] = [
   },
 ];
 
+interface MeshProps {
+  seed: string;
+}
+
 /**
  * Soft light in the school's own hue with a fine grain, for backdrops words
  * sit on; the accent is a crisp ring, never a blur, so it never muddies.
  */
-function Mesh({ seed }: { seed: string }) {
+function Mesh({ seed }: MeshProps) {
   const next = sequence(`${seed}-mesh`);
   const id = `mesh-${hash(seed).toString(36)}`;
   const glows = [
@@ -242,6 +246,16 @@ export interface ArtSet {
   index: number;
 }
 
+export interface SiteArtProps {
+  seed: string;
+  className?: string;
+  ratio?: string;
+  kind?: "shapes" | "mesh";
+  /** The proportions on a phone, where a tall picture would fill the screen. */
+  phoneRatio?: string;
+  set?: ArtSet;
+}
+
 /**
  * Artwork drawn from the theme's colours where a picture belongs but none
  * has been chosen yet, so a new site looks composed rather than broken.
@@ -253,15 +267,7 @@ export function SiteArt({
   kind = "shapes",
   phoneRatio,
   set,
-}: {
-  seed: string;
-  className?: string;
-  ratio?: string;
-  kind?: "shapes" | "mesh";
-  /** The proportions on a phone, where a tall picture would fill the screen. */
-  phoneRatio?: string;
-  set?: ArtSet;
-}) {
+}: SiteArtProps) {
   const next = sequence(seed);
   const pick = Math.floor(next() * COMPOSITIONS.length);
   const draw =

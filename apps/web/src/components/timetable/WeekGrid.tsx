@@ -63,7 +63,11 @@ function NoPeriod() {
   );
 }
 
-function PeriodLabel({ period }: { period: GridPeriod }) {
+interface PeriodLabelProps {
+  period: GridPeriod;
+}
+
+function PeriodLabel({ period }: PeriodLabelProps) {
   return (
     <span className="grid gap-0.5">
       <span className="text-sm leading-5 font-medium">
@@ -80,6 +84,20 @@ function PeriodLabel({ period }: { period: GridPeriod }) {
   );
 }
 
+export interface WeekGridProps<T extends GridMeeting> {
+  caption: string;
+  days: readonly number[];
+  dates?: readonly GridDate[];
+  periods: readonly GridPeriod[];
+  meetings: readonly T[];
+  today?: number;
+  cell: (input: {
+    meeting: T | null;
+    day: number;
+    period: GridPeriod;
+  }) => ReactNode;
+}
+
 /**
  * Periods down, days across, mirrored in Arabic by the page's direction. On
  * phones one day shows at a time, picked from the days of the week. A dated
@@ -94,19 +112,7 @@ export function WeekGrid<T extends GridMeeting>({
   meetings,
   today,
   cell,
-}: {
-  caption: string;
-  days: readonly number[];
-  dates?: readonly GridDate[];
-  periods: readonly GridPeriod[];
-  meetings: readonly T[];
-  today?: number;
-  cell: (input: {
-    meeting: T | null;
-    day: number;
-    period: GridPeriod;
-  }) => ReactNode;
-}) {
+}: WeekGridProps<T>) {
   const [picked, setPicked] = useState(
     today !== undefined && days.includes(today) ? today : (days[0] ?? 1),
   );
@@ -284,6 +290,17 @@ export function WeekGrid<T extends GridMeeting>({
   );
 }
 
+export interface MeetingCardProps {
+  title: ReactNode;
+  teacher?: ReactNode;
+  room?: ReactNode;
+  flagged?: boolean;
+  change?: string | null;
+  cancelled?: boolean;
+  /** Left for whoever teaches it that day. */
+  note?: string | null;
+}
+
 /**
  * A meeting as a week reads it: what, then who and where, a line each, and
  * what is different about it that day.
@@ -296,16 +313,7 @@ export function MeetingCard({
   change = null,
   cancelled = false,
   note = null,
-}: {
-  title: ReactNode;
-  teacher?: ReactNode;
-  room?: ReactNode;
-  flagged?: boolean;
-  change?: string | null;
-  cancelled?: boolean;
-  /** Left for whoever teaches it that day. */
-  note?: string | null;
-}) {
+}: MeetingCardProps) {
   return (
     <div
       className={cn(
@@ -372,6 +380,14 @@ export function FreeCell() {
   );
 }
 
+export interface WeekStepProps {
+  dates: readonly GridDate[];
+  today: string;
+  year: { startsOn: string; lastDay: string };
+  pending?: boolean;
+  onWeek: (on: string) => void;
+}
+
 /**
  * Steps a dated week back and forth inside the school year, and back to the
  * week holding today. Arrows follow the reading direction.
@@ -382,13 +398,7 @@ export function WeekStep({
   year,
   pending = false,
   onWeek,
-}: {
-  dates: readonly GridDate[];
-  today: string;
-  year: { startsOn: string; lastDay: string };
-  pending?: boolean;
-  onWeek: (on: string) => void;
-}) {
+}: WeekStepProps) {
   const first = dates[0]?.date;
   const last = dates.at(-1)?.date;
   if (!first || !last) return null;

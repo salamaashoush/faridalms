@@ -102,18 +102,17 @@ const card = {
   fact: (row: Movement) => [row.at, detailOf(row)].filter(Boolean).join(" · "),
 };
 
+export interface FrontDeskProps {
+  date: string;
+  onDate: (date: string) => void;
+}
+
 /**
  * Reception's book of late arrivals and early departures. Signing a child
  * in or out writes the mark to the day's registers; a departure records who
  * collected the child, from those the school holds as allowed.
  */
-export function FrontDesk({
-  date,
-  onDate,
-}: {
-  date: string;
-  onDate: (date: string) => void;
-}) {
+export function FrontDesk({ date, onDate }: FrontDeskProps) {
   const data = useSuspenseQuery(frontDeskQuery(date)).data;
   const [signing, setSigning] = useState<Direction | null>(null);
   const today = data.date === data.today;
@@ -173,15 +172,13 @@ export function FrontDesk({
   );
 }
 
-function SignSheet({
-  direction: way,
-  reasons,
-  onClose,
-}: {
+interface SignSheetProps {
   direction: Direction;
   reasons: Data["reasons"];
   onClose: () => void;
-}) {
+}
+
+function SignSheet({ direction: way, reasons, onClose }: SignSheetProps) {
   const queryClient = useQueryClient();
   const signIn = useServerFn(signStudentIn);
   const signOut = useServerFn(signStudentOut);

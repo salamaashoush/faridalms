@@ -56,13 +56,12 @@ const NO_ACTIONS: ActionItem[] = [];
 /** Where the details panel is drawn: beside the document, or in a sheet. */
 const DetailsPlacement = createContext<"side" | "sheet">("side");
 
-export function SaveIndicator({
-  state,
-  onRetry,
-}: {
+export interface SaveIndicatorProps {
   state: SaveState;
   onRetry?: () => void;
-}) {
+}
+
+export function SaveIndicator({ state, onRetry }: SaveIndicatorProps) {
   if (state === "saving")
     return (
       <span className="text-[13px] text-muted-foreground" aria-live="polite">
@@ -98,7 +97,11 @@ export function SaveIndicator({
 }
 
 /** Why a draft with changes cannot be stored yet, in place of the save state. */
-export function NotSaved({ reason }: { reason: string }) {
+export interface NotSavedProps {
+  reason: string;
+}
+
+export function NotSaved({ reason }: NotSavedProps) {
   return (
     <span
       className="inline-flex min-w-0 items-center gap-1.5 text-[13px] text-muted-foreground"
@@ -108,6 +111,16 @@ export function NotSaved({ reason }: { reason: string }) {
       <span className="truncate max-sm:sr-only">{reason}</span>
     </span>
   );
+}
+
+export interface HeldChangesProps {
+  waiting?: string;
+  onDiscard?: () => void;
+  onUpdate: () => void;
+  pending?: boolean;
+  updateLabel?: string;
+  /** Beside a surface's own primary action, Update is not the primary one. */
+  quiet?: boolean;
 }
 
 /**
@@ -121,15 +134,7 @@ export function HeldChanges({
   pending,
   updateLabel,
   quiet = false,
-}: {
-  waiting?: string;
-  onDiscard?: () => void;
-  onUpdate: () => void;
-  pending?: boolean;
-  updateLabel?: string;
-  /** Beside a surface's own primary action, Update is not the primary one. */
-  quiet?: boolean;
-}) {
+}: HeldChangesProps) {
   return (
     <>
       <span className="hidden text-[13px] text-muted-foreground sm:inline">
@@ -160,33 +165,7 @@ export function HeldChanges({
   );
 }
 
-/**
- * The frame for anything written in the editor and then published:
- * announcements, news, coursework, lessons. Drafts save
- * themselves; once published, edits wait for Update because families see
- * them at once.
- */
-export function DocumentPage({
-  heading,
-  onBack,
-  status,
-  saveState = "idle",
-  onRetry,
-  notSaved,
-  unpublished,
-  primary,
-  preview,
-  menu = NO_ACTIONS,
-  link,
-  history,
-  templates,
-  print,
-  title,
-  aside,
-  summary = [],
-  details,
-  children,
-}: {
+export interface DocumentPageProps {
   heading: string;
   onBack: () => void;
   status?: { label: string; tone: Tone };
@@ -238,7 +217,35 @@ export function DocumentPage({
   /** Opens the details on phones, where the panel is not beside the text. */
   details?: { open: boolean; onOpenChange: (open: boolean) => void };
   children: ReactNode;
-}) {
+}
+
+/**
+ * The frame for anything written in the editor and then published:
+ * announcements, news, coursework, lessons. Drafts save
+ * themselves; once published, edits wait for Update because families see
+ * them at once.
+ */
+export function DocumentPage({
+  heading,
+  onBack,
+  status,
+  saveState = "idle",
+  onRetry,
+  notSaved,
+  unpublished,
+  primary,
+  preview,
+  menu = NO_ACTIONS,
+  link,
+  history,
+  templates,
+  print,
+  title,
+  aside,
+  summary = [],
+  details,
+  children,
+}: DocumentPageProps) {
   const [ownOpen, setOwnOpen] = useState(false);
   const [historyOpen, setHistoryOpen] = useState(false);
   const printing = usePrint(print ?? null);
@@ -464,6 +471,16 @@ export function DocumentPage({
   );
 }
 
+export interface DocumentTitleProps {
+  value: string;
+  onChange: (value: string) => void;
+  label: string;
+  placeholder: string;
+  onEnter?: () => void;
+  maxLength?: number;
+  id?: string;
+}
+
 export function DocumentTitle({
   value,
   onChange,
@@ -472,15 +489,7 @@ export function DocumentTitle({
   onEnter,
   maxLength = 255,
   id,
-}: {
-  value: string;
-  onChange: (value: string) => void;
-  label: string;
-  placeholder: string;
-  onEnter?: () => void;
-  maxLength?: number;
-  id?: string;
-}) {
+}: DocumentTitleProps) {
   const type =
     "col-start-1 row-start-1 text-[30px] leading-[38px] font-semibold tracking-tight";
   return (
@@ -515,13 +524,12 @@ export function DocumentTitle({
   );
 }
 
-export function DetailsPanel({
-  title,
-  children,
-}: {
+export interface DetailsPanelProps {
   title: string;
   children: ReactNode;
-}) {
+}
+
+export function DetailsPanel({ title, children }: DetailsPanelProps) {
   // In the phone sheet the sheet's own title names it and frames it already.
   if (useContext(DetailsPlacement) === "sheet")
     return <div className="grid gap-5">{children}</div>;
@@ -534,15 +542,13 @@ export function DetailsPanel({
 }
 
 /** One group of settings inside the details panel, ruled off from the one above. */
-export function DetailsSection({
-  title,
-  hint,
-  children,
-}: {
+export interface DetailsSectionProps {
   title: string;
   hint?: string;
   children: ReactNode;
-}) {
+}
+
+export function DetailsSection({ title, hint, children }: DetailsSectionProps) {
   return (
     <section className="grid grid-cols-[minmax(0,1fr)] gap-4 border-t pt-5 first-of-type:border-t-0 first-of-type:pt-0">
       <div className="grid gap-1">

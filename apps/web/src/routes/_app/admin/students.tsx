@@ -72,7 +72,11 @@ export const Route = createFileRoute("/_app/admin/students")({
   component: StudentsPage,
 });
 
-function StudentName({ row }: { row: StudentRow }) {
+interface StudentNameProps {
+  row: StudentRow;
+}
+
+function StudentName({ row }: StudentNameProps) {
   return (
     <RowLink
       to="/students/$studentId"
@@ -84,7 +88,11 @@ function StudentName({ row }: { row: StudentRow }) {
   );
 }
 
-function Reference({ value }: { value: string | null }) {
+interface ReferenceProps {
+  value: string | null;
+}
+
+function Reference({ value }: ReferenceProps) {
   return value ? (
     <span
       dir="ltr"
@@ -97,7 +105,11 @@ function Reference({ value }: { value: string | null }) {
   );
 }
 
-function Status({ row }: { row: StudentRow }) {
+interface StatusProps {
+  row: StudentRow;
+}
+
+function Status({ row }: StatusProps) {
   return (
     <StatusText tone={STATUS_TONE[row.status]}>
       {STATUS_LABEL[row.status]()}

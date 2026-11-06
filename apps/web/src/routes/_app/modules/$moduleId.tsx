@@ -50,12 +50,21 @@ export const Route = createFileRoute("/_app/modules/$moduleId")({
   component: ModulePage,
 });
 
-function RecordTrail({ id }: { id: string }) {
+interface RecordTrailProps {
+  id: string;
+}
+
+function RecordTrail({ id }: RecordTrailProps) {
   const data = useSuspenseQuery(moduleRecordQuery(id)).data;
   return <BreadcrumbCurrent>{data.title}</BreadcrumbCurrent>;
 }
 
-function OutlineTrail({ id, studentId }: { id: string; studentId: string }) {
+interface OutlineTrailProps {
+  id: string;
+  studentId: string;
+}
+
+function OutlineTrail({ id, studentId }: OutlineTrailProps) {
   const data = useSuspenseQuery(moduleOutlineQuery(id, studentId)).data;
   return <BreadcrumbCurrent>{data.title}</BreadcrumbCurrent>;
 }

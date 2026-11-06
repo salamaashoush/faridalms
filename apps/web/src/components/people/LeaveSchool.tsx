@@ -27,6 +27,16 @@ import { getMessageFromError } from "~/utils/error";
 
 import { labelOf, lastDay } from "./format";
 
+export interface LeaveSchoolProps {
+  students: readonly { id: string; name: string }[];
+  /** The year they leave in, whose dates bound the last day. */
+  year: YearBounds;
+  /** The first day one student was placed, when that is later than the year's. */
+  from?: string;
+  today: string;
+  onClose: () => void;
+}
+
 /**
  * Records that students have left the school: their last day, why they
  * left, where they went, and how long they and their families go on reading
@@ -39,15 +49,7 @@ export function LeaveSchool({
   from,
   today,
   onClose,
-}: {
-  students: readonly { id: string; name: string }[];
-  /** The year they leave in, whose dates bound the last day. */
-  year: YearBounds;
-  /** The first day one student was placed, when that is later than the year's. */
-  from?: string;
-  today: string;
-  onClose: () => void;
-}) {
+}: LeaveSchoolProps) {
   const queryClient = useQueryClient();
   const options = useSuspenseQuery(peopleOptionsQuery).data;
   const min = from && from > year.startsOn ? from : year.startsOn;

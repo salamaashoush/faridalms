@@ -79,13 +79,12 @@ function initialDraft(year: YearData | null): Draft {
   };
 }
 
-export function YearEditor({
-  year = null,
-  onClose,
-}: {
+export interface YearEditorProps {
   year?: YearData | null;
   onClose: (id?: string) => void;
-}) {
+}
+
+export function YearEditor({ year = null, onClose }: YearEditorProps) {
   const queryClient = useQueryClient();
   const leaving = useRef(false);
   const nextKey = useRef((year?.terms.length ?? 0) + 1);

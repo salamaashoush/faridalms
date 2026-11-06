@@ -173,15 +173,13 @@ const GATE_PROGRESS: Record<
   both: m.lrnGateProgressBoth,
 };
 
-function Gate({
-  standing,
-  retry,
-  onContinue,
-}: {
+interface GateProps {
   standing: GateStanding;
   retry?: { pending: boolean; onRetry: () => void } | undefined;
   onContinue: () => void;
-}) {
+}
+
+function Gate({ standing, retry, onContinue }: GateProps) {
   if (gateOpen(standing))
     return (
       <div className="flex justify-center">
@@ -241,6 +239,22 @@ function Gate({
   );
 }
 
+interface LessonBodyProps {
+  blocks: StudentBlock[];
+  checks: Record<string, CheckView>;
+  driver: CheckDriver;
+  position?: string | null;
+  onReach?: (blockId: string) => void;
+  watch?: (fileId: string) => MediaWatch | undefined;
+  watches?: Record<string, Watched>;
+  /** The part a teacher leading the lesson live has opened to the class. */
+  paced?: { step: number } | null;
+  /** The language the lesson teaches in, where its teacher set one. */
+  language?: ContentLocale | null;
+  /** Another go at the lesson, for a student short of a gate's score. */
+  retry?: { pending: boolean; onRetry: () => void };
+}
+
 /**
  * A lesson's blocks as its student meets them, stopping at each continue gate
  * until the questions above it are settled, the recordings above it
@@ -257,21 +271,7 @@ function LessonBody({
   paced = null,
   language,
   retry,
-}: {
-  blocks: StudentBlock[];
-  checks: Record<string, CheckView>;
-  driver: CheckDriver;
-  position?: string | null;
-  onReach?: (blockId: string) => void;
-  watch?: (fileId: string) => MediaWatch | undefined;
-  watches?: Record<string, Watched>;
-  /** The part a teacher leading the lesson live has opened to the class. */
-  paced?: { step: number } | null;
-  /** The language the lesson teaches in, where its teacher set one. */
-  language?: ContentLocale | null;
-  /** Another go at the lesson, for a student short of a gate's score. */
-  retry?: { pending: boolean; onRetry: () => void };
-}) {
+}: LessonBodyProps) {
   const young = useContext(YoungContext);
   const stops = useMemo(() => videoStops(blocks), [blocks]);
   const stopOf = useMemo(() => {
@@ -724,7 +724,11 @@ function useReadingPosition(
   return reach;
 }
 
-function Footer({ data }: { data: Played }) {
+interface FooterProps {
+  data: Played;
+}
+
+function Footer({ data }: FooterProps) {
   return (
     <nav
       aria-label={m.lrnLessonNav()}
@@ -798,7 +802,11 @@ function useVowelMarks(setting: VowelMarks) {
 }
 
 /** One lesson for its student: read, answer, and move on when it is done. */
-export function LessonPlayer({ lessonId }: { lessonId: string }) {
+export interface LessonPlayerProps {
+  lessonId: string;
+}
+
+export function LessonPlayer({ lessonId }: LessonPlayerProps) {
   const query = lessonQuery(lessonId);
   const data = useSuspenseQuery(query).data;
   const paced =
@@ -1275,22 +1283,19 @@ function heldOf(
   });
 }
 
+interface HeldResultsProps {
+  held: Held[];
+  pending: boolean;
+  onSee: () => void;
+  onShowClass?: () => void;
+}
+
 /**
  * Where a lesson's questions that wait show how they went: those kept for
  * the end once every one is answered and the student asks, those kept for
  * the teacher when the class is shown. A preview stands in for the teacher.
  */
-function HeldResults({
-  held,
-  pending,
-  onSee,
-  onShowClass,
-}: {
-  held: Held[];
-  pending: boolean;
-  onSee: () => void;
-  onShowClass?: () => void;
-}) {
+function HeldResults({ held, pending, onSee, onShowClass }: HeldResultsProps) {
   const forEnd = held.filter((item) => item.at === "end");
   const answered = forEnd.filter((item) => item.answered).length;
   return (
@@ -1339,13 +1344,12 @@ function HeldResults({
   );
 }
 
-function RetryButton({
-  pending,
-  onRetry,
-}: {
+interface RetryButtonProps {
   pending: boolean;
   onRetry: () => void;
-}) {
+}
+
+function RetryButton({ pending, onRetry }: RetryButtonProps) {
   return (
     <Button
       type="button"
@@ -1361,18 +1365,17 @@ function RetryButton({
   );
 }
 
+export interface LessonPreviewProps {
+  lessonId: string;
+  /** Drawn inside a teacher's preview frame, at another width or language. */
+  framed?: boolean;
+}
+
 /**
  * A lesson as its students will meet it, answered and marked here in the
  * browser so the teacher can try every question; nothing is saved.
  */
-export function LessonPreview({
-  lessonId,
-  framed,
-}: {
-  lessonId: string;
-  /** Drawn inside a teacher's preview frame, at another width or language. */
-  framed?: boolean;
-}) {
+export function LessonPreview({ lessonId, framed }: LessonPreviewProps) {
   const data = useSuspenseQuery(lessonEditorQuery(lessonId)).data;
   const own: PreviewLanguage = getLocale() === "ar" ? "ar" : "en";
   const [screen, setScreen] = useState<PreviewScreen>("desktop");

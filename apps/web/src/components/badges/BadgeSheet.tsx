@@ -21,6 +21,16 @@ export interface PrintedBadge {
 // child who cannot read finds their own card by its colour and letter.
 const TONES = ["#dbeafe", "#dcfce7", "#fef3c7", "#fce7f3", "#ede9fe"];
 
+export interface BadgeSheetProps {
+  badges: PrintedBadge[];
+  schoolName: string;
+  /** The class printed on each card; none when the badges are of several. */
+  className: string | null;
+  notes?: readonly string[];
+  warnings?: readonly string[];
+  onDone: () => void;
+}
+
 /**
  * New badges laid out on paper, credit-card size, eight to an A4 page.
  * Closing the sheet drops the secrets, which the API never shows twice.
@@ -32,15 +42,7 @@ export function BadgeSheet({
   notes,
   warnings,
   onDone,
-}: {
-  badges: PrintedBadge[];
-  schoolName: string;
-  /** The class printed on each card; none when the badges are of several. */
-  className: string | null;
-  notes?: readonly string[];
-  warnings?: readonly string[];
-  onDone: () => void;
-}) {
+}: BadgeSheetProps) {
   const origin = window.location.origin;
   // A badge can go on a card only now, while its secret is shown.
   const cards = nfcAvailable();

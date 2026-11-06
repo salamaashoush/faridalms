@@ -37,6 +37,15 @@ export function clamp(day: string, min: string, max: string) {
   return day;
 }
 
+export interface MoveClassSheetProps {
+  student: { id: string; name: string };
+  current: { classId: string; from: string } | null;
+  year: YearBounds;
+  today: string;
+  open: boolean;
+  onClose: () => void;
+}
+
 /**
  * Moves a student to another homeroom from a date. The old enrollment ends
  * on that day and the new one starts on it, so both stay on record.
@@ -48,14 +57,7 @@ export function MoveClassSheet({
   today,
   open,
   onClose,
-}: {
-  student: { id: string; name: string };
-  current: { classId: string; from: string } | null;
-  year: YearBounds;
-  today: string;
-  open: boolean;
-  onClose: () => void;
-}) {
+}: MoveClassSheetProps) {
   const refresh = useRefresh();
   const classes = useQuery(
     classDirectoryQuery({ year: year.id, q: "", grade: [] }),
@@ -176,6 +178,13 @@ export async function eachInTurn<T>(
     : { done: [item, ...after.done], failed: after.failed };
 }
 
+export interface MoveManySheetProps {
+  students: readonly { id: string; name: string }[];
+  year: YearBounds;
+  today: string;
+  onClose: () => void;
+}
+
 /**
  * Moves the students picked in a list to one homeroom from a date, each as
  * moving one does. A student the move is refused for stays where they are
@@ -186,12 +195,7 @@ export function MoveManySheet({
   year,
   today,
   onClose,
-}: {
-  students: readonly { id: string; name: string }[];
-  year: YearBounds;
-  today: string;
-  onClose: () => void;
-}) {
+}: MoveManySheetProps) {
   const refresh = useRefresh();
   const classes = useQuery(
     classDirectoryQuery({ year: year.id, q: "", grade: [] }),
@@ -291,6 +295,16 @@ export function MoveManySheet({
 }
 
 /** Takes a student out of a class from a date; the days before stay on record. */
+export interface WithdrawSheetProps {
+  student: { id: string; name: string };
+  enrollment: { id: string; version: number; from: string };
+  className: string;
+  year: YearBounds;
+  today: string;
+  open: boolean;
+  onClose: () => void;
+}
+
 export function WithdrawSheet({
   student,
   enrollment,
@@ -299,15 +313,7 @@ export function WithdrawSheet({
   today,
   open,
   onClose,
-}: {
-  student: { id: string; name: string };
-  enrollment: { id: string; version: number; from: string };
-  className: string;
-  year: YearBounds;
-  today: string;
-  open: boolean;
-  onClose: () => void;
-}) {
+}: WithdrawSheetProps) {
   const refresh = useRefresh();
   const max = lastDay(year.endsBefore);
   const [on, setOn] = useState(clamp(today, enrollment.from, max));
@@ -373,6 +379,15 @@ export function WithdrawSheet({
   );
 }
 
+export interface AddStudentSheetProps {
+  classId: string;
+  className: string;
+  year: YearBounds;
+  today: string;
+  open: boolean;
+  onClose: () => void;
+}
+
 export function AddStudentSheet({
   classId,
   className,
@@ -380,14 +395,7 @@ export function AddStudentSheet({
   today,
   open,
   onClose,
-}: {
-  classId: string;
-  className: string;
-  year: YearBounds;
-  today: string;
-  open: boolean;
-  onClose: () => void;
-}) {
+}: AddStudentSheetProps) {
   const refresh = useRefresh();
   const [search, setSearch] = useState("");
   const [studentId, setStudentId] = useState("");

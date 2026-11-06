@@ -11,6 +11,13 @@ import * as m from "~/i18n/messages";
 import { openApplicationConversation } from "~/server/admissions";
 import { getMessageFromError } from "~/utils/error";
 
+export interface FamilyConversationProps {
+  applicationId: string;
+  threadId: string | null;
+  childName: string;
+  manages: boolean;
+}
+
 /**
  * Where an application page shows the family's conversation with the
  * school. Every word exchanged with a family belongs to the Messages
@@ -22,12 +29,7 @@ export function FamilyConversation({
   threadId,
   childName,
   manages,
-}: {
-  applicationId: string;
-  threadId: string | null;
-  childName: string;
-  manages: boolean;
-}) {
+}: FamilyConversationProps) {
   const queryClient = useQueryClient();
   const open = useMutation({
     mutationFn: () =>

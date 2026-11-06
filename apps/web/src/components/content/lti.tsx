@@ -20,16 +20,14 @@ const LtiHostContext = createContext<{
   id: string | null;
 } | null>(null);
 
-export function LtiHostProvider({
-  type,
-  id,
-  children,
-}: {
+export interface LtiHostProviderProps {
   type: LtiHost;
   /** None while the lesson or brief is not yet saved. */
   id: string | null;
   children: ReactNode;
-}) {
+}
+
+export function LtiHostProvider({ type, id, children }: LtiHostProviderProps) {
   const value = useMemo(() => ({ type, id }), [type, id]);
   return (
     <LtiHostContext.Provider value={value}>{children}</LtiHostContext.Provider>

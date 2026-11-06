@@ -116,11 +116,15 @@ function step(
   }
 }
 
+export interface TurtleCanvasProps {
+  drawing: Drawing;
+}
+
 /**
  * What a student's turtle drew, played back step by step at the speed the
  * program asked for, within a few seconds however long it is.
  */
-export function TurtleCanvas({ drawing }: { drawing: Drawing }) {
+export function TurtleCanvas({ drawing }: TurtleCanvasProps) {
   const canvas = useRef<HTMLCanvasElement>(null);
   const [done, setDone] = useState(false);
   const [finish, setFinish] = useState(false);

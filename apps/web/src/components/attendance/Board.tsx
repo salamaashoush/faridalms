@@ -27,7 +27,11 @@ type Row = Data["rows"][number] & { id: string; date: string };
 
 const STATES: RegisterState[] = ["not_started", "in_progress", "submitted"];
 
-function ClassLink({ row }: { row: Row }) {
+interface ClassLinkProps {
+  row: Row;
+}
+
+function ClassLink({ row }: ClassLinkProps) {
   return (
     <RowLink
       to="/registers/$classId"
@@ -43,7 +47,11 @@ function ClassLink({ row }: { row: Row }) {
   );
 }
 
-function State({ row }: { row: Row }) {
+interface StateProps {
+  row: Row;
+}
+
+function State({ row }: StateProps) {
   return (
     <StatusText tone={STATE_TONE[row.state]}>
       {STATE_LABEL[row.state]()}
@@ -104,15 +112,13 @@ const card = {
   fact: (row: Row) => exceptions(row),
 };
 
-export function Board({
-  date,
-  states,
-  onChange,
-}: {
+export interface BoardProps {
   date: string;
   states: RegisterState[];
   onChange: (change: { date?: string; states?: RegisterState[] }) => void;
-}) {
+}
+
+export function Board({ date, states, onChange }: BoardProps) {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const data = useSuspenseQuery(attendanceBoardQuery(date)).data;

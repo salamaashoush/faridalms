@@ -30,36 +30,7 @@ const Editor = lazy(loadEditor);
 // alongside the rest of its script, rather than once that page has hydrated.
 if (typeof window !== "undefined") void loadEditor();
 
-export function ContentEditor({
-  id,
-  label,
-  value,
-  onChange,
-  onValidityChange,
-  disabled = false,
-  variant = "field",
-  toolbar = true,
-  media,
-  placeholder,
-  initialFocus,
-  collaboration,
-  replace,
-  onUploadingChange,
-  questions,
-  gates,
-  draws,
-  lockQuestions,
-  starter,
-  aiUse,
-  narration,
-  lessonActivities,
-  feedbackTiming,
-  standards = false,
-  sharedBlocks,
-  pending = false,
-  language,
-  young,
-}: {
+export interface ContentEditorProps {
   id: string;
   label: string;
   value: ContentDocument;
@@ -94,7 +65,38 @@ export function ContentEditor({
   pending?: boolean;
   /** Young children read it, so its page is set as they will see it. */
   young?: boolean;
-}) {
+}
+
+export function ContentEditor({
+  id,
+  label,
+  value,
+  onChange,
+  onValidityChange,
+  disabled = false,
+  variant = "field",
+  toolbar = true,
+  media,
+  placeholder,
+  initialFocus,
+  collaboration,
+  replace,
+  onUploadingChange,
+  questions,
+  gates,
+  draws,
+  lockQuestions,
+  starter,
+  aiUse,
+  narration,
+  lessonActivities,
+  feedbackTiming,
+  standards = false,
+  sharedBlocks,
+  pending = false,
+  language,
+  young,
+}: ContentEditorProps) {
   const strings = useMemo(() => editorStrings(), []);
   const hydrated = useHydrated();
   const coding = useEditorStudio(questions ? media : undefined);

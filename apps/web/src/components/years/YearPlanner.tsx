@@ -134,19 +134,15 @@ function runsOf(days: Day[]): Run[] {
   return runs;
 }
 
-function Target({
-  yearId,
-  target,
-  count,
-  closed,
-  canEdit,
-}: {
+interface TargetProps {
   yearId: string;
   target: number | null;
   count: number;
   closed: number;
   canEdit: boolean;
-}) {
+}
+
+function Target({ yearId, target, count, closed, canEdit }: TargetProps) {
   const queryClient = useQueryClient();
   const [value, setValue] = useState(target ? String(target) : "");
   const save = useMutation({
@@ -223,6 +219,18 @@ function Target({
   );
 }
 
+interface MonthProps {
+  month: string;
+  weekStart: IsoWeekday;
+  byDay: Map<string, Day>;
+  terms: Days["terms"];
+  today: string;
+  selected: { from: string; to: string } | null;
+  onPick: (day: string) => void;
+  canEdit: boolean;
+  hydrated: boolean;
+}
+
 function Month({
   month,
   weekStart,
@@ -233,17 +241,7 @@ function Month({
   onPick,
   canEdit,
   hydrated,
-}: {
-  month: string;
-  weekStart: IsoWeekday;
-  byDay: Map<string, Day>;
-  terms: Days["terms"];
-  today: string;
-  selected: { from: string; to: string } | null;
-  onPick: (day: string) => void;
-  canEdit: boolean;
-  hydrated: boolean;
-}) {
+}: MonthProps) {
   const weeks = monthWeeks(month, weekStart);
   const termOf = (day: string) =>
     terms.find((term) => term.startsOn <= day && day < term.endsBefore);
@@ -337,15 +335,13 @@ function Month({
   );
 }
 
-function MarkForm({
-  yearId,
-  range,
-  onDone,
-}: {
+interface MarkFormProps {
   yearId: string;
   range: { from: string; to: string };
   onDone: () => void;
-}) {
+}
+
+function MarkForm({ yearId, range, onDone }: MarkFormProps) {
   const queryClient = useQueryClient();
   const [kind, setKind] = useState<DayKind>("school_holiday");
   const [noteEn, setNoteEn] = useState("");
@@ -462,6 +458,12 @@ function MarkForm({
   );
 }
 
+export interface YearPlannerProps {
+  yearId: string;
+  startsOn: string;
+  endsBefore: string;
+}
+
 /**
  * The year's school days on one page: every month, each day drawn by what
  * it is, terms underlined, the count against the authority's target, and a
@@ -471,11 +473,7 @@ export function YearPlanner({
   yearId,
   startsOn,
   endsBefore,
-}: {
-  yearId: string;
-  startsOn: string;
-  endsBefore: string;
-}) {
+}: YearPlannerProps) {
   const user = useCurrentUser();
   const hydrated = useHydrated();
   const data = useSuspenseQuery(yearDaysQuery(yearId)).data;

@@ -48,7 +48,11 @@ export const Route = createFileRoute("/_app/assignments/$assignmentId")({
   component: AssignmentPage,
 });
 
-function TeacherTrail({ id }: { id: string }) {
+interface TeacherTrailProps {
+  id: string;
+}
+
+function TeacherTrail({ id }: TeacherTrailProps) {
   const { read } = Route.useSearch();
   const data = useSuspenseQuery(assignmentRecordQuery(id)).data;
   return (
@@ -58,7 +62,11 @@ function TeacherTrail({ id }: { id: string }) {
   );
 }
 
-function LearnerTrail({ id }: { id: string }) {
+interface LearnerTrailProps {
+  id: string;
+}
+
+function LearnerTrail({ id }: LearnerTrailProps) {
   const { read } = Route.useSearch();
   const data = useSuspenseQuery(myWorkQuery(id)).data;
   const brief = {

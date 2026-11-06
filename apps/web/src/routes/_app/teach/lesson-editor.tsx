@@ -69,17 +69,19 @@ function EditorTrail() {
   );
 }
 
+interface ExistingEditorProps {
+  id: string;
+  moduleId: string;
+  onClose: () => void;
+  onCreated: (id: string) => void;
+}
+
 function ExistingEditor({
   id,
   moduleId,
   onClose,
   onCreated,
-}: {
-  id: string;
-  moduleId: string;
-  onClose: () => void;
-  onCreated: (id: string) => void;
-}) {
+}: ExistingEditorProps) {
   const existing = useSuspenseQuery(lessonEditorQuery(id)).data;
   return (
     <LessonEditor
@@ -92,17 +94,14 @@ function ExistingEditor({
   );
 }
 
-function NewEditor({
-  moduleId,
-  template,
-  onClose,
-  onCreated,
-}: {
+interface NewEditorProps {
   moduleId: string;
   template: string;
   onClose: () => void;
   onCreated: (id: string) => void;
-}) {
+}
+
+function NewEditor({ moduleId, template, onClose, onCreated }: NewEditorProps) {
   const piece = useSuspenseQuery(templateQuery(template)).data;
   return (
     <LessonEditor

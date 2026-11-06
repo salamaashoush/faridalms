@@ -42,7 +42,11 @@ interface Row {
 
 const LANGUAGE = { en: m.admLanguageEn, ar: m.admLanguageAr };
 
-function Title({ row }: { row: Row }) {
+interface TitleProps {
+  row: Row;
+}
+
+function Title({ row }: TitleProps) {
   return (
     <span className="grid min-w-0 gap-0.5">
       <RowLink

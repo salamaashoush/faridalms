@@ -166,17 +166,16 @@ function LanguageSwitch({
   );
 }
 
+interface ThemeSwitchProps {
+  context: RenderContext;
+  className?: string;
+}
+
 /**
  * Light or dark, beside the language. The page follows the reader's
  * device until they choose; their choice is kept as the app keeps it.
  */
-function ThemeSwitch({
-  context,
-  className,
-}: {
-  context: RenderContext;
-  className?: string;
-}) {
+function ThemeSwitch({ context, className }: ThemeSwitchProps) {
   const { resolvedTheme, setTheme } = useTheme();
   // The reader's choice is known only in the browser; until then the icons
   // follow the page's class and the button claims no state.
@@ -309,20 +308,22 @@ function DesktopNav({
   );
 }
 
-function MenuButton({
-  open,
-  onToggle,
-  context,
-  className,
-  labelled = false,
-}: {
+interface MenuButtonProps {
   open: boolean;
   onToggle: () => void;
   context: RenderContext;
   className?: string;
   /** Whether the word "Menu" shows beside the icon. */
   labelled?: boolean;
-}) {
+}
+
+function MenuButton({
+  open,
+  onToggle,
+  context,
+  className,
+  labelled = false,
+}: MenuButtonProps) {
   const t = { locale: context.locale };
   const Glyph = open ? X : Menu;
   const label = open ? m.siteCloseMenu({}, t) : m.siteMenu({}, t);
@@ -597,7 +598,11 @@ function Header({
   );
 }
 
-function Socials({ frame }: { frame: SiteFrameModel }) {
+interface SocialsProps {
+  frame: SiteFrameModel;
+}
+
+function Socials({ frame }: SocialsProps) {
   if (frame.socialLinks.length === 0) return null;
   return (
     <ul className="flex flex-wrap gap-2">
@@ -622,13 +627,12 @@ function Socials({ frame }: { frame: SiteFrameModel }) {
   );
 }
 
-function FooterColumns({
-  context,
-  columns,
-}: {
+interface FooterColumnsProps {
   context: RenderContext;
   columns: ReturnType<typeof footerColumns>;
-}) {
+}
+
+function FooterColumns({ context, columns }: FooterColumnsProps) {
   return (
     <>
       {columns.map((column) => (
@@ -820,6 +824,16 @@ function Dock({ frame, context }: FrameProps) {
   );
 }
 
+export interface SiteFrameProps {
+  frame: SiteFrameModel;
+  context: RenderContext;
+  /** The page opens on a full-bleed picture the overlay header can sit on. */
+  overlay: boolean;
+  /** The page is whole in itself, as a door laid out as a page is: no header, footer or banner. */
+  bare?: boolean;
+  children: ReactNode;
+}
+
 /**
  * A school's site around its page: banner, header, footer and the phone
  * dock, drawn by the theme's header and footer styles. The same frame runs
@@ -831,15 +845,7 @@ export function SiteFrame({
   overlay,
   bare = false,
   children,
-}: {
-  frame: SiteFrameModel;
-  context: RenderContext;
-  /** The page opens on a full-bleed picture the overlay header can sit on. */
-  overlay: boolean;
-  /** The page is whole in itself, as a door laid out as a page is: no header, footer or banner. */
-  bare?: boolean;
-  children: ReactNode;
-}) {
+}: SiteFrameProps) {
   const t = { locale: context.locale };
   const root = useRef<HTMLDivElement>(null);
   const duotone = duotoneTables(context.theme);

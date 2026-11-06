@@ -77,13 +77,12 @@ function identity(draft: Draft) {
     : null;
 }
 
-function Matches({
-  students,
-  ref,
-}: {
+interface MatchesProps {
   students: Match[];
   ref: Ref<HTMLDivElement>;
-}) {
+}
+
+function Matches({ students, ref }: MatchesProps) {
   const titleId = useId();
   return (
     <div
@@ -136,6 +135,15 @@ function Matches({
   );
 }
 
+interface GuardianBlockProps {
+  draft: GuardianDraft;
+  index: number;
+  relations: { value: string; label: string }[];
+  onChange: (draft: GuardianDraft) => void;
+  onRemove: () => void;
+  nameError?: string | null;
+}
+
 function GuardianBlock({
   draft,
   index,
@@ -143,14 +151,7 @@ function GuardianBlock({
   onChange,
   onRemove,
   nameError,
-}: {
-  draft: GuardianDraft;
-  index: number;
-  relations: { value: string; label: string }[];
-  onChange: (draft: GuardianDraft) => void;
-  onRemove: () => void;
-  nameError?: string | null;
-}) {
+}: GuardianBlockProps) {
   const [looking, setLooking] = useState(false);
   const [contactError, setContactError] = useState<string | null>(null);
   const legendId = useId();
@@ -292,24 +293,25 @@ type StudentRecordData = Awaited<
   ReturnType<NonNullable<ReturnType<typeof studentRecordQuery>["queryFn"]>>
 >;
 
+export interface ExistingStudentEditorProps {
+  id: string;
+  onClose: () => void;
+}
+
 export function ExistingStudentEditor({
   id,
   onClose,
-}: {
-  id: string;
-  onClose: () => void;
-}) {
+}: ExistingStudentEditorProps) {
   const record = useSuspenseQuery(studentRecordQuery(id)).data;
   return <StudentEditor record={record} onClose={onClose} />;
 }
 
-export function StudentEditor({
-  record = null,
-  onClose,
-}: {
+export interface StudentEditorProps {
   record?: StudentRecordData | null;
   onClose: () => void;
-}) {
+}
+
+export function StudentEditor({ record = null, onClose }: StudentEditorProps) {
   const adding = record === null;
   const options = useSuspenseQuery(peopleOptionsQuery).data;
   const queryClient = useQueryClient();
@@ -644,19 +646,17 @@ export function StudentEditor({
   );
 }
 
+interface ShownValueProps {
+  label: string;
+  link: { id: string; tab: "enrollment" | "family"; label: string };
+  children: ReactNode;
+}
+
 /**
  * A value this form shows but does not change: a grade change and guardian
  * links each take the record's own confirmed steps.
  */
-function ShownValue({
-  label,
-  link,
-  children,
-}: {
-  label: string;
-  link: { id: string; tab: "enrollment" | "family"; label: string };
-  children: ReactNode;
-}) {
+function ShownValue({ label, link, children }: ShownValueProps) {
   return (
     <fieldset className="min-w-0">
       <legend className="mb-2 text-sm leading-5 font-medium">{label}</legend>

@@ -112,7 +112,11 @@ function BoardTrail() {
   return <BreadcrumbCurrent>{titleOf(board.intake)}</BreadcrumbCurrent>;
 }
 
-function Child({ row }: { row: Row }) {
+interface ChildProps {
+  row: Row;
+}
+
+function Child({ row }: ChildProps) {
   return (
     <span className="grid min-w-0 gap-0.5">
       <RowLink
@@ -133,7 +137,11 @@ function Child({ row }: { row: Row }) {
 }
 
 /** What a row says of where it stands in its phase. */
-function Standing({ row }: { row: Row }) {
+interface StandingProps {
+  row: Row;
+}
+
+function Standing({ row }: StandingProps) {
   if (row.state === "decided" && row.decision)
     return (
       <StatusText tone="info">{DECISION_LABEL[row.decision]()}</StatusText>

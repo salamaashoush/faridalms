@@ -4,12 +4,16 @@ import { programOf } from "@faridalms/makecode/project";
 
 import * as m from "~/i18n/messages";
 
+export interface DeviceProgramProps {
+  files: readonly ProjectFile[];
+}
+
 /**
  * A micro:bit project where it is not open: its program as the text its
  * blocks come to, to read at a glance. Running it takes the board's own
  * editor, which is too large to load for every project on a page.
  */
-export function DeviceProgram({ files }: { files: readonly ProjectFile[] }) {
+export function DeviceProgram({ files }: DeviceProgramProps) {
   const program = programOf(files);
   const code = program?.code.trim() ?? "";
   if (!program || code === "")

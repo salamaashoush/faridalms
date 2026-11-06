@@ -19,6 +19,20 @@ interface Pending {
   error: string | null;
 }
 
+export interface FileFieldProps {
+  id: string;
+  label: string;
+  hint?: string;
+  purpose: FilePurpose;
+  value: FileSummary[];
+  onChange: (update: (current: FileSummary[]) => FileSummary[]) => void;
+  maxFiles: number;
+  maxBytes: number;
+  optional?: boolean;
+  disabled?: boolean;
+  errors?: string[];
+}
+
 /**
  * Files attached to a form: each is declared, then streamed through the
  * web's file route, and counts only once the API has verified what arrived.
@@ -35,19 +49,7 @@ export function FileField({
   optional,
   disabled = false,
   errors,
-}: {
-  id: string;
-  label: string;
-  hint?: string;
-  purpose: FilePurpose;
-  value: FileSummary[];
-  onChange: (update: (current: FileSummary[]) => FileSummary[]) => void;
-  maxFiles: number;
-  maxBytes: number;
-  optional?: boolean;
-  disabled?: boolean;
-  errors?: string[];
-}) {
+}: FileFieldProps) {
   const input = useRef<HTMLInputElement>(null);
   const initiate = useServerFn(initiateUpload);
   const [pending, setPending] = useState<Pending[]>([]);

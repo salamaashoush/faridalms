@@ -60,7 +60,11 @@ const TAB_LABEL: Record<TeacherTab, () => string> = {
   past: m.courseworkTabPast,
 };
 
-function Title({ row }: { row: Row }) {
+interface TitleProps {
+  row: Row;
+}
+
+function Title({ row }: TitleProps) {
   return (
     <RowLink
       to="/assignments/$assignmentId"
@@ -72,7 +76,11 @@ function Title({ row }: { row: Row }) {
   );
 }
 
-function Phase({ row }: { row: Row }) {
+interface PhaseProps {
+  row: Row;
+}
+
+function Phase({ row }: PhaseProps) {
   return (
     <StatusText tone={PHASE_TONE[row.phase]}>
       {PHASE_LABEL[row.phase]()}
@@ -93,7 +101,11 @@ function progress(row: Row) {
   return parts.join(" · ");
 }
 
-function Due({ row }: { row: Row }) {
+interface DueProps {
+  row: Row;
+}
+
+function Due({ row }: DueProps) {
   return row.dueAt ? (
     <Value>{formatInstant(row.dueAt)}</Value>
   ) : (

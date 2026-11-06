@@ -101,11 +101,15 @@ const lesson = (slot: Child["now"], label: string) =>
     ? `${label}: ${classTitle({ code: slot.classCode, titleEn: slot.classTitleEn, titleAr: slot.classTitleAr })}`
     : null;
 
+interface HandOverProps {
+  child: Child;
+}
+
 /**
  * Hands this device to a young child for their lessons. The child sees only
  * their own home; a grown-up's answer brings the family account back.
  */
-function HandOver({ child }: { child: Child }) {
+function HandOver({ child }: HandOverProps) {
   const sessionChanged = useSessionChange();
   const start = useServerFn(startChildMode);
   const name = displayName(child);
@@ -151,18 +155,17 @@ const INTENTION_LABEL = {
   leaving: m.familyNextYearLeaving,
 } satisfies Record<NextYearIntention, () => string>;
 
+interface NextYearProps {
+  child: Child;
+  nextYear: NonNullable<Child["nextYear"]>;
+}
+
 /**
  * The school's question about a child's next year, for a guardian who
  * decides for them: each choice is kept as it is made, and can change
  * while the school is asking.
  */
-function NextYear({
-  child,
-  nextYear,
-}: {
-  child: Child;
-  nextYear: NonNullable<Child["nextYear"]>;
-}) {
+function NextYear({ child, nextYear }: NextYearProps) {
   const save = useServerFn(setIntention);
   const [chosen, setChosen] = useState(nextYear.intention);
   const answer = useMutation({
@@ -212,7 +215,12 @@ function NextYear({
   );
 }
 
-function ChildCard({ child, single }: { child: Child; single: boolean }) {
+interface ChildCardProps {
+  child: Child;
+  single: boolean;
+}
+
+function ChildCard({ child, single }: ChildCardProps) {
   const presence = PRESENCE[child.presence];
   return (
     <HomeCard

@@ -55,7 +55,11 @@ function EditorTrail() {
   );
 }
 
-function EditTrail({ userId }: { userId: string }) {
+interface EditTrailProps {
+  userId: string;
+}
+
+function EditTrail({ userId }: EditTrailProps) {
   const member = useSuspenseQuery(staffMemberQuery(userId)).data;
   return (
     <>

@@ -30,6 +30,14 @@ const REASON: Record<Reason, () => string> = {
 /** What a restore brings back: a document's words, or a website page's sections. */
 export type Restored = Awaited<ReturnType<typeof restoreDocumentVersion>>;
 
+export interface DocumentHistoryProps {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  hostType: string;
+  hostId: string;
+  onRestore: (restored: Restored) => void;
+}
+
 /**
  * A document's earlier versions in each language it is written in, in a
  * sheet beside it. Restoring one puts it in the editor as the working copy;
@@ -41,13 +49,7 @@ export function DocumentHistory({
   hostType,
   hostId,
   onRestore,
-}: {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-  hostType: string;
-  hostId: string;
-  onRestore: (restored: Restored) => void;
-}) {
+}: DocumentHistoryProps) {
   const versions = useQuery({
     queryKey: ["documents", "history", hostType, hostId],
     queryFn: () => getDocumentHistory({ data: { hostType, hostId } }),

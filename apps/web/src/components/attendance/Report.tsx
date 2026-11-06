@@ -31,7 +31,12 @@ function nameOf(row: Row, by: ReportQuery["by"]) {
     : inLocale(row.nameEn, row.nameAr);
 }
 
-function Name({ row, by }: { row: Row; by: ReportQuery["by"] }) {
+interface NameProps {
+  row: Row;
+  by: ReportQuery["by"];
+}
+
+function Name({ row, by }: NameProps) {
   return by === "class" ? (
     <RowLink
       to="/classes/$classId"
@@ -51,7 +56,11 @@ function Name({ row, by }: { row: Row; by: ReportQuery["by"] }) {
   );
 }
 
-function Rate({ row }: { row: Row }) {
+interface RateProps {
+  row: Row;
+}
+
+function Rate({ row }: RateProps) {
   if (row.summary.rate === null)
     return <span className="text-muted-foreground">–</span>;
   return row.chronic ? (
@@ -164,13 +173,12 @@ const cardFor = (by: ReportQuery["by"]) => ({
     }),
 });
 
-export function Report({
-  query,
-  onChange,
-}: {
+export interface ReportProps {
   query: ReportQuery;
   onChange: (change: Partial<ReportQuery>) => void;
-}) {
+}
+
+export function Report({ query, onChange }: ReportProps) {
   const data = useSuspenseQuery(attendanceReportQuery(query)).data;
   const termFacet: Facet = {
     id: "term",

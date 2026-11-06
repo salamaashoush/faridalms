@@ -53,19 +53,21 @@ interface Draft {
 }
 
 /** Who in one class takes the module: everyone, or the groups and students chosen. */
+interface ClassAudienceProps {
+  classId: string;
+  title: string;
+  value: Chosen | undefined;
+  onChange: (value: Chosen | undefined) => void;
+  missing: boolean;
+}
+
 function ClassAudience({
   classId,
   title,
   value,
   onChange,
   missing,
-}: {
-  classId: string;
-  title: string;
-  value: Chosen | undefined;
-  onChange: (value: Chosen | undefined) => void;
-  missing: boolean;
-}) {
+}: ClassAudienceProps) {
   const groups = useQuery({
     ...classGroupsQuery(classId),
     enabled: value !== undefined,
@@ -133,15 +135,17 @@ function ClassAudience({
 }
 
 /** What a module is, which classes take it, and how its lessons open. */
+export interface ModuleEditorProps {
+  existing: Existing | null;
+  classId: string;
+  onClose: (id?: string) => void;
+}
+
 export function ModuleEditor({
   existing,
   classId,
   onClose,
-}: {
-  existing: Existing | null;
-  classId: string;
-  onClose: (id?: string) => void;
-}) {
+}: ModuleEditorProps) {
   const options = useSuspenseQuery(learningOptionsQuery).data;
   const queryClient = useQueryClient();
   const [initial] = useState<Draft>(() => ({

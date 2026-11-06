@@ -25,13 +25,12 @@ type Thread = Awaited<
 >;
 
 /** Who is in a conversation; a group's owner can bring people in or take them out. */
-export function MembersSheet({
-  thread,
-  onClose,
-}: {
+export interface MembersSheetProps {
   thread: Thread;
   onClose: () => void;
-}) {
+}
+
+export function MembersSheet({ thread, onClose }: MembersSheetProps) {
   const user = useCurrentUser();
   const queryClient = useQueryClient();
   const [search, setSearch] = useState("");

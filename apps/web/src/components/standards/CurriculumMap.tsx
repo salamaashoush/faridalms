@@ -39,7 +39,11 @@ function inOrder(items: readonly Item[]) {
   return out;
 }
 
-function ItemText({ item }: { item: Pick<Item, "code" | "statement"> }) {
+interface ItemTextProps {
+  item: Pick<Item, "code" | "statement">;
+}
+
+function ItemText({ item }: ItemTextProps) {
   return (
     <span dir="auto" className="min-w-0">
       {item.code ? (
@@ -52,7 +56,11 @@ function ItemText({ item }: { item: Pick<Item, "code" | "statement"> }) {
   );
 }
 
-function UnitLink({ unit }: { unit: Unit }) {
+interface UnitLinkProps {
+  unit: Unit;
+}
+
+function UnitLink({ unit }: UnitLinkProps) {
   const classes = unit.classes.map((row) => classTitle(row)).join(", ");
   return (
     <Link
@@ -71,12 +79,16 @@ function UnitLink({ unit }: { unit: Unit }) {
   );
 }
 
+export interface ByItemProps {
+  map: MapData;
+}
+
 /**
  * Each item of the framework with the units whose plans take it up, so a
  * coordinator sees which ideas the year returns to, which across which
  * classes, and which no unit takes up yet.
  */
-export function ByItem({ map }: { map: MapData }) {
+export function ByItem({ map }: ByItemProps) {
   const takenBy = new Map<string, Unit[]>();
   for (const unit of map.units)
     for (const item of unit.items)
@@ -131,7 +143,11 @@ export function ByItem({ map }: { map: MapData }) {
 }
 
 /** Each unit of the year with the items of the framework its plan takes up. */
-export function ByUnit({ map }: { map: MapData }) {
+export interface ByUnitProps {
+  map: MapData;
+}
+
+export function ByUnit({ map }: ByUnitProps) {
   const items = new Map(map.items.map((item) => [item.id, item]));
   return (
     <ul className="grid divide-y rounded-lg border bg-card px-4">
@@ -187,7 +203,11 @@ export function ByUnit({ map }: { map: MapData }) {
 }
 
 /** How much of the framework the year's units take up, as a line above the lists. */
-export function MapSummary({ map }: { map: MapData }) {
+export interface MapSummaryProps {
+  map: MapData;
+}
+
+export function MapSummary({ map }: MapSummaryProps) {
   const leaves = inOrder(map.items).filter(({ heads }) => !heads);
   const taken = new Set(map.units.flatMap((unit) => unit.items));
   const covered = leaves.filter(({ item }) => taken.has(item.id)).length;

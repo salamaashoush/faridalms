@@ -50,7 +50,12 @@ function coverOf(row: Pick<Covered, "questions" | "lessons">) {
     .join(" · ");
 }
 
-function Statement({ code, statement }: { code: string; statement: string }) {
+interface StatementProps {
+  code: string;
+  statement: string;
+}
+
+function Statement({ code, statement }: StatementProps) {
   return (
     <span className="min-w-0 text-sm leading-5" dir="auto">
       {code ? (
@@ -65,6 +70,13 @@ function Statement({ code, statement }: { code: string; statement: string }) {
   );
 }
 
+export interface PlanCoverageProps {
+  content: ContentDocument;
+  covered: readonly Covered[];
+  /** Ruled off as a section of a page, rather than inside the details panel. */
+  framed?: boolean;
+}
+
 /**
  * A plan's standards read against its module's lessons: each standard the
  * plan names with the questions that assess it and the lessons that set it
@@ -75,12 +87,7 @@ export function PlanCoverage({
   content,
   covered,
   framed = false,
-}: {
-  content: ContentDocument;
-  covered: readonly Covered[];
-  /** Ruled off as a section of a page, rather than inside the details panel. */
-  framed?: boolean;
-}) {
+}: PlanCoverageProps) {
   const named = planTargets(content);
   const ids = named.map((target) => target.id).toSorted();
   // Ideas that frame a unit, such as key concepts, are named, not assessed.
@@ -186,20 +193,18 @@ function plannerGroup(): BuiltInGroup {
   };
 }
 
-/**
- * A module's unit plan, written in the planner its school follows. Its
- * teachers write it together once it exists; the first edits start it.
- */
-export function PlanEditor({
-  moduleId,
-  template,
-  onClose,
-}: {
+export interface PlanEditorProps {
   moduleId: string;
   /** A library piece the plan starts from, while it is still unwritten. */
   template?: StartingPiece;
   onClose: () => void;
-}) {
+}
+
+/**
+ * A module's unit plan, written in the planner its school follows. Its
+ * teachers write it together once it exists; the first edits start it.
+ */
+export function PlanEditor({ moduleId, template, onClose }: PlanEditorProps) {
   const queryClient = useQueryClient();
   const module = useSuspenseQuery(moduleRecordQuery(moduleId)).data;
   const plan = useSuspenseQuery(planQuery(moduleId)).data;

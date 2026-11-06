@@ -11,17 +11,19 @@ import { copyLessonTo } from "~/server/learning";
 import { getMessageFromError } from "~/utils/error";
 
 /** Copies a lesson to the end of a module the teacher writes, this one or another. */
+export interface CopyLessonSheetProps {
+  lesson: { id: string; title: string };
+  module: { id: string; title: string };
+  open: boolean;
+  onClose: () => void;
+}
+
 export function CopyLessonSheet({
   lesson,
   module,
   open,
   onClose,
-}: {
-  lesson: { id: string; title: string };
-  module: { id: string; title: string };
-  open: boolean;
-  onClose: () => void;
-}) {
+}: CopyLessonSheetProps) {
   const queryClient = useQueryClient();
   const navigate = useNavigate();
   const options = useQuery(learningOptionsQuery).data;

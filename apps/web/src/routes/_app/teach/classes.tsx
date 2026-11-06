@@ -38,7 +38,11 @@ export const Route = createFileRoute("/_app/teach/classes")({
   component: MyClassesPage,
 });
 
-function ClassName({ row }: { row: Taught }) {
+interface ClassNameProps {
+  row: Taught;
+}
+
+function ClassName({ row }: ClassNameProps) {
   return (
     <RowLink to="/classes/$classId" params={{ classId: row.id }} search={{}}>
       {classTitle(row)}

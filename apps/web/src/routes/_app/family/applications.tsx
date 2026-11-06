@@ -42,16 +42,24 @@ type Mine = Awaited<
 >;
 type Row = Mine["applications"][number];
 
-function Documents({ id }: { id: string }) {
+interface DocumentsProps {
+  id: string;
+}
+
+function Documents({ id }: DocumentsProps) {
   const data = useSuspenseQuery(draftQuery(id)).data;
   return <DocumentsStep data={data} />;
+}
+
+interface OfferAnswerProps {
+  row: Row;
 }
 
 /**
  * An offer of a place and its answer: accepting or declining, each asked
  * once more before it is sent, since the school acts on it at once.
  */
-function OfferAnswer({ row }: { row: Row }) {
+function OfferAnswer({ row }: OfferAnswerProps) {
   const queryClient = useQueryClient();
   const [asking, setAsking] = useState<"accept" | "decline" | null>(null);
   const answer = useMutation({
@@ -132,7 +140,11 @@ function OfferAnswer({ row }: { row: Row }) {
 }
 
 /** The letters the school sent and the visits booked, each where the family will look. */
-function Correspondence({ row }: { row: Row }) {
+interface CorrespondenceProps {
+  row: Row;
+}
+
+function Correspondence({ row }: CorrespondenceProps) {
   const [open, setOpen] = useState<Row["letters"][number] | null>(null);
   if (!row.letters.length && !row.events.length) return null;
   return (
@@ -188,7 +200,11 @@ function Correspondence({ row }: { row: Row }) {
   );
 }
 
-function ApplicationCard({ row }: { row: Row }) {
+interface ApplicationCardProps {
+  row: Row;
+}
+
+function ApplicationCard({ row }: ApplicationCardProps) {
   const queryClient = useQueryClient();
   const withdraw = useMutation({
     mutationFn: () =>

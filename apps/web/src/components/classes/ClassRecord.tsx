@@ -86,11 +86,7 @@ type ClassData = Awaited<
 type Student = ClassData["roster"][number];
 type Teacher = ClassData["teachers"][number];
 
-function PersonName({
-  person,
-  staff,
-  student,
-}: {
+interface PersonNameProps {
   person: {
     userId: string;
     fullNameEn: string | null;
@@ -98,7 +94,9 @@ function PersonName({
   };
   staff: boolean;
   student: boolean;
-}) {
+}
+
+function PersonName({ person, staff, student }: PersonNameProps) {
   const name = displayName(person);
   const className = cn(
     "justify-self-start text-sm leading-5 font-medium hover:text-primary hover:underline",
@@ -127,7 +125,11 @@ function PersonName({
   );
 }
 
-function TeachersSection({ data }: { data: ClassData }) {
+interface TeachersSectionProps {
+  data: ClassData;
+}
+
+function TeachersSection({ data }: TeachersSectionProps) {
   return (
     <RecordSection title={m.classesTeachers()}>
       {data.teachers.length === 0 ? (
@@ -156,7 +158,11 @@ function TeachersSection({ data }: { data: ClassData }) {
   );
 }
 
-function SubjectsSection({ data }: { data: ClassData }) {
+interface SubjectsSectionProps {
+  data: ClassData;
+}
+
+function SubjectsSection({ data }: SubjectsSectionProps) {
   const options = useSuspenseQuery(classOptionsQuery).data;
   return (
     <RecordSection title={m.classesSubjects()}>
@@ -199,12 +205,16 @@ function SubjectsSection({ data }: { data: ClassData }) {
   );
 }
 
+interface LessonSoundsSectionProps {
+  classId: string;
+}
+
 /**
  * Whether lessons tick and chime as this class's children answer. A room of
  * tablets is loud; words still play, since children who cannot read need
  * them.
  */
-function LessonSoundsSection({ classId }: { classId: string }) {
+function LessonSoundsSection({ classId }: LessonSoundsSectionProps) {
   const queryClient = useQueryClient();
   const sounds = useQuery(classSoundsQuery(classId));
   const change = useServerFn(changeClassSounds);
@@ -231,7 +241,11 @@ type Sheet =
   | { kind: "move"; student: Student }
   | { kind: "withdraw"; student: Student };
 
-function StudentsSection({ data }: { data: ClassData }) {
+interface StudentsSectionProps {
+  data: ClassData;
+}
+
+function StudentsSection({ data }: StudentsSectionProps) {
   const options = useSuspenseQuery(classOptionsQuery).data;
   const ownRoster = data.classType === "homeroom" || !data.homeroomClassId;
   const canEnrol = data.access.enrol && ownRoster;
@@ -403,19 +417,21 @@ function StudentsSection({ data }: { data: ClassData }) {
   );
 }
 
+export interface ClassRecordProps {
+  classId: string;
+  tab: ClassTab;
+  onTab: (tab: ClassTab) => void;
+  files: AreaView;
+  onFiles: (view: AreaView) => void;
+}
+
 export function ClassRecord({
   classId,
   tab,
   onTab,
   files,
   onFiles,
-}: {
-  classId: string;
-  tab: ClassTab;
-  onTab: (tab: ClassTab) => void;
-  files: AreaView;
-  onFiles: (view: AreaView) => void;
-}) {
+}: ClassRecordProps) {
   const data = useSuspenseQuery(classRecordQuery(classId)).data;
   const options = useSuspenseQuery(classOptionsQuery).data;
   const navigate = useNavigate();

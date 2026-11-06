@@ -44,6 +44,14 @@ export function namesFrom(person: {
 
 type Script = keyof NamesDraft;
 
+interface ScriptNamesProps {
+  script: Script;
+  value: NamesDraft[Script];
+  onChange: (value: NamesDraft[Script]) => void;
+  error?: string | null;
+  idPrefix: string;
+}
+
 /**
  * A name as its parts in one script. Arabic naming chains put the father's
  * and grandfather's names in the middle, so that part holds a chain.
@@ -54,13 +62,7 @@ function ScriptNames({
   onChange,
   error,
   idPrefix,
-}: {
-  script: Script;
-  value: NamesDraft[Script];
-  onChange: (value: NamesDraft[Script]) => void;
-  error?: string | null;
-  idPrefix: string;
-}) {
+}: ScriptNamesProps) {
   const legendId = useId();
   return (
     <fieldset aria-labelledby={legendId} className="grid min-w-0 gap-4">
@@ -102,17 +104,19 @@ function ScriptNames({
   );
 }
 
+export interface NameFieldsProps {
+  value: NamesDraft;
+  onChange: (value: NamesDraft) => void;
+  error?: string | null;
+  idPrefix: string;
+}
+
 export function NameFields({
   value,
   onChange,
   error,
   idPrefix,
-}: {
-  value: NamesDraft;
-  onChange: (value: NamesDraft) => void;
-  error?: string | null;
-  idPrefix: string;
-}) {
+}: NameFieldsProps) {
   return (
     <div className="grid gap-6">
       <p className="text-[13px] leading-[18px] text-muted-foreground">
@@ -170,6 +174,15 @@ export const PARENT_FLAGS: Omit<FlagsDraft, "relationId"> = {
   pickup: "allowed",
 };
 
+export interface CheckboxRowProps {
+  label: string;
+  hint?: string;
+  error?: string | null;
+  checked: boolean;
+  onChange: (checked: boolean) => void;
+  disabled?: boolean;
+}
+
 export function CheckboxRow({
   label,
   hint,
@@ -177,14 +190,7 @@ export function CheckboxRow({
   checked,
   onChange,
   disabled,
-}: {
-  label: string;
-  hint?: string;
-  error?: string | null;
-  checked: boolean;
-  onChange: (checked: boolean) => void;
-  disabled?: boolean;
-}) {
+}: CheckboxRowProps) {
   const id = useId();
   const described = error ? `${id}-error` : hint ? `${id}-hint` : undefined;
   return (
@@ -227,6 +233,15 @@ export function CheckboxRow({
   );
 }
 
+export interface RelationshipFieldsProps {
+  value: FlagsDraft;
+  onChange: (value: FlagsDraft) => void;
+  relations: { value: string; label: string }[];
+  relationError?: string | null;
+  portalError?: string | null;
+  idPrefix: string;
+}
+
 export function RelationshipFields({
   value,
   onChange,
@@ -234,14 +249,7 @@ export function RelationshipFields({
   relationError,
   portalError,
   idPrefix,
-}: {
-  value: FlagsDraft;
-  onChange: (value: FlagsDraft) => void;
-  relations: { value: string; label: string }[];
-  relationError?: string | null;
-  portalError?: string | null;
-  idPrefix: string;
-}) {
+}: RelationshipFieldsProps) {
   const set = <K extends keyof FlagsDraft>(key: K, next: FlagsDraft[K]) =>
     onChange({ ...value, [key]: next });
   return (

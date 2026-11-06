@@ -102,7 +102,12 @@ function standing(
   };
 }
 
-function RequestStatus({ row, today }: { row: RequestRow; today: string }) {
+interface RequestStatusProps {
+  row: RequestRow;
+  today: string;
+}
+
+function RequestStatus({ row, today }: RequestStatusProps) {
   const { tone, label } = standing(row, today);
   return <StatusText tone={tone}>{label}</StatusText>;
 }
@@ -157,19 +162,21 @@ function requestCard(today: string) {
   };
 }
 
+export interface RequestsTableProps {
+  overview: PrivacyOverview;
+  onAdd: () => void;
+  onEdit: (row: RequestRow) => void;
+  onExtend: (row: RequestRow) => void;
+  onClose: (row: RequestRow) => void;
+}
+
 export function RequestsTable({
   overview,
   onAdd,
   onEdit,
   onExtend,
   onClose,
-}: {
-  overview: PrivacyOverview;
-  onAdd: () => void;
-  onEdit: (row: RequestRow) => void;
-  onExtend: (row: RequestRow) => void;
-  onClose: (row: RequestRow) => void;
-}) {
+}: RequestsTableProps) {
   const rowActions = (row: RequestRow): RowAction[] =>
     row.topic
       ? []
@@ -219,17 +226,19 @@ export function RequestsTable({
   );
 }
 
+export interface RequestSheetProps {
+  open: boolean;
+  request: RequestRow | null;
+  today: string;
+  onClose: () => void;
+}
+
 export function RequestSheet({
   open,
   request,
   today,
   onClose,
-}: {
-  open: boolean;
-  request: RequestRow | null;
-  today: string;
-  onClose: () => void;
-}) {
+}: RequestSheetProps) {
   const refresh = useRefresh();
   const [search, setSearch] = useState("");
   const [subjectId, setSubjectId] = useState(request?.subjectUserId ?? "");
@@ -410,15 +419,13 @@ export function RequestSheet({
   );
 }
 
-export function ExtendSheet({
-  open,
-  request,
-  onClose,
-}: {
+export interface ExtendSheetProps {
   open: boolean;
   request: RequestRow;
   onClose: () => void;
-}) {
+}
+
+export function ExtendSheet({ open, request, onClose }: ExtendSheetProps) {
   const refresh = useRefresh();
   const [reason, setReason] = useState("");
   const [tried, setTried] = useState(false);
@@ -475,15 +482,17 @@ export function ExtendSheet({
   );
 }
 
+export interface CloseRequestSheetProps {
+  open: boolean;
+  request: RequestRow;
+  onClose: () => void;
+}
+
 export function CloseRequestSheet({
   open,
   request,
   onClose,
-}: {
-  open: boolean;
-  request: RequestRow;
-  onClose: () => void;
-}) {
+}: CloseRequestSheetProps) {
   const refresh = useRefresh();
   const [outcome, setOutcome] = useState<RequestOutcome>("completed");
   const [note, setNote] = useState("");

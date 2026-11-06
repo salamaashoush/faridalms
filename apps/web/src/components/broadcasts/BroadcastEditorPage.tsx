@@ -56,6 +56,15 @@ function Started({ template, ...handlers }: Handlers & { template: string }) {
   return <BroadcastEditor existing={null} template={piece} {...handlers} />;
 }
 
+export interface BroadcastEditorPageProps {
+  kind: BroadcastKind;
+  id?: string;
+  template?: string;
+  onClose: (id?: string) => void;
+  /** Puts a newly stored draft's id in the address. */
+  onAddress: (id: string) => void;
+}
+
 /**
  * A broadcast editor at its address: a stored one by id, a new one from a
  * library piece, or a blank one. The first autosave gives a new draft its
@@ -68,14 +77,7 @@ export function BroadcastEditorPage({
   template,
   onClose,
   onAddress,
-}: {
-  kind: BroadcastKind;
-  id?: string;
-  template?: string;
-  onClose: (id?: string) => void;
-  /** Puts a newly stored draft's id in the address. */
-  onAddress: (id: string) => void;
-}) {
+}: BroadcastEditorPageProps) {
   const [started, setStarted] = useState<string | null>(null);
   const handlers: Handlers = {
     kind,

@@ -101,7 +101,12 @@ const DONE: Record<PageBatchAction, (input: { count: string }) => string> = {
   remove: m.siteBatchRemoved,
 };
 
-function Title({ row, primary }: { row: Row; primary: "en" | "ar" }) {
+interface TitleProps {
+  row: Row;
+  primary: "en" | "ar";
+}
+
+function Title({ row, primary }: TitleProps) {
   return (
     <div
       className="flex min-w-0 items-center gap-2"
@@ -119,7 +124,11 @@ function Title({ row, primary }: { row: Row; primary: "en" | "ar" }) {
   );
 }
 
-function State({ row }: { row: Row }) {
+interface StateProps {
+  row: Row;
+}
+
+function State({ row }: StateProps) {
   return (
     <div className="grid gap-0.5">
       <StatusText tone={STATE_TONE[row.shown]}>
@@ -163,7 +172,11 @@ function columns(primary: "en" | "ar"): Column<Row>[] {
 }
 
 /** The website's pages as one list: open, order, nest, publish and remove them, one by one or many at once. */
-export function SitePages({ overview }: { overview: Overview }) {
+export interface SitePagesProps {
+  overview: Overview;
+}
+
+export function SitePages({ overview }: SitePagesProps) {
   const user = useCurrentUser();
   const [starting, setStarting] = useState(false);
   const navigate = useNavigate();

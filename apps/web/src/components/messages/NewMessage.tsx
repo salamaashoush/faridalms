@@ -92,6 +92,21 @@ async function toEachFamily(
 const NO_CHILD = "none";
 const NOBODY: readonly Named[] = [];
 
+export interface NewMessageProps {
+  canStartFamily: boolean;
+  about?: readonly { id: string; name: string }[];
+  /** Someone to write to directly, as from their profile. */
+  to?: { id: string; name: string };
+  /** A guardian's children, any of whom a message may be about. */
+  childrenToName?: readonly Named[];
+  draft?: OpenedDraft;
+  onClose: () => void;
+  /** The conversation to open; none where several were written to. */
+  onStarted: (threadId: string | null) => void;
+  /** The draft now kept, or none once it was emptied. */
+  onKept?: (draftId: string) => void;
+}
+
 /**
  * Starts a conversation, or continues the open one with the same people.
  * Opened about students, as from a record or the students picked in a
@@ -113,20 +128,7 @@ export function NewMessage({
   onClose,
   onStarted,
   onKept,
-}: {
-  canStartFamily: boolean;
-  about?: readonly { id: string; name: string }[];
-  /** Someone to write to directly, as from their profile. */
-  to?: { id: string; name: string };
-  /** A guardian's children, any of whom a message may be about. */
-  childrenToName?: readonly Named[];
-  draft?: OpenedDraft;
-  onClose: () => void;
-  /** The conversation to open; none where several were written to. */
-  onStarted: (threadId: string | null) => void;
-  /** The draft now kept, or none once it was emptied. */
-  onKept?: (draftId: string) => void;
-}) {
+}: NewMessageProps) {
   const queryClient = useQueryClient();
   const hydrated = useHydrated();
   const [kind, setKind] = useState<StartKind>(

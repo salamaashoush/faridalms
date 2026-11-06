@@ -65,7 +65,11 @@ export function teacherLabel(meeting: Labelled): string | null {
 type Lines = (meeting: Meeting) => { teacher?: ReactNode; room?: ReactNode };
 
 /** Who teaches it, as a link to as much of them as the reader reaches. */
-function TeacherName({ meeting }: { meeting: Meeting }) {
+interface TeacherNameProps {
+  meeting: Meeting;
+}
+
+function TeacherName({ meeting }: TeacherNameProps) {
   const name = teacherLabel(meeting);
   if (!name) return null;
   return (
@@ -156,16 +160,7 @@ function weekCell(lines: Lines, cell: CardCell | undefined, own: boolean) {
   };
 }
 
-export function Week({
-  week,
-  caption,
-  lines,
-  cell,
-  own = false,
-  subscribe = false,
-  pending,
-  onWeek,
-}: {
+export interface WeekProps {
   week: Week | null;
   caption: string;
   lines: Lines;
@@ -176,7 +171,18 @@ export function Week({
   subscribe?: boolean;
   pending?: boolean;
   onWeek?: (on: string) => void;
-}) {
+}
+
+export function Week({
+  week,
+  caption,
+  lines,
+  cell,
+  own = false,
+  subscribe = false,
+  pending,
+  onWeek,
+}: WeekProps) {
   if (!week)
     return (
       <EmptyState
@@ -232,19 +238,17 @@ export function Week({
   );
 }
 
+interface PrintWeekProps {
+  title: string;
+  dates: readonly GridDate[];
+  children: ReactNode;
+}
+
 /**
  * Prints the week on its own on a landscape page, black on white whatever
  * the app's theme. The sheet exists only while the browser prints.
  */
-function PrintWeek({
-  title,
-  dates,
-  children,
-}: {
-  title: string;
-  dates: readonly GridDate[];
-  children: ReactNode;
-}) {
+function PrintWeek({ title, dates, children }: PrintWeekProps) {
   const user = useCurrentUser();
   const [printing, setPrinting] = useState(false);
   useEffect(() => {
@@ -303,7 +307,11 @@ function useWeekOn(start = "") {
   };
 }
 
-export function StudentWeek({ studentId = "" }: { studentId?: string }) {
+export interface StudentWeekProps {
+  studentId?: string;
+}
+
+export function StudentWeek({ studentId = "" }: StudentWeekProps) {
   const { on, pending, onWeek } = useWeekOn();
   const { week } = useSuspenseQuery(studentWeekQuery(studentId, on)).data;
   return (
@@ -318,24 +326,27 @@ export function StudentWeek({ studentId = "" }: { studentId?: string }) {
   );
 }
 
-export function RoomWeek({ roomId, on }: { roomId: string; on: string }) {
+export interface RoomWeekProps {
+  roomId: string;
+  on: string;
+}
+
+export function RoomWeek({ roomId, on }: RoomWeekProps) {
   const { week } = useSuspenseQuery(roomWeekQuery(roomId, on)).data;
   return <Week week={week} caption={m.ttRoomCaption()} lines={teacherOnly} />;
+}
+
+export interface TeacherWeekProps {
+  teacherId?: string;
+  on?: string;
+  cell?: CardCell;
 }
 
 /**
  * A teacher's week. Planners pick its date themselves; a teacher steps
  * through their own weeks here.
  */
-export function TeacherWeek({
-  teacherId = "",
-  on,
-  cell,
-}: {
-  teacherId?: string;
-  on?: string;
-  cell?: CardCell;
-}) {
+export function TeacherWeek({ teacherId = "", on, cell }: TeacherWeekProps) {
   const stepped = useWeekOn();
   const { week } = useSuspenseQuery(
     teacherWeekQuery(teacherId, on ?? stepped.on),
@@ -355,7 +366,11 @@ export function TeacherWeek({
 }
 
 /** A class's week on its record, with the way into planning it. */
-export function ClassWeek({ classId }: { classId: string }) {
+export interface ClassWeekProps {
+  classId: string;
+}
+
+export function ClassWeek({ classId }: ClassWeekProps) {
   const { on, pending, onWeek } = useWeekOn();
   const data = useSuspenseQuery(classWeekQuery(classId, on)).data;
   return (

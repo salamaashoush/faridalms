@@ -27,6 +27,17 @@ import { importBanks, importCartridge } from "./cartridgeImporter";
 
 const CARTRIDGE = ".imscc,.zip,application/zip";
 
+export interface CartridgeImportProps {
+  open: boolean;
+  onClose: () => void;
+  classes: {
+    id: string;
+    code: string;
+    titleEn: string | null;
+    titleAr: string | null;
+  }[];
+}
+
 /**
  * Brings a course exported from Moodle, Canvas or another LMS in as
  * modules: the teacher picks the file, the modules to bring in and the
@@ -36,16 +47,7 @@ export function CartridgeImport({
   open,
   onClose,
   classes,
-}: {
-  open: boolean;
-  onClose: () => void;
-  classes: {
-    id: string;
-    code: string;
-    titleEn: string | null;
-    titleAr: string | null;
-  }[];
-}) {
+}: CartridgeImportProps) {
   const queryClient = useQueryClient();
   const navigate = useNavigate();
   const initiate = useServerFn(initiateUpload);

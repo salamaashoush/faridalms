@@ -73,6 +73,8 @@ say so in the PR — the next `shadcn add` will silently revert you.
 `packages/ui/src/system/` is ours: the design system's components, shared by
 the portal and the console. Build every screen from them, extend them there
 when a screen needs more, and give each a named props interface and a spec.
+`db:verify` refuses a component in either app or the system that types its
+props inline.
 `docs/design-system.md` maps each of its rules to the module that implements
 it.
 

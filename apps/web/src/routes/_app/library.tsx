@@ -69,7 +69,12 @@ function ownerOf(row: Piece) {
   return row.mine ? m.tplYours() : inLocale(row.ownerNameEn, row.ownerNameAr);
 }
 
-function PieceTitle({ row, onOpen }: { row: Piece; onOpen: () => void }) {
+interface PieceTitleProps {
+  row: Piece;
+  onOpen: () => void;
+}
+
+function PieceTitle({ row, onOpen }: PieceTitleProps) {
   return (
     <span className="grid min-w-0 gap-0.5">
       <button

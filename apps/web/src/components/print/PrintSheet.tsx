@@ -101,6 +101,17 @@ function canPaginate(): boolean {
 }
 
 /** What a print shows of the person it is for, at the top of the paper. */
+interface PaperHeaderProps {
+  title: string;
+  facts: readonly string[];
+  school: string | null;
+  logo: string | null;
+  lines: boolean;
+  name?: string;
+  note?: string;
+  locale: Locale;
+}
+
 function PaperHeader({
   title,
   facts,
@@ -110,16 +121,7 @@ function PaperHeader({
   name,
   note,
   locale,
-}: {
-  title: string;
-  facts: readonly string[];
-  school: string | null;
-  logo: string | null;
-  lines: boolean;
-  name?: string;
-  note?: string;
-  locale: Locale;
-}) {
+}: PaperHeaderProps) {
   return (
     <header
       className={cn(
@@ -176,7 +178,12 @@ function PaperHeader({
 }
 
 /** A line to write on, under its label. */
-function SlipLine({ label, value }: { label: string; value?: string }) {
+interface SlipLineProps {
+  label: string;
+  value?: string;
+}
+
+function SlipLine({ label, value }: SlipLineProps) {
   return (
     <div className="grid min-h-[1.5cm] content-between gap-[0.2em] border-b border-neutral-500 pb-[0.15em]">
       <span className="text-[0.75em] leading-tight text-neutral-600">
@@ -189,20 +196,18 @@ function SlipLine({ label, value }: { label: string; value?: string }) {
   );
 }
 
+interface ReplySlipProps {
+  title: string;
+  names: readonly string[];
+  locale: Locale;
+}
+
 /**
  * The part of a form a family fills in and hands back: a consent the school
  * then records from the paper. One slip for each child named, or one with
  * the name left to write.
  */
-function ReplySlip({
-  title,
-  names,
-  locale,
-}: {
-  title: string;
-  names: readonly string[];
-  locale: Locale;
-}) {
+function ReplySlip({ title, names, locale }: ReplySlipProps) {
   return (
     <>
       {(names.length > 0 ? names : [undefined]).map((name, index) => (
@@ -239,22 +244,19 @@ function ReplySlip({
   );
 }
 
+interface AnswerKeyProps {
+  title: string;
+  questions: { node: ContentNode; number: number }[];
+  rtl: boolean;
+  locale: Locale;
+}
+
 /**
  * The answers after the questions, numbered as the questions are: a letter,
  * a number or the words for each, and the picture itself where the answer
  * is a place on it.
  */
-function AnswerKey({
-  title,
-  questions,
-  rtl,
-  locale,
-}: {
-  title: string;
-  questions: { node: ContentNode; number: number }[];
-  rtl: boolean;
-  locale: Locale;
-}) {
+function AnswerKey({ title, questions, rtl, locale }: AnswerKeyProps) {
   return (
     <section className="grid gap-3">
       <h1 dir="auto" className="text-[1.5em] leading-tight font-bold">
@@ -299,6 +301,17 @@ function AnswerKey({
   );
 }
 
+interface PaperCopyProps {
+  paged: boolean;
+  /** A page's height and the space between pages on screen, in pixels. */
+  page: number;
+  gap: number;
+  scale: number;
+  dir: "ltr" | "rtl";
+  footer: (page: number, pages: number) => ReactNode;
+  children: ReactNode;
+}
+
 /**
  * One copy as it prints, page by page. Where the browser can, the copy is
  * laid out as columns one page high that wrap onto new rows, so the preview
@@ -315,16 +328,7 @@ function PaperCopy({
   dir,
   footer,
   children,
-}: {
-  paged: boolean;
-  /** A page's height and the space between pages on screen, in pixels. */
-  page: number;
-  gap: number;
-  scale: number;
-  dir: "ltr" | "rtl";
-  footer: (page: number, pages: number) => ReactNode;
-  children: ReactNode;
-}) {
+}: PaperCopyProps) {
   const [flow, setFlow] = useState(0);
   const measure = useCallback((element: HTMLDivElement | null) => {
     const observer = new ResizeObserver(([entry]) => {
@@ -374,28 +378,7 @@ function PaperCopy({
   );
 }
 
-/**
- * A print preview: the pages as they will print, beside the settings for
- * them, covering the app while open; only the pages print. Questions take
- * their paper form; a teacher may print the answers in place or as a key at
- * the end, and print one copy for each student with their name on it. The
- * paper keeps its own black on white, since a dark theme set by a class
- * would print dark, and its own words follow the document's language rather
- * than the reader's.
- */
-export function PrintSheet({
-  title,
-  facts,
-  content = EMPTY,
-  lesson,
-  answers: canAnswer = false,
-  link,
-  copies = [],
-  ownPapers,
-  slip,
-  language,
-  onClose,
-}: {
+export interface PrintSheetProps {
   title: string;
   /** What the paper says under the title, in the paper's language. */
   facts?: (locale: Locale) => readonly string[];
@@ -419,7 +402,30 @@ export function PrintSheet({
   /** The language the document is written in, where its author set one. */
   language?: ContentLocale | null;
   onClose: () => void;
-}) {
+}
+
+/**
+ * A print preview: the pages as they will print, beside the settings for
+ * them, covering the app while open; only the pages print. Questions take
+ * their paper form; a teacher may print the answers in place or as a key at
+ * the end, and print one copy for each student with their name on it. The
+ * paper keeps its own black on white, since a dark theme set by a class
+ * would print dark, and its own words follow the document's language rather
+ * than the reader's.
+ */
+export function PrintSheet({
+  title,
+  facts,
+  content = EMPTY,
+  lesson,
+  answers: canAnswer = false,
+  link,
+  copies = [],
+  ownPapers,
+  slip,
+  language,
+  onClose,
+}: PrintSheetProps) {
   const user = useCurrentUser();
   const [paper, setPaper] = useState<Paper>("A4");
   const [landscape, setLandscape] = useState(false);

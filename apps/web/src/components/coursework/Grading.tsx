@@ -113,19 +113,18 @@ function standingOf(row: QueueRow): Standing {
   return "not_in";
 }
 
+interface StudentSwitcherProps {
+  data: Data;
+  onGo: (studentId: string) => void;
+}
+
 /**
  * Moves between the students of the assignment from the top bar, as
  * Classroom's grading tool does: back, a searchable list grouped by what
  * each student's work needs, and next. A class of any size stays one search
  * away, with what is left to grade at the top.
  */
-function StudentSwitcher({
-  data,
-  onGo,
-}: {
-  data: Data;
-  onGo: (studentId: string) => void;
-}) {
+function StudentSwitcher({ data, onGo }: StudentSwitcherProps) {
   const index = data.queue.findIndex(
     (row) => row.studentId === data.student.studentId,
   );
@@ -223,6 +222,19 @@ function StudentSwitcher({
   );
 }
 
+interface GradeSheetProps {
+  data: Data;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  onDone: () => void;
+  comments: {
+    passages: Record<string, string>;
+    active: string | null;
+    onShow: (id: string) => void;
+    onCommentOn: (block: string) => void;
+  };
+}
+
 /**
  * The grade for the attempt on screen, in a sheet from the end side: for
  * assessed coursework the declaration and the teacher's word first, then the
@@ -234,18 +246,7 @@ function GradeSheet({
   onOpenChange,
   onDone,
   comments,
-}: {
-  data: Data;
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-  onDone: () => void;
-  comments: {
-    passages: Record<string, string>;
-    active: string | null;
-    onShow: (id: string) => void;
-    onCommentOn: (block: string) => void;
-  };
-}) {
+}: GradeSheetProps) {
   const attempt = data.attempts.at(-1);
   const rubric = data.assignment.rubric;
   const saved = attempt?.assessment ?? null;
@@ -765,18 +766,17 @@ function GradeSheet({
   );
 }
 
+export interface GradingProps {
+  assignmentId: string;
+  studentId: string;
+}
+
 /**
  * One student's work, read in the document column with the class moved
  * through from the top bar; the grade opens in a sheet. J and K move to the
  * next and previous student.
  */
-export function Grading({
-  assignmentId,
-  studentId,
-}: {
-  assignmentId: string;
-  studentId: string;
-}) {
+export function Grading({ assignmentId, studentId }: GradingProps) {
   const data = useSuspenseQuery(gradingQuery(assignmentId, studentId)).data;
   const queryClient = useQueryClient();
   const navigate = useNavigate();

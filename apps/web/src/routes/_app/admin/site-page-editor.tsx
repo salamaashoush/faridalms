@@ -45,7 +45,11 @@ export const Route = createFileRoute("/_app/admin/site-page-editor")({
   component: EditorPage,
 });
 
-function ExistingStudio({ id }: { id: string }) {
+interface ExistingStudioProps {
+  id: string;
+}
+
+function ExistingStudio({ id }: ExistingStudioProps) {
   const { panel } = Route.useSearch();
   const existing = useSuspenseQuery(sitePageQuery(id)).data;
   const overview = useSuspenseQuery(siteOverviewQuery).data;

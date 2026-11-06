@@ -5,6 +5,13 @@ import { Link } from "@tanstack/react-router";
 /** How far the server says the viewer reaches someone whose name is shown. */
 export type RecordLink = "student" | "person" | "profile" | null;
 
+export interface PersonLinkProps {
+  userId: string | null;
+  link: RecordLink;
+  className?: string;
+  children: ReactNode;
+}
+
 /**
  * A person's name as a link to as much of them as the viewer reaches: a
  * student's record, a person's record or their limited profile. With no
@@ -15,12 +22,7 @@ export function PersonLink({
   link,
   className,
   children,
-}: {
-  userId: string | null;
-  link: RecordLink;
-  className?: string;
-  children: ReactNode;
-}) {
+}: PersonLinkProps) {
   if (!userId || !link) return <>{children}</>;
   if (link === "student")
     return (

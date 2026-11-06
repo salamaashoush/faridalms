@@ -7,20 +7,18 @@ import * as m from "~/i18n/messages";
 import { CodingStudio } from "./CodingStudio";
 import { ProjectPlayer } from "./ProjectPlayer";
 
+export interface ProjectAnswerProps {
+  project: string;
+  stage: string | null;
+  name: string;
+}
+
 /**
  * A student's coding project as their teacher reads it: its stage, and the
  * project itself to open, run and read the code of. Nothing the teacher
  * changes there is kept.
  */
-export function ProjectAnswer({
-  project,
-  stage,
-  name,
-}: {
-  project: string;
-  stage: string | null;
-  name: string;
-}) {
+export function ProjectAnswer({ project, stage, name }: ProjectAnswerProps) {
   const [playing, setPlaying] = useState(false);
   return (
     <div className="grid justify-items-start gap-2">

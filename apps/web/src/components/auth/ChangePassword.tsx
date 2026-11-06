@@ -9,12 +9,16 @@ import * as m from "~/i18n/messages";
 import { changeOwnPassword } from "~/server/auth";
 import { getMessageFromError } from "~/utils/error";
 
+export interface ChangePasswordProps {
+  onClose: () => void;
+}
+
 /**
  * A person changes their own password, proving who they are with the one
  * they have. A wrong current password is said on its field; anything else
  * the server refuses is said above the form.
  */
-export function ChangePassword({ onClose }: { onClose: () => void }) {
+export function ChangePassword({ onClose }: ChangePasswordProps) {
   const [current, setCurrent] = useState("");
   const [password, setPassword] = useState("");
   const [again, setAgain] = useState("");

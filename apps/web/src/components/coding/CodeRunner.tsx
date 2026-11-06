@@ -29,6 +29,21 @@ export const LANGUAGE_NAMES: Record<EditorLanguage, string> = {
 /** How long typing pauses before a web page is drawn again. */
 const REDRAW_MS = 800;
 
+export interface CodeRunnerProps {
+  /** The code as given, which Reset puts back. */
+  source: string;
+  /** The code to start from, such as the student's last answer. */
+  initial?: string;
+  language: EditorLanguage;
+  /** How the code reads before the editor loads. */
+  drawn?: ReactNode;
+  locked?: boolean;
+  readOnly?: boolean;
+  onChange?: (code: string) => void;
+  onRan?: (report: RunReport) => void;
+  className?: string;
+}
+
 /**
  * Code a student can change and run in the browser, with what it reads and
  * what it prints. A lesson's runnable blocks and its code exercises share it.
@@ -43,20 +58,7 @@ export function CodeRunner({
   onChange,
   onRan,
   className,
-}: {
-  /** The code as given, which Reset puts back. */
-  source: string;
-  /** The code to start from, such as the student's last answer. */
-  initial?: string;
-  language: EditorLanguage;
-  /** How the code reads before the editor loads. */
-  drawn?: ReactNode;
-  locked?: boolean;
-  readOnly?: boolean;
-  onChange?: (code: string) => void;
-  onRan?: (report: RunReport) => void;
-  className?: string;
-}) {
+}: CodeRunnerProps) {
   const keysId = useId();
   const host = useRef<HTMLDivElement>(null);
   const view = useRef<EditorView | null>(null);

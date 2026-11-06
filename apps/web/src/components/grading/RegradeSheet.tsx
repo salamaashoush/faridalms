@@ -12,17 +12,16 @@ import { yearQuery } from "~/queries/years";
 import { regradeTerm } from "~/server/grading";
 import { getMessageFromError } from "~/utils/error";
 
+export interface RegradeSheetProps {
+  open: boolean;
+  onClose: () => void;
+}
+
 /**
  * Grades a term's scores again on the bands in force today, for when a
  * school decides its new bands should reach grades already given.
  */
-export function RegradeSheet({
-  open,
-  onClose,
-}: {
-  open: boolean;
-  onClose: () => void;
-}) {
+export function RegradeSheet({ open, onClose }: RegradeSheetProps) {
   const queryClient = useQueryClient();
   const yearId = useQuery(classOptionsQuery).data?.workingYearId ?? "";
   const terms =

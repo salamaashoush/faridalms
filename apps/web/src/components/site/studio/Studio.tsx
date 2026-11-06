@@ -189,6 +189,15 @@ function useWide() {
   return wide;
 }
 
+export interface SiteStudioProps {
+  existing: Existing | null;
+  overview: Overview;
+  template: PageTemplate | null;
+  initialPanel?: StudioPanel;
+  /** Learns the address a new page was stored at, once its first save lands. */
+  onCreated?: (id: string) => void;
+}
+
 /**
  * The website builder: the page drawn live in the site's theme, an outline
  * of its sections, the selected section's settings, and the site's styles
@@ -200,14 +209,7 @@ export function SiteStudio({
   template,
   initialPanel = "sections",
   onCreated,
-}: {
-  existing: Existing | null;
-  overview: Overview;
-  template: PageTemplate | null;
-  initialPanel?: StudioPanel;
-  /** Learns the address a new page was stored at, once its first save lands. */
-  onCreated?: (id: string) => void;
-}) {
+}: SiteStudioProps) {
   const user = useCurrentUser();
   const navigate = useNavigate();
   const queryClient = useQueryClient();

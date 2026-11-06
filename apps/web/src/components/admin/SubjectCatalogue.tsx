@@ -77,7 +77,11 @@ export function filterSubjects(
     );
 }
 
-function Code({ value }: { value: string }) {
+interface CodeProps {
+  value: string;
+}
+
+function Code({ value }: CodeProps) {
   return (
     <span
       dir="ltr"
@@ -90,7 +94,11 @@ function Code({ value }: { value: string }) {
 
 type NameLink = (subject: Subject, name: string) => ReactNode;
 
-function OtherName({ subject }: { subject: Subject }) {
+interface OtherNameProps {
+  subject: Subject;
+}
+
+function OtherName({ subject }: OtherNameProps) {
   const { other, otherLang } = names(subject);
   return (
     <span lang={otherLang} dir="auto">
@@ -136,6 +144,18 @@ function subjectCard(nameLink: NameLink) {
   };
 }
 
+export interface SubjectCatalogueProps {
+  rows: Subject[];
+  total: number;
+  page: number;
+  toolbar: IndexToolbarProps;
+  sort: DataTableSort<SubjectSort>;
+  onPage: (page: number) => void;
+  nameLink: NameLink;
+  onAdd: () => void;
+  onEdit: (subject: Subject) => void;
+}
+
 export function SubjectCatalogue({
   rows,
   total,
@@ -146,17 +166,7 @@ export function SubjectCatalogue({
   nameLink,
   onAdd,
   onEdit,
-}: {
-  rows: Subject[];
-  total: number;
-  page: number;
-  toolbar: IndexToolbarProps;
-  sort: DataTableSort<SubjectSort>;
-  onPage: (page: number) => void;
-  nameLink: NameLink;
-  onAdd: () => void;
-  onEdit: (subject: Subject) => void;
-}) {
+}: SubjectCatalogueProps) {
   const rowActions = (row: Subject): RowAction[] => [
     {
       label: m.settingsEditSubject(),
@@ -205,15 +215,13 @@ const FIELD_ERRORS: Partial<Record<string, "code">> = {
   "descriptor.code_taken": "code",
 };
 
-export function SubjectSheet({
-  open,
-  subject,
-  onClose,
-}: {
+export interface SubjectSheetProps {
   open: boolean;
   subject?: Subject;
   onClose: () => void;
-}) {
+}
+
+export function SubjectSheet({ open, subject, onClose }: SubjectSheetProps) {
   // A code another subject already uses stays marked on the field until the
   // person changes it.
   const [refused, setRefused] = useState<{

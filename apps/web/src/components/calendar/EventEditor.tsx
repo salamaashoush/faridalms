@@ -199,6 +199,17 @@ function shapeGroup(): BuiltInGroup {
   };
 }
 
+export interface EventEditorProps {
+  existing: Existing | null;
+  /** A library piece a new event starts from. */
+  template?: StartingPiece;
+  day: string;
+  /** The author manages the whole calendar rather than their own classes. */
+  manages: boolean;
+  onClose: (id?: string) => void;
+  onCreated: (id: string) => void;
+}
+
 /**
  * An event written as a document: the title and description take the page,
  * when, where and who it is for sit beside them. Drafts save themselves once
@@ -213,16 +224,7 @@ export function EventEditor({
   manages,
   onClose,
   onCreated,
-}: {
-  existing: Existing | null;
-  /** A library piece a new event starts from. */
-  template?: StartingPiece;
-  day: string;
-  /** The author manages the whole calendar rather than their own classes. */
-  manages: boolean;
-  onClose: (id?: string) => void;
-  onCreated: (id: string) => void;
-}) {
+}: EventEditorProps) {
   const options = useSuspenseQuery(calendarOptionsQuery).data;
   const queryClient = useQueryClient();
   const media = useDocumentMedia();

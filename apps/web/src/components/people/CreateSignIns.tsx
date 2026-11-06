@@ -62,18 +62,17 @@ function leftOut(
   };
 }
 
+export interface CreateSignInsProps {
+  students: readonly Picked[];
+  onClose: () => void;
+}
+
 /**
  * Opens sign-ins for the students picked in the list. The office chooses how
  * each student gets theirs and sees who that covers before anything is made;
  * what is made then shows once, on a sheet to print.
  */
-export function CreateSignIns({
-  students,
-  onClose,
-}: {
-  students: readonly Picked[];
-  onClose: () => void;
-}) {
+export function CreateSignIns({ students, onClose }: CreateSignInsProps) {
   const user = useCurrentUser();
   const queryClient = useQueryClient();
   const [way, setWay] = useState<SignInWay>("slips");

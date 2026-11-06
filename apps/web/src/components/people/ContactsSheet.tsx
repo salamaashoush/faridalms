@@ -27,19 +27,21 @@ export interface HeldContact {
 }
 
 /** An adult's phone, email and home address, from the records that show them. */
+export interface ContactsSheetProps {
+  userId: string;
+  name: string;
+  contacts: readonly HeldContact[];
+  open: boolean;
+  onClose: () => void;
+}
+
 export function ContactsSheet({
   userId,
   name,
   contacts,
   open,
   onClose,
-}: {
-  userId: string;
-  name: string;
-  contacts: readonly HeldContact[];
-  open: boolean;
-  onClose: () => void;
-}) {
+}: ContactsSheetProps) {
   const queryClient = useQueryClient();
   const held = (kind: HeldContact["kind"]) =>
     contacts.find((contact) => contact.kind === kind);

@@ -46,18 +46,17 @@ const blank = (): AdmissionQuestion => ({
   optionsAr: "",
 });
 
+export interface FormEditorProps {
+  initial: FormDraft;
+  onDone: () => void;
+}
+
 /**
  * An application form's own questions, each worded in both languages, of
  * the same kinds the website's enquiry form asks. Saving keeps the draft;
  * publishing makes it the version new applications are answered against.
  */
-export function FormEditor({
-  initial,
-  onDone,
-}: {
-  initial: FormDraft;
-  onDone: () => void;
-}) {
+export function FormEditor({ initial, onDone }: FormEditorProps) {
   const queryClient = useQueryClient();
   const [draft, setDraft] = useState(initial);
   const [tried, setTried] = useState(false);
@@ -320,19 +319,15 @@ export function FormEditor({
   );
 }
 
-function OptionsField({
-  id,
-  label,
-  dir,
-  value,
-  onChange,
-}: {
+interface OptionsFieldProps {
   id: string;
   label: string;
   dir: "ltr" | "rtl";
   value: string;
   onChange: (value: string) => void;
-}) {
+}
+
+function OptionsField({ id, label, dir, value, onChange }: OptionsFieldProps) {
   return (
     <FormField id={id} label={label} hint={m.afmOptionsHint()}>
       {(control) => (

@@ -25,18 +25,7 @@ type Entry = {
   file: string | null;
 };
 
-/**
- * A student's web page as the browser draws it, played on the files host's
- * own domain, with what it writes to its console below. Each run starts the
- * page afresh.
- */
-export function WebPreview({
-  page,
-  onOpen,
-  fill = false,
-  quiet = false,
-  onErrors,
-}: {
+export interface WebPreviewProps {
   /**
    * A new page object plays the page again, even when its code is the
    * same. A page made of several files says which one each of its lines
@@ -51,7 +40,20 @@ export function WebPreview({
   quiet?: boolean;
   /** Told how many errors the page has met since it was last drawn. */
   onErrors?: (count: number) => void;
-}) {
+}
+
+/**
+ * A student's web page as the browser draws it, played on the files host's
+ * own domain, with what it writes to its console below. Each run starts the
+ * page afresh.
+ */
+export function WebPreview({
+  page,
+  onOpen,
+  fill = false,
+  quiet = false,
+  onErrors,
+}: WebPreviewProps) {
   const play = useQuery(playQuery).data;
   const frame = useRef<HTMLIFrameElement>(null);
   // Whether the browser hides a page's errors from it, once the play page
@@ -180,7 +182,11 @@ export function WebPreview({
   );
 }
 
-function ConsoleEntry({ entry }: { entry: Entry }) {
+interface ConsoleEntryProps {
+  entry: Entry;
+}
+
+function ConsoleEntry({ entry }: ConsoleEntryProps) {
   if (entry.text.endsWith(LOOP_STOPPED))
     return (
       <li dir="auto" className="font-sans text-destructive">

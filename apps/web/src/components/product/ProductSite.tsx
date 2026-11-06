@@ -63,17 +63,14 @@ type Shown = "en" | "ar";
 
 const shown = (): Shown => (getLocale() === "ar" ? "ar" : "en");
 
-function SectionHeading({
-  id,
-  title,
-  body,
-  className,
-}: {
+interface SectionHeadingProps {
   id: string;
   title: string;
   body?: string;
   className?: string;
-}) {
+}
+
+function SectionHeading({ id, title, body, className }: SectionHeadingProps) {
   return (
     <div className={cn("max-w-2xl", className)}>
       <h2 id={id} className={HEADING}>
@@ -88,7 +85,11 @@ function SectionHeading({
   );
 }
 
-function Star({ className }: { className?: string }) {
+interface StarProps {
+  className?: string;
+}
+
+function Star({ className }: StarProps) {
   return (
     <svg
       viewBox="0 0 24 24"
@@ -101,7 +102,11 @@ function Star({ className }: { className?: string }) {
   );
 }
 
-function Brand({ className }: { className?: string }) {
+interface BrandProps {
+  className?: string;
+}
+
+function Brand({ className }: BrandProps) {
   return (
     <span className={cn("flex items-center gap-2.5 font-semibold", className)}>
       <span className="grid size-8 place-items-center rounded-lg bg-brand-accent text-brand">
@@ -113,7 +118,11 @@ function Brand({ className }: { className?: string }) {
 }
 
 /** Switches straight to the other language, named in its own script. */
-function LanguageSwitch({ className }: { className?: string }) {
+interface LanguageSwitchProps {
+  className?: string;
+}
+
+function LanguageSwitch({ className }: LanguageSwitchProps) {
   const other: Shown = shown() === "ar" ? "en" : "ar";
   return (
     <button
@@ -467,7 +476,12 @@ function Modules() {
   );
 }
 
-function Points({ items, className }: { items: string[]; className?: string }) {
+interface PointsProps {
+  items: string[];
+  className?: string;
+}
+
+function Points({ items, className }: PointsProps) {
   return (
     <ul className={cn("grid gap-3", className)}>
       {items.map((item) => (
@@ -483,15 +497,13 @@ function Points({ items, className }: { items: string[]; className?: string }) {
 }
 
 /** A screen of the app on a pale green panel, bleeding off its far edge. */
-function Shot({
-  src,
-  alt,
-  phone,
-}: {
+interface ShotProps {
   src: string;
   alt: string;
   phone?: boolean;
-}) {
+}
+
+function Shot({ src, alt, phone }: ShotProps) {
   return (
     <div className="workspace-hero relative aspect-[16/10] overflow-hidden rounded-2xl ring-1 ring-black/5 dark:ring-white/10">
       <div
@@ -637,19 +649,15 @@ function Roles() {
   );
 }
 
-function Tile({
-  icon: Icon,
-  title,
-  body,
-  className,
-  children,
-}: {
+interface TileProps {
   icon: LucideIcon;
   title: string;
   body: string;
   className?: string;
   children?: ReactNode;
-}) {
+}
+
+function Tile({ icon: Icon, title, body, className, children }: TileProps) {
   return (
     <article
       className={cn(
