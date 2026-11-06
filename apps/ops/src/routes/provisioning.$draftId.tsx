@@ -228,7 +228,7 @@ function CustomerStep({ data }: StepProps) {
           <SelectField
             label="Sold to"
             width="name"
-            className="min-w-64 flex-1"
+            className="max-w-[30rem] min-w-64 flex-1"
             value={customerId}
             options={[
               { value: "", label: "Choose…" },
