@@ -10,7 +10,7 @@ import {
   SheetTitle,
 } from "../sheet";
 import { CircleAlert, LoaderCircle, X } from "lucide-react";
-import { useId } from "react";
+import { useId, useState } from "react";
 
 import { useEndSide, useSystemStrings } from "./provider";
 
@@ -152,4 +152,32 @@ export function SheetForm({
       </SheetContent>
     </Sheet>
   );
+}
+
+/** Whether a sheet is open, and the key that gives each opening a fresh form. */
+export interface SheetState {
+  open: boolean;
+  /** Changes on every opening; set it as the sheet's `key`. */
+  key: number;
+  show: () => void;
+  onOpenChange: (open: boolean) => void;
+}
+
+/**
+ * Opens and closes a section's sheet. Each opening remounts the sheet, so a
+ * form opened again starts from the record as it is now, not from what was
+ * typed and abandoned last time.
+ */
+export function useSheet(): SheetState {
+  const [open, setOpen] = useState(false);
+  const [key, setKey] = useState(0);
+  return {
+    open,
+    key,
+    show: () => {
+      setKey((count) => count + 1);
+      setOpen(true);
+    },
+    onOpenChange: setOpen,
+  };
 }

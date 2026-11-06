@@ -6,7 +6,7 @@ import { describe, expect, it, vi } from "vitest";
 import { renderWithSystem as render } from "./testing";
 
 import { TextField } from "./form-field";
-import { SheetForm } from "./sheet-form";
+import { SheetForm, useSheet } from "./sheet-form";
 
 interface NameSheetProps {
   onSave: (name: string) => void;
@@ -70,4 +70,56 @@ describe("SheetForm", () => {
     await user.click(screen.getByRole("button", { name: "Close" }));
     await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
   });
+
+  it("starts each opening from the record, not from what was abandoned", async () => {
+    render(<RenameRecord />);
+    await userEvent.click(screen.getByRole("button", { name: "Rename" }));
+    const name = screen.getByRole("textbox", { name: "Name" });
+    await userEvent.clear(name);
+    await userEvent.type(name, "Abandoned");
+    await userEvent.click(screen.getByRole("button", { name: "Cancel" }));
+    await userEvent.click(screen.getByRole("button", { name: "Rename" }));
+    expect(screen.getByRole("textbox", { name: "Name" })).toHaveValue(
+      "Northwind",
+    );
+  });
 });
+
+interface RenameSheetProps {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+}
+
+function RenameSheet({ open, onOpenChange }: RenameSheetProps) {
+  const [name, setName] = useState("Northwind");
+  return (
+    <SheetForm
+      open={open}
+      onOpenChange={onOpenChange}
+      title="Rename"
+      onSubmit={() => onOpenChange(false)}
+    >
+      <TextField
+        label="Name"
+        value={name}
+        onChange={(event) => setName(event.target.value)}
+      />
+    </SheetForm>
+  );
+}
+
+function RenameRecord() {
+  const sheet = useSheet();
+  return (
+    <>
+      <button type="button" onClick={sheet.show}>
+        Rename
+      </button>
+      <RenameSheet
+        key={sheet.key}
+        open={sheet.open}
+        onOpenChange={sheet.onOpenChange}
+      />
+    </>
+  );
+}
