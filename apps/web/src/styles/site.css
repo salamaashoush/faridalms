@@ -63,22 +63,37 @@
   }
   /* A school's website and portal follow the reader's light or dark choice,
      decided and switched as the app's are, in colours drawn from the
-     school's palette. Inline scheme variables win over a stylesheet, hence
-     the importance. */
+     school's palette. Each section carries both; words over a picture set
+     their own white inline, which wins in either. */
+  .site-root,
+  .site-section {
+    --s-canvas: var(--s-canvas-light);
+    --s-ink: var(--s-ink-light);
+    --s-bg: var(--s-bg-light);
+    --s-fg: var(--s-fg-light);
+    --s-heading: var(--s-heading-light);
+    --s-muted: var(--s-muted-light);
+    --s-link: var(--s-link-light);
+    --s-border: var(--s-border-light);
+    --s-card: var(--s-card-light);
+    --s-btn: var(--s-btn-light);
+    --s-btn-fg: var(--s-btn-fg-light);
+    --s-tint: var(--s-tint-light);
+  }
   .dark .site-root,
   .dark .site-section {
-    --s-canvas: var(--s-canvas-dark) !important;
-    --s-ink: var(--s-ink-dark) !important;
-    --s-bg: var(--s-bg-dark) !important;
-    --s-fg: var(--s-fg-dark) !important;
-    --s-heading: var(--s-heading-dark) !important;
-    --s-muted: var(--s-muted-dark) !important;
-    --s-link: var(--s-link-dark) !important;
-    --s-border: var(--s-border-dark) !important;
-    --s-card: var(--s-card-dark) !important;
-    --s-btn: var(--s-btn-dark) !important;
-    --s-btn-fg: var(--s-btn-fg-dark) !important;
-    --s-tint: var(--s-tint-dark) !important;
+    --s-canvas: var(--s-canvas-dark);
+    --s-ink: var(--s-ink-dark);
+    --s-bg: var(--s-bg-dark);
+    --s-fg: var(--s-fg-dark);
+    --s-heading: var(--s-heading-dark);
+    --s-muted: var(--s-muted-dark);
+    --s-link: var(--s-link-dark);
+    --s-border: var(--s-border-dark);
+    --s-card: var(--s-card-dark);
+    --s-btn: var(--s-btn-dark);
+    --s-btn-fg: var(--s-btn-fg-dark);
+    --s-tint: var(--s-tint-dark);
     --s-edge: var(--s-edge-dark, transparent);
   }
   .dark .site-root {
@@ -303,12 +318,14 @@
     font-size: clamp(2.5rem, 1.833rem + 2.963cqi, 4.25rem);
     line-height: 1.05;
     letter-spacing: var(--s-display-tracking);
+    word-spacing: var(--s-display-word-spacing);
     max-inline-size: 18ch;
   }
   .site-h2 {
     font-size: clamp(1.875rem, 1.5rem + 1.667cqi, 2.75rem);
     line-height: 1.12;
     letter-spacing: var(--s-display-tracking);
+    word-spacing: var(--s-display-word-spacing);
     max-inline-size: 24ch;
   }
   /* The largest voice, for a hero that is all words. */
@@ -317,6 +334,7 @@
     font-size: clamp(3rem, 1rem + 8cqi, 8.5rem);
     line-height: 0.95;
     letter-spacing: var(--s-display-tracking);
+    word-spacing: var(--s-display-word-spacing);
   }
   .site-root:lang(ar) .site-display-xl {
     line-height: 1.2;
@@ -331,6 +349,7 @@
     font-size: clamp(1.75rem, 1.1rem + 2.6cqi, 3.25rem);
     line-height: 1.2;
     letter-spacing: var(--s-display-tracking);
+    word-spacing: var(--s-display-word-spacing);
     text-wrap: balance;
   }
   .site-root:lang(ar) .site-statement {
@@ -363,6 +382,7 @@
     font-weight: var(--s-heading-weight, 650);
     line-height: 1;
     letter-spacing: var(--s-display-tracking);
+    word-spacing: var(--s-display-word-spacing);
     font-variant-numeric: lining-nums proportional-nums;
   }
   /* Tabular digits leave wide gaps in serif display faces ("1 2:1"), so they
@@ -802,6 +822,7 @@
     font-size: 1.375rem;
     font-weight: var(--s-heading-weight, 650);
     letter-spacing: var(--s-display-tracking);
+    word-spacing: var(--s-display-word-spacing);
     line-height: 1.2;
     transition: color 160ms ease;
   }
@@ -1102,10 +1123,10 @@
     outline-offset: 0.35rem;
   }
   .site-editable:hover {
-    outline-color: #2563eb99;
+    outline-color: color-mix(in oklab, var(--editor) 60%, transparent);
   }
   .site-editable:focus {
-    outline: 2px solid #2563eb;
+    outline: 2px solid var(--editor);
   }
 
   /* Sections rise into view once scripts run; without them everything is
@@ -1164,6 +1185,7 @@
     font-size: clamp(2.75rem, 1.5rem + 5cqi, 6.5rem);
     font-weight: var(--s-heading-weight, 650);
     letter-spacing: var(--s-display-tracking);
+    word-spacing: var(--s-display-word-spacing);
     line-height: 1.15;
     text-transform: var(--s-heading-case);
     white-space: nowrap;
@@ -1500,6 +1522,7 @@
     font-size: clamp(1.625rem, 1.1rem + 2.2cqi, 3rem);
     line-height: 1.22;
     letter-spacing: var(--s-display-tracking);
+    word-spacing: var(--s-display-word-spacing);
   }
   .site-root:lang(ar) .site-quote[data-size="l"] {
     line-height: 1.6;
@@ -1546,6 +1569,7 @@
     font-size: clamp(2rem, 1.5rem + 1.667cqi, 3rem);
     font-weight: var(--s-heading-weight, 650);
     letter-spacing: var(--s-display-tracking);
+    word-spacing: var(--s-display-word-spacing);
     line-height: 1;
   }
   .site-root[data-emphasis="italic"]:not(:lang(ar)) .site-timeline-year {

@@ -40,12 +40,16 @@
   --hero: #e6ecde;
   --hero-foreground: #234338;
   --hero-line: #577e5614;
+  /* The website builder's selection, one blue no school's palette shares,
+     so the section being edited always stands out from the school's own. */
+  --editor: #2563eb;
 }
 .dark {
   --hero: #203c32;
   --hero-foreground: #e4efde;
 }
 @theme inline {
+  --color-editor: var(--editor);
   --color-brand: var(--brand);
   --color-brand-deep: var(--brand-deep);
   --color-brand-ink: var(--brand-ink);

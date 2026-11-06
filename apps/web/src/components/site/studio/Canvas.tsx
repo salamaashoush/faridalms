@@ -132,16 +132,16 @@ function SectionChrome({
         aria-pressed={selected}
         onClick={onSelect}
         className={cn(
-          "absolute inset-0 z-10 cursor-pointer outline-offset-[-3px] hover:outline-2 hover:outline-[#2563eb]/60 hover:outline-dashed focus-visible:outline-3 focus-visible:outline-[#2563eb]",
+          "absolute inset-0 z-10 cursor-pointer outline-offset-[-3px] hover:outline-2 hover:outline-editor/60 hover:outline-dashed focus-visible:outline-3 focus-visible:outline-editor",
           selected &&
-            "pointer-events-none outline-3 outline-[#2563eb] outline-solid hover:outline-solid",
+            "pointer-events-none outline-3 outline-editor outline-solid hover:outline-solid",
         )}
       />
       <span
         aria-hidden
         style={UNZOOM}
         className={cn(
-          "pointer-events-none absolute start-3 top-3 z-20 rounded bg-[#2563eb] px-2 py-1 font-sans text-xs font-semibold text-white opacity-0 group-hover/section:opacity-100",
+          "pointer-events-none absolute start-3 top-3 z-20 rounded bg-editor px-2 py-1 font-sans text-xs font-semibold text-white opacity-0 group-hover/section:opacity-100",
           selected && "opacity-100",
         )}
       >
@@ -214,7 +214,7 @@ function SectionChrome({
         onClick={() => onInsert(index + 1)}
         aria-label={m.siteInsertSectionAfter({ section: label })}
         style={UNZOOM}
-        className="absolute start-1/2 bottom-0 z-20 grid size-9 -translate-x-1/2 translate-y-1/2 place-items-center rounded-full bg-[#2563eb] text-white opacity-0 shadow-lg transition-opacity group-hover/section:opacity-100 focus-visible:opacity-100 rtl:translate-x-1/2"
+        className="absolute start-1/2 bottom-0 z-20 grid size-9 -translate-x-1/2 translate-y-1/2 place-items-center rounded-full bg-editor text-white opacity-0 shadow-lg transition-opacity group-hover/section:opacity-100 focus-visible:opacity-100 rtl:translate-x-1/2"
       >
         <Plus aria-hidden className="size-5" />
       </button>

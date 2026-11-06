@@ -33,6 +33,14 @@ function stack(font: keyof typeof FONTS, fallback: keyof typeof FONTS): string {
  */
 export function themeStyle(theme: Theme, locale: SiteLocale): CSSProperties {
   const arabic = locale === "ar";
+  const tightening =
+    arabic || theme.headingCase === "upper"
+      ? 0
+      : theme.headingScale === "statement"
+        ? 0.04
+        : theme.headingScale === "editorial"
+          ? 0.02
+          : 0.01;
   const heading = arabic
     ? stack(theme.fonts.headingArabic, theme.fonts.bodyArabic)
     : stack(theme.fonts.headingLatin, theme.fonts.bodyLatin);
@@ -76,21 +84,18 @@ export function themeStyle(theme: Theme, locale: SiteLocale): CSSProperties {
             ? "500"
             : "600"
           : "650",
-    "--s-display-tracking":
-      arabic || theme.headingCase === "upper"
-        ? "normal"
-        : theme.headingScale === "statement"
-          ? "-0.04em"
-          : theme.headingScale === "editorial"
-            ? "-0.02em"
-            : "-0.01em",
+    "--s-display-tracking": tightening ? `-${tightening}em` : "normal",
+    // Letter-spacing narrows the spaces too, which at a quote's size runs
+    // words together. The spaces get that back and a little more, as
+    // tightly set display type wants its words held further apart.
+    "--s-display-word-spacing": tightening ? `${tightening * 1.5}em` : "normal",
     "--s-eyebrow-case": arabic ? "none" : "uppercase",
     "--s-eyebrow-tracking": arabic ? "normal" : "0.14em",
-    "--s-canvas": theme.palette.canvas,
+    "--s-canvas-light": theme.palette.canvas,
     "--s-surface": theme.palette.surface,
     "--s-primary": theme.palette.primary,
     "--s-accent": theme.palette.accent,
-    "--s-ink": theme.palette.ink,
+    "--s-ink-light": theme.palette.ink,
     "--s-canvas-dark": darkPalette(theme.palette).canvas,
     "--s-ink-dark": darkPalette(theme.palette).ink,
   } as CSSProperties;
@@ -109,7 +114,10 @@ export function themeAttributes(theme: Theme, editing = false) {
   };
 }
 
-/** One colour scheme as the variables a section's contents read. */
+/**
+ * One colour scheme in both its light and dark colours; the stylesheet
+ * gives a section's contents whichever the reader's screen shows.
+ */
 export function schemeStyle(theme: Theme, scheme: SchemeId): CSSProperties {
   const colours = schemesOf(theme.palette)[scheme];
   // The school's own colour and its ink bands are already dark and keep
@@ -125,16 +133,16 @@ export function schemeStyle(theme: Theme, scheme: SchemeId): CSSProperties {
     : schemesOf(darkPalette(theme.palette))[scheme];
   const edged = scheme === "brand" ? bands.edged.primary : bands.edged.ink;
   return {
-    "--s-bg": colours.background,
-    "--s-fg": colours.body,
-    "--s-heading": colours.heading,
-    "--s-muted": colours.muted,
-    "--s-link": colours.link,
-    "--s-border": colours.border,
-    "--s-card": colours.card,
-    "--s-btn": colours.button,
-    "--s-btn-fg": colours.buttonText,
-    "--s-tint": colours.tint,
+    "--s-bg-light": colours.background,
+    "--s-fg-light": colours.body,
+    "--s-heading-light": colours.heading,
+    "--s-muted-light": colours.muted,
+    "--s-link-light": colours.link,
+    "--s-border-light": colours.border,
+    "--s-card-light": colours.card,
+    "--s-btn-light": colours.button,
+    "--s-btn-fg-light": colours.buttonText,
+    "--s-tint-light": colours.tint,
     "--s-bg-dark": dark.background,
     "--s-fg-dark": dark.body,
     "--s-heading-dark": dark.heading,
