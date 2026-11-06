@@ -4,17 +4,29 @@ import type { LimitKey } from "@faridalms/domain/subscriptions";
 
 import { MODULE_IDS } from "@faridalms/domain/modules";
 import { LIMIT_KEYS, usableModules } from "@faridalms/domain/subscriptions";
-import { Badge } from "@faridalms/ui/badge";
 import { Button } from "@faridalms/ui/button";
 import { Checkbox } from "@faridalms/ui/checkbox";
-import { Input } from "@faridalms/ui/input";
-import { Textarea } from "@faridalms/ui/textarea";
+import {
+  CheckboxGroupField,
+  SelectField,
+  TextField,
+} from "@faridalms/ui/system/form-field";
+import {
+  RecordColumns,
+  RecordEmpty,
+  RecordHeader,
+  RecordList,
+  RecordSection,
+} from "@faridalms/ui/system/record-page";
+import { SettingsSection } from "@faridalms/ui/system/settings-section";
+import { StatusBadge, StatusText } from "@faridalms/ui/system/status";
 import { createFileRoute, Link, useRouter } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
+import { Info } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 
-import { failure } from "../actions";
+import { attempt, attemptWith } from "../actions";
 import { EventList } from "../components/EventList";
 import {
   SCHEDULE_NAMES,
@@ -22,6 +34,7 @@ import {
   termsDraftOf,
   termsOf,
 } from "../components/TermsFields";
+import { WhyField } from "../components/Why";
 import {
   formatDay,
   formatLimit,
@@ -32,6 +45,10 @@ import {
   minorOf,
   MODULE_NAMES,
   NOTICE_NAMES,
+  SUBSCRIPTION_STATE_NAMES,
+  SUBSCRIPTION_STATE_TONE,
+  TENANT_STATE_NAMES,
+  TENANT_STATE_TONE,
 } from "../format";
 import { useMay } from "../may";
 import {
@@ -44,6 +61,7 @@ import {
 } from "../server/subscriptions";
 
 export const Route = createFileRoute("/subscriptions/$subscriptionId")({
+  staticData: { title: "Subscription" },
   loader: ({ params }) =>
     getSubscription({ data: { id: params.subscriptionId } }),
   component: SubscriptionPage,
@@ -97,57 +115,71 @@ function SubscriptionPage() {
   const { subscription, customer, tenantName, history, names } = data;
   const mayChange = useMay("subscriptions") && subscription.state !== "ended";
   return (
-    <div className="grid gap-8">
-      <div className="grid gap-1">
-        <Link
-          to="/subscriptions"
-          className="text-sm text-muted-foreground hover:underline"
-        >
-          Subscriptions
-        </Link>
-        <h1 className="flex flex-wrap items-center gap-3 text-2xl font-semibold">
-          {tenantName ?? customer.legalNameEn}
-          <Badge variant="secondary">
-            {subscription.state === "trial"
-              ? "Trial"
-              : subscription.state === "active"
-                ? "Active"
-                : "Ended"}
-          </Badge>
-          {subscription.grandfathered ? (
-            <Badge variant="outline">Grandfathered</Badge>
-          ) : null}
-        </h1>
-        <p className="text-sm text-muted-foreground">
-          For{" "}
-          <Link
-            to="/customers/$customerId"
-            params={{ customerId: customer.id }}
-            className="text-foreground underline"
-          >
-            {customer.legalNameEn}
-          </Link>{" "}
-          · priced in {subscription.currency} · revision {subscription.revision}
-        </p>
-        {subscription.grandfathered ? (
-          <p className="max-w-2xl text-sm">
-            This tenant came before the console sold anything, so its overrides
-            keep each school as it was. To sell it a contract, set its term, add
-            its plan, then end the overrides from the day the plan starts.
-          </p>
-        ) : null}
-      </div>
-      <Schools data={data} mayPublish={mayChange} />
-      {mayChange ? <TermsForm data={data} /> : <TermsSummary data={data} />}
-      <Items data={data} mayChange={mayChange} />
-      <Overrides data={data} mayChange={mayChange} />
-      <Publications data={data} />
-      <section className="grid gap-3">
-        <h2 className="text-base font-semibold">History</h2>
-        <EventList events={history} names={names} />
-      </section>
-    </div>
+    <>
+      <RecordHeader
+        title={tenantName ?? customer.legalNameEn}
+        status={{
+          label: SUBSCRIPTION_STATE_NAMES[subscription.state],
+          tone: SUBSCRIPTION_STATE_TONE[subscription.state],
+        }}
+        facts={[
+          {
+            label: "Customer",
+            value: (
+              <Link
+                to="/customers/$customerId"
+                params={{ customerId: customer.id }}
+                className="hover:text-primary hover:underline"
+              >
+                {customer.legalNameEn}
+              </Link>
+            ),
+          },
+          { label: "Currency", value: `Priced in ${subscription.currency}` },
+          { label: "Revision", value: `Revision ${subscription.revision}` },
+          ...(subscription.grandfathered
+            ? [{ label: "Grandfathered", value: "Grandfathered" }]
+            : []),
+        ]}
+        alerts={
+          subscription.grandfathered
+            ? [
+                {
+                  label:
+                    "This tenant came before the console sold anything, so its overrides keep each school as it was. To sell it a contract, set its term, add its plan, then end the overrides from the day the plan starts.",
+                  tone: "info",
+                  icon: Info,
+                },
+              ]
+            : []
+        }
+      />
+      <RecordColumns
+        main={
+          <>
+            <Schools data={data} mayPublish={mayChange} />
+            <Items data={data} mayChange={mayChange} />
+            <Overrides data={data} mayChange={mayChange} />
+            <Publications data={data} />
+            <RecordSection title="History">
+              <EventList events={history} names={names} />
+            </RecordSection>
+          </>
+        }
+        aside={
+          mayChange ? <TermsForm data={data} /> : <TermsSummary data={data} />
+        }
+      />
+    </>
   );
+}
+
+interface SubscriptionProps {
+  data: Data;
+}
+
+interface ChangeableProps extends SubscriptionProps {
+  mayChange: boolean;
 }
 
 /**
@@ -155,137 +187,152 @@ function SubscriptionPage() {
  * daily round publishes what is in force each day; publishing here applies
  * a change at once.
  */
-function Schools({ data, mayPublish }: { data: Data; mayPublish: boolean }) {
+interface SchoolsProps extends SubscriptionProps {
+  mayPublish: boolean;
+}
+
+function Schools({ data, mayPublish }: SchoolsProps) {
   const router = useRouter();
   const publish = useServerFn(publishNow);
   const [reason, setReason] = useState("");
+  const [submitted, setSubmitted] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const pending = data.schools.some(
     (school) => changesBetween(school.current, school.next).length > 0,
   );
   return (
-    <section className="grid gap-4">
-      <div className="grid gap-1">
-        <h2 className="text-base font-semibold">Schools</h2>
-        <p className="text-sm text-muted-foreground">
-          What each school has now, and what it would have if this subscription
-          were published today. The daily round publishes each day on its own.
-        </p>
-      </div>
-      <ul className="grid gap-3 md:grid-cols-2">
-        {data.schools.map((school) => {
-          const changes = changesBetween(school.current, school.next);
-          const usable = usableModules(school.next.modules);
-          const unusable = school.next.modules.filter(
-            (id) => !usable.includes(id),
-          );
-          return (
-            <li
-              key={school.id}
-              aria-label={school.name}
-              className="grid content-start gap-2 rounded-lg border p-4 text-sm"
-            >
-              <span className="flex flex-wrap items-center gap-2">
-                <Link
-                  to="/schools/$schoolId"
-                  params={{ schoolId: school.id }}
-                  className="font-medium underline"
-                >
-                  {school.name}
-                </Link>
-                {school.tenantState === "active" ? null : (
-                  <Badge variant="outline">{school.tenantState}</Badge>
-                )}
-                {school.access === "restricted" ? (
-                  <Badge variant="outline">Restricted</Badge>
-                ) : null}
-              </span>
-              {changes.length ? (
-                <ul className="grid gap-0.5">
-                  {changes.map((line) => (
-                    <li key={line}>{line}</li>
-                  ))}
-                </ul>
-              ) : (
-                <p className="text-muted-foreground">Published as it stands.</p>
-              )}
-              <span className="flex flex-wrap gap-1">
-                {usable.map((id) => (
-                  <Badge key={id} variant="secondary">
-                    {MODULE_NAMES[id]}
-                  </Badge>
-                ))}
-              </span>
-              {unusable.length ? (
-                <p className="text-xs text-muted-foreground">
-                  Entitled but unusable without the modules they need:{" "}
-                  {unusable.map((id) => MODULE_NAMES[id]).join(", ")}.
-                </p>
-              ) : null}
-            </li>
-          );
-        })}
-      </ul>
-      {data.schools.length === 0 ? (
-        <p className="text-sm text-muted-foreground">
-          The tenant has no schools in the directory.
-        </p>
-      ) : null}
-      {mayPublish && pending ? (
-        <form
-          aria-label="Publish"
-          className="flex max-w-2xl flex-wrap items-end gap-2"
-          onSubmit={async (event) => {
-            event.preventDefault();
-            setSaving(true);
-            try {
-              const out = await publish({
-                data: { id: data.subscription.id, reason: reason.trim() },
-              });
-              const schools = `${out.published.length} ${out.published.length === 1 ? "school" : "schools"}`;
-              toast.success(
-                out.atOnce
-                  ? `Published to ${schools}. They have it now.`
-                  : `Published to ${schools}. Their cell could not be told, so they have it within a minute.`,
+    <>
+      <RecordSection
+        title="Schools"
+        description="What each school has now, and what it would have if this subscription were published today. The daily round publishes each day on its own."
+      >
+        {data.schools.length === 0 ? (
+          <RecordEmpty>The tenant has no schools in the directory.</RecordEmpty>
+        ) : (
+          <ul className="grid gap-3 @2xl:grid-cols-2">
+            {data.schools.map((school) => {
+              const changes = changesBetween(school.current, school.next);
+              const usable = usableModules(school.next.modules);
+              const unusable = school.next.modules.filter(
+                (id) => !usable.includes(id),
               );
-              setReason("");
-              await router.invalidate();
-            } catch (error) {
-              const said = failure(error, "It could not be published.");
-              if (said) toast.error(said);
-            } finally {
-              setSaving(false);
+              return (
+                <li
+                  key={school.id}
+                  aria-label={school.name}
+                  className="grid content-start gap-3 rounded-lg border p-4"
+                >
+                  <span className="flex flex-wrap items-center gap-2">
+                    <Link
+                      to="/schools/$schoolId"
+                      params={{ schoolId: school.id }}
+                      className="text-sm leading-5 font-semibold hover:text-primary hover:underline"
+                    >
+                      {school.name}
+                    </Link>
+                    {school.tenantState === "active" ? null : (
+                      <StatusBadge tone={TENANT_STATE_TONE[school.tenantState]}>
+                        {TENANT_STATE_NAMES[school.tenantState]}
+                      </StatusBadge>
+                    )}
+                    {school.access === "restricted" ? (
+                      <StatusBadge tone="warning">Restricted</StatusBadge>
+                    ) : null}
+                  </span>
+                  {changes.length ? (
+                    <ul className="grid gap-1">
+                      {changes.map((line) => (
+                        <li key={line}>
+                          <StatusText tone="info">{line}</StatusText>
+                        </li>
+                      ))}
+                    </ul>
+                  ) : (
+                    <p className="text-[13px] leading-[18px] text-muted-foreground">
+                      Published as it stands.
+                    </p>
+                  )}
+                  <span className="flex flex-wrap gap-1.5">
+                    {usable.map((id) => (
+                      <StatusBadge key={id} tone="neutral">
+                        {MODULE_NAMES[id]}
+                      </StatusBadge>
+                    ))}
+                  </span>
+                  {unusable.length ? (
+                    <p className="text-[13px] leading-[18px] text-muted-foreground">
+                      Entitled but unusable without the modules they need:{" "}
+                      {unusable.map((id) => MODULE_NAMES[id]).join(", ")}.
+                    </p>
+                  ) : null}
+                </li>
+              );
+            })}
+          </ul>
+        )}
+      </RecordSection>
+      {mayPublish && pending ? (
+        <SettingsSection
+          title="Publish"
+          description="Gives the schools what the subscription says today, at once."
+          submitLabel="Publish now"
+          pending={saving}
+          error={error}
+          isDirty={() => Boolean(reason)}
+          onSubmit={async () => {
+            setSubmitted(true);
+            if (!reason.trim()) return;
+            setSaving(true);
+            setError(null);
+            const out = await attemptWith(
+              () =>
+                publish({
+                  data: { id: data.subscription.id, reason: reason.trim() },
+                }),
+              "It could not be published.",
+            );
+            setSaving(false);
+            if (!out.ok) {
+              setError(out.message);
+              return;
             }
+            const count = out.value.published.length;
+            const schools = `${count} ${count === 1 ? "school" : "schools"}`;
+            toast.success(
+              out.value.atOnce
+                ? `Published to ${schools}. They have it now.`
+                : `Published to ${schools}. Their cell could not be told, so they have it within a minute.`,
+            );
+            setReason("");
+            setSubmitted(false);
+            await router.invalidate();
           }}
         >
-          <div className="grid min-w-48 flex-1 gap-1 text-sm">
-            <label htmlFor="publish-reason" className="font-medium">
-              Why now
-            </label>
-            <Input
-              id="publish-reason"
-              required
-              maxLength={500}
-              value={reason}
-              onChange={(event) => setReason(event.target.value)}
-              placeholder="For example: the school starts coding on Monday"
-            />
-          </div>
-          <Button type="submit" disabled={saving || !reason.trim()}>
-            {saving ? "Publishing…" : "Publish now"}
-          </Button>
-        </form>
+          <TextField
+            label="Why now"
+            hint="Kept in the change log."
+            maxLength={500}
+            value={reason}
+            placeholder="For example: the school starts coding on Monday"
+            errors={
+              submitted && !reason.trim()
+                ? ["Say why, for the change log."]
+                : undefined
+            }
+            onChange={(event) => setReason(event.target.value)}
+          />
+        </SettingsSection>
       ) : null}
-    </section>
+    </>
   );
 }
 
-function TermsSummary({ data }: { data: Data }) {
+function TermsSummary({ data }: SubscriptionProps) {
   const { subscription } = data;
   return (
-    <section className="grid max-w-2xl gap-2 rounded-lg border p-6 text-sm">
-      <h2 className="text-base font-semibold">Terms</h2>
-      <p>
+    <RecordSection title="Terms">
+      <p className="text-sm leading-5">
         {subscription.state === "trial" && subscription.trialEndsOn
           ? `Trial until ${formatDay(subscription.trialEndsOn)}.`
           : subscription.termStartsOn && subscription.termEndsOn
@@ -295,241 +342,211 @@ function TermsSummary({ data }: { data: Data }) {
           ? ` Contracted for ${subscription.contractedStudents.toLocaleString("en")} students.`
           : ""}
       </p>
-    </section>
+    </RecordSection>
   );
 }
 
 /** A trial's end, or a contract's term, renewal and billing. */
-function TermsForm({ data }: { data: Data }) {
+function TermsForm({ data }: SubscriptionProps) {
   const router = useRouter();
   const save = useServerFn(saveTerms);
   const { subscription, today } = data;
   const [draft, setDraft] = useState(() => termsDraftOf(subscription, today));
   const [reason, setReason] = useState("");
+  const [submitted, setSubmitted] = useState(false);
   const [answer, setAnswer] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   return (
-    <form
-      aria-label="Terms"
-      className="grid max-w-2xl gap-4 rounded-lg border p-6"
-      onSubmit={async (event) => {
-        event.preventDefault();
+    <SettingsSection
+      title="Terms"
+      submitLabel="Save terms"
+      pending={saving}
+      error={answer}
+      onSubmit={async () => {
+        setSubmitted(true);
         const read = termsOf(draft);
         if (!read.ok) {
           setAnswer(read.message);
           return;
         }
+        if (!reason.trim()) return;
         setSaving(true);
         setAnswer(null);
-        try {
-          const out = await save({
-            data: {
-              id: subscription.id,
-              terms: read.terms,
-              reason: reason.trim(),
-            },
-          });
-          if (out.ok) {
-            toast.success("Terms saved.");
-            setReason("");
-            await router.invalidate();
-          } else setAnswer(out.message);
-        } catch (error) {
-          setAnswer(
-            failure(
-              error,
-              "The terms could not be saved. A trial needs its end; a contract needs a term that ends after it starts.",
-            ),
-          );
-        } finally {
-          setSaving(false);
+        const failed = await attempt(
+          () =>
+            save({
+              data: {
+                id: subscription.id,
+                terms: read.terms,
+                reason: reason.trim(),
+              },
+            }),
+          "The terms could not be saved. A trial needs its end; a contract needs a term that ends after it starts.",
+        );
+        setSaving(false);
+        if (failed) {
+          setAnswer(failed);
+          return;
         }
+        toast.success("Terms saved.");
+        setReason("");
+        setSubmitted(false);
+        await router.invalidate();
       }}
     >
-      <h2 className="text-base font-semibold">Terms</h2>
       <TermsFields draft={draft} onChange={setDraft} />
-      <div className="grid gap-1.5 text-sm">
-        <label htmlFor="terms-reason" className="font-medium">
-          Why
-        </label>
-        <Textarea
-          id="terms-reason"
-          required
-          maxLength={500}
-          value={reason}
-          onChange={(event) => setReason(event.target.value)}
-          placeholder="For example: signed the order form for 2027"
-        />
-      </div>
-      {answer ? (
-        <p role="alert" className="text-sm text-destructive">
-          {answer}
-        </p>
-      ) : null}
-      <Button
-        type="submit"
-        disabled={saving || !reason.trim()}
-        className="justify-self-start"
-      >
-        {saving ? "Saving…" : "Save terms"}
-      </Button>
-    </form>
+      <WhyField
+        value={reason}
+        onChange={setReason}
+        submitted={submitted}
+        placeholder="For example: signed the order form for 2027"
+      />
+    </SettingsSection>
   );
 }
 
-/** Ends one or more parts from a day: today ends them at once. */
-function EndParts({
-  data,
-  part,
-  ids,
-  label,
-}: {
-  data: Data;
+interface EndPartsProps extends SubscriptionProps {
   part: "item" | "override";
   ids: string[];
   label: string;
-}) {
+}
+
+/** Ends one or more parts from a day: today ends them at once. */
+function EndParts({ data, part, ids, label }: EndPartsProps) {
   const router = useRouter();
   const end = useServerFn(endSubscriptionParts);
   const [endsOn, setEndsOn] = useState(data.today);
   const [reason, setReason] = useState("");
+  const [submitted, setSubmitted] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   return (
-    <form
-      aria-label={label}
-      className="flex flex-wrap items-end gap-2"
-      onSubmit={async (event) => {
-        event.preventDefault();
+    <SettingsSection
+      title={label}
+      submitLabel={label}
+      pending={saving}
+      error={error}
+      onSubmit={async () => {
+        setSubmitted(true);
+        if (ids.length === 0 || !endsOn || !reason.trim()) return;
         setSaving(true);
-        try {
-          const out = await end({
-            data: {
-              subscriptionId: data.subscription.id,
-              part,
-              ids,
-              endsOn,
-              reason: reason.trim(),
-            },
-          });
-          if (out.ok) {
-            toast.success(
-              endsOn <= data.today
-                ? "Ended. Publish for the schools to see it now."
-                : `Ends ${formatDay(endsOn)}.`,
-            );
-            setReason("");
-            await router.invalidate();
-          } else toast.error(out.message);
-        } catch (error) {
-          const said = failure(error, "It could not be ended.");
-          if (said) toast.error(said);
-        } finally {
-          setSaving(false);
+        setError(null);
+        const failed = await attempt(
+          () =>
+            end({
+              data: {
+                subscriptionId: data.subscription.id,
+                part,
+                ids,
+                endsOn,
+                reason: reason.trim(),
+              },
+            }),
+          "It could not be ended.",
+        );
+        setSaving(false);
+        if (failed) {
+          setError(failed);
+          return;
         }
+        toast.success(
+          endsOn <= data.today
+            ? "Ended. Publish for the schools to see it now."
+            : `Ends ${formatDay(endsOn)}.`,
+        );
+        setReason("");
+        setSubmitted(false);
+        await router.invalidate();
       }}
     >
-      <div className="grid gap-1 text-sm">
-        <label htmlFor={`${part}-end-on`} className="font-medium">
-          First day without it
-        </label>
-        <Input
-          id={`${part}-end-on`}
-          type="date"
-          required
-          value={endsOn}
-          onChange={(event) => setEndsOn(event.target.value)}
-        />
-      </div>
-      <div className="grid min-w-48 flex-1 gap-1 text-sm">
-        <label htmlFor={`${part}-end-reason`} className="font-medium">
-          Why
-        </label>
-        <Input
-          id={`${part}-end-reason`}
-          required
-          maxLength={500}
-          value={reason}
-          onChange={(event) => setReason(event.target.value)}
-        />
-      </div>
-      <Button
-        type="submit"
-        variant="outline"
-        disabled={saving || ids.length === 0 || !reason.trim()}
-      >
-        {saving ? "Ending…" : label}
-      </Button>
-    </form>
+      <TextField
+        label="First day without it"
+        type="date"
+        width="date"
+        value={endsOn}
+        onChange={(event) => setEndsOn(event.target.value)}
+      />
+      <WhyField value={reason} onChange={setReason} submitted={submitted} />
+    </SettingsSection>
   );
 }
 
-function Items({ data, mayChange }: { data: Data; mayChange: boolean }) {
+function Items({ data, mayChange }: ChangeableProps) {
   const [ending, setEnding] = useState<string | null>(null);
   const schoolName = (id: string) =>
     data.schools.find((school) => school.id === id)?.name ?? id;
   return (
-    <section className="grid gap-3">
-      <h2 className="text-base font-semibold">Items</h2>
-      {data.items.length === 0 ? (
-        <p className="text-sm text-muted-foreground">
-          No plan or add-on: its schools have Basic, and whatever its overrides
-          give.
-        </p>
-      ) : (
-        <ul className="divide-y rounded-lg border">
-          {data.items.map(({ item, plan, planCode, addOn, addOnCode }) => (
-            <li key={item.id} className="grid gap-2 px-4 py-3 text-sm">
-              <div className="flex flex-wrap items-baseline justify-between gap-2">
-                <span className="font-medium">
-                  {plan
-                    ? `${plan.nameEn} (${planCode}) version ${plan.version}`
-                    : addOn
-                      ? `${addOn.nameEn} (${addOnCode}) version ${addOn.version}`
-                      : "A retired version"}
-                </span>
-                <span className="text-muted-foreground">{spanOf(item)}</span>
-              </div>
-              <p className="text-muted-foreground">
-                {item.quantity.toLocaleString("en")} at{" "}
-                {formatMoney(item.unitPriceMinor, data.subscription.currency)}
-                {Number(item.discountPercent) > 0
-                  ? `, ${Number(item.discountPercent)}% off`
-                  : ""}{" "}
-                ·{" "}
-                {item.schoolIds.length
-                  ? item.schoolIds.map(schoolName).join(", ")
-                  : "Every school"}
-              </p>
-              {mayChange && open(item, data.today) ? (
-                ending === item.id ? (
-                  <EndParts
-                    data={data}
-                    part="item"
-                    ids={[item.id]}
-                    label="End this item"
-                  />
-                ) : (
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="justify-self-start"
-                    onClick={() => setEnding(item.id)}
-                  >
-                    End…
-                  </Button>
-                )
-              ) : null}
-            </li>
-          ))}
-        </ul>
-      )}
+    <>
+      <RecordSection title="Items">
+        {data.items.length === 0 ? (
+          <RecordEmpty>
+            No plan or add-on: its schools have Basic, and whatever its
+            overrides give.
+          </RecordEmpty>
+        ) : (
+          <RecordList>
+            {data.items.map(({ item, plan, planCode, addOn, addOnCode }) => (
+              <li key={item.id} className="grid gap-1 py-3">
+                <div className="flex flex-wrap items-baseline justify-between gap-2">
+                  <span className="text-sm leading-5 font-medium">
+                    {plan
+                      ? `${plan.nameEn} (${planCode}) version ${plan.version}`
+                      : addOn
+                        ? `${addOn.nameEn} (${addOnCode}) version ${addOn.version}`
+                        : "A retired version"}
+                  </span>
+                  <span className="text-[13px] leading-[18px] text-muted-foreground">
+                    {spanOf(item)}
+                  </span>
+                </div>
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <p className="text-[13px] leading-[18px] text-muted-foreground tabular-nums">
+                    {item.quantity.toLocaleString("en")} at{" "}
+                    {formatMoney(
+                      item.unitPriceMinor,
+                      data.subscription.currency,
+                    )}
+                    {Number(item.discountPercent) > 0
+                      ? `, ${Number(item.discountPercent)}% off`
+                      : ""}{" "}
+                    ·{" "}
+                    {item.schoolIds.length
+                      ? item.schoolIds.map(schoolName).join(", ")
+                      : "Every school"}
+                  </p>
+                  {mayChange && open(item, data.today) && ending !== item.id ? (
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setEnding(item.id)}
+                    >
+                      End…
+                    </Button>
+                  ) : null}
+                </div>
+                {ending === item.id ? (
+                  <div className="mt-2">
+                    <EndParts
+                      data={data}
+                      part="item"
+                      ids={[item.id]}
+                      label="End this item"
+                    />
+                  </div>
+                ) : null}
+              </li>
+            ))}
+          </RecordList>
+        )}
+      </RecordSection>
       {mayChange ? <AddItemForm data={data} /> : null}
-    </section>
+    </>
   );
 }
 
 /** Sells the subscription a plan or add-on version, from a day. */
-function AddItemForm({ data }: { data: Data }) {
+function AddItemForm({ data }: SubscriptionProps) {
   const router = useRouter();
   const add = useServerFn(addSubscriptionItem);
   const { selling, subscription, today } = data;
@@ -542,6 +559,7 @@ function AddItemForm({ data }: { data: Data }) {
   const [schoolIds, setSchoolIds] = useState<string[]>([]);
   const [startsOn, setStartsOn] = useState(subscription.termStartsOn ?? today);
   const [reason, setReason] = useState("");
+  const [submitted, setSubmitted] = useState(false);
   const [answer, setAnswer] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [kind, id] = choice.split(":") as ["plan" | "add_on" | "", string];
@@ -561,12 +579,26 @@ function AddItemForm({ data }: { data: Data }) {
     );
     setPrice(listed ? (listed.amountMinor / 100).toFixed(2) : "");
   };
+  const choices = [
+    { value: "", label: "Choose…" },
+    ...selling.plans.map((plan) => ({
+      value: `plan:${plan.id}`,
+      label: `Plan: ${plan.nameEn} version ${plan.version}`,
+    })),
+    ...selling.addOns.map((addOn) => ({
+      value: `add_on:${addOn.id}`,
+      label: `Add-on: ${addOn.nameEn} version ${addOn.version}`,
+    })),
+  ];
   return (
-    <form
-      aria-label="Add an item"
-      className="grid max-w-2xl gap-4 rounded-lg border p-6"
-      onSubmit={async (event) => {
-        event.preventDefault();
+    <SettingsSection
+      title="Add an item"
+      description="A plan or add-on version, sold from a day."
+      submitLabel="Add item"
+      pending={saving}
+      error={answer}
+      onSubmit={async () => {
+        setSubmitted(true);
         const unitPriceMinor = minorOf(price);
         const count = Number(quantity);
         const off = Number(discount || "0");
@@ -582,188 +614,109 @@ function AddItemForm({ data }: { data: Data }) {
           setAnswer("A discount is between 0 and 100 per cent.");
           return;
         }
+        if (!reason.trim()) return;
         setSaving(true);
         setAnswer(null);
-        try {
-          const out = await add({
-            data: {
-              subscriptionId: subscription.id,
-              planVersionId: kind === "plan" ? id : null,
-              addOnVersionId: kind === "add_on" ? id : null,
-              quantity: count,
-              unitPriceMinor,
-              discountPercent: off,
-              schoolIds,
-              startsOn,
-              reason: reason.trim(),
-            },
-          });
-          if (out.ok) {
-            toast.success(
-              startsOn <= today
-                ? "Added. Publish for the schools to have it now."
-                : `Added from ${formatDay(startsOn)}.`,
-            );
-            setChoice("");
-            setReason("");
-            await router.invalidate();
-          } else setAnswer(out.message);
-        } catch (error) {
-          setAnswer(failure(error, "The item could not be added."));
-        } finally {
-          setSaving(false);
+        const failed = await attempt(
+          () =>
+            add({
+              data: {
+                subscriptionId: subscription.id,
+                planVersionId: kind === "plan" ? id : null,
+                addOnVersionId: kind === "add_on" ? id : null,
+                quantity: count,
+                unitPriceMinor,
+                discountPercent: off,
+                schoolIds,
+                startsOn,
+                reason: reason.trim(),
+              },
+            }),
+          "The item could not be added.",
+        );
+        setSaving(false);
+        if (failed) {
+          setAnswer(failed);
+          return;
         }
+        toast.success(
+          startsOn <= today
+            ? "Added. Publish for the schools to have it now."
+            : `Added from ${formatDay(startsOn)}.`,
+        );
+        setChoice("");
+        setReason("");
+        setSubmitted(false);
+        await router.invalidate();
       }}
     >
-      <h3 className="text-sm font-semibold">Add a plan or add-on</h3>
-      <div className="grid items-start gap-4 sm:grid-cols-2">
-        <div className="grid gap-1.5 text-sm sm:col-span-2">
-          <label htmlFor="item-what" className="font-medium">
-            What
-          </label>
-          <select
-            id="item-what"
-            required
-            value={choice}
-            onChange={(event) => pick(event.target.value)}
-            className="h-9 rounded-md border bg-background px-2 text-sm"
-          >
-            <option value="">Choose…</option>
-            <optgroup label="Plans">
-              {selling.plans.map((plan) => (
-                <option key={plan.id} value={`plan:${plan.id}`}>
-                  {plan.nameEn} version {plan.version}
-                </option>
-              ))}
-            </optgroup>
-            <optgroup label="Add-ons">
-              {selling.addOns.map((addOn) => (
-                <option key={addOn.id} value={`add_on:${addOn.id}`}>
-                  {addOn.nameEn} version {addOn.version}
-                </option>
-              ))}
-            </optgroup>
-          </select>
-        </div>
-        <div className="grid gap-1.5 text-sm">
-          <label htmlFor="item-quantity" className="font-medium">
-            Quantity
-          </label>
-          <Input
-            id="item-quantity"
-            inputMode="numeric"
-            required
-            value={quantity}
-            onChange={(event) => setQuantity(event.target.value)}
-          />
-        </div>
-        <div className="grid gap-1.5 text-sm">
-          <label htmlFor="item-price" className="font-medium">
-            Unit price ({subscription.currency})
-          </label>
-          <Input
-            id="item-price"
-            inputMode="decimal"
-            required
-            value={price}
-            onChange={(event) => setPrice(event.target.value)}
-          />
-        </div>
-        <div className="grid gap-1.5 text-sm">
-          <label htmlFor="item-discount" className="font-medium">
-            Discount (%)
-          </label>
-          <Input
-            id="item-discount"
-            inputMode="decimal"
-            value={discount}
-            onChange={(event) => setDiscount(event.target.value)}
-          />
-        </div>
-        <div className="grid gap-1.5 text-sm">
-          <label htmlFor="item-starts" className="font-medium">
-            Starts
-          </label>
-          <Input
-            id="item-starts"
-            type="date"
-            required
-            value={startsOn}
-            onChange={(event) => setStartsOn(event.target.value)}
-          />
-        </div>
+      <SelectField
+        label="What"
+        value={choice}
+        options={choices}
+        onChange={pick}
+      />
+      <div className="grid items-start gap-6 @md:grid-cols-2">
+        <TextField
+          label="Quantity"
+          inputMode="numeric"
+          value={quantity}
+          onChange={(event) => setQuantity(event.target.value)}
+        />
+        <TextField
+          label={`Unit price (${subscription.currency})`}
+          inputMode="decimal"
+          value={price}
+          onChange={(event) => setPrice(event.target.value)}
+        />
+        <TextField
+          label="Discount (%)"
+          inputMode="decimal"
+          value={discount}
+          onChange={(event) => setDiscount(event.target.value)}
+        />
+        <TextField
+          label="Starts"
+          type="date"
+          value={startsOn}
+          onChange={(event) => setStartsOn(event.target.value)}
+        />
       </div>
       {data.schools.length > 1 ? (
         <SchoolChoice
-          prefix="item"
           schools={data.schools}
           chosen={schoolIds}
           onChange={setSchoolIds}
         />
       ) : null}
-      <div className="grid gap-1.5 text-sm">
-        <label htmlFor="item-reason" className="font-medium">
-          Why
-        </label>
-        <Input
-          id="item-reason"
-          required
-          maxLength={500}
-          value={reason}
-          onChange={(event) => setReason(event.target.value)}
-          placeholder="For example: the order form signed on 3 November"
-        />
-      </div>
-      {answer ? (
-        <p role="alert" className="text-sm text-destructive">
-          {answer}
-        </p>
-      ) : null}
-      <Button
-        type="submit"
-        disabled={saving || !reason.trim()}
-        className="justify-self-start"
-      >
-        {saving ? "Adding…" : "Add item"}
-      </Button>
-    </form>
+      <WhyField
+        value={reason}
+        onChange={setReason}
+        submitted={submitted}
+        placeholder="For example: the order form signed on 3 November"
+      />
+    </SettingsSection>
   );
 }
 
-function SchoolChoice({
-  prefix,
-  schools,
-  chosen,
-  onChange,
-}: {
-  prefix: string;
+interface SchoolChoiceProps {
   schools: Data["schools"];
   chosen: string[];
   onChange: (ids: string[]) => void;
-}) {
+}
+
+function SchoolChoice({ schools, chosen, onChange }: SchoolChoiceProps) {
   return (
-    <fieldset className="grid gap-2 text-sm">
-      <legend className="mb-1 font-medium">Schools</legend>
-      <p className="text-xs text-muted-foreground">
-        None chosen covers every school of the tenant.
-      </p>
-      {schools.map((school) => (
-        <span key={school.id} className="flex items-center gap-2">
-          <Checkbox
-            id={`${prefix}-school-${school.id}`}
-            checked={chosen.includes(school.id)}
-            onCheckedChange={(checked) =>
-              onChange(
-                checked
-                  ? [...chosen, school.id]
-                  : chosen.filter((id) => id !== school.id),
-              )
-            }
-          />
-          <label htmlFor={`${prefix}-school-${school.id}`}>{school.name}</label>
-        </span>
-      ))}
-    </fieldset>
+    <CheckboxGroupField
+      label="Schools"
+      hint="None chosen covers every school of the tenant."
+      value={chosen}
+      options={schools.map((school) => ({
+        value: school.id,
+        label: school.name,
+      }))}
+      onChange={onChange}
+    />
   );
 }
 
@@ -781,7 +734,7 @@ function describeOverride(
   return who;
 }
 
-function Overrides({ data, mayChange }: { data: Data; mayChange: boolean }) {
+function Overrides({ data, mayChange }: ChangeableProps) {
   const [chosen, setChosen] = useState<string[]>([]);
   const schoolName = (id: string) =>
     data.schools.find((school) => school.id === id)?.name ?? id;
@@ -789,79 +742,83 @@ function Overrides({ data, mayChange }: { data: Data; mayChange: boolean }) {
     open(override, data.today),
   );
   return (
-    <section className="grid gap-3">
-      <div className="grid gap-1">
-        <h2 className="text-base font-semibold">Overrides</h2>
-        <p className="text-sm text-muted-foreground">
-          A module given or taken away, or a limit set, for one school or every
-          school, for a while. A school's own override wins over one for every
-          school.
-        </p>
-      </div>
-      {data.overrides.length === 0 ? (
-        <p className="text-sm text-muted-foreground">No overrides.</p>
-      ) : (
-        <ul className="divide-y rounded-lg border">
-          {data.overrides.map((override) => (
-            <li
-              key={override.id}
-              className="flex flex-wrap items-start gap-3 px-4 py-3 text-sm"
-            >
-              {mayChange && open(override, data.today) ? (
-                <Checkbox
-                  aria-label={`Choose: ${describeOverride(override, schoolName)}`}
-                  checked={chosen.includes(override.id)}
-                  onCheckedChange={(checked) =>
-                    setChosen((current) =>
-                      checked
-                        ? [...current, override.id]
-                        : current.filter((id) => id !== override.id),
-                    )
-                  }
-                  className="mt-0.5"
-                />
-              ) : null}
-              <div className="grid flex-1 gap-0.5">
-                <span className="font-medium">
-                  {describeOverride(override, schoolName)}
-                </span>
-                <span className="text-muted-foreground">
-                  {spanOf(override)} · {override.reason}
-                </span>
-              </div>
-            </li>
-          ))}
-        </ul>
-      )}
-      {mayChange && endable.length ? (
-        <div className="grid max-w-2xl gap-2">
-          <span className="flex gap-2">
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => setChosen(endable.map((override) => override.id))}
-            >
-              Choose all {endable.length}
-            </Button>
-            <Button variant="ghost" size="sm" onClick={() => setChosen([])}>
-              Choose none
-            </Button>
-          </span>
-          <EndParts
-            data={data}
-            part="override"
-            ids={chosen}
-            label={`End ${chosen.length} chosen`}
-          />
-        </div>
+    <>
+      <RecordSection
+        title="Overrides"
+        description="A module given or taken away, or a limit set, for one school or every school, for a while. A school's own override wins over one for every school."
+        action={
+          mayChange && endable.length ? (
+            <>
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                onClick={() =>
+                  setChosen(endable.map((override) => override.id))
+                }
+              >
+                Choose all {endable.length}
+              </Button>
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                onClick={() => setChosen([])}
+              >
+                Choose none
+              </Button>
+            </>
+          ) : undefined
+        }
+      >
+        {data.overrides.length === 0 ? (
+          <RecordEmpty>No overrides.</RecordEmpty>
+        ) : (
+          <RecordList>
+            {data.overrides.map((override) => (
+              <li key={override.id} className="flex items-start gap-3 py-3">
+                {mayChange && open(override, data.today) ? (
+                  <Checkbox
+                    aria-label={`Choose: ${describeOverride(override, schoolName)}`}
+                    checked={chosen.includes(override.id)}
+                    onCheckedChange={(checked) =>
+                      setChosen((current) =>
+                        checked
+                          ? [...current, override.id]
+                          : current.filter((id) => id !== override.id),
+                      )
+                    }
+                    className="mt-0.5"
+                  />
+                ) : null}
+                <div className="grid flex-1 gap-0.5">
+                  <span className="text-sm leading-5 font-medium">
+                    {describeOverride(override, schoolName)}
+                  </span>
+                  <span className="text-[13px] leading-[18px] text-muted-foreground">
+                    {spanOf(override)} · {override.reason}
+                  </span>
+                </div>
+              </li>
+            ))}
+          </RecordList>
+        )}
+      </RecordSection>
+      {mayChange && chosen.length ? (
+        <EndParts
+          data={data}
+          part="override"
+          ids={chosen}
+          label={`End ${chosen.length} chosen`}
+        />
       ) : null}
       {mayChange ? <AddOverrideForm data={data} /> : null}
-    </section>
+    </>
   );
 }
 
 /** Gives or takes a module, or sets a limit, for a while and with a reason. */
-function AddOverrideForm({ data }: { data: Data }) {
+function AddOverrideForm({ data }: SubscriptionProps) {
   const router = useRouter();
   const add = useServerFn(addSubscriptionOverride);
   const [schoolId, setSchoolId] = useState("");
@@ -873,16 +830,18 @@ function AddOverrideForm({ data }: { data: Data }) {
   const [startsOn, setStartsOn] = useState(data.today);
   const [endsOn, setEndsOn] = useState("");
   const [reason, setReason] = useState("");
+  const [submitted, setSubmitted] = useState(false);
   const [answer, setAnswer] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const storage = isStorageKey(limitKey);
-  const select = "h-9 rounded-md border bg-background px-2 text-sm";
   return (
-    <form
-      aria-label="Add an override"
-      className="grid max-w-2xl gap-4 rounded-lg border p-6"
-      onSubmit={async (event) => {
-        event.preventDefault();
+    <SettingsSection
+      title="Add an override"
+      submitLabel="Add override"
+      pending={saving}
+      error={answer}
+      onSubmit={async () => {
+        setSubmitted(true);
         let limit: number | null = null;
         if (what === "limit" && value.trim() !== "") {
           const typed = Number(value);
@@ -896,234 +855,171 @@ function AddOverrideForm({ data }: { data: Data }) {
           setAnswer("Storage always has a size.");
           return;
         }
+        if (!reason.trim()) return;
         setSaving(true);
         setAnswer(null);
-        try {
-          const out = await add({
-            data: {
-              subscriptionId: data.subscription.id,
-              schoolId: schoolId || null,
-              module: what === "module" ? module : null,
-              granted: what === "module" ? granted : null,
-              limitKey: what === "limit" ? limitKey : null,
-              value: what === "limit" ? limit : null,
-              startsOn,
-              endsOn: endsOn || null,
-              reason: reason.trim(),
-            },
-          });
-          if (out.ok) {
-            toast.success(
-              startsOn <= data.today
-                ? "Added. Publish for the schools to have it now."
-                : `Added from ${formatDay(startsOn)}.`,
-            );
-            setReason("");
-            setValue("");
-            await router.invalidate();
-          } else setAnswer(out.message);
-        } catch (error) {
-          setAnswer(failure(error, "The override could not be added."));
-        } finally {
-          setSaving(false);
+        const failed = await attempt(
+          () =>
+            add({
+              data: {
+                subscriptionId: data.subscription.id,
+                schoolId: schoolId || null,
+                module: what === "module" ? module : null,
+                granted: what === "module" ? granted : null,
+                limitKey: what === "limit" ? limitKey : null,
+                value: what === "limit" ? limit : null,
+                startsOn,
+                endsOn: endsOn || null,
+                reason: reason.trim(),
+              },
+            }),
+          "The override could not be added.",
+        );
+        setSaving(false);
+        if (failed) {
+          setAnswer(failed);
+          return;
         }
+        toast.success(
+          startsOn <= data.today
+            ? "Added. Publish for the schools to have it now."
+            : `Added from ${formatDay(startsOn)}.`,
+        );
+        setReason("");
+        setValue("");
+        setSubmitted(false);
+        await router.invalidate();
       }}
     >
-      <h3 className="text-sm font-semibold">Add an override</h3>
-      <div className="grid items-start gap-4 sm:grid-cols-2">
-        <div className="grid gap-1.5 text-sm">
-          <label htmlFor="override-school" className="font-medium">
-            For
-          </label>
-          <select
-            id="override-school"
-            value={schoolId}
-            onChange={(event) => setSchoolId(event.target.value)}
-            className={select}
-          >
-            <option value="">Every school</option>
-            {data.schools.map((school) => (
-              <option key={school.id} value={school.id}>
-                {school.name}
-              </option>
-            ))}
-          </select>
-        </div>
-        <div className="grid gap-1.5 text-sm">
-          <label htmlFor="override-sets" className="font-medium">
-            Sets
-          </label>
-          <select
-            id="override-sets"
-            value={what}
-            onChange={(event) =>
-              setWhat(event.target.value as "module" | "limit")
-            }
-            className={select}
-          >
-            <option value="module">A module</option>
-            <option value="limit">A limit</option>
-          </select>
-        </div>
+      <div className="grid items-start gap-6 @md:grid-cols-2">
+        <SelectField
+          label="For"
+          value={schoolId}
+          options={[
+            { value: "", label: "Every school" },
+            ...data.schools.map((school) => ({
+              value: school.id,
+              label: school.name,
+            })),
+          ]}
+          onChange={setSchoolId}
+        />
+        <SelectField
+          label="Sets"
+          value={what}
+          options={SETS_OPTIONS}
+          onChange={setWhat}
+        />
         {what === "module" ? (
           <>
-            <div className="grid gap-1.5 text-sm">
-              <label htmlFor="override-module" className="font-medium">
-                Module
-              </label>
-              <select
-                id="override-module"
-                value={module}
-                onChange={(event) => setModule(event.target.value as ModuleId)}
-                className={select}
-              >
-                {MODULE_IDS.map((choice) => (
-                  <option key={choice} value={choice}>
-                    {MODULE_NAMES[choice]}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div className="grid gap-1.5 text-sm">
-              <label htmlFor="override-granted" className="font-medium">
-                So the school
-              </label>
-              <select
-                id="override-granted"
-                value={granted ? "give" : "take"}
-                onChange={(event) => setGranted(event.target.value === "give")}
-                className={select}
-              >
-                <option value="give">Has it</option>
-                <option value="take">Does not have it</option>
-              </select>
-            </div>
+            <SelectField
+              label="Module"
+              value={module}
+              options={MODULE_OPTIONS}
+              onChange={setModule}
+            />
+            <SelectField
+              label="So the school"
+              value={granted ? "give" : "take"}
+              options={GRANTED_OPTIONS}
+              onChange={(choice) => setGranted(choice === "give")}
+            />
           </>
         ) : (
           <>
-            <div className="grid gap-1.5 text-sm">
-              <label htmlFor="override-limit" className="font-medium">
-                Limit
-              </label>
-              <select
-                id="override-limit"
-                value={limitKey}
-                onChange={(event) =>
-                  setLimitKey(event.target.value as LimitKey)
-                }
-                className={select}
-              >
-                {LIMIT_KEYS.map((choice) => (
-                  <option key={choice} value={choice}>
-                    {LIMIT_NAMES[choice]}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div className="grid gap-1.5 text-sm">
-              <label htmlFor="override-value" className="font-medium">
-                Set to{storage ? " (GB)" : ""}
-              </label>
-              <Input
-                id="override-value"
-                inputMode={storage ? "decimal" : "numeric"}
-                required={storage}
-                value={value}
-                placeholder={storage ? "" : "Unlimited"}
-                onChange={(event) => setValue(event.target.value)}
-              />
-            </div>
+            <SelectField
+              label="Limit"
+              value={limitKey}
+              options={LIMIT_OPTIONS}
+              onChange={setLimitKey}
+            />
+            <TextField
+              label={`Set to${storage ? " (GB)" : ""}`}
+              optional={!storage}
+              inputMode={storage ? "decimal" : "numeric"}
+              value={value}
+              placeholder={storage ? "" : "Unlimited"}
+              onChange={(event) => setValue(event.target.value)}
+            />
           </>
         )}
-        <div className="grid gap-1.5 text-sm">
-          <label htmlFor="override-starts" className="font-medium">
-            Starts
-          </label>
-          <Input
-            id="override-starts"
-            type="date"
-            required
-            value={startsOn}
-            onChange={(event) => setStartsOn(event.target.value)}
-          />
-        </div>
-        <div className="grid gap-1.5 text-sm">
-          <label htmlFor="override-ends" className="font-medium">
-            First day without it
-          </label>
-          <Input
-            id="override-ends"
-            type="date"
-            value={endsOn}
-            onChange={(event) => setEndsOn(event.target.value)}
-          />
-          <span className="text-xs text-muted-foreground">
-            Empty until someone ends it.
-          </span>
-        </div>
-      </div>
-      <div className="grid gap-1.5 text-sm">
-        <label htmlFor="override-reason" className="font-medium">
-          Why
-        </label>
-        <Input
-          id="override-reason"
-          required
-          maxLength={500}
-          value={reason}
-          onChange={(event) => setReason(event.target.value)}
-          placeholder="For example: a term's pilot of badges"
+        <TextField
+          label="Starts"
+          type="date"
+          value={startsOn}
+          onChange={(event) => setStartsOn(event.target.value)}
+        />
+        <TextField
+          label="First day without it"
+          optional
+          type="date"
+          hint="Empty until someone ends it."
+          value={endsOn}
+          onChange={(event) => setEndsOn(event.target.value)}
         />
       </div>
-      {answer ? (
-        <p role="alert" className="text-sm text-destructive">
-          {answer}
-        </p>
-      ) : null}
-      <Button
-        type="submit"
-        disabled={saving || !reason.trim()}
-        className="justify-self-start"
-      >
-        {saving ? "Adding…" : "Add override"}
-      </Button>
-    </form>
+      <WhyField
+        value={reason}
+        onChange={setReason}
+        submitted={submitted}
+        placeholder="For example: a term's pilot of badges"
+      />
+    </SettingsSection>
   );
 }
 
+const SETS_OPTIONS = [
+  { value: "module", label: "A module" },
+  { value: "limit", label: "A limit" },
+] as const;
+
+const GRANTED_OPTIONS = [
+  { value: "give", label: "Has it" },
+  { value: "take", label: "Does not have it" },
+] as const;
+
+const MODULE_OPTIONS = MODULE_IDS.map((choice) => ({
+  value: choice,
+  label: MODULE_NAMES[choice],
+}));
+
+const LIMIT_OPTIONS = LIMIT_KEYS.map((choice) => ({
+  value: choice,
+  label: LIMIT_NAMES[choice],
+}));
+
 /** Each write to the directory: what a school was given, when, by whom, why. */
-function Publications({ data }: { data: Data }) {
+function Publications({ data }: SubscriptionProps) {
   const schoolName = (id: string) =>
     data.schools.find((school) => school.id === id)?.name ?? id;
   return (
-    <section className="grid gap-3">
-      <h2 className="text-base font-semibold">Publications</h2>
+    <RecordSection title="Publications">
       {data.publications.length === 0 ? (
-        <p className="text-sm text-muted-foreground">Not published yet.</p>
+        <RecordEmpty>Not published yet.</RecordEmpty>
       ) : (
-        <ol className="divide-y rounded-lg border">
+        <RecordList>
           {data.publications.map((publication) => (
-            <li key={publication.id} className="grid gap-1 px-4 py-3 text-sm">
-              <div className="flex flex-wrap items-baseline justify-between gap-2">
-                <span className="font-medium">
+            <li key={publication.id} className="grid gap-1 py-3">
+              <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-0.5">
+                <span className="text-sm leading-5 font-medium">
                   {schoolName(publication.schoolId)}, from revision{" "}
                   {publication.revision}
                 </span>
-                <span className="text-xs text-muted-foreground">
+                <span className="text-[13px] leading-[18px] text-muted-foreground">
                   {formatWhen(publication.publishedAt)} ·{" "}
                   {data.names[publication.operatorId] ?? "A former operator"}
                 </span>
               </div>
-              <p className="text-muted-foreground">
+              <p className="text-[13px] leading-[18px] text-muted-foreground">
                 {publication.entitlements.modules
                   .map((id) => MODULE_NAMES[id])
                   .join(", ")}
               </p>
-              <p>{publication.reason}</p>
+              <p className="text-sm leading-5">{publication.reason}</p>
             </li>
           ))}
-        </ol>
+        </RecordList>
       )}
-    </section>
+    </RecordSection>
   );
 }

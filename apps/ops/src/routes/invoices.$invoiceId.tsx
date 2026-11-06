@@ -1,15 +1,23 @@
 import { InvoiceDocument } from "@faridalms/documents/InvoiceDocument";
-import { Badge } from "@faridalms/ui/badge";
-import { Button, buttonVariants } from "@faridalms/ui/button";
-import { Input } from "@faridalms/ui/input";
-import { Textarea } from "@faridalms/ui/textarea";
+import { Button } from "@faridalms/ui/button";
+import { ButtonLink } from "@faridalms/ui/system/button-link";
+import { SelectField, TextField } from "@faridalms/ui/system/form-field";
+import {
+  RecordColumns,
+  RecordEmpty,
+  RecordHeader,
+  RecordList,
+  RecordSection,
+} from "@faridalms/ui/system/record-page";
+import { SettingsSection } from "@faridalms/ui/system/settings-section";
 import { createFileRoute, Link, useRouter } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
+import { CalendarX, Printer } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 import * as v from "valibot";
 
-import { failure } from "../actions";
+import { attempt, attemptWith, failure } from "../actions";
 import { EventList } from "../components/EventList";
 import {
   blankLine,
@@ -17,12 +25,14 @@ import {
   lineDraftOf,
   linesOf,
 } from "../components/InvoiceLinesForm";
+import { WhyField } from "../components/Why";
 import {
   DUNNING_STEP_NAMES,
   formatDay,
   formatMoney,
   INVOICE_KIND_NAMES,
   INVOICE_STATE_NAMES,
+  INVOICE_STATE_TONE,
   minorOf,
   PAYMENT_METHOD_NAMES,
 } from "../format";
@@ -43,11 +53,17 @@ export const Route = createFileRoute("/invoices/$invoiceId")({
     /** A credit note of the invoice to show instead of the invoice. */
     credit: v.optional(v.pipe(v.string(), v.uuid())),
   }),
+  staticData: { section: "/billing", title: "Invoice" },
   loader: ({ params }) => getInvoice({ data: { id: params.invoiceId } }),
   component: InvoicePage,
 });
 
 type Data = Awaited<ReturnType<typeof getInvoice>>;
+
+const LANGUAGES = [
+  { value: "en", label: "English" },
+  { value: "ar", label: "Arabic" },
+] as const;
 
 function InvoicePage() {
   const data = Route.useLoaderData();
@@ -58,165 +74,209 @@ function InvoicePage() {
   const shown = data.credits.find((note) => note.id === search.credit);
   const open = invoice.state === "issued" || invoice.state === "partly_paid";
   return (
-    <div className="grid gap-8">
-      <div className="grid gap-1 print:hidden">
-        <Link
-          to="/billing"
-          className="text-sm text-muted-foreground hover:underline"
-        >
-          Billing
-        </Link>
-        <h1 className="flex flex-wrap items-center gap-3 text-2xl font-semibold">
-          {invoice.number ? `Invoice ${invoice.number}` : "Draft invoice"}
-          <Badge variant="secondary">
-            {INVOICE_STATE_NAMES[invoice.state]}
-          </Badge>
-          {open && invoice.dueOn && invoice.dueOn < data.today ? (
-            <Badge variant="outline">Overdue</Badge>
-          ) : null}
-        </h1>
-        <p className="text-sm text-muted-foreground">
-          <Link
-            to="/customers/$customerId"
-            params={{ customerId: customer.id }}
-            className="text-foreground underline"
-          >
-            {customer.legalNameEn}
-          </Link>{" "}
-          · {INVOICE_KIND_NAMES[invoice.kind]} for {formatDay(invoice.forDay)}
-          {invoice.state === "draft"
-            ? ""
-            : ` · ${formatMoney(data.owedMinor, invoice.currency)} owed of ${formatMoney(invoice.totalMinor, invoice.currency)}`}
-          {invoice.taxAuthorityId
-            ? ` · tax authority ${invoice.taxAuthorityId}`
-            : ""}
-        </p>
-      </div>
-
-      <div className="flex flex-wrap items-center gap-2 print:hidden">
-        <span className="text-sm text-muted-foreground">Print in</span>
-        {(["en", "ar"] as const).map((choice) => (
-          <Link
-            key={choice}
-            to="/invoices/$invoiceId"
-            params={{ invoiceId: invoice.id }}
-            search={{ language: choice, credit: search.credit }}
-            className={buttonVariants({
-              variant: choice === language ? "secondary" : "ghost",
-              size: "sm",
-            })}
-          >
-            {choice === "en" ? "English" : "Arabic"}
-          </Link>
-        ))}
-        <Button variant="outline" size="sm" onClick={() => window.print()}>
-          Print or save as PDF
-        </Button>
-        {shown ? (
-          <Link
-            to="/invoices/$invoiceId"
-            params={{ invoiceId: invoice.id }}
-            search={{ language: search.language }}
-            className={buttonVariants({ variant: "ghost", size: "sm" })}
-          >
-            Show the invoice
-          </Link>
-        ) : null}
-      </div>
-
-      <div className="max-w-3xl">
-        <InvoiceDocument
-          language={language}
-          business={data.business}
-          vatName={data.vatName}
-          party={{
-            name: customer.legalNameEn,
-            nameAr: customer.legalNameAr,
-            address: customer.address,
-            taxNumber: customer.taxNumber,
+    <>
+      <div className="print:hidden">
+        <RecordHeader
+          title={invoice.number ? `Invoice ${invoice.number}` : "Draft invoice"}
+          status={{
+            label: INVOICE_STATE_NAMES[invoice.state],
+            tone: INVOICE_STATE_TONE[invoice.state],
           }}
-          document={
-            shown
-              ? {
-                  kind: "credit_note",
-                  number: shown.number,
-                  issuedOn: shown.issuedOn,
-                  dueOn: null,
-                  currency: invoice.currency,
-                  purchaseOrder: invoice.purchaseOrder,
-                  vatPercent: invoice.vatPercent,
-                  reverseCharge: invoice.reverseCharge,
-                  subtotalMinor: shown.subtotalMinor,
-                  vatMinor: shown.vatMinor,
-                  totalMinor: shown.totalMinor,
-                  lines: shown.lines,
-                  creditFor: {
-                    number: invoice.number ?? "",
-                    reason: shown.reason,
+          alerts={
+            open && invoice.dueOn && invoice.dueOn < data.today
+              ? [{ label: "Overdue", tone: "danger", icon: CalendarX }]
+              : []
+          }
+          facts={[
+            {
+              label: "Customer",
+              value: (
+                <Link
+                  to="/customers/$customerId"
+                  params={{ customerId: customer.id }}
+                  className="hover:text-primary hover:underline"
+                >
+                  {customer.legalNameEn}
+                </Link>
+              ),
+            },
+            {
+              label: "For",
+              value: `${INVOICE_KIND_NAMES[invoice.kind]} for ${formatDay(invoice.forDay)}`,
+            },
+            ...(invoice.state === "draft"
+              ? []
+              : [
+                  {
+                    label: "Owed",
+                    value: `${formatMoney(data.owedMinor, invoice.currency)} owed of ${formatMoney(invoice.totalMinor, invoice.currency)}`,
                   },
-                }
-              : {
-                  kind: "invoice",
-                  number: invoice.number,
-                  issuedOn: invoice.issuedOn,
-                  dueOn: invoice.dueOn,
-                  currency: invoice.currency,
-                  purchaseOrder: invoice.purchaseOrder,
-                  vatPercent: invoice.vatPercent,
-                  reverseCharge: invoice.reverseCharge,
-                  subtotalMinor: invoice.subtotalMinor,
-                  vatMinor: invoice.vatMinor,
-                  totalMinor: invoice.totalMinor,
-                  lines: data.lines,
-                }
+                ]),
+            ...(invoice.taxAuthorityId
+              ? [
+                  {
+                    label: "Tax authority",
+                    value: `Tax authority ${invoice.taxAuthorityId}`,
+                  },
+                ]
+              : []),
+          ]}
+          tools={
+            mayBill && invoice.state === "draft" ? (
+              <IssueButton data={data} />
+            ) : undefined
           }
         />
       </div>
-
-      {mayBill && invoice.state === "draft" ? (
-        <div className="grid gap-6 print:hidden">
-          <IssueButton data={data} />
-          <DraftForm data={data} key={invoice.totalMinor} />
-        </div>
-      ) : null}
-
-      {invoice.state !== "draft" ? (
-        <div className="grid gap-6 print:hidden">
-          {mayBill ? (
-            <TaxId
-              document="invoice"
-              id={invoice.id}
-              held={invoice.taxAuthorityId}
-            />
-          ) : null}
-          {data.cards && open && mayBill ? <PaymentLink data={data} /> : null}
-          <Settlements data={data} />
-          <Reminders data={data} />
-          {mayBill && open && data.unsettled.length ? (
-            <SettleFromPayment data={data} />
-          ) : null}
-          <Credits data={data} />
-          {mayBill && invoice.state !== "credited" ? (
-            <CreditForm data={data} />
-          ) : null}
-        </div>
-      ) : null}
-
-      <section className="grid gap-3 print:hidden">
-        <h2 className="text-base font-semibold">History</h2>
-        <EventList events={data.history} names={data.names} />
-      </section>
-    </div>
+      <RecordColumns
+        main={
+          <>
+            <div className="grid gap-3">
+              <div className="flex flex-wrap items-center justify-between gap-2 print:hidden">
+                <nav
+                  aria-label="Print in"
+                  className="flex gap-1 rounded-lg bg-muted p-1"
+                >
+                  {LANGUAGES.map((choice) => (
+                    <Link
+                      key={choice.value}
+                      to="/invoices/$invoiceId"
+                      params={{ invoiceId: invoice.id }}
+                      search={{ language: choice.value, credit: search.credit }}
+                      aria-current={
+                        choice.value === language ? "true" : undefined
+                      }
+                      className="inline-flex min-h-8 items-center rounded-md px-3 text-[13px] font-medium text-muted-foreground hover:text-foreground aria-[current=true]:bg-background aria-[current=true]:text-foreground aria-[current=true]:shadow-sm"
+                    >
+                      {choice.label}
+                    </Link>
+                  ))}
+                </nav>
+                <span className="flex items-center gap-2">
+                  {shown ? (
+                    <ButtonLink
+                      to="/invoices/$invoiceId"
+                      params={{ invoiceId: invoice.id }}
+                      search={{ language: search.language }}
+                      variant="ghost"
+                      size="sm"
+                    >
+                      Show the invoice
+                    </ButtonLink>
+                  ) : null}
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => window.print()}
+                  >
+                    <Printer aria-hidden />
+                    Print or save as PDF
+                  </Button>
+                </span>
+              </div>
+              <div className="rounded-lg border bg-card p-2 shadow-sm print:border-0 print:p-0 print:shadow-none">
+                <InvoiceDocument
+                  language={language}
+                  business={data.business}
+                  vatName={data.vatName}
+                  party={{
+                    name: customer.legalNameEn,
+                    nameAr: customer.legalNameAr,
+                    address: customer.address,
+                    taxNumber: customer.taxNumber,
+                  }}
+                  document={
+                    shown
+                      ? {
+                          kind: "credit_note",
+                          number: shown.number,
+                          issuedOn: shown.issuedOn,
+                          dueOn: null,
+                          currency: invoice.currency,
+                          purchaseOrder: invoice.purchaseOrder,
+                          vatPercent: invoice.vatPercent,
+                          reverseCharge: invoice.reverseCharge,
+                          subtotalMinor: shown.subtotalMinor,
+                          vatMinor: shown.vatMinor,
+                          totalMinor: shown.totalMinor,
+                          lines: shown.lines,
+                          creditFor: {
+                            number: invoice.number ?? "",
+                            reason: shown.reason,
+                          },
+                        }
+                      : {
+                          kind: "invoice",
+                          number: invoice.number,
+                          issuedOn: invoice.issuedOn,
+                          dueOn: invoice.dueOn,
+                          currency: invoice.currency,
+                          purchaseOrder: invoice.purchaseOrder,
+                          vatPercent: invoice.vatPercent,
+                          reverseCharge: invoice.reverseCharge,
+                          subtotalMinor: invoice.subtotalMinor,
+                          vatMinor: invoice.vatMinor,
+                          totalMinor: invoice.totalMinor,
+                          lines: data.lines,
+                        }
+                  }
+                />
+              </div>
+            </div>
+            {mayBill && invoice.state === "draft" ? (
+              <DraftForm data={data} key={invoice.totalMinor} />
+            ) : null}
+            {mayBill &&
+            invoice.state !== "draft" &&
+            invoice.state !== "credited" ? (
+              <CreditForm data={data} />
+            ) : null}
+            <div className="print:hidden">
+              <RecordSection title="History">
+                <EventList events={data.history} names={data.names} />
+              </RecordSection>
+            </div>
+          </>
+        }
+        aside={
+          invoice.state === "draft" ? undefined : (
+            <div className="grid gap-6 print:hidden">
+              <Settlements data={data} />
+              {mayBill && open && data.unsettled.length ? (
+                <SettleFromPayment data={data} />
+              ) : null}
+              {data.cards && open && mayBill ? (
+                <PaymentLink data={data} />
+              ) : null}
+              <Reminders data={data} />
+              <Credits data={data} />
+              {mayBill ? (
+                <TaxId
+                  document="invoice"
+                  id={invoice.id}
+                  held={invoice.taxAuthorityId}
+                />
+              ) : null}
+            </div>
+          )
+        }
+      />
+    </>
   );
 }
 
-function IssueButton({ data }: { data: Data }) {
+interface InvoiceProps {
+  data: Data;
+}
+
+function IssueButton({ data }: InvoiceProps) {
   const router = useRouter();
   const send = useServerFn(issue);
   const [saving, setSaving] = useState(false);
   return (
     <Button
-      className="justify-self-start"
+      type="button"
       disabled={saving}
       onClick={async () => {
         setSaving(true);
@@ -239,8 +299,13 @@ function IssueButton({ data }: { data: Data }) {
   );
 }
 
+const LANGUAGE_OPTIONS = [
+  { value: "en", label: "English" },
+  { value: "ar", label: "Arabic" },
+] as const;
+
 /** A draft's lines, its customer's order number and its language, before it is issued. */
-function DraftForm({ data }: { data: Data }) {
+function DraftForm({ data }: InvoiceProps) {
   const router = useRouter();
   const save = useServerFn(saveInvoiceDraft);
   const [drafts, setDrafts] = useState(() => data.lines.map(lineDraftOf));
@@ -251,11 +316,13 @@ function DraftForm({ data }: { data: Data }) {
   const [answer, setAnswer] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   return (
-    <form
-      aria-label="Draft"
-      className="grid max-w-3xl gap-4 rounded-lg border p-6"
-      onSubmit={async (event) => {
-        event.preventDefault();
+    <SettingsSection
+      title="Before it is issued"
+      description="The lines, the customer's order number and the language it is written in."
+      submitLabel="Save draft"
+      pending={saving}
+      error={answer}
+      onSubmit={async () => {
         const read = linesOf(drafts);
         if (!read.ok) {
           setAnswer(read.message);
@@ -263,195 +330,167 @@ function DraftForm({ data }: { data: Data }) {
         }
         setSaving(true);
         setAnswer(null);
-        try {
-          const out = await save({
-            data: {
-              id: data.invoice.id,
-              lines: read.lines,
-              purchaseOrder,
-              language,
-            },
-          });
-          if (out.ok) {
-            toast.success("Draft saved.");
-            await router.invalidate();
-          } else setAnswer(out.message);
-        } catch (error) {
-          setAnswer(failure(error, "The draft could not be saved."));
-        } finally {
-          setSaving(false);
+        const failed = await attempt(
+          () =>
+            save({
+              data: {
+                id: data.invoice.id,
+                lines: read.lines,
+                purchaseOrder,
+                language,
+              },
+            }),
+          "The draft could not be saved.",
+        );
+        setSaving(false);
+        if (failed) {
+          setAnswer(failed);
+          return;
         }
+        toast.success("Draft saved.");
+        await router.invalidate();
       }}
     >
-      <h2 className="text-base font-semibold">Before it is issued</h2>
-      <div className="grid items-start gap-4 sm:grid-cols-2">
-        <div className="grid gap-1.5 text-sm">
-          <label htmlFor="draft-po" className="font-medium">
-            The customer's purchase order
-          </label>
-          <Input
-            id="draft-po"
-            maxLength={60}
-            value={purchaseOrder}
-            onChange={(event) => setPurchaseOrder(event.target.value)}
-          />
-        </div>
-        <div className="grid gap-1.5 text-sm">
-          <label htmlFor="draft-language" className="font-medium">
-            Written in
-          </label>
-          <select
-            id="draft-language"
-            value={language}
-            onChange={(event) =>
-              setLanguage(event.target.value === "ar" ? "ar" : "en")
-            }
-            className="h-9 rounded-md border bg-background px-2 text-sm"
-          >
-            <option value="en">English</option>
-            <option value="ar">Arabic</option>
-          </select>
-        </div>
+      <div className="grid items-start gap-6 @md:grid-cols-2">
+        <TextField
+          label="The customer's purchase order"
+          optional
+          maxLength={60}
+          value={purchaseOrder}
+          onChange={(event) => setPurchaseOrder(event.target.value)}
+        />
+        <SelectField
+          label="Written in"
+          value={language}
+          options={LANGUAGE_OPTIONS}
+          onChange={setLanguage}
+        />
       </div>
       <InvoiceLinesFields
-        prefix="draft"
         currency={data.invoice.currency}
         drafts={drafts}
         onChange={setDrafts}
       />
-      {answer ? (
-        <p role="alert" className="text-sm text-destructive">
-          {answer}
-        </p>
-      ) : null}
-      <Button type="submit" disabled={saving} className="justify-self-start">
-        {saving ? "Saving…" : "Save draft"}
-      </Button>
-    </form>
+    </SettingsSection>
   );
 }
 
-/** The tax authority's id for an issued document, which finance enters from it. */
-function TaxId({
-  document,
-  id,
-  held,
-}: {
+interface TaxIdProps {
   document: "invoice" | "credit_note";
   id: string;
   held: string | null;
-}) {
+}
+
+/** The tax authority's id for an issued document, which finance enters from it. */
+function TaxId({ document, id, held }: TaxIdProps) {
   const router = useRouter();
   const save = useServerFn(recordTaxId);
   const [value, setValue] = useState(held ?? "");
   const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [saved, setSaved] = useState(false);
   return (
-    <form
-      aria-label={
+    <SettingsSection
+      title={
         document === "invoice" ? "Tax authority" : "Credit note's tax authority"
       }
-      className="flex max-w-2xl flex-wrap items-end gap-2"
-      onSubmit={async (event) => {
-        event.preventDefault();
+      pending={saving}
+      error={error}
+      saved={saved}
+      onSubmit={async () => {
+        if (!value.trim() || value === held) return;
         setSaving(true);
-        try {
-          await save({ data: { document, id, taxAuthorityId: value } });
-          toast.success("Tax authority's id saved.");
-          await router.invalidate();
-        } catch (error) {
-          const said = failure(error, "The id could not be saved.");
-          if (said) toast.error(said);
-        } finally {
-          setSaving(false);
+        setError(null);
+        setSaved(false);
+        const failed = await attempt(
+          () => save({ data: { document, id, taxAuthorityId: value } }),
+          "The id could not be saved.",
+        );
+        setSaving(false);
+        if (failed) {
+          setError(failed);
+          return;
         }
+        setSaved(true);
+        toast.success("Tax authority's id saved.");
+        await router.invalidate();
       }}
     >
-      <div className="grid min-w-48 flex-1 gap-1 text-sm">
-        <label htmlFor={`tax-id-${id}`} className="font-medium">
-          The tax authority's id for it
-        </label>
-        <Input
-          id={`tax-id-${id}`}
-          dir="ltr"
-          maxLength={80}
-          value={value}
-          onChange={(event) => setValue(event.target.value)}
-          placeholder="From the e-invoice once it is submitted"
-        />
-      </div>
-      <Button
-        type="submit"
-        variant="outline"
-        disabled={saving || !value.trim() || value === held}
-      >
-        Save
-      </Button>
-    </form>
+      <TextField
+        label="The tax authority's id for it"
+        dir="ltr"
+        maxLength={80}
+        value={value}
+        placeholder="From the e-invoice once it is submitted"
+        onChange={(event) => setValue(event.target.value)}
+      />
+    </SettingsSection>
   );
 }
 
-function PaymentLink({ data }: { data: Data }) {
+function PaymentLink({ data }: InvoiceProps) {
   const router = useRouter();
   const make = useServerFn(makePaymentLink);
   const [saving, setSaving] = useState(false);
   return (
-    <section className="grid max-w-2xl gap-2 text-sm">
-      <h2 className="text-base font-semibold">Pay by card</h2>
-      {data.invoice.paymentLinkUrl ? (
-        <p>
-          <a
-            href={data.invoice.paymentLinkUrl}
-            className="break-all underline"
-            target="_blank"
-            rel="noreferrer"
-          >
-            {data.invoice.paymentLinkUrl}
-          </a>
-        </p>
-      ) : (
-        <p className="text-muted-foreground">
-          A Paymob link for what is owed, which the school's Billing page
-          offers; its payment is recorded when Paymob says it is made.
-        </p>
-      )}
-      <Button
-        variant="outline"
-        className="justify-self-start"
-        disabled={saving}
-        onClick={async () => {
-          setSaving(true);
-          try {
-            const out = await make({ data: { id: data.invoice.id } });
-            if (out.ok) {
-              toast.success("Payment link made.");
-              await router.invalidate();
-            } else toast.error(out.message);
-          } catch (error) {
-            const said = failure(error, "The link could not be made.");
-            if (said) toast.error(said);
-          } finally {
-            setSaving(false);
-          }
-        }}
-      >
-        {data.invoice.paymentLinkUrl
-          ? "Make a new link for what is owed"
-          : "Make a payment link"}
-      </Button>
-    </section>
+    <RecordSection title="Pay by card">
+      <div className="grid gap-3 text-sm leading-5">
+        {data.invoice.paymentLinkUrl ? (
+          <p>
+            <a
+              href={data.invoice.paymentLinkUrl}
+              className="break-all text-primary underline-offset-4 hover:underline"
+              target="_blank"
+              rel="noreferrer"
+            >
+              {data.invoice.paymentLinkUrl}
+            </a>
+          </p>
+        ) : (
+          <p className="text-muted-foreground">
+            A Paymob link for what is owed, which the school's Billing page
+            offers; its payment is recorded when Paymob says it is made.
+          </p>
+        )}
+        <Button
+          type="button"
+          variant="outline"
+          className="justify-self-start"
+          disabled={saving}
+          onClick={async () => {
+            setSaving(true);
+            try {
+              const out = await make({ data: { id: data.invoice.id } });
+              if (out.ok) {
+                toast.success("Payment link made.");
+                await router.invalidate();
+              } else toast.error(out.message);
+            } catch (error) {
+              const said = failure(error, "The link could not be made.");
+              if (said) toast.error(said);
+            } finally {
+              setSaving(false);
+            }
+          }}
+        >
+          {data.invoice.paymentLinkUrl
+            ? "Make a new link for what is owed"
+            : "Make a payment link"}
+        </Button>
+      </div>
+    </RecordSection>
   );
 }
 
-function Settlements({ data }: { data: Data }) {
+function Settlements({ data }: InvoiceProps) {
   return (
-    <section className="grid max-w-2xl gap-2">
-      <h2 className="text-base font-semibold">Paid</h2>
+    <RecordSection title="Paid">
       {data.allocations.length ? (
-        <ul className="divide-y rounded-lg border text-sm">
+        <RecordList>
           {data.allocations.map(({ allocation, payment }) => (
             <li
               key={allocation.id}
-              className="flex flex-wrap justify-between gap-2 px-4 py-3"
+              className="flex flex-wrap justify-between gap-2 py-3 text-sm leading-5"
             >
               <span>
                 {PAYMENT_METHOD_NAMES[payment.method]} · {payment.reference} ·{" "}
@@ -462,97 +501,86 @@ function Settlements({ data }: { data: Data }) {
               </span>
             </li>
           ))}
-        </ul>
+        </RecordList>
       ) : (
-        <p className="text-sm text-muted-foreground">Nothing yet.</p>
+        <RecordEmpty>Nothing yet.</RecordEmpty>
       )}
-    </section>
+    </RecordSection>
   );
 }
 
 /** Settles what is left of a payment already received against this invoice. */
-function SettleFromPayment({ data }: { data: Data }) {
+function SettleFromPayment({ data }: InvoiceProps) {
   const router = useRouter();
   const send = useServerFn(settleFromPayment);
   const [paymentId, setPaymentId] = useState(data.unsettled[0]?.id ?? "");
   const [amount, setAmount] = useState("");
+  const [submitted, setSubmitted] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const amountMinor = minorOf(amount);
   return (
-    <form
-      aria-label="Settle from a payment received"
-      className="flex max-w-2xl flex-wrap items-end gap-2"
-      onSubmit={async (event) => {
-        event.preventDefault();
-        const amountMinor = minorOf(amount);
+    <SettingsSection
+      title="Settle from a payment received"
+      submitLabel="Settle"
+      pending={saving}
+      error={error}
+      onSubmit={async () => {
+        setSubmitted(true);
         if (!amountMinor) return;
         setSaving(true);
-        try {
-          const out = await send({
-            data: { paymentId, invoiceId: data.invoice.id, amountMinor },
-          });
-          if (out.ok) {
-            toast.success("Settled.");
-            setAmount("");
-            await router.invalidate();
-          } else toast.error(out.message);
-        } catch (error) {
-          const said = failure(error, "It could not be settled.");
-          if (said) toast.error(said);
-        } finally {
-          setSaving(false);
+        setError(null);
+        const failed = await attempt(
+          () =>
+            send({
+              data: { paymentId, invoiceId: data.invoice.id, amountMinor },
+            }),
+          "It could not be settled.",
+        );
+        setSaving(false);
+        if (failed) {
+          setError(failed);
+          return;
         }
+        toast.success("Settled.");
+        setAmount("");
+        setSubmitted(false);
+        await router.invalidate();
       }}
     >
-      <div className="grid gap-1 text-sm">
-        <label htmlFor="settle-payment" className="font-medium">
-          From a payment received
-        </label>
-        <select
-          id="settle-payment"
-          value={paymentId}
-          onChange={(event) => setPaymentId(event.target.value)}
-          className="h-9 rounded-md border bg-background px-2 text-sm"
-        >
-          {data.unsettled.map((payment) => (
-            <option key={payment.id} value={payment.id}>
-              {PAYMENT_METHOD_NAMES[payment.method]} {payment.reference},{" "}
-              {formatMoney(payment.leftMinor, data.invoice.currency)} left
-            </option>
-          ))}
-        </select>
-      </div>
-      <div className="grid gap-1 text-sm">
-        <label htmlFor="settle-amount" className="font-medium">
-          Amount
-        </label>
-        <Input
-          id="settle-amount"
-          inputMode="decimal"
-          value={amount}
-          onChange={(event) => setAmount(event.target.value)}
-        />
-      </div>
-      <Button type="submit" variant="outline" disabled={saving || !amount}>
-        Settle
-      </Button>
-    </form>
+      <SelectField
+        label="From a payment received"
+        value={paymentId}
+        options={data.unsettled.map((payment) => ({
+          value: payment.id,
+          label: `${PAYMENT_METHOD_NAMES[payment.method]} ${payment.reference}, ${formatMoney(payment.leftMinor, data.invoice.currency)} left`,
+        }))}
+        onChange={setPaymentId}
+      />
+      <TextField
+        label="Amount"
+        inputMode="decimal"
+        width="code"
+        value={amount}
+        errors={submitted && !amountMinor ? ["Give the amount."] : undefined}
+        onChange={(event) => setAmount(event.target.value)}
+      />
+    </SettingsSection>
   );
 }
 
 /** The steps of the clock taken for the invoice, and who each email went to. */
-function Reminders({ data }: { data: Data }) {
+function Reminders({ data }: InvoiceProps) {
   if (data.reminders.length === 0) return null;
   return (
-    <section aria-label="Reminders" className="grid max-w-2xl gap-2">
-      <h2 className="text-base font-semibold">Reminders</h2>
-      <ul className="divide-y rounded-lg border text-sm">
+    <RecordSection title="Reminders">
+      <RecordList>
         {data.reminders.map((reminder) => (
-          <li
-            key={reminder.step}
-            className="flex flex-wrap justify-between gap-2 px-4 py-3"
-          >
-            <span>{DUNNING_STEP_NAMES[reminder.step]}</span>
-            <span className="text-muted-foreground">
+          <li key={reminder.step} className="grid gap-0.5 py-3">
+            <span className="text-sm leading-5">
+              {DUNNING_STEP_NAMES[reminder.step]}
+            </span>
+            <span className="text-[13px] leading-[18px] text-muted-foreground">
               {formatDay(reminder.takenOn)} ·{" "}
               {reminder.emailedTo.length
                 ? reminder.emailedTo.join(", ")
@@ -560,29 +588,25 @@ function Reminders({ data }: { data: Data }) {
             </span>
           </li>
         ))}
-      </ul>
-    </section>
+      </RecordList>
+    </RecordSection>
   );
 }
 
-function Credits({ data }: { data: Data }) {
+function Credits({ data }: InvoiceProps) {
   const mayBill = useMay("billing");
   if (data.credits.length === 0) return null;
   return (
-    <section className="grid max-w-2xl gap-2">
-      <h2 className="text-base font-semibold">Credit notes</h2>
-      <ul className="grid gap-3">
+    <RecordSection title="Credit notes">
+      <RecordList>
         {data.credits.map((note) => (
-          <li
-            key={note.id}
-            className="grid gap-2 rounded-lg border px-4 py-3 text-sm"
-          >
-            <span className="flex flex-wrap justify-between gap-2">
+          <li key={note.id} className="grid gap-3 py-3">
+            <span className="flex flex-wrap justify-between gap-2 text-sm leading-5">
               <Link
                 to="/invoices/$invoiceId"
                 params={{ invoiceId: data.invoice.id }}
                 search={{ credit: note.id }}
-                className="font-medium underline"
+                className="font-medium hover:text-primary hover:underline"
               >
                 {note.number}
               </Link>
@@ -590,7 +614,7 @@ function Credits({ data }: { data: Data }) {
                 {formatMoney(note.totalMinor, data.invoice.currency)}
               </span>
             </span>
-            <span className="text-muted-foreground">
+            <span className="text-[13px] leading-[18px] text-muted-foreground">
               {formatDay(note.issuedOn)} · {note.reason}
             </span>
             {mayBill ? (
@@ -602,85 +626,62 @@ function Credits({ data }: { data: Data }) {
             ) : null}
           </li>
         ))}
-      </ul>
-    </section>
+      </RecordList>
+    </RecordSection>
   );
 }
 
 /** Credits the invoice, in part or whole, with why. */
-function CreditForm({ data }: { data: Data }) {
+function CreditForm({ data }: InvoiceProps) {
   const router = useRouter();
   const send = useServerFn(credit);
   const [drafts, setDrafts] = useState(() => [blankLine()]);
   const [reason, setReason] = useState("");
+  const [submitted, setSubmitted] = useState(false);
   const [answer, setAnswer] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   return (
-    <form
-      aria-label="Credit it"
-      className="grid max-w-3xl gap-4 rounded-lg border p-6"
-      onSubmit={async (event) => {
-        event.preventDefault();
+    <SettingsSection
+      title="Credit it"
+      description="An issued invoice is never changed: a credit note takes back what was agreed, at the invoice's VAT, and the invoice is issued again if need be."
+      submitLabel="Issue credit note"
+      pending={saving}
+      error={answer}
+      onSubmit={async () => {
+        setSubmitted(true);
         const read = linesOf(drafts);
         if (!read.ok) {
           setAnswer(read.message);
           return;
         }
+        if (!reason.trim()) return;
         setSaving(true);
         setAnswer(null);
-        try {
-          const out = await send({
-            data: { invoiceId: data.invoice.id, lines: read.lines, reason },
-          });
-          if (out.ok) {
-            toast.success(`Credited as ${out.number}.`);
-            setDrafts([blankLine()]);
-            setReason("");
-            await router.invalidate();
-          } else setAnswer(out.message);
-        } catch (error) {
-          setAnswer(failure(error, "It could not be credited."));
-        } finally {
-          setSaving(false);
+        const out = await attemptWith(
+          () =>
+            send({
+              data: { invoiceId: data.invoice.id, lines: read.lines, reason },
+            }),
+          "It could not be credited.",
+        );
+        setSaving(false);
+        if (!out.ok) {
+          setAnswer(out.message);
+          return;
         }
+        toast.success(`Credited as ${out.value.number}.`);
+        setDrafts([blankLine()]);
+        setReason("");
+        setSubmitted(false);
+        await router.invalidate();
       }}
     >
-      <h2 className="text-base font-semibold">Credit it</h2>
-      <p className="text-sm text-muted-foreground">
-        An issued invoice is never changed: a credit note takes back what was
-        agreed, at the invoice's VAT, and the invoice is issued again if need
-        be.
-      </p>
       <InvoiceLinesFields
-        prefix="credit"
         currency={data.invoice.currency}
         drafts={drafts}
         onChange={setDrafts}
       />
-      <div className="grid gap-1.5 text-sm">
-        <label htmlFor="credit-reason" className="font-medium">
-          Why
-        </label>
-        <Textarea
-          id="credit-reason"
-          required
-          maxLength={500}
-          value={reason}
-          onChange={(event) => setReason(event.target.value)}
-        />
-      </div>
-      {answer ? (
-        <p role="alert" className="text-sm text-destructive">
-          {answer}
-        </p>
-      ) : null}
-      <Button
-        type="submit"
-        disabled={saving || !reason.trim()}
-        className="justify-self-start"
-      >
-        {saving ? "Crediting…" : "Issue credit note"}
-      </Button>
-    </form>
+      <WhyField value={reason} onChange={setReason} submitted={submitted} />
+    </SettingsSection>
   );
 }

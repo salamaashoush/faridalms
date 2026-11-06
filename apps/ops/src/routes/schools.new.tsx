@@ -1,4 +1,5 @@
 import type { ModuleId } from "@faridalms/domain/modules";
+import type { Column, DataTableCard } from "@faridalms/ui/system/data-table";
 
 import { BASIC_MODULES } from "@faridalms/domain/modules";
 import {
@@ -6,18 +7,23 @@ import {
   DEFAULT_LIMITS,
   settableOf,
 } from "@faridalms/domain/plans";
-import { Badge } from "@faridalms/ui/badge";
-import { Button, buttonVariants } from "@faridalms/ui/button";
-import { FieldDescription, FieldLegend, FieldSet } from "@faridalms/ui/field";
-import { Input } from "@faridalms/ui/input";
-import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { Button } from "@faridalms/ui/button";
+import { ButtonLink } from "@faridalms/ui/system/button-link";
+import { DataTable, RowLink } from "@faridalms/ui/system/data-table";
+import { TextField } from "@faridalms/ui/system/form-field";
+import { PageHeader } from "@faridalms/ui/system/page-header";
+import { FormSection } from "@faridalms/ui/system/record-form";
+import { RecordSection } from "@faridalms/ui/system/record-page";
+import { StatusText } from "@faridalms/ui/system/status";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
+import { FilePen, Plus } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 
 import type { CreateSchoolOutcome } from "../server/directory";
 
-import { failure } from "../actions";
+import { attempt, failure } from "../actions";
 import { ModuleFields } from "../components/ModuleFields";
 import {
   blankPerson,
@@ -30,6 +36,7 @@ import { createSchool } from "../server/directory";
 import { getNewSchool, startNewDraft } from "../server/provisioning";
 
 export const Route = createFileRoute("/schools/new")({
+  staticData: { title: "New school" },
   loader: () => getNewSchool(),
   component: NewSchool,
 });
@@ -43,83 +50,107 @@ function NewSchool() {
 
 type Data = Awaited<ReturnType<typeof getNewSchool>>;
 
+type DraftRow = NonNullable<Data["drafts"]>[number];
+
+const draftName = (draft: DraftRow) =>
+  draft.schools.filter(Boolean).join(", ") || "Unnamed school";
+
+const DRAFT_COLUMNS: Column<DraftRow>[] = [
+  {
+    id: "school",
+    header: "School",
+    primary: true,
+    cell: (draft) => (
+      <RowLink to="/provisioning/$draftId" params={{ draftId: draft.id }}>
+        {draftName(draft)}
+      </RowLink>
+    ),
+  },
+  {
+    id: "customer",
+    header: "Customer",
+    cell: (draft) => draft.customerName ?? "No customer yet",
+  },
+  {
+    id: "step",
+    header: "Step",
+    cell: (draft) =>
+      draft.started ? (
+        <StatusText tone="warning">Creating began</StatusText>
+      ) : (
+        <StatusText tone="info">{DRAFT_STEP_NAMES[draft.step]}</StatusText>
+      ),
+  },
+  {
+    id: "updated",
+    header: "Last changed",
+    cell: (draft) => (
+      <span className="text-muted-foreground">
+        {formatWhen(draft.updatedAt)}
+      </span>
+    ),
+  },
+];
+
+const DRAFT_CARD: DataTableCard<DraftRow> = {
+  title: (draft) => (
+    <RowLink to="/provisioning/$draftId" params={{ draftId: draft.id }}>
+      {draftName(draft)}
+    </RowLink>
+  ),
+  fact: (draft) => DRAFT_STEP_NAMES[draft.step],
+};
+
+interface DraftsProps {
+  drafts: DraftRow[];
+}
+
 /**
  * Where the console sells what it creates, a school is set up as a draft:
  * for a customer, with a plan, step by step, resumed where it was left.
  */
-function Drafts({ drafts }: { drafts: NonNullable<Data["drafts"]> }) {
+function Drafts({ drafts }: DraftsProps) {
   const navigate = useNavigate();
   const start = useServerFn(startNewDraft);
   const [starting, setStarting] = useState(false);
   return (
-    <div className="grid max-w-3xl gap-6">
-      <div className="grid gap-1">
-        <Link
-          to="/schools"
-          className="text-sm text-muted-foreground hover:underline"
-        >
-          Schools
-        </Link>
-        <h1 className="text-2xl font-semibold">New school</h1>
-        <p className="text-sm text-muted-foreground">
-          A school is set up for a customer in six steps: the customer, its
-          schools, what it buys, its addresses, the people who first run it, and
-          a last look before it is created. Each step is kept as you leave it,
-          so a draft can be finished later or by someone else.
-        </p>
-      </div>
-      <Button
-        className="justify-self-start"
-        disabled={starting}
-        onClick={async () => {
-          setStarting(true);
-          try {
-            const { id } = await start();
-            await navigate({
-              to: "/provisioning/$draftId",
-              params: { draftId: id },
+    <>
+      <PageHeader
+        title="New school"
+        description="Six steps: the customer, its schools, what it buys, its addresses, the people who first run it, and a last look. Each step is kept, so a draft can be finished later or by someone else."
+        action={{
+          label: starting ? "Starting…" : "Start a new school",
+          icon: Plus,
+          onClick: () => {
+            if (starting) return;
+            setStarting(true);
+            void attempt(async () => {
+              const { id } = await start();
+              await navigate({
+                to: "/provisioning/$draftId",
+                params: { draftId: id },
+              });
+            }, "A draft could not be started.").then((failed) => {
+              setStarting(false);
+              if (failed) toast.error(failed);
             });
-          } catch (error) {
-            const said = failure(error, "A draft could not be started.");
-            if (said) toast.error(said);
-          } finally {
-            setStarting(false);
-          }
+          },
         }}
-      >
-        {starting ? "Starting…" : "Start a new school"}
-      </Button>
-      <section className="grid gap-3">
-        <h2 className="text-base font-semibold">Drafts</h2>
-        {drafts.length === 0 ? (
-          <p className="text-sm text-muted-foreground">No drafts.</p>
-        ) : (
-          <ul className="divide-y rounded-lg border">
-            {drafts.map((draft) => (
-              <li
-                key={draft.id}
-                className="flex flex-wrap items-center gap-2 px-4 py-3 text-sm"
-              >
-                <Link
-                  to="/provisioning/$draftId"
-                  params={{ draftId: draft.id }}
-                  className="font-medium underline"
-                >
-                  {draft.schools.filter(Boolean).join(", ") || "Unnamed school"}
-                </Link>
-                <span className="text-muted-foreground">
-                  {draft.customerName ?? "No customer yet"} · at{" "}
-                  {DRAFT_STEP_NAMES[draft.step]} · {formatWhen(draft.updatedAt)}
-                </span>
-                {draft.started ? (
-                  <Badge variant="outline">Creating began</Badge>
-                ) : null}
-              </li>
-            ))}
-          </ul>
-        )}
-      </section>
-    </div>
+      />
+      <DataTable
+        caption="Drafts"
+        rows={drafts}
+        columns={DRAFT_COLUMNS}
+        rowLabel={draftName}
+        card={DRAFT_CARD}
+        empty={{
+          icon: FilePen,
+          title: "No drafts",
+          description:
+            "Start a new school; it is kept as a draft until created.",
+        }}
+      />
+    </>
   );
 }
 
@@ -127,7 +158,11 @@ function Drafts({ drafts }: { drafts: NonNullable<Data["drafts"]> }) {
  * Where the console runs without its business database, a school is
  * created in one form with what it is entitled to.
  */
-function ByHand({ cells }: { cells: Data["cells"] }) {
+interface ByHandProps {
+  cells: Data["cells"];
+}
+
+function ByHand({ cells }: ByHandProps) {
   const create = useServerFn(createSchool);
   const [outcome, setOutcome] = useState<CreateSchoolOutcome | null>(null);
   const [modules, setModules] = useState<ModuleId[]>([...BASIC_MODULES]);
@@ -136,31 +171,32 @@ function ByHand({ cells }: { cells: Data["cells"] }) {
 
   if (outcome?.ok)
     return (
-      <div className="grid max-w-2xl gap-6" aria-live="polite">
-        <div className="grid gap-2">
-          <h1 className="text-2xl font-semibold">School created</h1>
-          <Sent sent={outcome.sent} />
-          {outcome.created ? null : (
-            <p className="text-sm text-muted-foreground">
-              An earlier attempt had already created the school in its cell, so
-              this sent its administrators new links.
-            </p>
-          )}
-          {outcome.activated ? null : (
-            <p role="alert" className="text-sm text-destructive">
-              The directory still shows the school as provisioning. Submit the
-              same details again to finish.
-            </p>
-          )}
-        </div>
-        <div className="flex flex-wrap gap-2">
-          <Link
+      <div className="grid max-w-2xl" aria-live="polite">
+        <PageHeader title="School created" />
+        <RecordSection title="Links sent">
+          <div className="grid gap-3">
+            <Sent sent={outcome.sent} />
+            {outcome.created ? null : (
+              <p className="text-sm leading-5 text-muted-foreground">
+                An earlier attempt had already created the school in its cell,
+                so this sent its administrators new links.
+              </p>
+            )}
+            {outcome.activated ? null : (
+              <p role="alert" className="text-sm leading-5 text-destructive">
+                The directory still shows the school as provisioning. Submit the
+                same details again to finish.
+              </p>
+            )}
+          </div>
+        </RecordSection>
+        <div className="mt-6 flex flex-wrap gap-2">
+          <ButtonLink
             to="/schools/$schoolId"
             params={{ schoolId: outcome.schoolId }}
-            className={buttonVariants()}
           >
             Open the school
-          </Link>
+          </ButtonLink>
           <Button
             variant="outline"
             onClick={() => {
@@ -177,21 +213,11 @@ function ByHand({ cells }: { cells: Data["cells"] }) {
     );
 
   return (
-    <div className="grid gap-8">
-      <div className="grid gap-1">
-        <Link
-          to="/schools"
-          className="text-sm text-muted-foreground hover:underline"
-        >
-          Schools
-        </Link>
-        <h1 className="text-2xl font-semibold">New school</h1>
-        <p className="max-w-3xl text-sm text-muted-foreground">
-          Creates a school, or a group with its schools, in a cell, and emails
-          each school's first administrator a link to choose a password.
-          Everything else the school sets up itself.
-        </p>
-      </div>
+    <div className="grid">
+      <PageHeader
+        title="New school"
+        description="Creates a school, or a group with its schools, in a cell, and emails each school's first administrator a link to choose a password."
+      />
       <SchoolSpecForm
         key={formKey}
         label="New school"
@@ -210,7 +236,6 @@ function ByHand({ cells }: { cells: Data["cells"] }) {
         }}
         takenSlugs={outcome?.ok === false ? outcome.takenSlugs : []}
         submitLabel="Create school"
-        submittingLabel="Creating the school…"
         answer={outcome?.ok === false ? outcome.message : null}
         onSubmit={async (value) => {
           const pool = Number(poolGb);
@@ -241,26 +266,21 @@ function ByHand({ cells }: { cells: Data["cells"] }) {
           }
         }}
       >
-        <FieldSet>
-          <FieldLegend>Entitlements</FieldLegend>
-          <FieldDescription>
-            Basic and the default storage unless you choose more. Each school
-            gets the same, which its page can change later.
-          </FieldDescription>
-          <div className="grid max-w-xs gap-1.5 text-sm">
-            <label htmlFor="plan-pool" className="font-medium">
-              School pool in GB
-            </label>
-            <Input
-              id="plan-pool"
-              inputMode="decimal"
-              value={poolGb}
-              placeholder="Default"
-              onChange={(event) => setPoolGb(event.target.value)}
-            />
-          </div>
-          <ModuleFields prefix="plan" modules={modules} onChange={setModules} />
-        </FieldSet>
+        <FormSection
+          title="Entitlements"
+          description="Basic and the default storage unless you choose more. Each school gets the same, which its page can change later."
+        >
+          <TextField
+            label="School pool in GB"
+            optional
+            width="code"
+            inputMode="decimal"
+            value={poolGb}
+            placeholder="Default"
+            onChange={(event) => setPoolGb(event.target.value)}
+          />
+          <ModuleFields modules={modules} onChange={setModules} />
+        </FormSection>
       </SchoolSpecForm>
     </div>
   );

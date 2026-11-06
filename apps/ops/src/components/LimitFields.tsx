@@ -2,6 +2,11 @@ import type { Limits } from "@faridalms/domain/subscriptions";
 
 import { DEFAULT_LIMITS } from "@faridalms/domain/plans";
 import { Input } from "@faridalms/ui/input";
+import {
+  FormField,
+  SelectField,
+  TextField,
+} from "@faridalms/ui/system/form-field";
 
 import { formatBytes } from "../format";
 
@@ -125,68 +130,66 @@ export function limitsOf(draft: LimitDraft): Limits {
   };
 }
 
-type Props = {
-  /** Keeps the fields' ids apart where a page has more than one form. */
-  prefix: string;
+export interface LimitFieldsProps {
   draft: LimitDraft;
   onChange: (draft: LimitDraft) => void;
-};
+}
+
+const UNITS = [
+  { value: "MB", label: "MB" },
+  { value: "GB", label: "GB" },
+] as const;
 
 /** The four storage limits, each a size in MB or GB. */
-export function StorageFields({ prefix, draft, onChange }: Props) {
+export function StorageFields({ draft, onChange }: LimitFieldsProps) {
   const set = (key: Cap, field: Partial<{ value: string; unit: Unit }>) =>
     onChange({
       ...draft,
       caps: { ...draft.caps, [key]: { ...draft.caps[key], ...field } },
     });
   return CAPS.map(({ key, label, hint }) => (
-    <div key={key} className="grid gap-1.5 text-sm">
-      <label htmlFor={`${prefix}-${key}`} className="font-medium">
-        {label}
-      </label>
-      <span className="flex gap-2">
-        <Input
-          id={`${prefix}-${key}`}
-          inputMode="decimal"
-          value={draft.caps[key].value}
-          placeholder={`Default: ${formatBytes(DEFAULT_LIMITS[key])}`}
-          onChange={(event) => set(key, { value: event.target.value })}
-        />
-        <select
-          aria-label={`${label} unit`}
-          value={draft.caps[key].unit}
-          onChange={(event) => set(key, { unit: event.target.value as Unit })}
-          className="h-9 rounded-md border bg-background px-2 text-sm"
-        >
-          <option value="MB">MB</option>
-          <option value="GB">GB</option>
-        </select>
-      </span>
-      <span className="text-xs text-muted-foreground">{hint}</span>
-    </div>
+    <FormField key={key} label={label} hint={hint} optional>
+      {(control) => (
+        <span className="flex gap-2">
+          <Input
+            {...control}
+            inputMode="decimal"
+            value={draft.caps[key].value}
+            placeholder={`Default: ${formatBytes(DEFAULT_LIMITS[key])}`}
+            onChange={(event) => set(key, { value: event.target.value })}
+            className="max-md:h-10"
+          />
+          <SelectField
+            label={`${label} unit`}
+            labelHidden
+            value={draft.caps[key].unit}
+            options={UNITS}
+            onChange={(unit) => set(key, { unit })}
+            className="w-24 shrink-0"
+          />
+        </span>
+      )}
+    </FormField>
   ));
 }
 
 /** The counted limits, each empty for unlimited. */
-export function CountFields({ prefix, draft, onChange }: Props) {
+export function CountFields({ draft, onChange }: LimitFieldsProps) {
   return COUNTS.map(({ key, label, hint }) => (
-    <div key={key} className="grid gap-1.5 text-sm">
-      <label htmlFor={`${prefix}-${key}`} className="font-medium">
-        {label}
-      </label>
-      <Input
-        id={`${prefix}-${key}`}
-        inputMode="numeric"
-        value={draft.counts[key]}
-        placeholder="Unlimited"
-        onChange={(event) =>
-          onChange({
-            ...draft,
-            counts: { ...draft.counts, [key]: event.target.value },
-          })
-        }
-      />
-      <span className="text-xs text-muted-foreground">{hint}</span>
-    </div>
+    <TextField
+      key={key}
+      label={label}
+      hint={hint}
+      optional
+      inputMode="numeric"
+      value={draft.counts[key]}
+      placeholder="Unlimited"
+      onChange={(event) =>
+        onChange({
+          ...draft,
+          counts: { ...draft.counts, [key]: event.target.value },
+        })
+      }
+    />
   ));
 }

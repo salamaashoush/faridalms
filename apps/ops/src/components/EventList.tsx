@@ -1,5 +1,7 @@
 import type { BusinessEventRow } from "@faridalms/database/business/events";
 
+import { RecordEmpty, RecordList } from "@faridalms/ui/system/record-page";
+
 import { formatWhen } from "../format";
 
 const ACTIONS: Record<string, string> = {
@@ -75,37 +77,43 @@ function differences(
   );
 }
 
-/** What was done to a business record, newest first, and by whom. */
-export function EventList({
-  events,
-  names,
-}: {
+export interface EventListProps {
   events: BusinessEventRow[];
+  /** Operators' names by id, so an id in a change reads as a person. */
   names: Record<string, string>;
-}) {
-  if (events.length === 0)
-    return <p className="text-sm text-muted-foreground">Nothing yet.</p>;
+}
+
+/** What was done to a business record, newest first, and by whom. */
+export function EventList({ events, names }: EventListProps) {
+  if (events.length === 0) return <RecordEmpty>Nothing yet.</RecordEmpty>;
   return (
-    <ol className="divide-y rounded-lg border">
-      {events.map((event) => (
-        <li key={event.id} className="grid gap-1 px-4 py-3 text-sm">
-          <div className="flex flex-wrap items-baseline justify-between gap-2">
-            <span className="font-medium">
-              {ACTIONS[event.action] ?? event.action}
-            </span>
-            <span className="text-xs text-muted-foreground">
-              {formatWhen(event.occurredAt)} ·{" "}
-              {names[event.operatorId] ?? "A former operator"}
-            </span>
-          </div>
-          <ul className="text-muted-foreground">
-            {differences(event, names).map((line) => (
-              <li key={line}>{line}</li>
-            ))}
-          </ul>
-          {event.reason ? <p>{event.reason}</p> : null}
-        </li>
-      ))}
-    </ol>
+    <RecordList>
+      {events.map((event) => {
+        const moved = differences(event, names);
+        return (
+          <li key={event.id} className="grid gap-1 py-3">
+            <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-0.5">
+              <span className="text-sm leading-5 font-medium">
+                {ACTIONS[event.action] ?? event.action}
+              </span>
+              <span className="text-[13px] leading-[18px] text-muted-foreground">
+                {formatWhen(event.occurredAt)} ·{" "}
+                {names[event.operatorId] ?? "A former operator"}
+              </span>
+            </div>
+            {moved.length ? (
+              <ul className="grid gap-0.5 text-[13px] leading-[18px] text-muted-foreground">
+                {moved.map((line) => (
+                  <li key={line}>{line}</li>
+                ))}
+              </ul>
+            ) : null}
+            {event.reason ? (
+              <p className="text-sm leading-5">{event.reason}</p>
+            ) : null}
+          </li>
+        );
+      })}
+    </RecordList>
   );
 }

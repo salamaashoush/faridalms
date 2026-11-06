@@ -1,15 +1,24 @@
-import { Badge } from "@faridalms/ui/badge";
-import { Button, buttonVariants } from "@faridalms/ui/button";
+import { SelectField } from "@faridalms/ui/system/form-field";
+import {
+  RecordColumns,
+  RecordEmpty,
+  RecordHeader,
+  RecordList,
+  RecordSection,
+} from "@faridalms/ui/system/record-page";
+import { SettingsSection } from "@faridalms/ui/system/settings-section";
+import { StatusBadge } from "@faridalms/ui/system/status";
 import { createFileRoute, Link, useRouter } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
+import { Plus } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 
-import { failure } from "../actions";
+import { attempt } from "../actions";
 import { Agreements } from "../components/Agreements";
 import { ClockPauses } from "../components/ClockPauses";
-import { ContactCard, ContactForm } from "../components/Contacts";
-import { CustomerForm } from "../components/CustomerForm";
+import { Contacts } from "../components/Contacts";
+import { CustomerDetails } from "../components/CustomerForm";
 import { EventList } from "../components/EventList";
 import { TaskList } from "../components/TaskList";
 import {
@@ -17,7 +26,10 @@ import {
   formatMoney,
   formatWhen,
   INVOICE_STATE_NAMES,
+  INVOICE_STATE_TONE,
   PAYMENT_METHOD_NAMES,
+  SUBSCRIPTION_STATE_NAMES,
+  SUBSCRIPTION_STATE_TONE,
 } from "../format";
 import { useMay } from "../may";
 import { getCustomer } from "../server/customers";
@@ -34,83 +46,68 @@ export const Route = createFileRoute("/customers/$customerId")({
     ]);
     return { ...customer, billing };
   },
+  staticData: { title: "Customer" },
   component: CustomerPage,
 });
 
-const SELECT = "h-9 rounded-md border bg-background px-2 text-sm";
+/** Someone who may look after a customer. */
+interface Owner {
+  id: string;
+  name: string;
+}
 
-/** Who looks after the customer: asked to call when an invoice is two weeks overdue. */
-function AccountOwner({
-  customerId,
-  ownerId,
-  owners,
-}: {
+interface AccountOwnerProps {
   customerId: string;
   ownerId: string | null;
-  owners: readonly { id: string; name: string }[];
-}) {
+  owners: readonly Owner[];
+}
+
+/** Who looks after the customer: asked to call when an invoice is two weeks overdue. */
+function AccountOwner({ customerId, ownerId, owners }: AccountOwnerProps) {
   const router = useRouter();
   const save = useServerFn(setCustomerOwner);
   const [chosen, setChosen] = useState(ownerId ?? "");
-  const [saving, setSaving] = useState(false);
+  const [pending, setPending] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [saved, setSaved] = useState(false);
   return (
-    <form
-      aria-label="Account owner"
-      className="flex flex-wrap items-end gap-2"
-      onSubmit={async (event) => {
-        event.preventDefault();
-        setSaving(true);
-        try {
-          const out = await save({
-            data: { customerId, ownerId: chosen || null },
-          });
-          if (out.ok) {
-            toast.success("Account owner saved.");
-            await router.invalidate();
-          } else toast.error(out.message);
-        } catch (error) {
-          const said = failure(error, "The account owner could not be saved.");
-          if (said) toast.error(said);
-        } finally {
-          setSaving(false);
+    <SettingsSection
+      title="Account owner"
+      description="Asked to call when an invoice is two weeks overdue."
+      pending={pending}
+      error={error}
+      saved={saved}
+      isDirty={() => chosen !== (ownerId ?? "")}
+      onSubmit={async () => {
+        setSaved(false);
+        setPending(true);
+        setError(null);
+        const failed = await attempt(
+          () => save({ data: { customerId, ownerId: chosen || null } }),
+          "The account owner could not be saved.",
+        );
+        setPending(false);
+        if (failed) {
+          setError(failed);
+          return;
         }
+        setSaved(true);
+        toast.success("Account owner saved.");
+        await router.invalidate();
       }}
     >
-      <div className="grid gap-1.5 text-sm">
-        <label htmlFor="account-owner" className="font-medium">
-          Looked after by
-        </label>
-        <select
-          id="account-owner"
-          value={chosen}
-          onChange={(event) => setChosen(event.target.value)}
-          className={SELECT}
-        >
-          <option value="">Nobody yet</option>
-          {owners.map((owner) => (
-            <option key={owner.id} value={owner.id}>
-              {owner.name}
-            </option>
-          ))}
-        </select>
-      </div>
-      <Button
-        type="submit"
-        size="sm"
-        variant="outline"
-        disabled={saving || chosen === (ownerId ?? "")}
-      >
-        Save
-      </Button>
-    </form>
+      <SelectField
+        label="Looked after by"
+        value={chosen}
+        options={[
+          { value: "", label: "Nobody yet" },
+          ...owners.map((owner) => ({ value: owner.id, label: owner.name })),
+        ]}
+        onChange={setChosen}
+      />
+    </SettingsSection>
   );
 }
-
-const STATE_NAMES = {
-  trial: "Trial",
-  active: "Active",
-  ended: "Ended",
-} as const;
 
 function CustomerPage() {
   const {
@@ -128,188 +125,215 @@ function CustomerPage() {
   const mayBill = useMay("billing");
   const router = useRouter();
   return (
-    <div className="grid gap-8">
-      <div className="grid gap-1">
-        <Link
-          to="/customers"
-          className="text-sm text-muted-foreground hover:underline"
-        >
-          Customers
-        </Link>
-        <h1 className="text-2xl font-semibold">{customer.legalNameEn}</h1>
-        {customer.legalNameAr ? (
-          <p dir="rtl" lang="ar" className="text-sm text-muted-foreground">
-            {customer.legalNameAr}
-          </p>
-        ) : null}
-      </div>
-      <AccountOwner
-        key={customer.accountOwnerId ?? ""}
-        customerId={customer.id}
-        ownerId={customer.accountOwnerId}
-        owners={owners}
+    <>
+      <RecordHeader
+        title={customer.legalNameEn}
+        facts={[
+          ...(customer.legalNameAr
+            ? [
+                {
+                  label: "Legal name in Arabic",
+                  value: (
+                    <span dir="rtl" lang="ar">
+                      {customer.legalNameAr}
+                    </span>
+                  ),
+                },
+              ]
+            : []),
+          { label: "Country", value: customer.country },
+          { label: "Currency", value: customer.currency },
+          ...(customer.taxNumber
+            ? [{ label: "Tax number", value: customer.taxNumber }]
+            : []),
+        ]}
+        action={
+          mayBill && billing
+            ? {
+                label: "New invoice",
+                icon: Plus,
+                onClick: () =>
+                  void router.navigate({
+                    to: "/invoices/new",
+                    search: { customerId: customer.id },
+                  }),
+              }
+            : undefined
+        }
       />
-      <CustomerForm
-        key={customer.version}
-        customer={customer}
-        onSaved={async () => {
-          toast.success("Details saved.");
-          await router.invalidate();
-        }}
-      />
-      <section className="grid gap-3">
-        <h2 className="text-base font-semibold">Schools and subscriptions</h2>
-        {schools.length ? (
-          <ul className="flex flex-wrap gap-2 text-sm">
-            {schools.map((school) => (
-              <li key={school.id}>
-                <Link
-                  to="/schools/$schoolId"
-                  params={{ schoolId: school.id }}
-                  className="underline"
-                >
-                  {school.name}
-                </Link>
-              </li>
-            ))}
-          </ul>
-        ) : (
-          <p className="text-sm text-muted-foreground">
-            No schools yet: a customer runs a tenant once its schools are
-            created.
-          </p>
-        )}
-        {subscriptions.length ? (
-          <ul className="divide-y rounded-lg border">
-            {subscriptions.map((subscription) => (
-              <li
-                key={subscription.id}
-                className="flex flex-wrap items-center gap-2 px-4 py-3 text-sm"
-              >
-                <Link
-                  to="/subscriptions/$subscriptionId"
-                  params={{ subscriptionId: subscription.id }}
-                  className="font-medium underline"
-                >
-                  Opened {formatWhen(subscription.createdAt)}
-                </Link>
-                <Badge variant="secondary">
-                  {STATE_NAMES[subscription.state]}
-                </Badge>
-                {subscription.grandfathered ? (
-                  <Badge variant="outline">Grandfathered</Badge>
+      <RecordColumns
+        main={
+          <>
+            <RecordSection title="Schools and subscriptions">
+              <div className="grid gap-4">
+                {schools.length ? (
+                  <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm">
+                    {schools.map((school) => (
+                      <Link
+                        key={school.id}
+                        to="/schools/$schoolId"
+                        params={{ schoolId: school.id }}
+                        className="font-medium text-primary underline-offset-4 hover:underline"
+                      >
+                        {school.name}
+                      </Link>
+                    ))}
+                  </div>
+                ) : (
+                  <RecordEmpty>
+                    No schools yet: a customer runs a tenant once its schools
+                    are created.
+                  </RecordEmpty>
+                )}
+                {subscriptions.length ? (
+                  <RecordList>
+                    {subscriptions.map((subscription) => (
+                      <li
+                        key={subscription.id}
+                        className="flex flex-wrap items-center justify-between gap-2 py-3"
+                      >
+                        <span className="grid gap-0.5">
+                          <Link
+                            to="/subscriptions/$subscriptionId"
+                            params={{ subscriptionId: subscription.id }}
+                            className="text-sm leading-5 font-medium hover:text-primary hover:underline"
+                          >
+                            Opened {formatWhen(subscription.createdAt)}
+                          </Link>
+                          <span className="text-[13px] leading-[18px] text-muted-foreground">
+                            {subscription.termEndsOn
+                              ? `Term ends ${formatDay(subscription.termEndsOn)}`
+                              : subscription.trialEndsOn
+                                ? `Trial ends ${formatDay(subscription.trialEndsOn)}`
+                                : "No end set"}
+                            {subscription.grandfathered
+                              ? " · Grandfathered"
+                              : ""}
+                          </span>
+                        </span>
+                        <StatusBadge
+                          tone={SUBSCRIPTION_STATE_TONE[subscription.state]}
+                        >
+                          {SUBSCRIPTION_STATE_NAMES[subscription.state]}
+                        </StatusBadge>
+                      </li>
+                    ))}
+                  </RecordList>
                 ) : null}
-                <span className="text-muted-foreground">
-                  {subscription.termEndsOn
-                    ? `term ends ${formatDay(subscription.termEndsOn)}`
-                    : subscription.trialEndsOn
-                      ? `trial ends ${formatDay(subscription.trialEndsOn)}`
-                      : ""}
-                </span>
-              </li>
-            ))}
-          </ul>
-        ) : null}
-      </section>
-      <Agreements
-        customerId={customer.id}
-        terms={{
-          version: customer.termsVersion,
-          at: customer.termsAcceptedAt,
-        }}
-        dpa={{ version: customer.dpaVersion, at: customer.dpaAcceptedAt }}
-      />
-      <section className="grid max-w-2xl gap-3">
-        <h2 className="text-base font-semibold">Contacts</h2>
-        {contacts.length === 0 ? (
-          <p className="text-sm text-muted-foreground">No contacts yet.</p>
-        ) : null}
-        {contacts.map((contact) => (
-          <ContactCard
-            key={contact.id}
-            customerId={customer.id}
-            contact={contact}
-          />
-        ))}
-        <ContactForm customerId={customer.id} contact={null} />
-      </section>
-      {billing ? (
-        <section aria-label="Billing" className="grid max-w-3xl gap-3">
-          <div className="flex flex-wrap items-center justify-between gap-2">
-            <h2 className="text-base font-semibold">Billing</h2>
-            {mayBill ? (
-              <Link
-                to="/invoices/new"
-                search={{ customerId: customer.id }}
-                className={buttonVariants({ variant: "outline", size: "sm" })}
-              >
-                New invoice
-              </Link>
+              </div>
+            </RecordSection>
+            {billing ? (
+              <RecordSection title="Billing">
+                <div className="grid gap-5">
+                  {billing.invoices.length ? (
+                    <RecordList>
+                      {billing.invoices.map((invoice) => (
+                        <li
+                          key={invoice.id}
+                          className="flex flex-wrap items-center justify-between gap-2 py-3"
+                        >
+                          <span className="grid gap-0.5">
+                            <Link
+                              to="/invoices/$invoiceId"
+                              params={{ invoiceId: invoice.id }}
+                              className="text-sm leading-5 font-medium hover:text-primary hover:underline"
+                            >
+                              {invoice.number ?? "Draft"}
+                            </Link>
+                            <span className="text-[13px] leading-[18px] text-muted-foreground tabular-nums">
+                              {formatDay(invoice.forDay)} ·{" "}
+                              {formatMoney(
+                                invoice.totalMinor,
+                                invoice.currency,
+                              )}
+                              {invoice.state === "draft" ||
+                              invoice.owedMinor === 0
+                                ? ""
+                                : `, ${formatMoney(invoice.owedMinor, invoice.currency)} owed`}
+                            </span>
+                          </span>
+                          <StatusBadge tone={INVOICE_STATE_TONE[invoice.state]}>
+                            {INVOICE_STATE_NAMES[invoice.state]}
+                          </StatusBadge>
+                        </li>
+                      ))}
+                    </RecordList>
+                  ) : (
+                    <RecordEmpty>No invoices yet.</RecordEmpty>
+                  )}
+                  {billing.payments.length ? (
+                    <div className="grid gap-2">
+                      <h3 className="text-sm leading-5 font-semibold">
+                        Payments
+                      </h3>
+                      <RecordList>
+                        {billing.payments.map((payment) => (
+                          <li
+                            key={payment.id}
+                            className="flex flex-wrap justify-between gap-2 py-3 text-sm leading-5"
+                          >
+                            <span>
+                              {PAYMENT_METHOD_NAMES[payment.method]} ·{" "}
+                              {payment.reference} ·{" "}
+                              {formatDay(payment.receivedOn)}
+                            </span>
+                            <span className="tabular-nums">
+                              {formatMoney(
+                                payment.amountMinor,
+                                payment.currency,
+                              )}
+                            </span>
+                          </li>
+                        ))}
+                      </RecordList>
+                    </div>
+                  ) : null}
+                </div>
+              </RecordSection>
             ) : null}
-          </div>
-          {billing.invoices.length ? (
-            <ul className="divide-y rounded-lg border text-sm">
-              {billing.invoices.map((invoice) => (
-                <li
-                  key={invoice.id}
-                  className="flex flex-wrap items-center gap-2 px-4 py-3"
-                >
-                  <Link
-                    to="/invoices/$invoiceId"
-                    params={{ invoiceId: invoice.id }}
-                    className="font-medium underline"
-                  >
-                    {invoice.number ?? "Draft"}
-                  </Link>
-                  <Badge variant="secondary">
-                    {INVOICE_STATE_NAMES[invoice.state]}
-                  </Badge>
-                  <span className="text-muted-foreground">
-                    {formatDay(invoice.forDay)} ·{" "}
-                    {formatMoney(invoice.totalMinor, invoice.currency)}
-                    {invoice.state === "draft" || invoice.owedMinor === 0
-                      ? ""
-                      : `, ${formatMoney(invoice.owedMinor, invoice.currency)} owed`}
-                  </span>
-                </li>
-              ))}
-            </ul>
-          ) : (
-            <p className="text-sm text-muted-foreground">No invoices yet.</p>
-          )}
-          {billing.payments.length ? (
-            <ul className="divide-y rounded-lg border text-sm">
-              {billing.payments.map((payment) => (
-                <li
-                  key={payment.id}
-                  className="flex flex-wrap justify-between gap-2 px-4 py-3"
-                >
-                  <span>
-                    {PAYMENT_METHOD_NAMES[payment.method]} · {payment.reference}{" "}
-                    · {formatDay(payment.receivedOn)}
-                  </span>
-                  <span className="tabular-nums">
-                    {formatMoney(payment.amountMinor, payment.currency)}
-                  </span>
-                </li>
-              ))}
-            </ul>
-          ) : null}
-          <ClockPauses
-            customerId={customer.id}
-            pauses={billing.pauses}
-            today={today}
-          />
-        </section>
-      ) : null}
-      <section aria-label="Tasks" className="grid max-w-3xl gap-3">
-        <h2 className="text-base font-semibold">Tasks</h2>
-        <TaskList rows={tasks} names={names} today={today} />
-      </section>
-      <section className="grid gap-3">
-        <h2 className="text-base font-semibold">History</h2>
-        <EventList events={history} names={names} />
-      </section>
-    </div>
+            <Contacts customerId={customer.id} contacts={contacts} />
+            <CustomerDetails
+              key={customer.version}
+              customer={customer}
+              onSaved={async () => {
+                toast.success("Details saved.");
+                await router.invalidate();
+              }}
+            />
+            <RecordSection title="History">
+              <EventList events={history} names={names} />
+            </RecordSection>
+          </>
+        }
+        aside={
+          <>
+            <AccountOwner
+              key={customer.accountOwnerId ?? ""}
+              customerId={customer.id}
+              ownerId={customer.accountOwnerId}
+              owners={owners}
+            />
+            <RecordSection title="Tasks">
+              <TaskList rows={tasks} names={names} today={today} />
+            </RecordSection>
+            <Agreements
+              customerId={customer.id}
+              terms={{
+                version: customer.termsVersion,
+                at: customer.termsAcceptedAt,
+              }}
+              dpa={{ version: customer.dpaVersion, at: customer.dpaAcceptedAt }}
+            />
+            {billing ? (
+              <ClockPauses
+                customerId={customer.id}
+                pauses={billing.pauses}
+                today={today}
+              />
+            ) : null}
+          </>
+        }
+      />
+    </>
   );
 }

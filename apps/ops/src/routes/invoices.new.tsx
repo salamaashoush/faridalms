@@ -1,13 +1,16 @@
 import { businessToday } from "@faridalms/domain/subscriptions";
-import { Button } from "@faridalms/ui/button";
-import { Input } from "@faridalms/ui/input";
-import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { ButtonLink } from "@faridalms/ui/system/button-link";
+import { TextField } from "@faridalms/ui/system/form-field";
+import { FormFooter } from "@faridalms/ui/system/form-footer";
+import { PageHeader } from "@faridalms/ui/system/page-header";
+import { FormSection } from "@faridalms/ui/system/record-form";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useState } from "react";
 import { toast } from "sonner";
 import * as v from "valibot";
 
-import { failure } from "../actions";
+import { attemptWith } from "../actions";
 import {
   blankLine,
   InvoiceLinesFields,
@@ -18,6 +21,7 @@ import { addInvoice } from "../server/invoicing";
 
 export const Route = createFileRoute("/invoices/new")({
   validateSearch: v.object({ customerId: v.pipe(v.string(), v.uuid()) }),
+  staticData: { section: "/billing", title: "New invoice" },
   loaderDeps: ({ search }) => search,
   loader: ({ deps }) => getCustomer({ data: { id: deps.customerId } }),
   component: NewInvoice,
@@ -33,24 +37,15 @@ function NewInvoice() {
   const [answer, setAnswer] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   return (
-    <div className="grid gap-6">
-      <div className="grid gap-1">
-        <Link
-          to="/customers/$customerId"
-          params={{ customerId: customer.id }}
-          className="text-sm text-muted-foreground hover:underline"
-        >
-          {customer.legalNameEn}
-        </Link>
-        <h1 className="text-2xl font-semibold">New invoice</h1>
-        <p className="text-sm text-muted-foreground">
-          In {customer.currency}, with the VAT its country is charged. It stays
-          a draft until it is issued.
-        </p>
-      </div>
+    <div className="grid">
+      <PageHeader
+        title="New invoice"
+        description={`For ${customer.legalNameEn}, in ${customer.currency} with the VAT its country is charged. It stays a draft until it is issued.`}
+      />
       <form
         aria-label="New invoice"
-        className="grid max-w-3xl gap-4 rounded-lg border p-6"
+        noValidate
+        className="grid max-w-3xl gap-10"
         onSubmit={async (event) => {
           event.preventDefault();
           const read = linesOf(drafts);
@@ -60,50 +55,55 @@ function NewInvoice() {
           }
           setSaving(true);
           setAnswer(null);
-          try {
-            const out = await add({
-              data: { customerId: customer.id, forDay, lines: read.lines },
-            });
-            if (out.ok) {
-              toast.success("Draft saved.");
-              await navigate({
-                to: "/invoices/$invoiceId",
-                params: { invoiceId: out.id },
-              });
-            } else setAnswer(out.message);
-          } catch (error) {
-            setAnswer(failure(error, "The invoice could not be drafted."));
-          } finally {
-            setSaving(false);
+          const out = await attemptWith(
+            () =>
+              add({
+                data: { customerId: customer.id, forDay, lines: read.lines },
+              }),
+            "The invoice could not be drafted.",
+          );
+          setSaving(false);
+          if (!out.ok) {
+            setAnswer(out.message);
+            return;
           }
+          toast.success("Draft saved.");
+          await navigate({
+            to: "/invoices/$invoiceId",
+            params: { invoiceId: out.value.id },
+          });
         }}
       >
-        <div className="grid max-w-xs gap-1.5 text-sm">
-          <label htmlFor="invoice-for" className="font-medium">
-            For the day
-          </label>
-          <Input
-            id="invoice-for"
+        <FormSection title="When">
+          <TextField
+            label="For the day"
             type="date"
-            required
+            width="date"
             value={forDay}
             onChange={(event) => setForDay(event.target.value)}
           />
-        </div>
-        <InvoiceLinesFields
-          prefix="manual"
-          currency={customer.currency}
-          drafts={drafts}
-          onChange={setDrafts}
+        </FormSection>
+        <FormSection title="Lines">
+          <InvoiceLinesFields
+            currency={customer.currency}
+            drafts={drafts}
+            onChange={setDrafts}
+          />
+        </FormSection>
+        <FormFooter
+          submitLabel="Save the draft"
+          pending={saving}
+          error={answer}
+          secondary={
+            <ButtonLink
+              to="/customers/$customerId"
+              params={{ customerId: customer.id }}
+              variant="outline"
+            >
+              Cancel
+            </ButtonLink>
+          }
         />
-        {answer ? (
-          <p role="alert" className="text-sm text-destructive">
-            {answer}
-          </p>
-        ) : null}
-        <Button type="submit" disabled={saving} className="justify-self-start">
-          {saving ? "Saving…" : "Save the draft"}
-        </Button>
       </form>
     </div>
   );

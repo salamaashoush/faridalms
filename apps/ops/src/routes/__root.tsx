@@ -1,19 +1,16 @@
-import type { OperatorArea } from "@faridalms/domain/operators";
-import type { ReactNode } from "react";
-
-import { mayOperate } from "@faridalms/domain/operators";
-import { Button } from "@faridalms/ui/button";
 import { Toaster } from "@faridalms/ui/sonner";
+import { DesignSystemProvider } from "@faridalms/ui/system/provider";
 import {
   createRootRoute,
   HeadContent,
-  Link,
   Outlet,
   redirect,
   Scripts,
 } from "@tanstack/react-router";
 import { ThemeProvider } from "next-themes";
 
+import { CONSOLE_SYSTEM } from "../actions";
+import { ConsoleShell } from "../components/ConsoleShell";
 import { getAccess } from "../server/directory";
 import appCss from "../styles/app.css?url";
 
@@ -38,91 +35,21 @@ export const Route = createRootRoute({
   component: RootLayout,
 });
 
-/** The console's sections, each shown to the roles that may use it. */
-const NAVIGATION: {
-  to:
-    | "/"
-    | "/schools"
-    | "/series"
-    | "/changes"
-    | "/leads"
-    | "/billing"
-    | "/subscriptions"
-    | "/customers"
-    | "/catalogue"
-    | "/operators"
-    | "/settings";
-  label: string;
-  area: OperatorArea;
-  /** Offered only where the console has its business database. */
-  business?: boolean;
-}[] = [
-  { to: "/", label: "Home", area: "readTenants" },
-  { to: "/schools", label: "Schools", area: "readTenants" },
-  { to: "/series", label: "Exam sessions", area: "readTenants" },
-  { to: "/changes", label: "Changes", area: "readTenants" },
-  { to: "/leads", label: "Leads", area: "leads", business: true },
-  {
-    to: "/subscriptions",
-    label: "Subscriptions",
-    area: "readSubscriptions",
-    business: true,
-  },
-  { to: "/customers", label: "Customers", area: "customers", business: true },
-  { to: "/billing", label: "Billing", area: "readBilling", business: true },
-  { to: "/catalogue", label: "Catalogue", area: "catalogue", business: true },
-  { to: "/operators", label: "Operators", area: "operators", business: true },
-  { to: "/settings", label: "Settings", area: "settings", business: true },
-];
-
-function Shell({ children }: { children: ReactNode }) {
-  const { operator, access } = Route.useRouteContext();
+/** Signed-in pages sit in the console's frame; signing in has a page of its own. */
+function Page() {
+  const { access } = Route.useRouteContext();
+  if (!access || access.roles.length === 0) return <Outlet />;
   return (
-    <div className="min-h-screen">
-      <header className="border-b print:hidden">
-        <div className="mx-auto flex min-h-14 w-full max-w-6xl flex-wrap items-center gap-x-6 gap-y-1 px-6 py-2">
-          <span className="text-sm font-semibold">Farida operators</span>
-          {operator ? (
-            <>
-              <nav
-                aria-label="Console"
-                className="flex flex-wrap gap-1 text-sm"
-              >
-                {NAVIGATION.filter(
-                  (item) =>
-                    (!item.business || access?.business) &&
-                    mayOperate(access?.roles ?? [], item.area),
-                ).map((item) => (
-                  <Link
-                    key={item.to}
-                    to={item.to}
-                    activeOptions={{ exact: item.to === "/" }}
-                    className="rounded-md px-2.5 py-1.5 text-muted-foreground hover:bg-muted hover:text-foreground data-[status=active]:font-medium data-[status=active]:text-foreground"
-                  >
-                    {item.label}
-                  </Link>
-                ))}
-              </nav>
-              <form
-                method="post"
-                action="/auth/logout"
-                className="ms-auto flex items-center gap-3 text-sm"
-              >
-                <span className="text-muted-foreground max-sm:hidden">
-                  {operator.name}
-                </span>
-                <Button type="submit" variant="ghost" size="sm">
-                  Sign out
-                </Button>
-              </form>
-            </>
-          ) : null}
-        </div>
-      </header>
-      <main className="mx-auto w-full max-w-6xl px-6 py-8 print:p-0">
-        {children}
-      </main>
-    </div>
+    <ConsoleShell
+      operator={{
+        name: access.operator.name,
+        email: access.operator.email,
+        roles: access.roles,
+        business: access.business,
+      }}
+    >
+      <Outlet />
+    </ConsoleShell>
   );
 }
 
@@ -133,11 +60,16 @@ function RootLayout() {
         <HeadContent />
       </head>
       <body>
-        <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
-          <Shell>
-            <Outlet />
-          </Shell>
-          <Toaster />
+        <ThemeProvider
+          attribute="class"
+          defaultTheme="system"
+          enableColorScheme
+          enableSystem
+        >
+          <DesignSystemProvider value={CONSOLE_SYSTEM}>
+            <Page />
+            <Toaster position="top-center" />
+          </DesignSystemProvider>
         </ThemeProvider>
         <Scripts />
       </body>

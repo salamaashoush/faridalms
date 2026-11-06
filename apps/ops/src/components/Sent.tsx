@@ -1,13 +1,20 @@
 import { INVITE_DAYS } from "@faridalms/domain/first-sign-in";
 
 /** Who was emailed a link to choose a password, and the name each signs in with. */
-export function Sent({
-  sent,
-}: {
-  sent: { schoolId: string | null; sentTo: string; loginName: string }[];
-}) {
+/** A link to choose a password, and who it went to. */
+export interface SentLink {
+  schoolId: string | null;
+  sentTo: string;
+  loginName: string;
+}
+
+export interface SentProps {
+  sent: SentLink[];
+}
+
+export function Sent({ sent }: SentProps) {
   return (
-    <ul className="grid gap-1 text-sm">
+    <ul className="grid gap-1.5 text-sm leading-5">
       {sent.map((link) => (
         <li key={link.sentTo}>
           {link.sentTo} was emailed a link to choose a password

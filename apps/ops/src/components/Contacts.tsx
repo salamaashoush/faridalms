@@ -2,16 +2,27 @@ import type { ContactRow } from "@faridalms/database/business/customers";
 import type { ContactRole } from "@faridalms/domain/subscriptions";
 
 import { CONTACT_ROLES } from "@faridalms/domain/subscriptions";
-import { Badge } from "@faridalms/ui/badge";
 import { Button } from "@faridalms/ui/button";
-import { Checkbox } from "@faridalms/ui/checkbox";
-import { Input } from "@faridalms/ui/input";
+import { ActionMenu } from "@faridalms/ui/system/action-menu";
+import {
+  CheckboxGroupField,
+  SelectField,
+  TextField,
+} from "@faridalms/ui/system/form-field";
+import {
+  RecordEmpty,
+  RecordList,
+  RecordSection,
+} from "@faridalms/ui/system/record-page";
+import { SheetForm } from "@faridalms/ui/system/sheet-form";
+import { StatusBadge } from "@faridalms/ui/system/status";
 import { useRouter } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
+import { Plus } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 
-import { failure } from "../actions";
+import { attempt } from "../actions";
 import {
   removeCustomerContact,
   saveCustomerContact,
@@ -23,80 +34,31 @@ const ROLE_NAMES: Record<ContactRole, string> = {
   technical: "Technical",
 };
 
-export function ContactCard({
-  customerId,
-  contact,
-}: {
+const ROLE_OPTIONS = CONTACT_ROLES.map((role) => ({
+  value: role,
+  label: ROLE_NAMES[role],
+}));
+
+const LOCALE_OPTIONS = [
+  { value: "en", label: "English" },
+  { value: "ar", label: "Arabic" },
+] as const;
+
+interface ContactSheetProps {
   customerId: string;
-  contact: ContactRow;
-}) {
-  const router = useRouter();
-  const remove = useServerFn(removeCustomerContact);
-  const [editing, setEditing] = useState(false);
-  if (editing)
-    return (
-      <ContactForm
-        customerId={customerId}
-        contact={contact}
-        onDone={() => setEditing(false)}
-      />
-    );
-  return (
-    <article
-      aria-label={contact.name}
-      className="flex flex-wrap items-start justify-between gap-3 rounded-lg border px-4 py-3 text-sm"
-    >
-      <div className="grid gap-1">
-        <span className="flex flex-wrap items-center gap-2 font-medium">
-          {contact.name}
-          {contact.roles.map((role) => (
-            <Badge key={role} variant="secondary">
-              {ROLE_NAMES[role]}
-            </Badge>
-          ))}
-        </span>
-        <span dir="ltr" className="text-muted-foreground">
-          {[contact.email, contact.phone].filter(Boolean).join(" · ")}
-        </span>
-        <span className="text-xs text-muted-foreground">
-          Writes to them in {contact.locale === "ar" ? "Arabic" : "English"}
-        </span>
-      </div>
-      <span className="flex gap-1">
-        <Button variant="ghost" size="sm" onClick={() => setEditing(true)}>
-          Edit
-        </Button>
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={async () => {
-            try {
-              await remove({ data: { customerId, id: contact.id } });
-              toast.success("Contact removed.");
-              await router.invalidate();
-            } catch (error) {
-              const said = failure(error, "The contact could not be removed.");
-              if (said) toast.error(said);
-            }
-          }}
-        >
-          Remove
-        </Button>
-      </span>
-    </article>
-  );
+  /** The contact being changed, or null for a new one. */
+  contact: ContactRow | null;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
 }
 
 /** Adds a person at the customer, or changes one. */
-export function ContactForm({
+function ContactSheet({
   customerId,
   contact,
-  onDone,
-}: {
-  customerId: string;
-  contact: ContactRow | null;
-  onDone?: () => void;
-}) {
+  open,
+  onOpenChange,
+}: ContactSheetProps) {
   const router = useRouter();
   const save = useServerFn(saveCustomerContact);
   const [name, setName] = useState(contact?.name ?? "");
@@ -104,145 +66,214 @@ export function ContactForm({
   const [phone, setPhone] = useState(contact?.phone ?? "");
   const [roles, setRoles] = useState<ContactRole[]>(contact?.roles ?? []);
   const [locale, setLocale] = useState<"en" | "ar">(contact?.locale ?? "en");
-  const [answer, setAnswer] = useState<string | null>(null);
-  const [saving, setSaving] = useState(false);
-  const prefix = `contact-${contact?.id ?? "new"}`;
+  const [submitted, setSubmitted] = useState(false);
+  const [pending, setPending] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const unreachable = submitted && !email.trim() && !phone.trim();
   return (
-    <form
-      aria-label={contact ? `Edit ${contact.name}` : "New contact"}
-      className="grid gap-4 rounded-lg border p-4"
-      onSubmit={async (event) => {
-        event.preventDefault();
-        if (roles.length === 0) {
-          setAnswer("Give the contact at least one role.");
+    <SheetForm
+      open={open}
+      onOpenChange={onOpenChange}
+      title={contact ? `Edit ${contact.name}` : "New contact"}
+      submitLabel={contact ? "Save contact" : "Add contact"}
+      pending={pending}
+      error={error}
+      onSubmit={async () => {
+        setSubmitted(true);
+        if (
+          !name.trim() ||
+          roles.length === 0 ||
+          (!email.trim() && !phone.trim())
+        )
+          return;
+        setPending(true);
+        setError(null);
+        const failed = await attempt(
+          () =>
+            save({
+              data: {
+                customerId,
+                id: contact?.id,
+                name,
+                email,
+                phone,
+                roles,
+                locale,
+              },
+            }),
+          "The contact could not be saved.",
+        );
+        setPending(false);
+        if (failed) {
+          setError(failed);
           return;
         }
-        setSaving(true);
-        setAnswer(null);
-        try {
-          await save({
-            data: {
-              customerId,
-              id: contact?.id,
-              name,
-              email,
-              phone,
-              roles,
-              locale,
-            },
-          });
-          toast.success(contact ? "Contact saved." : "Contact added.");
-          if (!contact) {
-            setName("");
-            setEmail("");
-            setPhone("");
-            setRoles([]);
-          }
-          onDone?.();
-          await router.invalidate();
-        } catch (error) {
-          setAnswer(
-            failure(
-              error,
-              "The contact could not be saved. Give an email address or a phone number.",
-            ),
-          );
-        } finally {
-          setSaving(false);
+        toast.success(contact ? "Contact saved." : "Contact added.");
+        if (!contact) {
+          setName("");
+          setEmail("");
+          setPhone("");
+          setRoles([]);
+          setSubmitted(false);
         }
+        onOpenChange(false);
+        await router.invalidate();
       }}
     >
-      <h3 className="text-sm font-semibold">
-        {contact ? `Edit ${contact.name}` : "Add a contact"}
-      </h3>
-      <div className="grid items-start gap-4 sm:grid-cols-2">
-        <div className="grid gap-1.5 text-sm">
-          <label htmlFor={`${prefix}-name`} className="font-medium">
-            Name
-          </label>
-          <Input
-            id={`${prefix}-name`}
-            required
-            maxLength={200}
-            value={name}
-            onChange={(event) => setName(event.target.value)}
-          />
-        </div>
-        <div className="grid gap-1.5 text-sm">
-          <label htmlFor={`${prefix}-locale`} className="font-medium">
-            Writes in
-          </label>
-          <select
-            id={`${prefix}-locale`}
-            value={locale}
-            onChange={(event) => setLocale(event.target.value as "en" | "ar")}
-            className="h-9 rounded-md border bg-background px-2 text-sm"
-          >
-            <option value="en">English</option>
-            <option value="ar">Arabic</option>
-          </select>
-        </div>
-        <div className="grid gap-1.5 text-sm">
-          <label htmlFor={`${prefix}-email`} className="font-medium">
-            Email
-          </label>
-          <Input
-            id={`${prefix}-email`}
-            type="email"
-            dir="ltr"
-            maxLength={254}
-            value={email}
-            onChange={(event) => setEmail(event.target.value)}
-          />
-        </div>
-        <div className="grid gap-1.5 text-sm">
-          <label htmlFor={`${prefix}-phone`} className="font-medium">
-            Phone
-          </label>
-          <Input
-            id={`${prefix}-phone`}
-            type="tel"
-            dir="ltr"
-            maxLength={40}
-            value={phone}
-            onChange={(event) => setPhone(event.target.value)}
-          />
-        </div>
-      </div>
-      <fieldset className="flex flex-wrap gap-4 text-sm">
-        <legend className="mb-1 font-medium">Roles</legend>
-        {CONTACT_ROLES.map((role) => (
-          <span key={role} className="flex items-center gap-2">
-            <Checkbox
-              id={`${prefix}-${role}`}
-              checked={roles.includes(role)}
-              onCheckedChange={(checked) =>
-                setRoles((current) =>
-                  checked
-                    ? [...current, role]
-                    : current.filter((item) => item !== role),
-                )
-              }
-            />
-            <label htmlFor={`${prefix}-${role}`}>{ROLE_NAMES[role]}</label>
+      <TextField
+        label="Name"
+        width="name"
+        maxLength={200}
+        value={name}
+        errors={submitted && !name.trim() ? ["Enter their name."] : undefined}
+        onChange={(event) => setName(event.target.value)}
+      />
+      <TextField
+        label="Email"
+        type="email"
+        dir="ltr"
+        width="name"
+        maxLength={254}
+        hint="An email address or a phone number, or both."
+        value={email}
+        errors={
+          unreachable ? ["Give an email address or a phone number."] : undefined
+        }
+        onChange={(event) => setEmail(event.target.value)}
+      />
+      <TextField
+        label="Phone"
+        type="tel"
+        dir="ltr"
+        width="phone"
+        maxLength={40}
+        optional
+        value={phone}
+        onChange={(event) => setPhone(event.target.value)}
+      />
+      <SelectField
+        label="Writes in"
+        value={locale}
+        options={LOCALE_OPTIONS}
+        onChange={setLocale}
+      />
+      <CheckboxGroupField
+        label="Roles"
+        value={roles}
+        options={ROLE_OPTIONS}
+        onChange={setRoles}
+        errors={
+          submitted && roles.length === 0
+            ? ["Give the contact at least one role."]
+            : undefined
+        }
+      />
+    </SheetForm>
+  );
+}
+
+interface ContactItemProps {
+  customerId: string;
+  contact: ContactRow;
+}
+
+function ContactItem({ customerId, contact }: ContactItemProps) {
+  const router = useRouter();
+  const remove = useServerFn(removeCustomerContact);
+  const [editing, setEditing] = useState(false);
+  return (
+    <li>
+      <article
+        aria-label={contact.name}
+        className="flex items-start justify-between gap-3 py-3"
+      >
+        <div className="grid min-w-0 gap-1">
+          <span className="flex flex-wrap items-center gap-2 text-sm leading-5 font-medium">
+            {contact.name}
+            {contact.roles.map((role) => (
+              <StatusBadge key={role} tone="neutral">
+                {ROLE_NAMES[role]}
+              </StatusBadge>
+            ))}
           </span>
-        ))}
-      </fieldset>
-      {answer ? (
-        <p role="alert" className="text-sm text-destructive">
-          {answer}
-        </p>
-      ) : null}
-      <span className="flex gap-2">
-        <Button type="submit" disabled={saving}>
-          {saving ? "Saving…" : contact ? "Save contact" : "Add contact"}
+          <span
+            dir="ltr"
+            className="justify-self-start text-[13px] leading-[18px] text-muted-foreground"
+          >
+            {[contact.email, contact.phone].filter(Boolean).join(" · ")}
+          </span>
+          <span className="text-[13px] leading-[18px] text-muted-foreground">
+            Writes to them in {contact.locale === "ar" ? "Arabic" : "English"}
+          </span>
+        </div>
+        <ActionMenu
+          label={`Actions for ${contact.name}`}
+          actions={[
+            { label: "Edit", onSelect: () => setEditing(true) },
+            {
+              label: "Remove",
+              destructive: true,
+              confirm: {
+                title: `Remove ${contact.name}?`,
+                body: "They stop receiving the customer's invoices and notices.",
+                label: "Remove",
+              },
+              onSelect: async () => {
+                await remove({ data: { customerId, id: contact.id } });
+                toast.success("Contact removed.");
+                await router.invalidate();
+              },
+            },
+          ]}
+        />
+      </article>
+      <ContactSheet
+        customerId={customerId}
+        contact={contact}
+        open={editing}
+        onOpenChange={setEditing}
+      />
+    </li>
+  );
+}
+
+export interface ContactsProps {
+  customerId: string;
+  contacts: ContactRow[];
+}
+
+/** The people at the customer, each with what they are written to about. */
+export function Contacts({ customerId, contacts }: ContactsProps) {
+  const [adding, setAdding] = useState(false);
+  return (
+    <RecordSection
+      title="Contacts"
+      action={
+        <Button type="button" variant="ghost" onClick={() => setAdding(true)}>
+          <Plus aria-hidden />
+          Add contact
         </Button>
-        {onDone ? (
-          <Button type="button" variant="ghost" onClick={onDone}>
-            Cancel
-          </Button>
-        ) : null}
-      </span>
-    </form>
+      }
+    >
+      {contacts.length ? (
+        <RecordList>
+          {contacts.map((contact) => (
+            <ContactItem
+              key={contact.id}
+              customerId={customerId}
+              contact={contact}
+            />
+          ))}
+        </RecordList>
+      ) : (
+        <RecordEmpty>No contacts yet.</RecordEmpty>
+      )}
+      <ContactSheet
+        customerId={customerId}
+        contact={null}
+        open={adding}
+        onOpenChange={setAdding}
+      />
+    </RecordSection>
   );
 }

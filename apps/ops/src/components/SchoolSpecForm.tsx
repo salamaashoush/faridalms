@@ -4,33 +4,35 @@ import type {
   TenantSpecInput,
 } from "@faridalms/domain/provisioning";
 import type { FormValidateOrFn } from "@tanstack/react-form";
-import type { ComponentProps, ReactNode } from "react";
+import type { ReactNode } from "react";
 
 import {
   newSchoolSchema,
   tenantSpecSchema,
 } from "@faridalms/domain/provisioning";
 import { Button } from "@faridalms/ui/button";
-import { Checkbox } from "@faridalms/ui/checkbox";
 import {
-  Field,
-  FieldDescription,
+  CheckboxGroupField,
   FieldError,
-  FieldGroup,
-  FieldLabel,
-  FieldLegend,
-  FieldSet,
-} from "@faridalms/ui/field";
-import { Input } from "@faridalms/ui/input";
+  SelectField,
+  TextField,
+} from "@faridalms/ui/system/form-field";
+import { FormFooter } from "@faridalms/ui/system/form-footer";
+import { FormSection } from "@faridalms/ui/system/record-form";
 import { useForm, useStore } from "@tanstack/react-form";
 import { useHydrated } from "@tanstack/react-router";
 import { useState } from "react";
 import * as v from "valibot";
 
-const SELECT =
-  "h-9 w-full rounded-md border bg-background px-2 text-sm aria-invalid:border-destructive";
+const KIND_OPTIONS = [
+  { value: "school", label: "A standalone school" },
+  { value: "school_group", label: "A school group with one or more schools" },
+] as const;
 
-type Issues = ({ message?: string } | undefined)[];
+const LOCALE_OPTIONS = [
+  { value: "en", label: "English" },
+  { value: "ar", label: "Arabic" },
+] as const;
 
 /** A school or group's tenant and the people who first run it, as typed. */
 export type SchoolSpecValues = TenantSpecInput & {
@@ -86,46 +88,34 @@ const parseCodes = (text: string) =>
     .map((code) => code.trim())
     .filter((code) => code !== "");
 
-function TextField({
-  id,
-  label,
-  hint,
-  errors,
-  value,
-  onValueChange,
-  ...props
-}: {
-  id: string;
-  label: string;
-  hint?: string;
-  errors: Issues;
-  value: string | null | undefined;
-  onValueChange: (value: string) => void;
-} & Omit<ComponentProps<typeof Input>, "id" | "value" | "onChange">) {
-  const invalid = errors.length > 0;
-  return (
-    <Field data-invalid={invalid}>
-      <FieldLabel htmlFor={id}>{label}</FieldLabel>
-      <Input
-        id={id}
-        name={id}
-        value={value ?? ""}
-        onChange={(event) => onValueChange(event.target.value)}
-        aria-invalid={invalid}
-        {...props}
-      />
-      {hint ? <FieldDescription>{hint}</FieldDescription> : null}
-      {invalid ? <FieldError errors={errors} /> : null}
-    </Field>
-  );
-}
-
 /**
  * The tenant and its people, as one form or a step of a longer one: what a
  * school or group is and where it runs, and each school's first
  * administrator with a group's own. A step that shows only the tenant
  * checks only the tenant.
  */
+/** Which parts of the form a step shows. */
+export interface SchoolSpecSections {
+  tenant: boolean;
+  people: boolean;
+}
+
+export interface SchoolSpecFormProps {
+  /** The form's name, for whoever reads the page by its forms. */
+  label: string;
+  sections: SchoolSpecSections;
+  cells: OpenCell[];
+  initial: SchoolSpecValues;
+  takenSlugs?: string[];
+  submitLabel: string;
+  answer: string | null;
+  onSubmit: (value: SchoolSpecValues) => Promise<void>;
+  /** More of the form, after the people and before submitting. */
+  children?: ReactNode;
+  /** Beside the submit button, such as going back a step. */
+  actions?: ReactNode;
+}
+
 export function SchoolSpecForm({
   label,
   sections,
@@ -133,27 +123,11 @@ export function SchoolSpecForm({
   initial,
   takenSlugs = NO_SLUGS,
   submitLabel,
-  submittingLabel,
   answer,
   onSubmit,
   children,
   actions,
-}: {
-  /** The form's name, for whoever reads the page by its forms. */
-  label: string;
-  sections: { tenant: boolean; people: boolean };
-  cells: OpenCell[];
-  initial: SchoolSpecValues;
-  takenSlugs?: string[];
-  submitLabel: string;
-  submittingLabel: string;
-  answer: string | null;
-  onSubmit: (value: SchoolSpecValues) => Promise<void>;
-  /** More of the form, after the people and before submitting. */
-  children?: ReactNode;
-  /** Beside the submit button, such as going back a step. */
-  actions?: ReactNode;
-}) {
+}: SchoolSpecFormProps) {
   const hydrated = useHydrated();
   const [jurisdictions, setJurisdictions] = useState(
     initial.jurisdictions.join(", "),
@@ -181,7 +155,7 @@ export function SchoolSpecForm({
     <form
       noValidate
       aria-label={label}
-      className="grid max-w-3xl gap-8"
+      className="grid max-w-3xl gap-10"
       onSubmit={(event) => {
         event.preventDefault();
         void form.handleSubmit();
@@ -189,99 +163,88 @@ export function SchoolSpecForm({
     >
       {sections.tenant ? (
         <>
-          <FieldSet>
-            <FieldLegend>What it is</FieldLegend>
-            <FieldGroup>
-              <form.Field
-                name="kind"
-                listeners={{
-                  onChange: ({ value }) => {
-                    if (value !== "school") return;
-                    form.setFieldValue("schools", (rows) => rows.slice(0, 1));
-                    form.setFieldValue("administrators", (rows) =>
-                      rows.slice(0, 1),
-                    );
-                    form.setFieldValue("groupAdministrator", null);
-                    setRowKeys((keys) => keys.slice(0, 1));
-                  },
-                }}
-              >
-                {(field) => (
-                  <Field>
-                    <FieldLabel htmlFor="kind">Kind</FieldLabel>
-                    <select
-                      id="kind"
-                      className={SELECT}
-                      value={field.state.value}
+          <FormSection title="What it is">
+            <form.Field
+              name="kind"
+              listeners={{
+                onChange: ({ value }) => {
+                  if (value !== "school") return;
+                  form.setFieldValue("schools", (rows) => rows.slice(0, 1));
+                  form.setFieldValue("administrators", (rows) =>
+                    rows.slice(0, 1),
+                  );
+                  form.setFieldValue("groupAdministrator", null);
+                  setRowKeys((keys) => keys.slice(0, 1));
+                },
+              }}
+            >
+              {(field) => (
+                <SelectField
+                  id="kind"
+                  label="Kind"
+                  value={field.state.value}
+                  options={KIND_OPTIONS}
+                  onChange={field.handleChange}
+                />
+              )}
+            </form.Field>
+            {kind === "school_group" ? (
+              <div className="grid items-start gap-6 sm:grid-cols-2">
+                <form.Field name="nameEn">
+                  {(field) => (
+                    <TextField
+                      id="group-name-en"
+                      label="Group name in English"
+                      value={field.state.value ?? ""}
                       onChange={(event) =>
-                        field.handleChange(
-                          event.target.value === "school_group"
-                            ? "school_group"
-                            : "school",
-                        )
+                        field.handleChange(event.target.value)
                       }
-                    >
-                      <option value="school">A standalone school</option>
-                      <option value="school_group">
-                        A school group with one or more schools
-                      </option>
-                    </select>
-                  </Field>
-                )}
-              </form.Field>
-              {kind === "school_group" ? (
-                <div className="grid gap-4 sm:grid-cols-2">
-                  <form.Field name="nameEn">
-                    {(field) => (
-                      <TextField
-                        id="group-name-en"
-                        label="Group name in English"
-                        value={field.state.value}
-                        onValueChange={field.handleChange}
-                        onBlur={field.handleBlur}
-                        errors={field.state.meta.errors}
-                        maxLength={160}
-                      />
-                    )}
-                  </form.Field>
-                  <form.Field name="nameAr">
-                    {(field) => (
-                      <TextField
-                        id="group-name-ar"
-                        label="Group name in Arabic"
-                        dir="rtl"
-                        lang="ar"
-                        value={field.state.value}
-                        onValueChange={field.handleChange}
-                        onBlur={field.handleBlur}
-                        errors={field.state.meta.errors}
-                        maxLength={160}
-                      />
-                    )}
-                  </form.Field>
-                </div>
-              ) : null}
-            </FieldGroup>
-          </FieldSet>
+                      onBlur={field.handleBlur}
+                      errors={field.state.meta.errors}
+                      maxLength={160}
+                    />
+                  )}
+                </form.Field>
+                <form.Field name="nameAr">
+                  {(field) => (
+                    <TextField
+                      id="group-name-ar"
+                      label="Group name in Arabic"
+                      dir="rtl"
+                      lang="ar"
+                      value={field.state.value ?? ""}
+                      onChange={(event) =>
+                        field.handleChange(event.target.value)
+                      }
+                      onBlur={field.handleBlur}
+                      errors={field.state.meta.errors}
+                      maxLength={160}
+                    />
+                  )}
+                </form.Field>
+              </div>
+            ) : null}
+          </FormSection>
 
           <form.Field name="schools" mode="array">
             {(rows) => (
-              <FieldSet>
-                <FieldLegend>
-                  {kind === "school_group" ? "Schools" : "School"}
-                </FieldLegend>
+              <FormSection
+                title={kind === "school_group" ? "Schools" : "School"}
+              >
                 {rows.state.value.map((_, index) => (
                   <div
                     key={rowKeys[index] ?? index}
-                    className="grid gap-4 rounded-lg border p-4 sm:grid-cols-2"
+                    className="grid items-start gap-6 rounded-lg border bg-card p-5 sm:grid-cols-2"
                   >
                     <form.Field name={`schools[${index}].nameEn`}>
                       {(field) => (
                         <TextField
                           id={`school-${index}-name-en`}
                           label="Name in English"
-                          value={field.state.value}
-                          onValueChange={field.handleChange}
+                          value={field.state.value ?? ""}
+                          onChange={(event) =>
+                            field.handleChange(event.target.value)
+                          }
                           onBlur={field.handleBlur}
                           errors={field.state.meta.errors}
                           maxLength={160}
@@ -295,8 +258,10 @@ export function SchoolSpecForm({
                           label="Name in Arabic"
                           dir="rtl"
                           lang="ar"
-                          value={field.state.value}
-                          onValueChange={field.handleChange}
+                          value={field.state.value ?? ""}
+                          onChange={(event) =>
+                            field.handleChange(event.target.value)
+                          }
                           onBlur={field.handleBlur}
                           errors={field.state.meta.errors}
                           maxLength={160}
@@ -313,7 +278,9 @@ export function SchoolSpecForm({
                           autoComplete="off"
                           spellCheck={false}
                           value={field.state.value}
-                          onValueChange={field.handleChange}
+                          onChange={(event) =>
+                            field.handleChange(event.target.value)
+                          }
                           onBlur={field.handleBlur}
                           errors={[
                             ...field.state.meta.errors,
@@ -338,7 +305,9 @@ export function SchoolSpecForm({
                           hint="An IANA name, such as Africa/Cairo or Asia/Dubai."
                           dir="ltr"
                           value={field.state.value}
-                          onValueChange={field.handleChange}
+                          onChange={(event) =>
+                            field.handleChange(event.target.value)
+                          }
                           onBlur={field.handleBlur}
                           errors={field.state.meta.errors}
                         />
@@ -353,7 +322,9 @@ export function SchoolSpecForm({
                           dir="ltr"
                           maxLength={2}
                           value={field.state.value}
-                          onValueChange={field.handleChange}
+                          onChange={(event) =>
+                            field.handleChange(event.target.value)
+                          }
                           onBlur={field.handleBlur}
                           errors={field.state.meta.errors}
                         />
@@ -397,62 +368,42 @@ export function SchoolSpecForm({
                     Add a school
                   </Button>
                 ) : null}
-              </FieldSet>
+              </FormSection>
             )}
           </form.Field>
 
-          <FieldSet>
-            <FieldLegend>Where it runs</FieldLegend>
-            <div className="grid gap-4 sm:grid-cols-2">
+          <FormSection title="Where it runs">
+            <div className="grid items-start gap-6 sm:grid-cols-2">
               <form.Field name="cellId">
                 {(field) => (
-                  <Field data-invalid={!field.state.meta.isValid}>
-                    <FieldLabel htmlFor="cell">Cell</FieldLabel>
-                    <select
-                      id="cell"
-                      className={SELECT}
-                      value={field.state.value}
-                      aria-invalid={!field.state.meta.isValid}
-                      onChange={(event) =>
-                        field.handleChange(event.target.value)
-                      }
-                    >
-                      {cells.map((cell) => (
-                        <option key={cell.id} value={cell.id}>
-                          {cell.id} · {cell.region} ({cell.appHost})
-                        </option>
-                      ))}
-                    </select>
-                    {cells.length === 0 ? (
-                      <FieldDescription>
-                        No cell is open for new schools.
-                      </FieldDescription>
-                    ) : null}
-                    <FieldError errors={field.state.meta.errors} />
-                  </Field>
+                  <SelectField
+                    id="cell"
+                    label="Cell"
+                    value={field.state.value}
+                    options={cells.map((cell) => ({
+                      value: cell.id,
+                      label: `${cell.id} · ${cell.region} (${cell.appHost})`,
+                    }))}
+                    hint={
+                      cells.length === 0
+                        ? "No cell is open for new schools."
+                        : undefined
+                    }
+                    errors={field.state.meta.errors}
+                    onChange={field.handleChange}
+                  />
                 )}
               </form.Field>
               <form.Field name="defaultLocale">
                 {(field) => (
-                  <Field>
-                    <FieldLabel htmlFor="locale">Default language</FieldLabel>
-                    <select
-                      id="locale"
-                      className={SELECT}
-                      value={field.state.value}
-                      onChange={(event) =>
-                        field.handleChange(
-                          event.target.value === "ar" ? "ar" : "en",
-                        )
-                      }
-                    >
-                      <option value="en">English</option>
-                      <option value="ar">Arabic</option>
-                    </select>
-                    <FieldDescription>
-                      The administrators' emails are written in it.
-                    </FieldDescription>
-                  </Field>
+                  <SelectField
+                    id="locale"
+                    label="Default language"
+                    hint="The administrators' emails are written in it."
+                    value={field.state.value}
+                    options={LOCALE_OPTIONS}
+                    onChange={field.handleChange}
+                  />
                 )}
               </form.Field>
               <form.Field name="jurisdictions">
@@ -463,9 +414,9 @@ export function SchoolSpecForm({
                     hint="Country codes whose rules apply, separated by commas."
                     dir="ltr"
                     value={jurisdictions}
-                    onValueChange={(text) => {
-                      setJurisdictions(text);
-                      field.handleChange(parseCodes(text));
+                    onChange={(event) => {
+                      setJurisdictions(event.target.value);
+                      field.handleChange(parseCodes(event.target.value));
                     }}
                     onBlur={field.handleBlur}
                     errors={field.state.meta.errors}
@@ -473,23 +424,23 @@ export function SchoolSpecForm({
                 )}
               </form.Field>
             </div>
-          </FieldSet>
+          </FormSection>
         </>
       ) : null}
 
       {sections.people ? (
         <>
           {schools.map((school, index) => (
-            <FieldSet key={rowKeys[index] ?? index}>
-              <FieldLegend>
-                {schools.length > 1
+            <FormSection
+              key={rowKeys[index] ?? index}
+              title={
+                schools.length > 1
                   ? `Administrator of ${school.nameEn || school.nameAr || `school ${index + 1}`}`
-                  : "First administrator"}
-              </FieldLegend>
-              <FieldDescription>
-                They hold every capability at the school and add everyone else.
-              </FieldDescription>
-              <div className="grid gap-4 sm:grid-cols-2">
+                  : "First administrator"
+              }
+              description="They hold every capability at the school and add everyone else."
+            >
+              <div className="grid items-start gap-6 sm:grid-cols-2">
                 {NAME_FIELDS.map(([key, name, dir]) => (
                   <form.Field
                     key={key}
@@ -501,8 +452,10 @@ export function SchoolSpecForm({
                         label={name}
                         dir={dir}
                         lang={dir === "rtl" ? "ar" : undefined}
-                        value={field.state.value}
-                        onValueChange={field.handleChange}
+                        value={field.state.value ?? ""}
+                        onChange={(event) =>
+                          field.handleChange(event.target.value)
+                        }
                         onBlur={field.handleBlur}
                         errors={field.state.meta.errors}
                         maxLength={75}
@@ -520,14 +473,16 @@ export function SchoolSpecForm({
                       autoComplete="off"
                       hint="Their sign-in name, and where their link goes."
                       value={field.state.value}
-                      onValueChange={field.handleChange}
+                      onChange={(event) =>
+                        field.handleChange(event.target.value)
+                      }
                       onBlur={field.handleBlur}
                       errors={field.state.meta.errors}
                     />
                   )}
                 </form.Field>
               </div>
-            </FieldSet>
+            </FormSection>
           ))}
           <form.Field name="administrators">
             {(field) =>
@@ -537,25 +492,25 @@ export function SchoolSpecForm({
             }
           </form.Field>
           {kind === "school_group" ? (
-            <FieldSet>
-              <FieldLegend>Group administrator</FieldLegend>
-              <span className="flex items-center gap-2 text-sm">
-                <Checkbox
-                  id="group-admin-on"
-                  checked={hasGroupAdministrator}
-                  onCheckedChange={(checked) =>
-                    form.setFieldValue(
-                      "groupAdministrator",
-                      checked ? blankPerson() : null,
-                    )
-                  }
-                />
-                <label htmlFor="group-admin-on">
-                  Someone runs every school of the group
-                </label>
-              </span>
+            <FormSection title="Group administrator">
+              <CheckboxGroupField
+                label="Who runs the group"
+                value={hasGroupAdministrator ? ["on"] : []}
+                options={[
+                  {
+                    value: "on",
+                    label: "Someone runs every school of the group",
+                  },
+                ]}
+                onChange={(value) =>
+                  form.setFieldValue(
+                    "groupAdministrator",
+                    value.includes("on") ? blankPerson() : null,
+                  )
+                }
+              />
               {hasGroupAdministrator ? (
-                <div className="grid gap-4 sm:grid-cols-2">
+                <div className="grid items-start gap-6 sm:grid-cols-2">
                   {NAME_FIELDS.map(([key, name, dir]) => (
                     <form.Field key={key} name={`groupAdministrator.${key}`}>
                       {(field) => (
@@ -564,8 +519,10 @@ export function SchoolSpecForm({
                           label={name}
                           dir={dir}
                           lang={dir === "rtl" ? "ar" : undefined}
-                          value={field.state.value}
-                          onValueChange={field.handleChange}
+                          value={field.state.value ?? ""}
+                          onChange={(event) =>
+                            field.handleChange(event.target.value)
+                          }
                           onBlur={field.handleBlur}
                           errors={field.state.meta.errors}
                           maxLength={75}
@@ -582,8 +539,10 @@ export function SchoolSpecForm({
                         dir="ltr"
                         autoComplete="off"
                         hint="Their link opens at the group's first school."
-                        value={field.state.value}
-                        onValueChange={field.handleChange}
+                        value={field.state.value ?? ""}
+                        onChange={(event) =>
+                          field.handleChange(event.target.value)
+                        }
                         onBlur={field.handleBlur}
                         errors={field.state.meta.errors}
                       />
@@ -591,31 +550,24 @@ export function SchoolSpecForm({
                   </form.Field>
                 </div>
               ) : null}
-            </FieldSet>
+            </FormSection>
           ) : null}
         </>
       ) : null}
 
       {children}
 
-      {answer ? (
-        <p role="alert" className="text-sm text-destructive">
-          {answer}
-        </p>
-      ) : null}
-      <span className="flex flex-wrap gap-2">
-        <form.Subscribe selector={(state) => state.isSubmitting}>
-          {(submitting) => (
-            <Button
-              type="submit"
-              disabled={submitting || !hydrated || cells.length === 0}
-            >
-              {submitting ? submittingLabel : submitLabel}
-            </Button>
-          )}
-        </form.Subscribe>
-        {actions}
-      </span>
+      <form.Subscribe selector={(state) => state.isSubmitting}>
+        {(submitting) => (
+          <FormFooter
+            submitLabel={submitLabel}
+            pending={submitting}
+            disabled={!hydrated || cells.length === 0}
+            error={answer}
+            secondary={actions}
+          />
+        )}
+      </form.Subscribe>
     </form>
   );
 }

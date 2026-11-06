@@ -1,4 +1,6 @@
+import type { DirectoryTenantState } from "@faridalms/database/directory/schema";
 import type { AgingBucket, DunningStep } from "@faridalms/domain/dunning";
+import type { ExamBoard } from "@faridalms/domain/exams";
 import type {
   InvoiceKind,
   InvoiceState,
@@ -16,12 +18,18 @@ import type {
   HealthReason,
   OnboardingItem,
 } from "@faridalms/domain/onboarding";
+import type { OperatorRole } from "@faridalms/domain/operators";
 import type { SchoolNotice } from "@faridalms/domain/plans";
 import type { DemoRole, DemoSize } from "@faridalms/domain/product";
 import type { SchoolStanding } from "@faridalms/domain/provisioning";
 import type { DraftStep } from "@faridalms/domain/provisioning-draft";
 import type { QuoteState } from "@faridalms/domain/quotes";
-import type { Currency, LimitKey } from "@faridalms/domain/subscriptions";
+import type {
+  Currency,
+  LimitKey,
+  SubscriptionState,
+} from "@faridalms/domain/subscriptions";
+import type { Tone } from "@faridalms/ui/system/status";
 
 import { MODULE_IDS } from "@faridalms/domain/modules";
 import { STORAGE_KEYS } from "@faridalms/domain/subscriptions";
@@ -76,7 +84,7 @@ export function moduleName(id: string): string {
   return known ? MODULE_NAMES[known] : id;
 }
 
-export const BOARD_NAMES: Record<string, string> = {
+export const BOARD_NAMES: Record<ExamBoard, string> = {
   cambridge: "Cambridge International",
   pearson: "Pearson Edexcel",
   ib: "International Baccalaureate",
@@ -208,6 +216,43 @@ export const INVOICE_STATE_NAMES: Record<InvoiceState, string> = {
   credited: "Credited",
 };
 
+export const SUBSCRIPTION_STATE_NAMES: Record<SubscriptionState, string> = {
+  trial: "Trial",
+  active: "Active",
+  ended: "Ended",
+};
+
+export const SUBSCRIPTION_STATE_TONE: Record<SubscriptionState, Tone> = {
+  trial: "info",
+  active: "success",
+  ended: "neutral",
+};
+
+export const LEAD_STATE_TONE: Record<LeadState, Tone> = {
+  new: "info",
+  contacted: "info",
+  demo_booked: "info",
+  demo_done: "info",
+  proposal: "warning",
+  won: "success",
+  lost: "neutral",
+};
+
+export const QUOTE_STATE_TONE: Record<QuoteState, Tone> = {
+  draft: "neutral",
+  sent: "info",
+  accepted: "success",
+  superseded: "neutral",
+};
+
+export const INVOICE_STATE_TONE: Record<InvoiceState, Tone> = {
+  draft: "neutral",
+  issued: "info",
+  partly_paid: "warning",
+  paid: "success",
+  credited: "neutral",
+};
+
 export const INVOICE_KIND_NAMES: Record<InvoiceKind, string> = {
   instalment: "Instalment",
   proration: "Started in the term",
@@ -284,4 +329,41 @@ export const HEALTH_REASON_NAMES: Record<HealthReason, string> = {
   onboarding_stalled: "Onboarding has stalled",
   host_failing: "One of its own addresses is failing",
   deliveries_failing: "Messages failed to deliver in the last day",
+};
+
+/** What each operator role is called, and what it may do. */
+export const OPERATOR_ROLE_NAMES: Record<OperatorRole, string> = {
+  owner: "Owner",
+  sales: "Sales",
+  support: "Support",
+  finance: "Finance",
+};
+
+export const OPERATOR_ROLE_HINTS: Record<OperatorRole, string> = {
+  owner: "Everything, including operators and the catalogue.",
+  sales: "Leads, quotes and customers; reads schools.",
+  support: "Schools, support requests and notices; reads billing.",
+  finance: "Invoices, payments, credit notes and reports.",
+};
+
+export const TENANT_STATE_NAMES: Record<DirectoryTenantState, string> = {
+  provisioning: "Provisioning",
+  importing: "Importing",
+  active: "Active",
+  read_only: "Paused (read only)",
+  frozen: "Frozen",
+  suspended: "Suspended",
+  offboarding: "Offboarding",
+  offboarded: "Offboarded",
+};
+
+export const TENANT_STATE_TONE: Record<DirectoryTenantState, Tone> = {
+  provisioning: "info",
+  importing: "info",
+  active: "success",
+  read_only: "warning",
+  frozen: "warning",
+  suspended: "danger",
+  offboarding: "neutral",
+  offboarded: "neutral",
 };

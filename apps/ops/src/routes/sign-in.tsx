@@ -1,6 +1,9 @@
 import { buttonVariants } from "@faridalms/ui/button";
 import { createFileRoute, redirect } from "@tanstack/react-router";
+import { CircleAlert } from "lucide-react";
 import * as v from "valibot";
+
+import { AuthCard } from "../components/AuthCard";
 
 const REASON: Record<string, string> = {
   expired: "The sign-in took too long. Try again.",
@@ -22,26 +25,22 @@ export const Route = createFileRoute("/sign-in")({
 function SignIn() {
   const { error } = Route.useSearch();
   return (
-    <div className="mx-auto grid max-w-sm gap-4 pt-16 text-center">
-      <h1 className="text-2xl font-semibold">Operator console</h1>
-      <p className="text-sm text-muted-foreground">
-        Plans, storage and modules for every school. Sign in with your company
-        account.
-      </p>
+    <AuthCard
+      title="Operator console"
+      description="Schools, customers and billing for the whole platform. Sign in with your company account."
+    >
       {error ? (
-        <p role="alert" className="text-sm text-destructive">
+        <p
+          role="alert"
+          className="flex items-start gap-2 rounded-md border border-destructive/40 bg-destructive/5 px-3 py-2.5 text-sm leading-5 text-destructive"
+        >
+          <CircleAlert className="mt-0.5 size-4 shrink-0" aria-hidden />
           {REASON[error] ?? REASON.failed}
         </p>
       ) : null}
-      <a
-        href="/auth/login"
-        className={buttonVariants({
-          size: "lg",
-          className: "justify-self-center",
-        })}
-      >
+      <a href="/auth/login" className={buttonVariants({ className: "w-full" })}>
         Sign in
       </a>
-    </div>
+    </AuthCard>
   );
 }

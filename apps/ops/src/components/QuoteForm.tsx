@@ -7,18 +7,28 @@ import type {
   BillingSchedule,
   Currency,
 } from "@faridalms/domain/subscriptions";
+import type { ReactNode } from "react";
 
 import { BILLING_SCHEDULES, CURRENCIES } from "@faridalms/domain/subscriptions";
 import { Button } from "@faridalms/ui/button";
-import { Input } from "@faridalms/ui/input";
+import {
+  FormField,
+  SelectField,
+  TextField,
+} from "@faridalms/ui/system/form-field";
+import { FormFooter } from "@faridalms/ui/system/form-footer";
+import { FormSection } from "@faridalms/ui/system/record-form";
 import { Textarea } from "@faridalms/ui/textarea";
+import { X } from "lucide-react";
 import { useState } from "react";
 
 import { minorOf } from "../format";
 import { SCHEDULE_NAMES } from "./TermsFields";
 
-const SELECT = "h-9 rounded-md border bg-background px-2 text-sm";
-const FIELD = "grid gap-1.5 text-sm";
+const SCHEDULE_OPTIONS = BILLING_SCHEDULES.map((choice) => ({
+  value: choice,
+  label: SCHEDULE_NAMES[choice],
+}));
 
 const listPrice = (
   prices: { currency: Currency; amountMinor: number }[],
@@ -39,19 +49,25 @@ interface LineDraft {
  * each with its quantity, price and discount, the term and its billing,
  * how long the offer stands, and notes in both languages.
  */
+export interface QuoteFormProps {
+  initial: QuoteSpec;
+  plans: PlanVersionRow[];
+  addOns: AddOnVersionRow[];
+  submitLabel: string;
+  /** Saves the quote; resolves to what went wrong, or null. */
+  onSubmit: (spec: QuoteSpec) => Promise<string | null>;
+  /** Beside the submit button, such as Cancel. */
+  secondary?: ReactNode;
+}
+
 export function QuoteForm({
   initial,
   plans,
   addOns,
   submitLabel,
   onSubmit,
-}: {
-  initial: QuoteSpec;
-  plans: PlanVersionRow[];
-  addOns: AddOnVersionRow[];
-  submitLabel: string;
-  onSubmit: (spec: QuoteSpec) => Promise<string | null>;
-}) {
+  secondary,
+}: QuoteFormProps) {
   const [currency, setCurrency] = useState<Currency>(initial.currency);
   const [planVersionId, setPlanVersionId] = useState(
     initial.planVersionId ?? "",
@@ -151,10 +167,23 @@ export function QuoteForm({
       current.map((line, at) => (at === index ? { ...line, ...change } : line)),
     );
 
+  const currencyOptions = CURRENCIES.map((choice) => ({
+    value: choice,
+    label: choice,
+  }));
+  const addOnOptions = [
+    { value: "", label: "Choose…" },
+    ...addOns.map((addOn) => ({
+      value: addOn.id,
+      label: `${addOn.nameEn} version ${addOn.version}`,
+    })),
+  ];
+
   return (
     <form
       aria-label="Quote"
-      className="grid max-w-3xl gap-6 rounded-lg border p-6"
+      noValidate
+      className="grid max-w-3xl gap-10"
       onSubmit={async (event) => {
         event.preventDefault();
         const out = read();
@@ -167,150 +196,109 @@ export function QuoteForm({
         setSaving(false);
       }}
     >
-      <div className="grid items-start gap-4 sm:grid-cols-2">
-        <div className={FIELD}>
-          <label htmlFor="quote-currency" className="font-medium">
-            Currency
-          </label>
-          <select
-            id="quote-currency"
+      <FormSection title="What is sold">
+        <div className="grid items-start gap-6 sm:grid-cols-2">
+          <SelectField
+            label="Currency"
+            width="code"
             value={currency}
-            onChange={(event) => setCurrency(event.target.value as Currency)}
-            className={SELECT}
-          >
-            {CURRENCIES.map((choice) => (
-              <option key={choice} value={choice}>
-                {choice}
-              </option>
-            ))}
-          </select>
-        </div>
-        <div className={FIELD}>
-          <label htmlFor="quote-valid" className="font-medium">
-            Valid until
-          </label>
-          <Input
-            id="quote-valid"
+            options={currencyOptions}
+            onChange={setCurrency}
+          />
+          <TextField
+            label="Valid until"
             type="date"
-            required
+            width="date"
             value={validUntil}
             onChange={(event) => setValidUntil(event.target.value)}
           />
         </div>
-        <div className={`${FIELD} sm:col-span-2`}>
-          <label htmlFor="quote-plan" className="font-medium">
-            Plan
-          </label>
-          <select
-            id="quote-plan"
-            value={planVersionId}
-            onChange={(event) => {
-              setPlanVersionId(event.target.value);
-              const plan = plans.find((row) => row.id === event.target.value);
-              setPrice(asMajor(plan ? listPrice(plan.prices, currency) : 0));
-            }}
-            className={SELECT}
-          >
-            <option value="">No plan: add-ons alone</option>
-            {plans.map((plan) => (
-              <option key={plan.id} value={plan.id}>
-                {plan.nameEn} version {plan.version}
-              </option>
-            ))}
-          </select>
-        </div>
+        <SelectField
+          label="Plan"
+          value={planVersionId}
+          options={[
+            { value: "", label: "No plan: add-ons alone" },
+            ...plans.map((plan) => ({
+              value: plan.id,
+              label: `${plan.nameEn} version ${plan.version}`,
+            })),
+          ]}
+          onChange={(chosen) => {
+            setPlanVersionId(chosen);
+            const plan = plans.find((row) => row.id === chosen);
+            setPrice(asMajor(plan ? listPrice(plan.prices, currency) : 0));
+          }}
+        />
         {planVersionId ? (
-          <>
-            <div className={FIELD}>
-              <label htmlFor="quote-quantity" className="font-medium">
-                Quantity
-              </label>
-              <Input
-                id="quote-quantity"
-                inputMode="numeric"
-                value={quantity}
-                onChange={(event) => setQuantity(event.target.value)}
-              />
-            </div>
-            <div className={FIELD}>
-              <label htmlFor="quote-price" className="font-medium">
-                Unit price ({currency})
-              </label>
-              <Input
-                id="quote-price"
-                inputMode="decimal"
-                value={price}
-                onChange={(event) => setPrice(event.target.value)}
-              />
-            </div>
-            <div className={FIELD}>
-              <label htmlFor="quote-discount" className="font-medium">
-                Discount (%)
-              </label>
-              <Input
-                id="quote-discount"
-                inputMode="decimal"
-                value={discount}
-                onChange={(event) => setDiscount(event.target.value)}
-              />
-            </div>
-          </>
+          <div className="grid items-start gap-6 sm:grid-cols-3">
+            <TextField
+              label="Quantity"
+              inputMode="numeric"
+              value={quantity}
+              onChange={(event) => setQuantity(event.target.value)}
+            />
+            <TextField
+              label={`Unit price (${currency})`}
+              inputMode="decimal"
+              value={price}
+              onChange={(event) => setPrice(event.target.value)}
+            />
+            <TextField
+              label="Discount (%)"
+              inputMode="decimal"
+              value={discount}
+              onChange={(event) => setDiscount(event.target.value)}
+            />
+          </div>
         ) : null}
-      </div>
+      </FormSection>
 
-      <fieldset className="grid gap-3 text-sm">
-        <legend className="mb-1 font-medium">Add-ons</legend>
+      <FormSection title="Add-ons">
         {lines.map((line, index) => {
           const addOn = addOns.find((row) => row.id === line.addOnVersionId);
+          const name = addOn
+            ? `${addOn.nameEn} version ${addOn.version}`
+            : "Retired";
           return (
             <div
               key={`${line.addOnVersionId}-${index}`}
-              className="grid items-end gap-2 border-t pt-3 sm:grid-cols-[1fr_auto_auto_auto_auto]"
+              className="grid gap-4 rounded-lg border bg-card p-5"
             >
-              <span className="font-medium">
-                {addOn ? `${addOn.nameEn} version ${addOn.version}` : "Retired"}
-              </span>
-              <div className="grid gap-1">
-                <label
-                  htmlFor={`quote-add-on-${index}-count`}
-                  className="text-xs"
+              <div className="flex items-center justify-between gap-2">
+                <span className="text-sm leading-5 font-semibold">{name}</span>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon-sm"
+                  aria-label={`Remove ${name}`}
+                  onClick={() =>
+                    setLines((current) =>
+                      current.filter((_, at) => at !== index),
+                    )
+                  }
                 >
-                  Quantity
-                </label>
-                <Input
-                  id={`quote-add-on-${index}-count`}
+                  <X aria-hidden />
+                </Button>
+              </div>
+              <div className="grid items-start gap-6 sm:grid-cols-3">
+                <TextField
+                  label="Quantity"
                   inputMode="numeric"
                   value={line.quantity}
                   onChange={(event) =>
                     setLine(index, { quantity: event.target.value })
                   }
                 />
-              </div>
-              <div className="grid gap-1">
-                <label
-                  htmlFor={`quote-add-on-${index}-price`}
-                  className="text-xs"
-                >
-                  Unit price
-                </label>
-                <Input
-                  id={`quote-add-on-${index}-price`}
+                <TextField
+                  label="Unit price"
                   inputMode="decimal"
                   value={line.price}
                   onChange={(event) =>
                     setLine(index, { price: event.target.value })
                   }
                 />
-              </div>
-              <div className="grid gap-1">
-                <label
-                  htmlFor={`quote-add-on-${index}-discount`}
-                  className="text-xs"
-                >
-                  Discount (%)
-                </label>
-                <Input
-                  id={`quote-add-on-${index}-discount`}
+                <TextField
+                  label="Discount (%)"
                   inputMode="decimal"
                   value={line.discount}
                   onChange={(event) =>
@@ -318,135 +306,92 @@ export function QuoteForm({
                   }
                 />
               </div>
-              <Button
-                type="button"
-                variant="ghost"
-                onClick={() =>
-                  setLines((current) => current.filter((_, at) => at !== index))
-                }
-              >
-                Remove
-              </Button>
             </div>
           );
         })}
         {addOns.length ? (
-          <div className="grid max-w-sm gap-1.5">
-            <label htmlFor="quote-add-on" className="font-medium">
-              Add an add-on
-            </label>
-            <select
-              id="quote-add-on"
-              value=""
-              onChange={(event) => {
-                const addOn = addOns.find(
-                  (row) => row.id === event.target.value,
-                );
-                if (!addOn) return;
-                setLines((current) => [
-                  ...current,
-                  {
-                    addOnVersionId: addOn.id,
-                    quantity: "1",
-                    price: asMajor(listPrice(addOn.prices, currency)),
-                    discount: "0",
-                  },
-                ]);
-              }}
-              className={SELECT}
-            >
-              <option value="">Choose…</option>
-              {addOns.map((addOn) => (
-                <option key={addOn.id} value={addOn.id}>
-                  {addOn.nameEn} version {addOn.version}
-                </option>
-              ))}
-            </select>
-          </div>
-        ) : null}
-      </fieldset>
+          <SelectField
+            label="Add an add-on"
+            width="name"
+            value=""
+            options={addOnOptions}
+            onChange={(chosen) => {
+              const addOn = addOns.find((row) => row.id === chosen);
+              if (!addOn) return;
+              setLines((current) => [
+                ...current,
+                {
+                  addOnVersionId: addOn.id,
+                  quantity: "1",
+                  price: asMajor(listPrice(addOn.prices, currency)),
+                  discount: "0",
+                },
+              ]);
+            }}
+          />
+        ) : (
+          <p className="text-sm leading-5 text-muted-foreground">
+            No add-ons are sold.
+          </p>
+        )}
+      </FormSection>
 
-      <div className="grid items-start gap-4 sm:grid-cols-3">
-        <div className={FIELD}>
-          <label htmlFor="quote-starts" className="font-medium">
-            Term starts
-          </label>
-          <Input
-            id="quote-starts"
+      <FormSection title="Term">
+        <div className="grid items-start gap-6 sm:grid-cols-3">
+          <TextField
+            label="Term starts"
             type="date"
-            required
             value={termStartsOn}
             onChange={(event) => setTermStartsOn(event.target.value)}
           />
-        </div>
-        <div className={FIELD}>
-          <label htmlFor="quote-ends" className="font-medium">
-            Term ends
-          </label>
-          <Input
-            id="quote-ends"
+          <TextField
+            label="Term ends"
             type="date"
-            required
             value={termEndsOn}
             onChange={(event) => setTermEndsOn(event.target.value)}
           />
-        </div>
-        <div className={FIELD}>
-          <label htmlFor="quote-schedule" className="font-medium">
-            Billing
-          </label>
-          <select
-            id="quote-schedule"
+          <SelectField
+            label="Billing"
             value={schedule}
-            onChange={(event) =>
-              setSchedule(event.target.value as BillingSchedule)
-            }
-            className={SELECT}
-          >
-            {BILLING_SCHEDULES.map((choice) => (
-              <option key={choice} value={choice}>
-                {SCHEDULE_NAMES[choice]}
-              </option>
-            ))}
-          </select>
-        </div>
-      </div>
-
-      <div className="grid items-start gap-4 sm:grid-cols-2">
-        <div className={FIELD}>
-          <label htmlFor="quote-notes-en" className="font-medium">
-            Notes in English
-          </label>
-          <Textarea
-            id="quote-notes-en"
-            maxLength={2000}
-            value={notesEn}
-            onChange={(event) => setNotesEn(event.target.value)}
+            options={SCHEDULE_OPTIONS}
+            onChange={setSchedule}
           />
         </div>
-        <div className={FIELD}>
-          <label htmlFor="quote-notes-ar" className="font-medium">
-            Notes in Arabic
-          </label>
-          <Textarea
-            id="quote-notes-ar"
-            dir="rtl"
-            lang="ar"
-            maxLength={2000}
-            value={notesAr}
-            onChange={(event) => setNotesAr(event.target.value)}
-          />
-        </div>
-      </div>
+      </FormSection>
 
-      {answer ? (
-        <p role="alert" className="text-sm text-destructive">
-          {answer}
-        </p>
-      ) : null}
-      <Button type="submit" disabled={saving} className="justify-self-start">
-        {saving ? "Saving…" : submitLabel}
-      </Button>
+      <FormSection title="Notes">
+        <div className="grid items-start gap-6 sm:grid-cols-2">
+          <FormField label="Notes in English" optional>
+            {(control) => (
+              <Textarea
+                {...control}
+                maxLength={2000}
+                value={notesEn}
+                onChange={(event) => setNotesEn(event.target.value)}
+              />
+            )}
+          </FormField>
+          <FormField label="Notes in Arabic" optional>
+            {(control) => (
+              <Textarea
+                {...control}
+                dir="rtl"
+                lang="ar"
+                maxLength={2000}
+                value={notesAr}
+                onChange={(event) => setNotesAr(event.target.value)}
+              />
+            )}
+          </FormField>
+        </div>
+      </FormSection>
+
+      <FormFooter
+        submitLabel={submitLabel}
+        pending={saving}
+        error={answer}
+        secondary={secondary}
+      />
     </form>
   );
 }

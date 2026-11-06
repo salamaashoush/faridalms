@@ -1,5 +1,7 @@
 import { addDays } from "@faridalms/domain/school";
-import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { ButtonLink } from "@faridalms/ui/system/button-link";
+import { PageHeader } from "@faridalms/ui/system/page-header";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
 import * as v from "valibot";
@@ -15,6 +17,7 @@ export const Route = createFileRoute("/quotes/new")({
     leadId: v.optional(uuid),
     customerId: v.optional(uuid),
   }),
+  staticData: { section: "/leads", title: "New quote" },
   loaderDeps: ({ search }) => search,
   loader: ({ deps }) => getQuoteStart({ data: deps }),
   component: NewQuote,
@@ -27,31 +30,11 @@ function NewQuote() {
   const add = useServerFn(addQuote);
   const { party } = data;
   return (
-    <div className="grid gap-6">
-      <div className="grid gap-1">
-        {party.kind === "lead" ? (
-          <Link
-            to="/leads/$leadId"
-            params={{ leadId: party.id }}
-            className="text-sm text-muted-foreground hover:underline"
-          >
-            {party.name}
-          </Link>
-        ) : (
-          <Link
-            to="/customers/$customerId"
-            params={{ customerId: party.id }}
-            className="text-sm text-muted-foreground hover:underline"
-          >
-            {party.name}
-          </Link>
-        )}
-        <h1 className="text-2xl font-semibold">New quote</h1>
-        <p className="text-sm text-muted-foreground">
-          VAT follows {party.country ?? "the lead's country, once it is given"}.
-          It stays a draft, changed in place, until it is marked sent.
-        </p>
-      </div>
+    <div className="grid">
+      <PageHeader
+        title="New quote"
+        description={`For ${party.name}. VAT follows ${party.country ?? "the lead's country, once it is given"}; it stays a draft until it is marked sent.`}
+      />
       <QuoteForm
         initial={{
           currency: party.currency ?? (party.country === "EG" ? "EGP" : "USD"),
@@ -70,6 +53,25 @@ function NewQuote() {
         plans={data.selling.plans}
         addOns={data.selling.addOns}
         submitLabel="Save the quote"
+        secondary={
+          party.kind === "lead" ? (
+            <ButtonLink
+              to="/leads/$leadId"
+              params={{ leadId: party.id }}
+              variant="outline"
+            >
+              Cancel
+            </ButtonLink>
+          ) : (
+            <ButtonLink
+              to="/customers/$customerId"
+              params={{ customerId: party.id }}
+              variant="outline"
+            >
+              Cancel
+            </ButtonLink>
+          )
+        }
         onSubmit={async (spec) => {
           try {
             const out = await add({

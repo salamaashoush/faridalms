@@ -12,16 +12,29 @@ import {
 } from "@faridalms/domain/leads";
 import { DEMO_SIZES } from "@faridalms/domain/product";
 import { quoteReference } from "@faridalms/domain/quotes";
-import { Badge } from "@faridalms/ui/badge";
-import { Button, buttonVariants } from "@faridalms/ui/button";
-import { Input } from "@faridalms/ui/input";
+import { ButtonLink } from "@faridalms/ui/system/button-link";
+import {
+  FormField,
+  SelectField,
+  TextField,
+} from "@faridalms/ui/system/form-field";
+import {
+  RecordColumns,
+  RecordEmpty,
+  RecordHeader,
+  RecordList,
+  RecordSection,
+} from "@faridalms/ui/system/record-page";
+import { SettingsSection } from "@faridalms/ui/system/settings-section";
+import { StatusBadge } from "@faridalms/ui/system/status";
 import { Textarea } from "@faridalms/ui/textarea";
 import { createFileRoute, Link, useRouter } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
+import { Plus } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 
-import { failure } from "../actions";
+import { attempt } from "../actions";
 import { EventList } from "../components/EventList";
 import {
   ACTIVITY_NAMES,
@@ -29,9 +42,11 @@ import {
   formatWhen,
   LEAD_SOURCE_NAMES,
   LEAD_STATE_NAMES,
+  LEAD_STATE_TONE,
   LOST_REASON_NAMES,
   MODULE_NAMES,
   QUOTE_STATE_NAMES,
+  QUOTE_STATE_TONE,
   ROLE_NAMES,
   SIZE_NAMES,
 } from "../format";
@@ -44,319 +59,324 @@ import {
 } from "../server/leads";
 
 export const Route = createFileRoute("/leads/$leadId")({
+  staticData: { title: "Lead" },
   loader: ({ params }) => getLead({ data: { id: params.leadId } }),
   component: LeadPage,
 });
 
 type Data = Awaited<ReturnType<typeof getLead>>;
 
-const SELECT = "h-9 rounded-md border bg-background px-2 text-sm";
-
 type LeadText = "organisation" | "name" | "email" | "phone" | "country";
-type LeadFields = Record<LeadText, string> & {
+
+interface LeadFields extends Record<LeadText, string> {
   size: DemoSize | "";
   locale: "en" | "ar";
-};
+}
+
+interface LeadProps {
+  data: Data;
+}
+
+const SIZE_OPTIONS = [
+  { value: "", label: "Not known" },
+  ...DEMO_SIZES.map((size) => ({ value: size, label: SIZE_NAMES[size] })),
+] as const;
+
+const LOCALE_OPTIONS = [
+  { value: "en", label: "English" },
+  { value: "ar", label: "Arabic" },
+] as const;
 
 function LeadPage() {
   const data = Route.useLoaderData();
   const { lead, activities, quotes, history, names } = data;
+  const open = lead.state !== "lost" && lead.state !== "won";
   return (
-    <div className="grid gap-8">
-      <div className="grid gap-1">
-        <Link
-          to="/leads"
-          className="text-sm text-muted-foreground hover:underline"
-        >
-          Leads
-        </Link>
-        <h1 className="flex flex-wrap items-center gap-3 text-2xl font-semibold">
-          {lead.organisation}
-          <Badge variant="secondary">{LEAD_STATE_NAMES[lead.state]}</Badge>
-        </h1>
-        <p className="text-sm text-muted-foreground">
-          {LEAD_SOURCE_NAMES[lead.source]} · {formatWhen(lead.createdAt)}
-          {lead.module ? ` · asked about ${MODULE_NAMES[lead.module]}` : ""}
-          {lead.role ? ` · ${ROLE_NAMES[lead.role]}` : ""}
-        </p>
-        {lead.customerId ? (
-          <p className="text-sm">
-            Won:{" "}
-            <Link
-              to="/customers/$customerId"
-              params={{ customerId: lead.customerId }}
-              className="underline"
+    <>
+      <RecordHeader
+        title={lead.organisation}
+        status={{
+          label: LEAD_STATE_NAMES[lead.state],
+          tone: LEAD_STATE_TONE[lead.state],
+        }}
+        facts={[
+          { label: "Source", value: LEAD_SOURCE_NAMES[lead.source] },
+          { label: "Came in", value: formatWhen(lead.createdAt) },
+          ...(lead.module
+            ? [
+                {
+                  label: "Asked about",
+                  value: `asked about ${MODULE_NAMES[lead.module]}`,
+                },
+              ]
+            : []),
+          ...(lead.role
+            ? [{ label: "Role", value: ROLE_NAMES[lead.role] }]
+            : []),
+          ...(lead.customerId
+            ? [
+                {
+                  label: "Won",
+                  value: (
+                    <Link
+                      to="/customers/$customerId"
+                      params={{ customerId: lead.customerId }}
+                      className="font-medium text-primary underline-offset-4 hover:underline"
+                    >
+                      Its customer
+                    </Link>
+                  ),
+                },
+              ]
+            : []),
+        ]}
+      />
+      <RecordColumns
+        main={
+          <>
+            {lead.message ? (
+              <RecordSection title="What they wrote">
+                <p className="text-sm leading-6 whitespace-pre-line">
+                  {lead.message}
+                </p>
+              </RecordSection>
+            ) : null}
+            <RecordSection title="Activity">
+              {activities.length ? (
+                <RecordList>
+                  {activities.map((activity) => (
+                    <li key={activity.id} className="grid gap-1 py-3">
+                      <span className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-0.5">
+                        <span className="text-sm leading-5 font-medium">
+                          {ACTIVITY_NAMES[activity.kind]}
+                        </span>
+                        <span className="text-[13px] leading-[18px] text-muted-foreground">
+                          {formatWhen(activity.occurredAt)} ·{" "}
+                          {names[activity.createdBy] ?? "a former operator"}
+                        </span>
+                      </span>
+                      <p className="text-sm leading-5 whitespace-pre-line">
+                        {activity.note}
+                      </p>
+                    </li>
+                  ))}
+                </RecordList>
+              ) : (
+                <RecordEmpty>Nothing logged yet.</RecordEmpty>
+              )}
+            </RecordSection>
+            <ActivityForm leadId={lead.id} />
+            <RecordSection
+              title="Quotes"
+              action={
+                open ? (
+                  <ButtonLink
+                    to="/quotes/new"
+                    search={{ leadId: lead.id }}
+                    variant="ghost"
+                  >
+                    <Plus aria-hidden />
+                    New quote
+                  </ButtonLink>
+                ) : undefined
+              }
             >
-              its customer
-            </Link>
-          </p>
-        ) : null}
-        {lead.message ? (
-          <p className="max-w-2xl rounded-lg border p-4 text-sm whitespace-pre-line">
-            {lead.message}
-          </p>
-        ) : null}
-      </div>
-      <div className="grid items-start gap-6 lg:grid-cols-2">
-        <Standing data={data} />
-        <NextStep data={data} />
-      </div>
-      <Details data={data} key={lead.version} />
-      <section className="grid max-w-2xl gap-3">
-        <h2 className="text-base font-semibold">Activity</h2>
-        <ActivityForm leadId={lead.id} />
-        {activities.length ? (
-          <ol className="divide-y rounded-lg border">
-            {activities.map((activity) => (
-              <li key={activity.id} className="grid gap-1 px-4 py-3 text-sm">
-                <span className="flex flex-wrap justify-between gap-2">
-                  <span className="font-medium">
-                    {ACTIVITY_NAMES[activity.kind]}
-                  </span>
-                  <span className="text-xs text-muted-foreground">
-                    {formatWhen(activity.occurredAt)} ·{" "}
-                    {names[activity.createdBy] ?? "a former operator"}
-                  </span>
-                </span>
-                <p className="whitespace-pre-line">{activity.note}</p>
-              </li>
-            ))}
-          </ol>
-        ) : (
-          <p className="text-sm text-muted-foreground">Nothing logged yet.</p>
-        )}
-      </section>
-      <section className="grid max-w-2xl gap-3">
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <h2 className="text-base font-semibold">Quotes</h2>
-          {lead.state === "lost" || lead.state === "won" ? null : (
-            <Link
-              to="/quotes/new"
-              search={{ leadId: lead.id }}
-              className={buttonVariants({ variant: "outline", size: "sm" })}
-            >
-              New quote
-            </Link>
-          )}
-        </div>
-        {quotes.length ? (
-          <ul className="divide-y rounded-lg border">
-            {quotes.map((quote) => (
-              <li
-                key={quote.id}
-                className="flex flex-wrap items-center gap-2 px-4 py-3 text-sm"
-              >
-                <Link
-                  to="/quotes/$quoteId"
-                  params={{ quoteId: quote.id }}
-                  className="font-medium underline"
-                >
-                  {quoteReference(quote.number, quote.version)}
-                </Link>
-                <Badge variant="outline">
-                  {QUOTE_STATE_NAMES[quote.state]}
-                </Badge>
-                <span className="text-muted-foreground">
-                  {formatMoney(quote.totalMinor, quote.currency)}
-                </span>
-              </li>
-            ))}
-          </ul>
-        ) : (
-          <p className="text-sm text-muted-foreground">No quotes yet.</p>
-        )}
-      </section>
-      <section className="grid gap-3">
-        <h2 className="text-base font-semibold">History</h2>
-        <EventList events={history} names={names} />
-      </section>
-    </div>
+              {quotes.length ? (
+                <RecordList>
+                  {quotes.map((quote) => (
+                    <li
+                      key={quote.id}
+                      className="flex flex-wrap items-center justify-between gap-2 py-3"
+                    >
+                      <span className="grid gap-0.5">
+                        <Link
+                          to="/quotes/$quoteId"
+                          params={{ quoteId: quote.id }}
+                          className="text-sm leading-5 font-medium hover:text-primary hover:underline"
+                        >
+                          {quoteReference(quote.number, quote.version)}
+                        </Link>
+                        <span className="text-[13px] leading-[18px] text-muted-foreground tabular-nums">
+                          {formatMoney(quote.totalMinor, quote.currency)}
+                        </span>
+                      </span>
+                      <StatusBadge tone={QUOTE_STATE_TONE[quote.state]}>
+                        {QUOTE_STATE_NAMES[quote.state]}
+                      </StatusBadge>
+                    </li>
+                  ))}
+                </RecordList>
+              ) : (
+                <RecordEmpty>No quotes yet.</RecordEmpty>
+              )}
+            </RecordSection>
+            <Details data={data} key={lead.version} />
+            <RecordSection title="History">
+              <EventList events={history} names={names} />
+            </RecordSection>
+          </>
+        }
+        aside={
+          <>
+            <Standing data={data} />
+            <NextStep data={data} />
+          </>
+        }
+      />
+    </>
   );
 }
 
 /** Where the lead stands in the pipeline, and why when it was lost. */
-function Standing({ data }: { data: Data }) {
+function Standing({ data }: LeadProps) {
   const router = useRouter();
   const move = useServerFn(moveLead);
   const [state, setState] = useState<LeadState>(data.lead.state);
   const [reason, setReason] = useState<LostReason | "">(
     data.lead.lostReason ?? "",
   );
-  const [saving, setSaving] = useState(false);
+  const [submitted, setSubmitted] = useState(false);
+  const [pending, setPending] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const unchanged =
+    state === data.lead.state && reason === (data.lead.lostReason ?? "");
   return (
-    <form
-      aria-label="Where it stands"
-      className="grid gap-4 rounded-lg border p-6"
-      onSubmit={async (event) => {
-        event.preventDefault();
-        setSaving(true);
-        try {
-          await move({
-            data: {
-              id: data.lead.id,
-              state,
-              lostReason: state === "lost" ? reason || null : null,
-            },
-          });
-          toast.success("Moved.");
-          await router.invalidate();
-        } catch (error) {
-          const said = failure(
-            error,
-            "It could not be moved. A lost lead says why it was lost.",
-          );
-          if (said) toast.error(said);
-        } finally {
-          setSaving(false);
+    <SettingsSection
+      title="Where it stands"
+      submitLabel="Move"
+      pending={pending}
+      error={error}
+      isDirty={() => !unchanged}
+      onSubmit={async () => {
+        setSubmitted(true);
+        if (unchanged || (state === "lost" && !reason)) return;
+        setPending(true);
+        setError(null);
+        const failed = await attempt(
+          () =>
+            move({
+              data: {
+                id: data.lead.id,
+                state,
+                lostReason: state === "lost" ? reason || null : null,
+              },
+            }),
+          "It could not be moved.",
+        );
+        setPending(false);
+        if (failed) {
+          setError(failed);
+          return;
         }
+        setSubmitted(false);
+        toast.success("Moved.");
+        await router.invalidate();
       }}
     >
-      <h2 className="text-base font-semibold">Where it stands</h2>
-      <div className="grid items-start gap-4 sm:grid-cols-2">
-        <div className="grid gap-1.5 text-sm">
-          <label htmlFor="lead-state" className="font-medium">
-            Stage
-          </label>
-          <select
-            id="lead-state"
-            value={state}
-            onChange={(event) => setState(event.target.value as LeadState)}
-            className={SELECT}
-          >
-            {LEAD_STATES.map((choice) => (
-              <option key={choice} value={choice}>
-                {LEAD_STATE_NAMES[choice]}
-              </option>
-            ))}
-          </select>
-        </div>
-        {state === "lost" ? (
-          <div className="grid gap-1.5 text-sm">
-            <label htmlFor="lead-lost" className="font-medium">
-              Why it was lost
-            </label>
-            <select
-              id="lead-lost"
-              required
-              value={reason}
-              onChange={(event) =>
-                setReason(event.target.value as LostReason | "")
-              }
-              className={SELECT}
-            >
-              <option value="">Choose…</option>
-              {LOST_REASONS.map((choice) => (
-                <option key={choice} value={choice}>
-                  {LOST_REASON_NAMES[choice]}
-                </option>
-              ))}
-            </select>
-          </div>
-        ) : null}
-      </div>
-      <Button
-        type="submit"
-        disabled={
-          saving ||
-          (state === data.lead.state && reason === (data.lead.lostReason ?? ""))
-        }
-        className="justify-self-start"
-      >
-        {saving ? "Moving…" : "Move"}
-      </Button>
-    </form>
+      <SelectField
+        label="Stage"
+        value={state}
+        options={LEAD_STATES.map((choice) => ({
+          value: choice,
+          label: LEAD_STATE_NAMES[choice],
+        }))}
+        onChange={setState}
+      />
+      {state === "lost" ? (
+        <SelectField
+          label="Why it was lost"
+          value={reason}
+          options={[
+            { value: "", label: "Choose…" },
+            ...LOST_REASONS.map((choice) => ({
+              value: choice,
+              label: LOST_REASON_NAMES[choice],
+            })),
+          ]}
+          errors={submitted && !reason ? ["Say why it was lost."] : undefined}
+          onChange={setReason}
+        />
+      ) : null}
+    </SettingsSection>
   );
 }
 
 /** Who works the lead, and what they do next by when. */
-function NextStep({ data }: { data: Data }) {
+function NextStep({ data }: LeadProps) {
   const router = useRouter();
   const plan = useServerFn(planLeadStep);
   const [ownerId, setOwnerId] = useState(data.lead.ownerId ?? "");
   const [nextStep, setNextStep] = useState(data.lead.nextStep ?? "");
   const [nextStepOn, setNextStepOn] = useState(data.lead.nextStepOn ?? "");
-  const [saving, setSaving] = useState(false);
+  const [pending, setPending] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   return (
-    <form
-      aria-label="Next step"
-      className="grid gap-4 rounded-lg border p-6"
-      onSubmit={async (event) => {
-        event.preventDefault();
-        setSaving(true);
-        try {
-          const out = await plan({
-            data: {
-              id: data.lead.id,
-              ownerId: ownerId || null,
-              nextStep,
-              nextStepOn: nextStepOn || null,
-            },
-          });
-          if (out.ok) {
-            toast.success("Next step saved.");
-            await router.invalidate();
-          } else toast.error(out.message);
-        } catch (error) {
-          const said = failure(error, "The next step could not be saved.");
-          if (said) toast.error(said);
-        } finally {
-          setSaving(false);
+    <SettingsSection
+      title="Next step"
+      submitLabel="Save next step"
+      pending={pending}
+      error={error}
+      isDirty={() =>
+        ownerId !== (data.lead.ownerId ?? "") ||
+        nextStep !== (data.lead.nextStep ?? "") ||
+        nextStepOn !== (data.lead.nextStepOn ?? "")
+      }
+      onSubmit={async () => {
+        setPending(true);
+        setError(null);
+        const failed = await attempt(
+          () =>
+            plan({
+              data: {
+                id: data.lead.id,
+                ownerId: ownerId || null,
+                nextStep,
+                nextStepOn: nextStepOn || null,
+              },
+            }),
+          "The next step could not be saved.",
+        );
+        setPending(false);
+        if (failed) {
+          setError(failed);
+          return;
         }
+        toast.success("Next step saved.");
+        await router.invalidate();
       }}
     >
-      <h2 className="text-base font-semibold">Next step</h2>
-      <div className="grid items-start gap-4 sm:grid-cols-2">
-        <div className="grid gap-1.5 text-sm">
-          <label htmlFor="lead-owner" className="font-medium">
-            Owner
-          </label>
-          <select
-            id="lead-owner"
-            value={ownerId}
-            onChange={(event) => setOwnerId(event.target.value)}
-            className={SELECT}
-          >
-            <option value="">Nobody yet</option>
-            {data.owners.map((owner) => (
-              <option key={owner.id} value={owner.id}>
-                {owner.name}
-              </option>
-            ))}
-          </select>
-        </div>
-        <div className="grid gap-1.5 text-sm">
-          <label htmlFor="lead-next-on" className="font-medium">
-            By
-          </label>
-          <Input
-            id="lead-next-on"
-            type="date"
-            value={nextStepOn}
-            onChange={(event) => setNextStepOn(event.target.value)}
-          />
-        </div>
-        <div className="grid gap-1.5 text-sm sm:col-span-2">
-          <label htmlFor="lead-next" className="font-medium">
-            What
-          </label>
-          <Input
-            id="lead-next"
-            maxLength={300}
-            value={nextStep}
-            onChange={(event) => setNextStep(event.target.value)}
-            placeholder="For example: call to book the demonstration"
-          />
-        </div>
-      </div>
-      <Button type="submit" disabled={saving} className="justify-self-start">
-        {saving ? "Saving…" : "Save next step"}
-      </Button>
-    </form>
+      <SelectField
+        label="Owner"
+        value={ownerId}
+        options={[
+          { value: "", label: "Nobody yet" },
+          ...data.owners.map((owner) => ({
+            value: owner.id,
+            label: owner.name,
+          })),
+        ]}
+        onChange={setOwnerId}
+      />
+      <TextField
+        label="What"
+        maxLength={300}
+        value={nextStep}
+        placeholder="For example: call to book the demonstration"
+        onChange={(event) => setNextStep(event.target.value)}
+      />
+      <TextField
+        label="By"
+        type="date"
+        width="date"
+        value={nextStepOn}
+        onChange={(event) => setNextStepOn(event.target.value)}
+      />
+    </SettingsSection>
   );
 }
 
 /** Who the lead is: the school, the person, how to reach them. */
-function Details({ data }: { data: Data }) {
+function Details({ data }: LeadProps) {
   const router = useRouter();
   const save = useServerFn(saveLeadDetails);
   const { lead } = data;
@@ -369,183 +389,174 @@ function Details({ data }: { data: Data }) {
     size: lead.size ?? "",
     locale: lead.locale,
   });
-  const [answer, setAnswer] = useState<string | null>(null);
-  const [saving, setSaving] = useState(false);
-  const set = (key: LeadText) => (event: { target: { value: string } }) =>
-    setFields((current) => ({ ...current, [key]: event.target.value }));
-  const text = (
-    key: LeadText,
-    label: string,
-    options: { required?: boolean; type?: string; dir?: "ltr"; max: number },
-  ) => (
-    <div className="grid gap-1.5 text-sm">
-      <label htmlFor={`lead-${key}`} className="font-medium">
-        {label}
-      </label>
-      <Input
-        id={`lead-${key}`}
-        required={options.required}
-        type={options.type}
-        dir={options.dir}
-        maxLength={options.max}
-        value={fields[key]}
-        onChange={set(key)}
-      />
-    </div>
-  );
+  const [submitted, setSubmitted] = useState(false);
+  const [pending, setPending] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const set = (key: keyof LeadFields, value: string) =>
+    setFields((current) => ({ ...current, [key]: value }));
+  const missing = (key: LeadText) => submitted && !fields[key].trim();
   return (
-    <form
-      aria-label="Lead details"
-      className="grid max-w-2xl gap-4 rounded-lg border p-6"
-      onSubmit={async (event) => {
-        event.preventDefault();
-        setSaving(true);
-        setAnswer(null);
-        try {
-          const out = await save({
-            data: {
-              ...fields,
-              id: lead.id,
-              expectedVersion: lead.version,
-              size: fields.size || null,
-              country: fields.country.trim() || null,
-            },
-          });
-          if (out.ok) {
-            toast.success("Details saved.");
-            await router.invalidate();
-          } else setAnswer(out.message);
-        } catch (error) {
-          setAnswer(failure(error, "The details could not be saved."));
-        } finally {
-          setSaving(false);
+    <SettingsSection
+      title="Lead details"
+      description="Who the lead is and how to reach them."
+      submitLabel="Save details"
+      pending={pending}
+      error={error}
+      onSubmit={async () => {
+        setSubmitted(true);
+        if (!fields.organisation.trim() || !fields.name.trim()) return;
+        setPending(true);
+        setError(null);
+        const failed = await attempt(
+          () =>
+            save({
+              data: {
+                ...fields,
+                id: lead.id,
+                expectedVersion: lead.version,
+                size: fields.size || null,
+                country: fields.country.trim() || null,
+              },
+            }),
+          "The details could not be saved.",
+        );
+        setPending(false);
+        if (failed) {
+          setError(failed);
+          return;
         }
+        toast.success("Details saved.");
+        await router.invalidate();
       }}
     >
-      <h2 className="text-base font-semibold">Details</h2>
-      <div className="grid items-start gap-4 sm:grid-cols-2">
-        {text("organisation", "School or group", { required: true, max: 160 })}
-        {text("name", "Person", { required: true, max: 120 })}
-        {text("email", "Email", { type: "email", dir: "ltr", max: 254 })}
-        {text("phone", "Phone", { type: "tel", dir: "ltr", max: 40 })}
-        {text("country", "Country", { dir: "ltr", max: 2 })}
-        <div className="grid gap-1.5 text-sm">
-          <label htmlFor="lead-size" className="font-medium">
-            Size
-          </label>
-          <select
-            id="lead-size"
-            value={fields.size}
-            onChange={(event) =>
-              setFields((current) => ({
-                ...current,
-                size: event.target.value as DemoSize | "",
-              }))
-            }
-            className={SELECT}
-          >
-            <option value="">Not known</option>
-            {DEMO_SIZES.map((size) => (
-              <option key={size} value={size}>
-                {SIZE_NAMES[size]}
-              </option>
-            ))}
-          </select>
-        </div>
-        <div className="grid gap-1.5 text-sm">
-          <label htmlFor="lead-locale" className="font-medium">
-            Writes in
-          </label>
-          <select
-            id="lead-locale"
-            value={fields.locale}
-            onChange={(event) =>
-              setFields((current) => ({
-                ...current,
-                locale: event.target.value === "ar" ? "ar" : "en",
-              }))
-            }
-            className={SELECT}
-          >
-            <option value="en">English</option>
-            <option value="ar">Arabic</option>
-          </select>
-        </div>
+      <div className="grid items-start gap-6 @md:grid-cols-2">
+        <TextField
+          label="School or group"
+          maxLength={160}
+          value={fields.organisation}
+          errors={
+            missing("organisation") ? ["Enter the school or group."] : undefined
+          }
+          onChange={(event) => set("organisation", event.target.value)}
+        />
+        <TextField
+          label="Person"
+          maxLength={120}
+          value={fields.name}
+          errors={missing("name") ? ["Enter who you spoke to."] : undefined}
+          onChange={(event) => set("name", event.target.value)}
+        />
+        <TextField
+          label="Email"
+          optional
+          type="email"
+          dir="ltr"
+          maxLength={254}
+          value={fields.email}
+          onChange={(event) => set("email", event.target.value)}
+        />
+        <TextField
+          label="Phone"
+          optional
+          type="tel"
+          dir="ltr"
+          width="phone"
+          maxLength={40}
+          value={fields.phone}
+          onChange={(event) => set("phone", event.target.value)}
+        />
+        <TextField
+          label="Country"
+          optional
+          dir="ltr"
+          width="code"
+          maxLength={2}
+          value={fields.country}
+          onChange={(event) => set("country", event.target.value)}
+        />
+        <SelectField
+          label="Size"
+          value={fields.size}
+          options={SIZE_OPTIONS}
+          onChange={(size) => set("size", size)}
+        />
+        <SelectField
+          label="Writes in"
+          value={fields.locale}
+          options={LOCALE_OPTIONS}
+          onChange={(locale) => set("locale", locale)}
+        />
       </div>
-      {answer ? (
-        <p role="alert" className="text-sm text-destructive">
-          {answer}
-        </p>
-      ) : null}
-      <Button type="submit" disabled={saving} className="justify-self-start">
-        {saving ? "Saving…" : "Save details"}
-      </Button>
-    </form>
+    </SettingsSection>
   );
 }
 
-function ActivityForm({ leadId }: { leadId: string }) {
+const ACTIVITY_OPTIONS = ACTIVITY_KINDS.map((choice) => ({
+  value: choice,
+  label: ACTIVITY_NAMES[choice],
+}));
+
+interface ActivityFormProps {
+  leadId: string;
+}
+
+function ActivityForm({ leadId }: ActivityFormProps) {
   const router = useRouter();
   const log = useServerFn(logActivity);
   const [kind, setKind] = useState<ActivityKind>("call");
   const [note, setNote] = useState("");
-  const [saving, setSaving] = useState(false);
+  const [submitted, setSubmitted] = useState(false);
+  const [pending, setPending] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   return (
-    <form
-      aria-label="Log activity"
-      className="grid gap-3 rounded-lg border p-4"
-      onSubmit={async (event) => {
-        event.preventDefault();
-        setSaving(true);
-        try {
-          await log({ data: { leadId, kind, note } });
-          setNote("");
-          toast.success("Logged.");
-          await router.invalidate();
-        } catch (error) {
-          const said = failure(error, "It could not be logged.");
-          if (said) toast.error(said);
-        } finally {
-          setSaving(false);
+    <SettingsSection
+      title="Log activity"
+      submitLabel="Log it"
+      pending={pending}
+      error={error}
+      isDirty={() => Boolean(note)}
+      onSubmit={async () => {
+        setSubmitted(true);
+        if (!note.trim()) return;
+        setPending(true);
+        setError(null);
+        const failed = await attempt(
+          () => log({ data: { leadId, kind, note } }),
+          "It could not be logged.",
+        );
+        setPending(false);
+        if (failed) {
+          setError(failed);
+          return;
         }
+        setNote("");
+        setSubmitted(false);
+        toast.success("Logged.");
+        await router.invalidate();
       }}
     >
-      <div className="grid gap-1.5 text-sm sm:max-w-xs">
-        <label htmlFor="activity-kind" className="font-medium">
-          What happened
-        </label>
-        <select
-          id="activity-kind"
-          value={kind}
-          onChange={(event) => setKind(event.target.value as ActivityKind)}
-          className={SELECT}
-        >
-          {ACTIVITY_KINDS.map((choice) => (
-            <option key={choice} value={choice}>
-              {ACTIVITY_NAMES[choice]}
-            </option>
-          ))}
-        </select>
-      </div>
-      <div className="grid gap-1.5 text-sm">
-        <label htmlFor="activity-note" className="font-medium">
-          Note
-        </label>
-        <Textarea
-          id="activity-note"
-          required
-          maxLength={4000}
-          value={note}
-          onChange={(event) => setNote(event.target.value)}
-        />
-      </div>
-      <Button
-        type="submit"
-        disabled={saving || !note.trim()}
-        className="justify-self-start"
+      <SelectField
+        label="What happened"
+        width="name"
+        value={kind}
+        options={ACTIVITY_OPTIONS}
+        onChange={setKind}
+      />
+      <FormField
+        label="Note"
+        errors={
+          submitted && !note.trim() ? ["Write what happened."] : undefined
+        }
       >
-        {saving ? "Logging…" : "Log it"}
-      </Button>
-    </form>
+        {(control) => (
+          <Textarea
+            {...control}
+            maxLength={4000}
+            value={note}
+            onChange={(event) => setNote(event.target.value)}
+          />
+        )}
+      </FormField>
+    </SettingsSection>
   );
 }

@@ -14,4 +14,10 @@ declare module "@tanstack/react-router" {
   interface Register {
     router: ReturnType<typeof getRouter>;
   }
+  interface StaticDataRouteOption {
+    /** The navigation item a page lives under, when its path does not say. */
+    section?: string;
+    /** The page's name in the breadcrumb, after its section. */
+    title?: string;
+  }
 }

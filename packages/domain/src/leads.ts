@@ -15,6 +15,11 @@ export const LEAD_STATES = [
 ] as const;
 export type LeadState = (typeof LEAD_STATES)[number];
 
+/** Whether a lead is still being worked, neither won nor lost. */
+export function leadOpen(state: LeadState): boolean {
+  return state !== "won" && state !== "lost";
+}
+
 /** Why a lead was lost, from a fixed list so the reasons can be counted. */
 export const LOST_REASONS = [
   "price",

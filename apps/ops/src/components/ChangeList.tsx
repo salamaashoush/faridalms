@@ -1,5 +1,7 @@
 import type { Change } from "@faridalms/database/directory/admin";
 
+import { RecordEmpty, RecordList } from "@faridalms/ui/system/record-page";
+
 import { formatBytes, formatDay, formatWhen, moduleName } from "../format";
 
 const LABEL: Record<string, string> = {
@@ -41,36 +43,41 @@ function differences(change: Change): string[] {
   });
 }
 
-export function ChangeList({
-  changes,
-  subjectName,
-}: {
+export interface ChangeListProps {
   changes: Change[];
+  /** Names the record each change is about, where a list spans records. */
   subjectName?: (id: string) => string;
-}) {
-  if (changes.length === 0)
-    return <p className="text-sm text-muted-foreground">No changes yet.</p>;
+}
+
+/** The change log, newest first: who did what, what moved, and why. */
+export function ChangeList({ changes, subjectName }: ChangeListProps) {
+  if (changes.length === 0) return <RecordEmpty>No changes yet.</RecordEmpty>;
   return (
-    <ol className="divide-y rounded-lg border">
-      {changes.map((change) => (
-        <li key={change.id} className="grid gap-1 px-4 py-3 text-sm">
-          <div className="flex flex-wrap items-baseline justify-between gap-2">
-            <span className="font-medium">
-              {subjectName ? `${subjectName(change.subjectId)}: ` : ""}
-              {change.action}
-            </span>
-            <span className="text-xs text-muted-foreground">
-              {formatWhen(change.occurredAt)} · {change.actor}
-            </span>
-          </div>
-          <ul className="text-muted-foreground">
-            {differences(change).map((line) => (
-              <li key={line}>{line}</li>
-            ))}
-          </ul>
-          <p>{change.reason}</p>
-        </li>
-      ))}
-    </ol>
+    <RecordList>
+      {changes.map((change) => {
+        const moved = differences(change);
+        return (
+          <li key={change.id} className="grid gap-1 py-3">
+            <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-0.5">
+              <span className="text-sm leading-5 font-medium">
+                {subjectName ? `${subjectName(change.subjectId)}: ` : ""}
+                {change.action}
+              </span>
+              <span className="text-[13px] leading-[18px] text-muted-foreground">
+                {formatWhen(change.occurredAt)} · {change.actor}
+              </span>
+            </div>
+            {moved.length ? (
+              <ul className="grid gap-0.5 text-[13px] leading-[18px] text-muted-foreground">
+                {moved.map((line) => (
+                  <li key={line}>{line}</li>
+                ))}
+              </ul>
+            ) : null}
+            <p className="text-sm leading-5">{change.reason}</p>
+          </li>
+        );
+      })}
+    </RecordList>
   );
 }

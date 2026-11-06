@@ -6,7 +6,8 @@ import type {
 
 import { CURRENCIES, PRICE_UNITS } from "@faridalms/domain/subscriptions";
 import { Button } from "@faridalms/ui/button";
-import { Input } from "@faridalms/ui/input";
+import { SelectField, TextField } from "@faridalms/ui/system/form-field";
+import { Plus, X } from "lucide-react";
 
 import { formatMoney, minorOf } from "../format";
 
@@ -53,16 +54,23 @@ export function pricesOf(drafts: PriceDraft[]): Price[] | null {
   return prices;
 }
 
-/** List prices, one row each: currency, unit, amount and a yearly minimum. */
-export function PriceFields({
-  prefix,
-  drafts,
-  onChange,
-}: {
-  prefix: string;
+const CURRENCY_OPTIONS = CURRENCIES.map((currency) => ({
+  value: currency,
+  label: currency,
+}));
+
+const UNIT_OPTIONS = PRICE_UNITS.map((unit) => ({
+  value: unit,
+  label: UNIT_NAMES[unit],
+}));
+
+export interface PriceFieldsProps {
   drafts: PriceDraft[];
   onChange: (drafts: PriceDraft[]) => void;
-}) {
+}
+
+/** List prices, one row each: currency, unit, amount and a yearly minimum. */
+export function PriceFields({ drafts, onChange }: PriceFieldsProps) {
   const set = (index: number, change: Partial<PriceDraft>) =>
     onChange(
       drafts.map((draft, at) =>
@@ -70,83 +78,54 @@ export function PriceFields({
       ),
     );
   return (
-    <fieldset className="grid gap-3 text-sm">
-      <legend className="mb-1 font-medium">Prices</legend>
+    <fieldset className="grid min-w-0 gap-3">
+      <legend className="mb-2 text-sm leading-5 font-medium">Prices</legend>
       {drafts.length === 0 ? (
-        <p className="text-xs text-muted-foreground">
+        <p className="text-[13px] leading-[18px] text-muted-foreground">
           No list price: each contract sets its own.
         </p>
       ) : null}
       {drafts.map((draft, index) => (
         <div
           key={index}
-          className="grid items-end gap-2 sm:grid-cols-[auto_auto_1fr_1fr_auto]"
+          className="grid items-start gap-4 rounded-lg border p-4 @md:grid-cols-[6rem_1fr_1fr_1fr_auto]"
         >
-          <select
-            aria-label={`Price ${index + 1} currency`}
+          <SelectField
+            label={`Price ${index + 1} currency`}
             value={draft.currency}
-            onChange={(event) =>
-              set(index, { currency: event.target.value as Currency })
-            }
-            className="h-9 rounded-md border bg-background px-2 text-sm"
-          >
-            {CURRENCIES.map((currency) => (
-              <option key={currency} value={currency}>
-                {currency}
-              </option>
-            ))}
-          </select>
-          <select
-            aria-label={`Price ${index + 1} unit`}
+            options={CURRENCY_OPTIONS}
+            onChange={(currency) => set(index, { currency })}
+          />
+          <SelectField
+            label={`Price ${index + 1} unit`}
             value={draft.unit}
-            onChange={(event) =>
-              set(index, { unit: event.target.value as PriceUnit })
-            }
-            className="h-9 rounded-md border bg-background px-2 text-sm"
-          >
-            {PRICE_UNITS.map((unit) => (
-              <option key={unit} value={unit}>
-                {UNIT_NAMES[unit]}
-              </option>
-            ))}
-          </select>
-          <div className="grid gap-1">
-            <label
-              htmlFor={`${prefix}-price-${index}`}
-              className="text-xs text-muted-foreground"
-            >
-              Amount
-            </label>
-            <Input
-              id={`${prefix}-price-${index}`}
-              inputMode="decimal"
-              value={draft.amount}
-              placeholder="350.00"
-              onChange={(event) => set(index, { amount: event.target.value })}
-            />
-          </div>
-          <div className="grid gap-1">
-            <label
-              htmlFor={`${prefix}-minimum-${index}`}
-              className="text-xs text-muted-foreground"
-            >
-              Least a year
-            </label>
-            <Input
-              id={`${prefix}-minimum-${index}`}
-              inputMode="decimal"
-              value={draft.minimum}
-              placeholder="None"
-              onChange={(event) => set(index, { minimum: event.target.value })}
-            />
-          </div>
+            options={UNIT_OPTIONS}
+            onChange={(unit) => set(index, { unit })}
+          />
+          <TextField
+            label="Amount"
+            inputMode="decimal"
+            value={draft.amount}
+            placeholder="350.00"
+            onChange={(event) => set(index, { amount: event.target.value })}
+          />
+          <TextField
+            label="Least a year"
+            optional
+            inputMode="decimal"
+            value={draft.minimum}
+            placeholder="None"
+            onChange={(event) => set(index, { minimum: event.target.value })}
+          />
           <Button
             type="button"
             variant="ghost"
-            size="sm"
+            size="icon-sm"
+            className="@md:mt-7"
+            aria-label={`Remove price ${index + 1}`}
             onClick={() => onChange(drafts.filter((_, at) => at !== index))}
           >
-            Remove
+            <X aria-hidden />
           </Button>
         </div>
       ))}
@@ -167,6 +146,7 @@ export function PriceFields({
           ])
         }
       >
+        <Plus aria-hidden />
         Add a price
       </Button>
     </fieldset>

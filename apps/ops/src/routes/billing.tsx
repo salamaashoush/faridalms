@@ -1,28 +1,25 @@
 import type { PaymentMethod } from "@faridalms/domain/invoices";
+import type { Column, DataTableCard } from "@faridalms/ui/system/data-table";
 
 import { PAYMENT_METHODS } from "@faridalms/domain/invoices";
-import { Badge } from "@faridalms/ui/badge";
-import { Button, buttonVariants } from "@faridalms/ui/button";
-import { Input } from "@faridalms/ui/input";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@faridalms/ui/table";
-import { createFileRoute, Link, useRouter } from "@tanstack/react-router";
+import { DataTable, RowLink } from "@faridalms/ui/system/data-table";
+import { SelectField, TextField } from "@faridalms/ui/system/form-field";
+import { PageHeader } from "@faridalms/ui/system/page-header";
+import { SheetForm } from "@faridalms/ui/system/sheet-form";
+import { StatusBadge } from "@faridalms/ui/system/status";
+import { createFileRoute, useRouter } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
+import { Banknote, Receipt } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 
-import { failure } from "../actions";
+import { attempt } from "../actions";
 import {
   formatDay,
   formatMoney,
   INVOICE_KIND_NAMES,
   INVOICE_STATE_NAMES,
+  INVOICE_STATE_TONE,
   minorOf,
   PAYMENT_METHOD_NAMES,
 } from "../format";
@@ -41,106 +38,165 @@ export const Route = createFileRoute("/billing")({
 type Data = Awaited<ReturnType<typeof getBilling>>;
 type Row = Data["invoices"][number];
 
-function InvoiceTable({ rows, today }: { rows: Row[]; today: string }) {
+function columnsFor(today: string): Column<Row>[] {
+  return [
+    {
+      id: "invoice",
+      header: "Invoice",
+      primary: true,
+      cell: (row) => (
+        <span className="flex min-w-0 items-center gap-2">
+          <RowLink to="/invoices/$invoiceId" params={{ invoiceId: row.id }}>
+            {row.number ?? "Draft"}
+          </RowLink>
+          {row.dueOn && row.dueOn < today && row.state !== "draft" ? (
+            <StatusBadge tone="danger">Overdue</StatusBadge>
+          ) : null}
+        </span>
+      ),
+    },
+    { id: "customer", header: "Customer", cell: (row) => row.customerName },
+    {
+      id: "state",
+      header: "State",
+      cell: (row) => (
+        <StatusBadge tone={INVOICE_STATE_TONE[row.state]}>
+          {INVOICE_STATE_NAMES[row.state]}
+        </StatusBadge>
+      ),
+    },
+    {
+      id: "for",
+      header: "For",
+      cell: (row) => (
+        <span className="text-muted-foreground">
+          {INVOICE_KIND_NAMES[row.kind]}, {formatDay(row.forDay)}
+          {row.dueOn ? ` · due ${formatDay(row.dueOn)}` : ""}
+        </span>
+      ),
+    },
+    {
+      id: "total",
+      header: "Total",
+      className: "text-end",
+      cell: (row) => (
+        <span className="tabular-nums">
+          {formatMoney(row.totalMinor, row.currency)}
+        </span>
+      ),
+    },
+    {
+      id: "owed",
+      header: "Owed",
+      className: "text-end",
+      cell: (row) =>
+        row.state === "draft" ? null : (
+          <span className="tabular-nums">
+            {formatMoney(row.owedMinor, row.currency)}
+          </span>
+        ),
+    },
+  ];
+}
+
+const CARD: DataTableCard<Row> = {
+  title: (row) => (
+    <RowLink to="/invoices/$invoiceId" params={{ invoiceId: row.id }}>
+      {row.number ?? "Draft"}
+    </RowLink>
+  ),
+  status: (row) => (
+    <StatusBadge tone={INVOICE_STATE_TONE[row.state]}>
+      {INVOICE_STATE_NAMES[row.state]}
+    </StatusBadge>
+  ),
+  fact: (row) =>
+    `${row.customerName} · ${formatMoney(row.totalMinor, row.currency)}`,
+};
+
+interface InvoiceTableProps {
+  caption: string;
+  rows: Row[];
+  today: string;
+  empty: string;
+}
+
+function InvoiceTable({ caption, rows, today, empty }: InvoiceTableProps) {
   return (
-    <div className="overflow-x-auto rounded-lg border">
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead>Invoice</TableHead>
-            <TableHead>Customer</TableHead>
-            <TableHead>For</TableHead>
-            <TableHead className="text-end">Total</TableHead>
-            <TableHead className="text-end">Owed</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {rows.map((row) => (
-            <TableRow key={row.id}>
-              <TableCell>
-                <Link
-                  to="/invoices/$invoiceId"
-                  params={{ invoiceId: row.id }}
-                  className="font-medium underline"
-                >
-                  {row.number ?? "Draft"}
-                </Link>
-                <span className="ms-2 inline-flex gap-1">
-                  <Badge variant="secondary">
-                    {INVOICE_STATE_NAMES[row.state]}
-                  </Badge>
-                  {row.dueOn && row.dueOn < today ? (
-                    <Badge variant="outline">Overdue</Badge>
-                  ) : null}
-                </span>
-              </TableCell>
-              <TableCell>{row.customerName}</TableCell>
-              <TableCell className="text-muted-foreground">
-                {INVOICE_KIND_NAMES[row.kind]}, {formatDay(row.forDay)}
-                {row.dueOn ? ` · due ${formatDay(row.dueOn)}` : ""}
-              </TableCell>
-              <TableCell className="text-end tabular-nums">
-                {formatMoney(row.totalMinor, row.currency)}
-              </TableCell>
-              <TableCell className="text-end tabular-nums">
-                {row.state === "draft"
-                  ? ""
-                  : formatMoney(row.owedMinor, row.currency)}
-              </TableCell>
-            </TableRow>
-          ))}
-        </TableBody>
-      </Table>
+    <div className="grid gap-3">
+      <h2 className="text-base leading-6 font-semibold">{caption}</h2>
+      <DataTable
+        caption={caption}
+        rows={rows}
+        columns={columnsFor(today)}
+        rowLabel={(row) => row.number ?? `Draft for ${row.customerName}`}
+        card={CARD}
+        empty={{ icon: Receipt, title: empty }}
+      />
     </div>
   );
 }
 
+/**
+ * The daily round drafts each contract's invoices before they fall due;
+ * finance checks and issues them, records what is paid and credits what is
+ * agreed. An issued invoice never changes.
+ */
 function Billing() {
   const data = Route.useLoaderData();
   const mayBill = useMay("billing");
+  const [paying, setPaying] = useState(false);
   const drafts = data.invoices.filter((row) => row.state === "draft");
   const owed = data.invoices.filter((row) => row.state !== "draft");
   return (
-    <div className="grid gap-8">
-      <div className="grid gap-1">
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <h1 className="text-2xl font-semibold">Billing</h1>
-          <Link
-            to="/receivables"
-            className={buttonVariants({ variant: "outline", size: "sm" })}
-          >
-            Receivables
-          </Link>
-        </div>
-        <p className="text-sm text-muted-foreground">
-          The daily round drafts each contract's invoices before they fall due;
-          finance checks and issues them, records what is paid and credits what
-          is agreed. An issued invoice never changes.
-        </p>
+    <>
+      <PageHeader
+        title="Billing"
+        description="Drafts are checked and issued here; an issued invoice never changes."
+        action={
+          mayBill
+            ? {
+                label: "Record a payment",
+                icon: Banknote,
+                onClick: () => setPaying(true),
+              }
+            : undefined
+        }
+      />
+      <div className="grid gap-8">
+        <InvoiceTable
+          caption="Drafts to issue"
+          rows={drafts}
+          today={data.today}
+          empty="No drafts"
+        />
+        <InvoiceTable
+          caption="Owed"
+          rows={owed}
+          today={data.today}
+          empty="Nothing is owed"
+        />
       </div>
-      <section aria-label="Drafts to issue" className="grid gap-3">
-        <h2 className="text-base font-semibold">Drafts to issue</h2>
-        {drafts.length ? (
-          <InvoiceTable rows={drafts} today={data.today} />
-        ) : (
-          <p className="text-sm text-muted-foreground">No drafts.</p>
-        )}
-      </section>
-      <section aria-label="Owed" className="grid gap-3">
-        <h2 className="text-base font-semibold">Owed</h2>
-        {owed.length ? (
-          <InvoiceTable rows={owed} today={data.today} />
-        ) : (
-          <p className="text-sm text-muted-foreground">Nothing is owed.</p>
-        )}
-      </section>
-      {mayBill ? <PaymentForm data={data} /> : null}
-    </div>
+      {mayBill ? (
+        <PaymentSheet data={data} open={paying} onOpenChange={setPaying} />
+      ) : null}
+    </>
   );
 }
 
+const METHOD_OPTIONS = PAYMENT_METHODS.map((choice) => ({
+  value: choice,
+  label: PAYMENT_METHOD_NAMES[choice],
+}));
+
+interface PaymentSheetProps {
+  data: Data;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+}
+
 /** Records money received and settles it against the customer's open invoices. */
-function PaymentForm({ data }: { data: Data }) {
+function PaymentSheet({ data, open: shown, onOpenChange }: PaymentSheetProps) {
   const router = useRouter();
   const open = useServerFn(getOpenInvoices);
   const record = useServerFn(recordCustomerPayment);
@@ -153,20 +209,22 @@ function PaymentForm({ data }: { data: Data }) {
   const [amount, setAmount] = useState("");
   const [receivedOn, setReceivedOn] = useState(data.today);
   const [reference, setReference] = useState("");
+  const [submitted, setSubmitted] = useState(false);
   const [answer, setAnswer] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const customer = data.customers.find((row) => row.id === customerId);
+  const amountMinor = minorOf(amount);
   return (
-    <form
-      aria-label="Record a payment"
-      className="grid max-w-3xl gap-4 rounded-lg border p-6"
-      onSubmit={async (event) => {
-        event.preventDefault();
-        const amountMinor = minorOf(amount);
-        if (!customer || !amountMinor) {
-          setAnswer("Choose the customer and give the amount received.");
-          return;
-        }
+    <SheetForm
+      open={shown}
+      onOpenChange={onOpenChange}
+      title="Record a payment"
+      submitLabel="Record payment"
+      pending={saving}
+      error={answer}
+      onSubmit={async () => {
+        setSubmitted(true);
+        if (!customer || !amountMinor || !reference.trim()) return;
         const allocations = invoices.flatMap((invoice) => {
           const settled = minorOf(settle[invoice.id] ?? "");
           return settled
@@ -175,165 +233,120 @@ function PaymentForm({ data }: { data: Data }) {
         });
         setSaving(true);
         setAnswer(null);
-        try {
-          const out = await record({
-            data: {
-              customerId,
-              method,
-              currency: customer.currency,
-              amountMinor,
-              receivedOn,
-              reference,
-              feeMinor: 0,
-              allocations,
-            },
-          });
-          if (out.ok) {
-            toast.success("Payment recorded.");
-            setAmount("");
-            setReference("");
-            setSettle({});
-            setInvoices(await open({ data: { customerId } }));
-            await router.invalidate();
-          } else setAnswer(out.message);
-        } catch (error) {
-          setAnswer(
-            failure(
-              error,
-              "The payment could not be recorded. It settles no more than it is.",
-            ),
-          );
-        } finally {
-          setSaving(false);
+        const failed = await attempt(
+          () =>
+            record({
+              data: {
+                customerId,
+                method,
+                currency: customer.currency,
+                amountMinor,
+                receivedOn,
+                reference,
+                feeMinor: 0,
+                allocations,
+              },
+            }),
+          "The payment could not be recorded. It settles no more than it is.",
+        );
+        setSaving(false);
+        if (failed) {
+          setAnswer(failed);
+          return;
         }
+        toast.success("Payment recorded.");
+        setAmount("");
+        setReference("");
+        setSettle({});
+        setSubmitted(false);
+        setInvoices(await open({ data: { customerId } }));
+        onOpenChange(false);
+        await router.invalidate();
       }}
     >
-      <h2 className="text-base font-semibold">Record a payment</h2>
-      <div className="grid items-start gap-4 sm:grid-cols-2">
-        <div className="grid gap-1.5 text-sm">
-          <label htmlFor="payment-customer" className="font-medium">
-            From
-          </label>
-          <select
-            id="payment-customer"
-            required
-            value={customerId}
-            onChange={async (event) => {
-              setCustomerId(event.target.value);
-              setSettle({});
-              setInvoices(
-                event.target.value
-                  ? await open({ data: { customerId: event.target.value } })
-                  : [],
-              );
-            }}
-            className="h-9 rounded-md border bg-background px-2 text-sm"
-          >
-            <option value="">Choose…</option>
-            {data.customers.map((row) => (
-              <option key={row.id} value={row.id}>
-                {row.legalNameEn}
-              </option>
-            ))}
-          </select>
-        </div>
-        <div className="grid gap-1.5 text-sm">
-          <label htmlFor="payment-method" className="font-medium">
-            How
-          </label>
-          <select
-            id="payment-method"
-            value={method}
-            onChange={(event) => setMethod(event.target.value as PaymentMethod)}
-            className="h-9 rounded-md border bg-background px-2 text-sm"
-          >
-            {PAYMENT_METHODS.map((choice) => (
-              <option key={choice} value={choice}>
-                {PAYMENT_METHOD_NAMES[choice]}
-              </option>
-            ))}
-          </select>
-        </div>
-        <div className="grid gap-1.5 text-sm">
-          <label htmlFor="payment-amount" className="font-medium">
-            Amount{customer ? ` (${customer.currency})` : ""}
-          </label>
-          <Input
-            id="payment-amount"
-            inputMode="decimal"
-            required
-            value={amount}
-            onChange={(event) => setAmount(event.target.value)}
-          />
-        </div>
-        <div className="grid gap-1.5 text-sm">
-          <label htmlFor="payment-received" className="font-medium">
-            Received
-          </label>
-          <Input
-            id="payment-received"
-            type="date"
-            required
-            value={receivedOn}
-            onChange={(event) => setReceivedOn(event.target.value)}
-          />
-        </div>
-        <div className="grid gap-1.5 text-sm sm:col-span-2">
-          <label htmlFor="payment-reference" className="font-medium">
-            Reference
-          </label>
-          <Input
-            id="payment-reference"
-            required
-            maxLength={120}
-            value={reference}
-            onChange={(event) => setReference(event.target.value)}
-            placeholder="The bank's reference, or the certificate's number"
-          />
-        </div>
-      </div>
+      <SelectField
+        label="From"
+        value={customerId}
+        options={[
+          { value: "", label: "Choose…" },
+          ...data.customers.map((row) => ({
+            value: row.id,
+            label: row.legalNameEn,
+          })),
+        ]}
+        errors={submitted && !customer ? ["Choose the customer."] : undefined}
+        onChange={(chosen) => {
+          setCustomerId(chosen);
+          setSettle({});
+          void (
+            chosen
+              ? open({ data: { customerId: chosen } })
+              : Promise.resolve([])
+          ).then(setInvoices);
+        }}
+      />
+      <SelectField
+        label="How"
+        value={method}
+        options={METHOD_OPTIONS}
+        onChange={setMethod}
+      />
+      <TextField
+        label={`Amount${customer ? ` (${customer.currency})` : ""}`}
+        inputMode="decimal"
+        width="code"
+        value={amount}
+        errors={
+          submitted && !amountMinor ? ["Give the amount received."] : undefined
+        }
+        onChange={(event) => setAmount(event.target.value)}
+      />
+      <TextField
+        label="Received"
+        type="date"
+        width="date"
+        value={receivedOn}
+        onChange={(event) => setReceivedOn(event.target.value)}
+      />
+      <TextField
+        label="Reference"
+        maxLength={120}
+        value={reference}
+        placeholder="The bank's reference, or the certificate's number"
+        errors={
+          submitted && !reference.trim() ? ["Give the reference."] : undefined
+        }
+        onChange={(event) => setReference(event.target.value)}
+      />
       {invoices.length ? (
-        <fieldset className="grid gap-2 text-sm">
-          <legend className="mb-1 font-medium">What it settles</legend>
+        <fieldset className="grid gap-4">
+          <legend className="mb-2 text-sm leading-5 font-medium">
+            What it settles
+          </legend>
           {invoices.map((invoice) => (
-            <div
+            <TextField
               key={invoice.id}
-              className="grid items-center gap-2 sm:grid-cols-[1fr_auto]"
-            >
-              <label htmlFor={`settle-${invoice.id}`}>
-                {invoice.number}:{" "}
-                {formatMoney(invoice.owedMinor, invoice.currency)} owed
-                {invoice.dueOn ? `, due ${formatDay(invoice.dueOn)}` : ""}
-              </label>
-              <Input
-                id={`settle-${invoice.id}`}
-                inputMode="decimal"
-                value={settle[invoice.id] ?? ""}
-                placeholder="0.00"
-                onChange={(event) =>
-                  setSettle((current) => ({
-                    ...current,
-                    [invoice.id]: event.target.value,
-                  }))
-                }
-              />
-            </div>
+              label={`${invoice.number}: ${formatMoney(invoice.owedMinor, invoice.currency)} owed${invoice.dueOn ? `, due ${formatDay(invoice.dueOn)}` : ""}`}
+              optional
+              inputMode="decimal"
+              width="code"
+              value={settle[invoice.id] ?? ""}
+              placeholder="0.00"
+              onChange={(event) =>
+                setSettle((current) => ({
+                  ...current,
+                  [invoice.id]: event.target.value,
+                }))
+              }
+            />
           ))}
         </fieldset>
       ) : customerId ? (
-        <p className="text-sm text-muted-foreground">
+        <p className="text-sm leading-5 text-muted-foreground">
           The customer has no open invoice: the payment is kept to settle one
           later.
         </p>
       ) : null}
-      {answer ? (
-        <p role="alert" className="text-sm text-destructive">
-          {answer}
-        </p>
-      ) : null}
-      <Button type="submit" disabled={saving} className="justify-self-start">
-        {saving ? "Recording…" : "Record payment"}
-      </Button>
-    </form>
+    </SheetForm>
   );
 }

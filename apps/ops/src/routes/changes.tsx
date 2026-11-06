@@ -1,3 +1,5 @@
+import { PageHeader } from "@faridalms/ui/system/page-header";
+import { RecordSection } from "@faridalms/ui/system/record-page";
 import { createFileRoute } from "@tanstack/react-router";
 
 import { ChangeList } from "../components/ChangeList";
@@ -14,6 +16,7 @@ export const Route = createFileRoute("/changes")({
   component: Changes,
 });
 
+/** Everything operators changed in the directory, newest first, with why. */
 function Changes() {
   const { changes, schools } = Route.useLoaderData();
   const names = new Map(
@@ -23,15 +26,17 @@ function Changes() {
     ]),
   );
   return (
-    <div className="grid gap-6">
-      <div className="grid gap-1">
-        <h1 className="text-2xl font-semibold">Changes</h1>
-        <p className="text-sm text-muted-foreground">
-          Everything operators changed in the directory, newest first, with the
-          reason given. Operators appear by an opaque id.
-        </p>
-      </div>
-      <ChangeList changes={changes} subjectName={(id) => names.get(id) ?? id} />
+    <div className="grid max-w-4xl">
+      <PageHeader
+        title="Changes"
+        description="Everything operators changed in the directory, newest first, with the reason given."
+      />
+      <RecordSection title="Change log">
+        <ChangeList
+          changes={changes}
+          subjectName={(id) => names.get(id) ?? id}
+        />
+      </RecordSection>
     </div>
   );
 }

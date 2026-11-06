@@ -1,28 +1,39 @@
 import type { CustomerRow } from "@faridalms/database/business/customers";
+import type { Currency } from "@faridalms/domain/subscriptions";
 
 import { CURRENCIES } from "@faridalms/domain/subscriptions";
-import { Button } from "@faridalms/ui/button";
-import { Input } from "@faridalms/ui/input";
+import {
+  FormField,
+  SelectField,
+  TextField,
+} from "@faridalms/ui/system/form-field";
+import { SettingsSection } from "@faridalms/ui/system/settings-section";
+import { SheetForm } from "@faridalms/ui/system/sheet-form";
 import { Textarea } from "@faridalms/ui/textarea";
 import { useServerFn } from "@tanstack/react-start";
 import { useState } from "react";
 
-import { failure } from "../actions";
+import { attemptWith } from "../actions";
 import { saveCustomerDetails } from "../server/customers";
+import { WhyField } from "./Why";
 
-/**
- * A customer's legal details as invoices carry them: creates one, or saves
- * a change unless someone else changed it since it was read.
- */
-export function CustomerForm({
-  customer,
-  onSaved,
-}: {
-  customer: CustomerRow | null;
-  onSaved: (id: string) => Promise<void> | void;
-}) {
-  const save = useServerFn(saveCustomerDetails);
-  const [fields, setFields] = useState({
+interface CustomerDraft {
+  legalNameEn: string;
+  legalNameAr: string;
+  taxNumber: string;
+  commercialRegistry: string;
+  address: string;
+  country: string;
+  currency: Currency;
+}
+
+const CURRENCY_OPTIONS = CURRENCIES.map((currency) => ({
+  value: currency,
+  label: currency,
+}));
+
+function draftOf(customer: CustomerRow | null): CustomerDraft {
+  return {
     legalNameEn: customer?.legalNameEn ?? "",
     legalNameAr: customer?.legalNameAr ?? "",
     taxNumber: customer?.taxNumber ?? "",
@@ -30,133 +41,215 @@ export function CustomerForm({
     address: customer?.address ?? "",
     country: customer?.country ?? "EG",
     currency: customer?.currency ?? "EGP",
-  });
+  };
+}
+
+/**
+ * A customer's legal details being written: creates one, or saves a change
+ * unless someone else changed it since it was read.
+ */
+function useCustomerForm(
+  customer: CustomerRow | null,
+  onSaved: (id: string) => Promise<void> | void,
+) {
+  const save = useServerFn(saveCustomerDetails);
+  const [fields, setFields] = useState(() => draftOf(customer));
   const [reason, setReason] = useState("");
-  const [answer, setAnswer] = useState<string | null>(null);
-  const [saving, setSaving] = useState(false);
-  const set =
-    (key: keyof typeof fields) => (event: { target: { value: string } }) =>
-      setFields((current) => ({ ...current, [key]: event.target.value }));
-  const text = (
-    key: Exclude<keyof typeof fields, "currency">,
-    label: string,
-    options: { required?: boolean; dir?: "ltr" | "rtl"; max: number },
-  ) => (
-    <div className="grid gap-1.5 text-sm">
-      <label htmlFor={`customer-${key}`} className="font-medium">
-        {label}
-      </label>
-      <Input
-        id={`customer-${key}`}
-        required={options.required}
-        dir={options.dir}
-        maxLength={options.max}
-        value={fields[key]}
-        onChange={set(key)}
-      />
-    </div>
-  );
+  const [submitted, setSubmitted] = useState(false);
+  const [pending, setPending] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const submit = async () => {
+    setSubmitted(true);
+    if (!fields.legalNameEn.trim() || !fields.country.trim() || !reason.trim())
+      return;
+    setPending(true);
+    setError(null);
+    const out = await attemptWith(
+      () =>
+        save({
+          data: {
+            ...fields,
+            id: customer?.id,
+            expectedVersion: customer?.version,
+            reason,
+          },
+        }),
+      "The customer could not be saved.",
+    );
+    setPending(false);
+    if (!out.ok) {
+      setError(out.message);
+      return;
+    }
+    setReason("");
+    setSubmitted(false);
+    await onSaved(out.value.id);
+  };
+  return {
+    fields,
+    setFields,
+    reason,
+    setReason,
+    submitted,
+    pending,
+    error,
+    submit,
+    dirty: () =>
+      Boolean(reason) ||
+      JSON.stringify(fields) !== JSON.stringify(draftOf(customer)),
+  };
+}
+
+type CustomerForm = ReturnType<typeof useCustomerForm>;
+
+interface CustomerFieldsProps {
+  form: CustomerForm;
+  creating: boolean;
+}
+
+function CustomerFields({ form, creating }: CustomerFieldsProps) {
+  const { fields, setFields, submitted } = form;
+  const set = (key: keyof CustomerDraft, value: string) =>
+    setFields((current) => ({ ...current, [key]: value }));
   return (
-    <form
-      aria-label={customer ? "Customer details" : "New customer"}
-      className="grid max-w-2xl gap-4 rounded-lg border p-6"
-      onSubmit={async (event) => {
-        event.preventDefault();
-        setSaving(true);
-        setAnswer(null);
-        try {
-          const out = await save({
-            data: {
-              ...fields,
-              id: customer?.id,
-              expectedVersion: customer?.version,
-              reason,
-            },
-          });
-          if (out.ok) {
-            setReason("");
-            await onSaved(out.id);
-          } else setAnswer(out.message);
-        } catch (error) {
-          setAnswer(failure(error, "The customer could not be saved."));
-        } finally {
-          setSaving(false);
-        }
-      }}
-    >
-      <h2 className="text-base font-semibold">
-        {customer ? "Details" : "New customer"}
-      </h2>
-      <div className="grid items-start gap-4 sm:grid-cols-2">
-        {text("legalNameEn", "Legal name in English", {
-          required: true,
-          max: 200,
-        })}
-        {text("legalNameAr", "Legal name in Arabic", { dir: "rtl", max: 200 })}
-        {text("taxNumber", "Tax registration number", { dir: "ltr", max: 40 })}
-        {text("commercialRegistry", "Commercial registry", {
-          dir: "ltr",
-          max: 40,
-        })}
-        {text("country", "Country", { required: true, dir: "ltr", max: 2 })}
-        <div className="grid gap-1.5 text-sm">
-          <label htmlFor="customer-currency" className="font-medium">
-            Currency
-          </label>
-          <select
-            id="customer-currency"
-            value={fields.currency}
-            onChange={set("currency")}
-            className="h-9 rounded-md border bg-background px-2 text-sm"
-          >
-            {CURRENCIES.map((currency) => (
-              <option key={currency} value={currency}>
-                {currency}
-              </option>
-            ))}
-          </select>
-        </div>
-      </div>
-      <div className="grid gap-1.5 text-sm">
-        <label htmlFor="customer-address" className="font-medium">
-          Billing address
-        </label>
-        <Textarea
-          id="customer-address"
-          maxLength={500}
-          value={fields.address}
-          onChange={set("address")}
-        />
-      </div>
-      <div className="grid gap-1.5 text-sm">
-        <label htmlFor="customer-reason" className="font-medium">
-          Why
-        </label>
-        <Input
-          id="customer-reason"
-          required
-          maxLength={500}
-          value={reason}
-          onChange={(event) => setReason(event.target.value)}
-          placeholder={
-            customer
-              ? "For example: moved to new premises"
-              : "For example: won at the October fair"
+    <>
+      <div className="grid items-start gap-6 @md:grid-cols-2">
+        <TextField
+          label="Legal name in English"
+          maxLength={200}
+          value={fields.legalNameEn}
+          errors={
+            submitted && !fields.legalNameEn.trim()
+              ? ["Enter the legal name in English."]
+              : undefined
           }
+          onChange={(event) => set("legalNameEn", event.target.value)}
+        />
+        <TextField
+          label="Legal name in Arabic"
+          optional
+          dir="rtl"
+          lang="ar"
+          maxLength={200}
+          value={fields.legalNameAr}
+          onChange={(event) => set("legalNameAr", event.target.value)}
+        />
+        <TextField
+          label="Tax registration number"
+          optional
+          dir="ltr"
+          width="reference"
+          maxLength={40}
+          value={fields.taxNumber}
+          onChange={(event) => set("taxNumber", event.target.value)}
+        />
+        <TextField
+          label="Commercial registry"
+          optional
+          dir="ltr"
+          width="reference"
+          maxLength={40}
+          value={fields.commercialRegistry}
+          onChange={(event) => set("commercialRegistry", event.target.value)}
+        />
+        <TextField
+          label="Country"
+          hint="Two letters, such as EG."
+          dir="ltr"
+          width="code"
+          maxLength={2}
+          value={fields.country}
+          errors={
+            submitted && !fields.country.trim()
+              ? ["Enter the country."]
+              : undefined
+          }
+          onChange={(event) => set("country", event.target.value)}
+        />
+        <SelectField
+          label="Currency"
+          width="code"
+          value={fields.currency}
+          options={CURRENCY_OPTIONS}
+          onChange={(currency) => set("currency", currency)}
         />
       </div>
-      {answer ? (
-        <p role="alert" className="text-sm text-destructive">
-          {answer}
-        </p>
-      ) : null}
-      <Button
-        type="submit"
-        disabled={saving || !reason.trim()}
-        className="justify-self-start"
-      >
-        {saving ? "Saving…" : customer ? "Save details" : "Create customer"}
-      </Button>
-    </form>
+      <FormField label="Billing address" optional>
+        {(control) => (
+          <Textarea
+            {...control}
+            maxLength={500}
+            value={fields.address}
+            onChange={(event) => set("address", event.target.value)}
+          />
+        )}
+      </FormField>
+      <WhyField
+        value={form.reason}
+        onChange={form.setReason}
+        submitted={submitted}
+        placeholder={
+          creating
+            ? "For example: won at the October fair"
+            : "For example: moved to new premises"
+        }
+      />
+    </>
+  );
+}
+
+export interface NewCustomerSheetProps {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  onCreated: (id: string) => Promise<void> | void;
+}
+
+/** Creates a customer from a sheet, then hands over its id. */
+export function NewCustomerSheet({
+  open,
+  onOpenChange,
+  onCreated,
+}: NewCustomerSheetProps) {
+  const form = useCustomerForm(null, async (id) => {
+    onOpenChange(false);
+    await onCreated(id);
+  });
+  return (
+    <SheetForm
+      open={open}
+      onOpenChange={onOpenChange}
+      title="New customer"
+      submitLabel="Create customer"
+      pending={form.pending}
+      error={form.error}
+      onSubmit={form.submit}
+    >
+      <div className="@container grid gap-6">
+        <CustomerFields form={form} creating />
+      </div>
+    </SheetForm>
+  );
+}
+
+export interface CustomerDetailsProps {
+  customer: CustomerRow;
+  onSaved: () => Promise<void> | void;
+}
+
+/** A customer's legal details as invoices carry them, saved with a reason. */
+export function CustomerDetails({ customer, onSaved }: CustomerDetailsProps) {
+  const form = useCustomerForm(customer, onSaved);
+  return (
+    <SettingsSection
+      title="Customer details"
+      description="As its invoices carry them."
+      submitLabel="Save details"
+      pending={form.pending}
+      error={form.error}
+      isDirty={form.dirty}
+      onSubmit={form.submit}
+    >
+      <CustomerFields form={form} creating={false} />
+    </SettingsSection>
   );
 }

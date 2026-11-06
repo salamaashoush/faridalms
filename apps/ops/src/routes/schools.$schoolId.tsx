@@ -1,4 +1,3 @@
-import type { DirectoryTenantState } from "@faridalms/database/directory/schema";
 import type { ModuleId } from "@faridalms/domain/modules";
 import type { SchoolNotice } from "@faridalms/domain/plans";
 import type { SchoolStanding } from "@faridalms/domain/provisioning";
@@ -6,16 +5,32 @@ import type { SchoolStanding } from "@faridalms/domain/provisioning";
 import { availableModules, SCHOOL_NOTICES } from "@faridalms/domain/plans";
 import { SCHOOL_STANDINGS, standingOf } from "@faridalms/domain/provisioning";
 import { LIMIT_KEYS } from "@faridalms/domain/subscriptions";
-import { Badge } from "@faridalms/ui/badge";
-import { Button } from "@faridalms/ui/button";
-import { Input } from "@faridalms/ui/input";
-import { Textarea } from "@faridalms/ui/textarea";
+import {
+  ChoiceField,
+  SelectField,
+  TextField,
+} from "@faridalms/ui/system/form-field";
+import {
+  Fact,
+  Facts,
+  RecordColumns,
+  RecordHeader,
+  RecordList,
+  RecordSection,
+} from "@faridalms/ui/system/record-page";
+import {
+  SettingsGroup,
+  SettingsSection,
+} from "@faridalms/ui/system/settings-section";
+import { SheetForm } from "@faridalms/ui/system/sheet-form";
+import { StatusBadge, StatusText } from "@faridalms/ui/system/status";
 import { createFileRoute, Link, useRouter } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
+import { Info, Send } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 
-import { failure } from "../actions";
+import { attempt, failure } from "../actions";
 import { ChangeList } from "../components/ChangeList";
 import { Hosts } from "../components/Hosts";
 import {
@@ -25,8 +40,9 @@ import {
   StorageFields,
 } from "../components/LimitFields";
 import { ModuleFields } from "../components/ModuleFields";
-import { SchoolOnboarding } from "../components/Onboarding";
+import { HealthSection, OnboardingSection } from "../components/Onboarding";
 import { Usage } from "../components/Usage";
+import { WhyField } from "../components/Why";
 import {
   formatDay,
   formatLimit,
@@ -35,6 +51,8 @@ import {
   MODULE_NAMES,
   NOTICE_NAMES,
   STANDING_NAMES,
+  TENANT_STATE_NAMES,
+  TENANT_STATE_TONE,
 } from "../format";
 import {
   getSchool,
@@ -44,6 +62,7 @@ import {
 } from "../server/directory";
 
 export const Route = createFileRoute("/schools/$schoolId")({
+  staticData: { title: "School" },
   loader: ({ params }) => getSchool({ data: { id: params.schoolId } }),
   component: SchoolPage,
 });
@@ -54,17 +73,6 @@ const ACCESS = {
   read_only: "Read only",
 } as const;
 
-const TENANT_STATES: Record<DirectoryTenantState, string> = {
-  provisioning: "Provisioning",
-  importing: "Importing",
-  active: "Active",
-  read_only: "Paused (read only)",
-  frozen: "Frozen",
-  suspended: "Suspended",
-  offboarding: "Offboarding",
-  offboarded: "Offboarded",
-};
-
 type School = Awaited<ReturnType<typeof getSchool>>["school"];
 
 function SchoolPage() {
@@ -72,134 +80,174 @@ function SchoolPage() {
     Route.useLoaderData();
   const entitled = school.entitlements;
   const name = school.nameEn ?? school.nameAr ?? school.slug;
+  const standing = standingOf(school.tenantState, entitled.access);
+  const [sending, setSending] = useState(false);
   return (
-    <div className="grid gap-8">
-      <div className="grid gap-1">
-        <Link
-          to="/schools"
-          className="text-sm text-muted-foreground hover:underline"
-        >
-          Schools
-        </Link>
-        <h1 className="flex flex-wrap items-center gap-3 text-2xl font-semibold">
-          {name}
-          <Badge
-            variant={school.tenantState === "active" ? "secondary" : "outline"}
-          >
-            {TENANT_STATES[school.tenantState]}
-          </Badge>
-        </h1>
-        <p className="text-sm text-muted-foreground">
-          {school.slug} · {school.tenantNameEn ?? school.tenantNameAr} ·{" "}
-          {school.cellId} ({school.region})
-        </p>
-        {school.tenantState === "provisioning" ? (
-          <p className="text-sm">
-            Its cell has not finished creating it. Submit{" "}
-            <Link to="/schools/new" className="underline">
-              New school
-            </Link>{" "}
-            again with the same addresses to finish.
-          </p>
+    <>
+      <RecordHeader
+        title={name}
+        status={{
+          label: TENANT_STATE_NAMES[school.tenantState],
+          tone: TENANT_STATE_TONE[school.tenantState],
+        }}
+        facts={[
+          { label: "Address", value: school.slug },
+          {
+            label: "Group",
+            value: school.tenantNameEn ?? school.tenantNameAr ?? "None",
+          },
+          { label: "Cell", value: `${school.cellId} (${school.region})` },
+        ]}
+        alerts={
+          school.tenantState === "provisioning"
+            ? [
+                {
+                  label:
+                    "Its cell has not finished creating it. Submit New school again with the same addresses to finish.",
+                  tone: "info",
+                  icon: Info,
+                },
+              ]
+            : []
+        }
+        menu={
+          school.tenantState === "active"
+            ? [
+                {
+                  label: "Send the administrator a new link",
+                  icon: Send,
+                  onSelect: () => setSending(true),
+                },
+              ]
+            : []
+        }
+      />
+      <RecordColumns
+        main={
+          <>
+            {health ? (
+              <OnboardingSection
+                schoolId={school.id}
+                health={health}
+                measuredAt={school.usage?.measuredAt ?? null}
+              />
+            ) : null}
+            {sold ? (
+              <SoldEntitlements
+                school={school}
+                subscriptionId={sold.subscriptionId}
+              />
+            ) : (
+              <EntitlementsForm school={school} />
+            )}
+            <Hosts schoolId={school.id} platform={platform} hosts={hosts} />
+            {ssoDomains.length ? (
+              <RecordSection
+                title="Sign-in domains"
+                description="The domains its people sign in with through its own identity provider, for the whole tenant."
+              >
+                <RecordList>
+                  {ssoDomains.map((domain) => (
+                    <li
+                      key={domain.domain}
+                      className="flex items-center justify-between gap-3 py-2.5"
+                    >
+                      <span className="font-mono text-sm" dir="ltr">
+                        {domain.domain}
+                      </span>
+                      <StatusText
+                        tone={domain.verifiedAt ? "success" : "warning"}
+                      >
+                        {domain.verifiedAt
+                          ? `Verified ${formatWhen(domain.verifiedAt)}`
+                          : "Not verified"}
+                      </StatusText>
+                    </li>
+                  ))}
+                </RecordList>
+              </RecordSection>
+            ) : null}
+            <RecordSection title="History">
+              <ChangeList changes={changes} />
+            </RecordSection>
+          </>
+        }
+        aside={
+          <>
+            {health ? <HealthSection health={health} /> : null}
+            <UseSection school={school} />
+            {standing ? (
+              <Lifecycle
+                tenantId={school.tenantId}
+                state={standing}
+                group={school.tenantKind === "school_group"}
+              />
+            ) : null}
+          </>
+        }
+      />
+      {school.tenantState === "active" ? (
+        <AdministratorLink
+          schoolId={school.id}
+          open={sending}
+          onOpenChange={setSending}
+        />
+      ) : null}
+    </>
+  );
+}
+
+interface SchoolProps {
+  school: School;
+}
+
+/** A count, and the limit it is held to when there is one. */
+const of = (count: number, limit: number | null) =>
+  `${count.toLocaleString("en")}${limit === null ? "" : ` of ${limit.toLocaleString("en")}`}`;
+
+/** What the school uses against what it is entitled to, as its cell last said. */
+function UseSection({ school }: SchoolProps) {
+  const entitled = school.entitlements;
+  const usage = school.usage;
+  return (
+    <RecordSection
+      title="Use"
+      description={
+        usage
+          ? `${usage.fileCount.toLocaleString("en")} stored objects, measured ${formatWhen(usage.measuredAt)}.`
+          : "Its cell has not reported yet."
+      }
+    >
+      <div className="grid gap-4">
+        <Facts short>
+          <Fact label="Storage">
+            <Usage
+              usedBytes={usage?.usedBytes ?? null}
+              limitBytes={entitled.poolBytes}
+            />
+          </Fact>
+        </Facts>
+        {usage ? (
+          <Facts short>
+            <Fact label="Students">
+              {of(usage.students, entitled.students)}
+            </Fact>
+            <Fact label="Staff accounts">
+              {of(usage.staffAccounts, entitled.staffAccounts)}
+            </Fact>
+            <Fact label="Signed in this week">
+              {usage.signedIn7d.toLocaleString("en")}
+            </Fact>
+            <Fact label="Signed in this month">
+              {usage.signedIn30d.toLocaleString("en")}
+            </Fact>
+            <Fact label="Video hours">
+              {of(Math.round(usage.videoMinutes / 6) / 10, entitled.videoHours)}
+            </Fact>
+          </Facts>
         ) : null}
       </div>
-      {health ? (
-        <SchoolOnboarding
-          schoolId={school.id}
-          health={health}
-          measuredAt={school.usage?.measuredAt ?? null}
-        />
-      ) : null}
-      <section className="grid gap-2">
-        <h2 className="text-base font-semibold">Storage</h2>
-        <Usage
-          usedBytes={school.usage?.usedBytes ?? null}
-          limitBytes={entitled.poolBytes}
-        />
-        {school.usage ? (
-          <p className="text-xs text-muted-foreground">
-            {school.usage.fileCount.toLocaleString("en")} stored objects,
-            measured {formatWhen(school.usage.measuredAt)}
-          </p>
-        ) : null}
-      </section>
-      {school.usage ? (
-        <section className="grid gap-2">
-          <h2 className="text-base font-semibold">Use</h2>
-          <dl className="grid max-w-2xl grid-cols-2 gap-x-6 gap-y-2 text-sm sm:grid-cols-3">
-            {[
-              ["Students", school.usage.students, entitled.students],
-              [
-                "Staff accounts",
-                school.usage.staffAccounts,
-                entitled.staffAccounts,
-              ],
-              ["Signed in this week", school.usage.signedIn7d, null],
-              ["Signed in this month", school.usage.signedIn30d, null],
-              [
-                "Video hours",
-                Math.round(school.usage.videoMinutes / 6) / 10,
-                entitled.videoHours,
-              ],
-            ].map(([label, count, limit]) => (
-              <div key={String(label)} className="grid gap-0.5">
-                <dt className="text-muted-foreground">{label}</dt>
-                <dd className="tabular-nums">
-                  {Number(count).toLocaleString("en")}
-                  {limit === null
-                    ? ""
-                    : ` of ${Number(limit).toLocaleString("en")}`}
-                </dd>
-              </div>
-            ))}
-          </dl>
-        </section>
-      ) : null}
-      {sold ? (
-        <SoldEntitlements
-          school={school}
-          subscriptionId={sold.subscriptionId}
-        />
-      ) : (
-        <EntitlementsForm school={school} />
-      )}
-      <Hosts schoolId={school.id} platform={platform} hosts={hosts} />
-      {ssoDomains.length ? (
-        <section aria-label="Sign-in domains" className="grid max-w-3xl gap-2">
-          <h2 className="text-base font-semibold">Sign-in domains</h2>
-          <p className="text-sm text-muted-foreground">
-            The domains its people sign in with through its own identity
-            provider, for the whole tenant.
-          </p>
-          <ul className="grid gap-1 text-sm">
-            {ssoDomains.map((domain) => (
-              <li key={domain.domain} className="flex items-center gap-2">
-                <span className="font-mono">{domain.domain}</span>
-                <Badge variant="outline">
-                  {domain.verifiedAt
-                    ? `Verified ${formatWhen(domain.verifiedAt)}`
-                    : "Not verified"}
-                </Badge>
-              </li>
-            ))}
-          </ul>
-        </section>
-      ) : null}
-      {school.tenantState === "active" ? (
-        <AdministratorLink schoolId={school.id} />
-      ) : null}
-      {standingOf(school.tenantState, entitled.access) ? (
-        <Lifecycle
-          tenantId={school.tenantId}
-          state={standingOf(school.tenantState, entitled.access) ?? "full"}
-          group={school.tenantKind === "school_group"}
-        />
-      ) : null}
-      <section className="grid gap-3">
-        <h2 className="text-base font-semibold">History</h2>
-        <ChangeList changes={changes} />
-      </section>
-    </div>
+    </RecordSection>
   );
 }
 
@@ -207,22 +255,18 @@ function SchoolPage() {
  * What the school is entitled to where its subscription sets it: shown
  * here, changed on the subscription, published from there.
  */
-function SoldEntitlements({
-  school,
-  subscriptionId,
-}: {
+interface SoldEntitlementsProps {
   school: School;
   subscriptionId: string | null;
-}) {
+}
+
+function SoldEntitlements({ school, subscriptionId }: SoldEntitlementsProps) {
   const entitled = school.entitlements;
   return (
-    <section
-      aria-label="Entitlements"
-      className="grid max-w-2xl gap-4 rounded-lg border p-6"
-    >
-      <div className="grid gap-1">
-        <h2 className="text-base font-semibold">Entitlements</h2>
-        <p className="text-sm text-muted-foreground">
+    <RecordSection
+      title="Entitlements"
+      description={
+        <>
           Revision {entitled.revision} · access {ACCESS[entitled.access]}
           {entitled.trialEndsOn
             ? ` · trial ends ${formatDay(entitled.trialEndsOn)}`
@@ -234,7 +278,7 @@ function SoldEntitlements({
               <Link
                 to="/subscriptions/$subscriptionId"
                 params={{ subscriptionId }}
-                className="text-foreground underline"
+                className="font-medium text-primary underline-offset-4 hover:underline"
               >
                 subscription
               </Link>{" "}
@@ -243,29 +287,36 @@ function SoldEntitlements({
           ) : (
             "It has no subscription yet; the daily round gives it one that keeps what it has."
           )}
-        </p>
+        </>
+      }
+    >
+      <div className="grid gap-5">
+        <div className="flex flex-wrap gap-1.5">
+          {availableModules(entitled).map((module) => (
+            <StatusBadge key={module} tone="neutral">
+              {MODULE_NAMES[module]}
+            </StatusBadge>
+          ))}
+        </div>
+        <Facts short>
+          {LIMIT_KEYS.map((key) => (
+            <Fact key={key} label={LIMIT_NAMES[key]}>
+              {formatLimit(key, entitled[key])}
+            </Fact>
+          ))}
+        </Facts>
       </div>
-      <span className="flex flex-wrap gap-1">
-        {availableModules(entitled).map((module) => (
-          <Badge key={module} variant="secondary">
-            {MODULE_NAMES[module]}
-          </Badge>
-        ))}
-      </span>
-      <dl className="grid grid-cols-2 gap-x-6 gap-y-2 text-sm sm:grid-cols-3">
-        {LIMIT_KEYS.map((key) => (
-          <div key={key} className="grid gap-0.5">
-            <dt className="text-muted-foreground">{LIMIT_NAMES[key]}</dt>
-            <dd className="tabular-nums">{formatLimit(key, entitled[key])}</dd>
-          </div>
-        ))}
-      </dl>
-    </section>
+    </RecordSection>
   );
 }
 
+const NOTICE_OPTIONS = [
+  { value: "", label: "None" },
+  ...SCHOOL_NOTICES.map((code) => ({ value: code, label: NOTICE_NAMES[code] })),
+] as const;
+
 /** Sets the school's entitlements by hand, where no subscription sets them. */
-function EntitlementsForm({ school }: { school: School }) {
+function EntitlementsForm({ school }: SchoolProps) {
   const router = useRouter();
   const save = useServerFn(saveEntitlements);
   const entitled = school.entitlements;
@@ -276,17 +327,25 @@ function EntitlementsForm({ school }: { school: School }) {
     entitled.notice ?? "",
   );
   const [reason, setReason] = useState("");
-  const [saving, setSaving] = useState(false);
+  const [submitted, setSubmitted] = useState(false);
+  const [pending, setPending] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [saved, setSaved] = useState(false);
   return (
-    <form
-      className="grid max-w-2xl gap-6 rounded-lg border p-6"
-      onSubmit={async (event) => {
-        event.preventDefault();
-        if (!reason.trim()) {
-          toast.error("Say why, for the change log.");
-          return;
-        }
-        setSaving(true);
+    <SettingsSection
+      title="Entitlements"
+      description={`Revision ${entitled.revision} · access ${ACCESS[entitled.access]}. An empty storage limit takes the platform's default; any other empty limit is unlimited.`}
+      submitLabel="Save entitlements"
+      pending={pending}
+      error={error}
+      saved={saved}
+      isDirty={() => Boolean(reason)}
+      onSubmit={async () => {
+        setSubmitted(true);
+        setSaved(false);
+        if (!reason.trim()) return;
+        setPending(true);
+        setError(null);
         try {
           const out = await save({
             data: {
@@ -299,94 +358,61 @@ function EntitlementsForm({ school }: { school: School }) {
             },
           });
           setReason("");
+          setSubmitted(false);
+          setSaved(true);
           toast.success(
             out.atOnce
               ? "Entitlements saved. The school has them now."
               : "Entitlements saved. Its cell could not be told, so the school has them within a minute.",
           );
           await router.invalidate();
-        } catch (error) {
-          const said = failure(error, "The entitlements could not be saved.");
-          if (said) toast.error(said);
+        } catch (thrown) {
+          setError(failure(thrown, "The entitlements could not be saved."));
         } finally {
-          setSaving(false);
+          setPending(false);
         }
       }}
     >
-      <div className="grid gap-1">
-        <h2 className="text-base font-semibold">Entitlements</h2>
-        <p className="text-sm text-muted-foreground">
-          Revision {entitled.revision} · access {ACCESS[entitled.access]}. An
-          empty storage limit takes the platform's default; any other empty
-          limit is unlimited.
-        </p>
-      </div>
-      <div className="grid items-start gap-4 sm:grid-cols-2">
-        <StorageFields prefix="plan" draft={limits} onChange={setLimits} />
-      </div>
-      <ModuleFields
-        prefix="plan"
-        modules={modules}
-        onChange={setModules}
-        hint="The school's administrators turn available modules on or off in their settings."
-      />
-      <div className="grid items-start gap-4 sm:grid-cols-2">
-        <CountFields prefix="plan" draft={limits} onChange={setLimits} />
-        <div className="grid gap-1.5 text-sm">
-          <label htmlFor="plan-trial" className="font-medium">
-            Trial ends on
-          </label>
-          <Input
-            id="plan-trial"
+      <SettingsGroup title="Storage">
+        <div className="grid items-start gap-6 @md:grid-cols-2">
+          <StorageFields draft={limits} onChange={setLimits} />
+        </div>
+      </SettingsGroup>
+      <SettingsGroup title="Modules">
+        <ModuleFields
+          modules={modules}
+          onChange={setModules}
+          hint="The school's administrators turn available modules on or off in their settings."
+        />
+      </SettingsGroup>
+      <SettingsGroup title="Limits and trial">
+        <div className="grid items-start gap-6 @md:grid-cols-2">
+          <CountFields draft={limits} onChange={setLimits} />
+          <TextField
+            label="Trial ends on"
+            optional
             type="date"
+            width="date"
+            hint="Empty for a school that is not on trial."
             value={trialEndsOn}
             onChange={(event) => setTrialEndsOn(event.target.value)}
           />
-          <span className="text-xs text-muted-foreground">
-            Empty for a school that is not on trial.
-          </span>
-        </div>
-        <div className="grid gap-1.5 text-sm">
-          <label htmlFor="plan-notice" className="font-medium">
-            Notice
-          </label>
-          <select
-            id="plan-notice"
+          <SelectField
+            label="Notice"
+            hint="What the school's administrators are shown."
             value={notice}
-            onChange={(event) =>
-              setNotice(event.target.value as SchoolNotice | "")
-            }
-            className="h-9 rounded-md border bg-background px-2 text-sm"
-          >
-            <option value="">None</option>
-            {SCHOOL_NOTICES.map((code) => (
-              <option key={code} value={code}>
-                {NOTICE_NAMES[code]}
-              </option>
-            ))}
-          </select>
-          <span className="text-xs text-muted-foreground">
-            What the school's administrators are shown.
-          </span>
+            options={NOTICE_OPTIONS}
+            onChange={setNotice}
+          />
         </div>
-      </div>
-      <div className="grid gap-1.5 text-sm">
-        <label htmlFor="plan-reason" className="font-medium">
-          Why
-        </label>
-        <Textarea
-          id="plan-reason"
-          required
-          maxLength={500}
-          value={reason}
-          onChange={(event) => setReason(event.target.value)}
-          placeholder="For example: moved to the larger plan from 1 November"
-        />
-      </div>
-      <Button type="submit" disabled={saving} className="justify-self-start">
-        {saving ? "Saving…" : "Save entitlements"}
-      </Button>
-    </form>
+      </SettingsGroup>
+      <WhyField
+        value={reason}
+        onChange={setReason}
+        submitted={submitted}
+        placeholder="For example: moved to the larger plan from 1 November"
+      />
+    </SettingsSection>
   );
 }
 
@@ -406,105 +432,73 @@ const LIFECYCLE_HINT: Record<TenantLifecycleMove, string> = {
  * Pauses, suspends or reopens the school's tenant, every school of a group
  * with it, with the reason the change log keeps.
  */
-function Lifecycle({
-  tenantId,
-  state,
-  group,
-}: {
+interface LifecycleProps {
   tenantId: string;
   state: TenantLifecycleMove;
   group: boolean;
-}) {
+}
+
+function Lifecycle({ tenantId, state, group }: LifecycleProps) {
   const router = useRouter();
   const set = useServerFn(setSchoolLifecycle);
   const [lifecycle, setLifecycle] = useState(state);
   const [reason, setReason] = useState("");
-  const [saving, setSaving] = useState(false);
-  const [answer, setAnswer] = useState<string | null>(null);
+  const [submitted, setSubmitted] = useState(false);
+  const [pending, setPending] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   return (
-    <form
-      className="grid max-w-2xl gap-4 rounded-lg border p-6"
-      onSubmit={async (event) => {
-        event.preventDefault();
-        if (!reason.trim()) {
-          toast.error("Say why, for the change log.");
+    <SettingsSection
+      title="Access"
+      description={`${group ? "Applies to every school of the group." : "Applies to the school."} The cell enforces it at once.`}
+      submitLabel="Change access"
+      pending={pending}
+      error={error}
+      isDirty={() => lifecycle !== state || Boolean(reason)}
+      onSubmit={async () => {
+        setSubmitted(true);
+        if (lifecycle === state || !reason.trim()) return;
+        setPending(true);
+        setError(null);
+        const failed = await attempt(
+          () =>
+            set({
+              data: { tenantId, standing: lifecycle, reason: reason.trim() },
+            }),
+          "Access could not be changed.",
+        );
+        setPending(false);
+        if (failed) {
+          setError(failed);
           return;
         }
-        setSaving(true);
-        setAnswer(null);
-        try {
-          const out = await set({
-            data: { tenantId, standing: lifecycle, reason: reason.trim() },
-          });
-          if (out.ok) {
-            toast.success("Access changed.");
-            setReason("");
-            await router.invalidate();
-          } else setAnswer(out.message);
-        } catch (error) {
-          setAnswer(failure(error, "Access could not be changed."));
-        } finally {
-          setSaving(false);
-        }
+        toast.success("Access changed.");
+        setReason("");
+        setSubmitted(false);
+        await router.invalidate();
       }}
     >
-      <div className="grid gap-1">
-        <h2 className="text-base font-semibold">Access</h2>
-        <p className="text-sm text-muted-foreground">
-          {group
-            ? "Applies to every school of the group."
-            : "Applies to the school."}{" "}
-          The cell enforces it at once.
-        </p>
-      </div>
-      <fieldset className="grid gap-2 text-sm">
-        <legend className="sr-only">Access</legend>
-        {SCHOOL_STANDINGS.map((choice) => (
-          <div key={choice} className="flex items-start gap-2">
-            <input
-              id={`lifecycle-${choice}`}
-              type="radio"
-              name="lifecycle"
-              value={choice}
-              checked={lifecycle === choice}
-              onChange={() => setLifecycle(choice)}
-              className="mt-1"
-            />
-            <label htmlFor={`lifecycle-${choice}`} className="grid gap-0.5">
-              <span className="font-medium">{STANDING_NAMES[choice]}</span>
-              <span className="text-xs text-muted-foreground">
-                {LIFECYCLE_HINT[choice]}
-              </span>
-            </label>
-          </div>
-        ))}
-      </fieldset>
-      <div className="grid gap-1.5 text-sm">
-        <label htmlFor="lifecycle-reason" className="font-medium">
-          Why
-        </label>
-        <Textarea
-          id="lifecycle-reason"
-          required
-          maxLength={500}
-          value={reason}
-          onChange={(event) => setReason(event.target.value)}
-          placeholder="For example: invoice 2026-014 unpaid for 60 days"
-        />
-      </div>
-      {answer ? (
-        <p role="alert" className="text-sm text-destructive">
-          {answer}
-        </p>
-      ) : null}
-      <Button
-        type="submit"
-        disabled={saving || lifecycle === state}
-        className="justify-self-start"
-      >
-        {saving ? "Saving…" : "Change access"}
-      </Button>
-    </form>
+      <ChoiceField
+        label="Access"
+        value={lifecycle}
+        options={SCHOOL_STANDINGS.map((choice) => ({
+          value: choice,
+          label: STANDING_NAMES[choice],
+          hint: LIFECYCLE_HINT[choice],
+        }))}
+        onChange={setLifecycle}
+        errors={
+          submitted && lifecycle === state
+            ? ["Choose a different access to change it."]
+            : undefined
+        }
+      />
+      <WhyField
+        value={reason}
+        onChange={setReason}
+        submitted={submitted}
+        placeholder="For example: invoice 2026-014 unpaid for 60 days"
+      />
+    </SettingsSection>
   );
 }
 
@@ -513,69 +507,66 @@ function Lifecycle({
  * when the first one expired or was lost. Without an email it goes to the
  * school's first administrator.
  */
-function AdministratorLink({ schoolId }: { schoolId: string }) {
+interface AdministratorLinkProps {
+  schoolId: string;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+}
+
+function AdministratorLink({
+  schoolId,
+  open,
+  onOpenChange,
+}: AdministratorLinkProps) {
   const router = useRouter();
   const resend = useServerFn(resendInvite);
   const [email, setEmail] = useState("");
-  const [sending, setSending] = useState(false);
-  const [answer, setAnswer] = useState<Awaited<
-    ReturnType<typeof resendInvite>
-  > | null>(null);
+  const [pending, setPending] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   return (
-    <form
-      className="grid max-w-2xl gap-4 rounded-lg border p-6"
-      onSubmit={async (event) => {
-        event.preventDefault();
-        setSending(true);
-        setAnswer(null);
+    <SheetForm
+      open={open}
+      onOpenChange={onOpenChange}
+      title="Send the administrator a new link"
+      submitLabel="Send link"
+      pending={pending}
+      error={error}
+      onSubmit={async () => {
+        setPending(true);
+        setError(null);
         try {
-          setAnswer(
-            await resend({
-              data: { schoolId, email: email.trim() === "" ? null : email },
-            }),
-          );
-          await router.invalidate();
-        } catch (error) {
-          const said = failure(error, "The link could not be sent.");
-          if (said) setAnswer({ ok: false, message: said });
+          const answer = await resend({
+            data: { schoolId, email: email.trim() === "" ? null : email },
+          });
+          if (answer.ok) {
+            toast.success(
+              `Sent to ${answer.sentTo}${answer.reset ? ", replacing the password they had" : ""}.`,
+            );
+            setEmail("");
+            onOpenChange(false);
+            await router.invalidate();
+          } else setError(answer.message);
+        } catch (thrown) {
+          setError(failure(thrown, "The link could not be sent."));
         } finally {
-          setSending(false);
+          setPending(false);
         }
       }}
     >
-      <div className="grid gap-1">
-        <h2 className="text-base font-semibold">Administrator</h2>
-        <p className="text-sm text-muted-foreground">
-          Sends a new link to choose a password, which replaces any link sent
-          before. Someone who already has a password chooses a new one.
-        </p>
-      </div>
-      <div className="grid gap-1.5 text-sm">
-        <label htmlFor="admin-email" className="font-medium">
-          Administrator's email
-        </label>
-        <Input
-          id="admin-email"
-          type="email"
-          dir="ltr"
-          value={email}
-          placeholder="Empty for the school's first administrator"
-          onChange={(event) => setEmail(event.target.value)}
-        />
-      </div>
-      {answer ? (
-        <p
-          role={answer.ok ? "status" : "alert"}
-          className={answer.ok ? "text-sm" : "text-sm text-destructive"}
-        >
-          {answer.ok
-            ? `Sent to ${answer.sentTo}${answer.reset ? ", replacing the password they had" : ""}.`
-            : answer.message}
-        </p>
-      ) : null}
-      <Button type="submit" disabled={sending} className="justify-self-start">
-        {sending ? "Sending…" : "Send the administrator a new link"}
-      </Button>
-    </form>
+      <p className="text-sm leading-5 text-muted-foreground">
+        A new link to choose a password replaces any link sent before. Someone
+        who already has a password chooses a new one.
+      </p>
+      <TextField
+        label="Administrator's email"
+        optional
+        type="email"
+        dir="ltr"
+        width="name"
+        hint="Empty for the school's first administrator."
+        value={email}
+        onChange={(event) => setEmail(event.target.value)}
+      />
+    </SheetForm>
   );
 }

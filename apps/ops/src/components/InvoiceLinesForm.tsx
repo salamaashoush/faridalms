@@ -1,7 +1,8 @@
 import type { InvoiceLine } from "@faridalms/domain/invoices";
 
 import { Button } from "@faridalms/ui/button";
-import { Input } from "@faridalms/ui/input";
+import { TextField } from "@faridalms/ui/system/form-field";
+import { Plus, X } from "lucide-react";
 
 import { minorOf } from "../format";
 
@@ -40,9 +41,12 @@ export const blankLine = (): LineDraft => ({
 });
 
 /** The lines the drafts set, or why one cannot be read. */
-export function linesOf(
-  drafts: readonly LineDraft[],
-): { ok: true; lines: InvoiceLine[] } | { ok: false; message: string } {
+/** What reading the drafts gave: the lines, or why they cannot be read. */
+export type ReadLines =
+  | { ok: true; lines: InvoiceLine[] }
+  | { ok: false; message: string };
+
+export function linesOf(drafts: readonly LineDraft[]): ReadLines {
   const lines: InvoiceLine[] = [];
   for (const draft of drafts) {
     const quantity = Number(draft.quantity);
@@ -78,85 +82,112 @@ export function linesOf(
   return { ok: true, lines };
 }
 
-/** Invoice or credit note lines: what each is in both languages, its period and price. */
-export function InvoiceLinesFields({
-  prefix,
-  currency,
-  drafts,
-  onChange,
-}: {
-  prefix: string;
+export interface InvoiceLinesFieldsProps {
   currency: string;
   drafts: LineDraft[];
   onChange: (drafts: LineDraft[]) => void;
-}) {
+}
+
+/** Invoice or credit note lines: what each is in both languages, its period and price. */
+export function InvoiceLinesFields({
+  currency,
+  drafts,
+  onChange,
+}: InvoiceLinesFieldsProps) {
   const set = (index: number, change: Partial<LineDraft>) =>
     onChange(
       drafts.map((draft, at) =>
         at === index ? { ...draft, ...change } : draft,
       ),
     );
-  const field = (
-    index: number,
-    key: keyof LineDraft,
-    label: string,
-    options: {
-      dir?: "ltr" | "rtl";
-      type?: string;
-      inputMode?: "decimal" | "numeric";
-    } = {},
-  ) => (
-    <div className="grid gap-1">
-      <label
-        htmlFor={`${prefix}-${index}-${key}`}
-        className="text-xs font-medium"
-      >
-        {label}
-      </label>
-      <Input
-        id={`${prefix}-${index}-${key}`}
-        dir={options.dir}
-        lang={options.dir === "rtl" ? "ar" : undefined}
-        type={options.type}
-        inputMode={options.inputMode}
-        value={drafts[index]?.[key] ?? ""}
-        onChange={(event) => set(index, { [key]: event.target.value })}
-      />
-    </div>
-  );
   return (
-    <fieldset className="grid gap-4 text-sm">
-      <legend className="mb-1 font-medium">Lines</legend>
+    <div className="@container grid gap-4">
       {drafts.map((line, index) => (
         <div
-          key={`${prefix}-line-${index}`}
-          className="grid gap-3 border-t pt-3 sm:grid-cols-2"
+          key={`line-${index}`}
+          className="grid gap-5 rounded-lg border bg-card p-5"
         >
-          {field(index, "descriptionEn", "Description in English")}
-          {field(index, "descriptionAr", "Description in Arabic", {
-            dir: "rtl",
-          })}
-          <div className="grid gap-3 sm:col-span-2 sm:grid-cols-4">
-            {field(index, "quantity", "Quantity", { inputMode: "numeric" })}
-            {field(index, "price", `Unit price (${currency})`, {
-              inputMode: "decimal",
-            })}
-            {field(index, "discount", "Discount (%)", { inputMode: "decimal" })}
-            {field(index, "itemCode", "Item code", { dir: "ltr" })}
+          <div className="flex items-center justify-between gap-2">
+            <span className="text-sm leading-5 font-semibold">
+              Line {index + 1}
+            </span>
+            {drafts.length > 1 ? (
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon-sm"
+                aria-label={`Remove line ${index + 1}`}
+                onClick={() => onChange(drafts.filter((_, at) => at !== index))}
+              >
+                <X aria-hidden />
+              </Button>
+            ) : null}
           </div>
-          {field(index, "periodStart", "Period from", { type: "date" })}
-          {field(index, "periodEnd", "Period to", { type: "date" })}
-          {drafts.length > 1 ? (
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              className="justify-self-start"
-              onClick={() => onChange(drafts.filter((_, at) => at !== index))}
-            >
-              Remove this line
-            </Button>
-          ) : null}
+          <div className="grid items-start gap-5 @lg:grid-cols-2">
+            <TextField
+              label="Description in English"
+              value={line.descriptionEn}
+              onChange={(event) =>
+                set(index, { descriptionEn: event.target.value })
+              }
+            />
+            <TextField
+              label="Description in Arabic"
+              dir="rtl"
+              lang="ar"
+              value={line.descriptionAr}
+              onChange={(event) =>
+                set(index, { descriptionAr: event.target.value })
+              }
+            />
+          </div>
+          <div className="grid items-start gap-5 @lg:grid-cols-4">
+            <TextField
+              label="Quantity"
+              inputMode="numeric"
+              value={line.quantity}
+              onChange={(event) => set(index, { quantity: event.target.value })}
+            />
+            <TextField
+              label={`Unit price (${currency})`}
+              inputMode="decimal"
+              value={line.price}
+              onChange={(event) => set(index, { price: event.target.value })}
+            />
+            <TextField
+              label="Discount (%)"
+              inputMode="decimal"
+              value={line.discount}
+              onChange={(event) => set(index, { discount: event.target.value })}
+            />
+            <TextField
+              label="Item code"
+              optional
+              dir="ltr"
+              value={line.itemCode}
+              onChange={(event) => set(index, { itemCode: event.target.value })}
+            />
+          </div>
+          <div className="grid items-start gap-5 @lg:grid-cols-2">
+            <TextField
+              label="Period from"
+              optional
+              type="date"
+              value={line.periodStart}
+              onChange={(event) =>
+                set(index, { periodStart: event.target.value })
+              }
+            />
+            <TextField
+              label="Period to"
+              optional
+              type="date"
+              value={line.periodEnd}
+              onChange={(event) =>
+                set(index, { periodEnd: event.target.value })
+              }
+            />
+          </div>
         </div>
       ))}
       <Button
@@ -166,8 +197,9 @@ export function InvoiceLinesFields({
         className="justify-self-start"
         onClick={() => onChange([...drafts, blankLine()])}
       >
+        <Plus aria-hidden />
         Add a line
       </Button>
-    </fieldset>
+    </div>
   );
 }

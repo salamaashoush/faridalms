@@ -1,26 +1,26 @@
 import type { ExamBoard, ExamSeries } from "@faridalms/domain/exams";
+import type { Column } from "@faridalms/ui/system/data-table";
 
 import { EXAM_BOARDS, seriesId } from "@faridalms/domain/exams";
-import { Badge } from "@faridalms/ui/badge";
-import { Button } from "@faridalms/ui/button";
-import { Checkbox } from "@faridalms/ui/checkbox";
-import { Input } from "@faridalms/ui/input";
+import { DataTable } from "@faridalms/ui/system/data-table";
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@faridalms/ui/table";
-import { Textarea } from "@faridalms/ui/textarea";
+  CheckboxGroupField,
+  SelectField,
+  TextField,
+} from "@faridalms/ui/system/form-field";
+import { PageHeader } from "@faridalms/ui/system/page-header";
+import { RecordSection } from "@faridalms/ui/system/record-page";
+import { SheetForm } from "@faridalms/ui/system/sheet-form";
+import { StatusText } from "@faridalms/ui/system/status";
 import { createFileRoute, useRouter } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
+import { CalendarClock, Plus } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 
-import { failure } from "../actions";
+import { attempt } from "../actions";
 import { ChangeList } from "../components/ChangeList";
+import { WhyField } from "../components/Why";
 import { BOARD_NAMES, formatDay, formatMonth } from "../format";
 import { listSeries, saveSeries } from "../server/directory";
 
@@ -47,97 +47,81 @@ function sessionName(row: ExamSeries) {
   return `${BOARD_NAMES[row.board]}, ${formatMonth(row.sitsIn)}`;
 }
 
-function SeriesPage() {
-  const { series, changes } = Route.useLoaderData();
+const BOARD_OPTIONS = EXAM_BOARDS.map((board) => ({
+  value: board,
+  label: BOARD_NAMES[board],
+}));
+
+const COLUMNS: Column<ExamSeries>[] = [
+  {
+    id: "session",
+    header: "Session",
+    primary: true,
+    cell: (row) => (
+      <span className="grid min-w-0">
+        <span className="truncate font-medium">{sessionName(row)}</span>
+        <span className="truncate text-[13px] leading-[18px] text-muted-foreground">
+          {row.id}
+        </span>
+      </span>
+    ),
+  },
+  {
+    id: "keep",
+    header: "Keep until",
+    cell: (row) => formatDay(row.keepUntil),
+  },
+  {
+    id: "state",
+    header: "State",
+    cell: (row) =>
+      row.retired ? (
+        <StatusText tone="neutral">Retired</StatusText>
+      ) : (
+        <StatusText tone="success">Offered</StatusText>
+      ),
+  },
+];
+
+interface SessionSheetProps {
+  series: ExamSeries[];
+  /** The session being changed, or an empty draft for a new one. */
+  draft: Draft | null;
+  onClose: () => void;
+}
+
+/** Adds a session, or changes one: a board and month name one session. */
+function SessionSheet({ series, draft: start, onClose }: SessionSheetProps) {
   const router = useRouter();
   const save = useServerFn(saveSeries);
-  const [draft, setDraft] = useState<Draft>(EMPTY);
+  const [draft, setDraft] = useState<Draft>(start ?? EMPTY);
   const [reason, setReason] = useState("");
-  const [saving, setSaving] = useState(false);
+  const [submitted, setSubmitted] = useState(false);
+  const [pending, setPending] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const existing = draft.month
     ? series.find(
         (row) => row.id === seriesId(draft.board, `${draft.month}-01`),
       )
     : undefined;
-  const edit = (row: ExamSeries) => {
-    setDraft({
-      board: row.board,
-      month: row.sitsIn.slice(0, 7),
-      keepUntil: row.keepUntil,
-      retired: row.retired,
-    });
-    document.getElementById("series-form")?.scrollIntoView();
-  };
   return (
-    <div className="grid gap-8">
-      <div className="grid gap-1">
-        <h1 className="text-2xl font-semibold">Exam sessions</h1>
-        <p className="text-sm text-muted-foreground">
-          The boards' official sessions and the date their coursework must be
-          kept until, after results enquiries and appeals close. Schools start
-          from these dates and may keep work longer.
-        </p>
-      </div>
-      <div className="overflow-x-auto rounded-lg border">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Session</TableHead>
-              <TableHead className="max-sm:hidden">Keep until</TableHead>
-              <TableHead>
-                <span className="sr-only">Actions</span>
-              </TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {series.map((row) => (
-              <TableRow key={row.id}>
-                <TableCell className="whitespace-normal">
-                  <span className="font-medium">{sessionName(row)}</span>
-                  {row.retired ? (
-                    <Badge variant="secondary" className="ms-2">
-                      Retired
-                    </Badge>
-                  ) : null}
-                  <div className="text-xs text-muted-foreground">{row.id}</div>
-                  <div className="text-xs sm:hidden">
-                    Keep until {formatDay(row.keepUntil)}
-                  </div>
-                </TableCell>
-                <TableCell className="max-sm:hidden">
-                  {formatDay(row.keepUntil)}
-                </TableCell>
-                <TableCell className="text-end">
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    aria-label={`Change ${sessionName(row)}`}
-                    onClick={() => edit(row)}
-                  >
-                    Change
-                  </Button>
-                </TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      </div>
-      <form
-        id="series-form"
-        className="grid max-w-2xl gap-6 rounded-lg border p-6"
-        onSubmit={async (event) => {
-          event.preventDefault();
-          if (!draft.month || !draft.keepUntil) {
-            toast.error("Choose the month and the keep-until date.");
-            return;
-          }
-          if (!reason.trim()) {
-            toast.error("Say why, for the change log.");
-            return;
-          }
-          setSaving(true);
-          try {
-            await save({
+    <SheetForm
+      open={start !== null}
+      onOpenChange={(open) => {
+        if (!open) onClose();
+      }}
+      title={existing ? `Change ${sessionName(existing)}` : "Add a session"}
+      submitLabel={existing ? "Save changes" : "Add session"}
+      pending={pending}
+      error={error}
+      onSubmit={async () => {
+        setSubmitted(true);
+        if (!draft.month || !draft.keepUntil || !reason.trim()) return;
+        setPending(true);
+        setError(null);
+        const failed = await attempt(
+          () =>
+            save({
               data: {
                 board: draft.board,
                 sitsIn: `${draft.month}-01`,
@@ -145,122 +129,139 @@ function SeriesPage() {
                 retired: draft.retired,
                 reason: reason.trim(),
               },
-            });
-            setDraft(EMPTY);
-            setReason("");
-            toast.success("Session saved. Cells see it within a minute.");
-            await router.invalidate();
-          } catch (error) {
-            const said = failure(
-              error,
-              "The session could not be saved. Keep-until must come after the session.",
-            );
-            if (said) toast.error(said);
-          } finally {
-            setSaving(false);
-          }
+            }),
+          "The session could not be saved. Keep-until must come after the session.",
+        );
+        setPending(false);
+        if (failed) {
+          setError(failed);
+          return;
+        }
+        toast.success("Session saved. Cells see it within a minute.");
+        onClose();
+        await router.invalidate();
+      }}
+    >
+      <p className="text-sm leading-5 text-muted-foreground">
+        A board and month name one session; choosing one already listed changes
+        it.
+      </p>
+      <SelectField
+        label="Board"
+        value={draft.board}
+        options={BOARD_OPTIONS}
+        onChange={(board) => setDraft({ ...draft, board })}
+      />
+      <TextField
+        label="Month"
+        type="month"
+        width="date"
+        value={draft.month}
+        errors={submitted && !draft.month ? ["Choose the month."] : undefined}
+        onChange={(event) => setDraft({ ...draft, month: event.target.value })}
+      />
+      <TextField
+        label="Keep until"
+        type="date"
+        width="date"
+        hint="After results enquiries and appeals close."
+        value={draft.keepUntil}
+        errors={
+          submitted && !draft.keepUntil
+            ? ["Choose the keep-until date."]
+            : undefined
+        }
+        onChange={(event) =>
+          setDraft({ ...draft, keepUntil: event.target.value })
+        }
+      />
+      <CheckboxGroupField
+        label="Offered"
+        value={draft.retired ? ["retired"] : []}
+        options={[
+          {
+            value: "retired",
+            label: "Retired",
+            hint: "Schools can no longer choose it for new coursework.",
+          },
+        ]}
+        onChange={(value) =>
+          setDraft({ ...draft, retired: value.includes("retired") })
+        }
+      />
+      <WhyField
+        value={reason}
+        onChange={setReason}
+        submitted={submitted}
+        placeholder="For example: dates from the board's 2027 handbook, section 7"
+      />
+    </SheetForm>
+  );
+}
+
+/**
+ * The boards' official sessions and the date their coursework must be kept
+ * until. Schools start from these dates and may keep work longer.
+ */
+function SeriesPage() {
+  const { series, changes } = Route.useLoaderData();
+  const [editing, setEditing] = useState<Draft | null>(null);
+  const [opened, setOpened] = useState(0);
+  const open = (draft: Draft) => {
+    setOpened((count) => count + 1);
+    setEditing(draft);
+  };
+  return (
+    <>
+      <PageHeader
+        title="Exam sessions"
+        count={series.length}
+        description="Coursework is kept until the date beside its session."
+        action={{
+          label: "Add a session",
+          icon: Plus,
+          onClick: () => open(EMPTY),
         }}
-      >
-        <div className="grid gap-1">
-          <h2 className="text-base font-semibold">
-            {existing ? `Change ${sessionName(existing)}` : "Add a session"}
-          </h2>
-          <p className="text-sm text-muted-foreground">
-            A board and month name one session; choosing one already listed
-            changes it.
-          </p>
-        </div>
-        <div className="grid items-start gap-4 sm:grid-cols-3">
-          <div className="grid gap-1.5 text-sm">
-            <label htmlFor="series-board" className="font-medium">
-              Board
-            </label>
-            <select
-              id="series-board"
-              value={draft.board}
-              onChange={(event) =>
-                setDraft({ ...draft, board: event.target.value as ExamBoard })
-              }
-              className="h-9 w-full min-w-0 rounded-md border bg-background px-2 text-sm"
-            >
-              {EXAM_BOARDS.map((board) => (
-                <option key={board} value={board}>
-                  {BOARD_NAMES[board]}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div className="grid gap-1.5 text-sm">
-            <label htmlFor="series-month" className="font-medium">
-              Month
-            </label>
-            <Input
-              id="series-month"
-              type="month"
-              value={draft.month}
-              onChange={(event) =>
-                setDraft({ ...draft, month: event.target.value })
-              }
-            />
-          </div>
-          <div className="grid gap-1.5 text-sm">
-            <label htmlFor="series-keep" className="font-medium">
-              Keep until
-            </label>
-            <Input
-              id="series-keep"
-              type="date"
-              value={draft.keepUntil}
-              onChange={(event) =>
-                setDraft({ ...draft, keepUntil: event.target.value })
-              }
-            />
-          </div>
-        </div>
-        <span className="flex items-center gap-2 text-sm">
-          <Checkbox
-            id="series-retired"
-            checked={draft.retired}
-            onCheckedChange={(checked) =>
-              setDraft({ ...draft, retired: checked })
-            }
-          />
-          <label htmlFor="series-retired">
-            Retired: schools can no longer choose it for new coursework
-          </label>
-        </span>
-        <div className="grid gap-1.5 text-sm">
-          <label htmlFor="series-reason" className="font-medium">
-            Why
-          </label>
-          <Textarea
-            id="series-reason"
-            required
-            maxLength={500}
-            value={reason}
-            onChange={(event) => setReason(event.target.value)}
-            placeholder="For example: dates from the board's 2027 handbook, section 7"
-          />
-        </div>
-        <span className="flex gap-2">
-          <Button type="submit" disabled={saving}>
-            {saving ? "Saving…" : existing ? "Save changes" : "Add session"}
-          </Button>
-          {draft !== EMPTY ? (
-            <Button
-              type="button"
-              variant="ghost"
-              onClick={() => setDraft(EMPTY)}
-            >
-              Clear
-            </Button>
-          ) : null}
-        </span>
-      </form>
-      <section className="grid gap-3">
-        <h2 className="text-base font-semibold">History</h2>
-        <ChangeList changes={changes} subjectName={(id) => id} />
-      </section>
-    </div>
+      />
+      <div className="grid gap-6">
+        <DataTable
+          caption="Exam sessions"
+          rows={series}
+          columns={COLUMNS}
+          rowLabel={sessionName}
+          rowActions={(row) => [
+            {
+              label: "Change",
+              inline: true,
+              onSelect: () =>
+                open({
+                  board: row.board,
+                  month: row.sitsIn.slice(0, 7),
+                  keepUntil: row.keepUntil,
+                  retired: row.retired,
+                }),
+            },
+          ]}
+          card={{
+            title: (row) => sessionName(row),
+            fact: (row) => `Keep until ${formatDay(row.keepUntil)}`,
+          }}
+          empty={{
+            icon: CalendarClock,
+            title: "Add the first session",
+            description: "Schools choose a session for coursework kept for it.",
+          }}
+        />
+        <RecordSection title="History">
+          <ChangeList changes={changes} subjectName={(id) => id} />
+        </RecordSection>
+      </div>
+      <SessionSheet
+        key={opened}
+        series={series}
+        draft={editing}
+        onClose={() => setEditing(null)}
+      />
+    </>
   );
 }

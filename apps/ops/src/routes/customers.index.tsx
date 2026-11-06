@@ -1,99 +1,138 @@
-import { Button } from "@faridalms/ui/button";
+import type { Column, DataTableCard } from "@faridalms/ui/system/data-table";
+
+import { DataTable, RowLink } from "@faridalms/ui/system/data-table";
+import { PageHeader } from "@faridalms/ui/system/page-header";
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@faridalms/ui/table";
-import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+  createFileRoute,
+  stripSearchParams,
+  useNavigate,
+} from "@tanstack/react-router";
+import { Building2, Plus } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
+import * as v from "valibot";
 
-import { CustomerForm } from "../components/CustomerForm";
-import { getCustomers } from "../server/customers";
+import type { getCustomers } from "../server/customers";
+
+import { NewCustomerSheet } from "../components/CustomerForm";
+import { getCustomers as loadCustomers } from "../server/customers";
 
 export const Route = createFileRoute("/customers/")({
-  loader: () => getCustomers(),
+  validateSearch: v.object({ q: v.optional(v.string(), "") }),
+  search: { middlewares: [stripSearchParams({ q: "" })] },
+  loader: () => loadCustomers(),
   component: Customers,
 });
 
+type CustomerRow = Awaited<ReturnType<typeof getCustomers>>[number];
+
+const COLUMNS: Column<CustomerRow>[] = [
+  {
+    id: "customer",
+    header: "Customer",
+    primary: true,
+    cell: (customer) => (
+      <span className="grid min-w-0">
+        <RowLink
+          to="/customers/$customerId"
+          params={{ customerId: customer.id }}
+        >
+          {customer.legalNameEn}
+        </RowLink>
+        {customer.legalNameAr ? (
+          <span
+            dir="rtl"
+            lang="ar"
+            className="truncate text-[13px] leading-[18px] text-muted-foreground"
+          >
+            {customer.legalNameAr}
+          </span>
+        ) : null}
+      </span>
+    ),
+  },
+  { id: "country", header: "Country", cell: (customer) => customer.country },
+  { id: "currency", header: "Currency", cell: (customer) => customer.currency },
+  {
+    id: "tax",
+    header: "Tax number",
+    cell: (customer) => (
+      <span className="text-muted-foreground">
+        {customer.taxNumber ?? "None"}
+      </span>
+    ),
+  },
+];
+
+const CARD: DataTableCard<CustomerRow> = {
+  title: (customer) => (
+    <RowLink to="/customers/$customerId" params={{ customerId: customer.id }}>
+      {customer.legalNameEn}
+    </RowLink>
+  ),
+  fact: (customer) => `${customer.country} · ${customer.currency}`,
+};
+
+/** The organisations the business sells to and invoices. */
 function Customers() {
   const customers = Route.useLoaderData();
-  const navigate = useNavigate();
+  const { q } = Route.useSearch();
+  const navigate = useNavigate({ from: Route.fullPath });
   const [adding, setAdding] = useState(false);
+  const needle = q.trim().toLowerCase();
+  const rows = customers.filter(
+    (customer) =>
+      !needle ||
+      [customer.legalNameEn, customer.legalNameAr, customer.taxNumber]
+        .filter((text) => text !== null)
+        .some((text) => text.toLowerCase().includes(needle)),
+  );
   return (
-    <div className="grid gap-6">
-      <div className="flex flex-wrap items-start justify-between gap-4">
-        <div className="grid gap-1">
-          <h1 className="text-2xl font-semibold">Customers</h1>
-          <p className="text-sm text-muted-foreground">
-            The organisations the business sells to and invoices, each with the
-            tenant it runs once its schools exist.
-          </p>
-        </div>
-        <Button variant="outline" onClick={() => setAdding((open) => !open)}>
-          New customer
-        </Button>
-      </div>
-      {adding ? (
-        <CustomerForm
-          customer={null}
-          onSaved={async (customerId) => {
-            toast.success("Customer created.");
-            await navigate({
-              to: "/customers/$customerId",
-              params: { customerId },
-            });
-          }}
-        />
-      ) : null}
-      {customers.length === 0 ? (
-        <p className="text-sm text-muted-foreground">No customers yet.</p>
-      ) : (
-        <div className="overflow-x-auto rounded-lg border">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Customer</TableHead>
-                <TableHead>Country</TableHead>
-                <TableHead>Currency</TableHead>
-                <TableHead>Tax number</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {customers.map((customer) => (
-                <TableRow key={customer.id}>
-                  <TableCell>
-                    <Link
-                      to="/customers/$customerId"
-                      params={{ customerId: customer.id }}
-                      className="font-medium hover:text-primary hover:underline"
-                    >
-                      {customer.legalNameEn}
-                    </Link>
-                    {customer.legalNameAr ? (
-                      <div
-                        dir="rtl"
-                        lang="ar"
-                        className="text-xs text-muted-foreground"
-                      >
-                        {customer.legalNameAr}
-                      </div>
-                    ) : null}
-                  </TableCell>
-                  <TableCell>{customer.country}</TableCell>
-                  <TableCell>{customer.currency}</TableCell>
-                  <TableCell className="text-muted-foreground">
-                    {customer.taxNumber ?? "None"}
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </div>
-      )}
-    </div>
+    <>
+      <PageHeader
+        title="Customers"
+        count={needle ? undefined : customers.length}
+        description="Each runs a tenant once its schools exist."
+        action={{
+          label: "New customer",
+          icon: Plus,
+          onClick: () => setAdding(true),
+        }}
+      />
+      <DataTable
+        caption="Customers"
+        rows={rows}
+        columns={COLUMNS}
+        rowLabel={(customer) => customer.legalNameEn}
+        toolbar={{
+          search: {
+            value: q,
+            onChange: (value) =>
+              void navigate({ search: { q: value }, replace: true }),
+            label: "Search customers",
+            placeholder: "Search by name or tax number",
+          },
+          onReset: () => void navigate({ search: {} }),
+        }}
+        card={CARD}
+        empty={{
+          icon: Building2,
+          title: "Add the first customer",
+          description:
+            "A customer is the organisation that signs and pays: a school, or a group of schools.",
+        }}
+      />
+      <NewCustomerSheet
+        open={adding}
+        onOpenChange={setAdding}
+        onCreated={async (customerId) => {
+          toast.success("Customer created.");
+          await navigate({
+            to: "/customers/$customerId",
+            params: { customerId },
+          });
+        }}
+      />
+    </>
   );
 }

@@ -1,21 +1,30 @@
 import type { LeadState } from "@faridalms/domain/leads";
 import type { DemoSize } from "@faridalms/domain/product";
 
-import { LEAD_STATES } from "@faridalms/domain/leads";
+import { LEAD_STATES, leadOpen } from "@faridalms/domain/leads";
 import { DEMO_SIZES } from "@faridalms/domain/product";
-import { Badge } from "@faridalms/ui/badge";
 import { Button } from "@faridalms/ui/button";
-import { Input } from "@faridalms/ui/input";
+import { SelectField, TextField } from "@faridalms/ui/system/form-field";
+import { PageHeader } from "@faridalms/ui/system/page-header";
+import {
+  RecordEmpty,
+  RecordList,
+  RecordSection,
+} from "@faridalms/ui/system/record-page";
+import { SheetForm } from "@faridalms/ui/system/sheet-form";
+import { StatusText } from "@faridalms/ui/system/status";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
+import { Plus } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 
-import { failure } from "../actions";
+import { attemptWith } from "../actions";
 import {
   formatDay,
   LEAD_SOURCE_NAMES,
   LEAD_STATE_NAMES,
+  LEAD_STATE_TONE,
   SIZE_NAMES,
 } from "../format";
 import { addLead, getLeads } from "../server/leads";
@@ -26,203 +35,288 @@ export const Route = createFileRoute("/leads/")({
 });
 
 type Data = Awaited<ReturnType<typeof getLeads>>;
-type LeadText = "organisation" | "name" | "email" | "phone" | "country";
 type Lead = Data["leads"][number];
 
-function LeadLine({ lead, names }: { lead: Lead; names: Data["names"] }) {
+interface LeadCardProps {
+  lead: Lead;
+  names: Data["names"];
+  today: string;
+}
+
+/** A lead as a card: who, where from, and what is done next by whom. */
+function LeadCard({ lead, names, today }: LeadCardProps) {
+  const late = lead.nextStepOn !== null && lead.nextStepOn <= today;
   return (
-    <li className="flex flex-wrap items-baseline justify-between gap-2 px-4 py-3 text-sm">
-      <span className="grid gap-0.5">
-        <Link
-          to="/leads/$leadId"
-          params={{ leadId: lead.id }}
-          className="font-medium underline"
-        >
-          {lead.organisation}
-        </Link>
-        <span className="text-muted-foreground">
-          {lead.name} · {LEAD_SOURCE_NAMES[lead.source]}
-          {lead.size ? ` · ${SIZE_NAMES[lead.size]}` : ""}
-          {lead.country ? ` · ${lead.country}` : ""}
+    <li className="relative grid gap-1.5 rounded-lg border bg-card p-3 hover:bg-accent has-[a:focus-visible]:ring-3 has-[a:focus-visible]:ring-ring/50">
+      <Link
+        to="/leads/$leadId"
+        params={{ leadId: lead.id }}
+        className="text-sm leading-5 font-medium outline-none after:absolute after:inset-0"
+      >
+        {lead.organisation}
+      </Link>
+      <span className="text-[13px] leading-[18px] text-muted-foreground">
+        {lead.name} · {LEAD_SOURCE_NAMES[lead.source]}
+        {lead.size ? ` · ${SIZE_NAMES[lead.size]}` : ""}
+        {lead.country ? ` · ${lead.country}` : ""}
+      </span>
+      {lead.nextStep ? (
+        <StatusText tone={late ? "warning" : "neutral"}>
+          {lead.nextStep}
+          {lead.nextStepOn ? `, ${formatDay(lead.nextStepOn)}` : ""}
+        </StatusText>
+      ) : (
+        <span className="text-[13px] leading-[18px] text-muted-foreground">
+          No next step
         </span>
-      </span>
-      <span className="text-muted-foreground">
-        {lead.nextStep
-          ? `${lead.nextStep}${lead.nextStepOn ? `, ${formatDay(lead.nextStepOn)}` : ""}`
-          : "No next step"}
-        {lead.ownerId ? ` · ${names[lead.ownerId] ?? "a former operator"}` : ""}
-      </span>
+      )}
+      {lead.ownerId ? (
+        <span className="text-[13px] leading-[18px] text-muted-foreground">
+          {names[lead.ownerId] ?? "A former operator"}
+        </span>
+      ) : null}
     </li>
   );
 }
 
+/**
+ * Who may buy, from first contact to won or lost, as a board of stages,
+ * with the next steps due today first.
+ */
 function Leads() {
-  const { leads, due, names } = Route.useLoaderData();
+  const { leads, due, names, today } = Route.useLoaderData();
   const [adding, setAdding] = useState(false);
   const [showClosed, setShowClosed] = useState(false);
   const byState = (state: LeadState) =>
     leads.filter((lead) => lead.state === state);
-  const shown = LEAD_STATES.filter(
-    (state) => showClosed || (state !== "won" && state !== "lost"),
-  );
+  const shown = LEAD_STATES.filter((state) => showClosed || leadOpen(state));
   return (
-    <div className="grid gap-8">
-      <div className="flex flex-wrap items-start justify-between gap-4">
-        <div className="grid gap-1">
-          <h1 className="text-2xl font-semibold">Leads</h1>
-          <p className="text-sm text-muted-foreground">
-            Who may buy, from first contact to won or lost, with what is done
-            next and by whom.
-          </p>
-        </div>
-        <Button variant="outline" onClick={() => setAdding((open) => !open)}>
-          New lead
-        </Button>
-      </div>
-      {adding ? <NewLead /> : null}
-      <section aria-label="Next steps due" className="grid gap-3">
-        <h2 className="text-base font-semibold">Next steps due</h2>
-        {due.length ? (
-          <ul className="divide-y rounded-lg border">
-            {due.map((lead) => (
-              <LeadLine key={lead.id} lead={lead} names={names} />
-            ))}
-          </ul>
-        ) : (
-          <p className="text-sm text-muted-foreground">Nothing due today.</p>
-        )}
-      </section>
-      <section aria-label="Pipeline" className="grid gap-6">
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <h2 className="text-base font-semibold">Pipeline</h2>
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => setShowClosed((open) => !open)}
-          >
-            {showClosed ? "Hide won and lost" : "Show won and lost"}
-          </Button>
-        </div>
-        {shown.map((state) => (
-          <div key={state} className="grid gap-2">
-            <h3 className="flex items-center gap-2 text-sm font-semibold">
-              {LEAD_STATE_NAMES[state]}
-              <Badge variant="secondary">{byState(state).length}</Badge>
-            </h3>
-            {byState(state).length ? (
-              <ul className="divide-y rounded-lg border">
-                {byState(state).map((lead) => (
-                  <LeadLine key={lead.id} lead={lead} names={names} />
-                ))}
-              </ul>
-            ) : null}
+    <>
+      <PageHeader
+        title="Leads"
+        count={leads.filter((lead) => leadOpen(lead.state)).length}
+        description="From first contact to won or lost, with what is done next and by whom."
+        action={{
+          label: "New lead",
+          icon: Plus,
+          onClick: () => setAdding(true),
+        }}
+      />
+      <div className="grid gap-6">
+        <RecordSection
+          title="Next steps due"
+          description="Due today or earlier."
+        >
+          {due.length ? (
+            <RecordList>
+              {due.map((lead) => (
+                <li
+                  key={lead.id}
+                  className="flex flex-wrap items-baseline justify-between gap-2 py-3"
+                >
+                  <Link
+                    to="/leads/$leadId"
+                    params={{ leadId: lead.id }}
+                    className="text-sm leading-5 font-medium hover:text-primary hover:underline"
+                  >
+                    {lead.organisation}
+                  </Link>
+                  <span className="text-[13px] leading-[18px] text-muted-foreground">
+                    {lead.nextStep}
+                    {lead.nextStepOn ? `, ${formatDay(lead.nextStepOn)}` : ""}
+                    {lead.ownerId
+                      ? ` · ${names[lead.ownerId] ?? "a former operator"}`
+                      : ""}
+                  </span>
+                </li>
+              ))}
+            </RecordList>
+          ) : (
+            <RecordEmpty>Nothing due today.</RecordEmpty>
+          )}
+        </RecordSection>
+        <section aria-label="Pipeline" className="grid gap-3">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <h2 className="text-base leading-6 font-semibold">Pipeline</h2>
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={() => setShowClosed((open) => !open)}
+            >
+              {showClosed ? "Hide won and lost" : "Show won and lost"}
+            </Button>
           </div>
-        ))}
-      </section>
-    </div>
+          <div className="-mx-4 overflow-x-auto px-4 pb-2 sm:mx-0 sm:px-0">
+            <div className="flex w-max gap-3">
+              {shown.map((state) => {
+                const rows = byState(state);
+                return (
+                  <div
+                    key={state}
+                    className="grid w-64 content-start gap-2 rounded-lg bg-muted/50 p-2"
+                  >
+                    <h3 className="flex items-center justify-between gap-2 px-1 py-1 text-sm leading-5 font-semibold">
+                      <StatusText tone={LEAD_STATE_TONE[state]}>
+                        {LEAD_STATE_NAMES[state]}
+                      </StatusText>
+                      <span className="text-[13px] font-medium text-muted-foreground tabular-nums">
+                        {rows.length}
+                      </span>
+                    </h3>
+                    {rows.length ? (
+                      <ul className="grid gap-2">
+                        {rows.map((lead) => (
+                          <LeadCard
+                            key={lead.id}
+                            lead={lead}
+                            names={names}
+                            today={today}
+                          />
+                        ))}
+                      </ul>
+                    ) : (
+                      <p className="px-1 pb-2 text-[13px] leading-[18px] text-muted-foreground">
+                        None
+                      </p>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </section>
+      </div>
+      <NewLead open={adding} onOpenChange={setAdding} />
+    </>
   );
 }
 
+type LeadText = "organisation" | "name" | "email" | "phone" | "country";
+
+interface LeadDraft extends Record<LeadText, string> {
+  size: DemoSize | "";
+}
+
+const SIZE_OPTIONS = [
+  { value: "", label: "Not known" },
+  ...DEMO_SIZES.map((size) => ({ value: size, label: SIZE_NAMES[size] })),
+] as const;
+
+interface NewLeadProps {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+}
+
 /** A lead entered by hand, such as one met at a fair. */
-function NewLead() {
+function NewLead({ open, onOpenChange }: NewLeadProps) {
   const navigate = useNavigate();
   const add = useServerFn(addLead);
-  const [fields, setFields] = useState<
-    Record<LeadText, string> & { size: DemoSize | ""; locale: "en" | "ar" }
-  >({
+  const [fields, setFields] = useState<LeadDraft>({
     organisation: "",
     name: "",
     email: "",
     phone: "",
     country: "EG",
     size: "",
-    locale: "en",
   });
-  const [saving, setSaving] = useState(false);
-  const set = (key: LeadText) => (event: { target: { value: string } }) =>
-    setFields((current) => ({ ...current, [key]: event.target.value }));
-  const text = (
-    key: LeadText,
-    label: string,
-    options: { required?: boolean; type?: string; dir?: "ltr"; max: number },
-  ) => (
-    <div className="grid gap-1.5 text-sm">
-      <label htmlFor={`lead-${key}`} className="font-medium">
-        {label}
-      </label>
-      <Input
-        id={`lead-${key}`}
-        required={options.required}
-        type={options.type}
-        dir={options.dir}
-        maxLength={options.max}
-        value={fields[key]}
-        onChange={set(key)}
-      />
-    </div>
-  );
+  const [submitted, setSubmitted] = useState(false);
+  const [pending, setPending] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const set = (key: keyof LeadDraft, value: string) =>
+    setFields((current) => ({ ...current, [key]: value }));
+  const missing = (key: LeadText) => submitted && !fields[key].trim();
   return (
-    <form
-      aria-label="New lead"
-      className="grid max-w-2xl gap-4 rounded-lg border p-6"
-      onSubmit={async (event) => {
-        event.preventDefault();
-        setSaving(true);
-        try {
-          const { id } = await add({
-            data: {
-              ...fields,
-              size: fields.size || null,
-              country: fields.country.trim() || null,
-            },
-          });
-          toast.success("Lead added.");
-          await navigate({ to: "/leads/$leadId", params: { leadId: id } });
-        } catch (error) {
-          const said = failure(
-            error,
-            "The lead could not be added. Give an organisation, a name, and a valid email if any.",
-          );
-          if (said) toast.error(said);
-        } finally {
-          setSaving(false);
+    <SheetForm
+      open={open}
+      onOpenChange={onOpenChange}
+      title="New lead"
+      submitLabel="Add lead"
+      pending={pending}
+      error={error}
+      onSubmit={async () => {
+        setSubmitted(true);
+        if (!fields.organisation.trim() || !fields.name.trim()) return;
+        setPending(true);
+        setError(null);
+        const out = await attemptWith(
+          () =>
+            add({
+              data: {
+                ...fields,
+                locale: "en",
+                size: fields.size || null,
+                country: fields.country.trim() || null,
+              },
+            }),
+          "The lead could not be added. Check the email address.",
+        );
+        setPending(false);
+        if (!out.ok) {
+          setError(out.message);
+          return;
         }
+        toast.success("Lead added.");
+        onOpenChange(false);
+        await navigate({
+          to: "/leads/$leadId",
+          params: { leadId: out.value.id },
+        });
       }}
     >
-      <h2 className="text-base font-semibold">New lead</h2>
-      <div className="grid items-start gap-4 sm:grid-cols-2">
-        {text("organisation", "School or group", { required: true, max: 160 })}
-        {text("name", "Person", { required: true, max: 120 })}
-        {text("email", "Email", { type: "email", dir: "ltr", max: 254 })}
-        {text("phone", "Phone", { type: "tel", dir: "ltr", max: 40 })}
-        {text("country", "Country", { dir: "ltr", max: 2 })}
-        <div className="grid gap-1.5 text-sm">
-          <label htmlFor="lead-size" className="font-medium">
-            Size
-          </label>
-          <select
-            id="lead-size"
-            value={fields.size}
-            onChange={(event) =>
-              setFields((current) => ({
-                ...current,
-                size: event.target.value as DemoSize | "",
-              }))
-            }
-            className="h-9 rounded-md border bg-background px-2 text-sm"
-          >
-            <option value="">Not known</option>
-            {DEMO_SIZES.map((size) => (
-              <option key={size} value={size}>
-                {SIZE_NAMES[size]}
-              </option>
-            ))}
-          </select>
-        </div>
-      </div>
-      <Button type="submit" disabled={saving} className="justify-self-start">
-        {saving ? "Adding…" : "Add lead"}
-      </Button>
-    </form>
+      <TextField
+        label="School or group"
+        width="name"
+        maxLength={160}
+        value={fields.organisation}
+        errors={
+          missing("organisation") ? ["Enter the school or group."] : undefined
+        }
+        onChange={(event) => set("organisation", event.target.value)}
+      />
+      <TextField
+        label="Person"
+        width="name"
+        maxLength={120}
+        value={fields.name}
+        errors={missing("name") ? ["Enter who you spoke to."] : undefined}
+        onChange={(event) => set("name", event.target.value)}
+      />
+      <TextField
+        label="Email"
+        optional
+        type="email"
+        dir="ltr"
+        width="name"
+        maxLength={254}
+        value={fields.email}
+        onChange={(event) => set("email", event.target.value)}
+      />
+      <TextField
+        label="Phone"
+        optional
+        type="tel"
+        dir="ltr"
+        width="phone"
+        maxLength={40}
+        value={fields.phone}
+        onChange={(event) => set("phone", event.target.value)}
+      />
+      <TextField
+        label="Country"
+        optional
+        dir="ltr"
+        width="code"
+        maxLength={2}
+        value={fields.country}
+        onChange={(event) => set("country", event.target.value)}
+      />
+      <SelectField
+        label="Size"
+        value={fields.size}
+        options={SIZE_OPTIONS}
+        onChange={(size) => set("size", size)}
+      />
+    </SheetForm>
   );
 }

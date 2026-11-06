@@ -7,7 +7,11 @@ import type {
 import { SCHOOL_NOTICES } from "@faridalms/domain/plans";
 import { addDays } from "@faridalms/domain/school";
 import { BILLING_SCHEDULES, TRIAL_DAYS } from "@faridalms/domain/subscriptions";
-import { Input } from "@faridalms/ui/input";
+import {
+  ChoiceField,
+  SelectField,
+  TextField,
+} from "@faridalms/ui/system/form-field";
 
 import { NOTICE_NAMES } from "../format";
 
@@ -85,163 +89,101 @@ export function termsOf(
   };
 }
 
-const FIELD = "grid gap-1.5 text-sm";
-const SELECT = "h-9 rounded-md border bg-background px-2 text-sm";
+const HOLDS_OPTIONS = [
+  { value: "trial", label: "A trial" },
+  { value: "active", label: "A contract" },
+] as const;
 
-/** A trial's last day, or a contract's term, renewal, billing and students. */
-export function TermsFields({
-  draft,
-  onChange,
-}: {
+const RENEWAL_OPTIONS = [
+  { value: "auto", label: "Renews on its own" },
+  { value: "manual", label: "Renewed by hand" },
+] as const;
+
+const SCHEDULE_OPTIONS = BILLING_SCHEDULES.map((choice) => ({
+  value: choice,
+  label: SCHEDULE_NAMES[choice],
+}));
+
+const NOTICE_OPTIONS = [
+  { value: "", label: "None" },
+  ...SCHOOL_NOTICES.map((code) => ({ value: code, label: NOTICE_NAMES[code] })),
+] as const;
+
+export interface TermsFieldsProps {
   draft: TermsDraft;
   onChange: (draft: TermsDraft) => void;
-}) {
+}
+
+/** A trial's last day, or a contract's term, renewal, billing and students. */
+export function TermsFields({ draft, onChange }: TermsFieldsProps) {
   const set = (change: Partial<TermsDraft>) =>
     onChange({ ...draft, ...change });
   return (
     <>
-      <fieldset className="flex flex-wrap gap-4 text-sm">
-        <legend className="sr-only">Holds</legend>
-        {(["trial", "active"] as const).map((choice) => (
-          <span key={choice} className="flex items-center gap-2">
-            <input
-              id={`terms-${choice}`}
-              type="radio"
-              name="terms-state"
-              checked={draft.state === choice}
-              onChange={() => set({ state: choice })}
-            />
-            <label htmlFor={`terms-${choice}`}>
-              {choice === "trial" ? "A trial" : "A contract"}
-            </label>
-          </span>
-        ))}
-      </fieldset>
-      <div className="grid items-start gap-4 sm:grid-cols-2">
+      <ChoiceField
+        label="Holds"
+        value={draft.state}
+        options={HOLDS_OPTIONS}
+        onChange={(state) => set({ state })}
+      />
+      <div className="grid items-start gap-6 @md:grid-cols-2">
         {draft.state === "trial" ? (
-          <div className={FIELD}>
-            <label htmlFor="terms-trial-ends" className="font-medium">
-              Trial's last day
-            </label>
-            <Input
-              id="terms-trial-ends"
-              type="date"
-              required
-              value={draft.trialEndsOn}
-              onChange={(event) => set({ trialEndsOn: event.target.value })}
-            />
-            <span className="text-xs text-muted-foreground">
-              The day after, without a contract, the tenant becomes read only.
-            </span>
-          </div>
+          <TextField
+            label="Trial's last day"
+            type="date"
+            hint="The day after, without a contract, the tenant becomes read only."
+            value={draft.trialEndsOn}
+            onChange={(event) => set({ trialEndsOn: event.target.value })}
+          />
         ) : null}
-        <div className={FIELD}>
-          <label htmlFor="terms-starts" className="font-medium">
-            Term starts
-          </label>
-          <Input
-            id="terms-starts"
-            type="date"
-            required={draft.state === "active"}
-            value={draft.termStartsOn}
-            onChange={(event) => set({ termStartsOn: event.target.value })}
-          />
-        </div>
-        <div className={FIELD}>
-          <label htmlFor="terms-ends" className="font-medium">
-            Term ends
-          </label>
-          <Input
-            id="terms-ends"
-            type="date"
-            required={draft.termStartsOn !== ""}
-            value={draft.termEndsOn}
-            onChange={(event) => set({ termEndsOn: event.target.value })}
-          />
-        </div>
-        <div className={FIELD}>
-          <label htmlFor="terms-renewal" className="font-medium">
-            Renewal
-          </label>
-          <select
-            id="terms-renewal"
-            value={draft.renewal}
-            onChange={(event) =>
-              set({ renewal: event.target.value as "auto" | "manual" })
-            }
-            className={SELECT}
-          >
-            <option value="auto">Renews on its own</option>
-            <option value="manual">Renewed by hand</option>
-          </select>
-        </div>
-        <div className={FIELD}>
-          <label htmlFor="terms-schedule" className="font-medium">
-            Billing
-          </label>
-          <select
-            id="terms-schedule"
-            value={draft.schedule}
-            onChange={(event) =>
-              set({ schedule: event.target.value as BillingSchedule })
-            }
-            className={SELECT}
-          >
-            {BILLING_SCHEDULES.map((choice) => (
-              <option key={choice} value={choice}>
-                {SCHEDULE_NAMES[choice]}
-              </option>
-            ))}
-          </select>
-        </div>
-        <div className={FIELD}>
-          <label htmlFor="terms-students" className="font-medium">
-            Contracted students
-          </label>
-          <Input
-            id="terms-students"
-            inputMode="numeric"
-            value={draft.students}
-            onChange={(event) => set({ students: event.target.value })}
-          />
-        </div>
-        <div className={FIELD}>
-          <label htmlFor="terms-census" className="font-medium">
-            Census day
-          </label>
-          <Input
-            id="terms-census"
-            type="date"
-            value={draft.censusOn}
-            onChange={(event) => set({ censusOn: event.target.value })}
-          />
-          <span className="text-xs text-muted-foreground">
-            When students are counted against the contract.
-          </span>
-        </div>
-        <div className={FIELD}>
-          <label htmlFor="terms-notice" className="font-medium">
-            Notice
-          </label>
-          <select
-            id="terms-notice"
-            value={draft.notice}
-            onChange={(event) =>
-              set({ notice: event.target.value as SchoolNotice | "" })
-            }
-            className={SELECT}
-          >
-            <option value="">None</option>
-            {SCHOOL_NOTICES.map((code) => (
-              <option key={code} value={code}>
-                {NOTICE_NAMES[code]}
-              </option>
-            ))}
-          </select>
-          <span className="text-xs text-muted-foreground">
-            What the schools' administrators are shown.
-          </span>
-        </div>
+        <TextField
+          label="Term starts"
+          optional={draft.state === "trial"}
+          type="date"
+          value={draft.termStartsOn}
+          onChange={(event) => set({ termStartsOn: event.target.value })}
+        />
+        <TextField
+          label="Term ends"
+          optional={draft.termStartsOn === ""}
+          type="date"
+          value={draft.termEndsOn}
+          onChange={(event) => set({ termEndsOn: event.target.value })}
+        />
+        <SelectField
+          label="Renewal"
+          value={draft.renewal}
+          options={RENEWAL_OPTIONS}
+          onChange={(renewal) => set({ renewal })}
+        />
+        <SelectField
+          label="Billing"
+          value={draft.schedule}
+          options={SCHEDULE_OPTIONS}
+          onChange={(schedule) => set({ schedule })}
+        />
+        <TextField
+          label="Contracted students"
+          optional
+          inputMode="numeric"
+          value={draft.students}
+          onChange={(event) => set({ students: event.target.value })}
+        />
+        <TextField
+          label="Census day"
+          optional
+          type="date"
+          hint="When students are counted against the contract."
+          value={draft.censusOn}
+          onChange={(event) => set({ censusOn: event.target.value })}
+        />
+        <SelectField
+          label="Notice"
+          hint="What the schools' administrators are shown."
+          value={draft.notice}
+          options={NOTICE_OPTIONS}
+          onChange={(notice) => set({ notice })}
+        />
       </div>
     </>
   );

@@ -1,21 +1,25 @@
 import type { HealthLevel } from "@faridalms/domain/onboarding";
+import type { Tone } from "@faridalms/ui/system/status";
 
-import { cn } from "@faridalms/ui/cn";
+import { StatusBadge } from "@faridalms/ui/system/status";
 
 import { HEALTH_LEVEL_NAMES } from "../format";
 
-const TONE: Record<HealthLevel, string> = {
-  green: "bg-success",
-  amber: "bg-warning",
-  red: "bg-destructive",
+export const HEALTH_TONE: Record<HealthLevel, Tone> = {
+  green: "success",
+  amber: "warning",
+  red: "danger",
 };
 
-/** A school's health as a dot and its word, so it reads without colour too. */
-export function HealthBadge({ level }: { level: HealthLevel }) {
+export interface HealthBadgeProps {
+  level: HealthLevel;
+}
+
+/** A school's health as a status pill, read in words as well as colour. */
+export function HealthBadge({ level }: HealthBadgeProps) {
   return (
-    <span className="inline-flex items-center gap-1.5 text-sm whitespace-nowrap">
-      <span aria-hidden className={cn("size-2 rounded-full", TONE[level])} />
+    <StatusBadge tone={HEALTH_TONE[level]}>
       {HEALTH_LEVEL_NAMES[level]}
-    </span>
+    </StatusBadge>
   );
 }

@@ -1,20 +1,23 @@
-import { Badge } from "@faridalms/ui/badge";
+import type { Column, DataTableCard } from "@faridalms/ui/system/data-table";
+
 import { Button } from "@faridalms/ui/button";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@faridalms/ui/table";
-import { createFileRoute, Link, useRouter } from "@tanstack/react-router";
+import { DataTable, RowLink } from "@faridalms/ui/system/data-table";
+import { PageHeader } from "@faridalms/ui/system/page-header";
+import { RecordSection } from "@faridalms/ui/system/record-page";
+import { StatusBadge, StatusText } from "@faridalms/ui/system/status";
+import { createFileRoute, useRouter } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
+import { Play, Repeat } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 
-import { failure } from "../actions";
-import { formatDay, formatWhen } from "../format";
+import { attempt } from "../actions";
+import {
+  formatDay,
+  formatWhen,
+  SUBSCRIPTION_STATE_NAMES,
+  SUBSCRIPTION_STATE_TONE,
+} from "../format";
 import { useMay } from "../may";
 import { getSubscriptions, runDailyRound } from "../server/subscriptions";
 
@@ -25,75 +28,104 @@ export const Route = createFileRoute("/subscriptions/")({
 
 type Data = Awaited<ReturnType<typeof getSubscriptions>>;
 
+type SubscriptionRow = Data["subscriptions"][number];
+
+const nameOf = (row: SubscriptionRow) => row.tenantName ?? row.customerName;
+
+function columnsFor(today: string): Column<SubscriptionRow>[] {
+  return [
+    {
+      id: "tenant",
+      header: "Tenant",
+      primary: true,
+      cell: (row) => (
+        <RowLink
+          to="/subscriptions/$subscriptionId"
+          params={{ subscriptionId: row.id }}
+        >
+          {nameOf(row)}
+        </RowLink>
+      ),
+    },
+    { id: "customer", header: "Customer", cell: (row) => row.customerName },
+    {
+      id: "holds",
+      header: "Holds",
+      cell: (row) => (
+        <span className="flex items-center gap-1.5">
+          <StatusBadge tone={SUBSCRIPTION_STATE_TONE[row.state]}>
+            {SUBSCRIPTION_STATE_NAMES[row.state]}
+          </StatusBadge>
+          {row.grandfathered ? (
+            <StatusBadge tone="neutral">Grandfathered</StatusBadge>
+          ) : null}
+        </span>
+      ),
+    },
+    {
+      id: "ends",
+      header: "Ends",
+      cell: (row) => {
+        const ends = row.trialEndsOn ?? row.termEndsOn;
+        if (!ends) return <span className="text-muted-foreground">No end</span>;
+        return row.state === "trial" && ends < today ? (
+          <StatusText tone="danger">{formatDay(ends)}, trial over</StatusText>
+        ) : (
+          <span className="text-muted-foreground">{formatDay(ends)}</span>
+        );
+      },
+    },
+  ];
+}
+
+const CARD: DataTableCard<SubscriptionRow> = {
+  title: (row) => (
+    <RowLink
+      to="/subscriptions/$subscriptionId"
+      params={{ subscriptionId: row.id }}
+    >
+      {nameOf(row)}
+    </RowLink>
+  ),
+  status: (row) => (
+    <StatusBadge tone={SUBSCRIPTION_STATE_TONE[row.state]}>
+      {SUBSCRIPTION_STATE_NAMES[row.state]}
+    </StatusBadge>
+  ),
+  fact: (row) => row.customerName,
+};
+
+/**
+ * What each tenant holds now: trials first by when they end, then contracts
+ * by when their term ends. A subscription sets what its schools may use.
+ */
 function Subscriptions() {
   const { subscriptions, round, names, today } = Route.useLoaderData();
   const mayRun = useMay("lifecycle");
   return (
-    <div className="grid gap-6">
-      <div className="grid gap-1">
-        <h1 className="text-2xl font-semibold">Subscriptions</h1>
-        <p className="text-sm text-muted-foreground">
-          What each tenant holds now: trials first by when they end, then
-          contracts by when their term ends. A subscription sets what its
-          schools may use.
-        </p>
+    <>
+      <PageHeader
+        title="Subscriptions"
+        count={subscriptions.length}
+        description="Trials first by when they end, then contracts by when their term ends."
+      />
+      <div className="grid gap-6">
+        {mayRun ? <DailyRound round={round} names={names} /> : null}
+        <DataTable
+          caption="Subscriptions"
+          rows={subscriptions}
+          columns={columnsFor(today)}
+          rowLabel={nameOf}
+          card={CARD}
+          empty={{
+            icon: Repeat,
+            title: "No subscriptions yet",
+            description:
+              "The daily round gives every tenant without one a subscription that keeps what its schools have.",
+          }}
+        />
       </div>
-      {mayRun ? <DailyRound round={round} names={names} /> : null}
-      {subscriptions.length === 0 ? (
-        <p className="text-sm text-muted-foreground">
-          No subscriptions yet. The daily round gives every tenant without one a
-          subscription that keeps what its schools have.
-        </p>
-      ) : (
-        <div className="overflow-x-auto rounded-lg border">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Tenant</TableHead>
-                <TableHead>Customer</TableHead>
-                <TableHead>Holds</TableHead>
-                <TableHead>Ends</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {subscriptions.map((subscription) => {
-                const ends =
-                  subscription.trialEndsOn ?? subscription.termEndsOn;
-                return (
-                  <TableRow key={subscription.id}>
-                    <TableCell>
-                      <Link
-                        to="/subscriptions/$subscriptionId"
-                        params={{ subscriptionId: subscription.id }}
-                        className="font-medium hover:text-primary hover:underline"
-                      >
-                        {subscription.tenantName ?? subscription.customerName}
-                      </Link>
-                    </TableCell>
-                    <TableCell>{subscription.customerName}</TableCell>
-                    <TableCell>
-                      <span className="flex flex-wrap gap-1">
-                        <Badge variant="secondary">
-                          {subscription.state === "trial" ? "Trial" : "Active"}
-                        </Badge>
-                        {subscription.grandfathered ? (
-                          <Badge variant="outline">Grandfathered</Badge>
-                        ) : null}
-                      </span>
-                    </TableCell>
-                    <TableCell className="text-muted-foreground">
-                      {ends
-                        ? `${formatDay(ends)}${subscription.state === "trial" && ends < today ? ", trial over" : ""}`
-                        : "No end"}
-                    </TableCell>
-                  </TableRow>
-                );
-              })}
-            </TableBody>
-          </Table>
-        </div>
-      )}
-    </div>
+    </>
   );
 }
 
@@ -102,29 +134,45 @@ function Subscriptions() {
  * runs on its own each day; running it here applies what began or ended
  * today at once.
  */
-function DailyRound({
-  round,
-  names,
-}: {
+interface DailyRoundProps {
   round: Data["round"];
   names: Data["names"];
-}) {
+}
+
+function DailyRound({ round, names }: DailyRoundProps) {
   const router = useRouter();
   const run = useServerFn(runDailyRound);
   const [running, setRunning] = useState(false);
   return (
-    <section
-      aria-label="Daily round"
-      className="grid max-w-2xl gap-3 rounded-lg border p-6"
+    <RecordSection
+      title="Daily round"
+      description="Each day it gives every tenant without a subscription one that keeps what it has, publishes what began or ended that day, and makes a tenant read only when its trial is over without a contract."
+      action={
+        <Button
+          type="button"
+          variant="outline"
+          disabled={running}
+          onClick={async () => {
+            setRunning(true);
+            const failed = await attempt(
+              () => run(),
+              "The round could not run.",
+            );
+            setRunning(false);
+            if (failed) toast.error(failed);
+            else {
+              toast.success("The round ran.");
+              await router.invalidate();
+            }
+          }}
+        >
+          <Play aria-hidden />
+          {running ? "Running…" : "Run the round now"}
+        </Button>
+      }
     >
-      <h2 className="text-base font-semibold">Daily round</h2>
-      <p className="text-sm text-muted-foreground">
-        Each day the console gives every tenant without a subscription one that
-        keeps what it has, publishes what began or ended that day, and makes a
-        tenant read only when its trial is over without a contract.
-      </p>
       {round ? (
-        <p className="text-sm">
+        <p className="text-sm leading-5">
           Last ran {formatWhen(round.at)} by{" "}
           {names[round.by] ?? "a former operator"}, for{" "}
           {formatDay(round.outcome.day)}: {round.outcome.grandfathered} given a
@@ -137,29 +185,10 @@ function DailyRound({
           .
         </p>
       ) : (
-        <p className="text-sm">It has not run yet.</p>
+        <p className="text-sm leading-5 text-muted-foreground">
+          It has not run yet.
+        </p>
       )}
-      <Button
-        className="justify-self-start"
-        disabled={running}
-        onClick={async () => {
-          setRunning(true);
-          try {
-            const out = await run();
-            if (out.ok) {
-              toast.success("The round ran.");
-              await router.invalidate();
-            } else toast.error(out.message);
-          } catch (error) {
-            const said = failure(error, "The round could not run.");
-            if (said) toast.error(said);
-          } finally {
-            setRunning(false);
-          }
-        }}
-      >
-        {running ? "Running…" : "Run the round now"}
-      </Button>
-    </section>
+    </RecordSection>
   );
 }
