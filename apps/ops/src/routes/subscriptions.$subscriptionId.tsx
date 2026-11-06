@@ -18,11 +18,11 @@ import {
   RecordList,
   RecordSection,
 } from "@faridalms/ui/system/record-page";
-import { SettingsSection } from "@faridalms/ui/system/settings-section";
+import { SheetForm, useSheet } from "@faridalms/ui/system/sheet-form";
 import { StatusBadge, StatusText } from "@faridalms/ui/system/status";
 import { createFileRoute, Link, useRouter } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
-import { Info } from "lucide-react";
+import { Info, Plus, Upload } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 
@@ -72,7 +72,7 @@ type Data = Awaited<ReturnType<typeof getSubscription>>;
 const GIB = 1024 ** 3;
 
 /** Whether a dated part is still in force or yet to start on the day. */
-const open = (span: { endsOn: string | null }, day: string) =>
+const inForce = (span: { endsOn: string | null }, day: string) =>
   span.endsOn === null || span.endsOn > day;
 
 const spanOf = (span: { startsOn: string; endsOn: string | null }) =>
@@ -114,6 +114,10 @@ function SubscriptionPage() {
   const data = Route.useLoaderData();
   const { subscription, customer, tenantName, history, names } = data;
   const mayChange = useMay("subscriptions") && subscription.state !== "ended";
+  const publishing = useSheet();
+  const waiting = data.schools.some(
+    (school) => changesBetween(school.current, school.next).length > 0,
+  );
   return (
     <>
       <RecordHeader
@@ -153,11 +157,16 @@ function SubscriptionPage() {
               ]
             : []
         }
+        action={
+          mayChange && waiting
+            ? { label: "Publish now", icon: Upload, onClick: publishing.show }
+            : undefined
+        }
       />
       <RecordColumns
         main={
           <>
-            <Schools data={data} mayPublish={mayChange} />
+            <Schools data={data} />
             <Items data={data} mayChange={mayChange} />
             <Overrides data={data} mayChange={mayChange} />
             <Publications data={data} />
@@ -166,10 +175,16 @@ function SubscriptionPage() {
             </RecordSection>
           </>
         }
-        aside={
-          mayChange ? <TermsForm data={data} /> : <TermsSummary data={data} />
-        }
+        aside={<Terms data={data} mayChange={mayChange} />}
       />
+      {mayChange && waiting ? (
+        <PublishSheet
+          key={publishing.key}
+          data={data}
+          open={publishing.open}
+          onOpenChange={publishing.onOpenChange}
+        />
+      ) : null}
     </>
   );
 }
@@ -182,156 +197,161 @@ interface ChangeableProps extends SubscriptionProps {
   mayChange: boolean;
 }
 
-/**
- * Each school as it stands and as publishing today would leave it. The
- * daily round publishes what is in force each day; publishing here applies
- * a change at once.
- */
-interface SchoolsProps extends SubscriptionProps {
-  mayPublish: boolean;
+interface SubscriptionSheetProps extends SubscriptionProps {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
 }
 
-function Schools({ data, mayPublish }: SchoolsProps) {
+/** Each school as it stands, and as publishing today would leave it. */
+function Schools({ data }: SubscriptionProps) {
+  return (
+    <RecordSection
+      title="Schools"
+      description="What each school has now, and what it would have if this subscription were published today. The daily round publishes each day on its own."
+    >
+      {data.schools.length === 0 ? (
+        <RecordEmpty>The tenant has no schools in the directory.</RecordEmpty>
+      ) : (
+        <ul className="grid gap-3 @2xl:grid-cols-2">
+          {data.schools.map((school) => {
+            const changes = changesBetween(school.current, school.next);
+            const usable = usableModules(school.next.modules);
+            const unusable = school.next.modules.filter(
+              (id) => !usable.includes(id),
+            );
+            return (
+              <li
+                key={school.id}
+                aria-label={school.name}
+                className="grid content-start gap-3 rounded-lg border p-4"
+              >
+                <span className="flex flex-wrap items-center gap-2">
+                  <Link
+                    to="/schools/$schoolId"
+                    params={{ schoolId: school.id }}
+                    className="text-sm leading-5 font-semibold hover:text-primary hover:underline"
+                  >
+                    {school.name}
+                  </Link>
+                  {school.tenantState === "active" ? null : (
+                    <StatusBadge tone={TENANT_STATE_TONE[school.tenantState]}>
+                      {TENANT_STATE_NAMES[school.tenantState]}
+                    </StatusBadge>
+                  )}
+                  {school.access === "restricted" ? (
+                    <StatusBadge tone="warning">Restricted</StatusBadge>
+                  ) : null}
+                </span>
+                {changes.length ? (
+                  <ul className="grid gap-1">
+                    {changes.map((line) => (
+                      <li key={line}>
+                        <StatusText tone="info">{line}</StatusText>
+                      </li>
+                    ))}
+                  </ul>
+                ) : (
+                  <p className="text-[13px] leading-[18px] text-muted-foreground">
+                    Published as it stands.
+                  </p>
+                )}
+                <span className="flex flex-wrap gap-1.5">
+                  {usable.map((id) => (
+                    <StatusBadge key={id} tone="neutral">
+                      {MODULE_NAMES[id]}
+                    </StatusBadge>
+                  ))}
+                </span>
+                {unusable.length ? (
+                  <p className="text-[13px] leading-[18px] text-muted-foreground">
+                    Entitled but unusable without the modules they need:{" "}
+                    {unusable.map((id) => MODULE_NAMES[id]).join(", ")}.
+                  </p>
+                ) : null}
+              </li>
+            );
+          })}
+        </ul>
+      )}
+    </RecordSection>
+  );
+}
+
+/** Gives the schools what the subscription says today, at once, with why. */
+function PublishSheet({ data, open, onOpenChange }: SubscriptionSheetProps) {
   const router = useRouter();
   const publish = useServerFn(publishNow);
   const [reason, setReason] = useState("");
   const [submitted, setSubmitted] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const pending = data.schools.some(
-    (school) => changesBetween(school.current, school.next).length > 0,
-  );
   return (
-    <>
-      <RecordSection
-        title="Schools"
-        description="What each school has now, and what it would have if this subscription were published today. The daily round publishes each day on its own."
-      >
-        {data.schools.length === 0 ? (
-          <RecordEmpty>The tenant has no schools in the directory.</RecordEmpty>
-        ) : (
-          <ul className="grid gap-3 @2xl:grid-cols-2">
-            {data.schools.map((school) => {
-              const changes = changesBetween(school.current, school.next);
-              const usable = usableModules(school.next.modules);
-              const unusable = school.next.modules.filter(
-                (id) => !usable.includes(id),
-              );
-              return (
-                <li
-                  key={school.id}
-                  aria-label={school.name}
-                  className="grid content-start gap-3 rounded-lg border p-4"
-                >
-                  <span className="flex flex-wrap items-center gap-2">
-                    <Link
-                      to="/schools/$schoolId"
-                      params={{ schoolId: school.id }}
-                      className="text-sm leading-5 font-semibold hover:text-primary hover:underline"
-                    >
-                      {school.name}
-                    </Link>
-                    {school.tenantState === "active" ? null : (
-                      <StatusBadge tone={TENANT_STATE_TONE[school.tenantState]}>
-                        {TENANT_STATE_NAMES[school.tenantState]}
-                      </StatusBadge>
-                    )}
-                    {school.access === "restricted" ? (
-                      <StatusBadge tone="warning">Restricted</StatusBadge>
-                    ) : null}
-                  </span>
-                  {changes.length ? (
-                    <ul className="grid gap-1">
-                      {changes.map((line) => (
-                        <li key={line}>
-                          <StatusText tone="info">{line}</StatusText>
-                        </li>
-                      ))}
-                    </ul>
-                  ) : (
-                    <p className="text-[13px] leading-[18px] text-muted-foreground">
-                      Published as it stands.
-                    </p>
-                  )}
-                  <span className="flex flex-wrap gap-1.5">
-                    {usable.map((id) => (
-                      <StatusBadge key={id} tone="neutral">
-                        {MODULE_NAMES[id]}
-                      </StatusBadge>
-                    ))}
-                  </span>
-                  {unusable.length ? (
-                    <p className="text-[13px] leading-[18px] text-muted-foreground">
-                      Entitled but unusable without the modules they need:{" "}
-                      {unusable.map((id) => MODULE_NAMES[id]).join(", ")}.
-                    </p>
-                  ) : null}
-                </li>
-              );
-            })}
-          </ul>
-        )}
-      </RecordSection>
-      {mayPublish && pending ? (
-        <SettingsSection
-          title="Publish"
-          description="Gives the schools what the subscription says today, at once."
-          submitLabel="Publish now"
-          pending={saving}
-          error={error}
-          isDirty={() => Boolean(reason)}
-          onSubmit={async () => {
-            setSubmitted(true);
-            if (!reason.trim()) return;
-            setSaving(true);
-            setError(null);
-            const out = await attemptWith(
-              () =>
-                publish({
-                  data: { id: data.subscription.id, reason: reason.trim() },
-                }),
-              "It could not be published.",
-            );
-            setSaving(false);
-            if (!out.ok) {
-              setError(out.message);
-              return;
-            }
-            const count = out.value.published.length;
-            const schools = `${count} ${count === 1 ? "school" : "schools"}`;
-            toast.success(
-              out.value.atOnce
-                ? `Published to ${schools}. They have it now.`
-                : `Published to ${schools}. Their cell could not be told, so they have it within a minute.`,
-            );
-            setReason("");
-            setSubmitted(false);
-            await router.invalidate();
-          }}
-        >
-          <TextField
-            label="Why now"
-            hint="Kept in the change log."
-            maxLength={500}
-            value={reason}
-            placeholder="For example: the school starts coding on Monday"
-            errors={
-              submitted && !reason.trim()
-                ? ["Say why, for the change log."]
-                : undefined
-            }
-            onChange={(event) => setReason(event.target.value)}
-          />
-        </SettingsSection>
-      ) : null}
-    </>
+    <SheetForm
+      open={open}
+      onOpenChange={onOpenChange}
+      title="Publish now"
+      submitLabel="Publish now"
+      pending={saving}
+      error={error}
+      onSubmit={async () => {
+        setSubmitted(true);
+        if (!reason.trim()) return;
+        setSaving(true);
+        setError(null);
+        const out = await attemptWith(
+          () =>
+            publish({
+              data: { id: data.subscription.id, reason: reason.trim() },
+            }),
+          "It could not be published.",
+        );
+        setSaving(false);
+        if (!out.ok) {
+          setError(out.message);
+          return;
+        }
+        const count = out.value.published.length;
+        const schools = `${count} ${count === 1 ? "school" : "schools"}`;
+        if (count === 0)
+          toast.info("Nothing to publish: the schools already have it.");
+        else
+          toast.success(
+            out.value.atOnce
+              ? `Published to ${schools}. They have it now.`
+              : `Published to ${schools}. Their cell could not be told, so they have it within a minute.`,
+          );
+        onOpenChange(false);
+        await router.invalidate();
+      }}
+    >
+      <p className="text-sm leading-5 text-muted-foreground">
+        Gives the schools what the subscription says today, at once. The daily
+        round would publish it on its own.
+      </p>
+      <WhyField
+        label="Why now"
+        value={reason}
+        onChange={setReason}
+        submitted={submitted}
+        placeholder="For example: the school starts coding on Monday"
+      />
+    </SheetForm>
   );
 }
 
-function TermsSummary({ data }: SubscriptionProps) {
+/** A trial's end, or a contract's term, renewal and billing. */
+function Terms({ data, mayChange }: ChangeableProps) {
   const { subscription } = data;
+  const sheet = useSheet();
   return (
-    <RecordSection title="Terms">
+    <RecordSection
+      title="Terms"
+      edit={
+        mayChange
+          ? { label: "Change the terms", onClick: sheet.show }
+          : undefined
+      }
+    >
       <p className="text-sm leading-5">
         {subscription.state === "trial" && subscription.trialEndsOn
           ? `Trial until ${formatDay(subscription.trialEndsOn)}.`
@@ -342,12 +362,20 @@ function TermsSummary({ data }: SubscriptionProps) {
           ? ` Contracted for ${subscription.contractedStudents.toLocaleString("en")} students.`
           : ""}
       </p>
+      {mayChange ? (
+        <TermsSheet
+          key={sheet.key}
+          data={data}
+          open={sheet.open}
+          onOpenChange={sheet.onOpenChange}
+        />
+      ) : null}
     </RecordSection>
   );
 }
 
-/** A trial's end, or a contract's term, renewal and billing. */
-function TermsForm({ data }: SubscriptionProps) {
+/** Changes a trial's end, or a contract's term, renewal and billing. */
+function TermsSheet({ data, open, onOpenChange }: SubscriptionSheetProps) {
   const router = useRouter();
   const save = useServerFn(saveTerms);
   const { subscription, today } = data;
@@ -357,8 +385,10 @@ function TermsForm({ data }: SubscriptionProps) {
   const [answer, setAnswer] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   return (
-    <SettingsSection
-      title="Terms"
+    <SheetForm
+      open={open}
+      onOpenChange={onOpenChange}
+      title="Change the terms"
       submitLabel="Save terms"
       pending={saving}
       error={answer}
@@ -389,8 +419,7 @@ function TermsForm({ data }: SubscriptionProps) {
           return;
         }
         toast.success("Terms saved.");
-        setReason("");
-        setSubmitted(false);
+        onOpenChange(false);
         await router.invalidate();
       }}
     >
@@ -401,18 +430,25 @@ function TermsForm({ data }: SubscriptionProps) {
         submitted={submitted}
         placeholder="For example: signed the order form for 2027"
       />
-    </SettingsSection>
+    </SheetForm>
   );
 }
 
-interface EndPartsProps extends SubscriptionProps {
+interface EndPartsSheetProps extends SubscriptionSheetProps {
   part: "item" | "override";
   ids: string[];
   label: string;
 }
 
 /** Ends one or more parts from a day: today ends them at once. */
-function EndParts({ data, part, ids, label }: EndPartsProps) {
+function EndPartsSheet({
+  data,
+  part,
+  ids,
+  label,
+  open,
+  onOpenChange,
+}: EndPartsSheetProps) {
   const router = useRouter();
   const end = useServerFn(endSubscriptionParts);
   const [endsOn, setEndsOn] = useState(data.today);
@@ -421,9 +457,12 @@ function EndParts({ data, part, ids, label }: EndPartsProps) {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   return (
-    <SettingsSection
+    <SheetForm
+      open={open}
+      onOpenChange={onOpenChange}
       title={label}
       submitLabel={label}
+      destructive
       pending={saving}
       error={error}
       onSubmit={async () => {
@@ -454,8 +493,7 @@ function EndParts({ data, part, ids, label }: EndPartsProps) {
             ? "Ended. Publish for the schools to see it now."
             : `Ends ${formatDay(endsOn)}.`,
         );
-        setReason("");
-        setSubmitted(false);
+        onOpenChange(false);
         await router.invalidate();
       }}
     >
@@ -467,86 +505,110 @@ function EndParts({ data, part, ids, label }: EndPartsProps) {
         onChange={(event) => setEndsOn(event.target.value)}
       />
       <WhyField value={reason} onChange={setReason} submitted={submitted} />
-    </SettingsSection>
+    </SheetForm>
   );
 }
 
+/** The plans and add-ons sold, each from a day and for some or every school. */
 function Items({ data, mayChange }: ChangeableProps) {
   const [ending, setEnding] = useState<string | null>(null);
+  const endSheet = useSheet();
+  const adding = useSheet();
   const schoolName = (id: string) =>
     data.schools.find((school) => school.id === id)?.name ?? id;
   return (
-    <>
-      <RecordSection title="Items">
-        {data.items.length === 0 ? (
-          <RecordEmpty>
-            No plan or add-on: its schools have Basic, and whatever its
-            overrides give.
-          </RecordEmpty>
-        ) : (
-          <RecordList>
-            {data.items.map(({ item, plan, planCode, addOn, addOnCode }) => (
-              <li key={item.id} className="grid gap-1 py-3">
-                <div className="flex flex-wrap items-baseline justify-between gap-2">
-                  <span className="text-sm leading-5 font-medium">
-                    {plan
-                      ? `${plan.nameEn} (${planCode}) version ${plan.version}`
-                      : addOn
-                        ? `${addOn.nameEn} (${addOnCode}) version ${addOn.version}`
-                        : "A retired version"}
-                  </span>
-                  <span className="text-[13px] leading-[18px] text-muted-foreground">
-                    {spanOf(item)}
-                  </span>
-                </div>
-                <div className="flex flex-wrap items-center justify-between gap-2">
-                  <p className="text-[13px] leading-[18px] text-muted-foreground tabular-nums">
-                    {item.quantity.toLocaleString("en")} at{" "}
-                    {formatMoney(
-                      item.unitPriceMinor,
-                      data.subscription.currency,
-                    )}
-                    {Number(item.discountPercent) > 0
-                      ? `, ${Number(item.discountPercent)}% off`
-                      : ""}{" "}
-                    ·{" "}
-                    {item.schoolIds.length
-                      ? item.schoolIds.map(schoolName).join(", ")
-                      : "Every school"}
-                  </p>
-                  {mayChange && open(item, data.today) && ending !== item.id ? (
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => setEnding(item.id)}
-                    >
-                      End…
-                    </Button>
-                  ) : null}
-                </div>
-                {ending === item.id ? (
-                  <div className="mt-2">
-                    <EndParts
-                      data={data}
-                      part="item"
-                      ids={[item.id]}
-                      label="End this item"
-                    />
-                  </div>
+    <RecordSection
+      title="Items"
+      action={
+        mayChange ? (
+          <Button
+            type="button"
+            variant="outline"
+            className="max-md:h-10"
+            onClick={adding.show}
+          >
+            <Plus aria-hidden />
+            Add item
+          </Button>
+        ) : undefined
+      }
+    >
+      {data.items.length === 0 ? (
+        <RecordEmpty>
+          No plan or add-on: its schools have Basic, and whatever its overrides
+          give.
+        </RecordEmpty>
+      ) : (
+        <RecordList>
+          {data.items.map(({ item, plan, planCode, addOn, addOnCode }) => (
+            <li key={item.id} className="grid gap-1 py-3">
+              <div className="flex flex-wrap items-baseline justify-between gap-2">
+                <span className="text-sm leading-5 font-medium">
+                  {plan
+                    ? `${plan.nameEn} (${planCode}) version ${plan.version}`
+                    : addOn
+                      ? `${addOn.nameEn} (${addOnCode}) version ${addOn.version}`
+                      : "A retired version"}
+                </span>
+                <span className="text-[13px] leading-[18px] text-muted-foreground">
+                  {spanOf(item)}
+                </span>
+              </div>
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <p className="text-[13px] leading-[18px] text-muted-foreground tabular-nums">
+                  {item.quantity.toLocaleString("en")} at{" "}
+                  {formatMoney(item.unitPriceMinor, data.subscription.currency)}
+                  {Number(item.discountPercent) > 0
+                    ? `, ${Number(item.discountPercent)}% off`
+                    : ""}{" "}
+                  ·{" "}
+                  {item.schoolIds.length
+                    ? item.schoolIds.map(schoolName).join(", ")
+                    : "Every school"}
+                </p>
+                {mayChange && inForce(item, data.today) ? (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => {
+                      setEnding(item.id);
+                      endSheet.show();
+                    }}
+                  >
+                    End…
+                  </Button>
                 ) : null}
-              </li>
-            ))}
-          </RecordList>
-        )}
-      </RecordSection>
-      {mayChange ? <AddItemForm data={data} /> : null}
-    </>
+              </div>
+            </li>
+          ))}
+        </RecordList>
+      )}
+      {mayChange ? (
+        <>
+          <EndPartsSheet
+            key={`end-${endSheet.key}`}
+            data={data}
+            part="item"
+            ids={ending ? [ending] : []}
+            label="End this item"
+            open={endSheet.open}
+            onOpenChange={endSheet.onOpenChange}
+          />
+          <AddItemSheet
+            key={`add-${adding.key}`}
+            data={data}
+            open={adding.open}
+            onOpenChange={adding.onOpenChange}
+          />
+        </>
+      ) : null}
+    </RecordSection>
   );
 }
 
 /** Sells the subscription a plan or add-on version, from a day. */
-function AddItemForm({ data }: SubscriptionProps) {
+function AddItemSheet({ data, open, onOpenChange }: SubscriptionSheetProps) {
   const router = useRouter();
   const add = useServerFn(addSubscriptionItem);
   const { selling, subscription, today } = data;
@@ -591,9 +653,10 @@ function AddItemForm({ data }: SubscriptionProps) {
     })),
   ];
   return (
-    <SettingsSection
+    <SheetForm
+      open={open}
+      onOpenChange={onOpenChange}
       title="Add an item"
-      description="A plan or add-on version, sold from a day."
       submitLabel="Add item"
       pending={saving}
       error={answer}
@@ -644,9 +707,7 @@ function AddItemForm({ data }: SubscriptionProps) {
             ? "Added. Publish for the schools to have it now."
             : `Added from ${formatDay(startsOn)}.`,
         );
-        setChoice("");
-        setReason("");
-        setSubmitted(false);
+        onOpenChange(false);
         await router.invalidate();
       }}
     >
@@ -695,7 +756,7 @@ function AddItemForm({ data }: SubscriptionProps) {
         submitted={submitted}
         placeholder="For example: the order form signed on 3 November"
       />
-    </SettingsSection>
+    </SheetForm>
   );
 }
 
@@ -734,91 +795,120 @@ function describeOverride(
   return who;
 }
 
+/** What a school is given or denied beyond its items, for a while. */
 function Overrides({ data, mayChange }: ChangeableProps) {
   const [chosen, setChosen] = useState<string[]>([]);
+  const ending = useSheet();
+  const adding = useSheet();
   const schoolName = (id: string) =>
     data.schools.find((school) => school.id === id)?.name ?? id;
   const endable = data.overrides.filter((override) =>
-    open(override, data.today),
+    inForce(override, data.today),
   );
+  const all = endable.length > 0 && chosen.length === endable.length;
   return (
-    <>
-      <RecordSection
-        title="Overrides"
-        description="A module given or taken away, or a limit set, for one school or every school, for a while. A school's own override wins over one for every school."
-        action={
-          mayChange && endable.length ? (
-            <>
+    <RecordSection
+      title="Overrides"
+      description="A module given or taken away, or a limit set, for one school or every school, for a while. A school's own override wins over one for every school."
+      action={
+        mayChange ? (
+          <>
+            {endable.length ? (
               <Button
                 type="button"
                 variant="ghost"
-                size="sm"
+                className="max-md:h-10"
                 onClick={() =>
-                  setChosen(endable.map((override) => override.id))
+                  setChosen(all ? [] : endable.map((override) => override.id))
                 }
               >
-                Choose all {endable.length}
+                {all ? "Choose none" : `Choose all ${endable.length}`}
               </Button>
+            ) : null}
+            {chosen.length ? (
               <Button
                 type="button"
-                variant="ghost"
-                size="sm"
-                onClick={() => setChosen([])}
+                variant="outline"
+                className="max-md:h-10"
+                onClick={ending.show}
               >
-                Choose none
+                End {chosen.length} chosen
               </Button>
-            </>
-          ) : undefined
-        }
-      >
-        {data.overrides.length === 0 ? (
-          <RecordEmpty>No overrides.</RecordEmpty>
-        ) : (
-          <RecordList>
-            {data.overrides.map((override) => (
-              <li key={override.id} className="flex items-start gap-3 py-3">
-                {mayChange && open(override, data.today) ? (
-                  <Checkbox
-                    aria-label={`Choose: ${describeOverride(override, schoolName)}`}
-                    checked={chosen.includes(override.id)}
-                    onCheckedChange={(checked) =>
-                      setChosen((current) =>
-                        checked
-                          ? [...current, override.id]
-                          : current.filter((id) => id !== override.id),
-                      )
-                    }
-                    className="mt-0.5"
-                  />
-                ) : null}
-                <div className="grid flex-1 gap-0.5">
-                  <span className="text-sm leading-5 font-medium">
-                    {describeOverride(override, schoolName)}
-                  </span>
-                  <span className="text-[13px] leading-[18px] text-muted-foreground">
-                    {spanOf(override)} · {override.reason}
-                  </span>
-                </div>
-              </li>
-            ))}
-          </RecordList>
-        )}
-      </RecordSection>
-      {mayChange && chosen.length ? (
-        <EndParts
-          data={data}
-          part="override"
-          ids={chosen}
-          label={`End ${chosen.length} chosen`}
-        />
+            ) : null}
+            <Button
+              type="button"
+              variant="outline"
+              className="max-md:h-10"
+              onClick={adding.show}
+            >
+              <Plus aria-hidden />
+              Add override
+            </Button>
+          </>
+        ) : undefined
+      }
+    >
+      {data.overrides.length === 0 ? (
+        <RecordEmpty>No overrides.</RecordEmpty>
+      ) : (
+        <RecordList>
+          {data.overrides.map((override) => (
+            <li key={override.id} className="flex items-start gap-3 py-3">
+              {mayChange && inForce(override, data.today) ? (
+                <Checkbox
+                  aria-label={`Choose: ${describeOverride(override, schoolName)}`}
+                  checked={chosen.includes(override.id)}
+                  onCheckedChange={(checked) =>
+                    setChosen((current) =>
+                      checked
+                        ? [...current, override.id]
+                        : current.filter((id) => id !== override.id),
+                    )
+                  }
+                  className="mt-0.5"
+                />
+              ) : null}
+              <div className="grid flex-1 gap-0.5">
+                <span className="text-sm leading-5 font-medium">
+                  {describeOverride(override, schoolName)}
+                </span>
+                <span className="text-[13px] leading-[18px] text-muted-foreground">
+                  {spanOf(override)} · {override.reason}
+                </span>
+              </div>
+            </li>
+          ))}
+        </RecordList>
+      )}
+      {mayChange ? (
+        <>
+          <EndPartsSheet
+            key={`end-${ending.key}`}
+            data={data}
+            part="override"
+            ids={chosen}
+            label={`End ${chosen.length} chosen`}
+            open={ending.open}
+            onOpenChange={ending.onOpenChange}
+          />
+          <AddOverrideSheet
+            key={`add-${adding.key}`}
+            data={data}
+            open={adding.open}
+            onOpenChange={adding.onOpenChange}
+          />
+        </>
       ) : null}
-      {mayChange ? <AddOverrideForm data={data} /> : null}
-    </>
+    </RecordSection>
   );
 }
 
 /** Gives or takes a module, or sets a limit, for a while and with a reason. */
-function AddOverrideForm({ data }: SubscriptionProps) {
+function AddOverrideSheet({
+  data,
+  open,
+  onOpenChange,
+}: SubscriptionSheetProps) {
   const router = useRouter();
   const add = useServerFn(addSubscriptionOverride);
   const [schoolId, setSchoolId] = useState("");
@@ -835,7 +925,9 @@ function AddOverrideForm({ data }: SubscriptionProps) {
   const [saving, setSaving] = useState(false);
   const storage = isStorageKey(limitKey);
   return (
-    <SettingsSection
+    <SheetForm
+      open={open}
+      onOpenChange={onOpenChange}
       title="Add an override"
       submitLabel="Add override"
       pending={saving}
@@ -885,9 +977,7 @@ function AddOverrideForm({ data }: SubscriptionProps) {
             ? "Added. Publish for the schools to have it now."
             : `Added from ${formatDay(startsOn)}.`,
         );
-        setReason("");
-        setValue("");
-        setSubmitted(false);
+        onOpenChange(false);
         await router.invalidate();
       }}
     >
@@ -964,7 +1054,7 @@ function AddOverrideForm({ data }: SubscriptionProps) {
         submitted={submitted}
         placeholder="For example: a term's pilot of badges"
       />
-    </SettingsSection>
+    </SheetForm>
   );
 }
 

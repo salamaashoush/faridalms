@@ -76,7 +76,10 @@ export const getSchool = createServerFn({ method: "GET" })
       actorNames(),
     ]);
     if (!school) throw new Error("NOT_FOUND");
-    const ssoDomains = await directory().ssoDomains(school.tenantId);
+    const [ssoDomains, tenantChanges] = await Promise.all([
+      directory().ssoDomains(school.tenantId),
+      directory().changes({ id: school.tenantId }),
+    ]);
     const business = businessDb();
     const subscription = business
       ? await openSubscription(business, school.tenantId)
@@ -111,7 +114,7 @@ export const getSchool = createServerFn({ method: "GET" })
         site: platformName(school.slug, "site", domains),
         portal: platformName(school.slug, "portal", domains),
       },
-      changes: [...changes, ...hostChanges].toSorted((a, b) =>
+      changes: [...changes, ...tenantChanges, ...hostChanges].toSorted((a, b) =>
         b.occurredAt.localeCompare(a.occurredAt),
       ),
       names,

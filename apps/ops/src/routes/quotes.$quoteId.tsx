@@ -9,7 +9,7 @@ import {
   RecordHeader,
   RecordSection,
 } from "@faridalms/ui/system/record-page";
-import { SettingsSection } from "@faridalms/ui/system/settings-section";
+import { SheetForm, useSheet } from "@faridalms/ui/system/sheet-form";
 import {
   createFileRoute,
   Link,
@@ -17,7 +17,7 @@ import {
   useRouter,
 } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
-import { CalendarX, Pencil, Printer } from "lucide-react";
+import { CalendarX, FileCheck, Pencil, Printer, Send } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 import * as v from "valibot";
@@ -48,7 +48,19 @@ function QuotePage() {
   const { language } = Route.useSearch();
   const { quote, party } = data;
   const [editing, setEditing] = useState(false);
+  const accepting = useSheet();
+  const markSent = useMarkSent(data);
   const open = quote.state === "draft" || quote.state === "sent";
+  const acceptance = {
+    label: "Record acceptance",
+    icon: FileCheck,
+    onClick: accepting.show,
+  };
+  const change = {
+    label: quote.state === "draft" ? "Change it" : "Make a new version",
+    icon: Pencil,
+    onSelect: () => setEditing(true),
+  };
   return (
     <>
       <div className="print:hidden">
@@ -127,17 +139,28 @@ function QuotePage() {
                 ]
               : []),
           ]}
-          tools={
-            open ? (
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => setEditing((on) => !on)}
-              >
-                <Pencil aria-hidden />
-                {quote.state === "draft" ? "Change it" : "Make a new version"}
-              </Button>
-            ) : undefined
+          action={
+            quote.state === "draft"
+              ? {
+                  label: "Mark as sent",
+                  icon: Send,
+                  onClick: () => void markSent.run(),
+                  pending: markSent.pending,
+                  disabled: !data.business,
+                }
+              : quote.state === "sent"
+                ? acceptance
+                : undefined
+          }
+          menu={
+            quote.state === "draft"
+              ? [
+                  change,
+                  { label: acceptance.label, onSelect: acceptance.onClick },
+                ]
+              : quote.state === "sent"
+                ? [change]
+                : []
           }
         />
       </div>
@@ -204,16 +227,8 @@ function QuotePage() {
           </>
         }
         aside={
-          <div className="grid gap-6 print:hidden">
-            {quote.state === "draft" ? (
-              <RecordSection
-                title="Send it"
-                description="Once sent, a change makes a new version and this one stays as it was."
-              >
-                <SendButton data={data} />
-              </RecordSection>
-            ) : null}
-            {quote.state === "accepted" ? (
+          quote.state === "accepted" ? (
+            <div className="grid gap-6 print:hidden">
               <RecordSection
                 title="Accepted"
                 description={
@@ -238,11 +253,18 @@ function QuotePage() {
                   ) : null}
                 </div>
               </RecordSection>
-            ) : null}
-            {open ? <Accept data={data} /> : null}
-          </div>
+            </div>
+          ) : undefined
         }
       />
+      {open ? (
+        <AcceptSheet
+          key={accepting.key}
+          data={data}
+          open={accepting.open}
+          onOpenChange={accepting.onOpenChange}
+        />
+      ) : null}
     </>
   );
 }
@@ -251,33 +273,33 @@ interface QuoteProps {
   data: Data;
 }
 
-function SendButton({ data }: QuoteProps) {
+interface MarkSent {
+  run: () => Promise<void>;
+  pending: boolean;
+}
+
+/** Marks a draft sent, after which a change makes a new version. */
+function useMarkSent(data: Data): MarkSent {
   const router = useRouter();
   const send = useServerFn(sendQuote);
-  const [sending, setSending] = useState(false);
-  return (
-    <Button
-      type="button"
-      disabled={sending || !data.business}
-      onClick={async () => {
-        setSending(true);
-        try {
-          const out = await send({ data: { id: data.quote.id } });
-          if (out.ok) {
-            toast.success("Marked as sent. A change now makes a new version.");
-            await router.invalidate();
-          } else toast.error(out.message);
-        } catch (error) {
-          const said = failure(error, "It could not be marked as sent.");
-          if (said) toast.error(said);
-        } finally {
-          setSending(false);
-        }
-      }}
-    >
-      {sending ? "Marking…" : "Mark as sent"}
-    </Button>
-  );
+  const [pending, setPending] = useState(false);
+  return {
+    pending,
+    run: async () => {
+      setPending(true);
+      const out = await attemptWith(
+        () => send({ data: { id: data.quote.id } }),
+        "It could not be marked as sent.",
+      );
+      setPending(false);
+      if (!out.ok) {
+        toast.error(out.message);
+        return;
+      }
+      toast.success("Marked as sent. A change now makes a new version.");
+      await router.invalidate();
+    },
+  };
 }
 
 interface ChangeProps extends QuoteProps {
@@ -323,8 +345,13 @@ function Change({ data, onCancel }: ChangeProps) {
   );
 }
 
+interface AcceptSheetProps extends QuoteProps {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+}
+
 /** Records the quote accepted, with the signed copy or purchase order. */
-function Accept({ data }: QuoteProps) {
+function AcceptSheet({ data, open, onOpenChange }: AcceptSheetProps) {
   const navigate = useNavigate();
   const send = useServerFn(accept);
   const [file, setFile] = useState<File | null>(null);
@@ -332,9 +359,10 @@ function Accept({ data }: QuoteProps) {
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   return (
-    <SettingsSection
+    <SheetForm
+      open={open}
+      onOpenChange={onOpenChange}
       title="Record acceptance"
-      description="Accepting makes its customer, if it has none, and begins its school's set-up with what the quote sells."
       submitLabel="Record acceptance"
       pending={pending}
       error={error}
@@ -356,12 +384,17 @@ function Accept({ data }: QuoteProps) {
           return;
         }
         toast.success("Accepted. Its school is ready to set up.");
+        onOpenChange(false);
         await navigate({
           to: "/provisioning/$draftId",
           params: { draftId: out.value.draftId },
         });
       }}
     >
+      <p className="text-sm leading-5 text-muted-foreground">
+        Accepting makes its customer, if it has none, and begins its school's
+        set-up with what the quote sells.
+      </p>
       <FormField
         label="Signed copy or purchase order"
         hint="A PDF, PNG or JPEG."
@@ -376,6 +409,6 @@ function Accept({ data }: QuoteProps) {
           />
         )}
       </FormField>
-    </SettingsSection>
+    </SheetForm>
   );
 }

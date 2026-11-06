@@ -12,6 +12,7 @@ import {
 } from "@faridalms/domain/leads";
 import { DEMO_SIZES } from "@faridalms/domain/product";
 import { quoteReference } from "@faridalms/domain/quotes";
+import { Button } from "@faridalms/ui/button";
 import { ButtonLink } from "@faridalms/ui/system/button-link";
 import {
   FormField,
@@ -19,18 +20,20 @@ import {
   TextField,
 } from "@faridalms/ui/system/form-field";
 import {
+  Fact,
+  Facts,
   RecordColumns,
   RecordEmpty,
   RecordHeader,
   RecordList,
   RecordSection,
 } from "@faridalms/ui/system/record-page";
-import { SettingsSection } from "@faridalms/ui/system/settings-section";
+import { SheetForm, useSheet } from "@faridalms/ui/system/sheet-form";
 import { StatusBadge } from "@faridalms/ui/system/status";
 import { Textarea } from "@faridalms/ui/textarea";
 import { createFileRoute, Link, useRouter } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
-import { Plus } from "lucide-react";
+import { MessageSquarePlus, Plus } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 
@@ -38,6 +41,7 @@ import { attempt } from "../actions";
 import { EventList } from "../components/EventList";
 import {
   ACTIVITY_NAMES,
+  formatDay,
   formatMoney,
   formatWhen,
   LEAD_SOURCE_NAMES,
@@ -91,6 +95,7 @@ function LeadPage() {
   const data = Route.useLoaderData();
   const { lead, activities, quotes, history, names } = data;
   const open = lead.state !== "lost" && lead.state !== "won";
+  const logging = useSheet();
   return (
     <>
       <RecordHeader
@@ -141,7 +146,20 @@ function LeadPage() {
                 </p>
               </RecordSection>
             ) : null}
-            <RecordSection title="Activity">
+            <RecordSection
+              title="Activity"
+              action={
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="max-md:h-10"
+                  onClick={logging.show}
+                >
+                  <MessageSquarePlus aria-hidden />
+                  Log activity
+                </Button>
+              }
+            >
               {activities.length ? (
                 <RecordList>
                   {activities.map((activity) => (
@@ -164,8 +182,13 @@ function LeadPage() {
               ) : (
                 <RecordEmpty>Nothing logged yet.</RecordEmpty>
               )}
+              <ActivitySheet
+                key={logging.key}
+                leadId={lead.id}
+                open={logging.open}
+                onOpenChange={logging.onOpenChange}
+              />
             </RecordSection>
-            <ActivityForm leadId={lead.id} />
             <RecordSection
               title="Quotes"
               action={
@@ -173,7 +196,8 @@ function LeadPage() {
                   <ButtonLink
                     to="/quotes/new"
                     search={{ leadId: lead.id }}
-                    variant="ghost"
+                    variant="outline"
+                    className="max-md:h-10"
                   >
                     <Plus aria-hidden />
                     New quote
@@ -210,7 +234,7 @@ function LeadPage() {
                 <RecordEmpty>No quotes yet.</RecordEmpty>
               )}
             </RecordSection>
-            <Details data={data} key={lead.version} />
+            <Details data={data} />
             <RecordSection title="History">
               <EventList events={history} names={names} />
             </RecordSection>
@@ -227,8 +251,45 @@ function LeadPage() {
   );
 }
 
+interface LeadSheetProps extends LeadProps {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+}
+
 /** Where the lead stands in the pipeline, and why when it was lost. */
 function Standing({ data }: LeadProps) {
+  const sheet = useSheet();
+  const { lead } = data;
+  return (
+    <RecordSection
+      title="Where it stands"
+      edit={{ label: "Move the lead", onClick: sheet.show }}
+    >
+      <div className="grid gap-1.5">
+        <StatusBadge
+          tone={LEAD_STATE_TONE[lead.state]}
+          className="justify-self-start"
+        >
+          {LEAD_STATE_NAMES[lead.state]}
+        </StatusBadge>
+        {lead.state === "lost" && lead.lostReason ? (
+          <p className="text-sm leading-5 text-muted-foreground">
+            {LOST_REASON_NAMES[lead.lostReason]}
+          </p>
+        ) : null}
+      </div>
+      <MoveSheet
+        key={sheet.key}
+        data={data}
+        open={sheet.open}
+        onOpenChange={sheet.onOpenChange}
+      />
+    </RecordSection>
+  );
+}
+
+/** Moves the lead to another stage, saying why when it was lost. */
+function MoveSheet({ data, open, onOpenChange }: LeadSheetProps) {
   const router = useRouter();
   const move = useServerFn(moveLead);
   const [state, setState] = useState<LeadState>(data.lead.state);
@@ -241,15 +302,20 @@ function Standing({ data }: LeadProps) {
   const unchanged =
     state === data.lead.state && reason === (data.lead.lostReason ?? "");
   return (
-    <SettingsSection
-      title="Where it stands"
+    <SheetForm
+      open={open}
+      onOpenChange={onOpenChange}
+      title="Move the lead"
       submitLabel="Move"
       pending={pending}
       error={error}
-      isDirty={() => !unchanged}
       onSubmit={async () => {
         setSubmitted(true);
-        if (unchanged || (state === "lost" && !reason)) return;
+        if (unchanged) {
+          onOpenChange(false);
+          return;
+        }
+        if (state === "lost" && !reason) return;
         setPending(true);
         setError(null);
         const failed = await attempt(
@@ -268,8 +334,8 @@ function Standing({ data }: LeadProps) {
           setError(failed);
           return;
         }
-        setSubmitted(false);
         toast.success("Moved.");
+        onOpenChange(false);
         await router.invalidate();
       }}
     >
@@ -297,12 +363,39 @@ function Standing({ data }: LeadProps) {
           onChange={setReason}
         />
       ) : null}
-    </SettingsSection>
+    </SheetForm>
   );
 }
 
 /** Who works the lead, and what they do next by when. */
 function NextStep({ data }: LeadProps) {
+  const sheet = useSheet();
+  const { lead, owners } = data;
+  const owner = owners.find((one) => one.id === lead.ownerId);
+  return (
+    <RecordSection
+      title="Next step"
+      edit={{ label: "Plan the next step", onClick: sheet.show }}
+    >
+      <Facts>
+        <Fact label="Owner">{owner?.name ?? "Nobody yet"}</Fact>
+        <Fact label="What">{lead.nextStep}</Fact>
+        <Fact label="By">
+          {lead.nextStepOn ? formatDay(lead.nextStepOn) : null}
+        </Fact>
+      </Facts>
+      <NextStepSheet
+        key={sheet.key}
+        data={data}
+        open={sheet.open}
+        onOpenChange={sheet.onOpenChange}
+      />
+    </RecordSection>
+  );
+}
+
+/** Names who works the lead, and what they do next by when. */
+function NextStepSheet({ data, open, onOpenChange }: LeadSheetProps) {
   const router = useRouter();
   const plan = useServerFn(planLeadStep);
   const [ownerId, setOwnerId] = useState(data.lead.ownerId ?? "");
@@ -311,16 +404,13 @@ function NextStep({ data }: LeadProps) {
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   return (
-    <SettingsSection
+    <SheetForm
+      open={open}
+      onOpenChange={onOpenChange}
       title="Next step"
       submitLabel="Save next step"
       pending={pending}
       error={error}
-      isDirty={() =>
-        ownerId !== (data.lead.ownerId ?? "") ||
-        nextStep !== (data.lead.nextStep ?? "") ||
-        nextStepOn !== (data.lead.nextStepOn ?? "")
-      }
       onSubmit={async () => {
         setPending(true);
         setError(null);
@@ -342,6 +432,7 @@ function NextStep({ data }: LeadProps) {
           return;
         }
         toast.success("Next step saved.");
+        onOpenChange(false);
         await router.invalidate();
       }}
     >
@@ -371,12 +462,47 @@ function NextStep({ data }: LeadProps) {
         value={nextStepOn}
         onChange={(event) => setNextStepOn(event.target.value)}
       />
-    </SettingsSection>
+    </SheetForm>
   );
 }
 
 /** Who the lead is: the school, the person, how to reach them. */
 function Details({ data }: LeadProps) {
+  const sheet = useSheet();
+  const { lead } = data;
+  return (
+    <RecordSection
+      title="Lead details"
+      description="Who the lead is and how to reach them."
+      edit={{ label: "Edit lead details", onClick: sheet.show }}
+    >
+      <Facts>
+        <Fact label="School or group">{lead.organisation}</Fact>
+        <Fact label="Person">{lead.name}</Fact>
+        <Fact label="Email">
+          {lead.email ? <span dir="ltr">{lead.email}</span> : null}
+        </Fact>
+        <Fact label="Phone">
+          {lead.phone ? <span dir="ltr">{lead.phone}</span> : null}
+        </Fact>
+        <Fact label="Country">{lead.country}</Fact>
+        <Fact label="Size">{lead.size ? SIZE_NAMES[lead.size] : null}</Fact>
+        <Fact label="Writes in">
+          {lead.locale === "ar" ? "Arabic" : "English"}
+        </Fact>
+      </Facts>
+      <DetailsSheet
+        key={sheet.key}
+        data={data}
+        open={sheet.open}
+        onOpenChange={sheet.onOpenChange}
+      />
+    </RecordSection>
+  );
+}
+
+/** Changes who the lead is, unless someone changed it first. */
+function DetailsSheet({ data, open, onOpenChange }: LeadSheetProps) {
   const router = useRouter();
   const save = useServerFn(saveLeadDetails);
   const { lead } = data;
@@ -396,9 +522,10 @@ function Details({ data }: LeadProps) {
     setFields((current) => ({ ...current, [key]: value }));
   const missing = (key: LeadText) => submitted && !fields[key].trim();
   return (
-    <SettingsSection
-      title="Lead details"
-      description="Who the lead is and how to reach them."
+    <SheetForm
+      open={open}
+      onOpenChange={onOpenChange}
+      title="Edit lead details"
       submitLabel="Save details"
       pending={pending}
       error={error}
@@ -426,41 +553,41 @@ function Details({ data }: LeadProps) {
           return;
         }
         toast.success("Details saved.");
+        onOpenChange(false);
         await router.invalidate();
       }}
     >
-      <div className="grid items-start gap-6 @md:grid-cols-2">
-        <TextField
-          label="School or group"
-          maxLength={160}
-          value={fields.organisation}
-          errors={
-            missing("organisation") ? ["Enter the school or group."] : undefined
-          }
-          onChange={(event) => set("organisation", event.target.value)}
-        />
-        <TextField
-          label="Person"
-          maxLength={120}
-          value={fields.name}
-          errors={missing("name") ? ["Enter who you spoke to."] : undefined}
-          onChange={(event) => set("name", event.target.value)}
-        />
-        <TextField
-          label="Email"
-          optional
-          type="email"
-          dir="ltr"
-          maxLength={254}
-          value={fields.email}
-          onChange={(event) => set("email", event.target.value)}
-        />
+      <TextField
+        label="School or group"
+        maxLength={160}
+        value={fields.organisation}
+        errors={
+          missing("organisation") ? ["Enter the school or group."] : undefined
+        }
+        onChange={(event) => set("organisation", event.target.value)}
+      />
+      <TextField
+        label="Person"
+        maxLength={120}
+        value={fields.name}
+        errors={missing("name") ? ["Enter who you spoke to."] : undefined}
+        onChange={(event) => set("name", event.target.value)}
+      />
+      <TextField
+        label="Email"
+        optional
+        type="email"
+        dir="ltr"
+        maxLength={254}
+        value={fields.email}
+        onChange={(event) => set("email", event.target.value)}
+      />
+      <div className="grid items-start gap-6 sm:grid-cols-2">
         <TextField
           label="Phone"
           optional
           type="tel"
           dir="ltr"
-          width="phone"
           maxLength={40}
           value={fields.phone}
           onChange={(event) => set("phone", event.target.value)}
@@ -487,7 +614,7 @@ function Details({ data }: LeadProps) {
           onChange={(locale) => set("locale", locale)}
         />
       </div>
-    </SettingsSection>
+    </SheetForm>
   );
 }
 
@@ -496,11 +623,14 @@ const ACTIVITY_OPTIONS = ACTIVITY_KINDS.map((choice) => ({
   label: ACTIVITY_NAMES[choice],
 }));
 
-interface ActivityFormProps {
+interface ActivitySheetProps {
   leadId: string;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
 }
 
-function ActivityForm({ leadId }: ActivityFormProps) {
+/** Logs a call, a meeting or a message with the lead. */
+function ActivitySheet({ leadId, open, onOpenChange }: ActivitySheetProps) {
   const router = useRouter();
   const log = useServerFn(logActivity);
   const [kind, setKind] = useState<ActivityKind>("call");
@@ -509,12 +639,13 @@ function ActivityForm({ leadId }: ActivityFormProps) {
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   return (
-    <SettingsSection
+    <SheetForm
+      open={open}
+      onOpenChange={onOpenChange}
       title="Log activity"
       submitLabel="Log it"
       pending={pending}
       error={error}
-      isDirty={() => Boolean(note)}
       onSubmit={async () => {
         setSubmitted(true);
         if (!note.trim()) return;
@@ -529,9 +660,8 @@ function ActivityForm({ leadId }: ActivityFormProps) {
           setError(failed);
           return;
         }
-        setNote("");
-        setSubmitted(false);
         toast.success("Logged.");
+        onOpenChange(false);
         await router.invalidate();
       }}
     >
@@ -557,6 +687,6 @@ function ActivityForm({ leadId }: ActivityFormProps) {
           />
         )}
       </FormField>
-    </SettingsSection>
+    </SheetForm>
   );
 }

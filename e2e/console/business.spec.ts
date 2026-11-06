@@ -32,7 +32,8 @@ async function runRound(page: Page) {
 
 /** Makes the open subscription a trial whose last day is the one given. */
 async function setTrial(page: Page, lastDay: string, reason: string) {
-  const terms = page.getByRole("form", { name: "Terms" });
+  await page.getByRole("button", { name: "Change the terms" }).click();
+  const terms = page.getByRole("form", { name: "Change the terms" });
   await terms.getByRole("radio", { name: "A trial" }).check();
   await terms.getByLabel("Trial's last day").fill(lastDay);
   await terms.getByLabel("Why").fill(reason);
@@ -122,7 +123,8 @@ test("a customer keeps its contacts, agreements and history", async ({
   await agreements.getByRole("button", { name: "Record acceptance" }).click();
   await expect(page.getByText(/^version 2026-11, accepted/)).toBeVisible();
 
-  const details = page.getByRole("form", { name: "Customer details" });
+  await page.getByRole("button", { name: "Edit customer details" }).click();
+  const details = page.getByRole("form", { name: "Edit customer details" });
   await details.getByLabel("Tax registration number").fill("123-456-789");
   await details.getByLabel("Why").fill("Their tax card arrived");
   await details.getByRole("button", { name: "Save details" }).click();
@@ -151,7 +153,7 @@ test("a trial sold with its school becomes a contract with a plan, which the sch
   });
   // The school's own page shows what it has and sends an operator to its subscription.
   await expect(
-    page.getByRole("button", { name: "Save entitlements" }),
+    page.getByRole("button", { name: "Edit entitlements" }),
   ).toHaveCount(0);
   await openSubscriptionFromSchool(page);
   await expect(
@@ -160,6 +162,7 @@ test("a trial sold with its school becomes a contract with a plan, which the sch
   const card = page.getByRole("listitem", { name: schoolName });
   await expect(card.getByText("Published as it stands.")).toBeVisible();
 
+  await page.getByRole("button", { name: "Add item" }).click();
   const item = page.getByRole("form", { name: "Add an item" });
   await choose(item, "What", `Plan: ${planName} version 1`);
   await expect(item.getByLabel("Unit price (EGP)")).toHaveValue("350.00");
@@ -170,7 +173,8 @@ test("a trial sold with its school becomes a contract with a plan, which the sch
   ).toBeVisible();
   await expect(card.getByText("Gains Coding and blocks")).toBeVisible();
 
-  const publish = page.getByRole("form", { name: "Publish" });
+  await recordHeader(page).getByRole("button", { name: "Publish now" }).click();
+  const publish = page.getByRole("form", { name: "Publish now" });
   await publish
     .getByLabel("Why now")
     .fill("The school starts coding on Monday");
@@ -184,12 +188,14 @@ test("a trial sold with its school becomes a contract with a plan, which the sch
   ).toBeVisible();
 
   // A pilot of badges, given today and ended from tomorrow.
+  await page.getByRole("button", { name: "Add override" }).click();
   const override = page.getByRole("form", { name: "Add an override" });
   await choose(override, "Module", "Badges");
   await override.getByLabel("Why").fill("A pilot of badges");
   await override.getByRole("button", { name: "Add override" }).click();
   await expect(card.getByText("Gains Badges")).toBeVisible();
   await page.getByRole("button", { name: "Choose all 1" }).click();
+  await page.getByRole("button", { name: "End 1 chosen" }).click();
   const end = page.getByRole("form", { name: "End 1 chosen" });
   await end
     .getByLabel("First day without it")
@@ -198,7 +204,8 @@ test("a trial sold with its school becomes a contract with a plan, which the sch
   await end.getByRole("button", { name: "End 1 chosen" }).click();
   await expect(page.getByText(/^Ends /)).toBeVisible();
 
-  const terms = page.getByRole("form", { name: "Terms" });
+  await page.getByRole("button", { name: "Change the terms" }).click();
+  const terms = page.getByRole("form", { name: "Change the terms" });
   await terms.getByRole("radio", { name: "A contract" }).check();
   await terms.getByLabel("Term starts").fill(businessToday());
   await terms.getByLabel("Term ends").fill(addDays(businessToday(), 365));
@@ -227,6 +234,7 @@ test("a group set up as a draft is left, resumed, and finished after a refusal",
     nameEn: `First ${slug}`,
     nameAr: "الأولى",
   });
+  await page.getByRole("button", { name: "Add host" }).click();
   const host = page.getByRole("form", { name: "Add a host" });
   await host.getByLabel("Hostname").fill(taken);
   await host.getByLabel("Why").fill("Its own website");
@@ -334,7 +342,8 @@ test("a school's administrators see its trial's days left, then that it is pause
   });
   await openSubscriptionFromSchool(page);
   await setTrial(page, addDays(businessToday(), 3), "A month's trial");
-  const publish = page.getByRole("form", { name: "Publish" });
+  const publish = page.getByRole("form", { name: "Publish now" });
+  await recordHeader(page).getByRole("button", { name: "Publish now" }).click();
   await publish.getByLabel("Why now").fill("The trial starts today");
   await publish.getByRole("button", { name: "Publish now" }).click();
   await expect(
@@ -367,6 +376,7 @@ test("a school's administrators see its trial's days left, then that it is pause
   // A change reaches the school as soon as it is published, not a minute on.
   await page.goto(subscription);
   await setTrial(page, addDays(businessToday(), 5), "Two more days to decide");
+  await recordHeader(page).getByRole("button", { name: "Publish now" }).click();
   await publish.getByLabel("Why now").fill("The trial is extended");
   await publish.getByRole("button", { name: "Publish now" }).click();
   await expect(
@@ -430,10 +440,12 @@ test("finance reads customers and subscriptions but not the catalogue", async ({
     finance.getByRole("button", { name: "Run the round now" }),
   ).toHaveCount(0);
   await finance.getByRole("row").nth(1).getByRole("link").click();
-  await expect(finance.getByRole("form", { name: "Terms" })).toHaveCount(0);
-  await expect(finance.getByRole("form", { name: "Add an item" })).toHaveCount(
+  await expect(finance.getByRole("heading", { name: "Items" })).toBeVisible();
+  await expect(
+    finance.getByRole("button", { name: "Change the terms" }),
+  ).toHaveCount(0);
+  await expect(finance.getByRole("button", { name: "Add item" })).toHaveCount(
     0,
   );
-  await expect(finance.getByRole("heading", { name: "Items" })).toBeVisible();
   await financeContext.close();
 });

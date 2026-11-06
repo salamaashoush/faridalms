@@ -1,6 +1,7 @@
 import type { ModuleId } from "@faridalms/domain/modules";
 import type { SchoolNotice } from "@faridalms/domain/plans";
 import type { SchoolStanding } from "@faridalms/domain/provisioning";
+import type { Tone } from "@faridalms/ui/system/status";
 
 import { availableModules, SCHOOL_NOTICES } from "@faridalms/domain/plans";
 import { SCHOOL_STANDINGS, standingOf } from "@faridalms/domain/provisioning";
@@ -18,11 +19,8 @@ import {
   RecordList,
   RecordSection,
 } from "@faridalms/ui/system/record-page";
-import {
-  SettingsGroup,
-  SettingsSection,
-} from "@faridalms/ui/system/settings-section";
-import { SheetForm } from "@faridalms/ui/system/sheet-form";
+import { SettingsGroup } from "@faridalms/ui/system/settings-section";
+import { SheetForm, useSheet } from "@faridalms/ui/system/sheet-form";
 import { StatusBadge, StatusText } from "@faridalms/ui/system/status";
 import { createFileRoute, Link, useRouter } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
@@ -30,7 +28,7 @@ import { Info, Send } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 
-import { attempt, failure } from "../actions";
+import { attempt, attemptWith, failure } from "../actions";
 import { ChangeList } from "../components/ChangeList";
 import { Hosts } from "../components/Hosts";
 import {
@@ -132,14 +130,7 @@ function SchoolPage() {
                 measuredAt={school.usage?.measuredAt ?? null}
               />
             ) : null}
-            {sold ? (
-              <SoldEntitlements
-                school={school}
-                subscriptionId={sold.subscriptionId}
-              />
-            ) : (
-              <EntitlementsForm school={school} />
-            )}
+            <EntitlementsSection school={school} sold={sold} />
             <Hosts schoolId={school.id} platform={platform} hosts={hosts} />
             {ssoDomains.length ? (
               <RecordSection
@@ -177,9 +168,9 @@ function SchoolPage() {
             {health ? <HealthSection health={health} /> : null}
             <UseSection school={school} />
             {standing ? (
-              <Lifecycle
+              <AccessSection
                 tenantId={school.tenantId}
-                state={standing}
+                standing={standing}
                 group={school.tenantKind === "school_group"}
               />
             ) : null}
@@ -251,17 +242,19 @@ function UseSection({ school }: SchoolProps) {
   );
 }
 
-interface SoldEntitlementsProps {
+interface EntitlementsSectionProps {
   school: School;
-  subscriptionId: string | null;
+  /** Where a subscription sets them; null where an operator does, by hand. */
+  sold: { subscriptionId: string | null } | null;
 }
 
 /**
- * What the school is entitled to where its subscription sets it: shown
- * here, changed on the subscription, published from there.
+ * What the school is entitled to. A subscription sets them where there is
+ * a business database; without one an operator edits them here.
  */
-function SoldEntitlements({ school, subscriptionId }: SoldEntitlementsProps) {
+function EntitlementsSection({ school, sold }: EntitlementsSectionProps) {
   const entitled = school.entitlements;
+  const sheet = useSheet();
   return (
     <RecordSection
       title="Entitlements"
@@ -272,12 +265,12 @@ function SoldEntitlements({ school, subscriptionId }: SoldEntitlementsProps) {
             ? ` · trial ends ${formatDay(entitled.trialEndsOn)}`
             : ""}
           {entitled.notice ? ` · ${NOTICE_NAMES[entitled.notice]}` : ""}.{" "}
-          {subscriptionId ? (
+          {sold === null ? null : sold.subscriptionId ? (
             <>
               Its{" "}
               <Link
                 to="/subscriptions/$subscriptionId"
-                params={{ subscriptionId }}
+                params={{ subscriptionId: sold.subscriptionId }}
                 className="font-medium text-primary underline-offset-4 hover:underline"
               >
                 subscription
@@ -288,6 +281,14 @@ function SoldEntitlements({ school, subscriptionId }: SoldEntitlementsProps) {
             "It has no subscription yet; the daily round gives it one that keeps what it has."
           )}
         </>
+      }
+      edit={
+        sold === null
+          ? {
+              label: "Edit entitlements",
+              onClick: sheet.show,
+            }
+          : undefined
       }
     >
       <div className="grid gap-5">
@@ -306,6 +307,14 @@ function SoldEntitlements({ school, subscriptionId }: SoldEntitlementsProps) {
           ))}
         </Facts>
       </div>
+      {sold === null ? (
+        <EntitlementsSheet
+          key={sheet.key}
+          school={school}
+          open={sheet.open}
+          onOpenChange={sheet.onOpenChange}
+        />
+      ) : null}
     </RecordSection>
   );
 }
@@ -315,8 +324,18 @@ const NOTICE_OPTIONS = [
   ...SCHOOL_NOTICES.map((code) => ({ value: code, label: NOTICE_NAMES[code] })),
 ] as const;
 
+interface EntitlementsSheetProps {
+  school: School;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+}
+
 /** Sets the school's entitlements by hand, where no subscription sets them. */
-function EntitlementsForm({ school }: SchoolProps) {
+function EntitlementsSheet({
+  school,
+  open,
+  onOpenChange,
+}: EntitlementsSheetProps) {
   const router = useRouter();
   const save = useServerFn(saveEntitlements);
   const entitled = school.entitlements;
@@ -330,49 +349,51 @@ function EntitlementsForm({ school }: SchoolProps) {
   const [submitted, setSubmitted] = useState(false);
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [saved, setSaved] = useState(false);
   return (
-    <SettingsSection
-      title="Entitlements"
-      description={`Revision ${entitled.revision} · access ${ACCESS[entitled.access]}. An empty storage limit takes the platform's default; any other empty limit is unlimited.`}
+    <SheetForm
+      open={open}
+      onOpenChange={onOpenChange}
+      title="Edit entitlements"
       submitLabel="Save entitlements"
       pending={pending}
       error={error}
-      saved={saved}
-      isDirty={() => Boolean(reason)}
       onSubmit={async () => {
         setSubmitted(true);
-        setSaved(false);
         if (!reason.trim()) return;
         setPending(true);
         setError(null);
-        try {
-          const out = await save({
-            data: {
-              schoolId: school.id,
-              ...limitsOf(limits),
-              trialEndsOn: trialEndsOn || null,
-              notice: notice || null,
-              modules,
-              reason: reason.trim(),
-            },
-          });
-          setReason("");
-          setSubmitted(false);
-          setSaved(true);
-          toast.success(
-            out.atOnce
-              ? "Entitlements saved. The school has them now."
-              : "Entitlements saved. Its cell could not be told, so the school has them within a minute.",
-          );
-          await router.invalidate();
-        } catch (thrown) {
-          setError(failure(thrown, "The entitlements could not be saved."));
-        } finally {
-          setPending(false);
+        const out = await attemptWith(
+          () =>
+            save({
+              data: {
+                schoolId: school.id,
+                ...limitsOf(limits),
+                trialEndsOn: trialEndsOn || null,
+                notice: notice || null,
+                modules,
+                reason: reason.trim(),
+              },
+            }),
+          "The entitlements could not be saved.",
+        );
+        setPending(false);
+        if (!out.ok) {
+          setError(out.message);
+          return;
         }
+        toast.success(
+          out.value.atOnce
+            ? "Entitlements saved. The school has them now."
+            : "Entitlements saved. Its cell could not be told, so the school has them within a minute.",
+        );
+        onOpenChange(false);
+        await router.invalidate();
       }}
     >
+      <p className="text-sm leading-5 text-muted-foreground">
+        An empty storage limit takes the platform's default; any other empty
+        limit is unlimited.
+      </p>
       <SettingsGroup title="Storage">
         <div className="grid items-start gap-6 @md:grid-cols-2">
           <StorageFields draft={limits} onChange={setLimits} />
@@ -412,13 +433,11 @@ function EntitlementsForm({ school }: SchoolProps) {
         submitted={submitted}
         placeholder="For example: moved to the larger plan from 1 November"
       />
-    </SettingsSection>
+    </SheetForm>
   );
 }
 
-type TenantLifecycleMove = SchoolStanding;
-
-const LIFECYCLE_HINT: Record<TenantLifecycleMove, string> = {
+const ACCESS_HINT: Record<SchoolStanding, string> = {
   full: "Everyone uses the school as normal.",
   restricted:
     "Everything works, but the school cannot switch on modules or add custom domains; its administrators are told why.",
@@ -428,41 +447,95 @@ const LIFECYCLE_HINT: Record<TenantLifecycleMove, string> = {
     "Nobody signs in. The school's own portal says it is paused; the bare domain says nothing.",
 };
 
-interface LifecycleProps {
+const ACCESS_TONE: Record<SchoolStanding, Tone> = {
+  full: "success",
+  restricted: "warning",
+  read_only: "warning",
+  suspended: "danger",
+};
+
+interface AccessSectionProps {
   tenantId: string;
-  state: TenantLifecycleMove;
+  standing: SchoolStanding;
   group: boolean;
+}
+
+/** How far the school's people may use it, changed with a reason. */
+function AccessSection({ tenantId, standing, group }: AccessSectionProps) {
+  const sheet = useSheet();
+  return (
+    <RecordSection
+      title="Access"
+      description={`${group ? "Applies to every school of the group." : "Applies to the school."} The cell enforces it at once.`}
+      edit={{
+        label: "Change access",
+        onClick: sheet.show,
+      }}
+    >
+      <div className="grid gap-1.5">
+        <StatusBadge
+          tone={ACCESS_TONE[standing]}
+          className="justify-self-start"
+        >
+          {STANDING_NAMES[standing]}
+        </StatusBadge>
+        <p className="text-sm leading-5 text-muted-foreground">
+          {ACCESS_HINT[standing]}
+        </p>
+      </div>
+      <AccessSheet
+        key={sheet.key}
+        tenantId={tenantId}
+        standing={standing}
+        open={sheet.open}
+        onOpenChange={sheet.onOpenChange}
+      />
+    </RecordSection>
+  );
+}
+
+interface AccessSheetProps {
+  tenantId: string;
+  standing: SchoolStanding;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
 }
 
 /**
  * Pauses, suspends or reopens the school's tenant, every school of a group
  * with it, with the reason the change log keeps.
  */
-function Lifecycle({ tenantId, state, group }: LifecycleProps) {
+function AccessSheet({
+  tenantId,
+  standing,
+  open,
+  onOpenChange,
+}: AccessSheetProps) {
   const router = useRouter();
   const set = useServerFn(setSchoolLifecycle);
-  const [lifecycle, setLifecycle] = useState(state);
+  const [chosen, setChosen] = useState(standing);
   const [reason, setReason] = useState("");
   const [submitted, setSubmitted] = useState(false);
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   return (
-    <SettingsSection
-      title="Access"
-      description={`${group ? "Applies to every school of the group." : "Applies to the school."} The cell enforces it at once.`}
+    <SheetForm
+      open={open}
+      onOpenChange={onOpenChange}
+      title="Change access"
       submitLabel="Change access"
+      destructive={chosen === "suspended"}
       pending={pending}
       error={error}
-      isDirty={() => lifecycle !== state || Boolean(reason)}
       onSubmit={async () => {
         setSubmitted(true);
-        if (lifecycle === state || !reason.trim()) return;
+        if (chosen === standing || !reason.trim()) return;
         setPending(true);
         setError(null);
         const failed = await attempt(
           () =>
             set({
-              data: { tenantId, standing: lifecycle, reason: reason.trim() },
+              data: { tenantId, standing: chosen, reason: reason.trim() },
             }),
           "Access could not be changed.",
         );
@@ -472,22 +545,21 @@ function Lifecycle({ tenantId, state, group }: LifecycleProps) {
           return;
         }
         toast.success("Access changed.");
-        setReason("");
-        setSubmitted(false);
+        onOpenChange(false);
         await router.invalidate();
       }}
     >
       <ChoiceField
         label="Access"
-        value={lifecycle}
+        value={chosen}
         options={SCHOOL_STANDINGS.map((choice) => ({
           value: choice,
           label: STANDING_NAMES[choice],
-          hint: LIFECYCLE_HINT[choice],
+          hint: ACCESS_HINT[choice],
         }))}
-        onChange={setLifecycle}
+        onChange={setChosen}
         errors={
-          submitted && lifecycle === state
+          submitted && chosen === standing
             ? ["Choose a different access to change it."]
             : undefined
         }
@@ -498,7 +570,7 @@ function Lifecycle({ tenantId, state, group }: LifecycleProps) {
         submitted={submitted}
         placeholder="For example: invoice 2026-014 unpaid for 60 days"
       />
-    </SettingsSection>
+    </SheetForm>
   );
 }
 

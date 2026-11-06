@@ -32,7 +32,7 @@ import {
   RecordHeader,
   RecordSection,
 } from "@faridalms/ui/system/record-page";
-import { SettingsSection } from "@faridalms/ui/system/settings-section";
+import { useSheet } from "@faridalms/ui/system/sheet-form";
 import { StatusBadge } from "@faridalms/ui/system/status";
 import { StepNav } from "@faridalms/ui/system/step-nav";
 import { Textarea } from "@faridalms/ui/textarea";
@@ -54,6 +54,7 @@ import { attempt, failure } from "../actions";
 import { Agreements } from "../components/Agreements";
 import { Contacts } from "../components/Contacts";
 import { NewCustomerSheet } from "../components/CustomerForm";
+import { ReasonSheet } from "../components/ReasonSheet";
 import { SchoolSpecForm } from "../components/SchoolSpecForm";
 import { Sent } from "../components/Sent";
 import {
@@ -62,7 +63,6 @@ import {
   termsDraftOf,
   termsOf,
 } from "../components/TermsFields";
-import { WhyField } from "../components/Why";
 import {
   DRAFT_STEP_NAMES,
   formatDay,
@@ -892,10 +892,7 @@ function ReviewStep({ data }: StepProps) {
   const navigate = useNavigate();
   const [answer, setAnswer] = useState<string | null>(null);
   const [creating, setCreating] = useState(false);
-  const [reason, setReason] = useState("");
-  const [asideSubmitted, setAsideSubmitted] = useState(false);
-  const [settingAside, setSettingAside] = useState(false);
-  const [asideError, setAsideError] = useState<string | null>(null);
+  const settingAside = useSheet();
   const { tenant, plan, addresses, people } = data.draft.spec;
   const customer = data.customer?.customer ?? null;
   const currency = customer?.currency ?? "EGP";
@@ -1038,42 +1035,39 @@ function ReviewStep({ data }: StepProps) {
       </form>
 
       {data.draft.tenantId ? null : (
-        <div className="mt-6">
-          <SettingsSection
+        <>
+          <p className="mt-6 text-sm leading-5 text-muted-foreground">
+            Not going ahead?{" "}
+            <Button
+              type="button"
+              variant="link"
+              className="h-auto p-0 text-destructive"
+              onClick={settingAside.show}
+            >
+              Set this draft aside
+            </Button>
+            ; it leaves the list of drafts and nothing is created.
+          </p>
+          <ReasonSheet
+            key={settingAside.key}
+            open={settingAside.open}
+            onOpenChange={settingAside.onOpenChange}
             title="Set this draft aside"
-            description="It leaves the list of drafts; nothing is created."
             submitLabel="Set this draft aside"
-            pending={settingAside}
-            error={asideError}
-            onSubmit={async () => {
-              setAsideSubmitted(true);
-              if (!reason.trim()) return;
-              setSettingAside(true);
-              setAsideError(null);
+            destructive
+            placeholder="For example: the school chose another platform"
+            onSubmit={async (reason) => {
               const failed = await attempt(
-                () =>
-                  abandon({
-                    data: { id: data.draft.id, reason: reason.trim() },
-                  }),
+                () => abandon({ data: { id: data.draft.id, reason } }),
                 "The draft could not be set aside.",
               );
-              setSettingAside(false);
-              if (failed) {
-                setAsideError(failed);
-                return;
-              }
+              if (failed) return failed;
               toast.success("Draft set aside.");
               await navigate({ to: "/schools/new" });
+              return null;
             }}
-          >
-            <WhyField
-              value={reason}
-              onChange={setReason}
-              submitted={asideSubmitted}
-              placeholder="For example: the school chose another platform"
-            />
-          </SettingsSection>
-        </div>
+          />
+        </>
       )}
     </div>
   );

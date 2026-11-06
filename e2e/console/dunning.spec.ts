@@ -46,8 +46,12 @@ test("an unpaid invoice reminds, asks for a call, restricts the school at its we
   // Who looks after the customer, and who receives its invoices.
   await page.goto("/customers");
   await page.getByRole("link", { name: schoolName }).click();
+  const changeOwner = page.getByRole("button", {
+    name: "Change the account owner",
+  });
+  await hydrated(changeOwner);
+  await changeOwner.click();
   const owner = page.getByRole("form", { name: "Account owner" });
-  await hydrated(owner);
   await choose(owner, "Looked after by", OWNER.name);
   await owner.getByRole("button", { name: "Save" }).click();
   await expect(page.getByText("Account owner saved.")).toBeVisible();
@@ -144,8 +148,10 @@ test("an unpaid invoice reminds, asks for a call, restricts the school at its we
   await expect(page.getByText("Task done.")).toBeVisible();
   await expect(call).toHaveCount(0);
   await page.goto(customerUrl);
+  const pauseClock = page.getByRole("button", { name: "Pause the clock" });
+  await hydrated(pauseClock);
+  await pauseClock.click();
   const pause = page.getByRole("form", { name: "Pause the clock" });
-  await hydrated(pause);
   await pause.getByLabel("Until").fill(addDays(today, 14));
   await pause.getByLabel("Why").fill("The board approves payments on Thursday");
   await pause.getByRole("button", { name: "Pause the clock" }).click();

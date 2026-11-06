@@ -6,7 +6,7 @@ import {
   RecordList,
   RecordSection,
 } from "@faridalms/ui/system/record-page";
-import { SettingsSection } from "@faridalms/ui/system/settings-section";
+import { SheetForm, useSheet } from "@faridalms/ui/system/sheet-form";
 import { StatusBadge } from "@faridalms/ui/system/status";
 import { createFileRoute, Link, useRouter } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
@@ -64,22 +64,62 @@ interface AccountOwnerProps {
 
 /** Who looks after the customer: asked to call when an invoice is two weeks overdue. */
 function AccountOwner({ customerId, ownerId, owners }: AccountOwnerProps) {
+  const sheet = useSheet();
+  const owner = owners.find((one) => one.id === ownerId);
+  return (
+    <RecordSection
+      title="Account owner"
+      description="Asked to call when an invoice is two weeks overdue."
+      edit={{
+        label: "Change the account owner",
+        onClick: sheet.show,
+      }}
+    >
+      <p className="text-sm leading-5">
+        {owner ? (
+          owner.name
+        ) : (
+          <span className="text-muted-foreground">Nobody yet</span>
+        )}
+      </p>
+      <AccountOwnerSheet
+        key={sheet.key}
+        customerId={customerId}
+        ownerId={ownerId}
+        owners={owners}
+        open={sheet.open}
+        onOpenChange={sheet.onOpenChange}
+      />
+    </RecordSection>
+  );
+}
+
+interface AccountOwnerSheetProps extends AccountOwnerProps {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+}
+
+/** Names who looks after the customer, or nobody. */
+function AccountOwnerSheet({
+  customerId,
+  ownerId,
+  owners,
+  open,
+  onOpenChange,
+}: AccountOwnerSheetProps) {
   const router = useRouter();
   const save = useServerFn(setCustomerOwner);
   const [chosen, setChosen] = useState(ownerId ?? "");
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [saved, setSaved] = useState(false);
   return (
-    <SettingsSection
+    <SheetForm
+      open={open}
+      onOpenChange={onOpenChange}
       title="Account owner"
-      description="Asked to call when an invoice is two weeks overdue."
       pending={pending}
       error={error}
-      saved={saved}
-      isDirty={() => chosen !== (ownerId ?? "")}
       onSubmit={async () => {
-        setSaved(false);
         setPending(true);
         setError(null);
         const failed = await attempt(
@@ -91,8 +131,8 @@ function AccountOwner({ customerId, ownerId, owners }: AccountOwnerProps) {
           setError(failed);
           return;
         }
-        setSaved(true);
         toast.success("Account owner saved.");
+        onOpenChange(false);
         await router.invalidate();
       }}
     >
@@ -101,11 +141,11 @@ function AccountOwner({ customerId, ownerId, owners }: AccountOwnerProps) {
         value={chosen}
         options={[
           { value: "", label: "Nobody yet" },
-          ...owners.map((owner) => ({ value: owner.id, label: owner.name })),
+          ...owners.map((one) => ({ value: one.id, label: one.name })),
         ]}
         onChange={setChosen}
       />
-    </SettingsSection>
+    </SheetForm>
   );
 }
 
@@ -293,7 +333,6 @@ function CustomerPage() {
             ) : null}
             <Contacts customerId={customer.id} contacts={contacts} />
             <CustomerDetails
-              key={customer.version}
               customer={customer}
               onSaved={async () => {
                 toast.success("Details saved.");
@@ -308,7 +347,6 @@ function CustomerPage() {
         aside={
           <>
             <AccountOwner
-              key={customer.accountOwnerId ?? ""}
               customerId={customer.id}
               ownerId={customer.accountOwnerId}
               owners={owners}

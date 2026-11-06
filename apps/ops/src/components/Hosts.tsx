@@ -1,6 +1,7 @@
 import type { HostRole } from "@faridalms/domain/hosts";
 import type { ActionItem } from "@faridalms/ui/system/action-menu";
 
+import { Button } from "@faridalms/ui/button";
 import { ActionMenu } from "@faridalms/ui/system/action-menu";
 import { SelectField, TextField } from "@faridalms/ui/system/form-field";
 import {
@@ -8,10 +9,11 @@ import {
   RecordList,
   RecordSection,
 } from "@faridalms/ui/system/record-page";
-import { SettingsSection } from "@faridalms/ui/system/settings-section";
+import { SheetForm, useSheet } from "@faridalms/ui/system/sheet-form";
 import { StatusBadge } from "@faridalms/ui/system/status";
 import { useRouter } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
+import { Plus } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 
@@ -175,11 +177,14 @@ function HostItem({ schoolId, host }: HostItemProps) {
   );
 }
 
-interface AddHostProps {
+interface AddHostSheetProps {
   schoolId: string;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
 }
 
-function AddHost({ schoolId }: AddHostProps) {
+/** Adds a host of the school's own; it routes once its records are found. */
+function AddHostSheet({ schoolId, open, onOpenChange }: AddHostSheetProps) {
   const router = useRouter();
   const add = useServerFn(addHost);
   const [hostname, setHostname] = useState("");
@@ -189,13 +194,13 @@ function AddHost({ schoolId }: AddHostProps) {
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   return (
-    <SettingsSection
+    <SheetForm
+      open={open}
+      onOpenChange={onOpenChange}
       title="Add a host"
-      description="A host of the school's own. It routes once its records are found and the edge has served it over TLS."
       submitLabel="Add host"
       pending={pending}
       error={error}
-      isDirty={() => Boolean(hostname || reason)}
       onSubmit={async () => {
         setSubmitted(true);
         if (!hostname.trim() || !reason.trim()) return;
@@ -213,14 +218,16 @@ function AddHost({ schoolId }: AddHostProps) {
           setError(failed);
           return;
         }
-        setHostname("");
-        setReason("");
-        setSubmitted(false);
         toast.success("Added as pending.");
+        onOpenChange(false);
         await router.invalidate();
       }}
     >
-      <div className="grid gap-6 @md:grid-cols-[1fr_12rem]">
+      <p className="text-sm leading-5 text-muted-foreground">
+        A host of the school's own. It routes once its records are found and the
+        edge has served it over TLS.
+      </p>
+      <div className="grid gap-6">
         <TextField
           label="Hostname"
           dir="ltr"
@@ -244,7 +251,7 @@ function AddHost({ schoolId }: AddHostProps) {
         submitted={submitted}
         placeholder="For example: the school asked to use its own domain"
       />
-    </SettingsSection>
+    </SheetForm>
   );
 }
 
@@ -262,36 +269,51 @@ export interface HostsProps {
 
 /** The school's own hosts, with what DNS must hold for each and where it stands. */
 export function Hosts({ schoolId, platform, hosts }: HostsProps) {
+  const sheet = useSheet();
   return (
-    <>
-      <RecordSection
-        title="Hosts"
-        description={
-          <>
-            Platform names, always served: website{" "}
-            <span className="font-mono" dir="ltr">
-              {platform.site}
-            </span>
-            , portal{" "}
-            <span className="font-mono" dir="ltr">
-              {platform.portal}
-            </span>
-            . The main host of its own takes over from the platform name once it
-            routes.
-          </>
-        }
-      >
-        {hosts.length ? (
-          <RecordList>
-            {hosts.map((host) => (
-              <HostItem key={host.hostname} schoolId={schoolId} host={host} />
-            ))}
-          </RecordList>
-        ) : (
-          <RecordEmpty>No hosts of its own.</RecordEmpty>
-        )}
-      </RecordSection>
-      <AddHost schoolId={schoolId} />
-    </>
+    <RecordSection
+      title="Hosts"
+      action={
+        <Button
+          type="button"
+          variant="outline"
+          className="max-md:h-10"
+          onClick={sheet.show}
+        >
+          <Plus aria-hidden />
+          Add host
+        </Button>
+      }
+      description={
+        <>
+          Platform names, always served: website{" "}
+          <span className="font-mono" dir="ltr">
+            {platform.site}
+          </span>
+          , portal{" "}
+          <span className="font-mono" dir="ltr">
+            {platform.portal}
+          </span>
+          . The main host of its own takes over from the platform name once it
+          routes.
+        </>
+      }
+    >
+      {hosts.length ? (
+        <RecordList>
+          {hosts.map((host) => (
+            <HostItem key={host.hostname} schoolId={schoolId} host={host} />
+          ))}
+        </RecordList>
+      ) : (
+        <RecordEmpty>No hosts of its own.</RecordEmpty>
+      )}
+      <AddHostSheet
+        key={sheet.key}
+        schoolId={schoolId}
+        open={sheet.open}
+        onOpenChange={sheet.onOpenChange}
+      />
+    </RecordSection>
   );
 }

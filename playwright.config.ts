@@ -74,10 +74,14 @@ export default defineConfig({
         baseURL: `http://127.0.0.1:${opsPort}`,
       },
     },
+    // The daily round publishes and bills every tenant at once, so a spec
+    // that runs it would take a change another spec is about to publish by
+    // hand. Console specs run one at a time.
     {
       name: "console",
       testMatch: "console/**/*.spec.ts",
       dependencies: ["console-owner"],
+      workers: 1,
       use: {
         ...devices["Desktop Chrome"],
         baseURL: `http://127.0.0.1:${opsPort}`,

@@ -3,6 +3,8 @@ import { Button } from "@faridalms/ui/button";
 import { ButtonLink } from "@faridalms/ui/system/button-link";
 import { SelectField, TextField } from "@faridalms/ui/system/form-field";
 import {
+  Fact,
+  Facts,
   RecordColumns,
   RecordEmpty,
   RecordHeader,
@@ -10,9 +12,10 @@ import {
   RecordSection,
 } from "@faridalms/ui/system/record-page";
 import { SettingsSection } from "@faridalms/ui/system/settings-section";
+import { SheetForm, useSheet } from "@faridalms/ui/system/sheet-form";
 import { createFileRoute, Link, useRouter } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
-import { CalendarX, Printer } from "lucide-react";
+import { CalendarX, HandCoins, Printer, ReceiptText, Send } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 import * as v from "valibot";
@@ -73,6 +76,12 @@ function InvoicePage() {
   const language = search.language ?? invoice.language;
   const shown = data.credits.find((note) => note.id === search.credit);
   const open = invoice.state === "issued" || invoice.state === "partly_paid";
+  const issuing = useIssue(data);
+  const crediting = useSheet();
+  const settling = useSheet();
+  const mayCredit =
+    mayBill && invoice.state !== "draft" && invoice.state !== "credited";
+  const maySettle = mayBill && open && data.unsettled.length > 0;
   return (
     <>
       <div className="print:hidden">
@@ -121,10 +130,32 @@ function InvoicePage() {
                 ]
               : []),
           ]}
-          tools={
-            mayBill && invoice.state === "draft" ? (
-              <IssueButton data={data} />
-            ) : undefined
+          action={
+            mayBill && invoice.state === "draft"
+              ? {
+                  label: "Issue this invoice",
+                  icon: Send,
+                  onClick: () => void issuing.run(),
+                  pending: issuing.pending,
+                }
+              : maySettle
+                ? {
+                    label: "Settle from a payment",
+                    icon: HandCoins,
+                    onClick: settling.show,
+                  }
+                : undefined
+          }
+          menu={
+            mayCredit
+              ? [
+                  {
+                    label: "Credit it",
+                    icon: ReceiptText,
+                    onSelect: crediting.show,
+                  },
+                ]
+              : []
           }
         />
       </div>
@@ -227,11 +258,7 @@ function InvoicePage() {
             {mayBill && invoice.state === "draft" ? (
               <DraftForm data={data} key={invoice.totalMinor} />
             ) : null}
-            {mayBill &&
-            invoice.state !== "draft" &&
-            invoice.state !== "credited" ? (
-              <CreditForm data={data} />
-            ) : null}
+
             <div className="print:hidden">
               <RecordSection title="History">
                 <EventList events={data.history} names={data.names} />
@@ -243,25 +270,36 @@ function InvoicePage() {
           invoice.state === "draft" ? undefined : (
             <div className="grid gap-6 print:hidden">
               <Settlements data={data} />
-              {mayBill && open && data.unsettled.length ? (
-                <SettleFromPayment data={data} />
-              ) : null}
               {data.cards && open && mayBill ? (
                 <PaymentLink data={data} />
               ) : null}
               <Reminders data={data} />
               <Credits data={data} />
-              {mayBill ? (
-                <TaxId
-                  document="invoice"
-                  id={invoice.id}
-                  held={invoice.taxAuthorityId}
-                />
-              ) : null}
+              <TaxAuthority
+                document="invoice"
+                id={invoice.id}
+                held={invoice.taxAuthorityId}
+              />
             </div>
           )
         }
       />
+      {mayCredit ? (
+        <CreditSheet
+          key={crediting.key}
+          data={data}
+          open={crediting.open}
+          onOpenChange={crediting.onOpenChange}
+        />
+      ) : null}
+      {maySettle ? (
+        <SettleSheet
+          key={settling.key}
+          data={data}
+          open={settling.open}
+          onOpenChange={settling.onOpenChange}
+        />
+      ) : null}
     </>
   );
 }
@@ -270,33 +308,38 @@ interface InvoiceProps {
   data: Data;
 }
 
-function IssueButton({ data }: InvoiceProps) {
+interface Issue {
+  run: () => Promise<void>;
+  pending: boolean;
+}
+
+/** Issues a draft, numbering it; after that it is only ever credited. */
+function useIssue(data: Data): Issue {
   const router = useRouter();
   const send = useServerFn(issue);
-  const [saving, setSaving] = useState(false);
-  return (
-    <Button
-      type="button"
-      disabled={saving}
-      onClick={async () => {
-        setSaving(true);
-        try {
-          const out = await send({ data: { id: data.invoice.id } });
-          if (out.ok) {
-            toast.success(`Issued as ${out.number}.`);
-            await router.invalidate();
-          } else toast.error(out.message);
-        } catch (error) {
-          const said = failure(error, "It could not be issued.");
-          if (said) toast.error(said);
-        } finally {
-          setSaving(false);
-        }
-      }}
-    >
-      {saving ? "Issuing…" : "Issue this invoice"}
-    </Button>
-  );
+  const [pending, setPending] = useState(false);
+  return {
+    pending,
+    run: async () => {
+      setPending(true);
+      const out = await attemptWith(
+        () => send({ data: { id: data.invoice.id } }),
+        "It could not be issued.",
+      );
+      setPending(false);
+      if (!out.ok) {
+        toast.error(out.message);
+        return;
+      }
+      toast.success(`Issued as ${out.value.number}.`);
+      await router.invalidate();
+    },
+  };
+}
+
+interface InvoiceSheetProps extends InvoiceProps {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
 }
 
 const LANGUAGE_OPTIONS = [
@@ -381,27 +424,77 @@ interface TaxIdProps {
   held: string | null;
 }
 
-/** The tax authority's id for an issued document, which finance enters from it. */
-function TaxId({ document, id, held }: TaxIdProps) {
+/** The tax authority's id for the invoice, which finance enters from its e-invoice. */
+function TaxAuthority({ document, id, held }: TaxIdProps) {
+  const mayBill = useMay("billing");
+  const sheet = useSheet();
+  return (
+    <RecordSection
+      title="Tax authority"
+      edit={
+        mayBill
+          ? { label: "Record the tax authority's id", onClick: sheet.show }
+          : undefined
+      }
+    >
+      <Facts>
+        <Fact label="Its id for the invoice">
+          {held ? <span dir="ltr">{held}</span> : null}
+        </Fact>
+      </Facts>
+      {mayBill ? (
+        <TaxIdSheet
+          key={sheet.key}
+          document={document}
+          id={id}
+          held={held}
+          open={sheet.open}
+          onOpenChange={sheet.onOpenChange}
+        />
+      ) : null}
+    </RecordSection>
+  );
+}
+
+interface TaxIdSheetProps extends TaxIdProps {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+}
+
+/** Records the tax authority's id for an issued invoice or credit note. */
+function TaxIdSheet({
+  document,
+  id,
+  held,
+  open,
+  onOpenChange,
+}: TaxIdSheetProps) {
   const router = useRouter();
   const save = useServerFn(recordTaxId);
   const [value, setValue] = useState(held ?? "");
+  const [submitted, setSubmitted] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [saved, setSaved] = useState(false);
   return (
-    <SettingsSection
+    <SheetForm
+      open={open}
+      onOpenChange={onOpenChange}
       title={
-        document === "invoice" ? "Tax authority" : "Credit note's tax authority"
+        document === "invoice"
+          ? "The tax authority's id"
+          : "The credit note's tax authority id"
       }
       pending={saving}
       error={error}
-      saved={saved}
       onSubmit={async () => {
-        if (!value.trim() || value === held) return;
+        setSubmitted(true);
+        if (!value.trim()) return;
+        if (value === held) {
+          onOpenChange(false);
+          return;
+        }
         setSaving(true);
         setError(null);
-        setSaved(false);
         const failed = await attempt(
           () => save({ data: { document, id, taxAuthorityId: value } }),
           "The id could not be saved.",
@@ -411,8 +504,8 @@ function TaxId({ document, id, held }: TaxIdProps) {
           setError(failed);
           return;
         }
-        setSaved(true);
         toast.success("Tax authority's id saved.");
+        onOpenChange(false);
         await router.invalidate();
       }}
     >
@@ -422,9 +515,10 @@ function TaxId({ document, id, held }: TaxIdProps) {
         maxLength={80}
         value={value}
         placeholder="From the e-invoice once it is submitted"
+        errors={submitted && !value.trim() ? ["Enter the id."] : undefined}
         onChange={(event) => setValue(event.target.value)}
       />
-    </SettingsSection>
+    </SheetForm>
   );
 }
 
@@ -510,7 +604,7 @@ function Settlements({ data }: InvoiceProps) {
 }
 
 /** Settles what is left of a payment already received against this invoice. */
-function SettleFromPayment({ data }: InvoiceProps) {
+function SettleSheet({ data, open, onOpenChange }: InvoiceSheetProps) {
   const router = useRouter();
   const send = useServerFn(settleFromPayment);
   const [paymentId, setPaymentId] = useState(data.unsettled[0]?.id ?? "");
@@ -520,7 +614,9 @@ function SettleFromPayment({ data }: InvoiceProps) {
   const [error, setError] = useState<string | null>(null);
   const amountMinor = minorOf(amount);
   return (
-    <SettingsSection
+    <SheetForm
+      open={open}
+      onOpenChange={onOpenChange}
       title="Settle from a payment received"
       submitLabel="Settle"
       pending={saving}
@@ -543,8 +639,7 @@ function SettleFromPayment({ data }: InvoiceProps) {
           return;
         }
         toast.success("Settled.");
-        setAmount("");
-        setSubmitted(false);
+        onOpenChange(false);
         await router.invalidate();
       }}
     >
@@ -565,7 +660,7 @@ function SettleFromPayment({ data }: InvoiceProps) {
         errors={submitted && !amountMinor ? ["Give the amount."] : undefined}
         onChange={(event) => setAmount(event.target.value)}
       />
-    </SettingsSection>
+    </SheetForm>
   );
 }
 
@@ -593,46 +688,75 @@ function Reminders({ data }: InvoiceProps) {
   );
 }
 
+/** The credit notes taken against the invoice, each with its tax authority id. */
 function Credits({ data }: InvoiceProps) {
-  const mayBill = useMay("billing");
   if (data.credits.length === 0) return null;
   return (
     <RecordSection title="Credit notes">
       <RecordList>
         {data.credits.map((note) => (
-          <li key={note.id} className="grid gap-3 py-3">
-            <span className="flex flex-wrap justify-between gap-2 text-sm leading-5">
-              <Link
-                to="/invoices/$invoiceId"
-                params={{ invoiceId: data.invoice.id }}
-                search={{ credit: note.id }}
-                className="font-medium hover:text-primary hover:underline"
-              >
-                {note.number}
-              </Link>
-              <span className="tabular-nums">
-                {formatMoney(note.totalMinor, data.invoice.currency)}
-              </span>
-            </span>
-            <span className="text-[13px] leading-[18px] text-muted-foreground">
-              {formatDay(note.issuedOn)} · {note.reason}
-            </span>
-            {mayBill ? (
-              <TaxId
-                document="credit_note"
-                id={note.id}
-                held={note.taxAuthorityId}
-              />
-            ) : null}
-          </li>
+          <CreditNoteItem key={note.id} data={data} note={note} />
         ))}
       </RecordList>
     </RecordSection>
   );
 }
 
+interface CreditNoteItemProps extends InvoiceProps {
+  note: Data["credits"][number];
+}
+
+function CreditNoteItem({ data, note }: CreditNoteItemProps) {
+  const mayBill = useMay("billing");
+  const sheet = useSheet();
+  return (
+    <li className="grid gap-1 py-3">
+      <span className="flex flex-wrap justify-between gap-2 text-sm leading-5">
+        <Link
+          to="/invoices/$invoiceId"
+          params={{ invoiceId: data.invoice.id }}
+          search={{ credit: note.id }}
+          className="font-medium hover:text-primary hover:underline"
+        >
+          {note.number}
+        </Link>
+        <span className="tabular-nums">
+          {formatMoney(note.totalMinor, data.invoice.currency)}
+        </span>
+      </span>
+      <span className="text-[13px] leading-[18px] text-muted-foreground">
+        {formatDay(note.issuedOn)} · {note.reason}
+      </span>
+      <span className="flex flex-wrap items-center justify-between gap-2 text-[13px] leading-[18px] text-muted-foreground">
+        {note.taxAuthorityId ? (
+          <span>
+            Tax authority <span dir="ltr">{note.taxAuthorityId}</span>
+          </span>
+        ) : (
+          <span>No tax authority id yet</span>
+        )}
+        {mayBill ? (
+          <Button type="button" variant="ghost" size="sm" onClick={sheet.show}>
+            {note.taxAuthorityId ? "Change id" : "Record id"}
+          </Button>
+        ) : null}
+      </span>
+      {mayBill ? (
+        <TaxIdSheet
+          key={sheet.key}
+          document="credit_note"
+          id={note.id}
+          held={note.taxAuthorityId}
+          open={sheet.open}
+          onOpenChange={sheet.onOpenChange}
+        />
+      ) : null}
+    </li>
+  );
+}
+
 /** Credits the invoice, in part or whole, with why. */
-function CreditForm({ data }: InvoiceProps) {
+function CreditSheet({ data, open, onOpenChange }: InvoiceSheetProps) {
   const router = useRouter();
   const send = useServerFn(credit);
   const [drafts, setDrafts] = useState(() => [blankLine()]);
@@ -641,9 +765,11 @@ function CreditForm({ data }: InvoiceProps) {
   const [answer, setAnswer] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   return (
-    <SettingsSection
+    <SheetForm
+      open={open}
+      onOpenChange={onOpenChange}
       title="Credit it"
-      description="An issued invoice is never changed: a credit note takes back what was agreed, at the invoice's VAT, and the invoice is issued again if need be."
+      destructive
       submitLabel="Issue credit note"
       pending={saving}
       error={answer}
@@ -670,18 +796,21 @@ function CreditForm({ data }: InvoiceProps) {
           return;
         }
         toast.success(`Credited as ${out.value.number}.`);
-        setDrafts([blankLine()]);
-        setReason("");
-        setSubmitted(false);
+        onOpenChange(false);
         await router.invalidate();
       }}
     >
+      <p className="text-sm leading-5 text-muted-foreground">
+        An issued invoice is never changed: a credit note takes back what was
+        agreed, at the invoice's VAT, and the invoice is issued again if need
+        be.
+      </p>
       <InvoiceLinesFields
         currency={data.invoice.currency}
         drafts={drafts}
         onChange={setDrafts}
       />
       <WhyField value={reason} onChange={setReason} submitted={submitted} />
-    </SettingsSection>
+    </SheetForm>
   );
 }

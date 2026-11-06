@@ -7,6 +7,8 @@ export interface WhyFieldProps {
   submitted: boolean;
   placeholder?: string;
   id?: string;
+  /** "Why" unless the change asks a sharper question, such as "Why now". */
+  label?: string;
 }
 
 /** Why a change is made, which the change log keeps beside it. */
@@ -16,11 +18,12 @@ export function WhyField({
   submitted,
   placeholder,
   id,
+  label = "Why",
 }: WhyFieldProps) {
   return (
     <TextField
       id={id}
-      label="Why"
+      label={label}
       hint="Kept in the change log."
       maxLength={500}
       value={value}

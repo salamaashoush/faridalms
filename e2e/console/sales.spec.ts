@@ -71,16 +71,19 @@ test("a demonstration request becomes a lead, a quote in both languages, and a c
     .click();
   await expect(page.getByText("Demo form")).toBeVisible();
 
-  const details = page.getByRole("form", { name: "Lead details" });
+  await page.getByRole("button", { name: "Edit lead details" }).click();
+  const details = page.getByRole("form", { name: "Edit lead details" });
   await details.getByLabel("Country").fill("EG");
   await details.getByRole("button", { name: "Save details" }).click();
   await expect(page.getByText("Details saved.")).toBeVisible();
+  await page.getByRole("button", { name: "Plan the next step" }).click();
   const next = page.getByRole("form", { name: "Next step" });
   await choose(next, "Owner", OWNER.name);
   await next.getByLabel("What").fill("Send the quote");
   await next.getByLabel("By").fill(businessToday());
   await next.getByRole("button", { name: "Save next step" }).click();
   await expect(page.getByText("Next step saved.")).toBeVisible();
+  await page.getByRole("button", { name: "Log activity" }).click();
   const activity = page.getByRole("form", { name: "Log activity" });
   await activity.getByLabel("Note").fill("Showed the gradebook and coding");
   await activity.getByRole("button", { name: "Log it" }).click();
@@ -117,12 +120,15 @@ test("a demonstration request becomes a lead, a quote in both languages, and a c
   await expect(
     page.getByText("Marked as sent. A change now makes a new version."),
   ).toBeVisible();
-  await page.getByRole("button", { name: "Make a new version" }).click();
+  await page.getByRole("button", { name: "More actions" }).click();
+  await page.getByRole("menuitem", { name: "Make a new version" }).click();
   await quote.getByLabel("Discount (%)").fill("10");
   await quote.getByRole("button", { name: "Save as a new version" }).click();
   await expect(page.getByRole("heading", { name: /-v2/ })).toBeVisible();
   await expect(page.getByText(/^Versions:/)).toBeVisible();
 
+  await page.getByRole("button", { name: "More actions" }).click();
+  await page.getByRole("menuitem", { name: "Record acceptance" }).click();
   const acceptance = page.getByRole("form", { name: "Record acceptance" });
   await acceptance.getByLabel("Signed copy or purchase order").setInputFiles({
     name: "signed.pdf",

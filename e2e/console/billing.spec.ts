@@ -92,6 +92,8 @@ test("a contract is invoiced, paid by transfer and card, credited, and shown to 
   const paid = page.getByRole("region", { name: "Paid", exact: true });
   await expect(paid.getByRole("listitem")).toHaveCount(2);
 
+  await page.getByRole("button", { name: "More actions" }).click();
+  await page.getByRole("menuitem", { name: "Credit it" }).click();
   const creditNote = page.getByRole("form", { name: "Credit it" });
   await creditNote
     .getByLabel("Description in English")
