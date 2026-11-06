@@ -61,6 +61,19 @@ describe("home pages", () => {
     expect(home.communications.length).toBeGreaterThan(0);
   });
 
+  test("the office sees the school's first steps, live from its data, until it has taken them all", async () => {
+    const office = await signedIn("northwind", login("principal"));
+    const steps = (await office.home.admin()).onboarding;
+    if (!steps) throw new Error("the seeded school has steps left");
+    const done = (item: string) => steps.find((step) => step.item === item);
+    // What its data shows counts at once, before any daily measure.
+    expect(done("classes")).toEqual({ item: "classes", done: true });
+    expect(done("students_imported")?.done).toBe(true);
+    expect(done("staff_signed_in")?.done).toBe(true);
+    // An operator's step waits for the operator.
+    expect(done("kickoff_call")).toEqual({ item: "kickoff_call", done: false });
+  });
+
   test("a guardian reads what the school holds about their child and asks the office to correct it", async () => {
     const family = await signedIn("northwind", login("parent"));
     const [first] = (await family.home.family({})).choices;

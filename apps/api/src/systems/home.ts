@@ -2,6 +2,7 @@ import type { PeriodRow } from "@faridalms/database/stores/attendance";
 import type { LessonChange } from "@faridalms/database/stores/cover";
 import type { MeetingRow } from "@faridalms/database/stores/timetable";
 import type { AttendanceCounts } from "@faridalms/domain/attendance";
+import type { OnboardingItem } from "@faridalms/domain/onboarding";
 
 import {
   absencesBetween,
@@ -34,6 +35,7 @@ import { decidingGuardians } from "@faridalms/database/stores/invites";
 import { studentModules } from "@faridalms/database/stores/learning";
 import { threadsOf, unreadThreads } from "@faridalms/database/stores/messages";
 import { deliveryLog } from "@faridalms/database/stores/notifications";
+import { onboardingSeen } from "@faridalms/database/stores/onboarding";
 import { childrenOf } from "@faridalms/database/stores/persons";
 import { openReenrolments } from "@faridalms/database/stores/rollovers";
 import {
@@ -58,6 +60,8 @@ import {
   EXPIRY_WARNING_DAYS,
   SEALED_MEANINGS,
 } from "@faridalms/domain/identifiers";
+import { MODULE_IDS } from "@faridalms/domain/modules";
+import { onboardingItems } from "@faridalms/domain/onboarding";
 import { addDays } from "@faridalms/domain/school";
 import { isoWeekday } from "@faridalms/domain/timetable";
 import { ORPCError } from "@orpc/server";
@@ -1139,5 +1143,36 @@ export const admin = readProcedure.handler(async ({ context }) => {
     events,
     communications: [...announcements, ...news],
     checklist,
+    onboarding: await onboardingFor(context),
   };
 });
+
+/**
+ * The school's first steps as its administrators see them, the same list
+ * the operators follow: what the school's data shows now, with what the
+ * directory holds of its address, its first invoice and the operators'
+ * steps. Gone once every step is taken.
+ */
+async function onboardingFor(
+  context: UnitContext,
+): Promise<{ item: OnboardingItem; done: boolean }[] | null> {
+  const on = await modulesOf(context);
+  const applies = onboardingItems({
+    modules: MODULE_IDS.filter((module) => on[module]),
+    onTrial: context.school.entitlements.trialEndsOn !== null,
+  });
+  const [seen, kept] = await Promise.all([
+    onboardingSeen(context.tx, {
+      tenantId: context.tenantId,
+      orgId: context.schoolId,
+      today: context.today,
+    }),
+    context.directory.onboardingOf(context.schoolId),
+  ]);
+  const done = new Set<OnboardingItem>([
+    ...seen,
+    ...kept.map((row) => row.item),
+  ]);
+  if (applies.every((item) => done.has(item))) return null;
+  return applies.map((item) => ({ item, done: done.has(item) }));
+}

@@ -747,6 +747,54 @@ describe("usage reports", () => {
   });
 });
 
+describe("onboarding reports", () => {
+  test("record each step a school has taken from the day it is first seen, and its week of school", async () => {
+    const { cell, directory, tenants } = seeded();
+    const tenantId = tenants[0]?.tenantId ?? "";
+    const school = tenants[0]?.schools.find((row) => row.slug === "northwind");
+    if (!school) throw new Error("no northwind school");
+    await signedIn("northwind", login("principal"));
+    const { syncUrl, adminUrl } = testDirectory();
+    const sync = openDirectorySync(syncUrl, "cell:eg-1");
+    const admin = new SQL(adminUrl);
+    try {
+      await reportTenantUsage(cell, directory, sync, tenantId);
+      const first = await directory.onboardingOf(school.id);
+      expect(first.map((row) => row.item)).toEqual(
+        expect.arrayContaining([
+          "year_ready",
+          "classes",
+          "staff_invited",
+          "staff_signed_in",
+          "students_imported",
+          "guardians_linked",
+        ]),
+      );
+      // Operators' steps and the first invoice are not the cell's to see.
+      expect(first.map((row) => row.item)).not.toContain("kickoff_call");
+      expect(first.map((row) => row.item)).not.toContain("first_invoice_paid");
+
+      await reportTenantUsage(cell, directory, sync, tenantId);
+      const again = await directory.onboardingOf(school.id);
+      for (const row of first)
+        expect(
+          again.find((other) => other.item === row.item)?.reachedAt,
+        ).toEqual(row.reachedAt);
+
+      const [usage] = await admin<
+        { school_days_7d: number; failed_deliveries_1d: number }[]
+      >`select school_days_7d, failed_deliveries_1d from school_usage
+        where school_id = ${school.id}::uuid`;
+      expect(usage?.school_days_7d).toBeGreaterThanOrEqual(0);
+      expect(usage?.school_days_7d).toBeLessThanOrEqual(7);
+      expect(usage?.failed_deliveries_1d).toBeGreaterThanOrEqual(0);
+    } finally {
+      await sync.close();
+      await admin.close();
+    }
+  });
+});
+
 describe("storage reports", () => {
   test("give the directory each school's storage, counting shared bytes once", async () => {
     const { cell, directory, tenants } = seeded();

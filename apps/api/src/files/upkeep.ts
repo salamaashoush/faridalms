@@ -11,6 +11,11 @@ import {
   streamedVideoMs,
 } from "@faridalms/database/stores/files";
 import { schoolProfile } from "@faridalms/database/stores/identity";
+import {
+  failedDeliveriesSince,
+  onboardingSeen,
+  schoolDaysLastWeek,
+} from "@faridalms/database/stores/onboarding";
 import { addDays, schoolDate, zonedInstant } from "@faridalms/domain/school";
 
 import type { FileStore } from "./store";
@@ -66,7 +71,11 @@ export function everyTenant(input: {
   };
 }
 
-/** Measures each of a tenant's schools and reports it to the directory. */
+/**
+ * Measures each of a tenant's schools and reports it to the directory: its
+ * storage and counts, its week of school days and failed deliveries, and
+ * the onboarding steps it has taken.
+ */
 export async function reportTenantUsage(
   cell: Cell,
   directory: Directory,
@@ -114,6 +123,21 @@ export async function reportTenantUsage(
           ),
           emailsThisMonth: (await sends(`${today.slice(0, 8)}01`, now)).emails,
           days,
+          schoolDays7d: await schoolDaysLastWeek(tx, {
+            tenantId,
+            orgId: school.schoolId,
+            today,
+          }),
+          failedDeliveries1d: await failedDeliveriesSince(tx, {
+            tenantId,
+            orgId: school.schoolId,
+            since: new Date(now.getTime() - 86_400_000),
+          }),
+          reached: await onboardingSeen(tx, {
+            tenantId,
+            orgId: school.schoolId,
+            today,
+          }),
         });
       }
       return measured;

@@ -1,3 +1,4 @@
+import type { OnboardingItem } from "@faridalms/domain/onboarding";
 import type { LinkProps } from "@tanstack/react-router";
 
 import { Button } from "@faridalms/ui/button";
@@ -39,10 +40,30 @@ interface Need {
   link: LinkProps;
 }
 
+const ONBOARDING_LABEL: Record<OnboardingItem, () => string> = {
+  admin_signed_in: m.onboardingAdminSignedIn,
+  school_details: m.onboardingSchoolDetails,
+  year_ready: m.onboardingYearReady,
+  classes: m.onboardingClasses,
+  staff_invited: m.onboardingStaffInvited,
+  staff_signed_in: m.onboardingStaffSignedIn,
+  students_imported: m.onboardingStudentsImported,
+  guardians_linked: m.onboardingGuardiansLinked,
+  families_signed_in: m.onboardingFamiliesSignedIn,
+  first_assignment: m.onboardingFirstAssignment,
+  first_register: m.onboardingFirstRegister,
+  website_published: m.onboardingWebsitePublished,
+  custom_domain: m.onboardingCustomDomain,
+  first_invoice_paid: m.onboardingFirstInvoicePaid,
+  kickoff_call: m.onboardingKickoffCall,
+  training: m.onboardingTraining,
+  data_import: m.onboardingDataImport,
+};
+
 /**
  * The office's day: what needs someone to act, how attendance is going, what
- * is coming, how recent news was read, and the next year's setup when this
- * one is ending.
+ * is coming, how recent news was read, the school's first steps until it has
+ * taken them all, and the next year's setup when this one is ending.
  */
 function AdminToday() {
   const data = useSuspenseQuery(adminHomeQuery).data;
@@ -218,6 +239,34 @@ function AdminToday() {
     ) : null,
   ].filter(Boolean);
   const aside = [
+    data.onboarding ? (
+      <HomeCard
+        key="onboarding"
+        title={m.homeOnboarding()}
+        description={m.homeOnboardingProgress({
+          done: formatNumber(
+            data.onboarding.filter((step) => step.done).length,
+          ),
+          total: formatNumber(data.onboarding.length),
+        })}
+      >
+        <HomeList>
+          {data.onboarding.map((step) => (
+            <HomeItem
+              key={step.item}
+              title={
+                <span className="text-sm">{ONBOARDING_LABEL[step.item]()}</span>
+              }
+              status={
+                <StatusText tone={step.done ? "success" : "warning"}>
+                  {step.done ? m.homeDone() : m.homeToDo()}
+                </StatusText>
+              }
+            />
+          ))}
+        </HomeList>
+      </HomeCard>
+    ) : null,
     data.checklist ? (
       <HomeCard
         key="checklist"

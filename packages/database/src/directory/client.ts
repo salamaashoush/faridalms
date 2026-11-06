@@ -1,5 +1,6 @@
 import type { ExamSeries } from "@faridalms/domain/exams";
 import type { HostRole } from "@faridalms/domain/hosts";
+import type { OnboardingItem } from "@faridalms/domain/onboarding";
 import type { SchoolEntitlements } from "@faridalms/domain/plans";
 
 import { CERTIFIED_STATES } from "@faridalms/domain/hosts";
@@ -28,6 +29,7 @@ import {
   hosts,
   loginIndex,
   schoolEntitlements,
+  schoolOnboarding,
   schools,
   schoolUsage,
   tenants,
@@ -276,6 +278,15 @@ export function openDirectory(url: string, ttlMs = 60_000) {
         );
       return rows.map((row) => row.tenantId);
     },
+    /** The onboarding steps a school has taken, each with the day it first was. */
+    onboardingOf: async (schoolId: string) =>
+      db
+        .select({
+          item: schoolOnboarding.item,
+          reachedAt: schoolOnboarding.reachedAt,
+        })
+        .from(schoolOnboarding)
+        .where(eq(schoolOnboarding.schoolId, schoolId)),
     /** The official exam sessions, kept briefly like the school lookups. */
     examSeries: async (): Promise<ExamSeries[]> => {
       if (series && Date.now() - series.at < ttlMs) return series.value;
@@ -364,22 +375,44 @@ export function openDirectorySync(url: string, actor: HostActor) {
         signedIn30d: number;
         videoMinutes: number;
         emailsThisMonth: number;
+        schoolDays7d: number;
+        failedDeliveries1d: number;
         days: { day: string; emails: number; sms: number; signIns: number }[];
+        /** The onboarding steps the cell sees the school has taken. */
+        reached: readonly OnboardingItem[];
       })[],
       measuredAt: Date,
     ) => {
+      const at = measuredAt.toISOString();
       for (const row of rows) {
         await client`
           insert into school_usage (school_id, used_bytes, file_count, students, staff_accounts,
-            signed_in_7d, signed_in_30d, video_minutes, emails_this_month, measured_at)
+            signed_in_7d, signed_in_30d, video_minutes, emails_this_month, school_days_7d,
+            failed_deliveries_1d, measured_at)
           values (${row.schoolId}::uuid, ${row.usedBytes}, ${row.fileCount}, ${row.students},
             ${row.staffAccounts}, ${row.signedIn7d}, ${row.signedIn30d}, ${row.videoMinutes},
-            ${row.emailsThisMonth}, ${measuredAt.toISOString()}::timestamptz)
+            ${row.emailsThisMonth}, ${row.schoolDays7d}, ${row.failedDeliveries1d},
+            ${at}::timestamptz)
           on conflict (school_id) do update set used_bytes = excluded.used_bytes,
             file_count = excluded.file_count, students = excluded.students,
             staff_accounts = excluded.staff_accounts, signed_in_7d = excluded.signed_in_7d,
             signed_in_30d = excluded.signed_in_30d, video_minutes = excluded.video_minutes,
-            emails_this_month = excluded.emails_this_month, measured_at = excluded.measured_at`;
+            emails_this_month = excluded.emails_this_month,
+            school_days_7d = excluded.school_days_7d,
+            failed_deliveries_1d = excluded.failed_deliveries_1d,
+            measured_at = excluded.measured_at`;
+        // A school's own address is the directory's to know, not the cell's.
+        const reached = [...row.reached];
+        const [active] = await client<{ active: boolean }[]>`
+          select exists (select 1 from hosts where school_id = ${row.schoolId}::uuid
+            and state = 'active') as active`;
+        if (active?.active) reached.push("custom_domain");
+        if (reached.length)
+          await client`
+            insert into school_onboarding (school_id, item, reached_at)
+            select ${row.schoolId}::uuid, item, ${at}::timestamptz
+            from unnest(${`{${reached.join(",")}}`}::text[]) item
+            on conflict (school_id, item) do nothing`;
         for (const day of row.days)
           await client`
             insert into school_usage_daily (school_id, day, emails, sms, sign_ins, measured_at)

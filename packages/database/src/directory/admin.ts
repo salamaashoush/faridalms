@@ -1,4 +1,5 @@
 import type { ExamBoard, ExamSeries } from "@faridalms/domain/exams";
+import type { OperatorItem } from "@faridalms/domain/onboarding";
 import type {
   EntitlementsInput,
   SchoolAccess,
@@ -26,7 +27,9 @@ import {
   cells,
   changes,
   examSeries,
+  hosts,
   schoolEntitlements,
+  schoolOnboarding,
   schools,
   schoolUsage,
   ssoDomains,
@@ -49,6 +52,7 @@ export interface OperatorSchool {
   cellId: string;
   region: string;
   entitlements: SchoolEntitlements;
+  createdAt: string;
   usage: {
     usedBytes: number;
     fileCount: number;
@@ -57,6 +61,8 @@ export interface OperatorSchool {
     signedIn7d: number;
     signedIn30d: number;
     videoMinutes: number;
+    schoolDays7d: number;
+    failedDeliveries1d: number;
     measuredAt: string;
   } | null;
 }
@@ -148,7 +154,10 @@ interface SchoolRow {
   signedIn7d: number | null;
   signedIn30d: number | null;
   videoMinutes: number | null;
+  schoolDays7d: number | null;
+  failedDeliveries1d: number | null;
   measuredAt: Date | null;
+  createdAt: Date;
 }
 
 function schoolOf(row: SchoolRow): OperatorSchool {
@@ -167,6 +176,7 @@ function schoolOf(row: SchoolRow): OperatorSchool {
     cellId: row.cellId,
     region: row.region,
     entitlements: entitledOf(row.entitlements),
+    createdAt: row.createdAt.toISOString(),
     usage:
       row.usedBytes !== null && row.fileCount !== null && row.measuredAt
         ? {
@@ -177,6 +187,8 @@ function schoolOf(row: SchoolRow): OperatorSchool {
             signedIn7d: row.signedIn7d ?? 0,
             signedIn30d: row.signedIn30d ?? 0,
             videoMinutes: row.videoMinutes ?? 0,
+            schoolDays7d: row.schoolDays7d ?? 0,
+            failedDeliveries1d: row.failedDeliveries1d ?? 0,
             measuredAt: row.measuredAt.toISOString(),
           }
         : null,
@@ -216,7 +228,10 @@ export function openDirectoryAdmin(url: string) {
         signedIn7d: schoolUsage.signedIn7d,
         signedIn30d: schoolUsage.signedIn30d,
         videoMinutes: schoolUsage.videoMinutes,
+        schoolDays7d: schoolUsage.schoolDays7d,
+        failedDeliveries1d: schoolUsage.failedDeliveries1d,
         measuredAt: schoolUsage.measuredAt,
+        createdAt: schools.createdAt,
       })
       .from(schools)
       .innerJoin(tenants, eq(tenants.id, schools.tenantId))
@@ -267,6 +282,87 @@ export function openDirectoryAdmin(url: string) {
           reason: input.reason,
         });
       }),
+    /** Every school's onboarding steps, each with the day it was first taken. */
+    onboarding: () =>
+      db
+        .select({
+          schoolId: schoolOnboarding.schoolId,
+          item: schoolOnboarding.item,
+          reachedAt: schoolOnboarding.reachedAt,
+          operatorId: schoolOnboarding.operatorId,
+        })
+        .from(schoolOnboarding),
+    /**
+     * Ticks or unticks a step only an operator can see taken, logged with
+     * the operator; false when it already stood that way.
+     */
+    markOnboarding: (input: {
+      schoolId: string;
+      item: OperatorItem;
+      done: boolean;
+      operatorId: string;
+    }) =>
+      db.transaction(async (tx) => {
+        const changed = input.done
+          ? await tx
+              .insert(schoolOnboarding)
+              .values({
+                schoolId: input.schoolId,
+                item: input.item,
+                reachedAt: new Date(),
+                operatorId: input.operatorId,
+              })
+              .onConflictDoNothing()
+              .returning({ item: schoolOnboarding.item })
+          : await tx
+              .delete(schoolOnboarding)
+              .where(
+                and(
+                  eq(schoolOnboarding.schoolId, input.schoolId),
+                  eq(schoolOnboarding.item, input.item),
+                ),
+              )
+              .returning({ item: schoolOnboarding.item });
+        if (changed.length === 0) return false;
+        await tx.insert(changes).values({
+          actor: `operator:${input.operatorId}`,
+          subjectType: "school",
+          subjectId: input.schoolId,
+          action: input.done ? "onboarding.done" : "onboarding.undone",
+          before: null,
+          after: { item: input.item },
+          reason: input.done ? "Ticked off" : "Ticked in error",
+        });
+        return true;
+      }),
+    /** Notes a step the console's billing sees taken, from the day it was. */
+    reachOnboarding: async (input: {
+      schoolIds: readonly string[];
+      item: "first_invoice_paid";
+      at: Date;
+    }) => {
+      if (input.schoolIds.length === 0) return;
+      await db
+        .insert(schoolOnboarding)
+        .values(
+          input.schoolIds.map((schoolId) => ({
+            schoolId,
+            item: input.item,
+            reachedAt: input.at,
+          })),
+        )
+        .onConflictDoNothing();
+    },
+    /** The schools with a host of their own whose records the checks no longer find. */
+    failingHosts: async (): Promise<Set<string>> =>
+      new Set(
+        (
+          await db
+            .selectDistinct({ schoolId: hosts.schoolId })
+            .from(hosts)
+            .where(eq(hosts.state, "failing"))
+        ).map((row) => row.schoolId),
+      ),
     /** The cells open for new tenants. */
     openCells: async (): Promise<OpenCell[]> =>
       db
