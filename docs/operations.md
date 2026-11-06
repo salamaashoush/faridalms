@@ -441,6 +441,24 @@ at once what the clock took and takes the notice down, though never what an
 operator changed by hand. The Receivables page ages what is owed and lists
 the calls to make.
 
+**Onboarding and health.** Each school's first steps are kept in the
+directory's `school_onboarding` with the day each was first taken: the
+cell's daily usage measure records what it sees in the school's own data
+(an administrator or teacher or family signed in, logo and address, the
+year and its terms, classes, staff, students, guardians, the first
+assignment and register, the website live, its own address active), the
+daily round records the first invoice paid, and operators tick the
+kick-off call, training and data import on the school's page. A step a
+school's modules do not include, or payment while on trial, is not asked
+for. The school's administrators see the same list on their Today page,
+read live, until every step is taken. A school is red when nobody signed
+in through a week its calendar counts at least three school days, or an
+invoice is more than 30 days overdue, and amber when its onboarding has
+taken no step for 14 days, one of its own addresses is failing, or
+messages failed to deliver in the last day. The console opens on Home,
+which lists red schools before amber ones, stalled onboardings and the
+open tasks; the schools list moved to Schools.
+
 The directory's change log names an operator by a digest of the provider's
 issuer and subject, never by name. Every entitlement change requires a
 reason and lands in the log in the same transaction. Cells hold directory

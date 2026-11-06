@@ -24,7 +24,7 @@ test("an owner gives a newcomer a role, which takes effect at once", async ({
 
   await sales.reload();
   await expect(sales).toHaveURL(/\/$/);
-  await expect(sales.getByRole("heading", { name: "Schools" })).toBeVisible();
+  await expect(sales.getByRole("heading", { name: "Home" })).toBeVisible();
   await expect(sales.getByRole("link", { name: "Operators" })).toHaveCount(0);
   await salesContext.close();
 });

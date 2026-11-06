@@ -131,6 +131,19 @@ export const businessUrl = () => urlFor(businessName, "business_admin");
 /** The test directory as the console reaches it. */
 export const directoryUrl = () => urlFor(directoryName, "directory_admin");
 
+/**
+ * Runs SQL against the test directory as its owner, to arrange what a cell
+ * or the host checker would have written there.
+ */
+export async function inDirectory<T>(run: (sql: SQL) => Promise<T>) {
+  const sql = new SQL(urlFor(directoryName));
+  try {
+    return await run(sql);
+  } finally {
+    await sql.close();
+  }
+}
+
 /** What a school's cell last reported of it: its students, for a census. */
 export async function reportStudents(schoolId: string, students: number) {
   const sql = new SQL(urlFor(directoryName));

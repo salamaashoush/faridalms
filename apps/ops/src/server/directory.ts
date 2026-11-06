@@ -10,12 +10,14 @@ import {
   hostRefSchema,
   platformName,
 } from "@faridalms/domain/hosts";
+import { onboardingMarkSchema } from "@faridalms/domain/onboarding";
 import { saveEntitlementsSchema } from "@faridalms/domain/plans";
 import {
   newSchoolSchema,
   reissueInviteSchema,
   setStandingSchema,
 } from "@faridalms/domain/provisioning";
+import { businessToday } from "@faridalms/domain/subscriptions";
 import { createServerFn } from "@tanstack/react-start";
 import { randomBytes } from "node:crypto";
 import * as v from "valibot";
@@ -27,6 +29,7 @@ import { businessDb } from "./business";
 import { activateSchool, beginSchool, provisionSchool } from "./creation";
 import { directoryAdmin as directory } from "./directory-admin";
 import { opsEnv } from "./env";
+import { schoolHealth } from "./health";
 import { explain, reissueInvite } from "./provisioner";
 import { changeStanding, tellCell } from "./standing";
 
@@ -37,10 +40,21 @@ export const getAccess = createServerFn({ method: "GET" }).handler(() =>
   currentAccess(),
 );
 
+/** Every school, each with its health and onboarding. */
 export const listSchools = createServerFn({ method: "GET" }).handler(
   async () => {
     await requireArea("readTenants");
-    return directory().schools();
+    const schools = await directory().schools();
+    const health = await schoolHealth(
+      { directory: directory(), business: businessDb() },
+      schools,
+      new Date(),
+      businessToday(),
+    );
+    return schools.map((school) => ({
+      ...school,
+      health: health.get(school.id) ?? null,
+    }));
   },
 );
 
@@ -59,6 +73,14 @@ export const getSchool = createServerFn({ method: "GET" })
     const subscription = business
       ? await openSubscription(business, school.tenantId)
       : null;
+    const health = (
+      await schoolHealth(
+        { directory: directory(), business },
+        [school],
+        new Date(),
+        businessToday(),
+      )
+    ).get(school.id);
     const env = opsEnv();
     const domains = { portal: env.PORTAL_DOMAIN, sites: env.SITES_DOMAIN };
     const hostChanges = hosts.length
@@ -70,6 +92,7 @@ export const getSchool = createServerFn({ method: "GET" })
       : [];
     return {
       school,
+      health: health ?? null,
       ssoDomains,
       /**
        * With a business database a school's entitlements come from its
@@ -370,3 +393,25 @@ export const checkHost = createServerFn({ method: "POST" })
     await requireArea("tenants");
     return { ok: await directory().requestCheck(data) };
   });
+
+/** Ticks or unticks an onboarding step only an operator can see taken. */
+export const markOnboardingStep = createServerFn({ method: "POST" })
+  .validator((input: v.InferInput<typeof onboardingMarkSchema>) =>
+    v.parse(onboardingMarkSchema, input),
+  )
+  .handler(
+    async ({
+      data,
+    }): Promise<{ ok: true } | { ok: false; message: string }> => {
+      const { operator } = await requireArea("tenants");
+      if (!(await directory().school(data.schoolId)))
+        return { ok: false, message: "No such school." };
+      const changed = await directory().markOnboarding({
+        ...data,
+        operatorId: operator.id,
+      });
+      return changed
+        ? { ok: true }
+        : { ok: false, message: "Someone else has just changed that step." };
+    },
+  );

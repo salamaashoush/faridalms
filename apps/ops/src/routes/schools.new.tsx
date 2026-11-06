@@ -54,7 +54,10 @@ function Drafts({ drafts }: { drafts: NonNullable<Data["drafts"]> }) {
   return (
     <div className="grid max-w-3xl gap-6">
       <div className="grid gap-1">
-        <Link to="/" className="text-sm text-muted-foreground hover:underline">
+        <Link
+          to="/schools"
+          className="text-sm text-muted-foreground hover:underline"
+        >
           Schools
         </Link>
         <h1 className="text-2xl font-semibold">New school</h1>
@@ -176,7 +179,10 @@ function ByHand({ cells }: { cells: Data["cells"] }) {
   return (
     <div className="grid gap-8">
       <div className="grid gap-1">
-        <Link to="/" className="text-sm text-muted-foreground hover:underline">
+        <Link
+          to="/schools"
+          className="text-sm text-muted-foreground hover:underline"
+        >
           Schools
         </Link>
         <h1 className="text-2xl font-semibold">New school</h1>

@@ -2,6 +2,7 @@ import type { BusinessDb } from "@faridalms/database/business/client";
 import type { OperatorSchool } from "@faridalms/database/directory/admin";
 
 import { lastEvent, recordEvent } from "@faridalms/database/business/events";
+import { payingTenants } from "@faridalms/database/business/invoices";
 import { purgeLostLeads } from "@faridalms/database/business/leads";
 import {
   grandfatherTenant,
@@ -77,8 +78,9 @@ export async function roundDue(db: BusinessDb, day: string): Promise<boolean> {
  * subscription is published again, so items and overrides that began or
  * ended today reach the cells; and a tenant whose trial is over without a
  * contract becomes read only; the invoices due are drafted and ended terms
- * renewed; each unpaid invoice's clock moves on; a lead lost two years ago
- * is deleted. One
+ * renewed; each unpaid invoice's clock moves on; a school whose customer
+ * has paid an invoice has that step of its onboarding taken; a lead lost
+ * two years ago is deleted. One
  * subscription's failure is recorded and the rest go on. Only one console
  * runs it at a time: null when another is.
  */
@@ -184,6 +186,24 @@ export async function dailyRound(
         }),
       );
       outcome.failed.push("dunning");
+    }
+    try {
+      const paying = await payingTenants(deps.business);
+      await deps.directory.reachOnboarding({
+        schoolIds: [...tenants]
+          .filter(([tenantId]) => paying.has(tenantId))
+          .flatMap(([, schools]) => schools.map((school) => school.id)),
+        item: "first_invoice_paid",
+        at: deps.now(),
+      });
+    } catch (error) {
+      console.error(
+        JSON.stringify({
+          worker: "daily_round",
+          onboarding: error instanceof Error ? error.message : String(error),
+        }),
+      );
+      outcome.failed.push("onboarding");
     }
     const cutoff = new Date(`${day}T00:00:00Z`);
     cutoff.setUTCMonth(cutoff.getUTCMonth() - LOST_LEAD_MONTHS);

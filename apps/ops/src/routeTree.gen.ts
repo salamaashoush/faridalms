@@ -35,6 +35,7 @@ import { Route as ProvisioningDraftIdRouteImport } from './routes/provisioning.$
 import { Route as QuoteFilesQuoteIdRouteImport } from './routes/quote-files.$quoteId'
 import { Route as QuotesQuoteIdRouteImport } from './routes/quotes.$quoteId'
 import { Route as QuotesNewRouteImport } from './routes/quotes.new'
+import { Route as SchoolsIndexRouteImport } from './routes/schools.index'
 import { Route as SchoolsSchoolIdRouteImport } from './routes/schools.$schoolId'
 import { Route as SchoolsNewRouteImport } from './routes/schools.new'
 import { Route as SubscriptionsIndexRouteImport } from './routes/subscriptions.index'
@@ -170,6 +171,11 @@ const QuotesNewRoute = QuotesNewRouteImport.update({
   path: '/quotes/new',
   getParentRoute: () => rootRouteImport,
 } as any)
+const SchoolsIndexRoute = SchoolsIndexRouteImport.update({
+  id: '/schools/',
+  path: '/schools/',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const SchoolsSchoolIdRoute = SchoolsSchoolIdRouteImport.update({
   id: '/schools/$schoolId',
   path: '/schools/$schoolId',
@@ -222,6 +228,7 @@ export interface FileRoutesByFullPath {
   '/subscriptions/$subscriptionId': typeof SubscriptionsSubscriptionIdRoute
   '/customers/': typeof CustomersIndexRoute
   '/leads/': typeof LeadsIndexRoute
+  '/schools/': typeof SchoolsIndexRoute
   '/subscriptions/': typeof SubscriptionsIndexRoute
 }
 export interface FileRoutesByTo {
@@ -254,6 +261,7 @@ export interface FileRoutesByTo {
   '/subscriptions/$subscriptionId': typeof SubscriptionsSubscriptionIdRoute
   '/customers': typeof CustomersIndexRoute
   '/leads': typeof LeadsIndexRoute
+  '/schools': typeof SchoolsIndexRoute
   '/subscriptions': typeof SubscriptionsIndexRoute
 }
 export interface FileRoutesById {
@@ -287,6 +295,7 @@ export interface FileRoutesById {
   '/subscriptions/$subscriptionId': typeof SubscriptionsSubscriptionIdRoute
   '/customers/': typeof CustomersIndexRoute
   '/leads/': typeof LeadsIndexRoute
+  '/schools/': typeof SchoolsIndexRoute
   '/subscriptions/': typeof SubscriptionsIndexRoute
 }
 export interface FileRouteTypes {
@@ -321,6 +330,7 @@ export interface FileRouteTypes {
     | '/subscriptions/$subscriptionId'
     | '/customers/'
     | '/leads/'
+    | '/schools/'
     | '/subscriptions/'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -353,6 +363,7 @@ export interface FileRouteTypes {
     | '/subscriptions/$subscriptionId'
     | '/customers'
     | '/leads'
+    | '/schools'
     | '/subscriptions'
   id:
     | '__root__'
@@ -385,6 +396,7 @@ export interface FileRouteTypes {
     | '/subscriptions/$subscriptionId'
     | '/customers/'
     | '/leads/'
+    | '/schools/'
     | '/subscriptions/'
   fileRoutesById: FileRoutesById
 }
@@ -418,6 +430,7 @@ export interface RootRouteChildren {
   SubscriptionsSubscriptionIdRoute: typeof SubscriptionsSubscriptionIdRoute
   CustomersIndexRoute: typeof CustomersIndexRoute
   LeadsIndexRoute: typeof LeadsIndexRoute
+  SchoolsIndexRoute: typeof SchoolsIndexRoute
   SubscriptionsIndexRoute: typeof SubscriptionsIndexRoute
 }
 
@@ -605,6 +618,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof QuotesNewRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/schools/': {
+      id: '/schools/'
+      path: '/schools'
+      fullPath: '/schools/'
+      preLoaderRoute: typeof SchoolsIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/schools/$schoolId': {
       id: '/schools/$schoolId'
       path: '/schools/$schoolId'
@@ -666,6 +686,7 @@ const rootRouteChildren: RootRouteChildren = {
   SubscriptionsSubscriptionIdRoute: SubscriptionsSubscriptionIdRoute,
   CustomersIndexRoute: CustomersIndexRoute,
   LeadsIndexRoute: LeadsIndexRoute,
+  SchoolsIndexRoute: SchoolsIndexRoute,
   SubscriptionsIndexRoute: SubscriptionsIndexRoute,
 }
 export const routeTree = rootRouteImport

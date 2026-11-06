@@ -653,3 +653,13 @@ export function paymentsOf(db: BusinessDb, customerId: string) {
     .where(eq(payments.customerId, customerId))
     .orderBy(desc(payments.receivedOn), desc(payments.createdAt));
 }
+
+/** The tenants whose customer has paid an invoice in full. */
+export async function payingTenants(db: BusinessDb): Promise<Set<string>> {
+  const rows = await db
+    .selectDistinct({ tenantId: customers.tenantId })
+    .from(invoices)
+    .innerJoin(customers, eq(customers.id, invoices.customerId))
+    .where(eq(invoices.state, "paid"));
+  return new Set(rows.flatMap((row) => (row.tenantId ? [row.tenantId] : [])));
+}

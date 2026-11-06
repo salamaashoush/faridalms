@@ -42,6 +42,7 @@ export const Route = createRootRoute({
 const NAVIGATION: {
   to:
     | "/"
+    | "/schools"
     | "/series"
     | "/changes"
     | "/leads"
@@ -56,7 +57,8 @@ const NAVIGATION: {
   /** Offered only where the console has its business database. */
   business?: boolean;
 }[] = [
-  { to: "/", label: "Schools", area: "readTenants" },
+  { to: "/", label: "Home", area: "readTenants" },
+  { to: "/schools", label: "Schools", area: "readTenants" },
   { to: "/series", label: "Exam sessions", area: "readTenants" },
   { to: "/changes", label: "Changes", area: "readTenants" },
   { to: "/leads", label: "Leads", area: "leads", business: true },

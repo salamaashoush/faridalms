@@ -11,6 +11,11 @@ import type {
   LostReason,
 } from "@faridalms/domain/leads";
 import type { ModuleId } from "@faridalms/domain/modules";
+import type {
+  HealthLevel,
+  HealthReason,
+  OnboardingItem,
+} from "@faridalms/domain/onboarding";
 import type { SchoolNotice } from "@faridalms/domain/plans";
 import type { DemoRole, DemoSize } from "@faridalms/domain/product";
 import type { SchoolStanding } from "@faridalms/domain/provisioning";
@@ -245,4 +250,38 @@ export const STANDING_NAMES: Record<SchoolStanding, string> = {
   restricted: "Restricted",
   read_only: "Paused (read only)",
   suspended: "Suspended",
+};
+
+export const ONBOARDING_ITEM_NAMES: Record<OnboardingItem, string> = {
+  admin_signed_in: "An administrator signed in",
+  school_details: "Logo and address set",
+  year_ready: "The year and its terms exist",
+  classes: "Classes exist",
+  staff_invited: "Staff added",
+  staff_signed_in: "A teacher signed in",
+  students_imported: "Students added",
+  guardians_linked: "Guardians linked",
+  families_signed_in: "A family signed in",
+  first_assignment: "First assignment published",
+  first_register: "First register taken",
+  website_published: "Website published",
+  custom_domain: "Own address active",
+  first_invoice_paid: "First invoice paid",
+  kickoff_call: "Kick-off call",
+  training: "Training session",
+  data_import: "Data import done",
+};
+
+export const HEALTH_LEVEL_NAMES: Record<HealthLevel, string> = {
+  green: "Healthy",
+  amber: "Watch",
+  red: "Needs help",
+};
+
+export const HEALTH_REASON_NAMES: Record<HealthReason, string> = {
+  quiet_in_term: "Nobody signed in through a week of school",
+  invoice_overdue: "An invoice is over 30 days overdue",
+  onboarding_stalled: "Onboarding has stalled",
+  host_failing: "One of its own addresses is failing",
+  deliveries_failing: "Messages failed to deliver in the last day",
 };

@@ -25,6 +25,7 @@ import {
   StorageFields,
 } from "../components/LimitFields";
 import { ModuleFields } from "../components/ModuleFields";
+import { SchoolOnboarding } from "../components/Onboarding";
 import { Usage } from "../components/Usage";
 import {
   formatDay,
@@ -67,14 +68,17 @@ const TENANT_STATES: Record<DirectoryTenantState, string> = {
 type School = Awaited<ReturnType<typeof getSchool>>["school"];
 
 function SchoolPage() {
-  const { school, changes, hosts, platform, sold, ssoDomains } =
+  const { school, health, changes, hosts, platform, sold, ssoDomains } =
     Route.useLoaderData();
   const entitled = school.entitlements;
   const name = school.nameEn ?? school.nameAr ?? school.slug;
   return (
     <div className="grid gap-8">
       <div className="grid gap-1">
-        <Link to="/" className="text-sm text-muted-foreground hover:underline">
+        <Link
+          to="/schools"
+          className="text-sm text-muted-foreground hover:underline"
+        >
           Schools
         </Link>
         <h1 className="flex flex-wrap items-center gap-3 text-2xl font-semibold">
@@ -99,6 +103,13 @@ function SchoolPage() {
           </p>
         ) : null}
       </div>
+      {health ? (
+        <SchoolOnboarding
+          schoolId={school.id}
+          health={health}
+          measuredAt={school.usage?.measuredAt ?? null}
+        />
+      ) : null}
       <section className="grid gap-2">
         <h2 className="text-base font-semibold">Storage</h2>
         <Usage
