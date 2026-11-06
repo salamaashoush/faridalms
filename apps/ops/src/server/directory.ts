@@ -30,6 +30,7 @@ import { activateSchool, beginSchool, provisionSchool } from "./creation";
 import { directoryAdmin as directory } from "./directory-admin";
 import { opsEnv } from "./env";
 import { schoolHealth } from "./health";
+import { operatorNames } from "./operators";
 import { explain, reissueInvite } from "./provisioner";
 import { changeStanding, tellCell } from "./standing";
 
@@ -58,14 +59,21 @@ export const listSchools = createServerFn({ method: "GET" }).handler(
   },
 );
 
+/** Operators' names by id, where a business database names them. */
+async function actorNames(): Promise<Record<string, string>> {
+  const business = businessDb();
+  return business ? operatorNames(business) : {};
+}
+
 export const getSchool = createServerFn({ method: "GET" })
   .validator((input: v.InferInput<typeof byId>) => v.parse(byId, input))
   .handler(async ({ data }) => {
     await requireArea("readTenants");
-    const [school, changes, hosts] = await Promise.all([
+    const [school, changes, hosts, names] = await Promise.all([
       directory().school(data.id),
       directory().changes({ id: data.id }),
       directory().hosts(data.id),
+      actorNames(),
     ]);
     if (!school) throw new Error("NOT_FOUND");
     const ssoDomains = await directory().ssoDomains(school.tenantId);
@@ -106,6 +114,7 @@ export const getSchool = createServerFn({ method: "GET" })
       changes: [...changes, ...hostChanges].toSorted((a, b) =>
         b.occurredAt.localeCompare(a.occurredAt),
       ),
+      names,
       hosts: hosts.map((host) => ({
         ...host,
         records: expectedRecords(
@@ -144,18 +153,23 @@ export const saveEntitlements = createServerFn({ method: "POST" })
 export const listChanges = createServerFn({ method: "GET" }).handler(
   async () => {
     await requireArea("readTenants");
-    return directory().changes();
+    const [changes, names] = await Promise.all([
+      directory().changes(),
+      actorNames(),
+    ]);
+    return { changes, names };
   },
 );
 
 export const listSeries = createServerFn({ method: "GET" }).handler(
   async () => {
     await requireArea("readTenants");
-    const [series, changes] = await Promise.all([
+    const [series, changes, names] = await Promise.all([
       directory().series(),
       directory().changes({ type: "exam_series" }),
+      actorNames(),
     ]);
-    return { series, changes };
+    return { series, changes, names };
   },
 );
 

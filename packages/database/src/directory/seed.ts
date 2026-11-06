@@ -35,7 +35,7 @@ export async function registerTenants(
       }
       await tx`insert into changes (actor, subject_type, subject_id, action, after, reason)
         values (${`cell:${cell.id}`}, 'tenant', ${tenant.tenantId}, 'tenant.create',
-          ${JSON.stringify({ schools: tenant.schools.map((school) => school.slug) })}::jsonb,
+          ${JSON.stringify({ schools: tenant.schools.map((school) => school.slug) })}::text::jsonb,
           'Development seed')`;
     }
   });

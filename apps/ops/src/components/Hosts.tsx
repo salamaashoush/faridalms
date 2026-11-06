@@ -1,6 +1,5 @@
-import type { HostRole, HostState } from "@faridalms/domain/hosts";
+import type { HostRole } from "@faridalms/domain/hosts";
 import type { ActionItem } from "@faridalms/ui/system/action-menu";
-import type { Tone } from "@faridalms/ui/system/status";
 
 import { ActionMenu } from "@faridalms/ui/system/action-menu";
 import { SelectField, TextField } from "@faridalms/ui/system/form-field";
@@ -19,7 +18,13 @@ import { toast } from "sonner";
 import type { getSchool } from "../server/directory";
 
 import { attempt } from "../actions";
-import { formatWhen } from "../format";
+import {
+  formatWhen,
+  HOST_ROLE_NAMES,
+  HOST_ROLE_OPTIONS,
+  HOST_STATE_NAMES,
+  HOST_STATE_TONE,
+} from "../format";
 import {
   addHost,
   checkHost,
@@ -30,32 +35,6 @@ import { ReasonSheet } from "./ReasonSheet";
 import { WhyField } from "./Why";
 
 type Host = Awaited<ReturnType<typeof getSchool>>["hosts"][number];
-
-const ROLES: Record<HostRole, string> = {
-  site: "Website",
-  portal: "Portal",
-};
-
-const ROLE_OPTIONS = [
-  { value: "site", label: "Website" },
-  { value: "portal", label: "Portal" },
-] as const;
-
-const STATES: Record<HostState, string> = {
-  pending: "Pending",
-  verified: "Verified, waiting for its certificate",
-  active: "Active",
-  failing: "Failing: not routed",
-  removed: "Removed",
-};
-
-const STATE_TONE: Record<HostState, Tone> = {
-  pending: "neutral",
-  verified: "info",
-  active: "success",
-  failing: "danger",
-  removed: "neutral",
-};
 
 const PROBLEMS: Record<string, string> = {
   "hosts.txt_missing": "The TXT record is missing.",
@@ -155,10 +134,12 @@ function HostItem({ schoolId, host }: HostItemProps) {
             {host.hostname}
           </span>
           <div className="flex flex-wrap items-center gap-2">
-            <StatusBadge tone={STATE_TONE[host.state]}>
-              {STATES[host.state]}
+            <StatusBadge tone={HOST_STATE_TONE[host.state]}>
+              {HOST_STATE_NAMES[host.state]}
             </StatusBadge>
-            <StatusBadge tone="neutral">{ROLES[host.role]}</StatusBadge>
+            <StatusBadge tone="neutral">
+              {HOST_ROLE_NAMES[host.role]}
+            </StatusBadge>
             {host.canonical ? (
               <StatusBadge tone="accent">Main</StatusBadge>
             ) : null}
@@ -253,7 +234,7 @@ function AddHost({ schoolId }: AddHostProps) {
         <SelectField
           label="Serves"
           value={role}
-          options={ROLE_OPTIONS}
+          options={HOST_ROLE_OPTIONS}
           onChange={setRole}
         />
       </div>

@@ -76,7 +76,7 @@ const ACCESS = {
 type School = Awaited<ReturnType<typeof getSchool>>["school"];
 
 function SchoolPage() {
-  const { school, health, changes, hosts, platform, sold, ssoDomains } =
+  const { school, health, changes, names, hosts, platform, sold, ssoDomains } =
     Route.useLoaderData();
   const entitled = school.entitlements;
   const name = school.nameEn ?? school.nameAr ?? school.slug;
@@ -168,7 +168,7 @@ function SchoolPage() {
               </RecordSection>
             ) : null}
             <RecordSection title="History">
-              <ChangeList changes={changes} />
+              <ChangeList changes={changes} names={names} />
             </RecordSection>
           </>
         }

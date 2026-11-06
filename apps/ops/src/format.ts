@@ -1,6 +1,7 @@
 import type { DirectoryTenantState } from "@faridalms/database/directory/schema";
 import type { AgingBucket, DunningStep } from "@faridalms/domain/dunning";
 import type { ExamBoard } from "@faridalms/domain/exams";
+import type { HostRole, HostState } from "@faridalms/domain/hosts";
 import type {
   InvoiceKind,
   InvoiceState,
@@ -31,8 +32,17 @@ import type {
 } from "@faridalms/domain/subscriptions";
 import type { Tone } from "@faridalms/ui/system/status";
 
+import {
+  formatDayIn,
+  formatInstantIn,
+  formatMonthIn,
+} from "@faridalms/domain/date-text";
+import { HOST_ROLES } from "@faridalms/domain/hosts";
 import { MODULE_IDS } from "@faridalms/domain/modules";
-import { STORAGE_KEYS } from "@faridalms/domain/subscriptions";
+import {
+  BUSINESS_TIME_ZONE,
+  STORAGE_KEYS,
+} from "@faridalms/domain/subscriptions";
 
 const KIB = 1024;
 const units = ["bytes", "KB", "MB", "GB", "TB"] as const;
@@ -48,11 +58,9 @@ export function formatBytes(bytes: number): string {
   return `${shown.toLocaleString("en")} ${units[unit]}`;
 }
 
+/** An instant on the business's clock: "Nov 6, 2026, 10:11 PM". */
 export function formatWhen(when: string | Date): string {
-  return new Date(when).toLocaleString("en-GB", {
-    dateStyle: "medium",
-    timeStyle: "short",
-  });
+  return formatInstantIn(when, "medium", BUSINESS_TIME_ZONE, "en");
 }
 
 export const MODULE_NAMES: Record<ModuleId, string> = {
@@ -91,19 +99,14 @@ export const BOARD_NAMES: Record<ExamBoard, string> = {
   jcq: "UK boards (JCQ: AQA, OCR, WJEC)",
 };
 
+/** A month with its year: "September 2026". */
 export function formatMonth(isoDate: string): string {
-  return new Date(`${isoDate}T00:00:00Z`).toLocaleDateString("en-GB", {
-    month: "long",
-    year: "numeric",
-    timeZone: "UTC",
-  });
+  return formatMonthIn(isoDate, "label", "en");
 }
 
+/** A calendar day: "Sep 14, 2026". */
 export function formatDay(isoDate: string): string {
-  return new Date(`${isoDate}T00:00:00Z`).toLocaleDateString("en-GB", {
-    dateStyle: "medium",
-    timeZone: "UTC",
-  });
+  return formatDayIn(isoDate, "medium", "en");
 }
 
 export const LIMIT_NAMES: Record<LimitKey, string> = {
@@ -366,4 +369,53 @@ export const TENANT_STATE_TONE: Record<DirectoryTenantState, Tone> = {
   suspended: "danger",
   offboarding: "neutral",
   offboarded: "neutral",
+};
+
+export const HOST_ROLE_NAMES: Record<HostRole, string> = {
+  site: "Website",
+  portal: "Portal",
+};
+
+export const HOST_ROLE_OPTIONS = HOST_ROLES.map((role) => ({
+  value: role,
+  label: HOST_ROLE_NAMES[role],
+}));
+
+export const HOST_STATE_NAMES: Record<HostState, string> = {
+  pending: "Pending",
+  verified: "Verified, waiting for its certificate",
+  active: "Active",
+  failing: "Failing: not routed",
+  removed: "Removed",
+};
+
+export const HOST_STATE_TONE: Record<HostState, Tone> = {
+  pending: "neutral",
+  verified: "info",
+  active: "success",
+  failing: "danger",
+  removed: "neutral",
+};
+
+/** What each kind of directory change did, as the change log names it. */
+export const CHANGE_ACTION_NAMES: Record<string, string> = {
+  "tenant.create": "Created",
+  "tenant.retry": "Creation retried",
+  "tenant.activate": "Activated",
+  "tenant.lifecycle": "State changed",
+  "entitlements.update": "Entitlements changed",
+  "onboarding.done": "Onboarding step done",
+  "onboarding.undone": "Onboarding step reopened",
+  "sso_domain.add": "Sign-in domain added",
+  "administrator.invite": "Administrator sent a new link",
+  "series.create": "Session added",
+  "series.update": "Session changed",
+  "host.add": "Host added",
+  "host.remove": "Host removed",
+  "host.canonical": "Main host changed",
+  "host.pending": "Host waiting for its records",
+  "host.verified": "Host verified",
+  "host.active": "Host went live",
+  "host.failing": "Host stopped routing",
+  "host.removed": "Host removed",
 };

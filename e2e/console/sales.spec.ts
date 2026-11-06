@@ -33,7 +33,7 @@ test("an owner sets the business's legal details and its VAT", async ({
   await rate.getByRole("button", { name: "Add rate" }).click();
   await expect(page.getByText("Rate added.")).toBeVisible();
   await expect(
-    page.getByRole("listitem").filter({ hasText: "from 1 Jul 2017" }),
+    page.getByRole("listitem").filter({ hasText: "from Jul 1, 2017" }),
   ).toContainText("14% VAT");
 });
 

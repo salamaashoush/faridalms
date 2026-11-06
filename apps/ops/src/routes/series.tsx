@@ -204,7 +204,7 @@ function SessionSheet({ series, draft: start, onClose }: SessionSheetProps) {
  * until. Schools start from these dates and may keep work longer.
  */
 function SeriesPage() {
-  const { series, changes } = Route.useLoaderData();
+  const { series, changes, names } = Route.useLoaderData();
   const [editing, setEditing] = useState<Draft | null>(null);
   const [opened, setOpened] = useState(0);
   const open = (draft: Draft) => {
@@ -253,7 +253,14 @@ function SeriesPage() {
           }}
         />
         <RecordSection title="History">
-          <ChangeList changes={changes} subjectName={(id) => id} />
+          <ChangeList
+            changes={changes}
+            names={names}
+            subjectName={(change) => {
+              const row = series.find((one) => one.id === change.subjectId);
+              return row ? sessionName(row) : change.subjectId;
+            }}
+          />
         </RecordSection>
       </div>
       <SessionSheet
