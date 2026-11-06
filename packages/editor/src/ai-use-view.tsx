@@ -1,6 +1,6 @@
 import type { AiEvidence } from "@faridalms/domain/content";
 
-import { formatDayIn } from "@faridalms/domain/school";
+import { formatDayIn } from "@faridalms/domain/date-text";
 import { ChevronDown, Paperclip, Sparkles } from "lucide-react";
 
 import type { FileStrings } from "./files";

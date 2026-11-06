@@ -143,10 +143,7 @@ describe("calendar days", () => {
       "Monday, September 14",
     );
     expect(formatDate("2026-09-14", "short", "en")).toBe("Sep 14");
-    // Ranges are set with thin spaces around the dash.
-    expect(formatDayRange("2026-09-07", "2026-09-25").replace(/\s/g, " ")).toBe(
-      "Sep 7 – 25, 2026",
-    );
+    expect(formatDayRange("2026-09-07", "2026-09-25")).toBe("Sep 7 – 25, 2026");
   });
 
   it("are written in Arabic with the school's digits", () => {

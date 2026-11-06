@@ -9,6 +9,7 @@ import {
   squareKey,
   squaresOf,
 } from "@faridalms/domain/crossword";
+import { formatListIn } from "@faridalms/domain/date-text";
 import {
   isAuto,
   partKey,
@@ -278,7 +279,7 @@ function PaperPuzzle({ level, answers, locale }: PaperPuzzleProps) {
  */
 export function keyOf(block: LessonBlock, rtl: boolean): string | null {
   const list = (items: string[]) =>
-    new Intl.ListFormat(rtl ? "ar" : "en", { type: "unit" }).format(items);
+    formatListIn(items, "unit", rtl ? "ar" : "en");
   switch (block.type) {
     case "choice":
       return list(

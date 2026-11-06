@@ -31,7 +31,12 @@ import {
 import { inLocale } from "~/hooks/useCurrentUser";
 import * as m from "~/i18n/messages";
 import { getLocale } from "~/i18n/runtime";
-import { formatDate, formatInstant, formatNumber } from "~/utils/datetime";
+import {
+  formatDate,
+  formatInstant,
+  formatList,
+  formatNumber,
+} from "~/utils/datetime";
 import { getMessageFromError } from "~/utils/error";
 
 import type { BroadcastKind, KindView, RecordData } from "./kinds";
@@ -330,9 +335,7 @@ export function BroadcastRecord({ kind, id }: BroadcastRecordProps) {
       ? [
           {
             label: m.annAudience(),
-            value: new Intl.ListFormat(getLocale(), {
-              type: "conjunction",
-            }).format(data.audiences.map(audienceLabel)),
+            value: formatList(data.audiences.map(audienceLabel)),
           },
         ]
       : []),

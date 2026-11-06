@@ -61,7 +61,6 @@ import { AreaFiles } from "~/components/files/AreaFiles";
 import { displayName } from "~/components/people/format";
 import { inLocale } from "~/hooks/useCurrentUser";
 import * as m from "~/i18n/messages";
-import { getLocale } from "~/i18n/runtime";
 import {
   moduleProgressQuery,
   moduleRecordQuery,
@@ -77,7 +76,7 @@ import {
   removeLesson,
   unpublishModule,
 } from "~/server/learning";
-import { formatNumber } from "~/utils/datetime";
+import { formatList, formatNumber } from "~/utils/datetime";
 import { getMessageFromError } from "~/utils/error";
 
 import { Answers } from "./Answers";
@@ -403,9 +402,7 @@ function About({ data }: AboutProps) {
                 ];
                 return m.lrnAudienceSome({
                   class: taken ? classTitle(taken) : "",
-                  who: new Intl.ListFormat(getLocale(), {
-                    type: "conjunction",
-                  }).format(who),
+                  who: formatList(who),
                 });
               })
               .join("; ")}

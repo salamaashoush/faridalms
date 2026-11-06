@@ -20,7 +20,13 @@ import { migrationProblems } from "./migration-checks";
 
 const problems: string[] = [];
 
-const SOURCE_ROOTS = ["apps/api/src", "apps/web/src", "packages", "scripts"];
+const SOURCE_ROOTS = [
+  "apps/api/src",
+  "apps/ops/src",
+  "apps/web/src",
+  "packages",
+  "scripts",
+];
 const IGNORED = [
   /\/node_modules\//,
   /\/test\//,
@@ -46,11 +52,13 @@ const RAW_SQL = /\bsql\.raw\s*\(/;
 const POOL = /from\s+["']drizzle-orm\/bun-sql|new\s+SQL\s*\(/;
 // Dates and times are shown on the school's clock, so they are written only
 // by the helpers that know it; the browser's or the server's own zone shows
-// a family in Cairo a time hours off.
+// a family in Cairo a time hours off. Dates and lists are also written the
+// same by every engine there, so the server's page and the browser's agree.
 const OWN_CLOCK =
-  /Intl\.DateTimeFormat|\.toLocale(?:Date|Time)String\(|getTimezoneOffset\(/;
+  /Intl\.(?:DateTimeFormat|ListFormat)|\.toLocale(?:Date|Time)String\(|new Date\([^)]*\)\.toLocaleString\(|getTimezoneOffset\(/;
 const TIME_HELPERS = new Set([
   "apps/web/src/utils/datetime.ts",
+  "packages/domain/src/date-text.ts",
   "packages/domain/src/school.ts",
 ]);
 // Which guardians the school may do something for, who counts as staff and
@@ -114,7 +122,7 @@ for (const { path, text } of files) {
     OWN_CLOCK.test(text)
   )
     problems.push(
-      `${path}: formats or reads a time outside the school's time helpers`,
+      `${path}: formats a date, time or list outside the shared helpers`,
     );
 }
 

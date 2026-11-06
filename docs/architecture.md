@@ -461,8 +461,12 @@ language cookie, then `Accept-Language`, then the base locale, and changing
 it reloads so the next document is rendered in the new language. Every
 date and time is shown and entered on the school's clock in its digits:
 each request adopts the school's zone as it does its digits, and only
-`apps/web/src/utils/datetime.ts` and `packages/domain/src/school.ts`
-format them, which the source checks hold. Logical
+`apps/web/src/utils/datetime.ts`, `packages/domain/src/school.ts` and
+`packages/domain/src/date-text.ts` format them, which the source checks
+hold. `date-text` writes dates, times and lists from its own name tables
+and patterns rather than the runtime's ICU: Apple's, Chrome's and Node's
+disagree on joiners, spaces and short names, and a server page whose text
+differs from the browser's is thrown away when it hydrates. Logical
 CSS properties and local font assets support right-to-left layout without
 remote font requests. shadcn components stay registry-owned; product
 styling and translated controls live in wrappers.

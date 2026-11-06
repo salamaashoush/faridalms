@@ -6,11 +6,10 @@ import { useState } from "react";
 import { toast } from "sonner";
 
 import * as m from "~/i18n/messages";
-import { getLocale } from "~/i18n/runtime";
 import { classDirectoryQuery } from "~/queries/classes";
 import { enrolStudent, withdrawStudent } from "~/server/classes";
 import { searchPeople } from "~/server/students";
-import { formatDate, formatNumber } from "~/utils/datetime";
+import { formatDate, formatList, formatNumber } from "~/utils/datetime";
 import { getMessageFromError } from "~/utils/error";
 
 import { displayName, lastDay } from "../people/format";
@@ -248,9 +247,7 @@ export function MoveManySheet({
         for (const [reason, refused] of reasons)
           toast.warning(
             m.studentsNotMoved({
-              names: new Intl.ListFormat(getLocale(), {
-                type: "conjunction",
-              }).format(refused.map((refusal) => refusal.item.name)),
+              names: formatList(refused.map((refusal) => refusal.item.name)),
               reason,
             }),
           );

@@ -6,8 +6,9 @@ import type {
 import type { Digits } from "@faridalms/domain/people";
 
 import { contentHtml } from "@faridalms/domain/content-html";
+import { formatDayIn } from "@faridalms/domain/date-text";
 import { REPLY_MARKER } from "@faridalms/domain/email-replies";
-import { formatDayIn, formattingLocale } from "@faridalms/domain/school";
+import { formattingLocale } from "@faridalms/domain/school";
 
 export interface Rendered {
   subject: string;

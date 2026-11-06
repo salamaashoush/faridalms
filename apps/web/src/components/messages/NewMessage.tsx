@@ -25,7 +25,6 @@ import type { draftQuery } from "~/queries/messages";
 import { ContentEditor } from "~/components/content/ContentEditor";
 import { useDocumentMedia } from "~/hooks/useDocumentMedia";
 import * as m from "~/i18n/messages";
-import { getLocale } from "~/i18n/runtime";
 import { messageRecipientsQuery } from "~/queries/messages";
 import { startThread } from "~/server/messages";
 import { formatList, formatNumber } from "~/utils/datetime";
@@ -56,9 +55,7 @@ function recipientLabel(row: Recipient) {
   if (row.kind !== "guardian" || row.children.length === 0) return nameOf(row);
   return m.msgGuardianOf({
     name: nameOf(row),
-    children: new Intl.ListFormat(getLocale(), { type: "conjunction" }).format(
-      row.children.map(nameOf),
-    ),
+    children: formatList(row.children.map(nameOf)),
   });
 }
 

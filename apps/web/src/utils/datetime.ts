@@ -1,10 +1,23 @@
-import type { DayStyle, InstantStyle } from "@faridalms/domain/school";
+import type {
+  DaySpan,
+  DayStyle,
+  HijriCalendar,
+  HijriStyle,
+  InstantStyle,
+} from "@faridalms/domain/date-text";
 
 import {
   formatDayIn,
   formatDayRangeIn,
+  formatHijriIn,
   formatInstantIn,
+  formatListIn,
+  formatMonthIn,
+  formatSpanIn,
   formatTimeIn,
+  formatWeekdayIn,
+} from "@faridalms/domain/date-text";
+import {
   schoolClock,
   schoolDate,
   zonedInstant,
@@ -108,16 +121,14 @@ export function formatPercent(value: number): string {
   }).format(value / 100);
 }
 
+/** Items as one phrase: "a, b, and c". */
 export function formatList(values: readonly string[]): string {
-  return new Intl.ListFormat(getLocale(), { type: "conjunction" }).format(
-    values,
-  );
+  return formatListIn(values, "and", getLocale());
 }
 
+/** Items as alternatives: "a, b, or c". */
 export function formatChoices(values: readonly string[]): string {
-  return new Intl.ListFormat(getLocale(), { type: "disjunction" }).format(
-    values,
-  );
+  return formatListIn(values, "or", getLocale());
 }
 
 /**
@@ -186,83 +197,50 @@ export function instantFromLocal(local: string): string {
   return zonedInstant(date, time.slice(0, 5), schoolZone()).toISOString();
 }
 
-/** A month's short name alone, such as "Sept", for a timeline's scale. */
+/** A month's short name alone, such as "Sep", for a timeline's scale. */
 export function formatMonthShort(
   isoDate: string,
   locale: Locale = getLocale(),
 ): string {
-  return new Intl.DateTimeFormat(numberLocale(locale), {
-    month: "short",
-    timeZone: "UTC",
-  }).format(new Date(`${isoDate.slice(0, 7)}-01T00:00:00.000Z`));
+  return formatMonthIn(isoDate, "short", numberLocale(locale));
 }
 
 /** `2026-09` becomes "September 2026", or "سبتمبر ٢٠٢٦" in Arabic. */
 export function formatMonthLabel(isoMonth: string): string {
-  return new Intl.DateTimeFormat(numberLocale(), {
-    month: "long",
-    year: "numeric",
-    timeZone: "UTC",
-  }).format(new Date(`${isoMonth.slice(0, 7)}-01T00:00:00.000Z`));
+  return formatMonthIn(isoMonth, "label", numberLocale());
 }
 
-/** An ISO weekday (1 for Monday) named in the reader's language; 1 January 2024 was a Monday. */
+/** An ISO weekday (1 for Monday) named in the reader's language. */
 export function formatWeekday(
   day: number,
   width: "long" | "short" = "long",
 ): string {
-  return new Intl.DateTimeFormat(numberLocale(), {
-    weekday: width,
-    timeZone: "UTC",
-  }).format(new Date(Date.UTC(2024, 0, day)));
+  return formatWeekdayIn(day, width, getLocale());
 }
-
-const wallClock = (date: string, time: string | null) =>
-  new Date(`${date}T${time?.slice(0, 5) ?? "00:00"}:00Z`);
 
 /**
  * Days that may carry wall-clock times of their own, such as an event's,
- * as one span: its days and, if timed, its hours, in full or short. The
- * locale lays out the range, so Arabic reads it in its own order.
+ * as one span: its days and, if timed, its hours, in full or short.
  */
 export function formatSpan(
-  span: {
-    startsOn: string;
-    endsOn: string;
-    startTime: string | null;
-    endTime: string | null;
-  },
+  span: DaySpan,
   style: "long" | "short" = "long",
   locale: Locale = getLocale(),
 ): string {
-  const timed = span.startTime !== null && span.endTime !== null;
-  return new Intl.DateTimeFormat(numberLocale(locale), {
-    weekday: style,
-    day: "numeric",
-    month: style,
-    ...(timed
-      ? { hour: "2-digit", minute: "2-digit", hourCycle: "h23" }
-      : undefined),
-    timeZone: "UTC",
-  }).formatRange(
-    wallClock(span.startsOn, span.startTime),
-    wallClock(span.endsOn, span.endTime),
-  );
+  return formatSpanIn(span, style, numberLocale(locale));
 }
 
 /**
  * A day in the school's second calendar, such as "3 Rabiʻ II" in Hijri, or
- * null when the school keeps none. The calendar is always named: CLDR moved
- * some Arabic regions' default away from Hijri, so a locale alone decides
- * nothing.
+ * null when the school keeps none.
  */
 export function secondaryDate(
   isoDate: string,
-  calendar: "islamic-umalqura" | "islamic-civil" | null,
-  style: DayStyle = "short",
+  calendar: HijriCalendar | null,
+  style: HijriStyle = "short",
 ): string | null {
   if (!calendar) return null;
-  return formatDayIn(isoDate, style, numberLocale(), calendar);
+  return formatHijriIn(isoDate, calendar, style, numberLocale());
 }
 
 const inUnit = (value: number, unit: "hour" | "minute") =>

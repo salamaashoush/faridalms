@@ -57,7 +57,6 @@ import {
   useReaderWidth,
 } from "~/components/system/ReaderWidth";
 import * as m from "~/i18n/messages";
-import { getLocale } from "~/i18n/runtime";
 import { assignmentRecordQuery } from "~/queries/coursework";
 import {
   actOnWork,
@@ -68,6 +67,7 @@ import {
 } from "~/server/coursework";
 import {
   formatInstant,
+  formatList,
   formatNumber,
   instantFromLocal,
   localInput,
@@ -270,9 +270,7 @@ function ExtendSheet({ data, rows, onOpenChange }: ExtendSheetProps) {
       <div className="grid gap-5">
         <p className="text-sm leading-5 text-muted-foreground">
           {m.courseworkExtendFor({
-            names: new Intl.ListFormat(getLocale(), {
-              type: "conjunction",
-            }).format((rows ?? []).map((row) => displayName(row))),
+            names: formatList((rows ?? []).map((row) => displayName(row))),
           })}
         </p>
         <TextField

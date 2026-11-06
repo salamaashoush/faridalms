@@ -38,8 +38,9 @@ import {
   RELEASED_AS,
 } from "@faridalms/domain/admissions";
 import { contentPlainText } from "@faridalms/domain/content";
+import { formatDayIn } from "@faridalms/domain/date-text";
 import { APPLICATION_OUTCOMES } from "@faridalms/domain/notifications";
-import { formatDayIn, formattingLocale } from "@faridalms/domain/school";
+import { formattingLocale } from "@faridalms/domain/school";
 
 import type { UnitContext } from "./context";
 import type { NoticeScope } from "./notify";
