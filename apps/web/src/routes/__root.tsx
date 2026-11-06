@@ -4,6 +4,7 @@ import type { ReactNode } from "react";
 import { MathDigits } from "@faridalms/editor/math-digits";
 import { Toaster } from "@faridalms/ui/sonner";
 import { DesignSystemProvider } from "@faridalms/ui/system/provider";
+import { ErrorPage, NotFoundPage } from "@faridalms/ui/system/status-page";
 import {
   createRootRouteWithContext,
   HeadContent,
@@ -24,8 +25,6 @@ import { digits } from "~/utils/digits";
 import { hostView } from "~/utils/host";
 import { iconsFor } from "~/utils/icons";
 
-import { DefaultCatchBoundary } from "../components/DefaultCatchBoundary";
-import { NotFound } from "../components/NotFound";
 import { bareHref } from "../utils/host";
 import { seo } from "../utils/seo";
 
@@ -77,11 +76,11 @@ export const Route = createRootRouteWithContext<AppRouterContext>()({
   errorComponent: (props) => {
     return (
       <RootDocument>
-        <DefaultCatchBoundary {...props} />
+        <ErrorPage {...props} />
       </RootDocument>
     );
   },
-  notFoundComponent: () => <NotFound />,
+  notFoundComponent: NotFoundPage,
   component: RootComponent,
 });
 

@@ -1,3 +1,4 @@
+import { ErrorPage, NotFoundPage } from "@faridalms/ui/system/status-page";
 import { createRouter as createTanStackRouter } from "@tanstack/react-router";
 
 import { routeTree } from "./routeTree.gen";
@@ -7,6 +8,8 @@ export function getRouter() {
     routeTree,
     defaultPreload: "intent",
     scrollRestoration: true,
+    defaultErrorComponent: ErrorPage,
+    defaultNotFoundComponent: NotFoundPage,
   });
 }
 

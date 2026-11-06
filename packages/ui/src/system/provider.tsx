@@ -36,12 +36,18 @@ export interface SystemStrings {
   edit: string;
   emptyBody: string;
   emptyTitle: string;
+  errorBody: string;
+  errorDetails: string;
   errorDocumentTitle: (title: string) => string;
+  errorRetry: string;
   errorSummaryItem: (label: string, message: string) => string;
   errorSummaryTitle: string;
+  errorTitle: string;
   filters: string;
   filtersApplied: (count: string) => string;
   filtersHint: string;
+  goBack: string;
+  goHome: string;
   keepEditing: string;
   leaveHint: string;
   leaveTitle: string;
@@ -52,6 +58,8 @@ export interface SystemStrings {
   noResultsBody: string;
   noResultsTitle: string;
   notApplicable: string;
+  notFoundBody: string;
+  notFoundTitle: string;
   notRecorded: string;
   openMenu: string;
   optional: string;

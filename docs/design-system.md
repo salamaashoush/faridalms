@@ -27,6 +27,9 @@ package gains it first, with a test and a line in this table.
 | Status         | `status` (`StatusBadge`, `StatusText`, `toneSurface`)                                                                       |
 | Feedback       | `action-menu` (`ActionMenu`, `useRunAndReport`), `confirm-dialog`, `dialog`                                                 |
 | Side panels    | `panel` (`PanelGroup`, `Segmented`)                                                                                         |
+| Metrics        | `metrics` (`MetricGrid`, `Metric`)                                                                                          |
+| Steps          | `step-nav` (`StepNav`), `form-footer` (`FormFooter`)                                                                        |
+| Status pages   | `status-page` (`StatusPage`, `ErrorPage`, `NotFoundPage`)                                                                   |
 
 The package says nothing in a language of its own. Each app wraps its pages
 in `DesignSystemProvider` with a `DesignSystemValue`: the strings the

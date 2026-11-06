@@ -1,11 +1,10 @@
 import type { ReactNode } from "react";
 
+import { ErrorPage, NotFoundPage } from "@faridalms/ui/system/status-page";
 import { notifyManager } from "@tanstack/react-query";
 import { createRouter as createTanStackRouter } from "@tanstack/react-router";
 import { setupRouterSsrQueryIntegration } from "@tanstack/react-router-ssr-query";
 
-import { DefaultCatchBoundary } from "./components/DefaultCatchBoundary";
-import { NotFound } from "./components/NotFound";
 import { createQueryClient } from "./queryClient";
 import { routeTree } from "./routeTree.gen";
 import { adoptHostView, hostView, sitePathIn, sitePathOut } from "./utils/host";
@@ -54,8 +53,8 @@ export function getRouter() {
     hydrate: (dehydrated) => adoptHostView(dehydrated.host),
     defaultPreload: "intent",
     scrollRestoration: true,
-    defaultErrorComponent: DefaultCatchBoundary,
-    defaultNotFoundComponent: () => <NotFound />,
+    defaultErrorComponent: ErrorPage,
+    defaultNotFoundComponent: NotFoundPage,
     defaultStructuralSharing: true,
   });
 

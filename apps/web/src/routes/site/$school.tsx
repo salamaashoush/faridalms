@@ -2,6 +2,7 @@ import type { SiteLocale } from "@faridalms/domain/website";
 import type { ErrorComponentProps } from "@tanstack/react-router";
 
 import { SITE_LOCALES } from "@faridalms/domain/website";
+import { ErrorPage, NotFoundPage } from "@faridalms/ui/system/status-page";
 import { useQueryClient } from "@tanstack/react-query";
 import {
   createFileRoute,
@@ -13,8 +14,6 @@ import * as v from "valibot";
 
 import type { PublicSite } from "~/components/site/SiteShell";
 
-import { DefaultCatchBoundary } from "~/components/DefaultCatchBoundary";
-import { NotFound } from "~/components/NotFound";
 import { SiteStatus } from "~/components/site/PublicPage";
 import { SiteNotOpen } from "~/components/site/SiteNotOpen";
 import { getLocale } from "~/i18n/runtime";
@@ -86,7 +85,7 @@ function SiteMissing() {
   return face ? (
     <SiteNotOpen face={face} locale={faceLocale(lang)} />
   ) : (
-    <NotFound />
+    <NotFoundPage />
   );
 }
 
@@ -94,7 +93,7 @@ function SiteFailed(props: ErrorComponentProps) {
   const { school } = Route.useParams();
   const site = useKnownSite();
   const router = useRouter();
-  if (!site) return <DefaultCatchBoundary {...props} />;
+  if (!site) return <ErrorPage {...props} />;
   return (
     <KnownSite
       site={site}

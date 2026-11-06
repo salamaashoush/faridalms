@@ -6,12 +6,12 @@ import {
 } from "@faridalms/ui/system/app-shell";
 import { ButtonLink } from "@faridalms/ui/system/button-link";
 import { EmptyState } from "@faridalms/ui/system/empty-state";
+import { ErrorPage } from "@faridalms/ui/system/status-page";
 import { useQuery, useSuspenseQuery } from "@tanstack/react-query";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { Lock } from "lucide-react";
 
 import { LtiHostProvider } from "~/components/content/lti";
-import { DefaultCatchBoundary } from "~/components/DefaultCatchBoundary";
 import {
   LessonPlayer,
   LessonPreview,
@@ -115,7 +115,7 @@ function LessonError(props: ErrorComponentProps) {
     !(props.error instanceof Error) ||
     props.error.message !== "learning.locked"
   )
-    return <DefaultCatchBoundary {...props} />;
+    return <ErrorPage {...props} />;
   return (
     <div className="mx-auto w-full max-w-3xl">
       <EmptyState

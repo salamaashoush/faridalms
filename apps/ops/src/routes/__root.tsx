@@ -1,5 +1,8 @@
+import type { ReactNode } from "react";
+
 import { Toaster } from "@faridalms/ui/sonner";
 import { DesignSystemProvider } from "@faridalms/ui/system/provider";
+import { ErrorPage, NotFoundPage } from "@faridalms/ui/system/status-page";
 import {
   createRootRoute,
   HeadContent,
@@ -32,6 +35,12 @@ export const Route = createRootRoute({
     ],
     links: [{ rel: "stylesheet", href: appCss }],
   }),
+  errorComponent: (props) => (
+    <RootDocument>
+      <ErrorPage {...props} />
+    </RootDocument>
+  ),
+  notFoundComponent: NotFoundPage,
   component: RootLayout,
 });
 
@@ -55,6 +64,18 @@ function Page() {
 
 function RootLayout() {
   return (
+    <RootDocument>
+      <Page />
+    </RootDocument>
+  );
+}
+
+interface RootDocumentProps {
+  children: ReactNode;
+}
+
+function RootDocument({ children }: RootDocumentProps) {
+  return (
     <html lang="en" dir="ltr" suppressHydrationWarning>
       <head>
         <HeadContent />
@@ -67,7 +88,7 @@ function RootLayout() {
           enableSystem
         >
           <DesignSystemProvider value={CONSOLE_SYSTEM}>
-            <Page />
+            {children}
             <Toaster position="top-center" />
           </DesignSystemProvider>
         </ThemeProvider>
