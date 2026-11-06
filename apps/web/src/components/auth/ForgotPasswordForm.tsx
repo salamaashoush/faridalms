@@ -1,18 +1,14 @@
 import { RESET_MINUTES } from "@faridalms/domain/first-sign-in";
 import { Button, buttonVariants } from "@faridalms/ui/button";
+import { Field, FieldGroup, FieldLabel } from "@faridalms/ui/field";
 import { Input } from "@faridalms/ui/input";
+import { FieldError } from "@faridalms/ui/system/form-field";
 import { useForm } from "@tanstack/react-form";
 import { useMutation } from "@tanstack/react-query";
 import { Link, useHydrated } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { MailCheck } from "lucide-react";
 
-import {
-  Field,
-  FieldError,
-  FieldGroup,
-  FieldLabel,
-} from "~/components/app/field";
 import * as m from "~/i18n/messages";
 import { forgotPasswordSchema } from "~/schema/auth";
 import { discoverReset, requestPasswordReset } from "~/server/auth";

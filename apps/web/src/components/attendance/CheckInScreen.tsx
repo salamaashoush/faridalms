@@ -1,6 +1,7 @@
 import { shuffled } from "@faridalms/domain/learning";
 import { Button } from "@faridalms/ui/button";
 import { cn } from "@faridalms/ui/cn";
+import { initialsOf } from "@faridalms/ui/system/app-shell";
 import {
   useMutation,
   useQueryClient,
@@ -12,7 +13,6 @@ import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 
 import { GrownUpQuestion } from "~/components/app/GrownUpQuestion";
-import { initialsOf } from "~/components/app/UserMenu";
 import { classTitle } from "~/components/classes/format";
 import { playSound } from "~/components/learning/young/sounds";
 import { inLocale } from "~/hooks/useCurrentUser";

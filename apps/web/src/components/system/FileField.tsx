@@ -2,6 +2,7 @@ import type { FilePurpose, FileSummary } from "@faridalms/domain/file";
 
 import { ACCEPTED_EXTENSIONS, mediaTypeFor } from "@faridalms/domain/file";
 import { Button } from "@faridalms/ui/button";
+import { FormField } from "@faridalms/ui/system/form-field";
 import { useServerFn } from "@tanstack/react-start";
 import { LoaderCircle, Upload, X } from "lucide-react";
 import { useRef, useState } from "react";
@@ -10,7 +11,6 @@ import * as m from "~/i18n/messages";
 import { initiateUpload } from "~/server/files";
 import { getMessageFromError } from "~/utils/error";
 
-import { FormField } from "./field";
 import { FileList, fileSizeLabel } from "./FileList";
 
 interface Pending {

@@ -1,31 +1,20 @@
-import { Button } from "@faridalms/ui/button";
+import { Button } from "../button";
 import {
   Dialog,
   DialogContent,
   DialogDescription,
   DialogFooter,
   DialogTitle,
-} from "@faridalms/ui/dialog";
+} from "../dialog";
 import { CircleAlert, LoaderCircle } from "lucide-react";
 
-import * as m from "~/i18n/messages";
+import { useSystemStrings } from "./provider";
 
 /**
  * The last step before something is removed. The destructive colour appears
  * only here, on the button that does it.
  */
-export function ConfirmDialog({
-  open,
-  title,
-  body,
-  confirmLabel,
-  cancelLabel,
-  pending = false,
-  error,
-  destructive = true,
-  onConfirm,
-  onCancel,
-}: {
+export interface ConfirmDialogProps {
   open: boolean;
   title: string;
   body: string;
@@ -37,7 +26,21 @@ export function ConfirmDialog({
   destructive?: boolean;
   onConfirm: () => void;
   onCancel: () => void;
-}) {
+}
+
+export function ConfirmDialog({
+  open,
+  title,
+  body,
+  confirmLabel,
+  cancelLabel,
+  pending = false,
+  error,
+  destructive = true,
+  onConfirm,
+  onCancel,
+}: ConfirmDialogProps) {
+  const strings = useSystemStrings();
   return (
     <Dialog
       open={open}
@@ -68,7 +71,7 @@ export function ConfirmDialog({
             disabled={pending}
             onClick={onCancel}
           >
-            {cancelLabel ?? m.docCancel()}
+            {cancelLabel ?? strings.cancel}
           </Button>
           <Button
             type="button"

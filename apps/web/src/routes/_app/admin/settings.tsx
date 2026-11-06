@@ -1,4 +1,14 @@
+import type { HeaderAction } from "@faridalms/ui/system/page-header";
+
 import { Skeleton } from "@faridalms/ui/skeleton";
+import { ButtonLink } from "@faridalms/ui/system/button-link";
+import { RowLink } from "@faridalms/ui/system/data-table";
+import { PageHeader } from "@faridalms/ui/system/page-header";
+import { Fact, Facts, RecordTabs } from "@faridalms/ui/system/record-page";
+import {
+  SettingsPage,
+  SettingsSection,
+} from "@faridalms/ui/system/settings-section";
 import { useQuery, useSuspenseQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 import { Plus } from "lucide-react";
@@ -7,7 +17,6 @@ import * as v from "valibot";
 
 import type { AccessRole } from "~/components/admin/AccessRolesPanel";
 import type { Subject, SubjectSort } from "~/components/admin/SubjectCatalogue";
-import type { HeaderAction } from "~/components/system/IndexPage";
 
 import {
   AccessRolesPanel,
@@ -23,18 +32,10 @@ import {
   subjectOf,
   SubjectSheet,
 } from "~/components/admin/SubjectCatalogue";
-import { ButtonLink } from "~/components/app/ButtonLink";
 import { AttendanceRules } from "~/components/attendance/AttendanceRules";
 import { UsageBar } from "~/components/files/UsageBar";
 import { FeaturesCard } from "~/components/learning/FeaturesCard";
 import { lastDay } from "~/components/people/format";
-import { RowLink } from "~/components/system/DataTable";
-import { PageHeader } from "~/components/system/IndexPage";
-import { Fact, Facts, RecordTabs } from "~/components/system/RecordPage";
-import {
-  SettingsPage,
-  SettingsSection,
-} from "~/components/system/SettingsSection";
 import { inLocale } from "~/hooks/useCurrentUser";
 import * as m from "~/i18n/messages";
 import { accessChangesQuery, accessRolesQuery } from "~/queries/access";

@@ -1,14 +1,13 @@
 import type { LiveRow, LiveState } from "@faridalms/domain/live";
+import type { Tone } from "@faridalms/ui/system/status";
 
+import { EmptyState } from "@faridalms/ui/system/empty-state";
+import { RecordSection } from "@faridalms/ui/system/record-page";
+import { StatusBadge } from "@faridalms/ui/system/status";
 import { useQuery } from "@tanstack/react-query";
 import { Radio, Users } from "lucide-react";
 
-import type { Tone } from "~/components/system/status";
-
 import { displayName } from "~/components/people/format";
-import { EmptyState } from "~/components/system/IndexPage";
-import { RecordSection } from "~/components/system/RecordPage";
-import { StatusBadge } from "~/components/system/status";
 import * as m from "~/i18n/messages";
 import { moduleLiveQuery } from "~/queries/learning";
 import { formatList, formatNumber } from "~/utils/datetime";

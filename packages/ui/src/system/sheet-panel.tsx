@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
 
-import { Button } from "@faridalms/ui/button";
-import { cn } from "@faridalms/ui/cn";
+import { Button } from "../button";
+import { cn } from "../cn";
 import {
   Sheet,
   SheetClose,
@@ -9,12 +9,22 @@ import {
   SheetDescription,
   SheetHeader,
   SheetTitle,
-} from "@faridalms/ui/sheet";
+} from "../sheet";
 import { X } from "lucide-react";
 import { useRef } from "react";
 
-import * as m from "~/i18n/messages";
-import { getLocale, getTextDirection } from "~/i18n/runtime";
+import { useEndSide, useSystemStrings } from "./provider";
+
+export interface SheetPanelProps {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  title: string;
+  description?: string;
+  /** What kind of thing is peeked at; the title then heads the body. */
+  context?: ReactNode;
+  footer?: ReactNode;
+  children: ReactNode;
+}
 
 /**
  * Details kept off the page until asked for, in a panel from the end side:
@@ -32,16 +42,9 @@ export function SheetPanel({
   context,
   footer,
   children,
-}: {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-  title: string;
-  description?: string;
-  context?: ReactNode;
-  footer?: ReactNode;
-  children: ReactNode;
-}) {
-  const side = getTextDirection(getLocale()) === "rtl" ? "left" : "right";
+}: SheetPanelProps) {
+  const strings = useSystemStrings();
+  const side = useEndSide();
   // Reading starts at the title rather than on the first button, which a
   // focus ring would otherwise single out as if it were chosen.
   const heading = useRef<HTMLHeadingElement>(null);
@@ -102,7 +105,7 @@ export function SheetPanel({
               type="button"
               variant="ghost"
               size="icon-sm"
-              aria-label={m.commonClose()}
+              aria-label={strings.close}
               className="absolute end-4 top-3 max-md:top-2 max-md:size-10"
             />
           }

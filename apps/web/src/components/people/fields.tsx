@@ -4,10 +4,10 @@ import type {
 } from "@faridalms/domain/people";
 
 import { Checkbox } from "@faridalms/ui/checkbox";
+import { SelectField, TextField } from "@faridalms/ui/system/form-field";
 import { CircleAlert } from "lucide-react";
 import { useId } from "react";
 
-import { SelectField, TextField } from "~/components/system/field";
 import * as m from "~/i18n/messages";
 
 export interface NamesDraft {

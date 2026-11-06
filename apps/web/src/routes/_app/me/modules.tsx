@@ -1,7 +1,7 @@
+import { PageHeader } from "@faridalms/ui/system/page-header";
 import { createFileRoute } from "@tanstack/react-router";
 
 import { StudentModuleList } from "~/components/learning/StudentModules";
-import { PageHeader } from "~/components/system/IndexPage";
 import * as m from "~/i18n/messages";
 import { myModulesQuery } from "~/queries/learning";
 

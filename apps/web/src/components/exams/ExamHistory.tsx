@@ -1,10 +1,10 @@
 import type { ExamBoard, ExamChangeDetails } from "@faridalms/domain/exams";
 
+import { Pagination } from "@faridalms/ui/system/data-table";
+import { SheetPanel } from "@faridalms/ui/system/sheet-panel";
 import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
 
-import { Pagination } from "~/components/system/DataTable";
-import { SheetPanel } from "~/components/system/SheetPanel";
 import { inLocale } from "~/hooks/useCurrentUser";
 import * as m from "~/i18n/messages";
 import { examHistoryQuery } from "~/queries/exams";

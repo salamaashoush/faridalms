@@ -1,8 +1,18 @@
 import type { StaffAbsenceReason } from "@faridalms/domain/timetable";
+import type { Column, RowAction } from "@faridalms/ui/system/data-table";
 
 import { STAFF_ABSENCE_REASONS } from "@faridalms/domain/timetable";
 import { Button } from "@faridalms/ui/button";
 import { RadioGroup, RadioGroupItem } from "@faridalms/ui/radio-group";
+import { DataTable } from "@faridalms/ui/system/data-table";
+import { EmptyState } from "@faridalms/ui/system/empty-state";
+import {
+  FormField,
+  SelectField,
+  TextField,
+} from "@faridalms/ui/system/form-field";
+import { SheetForm } from "@faridalms/ui/system/sheet-form";
+import { StatusText } from "@faridalms/ui/system/status";
 import { Textarea } from "@faridalms/ui/textarea";
 import {
   useMutation,
@@ -22,15 +32,8 @@ import {
 import { useState } from "react";
 import { toast } from "sonner";
 
-import type { Column, RowAction } from "~/components/system/DataTable";
-
 import { classTitle } from "~/components/classes/format";
 import { CheckboxRow } from "~/components/people/fields";
-import { DataTable } from "~/components/system/DataTable";
-import { FormField, SelectField, TextField } from "~/components/system/field";
-import { EmptyState } from "~/components/system/IndexPage";
-import { SheetForm } from "~/components/system/SheetForm";
-import { StatusText } from "~/components/system/status";
 import { inLocale } from "~/hooks/useCurrentUser";
 import * as m from "~/i18n/messages";
 import { coverDayQuery, coverOptionsQuery } from "~/queries/timetable";

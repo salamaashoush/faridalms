@@ -1,6 +1,14 @@
 import type { HostRole, HostState } from "@faridalms/domain/hosts";
+import type { Tone } from "@faridalms/ui/system/status";
 
 import { Button } from "@faridalms/ui/button";
+import { ConfirmDialog } from "@faridalms/ui/system/confirm-dialog";
+import { SelectField, TextField } from "@faridalms/ui/system/form-field";
+import {
+  SettingsPage,
+  SettingsSection,
+} from "@faridalms/ui/system/settings-section";
+import { StatusBadge } from "@faridalms/ui/system/status";
 import {
   useMutation,
   useQueryClient,
@@ -10,15 +18,6 @@ import { LoaderCircle, RefreshCw, Star, Trash2 } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 
-import type { Tone } from "~/components/system/status";
-
-import { ConfirmDialog } from "~/components/system/ConfirmDialog";
-import { SelectField, TextField } from "~/components/system/field";
-import {
-  SettingsPage,
-  SettingsSection,
-} from "~/components/system/SettingsSection";
-import { StatusBadge } from "~/components/system/status";
 import * as m from "~/i18n/messages";
 import { siteHostsQuery } from "~/queries/site";
 import {

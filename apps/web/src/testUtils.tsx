@@ -2,8 +2,11 @@ import type { RenderOptions, RenderResult } from "@testing-library/react";
 import type { PropsWithChildren, ReactElement } from "react";
 
 import { Toaster } from "@faridalms/ui/sonner";
+import { DesignSystemProvider } from "@faridalms/ui/system/provider";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { render as tlRender } from "@testing-library/react";
+
+import { portalDesignSystem } from "~/components/app/design-system";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -16,8 +19,10 @@ const queryClient = new QueryClient({
 function TestProviders({ children }: PropsWithChildren) {
   return (
     <QueryClientProvider client={queryClient}>
-      {children}
-      <Toaster />
+      <DesignSystemProvider value={portalDesignSystem()}>
+        {children}
+        <Toaster />
+      </DesignSystemProvider>
     </QueryClientProvider>
   );
 }

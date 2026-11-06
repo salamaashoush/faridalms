@@ -7,18 +7,19 @@ import {
 } from "@faridalms/domain/search";
 import { Button } from "@faridalms/ui/button";
 import { Input } from "@faridalms/ui/input";
+import { EmptyState } from "@faridalms/ui/system/empty-state";
+import { PageHeader } from "@faridalms/ui/system/page-header";
+import { RecordTabs } from "@faridalms/ui/system/record-page";
 import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 import { LoaderCircle, Search, SearchX } from "lucide-react";
 import { useState } from "react";
 import * as v from "valibot";
 
-import { EmptyState, PageHeader } from "~/components/app/primitives";
 import {
   SEARCH_KIND_LABEL,
   SearchResults,
 } from "~/components/app/SearchResults";
-import { RecordTabs } from "~/components/system/RecordPage";
 import { useCurrentUser } from "~/hooks/useCurrentUser";
 import * as m from "~/i18n/messages";
 import { searchKindQuery, searchQuery } from "~/queries/search";
@@ -50,7 +51,7 @@ function Nothing({ q }: { q: string }) {
     <EmptyState
       icon={SearchX}
       title={m.searchNothing({ q })}
-      body={m.searchNothingTips()}
+      description={m.searchNothingTips()}
     />
   );
 }

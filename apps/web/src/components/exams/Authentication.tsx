@@ -1,13 +1,13 @@
 import { Button } from "@faridalms/ui/button";
+import { FormField } from "@faridalms/ui/system/form-field";
+import { SheetForm } from "@faridalms/ui/system/sheet-form";
+import { StatusText } from "@faridalms/ui/system/status";
 import { Textarea } from "@faridalms/ui/textarea";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { FileCheck, Paperclip, ShieldAlert, ShieldCheck } from "lucide-react";
 import { useRef, useState } from "react";
 import { toast } from "sonner";
 
-import { FormField } from "~/components/system/field";
-import { SheetForm } from "~/components/system/SheetForm";
-import { StatusText } from "~/components/system/status";
 import { inLocale } from "~/hooks/useCurrentUser";
 import { useDocumentMedia } from "~/hooks/useDocumentMedia";
 import * as m from "~/i18n/messages";

@@ -7,6 +7,40 @@ present documents. Where those sources disagree, the rule says which one we
 follow and why. A screen that needs something these rules do not cover extends
 this document first.
 
+## Where the components live
+
+Every rule below is implemented once, in `packages/ui/src/system/`, and
+both the school portal (`apps/web`) and the operator console (`apps/ops`)
+build their screens from it. A screen never re-creates one of these with
+its own markup; when a screen needs something the package lacks, the
+package gains it first, with a test and a line in this table.
+
+| Rule           | Module                                                                                                                 |
+| -------------- | ---------------------------------------------------------------------------------------------------------------------- |
+| Shell          | `app-shell` (`AppShell`, `ShellBrand`, `ShellAccount`, `ThemeSubmenu`, breadcrumb steps), `page-actions`               |
+| Index page     | `page-header`, `index-toolbar`, `data-table`, `empty-state`                                                            |
+| Record page    | `record-page` (`RecordHeader`, `RecordTabs`, `RecordColumns`, `RecordSection`, `Facts`, `Fact`, `RecordList`), `value` |
+| Section sheets | `sheet-form` (edits), `sheet-panel` (reads)                                                                            |
+| Record form    | `record-form` (`RecordForm`, `FormSection`, danger zone), `unsaved-changes-guard`                                      |
+| Settings page  | `settings-section` (`SettingsPage`, `SettingsSection`, `SettingsGroup`)                                                |
+| Forms          | `form-field` (`FormField`, `TextField`, `SelectField`, `ChoiceField`, `FieldError`), `combobox-field`                  |
+| Status         | `status` (`StatusBadge`, `StatusText`, `toneSurface`)                                                                  |
+| Feedback       | `action-menu` (`ActionMenu`, `useRunAndReport`), `confirm-dialog`, `dialog`                                            |
+| Side panels    | `panel` (`PanelGroup`, `Segmented`)                                                                                    |
+
+The package says nothing in a language of its own. Each app wraps its pages
+in `DesignSystemProvider` with a `DesignSystemValue`: the strings the
+components say (`SystemStrings`), the reading direction, how numbers are
+written, and how an error or a validation issue reads. The portal builds
+it from its message catalogue (`components/app/design-system.ts`); the
+console, which is English only, passes `ENGLISH` from
+`@faridalms/ui/system/english`. Component tests render through
+`renderWithSystem` from `@faridalms/ui/system/testing`.
+
+Every component's props are a named, exported interface beside it
+(`RecordSectionProps`, `DataTableProps`), never an inline object type, so
+a screen can see what it may pass and a reviewer can see what changed.
+
 ## Principles
 
 - **One accent.** Teal marks the primary action, links, focus and selection.

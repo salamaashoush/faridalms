@@ -11,13 +11,14 @@ import {
 import { addDays, shiftMonth } from "@faridalms/domain/school";
 import { cn } from "@faridalms/ui/cn";
 import { Input } from "@faridalms/ui/input";
+import { ButtonLink } from "@faridalms/ui/system/button-link";
+import { PageHeader } from "@faridalms/ui/system/page-header";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@faridalms/ui/tabs";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { createFileRoute, stripSearchParams } from "@tanstack/react-router";
 import { ChevronLeft, ChevronRight, Plus } from "lucide-react";
 import * as v from "valibot";
 
-import { ButtonLink } from "~/components/app/ButtonLink";
 import { EventSheet } from "~/components/calendar/EventSheet";
 import { CATEGORY_LABEL } from "~/components/calendar/format";
 import { KindFilter } from "~/components/calendar/KindFilter";
@@ -31,7 +32,6 @@ import {
   MoveHint,
   WeekGrid,
 } from "~/components/calendar/views";
-import { PageHeader } from "~/components/system/IndexPage";
 import { inLocale, useCurrentUser } from "~/hooks/useCurrentUser";
 import * as m from "~/i18n/messages";
 import { calendarEventQuery, calendarRangeQuery } from "~/queries/calendar";

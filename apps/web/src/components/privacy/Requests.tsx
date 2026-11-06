@@ -4,25 +4,28 @@ import type {
   RequestOutcome,
   RequestRelation,
 } from "@faridalms/domain/privacy";
+import type { Column, RowAction } from "@faridalms/ui/system/data-table";
+import type { Tone } from "@faridalms/ui/system/status";
 
 import { hasClock } from "@faridalms/domain/privacy";
 import { Button } from "@faridalms/ui/button";
+import { ComboboxField } from "@faridalms/ui/system/combobox-field";
+import { DataTable } from "@faridalms/ui/system/data-table";
+import {
+  FormField,
+  SelectField,
+  TextField,
+} from "@faridalms/ui/system/form-field";
+import { Fact, Facts } from "@faridalms/ui/system/record-page";
+import { SheetForm } from "@faridalms/ui/system/sheet-form";
+import { StatusText } from "@faridalms/ui/system/status";
 import { Textarea } from "@faridalms/ui/textarea";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { CalendarPlus, CircleCheck, FileText, Pencil } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 
-import type { Column, RowAction } from "~/components/system/DataTable";
-import type { Tone } from "~/components/system/status";
-
 import { displayName } from "~/components/people/format";
-import { ComboboxField } from "~/components/system/ComboboxField";
-import { DataTable } from "~/components/system/DataTable";
-import { FormField, SelectField, TextField } from "~/components/system/field";
-import { Fact, Facts } from "~/components/system/RecordPage";
-import { SheetForm } from "~/components/system/SheetForm";
-import { StatusText } from "~/components/system/status";
 import { UserText } from "~/components/system/UserText";
 import * as m from "~/i18n/messages";
 import { closeRequest, extendRequest, saveRequest } from "~/server/privacy";

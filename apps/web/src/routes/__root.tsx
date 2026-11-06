@@ -1,9 +1,9 @@
 import type { QueryClient } from "@tanstack/react-query";
 import type { ReactNode } from "react";
 
-import { DirectionProvider } from "@base-ui/react/direction-provider";
 import { MathDigits } from "@faridalms/editor/math-digits";
 import { Toaster } from "@faridalms/ui/sonner";
+import { DesignSystemProvider } from "@faridalms/ui/system/provider";
 import {
   createRootRouteWithContext,
   HeadContent,
@@ -14,6 +14,7 @@ import { ThemeProvider } from "next-themes";
 
 import type { AuthState } from "~/server/auth";
 
+import { portalDesignSystem } from "~/components/app/design-system";
 import * as m from "~/i18n/messages";
 import { getLocale, getTextDirection } from "~/i18n/runtime";
 import { currentUserQuery } from "~/queries/user";
@@ -107,14 +108,12 @@ function RootDocument({ children }: RootDocumentProps) {
       </head>
       <body>
         <ThemeProvider attribute="class" enableColorScheme enableSystem>
-          {/* Base UI reads direction from this context, not from the page, for
-              arrow keys in tabs, menus and radios and for popup alignment. */}
-          <DirectionProvider direction={direction}>
+          <DesignSystemProvider value={portalDesignSystem()}>
             <MathDigits value={digits()}>
               {children}
               <Toaster position="top-center" />
             </MathDigits>
-          </DirectionProvider>
+          </DesignSystemProvider>
         </ThemeProvider>
         <Scripts />
       </body>

@@ -1,14 +1,13 @@
 import type { Urgency } from "@faridalms/domain/announcements";
+import type { Column } from "@faridalms/ui/system/data-table";
 
 import { cn } from "@faridalms/ui/cn";
+import { DataTable, RowLink } from "@faridalms/ui/system/data-table";
+import { StatusBadge, StatusText } from "@faridalms/ui/system/status";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { CircleCheck, Pin } from "lucide-react";
 
-import type { Column } from "~/components/system/DataTable";
-
-import { DataTable, RowLink } from "~/components/system/DataTable";
-import { StatusBadge, StatusText } from "~/components/system/status";
 import { inLocale } from "~/hooks/useCurrentUser";
 import * as m from "~/i18n/messages";
 import { managedAnnouncementsQuery } from "~/queries/announcements";

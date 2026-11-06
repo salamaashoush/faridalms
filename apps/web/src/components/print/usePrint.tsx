@@ -1,12 +1,12 @@
 import type { ContentDocument } from "@faridalms/domain/content";
 import type { LessonBlock } from "@faridalms/domain/learning";
 import type { ContentLocale } from "@faridalms/domain/translations";
+import type { ActionItem } from "@faridalms/ui/system/action-menu";
 import type { ReactNode } from "react";
 
 import { Printer } from "lucide-react";
 import { useState } from "react";
 
-import type { ActionItem } from "~/components/system/ActionMenu";
 import type { Locale } from "~/i18n/runtime";
 
 import * as m from "~/i18n/messages";

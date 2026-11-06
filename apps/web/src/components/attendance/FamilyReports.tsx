@@ -3,10 +3,24 @@ import type {
   AbsenceReportStatus,
 } from "@faridalms/domain/attendance";
 import type { FileSummary } from "@faridalms/domain/file";
+import type { Tone } from "@faridalms/ui/system/status";
 
 import { ABSENCE_REPORT_KINDS } from "@faridalms/domain/attendance";
 import { Button } from "@faridalms/ui/button";
 import { RadioGroup, RadioGroupItem } from "@faridalms/ui/radio-group";
+import { ConfirmDialog } from "@faridalms/ui/system/confirm-dialog";
+import {
+  FormField,
+  SelectField,
+  TextField,
+} from "@faridalms/ui/system/form-field";
+import {
+  RecordEmpty,
+  RecordList,
+  RecordSection,
+} from "@faridalms/ui/system/record-page";
+import { SheetForm } from "@faridalms/ui/system/sheet-form";
+import { StatusText } from "@faridalms/ui/system/status";
 import { Textarea } from "@faridalms/ui/textarea";
 import {
   useMutation,
@@ -18,18 +32,7 @@ import { CalendarPlus, Paperclip, Undo2 } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 
-import type { Tone } from "~/components/system/status";
-
-import { ConfirmDialog } from "~/components/system/ConfirmDialog";
-import { FormField, SelectField, TextField } from "~/components/system/field";
 import { FileField } from "~/components/system/FileField";
-import {
-  RecordEmpty,
-  RecordList,
-  RecordSection,
-} from "~/components/system/RecordPage";
-import { SheetForm } from "~/components/system/SheetForm";
-import { StatusText } from "~/components/system/status";
 import { inLocale } from "~/hooks/useCurrentUser";
 import * as m from "~/i18n/messages";
 import { myAbsenceReportsQuery } from "~/queries/attendance";

@@ -1,0 +1,10 @@
+/* Rules the design system's shell needs beyond its utility classes. */
+
+/* A page that puts its own actions in the top bar takes the room the global
+   tools held there on phones; search, notifications and language stay one
+   step away on every other page. A record's phone menu sits beside them
+   instead, so the bell stays. */
+header:has([data-slot="page-actions"] > :not([data-keeps-global-tools]))
+  [data-slot="global-tools"] {
+  display: none;
+}

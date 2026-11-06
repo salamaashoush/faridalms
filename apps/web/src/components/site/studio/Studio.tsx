@@ -31,6 +31,10 @@ import {
   SheetHeader,
   SheetTitle,
 } from "@faridalms/ui/sheet";
+import { ButtonLink } from "@faridalms/ui/system/button-link";
+import { Segmented } from "@faridalms/ui/system/panel";
+import { StatusBadge } from "@faridalms/ui/system/status";
+import { UnsavedChangesGuard } from "@faridalms/ui/system/unsaved-changes-guard";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
 import {
@@ -64,8 +68,6 @@ import { toast } from "sonner";
 
 import type { siteOverviewQuery, sitePageQuery } from "~/queries/site";
 
-import { ButtonLink } from "~/components/app/ButtonLink";
-import { UnsavedChangesGuard } from "~/components/app/UnsavedChangesGuard";
 import { DocumentHistory } from "~/components/content/DocumentHistory";
 import { LOCALE_NAME } from "~/components/content/languages";
 import { usePicturePeople } from "~/components/files/PicturedPeople";
@@ -74,8 +76,6 @@ import {
   NotSaved,
   SaveIndicator,
 } from "~/components/system/DocumentPage";
-import { Segmented } from "~/components/system/panel";
-import { StatusBadge } from "~/components/system/status";
 import { useAutosave } from "~/hooks/useAutosave";
 import { useCurrentUser } from "~/hooks/useCurrentUser";
 import { useDocumentMedia } from "~/hooks/useDocumentMedia";

@@ -3,6 +3,8 @@ import type { ReactNode, Ref } from "react";
 import { fullName, saveStudentSchema } from "@faridalms/domain/people";
 import { Button } from "@faridalms/ui/button";
 import { RadioGroup, RadioGroupItem } from "@faridalms/ui/radio-group";
+import { SelectField, TextField } from "@faridalms/ui/system/form-field";
+import { FormSection, RecordForm } from "@faridalms/ui/system/record-form";
 import {
   useMutation,
   useQueryClient,
@@ -13,8 +15,6 @@ import { Plus, TriangleAlert, X } from "lucide-react";
 import { useEffect, useId, useRef, useState } from "react";
 import { toast } from "sonner";
 
-import { SelectField, TextField } from "~/components/system/field";
-import { FormSection, RecordForm } from "~/components/system/RecordForm";
 import * as m from "~/i18n/messages";
 import { peopleOptionsQuery, studentRecordQuery } from "~/queries/students";
 import {

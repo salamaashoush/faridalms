@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 
-import { Button } from "@faridalms/ui/button";
+import { Button } from "../button";
 import {
   Sheet,
   SheetClose,
@@ -8,11 +8,26 @@ import {
   SheetFooter,
   SheetHeader,
   SheetTitle,
-} from "@faridalms/ui/sheet";
+} from "../sheet";
 import { CircleAlert, LoaderCircle, X } from "lucide-react";
 
-import * as m from "~/i18n/messages";
-import { getLocale, getTextDirection } from "~/i18n/runtime";
+import { useEndSide, useSystemStrings } from "./provider";
+
+export interface SheetFormProps {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  title: string;
+  onSubmit: () => void | Promise<unknown>;
+  pending?: boolean;
+  error?: string | null;
+  /** Save, unless the submit does something more particular. */
+  submitLabel?: string;
+  /** The submit destroys something, so it takes the destructive colour. */
+  destructive?: boolean;
+  /** What happened to what is written so far, as a sheet that keeps a draft says. */
+  status?: string | null;
+  children: ReactNode;
+}
 
 /**
  * Edits one section of a record in a panel from the end side. Save and Cancel
@@ -27,25 +42,13 @@ export function SheetForm({
   onSubmit,
   pending = false,
   error,
-  submitLabel = m.commonSave(),
+  submitLabel,
   destructive = false,
   status,
   children,
-}: {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-  title: string;
-  onSubmit: () => void | Promise<unknown>;
-  pending?: boolean;
-  error?: string | null;
-  submitLabel?: string;
-  /** The submit destroys something, so it takes the destructive colour. */
-  destructive?: boolean;
-  /** What happened to what is written so far, as a sheet that keeps a draft says. */
-  status?: string | null;
-  children: ReactNode;
-}) {
-  const side = getTextDirection(getLocale()) === "rtl" ? "left" : "right";
+}: SheetFormProps) {
+  const strings = useSystemStrings();
+  const side = useEndSide();
   return (
     <Sheet
       open={open}
@@ -102,7 +105,7 @@ export function SheetForm({
               {pending ? (
                 <LoaderCircle className="animate-spin" aria-hidden />
               ) : null}
-              {submitLabel}
+              {submitLabel ?? strings.save}
             </Button>
             <Button
               type="button"
@@ -111,7 +114,7 @@ export function SheetForm({
               disabled={pending}
               onClick={() => onOpenChange(false)}
             >
-              {m.commonCancel()}
+              {strings.cancel}
             </Button>
             {status ? (
               <span
@@ -133,7 +136,7 @@ export function SheetForm({
               type="button"
               variant="ghost"
               size="icon-sm"
-              aria-label={m.commonClose()}
+              aria-label={strings.close}
               className="absolute end-4 top-3 max-md:top-2 max-md:size-10"
             />
           }

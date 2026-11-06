@@ -1,4 +1,5 @@
 import type { CasePackage } from "@faridalms/domain/standards";
+import type { ActionItem } from "@faridalms/ui/system/action-menu";
 
 import { EYFS_GOALS } from "@faridalms/domain/early-goals";
 import { IB_CONCEPTS } from "@faridalms/domain/ib-concepts";
@@ -12,6 +13,12 @@ import {
   MAX_STANDARD_STATEMENT,
 } from "@faridalms/domain/standards";
 import { Button } from "@faridalms/ui/button";
+import { ActionMenu } from "@faridalms/ui/system/action-menu";
+import { ComboboxField } from "@faridalms/ui/system/combobox-field";
+import { FilteredEmptyState } from "@faridalms/ui/system/empty-state";
+import { FormField, TextField } from "@faridalms/ui/system/form-field";
+import { IndexToolbar } from "@faridalms/ui/system/index-toolbar";
+import { SheetForm } from "@faridalms/ui/system/sheet-form";
 import { Textarea } from "@faridalms/ui/textarea";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import {
@@ -26,18 +33,9 @@ import { useMemo, useState } from "react";
 import { toast } from "sonner";
 import * as v from "valibot";
 
-import type { ActionItem } from "~/components/system/ActionMenu";
 import type { frameworkQuery } from "~/queries/standards";
 
 import { CheckboxRow } from "~/components/people/fields";
-import { ActionMenu } from "~/components/system/ActionMenu";
-import { ComboboxField } from "~/components/system/ComboboxField";
-import { FormField, TextField } from "~/components/system/field";
-import {
-  FilteredEmptyState,
-  IndexToolbar,
-} from "~/components/system/IndexPage";
-import { SheetForm } from "~/components/system/SheetForm";
 import * as m from "~/i18n/messages";
 import {
   importCase,

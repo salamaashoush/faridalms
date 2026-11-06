@@ -1,25 +1,22 @@
 import type { ManageNewsQuery, NewsListQuery } from "@faridalms/domain/news";
+import type { SortDirection } from "@faridalms/ui/system/data-table";
 
 import { NEWS_SORTS, NEWS_TABS } from "@faridalms/domain/news";
 import { pageField } from "@faridalms/domain/paging";
+import { Pagination, ViewMenu } from "@faridalms/ui/system/data-table";
+import { EmptyState } from "@faridalms/ui/system/empty-state";
+import { IndexToolbar } from "@faridalms/ui/system/index-toolbar";
+import { PageHeader } from "@faridalms/ui/system/page-header";
+import { RecordTabs } from "@faridalms/ui/system/record-page";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { createFileRoute, stripSearchParams } from "@tanstack/react-router";
 import { Newspaper, Plus } from "lucide-react";
 import * as v from "valibot";
 
-import type { SortDirection } from "~/components/system/DataTable";
-
 import {
   BroadcastItem,
   ManagedBroadcasts,
 } from "~/components/broadcasts/BroadcastLists";
-import { Pagination, ViewMenu } from "~/components/system/DataTable";
-import {
-  EmptyState,
-  IndexToolbar,
-  PageHeader,
-} from "~/components/system/IndexPage";
-import { RecordTabs } from "~/components/system/RecordPage";
 import { inLocale, useCurrentUser } from "~/hooks/useCurrentUser";
 import * as m from "~/i18n/messages";
 import { getLocale } from "~/i18n/runtime";

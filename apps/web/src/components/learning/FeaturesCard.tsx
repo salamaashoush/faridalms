@@ -3,6 +3,8 @@ import type { ModuleId, SwitchedModule } from "@faridalms/domain/modules";
 import { MODULE_IDS, SWITCHED_MODULES } from "@faridalms/domain/modules";
 import { Button } from "@faridalms/ui/button";
 import { Checkbox } from "@faridalms/ui/checkbox";
+import { SettingsSection } from "@faridalms/ui/system/settings-section";
+import { StatusText } from "@faridalms/ui/system/status";
 import {
   useMutation,
   useQueryClient,
@@ -10,8 +12,6 @@ import {
 } from "@tanstack/react-query";
 import { useState } from "react";
 
-import { SettingsSection } from "~/components/system/SettingsSection";
-import { StatusText } from "~/components/system/status";
 import { useCurrentUser } from "~/hooks/useCurrentUser";
 import * as m from "~/i18n/messages";
 import { schoolFeaturesQuery } from "~/queries/school-settings";

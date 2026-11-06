@@ -1,13 +1,13 @@
 import type { ContentDocument } from "@faridalms/domain/content";
 
 import { LETTER_FIELDS } from "@faridalms/domain/admissions";
+import { BreadcrumbCurrent } from "@faridalms/ui/system/app-shell";
+import { UnsavedChangesGuard } from "@faridalms/ui/system/unsaved-changes-guard";
 import { useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 import { useRef, useState } from "react";
 import * as v from "valibot";
 
-import { UnsavedChangesGuard } from "~/components/app/UnsavedChangesGuard";
-import { BreadcrumbCurrent } from "~/components/app/WorkspaceBreadcrumb";
 import { ContentEditor } from "~/components/content/ContentEditor";
 import {
   DetailsPanel,

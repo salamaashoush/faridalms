@@ -1,4 +1,6 @@
 import { Button } from "@faridalms/ui/button";
+import { ComboboxField } from "@faridalms/ui/system/combobox-field";
+import { SheetForm } from "@faridalms/ui/system/sheet-form";
 import {
   useInfiniteQuery,
   useMutation,
@@ -9,8 +11,6 @@ import { useState } from "react";
 
 import type { threadQuery } from "~/queries/messages";
 
-import { ComboboxField } from "~/components/system/ComboboxField";
-import { SheetForm } from "~/components/system/SheetForm";
 import { useCurrentUser } from "~/hooks/useCurrentUser";
 import * as m from "~/i18n/messages";
 import { messageRecipientsQuery } from "~/queries/messages";

@@ -4,15 +4,15 @@ import type { PracticeAnswer } from "@faridalms/domain/practice";
 import { allWithoutVowelMarks } from "@faridalms/domain/arabic";
 import { bandFor } from "@faridalms/domain/learning";
 import { Button } from "@faridalms/ui/button";
+import { ButtonLink } from "@faridalms/ui/system/button-link";
+import { EmptyState } from "@faridalms/ui/system/empty-state";
+import { RecordHeader } from "@faridalms/ui/system/record-page";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { Shuffle } from "lucide-react";
 import { useMemo, useState } from "react";
 
-import { ButtonLink } from "~/components/app/ButtonLink";
-import { EmptyState } from "~/components/system/IndexPage";
-import { RecordHeader } from "~/components/system/RecordPage";
 import { useCurrentUser } from "~/hooks/useCurrentUser";
 import * as m from "~/i18n/messages";
 import { practiceSetQuery } from "~/queries/learning";

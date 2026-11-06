@@ -1,7 +1,20 @@
 import type { StudentDirectoryQuery } from "@faridalms/domain/people";
+import type { Column, RowAction } from "@faridalms/ui/system/data-table";
+import type {
+  Facet,
+  IndexToolbarProps,
+} from "@faridalms/ui/system/index-toolbar";
+import type { HeaderAction } from "@faridalms/ui/system/page-header";
 
 import { PAGE_SIZES } from "@faridalms/domain/paging";
 import { studentDirectorySchema } from "@faridalms/domain/people";
+import { ButtonLink } from "@faridalms/ui/system/button-link";
+import { DataTable, RowLink } from "@faridalms/ui/system/data-table";
+import { EmptyState } from "@faridalms/ui/system/empty-state";
+import { isFiltered } from "@faridalms/ui/system/index-toolbar";
+import { PageHeader } from "@faridalms/ui/system/page-header";
+import { StatusText } from "@faridalms/ui/system/status";
+import { Value } from "@faridalms/ui/system/value";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { createFileRoute, stripSearchParams } from "@tanstack/react-router";
 import {
@@ -20,16 +33,7 @@ import { useState } from "react";
 import { toast } from "sonner";
 import * as v from "valibot";
 
-import type { Column, RowAction } from "~/components/system/DataTable";
-import type {
-  Facet,
-  HeaderAction,
-  IndexToolbarProps,
-} from "~/components/system/IndexPage";
-
 import { PersonAvatar } from "~/components/admin/PersonAvatar";
-import { ButtonLink } from "~/components/app/ButtonLink";
-import { Value } from "~/components/app/primitives";
 import { MoveManySheet } from "~/components/classes/Enrolment";
 import { NewMessage } from "~/components/messages/NewMessage";
 import { CreateSignIns } from "~/components/people/CreateSignIns";
@@ -42,13 +46,6 @@ import {
   STATUS_TONE,
 } from "~/components/people/format";
 import { LeaveSchool } from "~/components/people/LeaveSchool";
-import { DataTable, RowLink } from "~/components/system/DataTable";
-import {
-  EmptyState,
-  PageHeader,
-  isFiltered,
-} from "~/components/system/IndexPage";
-import { StatusText } from "~/components/system/status";
 import { inLocale, useCapability } from "~/hooks/useCurrentUser";
 import * as m from "~/i18n/messages";
 import { peopleOptionsQuery, studentsQuery } from "~/queries/students";

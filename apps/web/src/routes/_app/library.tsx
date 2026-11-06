@@ -1,8 +1,18 @@
+import type { Column, RowAction } from "@faridalms/ui/system/data-table";
+import type {
+  Facet,
+  IndexToolbarProps,
+} from "@faridalms/ui/system/index-toolbar";
+
 import {
   kindsWritten,
   TEMPLATE_AUTHORS,
   TEMPLATE_KINDS,
 } from "@faridalms/domain/templates";
+import { DataTable } from "@faridalms/ui/system/data-table";
+import { PageHeader } from "@faridalms/ui/system/page-header";
+import { RecordTabs } from "@faridalms/ui/system/record-page";
+import { StatusText } from "@faridalms/ui/system/status";
 import {
   useQuery,
   useQueryClient,
@@ -15,15 +25,9 @@ import { toast } from "sonner";
 import * as v from "valibot";
 
 import type { Piece } from "~/components/library/Library";
-import type { Column, RowAction } from "~/components/system/DataTable";
-import type { Facet, IndexToolbarProps } from "~/components/system/IndexPage";
 
 import { KIND_LABEL, PieceSheet } from "~/components/library/Library";
 import { labelOf } from "~/components/people/format";
-import { DataTable } from "~/components/system/DataTable";
-import { PageHeader } from "~/components/system/IndexPage";
-import { RecordTabs } from "~/components/system/RecordPage";
-import { StatusText } from "~/components/system/status";
 import { inLocale, useCurrentUser } from "~/hooks/useCurrentUser";
 import * as m from "~/i18n/messages";
 import { subjectsQuery } from "~/queries/classes";

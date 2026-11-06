@@ -1,3 +1,7 @@
+import type { HeaderAction } from "@faridalms/ui/system/page-header";
+
+import { PageHeader } from "@faridalms/ui/system/page-header";
+import { RecordTabs } from "@faridalms/ui/system/record-page";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 import { History, Plus, RefreshCcw } from "lucide-react";
@@ -10,7 +14,6 @@ import type {
 } from "~/components/exams/ExamSessions";
 import type { ProgrammeRow } from "~/components/grading/ProgrammesTab";
 import type { ScaleRow } from "~/components/grading/ScalesTab";
-import type { HeaderAction } from "~/components/system/IndexPage";
 
 import {
   CourseworkList,
@@ -36,8 +39,6 @@ import {
   ScaleSheet,
   ScalesTable,
 } from "~/components/grading/ScalesTab";
-import { PageHeader } from "~/components/system/IndexPage";
-import { RecordTabs } from "~/components/system/RecordPage";
 import * as m from "~/i18n/messages";
 import { courseworkListQuery, examOverviewQuery } from "~/queries/exams";
 import { gradingOverviewQuery } from "~/queries/grading";

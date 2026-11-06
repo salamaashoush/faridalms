@@ -1,5 +1,10 @@
 import type { ApplicationState } from "@faridalms/domain/admissions";
+import type { BatchAction, Column } from "@faridalms/ui/system/data-table";
 
+import { BreadcrumbCurrent } from "@faridalms/ui/system/app-shell";
+import { DataTable, RowLink } from "@faridalms/ui/system/data-table";
+import { RecordHeader, RecordTabs } from "@faridalms/ui/system/record-page";
+import { StatusText } from "@faridalms/ui/system/status";
 import { useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
 import { createFileRoute, stripSearchParams } from "@tanstack/react-router";
 import {
@@ -16,8 +21,6 @@ import { useState } from "react";
 import { toast } from "sonner";
 import * as v from "valibot";
 
-import type { BatchAction, Column } from "~/components/system/DataTable";
-
 import {
   APPLICATION_STATE_LABEL,
   APPLICATION_STATE_TONE,
@@ -25,10 +28,6 @@ import {
   PRIORITY_LABEL,
 } from "~/components/admissions/application-labels";
 import { DecideSheet } from "~/components/admissions/Decisions";
-import { BreadcrumbCurrent } from "~/components/app/WorkspaceBreadcrumb";
-import { DataTable, RowLink } from "~/components/system/DataTable";
-import { RecordHeader, RecordTabs } from "~/components/system/RecordPage";
-import { StatusText } from "~/components/system/status";
 import { inLocale } from "~/hooks/useCurrentUser";
 import * as m from "~/i18n/messages";
 import { boardQuery } from "~/queries/admissions";

@@ -7,14 +7,18 @@ import {
 } from "@faridalms/domain/admissions";
 import { QUESTION_KINDS } from "@faridalms/domain/enquiries";
 import { Button } from "@faridalms/ui/button";
+import {
+  FormField,
+  SelectField,
+  TextField,
+} from "@faridalms/ui/system/form-field";
+import { FormSection, RecordForm } from "@faridalms/ui/system/record-form";
 import { Textarea } from "@faridalms/ui/textarea";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { ArrowDown, ArrowUp, Plus, Trash2 } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 
-import { FormField, SelectField, TextField } from "~/components/system/field";
-import { FormSection, RecordForm } from "~/components/system/RecordForm";
 import * as m from "~/i18n/messages";
 import { publishForm, saveForm } from "~/server/admissions";
 import { getMessageFromError } from "~/utils/error";

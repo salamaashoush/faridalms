@@ -1,6 +1,26 @@
 import type { StudentWorkAction } from "@faridalms/domain/coursework";
+import type {
+  BatchAction,
+  Column,
+  RowAction,
+} from "@faridalms/ui/system/data-table";
+import type { HeaderFact, RecordTab } from "@faridalms/ui/system/record-page";
 
 import { cn } from "@faridalms/ui/cn";
+import { DataTable } from "@faridalms/ui/system/data-table";
+import { TextField } from "@faridalms/ui/system/form-field";
+import {
+  Fact,
+  Facts,
+  phoneLink,
+  RecordEmpty,
+  RecordHeader,
+  RecordTabs,
+} from "@faridalms/ui/system/record-page";
+import { SheetForm } from "@faridalms/ui/system/sheet-form";
+import { SheetPanel } from "@faridalms/ui/system/sheet-panel";
+import { StatusText } from "@faridalms/ui/system/status";
+import { Value } from "@faridalms/ui/system/value";
 import {
   useMutation,
   useQueryClient,
@@ -25,14 +45,6 @@ import {
 import { useContext, useState } from "react";
 import { toast } from "sonner";
 
-import type {
-  BatchAction,
-  Column,
-  RowAction,
-} from "~/components/system/DataTable";
-import type { HeaderFact, RecordTab } from "~/components/system/RecordPage";
-
-import { Value } from "~/components/app/primitives";
 import { ContentView } from "~/components/content/ContentView";
 import {
   CourseworkMarks,
@@ -40,23 +52,10 @@ import {
 } from "~/components/exams/Authentication";
 import { resultText } from "~/components/grading/format";
 import { usePrint } from "~/components/print/usePrint";
-import { DataTable } from "~/components/system/DataTable";
-import { TextField } from "~/components/system/field";
 import {
   ReaderWidthToggle,
   useReaderWidth,
 } from "~/components/system/ReaderWidth";
-import {
-  Fact,
-  Facts,
-  phoneLink,
-  RecordEmpty,
-  RecordHeader,
-  RecordTabs,
-} from "~/components/system/RecordPage";
-import { SheetForm } from "~/components/system/SheetForm";
-import { SheetPanel } from "~/components/system/SheetPanel";
-import { StatusText } from "~/components/system/status";
 import * as m from "~/i18n/messages";
 import { getLocale } from "~/i18n/runtime";
 import { assignmentRecordQuery } from "~/queries/coursework";

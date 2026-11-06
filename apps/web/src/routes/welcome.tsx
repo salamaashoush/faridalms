@@ -1,6 +1,8 @@
 import { INVITE_SECRET, MIN_PASSWORD } from "@faridalms/domain/first-sign-in";
 import { Button, buttonVariants } from "@faridalms/ui/button";
+import { Field, FieldGroup, FieldLabel } from "@faridalms/ui/field";
 import { Input } from "@faridalms/ui/input";
+import { FieldError } from "@faridalms/ui/system/form-field";
 import { useMutation } from "@tanstack/react-query";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
@@ -8,12 +10,6 @@ import { CircleCheck, Clock, LoaderCircle, TriangleAlert } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import * as v from "valibot";
 
-import {
-  Field,
-  FieldError,
-  FieldGroup,
-  FieldLabel,
-} from "~/components/app/field";
 import { AuthLayout } from "~/components/auth/AuthLayout";
 import { inLocale } from "~/hooks/useCurrentUser";
 import * as m from "~/i18n/messages";

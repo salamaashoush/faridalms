@@ -1,14 +1,14 @@
 import type { LearnerTab } from "@faridalms/domain/coursework";
 
 import { LEARNER_TABS } from "@faridalms/domain/coursework";
+import { PageHeader } from "@faridalms/ui/system/page-header";
+import { RecordTabs } from "@faridalms/ui/system/record-page";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 import { Download } from "lucide-react";
 import * as v from "valibot";
 
 import { ByDay, DONE, TO_DO } from "~/components/coursework/LearnerList";
-import { PageHeader } from "~/components/system/IndexPage";
-import { RecordTabs } from "~/components/system/RecordPage";
 import { useCurrentUser } from "~/hooks/useCurrentUser";
 import * as m from "~/i18n/messages";
 import { myCourseworkQuery } from "~/queries/coursework";

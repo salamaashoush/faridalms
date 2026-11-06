@@ -1,14 +1,14 @@
+import type { Column, RowAction } from "@faridalms/ui/system/data-table";
+import type { HeaderAction } from "@faridalms/ui/system/page-header";
+
+import { ButtonLink } from "@faridalms/ui/system/button-link";
+import { DataTable, RowLink } from "@faridalms/ui/system/data-table";
+import { PageHeader } from "@faridalms/ui/system/page-header";
+import { StatusText } from "@faridalms/ui/system/status";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { CalendarDays, Pencil, Plus } from "lucide-react";
 
-import type { Column, RowAction } from "~/components/system/DataTable";
-import type { HeaderAction } from "~/components/system/IndexPage";
-
-import { ButtonLink } from "~/components/app/ButtonLink";
-import { DataTable, RowLink } from "~/components/system/DataTable";
-import { PageHeader } from "~/components/system/IndexPage";
-import { StatusText } from "~/components/system/status";
 import {
   STANDING_LABEL,
   STANDING_TONE,

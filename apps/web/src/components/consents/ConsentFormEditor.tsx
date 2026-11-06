@@ -20,6 +20,8 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@faridalms/ui/dialog";
+import { SelectField } from "@faridalms/ui/system/form-field";
+import { SheetPanel } from "@faridalms/ui/system/sheet-panel";
 import { Tabs, TabsList, TabsTrigger } from "@faridalms/ui/tabs";
 import { useQueryClient } from "@tanstack/react-query";
 import { Send, Trash2 } from "lucide-react";
@@ -44,8 +46,6 @@ import {
   DetailsSection,
   DocumentPage,
 } from "~/components/system/DocumentPage";
-import { SelectField } from "~/components/system/field";
-import { SheetPanel } from "~/components/system/SheetPanel";
 import { useAutosave } from "~/hooks/useAutosave";
 import { inLocale } from "~/hooks/useCurrentUser";
 import * as m from "~/i18n/messages";

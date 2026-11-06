@@ -3,9 +3,9 @@ import type { ComponentProps, MouseEvent, ReactNode, Ref } from "react";
 
 import { Checkbox as CheckboxPrimitive } from "@base-ui/react/checkbox";
 import { PAGE_SIZES } from "@faridalms/domain/paging";
-import { Button } from "@faridalms/ui/button";
-import { Checkbox } from "@faridalms/ui/checkbox";
-import { cn } from "@faridalms/ui/cn";
+import { Button } from "../button";
+import { Checkbox } from "../checkbox";
+import { cn } from "../cn";
 import {
   DropdownMenu,
   DropdownMenuCheckboxItem,
@@ -16,15 +16,15 @@ import {
   DropdownMenuRadioItem,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from "@faridalms/ui/dropdown-menu";
+} from "../dropdown-menu";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@faridalms/ui/select";
-import { useIsMobile } from "@faridalms/ui/use-mobile";
+} from "../select";
+import { useIsMobile } from "../use-mobile";
 import { createLink } from "@tanstack/react-router";
 import {
   ArrowDown,
@@ -40,20 +40,21 @@ import {
 } from "lucide-react";
 import { useRef, useState } from "react";
 
-import * as m from "~/i18n/messages";
-import { formatNumber } from "~/utils/datetime";
+import type { ActionItem, Confirmation } from "./action-menu";
+import type { EmptyStateProps } from "./empty-state";
+import type { FieldOption } from "./form-field";
+import type { IndexToolbarProps } from "./index-toolbar";
 
-import type { ActionItem, Confirmation } from "./ActionMenu";
-import type { IndexToolbarProps } from "./IndexPage";
-
-import { ActionMenu, attempt, phoneMenuItem, runAndReport } from "./ActionMenu";
-import { ConfirmDialog } from "./ConfirmDialog";
 import {
-  EmptyState,
-  FilteredEmptyState,
-  IndexToolbar,
-  isFiltered,
-} from "./IndexPage";
+  ActionMenu,
+  phoneMenuItem,
+  useAttempt,
+  useRunAndReport,
+} from "./action-menu";
+import { ConfirmDialog } from "./confirm-dialog";
+import { EmptyState, FilteredEmptyState } from "./empty-state";
+import { IndexToolbar, isFiltered } from "./index-toolbar";
+import { useDesignSystem } from "./provider";
 
 export type SortDirection = "asc" | "desc";
 
@@ -61,23 +62,45 @@ export interface Column<T, S extends string = string> {
   id: string;
   header: string;
   cell: (row: T) => ReactNode;
+  /** The sort key this column orders by, when it can. */
   sort?: S;
+  /** The name column: it takes the free width and holds the row's link. */
   primary?: boolean;
   className?: string;
 }
 
+/** A row's action; at most one is pulled out of the menu with `inline`. */
 export type RowAction = ActionItem & { inline?: boolean };
 
-export type BatchAction<T> = {
+interface BatchActionBase<T> {
   label: string;
   icon?: LucideIcon;
   onSelect: (rows: T[]) => void | Promise<unknown>;
-} & (
-  | { destructive?: false; confirm?: (rows: T[]) => Confirmation }
-  | { destructive: true; confirm: (rows: T[]) => Confirmation }
-);
+}
 
-function RowAnchor({ className, children, ...props }: ComponentProps<"a">) {
+interface RegularBatchAction<T> extends BatchActionBase<T> {
+  destructive?: false;
+  confirm?: (rows: T[]) => Confirmation;
+}
+
+interface DestructiveBatchAction<T> extends BatchActionBase<T> {
+  destructive: true;
+  confirm: (rows: T[]) => Confirmation;
+}
+
+export type BatchAction<T> = RegularBatchAction<T> | DestructiveBatchAction<T>;
+
+/** How a row reads as a card on a phone. */
+export interface DataTableCard<T> {
+  leading?: (row: T) => ReactNode;
+  title: (row: T) => ReactNode;
+  status?: (row: T) => ReactNode;
+  fact?: (row: T) => ReactNode;
+}
+
+type RowAnchorProps = ComponentProps<"a">;
+
+function RowAnchor({ className, children, ...props }: RowAnchorProps) {
   return (
     <a
       {...props}
@@ -127,12 +150,16 @@ function followRowLink(event: MouseEvent<HTMLElement>) {
  * The vendored checkbox always draws a tick, which reads as "all selected"
  * when only some rows are; this one draws a dash for the mixed state.
  */
+interface SelectAllCheckboxProps extends CheckboxPrimitive.Root.Props {
+  ref?: Ref<HTMLElement>;
+}
+
 function SelectAllCheckbox({
   className,
   indeterminate,
   ref,
   ...props
-}: CheckboxPrimitive.Root.Props & { ref?: Ref<HTMLElement> }) {
+}: SelectAllCheckboxProps) {
   return (
     <CheckboxPrimitive.Root
       ref={ref}
@@ -151,13 +178,12 @@ function SelectAllCheckbox({
   );
 }
 
-function SortIcon({
-  active,
-  direction,
-}: {
+interface SortIconProps {
   active: boolean;
   direction: SortDirection;
-}) {
+}
+
+function SortIcon({ active, direction }: SortIconProps) {
   if (!active)
     return (
       <ChevronsUpDown
@@ -172,19 +198,28 @@ function SortIcon({
   );
 }
 
+/** A column the view menu can show or hide. */
+export interface ToggleableColumn {
+  id: string;
+  header: string;
+}
+
+export interface ViewMenuProps<S extends string> {
+  sort?: DataTableSort<S>;
+  sortOptions: FieldOption<S>[];
+  columns: ToggleableColumn[];
+  hidden: ReadonlySet<string>;
+  onToggle: (id: string, visible: boolean) => void;
+}
+
 export function ViewMenu<S extends string>({
   sort,
   sortOptions,
   columns,
   hidden,
   onToggle,
-}: {
-  sort?: DataTableSort<S>;
-  sortOptions: { value: S; label: string }[];
-  columns: { id: string; header: string }[];
-  hidden: ReadonlySet<string>;
-  onToggle: (id: string, visible: boolean) => void;
-}) {
+}: ViewMenuProps<S>) {
+  const { strings } = useDesignSystem();
   const isMobile = useIsMobile();
   const showColumns = !isMobile && columns.length > 0;
   if (!sort && !showColumns) return null;
@@ -197,18 +232,18 @@ export function ViewMenu<S extends string>({
             variant="outline"
             size="sm"
             className="max-md:size-10"
-            aria-label={m.indexView()}
+            aria-label={strings.view}
           />
         }
       >
         <SlidersHorizontal aria-hidden />
-        <span className="hidden md:inline">{m.indexView()}</span>
+        <span className="hidden md:inline">{strings.view}</span>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-auto min-w-52">
         {sort ? (
           <>
             <DropdownMenuGroup>
-              <DropdownMenuLabel>{m.indexSortBy()}</DropdownMenuLabel>
+              <DropdownMenuLabel>{strings.sortBy}</DropdownMenuLabel>
               <DropdownMenuRadioGroup
                 value={sort.value}
                 onValueChange={(next: string) => {
@@ -231,7 +266,7 @@ export function ViewMenu<S extends string>({
             </DropdownMenuGroup>
             <DropdownMenuSeparator />
             <DropdownMenuGroup>
-              <DropdownMenuLabel>{m.indexOrder()}</DropdownMenuLabel>
+              <DropdownMenuLabel>{strings.order}</DropdownMenuLabel>
               <DropdownMenuRadioGroup
                 value={sort.direction}
                 onValueChange={(next: string) =>
@@ -239,10 +274,10 @@ export function ViewMenu<S extends string>({
                 }
               >
                 <DropdownMenuRadioItem value="asc" className={phoneMenuItem}>
-                  {m.indexAscending()}
+                  {strings.ascending}
                 </DropdownMenuRadioItem>
                 <DropdownMenuRadioItem value="desc" className={phoneMenuItem}>
-                  {m.indexDescending()}
+                  {strings.descending}
                 </DropdownMenuRadioItem>
               </DropdownMenuRadioGroup>
             </DropdownMenuGroup>
@@ -251,7 +286,7 @@ export function ViewMenu<S extends string>({
         {sort && showColumns ? <DropdownMenuSeparator /> : null}
         {showColumns ? (
           <DropdownMenuGroup>
-            <DropdownMenuLabel>{m.managementColumns()}</DropdownMenuLabel>
+            <DropdownMenuLabel>{strings.columns}</DropdownMenuLabel>
             {columns.map((column) => (
               <DropdownMenuCheckboxItem
                 key={column.id}
@@ -269,15 +304,15 @@ export function ViewMenu<S extends string>({
   );
 }
 
-function BatchBar<T>({
-  rows,
-  actions,
-  onCancel,
-}: {
+interface BatchBarProps<T> {
   rows: T[];
   actions: BatchAction<T>[];
   onCancel: () => void;
-}) {
+}
+
+function BatchBar<T>({ rows, actions, onCancel }: BatchBarProps<T>) {
+  const { strings, formatNumber } = useDesignSystem();
+  const attempt = useAttempt();
   const [pending, setPending] = useState<BatchAction<T> | null>(null);
   const [confirming, setConfirming] = useState<BatchAction<T> | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -293,7 +328,7 @@ function BatchBar<T>({
   return (
     <div className="flex min-h-8 flex-wrap items-center gap-2 rounded-md bg-primary/8 ps-3 pe-1">
       <p className="me-2 text-sm font-medium tabular-nums">
-        {m.indexSelectedCount({ count: formatNumber(rows.length) })}
+        {strings.selectedCount(formatNumber(rows.length))}
       </p>
       {actions.map((action) => (
         <Button
@@ -333,7 +368,7 @@ function BatchBar<T>({
         className="ms-auto"
         onClick={onCancel}
       >
-        {m.commonCancel()}
+        {strings.cancel}
       </Button>
       {confirming && confirmation ? (
         <ConfirmDialog
@@ -351,13 +386,13 @@ function BatchBar<T>({
   );
 }
 
-function RowActions({
-  label,
-  actions,
-}: {
+interface RowActionsProps {
   label: string;
   actions: RowAction[];
-}) {
+}
+
+function RowActions({ label, actions }: RowActionsProps) {
+  const runAndReport = useRunAndReport();
   const inline = actions.find((action) => action.inline && !action.destructive);
   const rest = actions.filter((action) => action !== inline);
   return (
@@ -387,6 +422,7 @@ export function Pagination({
   onPage,
   onPageSize,
 }: DataTablePagination) {
+  const { strings, formatNumber } = useDesignSystem();
   const sizes = pageSizes.includes(pageSize)
     ? pageSizes
     : [...pageSizes, pageSize].toSorted((a, b) => a - b);
@@ -396,14 +432,14 @@ export function Pagination({
   }));
   return (
     <nav
-      aria-label={m.paginationLabel()}
+      aria-label={strings.pagination}
       className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2"
     >
       <p
         className="text-[13px] leading-[18px] text-muted-foreground"
         aria-live="polite"
       >
-        {m.paginationStatus({
+        {strings.pageStatus({
           page: formatNumber(page),
           pages: formatNumber(pages),
           total: formatNumber(total),
@@ -417,7 +453,7 @@ export function Pagination({
               className="text-[13px] leading-[18px] text-muted-foreground"
               aria-hidden
             >
-              {m.indexRowsPerPage()}
+              {strings.rowsPerPage}
             </span>
             <Select
               items={items}
@@ -429,7 +465,7 @@ export function Pagination({
             >
               <SelectTrigger
                 size="sm"
-                aria-label={m.indexRowsPerPage()}
+                aria-label={strings.rowsPerPage}
                 className="w-[4.5rem]"
               >
                 <SelectValue />
@@ -451,7 +487,7 @@ export function Pagination({
           className="max-md:size-10"
           disabled={page <= 1}
           onClick={() => onPage(page - 1)}
-          aria-label={m.paginationPrevious()}
+          aria-label={strings.pagePrevious}
         >
           <ChevronLeft className="rtl:-scale-x-100" aria-hidden />
         </Button>
@@ -462,7 +498,7 @@ export function Pagination({
           className="max-md:size-10"
           disabled={page >= pages}
           onClick={() => onPage(page + 1)}
-          aria-label={m.paginationNext()}
+          aria-label={strings.pageNext}
         >
           <ChevronRight className="rtl:-scale-x-100" aria-hidden />
         </Button>
@@ -494,6 +530,26 @@ const EMPTY = new Set<string>();
 // max-width 0 is what lets an auto-layout cell shrink below its content.
 const fillColumn = "w-full max-w-0 min-w-32";
 
+export interface DataTableProps<T extends { id: string }, S extends string> {
+  /** Names the table for screen readers, and the card list on phones. */
+  caption: string;
+  rows: T[];
+  columns: Column<T, S>[];
+  /** Names a row in its checkbox and its menu. */
+  rowLabel: (row: T) => string;
+  toolbar?: IndexToolbarProps;
+  sort?: DataTableSort<S>;
+  rowActions?: (row: T) => RowAction[];
+  batchActions?: BatchAction<T>[];
+  pagination?: DataTablePagination;
+  card: DataTableCard<T>;
+  empty: EmptyStateProps;
+}
+
+/**
+ * The index page's list: a table on wide screens and cards on phones, with
+ * its toolbar, sorting, row menus, batch actions and pagination.
+ */
 export function DataTable<T extends { id: string }, S extends string>({
   caption,
   rows,
@@ -506,29 +562,8 @@ export function DataTable<T extends { id: string }, S extends string>({
   pagination,
   card,
   empty,
-}: {
-  caption: string;
-  rows: T[];
-  columns: Column<T, S>[];
-  rowLabel: (row: T) => string;
-  toolbar?: IndexToolbarProps;
-  sort?: DataTableSort<S>;
-  rowActions?: (row: T) => RowAction[];
-  batchActions?: BatchAction<T>[];
-  pagination?: DataTablePagination;
-  card: {
-    leading?: (row: T) => ReactNode;
-    title: (row: T) => ReactNode;
-    status?: (row: T) => ReactNode;
-    fact?: (row: T) => ReactNode;
-  };
-  empty: {
-    icon?: LucideIcon;
-    title: string;
-    description?: string;
-    action?: ReactNode;
-  };
-}) {
+}: DataTableProps<T, S>) {
+  const { strings, formatNumber } = useDesignSystem();
   const [hidden, setHidden] = useState<ReadonlySet<string>>(EMPTY);
   // Selection belongs to the rows on screen: another page or filter starts
   // afresh, while a background refetch of the same rows keeps it.
@@ -583,7 +618,7 @@ export function DataTable<T extends { id: string }, S extends string>({
       {selectable ? (
         <p className="sr-only" aria-live="polite">
           {selectedRows.length
-            ? m.indexSelectedCount({ count: formatNumber(selectedRows.length) })
+            ? strings.selectedCount(formatNumber(selectedRows.length))
             : null}
         </p>
       ) : null}
@@ -617,7 +652,7 @@ export function DataTable<T extends { id: string }, S extends string>({
                       <th scope="col" className="h-10 w-10 min-w-10 ps-4 pe-0">
                         <SelectAllCheckbox
                           ref={selectAllRef}
-                          aria-label={m.indexSelectAll()}
+                          aria-label={strings.selectAll}
                           checked={allSelected}
                           indeterminate={
                             selectedRows.length > 0 && !allSelected
@@ -680,7 +715,7 @@ export function DataTable<T extends { id: string }, S extends string>({
                     })}
                     {rowActions ? (
                       <th scope="col" className="h-10 w-px pe-2">
-                        <span className="sr-only">{m.managementActions()}</span>
+                        <span className="sr-only">{strings.actions}</span>
                       </th>
                     ) : null}
                   </tr>
@@ -709,9 +744,7 @@ export function DataTable<T extends { id: string }, S extends string>({
                             }}
                           >
                             <Checkbox
-                              aria-label={m.indexSelectRow({
-                                name: rowLabel(row),
-                              })}
+                              aria-label={strings.selectRow(rowLabel(row))}
                               checked={isSelected}
                               onCheckedChange={(checked) =>
                                 toggle(row.id, checked)
@@ -734,9 +767,7 @@ export function DataTable<T extends { id: string }, S extends string>({
                         {rowActions ? (
                           <td data-row-control className="w-px py-0 ps-1 pe-2">
                             <RowActions
-                              label={m.indexRowActions({
-                                name: rowLabel(row),
-                              })}
+                              label={strings.rowActions(rowLabel(row))}
                               actions={rowActions(row)}
                             />
                           </td>
@@ -777,7 +808,7 @@ export function DataTable<T extends { id: string }, S extends string>({
                 ) : null}
                 {rowActions ? (
                   <ActionMenu
-                    label={m.indexRowActions({ name: rowLabel(row) })}
+                    label={strings.rowActions(rowLabel(row))}
                     actions={rowActions(row)}
                     size="icon-lg"
                     className="relative"

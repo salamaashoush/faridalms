@@ -1,4 +1,7 @@
 import { cn } from "@faridalms/ui/cn";
+import { EmptyState } from "@faridalms/ui/system/empty-state";
+import { PageHeader } from "@faridalms/ui/system/page-header";
+import { phoneLink, RecordSection } from "@faridalms/ui/system/record-page";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import {
@@ -13,8 +16,6 @@ import {
 } from "lucide-react";
 
 import { displayName } from "~/components/people/format";
-import { EmptyState, PageHeader } from "~/components/system/IndexPage";
-import { phoneLink, RecordSection } from "~/components/system/RecordPage";
 import { inLocale, useCurrentUser } from "~/hooks/useCurrentUser";
 import * as m from "~/i18n/messages";
 import { personRecordQuery } from "~/queries/students";

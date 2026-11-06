@@ -1,16 +1,16 @@
 import type { ReactNode } from "react";
 
 import { Button } from "@faridalms/ui/button";
+import { ButtonLink } from "@faridalms/ui/system/button-link";
+import { EmptyState } from "@faridalms/ui/system/empty-state";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { CalendarRange, CalendarX2, Printer } from "lucide-react";
 import { useEffect, useState, useTransition } from "react";
 import { createPortal } from "react-dom";
 
-import { ButtonLink } from "~/components/app/ButtonLink";
 import { Subscribe } from "~/components/calendar/Subscribe";
 import { classTitle } from "~/components/classes/format";
 import { PersonLink } from "~/components/people/PersonLink";
-import { EmptyState } from "~/components/system/IndexPage";
 import { inLocale, useCurrentUser } from "~/hooks/useCurrentUser";
 import * as m from "~/i18n/messages";
 import {

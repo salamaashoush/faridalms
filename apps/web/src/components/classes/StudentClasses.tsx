@@ -1,17 +1,17 @@
 import { Button } from "@faridalms/ui/button";
 import { cn } from "@faridalms/ui/cn";
-import { useSuspenseQuery } from "@tanstack/react-query";
-import { Link } from "@tanstack/react-router";
-import { ArrowRightLeft, UserMinus } from "lucide-react";
-import { useState } from "react";
-
 import {
   phoneLink,
   RecordEmpty,
   RecordList,
   RecordSection,
-} from "~/components/system/RecordPage";
-import { StatusText } from "~/components/system/status";
+} from "@faridalms/ui/system/record-page";
+import { StatusText } from "@faridalms/ui/system/status";
+import { useSuspenseQuery } from "@tanstack/react-query";
+import { Link } from "@tanstack/react-router";
+import { ArrowRightLeft, UserMinus } from "lucide-react";
+import { useState } from "react";
+
 import { inLocale } from "~/hooks/useCurrentUser";
 import * as m from "~/i18n/messages";
 import { enrollmentHistoryQuery } from "~/queries/classes";

@@ -1,15 +1,14 @@
 import type { ReportQuery } from "@faridalms/domain/attendance";
+import type { Column } from "@faridalms/ui/system/data-table";
+import type { Facet } from "@faridalms/ui/system/index-toolbar";
 
 import { Button } from "@faridalms/ui/button";
+import { DataTable, RowLink } from "@faridalms/ui/system/data-table";
+import { StatusText } from "@faridalms/ui/system/status";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { Download, FileBarChart } from "lucide-react";
 
-import type { Column } from "~/components/system/DataTable";
-import type { Facet } from "~/components/system/IndexPage";
-
 import { classTitle } from "~/components/classes/format";
-import { DataTable, RowLink } from "~/components/system/DataTable";
-import { StatusText } from "~/components/system/status";
 import { inLocale } from "~/hooks/useCurrentUser";
 import * as m from "~/i18n/messages";
 import { attendanceReportQuery } from "~/queries/attendance";

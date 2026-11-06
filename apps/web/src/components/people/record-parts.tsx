@@ -4,9 +4,6 @@ import type { ReactNode } from "react";
 import { Button } from "@faridalms/ui/button";
 import { cn } from "@faridalms/ui/cn";
 import { Skeleton } from "@faridalms/ui/skeleton";
-import { Suspense } from "react";
-
-import { Value } from "~/components/app/primitives";
 import {
   Fact,
   Facts,
@@ -14,8 +11,11 @@ import {
   RecordEmpty,
   RecordList,
   RecordSection,
-} from "~/components/system/RecordPage";
-import { StatusText } from "~/components/system/status";
+} from "@faridalms/ui/system/record-page";
+import { StatusText } from "@faridalms/ui/system/status";
+import { Value } from "@faridalms/ui/system/value";
+import { Suspense } from "react";
+
 import { inLocale } from "~/hooks/useCurrentUser";
 import * as m from "~/i18n/messages";
 import { auditActionLabel } from "~/utils/audit-actions";

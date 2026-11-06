@@ -1,4 +1,12 @@
 import { Button } from "@faridalms/ui/button";
+import { ConfirmDialog } from "@faridalms/ui/system/confirm-dialog";
+import { FormField, TextField } from "@faridalms/ui/system/form-field";
+import { RecordEmpty, RecordList } from "@faridalms/ui/system/record-page";
+import {
+  SettingsPage,
+  SettingsSection,
+} from "@faridalms/ui/system/settings-section";
+import { SheetForm } from "@faridalms/ui/system/sheet-form";
 import { Textarea } from "@faridalms/ui/textarea";
 import {
   useMutation,
@@ -11,14 +19,6 @@ import { useState } from "react";
 import { toast } from "sonner";
 
 import { CheckboxRow } from "~/components/people/fields";
-import { ConfirmDialog } from "~/components/system/ConfirmDialog";
-import { FormField, TextField } from "~/components/system/field";
-import { RecordEmpty, RecordList } from "~/components/system/RecordPage";
-import {
-  SettingsPage,
-  SettingsSection,
-} from "~/components/system/SettingsSection";
-import { SheetForm } from "~/components/system/SheetForm";
 import * as m from "~/i18n/messages";
 import { ltiToolsQuery } from "~/queries/lti";
 import { removeLtiTool, saveLtiTool } from "~/server/lti";

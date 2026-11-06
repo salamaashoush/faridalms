@@ -1,6 +1,9 @@
 import type { ContentLocale } from "@faridalms/domain/translations";
 
 import { Button } from "@faridalms/ui/button";
+import { EmptyState } from "@faridalms/ui/system/empty-state";
+import { RecordList, RecordSection } from "@faridalms/ui/system/record-page";
+import { StatusText } from "@faridalms/ui/system/status";
 import {
   useMutation,
   useQueryClient,
@@ -13,9 +16,6 @@ import { toast } from "sonner";
 import { shownIn, TranslatedView } from "~/components/content/TranslatedView";
 import { displayName } from "~/components/people/format";
 import { usePrint } from "~/components/print/usePrint";
-import { EmptyState } from "~/components/system/IndexPage";
-import { RecordList, RecordSection } from "~/components/system/RecordPage";
-import { StatusText } from "~/components/system/status";
 import { inLocale } from "~/hooks/useCurrentUser";
 import * as m from "~/i18n/messages";
 import { getLocale } from "~/i18n/runtime";

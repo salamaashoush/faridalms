@@ -9,12 +9,22 @@ interface Slots {
 }
 
 const SlotContext = createContext<Slots>({ leading: null, trailing: null });
-const SetSlotContext = createContext<{
+interface SlotSetters {
   leading: (element: HTMLElement | null) => void;
   trailing: (element: HTMLElement | null) => void;
-}>({ leading: () => undefined, trailing: () => undefined });
+}
 
-export function PageActionsProvider({ children }: { children: ReactNode }) {
+const SetSlotContext = createContext<SlotSetters>({
+  leading: () => undefined,
+  trailing: () => undefined,
+});
+
+export interface PageActionsProviderProps {
+  children: ReactNode;
+}
+
+/** Holds the top bar's two slots, which a page fills with PageActions. */
+export function PageActionsProvider({ children }: PageActionsProviderProps) {
   const [leading, setLeading] = useState<HTMLElement | null>(null);
   const [trailing, setTrailing] = useState<HTMLElement | null>(null);
   const [setters] = useState(() => ({
@@ -58,13 +68,13 @@ export function PageActionsSlot() {
  * One bar, no floating footer. The slots exist only in the browser, which
  * matches the editors' rule of staying disabled until hydrated.
  */
-export function PageActions({
-  leading,
-  children,
-}: {
+export interface PageActionsProps {
+  /** Before the breadcrumb, such as a way back. */
   leading?: ReactNode;
   children: ReactNode;
-}) {
+}
+
+export function PageActions({ leading, children }: PageActionsProps) {
   const slots = useContext(SlotContext);
   return (
     <>

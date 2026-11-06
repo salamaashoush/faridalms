@@ -1,10 +1,15 @@
 import type { NextYearIntention } from "@faridalms/domain/rollover";
+import type { Tone } from "@faridalms/ui/system/status";
 import type { LinkProps } from "@tanstack/react-router";
 
 import { NEXT_YEAR_INTENTIONS } from "@faridalms/domain/rollover";
 import { Button } from "@faridalms/ui/button";
 import { cn } from "@faridalms/ui/cn";
 import { RadioGroup, RadioGroupItem } from "@faridalms/ui/radio-group";
+import { EmptyState } from "@faridalms/ui/system/empty-state";
+import { PageHeader } from "@faridalms/ui/system/page-header";
+import { RecordColumns } from "@faridalms/ui/system/record-page";
+import { StatusText } from "@faridalms/ui/system/status";
 import { useMutation, useSuspenseQuery } from "@tanstack/react-query";
 import {
   createFileRoute,
@@ -16,8 +21,6 @@ import { House, LoaderCircle, Smile } from "lucide-react";
 import { useState } from "react";
 import * as v from "valibot";
 
-import type { Tone } from "~/components/system/status";
-
 import { classTitle } from "~/components/classes/format";
 import {
   HomeCard,
@@ -26,9 +29,6 @@ import {
   itemLink,
 } from "~/components/home/parts";
 import { displayName } from "~/components/people/format";
-import { EmptyState, PageHeader } from "~/components/system/IndexPage";
-import { RecordColumns } from "~/components/system/RecordPage";
-import { StatusText } from "~/components/system/status";
 import { inLocale } from "~/hooks/useCurrentUser";
 import { useSessionChange } from "~/hooks/useSessionChange";
 import * as m from "~/i18n/messages";

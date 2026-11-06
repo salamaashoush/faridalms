@@ -1,5 +1,11 @@
 import { WITHDRAW_REASONS } from "@faridalms/domain/admissions";
 import { Button, buttonVariants } from "@faridalms/ui/button";
+import { ActionMenu } from "@faridalms/ui/system/action-menu";
+import { ConfirmDialog } from "@faridalms/ui/system/confirm-dialog";
+import { EmptyState } from "@faridalms/ui/system/empty-state";
+import { PageHeader } from "@faridalms/ui/system/page-header";
+import { RecordSection } from "@faridalms/ui/system/record-page";
+import { StatusText } from "@faridalms/ui/system/status";
 import {
   useMutation,
   useQueryClient,
@@ -17,11 +23,6 @@ import {
 } from "~/components/admissions/application-labels";
 import { DocumentsStep } from "~/components/admissions/ApplicationForm";
 import { LetterDialog } from "~/components/admissions/Decisions";
-import { ActionMenu } from "~/components/system/ActionMenu";
-import { ConfirmDialog } from "~/components/system/ConfirmDialog";
-import { EmptyState, PageHeader } from "~/components/system/IndexPage";
-import { RecordSection } from "~/components/system/RecordPage";
-import { StatusText } from "~/components/system/status";
 import { inLocale } from "~/hooks/useCurrentUser";
 import * as m from "~/i18n/messages";
 import { draftQuery, myApplicationsQuery } from "~/queries/admissions";

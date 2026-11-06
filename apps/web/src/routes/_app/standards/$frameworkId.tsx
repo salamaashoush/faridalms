@@ -1,3 +1,5 @@
+import { BreadcrumbCurrent } from "@faridalms/ui/system/app-shell";
+import { RecordEmpty, RecordHeader } from "@faridalms/ui/system/record-page";
 import { useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { FileUp, Pencil, Plus, Trash2 } from "lucide-react";
@@ -5,7 +7,6 @@ import { useState } from "react";
 
 import type { StandardRow } from "~/components/standards/Standards";
 
-import { BreadcrumbCurrent } from "~/components/app/WorkspaceBreadcrumb";
 import {
   FrameworkSheet,
   ImportCaseSheet,
@@ -13,7 +14,6 @@ import {
   StandardSheet,
   StandardsTree,
 } from "~/components/standards/Standards";
-import { RecordEmpty, RecordHeader } from "~/components/system/RecordPage";
 import * as m from "~/i18n/messages";
 import { frameworkQuery } from "~/queries/standards";
 import { removeFramework } from "~/server/standards";

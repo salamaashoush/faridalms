@@ -1,8 +1,8 @@
+import { PageHeader } from "@faridalms/ui/system/page-header";
 import { createFileRoute, Link } from "@tanstack/react-router";
 
 import type { CardCell } from "~/components/timetable/Weeks";
 
-import { PageHeader } from "~/components/system/IndexPage";
 import { TeacherWeek } from "~/components/timetable/Weeks";
 import { useCurrentUser } from "~/hooks/useCurrentUser";
 import * as m from "~/i18n/messages";

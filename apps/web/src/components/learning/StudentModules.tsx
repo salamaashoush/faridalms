@@ -1,12 +1,8 @@
+import type { HeaderFact } from "@faridalms/ui/system/record-page";
+
 import { cn } from "@faridalms/ui/cn";
 import { Progress } from "@faridalms/ui/progress";
-import { useSuspenseQuery } from "@tanstack/react-query";
-import { Link, useNavigate } from "@tanstack/react-router";
-import { CircleCheck, Lock, Play, Shuffle } from "lucide-react";
-
-import type { HeaderFact } from "~/components/system/RecordPage";
-
-import { ButtonLink } from "~/components/app/ButtonLink";
+import { ButtonLink } from "@faridalms/ui/system/button-link";
 import {
   phoneLink,
   RecordColumns,
@@ -14,8 +10,12 @@ import {
   RecordHeader,
   RecordList,
   RecordSection,
-} from "~/components/system/RecordPage";
-import { StatusText } from "~/components/system/status";
+} from "@faridalms/ui/system/record-page";
+import { StatusText } from "@faridalms/ui/system/status";
+import { useSuspenseQuery } from "@tanstack/react-query";
+import { Link, useNavigate } from "@tanstack/react-router";
+import { CircleCheck, Lock, Play, Shuffle } from "lucide-react";
+
 import { inLocale } from "~/hooks/useCurrentUser";
 import * as m from "~/i18n/messages";
 import { moduleOutlineQuery, myModulesQuery } from "~/queries/learning";

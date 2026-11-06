@@ -1,6 +1,16 @@
 import { EXPIRY_WARNING_DAYS } from "@faridalms/domain/identifiers";
 import { addDays } from "@faridalms/domain/school";
 import { Button } from "@faridalms/ui/button";
+import { ActionMenu } from "@faridalms/ui/system/action-menu";
+import { ComboboxField } from "@faridalms/ui/system/combobox-field";
+import { SelectField, TextField } from "@faridalms/ui/system/form-field";
+import {
+  RecordEmpty,
+  RecordList,
+  RecordSection,
+} from "@faridalms/ui/system/record-page";
+import { SheetForm } from "@faridalms/ui/system/sheet-form";
+import { StatusText } from "@faridalms/ui/system/status";
 import {
   useMutation,
   useQueryClient,
@@ -10,16 +20,6 @@ import { Eye, EyeOff, Pencil, Plus, Trash2 } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 
-import { ActionMenu } from "~/components/system/ActionMenu";
-import { ComboboxField } from "~/components/system/ComboboxField";
-import { SelectField, TextField } from "~/components/system/field";
-import {
-  RecordEmpty,
-  RecordList,
-  RecordSection,
-} from "~/components/system/RecordPage";
-import { SheetForm } from "~/components/system/SheetForm";
-import { StatusText } from "~/components/system/status";
 import { inLocale } from "~/hooks/useCurrentUser";
 import * as m from "~/i18n/messages";
 import { identifiersQuery } from "~/queries/records";

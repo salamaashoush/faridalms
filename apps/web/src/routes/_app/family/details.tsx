@@ -1,3 +1,8 @@
+import { EmptyState } from "@faridalms/ui/system/empty-state";
+import { FormField } from "@faridalms/ui/system/form-field";
+import { PageHeader } from "@faridalms/ui/system/page-header";
+import { Fact, Facts, RecordSection } from "@faridalms/ui/system/record-page";
+import { SheetForm } from "@faridalms/ui/system/sheet-form";
 import { Textarea } from "@faridalms/ui/textarea";
 import { useMutation, useSuspenseQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
@@ -8,10 +13,6 @@ import * as v from "valibot";
 
 import { displayName, labelOf } from "~/components/people/format";
 import { ContactList } from "~/components/people/record-parts";
-import { FormField } from "~/components/system/field";
-import { EmptyState, PageHeader } from "~/components/system/IndexPage";
-import { Fact, Facts, RecordSection } from "~/components/system/RecordPage";
-import { SheetForm } from "~/components/system/SheetForm";
 import { inLocale, useCurrentUser } from "~/hooks/useCurrentUser";
 import * as m from "~/i18n/messages";
 import { childDetailsQuery } from "~/queries/home";

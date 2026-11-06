@@ -1,8 +1,25 @@
 import type { CheckStanding } from "@faridalms/domain/learning";
+import type { HeaderFact } from "@faridalms/ui/system/record-page";
 
 import { TextWithMath } from "@faridalms/editor/math";
 import { Button } from "@faridalms/ui/button";
 import { cn } from "@faridalms/ui/cn";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogTitle,
+} from "@faridalms/ui/system/dialog";
+import { SelectField } from "@faridalms/ui/system/form-field";
+import {
+  phoneLink,
+  RecordColumns,
+  RecordEmpty,
+  RecordHeader,
+  RecordList,
+  RecordSection,
+} from "@faridalms/ui/system/record-page";
 import {
   useMutation,
   useQueryClient,
@@ -22,27 +39,9 @@ import {
 import { useState } from "react";
 import { toast } from "sonner";
 
-import type { HeaderFact } from "~/components/system/RecordPage";
-
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogTitle,
-} from "~/components/app/dialog";
 import { classTitle } from "~/components/classes/format";
 import { CheckboxRow } from "~/components/people/fields";
 import { displayName } from "~/components/people/format";
-import { SelectField } from "~/components/system/field";
-import {
-  phoneLink,
-  RecordColumns,
-  RecordEmpty,
-  RecordHeader,
-  RecordList,
-  RecordSection,
-} from "~/components/system/RecordPage";
 import * as m from "~/i18n/messages";
 import { pacedQuery } from "~/queries/learning";
 import { endPaced, pace, startPaced } from "~/server/learning";

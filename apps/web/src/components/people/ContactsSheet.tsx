@@ -1,11 +1,11 @@
 import { shownContacts } from "@faridalms/domain/people";
+import { ComboboxField } from "@faridalms/ui/system/combobox-field";
+import { TextField } from "@faridalms/ui/system/form-field";
+import { SheetForm } from "@faridalms/ui/system/sheet-form";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { toast } from "sonner";
 
-import { ComboboxField } from "~/components/system/ComboboxField";
-import { TextField } from "~/components/system/field";
-import { SheetForm } from "~/components/system/SheetForm";
 import * as m from "~/i18n/messages";
 import { saveContacts } from "~/server/students";
 import { getMessageFromError } from "~/utils/error";

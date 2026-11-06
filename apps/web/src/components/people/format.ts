@@ -1,6 +1,5 @@
 import type { StudentStatus } from "@faridalms/domain/people";
-
-import type { Tone } from "~/components/system/status";
+import type { Tone } from "@faridalms/ui/system/status";
 
 import { inLocale } from "~/hooks/useCurrentUser";
 import * as m from "~/i18n/messages";

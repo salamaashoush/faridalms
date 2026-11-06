@@ -3,6 +3,10 @@ import type {
   EventKind,
   OfferAnswer,
 } from "@faridalms/domain/admissions";
+import type {
+  ActionItem,
+  PrimaryAction,
+} from "@faridalms/ui/system/action-menu";
 
 import { DECISIONS, EVENT_KINDS } from "@faridalms/domain/admissions";
 import { Button } from "@faridalms/ui/button";
@@ -13,6 +17,20 @@ import {
   DialogDescription,
   DialogTitle,
 } from "@faridalms/ui/dialog";
+import {
+  ChoiceField,
+  FormField,
+  SelectField,
+  TextField,
+} from "@faridalms/ui/system/form-field";
+import {
+  Fact,
+  Facts,
+  RecordEmpty,
+  RecordSection,
+} from "@faridalms/ui/system/record-page";
+import { SheetForm } from "@faridalms/ui/system/sheet-form";
+import { StatusText } from "@faridalms/ui/system/status";
 import { Textarea } from "@faridalms/ui/textarea";
 import {
   useMutation,
@@ -36,25 +54,9 @@ import {
 import { Suspense, useState } from "react";
 import { toast } from "sonner";
 
-import type { ActionItem } from "~/components/system/ActionMenu";
-import type { PrimaryAction } from "~/components/system/DocumentPage";
 import type { applicationQuery } from "~/queries/admissions";
 
 import { ContentView } from "~/components/content/ContentView";
-import {
-  ChoiceField,
-  FormField,
-  SelectField,
-  TextField,
-} from "~/components/system/field";
-import {
-  Fact,
-  Facts,
-  RecordEmpty,
-  RecordSection,
-} from "~/components/system/RecordPage";
-import { SheetForm } from "~/components/system/SheetForm";
-import { StatusText } from "~/components/system/status";
 import { inLocale } from "~/hooks/useCurrentUser";
 import * as m from "~/i18n/messages";
 import { attendeesQuery, letterQuery } from "~/queries/admissions";

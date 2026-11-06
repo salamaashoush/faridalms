@@ -1,6 +1,8 @@
 import type { ReactNode } from "react";
 
-import { Button } from "@faridalms/ui/button";
+import type { FieldIssue, FieldOption } from "./form-field";
+
+import { Button } from "../button";
 import {
   Combobox,
   ComboboxContent,
@@ -9,13 +11,34 @@ import {
   ComboboxItem,
   ComboboxList,
   ComboboxTrigger,
-} from "@faridalms/ui/combobox";
+} from "../combobox";
 
-import * as m from "~/i18n/messages";
+import { FormField } from "./form-field";
+import { useSystemStrings } from "./provider";
 
-import { FormField } from "./field";
+/** A further page of matches the server holds back. */
+export interface ComboboxMore {
+  label: string;
+  pending: boolean;
+  onMore: () => void;
+}
 
-type Issue = { message?: string } | string | undefined | null;
+export interface ComboboxFieldProps {
+  label: string;
+  hint?: ReactNode;
+  optional?: boolean;
+  clearable?: boolean;
+  errors?: FieldIssue[];
+  options: readonly FieldOption<string>[];
+  value: string[];
+  onChange: (value: string[]) => void;
+  multiple?: boolean;
+  search: string;
+  onSearchChange: (search: string) => void;
+  searchLabel?: string;
+  emptyLabel?: string;
+  more?: ComboboxMore;
+}
 
 /**
  * A picker for records too many to list in a select: the trigger shows the
@@ -39,23 +62,9 @@ export function ComboboxField({
   searchLabel,
   emptyLabel,
   more,
-}: {
-  label: string;
-  hint?: ReactNode;
-  optional?: boolean;
-  clearable?: boolean;
-  errors?: Issue[];
-  options: readonly { value: string; label: string }[];
-  value: string[];
-  onChange: (value: string[]) => void;
-  multiple?: boolean;
-  search: string;
-  onSearchChange: (search: string) => void;
-  searchLabel?: string;
-  emptyLabel?: string;
-  more?: { label: string; pending: boolean; onMore: () => void };
-}) {
-  const searchText = searchLabel ?? m.managementSearchFor({ label });
+}: ComboboxFieldProps) {
+  const strings = useSystemStrings();
+  const searchText = searchLabel ?? strings.searchFor(label);
   const names = new Map(options.map((option) => [option.value, option.label]));
   const shared = {
     items: options.map((option) => option.value),
@@ -65,7 +74,7 @@ export function ComboboxField({
     onInputValueChange: onSearchChange,
   };
   const chosen = value
-    .map((item) => names.get(item) ?? m.commonNotRecorded())
+    .map((item) => names.get(item) ?? strings.notRecorded)
     .join(", ");
   return (
     <FormField label={label} optional={optional} hint={hint} errors={errors}>
@@ -91,7 +100,7 @@ export function ComboboxField({
                     : "min-w-0 flex-1 truncate text-start text-muted-foreground"
                 }
               >
-                {chosen || (emptyLabel ?? m.managementChoose({ label }))}
+                {chosen || (emptyLabel ?? strings.choose(label))}
               </span>
             </ComboboxTrigger>
             {/* The vendored popup is 28px wider than its trigger, which makes
@@ -102,7 +111,7 @@ export function ComboboxField({
                 aria-label={searchText}
                 placeholder={searchText}
               />
-              <ComboboxEmpty>{m.managementNoMatches()}</ComboboxEmpty>
+              <ComboboxEmpty>{strings.noMatches}</ComboboxEmpty>
               <ComboboxList>
                 {(item: string) => (
                   <ComboboxItem
@@ -139,7 +148,7 @@ export function ComboboxField({
                     className="w-full justify-start max-md:h-10"
                     onClick={() => onChange([])}
                   >
-                    {m.commonClear()}
+                    {strings.clear}
                   </Button>
                 </div>
               ) : null}

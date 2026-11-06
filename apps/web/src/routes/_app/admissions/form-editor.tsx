@@ -1,9 +1,9 @@
+import { BreadcrumbCurrent } from "@faridalms/ui/system/app-shell";
 import { useQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 import * as v from "valibot";
 
 import { FormEditor } from "~/components/admissions/FormEditor";
-import { BreadcrumbCurrent } from "~/components/app/WorkspaceBreadcrumb";
 import * as m from "~/i18n/messages";
 import { formQuery } from "~/queries/admissions";
 import { currentUserQuery } from "~/queries/user";

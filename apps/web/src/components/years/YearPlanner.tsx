@@ -11,6 +11,7 @@ import { addDays, shiftMonth } from "@faridalms/domain/school";
 import { isoWeekday } from "@faridalms/domain/timetable";
 import { Button } from "@faridalms/ui/button";
 import { cn } from "@faridalms/ui/cn";
+import { SelectField, TextField } from "@faridalms/ui/system/form-field";
 import {
   useMutation,
   useQueryClient,
@@ -22,7 +23,6 @@ import { useState } from "react";
 import { toast } from "sonner";
 
 import { CheckboxRow } from "~/components/people/fields";
-import { SelectField, TextField } from "~/components/system/field";
 import { inLocale, useCurrentUser } from "~/hooks/useCurrentUser";
 import * as m from "~/i18n/messages";
 import { yearDaysQuery } from "~/queries/years";

@@ -19,6 +19,7 @@ import {
   SheetHeader,
   SheetTitle,
 } from "@faridalms/ui/sheet";
+import { PanelGroup, Segmented } from "@faridalms/ui/system/panel";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@faridalms/ui/tooltip";
 import { Printer, SlidersHorizontal, X } from "lucide-react";
 import { Fragment, useCallback, useId, useMemo, useRef, useState } from "react";
@@ -27,7 +28,6 @@ import type { Locale } from "~/i18n/runtime";
 
 import { ContentView, WholeDocument } from "~/components/content/ContentView";
 import { CheckboxRow } from "~/components/people/fields";
-import { PanelGroup, Segmented } from "~/components/system/panel";
 import { useCurrentUser } from "~/hooks/useCurrentUser";
 import { useMedia } from "~/hooks/useMedia";
 import * as m from "~/i18n/messages";

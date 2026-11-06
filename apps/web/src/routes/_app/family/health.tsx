@@ -2,6 +2,16 @@ import type { FamilyHealthKind } from "@faridalms/domain/people";
 
 import { FAMILY_HEALTH_KINDS } from "@faridalms/domain/people";
 import { Button } from "@faridalms/ui/button";
+import { ActionMenu } from "@faridalms/ui/system/action-menu";
+import { EmptyState } from "@faridalms/ui/system/empty-state";
+import { PageHeader } from "@faridalms/ui/system/page-header";
+import {
+  RecordColumns,
+  RecordEmpty,
+  RecordList,
+  RecordSection,
+} from "@faridalms/ui/system/record-page";
+import { StatusText } from "@faridalms/ui/system/status";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 import { HeartPulse, Pencil, Plus, Users } from "lucide-react";
@@ -20,16 +30,7 @@ import {
   valueLine,
 } from "~/components/health/labels";
 import { displayName, labelOf } from "~/components/people/format";
-import { ActionMenu } from "~/components/system/ActionMenu";
 import { FileList } from "~/components/system/FileList";
-import { EmptyState, PageHeader } from "~/components/system/IndexPage";
-import {
-  RecordColumns,
-  RecordEmpty,
-  RecordList,
-  RecordSection,
-} from "~/components/system/RecordPage";
-import { StatusText } from "~/components/system/status";
 import { useCurrentUser } from "~/hooks/useCurrentUser";
 import * as m from "~/i18n/messages";
 import { familyHealthQuery } from "~/queries/records";

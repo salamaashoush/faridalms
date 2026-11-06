@@ -1,12 +1,12 @@
 import { Button } from "@faridalms/ui/button";
 import { Skeleton } from "@faridalms/ui/skeleton";
+import { RecordEmpty, RecordSection } from "@faridalms/ui/system/record-page";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { MessageSquarePlus } from "lucide-react";
 import { Suspense } from "react";
 import { toast } from "sonner";
 
 import { Conversation } from "~/components/messages/Conversation";
-import { RecordEmpty, RecordSection } from "~/components/system/RecordPage";
 import * as m from "~/i18n/messages";
 import { openApplicationConversation } from "~/server/admissions";
 import { getMessageFromError } from "~/utils/error";

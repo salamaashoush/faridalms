@@ -1,4 +1,4 @@
-import type { Tone } from "~/components/system/status";
+import type { Tone } from "@faridalms/ui/system/status";
 
 import * as m from "~/i18n/messages";
 

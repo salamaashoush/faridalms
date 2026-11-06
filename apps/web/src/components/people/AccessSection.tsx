@@ -1,5 +1,14 @@
 import { addDays, spansOverlap } from "@faridalms/domain/school";
 import { Button } from "@faridalms/ui/button";
+import { ActionMenu } from "@faridalms/ui/system/action-menu";
+import { SelectField, TextField } from "@faridalms/ui/system/form-field";
+import {
+  RecordEmpty,
+  RecordList,
+  RecordSection,
+} from "@faridalms/ui/system/record-page";
+import { SheetForm } from "@faridalms/ui/system/sheet-form";
+import { StatusBadge } from "@faridalms/ui/system/status";
 import {
   useMutation,
   useQueryClient,
@@ -9,15 +18,6 @@ import { Plus, XCircle } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 
-import { ActionMenu } from "~/components/system/ActionMenu";
-import { SelectField, TextField } from "~/components/system/field";
-import {
-  RecordEmpty,
-  RecordList,
-  RecordSection,
-} from "~/components/system/RecordPage";
-import { SheetForm } from "~/components/system/SheetForm";
-import { StatusBadge } from "~/components/system/status";
 import { inLocale } from "~/hooks/useCurrentUser";
 import * as m from "~/i18n/messages";
 import { accessRolesQuery, personAccessQuery } from "~/queries/access";

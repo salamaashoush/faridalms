@@ -1,15 +1,15 @@
 import type { ErasureBasis } from "@faridalms/domain/privacy";
 
+import { ConfirmDialog } from "@faridalms/ui/system/confirm-dialog";
+import { SelectField, TextField } from "@faridalms/ui/system/form-field";
+import { RecordSection } from "@faridalms/ui/system/record-page";
+import { SheetForm } from "@faridalms/ui/system/sheet-form";
+import { StatusText } from "@faridalms/ui/system/status";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { toast } from "sonner";
 
 import { displayName } from "~/components/people/format";
-import { ConfirmDialog } from "~/components/system/ConfirmDialog";
-import { SelectField, TextField } from "~/components/system/field";
-import { RecordSection } from "~/components/system/RecordPage";
-import { SheetForm } from "~/components/system/SheetForm";
-import { StatusText } from "~/components/system/status";
 import { inLocale } from "~/hooks/useCurrentUser";
 import * as m from "~/i18n/messages";
 import { approveErasure, runErasure } from "~/server/privacy";

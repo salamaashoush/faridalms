@@ -5,6 +5,18 @@ import { PERIOD_KINDS, savePeriodsSchema } from "@faridalms/domain/timetable";
 import { Button } from "@faridalms/ui/button";
 import { Checkbox } from "@faridalms/ui/checkbox";
 import { cn } from "@faridalms/ui/cn";
+import { SelectField, TextField } from "@faridalms/ui/system/form-field";
+import {
+  Fact,
+  Facts,
+  phoneLink,
+  RecordColumns,
+  RecordEmpty,
+  RecordList,
+  RecordSection,
+} from "@faridalms/ui/system/record-page";
+import { SheetForm } from "@faridalms/ui/system/sheet-form";
+import { StatusText } from "@faridalms/ui/system/status";
 import {
   useMutation,
   useQueryClient,
@@ -16,18 +28,6 @@ import { useId, useRef, useState } from "react";
 import { toast } from "sonner";
 
 import { CheckboxRow } from "~/components/people/fields";
-import { SelectField, TextField } from "~/components/system/field";
-import {
-  Fact,
-  Facts,
-  phoneLink,
-  RecordColumns,
-  RecordEmpty,
-  RecordList,
-  RecordSection,
-} from "~/components/system/RecordPage";
-import { SheetForm } from "~/components/system/SheetForm";
-import { StatusText } from "~/components/system/status";
 import { inLocale } from "~/hooks/useCurrentUser";
 import * as m from "~/i18n/messages";
 import { yearPeriodsQuery } from "~/queries/years";

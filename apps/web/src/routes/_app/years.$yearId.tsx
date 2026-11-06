@@ -1,8 +1,8 @@
+import { BreadcrumbCurrent } from "@faridalms/ui/system/app-shell";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 import * as v from "valibot";
 
-import { BreadcrumbCurrent } from "~/components/app/WorkspaceBreadcrumb";
 import { yearTitle } from "~/components/years/format";
 import { YEAR_TABS, YearRecord } from "~/components/years/YearRecord";
 import { yearQuery, yearsQuery } from "~/queries/years";

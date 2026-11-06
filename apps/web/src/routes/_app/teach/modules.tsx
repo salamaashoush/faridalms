@@ -1,19 +1,22 @@
 import type { ModuleState } from "@faridalms/domain/learning";
+import type { Column, RowAction } from "@faridalms/ui/system/data-table";
+import type {
+  Facet,
+  IndexToolbarProps,
+} from "@faridalms/ui/system/index-toolbar";
+import type { HeaderAction } from "@faridalms/ui/system/page-header";
 
+import { ButtonLink } from "@faridalms/ui/system/button-link";
+import { DataTable, RowLink } from "@faridalms/ui/system/data-table";
+import { PageHeader } from "@faridalms/ui/system/page-header";
+import { RecordTabs } from "@faridalms/ui/system/record-page";
+import { StatusText } from "@faridalms/ui/system/status";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { createFileRoute, stripSearchParams } from "@tanstack/react-router";
 import { CalendarRange, Import, Layers, Pencil, Plus } from "lucide-react";
 import { useState } from "react";
 import * as v from "valibot";
 
-import type { Column, RowAction } from "~/components/system/DataTable";
-import type {
-  Facet,
-  HeaderAction,
-  IndexToolbarProps,
-} from "~/components/system/IndexPage";
-
-import { ButtonLink } from "~/components/app/ButtonLink";
 import { classTitle } from "~/components/classes/format";
 import { CartridgeImport } from "~/components/learning/CartridgeImport";
 import {
@@ -21,10 +24,6 @@ import {
   STATE_LABEL,
   STATE_TONE,
 } from "~/components/learning/format";
-import { DataTable, RowLink } from "~/components/system/DataTable";
-import { PageHeader } from "~/components/system/IndexPage";
-import { RecordTabs } from "~/components/system/RecordPage";
-import { StatusText } from "~/components/system/status";
 import * as m from "~/i18n/messages";
 import { teachingModulesQuery } from "~/queries/learning";
 import { formatNumber } from "~/utils/datetime";

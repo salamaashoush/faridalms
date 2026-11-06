@@ -2,6 +2,8 @@ import {
   absencesQuerySchema,
   reportQuerySchema,
 } from "@faridalms/domain/attendance";
+import { PageHeader } from "@faridalms/ui/system/page-header";
+import { RecordTabs } from "@faridalms/ui/system/record-page";
 import { createFileRoute, stripSearchParams } from "@tanstack/react-router";
 import { Settings } from "lucide-react";
 import * as v from "valibot";
@@ -12,8 +14,6 @@ import { FollowUp } from "~/components/attendance/FollowUp";
 import { FrontDesk } from "~/components/attendance/FrontDesk";
 import { Report } from "~/components/attendance/Report";
 import { ReportInbox } from "~/components/attendance/ReportInbox";
-import { PageHeader } from "~/components/system/IndexPage";
-import { RecordTabs } from "~/components/system/RecordPage";
 import * as m from "~/i18n/messages";
 import {
   absenceReportInboxQuery,

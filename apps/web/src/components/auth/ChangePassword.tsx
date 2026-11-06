@@ -1,10 +1,10 @@
 import { MIN_PASSWORD } from "@faridalms/domain/first-sign-in";
+import { TextField } from "@faridalms/ui/system/form-field";
+import { SheetForm } from "@faridalms/ui/system/sheet-form";
 import { useMutation } from "@tanstack/react-query";
 import { useState } from "react";
 import { toast } from "sonner";
 
-import { TextField } from "~/components/system/field";
-import { SheetForm } from "~/components/system/SheetForm";
 import * as m from "~/i18n/messages";
 import { changeOwnPassword } from "~/server/auth";
 import { getMessageFromError } from "~/utils/error";

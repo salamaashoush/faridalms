@@ -2,6 +2,9 @@ import type { Cartridge } from "@faridalms/domain/cartridge-read";
 
 import { readCartridge } from "@faridalms/domain/cartridge-read";
 import { unpackZip } from "@faridalms/editor/packages";
+import { ComboboxField } from "@faridalms/ui/system/combobox-field";
+import { FormField } from "@faridalms/ui/system/form-field";
+import { SheetForm } from "@faridalms/ui/system/sheet-form";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
@@ -10,9 +13,6 @@ import { toast } from "sonner";
 
 import { classTitle } from "~/components/classes/format";
 import { CheckboxRow } from "~/components/people/fields";
-import { ComboboxField } from "~/components/system/ComboboxField";
-import { FormField } from "~/components/system/field";
-import { SheetForm } from "~/components/system/SheetForm";
 import { uploadDocumentFile } from "~/hooks/useDocumentMedia";
 import * as m from "~/i18n/messages";
 import { availableToolsQuery } from "~/queries/lti";

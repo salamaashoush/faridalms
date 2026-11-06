@@ -1,58 +1,35 @@
+import type { Workspace } from "@faridalms/domain/workspace";
+import type {
+  ShellIsActive,
+  ShellNavSection,
+} from "@faridalms/ui/system/app-shell";
 import type { ReactNode } from "react";
 
 import { WORKSPACE_HOME } from "@faridalms/domain/workspace";
-import { Avatar, AvatarFallback, AvatarImage } from "@faridalms/ui/avatar";
-import { cn } from "@faridalms/ui/cn";
 import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuGroup,
   DropdownMenuItem,
-  DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuSub,
   DropdownMenuSubContent,
   DropdownMenuSubTrigger,
-  DropdownMenuTrigger,
 } from "@faridalms/ui/dropdown-menu";
 import {
-  Sheet,
-  SheetContent,
-  SheetDescription,
-  SheetTitle,
-} from "@faridalms/ui/sheet";
-import {
-  Sidebar,
-  SidebarContent,
-  SidebarFooter,
-  SidebarGroup,
-  SidebarGroupContent,
-  SidebarGroupLabel,
-  SidebarHeader,
-  SidebarInset,
-  SidebarMenu,
-  SidebarMenuButton,
-  SidebarMenuItem,
-  SidebarProvider,
-  SidebarTrigger,
-  useSidebar,
-} from "@faridalms/ui/sidebar";
+  AppShell,
+  ShellAccount,
+  ShellBrand,
+  ThemeSubmenu,
+} from "@faridalms/ui/system/app-shell";
+import { PageActionsProvider } from "@faridalms/ui/system/page-actions";
 import { Link, useRouteContext, useRouterState } from "@tanstack/react-router";
 import {
   Check,
-  ChevronsUpDown,
-  Ellipsis,
   GraduationCap,
   KeyRound,
   Languages,
   LogOut,
-  Monitor,
-  Moon,
   Settings2,
-  Sun,
   UserRound,
 } from "lucide-react";
-import { useTheme } from "next-themes";
 import { useCallback, useState } from "react";
 
 import type { NavItem } from "~/components/app/navigation";
@@ -62,385 +39,159 @@ import { GrownUpGate } from "~/components/app/GrownUpGate";
 import { MOBILE_TABS, NAVIGATION } from "~/components/app/navigation";
 import { NotificationBell } from "~/components/app/NotificationBell";
 import { UnreadMessagesCount } from "~/components/app/UnreadMessagesCount";
-import { initialsOf, WORKSPACE_LABEL } from "~/components/app/UserMenu";
 import { WorkspaceBreadcrumb } from "~/components/app/WorkspaceBreadcrumb";
 import { WorkspaceSearch } from "~/components/app/WorkspaceSearch";
 import { ChangePassword } from "~/components/auth/ChangePassword";
 import { useCurrentUser } from "~/hooks/useCurrentUser";
 import { useSessionChange } from "~/hooks/useSessionChange";
 import * as m from "~/i18n/messages";
-import {
-  getLocale,
-  getTextDirection,
-  locales,
-  setLocale,
-} from "~/i18n/runtime";
+import { getLocale, locales, setLocale } from "~/i18n/runtime";
 import { logout } from "~/server/auth";
 import { pageOn } from "~/utils/modules";
 
-import {
-  PageActionsProvider,
-  PageActionsSlot,
-  PageLeadingSlot,
-} from "./PageActions";
-
 const LOCALE_NAME: Record<string, string> = { en: "English", ar: "العربية" };
 
-function useVisibleNavigation() {
+const WORKSPACE_LABEL: Record<Workspace, () => string> = {
+  admin: m.roleAdmin,
+  teach: m.roleTeacher,
+  family: m.roleParent,
+  me: m.roleStudent,
+};
+
+/** The workspace's navigation as this person may see it, in their language. */
+function useVisibleNavigation(): ShellNavSection[] {
   const user = useCurrentUser();
   return NAVIGATION[user.workspace]
     .map((section) => ({
-      ...section,
-      items: section.items.filter(
-        (item) =>
-          (!item.capability || user.capabilities.includes(item.capability)) &&
-          pageOn(user.modules, item.to) &&
-          (user.profile !== "young_student" || item.young),
-      ),
+      title: section.title?.(),
+      items: section.items
+        .filter(
+          (item) =>
+            (!item.capability || user.capabilities.includes(item.capability)) &&
+            pageOn(user.modules, item.to) &&
+            (user.profile !== "young_student" || item.young),
+        )
+        .map((item: NavItem) => ({
+          to: item.to,
+          label: item.label(),
+          icon: item.icon,
+          exact: item.exact,
+          badge: item.count ? <UnreadMessagesCount /> : undefined,
+        })),
     }))
     .filter((section) => section.items.length > 0);
 }
 
-function useIsActive() {
+/**
+ * A page can name the navigation item it belongs to (`staticData.section`),
+ * so a record opened from two places lights the one it lives under.
+ */
+function useIsActive(): ShellIsActive {
   const pathname = useRouterState({
     select: (state) => state.location.pathname,
   });
   const section = useRouterState({
     select: (state) => state.matches.at(-1)?.staticData.section ?? null,
   });
-  return (item: NavItem) =>
-    section
+  return (item) => {
+    return section
       ? [section].flat().includes(item.to)
       : item.exact
         ? pathname === item.to
         : pathname === item.to || pathname.startsWith(`${item.to}/`);
+  };
 }
 
 function AccountMenu() {
   const user = useCurrentUser();
   const sessionChanged = useSessionChange();
-  const { theme, setTheme } = useTheme();
   const [changingPassword, setChangingPassword] = useState(false);
   const signOut = useCallback(async () => {
     await logout();
     await sessionChanged("/sign-in");
   }, [sessionChanged]);
   const current = getLocale();
-  const themes = [
-    { value: "light", label: m.shellThemeLight(), icon: Sun },
-    { value: "dark", label: m.shellThemeDark(), icon: Moon },
-    { value: "system", label: m.shellThemeSystem(), icon: Monitor },
-  ];
   return (
     <>
       {changingPassword ? (
         <ChangePassword onClose={() => setChangingPassword(false)} />
       ) : null}
-      <DropdownMenu>
-        <DropdownMenuTrigger
-          render={
-            <SidebarMenuButton
-              size="lg"
-              aria-label={m.shellAccount()}
-              className="h-11 gap-2.5 px-2 data-popup-open:bg-sidebar-accent"
-            />
-          }
+      <ShellAccount
+        label={m.shellAccount()}
+        name={user.name}
+        detail={WORKSPACE_LABEL[user.workspace]()}
+        email={user.email}
+        avatarUrl={user.avatarUrl}
+      >
+        <DropdownMenuItem
+          render={<Link to="/people/$userId" params={{ userId: user.id }} />}
         >
-          <Avatar className="size-7 rounded-md">
-            {user.avatarUrl ? (
-              <AvatarImage src={user.avatarUrl} alt="" />
-            ) : null}
-            <AvatarFallback className="rounded-md bg-primary/12 text-[11px] font-semibold text-primary">
-              {initialsOf(user.name)}
-            </AvatarFallback>
-          </Avatar>
-          <span className="grid min-w-0 flex-1 text-start leading-tight">
-            <span
-              dir="auto"
-              className="truncate text-start text-sm font-medium"
-            >
-              {user.name}
+          <UserRound aria-hidden />
+          {m.shellProfile()}
+        </DropdownMenuItem>
+        <DropdownMenuItem render={<Link to="/notification-preferences" />}>
+          <Settings2 aria-hidden />
+          {m.shellPreferences()}
+        </DropdownMenuItem>
+        {/* Only someone who signs in with a password has one to change. */}
+        {user.email ? (
+          <DropdownMenuItem onClick={() => setChangingPassword(true)}>
+            <KeyRound aria-hidden />
+            {m.passwordChange()}
+          </DropdownMenuItem>
+        ) : null}
+        <DropdownMenuSeparator />
+        <DropdownMenuSub>
+          <DropdownMenuSubTrigger>
+            <Languages aria-hidden />
+            {m.shellLanguage()}
+            <span className="ms-auto text-xs text-muted-foreground">
+              {LOCALE_NAME[current]}
             </span>
-            <span className="truncate text-xs text-muted-foreground">
-              {WORKSPACE_LABEL[user.workspace]()}
-            </span>
-          </span>
-          <ChevronsUpDown
-            className="size-4 text-muted-foreground"
-            aria-hidden
-          />
-        </DropdownMenuTrigger>
-        <DropdownMenuContent side="top" align="start" className="w-64">
-          <DropdownMenuGroup>
-            <DropdownMenuLabel className="grid gap-0.5 py-2">
-              <span
-                dir="auto"
-                className="truncate text-start text-sm font-medium text-foreground"
+          </DropdownMenuSubTrigger>
+          <DropdownMenuSubContent className="w-44">
+            {locales.map((locale) => (
+              <DropdownMenuItem
+                key={locale}
+                lang={locale}
+                // setLocale writes the cookie and reloads, so the next document
+                // is rendered by the server in the new language.
+                onClick={() => void setLocale(locale)}
               >
-                {user.name}
-              </span>
-              <span className="truncate text-xs font-normal text-muted-foreground">
-                {user.email}
-              </span>
-            </DropdownMenuLabel>
-          </DropdownMenuGroup>
-          <DropdownMenuSeparator />
-          <DropdownMenuItem
-            render={<Link to="/people/$userId" params={{ userId: user.id }} />}
-          >
-            <UserRound aria-hidden />
-            {m.shellProfile()}
-          </DropdownMenuItem>
-          <DropdownMenuItem render={<Link to="/notification-preferences" />}>
-            <Settings2 aria-hidden />
-            {m.shellPreferences()}
-          </DropdownMenuItem>
-          {/* Only someone who signs in with a password has one to change. */}
-          {user.email ? (
-            <DropdownMenuItem onClick={() => setChangingPassword(true)}>
-              <KeyRound aria-hidden />
-              {m.passwordChange()}
-            </DropdownMenuItem>
-          ) : null}
-          <DropdownMenuSeparator />
-          <DropdownMenuSub>
-            <DropdownMenuSubTrigger>
-              <Languages aria-hidden />
-              {m.shellLanguage()}
-              <span className="ms-auto text-xs text-muted-foreground">
-                {LOCALE_NAME[current]}
-              </span>
-            </DropdownMenuSubTrigger>
-            <DropdownMenuSubContent className="w-44">
-              {locales.map((locale) => (
-                <DropdownMenuItem
-                  key={locale}
-                  lang={locale}
-                  // setLocale writes the cookie and reloads, so the next document
-                  // is rendered by the server in the new language.
-                  onClick={() => void setLocale(locale)}
-                >
-                  {LOCALE_NAME[locale]}
-                  {locale === current ? (
-                    <Check className="ms-auto" aria-hidden />
-                  ) : null}
-                </DropdownMenuItem>
-              ))}
-            </DropdownMenuSubContent>
-          </DropdownMenuSub>
-          <DropdownMenuSub>
-            <DropdownMenuSubTrigger>
-              <Sun aria-hidden />
-              {m.shellTheme()}
-            </DropdownMenuSubTrigger>
-            <DropdownMenuSubContent className="w-44">
-              {themes.map((item) => (
-                <DropdownMenuItem
-                  key={item.value}
-                  onClick={() => setTheme(item.value)}
-                >
-                  <item.icon aria-hidden />
-                  {item.label}
-                  {theme === item.value ? (
-                    <Check className="ms-auto" aria-hidden />
-                  ) : null}
-                </DropdownMenuItem>
-              ))}
-            </DropdownMenuSubContent>
-          </DropdownMenuSub>
-          <DropdownMenuSeparator />
-          <DropdownMenuItem onClick={() => void signOut()}>
-            <LogOut aria-hidden />
-            {m.shellSignOut()}
-          </DropdownMenuItem>
-        </DropdownMenuContent>
-      </DropdownMenu>
+                {LOCALE_NAME[locale]}
+                {locale === current ? (
+                  <Check className="ms-auto" aria-hidden />
+                ) : null}
+              </DropdownMenuItem>
+            ))}
+          </DropdownMenuSubContent>
+        </DropdownMenuSub>
+        <ThemeSubmenu />
+        <DropdownMenuSeparator />
+        <DropdownMenuItem onClick={() => void signOut()}>
+          <LogOut aria-hidden />
+          {m.shellSignOut()}
+        </DropdownMenuItem>
+      </ShellAccount>
     </>
   );
 }
 
-function SidebarBody() {
+export interface ShellProps {
+  children: ReactNode;
+  sidebarOpen?: boolean;
+}
+
+/** The portal's frame: the workspace's navigation, account and tools. */
+export function Shell({ children, sidebarOpen = true }: ShellProps) {
   const user = useCurrentUser();
   const childMode = useRouteContext({
     from: "__root__",
     select: (context) => context.auth.childMode,
   });
-  const { setOpenMobile } = useSidebar();
-  const sections = useVisibleNavigation();
+  const navigation = useVisibleNavigation();
   const isActive = useIsActive();
-  return (
-    <>
-      <SidebarHeader className="gap-3 px-3 pt-3 pb-2">
-        {/* The mobile sheet's close button sits over the end of this row. */}
-        <Link
-          to={WORKSPACE_HOME[user.workspace]}
-          className="flex h-10 items-center gap-2.5 rounded-md px-1.5 outline-none focus-visible:ring-2 focus-visible:ring-sidebar-ring in-data-[slot=sheet-content]:me-10"
-        >
-          <span className="flex size-7 shrink-0 items-center justify-center rounded-md bg-primary text-primary-foreground">
-            <GraduationCap className="size-4" aria-hidden />
-          </span>
-          <span className="grid min-w-0 flex-1 leading-tight">
-            <span
-              dir="auto"
-              className="max-w-full justify-self-start truncate text-sm font-semibold"
-            >
-              {user.school.name}
-            </span>
-            <span className="truncate text-xs text-muted-foreground">
-              {m.appName()}
-            </span>
-          </span>
-        </Link>
-        {user.profile === "young_student" ? null : (
-          <div className="flex items-center gap-1">
-            <div className="min-w-0 flex-1">
-              <WorkspaceSearch variant="sidebar" />
-            </div>
-            <NotificationBell className="size-8" />
-          </div>
-        )}
-      </SidebarHeader>
-      <SidebarContent className="gap-0 px-1">
-        <nav aria-label={m.navPrimary()}>
-          {sections.map((section, index) => (
-            <SidebarGroup key={section.title?.() ?? index} className="py-1">
-              {section.title ? (
-                <SidebarGroupLabel className="h-7 text-xs font-medium text-muted-foreground">
-                  {section.title()}
-                </SidebarGroupLabel>
-              ) : null}
-              <SidebarGroupContent>
-                <SidebarMenu className="gap-px">
-                  {section.items.map((item) => (
-                    <SidebarMenuItem key={item.to}>
-                      <SidebarMenuButton
-                        isActive={isActive(item)}
-                        render={
-                          <Link
-                            to={item.to}
-                            activeOptions={{ exact: item.exact === true }}
-                            onClick={() => setOpenMobile(false)}
-                          />
-                        }
-                        className="h-8 gap-2.5 px-2 text-sm text-sidebar-foreground data-active:font-medium data-active:text-sidebar-accent-foreground"
-                      >
-                        <item.icon className="size-4" aria-hidden />
-                        <span className="truncate">{item.label()}</span>
-                        {item.count ? (
-                          <UnreadMessagesCount className="ms-auto" />
-                        ) : null}
-                      </SidebarMenuButton>
-                    </SidebarMenuItem>
-                  ))}
-                </SidebarMenu>
-              </SidebarGroupContent>
-            </SidebarGroup>
-          ))}
-        </nav>
-      </SidebarContent>
-      <SidebarFooter className="p-2">
-        <SidebarMenu>
-          <SidebarMenuItem>
-            {childMode ? <GrownUpGate /> : <AccountMenu />}
-          </SidebarMenuItem>
-        </SidebarMenu>
-      </SidebarFooter>
-    </>
-  );
-}
-
-function WorkspaceSidebar() {
-  const { isMobile, openMobile, setOpenMobile } = useSidebar();
-  const direction = getTextDirection(getLocale());
-  const side = direction === "rtl" ? "right" : "left";
-  if (isMobile)
-    return (
-      <Sheet open={openMobile} onOpenChange={setOpenMobile}>
-        <SheetContent
-          side={side}
-          className="w-72 bg-sidebar p-0 text-sidebar-foreground"
-        >
-          <SheetTitle className="sr-only">{m.navPrimary()}</SheetTitle>
-          <SheetDescription className="sr-only">
-            {m.appTagline()}
-          </SheetDescription>
-          <Sidebar collapsible="none" className="w-full">
-            <SidebarBody />
-          </Sidebar>
-        </SheetContent>
-      </Sheet>
-    );
-  return (
-    <Sidebar
-      collapsible="offcanvas"
-      side={side}
-      dir={direction}
-      className="border-e"
-    >
-      <SidebarBody />
-    </Sidebar>
-  );
-}
-
-function MobileTabs() {
-  const user = useCurrentUser();
-  const { setOpenMobile } = useSidebar();
-  const isActive = useIsActive();
-  const items = useVisibleNavigation().flatMap((section) => section.items);
-  const tabs = MOBILE_TABS[user.workspace]
-    .map((to) => items.find((item) => item.to === to))
-    .filter((item) => item !== undefined);
-  return (
-    <nav
-      aria-label={m.navPrimary()}
-      className="fixed inset-x-0 bottom-0 z-40 border-t bg-background/95 pb-[env(safe-area-inset-bottom)] backdrop-blur md:hidden"
-    >
-      <ul className="grid grid-cols-5">
-        {tabs.map((item) => {
-          const active = isActive(item);
-          return (
-            <li key={item.to}>
-              <Link
-                to={item.to}
-                activeOptions={{ exact: item.exact === true }}
-                aria-current={active ? "page" : undefined}
-                className={cn(
-                  "relative flex h-14 flex-col items-center justify-center gap-1 text-[11px] font-medium",
-                  active ? "text-primary" : "text-muted-foreground",
-                )}
-              >
-                <item.icon className="size-5" aria-hidden />
-                <span className="max-w-full truncate px-1">{item.label()}</span>
-                {item.count ? (
-                  <UnreadMessagesCount className="absolute start-1/2 top-1.5 ms-2" />
-                ) : null}
-              </Link>
-            </li>
-          );
-        })}
-        <li>
-          <button
-            type="button"
-            onClick={() => setOpenMobile(true)}
-            className="flex h-14 w-full flex-col items-center justify-center gap-1 text-[11px] font-medium text-muted-foreground"
-          >
-            <Ellipsis className="size-5" aria-hidden />
-            {m.shellMore()}
-          </button>
-        </li>
-      </ul>
-    </nav>
-  );
-}
-
-export function Shell({
-  children,
-  sidebarOpen = true,
-}: {
-  children: ReactNode;
-  sidebarOpen?: boolean;
-}) {
-  const young = useCurrentUser().profile === "young_student";
+  const young = user.profile === "young_student";
   const immersive = useRouterState({
     select: (state) => state.matches.at(-1)?.staticData.immersive ?? false,
   });
@@ -452,49 +203,51 @@ export function Shell({
         </main>
       </PageActionsProvider>
     );
+  const items = navigation.flatMap((section) => section.items);
+  const tabs = MOBILE_TABS[user.workspace]
+    .map((to) => items.find((item) => item.to === to))
+    .filter((item) => item !== undefined);
   return (
-    <SidebarProvider defaultOpen={sidebarOpen}>
-      <PageActionsProvider>
-        <a
-          href="#main"
-          className="sr-only start-0 top-0 m-0 focus:not-sr-only focus:fixed focus:start-4 focus:top-4 focus:z-50 focus:rounded-md focus:bg-background focus:px-4 focus:py-2 focus:shadow-lg"
-        >
-          {m.navSkipToContent()}
-        </a>
-        <WorkspaceSidebar />
-        <SidebarInset id="main" className="min-w-0 bg-background" tabIndex={-1}>
-          <header
-            data-slot="top-bar"
-            className="sticky top-0 z-30 flex h-12 shrink-0 items-center gap-2 border-b bg-background/90 px-3 backdrop-blur-md lg:px-4"
-          >
-            <SidebarTrigger
-              aria-label={m.navOpenMenu()}
-              className="size-8 max-md:size-10 rtl:rotate-180"
-            />
-            <PageLeadingSlot />
+    <AppShell
+      sidebarOpen={sidebarOpen}
+      brand={
+        <ShellBrand
+          to={WORKSPACE_HOME[user.workspace]}
+          icon={GraduationCap}
+          title={user.school.name}
+          subtitle={m.appName()}
+        />
+      }
+      tools={
+        young ? null : (
+          <div className="flex items-center gap-1">
             <div className="min-w-0 flex-1">
-              <WorkspaceBreadcrumb />
+              <WorkspaceSearch variant="sidebar" />
             </div>
-            <PageActionsSlot />
-            {/* A child who cannot read yet has nothing to search for and
-                no notices to read; their home holds all they open. */}
-            {young ? null : (
-              <div
-                data-slot="global-tools"
-                className="flex items-center md:hidden"
-              >
-                <WorkspaceSearch variant="bar" />
-                <NotificationBell className="size-8 max-md:size-10" />
-              </div>
-            )}
-          </header>
-          <div className="flex flex-1 flex-col px-4 py-6 pb-24 sm:px-6 md:pb-10">
-            <ContractNotice />
-            {children}
+            <NotificationBell className="size-8" />
           </div>
-          <MobileTabs />
-        </SidebarInset>
-      </PageActionsProvider>
-    </SidebarProvider>
+        )
+      }
+      navigation={navigation}
+      navigationLabel={m.navPrimary()}
+      description={m.appTagline()}
+      isActive={isActive}
+      account={childMode ? <GrownUpGate /> : <AccountMenu />}
+      breadcrumb={<WorkspaceBreadcrumb />}
+      // A child who cannot read yet has nothing to search for and no
+      // notices to read; their home holds all they open.
+      barTools={
+        young ? undefined : (
+          <>
+            <WorkspaceSearch variant="bar" />
+            <NotificationBell className="size-8 max-md:size-10" />
+          </>
+        )
+      }
+      tabs={tabs}
+      notice={<ContractNotice />}
+    >
+      {children}
+    </AppShell>
   );
 }

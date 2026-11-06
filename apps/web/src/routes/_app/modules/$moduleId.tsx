@@ -1,8 +1,8 @@
+import { BreadcrumbCurrent } from "@faridalms/ui/system/app-shell";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { createFileRoute, stripSearchParams } from "@tanstack/react-router";
 import * as v from "valibot";
 
-import { BreadcrumbCurrent } from "~/components/app/WorkspaceBreadcrumb";
 import { areaViewSearch } from "~/components/files/AreaFiles";
 import { MODULE_TABS, ModuleRecord } from "~/components/learning/ModuleRecord";
 import { ModuleOutline } from "~/components/learning/StudentModules";

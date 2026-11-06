@@ -1,8 +1,8 @@
+import { PageHeader } from "@faridalms/ui/system/page-header";
 import { createFileRoute } from "@tanstack/react-router";
 
 import { StudentGrades } from "~/components/coursework/StudentGrades";
 import { SkillsSection } from "~/components/standards/Progress";
-import { PageHeader } from "~/components/system/IndexPage";
 import { useCurrentUser } from "~/hooks/useCurrentUser";
 import * as m from "~/i18n/messages";
 import { studentGradesQuery } from "~/queries/gradebook";

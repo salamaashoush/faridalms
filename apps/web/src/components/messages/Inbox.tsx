@@ -17,6 +17,9 @@ import {
   SelectValue,
 } from "@faridalms/ui/select";
 import { Skeleton } from "@faridalms/ui/skeleton";
+import { ConfirmDialog } from "@faridalms/ui/system/confirm-dialog";
+import { EmptyState } from "@faridalms/ui/system/empty-state";
+import { PageHeader } from "@faridalms/ui/system/page-header";
 import { Tabs, TabsList, TabsTrigger } from "@faridalms/ui/tabs";
 import {
   useMutation,
@@ -36,8 +39,6 @@ import { Suspense, useEffect, useState } from "react";
 import { toast } from "sonner";
 import * as v from "valibot";
 
-import { ConfirmDialog } from "~/components/system/ConfirmDialog";
-import { EmptyState, PageHeader } from "~/components/system/IndexPage";
 import { useCurrentUser } from "~/hooks/useCurrentUser";
 import * as m from "~/i18n/messages";
 import {

@@ -1,8 +1,8 @@
+import { EmptyState } from "@faridalms/ui/system/empty-state";
+import { RecordList, RecordSection } from "@faridalms/ui/system/record-page";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { BookOpen } from "lucide-react";
 
-import { EmptyState } from "~/components/system/IndexPage";
-import { RecordList, RecordSection } from "~/components/system/RecordPage";
 import { inLocale } from "~/hooks/useCurrentUser";
 import * as m from "~/i18n/messages";
 import { studentGradesQuery } from "~/queries/gradebook";

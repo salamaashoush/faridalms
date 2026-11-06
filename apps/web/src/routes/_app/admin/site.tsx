@@ -1,3 +1,5 @@
+import { PageHeader } from "@faridalms/ui/system/page-header";
+import { RecordTabs } from "@faridalms/ui/system/record-page";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { createFileRoute, stripSearchParams } from "@tanstack/react-router";
 import { ExternalLink } from "lucide-react";
@@ -7,8 +9,6 @@ import { SiteAddresses } from "~/components/site/SiteAddresses";
 import { SiteCategories } from "~/components/site/SiteCategories";
 import { SitePages } from "~/components/site/SitePages";
 import { SiteSettings } from "~/components/site/SiteSettings";
-import { PageHeader } from "~/components/system/IndexPage";
-import { RecordTabs } from "~/components/system/RecordPage";
 import { useCurrentUser } from "~/hooks/useCurrentUser";
 import * as m from "~/i18n/messages";
 import { siteHostsQuery, siteOverviewQuery } from "~/queries/site";

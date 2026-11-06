@@ -1,22 +1,21 @@
 import type { ExamBoard } from "@faridalms/domain/exams";
+import type { Column, RowAction } from "@faridalms/ui/system/data-table";
 
 import { EXAM_BOARDS } from "@faridalms/domain/exams";
 import { Button } from "@faridalms/ui/button";
 import { Input } from "@faridalms/ui/input";
+import { ConfirmDialog } from "@faridalms/ui/system/confirm-dialog";
+import { DataTable } from "@faridalms/ui/system/data-table";
+import { SelectField, TextField } from "@faridalms/ui/system/form-field";
+import { SheetForm } from "@faridalms/ui/system/sheet-form";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Archive, GraduationCap, Pencil, Plus, X } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 
-import type { Column, RowAction } from "~/components/system/DataTable";
-
 import { BOARD_LABEL, boardTitle } from "~/components/exams/names";
 import { CheckboxRow } from "~/components/people/fields";
 import { labelOf } from "~/components/people/format";
-import { ConfirmDialog } from "~/components/system/ConfirmDialog";
-import { DataTable } from "~/components/system/DataTable";
-import { SelectField, TextField } from "~/components/system/field";
-import { SheetForm } from "~/components/system/SheetForm";
 import { inLocale } from "~/hooks/useCurrentUser";
 import * as m from "~/i18n/messages";
 import { classOptionsQuery } from "~/queries/classes";

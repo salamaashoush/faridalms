@@ -1,3 +1,8 @@
+import type { Column } from "@faridalms/ui/system/data-table";
+import type { HeaderAction } from "@faridalms/ui/system/page-header";
+
+import { DataTable, RowLink } from "@faridalms/ui/system/data-table";
+import { PageHeader } from "@faridalms/ui/system/page-header";
 import { useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
@@ -5,16 +10,11 @@ import { FileUp, Flag, Grid3x3, Lightbulb, ListTree, Plus } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 
-import type { Column } from "~/components/system/DataTable";
-import type { HeaderAction } from "~/components/system/IndexPage";
-
 import {
   FrameworkSheet,
   ImportCaseSheet,
   sourceOf,
 } from "~/components/standards/Standards";
-import { DataTable, RowLink } from "~/components/system/DataTable";
-import { PageHeader } from "~/components/system/IndexPage";
 import * as m from "~/i18n/messages";
 import { frameworksQuery } from "~/queries/standards";
 import { addEarlyGoals, addIbConcepts } from "~/server/standards";

@@ -5,6 +5,13 @@ import {
   ENQUIRY_PURPOSES,
   LOGGED_SOURCES,
 } from "@faridalms/domain/enquiries";
+import {
+  FormField,
+  SelectField,
+  TextField,
+} from "@faridalms/ui/system/form-field";
+import { Segmented } from "@faridalms/ui/system/panel";
+import { SheetForm } from "@faridalms/ui/system/sheet-form";
 import { Textarea } from "@faridalms/ui/textarea";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
@@ -12,9 +19,6 @@ import { useState } from "react";
 import { toast } from "sonner";
 import * as v from "valibot";
 
-import { FormField, SelectField, TextField } from "~/components/system/field";
-import { Segmented } from "~/components/system/panel";
-import { SheetForm } from "~/components/system/SheetForm";
 import { inLocale, useCurrentUser } from "~/hooks/useCurrentUser";
 import * as m from "~/i18n/messages";
 import { assignEnquiry, logEnquiry, moveEnquiry } from "~/server/admissions";

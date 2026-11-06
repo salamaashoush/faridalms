@@ -2,9 +2,9 @@ import { screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 
-import { render } from "~/testUtils";
+import { renderWithSystem as render } from "./testing";
 
-import { ActionMenu } from "./ActionMenu";
+import { ActionMenu } from "./action-menu";
 
 const confirm = {
   title: "Delete Salama's draft?",

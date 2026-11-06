@@ -1,11 +1,11 @@
+import {
+  BreadcrumbCurrent,
+  BreadcrumbStep,
+} from "@faridalms/ui/system/app-shell";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import * as v from "valibot";
 
-import {
-  BreadcrumbCurrent,
-  BreadcrumbStep,
-} from "~/components/app/WorkspaceBreadcrumb";
 import { yearTitle } from "~/components/years/format";
 import { Rollover } from "~/components/years/Rollover";
 import * as m from "~/i18n/messages";

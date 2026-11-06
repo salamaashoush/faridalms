@@ -1,3 +1,7 @@
+import { EmptyState } from "@faridalms/ui/system/empty-state";
+import { PageHeader } from "@faridalms/ui/system/page-header";
+import { RecordColumns } from "@faridalms/ui/system/record-page";
+import { StatusText } from "@faridalms/ui/system/status";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { Sun } from "lucide-react";
@@ -11,9 +15,6 @@ import {
   itemLink,
   Lessons,
 } from "~/components/home/parts";
-import { EmptyState, PageHeader } from "~/components/system/IndexPage";
-import { RecordColumns } from "~/components/system/RecordPage";
-import { StatusText } from "~/components/system/status";
 import { inLocale } from "~/hooks/useCurrentUser";
 import * as m from "~/i18n/messages";
 import { teacherHomeQuery } from "~/queries/home";

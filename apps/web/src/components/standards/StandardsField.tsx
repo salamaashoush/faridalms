@@ -1,10 +1,10 @@
 import { MAX_QUESTION_STANDARDS } from "@faridalms/domain/standards";
 import { Button } from "@faridalms/ui/button";
+import { ComboboxField } from "@faridalms/ui/system/combobox-field";
 import { useQuery } from "@tanstack/react-query";
 import { X } from "lucide-react";
 import { useState } from "react";
 
-import { ComboboxField } from "~/components/system/ComboboxField";
 import * as m from "~/i18n/messages";
 import { describeStandards, searchStandards } from "~/server/standards";
 

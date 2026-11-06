@@ -1,14 +1,14 @@
+import type { HeaderFact } from "@faridalms/ui/system/record-page";
+
+import { initialsOf } from "@faridalms/ui/system/app-shell";
+import { RecordColumns, RecordHeader } from "@faridalms/ui/system/record-page";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
 import { MessageSquare } from "lucide-react";
 import { useState } from "react";
 
-import type { HeaderFact } from "~/components/system/RecordPage";
-
-import { initialsOf } from "~/components/app/UserMenu";
 import { NewMessage } from "~/components/messages/NewMessage";
 import { MESSAGES } from "~/components/notifications/format";
-import { RecordColumns, RecordHeader } from "~/components/system/RecordPage";
 import { inLocale, useCurrentUser } from "~/hooks/useCurrentUser";
 import * as m from "~/i18n/messages";
 import { personProfileQuery } from "~/queries/students";

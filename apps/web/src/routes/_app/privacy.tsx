@@ -1,3 +1,7 @@
+import type { HeaderAction } from "@faridalms/ui/system/page-header";
+
+import { PageHeader } from "@faridalms/ui/system/page-header";
+import { RecordTabs } from "@faridalms/ui/system/record-page";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 import { FileText, Lock, ShieldAlert } from "lucide-react";
@@ -7,7 +11,6 @@ import * as v from "valibot";
 import type { BreachRow } from "~/components/privacy/Breaches";
 import type { HoldRow, ReviewRow } from "~/components/privacy/DataProtection";
 import type { RequestRow } from "~/components/privacy/Requests";
-import type { HeaderAction } from "~/components/system/IndexPage";
 
 import { ConsentForms } from "~/components/consents/ConsentForms";
 import { displayName } from "~/components/people/format";
@@ -32,8 +35,6 @@ import {
   RequestSheet,
   RequestsTable,
 } from "~/components/privacy/Requests";
-import { PageHeader } from "~/components/system/IndexPage";
-import { RecordTabs } from "~/components/system/RecordPage";
 import * as m from "~/i18n/messages";
 import { consentFormsQuery } from "~/queries/consents";
 import { privacyOverviewQuery } from "~/queries/privacy";

@@ -1,24 +1,23 @@
+import type {
+  Column,
+  DataTableSort,
+  RowAction,
+} from "@faridalms/ui/system/data-table";
+import type { IndexToolbarProps } from "@faridalms/ui/system/index-toolbar";
 import type { ReactNode } from "react";
 import type { InferInput } from "valibot";
 
 import { saveSubjectSchema } from "@faridalms/domain/classes";
 import { Button } from "@faridalms/ui/button";
+import { DataTable } from "@faridalms/ui/system/data-table";
+import { TextField } from "@faridalms/ui/system/form-field";
+import { SheetForm } from "@faridalms/ui/system/sheet-form";
 import { revalidateLogic, useForm } from "@tanstack/react-form";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { BookOpen, Pencil, Plus } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 
-import type {
-  Column,
-  DataTableSort,
-  RowAction,
-} from "~/components/system/DataTable";
-import type { IndexToolbarProps } from "~/components/system/IndexPage";
-
-import { DataTable } from "~/components/system/DataTable";
-import { TextField } from "~/components/system/field";
-import { SheetForm } from "~/components/system/SheetForm";
 import * as m from "~/i18n/messages";
 import { getLocale } from "~/i18n/runtime";
 import { saveSubject } from "~/server/classes";

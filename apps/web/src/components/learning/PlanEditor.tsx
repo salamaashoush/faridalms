@@ -3,6 +3,7 @@ import type { ContentDocument } from "@faridalms/domain/content";
 import { emptyContent } from "@faridalms/domain/content-conversion";
 import { planTargets } from "@faridalms/domain/standards";
 import { cn } from "@faridalms/ui/cn";
+import { UnsavedChangesGuard } from "@faridalms/ui/system/unsaved-changes-guard";
 import {
   useQuery,
   useQueryClient,
@@ -15,7 +16,6 @@ import type {
   StartingPiece,
 } from "~/components/content/Templates";
 
-import { UnsavedChangesGuard } from "~/components/app/UnsavedChangesGuard";
 import { useCollaboration } from "~/components/content/collaboration";
 import { ContentEditor } from "~/components/content/ContentEditor";
 import { useStartFrom } from "~/components/content/Templates";

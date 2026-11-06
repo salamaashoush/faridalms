@@ -9,6 +9,8 @@ import {
   DialogFooter,
   DialogTitle,
 } from "@faridalms/ui/dialog";
+import { SelectField } from "@faridalms/ui/system/form-field";
+import { SheetForm } from "@faridalms/ui/system/sheet-form";
 import {
   useMutation,
   useQueryClient,
@@ -20,8 +22,6 @@ import { toast } from "sonner";
 
 import { classTitle } from "~/components/classes/format";
 import { displayName } from "~/components/people/format";
-import { SelectField } from "~/components/system/field";
-import { SheetForm } from "~/components/system/SheetForm";
 import { inLocale, useCurrentUser } from "~/hooks/useCurrentUser";
 import * as m from "~/i18n/messages";
 import { timetableGridQuery, timetableOptionsQuery } from "~/queries/timetable";

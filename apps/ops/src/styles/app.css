@@ -1,3 +1,4 @@
 @import "tailwindcss";
 @import "@faridalms/ui/theme.css";
+@import "@faridalms/ui/system/system.css";
 @source "../../../../packages/documents/src";

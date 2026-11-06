@@ -11,6 +11,9 @@ import {
 import { Button } from "@faridalms/ui/button";
 import { cn } from "@faridalms/ui/cn";
 import { Input } from "@faridalms/ui/input";
+import { SelectField, TextField } from "@faridalms/ui/system/form-field";
+import { RecordHeader } from "@faridalms/ui/system/record-page";
+import { UnsavedChangesGuard } from "@faridalms/ui/system/unsaved-changes-guard";
 import {
   useMutation,
   useQueryClient,
@@ -28,11 +31,8 @@ import { useEffect, useId, useState } from "react";
 import { toast } from "sonner";
 
 import { PersonAvatar } from "~/components/admin/PersonAvatar";
-import { UnsavedChangesGuard } from "~/components/app/UnsavedChangesGuard";
 import { classTitle } from "~/components/classes/format";
 import { displayName } from "~/components/people/format";
-import { SelectField, TextField } from "~/components/system/field";
-import { RecordHeader } from "~/components/system/RecordPage";
 import { inLocale } from "~/hooks/useCurrentUser";
 import * as m from "~/i18n/messages";
 import { registerQuery } from "~/queries/attendance";

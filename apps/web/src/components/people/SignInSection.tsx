@@ -1,14 +1,14 @@
 import { INVITE_DAYS, loginNameSchema } from "@faridalms/domain/first-sign-in";
 import { Button } from "@faridalms/ui/button";
+import { ConfirmDialog } from "@faridalms/ui/system/confirm-dialog";
+import { TextField } from "@faridalms/ui/system/form-field";
+import { SheetForm } from "@faridalms/ui/system/sheet-form";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { KeyRound, Mail, Power } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 import * as v from "valibot";
 
-import { ConfirmDialog } from "~/components/system/ConfirmDialog";
-import { TextField } from "~/components/system/field";
-import { SheetForm } from "~/components/system/SheetForm";
 import * as m from "~/i18n/messages";
 import { saveSignIn, sendSignInLink, setSignInState } from "~/server/students";
 import { getMessageFromError } from "~/utils/error";

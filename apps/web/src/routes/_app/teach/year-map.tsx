@@ -1,18 +1,16 @@
+import type { Facet } from "@faridalms/ui/system/index-toolbar";
+
+import { ButtonLink } from "@faridalms/ui/system/button-link";
+import { EmptyState } from "@faridalms/ui/system/empty-state";
+import { IndexToolbar } from "@faridalms/ui/system/index-toolbar";
+import { PageHeader } from "@faridalms/ui/system/page-header";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { createFileRoute, stripSearchParams } from "@tanstack/react-router";
 import { CalendarRange, Plus } from "lucide-react";
 import * as v from "valibot";
 
-import type { Facet } from "~/components/system/IndexPage";
-
-import { ButtonLink } from "~/components/app/ButtonLink";
 import { classTitle } from "~/components/classes/format";
 import { YearMap } from "~/components/learning/YearMap";
-import {
-  EmptyState,
-  IndexToolbar,
-  PageHeader,
-} from "~/components/system/IndexPage";
 import { useCurrentUser } from "~/hooks/useCurrentUser";
 import * as m from "~/i18n/messages";
 import { yearMapQuery } from "~/queries/learning";

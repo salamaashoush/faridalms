@@ -23,6 +23,8 @@ import {
   DialogTitle,
 } from "@faridalms/ui/dialog";
 import { Input } from "@faridalms/ui/input";
+import { ActionMenu } from "@faridalms/ui/system/action-menu";
+import { ConfirmDialog } from "@faridalms/ui/system/confirm-dialog";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@faridalms/ui/tooltip";
 import {
   Info,
@@ -37,8 +39,6 @@ import {
 import { useEffect, useEffectEvent, useId, useRef, useState } from "react";
 import { toast } from "sonner";
 
-import { ActionMenu } from "~/components/system/ActionMenu";
-import { ConfirmDialog } from "~/components/system/ConfirmDialog";
 import * as m from "~/i18n/messages";
 import { formatNumber } from "~/utils/datetime";
 

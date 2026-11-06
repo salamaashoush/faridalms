@@ -2,14 +2,17 @@ import type {
   AttendanceCounts,
   RegisterState,
 } from "@faridalms/domain/attendance";
+import type { Column, RowAction } from "@faridalms/ui/system/data-table";
 
 import { dayQuerySchema } from "@faridalms/domain/attendance";
+import { DataTable, RowLink } from "@faridalms/ui/system/data-table";
+import { EmptyState } from "@faridalms/ui/system/empty-state";
+import { PageHeader } from "@faridalms/ui/system/page-header";
+import { StatusText } from "@faridalms/ui/system/status";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { createFileRoute, stripSearchParams } from "@tanstack/react-router";
 import { ClipboardCheck, UserCheck } from "lucide-react";
 import * as v from "valibot";
-
-import type { Column, RowAction } from "~/components/system/DataTable";
 
 import { DayNav } from "~/components/attendance/DayNav";
 import {
@@ -18,9 +21,6 @@ import {
   STATE_TONE,
 } from "~/components/attendance/format";
 import { classTitle } from "~/components/classes/format";
-import { DataTable, RowLink } from "~/components/system/DataTable";
-import { EmptyState, PageHeader } from "~/components/system/IndexPage";
-import { StatusText } from "~/components/system/status";
 import { inLocale } from "~/hooks/useCurrentUser";
 import * as m from "~/i18n/messages";
 import { attendanceDayQuery } from "~/queries/attendance";

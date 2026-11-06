@@ -24,6 +24,7 @@ import {
   SheetHeader,
   SheetTitle,
 } from "@faridalms/ui/sheet";
+import { ConfirmDialog } from "@faridalms/ui/system/confirm-dialog";
 import {
   useInfiniteQuery,
   useMutation,
@@ -40,7 +41,6 @@ import {
 import { useDeferredValue, useId, useMemo, useState } from "react";
 import { toast } from "sonner";
 
-import { ConfirmDialog } from "~/components/system/ConfirmDialog";
 import { inLocale } from "~/hooks/useCurrentUser";
 import { useDocumentMedia } from "~/hooks/useDocumentMedia";
 import * as m from "~/i18n/messages";

@@ -1,8 +1,8 @@
 import { Button } from "@faridalms/ui/button";
+import { initialsOf } from "@faridalms/ui/system/app-shell";
 import { Camera, Nfc } from "lucide-react";
 import { toast } from "sonner";
 
-import { initialsOf } from "~/components/app/UserMenu";
 import { nfcAvailable, writeBadgeCard } from "~/components/attendance/nfc";
 import { PaperSheet } from "~/components/system/PaperSheet";
 import * as m from "~/i18n/messages";

@@ -1,3 +1,7 @@
+import {
+  BreadcrumbCurrent,
+  BreadcrumbStep,
+} from "@faridalms/ui/system/app-shell";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import {
   createFileRoute,
@@ -8,10 +12,6 @@ import {
 import { useState } from "react";
 import * as v from "valibot";
 
-import {
-  BreadcrumbCurrent,
-  BreadcrumbStep,
-} from "~/components/app/WorkspaceBreadcrumb";
 import { LessonEditor } from "~/components/learning/LessonEditor";
 import * as m from "~/i18n/messages";
 import { collaborationQuery } from "~/queries/documents";

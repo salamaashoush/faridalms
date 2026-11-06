@@ -24,6 +24,12 @@ import {
   DialogTitle,
 } from "@faridalms/ui/dialog";
 import { Input } from "@faridalms/ui/input";
+import {
+  FormField,
+  SelectField,
+  TextField,
+} from "@faridalms/ui/system/form-field";
+import { SheetPanel } from "@faridalms/ui/system/sheet-panel";
 import { Tabs, TabsList, TabsTrigger } from "@faridalms/ui/tabs";
 import { Textarea } from "@faridalms/ui/textarea";
 import { useQueryClient } from "@tanstack/react-query";
@@ -53,8 +59,6 @@ import {
   DocumentPage,
   DocumentTitle,
 } from "~/components/system/DocumentPage";
-import { FormField, SelectField, TextField } from "~/components/system/field";
-import { SheetPanel } from "~/components/system/SheetPanel";
 import { useAutosave } from "~/hooks/useAutosave";
 import { inLocale } from "~/hooks/useCurrentUser";
 import { useDocumentMedia } from "~/hooks/useDocumentMedia";

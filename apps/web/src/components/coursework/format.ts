@@ -2,8 +2,7 @@ import type {
   AssignmentPhase,
   LearnerState,
 } from "@faridalms/domain/coursework";
-
-import type { Tone } from "~/components/system/status";
+import type { Tone } from "@faridalms/ui/system/status";
 
 import * as m from "~/i18n/messages";
 import { formatNumber } from "~/utils/datetime";

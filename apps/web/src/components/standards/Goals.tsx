@@ -13,6 +13,15 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@faridalms/ui/select";
+import { EmptyState } from "@faridalms/ui/system/empty-state";
+import { FormField, SelectField } from "@faridalms/ui/system/form-field";
+import { Segmented } from "@faridalms/ui/system/panel";
+import {
+  phoneLink,
+  RecordEmpty,
+  RecordList,
+  RecordSection,
+} from "@faridalms/ui/system/record-page";
 import { Textarea } from "@faridalms/ui/textarea";
 import {
   useMutation,
@@ -35,15 +44,6 @@ import { toast } from "sonner";
 import type { studentProgressQuery } from "~/queries/standards";
 
 import { displayName } from "~/components/people/format";
-import { FormField, SelectField } from "~/components/system/field";
-import { EmptyState } from "~/components/system/IndexPage";
-import { Segmented } from "~/components/system/panel";
-import {
-  phoneLink,
-  RecordEmpty,
-  RecordList,
-  RecordSection,
-} from "~/components/system/RecordPage";
 import * as m from "~/i18n/messages";
 import { classGoalsQuery } from "~/queries/standards";
 import { addEarlyGoals, judgeGoal } from "~/server/standards";

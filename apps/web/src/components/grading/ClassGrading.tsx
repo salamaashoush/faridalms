@@ -1,10 +1,10 @@
+import { SelectField } from "@faridalms/ui/system/form-field";
+import { Fact, Facts, RecordSection } from "@faridalms/ui/system/record-page";
+import { SheetForm } from "@faridalms/ui/system/sheet-form";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { toast } from "sonner";
 
-import { SelectField } from "~/components/system/field";
-import { Fact, Facts, RecordSection } from "~/components/system/RecordPage";
-import { SheetForm } from "~/components/system/SheetForm";
 import { inLocale } from "~/hooks/useCurrentUser";
 import * as m from "~/i18n/messages";
 import {

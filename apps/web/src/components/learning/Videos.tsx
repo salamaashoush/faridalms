@@ -1,10 +1,10 @@
 import { WATCHED_SHARE } from "@faridalms/domain/learning";
 import { mediaClock } from "@faridalms/editor/format";
+import { EmptyState } from "@faridalms/ui/system/empty-state";
 import { useQuery } from "@tanstack/react-query";
 import { Clapperboard } from "lucide-react";
 
 import { displayName } from "~/components/people/format";
-import { EmptyState } from "~/components/system/IndexPage";
 import * as m from "~/i18n/messages";
 import { classVideosQuery } from "~/queries/learning";
 import { formatList, formatNumber } from "~/utils/datetime";

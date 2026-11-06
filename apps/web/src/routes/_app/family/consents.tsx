@@ -1,7 +1,7 @@
+import { PageHeader } from "@faridalms/ui/system/page-header";
 import { createFileRoute } from "@tanstack/react-router";
 
 import { FamilyConsents } from "~/components/consents/FamilyConsents";
-import { PageHeader } from "~/components/system/IndexPage";
 import * as m from "~/i18n/messages";
 import { familyConsentsQuery } from "~/queries/consents";
 

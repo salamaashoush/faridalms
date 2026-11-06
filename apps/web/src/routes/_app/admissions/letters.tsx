@@ -1,15 +1,14 @@
 import type { LetterKind } from "@faridalms/domain/admissions";
+import type { Column } from "@faridalms/ui/system/data-table";
 
 import { LETTER_KINDS, letterKey } from "@faridalms/domain/admissions";
+import { DataTable, RowLink } from "@faridalms/ui/system/data-table";
+import { PageHeader } from "@faridalms/ui/system/page-header";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 import { Mail } from "lucide-react";
 
-import type { Column } from "~/components/system/DataTable";
-
 import { LETTER_LABEL } from "~/components/admissions/application-labels";
-import { DataTable, RowLink } from "~/components/system/DataTable";
-import { PageHeader } from "~/components/system/IndexPage";
 import * as m from "~/i18n/messages";
 import { lettersQuery } from "~/queries/admissions";
 import { currentUserQuery } from "~/queries/user";

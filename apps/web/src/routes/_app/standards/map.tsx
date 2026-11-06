@@ -1,22 +1,20 @@
+import type { Facet } from "@faridalms/ui/system/index-toolbar";
+
+import { ButtonLink } from "@faridalms/ui/system/button-link";
+import { EmptyState } from "@faridalms/ui/system/empty-state";
+import { IndexToolbar } from "@faridalms/ui/system/index-toolbar";
+import { PageHeader } from "@faridalms/ui/system/page-header";
+import { RecordTabs } from "@faridalms/ui/system/record-page";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { createFileRoute, stripSearchParams } from "@tanstack/react-router";
 import { Grid3x3 } from "lucide-react";
 import * as v from "valibot";
 
-import type { Facet } from "~/components/system/IndexPage";
-
-import { ButtonLink } from "~/components/app/ButtonLink";
 import {
   ByItem,
   ByUnit,
   MapSummary,
 } from "~/components/standards/CurriculumMap";
-import {
-  EmptyState,
-  IndexToolbar,
-  PageHeader,
-} from "~/components/system/IndexPage";
-import { RecordTabs } from "~/components/system/RecordPage";
 import * as m from "~/i18n/messages";
 import { curriculumMapQuery } from "~/queries/standards";
 

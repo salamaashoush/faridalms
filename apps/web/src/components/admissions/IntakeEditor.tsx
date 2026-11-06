@@ -17,6 +17,12 @@ import {
 import { Button } from "@faridalms/ui/button";
 import { Checkbox } from "@faridalms/ui/checkbox";
 import { Input } from "@faridalms/ui/input";
+import {
+  FormField,
+  SelectField,
+  TextField,
+} from "@faridalms/ui/system/form-field";
+import { FormSection, RecordForm } from "@faridalms/ui/system/record-form";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { ArrowDown, ArrowUp, Plus, Trash2 } from "lucide-react";
 import { useState } from "react";
@@ -24,8 +30,6 @@ import { toast } from "sonner";
 
 import type { intakeOptionsQuery } from "~/queries/admissions";
 
-import { FormField, SelectField, TextField } from "~/components/system/field";
-import { FormSection, RecordForm } from "~/components/system/RecordForm";
 import { inLocale } from "~/hooks/useCurrentUser";
 import * as m from "~/i18n/messages";
 import { saveIntake } from "~/server/admissions";

@@ -1,10 +1,20 @@
 import type { ContentDocument } from "@faridalms/domain/content";
+import type { HeaderFact } from "@faridalms/ui/system/record-page";
 
 import { contentPlainText } from "@faridalms/domain/content";
 import { emptyContent } from "@faridalms/domain/content-conversion";
 import { documentWritten } from "@faridalms/domain/translations";
 import { Button } from "@faridalms/ui/button";
 import { cn } from "@faridalms/ui/cn";
+import { FormField } from "@faridalms/ui/system/form-field";
+import {
+  RecordEmpty,
+  RecordHeader,
+  RecordList,
+  RecordSection,
+} from "@faridalms/ui/system/record-page";
+import { SheetForm } from "@faridalms/ui/system/sheet-form";
+import { UnsavedChangesGuard } from "@faridalms/ui/system/unsaved-changes-guard";
 import {
   useMutation,
   useQuery,
@@ -15,10 +25,8 @@ import { CheckCircle2, Undo2 } from "lucide-react";
 import { useCallback, useRef, useState } from "react";
 import { toast } from "sonner";
 
-import type { HeaderFact } from "~/components/system/RecordPage";
 import type { Locale } from "~/i18n/runtime";
 
-import { UnsavedChangesGuard } from "~/components/app/UnsavedChangesGuard";
 import { ContentEditor } from "~/components/content/ContentEditor";
 import { ContentView } from "~/components/content/ContentView";
 import {
@@ -30,19 +38,11 @@ import {
 import { isolatedLine, sessionName } from "~/components/exams/names";
 import { usePrint } from "~/components/print/usePrint";
 import { SaveIndicator } from "~/components/system/DocumentPage";
-import { FormField } from "~/components/system/field";
 import { FileList } from "~/components/system/FileList";
 import {
   ReaderWidthToggle,
   useReaderWidth,
 } from "~/components/system/ReaderWidth";
-import {
-  RecordEmpty,
-  RecordHeader,
-  RecordList,
-  RecordSection,
-} from "~/components/system/RecordPage";
-import { SheetForm } from "~/components/system/SheetForm";
 import { useAutosave } from "~/hooks/useAutosave";
 import { useDocumentMedia } from "~/hooks/useDocumentMedia";
 import * as m from "~/i18n/messages";

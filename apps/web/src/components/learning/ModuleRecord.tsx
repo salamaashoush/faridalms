@@ -1,7 +1,24 @@
+import type { Column, RowAction } from "@faridalms/ui/system/data-table";
+import type { Facet } from "@faridalms/ui/system/index-toolbar";
+import type { HeaderFact, RecordTab } from "@faridalms/ui/system/record-page";
 import type { ReactNode } from "react";
 
 import { Button } from "@faridalms/ui/button";
 import { cn } from "@faridalms/ui/cn";
+import { ButtonLink } from "@faridalms/ui/system/button-link";
+import { DataTable, RowLink } from "@faridalms/ui/system/data-table";
+import { EmptyState } from "@faridalms/ui/system/empty-state";
+import { IndexToolbar } from "@faridalms/ui/system/index-toolbar";
+import {
+  Fact,
+  Facts,
+  phoneLink,
+  RecordColumns,
+  RecordHeader,
+  RecordSection,
+  RecordTabs,
+} from "@faridalms/ui/system/record-page";
+import { StatusBadge } from "@faridalms/ui/system/status";
 import {
   useMutation,
   useQuery,
@@ -35,29 +52,13 @@ import { useState } from "react";
 import { toast } from "sonner";
 
 import type { AreaView } from "~/components/files/AreaFiles";
-import type { Column, RowAction } from "~/components/system/DataTable";
-import type { Facet } from "~/components/system/IndexPage";
-import type { HeaderFact, RecordTab } from "~/components/system/RecordPage";
 
-import { ButtonLink } from "~/components/app/ButtonLink";
 import { classTitle } from "~/components/classes/format";
 import { ContentView } from "~/components/content/ContentView";
 import { toolGrading } from "~/components/content/lti";
 import { SaveTemplateDialog } from "~/components/content/Templates";
 import { AreaFiles } from "~/components/files/AreaFiles";
 import { displayName } from "~/components/people/format";
-import { DataTable, RowLink } from "~/components/system/DataTable";
-import { EmptyState, IndexToolbar } from "~/components/system/IndexPage";
-import {
-  Fact,
-  Facts,
-  phoneLink,
-  RecordColumns,
-  RecordHeader,
-  RecordSection,
-  RecordTabs,
-} from "~/components/system/RecordPage";
-import { StatusBadge } from "~/components/system/status";
 import { inLocale } from "~/hooks/useCurrentUser";
 import * as m from "~/i18n/messages";
 import { getLocale } from "~/i18n/runtime";

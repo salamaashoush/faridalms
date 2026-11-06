@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 
-import { cn } from "@faridalms/ui/cn";
+import { cn } from "../cn";
 
 export type Tone =
   | "neutral"
@@ -28,15 +28,14 @@ const dotTone: Record<Tone, string> = {
   danger: "bg-destructive",
 };
 
-export function StatusBadge({
-  tone,
-  children,
-  className,
-}: {
+export interface StatusBadgeProps {
   tone: Tone;
   children: ReactNode;
   className?: string;
-}) {
+}
+
+/** An object's lifecycle state: a tinted pill with a dot, read in words. */
+export function StatusBadge({ tone, children, className }: StatusBadgeProps) {
   return (
     <span
       className={cn(
@@ -54,13 +53,13 @@ export function StatusBadge({
   );
 }
 
-export function StatusText({
-  tone,
-  children,
-}: {
+export interface StatusTextProps {
   tone: Tone;
   children: ReactNode;
-}) {
+}
+
+/** A second status in a dense row: a dot and the word, without a pill. */
+export function StatusText({ tone, children }: StatusTextProps) {
   return (
     <span className="inline-flex items-center gap-2 text-[13px] leading-[18px] whitespace-nowrap text-muted-foreground">
       <span className={cn("size-2 rounded-full", dotTone[tone])} aria-hidden />

@@ -2,21 +2,18 @@ import type { ReactNode } from "react";
 
 import { Toggle } from "@base-ui/react/toggle";
 import { ToggleGroup } from "@base-ui/react/toggle-group";
-import { cn } from "@faridalms/ui/cn";
+import { cn } from "../cn";
 import { useId } from "react";
 
 /** A labelled block in a side panel beside a canvas: the studio, a print preview. */
-export function PanelGroup({
-  title,
-  hint,
-  children,
-  action,
-}: {
+export interface PanelGroupProps {
   title: string;
   hint?: string;
   children: ReactNode;
   action?: ReactNode;
-}) {
+}
+
+export function PanelGroup({ title, hint, children, action }: PanelGroupProps) {
   const id = useId();
   return (
     <section
@@ -43,19 +40,28 @@ export function PanelGroup({
 }
 
 /** A small set of choices shown at once, one of them pressed. */
+export interface SegmentedOption<T extends string> {
+  value: T;
+  label: string;
+  /** Shown instead of the label, which then names it for screen readers. */
+  icon?: ReactNode;
+}
+
+export interface SegmentedProps<T extends string> {
+  label: string;
+  value: T;
+  options: SegmentedOption<T>[];
+  onChange: (value: T) => void;
+  className?: string;
+}
+
 export function Segmented<T extends string>({
   label,
   value,
   options,
   onChange,
   className,
-}: {
-  label: string;
-  value: T;
-  options: { value: T; label: string; icon?: ReactNode }[];
-  onChange: (value: T) => void;
-  className?: string;
-}) {
+}: SegmentedProps<T>) {
   return (
     <ToggleGroup
       aria-label={label}

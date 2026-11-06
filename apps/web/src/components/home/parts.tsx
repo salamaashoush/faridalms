@@ -1,20 +1,20 @@
+import type { Tone } from "@faridalms/ui/system/status";
 import type { LinkProps } from "@tanstack/react-router";
 import type { ReactElement, ReactNode } from "react";
 
 import { cn } from "@faridalms/ui/cn";
-import { Link } from "@tanstack/react-router";
-
-import type { RecordLink } from "~/components/people/PersonLink";
-import type { Tone } from "~/components/system/status";
-
-import { classTitle } from "~/components/classes/format";
-import { PersonLink } from "~/components/people/PersonLink";
 import {
   phoneLink,
   RecordList,
   RecordSection,
-} from "~/components/system/RecordPage";
-import { StatusBadge, StatusText } from "~/components/system/status";
+} from "@faridalms/ui/system/record-page";
+import { StatusBadge, StatusText } from "@faridalms/ui/system/status";
+import { Link } from "@tanstack/react-router";
+
+import type { RecordLink } from "~/components/people/PersonLink";
+
+import { classTitle } from "~/components/classes/format";
+import { PersonLink } from "~/components/people/PersonLink";
 import { UserText } from "~/components/system/UserText";
 import { inLocale } from "~/hooks/useCurrentUser";
 import * as m from "~/i18n/messages";

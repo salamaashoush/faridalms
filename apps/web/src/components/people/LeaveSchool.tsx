@@ -3,6 +3,12 @@ import type { LeaverAccess } from "@faridalms/domain/people";
 import { leaverAccessEnd } from "@faridalms/domain/people";
 import { addDays } from "@faridalms/domain/school";
 import {
+  ChoiceField,
+  SelectField,
+  TextField,
+} from "@faridalms/ui/system/form-field";
+import { SheetForm } from "@faridalms/ui/system/sheet-form";
+import {
   useMutation,
   useQueryClient,
   useSuspenseQuery,
@@ -13,8 +19,6 @@ import { toast } from "sonner";
 import type { YearBounds } from "~/components/classes/Enrolment";
 
 import { clamp, eachInTurn } from "~/components/classes/Enrolment";
-import { ChoiceField, SelectField, TextField } from "~/components/system/field";
-import { SheetForm } from "~/components/system/SheetForm";
 import * as m from "~/i18n/messages";
 import { peopleOptionsQuery } from "~/queries/students";
 import { recordLeaving } from "~/server/students";

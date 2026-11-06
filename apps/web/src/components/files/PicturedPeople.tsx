@@ -1,13 +1,13 @@
 import type { ReactNode } from "react";
 
+import { ComboboxField } from "@faridalms/ui/system/combobox-field";
+import { SheetForm } from "@faridalms/ui/system/sheet-form";
+import { StatusText } from "@faridalms/ui/system/status";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useCallback, useState } from "react";
 import { toast } from "sonner";
 
 import { displayName } from "~/components/people/format";
-import { ComboboxField } from "~/components/system/ComboboxField";
-import { SheetForm } from "~/components/system/SheetForm";
-import { StatusText } from "~/components/system/status";
 import * as m from "~/i18n/messages";
 import { picturedQuery } from "~/queries/files";
 import { studentsQuery } from "~/queries/students";

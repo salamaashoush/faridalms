@@ -34,6 +34,9 @@ import { mediaClock } from "@faridalms/editor/format";
 import { Button } from "@faridalms/ui/button";
 import { cn } from "@faridalms/ui/cn";
 import { Progress } from "@faridalms/ui/progress";
+import { ButtonLink } from "@faridalms/ui/system/button-link";
+import { Segmented } from "@faridalms/ui/system/panel";
+import { RecordHeader } from "@faridalms/ui/system/record-page";
 import { Tabs, TabsList, TabsTrigger } from "@faridalms/ui/tabs";
 import {
   useMutation,
@@ -63,7 +66,6 @@ import { toast } from "sonner";
 
 import type { OwnCode, OwnProjects } from "~/components/coding/own-code";
 
-import { ButtonLink } from "~/components/app/ButtonLink";
 import {
   OwnCodeContext,
   OwnProjectsContext,
@@ -78,8 +80,6 @@ import {
 } from "~/components/learning/ReadAloud";
 import { paperBlock } from "~/components/print/paper-blocks";
 import { usePrint } from "~/components/print/usePrint";
-import { Segmented } from "~/components/system/panel";
-import { RecordHeader } from "~/components/system/RecordPage";
 import { useCurrentUser } from "~/hooks/useCurrentUser";
 import * as m from "~/i18n/messages";
 import { getLocale } from "~/i18n/runtime";

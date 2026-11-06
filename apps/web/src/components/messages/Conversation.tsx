@@ -19,6 +19,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@faridalms/ui/select";
+import { Segmented } from "@faridalms/ui/system/panel";
 import {
   useInfiniteQuery,
   useMutation,
@@ -32,7 +33,6 @@ import { useEffect, useId, useRef, useState } from "react";
 import { ContentEditor } from "~/components/content/ContentEditor";
 import { ContentView } from "~/components/content/ContentView";
 import { TemplatePicker } from "~/components/content/Templates";
-import { Segmented } from "~/components/system/panel";
 import { useCurrentUser } from "~/hooks/useCurrentUser";
 import { useDocumentMedia } from "~/hooks/useDocumentMedia";
 import * as m from "~/i18n/messages";

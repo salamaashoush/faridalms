@@ -1,23 +1,21 @@
 import type { LucideIcon } from "lucide-react";
 import type { ReactNode } from "react";
 
-import { Avatar, AvatarFallback, AvatarImage } from "@faridalms/ui/avatar";
-import { Button } from "@faridalms/ui/button";
-import { cn } from "@faridalms/ui/cn";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@faridalms/ui/tabs";
+import { Avatar, AvatarFallback, AvatarImage } from "../avatar";
+import { Button } from "../button";
+import { cn } from "../cn";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "../tabs";
 import { Camera, Pencil } from "lucide-react";
 import { useEffect, useId, useRef, useState } from "react";
 
-import { Value } from "~/components/app/primitives";
-import * as m from "~/i18n/messages";
-
-import type { ActionItem } from "./ActionMenu";
-import type { PrimaryAction } from "./DocumentPage";
+import type { ActionItem, PrimaryAction } from "./action-menu";
 import type { Tone } from "./status";
 
-import { ActionMenu } from "./ActionMenu";
-import { PageActions } from "./PageActions";
+import { ActionMenu } from "./action-menu";
+import { PageActions } from "./page-actions";
+import { useSystemStrings } from "./provider";
 import { StatusBadge, toneSurface } from "./status";
+import { Value } from "./value";
 
 const NO_ACTIONS: ActionItem[] = [];
 const NO_ALERTS: RecordAlert[] = [];
@@ -45,6 +43,29 @@ export const phoneLink =
  * screen. On phones the actions move into the top bar's menu, as on every
  * other page.
  */
+/** A record's lifecycle state, shown as a pill beside its name. */
+export interface RecordStatus {
+  label: string;
+  tone: Tone;
+}
+
+export interface RecordHeaderProps {
+  /** Opens the photo to change it, for someone who may. */
+  onPhoto?: () => void;
+  /** A document's title reads at the size it was written in. */
+  variant?: "record" | "document";
+  /** Small view controls before the menu, such as a document's width. */
+  tools?: ReactNode;
+  title: string;
+  photoUrl?: string | null;
+  initials?: string;
+  facts?: HeaderFact[];
+  status?: RecordStatus;
+  alerts?: RecordAlert[];
+  action?: PrimaryAction;
+  menu?: ActionItem[];
+}
+
 export function RecordHeader({
   title,
   photoUrl,
@@ -57,22 +78,8 @@ export function RecordHeader({
   tools,
   variant = "record",
   onPhoto,
-}: {
-  /** Opens the photo to change it, for someone who may. */
-  onPhoto?: () => void;
-  /** A document's title reads at the size it was written in. */
-  variant?: "record" | "document";
-  /** Small view controls before the menu, such as a document's width. */
-  tools?: ReactNode;
-  title: string;
-  photoUrl?: string | null;
-  initials?: string;
-  facts?: HeaderFact[];
-  status?: { label: string; tone: Tone };
-  alerts?: RecordAlert[];
-  action?: PrimaryAction;
-  menu?: ActionItem[];
-}) {
+}: RecordHeaderProps) {
+  const strings = useSystemStrings();
   const phoneActions: ActionItem[] = action
     ? [
         { label: action.label, icon: action.icon, onSelect: action.onClick },
@@ -85,7 +92,7 @@ export function RecordHeader({
         <PageActions>
           <div data-keeps-global-tools className="md:hidden">
             <ActionMenu
-              label={m.docMoreActions()}
+              label={strings.moreActions}
               actions={phoneActions}
               className="max-md:size-10"
             />
@@ -98,7 +105,7 @@ export function RecordHeader({
             // The photo itself is where it is changed, as on most profiles.
             <button
               type="button"
-              aria-label={m.photoChange()}
+              aria-label={strings.changePhoto}
               onClick={onPhoto}
               className="group relative shrink-0 rounded-full outline-none focus-visible:ring-4 focus-visible:ring-ring/50"
             >
@@ -185,7 +192,7 @@ export function RecordHeader({
         <div className="flex shrink-0 items-center gap-2 max-md:hidden">
           {tools}
           <ActionMenu
-            label={m.docMoreActions()}
+            label={strings.moreActions}
             actions={menu}
             size="icon"
             className="max-md:size-10"
@@ -218,19 +225,21 @@ export interface RecordTab<T extends string> {
  * sideways rather than squeezing the labels, and the chosen tab is kept in
  * view.
  */
+export interface RecordTabsProps<T extends string> {
+  label: string;
+  tabs: RecordTab<T>[];
+  value: T;
+  onChange: (value: T) => void;
+  children: ReactNode;
+}
+
 export function RecordTabs<T extends string>({
   label,
   tabs,
   value,
   onChange,
   children,
-}: {
-  label: string;
-  tabs: RecordTab<T>[];
-  value: T;
-  onChange: (value: T) => void;
-  children: ReactNode;
-}) {
+}: RecordTabsProps<T>) {
   const scroller = useRef<HTMLDivElement>(null);
   const index = tabs.findIndex((tab) => tab.value === value);
   const [hidden, setHidden] = useState({ start: false, end: false });
@@ -315,13 +324,12 @@ export function RecordTabs<T extends string>({
  * in the last third, one column on narrower screens. The main column keeps its
  * width when a tab has nothing supporting, so tabs do not jump as they change.
  */
-export function RecordColumns({
-  main,
-  aside,
-}: {
+export interface RecordColumnsProps {
   main: ReactNode;
   aside?: ReactNode;
-}) {
+}
+
+export function RecordColumns({ main, aside }: RecordColumnsProps) {
   return (
     <div className="grid gap-6 lg:grid-cols-3">
       <div className="grid min-w-0 content-start gap-6 lg:col-span-2">
@@ -338,6 +346,22 @@ export function RecordColumns({
  * A read-only part of a record. Editing happens in a sheet opened from the
  * section's Edit button, never inline.
  */
+/** The section's ghost Edit button; the label names what it edits. */
+export interface SectionEdit {
+  label: string;
+  onClick: () => void;
+}
+
+export interface RecordSectionProps {
+  title: string;
+  description?: ReactNode;
+  edit?: SectionEdit;
+  action?: ReactNode;
+  /** Under a document read as a page, a part is ruled off rather than framed. */
+  variant?: "card" | "page";
+  children: ReactNode;
+}
+
 export function RecordSection({
   title,
   description,
@@ -345,15 +369,8 @@ export function RecordSection({
   action,
   variant = "card",
   children,
-}: {
-  title: string;
-  description?: ReactNode;
-  edit?: { label: string; onClick: () => void };
-  action?: ReactNode;
-  /** Under a document read as a page, a part is ruled off rather than framed. */
-  variant?: "card" | "page";
-  children: ReactNode;
-}) {
+}: RecordSectionProps) {
+  const strings = useSystemStrings();
   const headingId = useId();
   const page = variant === "page";
   return (
@@ -394,7 +411,7 @@ export function RecordSection({
                 onClick={edit.onClick}
               >
                 <Pencil aria-hidden />
-                {m.recordEdit()}
+                {strings.edit}
               </Button>
             ) : null}
           </div>
@@ -410,13 +427,13 @@ export function RecordSection({
  * section reads well in the main column and in the narrow supporting one.
  * Short values such as counts can sit two to a row even there.
  */
-export function Facts({
-  short = false,
-  children,
-}: {
+export interface FactsProps {
+  /** Short values, such as counts, two to a row even in a narrow column. */
   short?: boolean;
   children: ReactNode;
-}) {
+}
+
+export function Facts({ short = false, children }: FactsProps) {
   return (
     <dl
       className={cn(
@@ -437,17 +454,20 @@ export function Facts({
  * with its own direction, since what people type ("12 Nile View") must not
  * be reordered by an Arabic page.
  */
+export interface FactProps {
+  label: string;
+  children: ReactNode;
+  /** Takes the section's whole width, as a long note does. */
+  wide?: boolean;
+  notApplicable?: boolean;
+}
+
 export function Fact({
   label,
   children,
   wide = false,
   notApplicable = false,
-}: {
-  label: string;
-  children: ReactNode;
-  wide?: boolean;
-  notApplicable?: boolean;
-}) {
+}: FactProps) {
   return (
     <div className={cn("min-w-0", wide && "@md:col-span-full")}>
       <dt className="text-[13px] leading-[18px] text-muted-foreground">
@@ -466,10 +486,20 @@ export function Fact({
   );
 }
 
-export function RecordList({ children }: { children: ReactNode }) {
+export interface RecordListProps {
+  children: ReactNode;
+}
+
+/** Items in a section, ruled apart, flush with the section's edges. */
+export function RecordList({ children }: RecordListProps) {
   return <ul className="-my-3 divide-y">{children}</ul>;
 }
 
-export function RecordEmpty({ children }: { children: ReactNode }) {
+export interface RecordEmptyProps {
+  children: ReactNode;
+}
+
+/** A section with nothing in it yet, said in a line. */
+export function RecordEmpty({ children }: RecordEmptyProps) {
   return <p className="text-sm leading-5 text-muted-foreground">{children}</p>;
 }

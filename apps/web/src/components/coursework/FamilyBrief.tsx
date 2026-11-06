@@ -4,11 +4,11 @@ import {
   SheetHeader,
   SheetTitle,
 } from "@faridalms/ui/sheet";
+import { RecordEmpty } from "@faridalms/ui/system/record-page";
 import { useQuery } from "@tanstack/react-query";
 
 import { classTitle } from "~/components/classes/format";
 import { ContentView } from "~/components/content/ContentView";
-import { RecordEmpty } from "~/components/system/RecordPage";
 import * as m from "~/i18n/messages";
 import { getLocale, getTextDirection } from "~/i18n/runtime";
 import { childBriefQuery } from "~/queries/coursework";

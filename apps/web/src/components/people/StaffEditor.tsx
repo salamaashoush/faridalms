@@ -2,6 +2,8 @@ import type { Ref } from "react";
 
 import { saveStaffSchema, STAFF_ROLE_CHOICES } from "@faridalms/domain/people";
 import { Button } from "@faridalms/ui/button";
+import { SelectField, TextField } from "@faridalms/ui/system/form-field";
+import { FormSection, RecordForm } from "@faridalms/ui/system/record-form";
 import {
   useMutation,
   useQueryClient,
@@ -12,8 +14,6 @@ import { TriangleAlert } from "lucide-react";
 import { useEffect, useId, useRef, useState } from "react";
 import { toast } from "sonner";
 
-import { SelectField, TextField } from "~/components/system/field";
-import { FormSection, RecordForm } from "~/components/system/RecordForm";
 import * as m from "~/i18n/messages";
 import { staffMemberQuery } from "~/queries/staff";
 import { peopleOptionsQuery } from "~/queries/students";

@@ -16,12 +16,12 @@ import { DIVIDERS, SCHEMES, schemesOf } from "@faridalms/domain/site-theme";
 import { Button } from "@faridalms/ui/button";
 import { cn } from "@faridalms/ui/cn";
 import { Input } from "@faridalms/ui/input";
+import { PanelGroup, Segmented } from "@faridalms/ui/system/panel";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@faridalms/ui/tabs";
 import { AlignCenter, AlignLeft, CircleAlert, X } from "lucide-react";
 
 import { LOCALE_NAME } from "~/components/content/languages";
 import { CheckboxRow } from "~/components/people/fields";
-import { PanelGroup, Segmented } from "~/components/system/panel";
 import * as m from "~/i18n/messages";
 import { formatNumber } from "~/utils/datetime";
 

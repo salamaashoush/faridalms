@@ -2,30 +2,29 @@ import type {
   TeacherListQuery,
   TeacherTab,
 } from "@faridalms/domain/coursework";
+import type { Column, RowAction } from "@faridalms/ui/system/data-table";
+import type {
+  Facet,
+  IndexToolbarProps,
+} from "@faridalms/ui/system/index-toolbar";
+import type { HeaderAction } from "@faridalms/ui/system/page-header";
 
 import { TEACHER_TABS, teacherListSchema } from "@faridalms/domain/coursework";
+import { ButtonLink } from "@faridalms/ui/system/button-link";
+import { DataTable, RowLink } from "@faridalms/ui/system/data-table";
+import { PageHeader } from "@faridalms/ui/system/page-header";
+import { RecordTabs } from "@faridalms/ui/system/record-page";
+import { StatusText } from "@faridalms/ui/system/status";
+import { Value } from "@faridalms/ui/system/value";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { createFileRoute, stripSearchParams } from "@tanstack/react-router";
 import { ClipboardList, ClipboardPen, Copy, Pencil, Plus } from "lucide-react";
 import { useState } from "react";
 import * as v from "valibot";
 
-import type { Column, RowAction } from "~/components/system/DataTable";
-import type {
-  Facet,
-  HeaderAction,
-  IndexToolbarProps,
-} from "~/components/system/IndexPage";
-
-import { ButtonLink } from "~/components/app/ButtonLink";
-import { Value } from "~/components/app/primitives";
 import { classTitle } from "~/components/classes/format";
 import { PHASE_LABEL, PHASE_TONE } from "~/components/coursework/format";
 import { UseAgainSheet } from "~/components/coursework/UseAgain";
-import { DataTable, RowLink } from "~/components/system/DataTable";
-import { PageHeader } from "~/components/system/IndexPage";
-import { RecordTabs } from "~/components/system/RecordPage";
-import { StatusText } from "~/components/system/status";
 import * as m from "~/i18n/messages";
 import {
   courseworkListQuery,

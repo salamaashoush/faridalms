@@ -36,6 +36,10 @@ import {
   translationState,
 } from "@faridalms/domain/translations";
 import { Button } from "@faridalms/ui/button";
+import { ComboboxField } from "@faridalms/ui/system/combobox-field";
+import { ConfirmDialog } from "@faridalms/ui/system/confirm-dialog";
+import { SelectField, TextField } from "@faridalms/ui/system/form-field";
+import { UnsavedChangesGuard } from "@faridalms/ui/system/unsaved-changes-guard";
 import { Tabs, TabsList, TabsTrigger } from "@faridalms/ui/tabs";
 import {
   useQuery,
@@ -49,7 +53,6 @@ import { toast } from "sonner";
 import type { StartingPiece } from "~/components/content/Templates";
 import type { assignmentEditorQuery } from "~/queries/coursework";
 
-import { UnsavedChangesGuard } from "~/components/app/UnsavedChangesGuard";
 import { contentIssueMessages } from "~/components/content/checks";
 import { useCollaboration } from "~/components/content/collaboration";
 import { ContentEditor } from "~/components/content/ContentEditor";
@@ -60,15 +63,12 @@ import { TranslationNote } from "~/components/content/TranslationNote";
 import { CourseworkSetting } from "~/components/exams/CourseworkSetting";
 import { blockIssue } from "~/components/learning/issues";
 import { CheckboxRow } from "~/components/people/fields";
-import { ComboboxField } from "~/components/system/ComboboxField";
-import { ConfirmDialog } from "~/components/system/ConfirmDialog";
 import {
   DetailsPanel,
   DetailsSection,
   DocumentPage,
   DocumentTitle,
 } from "~/components/system/DocumentPage";
-import { SelectField, TextField } from "~/components/system/field";
 import { useAutosave } from "~/hooks/useAutosave";
 import { inLocale } from "~/hooks/useCurrentUser";
 import { useDocumentMedia } from "~/hooks/useDocumentMedia";

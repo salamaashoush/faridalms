@@ -42,6 +42,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@faridalms/ui/select";
+import { Segmented } from "@faridalms/ui/system/panel";
 import { Textarea } from "@faridalms/ui/textarea";
 import {
   ArrowDown,
@@ -60,7 +61,6 @@ import { toast } from "sonner";
 
 import { ContentEditor } from "~/components/content/ContentEditor";
 import { CheckboxRow } from "~/components/people/fields";
-import { Segmented } from "~/components/system/panel";
 import * as m from "~/i18n/messages";
 import { formatNumber } from "~/utils/datetime";
 

@@ -1,3 +1,5 @@
+import { TextField } from "@faridalms/ui/system/form-field";
+import { SettingsSection } from "@faridalms/ui/system/settings-section";
 import {
   useMutation,
   useQueryClient,
@@ -6,8 +8,6 @@ import {
 import { useState } from "react";
 
 import { CheckboxRow } from "~/components/people/fields";
-import { TextField } from "~/components/system/field";
-import { SettingsSection } from "~/components/system/SettingsSection";
 import * as m from "~/i18n/messages";
 import { attendanceSettingsQuery } from "~/queries/attendance";
 import { saveAttendanceSettings } from "~/server/attendance";

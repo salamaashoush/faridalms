@@ -1,10 +1,10 @@
 import type { ComponentProps } from "react";
 
-import { Button } from "@faridalms/ui/button";
-import { DialogContent as Content, DialogClose } from "@faridalms/ui/dialog";
+import { Button } from "../button";
+import { DialogContent as Content, DialogClose } from "../dialog";
 import { X } from "lucide-react";
 
-import * as m from "~/i18n/messages";
+import { useSystemStrings } from "./provider";
 
 export {
   Dialog,
@@ -14,12 +14,13 @@ export {
   DialogHeader,
   DialogFooter,
   DialogClose,
-} from "@faridalms/ui/dialog";
+} from "../dialog";
 
-export function DialogContent({
-  children,
-  ...props
-}: ComponentProps<typeof Content>) {
+export type DialogContentProps = ComponentProps<typeof Content>;
+
+/** A dialog's body with a close button named in the reader's language. */
+export function DialogContent({ children, ...props }: DialogContentProps) {
+  const strings = useSystemStrings();
   return (
     <Content {...props} showCloseButton={false}>
       {children}
@@ -29,7 +30,7 @@ export function DialogContent({
             variant="ghost"
             size="icon-sm"
             className="absolute end-4 top-4"
-            aria-label={m.commonClose()}
+            aria-label={strings.close}
           />
         }
       >

@@ -1,9 +1,12 @@
 import type { ContentDocument } from "@faridalms/domain/content";
+import type { ActionItem } from "@faridalms/ui/system/action-menu";
 import type { ReactNode } from "react";
 
 import { contentPlainText } from "@faridalms/domain/content";
 import { emptyContent } from "@faridalms/domain/content-conversion";
 import { Button } from "@faridalms/ui/button";
+import { ActionMenu } from "@faridalms/ui/system/action-menu";
+import { RecordEmpty, RecordSection } from "@faridalms/ui/system/record-page";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   CheckCircle2,
@@ -17,13 +20,9 @@ import {
 import { useId, useState } from "react";
 import { toast } from "sonner";
 
-import type { ActionItem } from "~/components/system/ActionMenu";
-
 import { PersonAvatar } from "~/components/admin/PersonAvatar";
 import { ContentEditor } from "~/components/content/ContentEditor";
 import { ContentView } from "~/components/content/ContentView";
-import { ActionMenu } from "~/components/system/ActionMenu";
-import { RecordEmpty, RecordSection } from "~/components/system/RecordPage";
 import { useDocumentMedia } from "~/hooks/useDocumentMedia";
 import * as m from "~/i18n/messages";
 import { discussionQuery } from "~/queries/coursework";

@@ -2,13 +2,13 @@ import type { PageTemplate } from "@faridalms/domain/site-templates";
 
 import { PAGE_TEMPLATE_IDS } from "@faridalms/domain/site-templates";
 import { resolveTheme } from "@faridalms/domain/site-theme";
+import { ButtonLink } from "@faridalms/ui/system/button-link";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 import { ArrowLeft } from "lucide-react";
 import { useState } from "react";
 import * as v from "valibot";
 
-import { ButtonLink } from "~/components/app/ButtonLink";
 import { TemplateGallery } from "~/components/site/studio/Gallery";
 import { SiteStudio } from "~/components/site/studio/Studio";
 import { useCurrentUser } from "~/hooks/useCurrentUser";

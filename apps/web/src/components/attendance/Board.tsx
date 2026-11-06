@@ -1,17 +1,16 @@
 import type { RegisterState } from "@faridalms/domain/attendance";
+import type { Column, RowAction } from "@faridalms/ui/system/data-table";
+import type { Facet } from "@faridalms/ui/system/index-toolbar";
 
+import { DataTable, RowLink } from "@faridalms/ui/system/data-table";
+import { Fact, Facts, RecordSection } from "@faridalms/ui/system/record-page";
+import { StatusText } from "@faridalms/ui/system/status";
 import { useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
 import { BellRing, ClipboardCheck, ClipboardList } from "lucide-react";
 import { toast } from "sonner";
 
-import type { Column, RowAction } from "~/components/system/DataTable";
-import type { Facet } from "~/components/system/IndexPage";
-
 import { classTitle } from "~/components/classes/format";
-import { DataTable, RowLink } from "~/components/system/DataTable";
-import { Fact, Facts, RecordSection } from "~/components/system/RecordPage";
-import { StatusText } from "~/components/system/status";
 import { inLocale } from "~/hooks/useCurrentUser";
 import * as m from "~/i18n/messages";
 import { attendanceBoardQuery } from "~/queries/attendance";

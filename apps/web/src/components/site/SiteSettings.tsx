@@ -2,6 +2,13 @@ import type { BannerTone, SocialKind } from "@faridalms/domain/website";
 
 import { BANNER_TONES, SOCIAL_KINDS } from "@faridalms/domain/website";
 import { Button } from "@faridalms/ui/button";
+import { ButtonLink } from "@faridalms/ui/system/button-link";
+import { SelectField, TextField } from "@faridalms/ui/system/form-field";
+import { Fact } from "@faridalms/ui/system/record-page";
+import {
+  SettingsPage,
+  SettingsSection,
+} from "@faridalms/ui/system/settings-section";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Plus, X } from "lucide-react";
 import { useState } from "react";
@@ -9,15 +16,8 @@ import { toast } from "sonner";
 
 import type { siteOverviewQuery } from "~/queries/site";
 
-import { ButtonLink } from "~/components/app/ButtonLink";
 import { LOCALE_NAME } from "~/components/content/languages";
 import { CheckboxRow } from "~/components/people/fields";
-import { SelectField, TextField } from "~/components/system/field";
-import { Fact } from "~/components/system/RecordPage";
-import {
-  SettingsPage,
-  SettingsSection,
-} from "~/components/system/SettingsSection";
 import * as m from "~/i18n/messages";
 import { saveSiteSettings } from "~/server/site";
 import { instantFromLocal, localInput } from "~/utils/datetime";

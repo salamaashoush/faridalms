@@ -2,27 +2,27 @@ import type {
   ApplicationListQuery,
   ApplicationView,
 } from "@faridalms/domain/admissions";
+import type { Column } from "@faridalms/ui/system/data-table";
 
 import {
   applicationListSchema,
   LIVE_STATES,
 } from "@faridalms/domain/admissions";
+import { DataTable, RowLink } from "@faridalms/ui/system/data-table";
+import { IndexToolbar } from "@faridalms/ui/system/index-toolbar";
+import { PageHeader } from "@faridalms/ui/system/page-header";
+import { RecordTabs } from "@faridalms/ui/system/record-page";
+import { StatusText } from "@faridalms/ui/system/status";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { createFileRoute, stripSearchParams } from "@tanstack/react-router";
 import { FileUser } from "lucide-react";
 import * as v from "valibot";
-
-import type { Column } from "~/components/system/DataTable";
 
 import {
   APPLICATION_STATE_LABEL,
   APPLICATION_STATE_TONE,
   PRIORITY_LABEL,
 } from "~/components/admissions/application-labels";
-import { DataTable, RowLink } from "~/components/system/DataTable";
-import { IndexToolbar, PageHeader } from "~/components/system/IndexPage";
-import { RecordTabs } from "~/components/system/RecordPage";
-import { StatusText } from "~/components/system/status";
 import { inLocale } from "~/hooks/useCurrentUser";
 import * as m from "~/i18n/messages";
 import { applicationsQuery } from "~/queries/admissions";

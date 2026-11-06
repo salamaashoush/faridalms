@@ -13,10 +13,10 @@ import userEvent from "@testing-library/user-event";
 import { useState } from "react";
 import { describe, expect, it, vi } from "vitest";
 
-import { render } from "~/testUtils";
+import { renderWithSystem as render } from "./testing";
 
-import { TextField } from "./field";
-import { SettingsPage, SettingsSection } from "./SettingsSection";
+import { TextField } from "./form-field";
+import { SettingsPage, SettingsSection } from "./settings-section";
 
 function inRouter(Page: () => ReactElement) {
   const root = createRootRoute({ component: Outlet });

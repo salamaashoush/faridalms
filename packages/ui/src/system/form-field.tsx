@@ -1,22 +1,25 @@
 import type { ComponentProps, ReactNode } from "react";
 
-import { cn } from "@faridalms/ui/cn";
-import { Input } from "@faridalms/ui/input";
-import { RadioGroup, RadioGroupItem } from "@faridalms/ui/radio-group";
+import { cn } from "../cn";
+import { Input } from "../input";
+import { RadioGroup, RadioGroupItem } from "../radio-group";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@faridalms/ui/select";
+} from "../select";
+import type { Issue } from "./provider";
+
+import { FieldError as PrimitiveFieldError } from "../field";
 import { CircleAlert } from "lucide-react";
 import { useId } from "react";
 
-import * as m from "~/i18n/messages";
-import { validationMessage } from "~/utils/validation";
+import { useDesignSystem } from "./provider";
 
-type Issue = { message?: string } | string | undefined | null;
+/** What a validator reports for a field: an issue, plain text, or nothing. */
+export type FieldIssue = Issue | string | undefined | null;
 
 export interface ControlProps {
   id: string;
@@ -34,9 +37,43 @@ export const widths = {
   score: "w-full max-w-[8ch]",
 } as const;
 
-function message(issue: Issue): string | null {
-  if (!issue) return null;
-  return typeof issue === "string" ? issue : validationMessage(issue);
+export type FieldWidth = keyof typeof widths;
+
+/** The first issue to show, in the reader's language. */
+function useFirstError(errors: FieldIssue[] | undefined): string | null {
+  const { issueMessage } = useDesignSystem();
+  for (const issue of errors ?? []) {
+    if (!issue) continue;
+    return typeof issue === "string" ? issue : issueMessage(issue);
+  }
+  return null;
+}
+
+export type FieldErrorProps = ComponentProps<typeof PrimitiveFieldError>;
+
+/** The error under a Field, its issues read in the reader's language. */
+export function FieldError({ errors, ...props }: FieldErrorProps) {
+  const { issueMessage } = useDesignSystem();
+  return (
+    <PrimitiveFieldError
+      {...props}
+      errors={errors?.map((issue) =>
+        issue ? { message: issueMessage(issue) } : undefined,
+      )}
+    />
+  );
+}
+
+export interface FormFieldProps {
+  id?: string;
+  label: string;
+  optional?: boolean;
+  hint?: ReactNode;
+  errors?: FieldIssue[];
+  className?: string;
+  labelHidden?: boolean;
+  /** Renders the control, given the ids and states that tie it to the label. */
+  children: (control: ControlProps) => ReactNode;
 }
 
 /**
@@ -53,19 +90,11 @@ export function FormField({
   className,
   labelHidden = false,
   children,
-}: {
-  id?: string;
-  label: string;
-  optional?: boolean;
-  hint?: ReactNode;
-  errors?: Issue[];
-  className?: string;
-  labelHidden?: boolean;
-  children: (control: ControlProps) => ReactNode;
-}) {
+}: FormFieldProps) {
+  const { strings } = useDesignSystem();
   const generated = useId();
   const id = givenId ?? generated;
-  const error = errors?.map(message).find(Boolean) ?? null;
+  const error = useFirstError(errors);
   const hintId = hint && !error ? `${id}-hint` : undefined;
   const errorId = error ? `${id}-error` : undefined;
   return (
@@ -92,7 +121,7 @@ export function FormField({
         </label>
         {optional ? (
           <span className="text-sm leading-5 text-muted-foreground">
-            {m.formOptionalSuffix()}
+            {strings.optional}
           </span>
         ) : null}
       </div>
@@ -125,6 +154,17 @@ export function FormField({
 
 const TYPED_TEXT = new Set([undefined, "text", "search"]);
 
+export interface TextFieldProps extends Omit<
+  ComponentProps<typeof Input>,
+  "children" | "width"
+> {
+  label: string;
+  optional?: boolean;
+  hint?: ReactNode;
+  errors?: FieldIssue[];
+  width?: FieldWidth;
+}
+
 /**
  * Typed text takes the direction of what was typed. An empty field keeps the
  * page's direction instead, since dir="auto" on an empty input resolves to
@@ -139,13 +179,7 @@ export function TextField({
   className,
   dir,
   ...props
-}: Omit<ComponentProps<typeof Input>, "children" | "width"> & {
-  label: string;
-  optional?: boolean;
-  hint?: ReactNode;
-  errors?: Issue[];
-  width?: keyof typeof widths;
-}) {
+}: TextFieldProps) {
   const follows =
     dir === "auto" || (dir === undefined && TYPED_TEXT.has(props.type));
   const direction = follows ? (props.value ? "auto" : undefined) : dir;
@@ -170,6 +204,26 @@ export function TextField({
   );
 }
 
+export interface FieldOption<T extends string> {
+  value: T;
+  label: string;
+}
+
+export interface SelectFieldProps<T extends string> {
+  id?: string;
+  label: string;
+  value: T;
+  options: readonly FieldOption<T>[];
+  onChange: (value: T) => void;
+  optional?: boolean;
+  hint?: ReactNode;
+  errors?: FieldIssue[];
+  disabled?: boolean;
+  width?: FieldWidth;
+  className?: string;
+  labelHidden?: boolean;
+}
+
 export function SelectField<T extends string>({
   id,
   label,
@@ -183,20 +237,7 @@ export function SelectField<T extends string>({
   width = "full",
   className,
   labelHidden,
-}: {
-  id?: string;
-  label: string;
-  value: T;
-  options: readonly { value: T; label: string }[];
-  onChange: (value: T) => void;
-  optional?: boolean;
-  hint?: ReactNode;
-  errors?: Issue[];
-  disabled?: boolean;
-  width?: keyof typeof widths;
-  className?: string;
-  labelHidden?: boolean;
-}) {
+}: SelectFieldProps<T>) {
   return (
     <FormField
       id={id}
@@ -245,21 +286,28 @@ export function SelectField<T extends string>({
  * The group is named by its legend as a field is by its label, and an error
  * sits below it as it does below any control.
  */
+export interface ChoiceOption<T extends string> extends FieldOption<T> {
+  /** What choosing it means, on the line below. */
+  hint?: string;
+}
+
+export interface ChoiceFieldProps<T extends string> {
+  label: string;
+  value: T;
+  options: readonly ChoiceOption<T>[];
+  onChange: (value: T) => void;
+  errors?: FieldIssue[];
+}
+
 export function ChoiceField<T extends string>({
   label,
   value,
   options,
   onChange,
   errors,
-}: {
-  label: string;
-  value: T;
-  options: readonly { value: T; label: string; hint?: string }[];
-  onChange: (value: T) => void;
-  errors?: Issue[];
-}) {
+}: ChoiceFieldProps<T>) {
   const id = useId();
-  const error = errors?.map(message).find(Boolean) ?? null;
+  const error = useFirstError(errors);
   return (
     <fieldset
       data-slot="form-field"

@@ -30,6 +30,14 @@ import {
   otherLocale,
   translationState,
 } from "@faridalms/domain/translations";
+import { ConfirmDialog } from "@faridalms/ui/system/confirm-dialog";
+import {
+  ChoiceField,
+  SelectField,
+  TextField,
+} from "@faridalms/ui/system/form-field";
+import { SheetForm } from "@faridalms/ui/system/sheet-form";
+import { UnsavedChangesGuard } from "@faridalms/ui/system/unsaved-changes-guard";
 import { Tabs, TabsList, TabsTrigger } from "@faridalms/ui/tabs";
 import { useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
 import { Copy } from "lucide-react";
@@ -42,7 +50,6 @@ import type {
 } from "~/components/content/Templates";
 import type { lessonEditorQuery } from "~/queries/learning";
 
-import { UnsavedChangesGuard } from "~/components/app/UnsavedChangesGuard";
 import { contentIssueMessages } from "~/components/content/checks";
 import { useCollaboration } from "~/components/content/collaboration";
 import { ContentEditor } from "~/components/content/ContentEditor";
@@ -51,15 +58,12 @@ import { LtiHostProvider } from "~/components/content/lti";
 import { useStartFrom } from "~/components/content/Templates";
 import { TranslationNote } from "~/components/content/TranslationNote";
 import { CheckboxRow } from "~/components/people/fields";
-import { ConfirmDialog } from "~/components/system/ConfirmDialog";
 import {
   DetailsPanel,
   DetailsSection,
   DocumentPage,
   DocumentTitle,
 } from "~/components/system/DocumentPage";
-import { ChoiceField, SelectField, TextField } from "~/components/system/field";
-import { SheetForm } from "~/components/system/SheetForm";
 import { useAutosave } from "~/hooks/useAutosave";
 import { useCurrentUser } from "~/hooks/useCurrentUser";
 import { useDocumentMedia } from "~/hooks/useDocumentMedia";

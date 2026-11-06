@@ -11,6 +11,12 @@ import {
   EMAIL_MODES,
   SMS_MODES,
 } from "@faridalms/domain/notifications";
+import { SelectField, TextField } from "@faridalms/ui/system/form-field";
+import { PageHeader } from "@faridalms/ui/system/page-header";
+import {
+  SettingsPage,
+  SettingsSection,
+} from "@faridalms/ui/system/settings-section";
 import {
   useMutation,
   useQueryClient,
@@ -21,12 +27,6 @@ import { useState } from "react";
 
 import { KIND_ICON } from "~/components/notifications/format";
 import { CheckboxRow } from "~/components/people/fields";
-import { SelectField, TextField } from "~/components/system/field";
-import { PageHeader } from "~/components/system/IndexPage";
-import {
-  SettingsPage,
-  SettingsSection,
-} from "~/components/system/SettingsSection";
 import { useCurrentUser } from "~/hooks/useCurrentUser";
 import * as m from "~/i18n/messages";
 import { notificationPreferencesQuery } from "~/queries/notifications";

@@ -1,8 +1,8 @@
+import { BreadcrumbCurrent } from "@faridalms/ui/system/app-shell";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 import * as v from "valibot";
 
-import { BreadcrumbCurrent } from "~/components/app/WorkspaceBreadcrumb";
 import { Register } from "~/components/attendance/Register";
 import { classTitle } from "~/components/classes/format";
 import { registerQuery } from "~/queries/attendance";

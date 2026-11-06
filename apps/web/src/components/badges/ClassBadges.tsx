@@ -1,4 +1,10 @@
 import { BADGE_DAYS } from "@faridalms/domain/badges";
+import { ActionMenu, useRunAndReport } from "@faridalms/ui/system/action-menu";
+import { initialsOf } from "@faridalms/ui/system/app-shell";
+import { ConfirmDialog } from "@faridalms/ui/system/confirm-dialog";
+import { EmptyState } from "@faridalms/ui/system/empty-state";
+import { PageHeader } from "@faridalms/ui/system/page-header";
+import { RecordList, RecordSection } from "@faridalms/ui/system/record-page";
 import {
   useMutation,
   useQueryClient,
@@ -8,13 +14,8 @@ import { useServerFn } from "@tanstack/react-start";
 import { Ban, Printer, QrCode } from "lucide-react";
 import { useCallback, useState } from "react";
 
-import { initialsOf } from "~/components/app/UserMenu";
 import { classTitle } from "~/components/classes/format";
 import { displayName } from "~/components/people/format";
-import { ActionMenu, runAndReport } from "~/components/system/ActionMenu";
-import { ConfirmDialog } from "~/components/system/ConfirmDialog";
-import { EmptyState, PageHeader } from "~/components/system/IndexPage";
-import { RecordList, RecordSection } from "~/components/system/RecordPage";
 import { inLocale, useCurrentUser } from "~/hooks/useCurrentUser";
 import * as m from "~/i18n/messages";
 import { classBadgesQuery } from "~/queries/badges";
@@ -88,6 +89,7 @@ export function ClassBadges({ classId }: { classId: string }) {
   const done = useCallback(() => setPrinted(null), []);
 
   const youngIds = young.map((student) => student.userId);
+  const runAndReport = useRunAndReport();
 
   return (
     <div className="mx-auto w-full max-w-3xl">

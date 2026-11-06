@@ -2,6 +2,10 @@ import type { OnboardingItem } from "@faridalms/domain/onboarding";
 import type { LinkProps } from "@tanstack/react-router";
 
 import { Button } from "@faridalms/ui/button";
+import { EmptyState } from "@faridalms/ui/system/empty-state";
+import { PageHeader } from "@faridalms/ui/system/page-header";
+import { Fact, Facts, RecordColumns } from "@faridalms/ui/system/record-page";
+import { StatusText } from "@faridalms/ui/system/status";
 import {
   useMutation,
   useQueryClient,
@@ -19,9 +23,6 @@ import {
   itemLink,
 } from "~/components/home/parts";
 import { displayName } from "~/components/people/format";
-import { EmptyState, PageHeader } from "~/components/system/IndexPage";
-import { Fact, Facts, RecordColumns } from "~/components/system/RecordPage";
-import { StatusText } from "~/components/system/status";
 import { inLocale } from "~/hooks/useCurrentUser";
 import * as m from "~/i18n/messages";
 import { adminHomeQuery } from "~/queries/home";

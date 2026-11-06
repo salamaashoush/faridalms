@@ -1,21 +1,21 @@
 import type { ErrorComponentProps } from "@tanstack/react-router";
 
+import {
+  BreadcrumbCurrent,
+  BreadcrumbStep,
+} from "@faridalms/ui/system/app-shell";
+import { ButtonLink } from "@faridalms/ui/system/button-link";
+import { EmptyState } from "@faridalms/ui/system/empty-state";
 import { useQuery, useSuspenseQuery } from "@tanstack/react-query";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { Lock } from "lucide-react";
 
-import { ButtonLink } from "~/components/app/ButtonLink";
-import {
-  BreadcrumbCurrent,
-  BreadcrumbStep,
-} from "~/components/app/WorkspaceBreadcrumb";
 import { LtiHostProvider } from "~/components/content/lti";
 import { DefaultCatchBoundary } from "~/components/DefaultCatchBoundary";
 import {
   LessonPlayer,
   LessonPreview,
 } from "~/components/learning/LessonPlayer";
-import { EmptyState } from "~/components/system/IndexPage";
 import * as m from "~/i18n/messages";
 import { lessonEditorQuery, lessonQuery } from "~/queries/learning";
 

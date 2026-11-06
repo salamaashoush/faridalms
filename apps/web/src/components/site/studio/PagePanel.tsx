@@ -9,12 +9,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@faridalms/ui/select";
+import { PanelGroup } from "@faridalms/ui/system/panel";
 import { Textarea } from "@faridalms/ui/textarea";
 import { History } from "lucide-react";
 
 import { LOCALE_NAME } from "~/components/content/languages";
 import { CheckboxRow } from "~/components/people/fields";
-import { PanelGroup } from "~/components/system/panel";
 import * as m from "~/i18n/messages";
 
 import type { Languages, PageDraft } from "./draft";

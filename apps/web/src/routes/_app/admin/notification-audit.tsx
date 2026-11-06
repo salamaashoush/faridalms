@@ -1,22 +1,23 @@
 import type { DeliveryLogQuery } from "@faridalms/domain/notifications";
+import type { Column } from "@faridalms/ui/system/data-table";
+import type { Tone } from "@faridalms/ui/system/status";
 
 import {
   DELIVERY_CHANNELS,
   DELIVERY_STATES,
   deliveryLogSchema,
 } from "@faridalms/domain/notifications";
+import { DataTable } from "@faridalms/ui/system/data-table";
+import { IndexToolbar } from "@faridalms/ui/system/index-toolbar";
+import { PageHeader } from "@faridalms/ui/system/page-header";
+import { StatusText } from "@faridalms/ui/system/status";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { createFileRoute, stripSearchParams } from "@tanstack/react-router";
 import { Send } from "lucide-react";
 import * as v from "valibot";
 
-import type { Column } from "~/components/system/DataTable";
-import type { Tone } from "~/components/system/status";
 import type { deliveryLogQuery as Query } from "~/queries/notifications";
 
-import { DataTable } from "~/components/system/DataTable";
-import { IndexToolbar, PageHeader } from "~/components/system/IndexPage";
-import { StatusText } from "~/components/system/status";
 import { inLocale } from "~/hooks/useCurrentUser";
 import * as m from "~/i18n/messages";
 import { deliveryLogQuery } from "~/queries/notifications";

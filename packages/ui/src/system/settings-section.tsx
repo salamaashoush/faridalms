@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 
-import { Button } from "@faridalms/ui/button";
+import { Button } from "../button";
 import { useHydrated } from "@tanstack/react-router";
 import { Check, CircleAlert, LoaderCircle } from "lucide-react";
 import {
@@ -13,8 +13,8 @@ import {
   useState,
 } from "react";
 
-import { UnsavedChangesGuard } from "~/components/app/UnsavedChangesGuard";
-import * as m from "~/i18n/messages";
+import { useSystemStrings } from "./provider";
+import { UnsavedChangesGuard } from "./unsaved-changes-guard";
 
 interface Unsaved {
   isDirty: () => boolean;
@@ -29,7 +29,11 @@ const UnsavedContext = createContext<Register | null>(null);
  * The page guards unsaved edits once for all of its sections, so leaving with
  * two cards changed asks once rather than once per card.
  */
-export function SettingsPage({ children }: { children: ReactNode }) {
+export interface SettingsPageProps {
+  children: ReactNode;
+}
+
+export function SettingsPage({ children }: SettingsPageProps) {
   const [sections, setSections] = useState<ReadonlyMap<string, Unsaved>>(
     () => new Map(),
   );
@@ -78,6 +82,21 @@ function useUnsaved(isDirty: (() => boolean) | undefined, pending: boolean) {
  * Without it the card only shows, and `footer` can hold a way to where it is
  * changed.
  */
+export interface SettingsSectionProps {
+  title: string;
+  description?: ReactNode;
+  /** Makes the card its own form, saved on its own. */
+  onSubmit?: () => void | Promise<unknown>;
+  pending?: boolean;
+  error?: string | null;
+  /** The last save went through; says so beside Save. */
+  saved?: boolean;
+  isDirty?: () => boolean;
+  submitLabel?: string;
+  footer?: ReactNode;
+  children: ReactNode;
+}
+
 export function SettingsSection({
   title,
   description,
@@ -86,21 +105,11 @@ export function SettingsSection({
   error,
   saved = false,
   isDirty,
-  submitLabel = m.commonSave(),
+  submitLabel,
   footer,
   children,
-}: {
-  title: string;
-  description?: ReactNode;
-  onSubmit?: () => void | Promise<unknown>;
-  pending?: boolean;
-  error?: string | null;
-  saved?: boolean;
-  isDirty?: () => boolean;
-  submitLabel?: string;
-  footer?: ReactNode;
-  children: ReactNode;
-}) {
+}: SettingsSectionProps) {
+  const strings = useSystemStrings();
   const headingId = useId();
   const hydrated = useHydrated();
   const guarded = useUnsaved(isDirty, pending);
@@ -163,7 +172,7 @@ export function SettingsSection({
               {pending ? (
                 <LoaderCircle className="animate-spin" aria-hidden />
               ) : null}
-              {submitLabel}
+              {submitLabel ?? strings.save}
             </Button>
             {footer}
             <span
@@ -173,7 +182,7 @@ export function SettingsSection({
               {saved ? (
                 <>
                   <Check className="size-3.5 text-success" aria-hidden />
-                  {m.docSaved()}
+                  {strings.saved}
                 </>
               ) : null}
             </span>
@@ -193,13 +202,12 @@ export function SettingsSection({
 }
 
 /** Related fields inside a settings card, under a small heading of their own. */
-export function SettingsGroup({
-  title,
-  children,
-}: {
+export interface SettingsGroupProps {
   title: string;
   children: ReactNode;
-}) {
+}
+
+export function SettingsGroup({ title, children }: SettingsGroupProps) {
   return (
     <div className="border-t pt-6 first:border-t-0 first:pt-0">
       <fieldset className="grid min-w-0 gap-6">

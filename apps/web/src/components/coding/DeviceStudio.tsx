@@ -5,13 +5,13 @@ import { Dialog as DialogPrimitive } from "@base-ui/react/dialog";
 import { MAX_PROJECT_BYTES, projectBytes } from "@faridalms/domain/project";
 import { EditorFrame } from "@faridalms/makecode/Studio";
 import { Button } from "@faridalms/ui/button";
+import { ConfirmDialog } from "@faridalms/ui/system/confirm-dialog";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@faridalms/ui/tooltip";
 import { useQuery } from "@tanstack/react-query";
 import { Info, RotateCcw, TriangleAlert, X } from "lucide-react";
 import { useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 
-import { ConfirmDialog } from "~/components/system/ConfirmDialog";
 import * as m from "~/i18n/messages";
 import { getLocale } from "~/i18n/runtime";
 import { playQuery } from "~/queries/play";

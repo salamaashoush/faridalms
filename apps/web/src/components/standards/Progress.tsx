@@ -1,8 +1,12 @@
 import type { MasteryLevel } from "@faridalms/domain/standards";
+import type { Column } from "@faridalms/ui/system/data-table";
 import type { LucideIcon } from "lucide-react";
 
 import { Button } from "@faridalms/ui/button";
 import { cn } from "@faridalms/ui/cn";
+import { DataTable, RowLink } from "@faridalms/ui/system/data-table";
+import { EmptyState } from "@faridalms/ui/system/empty-state";
+import { RecordSection } from "@faridalms/ui/system/record-page";
 import {
   useMutation,
   useQuery,
@@ -25,14 +29,9 @@ import {
 import { useId, useState } from "react";
 import { toast } from "sonner";
 
-import type { Column } from "~/components/system/DataTable";
-
 import { displayName } from "~/components/people/format";
 import { StudentGoals } from "~/components/standards/Goals";
 import { ObserveSheet } from "~/components/standards/Observe";
-import { DataTable, RowLink } from "~/components/system/DataTable";
-import { EmptyState } from "~/components/system/IndexPage";
-import { RecordSection } from "~/components/system/RecordPage";
 import { inLocale, useCapability } from "~/hooks/useCurrentUser";
 import * as m from "~/i18n/messages";
 import {

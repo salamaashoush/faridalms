@@ -1,9 +1,17 @@
 import type { GradeBand, GradeDisplay } from "@faridalms/domain/grading";
+import type { Column, RowAction } from "@faridalms/ui/system/data-table";
 
 import { bandsSchema } from "@faridalms/domain/grading";
 import { Button } from "@faridalms/ui/button";
 import { Input } from "@faridalms/ui/input";
 import { RadioGroup, RadioGroupItem } from "@faridalms/ui/radio-group";
+import { DataTable } from "@faridalms/ui/system/data-table";
+import {
+  FormField,
+  SelectField,
+  TextField,
+} from "@faridalms/ui/system/form-field";
+import { SheetForm } from "@faridalms/ui/system/sheet-form";
 import { Textarea } from "@faridalms/ui/textarea";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import {
@@ -18,13 +26,9 @@ import { useState } from "react";
 import { toast } from "sonner";
 import * as v from "valibot";
 
-import type { Column, RowAction } from "~/components/system/DataTable";
 import type { getGradingOverview } from "~/server/grading";
 
 import { CheckboxRow } from "~/components/people/fields";
-import { DataTable } from "~/components/system/DataTable";
-import { FormField, SelectField, TextField } from "~/components/system/field";
-import { SheetForm } from "~/components/system/SheetForm";
 import { inLocale } from "~/hooks/useCurrentUser";
 import * as m from "~/i18n/messages";
 import {

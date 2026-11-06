@@ -1,5 +1,11 @@
+import type { Facet } from "@faridalms/ui/system/index-toolbar";
+
 import { Button } from "@faridalms/ui/button";
 import { Input } from "@faridalms/ui/input";
+import { EmptyState } from "@faridalms/ui/system/empty-state";
+import { IndexToolbar } from "@faridalms/ui/system/index-toolbar";
+import { PageHeader } from "@faridalms/ui/system/page-header";
+import { StatusText } from "@faridalms/ui/system/status";
 import {
   useMutation,
   useQueryClient,
@@ -11,17 +17,9 @@ import { useState } from "react";
 import { toast } from "sonner";
 import * as v from "valibot";
 
-import type { Facet } from "~/components/system/IndexPage";
-
 import { classTitle } from "~/components/classes/format";
 import { gradeWithScore, resultText } from "~/components/grading/format";
 import { displayName } from "~/components/people/format";
-import {
-  EmptyState,
-  IndexToolbar,
-  PageHeader,
-} from "~/components/system/IndexPage";
-import { StatusText } from "~/components/system/status";
 import { inLocale } from "~/hooks/useCurrentUser";
 import * as m from "~/i18n/messages";
 import { courseworkOptionsQuery } from "~/queries/coursework";

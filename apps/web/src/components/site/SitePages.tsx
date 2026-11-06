@@ -1,4 +1,9 @@
 import type { PageBatchAction } from "@faridalms/domain/website";
+import type {
+  BatchAction,
+  Column,
+  RowAction,
+} from "@faridalms/ui/system/data-table";
 
 import { Badge } from "@faridalms/ui/badge";
 import { Button } from "@faridalms/ui/button";
@@ -9,6 +14,10 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@faridalms/ui/dialog";
+import { ButtonLink } from "@faridalms/ui/system/button-link";
+import { DataTable, RowLink } from "@faridalms/ui/system/data-table";
+import { StatusText } from "@faridalms/ui/system/status";
+import { Value } from "@faridalms/ui/system/value";
 import { useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
 import {
@@ -31,17 +40,8 @@ import {
 import { useState } from "react";
 import { toast } from "sonner";
 
-import type {
-  BatchAction,
-  Column,
-  RowAction,
-} from "~/components/system/DataTable";
 import type { siteOverviewQuery } from "~/queries/site";
 
-import { ButtonLink } from "~/components/app/ButtonLink";
-import { Value } from "~/components/app/primitives";
-import { DataTable, RowLink } from "~/components/system/DataTable";
-import { StatusText } from "~/components/system/status";
 import { useCurrentUser } from "~/hooks/useCurrentUser";
 import * as m from "~/i18n/messages";
 import { batchSitePages, moveSitePage } from "~/server/site";

@@ -1,3 +1,9 @@
+import { ComboboxField } from "@faridalms/ui/system/combobox-field";
+import { SelectField, TextField } from "@faridalms/ui/system/form-field";
+import {
+  SettingsGroup,
+  SettingsSection,
+} from "@faridalms/ui/system/settings-section";
 import {
   useMutation,
   useQueryClient,
@@ -7,12 +13,6 @@ import { useMemo, useState } from "react";
 
 import { CheckboxRow } from "~/components/people/fields";
 import { PictureField } from "~/components/site/PictureField";
-import { ComboboxField } from "~/components/system/ComboboxField";
-import { SelectField, TextField } from "~/components/system/field";
-import {
-  SettingsGroup,
-  SettingsSection,
-} from "~/components/system/SettingsSection";
 import * as m from "~/i18n/messages";
 import { schoolProfileQuery } from "~/queries/school-settings";
 import { saveSchoolProfile } from "~/server/school-settings";

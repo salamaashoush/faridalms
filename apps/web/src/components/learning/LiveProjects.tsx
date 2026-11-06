@@ -2,6 +2,8 @@ import type { ProjectFile } from "@faridalms/domain/project";
 import type { RefObject } from "react";
 
 import { programFile } from "@faridalms/domain/project";
+import { RecordSection } from "@faridalms/ui/system/record-page";
+import { StatusBadge } from "@faridalms/ui/system/status";
 import { Puzzle } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 
@@ -9,8 +11,6 @@ import { CodingStudio } from "~/components/coding/CodingStudio";
 import { playedPage } from "~/components/coding/project-page";
 import { ProjectStudio } from "~/components/coding/ProjectStudio";
 import { WebPreview } from "~/components/coding/WebPreview";
-import { RecordSection } from "~/components/system/RecordPage";
-import { StatusBadge } from "~/components/system/status";
 import * as m from "~/i18n/messages";
 import { formatNumber } from "~/utils/datetime";
 

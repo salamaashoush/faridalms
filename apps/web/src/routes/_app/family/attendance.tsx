@@ -1,18 +1,16 @@
+import type { Facet } from "@faridalms/ui/system/index-toolbar";
+
+import { EmptyState } from "@faridalms/ui/system/empty-state";
+import { IndexToolbar } from "@faridalms/ui/system/index-toolbar";
+import { PageHeader } from "@faridalms/ui/system/page-header";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 import { Users } from "lucide-react";
 import * as v from "valibot";
 
-import type { Facet } from "~/components/system/IndexPage";
-
 import { FamilyReports } from "~/components/attendance/FamilyReports";
 import { StudentAttendance } from "~/components/attendance/StudentAttendance";
 import { displayName } from "~/components/people/format";
-import {
-  EmptyState,
-  IndexToolbar,
-  PageHeader,
-} from "~/components/system/IndexPage";
 import { useCurrentUser } from "~/hooks/useCurrentUser";
 import * as m from "~/i18n/messages";
 import {

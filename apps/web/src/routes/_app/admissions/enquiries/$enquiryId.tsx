@@ -1,8 +1,20 @@
 import type { EnquiryState } from "@faridalms/domain/enquiries";
+import type { ActionItem } from "@faridalms/ui/system/action-menu";
 
 import { responseMinutes } from "@faridalms/domain/enquiries";
 import { Button } from "@faridalms/ui/button";
 import { Skeleton } from "@faridalms/ui/skeleton";
+import { BreadcrumbCurrent } from "@faridalms/ui/system/app-shell";
+import {
+  Fact,
+  Facts,
+  phoneLink,
+  RecordColumns,
+  RecordEmpty,
+  RecordHeader,
+  RecordSection,
+} from "@faridalms/ui/system/record-page";
+import { StatusText } from "@faridalms/ui/system/status";
 import {
   useMutation,
   useQueryClient,
@@ -21,8 +33,6 @@ import {
 import { Suspense, useState } from "react";
 import { toast } from "sonner";
 
-import type { ActionItem } from "~/components/system/ActionMenu";
-
 import { AssignSheet, CloseSheet } from "~/components/admissions/EnquirySheets";
 import {
   PURPOSE_LABEL,
@@ -31,18 +41,7 @@ import {
   STATE_LABEL,
   STATE_TONE,
 } from "~/components/admissions/labels";
-import { BreadcrumbCurrent } from "~/components/app/WorkspaceBreadcrumb";
 import { Conversation } from "~/components/messages/Conversation";
-import {
-  Fact,
-  Facts,
-  phoneLink,
-  RecordColumns,
-  RecordEmpty,
-  RecordHeader,
-  RecordSection,
-} from "~/components/system/RecordPage";
-import { StatusText } from "~/components/system/status";
 import { inLocale } from "~/hooks/useCurrentUser";
 import * as m from "~/i18n/messages";
 import { enquiryQuery } from "~/queries/admissions";

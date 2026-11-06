@@ -1,5 +1,12 @@
 import type { FeedbackBand } from "@faridalms/domain/learning";
 
+import { ComboboxField } from "@faridalms/ui/system/combobox-field";
+import {
+  FormField,
+  SelectField,
+  TextField,
+} from "@faridalms/ui/system/form-field";
+import { FormSection, RecordForm } from "@faridalms/ui/system/record-form";
 import { Textarea } from "@faridalms/ui/textarea";
 import {
   useMutation,
@@ -15,9 +22,6 @@ import type { moduleRecordQuery } from "~/queries/learning";
 import { classTitle } from "~/components/classes/format";
 import { CheckboxRow } from "~/components/people/fields";
 import { displayName } from "~/components/people/format";
-import { ComboboxField } from "~/components/system/ComboboxField";
-import { FormField, SelectField, TextField } from "~/components/system/field";
-import { FormSection, RecordForm } from "~/components/system/RecordForm";
 import { inLocale } from "~/hooks/useCurrentUser";
 import * as m from "~/i18n/messages";
 import { classGroupsQuery } from "~/queries/coursework";

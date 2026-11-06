@@ -1,11 +1,11 @@
+import type { Column } from "@faridalms/ui/system/data-table";
+
+import { ButtonLink } from "@faridalms/ui/system/button-link";
+import { DataTable, RowLink } from "@faridalms/ui/system/data-table";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { ClipboardCheck, UserCheck } from "lucide-react";
 
-import type { Column } from "~/components/system/DataTable";
-
-import { ButtonLink } from "~/components/app/ButtonLink";
 import { displayName } from "~/components/people/format";
-import { DataTable, RowLink } from "~/components/system/DataTable";
 import { useCurrentUser } from "~/hooks/useCurrentUser";
 import * as m from "~/i18n/messages";
 import { classAttendanceQuery } from "~/queries/attendance";

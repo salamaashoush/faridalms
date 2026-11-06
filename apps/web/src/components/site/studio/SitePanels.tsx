@@ -37,6 +37,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@faridalms/ui/select";
+import { ButtonLink } from "@faridalms/ui/system/button-link";
+import { PanelGroup, Segmented } from "@faridalms/ui/system/panel";
 import {
   ArrowDown,
   ArrowUp,
@@ -46,10 +48,8 @@ import {
   TriangleAlert,
 } from "lucide-react";
 
-import { ButtonLink } from "~/components/app/ButtonLink";
 import { LOCALE_NAME } from "~/components/content/languages";
 import { CheckboxRow } from "~/components/people/fields";
-import { PanelGroup, Segmented } from "~/components/system/panel";
 import * as m from "~/i18n/messages";
 import { formatNumber } from "~/utils/datetime";
 

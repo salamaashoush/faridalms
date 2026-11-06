@@ -1,49 +1,19 @@
-import type { ReactElement, ReactNode } from "react";
-
 import {
   Breadcrumb,
   BreadcrumbItem,
-  BreadcrumbLink,
   BreadcrumbList,
   BreadcrumbPage,
-  BreadcrumbSeparator,
 } from "@faridalms/ui/breadcrumb";
+import {
+  BreadcrumbCurrent,
+  BreadcrumbStep,
+} from "@faridalms/ui/system/app-shell";
 import { Link, useRouterState } from "@tanstack/react-router";
 
 import { useCurrentUser } from "~/hooks/useCurrentUser";
 import * as m from "~/i18n/messages";
 
 import { NAVIGATION } from "./navigation";
-
-/** A step on the way to the page. Phones show the page alone. */
-export function BreadcrumbStep({
-  render,
-  children,
-}: {
-  render: ReactElement;
-  children: ReactNode;
-}) {
-  return (
-    <>
-      <BreadcrumbItem className="hidden min-w-0 sm:inline-flex">
-        <BreadcrumbLink render={render} dir="auto" className="truncate">
-          {children}
-        </BreadcrumbLink>
-      </BreadcrumbItem>
-      <BreadcrumbSeparator className="hidden sm:inline-flex rtl:rotate-180" />
-    </>
-  );
-}
-
-export function BreadcrumbCurrent({ children }: { children: ReactNode }) {
-  return (
-    <BreadcrumbItem className="min-w-0">
-      <BreadcrumbPage dir="auto" className="truncate font-medium">
-        {children}
-      </BreadcrumbPage>
-    </BreadcrumbItem>
-  );
-}
 
 /**
  * Where you are: the area from the navigation, then the page when it is

@@ -1,10 +1,10 @@
+import { ComboboxField } from "@faridalms/ui/system/combobox-field";
+import { SelectField, TextField } from "@faridalms/ui/system/form-field";
+import { SheetForm } from "@faridalms/ui/system/sheet-form";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { toast } from "sonner";
 
-import { ComboboxField } from "~/components/system/ComboboxField";
-import { SelectField, TextField } from "~/components/system/field";
-import { SheetForm } from "~/components/system/SheetForm";
 import * as m from "~/i18n/messages";
 import { getLocale } from "~/i18n/runtime";
 import { classDirectoryQuery } from "~/queries/classes";

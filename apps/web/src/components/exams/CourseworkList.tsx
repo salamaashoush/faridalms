@@ -1,12 +1,12 @@
+import type { Column } from "@faridalms/ui/system/data-table";
+
+import { DataTable } from "@faridalms/ui/system/data-table";
+import { SheetPanel } from "@faridalms/ui/system/sheet-panel";
+import { StatusBadge } from "@faridalms/ui/system/status";
 import { useQuery, useSuspenseQuery } from "@tanstack/react-query";
 import { ClipboardCheck, Users } from "lucide-react";
 
-import type { Column } from "~/components/system/DataTable";
-
 import { classTitle } from "~/components/classes/format";
-import { DataTable } from "~/components/system/DataTable";
-import { SheetPanel } from "~/components/system/SheetPanel";
-import { StatusBadge } from "~/components/system/status";
 import { inLocale } from "~/hooks/useCurrentUser";
 import * as m from "~/i18n/messages";
 import { courseworkListQuery, courseworkStudentsQuery } from "~/queries/exams";

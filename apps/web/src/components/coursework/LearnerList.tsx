@@ -4,15 +4,15 @@ import type { ContentLocale } from "@faridalms/domain/translations";
 
 import { otherLocale } from "@faridalms/domain/translations";
 import { cn } from "@faridalms/ui/cn";
-import { Link } from "@tanstack/react-router";
-
 import {
   phoneLink,
   RecordEmpty,
   RecordList,
   RecordSection,
-} from "~/components/system/RecordPage";
-import { StatusText } from "~/components/system/status";
+} from "@faridalms/ui/system/record-page";
+import { StatusText } from "@faridalms/ui/system/status";
+import { Link } from "@tanstack/react-router";
+
 import * as m from "~/i18n/messages";
 import { getLocale } from "~/i18n/runtime";
 import { formatDate, formatInstant, schoolDayOf } from "~/utils/datetime";

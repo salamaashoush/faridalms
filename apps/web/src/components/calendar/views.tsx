@@ -10,14 +10,14 @@ import { monthWeeks, onDay, weekOf } from "@faridalms/domain/calendar";
 import { addDays, daysBetween } from "@faridalms/domain/school";
 import { isoWeekday } from "@faridalms/domain/timetable";
 import { cn } from "@faridalms/ui/cn";
+import { EmptyState } from "@faridalms/ui/system/empty-state";
+import { StatusBadge } from "@faridalms/ui/system/status";
 import { Link } from "@tanstack/react-router";
 import { CalendarDays, MapPin, Plus } from "lucide-react";
 import { useState } from "react";
 
 import type { calendarRangeQuery } from "~/queries/calendar";
 
-import { EmptyState } from "~/components/system/IndexPage";
-import { StatusBadge } from "~/components/system/status";
 import { useCurrentUser } from "~/hooks/useCurrentUser";
 import * as m from "~/i18n/messages";
 import { getLocale, getTextDirection } from "~/i18n/runtime";

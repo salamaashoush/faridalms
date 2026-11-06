@@ -11,12 +11,12 @@ import userEvent from "@testing-library/user-event";
 import { useState } from "react";
 import { describe, expect, it, vi } from "vitest";
 
-import { render } from "~/testUtils";
+import { renderWithSystem as render } from "./testing";
 
-import type { DangerAction } from "./RecordForm";
+import type { DangerAction } from "./record-form";
 
-import { TextField } from "./field";
-import { FormSection, RecordForm } from "./RecordForm";
+import { TextField } from "./form-field";
+import { FormSection, RecordForm } from "./record-form";
 
 function inRouter(Page: () => ReactElement) {
   const router = createRouter({

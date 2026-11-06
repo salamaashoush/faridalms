@@ -1,7 +1,6 @@
 import type { AudienceScope, Urgency } from "@faridalms/domain/announcements";
 import type { PublicationPhase } from "@faridalms/domain/publication";
-
-import type { Tone } from "~/components/system/status";
+import type { Tone } from "@faridalms/ui/system/status";
 
 import { classTitle } from "~/components/classes/format";
 import { inLocale } from "~/hooks/useCurrentUser";

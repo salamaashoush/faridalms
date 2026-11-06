@@ -1,6 +1,13 @@
 import type { DecideHealthChangeInput } from "@faridalms/domain/people";
+import type { Column } from "@faridalms/ui/system/data-table";
 
 import { decideHealthChangeSchema } from "@faridalms/domain/people";
+import { DataTable } from "@faridalms/ui/system/data-table";
+import { ChoiceField, FormField } from "@faridalms/ui/system/form-field";
+import { PageHeader } from "@faridalms/ui/system/page-header";
+import { Fact, Facts } from "@faridalms/ui/system/record-page";
+import { SheetForm } from "@faridalms/ui/system/sheet-form";
+import { StatusText } from "@faridalms/ui/system/status";
 import { Textarea } from "@faridalms/ui/textarea";
 import {
   useMutation,
@@ -13,18 +20,10 @@ import { useState } from "react";
 import { toast } from "sonner";
 import * as v from "valibot";
 
-import type { Column } from "~/components/system/DataTable";
-
 import { CHANGE_STATE, valueLine } from "~/components/health/labels";
 import { CheckboxRow } from "~/components/people/fields";
 import { displayName, labelOf } from "~/components/people/format";
-import { DataTable } from "~/components/system/DataTable";
-import { ChoiceField, FormField } from "~/components/system/field";
 import { FileList } from "~/components/system/FileList";
-import { PageHeader } from "~/components/system/IndexPage";
-import { Fact, Facts } from "~/components/system/RecordPage";
-import { SheetForm } from "~/components/system/SheetForm";
-import { StatusText } from "~/components/system/status";
 import { UserText } from "~/components/system/UserText";
 import * as m from "~/i18n/messages";
 import { healthChangesQuery } from "~/queries/records";

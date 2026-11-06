@@ -1,17 +1,16 @@
 import type { InvoiceState, SchoolBilling } from "@faridalms/domain/invoices";
+import type { Tone } from "@faridalms/ui/system/status";
 
 import { InvoiceDocument } from "@faridalms/documents/InvoiceDocument";
 import { Button, buttonVariants } from "@faridalms/ui/button";
+import { PageHeader } from "@faridalms/ui/system/page-header";
+import { StatusText } from "@faridalms/ui/system/status";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 import { CreditCard } from "lucide-react";
 import { useState } from "react";
 
-import type { Tone } from "~/components/system/status";
-
-import { PageHeader } from "~/components/system/IndexPage";
 import { PaperSheet } from "~/components/system/PaperSheet";
-import { StatusText } from "~/components/system/status";
 import { useCurrentUser } from "~/hooks/useCurrentUser";
 import * as m from "~/i18n/messages";
 import { getLocale } from "~/i18n/runtime";

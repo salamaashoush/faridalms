@@ -1,6 +1,6 @@
+import { PageHeader } from "@faridalms/ui/system/page-header";
 import { createFileRoute } from "@tanstack/react-router";
 
-import { PageHeader } from "~/components/system/IndexPage";
 import { StudentWeek } from "~/components/timetable/Weeks";
 import * as m from "~/i18n/messages";
 import { studentWeekQuery } from "~/queries/timetable";

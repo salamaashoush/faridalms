@@ -1,4 +1,5 @@
 import type { CheckStanding } from "@faridalms/domain/learning";
+import type { Tone } from "@faridalms/ui/system/status";
 
 import { TextWithMath } from "@faridalms/editor/math";
 import { Button } from "@faridalms/ui/button";
@@ -8,6 +9,16 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@faridalms/ui/dropdown-menu";
+import { phoneMenuItem } from "@faridalms/ui/system/action-menu";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogTitle,
+  DialogTrigger,
+} from "@faridalms/ui/system/dialog";
+import { EmptyState } from "@faridalms/ui/system/empty-state";
+import { StatusBadge } from "@faridalms/ui/system/status";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   ChevronDown,
@@ -20,20 +31,8 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 
-import type { Tone } from "~/components/system/status";
-
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogTitle,
-  DialogTrigger,
-} from "~/components/app/dialog";
 import { ProgramReplay } from "~/components/coding/ProgramReplay";
 import { displayName } from "~/components/people/format";
-import { phoneMenuItem } from "~/components/system/ActionMenu";
-import { EmptyState } from "~/components/system/IndexPage";
-import { StatusBadge } from "~/components/system/status";
 import * as m from "~/i18n/messages";
 import { classQuestionsQuery } from "~/queries/learning";
 import { releaseLesson } from "~/server/learning";

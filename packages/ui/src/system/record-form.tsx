@@ -1,16 +1,14 @@
 import type { FormEvent, ReactNode, Ref } from "react";
 
-import { Button } from "@faridalms/ui/button";
+import { Button } from "../button";
 import { useHydrated } from "@tanstack/react-router";
 import { CircleAlert, LoaderCircle } from "lucide-react";
 import { useEffect, useId, useRef, useState } from "react";
 
-import { UnsavedChangesGuard } from "~/components/app/UnsavedChangesGuard";
-import * as m from "~/i18n/messages";
-import { getMessageFromError } from "~/utils/error";
-
-import { ConfirmDialog } from "./ConfirmDialog";
-import { PageHeader } from "./IndexPage";
+import { ConfirmDialog } from "./confirm-dialog";
+import { PageHeader } from "./page-header";
+import { useDesignSystem } from "./provider";
+import { UnsavedChangesGuard } from "./unsaved-changes-guard";
 
 /** GOV.UK: forms longer than this open with a summary of what to fix. */
 const SUMMARY_AFTER = 5;
@@ -69,15 +67,13 @@ export interface DangerAction {
   onConfirm: () => void | Promise<unknown>;
 }
 
-export function FormSection({
-  title,
-  description,
-  children,
-}: {
+export interface FormSectionProps {
   title: string;
   description?: ReactNode;
   children: ReactNode;
-}) {
+}
+
+export function FormSection({ title, description, children }: FormSectionProps) {
   const headingId = useId();
   return (
     <section aria-labelledby={headingId} className="grid min-w-0 gap-4">
@@ -96,15 +92,14 @@ export function FormSection({
   );
 }
 
-function ErrorSummary({
-  problems,
-  failure,
-  ref,
-}: {
+interface ErrorSummaryProps {
   problems: Problem[];
   failure: string | null;
   ref: Ref<HTMLDivElement>;
-}) {
+}
+
+function ErrorSummary({ problems, failure, ref }: ErrorSummaryProps) {
+  const { strings } = useDesignSystem();
   const headingId = useId();
   return (
     <div
@@ -119,7 +114,7 @@ function ErrorSummary({
         className="flex items-center gap-2 text-base leading-6 font-semibold"
       >
         <CircleAlert className="size-4 shrink-0 text-destructive" aria-hidden />
-        {m.formErrorSummaryTitle()}
+        {strings.errorSummaryTitle}
       </h2>
       {failure ? <p className="text-sm leading-5">{failure}</p> : null}
       {problems.length ? (
@@ -141,10 +136,7 @@ function ErrorSummary({
                   control.focus({ preventScroll: true });
                 }}
               >
-                {m.formErrorSummaryItem({
-                  label: problem.label,
-                  message: problem.message,
-                })}
+                {strings.errorSummaryItem(problem.label, problem.message)}
               </a>
             </li>
           ))}
@@ -154,7 +146,12 @@ function ErrorSummary({
   );
 }
 
-function DangerZone({ action }: { action: DangerAction }) {
+interface DangerZoneProps {
+  action: DangerAction;
+}
+
+function DangerZone({ action }: DangerZoneProps) {
+  const { strings, errorMessage } = useDesignSystem();
   const headingId = useId();
   const [confirming, setConfirming] = useState(false);
   const [pending, setPending] = useState(false);
@@ -162,7 +159,7 @@ function DangerZone({ action }: { action: DangerAction }) {
   return (
     <section aria-labelledby={headingId} className="mt-12 grid gap-4">
       <h2 id={headingId} className="text-base leading-6 font-semibold">
-        {m.formDangerZone()}
+        {strings.dangerZone}
       </h2>
       <div className="flex flex-col gap-4 rounded-lg border border-destructive/40 p-4 sm:flex-row sm:items-center sm:justify-between">
         <div className="min-w-0">
@@ -198,7 +195,7 @@ function DangerZone({ action }: { action: DangerAction }) {
             .then(action.onConfirm)
             .then(
               () => setConfirming(false),
-              (failure: unknown) => setError(getMessageFromError(failure)),
+              (failure: unknown) => setError(errorMessage(failure)),
             )
             .finally(() => setPending(false));
         }}
@@ -215,19 +212,14 @@ function DangerZone({ action }: { action: DangerAction }) {
  * `onSubmit` receives the `value` of the button that submitted, so a second
  * submit button (Save and add another) can share the validation path.
  */
-export function RecordForm({
-  title,
-  description,
-  onSubmit,
-  onCancel,
-  isDirty,
-  pending = false,
-  error,
-  submitLabel = m.commonSave(),
-  secondary,
-  danger,
-  children,
-}: {
+/** A second way to submit, such as Save and add another. */
+export interface SecondarySubmit {
+  label: string;
+  /** Passed to onSubmit as the intent. */
+  intent: string;
+}
+
+export interface RecordFormProps {
   title: string;
   description?: string;
   onSubmit: (intent: string | undefined) => void | Promise<unknown>;
@@ -236,10 +228,25 @@ export function RecordForm({
   pending?: boolean;
   error?: string | null;
   submitLabel?: string;
-  secondary?: { label: string; intent: string };
+  secondary?: SecondarySubmit;
   danger?: DangerAction;
   children: ReactNode;
-}) {
+}
+
+export function RecordForm({
+  title,
+  description,
+  onSubmit,
+  onCancel,
+  isDirty,
+  pending = false,
+  error,
+  submitLabel,
+  secondary,
+  danger,
+  children,
+}: RecordFormProps) {
+  const { strings, errorMessage } = useDesignSystem();
   const hydrated = useHydrated();
   const busy = !hydrated || pending;
   const formRef = useRef<HTMLFormElement>(null);
@@ -324,11 +331,11 @@ export function RecordForm({
   useEffect(() => {
     if (!summary) return undefined;
     const previous = document.title;
-    document.title = m.formErrorDocumentTitle({ title: previous });
+    document.title = strings.errorDocumentTitle(previous);
     return () => {
       document.title = previous;
     };
-  }, [summary]);
+  }, [summary, strings]);
 
   const submit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -343,7 +350,7 @@ export function RecordForm({
     try {
       await onSubmit(intent);
     } catch (failed) {
-      setThrown(getMessageFromError(failed));
+      setThrown(errorMessage(failed));
     }
     // Field errors render after validation settles, so the scan waits a frame.
     requestAnimationFrame(() => {
@@ -392,13 +399,13 @@ export function RecordForm({
         <div
           ref={footerRef}
           data-slot="record-form-footer"
-          className="sticky bottom-0 z-10 mt-10 flex flex-wrap items-center gap-2 border-t bg-background py-4 max-md:bottom-[calc(3.5rem+env(safe-area-inset-bottom))]"
+          className="sticky bottom-0 z-10 mt-10 flex flex-wrap items-center gap-2 border-t bg-background py-4 max-md:bottom-[calc(var(--shell-bottom-bar,0px)+env(safe-area-inset-bottom))]"
         >
           <Button type="submit" className="max-md:h-10" disabled={busy}>
             {pending ? (
               <LoaderCircle className="animate-spin" aria-hidden />
             ) : null}
-            {submitLabel}
+            {submitLabel ?? strings.save}
           </Button>
           {secondary ? (
             <Button
@@ -418,7 +425,7 @@ export function RecordForm({
             disabled={busy}
             onClick={onCancel}
           >
-            {m.commonCancel()}
+            {strings.cancel}
           </Button>
         </div>
       </form>

@@ -1,5 +1,6 @@
 @import "tailwindcss";
 @import "@faridalms/ui/theme.css";
+@import "@faridalms/ui/system/system.css";
 @import "@faridalms/editor/editor.css";
 @import "@fontsource/andika/400.css";
 @import "@fontsource/andika/700.css";
@@ -179,14 +180,6 @@
     opacity: 0;
     transform: translateY(1.5rem);
   }
-}
-
-/* An editor's actions take the place of the global tools; search,
-   notifications and language stay one step away on every other page. A
-   record's phone menu sits beside them instead, so the bell stays. */
-header:has([data-slot="page-actions"] > :not([data-keeps-global-tools]))
-  [data-slot="global-tools"] {
-  display: none;
 }
 
 /* The type a young child reads in: Andika, made for children learning to

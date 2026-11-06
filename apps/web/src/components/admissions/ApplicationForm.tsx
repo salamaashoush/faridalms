@@ -18,6 +18,13 @@ import {
 import { answerLimit, optionsOf } from "@faridalms/domain/enquiries";
 import { Button } from "@faridalms/ui/button";
 import { Checkbox } from "@faridalms/ui/checkbox";
+import {
+  FormField,
+  SelectField,
+  TextField,
+} from "@faridalms/ui/system/form-field";
+import { FormSection } from "@faridalms/ui/system/record-form";
+import { StatusText } from "@faridalms/ui/system/status";
 import { Textarea } from "@faridalms/ui/textarea";
 import {
   useMutation,
@@ -29,10 +36,7 @@ import { useState } from "react";
 import { toast } from "sonner";
 
 import { TranslatedView } from "~/components/content/TranslatedView";
-import { FormField, SelectField, TextField } from "~/components/system/field";
 import { FileField } from "~/components/system/FileField";
-import { FormSection } from "~/components/system/RecordForm";
-import { StatusText } from "~/components/system/status";
 import { inLocale } from "~/hooks/useCurrentUser";
 import * as m from "~/i18n/messages";
 import { getLocale } from "~/i18n/runtime";

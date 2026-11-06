@@ -1,34 +1,33 @@
 import type { ContentLocale } from "@faridalms/domain/translations";
+import type { Column } from "@faridalms/ui/system/data-table";
+import type { HeaderFact } from "@faridalms/ui/system/record-page";
 
 import { otherLocale } from "@faridalms/domain/translations";
 import { Button } from "@faridalms/ui/button";
 import { cn } from "@faridalms/ui/cn";
 import { Input } from "@faridalms/ui/input";
+import { BreadcrumbCurrent } from "@faridalms/ui/system/app-shell";
+import { DataTable } from "@faridalms/ui/system/data-table";
+import {
+  Fact,
+  Facts,
+  phoneLink,
+  RecordHeader,
+} from "@faridalms/ui/system/record-page";
+import { SheetPanel } from "@faridalms/ui/system/sheet-panel";
+import { StatusText } from "@faridalms/ui/system/status";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
 import { Archive, CircleCheck, Copy, Pencil, Search, Send } from "lucide-react";
 import { useDeferredValue, useEffect, useState } from "react";
 import { toast } from "sonner";
 
-import type { Column } from "~/components/system/DataTable";
-import type { HeaderFact } from "~/components/system/RecordPage";
-
-import { BreadcrumbCurrent } from "~/components/app/WorkspaceBreadcrumb";
 import { shownIn, TranslatedView } from "~/components/content/TranslatedView";
 import { usePrint } from "~/components/print/usePrint";
-import { DataTable } from "~/components/system/DataTable";
 import {
   ReaderWidthToggle,
   useReaderWidth,
 } from "~/components/system/ReaderWidth";
-import {
-  Fact,
-  Facts,
-  phoneLink,
-  RecordHeader,
-} from "~/components/system/RecordPage";
-import { SheetPanel } from "~/components/system/SheetPanel";
-import { StatusText } from "~/components/system/status";
 import { inLocale } from "~/hooks/useCurrentUser";
 import * as m from "~/i18n/messages";
 import { getLocale } from "~/i18n/runtime";

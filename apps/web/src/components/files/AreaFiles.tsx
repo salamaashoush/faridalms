@@ -1,9 +1,15 @@
 import type { FileArea, FileKind } from "@faridalms/domain/file";
+import type { Column, RowAction } from "@faridalms/ui/system/data-table";
 
 import { FILE_KINDS, fileFamily } from "@faridalms/domain/file";
 import { useRefreshFileFacts } from "@faridalms/editor/file-facts";
 import { FileIcon, fileMeta, FileViewer } from "@faridalms/editor/files";
 import { Button } from "@faridalms/ui/button";
+import { DataTable } from "@faridalms/ui/system/data-table";
+import { TextField } from "@faridalms/ui/system/form-field";
+import { RecordEmpty, RecordList } from "@faridalms/ui/system/record-page";
+import { SheetForm } from "@faridalms/ui/system/sheet-form";
+import { SheetPanel } from "@faridalms/ui/system/sheet-panel";
 import {
   useMutation,
   useQuery,
@@ -28,15 +34,8 @@ import { useRef, useState } from "react";
 import { toast } from "sonner";
 import * as v from "valibot";
 
-import type { Column, RowAction } from "~/components/system/DataTable";
-
 import { fileStrings } from "~/components/content/strings";
 import { UsageBar } from "~/components/files/UsageBar";
-import { DataTable } from "~/components/system/DataTable";
-import { TextField } from "~/components/system/field";
-import { RecordEmpty, RecordList } from "~/components/system/RecordPage";
-import { SheetForm } from "~/components/system/SheetForm";
-import { SheetPanel } from "~/components/system/SheetPanel";
 import { useDocumentMedia } from "~/hooks/useDocumentMedia";
 import * as m from "~/i18n/messages";
 import { getLocale } from "~/i18n/runtime";

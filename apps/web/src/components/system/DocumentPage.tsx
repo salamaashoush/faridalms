@@ -1,7 +1,11 @@
 import type { ContentDocument } from "@faridalms/domain/content";
 import type { DocumentTemplateKind } from "@faridalms/domain/templates";
 import type { EditorMedia } from "@faridalms/editor";
-import type { LucideIcon } from "lucide-react";
+import type {
+  ActionItem,
+  PrimaryAction,
+} from "@faridalms/ui/system/action-menu";
+import type { Tone } from "@faridalms/ui/system/status";
 import type { ReactNode } from "react";
 
 import { Button } from "@faridalms/ui/button";
@@ -13,6 +17,9 @@ import {
   SheetHeader,
   SheetTitle,
 } from "@faridalms/ui/sheet";
+import { ActionMenu } from "@faridalms/ui/system/action-menu";
+import { PageActions } from "@faridalms/ui/system/page-actions";
+import { StatusBadge } from "@faridalms/ui/system/status";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@faridalms/ui/tooltip";
 import {
   ArrowLeft,
@@ -44,25 +51,10 @@ import { useMedia } from "~/hooks/useMedia";
 import * as m from "~/i18n/messages";
 import { getLocale, getTextDirection } from "~/i18n/runtime";
 
-import type { ActionItem } from "./ActionMenu";
-import type { Tone } from "./status";
-
-import { ActionMenu } from "./ActionMenu";
-import { PageActions } from "./PageActions";
-import { StatusBadge } from "./status";
-
 const NO_ACTIONS: ActionItem[] = [];
 
 /** Where the details panel is drawn: beside the document, or in a sheet. */
 const DetailsPlacement = createContext<"side" | "sheet">("side");
-
-export interface PrimaryAction {
-  label: string;
-  icon?: LucideIcon;
-  onClick: () => void;
-  pending?: boolean;
-  disabled?: boolean;
-}
 
 export function SaveIndicator({
   state,

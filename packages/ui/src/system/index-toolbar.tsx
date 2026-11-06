@@ -1,10 +1,8 @@
-import type { LinkProps } from "@tanstack/react-router";
-import type { LucideIcon } from "lucide-react";
 import type { ReactNode } from "react";
 
-import { Button } from "@faridalms/ui/button";
-import { Checkbox } from "@faridalms/ui/checkbox";
-import { cn } from "@faridalms/ui/cn";
+import { Button } from "../button";
+import { Checkbox } from "../checkbox";
+import { cn } from "../cn";
 import {
   DropdownMenu,
   DropdownMenuCheckboxItem,
@@ -16,17 +14,9 @@ import {
   DropdownMenuRadioItem,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from "@faridalms/ui/dropdown-menu";
-import {
-  Empty,
-  EmptyContent,
-  EmptyDescription,
-  EmptyHeader,
-  EmptyMedia,
-  EmptyTitle,
-} from "@faridalms/ui/empty";
-import { Input } from "@faridalms/ui/input";
-import { RadioGroup, RadioGroupItem } from "@faridalms/ui/radio-group";
+} from "../dropdown-menu";
+import { Input } from "../input";
+import { RadioGroup, RadioGroupItem } from "../radio-group";
 import {
   Sheet,
   SheetClose,
@@ -36,97 +26,15 @@ import {
   SheetHeader,
   SheetTitle,
   SheetTrigger,
-} from "@faridalms/ui/sheet";
+} from "../sheet";
 import { useRouterState } from "@tanstack/react-router";
-import { ChevronDown, ListFilter, Search, SearchX, X } from "lucide-react";
+import { ChevronDown, ListFilter, Search, X } from "lucide-react";
 import { useEffect, useId, useRef, useState } from "react";
 
-import { ButtonLink } from "~/components/app/ButtonLink";
-import * as m from "~/i18n/messages";
-import { formatNumber } from "~/utils/datetime";
+import { phoneMenuItem } from "./action-menu";
+import { useDesignSystem } from "./provider";
 
-import type { ActionItem } from "./ActionMenu";
-
-import { ActionMenu, phoneMenuItem } from "./ActionMenu";
-
-const NO_ACTIONS: ActionItem[] = [];
 const NO_FACETS: Facet[] = [];
-
-export type HeaderAction = { label: string; icon?: LucideIcon } & (
-  | { onClick: () => void }
-  | { link: LinkProps }
-);
-
-export function PageHeader({
-  title,
-  count,
-  description,
-  action,
-  menu = NO_ACTIONS,
-}: {
-  title: string;
-  count?: number;
-  description?: string;
-  action?: HeaderAction;
-  menu?: ActionItem[];
-}) {
-  // The action shares the title's line and the description runs beneath
-  // both, so on a phone a long description never pushes the action onto a
-  // row of its own.
-  return (
-    <header className="mb-6 grid gap-1">
-      <div className="flex items-start justify-between gap-4">
-        <div className="flex min-h-9 min-w-0 items-center gap-2 max-md:min-h-10">
-          <h1 className="text-2xl leading-8 font-semibold tracking-tight">
-            {title}
-          </h1>
-          {count === undefined ? null : (
-            <p className="text-2xl leading-8 text-muted-foreground tabular-nums">
-              <span aria-hidden>{formatNumber(count)}</span>
-              <span className="sr-only">
-                {m.indexCountLabel({ count: formatNumber(count) })}
-              </span>
-            </p>
-          )}
-        </div>
-        {action || menu.length ? (
-          <div className="flex shrink-0 items-center gap-2">
-            <ActionMenu
-              label={m.docMoreActions()}
-              actions={menu}
-              size="icon"
-              className="max-md:size-10"
-            />
-            {action ? <HeaderActionButton action={action} /> : null}
-          </div>
-        ) : null}
-      </div>
-      {description ? (
-        <p className="text-[13px] leading-[18px] text-muted-foreground">
-          {description}
-        </p>
-      ) : null}
-    </header>
-  );
-}
-
-function HeaderActionButton({ action }: { action: HeaderAction }) {
-  const content = (
-    <>
-      {action.icon ? <action.icon aria-hidden /> : null}
-      {action.label}
-    </>
-  );
-  return "link" in action ? (
-    <ButtonLink {...action.link} className="max-md:h-10">
-      {content}
-    </ButtonLink>
-  ) : (
-    <Button type="button" className="max-md:h-10" onClick={action.onClick}>
-      {content}
-    </Button>
-  );
-}
 
 export interface FacetOption {
   value: string;
@@ -151,15 +59,23 @@ export interface Facet {
   defaultSelected?: string[];
 }
 
+/** The toolbar's search, whose query the page keeps in its URL. */
+export interface IndexSearch {
+  value: string;
+  onChange: (value: string) => void;
+  label: string;
+  placeholder?: string;
+}
+
 export interface IndexToolbarProps {
-  search?: {
-    value: string;
-    onChange: (value: string) => void;
-    label: string;
-    placeholder?: string;
-  };
+  search?: IndexSearch;
   facets?: Facet[];
   onReset?: () => void;
+}
+
+export interface IndexToolbarViewProps extends IndexToolbarProps {
+  /** The view or sort menu, kept at the end. */
+  view?: ReactNode;
 }
 
 function sameSelection(a: readonly string[], b: readonly string[]) {
@@ -179,11 +95,12 @@ export function IndexToolbar({
   facets = NO_FACETS,
   onReset,
   view,
-}: IndexToolbarProps & { view?: ReactNode }) {
+}: IndexToolbarViewProps) {
+  const { strings } = useDesignSystem();
   const filtered = isFiltered({ search, facets });
   return (
     <search
-      aria-label={m.indexToolbar()}
+      aria-label={strings.searchAndFilter}
       className="flex min-h-8 flex-wrap items-center gap-2"
     >
       {search ? <SearchInput {...search} /> : null}
@@ -205,11 +122,11 @@ export function IndexToolbar({
           type="button"
           variant="ghost"
           size="sm"
-          aria-label={m.indexReset()}
+          aria-label={strings.reset}
           className="text-muted-foreground max-md:size-10"
           onClick={onReset}
         >
-          <span className="hidden md:inline">{m.indexReset()}</span>
+          <span className="hidden md:inline">{strings.reset}</span>
           <X aria-hidden />
         </Button>
       ) : null}
@@ -228,7 +145,7 @@ function SearchInput({
   onChange,
   label,
   placeholder,
-}: NonNullable<IndexToolbarProps["search"]>) {
+}: IndexSearch) {
   const [draft, setDraft] = useState(value);
   const [sent, setSent] = useState(value);
   const [seen, setSeen] = useState(value);
@@ -287,7 +204,12 @@ function selectedLabels(facet: Facet) {
     .map((option) => option.label);
 }
 
-function OptionMeta({ option }: { option: FacetOption }) {
+interface OptionMetaProps {
+  option: FacetOption;
+}
+
+function OptionMeta({ option }: OptionMetaProps) {
+  const { formatNumber } = useDesignSystem();
   if (option.count !== undefined)
     return (
       <span className="ms-auto ps-4 text-[13px] leading-[18px] text-muted-foreground tabular-nums">
@@ -303,7 +225,12 @@ function OptionMeta({ option }: { option: FacetOption }) {
   return null;
 }
 
-function FacetFilter({ facet }: { facet: Facet }) {
+interface FacetFilterProps {
+  facet: Facet;
+}
+
+function FacetFilter({ facet }: FacetFilterProps) {
+  const { strings, formatNumber } = useDesignSystem();
   const labels = selectedLabels(facet);
   const active = facetActive(facet);
   return (
@@ -327,7 +254,7 @@ function FacetFilter({ facet }: { facet: Facet }) {
             <span className="mx-0.5 h-4 w-px bg-border" aria-hidden />
             {labels.length > 2 ? (
               <span className="rounded-sm bg-secondary px-1.5 text-[13px] leading-[18px]">
-                {m.indexSelectedCount({ count: formatNumber(labels.length) })}
+                {strings.selectedCount(formatNumber(labels.length))}
               </span>
             ) : (
               labels.map((label) => (
@@ -392,7 +319,7 @@ function FacetFilter({ facet }: { facet: Facet }) {
               className={phoneMenuItem}
               onClick={() => facet.onChange(facet.defaultSelected ?? [])}
             >
-              {m.indexClearFilter()}
+              {strings.clearFilter}
             </DropdownMenuItem>
           </>
         ) : null}
@@ -404,13 +331,13 @@ function FacetFilter({ facet }: { facet: Facet }) {
 const choiceRow =
   "flex min-h-10 cursor-pointer items-center gap-3 rounded-md px-2 text-sm hover:bg-accent";
 
-function FilterSheet({
-  facets,
-  onReset,
-}: {
+interface FilterSheetProps {
   facets: Facet[];
   onReset?: () => void;
-}) {
+}
+
+function FilterSheet({ facets, onReset }: FilterSheetProps) {
+  const { strings, formatNumber } = useDesignSystem();
   const [open, setOpen] = useState(false);
   const id = useId();
   const active = facets.filter(facetActive).length;
@@ -427,7 +354,7 @@ function FilterSheet({
         }
       >
         <ListFilter aria-hidden />
-        {m.indexFilters()}
+        {strings.filters}
         {active ? (
           <>
             <span
@@ -437,7 +364,7 @@ function FilterSheet({
               {formatNumber(active)}
             </span>
             <span className="sr-only">
-              {m.indexFiltersApplied({ count: formatNumber(active) })}
+              {strings.filtersApplied(formatNumber(active))}
             </span>
           </>
         ) : null}
@@ -449,10 +376,10 @@ function FilterSheet({
       >
         <SheetHeader className="flex-row items-center justify-between gap-2 border-b px-4 py-3">
           <SheetTitle className="text-base font-semibold">
-            {m.indexFilters()}
+            {strings.filters}
           </SheetTitle>
           <SheetDescription className="sr-only">
-            {m.indexFiltersHint()}
+            {strings.filtersHint}
           </SheetDescription>
           {onReset ? (
             <Button
@@ -462,7 +389,7 @@ function FilterSheet({
               className="text-muted-foreground"
               onClick={onReset}
             >
-              {m.indexReset()}
+              {strings.reset}
             </Button>
           ) : null}
         </SheetHeader>
@@ -520,7 +447,7 @@ function FilterSheet({
         </div>
         <SheetFooter className="border-t px-4 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
           <SheetClose render={<Button type="button" className="h-10" />}>
-            {m.indexDone()}
+            {strings.done}
           </SheetClose>
         </SheetFooter>
       </SheetContent>
@@ -528,55 +455,3 @@ function FilterSheet({
   );
 }
 
-export function EmptyState({
-  icon: Icon,
-  title,
-  description,
-  action,
-}: {
-  icon?: LucideIcon;
-  title: string;
-  description?: string;
-  action?: ReactNode;
-}) {
-  return (
-    <Empty className="gap-5 border bg-card px-6 py-16">
-      <EmptyHeader className="gap-1">
-        {Icon ? (
-          <EmptyMedia
-            variant="icon"
-            className="mb-3 rounded-full text-muted-foreground"
-          >
-            <Icon className="size-5" aria-hidden />
-          </EmptyMedia>
-        ) : null}
-        <EmptyTitle className="text-base leading-6 font-semibold tracking-normal">
-          <h2>{title}</h2>
-        </EmptyTitle>
-        {description ? (
-          <EmptyDescription className="text-sm leading-5">
-            {description}
-          </EmptyDescription>
-        ) : null}
-      </EmptyHeader>
-      {action ? <EmptyContent>{action}</EmptyContent> : null}
-    </Empty>
-  );
-}
-
-export function FilteredEmptyState({ onClear }: { onClear?: () => void }) {
-  return (
-    <EmptyState
-      icon={SearchX}
-      title={m.indexNoResultsTitle()}
-      description={m.indexNoResultsBody()}
-      action={
-        onClear ? (
-          <Button type="button" variant="outline" onClick={onClear}>
-            {m.indexClearFilters()}
-          </Button>
-        ) : null
-      }
-    />
-  );
-}

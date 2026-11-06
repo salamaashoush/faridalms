@@ -3,10 +3,10 @@ import userEvent from "@testing-library/user-event";
 import { useState } from "react";
 import { describe, expect, it, vi } from "vitest";
 
-import { render } from "~/testUtils";
+import { renderWithSystem as render } from "./testing";
 
-import { TextField } from "./field";
-import { SheetForm } from "./SheetForm";
+import { TextField } from "./form-field";
+import { SheetForm } from "./sheet-form";
 
 function NameSheet({ onSave }: { onSave: (name: string) => void }) {
   const [first, setFirst] = useState("Salama");

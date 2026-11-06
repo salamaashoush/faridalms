@@ -1,15 +1,15 @@
 import { Button } from "@faridalms/ui/button";
-import { useSuspenseQuery } from "@tanstack/react-query";
-
-import { formatRate } from "~/components/attendance/format";
-import { KIND_ICON, noticeText } from "~/components/notifications/format";
 import {
   Fact,
   Facts,
   RecordEmpty,
   RecordList,
   RecordSection,
-} from "~/components/system/RecordPage";
+} from "@faridalms/ui/system/record-page";
+import { useSuspenseQuery } from "@tanstack/react-query";
+
+import { formatRate } from "~/components/attendance/format";
+import { KIND_ICON, noticeText } from "~/components/notifications/format";
 import { periodName } from "~/components/timetable/WeekGrid";
 import {
   meetingTitle,

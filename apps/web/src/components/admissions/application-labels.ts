@@ -15,8 +15,7 @@ import type {
   WithdrawReason,
 } from "@faridalms/domain/admissions";
 import type { EnquirySource, QuestionKind } from "@faridalms/domain/enquiries";
-
-import type { Tone } from "~/components/system/status";
+import type { Tone } from "@faridalms/ui/system/status";
 
 import { inLocale } from "~/hooks/useCurrentUser";
 import * as m from "~/i18n/messages";

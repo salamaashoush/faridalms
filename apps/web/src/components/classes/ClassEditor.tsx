@@ -1,5 +1,7 @@
 import { saveClassSchema } from "@faridalms/domain/classes";
 import { Button } from "@faridalms/ui/button";
+import { SelectField, TextField } from "@faridalms/ui/system/form-field";
+import { FormSection, RecordForm } from "@faridalms/ui/system/record-form";
 import {
   useMutation,
   useQueryClient,
@@ -9,8 +11,6 @@ import { Plus, X } from "lucide-react";
 import { useRef, useState } from "react";
 import { toast } from "sonner";
 
-import { SelectField, TextField } from "~/components/system/field";
-import { FormSection, RecordForm } from "~/components/system/RecordForm";
 import { inLocale } from "~/hooks/useCurrentUser";
 import * as m from "~/i18n/messages";
 import { classOptionsQuery, classRecordQuery } from "~/queries/classes";

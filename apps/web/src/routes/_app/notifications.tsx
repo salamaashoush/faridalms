@@ -1,4 +1,8 @@
 import { cn } from "@faridalms/ui/cn";
+import { Pagination } from "@faridalms/ui/system/data-table";
+import { EmptyState } from "@faridalms/ui/system/empty-state";
+import { PageHeader } from "@faridalms/ui/system/page-header";
+import { RecordTabs } from "@faridalms/ui/system/record-page";
 import {
   useMutation,
   useQueryClient,
@@ -13,9 +17,6 @@ import {
   NoticeLink,
   noticeText,
 } from "~/components/notifications/format";
-import { Pagination } from "~/components/system/DataTable";
-import { EmptyState, PageHeader } from "~/components/system/IndexPage";
-import { RecordTabs } from "~/components/system/RecordPage";
 import { useCurrentUser } from "~/hooks/useCurrentUser";
 import * as m from "~/i18n/messages";
 import { notificationsQuery } from "~/queries/notifications";

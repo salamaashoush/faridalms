@@ -2,8 +2,7 @@ import type {
   AttendanceMeaning,
   RegisterState,
 } from "@faridalms/domain/attendance";
-
-import type { Tone } from "~/components/system/status";
+import type { Tone } from "@faridalms/ui/system/status";
 
 import { inLocale } from "~/hooks/useCurrentUser";
 import * as m from "~/i18n/messages";

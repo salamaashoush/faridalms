@@ -1,18 +1,19 @@
+import type { Column } from "@faridalms/ui/system/data-table";
+
 import { Input } from "@faridalms/ui/input";
+import { DataTable, RowLink } from "@faridalms/ui/system/data-table";
+import { EmptyState } from "@faridalms/ui/system/empty-state";
+import { SelectField } from "@faridalms/ui/system/form-field";
+import { PageHeader } from "@faridalms/ui/system/page-header";
+import { RecordTabs } from "@faridalms/ui/system/record-page";
+import { StatusText } from "@faridalms/ui/system/status";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { createFileRoute, stripSearchParams } from "@tanstack/react-router";
 import { CalendarCheck2, CalendarX2 } from "lucide-react";
 import * as v from "valibot";
 
-import type { Column } from "~/components/system/DataTable";
-
 import { classTitle } from "~/components/classes/format";
 import { displayName } from "~/components/people/format";
-import { DataTable, RowLink } from "~/components/system/DataTable";
-import { SelectField } from "~/components/system/field";
-import { EmptyState, PageHeader } from "~/components/system/IndexPage";
-import { RecordTabs } from "~/components/system/RecordPage";
-import { StatusText } from "~/components/system/status";
 import { CoverDay } from "~/components/timetable/Cover";
 import { Planner } from "~/components/timetable/Planner";
 import {

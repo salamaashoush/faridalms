@@ -3,10 +3,10 @@ import type { FluencyMark } from "@faridalms/domain/learning";
 import { fluencyOf, readingWords } from "@faridalms/domain/learning";
 import { cn } from "@faridalms/ui/cn";
 import { Input } from "@faridalms/ui/input";
+import { FormField } from "@faridalms/ui/system/form-field";
+import { Segmented } from "@faridalms/ui/system/panel";
 import { useId, useState } from "react";
 
-import { FormField } from "~/components/system/field";
-import { Segmented } from "~/components/system/panel";
 import * as m from "~/i18n/messages";
 import { formatNumber, formatPercent } from "~/utils/datetime";
 

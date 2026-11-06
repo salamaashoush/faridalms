@@ -1,7 +1,14 @@
 import type { Capability } from "@faridalms/domain/capabilities";
+import type { Column, RowAction } from "@faridalms/ui/system/data-table";
 import type { ReactNode } from "react";
 
 import { Checkbox } from "@faridalms/ui/checkbox";
+import { DataTable, Pagination } from "@faridalms/ui/system/data-table";
+import { TextField } from "@faridalms/ui/system/form-field";
+import { RecordEmpty, RecordSection } from "@faridalms/ui/system/record-page";
+import { SheetForm } from "@faridalms/ui/system/sheet-form";
+import { StatusBadge } from "@faridalms/ui/system/status";
+import { Value } from "@faridalms/ui/system/value";
 import {
   useMutation,
   useQueryClient,
@@ -11,20 +18,12 @@ import { Copy, Pencil, ShieldCheck } from "lucide-react";
 import { useId, useState } from "react";
 import { toast } from "sonner";
 
-import type { Column, RowAction } from "~/components/system/DataTable";
-
-import { Value } from "~/components/app/primitives";
 import {
   accessRoleName,
   CAPABILITY_AREAS,
   CAPABILITY_LABEL,
   SENSITIVE_CAPABILITIES,
 } from "~/components/people/capabilities";
-import { DataTable, Pagination } from "~/components/system/DataTable";
-import { TextField } from "~/components/system/field";
-import { RecordEmpty, RecordSection } from "~/components/system/RecordPage";
-import { SheetForm } from "~/components/system/SheetForm";
-import { StatusBadge } from "~/components/system/status";
 import { inLocale } from "~/hooks/useCurrentUser";
 import * as m from "~/i18n/messages";
 import { accessChangesQuery, accessRolesQuery } from "~/queries/access";

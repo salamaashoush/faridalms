@@ -1,10 +1,10 @@
-import { useSuspenseQuery } from "@tanstack/react-query";
-import { createFileRoute, Link } from "@tanstack/react-router";
-
 import {
   BreadcrumbCurrent,
   BreadcrumbStep,
-} from "~/components/app/WorkspaceBreadcrumb";
+} from "@faridalms/ui/system/app-shell";
+import { useSuspenseQuery } from "@tanstack/react-query";
+import { createFileRoute, Link } from "@tanstack/react-router";
+
 import { PacedLesson } from "~/components/learning/PacedLesson";
 import * as m from "~/i18n/messages";
 import { pacedQuery } from "~/queries/learning";

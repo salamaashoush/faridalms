@@ -6,10 +6,9 @@ import type {
   Publishable,
   PublicationPhase,
 } from "@faridalms/domain/publication";
+import type { Tone } from "@faridalms/ui/system/status";
 
 import { phaseOf } from "@faridalms/domain/publication";
-
-import type { Tone } from "~/components/system/status";
 
 import * as m from "~/i18n/messages";
 import { formatNumber } from "~/utils/datetime";

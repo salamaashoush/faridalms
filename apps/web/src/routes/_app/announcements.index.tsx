@@ -2,6 +2,11 @@ import type { ManageQuery } from "@faridalms/domain/announcements";
 
 import { MANAGE_TABS } from "@faridalms/domain/announcements";
 import { pageField } from "@faridalms/domain/paging";
+import { Pagination } from "@faridalms/ui/system/data-table";
+import { EmptyState } from "@faridalms/ui/system/empty-state";
+import { IndexToolbar } from "@faridalms/ui/system/index-toolbar";
+import { PageHeader } from "@faridalms/ui/system/page-header";
+import { RecordTabs } from "@faridalms/ui/system/record-page";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { createFileRoute, stripSearchParams } from "@tanstack/react-router";
 import { Megaphone, Plus } from "lucide-react";
@@ -11,13 +16,6 @@ import {
   BroadcastItem,
   ManagedBroadcasts,
 } from "~/components/broadcasts/BroadcastLists";
-import { Pagination } from "~/components/system/DataTable";
-import {
-  EmptyState,
-  IndexToolbar,
-  PageHeader,
-} from "~/components/system/IndexPage";
-import { RecordTabs } from "~/components/system/RecordPage";
 import { inLocale, useCurrentUser } from "~/hooks/useCurrentUser";
 import * as m from "~/i18n/messages";
 import {

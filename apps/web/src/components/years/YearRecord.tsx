@@ -1,14 +1,6 @@
+import type { HeaderFact, RecordTab } from "@faridalms/ui/system/record-page";
+
 import { cn } from "@faridalms/ui/cn";
-import {
-  useSuspenseInfiniteQuery,
-  useSuspenseQuery,
-} from "@tanstack/react-query";
-import { Link, useNavigate } from "@tanstack/react-router";
-import { Pencil } from "lucide-react";
-
-import type { HeaderFact, RecordTab } from "~/components/system/RecordPage";
-
-import { HistoryFeed } from "~/components/people/record-parts";
 import {
   Fact,
   Facts,
@@ -19,7 +11,15 @@ import {
   RecordList,
   RecordSection,
   RecordTabs,
-} from "~/components/system/RecordPage";
+} from "@faridalms/ui/system/record-page";
+import {
+  useSuspenseInfiniteQuery,
+  useSuspenseQuery,
+} from "@tanstack/react-query";
+import { Link, useNavigate } from "@tanstack/react-router";
+import { Pencil } from "lucide-react";
+
+import { HistoryFeed } from "~/components/people/record-parts";
 import { inLocale } from "~/hooks/useCurrentUser";
 import * as m from "~/i18n/messages";
 import { yearHistoryQuery, yearQuery, yearsQuery } from "~/queries/years";

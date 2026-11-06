@@ -1,18 +1,18 @@
 import { Button, buttonVariants } from "@faridalms/ui/button";
 import { cn } from "@faridalms/ui/cn";
 import { Input } from "@faridalms/ui/input";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useHydrated } from "@tanstack/react-router";
-import { CalendarSync, Check, Copy } from "lucide-react";
-import { useState } from "react";
-
 import {
   Dialog,
   DialogContent,
   DialogDescription,
   DialogTitle,
   DialogTrigger,
-} from "~/components/app/dialog";
+} from "@faridalms/ui/system/dialog";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useHydrated } from "@tanstack/react-router";
+import { CalendarSync, Check, Copy } from "lucide-react";
+import { useState } from "react";
+
 import * as m from "~/i18n/messages";
 import { calendarFeedQuery } from "~/queries/calendar";
 import { resetCalendarFeed } from "~/server/calendar";

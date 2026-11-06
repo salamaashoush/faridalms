@@ -1,22 +1,29 @@
-import { Button } from "@faridalms/ui/button";
+import { Button } from "../button";
 import { useBlocker } from "@tanstack/react-router";
-
-import * as m from "~/i18n/messages";
 
 import {
   Dialog,
   DialogContent,
-  DialogTitle,
   DialogDescription,
+  DialogTitle,
 } from "./dialog";
+import { useSystemStrings } from "./provider";
 
+export interface UnsavedChangesGuardProps {
+  isDirty: () => boolean;
+  /** A save under way: leaving waits for it rather than discarding. */
+  pending: boolean;
+}
+
+/**
+ * Asks before a page with unsaved changes is left, in the app or by closing
+ * the tab, with Discard held back while a save is still in flight.
+ */
 export function UnsavedChangesGuard({
   isDirty,
   pending,
-}: {
-  isDirty: () => boolean;
-  pending: boolean;
-}) {
+}: UnsavedChangesGuardProps) {
+  const strings = useSystemStrings();
   const blocker = useBlocker({
     shouldBlockFn: () => isDirty(),
     enableBeforeUnload: () => isDirty(),
@@ -30,20 +37,20 @@ export function UnsavedChangesGuard({
       }}
     >
       <DialogContent>
-        <DialogTitle>{m.editorLeaveTitle()}</DialogTitle>
+        <DialogTitle>{strings.leaveTitle}</DialogTitle>
         <DialogDescription>
-          {pending ? m.editorSavingHint() : m.editorLeaveHint()}
+          {pending ? strings.leaveWhileSavingHint : strings.leaveHint}
         </DialogDescription>
         <div className="flex justify-end gap-2">
           <Button variant="outline" onClick={() => blocker.reset?.()}>
-            {m.editorKeepEditing()}
+            {strings.keepEditing}
           </Button>
           <Button
             variant="destructive"
             disabled={pending}
             onClick={() => blocker.proceed?.()}
           >
-            {m.editorDiscard()}
+            {strings.discardChanges}
           </Button>
         </div>
       </DialogContent>

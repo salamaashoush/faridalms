@@ -5,13 +5,7 @@ import {
   createRouter,
   RouterProvider,
 } from "@tanstack/react-router";
-import {
-  fireEvent,
-  render,
-  screen,
-  waitFor,
-  within,
-} from "@testing-library/react";
+import { fireEvent, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { Suspense } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -21,6 +15,7 @@ import {
   getStudentMatches,
   saveStudent,
 } from "~/server/students";
+import { render } from "~/testUtils";
 
 import { StudentEditor } from "./StudentEditor";
 

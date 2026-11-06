@@ -9,6 +9,8 @@ import {
 } from "@faridalms/domain/coursework";
 import { Button } from "@faridalms/ui/button";
 import { Input } from "@faridalms/ui/input";
+import { TextField } from "@faridalms/ui/system/form-field";
+import { SheetForm } from "@faridalms/ui/system/sheet-form";
 import { Textarea } from "@faridalms/ui/textarea";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Plus, Trash2, X } from "lucide-react";
@@ -18,8 +20,6 @@ import * as v from "valibot";
 
 import { CheckboxRow } from "~/components/people/fields";
 import { StandardsField } from "~/components/standards/StandardsField";
-import { TextField } from "~/components/system/field";
-import { SheetForm } from "~/components/system/SheetForm";
 import * as m from "~/i18n/messages";
 import { courseworkOptionsQuery } from "~/queries/coursework";
 import { removeRubric, saveRubric } from "~/server/coursework";

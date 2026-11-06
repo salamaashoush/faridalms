@@ -1,8 +1,29 @@
+import type { ActionItem } from "@faridalms/ui/system/action-menu";
+import type {
+  HeaderFact,
+  RecordAlert,
+  RecordTab,
+} from "@faridalms/ui/system/record-page";
 import type { ReactNode } from "react";
 
 import { ageOn } from "@faridalms/domain/school";
 import { Button } from "@faridalms/ui/button";
 import { cn } from "@faridalms/ui/cn";
+import { ActionMenu } from "@faridalms/ui/system/action-menu";
+import { initialsOf } from "@faridalms/ui/system/app-shell";
+import {
+  Fact,
+  Facts,
+  phoneLink,
+  RecordColumns,
+  RecordEmpty,
+  RecordHeader,
+  RecordList,
+  RecordSection,
+  RecordTabs,
+} from "@faridalms/ui/system/record-page";
+import { StatusText } from "@faridalms/ui/system/status";
+import { Value } from "@faridalms/ui/system/value";
 import {
   useQueryClient,
   useSuspenseInfiniteQuery,
@@ -26,33 +47,11 @@ import {
 import { Suspense, useState } from "react";
 import { toast } from "sonner";
 
-import type { ActionItem } from "~/components/system/ActionMenu";
-import type {
-  HeaderFact,
-  RecordAlert,
-  RecordTab,
-} from "~/components/system/RecordPage";
-
-import { Value } from "~/components/app/primitives";
-import { initialsOf } from "~/components/app/UserMenu";
 import { StudentAttendance } from "~/components/attendance/StudentAttendance";
 import { StudentConsents } from "~/components/consents/StudentConsents";
 import { StudentCoursework } from "~/components/coursework/StudentCoursework";
 import { NewMessage } from "~/components/messages/NewMessage";
 import { StudentSkills } from "~/components/standards/Progress";
-import { ActionMenu } from "~/components/system/ActionMenu";
-import {
-  Fact,
-  Facts,
-  phoneLink,
-  RecordColumns,
-  RecordEmpty,
-  RecordHeader,
-  RecordList,
-  RecordSection,
-  RecordTabs,
-} from "~/components/system/RecordPage";
-import { StatusText } from "~/components/system/status";
 import { inLocale } from "~/hooks/useCurrentUser";
 import * as m from "~/i18n/messages";
 import {

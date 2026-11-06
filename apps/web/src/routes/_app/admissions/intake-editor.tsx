@@ -1,3 +1,4 @@
+import { BreadcrumbCurrent } from "@faridalms/ui/system/app-shell";
 import { useQuery, useSuspenseQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 import * as v from "valibot";
@@ -6,7 +7,6 @@ import {
   IntakeEditor,
   intakeDraft,
 } from "~/components/admissions/IntakeEditor";
-import { BreadcrumbCurrent } from "~/components/app/WorkspaceBreadcrumb";
 import * as m from "~/i18n/messages";
 import { intakeOptionsQuery, intakeQuery } from "~/queries/admissions";
 import { currentUserQuery } from "~/queries/user";

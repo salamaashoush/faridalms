@@ -8,12 +8,12 @@ import {
   SheetHeader,
   SheetTitle,
 } from "@faridalms/ui/sheet";
+import { RecordSection } from "@faridalms/ui/system/record-page";
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { BookA, Search } from "lucide-react";
 import { useDeferredValue, useMemo, useState } from "react";
 
-import { RecordSection } from "~/components/system/RecordPage";
 import * as m from "~/i18n/messages";
 import { getLocale, getTextDirection } from "~/i18n/runtime";
 import { moduleGlossaryQuery } from "~/queries/learning";

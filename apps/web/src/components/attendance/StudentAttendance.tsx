@@ -1,17 +1,17 @@
-import { useSuspenseQuery } from "@tanstack/react-query";
-import { CircleAlert } from "lucide-react";
-import { useState } from "react";
-
-import { classTitle } from "~/components/classes/format";
-import { Pagination } from "~/components/system/DataTable";
+import { Pagination } from "@faridalms/ui/system/data-table";
 import {
   Fact,
   Facts,
   RecordEmpty,
   RecordList,
   RecordSection,
-} from "~/components/system/RecordPage";
-import { StatusText } from "~/components/system/status";
+} from "@faridalms/ui/system/record-page";
+import { StatusText } from "@faridalms/ui/system/status";
+import { useSuspenseQuery } from "@tanstack/react-query";
+import { CircleAlert } from "lucide-react";
+import { useState } from "react";
+
+import { classTitle } from "~/components/classes/format";
 import { inLocale } from "~/hooks/useCurrentUser";
 import * as m from "~/i18n/messages";
 import { studentAttendanceQuery } from "~/queries/attendance";

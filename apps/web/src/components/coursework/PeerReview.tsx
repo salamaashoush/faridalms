@@ -1,6 +1,15 @@
 import type { Rubric } from "@faridalms/domain/coursework";
 
 import { Button } from "@faridalms/ui/button";
+import { ConfirmDialog } from "@faridalms/ui/system/confirm-dialog";
+import { EmptyState } from "@faridalms/ui/system/empty-state";
+import { FormField, SelectField } from "@faridalms/ui/system/form-field";
+import {
+  RecordEmpty,
+  RecordList,
+  RecordSection,
+} from "@faridalms/ui/system/record-page";
+import { StatusBadge } from "@faridalms/ui/system/status";
 import { Textarea } from "@faridalms/ui/textarea";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
@@ -10,16 +19,7 @@ import { toast } from "sonner";
 
 import { ContentView } from "~/components/content/ContentView";
 import { displayName } from "~/components/people/format";
-import { ConfirmDialog } from "~/components/system/ConfirmDialog";
-import { FormField, SelectField } from "~/components/system/field";
 import { FileList } from "~/components/system/FileList";
-import { EmptyState } from "~/components/system/IndexPage";
-import {
-  RecordEmpty,
-  RecordList,
-  RecordSection,
-} from "~/components/system/RecordPage";
-import { StatusBadge } from "~/components/system/status";
 import * as m from "~/i18n/messages";
 import { myPeerReviewsQuery, peerOverviewQuery } from "~/queries/coursework";
 import {

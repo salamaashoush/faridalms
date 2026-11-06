@@ -1,8 +1,21 @@
+import type { HeaderFact, RecordTab } from "@faridalms/ui/system/record-page";
 import type { ReactNode } from "react";
 
 import { YOUNG_STUDENT_GRADES } from "@faridalms/domain/descriptors/catalogue";
 import { Button } from "@faridalms/ui/button";
 import { cn } from "@faridalms/ui/cn";
+import { ActionMenu } from "@faridalms/ui/system/action-menu";
+import { initialsOf } from "@faridalms/ui/system/app-shell";
+import { ButtonLink } from "@faridalms/ui/system/button-link";
+import {
+  phoneLink,
+  RecordColumns,
+  RecordEmpty,
+  RecordHeader,
+  RecordList,
+  RecordSection,
+  RecordTabs,
+} from "@faridalms/ui/system/record-page";
 import {
   useMutation,
   useQuery,
@@ -22,25 +35,12 @@ import {
 import { useState } from "react";
 
 import type { AreaView } from "~/components/files/AreaFiles";
-import type { HeaderFact, RecordTab } from "~/components/system/RecordPage";
 
-import { ButtonLink } from "~/components/app/ButtonLink";
-import { initialsOf } from "~/components/app/UserMenu";
 import { ClassAttendance } from "~/components/attendance/ClassAttendance";
 import { AreaFiles } from "~/components/files/AreaFiles";
 import { ClassGradingSection } from "~/components/grading/ClassGrading";
 import { ClassGoals } from "~/components/standards/Goals";
 import { ClassSkills } from "~/components/standards/Progress";
-import { ActionMenu } from "~/components/system/ActionMenu";
-import {
-  phoneLink,
-  RecordColumns,
-  RecordEmpty,
-  RecordHeader,
-  RecordList,
-  RecordSection,
-  RecordTabs,
-} from "~/components/system/RecordPage";
 import { ClassWeek } from "~/components/timetable/Weeks";
 import {
   inLocale,

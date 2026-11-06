@@ -5,15 +5,15 @@ import {
   SheetHeader,
   SheetTitle,
 } from "@faridalms/ui/sheet";
-import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
-import { useState } from "react";
-
-import { ContentView } from "~/components/content/ContentView";
 import {
   RecordEmpty,
   RecordList,
   RecordSection,
-} from "~/components/system/RecordPage";
+} from "@faridalms/ui/system/record-page";
+import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
+import { useState } from "react";
+
+import { ContentView } from "~/components/content/ContentView";
 import * as m from "~/i18n/messages";
 import { getLocale, getTextDirection } from "~/i18n/runtime";
 import { sharedWorkQuery } from "~/queries/coursework";

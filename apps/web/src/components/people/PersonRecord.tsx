@@ -1,6 +1,17 @@
+import type { HeaderFact, RecordTab } from "@faridalms/ui/system/record-page";
 import type { ReactNode } from "react";
 
 import { cn } from "@faridalms/ui/cn";
+import { initialsOf } from "@faridalms/ui/system/app-shell";
+import {
+  phoneLink,
+  RecordColumns,
+  RecordEmpty,
+  RecordHeader,
+  RecordList,
+  RecordSection,
+  RecordTabs,
+} from "@faridalms/ui/system/record-page";
 import {
   useQueryClient,
   useSuspenseInfiniteQuery,
@@ -10,18 +21,6 @@ import { Link, useNavigate } from "@tanstack/react-router";
 import { Pencil } from "lucide-react";
 import { useState } from "react";
 
-import type { HeaderFact, RecordTab } from "~/components/system/RecordPage";
-
-import { initialsOf } from "~/components/app/UserMenu";
-import {
-  phoneLink,
-  RecordColumns,
-  RecordEmpty,
-  RecordHeader,
-  RecordList,
-  RecordSection,
-  RecordTabs,
-} from "~/components/system/RecordPage";
 import { inLocale, useCurrentUser } from "~/hooks/useCurrentUser";
 import * as m from "~/i18n/messages";
 import { personHistoryQuery, personRecordQuery } from "~/queries/students";

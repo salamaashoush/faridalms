@@ -1,20 +1,20 @@
 import type { FunnelStage } from "@faridalms/domain/admissions";
+import type { Column } from "@faridalms/ui/system/data-table";
 
+import { DataTable } from "@faridalms/ui/system/data-table";
+import { IndexToolbar } from "@faridalms/ui/system/index-toolbar";
+import { PageHeader } from "@faridalms/ui/system/page-header";
+import { RecordSection } from "@faridalms/ui/system/record-page";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { createFileRoute, stripSearchParams } from "@tanstack/react-router";
 import { ChartColumn } from "lucide-react";
 import * as v from "valibot";
-
-import type { Column } from "~/components/system/DataTable";
 
 import {
   APPLICATION_STATE_LABEL,
   ORIGIN_LABEL,
   STAGE_LABEL,
 } from "~/components/admissions/application-labels";
-import { DataTable } from "~/components/system/DataTable";
-import { IndexToolbar, PageHeader } from "~/components/system/IndexPage";
-import { RecordSection } from "~/components/system/RecordPage";
 import { inLocale } from "~/hooks/useCurrentUser";
 import * as m from "~/i18n/messages";
 import { admissionReportsQuery } from "~/queries/admissions";

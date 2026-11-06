@@ -1,13 +1,13 @@
 import type { ProjectFile } from "@faridalms/domain/project";
 
 import { Button } from "@faridalms/ui/button";
+import { ConfirmDialog } from "@faridalms/ui/system/confirm-dialog";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { AppWindow, Images } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 
 import { displayName } from "~/components/people/format";
-import { ConfirmDialog } from "~/components/system/ConfirmDialog";
 import * as m from "~/i18n/messages";
 import { galleryQuery } from "~/queries/learning";
 import {
