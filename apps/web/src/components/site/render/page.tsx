@@ -7,7 +7,7 @@ import { Fragment } from "react";
 import type { RenderContext } from "./parts";
 
 import { fullBleed } from "./parts";
-import { SiteSection } from "./sections";
+import { hasContent, SiteSection } from "./sections";
 
 export interface ShownSection {
   section: PageSection;
@@ -62,9 +62,10 @@ function continues(
 }
 
 /**
- * A page's sections, each in the language it is shown in. A page that does
- * not open with a hero or page header gets one with its title, so every page
- * has exactly one first-level heading.
+ * A page's sections, each in the language it is shown in, less any with
+ * nothing to show a visitor yet. A page that does not open with a hero or
+ * page header gets one with its title, so every page has exactly one
+ * first-level heading.
  */
 export function PageSections({
   sections,
@@ -82,7 +83,11 @@ export function PageSections({
     rendered: ReactNode,
   ) => ReactNode;
 }) {
-  const titled = opensWithTitle(sections);
+  const page = sections.map((item) => item.section);
+  const shown = sections.filter((item) =>
+    hasContent(item.section, page, context),
+  );
+  const titled = opensWithTitle(shown);
   const header: PageSection = {
     id: "title",
     type: "pageHeader",
@@ -111,14 +116,14 @@ export function PageSections({
           first
         />
       )}
-      {sections.map((item, index) => {
+      {shown.map((item, index) => {
         const rendered = (
           <SiteSection
             section={item.section}
             shownIn={item.locale}
             context={context}
             first={titled && index === 0}
-            joined={continues(sections[index - 1]?.section, item.section)}
+            joined={continues(shown[index - 1]?.section, item.section)}
           />
         );
         return (

@@ -989,7 +989,7 @@ function Divisions({ section, context }: Props<"divisions">) {
                   className="absolute inset-0 -z-10 size-full rounded-none"
                 />
                 <div className="absolute inset-0 -z-10">
-                  <Scrim photo={Boolean(item.image.fileId)} />
+                  <Scrim photo={Boolean(item.image.fileId)} strength="l" />
                 </div>
                 <div
                   className="flex h-full flex-col justify-between gap-6 p-[var(--s-card-pad)]"
@@ -2083,9 +2083,7 @@ function News({ section, context }: Props<"news">) {
         </TextLink>
       </div>
       {items.length === 0 ? (
-        <p className="site-text">
-          {context.editing ? m.siteNewsPreview({}, t) : m.siteNoNews({}, t)}
-        </p>
+        <p className="site-text">{m.siteNewsPreview({}, t)}</p>
       ) : variant === "list" ? (
         <ul
           data-stagger
@@ -3747,6 +3745,30 @@ function Blocks({ section, context }: Props<"blocks">) {
  * One section as visitors see it. A section shown in the other language
  * carries that language, so screen readers pronounce it right.
  */
+/**
+ * Whether a visitor would find anything in a section drawn from the school's
+ * news, calendar or intakes. One with nothing yet is left off the page
+ * rather than saying so, an intakes list only where the page's way in to
+ * applying already says applications are not open; the builder still shows
+ * each, with what it will hold.
+ */
+export function hasContent(
+  section: PageSection,
+  page: readonly PageSection[],
+  context: RenderContext,
+): boolean {
+  if (context.editing) return true;
+  if (section.type === "news") return context.news.length > 0;
+  if (section.type === "events")
+    return listedEvents(section.data, context).length > 0;
+  if (section.type === "admissions" && section.data.source === "intakes")
+    return (
+      (context.intakes ?? []).length > 0 ||
+      !page.some((other) => other.type === "registerApply")
+    );
+  return true;
+}
+
 export function SiteSection({
   section,
   shownIn,
