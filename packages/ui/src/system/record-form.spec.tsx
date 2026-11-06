@@ -26,15 +26,13 @@ function inRouter(Page: () => ReactElement) {
   return render(<RouterProvider router={router} />);
 }
 
-function PersonForm({
-  labels,
-  onSave,
-  danger,
-}: {
+interface PersonFormProps {
   labels: string[];
   onSave: (intent: string | undefined) => void;
   danger?: DangerAction;
-}) {
+}
+
+function PersonForm({ labels, onSave, danger }: PersonFormProps) {
   const [values, setValues] = useState<Record<string, string>>({});
   const [submitted, setSubmitted] = useState(false);
   return (

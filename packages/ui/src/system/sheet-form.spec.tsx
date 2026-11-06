@@ -8,7 +8,11 @@ import { renderWithSystem as render } from "./testing";
 import { TextField } from "./form-field";
 import { SheetForm } from "./sheet-form";
 
-function NameSheet({ onSave }: { onSave: (name: string) => void }) {
+interface NameSheetProps {
+  onSave: (name: string) => void;
+}
+
+function NameSheet({ onSave }: NameSheetProps) {
   const [first, setFirst] = useState("Salama");
   const [last, setLast] = useState("");
   const [submitted, setSubmitted] = useState(false);

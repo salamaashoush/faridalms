@@ -35,19 +35,15 @@ function inRouter(Page: () => ReactElement) {
   return router;
 }
 
-function NameSection({
-  title,
-  label,
-  onSave,
-  error,
-  saved,
-}: {
+interface NameSectionProps {
   title: string;
   label: string;
   onSave: (value: string) => void;
   error?: string;
   saved?: boolean;
-}) {
+}
+
+function NameSection({ title, label, onSave, error, saved }: NameSectionProps) {
   const [value, setValue] = useState("Salama");
   const [submitted, setSubmitted] = useState(false);
   return (
@@ -71,17 +67,19 @@ function NameSection({
   );
 }
 
+interface TwoSectionsProps {
+  onProfile?: (value: string) => void;
+  onContact?: (value: string) => void;
+  error?: string;
+  saved?: boolean;
+}
+
 function TwoSections({
   onProfile = vi.fn(),
   onContact = vi.fn(),
   error,
   saved,
-}: {
-  onProfile?: (value: string) => void;
-  onContact?: (value: string) => void;
-  error?: string;
-  saved?: boolean;
-}) {
+}: TwoSectionsProps) {
   return (
     <SettingsPage>
       <NameSection
