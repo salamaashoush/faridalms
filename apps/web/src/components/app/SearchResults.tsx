@@ -73,12 +73,12 @@ export const HIT_ROW =
 const whenLabel = (when: string) =>
   when.length === 10 ? formatDate(when) : formatInstant(when, "date");
 
-/** The query's words marked in a title, matched without regard to case. */
 interface MarkedProps {
   text: string;
   q: string;
 }
 
+/** The query's words marked in a title, matched without regard to case. */
 function Marked({ text, q }: MarkedProps) {
   const words = q
     .toLocaleLowerCase()
@@ -183,7 +183,6 @@ function HitBody({ hit, q, icon: Icon }: HitBodyProps) {
   );
 }
 
-/** A result, linked to the page it opens for this workspace. */
 export interface HitLinkProps {
   hit: SearchHit;
   q: string;
@@ -192,6 +191,7 @@ export interface HitLinkProps {
   className?: string;
 }
 
+/** A result, linked to the page it opens for this workspace. */
 export function HitLink({
   hit,
   q,
@@ -281,7 +281,6 @@ export function HitLink({
   }
 }
 
-/** Results grouped by kind, each group ending in a way to all of its kind when there is more. */
 export interface SearchResultsProps {
   groups: SearchGroup[];
   q: string;
@@ -290,6 +289,7 @@ export interface SearchResultsProps {
   onMore?: (kind: SearchKind) => void;
 }
 
+/** Results grouped by kind, each group ending in a way to all of its kind when there is more. */
 export function SearchResults({
   groups,
   q,

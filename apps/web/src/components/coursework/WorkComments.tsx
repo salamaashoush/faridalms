@@ -89,12 +89,12 @@ const KIND_TONE: Record<CommentKind, string> = {
   next: "bg-emerald-500/10 text-emerald-700 dark:text-emerald-300",
 };
 
-/** What a comment asks of the student and the criterion it is about. */
 interface CommentTagsProps {
   comment: WorkComment;
   criteria?: Criterion[];
 }
 
+/** What a comment asks of the student and the criterion it is about. */
 function CommentTags({ comment, criteria }: CommentTagsProps) {
   const criterion = criteria?.find((row) => row.id === comment.criterionId);
   if (!comment.kind && !criterion) return null;
@@ -342,7 +342,6 @@ function SmallCheck({ label, checked, onChange }: SmallCheckProps) {
   );
 }
 
-/** Writes a comment on a passage, or changes the grader's own. */
 interface ComposerProps {
   attemptId: string;
   passage: Passage;
@@ -353,6 +352,7 @@ interface ComposerProps {
   onDone: (id: string | null) => void;
 }
 
+/** Writes a comment on a passage, or changes the grader's own. */
 function Composer({
   attemptId,
   passage,
@@ -965,7 +965,6 @@ export function CommentedWork({
   );
 }
 
-/** The comments on one attempt, each under the passage it was made on. */
 export interface CommentListProps {
   comments: WorkComment[];
   criteria?: Criterion[];
@@ -977,6 +976,7 @@ export interface CommentListProps {
   onShow?: (id: string) => void;
 }
 
+/** The comments on one attempt, each under the passage it was made on. */
 export function CommentList({
   comments,
   criteria,

@@ -52,7 +52,6 @@ function BroadcastLink({ kind, id, className, children }: BroadcastLinkProps) {
   );
 }
 
-/** One broadcast as its readers' list shows it, of either kind. */
 export interface BroadcastItemProps {
   kind: BroadcastKind;
   item: {
@@ -70,6 +69,7 @@ export interface BroadcastItemProps {
   };
 }
 
+/** One broadcast as its readers' list shows it, of either kind. */
 export function BroadcastItem({ kind, item }: BroadcastItemProps) {
   return (
     <li className="grid gap-1.5 py-4">
@@ -217,7 +217,6 @@ function managedCard(kind: BroadcastKind) {
   };
 }
 
-/** The broadcasts of one kind those who manage it work through, on one tab. */
 export interface ManagedBroadcastsProps {
   kind: BroadcastKind;
   tab: ManageTab;
@@ -226,6 +225,7 @@ export interface ManagedBroadcastsProps {
   onPage: (page: number) => void;
 }
 
+/** The broadcasts of one kind those who manage it work through, on one tab. */
 export function ManagedBroadcasts({
   kind,
   tab,

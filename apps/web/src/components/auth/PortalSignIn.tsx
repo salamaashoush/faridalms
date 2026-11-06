@@ -8,11 +8,11 @@ import { SignInForm } from "./SignInForm";
 
 const auth = getRouteApi("/_auth");
 
-/** Sign-in on a school's own portal, which welcomes people in the school's name. */
 export interface PortalSignInProps {
   redirect?: string;
 }
 
+/** Sign-in on a school's own portal, which welcomes people in the school's name. */
 export function PortalSignIn({ redirect }: PortalSignInProps) {
   const face = auth.useLoaderData();
   return (

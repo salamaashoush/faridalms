@@ -279,11 +279,11 @@ function AddOnDay({ day, listed = false }: AddOnDayProps) {
   );
 }
 
-/** How to move and resize events without a pointer, for those who may. */
 export interface MoveHintProps {
   children?: ReactNode;
 }
 
+/** How to move and resize events without a pointer, for those who may. */
 export function MoveHint({ children }: MoveHintProps) {
   return (
     <p
@@ -592,7 +592,6 @@ function AgendaItem({ event }: AgendaItemProps) {
   );
 }
 
-/** Day by day, only the days with something on them. */
 export interface AgendaProps {
   from: string;
   to: string;
@@ -605,6 +604,7 @@ export interface AgendaProps {
   canAdd?: boolean;
 }
 
+/** Day by day, only the days with something on them. */
 export function Agenda({
   from,
   to,
@@ -697,12 +697,12 @@ export function Agenda({
   );
 }
 
-/** A day as a calendar app marks it: the weekday over its number, today filled. */
 interface DayMarkProps {
   day: string;
   today: string;
 }
 
+/** A day as a calendar app marks it: the weekday over its number, today filled. */
 function DayMark({ day, today }: DayMarkProps) {
   return (
     <h2 className="grid content-start justify-items-center gap-0.5 pt-1.5 text-center">

@@ -24,12 +24,12 @@ type Thread = Awaited<
   ReturnType<NonNullable<ReturnType<typeof threadQuery>["queryFn"]>>
 >;
 
-/** Who is in a conversation; a group's owner can bring people in or take them out. */
 export interface MembersSheetProps {
   thread: Thread;
   onClose: () => void;
 }
 
+/** Who is in a conversation; a group's owner can bring people in or take them out. */
 export function MembersSheet({ thread, onClose }: MembersSheetProps) {
   const user = useCurrentUser();
   const queryClient = useQueryClient();

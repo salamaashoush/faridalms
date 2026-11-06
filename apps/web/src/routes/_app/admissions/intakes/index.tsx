@@ -61,11 +61,11 @@ type Form = Awaited<
   ReturnType<NonNullable<(typeof formsQuery)["queryFn"]>>
 >["forms"][number];
 
-/** An intake opens its board, where its applications are worked through. */
 interface GradeProps {
   row: Intake;
 }
 
+/** An intake opens its board, where its applications are worked through. */
 function Grade({ row }: GradeProps) {
   return (
     <RowLink

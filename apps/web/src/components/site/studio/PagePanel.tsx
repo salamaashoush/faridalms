@@ -21,7 +21,6 @@ import type { Languages, PageDraft } from "./draft";
 
 import { StudioField } from "./controls";
 
-/** The page itself: its titles, address, place in the menu, search description, and the way to its earlier versions. */
 export interface PagePanelProps {
   draft: PageDraft;
   languages: Languages;
@@ -34,6 +33,7 @@ export interface PagePanelProps {
   onSlugTouched: () => void;
 }
 
+/** The page itself: its titles, address, place in the menu, search description, and the way to its earlier versions. */
 export function PagePanel({
   draft,
   languages,

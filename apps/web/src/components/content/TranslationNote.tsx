@@ -13,13 +13,13 @@ interface Review {
   current: boolean;
 }
 
-/** Where a translation stands against its original, and who checked it. */
 export interface TranslationNoteProps {
   state: TranslationState;
   review: Review | null;
   language: string;
 }
 
+/** Where a translation stands against its original, and who checked it. */
 export function TranslationNote({
   state,
   review,

@@ -171,11 +171,11 @@ function columns(primary: "en" | "ar"): Column<Row>[] {
   ];
 }
 
-/** The website's pages as one list: open, order, nest, publish and remove them, one by one or many at once. */
 export interface SitePagesProps {
   overview: Overview;
 }
 
+/** The website's pages as one list: open, order, nest, publish and remove them, one by one or many at once. */
 export function SitePages({ overview }: SitePagesProps) {
   const user = useCurrentUser();
   const [starting, setStarting] = useState(false);

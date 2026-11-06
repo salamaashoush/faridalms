@@ -57,7 +57,6 @@ export function audienceIssue(audiences: AudienceInput[]): string | null {
     : null;
 }
 
-/** Who a broadcast goes to: the whole school, a group of people, classes or grades. */
 export interface AudienceListProps {
   value: AudienceInput[];
   onChange: (next: AudienceInput[]) => void;
@@ -67,6 +66,7 @@ export interface AudienceListProps {
   scopes?: readonly AudienceScope[];
 }
 
+/** Who a broadcast goes to: the whole school, a group of people, classes or grades. */
 export function AudienceList({
   value,
   onChange,

@@ -134,6 +134,10 @@ const INLINE_PROPS = [
   /const\s+[A-Z]\w*\s*=\s*\(\{[^)]*?\}\s*:\s*\{/s,
 ];
 const PROPS_ROOTS = ["apps/web/src", "apps/ops/src", "packages/ui/src/system"];
+// What a component is goes above the component, where an editor shows it on
+// hover; above its props it describes the wrong thing.
+const DOC_ON_PROPS =
+  /\*\/\n(?:export )?interface (\w+)Props(?:<[^>{]*>)? \{(?:\n(?!\}).*)*\n\}\n\n(?:export )?(?:default )?function \1\b/;
 for (const root of PROPS_ROOTS)
   for await (const path of new Glob(`${root}/**/*.tsx`).scan(".")) {
     if (IGNORED.some((pattern) => pattern.test(path))) continue;
@@ -141,6 +145,10 @@ for (const root of PROPS_ROOTS)
     if (INLINE_PROPS.some((pattern) => pattern.test(text)))
       problems.push(
         `${path}: a component types its props inline; name an interface`,
+      );
+    if (DOC_ON_PROPS.test(text))
+      problems.push(
+        `${path}: a component's doc sits above its props; move it to the component`,
       );
   }
 

@@ -91,11 +91,11 @@ function ModuleItem({ row, studentId }: ModuleItemProps) {
   );
 }
 
-/** A student's modules, the unfinished ones first, each with how far along it is. */
 export interface StudentModuleListProps {
   studentId: string;
 }
 
+/** A student's modules, the unfinished ones first, each with how far along it is. */
 export function StudentModuleList({ studentId }: StudentModuleListProps) {
   const { rows } = useSuspenseQuery(myModulesQuery(studentId)).data;
   const going = rows.filter((row) => !finished(row));
@@ -128,12 +128,12 @@ export function StudentModuleList({ studentId }: StudentModuleListProps) {
 
 const STATE_ICON = { done: CircleCheck, open: Play, locked: Lock } as const;
 
-/** A module as its student meets it: which lessons are done, which open, which wait. */
 export interface ModuleOutlineProps {
   moduleId: string;
   studentId: string;
 }
 
+/** A module as its student meets it: which lessons are done, which open, which wait. */
 export function ModuleOutline({ moduleId, studentId }: ModuleOutlineProps) {
   const data = useSuspenseQuery(moduleOutlineQuery(moduleId, studentId)).data;
   const navigate = useNavigate();

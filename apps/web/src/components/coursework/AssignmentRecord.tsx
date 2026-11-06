@@ -227,13 +227,13 @@ function StateCell({ row }: StateCellProps) {
   );
 }
 
-/** A due time of their own for the chosen students, on the school's clock. */
 interface ExtendSheetProps {
   data: Data;
   rows: WorkRow[] | null;
   onOpenChange: (open: boolean) => void;
 }
 
+/** A due time of their own for the chosen students, on the school's clock. */
 function ExtendSheet({ data, rows, onOpenChange }: ExtendSheetProps) {
   const queryClient = useQueryClient();
   const first = rows?.[0];

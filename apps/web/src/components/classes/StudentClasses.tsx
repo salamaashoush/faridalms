@@ -33,11 +33,11 @@ export interface Homeroom {
   }[];
 }
 
-/** The teachers who keep a student's class, each opening their record. */
 export interface HomeroomTeachersProps {
   homeroom: Homeroom;
 }
 
+/** The teachers who keep a student's class, each opening their record. */
 export function HomeroomTeachers({ homeroom }: HomeroomTeachersProps) {
   return (
     <span>

@@ -1203,11 +1203,11 @@ function SchoolsStep({ form, onChange, tried }: SchoolsStepProps) {
   );
 }
 
-/** The checklist's documents, each uploaded through the files system and filed under its step. */
 export interface DocumentsStepProps {
   data: Draft;
 }
 
+/** The checklist's documents, each uploaded through the files system and filed under its step. */
 export function DocumentsStep({ data }: DocumentsStepProps) {
   const queryClient = useQueryClient();
   const documents = data.items.filter((item) => item.kind === "document");

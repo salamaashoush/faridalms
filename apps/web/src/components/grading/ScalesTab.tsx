@@ -203,13 +203,13 @@ function bandsProblem(drafts: readonly BandDraft[]): string | null {
   return (BAND_PROBLEM[issue.message] ?? m.gradingBandIncomplete)();
 }
 
-/** The bands of a scale, highest first, each a grade's names, lower bound and GPA. */
 interface BandsEditorProps {
   value: BandDraft[];
   onChange: (value: BandDraft[]) => void;
   problem: string | null;
 }
 
+/** The bands of a scale, highest first, each a grade's names, lower bound and GPA. */
 function BandsEditor({ value, onChange, problem }: BandsEditorProps) {
   const set = (key: string, change: Partial<BandDraft>) =>
     onChange(
@@ -377,7 +377,6 @@ function DisplayField({ value, onChange }: DisplayFieldProps) {
   );
 }
 
-/** Adds a scale from a preset the school then adjusts, or renames one. */
 export interface ScaleSheetProps {
   open: boolean;
   scale?: ScaleRow;
@@ -385,6 +384,7 @@ export interface ScaleSheetProps {
   onClose: () => void;
 }
 
+/** Adds a scale from a preset the school then adjusts, or renames one. */
 export function ScaleSheet({
   open,
   scale,

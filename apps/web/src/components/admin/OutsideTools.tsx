@@ -27,12 +27,12 @@ import { getMessageFromError } from "~/utils/error";
 type Data = Awaited<ReturnType<NonNullable<(typeof ltiToolsQuery)["queryFn"]>>>;
 type Tool = Data["tools"][number];
 
-/** A value a tool's maker copies into their side of the registration. */
 interface CopyableProps {
   label: string;
   value: string;
 }
 
+/** A value a tool's maker copies into their side of the registration. */
 function Copyable({ label, value }: CopyableProps) {
   return (
     <div className="grid min-w-0 gap-0.5">

@@ -62,18 +62,18 @@ export function PageActionsSlot() {
   );
 }
 
-/**
- * An editor's controls live in the workspace header: a way back before the
- * breadcrumb, and its status and actions where the global tools usually sit.
- * One bar, no floating footer. The slots exist only in the browser, which
- * matches the editors' rule of staying disabled until hydrated.
- */
 export interface PageActionsProps {
   /** Before the breadcrumb, such as a way back. */
   leading?: ReactNode;
   children: ReactNode;
 }
 
+/**
+ * An editor's controls live in the workspace header: a way back before the
+ * breadcrumb, and its status and actions where the global tools usually sit.
+ * One bar, no floating footer. The slots exist only in the browser, which
+ * matches the editors' rule of staying disabled until hydrated.
+ */
 export function PageActions({ leading, children }: PageActionsProps) {
   const slots = useContext(SlotContext);
   return (

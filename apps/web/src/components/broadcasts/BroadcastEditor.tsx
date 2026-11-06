@@ -871,13 +871,13 @@ export function BroadcastEditor({
   );
 }
 
-/** How an announcement behaves for its readers: urgency, pinning, expiry and acknowledgement. */
 interface AnnouncementSettingsProps {
   draft: Draft;
   field: (name: string) => string;
   onChange: (patch: Partial<Draft>) => void;
 }
 
+/** How an announcement behaves for its readers: urgency, pinning, expiry and acknowledgement. */
 function AnnouncementSettings({
   draft,
   field,
@@ -934,7 +934,6 @@ function AnnouncementSettings({
   );
 }
 
-/** What a news post carries for its cards and the website: summary, picture and address. */
 interface NewsSettingsProps {
   draft: Draft;
   shown: ContentLocale;
@@ -948,6 +947,7 @@ interface NewsSettingsProps {
   onSlug: () => void;
 }
 
+/** What a news post carries for its cards and the website: summary, picture and address. */
 function NewsSettings({
   draft,
   shown,

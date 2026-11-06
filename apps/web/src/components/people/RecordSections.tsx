@@ -314,11 +314,11 @@ function ReportSheet({ studentId, record, open, onClose }: ReportSheetProps) {
   );
 }
 
-/** A record's report as its card, and whether the family may open it. */
 interface RecordReportProps {
   report: NonNullable<HealthRecord["report"]>;
 }
 
+/** A record's report as its card, and whether the family may open it. */
 function RecordReport({ report }: RecordReportProps) {
   return (
     <div className="mt-2 grid gap-1.5">
@@ -888,11 +888,11 @@ function ArrangementsSheet({
   );
 }
 
-/** A student's access arrangements, which their quizzes and due dates apply. */
 export interface ArrangementsSectionProps {
   studentId: string;
 }
 
+/** A student's access arrangements, which their quizzes and due dates apply. */
 export function ArrangementsSection({ studentId }: ArrangementsSectionProps) {
   const data = useSuspenseQuery(arrangementsQuery(studentId)).data;
   const [sheet, setSheet] = useState({ open: false, key: 0 });

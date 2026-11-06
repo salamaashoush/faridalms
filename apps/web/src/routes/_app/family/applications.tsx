@@ -139,11 +139,11 @@ function OfferAnswer({ row }: OfferAnswerProps) {
   );
 }
 
-/** The letters the school sent and the visits booked, each where the family will look. */
 interface CorrespondenceProps {
   row: Row;
 }
 
+/** The letters the school sent and the visits booked, each where the family will look. */
 function Correspondence({ row }: CorrespondenceProps) {
   const [open, setOpen] = useState<Row["letters"][number] | null>(null);
   if (!row.letters.length && !row.events.length) return null;

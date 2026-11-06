@@ -121,13 +121,13 @@ function Item({ item, linked, onOpen }: ItemProps) {
   );
 }
 
-/** Work grouped under the day it is due, earliest first. */
 export interface ByDayProps {
   items: LearnerItem[];
   linked: boolean;
   empty: string;
 }
 
+/** Work grouped under the day it is due, earliest first. */
 export function ByDay({ items, linked, empty }: ByDayProps) {
   if (items.length === 0) return <RecordEmpty>{empty}</RecordEmpty>;
   const days = new Map<string, LearnerItem[]>();

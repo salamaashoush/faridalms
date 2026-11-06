@@ -2,7 +2,6 @@ import type { ReactNode } from "react";
 
 import { ChevronDown } from "lucide-react";
 
-/** A field in a studio panel: its label above the control, and a hint below. */
 export interface StudioFieldProps {
   id?: string;
   label: string;
@@ -11,6 +10,7 @@ export interface StudioFieldProps {
   counter?: ReactNode;
 }
 
+/** A field in a studio panel: its label above the control, and a hint below. */
 export function StudioField({
   id,
   label,
@@ -40,7 +40,6 @@ export function StudioField({
   );
 }
 
-/** A disclosure inside a panel, closed until opened. */
 export interface DisclosureProps {
   summary: ReactNode;
   children: ReactNode;
@@ -48,6 +47,7 @@ export interface DisclosureProps {
   actions?: ReactNode;
 }
 
+/** A disclosure inside a panel, closed until opened. */
 export function Disclosure({
   summary,
   children,

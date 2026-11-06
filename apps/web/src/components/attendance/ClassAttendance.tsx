@@ -82,11 +82,11 @@ const card = {
     }),
 };
 
-/** Each student's marks in this class, with the way into today's register. */
 export interface ClassAttendanceProps {
   classId: string;
 }
 
+/** Each student's marks in this class, with the way into today's register. */
 export function ClassAttendance({ classId }: ClassAttendanceProps) {
   const data = useSuspenseQuery(classAttendanceQuery(classId)).data;
   const user = useCurrentUser();

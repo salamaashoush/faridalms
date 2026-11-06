@@ -52,7 +52,6 @@ interface Draft {
   practiceBands: FeedbackBand[];
 }
 
-/** Who in one class takes the module: everyone, or the groups and students chosen. */
 interface ClassAudienceProps {
   classId: string;
   title: string;
@@ -61,6 +60,7 @@ interface ClassAudienceProps {
   missing: boolean;
 }
 
+/** Who in one class takes the module: everyone, or the groups and students chosen. */
 function ClassAudience({
   classId,
   title,
@@ -134,13 +134,13 @@ function ClassAudience({
   );
 }
 
-/** What a module is, which classes take it, and how its lessons open. */
 export interface ModuleEditorProps {
   existing: Existing | null;
   classId: string;
   onClose: (id?: string) => void;
 }
 
+/** What a module is, which classes take it, and how its lessons open. */
 export function ModuleEditor({
   existing,
   classId,

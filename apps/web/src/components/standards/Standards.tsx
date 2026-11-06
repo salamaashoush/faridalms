@@ -63,7 +63,6 @@ export const sourceOf = (framework: { caseIdentifier: string | null }) =>
         ? m.standardsSourceCase()
         : m.standardsSourceOwn();
 
-/** A framework's name and what it is, new or as kept. */
 export interface FrameworkSheetProps {
   open: boolean;
   onClose: () => void;
@@ -71,6 +70,7 @@ export interface FrameworkSheetProps {
   onSaved: (id: string) => void | Promise<unknown>;
 }
 
+/** A framework's name and what it is, new or as kept. */
 export function FrameworkSheet({
   open,
   onClose,
@@ -244,7 +244,6 @@ export function ImportCaseSheet({
   );
 }
 
-/** One standard's code, statement and level, and where it sits in the tree. */
 export interface StandardSheetProps {
   open: boolean;
   onClose: () => void;
@@ -257,6 +256,7 @@ export interface StandardSheetProps {
   onSaved: () => void | Promise<unknown>;
 }
 
+/** One standard's code, statement and level, and where it sits in the tree. */
 export function StandardSheet({
   open,
   onClose,

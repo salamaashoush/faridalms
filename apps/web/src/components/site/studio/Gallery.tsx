@@ -46,12 +46,12 @@ import {
 
 const THUMB_WIDTH = 1200;
 
-/** A section drawn small, for choosing; it cannot be focused or clicked into. */
 interface ThumbnailProps {
   section: PageSection;
   context: RenderContext;
 }
 
+/** A section drawn small, for choosing; it cannot be focused or clicked into. */
 function Thumbnail({ section, context }: ThumbnailProps) {
   return (
     <div
@@ -145,7 +145,6 @@ function TypeCard({ type, context, primary, onPick }: TypeCardProps) {
   );
 }
 
-/** Every section the page can take, drawn in the site's own theme, grouped by what it is for. */
 export interface SectionGalleryProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -154,6 +153,7 @@ export interface SectionGalleryProps {
   onPick: (inserted: Inserted) => void;
 }
 
+/** Every section the page can take, drawn in the site's own theme, grouped by what it is for. */
 export function SectionGallery({
   open,
   onOpenChange,
@@ -235,12 +235,12 @@ export function SectionGallery({
   );
 }
 
-/** The page templates, each drawn in the site's theme, for starting a new page. */
 export interface TemplateGalleryProps {
   context: RenderContext;
   onPick: (template: SiteTemplate) => void;
 }
 
+/** The page templates, each drawn in the site's theme, for starting a new page. */
 export function TemplateGallery({ context, onPick }: TemplateGalleryProps) {
   const built = useMemo(
     () =>

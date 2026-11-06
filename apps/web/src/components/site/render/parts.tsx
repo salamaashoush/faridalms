@@ -231,7 +231,6 @@ export function SiteAnchor({
   );
 }
 
-/** A section's buttons: the first filled, the rest outlined beside it. */
 export interface ActionsProps {
   actions: Link[];
   context: RenderContext;
@@ -239,6 +238,7 @@ export interface ActionsProps {
   size?: ButtonSize;
 }
 
+/** A section's buttons: the first filled, the rest outlined beside it. */
 export function Actions({ actions, context, className, size }: ActionsProps) {
   const shown = actions.filter((action) => action.label.trim());
   if (shown.length === 0) return null;
@@ -260,7 +260,6 @@ export function Actions({ actions, context, className, size }: ActionsProps) {
   );
 }
 
-/** Words and an arrow: the quiet way onwards beside a heading or under a card. */
 export interface TextLinkProps {
   /** Without one, the words sit inside a link that already wraps them. */
   href?: string;
@@ -269,6 +268,7 @@ export interface TextLinkProps {
   className?: string;
 }
 
+/** Words and an arrow: the quiet way onwards beside a heading or under a card. */
 export function TextLink({
   href,
   context,
@@ -439,11 +439,11 @@ export function Eyebrow({ children, field }: EyebrowProps) {
   ) : null;
 }
 
-/** Words a school wraps in asterisks, set in the theme's second voice. */
 export interface EmphasisedProps {
   children: string;
 }
 
+/** Words a school wraps in asterisks, set in the theme's second voice. */
 export function Emphasised({ children }: EmphasisedProps) {
   const parts = children.split(EMPHASIS);
   if (parts.length === 1) return children;
@@ -683,7 +683,6 @@ export function MediaView({
   ) : null;
 }
 
-/** A decorative, muted background film, paused on request and for reduced motion. */
 export interface BackgroundVideoProps {
   src: string;
   poster?: string;
@@ -691,6 +690,7 @@ export interface BackgroundVideoProps {
   playLabel: string;
 }
 
+/** A decorative, muted background film, paused on request and for reduced motion. */
 export function BackgroundVideo({
   src,
   poster,
@@ -878,13 +878,13 @@ export function SectionFrame({
   );
 }
 
-/** A section's eyebrow, heading and lead above its content, aligned as the section is. */
 export interface SectionIntroProps {
   eyebrow?: string;
   heading: string;
   text?: string;
 }
 
+/** A section's eyebrow, heading and lead above its content, aligned as the section is. */
 export function SectionIntro({
   eyebrow = "",
   heading,

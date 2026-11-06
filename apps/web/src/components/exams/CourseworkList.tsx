@@ -126,11 +126,11 @@ function card(onOpen: (row: Row) => void) {
   };
 }
 
-/** Every piece of assessed coursework in the school, for its exams officers. */
 export interface CourseworkListProps {
   onOpen: (row: Row) => void;
 }
 
+/** Every piece of assessed coursework in the school, for its exams officers. */
 export function CourseworkList({ onOpen }: CourseworkListProps) {
   const rows = useSuspenseQuery(courseworkListQuery).data;
   return (
@@ -156,7 +156,6 @@ export function CourseworkList({ onOpen }: CourseworkListProps) {
   );
 }
 
-/** One piece of coursework, student by student. */
 export interface CourseworkStudentsProps {
   open: boolean;
   assignmentId: string;
@@ -164,6 +163,7 @@ export interface CourseworkStudentsProps {
   onOpenChange: (open: boolean) => void;
 }
 
+/** One piece of coursework, student by student. */
 export function CourseworkStudents({
   open,
   assignmentId,

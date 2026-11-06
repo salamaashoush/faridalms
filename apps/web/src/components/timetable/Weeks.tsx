@@ -64,11 +64,11 @@ export function teacherLabel(meeting: Labelled): string | null {
 
 type Lines = (meeting: Meeting) => { teacher?: ReactNode; room?: ReactNode };
 
-/** Who teaches it, as a link to as much of them as the reader reaches. */
 interface TeacherNameProps {
   meeting: Meeting;
 }
 
+/** Who teaches it, as a link to as much of them as the reader reaches. */
 function TeacherName({ meeting }: TeacherNameProps) {
   const name = teacherLabel(meeting);
   if (!name) return null;
@@ -365,11 +365,11 @@ export function TeacherWeek({ teacherId = "", on, cell }: TeacherWeekProps) {
   );
 }
 
-/** A class's week on its record, with the way into planning it. */
 export interface ClassWeekProps {
   classId: string;
 }
 
+/** A class's week on its record, with the way into planning it. */
 export function ClassWeek({ classId }: ClassWeekProps) {
   const { on, pending, onWeek } = useWeekOn();
   const data = useSuspenseQuery(classWeekQuery(classId, on)).data;

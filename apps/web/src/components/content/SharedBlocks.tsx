@@ -58,12 +58,12 @@ import { ContentEditor } from "./ContentEditor";
 import { ContentView, SharedBlock } from "./ContentView";
 import { DocumentHistory } from "./DocumentHistory";
 
-/** Who may use a shared block: only its teacher, or any at the school. */
 interface ScopeFieldProps {
   scope: SharedScope;
   onChange: (scope: SharedScope) => void;
 }
 
+/** Who may use a shared block: only its teacher, or any at the school. */
 function ScopeField({ scope, onChange }: ScopeFieldProps) {
   return (
     <fieldset className="grid gap-2">
@@ -195,11 +195,11 @@ const USE_KIND: Record<Use["hostType"], () => string> = {
 
 const WEBSITE = new Set<Use["hostType"]>(["site_page", "news"]);
 
-/** Which documents show a shared block, named on request, so a change is made knowing what it reaches. */
 interface SharedUsesProps {
   id: string;
 }
 
+/** Which documents show a shared block, named on request, so a change is made knowing what it reaches. */
 function SharedUses({ id }: SharedUsesProps) {
   const uses = useQuery(usesQuery(id));
   const [open, setOpen] = useState(false);
@@ -257,12 +257,12 @@ function SharedUses({ id }: SharedUsesProps) {
   );
 }
 
-/** One shared block: its name and whose it is, and how it reads on request. */
 interface SharedRowProps {
   row: Row;
   onShow: () => void;
 }
 
+/** One shared block: its name and whose it is, and how it reads on request. */
 function SharedRow({ row, onShow }: SharedRowProps) {
   const queryClient = useQueryClient();
   const [looking, setLooking] = useState(false);

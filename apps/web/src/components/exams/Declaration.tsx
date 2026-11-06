@@ -107,7 +107,6 @@ export function DeclarationFields({
   );
 }
 
-/** Signs the declaration for work a teacher handed in for the student. */
 export interface DeclareSheetProps {
   open: boolean;
   attemptId: string;
@@ -115,6 +114,7 @@ export interface DeclareSheetProps {
   onClose: () => void;
 }
 
+/** Signs the declaration for work a teacher handed in for the student. */
 export function DeclareSheet({
   open,
   attemptId,

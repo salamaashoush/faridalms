@@ -6,7 +6,6 @@ import { toast } from "sonner";
 import { useDocumentMedia } from "~/hooks/useDocumentMedia";
 import * as m from "~/i18n/messages";
 
-/** Uploads a picture as document media and shows what is chosen. */
 export interface PictureFieldProps {
   fileId: string | null;
   label: string;
@@ -15,6 +14,7 @@ export interface PictureFieldProps {
   onPeople?: (fileId: string) => void;
 }
 
+/** Uploads a picture as document media and shows what is chosen. */
 export function PictureField({
   fileId,
   label,

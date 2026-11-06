@@ -25,14 +25,14 @@ type Register = (id: string, unsaved: Unsaved | null) => void;
 
 const UnsavedContext = createContext<Register | null>(null);
 
-/**
- * The page guards unsaved edits once for all of its sections, so leaving with
- * two cards changed asks once rather than once per card.
- */
 export interface SettingsPageProps {
   children: ReactNode;
 }
 
+/**
+ * The page guards unsaved edits once for all of its sections, so leaving with
+ * two cards changed asks once rather than once per card.
+ */
 export function SettingsPage({ children }: SettingsPageProps) {
   const [sections, setSections] = useState<ReadonlyMap<string, Unsaved>>(
     () => new Map(),
@@ -75,13 +75,6 @@ function useUnsaved(isDirty: (() => boolean) | undefined, pending: boolean) {
   return register !== null;
 }
 
-/**
- * One group of settings as a card: its title and description, then the
- * fields. A section with `onSubmit` is its own form with Save at the start of
- * the card's footer, so saving one never sends another's half-finished edits.
- * Without it the card only shows, and `footer` can hold a way to where it is
- * changed.
- */
 export interface SettingsSectionProps {
   title: string;
   description?: ReactNode;
@@ -97,6 +90,13 @@ export interface SettingsSectionProps {
   children: ReactNode;
 }
 
+/**
+ * One group of settings as a card: its title and description, then the
+ * fields. A section with `onSubmit` is its own form with Save at the start of
+ * the card's footer, so saving one never sends another's half-finished edits.
+ * Without it the card only shows, and `footer` can hold a way to where it is
+ * changed.
+ */
 export function SettingsSection({
   title,
   description,
@@ -201,12 +201,12 @@ export function SettingsSection({
   );
 }
 
-/** Related fields inside a settings card, under a small heading of their own. */
 export interface SettingsGroupProps {
   title: string;
   children: ReactNode;
 }
 
+/** Related fields inside a settings card, under a small heading of their own. */
 export function SettingsGroup({ title, children }: SettingsGroupProps) {
   return (
     <div className="border-t pt-6 first:border-t-0 first:pt-0">

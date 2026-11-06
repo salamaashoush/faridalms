@@ -348,7 +348,6 @@ export function useStartFrom(
   }, [piece, apply]);
 }
 
-/** Keeps the document as a template the whole school can start from. */
 export interface SaveTemplateDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -359,6 +358,7 @@ export interface SaveTemplateDialogProps {
   suggestedTitle: string;
 }
 
+/** Keeps the document as a template the whole school can start from. */
 export function SaveTemplateDialog({
   open,
   onOpenChange,

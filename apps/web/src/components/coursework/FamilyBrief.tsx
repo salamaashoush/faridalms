@@ -144,7 +144,6 @@ function Result({ data, result }: ResultProps) {
   );
 }
 
-/** A piece of a child's work as their family reads it, in either language of its brief. */
 export interface FamilyBriefProps {
   studentId: string;
   assignmentId: string;
@@ -153,6 +152,7 @@ export interface FamilyBriefProps {
   onClose: () => void;
 }
 
+/** A piece of a child's work as their family reads it, in either language of its brief. */
 export function FamilyBrief({
   studentId,
   assignmentId,

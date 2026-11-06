@@ -73,11 +73,11 @@ export const GOAL_LEVEL: Record<
   },
 };
 
-/** A judgement by its shape and colour, so neither alone carries it. */
 export interface GoalMarkProps {
   level: GoalLevel | null;
 }
 
+/** A judgement by its shape and colour, so neither alone carries it. */
 export function GoalMark({ level }: GoalMarkProps) {
   if (!level)
     return (

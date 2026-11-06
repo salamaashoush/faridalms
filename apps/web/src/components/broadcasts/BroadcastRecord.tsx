@@ -57,12 +57,12 @@ type ReportRow = Awaited<
 const titleOf = (data: { titleEn: string; titleAr: string }) =>
   inLocale(data.titleEn || null, data.titleAr || null);
 
-/** A broadcast's title in the reader's language, for its breadcrumb. */
 export interface BroadcastTrailProps {
   kind: BroadcastKind;
   id: string;
 }
 
+/** A broadcast's title in the reader's language, for its breadcrumb. */
 export function BroadcastTrail({ kind, id }: BroadcastTrailProps) {
   return (
     <BreadcrumbCurrent>{titleOf(KINDS[kind].useRecord(id))}</BreadcrumbCurrent>

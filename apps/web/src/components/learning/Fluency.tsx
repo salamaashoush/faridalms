@@ -10,12 +10,12 @@ import { useId, useState } from "react";
 import * as m from "~/i18n/messages";
 import { formatNumber, formatPercent } from "~/utils/datetime";
 
-/** What a marked reading comes to, in one line. */
 export interface FluencySummaryProps {
   passage: string;
   mark: FluencyMark;
 }
 
+/** What a marked reading comes to, in one line. */
 export function FluencySummary({ passage, mark }: FluencySummaryProps) {
   const result = fluencyOf(readingWords(passage).length, mark);
   return (

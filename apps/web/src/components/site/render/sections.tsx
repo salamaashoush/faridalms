@@ -134,13 +134,13 @@ const QuoteMark = ({ className }: IconProps) => (
   />
 );
 
-/** The picture, film or artwork a full-bleed opening sits on. */
 interface BackdropProps {
   media: SiteMedia;
   context: RenderContext;
   seed: string;
 }
 
+/** The picture, film or artwork a full-bleed opening sits on. */
 function Backdrop({ media, context, seed }: BackdropProps) {
   const t = { locale: context.locale };
   const src = media.fileId ? context.fileUrl(media.fileId) : null;
@@ -702,7 +702,6 @@ function IconTile({ icon }: IconTileProps) {
   );
 }
 
-/** A picture with its words laid over the lower part, the way into a page. */
 interface PictureTileProps {
   image: SectionOf<"cards">["data"]["items"][number]["image"];
   seed: string;
@@ -714,6 +713,7 @@ interface PictureTileProps {
   children: ReactNode;
 }
 
+/** A picture with its words laid over the lower part, the way into a page. */
 function PictureTile({
   image,
   seed,
@@ -2305,7 +2305,6 @@ const intakeYear = (intake: SiteIntake, locale: "en" | "ar") =>
     ? (intake.yearTitleAr ?? intake.yearTitleEn)
     : (intake.yearTitleEn ?? intake.yearTitleAr)) ?? "";
 
-/** A link into the portal, which the builder shows without following. */
 interface PortalLinkProps {
   href: string;
   context: RenderContext;
@@ -2314,6 +2313,7 @@ interface PortalLinkProps {
   children: ReactNode;
 }
 
+/** A link into the portal, which the builder shows without following. */
 function PortalLink({
   href,
   context,
@@ -2332,13 +2332,13 @@ function PortalLink({
   );
 }
 
-/** Each intake still to close: its grade and year, when families apply, its fees and the way in. */
 interface IntakeCardsProps {
   intakes: SiteIntake[];
   context: RenderContext;
   compact: boolean;
 }
 
+/** Each intake still to close: its grade and year, when families apply, its fees and the way in. */
 function IntakeCards({ intakes, context, compact }: IntakeCardsProps) {
   const t = { locale: context.locale };
   const money = (currency: string, amount: number) =>
@@ -3002,7 +3002,6 @@ function wideFields(halves: number, questions: Question[]): Set<string> {
   return wide;
 }
 
-/** One of the school's own questions, drawn as the kind of answer it takes. */
 interface QuestionFieldProps {
   question: Question;
   id: string;
@@ -3010,6 +3009,7 @@ interface QuestionFieldProps {
   wide: boolean;
 }
 
+/** One of the school's own questions, drawn as the kind of answer it takes. */
 function QuestionField({ question, id, context, wide }: QuestionFieldProps) {
   const t = { locale: context.locale };
   const row = wide || undefined;
@@ -3567,12 +3567,12 @@ const RATIO: Record<string, string> = {
 };
 const SPACER: Record<string, string> = { s: "h-4", m: "h-10", l: "h-20" };
 
-/** One block of a free-form section. */
 interface BlockViewProps {
   block: SiteBlock;
   context: RenderContext;
 }
 
+/** One block of a free-form section. */
 function BlockView({ block, context }: BlockViewProps) {
   switch (block.type) {
     case "heading": {

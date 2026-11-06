@@ -91,11 +91,11 @@ function shown(change: HistoryChange, value: HistoryValue) {
   }
 }
 
-/** The old and new value of each field an entry changed. */
 export interface HistoryChangesProps {
   changes: readonly HistoryChange[];
 }
 
+/** The old and new value of each field an entry changed. */
 export function HistoryChanges({ changes }: HistoryChangesProps) {
   if (changes.length === 0) return null;
   return (

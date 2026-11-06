@@ -51,12 +51,12 @@ export function faceAccent(face: PortalFace | null) {
   };
 }
 
-/** The school's logo and name. */
 export interface SchoolMarkProps {
   face: PortalFace;
   className?: string;
 }
 
+/** The school's logo and name. */
 export function SchoolMark({ face, className }: SchoolMarkProps) {
   return (
     <span className={cn("flex min-w-0 items-center gap-3", className)}>
@@ -85,11 +85,11 @@ function PlatformMark() {
   );
 }
 
-/** The platform's name and its legal documents, small, under every sign-in page. */
 export interface PlatformFooterProps {
   className?: string;
 }
 
+/** The platform's name and its legal documents, small, under every sign-in page. */
 export function PlatformFooter({ className }: PlatformFooterProps) {
   return (
     <footer
@@ -123,12 +123,12 @@ export function PlatformFooter({ className }: PlatformFooterProps) {
   );
 }
 
-/** The school office's own ways to be reached. */
 interface ContactLinksProps {
   face: PortalFace;
   className?: string;
 }
 
+/** The school office's own ways to be reached. */
 function ContactLinks({ face, className }: ContactLinksProps) {
   const { email, phone } = face.contact;
   if (!email && !phone) return null;
@@ -162,12 +162,12 @@ function ContactLinks({ face, className }: ContactLinksProps) {
   );
 }
 
-/** Where to turn when the form does not let someone in: the school office. */
 export interface PortalHelpProps {
   face: PortalFace | null;
   topic: "sign-in" | "apply";
 }
 
+/** Where to turn when the form does not let someone in: the school office. */
 export function PortalHelp({ face, topic }: PortalHelpProps) {
   if (!face) return null;
   return (
@@ -183,12 +183,12 @@ export function PortalHelp({ face, topic }: PortalHelpProps) {
   );
 }
 
-/** A heading and a sentence over a portal page's form. */
 export interface PortalHeadingProps {
   title: string;
   lead?: string;
 }
 
+/** A heading and a sentence over a portal page's form. */
 export function PortalHeading({ title, lead }: PortalHeadingProps) {
   return (
     <div className="mb-8 grid gap-2">

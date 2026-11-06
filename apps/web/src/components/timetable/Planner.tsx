@@ -323,12 +323,12 @@ function plannerCell(editable: boolean, onOpen: (cell: Cell) => void) {
   };
 }
 
-/** One homeroom's week, each cell edited from the day changes apply. */
 export interface PlannerProps {
   classId: string;
   from: string;
 }
 
+/** One homeroom's week, each cell edited from the day changes apply. */
 export function Planner({ classId, from }: PlannerProps) {
   const options = useSuspenseQuery(timetableOptionsQuery).data;
   const grid = useSuspenseQuery(timetableGridQuery(classId, from)).data;

@@ -501,11 +501,11 @@ function ChecklistSection({ row }: ChecklistSectionProps) {
   );
 }
 
-/** Health and needs stay closed until asked for, since each look is recorded. */
 interface NeedsSectionProps {
   row: Application;
 }
 
+/** Health and needs stay closed until asked for, since each look is recorded. */
 function NeedsSection({ row }: NeedsSectionProps) {
   const read = useMutation({
     mutationFn: () => getApplicationNeeds({ data: { id: row.id } }),

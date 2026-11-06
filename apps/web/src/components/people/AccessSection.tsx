@@ -267,13 +267,13 @@ function AssignmentItem({ assignment, name, onEnd }: AssignmentItemProps) {
   );
 }
 
-/** What a member of staff may do at this school, and the roles that give it. */
 export interface AccessSectionProps {
   userId: string;
   name: string;
   today: string;
 }
 
+/** What a member of staff may do at this school, and the roles that give it. */
 export function AccessSection({ userId, name, today }: AccessSectionProps) {
   const access = useSuspenseQuery(personAccessQuery(userId)).data;
   const refresh = useRefresh();

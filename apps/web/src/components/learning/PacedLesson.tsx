@@ -69,7 +69,6 @@ const hereOf = (data: Paced) =>
     total: formatNumber(data.students.length),
   });
 
-/** Opens a lesson led live: at once for a module's only class, or for the class chosen. */
 export interface TeachLiveDialogProps {
   lesson: { id: string; title: string };
   classes: {
@@ -82,6 +81,7 @@ export interface TeachLiveDialogProps {
   onClose: () => void;
 }
 
+/** Opens a lesson led live: at once for a module's only class, or for the class chosen. */
 export function TeachLiveDialog({
   lesson,
   classes,

@@ -219,12 +219,6 @@ export interface RecordTab<T extends string> {
   label: string;
 }
 
-/**
- * Sections of a record as tabs whose value lives in the URL, so a reload, a
- * shared link or Back returns to the same place. On a phone the row scrolls
- * sideways rather than squeezing the labels, and the chosen tab is kept in
- * view.
- */
 export interface RecordTabsProps<T extends string> {
   label: string;
   tabs: RecordTab<T>[];
@@ -233,6 +227,12 @@ export interface RecordTabsProps<T extends string> {
   children: ReactNode;
 }
 
+/**
+ * Sections of a record as tabs whose value lives in the URL, so a reload, a
+ * shared link or Back returns to the same place. On a phone the row scrolls
+ * sideways rather than squeezing the labels, and the chosen tab is kept in
+ * view.
+ */
 export function RecordTabs<T extends string>({
   label,
   tabs,
@@ -319,16 +319,16 @@ export function RecordTabs<T extends string>({
   );
 }
 
-/**
- * The body under the tabs: the record itself in two thirds, supporting facts
- * in the last third, one column on narrower screens. The main column keeps its
- * width when a tab has nothing supporting, so tabs do not jump as they change.
- */
 export interface RecordColumnsProps {
   main: ReactNode;
   aside?: ReactNode;
 }
 
+/**
+ * The body under the tabs: the record itself in two thirds, supporting facts
+ * in the last third, one column on narrower screens. The main column keeps its
+ * width when a tab has nothing supporting, so tabs do not jump as they change.
+ */
 export function RecordColumns({ main, aside }: RecordColumnsProps) {
   return (
     <div className="grid gap-6 lg:grid-cols-3">
@@ -342,10 +342,6 @@ export function RecordColumns({ main, aside }: RecordColumnsProps) {
   );
 }
 
-/**
- * A read-only part of a record. Editing happens in a sheet opened from the
- * section's Edit button, never inline.
- */
 /** The section's ghost Edit button; the label names what it edits. */
 export interface SectionEdit {
   label: string;
@@ -362,6 +358,10 @@ export interface RecordSectionProps {
   children: ReactNode;
 }
 
+/**
+ * A read-only part of a record. Editing happens in a sheet opened from the
+ * section's Edit button, never inline.
+ */
 export function RecordSection({
   title,
   description,
@@ -422,17 +422,17 @@ export function RecordSection({
   );
 }
 
-/**
- * Label-and-value pairs that reflow with the section's own width, so the same
- * section reads well in the main column and in the narrow supporting one.
- * Short values such as counts can sit two to a row even there.
- */
 export interface FactsProps {
   /** Short values, such as counts, two to a row even in a narrow column. */
   short?: boolean;
   children: ReactNode;
 }
 
+/**
+ * Label-and-value pairs that reflow with the section's own width, so the same
+ * section reads well in the main column and in the narrow supporting one.
+ * Short values such as counts can sit two to a row even there.
+ */
 export function Facts({ short = false, children }: FactsProps) {
   return (
     <dl
@@ -448,12 +448,6 @@ export function Facts({ short = false, children }: FactsProps) {
   );
 }
 
-/**
- * One label and value. A missing value reads "Not recorded", so an empty
- * field is never mistaken for a page that failed to load. Text is isolated
- * with its own direction, since what people type ("12 Nile View") must not
- * be reordered by an Arabic page.
- */
 export interface FactProps {
   label: string;
   children: ReactNode;
@@ -462,6 +456,12 @@ export interface FactProps {
   notApplicable?: boolean;
 }
 
+/**
+ * One label and value. A missing value reads "Not recorded", so an empty
+ * field is never mistaken for a page that failed to load. Text is isolated
+ * with its own direction, since what people type ("12 Nile View") must not
+ * be reordered by an Arabic page.
+ */
 export function Fact({
   label,
   children,

@@ -131,12 +131,12 @@ export function NumberLine({
   );
 }
 
-/** A number line as paper prints it: its ticks and labels, and the answer once shown. */
 export interface NumberLineDrawingProps {
   line: { from: number; to: number; step: number };
   value: number | null;
 }
 
+/** A number line as paper prints it: its ticks and labels, and the answer once shown. */
 export function NumberLineDrawing({ line, value }: NumberLineDrawingProps) {
   const places = placesOf(line.from, line.to, line.step);
   const every = labelEvery(places.length - 1);

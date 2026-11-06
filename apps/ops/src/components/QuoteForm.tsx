@@ -44,11 +44,6 @@ interface LineDraft {
   discount: string;
 }
 
-/**
- * A quote as an operator builds it from what is sold: a plan and add-ons,
- * each with its quantity, price and discount, the term and its billing,
- * how long the offer stands, and notes in both languages.
- */
 export interface QuoteFormProps {
   initial: QuoteSpec;
   plans: PlanVersionRow[];
@@ -60,6 +55,11 @@ export interface QuoteFormProps {
   secondary?: ReactNode;
 }
 
+/**
+ * A quote as an operator builds it from what is sold: a plan and add-ons,
+ * each with its quantity, price and discount, the term and its billing,
+ * how long the offer stands, and notes in both languages.
+ */
 export function QuoteForm({
   initial,
   plans,

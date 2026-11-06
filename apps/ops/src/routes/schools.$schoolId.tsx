@@ -251,15 +251,15 @@ function UseSection({ school }: SchoolProps) {
   );
 }
 
-/**
- * What the school is entitled to where its subscription sets it: shown
- * here, changed on the subscription, published from there.
- */
 interface SoldEntitlementsProps {
   school: School;
   subscriptionId: string | null;
 }
 
+/**
+ * What the school is entitled to where its subscription sets it: shown
+ * here, changed on the subscription, published from there.
+ */
 function SoldEntitlements({ school, subscriptionId }: SoldEntitlementsProps) {
   const entitled = school.entitlements;
   return (
@@ -428,16 +428,16 @@ const LIFECYCLE_HINT: Record<TenantLifecycleMove, string> = {
     "Nobody signs in. The school's own portal says it is paused; the bare domain says nothing.",
 };
 
-/**
- * Pauses, suspends or reopens the school's tenant, every school of a group
- * with it, with the reason the change log keeps.
- */
 interface LifecycleProps {
   tenantId: string;
   state: TenantLifecycleMove;
   group: boolean;
 }
 
+/**
+ * Pauses, suspends or reopens the school's tenant, every school of a group
+ * with it, with the reason the change log keeps.
+ */
 function Lifecycle({ tenantId, state, group }: LifecycleProps) {
   const router = useRouter();
   const set = useServerFn(setSchoolLifecycle);
@@ -502,17 +502,17 @@ function Lifecycle({ tenantId, state, group }: LifecycleProps) {
   );
 }
 
-/**
- * Sends the school's administrator a new link to choose a password, for
- * when the first one expired or was lost. Without an email it goes to the
- * school's first administrator.
- */
 interface AdministratorLinkProps {
   schoolId: string;
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }
 
+/**
+ * Sends the school's administrator a new link to choose a password, for
+ * when the first one expired or was lost. Without an email it goes to the
+ * school's first administrator.
+ */
 function AdministratorLink({
   schoolId,
   open,

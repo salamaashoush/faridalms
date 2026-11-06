@@ -801,11 +801,11 @@ function useVowelMarks(setting: VowelMarks) {
   }, [setting, marks]);
 }
 
-/** One lesson for its student: read, answer, and move on when it is done. */
 export interface LessonPlayerProps {
   lessonId: string;
 }
 
+/** One lesson for its student: read, answer, and move on when it is done. */
 export function LessonPlayer({ lessonId }: LessonPlayerProps) {
   const query = lessonQuery(lessonId);
   const data = useSuspenseQuery(query).data;

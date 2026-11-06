@@ -74,7 +74,8 @@ say so in the PR — the next `shadcn add` will silently revert you.
 the portal and the console. Build every screen from them, extend them there
 when a screen needs more, and give each a named props interface and a spec.
 `db:verify` refuses a component in either app or the system that types its
-props inline.
+props inline, or whose doc comment sits above its props interface instead
+of above the component.
 `docs/design-system.md` maps each of its rules to the module that implements
 it.
 

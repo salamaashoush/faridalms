@@ -75,11 +75,11 @@ const GROUPS = {
   banner: ["bannerEn", "bannerAr", "bannerTone", "bannerUntil"],
 } as const satisfies Record<string, readonly (keyof Draft)[]>;
 
-/** The website as a whole: whether it is live, its languages, links and banner. */
 export interface SiteSettingsProps {
   settings: Settings;
 }
 
+/** The website as a whole: whether it is live, its languages, links and banner. */
 export function SiteSettings({ settings }: SiteSettingsProps) {
   const queryClient = useQueryClient();
   const initial = draftOf(settings);

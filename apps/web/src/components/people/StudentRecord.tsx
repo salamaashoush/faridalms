@@ -419,11 +419,11 @@ function GuardiansSection({ data, onAdd, itemActions }: GuardiansSectionProps) {
   );
 }
 
-/** Students who share a parent or guardian with this one. */
 interface SiblingsSectionProps {
   studentId: string;
 }
 
+/** Students who share a parent or guardian with this one. */
 function SiblingsSection({ studentId }: SiblingsSectionProps) {
   const siblings = useSuspenseQuery(siblingsQuery(studentId)).data;
   return (

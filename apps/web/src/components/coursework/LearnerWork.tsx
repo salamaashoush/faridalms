@@ -438,11 +438,11 @@ function YourWork({ data }: YourWorkProps) {
   );
 }
 
-/** Work a teacher handed in for the student still waits for their declaration. */
 interface OutstandingDeclarationProps {
   data: Data;
 }
 
+/** Work a teacher handed in for the student still waits for their declaration. */
 function OutstandingDeclaration({ data }: OutstandingDeclarationProps) {
   const standing = useQuery(myStandingQuery(data.assignment.id)).data;
   const [open, setOpen] = useState(false);

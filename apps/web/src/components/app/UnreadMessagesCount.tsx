@@ -5,15 +5,15 @@ import * as m from "~/i18n/messages";
 import { unreadThreadsQuery } from "~/queries/messages";
 import { formatNumber } from "~/utils/datetime";
 
+export interface UnreadMessagesCountProps {
+  className?: string;
+}
+
 /**
  * How many conversations wait unread, beside Messages in navigation. It
  * fills in once known rather than holding the shell back, and says what
  * it counts to a screen reader.
  */
-export interface UnreadMessagesCountProps {
-  className?: string;
-}
-
 export function UnreadMessagesCount({ className }: UnreadMessagesCountProps) {
   const unread = useQuery(unreadThreadsQuery).data?.threads;
   if (!unread) return null;

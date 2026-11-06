@@ -272,13 +272,13 @@ const NUDGE: Record<string, [number, number]> = {
 const percent = (value: number) =>
   Math.min(100, Math.max(0, Math.round(value)));
 
-/** The spot every crop of a picture keeps in view, set by dragging a dot onto it. */
 export interface FocusPickerProps {
   src: string;
   value?: PictureFocus;
   onChange: (focus: PictureFocus) => void;
 }
 
+/** The spot every crop of a picture keeps in view, set by dragging a dot onto it. */
 export function FocusPicker({
   src,
   value = CENTRE,
@@ -898,7 +898,6 @@ function ChoiceControl({
   );
 }
 
-/** One of the school's intakes, or every intake open, for a section that leads into applying. */
 interface IntakeControlProps {
   id: string;
   label: string;
@@ -908,6 +907,7 @@ interface IntakeControlProps {
   onChange: (value: string) => void;
 }
 
+/** One of the school's intakes, or every intake open, for a section that leads into applying. */
 function IntakeControl({
   id,
   label,
@@ -994,7 +994,6 @@ const hasWords = (field: Field): boolean =>
 /** Fields drawn through the heading component, where asterisks mark emphasis. */
 const EMPHASISABLE = new Set(["heading"]);
 
-/** One field of a section, drawn from its declaration. */
 export interface FieldControlProps {
   name: string;
   field: Field;
@@ -1004,6 +1003,7 @@ export interface FieldControlProps {
   prefix: string;
 }
 
+/** One field of a section, drawn from its declaration. */
 export function FieldControl({
   name,
   field,

@@ -182,13 +182,13 @@ export function ErasureSheet({
   );
 }
 
-/** Runs an erasure approved earlier that did not finish. */
 export interface RunErasureDialogProps {
   open: boolean;
   person: ReviewRow;
   onClose: () => void;
 }
 
+/** Runs an erasure approved earlier that did not finish. */
 export function RunErasureDialog({
   open,
   person,
@@ -259,11 +259,11 @@ function ErasureLine({ row }: ErasureLineProps) {
   );
 }
 
-/** The proof of each erasure, kept after the person's data is gone. */
 export interface ErasuresSectionProps {
   overview: PrivacyOverview;
 }
 
+/** The proof of each erasure, kept after the person's data is gone. */
 export function ErasuresSection({ overview }: ErasuresSectionProps) {
   if (overview.erasures.length === 0) return null;
   return (

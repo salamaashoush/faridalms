@@ -95,11 +95,11 @@ function Piece({ attemptId, title, onClose }: PieceProps) {
   );
 }
 
-/** Work a child's teachers chose to share with the family, to read in full. */
 export interface SharedWorkProps {
   studentId: string;
 }
 
+/** Work a child's teachers chose to share with the family, to read in full. */
 export function SharedWork({ studentId }: SharedWorkProps) {
   const shared = useInfiniteQuery(sharedWorkQuery(studentId));
   const pieces = shared.data?.pages.flatMap((page) => page.rows) ?? [];

@@ -65,11 +65,11 @@ function MarkRow({ mark, reasons }: MarkRowProps) {
   );
 }
 
-/** A student's year of attendance, as they, their family and staff read it. */
 export interface StudentAttendanceProps {
   studentId?: string;
 }
 
+/** A student's year of attendance, as they, their family and staff read it. */
 export function StudentAttendance({ studentId = "" }: StudentAttendanceProps) {
   const [page, setPage] = useState(1);
   const data = useSuspenseQuery(studentAttendanceQuery(studentId, page)).data;

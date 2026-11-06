@@ -73,13 +73,13 @@ const kindLabel = (kind: string) =>
 
 const fileUrl = (fileId: string) => `/files/${fileId}`;
 
-/** Tags typed one at a time, each a chip that can be taken away again. */
 interface TagsFieldProps {
   tags: string[];
   known: string[];
   onChange: (tags: string[]) => void;
 }
 
+/** Tags typed one at a time, each a chip that can be taken away again. */
 function TagsField({ tags, known, onChange }: TagsFieldProps) {
   const id = useId();
   const [draft, setDraft] = useState("");
@@ -260,13 +260,13 @@ function KeepDialog({ question, onClose }: KeepDialogProps) {
 
 type Row = Awaited<ReturnType<typeof listBank>>["questions"][number];
 
-/** One kept question: what it asks, and its preview on request. */
 interface BankRowProps {
   row: Row;
   onAsk: () => void;
   pending: boolean;
 }
 
+/** One kept question: what it asks, and its preview on request. */
 function BankRow({ row, onAsk, pending }: BankRowProps) {
   const queryClient = useQueryClient();
   const [looking, setLooking] = useState(false);
@@ -353,11 +353,11 @@ function BankRow({ row, onAsk, pending }: BankRowProps) {
   );
 }
 
-/** The bank, searched by words, tag and whose bank, to ask a kept question. */
 interface ChooseSheetProps {
   onChoose: (content: ContentDocument | null) => void;
 }
 
+/** The bank, searched by words, tag and whose bank, to ask a kept question. */
 function ChooseSheet({ onChoose }: ChooseSheetProps) {
   const [search, setSearch] = useState("");
   const [tag, setTag] = useState("");

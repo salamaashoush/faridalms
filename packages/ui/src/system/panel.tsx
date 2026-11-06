@@ -5,7 +5,6 @@ import { ToggleGroup } from "@base-ui/react/toggle-group";
 import { cn } from "../cn";
 import { useId } from "react";
 
-/** A labelled block in a side panel beside a canvas: the studio, a print preview. */
 export interface PanelGroupProps {
   title: string;
   hint?: string;
@@ -13,6 +12,7 @@ export interface PanelGroupProps {
   action?: ReactNode;
 }
 
+/** A labelled block in a side panel beside a canvas: the studio, a print preview. */
 export function PanelGroup({ title, hint, children, action }: PanelGroupProps) {
   const id = useId();
   return (

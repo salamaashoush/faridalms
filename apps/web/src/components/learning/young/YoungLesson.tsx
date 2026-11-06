@@ -141,12 +141,12 @@ function YoungContent({ block, watch }: YoungContentProps) {
   );
 }
 
-/** A question's words, big, with the speaker that reads them and the help a child can ask for. */
 interface PromptProps {
   block: CheckStudentBlock;
   help?: ReactNode;
 }
 
+/** A question's words, big, with the speaker that reads them and the help a child can ask for. */
 function Prompt({ block, help }: PromptProps) {
   return (
     <div
@@ -285,12 +285,12 @@ function StepBlock({ block, view, driver, watch }: StepBlockProps) {
   );
 }
 
-/** How far through the lesson a child is, as a track of screens, without numbers. */
 interface TrackProps {
   at: number;
   total: number;
 }
 
+/** How far through the lesson a child is, as a track of screens, without numbers. */
 function Track({ at, total }: TrackProps) {
   return (
     <div className="flex min-w-0 flex-1 flex-wrap items-center justify-center gap-2.5">

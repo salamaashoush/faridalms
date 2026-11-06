@@ -100,7 +100,6 @@ function canPaginate(): boolean {
   return typeof CSS !== "undefined" && CSS.supports("column-wrap", "wrap");
 }
 
-/** What a print shows of the person it is for, at the top of the paper. */
 interface PaperHeaderProps {
   title: string;
   facts: readonly string[];
@@ -112,6 +111,7 @@ interface PaperHeaderProps {
   locale: Locale;
 }
 
+/** What a print shows of the person it is for, at the top of the paper. */
 function PaperHeader({
   title,
   facts,
@@ -177,12 +177,12 @@ function PaperHeader({
   );
 }
 
-/** A line to write on, under its label. */
 interface SlipLineProps {
   label: string;
   value?: string;
 }
 
+/** A line to write on, under its label. */
 function SlipLine({ label, value }: SlipLineProps) {
   return (
     <div className="grid min-h-[1.5cm] content-between gap-[0.2em] border-b border-neutral-500 pb-[0.15em]">

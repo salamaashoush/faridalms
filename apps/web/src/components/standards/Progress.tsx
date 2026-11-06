@@ -76,12 +76,12 @@ const LEVEL: Record<
 const percent = (score: number) =>
   m.skillsPercent({ value: formatNumber(Math.round(score * 100)) });
 
-/** A level by its shape and colour, so neither alone carries it. */
 interface MasteryMarkProps {
   mastery: Pick<Mastery, "level" | "score"> | undefined;
   labelled?: boolean;
 }
 
+/** A level by its shape and colour, so neither alone carries it. */
 function MasteryMark({ mastery, labelled = false }: MasteryMarkProps) {
   if (!mastery)
     return (
@@ -378,11 +378,11 @@ const SOURCE_ICON: Record<
   observation: Eye,
 };
 
-/** Takes back an observation its teacher recorded, from the list it shows in. */
 interface TakeBackProps {
   id: string;
 }
 
+/** Takes back an observation its teacher recorded, from the list it shows in. */
 function TakeBack({ id }: TakeBackProps) {
   const queryClient = useQueryClient();
   const take = useMutation({
@@ -482,13 +482,13 @@ function Sittings({ studentId, standardId }: SittingsProps) {
   );
 }
 
-/** A standard with where the student stands on it, opening onto the work behind it. */
 interface StandardProgressProps {
   studentId: string;
   standard: Standard;
   mastery: Mastery | undefined;
 }
 
+/** A standard with where the student stands on it, opening onto the work behind it. */
 function StandardProgress({
   studentId,
   standard,
@@ -533,11 +533,11 @@ function StandardProgress({
   );
 }
 
-/** One student's standards, framework by framework, from every class; their teachers record observations here. */
 export interface StudentSkillsProps {
   studentId: string;
 }
 
+/** One student's standards, framework by framework, from every class; their teachers record observations here. */
 export function StudentSkills({ studentId }: StudentSkillsProps) {
   const data = useSuspenseQuery(studentProgressQuery(studentId)).data;
   const observes = useCapability("submissions:grade") && studentId !== "";

@@ -85,7 +85,6 @@ const NO_ANSWERS: CheckDriver = {
   reveal: () => Promise.resolve(),
 };
 
-/** A quiz's blocks in one mode, questions answered or reviewed through their views. */
 interface QuizBlocksProps {
   blocks: StudentBlock[];
   views: Record<string, CheckView | undefined>;
@@ -94,6 +93,7 @@ interface QuizBlocksProps {
   practice?: { views: Record<string, CheckView>; driver: CheckDriver };
 }
 
+/** A quiz's blocks in one mode, questions answered or reviewed through their views. */
 function QuizBlocks({ blocks, views, driver, practice }: QuizBlocksProps) {
   return (
     <WholeDocument parts={blocks}>
@@ -670,12 +670,12 @@ interface GraderQuiz {
   }[];
 }
 
-/** A student's quiz attempts as their teacher marks them: every answer marked, written ones waiting for points. */
 export interface QuizAttemptsProps {
   quiz: GraderQuiz;
   onMarked: () => Promise<unknown>;
 }
 
+/** A student's quiz attempts as their teacher marks them: every answer marked, written ones waiting for points. */
 export function QuizAttempts({ quiz, onMarked }: QuizAttemptsProps) {
   const [shown, setShown] = useState(quiz.attempts.at(-1)?.number ?? 0);
   const attempt = quiz.attempts.find((item) => item.number === shown);

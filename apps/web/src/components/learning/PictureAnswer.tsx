@@ -452,13 +452,13 @@ function DrawingPad({ young, pending, background, onDone }: DrawingPadProps) {
   );
 }
 
-/** A photo taken with the device's camera, or chosen where there is none. */
 interface PhotoPickerProps {
   young: boolean;
   pending: boolean;
   onDone: (file: File) => void;
 }
 
+/** A photo taken with the device's camera, or chosen where there is none. */
 function PhotoPicker({ young, pending, onDone }: PhotoPickerProps) {
   const input = useRef<HTMLInputElement>(null);
   const [taken, setTaken] = useState<{ file: File; url: string } | null>(null);

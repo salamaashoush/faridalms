@@ -100,12 +100,12 @@ import { YoungMatching, YoungOrdering, YoungSorting } from "./young/YoungPlace";
 import { YoungSpelling } from "./young/YoungSpelling";
 import { YoungTracing } from "./young/YoungTracing";
 
-/** A part's picture over its words; with no words, its description names it. */
 interface PartViewProps {
   part: StudentPart;
   size?: "small" | "card";
 }
 
+/** A part's picture over its words; with no words, its description names it. */
 function PartView({ part, size = "small" }: PartViewProps) {
   const m = useCheckMessages();
   const picture = part.picture;
@@ -357,13 +357,13 @@ const MATH_NOTES = {
   unitless: "lrnMathNoteUnitless",
 } as const satisfies Record<MathNote, keyof Messages>;
 
-/** What a student learns from a try: right or not, what they chose meant, the hints so far, and once settled the answer and why. */
 interface OutcomeProps {
   view: CheckView;
   keyText?: string;
   keyCode?: string[];
 }
 
+/** What a student learns from a try: right or not, what they chose meant, the hints so far, and once settled the answer and why. */
 function Outcome({ view, keyText, keyCode }: OutcomeProps) {
   const m = useCheckMessages();
   return (
@@ -405,7 +405,6 @@ function Outcome({ view, keyText, keyCode }: OutcomeProps) {
   );
 }
 
-/** What a question says under its answer, by mode. */
 interface CheckStatusProps {
   view: CheckView | undefined;
   editing: boolean;
@@ -413,6 +412,7 @@ interface CheckStatusProps {
   keyCode?: string[];
 }
 
+/** What a question says under its answer, by mode. */
 function CheckStatus({ view, editing, keyText, keyCode }: CheckStatusProps) {
   const m = useCheckMessages();
   const mode = useContext(CheckModeContext);
@@ -572,7 +572,6 @@ function CheckCard({
   );
 }
 
-/** Try again, or give up and see the answer, once a try was wrong. */
 interface RetryProps {
   view: CheckView | undefined;
   editing: boolean;
@@ -583,6 +582,7 @@ interface RetryProps {
   onReveal: () => void;
 }
 
+/** Try again, or give up and see the answer, once a try was wrong. */
 function Retry({
   view,
   editing,
@@ -996,7 +996,6 @@ function PollTally({ options, counts, answered, mine }: PollTallyProps) {
   );
 }
 
-/** A poll's class results as the server counts them, asked again as others answer. */
 interface PollResultsProps {
   query: ReturnType<typeof pollResultsQuery>;
   options: StudentPart[];
@@ -1004,6 +1003,7 @@ interface PollResultsProps {
   fallback: ReactNode;
 }
 
+/** A poll's class results as the server counts them, asked again as others answer. */
 function PollResults({ query, options, mine, fallback }: PollResultsProps) {
   const { data } = useQuery(query);
   if (!data) return fallback;
@@ -1247,13 +1247,13 @@ function TypedCheck({ block, view, driver }: TypedCheckProps) {
   );
 }
 
-/** A formula as the answer, written in MathLive's field and marked by what it means. */
 interface MathCheckProps {
   block: Of<"math">;
   view: CheckView | undefined;
   driver: CheckDriver;
 }
 
+/** A formula as the answer, written in MathLive's field and marked by what it means. */
 function MathCheck({ block, view, driver }: MathCheckProps) {
   const m = useCheckMessages();
   const legend = useId();
@@ -1331,7 +1331,6 @@ interface BankDrop {
   placed: (word: string) => HTMLElement | undefined;
 }
 
-/** One word of a bank: pressed onto the next empty place, or dragged onto any. */
 interface BankWordProps {
   word: string;
   used: boolean;
@@ -1341,6 +1340,7 @@ interface BankWordProps {
   drop: BankDrop | undefined;
 }
 
+/** One word of a bank: pressed onto the next empty place, or dragged onto any. */
 function BankWord({ word, used, locked, label, onUse, drop }: BankWordProps) {
   const drag = useCardDrag({
     locked: locked || !drop,
@@ -1370,7 +1370,6 @@ function BankWord({ word, used, locked, label, onUse, drop }: BankWordProps) {
   );
 }
 
-/** Words or labels to place, each pressed to put it in the next empty place, or dragged where it goes. */
 interface WordBankProps {
   title: string;
   words: string[];
@@ -1381,6 +1380,7 @@ interface WordBankProps {
   drop?: BankDrop;
 }
 
+/** Words or labels to place, each pressed to put it in the next empty place, or dragged where it goes. */
 function WordBank({
   title,
   words,
@@ -2949,7 +2949,6 @@ function ParsonsCheck({ block, view, driver }: ParsonsCheckProps) {
 const testText =
   "font-mono text-[13px] leading-5 whitespace-pre-wrap [font-variant-ligatures:none] [overflow-wrap:anywhere]";
 
-/** One test of a code exercise: what it gives, what it expects, how it went. */
 interface ProgramTestProps {
   title: string;
   test: { input: string; expected: string } | null;
@@ -2957,6 +2956,7 @@ interface ProgramTestProps {
   language: "python" | "javascript";
 }
 
+/** One test of a code exercise: what it gives, what it expects, how it went. */
 function ProgramTest({ title, test, result, language }: ProgramTestProps) {
   const m = useCheckMessages();
   const mark: Mark = result ? (result.passed ? "right" : "wrong") : null;
@@ -3398,13 +3398,13 @@ function SpokenCheck({ block, view, driver }: SpokenCheckProps) {
   );
 }
 
-/** A question answered with a drawing or a photo, looked at by the teacher. */
 interface PictureCheckProps {
   block: Of<"written">;
   view: CheckView | undefined;
   driver: CheckDriver;
 }
 
+/** A question answered with a drawing or a photo, looked at by the teacher. */
 function PictureCheck({ block, view, driver }: PictureCheckProps) {
   const mode = useContext(CheckModeContext);
   const young = useContext(YoungContext);

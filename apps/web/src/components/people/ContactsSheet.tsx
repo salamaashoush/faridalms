@@ -26,7 +26,6 @@ export interface HeldContact {
   } | null;
 }
 
-/** An adult's phone, email and home address, from the records that show them. */
 export interface ContactsSheetProps {
   userId: string;
   name: string;
@@ -35,6 +34,7 @@ export interface ContactsSheetProps {
   onClose: () => void;
 }
 
+/** An adult's phone, email and home address, from the records that show them. */
 export function ContactsSheet({
   userId,
   name,

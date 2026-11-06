@@ -38,11 +38,11 @@ function useRefresh() {
     ]);
 }
 
-/** Where a student's declaration stands, with when and whether AI was used. */
 export interface DeclarationStatusProps {
   student: Marks;
 }
 
+/** Where a student's declaration stands, with when and whether AI was used. */
 export function DeclarationStatus({ student }: DeclarationStatusProps) {
   const declaration = student.declaration;
   if (!student.attemptId)
@@ -75,11 +75,11 @@ export function DeclarationStatus({ student }: DeclarationStatusProps) {
   );
 }
 
-/** The teacher's word on the work, in a line. */
 export interface AuthenticationStatusProps {
   student: Marks;
 }
 
+/** The teacher's word on the work, in a line. */
 export function AuthenticationStatus({ student }: AuthenticationStatusProps) {
   const authentication = student.authentication;
   if (!authentication)
@@ -430,12 +430,12 @@ export function CourseworkStanding({
   );
 }
 
-/** Where a student's assessed coursework stands, for a list of the class's work. */
 export interface CourseworkMarksProps {
   student: Marks;
   declarationRequired: boolean;
 }
 
+/** Where a student's assessed coursework stands, for a list of the class's work. */
 export function CourseworkMarks({
   student,
   declarationRequired,

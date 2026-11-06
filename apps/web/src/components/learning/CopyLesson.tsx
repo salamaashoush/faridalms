@@ -10,7 +10,6 @@ import { learningOptionsQuery } from "~/queries/learning";
 import { copyLessonTo } from "~/server/learning";
 import { getMessageFromError } from "~/utils/error";
 
-/** Copies a lesson to the end of a module the teacher writes, this one or another. */
 export interface CopyLessonSheetProps {
   lesson: { id: string; title: string };
   module: { id: string; title: string };
@@ -18,6 +17,7 @@ export interface CopyLessonSheetProps {
   onClose: () => void;
 }
 
+/** Copies a lesson to the end of a module the teacher writes, this one or another. */
 export function CopyLessonSheet({
   lesson,
   module,

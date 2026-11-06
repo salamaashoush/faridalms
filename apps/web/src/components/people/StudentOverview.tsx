@@ -96,12 +96,12 @@ export function StudentToday({ studentId, today }: StudentTodayProps) {
   );
 }
 
-/** How a student's year of registers stands so far, with the way to every mark. */
 export interface StudentAttendanceSummaryProps {
   studentId: string;
   onOpen: () => void;
 }
 
+/** How a student's year of registers stands so far, with the way to every mark. */
 export function StudentAttendanceSummary({
   studentId,
   onOpen,

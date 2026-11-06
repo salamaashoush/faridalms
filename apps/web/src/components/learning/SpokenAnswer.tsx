@@ -106,12 +106,12 @@ export const recordingUrl = (
     ? `/files/${view.response.recording.fileId}`
     : null);
 
-/** A teacher's mark on a spoken answer, or that it is with them. */
 export interface SpokenStatusProps {
   block: Pick<Written, "points">;
   view: CheckView | undefined;
 }
 
+/** A teacher's mark on a spoken answer, or that it is with them. */
 export function SpokenStatus({ block, view }: SpokenStatusProps) {
   if (!view || view.tries === 0) return null;
   if (!view.marked)
@@ -146,7 +146,6 @@ export function SpokenStatus({ block, view }: SpokenStatusProps) {
   );
 }
 
-/** A spoken answer for older students: record, listen or watch back, send. */
 export interface SpokenRecorderProps {
   block: Written;
   view: CheckView | undefined;
@@ -154,6 +153,7 @@ export interface SpokenRecorderProps {
   locked: boolean;
 }
 
+/** A spoken answer for older students: record, listen or watch back, send. */
 export function SpokenRecorder({
   block,
   view,

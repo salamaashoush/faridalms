@@ -80,11 +80,11 @@ function roomOf(lesson: Lesson) {
     : null;
 }
 
-/** Where a lesson stands that day, as one short status. */
 interface LessonStateProps {
   lesson: Lesson;
 }
 
+/** Where a lesson stands that day, as one short status. */
 function LessonState({ lesson }: LessonStateProps) {
   const change = lesson.change;
   if (change?.cancelled)

@@ -98,12 +98,12 @@ function Part({ part, fileUrl }: PartProps) {
   );
 }
 
-/** A box to write in, holding the answer on a teacher's copy. */
 interface BoxProps {
   answer?: string | null;
   wide?: boolean;
 }
 
+/** A box to write in, holding the answer on a teacher's copy. */
 function Box({ answer, wide = false }: BoxProps) {
   return (
     <span
@@ -131,12 +131,12 @@ function Lines({ count }: LinesProps) {
   );
 }
 
-/** Ten frames to colour in: rows of five, as many frames as the count needs. */
 interface TenFramesProps {
   count: number;
   filled: number;
 }
 
+/** Ten frames to colour in: rows of five, as many frames as the count needs. */
 function TenFrames({ count, filled }: TenFramesProps) {
   const frames = Math.max(1, Math.ceil(count / 10));
   return (

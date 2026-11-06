@@ -52,13 +52,13 @@ function staffOptions(staff: readonly StaffOption[]) {
   ];
 }
 
-/** English or Arabic, as a pair of buttons named by the field's label. */
 interface LanguageFieldProps {
   value: "en" | "ar";
   hint?: string;
   onChange: (value: "en" | "ar") => void;
 }
 
+/** English or Arabic, as a pair of buttons named by the field's label. */
 function LanguageField({ value, hint, onChange }: LanguageFieldProps) {
   return (
     <div className="grid justify-items-start gap-2">
@@ -300,7 +300,6 @@ export interface EnquiryTarget {
   school: { nameEn: string; nameAr: string | null };
 }
 
-/** Hands the enquiry to someone who works enquiries, or to nobody. */
 export interface AssignSheetProps {
   enquiry: EnquiryTarget;
   staff: readonly StaffOption[];
@@ -308,6 +307,7 @@ export interface AssignSheetProps {
   onOpenChange: (open: boolean) => void;
 }
 
+/** Hands the enquiry to someone who works enquiries, or to nobody. */
 export function AssignSheet({
   enquiry,
   staff,
@@ -361,13 +361,13 @@ export function AssignSheet({
   );
 }
 
-/** Ends an enquiry the family did not take further, saying why. */
 export interface CloseSheetProps {
   enquiry: EnquiryTarget;
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }
 
+/** Ends an enquiry the family did not take further, saying why. */
 export function CloseSheet({ enquiry, open, onOpenChange }: CloseSheetProps) {
   const refresh = useRefresh();
   const [reason, setReason] = useState<CloseReason>("answered");

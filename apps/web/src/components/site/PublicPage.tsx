@@ -67,12 +67,12 @@ export function PublicPageView({
   );
 }
 
-/** The top of a page the site draws itself, such as the news list or a post. */
 interface PageBandProps {
   site: PublicSite;
   children: ReactNode;
 }
 
+/** The top of a page the site draws itself, such as the news list or a post. */
 function PageBand({ site, children }: PageBandProps) {
   return (
     <section className="site-section" style={schemeStyle(site.theme, "soft")}>

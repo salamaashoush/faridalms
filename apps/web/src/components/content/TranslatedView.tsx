@@ -57,7 +57,6 @@ function WrittenIn({ body, translation, primary, locale }: WrittenInProps) {
   );
 }
 
-/** A document to read, with a switch between its languages when it has two. */
 export interface TranslatedViewProps {
   body: ContentDocument;
   translation: ContentDocument | null;
@@ -66,6 +65,7 @@ export interface TranslatedViewProps {
   onLocaleChange: (locale: ContentLocale) => void;
 }
 
+/** A document to read, with a switch between its languages when it has two. */
 export function TranslatedView({
   body,
   translation,

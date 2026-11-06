@@ -55,11 +55,11 @@ function scatter(count: number, seed: string) {
   }));
 }
 
-/** One thing to count: the teacher's picture, or a round counter. */
 interface ThingProps {
   block: Counting;
 }
 
+/** One thing to count: the teacher's picture, or a round counter. */
 function Thing({ block }: ThingProps) {
   return block.picture ? (
     <StoredImage
@@ -83,13 +83,13 @@ const sayNumber = (count: number, prompt: string) =>
     null,
   );
 
-/** Ten frames: rows of five cells, as many frames as the count needs. */
 interface FramesProps {
   total: number;
   filled: number;
   render: (index: number) => React.ReactNode;
 }
 
+/** Ten frames: rows of five cells, as many frames as the count needs. */
 function Frames({ total, filled, render }: FramesProps) {
   const frames = Math.max(1, Math.ceil(total / 10));
   return (
@@ -380,7 +380,6 @@ export function YoungCounting({ block, view, driver }: YoungCountingProps) {
   );
 }
 
-/** One thing to count, tapped as the child counts it and numbered once counted. */
 interface CountButtonProps {
   index: number;
   counted: number[];
@@ -390,6 +389,7 @@ interface CountButtonProps {
   style?: React.CSSProperties;
 }
 
+/** One thing to count, tapped as the child counts it and numbered once counted. */
 function CountButton({
   index,
   counted,

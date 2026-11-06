@@ -291,7 +291,6 @@ export function MoveManySheet({
   );
 }
 
-/** Takes a student out of a class from a date; the days before stay on record. */
 export interface WithdrawSheetProps {
   student: { id: string; name: string };
   enrollment: { id: string; version: number; from: string };
@@ -302,6 +301,7 @@ export interface WithdrawSheetProps {
   onClose: () => void;
 }
 
+/** Takes a student out of a class from a date; the days before stay on record. */
 export function WithdrawSheet({
   student,
   enrollment,

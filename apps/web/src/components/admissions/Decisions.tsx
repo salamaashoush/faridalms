@@ -97,7 +97,6 @@ const one = (row: Application) => [
   { id: row.id, expectedVersion: row.version },
 ];
 
-/** Chooses a decision for applications under review; the families hear nothing until it is released. */
 export interface DecideSheetProps {
   applications: { id: string; expectedVersion: number }[];
   current?: Decision | null;
@@ -106,6 +105,7 @@ export interface DecideSheetProps {
   onDone?: () => void;
 }
 
+/** Chooses a decision for applications under review; the families hear nothing until it is released. */
 export function DecideSheet({
   applications,
   current,
@@ -182,13 +182,13 @@ export function DecideSheet({
   );
 }
 
-/** Records what a family told the office about their offer. */
 interface AnswerSheetProps {
   row: Application;
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }
 
+/** Records what a family told the office about their offer. */
 function AnswerSheet({ row, open, onOpenChange }: AnswerSheetProps) {
   const refresh = useRefresh();
   const [answer, setAnswer] = useState<OfferAnswer>("accept");
@@ -249,13 +249,13 @@ function AnswerSheet({ row, open, onOpenChange }: AnswerSheetProps) {
   );
 }
 
-/** Moves an application to an intake of a later year. */
 interface DeferSheetProps {
   row: Application;
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }
 
+/** Moves an application to an intake of a later year. */
 function DeferSheet({ row, open, onOpenChange }: DeferSheetProps) {
   const refresh = useRefresh();
   const [intakeId, setIntakeId] = useState(row.laterIntakes[0]?.id ?? "");
@@ -422,7 +422,6 @@ function EnrolSheet({ row, open, onOpenChange }: EnrolSheetProps) {
 
 type EventRow = Application["events"][number];
 
-/** Books a tour, assessment or interview, or moves one still to happen. */
 interface EventSheetProps {
   row: Application;
   event: EventRow | null;
@@ -430,6 +429,7 @@ interface EventSheetProps {
   onOpenChange: (open: boolean) => void;
 }
 
+/** Books a tour, assessment or interview, or moves one still to happen. */
 function EventSheet({ row, event, open, onOpenChange }: EventSheetProps) {
   const refresh = useRefresh();
   const team = useQuery(attendeesQuery).data ?? [];
@@ -563,7 +563,6 @@ function EventSheet({ row, event, open, onOpenChange }: EventSheetProps) {
   );
 }
 
-/** Records what came of an event, with the office's notes. */
 interface OutcomeSheetProps {
   row: Application;
   event: EventRow;
@@ -571,6 +570,7 @@ interface OutcomeSheetProps {
   onOpenChange: (open: boolean) => void;
 }
 
+/** Records what came of an event, with the office's notes. */
 function OutcomeSheet({ row, event, open, onOpenChange }: OutcomeSheetProps) {
   const refresh = useRefresh();
   const [outcome, setOutcome] = useState<"attended" | "missed" | "cancelled">(
@@ -650,13 +650,13 @@ function LetterBody({ id, reader }: LetterBodyProps) {
   );
 }
 
-/** A letter as the family was sent it. */
 export interface LetterDialogProps {
   letter: { id: string; title: string; createdAt: string } | null;
   reader: "office" | "family";
   onClose: () => void;
 }
 
+/** A letter as the family was sent it. */
 export function LetterDialog({ letter, reader, onClose }: LetterDialogProps) {
   return (
     <Dialog open={letter !== null} onOpenChange={(open) => !open && onClose()}>
@@ -679,11 +679,11 @@ export function LetterDialog({ letter, reader, onClose }: LetterDialogProps) {
   );
 }
 
-/** The letters the family was sent, each opened as they read it. */
 export interface LettersSectionProps {
   row: Application;
 }
 
+/** The letters the family was sent, each opened as they read it. */
 export function LettersSection({ row }: LettersSectionProps) {
   const [open, setOpen] = useState<Application["letters"][number] | null>(null);
   return (
@@ -719,11 +719,11 @@ export function LettersSection({ row }: LettersSectionProps) {
   );
 }
 
-/** Tours, assessments and interviews booked for the application. */
 export interface EventsSectionProps {
   row: Application;
 }
 
+/** Tours, assessments and interviews booked for the application. */
 export function EventsSection({ row }: EventsSectionProps) {
   const [editing, setEditing] = useState<EventRow | "new" | null>(null);
   const [recording, setRecording] = useState<EventRow | null>(null);
@@ -833,11 +833,11 @@ export function EventsSection({ row }: EventsSectionProps) {
   );
 }
 
-/** Where the decision stands: what was decided, whether the family knows, and the offer's days. */
 export interface DecisionSectionProps {
   row: Application;
 }
 
+/** Where the decision stands: what was decided, whether the family knows, and the offer's days. */
 export function DecisionSection({ row }: DecisionSectionProps) {
   if (!row.decision && !row.deferredFromId && !row.deferredToId) return null;
   return (

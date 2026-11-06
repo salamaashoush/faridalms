@@ -96,11 +96,11 @@ export function SaveIndicator({ state, onRetry }: SaveIndicatorProps) {
   return null;
 }
 
-/** Why a draft with changes cannot be stored yet, in place of the save state. */
 export interface NotSavedProps {
   reason: string;
 }
 
+/** Why a draft with changes cannot be stored yet, in place of the save state. */
 export function NotSaved({ reason }: NotSavedProps) {
   return (
     <span
@@ -541,13 +541,13 @@ export function DetailsPanel({ title, children }: DetailsPanelProps) {
   );
 }
 
-/** One group of settings inside the details panel, ruled off from the one above. */
 export interface DetailsSectionProps {
   title: string;
   hint?: string;
   children: ReactNode;
 }
 
+/** One group of settings inside the details panel, ruled off from the one above. */
 export function DetailsSection({ title, hint, children }: DetailsSectionProps) {
   return (
     <section className="grid grid-cols-[minmax(0,1fr)] gap-4 border-t pt-5 first-of-type:border-t-0 first-of-type:pt-0">

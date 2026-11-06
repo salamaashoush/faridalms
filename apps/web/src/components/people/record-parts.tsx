@@ -139,7 +139,6 @@ interface Entry {
   reason?: string | null;
 }
 
-/** A record's history, a page at a time. */
 export interface HistoryFeedProps {
   feed: {
     data: { pages: readonly { rows: Entry[] }[] };
@@ -149,6 +148,7 @@ export interface HistoryFeedProps {
   };
 }
 
+/** A record's history, a page at a time. */
 export function HistoryFeed({ feed }: HistoryFeedProps) {
   return (
     <HistorySection
@@ -224,7 +224,6 @@ const CONTACT_LABEL = {
   postal: m.addressTitle,
 } as const;
 
-/** A person's phones, email addresses and address, each under what it is. */
 export interface ContactListProps {
   contacts: readonly {
     id: string;
@@ -234,6 +233,7 @@ export interface ContactListProps {
   }[];
 }
 
+/** A person's phones, email addresses and address, each under what it is. */
 export function ContactList({ contacts }: ContactListProps) {
   return contacts.length === 0 ? (
     <RecordEmpty>{m.personNoContacts()}</RecordEmpty>

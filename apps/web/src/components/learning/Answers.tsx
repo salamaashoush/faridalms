@@ -104,7 +104,6 @@ function GoalJudge({ goal, level, name, onJudge }: GoalJudgeProps) {
   );
 }
 
-/** Where the child stands against the goals the question is tagged with. */
 interface AnswerGoalJudgementsProps {
   question: BoardQuestion;
   answer: BoardAnswer;
@@ -112,6 +111,7 @@ interface AnswerGoalJudgementsProps {
   goals: AnswerGoals;
 }
 
+/** Where the child stands against the goals the question is tagged with. */
 function AnswerGoalJudgements({
   question,
   answer,
@@ -538,7 +538,6 @@ function AnswerCard({
   );
 }
 
-/** One question's answers, those waiting first, any of which the teacher may choose to mark alike. */
 interface QuestionAnswersProps {
   question: BoardQuestion;
   answers: readonly BoardAnswer[];
@@ -548,6 +547,7 @@ interface QuestionAnswersProps {
   goals?: AnswerGoals;
 }
 
+/** One question's answers, those waiting first, any of which the teacher may choose to mark alike. */
 function QuestionAnswers({
   question,
   answers,
@@ -666,7 +666,6 @@ function QuestionAnswers({
   );
 }
 
-/** Answers a teacher marks question by question, words or coding projects. */
 export interface AnswerBoardProps {
   students: readonly {
     id: string;
@@ -680,6 +679,7 @@ export interface AnswerBoardProps {
   empty: { title: string; description: string };
 }
 
+/** Answers a teacher marks question by question, words or coding projects. */
 export function AnswerBoard({
   students,
   questions,
@@ -718,12 +718,12 @@ export function AnswerBoard({
   );
 }
 
-/** The answers of one class a teacher marks, words or coding projects, question by question. */
 export interface AnswersProps {
   moduleId: string;
   classId: string;
 }
 
+/** The answers of one class a teacher marks, words or coding projects, question by question. */
 export function Answers({ moduleId, classId }: AnswersProps) {
   const query = useQuery(writtenAnswersQuery(moduleId, classId));
   const queryClient = useQueryClient();

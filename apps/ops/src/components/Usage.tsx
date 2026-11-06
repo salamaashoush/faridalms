@@ -3,13 +3,13 @@ import { cn } from "@faridalms/ui/cn";
 
 import { formatBytes } from "../format";
 
-/** A school's storage against its pool; the bar only draws the line beside it. */
 export interface UsageProps {
   /** What the school's cell last reported, or null before it has. */
   usedBytes: number | null;
   limitBytes: number;
 }
 
+/** A school's storage against its pool; the bar only draws the line beside it. */
 export function Usage({ usedBytes, limitBytes }: UsageProps) {
   if (usedBytes === null)
     return <span className="text-muted-foreground">Not measured yet</span>;

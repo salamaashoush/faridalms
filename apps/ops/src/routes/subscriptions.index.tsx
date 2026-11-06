@@ -129,16 +129,16 @@ function Subscriptions() {
   );
 }
 
-/**
- * When the daily round last ran and what it did, and running it now. It
- * runs on its own each day; running it here applies what began or ended
- * today at once.
- */
 interface DailyRoundProps {
   round: Data["round"];
   names: Data["names"];
 }
 
+/**
+ * When the daily round last ran and what it did, and running it now. It
+ * runs on its own each day; running it here applies what began or ended
+ * today at once.
+ */
 function DailyRound({ round, names }: DailyRoundProps) {
   const router = useRouter();
   const run = useServerFn(runDailyRound);

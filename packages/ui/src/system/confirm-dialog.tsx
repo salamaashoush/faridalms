@@ -10,10 +10,6 @@ import { CircleAlert, LoaderCircle } from "lucide-react";
 
 import { useSystemStrings } from "./provider";
 
-/**
- * The last step before something is removed. The destructive colour appears
- * only here, on the button that does it.
- */
 export interface ConfirmDialogProps {
   open: boolean;
   title: string;
@@ -28,6 +24,10 @@ export interface ConfirmDialogProps {
   onCancel: () => void;
 }
 
+/**
+ * The last step before something is removed. The destructive colour appears
+ * only here, on the button that does it.
+ */
 export function ConfirmDialog({
   open,
   title,

@@ -48,11 +48,11 @@ type Funnel = Report["funnel"];
 const countAt = (funnel: Funnel, stage: FunnelStage) =>
   funnel.find((row) => row.stage === stage)?.count ?? 0;
 
-/** How many applications reached each stage, as bars against those sent. */
 interface FunnelBarsProps {
   funnel: Funnel;
 }
 
+/** How many applications reached each stage, as bars against those sent. */
 function FunnelBars({ funnel }: FunnelBarsProps) {
   const sent = countAt(funnel, "submitted");
   return (

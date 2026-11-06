@@ -136,11 +136,11 @@ function Child({ row }: ChildProps) {
   );
 }
 
-/** What a row says of where it stands in its phase. */
 interface StandingProps {
   row: Row;
 }
 
+/** What a row says of where it stands in its phase. */
 function Standing({ row }: StandingProps) {
   if (row.state === "decided" && row.decision)
     return (
@@ -200,11 +200,11 @@ const CARD = {
   fact: (row: Row) => inLocale(row.familyEn, row.familyAr),
 };
 
-/** The places of the intake, each counted with its label. */
 interface PlacesProps {
   board: Board;
 }
 
+/** The places of the intake, each counted with its label. */
 function Places({ board }: PlacesProps) {
   const { places } = board;
   const facts = [

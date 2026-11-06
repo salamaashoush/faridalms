@@ -554,13 +554,13 @@ export function RetentionSheet({ open, rules, onClose }: RetentionSheetProps) {
   );
 }
 
-/** A hold on someone named already, or on a person searched for. */
 export interface HoldSheetProps {
   open: boolean;
   person: { id: string; name: string } | null;
   onClose: () => void;
 }
 
+/** A hold on someone named already, or on a person searched for. */
 export function HoldSheet({ open, person, onClose }: HoldSheetProps) {
   const refresh = useRefresh();
   const [search, setSearch] = useState("");

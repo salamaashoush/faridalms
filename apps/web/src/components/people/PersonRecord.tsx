@@ -195,13 +195,13 @@ function ChildrenSection({ data }: ChildrenSectionProps) {
   );
 }
 
-/** The classes someone teaches; a profile names them for the viewer and opens none. */
 export interface TeachingSectionProps {
   teaching: NonNullable<PersonData["teaching"]>;
   title?: string;
   empty?: string;
 }
 
+/** The classes someone teaches; a profile names them for the viewer and opens none. */
 export function TeachingSection({
   teaching,
   title = m.personTeaching(),

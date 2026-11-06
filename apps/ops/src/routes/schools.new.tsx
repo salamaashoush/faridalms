@@ -154,14 +154,14 @@ function Drafts({ drafts }: DraftsProps) {
   );
 }
 
-/**
- * Where the console runs without its business database, a school is
- * created in one form with what it is entitled to.
- */
 interface ByHandProps {
   cells: Data["cells"];
 }
 
+/**
+ * Where the console runs without its business database, a school is
+ * created in one form with what it is entitled to.
+ */
 function ByHand({ cells }: ByHandProps) {
   const create = useServerFn(createSchool);
   const [outcome, setOutcome] = useState<CreateSchoolOutcome | null>(null);

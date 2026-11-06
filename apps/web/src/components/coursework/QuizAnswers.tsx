@@ -5,11 +5,11 @@ import * as m from "~/i18n/messages";
 import { quizAnswersQuery } from "~/queries/coursework";
 import { markQuizAnswer } from "~/server/coursework";
 
-/** A quiz's answers its teacher judges, question by question across the class. */
 export interface QuizAnswersProps {
   assignmentId: string;
 }
 
+/** A quiz's answers its teacher judges, question by question across the class. */
 export function QuizAnswers({ assignmentId }: QuizAnswersProps) {
   const query = useQuery(quizAnswersQuery(assignmentId));
   const queryClient = useQueryClient();

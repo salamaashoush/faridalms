@@ -47,7 +47,6 @@ const nameOf = (post: Pick<Post, "authorNameEn" | "authorNameAr">) =>
 const written = (content: ContentDocument) =>
   contentPlainText(content).trim().length > 0;
 
-/** Writes a post, a reply under one, or a change to the writer's own. */
 interface PostEditorProps {
   assignmentId: string;
   label: string;
@@ -58,6 +57,7 @@ interface PostEditorProps {
   onCancel?: () => void;
 }
 
+/** Writes a post, a reply under one, or a change to the writer's own. */
 function PostEditor({
   assignmentId,
   label,
@@ -219,13 +219,13 @@ interface Standing {
   replies: number;
 }
 
-/** How far a student has met what the discussion asks: an answer, then replies. */
 interface ProgressProps {
   standing: Standing;
   /** What the first line says until an answer is posted. */
   pending: string;
 }
 
+/** How far a student has met what the discussion asks: an answer, then replies. */
 function Progress({ standing, pending }: ProgressProps) {
   const items = [
     {

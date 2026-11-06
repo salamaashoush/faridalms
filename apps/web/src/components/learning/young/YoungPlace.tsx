@@ -290,7 +290,6 @@ function Piece({ part, placing, small = false, compact = false }: PieceProps) {
   );
 }
 
-/** An empty place a held card can be put in. */
 interface SpotProps {
   id: string;
   label: string;
@@ -299,6 +298,7 @@ interface SpotProps {
   children?: ReactNode;
 }
 
+/** An empty place a held card can be put in. */
 function Spot({ id, label, placing, className, children }: SpotProps) {
   return (
     <button
@@ -319,7 +319,6 @@ function Spot({ id, label, placing, className, children }: SpotProps) {
   );
 }
 
-/** The cards still to place, and a way to put a picked-up card back among them. */
 interface PileProps {
   pieces: StudentPart[];
   placing: Placing;
@@ -331,6 +330,7 @@ interface PileProps {
   foot?: boolean;
 }
 
+/** The cards still to place, and a way to put a picked-up card back among them. */
 function Pile({ pieces, placing, small, foot = false }: PileProps) {
   const left = pieces.filter((piece) => !placing.placement[piece.id]);
   const back = placing.held && placing.placement[placing.held];
@@ -371,12 +371,12 @@ function Pile({ pieces, placing, small, foot = false }: PileProps) {
   );
 }
 
-/** What follows every placing board: what was said, help once stuck, and the outcome. */
 interface FooterProps {
   placing: Placing;
   view: CheckView | undefined;
 }
 
+/** What follows every placing board: what was said, help once stuck, and the outcome. */
 function Footer({ placing, view }: FooterProps) {
   return (
     <>
@@ -404,13 +404,13 @@ function Footer({ placing, view }: FooterProps) {
   );
 }
 
-/** Matching as children do it: each card is taken to the one it goes with. */
 export interface YoungMatchingProps {
   block: Matching;
   view: CheckView | undefined;
   driver: CheckDriver;
 }
 
+/** Matching as children do it: each card is taken to the one it goes with. */
 export function YoungMatching({ block, view, driver }: YoungMatchingProps) {
   const placing = usePlacing({
     block,
@@ -504,13 +504,13 @@ export function YoungMatching({ block, view, driver }: YoungMatchingProps) {
   );
 }
 
-/** Sorting as children do it: each card is put in its group's box. */
 export interface YoungSortingProps {
   block: Sorting;
   view: CheckView | undefined;
   driver: CheckDriver;
 }
 
+/** Sorting as children do it: each card is put in its group's box. */
 export function YoungSorting({ block, view, driver }: YoungSortingProps) {
   const placing = usePlacing({
     block,
@@ -598,13 +598,13 @@ export function YoungSorting({ block, view, driver }: YoungSortingProps) {
   );
 }
 
-/** Ordering as children do it: cards go one by one into numbered places. */
 export interface YoungOrderingProps {
   block: Ordering;
   view: CheckView | undefined;
   driver: CheckDriver;
 }
 
+/** Ordering as children do it: cards go one by one into numbered places. */
 export function YoungOrdering({ block, view, driver }: YoungOrderingProps) {
   const slots = block.items.map((_, index) => `slot-${index}`);
   const placing = usePlacing({

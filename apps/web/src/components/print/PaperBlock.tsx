@@ -45,11 +45,11 @@ export function typedAddress(url: string): string {
 /** The longest address worth printing; nobody types more from paper. */
 const TYPED = 60;
 
-/** A frame of a video, left out when it cannot be had or the card is narrow. */
 interface StillProps {
   src: string;
 }
 
+/** A frame of a video, left out when it cannot be had or the card is narrow. */
 function Still({ src }: StillProps) {
   const [failed, setFailed] = useState(false);
   return failed ? null : (
@@ -263,12 +263,12 @@ function PaperFile({ node, paper }: PaperFileProps) {
   );
 }
 
-/** Lines to write on, under the words that say what to write. */
 interface WriteOnProps {
   label: string;
   lines: number;
 }
 
+/** Lines to write on, under the words that say what to write. */
 function WriteOn({ label, lines }: WriteOnProps) {
   return (
     <div className="grid gap-[0.1em]">

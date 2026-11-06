@@ -142,11 +142,11 @@ export function ByItem({ map }: ByItemProps) {
   );
 }
 
-/** Each unit of the year with the items of the framework its plan takes up. */
 export interface ByUnitProps {
   map: MapData;
 }
 
+/** Each unit of the year with the items of the framework its plan takes up. */
 export function ByUnit({ map }: ByUnitProps) {
   const items = new Map(map.items.map((item) => [item.id, item]));
   return (
@@ -202,11 +202,11 @@ export function ByUnit({ map }: ByUnitProps) {
   );
 }
 
-/** How much of the framework the year's units take up, as a line above the lists. */
 export interface MapSummaryProps {
   map: MapData;
 }
 
+/** How much of the framework the year's units take up, as a line above the lists. */
 export function MapSummary({ map }: MapSummaryProps) {
   const leaves = inOrder(map.items).filter(({ heads }) => !heads);
   const taken = new Set(map.units.flatMap((unit) => unit.items));

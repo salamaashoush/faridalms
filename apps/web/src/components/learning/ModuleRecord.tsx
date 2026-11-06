@@ -542,13 +542,13 @@ function doneOf(data: Progress, student: StudentRow) {
 
 type ToolColumn = Progress["tools"][number];
 
-/** A student's score in a tool's column, as the tool last reported it. */
 interface ToolMarkProps {
   data: Progress;
   column: ToolColumn;
   student: StudentRow;
 }
 
+/** A student's score in a tool's column, as the tool last reported it. */
 function ToolMark({ data, column, student }: ToolMarkProps) {
   const score = data.toolScores.find(
     (row) => row.lineItemId === column.id && row.studentId === student.id,
@@ -860,7 +860,6 @@ function ModulePlan({ moduleId }: ModulePlanProps) {
   );
 }
 
-/** A module for those who teach it: its lessons, and how each student is getting on. */
 export interface ModuleRecordProps {
   moduleId: string;
   tab: ModuleTab;
@@ -871,6 +870,7 @@ export interface ModuleRecordProps {
   onFiles: (view: AreaView) => void;
 }
 
+/** A module for those who teach it: its lessons, and how each student is getting on. */
 export function ModuleRecord({
   moduleId,
   tab,

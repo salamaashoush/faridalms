@@ -30,12 +30,12 @@ const recorderStrings = () => ({
   captions: m.editorCaptions(),
 });
 
-/** The recordings on an attempt, played back as they will be heard. */
 export interface RecordingsProps {
   recordings: Recording[];
   onRemove?: (recording: Recording) => void;
 }
 
+/** The recordings on an attempt, played back as they will be heard. */
 export function Recordings({ recordings, onRemove }: RecordingsProps) {
   return (
     <ul className="grid gap-2">
@@ -67,12 +67,12 @@ export function Recordings({ recordings, onRemove }: RecordingsProps) {
   );
 }
 
-/** Voice feedback on one attempt, recorded in the grade sheet. */
 export interface VoiceFeedbackProps {
   attemptId: string;
   recordings: Recording[];
 }
 
+/** Voice feedback on one attempt, recorded in the grade sheet. */
 export function VoiceFeedback({ attemptId, recordings }: VoiceFeedbackProps) {
   const queryClient = useQueryClient();
   const media = useDocumentMedia();

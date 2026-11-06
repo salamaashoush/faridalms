@@ -78,11 +78,11 @@ const categoryCard = {
   fact: (row: Category) => formatNumber(row.posts),
 };
 
-/** How news is grouped; visitors filter the news page by these. */
 export interface SiteCategoriesProps {
   categories: Category[];
 }
 
+/** How news is grouped; visitors filter the news page by these. */
 export function SiteCategories({ categories }: SiteCategoriesProps) {
   const queryClient = useQueryClient();
   const [draft, setDraft] = useState<Draft | null>(null);

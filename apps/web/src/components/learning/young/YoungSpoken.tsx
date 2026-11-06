@@ -16,11 +16,11 @@ import { playSound } from "./sounds";
 
 type Written = Extract<StudentBlock, { type: "written" }>;
 
-/** A ring that fills as the recording uses up its time. */
 interface RingProps {
   share: number;
 }
 
+/** A ring that fills as the recording uses up its time. */
 function Ring({ share }: RingProps) {
   const length = 2 * Math.PI * 56;
   return (

@@ -411,7 +411,6 @@ export function BreachSheet({ open, breach, onClose }: BreachSheetProps) {
   );
 }
 
-/** One notice: told at a time, or not told with the reason why. */
 interface NoticeProps {
   id: string;
   label: string;
@@ -424,6 +423,7 @@ interface NoticeProps {
   errors: { at: string | null; reason: string | null };
 }
 
+/** One notice: told at a time, or not told with the reason why. */
 function Notice({
   id,
   label,

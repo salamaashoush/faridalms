@@ -67,12 +67,12 @@ const wordsOnly = (entry: Entry) =>
     (node) => node.type === "paragraph",
   );
 
-/** What an entry says: its document, or for one written before documents, its text. */
 interface WordsProps {
   entry: Entry;
   fit?: boolean;
 }
 
+/** What an entry says: its document, or for one written before documents, its text. */
 function Words({ entry, fit = false }: WordsProps) {
   if (entry.redacted)
     return (

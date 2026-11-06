@@ -37,12 +37,12 @@ interface Written {
   suggestion: string;
 }
 
-/** What a review said: the rubric's levels, then the two prompts. */
 interface ReviewTextProps {
   rubric: Rubric | null;
   review: Written;
 }
 
+/** What a review said: the rubric's levels, then the two prompts. */
 function ReviewText({ rubric, review }: ReviewTextProps) {
   return (
     <div className="grid gap-3">

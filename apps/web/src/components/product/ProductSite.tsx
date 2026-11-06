@@ -117,11 +117,11 @@ function Brand({ className }: BrandProps) {
   );
 }
 
-/** Switches straight to the other language, named in its own script. */
 interface LanguageSwitchProps {
   className?: string;
 }
 
+/** Switches straight to the other language, named in its own script. */
 function LanguageSwitch({ className }: LanguageSwitchProps) {
   const other: Shown = shown() === "ar" ? "en" : "ar";
   return (
@@ -496,13 +496,13 @@ function Points({ items, className }: PointsProps) {
   );
 }
 
-/** A screen of the app on a pale green panel, bleeding off its far edge. */
 interface ShotProps {
   src: string;
   alt: string;
   phone?: boolean;
 }
 
+/** A screen of the app on a pale green panel, bleeding off its far edge. */
 function Shot({ src, alt, phone }: ShotProps) {
   return (
     <div className="workspace-hero relative aspect-[16/10] overflow-hidden rounded-2xl ring-1 ring-black/5 dark:ring-white/10">
