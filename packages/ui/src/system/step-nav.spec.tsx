@@ -35,12 +35,11 @@ describe("StepNav", () => {
       />,
     );
     const nav = screen.getByRole("navigation", { name: "Steps" });
-    expect(within(nav).getByRole("link", { name: /Schools/ })).toHaveAttribute(
-      "aria-current",
-      "step",
-    );
-    expect(within(nav).getByRole("link", { name: /Plan/ })).toHaveTextContent(
-      "3Plan",
-    );
+    expect(
+      within(nav).getByRole("link", { name: "2. Schools" }),
+    ).toHaveAttribute("aria-current", "step");
+    expect(
+      within(nav).getByRole("link", { name: "3. Plan" }),
+    ).not.toHaveAttribute("aria-current");
   });
 });

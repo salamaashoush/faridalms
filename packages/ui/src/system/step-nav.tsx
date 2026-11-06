@@ -53,7 +53,10 @@ function StepLink({ step, index }: StepLinkProps) {
           >
             {step.state === "done" ? <Check className="size-3.5" /> : index + 1}
           </span>
-          <span className="whitespace-nowrap">{step.label}</span>
+          <span className="whitespace-nowrap">
+            <span className="sr-only">{index + 1}. </span>
+            {step.label}
+          </span>
         </>
       ),
     },

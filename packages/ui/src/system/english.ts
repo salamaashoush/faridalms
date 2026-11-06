@@ -82,4 +82,5 @@ export const ENGLISH: DesignSystemValue = {
         ? error
         : "Something went wrong.",
   issueMessage: (issue) => issue.message ?? "Check this field.",
+  pageSizes: [25, 50],
 };

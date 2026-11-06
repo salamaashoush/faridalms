@@ -93,6 +93,8 @@ export interface DesignSystemValue {
   errorMessage: (error: unknown) => string;
   /** A validator's issue as the reader should read it. */
   issueMessage: (issue: Issue) => string;
+  /** The page sizes a list offers, which the app's server accepts. */
+  pageSizes: readonly number[];
 }
 
 const DesignSystemContext = createContext<DesignSystemValue | null>(null);

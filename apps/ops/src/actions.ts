@@ -1,5 +1,6 @@
 import type { DesignSystemValue } from "@faridalms/ui/system/provider";
 
+import { PAGE_SIZES } from "@faridalms/domain/paging";
 import { ENGLISH } from "@faridalms/ui/system/english";
 
 /** Sends the operator to sign in again, then back to this page. */
@@ -33,6 +34,7 @@ export function failure(error: unknown, fallback: string): string | null {
 /** The design system in the console's English, failures read as the console words them. */
 export const CONSOLE_SYSTEM: DesignSystemValue = {
   ...ENGLISH,
+  pageSizes: PAGE_SIZES,
   errorMessage: (error) =>
     failure(error, "That did not work. Try again.") ??
     "Sign in again to continue.",

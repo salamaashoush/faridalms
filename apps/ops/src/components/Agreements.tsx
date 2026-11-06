@@ -26,7 +26,7 @@ const AGREEMENT_OPTIONS = [
 
 const accepted = (held: Acceptance) =>
   held.version && held.at
-    ? `Version ${held.version}, accepted ${formatWhen(held.at)}`
+    ? `version ${held.version}, accepted ${formatWhen(held.at)}`
     : "Not accepted";
 
 export interface AgreementsProps {

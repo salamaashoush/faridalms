@@ -1,5 +1,7 @@
 import type { DesignSystemValue } from "@faridalms/ui/system/provider";
 
+import { PAGE_SIZES } from "@faridalms/domain/paging";
+
 import * as m from "~/i18n/messages";
 import { getLocale, getTextDirection } from "~/i18n/runtime";
 import { formatNumber } from "~/utils/datetime";
@@ -13,6 +15,7 @@ export function portalDesignSystem(): DesignSystemValue {
     formatNumber,
     errorMessage: getMessageFromError,
     issueMessage: validationMessage,
+    pageSizes: PAGE_SIZES,
     strings: {
       actions: m.managementActions(),
       actionFailed: m.notificationErrorTitle(),
