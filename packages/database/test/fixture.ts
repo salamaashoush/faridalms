@@ -66,6 +66,7 @@ import {
   captionDrafts,
   submissionAttempts,
   documentTranslations,
+  documentHolds,
   documents,
   documentVersions,
   erasureApprovals,
@@ -74,6 +75,7 @@ import {
   fileSubjects,
   files,
   identityProviderOrgs,
+  siteRedirects,
   identityProviders,
   importRows,
   importRuns,
@@ -349,6 +351,21 @@ export async function completeFixture(
     reason: "publish",
     content: { type: "doc", blocks: [] },
     plainText: "How the school uses personal data.",
+    createdByUserId: userId,
+  });
+  await tx.insert(documentHolds).values({
+    tenantId,
+    hostType: "news_post",
+    hostId: id(),
+    userId,
+    heldSince: new Date(now),
+    expiresAt: new Date(now + 90_000),
+  });
+  await tx.insert(siteRedirects).values({
+    tenantId,
+    orgId: schoolId,
+    fromPath: "/old-admissions",
+    toUrl: "https://example.com/admissions",
     createdByUserId: userId,
   });
   // The collab role sees only collaborative documents. Without one, its
