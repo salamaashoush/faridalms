@@ -45,6 +45,7 @@ import * as v from "valibot";
 import type { UnitContext } from "../core/context";
 
 import { consentWords } from "../core/admissions";
+import { refuseIfHeld } from "../core/holds";
 import { notify } from "../core/notify";
 import {
   audit,
@@ -56,7 +57,7 @@ import {
 import { publishWords, saveWords, wordsIssues } from "../core/publication";
 import { requireStudent, scopeFor } from "../core/reach";
 import { checkTranslation } from "../core/translation-review";
-import { registerHostReader } from "../files/authorize";
+import { registerHostReader, registerHostWriter } from "../files/authorize";
 import { withFileGate } from "../files/gate";
 
 const id = v.pipe(v.string(), v.uuid());
@@ -99,6 +100,16 @@ async function publishedForms(context: UnitContext) {
       : [];
   });
 }
+
+registerHostWriter("privacy_notice", async (context, formId) => {
+  if (!can(context, "privacy:manage")) return false;
+  const row = await formById(context.tx, {
+    tenantId: context.tenantId,
+    schoolId: context.schoolId,
+    id: formId,
+  });
+  return row !== null && row.publishedAt === null;
+});
 
 /** Files a family or the office sent as proof of an answer, read by those who keep the register. */
 registerHostReader(
@@ -233,6 +244,7 @@ export const saveForm = writeProcedure
         throw new ORPCError("NOT_FOUND");
       if (row.publishedAt !== null)
         throw new ORPCError("CONFLICT", { message: "consents.published" });
+      await refuseIfHeld(context, host(formId));
       const next = await updateDraft(context.tx, {
         tenantId: context.tenantId,
         id: formId,

@@ -47,6 +47,7 @@ import type { UnitContext } from "../core/context";
 
 import { hashFeedToken, newFeedToken } from "../calendar/feed";
 import { audienceChoices, audienceOf, calendarReach } from "../core/audiences";
+import { refuseIfHeld } from "../core/holds";
 import { notify } from "../core/notify";
 import {
   audit,
@@ -64,7 +65,7 @@ import {
 } from "../core/publication";
 import { isStaff, scopeFor, teaches } from "../core/reach";
 import { checkTranslation } from "../core/translation-review";
-import { registerHostReader } from "../files/authorize";
+import { registerHostReader, registerHostWriter } from "../files/authorize";
 
 const id = v.pipe(v.string(), v.uuid());
 
@@ -198,6 +199,14 @@ async function tell(
 registerHostReader("calendar_event", async (context, hostId) => {
   try {
     await readable(context, hostId);
+    return true;
+  } catch {
+    return false;
+  }
+});
+registerHostWriter("calendar_event", async (context, hostId) => {
+  try {
+    await editable(context, hostId);
     return true;
   } catch {
     return false;
@@ -413,6 +422,7 @@ export const save = writeProcedure
     let out = false;
     const before = input.id ? await editable(context, input.id) : null;
     if (before) {
+      await refuseIfHeld(context, host(before.id));
       out = before.state === "published";
       if (out)
         await checkDescription(context, [input.description, input.translation]);

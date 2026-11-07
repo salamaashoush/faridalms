@@ -1,3 +1,5 @@
+import type { Host } from "@faridalms/database/stores/documents";
+import type { DocumentHold } from "@faridalms/database/stores/holds";
 import type { ContentDocument } from "@faridalms/domain/content";
 
 import {
@@ -8,17 +10,23 @@ import {
   versionsOf,
 } from "@faridalms/database/stores/documents";
 import {
+  holdOf,
+  releaseHold,
+  takeHold,
+} from "@faridalms/database/stores/holds";
+import {
   signTicket,
   TICKET_TTL_SECONDS,
   roomOf,
 } from "@faridalms/domain/collab";
+import { HOLD_SECONDS } from "@faridalms/domain/document-holds";
 import { pageContentSchema } from "@faridalms/domain/website";
 import { ORPCError } from "@orpc/server";
 import * as v from "valibot";
 
 import type { UnitContext } from "../core/context";
 
-import { readProcedure, writeProcedure } from "../core/procedure";
+import { audit, readProcedure, writeProcedure } from "../core/procedure";
 import { hostAccess, liveRulesOf } from "../files/authorize";
 
 const hostSchema = v.object({
@@ -37,13 +45,15 @@ export const collaborate = writeProcedure
     const host = { type: input.hostType, id: input.hostId };
     const access = await hostAccess(context, host);
     const rules = liveRulesOf(host.type);
+    // Records not written live are edited one person at a time instead.
     if (
+      !rules ||
       !access ||
-      (access === "read" && (await rules?.keyed(context, host.id)))
+      (access === "read" && (await rules.keyed(context, host.id)))
     )
       throw new ORPCError("NOT_FOUND");
     // A room starts from the stored content, so it is put in shape first.
-    if (access === "write") await rules?.prepare?.(context, host.id);
+    if (access === "write") await rules.prepare?.(context, host.id);
     const document = await documentIdOf(context.tx, context.tenantId, host);
     if (!document) throw new ORPCError("NOT_FOUND");
     const live =
@@ -67,6 +77,68 @@ export const collaborate = writeProcedure
       token: await signTicket(ticket, context.cellSecret),
       access,
     };
+  });
+
+/**
+ * A record whose document is held one person at a time, for someone who may
+ * change it; live documents are shared instead and never held.
+ */
+async function holdable(context: UnitContext, host: Host) {
+  if (liveRulesOf(host.type) || (await hostAccess(context, host)) !== "write")
+    throw new ORPCError("NOT_FOUND");
+}
+
+const holdView = (context: UnitContext, hold: DocumentHold) => ({
+  mine: hold.userId === context.actor.userId,
+  holder: { id: hold.userId, nameEn: hold.nameEn, nameAr: hold.nameAr },
+  since: hold.since,
+});
+
+/**
+ * Holds a record's document for its editor while it is open, called again
+ * to renew it: answers who holds it, the caller or someone else, and
+ * since when. `take` takes it from whoever holds it; anyone who may edit
+ * the record may, and the one it was taken from learns it on their next
+ * renewal or save.
+ */
+export const hold = writeProcedure
+  .input(v.object({ ...hostSchema.entries, take: v.optional(v.boolean()) }))
+  .handler(async ({ input, context }) => {
+    const host = { type: input.hostType, id: input.hostId };
+    await holdable(context, host);
+    const before = input.take
+      ? await holdOf(context.tx, context.tenantId, host)
+      : null;
+    const after = await takeHold(context.tx, {
+      tenantId: context.tenantId,
+      host,
+      userId: context.actor.userId,
+      seconds: HOLD_SECONDS,
+      force: input.take ?? false,
+    });
+    if (!after) throw new ORPCError("NOT_FOUND");
+    if (before && before.userId !== context.actor.userId)
+      await audit(context, {
+        action: "document.take_over",
+        objectType: host.type,
+        objectId: host.id,
+        subjectUserId: before.userId,
+      });
+    return holdView(context, after);
+  });
+
+/** Lets go of the caller's hold as their editor closes; someone else's stays. */
+export const release = writeProcedure
+  .input(hostSchema)
+  .handler(async ({ input, context }) => {
+    const host = { type: input.hostType, id: input.hostId };
+    await holdable(context, host);
+    await releaseHold(context.tx, {
+      tenantId: context.tenantId,
+      host,
+      userId: context.actor.userId,
+    });
+    return { released: true };
   });
 
 /**

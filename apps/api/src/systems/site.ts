@@ -92,6 +92,7 @@ import * as v from "valibot";
 import type { UnitContext } from "../core/context";
 
 import { announceEnquiry } from "../core/enquiries";
+import { refuseIfHeld } from "../core/holds";
 import { forgetFace } from "../core/portal-face";
 import {
   audit,
@@ -445,6 +446,7 @@ export const savePage = writeProcedure
     let version: number;
     const row = input.id ? await pageOfSchool(context, input.id) : null;
     if (row) {
+      await refuseIfHeld(context, { type: "site_page", id: row.id });
       if (row.isHome && fields.parentId)
         throw new ORPCError("BAD_REQUEST", { message: "site.parent" });
       if (fields.parentId !== row.parentId)

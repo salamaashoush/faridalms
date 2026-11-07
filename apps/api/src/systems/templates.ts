@@ -29,6 +29,7 @@ import { ORPCError } from "@orpc/server";
 
 import type { UnitContext } from "../core/context";
 
+import { refuseIfHeld } from "../core/holds";
 import { templateHost, usableTemplate, writesKind } from "../core/library";
 import { notify } from "../core/notify";
 import {
@@ -38,7 +39,11 @@ import {
   requireCapability,
   writeProcedure,
 } from "../core/procedure";
-import { placeMedia, registerHostReader } from "../files/authorize";
+import {
+  placeMedia,
+  registerHostReader,
+  registerHostWriter,
+} from "../files/authorize";
 
 const listed = (context: UnitContext, row: TemplateRow) => ({
   id: row.id,
@@ -56,10 +61,20 @@ const listed = (context: UnitContext, row: TemplateRow) => ({
   mine: row.ownerUserId === context.actor.userId,
 });
 
+/** Its owner or a reviewer changes a piece; a built-in one, whoever writes its kind. */
+const mayChange = (context: UnitContext, row: TemplateRow) =>
+  row.ownerUserId
+    ? row.ownerUserId === context.actor.userId || can(context, "library:review")
+    : writesKind(context, row.kind);
+
 // Whoever may start from a template may open the pictures and files in it.
 registerHostReader("document_template", async (context, id) =>
   Boolean(await usableTemplate(context, id)),
 );
+registerHostWriter("document_template", async (context, id) => {
+  const row = await usableTemplate(context, id);
+  return row !== null && mayChange(context, row);
+});
 
 /** The school's templates of a kind, for those who write that kind. */
 export const list = readProcedure
@@ -222,13 +237,9 @@ export const update = writeProcedure
   .handler(async ({ input, context }) => {
     const row = await usableTemplate(context, input.id);
     if (!row) throw new ORPCError("NOT_FOUND");
-    if (
-      row.ownerUserId
-        ? row.ownerUserId !== context.actor.userId &&
-          !can(context, "library:review")
-        : !writesKind(context, row.kind)
-    )
+    if (!mayChange(context, row))
       throw new ORPCError("FORBIDDEN", { message: "templates.not_owner" });
+    await refuseIfHeld(context, templateHost(row.id));
     const version = await updateTemplate(context.tx, {
       tenantId: context.tenantId,
       id: row.id,

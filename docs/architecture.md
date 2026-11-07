@@ -265,6 +265,16 @@ editor to the shared state so it always knows the validated content, and
 checkpoints the shared state and that content together as the `collab`
 role.
 
+Every other document is edited by one person at a time. Its editor holds
+the record through `documents.hold` while it is open, renewing the hold,
+and lets go through `documents.release`; a hold lapses on its own
+(`core.document_holds`, ephemeral). Whoever the host's writer
+(`registerHostWriter`) lets change the record may hold it and may take
+it over. A host's save calls `refuseIfHeld` (`core/holds.ts`), so the
+editor it was taken from learns on its next save as well as its next
+renewal. A host with live rules is never held, and only a host with
+live rules is opened live.
+
 The media service turns uploaded video into adaptive HLS streams with a
 poster and thumbnails, and drafts captions where configured. The API keeps
 each job's state on the file row and decides who may watch; the service

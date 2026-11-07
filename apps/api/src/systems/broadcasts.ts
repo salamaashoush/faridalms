@@ -56,6 +56,7 @@ import type { UnitContext } from "../core/context";
 import type { LiveScope } from "../core/publication";
 
 import { audienceOf } from "../core/audiences";
+import { refuseIfHeld } from "../core/holds";
 import { notify, notifyIn } from "../core/notify";
 import { audit, can, localeOf, requireCapability } from "../core/procedure";
 import {
@@ -358,6 +359,7 @@ export async function saveBroadcast(
   if (before) {
     if (before.state === "archived")
       throw new ORPCError("CONFLICT", { message: rules.codes.archived });
+    await refuseIfHeld(context, host(before));
     const next = await updateBroadcast(context.tx, {
       tenantId: context.tenantId,
       id: before.id,
