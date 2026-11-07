@@ -1,16 +1,22 @@
 import type { BusinessDb } from "@faridalms/database/business/client";
 import type { OperatorArea } from "@faridalms/domain/operators";
 
+import { eventsAbout } from "@faridalms/database/business/events";
 import {
   listOperators,
   setOperator,
 } from "@faridalms/database/business/operators";
-import { mayOperate, OPERATOR_ROLES } from "@faridalms/domain/operators";
+import {
+  mayOperate,
+  OPERATOR_ROLES,
+  QUIET_DAYS,
+} from "@faridalms/domain/operators";
 import { createServerFn } from "@tanstack/react-start";
 import * as v from "valibot";
 
 import { requireArea } from "./access";
 import { requireBusiness } from "./business";
+import { opsEnv } from "./env";
 import { PAYMOB_OPERATOR } from "./paymob";
 import { SYSTEM_OPERATOR } from "./publication";
 
@@ -43,17 +49,53 @@ const saveOperatorSchema = v.object({
   reason: v.pipe(v.string(), v.trim(), v.minLength(1), v.maxLength(500)),
 });
 
-/** Everyone who has signed in to the console, with their roles. */
+/**
+ * Who may sign in, as the console is set up: the identity provider's
+ * group, or the addresses it admits.
+ */
+export type Admission =
+  | { kind: "group"; group: string }
+  | { kind: "emails"; count: number };
+
+/**
+ * Everyone who has signed in to the console with their roles, the
+ * admitted addresses nobody has signed in with yet, and how access was
+ * given and taken.
+ */
 export const getOperators = createServerFn({ method: "GET" }).handler(
   async () => {
     const { operator } = await requireArea("operators");
-    const rows = await listOperators(requireBusiness());
+    const db = requireBusiness();
+    const env = opsEnv();
+    const [rows, events, names] = await Promise.all([
+      listOperators(db),
+      eventsAbout(db, ["operator"]),
+      operatorNames(db),
+    ]);
+    const known = new Set(
+      rows.flatMap((row) => (row.email ? [row.email] : [])),
+    );
+    const admission: Admission =
+      env.OPS_OIDC_GROUP === undefined
+        ? { kind: "emails", count: env.OPS_OIDC_EMAILS?.length ?? 0 }
+        : { kind: "group", group: env.OPS_OIDC_GROUP };
     return {
       me: operator.id,
+      admission,
       operators: rows.map((row) => ({
         ...row,
         lastSignedInAt: row.lastSignedInAt?.toISOString() ?? null,
+        quiet:
+          row.lastSignedInAt !== null &&
+          Date.now() - row.lastSignedInAt.getTime() >
+            QUIET_DAYS * 24 * 60 * 60 * 1000,
       })),
+      notSignedIn:
+        admission.kind === "emails"
+          ? (env.OPS_OIDC_EMAILS ?? []).filter((email) => !known.has(email))
+          : [],
+      events,
+      names,
     };
   },
 );

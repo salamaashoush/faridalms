@@ -45,7 +45,7 @@ test("the console keeps an owner", async ({ page }) => {
   await card.getByRole("checkbox", { name: /^Support/ }).check();
   await card.getByLabel("Why").fill("Trying to leave no owner");
   await card.getByRole("button", { name: "Save" }).click();
-  await expect(card.getByRole("alert")).toHaveText(
+  await expect(card.getByRole("group", { name: "Roles" })).toContainText(
     "The console needs at least one active owner. Make someone else an owner first.",
   );
 });

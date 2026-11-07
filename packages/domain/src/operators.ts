@@ -43,3 +43,9 @@ export function mayOperate(
  * school's data to support.
  */
 export const STEP_UP_MINUTES = 5;
+
+/**
+ * How long an operator with a role may go without signing in before an
+ * owner is asked whether they still need access.
+ */
+export const QUIET_DAYS = 90;
