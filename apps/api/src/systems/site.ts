@@ -30,16 +30,22 @@ import {
   publicPost,
   publicPosts,
   publicSchool,
+  publishedPageAddress,
   recentEnquiries,
+  redirectFrom,
   removeCategory,
   removePage,
+  removeRedirect,
   saveCategory,
+  saveRedirect,
   saveSiteSettings,
+  sitemapEntries,
   schoolToday,
   setPageInMenu,
   setPageState,
   siteCategories,
   sitePages,
+  siteRedirects,
   siteSettings,
   syncPublishedPlaces,
   updatePage,
@@ -50,6 +56,11 @@ import { readAnswers } from "@faridalms/domain/enquiries";
 import { clientAddress } from "@faridalms/domain/forwarded";
 import { paged, pageWindow } from "@faridalms/domain/paging";
 import { phaseOf } from "@faridalms/domain/publication";
+import {
+  redirectPath,
+  sitePagePath,
+  sitePostPath,
+} from "@faridalms/domain/site-seo";
 import {
   buildTemplate,
   STARTERS,
@@ -65,6 +76,7 @@ import {
 import {
   alignTranslation,
   applyStarterSchema,
+  blankPage,
   enquirySchema,
   localizedSections,
   movePageSchema,
@@ -74,16 +86,21 @@ import {
   pageIssues,
   pagePlainText,
   pageSectionSchema,
+  pageWarnings,
   publicPageSchema,
   publicPostSchema,
   publicPostsSchema,
+  publicRedirectSchema,
+  publicSitemapSchema,
   publicSiteSchema,
   publishSchema,
   saveCategorySchema,
   savePageSchema,
+  saveRedirectSchema,
   saveSettingsSchema,
   SITE_POSTS_PAGE_SIZE,
   siteRefSchema,
+  socialPictureSchema,
   translationGaps,
 } from "@faridalms/domain/website";
 import { ORPCError } from "@orpc/server";
@@ -193,7 +210,7 @@ function parsed<T>(
   return result.success ? result.output : fallback;
 }
 
-const EMPTY_PAGE: PageContent = { sections: [], description: "", reviewed: [] };
+const EMPTY_PAGE: PageContent = blankPage();
 
 async function pageDocuments(context: UnitContext, pageId: string) {
   const original = await documentOf(
@@ -396,6 +413,12 @@ export const page = readProcedure
         documents.translation,
         settings,
       ),
+      warnings: pageWarnings(
+        documents.content,
+        settings.bilingual ? documents.translation : null,
+        localesOf(settings),
+        settings.primaryLocale,
+      ),
       parents: pages
         .filter((other) => !below.has(other.id) && !other.isHome)
         .map((other) => ({
@@ -441,6 +464,7 @@ export const savePage = writeProcedure
       titleEn: input.titleEn,
       titleAr: input.titleAr,
       inMenu: input.inMenu,
+      indexed: input.indexed,
     };
     let pageId = input.id;
     let version: number;
@@ -589,7 +613,8 @@ async function publishOne(
     tenantId: context.tenantId,
     pageId: row.id,
   });
-  for (const locale of localesOf(settings))
+  for (const locale of localesOf(settings)) {
+    const own = locale === settings.primaryLocale ? content : translation;
     await writePublishedPage(context.tx, {
       tenantId: context.tenantId,
       orgId: context.schoolId,
@@ -603,13 +628,16 @@ async function publishOne(
           settings.primaryLocale,
           locale,
         ),
-        description:
-          (locale !== settings.primaryLocale && translation?.description) ||
-          content.description,
+        description: own?.description || content.description,
+        socialPicture: own?.socialPicture.fileId
+          ? own.socialPicture
+          : content.socialPicture,
+        canonical: own?.canonical ?? "",
       },
       media,
       visibleFrom: publishedAt,
     });
+  }
   await audit(context, {
     action: "site.page_publish",
     objectType: "site_page",
@@ -821,14 +849,11 @@ async function startPage(
     titleEn: plan.title[0],
     titleAr: plan.title[1],
     inMenu: true,
+    indexed: true,
     isHome: home,
   });
   const built = buildTemplate(plan.template, settings.primaryLocale);
-  const content: PageContent = {
-    sections: built.content,
-    description: "",
-    reviewed: [],
-  };
+  const content = blankPage(built.content);
   const host = pageHost(inserted.id);
   const original = await saveDocument(context.tx, {
     tenantId: context.tenantId,
@@ -842,11 +867,7 @@ async function startPage(
     userId: context.actor.userId,
   });
   if (settings.bilingual) {
-    const translation: PageContent = {
-      sections: built.translation,
-      description: "",
-      reviewed: [],
-    };
+    const translation = blankPage(built.translation);
     await saveTranslation(context.tx, {
       tenantId: context.tenantId,
       orgId: context.schoolId,
@@ -942,7 +963,7 @@ export const publicSite = publicProcedure
     withWebsite(
       context,
       input.school,
-      async ({ tx, tenantId, schoolId, portalHost, now }) => {
+      async ({ tx, tenantId, schoolId, portalHost, siteHost, now }) => {
         const settings = await liveSettings(tx, tenantId, schoolId);
         const locale = resolveLocale(settings, input.locale);
         const [school, menu, categories] = await Promise.all([
@@ -970,6 +991,7 @@ export const publicSite = publicProcedure
           digits: school.digits,
           timeZone: school.timeZone,
           portalHost,
+          siteHost,
           name: (locale === "ar" ? school.nameAr : null) || school.nameEn,
           tagline:
             (locale === "ar" ? settings.taglineAr : settings.taglineEn) ||
@@ -1091,6 +1113,12 @@ export const publicSitePage = publicProcedure
       )
         ? await publicIntakes(tx, { orgId: schoolId, today })
         : [];
+      const picture = parsed(
+        v.nullable(socialPictureSchema),
+        row.content.socialPicture ?? null,
+        null,
+      );
+      const pictureKey = picture?.fileId ? row.media[picture.fileId] : null;
       return {
         locale,
         title: row.title,
@@ -1100,6 +1128,22 @@ export const publicSitePage = publicProcedure
           typeof row.content.description === "string"
             ? row.content.description
             : "",
+        /** The page's address on the site, in its first language. */
+        path: sitePagePath(row),
+        /** The languages it is published in, its first language first. */
+        locales: row.locales.toSorted(
+          (a, b) =>
+            Number(b === settings.primaryLocale) -
+            Number(a === settings.primaryLocale),
+        ),
+        indexed: row.indexed,
+        canonical:
+          typeof row.content.canonical === "string"
+            ? row.content.canonical
+            : "",
+        socialPicture: pictureKey
+          ? { key: pictureKey, alt: picture?.alt ?? "" }
+          : null,
         media: row.media,
         news,
         events,
@@ -1108,6 +1152,121 @@ export const publicSitePage = publicProcedure
       };
     }),
   );
+
+/**
+ * Where an address that found nothing leads, if the school has sent it on:
+ * a path on its site, or an address elsewhere. A redirect to a page that is
+ * no longer published leads nowhere.
+ */
+export const publicSiteRedirect = publicProcedure
+  .input(publicRedirectSchema)
+  .handler(({ input, context }) =>
+    withWebsite(context, input.school, async ({ tx, tenantId, schoolId }) => {
+      await liveSettings(tx, tenantId, schoolId);
+      const fromPath = redirectPath(input.path);
+      if (!fromPath || fromPath === "/") return { to: null };
+      const found = await redirectFrom(tx, { orgId: schoolId, fromPath });
+      if (!found) return { to: null };
+      if (found.toUrl) return { to: found.toUrl };
+      const target = found.toPageId
+        ? await publishedPageAddress(tx, {
+            orgId: schoolId,
+            pageId: found.toPageId,
+          })
+        : null;
+      return { to: target ? sitePagePath(target) : null };
+    }),
+  );
+
+/**
+ * What the site's sitemap lists: each published page not kept out of
+ * search, and each post, in the languages they are written in.
+ */
+export const publicSitemap = publicProcedure
+  .input(publicSitemapSchema)
+  .handler(({ input, context }) =>
+    withWebsite(
+      context,
+      input.school,
+      async ({ tx, tenantId, schoolId, siteHost }) => {
+        const settings = await liveSettings(tx, tenantId, schoolId);
+        const rows = await sitemapEntries(tx, schoolId);
+        const entries = new Map<
+          string,
+          { path: string; locales: { locale: SiteLocale; lastmod: string }[] }
+        >();
+        for (const row of rows) {
+          const path =
+            row.kind === "page" ? sitePagePath(row) : sitePostPath(row.slug);
+          const entry = entries.get(path) ?? { path, locales: [] };
+          entry.locales.push({ locale: row.locale, lastmod: row.lastmod });
+          entries.set(path, entry);
+        }
+        return {
+          siteHost,
+          primaryLocale: settings.primaryLocale,
+          entries: [...entries.values()],
+        };
+      },
+    ),
+  );
+
+/** The school's redirects, with the page each leads to and who made it. */
+export const redirects = readProcedure.handler(async ({ context }) => {
+  requireCapability(context, "site:manage");
+  return siteRedirects(context.tx, context.tenantId, context.schoolId);
+});
+
+export const saveSiteRedirect = writeProcedure
+  .input(saveRedirectSchema)
+  .handler(async ({ input, context }) => {
+    requireCapability(context, "site:manage");
+    if (input.toPageId) await pageOfSchool(context, input.toPageId);
+    const saved = await saveRedirect(context.tx, {
+      tenantId: context.tenantId,
+      orgId: context.schoolId,
+      id: input.id,
+      expectedVersion: input.expectedVersion,
+      fromPath: input.from,
+      toPageId: input.toPageId || null,
+      toUrl: input.toUrl || null,
+      userId: context.actor.userId,
+    });
+    if (!saved) throw conflict();
+    await audit(context, {
+      action: input.id ? "site.redirect_update" : "site.redirect_create",
+      objectType: "org",
+      objectId: context.schoolId,
+      details: {
+        from: input.from,
+        toPageId: input.toPageId || null,
+        toUrl: input.toUrl || null,
+      },
+    });
+    return saved;
+  });
+
+export const removeSiteRedirect = writeProcedure
+  .input(siteRefSchema)
+  .handler(async ({ input, context }) => {
+    requireCapability(context, "site:manage");
+    if (
+      !(await removeRedirect(context.tx, {
+        tenantId: context.tenantId,
+        orgId: context.schoolId,
+        id: input.id,
+        expectedVersion: input.expectedVersion,
+      }))
+    )
+      throw conflict();
+    await audit(context, {
+      action: "site.redirect_delete",
+      objectType: "org",
+      objectId: context.schoolId,
+      details: { redirectId: input.id },
+    });
+    return { removed: true };
+  });
 
 export const publicSitePosts = publicProcedure
   .input(publicPostsSchema)

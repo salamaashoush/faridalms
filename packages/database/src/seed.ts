@@ -15,7 +15,11 @@ import {
   starterChrome,
 } from "@faridalms/domain/site-templates";
 import { DEFAULT_PERIODS, schoolDays } from "@faridalms/domain/timetable";
-import { localizedSections, pagePlainText } from "@faridalms/domain/website";
+import {
+  blankPage,
+  localizedSections,
+  pagePlainText,
+} from "@faridalms/domain/website";
 import { and, eq, sql } from "drizzle-orm";
 
 import type { CellTransaction, openOwner } from "./context";
@@ -3381,14 +3385,14 @@ async function seedSite(tx: Tx, tenantId: string, schoolId: string) {
       titleEn: plan.title[0],
       titleAr: plan.title[1],
       inMenu: true,
+      indexed: true,
       isHome: plan.home ?? false,
     });
     const host = { type: "site_page", id: created.id };
     const built = buildTemplate(plan.template, "en");
-    const content = { sections: built.content, description: "", reviewed: [] };
+    const content = blankPage(built.content);
     const translation = {
-      sections: built.translation,
-      description: "",
+      ...blankPage(built.translation),
       reviewed: built.translation.map((row) => row.id),
     };
     const original = await saveDocument(tx, {
@@ -3433,6 +3437,7 @@ async function seedSite(tx: Tx, tenantId: string, schoolId: string) {
       slug: plan.slug,
       isHome: plan.home ?? false,
       inMenu: true,
+      indexed: true,
       titleEn: plan.title[0],
       titleAr: plan.title[1],
       state: "published" as const,

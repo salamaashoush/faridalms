@@ -2,6 +2,7 @@ import type { PageSection } from "@faridalms/domain/website";
 import type { RouterClient } from "@orpc/server";
 
 import { plainContent } from "@faridalms/domain/content-conversion";
+import { platformName } from "@faridalms/domain/hosts";
 import { newSection } from "@faridalms/domain/website";
 import { createORPCClient } from "@orpc/client";
 import { RPCLink } from "@orpc/client/fetch";
@@ -11,6 +12,7 @@ import type { AppRouter } from "../src/router";
 
 import {
   client,
+  DOMAINS,
   login,
   raw,
   rejection,
@@ -514,6 +516,197 @@ describe("events on the website", () => {
     expect(after.events.find((row) => row.id === draft.id)).toMatchObject({
       titleAr: "صباح مفتوح",
       location: "Main hall",
+    });
+  });
+});
+
+const follow = (path: string) =>
+  visitor().publicSiteRedirect({ school: "northwind", path });
+
+describe("search engines and old addresses", () => {
+  test("a page names its social picture, own address and languages, and one kept out of search leaves the sitemap", async () => {
+    const { api, token } = await principal();
+    const file = await api.files.initiate({
+      purpose: "document_media",
+      name: "families.png",
+      mediaType: "image/png",
+      sizeBytes: PIXEL.byteLength,
+    });
+    const put = await raw("northwind", token, `/v1/files/${file.id}/content`, {
+      method: "PUT",
+      body: PIXEL,
+    });
+    expect(put.status).toBe(200);
+    const { pages } = await api.site.overview();
+    const parents = pages.find((row) => row.slug === "parents");
+    if (!parents) throw new Error("the seed has no parents page");
+    const opened = await api.site.page({ id: parents.id });
+    expect(opened.warnings).toEqual([
+      { locale: "en", code: "description" },
+      { locale: "ar", code: "description" },
+    ]);
+    const fields = {
+      id: parents.id,
+      parentId: "",
+      slug: "parents",
+      titleEn: opened.titleEn,
+      titleAr: opened.titleAr,
+      inMenu: true,
+    };
+    const saved = await api.site.savePage({
+      ...fields,
+      expectedVersion: opened.version,
+      content: {
+        ...opened.content,
+        description: "For families",
+        socialPicture: { fileId: file.id, alt: "Families at the gate" },
+        canonical: "https://example.org/parents",
+      },
+      translation: opened.translation && {
+        ...opened.translation,
+        description: "للأسر",
+      },
+    });
+    const described = await api.site.page({ id: parents.id });
+    expect(described.warnings).toEqual([]);
+    await api.site.publishPage({
+      id: parents.id,
+      expectedVersion: saved.version,
+    });
+
+    const read = (locale: "en" | "ar") =>
+      visitor().publicSitePage({
+        school: "northwind",
+        locale,
+        slug: parents.slug,
+      });
+    const english = await read("en");
+    expect(english).toMatchObject({
+      path: "/pages/parents",
+      locales: ["en", "ar"],
+      indexed: true,
+      canonical: "https://example.org/parents",
+      socialPicture: { alt: "Families at the gate" },
+    });
+    expect(english.socialPicture?.key).toBe(english.media[file.id]);
+    const arabic = await read("ar");
+    // The other language shows the first's picture and is its own address.
+    expect(arabic).toMatchObject({ description: "للأسر", canonical: "" });
+    expect(arabic.socialPicture?.key).toBe(english.socialPicture?.key);
+
+    const listed = await visitor().publicSitemap({ school: "northwind" });
+    expect(listed.siteHost).toBe(platformName("northwind", "site", DOMAINS));
+    expect(listed.primaryLocale).toBe("en");
+    const entry = listed.entries.find((row) => row.path === "/pages/parents");
+    expect(entry?.locales.map((row) => row.locale).toSorted()).toEqual([
+      "ar",
+      "en",
+    ]);
+    expect(listed.entries.map((row) => row.path)).toContain(
+      "/news/welcome-back",
+    );
+    expect(listed.entries.map((row) => row.path)).not.toContain(
+      "/news/sports-day",
+    );
+
+    const current = await api.site.page({ id: parents.id });
+    const hidden = await api.site.savePage({
+      ...fields,
+      expectedVersion: current.version,
+      indexed: false,
+      content: current.content,
+      translation: current.translation,
+    });
+    expect((await read("en")).indexed).toBe(true);
+    await api.site.publishPage({
+      id: parents.id,
+      expectedVersion: hidden.version,
+    });
+    expect((await read("en")).indexed).toBe(false);
+    const after = await visitor().publicSitemap({ school: "northwind" });
+    expect(after.entries.map((row) => row.path)).not.toContain(
+      "/pages/parents",
+    );
+  });
+
+  test("an old address leads on to a published page through its renames, or to another address", async () => {
+    const { api } = await principal();
+    const { pages } = await api.site.overview();
+    const academics = pages.find((row) => row.slug === "academics");
+    if (!academics) throw new Error("the seed has no academics page");
+    const created = await api.site.saveSiteRedirect({
+      id: "",
+      expectedVersion: 0,
+      from: "/Old-Academics.html",
+      toPageId: academics.id,
+      toUrl: "",
+    });
+    expect(await follow("/old-academics.html/?from=search")).toEqual({
+      to: "/pages/academics",
+    });
+    expect(await follow("/nothing-here")).toEqual({ to: null });
+    expect(await follow("/")).toEqual({ to: null });
+
+    expect(
+      await rejection(
+        api.site.saveSiteRedirect({
+          id: "",
+          expectedVersion: 0,
+          from: "/old-academics.html",
+          toPageId: "",
+          toUrl: "https://example.org",
+        }),
+      ),
+    ).toMatchObject({ code: "CONFLICT", message: "site.redirect_taken" });
+    const [listed] = await api.site.redirects();
+    expect(listed).toMatchObject({
+      fromPath: "/old-academics.html",
+      toPageId: academics.id,
+      toUrl: null,
+    });
+    expect(listed?.createdBy.en).toBeTruthy();
+
+    const moved = await api.site.saveSiteRedirect({
+      id: created.id,
+      expectedVersion: created.version,
+      from: "/old-academics.html",
+      toPageId: "",
+      toUrl: "https://example.org/learning",
+    });
+    expect(await follow("/old-academics.html")).toEqual({
+      to: "https://example.org/learning",
+    });
+
+    // A page nobody has published leads nowhere yet.
+    const draft = await api.site.savePage({
+      id: "",
+      expectedVersion: 0,
+      parentId: "",
+      slug: "sixth-form",
+      titleEn: "Sixth form",
+      titleAr: "",
+      inMenu: false,
+      content: { sections: [], description: "" },
+      translation: null,
+    });
+    await api.site.saveSiteRedirect({
+      id: "",
+      expectedVersion: 0,
+      from: "/sixth",
+      toPageId: draft.id,
+      toUrl: "",
+    });
+    expect(await follow("/sixth")).toEqual({ to: null });
+
+    await api.site.removeSiteRedirect({
+      id: moved.id,
+      expectedVersion: moved.version,
+    });
+    expect(await follow("/old-academics.html")).toEqual({ to: null });
+
+    const teacher = await signedIn("northwind", login("teacher"));
+    expect(await rejection(teacher.site.redirects())).toMatchObject({
+      code: "FORBIDDEN",
     });
   });
 });

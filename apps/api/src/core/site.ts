@@ -7,6 +7,7 @@ import {
   recordPublication,
   subjectsWithoutConsent,
 } from "@faridalms/database/stores/site";
+import { platformName } from "@faridalms/domain/hosts";
 import { availableModules } from "@faridalms/domain/plans";
 import { publicKeyFor } from "@faridalms/domain/website";
 import { ORPCError } from "@orpc/server";
@@ -21,6 +22,8 @@ export interface PublicUnit {
   schoolId: string;
   /** Where the school's portal answers, for the website's way to sign in. */
   portalHost: string;
+  /** Where the school's website answers, which its pages name as their own address. */
+  siteHost: string;
   now: Date;
 }
 
@@ -47,6 +50,9 @@ export async function withPublicSite<T>(
         tenantId: school.tenantId,
         schoolId: school.schoolId,
         portalHost: portalHost(school, context.domains),
+        siteHost:
+          school.hosts.site ??
+          platformName(school.slug, "site", context.domains),
         now,
       }),
   );

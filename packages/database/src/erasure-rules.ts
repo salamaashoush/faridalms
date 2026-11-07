@@ -284,6 +284,11 @@ export const ERASURE_RULES: Record<string, ErasureRule> = {
     why: "Names the member of staff who did it; the record belongs to the school.",
     reviewed: false,
   },
+  "core.site_redirects": {
+    rule: "kept",
+    why: "Names the member of staff who did it; the record belongs to the school.",
+    reviewed: false,
+  },
   "core.staff_absences": {
     rule: "kept",
     why: "The school's record of cover; how long to keep it is for review.",

@@ -99,6 +99,7 @@ export const CONFLICTS: Record<string, string> = {
   site_pages_slug_key: "site.slug_taken",
   site_pages_home_key: "site.home_exists",
   site_categories_slug_key: "site.slug_taken",
+  site_redirects_from_key: "site.redirect_taken",
   broadcasts_slug_key: "site.slug_taken",
   site_published_pages_key: "conflict.version",
   site_published_posts_key: "conflict.version",

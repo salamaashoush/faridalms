@@ -137,6 +137,7 @@ export interface PageRow {
   slug: string;
   isHome: boolean;
   inMenu: boolean;
+  indexed: boolean;
   titleEn: string;
   titleAr: string;
   state: SiteState;
@@ -153,6 +154,7 @@ type PageRecord = {
   slug: string;
   is_home: boolean;
   in_menu: boolean;
+  indexed: boolean;
   title_en: string;
   title_ar: string;
   state: SiteState;
@@ -160,7 +162,7 @@ type PageRecord = {
   revised_at: string | null;
 };
 
-const pageColumns = sql`id, version, org_id, parent_id, position, slug, is_home, in_menu,
+const pageColumns = sql`id, version, org_id, parent_id, position, slug, is_home, in_menu, indexed,
   title_en, title_ar, state, ${isoOf(sql`published_at`)} as published_at,
   ${isoOf(sql`revised_at`)} as revised_at`;
 
@@ -174,6 +176,7 @@ function pageOf(row: PageRecord): PageRow {
     slug: row.slug,
     isHome: row.is_home,
     inMenu: row.in_menu,
+    indexed: row.indexed,
     titleEn: row.title_en,
     titleAr: row.title_ar,
     state: row.state,
@@ -212,6 +215,7 @@ export interface PageFields {
   titleEn: string;
   titleAr: string;
   inMenu: boolean;
+  indexed: boolean;
 }
 
 export async function insertPage(
@@ -225,13 +229,13 @@ export async function insertPage(
 ): Promise<{ id: string; version: number }> {
   const [row] = await tx.execute<{ id: string; version: number }>(sql`
     insert into core.site_pages (tenant_id, org_id, parent_id, position, slug, is_home,
-      in_menu, title_en, title_ar, author_user_id)
+      in_menu, indexed, title_en, title_ar, author_user_id)
     values (${input.tenantId}::uuid, ${input.orgId}::uuid,
       ${input.parentId}::uuid,
       (select coalesce(max(position) + 1, 0) from core.site_pages
         where tenant_id = ${input.tenantId}::uuid and org_id = ${input.orgId}::uuid
           and parent_id is not distinct from ${input.parentId}::uuid and status = 'active'),
-      ${input.slug}, ${input.isHome ?? false}, ${input.inMenu}, ${input.titleEn}, ${input.titleAr},
+      ${input.slug}, ${input.isHome ?? false}, ${input.inMenu}, ${input.indexed}, ${input.titleEn}, ${input.titleAr},
       ${input.authorId}::uuid)
     returning id, version`);
   if (!row) throw new Error("page was not inserted");
@@ -250,7 +254,7 @@ export async function updatePage(
   const [row] = await tx.execute<{ version: number }>(sql`
     update core.site_pages
     set slug = ${input.slug}, title_en = ${input.titleEn}, title_ar = ${input.titleAr},
-        in_menu = ${input.inMenu},
+        in_menu = ${input.inMenu}, indexed = ${input.indexed},
         revised_at = case when state = 'published' then statement_timestamp() else revised_at end
     where tenant_id = ${input.tenantId}::uuid and id = ${input.id}::uuid
       and version = ${input.expectedVersion} and status = 'active'
@@ -354,7 +358,7 @@ export async function writePublishedPage(
   const [updated] = await tx.execute<{ id: string }>(sql`
     update core.site_published_pages
     set slug = ${page.slug}, parent_id = ${page.parentId}::uuid, position = ${page.position},
-        is_home = ${page.isHome}, in_menu = ${page.inMenu}, title = ${input.title},
+        is_home = ${page.isHome}, in_menu = ${page.inMenu}, indexed = ${page.indexed}, title = ${input.title},
         content = ${input.content}::jsonb, media = ${input.media}::jsonb,
         visible_from = ${input.visibleFrom}::timestamptz
     where tenant_id = ${input.tenantId}::uuid and page_id = ${page.id}::uuid
@@ -363,10 +367,10 @@ export async function writePublishedPage(
   if (updated) return;
   await tx.execute(sql`
     insert into core.site_published_pages (tenant_id, page_id, org_id, locale, slug,
-      parent_id, position, is_home, in_menu, title, content, media, visible_from)
+      parent_id, position, is_home, in_menu, indexed, title, content, media, visible_from)
     values (${input.tenantId}::uuid, ${page.id}::uuid, ${input.orgId}::uuid,
       ${input.locale},
-      ${page.slug}, ${page.parentId}::uuid, ${page.position}, ${page.isHome}, ${page.inMenu},
+      ${page.slug}, ${page.parentId}::uuid, ${page.position}, ${page.isHome}, ${page.inMenu}, ${page.indexed},
       ${input.title}, ${input.content}::jsonb, ${input.media}::jsonb,
       ${input.visibleFrom}::timestamptz)`);
 }
@@ -686,9 +690,12 @@ export interface PublicPage {
   pageId: string;
   slug: string;
   isHome: boolean;
+  indexed: boolean;
   title: string;
   content: Record<string, unknown>;
   media: Record<string, string>;
+  /** The languages the page is published in its own words. */
+  locales: SiteLocale[];
 }
 
 export interface MenuEntry {
@@ -723,32 +730,212 @@ export async function publicMenu(
   }));
 }
 
+/**
+ * Whether a published copy is in its own language: the other language of a
+ * page whose translation was never written shows only the first's words.
+ */
+const speaks = (alias: string) => {
+  const copy = sql.identifier(alias);
+  return sql`exists (select 1 from jsonb_array_elements(${copy}.content->'sections') e
+    where e->>'locale' = ${copy}.locale)`;
+};
+
 export async function publicPage(
   tx: Tx,
   input: { orgId: string; locale: SiteLocale; slug: string },
 ): Promise<PublicPage | null> {
-  const which = input.slug ? sql`slug = ${input.slug}` : sql`is_home`;
+  const which = input.slug ? sql`p.slug = ${input.slug}` : sql`p.is_home`;
   const [row] = await tx.execute<{
     page_id: string;
     slug: string;
     is_home: boolean;
+    indexed: boolean;
     title: string;
     content: Record<string, unknown>;
     media: Record<string, string>;
+    locales: SiteLocale[];
   }>(sql`
-    select page_id, slug, is_home, title, content, media from core.site_published_pages
-    where org_id = ${input.orgId}::uuid and locale = ${input.locale} and ${which}
+    select p.page_id, p.slug, p.is_home, p.indexed, p.title, p.content, p.media,
+      array(select o.locale from core.site_published_pages o
+        where o.org_id = p.org_id and o.page_id = p.page_id and ${speaks("o")}
+        order by o.locale)::text[] as locales
+    from core.site_published_pages p
+    where p.org_id = ${input.orgId}::uuid and p.locale = ${input.locale} and ${which}
     limit 1`);
   return row
     ? {
         pageId: row.page_id,
         slug: row.slug,
         isHome: row.is_home,
+        indexed: row.indexed,
         title: row.title,
         content: row.content,
         media: row.media,
+        locales: row.locales,
       }
     : null;
+}
+
+/** Where a published page answers on the site, for a redirect to it. */
+export async function publishedPageAddress(
+  tx: Tx,
+  input: { orgId: string; pageId: string },
+): Promise<{ slug: string; isHome: boolean } | null> {
+  const [row] = await tx.execute<{ slug: string; is_home: boolean }>(sql`
+    select slug, is_home from core.site_published_pages
+    where org_id = ${input.orgId}::uuid and page_id = ${input.pageId}::uuid
+    limit 1`);
+  return row ? { slug: row.slug, isHome: row.is_home } : null;
+}
+
+export interface SitemapRow {
+  kind: "page" | "post";
+  slug: string;
+  isHome: boolean;
+  locale: SiteLocale;
+  lastmod: string;
+}
+
+/**
+ * Everything the site publishes for search engines: each page that is not
+ * kept out of search and each post, in every language it is written in,
+ * with when that copy was last published.
+ */
+export async function sitemapEntries(
+  tx: Tx,
+  orgId: string,
+): Promise<SitemapRow[]> {
+  const rows = await tx.execute<{
+    kind: "page" | "post";
+    slug: string;
+    is_home: boolean;
+    locale: SiteLocale;
+    lastmod: string;
+  }>(sql`
+    select 'page' as kind, p.slug, p.is_home, p.locale,
+      ${isoOf(sql`p.visible_from`)} as lastmod, p.position as place
+    from core.site_published_pages p
+    where p.org_id = ${orgId}::uuid and p.indexed and ${speaks("p")}
+    union all
+    select 'post', s.slug, false, s.locale, ${isoOf(sql`s.visible_from`)}, 1000
+    from core.site_published_posts s
+    where s.org_id = ${orgId}::uuid
+      and coalesce(s.content->>'locale', s.locale) = s.locale
+    order by kind, is_home desc, place, slug, locale`);
+  return rows.map((row) => ({
+    kind: row.kind,
+    slug: row.slug,
+    isHome: row.is_home,
+    locale: row.locale,
+    lastmod: row.lastmod,
+  }));
+}
+
+export interface RedirectRow {
+  id: string;
+  version: number;
+  fromPath: string;
+  toPageId: string | null;
+  toUrl: string | null;
+  createdBy: { en: string | null; ar: string | null };
+  createdAt: string;
+}
+
+/** The school's redirects, by the address they come from. */
+export async function siteRedirects(
+  tx: Tx,
+  tenantId: string,
+  orgId: string,
+): Promise<RedirectRow[]> {
+  const rows = await tx.execute<{
+    id: string;
+    version: number;
+    from_path: string;
+    to_page_id: string | null;
+    to_url: string | null;
+    by_en: string | null;
+    by_ar: string | null;
+    created_at: string;
+  }>(sql`
+    select r.id, r.version, r.from_path, r.to_page_id, r.to_url,
+      u.full_name_en as by_en, u.full_name_ar as by_ar,
+      ${isoOf(sql`r.created_at`)} as created_at
+    from core.site_redirects r
+    join core.users u on u.tenant_id = r.tenant_id and u.id = r.created_by_user_id
+    where r.tenant_id = ${tenantId}::uuid and r.org_id = ${orgId}::uuid and r.status = 'active'
+    order by r.from_path, r.id`);
+  return rows.map((row) => ({
+    id: row.id,
+    version: row.version,
+    fromPath: row.from_path,
+    toPageId: row.to_page_id,
+    toUrl: row.to_url,
+    createdBy: { en: row.by_en, ar: row.by_ar },
+    createdAt: row.created_at,
+  }));
+}
+
+export async function saveRedirect(
+  tx: Tx,
+  input: {
+    tenantId: string;
+    orgId: string;
+    id: string;
+    expectedVersion: number;
+    fromPath: string;
+    toPageId: string | null;
+    toUrl: string | null;
+    userId: string;
+  },
+): Promise<{ id: string; version: number } | null> {
+  if (!input.id) {
+    const [row] = await tx.execute<{ id: string; version: number }>(sql`
+      insert into core.site_redirects (tenant_id, org_id, from_path, to_page_id, to_url,
+        created_by_user_id)
+      values (${input.tenantId}::uuid, ${input.orgId}::uuid, ${input.fromPath},
+        ${input.toPageId}::uuid, ${input.toUrl}, ${input.userId}::uuid)
+      returning id, version`);
+    return row ?? null;
+  }
+  const [row] = await tx.execute<{ id: string; version: number }>(sql`
+    update core.site_redirects
+    set from_path = ${input.fromPath}, to_page_id = ${input.toPageId}::uuid, to_url = ${input.toUrl}
+    where tenant_id = ${input.tenantId}::uuid and org_id = ${input.orgId}::uuid
+      and id = ${input.id}::uuid and version = ${input.expectedVersion} and status = 'active'
+    returning id, version`);
+  return row ?? null;
+}
+
+export async function removeRedirect(
+  tx: Tx,
+  input: {
+    tenantId: string;
+    orgId: string;
+    id: string;
+    expectedVersion: number;
+  },
+): Promise<boolean> {
+  const [row] = await tx.execute<{ id: string }>(sql`
+    update core.site_redirects set status = 'tobedeleted'
+    where tenant_id = ${input.tenantId}::uuid and org_id = ${input.orgId}::uuid
+      and id = ${input.id}::uuid and version = ${input.expectedVersion} and status = 'active'
+    returning id`);
+  return Boolean(row);
+}
+
+/** Where an old address leads, for a visitor whose address found nothing. */
+export async function redirectFrom(
+  tx: Tx,
+  input: { orgId: string; fromPath: string },
+): Promise<{ toPageId: string | null; toUrl: string | null } | null> {
+  const [row] = await tx.execute<{
+    to_page_id: string | null;
+    to_url: string | null;
+  }>(sql`
+    select to_page_id, to_url from core.site_redirects
+    where org_id = ${input.orgId}::uuid and from_path = ${input.fromPath}
+    limit 1`);
+  return row ? { toPageId: row.to_page_id, toUrl: row.to_url } : null;
 }
 
 export interface PublicPost {

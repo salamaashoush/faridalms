@@ -131,8 +131,9 @@ export const siteSettings = core.table.withRLS(
 
 /**
  * A page of the website. The page tree is the site's menu: `parent_id` and
- * `position` order it and `in_menu` hides a page from it. Its sections are
- * the document hosted as `site_page`, with the other language as that
+ * `position` order it and `in_menu` hides a page from it. `indexed` false
+ * keeps it out of search engines and the sitemap. Its sections are the
+ * document hosted as `site_page`, with the other language as that
  * document's translation. Visitors read the copy in `site_published_pages`,
  * so edits after publishing stay private; `revised_at` marks those edits.
  */
@@ -146,6 +147,7 @@ export const sitePages = core.table.withRLS(
     slug: text("slug").notNull(),
     isHome: boolean("is_home").notNull().default(false),
     inMenu: boolean("in_menu").notNull().default(true),
+    indexed: boolean("indexed").notNull().default(true),
     titleEn: text("title_en").notNull().default(""),
     titleAr: text("title_ar").notNull().default(""),
     state: text("state").$type<SiteState>().notNull().default("draft"),
@@ -227,6 +229,56 @@ export const siteCategories = core.table.withRLS(
   ],
 );
 
+/**
+ * An old address of the school's site that visitors and search engines are
+ * sent on from, permanently: to a page, followed through renames, or to
+ * `to_url`, a path on the site or an address elsewhere. A visitor is sent
+ * on only from an address that finds nothing else.
+ */
+export const siteRedirects = core.table.withRLS(
+  "site_redirects",
+  {
+    ...tenantColumns(),
+    orgId: uuid("org_id").notNull(),
+    fromPath: text("from_path").notNull(),
+    toPageId: uuid("to_page_id"),
+    toUrl: text("to_url"),
+    createdByUserId: uuid("created_by_user_id").notNull(),
+    ...entityColumns(),
+  },
+  (t): PgTableExtraConfigValue[] => [
+    pk("site_redirects", t.tenantId, t.id),
+    ...baseConstraints("site_redirects", t, tenants),
+    fk("site_redirects", [t.tenantId, t.orgId], [orgs.tenantId, orgs.id]),
+    fk(
+      "site_redirects",
+      [t.tenantId, t.toPageId],
+      [sitePages.tenantId, sitePages.id],
+    ),
+    fk(
+      "site_redirects",
+      [t.tenantId, t.createdByUserId],
+      [users.tenantId, users.id],
+    ),
+    ck(
+      "site_redirects",
+      "from_path",
+      sql`char_length(from_path) between 2 and 300 and from_path like '/%' and from_path not like '//%'`,
+    ),
+    ck("site_redirects", "to_url", sql`char_length(to_url) between 1 and 2048`),
+    ck(
+      "site_redirects",
+      "target",
+      sql`(to_page_id is null) <> (to_url is null)`,
+    ),
+    uniqueIndex("site_redirects_from_key")
+      .on(t.tenantId, t.orgId, t.fromPath)
+      .where(sql`status = 'active'`),
+    ...entityProfile(),
+    siteRead(),
+  ],
+);
+
 const visible = sql`visible_from <= statement_timestamp()`;
 
 /**
@@ -247,6 +299,7 @@ export const sitePublishedPages = core.table.withRLS(
     position: smallint("position").notNull(),
     isHome: boolean("is_home").notNull(),
     inMenu: boolean("in_menu").notNull(),
+    indexed: boolean("indexed").notNull().default(true),
     title: text("title").notNull(),
     content: jsonb("content").$type<Record<string, unknown>>().notNull(),
     media: jsonb("media")
