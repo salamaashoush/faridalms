@@ -10,11 +10,7 @@ import {
   contentPlainText,
   readingStats,
 } from "@faridalms/domain/content";
-import { $isCodeNode, CodeNode } from "@lexical/code";
-import {
-  CodePrismExtension,
-  getCodeLanguageOptions,
-} from "@lexical/code-prism";
+import { CodePrismExtension } from "@lexical/code-prism";
 import { HistoryExtension } from "@lexical/history";
 import { registerMarkdownShortcuts } from "@lexical/markdown";
 import { LexicalCollaboration } from "@lexical/react/LexicalCollaborationContext";
@@ -24,7 +20,6 @@ import { ContentEditable } from "@lexical/react/LexicalContentEditable";
 import { LexicalExtensionComposer } from "@lexical/react/LexicalExtensionComposer";
 import { mergeRegister } from "@lexical/utils";
 import {
-  $getNodeByKey,
   $getRoot,
   $parseSerializedNode,
   $setSelection,
@@ -48,22 +43,19 @@ import type {
 } from "./context";
 import type { EditorStrings } from "./strings";
 
-import { $currentBlock } from "./blocks";
 import { EditorEnvironmentProvider, useEditorEnvironment } from "./context";
 import { ShortcutsExtension } from "./extensions";
 import { editorFrame } from "./frame";
 import { contentExtensions } from "./headless";
 import { markdownShortcuts } from "./markdown";
 import {
-  $codeRunOf,
-  $setCodeRun,
-  runnableLanguage,
   setArabicNotation,
   setPartPictureUrl,
   setQuestionLabels,
 } from "./nodes";
 import { BankPlugin } from "./plugins/bank";
 import { BlockHandlePlugin } from "./plugins/BlockHandle";
+import { CodeBlockPlugin } from "./plugins/code-block";
 import { DiagramPlugin } from "./plugins/diagram";
 import { DirectionPlugin } from "./plugins/Direction";
 import { DocumentStatus } from "./plugins/document-status";
@@ -577,7 +569,7 @@ function Surface({
           className={editorFrame.editable(document)}
         />
         <BlockHandlePlugin anchor={anchor} />
-        <CodeLanguagePlugin anchor={anchor} />
+        <CodeBlockPlugin anchor={anchor} />
         <TablePlugin anchor={anchor} />
       </div>
       <DirectionPlugin language={language} />
@@ -618,134 +610,6 @@ function Surface({
           {strings.invalid}
         </p>
       ) : null}
-    </div>
-  );
-}
-
-function CodeLanguagePlugin({ anchor }: { anchor: HTMLElement | null }) {
-  const [editor] = useLexicalComposerContext();
-  const { strings } = useEditorEnvironment();
-  const [code, setCode] = useState<{
-    key: string;
-    language: string;
-    run: string;
-    top: number;
-    left: number;
-  } | null>(null);
-  const options = useMemo(() => getCodeLanguageOptions(), []);
-
-  // A code block students can run says so, since its controls show only
-  // while the caret is in it.
-  useEffect(
-    () =>
-      editor.registerMutationListener(
-        CodeNode,
-        (mutations) => {
-          editor.getEditorState().read(() => {
-            for (const [key, mutation] of mutations) {
-              if (mutation === "destroyed") continue;
-              const node = $getNodeByKey(key);
-              const element = editor.getElementByKey(key);
-              if (!$isCodeNode(node) || !element) continue;
-              const run = runnableLanguage(node.getLanguage())
-                ? $codeRunOf(node)
-                : null;
-              if (run) {
-                element.dataset.run = run;
-                element.dataset.runLabel =
-                  run === "predict" ? strings.codePredict : strings.codeRun;
-              } else {
-                delete element.dataset.run;
-                delete element.dataset.runLabel;
-              }
-            }
-          });
-        },
-        { skipInitialization: false },
-      ),
-    [editor, strings],
-  );
-
-  useEffect(
-    () =>
-      editor.registerUpdateListener(({ editorState }) => {
-        const found = editorState.read(() => {
-          const block = $currentBlock();
-          return $isCodeNode(block)
-            ? {
-                key: block.getKey(),
-                language: block.getLanguage() ?? "",
-                run: $codeRunOf(block) ?? "",
-              }
-            : null;
-        });
-        const element = found ? editor.getElementByKey(found.key) : null;
-        if (!found || !element || !anchor) {
-          setCode(null);
-          return;
-        }
-        const box = anchor.getBoundingClientRect();
-        const rect = element.getBoundingClientRect();
-        setCode({
-          ...found,
-          top: Math.round(rect.top - box.top + anchor.scrollTop + 6),
-          left: Math.round(rect.right - box.left - 6),
-        });
-      }),
-    [editor, anchor],
-  );
-
-  if (!code || !editor.isEditable()) return null;
-  const select =
-    "h-7 rounded-md border bg-background/90 px-1.5 text-xs text-muted-foreground outline-none hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring/30";
-  return (
-    <div
-      style={{ top: code.top, left: code.left, transform: "translateX(-100%)" }}
-      className="absolute z-10 flex gap-1.5"
-    >
-      {runnableLanguage(code.language) ? (
-        <select
-          aria-label={strings.codeStudents}
-          value={code.run}
-          onChange={(event) => {
-            const run = event.target.value;
-            editor.update(() => {
-              const node = $getNodeByKey(code.key);
-              if ($isCodeNode(node))
-                $setCodeRun(
-                  node,
-                  run === "run" || run === "predict" ? run : null,
-                );
-            });
-          }}
-          className={select}
-        >
-          <option value="">{strings.codeRead}</option>
-          <option value="run">{strings.codeRun}</option>
-          <option value="predict">{strings.codePredict}</option>
-        </select>
-      ) : null}
-      <select
-        aria-label={strings.codeLanguage}
-        value={code.language}
-        onChange={(event) => {
-          const language = event.target.value;
-          editor.update(() => {
-            const node = $getNodeByKey(code.key);
-            if (!$isCodeNode(node)) return;
-            node.setLanguage(language || null);
-            if (!runnableLanguage(language)) $setCodeRun(node, null);
-          });
-        }}
-        className={select}
-      >
-        <option value="">{strings.plainText}</option>
-        {options.map(([value, name]) => (
-          <option key={value} value={value}>
-            {name}
-          </option>
-        ))}
-      </select>
     </div>
   );
 }

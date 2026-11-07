@@ -715,6 +715,8 @@ export interface EditorStrings
   /** A recording students may seek in only as far as they have played. */
   mediaNoSkipping: string;
   codeRead: string;
+  codeCopy: string;
+  codeCopied: string;
   codeRun: string;
   codePredict: string;
   aiUse: string;

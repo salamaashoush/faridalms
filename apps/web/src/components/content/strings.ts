@@ -815,6 +815,8 @@ export function editorStrings(): EditorStrings {
     codeStudents: m.editorCodeStudents(),
     mediaNoSkipping: m.editorMediaNoSkipping(),
     codeRead: m.editorCodeRead(),
+    codeCopy: m.editorCodeCopy(),
+    codeCopied: m.editorCodeCopied(),
     codeRun: m.editorCodeRun(),
     codePredict: m.editorCodePredict(),
     ...aiUseStrings(),

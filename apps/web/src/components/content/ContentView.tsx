@@ -181,6 +181,8 @@ export function ContentView({
         chartOther: m.editorChartOther({}, { locale }),
         chartEmpty: m.editorChartEmpty({}, { locale }),
         ltiOpen: m.ltiOpen({}, { locale }),
+        codeCopy: m.editorCodeCopy({}, { locale }),
+        codeCopied: m.editorCodeCopied({}, { locale }),
       }}
       fileUrl={fileUrl}
       locale={locale}

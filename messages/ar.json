@@ -1455,6 +1455,8 @@
   "editorCodeStudents": "ما يفعله الطلاب بهذه الشفرة",
   "editorMediaNoSkipping": "دون تخطٍّ للأمام",
   "editorCodeRead": "يقرؤونها",
+  "editorCodeCopy": "نسخ الشفرة",
+  "editorCodeCopied": "تم النسخ",
   "editorCodeRun": "يشغّلونها",
   "editorCodePredict": "يتوقعون ثم يشغّلون",
   "editorColorGray": "رمادي",

@@ -45,7 +45,7 @@ import {
   termEntry,
 } from "@faridalms/domain/glossary";
 import { languageDirection } from "@faridalms/domain/translations";
-import { ExternalLink, Target } from "lucide-react";
+import { Check, Copy, ExternalLink, Target } from "lucide-react";
 import {
   cloneElement,
   createContext,
@@ -54,6 +54,7 @@ import {
   isValidElement,
   useContext,
   useId,
+  useState,
 } from "react";
 
 import type { AiUseViewStrings } from "./ai-use-view";
@@ -69,6 +70,7 @@ import type { MediaWatch } from "./player";
 import { AiUseView } from "./ai-use-view";
 import { BibliographyList } from "./bibliography-view";
 import { ChartView } from "./chart-view";
+import { codeGutter, codeLanguageName } from "./code-language";
 import { useFileFacts } from "./file-facts";
 import { FileCard, PictureView, StoredImage } from "./files";
 import {
@@ -114,6 +116,8 @@ export interface ViewStrings
   footnoteRef: (number: number) => string;
   footnoteBack: (number: number) => string;
   ltiOpen: string;
+  codeCopy: string;
+  codeCopied: string;
 }
 
 /** A passage drawn marked in the reader, as a comment points at it. */
@@ -479,24 +483,36 @@ function draw(
         </blockquote>
       );
     case "code": {
+      const source = codeSource(node);
       const drawn = (
-        <pre key={key} className="fe-code-block" data-language={node.language}>
+        <pre
+          key={key}
+          className="fe-code-block"
+          data-language={node.language}
+          data-label={codeLanguageName(node.language) ?? undefined}
+          data-gutter={codeGutter(source)}
+        >
           <code>{children}</code>
         </pre>
       );
       const run = node.$?.run;
       const Runnable = context.runnable;
-      return run && Runnable ? (
+      if (!(run && Runnable))
+        return (
+          <div key={key} className="fe-code-wrap">
+            {drawn}
+            <CopyCode source={source} strings={context.strings} />
+          </div>
+        );
+      return (
         <Runnable
           key={key}
           blockId={node.$?.id}
-          source={codeSource(node)}
+          source={source}
           language={node.language ?? ""}
           drawn={drawn}
           locked={run === "predict" && context.predicted === false}
         />
-      ) : (
-        drawn
       );
     }
     case "math":
@@ -1096,6 +1112,32 @@ function draw(
       return undrawn;
     }
   }
+}
+
+interface CopyCodeProps {
+  source: string;
+  strings: Pick<ViewStrings, "codeCopy" | "codeCopied">;
+}
+
+function CopyCode({ source, strings }: CopyCodeProps) {
+  const [copied, setCopied] = useState(false);
+  const label = copied ? strings.codeCopied : strings.codeCopy;
+  return (
+    <button
+      type="button"
+      aria-label={label}
+      title={label}
+      onClick={() =>
+        void navigator.clipboard.writeText(source).then(() => {
+          setCopied(true);
+          setTimeout(() => setCopied(false), 1500);
+        })
+      }
+      className="fe-code-copy"
+    >
+      {copied ? <Check aria-hidden /> : <Copy aria-hidden />}
+    </button>
+  );
 }
 
 function ReadFile({

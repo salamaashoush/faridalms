@@ -1369,6 +1369,8 @@
   "editorCodeStudents": "What students do with this code",
   "editorMediaNoSkipping": "No skipping ahead",
   "editorCodeRead": "Read it",
+  "editorCodeCopy": "Copy code",
+  "editorCodeCopied": "Copied",
   "editorCodeRun": "Run it",
   "editorCodePredict": "Predict, then run it",
   "editorColorGray": "Grey",
