@@ -16,6 +16,7 @@ import {
 } from "@faridalms/domain/subscriptions";
 import { Button } from "@faridalms/ui/button";
 import { SelectField, TextField } from "@faridalms/ui/system/form-field";
+import { Page } from "@faridalms/ui/system/page";
 import { PageHeader } from "@faridalms/ui/system/page-header";
 import {
   Fact,
@@ -138,7 +139,7 @@ function Catalogue() {
   };
   const done = () => setEditing(null);
   return (
-    <>
+    <Page width="list">
       <PageHeader
         title="Catalogue"
         description="A version never changes: a new price, module or limit is a new version, and a contract keeps the version it bought."
@@ -258,7 +259,7 @@ function Catalogue() {
       {editing?.kind === "add_on" ? (
         <AddOnForm key={opened} from={editing.from} onDone={done} />
       ) : null}
-    </>
+    </Page>
   );
 }
 

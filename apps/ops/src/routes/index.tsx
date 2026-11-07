@@ -1,6 +1,7 @@
 import { STALL_DAYS } from "@faridalms/domain/onboarding";
 import { Progress } from "@faridalms/ui/progress";
 import { Metric, MetricGrid } from "@faridalms/ui/system/metrics";
+import { Page } from "@faridalms/ui/system/page";
 import { PageHeader } from "@faridalms/ui/system/page-header";
 import { useDesignSystem } from "@faridalms/ui/system/provider";
 import {
@@ -198,7 +199,7 @@ function Home() {
   const data = Route.useLoaderData();
   const mayCustomers = useMay("customers");
   return (
-    <>
+    <Page width="list">
       <PageHeader
         title="Home"
         description="How the schools are doing and what needs someone today."
@@ -239,6 +240,6 @@ function Home() {
           }
         />
       </div>
-    </>
+    </Page>
   );
 }

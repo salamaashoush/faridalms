@@ -1,5 +1,6 @@
 import type { Change } from "@faridalms/database/directory/admin";
 
+import { Page } from "@faridalms/ui/system/page";
 import { PageHeader } from "@faridalms/ui/system/page-header";
 import { RecordSection } from "@faridalms/ui/system/record-page";
 import { createFileRoute } from "@tanstack/react-router";
@@ -34,7 +35,7 @@ function Changes() {
   const subjectName = (change: Change) =>
     subjects.get(change.subjectId) ?? change.subjectId;
   return (
-    <div className="grid max-w-4xl">
+    <Page width="list">
       <PageHeader
         title="Changes"
         description="Everything operators changed in the directory, newest first, with the reason given."
@@ -42,6 +43,6 @@ function Changes() {
       <RecordSection title="Change log">
         <ChangeList changes={changes} names={names} subjectName={subjectName} />
       </RecordSection>
-    </div>
+    </Page>
   );
 }

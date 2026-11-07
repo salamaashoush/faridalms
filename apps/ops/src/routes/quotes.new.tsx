@@ -1,5 +1,6 @@
 import { addDays } from "@faridalms/domain/school";
 import { ButtonLink } from "@faridalms/ui/system/button-link";
+import { Page } from "@faridalms/ui/system/page";
 import { PageHeader } from "@faridalms/ui/system/page-header";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
@@ -30,7 +31,7 @@ function NewQuote() {
   const add = useServerFn(addQuote);
   const { party } = data;
   return (
-    <div className="grid">
+    <Page width="form">
       <PageHeader
         title="New quote"
         description={`For ${party.name}. VAT follows ${party.country ?? "the lead's country, once it is given"}; it stays a draft until it is marked sent.`}
@@ -93,6 +94,6 @@ function NewQuote() {
           }
         }}
       />
-    </div>
+    </Page>
   );
 }

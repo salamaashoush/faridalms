@@ -8,6 +8,7 @@ import {
   SelectField,
   TextField,
 } from "@faridalms/ui/system/form-field";
+import { Page } from "@faridalms/ui/system/page";
 import { PageHeader } from "@faridalms/ui/system/page-header";
 import { RecordSection } from "@faridalms/ui/system/record-page";
 import { SheetForm } from "@faridalms/ui/system/sheet-form";
@@ -212,7 +213,7 @@ function SeriesPage() {
     setEditing(draft);
   };
   return (
-    <>
+    <Page width="list">
       <PageHeader
         title="Exam sessions"
         count={series.length}
@@ -269,6 +270,6 @@ function SeriesPage() {
         draft={editing}
         onClose={() => setEditing(null)}
       />
-    </>
+    </Page>
   );
 }

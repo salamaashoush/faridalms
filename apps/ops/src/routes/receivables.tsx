@@ -5,6 +5,7 @@ import type { Column, DataTableCard } from "@faridalms/ui/system/data-table";
 import { AGING_BUCKETS } from "@faridalms/domain/dunning";
 import { DataTable, RowLink } from "@faridalms/ui/system/data-table";
 import { Metric, MetricGrid } from "@faridalms/ui/system/metrics";
+import { Page } from "@faridalms/ui/system/page";
 import { PageHeader } from "@faridalms/ui/system/page-header";
 import { useDesignSystem } from "@faridalms/ui/system/provider";
 import { RecordSection } from "@faridalms/ui/system/record-page";
@@ -138,7 +139,7 @@ function Receivables() {
   const { formatNumber } = useDesignSystem();
   const totals = totalsOf(data.rows);
   return (
-    <>
+    <Page width="list">
       <PageHeader
         title="Receivables"
         description="Reminders go a week before an invoice is due, on the day, then after 7 and 14 days. A school is restricted at 30 days, read-only at 60 and suspended at 90, each at the start of its weekend; paying gives access back at once."
@@ -215,6 +216,6 @@ function Receivables() {
           />
         </RecordSection>
       </div>
-    </>
+    </Page>
   );
 }

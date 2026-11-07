@@ -4,6 +4,7 @@ import type { Column } from "@faridalms/ui/system/data-table";
 import { OPERATOR_ROLES } from "@faridalms/domain/operators";
 import { DataTable } from "@faridalms/ui/system/data-table";
 import { CheckboxGroupField } from "@faridalms/ui/system/form-field";
+import { Page } from "@faridalms/ui/system/page";
 import { PageHeader } from "@faridalms/ui/system/page-header";
 import { SheetForm } from "@faridalms/ui/system/sheet-form";
 import { StatusBadge, StatusText } from "@faridalms/ui/system/status";
@@ -100,7 +101,7 @@ function Operators() {
   const { me, operators } = Route.useLoaderData();
   const [editing, setEditing] = useState<Row | null>(null);
   return (
-    <>
+    <Page width="list">
       <PageHeader
         title="Operators"
         count={operators.length}
@@ -138,7 +139,7 @@ function Operators() {
           onClose={() => setEditing(null)}
         />
       ) : null}
-    </>
+    </Page>
   );
 }
 

@@ -4,6 +4,7 @@ import { Button } from "@faridalms/ui/button";
 import { Input } from "@faridalms/ui/input";
 import { ButtonLink } from "@faridalms/ui/system/button-link";
 import { FormField } from "@faridalms/ui/system/form-field";
+import { Page } from "@faridalms/ui/system/page";
 import {
   RecordColumns,
   RecordHeader,
@@ -62,7 +63,7 @@ function QuotePage() {
     onSelect: () => setEditing(true),
   };
   return (
-    <>
+    <Page width="record">
       <div className="print:hidden">
         <RecordHeader
           title={`Quote ${quoteReference(quote.number, quote.version)}`}
@@ -265,7 +266,7 @@ function QuotePage() {
           onOpenChange={accepting.onOpenChange}
         />
       ) : null}
-    </>
+    </Page>
   );
 }
 

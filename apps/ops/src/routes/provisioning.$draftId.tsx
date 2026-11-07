@@ -24,6 +24,7 @@ import {
   TextField,
 } from "@faridalms/ui/system/form-field";
 import { FormFooter } from "@faridalms/ui/system/form-footer";
+import { Page } from "@faridalms/ui/system/page";
 import { PageHeader } from "@faridalms/ui/system/page-header";
 import { FormSection } from "@faridalms/ui/system/record-form";
 import {
@@ -151,7 +152,7 @@ function DraftPage() {
     ),
   }));
   return (
-    <>
+    <Page width="form">
       <RecordHeader
         title={names}
         status={{ label: "Draft", tone: "neutral" }}
@@ -160,7 +161,6 @@ function DraftPage() {
             label: "Customer",
             value: data.customer?.customer.legalNameEn ?? "No customer yet",
           },
-          { label: "Kept", value: "Each step is saved as it is left" },
         ]}
       />
       <div className="grid gap-8">
@@ -172,7 +172,7 @@ function DraftPage() {
         {step === "people" ? <PeopleStep data={data} /> : null}
         {step === "review" ? <ReviewStep data={data} /> : null}
       </div>
-    </>
+    </Page>
   );
 }
 
@@ -210,7 +210,7 @@ function CustomerStep({ data }: StepProps) {
     <form
       aria-label="Customer"
       noValidate
-      className="grid max-w-3xl gap-10"
+      className="grid gap-10"
       onSubmit={async (event) => {
         event.preventDefault();
         setSubmitted(true);
@@ -467,7 +467,7 @@ function PlanStep({ data }: StepProps) {
     <form
       aria-label="Plan"
       noValidate
-      className="grid max-w-3xl gap-10"
+      className="grid gap-10"
       onSubmit={async (event) => {
         event.preventDefault();
         const out = read();
@@ -706,7 +706,7 @@ function AddressesStep({ data }: StepProps) {
     <form
       aria-label="Addresses"
       noValidate
-      className="grid max-w-3xl gap-10"
+      className="grid gap-10"
       onSubmit={async (event) => {
         event.preventDefault();
         setSaving(true);
@@ -844,7 +844,7 @@ function PeopleStep({ data }: StepProps) {
   const [answer, setAnswer] = useState<string | null>(null);
   const { tenant, people } = data.draft.spec;
   return (
-    <div className="grid max-w-3xl gap-10">
+    <div className="grid gap-10">
       <SchoolSpecForm
         label="People"
         sections={{ tenant: false, people: true }}
@@ -900,7 +900,7 @@ function ReviewStep({ data }: StepProps) {
     (row) => row.id === plan.planVersionId,
   );
   return (
-    <div className="grid max-w-3xl gap-6">
+    <div className="grid gap-6">
       <section aria-label="Review">
         <RecordSection title="Review">
           <dl className="grid gap-4 text-sm leading-5">
@@ -1080,7 +1080,7 @@ function Created({ data }: StepProps) {
     .map((school, index) => schoolLabel(school, index))
     .join(", ");
   return (
-    <div className="grid max-w-2xl" aria-live="polite">
+    <div className="grid" aria-live="polite">
       <PageHeader title={`${names} created`} />
       <RecordSection title="Links sent">
         <Sent sent={data.draft.progress.provisioned?.sent ?? []} />

@@ -2,6 +2,7 @@ import { InvoiceDocument } from "@faridalms/documents/InvoiceDocument";
 import { Button } from "@faridalms/ui/button";
 import { ButtonLink } from "@faridalms/ui/system/button-link";
 import { SelectField, TextField } from "@faridalms/ui/system/form-field";
+import { Page } from "@faridalms/ui/system/page";
 import {
   Fact,
   Facts,
@@ -83,7 +84,7 @@ function InvoicePage() {
     mayBill && invoice.state !== "draft" && invoice.state !== "credited";
   const maySettle = mayBill && open && data.unsettled.length > 0;
   return (
-    <>
+    <Page width="record">
       <div className="print:hidden">
         <RecordHeader
           title={invoice.number ? `Invoice ${invoice.number}` : "Draft invoice"}
@@ -300,7 +301,7 @@ function InvoicePage() {
           onOpenChange={settling.onOpenChange}
         />
       ) : null}
-    </>
+    </Page>
   );
 }
 

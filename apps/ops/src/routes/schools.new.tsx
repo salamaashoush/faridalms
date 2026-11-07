@@ -11,6 +11,7 @@ import { Button } from "@faridalms/ui/button";
 import { ButtonLink } from "@faridalms/ui/system/button-link";
 import { DataTable, RowLink } from "@faridalms/ui/system/data-table";
 import { TextField } from "@faridalms/ui/system/form-field";
+import { Page } from "@faridalms/ui/system/page";
 import { PageHeader } from "@faridalms/ui/system/page-header";
 import { FormSection } from "@faridalms/ui/system/record-form";
 import { RecordSection } from "@faridalms/ui/system/record-page";
@@ -45,7 +46,15 @@ const GIB = 1024 * 1024 * 1024;
 
 function NewSchool() {
   const { cells, drafts } = Route.useLoaderData();
-  return drafts ? <Drafts drafts={drafts} /> : <ByHand cells={cells} />;
+  return drafts ? (
+    <Page width="list">
+      <Drafts drafts={drafts} />
+    </Page>
+  ) : (
+    <Page width="form">
+      <ByHand cells={cells} />
+    </Page>
+  );
 }
 
 type Data = Awaited<ReturnType<typeof getNewSchool>>;
@@ -171,7 +180,7 @@ function ByHand({ cells }: ByHandProps) {
 
   if (outcome?.ok)
     return (
-      <div className="grid max-w-2xl" aria-live="polite">
+      <div className="grid" aria-live="polite">
         <PageHeader title="School created" />
         <RecordSection title="Links sent">
           <div className="grid gap-3">

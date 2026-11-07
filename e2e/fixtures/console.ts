@@ -218,6 +218,7 @@ export async function businessDetails(page: Page) {
       page.getByText(/^(Legal details saved\.|Someone changed the details)/),
     ).toBeVisible();
   }
+  await page.getByRole("button", { name: "Add rate" }).click();
   const rate = page.getByRole("form", { name: "Add a rate" });
   await rate.getByLabel("Country").fill("EG");
   await rate.getByLabel("Percentage").fill("14");

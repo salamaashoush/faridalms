@@ -156,7 +156,7 @@ export function SchoolSpecForm({
     <form
       noValidate
       aria-label={label}
-      className="grid max-w-3xl gap-10"
+      className="grid gap-10"
       onSubmit={(event) => {
         event.preventDefault();
         void form.handleSubmit();

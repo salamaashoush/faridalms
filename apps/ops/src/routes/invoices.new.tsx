@@ -2,6 +2,7 @@ import { businessToday } from "@faridalms/domain/subscriptions";
 import { ButtonLink } from "@faridalms/ui/system/button-link";
 import { TextField } from "@faridalms/ui/system/form-field";
 import { FormFooter } from "@faridalms/ui/system/form-footer";
+import { Page } from "@faridalms/ui/system/page";
 import { PageHeader } from "@faridalms/ui/system/page-header";
 import { FormSection } from "@faridalms/ui/system/record-form";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
@@ -37,7 +38,7 @@ function NewInvoice() {
   const [answer, setAnswer] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   return (
-    <div className="grid">
+    <Page width="form">
       <PageHeader
         title="New invoice"
         description={`For ${customer.legalNameEn}, in ${customer.currency} with the VAT its country is charged. It stays a draft until it is issued.`}
@@ -45,7 +46,7 @@ function NewInvoice() {
       <form
         aria-label="New invoice"
         noValidate
-        className="grid max-w-3xl gap-10"
+        className="grid gap-10"
         onSubmit={async (event) => {
           event.preventDefault();
           const read = linesOf(drafts);
@@ -105,6 +106,6 @@ function NewInvoice() {
           }
         />
       </form>
-    </div>
+    </Page>
   );
 }
