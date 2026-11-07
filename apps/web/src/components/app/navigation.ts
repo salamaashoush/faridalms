@@ -17,6 +17,7 @@ import {
   GraduationCap,
   HeartPulse,
   House,
+  Images,
   Inbox,
   Layers,
   ListTodo,
@@ -148,6 +149,12 @@ export const NAVIGATION: Record<Workspace, NavSection[]> = {
       title: m.navSectionSchool,
       items: [
         { to: "/admin/site", label: m.navWebsite, icon: Globe },
+        {
+          to: "/admin/media",
+          label: m.navMediaLibrary,
+          icon: Images,
+          capability: "site:manage",
+        },
         { to: "/admin/settings", label: m.navSettings, icon: Settings },
         {
           to: "/admin/billing",

@@ -355,6 +355,10 @@ export function getMessageFromError(error: unknown): string {
         return m.errorGradebookNotInClass();
       case "file.not_attachable":
         return m.errorFileNotAttachable();
+      case "media.folder_not_empty":
+        return m.errorMediaFolderNotEmpty();
+      case "media.not_kept":
+        return m.errorMediaNotKept();
       case "enrollment.future_placement":
         return m.errorFuturePlacement();
       case "auth.wrong_password":

@@ -15,6 +15,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { useMemo } from "react";
 import { toast } from "sonner";
 
+import { useMediaLibrary } from "~/components/media/LibraryPicker";
 import { fileSizeLabel } from "~/components/system/FileList";
 import * as m from "~/i18n/messages";
 import {
@@ -132,6 +133,7 @@ export function useDocumentMedia(
   const askDraft = useServerFn(draftCaptions);
   const draftOf = useServerFn(getCaptionDraft);
   const abilities = useServerFn(getFileAbilities);
+  const library = useMediaLibrary();
   const type = destination?.type;
   const id = destination?.id;
   return useMemo(
@@ -152,6 +154,7 @@ export function useDocumentMedia(
       url: (fileId: string) => `/files/${fileId}`,
       ...(purpose === "document_media"
         ? {
+            ...(library ? { library } : {}),
             canTrim: async () => (await abilities()).trim,
             captions: {
               draft: async (fileId: string, language: SpeechLanguage) => {
@@ -175,6 +178,16 @@ export function useDocumentMedia(
           purpose,
         ),
     }),
-    [initiate, search, askDraft, draftOf, abilities, type, id, purpose],
+    [
+      initiate,
+      search,
+      askDraft,
+      draftOf,
+      abilities,
+      library,
+      type,
+      id,
+      purpose,
+    ],
   );
 }

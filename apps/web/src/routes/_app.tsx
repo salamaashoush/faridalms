@@ -7,6 +7,7 @@ import {
 } from "@tanstack/react-router";
 import { useEffect } from "react";
 
+import { MediaLibraryProvider } from "~/components/media/LibraryPicker";
 import { Shell } from "~/components/system/Shell";
 import { useCurrentUser } from "~/hooks/useCurrentUser";
 import { currentUserQuery } from "~/queries/user";
@@ -61,9 +62,11 @@ function AppLayout() {
   }, [digits]);
   return (
     <FileFactsProvider resolve={currentFacts}>
-      <Shell sidebarOpen={preferences.sidebarOpen}>
-        <Outlet />
-      </Shell>
+      <MediaLibraryProvider>
+        <Shell sidebarOpen={preferences.sidebarOpen}>
+          <Outlet />
+        </Shell>
+      </MediaLibraryProvider>
     </FileFactsProvider>
   );
 }

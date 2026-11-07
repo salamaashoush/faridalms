@@ -52,6 +52,7 @@ import { Route as AppAdminAttendanceRouteImport } from './routes/_app/admin/atte
 import { Route as AppAdminBillingRouteImport } from './routes/_app/admin/billing'
 import { Route as AppAdminClassEditorRouteImport } from './routes/_app/admin/class-editor'
 import { Route as AppAdminClassesRouteImport } from './routes/_app/admin/classes'
+import { Route as AppAdminMediaRouteImport } from './routes/_app/admin/media'
 import { Route as AppAdminMessagesRouteImport } from './routes/_app/admin/messages'
 import { Route as AppAdminNotificationAuditRouteImport } from './routes/_app/admin/notification-audit'
 import { Route as AppAdminRolloverRouteImport } from './routes/_app/admin/rollover'
@@ -361,6 +362,11 @@ const AppAdminClassEditorRoute = AppAdminClassEditorRouteImport.update({
 const AppAdminClassesRoute = AppAdminClassesRouteImport.update({
   id: '/classes',
   path: '/classes',
+  getParentRoute: () => AppAdminRoute,
+} as any)
+const AppAdminMediaRoute = AppAdminMediaRouteImport.update({
+  id: '/media',
+  path: '/media',
   getParentRoute: () => AppAdminRoute,
 } as any)
 const AppAdminMessagesRoute = AppAdminMessagesRouteImport.update({
@@ -889,6 +895,7 @@ export interface FileRoutesByFullPath {
   '/admin/billing': typeof AppAdminBillingRoute
   '/admin/class-editor': typeof AppAdminClassEditorRoute
   '/admin/classes': typeof AppAdminClassesRoute
+  '/admin/media': typeof AppAdminMediaRoute
   '/admin/messages': typeof AppAdminMessagesRoute
   '/admin/notification-audit': typeof AppAdminNotificationAuditRoute
   '/admin/rollover': typeof AppAdminRolloverRoute
@@ -1021,6 +1028,7 @@ export interface FileRoutesByTo {
   '/admin/billing': typeof AppAdminBillingRoute
   '/admin/class-editor': typeof AppAdminClassEditorRoute
   '/admin/classes': typeof AppAdminClassesRoute
+  '/admin/media': typeof AppAdminMediaRoute
   '/admin/messages': typeof AppAdminMessagesRoute
   '/admin/notification-audit': typeof AppAdminNotificationAuditRoute
   '/admin/rollover': typeof AppAdminRolloverRoute
@@ -1161,6 +1169,7 @@ export interface FileRoutesById {
   '/_app/admin/billing': typeof AppAdminBillingRoute
   '/_app/admin/class-editor': typeof AppAdminClassEditorRoute
   '/_app/admin/classes': typeof AppAdminClassesRoute
+  '/_app/admin/media': typeof AppAdminMediaRoute
   '/_app/admin/messages': typeof AppAdminMessagesRoute
   '/_app/admin/notification-audit': typeof AppAdminNotificationAuditRoute
   '/_app/admin/rollover': typeof AppAdminRolloverRoute
@@ -1300,6 +1309,7 @@ export interface FileRouteTypes {
     | '/admin/billing'
     | '/admin/class-editor'
     | '/admin/classes'
+    | '/admin/media'
     | '/admin/messages'
     | '/admin/notification-audit'
     | '/admin/rollover'
@@ -1432,6 +1442,7 @@ export interface FileRouteTypes {
     | '/admin/billing'
     | '/admin/class-editor'
     | '/admin/classes'
+    | '/admin/media'
     | '/admin/messages'
     | '/admin/notification-audit'
     | '/admin/rollover'
@@ -1571,6 +1582,7 @@ export interface FileRouteTypes {
     | '/_app/admin/billing'
     | '/_app/admin/class-editor'
     | '/_app/admin/classes'
+    | '/_app/admin/media'
     | '/_app/admin/messages'
     | '/_app/admin/notification-audit'
     | '/_app/admin/rollover'
@@ -1995,6 +2007,13 @@ declare module '@tanstack/react-router' {
       path: '/classes'
       fullPath: '/admin/classes'
       preLoaderRoute: typeof AppAdminClassesRouteImport
+      parentRoute: typeof AppAdminRoute
+    }
+    '/_app/admin/media': {
+      id: '/_app/admin/media'
+      path: '/media'
+      fullPath: '/admin/media'
+      preLoaderRoute: typeof AppAdminMediaRouteImport
       parentRoute: typeof AppAdminRoute
     }
     '/_app/admin/messages': {
@@ -2666,6 +2685,7 @@ interface AppAdminRouteChildren {
   AppAdminBillingRoute: typeof AppAdminBillingRoute
   AppAdminClassEditorRoute: typeof AppAdminClassEditorRoute
   AppAdminClassesRoute: typeof AppAdminClassesRoute
+  AppAdminMediaRoute: typeof AppAdminMediaRoute
   AppAdminMessagesRoute: typeof AppAdminMessagesRoute
   AppAdminNotificationAuditRoute: typeof AppAdminNotificationAuditRoute
   AppAdminRolloverRoute: typeof AppAdminRolloverRoute
@@ -2686,6 +2706,7 @@ const AppAdminRouteChildren: AppAdminRouteChildren = {
   AppAdminBillingRoute: AppAdminBillingRoute,
   AppAdminClassEditorRoute: AppAdminClassEditorRoute,
   AppAdminClassesRoute: AppAdminClassesRoute,
+  AppAdminMediaRoute: AppAdminMediaRoute,
   AppAdminMessagesRoute: AppAdminMessagesRoute,
   AppAdminNotificationAuditRoute: AppAdminNotificationAuditRoute,
   AppAdminRolloverRoute: AppAdminRolloverRoute,
