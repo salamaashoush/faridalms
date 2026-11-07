@@ -127,6 +127,90 @@ orders by urgency.
 - **Billing**: invoices by status, with Record a payment as the page action.
 - **Receivables**: what is owed by age and the calls to make.
 
+## Administration
+
+Two pages only an owner opens, rarely and with a purpose. Neither is a
+record or a queue, so neither has figures.
+
+### Operators
+
+The owner comes here to let a newcomer work (give them roles), to change
+what someone may do, to take access away from someone who left, and to
+answer "who can get in, and who changed that?" (Stripe's Team page,
+GitHub's People page, Linear's Members: one table of people with their
+role, state and last sign-in, invitations kept apart, the audit log a
+separate view.)
+
+Who may sign in is decided by the identity provider (its group, or the
+addresses the console is set to admit); the console decides what each
+person may do. Nobody is invited here: a person appears when they first
+sign in, holding no role until an owner gives one. The page is an index
+page at the list width:
+
+- **Header**: Operators and how many; one line saying who may sign in, as
+  the console is set up (the provider's group by name, or the number of
+  addresses it admits). No primary action, since nobody is created here.
+- **To do**: each person who signed in and waits for a role (Give roles),
+  then each operator with a role who has not signed in for 90 days
+  (Remove access), the way an access review flags stale accounts. Nothing
+  else: a To do here is a decision only the owner can make.
+- **Tabs**: Operators (the count) and History. They are two things: who
+  holds access now, and how it came to be so.
+- **Operators**: one table. Search by name or email; facets Role and
+  Access. Columns: the person (name, "You" on the viewer's row, the email
+  under it), Roles (the names, "None" while waiting), Access (Active,
+  Waiting for a role, Removed, or Not signed in yet for an admitted
+  address nobody has used), Last signed in ("Never" where so). Change
+  roles is the row's inline action; Remove access (confirms, with why) or
+  Restore access sit in its menu. The viewer's own row offers no Remove
+  access: another owner does that, so nobody locks themselves out by a
+  slip. An admitted address that never signed in has no actions; it is
+  there so the owner sees the whole of who can get in.
+- **History**: the audit log of access, newest first: who was given which
+  roles, whose access was removed or restored, who became the first
+  owner, each with why, by whom and when.
+- **Change roles** is a sheet: the four roles, each with what it opens,
+  and why. Leaving the console without an active owner is refused on the
+  Roles field before anything is sent.
+
+Removed from the old page: the State checkbox inside the role sheet
+(taking access away is its own confirmed action, never a cleared box),
+and the description that only said what a newcomer sees.
+
+### Settings
+
+The owner comes here before the first quote (the business's legal
+details, which every quote and invoice prints), when the company moves or
+changes bank, and when VAT changes or a new country is sold to. It is a
+settings page: one column of cards at the form width, each saving on its
+own (Stripe's Business details and Tax settings).
+
+- **Legal details**, one card and one Save, because the details are one
+  version printed together and a first save needs all the required ones.
+  Groups: Name (English and Arabic side by side), Address (the same),
+  Registration (tax registration number, commercial registry), Contact
+  (email, phone, website), Bank details (English and Arabic, optional),
+  then Why. Each missing or malformed field says so on the field, in its
+  own words; a change someone else saved first is the card's error.
+- **VAT rates**, a card holding one table rather than a form, since rates
+  are added and never edited: a rate takes over from the one before on
+  its day. Columns: country by name with how invoices print the tax under
+  it (and "reverse charge" where the customer accounts for it), rate,
+  from, and whether it is in force, starts later or was replaced. Add
+  rate is the table's action; Change rate on a row opens the same sheet
+  with the country's details filled in. With no rates the card is one
+  empty state: every customer is charged none until a rate is set. The
+  add sheet picks the country by name, and a rate that already starts on
+  that day is refused on the From field.
+- **History**, a card holding the audit log of these settings: the first
+  save of the legal details, each later save with the fields it changed,
+  each rate added, why, by whom and when. Every save asks why; this is
+  where the answer is read. Until something is saved the card is absent,
+  since an empty log tells the owner nothing the empty cards above do not.
+
+Removed from the old page: the two-letter country code where a person
+reads a country, and the "No rates yet" line under a heading.
+
 ## Checking a page before it ships
 
 A reviewer refuses a console page that does any of these:
