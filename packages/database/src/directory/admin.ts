@@ -8,13 +8,14 @@ import type {
 
 import { seriesId } from "@faridalms/domain/exams";
 import { SQL } from "bun";
-import { and, asc, desc, eq, inArray, sql } from "drizzle-orm";
+import { and, asc, desc, eq, gte, ilike, inArray, or, sql } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/bun-sql/postgres";
 
 import type { JsonValue } from "../json";
 import type { EntitlementColumns } from "./entitlements";
 import type { DirectoryTenantState } from "./schema";
 
+import { escapeLike } from "../stores/sql";
 import { entitlementColumns, entitledOf } from "./entitlements";
 import {
   addHost,
@@ -79,6 +80,37 @@ export interface Change {
   before: JsonValue;
   after: JsonValue;
   reason: string;
+}
+
+/** A change in the whole log, with the school or tenant a host's or domain's change belongs to. */
+export interface LoggedChange extends Change {
+  schoolId: string | null;
+  tenantId: string | null;
+}
+
+export interface ChangeLogFilter {
+  actions?: readonly string[];
+  actors?: readonly string[];
+  since?: Date;
+  /** Matched in the reason and the subject's own id, such as a hostname. */
+  words?: string;
+  /**
+   * Records whose names the words matched, which the log cannot see: their
+   * changes match too, and so do those of their hosts and sign-in domains.
+   */
+  named?: {
+    schools: readonly string[];
+    tenants: readonly string[];
+    subjects: readonly string[];
+  };
+  offset: number;
+  limit: number;
+}
+
+export interface ChangeLogPage {
+  changes: LoggedChange[];
+  /** How many changes the filter matches across every page. */
+  total: number;
 }
 
 export interface OpenCell {
@@ -748,6 +780,102 @@ export function openDirectoryAdmin(url: string) {
         after: (row.after ?? null) as JsonValue,
         occurredAt: row.occurredAt.toISOString(),
       }));
+    },
+    /**
+     * One page of the whole change log, newest first, narrowed on the
+     * server so a filter reaches past the page. A host's and a sign-in
+     * domain's changes carry the school or tenant they belong to.
+     */
+    changeLog: async (filter: ChangeLogFilter): Promise<ChangeLogPage> => {
+      const words = filter.words?.trim();
+      const like = words ? `%${escapeLike(words)}%` : null;
+      const named = filter.named ?? { schools: [], tenants: [], subjects: [] };
+      const rows = await db
+        .select({
+          change: changes,
+          hostSchoolId: hosts.schoolId,
+          domainTenantId: ssoDomains.tenantId,
+          total: sql<number>`count(*) over ()`.mapWith(Number),
+        })
+        .from(changes)
+        .leftJoin(
+          hosts,
+          and(
+            eq(changes.subjectType, "host"),
+            eq(hosts.hostname, changes.subjectId),
+          ),
+        )
+        .leftJoin(
+          ssoDomains,
+          and(
+            eq(changes.subjectType, "sso_domain"),
+            eq(ssoDomains.domain, changes.subjectId),
+          ),
+        )
+        .where(
+          and(
+            filter.actions?.length
+              ? inArray(changes.action, filter.actions)
+              : undefined,
+            filter.actors?.length
+              ? inArray(changes.actor, filter.actors)
+              : undefined,
+            filter.since ? gte(changes.occurredAt, filter.since) : undefined,
+            like
+              ? or(
+                  ilike(changes.reason, like),
+                  ilike(changes.subjectId, like),
+                  named.subjects.length
+                    ? inArray(changes.subjectId, named.subjects)
+                    : undefined,
+                  named.schools.length
+                    ? inArray(hosts.schoolId, named.schools)
+                    : undefined,
+                  named.tenants.length
+                    ? inArray(ssoDomains.tenantId, named.tenants)
+                    : undefined,
+                )
+              : undefined,
+          ),
+        )
+        .orderBy(desc(changes.occurredAt), desc(changes.id))
+        .limit(filter.limit)
+        .offset(filter.offset);
+      return {
+        total: rows[0]?.total ?? 0,
+        changes: rows.map(({ change, hostSchoolId, domainTenantId }) => ({
+          ...change,
+          before: (change.before ?? null) as JsonValue,
+          after: (change.after ?? null) as JsonValue,
+          occurredAt: change.occurredAt.toISOString(),
+          schoolId: hostSchoolId,
+          tenantId: domainTenantId,
+        })),
+      };
+    },
+    /** How many changes the log holds, of each kind and by each actor. */
+    changeCounts: async () => {
+      const [byAction, byActor] = await Promise.all([
+        db
+          .select({
+            value: changes.action,
+            count: sql<number>`count(*)`.mapWith(Number),
+          })
+          .from(changes)
+          .groupBy(changes.action),
+        db
+          .select({
+            value: changes.actor,
+            count: sql<number>`count(*)`.mapWith(Number),
+          })
+          .from(changes)
+          .groupBy(changes.actor),
+      ]);
+      return {
+        total: byAction.reduce((sum, row) => sum + row.count, 0),
+        actions: byAction,
+        actors: byActor,
+      };
     },
     close: () => db.$client.close(),
   };

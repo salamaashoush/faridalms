@@ -128,6 +128,11 @@ export function formatMonth(isoDate: string): string {
   return formatMonthIn(isoDate, "label", "en");
 }
 
+/** An official exam session as people name it: "Cambridge International, June 2027". */
+export function seriesName(series: { board: ExamBoard; sitsIn: string }) {
+  return `${BOARD_NAMES[series.board]}, ${formatMonth(series.sitsIn)}`;
+}
+
 /** An instant's day on the business's clock: "Nov 7, 2026". */
 export function formatWhenDay(when: string | Date): string {
   return formatInstantIn(when, "date", BUSINESS_TIME_ZONE, "en");
@@ -509,7 +514,7 @@ export const CHANGE_ACTION_NAMES: Record<string, string> = {
   "host.verified": "Host verified",
   "host.active": "Host went live",
   "host.failing": "Host stopped routing",
-  "host.removed": "Host removed",
+  "host.removed": "Host dropped after failing",
 };
 
 /** Onboarding steps that belong together, in the order a school takes them. */

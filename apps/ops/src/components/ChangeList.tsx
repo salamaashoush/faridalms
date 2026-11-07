@@ -1,5 +1,8 @@
 import type { Change, JsonValue } from "@faridalms/database/directory/admin";
 import type { ChangeLogLabels } from "@faridalms/ui/system/change-log";
+import type { DataTablePagination } from "@faridalms/ui/system/data-table";
+import type { IndexToolbarProps } from "@faridalms/ui/system/index-toolbar";
+import type { ReactNode } from "react";
 
 import { ChangeLog } from "@faridalms/ui/system/change-log";
 
@@ -37,6 +40,8 @@ const bytes = (value: JsonValue) =>
 interface ChangeField {
   label: string;
   value: (value: JsonValue) => string;
+  /** Whether a record's first value says anything, where its default does not. */
+  telling?: (value: JsonValue) => boolean;
 }
 
 const FIELDS: Record<string, ChangeField> = {
@@ -69,7 +74,11 @@ const FIELDS: Record<string, ChangeField> = {
     label: "Keep until",
     value: (v) => (typeof v === "string" ? formatDay(v) : "none"),
   },
-  retired: { label: "Retired", value: (v) => (v === true ? "yes" : "no") },
+  retired: {
+    label: "Retired",
+    value: (v) => (v === true ? "yes" : "no"),
+    telling: (v) => v === true,
+  },
 };
 
 const fieldsOf = (value: JsonValue): Fields =>
@@ -77,15 +86,35 @@ const fieldsOf = (value: JsonValue): Fields =>
     ? value
     : {};
 
+/** The fields as a log reads them, naming schools where it knows their names. */
+function fieldsFor(schoolNames?: Record<string, string>) {
+  if (!schoolNames) return FIELDS;
+  const nameOf = named(schoolNames);
+  return {
+    ...FIELDS,
+    schools: {
+      label: "Schools",
+      value: (v: JsonValue) =>
+        Array.isArray(v) ? v.map(nameOf).join(", ") : textOf(v),
+    },
+  };
+}
+
 /** What changed, field by field, from the change log's snapshots. */
-function differences(change: Change): string[] {
+function differences(
+  change: Change,
+  fields: Record<string, ChangeField>,
+): string[] {
   const from = fieldsOf(change.before);
   const to = fieldsOf(change.after);
-  return Object.entries(FIELDS).flatMap(([key, field]) => {
+  return Object.entries(fields).flatMap(([key, field]) => {
     const after = to[key];
     if (after === undefined) return [];
     const before = from[key];
-    if (before === undefined) return [`${field.label}: ${field.value(after)}`];
+    if (before === undefined)
+      return field.telling && !field.telling(after)
+        ? []
+        : [`${field.label}: ${field.value(after)}`];
     return JSON.stringify(before) === JSON.stringify(after)
       ? []
       : [`${field.label}: ${field.value(before)} → ${field.value(after)}`];
@@ -93,25 +122,30 @@ function differences(change: Change): string[] {
 }
 
 /** Who made a change: an operator by name, or the cell that reported it. */
-function actorName(actor: string, names: Record<string, string>): string {
+export function actorName(
+  actor: string,
+  names: Record<string, string>,
+): string {
   const [kind, id = ""] = actor.split(":", 2);
   if (kind === "operator") return names[id] ?? "A former operator";
   if (kind === "cell") return `Cell ${id}`;
   return actor;
 }
 
-export interface ChangeListProps {
-  changes: Change[];
+export interface ChangeListProps<T extends Change> {
+  changes: T[];
   /** Operators' names by id, so a change reads as a person's. */
   names: Record<string, string>;
-  /** Names the record each change is about, where a list spans records. */
-  subjectName?: (change: Change) => string;
+  /**
+   * The record each change was made to, where the list spans records,
+   * linked to it where it can be opened.
+   */
+  record?: (change: T) => ReactNode;
+  /** Schools' names by slug, so a new tenant's schools read by name. */
+  schoolNames?: Record<string, string>;
+  toolbar?: IndexToolbarProps;
+  pagination?: DataTablePagination;
 }
-
-/** How a change is named: its action, and its record where a list spans several. */
-const describedBy =
-  (subjectName?: (change: Change) => string) => (change: Change) =>
-    `${subjectName ? `${subjectName(change)}: ` : ""}${CHANGE_ACTION_NAMES[change.action] ?? change.action}`;
 
 const LABELS: ChangeLogLabels = {
   caption: "Changes",
@@ -123,23 +157,42 @@ const LABELS: ChangeLogLabels = {
   emptyHint: "Each change shows here with who made it and why.",
 };
 
+const SPANNING: ChangeLogLabels = {
+  ...LABELS,
+  record: "Record",
+  empty: "Nothing has been changed yet",
+  emptyHint:
+    "Each change an operator or a cell makes to a school, its addresses or an exam session shows here, with who made it and why.",
+};
+
 /**
  * The change log as an audit table, newest first: what was done and what it
- * moved, why, by whom and when. On a phone each change is a card.
+ * moved, why, by whom and when, and the record it was made to where the
+ * list spans records. On a phone each change is a card.
  */
-export function ChangeList({ changes, names, subjectName }: ChangeListProps) {
-  const what = describedBy(subjectName);
+export function ChangeList<T extends Change>({
+  changes,
+  names,
+  record,
+  schoolNames,
+  toolbar,
+  pagination,
+}: ChangeListProps<T>) {
+  const fields = fieldsFor(schoolNames);
   return (
     <ChangeLog
-      labels={LABELS}
+      labels={record ? SPANNING : LABELS}
+      toolbar={toolbar}
+      pagination={pagination}
       entries={changes.map((change) => ({
         id: change.id,
-        what: what(change),
-        details: differences(change),
+        what: CHANGE_ACTION_NAMES[change.action] ?? change.action,
+        details: differences(change, fields),
         why: change.reason,
         who: actorName(change.actor, names),
         when: formatWhen(change.occurredAt),
         at: change.occurredAt,
+        record: record?.(change),
       }))}
     />
   );
