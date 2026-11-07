@@ -24,6 +24,7 @@ import {
   entityProfile,
   erase,
   eraseAndDelete,
+  ephemeralProfile,
   erasureListed,
   erasureOf,
   fk,
@@ -275,6 +276,39 @@ export const documents = core.table.withRLS(
       using: sql`collaborative and frozen_at is null`,
       withCheck: sql`collaborative`,
     }),
+  ],
+);
+
+/**
+ * Who is editing a record's document that is not written live, one row per
+ * record. The holder's open editor renews it; it lapses at `expires_at`
+ * without renewal, so a closed laptop keeps nobody out, and anyone who may
+ * edit the record takes it over in place.
+ */
+export const documentHolds = core.table.withRLS(
+  "document_holds",
+  {
+    tenantId: uuid("tenant_id").notNull(),
+    hostType: text("host_type").notNull(),
+    hostId: uuid("host_id").notNull(),
+    userId: uuid("user_id").notNull(),
+    heldSince: instant("held_since").notNull(),
+    expiresAt: instant("expires_at").notNull(),
+  },
+  (t): PgTableExtraConfigValue[] => [
+    pk("document_holds", t.tenantId, t.hostType, t.hostId),
+    fk("document_holds", [t.tenantId], [tenants.tenantId]),
+    fk("document_holds", [t.tenantId, t.userId], [users.tenantId, users.id]),
+    ck(
+      "document_holds",
+      "host_type",
+      sql`host_type ~ '^[a-z][a-z0-9_]{1,62}$'`,
+    ),
+    ck("document_holds", "expires_at", sql`expires_at >= held_since`),
+    index("document_holds_user_idx").on(t.tenantId, t.userId),
+    ...ephemeralProfile(
+      sql`expires_at < statement_timestamp() or ${erasureOf("user_id")}`,
+    ),
   ],
 );
 

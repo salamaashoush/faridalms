@@ -143,6 +143,7 @@ export const ERASURE_RULES: Record<string, ErasureRule> = {
   },
   "core.demographics": { rule: "erased" },
   "core.discussion_posts": { rule: "erased" },
+  "core.document_holds": { rule: "erased" },
   "core.document_templates": {
     rule: "kept",
     why: "Names the member of staff who did it; the record belongs to the school.",

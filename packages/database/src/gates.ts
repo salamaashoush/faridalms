@@ -29,10 +29,11 @@ delete_allowed(name, role) as (values
   ('core.standard_evidence', 'retention'), ('core.goal_judgements', 'retention'),
   ('core.standard_observations', 'retention'),
   ('core.peer_reviews', 'retention'), ('core.lti_replays', 'retention'), ('core.lti_scores', 'retention'),
-  ('core.module_audiences', 'retention'), ('core.lesson_openings', 'retention')),
+  ('core.module_audiences', 'retention'), ('core.lesson_openings', 'retention'),
+  ('core.document_holds', 'retention')),
 unversioned_update_allowed(name, role) as (values
   ('core.sessions', 'app'), ('core.sessions', 'worker'), ('core.auth_attempts', 'app'), ('core.auth_attempts', 'worker'),
-  ('core.tenant_keys', 'worker'),
+  ('core.tenant_keys', 'worker'), ('core.document_holds', 'app'), ('core.document_holds', 'worker'),
   ('core.tenant_keys', 'retention'), ('core.document_versions', 'retention'),
   ('core.lesson_responses', 'retention')),
 column_granted(name, role) as (values

@@ -735,8 +735,8 @@ the row-metadata trigger.
   `status`, `version`, `date_last_modified` or `metadata`; no `UPDATE` grant
   for any runtime role, with one exception: `retention` may redact the content
   columns of an approved document version (section 5).
-- **Ephemeral**: short-lived security state (`core.sessions`,
-  `core.auth_attempts`). Own columns, hard-deleted by
+- **Ephemeral**: short-lived state (`core.sessions`,
+  `core.auth_attempts`, `core.document_holds`). Own columns, hard-deleted by
   `retention` after expiry, or earlier on an approved erasure.
 
 ### 4.4 Base columns
@@ -1516,6 +1516,10 @@ Table by table:
   grant update (content, plain_text, ydoc_snapshot, redacted_at) on core.document_versions to retention;
   ```
 
+- `core.document_holds`: ephemeral, one row per record whose document is
+  not written live, naming who edits it until `expires_at`; renewed and
+  taken over in place. Expiry `expires_at < statement_timestamp()`, or the
+  holder's erasure approved (`user_id`).
 - `core.document_translations`: entity; erase (redaction) with
   `<who> = app.erasure_listed(tenant_id, 'document', document_id)` and
   columns `content, plain_text`.
