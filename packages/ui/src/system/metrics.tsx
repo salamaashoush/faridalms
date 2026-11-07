@@ -16,10 +16,12 @@ export interface MetricGridProps {
 
 /** A strip of metrics leading a home page or a board, up to five across. */
 export function MetricGrid({ label, children }: MetricGridProps) {
+  // Columns may shrink below a long amount, which then wraps in its tile;
+  // sized to their content, two amounts made a phone page scroll sideways.
   return (
     <section
       aria-label={label}
-      className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-[repeat(auto-fit,minmax(11rem,1fr))]"
+      className="grid grid-cols-[repeat(2,minmax(0,1fr))] gap-3 sm:grid-cols-[repeat(3,minmax(0,1fr))] lg:grid-cols-[repeat(auto-fit,minmax(11rem,1fr))]"
     >
       {children}
     </section>
@@ -53,7 +55,7 @@ export function Metric({ label, value, detail, meter, link }: MetricProps) {
       <span className="text-[13px] leading-[18px] text-muted-foreground">
         {label}
       </span>
-      <span className="text-2xl leading-8 font-semibold tracking-tight tabular-nums">
+      <span className="text-xl leading-7 font-semibold tracking-tight tabular-nums sm:text-2xl sm:leading-8">
         {value}
       </span>
       {meter === undefined ? null : (
@@ -83,7 +85,7 @@ export function Metric({ label, value, detail, meter, link }: MetricProps) {
       ) : null}
     </>
   );
-  const frame = "grid min-w-0 content-start gap-1 rounded-lg border bg-card p-4";
+  const frame = "grid min-w-0 grid-cols-[minmax(0,1fr)] content-start gap-1 rounded-lg border bg-card p-4";
   return link ? (
     <Link
       {...link}

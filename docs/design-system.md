@@ -15,24 +15,24 @@ build their screens from it. A screen never re-creates one of these with
 its own markup; when a screen needs something the package lacks, the
 package gains it first, with a test and a line in this table.
 
-| Rule           | Module                                                                                                                                                                                 |
-| -------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Shell          | `app-shell` (`AppShell`, `ShellBrand`, `ShellAccount`, `ThemeSubmenu`, breadcrumb steps), `page-actions`                                                                               |
-| Index page     | `page-header`, `index-toolbar`, `data-table`, `cell-note` (`CellWithNote`), `empty-state`                                                                                              |
-| Page width     | `page` (`Page`)                                                                                                                                                                        |
-| Record page    | `record-page` (`RecordHeader`, `RecordTabs`, `RecordColumns`, `RecordSection`, `Facts`, `Fact`, `RecordList`), `stage-path` (`StagePath`), `attention-list` (`AttentionList`), `value` |
-| Record content | `usage-list` (`UsageList`), `summary-list` (`SummaryList`), `change-log` (`ChangeLog`), `dns-records` (`DnsRecords`), `copy-button`                                                    |
-| Section sheets | `sheet-form` (edits), `sheet-panel` (reads)                                                                                                                                            |
-| Record form    | `record-form` (`RecordForm`, `FormSection`, danger zone), `unsaved-changes-guard`                                                                                                      |
-| Settings page  | `settings-section` (`SettingsPage`, `SettingsSection`, `SettingsGroup`)                                                                                                                |
-| Forms          | `form-field` (`FormField`, `TextField`, `SelectField`, `ChoiceField`, `CheckboxGroupField`, `FieldError`), `combobox-field`, `time-zone-field`                                         |
-| Status         | `status` (`StatusBadge`, `StatusText`, `toneSurface`)                                                                                                                                  |
-| Feedback       | `action-menu` (`ActionMenu`, `useRunAndReport`), `confirm-dialog`, `dialog`                                                                                                            |
-| Side panels    | `panel` (`PanelGroup`, `Segmented`)                                                                                                                                                    |
-| Metrics        | `metrics` (`MetricGrid`, `Metric`)                                                                                                                                                     |
-| Steps          | `step-nav` (`StepNav`), `form-footer` (`FormFooter`)                                                                                                                                   |
-| Status pages   | `status-page` (`StatusPage`, `ErrorPage`, `NotFoundPage`)                                                                                                                              |
-| Sign-in pages  | `auth-layout` (`AuthLayout`, `AuthBand`, `AuthHeading`), `theme-toggle`                                                                                                                |
+| Rule           | Module                                                                                                                                                                                                              |
+| -------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Shell          | `app-shell` (`AppShell`, `ShellBrand`, `ShellAccount`, `ThemeSubmenu`, breadcrumb steps), `page-actions`                                                                                                            |
+| Index page     | `page-header`, `index-toolbar`, `data-table`, `cell-note` (`CellWithNote`), `empty-state`                                                                                                                           |
+| Page width     | `page` (`Page`)                                                                                                                                                                                                     |
+| Record page    | `record-page` (`RecordHeader`, `RecordTabs`, `RecordColumns`, `RecordSection`, `Facts`, `Fact`, `RecordList`), `stage-path` (`StagePath`), `attention-list` (`AttentionList`), `value`                              |
+| Record content | `usage-list` (`UsageList`), `summary-list` (`SummaryList`), `change-log` (`ChangeLog`), `dns-records` (`DnsRecords`), `copy-button`, `document-view` (`DocumentView`, a printable document in a tab, printed alone) |
+| Section sheets | `sheet-form` (edits), `sheet-panel` (reads)                                                                                                                                                                         |
+| Record form    | `record-form` (`RecordForm`, `FormSection`, danger zone), `unsaved-changes-guard`                                                                                                                                   |
+| Settings page  | `settings-section` (`SettingsPage`, `SettingsSection`, `SettingsGroup`)                                                                                                                                             |
+| Forms          | `form-field` (`FormField`, `TextField`, `SelectField`, `ChoiceField`, `CheckboxGroupField`, `FieldError`), `combobox-field`, `time-zone-field`                                                                      |
+| Status         | `status` (`StatusBadge`, `StatusText`, `toneSurface`)                                                                                                                                                               |
+| Feedback       | `action-menu` (`ActionMenu`, `useRunAndReport`), `confirm-dialog`, `dialog`                                                                                                                                         |
+| Side panels    | `panel` (`PanelGroup`, `Segmented`)                                                                                                                                                                                 |
+| Metrics        | `metrics` (`MetricGrid`, `Metric`)                                                                                                                                                                                  |
+| Steps          | `step-nav` (`StepNav`), `form-footer` (`FormFooter`)                                                                                                                                                                |
+| Status pages   | `status-page` (`StatusPage`, `ErrorPage`, `NotFoundPage`)                                                                                                                                                           |
+| Sign-in pages  | `auth-layout` (`AuthLayout`, `AuthBand`, `AuthHeading`), `theme-toggle`                                                                                                                                             |
 
 The package says nothing in a language of its own. Each app wraps its pages
 in `DesignSystemProvider` with a `DesignSystemValue`: the strings the
@@ -262,6 +262,10 @@ Inside a tab:
   with a Record column linking each change to its record, and search,
   filters and pages that run on the server.
 - Content a person wrote (a lead's message) is a titled block in About.
+- A record that is a document (an invoice, a quote) reads its paper as
+  the first tab (`DocumentView`): how it is shown (its language) at the
+  start of one row above it, what is done with it (Print) at the end, and
+  the paper at the tab's full width, printed alone.
 - Cards frame only figures, the To do list and titled lists; a tab is never
   a stack of framed sections.
 - Nothing is edited inline in a table; edits open a sheet.
@@ -422,7 +426,7 @@ danger. Labels are one or two words, sentence case, past tense for outcomes
 A home page or a board may open with a strip of metrics: the counts its
 work is measured by (Polaris, Carbon); a record may open with figures, as
 its section says. At most five on a list page, four on a record; each is a 13px label,
-the value at 24px in tabular figures, and at most one line under it, toned
+the value at 24px (20px on phones, where two tiles share a row) in tabular figures, and at most one line under it, toned
 only when it reports a state ("2 need help"). A metric that counts a list
 opens it from the whole tile, its label naming the link. Metrics never
 replace the list itself: the records follow below.

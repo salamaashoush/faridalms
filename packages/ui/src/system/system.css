@@ -8,3 +8,20 @@ header:has([data-slot="page-actions"] > :not([data-keeps-global-tools]))
   [data-slot="global-tools"] {
   display: none;
 }
+
+/* A page holding a document prints the document alone: the shell, the
+   record's header and its tabs are the console's, not the customer's. */
+@media print {
+  body:has([data-print-document]) * {
+    visibility: hidden;
+  }
+  body:has([data-print-document]) [data-print-document],
+  body:has([data-print-document]) [data-print-document] * {
+    visibility: visible;
+  }
+  body:has([data-print-document]) [data-print-document] {
+    position: absolute;
+    inset-block-start: 0;
+    inset-inline: 0;
+  }
+}
