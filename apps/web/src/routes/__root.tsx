@@ -64,11 +64,13 @@ export const Route = createRootRouteWithContext<AppRouterContext>()({
         name: "viewport",
         content: "width=device-width, initial-scale=1",
       },
-      ...seo({
-        title: m.commonAppName(),
-        description: m.commonAppDescription(),
-        image: bareHref("/og-image.png"),
-      }),
+      ...(matches.some((match) => match.staticData.website)
+        ? []
+        : seo({
+            title: m.commonAppName(),
+            description: m.commonAppDescription(),
+            image: bareHref("/og-image.png"),
+          })),
       { name: "theme-color", content: "#153f3a" },
     ],
     links: [{ rel: "stylesheet", href: appCss }, ...iconsFor(matches)],

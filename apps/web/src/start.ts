@@ -41,6 +41,7 @@ const WEBSITE_FUNCTIONS = new Set([
   "getPublicPage",
   "getPublicPosts",
   "getPublicPost",
+  "getPublicRedirect",
   "submitSiteEnquiry",
 ]);
 

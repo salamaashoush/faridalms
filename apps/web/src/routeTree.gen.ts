@@ -130,6 +130,9 @@ import { Route as FilesFileIdPartsRouteImport } from './routes/files/$fileId.par
 import { Route as FilesFileIdStreamRouteImport } from './routes/files/$fileId.stream'
 import { Route as LtiAgsSplatRouteImport } from './routes/lti/ags.$'
 import { Route as SiteSchoolIndexRouteImport } from './routes/site/$school/index'
+import { Route as SiteSchoolSplatRouteImport } from './routes/site/$school/$'
+import { Route as SiteSchoolRobotsDottxtRouteImport } from './routes/site/$school/robots[.]txt'
+import { Route as SiteSchoolSitemapDotxmlRouteImport } from './routes/site/$school/sitemap[.]xml'
 import { Route as AppAdmissionsApplicationsIndexRouteImport } from './routes/_app/admissions/applications/index'
 import { Route as AppAdmissionsApplicationsApplicationIdRouteImport } from './routes/_app/admissions/applications/$applicationId'
 import { Route as AppAdmissionsEnquiriesIndexRouteImport } from './routes/_app/admissions/enquiries/index'
@@ -758,6 +761,21 @@ const SiteSchoolIndexRoute = SiteSchoolIndexRouteImport.update({
   path: '/',
   getParentRoute: () => SiteSchoolRoute,
 } as any)
+const SiteSchoolSplatRoute = SiteSchoolSplatRouteImport.update({
+  id: '/$',
+  path: '/$',
+  getParentRoute: () => SiteSchoolRoute,
+} as any)
+const SiteSchoolRobotsDottxtRoute = SiteSchoolRobotsDottxtRouteImport.update({
+  id: '/robots.txt',
+  path: '/robots.txt',
+  getParentRoute: () => SiteSchoolRoute,
+} as any)
+const SiteSchoolSitemapDotxmlRoute = SiteSchoolSitemapDotxmlRouteImport.update({
+  id: '/sitemap.xml',
+  path: '/sitemap.xml',
+  getParentRoute: () => SiteSchoolRoute,
+} as any)
 const AppAdmissionsApplicationsIndexRoute =
   AppAdmissionsApplicationsIndexRouteImport.update({
     id: '/admissions/applications/',
@@ -941,6 +959,9 @@ export interface FileRoutesByFullPath {
   '/files/$fileId/parts': typeof FilesFileIdPartsRouteWithChildren
   '/files/$fileId/stream': typeof FilesFileIdStreamRoute
   '/lti/ags/$': typeof LtiAgsSplatRoute
+  '/site/$school/$': typeof SiteSchoolSplatRoute
+  '/site/$school/robots.txt': typeof SiteSchoolRobotsDottxtRoute
+  '/site/$school/sitemap.xml': typeof SiteSchoolSitemapDotxmlRoute
   '/admin/': typeof AppAdminIndexRoute
   '/announcements/': typeof AppAnnouncementsIndexRoute
   '/calendar/': typeof AppCalendarIndexRoute
@@ -1070,6 +1091,9 @@ export interface FileRoutesByTo {
   '/files/$fileId/parts': typeof FilesFileIdPartsRouteWithChildren
   '/files/$fileId/stream': typeof FilesFileIdStreamRoute
   '/lti/ags/$': typeof LtiAgsSplatRoute
+  '/site/$school/$': typeof SiteSchoolSplatRoute
+  '/site/$school/robots.txt': typeof SiteSchoolRobotsDottxtRoute
+  '/site/$school/sitemap.xml': typeof SiteSchoolSitemapDotxmlRoute
   '/admin': typeof AppAdminIndexRoute
   '/announcements': typeof AppAnnouncementsIndexRoute
   '/calendar': typeof AppCalendarIndexRoute
@@ -1207,6 +1231,9 @@ export interface FileRoutesById {
   '/files/$fileId/parts': typeof FilesFileIdPartsRouteWithChildren
   '/files/$fileId/stream': typeof FilesFileIdStreamRoute
   '/lti/ags/$': typeof LtiAgsSplatRoute
+  '/site/$school/$': typeof SiteSchoolSplatRoute
+  '/site/$school/robots.txt': typeof SiteSchoolRobotsDottxtRoute
+  '/site/$school/sitemap.xml': typeof SiteSchoolSitemapDotxmlRoute
   '/_app/admin/': typeof AppAdminIndexRoute
   '/_app/announcements/': typeof AppAnnouncementsIndexRoute
   '/_app/calendar/': typeof AppCalendarIndexRoute
@@ -1343,6 +1370,9 @@ export interface FileRouteTypes {
     | '/files/$fileId/parts'
     | '/files/$fileId/stream'
     | '/lti/ags/$'
+    | '/site/$school/$'
+    | '/site/$school/robots.txt'
+    | '/site/$school/sitemap.xml'
     | '/admin/'
     | '/announcements/'
     | '/calendar/'
@@ -1472,6 +1502,9 @@ export interface FileRouteTypes {
     | '/files/$fileId/parts'
     | '/files/$fileId/stream'
     | '/lti/ags/$'
+    | '/site/$school/$'
+    | '/site/$school/robots.txt'
+    | '/site/$school/sitemap.xml'
     | '/admin'
     | '/announcements'
     | '/calendar'
@@ -1608,6 +1641,9 @@ export interface FileRouteTypes {
     | '/files/$fileId/parts'
     | '/files/$fileId/stream'
     | '/lti/ags/$'
+    | '/site/$school/$'
+    | '/site/$school/robots.txt'
+    | '/site/$school/sitemap.xml'
     | '/_app/admin/'
     | '/_app/announcements/'
     | '/_app/calendar/'
@@ -2507,6 +2543,27 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof SiteSchoolIndexRouteImport
       parentRoute: typeof SiteSchoolRoute
     }
+    '/site/$school/$': {
+      id: '/site/$school/$'
+      path: '/$'
+      fullPath: '/site/$school/$'
+      preLoaderRoute: typeof SiteSchoolSplatRouteImport
+      parentRoute: typeof SiteSchoolRoute
+    }
+    '/site/$school/robots.txt': {
+      id: '/site/$school/robots.txt'
+      path: '/robots.txt'
+      fullPath: '/site/$school/robots.txt'
+      preLoaderRoute: typeof SiteSchoolRobotsDottxtRouteImport
+      parentRoute: typeof SiteSchoolRoute
+    }
+    '/site/$school/sitemap.xml': {
+      id: '/site/$school/sitemap.xml'
+      path: '/sitemap.xml'
+      fullPath: '/site/$school/sitemap.xml'
+      preLoaderRoute: typeof SiteSchoolSitemapDotxmlRouteImport
+      parentRoute: typeof SiteSchoolRoute
+    }
     '/_app/admissions/applications/': {
       id: '/_app/admissions/applications/'
       path: '/admissions/applications'
@@ -2890,6 +2947,9 @@ const FilesFileIdRouteWithChildren = FilesFileIdRoute._addFileChildren(
 )
 
 interface SiteSchoolRouteChildren {
+  SiteSchoolSplatRoute: typeof SiteSchoolSplatRoute
+  SiteSchoolRobotsDottxtRoute: typeof SiteSchoolRobotsDottxtRoute
+  SiteSchoolSitemapDotxmlRoute: typeof SiteSchoolSitemapDotxmlRoute
   SiteSchoolIndexRoute: typeof SiteSchoolIndexRoute
   SiteSchoolNewsSlugRoute: typeof SiteSchoolNewsSlugRoute
   SiteSchoolPagesSlugRoute: typeof SiteSchoolPagesSlugRoute
@@ -2897,6 +2957,9 @@ interface SiteSchoolRouteChildren {
 }
 
 const SiteSchoolRouteChildren: SiteSchoolRouteChildren = {
+  SiteSchoolSplatRoute: SiteSchoolSplatRoute,
+  SiteSchoolRobotsDottxtRoute: SiteSchoolRobotsDottxtRoute,
+  SiteSchoolSitemapDotxmlRoute: SiteSchoolSitemapDotxmlRoute,
   SiteSchoolIndexRoute: SiteSchoolIndexRoute,
   SiteSchoolNewsSlugRoute: SiteSchoolNewsSlugRoute,
   SiteSchoolPagesSlugRoute: SiteSchoolPagesSlugRoute,

@@ -81,6 +81,11 @@ declare module "@tanstack/react-router" {
     immersive?: boolean;
     /** The page is drawn in a school's face, whose logo becomes its icon. */
     schoolFace?: boolean;
+    /**
+     * The page is the school's public website, which names itself to search
+     * engines and social sites; the platform's own description stays out.
+     */
+    website?: boolean;
   }
   interface Register {
     router: ReturnType<typeof getRouter>;

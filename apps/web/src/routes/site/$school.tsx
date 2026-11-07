@@ -22,10 +22,11 @@ import { publicSiteQuery } from "~/queries/site";
 import siteCss from "~/styles/site.css?url";
 import { adoptSchoolZone } from "~/utils/datetime";
 import { adoptDigits } from "~/utils/digits";
+import { siteHeadMeta } from "~/utils/seo";
 
 /** A school's public website. No one signs in here; the address names the school. */
 export const Route = createFileRoute("/site/$school")({
-  staticData: { schoolFace: true },
+  staticData: { schoolFace: true, website: true },
   validateSearch: v.object({
     lang: v.fallback(v.optional(v.picklist(SITE_LOCALES)), undefined),
   }),
@@ -43,7 +44,7 @@ export const Route = createFileRoute("/site/$school")({
     }
   },
   head: ({ loaderData }) => ({
-    meta: loaderData ? [{ title: loaderData.name }] : [],
+    meta: loaderData ? siteHeadMeta(loaderData) : [],
     links: [{ rel: "stylesheet", href: siteCss }],
   }),
   component: SiteFrame,

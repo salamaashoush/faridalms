@@ -7,10 +7,12 @@ import {
   publicPageSchema,
   publicPostSchema,
   publicPostsSchema,
+  publicRedirectSchema,
   publicSiteSchema,
   publishSchema,
   saveCategorySchema,
   savePageSchema,
+  saveRedirectSchema,
   saveSettingsSchema,
   siteRefSchema,
 } from "@faridalms/domain/website";
@@ -86,6 +88,22 @@ export const getPublicPosts = createServerFn({ method: "GET" })
 export const getPublicPost = createServerFn({ method: "GET" })
   .validator(checked(publicPostSchema))
   .handler(({ data }) => record(backend().site.publicSitePost(data)));
+
+export const getPublicRedirect = createServerFn({ method: "GET" })
+  .validator(checked(publicRedirectSchema))
+  .handler(({ data }) => record(backend().site.publicSiteRedirect(data)));
+
+export const getSiteRedirects = createServerFn({ method: "GET" }).handler(() =>
+  backend().site.redirects(),
+);
+
+export const saveSiteRedirect = createServerFn({ method: "POST" })
+  .validator(checked(saveRedirectSchema))
+  .handler(({ data }) => backend().site.saveSiteRedirect(data));
+
+export const removeSiteRedirect = createServerFn({ method: "POST" })
+  .validator(checked(siteRefSchema))
+  .handler(({ data }) => backend().site.removeSiteRedirect(data));
 
 export const getSiteHosts = createServerFn({ method: "GET" }).handler(() =>
   backend().hosts.list(),
