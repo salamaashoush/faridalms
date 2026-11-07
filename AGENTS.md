@@ -79,6 +79,15 @@ of above the component.
 `docs/design-system.md` maps each of its rules to the module that implements
 it.
 
+A record page (a customer, a school, a lead) follows the anatomy in that
+document's Record page section: header, figures, a To do list, then tabs,
+About first and History last, each tab one thing designed for its content
+(a table with its own action and empty state, or titled summary lists). No
+supporting column beside tabs, no tab grouping unrelated things, no "No X
+yet" under a heading. The console's pages are designed in `docs/console.md`;
+change a page's design there before changing its code, and check it against
+that document's review list.
+
 Adding a route? Run `bun run dev` once so the plugin regenerates the route tree,
 otherwise `tsc` will not know the route exists.
 

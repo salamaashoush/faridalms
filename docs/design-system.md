@@ -15,24 +15,24 @@ build their screens from it. A screen never re-creates one of these with
 its own markup; when a screen needs something the package lacks, the
 package gains it first, with a test and a line in this table.
 
-| Rule           | Module                                                                                                                                         |
-| -------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
-| Shell          | `app-shell` (`AppShell`, `ShellBrand`, `ShellAccount`, `ThemeSubmenu`, breadcrumb steps), `page-actions`                                       |
-| Index page     | `page-header`, `index-toolbar`, `data-table`, `empty-state`                                                                                    |
-| Page width     | `page` (`Page`)                                                                                                                                |
-| Record page    | `record-page` (`RecordHeader`, `RecordTabs`, `RecordColumns`, `RecordSection`, `Facts`, `Fact`, `RecordList`), `value`                         |
-| Record content | `usage-list` (`UsageList`), `summary-list` (`SummaryList`), `dns-records` (`DnsRecords`), `copy-button`                                        |
-| Section sheets | `sheet-form` (edits), `sheet-panel` (reads)                                                                                                    |
-| Record form    | `record-form` (`RecordForm`, `FormSection`, danger zone), `unsaved-changes-guard`                                                              |
-| Settings page  | `settings-section` (`SettingsPage`, `SettingsSection`, `SettingsGroup`)                                                                        |
-| Forms          | `form-field` (`FormField`, `TextField`, `SelectField`, `ChoiceField`, `CheckboxGroupField`, `FieldError`), `combobox-field`, `time-zone-field` |
-| Status         | `status` (`StatusBadge`, `StatusText`, `toneSurface`)                                                                                          |
-| Feedback       | `action-menu` (`ActionMenu`, `useRunAndReport`), `confirm-dialog`, `dialog`                                                                    |
-| Side panels    | `panel` (`PanelGroup`, `Segmented`)                                                                                                            |
-| Metrics        | `metrics` (`MetricGrid`, `Metric`)                                                                                                             |
-| Steps          | `step-nav` (`StepNav`), `form-footer` (`FormFooter`)                                                                                           |
-| Status pages   | `status-page` (`StatusPage`, `ErrorPage`, `NotFoundPage`)                                                                                      |
-| Sign-in pages  | `auth-layout` (`AuthLayout`, `AuthBand`, `AuthHeading`), `theme-toggle`                                                                        |
+| Rule           | Module                                                                                                                                                                                 |
+| -------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Shell          | `app-shell` (`AppShell`, `ShellBrand`, `ShellAccount`, `ThemeSubmenu`, breadcrumb steps), `page-actions`                                                                               |
+| Index page     | `page-header`, `index-toolbar`, `data-table`, `cell-note` (`CellWithNote`), `empty-state`                                                                                              |
+| Page width     | `page` (`Page`)                                                                                                                                                                        |
+| Record page    | `record-page` (`RecordHeader`, `RecordTabs`, `RecordColumns`, `RecordSection`, `Facts`, `Fact`, `RecordList`), `stage-path` (`StagePath`), `attention-list` (`AttentionList`), `value` |
+| Record content | `usage-list` (`UsageList`), `summary-list` (`SummaryList`), `change-log` (`ChangeLog`), `dns-records` (`DnsRecords`), `copy-button`                                                    |
+| Section sheets | `sheet-form` (edits), `sheet-panel` (reads)                                                                                                                                            |
+| Record form    | `record-form` (`RecordForm`, `FormSection`, danger zone), `unsaved-changes-guard`                                                                                                      |
+| Settings page  | `settings-section` (`SettingsPage`, `SettingsSection`, `SettingsGroup`)                                                                                                                |
+| Forms          | `form-field` (`FormField`, `TextField`, `SelectField`, `ChoiceField`, `CheckboxGroupField`, `FieldError`), `combobox-field`, `time-zone-field`                                         |
+| Status         | `status` (`StatusBadge`, `StatusText`, `toneSurface`)                                                                                                                                  |
+| Feedback       | `action-menu` (`ActionMenu`, `useRunAndReport`), `confirm-dialog`, `dialog`                                                                                                            |
+| Side panels    | `panel` (`PanelGroup`, `Segmented`)                                                                                                                                                    |
+| Metrics        | `metrics` (`MetricGrid`, `Metric`)                                                                                                                                                     |
+| Steps          | `step-nav` (`StepNav`), `form-footer` (`FormFooter`)                                                                                                                                   |
+| Status pages   | `status-page` (`StatusPage`, `ErrorPage`, `NotFoundPage`)                                                                                                                              |
+| Sign-in pages  | `auth-layout` (`AuthLayout`, `AuthBand`, `AuthHeading`), `theme-toggle`                                                                                                                |
 
 The package says nothing in a language of its own. Each app wraps its pages
 in `DesignSystemProvider` with a `DesignSystemValue`: the strings the
@@ -134,11 +134,11 @@ Every page sets its width once, by its kind, with `Page` (Polaris and
 Shopify's app guidelines draw the same three lines). The content is centred
 in the space the shell leaves.
 
-| Kind                         | Width  | Why                                              |
-| ---------------------------- | ------ | ------------------------------------------------ |
-| Index, board, home, report   | 1600px | Tables and boards need the room for columns.     |
-| Record                       | 1280px | Two columns read at a glance without wide lines. |
-| Form, settings, step-by-step | 720px  | One column, one path from top to bottom.         |
+| Kind                         | Width  | Why                                          |
+| ---------------------------- | ------ | -------------------------------------------- |
+| Index, board, home, report   | 1600px | Tables and boards need the room for columns. |
+| Record                       | 1280px | Tables in a tab keep their columns readable. |
+| Form, settings, step-by-step | 720px  | One column, one path from top to bottom.     |
 
 ### Index page
 
@@ -169,7 +169,11 @@ Carbon data table, shadcn tasks).
   is hidden while a search is active, because it would then count matches; the
   footer states the number of results.
 - The primary column takes the width the other columns leave and truncates
-  its name there, so one long name never scrolls the table sideways. Names
+  its name there, so one long name never scrolls the table sideways. Every
+  other column is as wide as its content and never wraps, and no header
+  ever wraps. A column whose content runs to several words (a list of
+  changes, a next step) sets a width (`Column.width`: narrow 10rem, medium
+  16rem, wide 24rem) and wraps inside it. Names
   carry `dir="auto"` and truncate at the end of the name in either script.
 - Lists that span years show the school year as a single-choice facet in the
   toolbar, kept in the URL. Its default is the workspace year (the current
@@ -181,58 +185,91 @@ Carbon data table, shadcn tasks).
 - A value that cannot exist for a record, such as the grade of a student with
   no class, is a muted dash read as "Not applicable" (`<Value notApplicable>`).
   "Not recorded" stays for values that should exist and are missing.
+- Free text about a row (why it was done, a note, an outcome) is never a
+  column of its own, where it wraps every row to several lines. It is the
+  second line of the row's primary cell (`CellWithNote`): one muted line cut
+  off with an ellipsis, whole on hover and to a screen reader. Columns are
+  for values someone compares or sorts down the table.
 
 ### Record page
 
-A school, a customer, a student, a class (Salesforce Lightning's "Header and
-Right Sidebar" template, HubSpot's record page, Stripe's customer page).
+A customer, a school, a subscription, a lead, a student, a class (HubSpot's
+record page, Stripe's customer page, Chargebee's customer page). A record is
+read top to bottom in one column at the record width; there is no supporting
+column beside the tabs, because it squeezed the tabs into a strip and put the
+same facts in two places.
 
-- Header: identity (photo, name, key facts), status, alert chips, and at most
-  one primary action plus a `•••` menu. Below 768px the action and the menu
-  move into the top bar's `•••`, as on every other page; the header keeps
-  identity only. A change of state the record's status names (access, a
-  lead's stage) is an action in the menu, and the status badge shows where it
-  stands, so the state is never shown twice.
-- Key facts sit on one muted 14px line separated by `·`, at most three. A
-  separator never ends a line when the facts wrap.
-- Alert chips: 24px high, `rounded-md`, 12px medium text with a 14px icon,
-  tinted with the status tone and a border in the same colour. Info, warning
-  or danger only; they name what a reader must not miss (allergies, no
-  guardian), never a count.
-- Under the header, two columns on wide screens: the main column (two thirds)
-  and a supporting column (one third) that stays in view as the main one
-  scrolls (`RecordColumns stickyAside`). Phones stack them, supporting last.
-- The main column opens with up to four widgets (`MetricGrid`), and only for
-  what decides what someone does next: a health that needs help, progress
-  towards a goal, a count against its limit. A number nobody acts on is not a
-  widget. A record with nothing like that has no widgets.
-- The supporting column holds an "About" card of facts that hold whatever
-  tab is open (where the record lives, what its state means, its owner) and
-  links to the records it belongs to. Nothing in it repeats a widget or a
-  tab.
-- Tabs follow the widgets when the record has two or more jobs worth a page
-  each, named by the job ("Onboarding", "Addresses", "History"), never
-  "Details" or "Other". A record with one job has no tabs. Tabs live in the
-  URL; switching one replaces the history entry and keeps the scroll
-  position (`resetScroll: false`), and a tab the viewer may not open
-  redirects to the first, so the URL always names what is shown.
-- Inside a tab, sections are ruled off, not framed (`RecordSection
-  variant="page"`): a tab is one surface. Each section is designed for its
-  job, not a pile of facts: several records with several attributes are a
-  table (`DataTable`); settings compared down a column are a summary list
-  (`SummaryList`); limits are use against allowance (`UsageList`); a
-  checklist groups its steps by phase with each phase's progress. Cards are
-  for widgets, the About card and groups that sit side by side.
-- A section has at most one ghost Edit button at the end of its heading row,
-  or one outline action that adds to it ("Add host"). Nothing is edited
-  inline in a table.
-- Facts are label above value (13px muted label, 14px value), in a grid that
-  reflows with the section's width. A missing value reads "Not recorded";
-  typed text is isolated with `dir="auto"`.
-- One record looks the same to every role; the role changes which sections
-  and actions it offers, never its layout. A name of a class, a student or a
-  person links to its record where the viewer may open it, and is plain text
-  where they may not.
+Top to bottom:
+
+1. **Header** (`RecordHeader`): identity (photo, name), the status pill, at
+   most three facts on one muted line separated by `·`, at most one primary
+   action and a `•••` menu holding every other action. The primary action is
+   the record's next step in its current state (Log activity on a lead,
+   Publish now when changes wait, Issue on a draft); a record with no such
+   step has none. Every action a tab offers is also in the menu, so it is
+   reachable from any tab. Below 768px the action and the menu move into
+   the top bar's `•••`. A separator never ends a line when the facts wrap.
+   A change of state the status names (access, a lead's stage) is a menu
+   action, never a second display of the state.
+2. **Path** (`StagePath`), only for a record that moves through ordered
+   stages (a lead in the pipeline): the stages behind it ticked, its own
+   filled, those ahead plain, and where it left the path when it did.
+3. **Figures** (`MetricGrid`): at most four numbers that decide what someone
+   does next: money owed, use against a limit, days a term has left, how far
+   onboarding has come. A count of related records is not a figure (the
+   tab's count shows it), and neither is a number nobody acts on. A record
+   with no such number has no figures.
+4. **To do** (`AttentionList`): what is wrong or due on this record, most
+   urgent first, each item a title, one line saying what it means or what
+   to do, and the button that does it (Open invoice, Add contact, Publish
+   now, Set its term). It draws nothing when nothing needs doing, so its
+   presence is the signal. Alert chips are not used on a record with a To do
+   list: the list says the same thing with the fix beside it. Two buttons on
+   one page never share a name, so an item's button names its own job
+   ("Set its term", not "Change the terms" when the Terms tab has that).
+5. **Tabs** (`RecordTabs`): one tab per thing the record has, never a tab
+   that groups unrelated things. The first tab is **About**, the record's
+   own details; then one tab per collection (Invoices, Payments, Schools,
+   Contacts, Tasks, Items, Overrides, Activity, Quotes, Addresses); then
+   **History**, always last. A tab that lists things shows how many after
+   its name (`RecordTab.count`). A tab is named by what it holds, never
+   "Details", "Overview" or "Other". Tabs live in the URL; switching one
+   replaces the history entry and keeps the scroll position
+   (`resetScroll: false`); a tab the viewer may not open is not offered and
+   its URL falls back to the first.
+
+Inside a tab:
+
+- **One tab is one thing.** The tab's name is its heading: no section
+  heading repeats it, and no sentence explains it. A collection tab is one
+  `DataTable`: its filter (a facet in the URL) at the start of the toolbar
+  row, the tab's own action ("Add contact", "Record a payment", "New
+  invoice") at the end through `DataTable actions`, the table, money totals
+  under it (`totals`), and the row actions in each row's menu.
+- **An empty tab is one designed empty state** (`EmptyState` through the
+  table's `empty`): an action-led title ("Add the people to write to",
+  "Sell it a plan"), one sentence of what will fill it and how, and the same
+  action as a button. Never a heading followed by "No X yet".
+- **A details tab** (About, Terms, Limits) is one or more titled summary
+  lists (`SummaryList title align="start"`), each a group a person reads
+  down: legal details, relationship, agreements. A group's edit is a ghost
+  button in its title bar; a single row's change sits at the row's end
+  (`SummaryItem.action`). Values that can be missing go through `<Value>`.
+  Limits against use are a titled `UsageList`.
+- **History** is the audit table (`ChangeLog`): what was done and the
+  fields it moved with readable names (never `taxNumber`), why, by whom,
+  when.
+- Content a person wrote (a lead's message) is a titled block in About.
+- Cards frame only figures, the To do list and titled lists; a tab is never
+  a stack of framed sections.
+- Nothing is edited inline in a table; edits open a sheet.
+- One record looks the same to every role; the role changes which tabs and
+  actions it offers, never its layout. A name of another record links to it
+  where the viewer may open it.
+
+`RecordColumns` (main column and a supporting column) remains for records
+without tabs that read as one page, such as a portal student's own page; a
+record with tabs never uses it.
 
 #### Section sheets
 
@@ -381,7 +418,8 @@ danger. Labels are one or two words, sentence case, past tense for outcomes
 ## Metrics
 
 A home page or a board may open with a strip of metrics: the counts its
-work is measured by (Polaris, Carbon). At most five; each is a 13px label,
+work is measured by (Polaris, Carbon); a record may open with figures, as
+its section says. At most five on a list page, four on a record; each is a 13px label,
 the value at 24px in tabular figures, and at most one line under it, toned
 only when it reports a state ("2 need help"). A metric that counts a list
 opens it from the whole tile, its label naming the link. Metrics never
