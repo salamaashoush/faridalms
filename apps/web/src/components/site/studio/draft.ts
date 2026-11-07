@@ -2,14 +2,18 @@ import type { SiteChrome, SiteTheme } from "@faridalms/domain/site-theme";
 import type {
   PageContent,
   PageSection,
+  PageWarningCode,
   SiteIssue,
   SiteLocale,
+  SocialPicture,
 } from "@faridalms/domain/website";
 
+import { isPageAddress } from "@faridalms/domain/site-seo";
 import {
   localizedSections,
   overlay,
   pageIssues,
+  pageWarnings,
   sectionComplete,
   sectionWritten,
   wordless,
@@ -34,6 +38,12 @@ export interface PageDraft {
   reviewed: string[];
   description: string;
   otherDescription: string;
+  socialPicture: SocialPicture;
+  /** Empty to show the first language's picture in the other. */
+  otherSocialPicture: SocialPicture;
+  canonical: string;
+  otherCanonical: string;
+  indexed: boolean;
 }
 
 export interface SiteDraft {
@@ -62,11 +72,15 @@ export function contentOf(draft: PageDraft): {
     content: {
       sections: draft.sections,
       description: draft.description.trim(),
+      socialPicture: draft.socialPicture,
+      canonical: draft.canonical.trim(),
       reviewed: [],
     },
     translation: {
       sections,
       description: draft.otherDescription.trim(),
+      socialPicture: draft.otherSocialPicture,
+      canonical: draft.otherCanonical.trim(),
       reviewed: draft.reviewed.filter((sectionId) => kept.has(sectionId)),
     },
   };
@@ -91,6 +105,25 @@ export function issuesOf(
         .filter((entry) => entry.locale === locale)
         .map((entry) => entry.section),
     ).map((issue) => ({ locale, issue })),
+  );
+}
+
+/** Whether a canonical address as typed is one the page may name; empty is its own. */
+export const canonicalValid = (value: string) =>
+  value.trim() === "" || isPageAddress(value.trim());
+
+export function warningsOf(
+  draft: PageDraft,
+  languages: Languages,
+): { locale: SiteLocale; code: PageWarningCode }[] {
+  const { content, translation } = contentOf(draft);
+  return pageWarnings(
+    content,
+    languages.other ? translation : null,
+    languages.other
+      ? [languages.primary, languages.other]
+      : [languages.primary],
+    languages.primary,
   );
 }
 

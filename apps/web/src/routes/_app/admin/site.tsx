@@ -8,15 +8,26 @@ import * as v from "valibot";
 import { SiteAddresses } from "~/components/site/SiteAddresses";
 import { SiteCategories } from "~/components/site/SiteCategories";
 import { SitePages } from "~/components/site/SitePages";
+import { SiteRedirects } from "~/components/site/SiteRedirects";
 import { SiteSettings } from "~/components/site/SiteSettings";
 import { useCurrentUser } from "~/hooks/useCurrentUser";
 import * as m from "~/i18n/messages";
-import { siteHostsQuery, siteOverviewQuery } from "~/queries/site";
+import {
+  siteHostsQuery,
+  siteOverviewQuery,
+  siteRedirectsQuery,
+} from "~/queries/site";
 import { currentUserQuery } from "~/queries/user";
 import siteCss from "~/styles/site.css?url";
 import { requirePage } from "~/utils/page-access";
 
-const TABS = ["pages", "categories", "settings", "addresses"] as const;
+const TABS = [
+  "pages",
+  "categories",
+  "settings",
+  "addresses",
+  "redirects",
+] as const;
 
 const searchSchema = v.object({
   tab: v.fallback(v.optional(v.picklist(TABS), "pages"), "pages"),
@@ -36,6 +47,9 @@ export const Route = createFileRoute("/_app/admin/site")({
       deps.tab === "addresses"
         ? context.queryClient.ensureQueryData(siteHostsQuery)
         : null,
+      deps.tab === "redirects"
+        ? context.queryClient.ensureQueryData(siteRedirectsQuery)
+        : null,
     ]);
   },
   head: () => ({ links: [{ rel: "stylesheet", href: siteCss }] }),
@@ -47,6 +61,7 @@ const TAB_LABEL: Record<(typeof TABS)[number], () => string> = {
   categories: m.siteTabCategories,
   settings: m.siteTabSettings,
   addresses: m.siteTabAddresses,
+  redirects: m.siteTabRedirects,
 };
 
 function WebsitePage() {
@@ -90,6 +105,8 @@ function WebsitePage() {
           <SiteCategories categories={overview.categories} />
         ) : search.tab === "addresses" ? (
           <SiteAddresses />
+        ) : search.tab === "redirects" ? (
+          <SiteRedirects pages={overview.pages} />
         ) : (
           <SiteSettings
             key={overview.settings.version}

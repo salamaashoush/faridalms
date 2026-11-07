@@ -57,6 +57,7 @@ import {
   Smartphone,
   SquarePen,
   Tablet,
+  TriangleAlert,
   Undo2,
   X,
 } from "lucide-react";
@@ -105,12 +106,14 @@ import { withNews } from "../render/frame-model";
 import { PageSections } from "../render/page";
 import { Canvas, DEVICES, Viewport } from "./Canvas";
 import {
+  canonicalValid,
   canvasSections,
   contentOf,
   issuesOf,
   otherOf,
   slugOf,
   useUndoable,
+  warningsOf,
 } from "./draft";
 import { SectionGallery } from "./Gallery";
 import { Inspector } from "./Inspector";
@@ -129,6 +132,7 @@ type Overview = Awaited<
 export type StudioPanel = "sections" | "page" | "styles" | "frame";
 
 const SLUG = /^[a-z0-9]+(-[a-z0-9]+)*$/;
+const NO_PICTURE = { fileId: null, alt: "" };
 
 const LOCALE_SHORT: Record<SiteLocale, () => string> = {
   en: m.siteLocaleShortEn,
@@ -155,6 +159,11 @@ function pageDraftOf(
       reviewed: existing.translation?.reviewed ?? [],
       description: existing.content.description,
       otherDescription: existing.translation?.description ?? "",
+      socialPicture: existing.content.socialPicture,
+      otherSocialPicture: existing.translation?.socialPicture ?? NO_PICTURE,
+      canonical: existing.content.canonical,
+      otherCanonical: existing.translation?.canonical ?? "",
+      indexed: existing.indexed,
     };
   }
   const built = template
@@ -175,6 +184,11 @@ function pageDraftOf(
     reviewed: [],
     description: "",
     otherDescription: "",
+    socialPicture: NO_PICTURE,
+    otherSocialPicture: NO_PICTURE,
+    canonical: "",
+    otherCanonical: "",
+    indexed: true,
   };
 }
 
@@ -296,6 +310,7 @@ export function SiteStudio({
     slug: existing?.isHome || SLUG.test(page.slug) ? null : m.siteSlugNeeded(),
   };
   const problems = issuesOf(page, languages);
+  const warnings = warningsOf(page, languages);
   const problemIds = new Set(problems.map((entry) => entry.issue.sectionId));
   const untranslated = new Set(
     languages.other
@@ -577,6 +592,7 @@ export function SiteStudio({
         titleEn: snapshot.titleEn.trim(),
         titleAr: snapshot.titleAr.trim(),
         inMenu: snapshot.inMenu,
+        indexed: snapshot.indexed,
         content,
         translation: languages.other ? translation : null,
       },
@@ -590,7 +606,10 @@ export function SiteStudio({
     }
     await invalidate();
   };
-  const pageValid = !errors.title && !errors.slug;
+  const pageValid =
+    !errors.title &&
+    !errors.slug &&
+    [page.canonical, page.otherCanonical].every(canonicalValid);
   const titleOf = (value: PageDraft) =>
     (languages.primary === "ar" ? value.titleAr : value.titleEn) ||
     value.titleEn ||
@@ -814,7 +833,9 @@ export function SiteStudio({
           {m.siteSelectToEdit()}
         </p>
       </div>
-      {problems.length === 0 && untranslated.size === 0 ? (
+      {problems.length === 0 &&
+      untranslated.size === 0 &&
+      warnings.length === 0 ? (
         <p className="flex items-center gap-2 rounded-lg bg-success/10 px-3 py-2.5 text-sm text-success">
           <CircleCheck aria-hidden className="size-4" />
           {m.siteReadyToPublish()}
@@ -868,6 +889,29 @@ export function SiteStudio({
           })}
         </p>
       ) : null}
+      {warnings.length ? (
+        <ul className="grid gap-1.5">
+          {warnings.map((entry) => (
+            <li key={`${entry.locale}-${entry.code}`}>
+              <button
+                type="button"
+                onClick={() => {
+                  setPanel("page");
+                  if (!wide) setSheet("panel");
+                }}
+                className="flex w-full items-start gap-2 rounded-lg bg-warning/10 px-3 py-2.5 text-start text-[13px] leading-[18px] text-warning-foreground hover:bg-warning/15 dark:text-warning"
+              >
+                <TriangleAlert aria-hidden className="mt-0.5 size-4 shrink-0" />
+                {languages.other
+                  ? m.siteNoDescriptionIn({
+                      language: LOCALE_NAME[entry.locale](),
+                    })
+                  : m.siteNoDescription()}
+              </button>
+            </li>
+          ))}
+        </ul>
+      ) : null}
     </div>
   );
 
@@ -915,6 +959,7 @@ export function SiteStudio({
                 }))
         }
         errors={attempted ? errors : { title: null, slug: null }}
+        onPeople={pictured.open}
         onHistory={pageId ? () => setHistoryOpen(true) : undefined}
         onSlugTouched={() => {
           slugTouched.current = true;
@@ -1432,11 +1477,15 @@ export function SiteStudio({
                       words.sections.map((section) => [section.id, section]),
                     ),
                     otherDescription: words.description,
+                    otherSocialPicture: words.socialPicture,
+                    otherCanonical: words.canonical,
                   }
                 : {
                     ...current,
                     sections: words.sections,
                     description: words.description,
+                    socialPicture: words.socialPicture,
+                    canonical: words.canonical,
                     reviewed: words.reviewed,
                   },
             );

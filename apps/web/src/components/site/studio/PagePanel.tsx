@@ -19,7 +19,9 @@ import * as m from "~/i18n/messages";
 
 import type { Languages, PageDraft } from "./draft";
 
+import { PictureField } from "../PictureField";
 import { StudioField } from "./controls";
+import { canonicalValid } from "./draft";
 
 export interface PagePanelProps {
   draft: PageDraft;
@@ -27,19 +29,26 @@ export interface PagePanelProps {
   isHome: boolean;
   parents: { id: string; title: string }[];
   errors: { title: string | null; slug: string | null };
+  /** Names who the social picture shows, which decides whether it may go on the website. */
+  onPeople: (fileId: string) => void;
   /** Opens the page's earlier versions, once it is stored. */
   onHistory?: () => void;
   onChange: (change: Partial<PageDraft>, key?: string) => void;
   onSlugTouched: () => void;
 }
 
-/** The page itself: its titles, address, place in the menu, search description, and the way to its earlier versions. */
+/**
+ * The page itself: its titles, address and place in the menu, how it
+ * presents itself to search engines and shared links, and the way to its
+ * earlier versions.
+ */
 export function PagePanel({
   draft,
   languages,
   isHome,
   parents,
   errors,
+  onPeople,
   onHistory,
   onChange,
   onSlugTouched,
@@ -180,6 +189,113 @@ export function PagePanel({
             />
           </StudioField>
         ))}
+      </PanelGroup>
+      <PanelGroup
+        title={m.siteSocialPicture()}
+        hint={m.siteSocialPictureHint()}
+      >
+        {locales.map((locale) => {
+          const key =
+            locale === languages.primary
+              ? "socialPicture"
+              : "otherSocialPicture";
+          const picture = draft[key];
+          return (
+            <StudioField
+              key={locale}
+              label={LOCALE_NAME[locale]()}
+              hint={
+                locale === languages.primary
+                  ? undefined
+                  : m.siteSocialPictureOther({
+                      language: LOCALE_NAME[languages.primary](),
+                    })
+              }
+            >
+              <PictureField
+                fileId={picture.fileId}
+                label={m.siteSocialPicture()}
+                onPeople={onPeople}
+                onChange={(fileId) =>
+                  onChange({
+                    [key]: { fileId, alt: fileId ? picture.alt : "" },
+                  })
+                }
+              />
+              {picture.fileId ? (
+                <StudioField
+                  id={`page-social-alt-${locale}`}
+                  label={m.siteSocialPictureAlt()}
+                >
+                  <Input
+                    id={`page-social-alt-${locale}`}
+                    value={picture.alt}
+                    maxLength={300}
+                    lang={locale}
+                    dir={locale === "ar" ? "rtl" : "ltr"}
+                    className="max-md:h-10"
+                    onChange={(event) =>
+                      onChange(
+                        { [key]: { ...picture, alt: event.target.value } },
+                        `page:social-alt:${locale}`,
+                      )
+                    }
+                  />
+                </StudioField>
+              ) : null}
+            </StudioField>
+          );
+        })}
+      </PanelGroup>
+      <PanelGroup title={m.siteSearchEngines()}>
+        <CheckboxRow
+          label={m.siteKeepOutOfSearch()}
+          hint={m.siteKeepOutOfSearchHint()}
+          checked={!draft.indexed}
+          onChange={(hidden) => onChange({ indexed: !hidden })}
+        />
+        {locales.map((locale) => {
+          const key =
+            locale === languages.primary ? "canonical" : "otherCanonical";
+          const valid = canonicalValid(draft[key]);
+          return (
+            <StudioField
+              key={locale}
+              id={`page-canonical-${locale}`}
+              label={
+                locales.length > 1
+                  ? m.siteCanonicalIn({ language: LOCALE_NAME[locale]() })
+                  : m.siteCanonical()
+              }
+              hint={
+                valid ? (
+                  m.siteCanonicalHint()
+                ) : (
+                  <span className="text-destructive">
+                    {m.siteAddressNeeded()}
+                  </span>
+                )
+              }
+            >
+              <Input
+                id={`page-canonical-${locale}`}
+                dir="ltr"
+                value={draft[key]}
+                maxLength={2048}
+                autoComplete="off"
+                placeholder="https://"
+                aria-invalid={valid ? undefined : true}
+                className="max-md:h-10"
+                onChange={(event) =>
+                  onChange(
+                    { [key]: event.target.value },
+                    `page:canonical:${locale}`,
+                  )
+                }
+              />
+            </StudioField>
+          );
+        })}
       </PanelGroup>
       {onHistory ? (
         <PanelGroup title={m.siteHistory()} hint={m.siteHistoryHint()}>

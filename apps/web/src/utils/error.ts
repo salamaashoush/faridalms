@@ -723,6 +723,10 @@ export function getMessageFromError(error: unknown): string {
         return m.fileUploadFailed();
       case "site.slug_taken":
         return m.siteErrSlugTaken();
+      case "site.redirect_taken":
+        return m.siteErrRedirectTaken();
+      case "site.redirect":
+        return m.siteErrRedirect();
       case "site.home":
       case "site.home_exists":
         return m.siteErrHome();
