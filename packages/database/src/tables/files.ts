@@ -1,3 +1,4 @@
+import type { PictureCredit } from "@faridalms/domain/commons";
 import type { SpeechLanguage } from "@faridalms/domain/file";
 import type { PgTableExtraConfigValue } from "drizzle-orm/pg-core";
 
@@ -118,6 +119,33 @@ export const tenantKeys = core.table.withRLS(
   ],
 );
 
+/**
+ * The folders of a school's media library. A folder holds pictures, video
+ * and files of the library and other folders; it goes only once empty.
+ */
+export const mediaFolders = core.table.withRLS(
+  "media_folders",
+  {
+    ...tenantColumns(),
+    orgId: uuid("org_id").notNull(),
+    parentId: uuid("parent_id"),
+    name: text("name").notNull(),
+    ...entityColumns(),
+  },
+  (t): PgTableExtraConfigValue[] => [
+    pk("media_folders", t.tenantId, t.id),
+    ...baseConstraints("media_folders", t, tenants),
+    fk("media_folders", [t.tenantId, t.orgId], [orgs.tenantId, orgs.id]),
+    fk("media_folders", [t.tenantId, t.parentId], [t.tenantId, t.id]),
+    ck("media_folders", "name", sql`char_length(name) between 1 and 80`),
+    ck("media_folders", "parent_id", sql`parent_id <> id`),
+    index("media_folders_parent_idx")
+      .on(t.tenantId, t.orgId, t.parentId)
+      .where(sql`status = 'active'`),
+    ...entityProfile(),
+  ],
+);
+
 export const files = core.table.withRLS(
   "files",
   {
@@ -168,6 +196,12 @@ export const files = core.table.withRLS(
     streamLeasedUntil: instant("stream_leased_until"),
     streamProgress: real("stream_progress"),
     streamError: text("stream_error"),
+    /** The folder of the media library a library file sits in; none at its top. */
+    folderId: uuid("folder_id"),
+    /** What a library picture shows, for those who cannot see it; a use may say it otherwise. */
+    description: text("description"),
+    /** Who made a library picture, and under which licence. */
+    credit: jsonb("credit").$type<PictureCredit>(),
     ...entityColumns(),
   },
   (t): PgTableExtraConfigValue[] => [
@@ -222,6 +256,18 @@ export const files = core.table.withRLS(
       sql`(stream_state = 'encoding') = (stream_leased_until is not null)`,
     ),
     ck("files", "host_pair", sql`(host_type is null) = (host_id is null)`),
+    fk(
+      "files",
+      [t.tenantId, t.folderId],
+      [mediaFolders.tenantId, mediaFolders.id],
+    ),
+    ck(
+      "files",
+      "folder_id",
+      sql`folder_id is null or host_type = 'media_library'`,
+    ),
+    ck("files", "description", sql`char_length(description) <= 300`),
+    ck("files", "credit", sql`jsonb_typeof(credit) = 'object'`),
     ck(
       "files",
       "rejection",
@@ -275,6 +321,9 @@ export const files = core.table.withRLS(
     index("files_stream_queue_idx")
       .on(t.tenantId, t.readyAt)
       .where(sql`status = 'active' and stream_state in ('queued', 'encoding')`),
+    index("files_library_idx")
+      .on(t.tenantId, t.hostId, t.folderId)
+      .where(sql`status = 'active' and host_type = 'media_library'`),
     index("files_trashed_idx")
       .on(t.tenantId, t.trashedAt)
       .where(sql`status = 'active' and trashed_at is not null`),

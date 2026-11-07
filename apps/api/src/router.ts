@@ -40,6 +40,7 @@ import * as intakesSystem from "./systems/intakes";
 import * as learningSystem from "./systems/learning";
 import * as librarySystem from "./systems/library";
 import * as ltiSystem from "./systems/lti";
+import * as mediaLibrarySystem from "./systems/media-library";
 import * as messagesSystem from "./systems/messages";
 import * as newsSystem from "./systems/news";
 import * as notificationsSystem from "./systems/notifications";
@@ -140,6 +141,7 @@ export const router = {
   notifications: owned("notifications", notificationsSystem),
   learning: owned("learning", learningSystem),
   library: owned("library", librarySystem),
+  mediaLibrary: owned("mediaLibrary", mediaLibrarySystem),
   lti: owned("lti", ltiSystem),
   site: owned("site", siteSystem),
   admissions: owned("admissions", admissionsSystem),

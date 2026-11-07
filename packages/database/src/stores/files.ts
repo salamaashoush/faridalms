@@ -371,7 +371,8 @@ export async function retireUnlinkedFiles(
  * Pictures and files a document dropped and no document has held for the
  * whole trash window are retired. A document's saved versions keep their links while they are
  * shown, so only media nothing reads any more goes. A class's or module's
- * file area is a library kept until a teacher deletes from it. Keys come back only when
+ * file area, and the school's media library, are kept until someone deletes
+ * from them. Keys come back only when
  * no active row still points at the same object.
  */
 export async function retireTrashedMedia(
@@ -389,6 +390,7 @@ export async function retireTrashedMedia(
         where f.tenant_id = ${tenantId}::uuid and f.purpose = 'document_media'
           and f.status = 'active' and f.state = 'ready' and f.linked_at is not null
           and f.host_type is distinct from 'class' and f.host_type is distinct from 'module'
+          and f.host_type is distinct from 'media_library'
           and f.created_at < ${before}::timestamptz
           -- Only what a document once held and has dropped: a file kept by
           -- a record of its own, as a declaration keeps its scan, stays.
@@ -608,7 +610,7 @@ export interface AreaFile {
  * A file's kind as a file area is narrowed by: its extension's family
  * where the extension is known, else its media type, as `fileFamily` says.
  */
-const kindOfFile = (() => {
+export const kindOfFile = (() => {
   const extension = sql`lower(substring(f.name from '\.([A-Za-z0-9]{1,10})$'))`;
   const byKind = new Map<FileKind, string[]>();
   for (const [ext, family] of Object.entries(FAMILY_OF_EXTENSION)) {

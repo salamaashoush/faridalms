@@ -42,6 +42,7 @@ type AreaOf = (
 const areas = new Map<string, AreaOf>();
 const areaTypes = new Set<string>();
 const areaWriters = new Map<string, HostReader>();
+const linkedAreas = new Set<string>();
 
 export function registerArea(
   areaType: string,
@@ -52,11 +53,18 @@ export function registerArea(
     writer: HostReader;
     /** The records whose documents keep their files in this area. */
     holders: Record<string, AreaOf>;
+    /**
+     * Documents anywhere show its files where they are rather than copying
+     * them, so a change to one shows everywhere and the area can say where
+     * each is used, as the school's media library does.
+     */
+    linked?: boolean;
   },
 ) {
   readers.set(areaType, rules.reader);
   areaWriters.set(areaType, rules.writer);
   areaTypes.add(areaType);
+  if (rules.linked) linkedAreas.add(areaType);
   for (const [hostType, areaOf] of Object.entries(rules.holders))
     areas.set(hostType, areaOf);
 }
@@ -146,7 +154,8 @@ const held = (file: StoredFile, by: { type: string; id: string }) =>
  * to, or of that record's area: the author's new uploads join it, files
  * already there are shown where they are, and a file from elsewhere that
  * the author may open is copied in, the stored content pointing at the
- * copy. One the author could not open is refused rather than shared.
+ * copy. One from a linked area, such as the media library, is shown where
+ * it is. One the author could not open is refused rather than shared.
  */
 export async function placeMedia<T>(
   context: UnitContext,
@@ -162,8 +171,19 @@ export async function placeMedia<T>(
   const foreign = files.filter(
     (file) => !own(file) && !held(file, keeper) && !held(file, host),
   );
+  // A linked area's file is shown where it is: its readers then include
+  // this document's. One in the area's trash stays only where it was shown.
+  const linkedHere = async (file: StoredFile) =>
+    file.hostType !== null &&
+    linkedAreas.has(file.hostType) &&
+    ((await canReadFile(context, file)) ||
+      (file.trashedAt !== null &&
+        (await documentHostsOfFile(context.tx, context.tenantId, file.id)).some(
+          (shown) => shown.type === host.type && shown.id === host.id,
+        )));
   const copies = await Promise.all(
     foreign.map(async (file) => {
+      if (await linkedHere(file)) return null;
       const copy = (await canReadFile(context, file))
         ? await copyIntoHost(context.tx, {
             tenantId: context.tenantId,
@@ -204,7 +224,7 @@ export async function placeMedia<T>(
       area: keeper,
       ids: files.filter((file) => held(file, host)).map((file) => file.id),
     });
-  const replaced = new Map(copies);
+  const replaced = new Map(copies.filter((copy) => copy !== null));
   if (replaced.size === 0) return { content, mediaIds: unique };
   let text = JSON.stringify(content);
   for (const [from, to] of replaced) text = text.replaceAll(from, to);
