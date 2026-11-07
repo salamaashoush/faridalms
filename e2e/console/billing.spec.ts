@@ -7,6 +7,7 @@ import {
   businessDetails,
   choose,
   createSchool,
+  openDraftOf,
   OWNER,
   payByCard,
   recordHeader,
@@ -39,12 +40,7 @@ test("a contract is invoiced, paid by transfer and card, credited, and shown to 
   await expect(page.getByText("The round ran.")).toBeVisible({
     timeout: 60_000,
   });
-  await page.getByRole("link", { name: "Billing" }).click();
-  await page
-    .getByRole("region", { name: "Drafts to issue" })
-    .getByRole("row", { name: new RegExp(schoolName) })
-    .getByRole("link")
-    .click();
+  await openDraftOf(page, schoolName);
   // 100 students at 350.00 is 35,000.00, and 14% VAT makes 39,900.00.
   const draft = page.getByRole("article", { name: "Draft invoice" });
   await expect(draft).toContainText("35,000.00");
@@ -58,15 +54,18 @@ test("a contract is invoiced, paid by transfer and card, credited, and shown to 
   if (!number) throw new Error("no invoice number");
   const invoiceUrl = page.url().split("?")[0] ?? "";
 
-  await page.getByRole("link", { name: "Arabic" }).click();
+  await page.getByRole("button", { name: "Arabic" }).click();
   const arabic = page.getByRole("article", { name: `فاتورة ${number}` });
   await expect(arabic).toHaveAttribute("dir", "rtl");
   await expect(arabic).toContainText("ضريبة القيمة المضافة");
   await expect(arabic).toContainText("بنك المثال");
 
-  await page.getByRole("button", { name: "Make a payment link" }).click();
+  await page.getByRole("button", { name: "More actions" }).click();
+  await page.getByRole("menuitem", { name: "Make a payment link" }).click();
   await expect(page.getByText("Payment link made.")).toBeVisible();
-  await expect(page.getByRole("link", { name: /\/pay\/\d+$/ })).toBeVisible();
+  await expect(
+    page.getByRole("link", { name: "Payment link" }),
+  ).toHaveAttribute("href", /\/pay\/\d+$/);
 
   // Part by bank transfer, recorded by finance.
   await page.goto("/billing");
@@ -89,8 +88,9 @@ test("a contract is invoiced, paid by transfer and card, credited, and shown to 
   await expect(
     recordHeader(page).getByText("Paid", { exact: true }),
   ).toBeVisible();
-  const paid = page.getByRole("region", { name: "Paid", exact: true });
-  await expect(paid.getByRole("listitem")).toHaveCount(2);
+  await page.getByRole("tab", { name: /^Payments/ }).click();
+  const paid = page.getByRole("region", { name: "Payments", exact: true });
+  await expect(paid.locator("tbody tr")).toHaveCount(2);
 
   await page.getByRole("button", { name: "More actions" }).click();
   await page.getByRole("menuitem", { name: "Credit it" }).click();
@@ -105,9 +105,8 @@ test("a contract is invoiced, paid by transfer and card, credited, and shown to 
   await creditNote.getByLabel("Why").fill("Agreed with the school");
   await creditNote.getByRole("button", { name: "Issue credit note" }).click();
   await expect(page.getByText(/^Credited as CN-\d{4}-\d{5}\./)).toBeVisible();
-  const history = page
-    .getByRole("region", { name: "History", exact: true })
-    .getByRole("table", { name: "Changes" });
+  await page.getByRole("tab", { name: "History" }).click();
+  const history = page.getByRole("table", { name: "Changes" });
   await expect(history.getByText("Issued", { exact: true })).toBeVisible();
   await expect(history.getByText("Credited", { exact: true })).toBeVisible();
 

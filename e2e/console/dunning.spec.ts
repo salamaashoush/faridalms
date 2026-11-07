@@ -9,6 +9,7 @@ import {
   choose,
   createSchool,
   hydrated,
+  openDraftOf,
   OWNER,
   schoolAdministrator,
   signInAs,
@@ -71,12 +72,7 @@ test("an unpaid invoice reminds, asks for a call, restricts the school at its we
   await expect(page.getByText("The round ran.")).toBeVisible({
     timeout: 60_000,
   });
-  await page.goto("/billing");
-  await page
-    .getByRole("region", { name: "Drafts to issue" })
-    .getByRole("row", { name: new RegExp(schoolName) })
-    .getByRole("link")
-    .click();
+  await openDraftOf(page, schoolName);
   await page.getByRole("button", { name: "Issue this invoice" }).click();
   const issued = page.getByText(/^Issued as INV-\d{4}-\d{5}\./);
   await expect(issued).toBeVisible();
@@ -179,6 +175,7 @@ test("an unpaid invoice reminds, asks for a call, restricts the school at its we
 
   // The invoice keeps what its clock sent, and to whom.
   await page.goto(invoiceUrl);
+  await page.getByRole("tab", { name: /^Reminders/ }).click();
   await expect(page.getByRole("region", { name: "Reminders" })).toContainText(
     "Access restricted",
   );

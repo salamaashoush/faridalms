@@ -99,6 +99,35 @@ Before it is issued (lines, purchase order, language) above the document,
 and Issue is its primary action; an open invoice's primary action is
 Settle from a payment. Figures once issued: Total, Paid, Credited, Owed.
 
+### Invoice
+
+Finance opens a draft to check it and issue it, and an issued invoice to
+settle it, credit it or enter the tax authority's id from the e-invoice it
+submitted; sales and support open one to see what a customer was billed.
+The document is what the customer receives, so it is the first tab and
+read at full width, not squeezed beside a column of cards.
+
+| Place   | Content                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
+| ------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Header  | "Invoice INV-…", or "Draft invoice"; its status, Overdue once an owed invoice passes its due day; facts: the customer (linked), what it is for, the tax authority's id once recorded. Primary: Issue this invoice on a draft; on an open invoice Settle from a payment when the customer has money not yet settled, otherwise Record a payment. Menu: Edit the draft; Record a payment, Settle from a payment, Make a payment link, Pause reminders (open invoices), Credit it, Record the tax authority's id; Print or save as PDF                                                                                                                                                                  |
+| Figures | once issued: Total (issued on), Paid (the last payment) and Credited only when something was, Owed (due on, or overdue since in red)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
+| To do   | a draft that cannot be issued yet: the customer reverse-charges the VAT without a tax registration number (Open the customer), the business's legal details are missing (Open settings); an issued invoice or credit note whose tax authority id is not recorded (Record its id)                                                                                                                                                                                                                                                                                                                                                                                                                     |
+| Tabs    | Document (the paper; a toolbar row with Show in English or Arabic, the payment link with its copy button, and Print; a draft puts Before it is issued above the paper, its purchase order and language with Edit, which also edits the lines; a credit note opened from its tab replaces the paper, with Show the invoice), Payments (received, how, reference, amount settled; Record a payment; paid total), Credit notes (number with its reason as the second line, issued, tax authority id, amount; Credit it; Record its id in the row; credited total), Reminders (each step the payment clock took, when, who was emailed; Pause reminders), History. A draft has Document and History only |
+
+Removed: the side column of five stacked cards (Paid, Pay by card,
+Reminders, Credit notes, Tax authority), each a heading over a list or
+"Nothing yet"; the Overdue chip, which the status now says; the Owed fact,
+which the figures say; and the draft's form, which stood between the
+paper and its history and is now a sheet.
+
+New invoice is a form at the form width for a service sold once or
+anything off the schedule. Opened from a customer it names the customer
+and its currency in its description; opened from Billing its first field
+chooses the customer. Then the day it is for, and the lines, each line
+saying its amount after discount, with the subtotal, VAT and total under
+them, so what will be issued is checked before it is saved. Save the
+draft opens the draft.
+
 ## Lists and queues
 
 A list is one table at the list width, with search and at most three
@@ -124,7 +153,27 @@ orders by urgency.
   person and size, the next step coloured by urgency, the owner and the
   quote. The list is the same leads as a table to search and scan. With no
   leads at all the page is one empty state saying where leads come from.
-- **Billing**: invoices by status, with Record a payment as the page action.
+- **Billing**: finance's invoices (Stripe's invoices list). Finance comes
+  to issue what the daily round drafted, to record money received, and to
+  find the invoice a customer asks about. One table of every invoice, not
+  one per state: a draft and a paid invoice are the same record at
+  different points, and separate tables split the search and hid paid and
+  credited invoices altogether. Record a payment is the page action, since
+  a transfer arrives for a customer rather than for a row; New invoice is
+  in the menu. Search by customer or number, a Status facet (Draft,
+  Issued, Partly paid, Overdue, Paid, Credited; Overdue replaces Issued or
+  Partly paid once the due day passes, so each invoice has one status and
+  the counts add up) and a Tax authority id facet (Not recorded, for the
+  ids still to enter after submitting e-invoices). Rows come by urgency:
+  drafts oldest first, then overdue longest first, then open by due day,
+  then settled newest first. Columns: customer, with what the invoice is
+  for as its second line; number; status; issued; due; total; owed. Under
+  the table one total per currency of the rows the filters keep, the one
+  number the rows do not say; there is no figure strip, since Receivables
+  carries what is owed by age. Showing drafts alone offers selection and
+  Issue as a batch, confirmed, for the morning the round drafts many; each
+  draft's menu also has Issue, so a phone can issue one. An open row's menu
+  records a payment from its customer or its tax authority id.
 - **Receivables**: what is owed by age and the calls to make.
 
 ## Administration

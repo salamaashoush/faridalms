@@ -1,6 +1,5 @@
-import { businessToday } from "@faridalms/domain/subscriptions";
 import { ButtonLink } from "@faridalms/ui/system/button-link";
-import { TextField } from "@faridalms/ui/system/form-field";
+import { SelectField, TextField } from "@faridalms/ui/system/form-field";
 import { FormFooter } from "@faridalms/ui/system/form-footer";
 import { Page } from "@faridalms/ui/system/page";
 import { PageHeader } from "@faridalms/ui/system/page-header";
@@ -17,31 +16,44 @@ import {
   InvoiceLinesFields,
   linesOf,
 } from "../components/InvoiceLinesForm";
-import { getCustomer } from "../server/customers";
-import { addInvoice } from "../server/invoicing";
+import { addInvoice, getInvoiceCustomers } from "../server/invoicing";
 
 export const Route = createFileRoute("/invoices/new")({
-  validateSearch: v.object({ customerId: v.pipe(v.string(), v.uuid()) }),
+  validateSearch: v.object({
+    customerId: v.optional(v.pipe(v.string(), v.uuid())),
+  }),
   staticData: { section: "/billing", title: "New invoice" },
-  loaderDeps: ({ search }) => search,
-  loader: ({ deps }) => getCustomer({ data: { id: deps.customerId } }),
+  loader: () => getInvoiceCustomers(),
   component: NewInvoice,
 });
 
-/** An invoice by hand: a service sold once, or anything off the schedule. */
+/**
+ * An invoice by hand: a service sold once, or anything off the schedule.
+ * Opened from a customer it is for that customer; opened from Billing it
+ * asks whom it is for first.
+ */
 function NewInvoice() {
-  const { customer } = Route.useLoaderData();
+  const { customers, today } = Route.useLoaderData();
+  const { customerId: given } = Route.useSearch();
   const navigate = useNavigate();
   const add = useServerFn(addInvoice);
+  const fixed = customers.find((row) => row.id === given);
+  const [customerId, setCustomerId] = useState(fixed?.id ?? "");
   const [drafts, setDrafts] = useState(() => [blankLine()]);
-  const [forDay, setForDay] = useState(businessToday());
+  const [forDay, setForDay] = useState(today);
+  const [submitted, setSubmitted] = useState(false);
   const [answer, setAnswer] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const customer = customers.find((row) => row.id === customerId);
   return (
     <Page width="form">
       <PageHeader
         title="New invoice"
-        description={`For ${customer.legalNameEn}, in ${customer.currency} with the VAT its country is charged. It stays a draft until it is issued.`}
+        description={
+          fixed
+            ? `For ${fixed.legalNameEn}, in ${fixed.currency}. It stays a draft until it is issued.`
+            : "It stays a draft until it is issued."
+        }
       />
       <form
         aria-label="New invoice"
@@ -49,6 +61,8 @@ function NewInvoice() {
         className="grid gap-10"
         onSubmit={async (event) => {
           event.preventDefault();
+          setSubmitted(true);
+          if (!customer) return;
           const read = linesOf(drafts);
           if (!read.ok) {
             setAnswer(read.message);
@@ -75,9 +89,32 @@ function NewInvoice() {
           });
         }}
       >
-        <FormSection title="When">
+        <FormSection title={fixed ? "When" : "Who and when"}>
+          {fixed ? null : (
+            <SelectField
+              label="Customer"
+              value={customerId}
+              options={[
+                { value: "", label: "Choose…" },
+                ...customers.map((row) => ({
+                  value: row.id,
+                  label: row.legalNameEn,
+                })),
+              ]}
+              hint={
+                customer
+                  ? `Invoiced in ${customer.currency}, ${customer.vatName ?? "VAT"} at ${customer.vatPercent.toLocaleString("en")}%.`
+                  : undefined
+              }
+              errors={
+                submitted && !customer ? ["Choose the customer."] : undefined
+              }
+              onChange={setCustomerId}
+            />
+          )}
           <TextField
             label="For the day"
+            hint="The day the service is for; the customer's invoices are ordered by it."
             type="date"
             width="date"
             value={forDay}
@@ -86,9 +123,14 @@ function NewInvoice() {
         </FormSection>
         <FormSection title="Lines">
           <InvoiceLinesFields
-            currency={customer.currency}
+            currency={customer?.currency ?? null}
             drafts={drafts}
             onChange={setDrafts}
+            vat={
+              customer
+                ? { percent: customer.vatPercent, name: customer.vatName }
+                : undefined
+            }
           />
         </FormSection>
         <FormFooter
@@ -96,13 +138,19 @@ function NewInvoice() {
           pending={saving}
           error={answer}
           secondary={
-            <ButtonLink
-              to="/customers/$customerId"
-              params={{ customerId: customer.id }}
-              variant="outline"
-            >
-              Cancel
-            </ButtonLink>
+            fixed ? (
+              <ButtonLink
+                to="/customers/$customerId"
+                params={{ customerId: fixed.id }}
+                variant="outline"
+              >
+                Cancel
+              </ButtonLink>
+            ) : (
+              <ButtonLink to="/billing" variant="outline">
+                Cancel
+              </ButtonLink>
+            )
           }
         />
       </form>

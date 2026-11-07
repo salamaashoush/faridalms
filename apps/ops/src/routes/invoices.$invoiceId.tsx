@@ -1,25 +1,51 @@
+import type { Currency } from "@faridalms/domain/subscriptions";
+import type {
+  ActionItem,
+  PrimaryAction,
+} from "@faridalms/ui/system/action-menu";
+import type { AttentionItem } from "@faridalms/ui/system/attention-list";
+import type {
+  Column,
+  DataTableCard,
+  RowAction,
+} from "@faridalms/ui/system/data-table";
+import type { RecordTab } from "@faridalms/ui/system/record-page";
+
 import { InvoiceDocument } from "@faridalms/documents/InvoiceDocument";
-import { Button } from "@faridalms/ui/button";
+import { Button, buttonVariants } from "@faridalms/ui/button";
+import { AttentionList } from "@faridalms/ui/system/attention-list";
 import { ButtonLink } from "@faridalms/ui/system/button-link";
+import { CellWithNote } from "@faridalms/ui/system/cell-note";
+import { CopyButton } from "@faridalms/ui/system/copy-button";
+import { DataTable, RowLink } from "@faridalms/ui/system/data-table";
+import { DocumentView } from "@faridalms/ui/system/document-view";
 import { SelectField, TextField } from "@faridalms/ui/system/form-field";
+import { Metric, MetricGrid } from "@faridalms/ui/system/metrics";
 import { Page } from "@faridalms/ui/system/page";
-import {
-  Fact,
-  Facts,
-  RecordColumns,
-  RecordEmpty,
-  RecordHeader,
-  RecordList,
-  RecordSection,
-} from "@faridalms/ui/system/record-page";
-import { SettingsSection } from "@faridalms/ui/system/settings-section";
+import { Segmented } from "@faridalms/ui/system/panel";
+import { RecordHeader, RecordTabs } from "@faridalms/ui/system/record-page";
 import { SheetForm, useSheet } from "@faridalms/ui/system/sheet-form";
+import { SummaryList } from "@faridalms/ui/system/summary-list";
+import { Value } from "@faridalms/ui/system/value";
 import { createFileRoute, Link, useRouter } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
-import { CalendarX, HandCoins, Printer, ReceiptText, Send } from "lucide-react";
+import {
+  Banknote,
+  BellOff,
+  CreditCard,
+  ExternalLink,
+  FileCheck,
+  HandCoins,
+  Pencil,
+  Printer,
+  ReceiptText,
+  Send,
+} from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 import * as v from "valibot";
+
+import type { TaxIdDocument } from "../components/TaxIdSheet";
 
 import { attempt, attemptWith, failure } from "../actions";
 import { EventList } from "../components/EventList";
@@ -29,16 +55,20 @@ import {
   lineDraftOf,
   linesOf,
 } from "../components/InvoiceLinesForm";
+import { PauseSheet } from "../components/PauseSheet";
+import { PaymentSheet } from "../components/PaymentSheet";
+import { TaxIdSheet } from "../components/TaxIdSheet";
 import { WhyField } from "../components/Why";
 import {
   DUNNING_STEP_NAMES,
   formatDay,
   formatMoney,
   INVOICE_KIND_NAMES,
-  INVOICE_STATE_NAMES,
-  INVOICE_STATE_TONE,
+  INVOICE_STANDING_NAMES,
+  INVOICE_STANDING_TONE,
   minorOf,
   PAYMENT_METHOD_NAMES,
+  standingOf,
 } from "../format";
 import { useMay } from "../may";
 import {
@@ -46,16 +76,33 @@ import {
   getInvoice,
   issue,
   makePaymentLink,
-  recordTaxId,
   saveInvoiceDraft,
   settleFromPayment,
 } from "../server/invoicing";
 
+const INVOICE_TABS = [
+  "document",
+  "payments",
+  "credits",
+  "reminders",
+  "history",
+] as const;
+type InvoiceTab = (typeof INVOICE_TABS)[number];
+
+const TAB_NAMES: Record<InvoiceTab, string> = {
+  document: "Document",
+  payments: "Payments",
+  credits: "Credit notes",
+  reminders: "Reminders",
+  history: "History",
+};
+
 export const Route = createFileRoute("/invoices/$invoiceId")({
   validateSearch: v.object({
-    language: v.optional(v.picklist(["en", "ar"])),
+    tab: v.fallback(v.optional(v.picklist(INVOICE_TABS)), undefined),
+    language: v.fallback(v.optional(v.picklist(["en", "ar"])), undefined),
     /** A credit note of the invoice to show instead of the invoice. */
-    credit: v.optional(v.pipe(v.string(), v.uuid())),
+    credit: v.fallback(v.optional(v.pipe(v.string(), v.uuid())), undefined),
   }),
   staticData: { section: "/billing", title: "Invoice" },
   loader: ({ params }) => getInvoice({ data: { id: params.invoiceId } }),
@@ -63,40 +110,155 @@ export const Route = createFileRoute("/invoices/$invoiceId")({
 });
 
 type Data = Awaited<ReturnType<typeof getInvoice>>;
+type CreditRow = Data["credits"][number];
 
 const LANGUAGES = [
   { value: "en", label: "English" },
   { value: "ar", label: "Arabic" },
 ] as const;
 
+const plural = (count: number, one: string, many: string) =>
+  `${count.toLocaleString("en")} ${count === 1 ? one : many}`;
+
+/**
+ * One invoice: the paper the customer receives first, then what paid it,
+ * what credited it, the reminders its clock sent and its history. A draft
+ * is checked and issued here; an open one is settled or credited.
+ */
 function InvoicePage() {
   const data = Route.useLoaderData();
   const search = Route.useSearch();
+  const navigate = Route.useNavigate();
   const mayBill = useMay("billing");
-  const { invoice, customer } = data;
-  const language = search.language ?? invoice.language;
-  const shown = data.credits.find((note) => note.id === search.credit);
+  const { invoice, customer, today } = data;
+  const draft = invoice.state === "draft";
+  const standing = standingOf(
+    { state: invoice.state, dueOn: invoice.dueOn, owedMinor: data.owedMinor },
+    today,
+  );
   const open = invoice.state === "issued" || invoice.state === "partly_paid";
   const issuing = useIssue(data);
+  const editing = useSheet();
   const crediting = useSheet();
   const settling = useSheet();
-  const mayCredit =
-    mayBill && invoice.state !== "draft" && invoice.state !== "credited";
+  const paying = useSheet();
+  const pausing = useSheet();
+  const recording = useSheet();
+  const [taxDocument, setTaxDocument] = useState<TaxIdDocument | null>(null);
+  const makeLink = useMakeLink(data);
+  const mayCredit = mayBill && !draft && invoice.state !== "credited";
   const maySettle = mayBill && open && data.unsettled.length > 0;
+  const mayLink = mayBill && open && data.cards && invoice.currency === "EGP";
+  const recordTaxId = (document: TaxIdDocument) => {
+    setTaxDocument(document);
+    recording.show();
+  };
+  const invoiceTaxId: TaxIdDocument = {
+    kind: "invoice",
+    id: invoice.id,
+    number: invoice.number,
+    held: invoice.taxAuthorityId,
+  };
+  const tabs: RecordTab<InvoiceTab>[] = INVOICE_TABS.filter(
+    (value) => !draft || value === "document" || value === "history",
+  ).map((value) => ({
+    value,
+    label: TAB_NAMES[value],
+    count:
+      value === "payments"
+        ? data.allocations.length
+        : value === "credits"
+          ? data.credits.length
+          : value === "reminders"
+            ? data.reminders.length
+            : undefined,
+  }));
+  const tab =
+    search.tab && tabs.some((one) => one.value === search.tab)
+      ? search.tab
+      : "document";
+  const print = () => {
+    if (tab !== "document")
+      void navigate({
+        search: (previous) => ({ ...previous, tab: undefined }),
+        replace: true,
+        resetScroll: false,
+      }).then(() => requestAnimationFrame(() => window.print()));
+    else window.print();
+  };
+  const action: PrimaryAction | undefined = !mayBill
+    ? undefined
+    : draft
+      ? {
+          label: "Issue this invoice",
+          icon: Send,
+          onClick: () => void issuing.run(),
+          pending: issuing.pending,
+        }
+      : maySettle
+        ? {
+            label: "Settle from a payment",
+            icon: HandCoins,
+            onClick: settling.show,
+          }
+        : open
+          ? { label: "Record a payment", icon: Banknote, onClick: paying.show }
+          : undefined;
+  const menu: ActionItem[] = [
+    ...(mayBill && draft
+      ? [{ label: "Edit the draft", icon: Pencil, onSelect: editing.show }]
+      : []),
+    ...(mayBill && open && action?.label !== "Record a payment"
+      ? [{ label: "Record a payment", icon: Banknote, onSelect: paying.show }]
+      : []),
+    ...(maySettle && action?.label !== "Settle from a payment"
+      ? [
+          {
+            label: "Settle from a payment",
+            icon: HandCoins,
+            onSelect: settling.show,
+          },
+        ]
+      : []),
+    ...(mayLink
+      ? [
+          {
+            label: invoice.paymentLinkUrl
+              ? "Make a new payment link"
+              : "Make a payment link",
+            icon: CreditCard,
+            onSelect: makeLink,
+          },
+        ]
+      : []),
+    ...(mayBill && open
+      ? [{ label: "Pause reminders", icon: BellOff, onSelect: pausing.show }]
+      : []),
+    ...(mayCredit
+      ? [{ label: "Credit it", icon: ReceiptText, onSelect: crediting.show }]
+      : []),
+    ...(mayBill && !draft
+      ? [
+          {
+            label: invoice.taxAuthorityId
+              ? "Change the tax authority id"
+              : "Record the tax authority id",
+            icon: FileCheck,
+            onSelect: () => recordTaxId(invoiceTaxId),
+          },
+        ]
+      : []),
+    { label: "Print or save as PDF", icon: Printer, onSelect: print },
+  ];
   return (
     <Page width="record">
       <div className="print:hidden">
         <RecordHeader
           title={invoice.number ? `Invoice ${invoice.number}` : "Draft invoice"}
           status={{
-            label: INVOICE_STATE_NAMES[invoice.state],
-            tone: INVOICE_STATE_TONE[invoice.state],
+            label: INVOICE_STANDING_NAMES[standing],
+            tone: INVOICE_STANDING_TONE[standing],
           }}
-          alerts={
-            open && invoice.dueOn && invoice.dueOn < data.today
-              ? [{ label: "Overdue", tone: "danger", icon: CalendarX }]
-              : []
-          }
           facts={[
             {
               label: "Customer",
@@ -114,180 +276,86 @@ function InvoicePage() {
               label: "For",
               value: `${INVOICE_KIND_NAMES[invoice.kind]} for ${formatDay(invoice.forDay)}`,
             },
-            ...(invoice.state === "draft"
-              ? []
-              : [
-                  {
-                    label: "Owed",
-                    value: `${formatMoney(data.owedMinor, invoice.currency)} owed of ${formatMoney(invoice.totalMinor, invoice.currency)}`,
-                  },
-                ]),
             ...(invoice.taxAuthorityId
               ? [
                   {
-                    label: "Tax authority",
-                    value: `Tax authority ${invoice.taxAuthorityId}`,
+                    label: "Tax authority id",
+                    value: (
+                      <>
+                        Tax authority id{" "}
+                        <span dir="ltr">{invoice.taxAuthorityId}</span>
+                      </>
+                    ),
                   },
                 ]
               : []),
           ]}
-          action={
-            mayBill && invoice.state === "draft"
-              ? {
-                  label: "Issue this invoice",
-                  icon: Send,
-                  onClick: () => void issuing.run(),
-                  pending: issuing.pending,
-                }
-              : maySettle
-                ? {
-                    label: "Settle from a payment",
-                    icon: HandCoins,
-                    onClick: settling.show,
-                  }
-                : undefined
-          }
-          menu={
-            mayCredit
-              ? [
-                  {
-                    label: "Credit it",
-                    icon: ReceiptText,
-                    onSelect: crediting.show,
-                  },
-                ]
-              : []
-          }
+          action={action}
+          menu={menu}
         />
       </div>
-      <RecordColumns
-        main={
-          <>
-            <div className="grid gap-3">
-              <div className="flex flex-wrap items-center justify-between gap-2 print:hidden">
-                <nav
-                  aria-label="Print in"
-                  className="flex gap-1 rounded-lg bg-muted p-1"
-                >
-                  {LANGUAGES.map((choice) => (
-                    <Link
-                      key={choice.value}
-                      to="/invoices/$invoiceId"
-                      params={{ invoiceId: invoice.id }}
-                      search={{ language: choice.value, credit: search.credit }}
-                      aria-current={
-                        choice.value === language ? "true" : undefined
-                      }
-                      className="inline-flex min-h-8 items-center rounded-md px-3 text-[13px] font-medium text-muted-foreground hover:text-foreground aria-[current=true]:bg-background aria-[current=true]:text-foreground aria-[current=true]:shadow-sm"
-                    >
-                      {choice.label}
-                    </Link>
-                  ))}
-                </nav>
-                <span className="flex items-center gap-2">
-                  {shown ? (
-                    <ButtonLink
-                      to="/invoices/$invoiceId"
-                      params={{ invoiceId: invoice.id }}
-                      search={{ language: search.language }}
-                      variant="ghost"
-                      size="sm"
-                    >
-                      Show the invoice
-                    </ButtonLink>
-                  ) : null}
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={() => window.print()}
-                  >
-                    <Printer aria-hidden />
-                    Print or save as PDF
-                  </Button>
-                </span>
-              </div>
-              <div className="rounded-lg border bg-card p-2 shadow-sm print:border-0 print:p-0 print:shadow-none">
-                <InvoiceDocument
-                  language={language}
-                  business={data.business}
-                  vatName={data.vatName}
-                  party={{
-                    name: customer.legalNameEn,
-                    nameAr: customer.legalNameAr,
-                    address: customer.address,
-                    taxNumber: customer.taxNumber,
-                  }}
-                  document={
-                    shown
-                      ? {
-                          kind: "credit_note",
-                          number: shown.number,
-                          issuedOn: shown.issuedOn,
-                          dueOn: null,
-                          currency: invoice.currency,
-                          purchaseOrder: invoice.purchaseOrder,
-                          vatPercent: invoice.vatPercent,
-                          reverseCharge: invoice.reverseCharge,
-                          subtotalMinor: shown.subtotalMinor,
-                          vatMinor: shown.vatMinor,
-                          totalMinor: shown.totalMinor,
-                          lines: shown.lines,
-                          creditFor: {
-                            number: invoice.number ?? "",
-                            reason: shown.reason,
-                          },
-                        }
-                      : {
-                          kind: "invoice",
-                          number: invoice.number,
-                          issuedOn: invoice.issuedOn,
-                          dueOn: invoice.dueOn,
-                          currency: invoice.currency,
-                          purchaseOrder: invoice.purchaseOrder,
-                          vatPercent: invoice.vatPercent,
-                          reverseCharge: invoice.reverseCharge,
-                          subtotalMinor: invoice.subtotalMinor,
-                          vatMinor: invoice.vatMinor,
-                          totalMinor: invoice.totalMinor,
-                          lines: data.lines,
-                        }
-                  }
-                />
-              </div>
-            </div>
-            {mayBill && invoice.state === "draft" ? (
-              <DraftForm data={data} key={invoice.totalMinor} />
-            ) : null}
-
-            <div className="print:hidden">
-              <RecordSection title="History">
-                <EventList events={data.history} names={data.names} />
-              </RecordSection>
-            </div>
-          </>
-        }
-        aside={
-          invoice.state === "draft" ? undefined : (
-            <div className="grid gap-6 print:hidden">
-              <Settlements data={data} />
-              {data.cards && open && mayBill ? (
-                <PaymentLink data={data} />
-              ) : null}
-              <Reminders data={data} />
-              <Credits data={data} />
-              <TaxAuthority
-                document="invoice"
-                id={invoice.id}
-                held={invoice.taxAuthorityId}
-              />
-            </div>
-          )
-        }
-      />
+      <div className="grid grid-cols-[minmax(0,1fr)] gap-6">
+        {draft ? null : (
+          <div className="print:hidden">
+            <Figures data={data} />
+          </div>
+        )}
+        <div className="empty:hidden print:hidden">
+          <ToDo data={data} onRecordTaxId={recordTaxId} />
+        </div>
+        <RecordTabs
+          label="The invoice's records"
+          tabs={tabs}
+          value={tab}
+          onChange={(next) =>
+            void navigate({
+              search: (previous) => ({
+                ...previous,
+                tab: next === "document" ? undefined : next,
+              }),
+              replace: true,
+              resetScroll: false,
+            })
+          }
+        >
+          {tab === "payments" ? (
+            <PaymentsTab
+              data={data}
+              onPay={open && mayBill ? paying.show : null}
+            />
+          ) : tab === "credits" ? (
+            <CreditsTab
+              data={data}
+              onCredit={mayCredit ? crediting.show : null}
+              onRecordTaxId={mayBill ? recordTaxId : null}
+            />
+          ) : tab === "reminders" ? (
+            <RemindersTab
+              data={data}
+              onPause={open && mayBill ? pausing.show : null}
+            />
+          ) : tab === "history" ? (
+            <EventList events={data.history} names={data.names} />
+          ) : (
+            <DocumentTab
+              data={data}
+              onEdit={mayBill && draft ? editing.show : null}
+              onPrint={print}
+            />
+          )}
+        </RecordTabs>
+      </div>
+      {mayBill && draft ? (
+        <DraftSheet
+          key={`edit-${editing.key}`}
+          data={data}
+          open={editing.open}
+          onOpenChange={editing.onOpenChange}
+        />
+      ) : null}
       {mayCredit ? (
         <CreditSheet
-          key={crediting.key}
+          key={`credit-${crediting.key}`}
           data={data}
           open={crediting.open}
           onOpenChange={crediting.onOpenChange}
@@ -295,10 +363,42 @@ function InvoicePage() {
       ) : null}
       {maySettle ? (
         <SettleSheet
-          key={settling.key}
+          key={`settle-${settling.key}`}
           data={data}
           open={settling.open}
           onOpenChange={settling.onOpenChange}
+        />
+      ) : null}
+      {mayBill && open ? (
+        <>
+          <PaymentSheet
+            key={`pay-${paying.key}`}
+            customers={[
+              {
+                id: customer.id,
+                legalNameEn: customer.legalNameEn,
+                currency: customer.currency,
+              },
+            ]}
+            today={today}
+            open={paying.open}
+            onOpenChange={paying.onOpenChange}
+          />
+          <PauseSheet
+            key={`pause-${pausing.key}`}
+            customerId={customer.id}
+            today={today}
+            open={pausing.open}
+            onOpenChange={pausing.onOpenChange}
+          />
+        </>
+      ) : null}
+      {mayBill && taxDocument ? (
+        <TaxIdSheet
+          key={`tax-${recording.key}`}
+          document={taxDocument}
+          open={recording.open}
+          onOpenChange={recording.onOpenChange}
         />
       ) : null}
     </Page>
@@ -338,6 +438,652 @@ function useIssue(data: Data): Issue {
   };
 }
 
+/** Makes a Paymob link for what is owed, which the school's Billing page offers. */
+function useMakeLink(data: Data): () => Promise<void> {
+  const router = useRouter();
+  const make = useServerFn(makePaymentLink);
+  return async () => {
+    try {
+      const out = await make({ data: { id: data.invoice.id } });
+      if (out.ok) {
+        toast.success("Payment link made.");
+        await router.invalidate();
+      } else toast.error(out.message);
+    } catch (error) {
+      const said = failure(error, "The link could not be made.");
+      if (said) toast.error(said);
+    }
+  };
+}
+
+/** What the invoice comes to, what has come in against it, and what is left. */
+function Figures({ data }: InvoiceProps) {
+  const { invoice, today } = data;
+  const money = (minor: number) => formatMoney(minor, invoice.currency);
+  const last = data.allocations.at(-1);
+  const overdue =
+    data.owedMinor > 0 && invoice.dueOn !== null && invoice.dueOn < today;
+  return (
+    <MetricGrid label="At a glance">
+      <Metric
+        label="Total"
+        value={money(invoice.totalMinor)}
+        detail={
+          invoice.issuedOn
+            ? { text: `Issued ${formatDay(invoice.issuedOn)}` }
+            : undefined
+        }
+      />
+      {last ? (
+        <Metric
+          label="Paid"
+          value={money(data.paidMinor)}
+          detail={{
+            text: `Last received ${formatDay(last.payment.receivedOn)}`,
+          }}
+        />
+      ) : null}
+      {data.creditedMinor > 0 ? (
+        <Metric
+          label="Credited"
+          value={money(data.creditedMinor)}
+          detail={{
+            text: plural(data.credits.length, "credit note", "credit notes"),
+          }}
+        />
+      ) : null}
+      <Metric
+        label="Owed"
+        value={money(data.owedMinor)}
+        detail={
+          data.owedMinor === 0
+            ? { text: "Settled", tone: "success" }
+            : overdue && invoice.dueOn
+              ? {
+                  text: `Overdue since ${formatDay(invoice.dueOn)}`,
+                  tone: "danger",
+                }
+              : invoice.dueOn
+                ? { text: `Due ${formatDay(invoice.dueOn)}` }
+                : undefined
+        }
+      />
+    </MetricGrid>
+  );
+}
+
+interface ToDoProps extends InvoiceProps {
+  onRecordTaxId: (document: TaxIdDocument) => void;
+}
+
+/** What stops a draft being issued, and the ids still to copy from the tax authority. */
+function ToDo({ data, onRecordTaxId }: ToDoProps) {
+  const mayBill = useMay("billing");
+  const { invoice, customer } = data;
+  const items: AttentionItem[] = [];
+  if (invoice.state === "draft") {
+    if (invoice.reverseCharge && !customer.taxNumber)
+      items.push({
+        id: "tax-number",
+        tone: "warning",
+        title: "The customer's tax registration number is missing",
+        detail:
+          "It accounts for the VAT itself, so the invoice must cite its number before it is issued.",
+        action: (
+          <ButtonLink
+            variant="outline"
+            size="sm"
+            to="/customers/$customerId"
+            params={{ customerId: customer.id }}
+          >
+            Open the customer
+          </ButtonLink>
+        ),
+      });
+    if (!data.business)
+      items.push({
+        id: "business",
+        tone: "warning",
+        title: "The business's legal details are missing",
+        detail: "Every invoice carries them, so none can be issued yet.",
+        action: (
+          <ButtonLink variant="outline" size="sm" to="/settings">
+            Open settings
+          </ButtonLink>
+        ),
+      });
+  } else if (!invoice.taxAuthorityId)
+    items.push({
+      id: "tax-id",
+      tone: "info",
+      title: "Its tax authority id is not recorded",
+      detail:
+        "Submit it as an e-invoice, then record the id the tax authority gives it.",
+      action: mayBill ? (
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          onClick={() =>
+            onRecordTaxId({
+              kind: "invoice",
+              id: invoice.id,
+              number: invoice.number,
+              held: null,
+            })
+          }
+        >
+          Record its id
+        </Button>
+      ) : undefined,
+    });
+  for (const note of data.credits)
+    if (!note.taxAuthorityId)
+      items.push({
+        id: `credit-${note.id}`,
+        tone: "info",
+        title: `Credit note ${note.number} has no tax authority id`,
+        detail: "Submit it as an e-invoice too, then record its id.",
+        action: mayBill ? (
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={() =>
+              onRecordTaxId({
+                kind: "credit_note",
+                id: note.id,
+                number: note.number,
+                held: null,
+              })
+            }
+          >
+            Record the id of {note.number}
+          </Button>
+        ) : undefined,
+      });
+  return <AttentionList title="To do" items={items} />;
+}
+
+interface DocumentTabProps extends InvoiceProps {
+  onEdit: (() => void) | null;
+  onPrint: () => void;
+}
+
+/**
+ * The paper as the customer receives it, in either language; a credit
+ * note opened from its tab in its place. A draft says first what may still
+ * change before it is issued.
+ */
+function DocumentTab({ data, onEdit, onPrint }: DocumentTabProps) {
+  const search = Route.useSearch();
+  const navigate = Route.useNavigate();
+  const { invoice, customer } = data;
+  const language = search.language ?? invoice.language;
+  const shown = data.credits.find((note) => note.id === search.credit);
+  const open = invoice.state === "issued" || invoice.state === "partly_paid";
+  const link = open ? invoice.paymentLinkUrl : null;
+  const label = shown
+    ? `Credit note ${shown.number}`
+    : invoice.number
+      ? `Invoice ${invoice.number}`
+      : "Draft invoice";
+  return (
+    <div className="grid grid-cols-[minmax(0,1fr)] gap-6">
+      {invoice.state === "draft" ? (
+        <SummaryList
+          title="Before it is issued"
+          align="start"
+          action={
+            onEdit ? (
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                aria-label="Edit the draft"
+                onClick={onEdit}
+              >
+                <Pencil aria-hidden />
+                Edit
+              </Button>
+            ) : undefined
+          }
+          items={[
+            {
+              id: "po",
+              label: "Customer's purchase order",
+              value: (
+                <Value>
+                  {invoice.purchaseOrder ? (
+                    <span dir="auto">{invoice.purchaseOrder}</span>
+                  ) : null}
+                </Value>
+              ),
+            },
+            {
+              id: "language",
+              label: "Written in",
+              value: invoice.language === "ar" ? "Arabic" : "English",
+            },
+            {
+              id: "lines",
+              label: "Lines",
+              value: `${plural(data.lines.length, "line", "lines")}, ${formatMoney(invoice.totalMinor, invoice.currency)} in all`,
+            },
+          ]}
+        />
+      ) : null}
+      <DocumentView
+        label={label}
+        tools={
+          <>
+            <Segmented
+              label="Show in"
+              value={language}
+              options={[...LANGUAGES]}
+              onChange={(next) =>
+                void navigate({
+                  search: (previous) => ({ ...previous, language: next }),
+                  replace: true,
+                  resetScroll: false,
+                })
+              }
+            />
+            {shown ? (
+              <ButtonLink
+                to="/invoices/$invoiceId"
+                params={{ invoiceId: invoice.id }}
+                search={{ language: search.language }}
+                variant="ghost"
+                size="sm"
+              >
+                Show the invoice
+              </ButtonLink>
+            ) : null}
+          </>
+        }
+        actions={
+          <>
+            {link && !shown ? (
+              <span className="flex items-center gap-1">
+                <a
+                  href={link}
+                  target="_blank"
+                  rel="noreferrer"
+                  className={buttonVariants({ variant: "ghost", size: "sm" })}
+                >
+                  <ExternalLink aria-hidden />
+                  Payment link
+                </a>
+                <CopyButton value={link} label="Copy the payment link" />
+              </span>
+            ) : null}
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="max-md:h-10"
+              onClick={onPrint}
+            >
+              <Printer aria-hidden />
+              Print or save as PDF
+            </Button>
+          </>
+        }
+      >
+        <InvoiceDocument
+          language={language}
+          business={data.business}
+          vatName={data.vatName}
+          party={{
+            name: customer.legalNameEn,
+            nameAr: customer.legalNameAr,
+            address: customer.address,
+            taxNumber: customer.taxNumber,
+          }}
+          document={
+            shown
+              ? {
+                  kind: "credit_note",
+                  number: shown.number,
+                  issuedOn: shown.issuedOn,
+                  dueOn: null,
+                  currency: invoice.currency,
+                  purchaseOrder: invoice.purchaseOrder,
+                  vatPercent: invoice.vatPercent,
+                  reverseCharge: invoice.reverseCharge,
+                  subtotalMinor: shown.subtotalMinor,
+                  vatMinor: shown.vatMinor,
+                  totalMinor: shown.totalMinor,
+                  lines: shown.lines,
+                  creditFor: {
+                    number: invoice.number ?? "",
+                    reason: shown.reason,
+                  },
+                }
+              : {
+                  kind: "invoice",
+                  number: invoice.number,
+                  issuedOn: invoice.issuedOn,
+                  dueOn: invoice.dueOn,
+                  currency: invoice.currency,
+                  purchaseOrder: invoice.purchaseOrder,
+                  vatPercent: invoice.vatPercent,
+                  reverseCharge: invoice.reverseCharge,
+                  subtotalMinor: invoice.subtotalMinor,
+                  vatMinor: invoice.vatMinor,
+                  totalMinor: invoice.totalMinor,
+                  lines: data.lines,
+                }
+          }
+        />
+      </DocumentView>
+    </div>
+  );
+}
+
+type Settlement = Data["allocations"][number] & { id: string };
+
+const SETTLEMENT_COLUMNS: Column<Settlement>[] = [
+  {
+    id: "received",
+    header: "Received",
+    primary: true,
+    cell: ({ payment }) => formatDay(payment.receivedOn),
+  },
+  {
+    id: "how",
+    header: "How",
+    cell: ({ payment }) => PAYMENT_METHOD_NAMES[payment.method],
+  },
+  {
+    id: "reference",
+    header: "Reference",
+    cell: ({ payment }) => (
+      <span dir="ltr" className="text-muted-foreground">
+        {payment.reference}
+      </span>
+    ),
+  },
+  {
+    id: "settled",
+    header: "Settled",
+    align: "end",
+    cell: ({ allocation, payment }) =>
+      formatMoney(allocation.amountMinor, payment.currency),
+  },
+];
+
+const SETTLEMENT_CARD: DataTableCard<Settlement> = {
+  title: ({ allocation, payment }) =>
+    formatMoney(allocation.amountMinor, payment.currency),
+  fact: ({ payment }) =>
+    `${PAYMENT_METHOD_NAMES[payment.method]} · ${formatDay(payment.receivedOn)}`,
+};
+
+interface PaymentsTabProps extends InvoiceProps {
+  onPay: (() => void) | null;
+}
+
+/** The payments that settled the invoice, oldest first, and how much of each. */
+function PaymentsTab({ data, onPay }: PaymentsTabProps) {
+  const rows = data.allocations.map((row) => ({
+    ...row,
+    id: row.allocation.id,
+  }));
+  const record = onPay ? (
+    <Button type="button" variant="outline" size="sm" onClick={onPay}>
+      <Banknote aria-hidden />
+      Record a payment
+    </Button>
+  ) : null;
+  return (
+    <DataTable
+      caption="Payments"
+      rows={rows}
+      columns={SETTLEMENT_COLUMNS}
+      rowLabel={({ payment }) => payment.reference}
+      card={SETTLEMENT_CARD}
+      actions={record}
+      totals={
+        rows.length > 1
+          ? [
+              {
+                id: "paid",
+                label: "Paid",
+                cells: {
+                  settled: formatMoney(data.paidMinor, data.invoice.currency),
+                },
+              },
+            ]
+          : undefined
+      }
+      empty={{
+        icon: Banknote,
+        title: "Record what it was paid",
+        description:
+          "A transfer, a cheque or a withholding certificate is recorded here; a card payment through its payment link records itself.",
+        action: record,
+      }}
+    />
+  );
+}
+
+function creditColumns(
+  invoiceId: string,
+  currency: Currency,
+): Column<CreditRow>[] {
+  return [
+    {
+      id: "number",
+      header: "Credit note",
+      primary: true,
+      cell: (note) => (
+        <CellWithNote note={note.reason}>
+          <RowLink
+            to="/invoices/$invoiceId"
+            params={{ invoiceId: invoiceId }}
+            search={{ credit: note.id }}
+          >
+            {note.number}
+          </RowLink>
+        </CellWithNote>
+      ),
+    },
+    {
+      id: "issued",
+      header: "Issued",
+      cell: (note) => formatDay(note.issuedOn),
+    },
+    {
+      id: "taxId",
+      header: "Tax authority id",
+      cell: (note) => (
+        <Value>
+          {note.taxAuthorityId ? (
+            <span dir="ltr">{note.taxAuthorityId}</span>
+          ) : null}
+        </Value>
+      ),
+    },
+    {
+      id: "amount",
+      header: "Amount",
+      align: "end",
+      cell: (note) => formatMoney(note.totalMinor, currency),
+    },
+  ];
+}
+
+function creditCard(
+  invoiceId: string,
+  currency: Currency,
+): DataTableCard<CreditRow> {
+  return {
+    title: (note) => (
+      <RowLink
+        to="/invoices/$invoiceId"
+        params={{ invoiceId: invoiceId }}
+        search={{ credit: note.id }}
+      >
+        {note.number}
+      </RowLink>
+    ),
+    fact: (note) =>
+      `${formatMoney(note.totalMinor, currency)} · ${formatDay(note.issuedOn)}`,
+  };
+}
+
+interface CreditsTabProps extends InvoiceProps {
+  onCredit: (() => void) | null;
+  onRecordTaxId: ((document: TaxIdDocument) => void) | null;
+}
+
+/** The credit notes taken against the invoice, each with why and its tax authority id. */
+function CreditsTab({ data, onCredit, onRecordTaxId }: CreditsTabProps) {
+  const navigate = Route.useNavigate();
+  const { invoice } = data;
+  const columns = creditColumns(invoice.id, invoice.currency);
+  const card = creditCard(invoice.id, invoice.currency);
+  const rowActions = (note: CreditRow): RowAction[] => [
+    {
+      label: "Show it",
+      icon: ReceiptText,
+      onSelect: () =>
+        void navigate({
+          search: (previous) => ({
+            ...previous,
+            tab: undefined,
+            credit: note.id,
+          }),
+        }),
+    },
+    ...(onRecordTaxId
+      ? [
+          {
+            label: note.taxAuthorityId
+              ? "Change its tax authority id"
+              : "Record its tax authority id",
+            icon: FileCheck,
+            onSelect: () =>
+              onRecordTaxId({
+                kind: "credit_note",
+                id: note.id,
+                number: note.number,
+                held: note.taxAuthorityId,
+              }),
+          },
+        ]
+      : []),
+  ];
+  const creditIt = onCredit ? (
+    <Button type="button" variant="outline" size="sm" onClick={onCredit}>
+      <ReceiptText aria-hidden />
+      Credit it
+    </Button>
+  ) : null;
+  return (
+    <DataTable
+      caption="Credit notes"
+      rows={data.credits}
+      columns={columns}
+      rowLabel={(note) => note.number}
+      card={card}
+      rowActions={rowActions}
+      actions={creditIt}
+      totals={
+        data.credits.length > 1
+          ? [
+              {
+                id: "credited",
+                label: "Credited",
+                cells: {
+                  amount: formatMoney(data.creditedMinor, invoice.currency),
+                },
+              },
+            ]
+          : undefined
+      }
+      empty={{
+        icon: ReceiptText,
+        title: "Credit what was agreed",
+        description:
+          "An issued invoice never changes: a credit note takes back part or all of it at its VAT, with why.",
+        action: creditIt,
+      }}
+    />
+  );
+}
+
+type Reminder = Data["reminders"][number] & { id: string };
+
+const REMINDER_COLUMNS: Column<Reminder>[] = [
+  {
+    id: "step",
+    header: "Step",
+    primary: true,
+    cell: (reminder) => DUNNING_STEP_NAMES[reminder.step],
+  },
+  {
+    id: "taken",
+    header: "Taken",
+    cell: (reminder) => formatDay(reminder.takenOn),
+  },
+  {
+    id: "emailed",
+    header: "Emailed to",
+    width: "wide",
+    cell: (reminder) =>
+      reminder.emailedTo.length ? (
+        <span dir="ltr">{reminder.emailedTo.join(", ")}</span>
+      ) : (
+        <span className="text-muted-foreground">
+          Nobody: no billing contact
+        </span>
+      ),
+  },
+];
+
+const REMINDER_CARD: DataTableCard<Reminder> = {
+  title: (reminder) => DUNNING_STEP_NAMES[reminder.step],
+  fact: (reminder) => formatDay(reminder.takenOn),
+};
+
+interface RemindersTabProps extends InvoiceProps {
+  onPause: (() => void) | null;
+}
+
+/** Each step the payment clock took for the invoice, and who its email went to. */
+function RemindersTab({ data, onPause }: RemindersTabProps) {
+  const rows = data.reminders.map((reminder) => ({
+    ...reminder,
+    id: reminder.step,
+  }));
+  const pause = onPause ? (
+    <Button type="button" variant="outline" size="sm" onClick={onPause}>
+      <BellOff aria-hidden />
+      Pause reminders
+    </Button>
+  ) : null;
+  return (
+    <DataTable
+      caption="Reminders"
+      rows={rows}
+      columns={REMINDER_COLUMNS}
+      rowLabel={(reminder) => DUNNING_STEP_NAMES[reminder.step]}
+      card={REMINDER_CARD}
+      actions={pause}
+      empty={{
+        icon: BellOff,
+        title: "No reminder sent yet",
+        description:
+          "The payment clock emails the billing contact a week before the due day, on it, and as the invoice becomes overdue; each email shows here.",
+        action: pause,
+      }}
+    />
+  );
+}
+
 interface InvoiceSheetProps extends InvoiceProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -348,8 +1094,8 @@ const LANGUAGE_OPTIONS = [
   { value: "ar", label: "Arabic" },
 ] as const;
 
-/** A draft's lines, its customer's order number and its language, before it is issued. */
-function DraftForm({ data }: InvoiceProps) {
+/** A draft's customer order number, its language and its lines, before it is issued. */
+function DraftSheet({ data, open, onOpenChange }: InvoiceSheetProps) {
   const router = useRouter();
   const save = useServerFn(saveInvoiceDraft);
   const [drafts, setDrafts] = useState(() => data.lines.map(lineDraftOf));
@@ -360,9 +1106,10 @@ function DraftForm({ data }: InvoiceProps) {
   const [answer, setAnswer] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   return (
-    <SettingsSection
-      title="Before it is issued"
-      description="The lines, the customer's order number and the language it is written in."
+    <SheetForm
+      open={open}
+      onOpenChange={onOpenChange}
+      title="Edit the draft"
       submitLabel="Save draft"
       pending={saving}
       error={answer}
@@ -392,215 +1139,34 @@ function DraftForm({ data }: InvoiceProps) {
           return;
         }
         toast.success("Draft saved.");
-        await router.invalidate();
-      }}
-    >
-      <div className="grid items-start gap-6 @md:grid-cols-2">
-        <TextField
-          label="The customer's purchase order"
-          optional
-          maxLength={60}
-          value={purchaseOrder}
-          onChange={(event) => setPurchaseOrder(event.target.value)}
-        />
-        <SelectField
-          label="Written in"
-          value={language}
-          options={LANGUAGE_OPTIONS}
-          onChange={setLanguage}
-        />
-      </div>
-      <InvoiceLinesFields
-        currency={data.invoice.currency}
-        drafts={drafts}
-        onChange={setDrafts}
-      />
-    </SettingsSection>
-  );
-}
-
-interface TaxIdProps {
-  document: "invoice" | "credit_note";
-  id: string;
-  held: string | null;
-}
-
-/** The tax authority's id for the invoice, which finance enters from its e-invoice. */
-function TaxAuthority({ document, id, held }: TaxIdProps) {
-  const mayBill = useMay("billing");
-  const sheet = useSheet();
-  return (
-    <RecordSection
-      title="Tax authority"
-      edit={
-        mayBill
-          ? { label: "Record the tax authority's id", onClick: sheet.show }
-          : undefined
-      }
-    >
-      <Facts>
-        <Fact label="Its id for the invoice">
-          {held ? <span dir="ltr">{held}</span> : null}
-        </Fact>
-      </Facts>
-      {mayBill ? (
-        <TaxIdSheet
-          key={sheet.key}
-          document={document}
-          id={id}
-          held={held}
-          open={sheet.open}
-          onOpenChange={sheet.onOpenChange}
-        />
-      ) : null}
-    </RecordSection>
-  );
-}
-
-interface TaxIdSheetProps extends TaxIdProps {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-}
-
-/** Records the tax authority's id for an issued invoice or credit note. */
-function TaxIdSheet({
-  document,
-  id,
-  held,
-  open,
-  onOpenChange,
-}: TaxIdSheetProps) {
-  const router = useRouter();
-  const save = useServerFn(recordTaxId);
-  const [value, setValue] = useState(held ?? "");
-  const [submitted, setSubmitted] = useState(false);
-  const [saving, setSaving] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  return (
-    <SheetForm
-      open={open}
-      onOpenChange={onOpenChange}
-      title={
-        document === "invoice"
-          ? "The tax authority's id"
-          : "The credit note's tax authority id"
-      }
-      pending={saving}
-      error={error}
-      onSubmit={async () => {
-        setSubmitted(true);
-        if (!value.trim()) return;
-        if (value === held) {
-          onOpenChange(false);
-          return;
-        }
-        setSaving(true);
-        setError(null);
-        const failed = await attempt(
-          () => save({ data: { document, id, taxAuthorityId: value } }),
-          "The id could not be saved.",
-        );
-        setSaving(false);
-        if (failed) {
-          setError(failed);
-          return;
-        }
-        toast.success("Tax authority's id saved.");
         onOpenChange(false);
         await router.invalidate();
       }}
     >
       <TextField
-        label="The tax authority's id for it"
-        dir="ltr"
-        maxLength={80}
-        value={value}
-        placeholder="From the e-invoice once it is submitted"
-        errors={submitted && !value.trim() ? ["Enter the id."] : undefined}
-        onChange={(event) => setValue(event.target.value)}
+        label="Customer's purchase order"
+        optional
+        maxLength={60}
+        value={purchaseOrder}
+        onChange={(event) => setPurchaseOrder(event.target.value)}
+      />
+      <SelectField
+        label="Written in"
+        hint="The language the customer receives it in."
+        value={language}
+        options={LANGUAGE_OPTIONS}
+        onChange={setLanguage}
+      />
+      <InvoiceLinesFields
+        currency={data.invoice.currency}
+        drafts={drafts}
+        onChange={setDrafts}
+        vat={{
+          percent: Number(data.invoice.vatPercent),
+          name: data.vatName?.en ?? null,
+        }}
       />
     </SheetForm>
-  );
-}
-
-function PaymentLink({ data }: InvoiceProps) {
-  const router = useRouter();
-  const make = useServerFn(makePaymentLink);
-  const [saving, setSaving] = useState(false);
-  return (
-    <RecordSection title="Pay by card">
-      <div className="grid gap-3 text-sm leading-5">
-        {data.invoice.paymentLinkUrl ? (
-          <p>
-            <a
-              href={data.invoice.paymentLinkUrl}
-              className="break-all text-primary underline-offset-4 hover:underline"
-              target="_blank"
-              rel="noreferrer"
-            >
-              {data.invoice.paymentLinkUrl}
-            </a>
-          </p>
-        ) : (
-          <p className="text-muted-foreground">
-            A Paymob link for what is owed, which the school's Billing page
-            offers; its payment is recorded when Paymob says it is made.
-          </p>
-        )}
-        <Button
-          type="button"
-          variant="outline"
-          className="justify-self-start"
-          disabled={saving}
-          onClick={async () => {
-            setSaving(true);
-            try {
-              const out = await make({ data: { id: data.invoice.id } });
-              if (out.ok) {
-                toast.success("Payment link made.");
-                await router.invalidate();
-              } else toast.error(out.message);
-            } catch (error) {
-              const said = failure(error, "The link could not be made.");
-              if (said) toast.error(said);
-            } finally {
-              setSaving(false);
-            }
-          }}
-        >
-          {data.invoice.paymentLinkUrl
-            ? "Make a new link for what is owed"
-            : "Make a payment link"}
-        </Button>
-      </div>
-    </RecordSection>
-  );
-}
-
-function Settlements({ data }: InvoiceProps) {
-  return (
-    <RecordSection title="Paid">
-      {data.allocations.length ? (
-        <RecordList>
-          {data.allocations.map(({ allocation, payment }) => (
-            <li
-              key={allocation.id}
-              className="flex flex-wrap justify-between gap-2 py-3 text-sm leading-5"
-            >
-              <span>
-                {PAYMENT_METHOD_NAMES[payment.method]} · {payment.reference} ·{" "}
-                {formatDay(payment.receivedOn)}
-              </span>
-              <span className="tabular-nums">
-                {formatMoney(allocation.amountMinor, payment.currency)}
-              </span>
-            </li>
-          ))}
-        </RecordList>
-      ) : (
-        <RecordEmpty>Nothing yet.</RecordEmpty>
-      )}
-    </RecordSection>
   );
 }
 
@@ -655,6 +1221,7 @@ function SettleSheet({ data, open, onOpenChange }: InvoiceSheetProps) {
       />
       <TextField
         label="Amount"
+        hint={`${formatMoney(data.owedMinor, data.invoice.currency)} is owed.`}
         inputMode="decimal"
         width="code"
         value={amount}
@@ -662,97 +1229,6 @@ function SettleSheet({ data, open, onOpenChange }: InvoiceSheetProps) {
         onChange={(event) => setAmount(event.target.value)}
       />
     </SheetForm>
-  );
-}
-
-/** The steps of the clock taken for the invoice, and who each email went to. */
-function Reminders({ data }: InvoiceProps) {
-  if (data.reminders.length === 0) return null;
-  return (
-    <RecordSection title="Reminders">
-      <RecordList>
-        {data.reminders.map((reminder) => (
-          <li key={reminder.step} className="grid gap-0.5 py-3">
-            <span className="text-sm leading-5">
-              {DUNNING_STEP_NAMES[reminder.step]}
-            </span>
-            <span className="text-[13px] leading-[18px] text-muted-foreground">
-              {formatDay(reminder.takenOn)} ·{" "}
-              {reminder.emailedTo.length
-                ? reminder.emailedTo.join(", ")
-                : "nobody emailed"}
-            </span>
-          </li>
-        ))}
-      </RecordList>
-    </RecordSection>
-  );
-}
-
-/** The credit notes taken against the invoice, each with its tax authority id. */
-function Credits({ data }: InvoiceProps) {
-  if (data.credits.length === 0) return null;
-  return (
-    <RecordSection title="Credit notes">
-      <RecordList>
-        {data.credits.map((note) => (
-          <CreditNoteItem key={note.id} data={data} note={note} />
-        ))}
-      </RecordList>
-    </RecordSection>
-  );
-}
-
-interface CreditNoteItemProps extends InvoiceProps {
-  note: Data["credits"][number];
-}
-
-function CreditNoteItem({ data, note }: CreditNoteItemProps) {
-  const mayBill = useMay("billing");
-  const sheet = useSheet();
-  return (
-    <li className="grid gap-1 py-3">
-      <span className="flex flex-wrap justify-between gap-2 text-sm leading-5">
-        <Link
-          to="/invoices/$invoiceId"
-          params={{ invoiceId: data.invoice.id }}
-          search={{ credit: note.id }}
-          className="font-medium hover:text-primary hover:underline"
-        >
-          {note.number}
-        </Link>
-        <span className="tabular-nums">
-          {formatMoney(note.totalMinor, data.invoice.currency)}
-        </span>
-      </span>
-      <span className="text-[13px] leading-[18px] text-muted-foreground">
-        {formatDay(note.issuedOn)} · {note.reason}
-      </span>
-      <span className="flex flex-wrap items-center justify-between gap-2 text-[13px] leading-[18px] text-muted-foreground">
-        {note.taxAuthorityId ? (
-          <span>
-            Tax authority <span dir="ltr">{note.taxAuthorityId}</span>
-          </span>
-        ) : (
-          <span>No tax authority id yet</span>
-        )}
-        {mayBill ? (
-          <Button type="button" variant="ghost" size="sm" onClick={sheet.show}>
-            {note.taxAuthorityId ? "Change id" : "Record id"}
-          </Button>
-        ) : null}
-      </span>
-      {mayBill ? (
-        <TaxIdSheet
-          key={sheet.key}
-          document="credit_note"
-          id={note.id}
-          held={note.taxAuthorityId}
-          open={sheet.open}
-          onOpenChange={sheet.onOpenChange}
-        />
-      ) : null}
-    </li>
   );
 }
 
@@ -810,6 +1286,10 @@ function CreditSheet({ data, open, onOpenChange }: InvoiceSheetProps) {
         currency={data.invoice.currency}
         drafts={drafts}
         onChange={setDrafts}
+        vat={{
+          percent: Number(data.invoice.vatPercent),
+          name: data.vatName?.en ?? null,
+        }}
       />
       <WhyField value={reason} onChange={setReason} submitted={submitted} />
     </SheetForm>
