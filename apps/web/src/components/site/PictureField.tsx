@@ -3,6 +3,7 @@ import { ImagePlus, UsersRound, X } from "lucide-react";
 import { useRef, useState } from "react";
 import { toast } from "sonner";
 
+import { ChooseFromLibrary } from "~/components/media/ChooseFromLibrary";
 import { useDocumentMedia } from "~/hooks/useDocumentMedia";
 import * as m from "~/i18n/messages";
 
@@ -12,6 +13,8 @@ export interface PictureFieldProps {
   onChange: (fileId: string | null) => void;
   /** Names who the picture shows, where that decides where it may go. */
   onPeople?: (fileId: string) => void;
+  /** Offers the school's media library beside the upload, where the record shows the file where it is. */
+  fromLibrary?: boolean;
 }
 
 /** Uploads a picture as document media and shows what is chosen. */
@@ -20,6 +23,7 @@ export function PictureField({
   label,
   onChange,
   onPeople,
+  fromLibrary = false,
 }: PictureFieldProps) {
   const media = useDocumentMedia();
   const input = useRef<HTMLInputElement>(null);
@@ -67,6 +71,12 @@ export function PictureField({
           ? m.siteReplacePicture({ label })
           : m.siteChoosePicture({ label })}
       </Button>
+      <ChooseFromLibrary
+        library={fromLibrary ? media.library : undefined}
+        kind="image"
+        size="default"
+        onChoose={(chosen) => onChange(chosen.fileId)}
+      />
       {fileId && onPeople ? (
         <Button
           type="button"

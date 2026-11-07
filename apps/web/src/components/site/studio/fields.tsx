@@ -60,6 +60,7 @@ import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 
 import { ContentEditor } from "~/components/content/ContentEditor";
+import { ChooseFromLibrary } from "~/components/media/ChooseFromLibrary";
 import { CheckboxRow } from "~/components/people/fields";
 import * as m from "~/i18n/messages";
 import { formatNumber } from "~/utils/datetime";
@@ -377,6 +378,17 @@ function ImageControl({
                 )
               }
             />
+            <ChooseFromLibrary
+              library={context.media.library}
+              kind="image"
+              onChoose={(chosen) =>
+                onChange({
+                  fileId: chosen.fileId,
+                  alt: chosen.alt,
+                  ...(chosen.credit ? { credit: chosen.credit } : {}),
+                })
+              }
+            />
             {value.fileId && context.media.people ? (
               <Button
                 type="button"
@@ -495,6 +507,19 @@ function MediaControl({
                 void upload(file, (fileId) =>
                   onChange({ ...value, fileId, focus: undefined }),
                 )
+              }
+            />
+            <ChooseFromLibrary
+              library={context.media.library}
+              kind={video ? "video" : "image"}
+              onChoose={(chosen) =>
+                onChange({
+                  ...value,
+                  fileId: chosen.fileId,
+                  focus: undefined,
+                  alt: video ? value.alt : chosen.alt,
+                  credit: video ? value.credit : chosen.credit,
+                })
               }
             />
             {value.fileId ? (
