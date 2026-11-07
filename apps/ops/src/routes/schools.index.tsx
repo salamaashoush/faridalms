@@ -2,10 +2,12 @@ import type { HealthLevel } from "@faridalms/domain/onboarding";
 import type { Column, DataTableCard } from "@faridalms/ui/system/data-table";
 import type { Facet } from "@faridalms/ui/system/index-toolbar";
 
-import { availableModules } from "@faridalms/domain/plans";
+import { SCHOOL_STANDINGS, standingOf } from "@faridalms/domain/provisioning";
 import { DataTable, RowLink } from "@faridalms/ui/system/data-table";
+import { Page } from "@faridalms/ui/system/page";
 import { PageHeader } from "@faridalms/ui/system/page-header";
-import { StatusText } from "@faridalms/ui/system/status";
+import { StatusBadge } from "@faridalms/ui/system/status";
+import { Value } from "@faridalms/ui/system/value";
 import { createFileRoute, stripSearchParams } from "@tanstack/react-router";
 import { Plus, School as SchoolIcon } from "lucide-react";
 import * as v from "valibot";
@@ -16,7 +18,8 @@ import { HealthBadge } from "../components/Health";
 import { Usage } from "../components/Usage";
 import {
   HEALTH_LEVEL_NAMES,
-  MODULE_NAMES,
+  STANDING_NAMES,
+  STANDING_TONE,
   TENANT_STATE_NAMES,
   TENANT_STATE_TONE,
 } from "../format";
@@ -27,11 +30,14 @@ const HEALTH_LEVELS = ["red", "amber", "green"] as const;
 const search = v.object({
   q: v.optional(v.string(), ""),
   health: v.optional(v.array(v.picklist(HEALTH_LEVELS)), []),
+  access: v.optional(v.array(v.picklist(SCHOOL_STANDINGS)), []),
 });
 
 export const Route = createFileRoute("/schools/")({
   validateSearch: search,
-  search: { middlewares: [stripSearchParams({ q: "", health: [] })] },
+  search: {
+    middlewares: [stripSearchParams({ q: "", health: [], access: [] })],
+  },
   loader: () => loadSchools(),
   component: Schools,
 });
@@ -50,6 +56,9 @@ function onboardingOf(school: SchoolRow) {
   };
 }
 
+const accessOf = (school: SchoolRow) =>
+  standingOf(school.tenantState, school.entitlements.access);
+
 const COLUMNS: Column<SchoolRow>[] = [
   {
     id: "school",
@@ -61,26 +70,40 @@ const COLUMNS: Column<SchoolRow>[] = [
           {nameOf(school)}
         </RowLink>
         <span className="truncate text-[13px] leading-[18px] text-muted-foreground">
-          {school.slug}
+          <span dir="ltr">{school.slug}</span>
+          {school.tenantKind === "school_group"
+            ? ` · ${school.tenantNameEn ?? school.tenantNameAr ?? "a group"}`
+            : ""}
           {school.placement === "legacy" ? " · legacy" : ""}
         </span>
       </span>
     ),
   },
   {
-    id: "state",
-    header: "State",
-    cell: (school) => (
-      <StatusText tone={TENANT_STATE_TONE[school.tenantState]}>
-        {TENANT_STATE_NAMES[school.tenantState]}
-      </StatusText>
-    ),
+    id: "access",
+    header: "Access",
+    cell: (school) => {
+      const standing = accessOf(school);
+      return standing ? (
+        <StatusBadge tone={STANDING_TONE[standing]}>
+          {STANDING_NAMES[standing]}
+        </StatusBadge>
+      ) : (
+        <StatusBadge tone={TENANT_STATE_TONE[school.tenantState]}>
+          {TENANT_STATE_NAMES[school.tenantState]}
+        </StatusBadge>
+      );
+    },
   },
   {
     id: "health",
     header: "Health",
     cell: (school) =>
-      school.health ? <HealthBadge level={school.health.level} /> : null,
+      school.health ? (
+        <HealthBadge level={school.health.level} />
+      ) : (
+        <Value notApplicable>{null}</Value>
+      ),
   },
   {
     id: "onboarding",
@@ -88,25 +111,50 @@ const COLUMNS: Column<SchoolRow>[] = [
     cell: (school) => {
       const progress = onboardingOf(school);
       return progress ? (
-        <span className="text-muted-foreground tabular-nums">
-          {progress.done} of {progress.total}
+        <span className="grid min-w-24 gap-1">
+          <span className="text-muted-foreground tabular-nums">
+            {progress.done} of {progress.total}
+          </span>
+          <span
+            aria-hidden
+            className="h-1.5 overflow-hidden rounded-full bg-muted"
+          >
+            <span
+              className="block h-full rounded-full bg-primary"
+              style={{
+                width: `${Math.round((progress.done / Math.max(progress.total, 1)) * 100)}%`,
+              }}
+            />
+          </span>
         </span>
-      ) : null;
+      ) : (
+        <Value notApplicable>{null}</Value>
+      );
     },
   },
   {
-    id: "group",
-    header: "Group",
-    cell: (school) => school.tenantNameEn ?? school.tenantNameAr ?? "None",
+    id: "students",
+    header: "Students",
+    align: "end",
+    cell: (school) =>
+      school.usage === null ? (
+        <span className="text-muted-foreground">Not reported</span>
+      ) : school.entitlements.students === null ? (
+        school.usage.students.toLocaleString("en")
+      ) : (
+        `${school.usage.students.toLocaleString("en")} of ${school.entitlements.students.toLocaleString("en")}`
+      ),
   },
   {
-    id: "cell",
-    header: "Cell",
-    cell: (school) => (
-      <span className="text-muted-foreground">
-        {school.cellId} · {school.region}
-      </span>
-    ),
+    id: "signedIn",
+    header: "Signed in this week",
+    align: "end",
+    cell: (school) =>
+      school.usage === null ? (
+        <span className="text-muted-foreground">Not reported</span>
+      ) : (
+        school.usage.signedIn7d.toLocaleString("en")
+      ),
   },
   {
     id: "storage",
@@ -118,21 +166,6 @@ const COLUMNS: Column<SchoolRow>[] = [
       />
     ),
   },
-  {
-    id: "modules",
-    header: "Modules",
-    cell: (school) => {
-      const modules = availableModules(school.entitlements);
-      return (
-        <span
-          className="text-muted-foreground tabular-nums"
-          title={modules.map((module) => MODULE_NAMES[module]).join(", ")}
-        >
-          {modules.length}
-        </span>
-      );
-    },
-  },
 ];
 
 const CARD: DataTableCard<SchoolRow> = {
@@ -143,7 +176,12 @@ const CARD: DataTableCard<SchoolRow> = {
   ),
   status: (school) =>
     school.health ? <HealthBadge level={school.health.level} /> : null,
-  fact: (school) => TENANT_STATE_NAMES[school.tenantState],
+  fact: (school) => {
+    const standing = accessOf(school);
+    return standing
+      ? STANDING_NAMES[standing]
+      : TENANT_STATE_NAMES[school.tenantState];
+  },
 };
 
 function matches(school: SchoolRow, needle: string) {
@@ -158,14 +196,16 @@ function matches(school: SchoolRow, needle: string) {
  */
 function Schools() {
   const schools = Route.useLoaderData();
-  const { q, health } = Route.useSearch();
+  const { q, health, access } = Route.useSearch();
   const navigate = Route.useNavigate();
   const needle = q.trim().toLowerCase();
   const rows = schools.filter(
     (school) =>
       (!needle || matches(school, needle)) &&
       (health.length === 0 ||
-        (school.health !== null && health.includes(school.health.level))),
+        (school.health !== null && health.includes(school.health.level))) &&
+      (access.length === 0 ||
+        access.some((standing) => accessOf(school) === standing)),
   );
   const countOf = (level: HealthLevel) =>
     schools.filter((school) => school.health?.level === level).length;
@@ -187,13 +227,34 @@ function Schools() {
           }),
         }),
     },
+    {
+      id: "access",
+      label: "Access",
+      options: SCHOOL_STANDINGS.map((standing) => ({
+        value: standing,
+        label: STANDING_NAMES[standing],
+        count: schools.filter((school) => accessOf(school) === standing).length,
+      })),
+      selected: access,
+      onChange: (selected) =>
+        void navigate({
+          search: (previous) => ({
+            ...previous,
+            access: SCHOOL_STANDINGS.filter((standing) =>
+              selected.includes(standing),
+            ),
+          }),
+        }),
+    },
   ];
   return (
-    <>
+    <Page width="list">
       <PageHeader
         title="Schools"
-        count={needle || health.length ? undefined : schools.length}
-        description="Usage is what each school's cell last reported."
+        count={
+          needle || health.length || access.length ? undefined : schools.length
+        }
+        description="Every school on the platform, with how it is used as its cell last reported."
         action={{
           label: "New school",
           icon: Plus,
@@ -228,6 +289,6 @@ function Schools() {
           action: null,
         }}
       />
-    </>
+    </Page>
   );
 }

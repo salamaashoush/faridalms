@@ -1,30 +1,50 @@
 import type { ModuleId } from "@faridalms/domain/modules";
 import type { EntitlementsInput } from "@faridalms/domain/plans";
 import type { LimitKey } from "@faridalms/domain/subscriptions";
+import type { AttentionItem } from "@faridalms/ui/system/attention-list";
+import type { Column, DataTableCard } from "@faridalms/ui/system/data-table";
+import type { RecordTab } from "@faridalms/ui/system/record-page";
+import type { Tone } from "@faridalms/ui/system/status";
 
 import { MODULE_IDS } from "@faridalms/domain/modules";
+import { netMinor } from "@faridalms/domain/money";
+import { daysBetween } from "@faridalms/domain/school";
 import { LIMIT_KEYS, usableModules } from "@faridalms/domain/subscriptions";
 import { Button } from "@faridalms/ui/button";
-import { Checkbox } from "@faridalms/ui/checkbox";
+import { AttentionList } from "@faridalms/ui/system/attention-list";
+import { CellWithNote } from "@faridalms/ui/system/cell-note";
+import { DataTable, RowLink } from "@faridalms/ui/system/data-table";
 import {
   CheckboxGroupField,
   SelectField,
   TextField,
 } from "@faridalms/ui/system/form-field";
-import {
-  RecordColumns,
-  RecordEmpty,
-  RecordHeader,
-  RecordList,
-  RecordSection,
-} from "@faridalms/ui/system/record-page";
+import { Metric, MetricGrid } from "@faridalms/ui/system/metrics";
+import { Page } from "@faridalms/ui/system/page";
+import { useDesignSystem } from "@faridalms/ui/system/provider";
+import { RecordHeader, RecordTabs } from "@faridalms/ui/system/record-page";
 import { SheetForm, useSheet } from "@faridalms/ui/system/sheet-form";
 import { StatusBadge, StatusText } from "@faridalms/ui/system/status";
-import { createFileRoute, Link, useRouter } from "@tanstack/react-router";
+import { SummaryList } from "@faridalms/ui/system/summary-list";
+import { Value } from "@faridalms/ui/system/value";
+import {
+  createFileRoute,
+  Link,
+  stripSearchParams,
+  useRouter,
+} from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
-import { Info, Plus, Upload } from "lucide-react";
+import {
+  CalendarClock,
+  Package,
+  Pencil,
+  Plus,
+  SlidersHorizontal,
+  Upload,
+} from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
+import * as v from "valibot";
 
 import { attempt, attemptWith } from "../actions";
 import { EventList } from "../components/EventList";
@@ -45,6 +65,8 @@ import {
   minorOf,
   MODULE_NAMES,
   NOTICE_NAMES,
+  STANDING_NAMES,
+  STANDING_TONE,
   SUBSCRIPTION_STATE_NAMES,
   SUBSCRIPTION_STATE_TONE,
   TENANT_STATE_NAMES,
@@ -60,25 +82,45 @@ import {
   saveTerms,
 } from "../server/subscriptions";
 
+const SUBSCRIPTION_TABS = [
+  "terms",
+  "items",
+  "overrides",
+  "schools",
+  "publications",
+  "history",
+] as const;
+type SubscriptionTab = (typeof SUBSCRIPTION_TABS)[number];
+
+const TAB_NAMES: Record<SubscriptionTab, string> = {
+  terms: "Terms",
+  items: "Items",
+  overrides: "Overrides",
+  schools: "Schools",
+  publications: "Publications",
+  history: "History",
+};
+
+const search = v.object({
+  tab: v.fallback(v.optional(v.picklist(SUBSCRIPTION_TABS), "terms"), "terms"),
+});
+
 export const Route = createFileRoute("/subscriptions/$subscriptionId")({
   staticData: { title: "Subscription" },
+  validateSearch: search,
+  search: { middlewares: [stripSearchParams({ tab: "terms" })] },
   loader: ({ params }) =>
     getSubscription({ data: { id: params.subscriptionId } }),
   component: SubscriptionPage,
 });
 
 type Data = Awaited<ReturnType<typeof getSubscription>>;
+type ItemRow = Data["items"][number] & { id: string };
+type OverrideRow = Data["overrides"][number];
+type SchoolRow = Data["schools"][number];
+type PublicationRow = Data["publications"][number];
 
 const GIB = 1024 ** 3;
-
-/** Whether a dated part is still in force or yet to start on the day. */
-const inForce = (span: { endsOn: string | null }, day: string) =>
-  span.endsOn === null || span.endsOn > day;
-
-const spanOf = (span: { startsOn: string; endsOn: string | null }) =>
-  span.endsOn
-    ? `${formatDay(span.startsOn)} until ${formatDay(span.endsOn)}`
-    : `from ${formatDay(span.startsOn)}`;
 
 /** What publishing would change for a school, line by line. */
 function changesBetween(
@@ -110,16 +152,108 @@ function changesBetween(
   return lines;
 }
 
+const plural = (count: number, one: string, many: string) =>
+  `${count.toLocaleString("en")} ${count === 1 ? one : many}`;
+
+/** Where a dated part stands on a day. */
+type PartState = "in_force" | "starts" | "ended";
+
+const partState = (
+  span: { startsOn: string; endsOn: string | null },
+  day: string,
+): PartState =>
+  span.startsOn > day
+    ? "starts"
+    : span.endsOn !== null && span.endsOn <= day
+      ? "ended"
+      : "in_force";
+
+const PART_STATE_NAMES: Record<PartState, string> = {
+  in_force: "In force",
+  starts: "Starts later",
+  ended: "Ended",
+};
+
+const PART_STATE_TONE: Record<PartState, Tone> = {
+  in_force: "success",
+  starts: "info",
+  ended: "neutral",
+};
+
+const nameOfItem = ({ plan, addOn }: Data["items"][number]) =>
+  plan
+    ? `${plan.nameEn}, version ${plan.version}`
+    : addOn
+      ? `${addOn.nameEn}, version ${addOn.version}`
+      : "A retired version";
+
+/** What the items in force on a day come to for a term, after discounts. */
+function valueOn(data: Data, day: string): number {
+  return data.items
+    .filter(({ item }) => partState(item, day) === "in_force")
+    .reduce(
+      (sum, { item }) =>
+        sum +
+        netMinor({
+          quantity: item.quantity,
+          unitPriceMinor: item.unitPriceMinor,
+          discountPercent: Number(item.discountPercent),
+        }),
+      0,
+    );
+}
+
+const termText = (subscription: Data["subscription"]) =>
+  subscription.state === "trial"
+    ? subscription.trialEndsOn
+      ? `Trial until ${formatDay(subscription.trialEndsOn)}`
+      : "Trial with no end"
+    : subscription.termStartsOn && subscription.termEndsOn
+      ? `${formatDay(subscription.termStartsOn)} to ${formatDay(subscription.termEndsOn)}`
+      : "No term set";
+
+/**
+ * One customer's contract: what it pays and until when, what needs doing,
+ * then a tab for each part of it: its terms, the items sold, the
+ * exceptions, what each school has, what was published and its history.
+ */
 function SubscriptionPage() {
   const data = Route.useLoaderData();
-  const { subscription, customer, tenantName, history, names } = data;
+  const { tab } = Route.useSearch();
+  const navigate = Route.useNavigate();
+  const { subscription, customer, tenantName, history, names, today } = data;
   const mayChange = useMay("subscriptions") && subscription.state !== "ended";
   const publishing = useSheet();
-  const waiting = data.schools.some(
+  const changingTerms = useSheet();
+  const addingItem = useSheet();
+  const addingOverride = useSheet();
+  const waiting = data.schools.filter(
     (school) => changesBetween(school.current, school.next).length > 0,
   );
+  const plan = data.items.find(
+    ({ item, plan: version }) =>
+      version && partState(item, today) === "in_force",
+  );
+  const tabs: RecordTab<SubscriptionTab>[] = SUBSCRIPTION_TABS.map((value) => ({
+    value,
+    label: TAB_NAMES[value],
+    count:
+      value === "items"
+        ? data.items.length
+        : value === "overrides"
+          ? data.overrides.length
+          : value === "schools"
+            ? data.schools.length
+            : undefined,
+  }));
+  const go = (next: SubscriptionTab) =>
+    void navigate({
+      search: { tab: next },
+      replace: true,
+      resetScroll: false,
+    });
   return (
-    <>
+    <Page width="record">
       <RecordHeader
         title={tenantName ?? customer.legalNameEn}
         status={{
@@ -135,57 +269,115 @@ function SubscriptionPage() {
                 params={{ customerId: customer.id }}
                 className="hover:text-primary hover:underline"
               >
-                {customer.legalNameEn}
+                Sold to {customer.legalNameEn}
               </Link>
             ),
           },
-          { label: "Currency", value: `Priced in ${subscription.currency}` },
-          { label: "Revision", value: `Revision ${subscription.revision}` },
-          ...(subscription.grandfathered
-            ? [{ label: "Grandfathered", value: "Grandfathered" }]
-            : []),
+          {
+            label: "Plan",
+            value: plan?.plan
+              ? plan.plan.nameEn
+              : subscription.grandfathered
+                ? "No plan sold yet"
+                : "No plan",
+          },
+          { label: "Term", value: termText(subscription) },
         ]}
-        alerts={
-          subscription.grandfathered
+        action={
+          mayChange && waiting.length
+            ? { label: "Publish now", icon: Upload, onClick: publishing.show }
+            : undefined
+        }
+        menu={
+          mayChange
             ? [
                 {
-                  label:
-                    "This tenant came before the console sold anything, so its overrides keep each school as it was. To sell it a contract, set its term, add its plan, then end the overrides from the day the plan starts.",
-                  tone: "info",
-                  icon: Info,
+                  label: "Change the terms",
+                  icon: CalendarClock,
+                  onSelect: changingTerms.show,
+                },
+                { label: "Add item", icon: Package, onSelect: addingItem.show },
+                {
+                  label: "Add override",
+                  icon: SlidersHorizontal,
+                  onSelect: addingOverride.show,
                 },
               ]
             : []
         }
-        action={
-          mayChange && waiting
-            ? { label: "Publish now", icon: Upload, onClick: publishing.show }
-            : undefined
-        }
       />
-      <RecordColumns
-        main={
-          <>
-            <Schools data={data} />
-            <Items data={data} mayChange={mayChange} />
-            <Overrides data={data} mayChange={mayChange} />
-            <Publications data={data} />
-            <RecordSection title="History">
-              <EventList events={history} names={names} />
-            </RecordSection>
-          </>
-        }
-        aside={<Terms data={data} mayChange={mayChange} />}
-      />
-      {mayChange && waiting ? (
-        <PublishSheet
-          key={publishing.key}
+      <div className="grid gap-6">
+        <Glance data={data} />
+        <ToDo
           data={data}
-          open={publishing.open}
-          onOpenChange={publishing.onOpenChange}
+          waiting={waiting}
+          mayChange={mayChange}
+          onPublish={publishing.show}
+          onTerms={changingTerms.show}
+          onItem={addingItem.show}
         />
+        <RecordTabs
+          label="The subscription's parts"
+          tabs={tabs}
+          value={tab}
+          onChange={go}
+        >
+          {tab === "terms" ? (
+            <TermsTab
+              data={data}
+              mayChange={mayChange}
+              onEdit={changingTerms.show}
+            />
+          ) : tab === "items" ? (
+            <ItemsTab
+              data={data}
+              mayChange={mayChange}
+              onAdd={addingItem.show}
+            />
+          ) : tab === "overrides" ? (
+            <OverridesTab
+              data={data}
+              mayChange={mayChange}
+              onAdd={addingOverride.show}
+            />
+          ) : tab === "schools" ? (
+            <SchoolsTab data={data} />
+          ) : tab === "publications" ? (
+            <PublicationsTab data={data} />
+          ) : (
+            <EventList events={history} names={names} />
+          )}
+        </RecordTabs>
+      </div>
+      {mayChange ? (
+        <>
+          <PublishSheet
+            key={`publish-${publishing.key}`}
+            data={data}
+            open={publishing.open}
+            onOpenChange={publishing.onOpenChange}
+          />
+          <TermsSheet
+            key={`terms-${changingTerms.key}`}
+            data={data}
+            open={changingTerms.open}
+            onOpenChange={changingTerms.onOpenChange}
+          />
+          <AddItemSheet
+            key={`item-${addingItem.key}`}
+            data={data}
+            open={addingItem.open}
+            onOpenChange={addingItem.onOpenChange}
+          />
+          <AddOverrideSheet
+            key={`override-${addingOverride.key}`}
+            data={data}
+            open={addingOverride.open}
+            onOpenChange={addingOverride.onOpenChange}
+          />
+        </>
       ) : null}
-    </>
+    </Page>
   );
 }
 
@@ -202,78 +394,696 @@ interface SubscriptionSheetProps extends SubscriptionProps {
   onOpenChange: (open: boolean) => void;
 }
 
-/** Each school as it stands, and as publishing today would leave it. */
-function Schools({ data }: SubscriptionProps) {
+/**
+ * The contract in three numbers: what its items in force come to for a
+ * term, how long the term or trial has left, and how many students its
+ * schools have against those contracted.
+ */
+function Glance({ data }: SubscriptionProps) {
+  const { formatNumber } = useDesignSystem();
+  const { subscription, today } = data;
+  const value = valueOn(data, today);
+  const ends =
+    subscription.state === "trial"
+      ? subscription.trialEndsOn
+      : subscription.termEndsOn;
+  const left = ends ? daysBetween(today, ends) - 1 : null;
+  const reported = data.schools.filter((school) => school.students !== null);
+  const enrolled = reported.reduce(
+    (sum, school) => sum + (school.students ?? 0),
+    0,
+  );
+  const contracted = subscription.contractedStudents;
   return (
-    <RecordSection
-      title="Schools"
-      description="What each school has now, and what it would have if this subscription were published today. The daily round publishes each day on its own."
-    >
-      {data.schools.length === 0 ? (
-        <RecordEmpty>The tenant has no schools in the directory.</RecordEmpty>
-      ) : (
-        <ul className="grid gap-3 @2xl:grid-cols-2">
-          {data.schools.map((school) => {
-            const changes = changesBetween(school.current, school.next);
-            const usable = usableModules(school.next.modules);
-            const unusable = school.next.modules.filter(
-              (id) => !usable.includes(id),
-            );
-            return (
-              <li
-                key={school.id}
-                aria-label={school.name}
-                className="grid content-start gap-3 rounded-lg border p-4"
-              >
-                <span className="flex flex-wrap items-center gap-2">
-                  <Link
-                    to="/schools/$schoolId"
-                    params={{ schoolId: school.id }}
-                    className="text-sm leading-5 font-semibold hover:text-primary hover:underline"
-                  >
-                    {school.name}
-                  </Link>
-                  {school.tenantState === "active" ? null : (
-                    <StatusBadge tone={TENANT_STATE_TONE[school.tenantState]}>
-                      {TENANT_STATE_NAMES[school.tenantState]}
-                    </StatusBadge>
-                  )}
-                  {school.access === "restricted" ? (
-                    <StatusBadge tone="warning">Restricted</StatusBadge>
-                  ) : null}
-                </span>
-                {changes.length ? (
-                  <ul className="grid gap-1">
-                    {changes.map((line) => (
-                      <li key={line}>
-                        <StatusText tone="info">{line}</StatusText>
-                      </li>
-                    ))}
-                  </ul>
-                ) : (
-                  <p className="text-[13px] leading-[18px] text-muted-foreground">
-                    Published as it stands.
-                  </p>
-                )}
-                <span className="flex flex-wrap gap-1.5">
-                  {usable.map((id) => (
-                    <StatusBadge key={id} tone="neutral">
-                      {MODULE_NAMES[id]}
-                    </StatusBadge>
-                  ))}
-                </span>
-                {unusable.length ? (
-                  <p className="text-[13px] leading-[18px] text-muted-foreground">
-                    Entitled but unusable without the modules they need:{" "}
-                    {unusable.map((id) => MODULE_NAMES[id]).join(", ")}.
-                  </p>
-                ) : null}
-              </li>
-            );
-          })}
-        </ul>
-      )}
-    </RecordSection>
+    <MetricGrid label="At a glance">
+      <Metric
+        label="Value a term"
+        value={formatMoney(value, subscription.currency)}
+        detail={{
+          text:
+            subscription.state === "trial"
+              ? "Nothing is billed during a trial"
+              : `Billed ${SCHEDULE_NAMES[subscription.schedule].toLowerCase()}, before VAT`,
+        }}
+      />
+      <Metric
+        label={subscription.state === "trial" ? "Trial ends" : "Term ends"}
+        value={ends ? formatDay(ends) : "No end"}
+        detail={
+          left === null
+            ? undefined
+            : left < 0
+              ? {
+                  text: `Ended ${plural(-left, "day", "days")} ago`,
+                  tone: "danger",
+                }
+              : {
+                  text: `${plural(left, "day", "days")} left${subscription.state === "active" ? `, ${subscription.renewal === "auto" ? "renews on its own" : "renewed by hand"}` : ""}`,
+                  tone: left <= 30 ? "warning" : undefined,
+                }
+        }
+      />
+      <Metric
+        label="Students"
+        value={reported.length ? formatNumber(enrolled) : "Not reported"}
+        meter={
+          contracted && reported.length ? enrolled / contracted : undefined
+        }
+        detail={{
+          text: contracted
+            ? `Of ${formatNumber(contracted)} contracted`
+            : "No contracted number",
+          tone: contracted && enrolled > contracted ? "warning" : undefined,
+        }}
+      />
+    </MetricGrid>
+  );
+}
+
+interface ToDoProps {
+  data: Data;
+  waiting: SchoolRow[];
+  mayChange: boolean;
+  onPublish: () => void;
+  onTerms: () => void;
+  onItem: () => void;
+}
+
+/** What the contract waits on: a publication, a trial's end, a renewal. */
+function ToDo({
+  data,
+  waiting,
+  mayChange,
+  onPublish,
+  onTerms,
+  onItem,
+}: ToDoProps) {
+  const { subscription, today } = data;
+  const items: AttentionItem[] = [];
+  const button = (label: string, onClick: () => void) =>
+    mayChange ? (
+      <Button type="button" variant="outline" size="sm" onClick={onClick}>
+        {label}
+      </Button>
+    ) : undefined;
+  if (waiting.length)
+    items.push({
+      id: "publish",
+      tone: "info",
+      title: `Changes wait to be published to ${plural(waiting.length, "school", "schools")}`,
+      detail: waiting
+        .map(
+          (school) =>
+            `${school.name}: ${changesBetween(school.current, school.next).join("; ")}`,
+        )
+        .join(" · "),
+      action: button("Publish now", onPublish),
+    });
+  if (subscription.state === "trial" && subscription.trialEndsOn) {
+    const left = daysBetween(today, subscription.trialEndsOn) - 1;
+    if (left <= 14)
+      items.push({
+        id: "trial",
+        tone: left < 0 ? "danger" : "warning",
+        title:
+          left < 0
+            ? `The trial ended ${formatDay(subscription.trialEndsOn)}`
+            : `The trial ends in ${plural(left, "day", "days")}`,
+        detail:
+          "Make it a contract: set its term, then add its plan as an item.",
+        action: button("Set its term", onTerms),
+      });
+  }
+  if (
+    subscription.state === "active" &&
+    subscription.termEndsOn &&
+    subscription.renewal === "manual"
+  ) {
+    const left = daysBetween(today, subscription.termEndsOn) - 1;
+    if (left <= 60)
+      items.push({
+        id: "renew",
+        tone: left <= 14 ? "warning" : "info",
+        title: `The term ends in ${plural(Math.max(left, 0), "day", "days")} and does not renew on its own`,
+        detail: "Agree the next term with the customer, then extend it here.",
+        action: button("Extend the term", onTerms),
+      });
+  }
+  if (
+    subscription.state !== "trial" &&
+    !data.items.some(({ item }) => partState(item, today) === "in_force")
+  )
+    items.push({
+      id: "nothing-sold",
+      tone: subscription.grandfathered ? "info" : "warning",
+      title: subscription.grandfathered
+        ? "Kept as each school was before the console sold anything"
+        : "Nothing is sold in force",
+      detail: subscription.grandfathered
+        ? "To sell it a contract: set its term, add its plan, then end the overrides from the day the plan starts."
+        : "Its schools have Basic and whatever its overrides give.",
+      action: button("Add item", onItem),
+    });
+  return <AttentionList title="To do" items={items} />;
+}
+
+interface TermsTabProps extends ChangeableProps {
+  onEdit: () => void;
+}
+
+/** The contract's terms read down a column, as they were agreed. */
+function TermsTab({ data, mayChange, onEdit }: TermsTabProps) {
+  const { subscription } = data;
+  const trial = subscription.state === "trial";
+  return (
+    <SummaryList
+      title="Terms"
+      align="start"
+      action={
+        mayChange ? (
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            aria-label="Change the terms"
+            onClick={onEdit}
+          >
+            <Pencil aria-hidden />
+            Edit
+          </Button>
+        ) : undefined
+      }
+      items={[
+        {
+          id: "kind",
+          label: "Kind",
+          value: trial ? "A trial" : "A contract",
+        },
+        ...(trial
+          ? [
+              {
+                id: "trial",
+                label: "Trial's last day",
+                value: (
+                  <Value>
+                    {subscription.trialEndsOn
+                      ? formatDay(subscription.trialEndsOn)
+                      : null}
+                  </Value>
+                ),
+              },
+            ]
+          : [
+              {
+                id: "term",
+                label: "Term",
+                value: termText(subscription),
+              },
+              {
+                id: "renewal",
+                label: "Renewal",
+                value:
+                  subscription.renewal === "auto"
+                    ? "Renews on its own for another term"
+                    : "Renewed by hand",
+              },
+              {
+                id: "schedule",
+                label: "Billed",
+                value: SCHEDULE_NAMES[subscription.schedule],
+              },
+            ]),
+        {
+          id: "students",
+          label: "Contracted students",
+          value: (
+            <Value>
+              {subscription.contractedStudents?.toLocaleString("en") ?? null}
+            </Value>
+          ),
+        },
+        ...(subscription.censusOn
+          ? [
+              {
+                id: "census",
+                label: "Students counted on",
+                value: formatDay(subscription.censusOn),
+              },
+            ]
+          : []),
+        {
+          id: "currency",
+          label: "Priced in",
+          value: subscription.currency,
+        },
+        {
+          id: "notice",
+          label: "Notice its schools see",
+          value: subscription.notice ? (
+            NOTICE_NAMES[subscription.notice]
+          ) : (
+            <span className="text-muted-foreground">None</span>
+          ),
+        },
+      ]}
+    />
+  );
+}
+
+function itemColumns(data: Data): Column<ItemRow>[] {
+  const schoolName = (id: string) =>
+    data.schools.find((school) => school.id === id)?.name ?? id;
+  const currency = data.subscription.currency;
+  return [
+    {
+      id: "item",
+      header: "Item",
+      primary: true,
+      cell: (row) => (
+        <span className="grid min-w-0 py-2.5">
+          <span className="truncate font-medium">{nameOfItem(row)}</span>
+          <span className="truncate text-[13px] leading-[18px] text-muted-foreground">
+            {row.plan ? "Plan" : "Add-on"} ·{" "}
+            {row.item.schoolIds.length
+              ? row.item.schoolIds.map(schoolName).join(", ")
+              : "Every school"}
+          </span>
+        </span>
+      ),
+    },
+    {
+      id: "state",
+      header: "Status",
+      cell: (row) => {
+        const state = partState(row.item, data.today);
+        return (
+          <StatusBadge tone={PART_STATE_TONE[state]}>
+            {PART_STATE_NAMES[state]}
+          </StatusBadge>
+        );
+      },
+    },
+    {
+      id: "when",
+      header: "When",
+      cell: (row) =>
+        row.item.endsOn
+          ? `${formatDay(row.item.startsOn)} to ${formatDay(row.item.endsOn)}`
+          : `From ${formatDay(row.item.startsOn)}`,
+    },
+    {
+      id: "quantity",
+      header: "Quantity",
+      align: "end",
+      cell: (row) => row.item.quantity.toLocaleString("en"),
+    },
+    {
+      id: "price",
+      header: "Unit price",
+      align: "end",
+      cell: (row) => (
+        <span className="grid">
+          {formatMoney(row.item.unitPriceMinor, currency)}
+          {Number(row.item.discountPercent) > 0 ? (
+            <span className="text-[13px] leading-[18px] text-muted-foreground">
+              {Number(row.item.discountPercent)}% off
+            </span>
+          ) : null}
+        </span>
+      ),
+    },
+    {
+      id: "amount",
+      header: "A term",
+      align: "end",
+      cell: (row) =>
+        formatMoney(
+          netMinor({
+            quantity: row.item.quantity,
+            unitPriceMinor: row.item.unitPriceMinor,
+            discountPercent: Number(row.item.discountPercent),
+          }),
+          currency,
+        ),
+    },
+  ];
+}
+
+const ITEM_CARD: DataTableCard<ItemRow> = {
+  title: (row) => nameOfItem(row),
+  fact: (row) =>
+    `${row.item.quantity.toLocaleString("en")} from ${formatDay(row.item.startsOn)}`,
+};
+
+interface PartsTabProps extends ChangeableProps {
+  onAdd: () => void;
+}
+
+/**
+ * The plans and add-ons sold, each with its schools, its days, its price
+ * and what it comes to a term; those in force are totalled under them.
+ */
+function ItemsTab({ data, mayChange, onAdd }: PartsTabProps) {
+  const ending = useSheet();
+  const [chosen, setChosen] = useState<string | null>(null);
+  const rows: ItemRow[] = data.items.map((row) => ({
+    ...row,
+    id: row.item.id,
+  }));
+  const value = valueOn(data, data.today);
+  const add = mayChange ? (
+    <Button type="button" variant="outline" size="sm" onClick={onAdd}>
+      <Plus aria-hidden />
+      Add item
+    </Button>
+  ) : null;
+  return (
+    <>
+      <DataTable
+        caption="Items"
+        rows={rows}
+        columns={itemColumns(data)}
+        rowLabel={nameOfItem}
+        card={ITEM_CARD}
+        actions={add}
+        totals={
+          rows.length
+            ? [
+                {
+                  id: "value",
+                  label: "In force a term",
+                  cells: {
+                    amount: formatMoney(value, data.subscription.currency),
+                  },
+                },
+              ]
+            : undefined
+        }
+        rowActions={
+          mayChange
+            ? (row) =>
+                partState(row.item, data.today) === "ended"
+                  ? []
+                  : [
+                      {
+                        label: "End…",
+                        onSelect: () => {
+                          setChosen(row.item.id);
+                          ending.show();
+                        },
+                      },
+                    ]
+            : undefined
+        }
+        empty={{
+          icon: Package,
+          title: "Sell it a plan",
+          description:
+            "With no plan or add-on its schools have Basic, and whatever its overrides give.",
+          action: add,
+        }}
+      />
+      {mayChange ? (
+        <EndPartsSheet
+          key={ending.key}
+          data={data}
+          part="item"
+          ids={chosen ? [chosen] : []}
+          label="End this item"
+          open={ending.open}
+          onOpenChange={ending.onOpenChange}
+        />
+      ) : null}
+    </>
+  );
+}
+
+function overrideColumns(data: Data): Column<OverrideRow>[] {
+  const schoolName = (id: string) =>
+    data.schools.find((school) => school.id === id)?.name ?? id;
+  return [
+    {
+      id: "override",
+      header: "Override",
+      primary: true,
+      cell: (override) => (
+        <CellWithNote note={override.reason}>
+          {describeOverride(override, schoolName)}
+        </CellWithNote>
+      ),
+    },
+    {
+      id: "state",
+      header: "Status",
+      cell: (override) => {
+        const state = partState(override, data.today);
+        return (
+          <StatusBadge tone={PART_STATE_TONE[state]}>
+            {PART_STATE_NAMES[state]}
+          </StatusBadge>
+        );
+      },
+    },
+    {
+      id: "when",
+      header: "When",
+      cell: (override) =>
+        override.endsOn
+          ? `${formatDay(override.startsOn)} to ${formatDay(override.endsOn)}`
+          : `From ${formatDay(override.startsOn)}`,
+    },
+  ];
+}
+
+/**
+ * The exceptions to what the items give: a module given or taken away, or
+ * a limit set, for one school or every school, for a while. Several are
+ * ended at once by choosing them.
+ */
+function OverridesTab({ data, mayChange, onAdd }: PartsTabProps) {
+  const ending = useSheet();
+  const [chosen, setChosen] = useState<string[]>([]);
+  const schoolName = (id: string) =>
+    data.schools.find((school) => school.id === id)?.name ?? id;
+  const add = mayChange ? (
+    <Button type="button" variant="outline" size="sm" onClick={onAdd}>
+      <Plus aria-hidden />
+      Add override
+    </Button>
+  ) : null;
+  return (
+    <>
+      <DataTable
+        caption="Overrides"
+        rows={data.overrides}
+        columns={overrideColumns(data)}
+        rowLabel={(override) => describeOverride(override, schoolName)}
+        card={{
+          title: (override) => describeOverride(override, schoolName),
+          fact: (override) => PART_STATE_NAMES[partState(override, data.today)],
+        }}
+        actions={add}
+        batchActions={
+          mayChange
+            ? [
+                {
+                  label: "End",
+                  onSelect: (rows) => {
+                    setChosen(
+                      rows
+                        .filter((row) => partState(row, data.today) !== "ended")
+                        .map((row) => row.id),
+                    );
+                    ending.show();
+                  },
+                },
+              ]
+            : undefined
+        }
+        empty={{
+          icon: SlidersHorizontal,
+          title: "No overrides",
+          description:
+            "An override gives or takes away a module, or sets a limit, for one school or every school, for a while. A school's own override wins over one for every school.",
+          action: add,
+        }}
+      />
+      {mayChange ? (
+        <EndPartsSheet
+          key={ending.key}
+          data={data}
+          part="override"
+          ids={chosen}
+          label={`End ${plural(chosen.length, "override", "overrides")}`}
+          open={ending.open}
+          onOpenChange={ending.onOpenChange}
+        />
+      ) : null}
+    </>
+  );
+}
+
+function schoolColumns(): Column<SchoolRow>[] {
+  return [
+    {
+      id: "school",
+      header: "School",
+      primary: true,
+      cell: (school) => (
+        <RowLink to="/schools/$schoolId" params={{ schoolId: school.id }}>
+          {school.name}
+        </RowLink>
+      ),
+    },
+    {
+      id: "access",
+      header: "Access",
+      cell: (school) =>
+        school.tenantState === "active" ? (
+          <StatusBadge
+            tone={
+              STANDING_TONE[
+                school.access === "restricted" ? "restricted" : "full"
+              ]
+            }
+          >
+            {
+              STANDING_NAMES[
+                school.access === "restricted" ? "restricted" : "full"
+              ]
+            }
+          </StatusBadge>
+        ) : (
+          <StatusBadge tone={TENANT_STATE_TONE[school.tenantState]}>
+            {TENANT_STATE_NAMES[school.tenantState]}
+          </StatusBadge>
+        ),
+    },
+    {
+      id: "modules",
+      header: "Modules it can use",
+      align: "end",
+      cell: (school) =>
+        `${usableModules(school.next.modules).length} of ${MODULE_IDS.length}`,
+    },
+    {
+      id: "publishing",
+      header: "On publishing",
+      width: "wide",
+      cell: (school) => {
+        const changes = changesBetween(school.current, school.next);
+        return changes.length ? (
+          <span className="grid gap-0.5">
+            {changes.map((line) => (
+              <StatusText key={line} tone="info">
+                {line}
+              </StatusText>
+            ))}
+          </span>
+        ) : (
+          <span className="text-muted-foreground">Nothing changes</span>
+        );
+      },
+    },
+  ];
+}
+
+/**
+ * Each school the contract covers: its access, how many modules it can use
+ * once published, and what publishing today would change for it.
+ */
+function SchoolsTab({ data }: SubscriptionProps) {
+  return (
+    <DataTable
+      caption="Schools"
+      rows={data.schools}
+      columns={schoolColumns()}
+      rowLabel={(school) => school.name}
+      card={{
+        title: (school) => school.name,
+        fact: (school) =>
+          changesBetween(school.current, school.next).length
+            ? "Waits to be published"
+            : "Published as it stands",
+      }}
+      empty={{
+        icon: Package,
+        title: "No schools",
+        description: "The tenant has no schools in the directory.",
+      }}
+    />
+  );
+}
+
+function publicationColumns(data: Data): Column<PublicationRow>[] {
+  const schoolName = (id: string) =>
+    data.schools.find((school) => school.id === id)?.name ?? id;
+  return [
+    {
+      id: "school",
+      header: "School",
+      primary: true,
+      cell: (publication) => (
+        <span className="grid min-w-0 py-2.5">
+          <span className="truncate font-medium">
+            {schoolName(publication.schoolId)}
+          </span>
+          <span
+            dir="auto"
+            title={publication.reason}
+            className="truncate text-[13px] leading-[18px] text-muted-foreground"
+          >
+            {publication.reason}
+          </span>
+        </span>
+      ),
+    },
+    {
+      id: "revision",
+      header: "Revision",
+      align: "end",
+      cell: (publication) => publication.revision.toLocaleString("en"),
+    },
+    {
+      id: "who",
+      header: "By",
+      cell: (publication) =>
+        data.names[publication.operatorId] ?? "A former operator",
+    },
+    {
+      id: "when",
+      header: "When",
+      align: "end",
+      cell: (publication) => (
+        <span className="text-muted-foreground">
+          {formatWhen(publication.publishedAt)}
+        </span>
+      ),
+    },
+  ];
+}
+
+/** Each write to the directory: what a school was given, when, by whom and why. */
+function PublicationsTab({ data }: SubscriptionProps) {
+  const schoolName = (id: string) =>
+    data.schools.find((school) => school.id === id)?.name ?? id;
+  return (
+    <DataTable
+      caption="Publications"
+      rows={data.publications}
+      columns={publicationColumns(data)}
+      rowLabel={(publication) => schoolName(publication.schoolId)}
+      card={{
+        title: (publication) => schoolName(publication.schoolId),
+        fact: (publication) => formatWhen(publication.publishedAt),
+      }}
+      empty={{
+        icon: Upload,
+        title: "Not published yet",
+        description:
+          "The daily round publishes what the subscription says each day; Publish now does it at once.",
+      }}
+    />
   );
 }
 
@@ -336,41 +1146,6 @@ function PublishSheet({ data, open, onOpenChange }: SubscriptionSheetProps) {
         placeholder="For example: the school starts coding on Monday"
       />
     </SheetForm>
-  );
-}
-
-/** A trial's end, or a contract's term, renewal and billing. */
-function Terms({ data, mayChange }: ChangeableProps) {
-  const { subscription } = data;
-  const sheet = useSheet();
-  return (
-    <RecordSection
-      title="Terms"
-      edit={
-        mayChange
-          ? { label: "Change the terms", onClick: sheet.show }
-          : undefined
-      }
-    >
-      <p className="text-sm leading-5">
-        {subscription.state === "trial" && subscription.trialEndsOn
-          ? `Trial until ${formatDay(subscription.trialEndsOn)}.`
-          : subscription.termStartsOn && subscription.termEndsOn
-            ? `Term ${formatDay(subscription.termStartsOn)} until ${formatDay(subscription.termEndsOn)}, ${subscription.renewal === "auto" ? "renewing on its own" : "renewed by hand"}, billed ${SCHEDULE_NAMES[subscription.schedule].toLowerCase()}.`
-            : "No term."}
-        {subscription.contractedStudents
-          ? ` Contracted for ${subscription.contractedStudents.toLocaleString("en")} students.`
-          : ""}
-      </p>
-      {mayChange ? (
-        <TermsSheet
-          key={sheet.key}
-          data={data}
-          open={sheet.open}
-          onOpenChange={sheet.onOpenChange}
-        />
-      ) : null}
-    </RecordSection>
   );
 }
 
@@ -506,104 +1281,6 @@ function EndPartsSheet({
       />
       <WhyField value={reason} onChange={setReason} submitted={submitted} />
     </SheetForm>
-  );
-}
-
-/** The plans and add-ons sold, each from a day and for some or every school. */
-function Items({ data, mayChange }: ChangeableProps) {
-  const [ending, setEnding] = useState<string | null>(null);
-  const endSheet = useSheet();
-  const adding = useSheet();
-  const schoolName = (id: string) =>
-    data.schools.find((school) => school.id === id)?.name ?? id;
-  return (
-    <RecordSection
-      title="Items"
-      action={
-        mayChange ? (
-          <Button
-            type="button"
-            variant="outline"
-            className="max-md:h-10"
-            onClick={adding.show}
-          >
-            <Plus aria-hidden />
-            Add item
-          </Button>
-        ) : undefined
-      }
-    >
-      {data.items.length === 0 ? (
-        <RecordEmpty>
-          No plan or add-on: its schools have Basic, and whatever its overrides
-          give.
-        </RecordEmpty>
-      ) : (
-        <RecordList>
-          {data.items.map(({ item, plan, planCode, addOn, addOnCode }) => (
-            <li key={item.id} className="grid gap-1 py-3">
-              <div className="flex flex-wrap items-baseline justify-between gap-2">
-                <span className="text-sm leading-5 font-medium">
-                  {plan
-                    ? `${plan.nameEn} (${planCode}) version ${plan.version}`
-                    : addOn
-                      ? `${addOn.nameEn} (${addOnCode}) version ${addOn.version}`
-                      : "A retired version"}
-                </span>
-                <span className="text-[13px] leading-[18px] text-muted-foreground">
-                  {spanOf(item)}
-                </span>
-              </div>
-              <div className="flex flex-wrap items-center justify-between gap-2">
-                <p className="text-[13px] leading-[18px] text-muted-foreground tabular-nums">
-                  {item.quantity.toLocaleString("en")} at{" "}
-                  {formatMoney(item.unitPriceMinor, data.subscription.currency)}
-                  {Number(item.discountPercent) > 0
-                    ? `, ${Number(item.discountPercent)}% off`
-                    : ""}{" "}
-                  ·{" "}
-                  {item.schoolIds.length
-                    ? item.schoolIds.map(schoolName).join(", ")
-                    : "Every school"}
-                </p>
-                {mayChange && inForce(item, data.today) ? (
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => {
-                      setEnding(item.id);
-                      endSheet.show();
-                    }}
-                  >
-                    End…
-                  </Button>
-                ) : null}
-              </div>
-            </li>
-          ))}
-        </RecordList>
-      )}
-      {mayChange ? (
-        <>
-          <EndPartsSheet
-            key={`end-${endSheet.key}`}
-            data={data}
-            part="item"
-            ids={ending ? [ending] : []}
-            label="End this item"
-            open={endSheet.open}
-            onOpenChange={endSheet.onOpenChange}
-          />
-          <AddItemSheet
-            key={`add-${adding.key}`}
-            data={data}
-            open={adding.open}
-            onOpenChange={adding.onOpenChange}
-          />
-        </>
-      ) : null}
-    </RecordSection>
   );
 }
 
@@ -795,114 +1472,6 @@ function describeOverride(
   return who;
 }
 
-/** What a school is given or denied beyond its items, for a while. */
-function Overrides({ data, mayChange }: ChangeableProps) {
-  const [chosen, setChosen] = useState<string[]>([]);
-  const ending = useSheet();
-  const adding = useSheet();
-  const schoolName = (id: string) =>
-    data.schools.find((school) => school.id === id)?.name ?? id;
-  const endable = data.overrides.filter((override) =>
-    inForce(override, data.today),
-  );
-  const all = endable.length > 0 && chosen.length === endable.length;
-  return (
-    <RecordSection
-      title="Overrides"
-      description="A module given or taken away, or a limit set, for one school or every school, for a while. A school's own override wins over one for every school."
-      action={
-        mayChange ? (
-          <>
-            {endable.length ? (
-              <Button
-                type="button"
-                variant="ghost"
-                className="max-md:h-10"
-                onClick={() =>
-                  setChosen(all ? [] : endable.map((override) => override.id))
-                }
-              >
-                {all ? "Choose none" : `Choose all ${endable.length}`}
-              </Button>
-            ) : null}
-            {chosen.length ? (
-              <Button
-                type="button"
-                variant="outline"
-                className="max-md:h-10"
-                onClick={ending.show}
-              >
-                End {chosen.length} chosen
-              </Button>
-            ) : null}
-            <Button
-              type="button"
-              variant="outline"
-              className="max-md:h-10"
-              onClick={adding.show}
-            >
-              <Plus aria-hidden />
-              Add override
-            </Button>
-          </>
-        ) : undefined
-      }
-    >
-      {data.overrides.length === 0 ? (
-        <RecordEmpty>No overrides.</RecordEmpty>
-      ) : (
-        <RecordList>
-          {data.overrides.map((override) => (
-            <li key={override.id} className="flex items-start gap-3 py-3">
-              {mayChange && inForce(override, data.today) ? (
-                <Checkbox
-                  aria-label={`Choose: ${describeOverride(override, schoolName)}`}
-                  checked={chosen.includes(override.id)}
-                  onCheckedChange={(checked) =>
-                    setChosen((current) =>
-                      checked
-                        ? [...current, override.id]
-                        : current.filter((id) => id !== override.id),
-                    )
-                  }
-                  className="mt-0.5"
-                />
-              ) : null}
-              <div className="grid flex-1 gap-0.5">
-                <span className="text-sm leading-5 font-medium">
-                  {describeOverride(override, schoolName)}
-                </span>
-                <span className="text-[13px] leading-[18px] text-muted-foreground">
-                  {spanOf(override)} · {override.reason}
-                </span>
-              </div>
-            </li>
-          ))}
-        </RecordList>
-      )}
-      {mayChange ? (
-        <>
-          <EndPartsSheet
-            key={`end-${ending.key}`}
-            data={data}
-            part="override"
-            ids={chosen}
-            label={`End ${chosen.length} chosen`}
-            open={ending.open}
-            onOpenChange={ending.onOpenChange}
-          />
-          <AddOverrideSheet
-            key={`add-${adding.key}`}
-            data={data}
-            open={adding.open}
-            onOpenChange={adding.onOpenChange}
-          />
-        </>
-      ) : null}
-    </RecordSection>
-  );
-}
-
 /** Gives or takes a module, or sets a limit, for a while and with a reason. */
 function AddOverrideSheet({
   data,
@@ -1077,39 +1646,3 @@ const LIMIT_OPTIONS = LIMIT_KEYS.map((choice) => ({
   value: choice,
   label: LIMIT_NAMES[choice],
 }));
-
-/** Each write to the directory: what a school was given, when, by whom, why. */
-function Publications({ data }: SubscriptionProps) {
-  const schoolName = (id: string) =>
-    data.schools.find((school) => school.id === id)?.name ?? id;
-  return (
-    <RecordSection title="Publications">
-      {data.publications.length === 0 ? (
-        <RecordEmpty>Not published yet.</RecordEmpty>
-      ) : (
-        <RecordList>
-          {data.publications.map((publication) => (
-            <li key={publication.id} className="grid gap-1 py-3">
-              <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-0.5">
-                <span className="text-sm leading-5 font-medium">
-                  {schoolName(publication.schoolId)}, from revision{" "}
-                  {publication.revision}
-                </span>
-                <span className="text-[13px] leading-[18px] text-muted-foreground">
-                  {formatWhen(publication.publishedAt)} ·{" "}
-                  {data.names[publication.operatorId] ?? "A former operator"}
-                </span>
-              </div>
-              <p className="text-[13px] leading-[18px] text-muted-foreground">
-                {publication.entitlements.modules
-                  .map((id) => MODULE_NAMES[id])
-                  .join(", ")}
-              </p>
-              <p className="text-sm leading-5">{publication.reason}</p>
-            </li>
-          ))}
-        </RecordList>
-      )}
-    </RecordSection>
-  );
-}

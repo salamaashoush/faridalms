@@ -10,8 +10,9 @@ import type {
 } from "@faridalms/domain/subscriptions";
 
 import { BASIC_MODULES, MODULE_IDS } from "@faridalms/domain/modules";
+import { netMinor } from "@faridalms/domain/money";
 import { LIMIT_KEYS, pickLimits } from "@faridalms/domain/subscriptions";
-import { and, desc, eq, inArray, sql } from "drizzle-orm";
+import { and, desc, eq, gt, inArray, isNull, lte, or, sql } from "drizzle-orm";
 
 import type { BusinessDb, BusinessTx } from "./client";
 
@@ -42,6 +43,59 @@ export class SubscriptionError extends Error {
     super(code);
     this.name = "SubscriptionError";
   }
+}
+
+/** What a subscription has sold in force on a day. */
+export interface SoldInForce {
+  /** The name of its plan in force, or null with none. */
+  plan: string | null;
+  /** What its items in force come to for a term, after discounts. */
+  valueMinor: number;
+}
+
+/** What each subscription has sold in force on a day, by subscription. */
+export async function soldInForce(
+  db: BusinessDb,
+  subscriptionIds: readonly string[],
+  day: string,
+): Promise<Map<string, SoldInForce>> {
+  const out = new Map<string, SoldInForce>();
+  if (subscriptionIds.length === 0) return out;
+  const rows = await db
+    .select({
+      subscriptionId: subscriptionItems.subscriptionId,
+      quantity: subscriptionItems.quantity,
+      unitPriceMinor: subscriptionItems.unitPriceMinor,
+      discountPercent: subscriptionItems.discountPercent,
+      plan: planVersions.nameEn,
+    })
+    .from(subscriptionItems)
+    .leftJoin(
+      planVersions,
+      eq(planVersions.id, subscriptionItems.planVersionId),
+    )
+    .where(
+      and(
+        inArray(subscriptionItems.subscriptionId, [...subscriptionIds]),
+        lte(subscriptionItems.startsOn, day),
+        or(isNull(subscriptionItems.endsOn), gt(subscriptionItems.endsOn, day)),
+      ),
+    )
+    .orderBy(subscriptionItems.startsOn);
+  for (const row of rows) {
+    const held = out.get(row.subscriptionId) ?? { plan: null, valueMinor: 0 };
+    out.set(row.subscriptionId, {
+      plan: held.plan ?? row.plan,
+      valueMinor:
+        held.valueMinor +
+        netMinor({
+          quantity: row.quantity,
+          unitPriceMinor: row.unitPriceMinor,
+          discountPercent: Number(row.discountPercent),
+        }),
+    });
+  }
+  return out;
 }
 
 /** The tenant's subscription in force: a trial or an active contract. */

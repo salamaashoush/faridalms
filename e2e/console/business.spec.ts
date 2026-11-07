@@ -44,8 +44,8 @@ async function setTrial(page: Page, lastDay: string, reason: string) {
 /** Opens a school's subscription from the school's own page, where it now is. */
 async function openSubscriptionFromSchool(page: Page) {
   await page
-    .getByRole("region", { name: "About" })
-    .getByRole("link", { name: "Open its subscription" })
+    .getByRole("region", { name: "Account" })
+    .getByRole("link", { name: "Open subscription" })
     .click();
   await expect(page).toHaveURL(/\/subscriptions\/[0-9a-f-]{36}$/);
 }
@@ -112,30 +112,41 @@ test("a customer keeps its contacts, agreements and history", async ({
   await contact.getByRole("checkbox", { name: "Billing" }).check();
   await contact.getByRole("button", { name: "Add contact" }).click();
   await expect(page.getByText("Contact added.")).toBeVisible();
+  await page.getByRole("tab", { name: /^Contacts/ }).click();
   await expect(
-    page.getByRole("article", { name: "Salama Ashoush" }),
+    page
+      .getByRole("table", { name: "Contacts" })
+      .getByRole("row", { name: /Salama Ashoush/ }),
   ).toBeVisible();
 
-  await page.getByRole("button", { name: "Record acceptance" }).click();
+  await page.getByRole("tab", { name: "About" }).click();
+  await page
+    .getByRole("region", { name: "Agreements" })
+    .getByRole("button", { name: "Record acceptance" })
+    .click();
   const agreements = page.getByRole("form", { name: "Record an acceptance" });
   await choose(agreements, "Agreement", "Data processing agreement");
   await agreements.getByLabel("Version accepted").fill("2026-11");
   await agreements.getByRole("button", { name: "Record acceptance" }).click();
-  await expect(page.getByText(/^version 2026-11, accepted/)).toBeVisible();
+  await expect(page.getByText(/^Version 2026-11, accepted/)).toBeVisible();
 
-  await page.getByRole("button", { name: "Edit customer details" }).click();
-  const details = page.getByRole("form", { name: "Edit customer details" });
+  await page.getByRole("button", { name: "Edit legal details" }).click();
+  const details = page.getByRole("form", { name: "Edit legal details" });
   await details.getByLabel("Tax registration number").fill("123-456-789");
   await details.getByLabel("Why").fill("Their tax card arrived");
   await details.getByRole("button", { name: "Save details" }).click();
   await expect(page.getByText("Details saved.")).toBeVisible();
+  await page.getByRole("tab", { name: "History" }).click();
+  const changes = page.getByRole("table", { name: "Changes" });
   await expect(
-    page.getByText("Details changed", { exact: true }),
+    changes.getByText("Details changed", { exact: true }),
   ).toBeVisible();
   await expect(
-    page.getByText("Customer created", { exact: true }),
+    changes.getByText("Customer created", { exact: true }),
   ).toBeVisible();
-  await expect(page.getByText("taxNumber: none → 123-456-789")).toBeVisible();
+  await expect(
+    changes.getByText("Tax registration number: none → 123-456-789"),
+  ).toBeVisible();
 });
 
 test("a trial sold with its school becomes a contract with a plan, which the school has at once", async ({
@@ -152,18 +163,23 @@ test("a trial sold with its school becomes a contract with a plan, which the sch
     nameAr: "مدرسة البتولا",
   });
   // The school's own page shows what it has and sends an operator to its subscription.
-  await page.getByRole("tab", { name: "Entitlements" }).click();
-  await expect(page.getByRole("region", { name: "Use" })).toBeVisible();
+  await page.getByRole("tab", { name: "Limits" }).click();
   await expect(
-    page.getByRole("button", { name: "Edit entitlements" }),
-  ).toHaveCount(0);
+    page.getByRole("list", { name: "Use against its limits" }),
+  ).toBeVisible();
+  await expect(page.getByRole("button", { name: "Edit" })).toHaveCount(0);
+  await page.getByRole("tab", { name: "About" }).click();
   await openSubscriptionFromSchool(page);
   await expect(
     recordHeader(page).getByText("Trial", { exact: true }),
   ).toBeVisible();
-  const card = page.getByRole("listitem", { name: schoolName });
-  await expect(card.getByText("Published as it stands.")).toBeVisible();
+  await page.getByRole("tab", { name: /^Schools/ }).click();
+  const card = page
+    .getByRole("region", { name: "Schools" })
+    .getByRole("row", { name: new RegExp(schoolName) });
+  await expect(card).toContainText("Nothing changes");
 
+  await page.getByRole("tab", { name: /^Items/ }).click();
   await page.getByRole("button", { name: "Add item" }).click();
   const item = page.getByRole("form", { name: "Add an item" });
   await choose(item, "What", `Plan: ${planName} version 1`);
@@ -173,7 +189,8 @@ test("a trial sold with its school becomes a contract with a plan, which the sch
   await expect(
     page.getByText("Added. Publish for the schools to have it now."),
   ).toBeVisible();
-  await expect(card.getByText("Gains Coding and blocks")).toBeVisible();
+  await page.getByRole("tab", { name: /^Schools/ }).click();
+  await expect(card).toContainText("Gains Coding and blocks");
 
   await recordHeader(page).getByRole("button", { name: "Publish now" }).click();
   const publish = page.getByRole("form", { name: "Publish now" });
@@ -184,28 +201,36 @@ test("a trial sold with its school becomes a contract with a plan, which the sch
   await expect(
     page.getByText("Published to 1 school. They have it now."),
   ).toBeVisible();
-  await expect(card.getByText("Published as it stands.")).toBeVisible();
+  await expect(card).toContainText("Nothing changes");
+  await page.getByRole("tab", { name: "Publications" }).click();
   await expect(
     page.getByText("The school starts coding on Monday"),
   ).toBeVisible();
 
   // A pilot of badges, given today and ended from tomorrow.
+  await page.getByRole("tab", { name: /^Overrides/ }).click();
   await page.getByRole("button", { name: "Add override" }).click();
   const override = page.getByRole("form", { name: "Add an override" });
   await choose(override, "Module", "Badges");
   await override.getByLabel("Why").fill("A pilot of badges");
   await override.getByRole("button", { name: "Add override" }).click();
-  await expect(card.getByText("Gains Badges")).toBeVisible();
-  await page.getByRole("button", { name: "Choose all 1" }).click();
-  await page.getByRole("button", { name: "End 1 chosen" }).click();
-  const end = page.getByRole("form", { name: "End 1 chosen" });
+  await page.getByRole("tab", { name: /^Schools/ }).click();
+  await expect(card).toContainText("Gains Badges");
+  await page.getByRole("tab", { name: /^Overrides/ }).click();
+  await page
+    .getByRole("region", { name: "Overrides" })
+    .getByRole("checkbox", { name: "Select all rows on this page" })
+    .click();
+  await page.getByRole("button", { name: "End", exact: true }).click();
+  const end = page.getByRole("form", { name: "End 1 override" });
   await end
     .getByLabel("First day without it")
     .fill(addDays(businessToday(), 1));
   await end.getByLabel("Why").fill("The pilot is a day long");
-  await end.getByRole("button", { name: "End 1 chosen" }).click();
+  await end.getByRole("button", { name: "End 1 override" }).click();
   await expect(page.getByText(/^Ends /)).toBeVisible();
 
+  await page.getByRole("tab", { name: "Terms" }).click();
   await page.getByRole("button", { name: "Change the terms" }).click();
   const terms = page.getByRole("form", { name: "Change the terms" });
   await terms.getByRole("radio", { name: "A contract" }).check();
@@ -219,15 +244,14 @@ test("a trial sold with its school becomes a contract with a plan, which the sch
     recordHeader(page).getByText("Active", { exact: true }),
   ).toBeVisible();
 
+  await page.getByRole("tab", { name: /^Schools/ }).click();
   await card.getByRole("link", { name: schoolName }).click();
-  await page.getByRole("tab", { name: "Entitlements" }).click();
+  await page.getByRole("tab", { name: /^Modules/ }).click();
   await expect(
     page
       .getByRole("region", { name: "Modules" })
-      .getByRole("listitem")
-      .filter({ hasText: "Coding and blocks" })
-      .getByLabel("Included"),
-  ).toBeVisible();
+      .getByRole("row", { name: /Coding and blocks/ }),
+  ).toContainText("Included");
 });
 
 test("a group set up as a draft is left, resumed, and finished after a refusal", async ({
@@ -242,7 +266,7 @@ test("a group set up as a draft is left, resumed, and finished after a refusal",
     nameEn: `First ${slug}`,
     nameAr: "الأولى",
   });
-  await page.getByRole("tab", { name: "Addresses" }).click();
+  await page.getByRole("tab", { name: /^Addresses/ }).click();
   await page.getByRole("button", { name: "Add host" }).click();
   const host = page.getByRole("form", { name: "Add a host" });
   await host.getByLabel("Hostname").fill(taken);
@@ -331,7 +355,7 @@ test("a group set up as a draft is left, resumed, and finished after a refusal",
     page.getByText(`mona@${slug}.example.com was emailed`),
   ).toBeVisible();
   await page.getByRole("link", { name: "Open the school" }).click();
-  await page.getByRole("tab", { name: "Addresses" }).click();
+  await page.getByRole("tab", { name: /^Addresses/ }).click();
   await expect(
     page.getByRole("region", { name: "Web addresses" }).getByRole("row", {
       name: new RegExp(`www\\.${slug}-east\\.example\\.com`),
@@ -452,7 +476,7 @@ test("finance reads customers and subscriptions but not the catalogue", async ({
     finance.getByRole("button", { name: "Run the round now" }),
   ).toHaveCount(0);
   await finance.getByRole("row").nth(1).getByRole("link").click();
-  await expect(finance.getByRole("heading", { name: "Items" })).toBeVisible();
+  await expect(finance.getByRole("tab", { name: /^Items/ })).toBeVisible();
   await expect(
     finance.getByRole("button", { name: "Change the terms" }),
   ).toHaveCount(0);

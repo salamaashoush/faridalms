@@ -1,9 +1,13 @@
 import type { TaskRow } from "@faridalms/database/business/tasks";
+import type { Column } from "@faridalms/ui/system/data-table";
+import type { EmptyStateProps } from "@faridalms/ui/system/empty-state";
+import type { IndexToolbarProps } from "@faridalms/ui/system/index-toolbar";
 
 import { Button } from "@faridalms/ui/button";
+import { DataTable } from "@faridalms/ui/system/data-table";
 import { FormField } from "@faridalms/ui/system/form-field";
 import { RecordEmpty, RecordList } from "@faridalms/ui/system/record-page";
-import { SheetForm } from "@faridalms/ui/system/sheet-form";
+import { SheetForm, useSheet } from "@faridalms/ui/system/sheet-form";
 import { StatusText } from "@faridalms/ui/system/status";
 import { Textarea } from "@faridalms/ui/textarea";
 import { Link, useRouter } from "@tanstack/react-router";
@@ -12,7 +16,7 @@ import { useState } from "react";
 import { toast } from "sonner";
 
 import { failure } from "../actions";
-import { formatDay, formatWhen } from "../format";
+import { formatDay, formatWhen, formatWhenDay } from "../format";
 import { useMay } from "../may";
 import { closeTask } from "../server/receivables";
 
@@ -22,14 +26,14 @@ export interface TaskListRow {
   customerName: string;
 }
 
-interface CloseTaskProps {
+export interface CloseTaskProps {
   task: TaskRow;
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }
 
 /** Closes a task with what came of the call or the step. */
-function CloseTask({ task, open, onOpenChange }: CloseTaskProps) {
+export function CloseTask({ task, open, onOpenChange }: CloseTaskProps) {
   const router = useRouter();
   const close = useServerFn(closeTask);
   const [outcome, setOutcome] = useState("");
@@ -185,5 +189,135 @@ export function TaskList({
         />
       ))}
     </RecordList>
+  );
+}
+
+function taskColumns(
+  today: string,
+  who: (id: string | null) => string,
+): Column<TaskListRow & { id: string }>[] {
+  return [
+    {
+      id: "task",
+      header: "Task",
+      primary: true,
+      cell: ({ task }) => (
+        <span className="grid min-w-0 py-2.5">
+          <span className="truncate font-medium">{task.title}</span>
+          {task.outcome ? (
+            <span
+              dir="auto"
+              className="text-[13px] leading-[18px] whitespace-normal text-muted-foreground"
+            >
+              {task.outcome}
+            </span>
+          ) : null}
+        </span>
+      ),
+    },
+    {
+      id: "due",
+      header: "Due",
+      cell: ({ task }) =>
+        task.doneAt ? (
+          <StatusText tone="success">
+            Done {formatWhenDay(task.doneAt)}
+          </StatusText>
+        ) : task.dueOn < today ? (
+          <StatusText tone="danger">{formatDay(task.dueOn)}</StatusText>
+        ) : (
+          formatDay(task.dueOn)
+        ),
+    },
+    {
+      id: "who",
+      header: "Who",
+      cell: ({ task }) => who(task.doneAt ? task.doneBy : task.assigneeId),
+    },
+    {
+      id: "about",
+      header: "About",
+      cell: ({ task }) =>
+        task.invoiceId ? (
+          <Link
+            to="/invoices/$invoiceId"
+            params={{ invoiceId: task.invoiceId }}
+            className="text-primary underline-offset-4 hover:underline"
+          >
+            The invoice
+          </Link>
+        ) : (
+          <span className="text-muted-foreground">The customer</span>
+        ),
+    },
+  ];
+}
+
+export interface TaskTableProps {
+  rows: readonly TaskListRow[];
+  names: Record<string, string>;
+  today: string;
+  toolbar?: IndexToolbarProps;
+  empty: EmptyStateProps;
+}
+
+/**
+ * Tasks as a table: what, when, who and what it is about; an open task is
+ * closed from its row, a done one shows what came of it.
+ */
+export function TaskTable({
+  rows,
+  names,
+  today,
+  toolbar,
+  empty,
+}: TaskTableProps) {
+  const mayClose = useMay("customers");
+  const closing = useSheet();
+  const [chosen, setChosen] = useState<TaskRow | null>(null);
+  const who = (id: string | null) =>
+    id ? (names[id] ?? "A former operator") : "Nobody yet";
+  const columns = taskColumns(today, who);
+  return (
+    <>
+      <DataTable
+        caption="Tasks"
+        rows={rows.map((row) => ({ ...row, id: row.task.id }))}
+        columns={columns}
+        rowLabel={({ task }) => task.title}
+        card={{
+          title: ({ task }) => task.title,
+          fact: ({ task }) =>
+            `${task.doneAt ? `Done ${formatWhenDay(task.doneAt)}` : `Due ${formatDay(task.dueOn)}`} · ${who(task.doneAt ? task.doneBy : task.assigneeId)}`,
+        }}
+        toolbar={toolbar}
+        empty={empty}
+        rowActions={
+          mayClose
+            ? ({ task }) =>
+                task.doneAt
+                  ? []
+                  : [
+                      {
+                        label: "Close",
+                        inline: true,
+                        onSelect: () => {
+                          setChosen(task);
+                          closing.show();
+                        },
+                      },
+                    ]
+            : undefined
+        }
+      />
+      {chosen ? (
+        <CloseTask
+          key={closing.key}
+          task={chosen}
+          open={closing.open}
+          onOpenChange={closing.onOpenChange}
+        />
+      ) : null}
+    </>
   );
 }

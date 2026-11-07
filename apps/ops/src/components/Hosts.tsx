@@ -10,12 +10,11 @@ import { Button } from "@faridalms/ui/button";
 import { DataTable } from "@faridalms/ui/system/data-table";
 import { DnsRecords } from "@faridalms/ui/system/dns-records";
 import { SelectField, TextField } from "@faridalms/ui/system/form-field";
-import { RecordEmpty, RecordSection } from "@faridalms/ui/system/record-page";
-import { SheetForm, useSheet } from "@faridalms/ui/system/sheet-form";
+import { SheetForm } from "@faridalms/ui/system/sheet-form";
 import { StatusBadge, StatusText } from "@faridalms/ui/system/status";
 import { useRouter } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
-import { Globe, Plus } from "lucide-react";
+import { Globe, KeyRound, Plus } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 
@@ -29,6 +28,7 @@ import {
   HOST_STATE_NAMES,
   HOST_STATE_TONE,
 } from "../format";
+import { useMay } from "../may";
 import {
   addHost,
   checkHost,
@@ -181,14 +181,18 @@ interface Changing {
   change: HostChange;
 }
 
-interface AddHostSheetProps {
+export interface AddHostSheetProps {
   schoolId: string;
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }
 
 /** Adds a host of the school's own; it routes once its records are found. */
-function AddHostSheet({ schoolId, open, onOpenChange }: AddHostSheetProps) {
+export function AddHostSheet({
+  schoolId,
+  open,
+  onOpenChange,
+}: AddHostSheetProps) {
   const router = useRouter();
   const add = useServerFn(addHost);
   const [hostname, setHostname] = useState("");
@@ -275,25 +279,25 @@ export interface SchoolAddressesProps {
   schoolId: string;
   platform: PlatformHosts;
   hosts: Host[];
-  signInDomains: readonly SignInDomain[];
+  /** Opens the sheet that adds a host, owned by the page. */
+  onAdd: () => void;
 }
 
 /**
  * Every address the school answers on, the platform's names and its own,
- * with where each stands; the DNS records any of its own still waits for;
- * and the domains its people sign in with.
+ * with where each stands, and under the table the DNS records any of its
+ * own still waits for.
  */
 export function SchoolAddresses({
   schoolId,
   platform,
   hosts,
-  signInDomains,
+  onAdd,
 }: SchoolAddressesProps) {
   const router = useRouter();
   const check = useServerFn(checkHost);
   const canonical = useServerFn(makeHostCanonical);
   const remove = useServerFn(removeHost);
-  const adding = useSheet();
   const [changing, setChanging] = useState<Changing | null>(null);
   const waiting = hosts.filter((host) => host.state !== "active");
   const actionsOf = (address: Address): RowAction[] => {
@@ -340,87 +344,47 @@ export function SchoolAddresses({
     await router.invalidate();
     return null;
   };
+  const mayChange = useMay("tenants");
+  const add = mayChange ? (
+    <Button type="button" variant="outline" size="sm" onClick={onAdd}>
+      <Plus aria-hidden />
+      Add host
+    </Button>
+  ) : null;
   return (
-    <>
-      <RecordSection
-        variant="page"
-        title="Web addresses"
-        description="Its portal and website answer on the platform's names always; a host of its own becomes the main address once it routes."
-        action={
-          <Button
-            type="button"
-            variant="outline"
-            className="max-md:h-10"
-            onClick={adding.show}
-          >
-            <Plus aria-hidden />
-            Add host
-          </Button>
-        }
-      >
-        <DataTable
-          caption="Web addresses"
-          rows={addressesOf(platform, hosts)}
-          columns={COLUMNS}
-          rowLabel={(address) => address.hostname}
-          rowActions={actionsOf}
-          card={CARD}
-          empty={{ icon: Globe, title: "No addresses" }}
-        />
-      </RecordSection>
-      {waiting.map((host) => (
-        <RecordSection
-          key={host.hostname}
-          variant="page"
-          title={`Records for ${host.hostname}`}
-          description="Create these at the domain's DNS provider. The cell looks for them every few minutes."
-        >
-          <div className="grid gap-2">
-            <DnsRecords records={recordsOf(host)} labels={RECORD_LABELS} />
-            {host.records.a.address ? null : (
-              <p className="text-[13px] leading-[18px] text-muted-foreground">
-                The platform has no address set for a domain's apex (EDGE_IPV4),
-                so only subdomains such as www can be bound.
-              </p>
-            )}
-          </div>
-        </RecordSection>
-      ))}
-      <RecordSection
-        variant="page"
-        title="Sign-in domains"
-        description="Email domains whose people sign in through the school's own identity provider, for its whole group."
-      >
-        {signInDomains.length ? (
-          <ul className="divide-y rounded-lg border">
-            {signInDomains.map((domain) => (
-              <li
-                key={domain.domain}
-                className="flex items-center justify-between gap-3 px-4 py-3"
-              >
-                <span dir="ltr" className="font-mono text-[13px]">
-                  {domain.domain}
-                </span>
-                <StatusText tone={domain.verifiedAt ? "success" : "warning"}>
-                  {domain.verifiedAt
-                    ? `Verified ${formatWhen(domain.verifiedAt)}`
-                    : "Not verified"}
-                </StatusText>
-              </li>
-            ))}
-          </ul>
-        ) : (
-          <RecordEmpty>
-            None. Its people sign in with accounts on the platform.
-          </RecordEmpty>
-        )}
-      </RecordSection>
-      <AddHostSheet
-        key={adding.key}
-        schoolId={schoolId}
-        open={adding.open}
-        onOpenChange={adding.onOpenChange}
+    <div className="grid gap-6">
+      <DataTable
+        caption="Web addresses"
+        rows={addressesOf(platform, hosts)}
+        columns={COLUMNS}
+        rowLabel={(address) => address.hostname}
+        rowActions={mayChange ? actionsOf : undefined}
+        card={CARD}
+        actions={add}
+        empty={{ icon: Globe, title: "No addresses" }}
       />
+      {waiting.map((host) => (
+        <section
+          key={host.hostname}
+          aria-label={`Records for ${host.hostname}`}
+          className="grid gap-2"
+        >
+          <h3 className="text-sm leading-5 font-semibold">
+            DNS records for{" "}
+            <span dir="ltr" className="font-mono text-[13px]">
+              {host.hostname}
+            </span>
+          </h3>
+          <p className="text-[13px] leading-[18px] text-muted-foreground">
+            Create these at the domain's DNS provider. The cell looks for them
+            every few minutes.
+            {host.records.a.address
+              ? ""
+              : " The platform has no address for a domain's apex (EDGE_IPV4), so only subdomains such as www can be bound."}
+          </p>
+          <DnsRecords records={recordsOf(host)} labels={RECORD_LABELS} />
+        </section>
+      ))}
       <ReasonSheet
         open={changing !== null}
         onOpenChange={(open) => {
@@ -435,6 +399,61 @@ export function SchoolAddresses({
         destructive={changing?.change === "remove"}
         onSubmit={change}
       />
-    </>
+    </div>
+  );
+}
+
+const DOMAIN_COLUMNS: Column<SignInDomain & { id: string }>[] = [
+  {
+    id: "domain",
+    header: "Domain",
+    primary: true,
+    cell: (domain) => (
+      <span dir="ltr" className="font-mono text-[13px]">
+        {domain.domain}
+      </span>
+    ),
+  },
+  {
+    id: "state",
+    header: "Status",
+    cell: (domain) => (
+      <StatusText tone={domain.verifiedAt ? "success" : "warning"}>
+        {domain.verifiedAt
+          ? `Verified ${formatWhen(domain.verifiedAt)}`
+          : "Not verified"}
+      </StatusText>
+    ),
+  },
+];
+
+const DOMAIN_CARD: DataTableCard<SignInDomain & { id: string }> = {
+  title: (domain) => <span dir="ltr">{domain.domain}</span>,
+  fact: (domain) => (domain.verifiedAt ? "Verified" : "Not verified"),
+};
+
+export interface SignInDomainsProps {
+  domains: readonly SignInDomain[];
+}
+
+/**
+ * Email domains whose people sign in through the tenant's own identity
+ * provider, for its whole group, and whether each is verified.
+ */
+export function SignInDomains({ domains }: SignInDomainsProps) {
+  return (
+    <DataTable
+      caption="Sign-in domains"
+      rows={domains.map((domain) => ({ ...domain, id: domain.domain }))}
+      columns={DOMAIN_COLUMNS}
+      rowLabel={(domain) => domain.domain}
+      card={DOMAIN_CARD}
+      empty={{
+        icon: KeyRound,
+        title: "No sign-in domains",
+        description:
+          "Its people sign in with accounts on the platform. A domain is added from the school's single sign-on settings.",
+      }}
+    />
   );
 }

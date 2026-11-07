@@ -1,17 +1,24 @@
 import type { ModuleId } from "@faridalms/domain/modules";
+import type { HealthReason } from "@faridalms/domain/onboarding";
 import type { SchoolNotice } from "@faridalms/domain/plans";
 import type { SchoolStanding } from "@faridalms/domain/provisioning";
 import type { LimitKey } from "@faridalms/domain/subscriptions";
+import type { AttentionItem } from "@faridalms/ui/system/attention-list";
+import type { Column, DataTableCard } from "@faridalms/ui/system/data-table";
 import type { RecordTab } from "@faridalms/ui/system/record-page";
-import type { Tone } from "@faridalms/ui/system/status";
 import type { SummaryItem } from "@faridalms/ui/system/summary-list";
 import type { UsageItem } from "@faridalms/ui/system/usage-list";
 
-import { MODULE_IDS } from "@faridalms/domain/modules";
+import { MODULES } from "@faridalms/domain/modules";
 import { availableModules, SCHOOL_NOTICES } from "@faridalms/domain/plans";
 import { SCHOOL_STANDINGS, standingOf } from "@faridalms/domain/provisioning";
-import { LIMIT_KEYS } from "@faridalms/domain/subscriptions";
+import { daysBetween } from "@faridalms/domain/school";
+import { LIMIT_KEYS, usableModules } from "@faridalms/domain/subscriptions";
+import { Button } from "@faridalms/ui/button";
 import { cn } from "@faridalms/ui/cn";
+import { AttentionList } from "@faridalms/ui/system/attention-list";
+import { ButtonLink } from "@faridalms/ui/system/button-link";
+import { DataTable } from "@faridalms/ui/system/data-table";
 import {
   ChoiceField,
   SelectField,
@@ -21,16 +28,13 @@ import { Metric, MetricGrid } from "@faridalms/ui/system/metrics";
 import { Page } from "@faridalms/ui/system/page";
 import { useDesignSystem } from "@faridalms/ui/system/provider";
 import {
-  Fact,
-  Facts,
-  RecordColumns,
   RecordEmpty,
   RecordHeader,
-  RecordSection,
   RecordTabs,
 } from "@faridalms/ui/system/record-page";
 import { SettingsGroup } from "@faridalms/ui/system/settings-section";
 import { SheetForm, useSheet } from "@faridalms/ui/system/sheet-form";
+import { StatusBadge, StatusText } from "@faridalms/ui/system/status";
 import { SummaryList } from "@faridalms/ui/system/summary-list";
 import { UsageList } from "@faridalms/ui/system/usage-list";
 import {
@@ -40,7 +44,7 @@ import {
   useRouter,
 } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
-import { Check, Info, Minus, Send, ShieldAlert } from "lucide-react";
+import { Blocks, Globe, Pencil, Repeat, Send, ShieldAlert } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 import * as v from "valibot";
@@ -48,7 +52,11 @@ import * as v from "valibot";
 import { attempt, attemptWith, failure } from "../actions";
 import { ChangeList } from "../components/ChangeList";
 import { HEALTH_TONE } from "../components/Health";
-import { SchoolAddresses } from "../components/Hosts";
+import {
+  AddHostSheet,
+  SchoolAddresses,
+  SignInDomains,
+} from "../components/Hosts";
 import {
   CountFields,
   draftOf,
@@ -56,24 +64,29 @@ import {
   StorageFields,
 } from "../components/LimitFields";
 import { ModuleFields } from "../components/ModuleFields";
-import { OnboardingSection } from "../components/Onboarding";
+import { OnboardingSteps } from "../components/Onboarding";
 import { WhyField } from "../components/Why";
 import {
   formatBytes,
+  formatCountry,
   formatDay,
   formatLimit,
   formatWhen,
+  formatWhenDay,
   HEALTH_LEVEL_NAMES,
   HEALTH_REASON_NAMES,
   LIMIT_NAMES,
   MODULE_GROUPS,
+  MODULE_HINTS,
   MODULE_NAMES,
   NOTICE_NAMES,
   ONBOARDING_ITEM_NAMES,
   STANDING_NAMES,
+  STANDING_TONE,
   TENANT_STATE_NAMES,
   TENANT_STATE_TONE,
 } from "../format";
+import { useMay } from "../may";
 import {
   getSchool,
   resendInvite,
@@ -82,31 +95,38 @@ import {
 } from "../server/directory";
 
 const SCHOOL_TABS = [
+  "about",
   "onboarding",
-  "entitlements",
+  "limits",
+  "modules",
   "addresses",
+  "sign-in",
   "history",
 ] as const;
 type SchoolTab = (typeof SCHOOL_TABS)[number];
 
-const TABS: RecordTab<SchoolTab>[] = [
-  { value: "onboarding", label: "Onboarding" },
-  { value: "entitlements", label: "Entitlements" },
-  { value: "addresses", label: "Addresses" },
-  { value: "history", label: "History" },
-];
+const TAB_NAMES: Record<SchoolTab, string> = {
+  about: "About",
+  onboarding: "Onboarding",
+  limits: "Limits",
+  modules: "Modules",
+  addresses: "Addresses",
+  "sign-in": "Sign-in domains",
+  history: "History",
+};
 
 const search = v.object({
-  tab: v.fallback(
-    v.optional(v.picklist(SCHOOL_TABS), "onboarding"),
-    "onboarding",
+  tab: v.fallback(v.optional(v.picklist(SCHOOL_TABS), "about"), "about"),
+  modules: v.fallback(
+    v.optional(v.picklist(["included", "missing"] as const)),
+    undefined,
   ),
 });
 
 export const Route = createFileRoute("/schools/$schoolId")({
   staticData: { title: "School" },
   validateSearch: search,
-  search: { middlewares: [stripSearchParams({ tab: "onboarding" })] },
+  search: { middlewares: [stripSearchParams({ tab: "about" })] },
   loader: ({ params }) => getSchool({ data: { id: params.schoolId } }),
   component: SchoolPage,
 });
@@ -114,53 +134,98 @@ export const Route = createFileRoute("/schools/$schoolId")({
 type Data = Awaited<ReturnType<typeof getSchool>>;
 type School = Data["school"];
 
+const plural = (count: number, one: string, many: string) =>
+  `${count.toLocaleString("en")} ${count === 1 ? one : many}`;
+
 /**
- * One school: what an operator must see at once in a strip under its name,
- * and the rest in tabs, each one job.
+ * One school, as support works with it: how it is doing in figures, what
+ * needs doing about it, then a tab for each thing it has: its details,
+ * onboarding, limits, modules, addresses, sign-in domains and history.
  */
 function SchoolPage() {
   const data = Route.useLoaderData();
-  const { tab } = Route.useSearch();
+  const { tab, modules: moduleView } = Route.useSearch();
   const navigate = Route.useNavigate();
+  const mayChange = useMay("tenants");
   const { school, health, changes, names, hosts, platform, sold, ssoDomains } =
     data;
   const name = school.nameEn ?? school.nameAr ?? school.slug;
   const standing = standingOf(school.tenantState, school.entitlements.access);
   const sending = useSheet();
   const changingAccess = useSheet();
+  const editing = useSheet();
+  const addingHost = useSheet();
+  const modules = availableModules(school.entitlements);
+  const signIn = ssoDomains.length > 0 || modules.includes("sso");
+  const counts: Partial<Record<SchoolTab, number>> = {
+    modules: modules.length,
+    addresses: hosts.length + 2,
+    "sign-in": ssoDomains.length,
+  };
+  const tabs: RecordTab<SchoolTab>[] = SCHOOL_TABS.filter(
+    (value) => value !== "sign-in" || signIn,
+  ).map((value) => ({ value, label: TAB_NAMES[value], count: counts[value] }));
+  const shown = tabs.some((one) => one.value === tab) ? tab : "about";
+  const go = (next: SchoolTab) =>
+    void navigate({
+      resetScroll: false,
+      search: { tab: next },
+      replace: true,
+    });
+  const showModules = (view: ModuleView | undefined) =>
+    void navigate({
+      resetScroll: false,
+      search: { tab: "modules", modules: view },
+      replace: true,
+    });
   return (
     <Page width="record">
       <RecordHeader
         title={name}
         status={
           standing
-            ? { label: STANDING_NAMES[standing], tone: ACCESS_TONE[standing] }
+            ? { label: STANDING_NAMES[standing], tone: STANDING_TONE[standing] }
             : {
                 label: TENANT_STATE_NAMES[school.tenantState],
                 tone: TENANT_STATE_TONE[school.tenantState],
               }
         }
         facts={[
-          { label: "Address", value: school.slug },
-          {
-            label: "Group",
-            value: school.tenantNameEn ?? school.tenantNameAr ?? "None",
-          },
-        ]}
-        alerts={
-          school.tenantState === "provisioning"
+          ...(school.nameAr && school.nameEn
             ? [
                 {
-                  label:
-                    "Its cell has not finished creating it. Submit New school again with the same addresses to finish.",
-                  tone: "info",
-                  icon: Info,
+                  label: "Name in Arabic",
+                  value: (
+                    <span dir="rtl" lang="ar">
+                      {school.nameAr}
+                    </span>
+                  ),
                 },
               ]
-            : []
-        }
+            : []),
+          {
+            label: "Address",
+            value: <span dir="ltr">{platform.portal}</span>,
+          },
+          ...(data.customer
+            ? [
+                {
+                  label: "Customer",
+                  value: (
+                    <Link
+                      to="/customers/$customerId"
+                      params={{ customerId: data.customer.id }}
+                      className="hover:text-primary hover:underline"
+                    >
+                      {data.customer.name}
+                    </Link>
+                  ),
+                },
+              ]
+            : []),
+        ]}
         menu={[
-          ...(standing
+          ...(standing && mayChange
             ? [
                 {
                   label: "Change access",
@@ -169,7 +234,7 @@ function SchoolPage() {
                 },
               ]
             : []),
-          ...(school.tenantState === "active"
+          ...(school.tenantState === "active" && mayChange
             ? [
                 {
                   label: "Send the administrator a new link",
@@ -178,56 +243,66 @@ function SchoolPage() {
                 },
               ]
             : []),
+          ...(mayChange
+            ? [{ label: "Add host", icon: Globe, onSelect: addingHost.show }]
+            : []),
+          ...(sold === null && mayChange
+            ? [
+                {
+                  label: "Edit limits and modules",
+                  icon: Pencil,
+                  onSelect: editing.show,
+                },
+              ]
+            : []),
         ]}
       />
-      <RecordColumns
-        stickyAside
-        main={
-          <>
-            <Glance school={school} health={health} />
-            <RecordTabs
-              label="The school's sections"
-              tabs={TABS}
-              value={tab}
-              onChange={(next) =>
-                void navigate({
-                  resetScroll: false,
-                  search: { tab: next },
-                  replace: true,
-                })
-              }
-            >
-              {tab === "onboarding" ? (
-                health ? (
-                  <OnboardingSection
-                    schoolId={school.id}
-                    health={health}
-                    measuredAt={school.usage?.measuredAt ?? null}
-                  />
-                ) : (
-                  <RecordEmpty>
-                    Its onboarding shows once its cell first reports.
-                  </RecordEmpty>
-                )
-              ) : tab === "entitlements" ? (
-                <EntitlementsSection school={school} sold={sold} />
-              ) : tab === "addresses" ? (
-                <SchoolAddresses
-                  schoolId={school.id}
-                  platform={platform}
-                  hosts={hosts}
-                  signInDomains={ssoDomains}
-                />
-              ) : (
-                <RecordSection variant="page" title="Changes">
-                  <ChangeList changes={changes} names={names} />
-                </RecordSection>
-              )}
-            </RecordTabs>
-          </>
-        }
-        aside={<About school={school} sold={sold} standing={standing} />}
-      />
+      <div className="grid gap-6">
+        <Glance school={school} health={health} />
+        <ToDo data={data} onSend={sending.show} onTab={go} />
+        <RecordTabs
+          label="The school's records"
+          tabs={tabs}
+          value={shown}
+          onChange={go}
+        >
+          {shown === "about" ? (
+            <AboutTab data={data} standing={standing} />
+          ) : shown === "onboarding" ? (
+            health ? (
+              <OnboardingSteps
+                schoolId={school.id}
+                health={health}
+                measuredAt={school.usage?.measuredAt ?? null}
+              />
+            ) : (
+              <RecordEmpty>
+                Its onboarding shows once its cell first reports.
+              </RecordEmpty>
+            )
+          ) : shown === "limits" ? (
+            <LimitsTab data={data} onEdit={editing.show} />
+          ) : shown === "modules" ? (
+            <ModulesTab
+              data={data}
+              view={moduleView}
+              onView={showModules}
+              onEdit={editing.show}
+            />
+          ) : shown === "addresses" ? (
+            <SchoolAddresses
+              schoolId={school.id}
+              platform={platform}
+              hosts={hosts}
+              onAdd={addingHost.show}
+            />
+          ) : shown === "sign-in" ? (
+            <SignInDomains domains={ssoDomains} />
+          ) : (
+            <ChangeList changes={changes} names={names} />
+          )}
+        </RecordTabs>
+      </div>
       {standing ? (
         <AccessSheet
           key={changingAccess.key}
@@ -246,6 +321,22 @@ function SchoolPage() {
           onOpenChange={sending.onOpenChange}
         />
       ) : null}
+      {mayChange ? (
+        <AddHostSheet
+          key={`host-${addingHost.key}`}
+          schoolId={school.id}
+          open={addingHost.open}
+          onOpenChange={addingHost.onOpenChange}
+        />
+      ) : null}
+      {sold === null ? (
+        <EntitlementsSheet
+          key={editing.key}
+          school={school}
+          open={editing.open}
+          onOpenChange={editing.onOpenChange}
+        />
+      ) : null}
     </Page>
   );
 }
@@ -255,7 +346,11 @@ interface GlanceProps {
   health: Data["health"];
 }
 
-/** What an operator should read before anything else: how the school is doing. */
+/**
+ * How the school is doing in four numbers: whether people use it, how many
+ * students against its limit, how full its storage is, and how far its
+ * onboarding has come.
+ */
 function Glance({ school, health }: GlanceProps) {
   const { formatNumber } = useDesignSystem();
   const entitled = school.entitlements;
@@ -267,20 +362,48 @@ function Glance({ school, health }: GlanceProps) {
   const next = onboarding?.applies.find((item) => !onboarding.reached[item]);
   return (
     <MetricGrid label="At a glance">
-      {health ? (
-        <Metric
-          label="Health"
-          value={HEALTH_LEVEL_NAMES[health.level]}
-          detail={{
-            text: health.reasons.length
-              ? health.reasons
-                  .map((reason) => HEALTH_REASON_NAMES[reason])
-                  .join("; ")
-              : "Busy through the week, paid and under way.",
-            tone: HEALTH_TONE[health.level],
-          }}
-        />
-      ) : null}
+      <Metric
+        label="Signed in this week"
+        value={usage ? formatNumber(usage.signedIn7d) : "Not reported"}
+        detail={
+          usage
+            ? {
+                text: `${formatNumber(usage.signedIn30d)} this month`,
+                tone:
+                  health?.reasons.includes("quiet_in_term") === true
+                    ? "danger"
+                    : undefined,
+              }
+            : { text: "Its cell has not reported yet" }
+        }
+      />
+      <Metric
+        label="Students"
+        value={usage ? formatNumber(usage.students) : "Not reported"}
+        meter={
+          usage && entitled.students
+            ? usage.students / entitled.students
+            : undefined
+        }
+        detail={{
+          text:
+            entitled.students === null
+              ? "No limit"
+              : `Of ${formatNumber(entitled.students)} allowed`,
+          tone:
+            usage &&
+            entitled.students !== null &&
+            usage.students > entitled.students
+              ? "danger"
+              : undefined,
+        }}
+      />
+      <Metric
+        label="Storage"
+        value={usage ? formatBytes(usage.usedBytes) : "Not measured"}
+        meter={usage ? usage.usedBytes / entitled.poolBytes : undefined}
+        detail={{ text: `Of ${formatBytes(entitled.poolBytes)}` }}
+      />
       {onboarding ? (
         <Metric
           label="Onboarding"
@@ -296,89 +419,319 @@ function Glance({ school, health }: GlanceProps) {
                 : { text: "Every step taken", tone: "success" }
           }
         />
-      ) : null}
-      <Metric
-        label="Signed in this week"
-        value={usage ? formatNumber(usage.signedIn7d) : "Not yet reported"}
-        detail={
-          usage
-            ? { text: `${formatNumber(usage.signedIn30d)} this month` }
-            : undefined
-        }
-      />
-      <Metric
-        label="Students"
-        value={usage ? formatNumber(usage.students) : "Not yet reported"}
-        meter={
-          usage && entitled.students
-            ? usage.students / entitled.students
-            : undefined
-        }
-        detail={{
-          text:
-            entitled.students === null
-              ? "No limit"
-              : `Of ${formatNumber(entitled.students)} allowed`,
-        }}
-      />
+      ) : (
+        <Metric
+          label="Health"
+          value={health ? HEALTH_LEVEL_NAMES[health.level] : "Not known"}
+          detail={
+            health
+              ? {
+                  text: health.reasons.length
+                    ? plural(health.reasons.length, "reason", "reasons")
+                    : "Nothing wrong",
+                  tone: HEALTH_TONE[health.level],
+                }
+              : undefined
+          }
+        />
+      )}
     </MetricGrid>
   );
 }
 
-interface AboutProps {
-  school: School;
-  sold: Data["sold"];
+const REASON_HELP: Record<HealthReason, string> = {
+  quiet_in_term:
+    "Check that its administrator can sign in and that its classes and students exist.",
+  invoice_overdue:
+    "The reminders restrict the school 30 days after the due day, make it read only at 60 and suspend it at 90.",
+  onboarding_stalled: "No step was taken in the last fortnight.",
+  host_failing:
+    "Its DNS records changed or its certificate failed; the address no longer routes.",
+  deliveries_failing:
+    "Emails or messages it sent in the last day did not arrive; check its contacts' addresses.",
+};
+
+interface ToDoProps {
+  data: Data;
+  onSend: () => void;
+  onTab: (tab: SchoolTab) => void;
+}
+
+/** Why the school needs help, and what the cell or a trial is waiting on. */
+function ToDo({ data, onSend, onTab }: ToDoProps) {
+  const { school, health, hosts, today } = data;
+  const items: AttentionItem[] = [];
+  if (school.tenantState === "provisioning")
+    items.push({
+      id: "provisioning",
+      tone: "info",
+      title: "Its cell has not finished creating it",
+      detail: "Submit New school again with the same addresses to finish it.",
+    });
+  for (const reason of health?.reasons ?? [])
+    items.push({
+      id: reason,
+      tone:
+        reason === "quiet_in_term" || reason === "invoice_overdue"
+          ? "danger"
+          : "warning",
+      title:
+        reason === "invoice_overdue" && health
+          ? `Its customer's invoice is ${plural(health.daysOverdue, "day", "days")} overdue`
+          : HEALTH_REASON_NAMES[reason],
+      detail: REASON_HELP[reason],
+      action:
+        reason === "quiet_in_term" && school.tenantState === "active" ? (
+          <Button type="button" variant="outline" size="sm" onClick={onSend}>
+            Send a new sign-in link
+          </Button>
+        ) : reason === "invoice_overdue" && data.customer ? (
+          <ButtonLink
+            variant="outline"
+            size="sm"
+            to="/customers/$customerId"
+            params={{ customerId: data.customer.id }}
+            search={{ tab: "invoices" }}
+          >
+            Open its invoices
+          </ButtonLink>
+        ) : reason === "onboarding_stalled" ? (
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={() => onTab("onboarding")}
+          >
+            Open onboarding
+          </Button>
+        ) : reason === "host_failing" ? (
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={() => onTab("addresses")}
+          >
+            Open addresses
+          </Button>
+        ) : undefined,
+    });
+  for (const host of hosts)
+    if (host.state === "pending")
+      items.push({
+        id: `host-${host.hostname}`,
+        tone: "info",
+        title: `${host.hostname} waits for its DNS records`,
+        detail: "It routes once the school's DNS holds the records shown.",
+        action: (
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={() => onTab("addresses")}
+          >
+            Show the records
+          </Button>
+        ),
+      });
+  const trialEnds = school.entitlements.trialEndsOn;
+  if (trialEnds) {
+    const left = daysBetween(today, trialEnds) - 1;
+    if (left <= 14)
+      items.push({
+        id: "trial",
+        tone: left < 0 ? "danger" : "warning",
+        title:
+          left < 0
+            ? `Its trial ended ${formatDay(trialEnds)}`
+            : `Its trial ends in ${plural(left, "day", "days")}`,
+        detail: "A contract on its subscription keeps it going.",
+        action: data.sold?.subscriptionId ? (
+          <ButtonLink
+            variant="outline"
+            size="sm"
+            to="/subscriptions/$subscriptionId"
+            params={{ subscriptionId: data.sold.subscriptionId }}
+          >
+            Open subscription
+          </ButtonLink>
+        ) : undefined,
+      });
+  }
+  return <AttentionList title="To do" items={items} />;
+}
+
+const ACCESS_HINT: Record<SchoolStanding, string> = {
+  full: "Everyone uses the school as normal.",
+  restricted:
+    "Everything works, but the school cannot switch on modules or add custom domains; its administrators are told why.",
+  read_only:
+    "Everyone signs in and reads; nothing can be changed, and everyone is told the account is paused. Administrators can still export.",
+  suspended:
+    "Nobody signs in. The school's own portal says it is paused; the bare domain says nothing.",
+};
+
+interface AboutTabProps {
+  data: Data;
   standing: SchoolStanding | null;
 }
 
-/** The school's facts that hold on every tab: where it lives and what it may do. */
-function About({ school, sold, standing }: AboutProps) {
-  const entitled = school.entitlements;
-  const usage = school.usage;
+/** Who the school is, who it belongs to and pays for it, and where it lives. */
+function AboutTab({ data, standing }: AboutTabProps) {
+  const { school, platform, sold } = data;
+  const group = school.tenantKind === "school_group";
   return (
-    <RecordSection title="About">
-      <Facts>
-        <Fact label="Cell" wide>
-          {`${school.cellId} · ${school.region}`}
-        </Fact>
-        {standing ? (
-          <Fact label="Access" wide>
-            {ACCESS_HINT[standing]}
-          </Fact>
-        ) : null}
-        <Fact label="Storage" wide>
-          {usage
-            ? `${formatBytes(usage.usedBytes)} of ${formatBytes(entitled.poolBytes)}`
-            : `${formatBytes(entitled.poolBytes)}; not measured yet`}
-        </Fact>
-        {entitled.trialEndsOn ? (
-          <Fact label="Trial ends" wide>
-            {formatDay(entitled.trialEndsOn)}
-          </Fact>
-        ) : null}
-        {sold?.subscriptionId ? (
-          <Fact label="Subscription" wide>
-            <Link
-              to="/subscriptions/$subscriptionId"
-              params={{ subscriptionId: sold.subscriptionId }}
-              className="font-medium text-primary underline-offset-4 hover:underline"
-            >
-              Open its subscription
-            </Link>
-          </Fact>
-        ) : null}
-      </Facts>
-    </RecordSection>
+    <div className="grid gap-6">
+      <SummaryList
+        title="School"
+        align="start"
+        items={[
+          {
+            id: "nameEn",
+            label: "Name in English",
+            value: <span dir="auto">{school.nameEn ?? "Not recorded"}</span>,
+          },
+          {
+            id: "nameAr",
+            label: "Name in Arabic",
+            value: school.nameAr ? (
+              <span dir="rtl" lang="ar">
+                {school.nameAr}
+              </span>
+            ) : (
+              <span className="text-muted-foreground italic">Not recorded</span>
+            ),
+          },
+          {
+            id: "portal",
+            label: "Portal",
+            value: <span dir="ltr">{platform.portal}</span>,
+          },
+          {
+            id: "site",
+            label: "Website",
+            value: <span dir="ltr">{platform.site}</span>,
+          },
+          {
+            id: "created",
+            label: "Created",
+            value: formatWhenDay(school.createdAt),
+          },
+        ]}
+      />
+      <SummaryList
+        title="Account"
+        align="start"
+        items={[
+          {
+            id: "customer",
+            label: "Customer",
+            value: data.customer ? (
+              <Link
+                to="/customers/$customerId"
+                params={{ customerId: data.customer.id }}
+                className="font-medium text-primary underline-offset-4 hover:underline"
+              >
+                {data.customer.name}
+              </Link>
+            ) : (
+              <span className="text-muted-foreground">
+                None: it came before the console sold anything
+              </span>
+            ),
+          },
+          ...(group
+            ? [
+                {
+                  id: "group",
+                  label: "Group",
+                  value:
+                    school.tenantNameEn ?? school.tenantNameAr ?? "Unnamed",
+                },
+              ]
+            : []),
+          {
+            id: "plan",
+            label: "Plan",
+            value:
+              sold === null ? (
+                "Limits and modules set here by an operator"
+              ) : sold.subscriptionId ? (
+                (data.plan ?? "No plan: its schools keep what they had")
+              ) : (
+                <span className="text-muted-foreground">
+                  No subscription yet; the daily round opens one
+                </span>
+              ),
+            action: sold?.subscriptionId ? (
+              <ButtonLink
+                variant="ghost"
+                size="sm"
+                to="/subscriptions/$subscriptionId"
+                params={{ subscriptionId: sold.subscriptionId }}
+              >
+                Open subscription
+              </ButtonLink>
+            ) : undefined,
+          },
+          ...(standing
+            ? [
+                {
+                  id: "access",
+                  label: "Access",
+                  value: (
+                    <span className="grid gap-0.5">
+                      <span>{STANDING_NAMES[standing]}</span>
+                      <span className="text-[13px] leading-[18px] text-muted-foreground">
+                        {ACCESS_HINT[standing]}
+                      </span>
+                    </span>
+                  ),
+                },
+              ]
+            : []),
+          ...(school.entitlements.trialEndsOn
+            ? [
+                {
+                  id: "trial",
+                  label: "Trial ends",
+                  value: formatDay(school.entitlements.trialEndsOn),
+                },
+              ]
+            : []),
+        ]}
+      />
+      <SummaryList
+        title="Where its data lives"
+        align="start"
+        items={[
+          {
+            id: "cell",
+            label: "Cell",
+            value: `${school.cellId}, ${school.region}`,
+          },
+          {
+            id: "jurisdictions",
+            label: "Held under the law of",
+            value:
+              school.tenantJurisdictions.map(formatCountry).join(", ") ||
+              "Not recorded",
+          },
+          {
+            id: "measured",
+            label: "Last reported",
+            value: school.usage ? (
+              formatWhen(school.usage.measuredAt)
+            ) : (
+              <StatusText tone="warning">Not yet</StatusText>
+            ),
+          },
+        ]}
+      />
+    </div>
   );
 }
 
-interface EntitlementsSectionProps {
-  school: School;
-  /** Where a subscription sets them; null where an operator does, by hand. */
-  sold: { subscriptionId: string | null } | null;
-}
-
-/** Limits held against use, as the tab lists them. */
+/** Limits held against use, in the order the tab lists them. */
 const METERED = [
   "students",
   "staffAccounts",
@@ -389,17 +742,48 @@ type MeteredKey = (typeof METERED)[number];
 const isMetered = (key: LimitKey): key is MeteredKey =>
   (METERED as readonly LimitKey[]).includes(key);
 
+interface SetByProps {
+  data: Data;
+  onEdit: () => void;
+}
+
+/** Where the school's limits and modules come from, and the way to change them. */
+function SetBy({ data, onEdit }: SetByProps) {
+  const mayChange = useMay("tenants");
+  if (data.sold === null)
+    return mayChange ? (
+      <Button type="button" variant="ghost" size="sm" onClick={onEdit}>
+        <Pencil aria-hidden />
+        Edit
+      </Button>
+    ) : null;
+  return data.sold.subscriptionId ? (
+    <ButtonLink
+      variant="ghost"
+      size="sm"
+      to="/subscriptions/$subscriptionId"
+      params={{ subscriptionId: data.sold.subscriptionId }}
+    >
+      <Repeat aria-hidden />
+      Change on its subscription
+    </ButtonLink>
+  ) : null;
+}
+
+interface LimitsTabProps {
+  data: Data;
+  onEdit: () => void;
+}
+
 /**
- * What the school may use and how much of it it does: its metered limits
- * with their use, its other allowances, and every module, included or not.
- * A subscription sets them where there is a business database; without one
- * an operator edits them here.
+ * What the school may hold against how much it does, as its cell last
+ * reported, and the storage each part of it may use.
  */
-function EntitlementsSection({ school, sold }: EntitlementsSectionProps) {
+function LimitsTab({ data, onEdit }: LimitsTabProps) {
   const { formatNumber } = useDesignSystem();
+  const { school } = data;
   const entitled = school.entitlements;
   const usage = school.usage;
-  const sheet = useSheet();
   const usedOf: Record<MeteredKey, number | null> = {
     students: usage?.students ?? null,
     staffAccounts: usage?.staffAccounts ?? null,
@@ -430,101 +814,159 @@ function EntitlementsSection({ school, sold }: EntitlementsSectionProps) {
     label: LIMIT_NAMES[key],
     value: formatLimit(key, entitled[key]),
   }));
-  const included = new Set(availableModules(entitled));
   return (
-    <>
-      <RecordSection
-        variant="page"
-        title="Use"
-        description={
-          usage
-            ? `As its cell last reported, ${formatWhen(usage.measuredAt)}.`
-            : "Its cell has not reported its use yet."
-        }
-        edit={
-          sold === null
-            ? { label: "Edit entitlements", onClick: sheet.show }
-            : undefined
-        }
-      >
-        <UsageList label="Use against its limits" items={usageItems} />
-      </RecordSection>
-      <RecordSection
-        variant="page"
-        title="Allowances"
-        description="Storage each part of the school may hold, and what it may send."
-      >
-        <SummaryList items={allowances} />
-      </RecordSection>
-      <RecordSection
-        variant="page"
-        title="Modules"
-        description={
-          <>
-            {`${formatNumber(included.size)} of ${formatNumber(MODULE_IDS.length)} included, revision ${entitled.revision}. `}
-            {sold === null ? (
-              "Set here by an operator."
-            ) : sold.subscriptionId ? (
-              <>
-                Set by its{" "}
-                <Link
-                  to="/subscriptions/$subscriptionId"
-                  params={{ subscriptionId: sold.subscriptionId }}
-                  className="font-medium text-primary underline-offset-4 hover:underline"
-                >
-                  subscription
-                </Link>
-                .
-              </>
-            ) : (
-              "It has no subscription yet; the daily round gives it one that keeps what it has."
-            )}
-          </>
-        }
-      >
-        <div className="grid gap-x-10 gap-y-6 @2xl:grid-cols-2">
-          {MODULE_GROUPS.map((group) => (
-            <div key={group.title} className="grid content-start gap-2">
-              <h3 className="text-[13px] leading-[18px] font-medium text-muted-foreground">
-                {group.title}
-              </h3>
-              <ul className="grid gap-1.5">
-                {group.modules.map((module) => (
-                  <li
-                    key={module}
-                    className={cn(
-                      "flex items-center gap-2.5 text-sm leading-5",
-                      !included.has(module) && "text-muted-foreground",
-                    )}
-                  >
-                    {included.has(module) ? (
-                      <Check
-                        className="size-4 shrink-0 text-success"
-                        aria-label="Included"
-                      />
-                    ) : (
-                      <Minus
-                        className="size-4 shrink-0 text-muted-foreground/60"
-                        aria-label="Not included"
-                      />
-                    )}
-                    {MODULE_NAMES[module]}
-                  </li>
-                ))}
-              </ul>
-            </div>
-          ))}
-        </div>
-      </RecordSection>
-      {sold === null ? (
-        <EntitlementsSheet
-          key={sheet.key}
-          school={school}
-          open={sheet.open}
-          onOpenChange={sheet.onOpenChange}
-        />
-      ) : null}
-    </>
+    <div className="grid gap-6">
+      <UsageList
+        titled
+        label="Use against its limits"
+        items={usageItems}
+        action={<SetBy data={data} onEdit={onEdit} />}
+      />
+      <SummaryList title="Allowances" items={allowances} />
+    </div>
+  );
+}
+
+/** A module as the school has it: included, usable, and how it is turned on. */
+interface ModuleRow {
+  id: ModuleId;
+  area: string;
+  included: boolean;
+  /** Included, but useless until a module it needs is included too. */
+  needs: ModuleId[];
+}
+
+const MODULE_VIEWS = ["included", "missing"] as const;
+type ModuleView = (typeof MODULE_VIEWS)[number];
+
+const AREA_OF = new Map(
+  MODULE_GROUPS.flatMap((group) =>
+    group.modules.map((module) => [module, group.title] as const),
+  ),
+);
+
+const MODULE_COLUMNS: Column<ModuleRow>[] = [
+  {
+    id: "module",
+    header: "Module",
+    primary: true,
+    cell: (row) => (
+      <span className="grid min-w-0 py-2.5">
+        <span
+          className={cn(
+            "truncate font-medium",
+            !row.included && "text-muted-foreground",
+          )}
+        >
+          {MODULE_NAMES[row.id]}
+        </span>
+        <span className="truncate text-[13px] leading-[18px] text-muted-foreground">
+          {MODULE_HINTS[row.id]}
+        </span>
+      </span>
+    ),
+  },
+  {
+    id: "area",
+    header: "Area",
+    cell: (row) => <span className="text-muted-foreground">{row.area}</span>,
+  },
+  {
+    id: "status",
+    header: "Status",
+    cell: (row) =>
+      !row.included ? (
+        <StatusBadge tone="neutral">Not included</StatusBadge>
+      ) : row.needs.length ? (
+        <StatusBadge tone="warning">
+          Needs {row.needs.map((id) => MODULE_NAMES[id]).join(" or ")}
+        </StatusBadge>
+      ) : (
+        <StatusBadge tone="success">Included</StatusBadge>
+      ),
+  },
+  {
+    id: "on",
+    header: "Turned on",
+    cell: (row) => (
+      <span className="text-muted-foreground">
+        {MODULES[row.id].schoolSwitch ? "By the school" : "When included"}
+      </span>
+    ),
+  },
+];
+
+const MODULE_CARD: DataTableCard<ModuleRow> = {
+  title: (row) => MODULE_NAMES[row.id],
+  status: (row) => (row.included ? "Included" : "Not included"),
+  fact: (row) => MODULE_HINTS[row.id],
+};
+
+interface ModulesTabProps {
+  data: Data;
+  view: ModuleView | undefined;
+  onView: (view: ModuleView | undefined) => void;
+  onEdit: () => void;
+}
+
+/**
+ * Every module with what it gives, whether the school has it and, for one
+ * it has, whether it can be used and who turns it on. Those it lacks are
+ * what could be sold to it.
+ */
+function ModulesTab({ data, view, onView, onEdit }: ModulesTabProps) {
+  const entitled = availableModules(data.school.entitlements);
+  const usable = new Set(usableModules(entitled));
+  const all: ModuleRow[] = MODULE_GROUPS.flatMap((group) =>
+    group.modules.map((id) => ({
+      id,
+      area: AREA_OF.get(id) ?? group.title,
+      included: entitled.includes(id),
+      needs:
+        entitled.includes(id) && !usable.has(id)
+          ? MODULES[id].requires.flat()
+          : [],
+    })),
+  );
+  const rows = all.filter((row) =>
+    view === "included"
+      ? row.included
+      : view === "missing"
+        ? !row.included
+        : true,
+  );
+  const included = all.filter((row) => row.included).length;
+  return (
+    <DataTable
+      caption="Modules"
+      rows={rows}
+      columns={MODULE_COLUMNS}
+      rowLabel={(row) => MODULE_NAMES[row.id]}
+      card={MODULE_CARD}
+      toolbar={{
+        facets: [
+          {
+            id: "show",
+            label: "Show",
+            single: true,
+            selected: view ? [view] : [],
+            options: [
+              { value: "included", label: "Included", count: included },
+              {
+                value: "missing",
+                label: "Not included",
+                count: all.length - included,
+              },
+            ],
+            onChange: (selected) =>
+              onView(MODULE_VIEWS.find((one) => one === selected[0])),
+          },
+        ],
+        onReset: () => onView(undefined),
+      }}
+      actions={<SetBy data={data} onEdit={onEdit} />}
+      empty={{ icon: Blocks, title: "No modules" }}
+    />
   );
 }
 
@@ -562,8 +1004,8 @@ function EntitlementsSheet({
     <SheetForm
       open={open}
       onOpenChange={onOpenChange}
-      title="Edit entitlements"
-      submitLabel="Save entitlements"
+      title="Edit limits and modules"
+      submitLabel="Save"
       pending={pending}
       error={error}
       onSubmit={async () => {
@@ -645,23 +1087,6 @@ function EntitlementsSheet({
     </SheetForm>
   );
 }
-
-const ACCESS_HINT: Record<SchoolStanding, string> = {
-  full: "Everyone uses the school as normal.",
-  restricted:
-    "Everything works, but the school cannot switch on modules or add custom domains; its administrators are told why.",
-  read_only:
-    "Everyone signs in and reads; nothing can be changed, and everyone is told the account is paused. Administrators can still export.",
-  suspended:
-    "Nobody signs in. The school's own portal says it is paused; the bare domain says nothing.",
-};
-
-const ACCESS_TONE: Record<SchoolStanding, Tone> = {
-  full: "success",
-  restricted: "warning",
-  read_only: "warning",
-  suspended: "danger",
-};
 
 interface AccessSheetProps {
   tenantId: string;

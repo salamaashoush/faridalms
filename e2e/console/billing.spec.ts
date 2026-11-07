@@ -105,7 +105,9 @@ test("a contract is invoiced, paid by transfer and card, credited, and shown to 
   await creditNote.getByLabel("Why").fill("Agreed with the school");
   await creditNote.getByRole("button", { name: "Issue credit note" }).click();
   await expect(page.getByText(/^Credited as CN-\d{4}-\d{5}\./)).toBeVisible();
-  const history = page.getByRole("region", { name: "History", exact: true });
+  const history = page
+    .getByRole("region", { name: "History", exact: true })
+    .getByRole("table", { name: "Changes" });
   await expect(history.getByText("Issued", { exact: true })).toBeVisible();
   await expect(history.getByText("Credited", { exact: true })).toBeVisible();
 

@@ -7,7 +7,6 @@ import {
 import { Checkbox } from "@faridalms/ui/checkbox";
 import { cn } from "@faridalms/ui/cn";
 import { Progress } from "@faridalms/ui/progress";
-import { RecordSection } from "@faridalms/ui/system/record-page";
 import { useRouter } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { Check, Circle } from "lucide-react";
@@ -69,7 +68,7 @@ const WHO_TAKES = {
   operator: "Us",
 } as const;
 
-export interface OnboardingSectionProps {
+export interface OnboardingStepsProps {
   schoolId: string;
   health: SchoolHealth;
   /** When its cell last reported its data, or null before it ever has. */
@@ -81,21 +80,20 @@ export interface OnboardingSectionProps {
  * progress, and in it each step with the day it was taken or who takes it
  * next. The operator's own steps are ticked off in place.
  */
-export function OnboardingSection({
+export function OnboardingSteps({
   schoolId,
   health,
   measuredAt,
-}: OnboardingSectionProps) {
+}: OnboardingStepsProps) {
   const mayTick = useMay("tenants");
   const { applies, reached } = health.onboarding;
   return (
-    <RecordSection
-      variant="page"
-      title="Steps to going live"
-      description={`Its cell checks its data once a day, ${
-        measuredAt ? `last ${formatWhen(measuredAt)}` : "and has not yet"
-      }. The school's administrators see the same steps on their Today page.`}
-    >
+    <div className="@container grid gap-3">
+      <p className="text-[13px] leading-[18px] text-muted-foreground">
+        {`Its cell checks its data once a day, ${
+          measuredAt ? `last ${formatWhen(measuredAt)}` : "and has not yet"
+        }. The school's administrators see the same steps on their Today page.`}
+      </p>
       <div className="grid gap-4 @2xl:grid-cols-3">
         {ONBOARDING_PHASES.map((phase) => {
           const items = phase.items.filter((item) => applies.includes(item));
@@ -105,7 +103,7 @@ export function OnboardingSection({
             <section
               key={phase.title}
               aria-label={phase.title}
-              className="grid content-start gap-3 rounded-lg bg-muted/40 p-4"
+              className="grid content-start gap-3 rounded-lg border bg-card p-4"
             >
               <div className="grid gap-2">
                 <div className="flex items-baseline justify-between gap-3">
@@ -169,6 +167,6 @@ export function OnboardingSection({
           );
         })}
       </div>
-    </RecordSection>
+    </div>
   );
 }

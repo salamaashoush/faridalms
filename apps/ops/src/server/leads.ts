@@ -9,7 +9,10 @@ import {
   saveLead,
   setLeadState,
 } from "@faridalms/database/business/leads";
-import { quotesFor } from "@faridalms/database/business/quotes";
+import {
+  latestQuotesOfLeads,
+  quotesFor,
+} from "@faridalms/database/business/quotes";
 import {
   ACTIVITY_KINDS,
   leadSchema,
@@ -30,12 +33,30 @@ export const getLeads = createServerFn({ method: "GET" }).handler(async () => {
   await requireArea("leads");
   const db = requireBusiness();
   const today = businessToday();
-  const [rows, due, names] = await Promise.all([
+  const [rows, due, names, quoted] = await Promise.all([
     listLeads(db),
     dueNextSteps(db, today),
     operatorNames(db),
+    latestQuotesOfLeads(db),
   ]);
-  return { today, leads: rows, due, names };
+  return {
+    today,
+    leads: rows.map((lead) => {
+      const quote = quoted.get(lead.id);
+      return {
+        ...lead,
+        quote: quote
+          ? {
+              totalMinor: quote.totalMinor,
+              currency: quote.currency,
+              state: quote.state,
+            }
+          : null,
+      };
+    }),
+    due,
+    names,
+  };
 });
 
 export const getLead = createServerFn({ method: "GET" })

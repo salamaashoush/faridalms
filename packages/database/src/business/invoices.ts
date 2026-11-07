@@ -654,6 +654,21 @@ export function paymentsOf(db: BusinessDb, customerId: string) {
     .orderBy(desc(payments.receivedOn), desc(payments.createdAt));
 }
 
+/** Which invoices each of a customer's payments settled, and how much of each. */
+export function allocationsOf(db: BusinessDb, customerId: string) {
+  return db
+    .select({
+      paymentId: paymentAllocations.paymentId,
+      invoiceId: paymentAllocations.invoiceId,
+      number: invoices.number,
+      amountMinor: paymentAllocations.amountMinor,
+    })
+    .from(paymentAllocations)
+    .innerJoin(invoices, eq(invoices.id, paymentAllocations.invoiceId))
+    .where(eq(invoices.customerId, customerId))
+    .orderBy(asc(invoices.number));
+}
+
 /** The tenants whose customer has paid an invoice in full. */
 export async function payingTenants(db: BusinessDb): Promise<Set<string>> {
   const rows = await db

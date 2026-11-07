@@ -1,8 +1,7 @@
 import type { Change, JsonValue } from "@faridalms/database/directory/admin";
-import type { Column } from "@faridalms/ui/system/data-table";
+import type { ChangeLogLabels } from "@faridalms/ui/system/change-log";
 
-import { DataTable } from "@faridalms/ui/system/data-table";
-import { History } from "lucide-react";
+import { ChangeLog } from "@faridalms/ui/system/change-log";
 
 import {
   CHANGE_ACTION_NAMES,
@@ -114,55 +113,15 @@ const describedBy =
   (subjectName?: (change: Change) => string) => (change: Change) =>
     `${subjectName ? `${subjectName(change)}: ` : ""}${CHANGE_ACTION_NAMES[change.action] ?? change.action}`;
 
-function changeColumns(
-  what: (change: Change) => string,
-  names: Record<string, string>,
-): Column<Change>[] {
-  return [
-    {
-      id: "what",
-      header: "Change",
-      primary: true,
-      cell: (change) => {
-        const moved = differences(change);
-        return (
-          <span className="grid min-w-0 py-2.5">
-            <span className="truncate font-medium">{what(change)}</span>
-            {moved.map((line) => (
-              <span
-                key={line}
-                className="truncate text-[13px] leading-[18px] text-muted-foreground"
-              >
-                {line}
-              </span>
-            ))}
-          </span>
-        );
-      },
-    },
-    {
-      id: "why",
-      header: "Why",
-      className: "w-64 min-w-48 whitespace-normal",
-      cell: (change) => change.reason,
-    },
-    {
-      id: "who",
-      header: "By",
-      cell: (change) => actorName(change.actor, names),
-    },
-    {
-      id: "when",
-      header: "When",
-      align: "end",
-      cell: (change) => (
-        <time dateTime={change.occurredAt} className="text-muted-foreground">
-          {formatWhen(change.occurredAt)}
-        </time>
-      ),
-    },
-  ];
-}
+const LABELS: ChangeLogLabels = {
+  caption: "Changes",
+  what: "Change",
+  why: "Why",
+  who: "By",
+  when: "When",
+  empty: "No changes yet.",
+  emptyHint: "Each change shows here with who made it and why.",
+};
 
 /**
  * The change log as an audit table, newest first: what was done and what it
@@ -170,23 +129,18 @@ function changeColumns(
  */
 export function ChangeList({ changes, names, subjectName }: ChangeListProps) {
   const what = describedBy(subjectName);
-  const columns = changeColumns(what, names);
   return (
-    <DataTable
-      caption="Changes"
-      rows={changes}
-      columns={columns}
-      rowLabel={what}
-      card={{
-        title: (change) => what(change),
-        fact: (change) =>
-          `${formatWhen(change.occurredAt)} · ${actorName(change.actor, names)} · ${change.reason}`,
-      }}
-      empty={{
-        icon: History,
-        title: "No changes yet",
-        description: "Each change to it shows here with who made it and why.",
-      }}
+    <ChangeLog
+      labels={LABELS}
+      entries={changes.map((change) => ({
+        id: change.id,
+        what: what(change),
+        details: differences(change),
+        why: change.reason,
+        who: actorName(change.actor, names),
+        when: formatWhen(change.occurredAt),
+        at: change.occurredAt,
+      }))}
     />
   );
 }

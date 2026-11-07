@@ -61,9 +61,8 @@ test("an unpaid invoice reminds, asks for a call, restricts the school at its we
   await contact.getByLabel("Email").fill(billing);
   await contact.getByRole("checkbox", { name: "Billing" }).check();
   await contact.getByRole("button", { name: "Add contact" }).click();
-  await expect(
-    page.getByRole("article", { name: "Mona Hassan" }),
-  ).toBeVisible();
+  await page.getByRole("tab", { name: /^Contacts/ }).click();
+  await expect(page.getByRole("row", { name: /Mona Hassan/ })).toBeVisible();
   const customerUrl = page.url();
 
   // The year's invoice, issued, then a month overdue.
@@ -148,14 +147,15 @@ test("an unpaid invoice reminds, asks for a call, restricts the school at its we
   await expect(page.getByText("Task done.")).toBeVisible();
   await expect(call).toHaveCount(0);
   await page.goto(customerUrl);
-  const pauseClock = page.getByRole("button", { name: "Pause the clock" });
-  await hydrated(pauseClock);
-  await pauseClock.click();
-  const pause = page.getByRole("form", { name: "Pause the clock" });
+  const more = page.getByRole("button", { name: "More actions" });
+  await hydrated(more);
+  await more.click();
+  await page.getByRole("menuitem", { name: "Pause reminders" }).click();
+  const pause = page.getByRole("form", { name: "Pause reminders" });
   await pause.getByLabel("Until").fill(addDays(today, 14));
   await pause.getByLabel("Why").fill("The board approves payments on Thursday");
-  await pause.getByRole("button", { name: "Pause the clock" }).click();
-  await expect(page.getByText("The clock is paused.")).toBeVisible();
+  await pause.getByRole("button", { name: "Pause reminders" }).click();
+  await expect(page.getByText("Reminders are paused.")).toBeVisible();
   await page.goto("/receivables");
   await expect(row).toContainText("Paused until");
 

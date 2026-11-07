@@ -25,6 +25,7 @@ test("an owner sets the business's legal details and its VAT", async ({
   await details.getByRole("button", { name: "Save legal details" }).click();
   await expect(page.getByText("Legal details saved.")).toBeVisible();
 
+  await page.getByRole("button", { name: "Add rate" }).click();
   const rate = page.getByRole("form", { name: "Add a rate" });
   await rate.getByLabel("Country").fill("EG");
   await rate.getByLabel("Percentage").fill("14");
@@ -33,8 +34,11 @@ test("an owner sets the business's legal details and its VAT", async ({
   await rate.getByRole("button", { name: "Add rate" }).click();
   await expect(page.getByText("Rate added.")).toBeVisible();
   await expect(
-    page.getByRole("listitem").filter({ hasText: "from Jul 1, 2017" }),
-  ).toContainText("14% VAT");
+    page
+      .getByRole("table", { name: "VAT rates" })
+      .getByRole("row")
+      .filter({ hasText: "Jul 1, 2017" }),
+  ).toContainText("14%");
 });
 
 test("a demonstration request becomes a lead, a quote in both languages, and a customer whose school is ready to set up", async ({
@@ -89,6 +93,7 @@ test("a demonstration request becomes a lead, a quote in both languages, and a c
   await activity.getByRole("button", { name: "Log it" }).click();
   await expect(page.getByText("Logged.")).toBeVisible();
 
+  await page.getByRole("tab", { name: /^Quotes/ }).click();
   await page.getByRole("link", { name: "New quote" }).click();
   const quote = page.getByRole("form", { name: "Quote" });
   await choose(quote, "Plan", `${planName} version 1`);
@@ -144,8 +149,11 @@ test("a demonstration request becomes a lead, a quote in both languages, and a c
 
   await page.goto("/customers");
   await page.getByRole("link", { name: school }).click();
+  await page.getByRole("tab", { name: /^Contacts/ }).click();
   await expect(
-    page.getByRole("article", { name: "Salama Ashoush" }),
+    page
+      .getByRole("table", { name: "Contacts" })
+      .getByRole("row", { name: /Salama Ashoush/ }),
   ).toBeVisible();
 });
 
@@ -171,13 +179,15 @@ test("a school's administrator asks about a module its plan does not have, and t
   await portalContext.close();
 
   await signInAs(page, OWNER);
-  await page.getByRole("link", { name: "Leads", exact: true }).click();
+  // Leads that came from a school asking about a module, as Came from filters them.
+  await page.goto(
+    `/leads?source=${encodeURIComponent(JSON.stringify(["module_interest"]))}`,
+  );
   const lead = page
     .getByRole("region", { name: "Pipeline" })
     .getByRole("listitem")
-    .filter({ hasText: "Asked about a module" })
     .filter({ hasText: "Fernhill" })
     .first();
   await lead.getByRole("link").click();
-  await expect(page.getByText(/asked about Coding and blocks/)).toBeVisible();
+  await expect(page.getByText(/asked about Coding and blocks/i)).toBeVisible();
 });

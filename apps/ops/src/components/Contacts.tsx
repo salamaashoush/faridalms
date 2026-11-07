@@ -1,24 +1,21 @@
 import type { ContactRow } from "@faridalms/database/business/customers";
 import type { ContactRole } from "@faridalms/domain/subscriptions";
+import type { Column, DataTableCard } from "@faridalms/ui/system/data-table";
 
 import { CONTACT_ROLES } from "@faridalms/domain/subscriptions";
 import { Button } from "@faridalms/ui/button";
-import { ActionMenu } from "@faridalms/ui/system/action-menu";
+import { DataTable } from "@faridalms/ui/system/data-table";
 import {
   CheckboxGroupField,
   SelectField,
   TextField,
 } from "@faridalms/ui/system/form-field";
-import {
-  RecordEmpty,
-  RecordList,
-  RecordSection,
-} from "@faridalms/ui/system/record-page";
-import { SheetForm } from "@faridalms/ui/system/sheet-form";
+import { SheetForm, useSheet } from "@faridalms/ui/system/sheet-form";
 import { StatusBadge } from "@faridalms/ui/system/status";
+import { Value } from "@faridalms/ui/system/value";
 import { useRouter } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
-import { Plus } from "lucide-react";
+import { Pencil, Plus, Trash2, UserRound } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 
@@ -44,7 +41,7 @@ const LOCALE_OPTIONS = [
   { value: "ar", label: "Arabic" },
 ] as const;
 
-interface ContactSheetProps {
+export interface ContactSheetProps {
   customerId: string;
   /** The contact being changed, or null for a new one. */
   contact: ContactRow | null;
@@ -53,7 +50,7 @@ interface ContactSheetProps {
 }
 
 /** Adds a person at the customer, or changes one. */
-function ContactSheet({
+export function ContactSheet({
   customerId,
   contact,
   open,
@@ -172,68 +169,157 @@ function ContactSheet({
   );
 }
 
-interface ContactItemProps {
+const COLUMNS: Column<ContactRow>[] = [
+  {
+    id: "name",
+    header: "Name",
+    primary: true,
+    cell: (contact) => (
+      <span dir="auto" className="font-medium">
+        {contact.name}
+      </span>
+    ),
+  },
+  {
+    id: "roles",
+    header: "Written to about",
+    cell: (contact) => (
+      <span className="flex flex-wrap gap-1.5">
+        {contact.roles.map((role) => (
+          <StatusBadge key={role} tone="neutral">
+            {ROLE_NAMES[role]}
+          </StatusBadge>
+        ))}
+      </span>
+    ),
+  },
+  {
+    id: "email",
+    header: "Email",
+    cell: (contact) =>
+      contact.email ? (
+        <a
+          dir="ltr"
+          href={`mailto:${contact.email}`}
+          className="text-primary underline-offset-4 hover:underline"
+        >
+          {contact.email}
+        </a>
+      ) : (
+        <Value>{null}</Value>
+      ),
+  },
+  {
+    id: "phone",
+    header: "Phone",
+    cell: (contact) =>
+      contact.phone ? (
+        <a
+          dir="ltr"
+          href={`tel:${contact.phone}`}
+          className="tabular-nums underline-offset-4 hover:underline"
+        >
+          {contact.phone}
+        </a>
+      ) : (
+        <Value>{null}</Value>
+      ),
+  },
+  {
+    id: "language",
+    header: "Language",
+    cell: (contact) => (contact.locale === "ar" ? "Arabic" : "English"),
+  },
+];
+
+const CARD: DataTableCard<ContactRow> = {
+  title: (contact) => <span dir="auto">{contact.name}</span>,
+  status: (contact) => contact.roles.map((role) => ROLE_NAMES[role]).join(", "),
+  fact: (contact) => (
+    <span dir="ltr">
+      {[contact.email, contact.phone].filter(Boolean).join(" · ")}
+    </span>
+  ),
+};
+
+export interface ContactsTableProps {
   customerId: string;
-  contact: ContactRow;
+  contacts: ContactRow[];
+  /** Opens the sheet that adds a contact, owned by the page. */
+  onAdd: () => void;
 }
 
-function ContactItem({ customerId, contact }: ContactItemProps) {
+/**
+ * The people at the customer: what each is written to about, how to reach
+ * them and in which language. Each row is edited or removed from its menu.
+ */
+export function ContactsTable({
+  customerId,
+  contacts,
+  onAdd,
+}: ContactsTableProps) {
   const router = useRouter();
   const remove = useServerFn(removeCustomerContact);
-  const [editing, setEditing] = useState(false);
+  const editing = useSheet();
+  const [chosen, setChosen] = useState<ContactRow | null>(null);
+  const add = (
+    <Button type="button" variant="outline" size="sm" onClick={onAdd}>
+      <Plus aria-hidden />
+      Add contact
+    </Button>
+  );
   return (
-    <li>
-      <article
-        aria-label={contact.name}
-        className="flex items-start justify-between gap-3 py-3"
-      >
-        <div className="grid min-w-0 gap-1">
-          <span className="flex flex-wrap items-center gap-2 text-sm leading-5 font-medium">
-            {contact.name}
-            {contact.roles.map((role) => (
-              <StatusBadge key={role} tone="neutral">
-                {ROLE_NAMES[role]}
-              </StatusBadge>
-            ))}
-          </span>
-          <span
-            dir="ltr"
-            className="justify-self-start text-[13px] leading-[18px] text-muted-foreground"
-          >
-            {[contact.email, contact.phone].filter(Boolean).join(" · ")}
-          </span>
-          <span className="text-[13px] leading-[18px] text-muted-foreground">
-            Writes to them in {contact.locale === "ar" ? "Arabic" : "English"}
-          </span>
-        </div>
-        <ActionMenu
-          label={`Actions for ${contact.name}`}
-          actions={[
-            { label: "Edit", onSelect: () => setEditing(true) },
-            {
-              label: "Remove",
-              destructive: true,
-              confirm: {
-                title: `Remove ${contact.name}?`,
-                body: "They stop receiving the customer's invoices and notices.",
-                label: "Remove",
-              },
-              onSelect: async () => {
-                await remove({ data: { customerId, id: contact.id } });
-                toast.success("Contact removed.");
-                await router.invalidate();
-              },
+    <>
+      <DataTable
+        caption="Contacts"
+        rows={contacts}
+        columns={COLUMNS}
+        rowLabel={(contact) => contact.name}
+        card={CARD}
+        actions={add}
+        empty={{
+          icon: UserRound,
+          title: "Add the people to write to",
+          description:
+            "Invoices and payment reminders go to the contacts written to about billing; notices about the contract to its decision makers.",
+          action: add,
+        }}
+        rowActions={(contact) => [
+          {
+            label: "Edit",
+            icon: Pencil,
+            onSelect: () => {
+              setChosen(contact);
+              editing.show();
             },
-          ]}
-        />
-      </article>
-      <ContactSheet
-        customerId={customerId}
-        contact={contact}
-        open={editing}
-        onOpenChange={setEditing}
+          },
+          {
+            label: "Remove",
+            icon: Trash2,
+            destructive: true,
+            confirm: {
+              title: `Remove ${contact.name}?`,
+              body: "They stop receiving the customer's invoices and notices.",
+              label: "Remove",
+            },
+            onSelect: async () => {
+              await remove({ data: { customerId, id: contact.id } });
+              toast.success("Contact removed.");
+              await router.invalidate();
+            },
+          },
+        ]}
       />
-    </li>
+      {chosen ? (
+        <ContactSheet
+          key={editing.key}
+          customerId={customerId}
+          contact={chosen}
+          open={editing.open}
+          onOpenChange={editing.onOpenChange}
+        />
+      ) : null}
+    </>
   );
 }
 
@@ -242,38 +328,23 @@ export interface ContactsProps {
   contacts: ContactRow[];
 }
 
-/** The people at the customer, each with what they are written to about. */
+/** The people at the customer, with the sheet that adds one. */
 export function Contacts({ customerId, contacts }: ContactsProps) {
-  const [adding, setAdding] = useState(false);
+  const adding = useSheet();
   return (
-    <RecordSection
-      title="Contacts"
-      action={
-        <Button type="button" variant="ghost" onClick={() => setAdding(true)}>
-          <Plus aria-hidden />
-          Add contact
-        </Button>
-      }
-    >
-      {contacts.length ? (
-        <RecordList>
-          {contacts.map((contact) => (
-            <ContactItem
-              key={contact.id}
-              customerId={customerId}
-              contact={contact}
-            />
-          ))}
-        </RecordList>
-      ) : (
-        <RecordEmpty>No contacts yet.</RecordEmpty>
-      )}
+    <>
+      <ContactsTable
+        customerId={customerId}
+        contacts={contacts}
+        onAdd={adding.show}
+      />
       <ContactSheet
+        key={adding.key}
         customerId={customerId}
         contact={null}
-        open={adding}
-        onOpenChange={setAdding}
+        open={adding.open}
+        onOpenChange={adding.onOpenChange}
       />
-    </RecordSection>
+    </>
   );
 }

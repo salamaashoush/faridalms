@@ -6,6 +6,7 @@ import { pausesOf, stepsOf } from "@faridalms/database/business/dunning";
 import { eventsOf } from "@faridalms/database/business/events";
 import {
   allocatePayment,
+  allocationsOf,
   creditInvoice,
   draftInvoice,
   InvoiceError,
@@ -389,7 +390,7 @@ export const makePaymentLink = createServerFn({ method: "POST" })
     }
   });
 
-/** A customer's invoices, payments and pauses of its clock, for its page. */
+/** A customer's invoices, its payments with what each settled, and pauses of its clock. */
 export const getCustomerBilling = createServerFn({ method: "GET" })
   .validator((input: { customerId: string }) =>
     v.parse(v.object({ customerId: uuid }), input),
@@ -397,10 +398,11 @@ export const getCustomerBilling = createServerFn({ method: "GET" })
   .handler(async ({ data }) => {
     await requireArea("readBilling");
     const db = requireBusiness();
-    const [rows, paid, pauses] = await Promise.all([
+    const [rows, paid, pauses, allocations] = await Promise.all([
       listInvoices(db, { customerId: data.customerId }),
       paymentsOf(db, data.customerId),
       pausesOf(db, [data.customerId]),
+      allocationsOf(db, data.customerId),
     ]);
     const invoices = rows.map(({ invoice }) => invoice);
     const owed = await outstanding(db, invoices);
@@ -409,7 +411,10 @@ export const getCustomerBilling = createServerFn({ method: "GET" })
         ...invoice,
         owedMinor: owed.get(invoice.id) ?? 0,
       })),
-      payments: paid,
+      payments: paid.map((payment) => ({
+        ...payment,
+        settled: allocations.filter((row) => row.paymentId === payment.id),
+      })),
       pauses,
     };
   });

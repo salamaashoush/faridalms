@@ -7,8 +7,7 @@ import {
   SelectField,
   TextField,
 } from "@faridalms/ui/system/form-field";
-import { Fact, Facts, RecordSection } from "@faridalms/ui/system/record-page";
-import { SheetForm, useSheet } from "@faridalms/ui/system/sheet-form";
+import { SheetForm } from "@faridalms/ui/system/sheet-form";
 import { Textarea } from "@faridalms/ui/textarea";
 import { useServerFn } from "@tanstack/react-start";
 import { useState } from "react";
@@ -228,54 +227,7 @@ export function NewCustomerSheet({
   );
 }
 
-export interface CustomerDetailsProps {
-  customer: CustomerRow;
-  onSaved: () => Promise<void> | void;
-}
-
-/** A customer's legal details as invoices carry them, edited with a reason. */
-export function CustomerDetails({ customer, onSaved }: CustomerDetailsProps) {
-  const sheet = useSheet();
-  return (
-    <RecordSection
-      title="Customer details"
-      description="As its invoices carry them."
-      edit={{
-        label: "Edit customer details",
-        onClick: sheet.show,
-      }}
-    >
-      <Facts>
-        <Fact label="Legal name in English">{customer.legalNameEn}</Fact>
-        <Fact label="Legal name in Arabic">
-          {customer.legalNameAr ? (
-            <span dir="rtl" lang="ar">
-              {customer.legalNameAr}
-            </span>
-          ) : null}
-        </Fact>
-        <Fact label="Tax registration number">{customer.taxNumber}</Fact>
-        <Fact label="Commercial registry">{customer.commercialRegistry}</Fact>
-        <Fact label="Country">{customer.country}</Fact>
-        <Fact label="Currency">{customer.currency}</Fact>
-        <Fact label="Billing address" wide>
-          {customer.address ? (
-            <span className="whitespace-pre-line">{customer.address}</span>
-          ) : null}
-        </Fact>
-      </Facts>
-      <EditCustomerSheet
-        key={sheet.key}
-        customer={customer}
-        open={sheet.open}
-        onOpenChange={sheet.onOpenChange}
-        onSaved={onSaved}
-      />
-    </RecordSection>
-  );
-}
-
-interface EditCustomerSheetProps {
+export interface EditCustomerSheetProps {
   customer: CustomerRow;
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -283,7 +235,7 @@ interface EditCustomerSheetProps {
 }
 
 /** Changes a customer's legal details, unless someone changed them first. */
-function EditCustomerSheet({
+export function EditCustomerSheet({
   customer,
   open,
   onOpenChange,
@@ -297,7 +249,7 @@ function EditCustomerSheet({
     <SheetForm
       open={open}
       onOpenChange={onOpenChange}
-      title="Edit customer details"
+      title="Edit legal details"
       submitLabel="Save details"
       pending={form.pending}
       error={form.error}

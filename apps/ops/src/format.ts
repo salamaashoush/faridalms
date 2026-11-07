@@ -86,6 +86,30 @@ export const MODULE_NAMES: Record<ModuleId, string> = {
   sms: "SMS",
 };
 
+/** What each module gives a school, in a line, for an operator deciding what to sell. */
+export const MODULE_HINTS: Record<ModuleId, string> = {
+  coursework: "Assignments handed in, marked and returned",
+  peer_review: "Students review each other's work against a rubric",
+  gradebook: "Marks and grades by class, term and subject",
+  attendance: "Registers, absence reports, follow-up and the front desk",
+  timetable: "Each class's week of lessons, and cover for absent teachers",
+  news: "Announcements and news posts to the school's community",
+  website: "The school's public website and its pages",
+  custom_domains: "The website and portal on the school's own domain",
+  admissions: "Enquiries, applications and offers for new students",
+  student_records: "Each student's full record beyond their profile",
+  badges: "Young children sign in by showing a printed badge",
+  standards: "Curriculum standards that work and marks are tagged with",
+  exams: "Exam entries and sessions with external boards",
+  elearning: "Self-paced courses and lessons students work through",
+  early_years: "Observations and learning journeys for the early years",
+  coding: "Block and text coding projects that run in the browser",
+  video: "Uploaded and streamed video with captions",
+  integrations: "Tools from other providers launched inside lessons (LTI)",
+  sso: "Sign in through the school's own identity provider",
+  sms: "Text messages to families",
+};
+
 /** A module's name, or the id itself for one the catalogue no longer has, as an old change may name. */
 export function moduleName(id: string): string {
   const known = MODULE_IDS.find((module) => module === id);
@@ -102,6 +126,22 @@ export const BOARD_NAMES: Record<ExamBoard, string> = {
 /** A month with its year: "September 2026". */
 export function formatMonth(isoDate: string): string {
   return formatMonthIn(isoDate, "label", "en");
+}
+
+/** An instant's day on the business's clock: "Nov 7, 2026". */
+export function formatWhenDay(when: string | Date): string {
+  return formatInstantIn(when, "date", BUSINESS_TIME_ZONE, "en");
+}
+
+const REGIONS = new Intl.DisplayNames(["en"], { type: "region" });
+
+/** A country's English name from its two-letter code, or the code where it names none. */
+export function formatCountry(code: string): string {
+  try {
+    return REGIONS.of(code) ?? code;
+  } catch {
+    return code;
+  }
 }
 
 /** An instant's day on the business's clock, without its year: "Nov 7". */
@@ -303,6 +343,13 @@ export const STANDING_NAMES: Record<SchoolStanding, string> = {
   restricted: "Restricted",
   read_only: "Paused (read only)",
   suspended: "Suspended",
+};
+
+export const STANDING_TONE: Record<SchoolStanding, Tone> = {
+  full: "success",
+  restricted: "warning",
+  read_only: "warning",
+  suspended: "danger",
 };
 
 export const ONBOARDING_ITEM_NAMES: Record<OnboardingItem, string> = {

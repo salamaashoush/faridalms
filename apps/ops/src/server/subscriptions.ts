@@ -6,6 +6,7 @@ import {
   endParts,
   listOpenSubscriptions,
   setTerms,
+  soldInForce,
   SubscriptionError,
 } from "@faridalms/database/business/subscriptions";
 import {
@@ -80,29 +81,47 @@ export const getSubscriptions = createServerFn({ method: "GET" }).handler(
   async () => {
     await requireArea("readSubscriptions");
     const db = requireBusiness();
+    const today = businessToday();
     const [rows, schools, round, names] = await Promise.all([
       listOpenSubscriptions(db),
       directoryAdmin().schools(),
       lastRound(db),
       operatorNames(db),
     ]);
-    const tenants = new Map<string, string>();
-    for (const school of schools)
-      tenants.set(
-        school.tenantId,
-        school.tenantNameEn ??
-          school.tenantNameAr ??
-          school.nameEn ??
-          school.slug,
-      );
+    const sold = await soldInForce(
+      db,
+      rows.map(({ subscription }) => subscription.id),
+      today,
+    );
     return {
-      today: businessToday(),
+      today,
       subscriptions: rows
-        .map(({ subscription, customerName }) => ({
-          ...subscription,
-          customerName,
-          tenantName: tenants.get(subscription.tenantId) ?? null,
-        }))
+        .map(({ subscription, customerName }) => {
+          const held = schools.filter(
+            (school) => school.tenantId === subscription.tenantId,
+          );
+          const reported = held.filter((school) => school.usage !== null);
+          const [first] = held;
+          return {
+            ...subscription,
+            customerName,
+            tenantName: first
+              ? (first.tenantNameEn ??
+                first.tenantNameAr ??
+                first.nameEn ??
+                first.slug)
+              : null,
+            plan: sold.get(subscription.id)?.plan ?? null,
+            valueMinor: sold.get(subscription.id)?.valueMinor ?? 0,
+            schools: held.length,
+            enrolled: reported.length
+              ? reported.reduce(
+                  (sum, school) => sum + (school.usage?.students ?? 0),
+                  0,
+                )
+              : null,
+          };
+        })
         .toSorted((a, b) =>
           (a.trialEndsOn ?? a.termEndsOn ?? "9999").localeCompare(
             b.trialEndsOn ?? b.termEndsOn ?? "9999",
@@ -143,6 +162,7 @@ export const getSubscription = createServerFn({ method: "GET" })
         name: school.nameEn ?? school.nameAr ?? school.slug,
         tenantState: school.tenantState,
         access: school.entitlements.access,
+        students: school.usage?.students ?? null,
         current,
         next,
       })),

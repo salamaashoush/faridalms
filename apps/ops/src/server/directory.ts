@@ -1,6 +1,10 @@
 import type { ProvisionResult } from "@faridalms/domain/provisioning";
 
-import { openSubscription } from "@faridalms/database/business/subscriptions";
+import { customerOfTenant } from "@faridalms/database/business/customers";
+import {
+  openSubscription,
+  soldInForce,
+} from "@faridalms/database/business/subscriptions";
 import { HostRefusedError } from "@faridalms/database/directory/hosts";
 import { saveSeriesSchema } from "@faridalms/domain/exams";
 import {
@@ -81,9 +85,18 @@ export const getSchool = createServerFn({ method: "GET" })
       directory().changes({ id: school.tenantId }),
     ]);
     const business = businessDb();
-    const subscription = business
-      ? await openSubscription(business, school.tenantId)
-      : null;
+    const [subscription, customer] = business
+      ? await Promise.all([
+          openSubscription(business, school.tenantId),
+          customerOfTenant(business, school.tenantId),
+        ])
+      : [null, null];
+    const plan =
+      business && subscription
+        ? ((
+            await soldInForce(business, [subscription.id], businessToday())
+          ).get(subscription.id)?.plan ?? null)
+        : null;
     const health = (
       await schoolHealth(
         { directory: directory(), business },
@@ -110,6 +123,11 @@ export const getSchool = createServerFn({ method: "GET" })
        * subscription; without one an operator sets them here.
        */
       sold: business ? { subscriptionId: subscription?.id ?? null } : null,
+      customer: customer
+        ? { id: customer.id, name: customer.legalNameEn }
+        : null,
+      plan,
+      today: businessToday(),
       platform: {
         site: platformName(school.slug, "site", domains),
         portal: platformName(school.slug, "portal", domains),

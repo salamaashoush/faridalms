@@ -6,8 +6,15 @@ import {
   saveContact,
   saveCustomer,
 } from "@faridalms/database/business/customers";
+import { owedInvoices } from "@faridalms/database/business/dunning";
 import { eventsOf } from "@faridalms/database/business/events";
+import {
+  listOpenSubscriptions,
+  soldInForce,
+} from "@faridalms/database/business/subscriptions";
 import { listTasks } from "@faridalms/database/business/tasks";
+import { mayOperate } from "@faridalms/domain/operators";
+import { standingOf } from "@faridalms/domain/provisioning";
 import {
   businessToday,
   contactSchema,
@@ -19,26 +26,84 @@ import * as v from "valibot";
 import { requireArea } from "./access";
 import { requireBusiness } from "./business";
 import { directoryAdmin } from "./directory-admin";
+import { schoolHealth } from "./health";
 import { operatorNames, operatorsWhoMay } from "./operators";
 
 const uuid = v.pipe(v.string(), v.uuid());
 
+/**
+ * Every customer with what a list of them is decided by: the subscription
+ * it holds and its plan, how many schools it runs, who looks after it, and
+ * for someone who may read billing what it owes and how much is overdue.
+ */
 export const getCustomers = createServerFn({ method: "GET" }).handler(
   async () => {
-    await requireArea("customers");
-    return listCustomers(requireBusiness());
+    const { roles } = await requireArea("customers");
+    const db = requireBusiness();
+    const today = businessToday();
+    const mayBill = mayOperate(roles, "readBilling");
+    const [customers, names, owing, open, schools] = await Promise.all([
+      listCustomers(db),
+      operatorNames(db),
+      mayBill ? owedInvoices(db) : Promise.resolve(null),
+      listOpenSubscriptions(db),
+      directoryAdmin().schools(),
+    ]);
+    const sold = await soldInForce(
+      db,
+      open.map(({ subscription }) => subscription.id),
+      today,
+    );
+    const owed = new Map<string, { owedMinor: number; overdueMinor: number }>();
+    for (const row of owing ?? []) {
+      const held = owed.get(row.invoice.customerId) ?? {
+        owedMinor: 0,
+        overdueMinor: 0,
+      };
+      owed.set(row.invoice.customerId, {
+        owedMinor: held.owedMinor + row.owedMinor,
+        overdueMinor:
+          held.overdueMinor + (row.dueOn < today ? row.owedMinor : 0),
+      });
+    }
+    return {
+      mayBill,
+      names,
+      customers: customers.map((customer) => {
+        const held = open.find(
+          ({ subscription }) => subscription.customerId === customer.id,
+        )?.subscription;
+        return {
+          ...customer,
+          subscription: held
+            ? {
+                state: held.state,
+                plan: sold.get(held.id)?.plan ?? null,
+                grandfathered: held.grandfathered,
+              }
+            : null,
+          schools: customer.tenantId
+            ? schools.filter((school) => school.tenantId === customer.tenantId)
+                .length
+            : 0,
+          owed: owed.get(customer.id) ?? { owedMinor: 0, overdueMinor: 0 },
+        };
+      }),
+    };
   },
 );
 
 /**
- * A customer, its contacts, subscriptions, the schools it runs, its tasks
- * and its history, with who may look after it.
+ * A customer, its contacts, subscriptions with the plan each holds today,
+ * the schools it runs with how each stands, its tasks and its history,
+ * with who may look after it.
  */
 export const getCustomer = createServerFn({ method: "GET" })
   .validator((input: { id: string }) => v.parse(v.object({ id: uuid }), input))
   .handler(async ({ data }) => {
     await requireArea("customers");
     const db = requireBusiness();
+    const today = businessToday();
     const [found, history, names, owners, tasks] = await Promise.all([
       customerById(db, data.id),
       eventsOf(db, "customer", data.id),
@@ -48,22 +113,44 @@ export const getCustomer = createServerFn({ method: "GET" })
     ]);
     if (!found) throw new Error("NOT_FOUND");
     const tenantId = found.customer.tenantId;
-    const schools = tenantId
-      ? (await directoryAdmin().schools())
-          .filter((school) => school.tenantId === tenantId)
-          .map((school) => ({
-            id: school.id,
-            name: school.nameEn ?? school.nameAr ?? school.slug,
-          }))
+    const directory = directoryAdmin();
+    const held = tenantId
+      ? (await directory.schools()).filter(
+          (school) => school.tenantId === tenantId,
+        )
       : [];
+    const [health, plans] = await Promise.all([
+      schoolHealth({ directory, business: db }, held, new Date(), today),
+      soldInForce(
+        db,
+        found.subscriptions.map((subscription) => subscription.id),
+        today,
+      ),
+    ]);
     return {
       ...found,
-      schools,
+      subscriptions: found.subscriptions
+        .map((subscription) => ({
+          ...subscription,
+          plan: plans.get(subscription.id)?.plan ?? null,
+        }))
+        .toReversed(),
+      schools: held.map((school) => ({
+        id: school.id,
+        name: school.nameEn ?? school.nameAr ?? school.slug,
+        slug: school.slug,
+        tenantState: school.tenantState,
+        standing: standingOf(school.tenantState, school.entitlements.access),
+        students: school.usage?.students ?? null,
+        studentLimit: school.entitlements.students,
+        signedIn7d: school.usage?.signedIn7d ?? null,
+        health: health.get(school.id)?.level ?? null,
+      })),
       history,
       names,
       owners,
       tasks,
-      today: businessToday(),
+      today,
     };
   });
 

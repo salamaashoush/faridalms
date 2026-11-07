@@ -70,6 +70,21 @@ export function quotesFor(
     .orderBy(desc(quotes.number), desc(quotes.version));
 }
 
+/** The newest quote of each lead, by lead: what was last put in front of it. */
+export async function latestQuotesOfLeads(
+  db: BusinessDb,
+): Promise<Map<string, QuoteRow>> {
+  const rows = await db
+    .select(summary)
+    .from(quotes)
+    .where(sql`${quotes.leadId} is not null`)
+    .orderBy(desc(quotes.number), desc(quotes.version));
+  const out = new Map<string, QuoteRow>();
+  for (const row of rows)
+    if (row.leadId && !out.has(row.leadId)) out.set(row.leadId, row);
+  return out;
+}
+
 export async function quoteById(
   db: BusinessDb,
   id: string,

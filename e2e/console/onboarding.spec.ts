@@ -38,6 +38,7 @@ test("a new school's first steps show to its operators and its administrators al
   await row.getByRole("link", { name: schoolName }).click();
 
   // The operator's own step, ticked off on the school's page.
+  await page.getByRole("tab", { name: "Onboarding" }).click();
   const started = page.getByRole("region", { name: "Getting started" });
   const call = started.getByRole("checkbox", { name: "Kick-off call" });
   await hydrated(call);
