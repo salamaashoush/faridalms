@@ -2,8 +2,8 @@
 
 The editor and the website studio are ahead of general-purpose CMSs on
 teaching blocks, live editing and bilingual publishing, and behind them on
-the ordinary tools of managing content: a media library, page SEO, comments
-while writing, and the comfort of the editor itself. This plan closes that gap. The comparison it comes from
+the ordinary tools of managing content: a media library and comments while
+writing. This plan closes that gap. The comparison it comes from
 read emdash (TipTap, Portable Text, Astro) at its 1.4 release.
 
 Each slice lands on its own and deletes its entry here when it does.
@@ -28,11 +28,3 @@ Staff who can edit a document comment on a passage or a block, reply,
 mention a colleague and resolve the thread. Comments are never shown to the
 document's readers and never print. They build on the anchors readers'
 comments already use (`editor/anchors.ts`).
-
-## 7. Website SEO
-
-Each page carries a social picture, a "keep out of search" switch and a
-canonical address. The site publishes `sitemap.xml`, `robots.txt` and the
-`hreflang` alternates of its two languages, keeps redirects from old
-addresses, and names the school's own social accounts rather than a fixed
-one.

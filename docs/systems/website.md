@@ -22,7 +22,15 @@ foundation's documents, file publications and the `site` role. Evidence:
     settings rather than to a document.
 - **Pages** (`core.site_pages`): the page tree is the menu. A page's sections
   are the `page` document hosted as `site_page`; the second language is its
-  translation document.
+  translation document. Beside its sections each language of the document
+  holds the page's settings for the world outside the site: its search
+  description, its social picture and its canonical address. Whether search
+  engines may list the page at all (`indexed`) is one switch for both
+  languages, on the row.
+- **Redirects** (`core.site_redirects`): an old address of the school's
+  site, sent on to one of its pages (by id, so a renamed page keeps its
+  redirects) or to a path or web address. The site role reads where an
+  address leads, never who added it.
 - **Posts** (`core.broadcasts` of kind `news`): the school's news,
   written in the News screen rather than the website builder, one of the two
   kinds of broadcast beside announcements. A post's body is a `rich_text`
@@ -230,12 +238,46 @@ Once written, the enquiry is the admissions system's: an inbox for whoever
 holds `admissions:read` or `admissions:manage`, with its states, assignee,
 thread and replies ([plan, section 6.1](../plans/school-front-door.md)).
 
+## Search engines and sharing
+
+A page's settings panel in the builder holds what it says of itself outside
+the site, per language: the search description, a social picture (with
+the words for those who cannot see it, and who it shows, like any website
+picture) and a canonical address for a page that repeats one published
+elsewhere. The other language shows the first's picture until it has its
+own. A switch keeps the page out of search engines.
+
+- **Head.** Every website page names the school, its line and its logo
+  (`og:site_name`, `og:title`, `og:description`, `og:image`), and the school's
+  own X account (`twitter:site`) when its social links include one. The
+  platform's name, picture and accounts never appear there; the portal names
+  no X account. A published page adds its own title, description, social
+  picture (`summary_large_image`), `og:url`, `rel=canonical`, `robots:
+  noindex` when kept out of search, and `hreflang` alternates for each
+  language it is published in its own words plus `x-default`; a page in one
+  language names none. Addresses are absolute, on the school's website host
+  (its own canonical one once active), whichever host the page was read on.
+  The first language answers at the bare path, the other at `?lang=`.
+  News posts name their summary and cover picture the same way.
+- **`/sitemap.xml`** on the website host lists every published page not kept
+  out of search and every published post, once per language it is written
+  in, each with its alternates and `lastmod` from when that copy was
+  published. **`/robots.txt`** allows everything and names the sitemap: a
+  page kept out of search says so in its own head, which a crawler must be
+  allowed to read. Both answer 404 for a site that is not live.
+- **Redirects.** The Redirects tab of the Website screen maps an old path to
+  a page or another address. A visitor is sent on with a 301 only from an
+  address that finds nothing else: an unknown path, or a page or post
+  address that is no longer published. Paths match without their query,
+  case or trailing slash. A redirect to a page that is not published leads
+  nowhere, and a visitor reading the other language keeps it.
+
 ## Publishing checks
 
 Blocking: a picture without a description, a first-level heading in a body,
 a vague link label, a button without its target, a video without captions,
 a button label over 25 characters. Warning: missing translation, links to
-unpublished pages.
+unpublished pages, a language without a search description.
 
 ## Next
 
