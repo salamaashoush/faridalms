@@ -1,22 +1,24 @@
-import { STALL_DAYS } from "@faridalms/domain/onboarding";
-import { Progress } from "@faridalms/ui/progress";
+import type { AttentionItem } from "@faridalms/ui/system/attention-list";
+import type { Column, DataTableCard } from "@faridalms/ui/system/data-table";
+
+import { formatDayIn } from "@faridalms/domain/date-text";
+import { AttentionList } from "@faridalms/ui/system/attention-list";
+import { ButtonLink } from "@faridalms/ui/system/button-link";
+import { CellWithNote } from "@faridalms/ui/system/cell-note";
+import { DataTable, RowLink } from "@faridalms/ui/system/data-table";
 import { Metric, MetricGrid } from "@faridalms/ui/system/metrics";
 import { Page } from "@faridalms/ui/system/page";
 import { PageHeader } from "@faridalms/ui/system/page-header";
 import { useDesignSystem } from "@faridalms/ui/system/provider";
-import {
-  RecordColumns,
-  RecordEmpty,
-  RecordList,
-  RecordSection,
-} from "@faridalms/ui/system/record-page";
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { RecordStack } from "@faridalms/ui/system/record-page";
+import { createFileRoute } from "@tanstack/react-router";
+import { School as SchoolIcon } from "lucide-react";
 
 import type { getHome } from "../server/home";
 
 import { HealthBadge } from "../components/Health";
-import { TaskList } from "../components/TaskList";
-import { formatMoney, HEALTH_REASON_NAMES } from "../format";
+import { CloseTaskButton } from "../components/TaskList";
+import { formatDay, formatMoney, HEALTH_REASON_NAMES } from "../format";
 import { useMay } from "../may";
 import { getHome as loadHome } from "../server/home";
 
@@ -26,220 +28,299 @@ export const Route = createFileRoute("/")({
 });
 
 type HomeData = Awaited<ReturnType<typeof getHome>>;
-type AttentionRow = HomeData["attention"][number];
+type SchoolRow = HomeData["schools"]["needing"][number];
 
-interface AttentionProps {
-  rows: AttentionRow[];
-}
+const plural = (count: number, one: string, many: string) =>
+  `${count.toLocaleString("en")} ${count === 1 ? one : many}`;
 
-/** Schools that need someone, the worst first, each with why. */
-function Attention({ rows }: AttentionProps) {
-  if (rows.length === 0)
-    return <RecordEmpty>Every school is healthy.</RecordEmpty>;
+/**
+ * The console's first page, for whoever signed in: what is due for them
+ * today, the figures of the areas their roles work, each opening its list,
+ * and the schools that need help. Work before figures: the day's list leads.
+ */
+function Home() {
+  const data = Route.useLoaderData();
+  const mayTenants = useMay("readTenants");
   return (
-    <RecordList>
-      {rows.map((row) => (
-        <li
-          key={row.id}
-          className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1 py-3"
-        >
-          <div className="grid min-w-0 flex-1 gap-0.5">
-            <Link
-              to="/schools/$schoolId"
-              params={{ schoolId: row.id }}
-              className="truncate text-sm leading-5 font-medium hover:text-primary hover:underline"
-            >
-              {row.name}
-            </Link>
-            <span className="text-[13px] leading-[18px] text-muted-foreground">
-              {row.reasons
-                .map((reason) => HEALTH_REASON_NAMES[reason])
-                .join("; ")}
-            </span>
-          </div>
-          <HealthBadge level={row.level} />
-        </li>
-      ))}
-    </RecordList>
+    <Page width="list">
+      <PageHeader
+        title="Home"
+        description={formatDayIn(data.today, "weekday", "en")}
+      />
+      <RecordStack>
+        <YourDay data={data} />
+        <Figures data={data} />
+        {mayTenants && data.schools.needing.length ? (
+          <SchoolsNeedingHelp rows={data.schools.needing} />
+        ) : null}
+      </RecordStack>
+    </Page>
   );
 }
 
-interface SummaryProps {
+interface HomeProps {
   data: HomeData;
 }
 
-/** How the platform stands at a glance, each figure opening its list. */
-function Summary({ data }: SummaryProps) {
-  const { formatNumber: count } = useDesignSystem();
-  const { summary } = data;
-  const attention = summary.red + summary.amber;
-  const openTasks = data.tasks.length;
-  const dueTasks = data.tasks.filter(
-    (row) => row.task.dueOn <= data.today,
-  ).length;
+/**
+ * What is due for the operator today, most urgent first: their calls and
+ * tasks, their leads' next steps, and for finance the drafts to issue.
+ * Someone else's work is not here; nobody's work is, until someone takes it.
+ */
+function YourDay({ data }: HomeProps) {
+  const { tasks, steps, drafts, today, me, myName } = data;
+  const late = (day: string) => day < today;
+  const items: AttentionItem[] = [
+    ...tasks.map(({ task, customerName }) => ({
+      id: `task-${task.id}`,
+      tone: late(task.dueOn) ? ("danger" as const) : ("warning" as const),
+      title: task.title,
+      detail: `${customerName} · ${late(task.dueOn) ? `was due ${formatDay(task.dueOn)}` : "due today"}${task.assigneeId === me ? "" : " · nobody has taken it"}`,
+      action: (
+        <>
+          <ButtonLink
+            variant="ghost"
+            size="sm"
+            to="/customers/$customerId"
+            params={{ customerId: task.customerId }}
+          >
+            Open customer
+          </ButtonLink>
+          <CloseTaskButton task={task} />
+        </>
+      ),
+    })),
+    ...steps.map((lead) => ({
+      id: `lead-${lead.id}`,
+      tone:
+        lead.nextStepOn !== null && late(lead.nextStepOn)
+          ? ("danger" as const)
+          : ("warning" as const),
+      title: `${lead.organisation}: ${lead.nextStep ?? "next step"}`,
+      detail: `Lead · ${lead.nextStepOn && late(lead.nextStepOn) ? `was due ${formatDay(lead.nextStepOn)}` : "due today"}${lead.ownerId ? "" : " · nobody owns it"}`,
+      action: (
+        <ButtonLink
+          variant="outline"
+          size="sm"
+          to="/leads/$leadId"
+          params={{ leadId: lead.id }}
+        >
+          Open lead
+        </ButtonLink>
+      ),
+    })),
+    ...(drafts && drafts.count
+      ? [
+          {
+            id: "drafts",
+            tone: "info" as const,
+            title: `${plural(drafts.count, "draft invoice", "draft invoices")} to check and issue`,
+            detail: drafts.oldest
+              ? `The daily round drafted them; the oldest is for ${formatDay(drafts.oldest)}.`
+              : "The daily round drafted them.",
+            action: (
+              <ButtonLink
+                variant="outline"
+                size="sm"
+                to="/billing"
+                search={{ status: ["draft"] }}
+              >
+                Open drafts
+              </ButtonLink>
+            ),
+          },
+        ]
+      : []),
+  ];
   return (
-    <MetricGrid label="Summary">
-      <Metric
-        label="Schools"
-        value={count(summary.served)}
-        detail={{ text: `${count(summary.healthy)} healthy` }}
-        link={{ to: "/schools" }}
-      />
-      <Metric
-        label="Need attention"
-        value={count(attention)}
-        detail={
-          attention
-            ? {
-                text: `${count(summary.red)} need help · ${count(summary.amber)} to watch`,
-                tone: summary.red ? "danger" : "warning",
-              }
-            : { text: "Every school is healthy", tone: "success" }
-        }
-      />
-      <Metric
-        label="Onboarding"
-        value={count(summary.onboarding)}
-        detail={
-          summary.stalled
-            ? { text: `${count(summary.stalled)} stalled`, tone: "warning" }
-            : { text: "None stalled" }
-        }
-      />
-      {data.leads ? (
-        <Metric
-          label="Open leads"
-          value={count(data.leads.open)}
-          detail={
-            data.leads.stepsDue
-              ? {
-                  text: `${count(data.leads.stepsDue)} next steps due`,
-                  tone: "warning",
-                }
-              : { text: "No next step due" }
-          }
-          link={{ to: "/leads" }}
-        />
-      ) : null}
-      {data.overdue ? (
+    <AttentionList
+      title={`Your day${myName ? `, ${myName.split(" ")[0]}` : ""}`}
+      items={items}
+      empty="Nothing is due for you today."
+    />
+  );
+}
+
+/**
+ * The areas the operator's roles work, a figure each, each opening the list
+ * behind it: money overdue, drafts to issue, schools needing help, trials
+ * ending and leads' next steps due. A figure for an area the operator does
+ * not work is not shown.
+ */
+function Figures({ data }: HomeProps) {
+  const { formatNumber } = useDesignSystem();
+  const { overdue, drafts, trials, nextSteps, schools } = data;
+  const [main, ...others] = overdue ?? [];
+  return (
+    <MetricGrid label="At a glance">
+      {overdue ? (
         <Metric
           label="Overdue"
-          value={
-            data.overdue.length
-              ? data.overdue
-                  .map((total) => formatMoney(total.minor, total.currency))
-                  .join(" · ")
-              : "Nothing"
-          }
+          value={main ? formatMoney(main.minor, main.currency) : "Nothing"}
+          link={{ to: "/receivables" }}
           detail={
-            data.overdue.length
+            main
               ? {
-                  text: `${count(
-                    data.overdue.reduce(
-                      (sum, total) => sum + total.customers,
-                      0,
+                  text: [
+                    plural(main.customers, "customer", "customers"),
+                    ...others.map((total) =>
+                      formatMoney(total.minor, total.currency),
                     ),
-                  )} customers owe past their due day`,
+                  ].join(" · "),
                   tone: "danger",
                 }
               : { text: "Every invoice is paid on time" }
           }
-          link={{ to: "/receivables" }}
         />
       ) : null}
-      {data.overdue === null && data.leads === null ? (
+      {drafts ? (
         <Metric
-          label="Open tasks"
-          value={count(openTasks)}
+          label="Drafts to issue"
+          value={formatNumber(drafts.count)}
+          link={{ to: "/billing", search: { status: ["draft"] } }}
+          detail={{
+            text: drafts.count
+              ? "Checked and issued in Billing"
+              : "None waiting",
+          }}
+        />
+      ) : null}
+      <Metric
+        label="Schools needing help"
+        value={formatNumber(schools.red + schools.amber)}
+        link={{
+          to: "/schools",
+          search: { health: ["red", "amber"] },
+        }}
+        detail={
+          schools.red + schools.amber
+            ? {
+                text: `${formatNumber(schools.red)} need help, ${formatNumber(schools.amber)} to watch`,
+                tone: schools.red ? "danger" : "warning",
+              }
+            : {
+                text: `All ${formatNumber(schools.served)} are healthy`,
+                tone: "success",
+              }
+        }
+      />
+      {trials ? (
+        <Metric
+          label="Trials ending"
+          value={formatNumber(trials.count)}
+          link={{ to: "/subscriptions", search: { state: ["trial"] } }}
           detail={
-            dueTasks
-              ? { text: `${count(dueTasks)} due now`, tone: "warning" }
-              : { text: "None due" }
+            trials.over
+              ? {
+                  text: `${formatNumber(trials.over)} already over, without a contract`,
+                  tone: "danger",
+                }
+              : { text: "Within the next two weeks" }
           }
+        />
+      ) : null}
+      {nextSteps !== null ? (
+        <Metric
+          label="Leads' next steps due"
+          value={formatNumber(nextSteps)}
+          link={{ to: "/leads" }}
+          detail={{
+            text: nextSteps ? "Today or earlier, for everyone" : "Nothing due",
+            tone: nextSteps ? "warning" : undefined,
+          }}
         />
       ) : null}
     </MetricGrid>
   );
 }
 
-interface StalledProps {
-  rows: HomeData["stalled"];
+function schoolColumns(): Column<SchoolRow>[] {
+  return [
+    {
+      id: "school",
+      header: "School",
+      primary: true,
+      cell: (school) => (
+        <CellWithNote
+          note={school.reasons
+            .map((reason) => HEALTH_REASON_NAMES[reason])
+            .join("; ")}
+        >
+          <RowLink to="/schools/$schoolId" params={{ schoolId: school.id }}>
+            {school.name}
+          </RowLink>
+        </CellWithNote>
+      ),
+    },
+    {
+      id: "health",
+      header: "Health",
+      cell: (school) => <HealthBadge level={school.level} />,
+    },
+    {
+      id: "onboarding",
+      header: "Onboarding",
+      align: "end",
+      cell: (school) =>
+        school.onboarding.done === school.onboarding.total ? (
+          <span className="text-muted-foreground">Done</span>
+        ) : (
+          `${school.onboarding.done} of ${school.onboarding.total}`
+        ),
+    },
+    {
+      id: "signedIn",
+      header: "Signed in this week",
+      align: "end",
+      cell: (school) =>
+        school.signedIn7d === null ? (
+          <span className="text-muted-foreground">Not reported</span>
+        ) : (
+          school.signedIn7d.toLocaleString("en")
+        ),
+    },
+  ];
 }
 
-function Stalled({ rows }: StalledProps) {
-  if (rows.length === 0)
-    return <RecordEmpty>No onboarding has stalled.</RecordEmpty>;
-  return (
-    <RecordList>
-      {rows.map((row) => (
-        <li key={row.id} className="grid gap-2 py-3">
-          <div className="flex items-baseline justify-between gap-3">
-            <Link
-              to="/schools/$schoolId"
-              params={{ schoolId: row.id }}
-              className="truncate text-sm leading-5 font-medium hover:text-primary hover:underline"
-            >
-              {row.name}
-            </Link>
-            <span className="shrink-0 text-[13px] leading-[18px] text-muted-foreground tabular-nums">
-              {row.done} of {row.total}
-            </span>
-          </div>
-          <Progress
-            value={row.total ? (row.done / row.total) * 100 : 0}
-            aria-label={`${row.name}: ${row.done} of ${row.total} steps, none in ${STALL_DAYS} days`}
-          />
-        </li>
-      ))}
-    </RecordList>
-  );
+const SCHOOL_CARD: DataTableCard<SchoolRow> = {
+  title: (school) => (
+    <RowLink to="/schools/$schoolId" params={{ schoolId: school.id }}>
+      {school.name}
+    </RowLink>
+  ),
+  status: (school) => <HealthBadge level={school.level} />,
+  fact: (school) =>
+    school.reasons.map((reason) => HEALTH_REASON_NAMES[reason]).join("; "),
+};
+
+interface SchoolsNeedingHelpProps {
+  rows: SchoolRow[];
 }
 
-function Home() {
-  const data = Route.useLoaderData();
-  const mayCustomers = useMay("customers");
+/**
+ * Support's queue: every school whose health is not green, those needing
+ * help before those to watch, each with why. A stalled onboarding is one
+ * of the reasons, so it has no list of its own.
+ */
+function SchoolsNeedingHelp({ rows }: SchoolsNeedingHelpProps) {
   return (
-    <Page width="list">
-      <PageHeader
-        title="Home"
-        description="How the schools are doing and what needs someone today."
-      />
-      <div className="grid gap-6">
-        <Summary data={data} />
-        <RecordColumns
-          main={
-            <RecordSection
-              title="Needs attention"
-              description="Red when nobody signed in through a week of school or an invoice is a month overdue; amber when onboarding stalls, an address fails or messages are not delivered."
-            >
-              <Attention rows={data.attention} />
-            </RecordSection>
-          }
-          aside={
-            <>
-              <RecordSection
-                title="Onboarding stalled"
-                description={`No new step in ${STALL_DAYS} days.`}
-              >
-                <Stalled rows={data.stalled} />
-              </RecordSection>
-              {mayCustomers ? (
-                <RecordSection
-                  title="Tasks"
-                  description="Open, soonest due first."
-                >
-                  <TaskList
-                    rows={data.tasks}
-                    names={data.names}
-                    today={data.today}
-                    showCustomer
-                  />
-                </RecordSection>
-              ) : null}
-            </>
-          }
-        />
+    <div className="grid gap-3">
+      <div className="flex items-center justify-between gap-3">
+        <h2 className="text-base leading-6 font-semibold">
+          Schools that need help
+        </h2>
+        <ButtonLink variant="ghost" size="sm" to="/schools">
+          All schools
+        </ButtonLink>
       </div>
-    </Page>
+      <DataTable
+        caption="Schools that need help"
+        rows={rows}
+        columns={schoolColumns()}
+        rowLabel={(school) => school.name}
+        card={SCHOOL_CARD}
+        empty={{ icon: SchoolIcon, title: "Every school is healthy" }}
+      />
+    </div>
   );
 }

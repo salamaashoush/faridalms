@@ -23,12 +23,8 @@ test("a new school's first steps show to its operators and its administrators al
   // The console opens on what needs someone, and the schools list says how each is doing.
   await page.goto("/");
   await expect(page.getByRole("heading", { name: "Home" })).toBeVisible();
-  await expect(
-    page.getByRole("region", { name: "Needs attention" }),
-  ).toBeVisible();
-  await expect(
-    page.getByRole("region", { name: "Onboarding stalled" }),
-  ).toBeVisible();
+  await expect(page.getByRole("region", { name: /^Your day/ })).toBeVisible();
+  await expect(page.getByRole("region", { name: "At a glance" })).toBeVisible();
   await page
     .getByRole("navigation", { name: "Console" })
     .getByRole("link", { name: "Schools" })

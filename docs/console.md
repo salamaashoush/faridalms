@@ -38,6 +38,34 @@ and links to the subscription; the school shows its limits and modules and
 says its subscription sets them; the subscription lists its schools and
 what publishing would change for each.
 
+## Home
+
+Every operator opens the console here, first thing. They come for two
+things: what is due for them today, and whether anything in the areas
+their roles work needs someone.
+
+- **Your day** leads the page (an `AttentionList` with an `empty` line):
+  the tasks due by today that are theirs or nobody's yet (with Open
+  customer and Close), their leads' next steps due by today, and for
+  finance one item for the drafts the daily round left to issue. Someone
+  else's work is not here. With nothing due it says so in one line, so the
+  page never opens on a blank.
+- **Figures**, only for areas the operator's roles open, each opening its
+  list filtered: Overdue money (largest currency, then customers and the
+  other currencies), Drafts to issue, Schools needing help (red, then
+  amber), Trials ending within a fortnight (and how many are already
+  over), Leads' next steps due for everyone.
+- **Schools that need help**: support's queue as one table, worst first,
+  each school's reasons as the second line of its name, with onboarding
+  progress and sign-ins this week; All schools in its heading row. A
+  stalled onboarding is one of the health reasons, so it has no list of
+  its own. With every school healthy the section is not drawn; the figure
+  says so.
+
+Removed: the two columns with an Onboarding stalled card and a Tasks card
+beside the attention list, a Schools count nobody acts on, and an Open
+tasks count that the day's list now replaces.
+
 ## Records
 
 Every record follows the anatomy in design-system.md: header, path where
