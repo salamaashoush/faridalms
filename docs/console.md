@@ -174,7 +174,83 @@ orders by urgency.
   Issue as a batch, confirmed, for the morning the round drafts many; each
   draft's menu also has Issue, so a phone can issue one. An open row's menu
   records a payment from its customer or its tax authority id.
-- **Receivables**: what is owed by age and the calls to make.
+- **Receivables**: what is owed by age and the calls to make; designed
+  below.
+- **Catalogue**: every plan and add-on as it is sold; designed below,
+  with the plan and add-on records it opens.
+
+### Receivables
+
+Finance opens it every morning to make the calls the daily round asked
+for, and to see who owes what and how late (QuickBooks' and Xero's aged
+receivables summary, Upflow's To do list of collection actions).
+
+- **Header**: the title and one line saying when reminders go and when a
+  school loses access, so the steps in the rows read without a manual.
+- **Figures**: one per currency, Overdue, with what is owed in all under
+  it. It is the one sum the rows do not show (money past due across every
+  customer); counts of customers and calls are gone, since the table and
+  the To do list say them.
+- **Calls to make** (`AttentionList`): each open task the round made, the
+  customer and the task, then who to call at the customer (its billing
+  contact, the phone a link), whom the task is for and since when; a
+  contract's end is danger, a call warning. Close opens the sheet that
+  records what came of it. It draws nothing when no call waits.
+- **Owed by age** (`DataTable`, most overdue first): the customer, its
+  oldest unpaid invoice and where that invoice's reminders stand as the
+  second line (how late it is, what the reminders have told or done to
+  the school, or that they are paused and until when), access as the
+  schools have it, then the five age buckets and the total. The buckets
+  carry amounts alone and the total names the currency, so six columns
+  of money leave the customer room at 1440px. Each currency's total sits
+  under the table. With nothing owed it is one empty state.
+- Removed: the "Owed by age" and "Calls to make" headings and the
+  sentence under the second, the two count tiles, the Oldest column (it
+  is the customer's second line) and the badges squeezed into the name.
+
+### Catalogue
+
+The owner opens it to see what is sold and at what price, to start a new
+plan or add-on, and to reach one to change its price or limits (Stripe's
+and Chargebee's product catalogues: a list of products, each a page
+centred on its prices, archived rather than deleted). A version never
+changes once it exists, because contracts hold it; a change is a new
+version, and a version no longer offered is retired.
+
+- **The list** is one table of every plan and add-on, as the version a
+  contract made today gets: name with the Arabic name under it, kind
+  (Plan, Module, Limit pack, Service), what it gives (a plan's modules
+  and students, an add-on's module or pack), its price, its version and
+  since when (with a version still to go on sale under it), and whether
+  it is sold. Search, a Kind facet and Include retired sit in the
+  toolbar. New plan is the page action, New add-on in its menu. The
+  stacked cards, each listing every version with every limit as a grid of
+  facts, are gone: they made the catalogue a wall of numbers nobody
+  compares.
+- **A plan** is a record, read as the version sold today. Header: name,
+  Sold, Not sold yet or Retired, the Arabic name, that version and since
+  when, and its price. Primary: New version (it starts from the newest).
+  Menu: Retire version n for each version still sold. To do: a version
+  waiting to go on sale, with why it was made and See what changes. Tabs:
+  About (the plan's names and code; the version's day and prices),
+  Modules (the modules it includes, each with what it gives), Limits
+  (storage, then the counted allowances, as summary lists), Versions,
+  History.
+- **An add-on** is the same record without Modules and Limits: About
+  says what it gives (a module, or how much one pack adds to which
+  limit, or a service that changes nothing in the schools).
+- **Versions** is a table, newest first: the version with why it was
+  made as its second line, the day it is sold from, its price, what
+  changed from the version before (modules gained or lost, limits and
+  prices from and to), and whether it is sold, retired (and when) or
+  sold from a later day. Retire is in each row's menu and asks why.
+- **History** is the record's change log: each version added and retired,
+  by whom, when and why.
+- **The version sheet** groups its fields under headings: the version
+  (names, the day it is sold from), Prices (each price its own box:
+  currency and how it is charged, then the amount and the least a year),
+  Modules, Storage (empty takes the platform's default) and Allowances
+  (empty is unlimited), each field as wide as its answer, then Why.
 
 ## Administration
 
