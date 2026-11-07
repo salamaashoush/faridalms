@@ -1,4 +1,4 @@
-import { and, desc, eq } from "drizzle-orm";
+import { and, desc, eq, inArray } from "drizzle-orm";
 
 import type { JsonValue } from "../json";
 import type { BusinessDb, BusinessTx } from "./client";
@@ -48,6 +48,22 @@ export function eventsOf(
         eq(businessEvents.subjectId, subjectId),
       ),
     )
+    .orderBy(desc(businessEvents.occurredAt))
+    .limit(200);
+}
+
+/**
+ * What was done to every subject of some kinds, newest first: all access
+ * given and taken, or every change to the business's own settings.
+ */
+export function eventsAbout(
+  db: BusinessDb,
+  subjectTypes: readonly string[],
+): Promise<BusinessEventRow[]> {
+  return db
+    .select()
+    .from(businessEvents)
+    .where(inArray(businessEvents.subjectType, [...subjectTypes]))
     .orderBy(desc(businessEvents.occurredAt))
     .limit(200);
 }

@@ -1,5 +1,6 @@
 import { customerById } from "@faridalms/database/business/customers";
 import { draftById } from "@faridalms/database/business/drafts";
+import { eventsAbout } from "@faridalms/database/business/events";
 import {
   addActivity,
   createLead,
@@ -323,5 +324,44 @@ describe("the business's own details", () => {
     expect(
       (await listTaxRates(business())).find((row) => row.country === "EG"),
     ).toMatchObject({ percent: "14.00" });
+  });
+
+  test("keep what each change moved, for the settings' history", async () => {
+    const held = await profile(business());
+    if (!held) throw new Error("the details were not set");
+    expect(
+      await saveProfile(business(), {
+        legalNameEn: held.legalNameEn,
+        legalNameAr: held.legalNameAr,
+        addressEn: held.addressEn,
+        addressAr: held.addressAr,
+        taxNumber: "100-200-301",
+        commercialRegistry: held.commercialRegistry,
+        email: held.email,
+        phone: held.phone,
+        website: held.website,
+        bankDetailsEn: held.bankDetailsEn,
+        bankDetailsAr: held.bankDetailsAr,
+        reason: "Re-registered",
+        expectedVersion: held.version,
+        by: OWNER,
+      }),
+    ).toBe(true);
+    const [latest, ...earlier] = await eventsAbout(business(), [
+      "business",
+      "tax_rate",
+    ]);
+    expect(latest).toMatchObject({
+      action: "business.profile",
+      reason: "Re-registered",
+      before: { taxNumber: held.taxNumber },
+      after: { taxNumber: "100-200-301" },
+    });
+    expect(earlier.map((event) => event.action)).toContain("tax_rate.create");
+    expect(
+      [latest, ...earlier].every((event) =>
+        ["business", "tax_rate"].includes(event?.subjectType ?? ""),
+      ),
+    ).toBe(true);
   });
 });

@@ -31,10 +31,7 @@ export async function saveProfile(
 ): Promise<boolean> {
   const { expectedVersion, by, reason, ...fields } = input;
   return db.transaction(async (tx) => {
-    const [held] = await tx
-      .select({ version: businessProfile.version })
-      .from(businessProfile)
-      .for("update");
+    const [held] = await tx.select().from(businessProfile).for("update");
     if ((held?.version ?? null) !== expectedVersion) return false;
     if (held)
       await tx
@@ -60,6 +57,14 @@ export async function saveProfile(
       action: "business.profile",
       subjectType: "business",
       subjectId: "profile",
+      before: held
+        ? Object.fromEntries(
+            Object.keys(fields).map((key) => [
+              key,
+              held[key as keyof typeof fields] ?? null,
+            ]),
+          )
+        : null,
       after: fields,
       reason,
     });
