@@ -218,11 +218,17 @@ export function EmbedFrame({
   descriptions,
   descriptionsLabel,
   element,
+  loadOnMark = false,
 }: {
   provider: EmbedProvider;
   embedId: string;
   loadLabel: string;
   privacy: string;
+  /**
+   * Only the round play mark loads the page, as in the editor, where a
+   * click on the rest of the frame chooses the block instead.
+   */
+  loadOnMark?: boolean;
   locale: string;
   watch?: MediaWatch | undefined;
   chapters?: readonly Chapter[] | undefined;
@@ -262,6 +268,23 @@ export function EmbedFrame({
           sandbox="allow-scripts allow-same-origin allow-presentation allow-popups allow-forms"
           className="absolute inset-0 size-full border-0"
         />
+      ) : loadOnMark ? (
+        <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 rounded-lg p-4 text-center">
+          <button
+            type="button"
+            aria-label={loadLabel}
+            onClick={() => setLoaded(true)}
+            className="group rounded-full outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
+          >
+            <StartMark>
+              <Play className="translate-x-px fill-current" aria-hidden />
+            </StartMark>
+          </button>
+          <span className="text-sm font-medium">{loadLabel}</span>
+          <span className="max-w-sm text-[13px] leading-[18px] text-muted-foreground">
+            {privacy}
+          </span>
+        </div>
       ) : (
         <button
           type="button"

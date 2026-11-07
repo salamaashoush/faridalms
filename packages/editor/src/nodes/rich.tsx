@@ -380,6 +380,7 @@ function EmbedBlock({
           descriptions={parseDescriptions(descriptions)}
           descriptionsLabel={editable ? undefined : strings.descriptions}
           element={follow}
+          loadOnMark={editable}
         />
         {editable && framed(provider) ? (
           <FramedChaptersSheet
