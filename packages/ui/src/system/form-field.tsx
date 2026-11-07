@@ -380,6 +380,11 @@ export interface CheckboxGroupFieldProps<T extends string> {
   actions?: ReactNode;
   /** Lays the choices out in columns once the form is wide enough. */
   columns?: boolean;
+  /**
+   * Keeps the legend for screen readers only, where a heading above the
+   * group already names it on screen.
+   */
+  labelHidden?: boolean;
 }
 
 /**
@@ -396,6 +401,7 @@ export function CheckboxGroupField<T extends string>({
   errors,
   actions,
   columns = false,
+  labelHidden = false,
 }: CheckboxGroupFieldProps<T>) {
   const id = useId();
   const error = useFirstError(errors);
@@ -410,7 +416,14 @@ export function CheckboxGroupField<T extends string>({
       aria-describedby={describedBy}
       className="grid min-w-0 content-start gap-2"
     >
-      <legend className="mb-2 text-sm leading-5 font-medium">{label}</legend>
+      <legend
+        className={cn(
+          "mb-2 text-sm leading-5 font-medium",
+          labelHidden && "sr-only",
+        )}
+      >
+        {label}
+      </legend>
       {hint && !error ? (
         <p
           id={`${id}-hint`}

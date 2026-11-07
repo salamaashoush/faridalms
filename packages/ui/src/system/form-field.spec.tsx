@@ -79,6 +79,20 @@ describe("fields side by side", () => {
 });
 
 describe("CheckboxGroupField", () => {
+  it("keeps a hidden legend as the group's name", () => {
+    renderWithSystem(
+      <CheckboxGroupField
+        label="Modules"
+        labelHidden
+        value={[]}
+        options={[{ value: "coding", label: "Coding" }]}
+        onChange={() => undefined}
+      />,
+    );
+    expect(screen.getByRole("group", { name: "Modules" })).toBeInTheDocument();
+    expect(screen.getByText("Modules")).toHaveClass("sr-only");
+  });
+
   it("names its choices by their legend and keeps their order when one is added", async () => {
     const onChange = vi.fn<(value: string[]) => void>();
     renderWithSystem(
