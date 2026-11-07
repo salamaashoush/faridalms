@@ -237,15 +237,13 @@ export async function businessDetails(page: Page) {
   }
   await page.getByRole("button", { name: "Add rate" }).click();
   const rate = page.getByRole("form", { name: "Add a rate" });
-  await rate.getByLabel("Country").fill("EG");
+  await choose(rate, "Country", "Egypt");
   await rate.getByLabel("Percentage").fill("14");
   await rate.getByLabel("From").fill("2016-07-01");
   await rate.getByLabel("Why").fill("Egypt's VAT law");
   await rate.getByRole("button", { name: "Add rate" }).click();
   await expect(
-    page.getByText(
-      /^(Rate added\.|A rate for EG already starts on that day\.)/,
-    ),
+    page.getByText(/^(Rate added\.|Egypt already has a rate from that day\.)/),
   ).toBeVisible();
 }
 
