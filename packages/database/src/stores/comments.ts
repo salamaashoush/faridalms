@@ -1,3 +1,5 @@
+import type { Anchor } from "@faridalms/domain/anchors";
+
 import { sql } from "drizzle-orm";
 
 import type { CellTransaction } from "../context";
@@ -25,7 +27,7 @@ export interface DocumentThreadRow {
   id: string;
   version: number;
   part: string;
-  anchor: Record<string, unknown>;
+  anchor: Anchor;
   quote: string;
   createdAt: string;
   resolvedAt: string | null;
@@ -43,7 +45,7 @@ export async function threadsOfDocument(
     id: string;
     version: number;
     part: string;
-    anchor: Record<string, unknown>;
+    anchor: Anchor;
     quote: string;
     created_at: string;
     resolved_at: string | null;

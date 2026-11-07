@@ -19,6 +19,7 @@ import { staffDirectory } from "@faridalms/database/stores/staff";
 import {
   colleaguesSchema,
   commentHostSchema,
+  MAX_COMMENT_MENTIONS,
   editCommentSchema,
   removeCommentSchema,
   replySchema,
@@ -215,15 +216,19 @@ export const edit = writeProcedure
   .handler(async ({ input, context }) => {
     const { comment, host } = await ownComment(context, input.commentId);
     const people = await colleaguesAmong(context, input.mentions);
+    const told = new Set(comment.mentionedUserIds);
+    // Everyone ever told stays on the comment, so an edit never tells them twice.
     const saved = await updateDocumentComment(context.tx, {
       tenantId: context.tenantId,
       id: comment.id,
       expectedVersion: input.expectedVersion,
       body: input.body,
-      mentionedUserIds: people,
+      mentionedUserIds: [...new Set([...told, ...people])].slice(
+        0,
+        MAX_COMMENT_MENTIONS,
+      ),
     });
     if (!saved) throw conflict();
-    const told = new Set(comment.mentionedUserIds);
     await tellMentioned(context, {
       host,
       threadId: comment.threadId,
