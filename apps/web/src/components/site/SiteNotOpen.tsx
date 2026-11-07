@@ -2,10 +2,11 @@ import type { SiteLocale } from "@faridalms/domain/website";
 
 import { buttonVariants } from "@faridalms/ui/button";
 import { cn } from "@faridalms/ui/cn";
+import { AuthHeading } from "@faridalms/ui/system/auth-layout";
 
 import type { PortalFace } from "~/queries/portal";
 
-import { PortalHeading, PortalLayout } from "~/components/auth/SchoolFace";
+import { PortalLayout } from "~/components/auth/SchoolFace";
 import * as m from "~/i18n/messages";
 import { portalHref } from "~/utils/host";
 
@@ -28,7 +29,7 @@ export function SiteNotOpen({ face, locale }: SiteNotOpenProps) {
     "";
   return (
     <PortalLayout face={face}>
-      <PortalHeading
+      <AuthHeading
         title={m.siteNotOpenTitle({}, t)}
         lead={m.siteNotOpenBody({ school }, t)}
       />

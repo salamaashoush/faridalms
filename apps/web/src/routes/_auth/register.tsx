@@ -1,8 +1,9 @@
+import { AuthHeading } from "@faridalms/ui/system/auth-layout";
 import { createFileRoute, getRouteApi } from "@tanstack/react-router";
 import * as v from "valibot";
 
 import { RegisterForm } from "~/components/admissions/RegisterForm";
-import { PortalHeading, PortalHelp } from "~/components/auth/SchoolFace";
+import { PortalHelp } from "~/components/auth/SchoolFace";
 import * as m from "~/i18n/messages";
 import { leaveBareDomain } from "~/utils/bare-domain";
 
@@ -23,7 +24,7 @@ function RegisterPage() {
   const { intake } = Route.useSearch();
   return (
     <>
-      <PortalHeading
+      <AuthHeading
         title={m.portalRegisterTitle()}
         lead={m.portalRegisterLead()}
       />

@@ -10,6 +10,7 @@ import {
   SheetTitle,
   SheetTrigger,
 } from "@faridalms/ui/sheet";
+import { ThemeToggle } from "@faridalms/ui/system/theme-toggle";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@faridalms/ui/tabs";
 import { Link } from "@tanstack/react-router";
 import {
@@ -36,7 +37,6 @@ import {
 } from "lucide-react";
 import { useState } from "react";
 
-import { ThemeToggle } from "~/components/theme/ThemeToggle";
 import * as m from "~/i18n/messages";
 import { getLocale, setLocale } from "~/i18n/runtime";
 import { formatNumber } from "~/utils/datetime";

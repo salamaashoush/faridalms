@@ -1,7 +1,6 @@
 import { createFileRoute, Outlet, redirect } from "@tanstack/react-router";
 
-import { AuthLayout } from "~/components/auth/AuthLayout";
-import { faceName } from "~/components/auth/SchoolFace";
+import { faceName, PortalLayout } from "~/components/auth/SchoolFace";
 import { faceQueryFor } from "~/queries/portal";
 
 export const Route = createFileRoute("/_auth")({
@@ -28,8 +27,8 @@ export const Route = createFileRoute("/_auth")({
 function AuthHome() {
   const face = Route.useLoaderData();
   return (
-    <AuthLayout face={face}>
+    <PortalLayout face={face}>
       <Outlet />
-    </AuthLayout>
+    </PortalLayout>
   );
 }

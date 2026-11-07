@@ -7,7 +7,7 @@ import { Clock, LoaderCircle, QrCode, TriangleAlert } from "lucide-react";
 import { useEffect, useEffectEvent, useRef } from "react";
 import * as v from "valibot";
 
-import { AuthLayout } from "~/components/auth/AuthLayout";
+import { PortalLayout } from "~/components/auth/SchoolFace";
 import { ReadAloud } from "~/components/learning/ReadAloud";
 import { useSessionChange } from "~/hooks/useSessionChange";
 import * as m from "~/i18n/messages";
@@ -103,7 +103,7 @@ function BadgePage() {
         : TriangleAlert;
 
   return (
-    <AuthLayout face={face}>
+    <PortalLayout face={face}>
       <div className="mx-auto grid max-w-md content-center justify-items-center gap-6 py-4 text-center">
         <span
           aria-hidden
@@ -133,6 +133,6 @@ function BadgePage() {
           </Link>
         ) : null}
       </div>
-    </AuthLayout>
+    </PortalLayout>
   );
 }

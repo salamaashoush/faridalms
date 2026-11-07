@@ -3,7 +3,7 @@ import { createFileRoute, redirect } from "@tanstack/react-router";
 import { CircleAlert } from "lucide-react";
 import * as v from "valibot";
 
-import { AuthCard } from "../components/AuthCard";
+import { AuthPage } from "../components/AuthPage";
 
 const REASON: Record<string, string> = {
   expired: "The sign-in took too long. Try again.",
@@ -25,9 +25,9 @@ export const Route = createFileRoute("/sign-in")({
 function SignIn() {
   const { error } = Route.useSearch();
   return (
-    <AuthCard
-      title="Operator console"
-      description="Schools, customers and billing for the whole platform. Sign in with your company account."
+    <AuthPage
+      title="Sign in"
+      lead="Use your company account. The console lets in the people its owners have added."
     >
       {error ? (
         <p
@@ -38,9 +38,12 @@ function SignIn() {
           {REASON[error] ?? REASON.failed}
         </p>
       ) : null}
-      <a href="/auth/login" className={buttonVariants({ className: "w-full" })}>
+      <a
+        href="/auth/login"
+        className={buttonVariants({ size: "lg", className: "w-full" })}
+      >
         Sign in
       </a>
-    </AuthCard>
+    </AuthPage>
   );
 }

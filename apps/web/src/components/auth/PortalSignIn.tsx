@@ -1,9 +1,10 @@
+import { AuthHeading } from "@faridalms/ui/system/auth-layout";
 import { getRouteApi } from "@tanstack/react-router";
 
 import * as m from "~/i18n/messages";
 import { bareHref } from "~/utils/host";
 
-import { faceName, PortalHeading, PortalHelp } from "./SchoolFace";
+import { faceName, PortalHelp } from "./SchoolFace";
 import { SignInForm } from "./SignInForm";
 
 const auth = getRouteApi("/_auth");
@@ -18,12 +19,12 @@ export function PortalSignIn({ redirect }: PortalSignInProps) {
   return (
     <>
       {face ? (
-        <PortalHeading
+        <AuthHeading
           title={m.portalWelcome({ school: faceName(face) })}
           lead={m.portalSignInLead()}
         />
       ) : (
-        <PortalHeading title={m.authSignInTitle()} lead={m.authSignInBody()} />
+        <AuthHeading title={m.authSignInTitle()} lead={m.authSignInBody()} />
       )}
       <SignInForm redirect={redirect} />
       <p className="mt-8 text-center text-sm text-muted-foreground">

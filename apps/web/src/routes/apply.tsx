@@ -9,8 +9,11 @@ import {
   ApplicationSteps,
   StartApplication,
 } from "~/components/admissions/ApplicationForm";
-import { AuthLayout } from "~/components/auth/AuthLayout";
-import { faceName, PortalHelp } from "~/components/auth/SchoolFace";
+import {
+  faceName,
+  PortalHelp,
+  PortalLayout,
+} from "~/components/auth/SchoolFace";
 import * as m from "~/i18n/messages";
 import { draftQuery, myApplicationsQuery } from "~/queries/admissions";
 import { faceQueryFor } from "~/queries/portal";
@@ -135,9 +138,9 @@ function ApplyPage() {
     <NotFamily />
   );
   return (
-    <AuthLayout face={face} wide={Boolean(application)}>
+    <PortalLayout face={face} wide={Boolean(application)}>
       {body}
       <PortalHelp face={face} topic="apply" />
-    </AuthLayout>
+    </PortalLayout>
   );
 }

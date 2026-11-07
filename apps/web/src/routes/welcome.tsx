@@ -10,7 +10,7 @@ import { CircleCheck, Clock, LoaderCircle, TriangleAlert } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import * as v from "valibot";
 
-import { AuthLayout } from "~/components/auth/AuthLayout";
+import { PortalLayout } from "~/components/auth/SchoolFace";
 import { inLocale } from "~/hooks/useCurrentUser";
 import * as m from "~/i18n/messages";
 import { faceQueryFor } from "~/queries/portal";
@@ -150,7 +150,7 @@ function WelcomePage() {
     </Link>
   );
   return (
-    <AuthLayout face={face}>
+    <PortalLayout face={face}>
       {failed ? (
         <div className="grid justify-items-start gap-6">
           {isTooMany(failed) ? (
@@ -275,6 +275,6 @@ function WelcomePage() {
           spinning
         />
       )}
-    </AuthLayout>
+    </PortalLayout>
   );
 }

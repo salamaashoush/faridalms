@@ -12,32 +12,7 @@
 @source "../../../../packages/puzzles/src";
 @source "../../../../packages/makecode/src";
 
-/* The platform's own green: the school sidebar, the product site's bands
-   and the sign-in page of a school that never styled its website. The same
-   in both themes, since the bands are dark already. PLATFORM_PALETTE in
-   packages/domain/src/site-theme.ts holds the website theme's copy, and a
-   test keeps the two equal. */
 :root {
-  --brand: #153f3a;
-  --brand-deep: #123833;
-  --brand-ink: #0f2925;
-  --brand-raised: #2b4b45;
-  --brand-edge: #1a3a35;
-  --brand-faint: #1d4a44;
-  --brand-foreground: #edf4ed;
-  --brand-soft: #c8dbd3;
-  --brand-muted: #bcd2c8;
-  --brand-quiet: #a9c4bb;
-  --brand-code: #cfe3d8;
-  --brand-keyword: #8fb9a8;
-  --brand-glow: #5fae8f;
-  --brand-sage: #c7d9b8;
-  --brand-surface: #eef3ee;
-  --brand-text: #18221f;
-  --brand-accent: #dcedcf;
-  --brand-accent-hover: #cfe5bf;
-  --brand-accent-foreground: #193e35;
-  --brand-shadow: #092a20;
   --hero: #e6ecde;
   --hero-foreground: #234338;
   --hero-line: #577e5614;
@@ -51,24 +26,6 @@
 }
 @theme inline {
   --color-editor: var(--editor);
-  --color-brand: var(--brand);
-  --color-brand-deep: var(--brand-deep);
-  --color-brand-ink: var(--brand-ink);
-  --color-brand-raised: var(--brand-raised);
-  --color-brand-edge: var(--brand-edge);
-  --color-brand-faint: var(--brand-faint);
-  --color-brand-foreground: var(--brand-foreground);
-  --color-brand-soft: var(--brand-soft);
-  --color-brand-muted: var(--brand-muted);
-  --color-brand-quiet: var(--brand-quiet);
-  --color-brand-code: var(--brand-code);
-  --color-brand-keyword: var(--brand-keyword);
-  --color-brand-glow: var(--brand-glow);
-  --color-brand-sage: var(--brand-sage);
-  --color-brand-accent: var(--brand-accent);
-  --color-brand-accent-hover: var(--brand-accent-hover);
-  --color-brand-accent-foreground: var(--brand-accent-foreground);
-  --color-brand-shadow: var(--brand-shadow);
 }
 
 .school-sidebar {

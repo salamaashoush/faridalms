@@ -1,8 +1,11 @@
+import type { AuthBandContent } from "@faridalms/ui/system/auth-layout";
 import type { CSSProperties, ReactNode } from "react";
 
 import { portalAccent } from "@faridalms/domain/portal-face";
 import { contrast } from "@faridalms/domain/site-theme";
 import { cn } from "@faridalms/ui/cn";
+import { AuthLayout } from "@faridalms/ui/system/auth-layout";
+import { ThemeToggle } from "@faridalms/ui/system/theme-toggle";
 import {
   ArrowUpRight,
   BookOpen,
@@ -18,7 +21,6 @@ import type { PortalFace } from "~/queries/portal";
 import { LICENCE, SECURITY } from "~/components/product/links";
 import { publicMediaUrl } from "~/components/site/render/parts";
 import { LocaleToggle } from "~/components/theme/LocaleToggle";
-import { ThemeToggle } from "~/components/theme/ThemeToggle";
 import { inLocale } from "~/hooks/useCurrentUser";
 import * as m from "~/i18n/messages";
 import { hostHref } from "~/utils/host";
@@ -183,93 +185,40 @@ export function PortalHelp({ face, topic }: PortalHelpProps) {
   );
 }
 
-export interface PortalHeadingProps {
-  title: string;
-  lead?: string;
-}
-
-/** A heading and a sentence over a portal page's form. */
-export function PortalHeading({ title, lead }: PortalHeadingProps) {
-  return (
-    <div className="mb-8 grid gap-2">
-      <h1
-        dir="auto"
-        className="text-[32px] leading-10 font-semibold tracking-tight text-foreground"
-      >
-        {title}
-      </h1>
-      {lead ? <p className="text-muted-foreground">{lead}</p> : null}
-    </div>
-  );
-}
-
-interface BandProps {
-  face: PortalFace | null;
-}
-
-function Band({ face }: BandProps) {
-  const features = [
-    {
-      icon: BookOpen,
-      title: m.authFeatureLearning(),
-      body: m.authFeatureLearningBody(),
-    },
-    {
-      icon: Users,
-      title: m.authFeatureCommunity(),
-      body: m.authFeatureCommunityBody(),
-    },
-    {
-      icon: Languages,
-      title: m.authFeatureLanguage(),
-      body: m.authFeatureLanguageBody(),
-    },
-  ];
+/** What the band beside a portal's form says, in the school's name where it has one. */
+function bandOf(face: PortalFace | null): AuthBandContent {
   const website = face?.websiteHost ? hostHref(face.websiteHost, "/") : null;
-  return (
-    <aside className="school-sidebar relative hidden overflow-hidden p-12 lg:flex lg:flex-col xl:p-16">
-      <div className="text-lg">
-        {face ? <SchoolMark face={face} /> : <PlatformMark />}
-      </div>
-      <div className="relative z-10 my-auto max-w-lg py-16">
-        <p className="mb-5 text-xs font-medium tracking-[0.2em] uppercase opacity-75 rtl:tracking-normal">
-          {face ? m.portalEyebrow() : m.workspaceLabel()}
-        </p>
-        <p className="text-5xl leading-[1.15] font-medium tracking-tight xl:text-6xl">
-          {m.authBrandHeading()}
-        </p>
-        <p className="mt-6 max-w-md text-base leading-relaxed opacity-80">
-          {m.authBrandBody()}
-        </p>
-        <ul className="mt-12 space-y-7">
-          {features.map(({ icon: Icon, title, body }) => (
-            <li key={title} className="flex gap-4">
-              <span className="grid size-10 shrink-0 place-items-center rounded-xl border border-current/15 bg-current/5">
-                <Icon className="size-5" aria-hidden />
-              </span>
-              <div>
-                <p className="text-sm font-medium">{title}</p>
-                <p className="mt-1 text-sm opacity-75">{body}</p>
-              </div>
-            </li>
-          ))}
-        </ul>
-      </div>
-      {website ? (
-        <a
-          href={website}
-          className="relative z-10 inline-flex items-center gap-1.5 self-start text-sm font-medium underline-offset-4 hover:underline"
-        >
-          {m.portalWebsite()}
-          <ArrowUpRight aria-hidden className="size-4 rtl:-scale-x-100" />
-        </a>
-      ) : null}
-      <div
-        className="pointer-events-none absolute -end-40 -bottom-56 size-[520px] rounded-full border-[80px] border-current/[0.05]"
-        aria-hidden
-      />
-    </aside>
-  );
+  return {
+    eyebrow: face ? m.portalEyebrow() : m.workspaceLabel(),
+    heading: m.authBrandHeading(),
+    body: m.authBrandBody(),
+    features: [
+      {
+        icon: BookOpen,
+        title: m.authFeatureLearning(),
+        body: m.authFeatureLearningBody(),
+      },
+      {
+        icon: Users,
+        title: m.authFeatureCommunity(),
+        body: m.authFeatureCommunityBody(),
+      },
+      {
+        icon: Languages,
+        title: m.authFeatureLanguage(),
+        body: m.authFeatureLanguageBody(),
+      },
+    ],
+    link: website ? (
+      <a
+        href={website}
+        className="inline-flex items-center gap-1.5 text-sm font-medium underline-offset-4 hover:underline"
+      >
+        {m.portalWebsite()}
+        <ArrowUpRight aria-hidden className="size-4 rtl:-scale-x-100" />
+      </a>
+    ) : null,
+  };
 }
 
 export interface PortalLayoutProps {
@@ -279,62 +228,36 @@ export interface PortalLayoutProps {
 }
 
 /**
- * Every page before sign-in, the app's own in its own design system: a band
- * in the school's colour with its name and logo beside the form, or the
- * platform's where no school is named yet. A long flow, such as an
- * application, takes the whole width under a slim header instead.
+ * Every portal page before sign-in, in the school's name and colour on a
+ * school's portal and the platform's where no school is named yet. A paused
+ * school's portal says so instead of offering its form.
  */
 export function PortalLayout({
   face,
   wide = false,
   children,
 }: PortalLayoutProps) {
-  const accent = faceAccent(face);
-  const mark = face ? <SchoolMark face={face} /> : <PlatformMark />;
   return (
-    <div
-      {...accent}
-      className={cn(
-        accent.className,
-        "grid min-h-dvh",
-        !wide && "lg:grid-cols-[1fr_1.05fr]",
-      )}
+    <AuthLayout
+      {...faceAccent(face)}
+      mark={face ? <SchoolMark face={face} /> : <PlatformMark />}
+      band={bandOf(face)}
+      wide={wide}
+      tools={
+        <>
+          <LocaleToggle />
+          <ThemeToggle />
+        </>
+      }
+      footer={<PlatformFooter />}
     >
-      {wide ? null : <Band face={face} />}
-      <div className="flex min-h-dvh flex-col">
-        <div
-          className={cn(
-            "flex items-center justify-between gap-4 p-5 sm:p-8",
-            wide && "border-b",
-          )}
-        >
-          <span className={cn("min-w-0 text-primary", !wide && "lg:invisible")}>
-            {mark}
-          </span>
-          <div className="flex shrink-0 gap-1">
-            <LocaleToggle />
-            <ThemeToggle />
-          </div>
-        </div>
-        <main
-          id="main"
-          className={cn(
-            "flex flex-1 justify-center px-6 py-12 sm:px-12",
-            wide ? "items-start" : "items-center",
-          )}
-        >
-          <div className={cn("w-full", wide ? "max-w-3xl" : "max-w-[400px]")}>
-            {face?.paused ? (
-              <p className="text-sm leading-6 text-muted-foreground">
-                {m.portalPaused()}
-              </p>
-            ) : (
-              children
-            )}
-          </div>
-        </main>
-        <PlatformFooter />
-      </div>
-    </div>
+      {face?.paused ? (
+        <p className="text-sm leading-6 text-muted-foreground">
+          {m.portalPaused()}
+        </p>
+      ) : (
+        children
+      )}
+    </AuthLayout>
   );
 }
