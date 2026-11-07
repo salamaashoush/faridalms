@@ -154,10 +154,12 @@ export const CORE_SYSTEMS = [
   "years",
   "files",
   "documents",
-  // Templates hold the admission letters and message templates, and the
-  // library the pictures every editor places, so neither belongs to one module.
+  // Templates hold the admission letters and message templates, the
+  // library the pictures every editor places, and the media library what
+  // the school keeps for all of them, so none belongs to one module.
   "templates",
   "library",
+  "mediaLibrary",
   "shared",
   "privacy",
   "rollover",
