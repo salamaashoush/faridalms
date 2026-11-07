@@ -1,8 +1,10 @@
 import * as v from "valibot";
 
+import type { Anchor } from "./anchors";
 import type { PublishIssue } from "./content-checks";
 import type { CheckBlock, LessonDocument } from "./learning";
 
+import { anchorSchema } from "./anchors";
 import { contentDocumentSchema, contentPlainText } from "./content";
 import { CONTENT_ISSUE_CODE, publishIssues } from "./content-checks";
 import { declarationSchema } from "./exams";
@@ -601,19 +603,11 @@ export const hidePeerReviewSchema = v.object({
 });
 
 /**
- * One end of a comment's passage in handed-in work: the block it falls in
- * and how many characters of the block's own text come before it. Handed-in
- * work never changes, so the place stays true.
+ * A comment's passage in handed-in work. Handed-in work never changes, so
+ * the place stays true.
  */
-const anchorPoint = v.object({
-  block: v.pipe(v.string(), v.regex(/^[\da-z]{8,36}$/)),
-  offset: v.pipe(v.number(), v.integer(), v.minValue(0), v.maxValue(100000)),
-});
-export const commentAnchorSchema = v.object({
-  start: anchorPoint,
-  end: anchorPoint,
-});
-export type CommentAnchor = v.InferOutput<typeof commentAnchorSchema>;
+export const commentAnchorSchema = anchorSchema;
+export type CommentAnchor = Anchor;
 
 export const MAX_COMMENT_LENGTH = 2000;
 
