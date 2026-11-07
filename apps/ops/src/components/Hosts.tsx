@@ -1,19 +1,21 @@
 import type { HostRole } from "@faridalms/domain/hosts";
-import type { ActionItem } from "@faridalms/ui/system/action-menu";
+import type {
+  Column,
+  DataTableCard,
+  RowAction,
+} from "@faridalms/ui/system/data-table";
+import type { DnsRecord } from "@faridalms/ui/system/dns-records";
 
 import { Button } from "@faridalms/ui/button";
-import { ActionMenu } from "@faridalms/ui/system/action-menu";
+import { DataTable } from "@faridalms/ui/system/data-table";
+import { DnsRecords } from "@faridalms/ui/system/dns-records";
 import { SelectField, TextField } from "@faridalms/ui/system/form-field";
-import {
-  RecordEmpty,
-  RecordList,
-  RecordSection,
-} from "@faridalms/ui/system/record-page";
+import { RecordEmpty, RecordSection } from "@faridalms/ui/system/record-page";
 import { SheetForm, useSheet } from "@faridalms/ui/system/sheet-form";
-import { StatusBadge } from "@faridalms/ui/system/status";
+import { StatusBadge, StatusText } from "@faridalms/ui/system/status";
 import { useRouter } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
-import { Plus } from "lucide-react";
+import { Globe, Plus } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 
@@ -36,7 +38,8 @@ import {
 import { ReasonSheet } from "./ReasonSheet";
 import { WhyField } from "./Why";
 
-type Host = Awaited<ReturnType<typeof getSchool>>["hosts"][number];
+type Data = Awaited<ReturnType<typeof getSchool>>;
+type Host = Data["hosts"][number];
 
 const PROBLEMS: Record<string, string> = {
   "hosts.txt_missing": "The TXT record is missing.",
@@ -47,134 +50,135 @@ const PROBLEMS: Record<string, string> = {
     "Records found; the edge has not served it over TLS yet.",
 };
 
-interface RecordsProps {
-  host: Host;
+/** One address the school answers on: a platform name, or a host of its own. */
+interface Address {
+  id: string;
+  hostname: string;
+  role: HostRole;
+  /** The school's own host; null for a platform name, always served. */
+  own: Host | null;
+  main: boolean;
 }
 
-/** What the school's DNS must hold for the host to route. */
-function Records({ host }: RecordsProps) {
-  const { txt, cname, a } = host.records;
-  const rows: [string, string, string][] = [
-    ["TXT", txt.name, txt.value],
-    ["CNAME", cname.name, cname.target],
-    ...(a.address
-      ? ([["A (apex only)", a.name, a.address]] as [string, string, string][])
-      : []),
+function addressesOf(platform: PlatformHosts, hosts: Host[]): Address[] {
+  const mainOwn = (role: HostRole) =>
+    hosts.some(
+      (host) => host.role === role && host.canonical && host.state === "active",
+    );
+  const platformRow = (role: HostRole): Address => ({
+    id: `platform-${role}`,
+    hostname: role === "portal" ? platform.portal : platform.site,
+    role,
+    own: null,
+    main: !mainOwn(role),
+  });
+  return [
+    platformRow("portal"),
+    platformRow("site"),
+    ...hosts.map((host) => ({
+      id: host.hostname,
+      hostname: host.hostname,
+      role: host.role,
+      own: host,
+      main: host.canonical && host.state === "active",
+    })),
   ];
+}
+
+function statusOf(address: Address) {
+  const host = address.own;
+  if (!host) return <StatusText tone="success">Always served</StatusText>;
   return (
-    <dl className="grid gap-1.5 text-xs">
-      {rows.map(([type, name, value]) => (
-        <div
-          key={type}
-          className="grid gap-1 rounded-md bg-muted/60 px-3 py-2 sm:grid-cols-[7rem_1fr_1fr] sm:gap-3"
-        >
-          <dt className="font-semibold">{type}</dt>
-          <dd className="font-mono break-all" dir="ltr">
-            {name}
-          </dd>
-          <dd className="font-mono break-all" dir="ltr">
-            {value}
-          </dd>
-        </div>
-      ))}
-      {a.address ? null : (
-        <p className="text-muted-foreground">
-          EDGE_IPV4 is not set, so only subdomains can be bound.
-        </p>
-      )}
-    </dl>
+    <span className="grid gap-0.5">
+      <StatusText tone={HOST_STATE_TONE[host.state]}>
+        {HOST_STATE_NAMES[host.state]}
+      </StatusText>
+      {host.lastError ? (
+        <span className="text-[13px] leading-[18px] whitespace-normal text-muted-foreground">
+          {PROBLEMS[host.lastError] ?? host.lastError}
+        </span>
+      ) : null}
+    </span>
   );
+}
+
+const COLUMNS: Column<Address>[] = [
+  {
+    id: "address",
+    header: "Address",
+    primary: true,
+    cell: (address) => (
+      <span className="flex min-w-0 items-center gap-2">
+        <span dir="ltr" className="truncate font-mono text-[13px]">
+          {address.hostname}
+        </span>
+        {address.main ? <StatusBadge tone="accent">Main</StatusBadge> : null}
+      </span>
+    ),
+  },
+  {
+    id: "serves",
+    header: "Serves",
+    cell: (address) => HOST_ROLE_NAMES[address.role],
+  },
+  {
+    id: "kind",
+    header: "Kind",
+    cell: (address) => (
+      <span className="text-muted-foreground">
+        {address.own ? "Its own" : "Platform name"}
+      </span>
+    ),
+  },
+  { id: "status", header: "Status", cell: statusOf },
+  {
+    id: "checked",
+    header: "Checked",
+    cell: (address) =>
+      address.own ? (
+        <span className="text-muted-foreground">
+          {address.own.checkedAt
+            ? formatWhen(address.own.checkedAt)
+            : "Due on the next pass"}
+        </span>
+      ) : null,
+  },
+];
+
+const CARD: DataTableCard<Address> = {
+  title: (address) => (
+    <span dir="ltr" className="font-mono text-[13px]">
+      {address.hostname}
+    </span>
+  ),
+  status: statusOf,
+  fact: (address) =>
+    `${HOST_ROLE_NAMES[address.role]} · ${address.own ? "Its own" : "Platform name"}${address.main ? " · Main" : ""}`,
+};
+
+const RECORD_LABELS = {
+  type: "Type",
+  name: "Name",
+  value: "Value",
+  copy: (part: string, type: string) =>
+    `Copy the ${part.toLowerCase()} of the ${type} record`,
+};
+
+/** What the school's DNS must hold for a host of its own to route. */
+function recordsOf(host: Host): DnsRecord[] {
+  const { txt, cname, a } = host.records;
+  return [
+    { type: "TXT", name: txt.name, value: txt.value },
+    { type: "CNAME", name: cname.name, value: cname.target },
+    ...(a.address ? [{ type: "A", name: a.name, value: a.address }] : []),
+  ];
 }
 
 type HostChange = "main" | "remove";
 
-interface HostItemProps {
-  schoolId: string;
+interface Changing {
   host: Host;
-}
-
-function HostItem({ schoolId, host }: HostItemProps) {
-  const router = useRouter();
-  const check = useServerFn(checkHost);
-  const canonical = useServerFn(makeHostCanonical);
-  const remove = useServerFn(removeHost);
-  const [changing, setChanging] = useState<HostChange | null>(null);
-  const actions: ActionItem[] = [
-    {
-      label: "Check now",
-      onSelect: async () => {
-        await check({ data: { schoolId, hostname: host.hostname } });
-        toast.success("Queued. The cell checks it within a minute.");
-        await router.invalidate();
-      },
-    },
-    ...(host.canonical
-      ? []
-      : [{ label: "Make main", onSelect: () => setChanging("main") }]),
-    { label: "Remove", onSelect: () => setChanging("remove") },
-  ];
-  const change = async (reason: string) => {
-    const failed = await attempt(
-      () =>
-        changing === "main"
-          ? canonical({ data: { schoolId, hostname: host.hostname, reason } })
-          : remove({ data: { schoolId, hostname: host.hostname, reason } }),
-      "That did not work.",
-    );
-    if (failed) return failed;
-    toast.success(
-      changing === "main" ? "It is the main host now." : "Removed.",
-    );
-    await router.invalidate();
-    return null;
-  };
-  return (
-    <li aria-label={host.hostname} className="grid gap-3 py-4">
-      <div className="flex items-start justify-between gap-3">
-        <div className="grid min-w-0 gap-1.5">
-          <span dir="ltr" className="font-mono text-sm font-semibold break-all">
-            {host.hostname}
-          </span>
-          <div className="flex flex-wrap items-center gap-2">
-            <StatusBadge tone={HOST_STATE_TONE[host.state]}>
-              {HOST_STATE_NAMES[host.state]}
-            </StatusBadge>
-            <StatusBadge tone="neutral">
-              {HOST_ROLE_NAMES[host.role]}
-            </StatusBadge>
-            {host.canonical ? (
-              <StatusBadge tone="accent">Main</StatusBadge>
-            ) : null}
-          </div>
-        </div>
-        <ActionMenu label={`Actions for ${host.hostname}`} actions={actions} />
-      </div>
-      <p className="text-[13px] leading-[18px] text-muted-foreground">
-        {host.checkedAt
-          ? `Checked ${formatWhen(host.checkedAt)}`
-          : "Due a check on the cell's next pass"}
-        {host.failures > 0 ? ` · ${host.failures} failed in a row` : ""}
-        {host.lastError
-          ? ` · ${PROBLEMS[host.lastError] ?? host.lastError}`
-          : ""}
-      </p>
-      <Records host={host} />
-      <ReasonSheet
-        open={changing !== null}
-        onOpenChange={(open) => {
-          if (!open) setChanging(null);
-        }}
-        title={
-          changing === "main"
-            ? `Make ${host.hostname} the main host`
-            : `Remove ${host.hostname}`
-        }
-        submitLabel={changing === "main" ? "Make main" : "Remove"}
-        destructive={changing === "remove"}
-        onSubmit={change}
-      />
-    </li>
-  );
+  change: HostChange;
 }
 
 interface AddHostSheetProps {
@@ -261,59 +265,176 @@ export interface PlatformHosts {
   portal: string;
 }
 
-export interface HostsProps {
+/** A domain the tenant's people sign in with through its own identity provider. */
+export interface SignInDomain {
+  domain: string;
+  verifiedAt: Date | string | null;
+}
+
+export interface SchoolAddressesProps {
   schoolId: string;
   platform: PlatformHosts;
   hosts: Host[];
+  signInDomains: readonly SignInDomain[];
 }
 
-/** The school's own hosts, with what DNS must hold for each and where it stands. */
-export function Hosts({ schoolId, platform, hosts }: HostsProps) {
-  const sheet = useSheet();
+/**
+ * Every address the school answers on, the platform's names and its own,
+ * with where each stands; the DNS records any of its own still waits for;
+ * and the domains its people sign in with.
+ */
+export function SchoolAddresses({
+  schoolId,
+  platform,
+  hosts,
+  signInDomains,
+}: SchoolAddressesProps) {
+  const router = useRouter();
+  const check = useServerFn(checkHost);
+  const canonical = useServerFn(makeHostCanonical);
+  const remove = useServerFn(removeHost);
+  const adding = useSheet();
+  const [changing, setChanging] = useState<Changing | null>(null);
+  const waiting = hosts.filter((host) => host.state !== "active");
+  const actionsOf = (address: Address): RowAction[] => {
+    const host = address.own;
+    if (!host) return [];
+    return [
+      {
+        label: "Check now",
+        inline: host.state !== "active",
+        onSelect: async () => {
+          await check({ data: { schoolId, hostname: host.hostname } });
+          toast.success("Queued. The cell checks it within a minute.");
+          await router.invalidate();
+        },
+      },
+      ...(host.canonical
+        ? []
+        : [
+            {
+              label: "Make main",
+              onSelect: () => setChanging({ host, change: "main" }),
+            },
+          ]),
+      {
+        label: "Remove",
+        onSelect: () => setChanging({ host, change: "remove" }),
+      },
+    ];
+  };
+  const change = async (reason: string) => {
+    if (!changing) return null;
+    const { host } = changing;
+    const failed = await attempt(
+      () =>
+        changing.change === "main"
+          ? canonical({ data: { schoolId, hostname: host.hostname, reason } })
+          : remove({ data: { schoolId, hostname: host.hostname, reason } }),
+      "That did not work.",
+    );
+    if (failed) return failed;
+    toast.success(
+      changing.change === "main" ? "It is the main host now." : "Removed.",
+    );
+    await router.invalidate();
+    return null;
+  };
   return (
-    <RecordSection
-      title="Hosts"
-      action={
-        <Button
-          type="button"
-          variant="outline"
-          className="max-md:h-10"
-          onClick={sheet.show}
+    <>
+      <RecordSection
+        variant="page"
+        title="Web addresses"
+        description="Its portal and website answer on the platform's names always; a host of its own becomes the main address once it routes."
+        action={
+          <Button
+            type="button"
+            variant="outline"
+            className="max-md:h-10"
+            onClick={adding.show}
+          >
+            <Plus aria-hidden />
+            Add host
+          </Button>
+        }
+      >
+        <DataTable
+          caption="Web addresses"
+          rows={addressesOf(platform, hosts)}
+          columns={COLUMNS}
+          rowLabel={(address) => address.hostname}
+          rowActions={actionsOf}
+          card={CARD}
+          empty={{ icon: Globe, title: "No addresses" }}
+        />
+      </RecordSection>
+      {waiting.map((host) => (
+        <RecordSection
+          key={host.hostname}
+          variant="page"
+          title={`Records for ${host.hostname}`}
+          description="Create these at the domain's DNS provider. The cell looks for them every few minutes."
         >
-          <Plus aria-hidden />
-          Add host
-        </Button>
-      }
-      description={
-        <>
-          Platform names, always served: website{" "}
-          <span className="font-mono" dir="ltr">
-            {platform.site}
-          </span>
-          , portal{" "}
-          <span className="font-mono" dir="ltr">
-            {platform.portal}
-          </span>
-          . The main host of its own takes over from the platform name once it
-          routes.
-        </>
-      }
-    >
-      {hosts.length ? (
-        <RecordList>
-          {hosts.map((host) => (
-            <HostItem key={host.hostname} schoolId={schoolId} host={host} />
-          ))}
-        </RecordList>
-      ) : (
-        <RecordEmpty>No hosts of its own.</RecordEmpty>
-      )}
+          <div className="grid gap-2">
+            <DnsRecords records={recordsOf(host)} labels={RECORD_LABELS} />
+            {host.records.a.address ? null : (
+              <p className="text-[13px] leading-[18px] text-muted-foreground">
+                The platform has no address set for a domain's apex (EDGE_IPV4),
+                so only subdomains such as www can be bound.
+              </p>
+            )}
+          </div>
+        </RecordSection>
+      ))}
+      <RecordSection
+        variant="page"
+        title="Sign-in domains"
+        description="Email domains whose people sign in through the school's own identity provider, for its whole group."
+      >
+        {signInDomains.length ? (
+          <ul className="divide-y rounded-lg border">
+            {signInDomains.map((domain) => (
+              <li
+                key={domain.domain}
+                className="flex items-center justify-between gap-3 px-4 py-3"
+              >
+                <span dir="ltr" className="font-mono text-[13px]">
+                  {domain.domain}
+                </span>
+                <StatusText tone={domain.verifiedAt ? "success" : "warning"}>
+                  {domain.verifiedAt
+                    ? `Verified ${formatWhen(domain.verifiedAt)}`
+                    : "Not verified"}
+                </StatusText>
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <RecordEmpty>
+            None. Its people sign in with accounts on the platform.
+          </RecordEmpty>
+        )}
+      </RecordSection>
       <AddHostSheet
-        key={sheet.key}
+        key={adding.key}
         schoolId={schoolId}
-        open={sheet.open}
-        onOpenChange={sheet.onOpenChange}
+        open={adding.open}
+        onOpenChange={adding.onOpenChange}
       />
-    </RecordSection>
+      <ReasonSheet
+        open={changing !== null}
+        onOpenChange={(open) => {
+          if (!open) setChanging(null);
+        }}
+        title={
+          changing?.change === "main"
+            ? `Make ${changing.host.hostname} the main host`
+            : `Remove ${changing?.host.hostname ?? ""}`
+        }
+        submitLabel={changing?.change === "main" ? "Make main" : "Remove"}
+        destructive={changing?.change === "remove"}
+        onSubmit={change}
+      />
+    </>
   );
 }

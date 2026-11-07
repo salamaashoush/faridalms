@@ -1,36 +1,54 @@
 import type { ModuleId } from "@faridalms/domain/modules";
 import type { SchoolNotice } from "@faridalms/domain/plans";
 import type { SchoolStanding } from "@faridalms/domain/provisioning";
+import type { LimitKey } from "@faridalms/domain/subscriptions";
+import type { RecordTab } from "@faridalms/ui/system/record-page";
 import type { Tone } from "@faridalms/ui/system/status";
+import type { SummaryItem } from "@faridalms/ui/system/summary-list";
+import type { UsageItem } from "@faridalms/ui/system/usage-list";
 
+import { MODULE_IDS } from "@faridalms/domain/modules";
 import { availableModules, SCHOOL_NOTICES } from "@faridalms/domain/plans";
 import { SCHOOL_STANDINGS, standingOf } from "@faridalms/domain/provisioning";
 import { LIMIT_KEYS } from "@faridalms/domain/subscriptions";
+import { cn } from "@faridalms/ui/cn";
 import {
   ChoiceField,
   SelectField,
   TextField,
 } from "@faridalms/ui/system/form-field";
+import { Metric, MetricGrid } from "@faridalms/ui/system/metrics";
+import { Page } from "@faridalms/ui/system/page";
+import { useDesignSystem } from "@faridalms/ui/system/provider";
 import {
   Fact,
   Facts,
   RecordColumns,
+  RecordEmpty,
   RecordHeader,
-  RecordList,
   RecordSection,
+  RecordTabs,
 } from "@faridalms/ui/system/record-page";
 import { SettingsGroup } from "@faridalms/ui/system/settings-section";
 import { SheetForm, useSheet } from "@faridalms/ui/system/sheet-form";
-import { StatusBadge, StatusText } from "@faridalms/ui/system/status";
-import { createFileRoute, Link, useRouter } from "@tanstack/react-router";
+import { SummaryList } from "@faridalms/ui/system/summary-list";
+import { UsageList } from "@faridalms/ui/system/usage-list";
+import {
+  createFileRoute,
+  Link,
+  stripSearchParams,
+  useRouter,
+} from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
-import { Info, Send } from "lucide-react";
+import { Check, Info, Minus, Send, ShieldAlert } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
+import * as v from "valibot";
 
 import { attempt, attemptWith, failure } from "../actions";
 import { ChangeList } from "../components/ChangeList";
-import { Hosts } from "../components/Hosts";
+import { HEALTH_TONE } from "../components/Health";
+import { SchoolAddresses } from "../components/Hosts";
 import {
   CountFields,
   draftOf,
@@ -38,16 +56,20 @@ import {
   StorageFields,
 } from "../components/LimitFields";
 import { ModuleFields } from "../components/ModuleFields";
-import { HealthSection, OnboardingSection } from "../components/Onboarding";
-import { Usage } from "../components/Usage";
+import { OnboardingSection } from "../components/Onboarding";
 import { WhyField } from "../components/Why";
 import {
+  formatBytes,
   formatDay,
   formatLimit,
   formatWhen,
+  HEALTH_LEVEL_NAMES,
+  HEALTH_REASON_NAMES,
   LIMIT_NAMES,
+  MODULE_GROUPS,
   MODULE_NAMES,
   NOTICE_NAMES,
+  ONBOARDING_ITEM_NAMES,
   STANDING_NAMES,
   TENANT_STATE_NAMES,
   TENANT_STATE_TONE,
@@ -59,42 +81,71 @@ import {
   setSchoolLifecycle,
 } from "../server/directory";
 
+const SCHOOL_TABS = [
+  "onboarding",
+  "entitlements",
+  "addresses",
+  "history",
+] as const;
+type SchoolTab = (typeof SCHOOL_TABS)[number];
+
+const TABS: RecordTab<SchoolTab>[] = [
+  { value: "onboarding", label: "Onboarding" },
+  { value: "entitlements", label: "Entitlements" },
+  { value: "addresses", label: "Addresses" },
+  { value: "history", label: "History" },
+];
+
+const search = v.object({
+  tab: v.fallback(
+    v.optional(v.picklist(SCHOOL_TABS), "onboarding"),
+    "onboarding",
+  ),
+});
+
 export const Route = createFileRoute("/schools/$schoolId")({
   staticData: { title: "School" },
+  validateSearch: search,
+  search: { middlewares: [stripSearchParams({ tab: "onboarding" })] },
   loader: ({ params }) => getSchool({ data: { id: params.schoolId } }),
   component: SchoolPage,
 });
 
-const ACCESS = {
-  full: "Full",
-  restricted: "Restricted",
-  read_only: "Read only",
-} as const;
+type Data = Awaited<ReturnType<typeof getSchool>>;
+type School = Data["school"];
 
-type School = Awaited<ReturnType<typeof getSchool>>["school"];
-
+/**
+ * One school: what an operator must see at once in a strip under its name,
+ * and the rest in tabs, each one job.
+ */
 function SchoolPage() {
+  const data = Route.useLoaderData();
+  const { tab } = Route.useSearch();
+  const navigate = Route.useNavigate();
   const { school, health, changes, names, hosts, platform, sold, ssoDomains } =
-    Route.useLoaderData();
-  const entitled = school.entitlements;
+    data;
   const name = school.nameEn ?? school.nameAr ?? school.slug;
-  const standing = standingOf(school.tenantState, entitled.access);
-  const [sending, setSending] = useState(false);
+  const standing = standingOf(school.tenantState, school.entitlements.access);
+  const sending = useSheet();
+  const changingAccess = useSheet();
   return (
-    <>
+    <Page width="record">
       <RecordHeader
         title={name}
-        status={{
-          label: TENANT_STATE_NAMES[school.tenantState],
-          tone: TENANT_STATE_TONE[school.tenantState],
-        }}
+        status={
+          standing
+            ? { label: STANDING_NAMES[standing], tone: ACCESS_TONE[standing] }
+            : {
+                label: TENANT_STATE_NAMES[school.tenantState],
+                tone: TENANT_STATE_TONE[school.tenantState],
+              }
+        }
         facts={[
           { label: "Address", value: school.slug },
           {
             label: "Group",
             value: school.tenantNameEn ?? school.tenantNameAr ?? "None",
           },
-          { label: "Cell", value: `${school.cellId} (${school.region})` },
         ]}
         alerts={
           school.tenantState === "provisioning"
@@ -108,136 +159,215 @@ function SchoolPage() {
               ]
             : []
         }
-        menu={
-          school.tenantState === "active"
+        menu={[
+          ...(standing
+            ? [
+                {
+                  label: "Change access",
+                  icon: ShieldAlert,
+                  onSelect: changingAccess.show,
+                },
+              ]
+            : []),
+          ...(school.tenantState === "active"
             ? [
                 {
                   label: "Send the administrator a new link",
                   icon: Send,
-                  onSelect: () => setSending(true),
+                  onSelect: sending.show,
                 },
               ]
-            : []
-        }
+            : []),
+        ]}
       />
       <RecordColumns
+        stickyAside
         main={
           <>
-            {health ? (
-              <OnboardingSection
-                schoolId={school.id}
-                health={health}
-                measuredAt={school.usage?.measuredAt ?? null}
-              />
-            ) : null}
-            <EntitlementsSection school={school} sold={sold} />
-            <Hosts schoolId={school.id} platform={platform} hosts={hosts} />
-            {ssoDomains.length ? (
-              <RecordSection
-                title="Sign-in domains"
-                description="The domains its people sign in with through its own identity provider, for the whole tenant."
-              >
-                <RecordList>
-                  {ssoDomains.map((domain) => (
-                    <li
-                      key={domain.domain}
-                      className="flex items-center justify-between gap-3 py-2.5"
-                    >
-                      <span className="font-mono text-sm" dir="ltr">
-                        {domain.domain}
-                      </span>
-                      <StatusText
-                        tone={domain.verifiedAt ? "success" : "warning"}
-                      >
-                        {domain.verifiedAt
-                          ? `Verified ${formatWhen(domain.verifiedAt)}`
-                          : "Not verified"}
-                      </StatusText>
-                    </li>
-                  ))}
-                </RecordList>
-              </RecordSection>
-            ) : null}
-            <RecordSection title="History">
-              <ChangeList changes={changes} names={names} />
-            </RecordSection>
+            <Glance school={school} health={health} />
+            <RecordTabs
+              label="The school's sections"
+              tabs={TABS}
+              value={tab}
+              onChange={(next) =>
+                void navigate({
+                  resetScroll: false,
+                  search: { tab: next },
+                  replace: true,
+                })
+              }
+            >
+              {tab === "onboarding" ? (
+                health ? (
+                  <OnboardingSection
+                    schoolId={school.id}
+                    health={health}
+                    measuredAt={school.usage?.measuredAt ?? null}
+                  />
+                ) : (
+                  <RecordEmpty>
+                    Its onboarding shows once its cell first reports.
+                  </RecordEmpty>
+                )
+              ) : tab === "entitlements" ? (
+                <EntitlementsSection school={school} sold={sold} />
+              ) : tab === "addresses" ? (
+                <SchoolAddresses
+                  schoolId={school.id}
+                  platform={platform}
+                  hosts={hosts}
+                  signInDomains={ssoDomains}
+                />
+              ) : (
+                <RecordSection variant="page" title="Changes">
+                  <ChangeList changes={changes} names={names} />
+                </RecordSection>
+              )}
+            </RecordTabs>
           </>
         }
-        aside={
-          <>
-            {health ? <HealthSection health={health} /> : null}
-            <UseSection school={school} />
-            {standing ? (
-              <AccessSection
-                tenantId={school.tenantId}
-                standing={standing}
-                group={school.tenantKind === "school_group"}
-              />
-            ) : null}
-          </>
-        }
+        aside={<About school={school} sold={sold} standing={standing} />}
       />
-      {school.tenantState === "active" ? (
-        <AdministratorLink
-          schoolId={school.id}
-          open={sending}
-          onOpenChange={setSending}
+      {standing ? (
+        <AccessSheet
+          key={changingAccess.key}
+          tenantId={school.tenantId}
+          standing={standing}
+          group={school.tenantKind === "school_group"}
+          open={changingAccess.open}
+          onOpenChange={changingAccess.onOpenChange}
         />
       ) : null}
-    </>
+      {school.tenantState === "active" ? (
+        <AdministratorLink
+          key={sending.key}
+          schoolId={school.id}
+          open={sending.open}
+          onOpenChange={sending.onOpenChange}
+        />
+      ) : null}
+    </Page>
   );
 }
 
-interface SchoolProps {
+interface GlanceProps {
   school: School;
+  health: Data["health"];
 }
 
-/** A count, and the limit it is held to when there is one. */
-const of = (count: number, limit: number | null) =>
-  `${count.toLocaleString("en")}${limit === null ? "" : ` of ${limit.toLocaleString("en")}`}`;
+/** What an operator should read before anything else: how the school is doing. */
+function Glance({ school, health }: GlanceProps) {
+  const { formatNumber } = useDesignSystem();
+  const entitled = school.entitlements;
+  const usage = school.usage;
+  const onboarding = health?.onboarding;
+  const done = onboarding
+    ? onboarding.applies.filter((item) => onboarding.reached[item]).length
+    : 0;
+  const next = onboarding?.applies.find((item) => !onboarding.reached[item]);
+  return (
+    <MetricGrid label="At a glance">
+      {health ? (
+        <Metric
+          label="Health"
+          value={HEALTH_LEVEL_NAMES[health.level]}
+          detail={{
+            text: health.reasons.length
+              ? health.reasons
+                  .map((reason) => HEALTH_REASON_NAMES[reason])
+                  .join("; ")
+              : "Busy through the week, paid and under way.",
+            tone: HEALTH_TONE[health.level],
+          }}
+        />
+      ) : null}
+      {onboarding ? (
+        <Metric
+          label="Onboarding"
+          value={`${formatNumber(done)} of ${formatNumber(onboarding.applies.length)}`}
+          meter={
+            onboarding.applies.length ? done / onboarding.applies.length : 0
+          }
+          detail={
+            onboarding.stalled
+              ? { text: "No step in the last fortnight", tone: "warning" }
+              : next
+                ? { text: `Next: ${ONBOARDING_ITEM_NAMES[next]}` }
+                : { text: "Every step taken", tone: "success" }
+          }
+        />
+      ) : null}
+      <Metric
+        label="Signed in this week"
+        value={usage ? formatNumber(usage.signedIn7d) : "Not yet reported"}
+        detail={
+          usage
+            ? { text: `${formatNumber(usage.signedIn30d)} this month` }
+            : undefined
+        }
+      />
+      <Metric
+        label="Students"
+        value={usage ? formatNumber(usage.students) : "Not yet reported"}
+        meter={
+          usage && entitled.students
+            ? usage.students / entitled.students
+            : undefined
+        }
+        detail={{
+          text:
+            entitled.students === null
+              ? "No limit"
+              : `Of ${formatNumber(entitled.students)} allowed`,
+        }}
+      />
+    </MetricGrid>
+  );
+}
 
-/** What the school uses against what it is entitled to, as its cell last said. */
-function UseSection({ school }: SchoolProps) {
+interface AboutProps {
+  school: School;
+  sold: Data["sold"];
+  standing: SchoolStanding | null;
+}
+
+/** The school's facts that hold on every tab: where it lives and what it may do. */
+function About({ school, sold, standing }: AboutProps) {
   const entitled = school.entitlements;
   const usage = school.usage;
   return (
-    <RecordSection
-      title="Use"
-      description={
-        usage
-          ? `${usage.fileCount.toLocaleString("en")} stored objects, measured ${formatWhen(usage.measuredAt)}.`
-          : "Its cell has not reported yet."
-      }
-    >
-      <div className="grid gap-4">
-        <Facts short>
-          <Fact label="Storage">
-            <Usage
-              usedBytes={usage?.usedBytes ?? null}
-              limitBytes={entitled.poolBytes}
-            />
+    <RecordSection title="About">
+      <Facts>
+        <Fact label="Cell" wide>
+          {`${school.cellId} · ${school.region}`}
+        </Fact>
+        {standing ? (
+          <Fact label="Access" wide>
+            {ACCESS_HINT[standing]}
           </Fact>
-        </Facts>
-        {usage ? (
-          <Facts short>
-            <Fact label="Students">
-              {of(usage.students, entitled.students)}
-            </Fact>
-            <Fact label="Staff accounts">
-              {of(usage.staffAccounts, entitled.staffAccounts)}
-            </Fact>
-            <Fact label="Signed in this week">
-              {usage.signedIn7d.toLocaleString("en")}
-            </Fact>
-            <Fact label="Signed in this month">
-              {usage.signedIn30d.toLocaleString("en")}
-            </Fact>
-            <Fact label="Video hours">
-              {of(Math.round(usage.videoMinutes / 6) / 10, entitled.videoHours)}
-            </Fact>
-          </Facts>
         ) : null}
-      </div>
+        <Fact label="Storage" wide>
+          {usage
+            ? `${formatBytes(usage.usedBytes)} of ${formatBytes(entitled.poolBytes)}`
+            : `${formatBytes(entitled.poolBytes)}; not measured yet`}
+        </Fact>
+        {entitled.trialEndsOn ? (
+          <Fact label="Trial ends" wide>
+            {formatDay(entitled.trialEndsOn)}
+          </Fact>
+        ) : null}
+        {sold?.subscriptionId ? (
+          <Fact label="Subscription" wide>
+            <Link
+              to="/subscriptions/$subscriptionId"
+              params={{ subscriptionId: sold.subscriptionId }}
+              className="font-medium text-primary underline-offset-4 hover:underline"
+            >
+              Open its subscription
+            </Link>
+          </Fact>
+        ) : null}
+      </Facts>
     </RecordSection>
   );
 }
@@ -248,65 +378,144 @@ interface EntitlementsSectionProps {
   sold: { subscriptionId: string | null } | null;
 }
 
+/** Limits held against use, as the tab lists them. */
+const METERED = [
+  "students",
+  "staffAccounts",
+  "videoHours",
+  "poolBytes",
+] as const;
+type MeteredKey = (typeof METERED)[number];
+const isMetered = (key: LimitKey): key is MeteredKey =>
+  (METERED as readonly LimitKey[]).includes(key);
+
 /**
- * What the school is entitled to. A subscription sets them where there is
- * a business database; without one an operator edits them here.
+ * What the school may use and how much of it it does: its metered limits
+ * with their use, its other allowances, and every module, included or not.
+ * A subscription sets them where there is a business database; without one
+ * an operator edits them here.
  */
 function EntitlementsSection({ school, sold }: EntitlementsSectionProps) {
+  const { formatNumber } = useDesignSystem();
   const entitled = school.entitlements;
+  const usage = school.usage;
   const sheet = useSheet();
+  const usedOf: Record<MeteredKey, number | null> = {
+    students: usage?.students ?? null,
+    staffAccounts: usage?.staffAccounts ?? null,
+    videoHours: usage ? Math.round(usage.videoMinutes / 6) / 10 : null,
+    poolBytes: usage?.usedBytes ?? null,
+  };
+  const usageItems: UsageItem[] = METERED.map((key) => {
+    const used = usedOf[key];
+    const limit = entitled[key];
+    return {
+      id: key,
+      label: LIMIT_NAMES[key],
+      used:
+        used === null
+          ? "Not reported"
+          : key === "poolBytes"
+            ? formatBytes(used)
+            : formatNumber(used),
+      allowed: limit === null ? "No limit" : formatLimit(key, limit),
+      share:
+        used === null || limit === null || limit === 0 ? null : used / limit,
+    };
+  });
+  const allowances: SummaryItem[] = LIMIT_KEYS.filter(
+    (key) => !isMetered(key),
+  ).map((key) => ({
+    id: key,
+    label: LIMIT_NAMES[key],
+    value: formatLimit(key, entitled[key]),
+  }));
+  const included = new Set(availableModules(entitled));
   return (
-    <RecordSection
-      title="Entitlements"
-      description={
-        <>
-          Revision {entitled.revision} · access {ACCESS[entitled.access]}
-          {entitled.trialEndsOn
-            ? ` · trial ends ${formatDay(entitled.trialEndsOn)}`
-            : ""}
-          {entitled.notice ? ` · ${NOTICE_NAMES[entitled.notice]}` : ""}.{" "}
-          {sold === null ? null : sold.subscriptionId ? (
-            <>
-              Its{" "}
-              <Link
-                to="/subscriptions/$subscriptionId"
-                params={{ subscriptionId: sold.subscriptionId }}
-                className="font-medium text-primary underline-offset-4 hover:underline"
-              >
-                subscription
-              </Link>{" "}
-              sets them.
-            </>
-          ) : (
-            "It has no subscription yet; the daily round gives it one that keeps what it has."
-          )}
-        </>
-      }
-      edit={
-        sold === null
-          ? {
-              label: "Edit entitlements",
-              onClick: sheet.show,
-            }
-          : undefined
-      }
-    >
-      <div className="grid gap-5">
-        <div className="flex flex-wrap gap-1.5">
-          {availableModules(entitled).map((module) => (
-            <StatusBadge key={module} tone="neutral">
-              {MODULE_NAMES[module]}
-            </StatusBadge>
+    <>
+      <RecordSection
+        variant="page"
+        title="Use"
+        description={
+          usage
+            ? `As its cell last reported, ${formatWhen(usage.measuredAt)}.`
+            : "Its cell has not reported its use yet."
+        }
+        edit={
+          sold === null
+            ? { label: "Edit entitlements", onClick: sheet.show }
+            : undefined
+        }
+      >
+        <UsageList label="Use against its limits" items={usageItems} />
+      </RecordSection>
+      <RecordSection
+        variant="page"
+        title="Allowances"
+        description="Storage each part of the school may hold, and what it may send."
+      >
+        <SummaryList items={allowances} />
+      </RecordSection>
+      <RecordSection
+        variant="page"
+        title="Modules"
+        description={
+          <>
+            {`${formatNumber(included.size)} of ${formatNumber(MODULE_IDS.length)} included, revision ${entitled.revision}. `}
+            {sold === null ? (
+              "Set here by an operator."
+            ) : sold.subscriptionId ? (
+              <>
+                Set by its{" "}
+                <Link
+                  to="/subscriptions/$subscriptionId"
+                  params={{ subscriptionId: sold.subscriptionId }}
+                  className="font-medium text-primary underline-offset-4 hover:underline"
+                >
+                  subscription
+                </Link>
+                .
+              </>
+            ) : (
+              "It has no subscription yet; the daily round gives it one that keeps what it has."
+            )}
+          </>
+        }
+      >
+        <div className="grid gap-x-10 gap-y-6 @2xl:grid-cols-2">
+          {MODULE_GROUPS.map((group) => (
+            <div key={group.title} className="grid content-start gap-2">
+              <h3 className="text-[13px] leading-[18px] font-medium text-muted-foreground">
+                {group.title}
+              </h3>
+              <ul className="grid gap-1.5">
+                {group.modules.map((module) => (
+                  <li
+                    key={module}
+                    className={cn(
+                      "flex items-center gap-2.5 text-sm leading-5",
+                      !included.has(module) && "text-muted-foreground",
+                    )}
+                  >
+                    {included.has(module) ? (
+                      <Check
+                        className="size-4 shrink-0 text-success"
+                        aria-label="Included"
+                      />
+                    ) : (
+                      <Minus
+                        className="size-4 shrink-0 text-muted-foreground/60"
+                        aria-label="Not included"
+                      />
+                    )}
+                    {MODULE_NAMES[module]}
+                  </li>
+                ))}
+              </ul>
+            </div>
           ))}
         </div>
-        <Facts short>
-          {LIMIT_KEYS.map((key) => (
-            <Fact key={key} label={LIMIT_NAMES[key]}>
-              {formatLimit(key, entitled[key])}
-            </Fact>
-          ))}
-        </Facts>
-      </div>
+      </RecordSection>
       {sold === null ? (
         <EntitlementsSheet
           key={sheet.key}
@@ -315,7 +524,7 @@ function EntitlementsSection({ school, sold }: EntitlementsSectionProps) {
           onOpenChange={sheet.onOpenChange}
         />
       ) : null}
-    </RecordSection>
+    </>
   );
 }
 
@@ -454,49 +663,11 @@ const ACCESS_TONE: Record<SchoolStanding, Tone> = {
   suspended: "danger",
 };
 
-interface AccessSectionProps {
-  tenantId: string;
-  standing: SchoolStanding;
-  group: boolean;
-}
-
-/** How far the school's people may use it, changed with a reason. */
-function AccessSection({ tenantId, standing, group }: AccessSectionProps) {
-  const sheet = useSheet();
-  return (
-    <RecordSection
-      title="Access"
-      description={`${group ? "Applies to every school of the group." : "Applies to the school."} The cell enforces it at once.`}
-      edit={{
-        label: "Change access",
-        onClick: sheet.show,
-      }}
-    >
-      <div className="grid gap-1.5">
-        <StatusBadge
-          tone={ACCESS_TONE[standing]}
-          className="justify-self-start"
-        >
-          {STANDING_NAMES[standing]}
-        </StatusBadge>
-        <p className="text-sm leading-5 text-muted-foreground">
-          {ACCESS_HINT[standing]}
-        </p>
-      </div>
-      <AccessSheet
-        key={sheet.key}
-        tenantId={tenantId}
-        standing={standing}
-        open={sheet.open}
-        onOpenChange={sheet.onOpenChange}
-      />
-    </RecordSection>
-  );
-}
-
 interface AccessSheetProps {
   tenantId: string;
   standing: SchoolStanding;
+  /** A group's access changes for every one of its schools. */
+  group: boolean;
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }
@@ -508,6 +679,7 @@ interface AccessSheetProps {
 function AccessSheet({
   tenantId,
   standing,
+  group,
   open,
   onOpenChange,
 }: AccessSheetProps) {
@@ -549,6 +721,12 @@ function AccessSheet({
         await router.invalidate();
       }}
     >
+      <p className="text-sm leading-5 text-muted-foreground">
+        {group
+          ? "It applies to every school of the group."
+          : "It applies to the school."}{" "}
+        The cell enforces it at once.
+      </p>
       <ChoiceField
         label="Access"
         value={chosen}

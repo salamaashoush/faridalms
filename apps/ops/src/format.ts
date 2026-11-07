@@ -104,6 +104,11 @@ export function formatMonth(isoDate: string): string {
   return formatMonthIn(isoDate, "label", "en");
 }
 
+/** An instant's day on the business's clock, without its year: "Nov 7". */
+export function formatShortWhen(when: string | Date): string {
+  return formatInstantIn(when, "short", BUSINESS_TIME_ZONE, "en");
+}
+
 /** A calendar day: "Sep 14, 2026". */
 export function formatDay(isoDate: string): string {
   return formatDayIn(isoDate, "medium", "en");
@@ -419,3 +424,78 @@ export const CHANGE_ACTION_NAMES: Record<string, string> = {
   "host.failing": "Host stopped routing",
   "host.removed": "Host removed",
 };
+
+/** Onboarding steps that belong together, in the order a school takes them. */
+export interface OnboardingPhase {
+  title: string;
+  items: readonly OnboardingItem[];
+}
+
+export const ONBOARDING_PHASES: readonly OnboardingPhase[] = [
+  {
+    title: "Getting started",
+    items: [
+      "kickoff_call",
+      "admin_signed_in",
+      "school_details",
+      "year_ready",
+      "classes",
+      "data_import",
+    ],
+  },
+  {
+    title: "People",
+    items: [
+      "staff_invited",
+      "staff_signed_in",
+      "students_imported",
+      "guardians_linked",
+      "families_signed_in",
+      "training",
+    ],
+  },
+  {
+    title: "Going live",
+    items: [
+      "first_assignment",
+      "first_register",
+      "website_published",
+      "custom_domain",
+      "first_invoice_paid",
+    ],
+  },
+];
+
+/** Modules that serve one part of school life. */
+export interface ModuleGroup {
+  title: string;
+  modules: readonly ModuleId[];
+}
+
+/** The modules as an operator reads them: grouped by the part of school life they serve. */
+export const MODULE_GROUPS: readonly ModuleGroup[] = [
+  {
+    title: "Teaching and learning",
+    modules: [
+      "coursework",
+      "peer_review",
+      "gradebook",
+      "standards",
+      "exams",
+      "elearning",
+      "early_years",
+      "coding",
+      "video",
+      "badges",
+    ],
+  },
+  {
+    title: "School office",
+    modules: ["attendance", "timetable", "student_records", "admissions"],
+  },
+  {
+    title: "Communication and website",
+    modules: ["news", "website", "custom_domains", "sms"],
+  },
+  { title: "Connections", modules: ["integrations", "sso"] },
+];

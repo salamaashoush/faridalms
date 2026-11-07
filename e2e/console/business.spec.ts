@@ -44,8 +44,8 @@ async function setTrial(page: Page, lastDay: string, reason: string) {
 /** Opens a school's subscription from the school's own page, where it now is. */
 async function openSubscriptionFromSchool(page: Page) {
   await page
-    .getByRole("region", { name: "Entitlements" })
-    .getByRole("link", { name: "subscription" })
+    .getByRole("region", { name: "About" })
+    .getByRole("link", { name: "Open its subscription" })
     .click();
   await expect(page).toHaveURL(/\/subscriptions\/[0-9a-f-]{36}$/);
 }
@@ -152,6 +152,8 @@ test("a trial sold with its school becomes a contract with a plan, which the sch
     nameAr: "مدرسة البتولا",
   });
   // The school's own page shows what it has and sends an operator to its subscription.
+  await page.getByRole("tab", { name: "Entitlements" }).click();
+  await expect(page.getByRole("region", { name: "Use" })).toBeVisible();
   await expect(
     page.getByRole("button", { name: "Edit entitlements" }),
   ).toHaveCount(0);
@@ -218,8 +220,14 @@ test("a trial sold with its school becomes a contract with a plan, which the sch
   ).toBeVisible();
 
   await card.getByRole("link", { name: schoolName }).click();
-  const entitlements = page.getByRole("region", { name: "Entitlements" });
-  await expect(entitlements.getByText("Coding and blocks")).toBeVisible();
+  await page.getByRole("tab", { name: "Entitlements" }).click();
+  await expect(
+    page
+      .getByRole("region", { name: "Modules" })
+      .getByRole("listitem")
+      .filter({ hasText: "Coding and blocks" })
+      .getByLabel("Included"),
+  ).toBeVisible();
 });
 
 test("a group set up as a draft is left, resumed, and finished after a refusal", async ({
@@ -234,6 +242,7 @@ test("a group set up as a draft is left, resumed, and finished after a refusal",
     nameEn: `First ${slug}`,
     nameAr: "الأولى",
   });
+  await page.getByRole("tab", { name: "Addresses" }).click();
   await page.getByRole("button", { name: "Add host" }).click();
   const host = page.getByRole("form", { name: "Add a host" });
   await host.getByLabel("Hostname").fill(taken);
@@ -322,8 +331,11 @@ test("a group set up as a draft is left, resumed, and finished after a refusal",
     page.getByText(`mona@${slug}.example.com was emailed`),
   ).toBeVisible();
   await page.getByRole("link", { name: "Open the school" }).click();
+  await page.getByRole("tab", { name: "Addresses" }).click();
   await expect(
-    page.getByRole("listitem", { name: `www.${slug}-east.example.com` }),
+    page.getByRole("region", { name: "Web addresses" }).getByRole("row", {
+      name: new RegExp(`www\\.${slug}-east\\.example\\.com`),
+    }),
   ).toContainText("Pending");
 });
 

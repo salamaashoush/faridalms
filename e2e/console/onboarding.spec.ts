@@ -38,17 +38,15 @@ test("a new school's first steps show to its operators and its administrators al
   await row.getByRole("link", { name: schoolName }).click();
 
   // The operator's own step, ticked off on the school's page.
-  const onboarding = page.getByRole("region", { name: "Onboarding" });
-  await hydrated(onboarding.getByRole("list"));
-  const call = onboarding
-    .getByRole("listitem")
-    .filter({ hasText: "Kick-off call" });
-  await expect(call).toContainText("Not yet");
-  await call.getByRole("button", { name: "Tick off Kick-off call" }).click();
-  await expect(call).toContainText("Ticked by an operator");
+  const started = page.getByRole("region", { name: "Getting started" });
+  const call = started.getByRole("checkbox", { name: "Kick-off call" });
+  await hydrated(call);
+  await expect(call).not.toBeChecked();
+  await call.click();
+  await expect(call).toBeChecked();
   await expect(
-    call.getByRole("button", { name: "Untick Kick-off call" }),
-  ).toBeVisible();
+    started.getByRole("listitem").filter({ hasText: "Kick-off call" }),
+  ).toContainText("ticked by us");
 
   // The school's administrators see the same steps on their Today page.
   const { page: school, context } = await schoolAdministrator(browser, slug);

@@ -4,10 +4,10 @@ import {
   isOperatorItem,
   ONBOARDING_SOURCE,
 } from "@faridalms/domain/onboarding";
-import { Button } from "@faridalms/ui/button";
+import { Checkbox } from "@faridalms/ui/checkbox";
+import { cn } from "@faridalms/ui/cn";
 import { Progress } from "@faridalms/ui/progress";
-import { RecordList, RecordSection } from "@faridalms/ui/system/record-page";
-import { StatusText } from "@faridalms/ui/system/status";
+import { RecordSection } from "@faridalms/ui/system/record-page";
 import { useRouter } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { Check, Circle } from "lucide-react";
@@ -18,79 +18,56 @@ import type { SchoolHealth } from "../server/health";
 
 import { attempt } from "../actions";
 import {
+  formatShortWhen,
   formatWhen,
-  HEALTH_REASON_NAMES,
   ONBOARDING_ITEM_NAMES,
+  ONBOARDING_PHASES,
 } from "../format";
 import { useMay } from "../may";
 import { markOnboardingStep } from "../server/directory";
-import { HEALTH_TONE, HealthBadge } from "./Health";
 
 const SOURCE_HINT = {
-  measured: "Seen in its data",
-  billing: "From billing",
-  operator: "Ticked by an operator",
+  measured: "seen in its data",
+  billing: "from billing",
+  operator: "ticked by us",
 } as const;
 
-interface TickProps {
+interface StepCheckProps {
   schoolId: string;
   item: OperatorItem;
   done: boolean;
 }
 
-function Tick({ schoolId, item, done }: TickProps) {
+/** One of an operator's own steps, ticked off where it is listed. */
+function StepCheck({ schoolId, item, done }: StepCheckProps) {
   const router = useRouter();
   const mark = useServerFn(markOnboardingStep);
   const [saving, setSaving] = useState(false);
   return (
-    <Button
-      type="button"
-      size="sm"
-      variant={done ? "ghost" : "outline"}
+    <Checkbox
+      checked={done}
       disabled={saving}
-      aria-label={`${done ? "Untick" : "Tick off"} ${ONBOARDING_ITEM_NAMES[item]}`}
-      onClick={async () => {
+      aria-label={ONBOARDING_ITEM_NAMES[item]}
+      onCheckedChange={async (checked) => {
         setSaving(true);
         const failed = await attempt(
-          () => mark({ data: { schoolId, item, done: !done } }),
+          () => mark({ data: { schoolId, item, done: checked } }),
           "The step could not be changed.",
         );
         if (failed) toast.error(failed);
         else await router.invalidate();
         setSaving(false);
       }}
-    >
-      {done ? "Untick" : "Done"}
-    </Button>
+    />
   );
 }
 
-export interface HealthSectionProps {
-  health: SchoolHealth;
-}
-
-/** How the school is doing, and why when it is not well. */
-export function HealthSection({ health }: HealthSectionProps) {
-  return (
-    <RecordSection title="Health" action={<HealthBadge level={health.level} />}>
-      {health.reasons.length ? (
-        <ul className="grid gap-2">
-          {health.reasons.map((reason) => (
-            <li key={reason}>
-              <StatusText tone={HEALTH_TONE[health.level]}>
-                {HEALTH_REASON_NAMES[reason]}
-              </StatusText>
-            </li>
-          ))}
-        </ul>
-      ) : (
-        <p className="text-sm leading-5 text-muted-foreground">
-          Busy through the week, its bills paid and its steps under way.
-        </p>
-      )}
-    </RecordSection>
-  );
-}
+/** Who takes a step not yet taken. */
+const WHO_TAKES = {
+  measured: "The school",
+  billing: "Billing",
+  operator: "Us",
+} as const;
 
 export interface OnboardingSectionProps {
   schoolId: string;
@@ -100,8 +77,9 @@ export interface OnboardingSectionProps {
 }
 
 /**
- * How far through its first steps the school is: each step with the day it
- * was first taken, and the operator's own steps to tick off.
+ * The school's first steps in the phases a school takes them: each phase's
+ * progress, and in it each step with the day it was taken or who takes it
+ * next. The operator's own steps are ticked off in place.
  */
 export function OnboardingSection({
   schoolId,
@@ -109,73 +87,88 @@ export function OnboardingSection({
   measuredAt,
 }: OnboardingSectionProps) {
   const mayTick = useMay("tenants");
-  const { applies, reached, stalled } = health.onboarding;
-  const done = applies.filter((item) => reached[item]).length;
+  const { applies, reached } = health.onboarding;
   return (
     <RecordSection
-      title="Onboarding"
+      variant="page"
+      title="Steps to going live"
       description={`Its cell checks its data once a day, ${
         measuredAt ? `last ${formatWhen(measuredAt)}` : "and has not yet"
-      }; the school's administrators see the same list on their Today page as it stands now.`}
+      }. The school's administrators see the same steps on their Today page.`}
     >
-      <div className="mb-4 grid gap-2">
-        <div className="flex items-baseline justify-between gap-3 text-sm leading-5">
-          <span className="font-medium tabular-nums">
-            {done} of {applies.length} steps taken
-          </span>
-          {stalled ? (
-            <StatusText tone="warning">None in the last fortnight</StatusText>
-          ) : null}
-        </div>
-        <Progress
-          value={applies.length ? (done / applies.length) * 100 : 0}
-          aria-label={`${done} of ${applies.length} steps taken`}
-        />
-      </div>
-      <RecordList>
-        {applies.map((item) => {
-          const step = reached[item];
+      <div className="grid gap-4 @2xl:grid-cols-3">
+        {ONBOARDING_PHASES.map((phase) => {
+          const items = phase.items.filter((item) => applies.includes(item));
+          if (items.length === 0) return null;
+          const done = items.filter((item) => reached[item]).length;
           return (
-            <li
-              key={item}
-              className="flex flex-wrap items-center justify-between gap-2 py-2.5"
+            <section
+              key={phase.title}
+              aria-label={phase.title}
+              className="grid content-start gap-3 rounded-lg bg-muted/40 p-4"
             >
-              <span className="flex min-w-0 items-start gap-3">
-                {step ? (
-                  <Check
-                    className="mt-0.5 size-4 shrink-0 text-success"
-                    aria-hidden
-                  />
-                ) : (
-                  <Circle
-                    className="mt-0.5 size-4 shrink-0 text-muted-foreground/60"
-                    aria-hidden
-                  />
-                )}
-                <span className="grid">
-                  <span
-                    className={
-                      step
-                        ? "text-sm leading-5"
-                        : "text-sm leading-5 text-muted-foreground"
-                    }
-                  >
-                    {ONBOARDING_ITEM_NAMES[item]}
+              <div className="grid gap-2">
+                <div className="flex items-baseline justify-between gap-3">
+                  <h3 className="text-sm leading-5 font-semibold">
+                    {phase.title}
+                  </h3>
+                  <span className="text-[13px] leading-[18px] text-muted-foreground tabular-nums">
+                    {done} of {items.length}
                   </span>
-                  <span className="text-[13px] leading-[18px] text-muted-foreground">
-                    {step
-                      ? `${formatWhen(step.at)} · ${SOURCE_HINT[ONBOARDING_SOURCE[item]]}`
-                      : "Not yet"}
-                  </span>
-                </span>
-              </span>
-              {mayTick && isOperatorItem(item) ? (
-                <Tick schoolId={schoolId} item={item} done={Boolean(step)} />
-              ) : null}
-            </li>
+                </div>
+                <Progress
+                  value={(done / items.length) * 100}
+                  aria-label={`${phase.title}: ${done} of ${items.length}`}
+                />
+              </div>
+              <ul className="grid gap-2.5">
+                {items.map((item) => {
+                  const step = reached[item];
+                  const source = ONBOARDING_SOURCE[item];
+                  return (
+                    <li key={item} className="flex items-start gap-2.5">
+                      <span className="mt-0.5 grid size-4 shrink-0 place-items-center">
+                        {mayTick && isOperatorItem(item) ? (
+                          <StepCheck
+                            schoolId={schoolId}
+                            item={item}
+                            done={Boolean(step)}
+                          />
+                        ) : step ? (
+                          <Check
+                            className="size-4 text-success"
+                            aria-label="Done"
+                          />
+                        ) : (
+                          <Circle
+                            className="size-4 text-muted-foreground/50"
+                            aria-label="Not yet"
+                          />
+                        )}
+                      </span>
+                      <span className="grid min-w-0">
+                        <span
+                          className={cn(
+                            "text-sm leading-5",
+                            !step && "text-muted-foreground",
+                          )}
+                        >
+                          {ONBOARDING_ITEM_NAMES[item]}
+                        </span>
+                        <span className="text-[13px] leading-[18px] text-muted-foreground">
+                          {step
+                            ? `${formatShortWhen(step.at)} · ${SOURCE_HINT[source]}`
+                            : WHO_TAKES[source]}
+                        </span>
+                      </span>
+                    </li>
+                  );
+                })}
+              </ul>
+            </section>
           );
         })}
-      </RecordList>
+      </div>
     </RecordSection>
   );
 }

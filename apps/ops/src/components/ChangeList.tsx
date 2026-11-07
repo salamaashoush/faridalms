@@ -1,6 +1,8 @@
 import type { Change, JsonValue } from "@faridalms/database/directory/admin";
+import type { Column } from "@faridalms/ui/system/data-table";
 
-import { RecordEmpty, RecordList } from "@faridalms/ui/system/record-page";
+import { DataTable } from "@faridalms/ui/system/data-table";
+import { History } from "lucide-react";
 
 import {
   CHANGE_ACTION_NAMES,
@@ -107,36 +109,84 @@ export interface ChangeListProps {
   subjectName?: (change: Change) => string;
 }
 
-/** The change log, newest first: who did what, what moved, and why. */
-export function ChangeList({ changes, names, subjectName }: ChangeListProps) {
-  if (changes.length === 0) return <RecordEmpty>No changes yet.</RecordEmpty>;
-  return (
-    <RecordList>
-      {changes.map((change) => {
+/** How a change is named: its action, and its record where a list spans several. */
+const describedBy =
+  (subjectName?: (change: Change) => string) => (change: Change) =>
+    `${subjectName ? `${subjectName(change)}: ` : ""}${CHANGE_ACTION_NAMES[change.action] ?? change.action}`;
+
+function changeColumns(
+  what: (change: Change) => string,
+  names: Record<string, string>,
+): Column<Change>[] {
+  return [
+    {
+      id: "what",
+      header: "Change",
+      primary: true,
+      cell: (change) => {
         const moved = differences(change);
         return (
-          <li key={change.id} className="grid gap-1 py-3">
-            <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-0.5">
-              <span className="text-sm leading-5 font-medium">
-                {subjectName ? `${subjectName(change)}: ` : ""}
-                {CHANGE_ACTION_NAMES[change.action] ?? change.action}
+          <span className="grid min-w-0 py-2.5">
+            <span className="truncate font-medium">{what(change)}</span>
+            {moved.map((line) => (
+              <span
+                key={line}
+                className="truncate text-[13px] leading-[18px] text-muted-foreground"
+              >
+                {line}
               </span>
-              <span className="text-[13px] leading-[18px] text-muted-foreground">
-                {formatWhen(change.occurredAt)} ·{" "}
-                {actorName(change.actor, names)}
-              </span>
-            </div>
-            {moved.length ? (
-              <ul className="grid gap-0.5 text-[13px] leading-[18px] text-muted-foreground">
-                {moved.map((line) => (
-                  <li key={line}>{line}</li>
-                ))}
-              </ul>
-            ) : null}
-            <p className="text-sm leading-5">{change.reason}</p>
-          </li>
+            ))}
+          </span>
         );
-      })}
-    </RecordList>
+      },
+    },
+    {
+      id: "why",
+      header: "Why",
+      className: "w-64 min-w-48 whitespace-normal",
+      cell: (change) => change.reason,
+    },
+    {
+      id: "who",
+      header: "By",
+      cell: (change) => actorName(change.actor, names),
+    },
+    {
+      id: "when",
+      header: "When",
+      align: "end",
+      cell: (change) => (
+        <time dateTime={change.occurredAt} className="text-muted-foreground">
+          {formatWhen(change.occurredAt)}
+        </time>
+      ),
+    },
+  ];
+}
+
+/**
+ * The change log as an audit table, newest first: what was done and what it
+ * moved, why, by whom and when. On a phone each change is a card.
+ */
+export function ChangeList({ changes, names, subjectName }: ChangeListProps) {
+  const what = describedBy(subjectName);
+  const columns = changeColumns(what, names);
+  return (
+    <DataTable
+      caption="Changes"
+      rows={changes}
+      columns={columns}
+      rowLabel={what}
+      card={{
+        title: (change) => what(change),
+        fact: (change) =>
+          `${formatWhen(change.occurredAt)} · ${actorName(change.actor, names)} · ${change.reason}`,
+      }}
+      empty={{
+        icon: History,
+        title: "No changes yet",
+        description: "Each change to it shows here with who made it and why.",
+      }}
+    />
   );
 }
