@@ -301,6 +301,10 @@ export interface EditorStrings
   pictureSearch: string;
   pictureNone: string;
   pictureUpload: string;
+  libraryChoose: string;
+  libraryKeep: string;
+  libraryKept: string;
+  libraryKeepFailed: string;
   questionWhyHint: string;
   questionWhyPrompt: string;
   ltiTool: string;

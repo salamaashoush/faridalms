@@ -20,7 +20,7 @@ import {
 import { RotateCcw, X } from "lucide-react";
 import { useEffect, useEffectEvent, useRef, useState } from "react";
 
-import type { UploadedFile } from "../context";
+import type { LibraryChoice, UploadedFile } from "../context";
 import type { EditorStrings } from "../strings";
 import type { TakeTrim } from "../video-recorder";
 
@@ -48,10 +48,10 @@ export const RECORD_VIDEO_COMMAND = createCommand<undefined>(
   "FARIDA_RECORD_VIDEO",
 );
 
-/** What a picture from an open collection brings with it. */
+/** What a picture from an open collection or the school's library brings with it. */
 interface Described {
   alt: string;
-  credit: PictureCredit;
+  credit?: PictureCredit | undefined;
 }
 
 function $insertUploaded(
@@ -296,6 +296,25 @@ export function MediaPlugin({
     return () => window.removeEventListener("beforeunload", leave);
   }, [busy]);
 
+  // Chosen from the library, files land where the block was asked for, in
+  // the order chosen, as uploads do.
+  const placeChosen = useEffectEvent(
+    (target: MediaKind, chosen: LibraryChoice[]) => {
+      const showing = editorInSlot(slot.current) ?? editor;
+      showing.update(() => {
+        for (const item of chosen)
+          anchor.current = $insertUploaded(
+            showing === editor ? anchor.current : null,
+            target,
+            item,
+            target === "image"
+              ? { alt: item.alt, credit: item.credit }
+              : undefined,
+          );
+      });
+    },
+  );
+
   useEffect(() => {
     if (!media) return undefined;
     return editor.registerCommand(
@@ -303,7 +322,22 @@ export function MediaPlugin({
       (next) => {
         anchor.current = $anchorFor("image")?.getKey() ?? null;
         setKind(next);
-        queueMicrotask(() => input.current?.click());
+        const library = media.library;
+        if (!library) {
+          queueMicrotask(() => input.current?.click());
+          return true;
+        }
+        library
+          .choose(next, {
+            multiple: true,
+            upload: () => input.current?.click(),
+          })
+          .then(
+            (chosen) => {
+              if (chosen?.length) placeChosen(next, chosen);
+            },
+            () => undefined,
+          );
         return true;
       },
       COMMAND_PRIORITY_LOW,

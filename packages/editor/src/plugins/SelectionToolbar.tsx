@@ -231,6 +231,7 @@ import {
   shortcutLabel,
 } from "../ui";
 import { FootnotePanel } from "./footnote-panel";
+import { KeepInLibrary } from "./library";
 import { NarrationPanel, OPEN_NARRATION_COMMAND } from "./narration";
 import { PictureLibrary, pictureFile } from "./picture-library";
 import { RegionPad } from "./regions";
@@ -1546,6 +1547,12 @@ export function SelectionToolbarPlugin() {
                   {strings.picturePeople}
                 </button>
               ) : null}
+              <KeepInLibrary
+                key={pictureId}
+                nodeKey={layout.key}
+                fileId={pictureId}
+                className="inline-flex h-8 items-center gap-1.5 rounded-md px-2 text-sm font-medium text-foreground/80 hover:bg-accent hover:text-foreground disabled:opacity-60 [&_svg]:size-4"
+              />
               {separator}
             </>
           ) : null}

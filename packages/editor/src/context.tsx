@@ -1,3 +1,4 @@
+import type { PictureCredit } from "@faridalms/domain/commons";
 import type { ContentDocument, Mention } from "@faridalms/domain/content";
 import type { SpeechLanguage } from "@faridalms/domain/file";
 import type { LtiPick } from "@faridalms/domain/lti";
@@ -33,6 +34,41 @@ export interface UploadOptions {
   trim?: { startMs: number; endMs: number };
 }
 
+/**
+ * An item of the school's media library as a document shows it: the
+ * file, and the description and credit the library keeps, which a use
+ * starts from and may say otherwise.
+ */
+export interface LibraryChoice extends UploadedFile {
+  alt: string;
+  credit?: PictureCredit;
+}
+
+/** What a choice may be: pictures, sound and video, video alone, or any file. */
+export type LibraryKind = "image" | "media" | "video" | "file";
+
+export interface LibraryChooseOptions {
+  multiple?: boolean;
+  /** Offers the device's own files beside the library's, as a block's upload. */
+  upload?: () => void;
+}
+
+/**
+ * The school's media library. `choose` opens it on items of a kind and
+ * resolves to those chosen, or null when nothing was; `keep` keeps a
+ * picture shown in the document in the library too, with its words.
+ */
+export interface EditorLibrary {
+  choose: (
+    kind: LibraryKind,
+    options?: LibraryChooseOptions,
+  ) => Promise<LibraryChoice[] | null>;
+  keep?: (
+    fileId: string,
+    words: { alt: string; credit?: PictureCredit },
+  ) => Promise<void>;
+}
+
 /** An open picture a teacher may copy into the school. */
 export interface LibraryPicture {
   source: string;
@@ -62,6 +98,8 @@ export interface EditorMedia {
    * selected picture.
    */
   people?: (fileId: string) => void;
+  /** The school's media library, where the writer may choose from it. */
+  library?: EditorLibrary;
   /**
    * Whether a recording's ends can be cut off before it is kept, which
    * takes the school's media service to do.

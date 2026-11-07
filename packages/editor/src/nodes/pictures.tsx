@@ -18,7 +18,7 @@ import { useLexicalComposerContext } from "@lexical/react/LexicalComposerContext
 import { DecoratorBlockNode } from "@lexical/react/LexicalDecoratorBlockNode";
 import { useLexicalEditable } from "@lexical/react/useLexicalEditable";
 import { $getDocument, $getNodeByKey } from "lexical";
-import { ArrowLeft, ArrowRight, ImagePlus, X } from "lucide-react";
+import { ArrowLeft, ArrowRight, ImagePlus, Images, X } from "lucide-react";
 import { useRef, useState } from "react";
 
 import { useEditorEnvironment } from "../context";
@@ -235,6 +235,32 @@ function GalleryBlock({
                 ? strings.galleryUploading(uploading)
                 : strings.galleryAdd}
             </button>
+            {media.library ? (
+              <button
+                type="button"
+                onClick={() => {
+                  void media.library
+                    ?.choose("image", { multiple: true })
+                    .then((chosen) => {
+                      if (!chosen?.length) return;
+                      change((current) =>
+                        [
+                          ...current,
+                          ...chosen.map((item) => ({
+                            fileId: item.fileId,
+                            alt: item.alt,
+                            caption: "",
+                          })),
+                        ].slice(0, MAX_GALLERY_PICTURES),
+                      );
+                    });
+                }}
+                className="inline-flex h-8 items-center gap-1.5 rounded-md px-2.5 text-sm font-medium text-foreground/80 hover:bg-accent hover:text-foreground [&_svg]:size-4"
+              >
+                <Images aria-hidden />
+                {strings.libraryChoose}
+              </button>
+            ) : null}
             {failed ? (
               <p role="alert" className="text-xs text-destructive">
                 {strings.uploadFailed}
