@@ -909,6 +909,16 @@ export function AssignmentEditor({
             setReplace((current) => ({ to, at: (current?.at ?? 0) + 1 }));
           },
         }}
+        comments={
+          storedId
+            ? {
+                hostType: "assignment",
+                hostId: storedId,
+                editor: "work-brief",
+                part: writing === "translation" ? "translation" : "body",
+              }
+            : undefined
+        }
         history={
           storedId
             ? {

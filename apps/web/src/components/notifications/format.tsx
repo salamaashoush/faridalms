@@ -169,6 +169,15 @@ export function noticeText(notice: Notice): { title: string; body: string } {
           .join(" · "),
       };
     case "mention":
+      if (params.comment)
+        return {
+          title: m.ntfCommentMention({
+            name:
+              both(params.actorName, params.actorNameAr) ||
+              inLocale(notice.actorNameEn, notice.actorNameAr),
+          }),
+          body: [title, params.preview].filter(Boolean).join(" · "),
+        };
       return {
         title: m.ntfMention({
           name:
@@ -330,6 +339,93 @@ export const MESSAGES = {
 
 type Passed = Omit<ComponentProps<"a">, "href" | "children">;
 
+/**
+ * The thread a comment mentioning the reader is in, opened in the editor
+ * of the record it is about; the editor's own page decides who may.
+ */
+function CommentedIn({
+  notice,
+  children,
+  ...rest
+}: Passed & { notice: Notice; children: ReactNode }) {
+  const id = notice.subjectId;
+  const hash = notice.params.threadId
+    ? `thread-${notice.params.threadId}`
+    : undefined;
+  const parentId = notice.params.parentId;
+  switch (notice.subjectType) {
+    case "lesson":
+      return parentId ? (
+        <Link
+          {...rest}
+          to="/teach/lesson-editor"
+          search={{ id, moduleId: parentId }}
+          hash={hash}
+        >
+          {children}
+        </Link>
+      ) : null;
+    case "module_plan":
+      return (
+        <Link
+          {...rest}
+          to="/teach/module-plan"
+          search={{ moduleId: id }}
+          hash={hash}
+        >
+          {children}
+        </Link>
+      );
+    case "assignment":
+      return (
+        <Link
+          {...rest}
+          to="/teach/assignment-editor"
+          search={{ id }}
+          hash={hash}
+        >
+          {children}
+        </Link>
+      );
+    case "news":
+      return (
+        <Link {...rest} to="/news-editor" search={{ id }} hash={hash}>
+          {children}
+        </Link>
+      );
+    case "announcement":
+      return (
+        <Link
+          {...rest}
+          to="/admin/announcement-editor"
+          search={{ id }}
+          hash={hash}
+        >
+          {children}
+        </Link>
+      );
+    case "calendar_event":
+      return (
+        <Link {...rest} to="/event-editor" search={{ id }} hash={hash}>
+          {children}
+        </Link>
+      );
+    case "privacy_notice":
+      return parentId ? (
+        <Link
+          {...rest}
+          to="/consent-form-editor"
+          search={{ purpose: parentId }}
+          hash={hash}
+        >
+          {children}
+        </Link>
+      ) : null;
+    default:
+      return null;
+  }
+}
+
 /** The lesson, assignment, news or announcement that mentions the reader. */
 function MentionedIn({
   notice,
@@ -337,6 +433,12 @@ function MentionedIn({
   ...rest
 }: Passed & { notice: Notice; children: ReactNode }) {
   const id = notice.subjectId;
+  if (notice.params.comment)
+    return (
+      <CommentedIn notice={notice} {...rest}>
+        {children}
+      </CommentedIn>
+    );
   switch (notice.subjectType) {
     case "lesson":
       return (

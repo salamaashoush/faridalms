@@ -612,6 +612,16 @@ export function LessonEditor({
           starters: earlyYears && draft.young ? media : undefined,
           builtIn: earlyYears && draft.young ? undefined : patternGroup(),
         }}
+        comments={
+          storedId
+            ? {
+                hostType: "lesson",
+                hostId: storedId,
+                editor: "lesson-body",
+                part: writing === "translation" ? "translation" : "body",
+              }
+            : undefined
+        }
         history={
           storedId
             ? {

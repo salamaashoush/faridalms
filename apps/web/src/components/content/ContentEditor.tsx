@@ -8,6 +8,7 @@ import { useHydrated } from "@tanstack/react-router";
 import { lazy, Suspense, useMemo, useState } from "react";
 
 import { useEditorStudio } from "~/components/coding/useEditorStudio";
+import { useEditorComments } from "~/components/content/comments/DocumentComments";
 import { useEditorTools } from "~/components/content/lti";
 import {
   useEditorMentions,
@@ -108,6 +109,7 @@ export function ContentEditor({
   );
   const mentions = useEditorMentions(useMentionNames(value));
   const tools = useEditorTools();
+  const comments = useEditorComments(id);
   const { arabicMath } = useCurrentUser().school;
   const document = variant === "document";
   // Lexical needs a DOM, so the server draws the document in the editor's own
@@ -157,6 +159,7 @@ export function ContentEditor({
           shared={sharing.shared}
           mentions={mentions}
           tools={tools}
+          comments={comments}
           placeholder={placeholder}
           initialFocus={initialFocus}
           strings={strings}

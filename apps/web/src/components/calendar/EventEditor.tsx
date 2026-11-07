@@ -474,6 +474,16 @@ export function EventEditor({
     <>
       <DocumentPage
         heading={existing ? m.calEditTitle() : m.calNewTitle()}
+        comments={
+          storedId
+            ? {
+                hostType: "calendar_event",
+                hostId: storedId,
+                editor: "event-body",
+                part: translating ? "translation" : "body",
+              }
+            : undefined
+        }
         templates={{
           kind: "event",
           empty: !contentPlainText(draft.description).trim(),

@@ -340,6 +340,16 @@ export function ConsentFormEditor({
     <>
       <DocumentPage
         heading={m.consentFormEditing()}
+        comments={
+          data.draft
+            ? {
+                hostType: "privacy_notice",
+                hostId: data.draft.id,
+                editor: translating ? "consent-translation" : "consent-body",
+                part: translating ? "translation" : "body",
+              }
+            : undefined
+        }
         templates={{
           kind: "consent_form",
           empty: unwritten(translating ? draft.translation : draft.body, shown),

@@ -351,6 +351,8 @@ export function getMessageFromError(error: unknown): string {
         return m.errorScoreRange();
       case "coursework.comment_author":
         return m.errorCourseworkCommentAuthor();
+      case "comments.author":
+        return m.errorCommentsAuthor();
       case "gradebook.not_in_class":
         return m.errorGradebookNotInClass();
       case "file.not_attachable":

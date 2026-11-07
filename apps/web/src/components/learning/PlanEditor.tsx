@@ -261,6 +261,11 @@ export function PlanEditor({ moduleId, template, onClose }: PlanEditorProps) {
           onApply: apply,
           builtIn: plannerGroup(),
         }}
+        comments={
+          plan.content
+            ? { hostType: "module_plan", hostId: moduleId, editor: "plan-body" }
+            : undefined
+        }
         history={
           plan.content
             ? {

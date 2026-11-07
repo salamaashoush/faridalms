@@ -577,6 +577,16 @@ export function BroadcastEditor({
           onApply: replaceBody,
           ...(builtIn ? { builtIn } : {}),
         }}
+        comments={
+          stored
+            ? {
+                hostType: kind,
+                hostId: storedId,
+                editor: field(translating ? "translation" : "body"),
+                part: translating ? "translation" : "body",
+              }
+            : undefined
+        }
         history={
           stored
             ? {

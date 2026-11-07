@@ -34,6 +34,7 @@ import {
 import { createContext, useContext, useRef, useState } from "react";
 import { toast } from "sonner";
 
+import type { CommentsHost } from "~/components/content/comments/DocumentComments";
 import type { HeldEditing } from "~/components/content/held-document";
 import type {
   BuiltInGroup,
@@ -42,6 +43,12 @@ import type {
 import type { Printable } from "~/components/print/usePrint";
 import type { SaveState } from "~/hooks/useAutosave";
 
+import {
+  CommentsPanel,
+  CommentsRoom,
+  CommentsToggle,
+  DocumentCommentsProvider,
+} from "~/components/content/comments/DocumentComments";
 import { DocumentHistory } from "~/components/content/DocumentHistory";
 import {
   SaveTemplateDialog,
@@ -201,6 +208,8 @@ export interface DocumentPageProps {
   };
   /** The document as it prints, from the menu; answers only for its teachers. */
   print?: Printable;
+  /** Comments its writers leave each other, once the record is stored. */
+  comments?: CommentsHost;
   /** Templates of this kind: offered on an empty document, and kept from the menu. */
   templates?: {
     kind: DocumentTemplateKind;
@@ -248,6 +257,7 @@ export function DocumentPage({
   history,
   templates,
   print,
+  comments,
   title,
   aside,
   summary = [],
@@ -307,7 +317,7 @@ export function DocumentPage({
   // is chosen, so the sheet starts at its title.
   const sheetTitle = useRef<HTMLHeadingElement>(null);
   return (
-    <>
+    <DocumentCommentsProvider host={comments}>
       <PageActions
         leading={
           <Tooltip>
@@ -375,60 +385,64 @@ export function DocumentPage({
             ) : null}
           </>
         )}
+        <CommentsToggle />
         <ActionMenu label={m.docMoreActions()} actions={actions} />
       </PageActions>
       <h1 className="sr-only">{heading}</h1>
-      <div
-        className={cn(
-          "mx-auto grid w-full max-w-[1080px] grid-cols-[minmax(0,1fr)] gap-x-12 gap-y-6",
-          aside
-            ? "[grid-template-areas:'title'_'summary'_'body'] lg:grid-cols-[minmax(0,1fr)_280px] lg:[grid-template-areas:'title_title'_'body_aside']"
-            : "max-w-[720px] [grid-template-areas:'title'_'body']",
-        )}
-      >
-        <div className="grid max-w-[720px] min-w-0 gap-3 [grid-area:title]">
-          {editing?.notice}
-          <Reading value={reading}>{title}</Reading>
-          {templates?.empty && !reading ? (
-            <TemplatePicker
-              kind={templates.kind}
-              onApply={templates.onApply}
-              starters={templates.starters}
-              builtIn={templates.builtIn}
-            />
+      <CommentsRoom>
+        <div
+          className={cn(
+            "mx-auto grid w-full max-w-[1080px] grid-cols-[minmax(0,1fr)] gap-x-12 gap-y-6",
+            aside
+              ? "[grid-template-areas:'title'_'summary'_'body'] lg:grid-cols-[minmax(0,1fr)_280px] lg:[grid-template-areas:'title_title'_'body_aside']"
+              : "max-w-[720px] [grid-template-areas:'title'_'body']",
+          )}
+        >
+          <div className="grid max-w-[720px] min-w-0 gap-3 [grid-area:title]">
+            {editing?.notice}
+            <Reading value={reading}>{title}</Reading>
+            {templates?.empty && !reading ? (
+              <TemplatePicker
+                kind={templates.kind}
+                onApply={templates.onApply}
+                starters={templates.starters}
+                builtIn={templates.builtIn}
+              />
+            ) : null}
+          </div>
+          {aside ? (
+            <button
+              type="button"
+              aria-haspopup="dialog"
+              onClick={() => setOpen(true)}
+              className="flex min-h-11 w-full min-w-0 items-center gap-3 rounded-lg border bg-card px-3 text-start text-sm [grid-area:summary] hover:bg-muted/50 lg:hidden"
+            >
+              <SlidersHorizontal
+                className="size-4 shrink-0 text-muted-foreground"
+                aria-hidden
+              />
+              <span className="shrink-0 font-medium">{m.docDetails()}</span>
+              <span className="min-w-0 flex-1 truncate text-muted-foreground">
+                {summary.filter(Boolean).join(" · ")}
+              </span>
+              <ChevronDown
+                className="size-4 shrink-0 text-muted-foreground"
+                aria-hidden
+              />
+            </button>
           ) : null}
+          {aside && !inSheet ? (
+            <aside
+              inert={reading}
+              className="min-w-0 [grid-area:aside] max-lg:hidden lg:sticky lg:top-16 lg:self-start"
+            >
+              {aside}
+            </aside>
+          ) : null}
+          <div className="min-w-0 pb-24 [grid-area:body]">{children}</div>
         </div>
-        {aside ? (
-          <button
-            type="button"
-            aria-haspopup="dialog"
-            onClick={() => setOpen(true)}
-            className="flex min-h-11 w-full min-w-0 items-center gap-3 rounded-lg border bg-card px-3 text-start text-sm [grid-area:summary] hover:bg-muted/50 lg:hidden"
-          >
-            <SlidersHorizontal
-              className="size-4 shrink-0 text-muted-foreground"
-              aria-hidden
-            />
-            <span className="shrink-0 font-medium">{m.docDetails()}</span>
-            <span className="min-w-0 flex-1 truncate text-muted-foreground">
-              {summary.filter(Boolean).join(" · ")}
-            </span>
-            <ChevronDown
-              className="size-4 shrink-0 text-muted-foreground"
-              aria-hidden
-            />
-          </button>
-        ) : null}
-        {aside && !inSheet ? (
-          <aside
-            inert={reading}
-            className="min-w-0 [grid-area:aside] max-lg:hidden lg:sticky lg:top-16 lg:self-start"
-          >
-            {aside}
-          </aside>
-        ) : null}
-        <div className="min-w-0 pb-24 [grid-area:body]">{children}</div>
-      </div>
+      </CommentsRoom>
+      <CommentsPanel />
       {aside ? (
         <Sheet open={inSheet} onOpenChange={setOpen}>
           <SheetContent
@@ -484,7 +498,7 @@ export function DocumentPage({
           }}
         />
       ) : null}
-    </>
+    </DocumentCommentsProvider>
   );
 }
 
