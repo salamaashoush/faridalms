@@ -1708,31 +1708,44 @@ function $isEmptyParagraph(node: LexicalNode | null): node is ElementNode {
   return $isParagraphNode(node) && node.getTextContentSize() === 0;
 }
 
+/** The line a new block takes: the anchor when it is empty, else a new line after it. */
+function $lineAfter(anchor: LexicalNode): LexicalNode {
+  if ($isEmptyParagraph(anchor)) return anchor;
+  const paragraph = $createParagraphNode();
+  anchor.insertAfter(paragraph);
+  return paragraph;
+}
+
+/**
+ * Puts a block made outside the menu, such as a table of a chosen size, on
+ * the line a menu block would take, with a line after it to type on.
+ */
+export function $placeBlock<T extends LexicalNode>(
+  structure: T,
+  anchor: LexicalNode | null,
+): T | null {
+  if (!anchor) return null;
+  $lineAfter(anchor).replace(structure);
+  if (!structure.getNextSibling())
+    structure.insertAfter($createParagraphNode());
+  $selectInside(structure);
+  return structure;
+}
+
 export function $insertBlock(
   type: BlockType,
   anchor: LexicalNode | null = $anchorFor(type),
 ): LexicalNode | null {
   if (!anchor) return null;
-  let target: LexicalNode = anchor;
-  if (!$isEmptyParagraph(target)) {
-    const paragraph = $createParagraphNode();
-    target.insertAfter(paragraph);
-    target = paragraph;
-  }
   const structure = $createStructure(type);
-  if (structure) {
-    if (type === "divider") {
-      target.insertBefore(structure);
-      if ($isElementNode(target)) target.selectStart();
-      return structure;
-    }
-    target.replace(structure);
-    if (!structure.getNextSibling())
-      structure.insertAfter($createParagraphNode());
-    $selectInside(structure);
+  if (structure && type === "divider") {
+    const target = $lineAfter(anchor);
+    target.insertBefore(structure);
+    if ($isElementNode(target)) target.selectStart();
     return structure;
   }
-  const next = $turnInto(target, type);
+  if (structure) return $placeBlock(structure, anchor);
+  const next = $turnInto($lineAfter(anchor), type);
   $selectInside(next);
   return next;
 }

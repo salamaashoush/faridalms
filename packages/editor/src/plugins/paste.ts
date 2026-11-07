@@ -9,6 +9,7 @@ import {
 import { $toggleLink } from "@lexical/link";
 import { $convertFromMarkdownString } from "@lexical/markdown";
 import { useLexicalComposerContext } from "@lexical/react/LexicalComposerContext";
+import { $getTableCellNodeFromLexicalNode } from "@lexical/table";
 import {
   $getSelection,
   $isParagraphNode,
@@ -19,17 +20,21 @@ import {
 } from "lexical";
 import { useEffect } from "react";
 
-import { $anchorFor } from "../blocks";
+import { $anchorFor, $placeBlock } from "../blocks";
 import { normaliseUrl } from "../formatting";
 import { markdownTransformers } from "../markdown";
 import { $createColumnNode } from "../nodes";
 import { $placeEmbed } from "./embed";
 import { INSERT_COMMONS_COMMAND } from "./media";
+import { $pasteGrid, $tableFromGrid, clipboardGrid } from "./table-grid";
 
 const MARKDOWN_BLOCK =
   /^(#{1,6}\s|[-*+]\s|\d+[.)]\s|>\s?|```|- \[[ x]\]\s|\|.+\|$)/;
 const MARKDOWN_INLINE = /\*\*[^*\n]+\*\*|\[[^\]\n]+\]\([^)\s]+\)|`[^`\n]+`/;
 const STRUCTURED_HTML = /<(p|h[1-6]|ul|ol|li|table|blockquote|pre)\b/i;
+/** What spreadsheets mark the HTML they copy with. */
+const SPREADSHEET_HTML =
+  /google-sheets-html-origin|urn:schemas-microsoft-com:office:excel|Excel\.Sheet|LibreOffice|content="?Numbers/i;
 
 /**
  * Plain text written in Markdown, as editors, chat tools and AI assistants
@@ -56,10 +61,13 @@ function $insertMarkdown(markdown: string, selection: RangeSelection) {
 }
 
 /**
- * Turns what is pasted into the block it stands for. Embed code, or an
- * embeddable link on an empty line, becomes an embed; a link pasted over
- * selected words links them; Markdown becomes headings, lists and the rest.
- * Anything else pastes as usual, links in running text becoming links.
+ * Turns what is pasted into the block it stands for. Cells copied from a
+ * spreadsheet fill the table being edited, or become a table of their own;
+ * embed code, or an embeddable link on an empty line, becomes an embed; a
+ * link pasted over selected words links them; Markdown becomes headings,
+ * lists and the rest. Anything else pastes as usual, links in running text
+ * becoming links. A table pasted into a table fills its cells, since a
+ * table cannot hold another.
  */
 export function PastePlugin() {
   const [editor] = useLexicalComposerContext();
@@ -76,6 +84,22 @@ export function PastePlugin() {
           const html = event.clipboardData.getData("text/html");
           const trimmed = text.trim();
           if (!trimmed) return false;
+          const grid = clipboardGrid(text, html);
+          if (grid) {
+            const cell = $getTableCellNodeFromLexicalNode(
+              selection.anchor.getNode(),
+            );
+            if (cell) {
+              if (!$pasteGrid(cell, grid)) return false;
+              event.preventDefault();
+              return true;
+            }
+            if (!html || SPREADSHEET_HTML.test(html)) {
+              event.preventDefault();
+              $placeBlock($tableFromGrid(grid), $anchorFor("table"));
+              return true;
+            }
+          }
           const anchor = $anchorFor("embed");
           const emptyLine =
             $isParagraphNode(anchor) && anchor.getTextContentSize() === 0;

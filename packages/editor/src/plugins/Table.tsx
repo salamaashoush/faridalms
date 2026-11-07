@@ -31,8 +31,10 @@ import {
   $isElementNode,
   $isRangeSelection,
   $setSelection,
+  COMMAND_PRIORITY_CRITICAL,
   COMMAND_PRIORITY_LOW,
   KEY_ENTER_COMMAND,
+  KEY_TAB_COMMAND,
 } from "lexical";
 import {
   AlignCenter,
@@ -42,6 +44,8 @@ import {
   AlignStartVertical,
   AlignVerticalJustifyCenter,
   ArrowDown,
+  ArrowDownToLine,
+  ArrowUpToLine,
   ArrowLeft,
   ArrowRight,
   ArrowUp,
@@ -65,6 +69,7 @@ import { backgroundColors } from "../formatting";
 import { textFocus, updateFromOutside } from "../outside";
 import { editorColors } from "../strings";
 import { cx, menuItemClass, menuPopupClass } from "../ui";
+import { $addRowFromLastCell, $lineBeside } from "./table-grid";
 
 const MIN_COLUMN = 48;
 const WIDTH_STEP = 40;
@@ -389,6 +394,28 @@ export function TablePlugin({ anchor }: { anchor: HTMLElement | null }) {
           return true;
         },
         COMMAND_PRIORITY_LOW,
+      ),
+    [editor],
+  );
+
+  useEffect(
+    () =>
+      editor.registerCommand(
+        KEY_TAB_COMMAND,
+        (event) => {
+          if (event.shiftKey) return false;
+          const selection = $getSelection();
+          if (!$isRangeSelection(selection) || !selection.isCollapsed())
+            return false;
+          const cell = $getTableCellNodeFromLexicalNode(
+            selection.anchor.getNode(),
+          );
+          if (!cell || !$addRowFromLastCell(cell)) return false;
+          event.preventDefault();
+          return true;
+        },
+        // Before the table's own Tab, which would leave the table instead.
+        COMMAND_PRIORITY_CRITICAL,
       ),
     [editor],
   );
@@ -1036,6 +1063,16 @@ function TableMenu({
               );
             })
           }
+        />
+        <Item
+          icon={ArrowUpToLine}
+          label={strings.tableLineAbove}
+          onClick={() => act((table) => $lineBeside(table, false))}
+        />
+        <Item
+          icon={ArrowDownToLine}
+          label={strings.tableLineBelow}
+          onClick={() => act((table) => $lineBeside(table, true))}
         />
         <Item
           icon={Trash2}

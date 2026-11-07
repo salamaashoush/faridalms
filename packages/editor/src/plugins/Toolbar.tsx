@@ -16,7 +16,6 @@ import {
   $insertTableColumnAtSelection,
   $insertTableRowAtSelection,
   $isTableCellNode,
-  INSERT_TABLE_COMMAND,
 } from "@lexical/table";
 import { $findMatchingParent, mergeRegister } from "@lexical/utils";
 import {
@@ -83,9 +82,8 @@ import { FindTool } from "./find";
 import { $runBlock } from "./insert";
 import { InsertTool } from "./insert-tool";
 import { SuggestTool } from "./suggest";
+import { $insertTable, TableSizePicker } from "./table-size";
 
-const inputClass =
-  "h-9 w-full rounded-md border bg-background px-2.5 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring/30 aria-invalid:border-destructive";
 const primaryButton =
   "inline-flex h-9 items-center justify-center rounded-md bg-primary px-3.5 text-sm font-medium text-primary-foreground hover:bg-primary/90";
 const secondaryButton =
@@ -772,12 +770,7 @@ function TableTools({
   /** Where the panel opens from when its own button is in the More menu. */
   anchor?: HTMLElement | null;
 }) {
-  const [editor] = useLexicalComposerContext();
   const { strings } = useEditorEnvironment();
-  const [rows, setRows] = useState("3");
-  const [columns, setColumns] = useState("3");
-  const [invalid, setInvalid] = useState(false);
-  const id = useId();
   const operations = [
     { label: strings.addRow, run: () => $insertTableRowAtSelection(true) },
     {
@@ -800,12 +793,6 @@ function TableTools({
       },
     },
   ];
-  // Opening from the More menu sets `open` without going through the root.
-  const [wasOpen, setWasOpen] = useState(open);
-  if (open !== wasOpen) {
-    setWasOpen(open);
-    if (open) setInvalid(false);
-  }
   return (
     <Popover.Root
       open={open}
@@ -833,7 +820,7 @@ function TableTools({
         >
           <Popover.Popup
             data-editor-prompt=""
-            className="w-64 rounded-lg border bg-popover p-3 text-popover-foreground shadow-lg outline-none"
+            className="max-w-[calc(100vw-1rem)] min-w-64 rounded-lg border bg-popover p-3 text-popover-foreground shadow-lg outline-none"
           >
             <Popover.Title className="mb-2 text-sm font-semibold">
               {strings.tableTools}
@@ -855,78 +842,16 @@ function TableTools({
                 ))}
               </div>
             ) : (
-              <form
-                className="grid gap-3"
-                onSubmit={(event) => {
-                  event.preventDefault();
-                  const r = Number(rows);
-                  const c = Number(columns);
-                  if (
-                    !Number.isInteger(r) ||
-                    !Number.isInteger(c) ||
-                    r < 1 ||
-                    c < 1 ||
-                    r > 50 ||
-                    c > 20
-                  ) {
-                    setInvalid(true);
-                    return;
-                  }
+              <TableSizePicker
+                strings={strings}
+                onCancel={() => setOpen(false)}
+                onInsert={(size) => {
                   setOpen(false);
                   restore(() => {
-                    const target = $anchorFor("table");
-                    if (target) target.selectEnd();
-                  });
-                  editor.dispatchCommand(INSERT_TABLE_COMMAND, {
-                    rows: String(r),
-                    columns: String(c),
-                    includeHeaders: { rows: true, columns: false },
+                    $insertTable(size);
                   });
                 }}
-              >
-                <div className="grid grid-cols-2 gap-2">
-                  <label
-                    className="grid gap-1 text-xs font-medium"
-                    htmlFor={`${id}-rows`}
-                  >
-                    {strings.tableRows}
-                    <input
-                      id={`${id}-rows`}
-                      type="number"
-                      min={1}
-                      max={50}
-                      value={rows}
-                      aria-invalid={invalid}
-                      onChange={(event) => setRows(event.target.value)}
-                      className={inputClass}
-                    />
-                  </label>
-                  <label
-                    className="grid gap-1 text-xs font-medium"
-                    htmlFor={`${id}-columns`}
-                  >
-                    {strings.tableColumns}
-                    <input
-                      id={`${id}-columns`}
-                      type="number"
-                      min={1}
-                      max={20}
-                      value={columns}
-                      aria-invalid={invalid}
-                      onChange={(event) => setColumns(event.target.value)}
-                      className={inputClass}
-                    />
-                  </label>
-                </div>
-                {invalid ? (
-                  <p role="alert" className="text-xs text-destructive">
-                    {strings.tableInvalid}
-                  </p>
-                ) : null}
-                <button type="submit" className={primaryButton}>
-                  {strings.tableApply}
-                </button>
-              </form>
+              />
             )}
           </Popover.Popup>
         </Popover.Positioner>

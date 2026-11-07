@@ -155,8 +155,17 @@ export interface EditorStrings
   tableTools: string;
   tableRows: string;
   tableColumns: string;
-  tableApply: string;
-  tableInvalid: string;
+  /** A table's size, as "3 × 4 table". */
+  tableSize: (rows: number, columns: number) => string;
+  tableSizeGrid: string;
+  tableHeaderRow: string;
+  tableInsertButton: string;
+  tableRowsLess: string;
+  tableRowsMore: string;
+  tableColumnsLess: string;
+  tableColumnsMore: string;
+  tableLineAbove: string;
+  tableLineBelow: string;
   addRow: string;
   addColumn: string;
   deleteRow: string;

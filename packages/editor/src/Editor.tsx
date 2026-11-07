@@ -77,6 +77,7 @@ import { SelectionToolbarPlugin } from "./plugins/SelectionToolbar";
 import { SharedPlugin } from "./plugins/shared";
 import { SlashMenuPlugin } from "./plugins/SlashMenu";
 import { TablePlugin } from "./plugins/Table";
+import { TableInsertPlugin } from "./plugins/table-size";
 import { ToolbarPlugin } from "./plugins/Toolbar";
 import { WordImportPlugin } from "./plugins/word";
 import { holdSlot } from "./slots";
@@ -573,6 +574,7 @@ function Surface({
       <WordImportPlugin />
       <QtiImportPlugin />
       <EmbedPlugin />
+      <TableInsertPlugin />
       <BankPlugin />
       <SharedPlugin />
       <MentionsPlugin />

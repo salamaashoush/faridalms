@@ -9,14 +9,6 @@ read emdash (TipTap, Portable Text, Astro) at its 1.4 release.
 
 Each slice lands on its own and deletes its entry here when it does.
 
-## 2. Tables
-
-Inserting a table asks for its size on a grid, as a word processor does. A
-table's own menu, on the table and on a selected cell, adds and removes rows
-and columns before or after, turns a header row or column on and off, merges
-and splits cells and deletes the table. Columns resize by dragging their edge,
-and pasting into a table keeps its shape.
-
 ## 3. Writing comfort
 
 A word count and reading time, an outline of the document's headings that
