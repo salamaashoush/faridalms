@@ -29,6 +29,7 @@ package gains it first, with a test and a line in this table.
 | Forms          | `form-field` (`FormField`, `TextField`, `SelectField`, `ChoiceField`, `CheckboxGroupField`, `FieldError`), `combobox-field`, `time-zone-field`                                                                      |
 | Status         | `status` (`StatusBadge`, `StatusText`, `toneSurface`)                                                                                                                                                               |
 | Feedback       | `action-menu` (`ActionMenu`, `useRunAndReport`), `confirm-dialog`, `dialog`                                                                                                                                         |
+| Comments       | `comment-thread` (`CommentThread`, `CommentComposer`), `side-panel` (`SidePanel`)                                                                                                                                   |
 | Side panels    | `panel` (`PanelGroup`, `Segmented`)                                                                                                                                                                                 |
 | Media          | `media-grid` (`MediaGrid`, pictures and files as tiles that open or are chosen), `crop-frame` (`CropFrame`)                                                                                                         |
 | Metrics        | `metrics` (`MetricGrid`, `Metric`)                                                                                                                                                                                  |
@@ -344,6 +345,16 @@ publishing changes state (Notion, Linear, Polaris).
   first where it was taken. Every document page and the website builder use
   the same pair through `useHeldDocument`
   (`apps/web/src/components/content/held-document.tsx`).
+- Comments (Google Docs, Notion): a toggle in the top bar, before `•••`,
+  saying how many threads are open, opens them in a `SidePanel`, docked at
+  the end side below the top bar on wide screens, the page making room for
+  it, and a sheet on narrower ones (from the bottom on phones). Open threads
+  come first in the order their passages stand, then those whose passage
+  is gone; resolved ones fold under a disclosure. Each is a `CommentThread`:
+  its passage, which goes to it, or "The passage was deleted" with the
+  words struck through; each comment with author and time, its writer's own
+  Edit and Delete in its `•••`; a Reply that opens a `CommentComposer`; and
+  Resolve or Reopen. Typing @ in a composer offers colleagues by name.
 
 ### Record form
 
