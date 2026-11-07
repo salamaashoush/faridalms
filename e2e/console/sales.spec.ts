@@ -27,7 +27,7 @@ test("an owner sets the business's legal details and its VAT", async ({
 
   await page.getByRole("button", { name: "Add rate" }).click();
   const rate = page.getByRole("form", { name: "Add a rate" });
-  await rate.getByLabel("Country").fill("EG");
+  await choose(rate, "Country", "Egypt");
   await rate.getByLabel("Percentage").fill("14");
   await rate.getByLabel("From").fill("2017-07-01");
   await rate.getByLabel("Why").fill("Egypt's VAT law");

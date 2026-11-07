@@ -44,6 +44,8 @@ export const CONSOLE_SYSTEM: DesignSystemValue = {
 interface Refusal {
   ok: false;
   message: string;
+  /** The field the refusal is about, where it is about one. */
+  field?: string;
 }
 
 function isRefusal(value: unknown): value is Refusal {
@@ -79,7 +81,7 @@ export type Accepted<T> = Exclude<T, Refusal>;
 /** What running a server function gave: its answer, or what to say. */
 export type Attempted<T> =
   | { ok: true; value: Accepted<T> }
-  | { ok: false; message: string };
+  | { ok: false; message: string; field?: string };
 
 /**
  * Runs a server function whose answer the form goes on to use, such as the
@@ -91,7 +93,8 @@ export async function attemptWith<T>(
 ): Promise<Attempted<T>> {
   try {
     const answer = await action();
-    if (isRefusal(answer)) return { ok: false, message: answer.message };
+    if (isRefusal(answer))
+      return { ok: false, message: answer.message, field: answer.field };
     return { ok: true, value: answer as Accepted<T> };
   } catch (error) {
     return {

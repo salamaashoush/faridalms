@@ -40,6 +40,8 @@ const ACTIONS: Record<string, string> = {
   "dunning.standing": "Access changed for an unpaid invoice",
   "task.create": "Task added",
   "task.done": "Task done",
+  "business.profile": "Legal details changed",
+  "tax_rate.create": "VAT rate added",
 };
 
 /** How a recorded field is named to a reader; a field not named here is not shown. */
@@ -79,6 +81,14 @@ const FIELD_NAMES: Record<string, string> = {
   purchaseOrder: "Purchase order",
   language: "Language",
   version: "Version",
+  addressEn: "Address in English",
+  addressAr: "Address in Arabic",
+  website: "Website",
+  bankDetailsEn: "Bank details in English",
+  bankDetailsAr: "Bank details in Arabic",
+  percent: "Rate",
+  reverseCharge: "Reverse charge",
+  validFrom: "From",
 };
 
 const ISO_DAY = /^\d{4}-\d{2}-\d{2}$/;
@@ -87,6 +97,7 @@ const ISO_DAY = /^\d{4}-\d{2}-\d{2}$/;
 function show(value: unknown, names: Record<string, string>, key = ""): string {
   if (key === "country" && typeof value === "string")
     return formatCountry(value);
+  if (key === "percent" && typeof value === "number") return `${value}%`;
   if (value === null || value === undefined || value === "") return "none";
   if (Array.isArray(value))
     return value.length
@@ -123,7 +134,10 @@ function differences(
     if (!label) return [];
     if (!kept) {
       const value = after[key];
-      return value === null || value === undefined || value === ""
+      return value === null ||
+        value === undefined ||
+        value === "" ||
+        (key === "reverseCharge" && value === false)
         ? []
         : [`${label}: ${show(value, names, key)}`];
     }
@@ -159,8 +173,12 @@ export function EventList({ events, names }: EventListProps) {
       labels={LABELS}
       entries={events.map((event) => ({
         id: event.id,
-        what: ACTIONS[event.action] ?? event.action,
-        details: differences(event, names),
+        ...(event.action === "business.profile" && event.before === null
+          ? { what: "Legal details set", details: [] }
+          : {
+              what: ACTIONS[event.action] ?? event.action,
+              details: differences(event, names),
+            }),
         why: event.reason,
         who: names[event.operatorId] ?? "A former operator",
         when: formatWhen(event.occurredAt),

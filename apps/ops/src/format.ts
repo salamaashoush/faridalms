@@ -144,6 +144,46 @@ export function formatCountry(code: string): string {
   }
 }
 
+/**
+ * Codes the region names know that are not countries anyone is invoiced
+ * in: groupings, test regions, and retired codes that name a country
+ * already listed under its current one (UK for GB, ZR for CD).
+ */
+const NOT_COUNTRIES = new Set(
+  "EU EZ QO UN XA XB ZZ AN BU CS DD DY FX HV NH RH SU TP UK VD YD YU ZR".split(
+    " ",
+  ),
+);
+
+/**
+ * Every country by its English name with its two-letter code as the value,
+ * for a field that picks one: every pair of letters the region names know.
+ */
+export const COUNTRY_OPTIONS: readonly { value: string; label: string }[] =
+  (() => {
+    const names = new Intl.DisplayNames(["en"], {
+      type: "region",
+      fallback: "none",
+    });
+    const letters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ".split("");
+    return letters
+      .flatMap((first) =>
+        letters.flatMap((second) => {
+          const code = first + second;
+          let name: string | undefined;
+          try {
+            name = names.of(code);
+          } catch {
+            name = undefined;
+          }
+          return name && name !== code && !NOT_COUNTRIES.has(code)
+            ? [{ value: code, label: name }]
+            : [];
+        }),
+      )
+      .toSorted((a, b) => a.label.localeCompare(b.label, "en"));
+  })();
+
 /** An instant's day on the business's clock, without its year: "Nov 7". */
 export function formatShortWhen(when: string | Date): string {
   return formatInstantIn(when, "short", BUSINESS_TIME_ZONE, "en");

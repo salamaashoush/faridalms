@@ -1,3 +1,4 @@
+import { eventsAbout } from "@faridalms/database/business/events";
 import {
   addTaxRate,
   listTaxRates,
@@ -11,16 +12,26 @@ import {
 import { createServerFn } from "@tanstack/react-start";
 import * as v from "valibot";
 
+import { formatCountry } from "../format";
 import { requireArea } from "./access";
 import { requireBusiness } from "./business";
+import { operatorNames } from "./operators";
 
-/** The business's legal details and VAT rates, as quotes and invoices print them. */
+/**
+ * The business's legal details and VAT rates, as quotes and invoices print
+ * them, and every change made to either.
+ */
 export const getSettings = createServerFn({ method: "GET" }).handler(
   async () => {
     await requireArea("settings");
     const db = requireBusiness();
-    const [held, rates] = await Promise.all([profile(db), listTaxRates(db)]);
-    return { profile: held, rates };
+    const [held, rates, events, names] = await Promise.all([
+      profile(db),
+      listTaxRates(db),
+      eventsAbout(db, ["business", "tax_rate"]),
+      operatorNames(db),
+    ]);
+    return { profile: held, rates, events, names };
   },
 );
 
@@ -58,13 +69,16 @@ export const addRate = createServerFn({ method: "POST" })
   .handler(
     async ({
       data,
-    }): Promise<{ ok: true } | { ok: false; message: string }> => {
+    }): Promise<
+      { ok: true } | { ok: false; message: string; field: "validFrom" }
+    > => {
       const { operator } = await requireArea("settings");
       return (await addTaxRate(requireBusiness(), { ...data, by: operator.id }))
         ? { ok: true }
         : {
             ok: false,
-            message: `A rate for ${data.country} already starts on that day.`,
+            field: "validFrom",
+            message: `${formatCountry(data.country)} already has a rate from that day.`,
           };
     },
   );
