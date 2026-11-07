@@ -1087,8 +1087,15 @@ function draw(
         </div>
       );
     }
+    // A set of parts draws each part's title and body itself.
+    case "panel":
+    case "panel-title":
+      return null;
+    default: {
+      const undrawn: never = node.type;
+      return undrawn;
+    }
   }
-  return null;
 }
 
 function ReadFile({

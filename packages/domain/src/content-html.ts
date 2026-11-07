@@ -39,20 +39,6 @@ const FORMATS: [number, string][] = [
   [128, "mark"],
 ];
 
-const SKIPPED = new Set<ContentNode["type"]>([
-  "question",
-  "gate",
-  "draw",
-  "standards",
-  "shared",
-  "starter",
-  "ai-use",
-  "lti",
-  "glossary",
-  "pagebreak",
-  "diagram",
-]);
-
 const dirOf = (node: ContentNode) =>
   node.direction ? ` dir="${node.direction}"` : "";
 
@@ -121,7 +107,6 @@ class Writer {
   }
 
   node(node: ContentNode): string {
-    if (SKIPPED.has(node.type)) return "";
     const inner = () => this.all(node.children);
     switch (node.type) {
       case "text":
@@ -298,8 +283,33 @@ class Writer {
         return node.definition
           ? `<dfn title="${escape(node.definition)}">${inner()}</dfn>`
           : inner();
-      default:
+      case "root":
+      case "question-prompt":
+      case "question-option":
+      case "question-answer":
+      case "question-pair":
+      case "question-group":
+      case "question-side":
+      case "question-passage":
+      case "question-gap":
         return inner();
+      // Questions and what only this app can run travel in other forms.
+      case "question":
+      case "gate":
+      case "draw":
+      case "standards":
+      case "shared":
+      case "starter":
+      case "ai-use":
+      case "lti":
+      case "glossary":
+      case "pagebreak":
+      case "diagram":
+        return "";
+      default: {
+        const unwritten: never = node.type;
+        return unwritten;
+      }
     }
   }
 }

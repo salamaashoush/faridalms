@@ -59,10 +59,27 @@ save the shared document.
 Source inspected: the cloned Lexical repository at
 `/tmp/faridalms-lexical-source`, including the extension React table example,
 playground editor configuration, serialization implementations, editor composer,
-and Markdown exports. The installed packages are aligned at 0.50.0.
+and Markdown exports. The installed packages are aligned at 0.53.
 Official references: [Lexical](https://lexical.dev/),
 [serialization](https://lexical.dev/docs/serialization/serialization), and
 [extensions](https://lexical.dev/docs/extensions/intro).
+
+## Adding a block
+
+1. Write its Lexical node in `packages/editor/src/nodes/` and list it in
+   `blockNodes`.
+2. Add its type to `contentNodeTypes` and its rule to `NODE_RULES` in
+   `packages/domain/src/content.ts`: where it may stand (in running text, as
+   a block, at the top only, or as a part of another node), what it must
+   carry and hold, and how it reads as plain text. The build then fails until
+   `content-html.ts` and the static renderer in `view.tsx` both draw it.
+3. Give it a `BlockDefinition` in `blocks.ts`, a case in `$createStructure`
+   when inserting it is more than turning a line into it, and its strings.
+
+`packages/editor/src/registry.spec.ts` fails while the editor and the domain
+disagree on the node types, and while any block, inserted at the top of a
+document, in a callout or in a table cell, saves a document the domain
+refuses.
 
 ## Remaining work
 

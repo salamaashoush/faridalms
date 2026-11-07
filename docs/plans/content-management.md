@@ -9,26 +9,6 @@ read emdash (TipTap, Portable Text, Astro) at its 1.4 release.
 
 Each slice lands on its own and deletes its entry here when it does.
 
-## 1. One definition per block
-
-Adding a block today touches seven places: the Lexical node, `blockNodes`,
-the allow-list and validator in `domain/content.ts`, a `BlockDefinition` in
-`blocks.ts`, a case in `view.tsx`, a case in `domain/content-html.ts`, and
-its strings. Nothing checks that all seven agree, so a block can validate and
-then render as nothing.
-
-- The domain keeps one spec per node type: where it may stand (inline, prose,
-  block, top level only, or a part of another node), what it may hold, how it
-  validates, its plain text and its HTML. `validNode`, the block sets,
-  `contentPlainText` and `contentHtml` read the specs instead of their own
-  lists. The specs are a record keyed by every node type, so a type without
-  one does not compile.
-- The static renderer keeps the same kind of record, so a node type without a
-  view does not compile either.
-- The domain cannot import the editor, so the two records stay in their
-  packages; a spec checks that every type the domain accepts has an editor
-  node and a view.
-
 ## 2. Tables
 
 Inserting a table asks for its size on a grid, as a word processor does. A

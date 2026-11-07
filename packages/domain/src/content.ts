@@ -89,7 +89,8 @@ export function mathRuns(text: string): TextRun[] {
   return runs;
 }
 
-const nodeTypes = [
+/** Every node type a document may hold, each with its rule in `NODE_RULES`. */
+export const contentNodeTypes = [
   "root",
   "paragraph",
   "text",
@@ -281,7 +282,7 @@ export const mentionSchema = v.object({
 export type Mention = v.InferOutput<typeof mentionSchema>;
 
 export interface ContentNode {
-  type: (typeof nodeTypes)[number];
+  type: (typeof contentNodeTypes)[number];
   version: 1;
   children?: ContentNode[];
   text?: string;
@@ -571,7 +572,7 @@ const style = v.pipe(v.string(), v.maxLength(1024), v.check(validContentStyle));
 const nodeSchema: v.GenericSchema<ContentNode> = v.lazy(() => nodeShape);
 const nodeShape: v.GenericSchema<ContentNode> = v.pipe(
   v.object({
-    type: v.picklist(nodeTypes),
+    type: v.picklist(contentNodeTypes),
     version: v.literal(1),
     children: v.optional(v.array(nodeSchema)),
     text: v.optional(v.pipe(v.string(), v.maxLength(100000))),
@@ -848,159 +849,429 @@ const nodeShape: v.GenericSchema<ContentNode> = v.pipe(
   }),
   v.check(validNode),
 );
-const inline = (child: ContentNode) =>
-  [
-    "text",
-    "code-highlight",
-    "tab",
-    "linebreak",
-    "link",
-    "autolink",
-    "math",
-  ].includes(child.type);
+/**
+ * Where a node may stand: in running text; in running text but never inside
+ * a link or a part that holds only words (a footnote, a mention, a term); as
+ * a block wherever blocks go; as a block at the top of a document only; or
+ * as a part that only its own parent holds.
+ */
+type Stands = "inline" | "prose" | "block" | "top" | "part";
+
+interface NodeRule {
+  stands: Stands;
+  /** A run of text, a node that holds nothing, or one that holds children. */
+  shape: "text" | "leaf" | "element";
+  /** What else a node of this type must carry, and what it may hold. */
+  check?: (node: ContentNode, children: ContentNode[]) => boolean;
+  /** Its children read as lines of their own in its plain text. */
+  lines?: true;
+  /** Its plain text, when that is not its own text or its children's. */
+  text?: (node: ContentNode) => string;
+}
+
+const standsIn =
+  (...places: Stands[]) =>
+  (child: ContentNode) =>
+    places.includes(NODE_RULES[child.type].stands);
+const inline = standsIn("inline");
 /** What running text may hold: its words, footnotes on them, mentions and terms. */
-const prose = (child: ContentNode) =>
-  inline(child) ||
-  child.type === "footnote" ||
-  child.type === "mention" ||
-  child.type === "term";
-const blocks = new Set<string>([
-  "paragraph",
-  "heading",
-  "quote",
-  "list",
-  "code",
-  "table",
-  "horizontalrule",
-  "pagebreak",
-  "callout",
-  "toggle",
-  "panels",
-  "columns",
-  "image",
-  "gallery",
-  "compare",
-  "chart",
-  "file",
-  "media",
-  "embed",
-  "lti",
-  "diagram",
-  "question",
-  "draw",
-  "standards",
-  "gate",
-  "starter",
-  "ai-use",
-  "shared",
-  "glossary",
-  "bibliography",
-]);
+const prose = standsIn("inline", "prose");
+const anyBlock = standsIn("block", "top");
 // Columns, sets of parts, questions, draws, gates, page breaks, each
 // student's copy and shared blocks stand only at the top of a document.
-const ROOT_ONLY = new Set([
-  "columns",
-  "panels",
-  "question",
-  "draw",
-  "gate",
-  "pagebreak",
-  "starter",
-  "shared",
-]);
-const nestedBlocks = new Set(
-  [...blocks].filter((type) => !ROOT_ONLY.has(type)),
-);
+const nestedBlock = standsIn("block");
+const ofType =
+  (...types: ContentNode["type"][]) =>
+  (child: ContentNode) =>
+    types.includes(child.type);
+const nested = (_: ContentNode, children: ContentNode[]) =>
+  children.length > 0 && children.every(nestedBlock);
+const wordsOnly = (_: ContentNode, children: ContentNode[]) =>
+  children.every(inline);
+const mediaText = (node: ContentNode) =>
+  [
+    node.caption,
+    node.transcript,
+    // What a video's audio description says of its picture is read as words too.
+    ...parseDescriptions(node.descriptions ?? "").map((line) => line.text),
+  ]
+    .filter(Boolean)
+    .join("\n");
+const picturesText = (node: ContentNode) =>
+  (node.pictures ?? [])
+    .map((picture) => picture.caption || picture.alt)
+    .filter(Boolean)
+    .join("\n");
+
+/**
+ * Every node type a document may hold, with where it stands, what it holds
+ * and how it reads as plain text. A type without a rule does not compile.
+ */
+const NODE_RULES: Record<ContentNode["type"], NodeRule> = {
+  root: {
+    stands: "part",
+    shape: "element",
+    check: (_, children) => children.every(anyBlock),
+    lines: true,
+  },
+  text: { stands: "inline", shape: "text" },
+  "code-highlight": { stands: "inline", shape: "text" },
+  tab: { stands: "inline", shape: "text" },
+  linebreak: { stands: "inline", shape: "leaf", text: () => "\n" },
+  link: {
+    stands: "inline",
+    shape: "element",
+    check: (node, children) =>
+      Boolean(node.url) &&
+      children.every(
+        (child) => inline(child) && !ofType("link", "autolink")(child),
+      ),
+  },
+  autolink: {
+    stands: "inline",
+    shape: "element",
+    check: (node, children) =>
+      Boolean(node.url) &&
+      children.every(
+        (child) => inline(child) && !ofType("link", "autolink")(child),
+      ),
+  },
+  math: {
+    stands: "inline",
+    shape: "leaf",
+    check: (node) => typeof node.latex === "string",
+    text: mathText,
+  },
+  footnote: {
+    stands: "prose",
+    shape: "leaf",
+    check: (node) => typeof node.note === "string",
+    // A footnote is read where it is listed, not in the line it marks.
+    text: () => "",
+  },
+  mention: {
+    stands: "prose",
+    shape: "leaf",
+    check: (node) => Boolean(node.mention),
+    text: (node) => `@${node.mention?.label ?? ""}`,
+  },
+  // A term is words alone, so it never holds a link, a mention or another term.
+  term: {
+    stands: "prose",
+    shape: "element",
+    check: (node, children) =>
+      typeof node.definition === "string" &&
+      children.length > 0 &&
+      children.every(ofType("text")),
+  },
+  paragraph: {
+    stands: "block",
+    shape: "element",
+    check: (_, children) => children.every(prose),
+  },
+  heading: {
+    stands: "block",
+    shape: "element",
+    check: (node, children) =>
+      Boolean(node.tag?.startsWith("h")) && children.every(prose),
+  },
+  quote: {
+    stands: "block",
+    shape: "element",
+    check: (_, children) =>
+      children.every(
+        (child) =>
+          prose(child) ||
+          ofType(
+            "paragraph",
+            "heading",
+            "quote",
+            "list",
+            "horizontalrule",
+          )(child),
+      ),
+  },
+  list: {
+    stands: "block",
+    shape: "element",
+    check: (node, children) =>
+      Boolean(node.listType) && children.every(ofType("listitem")),
+    lines: true,
+  },
+  listitem: {
+    stands: "part",
+    shape: "element",
+    check: (_, children) =>
+      children.every((child) => prose(child) || ofType("list")(child)),
+  },
+  code: { stands: "block", shape: "element", check: wordsOnly },
+  table: {
+    stands: "block",
+    shape: "element",
+    check: (_, children) =>
+      children.length > 0 && children.every(ofType("tablerow")),
+    lines: true,
+  },
+  tablerow: {
+    stands: "part",
+    shape: "element",
+    check: (_, children) =>
+      children.length > 0 && children.every(ofType("tablecell")),
+    lines: true,
+  },
+  tablecell: {
+    stands: "part",
+    shape: "element",
+    check: (_, children) =>
+      children.every(ofType("paragraph", "heading", "quote", "list", "code")),
+  },
+  horizontalrule: { stands: "block", shape: "leaf" },
+  pagebreak: { stands: "top", shape: "leaf" },
+  callout: {
+    stands: "block",
+    shape: "element",
+    check: (node, children) =>
+      nested(node, children) && !children.some(ofType("callout")),
+    lines: true,
+  },
+  toggle: {
+    stands: "block",
+    shape: "element",
+    check: (_, children) =>
+      children.length === 2 &&
+      children[0]?.type === "toggle-title" &&
+      children[1]?.type === "toggle-content",
+    lines: true,
+  },
+  "toggle-title": { stands: "part", shape: "element", check: wordsOnly },
+  "toggle-content": {
+    stands: "part",
+    shape: "element",
+    check: nested,
+    lines: true,
+  },
+  panels: {
+    stands: "top",
+    shape: "element",
+    check: (node, children) =>
+      (panelLayouts as readonly string[]).includes(node.layout ?? "") &&
+      children.length >= 1 &&
+      children.length <= MAX_PANELS &&
+      children.every(ofType("panel")),
+    lines: true,
+  },
+  panel: {
+    stands: "part",
+    shape: "element",
+    check: (_, children) =>
+      children.length === 2 &&
+      children[0]?.type === "panel-title" &&
+      children[1]?.type === "panel-body",
+    lines: true,
+  },
+  "panel-title": { stands: "part", shape: "element", check: wordsOnly },
+  "panel-body": {
+    stands: "part",
+    shape: "element",
+    check: nested,
+    lines: true,
+  },
+  columns: {
+    stands: "top",
+    shape: "element",
+    check: (node, children) =>
+      (node.layout === undefined ||
+        (columnLayouts as readonly string[]).includes(node.layout)) &&
+      children.length >= 2 &&
+      children.length <= 4 &&
+      children.every(ofType("column")),
+    lines: true,
+  },
+  column: { stands: "part", shape: "element", check: nested, lines: true },
+  starter: { stands: "top", shape: "element", check: nested },
+  image: {
+    stands: "block",
+    shape: "leaf",
+    check: (node) => Boolean(node.fileId),
+    text: (node) =>
+      [
+        node.caption || node.alt || "",
+        ...(node.labels ?? []).map((label) =>
+          [label.title, label.text].filter(Boolean).join(": "),
+        ),
+      ]
+        .filter(Boolean)
+        .join("\n"),
+  },
+  // A gallery or a before and after may stand empty while it is written;
+  // its reader sees nothing of it until it has pictures.
+  gallery: {
+    stands: "block",
+    shape: "leaf",
+    check: (node) => Array.isArray(node.pictures),
+    text: picturesText,
+  },
+  compare: {
+    stands: "block",
+    shape: "leaf",
+    check: (node) => Array.isArray(node.pictures) && node.pictures.length <= 2,
+    text: picturesText,
+  },
+  chart: {
+    stands: "block",
+    shape: "leaf",
+    check: (node) => Boolean(node.chart),
+    text: (node) =>
+      node.chart
+        ? [
+            node.chart.title,
+            node.chart.xTitle,
+            node.chart.yTitle,
+            node.chart.labels.join(", "),
+            node.chart.series.map((series) => series.name).join(", "),
+          ]
+            .filter((part) => part.trim())
+            .join("\n")
+        : "",
+  },
+  file: {
+    stands: "block",
+    shape: "leaf",
+    check: (node) => Boolean(node.fileId) && Boolean(node.name),
+    text: (node) => node.name ?? "",
+  },
+  media: {
+    stands: "block",
+    shape: "leaf",
+    check: (node) =>
+      Boolean(node.fileId) && /^(audio|video)\//.test(node.mime ?? ""),
+    text: mediaText,
+  },
+  embed: {
+    stands: "block",
+    shape: "leaf",
+    check: (node) =>
+      node.provider !== undefined &&
+      node.embedId !== undefined &&
+      isEmbedId(node.provider, node.embedId),
+    text: mediaText,
+  },
+  lti: {
+    stands: "block",
+    shape: "leaf",
+    check: (node) => Boolean(node.lti),
+    text: (node) => node.lti?.title ?? "",
+  },
+  diagram: {
+    stands: "block",
+    shape: "leaf",
+    check: (node) => Boolean(node.fileId) && Boolean(node.sceneFileId),
+    text: (node) => node.caption || node.alt || "",
+  },
+  // How complete a question is gets checked when its document is
+  // published; a half-written one still saves.
+  question: {
+    stands: "top",
+    shape: "element",
+    check: (node, children) =>
+      Boolean(node.kind && node.questionId) &&
+      children[0]?.type === "question-prompt" &&
+      children
+        .slice(1)
+        .every(
+          ofType(
+            "question-option",
+            "question-answer",
+            "question-pair",
+            "question-group",
+            "question-passage",
+          ),
+        ),
+    lines: true,
+  },
+  "question-prompt": { stands: "part", shape: "element", check: wordsOnly },
+  "question-option": {
+    stands: "part",
+    shape: "element",
+    check: (node, children) => Boolean(node.optionId) && children.every(inline),
+  },
+  // Accepted answers are the key; they stay out of text anyone can search.
+  "question-answer": {
+    stands: "part",
+    shape: "element",
+    check: wordsOnly,
+    text: () => "",
+  },
+  "question-pair": {
+    stands: "part",
+    shape: "element",
+    check: (node, children) =>
+      Boolean(node.optionId) &&
+      children.length === 2 &&
+      children.every(ofType("question-side")),
+    lines: true,
+  },
+  "question-group": {
+    stands: "part",
+    shape: "element",
+    check: (node, children) =>
+      Boolean(node.optionId) &&
+      children[0]?.type === "question-side" &&
+      children.slice(1).every(ofType("question-option")),
+    lines: true,
+  },
+  "question-side": { stands: "part", shape: "element", check: wordsOnly },
+  "question-passage": {
+    stands: "part",
+    shape: "element",
+    check: (_, children) =>
+      children.every((child) => inline(child) || ofType("question-gap")(child)),
+  },
+  "question-gap": {
+    stands: "part",
+    shape: "element",
+    check: (node, children) =>
+      Boolean(node.optionId) && children.every(ofType("text")),
+    text: () => "",
+  },
+  gate: { stands: "top", shape: "leaf" },
+  draw: {
+    stands: "top",
+    shape: "leaf",
+    check: (node) =>
+      Boolean(node.questionId) &&
+      typeof node.bankTag === "string" &&
+      typeof node.count === "number" &&
+      typeof node.points === "number",
+  },
+  shared: {
+    stands: "top",
+    shape: "leaf",
+    check: (node) => Boolean(node.sharedId),
+  },
+  "ai-use": { stands: "block", shape: "leaf" },
+  standards: {
+    stands: "block",
+    shape: "leaf",
+    check: (node) => Array.isArray(node.targets),
+  },
+  glossary: { stands: "block", shape: "leaf" },
+  bibliography: { stands: "block", shape: "leaf" },
+};
+
 function validNode(node: ContentNode): boolean {
-  const children = node.children ?? [];
-  if (["text", "code-highlight", "tab"].includes(node.type))
+  const rule = NODE_RULES[node.type];
+  if (rule.shape === "text")
     return (
       typeof node.text === "string" &&
       !node.children &&
       typeof node.format === "number"
     );
-  if (
-    [
-      "linebreak",
-      "horizontalrule",
-      "pagebreak",
-      "gate",
-      "ai-use",
-      "glossary",
-      "bibliography",
-    ].includes(node.type)
-  )
-    return !node.children && node.text === undefined;
-  if (node.type === "image")
-    return !node.children && node.text === undefined && Boolean(node.fileId);
-  // A gallery or a before and after may stand empty while it is written;
-  // its reader sees nothing of it until it has pictures.
-  if (node.type === "chart")
-    return !node.children && node.text === undefined && Boolean(node.chart);
-  if (node.type === "gallery" || node.type === "compare")
+  if (rule.shape === "leaf")
     return (
       !node.children &&
       node.text === undefined &&
-      Array.isArray(node.pictures) &&
-      (node.type === "gallery" || node.pictures.length <= 2)
-    );
-  if (node.type === "standards")
-    return (
-      !node.children && node.text === undefined && Array.isArray(node.targets)
-    );
-  if (node.type === "shared")
-    return !node.children && node.text === undefined && Boolean(node.sharedId);
-  if (node.type === "footnote")
-    return (
-      !node.children && node.text === undefined && typeof node.note === "string"
-    );
-  if (node.type === "mention")
-    return !node.children && node.text === undefined && Boolean(node.mention);
-  if (node.type === "draw")
-    return (
-      !node.children &&
-      node.text === undefined &&
-      Boolean(node.questionId) &&
-      typeof node.bankTag === "string" &&
-      typeof node.count === "number" &&
-      typeof node.points === "number"
-    );
-  if (node.type === "math")
-    return (
-      !node.children &&
-      node.text === undefined &&
-      typeof node.latex === "string"
-    );
-  if (node.type === "file")
-    return (
-      !node.children &&
-      node.text === undefined &&
-      Boolean(node.fileId) &&
-      Boolean(node.name)
-    );
-  if (node.type === "media")
-    return (
-      !node.children &&
-      node.text === undefined &&
-      Boolean(node.fileId) &&
-      /^(audio|video)\//.test(node.mime ?? "")
-    );
-  if (node.type === "embed")
-    return (
-      !node.children &&
-      node.text === undefined &&
-      node.provider !== undefined &&
-      node.embedId !== undefined &&
-      isEmbedId(node.provider, node.embedId)
-    );
-  if (node.type === "lti")
-    return !node.children && node.text === undefined && Boolean(node.lti);
-  if (node.type === "diagram")
-    return (
-      !node.children &&
-      node.text === undefined &&
-      Boolean(node.fileId) &&
-      Boolean(node.sceneFileId)
+      (rule.check?.(node, []) ?? true)
     );
   if (
     !node.children ||
@@ -1008,156 +1279,7 @@ function validNode(node: ContentNode): boolean {
     typeof node.format === "number"
   )
     return false;
-
-  switch (node.type) {
-    case "question":
-      // How complete a question is gets checked when its document is
-      // published; a half-written one still saves.
-      return (
-        Boolean(node.kind && node.questionId) &&
-        children[0]?.type === "question-prompt" &&
-        children
-          .slice(1)
-          .every((child) =>
-            [
-              "question-option",
-              "question-answer",
-              "question-pair",
-              "question-group",
-              "question-passage",
-            ].includes(child.type),
-          )
-      );
-    case "question-prompt":
-    case "question-answer":
-    case "question-side":
-      return children.every(inline);
-    case "question-option":
-      return Boolean(node.optionId) && children.every(inline);
-    case "question-pair":
-      return (
-        Boolean(node.optionId) &&
-        children.length === 2 &&
-        children.every((child) => child.type === "question-side")
-      );
-    case "question-passage":
-      return children.every(
-        (child) => inline(child) || child.type === "question-gap",
-      );
-    case "question-gap":
-      return (
-        Boolean(node.optionId) &&
-        children.every((child) => child.type === "text")
-      );
-    case "question-group":
-      return (
-        Boolean(node.optionId) &&
-        children[0]?.type === "question-side" &&
-        children.slice(1).every((child) => child.type === "question-option")
-      );
-    case "root":
-      return children.every((child) => blocks.has(child.type));
-    case "quote":
-      return children.every(
-        (child) =>
-          prose(child) ||
-          ["paragraph", "heading", "quote", "list", "horizontalrule"].includes(
-            child.type,
-          ),
-      );
-    case "paragraph":
-      return children.every(prose);
-    case "code":
-    case "toggle-title":
-    case "panel-title":
-      return children.every(inline);
-    case "heading":
-      return Boolean(node.tag?.startsWith("h")) && children.every(prose);
-    // A term is words alone, so it never holds a link, a mention or another term.
-    case "term":
-      return (
-        typeof node.definition === "string" &&
-        children.length > 0 &&
-        children.every((child) => child.type === "text")
-      );
-    case "link":
-    case "autolink":
-      return (
-        Boolean(node.url) &&
-        children.every(
-          (child) =>
-            inline(child) && !["link", "autolink"].includes(child.type),
-        )
-      );
-    case "list":
-      return (
-        Boolean(node.listType) &&
-        children.every((child) => child.type === "listitem")
-      );
-    case "listitem":
-      return children.every((child) => prose(child) || child.type === "list");
-    case "table":
-      return (
-        children.length > 0 &&
-        children.every((child) => child.type === "tablerow")
-      );
-    case "tablerow":
-      return (
-        children.length > 0 &&
-        children.every((child) => child.type === "tablecell")
-      );
-    case "tablecell":
-      return children.every((child) =>
-        ["paragraph", "heading", "quote", "list", "code"].includes(child.type),
-      );
-    case "starter":
-      return (
-        children.length > 0 &&
-        children.every((child) => nestedBlocks.has(child.type))
-      );
-    case "callout":
-      return (
-        children.length > 0 &&
-        children.every(
-          (child) => child.type !== "callout" && nestedBlocks.has(child.type),
-        )
-      );
-    case "toggle":
-      return (
-        children.length === 2 &&
-        children[0]?.type === "toggle-title" &&
-        children[1]?.type === "toggle-content"
-      );
-    case "toggle-content":
-    case "column":
-    case "panel-body":
-      return (
-        children.length > 0 &&
-        children.every((child) => nestedBlocks.has(child.type))
-      );
-    case "columns":
-      return (
-        (node.layout === undefined ||
-          (columnLayouts as readonly string[]).includes(node.layout)) &&
-        children.length >= 2 &&
-        children.length <= 4 &&
-        children.every((child) => child.type === "column")
-      );
-    case "panels":
-      return (
-        (panelLayouts as readonly string[]).includes(node.layout ?? "") &&
-        children.length >= 1 &&
-        children.length <= MAX_PANELS &&
-        children.every((child) => child.type === "panel")
-      );
-    case "panel":
-      return (
-        children.length === 2 &&
-        children[0]?.type === "panel-title" &&
-        children[1]?.type === "panel-body"
-      );
-  }
-  return false;
+  return rule.check?.(node, node.children) ?? true;
 }
 function boundedContent(value: unknown): boolean {
   const pending = [{ value, depth: 0 }];
@@ -1184,74 +1306,11 @@ export const contentDocumentSchema = v.pipe(
       contentPlainText(document).length <= 100000,
   ),
 );
-const blockSeparated = new Set<string>([
-  "root",
-  "question",
-  "question-pair",
-  "question-group",
-  "list",
-  "table",
-  "tablerow",
-  "callout",
-  "toggle",
-  "toggle-content",
-  "panels",
-  "panel",
-  "panel-body",
-  "columns",
-  "column",
-]);
 const visit = (node: ContentNode): string => {
-  if (node.type === "image")
-    return [
-      node.caption || node.alt || "",
-      ...(node.labels ?? []).map((label) =>
-        [label.title, label.text].filter(Boolean).join(": "),
-      ),
-    ]
-      .filter(Boolean)
-      .join("\n");
-  if (node.type === "diagram") return node.caption || node.alt || "";
-  if (node.type === "chart" && node.chart)
-    return [
-      node.chart.title,
-      node.chart.xTitle,
-      node.chart.yTitle,
-      node.chart.labels.join(", "),
-      node.chart.series.map((series) => series.name).join(", "),
-    ]
-      .filter((part) => part.trim())
-      .join("\n");
-  if (node.type === "gallery" || node.type === "compare")
-    return (node.pictures ?? [])
-      .map((picture) => picture.caption || picture.alt)
-      .filter(Boolean)
-      .join("\n");
-  // What a video's audio description says of its picture is read as words too.
-  if (node.type === "media" || node.type === "embed")
-    return [
-      node.caption,
-      node.transcript,
-      ...parseDescriptions(node.descriptions ?? "").map((line) => line.text),
-    ]
-      .filter(Boolean)
-      .join("\n");
-  if (node.type === "file") return node.name ?? "";
-  if (node.type === "lti") return node.lti?.title ?? "";
-  if (node.type === "math") return mathText(node);
-  // A footnote is read where it is listed, not in the line it marks.
-  if (node.type === "footnote") return "";
-  if (node.type === "mention") return `@${node.mention?.label ?? ""}`;
-  // Accepted answers are the key; they stay out of text anyone can search.
-  if (node.type === "question-answer" || node.type === "question-gap")
-    return "";
+  const rule = NODE_RULES[node.type];
+  if (rule.text) return rule.text(node);
   return (
-    node.text ??
-    (node.type === "linebreak"
-      ? "\n"
-      : (node.children ?? [])
-          .map(visit)
-          .join(blockSeparated.has(node.type) ? "\n" : ""))
+    node.text ?? (node.children ?? []).map(visit).join(rule.lines ? "\n" : "")
   );
 };
 /** A code block's program as written: its text, line breaks and tabs. */
