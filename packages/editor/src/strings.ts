@@ -21,6 +21,13 @@ export interface EditorStrings
   cardPlaceholder: string;
   invalid: string;
   characters: (count: number) => string;
+  wordCount: (count: number) => string;
+  /** How long a document takes to read, in whole minutes. */
+  readingTime: (minutes: number) => string;
+  outline: string;
+  outlineEmpty: string;
+  focusMode: string;
+  focusModeExit: string;
   formatting: string;
   moreTools: string;
   findReplace: string;

@@ -47,7 +47,12 @@ received, so no answer reaches their paper. How pages break is in
 
 `packages/editor` is the editor, built on Lexical's extension API with stable
 initialization: a fixed toolbar, one floating bar that adapts to what is
-selected, a slash menu grouped by family and a block handle.
+selected, a slash menu grouped by family and a block handle. A document
+editor shows its words and reading time below the text, with an outline of
+its headings and a focus mode (`Mod+Shift+\`, Escape to leave) that sets the
+writing alone on the screen. Tables are sized on a grid as they are
+inserted, fill from cells pasted out of a spreadsheet, and grow a row when
+Tab leaves their last cell.
 `apps/web/src/components/content/ContentEditor.tsx` hosts it with the
 school's files and strings, and `ContentView.tsx` renders stored content
 without loading the editing runtime.

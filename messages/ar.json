@@ -408,6 +408,46 @@
   "editorCardPlaceholder": "وجه البطاقة",
   "editorInvalid": "تعذر حفظ بعض المحتوى. تراجع عن التغيير الأخير أو أزل التنسيق غير المدعوم؛ كتابتك ما زالت في المحرر.",
   "editorCharacters": "{count} حرف",
+  "editorWordCount": [
+    {
+      "declarations": [
+        "input count",
+        "input value",
+        "local countPlural = count: plural"
+      ],
+      "selectors": ["countPlural"],
+      "match": {
+        "countPlural=zero": "{value} كلمة",
+        "countPlural=one": "كلمة واحدة",
+        "countPlural=two": "كلمتان",
+        "countPlural=few": "{value} كلمات",
+        "countPlural=many": "{value} كلمة",
+        "countPlural=*": "{value} كلمة"
+      }
+    }
+  ],
+  "editorReadingTime": [
+    {
+      "declarations": [
+        "input count",
+        "input value",
+        "local countPlural = count: plural"
+      ],
+      "selectors": ["countPlural"],
+      "match": {
+        "countPlural=zero": "قراءة في {value} دقيقة",
+        "countPlural=one": "قراءة في دقيقة واحدة",
+        "countPlural=two": "قراءة في دقيقتين",
+        "countPlural=few": "قراءة في {value} دقائق",
+        "countPlural=many": "قراءة في {value} دقيقة",
+        "countPlural=*": "قراءة في {value} دقيقة"
+      }
+    }
+  ],
+  "editorOutline": "المخطط",
+  "editorOutlineEmpty": "تظهر هنا العناوين التي تضيفها.",
+  "editorFocusMode": "وضع التركيز",
+  "editorFocusModeExit": "الخروج من وضع التركيز",
   "editorFormatting": "تنسيق النص",
   "editorMoreTools": "أدوات أخرى",
   "editorFindReplace": "بحث واستبدال",

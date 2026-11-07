@@ -4,6 +4,7 @@ import { describe, expect, it } from "vitest";
 import type { ContentDocument } from "./content";
 
 import {
+  readingStats,
   contentDocumentSchema,
   contentFileIds,
   contentPlainText,
@@ -234,5 +235,23 @@ describe("charts", () => {
     expect(contentPlainText(alone({ type: "chart", version: 1, chart }))).toBe(
       "Temperature\nHour\n°C\n6, 12, 18\nAswan",
     );
+  });
+});
+
+describe("reading stats", () => {
+  it("counts the words a reader reads, in Arabic as in English, and rounds minutes up", () => {
+    expect(readingStats(plainContent("مرحبا يا سلامة, welcome back"))).toEqual({
+      words: 5,
+      minutes: 1,
+    });
+    expect(
+      readingStats(
+        plainContent(Array.from({ length: 401 }, () => "word").join(" ")),
+      ),
+    ).toEqual({ words: 401, minutes: 3 });
+  });
+
+  it("gives an empty document no words and no minutes", () => {
+    expect(readingStats(plainContent(""))).toEqual({ words: 0, minutes: 0 });
   });
 });

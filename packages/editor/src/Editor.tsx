@@ -8,6 +8,7 @@ import type { Doc } from "yjs";
 import {
   contentDocumentSchema,
   contentPlainText,
+  readingStats,
 } from "@faridalms/domain/content";
 import { $isCodeNode, CodeNode } from "@lexical/code";
 import {
@@ -65,6 +66,7 @@ import { BankPlugin } from "./plugins/bank";
 import { BlockHandlePlugin } from "./plugins/BlockHandle";
 import { DiagramPlugin } from "./plugins/diagram";
 import { DirectionPlugin } from "./plugins/Direction";
+import { DocumentStatus } from "./plugins/document-status";
 import { EmbedPlugin } from "./plugins/embed";
 import { MediaPlugin } from "./plugins/media";
 import { MentionsPlugin } from "./plugins/mentions";
@@ -87,6 +89,12 @@ import { cx } from "./ui";
 const QUIET_REPLACE = "fe-quiet-replace";
 const TYPING_PAUSE_MS = 200;
 const MAX_TYPING_WAIT_MS = 1000;
+const EMPTY_STATS = { characters: 0, words: 0, minutes: 0 };
+
+const statsOf = (document: ContentDocument) => ({
+  characters: contentPlainText(document).length,
+  ...readingStats(document),
+});
 
 /**
  * Live editing: the document's shared state comes from the provider, which
@@ -411,15 +419,22 @@ function Surface({
   );
   const [anchor, setAnchor] = useState<HTMLDivElement | null>(null);
   const [invalid, setInvalid] = useState(false);
-  const [count, setCount] = useState(() =>
-    editor.getEditorState().read(() => {
-      const result = v.safeParse(
-        contentDocumentSchema,
-        editor.getEditorState().toJSON(),
-      );
-      return result.success ? contentPlainText(result.output).length : 0;
-    }),
-  );
+  const [stats, setStats] = useState(() => {
+    const result = v.safeParse(
+      contentDocumentSchema,
+      editor.getEditorState().toJSON(),
+    );
+    return result.success ? statsOf(result.output) : EMPTY_STATS;
+  });
+  const [focused, setFocused] = useState(false);
+  useEffect(() => {
+    if (!focused) return undefined;
+    const before = window.document.body.style.overflow;
+    window.document.body.style.overflow = "hidden";
+    return () => {
+      window.document.body.style.overflow = before;
+    };
+  }, [focused]);
 
   useEffect(() => {
     editor.setEditable(!disabled);
@@ -483,7 +498,7 @@ function Surface({
       setInvalid(!result.success);
       onValidityChange?.(result.success);
       if (!result.success) return;
-      setCount(contentPlainText(result.output).length);
+      setStats(statsOf(result.output));
       if (!quiet) onChange(result.output);
     };
     return mergeRegister(
@@ -541,9 +556,9 @@ function Surface({
     .join(" ");
 
   return (
-    <div className={editorFrame.surface(document, invalid)}>
+    <div className={editorFrame.surface(document, invalid, focused)}>
       {toolbar && !disabled ? (
-        <div className={editorFrame.toolbar(document)}>
+        <div className={editorFrame.toolbar(document, focused)}>
           <ToolbarPlugin disabled={disabled} />
         </div>
       ) : null}
@@ -581,11 +596,18 @@ function Surface({
       <PastePlugin />
       <QuestionGuardPlugin />
       <DiagramPlugin />
-      {document ? null : (
+      {!document ? (
         <div className={editorFrame.footer(document)}>
           <span>{strings.placeholder}</span>
-          <span>{strings.characters(count)}</span>
+          <span>{strings.characters(stats.characters)}</span>
         </div>
+      ) : disabled ? null : (
+        <DocumentStatus
+          words={stats.words}
+          minutes={stats.minutes}
+          focused={focused}
+          onFocusedChange={setFocused}
+        />
       )}
       {invalid ? (
         <p

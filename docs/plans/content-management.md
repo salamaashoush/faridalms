@@ -9,11 +9,6 @@ read emdash (TipTap, Portable Text, Astro) at its 1.4 release.
 
 Each slice lands on its own and deletes its entry here when it does.
 
-## 3. Writing comfort
-
-A word count and reading time, an outline of the document's headings that
-jumps to each, and a focus mode that hides everything but the words.
-
 ## 4. Media library
 
 A school's pictures, video and files, uploaded once and chosen again from any

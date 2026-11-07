@@ -1324,6 +1324,21 @@ export function contentPlainText(document: ContentDocument): string {
   return visit(document.root);
 }
 
+/** Words a reader reads in a minute: 200 is the usual figure for adults' silent reading. */
+export const READING_WORDS_PER_MINUTE = 200;
+
+/** How many words a document holds, and the whole minutes they take to read. */
+export function readingStats(document: ContentDocument): {
+  words: number;
+  minutes: number;
+} {
+  const words = contentPlainText(document).match(/\S+/gu)?.length ?? 0;
+  return {
+    words,
+    minutes: words ? Math.ceil(words / READING_WORDS_PER_MINUTE) : 0,
+  };
+}
+
 const STRONG_RTL = /[\u0590-\u08FF\uFB1D-\uFDFF\uFE70-\uFEFF]/u;
 const STRONG = /[\p{L}]/u;
 

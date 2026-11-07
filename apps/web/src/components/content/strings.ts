@@ -42,6 +42,14 @@ export function editorStrings(): EditorStrings {
     cardPlaceholder: m.editorCardPlaceholder(),
     invalid: m.editorInvalid(),
     characters: (count) => m.editorCharacters({ count }),
+    wordCount: (count) =>
+      m.editorWordCount({ count, value: formatNumber(count) }),
+    readingTime: (minutes) =>
+      m.editorReadingTime({ count: minutes, value: formatNumber(minutes) }),
+    outline: m.editorOutline(),
+    outlineEmpty: m.editorOutlineEmpty(),
+    focusMode: m.editorFocusMode(),
+    focusModeExit: m.editorFocusModeExit(),
     formatting: m.editorFormatting(),
     moreTools: m.editorMoreTools(),
     findReplace: m.editorFindReplace(),

@@ -395,6 +395,38 @@
   "editorCardPlaceholder": "Front of the card",
   "editorInvalid": "Some content cannot be saved. Undo the last change or remove unsupported formatting; your writing remains in the editor.",
   "editorCharacters": "{count} characters",
+  "editorWordCount": [
+    {
+      "declarations": [
+        "input count",
+        "input value",
+        "local countPlural = count: plural"
+      ],
+      "selectors": ["countPlural"],
+      "match": {
+        "countPlural=one": "{value} word",
+        "countPlural=*": "{value} words"
+      }
+    }
+  ],
+  "editorReadingTime": [
+    {
+      "declarations": [
+        "input count",
+        "input value",
+        "local countPlural = count: plural"
+      ],
+      "selectors": ["countPlural"],
+      "match": {
+        "countPlural=one": "{value} minute to read",
+        "countPlural=*": "{value} minutes to read"
+      }
+    }
+  ],
+  "editorOutline": "Outline",
+  "editorOutlineEmpty": "Headings you add show here.",
+  "editorFocusMode": "Focus mode",
+  "editorFocusModeExit": "Leave focus mode",
   "editorFormatting": "Text formatting",
   "editorMoreTools": "More tools",
   "editorFindReplace": "Find and replace",
