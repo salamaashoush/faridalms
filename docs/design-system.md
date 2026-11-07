@@ -30,6 +30,7 @@ package gains it first, with a test and a line in this table.
 | Status         | `status` (`StatusBadge`, `StatusText`, `toneSurface`)                                                                                                                                                               |
 | Feedback       | `action-menu` (`ActionMenu`, `useRunAndReport`), `confirm-dialog`, `dialog`                                                                                                                                         |
 | Side panels    | `panel` (`PanelGroup`, `Segmented`)                                                                                                                                                                                 |
+| Media          | `media-grid` (`MediaGrid`, pictures and files as tiles that open or are chosen), `crop-frame` (`CropFrame`)                                                                                                         |
 | Metrics        | `metrics` (`MetricGrid`, `Metric`)                                                                                                                                                                                  |
 | Steps          | `step-nav` (`StepNav`), `form-footer` (`FormFooter`)                                                                                                                                                                |
 | Status pages   | `status-page` (`StatusPage`, `ErrorPage`, `NotFoundPage`)                                                                                                                                                           |
@@ -497,6 +498,17 @@ never the browser's own.
 - **Starting a picture** (a video before it plays, an embed before it
   loads, a coding project before it runs) uses one round 56px `StartMark` in
   `bg-foreground`, not the accent, since several can share a page.
+- **A list of pictures may show as a grid** (`MediaGrid`): 4:3 tiles, the
+  picture itself or a file's icon, its name and one fact below, two a row on
+  phones, five on wide screens. The same index toolbar, empty states and
+  pagination as a table, and each tile's `•••` menu at its top end. As a
+  chooser each tile is a toggle (`aria-pressed`) with a check on the chosen,
+  one or several at a time. A page offering both says which with a
+  `Segmented` switch at the toolbar's end, kept in the address.
+- **Cropping** (`CropFrame`) shades what a crop leaves out and draws the
+  frame clear over the picture; dragging or the arrow keys move it (Shift
+  for finer steps), and its shape and size are the caller's controls. The
+  frame works in the picture's own pixels, left to right in either script.
 - Content keeps its own colours: a Scratch stage is white in either theme.
   Everything around it (frames, placeholders, loading) uses `bg-muted` and
   `text-muted-foreground`.
