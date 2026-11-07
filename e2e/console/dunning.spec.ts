@@ -117,7 +117,7 @@ test("an unpaid invoice reminds, asks for a call, restricts the school at its we
     .getByRole("row", { name: new RegExp(schoolName) });
   await expect(row).toContainText("Restricted");
   await expect(row).toContainText("39,900.00");
-  await expect(row).toContainText(`${number}, Access restricted`);
+  await expect(row).toContainText(`${number} · Access restricted`);
   const calls = page.getByRole("region", { name: "Calls to make" });
   const call = calls
     .getByRole("listitem")
@@ -153,7 +153,7 @@ test("an unpaid invoice reminds, asks for a call, restricts the school at its we
   await pause.getByRole("button", { name: "Pause reminders" }).click();
   await expect(page.getByText("Reminders are paused.")).toBeVisible();
   await page.goto("/receivables");
-  await expect(row).toContainText("Paused until");
+  await expect(row).toContainText("Reminders paused until");
 
   // Paid: access back at once, and the notice gone.
   await page.goto("/billing");

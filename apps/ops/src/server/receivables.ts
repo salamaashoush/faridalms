@@ -1,6 +1,9 @@
 import type { AgingBucket, DunningStep } from "@faridalms/domain/dunning";
 
-import { setAccountOwner } from "@faridalms/database/business/customers";
+import {
+  billingContactsOf,
+  setAccountOwner,
+} from "@faridalms/database/business/customers";
 import {
   addPause,
   endPause,
@@ -39,7 +42,7 @@ const emptyBuckets = (): Record<AgingBucket, number> =>
 /**
  * What every customer owes, aged by how long ago it fell due, with where
  * the oldest invoice stands on the clock, any pause, the access the clock
- * holds back, and the calls still to make.
+ * holds back, and the calls still to make with whom each is to.
  */
 export const getReceivables = createServerFn({ method: "GET" }).handler(
   async () => {
@@ -54,6 +57,23 @@ export const getReceivables = createServerFn({ method: "GET" }).handler(
       listTasks(db, { open: true }),
       operatorNames(db),
     ]);
+    const billing = await billingContactsOf(db, [
+      ...new Set(calls.map((call) => call.task.customerId)),
+    ]);
+    // The one to call: a billing contact with a phone, else the first.
+    const contacts: Record<
+      string,
+      { name: string; phone: string | null; email: string | null }
+    > = {};
+    for (const contact of billing) {
+      const chosen = contacts[contact.customerId];
+      if (!chosen || (!chosen.phone && contact.phone))
+        contacts[contact.customerId] = {
+          name: contact.name,
+          phone: contact.phone,
+          email: contact.email,
+        };
+    }
     const rows = customerIds.map((customerId) => {
       const mine = owed.filter((row) => row.invoice.customerId === customerId);
       const paused = pauses.filter((pause) => pause.customerId === customerId);
@@ -61,6 +81,7 @@ export const getReceivables = createServerFn({ method: "GET" }).handler(
       let oldest: {
         invoiceId: string;
         number: string;
+        dueOn: string;
         days: number;
         step: DunningStep | null;
       } | null = null;
@@ -71,6 +92,7 @@ export const getReceivables = createServerFn({ method: "GET" }).handler(
           oldest = {
             invoiceId: row.invoice.id,
             number: row.number,
+            dueOn: row.dueOn,
             days: clockDays(row, paused, today),
             step: dunningStep(
               {
@@ -105,6 +127,7 @@ export const getReceivables = createServerFn({ method: "GET" }).handler(
         (a, b) => (b.oldest?.days ?? 0) - (a.oldest?.days ?? 0),
       ),
       calls,
+      contacts,
       names,
     };
   },

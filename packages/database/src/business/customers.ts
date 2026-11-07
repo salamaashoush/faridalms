@@ -3,7 +3,7 @@ import type {
   CustomerInput,
 } from "@faridalms/domain/subscriptions";
 
-import { and, asc, eq, isNull, or } from "drizzle-orm";
+import { and, arrayContains, asc, eq, inArray, isNull, or } from "drizzle-orm";
 
 import type { BusinessDb, BusinessTx } from "./client";
 
@@ -37,6 +37,25 @@ export async function customerById(db: BusinessDb, id: string) {
       .orderBy(asc(subscriptions.createdAt)),
   ]);
   return { customer, contacts: people, subscriptions: held };
+}
+
+/** The active billing contacts of the customers given, by name. */
+export function billingContactsOf(
+  db: BusinessDb,
+  customerIds: readonly string[],
+): Promise<ContactRow[]> {
+  if (customerIds.length === 0) return Promise.resolve([]);
+  return db
+    .select()
+    .from(contacts)
+    .where(
+      and(
+        inArray(contacts.customerId, [...customerIds]),
+        eq(contacts.status, "active"),
+        arrayContains(contacts.roles, ["billing"]),
+      ),
+    )
+    .orderBy(asc(contacts.name));
 }
 
 export async function customerOfTenant(

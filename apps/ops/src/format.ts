@@ -227,6 +227,21 @@ export function formatMoney(minor: number, currency: Currency): string {
   );
 }
 
+/**
+ * An amount without its currency, for a column of one row's amounts whose
+ * total names the currency once.
+ */
+export function formatAmount(minor: number, currency: Currency): string {
+  const { minimumFractionDigits } = new Intl.NumberFormat("en", {
+    style: "currency",
+    currency,
+  }).resolvedOptions();
+  return new Intl.NumberFormat("en", {
+    minimumFractionDigits,
+    maximumFractionDigits: minimumFractionDigits,
+  }).format(minor / 100);
+}
+
 /** What an operator typed as money, in minor units, or null if it is not money. */
 export function minorOf(typed: string): number | null {
   const amount = Number(typed.replaceAll(",", ""));

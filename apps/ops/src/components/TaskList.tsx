@@ -88,6 +88,39 @@ export function CloseTask({ task, open, onOpenChange }: CloseTaskProps) {
   );
 }
 
+export interface CloseTaskButtonProps {
+  task: TaskRow;
+}
+
+/**
+ * An open task's Close button, named after the task, with the sheet it
+ * opens; nothing for an operator who may not close tasks.
+ */
+export function CloseTaskButton({ task }: CloseTaskButtonProps) {
+  const mayClose = useMay("customers");
+  const closing = useSheet();
+  if (!mayClose) return null;
+  return (
+    <>
+      <Button
+        type="button"
+        variant="outline"
+        size="sm"
+        aria-label={`Close ${task.title}`}
+        onClick={closing.show}
+      >
+        Close
+      </Button>
+      <CloseTask
+        key={closing.key}
+        task={task}
+        open={closing.open}
+        onOpenChange={closing.onOpenChange}
+      />
+    </>
+  );
+}
+
 interface TaskItemProps {
   row: TaskListRow;
   names: Record<string, string>;
@@ -97,8 +130,6 @@ interface TaskItemProps {
 
 function TaskItem({ row, names, today, showCustomer }: TaskItemProps) {
   const { task, customerName } = row;
-  const mayClose = useMay("customers");
-  const [closing, setClosing] = useState(false);
   const who = (id: string | null) =>
     id ? (names[id] ?? "A former operator") : "Nobody yet";
   const late = !task.doneAt && task.dueOn < today;
@@ -140,20 +171,7 @@ function TaskItem({ row, names, today, showCustomer }: TaskItemProps) {
           <p className="text-sm leading-5">{task.outcome}</p>
         ) : null}
       </div>
-      {!task.doneAt && mayClose ? (
-        <>
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            aria-label={`Close ${task.title}`}
-            onClick={() => setClosing(true)}
-          >
-            Close
-          </Button>
-          <CloseTask task={task} open={closing} onOpenChange={setClosing} />
-        </>
-      ) : null}
+      {task.doneAt ? null : <CloseTaskButton task={task} />}
     </li>
   );
 }

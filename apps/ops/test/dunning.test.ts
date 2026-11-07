@@ -1,6 +1,7 @@
 import type { SchoolStanding } from "@faridalms/domain/provisioning";
 
 import {
+  billingContactsOf,
   saveContact,
   setAccountOwner,
 } from "@faridalms/database/business/customers";
@@ -232,6 +233,12 @@ describe("the dunning clock", () => {
     ).toEqual(["upcoming", "overdue_14"]);
 
     const [call] = await listTasks(business(), { customerId: held.customerId });
+    // Whom the call is to: the billing contact, not the technical one.
+    expect(
+      (await billingContactsOf(business(), [held.customerId])).map(
+        (contact) => contact.name,
+      ),
+    ).toEqual(["Salama Ashoush"]);
     expect(call?.task).toMatchObject({
       kind: "call",
       assigneeId: OWNER,
