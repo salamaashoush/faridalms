@@ -254,7 +254,9 @@ const LINES: Record<"en" | "ar", Record<NotificationKind, Line>> = {
     consent: (p) =>
       `The school asks for your permission: ${p.title ?? ""}${p.studentName ? ` (${p.studentName})` : ""}.`,
     mention: (p) =>
-      `${p.actorName || "Someone at school"} mentioned you in ${p.title ?? "a document"}.`,
+      p.comment
+        ? `${p.actorName || "A colleague"} mentioned you in a comment${p.title ? ` on "${p.title}"` : ""}: ${p.preview ?? ""}`
+        : `${p.actorName || "Someone at school"} mentioned you in ${p.title ?? "a document"}.`,
     library: (p) =>
       p.shared
         ? `${p.title ?? "Your piece"} is now in the school library.`
@@ -325,7 +327,9 @@ const LINES: Record<"en" | "ar", Record<NotificationKind, Line>> = {
     consent: (p) =>
       `تطلب المدرسة موافقتك: ${p.title ?? ""}${p.studentName ? ` (${p.studentName})` : ""}.`,
     mention: (p) =>
-      `ذكرك ${p.actorName || "أحد أفراد المدرسة"} في ${p.titleAr || p.title || "مستند"}.`,
+      p.comment
+        ? `ذكرك ${p.actorNameAr || p.actorName || "أحد زملائك"} في تعليق${p.title ? ` على «${p.title}»` : ""}: ${p.preview ?? ""}`
+        : `ذكرك ${p.actorName || "أحد أفراد المدرسة"} في ${p.titleAr || p.title || "مستند"}.`,
     library: (p) =>
       p.shared
         ? `أصبح ${p.title ?? "ما شاركته"} في مكتبة المدرسة.`

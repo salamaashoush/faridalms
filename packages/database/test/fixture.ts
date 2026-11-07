@@ -60,6 +60,8 @@ import {
   staffAbsences,
   studentMovements,
   workComments,
+  documentThreads,
+  documentComments,
   workCommentReplies,
   workCommentAnswers,
   bankComments,
@@ -796,6 +798,24 @@ export async function completeFixture(
     commentId: comment.id,
     studentUserId: attempt.studentUserId,
     state: "fixed",
+  });
+  const threadId = id();
+  await tx.insert(documentThreads).values({
+    tenantId,
+    id: threadId,
+    documentId,
+    anchor: {
+      start: { block: "fixture1", offset: 0 },
+      end: { block: "fixture1", offset: 4 },
+    },
+    quote: "How",
+    authorUserId: userId,
+  });
+  await tx.insert(documentComments).values({
+    tenantId,
+    threadId,
+    authorUserId: userId,
+    body: "Is this the latest wording?",
   });
   await tx.insert(bankComments).values({
     tenantId,

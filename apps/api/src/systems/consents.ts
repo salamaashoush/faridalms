@@ -118,6 +118,18 @@ registerHostReader(
     can(context, "people:manage") || can(context, "privacy:manage"),
 );
 
+/** A consent form's words are the school's privacy team's to write, and to comment on while writing. */
+registerHostWriter(
+  "privacy_notice",
+  async (context, formId) =>
+    can(context, "privacy:manage") &&
+    (await formById(context.tx, {
+      tenantId: context.tenantId,
+      schoolId: context.schoolId,
+      id: formId,
+    })) !== null,
+);
+
 /** The purposes the school asks consent for, each with its form and how families answered. */
 export const forms = readProcedure.handler(async ({ context }) => {
   requireCapability(context, "privacy:manage");

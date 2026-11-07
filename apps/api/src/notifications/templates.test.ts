@@ -122,4 +122,37 @@ describe("teaching notices", () => {
       }).text,
     ).toBe("Acme: صدرت درجاتك عن الفصل الأول في Science.");
   });
+
+  it("say a mention came in a comment, with the passage and the words", () => {
+    const comment = {
+      kind: "mention" as const,
+      params: {
+        comment: true,
+        actorName: "Salama Ashoush",
+        actorNameAr: "سلامة عشوش",
+        title: "The Nile floods",
+        preview: "Could you check this?",
+      },
+    };
+    expect(
+      render({
+        locale: "en",
+        digits: "latn",
+        channel: "email",
+        school: "Acme School",
+        items: [comment],
+      }).text,
+    ).toContain(
+      'Salama Ashoush mentioned you in a comment on "The Nile floods": Could you check this?',
+    );
+    expect(
+      render({
+        locale: "ar",
+        digits: "latn",
+        channel: "email",
+        school: "مدرسة أكمي",
+        items: [comment],
+      }).text,
+    ).toContain("ذكرك سلامة عشوش في تعليق على «The Nile floods»");
+  });
 });

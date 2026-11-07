@@ -144,9 +144,19 @@ export const ERASURE_RULES: Record<string, ErasureRule> = {
   "core.demographics": { rule: "erased" },
   "core.discussion_posts": { rule: "erased" },
   "core.document_holds": { rule: "erased" },
+  "core.document_comments": {
+    rule: "to_erase",
+    why: "Words a member of staff wrote to colleagues while writing a document.",
+    reviewed: false,
+  },
   "core.document_templates": {
     rule: "kept",
     why: "Names the member of staff who did it; the record belongs to the school.",
+    reviewed: false,
+  },
+  "core.document_threads": {
+    rule: "kept",
+    why: "Names the member of staff who started or resolved it; its words are in core.document_comments.",
     reviewed: false,
   },
   "core.document_translations": { rule: "erased" },

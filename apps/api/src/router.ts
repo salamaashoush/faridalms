@@ -20,6 +20,7 @@ import * as bankSystem from "./systems/bank";
 import * as billingSystem from "./systems/billing";
 import * as calendarSystem from "./systems/calendar";
 import * as classesSystem from "./systems/classes";
+import * as commentsSystem from "./systems/comments";
 import * as consentsSystem from "./systems/consents";
 import * as courseworkSystem from "./systems/coursework";
 import * as coverSystem from "./systems/cover";
@@ -117,6 +118,7 @@ export const router = {
   years: owned("years", yearsSystem),
   files: owned("files", filesSystem),
   documents: owned("documents", documentsSystem),
+  comments: owned("comments", commentsSystem),
   templates: owned("templates", templatesSystem),
   bank: owned("bank", bankSystem),
   shared: owned("shared", sharedSystem),

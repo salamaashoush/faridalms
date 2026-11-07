@@ -81,6 +81,14 @@ export interface NoticeParams {
   startTime?: string;
   location?: string;
   applicationId?: string;
+  /** A mention in a comment left while writing, and the thread it is in. */
+  comment?: boolean;
+  threadId?: string;
+  /**
+   * The record a commented document's editor opens through, where it is not
+   * the document's own: a lesson's module, a consent form's purpose.
+   */
+  parentId?: string;
 }
 
 export const APPLICATION_OUTCOMES = [
