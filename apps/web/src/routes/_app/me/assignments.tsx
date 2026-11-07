@@ -67,7 +67,11 @@ function ToDoPage() {
         }))}
         value={tab}
         onChange={(next) => {
-          void navigate({ search: { tab: next } });
+          void navigate({
+            resetScroll: false,
+            replace: true,
+            search: { tab: next },
+          });
         }}
       >
         <ByDay items={lists[tab]} linked empty={empty[tab]} />

@@ -45,6 +45,8 @@ function YearPage() {
       on={on}
       onTab={(nextTab) => {
         void navigate({
+          resetScroll: false,
+          replace: true,
           search: (previous) => ({ ...previous, tab: nextTab, on: "" }),
         });
       }}

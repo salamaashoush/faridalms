@@ -133,7 +133,10 @@ function ModulesPage() {
   const data = useSuspenseQuery(teachingModulesQuery(search.classId)).data;
   const [importing, setImporting] = useState(false);
   const patch = (change: Partial<Search>) => {
-    void navigate({ search: (previous) => ({ ...previous, ...change }) });
+    void navigate({
+      resetScroll: false,
+      search: (previous) => ({ ...previous, ...change }),
+    });
   };
   const needle = search.q.trim().toLowerCase();
   const matching = data.rows.filter(

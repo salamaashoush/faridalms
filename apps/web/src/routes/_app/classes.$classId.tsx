@@ -38,6 +38,8 @@ function ClassPage() {
       tab={tab}
       onTab={(nextTab) => {
         void navigate({
+          resetScroll: false,
+          replace: true,
           search: (previous) => ({ ...previous, tab: nextTab }),
         });
       }}

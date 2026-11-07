@@ -55,7 +55,10 @@ function WebsitePage() {
   const user = useCurrentUser();
   const overview = useSuspenseQuery(siteOverviewQuery).data;
   const patch = (change: Partial<Search>) => {
-    void navigate({ search: (previous) => ({ ...previous, ...change }) });
+    void navigate({
+      resetScroll: false,
+      search: (previous) => ({ ...previous, ...change }),
+    });
   };
   return (
     <>

@@ -209,7 +209,13 @@ function NewsPage() {
           label={m.newsTitle()}
           tabs={TABS.map((value) => ({ value, label: TAB_LABEL[value]() }))}
           value={search.tab}
-          onChange={(next) => void navigate({ search: { tab: next } })}
+          onChange={(next) =>
+            void navigate({
+              resetScroll: false,
+              replace: true,
+              search: { tab: next },
+            })
+          }
         >
           {body}
         </RecordTabs>

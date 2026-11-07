@@ -125,7 +125,9 @@ function AdminAttendancePage() {
         label={m.attendanceTitle()}
         tabs={TABS.map((value) => ({ value, label: TAB_LABEL[value]() }))}
         value={search.tab}
-        onChange={(tab) => void navigate({ search: { tab } })}
+        onChange={(tab) =>
+          void navigate({ resetScroll: false, replace: true, search: { tab } })
+        }
       >
         {search.tab === "registers" ? (
           <Board

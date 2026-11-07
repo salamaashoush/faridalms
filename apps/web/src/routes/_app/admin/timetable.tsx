@@ -268,7 +268,10 @@ function TimetablePage() {
         tabs={VIEWS.map((value) => ({ value, label: VIEW_LABEL[value]() }))}
         value={search.view}
         onChange={(view) =>
-          void navigate({ search: { view, from: search.from } })
+          void navigate({
+            resetScroll: false,
+            search: { view, from: search.from },
+          })
         }
       >
         <div className="grid gap-4">

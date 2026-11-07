@@ -93,7 +93,11 @@ function ModulePage() {
       tab={tab}
       classId={classId}
       onTab={(next) => {
-        void navigate({ search: (previous) => ({ ...previous, tab: next }) });
+        void navigate({
+          resetScroll: false,
+          replace: true,
+          search: (previous) => ({ ...previous, tab: next }),
+        });
       }}
       onClass={(next) => {
         void navigate({

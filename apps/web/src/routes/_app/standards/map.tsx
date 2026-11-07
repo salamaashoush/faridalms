@@ -100,6 +100,7 @@ function CurriculumMapPage() {
               value={search.view}
               onChange={(view) => {
                 void navigate({
+                  resetScroll: false,
                   search: (previous) => ({ ...previous, view }),
                 });
               }}

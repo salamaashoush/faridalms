@@ -288,7 +288,11 @@ function IntakesPage() {
         ]}
         value={search.tab}
         onChange={(tab) =>
-          void navigate({ search: (previous) => ({ ...previous, tab }) })
+          void navigate({
+            resetScroll: false,
+            replace: true,
+            search: (previous) => ({ ...previous, tab }),
+          })
         }
       >
         {search.tab === "intakes" ? (

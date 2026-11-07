@@ -133,7 +133,13 @@ function PrivacyPage() {
           { value: "retention", label: m.privacyRetentionTab() },
         ]}
         value={tab}
-        onChange={(next) => void navigate({ search: { tab: next } })}
+        onChange={(next) =>
+          void navigate({
+            resetScroll: false,
+            replace: true,
+            search: { tab: next },
+          })
+        }
       >
         {tab === "review" ? (
           <ReviewTable

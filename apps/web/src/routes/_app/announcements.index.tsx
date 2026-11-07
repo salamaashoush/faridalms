@@ -153,7 +153,9 @@ function AnnouncementsPage() {
         label={m.annTitle()}
         tabs={tabs.map((value) => ({ value, label: TAB_LABEL[value]() }))}
         value={search.tab}
-        onChange={(tab) => void navigate({ search: { tab } })}
+        onChange={(tab) =>
+          void navigate({ resetScroll: false, replace: true, search: { tab } })
+        }
       >
         <div className="grid gap-4">
           <IndexToolbar

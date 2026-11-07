@@ -115,6 +115,8 @@ function AssignmentPage() {
             tab={tab}
             onTab={(next) => {
               void navigate({
+                resetScroll: false,
+                replace: true,
                 search: (previous) => ({ ...previous, tab: next }),
               });
             }}

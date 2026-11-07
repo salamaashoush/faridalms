@@ -166,7 +166,10 @@ function CourseworkPage() {
   const data = useSuspenseQuery(courseworkListQuery(search)).data;
   const options = useSuspenseQuery(courseworkOptionsQuery).data;
   const patch = (change: Partial<TeacherListQuery>) => {
-    void navigate({ search: (previous) => ({ ...previous, ...change }) });
+    void navigate({
+      resetScroll: false,
+      search: (previous) => ({ ...previous, ...change }),
+    });
   };
   const classFacet: Facet = {
     id: "class",
