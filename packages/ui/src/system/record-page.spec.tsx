@@ -93,4 +93,22 @@ describe("RecordTabs", () => {
     await userEvent.click(screen.getByRole("tab", { name: "Billing" }));
     expect(onChange).toHaveBeenCalledWith("billing");
   });
+
+  it("shows how many things a tab lists after its name", () => {
+    renderWithSystem(
+      <RecordTabs
+        label="Customer"
+        tabs={[
+          { value: "about", label: "About" },
+          { value: "contacts", label: "Contacts", count: 3 },
+        ]}
+        value="about"
+        onChange={vi.fn<(value: "about" | "contacts") => void>()}
+      >
+        <p>Details</p>
+      </RecordTabs>,
+    );
+    expect(screen.getByRole("tab", { name: "Contacts 3" })).toBeInTheDocument();
+    expect(screen.getByRole("tab", { name: "About" })).toBeInTheDocument();
+  });
 });

@@ -13,7 +13,7 @@ import type { Tone } from "./status";
 
 import { ActionMenu } from "./action-menu";
 import { PageActions } from "./page-actions";
-import { useSystemStrings } from "./provider";
+import { useDesignSystem, useSystemStrings } from "./provider";
 import { StatusBadge, toneSurface } from "./status";
 import { Value } from "./value";
 
@@ -217,6 +217,8 @@ export function RecordHeader({
 export interface RecordTab<T extends string> {
   value: T;
   label: string;
+  /** How many things the tab lists, shown after its name. */
+  count?: number;
 }
 
 export interface RecordTabsProps<T extends string> {
@@ -240,6 +242,7 @@ export function RecordTabs<T extends string>({
   onChange,
   children,
 }: RecordTabsProps<T>) {
+  const { formatNumber } = useDesignSystem();
   const scroller = useRef<HTMLDivElement>(null);
   const index = tabs.findIndex((tab) => tab.value === value);
   const [hidden, setHidden] = useState({ start: false, end: false });
@@ -302,6 +305,11 @@ export function RecordTabs<T extends string>({
               className="h-full flex-none rounded-none px-0.5 text-sm text-muted-foreground after:bg-primary group-data-horizontal/tabs:after:bottom-0 hover:text-foreground focus-visible:ring-inset max-md:h-11 data-active:text-foreground"
             >
               {tab.label}
+              {tab.count === undefined ? null : (
+                <span className="ms-1.5 text-muted-foreground tabular-nums">
+                  {formatNumber(tab.count)}
+                </span>
+              )}
             </TabsTrigger>
           ))}
         </TabsList>

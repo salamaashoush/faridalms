@@ -41,6 +41,25 @@ describe("UsageList", () => {
   });
 });
 
+describe("UsageList titled", () => {
+  it("names the list in a bar with its action", () => {
+    renderWithSystem(
+      <UsageList
+        titled
+        label="Use against its limits"
+        action={<button type="button">Edit</button>}
+        items={[
+          { id: "s", label: "Students", used: "8", allowed: "10", share: 0.8 },
+        ]}
+      />,
+    );
+    expect(
+      screen.getByRole("list", { name: "Use against its limits" }),
+    ).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Edit" })).toBeInTheDocument();
+  });
+});
+
 describe("SummaryList", () => {
   it("pairs each name with its value", () => {
     renderWithSystem(
@@ -54,6 +73,46 @@ describe("SummaryList", () => {
     expect(screen.getByText("Each class").nextSibling).toHaveTextContent(
       "1 GB",
     );
+  });
+
+  it("lines amounts up at the end and text up at the start", () => {
+    renderWithSystem(
+      <>
+        <SummaryList
+          items={[{ id: "pool", label: "Pool", value: "100 GB" }]}
+        />
+        <SummaryList
+          align="start"
+          items={[
+            { id: "address", label: "Billing address", value: "1 Nile St" },
+          ]}
+        />
+      </>,
+    );
+    expect(screen.getByText("100 GB")).toHaveClass("text-end");
+    expect(screen.getByText("1 Nile St")).not.toHaveClass("text-end");
+  });
+
+  it("titles a group and gives a row its own action", () => {
+    renderWithSystem(
+      <SummaryList
+        title="Relationship"
+        align="start"
+        items={[
+          {
+            id: "owner",
+            label: "Account owner",
+            value: "Salama Ashoush",
+            action: <button type="button">Change</button>,
+          },
+        ]}
+      />,
+    );
+    const group = screen.getByRole("region", { name: "Relationship" });
+    expect(within(group).getByText("Salama Ashoush")).toBeInTheDocument();
+    expect(
+      within(group).getByRole("button", { name: "Change" }),
+    ).toBeInTheDocument();
   });
 });
 

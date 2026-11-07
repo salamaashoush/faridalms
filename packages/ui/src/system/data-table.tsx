@@ -67,8 +67,23 @@ export interface Column<T, S extends string = string> {
   primary?: boolean;
   /** Amounts and counts sit at the end, so their digits line up. */
   align?: "start" | "end";
+  /**
+   * A column whose content may run to several words, such as a list of
+   * changes, takes a set width and wraps inside it; every other column is
+   * as wide as its content and never wraps. Its header never wraps either.
+   */
+  width?: ColumnWidth;
   className?: string;
 }
+
+/** The set widths a wrapping column may take: 10, 16 or 24rem. */
+export type ColumnWidth = "narrow" | "medium" | "wide";
+
+const COLUMN_WIDTH: Record<ColumnWidth, string> = {
+  narrow: "w-40 min-w-40",
+  medium: "w-64 min-w-64",
+  wide: "w-96 min-w-96",
+};
 
 /**
  * A summing row under the table, such as a currency's total: a label, and
@@ -563,6 +578,12 @@ export interface DataTableProps<T extends { id: string }, S extends string> {
   card: DataTableCard<T>;
   empty: EmptyStateProps;
   totals?: readonly DataTableTotal[];
+  /**
+   * The table's own actions, such as Add contact, at the end of its toolbar
+   * row. They are not drawn while the table is empty, since the empty state
+   * offers the same action.
+   */
+  actions?: ReactNode;
 }
 
 /**
@@ -582,6 +603,7 @@ export function DataTable<T extends { id: string }, S extends string>({
   card,
   empty,
   totals = NO_TOTALS,
+  actions,
 }: DataTableProps<T, S>) {
   const { strings, formatNumber } = useDesignSystem();
   const [hidden, setHidden] = useState<ReadonlySet<string>>(EMPTY);
@@ -652,7 +674,11 @@ export function DataTable<T extends { id: string }, S extends string>({
           }}
         />
       ) : toolbar && (rows.length || filtered) ? (
-        <IndexToolbar {...toolbar} view={view} />
+        <IndexToolbar {...toolbar} view={view} actions={actions} />
+      ) : actions && rows.length ? (
+        <div className="flex min-h-8 flex-wrap items-center justify-end gap-2">
+          {actions}
+        </div>
       ) : null}
       {rows.length === 0 ? (
         filtered ? (
@@ -705,6 +731,7 @@ export function DataTable<T extends { id: string }, S extends string>({
                           className={cn(
                             "h-10 px-3 text-start text-[13px] leading-[18px] font-medium whitespace-nowrap text-muted-foreground first:ps-4",
                             column.primary && fillColumn,
+                            column.width && COLUMN_WIDTH[column.width],
                             column.align === "end" && "text-end",
                             column.className,
                           )}
@@ -779,6 +806,8 @@ export function DataTable<T extends { id: string }, S extends string>({
                             className={cn(
                               "px-3 py-0 whitespace-nowrap first:ps-4",
                               column.primary && fillColumn,
+                              column.width &&
+                                `${COLUMN_WIDTH[column.width]} py-2 whitespace-normal`,
                               column.align === "end" && "text-end tabular-nums",
                               column.className,
                             )}

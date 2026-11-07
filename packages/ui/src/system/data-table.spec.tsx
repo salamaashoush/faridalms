@@ -77,6 +77,67 @@ describe("DataTable", () => {
     ).toBeInTheDocument();
   });
 
+  it("offers its own action beside its rows, and leaves it to the empty state when empty", async () => {
+    const add = <button type="button">Add school</button>;
+    const view = (rows: School[]) => () => (
+      <DataTable
+        caption="Schools"
+        rows={rows}
+        columns={COLUMNS}
+        rowLabel={(row) => row.name}
+        card={{ title: (row) => row.name }}
+        actions={add}
+        empty={{ title: "Add your first school", action: add }}
+      />
+    );
+    const { unmount } = renderPageWithSystem(view(SCHOOLS));
+    await screen.findByRole("table", { name: "Schools" });
+    expect(screen.getAllByRole("button", { name: "Add school" })).toHaveLength(
+      1,
+    );
+    unmount();
+    renderPageWithSystem(view([]));
+    await screen.findByRole("heading", { name: "Add your first school" });
+    expect(screen.getAllByRole("button", { name: "Add school" })).toHaveLength(
+      1,
+    );
+  });
+
+  it("gives a wrapping column its width, and never wraps a header", async () => {
+    interface Change {
+      id: string;
+      name: string;
+      lines: string;
+    }
+    const columns: Column<Change>[] = [
+      { id: "name", header: "School", primary: true, cell: (row) => row.name },
+      {
+        id: "lines",
+        header: "On publishing",
+        width: "wide",
+        cell: (row) => row.lines,
+      },
+    ];
+    renderPageWithSystem(() => (
+      <DataTable
+        caption="Schools"
+        rows={[{ id: "a", name: "Aspen", lines: "Gains Coding and blocks" }]}
+        columns={columns}
+        rowLabel={(row) => row.name}
+        card={{ title: (row) => row.name }}
+        empty={{ title: "No schools" }}
+      />
+    ));
+    const table = await screen.findByRole("table", { name: "Schools" });
+    const header = within(table).getByRole("columnheader", {
+      name: "On publishing",
+    });
+    expect(header).toHaveClass("whitespace-nowrap", "w-96");
+    expect(within(table).getByText("Gains Coding and blocks")).toHaveClass(
+      "whitespace-normal",
+    );
+  });
+
   it("sums its amounts in a row of their own, under the rows they sum", async () => {
     interface Owed {
       id: string;

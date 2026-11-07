@@ -76,6 +76,8 @@ export interface IndexToolbarProps {
 export interface IndexToolbarViewProps extends IndexToolbarProps {
   /** The view or sort menu, kept at the end. */
   view?: ReactNode;
+  /** The list's own actions, after the view menu. */
+  actions?: ReactNode;
 }
 
 function sameSelection(a: readonly string[], b: readonly string[]) {
@@ -95,6 +97,7 @@ export function IndexToolbar({
   facets = NO_FACETS,
   onReset,
   view,
+  actions,
 }: IndexToolbarViewProps) {
   const { strings } = useDesignSystem();
   const filtered = isFiltered({ search, facets });
@@ -130,7 +133,12 @@ export function IndexToolbar({
           <X aria-hidden />
         </Button>
       ) : null}
-      {view ? <div className="ms-auto flex items-center">{view}</div> : null}
+      {view || actions ? (
+        <div className="ms-auto flex items-center gap-2">
+          {view}
+          {actions}
+        </div>
+      ) : null}
     </search>
   );
 }

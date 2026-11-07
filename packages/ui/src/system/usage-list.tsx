@@ -1,3 +1,5 @@
+import type { ReactNode } from "react";
+
 import { cn } from "../cn";
 
 /** One limit and how much of it is used. */
@@ -15,6 +17,10 @@ export interface UsageItem {
 export interface UsageListProps {
   label: string;
   items: readonly UsageItem[];
+  /** Shows the label in a bar above the rows, as a table's header does. */
+  titled?: boolean;
+  /** An action for the whole list, such as Edit, at the end of the bar. */
+  action?: ReactNode;
 }
 
 const fill = (share: number) =>
@@ -25,9 +31,17 @@ const fill = (share: number) =>
  * turns amber past four fifths and red when full, so the one near its
  * limit stands out from the rest.
  */
-export function UsageList({ label, items }: UsageListProps) {
-  return (
-    <ul aria-label={label} className="divide-y rounded-lg border">
+export function UsageList({
+  label,
+  items,
+  titled = false,
+  action,
+}: UsageListProps) {
+  const list = (
+    <ul
+      aria-label={label}
+      className={cn("divide-y", !titled && "rounded-lg border bg-card")}
+    >
       {items.map((item) => (
         <li
           key={item.id}
@@ -57,5 +71,17 @@ export function UsageList({ label, items }: UsageListProps) {
         </li>
       ))}
     </ul>
+  );
+  if (!titled) return list;
+  return (
+    <section className="overflow-hidden rounded-lg border bg-card">
+      <div className="flex min-h-10 items-center justify-between gap-3 border-b bg-muted/40 px-4 py-1">
+        <h2 aria-hidden className="text-sm leading-5 font-semibold">
+          {label}
+        </h2>
+        {action}
+      </div>
+      {list}
+    </section>
   );
 }
