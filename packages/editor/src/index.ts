@@ -2,7 +2,9 @@ export { default as Editor } from "./Editor";
 export type { EditorCollaboration, EditorProps } from "./Editor";
 export type { Provider, ProviderAwareness } from "@lexical/yjs";
 export type {
+  CommentMark,
   EditorBank,
+  EditorComments,
   EditorShared,
   EditorMentions,
   MentionOption,

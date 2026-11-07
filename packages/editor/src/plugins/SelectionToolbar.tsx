@@ -230,6 +230,7 @@ import {
   selectionReference,
   shortcutLabel,
 } from "../ui";
+import { CommentTool } from "./comments";
 import { FootnotePanel } from "./footnote-panel";
 import { KeepInLibrary } from "./library";
 import { NarrationPanel, OPEN_NARRATION_COMMAND } from "./narration";
@@ -607,6 +608,7 @@ export function SelectionToolbarPlugin() {
     locale,
     questions,
     tools,
+    comments,
   } = useEditorEnvironment();
   const [mode, setMode] = useState<Mode>("hidden");
   const [math, setMath] = useState<MathFacts | null>(null);
@@ -1734,6 +1736,12 @@ export function SelectionToolbarPlugin() {
               </Menu.Positioner>
             </Menu.Portal>
           </Menu.Root>
+          {comments ? (
+            <>
+              {separator}
+              <CommentTool />
+            </>
+          ) : null}
         </div>
       </Floating>
     );
@@ -3875,6 +3883,12 @@ export function SelectionToolbarPlugin() {
         >
           <RemoveFormatting aria-hidden />
         </ToolButton>
+        {comments ? (
+          <>
+            {separator}
+            <CommentTool />
+          </>
+        ) : null}
       </div>
     </Floating>
   );

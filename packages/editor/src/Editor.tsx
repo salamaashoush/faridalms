@@ -33,6 +33,7 @@ import * as v from "valibot";
 
 import type {
   EditorBank,
+  EditorComments,
   EditorShared,
   EditorMentions,
   EditorTools,
@@ -56,6 +57,7 @@ import {
 import { BankPlugin } from "./plugins/bank";
 import { BlockHandlePlugin } from "./plugins/BlockHandle";
 import { CodeBlockPlugin } from "./plugins/code-block";
+import { CommentsPlugin } from "./plugins/comments";
 import { DiagramPlugin } from "./plugins/diagram";
 import { DirectionPlugin } from "./plugins/Direction";
 import { DocumentStatus } from "./plugins/document-status";
@@ -125,6 +127,8 @@ export interface EditorProps {
   mentions?: EditorMentions;
   /** The school's outside tools, to link to. */
   tools?: EditorTools;
+  /** Comments the document's writers leave each other, kept outside it. */
+  comments?: EditorComments;
   placeholder?: string;
   initialFocus?: boolean;
   locale?: string;
@@ -179,6 +183,7 @@ export default function Editor({
   shared,
   mentions,
   tools,
+  comments,
   locale,
   digits,
   value,
@@ -223,6 +228,7 @@ export default function Editor({
       shared,
       mentions,
       tools,
+      comments,
       locale:
         locale ??
         (typeof document === "undefined"
@@ -250,6 +256,7 @@ export default function Editor({
       shared,
       mentions,
       tools,
+      comments,
       locale,
       questions,
       gates,
@@ -585,6 +592,7 @@ function Surface({
       <BankPlugin />
       <SharedPlugin />
       <MentionsPlugin />
+      <CommentsPlugin />
       <PastePlugin />
       <QuestionGuardPlugin />
       <DiagramPlugin />

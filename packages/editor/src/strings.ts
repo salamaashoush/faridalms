@@ -553,6 +553,8 @@ export interface EditorStrings
   bibliographyHint: string;
   bibliographyEmpty: string;
   termDefine: string;
+  /** Starts a comment on the words or the block selected. */
+  comment: string;
   termDefinition: string;
   termDefinitionHint: string;
   termGloss: string;

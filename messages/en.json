@@ -9329,5 +9329,61 @@
   "errorMediaFolderNotEmpty": "Only an empty folder can be deleted. Move what it holds elsewhere first.",
   "errorMediaNotKept": "This file cannot be kept in the library.",
   "auditMediaFolderCreate": "Media folder added",
-  "auditMediaFolderRemove": "Media folder removed"
+  "auditMediaFolderRemove": "Media folder removed",
+  "editorComment": "Comment",
+  "errorCommentsAuthor": "Only the person who wrote a comment can change or delete it.",
+  "ntfCommentMention": "{name} mentioned you in a comment",
+  "cmtTitle": "Comments",
+  "cmtOpenCount": [
+    {
+      "declarations": [
+        "input count",
+        "input value",
+        "local countPlural = count: plural"
+      ],
+      "selectors": ["countPlural"],
+      "match": {
+        "countPlural=one": "{value} open comment",
+        "countPlural=*": "{value} open comments"
+      }
+    }
+  ],
+  "cmtResolvedCount": [
+    {
+      "declarations": [
+        "input count",
+        "input value",
+        "local countPlural = count: plural"
+      ],
+      "selectors": ["countPlural"],
+      "match": {
+        "countPlural=one": "{value} resolved comment",
+        "countPlural=*": "{value} resolved comments"
+      }
+    }
+  ],
+  "cmtHint": "Select words or open a block's menu and choose Comment to ask your colleagues about it. Comments stay with the people writing and never reach readers or print.",
+  "cmtNew": "New comment",
+  "cmtComment": "Comment",
+  "cmtReply": "Reply",
+  "cmtSend": "Send",
+  "cmtSave": "Save",
+  "cmtCancel": "Cancel",
+  "cmtEditField": "Edit comment",
+  "cmtPlaceholder": "Write a comment. Type @ to mention a colleague.",
+  "cmtPeople": "Colleagues",
+  "cmtEdit": "Edit",
+  "cmtDelete": "Delete",
+  "cmtDeleteTitle": "Delete this comment?",
+  "cmtDeleteBody": "Your colleagues will no longer see it. A thread with nothing left in it goes too.",
+  "cmtThreadOn": "Comment on “{quote}”",
+  "cmtThreadBlock": "Comment on a block",
+  "cmtJump": "Go to the passage",
+  "cmtResolve": "Resolve",
+  "cmtReopen": "Reopen",
+  "cmtDetached": "The passage was deleted",
+  "cmtEdited": "edited",
+  "cmtActions": "Comment by {name}",
+  "cmtResolvedBy": "Resolved by {name}, {when}",
+  "cmtSomeone": "A colleague"
 }

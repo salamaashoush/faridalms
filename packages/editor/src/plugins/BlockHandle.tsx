@@ -31,6 +31,7 @@ import {
   GalleryHorizontal,
   GripVertical,
   LayoutTemplate,
+  MessageSquarePlus,
   Palette,
   Plus,
   Repeat2,
@@ -68,6 +69,7 @@ import {
 import { $narrationOf } from "../nodes/narration";
 import { textFocus, updateFromOutside } from "../outside";
 import { Tip, cx, menuItemClass, menuPopupClass, shortcutLabel } from "../ui";
+import { COMMENT_BLOCK_COMMAND } from "./comments";
 import { OPEN_NARRATION_COMMAND } from "./narration";
 import { $sharableBlock, keepShared } from "./shared";
 
@@ -185,7 +187,7 @@ function $setLayout(block: LexicalNode, layout: ColumnLayout) {
 export function BlockHandlePlugin({ anchor }: { anchor: HTMLElement | null }) {
   const [editor] = useLexicalComposerContext();
   const editable = useLexicalEditable();
-  const { strings, media, narration, shared, questions, locale } =
+  const { strings, media, narration, shared, questions, locale, comments } =
     useEditorEnvironment();
   const [hovered, setHovered] = useState<Hovered | null>(null);
   const [menu, setMenu] = useState(false);
@@ -760,6 +762,20 @@ export function BlockHandlePlugin({ anchor }: { anchor: HTMLElement | null }) {
                   >
                     <Repeat2 aria-hidden />
                     <span className="flex-1">{strings.sharedKeep}</span>
+                  </Menu.Item>
+                ) : null}
+                {comments ? (
+                  <Menu.Item
+                    className={menuItemClass}
+                    onClick={() => {
+                      const key = hovered?.key;
+                      setMenu(false);
+                      if (key)
+                        editor.dispatchCommand(COMMENT_BLOCK_COMMAND, key);
+                    }}
+                  >
+                    <MessageSquarePlus aria-hidden />
+                    <span className="flex-1">{strings.comment}</span>
                   </Menu.Item>
                 ) : null}
                 <Menu.Item

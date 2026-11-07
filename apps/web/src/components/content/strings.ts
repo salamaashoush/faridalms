@@ -643,6 +643,7 @@ export function editorStrings(): EditorStrings {
     referencesMla: m.editorReferencesMla(),
     referencesChicago: m.editorReferencesChicago(),
     termDefine: m.editorTermDefine(),
+    comment: m.editorComment(),
     termDefinition: m.editorTermDefinition(),
     termDefinitionHint: m.editorTermDefinitionHint(),
     termGloss: m.editorTermGloss(),

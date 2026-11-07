@@ -9747,5 +9747,67 @@
   "errorMediaFolderNotEmpty": "لا يُحذف إلا المجلد الفارغ. انقل ما فيه إلى مكان آخر أولًا.",
   "errorMediaNotKept": "لا يمكن حفظ هذا الملف في المكتبة.",
   "auditMediaFolderCreate": "أُضيف مجلد إلى مكتبة الوسائط",
-  "auditMediaFolderRemove": "حُذف مجلد من مكتبة الوسائط"
+  "auditMediaFolderRemove": "حُذف مجلد من مكتبة الوسائط",
+  "editorComment": "تعليق",
+  "errorCommentsAuthor": "لا يغيّر التعليق أو يحذفه إلا من كتبه.",
+  "ntfCommentMention": "ذكرك {name} في تعليق",
+  "cmtTitle": "التعليقات",
+  "cmtOpenCount": [
+    {
+      "declarations": [
+        "input count",
+        "input value",
+        "local countPlural = count: plural"
+      ],
+      "selectors": ["countPlural"],
+      "match": {
+        "countPlural=zero": "لا تعليقات مفتوحة",
+        "countPlural=one": "تعليق مفتوح واحد",
+        "countPlural=two": "تعليقان مفتوحان",
+        "countPlural=few": "{value} تعليقات مفتوحة",
+        "countPlural=*": "{value} تعليقًا مفتوحًا"
+      }
+    }
+  ],
+  "cmtResolvedCount": [
+    {
+      "declarations": [
+        "input count",
+        "input value",
+        "local countPlural = count: plural"
+      ],
+      "selectors": ["countPlural"],
+      "match": {
+        "countPlural=zero": "لا تعليقات محلولة",
+        "countPlural=one": "تعليق محلول واحد",
+        "countPlural=two": "تعليقان محلولان",
+        "countPlural=few": "{value} تعليقات محلولة",
+        "countPlural=*": "{value} تعليقًا محلولًا"
+      }
+    }
+  ],
+  "cmtHint": "حدّد كلمات أو افتح قائمة الكتلة واختر «تعليق» لتسأل زملاءك عنها. تبقى التعليقات بين من يكتبون، ولا تصل إلى القرّاء ولا تُطبع.",
+  "cmtNew": "تعليق جديد",
+  "cmtComment": "علّق",
+  "cmtReply": "ردّ",
+  "cmtSend": "إرسال",
+  "cmtSave": "حفظ",
+  "cmtCancel": "إلغاء",
+  "cmtEditField": "تعديل التعليق",
+  "cmtPlaceholder": "اكتب تعليقًا. اكتب @ لذكر زميل.",
+  "cmtPeople": "الزملاء",
+  "cmtEdit": "تعديل",
+  "cmtDelete": "حذف",
+  "cmtDeleteTitle": "أتحذف هذا التعليق؟",
+  "cmtDeleteBody": "لن يراه زملاؤك بعد ذلك. وإن لم يبقَ في المحادثة شيء حُذفت معه.",
+  "cmtThreadOn": "تعليق على «{quote}»",
+  "cmtThreadBlock": "تعليق على كتلة",
+  "cmtJump": "الانتقال إلى المقطع",
+  "cmtResolve": "تمّ الحل",
+  "cmtReopen": "إعادة الفتح",
+  "cmtDetached": "حُذف المقطع",
+  "cmtEdited": "معدّل",
+  "cmtActions": "تعليق {name}",
+  "cmtResolvedBy": "حلّه {name}، {when}",
+  "cmtSomeone": "زميل"
 }

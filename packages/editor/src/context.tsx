@@ -1,3 +1,4 @@
+import type { Anchor } from "@faridalms/domain/anchors";
 import type { PictureCredit } from "@faridalms/domain/commons";
 import type { ContentDocument, Mention } from "@faridalms/domain/content";
 import type { SpeechLanguage } from "@faridalms/domain/file";
@@ -227,8 +228,37 @@ export interface EditorTools {
   pick?: (toolId: string) => LtiPicking | null;
 }
 
+/** A thread on a passage, as the editor marks it. */
+export interface CommentMark {
+  id: string;
+  anchor: Anchor;
+  /** Found and reported like the rest, but not marked in the text. */
+  resolved?: boolean;
+}
+
+/**
+ * Comments the people writing a document leave each other. The host keeps
+ * them, never the document: the editor marks open threads where they
+ * point, offers Comment for a selection or a block, opens the thread a
+ * click lands in, and says where each thread now stands.
+ */
+export interface EditorComments {
+  threads: readonly CommentMark[];
+  /** The thread in hand, marked more strongly. */
+  active: string | null;
+  /** Starts a thread on a passage, with the words it covers. */
+  start: (anchor: Anchor, quote: string) => void;
+  open: (id: string) => void;
+  /** The threads found in the text, in reading order; one left out has lost its passage. */
+  onPlaced: (ids: readonly string[]) => void;
+  /** Brings a thread's passage into view each time `at` changes. */
+  reveal?: { id: string; at: number };
+}
+
 export interface EditorEnvironment {
   strings: EditorStrings;
+  /** Comments while writing; absent where nobody may leave them. */
+  comments?: EditorComments;
   media?: EditorMedia;
   /** Links to outside tools; absent where the school has none to offer. */
   tools?: EditorTools;
