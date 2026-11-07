@@ -10,18 +10,26 @@ import * as v from "valibot";
 
 import { ContentEditor } from "~/components/content/ContentEditor";
 import {
+  DocumentVersion,
+  documentText,
+  useHeldDocument,
+} from "~/components/content/held-document";
+import {
   DetailsPanel,
   DetailsSection,
   DocumentPage,
   DocumentTitle,
 } from "~/components/system/DocumentPage";
-import { useAutosave } from "~/hooks/useAutosave";
 import { useDocumentMedia } from "~/hooks/useDocumentMedia";
 import * as m from "~/i18n/messages";
 import { lettersQuery } from "~/queries/admissions";
 import { templateQuery } from "~/queries/library";
 import { currentUserQuery } from "~/queries/user";
-import { updateTemplate } from "~/server/templates";
+import {
+  listTemplates,
+  openTemplate,
+  updateTemplate,
+} from "~/server/templates";
 import { requirePage } from "~/utils/page-access";
 
 export const Route = createFileRoute("/_app/admissions/letter-editor")({
@@ -72,8 +80,40 @@ function LetterEditorPage() {
     content: template.content,
   });
   const [valid, setValid] = useState(true);
-  const autosave = useAutosave({
+  const [editorKey, setEditorKey] = useState(0);
+  const arabic = listed?.builtinKey?.endsWith("_ar") ?? false;
+  const { autosave, editing } = useHeldDocument({
+    host: { hostType: "document_template", hostId: id },
     value: draft,
+    version: () => version.current,
+    latest: async () => {
+      const [piece, letters] = await Promise.all([
+        openTemplate({ data: { id } }),
+        listTemplates({ data: { kind: "admission_letter" } }),
+      ]);
+      const row = letters.find((letter) => letter.id === id);
+      if (!row) throw new Error("conflict.version");
+      return {
+        value: { title: piece.title, content: piece.content },
+        version: row.version,
+      };
+    },
+    adopt: ({ value, version: kept }) => {
+      version.current = kept;
+      setDraft(value);
+      setEditorKey((key) => key + 1);
+    },
+    rebase: (kept) => {
+      version.current = kept;
+    },
+    render: (value) => (
+      <DocumentVersion
+        title={value.title}
+        body={value.content}
+        lang={arabic ? "ar" : "en"}
+      />
+    ),
+    text: (value) => documentText(value.title, value.content),
     save: async (value) => {
       if (!valid || !value.title.trim()) throw new Error("content.invalid");
       const saved = await updateTemplate({
@@ -89,7 +129,6 @@ function LetterEditorPage() {
   });
   const change = (content: ContentDocument) =>
     setDraft((current) => ({ ...current, content }));
-  const arabic = listed?.builtinKey?.endsWith("_ar") ?? false;
   return (
     <>
       <DocumentPage
@@ -102,6 +141,7 @@ function LetterEditorPage() {
         }}
         saveState={autosave.state}
         onRetry={autosave.retry}
+        editing={editing}
         title={
           <div dir={arabic ? "rtl" : "ltr"} lang={arabic ? "ar" : "en"}>
             <DocumentTitle
@@ -139,6 +179,7 @@ function LetterEditorPage() {
       >
         <div dir={arabic ? "rtl" : "ltr"} lang={arabic ? "ar" : "en"}>
           <ContentEditor
+            key={editorKey}
             id="letter-body"
             label={m.ltrFieldBody()}
             variant="document"
@@ -146,6 +187,7 @@ function LetterEditorPage() {
             onChange={change}
             onValidityChange={setValid}
             media={media}
+            disabled={!editing.editable}
           />
         </div>
       </DocumentPage>

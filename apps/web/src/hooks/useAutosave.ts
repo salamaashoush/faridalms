@@ -25,6 +25,7 @@ export function useAutosave<T>({
   delay?: number;
 }) {
   const [state, setState] = useState<SaveState>("idle");
+  const [failure, setFailure] = useState<unknown>(null);
   const serialized = JSON.stringify(value);
   const [savedSnapshot, setSavedSnapshot] = useState(serialized);
   const saved = useRef(serialized);
@@ -33,10 +34,15 @@ export function useAutosave<T>({
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const latestSave = useRef(save);
   const inflight = useRef<Promise<boolean>>(Promise.resolve(true));
+  const shown = useRef(serialized);
 
   useEffect(() => {
     latestSave.current = save;
   }, [save]);
+
+  useEffect(() => {
+    shown.current = serialized;
+  }, [serialized]);
 
   const run = useCallback(() => {
     if (timer.current) clearTimeout(timer.current);
@@ -61,8 +67,10 @@ export function useAutosave<T>({
     inflight.current = (async () => {
       try {
         if (await step()) setState("saved");
+        setFailure(null);
         return true;
-      } catch {
+      } catch (error) {
+        setFailure(error);
         setState("error");
         return false;
       } finally {
@@ -129,6 +137,12 @@ export function useAutosave<T>({
     };
   }, []);
 
+  /** Saves what is on screen now, even where its last save failed. */
+  const saveNow = useCallback(() => {
+    pending.current = shown.current;
+    return run();
+  }, [run]);
+
   /** Cancels a save not yet started and waits for the one under way. */
   const settle = useCallback(async () => {
     if (timer.current) clearTimeout(timer.current);
@@ -150,9 +164,14 @@ export function useAutosave<T>({
     state: enabled && dirty && state !== "error" ? "saving" : state,
     flush,
     retry: flush,
+    /** Why the last save failed, until one succeeds. */
+    failure,
     dirty,
     busy: () => running.current || pending.current !== null,
     markSaved,
+    saveNow,
     settle,
   };
 }
+
+export type Autosave<T> = ReturnType<typeof useAutosave<T>>;

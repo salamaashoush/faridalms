@@ -45,6 +45,11 @@ import type {
 import { contentIssueMessages } from "~/components/content/checks";
 import { ContentEditor } from "~/components/content/ContentEditor";
 import { ContentView } from "~/components/content/ContentView";
+import {
+  DocumentVersion,
+  documentText,
+  useHeldDocument,
+} from "~/components/content/held-document";
 import { LOCALE_LABEL, LOCALE_NAME } from "~/components/content/languages";
 import { useStartFrom } from "~/components/content/Templates";
 import { TranslatedView } from "~/components/content/TranslatedView";
@@ -59,7 +64,6 @@ import {
   DocumentPage,
   DocumentTitle,
 } from "~/components/system/DocumentPage";
-import { useAutosave } from "~/hooks/useAutosave";
 import { inLocale } from "~/hooks/useCurrentUser";
 import { useDocumentMedia } from "~/hooks/useDocumentMedia";
 import * as m from "~/i18n/messages";
@@ -286,12 +290,45 @@ export function BroadcastEditor({
   );
 
   const primaryTitle = pick(draft.primaryLocale, draft.titleEn, draft.titleAr);
-  // The server needs a title to list it by, and someone it can reach.
-  const autosave = useAutosave({
+  const titleOf = (value: Draft) =>
+    pick(value.primaryLocale, value.titleEn, value.titleAr).trim() ||
+    view.copy.untitled();
+  const { autosave, editing } = useHeldDocument({
+    host: stored ? { hostType: kind, hostId: storedId } : null,
     value: draft,
     save: persist,
+    // The server needs a title to list it by, and someone it can reach.
     enabled: state !== "archived" && primaryTitle.trim() !== "" && reachable,
+    version: () => version.current,
+    latest: async () => {
+      const data = await view.loadEditor(id.current);
+      return { value: draftOf(data), version: data.version, data };
+    },
+    adopt: ({ value, version: kept, data }) => {
+      version.current = kept;
+      setDraft(value);
+      setState(data.shown);
+      setSent(data.sent);
+      setChanged(data.changedSince);
+      setReview(data.translationReview);
+      setWriting(value.primaryLocale);
+      setEditorKey((key) => key + 1);
+    },
+    rebase: (kept) => {
+      version.current = kept;
+    },
+    render: (value) => (
+      <DocumentVersion
+        title={titleOf(value)}
+        body={value.body}
+        lang={value.primaryLocale}
+      />
+    ),
+    text: (value) => documentText(titleOf(value), value.body),
   });
+  const failed = (error: unknown) => {
+    if (!editing.handles(error)) toast.error(getMessageFromError(error));
+  };
 
   const change = useCallback(
     (patch: Partial<Draft>) => {
@@ -400,7 +437,7 @@ export function BroadcastEditor({
       toast.success(later ? view.copy.scheduled() : view.copy.published());
       onClose(id.current);
     } catch (error) {
-      toast.error(getMessageFromError(error));
+      failed(error);
     } finally {
       setPending(null);
     }
@@ -432,7 +469,7 @@ export function BroadcastEditor({
       setState("published");
       toast.success(view.copy.revised());
     } catch (error) {
-      toast.error(getMessageFromError(error));
+      failed(error);
     } finally {
       setPending(null);
     }
@@ -449,7 +486,7 @@ export function BroadcastEditor({
       version.current = out.version;
       setReview(out.review);
     } catch (error) {
-      toast.error(getMessageFromError(error));
+      failed(error);
     } finally {
       setPending(null);
     }
@@ -466,7 +503,7 @@ export function BroadcastEditor({
       toast.success(view.copy.archived());
       onClose();
     } catch (error) {
-      toast.error(getMessageFromError(error));
+      failed(error);
       setPending(null);
     }
   };
@@ -584,6 +621,7 @@ export function BroadcastEditor({
             : LOCALE_LABEL[draft.primaryLocale](),
         ]}
         details={{ open: detailsOpen, onOpenChange: setDetailsOpen }}
+        editing={editing}
         title={
           <div className="grid gap-3">
             {issues.length ? (
@@ -803,6 +841,7 @@ export function BroadcastEditor({
             onUploadingChange={setUploading}
             media={media}
             sharedBlocks
+            disabled={!editing.editable}
           />
         </div>
       </DocumentPage>

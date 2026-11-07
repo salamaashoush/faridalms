@@ -204,6 +204,8 @@ export function getMessageFromError(error: unknown): string {
     switch (error.message) {
       case "conflict.version":
         return m.errorConflictVersion();
+      case "documents.held":
+        return m.errorDocumentHeld();
       case "contact_point.phone_invalid":
         return m.errorPhoneInvalid();
       case "contact_point.exists":

@@ -22,6 +22,7 @@ import {
 import {
   archiveAnnouncement,
   duplicateAnnouncement,
+  getAnnouncementEditor,
   markAnnouncementSeen,
   publishAnnouncement,
   reviewAnnouncementTranslation,
@@ -30,6 +31,7 @@ import {
 import {
   archiveNews,
   duplicateNews,
+  getNewsEditor,
   markNewsSeen,
   publishNews,
   reviewNewsTranslation,
@@ -102,6 +104,8 @@ export interface KindView {
   audienceOptional: boolean;
   recordPath: (id: string) => string;
   useEditor: (id: string) => EditorData;
+  /** The editor's data as stored now, read past the cache. */
+  loadEditor: (id: string) => Promise<EditorData>;
   useRecord: (id: string) => RecordData;
   reportQuery: typeof announcementReportQuery;
   useOptions: () => Options;
@@ -159,6 +163,7 @@ const announcement: KindView = {
   audienceOptional: false,
   recordPath: (id) => `/announcements/${id}`,
   useEditor: (id) => useSuspenseQuery(announcementEditorQuery(id)).data,
+  loadEditor: (id) => getAnnouncementEditor({ data: { id } }),
   useRecord: (id) => useSuspenseQuery(announcementQuery(id)).data,
   reportQuery: announcementReportQuery,
   useOptions: () => {
@@ -222,6 +227,7 @@ const news: KindView = {
   audienceOptional: true,
   recordPath: (id) => `/news/${id}`,
   useEditor: (id) => useSuspenseQuery(newsEditorQuery(id)).data,
+  loadEditor: (id) => getNewsEditor({ data: { id } }),
   useRecord: (id) => useSuspenseQuery(newsPostQuery(id)).data,
   reportQuery: newsReportQuery,
   useOptions: () => useSuspenseQuery(newsOptionsQuery).data,

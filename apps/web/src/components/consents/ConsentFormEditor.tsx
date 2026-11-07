@@ -36,6 +36,11 @@ import type { consentFormQuery } from "~/queries/consents";
 
 import { ContentEditor } from "~/components/content/ContentEditor";
 import { ContentView } from "~/components/content/ContentView";
+import {
+  DocumentVersion,
+  documentText,
+  useHeldDocument,
+} from "~/components/content/held-document";
 import { LOCALE_LABEL, LOCALE_NAME } from "~/components/content/languages";
 import { sectionsContent } from "~/components/content/shapes";
 import { useStartFrom } from "~/components/content/Templates";
@@ -46,12 +51,12 @@ import {
   DetailsSection,
   DocumentPage,
 } from "~/components/system/DocumentPage";
-import { useAutosave } from "~/hooks/useAutosave";
 import { inLocale } from "~/hooks/useCurrentUser";
 import * as m from "~/i18n/messages";
 import { getLocale } from "~/i18n/runtime";
 import {
   discardConsentForm,
+  getConsentForm,
   publishConsentForm,
   reviewConsentForm,
   saveConsentForm,
@@ -150,6 +155,7 @@ export function ConsentFormEditor({
   const id = useRef(data.draft?.id ?? "");
   const version = useRef(data.draft?.version ?? 0);
   const [stored, setStored] = useState(data.draft !== null);
+  const [formId, setFormId] = useState(data.draft?.id ?? "");
   const [draft, setDraft] = useState<Draft>(() => draftOf(data));
   const [valid, setValid] = useState(true);
   const [review, setReview] = useState<Review>(
@@ -181,13 +187,50 @@ export function ConsentFormEditor({
       id.current = saved.id;
       version.current = saved.version;
       setStored(true);
+      setFormId(saved.id);
       setReview(saved.translationReview);
       await queryClient.invalidateQueries({ queryKey: ["consents"] });
     },
     [valid, queryClient, data.purpose.id],
   );
 
-  const autosave = useAutosave({ value: draft, save: persist });
+  const [editorKey, setEditorKey] = useState(0);
+  const { autosave, editing } = useHeldDocument({
+    host: formId ? { hostType: "privacy_notice", hostId: formId } : null,
+    value: draft,
+    save: persist,
+    version: () => version.current,
+    latest: async () => {
+      const fresh = await getConsentForm({
+        data: { purposeId: data.purpose.id },
+      });
+      // A draft published or discarded meanwhile has no version to keep.
+      const kept = fresh.draft;
+      if (!kept || kept.id !== id.current) throw new Error("conflict.version");
+      return { value: draftOf(fresh), version: kept.version, fresh };
+    },
+    adopt: ({ value, version: kept, fresh }) => {
+      version.current = kept;
+      setDraft(value);
+      setReview(fresh.draft?.translationReview ?? null);
+      setWriting(value.primaryLocale);
+      setEditorKey((key) => key + 1);
+    },
+    rebase: (kept) => {
+      version.current = kept;
+    },
+    render: (value) => (
+      <DocumentVersion
+        title={purpose}
+        body={value.body}
+        lang={value.primaryLocale}
+      />
+    ),
+    text: (value) => documentText(purpose, value.body),
+  });
+  const failed = (error: unknown) => {
+    if (!editing.handles(error)) toast.error(getMessageFromError(error));
+  };
 
   const change = useCallback((patch: Partial<Draft>) => {
     setDraft((current) => ({ ...current, ...patch }));
@@ -200,7 +243,6 @@ export function ConsentFormEditor({
     (translation: ContentDocument) => change({ translation }),
     [change],
   );
-  const [editorKey, setEditorKey] = useState(0);
   const apply = (content: ContentDocument) => {
     change(translating ? { translation: content } : { body: content });
     setEditorKey((key) => key + 1);
@@ -250,7 +292,7 @@ export function ConsentFormEditor({
       version.current = out.version;
       setReview(out.review);
     } catch (error) {
-      toast.error(getMessageFromError(error));
+      failed(error);
     } finally {
       setReviewing(false);
     }
@@ -268,7 +310,7 @@ export function ConsentFormEditor({
       toast.success(m.consentFormPublished({ count: out.asked }));
       onClose();
     } catch (error) {
-      toast.error(getMessageFromError(error));
+      failed(error);
       setPending(null);
       setPublishing(false);
     }
@@ -328,6 +370,7 @@ export function ConsentFormEditor({
         }
         saveState={autosave.state}
         onRetry={autosave.retry}
+        editing={editing}
         primary={{
           label: m.consentFormPublish(),
           icon: Send,
@@ -474,6 +517,7 @@ export function ConsentFormEditor({
             value={translating ? draft.translation : draft.body}
             onChange={translating ? changeTranslation : changeBody}
             onValidityChange={setValid}
+            disabled={!editing.editable}
           />
         </div>
       </DocumentPage>

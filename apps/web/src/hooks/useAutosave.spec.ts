@@ -74,4 +74,23 @@ describe("useAutosave", () => {
     expect(save.mock.calls).toEqual([["first"], ["second"], ["first"]]);
     expect(result.current.dirty).toBe(false);
   });
+
+  it("says why a save failed and saves the same value again when asked", async () => {
+    const refused = new Error("conflict.version");
+    const save = vi
+      .fn(async (_value: string) => {})
+      .mockRejectedValueOnce(refused);
+    const { result, rerender } = render(save);
+
+    rerender({ value: "first" });
+    await act(() => vi.advanceTimersByTimeAsync(800));
+    expect(result.current.state).toBe("error");
+    expect(result.current.failure).toBe(refused);
+
+    await act(() => result.current.saveNow());
+    expect(save.mock.calls).toEqual([["first"], ["first"]]);
+    expect(result.current.failure).toBeNull();
+    expect(result.current.state).toBe("saved");
+    expect(result.current.dirty).toBe(false);
+  });
 });

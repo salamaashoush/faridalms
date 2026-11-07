@@ -50,6 +50,11 @@ import {
 import { contentIssueMessages } from "~/components/content/checks";
 import { ContentEditor } from "~/components/content/ContentEditor";
 import { ContentView } from "~/components/content/ContentView";
+import {
+  DocumentVersion,
+  documentText,
+  useHeldDocument,
+} from "~/components/content/held-document";
 import { LOCALE_LABEL, LOCALE_NAME } from "~/components/content/languages";
 import { sectionsContent } from "~/components/content/shapes";
 import { useStartFrom } from "~/components/content/Templates";
@@ -62,13 +67,13 @@ import {
   DocumentPage,
   DocumentTitle,
 } from "~/components/system/DocumentPage";
-import { useAutosave } from "~/hooks/useAutosave";
 import { inLocale } from "~/hooks/useCurrentUser";
 import { useDocumentMedia } from "~/hooks/useDocumentMedia";
 import * as m from "~/i18n/messages";
 import { getLocale } from "~/i18n/runtime";
 import { calendarEventQuery, calendarOptionsQuery } from "~/queries/calendar";
 import {
+  getCalendarEvent,
   publishCalendarEvent,
   removeCalendarEvent,
   reviewCalendarTranslation,
@@ -138,6 +143,11 @@ function draftOf(
     translation: existing?.translation ?? emptyContent(),
   };
 }
+
+const titleOf = (value: Draft) =>
+  (value.primaryLocale === "ar" ? value.titleAr : value.titleEn).trim() ||
+  value.titleEn.trim() ||
+  value.titleAr.trim();
 
 const plan = (value: Draft) => ({
   ...value,
@@ -299,11 +309,44 @@ export function EventEditor({
 
   // The server refuses a draft with no title or impossible times, so one is
   // stored only once it could be.
-  const autosave = useAutosave({
+  const { autosave, editing } = useHeldDocument({
+    host: storedId ? { hostType: "calendar_event", hostId: storedId } : null,
     value: draft,
     save: persist,
     enabled: !live && ready,
+    version: () => version.current,
+    latest: async () => {
+      const data = await getCalendarEvent({ data: { id: id.current } });
+      return {
+        value: draftOf(data, day, manages),
+        version: data.version,
+        data,
+      };
+    },
+    adopt: ({ value, version: kept, data }) => {
+      version.current = kept;
+      setDraft(value);
+      setSent(value);
+      setState(data.state);
+      setReview(data.translationReview);
+      setWriting(value.primaryLocale);
+      setEditorKey((key) => key + 1);
+    },
+    rebase: (kept) => {
+      version.current = kept;
+    },
+    render: (value) => (
+      <DocumentVersion
+        title={titleOf(value)}
+        body={value.description}
+        lang={value.primaryLocale}
+      />
+    ),
+    text: (value) => documentText(titleOf(value), value.description),
   });
+  const failed = (error: unknown) => {
+    if (!editing.handles(error)) toast.error(getMessageFromError(error));
+  };
 
   const change = useCallback((patch: Partial<Draft>) => {
     setDraft((current) => ({ ...current, ...patch }));
@@ -336,7 +379,7 @@ export function EventEditor({
       version.current = out.version;
       setReview(out.review);
     } catch (error) {
-      toast.error(getMessageFromError(error));
+      failed(error);
     } finally {
       setPending(null);
     }
@@ -393,7 +436,7 @@ export function EventEditor({
       );
       onClose(id.current);
     } catch (error) {
-      toast.error(getMessageFromError(error));
+      failed(error);
     } finally {
       setPending(null);
     }
@@ -411,7 +454,7 @@ export function EventEditor({
       setTellChoice(null);
       toast.success(m.calSaved());
     } catch (error) {
-      toast.error(getMessageFromError(error));
+      failed(error);
     } finally {
       setPending(null);
     }
@@ -585,6 +628,7 @@ export function EventEditor({
           audienceSummary(draft.audiences, options),
         ]}
         details={{ open: detailsOpen, onOpenChange: setDetailsOpen }}
+        editing={editing}
         aside={
           <DetailsPanel title={m.docDetails()}>
             <DetailsSection title={m.calSectionWhen()}>
@@ -794,6 +838,7 @@ export function EventEditor({
             onValidityChange={setValid}
             onUploadingChange={setUploading}
             media={media}
+            disabled={!editing.editable}
           />
         </div>
       </DocumentPage>

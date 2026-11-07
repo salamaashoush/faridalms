@@ -34,6 +34,7 @@ import {
 import { createContext, useContext, useRef, useState } from "react";
 import { toast } from "sonner";
 
+import type { HeldEditing } from "~/components/content/held-document";
 import type {
   BuiltInGroup,
   BuiltInPiece,
@@ -55,6 +56,8 @@ const NO_ACTIONS: ActionItem[] = [];
 
 /** Where the details panel is drawn: beside the document, or in a sheet. */
 const DetailsPlacement = createContext<"side" | "sheet">("side");
+/** Whether someone else holds the document, so its title only reads. */
+const Reading = createContext(false);
 
 export interface SaveIndicatorProps {
   state: SaveState;
@@ -216,6 +219,11 @@ export interface DocumentPageProps {
   summary?: string[];
   /** Opens the details on phones, where the panel is not beside the text. */
   details?: { open: boolean; onOpenChange: (open: boolean) => void };
+  /**
+   * Who is editing it, from `useHeldDocument`: while someone else holds it
+   * the page reads, says who, and keeps only what changes nothing.
+   */
+  editing?: HeldEditing;
   children: ReactNode;
 }
 
@@ -244,8 +252,10 @@ export function DocumentPage({
   aside,
   summary = [],
   details,
+  editing,
   children,
 }: DocumentPageProps) {
+  const reading = editing ? !editing.editable : false;
   const [ownOpen, setOwnOpen] = useState(false);
   const [historyOpen, setHistoryOpen] = useState(false);
   const printing = usePrint(print ?? null);
@@ -266,7 +276,7 @@ export function DocumentPage({
           },
         ]
       : []),
-    ...(history
+    ...(history && !reading
       ? [
           {
             label: m.docHistory(),
@@ -276,7 +286,7 @@ export function DocumentPage({
         ]
       : []),
     ...(printing.action ? [printing.action] : []),
-    ...(templates && !templates.empty
+    ...(templates && !templates.empty && !reading
       ? [
           {
             label: m.tplSaveTitle(),
@@ -285,7 +295,7 @@ export function DocumentPage({
           },
         ]
       : []),
-    ...menu,
+    ...(reading ? [] : menu),
   ];
   const open = details?.open ?? ownOpen;
   const setOpen = details?.onOpenChange ?? setOwnOpen;
@@ -323,7 +333,7 @@ export function DocumentPage({
             {status.label}
           </StatusBadge>
         ) : null}
-        {unpublished ? (
+        {reading ? null : unpublished ? (
           <>
             {unpublished.waiting ? (
               <SaveIndicator state={saveState} onRetry={onRetry} />
@@ -377,8 +387,9 @@ export function DocumentPage({
         )}
       >
         <div className="grid max-w-[720px] min-w-0 gap-3 [grid-area:title]">
-          {title}
-          {templates?.empty ? (
+          {editing?.notice}
+          <Reading value={reading}>{title}</Reading>
+          {templates?.empty && !reading ? (
             <TemplatePicker
               kind={templates.kind}
               onApply={templates.onApply}
@@ -409,7 +420,10 @@ export function DocumentPage({
           </button>
         ) : null}
         {aside && !inSheet ? (
-          <aside className="min-w-0 [grid-area:aside] max-lg:hidden lg:sticky lg:top-16 lg:self-start">
+          <aside
+            inert={reading}
+            className="min-w-0 [grid-area:aside] max-lg:hidden lg:sticky lg:top-16 lg:self-start"
+          >
             {aside}
           </aside>
         ) : null}
@@ -432,7 +446,9 @@ export function DocumentPage({
               </SheetTitle>
             </SheetHeader>
             <div className="min-h-0 flex-1 overflow-y-auto px-5 py-5">
-              <DetailsPlacement value="sheet">{aside}</DetailsPlacement>
+              <div inert={reading}>
+                <DetailsPlacement value="sheet">{aside}</DetailsPlacement>
+              </div>
             </div>
             <SheetFooter className="border-t px-5 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
               <Button
@@ -455,6 +471,7 @@ export function DocumentPage({
         />
       ) : null}
       {printing.sheet}
+      {editing?.compare}
       {history ? (
         <DocumentHistory
           open={historyOpen}
@@ -492,10 +509,12 @@ export function DocumentTitle({
 }: DocumentTitleProps) {
   const type =
     "col-start-1 row-start-1 text-[30px] leading-[38px] font-semibold tracking-tight";
+  const reading = useContext(Reading);
   return (
     <div className="grid">
       <textarea
         id={id}
+        readOnly={reading}
         aria-label={label}
         placeholder={placeholder}
         value={value}

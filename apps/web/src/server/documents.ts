@@ -29,6 +29,16 @@ export const collaborate = createServerFn({ method: "POST" })
     }
   });
 
+export const holdDocument = createServerFn({ method: "POST" })
+  .validator(
+    checked(v.object({ ...hostSchema.entries, take: v.optional(v.boolean()) })),
+  )
+  .handler(({ data }) => backend().documents.hold(data));
+
+export const releaseDocument = createServerFn({ method: "POST" })
+  .validator(checked(hostSchema))
+  .handler(({ data }) => backend().documents.release(data));
+
 export const getDocumentHistory = createServerFn({ method: "GET" })
   .validator(checked(hostSchema))
   .handler(({ data }) => backend().documents.history(data));
