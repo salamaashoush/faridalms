@@ -13,6 +13,17 @@ export const ENGLISH_STRINGS: SystemStrings = {
   clearFilters: "Clear filters",
   close: "Close",
   columns: "Columns",
+  compareBody:
+    "Someone saved this while you were changing it, so your change was not saved. Choose which version to keep.",
+  compareKeepMine: "Keep mine",
+  compareKeepSaved: "Keep the saved one",
+  compareMine: "Yours, not saved",
+  compareSaved: "Saved",
+  compareTakeAndKeepMine: "Take over and keep mine",
+  compareTakenBody: (name) =>
+    `${name} took this over before your change was saved. Choose which version to keep.`,
+  compareTitle: "Compare versions",
+  compareVersions: "Versions",
   copied: "Copied",
   countInTotal: (count) => `${count} in total`,
   dangerZone: "Danger zone",
@@ -35,6 +46,17 @@ export const ENGLISH_STRINGS: SystemStrings = {
   filtersHint: "Changes apply straight away.",
   goBack: "Go back",
   goHome: "Go home",
+  holdCompare: "Compare versions",
+  holdCopy: "Copy my change",
+  holdHeld: (name, since) =>
+    `${name} has been editing this since ${since}. You can read it while they do.`,
+  holdTakeOver: "Take over",
+  holdTakeOverBody: (name) =>
+    `${name} can no longer change it. Anything they have not saved stays on their screen to copy or compare.`,
+  holdTakeOverTitle: (name) => `Take over from ${name}?`,
+  holdTaken: (name, since) =>
+    `${name} took this over at ${since}. You can read it but no longer change it.`,
+  holdUnsaved: "Your last change was not saved.",
   keepEditing: "Keep editing",
   leaveHint:
     "Your changes have not been saved. Stay here to finish editing or discard these changes.",
