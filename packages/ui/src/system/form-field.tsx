@@ -78,9 +78,11 @@ export interface FormFieldProps {
 }
 
 /**
- * The field: label, "(optional)" beside it, a hint between label and control,
- * the control, then the error in place of the hint. The optional marker sits
- * outside the label so the control's accessible name stays the label alone.
+ * The field: label, "(optional)" beside it, the control, then one line below
+ * it holding the hint, or the error in its place. With nothing between label
+ * and control, fields side by side keep their controls on one line whether
+ * or not each has a hint. The optional marker sits outside the label so the
+ * control's accessible name stays the label alone.
  */
 export function FormField({
   id: givenId,
@@ -126,20 +128,20 @@ export function FormField({
           </span>
         ) : null}
       </div>
-      {hintId ? (
-        <p
-          id={hintId}
-          className="-mt-1 text-[13px] leading-[18px] text-muted-foreground"
-        >
-          {hint}
-        </p>
-      ) : null}
       {children({
         id,
         "aria-invalid": error ? true : undefined,
         "aria-describedby":
           [hintId, errorId].filter(Boolean).join(" ") || undefined,
       })}
+      {hintId ? (
+        <p
+          id={hintId}
+          className="text-[13px] leading-[18px] text-muted-foreground"
+        >
+          {hint}
+        </p>
+      ) : null}
       {error ? (
         <p
           id={errorId}
@@ -282,11 +284,6 @@ export function SelectField<T extends string>({
   );
 }
 
-/**
- * One choice among a few, each with a line saying what choosing it means.
- * The group is named by its legend as a field is by its label, and an error
- * sits below it as it does below any control.
- */
 export interface ChoiceOption<T extends string> extends FieldOption<T> {
   /** What choosing it means, on the line below. */
   hint?: string;
@@ -300,6 +297,11 @@ export interface ChoiceFieldProps<T extends string> {
   errors?: FieldIssue[];
 }
 
+/**
+ * One choice among a few, each with a line saying what choosing it means.
+ * The group is named by its legend as a field is by its label, and an error
+ * sits below it as it does below any control.
+ */
 export function ChoiceField<T extends string>({
   label,
   value,
@@ -382,7 +384,8 @@ export interface CheckboxGroupFieldProps<T extends string> {
 
 /**
  * Several choices among a few, each a checkbox with its label beside it.
- * The group is named by its legend and keeps the order of its options.
+ * The group is named by its legend and keeps the order of its options. Its
+ * hint sits under the legend, since it speaks of the whole list.
  */
 export function CheckboxGroupField<T extends string>({
   label,

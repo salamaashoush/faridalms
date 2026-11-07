@@ -1,15 +1,15 @@
-import { ComboboxField } from "@faridalms/ui/system/combobox-field";
 import { SelectField, TextField } from "@faridalms/ui/system/form-field";
 import {
   SettingsGroup,
   SettingsSection,
 } from "@faridalms/ui/system/settings-section";
+import { TimeZoneField } from "@faridalms/ui/system/time-zone-field";
 import {
   useMutation,
   useQueryClient,
   useSuspenseQuery,
 } from "@tanstack/react-query";
-import { useMemo, useState } from "react";
+import { useState } from "react";
 
 import { CheckboxRow } from "~/components/people/fields";
 import { PictureField } from "~/components/site/PictureField";
@@ -18,41 +18,6 @@ import { schoolProfileQuery } from "~/queries/school-settings";
 import { saveSchoolProfile } from "~/server/school-settings";
 import { formatWeekday } from "~/utils/datetime";
 import { getMessageFromError } from "~/utils/error";
-
-interface TimeZoneFieldProps {
-  value: string;
-  onChange: (value: string) => void;
-  errors?: (string | { message?: string } | undefined)[];
-}
-
-function TimeZoneField({ value, onChange, errors }: TimeZoneFieldProps) {
-  const [search, setSearch] = useState("");
-  const zones = useMemo(() => Intl.supportedValuesOf("timeZone"), []);
-  const needle = search.trim().toLocaleLowerCase().replaceAll(" ", "_");
-  const matches = zones.filter((zone) =>
-    zone.toLocaleLowerCase().includes(needle),
-  );
-  // The saved zone is always an option, so the trigger can name it even
-  // when a search leaves it out or this browser does not list it.
-  const options = (
-    value && !matches.includes(value) ? [value, ...matches] : matches
-  ).map((zone) => ({ value: zone, label: zone.replaceAll("_", " ") }));
-  return (
-    <div className="max-w-80">
-      <ComboboxField
-        label={m.settingsTimeZone()}
-        hint={m.settingsTimeZoneHint()}
-        searchLabel={m.settingsTimeZoneSearch()}
-        options={options}
-        value={value ? [value] : []}
-        onChange={(next) => onChange(next[0] ?? value)}
-        search={search}
-        onSearchChange={setSearch}
-        errors={errors}
-      />
-    </div>
-  );
-}
 
 type Profile = Awaited<
   ReturnType<NonNullable<(typeof schoolProfileQuery)["queryFn"]>>
@@ -180,6 +145,9 @@ export function SchoolProfileSection() {
       </SettingsGroup>
       <SettingsGroup title={m.settingsGroupLanguageTime()}>
         <TimeZoneField
+          label={m.settingsTimeZone()}
+          hint={m.settingsTimeZoneHint()}
+          searchLabel={m.settingsTimeZoneSearch()}
           value={draft.timeZone}
           onChange={(value) => set("timeZone", value)}
         />

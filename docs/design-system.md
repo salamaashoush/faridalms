@@ -15,21 +15,22 @@ build their screens from it. A screen never re-creates one of these with
 its own markup; when a screen needs something the package lacks, the
 package gains it first, with a test and a line in this table.
 
-| Rule           | Module                                                                                                                      |
-| -------------- | --------------------------------------------------------------------------------------------------------------------------- |
-| Shell          | `app-shell` (`AppShell`, `ShellBrand`, `ShellAccount`, `ThemeSubmenu`, breadcrumb steps), `page-actions`                    |
-| Index page     | `page-header`, `index-toolbar`, `data-table`, `empty-state`                                                                 |
-| Record page    | `record-page` (`RecordHeader`, `RecordTabs`, `RecordColumns`, `RecordSection`, `Facts`, `Fact`, `RecordList`), `value`      |
-| Section sheets | `sheet-form` (edits), `sheet-panel` (reads)                                                                                 |
-| Record form    | `record-form` (`RecordForm`, `FormSection`, danger zone), `unsaved-changes-guard`                                           |
-| Settings page  | `settings-section` (`SettingsPage`, `SettingsSection`, `SettingsGroup`)                                                     |
-| Forms          | `form-field` (`FormField`, `TextField`, `SelectField`, `ChoiceField`, `CheckboxGroupField`, `FieldError`), `combobox-field` |
-| Status         | `status` (`StatusBadge`, `StatusText`, `toneSurface`)                                                                       |
-| Feedback       | `action-menu` (`ActionMenu`, `useRunAndReport`), `confirm-dialog`, `dialog`                                                 |
-| Side panels    | `panel` (`PanelGroup`, `Segmented`)                                                                                         |
-| Metrics        | `metrics` (`MetricGrid`, `Metric`)                                                                                          |
-| Steps          | `step-nav` (`StepNav`), `form-footer` (`FormFooter`)                                                                        |
-| Status pages   | `status-page` (`StatusPage`, `ErrorPage`, `NotFoundPage`)                                                                   |
+| Rule           | Module                                                                                                                                         |
+| -------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
+| Shell          | `app-shell` (`AppShell`, `ShellBrand`, `ShellAccount`, `ThemeSubmenu`, breadcrumb steps), `page-actions`                                       |
+| Index page     | `page-header`, `index-toolbar`, `data-table`, `empty-state`                                                                                    |
+| Record page    | `record-page` (`RecordHeader`, `RecordTabs`, `RecordColumns`, `RecordSection`, `Facts`, `Fact`, `RecordList`), `value`                         |
+| Section sheets | `sheet-form` (edits), `sheet-panel` (reads)                                                                                                    |
+| Record form    | `record-form` (`RecordForm`, `FormSection`, danger zone), `unsaved-changes-guard`                                                              |
+| Settings page  | `settings-section` (`SettingsPage`, `SettingsSection`, `SettingsGroup`)                                                                        |
+| Forms          | `form-field` (`FormField`, `TextField`, `SelectField`, `ChoiceField`, `CheckboxGroupField`, `FieldError`), `combobox-field`, `time-zone-field` |
+| Status         | `status` (`StatusBadge`, `StatusText`, `toneSurface`)                                                                                          |
+| Feedback       | `action-menu` (`ActionMenu`, `useRunAndReport`), `confirm-dialog`, `dialog`                                                                    |
+| Side panels    | `panel` (`PanelGroup`, `Segmented`)                                                                                                            |
+| Metrics        | `metrics` (`MetricGrid`, `Metric`)                                                                                                             |
+| Steps          | `step-nav` (`StepNav`), `form-footer` (`FormFooter`)                                                                                           |
+| Status pages   | `status-page` (`StatusPage`, `ErrorPage`, `NotFoundPage`)                                                                                      |
+| Sign-in pages  | `auth-layout` (`AuthLayout`, `AuthBand`, `AuthHeading`), `theme-toggle`                                                                        |
 
 The package says nothing in a language of its own. Each app wraps its pages
 in `DesignSystemProvider` with a `DesignSystemValue`: the strings the
@@ -287,10 +288,18 @@ The field, in order (GOV.UK, Primer):
 2. "(optional)" in muted text after the label on optional fields, outside the
    label, so the field's accessible name stays the label. No asterisks
    (GOV.UK). Most fields should be required; cut the rest.
-3. Hint between label and control, 13px muted, only when it helps.
-4. The control, 36px.
-5. The error below the control, 13px destructive with an icon, replacing the
+3. The control, 36px, directly under the label.
+4. One line under the control (Carbon, Polaris): the hint, 13px muted, only
+   when it helps, or in its place the error, 13px destructive with an icon.
+   Nothing sits between label and control, so fields sharing a row keep
+   their labels and their controls on one line whether or not each has a
    hint.
+
+A hint says what a person needs to fill the field in, in one sentence: the
+format ("Two letters, such as EG."), a limit, or what the value is used for.
+It never repeats the label. A radio or checkbox group is the one exception
+to the order: its hint sits under its legend, since it speaks of the whole
+list of options.
 
 Fields are 24px apart, sections 40px. Related short inputs may share a row
 (Carbon): start and end date, city and postcode.

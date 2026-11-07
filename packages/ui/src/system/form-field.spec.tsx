@@ -35,6 +35,49 @@ describe("TextField", () => {
   });
 });
 
+describe("fields side by side", () => {
+  it("keep their controls level: a hint goes under its control, not above", () => {
+    renderWithSystem(
+      <div>
+        <TextField label="Cell" value="eg-1" onChange={() => undefined} />
+        <TextField
+          label="Jurisdictions"
+          hint="Country codes whose rules apply, separated by commas."
+          value="EG"
+          onChange={() => undefined}
+        />
+      </div>,
+    );
+    const control = screen.getByRole("textbox", { name: "Jurisdictions" });
+    const hint = screen.getByText(
+      "Country codes whose rules apply, separated by commas.",
+    );
+    expect(control.compareDocumentPosition(hint)).toBe(
+      Node.DOCUMENT_POSITION_FOLLOWING,
+    );
+    expect(control).toHaveAccessibleDescription(
+      "Country codes whose rules apply, separated by commas.",
+    );
+  });
+
+  it("put an error where the hint was", () => {
+    renderWithSystem(
+      <TextField
+        label="Jurisdictions"
+        hint="Country codes whose rules apply, separated by commas."
+        value=""
+        errors={[{ message: "Enter at least one country." }]}
+        onChange={() => undefined}
+      />,
+    );
+    const control = screen.getByRole("textbox", { name: "Jurisdictions" });
+    expect(control).toHaveAccessibleDescription("Enter at least one country.");
+    expect(
+      screen.queryByText("Country codes whose rules apply, separated by commas."),
+    ).not.toBeInTheDocument();
+  });
+});
+
 describe("CheckboxGroupField", () => {
   it("names its choices by their legend and keeps their order when one is added", async () => {
     const onChange = vi.fn<(value: string[]) => void>();

@@ -164,7 +164,7 @@ changes state, so the top bar fits; record forms keep bottom actions.
   fields), each card with its own Save at the start of its footer, max 960px,
   40px between sections. Records: one form up to 680px, Save and Cancel at the
   bottom start, sticky only when taller than the screen, Danger zone last.
-- Field: label (14 medium), hint (13/18 muted) between label and control,
+- Field: label (14 medium), control, then hint (13/18 muted) below it,
   control 36px, error (13 danger with icon) replacing the hint; 24px between
   fields; "(optional)" without asterisks; validation on submit then live; error
   summary for forms over five fields; Save never disabled except in flight;

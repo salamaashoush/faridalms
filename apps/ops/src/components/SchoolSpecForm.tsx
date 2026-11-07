@@ -19,6 +19,7 @@ import {
 } from "@faridalms/ui/system/form-field";
 import { FormFooter } from "@faridalms/ui/system/form-footer";
 import { FormSection } from "@faridalms/ui/system/record-form";
+import { TimeZoneField } from "@faridalms/ui/system/time-zone-field";
 import { useForm, useStore } from "@tanstack/react-form";
 import { useHydrated } from "@tanstack/react-router";
 import { useState } from "react";
@@ -299,16 +300,12 @@ export function SchoolSpecForm({
                     </form.Field>
                     <form.Field name={`schools[${index}].timeZone`}>
                       {(field) => (
-                        <TextField
-                          id={`school-${index}-time-zone`}
+                        <TimeZoneField
                           label="Time zone"
-                          hint="An IANA name, such as Africa/Cairo or Asia/Dubai."
-                          dir="ltr"
+                          hint="Search by city, such as Cairo or Dubai."
+                          searchLabel="Search time zones…"
                           value={field.state.value}
-                          onChange={(event) =>
-                            field.handleChange(event.target.value)
-                          }
-                          onBlur={field.handleBlur}
+                          onChange={field.handleChange}
                           errors={field.state.meta.errors}
                         />
                       )}
@@ -318,7 +315,7 @@ export function SchoolSpecForm({
                         <TextField
                           id={`school-${index}-country`}
                           label="Country"
-                          hint="Two letters; it sets the school week."
+                          hint="Two letters, such as EG. It sets the school's week and the privacy law families' requests follow."
                           dir="ltr"
                           maxLength={2}
                           value={field.state.value}
@@ -411,7 +408,7 @@ export function SchoolSpecForm({
                   <TextField
                     id="jurisdictions"
                     label="Jurisdictions"
-                    hint="Country codes whose rules apply, separated by commas."
+                    hint="Where its data rules come from: two-letter codes separated by commas, such as EG, AE."
                     dir="ltr"
                     value={jurisdictions}
                     onChange={(event) => {

@@ -131,7 +131,7 @@ export function TermsFields({ draft, onChange }: TermsFieldsProps) {
           <TextField
             label="Trial's last day"
             type="date"
-            hint="The day after, without a contract, the tenant becomes read only."
+            hint="Unless it has a contract by then, the tenant becomes read only the day after."
             value={draft.trialEndsOn}
             onChange={(event) => set({ trialEndsOn: event.target.value })}
           />
