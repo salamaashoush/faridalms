@@ -33,11 +33,16 @@ import {
 } from "./site-theme";
 import {
   alignTranslation,
+  blankPage,
   isSiteHref,
   localizedSections,
   newSection,
+  pageContentSchema,
+  pageFileIds,
   pageIssues,
   pageSectionSchema,
+  pageWarnings,
+  saveRedirectSchema,
   translationGaps,
   wordless,
 } from "./website";
@@ -102,11 +107,10 @@ function cards(): PageSection {
   };
 }
 
-const english: PageContent = {
-  sections: [hero("Welcome", "The front gate", "Apply now"), cards()],
-  description: "",
-  reviewed: [],
-};
+const english: PageContent = blankPage([
+  hero("Welcome", "The front gate", "Apply now"),
+  cards(),
+]);
 
 describe("sections", () => {
   it("validate against their declaration, including every type's first layout", () => {
@@ -148,8 +152,7 @@ describe("the other language of a page", () => {
       data: { ...arabic.data, media: { ...arabic.data.media, fileId: null } },
     } as PageSection;
     const aligned = alignTranslation(english, {
-      sections: [translated],
-      description: "",
+      ...blankPage([translated]),
       reviewed: [original.id, "0192f0a4-7a1c-7b5a-9a2e-2e6f1f2a3b45"],
     });
     const [first] = aligned.sections;
@@ -190,6 +193,8 @@ describe("the other language of a page", () => {
           } as PageSection,
         ],
         description: "",
+        socialPicture: { fileId: null, alt: "" },
+        canonical: "",
         reviewed: [],
       },
       "en",
@@ -219,6 +224,84 @@ describe("checks before publishing", () => {
     expect(isSiteHref("https://example.com/a")).toBe(true);
     expect(isSiteHref("javascript:alert(1)")).toBe(false);
     expect(isSiteHref("/Pages/../x")).toBe(false);
+  });
+
+  it("warn of a language without a search description, and never block", () => {
+    const described = { ...english, description: "Our school" };
+    expect(pageWarnings(described, null, ["en"], "en")).toEqual([]);
+    expect(pageWarnings(described, blankPage(), ["en", "ar"], "en")).toEqual([
+      { locale: "ar", code: "description" },
+    ]);
+    expect(pageWarnings(english, null, ["en", "ar"], "en")).toEqual([
+      { locale: "en", code: "description" },
+      { locale: "ar", code: "description" },
+    ]);
+    expect(pageIssues(english.sections)).toEqual([]);
+  });
+});
+
+const withCanonical = (canonical: string) =>
+  v.safeParse(pageContentSchema, { ...english, canonical }).success;
+
+describe("how a page presents itself outside the site", () => {
+  it("reads content saved before it had a social picture or canonical address", () => {
+    const saved = v.parse(pageContentSchema, {
+      sections: [],
+      description: "Old",
+    });
+    expect(saved.socialPicture).toEqual({ fileId: null, alt: "" });
+    expect(saved.canonical).toBe("");
+  });
+
+  it("publishes the social picture with the page's other files", () => {
+    const shared = "0192f0a4-7a1c-7b5a-9a2e-2e6f1f2a3b99";
+    expect(
+      pageFileIds({ ...english, socialPicture: { fileId: shared, alt: "" } }),
+    ).toEqual([picture, shared]);
+  });
+
+  it("takes a canonical address on the site or elsewhere, and nothing else", () => {
+    expect(withCanonical("/pages/about")).toBe(true);
+    expect(withCanonical("https://example.com/about")).toBe(true);
+    expect(withCanonical("javascript:alert(1)")).toBe(false);
+    expect(withCanonical("about")).toBe(false);
+  });
+});
+
+const redirectInput = (input: Record<string, unknown>) =>
+  v.safeParse(saveRedirectSchema, {
+    id: "",
+    expectedVersion: 0,
+    toPageId: "",
+    toUrl: "",
+    ...input,
+  });
+
+describe("redirects", () => {
+  const page = "0192f0a4-7a1c-7b5a-9a2e-2e6f1f2a3b77";
+
+  it("keep the old address as it will be matched", () => {
+    const parsed = redirectInput({ from: "/About-Us/?x=1", toPageId: page });
+    expect(parsed.success && parsed.output.from).toBe("/about-us");
+  });
+
+  it("lead to exactly one page or address", () => {
+    expect(redirectInput({ from: "/old", toUrl: "/pages/new" }).success).toBe(
+      true,
+    );
+    expect(
+      redirectInput({ from: "/old", toUrl: "https://example.com" }).success,
+    ).toBe(true);
+    expect(redirectInput({ from: "/old" }).success).toBe(false);
+    expect(
+      redirectInput({ from: "/old", toPageId: page, toUrl: "/pages/new" })
+        .success,
+    ).toBe(false);
+  });
+
+  it("never take over the home page or a non-path", () => {
+    expect(redirectInput({ from: "/", toPageId: page }).success).toBe(false);
+    expect(redirectInput({ from: "old", toPageId: page }).success).toBe(false);
   });
 });
 
@@ -374,10 +457,7 @@ describe("templates", () => {
       );
       for (const row of [...content, ...translation])
         expect(v.safeParse(pageSectionSchema, row).success).toBe(true);
-      const gaps = translationGaps(
-        { sections: content, description: "", reviewed: [] },
-        { sections: translation, description: "", reviewed: [] },
-      );
+      const gaps = translationGaps(blankPage(content), blankPage(translation));
       expect(gaps.missing).toEqual([]);
     }
   });

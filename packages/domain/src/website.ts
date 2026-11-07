@@ -8,6 +8,7 @@ import type {
   SiteLocale,
 } from "./site-sections";
 
+import { pictureEntries } from "./commons";
 import { isSafeContentUrl } from "./content";
 import { MAX_QUESTIONS } from "./enquiries";
 import { pageField } from "./paging";
@@ -22,6 +23,7 @@ import {
   sectionWritten,
   SITE_LOCALES,
 } from "./site-sections";
+import { isPageAddress, isRedirectFrom, redirectPath } from "./site-seo";
 import { STARTER_IDS } from "./site-templates";
 import { siteChromeSchema, siteThemeSchema } from "./site-theme";
 
@@ -63,15 +65,36 @@ export const siteSlugSchema = v.pipe(
   v.regex(/^[a-z0-9]+(-[a-z0-9]+)*$/, "site.slug"),
 );
 
+/** A path on the school's site or a web address elsewhere; empty for none. */
+const addressSchema = v.pipe(
+  v.string(),
+  v.trim(),
+  v.maxLength(2048),
+  v.check((value) => value === "" || isPageAddress(value), "site.link"),
+);
+
+export const socialPictureSchema = v.object({
+  fileId: pictureEntries.fileId,
+  alt: pictureEntries.alt,
+});
+export type SocialPicture = v.InferOutput<typeof socialPictureSchema>;
+
 /**
- * The sections of one language of a page, plus its search description. In a
- * translation, `reviewed` names the sections a person has checked against
- * the original.
+ * The sections of one language of a page, plus how it presents itself
+ * outside the site: its search description, the picture a shared link
+ * shows, and the address search engines should treat as its own, empty for
+ * the page's. In a translation, `reviewed` names the sections a person has
+ * checked against the original.
  */
 export const pageContentSchema = v.pipe(
   v.object({
     sections: v.pipe(v.array(pageSectionSchema), v.maxLength(MAX_SECTIONS)),
     description: v.optional(v.pipe(v.string(), v.maxLength(300)), ""),
+    socialPicture: v.optional(socialPictureSchema, () => ({
+      fileId: null,
+      alt: "",
+    })),
+    canonical: v.optional(addressSchema, ""),
     reviewed: v.optional(v.pipe(v.array(id), v.maxLength(MAX_SECTIONS)), []),
   }),
   v.check(
@@ -90,8 +113,22 @@ export function pagePlainText(content: PageContent): string {
 }
 
 export function pageFileIds(content: PageContent): string[] {
-  return [...new Set(content.sections.flatMap(sectionFileIds))];
+  return [
+    ...new Set([
+      ...content.sections.flatMap(sectionFileIds),
+      ...(content.socialPicture.fileId ? [content.socialPicture.fileId] : []),
+    ]),
+  ];
 }
+
+/** A page with nothing in it yet, in one language. */
+export const blankPage = (sections: PageSection[] = []): PageContent => ({
+  sections,
+  description: "",
+  socialPicture: { fileId: null, alt: "" },
+  canonical: "",
+  reviewed: [],
+});
 
 /**
  * The translation cut to the original's sections in the original's order,
@@ -112,6 +149,8 @@ export function alignTranslation(
   return {
     sections,
     description: translation.description,
+    socialPicture: translation.socialPicture,
+    canonical: translation.canonical,
     reviewed: translation.reviewed.filter((sectionId) => kept.has(sectionId)),
   };
 }
@@ -173,6 +212,27 @@ export function pageIssues(sections: PageSection[]): SiteIssue[] {
   return sections.flatMap((section) =>
     sectionIssues(section).map((code) => ({ sectionId: section.id, code })),
   );
+}
+
+export type PageWarningCode = "description";
+
+/**
+ * What a page may go out without, though it should not, in each language it
+ * is published in. A warning never stops publishing; a language without a
+ * description of its own shows the first language's.
+ */
+export function pageWarnings(
+  content: PageContent,
+  translation: PageContent | null,
+  locales: readonly SiteLocale[],
+  primary: SiteLocale,
+): { locale: SiteLocale; code: PageWarningCode }[] {
+  return locales.flatMap((locale) => {
+    const words = locale === primary ? content : translation;
+    return words?.description.trim()
+      ? []
+      : [{ locale, code: "description" as const }];
+  });
 }
 
 export function postIssues(post: {
@@ -267,6 +327,8 @@ export const savePageSchema = v.object({
   slug: siteSlugSchema,
   ...titles,
   inMenu: v.boolean(),
+  /** False keeps the page out of search engines and the sitemap. */
+  indexed: v.optional(v.boolean(), true),
   content: pageContentSchema,
   translation: v.nullable(pageContentSchema),
 });
@@ -322,6 +384,31 @@ export const movePageSchema = v.object({
   position: v.pipe(v.number(), v.integer(), v.minValue(0), v.maxValue(999)),
 });
 
+/**
+ * An old address of the school's site sent on to one of its pages, by id so
+ * renaming the page keeps the redirect pointing at it, or to any other
+ * address.
+ */
+export const saveRedirectSchema = v.pipe(
+  v.object({
+    id: optionalId,
+    expectedVersion: version(0),
+    from: v.pipe(
+      v.string(),
+      v.maxLength(2048),
+      v.check(isRedirectFrom, "site.redirect"),
+      v.transform((value) => redirectPath(value) ?? value),
+    ),
+    toPageId: optionalId,
+    toUrl: v.optional(addressSchema, ""),
+  }),
+  v.check(
+    (input) => (input.toPageId === "") !== (input.toUrl === ""),
+    "site.redirect",
+  ),
+);
+export type SaveRedirect = v.InferOutput<typeof saveRedirectSchema>;
+
 export const saveCategorySchema = v.object({
   id: optionalId,
   expectedVersion: version(0),
@@ -355,6 +442,12 @@ export const publicPostSchema = v.object({
   school,
   locale,
   slug: siteSlugSchema,
+});
+export const publicSitemapSchema = v.object({ school });
+export const publicRedirectSchema = v.object({
+  school,
+  /** The path a visitor asked for, which found nothing. */
+  path: v.pipe(v.string(), v.maxLength(2048)),
 });
 
 /** The public key a published file is served under: unguessable, readable name. */
