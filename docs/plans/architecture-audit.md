@@ -171,7 +171,7 @@ The thread and reply move is excluded. These remain:
   - Neither is visible from Messages, which is becoming the family's conversation.
 - **State history is written twice.** Enquiry `state` and `assigned` entries are written next to `enquiry.state` and `enquiry.assign` audit rows (`admissions.ts:137`, `:274-280`, `:311-317`).
 - **Reply templates are hard-coded.** `REPLY_TEMPLATES` and `REPLY_WORDING` (`domain/enquiries.ts:304-416`) sit outside the school-editable Templates system (`domain/templates.ts:8-16`).
-- **The form asks for no consent.** It collects family and child data with no privacy notice or consent element (`render/sections.tsx:2380-2560`), although `privacy_notices` and the consents system exist (`website.md` Next #5).
+- **The form asks for no consent.** It collects family and child data with no privacy notice or consent element (`render/sections.tsx:2380-2560`), although `privacy_notices` and the consents system exist (`website.md` Next #4).
 
 **Consolidation.**
 
@@ -312,7 +312,7 @@ studio differs in four ways:
 - Keep the full-screen layout and the manual undo.
 - Share the save indicator and `DocumentHistory`, extended to two languages (M).
 - Render site media through the shared player (S).
-- Use one picture shape, which the planned media library needs anyway (S).
+- Use one picture shape, which the media library also uses (done: `Picture` in `domain/commons.ts`).
 
 ### 13. Templates will split three ways when "saved sections" arrive
 
@@ -322,12 +322,13 @@ Today there are two template mechanisms:
 - Site page templates and starters are code data (`domain/site-templates.ts:931-1100`).
 
 The website roadmap's "saved sections, copied or kept in step"
-(`docs/systems/website.md` Next #2) is what `document_templates` plus
+(`docs/systems/website.md` Next #1) is what `document_templates` plus
 `shared_blocks` already do, and `site_page` is already a shared-block host
 (`stores/shared.ts:168`). Build saved sections as a template kind on that
-system, not a third library. The planned media library likewise belongs as a
-files area (`files/authorize.ts` `registerArea`), not a new store.
-Design decision only, now.
+system, not a third library. The media library is likewise a files area
+(`files/authorize.ts` `registerArea`), not a new store; see
+[../systems/media-library.md](../systems/media-library.md).
+Saved sections are a design decision only, now.
 
 ### 14. Questions and answers: two models exist, and application forms would make a third
 
