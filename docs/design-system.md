@@ -223,7 +223,8 @@ Top to bottom:
    urgent first, each item a title, one line saying what it means or what
    to do, and the button that does it (Open invoice, Add contact, Publish
    now, Set its term). It draws nothing when nothing needs doing, so its
-   presence is the signal. Alert chips are not used on a record with a To do
+   presence is the signal; on a home page, where the list is the page's
+   first job, it says in one line that nothing is due (`empty`). Alert chips are not used on a record with a To do
    list: the list says the same thing with the fix beside it. Two buttons on
    one page never share a name, so an item's button names its own job
    ("Set its term", not "Change the terms" when the Terms tab has that).

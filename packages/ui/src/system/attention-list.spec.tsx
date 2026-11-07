@@ -37,4 +37,20 @@ describe("AttentionList", () => {
     renderWithSystem(<AttentionList title="To do" items={[]} />);
     expect(screen.queryByRole("heading", { name: /To do/ })).toBeNull();
   });
+
+  it("says nothing is due where it is given words for that", () => {
+    renderWithSystem(
+      <AttentionList
+        title="Your day"
+        items={[]}
+        empty="Nothing is due for you today."
+      />,
+    );
+    expect(
+      screen.getByRole("heading", { name: "Your day" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText("Nothing is due for you today."),
+    ).toBeInTheDocument();
+  });
 });

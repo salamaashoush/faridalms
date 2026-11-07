@@ -2,7 +2,7 @@ import type { LucideIcon } from "lucide-react";
 import type { ReactNode } from "react";
 
 import { cn } from "../cn";
-import { CircleAlert, Info, TriangleAlert } from "lucide-react";
+import { CircleAlert, CircleCheck, Info, TriangleAlert } from "lucide-react";
 import { useId } from "react";
 
 import { useDesignSystem } from "./provider";
@@ -23,6 +23,11 @@ export interface AttentionItem {
 export interface AttentionListProps {
   title: string;
   items: readonly AttentionItem[];
+  /**
+   * Said under the title when nothing needs doing, where the list is the
+   * page's first job (a home page); without it an empty list draws nothing.
+   */
+  empty?: string;
 }
 
 const ICONS: Record<AttentionTone, LucideIcon> = {
@@ -44,10 +49,10 @@ const ORDER: Record<AttentionTone, number> = { danger: 0, warning: 1, info: 2 };
  * and the action that deals with it. It draws nothing when nothing needs
  * doing, so its presence is the signal.
  */
-export function AttentionList({ title, items }: AttentionListProps) {
+export function AttentionList({ title, items, empty }: AttentionListProps) {
   const { formatNumber } = useDesignSystem();
   const headingId = useId();
-  if (items.length === 0) return null;
+  if (items.length === 0 && !empty) return null;
   const sorted = items.toSorted((a, b) => ORDER[a.tone] - ORDER[b.tone]);
   return (
     <section
@@ -59,11 +64,19 @@ export function AttentionList({ title, items }: AttentionListProps) {
         className="flex h-10 items-center gap-2 border-b bg-muted/40 px-4 text-sm leading-5 font-semibold"
       >
         {title}
-        <span className="font-normal text-muted-foreground tabular-nums">
-          {formatNumber(items.length)}
-        </span>
+        {items.length ? (
+          <span className="font-normal text-muted-foreground tabular-nums">
+            {formatNumber(items.length)}
+          </span>
+        ) : null}
       </h2>
-      <ul className="divide-y">
+      {sorted.length === 0 ? (
+        <p className="flex items-center gap-3 px-4 py-3 text-sm leading-5 text-muted-foreground">
+          <CircleCheck aria-hidden className="size-4 shrink-0 text-success" />
+          {empty}
+        </p>
+      ) : null}
+      <ul className="divide-y empty:hidden">
         {sorted.map((item) => {
           const Icon = ICONS[item.tone];
           return (
