@@ -20,7 +20,7 @@ import { $anchorFor } from "../blocks";
 import { useEditorEnvironment } from "../context";
 import { $createEmbedNode } from "../nodes";
 import { focusText, updateFromOutside } from "../outside";
-import { Floating, selectionReference } from "../ui";
+import { Floating, focusOnOpen, selectionReference } from "../ui";
 import { INSERT_COMMONS_COMMAND } from "./media";
 
 export const OPEN_EMBED_COMMAND = createCommand<void>("FARIDA_OPEN_EMBED");
@@ -116,7 +116,7 @@ export function EmbedPlugin() {
       >
         <div className="flex items-center gap-1.5">
           <input
-            ref={(element) => element?.focus()}
+            ref={focusOnOpen}
             type="text"
             inputMode="url"
             dir="ltr"

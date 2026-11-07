@@ -208,6 +208,21 @@ export function ToolButton({
   );
 }
 
+/**
+ * Focuses a prompt as it opens. A prompt opened from the slash or insert
+ * menu opens inside the editor update that removes the typed command, and
+ * Lexical hands focus back to the text as that update lands, after the
+ * prompt has drawn; so it takes focus again on the next frame.
+ */
+export function focusOnOpen(element: HTMLElement | null) {
+  if (!element) return;
+  element.focus();
+  requestAnimationFrame(() => {
+    if (element.isConnected && document.activeElement !== element)
+      element.focus();
+  });
+}
+
 export const menuItemClass =
   "flex w-full cursor-default items-center gap-2.5 rounded-md px-2 py-1.5 text-start text-sm outline-none select-none data-highlighted:bg-accent data-highlighted:text-accent-foreground data-disabled:opacity-40 [&_svg]:size-4 [&_svg]:shrink-0 [&_svg]:text-muted-foreground";
 

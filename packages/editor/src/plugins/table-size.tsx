@@ -14,7 +14,7 @@ import type { TableSize } from "./table-grid";
 import { $anchorFor, $placeBlock } from "../blocks";
 import { useEditorEnvironment } from "../context";
 import { focusText, updateFromOutside } from "../outside";
-import { cx, Floating, selectionReference } from "../ui";
+import { cx, Floating, focusOnOpen, selectionReference } from "../ui";
 
 export const OPEN_TABLE_COMMAND = createCommand<void>("FARIDA_OPEN_TABLE");
 
@@ -60,13 +60,7 @@ export function TableSizePicker({
   const focusCorner = (element: HTMLButtonElement | null) => {
     if (!element || !refocus.current) return;
     refocus.current = false;
-    element.focus();
-    // The menu that opened the picker hands focus back to the text as it
-    // closes, after the picker is drawn; take it back once that is done.
-    requestAnimationFrame(() => {
-      if (element.isConnected && document.activeElement !== element)
-        element.focus();
-    });
+    focusOnOpen(element);
   };
   const move = (row: number, column: number) => {
     setHovered(null);
