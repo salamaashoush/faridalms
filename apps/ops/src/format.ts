@@ -346,6 +346,50 @@ export const INVOICE_STATE_TONE: Record<InvoiceState, Tone> = {
   credited: "neutral",
 };
 
+/**
+ * An invoice's status as finance reads it: its state, except that an
+ * invoice still owing past its due day is Overdue, so each invoice has one
+ * status and a list's counts by status add up.
+ */
+export const INVOICE_STANDINGS = [
+  "draft",
+  "issued",
+  "partly_paid",
+  "overdue",
+  "paid",
+  "credited",
+] as const;
+export type InvoiceStanding = (typeof INVOICE_STANDINGS)[number];
+
+export const INVOICE_STANDING_NAMES: Record<InvoiceStanding, string> = {
+  ...INVOICE_STATE_NAMES,
+  overdue: "Overdue",
+};
+
+export const INVOICE_STANDING_TONE: Record<InvoiceStanding, Tone> = {
+  ...INVOICE_STATE_TONE,
+  overdue: "danger",
+};
+
+interface StandingFacts {
+  state: InvoiceState;
+  dueOn: string | null;
+  owedMinor: number;
+}
+
+export function standingOf(
+  invoice: StandingFacts,
+  today: string,
+): InvoiceStanding {
+  const open = invoice.state === "issued" || invoice.state === "partly_paid";
+  return open &&
+    invoice.owedMinor > 0 &&
+    invoice.dueOn !== null &&
+    invoice.dueOn < today
+    ? "overdue"
+    : invoice.state;
+}
+
 export const INVOICE_KIND_NAMES: Record<InvoiceKind, string> = {
   instalment: "Instalment",
   proration: "Started in the term",

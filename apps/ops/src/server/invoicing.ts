@@ -78,13 +78,13 @@ async function vatFor(country: string) {
   );
 }
 
-/** Drafts to issue, invoices still owed with those overdue, and the latest payments. */
+/** Every invoice with what it still owes, and the customers a payment may come from. */
 export const getBilling = createServerFn({ method: "GET" }).handler(
   async () => {
     await requireArea("readBilling");
     const db = requireBusiness();
     const [rows, customers] = await Promise.all([
-      listInvoices(db, { states: ["draft", "issued", "partly_paid"] }),
+      listInvoices(db),
       listCustomers(db),
     ]);
     const owed = await outstanding(
@@ -103,7 +103,39 @@ export const getBilling = createServerFn({ method: "GET" }).handler(
         legalNameEn: row.legalNameEn,
         currency: row.currency,
       })),
-      cards: paymob() !== null,
+    };
+  },
+);
+
+/**
+ * The customers an invoice may be drafted for, each with its currency and
+ * the VAT its country is charged today, so the form can total the lines.
+ */
+export const getInvoiceCustomers = createServerFn({ method: "GET" }).handler(
+  async () => {
+    await requireArea("billing");
+    const db = requireBusiness();
+    const today = businessToday();
+    const [customers, rates] = await Promise.all([
+      listCustomers(db),
+      listTaxRates(db),
+    ]);
+    const held = rates.map((rate) => ({
+      ...rate,
+      percent: Number(rate.percent),
+    }));
+    return {
+      today,
+      customers: customers.map((row) => {
+        const rate = rateOn(held, row.country, today);
+        return {
+          id: row.id,
+          legalNameEn: row.legalNameEn,
+          currency: row.currency,
+          vatPercent: rate?.percent ?? 0,
+          vatName: rate?.nameEn ?? null,
+        };
+      }),
     };
   },
 );

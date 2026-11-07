@@ -49,6 +49,22 @@ export async function hydrated(form: Locator) {
     .toBe(true);
 }
 
+/**
+ * Opens a customer's draft from Billing's one list of invoices, found by
+ * its search so other specs' invoices cannot page it out of view.
+ */
+export async function openDraftOf(page: Page, customer: string) {
+  await page.goto("/billing");
+  const search = page.getByRole("searchbox", { name: "Search invoices" });
+  await hydrated(search);
+  await search.fill(customer);
+  await page
+    .getByRole("region", { name: "Invoices" })
+    .getByRole("row", { name: new RegExp(`${customer}.*Draft`) })
+    .getByRole("link")
+    .click();
+}
+
 /** Signs in to the console as a person the identity provider stand-in knows. */
 export async function signInAs(page: Page, person: StandInPerson = OWNER) {
   await page.context().addCookies([
