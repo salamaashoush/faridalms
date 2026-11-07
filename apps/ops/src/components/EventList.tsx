@@ -42,6 +42,10 @@ const ACTIONS: Record<string, string> = {
   "task.done": "Task done",
   "business.profile": "Legal details changed",
   "tax_rate.create": "VAT rate added",
+  "plan.version": "Version added",
+  "plan.retire": "Version retired",
+  "add_on.version": "Version added",
+  "add_on.retire": "Version retired",
 };
 
 /** How a recorded field is named to a reader; a field not named here is not shown. */

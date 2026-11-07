@@ -157,7 +157,7 @@ export function StorageFields({ draft, onChange }: LimitFieldsProps) {
             value={draft.caps[key].value}
             placeholder={`Default: ${formatBytes(DEFAULT_LIMITS[key])}`}
             onChange={(event) => set(key, { value: event.target.value })}
-            className="max-md:h-10"
+            className="max-w-40 max-md:h-10"
           />
           <SelectField
             label={`${label} unit`}
@@ -182,6 +182,7 @@ export function CountFields({ draft, onChange }: LimitFieldsProps) {
       hint={hint}
       optional
       inputMode="numeric"
+      width="code"
       value={draft.counts[key]}
       placeholder="Unlimited"
       onChange={(event) =>

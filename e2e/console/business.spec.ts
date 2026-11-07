@@ -9,6 +9,7 @@ import {
   choose,
   createSchool,
   FINANCE,
+  hydrated,
   OWNER,
   recordHeader,
   signInAs,
@@ -56,28 +57,41 @@ test("an owner sells a plan, versions it and retires the old version", async ({
   await signInAs(page, OWNER);
   const name = `Standard ${unique()}`;
   await addPlan(page, name);
-  const plan = page.getByRole("article", { name });
-  await expect(plan.getByText("Version 1")).toBeVisible();
-  await expect(plan.getByText("EGP 350.00 per student a year")).toBeVisible();
+  // Saving a new plan opens its own page.
+  await expect(recordHeader(page)).toContainText(name);
+  await page.getByRole("tab", { name: /^Versions/ }).click();
+  const versions = page.getByRole("table", { name: "Versions" });
+  await expect(versions.getByRole("row", { name: /^Version 1/ })).toContainText(
+    "EGP 350.00 per student a year",
+  );
 
-  await plan.getByRole("button", { name: "New version" }).click();
+  const more = page.getByRole("button", { name: "More actions" });
+  await hydrated(more);
+  await page.getByRole("button", { name: "New version" }).click();
   const next = page.getByRole("form", { name: `New version of ${name}` });
   await next.getByLabel("Students", { exact: true }).fill("500");
   await next.getByLabel("Why").fill("More students for the price");
   await next.getByRole("button", { name: "Save" }).click();
   await expect(page.getByText("New version saved.")).toBeVisible();
-  await expect(plan.getByText("Version 2")).toBeVisible();
+  await expect(versions.getByRole("row", { name: /^Version 2/ })).toContainText(
+    "Students: 400 → 500",
+  );
 
-  await plan.getByRole("button", { name: "Retire" }).last().click();
+  await more.click();
+  await page.getByRole("menuitem", { name: "Retire version 1" }).click();
   const retire = page.getByRole("form", { name: "Retire version 1" });
   await retire.getByLabel("Why").fill("Replaced by version 2");
   await retire.getByRole("button", { name: "Retire this version" }).click();
   await expect(
     page.getByText("Retired. Contracts that hold it keep it."),
   ).toBeVisible();
-  await expect(plan.getByText(/^Retired /)).toHaveCount(1);
+  await expect(versions.getByText(/^Retired /)).toHaveCount(1);
 
-  await page.getByRole("button", { name: "New add-on" }).click();
+  await page.goto("/catalogue");
+  const catalogueMenu = page.getByRole("button", { name: "More actions" });
+  await hydrated(catalogueMenu);
+  await catalogueMenu.click();
+  await page.getByRole("menuitem", { name: "New add-on" }).click();
   const addOn = page.getByRole("form", { name: "New add-on" });
   const addOnName = `Video ${unique()}`;
   await addOn.getByLabel("Code").fill(`e2e_${unique()}`);
@@ -87,9 +101,8 @@ test("an owner sells a plan, versions it and retires the old version", async ({
   await addOn.getByLabel("Why").fill("Sold on its own");
   await addOn.getByRole("button", { name: "Save" }).click();
   await expect(page.getByText("Add-on saved.")).toBeVisible();
-  await expect(
-    page.getByRole("article", { name: addOnName }).getByText("Gives Video."),
-  ).toBeVisible();
+  await expect(recordHeader(page)).toContainText(addOnName);
+  await expect(page.getByText("Gives Video.")).toBeVisible();
 });
 
 test("a customer keeps its contacts, agreements and history", async ({

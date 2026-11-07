@@ -128,6 +128,11 @@ describe("the catalogue", () => {
         reason: "Again",
       }),
     ).toBe(false);
+    // The plan's history names the version it retired, once.
+    const retired = await eventsOf(business(), "plan_version", first);
+    expect(retired.map((event) => [event.after, event.reason])).toEqual([
+      [{ version: 1 }, "Superseded"],
+    ]);
     const sql = new SQL(businessUrl());
     try {
       expect(

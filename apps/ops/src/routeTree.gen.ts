@@ -11,7 +11,6 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as BillingRouteImport } from './routes/billing'
-import { Route as CatalogueRouteImport } from './routes/catalogue'
 import { Route as ChangesRouteImport } from './routes/changes'
 import { Route as NoRoleRouteImport } from './routes/no-role'
 import { Route as OperatorsRouteImport } from './routes/operators'
@@ -22,6 +21,7 @@ import { Route as SignInRouteImport } from './routes/sign-in'
 import { Route as AuthCallbackRouteImport } from './routes/auth/callback'
 import { Route as AuthLoginRouteImport } from './routes/auth/login'
 import { Route as AuthLogoutRouteImport } from './routes/auth/logout'
+import { Route as CatalogueIndexRouteImport } from './routes/catalogue.index'
 import { Route as CustomersIndexRouteImport } from './routes/customers.index'
 import { Route as CustomersCustomerIdRouteImport } from './routes/customers.$customerId'
 import { Route as IntakeBillingRouteImport } from './routes/intake/billing'
@@ -40,6 +40,8 @@ import { Route as SchoolsSchoolIdRouteImport } from './routes/schools.$schoolId'
 import { Route as SchoolsNewRouteImport } from './routes/schools.new'
 import { Route as SubscriptionsIndexRouteImport } from './routes/subscriptions.index'
 import { Route as SubscriptionsSubscriptionIdRouteImport } from './routes/subscriptions.$subscriptionId'
+import { Route as CatalogueAddOnsAddOnIdRouteImport } from './routes/catalogue.add-ons.$addOnId'
+import { Route as CataloguePlansPlanIdRouteImport } from './routes/catalogue.plans.$planId'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -49,11 +51,6 @@ const IndexRoute = IndexRouteImport.update({
 const BillingRoute = BillingRouteImport.update({
   id: '/billing',
   path: '/billing',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const CatalogueRoute = CatalogueRouteImport.update({
-  id: '/catalogue',
-  path: '/catalogue',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ChangesRoute = ChangesRouteImport.update({
@@ -104,6 +101,11 @@ const AuthLoginRoute = AuthLoginRouteImport.update({
 const AuthLogoutRoute = AuthLogoutRouteImport.update({
   id: '/auth/logout',
   path: '/auth/logout',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const CatalogueIndexRoute = CatalogueIndexRouteImport.update({
+  id: '/catalogue/',
+  path: '/catalogue/',
   getParentRoute: () => rootRouteImport,
 } as any)
 const CustomersIndexRoute = CustomersIndexRouteImport.update({
@@ -197,11 +199,20 @@ const SubscriptionsSubscriptionIdRoute =
     path: '/subscriptions/$subscriptionId',
     getParentRoute: () => rootRouteImport,
   } as any)
+const CatalogueAddOnsAddOnIdRoute = CatalogueAddOnsAddOnIdRouteImport.update({
+  id: '/catalogue/add-ons/$addOnId',
+  path: '/catalogue/add-ons/$addOnId',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const CataloguePlansPlanIdRoute = CataloguePlansPlanIdRouteImport.update({
+  id: '/catalogue/plans/$planId',
+  path: '/catalogue/plans/$planId',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/billing': typeof BillingRoute
-  '/catalogue': typeof CatalogueRoute
   '/changes': typeof ChangesRoute
   '/no-role': typeof NoRoleRoute
   '/operators': typeof OperatorsRoute
@@ -226,15 +237,17 @@ export interface FileRoutesByFullPath {
   '/schools/$schoolId': typeof SchoolsSchoolIdRoute
   '/schools/new': typeof SchoolsNewRoute
   '/subscriptions/$subscriptionId': typeof SubscriptionsSubscriptionIdRoute
+  '/catalogue/': typeof CatalogueIndexRoute
   '/customers/': typeof CustomersIndexRoute
   '/leads/': typeof LeadsIndexRoute
   '/schools/': typeof SchoolsIndexRoute
   '/subscriptions/': typeof SubscriptionsIndexRoute
+  '/catalogue/add-ons/$addOnId': typeof CatalogueAddOnsAddOnIdRoute
+  '/catalogue/plans/$planId': typeof CataloguePlansPlanIdRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/billing': typeof BillingRoute
-  '/catalogue': typeof CatalogueRoute
   '/changes': typeof ChangesRoute
   '/no-role': typeof NoRoleRoute
   '/operators': typeof OperatorsRoute
@@ -259,16 +272,18 @@ export interface FileRoutesByTo {
   '/schools/$schoolId': typeof SchoolsSchoolIdRoute
   '/schools/new': typeof SchoolsNewRoute
   '/subscriptions/$subscriptionId': typeof SubscriptionsSubscriptionIdRoute
+  '/catalogue': typeof CatalogueIndexRoute
   '/customers': typeof CustomersIndexRoute
   '/leads': typeof LeadsIndexRoute
   '/schools': typeof SchoolsIndexRoute
   '/subscriptions': typeof SubscriptionsIndexRoute
+  '/catalogue/add-ons/$addOnId': typeof CatalogueAddOnsAddOnIdRoute
+  '/catalogue/plans/$planId': typeof CataloguePlansPlanIdRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/billing': typeof BillingRoute
-  '/catalogue': typeof CatalogueRoute
   '/changes': typeof ChangesRoute
   '/no-role': typeof NoRoleRoute
   '/operators': typeof OperatorsRoute
@@ -293,17 +308,19 @@ export interface FileRoutesById {
   '/schools/$schoolId': typeof SchoolsSchoolIdRoute
   '/schools/new': typeof SchoolsNewRoute
   '/subscriptions/$subscriptionId': typeof SubscriptionsSubscriptionIdRoute
+  '/catalogue/': typeof CatalogueIndexRoute
   '/customers/': typeof CustomersIndexRoute
   '/leads/': typeof LeadsIndexRoute
   '/schools/': typeof SchoolsIndexRoute
   '/subscriptions/': typeof SubscriptionsIndexRoute
+  '/catalogue/add-ons/$addOnId': typeof CatalogueAddOnsAddOnIdRoute
+  '/catalogue/plans/$planId': typeof CataloguePlansPlanIdRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
     | '/billing'
-    | '/catalogue'
     | '/changes'
     | '/no-role'
     | '/operators'
@@ -328,15 +345,17 @@ export interface FileRouteTypes {
     | '/schools/$schoolId'
     | '/schools/new'
     | '/subscriptions/$subscriptionId'
+    | '/catalogue/'
     | '/customers/'
     | '/leads/'
     | '/schools/'
     | '/subscriptions/'
+    | '/catalogue/add-ons/$addOnId'
+    | '/catalogue/plans/$planId'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
     | '/billing'
-    | '/catalogue'
     | '/changes'
     | '/no-role'
     | '/operators'
@@ -361,15 +380,17 @@ export interface FileRouteTypes {
     | '/schools/$schoolId'
     | '/schools/new'
     | '/subscriptions/$subscriptionId'
+    | '/catalogue'
     | '/customers'
     | '/leads'
     | '/schools'
     | '/subscriptions'
+    | '/catalogue/add-ons/$addOnId'
+    | '/catalogue/plans/$planId'
   id:
     | '__root__'
     | '/'
     | '/billing'
-    | '/catalogue'
     | '/changes'
     | '/no-role'
     | '/operators'
@@ -394,16 +415,18 @@ export interface FileRouteTypes {
     | '/schools/$schoolId'
     | '/schools/new'
     | '/subscriptions/$subscriptionId'
+    | '/catalogue/'
     | '/customers/'
     | '/leads/'
     | '/schools/'
     | '/subscriptions/'
+    | '/catalogue/add-ons/$addOnId'
+    | '/catalogue/plans/$planId'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   BillingRoute: typeof BillingRoute
-  CatalogueRoute: typeof CatalogueRoute
   ChangesRoute: typeof ChangesRoute
   NoRoleRoute: typeof NoRoleRoute
   OperatorsRoute: typeof OperatorsRoute
@@ -428,10 +451,13 @@ export interface RootRouteChildren {
   SchoolsSchoolIdRoute: typeof SchoolsSchoolIdRoute
   SchoolsNewRoute: typeof SchoolsNewRoute
   SubscriptionsSubscriptionIdRoute: typeof SubscriptionsSubscriptionIdRoute
+  CatalogueIndexRoute: typeof CatalogueIndexRoute
   CustomersIndexRoute: typeof CustomersIndexRoute
   LeadsIndexRoute: typeof LeadsIndexRoute
   SchoolsIndexRoute: typeof SchoolsIndexRoute
   SubscriptionsIndexRoute: typeof SubscriptionsIndexRoute
+  CatalogueAddOnsAddOnIdRoute: typeof CatalogueAddOnsAddOnIdRoute
+  CataloguePlansPlanIdRoute: typeof CataloguePlansPlanIdRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -448,13 +474,6 @@ declare module '@tanstack/react-router' {
       path: '/billing'
       fullPath: '/billing'
       preLoaderRoute: typeof BillingRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/catalogue': {
-      id: '/catalogue'
-      path: '/catalogue'
-      fullPath: '/catalogue'
-      preLoaderRoute: typeof CatalogueRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/changes': {
@@ -525,6 +544,13 @@ declare module '@tanstack/react-router' {
       path: '/auth/logout'
       fullPath: '/auth/logout'
       preLoaderRoute: typeof AuthLogoutRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/catalogue/': {
+      id: '/catalogue/'
+      path: '/catalogue'
+      fullPath: '/catalogue/'
+      preLoaderRoute: typeof CatalogueIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/customers/': {
@@ -653,13 +679,26 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof SubscriptionsSubscriptionIdRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/catalogue/add-ons/$addOnId': {
+      id: '/catalogue/add-ons/$addOnId'
+      path: '/catalogue/add-ons/$addOnId'
+      fullPath: '/catalogue/add-ons/$addOnId'
+      preLoaderRoute: typeof CatalogueAddOnsAddOnIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/catalogue/plans/$planId': {
+      id: '/catalogue/plans/$planId'
+      path: '/catalogue/plans/$planId'
+      fullPath: '/catalogue/plans/$planId'
+      preLoaderRoute: typeof CataloguePlansPlanIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   BillingRoute: BillingRoute,
-  CatalogueRoute: CatalogueRoute,
   ChangesRoute: ChangesRoute,
   NoRoleRoute: NoRoleRoute,
   OperatorsRoute: OperatorsRoute,
@@ -684,10 +723,13 @@ const rootRouteChildren: RootRouteChildren = {
   SchoolsSchoolIdRoute: SchoolsSchoolIdRoute,
   SchoolsNewRoute: SchoolsNewRoute,
   SubscriptionsSubscriptionIdRoute: SubscriptionsSubscriptionIdRoute,
+  CatalogueIndexRoute: CatalogueIndexRoute,
   CustomersIndexRoute: CustomersIndexRoute,
   LeadsIndexRoute: LeadsIndexRoute,
   SchoolsIndexRoute: SchoolsIndexRoute,
   SubscriptionsIndexRoute: SubscriptionsIndexRoute,
+  CatalogueAddOnsAddOnIdRoute: CatalogueAddOnsAddOnIdRoute,
+  CataloguePlansPlanIdRoute: CataloguePlansPlanIdRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

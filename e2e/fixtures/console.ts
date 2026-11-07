@@ -200,6 +200,7 @@ export async function addPlan(page: Page, name: string) {
   await form.getByLabel("Why").fill("The launch catalogue");
   await form.getByRole("button", { name: "Save" }).click();
   await expect(page.getByText("Plan saved.")).toBeVisible();
+  await expect(page).toHaveURL(/\/catalogue\/plans\/[0-9a-f-]{36}$/);
 }
 
 /**

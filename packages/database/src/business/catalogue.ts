@@ -249,13 +249,14 @@ export async function retireVersion(
       .update(table)
       .set({ retiredAt: new Date() })
       .where(and(eq(table.id, input.id), isNull(table.retiredAt)))
-      .returning({ id: table.id });
+      .returning({ id: table.id, version: table.version });
     if (!retired) return false;
     await recordEvent(tx, {
       operatorId: input.by,
       action: input.kind === "plan" ? "plan.retire" : "add_on.retire",
       subjectType: input.kind === "plan" ? "plan_version" : "add_on_version",
       subjectId: input.id,
+      after: { version: retired.version },
       reason: input.reason,
     });
     return true;

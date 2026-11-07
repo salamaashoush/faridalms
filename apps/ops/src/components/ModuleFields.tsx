@@ -15,13 +15,21 @@ export interface ModuleFieldsProps {
   modules: readonly ModuleId[];
   onChange: (modules: ModuleId[]) => void;
   hint?: string;
+  /** A heading above the field names it, so its legend is for screen readers. */
+  labelHidden?: boolean;
 }
 
 /** Every module as a checkbox, with shortcuts to Basic and to all of them. */
-export function ModuleFields({ modules, onChange, hint }: ModuleFieldsProps) {
+export function ModuleFields({
+  modules,
+  onChange,
+  hint,
+  labelHidden,
+}: ModuleFieldsProps) {
   return (
     <CheckboxGroupField
       label="Modules"
+      labelHidden={labelHidden}
       value={modules}
       options={OPTIONS}
       onChange={onChange}
