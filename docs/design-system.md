@@ -258,7 +258,9 @@ Inside a tab:
   Limits against use are a titled `UsageList`.
 - **History** is the audit table (`ChangeLog`): what was done and the
   fields it moved with readable names (never `taxNumber`), why, by whom,
-  when.
+  when. A log across records (the console's Changes) is the same table
+  with a Record column linking each change to its record, and search,
+  filters and pages that run on the server.
 - Content a person wrote (a lead's message) is a titled block in About.
 - Cards frame only figures, the To do list and titled lists; a tab is never
   a stack of framed sections.

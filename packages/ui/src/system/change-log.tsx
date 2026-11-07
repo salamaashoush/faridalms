@@ -1,4 +1,7 @@
-import type { Column } from "./data-table";
+import type { ReactNode } from "react";
+
+import type { Column, DataTablePagination } from "./data-table";
+import type { IndexToolbarProps } from "./index-toolbar";
 
 import { History } from "lucide-react";
 
@@ -17,6 +20,11 @@ export interface ChangeEntry {
   when: string;
   /** When, as an ISO instant, for the `time` element. */
   at: string;
+  /**
+   * The record it was made to, where a log spans records: its name, linked
+   * to it where it can be opened, so the whole row opens it.
+   */
+  record?: ReactNode;
 }
 
 /** The words the change log says, in the app's language. */
@@ -26,6 +34,8 @@ export interface ChangeLogLabels {
   why: string;
   who: string;
   when: string;
+  /** The record column's header, shown where a log spans records. */
+  record?: string;
   /** Said in place of the table when nothing has changed yet. */
   empty: string;
   /** What will show here, under the empty state's title. */
@@ -35,6 +45,9 @@ export interface ChangeLogLabels {
 export interface ChangeLogProps {
   entries: readonly ChangeEntry[];
   labels: ChangeLogLabels;
+  /** Search and filters, for a log long enough to need them. */
+  toolbar?: IndexToolbarProps;
+  pagination?: DataTablePagination;
 }
 
 function columnsOf(labels: ChangeLogLabels): Column<ChangeEntry>[] {
@@ -67,6 +80,16 @@ function columnsOf(labels: ChangeLogLabels): Column<ChangeEntry>[] {
         </span>
       ),
     },
+    ...(labels.record
+      ? [
+          {
+            id: "record",
+            header: labels.record,
+            width: "medium",
+            cell: (entry) => entry.record,
+          } satisfies Column<ChangeEntry>,
+        ]
+      : []),
     { id: "who", header: labels.who, cell: (entry) => entry.who },
     {
       id: "when",
@@ -82,22 +105,37 @@ function columnsOf(labels: ChangeLogLabels): Column<ChangeEntry>[] {
 }
 
 /**
- * A record's audit log, newest first (GitHub's audit log, Stripe's events):
- * what was done and the fields it moved, why, by whom and when. On a phone
- * each change is a card.
+ * An audit log, newest first (GitHub's audit log, Stripe's events): what was
+ * done and the fields it moved, why, by whom and when. A record's History
+ * shows its own changes; a log across records adds the record each change
+ * was made to, with search, filters and pages. On a phone each change is a
+ * card, led by its record where the log spans several.
  */
-export function ChangeLog({ entries, labels }: ChangeLogProps) {
+export function ChangeLog({
+  entries,
+  labels,
+  toolbar,
+  pagination,
+}: ChangeLogProps) {
   const columns = columnsOf(labels);
+  const spans = Boolean(labels.record);
   return (
     <DataTable
       caption={labels.caption}
       rows={[...entries]}
       columns={columns}
       rowLabel={(entry) => entry.what}
+      toolbar={toolbar}
+      pagination={pagination}
       card={{
-        title: (entry) => entry.what,
+        title: (entry) => (spans ? entry.record : entry.what),
         fact: (entry) =>
-          [entry.when, entry.who, entry.why].filter(Boolean).join(" · "),
+          (spans
+            ? [entry.what, entry.when, entry.who]
+            : [entry.when, entry.who, entry.why]
+          )
+            .filter(Boolean)
+            .join(" · "),
       }}
       empty={{
         icon: History,
