@@ -56,6 +56,36 @@ Tab leaves their last cell.
 `apps/web/src/components/content/ContentEditor.tsx` hosts it with the
 school's files and strings, and `ContentView.tsx` renders stored content
 without loading the editing runtime.
+
+## Comments while writing
+
+Staff who may change a document comment on a passage or a whole block,
+reply, mention a colleague with @, resolve and reopen a thread, and edit or
+delete their own comments. Who may is the host's writer in
+`files/authorize.ts`, the same check live editing and versions use, so
+readers, students and families never see a comment and a colleague who
+cannot change the document cannot either. A mention tells a colleague once,
+as a mention notice that opens the thread in the record's editor.
+
+Comments are never content. Threads live in `core.document_threads` and
+`core.document_comments` beside the host's document, pointing into it by
+block id and offset (`domain/anchors.ts`, shared with readers' comments on
+handed-in work), so no version, print, export or reader ever carries them.
+The editor marks open threads without writing into the document: words
+through the CSS Custom Highlight API (`fe-comment`), a block commented as a
+whole by a `data-fe-commented` attribute on its element
+(`editor/comments.ts`, `plugins/comments.tsx`). Block ids travel with their
+blocks through every edit, live ones included, so a passage is found again
+for as long as its block survives; a thread whose words were deleted stays
+listed as detached, with the passage it kept when it began.
+
+A host turns comments on by giving `DocumentPage` a `comments` host naming
+the editor they belong to and, where the page edits a translation too,
+which part it shows. The page's top bar then offers the comments panel
+(`components/content/comments/DocumentComments.tsx`), and that editor
+offers Comment on its floating bar and its blocks' menu (Mod+Alt+M). Every
+document page does so once its record is stored; the website studio, whose
+page holds an editor per section, does not yet.
 The renderer does not execute raw HTML or arbitrary CSS from stored records.
 Older rich-text blocks convert through `content-conversion.ts` when
 edited; the original representation remains readable. New rich content blocks
