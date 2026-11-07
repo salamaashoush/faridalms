@@ -28,7 +28,11 @@ import {
 } from "@faridalms/ui/system/form-field";
 import { Metric, MetricGrid } from "@faridalms/ui/system/metrics";
 import { Page } from "@faridalms/ui/system/page";
-import { RecordHeader, RecordTabs } from "@faridalms/ui/system/record-page";
+import {
+  RecordHeader,
+  RecordStack,
+  RecordTabs,
+} from "@faridalms/ui/system/record-page";
 import { SheetForm, useSheet } from "@faridalms/ui/system/sheet-form";
 import { StagePath } from "@faridalms/ui/system/stage-path";
 import { StatusBadge } from "@faridalms/ui/system/status";
@@ -242,7 +246,7 @@ function LeadPage() {
           },
         ]}
       />
-      <div className="grid gap-6">
+      <RecordStack>
         <StagePath
           label="Pipeline"
           stages={PATH}
@@ -286,7 +290,7 @@ function LeadPage() {
             <EventList events={history} names={names} />
           )}
         </RecordTabs>
-      </div>
+      </RecordStack>
       <ActivitySheet
         key={`log-${logging.key}`}
         leadId={lead.id}
@@ -446,7 +450,7 @@ function AboutTab({ data, onEdit, onPlan }: AboutTabProps) {
   const { lead, owners } = data;
   const owner = owners.find((one) => one.id === lead.ownerId);
   return (
-    <div className="grid gap-6">
+    <RecordStack>
       {lead.message ? (
         <section
           aria-label="What they wrote"
@@ -590,7 +594,7 @@ function AboutTab({ data, onEdit, onPlan }: AboutTabProps) {
             : []),
         ]}
       />
-    </div>
+    </RecordStack>
   );
 }
 

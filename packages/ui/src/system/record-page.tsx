@@ -532,3 +532,22 @@ export interface RecordEmptyProps {
 export function RecordEmpty({ children }: RecordEmptyProps) {
   return <p className="text-sm leading-5 text-muted-foreground">{children}</p>;
 }
+
+export interface RecordStackProps {
+  children: ReactNode;
+}
+
+/**
+ * A record's parts stacked in one column, 24px apart: figures, the to-do
+ * list and the tabs, or the titled lists of a details tab. Its one track is
+ * as wide as the page and no wider, so a wide table or a long line inside
+ * scrolls or wraps in its own place instead of widening the page on a
+ * phone.
+ */
+export function RecordStack({ children }: RecordStackProps) {
+  return (
+    <div className="grid grid-cols-[minmax(0,1fr)] content-start gap-6">
+      {children}
+    </div>
+  );
+}

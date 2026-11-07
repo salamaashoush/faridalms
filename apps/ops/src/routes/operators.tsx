@@ -15,7 +15,7 @@ import { DataTable } from "@faridalms/ui/system/data-table";
 import { CheckboxGroupField } from "@faridalms/ui/system/form-field";
 import { Page } from "@faridalms/ui/system/page";
 import { PageHeader } from "@faridalms/ui/system/page-header";
-import { RecordTabs } from "@faridalms/ui/system/record-page";
+import { RecordStack, RecordTabs } from "@faridalms/ui/system/record-page";
 import { SheetForm } from "@faridalms/ui/system/sheet-form";
 import { StatusBadge } from "@faridalms/ui/system/status";
 import { Value } from "@faridalms/ui/system/value";
@@ -413,7 +413,7 @@ function Operators() {
   return (
     <Page width="list">
       <PageHeader title="Operators" description={admissionLine(admission)} />
-      <div className="grid gap-6">
+      <RecordStack>
         <AttentionList title="To do" items={items} />
         <RecordTabs
           label="Operators and their history"
@@ -492,7 +492,7 @@ function Operators() {
             />
           )}
         </RecordTabs>
-      </div>
+      </RecordStack>
       {editing?.kind === "roles" ? (
         <RolesSheet
           key={editing.operator.id}

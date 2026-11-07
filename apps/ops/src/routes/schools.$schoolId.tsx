@@ -30,6 +30,7 @@ import { useDesignSystem } from "@faridalms/ui/system/provider";
 import {
   RecordEmpty,
   RecordHeader,
+  RecordStack,
   RecordTabs,
 } from "@faridalms/ui/system/record-page";
 import { SettingsGroup } from "@faridalms/ui/system/settings-section";
@@ -257,7 +258,7 @@ function SchoolPage() {
             : []),
         ]}
       />
-      <div className="grid gap-6">
+      <RecordStack>
         <Glance school={school} health={health} />
         <ToDo data={data} onSend={sending.show} onTab={go} />
         <RecordTabs
@@ -302,7 +303,7 @@ function SchoolPage() {
             <ChangeList changes={changes} names={names} />
           )}
         </RecordTabs>
-      </div>
+      </RecordStack>
       {standing ? (
         <AccessSheet
           key={changingAccess.key}
@@ -580,7 +581,7 @@ function AboutTab({ data, standing }: AboutTabProps) {
   const { school, platform, sold } = data;
   const group = school.tenantKind === "school_group";
   return (
-    <div className="grid gap-6">
+    <RecordStack>
       <SummaryList
         title="School"
         align="start"
@@ -727,7 +728,7 @@ function AboutTab({ data, standing }: AboutTabProps) {
           },
         ]}
       />
-    </div>
+    </RecordStack>
   );
 }
 
@@ -815,7 +816,7 @@ function LimitsTab({ data, onEdit }: LimitsTabProps) {
     value: formatLimit(key, entitled[key]),
   }));
   return (
-    <div className="grid gap-6">
+    <RecordStack>
       <UsageList
         titled
         label="Use against its limits"
@@ -823,7 +824,7 @@ function LimitsTab({ data, onEdit }: LimitsTabProps) {
         action={<SetBy data={data} onEdit={onEdit} />}
       />
       <SummaryList title="Allowances" items={allowances} />
-    </div>
+    </RecordStack>
   );
 }
 

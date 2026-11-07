@@ -20,7 +20,7 @@ package gains it first, with a test and a line in this table.
 | Shell          | `app-shell` (`AppShell`, `ShellBrand`, `ShellAccount`, `ThemeSubmenu`, breadcrumb steps), `page-actions`                                                                                                            |
 | Index page     | `page-header`, `index-toolbar`, `data-table`, `cell-note` (`CellWithNote`), `empty-state`                                                                                                                           |
 | Page width     | `page` (`Page`)                                                                                                                                                                                                     |
-| Record page    | `record-page` (`RecordHeader`, `RecordTabs`, `RecordColumns`, `RecordSection`, `Facts`, `Fact`, `RecordList`), `stage-path` (`StagePath`), `attention-list` (`AttentionList`), `value`                              |
+| Record page    | `record-page` (`RecordHeader`, `RecordStack`, `RecordTabs`, `RecordColumns`, `RecordSection`, `Facts`, `Fact`, `RecordList`), `stage-path` (`StagePath`), `attention-list` (`AttentionList`), `value`               |
 | Record content | `usage-list` (`UsageList`), `summary-list` (`SummaryList`), `change-log` (`ChangeLog`), `dns-records` (`DnsRecords`), `copy-button`, `document-view` (`DocumentView`, a printable document in a tab, printed alone) |
 | Section sheets | `sheet-form` (edits), `sheet-panel` (reads)                                                                                                                                                                         |
 | Record form    | `record-form` (`RecordForm`, `FormSection`, danger zone), `unsaved-changes-guard`                                                                                                                                   |
@@ -237,6 +237,11 @@ Top to bottom:
    replaces the history entry and keeps the scroll position
    (`resetScroll: false`); a tab the viewer may not open is not offered and
    its URL falls back to the first.
+
+The parts under the header stack in a `RecordStack`, and so do the titled
+lists of a details tab: one column as wide as the page and no wider, so a
+wide table scrolls in its own place rather than widening the page on a
+phone.
 
 Inside a tab:
 

@@ -13,7 +13,11 @@ import { SelectField } from "@faridalms/ui/system/form-field";
 import { Metric, MetricGrid } from "@faridalms/ui/system/metrics";
 import { Page } from "@faridalms/ui/system/page";
 import { useDesignSystem } from "@faridalms/ui/system/provider";
-import { RecordHeader, RecordTabs } from "@faridalms/ui/system/record-page";
+import {
+  RecordHeader,
+  RecordStack,
+  RecordTabs,
+} from "@faridalms/ui/system/record-page";
 import { SheetForm, useSheet } from "@faridalms/ui/system/sheet-form";
 import { StatusBadge, StatusText } from "@faridalms/ui/system/status";
 import { SummaryList } from "@faridalms/ui/system/summary-list";
@@ -276,7 +280,7 @@ function CustomerPage() {
           },
         ]}
       />
-      <div className="grid gap-6">
+      <RecordStack>
         <Glance data={data} />
         <ToDo
           data={data}
@@ -397,7 +401,7 @@ function CustomerPage() {
             <EventList events={data.history} names={data.names} />
           )}
         </RecordTabs>
-      </div>
+      </RecordStack>
       <EditCustomerSheet
         key={`edit-${editing.key}`}
         customer={customer}
@@ -1167,7 +1171,7 @@ function AboutTab({
 }: AboutTabProps) {
   const { customer } = data;
   return (
-    <div className="grid gap-6">
+    <RecordStack>
       <SummaryList
         title="Legal details"
         align="start"
@@ -1297,7 +1301,7 @@ function AboutTab({
           },
         ]}
       />
-    </div>
+    </RecordStack>
   );
 }
 

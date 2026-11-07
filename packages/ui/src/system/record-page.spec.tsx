@@ -8,6 +8,7 @@ import {
   RecordColumns,
   RecordHeader,
   RecordSection,
+  RecordStack,
   RecordTabs,
 } from "./record-page";
 import { renderWithSystem } from "./testing";
@@ -110,5 +111,19 @@ describe("RecordTabs", () => {
     );
     expect(screen.getByRole("tab", { name: "Contacts 3" })).toBeInTheDocument();
     expect(screen.getByRole("tab", { name: "About" })).toBeInTheDocument();
+  });
+});
+
+describe("RecordStack", () => {
+  it("keeps its column to the width of its container", () => {
+    renderWithSystem(
+      <RecordStack>
+        <p>Figures</p>
+        <p>Tabs</p>
+      </RecordStack>,
+    );
+    const stack = screen.getByText("Figures").parentElement;
+    expect(stack).toHaveClass("grid-cols-[minmax(0,1fr)]");
+    expect(stack?.children).toHaveLength(2);
   });
 });
