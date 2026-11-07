@@ -9327,5 +9327,7 @@
   "mediaCropped": "Crop kept as a new picture",
   "mediaCropUnreadable": "This picture could not be opened for cropping.",
   "errorMediaFolderNotEmpty": "Only an empty folder can be deleted. Move what it holds elsewhere first.",
-  "errorMediaNotKept": "This file cannot be kept in the library."
+  "errorMediaNotKept": "This file cannot be kept in the library.",
+  "auditMediaFolderCreate": "Media folder added",
+  "auditMediaFolderRemove": "Media folder removed"
 }

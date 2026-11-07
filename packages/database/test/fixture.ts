@@ -75,6 +75,7 @@ import {
   fileSubjects,
   files,
   identityProviderOrgs,
+  mediaFolders,
   siteRedirects,
   identityProviders,
   importRows,
@@ -360,6 +361,11 @@ export async function completeFixture(
     userId,
     heldSince: new Date(now),
     expiresAt: new Date(now + 90_000),
+  });
+  await tx.insert(mediaFolders).values({
+    tenantId,
+    orgId: schoolId,
+    name: "Sports day",
   });
   await tx.insert(siteRedirects).values({
     tenantId,

@@ -169,6 +169,8 @@ export const AUDIT_ACTION_LABEL: Record<string, () => string> = {
   "lti_tool.create": m.auditLtiToolCreate,
   "lti_tool.remove": m.auditLtiToolRemove,
   "lti_tool.update": m.auditLtiToolUpdate,
+  "media.folder_create": m.auditMediaFolderCreate,
+  "media.folder_remove": m.auditMediaFolderRemove,
   "message_contact.link": m.auditMessageContactLink,
   "message_thread.create": m.auditMessageThreadCreate,
   "message_thread.members": m.auditMessageThreadMembers,

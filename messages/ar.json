@@ -9745,5 +9745,7 @@
   "mediaCropped": "حُفظ القص صورةً جديدة",
   "mediaCropUnreadable": "تعذّر فتح هذه الصورة لقصها.",
   "errorMediaFolderNotEmpty": "لا يُحذف إلا المجلد الفارغ. انقل ما فيه إلى مكان آخر أولًا.",
-  "errorMediaNotKept": "لا يمكن حفظ هذا الملف في المكتبة."
+  "errorMediaNotKept": "لا يمكن حفظ هذا الملف في المكتبة.",
+  "auditMediaFolderCreate": "أُضيف مجلد إلى مكتبة الوسائط",
+  "auditMediaFolderRemove": "حُذف مجلد من مكتبة الوسائط"
 }
