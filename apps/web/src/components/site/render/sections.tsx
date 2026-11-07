@@ -3706,8 +3706,11 @@ function BlockView({ block, context }: BlockViewProps) {
           )}
         </div>
       );
+    default: {
+      const undrawn: never = block;
+      return undrawn;
+    }
   }
-  return null;
 }
 
 function Blocks({ section, context }: Props<"blocks">) {
@@ -3854,8 +3857,11 @@ export function SiteSection({
         return <QuickLinks section={section} context={context} first={first} />;
       case "embed":
         return <Embed section={section} context={context} first={first} />;
+      default: {
+        const undrawn: never = section;
+        return undrawn;
+      }
     }
-    return null;
   })();
   return (
     <div
