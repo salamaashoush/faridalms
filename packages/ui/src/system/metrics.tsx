@@ -37,6 +37,8 @@ export interface MetricProps {
   /** Already formatted for the reader: a count, an amount. */
   value: string;
   detail?: MetricDetail;
+  /** How full it is, from 0 to 1, for a count against its limit. */
+  meter?: number;
   /** The list the number counts, opened from the whole tile. */
   link?: LinkProps;
 }
@@ -45,7 +47,7 @@ export interface MetricProps {
  * One number and what it counts. A metric with a link opens the list behind
  * it; the label stays the link's name so a screen reader hears what it opens.
  */
-export function Metric({ label, value, detail, link }: MetricProps) {
+export function Metric({ label, value, detail, meter, link }: MetricProps) {
   const body = (
     <>
       <span className="text-[13px] leading-[18px] text-muted-foreground">
@@ -54,6 +56,17 @@ export function Metric({ label, value, detail, link }: MetricProps) {
       <span className="text-2xl leading-8 font-semibold tracking-tight tabular-nums">
         {value}
       </span>
+      {meter === undefined ? null : (
+        <span
+          aria-hidden
+          className="my-1 h-1.5 overflow-hidden rounded-full bg-muted"
+        >
+          <span
+            className="block h-full rounded-full bg-primary"
+            style={{ width: `${Math.round(Math.min(1, Math.max(0, meter)) * 100)}%` }}
+          />
+        </span>
+      )}
       {detail ? (
         <span className="flex items-baseline gap-2 text-[13px] leading-[18px] text-muted-foreground">
           {detail.tone ? (

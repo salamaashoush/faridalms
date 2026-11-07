@@ -310,7 +310,7 @@ export function RecordTabs<T extends string>({
         <TabsContent
           key={tab.value}
           value={tab.value}
-          className="min-w-0 rounded-lg focus-visible:ring-3 focus-visible:ring-ring/50"
+          className="grid min-w-0 content-start gap-10 rounded-lg focus-visible:ring-3 focus-visible:ring-ring/50 [&>section:first-child]:border-t-0 [&>section:first-child]:pt-0"
         >
           {tab.value === value ? children : null}
         </TabsContent>
@@ -322,6 +322,11 @@ export function RecordTabs<T extends string>({
 export interface RecordColumnsProps {
   main: ReactNode;
   aside?: ReactNode;
+  /**
+   * The supporting column stays in view while the main one scrolls, for a
+   * short column of facts beside long tabs.
+   */
+  stickyAside?: boolean;
 }
 
 /**
@@ -329,14 +334,25 @@ export interface RecordColumnsProps {
  * in the last third, one column on narrower screens. The main column keeps its
  * width when a tab has nothing supporting, so tabs do not jump as they change.
  */
-export function RecordColumns({ main, aside }: RecordColumnsProps) {
+export function RecordColumns({
+  main,
+  aside,
+  stickyAside = false,
+}: RecordColumnsProps) {
   return (
     <div className="grid gap-6 lg:grid-cols-3">
       <div className="grid min-w-0 content-start gap-6 lg:col-span-2">
         {main}
       </div>
       {aside ? (
-        <div className="grid min-w-0 content-start gap-6">{aside}</div>
+        <div
+          className={cn(
+            "grid min-w-0 content-start gap-6",
+            stickyAside && "lg:sticky lg:top-18 lg:self-start",
+          )}
+        >
+          {aside}
+        </div>
       ) : null}
     </div>
   );
@@ -400,7 +416,12 @@ export function RecordSection({
           ) : null}
         </div>
         {action || edit ? (
-          <div className="-me-2 flex shrink-0 items-center gap-1">
+          <div
+            className={cn(
+              "flex shrink-0 items-center gap-1",
+              page ? "" : "-me-2",
+            )}
+          >
             {action}
             {edit ? (
               <Button

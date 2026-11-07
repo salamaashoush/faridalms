@@ -13,6 +13,7 @@ export const ENGLISH_STRINGS: SystemStrings = {
   clearFilters: "Clear filters",
   close: "Close",
   columns: "Columns",
+  copied: "Copied",
   countInTotal: (count) => `${count} in total`,
   dangerZone: "Danger zone",
   descending: "Descending",

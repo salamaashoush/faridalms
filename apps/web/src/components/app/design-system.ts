@@ -28,6 +28,7 @@ export function portalDesignSystem(): DesignSystemValue {
       clearFilters: m.indexClearFilters(),
       close: m.commonClose(),
       columns: m.managementColumns(),
+      copied: m.commonCopied(),
       countInTotal: (count) => m.indexCountLabel({ count }),
       dangerZone: m.formDangerZone(),
       descending: m.indexDescending(),

@@ -19,7 +19,9 @@ package gains it first, with a test and a line in this table.
 | -------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
 | Shell          | `app-shell` (`AppShell`, `ShellBrand`, `ShellAccount`, `ThemeSubmenu`, breadcrumb steps), `page-actions`                                       |
 | Index page     | `page-header`, `index-toolbar`, `data-table`, `empty-state`                                                                                    |
+| Page width     | `page` (`Page`)                                                                                                                                |
 | Record page    | `record-page` (`RecordHeader`, `RecordTabs`, `RecordColumns`, `RecordSection`, `Facts`, `Fact`, `RecordList`), `value`                         |
+| Record content | `usage-list` (`UsageList`), `summary-list` (`SummaryList`), `dns-records` (`DnsRecords`), `copy-button`                                        |
 | Section sheets | `sheet-form` (edits), `sheet-panel` (reads)                                                                                                    |
 | Record form    | `record-form` (`RecordForm`, `FormSection`, danger zone), `unsaved-changes-guard`                                                              |
 | Settings page  | `settings-section` (`SettingsPage`, `SettingsSection`, `SettingsGroup`)                                                                        |
@@ -128,6 +130,16 @@ Page padding is 24px, 16px on phones.
 
 ## Page types
 
+Every page sets its width once, by its kind, with `Page` (Polaris and
+Shopify's app guidelines draw the same three lines). The content is centred
+in the space the shell leaves.
+
+| Kind                         | Width  | Why                                              |
+| ---------------------------- | ------ | ------------------------------------------------ |
+| Index, board, home, report   | 1600px | Tables and boards need the room for columns.     |
+| Record                       | 1280px | Two columns read at a glance without wide lines. |
+| Form, settings, step-by-step | 720px  | One column, one path from top to bottom.         |
+
 ### Index page
 
 Lists of students, classes, assignments, messages (Polaris resource index,
@@ -172,28 +184,51 @@ Carbon data table, shadcn tasks).
 
 ### Record page
 
-A student, a class, a person (Arbor, PowerSchool, Polaris detail layout).
+A school, a customer, a student, a class (Salesforce Lightning's "Header and
+Right Sidebar" template, HubSpot's record page, Stripe's customer page).
 
 - Header: identity (photo, name, key facts), status, alert chips, and at most
   one primary action plus a `•••` menu. Below 768px the action and the menu
   move into the top bar's `•••`, as on every other page; the header keeps
-  identity only.
-- Key facts sit on one muted 14px line separated by `·`. A separator never
-  ends a line when the facts wrap.
+  identity only. A change of state the record's status names (access, a
+  lead's stage) is an action in the menu, and the status badge shows where it
+  stands, so the state is never shown twice.
+- Key facts sit on one muted 14px line separated by `·`, at most three. A
+  separator never ends a line when the facts wrap.
 - Alert chips: 24px high, `rounded-md`, 12px medium text with a 14px icon,
   tinted with the status tone and a border in the same colour. Info, warning
   or danger only; they name what a reader must not miss (allergies, no
   guardian), never a count.
-- Tabs for sections, kept in the URL. A tab the viewer may not open redirects
-  to Overview, so the URL always names what is shown.
-- Sections are read-only cards (16px heading, 13px description) with at most
-  one ghost Edit button at the end of the heading row. Nothing is edited
+- Under the header, two columns on wide screens: the main column (two thirds)
+  and a supporting column (one third) that stays in view as the main one
+  scrolls (`RecordColumns stickyAside`). Phones stack them, supporting last.
+- The main column opens with up to four widgets (`MetricGrid`), and only for
+  what decides what someone does next: a health that needs help, progress
+  towards a goal, a count against its limit. A number nobody acts on is not a
+  widget. A record with nothing like that has no widgets.
+- The supporting column holds an "About" card of facts that hold whatever
+  tab is open (where the record lives, what its state means, its owner) and
+  links to the records it belongs to. Nothing in it repeats a widget or a
+  tab.
+- Tabs follow the widgets when the record has two or more jobs worth a page
+  each, named by the job ("Onboarding", "Addresses", "History"), never
+  "Details" or "Other". A record with one job has no tabs. Tabs live in the
+  URL; switching one replaces the history entry and keeps the scroll
+  position (`resetScroll: false`), and a tab the viewer may not open
+  redirects to the first, so the URL always names what is shown.
+- Inside a tab, sections are ruled off, not framed (`RecordSection
+  variant="page"`): a tab is one surface. Each section is designed for its
+  job, not a pile of facts: several records with several attributes are a
+  table (`DataTable`); settings compared down a column are a summary list
+  (`SummaryList`); limits are use against allowance (`UsageList`); a
+  checklist groups its steps by phase with each phase's progress. Cards are
+  for widgets, the About card and groups that sit side by side.
+- A section has at most one ghost Edit button at the end of its heading row,
+  or one outline action that adds to it ("Add host"). Nothing is edited
   inline in a table.
-- Facts inside a section are label above value (13px muted label, 14px
-  value), in a grid that reflows with the section's width. A missing value
-  reads "Not recorded"; typed text is isolated with `dir="auto"`.
-- Main column two thirds, supporting column one third on wide screens; stacked
-  on phones.
+- Facts are label above value (13px muted label, 14px value), in a grid that
+  reflows with the section's width. A missing value reads "Not recorded";
+  typed text is isolated with `dir="auto"`.
 - One record looks the same to every role; the role changes which sections
   and actions it offers, never its layout. A name of a class, a student or a
   person links to its record where the viewer may open it, and is plain text
@@ -246,7 +281,7 @@ publishing changes state (Notion, Linear, Polaris).
 
 Creating or editing a student, a class, a staff member (Carbon, Primer, GOV.UK).
 
-- One column, at most 680px wide.
+- One column, at most 720px wide.
 - Save (primary) and Cancel at the bottom, start side. The buttons stick to the
   bottom only when the form is taller than the screen, and the page reserves
   their height so a focused field never sits under them (WCAG 2.4.11).

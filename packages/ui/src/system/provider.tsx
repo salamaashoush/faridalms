@@ -28,6 +28,7 @@ export interface SystemStrings {
   clearFilters: string;
   close: string;
   columns: string;
+  copied: string;
   countInTotal: (count: string) => string;
   dangerZone: string;
   descending: string;

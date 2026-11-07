@@ -159,6 +159,7 @@
     }
   ],
   "commonClose": "Close",
+  "commonCopied": "Copied",
   "courseworkTitle": "Assignment title",
   "managementSaved": "Changes saved",
   "managementSearchFor": "Search {label}…",
