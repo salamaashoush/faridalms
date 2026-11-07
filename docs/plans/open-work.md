@@ -90,8 +90,6 @@ From `school-front-door.md`; slices 1 to 9 are merged.
 - Accepting a held email into the conversation as the family's.
 - Webhooks for bounces and complaints that mark a contact unreachable.
 - Routing inbound callbacks through `connect.` once a second cell exists.
-- A review-versions screen for draft conflicts. Today a stale save is
-  refused with the conflict message.
 
 ## Teaching and records
 

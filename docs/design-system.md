@@ -22,6 +22,7 @@ package gains it first, with a test and a line in this table.
 | Page width     | `page` (`Page`)                                                                                                                                                                                                     |
 | Record page    | `record-page` (`RecordHeader`, `RecordStack`, `RecordTabs`, `RecordColumns`, `RecordSection`, `Facts`, `Fact`, `RecordList`), `stage-path` (`StagePath`), `attention-list` (`AttentionList`), `value`               |
 | Record content | `usage-list` (`UsageList`), `summary-list` (`SummaryList`), `change-log` (`ChangeLog`), `dns-records` (`DnsRecords`), `copy-button`, `document-view` (`DocumentView`, a printable document in a tab, printed alone) |
+| Content editor | `editing-hold` (`EditingHold`, who else is editing and taking over), `version-compare` (`VersionCompare`, two versions side by side, keep one)                                                                      |
 | Section sheets | `sheet-form` (edits), `sheet-panel` (reads)                                                                                                                                                                         |
 | Record form    | `record-form` (`RecordForm`, `FormSection`, danger zone), `unsaved-changes-guard`                                                                                                                                   |
 | Settings page  | `settings-section` (`SettingsPage`, `SettingsSection`, `SettingsGroup`)                                                                                                                                             |
@@ -325,6 +326,23 @@ publishing changes state (Notion, Linear, Polaris).
 - Body: the document title (30px) above a 720px content column; settings for
   the item (audience, dates, class) sit in a 280px panel beside it and move
   above the content on phones.
+- One person edits a document that is not written live at a time. Opening
+  its editor holds it, the open editor renews the hold, and leaving lets go;
+  a hold nobody renews lapses within a minute and a half. Anyone else who
+  opens it reads it under `EditingHold` (who, since when, Take over), with
+  its settings and actions out of reach. Taking over asks first; the
+  previous holder's editor turns read-only on its next renewal or save and
+  says who took it, offering a change it had not saved to copy or to
+  compare. Lessons, unit plans and assignment briefs are written live and
+  never held.
+- A save refused because someone saved first, or a change left unsaved when
+  the document was taken, opens `VersionCompare`: the reader's version and
+  the saved one, each drawn by the page's own static renderer, side by side
+  (one at a time on a phone), and Keep mine or Keep the saved one. Keeping
+  mine saves it on top of the latest version, taking the document over
+  first where it was taken. Every document page and the website builder use
+  the same pair through `useHeldDocument`
+  (`apps/web/src/components/content/held-document.tsx`).
 
 ### Record form
 

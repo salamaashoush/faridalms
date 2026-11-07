@@ -2,9 +2,8 @@
 
 The editor and the website studio are ahead of general-purpose CMSs on
 teaching blocks, live editing and bilingual publishing, and behind them on
-the ordinary tools of managing content: a media library, page SEO, locking a
-document one person is editing, comments while writing, and the comfort of
-the editor itself. This plan closes that gap. The comparison it comes from
+the ordinary tools of managing content: a media library, page SEO, comments
+while writing, and the comfort of the editor itself. This plan closes that gap. The comparison it comes from
 read emdash (TipTap, Portable Text, Astro) at its 1.4 release.
 
 Each slice lands on its own and deletes its entry here when it does.
@@ -22,14 +21,6 @@ and the website.
 - Crop to a ratio, kept as a new derivative so the original stays.
 - The editor's picture and file blocks and the website's picture fields
   choose from it as well as uploading.
-
-## 5. Editing one at a time
-
-Documents not written live (news, announcements, events, consents, website
-pages) are held by whoever opens them to edit. Anyone else opening one sees
-who holds it, reads it, and may take it over; the holder is told and their
-next save is refused. A save that is still refused as stale opens a screen
-that compares the two versions and keeps one.
 
 ## 6. Comments while writing
 

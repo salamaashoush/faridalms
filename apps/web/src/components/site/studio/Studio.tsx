@@ -4,7 +4,11 @@ import type { PageTemplate } from "@faridalms/domain/site-templates";
 import { Tabs } from "@base-ui/react/tabs";
 import { buildTemplate } from "@faridalms/domain/site-templates";
 import { resolveTheme } from "@faridalms/domain/site-theme";
-import { sectionComplete, sectionWritten } from "@faridalms/domain/website";
+import {
+  pagePlainText,
+  sectionComplete,
+  sectionWritten,
+} from "@faridalms/domain/website";
 import { Button } from "@faridalms/ui/button";
 import { cn } from "@faridalms/ui/cn";
 import {
@@ -69,6 +73,7 @@ import { toast } from "sonner";
 import type { siteOverviewQuery, sitePageQuery } from "~/queries/site";
 
 import { DocumentHistory } from "~/components/content/DocumentHistory";
+import { useHeldDocument } from "~/components/content/held-document";
 import { LOCALE_NAME } from "~/components/content/languages";
 import { usePicturePeople } from "~/components/files/PicturedPeople";
 import {
@@ -76,11 +81,11 @@ import {
   NotSaved,
   SaveIndicator,
 } from "~/components/system/DocumentPage";
-import { useAutosave } from "~/hooks/useAutosave";
 import { useCurrentUser } from "~/hooks/useCurrentUser";
 import { useDocumentMedia } from "~/hooks/useDocumentMedia";
 import * as m from "~/i18n/messages";
 import {
+  getSitePage,
   publishSitePage,
   saveSitePage,
   saveSiteSettings,
@@ -97,7 +102,8 @@ import type { Inserted } from "./Gallery";
 
 import { STATE_LABEL, STATE_TONE } from "../format";
 import { withNews } from "../render/frame-model";
-import { Canvas } from "./Canvas";
+import { PageSections } from "../render/page";
+import { Canvas, DEVICES, Viewport } from "./Canvas";
 import {
   canvasSections,
   contentOf,
@@ -281,23 +287,6 @@ export function SiteStudio({
       (current) => ({ ...current, sections: change(current.sections) }),
       key,
     );
-
-  useEffect(() => {
-    const onKey = (event: KeyboardEvent) => {
-      if (!(event.metaKey || event.ctrlKey) || editableTarget(event.target))
-        return;
-      const key = event.key.toLowerCase();
-      if (key === "z" && !event.shiftKey) {
-        event.preventDefault();
-        history.undo();
-      } else if ((key === "z" && event.shiftKey) || key === "y") {
-        event.preventDefault();
-        history.redo();
-      }
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [history]);
 
   const primaryTitle = languages.primary === "ar" ? page.titleAr : page.titleEn;
   const titleIn = (which: SiteLocale) =>
@@ -534,7 +523,13 @@ export function SiteStudio({
   // The selected section answers the keys people expect from a layout
   // editor; all of it can be undone.
   const onSectionKey = useEffectEvent((event: KeyboardEvent) => {
-    if (!selected || editableTarget(event.target) || galleryAt !== null) return;
+    if (
+      reading ||
+      !selected ||
+      editableTarget(event.target) ||
+      galleryAt !== null
+    )
+      return;
     const command = event.metaKey || event.ctrlKey;
     if (event.key === "Delete" || event.key === "Backspace") {
       event.preventDefault();
@@ -596,11 +591,70 @@ export function SiteStudio({
     await invalidate();
   };
   const pageValid = !errors.title && !errors.slug;
-  const autosave = useAutosave({
+  const titleOf = (value: PageDraft) =>
+    (languages.primary === "ar" ? value.titleAr : value.titleEn) ||
+    value.titleEn ||
+    value.titleAr ||
+    m.siteUntitledPage();
+  const { autosave, editing } = useHeldDocument({
+    host: pageId ? { hostType: "site_page", hostId: pageId } : null,
     value: page,
     save: storePage,
     enabled: pageValid,
+    version: () => versions.current.page,
+    latest: async () => {
+      const data = await getSitePage({
+        data: { id: versions.current.id ?? "" },
+      });
+      return {
+        value: pageDraftOf(data, null, languages),
+        version: data.version,
+        data,
+      };
+    },
+    adopt: ({ value, version, data }) => {
+      versions.current.page = version;
+      history.reset((current) => ({ ...current, page: value }));
+      setShownState(data.shown);
+      setWaiting(data.revisedAt !== null);
+    },
+    rebase: (version) => {
+      versions.current.page = version;
+    },
+    render: (value) => (
+      <Viewport width={DEVICES.tablet} theme={theme} locale={languages.primary}>
+        <PageSections
+          sections={canvasSections(value, languages, languages.primary)}
+          title={titleOf(value)}
+          context={{ ...context, locale: languages.primary, editing: false }}
+        />
+      </Viewport>
+    ),
+    text: (value) =>
+      [titleOf(value), pagePlainText(contentOf(value).content)].join("\n\n"),
   });
+  const reading = !editing.editable;
+
+  useEffect(() => {
+    const onKey = (event: KeyboardEvent) => {
+      if (
+        reading ||
+        !(event.metaKey || event.ctrlKey) ||
+        editableTarget(event.target)
+      )
+        return;
+      const key = event.key.toLowerCase();
+      if (key === "z" && !event.shiftKey) {
+        event.preventDefault();
+        history.undo();
+      } else if ((key === "z" && event.shiftKey) || key === "y") {
+        event.preventDefault();
+        history.redo();
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [history, reading]);
   const saveSite = useMutation({
     mutationFn: async (site: StudioDraft["site"]) => {
       const result = await saveSiteSettings({
@@ -1062,54 +1116,61 @@ export function SiteStudio({
               ]()}
             </Button>
           ) : null}
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon-sm"
-            className="max-md:size-10"
-            aria-label={m.siteUndo()}
-            disabled={!history.canUndo}
-            onClick={history.undo}
-          >
-            <Undo2 aria-hidden className="rtl:-scale-x-100" />
-          </Button>
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon-sm"
-            className="max-md:size-10 max-sm:hidden"
-            aria-label={m.siteRedo()}
-            disabled={!history.canRedo}
-            onClick={history.redo}
-          >
-            <Redo2 aria-hidden className="rtl:-scale-x-100" />
-          </Button>
-          <div className="flex min-w-0 items-center gap-2 px-1 max-xl:hidden">
-            {!pageValid && autosave.dirty ? (
-              <NotSaved reason={errors.title ?? errors.slug ?? ""} />
-            ) : (
-              <SaveIndicator state={autosave.state} onRetry={autosave.retry} />
-            )}
-            {published && waiting && !siteDirty ? (
-              <span className="text-[13px] text-muted-foreground">
-                {m.siteChangesWaiting()}
-              </span>
-            ) : null}
-          </div>
-          {siteDirty ? (
-            <HeldChanges
-              waiting={m.siteStylesWaiting()}
-              onDiscard={() =>
-                history.update(
-                  (current) => ({ ...current, site: savedSite }),
-                  "site:discard",
-                )
-              }
-              onUpdate={() => void saveSite.mutateAsync(draft.site)}
-              pending={saveSite.isPending}
-              quiet
-            />
-          ) : null}
+          {reading ? null : (
+            <>
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon-sm"
+                className="max-md:size-10"
+                aria-label={m.siteUndo()}
+                disabled={!history.canUndo}
+                onClick={history.undo}
+              >
+                <Undo2 aria-hidden className="rtl:-scale-x-100" />
+              </Button>
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon-sm"
+                className="max-md:size-10 max-sm:hidden"
+                aria-label={m.siteRedo()}
+                disabled={!history.canRedo}
+                onClick={history.redo}
+              >
+                <Redo2 aria-hidden className="rtl:-scale-x-100" />
+              </Button>
+              <div className="flex min-w-0 items-center gap-2 px-1 max-xl:hidden">
+                {!pageValid && autosave.dirty ? (
+                  <NotSaved reason={errors.title ?? errors.slug ?? ""} />
+                ) : (
+                  <SaveIndicator
+                    state={autosave.state}
+                    onRetry={autosave.retry}
+                  />
+                )}
+                {published && waiting && !siteDirty ? (
+                  <span className="text-[13px] text-muted-foreground">
+                    {m.siteChangesWaiting()}
+                  </span>
+                ) : null}
+              </div>
+              {siteDirty ? (
+                <HeldChanges
+                  waiting={m.siteStylesWaiting()}
+                  onDiscard={() =>
+                    history.update(
+                      (current) => ({ ...current, site: savedSite }),
+                      "site:discard",
+                    )
+                  }
+                  onUpdate={() => void saveSite.mutateAsync(draft.site)}
+                  pending={saveSite.isPending}
+                  quiet
+                />
+              ) : null}
+            </>
+          )}
           {published && pageId && !existing?.isHome ? (
             <ButtonLink
               to="/site/$school/pages/$slug"
@@ -1135,7 +1196,7 @@ export function SiteStudio({
               <ExternalLink aria-hidden />
             </ButtonLink>
           ) : null}
-          <div className="flex">
+          <div className={cn("flex", reading && "hidden")}>
             <Button
               type="button"
               className="rounded-e-none max-md:h-10"
@@ -1188,9 +1249,15 @@ export function SiteStudio({
           </div>
         </div>
       </header>
+      {editing.notice ? (
+        <div className="shrink-0 border-b px-2 py-2 lg:px-3">
+          {editing.notice}
+        </div>
+      ) : null}
       <div className="flex min-h-0 flex-1">
         <aside
           aria-label={m.siteBuilderPanels()}
+          inert={reading}
           className="flex w-[360px] shrink-0 flex-col border-e max-lg:hidden"
         >
           {rail}
@@ -1212,6 +1279,7 @@ export function SiteStudio({
             onDuplicate={duplicate}
             onRemove={remove}
             onInsert={(at) => setGalleryAt(at)}
+            readOnly={reading}
             onText={(id, field, value) => {
               const section = page.sections.find((item) => item.id === id);
               if (!section) return;
@@ -1234,6 +1302,7 @@ export function SiteStudio({
         </main>
         <aside
           aria-label={m.siteInspector()}
+          inert={reading}
           className="flex w-[360px] shrink-0 flex-col border-s max-lg:hidden"
         >
           {inspector}
@@ -1298,7 +1367,9 @@ export function SiteStudio({
             </SheetTitle>
           </SheetHeader>
           <div className="flex min-h-0 flex-1 flex-col overflow-y-auto">
-            {sheet === "inspector" ? inspector : panelBody}
+            <div inert={reading} className="contents">
+              {sheet === "inspector" ? inspector : panelBody}
+            </div>
           </div>
         </SheetContent>
       </Sheet>
@@ -1343,6 +1414,7 @@ export function SiteStudio({
         </DialogContent>
       </Dialog>
       {pictured.sheet}
+      {editing.compare}
       {pageId ? (
         <DocumentHistory
           open={historyOpen}

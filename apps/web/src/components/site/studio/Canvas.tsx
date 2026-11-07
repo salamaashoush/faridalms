@@ -240,6 +240,8 @@ export interface CanvasProps {
   onRemove: (id: string) => void;
   onInsert: (at: number) => void;
   onText: (id: string, field: string, value: string) => void;
+  /** Someone else holds the page: it draws as visitors see it, with no handles. */
+  readOnly?: boolean;
 }
 
 /**
@@ -260,6 +262,7 @@ export function Canvas({
   onRemove,
   onInsert,
   onText,
+  readOnly = false,
 }: CanvasProps) {
   const scroller = useRef<HTMLDivElement>(null);
   useEffect(() => {
@@ -288,7 +291,13 @@ export function Canvas({
             context={context}
             overlay={opensOnPicture(visible)}
           >
-            {sections.length === 0 ? (
+            {readOnly ? (
+              <PageSections
+                sections={sections}
+                title={title}
+                context={context}
+              />
+            ) : sections.length === 0 ? (
               <div className="grid min-h-[60vh] place-items-center p-10 font-sans">
                 <Button type="button" size="lg" onClick={() => onInsert(0)}>
                   <Plus aria-hidden />

@@ -201,9 +201,20 @@ export function useUndoable<T>(initial: () => T) {
       };
     });
   }, []);
+  /** Puts a value in place with nothing to undo back to, as when another version is taken in. */
+  const reset = useCallback((change: (value: T) => T) => {
+    setHistory((current) => ({
+      past: [],
+      present: change(current.present),
+      future: [],
+      key: "",
+      at: 0,
+    }));
+  }, []);
   return {
     value: history.present,
     update,
+    reset,
     undo,
     redo,
     canUndo: history.past.length > 0,
