@@ -115,6 +115,7 @@ const session = (change: Partial<Cmi5Session> = {}): Cmi5Session => ({
   activityId: ACTIVITY,
   actor: { homePage: "https://school.example.com", name: "student-1" },
   masteryScore: 0.8,
+  launchMode: "Normal",
   verbs: ["initialized"],
   progress: {},
   ...change,
@@ -180,6 +181,52 @@ describe("statements a unit sends", () => {
         session(),
       ),
     ).toBeNull();
+  });
+
+  it("keeps a unit launched to browse or review to what records nothing", () => {
+    for (const launchMode of ["Browse", "Review"] as const) {
+      const looking = (verbs = ["initialized"]) =>
+        session({ launchMode, verbs });
+      expect(cmi5Issue(statement("initialized"), looking([]))).toBeNull();
+      expect(
+        cmi5Issue(statement("terminated", { duration: "PT1M" }), looking()),
+      ).toBeNull();
+      expect(
+        cmi5Issue(
+          statement("initialized", undefined, {
+            verb: { id: "http://adlnet.gov/expapi/verbs/experienced" },
+            object: { id: "https://publisher.example.com/page/1" },
+          }),
+          looking(),
+        ),
+      ).toBeNull();
+      expect(
+        cmi5Issue(
+          statement("completed", { completion: true, duration: "PT5M" }),
+          looking(),
+        ),
+      ).toBe("launch_mode");
+      expect(
+        cmi5Issue(
+          statement("passed", {
+            score: { scaled: 0.9 },
+            success: true,
+            duration: "PT5M",
+          }),
+          looking(),
+        ),
+      ).toBe("launch_mode");
+      expect(
+        cmi5Issue(
+          statement("failed", {
+            score: { scaled: 0.1 },
+            success: false,
+            duration: "PT5M",
+          }),
+          looking(),
+        ),
+      ).toBe("launch_mode");
+    }
   });
 
   it("refuses what breaks them", () => {

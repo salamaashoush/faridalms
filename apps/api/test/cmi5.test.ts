@@ -1,4 +1,5 @@
-import type { Cmi5Package } from "@faridalms/domain/cmi5";
+import type { Cmi5LaunchMode, Cmi5Package } from "@faridalms/domain/cmi5";
+import type { LessonCompletion } from "@faridalms/domain/learning";
 
 import {
   CMI5_CATEGORY,
@@ -43,7 +44,9 @@ async function teacherOfModule() {
 }
 
 /** A lesson holding a course package of one unit, its zip stored with the school. */
-async function lessonWithPackage() {
+async function lessonWithPackage(
+  options: { completion?: LessonCompletion; launchMode?: Cmi5LaunchMode } = {},
+) {
   const { session: teacher, classIds } = await teacherOfModule();
   const zip = zipSync({
     "cmi5.xml": strToU8("<courseStructure/>"),
@@ -93,14 +96,20 @@ async function lessonWithPackage() {
   if (!content) throw new Error("no document");
   content.root.children = [
     ...(content.root.children ?? []),
-    { type: "cmi5", version: 1, fileId: file.id, cmi5: course },
+    {
+      type: "cmi5",
+      version: 1,
+      fileId: file.id,
+      cmi5: course,
+      ...(options.launchMode ? { launchMode: options.launchMode } : {}),
+    },
   ];
   const lesson = await teacher.api.learning.saveLesson({
     id: "",
     moduleId: module.id,
     expectedVersion: 0,
     title: "Rivers, packaged",
-    completion: "view",
+    completion: options.completion ?? "view",
     passScore: null,
     content,
     publish: true,
@@ -119,6 +128,85 @@ const local = (url: string) => {
 
 /** The record store's name, resolved as the public web would. */
 const publicStore = () => Promise.resolve(["93.184.215.14"]);
+
+/**
+ * Launches a lesson's unit for a student and takes its token, as the unit
+ * would: its launch data, and a way to send statements in its session.
+ */
+async function launchedUnit(
+  token: string,
+  lessonId: string,
+  course: Cmi5Package,
+) {
+  const start = `/cmi5/launch?lesson=${lessonId}&package=${course.packageId}&au=0`;
+  const launched = await raw("northwind", token, start, manual);
+  expect(launched.status).toBe(302);
+  const target = new URL(launched.headers.get("location") ?? "");
+  const actor = JSON.parse(target.searchParams.get("actor") ?? "{}") as {
+    account: { homePage: string; name: string };
+  };
+  const registration = target.searchParams.get("registration") ?? "";
+  const activityId = target.searchParams.get("activityId") ?? "";
+  const auth = (
+    (await (
+      await raw(
+        "northwind",
+        "",
+        local(target.searchParams.get("fetch") ?? ""),
+        {
+          method: "POST",
+        },
+      )
+    ).json()) as { "auth-token": string }
+  )["auth-token"];
+  const call = (path: string, method = "GET", body?: string) =>
+    seeded().handler(
+      new Request(`http://api.test/cmi5/xapi/${path}`, {
+        method,
+        ...(body === undefined ? {} : { body }),
+        headers: {
+          "x-farida-school": "northwind",
+          "x-experience-api-version": "1.0.3",
+          authorization: `Basic ${auth}`,
+          "content-type": "application/json",
+        },
+      }),
+    );
+  const agent = encodeURIComponent(JSON.stringify(actor));
+  const data = (await (
+    await call(
+      `activities/state?activityId=${encodeURIComponent(activityId)}&agent=${agent}&registration=${registration}&stateId=${LAUNCH_DATA}`,
+    )
+  ).json()) as {
+    launchMode: string;
+    contextTemplate: { extensions: Record<string, string> };
+  };
+  const sessionId = data.contextTemplate.extensions[CMI5_EXTENSIONS.sessionId];
+  const said = (
+    verb: keyof typeof CMI5_VERBS,
+    result?: Record<string, unknown>,
+  ) => ({
+    actor,
+    verb: { id: CMI5_VERBS[verb] },
+    object: { id: activityId },
+    ...(result ? { result } : {}),
+    context: {
+      registration,
+      contextActivities: {
+        category: [
+          { id: CMI5_CATEGORY },
+          ...(result && ("success" in result || "completion" in result)
+            ? [{ id: CMI5_MOVE_ON_CATEGORY }]
+            : []),
+        ],
+      },
+      extensions: { [CMI5_EXTENSIONS.sessionId]: sessionId },
+    },
+  });
+  const post = (body: unknown) =>
+    call("statements", "POST", JSON.stringify(body));
+  return { data, said, post };
+}
 
 describe("course packages in the cmi5 profile", () => {
   test("a student launches a unit, which reports to the school by cmi5's rules", async () => {
@@ -436,6 +524,76 @@ describe("course packages in the cmi5 profile", () => {
         username: "school-key",
         enabled: false,
       });
+    }
+  });
+
+  test("a lesson finished by its package ends once the package is satisfied", async () => {
+    const { lessonId, course } = await lessonWithPackage({
+      completion: "package",
+    });
+    const pupil = await sessionFor("northwind", login("student"));
+    const played = () => pupil.api.learning.playLesson({ id: lessonId });
+    expect((await played()).completedAt).toBeNull();
+    // Saying they are done is not enough while the package waits.
+    expect(
+      (await pupil.api.learning
+        .complete({ lessonId })
+        .then(() => null)
+        .catch((error: unknown) => error)) instanceof Error,
+    ).toBe(true);
+    const unit = await launchedUnit(pupil.token, lessonId, course);
+    expect(unit.data.launchMode).toBe("Normal");
+    expect(
+      (
+        await unit.post([
+          unit.said("initialized"),
+          unit.said("passed", {
+            score: { scaled: 0.9 },
+            success: true,
+            duration: "PT2M",
+          }),
+        ])
+      ).status,
+    ).toBe(200);
+    // Passed alone does not meet CompletedAndPassed.
+    expect((await played()).completedAt).toBeNull();
+    expect(
+      (
+        await unit.post(
+          unit.said("completed", { completion: true, duration: "PT3M" }),
+        )
+      ).status,
+    ).toBe(200);
+    expect((await played()).completedAt).not.toBeNull();
+  });
+
+  test("a unit the teacher set to browse or review records nothing that counts", async () => {
+    for (const launchMode of ["Browse", "Review"] as const) {
+      const { lessonId, course } = await lessonWithPackage({
+        completion: "package",
+        launchMode,
+      });
+      const pupil = await sessionFor("northwind", login("student"));
+      const unit = await launchedUnit(pupil.token, lessonId, course);
+      expect(unit.data.launchMode).toBe(launchMode);
+      expect((await unit.post(unit.said("initialized"))).status).toBe(200);
+      for (const refused of [
+        unit.said("completed", { completion: true, duration: "PT1M" }),
+        unit.said("passed", {
+          score: { scaled: 0.9 },
+          success: true,
+          duration: "PT1M",
+        }),
+      ])
+        expect(await (await unit.post(refused)).json()).toEqual({
+          error: "launch_mode",
+        });
+      expect(
+        (await unit.post(unit.said("terminated", { duration: "PT2M" }))).status,
+      ).toBe(200);
+      expect(
+        (await pupil.api.learning.playLesson({ id: lessonId })).completedAt,
+      ).toBeNull();
     }
   });
 });

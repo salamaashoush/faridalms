@@ -1,4 +1,4 @@
-import type { Cmi5Package } from "@faridalms/domain/cmi5";
+import type { Cmi5LaunchMode, Cmi5Package } from "@faridalms/domain/cmi5";
 
 import { ExternalLink, PackageOpen } from "lucide-react";
 
@@ -9,6 +9,18 @@ export interface Cmi5CardProps {
   startLabel: string;
   /** What the units are called above their list. */
   unitsLabel: string;
+  /** Said when the units open without recording what is done in them. */
+  modeNote?: string | null;
+}
+
+/** What readers are told of a package that opens without recording what they do. */
+export function cmi5ModeNote(
+  mode: Cmi5LaunchMode | undefined,
+  strings: { cmi5BrowseNote: string; cmi5ReviewNote: string },
+): string | null {
+  if (mode === "Browse") return strings.cmi5BrowseNote;
+  if (mode === "Review") return strings.cmi5ReviewNote;
+  return null;
 }
 
 /**
@@ -21,6 +33,7 @@ export function Cmi5Card({
   href,
   startLabel,
   unitsLabel,
+  modeNote = null,
 }: Cmi5CardProps) {
   return (
     <section className="fe-cmi5" aria-label={course.title || unitsLabel}>
@@ -33,6 +46,7 @@ export function Cmi5Card({
             {course.title}
           </span>
           <span className="fe-lti-tool">{unitsLabel}</span>
+          {modeNote ? <span className="fe-lti-tool">{modeNote}</span> : null}
         </div>
       </div>
       <ol className="fe-cmi5-units">

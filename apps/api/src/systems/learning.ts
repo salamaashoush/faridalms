@@ -243,6 +243,7 @@ import * as v from "valibot";
 
 import type { SchoolContext, UnitContext } from "../core/context";
 
+import { satisfiedPackages } from "../cmi5/completion";
 import { markedProgramAt } from "../coding/mark";
 import { projectCode } from "../coding/scratch-file";
 import {
@@ -4153,6 +4154,12 @@ export const complete = writeProcedure
         played.content,
         played.checks,
         await watchedFor(context, played),
+        played.row.completion === "package"
+          ? await satisfiedPackages(context, {
+              lessonId: played.row.id,
+              studentId: played.studentId,
+            })
+          : undefined,
       )
     )
       throw new ORPCError("CONFLICT", { message: "learning.not_done" });

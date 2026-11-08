@@ -69,6 +69,7 @@ export const LESSON_COMPLETIONS = [
   "score",
   "reflection",
   "watch",
+  "package",
 ] as const;
 export type LessonCompletion = (typeof LESSON_COMPLETIONS)[number];
 /**
@@ -1088,6 +1089,19 @@ export const lessonMedia = (document: LessonDocument) =>
 export const lessonWatchables = (document: LessonDocument) =>
   watchables(document.blocks);
 
+/** The course packages a lesson holds, by their package id, each once. */
+export function lessonPackages(document: LessonDocument): string[] {
+  const found: string[] = [];
+  const walk = (node: ContentNode) => {
+    if (node.type === "cmi5" && node.cmi5 && node.fileId)
+      found.push(node.cmi5.packageId);
+    for (const child of node.children ?? []) walk(child);
+  };
+  for (const block of document.blocks)
+    if (block.type === "content") walk(block.content.root);
+  return [...new Set(found)];
+}
+
 /** The code blocks a lesson lets students run, by block id, with each one's program. */
 export function runnableCode(document: LessonDocument): Map<string, string> {
   const found = new Map<string, string>();
@@ -1290,6 +1304,8 @@ export function lessonIssue(lesson: {
     return "learning.needs_reflection";
   if (lesson.completion === "watch" && lessonWatchables(document).length === 0)
     return "learning.needs_media";
+  if (lesson.completion === "package" && lessonPackages(document).length === 0)
+    return "learning.needs_package";
   // A young child learns from each answer as they give it.
   if (
     lesson.young &&
@@ -2159,13 +2175,15 @@ export function lessonScore(
 
 /**
  * Whether a student's work finishes a lesson on its own. "Mark" needs the
- * student to say so; "view" is finished by opening it.
+ * student to say so; "view" is finished by opening it; "package" once
+ * every course package in it is satisfied, by the ids in `satisfied`.
  */
 export function completionMet(
   lesson: { completion: LessonCompletion; passScore: number | null },
   document: LessonDocument,
   states: Record<string, CheckState>,
   watched: Record<string, Watched> = {},
+  satisfied: ReadonlySet<string> = new Set(),
 ): boolean {
   const auto = autoBlocks(document);
   const written = document.blocks.filter(
@@ -2189,6 +2207,12 @@ export function completionMet(
       return lessonWatchables(document).every((video) =>
         watchedEnough(watched[video]),
       );
+    case "package": {
+      const packages = lessonPackages(document);
+      return (
+        packages.length > 0 && packages.every((each) => satisfied.has(each))
+      );
+    }
   }
   return false;
 }

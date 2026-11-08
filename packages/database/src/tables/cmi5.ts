@@ -1,4 +1,4 @@
-import type { AuProgress } from "@faridalms/domain/cmi5";
+import type { AuProgress, Cmi5LaunchMode } from "@faridalms/domain/cmi5";
 import type { PgTableExtraConfigValue } from "drizzle-orm/pg-core";
 
 import { sql } from "drizzle-orm";
@@ -71,8 +71,9 @@ export const cmi5Registrations = core.table.withRLS(
 
 /**
  * One launch of an AU, cmi5's session: the activity id and launch the
- * school gave it, whether its fetch address was used, the cmi5 verbs it
- * has sent, and when it ended, by terminating or by being abandoned.
+ * school gave it, the mode it was launched in, whether its fetch address
+ * was used, the cmi5 verbs it has sent, and when it ended, by terminating
+ * or by being abandoned.
  */
 export const cmi5Sessions = core.table.withRLS(
   "cmi5_sessions",
@@ -82,6 +83,10 @@ export const cmi5Sessions = core.table.withRLS(
     studentUserId: uuid("student_user_id").notNull(),
     auId: text("au_id").notNull(),
     activityId: text("activity_id").notNull(),
+    launchMode: text("launch_mode")
+      .$type<Cmi5LaunchMode>()
+      .notNull()
+      .default("Normal"),
     launchedAt: instant("launched_at")
       .notNull()
       .default(sql`statement_timestamp()`),
@@ -111,6 +116,11 @@ export const cmi5Sessions = core.table.withRLS(
       "cmi5_sessions",
       "ids",
       sql`char_length(au_id) between 1 and 500 and char_length(activity_id) between 1 and 2000`,
+    ),
+    ck(
+      "cmi5_sessions",
+      "launch_mode",
+      sql`launch_mode in ('Normal', 'Browse', 'Review')`,
     ),
     ck(
       "cmi5_sessions",

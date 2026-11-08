@@ -1,4 +1,5 @@
 import type { FootnoteSource } from "@faridalms/domain/citations";
+import type { Cmi5LaunchMode } from "@faridalms/domain/cmi5";
 import type {
   ContentNode,
   FeedbackTime,
@@ -181,6 +182,7 @@ import {
 } from "../formatting";
 import { $placePicked } from "../lti-pick";
 import { MathInput } from "../math-input";
+import { $isCmi5Node } from "../nodes/cmi5";
 import { $isDrawNode, useBankTags } from "../nodes/draw";
 import { $insertFootnote, $isFootnoteNode } from "../nodes/footnote";
 import { $isLtiNode, $setLtiContent, $setLtiFrame } from "../nodes/lti";
@@ -253,6 +255,7 @@ type Mode =
   | "block"
   | "file"
   | "lti"
+  | "cmi5"
   | "question"
   | "question-text"
   | "question-hints"
@@ -296,6 +299,12 @@ interface LtiBarFacts {
   key: NodeKey;
   toolId: string;
   framed: boolean;
+}
+
+/** A chosen course package and how its units launch. */
+interface Cmi5BarFacts {
+  key: NodeKey;
+  mode: Cmi5LaunchMode;
 }
 
 /** A chosen standards block and the standards it names. */
@@ -651,6 +660,7 @@ export function SelectionToolbarPlugin() {
     state: "busy" | "failed";
   } | null>(null);
   const [ltiFacts, setLtiFacts] = useState<LtiBarFacts | null>(null);
+  const [cmi5Facts, setCmi5Facts] = useState<Cmi5BarFacts | null>(null);
   // A pick under way in a tool's window, or one the browser would not
   // open, is about the link it was for.
   const [picking, setPicking] = useState<{
@@ -934,6 +944,16 @@ export function SelectionToolbarPlugin() {
       return { key: node.getKey(), toolId, framed: Boolean(frame) };
     });
 
+  const readCmi5 = () =>
+    editor.getEditorState().read((): Cmi5BarFacts | null => {
+      const selection = $getSelection();
+      if (!$isNodeSelection(selection)) return null;
+      const nodes = selection.getNodes();
+      const node = nodes.length === 1 ? nodes[0] : null;
+      if (!$isCmi5Node(node)) return null;
+      return { key: node.getKey(), mode: node.getLaunchMode() };
+    });
+
   const startPick = (link: LtiBarFacts) => {
     const key = link.key;
     const started = tools?.pick?.(link.toolId) ?? null;
@@ -1015,6 +1035,12 @@ export function SelectionToolbarPlugin() {
       setLtiFacts(linked);
       setReference(editor.getElementByKey(linked.key));
       return show("lti");
+    }
+    const course = focused ? readCmi5() : null;
+    if (course) {
+      setCmi5Facts(course);
+      setReference(editor.getElementByKey(course.key));
+      return show("cmi5");
     }
     const selected = focused ? readBlock() : null;
     if (selected) {
@@ -3512,6 +3538,48 @@ export function SelectionToolbarPlugin() {
             <PanelTop aria-hidden />
             {strings.ltiShowInPage}
           </button>
+        </div>
+      </Floating>
+    );
+  }
+
+  if (mode === "cmi5" && cmi5Facts) {
+    const action =
+      "inline-flex h-8 items-center gap-1.5 rounded-md px-2 text-sm font-medium text-foreground/80 hover:bg-accent hover:text-foreground aria-pressed:bg-accent aria-pressed:text-foreground";
+    const modes: [Cmi5LaunchMode, string][] = [
+      ["Normal", strings.cmi5ModeNormal],
+      ["Browse", strings.cmi5ModeBrowse],
+      ["Review", strings.cmi5ModeReview],
+    ];
+    return (
+      <Floating
+        reference={reference}
+        placement="top"
+        boundary={boundary}
+        className="flex items-center gap-0.5 p-1"
+        keepFocus
+        role="toolbar"
+        label={strings.cmi5LaunchMode}
+      >
+        <div ref={toolbar} className="contents">
+          {modes.map(([value, label]) => (
+            <button
+              key={value}
+              type="button"
+              aria-pressed={cmi5Facts.mode === value}
+              onMouseDown={(event) => event.preventDefault()}
+              onClick={() => {
+                withSelection(() => {
+                  const node = $getNodeByKey(cmi5Facts.key);
+                  if ($isCmi5Node(node)) node.setLaunchMode(value);
+                });
+                setCmi5Facts({ ...cmi5Facts, mode: value });
+              }}
+              className={action}
+            >
+              {label}
+            </button>
+          ))}
         </div>
       </Floating>
     );

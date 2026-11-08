@@ -1,0 +1,3 @@
+ALTER TABLE "core"."cmi5_sessions" ADD COLUMN "launch_mode" text DEFAULT 'Normal' NOT NULL;--> statement-breakpoint
+ALTER TABLE "core"."cmi5_sessions" ADD CONSTRAINT "cmi5_sessions_launch_mode_check" CHECK (launch_mode in ('Normal', 'Browse', 'Review'));--> statement-breakpoint
+ALTER TABLE "core"."lessons" DROP CONSTRAINT "lessons_completion_check", ADD CONSTRAINT "lessons_completion_check" CHECK (completion in ('view', 'mark', 'quiz', 'score', 'reflection', 'watch', 'package'));

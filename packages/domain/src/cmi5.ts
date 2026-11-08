@@ -16,6 +16,16 @@ export const CMI5_MOVE_ON = [
 ] as const;
 export type Cmi5MoveOn = (typeof CMI5_MOVE_ON)[number];
 
+/**
+ * How an AU is launched (cmi5 10.2.2): Normal records what the student
+ * achieves; Browse, to look around, and Review, to revisit what is done,
+ * record nothing that counts, so their AUs send only initialized,
+ * terminated and statements cmi5 does not define. The teacher chooses it
+ * on the block.
+ */
+export const CMI5_LAUNCH_MODES = ["Normal", "Browse", "Review"] as const;
+export type Cmi5LaunchMode = (typeof CMI5_LAUNCH_MODES)[number];
+
 const ADL = "http://adlnet.gov/expapi/verbs";
 const W3ID = "https://w3id.org/xapi/adl/verbs";
 export const CMI5_VERBS = {
@@ -202,6 +212,7 @@ export interface Cmi5Session {
   activityId: string;
   actor: { homePage: string; name: string };
   masteryScore: number | null;
+  launchMode: Cmi5LaunchMode;
   /** The cmi5 verbs sent in this session so far. */
   verbs: string[];
   /** Where the AU stands across its registration before this statement. */
@@ -248,7 +259,8 @@ const categoriesOf = (statement: Received) => {
  * keep completed and passed to once a registration, keep scores to passed
  * and failed and agree with the mastery score, and carry the cmi5 context
  * a cmi5-defined statement needs. An AU never voids, nor sends what only
- * the school says.
+ * the school says, nor, launched to browse or review, anything that
+ * would count: completed, passed or failed.
  */
 export function cmi5Issue(
   received: unknown,
@@ -279,6 +291,11 @@ export function cmi5Issue(
     return "school_only";
   if (verb !== "initialized" && !seen.includes("initialized"))
     return "not_initialized";
+  if (
+    session.launchMode !== "Normal" &&
+    (verb === "completed" || verb === "passed" || verb === "failed")
+  )
+    return "launch_mode";
   const result = statement.result;
   if (!verb) {
     // A cmi5-allowed statement carries no move-on category.

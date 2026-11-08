@@ -1022,6 +1022,8 @@ export function getMessageFromError(error: unknown): string {
         return m.lrnRuleNeedsReflection();
       case "learning.needs_media":
         return m.lrnRuleNeedsMedia();
+      case "learning.needs_package":
+        return m.lrnRuleNeedsPackage();
       case "learning.gate_opens_nothing":
         return m.lrnGateOpensNothing();
       case "learning.young_gate":

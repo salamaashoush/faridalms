@@ -333,6 +333,12 @@ export interface EditorStrings
   cmi5NotPackage: string;
   cmi5Start: string;
   cmi5Units: (count: number) => string;
+  cmi5LaunchMode: string;
+  cmi5ModeNormal: string;
+  cmi5ModeBrowse: string;
+  cmi5ModeReview: string;
+  cmi5BrowseNote: string;
+  cmi5ReviewNote: string;
   /** Said of a tool shown in the page rather than opened in a window. */
   ltiInPage: string;
   ltiShowInPage: string;

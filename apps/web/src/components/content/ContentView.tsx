@@ -184,6 +184,8 @@ export function ContentView({
         ltiOpen: m.ltiOpen({}, { locale }),
         cmi5Start: m.cmi5Start({}, { locale }),
         cmi5Units: (count: number) => m.cmi5Units({ count }, { locale }),
+        cmi5BrowseNote: m.cmi5BrowseNote({}, { locale }),
+        cmi5ReviewNote: m.cmi5ReviewNote({}, { locale }),
         codeCopy: m.editorCodeCopy({}, { locale }),
         codeCopied: m.editorCodeCopied({}, { locale }),
       }}

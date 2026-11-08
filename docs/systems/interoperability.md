@@ -103,7 +103,8 @@ as the block's file. A unit outside the package must be https.
 - **Launching.** A unit launches in a window of its own from
   `/cmi5/launch`. The school makes the registration, abandons a session
   of the same unit still open (with its duration), writes
-  `LMS.LaunchData`, makes the `launched` statement, and sends the browser
+  `LMS.LaunchData` with the launch mode, makes the `launched` statement
+  carrying it, and sends the browser
   to the unit with `endpoint`, `fetch`, `actor` (an account under the
   school's portal, with no name), `registration` and an `activityId` of
   the school's own. A unit inside the package is served from the files
@@ -123,7 +124,19 @@ as the block's file. A unit outside the package must be https.
   breaks them keeps none; voiding is refused. An abandoned session takes
   nothing more. Statements kept are sent on to the school's store when it
   has one.
+- **Launch modes.** The teacher chooses on the block's bar how its units
+  open: Normal, Browse (to look around) or Review (to look back), as cmi5
+  10.2.2 has them. The session keeps the mode it was launched in; in
+  Browse or Review a unit may send `initialized`, `terminated` and
+  statements cmi5 does not define, and `completed`, `passed` or `failed`
+  is refused, so nothing it does counts towards moving on. Readers see
+  that on the block.
 - **Moving on.** Where each unit stands is kept with the registration;
-  when every unit meets its `moveOn` the school says the course is
-  `satisfied`, once. Blocks are read for their units; no statement is made
-  for a block on its own.
+  when every unit meets its `moveOn`, in a Normal session, the school says
+  the course is `satisfied`, once. Blocks are read for their units; no
+  statement is made for a block on its own.
+- **Finishing the lesson.** A lesson whose rule is "every course package
+  is satisfied" finishes for a student its module reaches once every
+  package in its published version is satisfied, as their own work
+  finishes any other lesson, with the `completed` statement that goes
+  with it. Saving such a lesson needs at least one package.

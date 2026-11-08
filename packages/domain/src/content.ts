@@ -4,7 +4,7 @@ import { levelSchema } from "@faridalms/puzzles/level";
 import * as v from "valibot";
 
 import type { FootnoteSource } from "./citations";
-import type { Cmi5Package } from "./cmi5";
+import type { Cmi5LaunchMode, Cmi5Package } from "./cmi5";
 import type { PictureCredit, PictureFocus } from "./commons";
 import type { EmbedProvider } from "./embed";
 import type { LtiLink } from "./lti";
@@ -14,7 +14,7 @@ import type { ScratchFeature } from "./scratch-project";
 
 import { MAX_DESCRIPTION_TEXT, parseDescriptions } from "./chapters";
 import { footnoteSourceSchema } from "./citations";
-import { cmi5PackageSchema } from "./cmi5";
+import { CMI5_LAUNCH_MODES, cmi5PackageSchema } from "./cmi5";
 import { pictureCreditSchema, pictureFocusSchema } from "./commons";
 import { embedProviders, isEmbedId } from "./embed";
 import { ltiLinkSchema } from "./lti";
@@ -375,6 +375,8 @@ export interface ContentNode {
   lti?: LtiLink;
   /** A course package in the cmi5 profile, its zip the node's file. */
   cmi5?: Cmi5Package;
+  /** How the package's units launch, when not to record what students achieve. */
+  launchMode?: Cmi5LaunchMode;
   sceneFileId?: string;
   kind?: QuestionKind;
   questionId?: string;
@@ -718,6 +720,7 @@ const nodeShape: v.GenericSchema<ContentNode> = v.pipe(
     embedId: v.optional(v.pipe(v.string(), v.maxLength(400))),
     lti: v.optional(ltiLinkSchema),
     cmi5: v.optional(cmi5PackageSchema),
+    launchMode: v.optional(v.picklist(CMI5_LAUNCH_MODES)),
     sceneFileId: v.optional(v.pipe(v.string(), v.uuid())),
     projectFileId: v.optional(v.pipe(v.string(), v.uuid())),
     projectFiles: v.optional(starterFilesSchema),

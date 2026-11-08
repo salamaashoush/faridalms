@@ -1,6 +1,11 @@
 import type { CellTransaction } from "@faridalms/database/context";
 import type { RegistrationRow } from "@faridalms/database/stores/cmi5";
-import type { Cmi5Au, Cmi5Package, Cmi5Session } from "@faridalms/domain/cmi5";
+import type {
+  Cmi5Au,
+  Cmi5LaunchMode,
+  Cmi5Package,
+  Cmi5Session,
+} from "@faridalms/domain/cmi5";
 import type { ContentNode } from "@faridalms/domain/content";
 import type { XapiStatement } from "@faridalms/domain/xapi";
 
@@ -51,6 +56,7 @@ import { PACKAGE_SECONDS, PACKAGE_TYPE } from "../files/packages";
 import { secretsFor } from "../lti/shared";
 import { sendStatements } from "../xapi/live";
 import { learnerOf } from "../xapi/statements";
+import { finishOnPackages } from "./completion";
 
 const ID = /^[0-9a-f-]{36}$/;
 
@@ -100,11 +106,11 @@ const asSystem = (context: SchoolContext) => ({
   actor: { kind: "system" as const },
 });
 
-/** A course package placed in a document, by its id there, with the zip it came in. */
+/** A course package placed in a document, by its id there, with the zip it came in and how it launches. */
 function packageIn(
   content: Record<string, unknown> | undefined,
   packageId: string,
-): { fileId: string; package: Cmi5Package } | null {
+): { fileId: string; package: Cmi5Package; launchMode: Cmi5LaunchMode } | null {
   const pending = [
     ...((content?.root as ContentNode | undefined)?.children ?? []),
   ];
@@ -114,7 +120,11 @@ function packageIn(
       node.cmi5?.packageId === packageId &&
       node.fileId
     )
-      return { fileId: node.fileId, package: node.cmi5 };
+      return {
+        fileId: node.fileId,
+        package: node.cmi5,
+        launchMode: node.launchMode ?? "Normal",
+      };
     if (node.children) pending.push(...node.children);
   }
   return null;
@@ -218,10 +228,11 @@ async function asPerson(
 /**
  * Launches an AU of a lesson's package for the signed-in person, as cmi5
  * asks of an LMS: their registration, any session left open abandoned, a
- * new session with its launch data written and its launched statement
- * made, then the AU opened with the record store's address, a fetch
- * address for its token, the person as an account with no name, the
- * registration and the activity id the school gives it.
+ * new session in the mode the teacher chose on the block, with its launch
+ * data written and its launched statement made, then the AU opened with
+ * the record store's address, a fetch address for its token, the person
+ * as an account with no name, the registration and the activity id the
+ * school gives it.
  */
 async function launch(context: SchoolContext, url: URL): Promise<Response> {
   const lessonId = url.searchParams.get("lesson") ?? "";
@@ -295,6 +306,7 @@ async function launch(context: SchoolContext, url: URL): Promise<Response> {
       studentUserId: unit.actor.userId,
       auId: au.id,
       activityId,
+      launchMode: found.launchMode,
     });
     const target = /^https:\/\//i.test(au.url)
       ? new URL(au.url)
@@ -320,7 +332,7 @@ async function launch(context: SchoolContext, url: URL): Promise<Response> {
       activityId,
       stateId: LAUNCH_DATA,
       contentType: "application/json",
-      body: JSON.stringify(launchData(au, sessionId)),
+      body: JSON.stringify(launchData(au, sessionId, found.launchMode)),
     });
     made.push(
       schoolStatement({
@@ -331,7 +343,7 @@ async function launch(context: SchoolContext, url: URL): Promise<Response> {
         sessionId,
         grouping: au.id,
         extensions: {
-          [CMI5_EXTENSIONS.launchMode]: "Normal",
+          [CMI5_EXTENSIONS.launchMode]: found.launchMode,
           [CMI5_EXTENSIONS.launchUrl]: launchUrl,
           [CMI5_EXTENSIONS.moveOn]: au.moveOn,
           ...(au.masteryScore === undefined
@@ -371,7 +383,7 @@ async function launch(context: SchoolContext, url: URL): Promise<Response> {
 }
 
 /** What the school tells an AU of its launch before it starts, cmi5's LMS.LaunchData. */
-function launchData(au: Cmi5Au, sessionId: string) {
+function launchData(au: Cmi5Au, sessionId: string, mode: Cmi5LaunchMode) {
   return {
     contextTemplate: {
       contextActivities: {
@@ -379,7 +391,7 @@ function launchData(au: Cmi5Au, sessionId: string) {
       },
       extensions: { [CMI5_EXTENSIONS.sessionId]: sessionId },
     },
-    launchMode: "Normal",
+    launchMode: mode,
     launchMethod: au.launchMethod,
     moveOn: au.moveOn,
     ...(au.masteryScore === undefined ? {} : { masteryScore: au.masteryScore }),
@@ -574,6 +586,7 @@ async function statements(
     activityId: session.activityId,
     actor,
     masteryScore: au.masteryScore ?? null,
+    launchMode: session.launchMode,
     verbs: session.verbs,
     progress: registration.progress[au.id] ?? {},
   };
@@ -598,9 +611,12 @@ async function statements(
     judged = { ...judged, ...afterStatement(each, judged) };
   }
   const progress = { ...registration.progress, [au.id]: judged.progress };
-  const satisfied = found.package.aus.every((each) =>
-    auSatisfied(each.moveOn, progress[each.id] as Cmi5Session["progress"]),
-  );
+  // Browsing or reviewing records nothing towards moving on.
+  const satisfied =
+    session.launchMode === "Normal" &&
+    found.package.aus.every((each) =>
+      auSatisfied(each.moveOn, progress[each.id] as Cmi5Session["progress"]),
+    );
   await keepSession(tx, {
     tenantId: context.school.tenantId,
     id: session.id,
@@ -642,6 +658,11 @@ async function statements(
       statement: statement as unknown as XapiStatement,
     })),
   );
+  if (satisfied && !registration.satisfiedAt)
+    await finishOnPackages(scopeOf(context, tx), {
+      lessonId: registration.lessonId,
+      studentId: registration.studentUserId,
+    });
   return request.method === "PUT"
     ? answer(null, 204)
     : answer(kept.map((statement) => statement.id));

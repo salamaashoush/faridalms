@@ -1,4 +1,4 @@
-import type { Cmi5Package } from "@faridalms/domain/cmi5";
+import type { Cmi5LaunchMode, Cmi5Package } from "@faridalms/domain/cmi5";
 import type {
   EditorConfig,
   LexicalNode,
@@ -11,23 +11,23 @@ import type { JSX } from "react";
 
 import { $getDocument, DecoratorNode } from "lexical";
 
-import { Cmi5Card } from "../cmi5-card";
+import { Cmi5Card, cmi5ModeNote } from "../cmi5-card";
 import { useEditorEnvironment } from "../context";
 import { cx } from "../ui";
 import { useSelectOnClick } from "./select";
 
 export type SerializedCmi5Node = Spread<
-  { fileId: string; cmi5: Cmi5Package },
+  { fileId: string; cmi5: Cmi5Package; launchMode?: Cmi5LaunchMode },
   SerializedLexicalNode
 >;
 
-function Cmi5Block({
-  nodeKey,
-  course,
-}: {
+interface Cmi5BlockProps {
   nodeKey: NodeKey;
   course: Cmi5Package;
-}) {
+  launchMode: Cmi5LaunchMode;
+}
+
+function Cmi5Block({ nodeKey, course, launchMode }: Cmi5BlockProps) {
   const { strings } = useEditorEnvironment();
   const selected = useSelectOnClick(nodeKey);
   return (
@@ -37,6 +37,7 @@ function Cmi5Block({
         href={null}
         startLabel={strings.cmi5Start}
         unitsLabel={strings.cmi5Units(course.aus.length)}
+        modeNote={cmi5ModeNote(launchMode, strings)}
       />
     </div>
   );
@@ -46,15 +47,24 @@ function Cmi5Block({
  * A course package in the cmi5 profile, kept as the zip it came in with
  * the course its cmi5.xml describes; whoever reads the lesson launches its
  * units. Its id is its own, which a copy keeps, so a copied package is the
- * same course to the students who started it.
+ * same course to the students who started it. Its units launch in the
+ * cmi5 mode the teacher chose, Normal unless they chose to browse or
+ * review.
  */
 export class Cmi5Node extends DecoratorNode<JSX.Element> {
   __fileId: string;
   __course: Cmi5Package;
+  __launchMode: Cmi5LaunchMode;
 
-  constructor(fileId = "", course?: Cmi5Package, key?: NodeKey) {
+  constructor(
+    fileId = "",
+    course?: Cmi5Package,
+    launchMode: Cmi5LaunchMode = "Normal",
+    key?: NodeKey,
+  ) {
     super(key);
     this.__fileId = fileId;
+    this.__launchMode = launchMode;
     this.__course = course ?? {
       packageId: crypto.randomUUID(),
       courseId: "",
@@ -68,7 +78,12 @@ export class Cmi5Node extends DecoratorNode<JSX.Element> {
   }
 
   static clone(node: Cmi5Node): Cmi5Node {
-    return new Cmi5Node(node.__fileId, node.__course, node.__key);
+    return new Cmi5Node(
+      node.__fileId,
+      node.__course,
+      node.__launchMode,
+      node.__key,
+    );
   }
 
   static importJSON(json: SerializedCmi5Node): Cmi5Node {
@@ -79,6 +94,17 @@ export class Cmi5Node extends DecoratorNode<JSX.Element> {
     const node = super.updateFromJSON(json).getWritable();
     node.__fileId = json.fileId;
     node.__course = json.cmi5;
+    node.__launchMode = json.launchMode ?? "Normal";
+    return node;
+  }
+
+  getLaunchMode(): Cmi5LaunchMode {
+    return this.getLatest().__launchMode;
+  }
+
+  setLaunchMode(mode: Cmi5LaunchMode): this {
+    const node = this.getWritable();
+    node.__launchMode = mode;
     return node;
   }
 
@@ -88,6 +114,9 @@ export class Cmi5Node extends DecoratorNode<JSX.Element> {
       ...super.exportJSON(),
       fileId: latest.__fileId,
       cmi5: latest.__course,
+      ...(latest.__launchMode === "Normal"
+        ? {}
+        : { launchMode: latest.__launchMode }),
     };
   }
 
@@ -108,7 +137,13 @@ export class Cmi5Node extends DecoratorNode<JSX.Element> {
   }
 
   decorate(_: unknown, __: EditorConfig): JSX.Element {
-    return <Cmi5Block nodeKey={this.getKey()} course={this.__course} />;
+    return (
+      <Cmi5Block
+        nodeKey={this.getKey()}
+        course={this.__course}
+        launchMode={this.__launchMode}
+      />
+    );
   }
 }
 

@@ -70,7 +70,7 @@ import type { MediaWatch } from "./player";
 import { AiUseView } from "./ai-use-view";
 import { BibliographyList } from "./bibliography-view";
 import { ChartView } from "./chart-view";
-import { Cmi5Card } from "./cmi5-card";
+import { Cmi5Card, cmi5ModeNote } from "./cmi5-card";
 import { codeGutter, codeLanguageName } from "./code-language";
 import { useFileFacts } from "./file-facts";
 import { FileCard, PictureView, StoredImage } from "./files";
@@ -121,6 +121,8 @@ export interface ViewStrings
   ltiOpen: string;
   cmi5Start: string;
   cmi5Units: (count: number) => string;
+  cmi5BrowseNote: string;
+  cmi5ReviewNote: string;
   codeCopy: string;
   codeCopied: string;
 }
@@ -872,6 +874,7 @@ function draw(
           }
           startLabel={context.strings.cmi5Start}
           unitsLabel={context.strings.cmi5Units(node.cmi5.aus.length)}
+          modeNote={cmi5ModeNote(node.launchMode, context.strings)}
         />
       ) : null;
     // A shared block reads as part of the page, drawn as it now is.

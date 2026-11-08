@@ -40,6 +40,7 @@ export const COMPLETION_LABEL: Record<LessonCompletion, () => string> = {
   score: m.lrnDoneScore,
   reflection: m.lrnDoneReflection,
   watch: m.lrnDoneWatch,
+  package: m.lrnDonePackage,
 };
 
 export const LESSON_STATE_LABEL = {

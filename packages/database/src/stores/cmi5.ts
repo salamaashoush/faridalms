@@ -1,4 +1,4 @@
-import type { AuProgress } from "@faridalms/domain/cmi5";
+import type { AuProgress, Cmi5LaunchMode } from "@faridalms/domain/cmi5";
 
 import { sql } from "drizzle-orm";
 
@@ -106,6 +106,7 @@ export interface SessionRow {
   studentUserId: string;
   auId: string;
   activityId: string;
+  launchMode: Cmi5LaunchMode;
   launchedAt: Date;
   fetchedAt: Date | null;
   lastAt: Date;
@@ -119,6 +120,7 @@ type SessionRecord = {
   student_user_id: string;
   au_id: string;
   activity_id: string;
+  launch_mode: Cmi5LaunchMode;
   launched_at: Date | string;
   fetched_at: Date | string | null;
   last_at: Date | string;
@@ -135,6 +137,7 @@ const sessionOf = (row: SessionRecord): SessionRow => ({
   studentUserId: row.student_user_id,
   auId: row.au_id,
   activityId: row.activity_id,
+  launchMode: row.launch_mode,
   launchedAt: new Date(row.launched_at),
   fetchedAt: when(row.fetched_at),
   lastAt: new Date(row.last_at),
@@ -142,8 +145,8 @@ const sessionOf = (row: SessionRecord): SessionRow => ({
   endedAt: when(row.ended_at),
 });
 
-const sessionColumns = sql`id, registration_id, student_user_id, au_id, activity_id, launched_at,
-  fetched_at, last_at, verbs, ended_at`;
+const sessionColumns = sql`id, registration_id, student_user_id, au_id, activity_id, launch_mode,
+  launched_at, fetched_at, last_at, verbs, ended_at`;
 
 /** The sessions of an AU in a registration that have not ended. */
 export async function openSessions(
@@ -166,12 +169,14 @@ export async function startSession(
     studentUserId: string;
     auId: string;
     activityId: string;
+    launchMode: Cmi5LaunchMode;
   },
 ): Promise<string> {
   const [row] = await tx.execute<{ id: string }>(sql`
-    insert into core.cmi5_sessions (tenant_id, registration_id, student_user_id, au_id, activity_id)
+    insert into core.cmi5_sessions (tenant_id, registration_id, student_user_id, au_id, activity_id,
+      launch_mode)
     values (${input.tenantId}::uuid, ${input.registrationId}::uuid,
-      ${input.studentUserId}::uuid, ${input.auId}, ${input.activityId})
+      ${input.studentUserId}::uuid, ${input.auId}, ${input.activityId}, ${input.launchMode})
     returning id`);
   if (!row) throw new Error("session not started");
   return row.id;
@@ -185,7 +190,8 @@ export async function sessionById(
   const [row] = await tx.execute<
     SessionRecord & { registration: RegistrationRecord }
   >(sql`
-    select s.id, s.registration_id, s.student_user_id, s.au_id, s.activity_id, s.launched_at,
+    select s.id, s.registration_id, s.student_user_id, s.au_id, s.activity_id, s.launch_mode,
+      s.launched_at,
       s.fetched_at, s.last_at, s.verbs, s.ended_at,
       jsonb_build_object('id', r.id, 'org_id', r.org_id, 'lesson_id', r.lesson_id,
         'package_id', r.package_id, 'student_user_id', r.student_user_id,

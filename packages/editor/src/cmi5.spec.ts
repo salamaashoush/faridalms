@@ -7,6 +7,7 @@ import * as v from "valibot";
 import { describe, expect, it } from "vitest";
 
 import { buildContentEditor } from "./headless";
+import { $isCmi5Node } from "./nodes/cmi5";
 import { readCmi5Package } from "./plugins/cmi5";
 
 const structure = (url: string) => `<?xml version="1.0"?>
@@ -66,6 +67,20 @@ describe("course packages", () => {
       .toJSON() as unknown as ContentDocument;
     expect(v.safeParse(contentDocumentSchema, document).success).toBe(true);
     expect(document.root.children?.[0]?.cmi5?.title).toBe("Floods");
+    // Normal is not written; another mode the teacher chose is kept.
+    expect(document.root.children?.[0]?.launchMode).toBeUndefined();
+    target.update(
+      () => {
+        const node = $getRoot().getFirstChild();
+        if ($isCmi5Node(node)) node.setLaunchMode("Review");
+      },
+      { discrete: true },
+    );
+    const reviewed = target
+      .getEditorState()
+      .toJSON() as unknown as ContentDocument;
+    expect(v.safeParse(contentDocumentSchema, reviewed).success).toBe(true);
+    expect(reviewed.root.children?.[0]?.launchMode).toBe("Review");
   });
 
   it("gives nothing for a zip without a structure, or one naming a missing unit", () => {
