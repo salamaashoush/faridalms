@@ -1,6 +1,6 @@
-import type { PictureCredit } from "@faridalms/domain/commons";
+import type { PictureCredit, PictureFocus } from "@faridalms/domain/commons";
 import type { AreaSort, FileKind } from "@faridalms/domain/file";
-import type { CropRatio } from "@faridalms/domain/media-library";
+import type { CropRatio, PictureEdits } from "@faridalms/domain/media-library";
 
 import { LIBRARY_AREA } from "@faridalms/domain/media-library";
 import { sql } from "drizzle-orm";
@@ -144,6 +144,14 @@ export interface LibraryItem {
   tags: LibraryTag[];
   /** The records whose documents show it. */
   uses: number;
+  /** Where a picture's subject sits, which crops and the website keep in view. */
+  focus: PictureFocus | null;
+  /** A picture's ThumbHash, drawn while it loads. */
+  placeholder: string | null;
+  /** Whether a document's first page can be shown as a picture. */
+  page: boolean;
+  /** Whether an office file can be read as a PDF. */
+  pdf: boolean;
 }
 
 type ItemRecord = {
@@ -165,13 +173,22 @@ type ItemRecord = {
   uploader_ar: string | null;
   tags: LibraryTag[];
   uses: number;
+  focus: PictureFocus | null;
+  placeholder: string | null;
+  page: boolean | null;
+  pdf: boolean;
 };
 
 /** An item's file with its texts and uploader beside it. */
+/** A file's previews, where they are ready; joined as `p` beside `f`. */
+const withPreview = sql`left join core.file_previews p on p.tenant_id = f.tenant_id
+  and p.storage_key = f.storage_key and p.status = 'active' and p.state = 'ready'`;
+
 const itemFrom = sql`core.files f
   left join core.media_item_texts x on x.tenant_id = f.tenant_id and x.file_id = f.id
     and x.status = 'active'
-  left join core.users u on u.tenant_id = f.tenant_id and u.id = f.uploaded_by_user_id`;
+  left join core.users u on u.tenant_id = f.tenant_id and u.id = f.uploaded_by_user_id
+  ${withPreview}`;
 
 const itemColumns = sql`f.id, f.name, x.title, f.media_type, f.size_bytes, f.width, f.height,
   ${isoOf(sql`f.created_at`)} as created_at, ${isoOf(sql`f.trashed_at`)} as trashed_at,
@@ -187,7 +204,10 @@ const itemColumns = sql`f.id, f.name, x.title, f.media_type, f.size_bytes, f.wid
   (select count(distinct (d.host_type, d.host_id))::int from core.document_files l
     join core.documents d on d.tenant_id = l.tenant_id and d.id = l.document_id
       and d.status = 'active'
-    where l.tenant_id = f.tenant_id and l.file_id = f.id and l.status = 'active') as uses`;
+    where l.tenant_id = f.tenant_id and l.file_id = f.id and l.status = 'active') as uses,
+  f.metadata -> 'focus' as focus, p.placeholder,
+  jsonb_path_exists(p.sizes, '$[*] ? (@.name starts with "page1-")') as page,
+  p.document_bytes is not null as pdf`;
 
 const itemOf = (row: ItemRecord): LibraryItem => ({
   id: row.id,
@@ -212,6 +232,10 @@ const itemOf = (row: ItemRecord): LibraryItem => ({
     : null,
   tags: row.tags,
   uses: row.uses,
+  focus: row.focus,
+  placeholder: row.placeholder,
+  page: row.page ?? false,
+  pdf: row.pdf,
 });
 
 const inLibrary = (tenantId: string, orgId: string) =>
@@ -539,13 +563,16 @@ export async function deriveLibraryItem(
     fileId: string;
     name: string;
     ratio: CropRatio;
+    /** How it was turned, mirrored or resized as well, if it was. */
+    edits?: PictureEdits | null;
   },
 ): Promise<boolean> {
   const rows = await tx.execute(sql`
     update core.files f
     set folder_id = s.folder_id, description = s.description, credit = s.credit,
       name = ${input.name},
-      metadata = f.metadata || jsonb_build_object('croppedFrom', s.id::text, 'ratio', ${input.ratio}::text)
+      metadata = f.metadata || jsonb_strip_nulls(jsonb_build_object('croppedFrom', s.id::text,
+        'ratio', ${input.ratio}::text, 'edits', ${input.edits ?? null}::jsonb))
     from core.files s
     where ${inLibrary(input.tenantId, input.orgId)} and f.id = ${input.fileId}::uuid
       and s.tenant_id = f.tenant_id and s.id = ${input.sourceId}::uuid
@@ -905,4 +932,28 @@ export async function schoolStorageBreakdown(
       })),
     others: others ? share(others) : { usedBytes: 0, fileCount: 0 },
   };
+}
+
+/**
+ * Sets where a library picture's subject sits, or clears it; crops start
+ * from it and the website keeps it in view wherever it shows the picture.
+ */
+export async function setLibraryFocus(
+  tx: Tx,
+  input: {
+    tenantId: string;
+    orgId: string;
+    id: string;
+    focus: PictureFocus | null;
+  },
+): Promise<boolean> {
+  const rows = await tx.execute(sql`
+    update core.files f
+    set metadata = case when ${input.focus === null}
+      then f.metadata - 'focus'
+      else f.metadata || jsonb_build_object('focus', ${input.focus}::jsonb) end
+    where ${inLibrary(input.tenantId, input.orgId)} and f.id = ${input.id}::uuid
+      and f.media_type like 'image/%'
+    returning f.id`);
+  return rows.length > 0;
 }

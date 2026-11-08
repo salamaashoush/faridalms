@@ -52,6 +52,18 @@ export const imageSizeClass = {
 } as const;
 
 /**
+ * How wide each size of picture is drawn, for the browser to fetch a size
+ * of it no larger than it needs. The column is narrower than the window,
+ * so these never ask for too little.
+ */
+export const imageSizesAttribute = {
+  small: "(min-width: 640px) 33vw, 100vw",
+  medium: "(min-width: 640px) 50vw, 100vw",
+  large: "(min-width: 640px) 75vw, 100vw",
+  full: "100vw",
+} as const;
+
+/**
  * Where a block narrower than the column sits. The sides follow the reading
  * direction, so a picture set to the start stays at the start in Arabic.
  */

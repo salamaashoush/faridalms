@@ -1,4 +1,4 @@
-import type { Picture } from "@faridalms/domain/commons";
+import type { Picture, PictureFocus } from "@faridalms/domain/commons";
 import type { ContentDocument } from "@faridalms/domain/content";
 import type {
   IconId,
@@ -11,6 +11,8 @@ import type { Divider, Theme } from "@faridalms/domain/site-theme";
 import type { LucideIcon } from "lucide-react";
 import type { CSSProperties, ReactNode } from "react";
 
+import { placeholderUrl } from "@faridalms/domain/previews";
+import { usePicture } from "@faridalms/editor/file-facts";
 import { MediaPlayer } from "@faridalms/editor/media-view";
 import { PictureCreditLine } from "@faridalms/editor/picture-credit";
 import { cn } from "@faridalms/ui/cn";
@@ -539,6 +541,74 @@ export function Prose({ body, context }: ProseProps) {
   );
 }
 
+export interface SiteImageProps {
+  /** The picture's file, which its sizes, placeholder and subject are found by. */
+  fileId: string | null;
+  src: string;
+  alt: string;
+  className?: string;
+  style?: CSSProperties;
+  /** Where the picture's subject sits on this use; the library's own otherwise. */
+  focus?: PictureFocus | undefined;
+  /** How wide it is drawn, for the browser to fetch no larger a size. */
+  sizes?: string;
+  loading?: "lazy" | "eager";
+}
+
+/**
+ * A website picture at the size it is drawn: the sizes the site published
+ * with it, best format first, or in the builder the school's own sizes;
+ * its placeholder until it loads; and its subject in view in any shape,
+ * where the page's own use of it does not place it otherwise.
+ */
+export function SiteImage({
+  fileId,
+  src,
+  alt,
+  className,
+  style,
+  focus,
+  sizes = "100vw",
+  loading,
+}: SiteImageProps) {
+  const picture = usePicture(fileId ?? undefined);
+  const [loaded, setLoaded] = useState(false);
+  const placeholder = loaded ? null : placeholderUrl(picture.placeholder);
+  const image = (
+    <img
+      src={src}
+      srcSet={picture.srcSet}
+      sizes={picture.srcSet || picture.sources?.length ? sizes : undefined}
+      alt={alt}
+      loading={loading}
+      onLoad={() => setLoaded(true)}
+      className={className}
+      style={{
+        ...(placeholder
+          ? { backgroundImage: `url(${placeholder})`, backgroundSize: "cover" }
+          : {}),
+        ...style,
+        ...focusStyle(focus ?? picture.focus),
+      }}
+    />
+  );
+  return picture.sources?.length ? (
+    <picture className="contents">
+      {picture.sources.map((source) => (
+        <source
+          key={source.type}
+          type={source.type}
+          srcSet={source.srcSet}
+          sizes={sizes}
+        />
+      ))}
+      {image}
+    </picture>
+  ) : (
+    image
+  );
+}
+
 export interface SitePictureProps {
   image: Picture;
   context: RenderContext;
@@ -569,12 +639,15 @@ export function SitePicture({
 }: SitePictureProps) {
   const src = image.fileId ? context.fileUrl(image.fileId) : null;
   const body = src ? (
-    <img
+    <SiteImage
+      fileId={image.fileId}
       src={src}
       alt={image.decorative ? "" : image.alt}
       loading="lazy"
+      sizes={feature ? "(min-width: 768px) 50vw, 100vw" : "100vw"}
       className={cn("site-media", art && "site-photo", className)}
-      style={{ ...ratioStyle(ratio, phoneRatio), ...focusStyle(image.focus) }}
+      style={ratioStyle(ratio, phoneRatio)}
+      focus={image.focus}
     />
   ) : art ? (
     <SiteArt
@@ -829,11 +902,12 @@ export function SectionFrame({
           className="absolute inset-0 overflow-hidden"
         >
           {background.kind === "image" ? (
-            <img
+            <SiteImage
+              fileId={background.fileId}
               src={backgroundSrc}
               alt=""
               className="absolute inset-0 size-full object-cover"
-              style={focusStyle(background.focus)}
+              focus={background.focus}
             />
           ) : (
             <BackgroundVideo

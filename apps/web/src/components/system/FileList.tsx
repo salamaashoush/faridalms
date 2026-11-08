@@ -1,5 +1,7 @@
 import type { FileSummary } from "@faridalms/domain/file";
+import type { ComponentProps } from "react";
 
+import { useFileFacts } from "@faridalms/editor/file-facts";
 import { FileCard } from "@faridalms/editor/files";
 import { Button } from "@faridalms/ui/button";
 import { X } from "lucide-react";
@@ -22,6 +24,23 @@ export function fileSizeLabel(bytes: number): string {
   return m.fileSizeGigabytes({
     count: formatNumber(Math.round((bytes / (1024 * 1024 * 1024)) * 10) / 10),
   });
+}
+
+interface ListedFileProps extends Omit<
+  ComponentProps<typeof FileCard>,
+  "file" | "url"
+> {
+  file: FileSummary;
+}
+
+/** A file's card, with what its previews add once they are known. */
+function ListedFile({ file, ...card }: ListedFileProps) {
+  const facts = useFileFacts(file.id, {
+    name: file.name,
+    mime: file.mediaType,
+    bytes: file.sizeBytes,
+  });
+  return <FileCard file={facts} url={`/files/${file.id}`} {...card} />;
 }
 
 export interface FileListProps {
@@ -51,13 +70,8 @@ export function FileList({
     <ul className="grid gap-2">
       {files.map((file) => (
         <li key={file.id}>
-          <FileCard
-            file={{
-              name: file.name,
-              mime: file.mediaType,
-              bytes: file.sizeBytes,
-            }}
-            url={`/files/${file.id}`}
+          <ListedFile
+            file={file}
             strings={strings}
             locale={getLocale()}
             actions={

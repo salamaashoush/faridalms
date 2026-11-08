@@ -34,7 +34,11 @@ import { useEffect, useState } from "react";
 import { useEditorEnvironment } from "../context";
 import { useFileFacts } from "../file-facts";
 import { FileCard, FileViewer, StoredImage } from "../files";
-import { blockAlignClass, imageSizeClass } from "../format";
+import {
+  blockAlignClass,
+  imageSizeClass,
+  imageSizesAttribute,
+} from "../format";
 import { PictureCreditLine } from "../picture-credit";
 import { CreditFields } from "../picture-credit-fields";
 import { LabelsEditor } from "../picture-labels";
@@ -120,6 +124,8 @@ function ImageBlock({
   const picture = (
     <StoredImage
       src={media?.url(fileId)}
+      fileId={fileId}
+      sizes={imageSizesAttribute[size]}
       alt={decorative ? "" : alt}
       draggable={false}
       loading="lazy"

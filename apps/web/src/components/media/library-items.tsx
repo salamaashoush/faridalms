@@ -2,6 +2,7 @@ import type { FileKind } from "@faridalms/domain/file";
 import type { LibraryChoice, LibraryKind } from "@faridalms/editor";
 import type { MediaGridTile } from "@faridalms/ui/system/media-grid";
 
+import { placeholderUrl } from "@faridalms/domain/previews";
 import { FileIcon, fileMeta } from "@faridalms/editor/files";
 
 import type { listLibrary } from "~/server/media-library";
@@ -53,8 +54,24 @@ export const choiceOf = (row: LibraryRow): LibraryChoice => ({
   ...(row.credit ? { credit: row.credit } : {}),
 });
 
+/**
+ * What a tile shows of an item: a small size of a picture, or a document's
+ * first page as the server drew it; none for anything else.
+ */
+export function thumbnailOf(row: LibraryRow): string | null {
+  if (isPicture(row)) return `/files/${row.id}?w=320`;
+  return row.page ? `/files/${row.id}?page=1&w=320` : null;
+}
+
 export const libraryTile: MediaGridTile<LibraryRow> = {
-  src: (row) => (isPicture(row) ? `/files/${row.id}` : null),
+  src: thumbnailOf,
+  placeholder: (row) => placeholderUrl(row.placeholder),
+  position: (row) =>
+    row.focus
+      ? `${row.focus.x}% ${row.focus.y}%`
+      : row.page
+        ? "top"
+        : undefined,
   icon: (row) => <FileIcon file={{ name: row.name, mime: row.mediaType }} />,
   title: itemTitle,
   fact: (row) => row.description || factsOf(row),

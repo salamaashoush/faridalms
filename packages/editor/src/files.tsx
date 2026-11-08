@@ -6,6 +6,7 @@ import type { ImgHTMLAttributes } from "react";
 
 import { Dialog } from "@base-ui/react/dialog";
 import { fileFamily, fileTypeLabel, previewable } from "@faridalms/domain/file";
+import { placeholderUrl } from "@faridalms/domain/previews";
 import {
   Check,
   ChevronLeft,
@@ -33,7 +34,8 @@ import {
 
 import type { EditorStrings } from "./strings";
 
-import { formatBytes } from "./format";
+import { usePicture } from "./file-facts";
+import { formatBytes, mediaClock } from "./format";
 import { MediaPlayer } from "./media-view";
 import { PictureCreditLine } from "./picture-credit";
 import { cx } from "./ui";
@@ -51,22 +53,44 @@ const ICON: Record<FileFamily, LucideIcon> = {
   other: File,
 };
 
+/** What a stored picture is, beyond an image element's own attributes. */
+export interface StoredImageProps extends ImgHTMLAttributes<HTMLImageElement> {
+  removed: string;
+  /** The picture's file, which its sizes, size and placeholder are found by. */
+  fileId?: string | undefined;
+  /**
+   * Its box is shaped by its class, as a gallery's tiles are; any other
+   * takes the picture's own shape before it loads, so nothing below jumps.
+   */
+  framed?: boolean;
+}
+
 /**
  * A stored picture, or a note in its place when it cannot be had: deleted
  * from its file area, or never readable by this reader. A picture that
  * failed before the page came alive is caught when it mounts, since its
- * error event has already gone.
+ * error event has already gone. Where the host serves its sizes the
+ * browser fetches the one the layout needs, and where its size and
+ * placeholder are known it holds its place, blurred, until it arrives.
  */
 export function StoredImage({
   removed,
   alt,
   className,
+  fileId,
+  framed = false,
+  sizes,
+  style,
+  onLoad,
   ...props
-}: ImgHTMLAttributes<HTMLImageElement> & { removed: string }) {
+}: StoredImageProps) {
   const [failed, setFailed] = useState(false);
+  const [loaded, setLoaded] = useState(false);
+  const picture = usePicture(fileId);
   const checked = useCallback((image: HTMLImageElement | null) => {
-    if (image?.complete && image.currentSrc && image.naturalWidth === 0)
-      setFailed(true);
+    if (!image?.complete || !image.currentSrc) return;
+    if (image.naturalWidth === 0) setFailed(true);
+    else setLoaded(true);
   }, []);
   if (failed)
     return (
@@ -75,14 +99,48 @@ export function StoredImage({
         {removed}
       </span>
     );
-  return (
+  const placeholder = loaded ? null : placeholderUrl(picture.placeholder);
+  const sized = Boolean(picture.srcSet ?? picture.sources?.length);
+  const shape =
+    picture.width && picture.height && !framed
+      ? { aspectRatio: `${picture.width} / ${picture.height}` }
+      : {};
+  const image = (
     <img
       ref={checked}
       alt={alt}
       onError={() => setFailed(true)}
+      onLoad={(event) => {
+        setLoaded(true);
+        onLoad?.(event);
+      }}
       className={className}
+      srcSet={picture.srcSet}
+      sizes={sized ? (sizes ?? "100vw") : undefined}
+      style={{
+        ...shape,
+        ...(placeholder
+          ? { backgroundImage: `url(${placeholder})`, backgroundSize: "cover" }
+          : {}),
+        ...style,
+      }}
       {...props}
     />
+  );
+  return picture.sources?.length ? (
+    <picture className="contents">
+      {picture.sources.map((source) => (
+        <source
+          key={source.type}
+          type={source.type}
+          srcSet={source.srcSet}
+          sizes={sizes ?? "100vw"}
+        />
+      ))}
+      {image}
+    </picture>
+  ) : (
+    image
   );
 }
 
@@ -143,12 +201,25 @@ export interface FileFacts {
   mime: string;
   /** Unknown for pictures, whose blocks keep only the picture itself. */
   bytes?: number;
+  /** What the media service found and made, once it has. */
+  width?: number;
+  height?: number;
+  placeholder?: string;
+  focus?: { x: number; y: number } | null;
+  durationMs?: number;
+  /** A recording's loudness in spans, each 0 to 100. */
+  waveform?: number[];
+  /** Its first page can be shown as a picture. */
+  page?: boolean;
+  /** An office file can be read as a PDF. */
+  pdf?: boolean;
 }
 
 /** "PDF · 1.2 MB": what a reader weighs before opening a file on a slow line. */
 export function fileMeta(file: FileFacts, locale: string): string {
   return [
     fileTypeLabel(file.name),
+    file.durationMs ? mediaClock(file.durationMs / 1000) : "",
     file.bytes === undefined ? "" : formatBytes(file.bytes, locale),
   ]
     .filter(Boolean)
@@ -242,7 +313,9 @@ export function FileViewer({
   }, [open, steps, step]);
   const stepButton =
     "absolute top-1/2 z-10 inline-flex size-11 -translate-y-1/2 items-center justify-center rounded-full border bg-background/90 shadow-sm hover:bg-accent disabled:pointer-events-none disabled:opacity-0 [&_svg]:size-5";
-  const shown = previewable(file.mime);
+  // An office file the media service turned into a PDF shows as that PDF.
+  const asPdf = !previewable(file.mime) && file.pdf === true;
+  const shown = previewable(file.mime) || asPdf;
   const action =
     "inline-flex h-9 items-center gap-1.5 rounded-md px-3 text-sm font-medium hover:bg-accent [&_svg]:size-4";
   return (
@@ -371,8 +444,8 @@ export function FileViewer({
               </div>
             ) : (
               <object
-                data={url}
-                type={file.mime}
+                data={asPdf ? `${url}?as=pdf` : url}
+                type={asPdf ? "application/pdf" : file.mime}
                 aria-label={file.name}
                 className="size-full bg-background"
               >
@@ -442,11 +515,26 @@ export function FileCard({
     element.addEventListener("error", failed);
     return () => element.removeEventListener("error", failed);
   }, []);
-  const pages = display === "preview" && family === "pdf" && url;
+  const asPdf = !previewable(file.mime) && file.pdf === true;
+  const pages =
+    display === "preview" && (family === "pdf" || asPdf) && url
+      ? asPdf
+        ? `${url}?as=pdf`
+        : url
+      : null;
   const row = (
     <>
-      <span className="flex size-10 shrink-0 items-center justify-center rounded-md bg-muted text-muted-foreground [&_svg]:size-5">
-        <Icon aria-hidden />
+      <span className="flex size-10 shrink-0 items-center justify-center overflow-hidden rounded-md bg-muted text-muted-foreground [&_svg]:size-5">
+        {file.page && url ? (
+          <img
+            src={`${url}?page=1&w=320`}
+            alt=""
+            loading="lazy"
+            className="size-full object-cover object-top"
+          />
+        ) : (
+          <Icon aria-hidden />
+        )}
       </span>
       <span className="grid min-w-0 flex-1 text-start">
         <span className="truncate text-sm leading-5 font-medium">
@@ -463,7 +551,7 @@ export function FileCard({
       <div className="flex items-center gap-1 p-1.5 pe-2">
         {editing || !url ? (
           <div className={rowClass}>{row}</div>
-        ) : previewable(file.mime) ? (
+        ) : previewable(file.mime) || asPdf ? (
           <button
             type="button"
             aria-label={`${strings.openFile}: ${label}`}
@@ -497,7 +585,7 @@ export function FileCard({
       {pages && viewer && !unread ? (
         <object
           ref={watch}
-          data={url}
+          data={pages}
           type="application/pdf"
           aria-label={file.name}
           className="block h-[min(70vh,640px)] w-full border-t bg-muted/30"
@@ -548,8 +636,14 @@ export function PictureView({
   cover = false,
   credit,
   onOpen,
+  fileId,
+  sizes,
 }: {
   src: string;
+  /** The picture's file, for its sizes and placeholder. */
+  fileId?: string | undefined;
+  /** How wide the picture is drawn, as an `<img>`'s `sizes` says it. */
+  sizes?: string | undefined;
   alt: string;
   caption: string;
   className: string;
@@ -573,6 +667,9 @@ export function PictureView({
       >
         <StoredImage
           src={src}
+          fileId={fileId}
+          sizes={sizes}
+          framed={cover}
           alt={alt}
           loading="lazy"
           removed={strings.fileRemoved}

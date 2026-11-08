@@ -42,6 +42,10 @@ const row = (id: string, name: string, description: string): LibraryRow => ({
   uploadedBy: null,
   tags: [],
   uses: 0,
+  focus: null,
+  placeholder: null,
+  page: false,
+  pdf: false,
 });
 
 const page = (rows: LibraryRow[]): LibraryPage => ({

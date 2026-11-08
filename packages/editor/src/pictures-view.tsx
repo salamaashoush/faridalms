@@ -47,6 +47,8 @@ export function GalleryView({
           <li key={picture.fileId}>
             <PictureView
               src={picture.src}
+              fileId={picture.fileId}
+              sizes="(min-width: 640px) 33vw, 50vw"
               alt={picture.alt}
               caption={picture.caption ?? ""}
               className=""
@@ -128,6 +130,8 @@ export function CompareView({
           <figure key={side.fileId}>
             <StoredImage
               src={side.src}
+              fileId={side.fileId}
+              sizes="(min-width: 640px) 50vw, 100vw"
               alt={side.alt}
               loading="lazy"
               removed={strings.fileRemoved}
@@ -149,6 +153,7 @@ export function CompareView({
     >
       <StoredImage
         src={afterSrc}
+        fileId={after.fileId}
         alt={after.alt}
         loading="lazy"
         removed={strings.fileRemoved}
@@ -157,6 +162,7 @@ export function CompareView({
       <div className="fe-compare-before">
         <StoredImage
           src={beforeSrc}
+          fileId={before.fileId}
           alt={before.alt}
           loading="lazy"
           removed={strings.fileRemoved}

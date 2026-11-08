@@ -59,6 +59,7 @@ import {
   Heading,
   Lead,
   MediaView,
+  SiteImage,
   SitePicture,
   Prose,
   publicMediaUrl,
@@ -70,7 +71,7 @@ import {
   SiteIcon,
   TextLink,
 } from "./parts";
-import { focusStyle, overMediaStyle } from "./theme";
+import { overMediaStyle } from "./theme";
 import { TurnstileWidget } from "./turnstile";
 
 type Props<T extends PageSection["type"]> = {
@@ -161,11 +162,12 @@ function Backdrop({ media, context, seed }: BackdropProps) {
           playLabel={m.sitePlayVideo({}, t)}
         />
       ) : src ? (
-        <img
+        <SiteImage
+          fileId={media.fileId}
           src={src}
           alt={media.alt}
           className="site-photo size-full object-cover"
-          style={focusStyle(media.focus)}
+          focus={media.focus}
         />
       ) : (
         <SiteArt seed={seed} kind="mesh" className="rounded-none" />
@@ -486,7 +488,8 @@ function Slides({ section, context, first }: Props<"slides">) {
           >
             <div aria-hidden className="absolute inset-0 -z-10 overflow-hidden">
               {src ? (
-                <img
+                <SiteImage
+                  fileId={slide.image.fileId}
                   src={src}
                   alt=""
                   className={cn(
@@ -495,7 +498,7 @@ function Slides({ section, context, first }: Props<"slides">) {
                       ? "scale-105"
                       : "scale-100",
                   )}
-                  style={focusStyle(slide.image.focus)}
+                  focus={slide.image.focus}
                 />
               ) : (
                 <SiteArt seed={slide.id} kind="mesh" className="rounded-none" />

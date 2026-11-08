@@ -10,7 +10,7 @@ import {
 
 import type { FileFacts } from "./files";
 
-type Facts = Required<FileFacts>;
+type Facts = FileFacts & { bytes: number };
 export type ResolveFileFacts = (
   ids: string[],
 ) => Promise<Record<string, Facts>>;
@@ -91,11 +91,8 @@ export function FileFactsProvider({
 
 const unsubscribed = () => () => undefined;
 
-/** A file's current facts, or what the document kept until they arrive. */
-export function useFileFacts<T extends FileFacts>(
-  fileId: string | undefined,
-  kept: T,
-): T {
+/** A file's current facts, once they have arrived. */
+function useCurrentFacts(fileId: string | undefined): Facts | undefined {
   const store = useContext(Context);
   const facts = useSyncExternalStore(
     store?.subscribe ?? unsubscribed,
@@ -105,6 +102,15 @@ export function useFileFacts<T extends FileFacts>(
   useEffect(() => {
     if (store && fileId) store.request(fileId);
   }, [store, fileId]);
+  return facts;
+}
+
+/** A file's current facts, or what the document kept until they arrive. */
+export function useFileFacts<T extends FileFacts>(
+  fileId: string | undefined,
+  kept: T,
+): T {
+  const facts = useCurrentFacts(fileId);
   return facts ? { ...kept, ...facts } : kept;
 }
 
@@ -112,4 +118,44 @@ export function useFileFacts<T extends FileFacts>(
 export function useRefreshFileFacts(): (ids?: readonly string[]) => void {
   const store = useContext(Context);
   return (ids) => store?.refresh(ids);
+}
+
+/**
+ * How a picture is drawn at the size a page needs: the `srcset` of its
+ * sizes, or `<source>`s of them in modern formats, with its own size and a
+ * placeholder to show while it loads, and where its subject sits.
+ */
+export interface PictureSource {
+  srcSet?: string;
+  sources?: readonly { type: string; srcSet: string }[];
+  width?: number;
+  height?: number;
+  placeholder?: string;
+  focus?: { x: number; y: number };
+}
+
+/** Where a host's pictures are fetched at each size; none fetches them whole. */
+export type PictureSources = (fileId: string) => PictureSource | undefined;
+
+const Sources = createContext<PictureSources | null>(null);
+
+export const PictureSourcesProvider = Sources.Provider;
+
+/**
+ * Everything known of how to draw a picture: the host's sizes, and its
+ * size, placeholder and subject from its current facts where the host
+ * has not published them with the page.
+ */
+export function usePicture(fileId: string | undefined): PictureSource {
+  const sources = useContext(Sources);
+  const facts = useCurrentFacts(fileId);
+  const given = fileId ? sources?.(fileId) : undefined;
+  return {
+    ...given,
+    ...(facts?.width && facts.height
+      ? { width: facts.width, height: facts.height }
+      : {}),
+    ...(facts?.placeholder ? { placeholder: facts.placeholder } : {}),
+    ...(facts?.focus ? { focus: facts.focus } : {}),
+  };
 }

@@ -1,6 +1,10 @@
+import type { PublishedPicture } from "@faridalms/domain/previews";
 import type { SiteLocale } from "@faridalms/domain/website";
+import type { PictureSources } from "@faridalms/editor/file-facts";
 import type { ReactNode } from "react";
 
+import { publishedSources } from "@faridalms/domain/previews";
+import { PictureSourcesProvider } from "@faridalms/editor/file-facts";
 import { useLocation, useRouter } from "@tanstack/react-router";
 import { useEffect, useRef } from "react";
 
@@ -114,11 +118,35 @@ function frameOf(
   };
 }
 
+/**
+ * Where a published page's pictures are fetched at each size: the sizes
+ * published beside each one, in the public folder its copy sits in.
+ */
+export function publicPictureSources(
+  media: Record<string, string>,
+  pictures: Record<string, PublishedPicture>,
+): PictureSources {
+  return (fileId) => {
+    const key = media[fileId];
+    const picture = pictures[fileId];
+    if (!key || !picture) return undefined;
+    return {
+      sources: publishedSources(publicMediaUrl(key), picture),
+      width: picture.width,
+      height: picture.height,
+      ...(picture.placeholder ? { placeholder: picture.placeholder } : {}),
+      ...(picture.focus ? { focus: picture.focus } : {}),
+    };
+  };
+}
+
 export interface SiteShellProps {
   site: PublicSite;
   school: string;
   overlay?: boolean;
   media?: Record<string, string>;
+  /** What the page published of its pictures, for their sizes and placeholders. */
+  pictures?: Record<string, PublishedPicture>;
   children: ReactNode;
 }
 
@@ -132,6 +160,7 @@ export function SiteShell({
   school,
   overlay = false,
   media,
+  pictures,
   children,
 }: SiteShellProps) {
   const router = useRouter();
@@ -167,14 +196,18 @@ export function SiteShell({
     return () => element.removeEventListener("click", follow);
   }, [router, school]);
   return (
-    <div ref={root} className="min-h-dvh">
-      <SiteFrame
-        frame={frameOf(site, school, location.pathname)}
-        context={publicContext(site, school, { media })}
-        overlay={overlay}
-      >
-        {children}
-      </SiteFrame>
-    </div>
+    <PictureSourcesProvider
+      value={publicPictureSources(media ?? {}, pictures ?? {})}
+    >
+      <div ref={root} className="min-h-dvh">
+        <SiteFrame
+          frame={frameOf(site, school, location.pathname)}
+          context={publicContext(site, school, { media })}
+          overlay={overlay}
+        >
+          {children}
+        </SiteFrame>
+      </div>
+    </PictureSourcesProvider>
   );
 }

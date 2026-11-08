@@ -27,6 +27,7 @@ import {
   retireMediaFolder,
   retireMediaTag,
   schoolStorageBreakdown,
+  setLibraryFocus,
   setLibraryTexts,
   setLibraryWords,
   tagLibraryItems,
@@ -37,12 +38,14 @@ import { safeFilename } from "@faridalms/domain/file";
 import {
   addToLibrarySchema,
   createFolderSchema,
-  croppedName,
   cropItemSchema,
   describeItemSchema,
+  editedName,
+  focusItemSchema,
   folderRefSchema,
   importLinkSchema,
   inDocumentsQuerySchema,
+  isEdited,
   itemRefSchema,
   keepInLibrarySchema,
   LIBRARY_AREA,
@@ -494,8 +497,9 @@ export const trash = writeProcedure
   });
 
 /**
- * Keeps a cropped picture, cut in the browser and uploaded, as a new item
- * beside its original, which stays as it was for every document showing it.
+ * Keeps a cropped picture, cut, turned, mirrored or resized in the browser
+ * and uploaded, as a new item beside its original, which stays as it was
+ * for every document showing it.
  */
 export const crop = writeProcedure
   .input(cropItemSchema)
@@ -528,8 +532,9 @@ export const crop = writeProcedure
       orgId: context.schoolId,
       sourceId: source.id,
       fileId: adopted,
-      name: croppedName(source.name, input.ratio),
+      name: editedName(source.name, input.ratio, input.cut),
       ratio: input.ratio,
+      edits: input.edits && isEdited(input.edits) ? input.edits : null,
     });
     await copySubjects(context.tx, {
       tenantId: context.tenantId,
@@ -848,4 +853,24 @@ export const importLink = schoolProcedure
         ]),
       };
     });
+  });
+
+/**
+ * Sets where a picture's subject sits, or forgets it: crops start from it,
+ * and the website keeps it in view wherever a use does not say otherwise.
+ */
+export const focus = writeProcedure
+  .input(focusItemSchema)
+  .handler(async ({ input, context }) => {
+    requireKeeper(context);
+    if (
+      !(await setLibraryFocus(context.tx, {
+        tenantId: context.tenantId,
+        orgId: context.schoolId,
+        id: input.id,
+        focus: input.focus,
+      }))
+    )
+      throw new ORPCError("NOT_FOUND");
+    return { ok: true };
   });

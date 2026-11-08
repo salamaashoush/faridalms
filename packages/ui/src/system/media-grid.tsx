@@ -19,8 +19,12 @@ import { SelectionBar } from "./selection-bar";
 
 /** How an item reads as a tile. */
 export interface MediaGridTile<T> {
-  /** The picture the tile shows; none draws `icon` in its place. */
+  /** The picture the tile shows, at a tile's size; none draws `icon` in its place. */
   src: (item: T) => string | null;
+  /** A tiny image of the picture, as a data URL, shown while it loads. */
+  placeholder?: (item: T) => string | null;
+  /** Where the picture's subject sits, as CSS `object-position`, kept in view by the tile. */
+  position?: (item: T) => string | undefined;
   icon?: (item: T) => ReactNode;
   title: (item: T) => string;
   fact?: (item: T) => ReactNode;
@@ -131,6 +135,7 @@ export function MediaGrid<T extends { id: string }>({
         >
           {items.map((item) => {
             const src = tile.src(item);
+            const placeholder = src ? tile.placeholder?.(item) : null;
             const title = tile.title(item);
             const chosen =
               selection?.selected.has(item.id) ?? pickedIds.has(item.id);
@@ -156,7 +161,14 @@ export function MediaGrid<T extends { id: string }>({
                         alt=""
                         loading="lazy"
                         draggable={false}
-                        className="size-full object-cover"
+                        className="size-full bg-cover object-cover"
+                        style={{
+                          objectPosition: tile.position?.(item),
+                          backgroundPosition: tile.position?.(item),
+                          backgroundImage: placeholder
+                            ? `url(${placeholder})`
+                            : undefined,
+                        }}
                       />
                     ) : (
                       <span className="text-muted-foreground [&_svg]:size-8">

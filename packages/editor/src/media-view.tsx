@@ -10,6 +10,7 @@ import {
 import { Play } from "lucide-react";
 import { useEffect, useState } from "react";
 
+import type { FileFacts } from "./files";
 import type {
   MediaWatch,
   PlayerCaptions,
@@ -17,6 +18,7 @@ import type {
   TranscriptStrings,
 } from "./player";
 
+import { useFileFacts } from "./file-facts";
 import {
   AudioBar,
   FramedVideo,
@@ -76,7 +78,7 @@ export function MediaPlayer({
       descriptions={descriptions}
     />
   ) : (
-    <AudioBar
+    <UploadedAudio
       src={src}
       captions={track}
       locale={locale}
@@ -87,8 +89,15 @@ export function MediaPlayer({
   );
 }
 
+/** A recording drawn over its waveform, once the media service has measured it. */
+function UploadedAudio(props: Parameters<typeof AudioBar>[0]) {
+  const fileId = UPLOAD.exec(props.src)?.[1];
+  const { waveform } = useFileFacts<FileFacts>(fileId, { name: "", mime: "" });
+  return <AudioBar {...props} waveform={waveform} />;
+}
+
 /** A school's own upload, which may have adaptive streams beside it. */
-const UPLOAD = /^\/files\/[0-9a-f-]{36}$/;
+const UPLOAD = /^\/files\/([0-9a-f-]{36})$/;
 
 interface Stream {
   master: string;

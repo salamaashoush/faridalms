@@ -77,6 +77,7 @@ import {
   blockAlignClass,
   diagramImageClass,
   imageSizeClass,
+  imageSizesAttribute,
   numberTag,
 } from "./format";
 import { GlossaryList } from "./glossary-view";
@@ -921,6 +922,8 @@ function draw(
         <PictureView
           key={key}
           src={src}
+          fileId={node.fileId}
+          sizes={imageSizesAttribute[node.size ?? "large"]}
           alt={node.decorative ? "" : (node.alt ?? "")}
           caption={node.labels?.length ? "" : (node.caption ?? "")}
           className={node.labels?.length ? "" : className}
@@ -1146,7 +1149,7 @@ function ReadFile({
   ...card
 }: Omit<ComponentProps<typeof FileCard>, "file"> & {
   fileId: string | undefined;
-  kept: Required<FileFacts>;
+  kept: FileFacts & { bytes: number };
 }) {
   return <FileCard file={useFileFacts(fileId, kept)} {...card} />;
 }
@@ -1181,6 +1184,8 @@ function TermView({
             {src ? (
               <StoredImage
                 src={src}
+                fileId={entry.fileId}
+                sizes="18rem"
                 alt={entry.alt ?? ""}
                 removed={context.strings.fileRemoved}
                 className="max-h-40 w-full rounded-md object-contain"

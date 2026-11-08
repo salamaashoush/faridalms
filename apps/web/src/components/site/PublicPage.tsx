@@ -50,6 +50,7 @@ export function PublicPageView({
       school={school}
       overlay={opensOnPicture(page.sections)}
       media={page.media}
+      pictures={page.pictures}
     >
       <PageSections
         sections={page.sections}
@@ -217,7 +218,12 @@ export function PublicPostView({ post, site, school }: PublicPostViewProps) {
   const t = { locale: site.locale };
   const bodyLocale: SiteLocale = post.bodyLocale;
   return (
-    <SiteShell site={site} school={school}>
+    <SiteShell
+      site={site}
+      school={school}
+      media={post.media}
+      pictures={post.pictures}
+    >
       <PageBand site={site}>
         <Link
           to="/site/$school/news"

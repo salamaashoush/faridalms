@@ -159,6 +159,9 @@ function GalleryBlock({
               <li key={picture.fileId} className="grid content-start gap-1">
                 <StoredImage
                   src={media?.url(picture.fileId)}
+                  fileId={picture.fileId}
+                  sizes="(min-width: 640px) 33vw, 50vw"
+                  framed
                   alt={picture.alt}
                   draggable={false}
                   loading="lazy"
@@ -312,6 +315,8 @@ function CompareSlot({
         <>
           <StoredImage
             src={media?.url(picture.fileId)}
+            fileId={picture.fileId}
+            sizes="(min-width: 640px) 50vw, 100vw"
             alt={picture.alt}
             draggable={false}
             loading="lazy"

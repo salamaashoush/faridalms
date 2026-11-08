@@ -1398,6 +1398,7 @@ export function AudioBar({
   element,
   watch,
   strings,
+  waveform,
 }: {
   src: string;
   captions: PlayerCaptions | null;
@@ -1405,6 +1406,8 @@ export function AudioBar({
   element?: Ref<HTMLAudioElement>;
   watch?: MediaWatch | undefined;
   strings?: TranscriptStrings | undefined;
+  /** The recording's loudness in spans, each 0 to 100, drawn as its timeline. */
+  waveform?: readonly number[] | undefined;
 }) {
   const dir = pageDirection(locale);
   return (
@@ -1439,10 +1442,20 @@ export function AudioBar({
             <TimeSlider.Root
               className={cx(sliderRoot, "h-8 min-w-12 flex-1 px-1")}
             >
-              <TimeSlider.Track className={sliderTrack}>
-                <TimeSlider.Buffer className="absolute inset-y-0 left-0 w-(--media-slider-buffer) bg-foreground/15" />
-                <TimeSlider.Fill className={sliderFill} />
-              </TimeSlider.Track>
+              {waveform?.length ? (
+                <TimeSlider.Track className="relative h-7 w-full">
+                  <Waveform peaks={waveform} className="text-foreground/25" />
+                  <Waveform
+                    peaks={waveform}
+                    className="text-primary [clip-path:inset(0_calc(100%-var(--media-slider-fill))_0_0)] group-data-dragging/slider:[clip-path:inset(0_calc(100%-var(--media-slider-pointer))_0_0)]"
+                  />
+                </TimeSlider.Track>
+              ) : (
+                <TimeSlider.Track className={sliderTrack}>
+                  <TimeSlider.Buffer className="absolute inset-y-0 left-0 w-(--media-slider-buffer) bg-foreground/15" />
+                  <TimeSlider.Fill className={sliderFill} />
+                </TimeSlider.Track>
+              )}
               <TimeSlider.Thumb className={sliderThumb} />
               <TimeSlider.Preview className="bottom-full mb-1 opacity-0 transition-opacity duration-150 group-data-pointing/slider:opacity-100">
                 <TimeSlider.Value
@@ -1467,6 +1480,33 @@ export function AudioBar({
         ) : null}
       </AudioPlayer>
     </I18nProvider>
+  );
+}
+
+/**
+ * A recording's loudness as bars across its timeline, the part played
+ * drawn over it in colour. It reads left to right as the timeline does.
+ */
+function Waveform({
+  peaks,
+  className,
+}: {
+  peaks: readonly number[];
+  className: string;
+}) {
+  return (
+    <span
+      aria-hidden
+      className={cx("absolute inset-0 flex items-center gap-px", className)}
+    >
+      {peaks.map((peak, index) => (
+        <span
+          key={index}
+          className="min-w-px flex-1 rounded-full bg-current"
+          style={{ height: `${Math.max(8, peak)}%` }}
+        />
+      ))}
+    </span>
   );
 }
 

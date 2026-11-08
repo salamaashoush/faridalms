@@ -2,7 +2,7 @@ import * as v from "valibot";
 
 import type { Capability } from "./capabilities";
 
-import { pictureCreditSchema } from "./commons";
+import { pictureCreditSchema, pictureFocusSchema } from "./commons";
 import { AREA_SORTS, FILE_KINDS } from "./file";
 import { pageField } from "./paging";
 
@@ -225,6 +225,39 @@ export interface PixelSize {
   height: number;
 }
 
+/** Quarter turns clockwise a picture may be given. */
+export const PICTURE_TURNS = [0, 90, 180, 270] as const;
+export type PictureTurn = (typeof PICTURE_TURNS)[number];
+
+/**
+ * What else is done to a picture as it is cropped: turned, mirrored, and
+ * made narrower, the height following. Applied in that order, the crop
+ * taken from the turned picture, then the width.
+ */
+export interface PictureEdits {
+  turn: PictureTurn;
+  flipX: boolean;
+  flipY: boolean;
+  /** The width the kept part is scaled down to; none keeps its own. */
+  width: number | null;
+}
+
+export const NO_EDITS: PictureEdits = {
+  turn: 0,
+  flipX: false,
+  flipY: false,
+  width: null,
+};
+
+export const pictureEditsSchema = v.object({
+  turn: v.picklist(PICTURE_TURNS),
+  flipX: v.boolean(),
+  flipY: v.boolean(),
+  width: v.nullable(
+    v.pipe(v.number(), v.integer(), v.minValue(16), v.maxValue(10_000)),
+  ),
+});
+
 /**
  * A cropped picture's upload, kept beside its original: the original never
  * changes, so every document showing it still shows it whole.
@@ -233,6 +266,9 @@ export const cropItemSchema = v.object({
   sourceId: id,
   fileId: id,
   ratio: v.picklist(CROP_RATIOS),
+  /** Whether part of the picture was cut away, rather than only turned or resized. */
+  cut: v.optional(v.boolean(), true),
+  edits: v.optional(pictureEditsSchema),
 });
 
 /** Width over height of a ratio, or null where the frame is not fixed. */
@@ -319,5 +355,70 @@ export function croppedName(name: string, ratio: CropRatio): string {
   const label =
     ratio === "original" || ratio === "free" ? "crop" : ratio.replace(":", "x");
   const suffix = ` (${label})${extension}`;
+  return `${stem.slice(0, 255 - suffix.length)}${suffix}`;
+}
+
+/** Where a library picture's subject sits, or none to forget it. */
+export const focusItemSchema = v.object({
+  id,
+  focus: v.nullable(pictureFocusSchema),
+});
+
+/** Whether edits change anything. */
+export const isEdited = (edits: PictureEdits) =>
+  edits.turn !== 0 || edits.flipX || edits.flipY || edits.width !== null;
+
+/** A picture's size once turned. */
+export function turnedSize(size: PixelSize, turn: PictureTurn): PixelSize {
+  return turn === 90 || turn === 270
+    ? { width: size.height, height: size.width }
+    : size;
+}
+
+/**
+ * Where a picture's subject sits once it is mirrored and then turned, as
+ * the picture is drawn: each mirror first, in its own axes, then the turn.
+ */
+export function turnedFocus(
+  focus: { x: number; y: number },
+  edits: Pick<PictureEdits, "turn" | "flipX" | "flipY">,
+): { x: number; y: number } {
+  const x = edits.flipX ? 100 - focus.x : focus.x;
+  const y = edits.flipY ? 100 - focus.y : focus.y;
+  switch (edits.turn) {
+    case 90:
+      return { x: 100 - y, y: x };
+    case 180:
+      return { x: 100 - x, y: 100 - y };
+    case 270:
+      return { x: y, y: 100 - x };
+    default:
+      return { x, y };
+  }
+}
+
+/** The size a kept part ends at: its own, or scaled down to the width asked. */
+export function resizedTo(rect: PixelSize, width: number | null): PixelSize {
+  if (width === null || width >= rect.width) return rect;
+  return {
+    width,
+    height: Math.max(1, Math.round((rect.height * width) / rect.width)),
+  };
+}
+
+/**
+ * An edited picture's name: its original's with the shape it was cut to,
+ * or "edited" where it was only turned, mirrored or resized.
+ */
+export function editedName(
+  name: string,
+  ratio: CropRatio,
+  cut: boolean,
+): string {
+  if (cut || ratio !== "original") return croppedName(name, ratio);
+  const dot = name.lastIndexOf(".");
+  const stem = dot > 0 ? name.slice(0, dot) : name;
+  const extension = dot > 0 ? name.slice(dot) : "";
+  const suffix = ` (edited)${extension}`;
   return `${stem.slice(0, 255 - suffix.length)}${suffix}`;
 }

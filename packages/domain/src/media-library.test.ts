@@ -3,13 +3,20 @@ import { describe, expect, test } from "vitest";
 
 import {
   croppedName,
+  cropItemSchema,
   cropRect,
   describeItemSchema,
+  editedName,
   initialView,
+  isEdited,
   largestFrame,
   importLinkSchema,
   libraryQuerySchema,
+  NO_EDITS,
   ratioValue,
+  resizedTo,
+  turnedFocus,
+  turnedSize,
 } from "./media-library";
 
 const landscape = { width: 4000, height: 3000 };
@@ -126,6 +133,54 @@ describe("library requests", () => {
     expect(
       v.safeParse(describeItemSchema, { ...item, description: "x".repeat(301) })
         .success,
+    ).toBe(false);
+  });
+});
+
+describe("turning, mirroring and resizing a picture", () => {
+  test("its subject moves with it, mirrored first and then turned", () => {
+    const focus = { x: 20, y: 10 };
+    const none = { turn: 0, flipX: false, flipY: false } as const;
+    expect(turnedFocus(focus, none)).toEqual(focus);
+    expect(turnedFocus(focus, { ...none, turn: 90 })).toEqual({ x: 90, y: 20 });
+    expect(turnedFocus(focus, { ...none, turn: 180 })).toEqual({
+      x: 80,
+      y: 90,
+    });
+    expect(turnedFocus(focus, { ...none, turn: 270 })).toEqual({
+      x: 10,
+      y: 80,
+    });
+    expect(turnedFocus(focus, { ...none, flipX: true })).toEqual({
+      x: 80,
+      y: 10,
+    });
+    expect(turnedFocus(focus, { turn: 90, flipX: true, flipY: false })).toEqual(
+      { x: 90, y: 80 },
+    );
+  });
+
+  test("a quarter turn swaps the sides, and a width only ever narrows", () => {
+    expect(turnedSize(landscape, 90)).toEqual({ width: 3000, height: 4000 });
+    expect(turnedSize(landscape, 180)).toEqual(landscape);
+    expect(resizedTo(landscape, 1000)).toEqual({ width: 1000, height: 750 });
+    expect(resizedTo(landscape, 5000)).toEqual(landscape);
+    expect(resizedTo(landscape, null)).toEqual(landscape);
+  });
+
+  test("an edit only turned or resized is named edited, a cut by its shape", () => {
+    expect(editedName("hall.jpg", "original", false)).toBe("hall (edited).jpg");
+    expect(editedName("hall.jpg", "original", true)).toBe("hall (crop).jpg");
+    expect(editedName("hall.jpg", "16:9", false)).toBe("hall (16x9).jpg");
+    expect(isEdited(NO_EDITS)).toBe(false);
+    expect(isEdited({ ...NO_EDITS, flipY: true })).toBe(true);
+    expect(
+      v.safeParse(cropItemSchema, {
+        sourceId: "0199a5a0-0000-7000-8000-000000000001",
+        fileId: "0199a5a0-0000-7000-8000-000000000002",
+        ratio: "original",
+        edits: { turn: 45, flipX: false, flipY: false, width: null },
+      }).success,
     ).toBe(false);
   });
 });

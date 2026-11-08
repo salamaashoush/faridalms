@@ -49,6 +49,27 @@ describe("a media grid", () => {
     expect(onOpen).toHaveBeenCalledWith(items[1]);
   });
 
+  it("holds a picture's placeholder and keeps its subject in view", () => {
+    const { container } = renderWithSystem(
+      <MediaGrid
+        caption="Media library"
+        items={items}
+        tile={{
+          ...tile,
+          src: (item) => (item.picture ? `/files/${item.id}?w=320` : null),
+          placeholder: () => "data:image/png;base64,AAAA",
+          position: () => "20% 80%",
+        }}
+        empty={empty}
+      />,
+    );
+    const picture = container.querySelector("img");
+    expect(picture?.getAttribute("src")).toBe("/files/a?w=320");
+    expect(picture?.style.backgroundImage).toContain("data:image/png");
+    expect(picture?.style.objectPosition).toBe("20% 80%");
+    expect(container.querySelectorAll("img")).toHaveLength(1);
+  });
+
   it("chooses one tile at a time, or several where it may", async () => {
     const onChange = vi.fn<(next: ReadonlySet<string>) => void>();
     const { rerender } = renderWithSystem(

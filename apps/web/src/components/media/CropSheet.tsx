@@ -1,21 +1,35 @@
 import type {
   CropRatio,
   CropView,
+  PictureEdits,
+  PictureTurn,
   PixelSize,
 } from "@faridalms/domain/media-library";
 
 import {
   CROP_RATIOS,
-  croppedName,
   cropRect,
+  editedName,
   initialView,
+  NO_EDITS,
+  resizedTo,
+  turnedFocus,
+  turnedSize,
 } from "@faridalms/domain/media-library";
+import { Button } from "@faridalms/ui/button";
+import { Input } from "@faridalms/ui/input";
 import { CropFrame } from "@faridalms/ui/system/crop-frame";
 import { FormField } from "@faridalms/ui/system/form-field";
 import { Segmented } from "@faridalms/ui/system/panel";
 import { SheetForm } from "@faridalms/ui/system/sheet-form";
 import { useMutation } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
+import {
+  FlipHorizontal2,
+  FlipVertical2,
+  RotateCcw,
+  RotateCw,
+} from "lucide-react";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
@@ -39,36 +53,60 @@ const RATIO_LABEL: Record<CropRatio, () => string> = {
 
 const percent = (share: number) => `${formatNumber(Math.round(share * 100))}%`;
 
-/** What a crop is saved as: the picture's own kind, but a GIF, which a canvas cannot write, as PNG. */
+/** What an edit is saved as: the picture's own kind, but a GIF, which a canvas cannot write, as PNG. */
 function outputType(mediaType: string) {
   return ["image/jpeg", "image/png", "image/webp"].includes(mediaType)
     ? mediaType
     : "image/png";
 }
 
-/** The kept part of a picture, drawn onto a canvas and written as a file. */
-async function cut(
+/** A picture drawn mirrored and then turned, as the edit asks. */
+function turned(
   image: HTMLImageElement,
+  edits: PictureEdits,
+): HTMLCanvasElement {
+  const size = turnedSize(
+    { width: image.naturalWidth, height: image.naturalHeight },
+    edits.turn,
+  );
+  const canvas = document.createElement("canvas");
+  canvas.width = size.width;
+  canvas.height = size.height;
+  const context = canvas.getContext("2d");
+  if (!context) return canvas;
+  context.translate(size.width / 2, size.height / 2);
+  context.rotate((edits.turn * Math.PI) / 180);
+  context.scale(edits.flipX ? -1 : 1, edits.flipY ? -1 : 1);
+  context.drawImage(image, -image.naturalWidth / 2, -image.naturalHeight / 2);
+  return canvas;
+}
+
+/** The kept part of a picture, scaled to its width, drawn and written as a file. */
+async function cut(
+  source: CanvasImageSource,
   rect: { x: number; y: number; width: number; height: number },
+  size: PixelSize,
   type: string,
   name: string,
 ): Promise<File> {
   const canvas = document.createElement("canvas");
-  canvas.width = rect.width;
-  canvas.height = rect.height;
-  canvas
-    .getContext("2d")
-    ?.drawImage(
-      image,
+  canvas.width = size.width;
+  canvas.height = size.height;
+  const context = canvas.getContext("2d");
+  if (context) {
+    context.imageSmoothingQuality = "high";
+    context.drawImage(
+      source,
       rect.x,
       rect.y,
       rect.width,
       rect.height,
       0,
       0,
-      rect.width,
-      rect.height,
+      size.width,
+      size.height,
     );
+  }
   const blob = await new Promise<Blob | null>((resolve) =>
     canvas.toBlob(resolve, type, 0.92),
   );
@@ -80,6 +118,13 @@ async function cut(
   return new File([blob], named, { type });
 }
 
+/** The picture as the frame shows it: the original, or turned and mirrored. */
+interface Shown {
+  url: string;
+  source: CanvasImageSource;
+  size: PixelSize;
+}
+
 export interface CropSheetProps {
   item: LibraryRow;
   onClose: () => void;
@@ -87,21 +132,24 @@ export interface CropSheetProps {
 }
 
 /**
- * Crops a library picture to a shape, kept as a new item beside the
- * original, which every document showing it goes on showing whole. The
- * picture is cut in the browser and uploaded like any other.
+ * Crops a library picture to a shape, turns, mirrors or narrows it, kept as
+ * a new item beside the original, which every document showing it goes on
+ * showing whole. The frame starts on the picture's subject. The picture is
+ * edited in the browser and uploaded like any other.
  */
 export function CropSheet({ item, onClose, onCropped }: CropSheetProps) {
   const initiate = useServerFn(initiateUpload);
   const crop = useServerFn(cropLibraryItem);
-  const [loaded, setLoaded] = useState<{
-    url: string;
-    image: HTMLImageElement;
-    size: PixelSize;
-  } | null>(null);
+  const [original, setOriginal] = useState<HTMLImageElement | null>(null);
+  const [turnedView, setTurnedView] = useState<
+    (Shown & { edit: string }) | null
+  >(null);
   const [failed, setFailed] = useState(false);
   const [ratio, setRatio] = useState<CropRatio>("original");
-  const [view, setView] = useState<CropView>(initialView());
+  const [edits, setEdits] = useState<PictureEdits>(NO_EDITS);
+  const [view, setView] = useState<CropView>(
+    initialView(item.focus ?? undefined),
+  );
 
   // The picture is read once as bytes, so the canvas may draw it and the
   // frame shows the same pixels it cuts.
@@ -118,12 +166,7 @@ export function CropSheet({ item, onClose, onCropped }: CropSheetProps) {
         const image = new Image();
         image.src = url;
         await image.decode();
-        if (current)
-          setLoaded({
-            url,
-            image,
-            size: { width: image.naturalWidth, height: image.naturalHeight },
-          });
+        if (current) setOriginal(image);
       })
       .catch(() => {
         if (current) setFailed(true);
@@ -134,19 +177,94 @@ export function CropSheet({ item, onClose, onCropped }: CropSheetProps) {
     };
   }, [item.id]);
 
-  const rect = loaded ? cropRect(loaded.size, ratio, view) : null;
+  // A turn or a mirror draws the picture again for the frame to show.
+  const { turn, flipX, flipY } = edits;
+  const edit = `${turn}:${flipX}:${flipY}`;
+  const upright = turn === 0 && !flipX && !flipY;
+  useEffect(() => {
+    if (!original || upright) return undefined;
+    const canvas = turned(original, { turn, flipX, flipY, width: null });
+    let url: string | null = null;
+    let current = true;
+    canvas.toBlob((blob) => {
+      if (!blob || !current) return;
+      url = URL.createObjectURL(blob);
+      setTurnedView({
+        edit: `${turn}:${flipX}:${flipY}`,
+        url,
+        source: canvas,
+        size: { width: canvas.width, height: canvas.height },
+      });
+    });
+    return () => {
+      current = false;
+      if (url) URL.revokeObjectURL(url);
+    };
+  }, [original, upright, turn, flipX, flipY]);
+  const shown: Shown | null = !original
+    ? null
+    : upright
+      ? {
+          url: original.src,
+          source: original,
+          size: {
+            width: original.naturalWidth,
+            height: original.naturalHeight,
+          },
+        }
+      : turnedView?.edit === edit
+        ? turnedView
+        : null;
+
+  const turnBy = (by: 90 | 270) => {
+    const next = { ...edits, turn: ((edits.turn + by) % 360) as PictureTurn };
+    setEdits(next);
+    setView(
+      initialView(item.focus ? turnedFocus(item.focus, next) : undefined),
+    );
+  };
+  const flip = (axis: "flipX" | "flipY") => {
+    const next = { ...edits, [axis]: !edits[axis] };
+    setEdits(next);
+    setView(
+      initialView(item.focus ? turnedFocus(item.focus, next) : undefined),
+    );
+  };
+
+  const rect = shown ? cropRect(shown.size, ratio, view) : null;
+  // A width is kept only once it narrows the picture by a sensible amount.
+  const kept: PictureEdits = {
+    ...edits,
+    width:
+      rect &&
+      edits.width !== null &&
+      edits.width >= 16 &&
+      edits.width < rect.width
+        ? edits.width
+        : null,
+  };
+  const size = rect ? resizedTo(rect, kept.width) : null;
+  const cutAway =
+    ratio !== "original" || view.scale < 1 || (view.scaleY ?? 1) < 1;
   const mutation = useMutation({
     mutationFn: async () => {
-      if (!loaded || !rect) throw new Error("file.failed");
+      if (!shown || !rect || !size) throw new Error("file.failed");
       const file = await cut(
-        loaded.image,
+        shown.source,
         rect,
+        size,
         outputType(item.mediaType),
-        croppedName(item.name, ratio),
+        editedName(item.name, ratio, cutAway),
       );
       const sent = await uploadDocumentFile(initiate, file, undefined);
       return crop({
-        data: { sourceId: item.id, fileId: sent.fileId, ratio },
+        data: {
+          sourceId: item.id,
+          fileId: sent.fileId,
+          ratio,
+          cut: cutAway,
+          edits: kept,
+        },
       });
     },
   });
@@ -167,10 +285,10 @@ export function CropSheet({ item, onClose, onCropped }: CropSheetProps) {
             : null
       }
       status={
-        rect
+        size
           ? m.mediaCropSize({
-              width: formatNumber(rect.width),
-              height: formatNumber(rect.height),
+              width: formatNumber(size.width),
+              height: formatNumber(size.height),
             })
           : null
       }
@@ -189,6 +307,34 @@ export function CropSheet({ item, onClose, onCropped }: CropSheetProps) {
       <p className="text-[13px] leading-[18px] text-muted-foreground">
         {m.mediaCropHint()}
       </p>
+      <div className="flex flex-wrap gap-2">
+        <Button type="button" variant="outline" onClick={() => turnBy(270)}>
+          <RotateCcw aria-hidden />
+          {m.mediaTurnLeft()}
+        </Button>
+        <Button type="button" variant="outline" onClick={() => turnBy(90)}>
+          <RotateCw aria-hidden />
+          {m.mediaTurnRight()}
+        </Button>
+        <Button
+          type="button"
+          variant="outline"
+          aria-pressed={edits.flipX}
+          onClick={() => flip("flipX")}
+        >
+          <FlipHorizontal2 aria-hidden />
+          {m.mediaFlipAcross()}
+        </Button>
+        <Button
+          type="button"
+          variant="outline"
+          aria-pressed={edits.flipY}
+          onClick={() => flip("flipY")}
+        >
+          <FlipVertical2 aria-hidden />
+          {m.mediaFlipDown()}
+        </Button>
+      </div>
       <div className="overflow-x-auto">
         <Segmented
           label={m.mediaCropShape()}
@@ -203,15 +349,15 @@ export function CropSheet({ item, onClose, onCropped }: CropSheetProps) {
           }}
         />
       </div>
-      {loaded && rect ? (
+      {shown && rect ? (
         <CropFrame
-          src={loaded.url}
+          src={shown.url}
           label={m.mediaCropFrame()}
           frame={{
-            x: rect.x / loaded.size.width,
-            y: rect.y / loaded.size.height,
-            width: rect.width / loaded.size.width,
-            height: rect.height / loaded.size.height,
+            x: rect.x / shown.size.width,
+            y: rect.y / shown.size.height,
+            width: rect.width / shown.size.width,
+            height: rect.height / shown.size.height,
           }}
           onCenter={(centerX, centerY) =>
             setView((before) => ({ ...before, centerX, centerY }))
@@ -262,6 +408,36 @@ export function CropSheet({ item, onClose, onCropped }: CropSheetProps) {
                 }))
               }
               className="w-full accent-primary"
+            />
+          )}
+        </FormField>
+      ) : null}
+      {rect ? (
+        <FormField
+          id="media-resize-width"
+          label={m.mediaResize()}
+          hint={m.mediaResizeHint({ width: formatNumber(rect.width) })}
+        >
+          {(control) => (
+            <Input
+              {...control}
+              type="number"
+              inputMode="numeric"
+              min={16}
+              max={rect.width}
+              value={edits.width ?? ""}
+              placeholder={String(rect.width)}
+              onChange={(event) => {
+                const value = Math.round(Number(event.target.value));
+                setEdits((before) => ({
+                  ...before,
+                  width:
+                    event.target.value === "" || !Number.isFinite(value)
+                      ? null
+                      : value,
+                }));
+              }}
+              className="w-32"
             />
           )}
         </FormField>

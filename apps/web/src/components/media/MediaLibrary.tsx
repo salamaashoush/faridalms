@@ -22,6 +22,7 @@ import {
   Crop,
   Download,
   Eye,
+  Focus,
   FolderInput,
   FolderPlus,
   HardDrive,
@@ -65,12 +66,14 @@ import { formatDate, formatNumber } from "~/utils/datetime";
 import type { LibraryFolderRow, LibraryRow } from "./library-items";
 
 import { CropSheet } from "./CropSheet";
+import { FocusSheet } from "./FocusSheet";
 import {
   factsOf,
   isPicture,
   itemTitle,
   KIND_LABEL,
   libraryTile,
+  thumbnailOf,
 } from "./library-items";
 import { LibraryDocuments } from "./LibraryDocuments";
 import { LibraryFolders } from "./LibraryFolders";
@@ -230,12 +233,15 @@ function libraryCard(
 ): DataTableCard<LibraryRow> {
   return {
     leading: (item) =>
-      isPicture(item) ? (
+      thumbnailOf(item) ? (
         <img
-          src={`/files/${item.id}`}
+          src={thumbnailOf(item) ?? undefined}
           alt=""
           loading="lazy"
           className="size-10 rounded-md object-cover"
+          style={{
+            objectPosition: libraryTile.position?.(item),
+          }}
         />
       ) : (
         <FileIcon
@@ -301,6 +307,7 @@ export function MediaLibrary({ view, onView }: MediaLibraryProps) {
   const [moving, setMoving] = useState<LibraryRow[] | null>(null);
   const [tagging, setTagging] = useState<LibraryRow[] | null>(null);
   const [cropping, setCropping] = useState<LibraryRow | null>(null);
+  const [focusing, setFocusing] = useState<LibraryRow | null>(null);
   const [usesOf, setUsesOf] = useState<LibraryRow | null>(null);
   const [versionsOf, setVersionsOf] = useState<LibraryRow | null>(null);
   const [folderSheet, setFolderSheet] = useState<{
@@ -360,6 +367,15 @@ export function MediaLibrary({ view, onView }: MediaLibraryProps) {
             label: m.mediaCrop(),
             icon: Crop,
             onSelect: () => setCropping(item),
+          },
+        ]
+      : []),
+    ...(keeper && isPicture(item)
+      ? [
+          {
+            label: m.mediaFocus(),
+            icon: Focus,
+            onSelect: () => setFocusing(item),
           },
         ]
       : []),
@@ -817,6 +833,7 @@ export function MediaLibrary({ view, onView }: MediaLibraryProps) {
             name: viewing.name,
             mime: viewing.mediaType,
             bytes: viewing.sizeBytes,
+            pdf: viewing.pdf,
           }}
           url={`/files/${viewing.id}`}
           open
@@ -856,6 +873,14 @@ export function MediaLibrary({ view, onView }: MediaLibraryProps) {
           item={cropping}
           onClose={() => setCropping(null)}
           onCropped={refresh}
+        />
+      ) : null}
+      {focusing ? (
+        <FocusSheet
+          key={focusing.id}
+          item={focusing}
+          onClose={() => setFocusing(null)}
+          onSaved={refresh}
         />
       ) : null}
       {folderSheet ? (

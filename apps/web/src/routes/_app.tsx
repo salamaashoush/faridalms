@@ -1,4 +1,8 @@
-import { FileFactsProvider } from "@faridalms/editor/file-facts";
+import { pictureSrcSet } from "@faridalms/domain/previews";
+import {
+  FileFactsProvider,
+  PictureSourcesProvider,
+} from "@faridalms/editor/file-facts";
 import {
   createFileRoute,
   notFound,
@@ -21,12 +25,17 @@ import { pageOn } from "~/utils/modules";
 async function currentFacts(ids: string[]) {
   const { files } = await getFileFacts({ data: { ids } });
   return Object.fromEntries(
-    files.map((file) => [
-      file.id,
-      { name: file.name, mime: file.mediaType, bytes: file.sizeBytes },
+    files.map(({ id, mediaType, sizeBytes, ...facts }) => [
+      id,
+      { ...facts, mime: mediaType, bytes: sizeBytes },
     ]),
   );
 }
+
+/** Every picture of the school is fetched at the width its place needs. */
+const pictureSources = (fileId: string) => ({
+  srcSet: pictureSrcSet(`/files/${fileId}`),
+});
 
 export const Route = createFileRoute("/_app")({
   beforeLoad: async ({ context, location }) => {
@@ -62,11 +71,13 @@ function AppLayout() {
   }, [digits]);
   return (
     <FileFactsProvider resolve={currentFacts}>
-      <MediaLibraryProvider>
-        <Shell sidebarOpen={preferences.sidebarOpen}>
-          <Outlet />
-        </Shell>
-      </MediaLibraryProvider>
+      <PictureSourcesProvider value={pictureSources}>
+        <MediaLibraryProvider>
+          <Shell sidebarOpen={preferences.sidebarOpen}>
+            <Outlet />
+          </Shell>
+        </MediaLibraryProvider>
+      </PictureSourcesProvider>
     </FileFactsProvider>
   );
 }

@@ -3,6 +3,7 @@ import {
   createFolderSchema,
   cropItemSchema,
   describeItemSchema,
+  focusItemSchema,
   folderRefSchema,
   importLinkSchema,
   inDocumentsQuerySchema,
@@ -117,3 +118,7 @@ export const libraryStorage = createServerFn({ method: "GET" }).handler(() =>
 export const importLibraryLink = createServerFn({ method: "POST" })
   .validator(checked(importLinkSchema))
   .handler(({ data }) => backend().mediaLibrary.importLink(data));
+
+export const focusLibraryItem = createServerFn({ method: "POST" })
+  .validator(checked(focusItemSchema))
+  .handler(({ data }) => backend().mediaLibrary.focus(data));
