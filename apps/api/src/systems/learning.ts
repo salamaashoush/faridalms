@@ -297,30 +297,42 @@ async function currentYear(context: UnitContext) {
   return year;
 }
 
-/** The classes the viewer may set modules for this year. */
+/**
+ * The classes the viewer may set modules for this year: those they teach,
+ * marked as theirs and listed first, then for school-wide staff every other
+ * class that owns a timetable grid. A school-wide teacher keeps their own
+ * subject classes, which own no grid.
+ */
 async function authoringClasses(context: UnitContext) {
   const year = await currentYear(context);
-  if (can(context, "classes:manage")) {
-    const rows = await gridOwners(context.tx, {
-      tenantId: context.tenantId,
-      schoolId: context.schoolId,
-      yearId: year.id,
-    });
-    return { year, classes: rows };
-  }
-  const rows = await classesTaughtBy(context.tx, context, {
+  const taught = await classesTaughtBy(context.tx, context, {
     userId: context.actor.userId,
     yearId: year.id,
     on: context.today,
   });
+  const own = taught.map((row) => ({
+    id: row.id,
+    code: row.code,
+    titleEn: row.titleEn,
+    titleAr: row.titleAr,
+    classType: row.classType,
+    mine: true,
+  }));
+  if (!can(context, "classes:manage")) return { year, classes: own };
+  const rows = await gridOwners(context.tx, {
+    tenantId: context.tenantId,
+    schoolId: context.schoolId,
+    yearId: year.id,
+  });
+  const mine = new Set(own.map((row) => row.id));
   return {
     year,
-    classes: rows.map((row) => ({
-      id: row.id,
-      code: row.code,
-      titleEn: row.titleEn,
-      titleAr: row.titleAr,
-    })),
+    classes: [
+      ...own,
+      ...rows
+        .filter((row) => !mine.has(row.id))
+        .map((row) => ({ ...row, mine: false })),
+    ],
   };
 }
 

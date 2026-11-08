@@ -9,7 +9,7 @@ import { createFileRoute, stripSearchParams } from "@tanstack/react-router";
 import { CalendarRange, Plus } from "lucide-react";
 import * as v from "valibot";
 
-import { classTitle } from "~/components/classes/format";
+import { classChoices } from "~/components/classes/format";
 import { YearMap } from "~/components/learning/YearMap";
 import { useCurrentUser } from "~/hooks/useCurrentUser";
 import * as m from "~/i18n/messages";
@@ -58,10 +58,7 @@ function YearMapPage() {
     id: "class",
     label: m.lrnClass(),
     single: true,
-    options: map.classes.map((row) => ({
-      value: row.id,
-      label: classTitle(row),
-    })),
+    options: classChoices(map.classes),
     selected: [map.classId],
     defaultSelected: map.classes[0] ? [map.classes[0].id] : [],
     onChange: ([next = ""]) => {

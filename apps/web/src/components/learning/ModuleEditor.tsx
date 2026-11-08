@@ -19,7 +19,7 @@ import { toast } from "sonner";
 
 import type { moduleRecordQuery } from "~/queries/learning";
 
-import { classTitle } from "~/components/classes/format";
+import { classChoices } from "~/components/classes/format";
 import { CheckboxRow } from "~/components/people/fields";
 import { displayName } from "~/components/people/format";
 import { inLocale } from "~/hooks/useCurrentUser";
@@ -213,10 +213,7 @@ export function ModuleEditor({
     classIds: draft.classIds.length > 0 ? null : m.lrnClassesNeeded(),
     audiences: unchosen.length > 0 ? m.lrnAudienceNeeded() : null,
   };
-  const classOptions = options.classes.map((row) => ({
-    value: row.id,
-    label: classTitle(row),
-  }));
+  const classOptions = classChoices(options.classes);
   return (
     <RecordForm
       title={existing ? m.lrnEditModule() : m.lrnNewModule()}

@@ -90,7 +90,7 @@ import {
 } from "~/utils/datetime";
 import { getMessageFromError, refusalOf } from "~/utils/error";
 
-import { classTitle } from "../classes/format";
+import { classChoices, classTitle, defaultClass } from "../classes/format";
 import { FeedbackBands, keptBands } from "../learning/FeedbackBands";
 import { displayName } from "../people/format";
 import { PHASE_LABEL, PHASE_TONE } from "./format";
@@ -480,15 +480,7 @@ export function AssignmentEditor({
   // Whether the work is still to come is judged from when the page opened.
   const [openedAt] = useState(() => Date.now());
   const [start] = useState(() =>
-    initialDraft(
-      existing,
-      classId ||
-        (
-          options.classes.find((row) => row.classType === "scheduled") ??
-          options.classes[0]
-        )?.id ||
-        "",
-    ),
+    initialDraft(existing, classId || defaultClass(options.classes)?.id || ""),
   );
   const [draft, setDraft] = useState(start);
   const media = useDocumentMedia(
@@ -1055,10 +1047,7 @@ export function AssignmentEditor({
                 label={m.studentClass()}
                 value={draft.classId}
                 disabled={state !== "draft"}
-                options={options.classes.map((row) => ({
-                  value: row.id,
-                  label: classTitle(row),
-                }))}
+                options={classChoices(options.classes)}
                 onChange={(value) =>
                   setDraft((current) => ({
                     ...current,

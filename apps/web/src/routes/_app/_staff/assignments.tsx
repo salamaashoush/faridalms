@@ -22,7 +22,7 @@ import { ClipboardList, ClipboardPen, Copy, Pencil, Plus } from "lucide-react";
 import { useState } from "react";
 import * as v from "valibot";
 
-import { classTitle } from "~/components/classes/format";
+import { classChoices, classTitle } from "~/components/classes/format";
 import { PHASE_LABEL, PHASE_TONE } from "~/components/coursework/format";
 import { UseAgainSheet } from "~/components/coursework/UseAgain";
 import * as m from "~/i18n/messages";
@@ -179,10 +179,7 @@ function CourseworkPage() {
     id: "class",
     label: m.studentClass(),
     single: true,
-    options: options.classes.map((row) => ({
-      value: row.id,
-      label: classTitle(row),
-    })),
+    options: classChoices(options.classes),
     selected: search.classId ? [search.classId] : [],
     onChange: ([next = ""]) => patch({ classId: next }),
   };

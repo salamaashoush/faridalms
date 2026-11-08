@@ -869,6 +869,47 @@ export const taughtClasses = (scope: Scope) =>
         where e.tenant_id = c.tenant_id and e.class_id = c.id and e.user_id = ${scope.viewerId}::uuid
           and e.role in ('teacher', 'aide') and e.status = 'active')))`;
 
+export interface KeptClass extends ClassRow {
+  /** The viewer's own role in the class, or null for one they oversee. */
+  role: EnrollmentRole | null;
+  students: number;
+}
+
+/**
+ * The classes of a year the viewer keeps (see `taughtClasses`) on the date:
+ * their own first, then, for school-wide staff, the rest of the school's.
+ */
+export async function classesKeptBy(
+  tx: Tx,
+  scope: Scope,
+  input: { yearId: string; on: string },
+): Promise<KeptClass[]> {
+  const rows = await tx.execute<
+    ClassRecord & { role: EnrollmentRole | null; students: number }
+  >(sql`
+    select ${classColumns}, own.role,
+           (select count(*)::int from core.enrollments s
+              where s.tenant_id = c.tenant_id and s.class_id = coalesce(c.homeroom_class_id, c.id)
+                and s.role = 'student' and s.status = 'active' and s.valid_during @> ${input.on}::date) as students
+    from core.classes c
+    left join lateral (
+      select e.role from core.enrollments e
+      where e.tenant_id = c.tenant_id and e.class_id = c.id and e.user_id = ${scope.viewerId}::uuid
+        and e.role in ('teacher', 'aide') and e.status = 'active' and e.valid_during @> ${input.on}::date
+      order by e.role = 'teacher' desc
+      limit 1) own on true
+    where c.tenant_id = ${scope.tenantId}::uuid and c.org_id = ${scope.schoolId}::uuid
+      and c.school_year_id = ${input.yearId}::uuid and c.status = 'active'
+      and c.id in ${taughtClasses(scope)}
+      and (${scope.schoolWide} or own.role is not null)
+    order by own.role is null, c.class_type, c.code`);
+  return rows.map((row) => ({
+    ...classOf(row),
+    role: row.role,
+    students: row.students,
+  }));
+}
+
 export async function teachesClass(
   tx: Tx,
   scope: Scope,

@@ -119,6 +119,8 @@
   "studentGrade": "Grade",
   "studentSchoolYear": "School year",
   "classesAllTab": "All classes",
+  "classesYourGroup": "Your classes",
+  "classesOtherGroup": "Other classes",
   "teachMyClassesTitle": "My classes",
   "teachNoClasses": "You are not teaching any classes yet.",
   "userNavMenu": "User menu",

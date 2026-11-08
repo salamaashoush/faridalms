@@ -24,7 +24,7 @@ import { arrangementsOf } from "@faridalms/database/stores/arrangements";
 import { bankTagCounts } from "@faridalms/database/stores/bank";
 import {
   classById,
-  classesTaughtBy,
+  classesKeptBy,
   rosterOf,
 } from "@faridalms/database/stores/classes";
 import {
@@ -531,17 +531,18 @@ registerHostReader("attempt_feedback", async (context, attemptId) => {
   return Boolean(assessment?.releasedAt ?? assessment?.commentsReleasedAt);
 });
 
-/** The classes the viewer may set work for this year, with the choices the editor offers. */
+/**
+ * The classes the viewer may set work for this year, with the choices the
+ * editor offers: those they teach, marked as theirs, then for school-wide
+ * staff every other class of the school.
+ */
 export const options = readProcedure.handler(async ({ context }) => {
   requireCapability(context, "assignments:author");
   const year = await currentYear(context);
   if (!year) return { year: null, classes: [], rubrics: [], terms: [] };
   const on = dayIn(year, context.today);
-  const taught = await classesTaughtBy(context.tx, context, {
-    userId: context.actor.userId,
-    yearId: year.id,
-    on,
-  });
+  const scope = scopeFor(context, "teaching");
+  const kept = await classesKeptBy(context.tx, scope, { yearId: year.id, on });
   const rubrics = await rubricsOf(
     context.tx,
     context.tenantId,
@@ -550,8 +551,8 @@ export const options = readProcedure.handler(async ({ context }) => {
   const terms = await termsOf(context.tx, context.tenantId, year.id);
   return {
     year: { id: year.id, titleEn: year.titleEn, titleAr: year.titleAr },
-    classes: taught
-      .filter((row) => row.role === "teacher")
+    classes: kept
+      .filter((row) => row.role === "teacher" || scope.schoolWide)
       .map((row) => ({
         id: row.id,
         code: row.code,
@@ -560,6 +561,7 @@ export const options = readProcedure.handler(async ({ context }) => {
         classType: row.classType,
         subjectId: row.subjectId,
         students: row.students,
+        mine: row.role === "teacher",
       })),
     rubrics: rubrics.map((row) => ({
       id: row.id,

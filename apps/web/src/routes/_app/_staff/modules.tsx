@@ -17,7 +17,7 @@ import { CalendarRange, Import, Layers, Pencil, Plus } from "lucide-react";
 import { useState } from "react";
 import * as v from "valibot";
 
-import { classTitle } from "~/components/classes/format";
+import { classChoices, classTitle } from "~/components/classes/format";
 import { CartridgeImport } from "~/components/learning/CartridgeImport";
 import {
   shownState,
@@ -156,10 +156,7 @@ function ModulesPage() {
     id: "class",
     label: m.lrnClass(),
     single: true,
-    options: data.classes.map((row) => ({
-      value: row.id,
-      label: classTitle(row),
-    })),
+    options: classChoices(data.classes),
     selected: search.classId ? [search.classId] : [],
     onChange: ([next = ""]) => patch({ classId: next }),
   };

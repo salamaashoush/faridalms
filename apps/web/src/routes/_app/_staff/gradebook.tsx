@@ -17,7 +17,7 @@ import { useState } from "react";
 import { toast } from "sonner";
 import * as v from "valibot";
 
-import { classTitle } from "~/components/classes/format";
+import { classChoices, defaultClass } from "~/components/classes/format";
 import { gradeWithScore, resultText } from "~/components/grading/format";
 import { displayName } from "~/components/people/format";
 import { inLocale } from "~/hooks/useCurrentUser";
@@ -54,10 +54,6 @@ export const Route = createFileRoute("/_app/_staff/gradebook")({
 });
 
 /** Term grades belong to subject classes, so a teacher's first opens first. */
-function defaultClass<T extends { classType: string }>(classes: T[]) {
-  return classes.find((row) => row.classType === "scheduled") ?? classes[0];
-}
-
 type Book = Awaited<
   ReturnType<NonNullable<ReturnType<typeof classBookQuery>["queryFn"]>>
 >;
@@ -371,6 +367,7 @@ interface BookProps {
     titleEn: string | null;
     titleAr: string | null;
     classType: string;
+    mine: boolean;
   }[];
 }
 
@@ -380,7 +377,7 @@ function Book({ classId, periodId, onChange, classes }: BookProps) {
     id: "class",
     label: m.studentClass(),
     single: true,
-    options: classes.map((row) => ({ value: row.id, label: classTitle(row) })),
+    options: classChoices(classes),
     selected: [classId],
     defaultSelected: defaultClass(classes)
       ? [defaultClass(classes)?.id ?? ""]

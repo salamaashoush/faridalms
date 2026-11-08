@@ -8,7 +8,11 @@ import { Search } from "lucide-react";
 import { useDeferredValue, useId, useState } from "react";
 import { toast } from "sonner";
 
-import { classTitle } from "~/components/classes/format";
+import {
+  classChoices,
+  classTitle,
+  defaultClass,
+} from "~/components/classes/format";
 import * as m from "~/i18n/messages";
 import { courseworkOptionsQuery, reusableQuery } from "~/queries/coursework";
 import { reuseAssignment } from "~/server/coursework";
@@ -43,7 +47,7 @@ export function UseAgainSheet({
   const words = useDeferredValue(search.trim());
   const searchId = useId();
   const found = useQuery({ ...reusableQuery(words), enabled: !source });
-  const setIn = target || classes[0]?.id || "";
+  const setIn = target || defaultClass(classes)?.id || "";
   const reuse = useMutation({
     mutationFn: () => reuseAssignment({ data: { id: chosen, classId: setIn } }),
   });
@@ -162,10 +166,7 @@ export function UseAgainSheet({
         id="use-again-class"
         label={m.courseworkUseAgainIn()}
         value={setIn}
-        options={classes.map((row) => ({
-          value: row.id,
-          label: classTitle(row),
-        }))}
+        options={classChoices(classes)}
         onChange={setTarget}
       />
     </SheetForm>
