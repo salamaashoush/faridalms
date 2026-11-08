@@ -1505,7 +1505,7 @@
   "videoRecordStart": "Start recording",
   "videoRecordPause": "Pause",
   "videoRecordResume": "Resume",
-  "videoRecordKeep": "Add to the lesson",
+  "videoRecordKeep": "Use this video",
   "videoRecordRefused": "The camera, the screen or the microphone was not allowed. Allow it in the browser, then try again.",
   "videoRecordStartsIn": "Recording starts in {seconds}",
   "videoRecordTrimHint": "Cut off the start or the end. What you cut off is not kept.",
