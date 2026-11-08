@@ -10,6 +10,42 @@ export function isoWeekday(iso: string): IsoWeekday {
   return (day === 0 ? 7 : day) as IsoWeekday;
 }
 
+/**
+ * How a timetable's lessons repeat. A cycle of weeks repeats whole weeks
+ * (one for an ordinary week, two for A/B weeks); its days are numbered week
+ * by week, so the fourth day of the second week is 7 + 4. A cycle of days
+ * numbers school days 1 to its length and starts again, whatever weekday
+ * each falls on.
+ */
+export const CYCLE_KINDS = ["weeks", "days"] as const;
+export type CycleKind = (typeof CYCLE_KINDS)[number];
+
+export const MAX_CYCLE_WEEKS = 4;
+export const MIN_CYCLE_DAYS = 2;
+export const MAX_CYCLE_DAYS = 20;
+/** The highest day number any cycle has: the last day of four weeks. */
+export const MAX_CYCLE_DAY = 7 * MAX_CYCLE_WEEKS;
+
+export interface Cycle {
+  kind: CycleKind;
+  length: number;
+  /** Where the cycle stands on the timetable's first school day: its week or day number. */
+  firstDay: number;
+  /**
+   * A closed day or week does not use up a place in the cycle, so it picks
+   * up where it stopped. Otherwise the cycle keeps to the calendar and a
+   * closure loses its days.
+   */
+  closuresMove: boolean;
+}
+
+export const WEEKLY: Cycle = {
+  kind: "weeks",
+  length: 1,
+  firstDay: 1,
+  closuresMove: false,
+};
+
 /** The school's teaching days in week order, starting from its first day. */
 export function schoolDays(
   weekStart: number,
@@ -48,6 +84,13 @@ const id = v.pipe(v.string(), v.uuid());
 const optionalId = v.optional(v.union([v.literal(""), id]), "");
 const isoDate = v.pipe(v.string(), v.isoDate());
 const weekday = v.pipe(v.number(), v.integer(), v.minValue(1), v.maxValue(7));
+/** A day of a timetable's cycle; a weekday in an ordinary week. */
+const cycleDay = v.pipe(
+  v.number(),
+  v.integer(),
+  v.minValue(1),
+  v.maxValue(MAX_CYCLE_DAY),
+);
 
 export const gridQuerySchema = v.object({
   classId: id,
@@ -81,7 +124,8 @@ export const classWeekSchema = v.object({
 const cell = {
   /** The class whose grid is edited: a homeroom, or a class of its own. */
   classId: id,
-  weekday,
+  /** The day of the timetable's cycle: a weekday in an ordinary week. */
+  weekday: cycleDay,
   periodId: id,
   /** The first day the change applies; earlier days keep what they had. */
   from: isoDate,
@@ -195,6 +239,30 @@ export interface PeriodPattern {
   official: boolean;
   /** The days of the week it runs on; the school's weekend never has it. */
   weekdays: readonly number[];
+  /** Other times it keeps on some of those days, each day in one entry at most. */
+  dayTimes: readonly DayTimes[];
+}
+
+/** The times a period keeps on some days of the week instead of its own. */
+export interface DayTimes {
+  weekdays: readonly number[];
+  startTime: string;
+  endTime: string;
+}
+
+/** A period's times on a day of the week, or null when it does not run then. */
+export function timesOnWeekday(
+  period: Pick<
+    PeriodPattern,
+    "startTime" | "endTime" | "weekdays" | "dayTimes"
+  >,
+  day: number,
+): { startTime: string; endTime: string } | null {
+  if (!period.weekdays.includes(day)) return null;
+  const other = period.dayTimes.find((entry) => entry.weekdays.includes(day));
+  return other
+    ? { startTime: other.startTime, endTime: other.endTime }
+    : { startTime: period.startTime, endTime: period.endTime };
 }
 
 /** The day a school starts from when neither it nor its group has one. */
@@ -216,6 +284,7 @@ export const DEFAULT_PERIODS: readonly (PeriodPattern & { code: string })[] = [
   endTime: endTime ?? "",
   official: kind === "registration",
   weekdays: EVERY_DAY,
+  dayTimes: [],
 }));
 
 const sameDays = (a: readonly number[], b: readonly number[]) =>
@@ -223,6 +292,17 @@ const sameDays = (a: readonly number[], b: readonly number[]) =>
   a
     .toSorted((x, y) => x - y)
     .every((day, index) => day === b.toSorted((x, y) => x - y)[index]);
+
+const sameDayTimes = (a: readonly DayTimes[], b: readonly DayTimes[]) =>
+  a.length === b.length &&
+  a.every((entry) =>
+    b.some(
+      (other) =>
+        other.startTime === entry.startTime &&
+        other.endTime === entry.endTime &&
+        sameDays(other.weekdays, entry.weekdays),
+    ),
+  );
 
 /** Whether two versions of a period differ in anything a day is drawn with. */
 export function periodChanged(a: PeriodPattern, b: PeriodPattern): boolean {
@@ -233,26 +313,33 @@ export function periodChanged(a: PeriodPattern, b: PeriodPattern): boolean {
     a.startTime !== b.startTime ||
     a.endTime !== b.endTime ||
     a.official !== b.official ||
-    !sameDays(a.weekdays, b.weekdays)
+    !sameDays(a.weekdays, b.weekdays) ||
+    !sameDayTimes(a.dayTimes, b.dayTimes)
   );
 }
 
 export type PeriodIssue = "slot_overlap" | "official_twice";
 
-/** The first clash between periods that share a day, or null when the day holds together. */
+/**
+ * The first clash between periods that share a day, each at its times on
+ * that day, or null when every day holds together.
+ */
 export function periodIssue(
   periods: readonly Pick<
     PeriodPattern,
-    "startTime" | "endTime" | "official" | "weekdays"
+    "startTime" | "endTime" | "official" | "weekdays" | "dayTimes"
   >[],
 ): PeriodIssue | null {
   for (const [index, one] of periods.entries())
-    for (const other of periods.slice(index + 1)) {
-      if (!one.weekdays.some((day) => other.weekdays.includes(day))) continue;
-      if (one.startTime < other.endTime && other.startTime < one.endTime)
-        return "slot_overlap";
-      if (one.official && other.official) return "official_twice";
-    }
+    for (const other of periods.slice(index + 1))
+      for (const day of EVERY_DAY) {
+        const a = timesOnWeekday(one, day);
+        const b = timesOnWeekday(other, day);
+        if (!a || !b) continue;
+        if (a.startTime < b.endTime && b.startTime < a.endTime)
+          return "slot_overlap";
+        if (one.official && other.official) return "official_twice";
+      }
   return null;
 }
 
@@ -267,6 +354,30 @@ const periodName = v.optional(
   "",
 );
 
+const dayTimesSchema = v.pipe(
+  v.object({
+    weekdays: v.pipe(v.array(weekday), v.minLength(1), v.maxLength(7)),
+    startTime: clock,
+    endTime: clock,
+  }),
+  v.forward(
+    v.check((value) => value.endTime > value.startTime, "validation.end_time"),
+    ["endTime"],
+  ),
+);
+
+/** Each day of the week in one entry at most, and only days the period runs on. */
+function dayTimesFit(value: {
+  weekdays: readonly number[];
+  dayTimes: readonly DayTimes[];
+}) {
+  const days = value.dayTimes.flatMap((entry) => entry.weekdays);
+  return (
+    new Set(days).size === days.length &&
+    days.every((day) => value.weekdays.includes(day))
+  );
+}
+
 export const periodSchema = v.pipe(
   v.object({
     /** The period this one carries on from; none for a period the day gains. */
@@ -278,7 +389,12 @@ export const periodSchema = v.pipe(
     endTime: clock,
     official: v.optional(v.boolean(), false),
     weekdays: v.pipe(v.array(weekday), v.minLength(1), v.maxLength(7)),
+    dayTimes: v.optional(v.pipe(v.array(dayTimesSchema), v.maxLength(6)), []),
   }),
+  v.forward(
+    v.check((value) => dayTimesFit(value), "validation.day_times"),
+    ["dayTimes"],
+  ),
   v.forward(
     v.check(
       (value) => value.nameEn !== null || value.nameAr !== null,
@@ -341,3 +457,134 @@ export const savePeriodsSchema = v.pipe(
   ),
 );
 export type SavePeriods = v.InferOutput<typeof savePeriodsSchema>;
+
+const version = v.pipe(v.number(), v.integer(), v.minValue(1));
+const periodCode = v.pipe(v.string(), v.regex(/^[A-Za-z0-9_-]{1,20}$/));
+
+/** Whether a cycle of this kind may have this length and start at this place. */
+export function cycleFits(cycle: Pick<Cycle, "kind" | "length" | "firstDay">) {
+  const [min, max] =
+    cycle.kind === "weeks"
+      ? [1, MAX_CYCLE_WEEKS]
+      : [MIN_CYCLE_DAYS, MAX_CYCLE_DAYS];
+  return (
+    Number.isInteger(cycle.length) &&
+    cycle.length >= min &&
+    cycle.length <= max &&
+    Number.isInteger(cycle.firstDay) &&
+    cycle.firstDay >= 1 &&
+    cycle.firstDay <= cycle.length
+  );
+}
+
+/** A bell schedule's times for one period, named by the period's code. */
+export interface BellTimes {
+  code: string;
+  startTime: string;
+  endTime: string;
+}
+
+const bellTimesSchema = v.pipe(
+  v.object({ code: periodCode, startTime: clock, endTime: clock }),
+  v.forward(
+    v.check((value) => value.endTime > value.startTime, "validation.end_time"),
+    ["endTime"],
+  ),
+);
+
+/**
+ * A day of the year run on other times: the periods it holds, each at its
+ * time that day. A period it leaves out is not held on its days.
+ */
+export const saveBellScheduleSchema = v.pipe(
+  v.object({
+    yearId: id,
+    id: v.optional(id),
+    version: v.optional(version),
+    nameEn: periodName,
+    nameAr: periodName,
+    times: v.pipe(v.array(bellTimesSchema), v.minLength(1), v.maxLength(50)),
+  }),
+  v.forward(
+    v.check(
+      (value) => value.nameEn !== null || value.nameAr !== null,
+      "validation.name_required",
+    ),
+    ["nameAr"],
+  ),
+  v.forward(
+    v.check(
+      (value) =>
+        new Set(value.times.map((row) => row.code)).size ===
+          value.times.length &&
+        periodIssue(
+          value.times.map((row) => ({
+            ...row,
+            official: false,
+            weekdays: EVERY_DAY,
+            dayTimes: [],
+          })),
+        ) === null,
+      "validation.slot_overlap",
+    ),
+    ["times"],
+  ),
+);
+export type SaveBellSchedule = v.InferOutput<typeof saveBellScheduleSchema>;
+
+export const removeBellScheduleSchema = v.object({ id, version });
+
+/** Runs a range of the year's days on a bell schedule, or "" for their own times. */
+export const scheduleDaysSchema = v.pipe(
+  v.object({
+    yearId: id,
+    from: isoDate,
+    to: isoDate,
+    scheduleId: v.union([v.literal(""), id]),
+  }),
+  v.forward(
+    v.check((value) => value.to >= value.from, "validation.end_date"),
+    ["to"],
+  ),
+);
+export type ScheduleDays = v.InferOutput<typeof scheduleDaysSchema>;
+
+/** How a new timetable starts: with the lessons of the one before it, or with none. */
+export const TIMETABLE_STARTS = ["copy", "empty"] as const;
+export type TimetableStart = (typeof TIMETABLE_STARTS)[number];
+
+const cycleLength = v.pipe(
+  v.number(),
+  v.integer(),
+  v.minValue(1),
+  v.maxValue(MAX_CYCLE_DAYS),
+);
+
+/**
+ * A timetable of the year from a date on: its name, how its lessons repeat
+ * and where the repeat stands on its first day.
+ */
+export const saveTimetableSchema = v.pipe(
+  v.object({
+    yearId: id,
+    id: v.optional(id),
+    version: v.optional(version),
+    nameEn: periodName,
+    nameAr: periodName,
+    startsOn: isoDate,
+    kind: v.picklist(CYCLE_KINDS),
+    length: cycleLength,
+    firstDay: v.optional(cycleLength, 1),
+    closuresMove: v.optional(v.boolean(), false),
+    start: v.optional(v.picklist(TIMETABLE_STARTS), "copy"),
+  }),
+  v.forward(
+    v.check((value) => cycleFits(value), "validation.cycle"),
+    ["length"],
+  ),
+);
+export type SaveTimetable = v.InferOutput<typeof saveTimetableSchema>;
+
+export const removeTimetableSchema = v.object({ id, version });
+
+export const timetablesQuerySchema = v.object({ yearId: id });

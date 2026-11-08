@@ -1,15 +1,19 @@
 import * as v from "valibot";
 import { describe, expect, it } from "vitest";
 
+import type { DayTimes } from "./timetable";
+
 import {
   changeLessonSchema,
   DEFAULT_PERIODS,
   isoWeekday,
   periodChanged,
   periodIssue,
+  saveBellScheduleSchema,
   savePeriodsSchema,
   schoolDays,
   staffAbsenceSchema,
+  timesOnWeekday,
   weekDates,
 } from "./timetable";
 
@@ -105,6 +109,7 @@ const day = (
   endTime,
   official,
   weekdays,
+  dayTimes: [] as DayTimes[],
 });
 const save = (periods: ReturnType<typeof day>[]) =>
   v.safeParse(savePeriodsSchema, {
@@ -151,5 +156,80 @@ describe("a year's school day", () => {
     expect(periodChanged(base, { ...base, weekdays: [2, 1] })).toBe(false);
     expect(periodChanged(base, { ...base, endTime: "08:50" })).toBe(true);
     expect(periodChanged(base, { ...base, weekdays: [1] })).toBe(true);
+    const later = { weekdays: [2], startTime: "08:30", endTime: "09:15" };
+    expect(periodChanged(base, { ...base, dayTimes: [later] })).toBe(true);
+    expect(
+      periodChanged(
+        { ...base, dayTimes: [later] },
+        { ...base, dayTimes: [{ ...later }] },
+      ),
+    ).toBe(false);
+  });
+});
+
+describe("one period at other times on some days", () => {
+  const thursdays = { weekdays: [4], startTime: "09:00", endTime: "09:40" };
+  const first = { ...day("08:00", "08:45"), dayTimes: [thursdays] };
+
+  it("keeps its own times on other days and the day's times on those", () => {
+    expect(timesOnWeekday(first, 1)).toEqual({
+      startTime: "08:00",
+      endTime: "08:45",
+    });
+    expect(timesOnWeekday(first, 4)).toEqual({
+      startTime: "09:00",
+      endTime: "09:40",
+    });
+    expect(timesOnWeekday(first, 6)).toBeNull();
+  });
+
+  it("checks each day at that day's times", () => {
+    expect(save([first, day("08:50", "09:30")]).success).toBe(false);
+    expect(messages([first, day("08:50", "09:30", [1, 2, 3])])).toEqual([]);
+  });
+
+  it("names each day once, and only days the period runs on", () => {
+    expect(
+      messages([{ ...first, dayTimes: [thursdays, thursdays] }]),
+    ).toContain("validation.day_times");
+    expect(
+      messages([{ ...first, dayTimes: [{ ...thursdays, weekdays: [6] }] }]),
+    ).toContain("validation.day_times");
+  });
+});
+
+describe("a bell schedule", () => {
+  const yearId = "01a0e2ff-cf61-7440-862a-a2f67c1c0d11";
+  const parse = (
+    times: { code: string; startTime: string; endTime: string }[],
+  ) =>
+    v.safeParse(saveBellScheduleSchema, {
+      yearId,
+      nameEn: "Late start",
+      times,
+    });
+
+  it("gives the periods it holds times that do not overlap", () => {
+    expect(
+      parse([
+        { code: "1", startTime: "09:00", endTime: "09:40" },
+        { code: "2", startTime: "09:45", endTime: "10:25" },
+      ]).success,
+    ).toBe(true);
+    expect(
+      parse([
+        { code: "1", startTime: "09:00", endTime: "09:50" },
+        { code: "2", startTime: "09:45", endTime: "10:25" },
+      ]).success,
+    ).toBe(false);
+  });
+
+  it("names each period once", () => {
+    expect(
+      parse([
+        { code: "1", startTime: "09:00", endTime: "09:40" },
+        { code: "1", startTime: "10:00", endTime: "10:40" },
+      ]).success,
+    ).toBe(false);
   });
 });
