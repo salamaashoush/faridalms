@@ -4,6 +4,8 @@ import { describe, expect, it } from "vitest";
 import type { ContentDocument, ContentNode } from "./content";
 
 import {
+  ancestorsOf,
+  awaitsConfirming,
   caseOutline,
   casePackageSchema,
   masteryOf,
@@ -188,5 +190,61 @@ describe("a unit plan's coverage", () => {
       [uuid(1), 2],
       [uuid(3), 2],
     ]);
+  });
+});
+
+describe("the statements a goal sits under", () => {
+  const tree = [
+    { id: "area", parentId: null },
+    { id: "band", parentId: "area" },
+    { id: "goal", parentId: "band" },
+  ];
+  it("runs from the top of the framework down to the one holding it", () => {
+    expect(ancestorsOf(tree, "goal").map((row) => row.id)).toEqual([
+      "area",
+      "band",
+    ]);
+    expect(ancestorsOf(tree, "area")).toEqual([]);
+    expect(ancestorsOf(tree, "missing")).toEqual([]);
+  });
+
+  it("stops at a loop rather than running forever", () => {
+    const looped = [
+      { id: "a", parentId: "b" },
+      { id: "b", parentId: "a" },
+    ];
+    expect(ancestorsOf(looped, "a").map((row) => row.id)).toEqual(["a", "b"]);
+  });
+});
+
+describe("a right answer on a goal", () => {
+  const answered = "2026-10-05T09:00:00.000Z";
+  it("waits for the teacher while the goal is unjudged", () => {
+    expect(awaitsConfirming(answered, undefined)).toBe(true);
+  });
+
+  it("asks nothing once the goal is judged expected, or the child is exempt", () => {
+    const judgedAt = "2026-09-01T09:00:00.000Z";
+    expect(awaitsConfirming(answered, { level: "expected", judgedAt })).toBe(
+      false,
+    );
+    expect(awaitsConfirming(answered, { level: "exempt", judgedAt })).toBe(
+      false,
+    );
+  });
+
+  it("shows again only when it came after a judgement of emerging", () => {
+    expect(
+      awaitsConfirming(answered, {
+        level: "emerging",
+        judgedAt: "2026-09-01T09:00:00.000Z",
+      }),
+    ).toBe(true);
+    expect(
+      awaitsConfirming(answered, {
+        level: "emerging",
+        judgedAt: "2026-10-06T09:00:00.000Z",
+      }),
+    ).toBe(false);
   });
 });

@@ -6,7 +6,8 @@
  * than making a second.
  */
 
-interface GoalItem {
+/** An item of a ready-made framework, as a CASE import brings one. */
+export interface GoalItem {
   identifier: string;
   parentIdentifier: string | null;
   position: number;
@@ -189,4 +190,67 @@ export const EYFS_GOALS = {
   title: string;
   description: string;
   items: readonly GoalItem[];
+};
+
+/**
+ * Development Matters' identifier, kept apart from its three hundred
+ * statements so a page can tell the framework without loading them.
+ */
+export const DEVELOPMENT_MATTERS_IDENTIFIER =
+  "f5dc4454-7840-4b3f-a825-d733f930ff79";
+
+/**
+ * Where each goal sits in the EYFS profile return, by its identifier: the
+ * subject and component the Department for Education's assessment
+ * component file (A_comp 2026, FSP sheet) gives it.
+ */
+export const EYFS_RETURN_CODES: Readonly<
+  Record<string, { subject: string; component: string }>
+> = {
+  "f9563fd3-eaa5-4fcc-8fb7-56dce8736d0b": { subject: "COM", component: "E01" },
+  "ea93983e-a85f-4e05-9b3f-8ee6266e7767": { subject: "COM", component: "E02" },
+  "a8f76ab0-ee12-4a50-ad5d-f33736b0628a": { subject: "PSE", component: "E03" },
+  "188882a0-8167-46da-869a-918dc4e51c65": { subject: "PSE", component: "E04" },
+  "6efabcc6-9716-4dd2-8f8f-4d92d398ae99": { subject: "PSE", component: "E05" },
+  "69fafa55-187c-42c9-baa7-5a34a7fe1d27": { subject: "PHY", component: "E06" },
+  "d1d53364-e3b9-41b8-8d0e-9d05efccf40e": { subject: "PHY", component: "E07" },
+  "9510de3b-40a7-4a93-aaf7-0132dbff734d": { subject: "LIT", component: "E08" },
+  "f98d6069-87fc-4703-93ce-a6c314917afc": { subject: "LIT", component: "E09" },
+  "3dd56e29-f8f7-4434-915a-25734116e2ac": { subject: "LIT", component: "E10" },
+  "3c0622e2-e1d7-478e-8ed2-d40aabe6e069": { subject: "MAT", component: "E11" },
+  "94a3e786-54ee-4d1b-86de-2a3af72ecbe7": { subject: "MAT", component: "E12" },
+  "40114868-9be0-482c-9784-4f9a7533218c": { subject: "UTW", component: "E13" },
+  "b48ebbea-2765-45cf-b47e-4c4487edef68": { subject: "UTW", component: "E14" },
+  "f023c346-3490-48e1-a5d4-352dc1be466e": { subject: "UTW", component: "E15" },
+  "689da2b8-8bcd-4bfd-b749-7794c51bd70f": { subject: "EXP", component: "E16" },
+  "8628e26e-d4dd-487b-b826-844615575400": { subject: "EXP", component: "E17" },
+};
+
+/** The framework, its goals and their areas in Arabic, for families who read it. */
+export const EYFS_GOALS_ARABIC: Readonly<Record<string, string>> = {
+  "701c25d0-9f28-45fb-a533-1ded3c949259": "أهداف التعلّم المبكر في EYFS",
+  "acab5dd0-da31-47af-a862-29b6a53af111": "التواصل واللغة",
+  "f9563fd3-eaa5-4fcc-8fb7-56dce8736d0b": "الاستماع والانتباه والفهم",
+  "ea93983e-a85f-4e05-9b3f-8ee6266e7767": "التحدّث",
+  "d1daf047-828d-46fd-bfc0-5c1bb421f9e6": "النمو الشخصي والاجتماعي والعاطفي",
+  "a8f76ab0-ee12-4a50-ad5d-f33736b0628a": "التنظيم الذاتي",
+  "188882a0-8167-46da-869a-918dc4e51c65": "إدارة الذات",
+  "6efabcc6-9716-4dd2-8f8f-4d92d398ae99": "بناء العلاقات",
+  "1a9d5271-0019-445e-8fa9-e834d629be02": "النمو الجسدي",
+  "69fafa55-187c-42c9-baa7-5a34a7fe1d27": "المهارات الحركية الكبرى",
+  "d1d53364-e3b9-41b8-8d0e-9d05efccf40e": "المهارات الحركية الدقيقة",
+  "44726b0b-5307-44ea-9b27-46fba63d1497": "القراءة والكتابة",
+  "9510de3b-40a7-4a93-aaf7-0132dbff734d": "الفهم",
+  "f98d6069-87fc-4703-93ce-a6c314917afc": "قراءة الكلمات",
+  "3dd56e29-f8f7-4434-915a-25734116e2ac": "الكتابة",
+  "959cb326-1b53-414d-806b-ca340cd52edc": "الرياضيات",
+  "3c0622e2-e1d7-478e-8ed2-d40aabe6e069": "العدد",
+  "94a3e786-54ee-4d1b-86de-2a3af72ecbe7": "الأنماط العددية",
+  "326aa410-0508-46cc-a0e5-d3aef0fd4a5e": "فهم العالم",
+  "40114868-9be0-482c-9784-4f9a7533218c": "الماضي والحاضر",
+  "b48ebbea-2765-45cf-b47e-4c4487edef68": "الناس والثقافة والمجتمعات",
+  "f023c346-3490-48e1-a5d4-352dc1be466e": "العالم الطبيعي",
+  "801993e3-6e2e-46ba-a617-2d6f5858c7dd": "الفنون التعبيرية والتصميم",
+  "689da2b8-8bcd-4bfd-b749-7794c51bd70f": "الإبداع بالخامات",
+  "8628e26e-d4dd-487b-b826-844615575400": "الخيال والتعبير",
 };

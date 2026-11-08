@@ -95,8 +95,12 @@ export const sittingsSchema = v.object({
  * judgement, as the EYFS profile records it: at the level expected by the
  * year's end, or emerging, not yet there. It is the best fit of all the
  * teacher knows of the child, never worked out from tasks on a screen.
+ * Exempt is no judgement but the profile's "exemption applies": the child
+ * holds an individual exemption from the goal on religious or philosophical
+ * grounds, never for absence, illness or special needs, which are judged
+ * emerging.
  */
-export const GOAL_LEVELS = ["emerging", "expected"] as const;
+export const GOAL_LEVELS = ["emerging", "expected", "exempt"] as const;
 export type GoalLevel = (typeof GOAL_LEVELS)[number];
 
 export const MAX_JUDGEMENT_NOTE = 1000;
@@ -115,10 +119,55 @@ export const judgeGoalSchema = v.object({
   level: v.nullable(v.picklist(GOAL_LEVELS)),
   /** Without one, the note the judgement had stays. */
   note: v.optional(text(MAX_JUDGEMENT_NOTE)),
-  /** The answer it was judged from, when it was judged from one. */
-  from: v.optional(v.object({ lessonId: id, blockId: id })),
+  /** The answer it was judged from, in a lesson or a quiz, when it was judged from one. */
+  from: v.optional(
+    v.union([
+      v.object({ lessonId: id, blockId: id }),
+      v.object({ submissionId: id, blockId: id }),
+    ]),
+  ),
 });
 export type JudgeGoal = v.InferOutput<typeof judgeGoalSchema>;
+
+/**
+ * Whether a child's right answer on a goal still waits for their teacher.
+ * A right answer is evidence, never a judgement: it is shown until the
+ * teacher judges the goal expected, or judges it emerging after it. A goal
+ * the child is exempt from asks for none.
+ */
+export function awaitsConfirming(
+  answeredAt: string,
+  judgement: { level: GoalLevel; judgedAt: string } | undefined,
+): boolean {
+  if (!judgement) return true;
+  if (judgement.level !== "emerging") return false;
+  return new Date(answeredAt) > new Date(judgement.judgedAt);
+}
+
+export const shareGoalsReportSchema = v.object({
+  classId: id,
+  frameworkId: id,
+  /** False takes the report back from the class's families. */
+  shared: v.boolean(),
+});
+
+/** One child's goals reports, as their family reads them. */
+export const goalsReportSchema = v.object({ studentId: id });
+
+/** Where the end-of-year return is from, as the local authority knows the school. */
+export const goalsReturnSchema = v.object({
+  classId: id,
+  /** The local authority's three-digit number. */
+  la: v.pipe(v.string(), v.trim(), v.regex(/^\d{3}$/)),
+  /** The school's four-digit establishment number. */
+  estab: v.pipe(v.string(), v.trim(), v.regex(/^\d{4}$/)),
+  /** The school's six-digit unique reference number, where it has one. */
+  urn: v.optional(
+    v.union([v.literal(""), v.pipe(v.string(), v.trim(), v.regex(/^\d{6}$/))]),
+    "",
+  ),
+});
+export type GoalsReturnInput = v.InferOutput<typeof goalsReturnSchema>;
 
 /**
  * A framework's statements with nothing beneath them, each under the one
@@ -144,6 +193,26 @@ export function goalGroups<T extends { id: string; parentId: string | null }>(
   };
   visit(null);
   return groups;
+}
+
+/**
+ * The statements one sits under, from the top of its framework down to the
+ * one holding it: an area of learning and its age band, say.
+ */
+export function ancestorsOf<T extends { id: string; parentId: string | null }>(
+  standards: readonly T[],
+  standardId: string,
+): T[] {
+  const byId = new Map(standards.map((standard) => [standard.id, standard]));
+  const chain: T[] = [];
+  let above = byId.get(standardId)?.parentId ?? null;
+  while (above) {
+    const found = byId.get(above);
+    if (!found || chain.includes(found)) break;
+    chain.unshift(found);
+    above = found.parentId;
+  }
+  return chain;
 }
 
 /** A standard as a picker or a tag shows it. */
