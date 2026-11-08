@@ -139,12 +139,12 @@ test("words typed while saving fails are kept and saved once it works", async ({
   await expect(page).toHaveURL(/id=/);
   await expect(page.getByText("Saved", { exact: true })).toBeVisible();
 
+  // The save carrying these words fails until the network comes back; a
+  // production build names its server functions by hash, so the request is
+  // known by what it sends.
   let failing = true;
   await page.route("**/_serverFn/**", (route) =>
-    failing &&
-    Buffer.from(route.request().url().split("/_serverFn/")[1] ?? "", "base64")
-      .toString()
-      .includes("saveNews")
+    failing && route.request().postData()?.includes("Typed while it failed")
       ? route.abort("internetdisconnected")
       : route.continue(),
   );
