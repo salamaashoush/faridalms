@@ -1,3 +1,4 @@
+import type { FormAnswer } from "@faridalms/domain/questions";
 import type { SiteChrome, SiteTheme } from "@faridalms/domain/site-theme";
 
 import { sql } from "drizzle-orm";
@@ -5,7 +6,6 @@ import { sql } from "drizzle-orm";
 import type { CellTransaction } from "../context";
 import type {
   BannerTone,
-  EnquiryAnswer,
   EnquiryPurpose,
   SiteLocale,
   SiteState,
@@ -1129,7 +1129,7 @@ export interface NewEnquiry {
   childName: string;
   childYear: string;
   message: string;
-  answers: EnquiryAnswer[];
+  answers: FormAnswer[];
   networkKey: string;
 }
 

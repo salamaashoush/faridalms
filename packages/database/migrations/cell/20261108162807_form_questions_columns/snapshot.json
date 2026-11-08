@@ -1,0 +1,352 @@
+{
+  "type": "diff",
+  "version": "9",
+  "dialect": "postgres",
+  "id": "74317c6b-5133-4cd9-aa2e-ba0206d39989",
+  "prevIds": [
+    "c2444621-af7b-4055-8d58-d1574c9cc1ca"
+  ],
+  "footprints": [
+    {
+      "statementType": "drop_check",
+      "statementTarget": [
+        "table",
+        "core",
+        "admission_form_versions"
+      ],
+      "writes": [
+        "s|ck|core.admission_form_versions.admission_form_versions_questions_check",
+        "n|ck|core.admission_form_versions.admission_form_versions_questions_check",
+        "e|ck|core.admission_form_versions.admission_form_versions_questions_check",
+        "n|con|core.admission_form_versions.admission_form_versions_questions_check"
+      ],
+      "reads": [
+        "n|tbl|core.admission_form_versions",
+        "n|sch|core",
+        "e|col|core.admission_form_versions.questions"
+      ]
+    },
+    {
+      "statementType": "drop_check",
+      "statementTarget": [
+        "table",
+        "core",
+        "admission_forms"
+      ],
+      "writes": [
+        "s|ck|core.admission_forms.admission_forms_questions_check",
+        "n|ck|core.admission_forms.admission_forms_questions_check",
+        "e|ck|core.admission_forms.admission_forms_questions_check",
+        "n|con|core.admission_forms.admission_forms_questions_check"
+      ],
+      "reads": [
+        "n|tbl|core.admission_forms",
+        "n|sch|core",
+        "e|col|core.admission_forms.questions"
+      ]
+    },
+    {
+      "statementType": "drop_column",
+      "statementTarget": [
+        "column",
+        "core",
+        "admission_form_versions",
+        "questions"
+      ],
+      "writes": [
+        "s|col|core.admission_form_versions.questions",
+        "n|col|core.admission_form_versions.questions",
+        "e|col|core.admission_form_versions.questions"
+      ],
+      "reads": [
+        "n|tbl|core.admission_form_versions",
+        "n|sch|core"
+      ]
+    },
+    {
+      "statementType": "drop_column",
+      "statementTarget": [
+        "column",
+        "core",
+        "admission_forms",
+        "questions"
+      ],
+      "writes": [
+        "s|col|core.admission_forms.questions",
+        "n|col|core.admission_forms.questions",
+        "e|col|core.admission_forms.questions"
+      ],
+      "reads": [
+        "n|tbl|core.admission_forms",
+        "n|sch|core"
+      ]
+    },
+    {
+      "statementType": "alter_column",
+      "statementTarget": [
+        "column",
+        "core",
+        "admission_form_versions",
+        "primary_locale"
+      ],
+      "writes": [
+        "s|colprop|core.admission_form_versions.primary_locale.default"
+      ],
+      "reads": [
+        "n|tbl|core.admission_form_versions",
+        "n|sch|core",
+        "n|col|core.admission_form_versions.primary_locale"
+      ],
+      "sqlHash": "3e7bf9a327e340fa"
+    },
+    {
+      "statementType": "alter_column",
+      "statementTarget": [
+        "column",
+        "core",
+        "admission_form_versions",
+        "body"
+      ],
+      "writes": [
+        "s|colprop|core.admission_form_versions.body.notNull"
+      ],
+      "reads": [
+        "n|tbl|core.admission_form_versions",
+        "n|sch|core",
+        "n|col|core.admission_form_versions.body"
+      ],
+      "sqlHash": "4fbf497ad4e470c8"
+    },
+    {
+      "statementType": "alter_column",
+      "statementTarget": [
+        "column",
+        "core",
+        "admission_forms",
+        "body"
+      ],
+      "writes": [
+        "s|colprop|core.admission_forms.body.notNull"
+      ],
+      "reads": [
+        "n|tbl|core.admission_forms",
+        "n|sch|core",
+        "n|col|core.admission_forms.body"
+      ],
+      "sqlHash": "1485cc1f658023a9"
+    },
+    {
+      "statementType": "add_check",
+      "statementTarget": [
+        "table",
+        "core",
+        "admission_form_versions"
+      ],
+      "writes": [
+        "s|ck|core.admission_form_versions.admission_form_versions_primary_locale_check",
+        "n|ck|core.admission_form_versions.admission_form_versions_primary_locale_check",
+        "e|ck|core.admission_form_versions.admission_form_versions_primary_locale_check",
+        "n|con|core.admission_form_versions.admission_form_versions_primary_locale_check"
+      ],
+      "reads": [
+        "n|tbl|core.admission_form_versions",
+        "n|sch|core",
+        "n|col|core.admission_form_versions.primary_locale"
+      ]
+    },
+    {
+      "statementType": "add_check",
+      "statementTarget": [
+        "table",
+        "core",
+        "admission_form_versions"
+      ],
+      "writes": [
+        "s|ck|core.admission_form_versions.admission_form_versions_body_check",
+        "n|ck|core.admission_form_versions.admission_form_versions_body_check",
+        "e|ck|core.admission_form_versions.admission_form_versions_body_check",
+        "n|con|core.admission_form_versions.admission_form_versions_body_check"
+      ],
+      "reads": [
+        "n|tbl|core.admission_form_versions",
+        "n|sch|core",
+        "n|col|core.admission_form_versions.body"
+      ]
+    },
+    {
+      "statementType": "add_check",
+      "statementTarget": [
+        "table",
+        "core",
+        "admission_form_versions"
+      ],
+      "writes": [
+        "s|ck|core.admission_form_versions.admission_form_versions_translation_check",
+        "n|ck|core.admission_form_versions.admission_form_versions_translation_check",
+        "e|ck|core.admission_form_versions.admission_form_versions_translation_check",
+        "n|con|core.admission_form_versions.admission_form_versions_translation_check"
+      ],
+      "reads": [
+        "n|tbl|core.admission_form_versions",
+        "n|sch|core",
+        "n|col|core.admission_form_versions.translation"
+      ]
+    },
+    {
+      "statementType": "add_check",
+      "statementTarget": [
+        "table",
+        "core",
+        "admission_forms"
+      ],
+      "writes": [
+        "s|ck|core.admission_forms.admission_forms_primary_locale_check",
+        "n|ck|core.admission_forms.admission_forms_primary_locale_check",
+        "e|ck|core.admission_forms.admission_forms_primary_locale_check",
+        "n|con|core.admission_forms.admission_forms_primary_locale_check"
+      ],
+      "reads": [
+        "n|tbl|core.admission_forms",
+        "n|sch|core",
+        "n|col|core.admission_forms.primary_locale"
+      ]
+    },
+    {
+      "statementType": "add_check",
+      "statementTarget": [
+        "table",
+        "core",
+        "admission_forms"
+      ],
+      "writes": [
+        "s|ck|core.admission_forms.admission_forms_body_check",
+        "n|ck|core.admission_forms.admission_forms_body_check",
+        "e|ck|core.admission_forms.admission_forms_body_check",
+        "n|con|core.admission_forms.admission_forms_body_check"
+      ],
+      "reads": [
+        "n|tbl|core.admission_forms",
+        "n|sch|core",
+        "n|col|core.admission_forms.body"
+      ]
+    },
+    {
+      "statementType": "add_check",
+      "statementTarget": [
+        "table",
+        "core",
+        "admission_forms"
+      ],
+      "writes": [
+        "s|ck|core.admission_forms.admission_forms_translation_check",
+        "n|ck|core.admission_forms.admission_forms_translation_check",
+        "e|ck|core.admission_forms.admission_forms_translation_check",
+        "n|con|core.admission_forms.admission_forms_translation_check"
+      ],
+      "reads": [
+        "n|tbl|core.admission_forms",
+        "n|sch|core",
+        "n|col|core.admission_forms.translation"
+      ]
+    }
+  ],
+  "deltas": [
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "admission_form_versions",
+        "name": "admission_form_versions_primary_locale_check",
+        "value": "primary_locale in ('en', 'ar')",
+        "entityType": "checks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "admission_form_versions",
+        "name": "admission_form_versions_body_check",
+        "value": "jsonb_typeof(body) = 'object' and octet_length(body::text) <= 262144",
+        "entityType": "checks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "admission_form_versions",
+        "name": "admission_form_versions_translation_check",
+        "value": "translation is null or (jsonb_typeof(translation) = 'object' and octet_length(translation::text) <= 262144)",
+        "entityType": "checks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "admission_forms",
+        "name": "admission_forms_primary_locale_check",
+        "value": "primary_locale in ('en', 'ar')",
+        "entityType": "checks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "admission_forms",
+        "name": "admission_forms_body_check",
+        "value": "jsonb_typeof(body) = 'object' and octet_length(body::text) <= 262144",
+        "entityType": "checks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "admission_forms",
+        "name": "admission_forms_translation_check",
+        "value": "translation is null or (jsonb_typeof(translation) = 'object' and octet_length(translation::text) <= 262144)",
+        "entityType": "checks"
+      }
+    },
+    {
+      "op": "drop",
+      "key": "columns\u0000[\"core\",\"admission_form_versions\",\"questions\"]"
+    },
+    {
+      "op": "drop",
+      "key": "columns\u0000[\"core\",\"admission_forms\",\"questions\"]"
+    },
+    {
+      "op": "drop",
+      "key": "checks\u0000[\"core\",\"admission_form_versions\",\"admission_form_versions_questions_check\"]"
+    },
+    {
+      "op": "drop",
+      "key": "checks\u0000[\"core\",\"admission_forms\",\"admission_forms_questions_check\"]"
+    },
+    {
+      "op": "alter",
+      "key": "columns\u0000[\"core\",\"admission_form_versions\",\"primary_locale\"]",
+      "set": {
+        "default": null
+      }
+    },
+    {
+      "op": "alter",
+      "key": "columns\u0000[\"core\",\"admission_form_versions\",\"body\"]",
+      "set": {
+        "notNull": true
+      }
+    },
+    {
+      "op": "alter",
+      "key": "columns\u0000[\"core\",\"admission_forms\",\"body\"]",
+      "set": {
+        "notNull": true
+      }
+    }
+  ]
+}

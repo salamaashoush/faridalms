@@ -1,11 +1,11 @@
 import type {
   CloseReason,
-  EnquiryAnswer,
   EnquiryListQuery,
   EnquiryPurpose,
   EnquirySource,
   EnquiryState,
 } from "@faridalms/domain/enquiries";
+import type { FormAnswer } from "@faridalms/domain/questions";
 
 import { contentPlainText } from "@faridalms/domain/content";
 import { plainContent } from "@faridalms/domain/content-conversion";
@@ -171,7 +171,7 @@ export interface EnquiryRecord extends EnquiryListRow {
   locale: "en" | "ar";
   phoneNormalized: string | null;
   message: string;
-  answers: EnquiryAnswer[];
+  answers: FormAnswer[];
   pageTitleEn: string | null;
   pageTitleAr: string | null;
   createdBy: PersonName | null;
@@ -199,7 +199,7 @@ export async function enquiryById(
     child_name: string;
     child_year: string;
     message: string;
-    answers: EnquiryAnswer[];
+    answers: FormAnswer[];
     page_title_en: string | null;
     page_title_ar: string | null;
     assignee_id: string | null;
@@ -448,7 +448,7 @@ export async function openEnquiryConversation(
     child_name: string;
     child_year: string;
     message: string;
-    answers: EnquiryAnswer[];
+    answers: FormAnswer[];
     assignee_user_id: string | null;
     created_by_user_id: string | null;
     country_code: string | null;

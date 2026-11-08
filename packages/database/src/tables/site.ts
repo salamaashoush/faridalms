@@ -1,10 +1,10 @@
 import type {
   CloseReason,
-  EnquiryAnswer,
   EnquiryPurpose,
   EnquirySource,
   EnquiryState,
 } from "@faridalms/domain/enquiries";
+import type { FormAnswer } from "@faridalms/domain/questions";
 import type { SiteChrome, SiteTheme } from "@faridalms/domain/site-theme";
 import type { SocialLink } from "@faridalms/domain/website";
 import type { SQL } from "drizzle-orm";
@@ -402,7 +402,6 @@ export const sitePublishedPosts = core.table.withRLS(
 
 export type {
   CloseReason,
-  EnquiryAnswer,
   EnquiryPurpose,
   EnquirySource,
   EnquiryState,
@@ -436,7 +435,7 @@ export const siteEnquiries = core.table.withRLS(
     childYear: text("child_year").notNull().default(""),
     message: text("message").notNull().default(""),
     answers: jsonb("answers")
-      .$type<EnquiryAnswer[]>()
+      .$type<FormAnswer[]>()
       .notNull()
       .default(sql`'[]'`),
     networkKey: text("network_key").notNull().default(""),
@@ -503,7 +502,7 @@ export const siteEnquiries = core.table.withRLS(
     ck(
       "site_enquiries",
       "answers",
-      sql`jsonb_typeof(answers) = 'array' and octet_length(answers::text) <= 32768`,
+      sql`jsonb_typeof(answers) = 'array' and octet_length(answers::text) <= 131072`,
     ),
     ck("site_enquiries", "network_key", sql`char_length(network_key) <= 128`),
     ck(

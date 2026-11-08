@@ -1,5 +1,5 @@
 import type {
-  AdmissionQuestion,
+  AdmissionQuestions,
   ApplicationEntryKind,
   ApplicationForm,
   ApplicationListQuery,
@@ -14,7 +14,9 @@ import type {
   IntakeLetters,
   PriorityRule,
 } from "@faridalms/domain/admissions";
-import type { EnquiryAnswer } from "@faridalms/domain/enquiries";
+import type { ContentDocument } from "@faridalms/domain/content";
+import type { FormAnswer } from "@faridalms/domain/questions";
+import type { ContentLocale } from "@faridalms/domain/translations";
 
 import { LIVE_STATES } from "@faridalms/domain/admissions";
 import { sql } from "drizzle-orm";
@@ -29,12 +31,11 @@ interface Org {
   orgId: string;
 }
 
-export interface FormRow {
+export interface FormRow extends AdmissionQuestions {
   id: string;
   version: number;
   nameEn: string;
   nameAr: string;
-  questions: AdmissionQuestion[];
   /** The latest published version, or null while the form was never published. */
   published: { id: string; number: number; at: string } | null;
   /** Whether the questions differ from the published version. */
@@ -52,23 +53,28 @@ export async function formsOf(
     version: number;
     name_en: string;
     name_ar: string;
-    questions: AdmissionQuestion[];
+    primary_locale: ContentLocale;
+    body: ContentDocument;
+    translation: ContentDocument | null;
     published_id: string | null;
     published_number: number | null;
     published_at: string | null;
     changed: boolean;
     intakes: number;
   }>(sql`
-    select f.id, f.version, f.name_en, f.name_ar, f.questions,
+    select f.id, f.version, f.name_en, f.name_ar, f.primary_locale, f.body, f.translation,
       p.id as published_id, p.number as published_number,
       case when p.id is null then null else ${isoOf(sql`p.created_at`)} end as published_at,
-      (p.id is null or p.questions <> f.questions or p.name_en <> f.name_en or p.name_ar <> f.name_ar)
+      (p.id is null or p.primary_locale <> f.primary_locale or p.body <> f.body
+        or p.translation is distinct from f.translation
+        or p.name_en <> f.name_en or p.name_ar <> f.name_ar)
         as changed,
       (select count(*)::int from core.admission_intakes i
         where i.tenant_id = f.tenant_id and i.form_id = f.id and i.status = 'active') as intakes
     from core.admission_forms f
     left join lateral (
-      select v.id, v.number, v.created_at, v.questions, v.name_en, v.name_ar
+      select v.id, v.number, v.created_at, v.primary_locale, v.body, v.translation,
+        v.name_en, v.name_ar
       from core.admission_form_versions v
       where v.tenant_id = f.tenant_id and v.form_id = f.id
       order by v.number desc limit 1
@@ -81,7 +87,9 @@ export async function formsOf(
     version: row.version,
     nameEn: row.name_en,
     nameAr: row.name_ar,
-    questions: row.questions,
+    primaryLocale: row.primary_locale,
+    body: row.body,
+    translation: row.translation,
     published:
       row.published_id && row.published_number !== null && row.published_at
         ? {
@@ -97,16 +105,18 @@ export async function formsOf(
 
 export async function insertForm(
   tx: Tx,
-  input: Org & {
-    nameEn: string;
-    nameAr: string;
-    questions: AdmissionQuestion[];
-  },
+  input: Org &
+    AdmissionQuestions & {
+      nameEn: string;
+      nameAr: string;
+    },
 ): Promise<{ id: string; version: number }> {
   const [row] = await tx.execute<{ id: string; version: number }>(sql`
-    insert into core.admission_forms (tenant_id, org_id, name_en, name_ar, questions)
+    insert into core.admission_forms (tenant_id, org_id, name_en, name_ar, primary_locale,
+      body, translation)
     values (${input.tenantId}::uuid, ${input.orgId}::uuid, ${input.nameEn}, ${input.nameAr},
-      ${JSON.stringify(input.questions)}::text::jsonb)
+      ${input.primaryLocale}, ${JSON.stringify(input.body)}::text::jsonb,
+      ${input.translation ? JSON.stringify(input.translation) : null}::text::jsonb)
     returning id, version`);
   if (!row) throw new Error("The form was not created");
   return row;
@@ -115,18 +125,20 @@ export async function insertForm(
 /** Null when another edit won. */
 export async function updateForm(
   tx: Tx,
-  input: Org & {
-    id: string;
-    expectedVersion: number;
-    nameEn: string;
-    nameAr: string;
-    questions: AdmissionQuestion[];
-  },
+  input: Org &
+    AdmissionQuestions & {
+      id: string;
+      expectedVersion: number;
+      nameEn: string;
+      nameAr: string;
+    },
 ): Promise<number | null> {
   const [row] = await tx.execute<{ version: number }>(sql`
     update core.admission_forms
     set name_en = ${input.nameEn}, name_ar = ${input.nameAr},
-      questions = ${JSON.stringify(input.questions)}::text::jsonb
+      primary_locale = ${input.primaryLocale},
+      body = ${JSON.stringify(input.body)}::text::jsonb,
+      translation = ${input.translation ? JSON.stringify(input.translation) : null}::text::jsonb
     where tenant_id = ${input.tenantId}::uuid and org_id = ${input.orgId}::uuid
       and id = ${input.id}::uuid and version = ${input.expectedVersion} and status = 'active'
     returning version`);
@@ -143,29 +155,30 @@ export async function publishForm(
 ): Promise<{ id: string; number: number } | null> {
   const [row] = await tx.execute<{ id: string; number: number }>(sql`
     with form as (
-      select f.id, f.name_en, f.name_ar, f.questions from core.admission_forms f
+      select f.id, f.name_en, f.name_ar, f.primary_locale, f.body, f.translation
+      from core.admission_forms f
       where f.tenant_id = ${input.tenantId}::uuid and f.org_id = ${input.orgId}::uuid
         and f.id = ${input.id}::uuid and f.version = ${input.expectedVersion} and f.status = 'active'
       for update
     )
     insert into core.admission_form_versions (tenant_id, org_id, form_id, number, name_en, name_ar,
-      questions, published_by_user_id)
+      primary_locale, body, translation, published_by_user_id)
     select ${input.tenantId}::uuid, ${input.orgId}::uuid, form.id,
       coalesce((select max(v.number) from core.admission_form_versions v
         where v.tenant_id = ${input.tenantId}::uuid and v.form_id = form.id), 0) + 1,
-      form.name_en, form.name_ar, form.questions, ${input.userId}::uuid
+      form.name_en, form.name_ar, form.primary_locale, form.body, form.translation,
+      ${input.userId}::uuid
     from form
     returning id, number`);
   return row ?? null;
 }
 
-export interface FormVersion {
+export interface FormVersion extends AdmissionQuestions {
   id: string;
   formId: string;
   number: number;
   nameEn: string;
   nameAr: string;
-  questions: AdmissionQuestion[];
 }
 
 export async function formVersionById(
@@ -178,9 +191,12 @@ export async function formVersionById(
     number: number;
     name_en: string;
     name_ar: string;
-    questions: AdmissionQuestion[];
+    primary_locale: ContentLocale;
+    body: ContentDocument;
+    translation: ContentDocument | null;
   }>(sql`
-    select id, form_id, number, name_en, name_ar, questions from core.admission_form_versions
+    select id, form_id, number, name_en, name_ar, primary_locale, body, translation
+    from core.admission_form_versions
     where tenant_id = ${input.tenantId}::uuid and id = ${input.id}::uuid`);
   return row
     ? {
@@ -189,7 +205,9 @@ export async function formVersionById(
         number: row.number,
         nameEn: row.name_en,
         nameAr: row.name_ar,
-        questions: row.questions,
+        primaryLocale: row.primary_locale,
+        body: row.body,
+        translation: row.translation,
       }
     : null;
 }
@@ -420,7 +438,7 @@ export interface ApplicationRow {
   reference: string | null;
   locale: "en" | "ar";
   form: ApplicationForm;
-  answers: EnquiryAnswer[];
+  answers: FormAnswer[];
   additionalNeeds: boolean;
   priorities: PriorityRule[];
   matches: Partial<ApplicationMatches> & { documentHolders?: string[] };
@@ -476,7 +494,7 @@ type ApplicationRecord = {
   reference: string | null;
   locale: "en" | "ar";
   form: ApplicationForm;
-  answers: EnquiryAnswer[];
+  answers: FormAnswer[];
   additional_needs: boolean;
   priorities: PriorityRule[];
   matches: ApplicationRow["matches"];
@@ -665,7 +683,7 @@ export async function markSubmitted(
     expectedVersion: number;
     reference: string;
     locale: "en" | "ar";
-    answers: EnquiryAnswer[];
+    answers: FormAnswer[];
     matches: ApplicationMatches;
     priorities: PriorityRule[];
     additionalNeeds: boolean;

@@ -1,4 +1,5 @@
 import { emptyApplicationForm } from "@faridalms/domain/admissions";
+import { formDocument } from "@faridalms/domain/questions";
 import { and, eq, sql } from "drizzle-orm";
 
 import type { CellTransaction } from "../src/context";
@@ -1302,7 +1303,9 @@ export async function completeFixture(
     orgId: schoolId,
     nameEn: "Fixture form",
     nameAr: "",
-    questions: [],
+    primaryLocale: "en",
+    body: formDocument([]),
+    translation: null,
   });
   const admissionVersion = await publishAdmissionForm(tx, {
     tenantId,

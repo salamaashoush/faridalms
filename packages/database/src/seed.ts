@@ -1,4 +1,5 @@
 import type { LessonBlock, LessonCompletion } from "@faridalms/domain/learning";
+import type { FormQuestion } from "@faridalms/domain/questions";
 
 import { contentFileIds, contentPlainText } from "@faridalms/domain/content";
 import {
@@ -8,6 +9,11 @@ import {
 import { CATALOGUE } from "@faridalms/domain/descriptors/catalogue";
 import { normaliseIdentifier } from "@faridalms/domain/identifiers";
 import { contentOfLesson } from "@faridalms/domain/lesson-content";
+import {
+  formDocument,
+  formQuestions,
+  readFormAnswers,
+} from "@faridalms/domain/questions";
 import { addDays, teachingWeeks } from "@faridalms/domain/school";
 import {
   buildTemplate,
@@ -2879,6 +2885,60 @@ const seedChecklist = (labels: [string, string, string][]) =>
     required: kind === "document",
   }));
 
+const HEARD = "0192f0a4-7a1c-7b5a-9a2e-5e6f1f2a3d01";
+const MORE = "0192f0a4-7a1c-7b5a-9a2e-5e6f1f2a3d02";
+const OPEN_DAY = "0192f0a4-7a1c-7b5a-9a2e-5e6f1f2a3d14";
+
+/** The seeded application form's two questions, in either language, with the same ids. */
+function applicationQuestions(locale: "en" | "ar"): FormQuestion[] {
+  const words = (en: string, ar: string) => (locale === "ar" ? ar : en);
+  const asked = { points: 0, explanation: "", tries: null };
+  return [
+    {
+      ...asked,
+      id: HEARD,
+      type: "choice",
+      required: true,
+      prompt: words(
+        "How did you hear about the school?",
+        "كيف عرفتم بالمدرسة؟",
+      ),
+      hints: [],
+      options: (
+        [
+          ["A friend or family", "صديق أو قريب"],
+          ["Our website", "موقعنا"],
+          ["Social media", "وسائل التواصل"],
+          ["An open day", "يوم مفتوح"],
+        ] as const
+      ).map(([en, ar], place) => ({
+        id: `0192f0a4-7a1c-7b5a-9a2e-5e6f1f2a3d1${place + 1}`,
+        text: words(en, ar),
+        feedback: "",
+      })),
+      correctOptionIds: [],
+      multiple: false,
+      shuffle: false,
+    },
+    {
+      ...asked,
+      id: MORE,
+      type: "written",
+      prompt: words(
+        "Anything else we should know about your child?",
+        "هل هناك ما ينبغي أن نعرفه عن طفلكم؟",
+      ),
+      hints: [
+        words(
+          "Interests, languages spoken at home, what they are looking forward to.",
+          "الاهتمامات، واللغات التي يتحدثها في البيت، وما يتطلع إليه.",
+        ),
+      ],
+      wordLimit: null,
+    },
+  ];
+}
+
 /**
  * Admissions for next year: the year itself, a published application form
  * with two questions of the school's own, intakes into KG1 and Grade 1 open
@@ -2914,31 +2974,9 @@ async function seedAdmissions(
     ...org,
     nameEn: "Application form",
     nameAr: "استمارة الالتحاق",
-    questions: [
-      {
-        id: "0192f0a4-7a1c-7b5a-9a2e-5e6f1f2a3d01",
-        answer: "choice",
-        required: "required",
-        labelEn: "How did you hear about the school?",
-        labelAr: "كيف عرفتم بالمدرسة؟",
-        hintEn: "",
-        hintAr: "",
-        optionsEn: "A friend or family\nOur website\nSocial media\nAn open day",
-        optionsAr: "صديق أو قريب\nموقعنا\nوسائل التواصل\nيوم مفتوح",
-      },
-      {
-        id: "0192f0a4-7a1c-7b5a-9a2e-5e6f1f2a3d02",
-        answer: "long",
-        required: "optional",
-        labelEn: "Anything else we should know about your child?",
-        labelAr: "هل هناك ما ينبغي أن نعرفه عن طفلكم؟",
-        hintEn:
-          "Interests, languages spoken at home, what they are looking forward to.",
-        hintAr: "الاهتمامات، واللغات التي يتحدثها في البيت، وما يتطلع إليه.",
-        optionsEn: "",
-        optionsAr: "",
-      },
-    ],
+    primaryLocale: "en",
+    body: formDocument(applicationQuestions("en")),
+    translation: formDocument(applicationQuestions("ar")),
   });
   const published = await publishAdmissionForm(tx, {
     ...org,
@@ -3069,7 +3107,7 @@ async function seedAdmissions(
           leaving: "Starting school",
         },
       ],
-      questions: {},
+      answers: {},
     },
     checklist: seedChecklist([
       ...papers,
@@ -3077,27 +3115,24 @@ async function seedAdmissions(
       ["interview", "Meeting with the family", "لقاء مع الأسرة"],
     ]),
   });
+  const answered = readFormAnswers(
+    formQuestions(formDocument(applicationQuestions("en"))),
+    {
+      [HEARD]: { type: "choice", optionIds: [OPEN_DAY] },
+      [MORE]: {
+        type: "written",
+        text: "Omar loves building things and speaks Arabic and English at home.",
+      },
+    },
+  );
+  if (!answered.ok) throw new Error("Seed answers do not fit the form");
   await markApplicationSubmitted(tx, {
     ...org,
     id: application.id,
     expectedVersion: application.version,
     reference: "2027-0001",
     locale: "en",
-    answers: [
-      {
-        id: "0192f0a4-7a1c-7b5a-9a2e-5e6f1f2a3d01",
-        label: "How did you hear about the school?",
-        kind: "choice",
-        value: "An open day",
-      },
-      {
-        id: "0192f0a4-7a1c-7b5a-9a2e-5e6f1f2a3d02",
-        label: "Anything else we should know about your child?",
-        kind: "long",
-        value:
-          "Omar loves building things and speaks Arabic and English at home.",
-      },
-    ],
+    answers: answered.answers,
     matches: { students: [], guardians: [], siblings: [], staffParent: false },
     priorities: [],
     additionalNeeds: false,
@@ -3187,7 +3222,7 @@ async function seedAdmissions(
         phone: "",
         other: null,
         schools: [],
-        questions: {},
+        answers: {},
       },
       checklist: seedChecklist([
         ...papers,

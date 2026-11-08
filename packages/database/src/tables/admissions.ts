@@ -1,5 +1,4 @@
 import type {
-  AdmissionQuestion,
   ApplicationEntryKind,
   ApplicationForm,
   ApplicationMatches,
@@ -16,7 +15,9 @@ import type {
   IntakeLetters,
   PriorityRule,
 } from "@faridalms/domain/admissions";
-import type { EnquiryAnswer } from "@faridalms/domain/enquiries";
+import type { ContentDocument } from "@faridalms/domain/content";
+import type { FormAnswer } from "@faridalms/domain/questions";
+import type { ContentLocale } from "@faridalms/domain/translations";
 import type { PgTableExtraConfigValue } from "drizzle-orm/pg-core";
 
 import { sql } from "drizzle-orm";
@@ -59,7 +60,8 @@ import { orgs, tenants } from "./tenancy";
 /**
  * An application form a school asks families to fill in beside the fixed
  * blocks: its name and the school's questions as the office is editing
- * them. Families only ever see a published version.
+ * them, a document of question blocks in its first language with its
+ * translation beside it. Families only ever see a published version.
  */
 export const admissionForms = core.table.withRLS(
   "admission_forms",
@@ -68,10 +70,12 @@ export const admissionForms = core.table.withRLS(
     orgId: uuid("org_id").notNull(),
     nameEn: text("name_en").notNull().default(""),
     nameAr: text("name_ar").notNull().default(""),
-    questions: jsonb("questions")
-      .$type<AdmissionQuestion[]>()
+    primaryLocale: text("primary_locale")
+      .$type<ContentLocale>()
       .notNull()
-      .default(sql`'[]'`),
+      .default("en"),
+    body: jsonb("body").$type<ContentDocument>().notNull(),
+    translation: jsonb("translation").$type<ContentDocument>(),
     ...entityColumns(),
   },
   (t): PgTableExtraConfigValue[] => [
@@ -85,8 +89,18 @@ export const admissionForms = core.table.withRLS(
     ),
     ck(
       "admission_forms",
-      "questions",
-      sql`jsonb_typeof(questions) = 'array' and octet_length(questions::text) <= 131072`,
+      "primary_locale",
+      sql`primary_locale in ('en', 'ar')`,
+    ),
+    ck(
+      "admission_forms",
+      "body",
+      sql`jsonb_typeof(body) = 'object' and octet_length(body::text) <= 262144`,
+    ),
+    ck(
+      "admission_forms",
+      "translation",
+      sql`translation is null or (jsonb_typeof(translation) = 'object' and octet_length(translation::text) <= 262144)`,
     ),
     index("admission_forms_org_idx")
       .on(t.tenantId, t.orgId)
@@ -108,7 +122,9 @@ export const admissionFormVersions = core.table.withRLS(
     number: smallint("number").notNull(),
     nameEn: text("name_en").notNull(),
     nameAr: text("name_ar").notNull(),
-    questions: jsonb("questions").$type<AdmissionQuestion[]>().notNull(),
+    primaryLocale: text("primary_locale").$type<ContentLocale>().notNull(),
+    body: jsonb("body").$type<ContentDocument>().notNull(),
+    translation: jsonb("translation").$type<ContentDocument>(),
     publishedByUserId: uuid("published_by_user_id"),
     createdAt: instant("created_at")
       .notNull()
@@ -136,8 +152,18 @@ export const admissionFormVersions = core.table.withRLS(
     ck("admission_form_versions", "number", sql`number > 0`),
     ck(
       "admission_form_versions",
-      "questions",
-      sql`jsonb_typeof(questions) = 'array' and octet_length(questions::text) <= 131072`,
+      "primary_locale",
+      sql`primary_locale in ('en', 'ar')`,
+    ),
+    ck(
+      "admission_form_versions",
+      "body",
+      sql`jsonb_typeof(body) = 'object' and octet_length(body::text) <= 262144`,
+    ),
+    ck(
+      "admission_form_versions",
+      "translation",
+      sql`translation is null or (jsonb_typeof(translation) = 'object' and octet_length(translation::text) <= 262144)`,
     ),
     ...ledgerProfile(),
   ],
@@ -296,7 +322,7 @@ export const admissionApplications = core.table.withRLS(
     locale: text("locale").$type<"en" | "ar">().notNull(),
     form: jsonb("form").$type<ApplicationForm>().notNull(),
     answers: jsonb("answers")
-      .$type<EnquiryAnswer[]>()
+      .$type<FormAnswer[]>()
       .notNull()
       .default(sql`'[]'`),
     additionalNeeds: boolean("additional_needs").notNull().default(false),
@@ -404,12 +430,12 @@ export const admissionApplications = core.table.withRLS(
     ck(
       "admission_applications",
       "form",
-      sql`jsonb_typeof(form) = 'object' and octet_length(form::text) <= 65536`,
+      sql`jsonb_typeof(form) = 'object' and octet_length(form::text) <= 131072`,
     ),
     ck(
       "admission_applications",
       "answers",
-      sql`jsonb_typeof(answers) = 'array' and octet_length(answers::text) <= 98304`,
+      sql`jsonb_typeof(answers) = 'array' and octet_length(answers::text) <= 262144`,
     ),
     ck(
       "admission_applications",
