@@ -278,7 +278,7 @@ async function putOnWebsite(
 ) {
   const languages = await siteLanguages(context);
   const primary = primaryOf(row);
-  const media = await publishMedia(
+  const { media, pictures } = await publishMedia(
     context,
     { tenantId: context.tenantId, hostType: "news", hostId: row.id },
     [
@@ -315,6 +315,7 @@ async function putOnWebsite(
       content: {
         body: own ?? body,
         locale: own ? locale : primary,
+        pictures,
       },
       media,
       visibleFrom: publishedAt,

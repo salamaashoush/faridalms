@@ -55,6 +55,7 @@ import {
 import { readAnswers } from "@faridalms/domain/enquiries";
 import { clientAddress } from "@faridalms/domain/forwarded";
 import { paged, pageWindow } from "@faridalms/domain/paging";
+import { publishedPictures } from "@faridalms/domain/previews";
 import { phaseOf } from "@faridalms/domain/publication";
 import {
   redirectPath,
@@ -579,7 +580,7 @@ async function publishOne(
   if (issues.en.length + issues.ar.length > 0)
     throw new ORPCError("CONFLICT", { message: "site.issues" });
   const translation = settings.bilingual ? written : null;
-  const media = await publishMedia(
+  const { media, pictures } = await publishMedia(
     context,
     { tenantId: context.tenantId, hostType: "site_page", hostId: row.id },
     [
@@ -633,6 +634,7 @@ async function publishOne(
           ? own.socialPicture
           : content.socialPicture,
         canonical: own?.canonical ?? "",
+        pictures,
       },
       media,
       visibleFrom: publishedAt,
@@ -1145,6 +1147,7 @@ export const publicSitePage = publicProcedure
           ? { key: pictureKey, alt: picture?.alt ?? "" }
           : null,
         media: row.media,
+        pictures: publishedPictures(row.content.pictures),
         news,
         events,
         intakes,
@@ -1310,6 +1313,7 @@ export const publicSitePost = publicProcedure
         locale,
         body: content.body as ContentDocument,
         bodyLocale: (content.locale ?? locale) as SiteLocale,
+        pictures: publishedPictures(content.pictures),
       };
     }),
   );

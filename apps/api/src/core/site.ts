@@ -1,5 +1,11 @@
 import type { CellTransaction } from "@faridalms/database/context";
+import type { PublishedPicture } from "@faridalms/domain/previews";
 
+import {
+  focusOfFiles,
+  previewFolder,
+  previewsOf,
+} from "@faridalms/database/stores/previews";
 import {
   endPublications,
   publicationsOf,
@@ -80,17 +86,29 @@ interface Host {
   hostId: string;
 }
 
+/** A page's or post's public files: each one's key, and what its pictures add. */
+export interface PublishedMedia {
+  media: Record<string, string>;
+  pictures: Record<string, PublishedPicture>;
+}
+
+/** A made size's name as a publication's derivative: `w640.avif` is `w640_avif`. */
+const derivativeOf = (name: string) => name.replace(/[^a-z0-9]/g, "_");
+
 /**
  * Makes exactly these files public for a page or post: new ones are copied to
  * the public-media bucket under a fresh key and recorded, ones it no longer
- * shows are withdrawn and their objects deleted. Anyone pictured must have
- * agreed to appear on the website. Answers each file's public key.
+ * shows are withdrawn and their objects deleted. A picture's sizes go into
+ * the same public folder, each recorded as a derivative, so a size made
+ * since the last publication goes up with the next. Anyone pictured must
+ * have agreed to appear on the website. Answers each file's public key and
+ * what the page needs to show its pictures at the size it draws them.
  */
 export async function publishMedia(
   context: UnitContext,
   host: Host,
   fileIds: readonly string[],
-): Promise<Record<string, string>> {
+): Promise<PublishedMedia> {
   const { tx } = context;
   const unconsented = await subjectsWithoutConsent(tx, {
     tenantId: host.tenantId,
@@ -106,32 +124,93 @@ export async function publishMedia(
   });
   if (files.length !== new Set(fileIds).size)
     throw new ORPCError("CONFLICT", { message: "site.file" });
+  const shown = await publicationsOf(tx, host);
   const current = new Map(
-    (await publicationsOf(tx, host)).map((row) => [row.fileId, row.publicKey]),
+    shown
+      .filter((row) => row.derivative === null)
+      .map((row) => [row.fileId, row.publicKey]),
   );
+  const derived = new Set(
+    shown.map((row) => `${row.fileId}:${row.derivative ?? ""}`),
+  );
+  const [previews, focus] = await Promise.all([
+    previewsOf(
+      tx,
+      host.tenantId,
+      files.map((file) => file.storageKey),
+    ),
+    focusOfFiles(
+      tx,
+      host.tenantId,
+      files.map((file) => file.id),
+    ),
+  ]);
   const media: Record<string, string> = {};
+  const pictures: Record<string, PublishedPicture> = {};
   for (const file of files) {
-    const existing = current.get(file.id);
-    if (existing) {
-      media[file.id] = existing;
-      continue;
+    let publicKey = current.get(file.id);
+    if (!publicKey) {
+      const body = await context.files.open(file.storageKey);
+      if (!body) throw new ORPCError("CONFLICT", { message: "site.file" });
+      publicKey = publicKeyFor(file.name);
+      await context.publicMedia.write(publicKey, body, context.maxUploadBytes);
+      await recordPublication(tx, {
+        tenantId: host.tenantId,
+        fileId: file.id,
+        purpose: file.purpose,
+        publicKey,
+        hostType: host.hostType,
+        hostId: host.hostId,
+      });
     }
-    const body = await context.files.open(file.storageKey);
-    if (!body) throw new ORPCError("CONFLICT", { message: "site.file" });
-    const publicKey = publicKeyFor(file.name);
-    await context.publicMedia.write(publicKey, body, context.maxUploadBytes);
-    await recordPublication(tx, {
-      tenantId: host.tenantId,
-      fileId: file.id,
-      purpose: file.purpose,
-      publicKey,
-      hostType: host.hostType,
-      hostId: host.hostId,
-    });
     media[file.id] = publicKey;
+    const preview = previews.get(file.storageKey);
+    if (
+      preview?.state !== "ready" ||
+      preview.kind !== "picture" ||
+      !preview.width ||
+      !preview.height
+    )
+      continue;
+    const folder = publicKey.slice(0, publicKey.lastIndexOf("/"));
+    const sizes = preview.sizes.filter((size) => size.name.startsWith("w"));
+    for (const size of sizes) {
+      const derivative = derivativeOf(size.name);
+      if (derived.has(`${file.id}:${derivative}`)) continue;
+      const body = await context.files.open(
+        `${previewFolder(host.tenantId, preview.id)}/${size.name}`,
+      );
+      if (!body) throw new ORPCError("CONFLICT", { message: "site.file" });
+      await context.publicMedia.write(
+        `${folder}/${size.name}`,
+        body,
+        context.maxUploadBytes,
+      );
+      await recordPublication(tx, {
+        tenantId: host.tenantId,
+        fileId: file.id,
+        purpose: file.purpose,
+        publicKey: `${folder}/${size.name}`,
+        hostType: host.hostType,
+        hostId: host.hostId,
+        derivative,
+      });
+    }
+    const subject = focus.get(file.id);
+    pictures[file.id] = {
+      width: preview.width,
+      height: preview.height,
+      ...(preview.placeholder ? { placeholder: preview.placeholder } : {}),
+      ...(subject ? { focus: subject } : {}),
+      sizes: sizes.map(({ name, width, mediaType }) => ({
+        name,
+        width,
+        mediaType,
+      })),
+    };
   }
   await withdrawMedia(context, host, fileIds);
-  return media;
+  return { media, pictures };
 }
 
 /**
@@ -164,7 +243,7 @@ const logoHost = (tenantId: string, schoolId: string): Host => ({
 export function publishLogo(
   context: UnitContext,
   logoFileId: string | null,
-): Promise<Record<string, string>> {
+): Promise<PublishedMedia> {
   return publishMedia(
     context,
     logoHost(context.tenantId, context.schoolId),
@@ -181,6 +260,8 @@ export async function logoKey(
   if (!school.logoFileId) return null;
   const shown = await publicationsOf(tx, logoHost(tenantId, school.id));
   return (
-    shown.find((row) => row.fileId === school.logoFileId)?.publicKey ?? null
+    shown.find(
+      (row) => row.fileId === school.logoFileId && row.derivative === null,
+    )?.publicKey ?? null
   );
 }

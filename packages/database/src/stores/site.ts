@@ -542,6 +542,8 @@ export async function withdrawPost(
 export interface Publication {
   fileId: string;
   publicKey: string;
+  /** A size made of the file, published beside it; none for the file itself. */
+  derivative: string | null;
 }
 
 /** The files a page or post shows publicly now, by the key each is served under. */
@@ -549,13 +551,18 @@ export async function publicationsOf(
   tx: Tx,
   input: { tenantId: string; hostType: string; hostId: string },
 ): Promise<Publication[]> {
-  const rows = await tx.execute<{ file_id: string; public_key: string }>(sql`
-    select file_id, public_key from core.file_publications
+  const rows = await tx.execute<{
+    file_id: string;
+    public_key: string;
+    derivative: string | null;
+  }>(sql`
+    select file_id, public_key, derivative from core.file_publications
     where tenant_id = ${input.tenantId}::uuid and host_type = ${input.hostType}
       and host_id = ${input.hostId}::uuid and status = 'active' and unpublished_at is null`);
   return rows.map((row) => ({
     fileId: row.file_id,
     publicKey: row.public_key,
+    derivative: row.derivative,
   }));
 }
 
@@ -568,13 +575,14 @@ export async function recordPublication(
     publicKey: string;
     hostType: string;
     hostId: string;
+    derivative?: string | null;
   },
 ): Promise<void> {
   await tx.execute(sql`
     insert into core.file_publications (tenant_id, file_id, file_purpose, public_key, host_type,
-      host_id)
+      host_id, derivative)
     values (${input.tenantId}::uuid, ${input.fileId}::uuid, ${input.purpose}, ${input.publicKey},
-      ${input.hostType}, ${input.hostId}::uuid)`);
+      ${input.hostType}, ${input.hostId}::uuid, ${input.derivative ?? null})`);
 }
 
 /** Ends the publications of these files for a host; the keys come back so their objects go. */
