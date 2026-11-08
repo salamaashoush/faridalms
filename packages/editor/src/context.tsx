@@ -103,9 +103,15 @@ export interface EditorMedia {
   ) => Promise<UploadedFile>;
   url: (fileId: string) => string;
   accept: Record<"image" | "file" | "media" | "captions", string[]>;
-  /** Open pictures found by what they show, with the credit their makers ask for. */
+  /**
+   * Open pictures found by what they show, in colour or as line drawings to
+   * colour in, with the credit their makers ask for.
+   */
   pictures?: {
-    search: (query: string) => Promise<LibraryPicture[]>;
+    search: (
+      query: string,
+      style?: "colour" | "lines",
+    ) => Promise<LibraryPicture[]>;
     credits: string;
   };
   /**

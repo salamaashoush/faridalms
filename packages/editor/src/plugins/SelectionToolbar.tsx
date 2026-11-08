@@ -2679,6 +2679,11 @@ export function SelectionToolbarPlugin() {
       >
         <div ref={toolbar}>
           <PictureLibrary
+            colouring={
+              question?.part?.key === question?.key &&
+              question?.settings.kind === "written" &&
+              question.settings.answerWith === "drawing"
+            }
             onClose={close}
             onUpload={() => {
               close();

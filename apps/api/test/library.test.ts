@@ -24,6 +24,26 @@ describe("picture library", () => {
     ).toMatchObject({ code: "UNAUTHORIZED" });
   });
 
+  test("a teacher finds line drawings to colour in", async () => {
+    const teacher = await signedIn("northwind", login("teacher"));
+    const found = await teacher.library.pictures({ q: "cat", style: "lines" });
+    const pictogram = found.pictures.find((row) => row.source === "arasaac");
+    const emoji = found.pictures.find((row) => row.source === "openmoji");
+    expect(pictogram?.full).toBe(
+      `https://api.arasaac.org/v1/pictograms/${pictogram?.id}?color=false`,
+    );
+    expect(emoji?.full).toMatch(
+      /\/openmoji@[\d.]+\/black\/svg\/[\dA-F-]+\.svg$/,
+    );
+    const coloured = await teacher.library.pictures({ q: "cat" });
+    expect(coloured.pictures.map((row) => row.id)).toEqual(
+      found.pictures.map((row) => row.id),
+    );
+    expect(
+      coloured.pictures.find((row) => row.source === "openmoji")?.full,
+    ).toMatch(/\/color\/svg\//);
+  });
+
   test("a student cannot search the library", async () => {
     const student = await signedIn("northwind", login("student"));
     expect(

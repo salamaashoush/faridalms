@@ -301,6 +301,9 @@ export interface EditorStrings
   pictureSearch: string;
   pictureNone: string;
   pictureUpload: string;
+  pictureStyle: string;
+  pictureLines: string;
+  pictureColour: string;
   libraryChoose: string;
   libraryKeep: string;
   libraryKept: string;

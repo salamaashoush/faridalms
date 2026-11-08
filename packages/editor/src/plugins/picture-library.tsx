@@ -40,6 +40,16 @@ export async function pictureFile(picture: LibraryPicture): Promise<File> {
   }
 }
 
+type PictureStyle = "colour" | "lines";
+
+export interface PictureLibraryProps {
+  onPick: (picture: LibraryPicture) => Promise<void>;
+  onUpload: () => void;
+  onClose: () => void;
+  /** For a colouring page: line drawings first, with the coloured ones a tap away. */
+  colouring?: boolean;
+}
+
 /**
  * Where a teacher finds a picture by what it shows, in the open sets the
  * school's editors offer, or uploads their own. A picked picture is copied
@@ -49,16 +59,17 @@ export function PictureLibrary({
   onPick,
   onUpload,
   onClose,
-}: {
-  onPick: (picture: LibraryPicture) => Promise<void>;
-  onUpload: () => void;
-  onClose: () => void;
-}) {
+  colouring = false,
+}: PictureLibraryProps) {
   const { strings, media } = useEditorEnvironment();
   const field = useId();
   const [query, setQuery] = useState("");
+  const [style, setStyle] = useState<PictureStyle>(
+    colouring ? "lines" : "colour",
+  );
   const [found, setFound] = useState<{
     query: string;
+    style: PictureStyle;
     pictures: LibraryPicture[];
   } | null>(null);
   const [picking, setPicking] = useState<string | null>(null);
@@ -73,12 +84,12 @@ export function PictureLibrary({
     if (!library || !wanted) return undefined;
     let current = true;
     const timer = setTimeout(() => {
-      void library.search(wanted).then(
+      void library.search(wanted, style).then(
         (pictures) => {
-          if (current) setFound({ query: wanted, pictures });
+          if (current) setFound({ query: wanted, style, pictures });
         },
         () => {
-          if (current) setFound({ query: wanted, pictures: [] });
+          if (current) setFound({ query: wanted, style, pictures: [] });
         },
       );
     }, 250);
@@ -86,9 +97,9 @@ export function PictureLibrary({
       current = false;
       clearTimeout(timer);
     };
-  }, [library, query]);
+  }, [library, query, style]);
 
-  const shown = query.trim() && found ? found.pictures : [];
+  const shown = query.trim() && found?.style === style ? found.pictures : [];
   return (
     <div className="grid gap-3">
       <div className="flex items-center gap-2">
@@ -121,6 +132,22 @@ export function PictureLibrary({
           <X aria-hidden className="size-4" />
         </button>
       </div>
+      {colouring ? (
+        <fieldset className="grid grid-cols-2 gap-1 rounded-md bg-muted p-0.5">
+          <legend className="sr-only">{strings.pictureStyle}</legend>
+          {(["lines", "colour"] as const).map((value) => (
+            <button
+              key={value}
+              type="button"
+              aria-pressed={style === value}
+              onClick={() => setStyle(value)}
+              className="h-7 rounded px-2 text-xs font-medium text-muted-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring/50 aria-pressed:bg-background aria-pressed:text-foreground aria-pressed:shadow-sm max-md:h-10"
+            >
+              {value === "lines" ? strings.pictureLines : strings.pictureColour}
+            </button>
+          ))}
+        </fieldset>
+      ) : null}
       {shown.length > 0 ? (
         <ul className="grid max-h-72 grid-cols-4 gap-2 overflow-y-auto sm:grid-cols-6">
           {shown.map((picture) => {
@@ -163,7 +190,9 @@ export function PictureLibrary({
             );
           })}
         </ul>
-      ) : query.trim() && found?.query === query.trim() ? (
+      ) : query.trim() &&
+        found?.query === query.trim() &&
+        found.style === style ? (
         <p className="text-sm text-muted-foreground">{strings.pictureNone}</p>
       ) : null}
       {failed ? (

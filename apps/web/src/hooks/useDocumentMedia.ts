@@ -279,8 +279,8 @@ export function useDocumentMedia(
           }
         : {}),
       pictures: {
-        search: async (query: string) =>
-          (await search({ data: { q: query } })).pictures,
+        search: async (query: string, style = "colour") =>
+          (await search({ data: { q: query, style } })).pictures,
         credits: m.pictureCredits(),
       },
       // The editor places a file as soon as it is in, so it is let go then.

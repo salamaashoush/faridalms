@@ -1,4 +1,4 @@
-import type { PictureSource } from "@faridalms/domain/library";
+import type { PictureSource, PictureStyle } from "@faridalms/domain/library";
 
 import { foldAnswer } from "@faridalms/domain/answers";
 import { libraryPictureUrls } from "@faridalms/domain/library";
@@ -80,13 +80,15 @@ function score(entry: Entry, query: string, terms: readonly string[]): number {
 }
 
 /**
- * Pictures whose words meet the query, best first. ARASAAC's pictograms come
- * before OpenMoji's emoji at the same score: drawn for children learning to
- * talk, they read more plainly at a young child's size.
+ * Pictures whose words meet the query, best first, in colour or as line
+ * drawings. ARASAAC's pictograms come before OpenMoji's emoji at the same
+ * score: drawn for children learning to talk, they read more plainly at a
+ * young child's size.
  */
 export function searchPictures(
   query: string,
   locale: "ar" | "en",
+  style: PictureStyle = "colour",
   limit = 48,
 ): LibraryPicture[] {
   const folded = fold(query).trim().replace(/\s+/g, " ");
@@ -101,11 +103,15 @@ export function searchPictures(
     .filter((hit) => hit.score > 0)
     .toSorted((a, b) => b.score - a.score || a.order - b.order)
     .slice(0, limit)
-    .map(({ entry }) => ({
-      source: entry.source,
-      id: entry.id,
-      label:
-        (locale === "ar" ? (entry.ar[0] ?? entry.en[0]) : entry.en[0]) ?? "",
-      ...libraryPictureUrls(entry.source, entry.id),
-    }));
+    .map(({ entry }) => {
+      const { thumb, full } = libraryPictureUrls(entry.source, entry.id, style);
+      return {
+        source: entry.source,
+        id: entry.id,
+        label:
+          (locale === "ar" ? (entry.ar[0] ?? entry.en[0]) : entry.en[0]) ?? "",
+        thumb,
+        full,
+      };
+    });
 }
