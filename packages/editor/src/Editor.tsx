@@ -554,7 +554,9 @@ const Surface = memo(function Surface({
   // key and its letter on screen, so a change goes in a task of its own,
   // and the host draws it as a transition a key pressed meanwhile
   // interrupts. The first change after a quiet second goes once its letter
-  // is drawn, so the host's page takes the new words before the writer's
+  // is drawn, and is drawn at once rather than as a transition the next key
+  // would put off, so what the page shows from the words (an empty
+  // document's starters, a translation's note) settles before the writer's
   // next click; the rest of a burst goes when typing pauses, or a second
   // in. Leaving the editor, Escape and shortcuts hand it over at once, so
   // a save never misses the last words typed.
@@ -597,7 +599,7 @@ const Surface = memo(function Surface({
           if (now - handed >= MAX_TYPING_WAIT_MS) {
             clearTimeout(timer);
             frame = requestAnimationFrame(() => {
-              timer = setTimeout(() => settle(false), 0);
+              timer = setTimeout(() => settle(true), 0);
             });
             return;
           }
