@@ -9856,5 +9856,9 @@
   "msgMergeAliases": "تكتب أيضًا من {addresses}",
   "searchKindNotes": "ملاحظات الفريق",
   "msgReplyingOne": "{name} يكتب ردًا…",
-  "msgReplyingMany": "{names} يكتبون ردًا…"
+  "msgReplyingMany": "{names} يكتبون ردًا…",
+  "auditMessageContactMerge": "دُمجت جهتا اتصال لأسرة واحدة",
+  "auditMessageContactUnreachable": "أُوقف البريد إلى جهة اتصال بعد ارتداد أو شكوى",
+  "auditMessageAcceptHeld": "قُبل بريد محتجز كرسالة من الأسرة",
+  "auditContactPointUnreachable": "أُوقف البريد إلى عنوان بعد ارتداد أو شكوى"
 }

@@ -373,7 +373,11 @@ export async function handleInboundMail(
   const data = event.data ?? {};
   const emailId = typeof data.email_id === "string" ? data.email_id : "";
   if (event.type === "email.bounced" || event.type === "email.complained") {
-    const reported = await takeDeliveryReport(context, event.type, data);
+    const reported = await takeDeliveryReport(
+      context,
+      event.type === "email.bounced" ? "bounced" : "complained",
+      data,
+    );
     console.info(JSON.stringify({ requestId: context.requestId, reported }));
     return Response.json({ outcome: reported });
   }

@@ -4,11 +4,11 @@ import { describe, expect, it } from "bun:test";
 
 import { router } from "../src/router";
 
-/** Every namespace, a nested one as `outer.inner`. */
+/** Every namespace, a nested one as `outer/inner`. */
 const namespaces = Object.entries(router).flatMap(([name, value]) =>
   Object.values(value).some((entry) => entry instanceof DecoratedProcedure)
     ? [name]
-    : Object.keys(value).map((part) => `${name}.${part}`),
+    : Object.keys(value).map((part) => `${name}/${part}`),
 );
 
 describe("the router", () => {
@@ -31,8 +31,8 @@ describe("the router", () => {
   });
 
   it("keeps announcements and news under the one broadcasts namespace", () => {
-    expect(namespaces).toContain("broadcasts.announcements");
-    expect(namespaces).toContain("broadcasts.news");
+    expect(namespaces).toContain("broadcasts/announcements");
+    expect(namespaces).toContain("broadcasts/news");
     expect(namespaces).not.toContain("announcements");
     expect(namespaces).not.toContain("news");
   });

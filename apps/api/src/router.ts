@@ -67,8 +67,13 @@ import * as yearsSystem from "./systems/years";
  * Procedures run without a school's unit of work, such as the public site,
  * check their school's modules themselves.
  */
-function owned<T extends object>(system: string, procedures: T): T {
-  const module = moduleOfSystem(system);
+function owned<T extends object>(
+  system: string | readonly [string, string],
+  procedures: T,
+): T {
+  const module = moduleOfSystem(
+    typeof system === "string" ? system : system.join("/"),
+  );
   if (!module) return procedures;
   return Object.fromEntries(
     Object.entries(procedures).map(([name, procedure]) => [
@@ -140,8 +145,8 @@ export const router = {
   // Announcements and news are both broadcasts and share their model; news
   // is a module of its own, so each part keeps its owner.
   broadcasts: {
-    announcements: owned("broadcasts.announcements", announcementsSystem),
-    news: owned("broadcasts.news", newsSystem),
+    announcements: owned(["broadcasts", "announcements"], announcementsSystem),
+    news: owned(["broadcasts", "news"], newsSystem),
   },
   calendar: owned("calendar", calendarSystem),
   notifications: owned("notifications", notificationsSystem),

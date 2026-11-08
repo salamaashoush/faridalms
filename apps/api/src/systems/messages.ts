@@ -882,7 +882,10 @@ export const mergeContacts = writeProcedure
     });
     if (!merged.merged)
       throw new ORPCError("CONFLICT", {
-        message: `messages.merge_${merged.reason}`,
+        message:
+          merged.reason === "linked_apart"
+            ? "messages.merge_linked_apart"
+            : "messages.merge_gone",
       });
     await audit(context, {
       action: "message_contact.merge",

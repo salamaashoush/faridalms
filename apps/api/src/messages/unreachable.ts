@@ -18,10 +18,10 @@ const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
  */
 export async function takeDeliveryReport(
   context: RequestContext,
-  type: "email.bounced" | "email.complained",
+  reason: "bounced" | "complained",
   data: Record<string, unknown>,
 ): Promise<ReportOutcome> {
-  if (type === "email.bounced") {
+  if (reason === "bounced") {
     const bounce = data.bounce as { type?: unknown } | undefined;
     if (bounce?.type !== "Permanent") return "transient";
   }
@@ -36,7 +36,6 @@ export async function takeDeliveryReport(
     .filter((item): item is string => typeof item === "string")
     .map((item) => (mailboxAddress(item) ?? item).trim().toLowerCase())
     .filter((item) => item.includes("@"));
-  const reason = type === "email.bounced" ? "bounced" : "complained";
   await context.cell.withTenant(
     {
       tenantId,

@@ -9432,5 +9432,9 @@
   "msgMergeAliases": "Also writes from {addresses}",
   "searchKindNotes": "Team notes",
   "msgReplyingOne": "{name} is replying…",
-  "msgReplyingMany": "{names} are replying…"
+  "msgReplyingMany": "{names} are replying…",
+  "auditMessageContactMerge": "Two contacts of a family merged",
+  "auditMessageContactUnreachable": "Mail to a contact stopped after a bounce or complaint",
+  "auditMessageAcceptHeld": "Held email accepted as the family's message",
+  "auditContactPointUnreachable": "Mail to an address stopped after a bounce or complaint"
 }
