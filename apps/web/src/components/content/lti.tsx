@@ -37,6 +37,11 @@ export function LtiHostProvider({ type, id, children }: LtiHostProviderProps) {
   );
 }
 
+/** The lesson or brief the document shown here belongs to, if any. */
+export function useLtiHost() {
+  return useContext(LtiHostContext);
+}
+
 /** Where a link to an outside tool launches, in the document shown here. */
 export function useLtiHref(): ((linkId: string) => string | null) | undefined {
   const host = useContext(LtiHostContext);

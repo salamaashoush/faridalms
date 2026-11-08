@@ -7,7 +7,7 @@ import type {
 } from "@faridalms/domain/learning";
 import type { ContentLocale } from "@faridalms/domain/translations";
 
-import { contentPlainText } from "@faridalms/domain/content";
+import { contentPlainText, sameContent } from "@faridalms/domain/content";
 import { emptyContent } from "@faridalms/domain/content-conversion";
 import {
   isCheck,
@@ -50,6 +50,7 @@ import type {
 } from "~/components/content/Templates";
 import type { lessonEditorQuery } from "~/queries/learning";
 
+import { AssistantTranslate } from "~/components/content/assistant";
 import { contentIssueMessages } from "~/components/content/checks";
 import { useCollaboration } from "~/components/content/collaboration";
 import { ContentEditor } from "~/components/content/ContentEditor";
@@ -243,6 +244,8 @@ export function LessonEditor({
     existing?.translationReview ?? null,
   );
   const [reviewing, setReviewing] = useState(false);
+  // Each drafted translation draws its editor again with the draft in it.
+  const [drafted, setDrafted] = useState(0);
   const [removing, setRemoving] = useState(false);
   const [replace, setReplace] = useState<{
     to: ContentDocument;
@@ -870,6 +873,21 @@ export function LessonEditor({
                   disabled={reviewing || !storedId}
                   onChange={(checked) => void markReviewed(checked)}
                 />
+                <AssistantTranslate
+                  host={storedId ? { type: "lesson", id: storedId } : null}
+                  original={draft.content}
+                  title={draft.title}
+                  language={language}
+                  written={!sameContent(translated.content, draft.content)}
+                  onTranslated={(next) => {
+                    setTranslation((current) => ({
+                      title: next.title || current.title,
+                      content: next.content,
+                    }));
+                    setDrafted((count) => count + 1);
+                    setWriting("translation");
+                  }}
+                />
                 {untranslated.length > 0 ? (
                   <div className="grid gap-1 text-[13px] leading-[18px] text-muted-foreground">
                     <p>
@@ -997,7 +1015,7 @@ export function LessonEditor({
       >
         {language && translated && writing === "translation" ? (
           <ContentEditor
-            key="translation"
+            key={`translation-${drafted}`}
             id="lesson-body"
             label={m.lrnSectionBlocks()}
             variant="document"
@@ -1014,6 +1032,7 @@ export function LessonEditor({
             feedbackTiming={!draft.young}
             young={earlyYears && draft.young}
             language={otherLocale(language)}
+            assistant
           />
         ) : (
           <ContentEditor
@@ -1035,6 +1054,7 @@ export function LessonEditor({
             collaboration={shared ? live.collaboration : undefined}
             pending={live.state === "loading"}
             replace={replace}
+            assistant
           />
         )}
       </DocumentPage>

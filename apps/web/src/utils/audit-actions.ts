@@ -176,6 +176,8 @@ export const AUDIT_ACTION_LABEL: Record<string, () => string> = {
   "lti_tool.roster_read": m.auditLtiToolRosterRead,
   "lti_tool.update": m.auditLtiToolUpdate,
   "xapi_store.retry": m.auditXapiStoreRetry,
+  "assistant.request": m.auditAssistantRequest,
+  "assistant.settings": m.auditAssistantSettings,
   "xapi_store.save": m.auditXapiStoreSave,
   "media.folder_create": m.auditMediaFolderCreate,
   "media.folder_remove": m.auditMediaFolderRemove,

@@ -1128,6 +1128,32 @@ export function getMessageFromError(error: unknown): string {
         return m.ltiErrKeyAddress();
       case "xapi.store_address":
         return m.xapiErrStoreAddress();
+      case "assistant.off":
+        return m.assistantErrOff();
+      case "assistant.unavailable":
+        return m.assistantErrUnavailable();
+      case "assistant.busy":
+        return m.assistantErrBusy();
+      case "assistant.staff_only":
+        return m.assistantErrStaffOnly();
+      case "assistant.student_work":
+        return m.assistantErrStudentWork();
+      case "assistant.nothing_to_send":
+        return m.assistantErrNothingToSend();
+      case "assistant.too_long":
+        return m.assistantErrTooLong();
+      case "assistant.daily_limit":
+        return m.assistantErrDailyLimit();
+      case "assistant.too_long_answer":
+        return m.assistantErrTooLongAnswer();
+      case "assistant.declined":
+        return m.assistantErrDeclined();
+      case "assistant.nothing_back":
+        return m.assistantErrNothingBack();
+      case "assistant.translation_unchecked":
+        return m.assistantErrTranslationUnchecked();
+      case "assistant.over_ceiling":
+        return m.assistantErrOverCeiling();
       case "lti.client_exists":
       case "lti.key_exists":
         return m.ltiErrRace();

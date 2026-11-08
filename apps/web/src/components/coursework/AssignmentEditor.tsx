@@ -53,6 +53,7 @@ import { toast } from "sonner";
 import type { StartingPiece } from "~/components/content/Templates";
 import type { assignmentEditorQuery } from "~/queries/coursework";
 
+import { AssistantTranslate } from "~/components/content/assistant";
 import { contentIssueMessages } from "~/components/content/checks";
 import { useCollaboration } from "~/components/content/collaboration";
 import { ContentEditor } from "~/components/content/ContentEditor";
@@ -690,6 +691,8 @@ export function AssignmentEditor({
     existing?.translationReview ?? null,
   );
   const [reviewing, setReviewing] = useState(false);
+  // Each drafted translation draws its editor again with the draft in it.
+  const [drafted, setDrafted] = useState(0);
   const [removing, setRemoving] = useState(false);
   const language = draft.language === "auto" ? null : draft.language;
   const translated = draft.translation;
@@ -1511,6 +1514,23 @@ export function AssignmentEditor({
                     disabled={reviewing || !storedId}
                     onChange={(checked) => void markReviewed(checked)}
                   />
+                  <AssistantTranslate
+                    host={
+                      storedId ? { type: "assignment", id: storedId } : null
+                    }
+                    original={draft.brief}
+                    title={draft.title}
+                    language={language}
+                    written={!sameContent(translated.content, draft.brief)}
+                    onTranslated={(next) => {
+                      setTranslation((current) => ({
+                        title: next.title || current.title,
+                        content: next.content,
+                      }));
+                      setDrafted((count) => count + 1);
+                      setWriting("translation");
+                    }}
+                  />
                 </>
               ) : null}
             </DetailsSection>
@@ -1653,7 +1673,7 @@ export function AssignmentEditor({
         <div className="grid grid-cols-[minmax(0,1fr)] gap-10">
           {language && translated && writing === "translation" ? (
             <ContentEditor
-              key="translation"
+              key={`translation-${drafted}`}
               id="work-brief"
               label={m.courseworkBrief()}
               variant="document"
@@ -1669,6 +1689,7 @@ export function AssignmentEditor({
               draws={isQuiz}
               starter={!isQuiz}
               language={otherLocale(language)}
+              assistant
             />
           ) : (
             <ContentEditor
@@ -1690,6 +1711,7 @@ export function AssignmentEditor({
               collaboration={shared ? live.collaboration : undefined}
               pending={live.state === "loading"}
               replace={replace}
+              assistant
             />
           )}
         </div>

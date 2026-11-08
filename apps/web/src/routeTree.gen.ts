@@ -36,6 +36,7 @@ import { Route as AuthRegisterRouteImport } from './routes/_auth/register'
 import { Route as AuthSignInRouteImport } from './routes/_auth/sign-in'
 import { Route as AdminSplatRouteImport } from './routes/admin.$'
 import { Route as ApiHealthRouteImport } from './routes/api/health'
+import { Route as AssistantRunRouteImport } from './routes/assistant/run'
 import { Route as Cmi5FetchRouteImport } from './routes/cmi5/fetch'
 import { Route as Cmi5LaunchRouteImport } from './routes/cmi5/launch'
 import { Route as ExportsMediaRouteImport } from './routes/exports/media'
@@ -283,6 +284,11 @@ const AdminSplatRoute = AdminSplatRouteImport.update({
 const ApiHealthRoute = ApiHealthRouteImport.update({
   id: '/api/health',
   path: '/api/health',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AssistantRunRoute = AssistantRunRouteImport.update({
+  id: '/assistant/run',
+  path: '/assistant/run',
   getParentRoute: () => rootRouteImport,
 } as any)
 const Cmi5FetchRoute = Cmi5FetchRouteImport.update({
@@ -902,6 +908,7 @@ export interface FileRoutesByFullPath {
   '/sign-in': typeof AuthSignInRoute
   '/admin/$': typeof AdminSplatRoute
   '/api/health': typeof ApiHealthRoute
+  '/assistant/run': typeof AssistantRunRoute
   '/cmi5/fetch': typeof Cmi5FetchRoute
   '/cmi5/launch': typeof Cmi5LaunchRoute
   '/exports/media': typeof ExportsMediaRoute
@@ -1041,6 +1048,7 @@ export interface FileRoutesByTo {
   '/sign-in': typeof AuthSignInRoute
   '/admin/$': typeof AdminSplatRoute
   '/api/health': typeof ApiHealthRoute
+  '/assistant/run': typeof AssistantRunRoute
   '/cmi5/fetch': typeof Cmi5FetchRoute
   '/cmi5/launch': typeof Cmi5LaunchRoute
   '/exports/media': typeof ExportsMediaRoute
@@ -1185,6 +1193,7 @@ export interface FileRoutesById {
   '/_auth/sign-in': typeof AuthSignInRoute
   '/admin/$': typeof AdminSplatRoute
   '/api/health': typeof ApiHealthRoute
+  '/assistant/run': typeof AssistantRunRoute
   '/cmi5/fetch': typeof Cmi5FetchRoute
   '/cmi5/launch': typeof Cmi5LaunchRoute
   '/exports/media': typeof ExportsMediaRoute
@@ -1328,6 +1337,7 @@ export interface FileRouteTypes {
     | '/sign-in'
     | '/admin/$'
     | '/api/health'
+    | '/assistant/run'
     | '/cmi5/fetch'
     | '/cmi5/launch'
     | '/exports/media'
@@ -1467,6 +1477,7 @@ export interface FileRouteTypes {
     | '/sign-in'
     | '/admin/$'
     | '/api/health'
+    | '/assistant/run'
     | '/cmi5/fetch'
     | '/cmi5/launch'
     | '/exports/media'
@@ -1610,6 +1621,7 @@ export interface FileRouteTypes {
     | '/_auth/sign-in'
     | '/admin/$'
     | '/api/health'
+    | '/assistant/run'
     | '/cmi5/fetch'
     | '/cmi5/launch'
     | '/exports/media'
@@ -1737,6 +1749,7 @@ export interface RootRouteChildren {
   WelcomeRoute: typeof WelcomeRoute
   AdminSplatRoute: typeof AdminSplatRoute
   ApiHealthRoute: typeof ApiHealthRoute
+  AssistantRunRoute: typeof AssistantRunRoute
   Cmi5FetchRoute: typeof Cmi5FetchRoute
   Cmi5LaunchRoute: typeof Cmi5LaunchRoute
   ExportsMediaRoute: typeof ExportsMediaRoute
@@ -1952,6 +1965,13 @@ declare module '@tanstack/react-router' {
       path: '/api/health'
       fullPath: '/api/health'
       preLoaderRoute: typeof ApiHealthRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/assistant/run': {
+      id: '/assistant/run'
+      path: '/assistant/run'
+      fullPath: '/assistant/run'
+      preLoaderRoute: typeof AssistantRunRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/cmi5/fetch': {
@@ -3064,6 +3084,7 @@ const rootRouteChildren: RootRouteChildren = {
   WelcomeRoute: WelcomeRoute,
   AdminSplatRoute: AdminSplatRoute,
   ApiHealthRoute: ApiHealthRoute,
+  AssistantRunRoute: AssistantRunRoute,
   Cmi5FetchRoute: Cmi5FetchRoute,
   Cmi5LaunchRoute: Cmi5LaunchRoute,
   ExportsMediaRoute: ExportsMediaRoute,

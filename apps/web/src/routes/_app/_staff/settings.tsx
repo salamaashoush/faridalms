@@ -23,6 +23,7 @@ import {
   findRole,
   RoleSheet,
 } from "~/components/admin/AccessRolesPanel";
+import { AssistantSettings } from "~/components/admin/AssistantSettings";
 import { OutsideTools } from "~/components/admin/OutsideTools";
 import { RecordStore } from "~/components/admin/RecordStore";
 import { SchoolProfileSection } from "~/components/admin/SchoolEditors";
@@ -41,6 +42,7 @@ import { ReadingNorms } from "~/components/reading/ReadingNorms";
 import { inLocale } from "~/hooks/useCurrentUser";
 import * as m from "~/i18n/messages";
 import { accessChangesQuery, accessRolesQuery } from "~/queries/access";
+import { assistantSettingsQuery } from "~/queries/assistant";
 import { attendanceSettingsQuery } from "~/queries/attendance";
 import { subjectsQuery } from "~/queries/classes";
 import { ltiToolsQuery } from "~/queries/lti";
@@ -65,6 +67,7 @@ const searchSchema = v.object({
       "reading",
       "access",
       "tools",
+      "assistant",
       "records",
     ]),
     "school",
@@ -100,6 +103,8 @@ export const Route = createFileRoute("/_app/_staff/settings")({
       await queryClient.ensureQueryData(attendanceSettingsQuery);
     else if (deps.section === "tools")
       await queryClient.ensureQueryData(ltiToolsQuery);
+    else if (deps.section === "assistant")
+      await queryClient.ensureQueryData(assistantSettingsQuery);
     else if (deps.section === "reading")
       await queryClient.ensureQueryData(readingNormsQuery);
     else if (deps.section === "records")
@@ -172,6 +177,7 @@ function SettingsRoute() {
           { value: "reading", label: m.readingSettingsTab() },
           { value: "access", label: m.adminPermissionsSection() },
           { value: "tools", label: m.ltiTools() },
+          { value: "assistant", label: m.assistantTab() },
           { value: "records", label: m.settingsRecordsTab() },
         ]}
         value={search.section}
@@ -191,6 +197,8 @@ function SettingsRoute() {
           </SettingsPage>
         ) : search.section === "tools" ? (
           <OutsideTools />
+        ) : search.section === "assistant" ? (
+          <AssistantSettings />
         ) : search.section === "records" ? (
           <RecordStore />
         ) : (

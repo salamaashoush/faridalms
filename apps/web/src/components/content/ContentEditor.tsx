@@ -8,6 +8,7 @@ import { useHydrated } from "@tanstack/react-router";
 import { lazy, Suspense, useMemo, useState } from "react";
 
 import { useEditorStudio } from "~/components/coding/useEditorStudio";
+import { useEditorAssistant } from "~/components/content/assistant";
 import { useEditorComments } from "~/components/content/comments/DocumentComments";
 import { useEditorTools } from "~/components/content/lti";
 import {
@@ -68,6 +69,8 @@ export interface ContentEditorProps {
   pending?: boolean;
   /** Young children read it, so its page is set as they will see it. */
   young?: boolean;
+  /** Offers the school's language model on the lesson or brief this page edits. */
+  assistant?: boolean;
 }
 
 export function ContentEditor({
@@ -100,6 +103,7 @@ export function ContentEditor({
   pending = false,
   language,
   young,
+  assistant = false,
 }: ContentEditorProps) {
   const strings = useMemo(() => editorStrings(), []);
   const hydrated = useHydrated();
@@ -113,6 +117,7 @@ export function ContentEditor({
   const mentions = useEditorMentions(useMentionNames(value));
   const tools = useEditorTools();
   const comments = useEditorComments(id);
+  const helping = useEditorAssistant(assistant);
   const { arabicMath } = useCurrentUser().school;
   const document = variant === "document";
   // Lexical needs a DOM, so the server draws the document in the editor's own
@@ -163,6 +168,7 @@ export function ContentEditor({
           mentions={mentions}
           tools={tools}
           comments={comments}
+          assistant={helping}
           placeholder={placeholder}
           initialFocus={initialFocus}
           strings={strings}

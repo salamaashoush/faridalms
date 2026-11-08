@@ -31,6 +31,7 @@ export function fileStrings(): FileStrings {
 
 export function editorStrings(): EditorStrings {
   return {
+    ...assistantStrings(),
     placeholder: m.editorPlaceholder(),
     emptyPlaceholder: m.editorEmptyPlaceholder(),
     headingPlaceholder: m.editorHeadingPlaceholder(),
@@ -911,5 +912,51 @@ export function aiUseStrings() {
     aiUsePrompt: m.editorAiUsePrompt(),
     aiUseHow: m.editorAiUseHow(),
     aiUseEvidence: m.editorAiUseEvidence(),
+  };
+}
+
+type AssistantEditorStrings = Pick<
+  EditorStrings,
+  Extract<keyof EditorStrings, `assistant${string}`>
+>;
+
+/** The editor's words for its writing help. */
+export function assistantStrings(): AssistantEditorStrings {
+  return {
+    assistant: m.assistantHelp(),
+    assistantSends: (provider) => m.assistantSends({ provider }),
+    assistantSuggest: m.assistantSuggest(),
+    assistantSuggestHint: m.assistantSuggestHint(),
+    assistantLevel: m.assistantLevel(),
+    assistantLevelHint: m.assistantLevelHint(),
+    assistantFromSelection: m.assistantFromSelection(),
+    assistantFromDocument: m.assistantFromDocument(),
+    assistantNoText: m.assistantNoText(),
+    assistantCount: m.assistantCount(),
+    assistantReadingLevel: m.assistantReadingLevel(),
+    assistantLevels: {
+      early: m.assistantLevelEarly(),
+      lower_primary: m.assistantLevelLowerPrimary(),
+      upper_primary: m.assistantLevelUpperPrimary(),
+      lower_secondary: m.assistantLevelLowerSecondary(),
+      upper_secondary: m.assistantLevelUpperSecondary(),
+    },
+    assistantAsk: m.assistantAsk(),
+    assistantStop: m.assistantStop(),
+    assistantWriting: m.assistantWriting(),
+    assistantWaiting: (seconds) =>
+      m.assistantWaiting({ seconds: formatNumber(seconds) }),
+    assistantRemaining: (count) => m.assistantRemaining({ count }),
+    assistantAdd: m.assistantAdd(),
+    assistantAdded: m.assistantAdded(),
+    assistantDismiss: m.assistantDismiss(),
+    assistantReplace: m.assistantReplace(),
+    assistantDiscard: m.assistantDiscard(),
+    assistantCorrect: m.assistantCorrect(),
+    assistantAccepts: (answers) => m.assistantAccepts({ answers }),
+    assistantExplanation: m.assistantExplanation(),
+    assistantChanged: m.assistantChanged(),
+    assistantCheck: m.assistantCheck(),
+    assistantClose: m.assistantClose(),
   };
 }
