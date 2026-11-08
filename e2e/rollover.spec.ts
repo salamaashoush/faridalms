@@ -47,7 +47,7 @@ test("an administrator rolls the current year into the next and opens a new clas
   const target = TARGET[browserName];
   const unique = crypto.randomUUID().slice(0, 6);
   await signIn(page, "admin");
-  await page.goto("/admin/academic-year-editor");
+  await page.goto("/academic-year-editor");
   await untilHydrated(page);
   await page
     .getByRole("textbox", { name: "Year name in English" })
@@ -61,7 +61,7 @@ test("an administrator rolls the current year into the next and opens a new clas
   await page
     .getByRole("menuitem", { name: "Roll over into this year" })
     .click();
-  await expect(page).toHaveURL(/\/admin\/rollover/);
+  await expect(page).toHaveURL(/\/rollover/);
   await expect(
     page.getByRole("heading", {
       level: 1,

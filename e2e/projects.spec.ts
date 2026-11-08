@@ -49,8 +49,8 @@ test("a teacher sets a web project, a student builds it from several files and h
   page,
 }) => {
   const title = `Web pages ${crypto.randomUUID().slice(0, 6)}`;
-  await signInWith(page, TEACHER, PASSWORD, "/teach");
-  await page.goto("/teach/module-editor");
+  await signInWith(page, TEACHER, PASSWORD, "/today");
+  await page.goto("/module-editor");
   await untilHydrated(page);
   await page.getByRole("textbox", { name: "Module title" }).fill(title);
   await page.getByRole("combobox", { name: "Classes" }).click();
@@ -61,7 +61,7 @@ test("a teacher sets a web project, a student builds it from several files and h
   const recordUrl = page.url().split("?")[0] ?? "";
 
   await page.getByRole("link", { name: "Add lesson" }).click();
-  await expect(page).toHaveURL(/\/teach\/lesson-editor/);
+  await expect(page).toHaveURL(/\/lesson-editor/);
   await untilHydrated(page);
   await page.getByRole("textbox", { name: "Lesson title" }).fill("My page");
   await page.locator("#lesson-body").click();
@@ -237,8 +237,8 @@ test("a student shows a project to the class once the teacher agrees, and a clas
   page,
 }) => {
   const title = `Shared pages ${crypto.randomUUID().slice(0, 6)}`;
-  await signInWith(page, TEACHER, PASSWORD, "/teach");
-  await page.goto("/teach/module-editor");
+  await signInWith(page, TEACHER, PASSWORD, "/today");
+  await page.goto("/module-editor");
   await untilHydrated(page);
   await page.getByRole("textbox", { name: "Module title" }).fill(title);
   await page.getByRole("combobox", { name: "Classes" }).click();
@@ -248,7 +248,7 @@ test("a student shows a project to the class once the teacher agrees, and a clas
   await expect(page).toHaveURL(/\/modules\/[a-f0-9-]+/);
   const recordUrl = page.url().split("?")[0] ?? "";
   await page.getByRole("link", { name: "Add lesson" }).click();
-  await expect(page).toHaveURL(/\/teach\/lesson-editor/);
+  await expect(page).toHaveURL(/\/lesson-editor/);
   await untilHydrated(page);
   await page.getByRole("textbox", { name: "Lesson title" }).fill("Our pages");
   await page.locator("#lesson-body").click();
@@ -365,8 +365,8 @@ test("a p5.js sketch draws for its student with the library the school serves", 
   page,
 }) => {
   const title = `Sketches ${crypto.randomUUID().slice(0, 6)}`;
-  await signInWith(page, TEACHER, PASSWORD, "/teach");
-  await page.goto("/teach/module-editor");
+  await signInWith(page, TEACHER, PASSWORD, "/today");
+  await page.goto("/module-editor");
   await untilHydrated(page);
   await page.getByRole("textbox", { name: "Module title" }).fill(title);
   await page.getByRole("combobox", { name: "Classes" }).click();
@@ -376,7 +376,7 @@ test("a p5.js sketch draws for its student with the library the school serves", 
   await expect(page).toHaveURL(/\/modules\/[a-f0-9-]+/);
   const recordUrl = page.url().split("?")[0] ?? "";
   await page.getByRole("link", { name: "Add lesson" }).click();
-  await expect(page).toHaveURL(/\/teach\/lesson-editor/);
+  await expect(page).toHaveURL(/\/lesson-editor/);
   await untilHydrated(page);
   await page.getByRole("textbox", { name: "Lesson title" }).fill("Circles");
   await page.locator("#lesson-body").click();
@@ -432,8 +432,8 @@ test("a Python project runs across its files in the browser", async ({
   // Python is fetched and started in each browser before the first run.
   test.slow();
   const title = `Programs ${crypto.randomUUID().slice(0, 6)}`;
-  await signInWith(page, TEACHER, PASSWORD, "/teach");
-  await page.goto("/teach/module-editor");
+  await signInWith(page, TEACHER, PASSWORD, "/today");
+  await page.goto("/module-editor");
   await untilHydrated(page);
   await page.getByRole("textbox", { name: "Module title" }).fill(title);
   await page.getByRole("combobox", { name: "Classes" }).click();
@@ -443,7 +443,7 @@ test("a Python project runs across its files in the browser", async ({
   await expect(page).toHaveURL(/\/modules\/[a-f0-9-]+/);
   const recordUrl = page.url().split("?")[0] ?? "";
   await page.getByRole("link", { name: "Add lesson" }).click();
-  await expect(page).toHaveURL(/\/teach\/lesson-editor/);
+  await expect(page).toHaveURL(/\/lesson-editor/);
   await untilHydrated(page);
   await page.getByRole("textbox", { name: "Lesson title" }).fill("Shapes");
   await page.locator("#lesson-body").click();

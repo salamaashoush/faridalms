@@ -42,9 +42,11 @@ database's `now` and the actor. There is no process-global current school
 or current user.
 
 A session belongs to one context, staff, family or student, which decides
-the workspace a person lands in (`/admin`, `/teach`, `/family`, `/me`) and
-caps what their roles can do. Staff and student sessions end after 12 idle
-hours and last at most seven days; family sessions end after 14 idle days
+the workspace a person lands in (staff pages at the root from `/today`,
+`/family`, `/me`) and caps what their roles can do. Inside the staff
+workspace capabilities, not the profile, decide what each person sees.
+Staff and student sessions end after 12 idle hours and last at most seven
+days; family sessions end after 14 idle days
 and last at most 30. Moving between contexts is a privilege change, so it
 issues a new session and revokes the old one. A badge signs a child in on
 a device the class shares, and a guardian can hand their own device to a

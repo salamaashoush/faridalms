@@ -70,7 +70,7 @@ test("nothing but the website answers on its host", async ({
 }) => {
   for (const path of [
     "/sign-in",
-    "/admin/site",
+    "/website",
     "/site/northwind",
     "/site/acme/news",
     "/welcome",

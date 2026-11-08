@@ -32,7 +32,7 @@ const learns = (workspace: string | null) =>
 export const Route = createFileRoute("/_app/modules/$moduleId")({
   staticData: {
     trail: <ModuleTrail />,
-    section: ["/teach/modules", "/me/modules", "/family/modules"],
+    section: ["/modules", "/me/modules", "/family/modules"],
   },
   validateSearch: searchSchema,
   search: { middlewares: [stripSearchParams(DEFAULT_SEARCH)] },

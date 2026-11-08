@@ -16,8 +16,9 @@ other file.
 - Those who put pictures in front of others, news and the website
   (`LIBRARY_KEEPERS`), also keep it: folders, an item's name, description
   and credit, who a picture shows, moving items and the trash.
-- The page is Media library under the admin portal's School section
-  (`/admin/media`). Teachers reach it only through the editor's chooser.
+- The page is Media library in the School section of the staff navigation
+  (`/media`), for whoever manages the website. Teachers reach it only
+  through the editor's chooser.
 
 ## Showing an item in a document
 

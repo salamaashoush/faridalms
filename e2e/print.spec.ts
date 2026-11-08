@@ -15,8 +15,8 @@ const TEACHER = "teacher2.northwind@northwind.example.com";
 test("a teacher prints a lesson as paper, with its questions to write on and their answers", async ({
   page,
 }) => {
-  await signInWith(page, TEACHER, PASSWORD, "/teach");
-  await page.goto("/teach/modules");
+  await signInWith(page, TEACHER, PASSWORD, "/today");
+  await page.goto("/modules");
   await untilHydrated(page);
   await page
     .getByRole("link", { name: "Reading stories together" })

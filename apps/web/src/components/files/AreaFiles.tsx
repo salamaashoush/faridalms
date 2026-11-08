@@ -104,7 +104,7 @@ function UsedIn({ file, area }: UsedInProps) {
         use.hostType === "lesson" ? (
           <Link
             key={use.hostId}
-            to="/teach/lesson-editor"
+            to="/lesson-editor"
             search={{ id: use.hostId, moduleId: area.id }}
             className="block overflow-hidden leading-5 hover:text-primary hover:underline"
           >

@@ -54,7 +54,7 @@ export function CopyLessonSheet({
                 label: m.lrnOpenCopy(),
                 onClick: () =>
                   void navigate({
-                    to: "/teach/lesson-editor",
+                    to: "/lesson-editor",
                     search: { id: done.id, moduleId: target },
                   }),
               },

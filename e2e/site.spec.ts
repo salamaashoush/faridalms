@@ -10,7 +10,7 @@ test("an administrator builds a bilingual page from sections and visitors read i
   const tag = crypto.randomUUID().slice(0, 6);
   const title = `Clubs ${tag}`;
   await signIn(page, "admin");
-  await page.goto("/admin/site");
+  await page.goto("/website");
   await untilHydrated(page);
   await page.getByRole("link", { name: "New page" }).click();
   await page.getByRole("button", { name: /^Blank/ }).click();

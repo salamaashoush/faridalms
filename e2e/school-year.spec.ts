@@ -340,13 +340,13 @@ test("administrators add a school year through a checked page and reopen it", as
   const dates = EDITED[browserName];
   const name = `Y-${crypto.randomUUID().slice(0, 8)}`;
   await signIn(page, "admin");
-  await page.goto("/admin/academic-years");
+  await page.goto("/academic-years");
   await untilHydrated(page);
   await page
     .getByRole("link", { name: "Add school year", exact: true })
     .first()
     .click();
-  await expect(page).toHaveURL(/\/admin\/academic-year-editor/);
+  await expect(page).toHaveURL(/\/academic-year-editor/);
   await page.getByRole("button", { name: "Save", exact: true }).click();
   await expect(
     page.getByRole("textbox", { name: "Year name in Arabic" }),
@@ -368,7 +368,7 @@ test("administrators add a school year through a checked page and reopen it", as
   await page.reload();
   await untilHydrated(page);
   await page.getByRole("button", { name: "Edit year" }).click();
-  await expect(page).toHaveURL(/\/admin\/academic-year-editor\?id=/);
+  await expect(page).toHaveURL(/\/academic-year-editor\?id=/);
   await expect(
     page.getByRole("textbox", { name: "Year name in English" }),
   ).toHaveValue(name);

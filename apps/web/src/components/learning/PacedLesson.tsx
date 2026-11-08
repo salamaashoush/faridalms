@@ -93,7 +93,7 @@ export function TeachLiveDialog({
   const start = useMutation({
     mutationFn: () => startPaced({ data: { lessonId: lesson.id, classId } }),
     onSuccess: ({ id }) =>
-      void navigate({ to: "/teach/live/$pacedId", params: { pacedId: id } }),
+      void navigate({ to: "/live/$pacedId", params: { pacedId: id } }),
   });
   return (
     <Dialog
@@ -242,7 +242,7 @@ export function PacedLesson({ pacedId }: PacedLessonProps) {
                 label: m.lrnPacedBoard(),
                 icon: Presentation,
                 onClick: () =>
-                  window.open(`/teach/board/${pacedId}`, "_blank", "noopener"),
+                  window.open(`/board/${pacedId}`, "_blank", "noopener"),
               }
         }
         menu={

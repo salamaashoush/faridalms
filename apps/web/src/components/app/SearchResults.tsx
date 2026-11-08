@@ -61,8 +61,7 @@ const FLAG_LABEL: Record<SearchFlag, () => string> = {
 };
 
 const MESSAGES = {
-  admin: "/admin/messages",
-  teach: "/teach/messages",
+  staff: "/messages",
   family: "/family/messages",
   me: "/me/messages",
 } as const;

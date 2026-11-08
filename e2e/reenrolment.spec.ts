@@ -35,7 +35,7 @@ test("the office asks families about next year, a parent answers, and the rollov
   });
 
   await signIn(page, "admin");
-  await page.goto(`/admin/rollover?source=${source.id}&target=${targetId}`);
+  await page.goto(`/rollover?source=${source.id}&target=${targetId}`);
   await untilHydrated(page);
   const asked = page.getByText(/^Families asked on /);
   if (!(await asked.isVisible())) {

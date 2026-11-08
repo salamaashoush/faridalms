@@ -142,7 +142,7 @@ test("administrators shape a role in settings and assign it from the person's re
   const roleName = `Desk ${suffix}`;
 
   await signIn(page, "admin");
-  await page.goto("/admin/settings?section=access");
+  await page.goto("/settings?section=access");
   await untilHydrated(page);
   await page.getByRole("button", { name: "New role", exact: true }).click();
   const sheet = page.getByRole("dialog", { name: "New role" });
@@ -203,7 +203,7 @@ test("an administrator cannot take away their own ability to manage roles, and i
   page,
 }) => {
   await signIn(page, "admin");
-  await page.goto("/admin/settings?section=access");
+  await page.goto("/settings?section=access");
   await untilHydrated(page);
   await page
     .getByRole("link", { name: "Principal", exact: true })

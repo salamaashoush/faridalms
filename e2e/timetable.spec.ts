@@ -17,7 +17,7 @@ test("an administrator changes a lesson from a day and the week shows it", async
 }) => {
   const homeroom = HOMEROOM[browserName as keyof typeof HOMEROOM];
   await signIn(page, "admin");
-  await page.goto("/admin/timetable?from=2026-11-05");
+  await page.goto("/timetable?from=2026-11-05");
   await untilHydrated(page);
   await page.getByRole("combobox", { name: /^Class/ }).click();
   await page.getByRole("option", { name: homeroom, exact: true }).click();
@@ -42,7 +42,7 @@ test("an administrator changes a lesson from a day and the week shows it", async
   await expect(page.getByText("Timetable updated")).toBeVisible();
   await expect(cell).toContainText(lesson);
 
-  await page.goto("/admin/timetable?from=2026-11-04");
+  await page.goto("/timetable?from=2026-11-04");
   await untilHydrated(page);
   await page.getByRole("combobox", { name: /^Class/ }).click();
   await page.getByRole("option", { name: homeroom, exact: true }).click();
@@ -56,9 +56,9 @@ test("a teacher reads their week", async ({ page }) => {
     page,
     "teacher2.northwind@northwind.example.com",
     PASSWORD,
-    "/teach",
+    "/today",
   );
-  await page.goto("/teach/timetable");
+  await page.goto("/timetable");
   await untilHydrated(page);
   await expect(
     page.getByRole("heading", { level: 1, name: "Timetable" }),

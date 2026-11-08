@@ -167,10 +167,10 @@ test("a school's administrator asks about a module its plan does not have, and t
     school,
     "principal.fernhill@fernhill.example.com",
     PASSWORD,
-    "/admin",
+    "/today",
     "fernhill",
   );
-  await school.goto(`${portal("fernhill")}/admin/settings`);
+  await school.goto(`${portal("fernhill")}/settings`);
   const coding = school
     .getByRole("listitem")
     .filter({ hasText: "Coding and blocks" });

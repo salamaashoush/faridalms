@@ -16,7 +16,7 @@ test("an urgent notice reaches a family's notifications and opens the announceme
 }) => {
   const title = `Early closing ${browserName} ${crypto.randomUUID().slice(0, 6)}`;
   await signIn(page, "admin");
-  await page.goto("/admin/announcement-editor");
+  await page.goto("/announcement-editor");
   await untilHydrated(page);
   await page.getByRole("textbox", { name: "Title" }).fill(title);
   await page.locator("[contenteditable=true]").first().click();

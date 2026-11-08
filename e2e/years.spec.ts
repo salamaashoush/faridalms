@@ -143,13 +143,13 @@ test("an administrator adds a year with terms, closes it and reopens it with a r
 }) => {
   const year = YEAR[browserName];
   await signIn(page, "admin");
-  await page.goto("/admin/academic-years");
+  await page.goto("/academic-years");
   await untilHydrated(page);
   await page
     .getByRole("link", { name: "Add school year", exact: true })
     .first()
     .click();
-  await expect(page).toHaveURL(/\/admin\/academic-year-editor/);
+  await expect(page).toHaveURL(/\/academic-year-editor/);
 
   await page
     .getByRole("textbox", { name: "Year name in English" })
@@ -217,7 +217,7 @@ test("a year that overlaps another is refused on its dates", async ({
   page,
 }) => {
   await signIn(page, "admin");
-  await page.goto("/admin/academic-year-editor");
+  await page.goto("/academic-year-editor");
   await untilHydrated(page);
   await page
     .getByRole("textbox", { name: "Year name in English" })
@@ -228,5 +228,5 @@ test("a year that overlaps another is refused on its dates", async ({
   await expect(
     page.getByText("These dates overlap another school year.", { exact: true }),
   ).toBeVisible();
-  await expect(page).toHaveURL(/\/admin\/academic-year-editor/);
+  await expect(page).toHaveURL(/\/academic-year-editor/);
 });

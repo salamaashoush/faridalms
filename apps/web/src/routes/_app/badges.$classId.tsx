@@ -9,7 +9,7 @@ import { classBadgesQuery } from "~/queries/badges";
 export const Route = createFileRoute("/_app/badges/$classId")({
   staticData: {
     trail: <BadgesTrail />,
-    section: ["/teach/classes", "/admin/classes"],
+    section: ["/classes", "/classes"],
   },
   loader: ({ context, params }) =>
     context.queryClient.ensureQueryData(classBadgesQuery(params.classId)),

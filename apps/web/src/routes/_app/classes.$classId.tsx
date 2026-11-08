@@ -15,7 +15,7 @@ const searchSchema = v.object({
 export const Route = createFileRoute("/_app/classes/$classId")({
   staticData: {
     breadcrumb: m.classesBreadcrumb,
-    section: ["/admin/classes", "/teach/classes"],
+    section: ["/classes", "/classes"],
   },
   validateSearch: searchSchema,
   search: { middlewares: [stripSearchParams(v.parse(searchSchema, {}))] },

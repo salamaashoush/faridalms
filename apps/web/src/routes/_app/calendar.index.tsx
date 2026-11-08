@@ -74,7 +74,7 @@ const DEFAULT_SEARCH = v.parse(searchSchema, {});
 
 /** Staff plan from the month; families and students read what is coming. */
 const defaultView = (workspace: Workspace): View =>
-  workspace === "admin" || workspace === "teach" ? "month" : "agenda";
+  workspace === "staff" ? "month" : "agenda";
 
 /** The day the calendar is at: the one jumped to, else today in its month or the month's first. */
 const anchorOf = (input: { day: string; month: string; today: string }) =>

@@ -562,7 +562,7 @@ export function ClassRecord({
                 icon: Pencil,
                 onClick: () =>
                   void navigate({
-                    to: "/admin/class-editor",
+                    to: "/class-editor",
                     search: { year: data.year.id, id: data.id },
                   }),
               }

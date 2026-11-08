@@ -25,6 +25,13 @@ export const itemLink = cn(
   phoneLink,
 );
 
+/** One side of a staff member's day: its cards, in the order they matter. */
+export interface DayCards {
+  today: string;
+  main: ReactNode[];
+  aside: ReactNode[];
+}
+
 export interface HomeCardProps {
   title: string;
   description?: ReactNode;

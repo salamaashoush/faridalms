@@ -31,7 +31,7 @@ test("an administrator adds a student with a new guardian and opens both records
   const unique = crypto.randomUUID().slice(0, 8);
   const mobile = `010${String(Math.floor(Math.random() * 1e8)).padStart(8, "0")}`;
   await signIn(page, "admin");
-  await page.goto("/admin/students");
+  await page.goto("/students");
   await untilHydrated(page);
   await page.getByRole("link", { name: "Add student", exact: true }).click();
   await expect(page).toHaveURL(/\/student-editor/);
@@ -49,7 +49,7 @@ test("an administrator adds a student with a new guardian and opens both records
   await guardian.getByRole("textbox", { name: "Mobile" }).fill(mobile);
   await fillNames(guardian, ["منى", "عاشور"], ["Mona", `Ashoush ${unique}`]);
   await page.getByRole("button", { name: "Save", exact: true }).click();
-  await expect(page).toHaveURL(/\/admin\/students/);
+  await expect(page).toHaveURL(/\/students/);
 
   await page.getByRole("searchbox").fill(`T-${unique}`);
   await expect(page).toHaveURL(new RegExp(`q=T-${unique}`));
@@ -83,20 +83,20 @@ test("the student list keeps only the filters a reader changed in the URL", asyn
   page,
 }) => {
   await signIn(page, "admin");
-  await page.goto("/admin/students");
+  await page.goto("/students");
   await untilHydrated(page);
   await expect(page.getByRole("table")).toBeVisible();
   await page.getByRole("button", { name: "Name", exact: true }).click();
-  await expect(page).toHaveURL(/\/admin\/students\?dir=desc$/);
+  await expect(page).toHaveURL(/\/students\?dir=desc$/);
   await page.reload();
-  await expect(page).toHaveURL(/\/admin\/students\?dir=desc$/);
+  await expect(page).toHaveURL(/\/students\?dir=desc$/);
 });
 
 test("a student list link naming a year the school does not have is not found", async ({
   page,
 }) => {
   await signIn(page, "admin");
-  await page.goto("/admin/students?year=01a1aa00-0000-7000-8000-000000000000");
+  await page.goto("/students?year=01a1aa00-0000-7000-8000-000000000000");
   await expect(
     page.getByRole("heading", { name: "Page not found" }),
   ).toBeVisible();
@@ -110,7 +110,7 @@ test("record tabs follow the reading direction in Arabic", async ({
   await context.addCookies([
     { name: "language-tag", value: "ar", url: portal() },
   ]);
-  await page.goto("/admin/students");
+  await page.goto("/students");
   await untilHydrated(page);
   await page.getByRole("table").getByRole("link").first().click();
   await expect(page).toHaveURL(/\/students\/[a-f0-9-]+/);
@@ -125,7 +125,7 @@ test("a student's record opens on their day, their year of attendance and what t
   page,
 }) => {
   await signIn(page, "admin");
-  await page.goto("/admin/students");
+  await page.goto("/students");
   await untilHydrated(page);
   await page.getByRole("table").getByRole("link").first().click();
   await expect(page).toHaveURL(/\/students\/[a-f0-9-]+/);
@@ -154,7 +154,7 @@ test("the office writes to a student's guardians from the student's record", asy
 }) => {
   await signIn(page, "admin");
   // A student whose family's conversations no other spec reads.
-  await page.goto("/admin/students?q=NO1008");
+  await page.goto("/students?q=NO1008");
   await untilHydrated(page);
   await page
     .getByRole("link", { name: /Tarek Farouk/ })
@@ -185,7 +185,7 @@ test("the office writes to a student's guardians from the student's record", asy
   const note = `Sports day kit, ${crypto.randomUUID().slice(0, 6)}`;
   await sheet.getByRole("textbox", { name: "Message" }).fill(note);
   await sheet.getByRole("button", { name: "Send", exact: true }).click();
-  await expect(page).toHaveURL(/\/admin\/messages\?.*thread=[a-f0-9-]+/);
+  await expect(page).toHaveURL(/\/messages\?.*thread=[a-f0-9-]+/);
   await expect(page.getByText(note).first()).toBeVisible();
 });
 
@@ -194,7 +194,7 @@ test("the office moves the students it picks in the list and writes to their fam
 }) => {
   await signIn(page, "admin");
   // Two students whose families' conversations no other spec reads.
-  await page.goto("/admin/students?q=Zaki");
+  await page.goto("/students?q=Zaki");
   await untilHydrated(page);
   const pick = page
     .getByRole("table")
@@ -226,7 +226,7 @@ test("the office moves the students it picks in the list and writes to their fam
   await expect(sheet).toBeHidden();
   // Each family has it in a conversation about its own child. Other
   // browsers write to the same two, so each is opened and read through.
-  await page.goto("/admin/messages");
+  await page.goto("/messages");
   await untilHydrated(page);
   const families = page
     .getByRole("list", { name: "Conversations" })
@@ -254,7 +254,7 @@ test("the office opens sign-ins for the students it picks, and a student signs i
 }) => {
   const student = SLIP[browserName];
   await signIn(page, "admin");
-  await page.goto("/admin/students?pageSize=50");
+  await page.goto("/students?pageSize=50");
   await untilHydrated(page);
   const table = page.getByRole("table");
   await table
@@ -309,7 +309,7 @@ test("the office records how a student joined and the school they came from", as
   page,
 }) => {
   await signIn(page, "admin");
-  await page.goto("/admin/students?q=NO1008");
+  await page.goto("/students?q=NO1008");
   await untilHydrated(page);
   await page
     .getByRole("link", { name: /Tarek Farouk/ })
@@ -348,7 +348,7 @@ test("the office records that a student has left, reads how on their record, and
 }) => {
   const student = LEAVER[browserName];
   await signIn(page, "admin");
-  await page.goto(`/admin/students?q=${student.reference}`);
+  await page.goto(`/students?q=${student.reference}`);
   await untilHydrated(page);
   await page.getByRole("link", { name: student.name }).first().click();
   await expect(page).toHaveURL(/\/students\/[a-f0-9-]+/);
@@ -422,7 +422,7 @@ test("an administrator adds a staff member, opens their sign-in and they sign in
   const email = `staff-${unique}@northwind.example.com`;
   const password = "a long enough pass phrase";
   await signIn(page, "admin");
-  await page.goto("/admin/staff");
+  await page.goto("/staff");
   await untilHydrated(page);
   await page.getByRole("link", { name: "Add staff member" }).first().click();
   await expect(page).toHaveURL(/\/staff-editor/);
@@ -434,7 +434,7 @@ test("an administrator adds a staff member, opens their sign-in and they sign in
   await page.getByRole("textbox", { name: "Email" }).fill(email);
   await page.getByRole("checkbox", { name: "Counselor" }).click();
   await page.getByRole("button", { name: "Save", exact: true }).click();
-  await expect(page).toHaveURL(/\/admin\/staff/);
+  await expect(page).toHaveURL(/\/staff/);
 
   await page.getByRole("searchbox").fill(email);
   const row = page
@@ -456,7 +456,7 @@ test("an administrator adds a staff member, opens their sign-in and they sign in
 
   const context = await browser.newContext();
   const staff = await context.newPage();
-  await signInWith(staff, email, password, "/teach");
+  await signInWith(staff, email, password, "/today");
   await expect(staff.getByRole("heading", { level: 1 })).toBeVisible();
   await context.close();
 });
@@ -466,7 +466,7 @@ test("an administrator makes a role and gives it to a teacher", async ({
 }) => {
   const unique = crypto.randomUUID().slice(0, 8);
   await signIn(page, "admin");
-  await page.goto("/admin/settings?section=access");
+  await page.goto("/settings?section=access");
   await untilHydrated(page);
   await page.getByRole("button", { name: "New role" }).click();
   const sheet = page.getByRole("dialog", { name: "New role" });
@@ -480,7 +480,7 @@ test("an administrator makes a role and gives it to a teacher", async ({
     page.getByRole("link", { name: `Timetabler ${unique}` }),
   ).toBeVisible();
 
-  await page.goto("/admin/staff?role=%5B%22teacher%22%5D");
+  await page.goto("/staff?role=%5B%22teacher%22%5D");
   await untilHydrated(page);
   await page.getByRole("table").getByRole("link").first().click();
   await page.getByRole("tab", { name: "Access", exact: true }).click();
@@ -514,8 +514,8 @@ test("the school profile saves its fields and refuses a weekend start", async ({
   browserName,
 }) => {
   const [school, email] = PROFILE_ADMIN[browserName];
-  await signInWith(page, email, PASSWORD, "/admin", school);
-  await page.goto(`${portal(school)}/admin/settings`);
+  await signInWith(page, email, PASSWORD, "/today", school);
+  await page.goto(`${portal(school)}/settings`);
   await untilHydrated(page);
   const profile = page.getByRole("region", { name: "School profile" });
   const weekStart = profile.getByRole("combobox", {
@@ -551,7 +551,7 @@ test("a health alert and a pickup restriction show on the student's header", asy
 }) => {
   const unique = crypto.randomUUID().slice(0, 8);
   await signIn(page, "admin");
-  await page.goto("/admin/students");
+  await page.goto("/students");
   await untilHydrated(page);
   await page.getByRole("link", { name: "Add student", exact: true }).click();
   const personal = page.getByRole("region", { name: "Personal details" });
@@ -566,7 +566,7 @@ test("a health alert and a pickup restriction show on the student's header", asy
     .fill(`012${String(Math.floor(Math.random() * 1e8)).padStart(8, "0")}`);
   await fillNames(guardian, ["منى", "حسن"], ["Mona", `Hassan ${unique}`]);
   await page.getByRole("button", { name: "Save", exact: true }).click();
-  await expect(page).toHaveURL(/\/admin\/students/);
+  await expect(page).toHaveURL(/\/students/);
   await page.getByRole("searchbox").fill(`H-${unique}`);
   // The table redraws as the search applies, which can swallow a click on a
   // row it is replacing; clicking again until the record opens rides that out.
@@ -643,7 +643,7 @@ test("an administrator keeps a guardian's address on the student's family tab", 
 }) => {
   const unique = crypto.randomUUID().slice(0, 8);
   await signIn(page, "admin");
-  await page.goto("/admin/students");
+  await page.goto("/students");
   await untilHydrated(page);
   await page.getByRole("link", { name: "Add student", exact: true }).click();
   const personal = page.getByRole("region", { name: "Personal details" });
@@ -658,7 +658,7 @@ test("an administrator keeps a guardian's address on the student's family tab", 
     .fill(`012${String(Math.floor(Math.random() * 1e8)).padStart(8, "0")}`);
   await fillNames(guardian, ["هالة", "نبيل"], ["Hala", `Nabil ${unique}`]);
   await page.getByRole("button", { name: "Save", exact: true }).click();
-  await expect(page).toHaveURL(/\/admin\/students/);
+  await expect(page).toHaveURL(/\/students/);
   await page.getByRole("searchbox").fill(`N-${unique}`);
   // The table redraws as the search applies, which can swallow a click on a
   // row it is replacing; clicking again until the record opens rides that out.

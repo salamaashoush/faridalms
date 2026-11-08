@@ -414,7 +414,7 @@ test("a school's administrators see its trial's days left, then that it is pause
   await expect(
     school.getByRole("status").filter({ hasText: "Password saved" }),
   ).toBeVisible();
-  await signInWith(school, administrator, PASSWORD, "/admin", slug);
+  await signInWith(school, administrator, PASSWORD, "/today", slug);
   const notice = school.getByRole("complementary", {
     name: "About your school's plan",
   });

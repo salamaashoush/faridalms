@@ -129,19 +129,19 @@ export function PieceSheet({
     onClose();
     if (piece.kind === "lesson")
       void navigate({
-        to: "/teach/lesson-editor",
+        to: "/lesson-editor",
         search: { moduleId: chosen, template: piece.id },
       });
     else if (piece.kind === "unit_plan")
       void navigate({
-        to: "/teach/module-plan",
+        to: "/module-plan",
         search: { moduleId: chosen, template: piece.id },
       });
     else if (piece.kind === "news")
       void navigate({ to: "/news-editor", search: { template: piece.id } });
     else if (piece.kind === "announcement")
       void navigate({
-        to: "/admin/announcement-editor",
+        to: "/announcement-editor",
         search: { template: piece.id },
       });
     else if (piece.kind === "event")
@@ -153,7 +153,7 @@ export function PieceSheet({
       });
     else
       void navigate({
-        to: "/teach/assignment-editor",
+        to: "/assignment-editor",
         search: { template: piece.id, ...(chosen ? { classId: chosen } : {}) },
       });
   };

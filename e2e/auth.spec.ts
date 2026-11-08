@@ -85,7 +85,7 @@ test("an authenticated visitor is redirected away from sign-in", async ({
 
 test("a parent cannot reach the administration area", async ({ page }) => {
   await signIn(page, "parent");
-  await page.goto("/admin/students");
+  await page.goto("/students");
 
   // The server refuses the data, so the page must not render a student list.
   await expect(page.getByRole("table")).toHaveCount(0);
@@ -125,10 +125,10 @@ test("a forgotten password is asked for from sign-in, and the answer never says 
 test("someone sent to sign in from a page goes back to it", async ({
   page,
 }) => {
-  await page.goto("/admin/students?dir=desc");
+  await page.goto("/students?dir=desc");
   await expect(page).toHaveURL(/\/sign-in\?redirect=/);
   await page.getByRole("textbox", { name: "Email" }).fill(ACCOUNTS.admin.email);
   await page.getByRole("textbox", { name: "Password" }).fill(PASSWORD);
   await page.getByRole("button", { name: "Sign In", exact: true }).click();
-  await expect(page).toHaveURL(/\/admin\/students\?dir=desc$/);
+  await expect(page).toHaveURL(/\/students\?dir=desc$/);
 });

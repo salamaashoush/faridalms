@@ -18,8 +18,8 @@ test("a young child plays a lesson one screen at a time, by tapping", async ({
   page,
 }) => {
   const title = `Counting ${crypto.randomUUID().slice(0, 6)}`;
-  await signInWith(page, TEACHER, PASSWORD, "/teach");
-  await page.goto("/teach/module-editor");
+  await signInWith(page, TEACHER, PASSWORD, "/today");
+  await page.goto("/module-editor");
   await untilHydrated(page);
   await page.getByRole("textbox", { name: "Module title" }).fill(title);
   await page.getByRole("combobox", { name: "Classes" }).click();
@@ -130,7 +130,7 @@ test("a Reception teacher judges each child against an early learning goal", asy
     page,
     `principal.${school}@northwind.example.com`,
     PASSWORD,
-    "/admin",
+    "/today",
     school,
   );
   await page.goto(`${portal(school)}/standards`);
@@ -150,7 +150,7 @@ test("a Reception teacher judges each child against an early learning goal", asy
     teacher,
     `teacher1.${school}@northwind.example.com`,
     PASSWORD,
-    "/teach",
+    "/today",
     school,
   );
   await teacher

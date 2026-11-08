@@ -152,7 +152,7 @@ describe("creating a school from the operator console", () => {
     expect(me).toMatchObject({
       nameEn: "Salama Ashoush",
       nameAr: "سلامة عشوش",
-      workspace: "admin",
+      workspace: "staff",
       roles: ["system_administrator"],
       school: { slug: "riverside", timeZone: "Africa/Cairo" },
     });
@@ -356,7 +356,7 @@ describe("creating a school from the operator console", () => {
       linkTo(east, "harbour-east").secret,
     );
     expect(await api.identity.currentUser()).toMatchObject({
-      workspace: "admin",
+      workspace: "staff",
       school: { slug: "harbour-east" },
     });
     // A school's administrator belongs to that school only.
@@ -373,7 +373,7 @@ describe("creating a school from the operator console", () => {
       linkTo(west, "harbour-west").secret,
     );
     expect(await westAdmin.api.identity.currentUser()).toMatchObject({
-      workspace: "admin",
+      workspace: "staff",
       school: { slug: "harbour-west" },
     });
 
@@ -383,7 +383,7 @@ describe("creating a school from the operator console", () => {
       linkTo(group, "harbour-east").secret,
     );
     expect(await groupAdmin.api.identity.currentUser()).toMatchObject({
-      workspace: "admin",
+      workspace: "staff",
       roles: ["district_administrator"],
     });
     const atWest = await client("harbour-west").identity.signIn({
@@ -392,7 +392,7 @@ describe("creating a school from the operator console", () => {
     });
     expect(
       await client("harbour-west", atWest.token).identity.currentUser(),
-    ).toMatchObject({ workspace: "admin", school: { slug: "harbour-west" } });
+    ).toMatchObject({ workspace: "staff", school: { slug: "harbour-west" } });
 
     // Asked again, nothing is created twice and each is sent a new link.
     expect(await call("/v1/tenants", body)).toMatchObject({

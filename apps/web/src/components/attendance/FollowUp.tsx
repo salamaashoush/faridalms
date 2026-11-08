@@ -234,7 +234,7 @@ function CallRow({ call, onLog }: CallRowProps) {
           {m.fupLog()}
         </Button>
         <ButtonLink
-          to="/admin/attendance"
+          to="/attendance"
           search={{ tab: "absences", show: "unexplained", q: nameOf(call) }}
           variant="ghost"
           className="max-md:h-10"
@@ -278,7 +278,7 @@ export function FollowUp({ date, onDate }: FollowUpProps) {
       inline: true,
       onSelect: () =>
         navigate({
-          to: "/admin/attendance",
+          to: "/attendance",
           search: {
             tab: "absences",
             show: "unexplained",

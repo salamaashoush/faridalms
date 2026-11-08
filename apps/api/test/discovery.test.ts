@@ -63,9 +63,9 @@ describe("sign-in on the bare portal domain", () => {
     const session = await client("northwind").identity.redeemHandoff({
       token: handoff.token,
     });
-    expect(session.workspace).toBe("admin");
+    expect(session.workspace).toBe("staff");
     const me = await client("northwind", session.token).identity.currentUser();
-    expect(me.workspace).toBe("admin");
+    expect(me.workspace).toBe("staff");
   });
 
   test("names every school a person's name and password open, and only after the password", async () => {

@@ -16,7 +16,7 @@ test("native clients authenticate without browser cookies and can revoke session
   const api = await apiAs("admin");
   expect(await api.identity.currentUser()).toMatchObject({
     school: { slug: "northwind" },
-    workspace: "admin",
+    workspace: "staff",
   });
   await api.identity.signOut();
   expect(await refusal(api.identity.currentUser())).toMatchObject({

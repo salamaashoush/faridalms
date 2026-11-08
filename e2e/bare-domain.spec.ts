@@ -24,14 +24,14 @@ test("signing in on the bare domain asks for the email, then the password, and l
   await page.goto(`${BARE}/sign-in`);
   await expect(page.getByRole("textbox", { name: /school/i })).toHaveCount(0);
   await emailFirst(page, "principal.northwind@northwind.example.com", PASSWORD);
-  await page.waitForURL(`${portal()}/admin`);
+  await page.waitForURL(`${portal()}/today`);
   await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
   // The handoff left the address bar with the page that spent it.
   expect(new URL(page.url()).hash).toBe("");
 
   // The bare domain remembers the school and sends the visitor straight on.
   await page.goto(`${BARE}/sign-in`);
-  await page.waitForURL(`${portal()}/admin`);
+  await page.waitForURL(`${portal()}/today`);
 });
 
 test("a wrong password and a name nobody holds read the same, and only after the password", async ({
@@ -64,12 +64,12 @@ test("a remembered school goes straight to its portal, and another account start
     page.getByRole("textbox", { name: "Email or sign-in name" }),
   ).toBeVisible();
 
-  await page.goto(`${BARE}/admin/students`);
+  await page.goto(`${BARE}/students`);
   await expect(page).toHaveURL(new RegExp(`^${BARE}/sign-in\\?redirect=`));
   await context.addCookies([
     { name: "farida-school", value: "northwind", url: BARE },
   ]);
-  await page.goto(`${BARE}/admin/students`);
+  await page.goto(`${BARE}/students`);
   await expect(page).toHaveURL(new RegExp(`^${portal()}/sign-in\\?redirect=`));
 });
 

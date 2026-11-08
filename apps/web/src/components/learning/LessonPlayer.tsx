@@ -1487,7 +1487,7 @@ export function LessonPreview({ lessonId, framed }: LessonPreviewProps) {
   };
   const edit = () =>
     void navigate({
-      to: "/teach/lesson-editor",
+      to: "/lesson-editor",
       search: { id: data.id, moduleId: data.moduleId },
     });
   const printing = usePrint({

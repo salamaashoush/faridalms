@@ -921,7 +921,7 @@ export const student = readProcedure.handler(async ({ context }) => {
  * checklist for the next year once this one is eight weeks from its end.
  */
 export const admin = readProcedure.handler(async ({ context }) => {
-  if (context.actor.workspace !== "admin") throw new ORPCError("FORBIDDEN");
+  if (context.actor.profile !== "staff_admin") throw new ORPCError("FORBIDDEN");
   const year = await yearOf(context);
   const on = await modulesOf(context);
   const weekStart = addDays(

@@ -204,7 +204,7 @@ test("administrators switch the school year in the class directory and keep it i
   });
 
   await signIn(page, "admin");
-  await page.goto("/admin/classes");
+  await page.goto("/classes");
   await untilHydrated(page);
   await expect(
     page.getByRole("heading", { level: 1, name: "Classes" }),
@@ -253,20 +253,20 @@ test("administrators switch the school year in the class directory and keep it i
     page.getByRole("link", { name: "Take register", exact: true }),
   ).toHaveCount(0);
 
-  await page.goto(`/admin/classes?year=${crypto.randomUUID()}`);
+  await page.goto(`/classes?year=${crypto.randomUUID()}`);
   await expect(page.getByText("Page not found")).toBeVisible();
 
   await page.setViewportSize({ width: 390, height: 844 });
   await context.addCookies([
     { name: "language-tag", value: "ar", url: portal() },
   ]);
-  await page.goto("/admin/academic-years");
+  await page.goto("/academic-years");
   await expect(page.locator("html")).toHaveAttribute("dir", "rtl");
   const card = page
     .getByRole("listitem")
     .filter({ has: page.getByRole("link", { name: year.title, exact: true }) });
   await expect(card.getByText("مغلق", { exact: true })).toBeVisible();
-  await page.goto(`/admin/classes?year=${created.id}`);
+  await page.goto(`/classes?year=${created.id}`);
   await expect(
     page.getByRole("link", { name: kept.title }).first(),
   ).toBeVisible();

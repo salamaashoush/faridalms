@@ -17,7 +17,7 @@ import * as m from "~/i18n/messages";
 import { searchQuery } from "~/queries/search";
 import { pageOn } from "~/utils/modules";
 
-import { NAVIGATION } from "./navigation";
+import { holds, NAVIGATION } from "./navigation";
 import { HIT_ROW, HitLink, SearchResults } from "./SearchResults";
 
 const RECENT_LIMIT = 6;
@@ -135,7 +135,7 @@ export function WorkspaceSearch({ variant = "bar" }: WorkspaceSearchProps) {
     .flatMap((section) => section.items)
     .filter(
       (item) =>
-        (!item.capability || user.capabilities.includes(item.capability)) &&
+        holds(item, user.capabilities) &&
         pageOn(user.modules, item.to) &&
         (typed === "" ||
           item.label().toLocaleLowerCase().includes(typed.toLocaleLowerCase())),

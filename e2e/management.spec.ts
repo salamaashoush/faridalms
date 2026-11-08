@@ -23,10 +23,10 @@ test("class forms explain invalid fields, recover on correction and protect unsa
   page,
 }) => {
   await signIn(page, "admin");
-  await page.goto("/admin/classes");
+  await page.goto("/classes");
   await untilHydrated(page);
   await page.getByRole("link", { name: "Add class", exact: true }).click();
-  await expect(page).toHaveURL(/\/admin\/class-editor/);
+  await expect(page).toHaveURL(/\/class-editor/);
   const arabicName = page.getByRole("textbox", {
     name: "Class name in Arabic",
   });
@@ -82,7 +82,7 @@ test("class forms explain invalid fields, recover on correction and protect unsa
   await expect(
     page.getByRole("textbox", { name: "Class name in English" }),
   ).toHaveValue("Salama class");
-  await expect(page).toHaveURL(/\/admin\/class-editor/);
+  await expect(page).toHaveURL(/\/class-editor/);
 });
 
 test("administrators add a staff member through the shared editor and turn their sign-in off", async ({
@@ -92,7 +92,7 @@ test("administrators add a staff member through the shared editor and turn their
   const name = `Salama Ashoush ${unique}`;
   const email = `salama-${unique}@northwind.example.com`;
   await signIn(page, "admin");
-  await page.goto("/admin/staff");
+  await page.goto("/staff");
   await untilHydrated(page);
   await page.getByRole("link", { name: "Add staff member" }).first().click();
   await expect(page).toHaveURL(/\/staff-editor/);
@@ -103,7 +103,7 @@ test("administrators add a staff member through the shared editor and turn their
   );
   await page.getByRole("textbox", { name: "Email" }).fill(email);
   await page.getByRole("button", { name: "Save", exact: true }).click();
-  await expect(page).toHaveURL(/\/admin\/staff/);
+  await expect(page).toHaveURL(/\/staff/);
 
   await page.getByRole("searchbox").fill(unique);
   const row = page.getByRole("table").getByRole("row").filter({
@@ -141,7 +141,7 @@ test("administrators edit a student record in side sheets and confirm a class mo
   const unique = crypto.randomUUID().slice(0, 8);
   const reference = `T-${unique}`;
   await signIn(page, "admin");
-  await page.goto("/admin/students");
+  await page.goto("/students");
   await untilHydrated(page);
   await page.getByRole("link", { name: "Add student", exact: true }).click();
   await expect(page).toHaveURL(/\/student-editor/);
@@ -153,7 +153,7 @@ test("administrators edit a student record in side sheets and confirm a class mo
   await page.getByRole("combobox", { name: /^Grade/ }).click();
   await page.getByRole("option").nth(1).click();
   await page.getByRole("button", { name: "Save", exact: true }).click();
-  await expect(page).toHaveURL(/\/admin\/students/);
+  await expect(page).toHaveURL(/\/students/);
 
   // A second student cannot take the reference the first already holds.
   await untilHydrated(page);
@@ -179,7 +179,7 @@ test("administrators edit a student record in side sheets and confirm a class mo
     .getByRole("dialog", { name: "Leave without saving?" })
     .getByRole("button", { name: "Discard changes" })
     .click();
-  await expect(page).toHaveURL(/\/admin\/students/);
+  await expect(page).toHaveURL(/\/students/);
 
   await page.getByRole("searchbox").fill(reference);
   await expect(page).toHaveURL(new RegExp(`q=${reference}`));
@@ -362,7 +362,7 @@ test("shared tables search, sort and toggle columns without losing URL state", a
   page,
 }) => {
   await signIn(page, "admin");
-  await page.goto("/admin/students");
+  await page.goto("/students");
   await untilHydrated(page);
   await page.getByRole("button", { name: "Name", exact: true }).click();
   await expect(page).toHaveURL(/dir=desc/);
@@ -392,7 +392,7 @@ test("shared tables search, sort and toggle columns without losing URL state", a
 
 test("the staff directory hides a column", async ({ page }) => {
   await signIn(page, "admin");
-  await page.goto("/admin/staff");
+  await page.goto("/staff");
   await untilHydrated(page);
   await expect(
     page.getByRole("columnheader", { name: "Email", exact: true }),
@@ -411,7 +411,7 @@ test("the student index opens records, exports a selection and filters on a phon
   page,
 }) => {
   await signIn(page, "admin");
-  await page.goto("/admin/students");
+  await page.goto("/students");
   await untilHydrated(page);
   await page
     .getByRole("table")
@@ -428,7 +428,7 @@ test("the student index opens records, exports a selection and filters on a phon
   await page
     .getByRole("checkbox", { name: "Select Yasmin Sabry", exact: true })
     .click();
-  await expect(page).toHaveURL(/\/admin\/students/);
+  await expect(page).toHaveURL(/\/students/);
   await expect(
     page.getByText("1 selected", { exact: true }).last(),
   ).toBeVisible();
@@ -459,7 +459,7 @@ test("teachers assign coursework from the browser once it is complete", async ({
 }) => {
   const title = `Salama browser coursework ${crypto.randomUUID().slice(0, 8)}`;
   await signIn(page, "teacher");
-  await page.goto("/teach/assignment-editor");
+  await page.goto("/assignment-editor");
   await untilHydrated(page);
   await page.locator("#work-class").click();
   await page.getByRole("option").first().click();
@@ -478,7 +478,7 @@ test("teachers assign coursework from the browser once it is complete", async ({
   await expect(
     page.getByRole("heading", { level: 1, name: title, exact: true }),
   ).toBeVisible();
-  await page.goto("/teach/assignments");
+  await page.goto("/assignments");
   await untilHydrated(page);
   await page.getByRole("searchbox").fill(title);
   await expect(

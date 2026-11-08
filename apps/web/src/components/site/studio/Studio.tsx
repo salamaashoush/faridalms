@@ -1049,7 +1049,7 @@ export function SiteStudio({
       />
       <header className="flex h-14 shrink-0 items-center gap-2 border-b px-2 lg:px-3">
         <ButtonLink
-          to="/admin/site"
+          to="/website"
           variant="ghost"
           size="icon"
           className="max-md:size-10"
@@ -1082,7 +1082,7 @@ export function SiteStudio({
                   disabled={row.id === pageId}
                   onClick={() =>
                     void navigate({
-                      to: "/admin/site-page-editor",
+                      to: "/site-page-editor",
                       search: { id: row.id },
                     })
                   }
@@ -1096,7 +1096,7 @@ export function SiteStudio({
             <DropdownMenuSeparator />
             <DropdownMenuItem
               onClick={() =>
-                void navigate({ to: "/admin/site-page-editor", search: {} })
+                void navigate({ to: "/site-page-editor", search: {} })
               }
             >
               {m.siteNewPage()}

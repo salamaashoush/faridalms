@@ -28,7 +28,7 @@ const learns = (workspace: string | null) => workspace === "me";
 export const Route = createFileRoute("/_app/assignments/$assignmentId")({
   staticData: {
     trail: <AssignmentTrail />,
-    section: ["/teach/assignments", "/me/assignments"],
+    section: ["/assignments", "/me/assignments"],
   },
   validateSearch: v.object({
     tab: v.fallback(v.optional(v.picklist(RECORD_TABS), "brief"), "brief"),

@@ -86,7 +86,7 @@ test("an unpaid invoice reminds, asks for a call, restricts the school at its we
   // The school's administrator makes today a weekend day, so the change
   // the clock waits for happens in this run whatever day it is.
   const { page: school, context } = await schoolAdministrator(browser, slug);
-  await school.goto(`${portal(slug)}/admin/settings`);
+  await school.goto(`${portal(slug)}/settings`);
   await untilHydrated(school);
   const profile = school.getByRole("region", { name: "School profile" });
   await profile
@@ -124,7 +124,7 @@ test("an unpaid invoice reminds, asks for a call, restricts the school at its we
     .filter({ hasText: `Call about ${number}` });
   await expect(call).toContainText(OWNER.name);
 
-  await school.goto(`${portal(slug)}/admin`);
+  await school.goto(`${portal(slug)}/today`);
   const notice = school.getByRole("complementary", {
     name: "About your school's plan",
   });

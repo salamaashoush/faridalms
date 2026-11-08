@@ -47,7 +47,7 @@ test("a new school's first steps show to its operators and its administrators al
 
   // The school's administrators see the same steps on their Today page.
   const { page: school, context } = await schoolAdministrator(browser, slug);
-  await school.goto(`${portal(slug)}/admin`);
+  await school.goto(`${portal(slug)}/today`);
   const card = school.getByRole("region", { name: "Getting started" });
   const step = (name: string) =>
     card.getByRole("listitem").filter({ hasText: name });

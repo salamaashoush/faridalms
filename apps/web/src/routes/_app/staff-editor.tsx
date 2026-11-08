@@ -25,7 +25,7 @@ import { requirePage } from "~/utils/page-access";
 export const Route = createFileRoute("/_app/staff-editor")({
   staticData: {
     trail: <EditorTrail />,
-    section: "/admin/staff",
+    section: "/staff",
   },
   validateSearch: v.object({
     id: v.optional(v.pipe(v.string(), v.uuid())),
@@ -85,7 +85,7 @@ function StaffEditorPage() {
     }
     void (id
       ? navigate({ to: "/people/$userId", params: { userId: id }, search: {} })
-      : navigate({ to: "/admin/staff", search: {} }));
+      : navigate({ to: "/staff", search: {} }));
   };
   return id ? (
     <ExistingStaffEditor key={id} id={id} onClose={close} />

@@ -152,7 +152,7 @@ function ManagedTitle({ kind, row }: ManagedTitleProps) {
       </RowLink>
     );
   return kind === "announcement" ? (
-    <RowLink to="/admin/announcement-editor" search={{ id: row.id }}>
+    <RowLink to="/announcement-editor" search={{ id: row.id }}>
       {title}
     </RowLink>
   ) : (

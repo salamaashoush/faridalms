@@ -142,7 +142,7 @@ test("a school adds its own question to the form, and families answer it", async
 }) => {
   const question = `Preferred start ${tag()}`;
   await signIn(page, "admin");
-  await page.goto("/admin/site");
+  await page.goto("/website");
   await untilHydrated(page);
   await page
     .getByRole("link", { name: "Admissions", exact: true })

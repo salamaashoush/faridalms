@@ -43,9 +43,7 @@ describe("a school's website on its own host", () => {
 
   it("finds no app route there, nor another school's website", () => {
     expect(sitePathIn("/sign-in", "northwind")).toBe("/site/northwind/sign-in");
-    expect(sitePathIn("/admin/site", "northwind")).toBe(
-      "/site/northwind/admin/site",
-    );
+    expect(sitePathIn("/website", "northwind")).toBe("/site/northwind/website");
     expect(sitePathIn("/site/acme", "northwind")).toBe(
       "/site/northwind/site/acme",
     );

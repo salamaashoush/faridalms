@@ -81,7 +81,7 @@ test("a guardian replies to the teacher's note and the teacher reads it", async 
 
   const teacherContext = await browser.newContext();
   const teacher = await teacherContext.newPage();
-  await signInWith(teacher, TEACHER, PASSWORD, "/teach");
+  await signInWith(teacher, TEACHER, PASSWORD, "/today");
   await untilHydrated(teacher);
   // What waits unread is counted beside Messages, and read out as such.
   await expect(
@@ -90,7 +90,7 @@ test("a guardian replies to the teacher's note and the teacher reads it", async 
       .getByRole("link", { name: /^Messages\s*\d+ unread conversations?$/ })
       .first(),
   ).toBeVisible();
-  await teacher.goto("/teach/messages");
+  await teacher.goto("/messages");
   await untilHydrated(teacher);
   await teacher
     .getByRole("list", { name: "Conversations" })
@@ -147,8 +147,8 @@ test("a teacher writes to a child's family from a new message", async ({
   browserName,
 }) => {
   const words = `Trip on Thursday (${tag(browserName)})`;
-  await signInWith(page, TEACHER, PASSWORD, "/teach");
-  await page.goto("/teach/messages");
+  await signInWith(page, TEACHER, PASSWORD, "/today");
+  await page.goto("/messages");
   await untilHydrated(page);
   await page.getByRole("button", { name: "New message" }).click();
   const sheet = page.getByRole("dialog");
@@ -271,7 +271,7 @@ test("recipient search pages past its first thirty people", async ({
   page,
 }) => {
   await signIn(page, "admin");
-  await page.goto("/admin/messages?compose=true");
+  await page.goto("/messages?compose=true");
   await hydratedUnderSheet(page);
   const sheet = page.getByRole("dialog", { name: "New message" });
   await sheet.getByRole("combobox", { name: "Write to" }).click();
@@ -292,7 +292,7 @@ test("leaving a message to several families asks before it is thrown away", asyn
   page,
 }) => {
   await signIn(page, "admin");
-  await page.goto("/admin/students?q=Zaki");
+  await page.goto("/students?q=Zaki");
   await untilHydrated(page);
   const pick = page
     .getByRole("table")
@@ -343,8 +343,8 @@ test("a long conversation reads back past its latest hundred messages", async ({
       ),
     Promise.resolve(),
   );
-  await signInWith(page, TEACHER, PASSWORD, "/teach");
-  await page.goto(`/teach/messages?thread=${threadId}`);
+  await signInWith(page, TEACHER, PASSWORD, "/today");
+  await page.goto(`/messages?thread=${threadId}`);
   await untilHydrated(page);
   const messages = page.getByRole("list", { name: "Messages" });
   await expect(messages.getByText("Reply 101", { exact: true })).toBeVisible();
@@ -391,8 +391,8 @@ test("a guardian attaches a doctor's note to a reply, and the teacher opens it",
 
   const teacherContext = await browser.newContext();
   const teacher = await teacherContext.newPage();
-  await signInWith(teacher, TEACHER, PASSWORD, "/teach");
-  await teacher.goto("/teach/messages");
+  await signInWith(teacher, TEACHER, PASSWORD, "/today");
+  await teacher.goto("/messages");
   await untilHydrated(teacher);
   await teacher
     .getByRole("list", { name: "Conversations" })

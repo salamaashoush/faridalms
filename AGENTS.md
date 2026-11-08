@@ -237,12 +237,25 @@ rejects anything that works around it.
 
 ## Routes
 
-Routes live under `apps/web/src/routes/_app/<prefix>/`, and the prefix is the role:
-`admin`, `teach`, `family`, `me`. `_app.tsx` gates authentication and renders
-the shell; `_app/<prefix>.tsx` gates the role. Both are required, because the
-server authorises data but only the route can stop a page rendering at all.
-A page for some capabilities calls `requirePage` from
-`apps/web/src/utils/page-access.ts` in its loader, never its own check.
+Routes are grouped by the session's context, its workspace: staff pages live
+at the root under the pathless `apps/web/src/routes/_app/_staff/` layout
+(`/today`, `/classes`, `/settings`), a family's under `_app/family/`, a
+student's under `_app/me/`, and pages every context opens (calendar, news,
+announcements) directly under `_app/`. `_app.tsx` gates authentication and
+renders the shell; `_app/_staff.tsx`, `_app/family.tsx` and `_app/me.tsx` gate
+the context. Both are required, because the server authorises data but only
+the route can stop a page rendering at all.
+
+Inside the staff workspace capabilities decide everything, never the
+profile: an administrator who teaches and a teacher who holds an office
+capability see the same pages as anyone else holding them. Every staff page
+calls `requirePage` from `apps/web/src/utils/page-access.ts` in its loader
+with the capabilities its API asks for, never its own check, and its item in
+`apps/web/src/components/app/navigation.ts` is gated by the same ones. A page
+with a personal and a school-wide side (classes, attendance, timetable,
+today) shows both as tabs, the personal one first for whoever teaches.
+`/admin/*` and `/teach/*` are the old staff areas and only redirect
+(`apps/web/src/utils/moved-addresses.ts`).
 
 Filters, the selected child, the selected week and the open folder all live in
 the URL via `validateSearch`. None of them belong in `useState`. Read data with

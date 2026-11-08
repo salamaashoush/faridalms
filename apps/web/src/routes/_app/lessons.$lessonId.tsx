@@ -25,7 +25,7 @@ const learns = (workspace: string | null) => workspace === "me";
 export const Route = createFileRoute("/_app/lessons/$lessonId")({
   staticData: {
     trail: <LessonTrail />,
-    section: ["/teach/modules", "/me/modules"],
+    section: ["/modules", "/me/modules"],
   },
   loader: async ({ context, params, preload }) => {
     if (learns(context.auth.workspace)) {

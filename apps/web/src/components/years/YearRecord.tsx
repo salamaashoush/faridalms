@@ -79,7 +79,7 @@ function TermsSection({ year }: TermsSectionProps) {
 }
 
 interface CountLinkProps {
-  to: "/admin/classes" | "/admin/students";
+  to: "/classes" | "/students";
   year: string;
   children: number;
 }
@@ -105,12 +105,12 @@ function SummarySection({ year }: SummarySectionProps) {
     <RecordSection title={m.yearsSummary()}>
       <Facts>
         <Fact label={m.adminClassesTitle()}>
-          <CountLink to="/admin/classes" year={year.id}>
+          <CountLink to="/classes" year={year.id}>
             {year.classes}
           </CountLink>
         </Fact>
         <Fact label={m.classesStudents()}>
-          <CountLink to="/admin/students" year={year.id}>
+          <CountLink to="/students" year={year.id}>
             {year.students}
           </CountLink>
         </Fact>
@@ -176,7 +176,7 @@ export function YearRecord({ yearId, tab, on, onTab }: YearRecordProps) {
                 icon: Pencil,
                 onClick: () =>
                   void navigate({
-                    to: "/admin/academic-year-editor",
+                    to: "/academic-year-editor",
                     search: { id: year.id },
                   }),
               }
@@ -189,7 +189,7 @@ export function YearRecord({ yearId, tab, on, onTab }: YearRecordProps) {
             year.access,
             (source, target) =>
               void navigate({
-                to: "/admin/rollover",
+                to: "/rollover",
                 search: { source, target },
               }),
           ),

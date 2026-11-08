@@ -65,14 +65,14 @@ describe("sign-in", () => {
     ).toBe(link.userId);
   });
 
-  test("a principal signs in to their school and lands in the admin workspace", async () => {
+  test("a principal signs in to their school and lands in the staff workspace", async () => {
     const principal = login("principal");
     const api = client("northwind");
     const session = await api.identity.signIn({
       loginName: principal,
       password: SEED_PASSWORD,
     });
-    expect(session.workspace).toBe("admin");
+    expect(session.workspace).toBe("staff");
     const me = await client("northwind", session.token).identity.currentUser();
     expect(me.profile).toBe("staff_admin");
     expect(me.capabilities).toContain("people:manage");

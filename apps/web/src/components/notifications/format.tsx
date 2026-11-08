@@ -331,8 +331,7 @@ export function noticeText(notice: Notice): { title: string; body: string } {
 
 /** Where each workspace reads its messages. */
 export const MESSAGES = {
-  admin: "/admin/messages",
-  teach: "/teach/messages",
+  staff: "/messages",
   family: "/family/messages",
   me: "/me/messages",
 } as const;
@@ -358,7 +357,7 @@ function CommentedIn({
       return parentId ? (
         <Link
           {...rest}
-          to="/teach/lesson-editor"
+          to="/lesson-editor"
           search={{ id, moduleId: parentId }}
           hash={hash}
         >
@@ -367,23 +366,13 @@ function CommentedIn({
       ) : null;
     case "module_plan":
       return (
-        <Link
-          {...rest}
-          to="/teach/module-plan"
-          search={{ moduleId: id }}
-          hash={hash}
-        >
+        <Link {...rest} to="/module-plan" search={{ moduleId: id }} hash={hash}>
           {children}
         </Link>
       );
     case "assignment":
       return (
-        <Link
-          {...rest}
-          to="/teach/assignment-editor"
-          search={{ id }}
-          hash={hash}
-        >
+        <Link {...rest} to="/assignment-editor" search={{ id }} hash={hash}>
           {children}
         </Link>
       );
@@ -395,12 +384,7 @@ function CommentedIn({
       );
     case "announcement":
       return (
-        <Link
-          {...rest}
-          to="/admin/announcement-editor"
-          search={{ id }}
-          hash={hash}
-        >
+        <Link {...rest} to="/announcement-editor" search={{ id }} hash={hash}>
           {children}
         </Link>
       );
@@ -533,7 +517,7 @@ export function NoticeLink({
     case "reminder":
       if (notice.params.cover && notice.params.cancelled)
         return (
-          <Link {...rest} to="/teach/timetable">
+          <Link {...rest} to="/timetable">
             {children}
           </Link>
         );

@@ -10,7 +10,7 @@ import { yearQuery, yearsQuery } from "~/queries/years";
 export const Route = createFileRoute("/_app/years/$yearId")({
   staticData: {
     trail: <YearTrail />,
-    section: "/admin/academic-years",
+    section: "/academic-years",
   },
   validateSearch: v.object({
     tab: v.fallback(v.optional(v.picklist(YEAR_TABS), "overview"), "overview"),

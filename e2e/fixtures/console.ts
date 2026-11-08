@@ -316,7 +316,7 @@ export async function schoolAdministrator(browser: Browser, slug: string) {
   await expect(
     page.getByRole("status").filter({ hasText: "Password saved" }),
   ).toBeVisible();
-  await signInWith(page, email, PASSWORD, "/admin", slug);
+  await signInWith(page, email, PASSWORD, "/today", slug);
   return { page, context };
 }
 

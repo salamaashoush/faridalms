@@ -144,7 +144,7 @@ function AnnouncementsPage() {
             ? {
                 label: m.annNew(),
                 icon: Plus,
-                link: { to: "/admin/announcement-editor", search: {} },
+                link: { to: "/announcement-editor", search: {} },
               }
             : undefined
         }

@@ -105,7 +105,7 @@ test("the office answers an enquiry by email and the family's reply lands in the
   await expect(messages.getByText("By email").first()).toBeVisible();
 
   // The same conversation is in the admissions mailbox in Messages.
-  await page.goto("/admin/messages?box=admissions");
+  await page.goto("/messages?box=admissions");
   await untilHydrated(page);
   await page
     .getByRole("list", { name: "Conversations" })

@@ -24,7 +24,7 @@ import { requirePage } from "~/utils/page-access";
 export const Route = createFileRoute("/_app/student-editor")({
   staticData: {
     trail: <EditorTrail />,
-    section: "/admin/students",
+    section: "/students",
   },
   validateSearch: v.object({
     id: v.optional(v.pipe(v.string(), v.uuid())),
@@ -90,7 +90,7 @@ function StudentEditorPage() {
           params: { studentId: id },
           search: {},
         })
-      : navigate({ to: "/admin/students", search: {} }));
+      : navigate({ to: "/students", search: {} }));
   };
   return id ? (
     <ExistingStudentEditor key={id} id={id} onClose={close} />

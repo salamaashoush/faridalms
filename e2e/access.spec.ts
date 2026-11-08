@@ -51,8 +51,8 @@ test.describe("navigation offers nothing that 404s", () => {
  * nothing it is offered 404s, and a module's page it lacks is not found.
  */
 const BASIC: Record<RoleKey, { email: string; home: string }> = {
-  admin: { email: "principal.fernhill@fernhill.example.com", home: "/admin" },
-  teacher: { email: "teacher1.fernhill@fernhill.example.com", home: "/teach" },
+  admin: { email: "principal.fernhill@fernhill.example.com", home: "/today" },
+  teacher: { email: "teacher1.fernhill@fernhill.example.com", home: "/today" },
   parent: { email: "parent1001@fernhill.example.com", home: "/family" },
   student: { email: "student1001@fernhill.example.com", home: "/me" },
 };
@@ -94,14 +94,14 @@ test.describe("a school with Basic alone offers nothing it does not have", () =>
   test("an administrator finds no module the school lacks", async ({
     page,
   }) => {
-    await signInWith(page, BASIC.admin.email, PASSWORD, "/admin", "fernhill");
+    await signInWith(page, BASIC.admin.email, PASSWORD, "/today", "fernhill");
     await untilHydrated(page);
     const navigation = page.getByRole("navigation").first();
     for (const name of ["Enquiries", "Website", "Exams and grading"])
       await expect(
         navigation.getByRole("link", { name, exact: true }),
       ).toHaveCount(0);
-    await page.goto(new URL("/admin/site", portal("fernhill")).href);
+    await page.goto(new URL("/website", portal("fernhill")).href);
     await expect(
       page.getByRole("heading", { name: "Page not found", exact: true }),
     ).toBeVisible();
@@ -109,8 +109,8 @@ test.describe("a school with Basic alone offers nothing it does not have", () =>
 });
 
 test("every tab of a Basic school's records opens", async ({ page }) => {
-  await signInWith(page, BASIC.admin.email, PASSWORD, "/admin", "fernhill");
-  for (const list of ["/admin/students", "/admin/classes", "/admin/staff"]) {
+  await signInWith(page, BASIC.admin.email, PASSWORD, "/today", "fernhill");
+  for (const list of ["/students", "/classes", "/staff"]) {
     await page.goto(new URL(list, portal("fernhill")).href);
     await untilHydrated(page);
     await page.getByRole("table").getByRole("link").first().click();
@@ -131,11 +131,15 @@ test("every tab of a Basic school's records opens", async ({ page }) => {
 
 test.describe("roles cannot reach each other's sections", () => {
   const FORBIDDEN: [RoleKey, string][] = [
-    ["parent", "/admin"],
-    ["parent", "/teach/grading"],
-    ["student", "/admin"],
+    ["parent", "/today"],
+    ["parent", "/grading"],
+    ["student", "/today"],
     ["student", "/family/children"],
-    ["teacher", "/admin/staff"],
+    ["teacher", "/staff"],
+    ["teacher", "/settings"],
+    ["teacher", "/billing"],
+    ["parent", "/classes"],
+    ["student", "/modules"],
   ];
 
   for (const [role, path] of FORBIDDEN) {

@@ -43,8 +43,8 @@ export interface NavItem {
   to: string;
   label: () => string;
   icon: LucideIcon;
-  /** Hidden unless the person holds this capability. */
-  capability?: Capability;
+  /** Hidden unless the person holds this capability, or one of these. */
+  capability?: Capability | readonly Capability[];
   /** Match the route exactly, for section index pages. */
   exact?: boolean;
   /** Kept for young children, whose home holds everything they open. */
@@ -59,23 +59,91 @@ export interface NavSection {
 }
 
 /**
- * One tree per role, following how school platforms organise each job: a
- * teacher starts from today's teaching, a family from their children, an
- * office from what needs doing. Only routes that exist appear here.
+ * One tree per workspace. Staff share one, in which capabilities decide
+ * what each person sees: a teacher's day starts from their teaching, an
+ * office's from what needs doing, and someone who does both sees both
+ * without changing role. A family starts from their children. Only routes
+ * that exist appear here.
  */
 export const NAVIGATION: Record<Workspace, NavSection[]> = {
-  admin: [
+  staff: [
     {
+      items: [{ to: "/today", label: m.navToday, icon: Sun, exact: true }],
+    },
+    {
+      title: m.navSectionTeaching,
       items: [
-        { to: "/admin", label: m.navToday, icon: Sun, exact: true },
-        { to: "/admin/students", label: m.navStudents, icon: GraduationCap },
-        { to: "/admin/staff", label: m.navStaff, icon: Users },
-        { to: "/admin/classes", label: m.navClasses, icon: School },
+        { to: "/classes", label: m.navClasses, icon: School },
         {
-          to: "/admin/attendance",
+          to: "/grading",
+          label: m.navToReview,
+          icon: ClipboardCheck,
+          capability: "submissions:grade",
+        },
+        {
+          to: "/assignments",
+          label: m.navCoursework,
+          icon: ClipboardList,
+          capability: ["assignments:author", "submissions:grade"],
+        },
+        {
+          to: "/gradebook",
+          label: m.navGradebook,
+          icon: BookOpen,
+          capability: "submissions:grade",
+        },
+        {
+          to: "/modules",
+          label: m.navModules,
+          icon: Layers,
+          capability: "learning:author",
+        },
+        {
+          to: "/attendance",
           label: m.navAttendance,
           icon: UserCheck,
-          capability: "attendance:manage",
+          capability: ["attendance:record", "attendance:manage"],
+        },
+        {
+          to: "/timetable",
+          label: m.navTimetable,
+          icon: Table2,
+          capability: ["timetable:read", "timetable:manage"],
+        },
+        {
+          to: "/exams",
+          label: m.navExams,
+          icon: Award,
+          capability: "exams:manage",
+        },
+        {
+          to: "/standards",
+          label: m.navStandards,
+          icon: ListTree,
+          capability: ["learning:author", "standards:manage"],
+        },
+        {
+          to: "/library",
+          label: m.navLibrary,
+          icon: BookMarked,
+          capability: ["assignments:author", "library:review"],
+        },
+      ],
+    },
+    {
+      title: m.navSectionPeople,
+      items: [
+        {
+          to: "/students",
+          label: m.navStudents,
+          icon: GraduationCap,
+          capability: ["people:read", "people:manage"],
+        },
+        {
+          to: "/staff",
+          label: m.navStaff,
+          icon: Users,
+          capability: "staff:manage",
         },
         {
           to: "/health-changes",
@@ -83,24 +151,13 @@ export const NAVIGATION: Record<Workspace, NavSection[]> = {
           icon: HeartPulse,
           capability: "health:write",
         },
-        {
-          to: "/admin/timetable",
-          label: m.navTimetable,
-          icon: Table2,
-          capability: "timetable:manage",
-        },
-        {
-          to: "/admin/academic-years",
-          label: m.navSchoolYear,
-          icon: CalendarCheck,
-        },
       ],
     },
     {
       title: m.navSectionCommunication,
       items: [
         {
-          to: "/admin/messages",
+          to: "/messages",
           label: m.navMessages,
           icon: Inbox,
           count: "messages",
@@ -148,37 +205,35 @@ export const NAVIGATION: Record<Workspace, NavSection[]> = {
     {
       title: m.navSectionSchool,
       items: [
-        { to: "/admin/site", label: m.navWebsite, icon: Globe },
         {
-          to: "/admin/media",
+          to: "/academic-years",
+          label: m.navSchoolYear,
+          icon: CalendarCheck,
+          capability: ["years:manage", "school:manage"],
+        },
+        {
+          to: "/website",
+          label: m.navWebsite,
+          icon: Globe,
+          capability: "site:manage",
+        },
+        {
+          to: "/media",
           label: m.navMediaLibrary,
           icon: Images,
           capability: "site:manage",
         },
-        { to: "/admin/settings", label: m.navSettings, icon: Settings },
         {
-          to: "/admin/billing",
+          to: "/settings",
+          label: m.navSettings,
+          icon: Settings,
+          capability: "school:manage",
+        },
+        {
+          to: "/billing",
           label: m.navBilling,
           icon: Receipt,
           capability: "billing:read",
-        },
-        {
-          to: "/exams",
-          label: m.navExams,
-          icon: Award,
-          capability: "exams:manage",
-        },
-        {
-          to: "/standards",
-          label: m.navStandards,
-          icon: ListTree,
-          capability: "standards:manage",
-        },
-        {
-          to: "/library",
-          label: m.navLibrary,
-          icon: BookMarked,
-          capability: "library:review",
         },
         {
           to: "/privacy",
@@ -187,105 +242,10 @@ export const NAVIGATION: Record<Workspace, NavSection[]> = {
           capability: "privacy:manage",
         },
         {
-          to: "/admin/notification-audit",
+          to: "/notification-audit",
           label: m.navDeliveryLog,
           icon: Send,
-        },
-      ],
-    },
-  ],
-
-  teach: [
-    {
-      items: [
-        { to: "/teach", label: m.navToday, icon: Sun, exact: true },
-        { to: "/teach/classes", label: m.navClasses, icon: School },
-        { to: "/teach/grading", label: m.navToReview, icon: ClipboardCheck },
-        {
-          to: "/teach/assignments",
-          label: m.navCoursework,
-          icon: ClipboardList,
-        },
-        { to: "/teach/gradebook", label: m.navGradebook, icon: BookOpen },
-        {
-          to: "/exams",
-          label: m.navExams,
-          icon: Award,
-          capability: "exams:manage",
-        },
-        { to: "/teach/attendance", label: m.navAttendance, icon: UserCheck },
-        {
-          to: "/health-changes",
-          label: m.navHealthChanges,
-          icon: HeartPulse,
-          capability: "health:write",
-        },
-        { to: "/teach/timetable", label: m.navTimetable, icon: Table2 },
-        {
-          to: "/teach/modules",
-          label: m.navModules,
-          icon: Layers,
-        },
-        {
-          to: "/standards",
-          label: m.navStandards,
-          icon: ListTree,
-          capability: "learning:author",
-        },
-        {
-          to: "/library",
-          label: m.navLibrary,
-          icon: BookMarked,
-          capability: "assignments:author",
-        },
-      ],
-    },
-    {
-      title: m.navSectionCommunication,
-      items: [
-        {
-          to: "/teach/messages",
-          label: m.navMessages,
-          icon: Inbox,
-          count: "messages",
-        },
-        { to: "/announcements", label: m.navAnnouncements, icon: Megaphone },
-        { to: "/news", label: m.navNews, icon: Newspaper },
-        { to: "/calendar", label: m.navCalendar, icon: CalendarDays },
-      ],
-    },
-    {
-      title: m.navSectionAdmissions,
-      items: [
-        {
-          to: "/admissions/enquiries",
-          label: m.navEnquiries,
-          icon: UserPlus,
-          capability: "admissions:read",
-        },
-        {
-          to: "/admissions/applications",
-          label: m.navApplications,
-          icon: FileUser,
-          capability: "admissions:read",
-        },
-        {
-          to: "/admissions/intakes",
-          label: m.navIntakes,
-          icon: CalendarRange,
-          capability: "admissions:configure",
-        },
-        {
-          to: "/admissions/reports",
-          label: m.navAdmissionReports,
-          icon: ChartColumn,
-          capability: "admissions:read",
-        },
-        {
-          to: "/admissions/letters",
-          label: m.navLetters,
-          icon: Mail,
-          capability: "admissions:configure",
+          capability: "school:manage",
         },
       ],
     },
@@ -399,10 +359,34 @@ export const NAVIGATION: Record<Workspace, NavSection[]> = {
   ],
 };
 
-/** The four destinations a phone keeps at the bottom; everything else is under More. */
-export const MOBILE_TABS: Record<Workspace, string[]> = {
-  admin: ["/admin", "/admin/students", "/admin/classes", "/admin/messages"],
-  teach: ["/teach", "/teach/classes", "/teach/grading", "/teach/messages"],
-  family: ["/family", "/family/assignments", "/calendar", "/family/messages"],
-  me: ["/me", "/me/assignments", "/calendar", "/me/messages"],
-};
+/**
+ * The destinations a phone keeps at the bottom, in order of preference; the
+ * bar takes the first three the person sees and ends with messages, and
+ * everything else is under More.
+ */
+export const MOBILE_TABS: Record<Workspace, { first: string[]; last: string }> =
+  {
+    staff: {
+      first: ["/today", "/classes", "/grading", "/students"],
+      last: "/messages",
+    },
+    family: {
+      first: ["/family", "/family/assignments", "/calendar"],
+      last: "/family/messages",
+    },
+    me: {
+      first: ["/me", "/me/assignments", "/calendar"],
+      last: "/me/messages",
+    },
+  };
+
+/** Whether the person holds the item's capability, or any of its capabilities. */
+export function holds(
+  item: NavItem,
+  capabilities: readonly Capability[],
+): boolean {
+  if (!item.capability) return true;
+  return [item.capability]
+    .flat()
+    .some((capability) => capabilities.includes(capability));
+}

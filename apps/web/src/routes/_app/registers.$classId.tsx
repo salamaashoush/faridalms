@@ -12,7 +12,7 @@ const uuid = v.pipe(v.string(), v.uuid());
 export const Route = createFileRoute("/_app/registers/$classId")({
   staticData: {
     trail: <RegisterTrail />,
-    section: ["/teach/attendance", "/admin/attendance"],
+    section: ["/attendance", "/attendance"],
   },
   validateSearch: v.object({
     date: v.pipe(v.string(), v.isoDate()),

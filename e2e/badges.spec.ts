@@ -11,8 +11,8 @@ const SCHOOL = "northwind-east";
 const TEACHER = "teacher1.northwind-east@northwind.example.com";
 
 test("a teacher prints sign-in badges for a young class", async ({ page }) => {
-  await signInWith(page, TEACHER, PASSWORD, "/teach", SCHOOL);
-  await page.goto(`${portal(SCHOOL)}/teach/classes`);
+  await signInWith(page, TEACHER, PASSWORD, "/today", SCHOOL);
+  await page.goto(`${portal(SCHOOL)}/classes`);
   await untilHydrated(page);
   await page.getByRole("link", { name: "KG2A" }).first().click();
   await page.getByRole("tab", { name: "Students" }).click();

@@ -155,7 +155,7 @@ function LessonTitle({ row, data }: LessonTitleProps) {
             return (
               <Link
                 key={session.id}
-                to="/teach/live/$pacedId"
+                to="/live/$pacedId"
                 params={{ pacedId: session.id }}
                 aria-label={m.lrnLiveReturn({ class: name })}
                 className="rounded-full outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
@@ -242,7 +242,7 @@ function Lessons({ data }: LessonsProps) {
             inline: true,
             onSelect: () =>
               navigate({
-                to: "/teach/lesson-editor",
+                to: "/lesson-editor",
                 search: { id: row.id, moduleId: data.id },
               }),
           },
@@ -317,7 +317,7 @@ function Lessons({ data }: LessonsProps) {
       : [];
   const add = editable ? (
     <ButtonLink
-      to="/teach/lesson-editor"
+      to="/lesson-editor"
       search={{ moduleId: data.id }}
       variant="outline"
       className="max-md:h-10"
@@ -818,7 +818,7 @@ function ModulePlan({ moduleId }: ModulePlanProps) {
   if (!query.data) return <div aria-busy="true" className="min-h-40" />;
   const { content, covered } = query.data;
   const edit = () =>
-    void navigate({ to: "/teach/module-plan", search: { moduleId } });
+    void navigate({ to: "/module-plan", search: { moduleId } });
   if (!content)
     return (
       <EmptyState
@@ -941,7 +941,7 @@ export function ModuleRecord({
                 icon: Pencil,
                 onClick: () =>
                   void navigate({
-                    to: "/teach/module-editor",
+                    to: "/module-editor",
                     search: { id: data.id },
                   }),
               }

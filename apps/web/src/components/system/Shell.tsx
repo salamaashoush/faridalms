@@ -1,4 +1,4 @@
-import type { Workspace } from "@faridalms/domain/workspace";
+import type { Profile } from "@faridalms/domain/capabilities";
 import type {
   ShellIsActive,
   ShellNavSection,
@@ -36,7 +36,7 @@ import type { NavItem } from "~/components/app/navigation";
 
 import { ContractNotice } from "~/components/app/ContractNotice";
 import { GrownUpGate } from "~/components/app/GrownUpGate";
-import { MOBILE_TABS, NAVIGATION } from "~/components/app/navigation";
+import { holds, MOBILE_TABS, NAVIGATION } from "~/components/app/navigation";
 import { NotificationBell } from "~/components/app/NotificationBell";
 import { UnreadMessagesCount } from "~/components/app/UnreadMessagesCount";
 import { WorkspaceBreadcrumb } from "~/components/app/WorkspaceBreadcrumb";
@@ -51,11 +51,12 @@ import { pageOn } from "~/utils/modules";
 
 const LOCALE_NAME: Record<string, string> = { en: "English", ar: "العربية" };
 
-const WORKSPACE_LABEL: Record<Workspace, () => string> = {
-  admin: m.roleAdmin,
-  teach: m.roleTeacher,
+const PROFILE_LABEL: Record<Profile, () => string> = {
+  staff_admin: m.roleAdmin,
+  staff: m.roleTeacher,
   family: m.roleParent,
-  me: m.roleStudent,
+  student: m.roleStudent,
+  young_student: m.roleStudent,
 };
 
 /** The workspace's navigation as this person may see it, in their language. */
@@ -67,7 +68,7 @@ function useVisibleNavigation(): ShellNavSection[] {
       items: section.items
         .filter(
           (item) =>
-            (!item.capability || user.capabilities.includes(item.capability)) &&
+            holds(item, user.capabilities) &&
             pageOn(user.modules, item.to) &&
             (user.profile !== "young_student" || item.young),
         )
@@ -119,7 +120,7 @@ function AccountMenu() {
       <ShellAccount
         label={m.shellAccount()}
         name={user.name}
-        detail={WORKSPACE_LABEL[user.workspace]()}
+        detail={PROFILE_LABEL[user.profile]()}
         email={user.email}
         avatarUrl={user.avatarUrl}
       >
@@ -204,9 +205,15 @@ export function Shell({ children, sidebarOpen = true }: ShellProps) {
       </PageActionsProvider>
     );
   const items = navigation.flatMap((section) => section.items);
-  const tabs = MOBILE_TABS[user.workspace]
-    .map((to) => items.find((item) => item.to === to))
-    .filter((item) => item !== undefined);
+  const { first, last } = MOBILE_TABS[user.workspace];
+  const seen = (to: string) => items.find((item) => item.to === to);
+  const tabs = [
+    ...first
+      .map(seen)
+      .filter((item) => item !== undefined)
+      .slice(0, 3),
+    seen(last),
+  ].filter((item) => item !== undefined);
   return (
     <AppShell
       sidebarOpen={sidebarOpen}

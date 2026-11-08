@@ -87,10 +87,10 @@ function kindsFor(
     (kind) =>
       ((kind !== "absence" && kind !== "consent" && kind !== "correction") ||
         workspace === "family") &&
-      ((kind !== "reminder" && kind !== "library") ||
-        workspace === "teach" ||
-        workspace === "admin") &&
-      (kind !== "reply" || workspace === "teach" || workspace === "me") &&
+      ((kind !== "reminder" && kind !== "library") || workspace === "staff") &&
+      (kind !== "reply" ||
+        workspace === "me" ||
+        capabilities.includes("submissions:grade")) &&
       ((kind !== "assignment" && kind !== "feedback" && kind !== "grades") ||
         workspace === "me" ||
         workspace === "family") &&

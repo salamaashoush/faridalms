@@ -145,7 +145,7 @@ export function SiteSettings({ settings }: SiteSettingsProps) {
           </p>
           <div>
             <ButtonLink
-              to="/admin/settings"
+              to="/settings"
               search={{ section: "school" }}
               variant="outline"
               size="sm"

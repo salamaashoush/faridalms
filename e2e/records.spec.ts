@@ -96,7 +96,7 @@ test("staff move between class, student and person records without losing their 
   page,
 }) => {
   await signIn(page, "teacher");
-  await page.goto("/teach/classes");
+  await page.goto("/classes");
   await untilHydrated(page);
   await page
     .getByRole("table")

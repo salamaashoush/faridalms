@@ -797,7 +797,7 @@ export function Grading({ assignmentId, studentId }: GradingProps) {
   const index = data.queue.findIndex((row) => row.studentId === studentId);
   const goTo = (target: string) =>
     void navigate({
-      to: "/teach/grading",
+      to: "/grading",
       search: { assignmentId, studentId: target },
     });
   const go = (offset: number) => {

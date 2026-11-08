@@ -16,8 +16,8 @@ const TEACHER = "teacher2.northwind@northwind.example.com";
 
 /** A module with one lesson open in the editor, its body ready to type in. */
 export async function startLesson(page: Page, title: string, lesson: string) {
-  await signInWith(page, TEACHER, PASSWORD, "/teach");
-  await page.goto("/teach/module-editor");
+  await signInWith(page, TEACHER, PASSWORD, "/today");
+  await page.goto("/module-editor");
   await untilHydrated(page);
   await page.getByRole("textbox", { name: "Module title" }).fill(title);
   await page.getByRole("combobox", { name: "Classes" }).click();
@@ -27,7 +27,7 @@ export async function startLesson(page: Page, title: string, lesson: string) {
   await expect(page).toHaveURL(/\/modules\/[a-f0-9-]+/);
   const recordUrl = page.url().split("?")[0] ?? "";
   await page.getByRole("link", { name: "Add lesson" }).click();
-  await expect(page).toHaveURL(/\/teach\/lesson-editor/);
+  await expect(page).toHaveURL(/\/lesson-editor/);
   await untilHydrated(page);
   await page.getByRole("textbox", { name: "Lesson title" }).fill(lesson);
   await page.locator("#lesson-body").click();

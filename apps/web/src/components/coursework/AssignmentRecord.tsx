@@ -460,7 +460,7 @@ function Work({ data }: WorkProps) {
   }));
   const grade = (row: WorkRow) =>
     void navigate({
-      to: "/teach/grading",
+      to: "/grading",
       search: { assignmentId: data.id, studentId: row.studentId },
     });
   const batch: BatchAction<WorkRow>[] = data.access.grade
@@ -759,7 +759,7 @@ export function AssignmentRecord({
                 icon: Pencil,
                 onClick: () =>
                   void navigate({
-                    to: "/teach/assignment-editor",
+                    to: "/assignment-editor",
                     search: { id: data.id },
                   }),
               }

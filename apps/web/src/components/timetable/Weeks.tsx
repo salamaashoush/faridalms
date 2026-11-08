@@ -378,7 +378,7 @@ export function ClassWeek({ classId }: ClassWeekProps) {
       {data.canPlan ? (
         <div className="flex justify-end">
           <ButtonLink
-            to="/admin/timetable"
+            to="/timetable"
             search={{ view: "classes", classId: data.gridClassId }}
             variant="outline"
             className="max-md:h-10"

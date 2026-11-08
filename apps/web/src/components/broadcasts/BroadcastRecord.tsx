@@ -288,7 +288,7 @@ export function BroadcastRecord({ kind, id }: BroadcastRecordProps) {
   };
   const openEditor = (editing: string) =>
     void (kind === "announcement"
-      ? navigate({ to: "/admin/announcement-editor", search: { id: editing } })
+      ? navigate({ to: "/announcement-editor", search: { id: editing } })
       : navigate({ to: "/news-editor", search: { id: editing } }));
   const copy = async () => {
     try {

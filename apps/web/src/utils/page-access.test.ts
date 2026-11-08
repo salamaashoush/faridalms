@@ -15,7 +15,7 @@ const thrown = (run: () => void) => {
 describe("a page opens only to those it is for", () => {
   it("lets in anyone holding one of the page's capabilities", () => {
     const office = {
-      workspace: "admin" as const,
+      workspace: "staff" as const,
       capabilities: ["admissions:read" as const],
     };
     expect(

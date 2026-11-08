@@ -1,23 +1,23 @@
 import type { Profile } from "./capabilities";
 
 /**
- * The route area a profile works in. Each area gates its own routes; the
- * server still authorises every read by capability and relationship.
+ * The route area a profile works in, one per session context. Each area
+ * gates its own routes; inside the staff area capabilities decide each page,
+ * and the server still authorises every read by capability and relationship.
  */
-export const WORKSPACES = ["admin", "teach", "family", "me"] as const;
+export const WORKSPACES = ["staff", "family", "me"] as const;
 export type Workspace = (typeof WORKSPACES)[number];
 
 export const WORKSPACE_OF: Record<Profile, Workspace> = {
-  staff_admin: "admin",
-  staff: "teach",
+  staff_admin: "staff",
+  staff: "staff",
   family: "family",
   student: "me",
   young_student: "me",
 };
 
 export const WORKSPACE_HOME: Record<Workspace, string> = {
-  admin: "/admin",
-  teach: "/teach",
+  staff: "/today",
   family: "/family",
   me: "/me",
 };

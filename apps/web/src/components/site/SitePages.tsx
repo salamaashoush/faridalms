@@ -112,7 +112,7 @@ function Title({ row, primary }: TitleProps) {
       className="flex min-w-0 items-center gap-2"
       style={{ paddingInlineStart: `${row.depth * 1.25}rem` }}
     >
-      <RowLink to="/admin/site-page-editor" search={{ id: row.id }}>
+      <RowLink to="/site-page-editor" search={{ id: row.id }}>
         {titleOf(row, primary)}
       </RowLink>
       {row.isHome ? (
@@ -252,7 +252,7 @@ export function SitePages({ overview }: SitePagesProps) {
         icon: Pencil,
         inline: true,
         onSelect: () =>
-          navigate({ to: "/admin/site-page-editor", search: { id: row.id } }),
+          navigate({ to: "/site-page-editor", search: { id: row.id } }),
       },
       row.state === "published" && {
         label: m.siteViewPage(),
@@ -357,7 +357,7 @@ export function SitePages({ overview }: SitePagesProps) {
     },
   ];
   const create = (
-    <ButtonLink to="/admin/site-page-editor" search={{}}>
+    <ButtonLink to="/site-page-editor" search={{}}>
       <Plus aria-hidden />
       {m.siteNewPage()}
     </ButtonLink>
@@ -383,11 +383,7 @@ export function SitePages({ overview }: SitePagesProps) {
               {m.siteStartersHint()}
             </p>
           </div>
-          <ButtonLink
-            to="/admin/site-page-editor"
-            search={{}}
-            variant="outline"
-          >
+          <ButtonLink to="/site-page-editor" search={{}} variant="outline">
             <Plus aria-hidden />
             {m.siteStartBlank()}
           </ButtonLink>
@@ -409,7 +405,7 @@ export function SitePages({ overview }: SitePagesProps) {
         </Button>
         {home ? (
           <ButtonLink
-            to="/admin/site-page-editor"
+            to="/site-page-editor"
             search={{ id: home.id, panel: "styles" }}
             variant="outline"
           >

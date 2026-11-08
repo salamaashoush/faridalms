@@ -37,9 +37,9 @@ test("a homeroom teacher takes a register on a phone", async ({
     page,
     "teacher1.northwind@northwind.example.com",
     PASSWORD,
-    "/teach",
+    "/today",
   );
-  await page.goto(`/teach/attendance?date=${schoolDay()}`);
+  await page.goto(`/attendance?date=${schoolDay()}`);
   await page.getByRole("link", { name: "7A", exact: true }).first().click();
   await expect(
     page.getByRole("heading", { level: 1, name: "7A" }),
@@ -70,9 +70,7 @@ test("the office excuses an unexplained absence and the reason reaches the recor
 }) => {
   const homeroom = HOMEROOM[browserName as keyof typeof HOMEROOM];
   await signIn(page, "admin");
-  await page.goto(
-    "/admin/attendance?tab=absences&from=2026-09-13&to=2026-09-24",
-  );
+  await page.goto("/attendance?tab=absences&from=2026-09-13&to=2026-09-24");
   await untilHydrated(page);
   const row = page
     .getByRole("row")
@@ -96,7 +94,7 @@ test("the office excuses an unexplained absence and the reason reaches the recor
   ).toHaveCount(0);
 
   await page.goto(
-    "/admin/attendance?tab=absences&from=2026-09-13&to=2026-09-24&show=all",
+    "/attendance?tab=absences&from=2026-09-13&to=2026-09-24&show=all",
   );
   await untilHydrated(page);
   await page

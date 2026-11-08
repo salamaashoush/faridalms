@@ -16,7 +16,7 @@ import { Route as AnotherAccountRouteImport } from './routes/another-account'
 import { Route as ApplyRouteImport } from './routes/apply'
 import { Route as BadgeRouteImport } from './routes/badge'
 import { Route as WelcomeRouteImport } from './routes/welcome'
-import { Route as AppAdminRouteImport } from './routes/_app/admin'
+import { Route as AppStaffRouteImport } from './routes/_app/_staff'
 import { Route as AppConsentFormEditorRouteImport } from './routes/_app/consent-form-editor'
 import { Route as AppEventEditorRouteImport } from './routes/_app/event-editor'
 import { Route as AppExamsRouteImport } from './routes/_app/exams'
@@ -31,10 +31,10 @@ import { Route as AppPrivacyRouteImport } from './routes/_app/privacy'
 import { Route as AppSearchRouteImport } from './routes/_app/search'
 import { Route as AppStaffEditorRouteImport } from './routes/_app/staff-editor'
 import { Route as AppStudentEditorRouteImport } from './routes/_app/student-editor'
-import { Route as AppTeachRouteImport } from './routes/_app/teach'
 import { Route as AuthForgotPasswordRouteImport } from './routes/_auth/forgot-password'
 import { Route as AuthRegisterRouteImport } from './routes/_auth/register'
 import { Route as AuthSignInRouteImport } from './routes/_auth/sign-in'
+import { Route as AdminSplatRouteImport } from './routes/admin.$'
 import { Route as ApiHealthRouteImport } from './routes/api/health'
 import { Route as FilesFileIdRouteImport } from './routes/files/$fileId'
 import { Route as LtiAuthRouteImport } from './routes/lti/auth'
@@ -44,24 +44,34 @@ import { Route as LtiLaunchRouteImport } from './routes/lti/launch'
 import { Route as LtiPickRouteImport } from './routes/lti/pick'
 import { Route as LtiTokenRouteImport } from './routes/lti/token'
 import { Route as SiteSchoolRouteImport } from './routes/site/$school'
-import { Route as AppAdminIndexRouteImport } from './routes/_app/admin/index'
-import { Route as AppAdminAcademicYearEditorRouteImport } from './routes/_app/admin/academic-year-editor'
-import { Route as AppAdminAcademicYearsRouteImport } from './routes/_app/admin/academic-years'
-import { Route as AppAdminAnnouncementEditorRouteImport } from './routes/_app/admin/announcement-editor'
-import { Route as AppAdminAttendanceRouteImport } from './routes/_app/admin/attendance'
-import { Route as AppAdminBillingRouteImport } from './routes/_app/admin/billing'
-import { Route as AppAdminClassEditorRouteImport } from './routes/_app/admin/class-editor'
-import { Route as AppAdminClassesRouteImport } from './routes/_app/admin/classes'
-import { Route as AppAdminMediaRouteImport } from './routes/_app/admin/media'
-import { Route as AppAdminMessagesRouteImport } from './routes/_app/admin/messages'
-import { Route as AppAdminNotificationAuditRouteImport } from './routes/_app/admin/notification-audit'
-import { Route as AppAdminRolloverRouteImport } from './routes/_app/admin/rollover'
-import { Route as AppAdminSettingsRouteImport } from './routes/_app/admin/settings'
-import { Route as AppAdminSiteRouteImport } from './routes/_app/admin/site'
-import { Route as AppAdminSitePageEditorRouteImport } from './routes/_app/admin/site-page-editor'
-import { Route as AppAdminStaffRouteImport } from './routes/_app/admin/staff'
-import { Route as AppAdminStudentsRouteImport } from './routes/_app/admin/students'
-import { Route as AppAdminTimetableRouteImport } from './routes/_app/admin/timetable'
+import { Route as TeachSplatRouteImport } from './routes/teach.$'
+import { Route as AppStaffAcademicYearEditorRouteImport } from './routes/_app/_staff/academic-year-editor'
+import { Route as AppStaffAcademicYearsRouteImport } from './routes/_app/_staff/academic-years'
+import { Route as AppStaffAnnouncementEditorRouteImport } from './routes/_app/_staff/announcement-editor'
+import { Route as AppStaffAssignmentEditorRouteImport } from './routes/_app/_staff/assignment-editor'
+import { Route as AppStaffAssignmentsRouteImport } from './routes/_app/_staff/assignments'
+import { Route as AppStaffAttendanceRouteImport } from './routes/_app/_staff/attendance'
+import { Route as AppStaffBillingRouteImport } from './routes/_app/_staff/billing'
+import { Route as AppStaffClassEditorRouteImport } from './routes/_app/_staff/class-editor'
+import { Route as AppStaffClassesRouteImport } from './routes/_app/_staff/classes'
+import { Route as AppStaffGradebookRouteImport } from './routes/_app/_staff/gradebook'
+import { Route as AppStaffGradingRouteImport } from './routes/_app/_staff/grading'
+import { Route as AppStaffLessonEditorRouteImport } from './routes/_app/_staff/lesson-editor'
+import { Route as AppStaffMediaRouteImport } from './routes/_app/_staff/media'
+import { Route as AppStaffMessagesRouteImport } from './routes/_app/_staff/messages'
+import { Route as AppStaffModuleEditorRouteImport } from './routes/_app/_staff/module-editor'
+import { Route as AppStaffModulePlanRouteImport } from './routes/_app/_staff/module-plan'
+import { Route as AppStaffModulesRouteImport } from './routes/_app/_staff/modules'
+import { Route as AppStaffNotificationAuditRouteImport } from './routes/_app/_staff/notification-audit'
+import { Route as AppStaffRolloverRouteImport } from './routes/_app/_staff/rollover'
+import { Route as AppStaffSettingsRouteImport } from './routes/_app/_staff/settings'
+import { Route as AppStaffSitePageEditorRouteImport } from './routes/_app/_staff/site-page-editor'
+import { Route as AppStaffStaffRouteImport } from './routes/_app/_staff/staff'
+import { Route as AppStaffStudentsRouteImport } from './routes/_app/_staff/students'
+import { Route as AppStaffTimetableRouteImport } from './routes/_app/_staff/timetable'
+import { Route as AppStaffTodayRouteImport } from './routes/_app/_staff/today'
+import { Route as AppStaffWebsiteRouteImport } from './routes/_app/_staff/website'
+import { Route as AppStaffYearMapRouteImport } from './routes/_app/_staff/year-map'
 import { Route as AppAdmissionsFormEditorRouteImport } from './routes/_app/admissions/form-editor'
 import { Route as AppAdmissionsIntakeEditorRouteImport } from './routes/_app/admissions/intake-editor'
 import { Route as AppAdmissionsLetterEditorRouteImport } from './routes/_app/admissions/letter-editor'
@@ -106,20 +116,6 @@ import { Route as AppStandardsIndexRouteImport } from './routes/_app/standards/i
 import { Route as AppStandardsFrameworkIdRouteImport } from './routes/_app/standards/$frameworkId'
 import { Route as AppStandardsMapRouteImport } from './routes/_app/standards/map'
 import { Route as AppStudentsStudentIdRouteImport } from './routes/_app/students.$studentId'
-import { Route as AppTeachIndexRouteImport } from './routes/_app/teach/index'
-import { Route as AppTeachAssignmentEditorRouteImport } from './routes/_app/teach/assignment-editor'
-import { Route as AppTeachAssignmentsRouteImport } from './routes/_app/teach/assignments'
-import { Route as AppTeachAttendanceRouteImport } from './routes/_app/teach/attendance'
-import { Route as AppTeachClassesRouteImport } from './routes/_app/teach/classes'
-import { Route as AppTeachGradebookRouteImport } from './routes/_app/teach/gradebook'
-import { Route as AppTeachGradingRouteImport } from './routes/_app/teach/grading'
-import { Route as AppTeachLessonEditorRouteImport } from './routes/_app/teach/lesson-editor'
-import { Route as AppTeachMessagesRouteImport } from './routes/_app/teach/messages'
-import { Route as AppTeachModuleEditorRouteImport } from './routes/_app/teach/module-editor'
-import { Route as AppTeachModulePlanRouteImport } from './routes/_app/teach/module-plan'
-import { Route as AppTeachModulesRouteImport } from './routes/_app/teach/modules'
-import { Route as AppTeachTimetableRouteImport } from './routes/_app/teach/timetable'
-import { Route as AppTeachYearMapRouteImport } from './routes/_app/teach/year-map'
 import { Route as AppYearsYearIdRouteImport } from './routes/_app/years.$yearId'
 import { Route as AuthAuthHandoffRouteImport } from './routes/_auth/auth.handoff'
 import { Route as ExportsAssignmentsAssignmentIdRouteImport } from './routes/exports/assignments.$assignmentId'
@@ -134,14 +130,14 @@ import { Route as SiteSchoolIndexRouteImport } from './routes/site/$school/index
 import { Route as SiteSchoolSplatRouteImport } from './routes/site/$school/$'
 import { Route as SiteSchoolRobotsDottxtRouteImport } from './routes/site/$school/robots[.]txt'
 import { Route as SiteSchoolSitemapDotxmlRouteImport } from './routes/site/$school/sitemap[.]xml'
+import { Route as AppStaffBoardPacedIdRouteImport } from './routes/_app/_staff/board.$pacedId'
+import { Route as AppStaffLivePacedIdRouteImport } from './routes/_app/_staff/live.$pacedId'
 import { Route as AppAdmissionsApplicationsIndexRouteImport } from './routes/_app/admissions/applications/index'
 import { Route as AppAdmissionsApplicationsApplicationIdRouteImport } from './routes/_app/admissions/applications/$applicationId'
 import { Route as AppAdmissionsEnquiriesIndexRouteImport } from './routes/_app/admissions/enquiries/index'
 import { Route as AppAdmissionsEnquiriesEnquiryIdRouteImport } from './routes/_app/admissions/enquiries/$enquiryId'
 import { Route as AppAdmissionsIntakesIndexRouteImport } from './routes/_app/admissions/intakes/index'
 import { Route as AppAdmissionsIntakesIntakeIdRouteImport } from './routes/_app/admissions/intakes/$intakeId'
-import { Route as AppTeachBoardPacedIdRouteImport } from './routes/_app/teach/board.$pacedId'
-import { Route as AppTeachLivePacedIdRouteImport } from './routes/_app/teach/live.$pacedId'
 import { Route as FilesFileIdPartsPartRouteImport } from './routes/files/$fileId.parts.$part'
 import { Route as PublicMediaPTokenNameRouteImport } from './routes/public-media/p.$token.$name'
 import { Route as SiteSchoolNewsIndexRouteImport } from './routes/site/$school/news/index'
@@ -181,9 +177,8 @@ const WelcomeRoute = WelcomeRouteImport.update({
   path: '/welcome',
   getParentRoute: () => rootRouteImport,
 } as any)
-const AppAdminRoute = AppAdminRouteImport.update({
-  id: '/admin',
-  path: '/admin',
+const AppStaffRoute = AppStaffRouteImport.update({
+  id: '/_staff',
   getParentRoute: () => AppRoute,
 } as any)
 const AppConsentFormEditorRoute = AppConsentFormEditorRouteImport.update({
@@ -257,11 +252,6 @@ const AppStudentEditorRoute = AppStudentEditorRouteImport.update({
   path: '/student-editor',
   getParentRoute: () => AppRoute,
 } as any)
-const AppTeachRoute = AppTeachRouteImport.update({
-  id: '/teach',
-  path: '/teach',
-  getParentRoute: () => AppRoute,
-} as any)
 const AuthForgotPasswordRoute = AuthForgotPasswordRouteImport.update({
   id: '/forgot-password',
   path: '/forgot-password',
@@ -276,6 +266,11 @@ const AuthSignInRoute = AuthSignInRouteImport.update({
   id: '/sign-in',
   path: '/sign-in',
   getParentRoute: () => AuthRoute,
+} as any)
+const AdminSplatRoute = AdminSplatRouteImport.update({
+  id: '/admin/$',
+  path: '/admin/$',
+  getParentRoute: () => rootRouteImport,
 } as any)
 const ApiHealthRoute = ApiHealthRouteImport.update({
   id: '/api/health',
@@ -322,98 +317,149 @@ const SiteSchoolRoute = SiteSchoolRouteImport.update({
   path: '/site/$school',
   getParentRoute: () => rootRouteImport,
 } as any)
-const AppAdminIndexRoute = AppAdminIndexRouteImport.update({
-  id: '/',
-  path: '/',
-  getParentRoute: () => AppAdminRoute,
+const TeachSplatRoute = TeachSplatRouteImport.update({
+  id: '/teach/$',
+  path: '/teach/$',
+  getParentRoute: () => rootRouteImport,
 } as any)
-const AppAdminAcademicYearEditorRoute =
-  AppAdminAcademicYearEditorRouteImport.update({
+const AppStaffAcademicYearEditorRoute =
+  AppStaffAcademicYearEditorRouteImport.update({
     id: '/academic-year-editor',
     path: '/academic-year-editor',
-    getParentRoute: () => AppAdminRoute,
+    getParentRoute: () => AppStaffRoute,
   } as any)
-const AppAdminAcademicYearsRoute = AppAdminAcademicYearsRouteImport.update({
+const AppStaffAcademicYearsRoute = AppStaffAcademicYearsRouteImport.update({
   id: '/academic-years',
   path: '/academic-years',
-  getParentRoute: () => AppAdminRoute,
+  getParentRoute: () => AppStaffRoute,
 } as any)
-const AppAdminAnnouncementEditorRoute =
-  AppAdminAnnouncementEditorRouteImport.update({
+const AppStaffAnnouncementEditorRoute =
+  AppStaffAnnouncementEditorRouteImport.update({
     id: '/announcement-editor',
     path: '/announcement-editor',
-    getParentRoute: () => AppAdminRoute,
+    getParentRoute: () => AppStaffRoute,
   } as any)
-const AppAdminAttendanceRoute = AppAdminAttendanceRouteImport.update({
+const AppStaffAssignmentEditorRoute =
+  AppStaffAssignmentEditorRouteImport.update({
+    id: '/assignment-editor',
+    path: '/assignment-editor',
+    getParentRoute: () => AppStaffRoute,
+  } as any)
+const AppStaffAssignmentsRoute = AppStaffAssignmentsRouteImport.update({
+  id: '/assignments',
+  path: '/assignments',
+  getParentRoute: () => AppStaffRoute,
+} as any)
+const AppStaffAttendanceRoute = AppStaffAttendanceRouteImport.update({
   id: '/attendance',
   path: '/attendance',
-  getParentRoute: () => AppAdminRoute,
+  getParentRoute: () => AppStaffRoute,
 } as any)
-const AppAdminBillingRoute = AppAdminBillingRouteImport.update({
+const AppStaffBillingRoute = AppStaffBillingRouteImport.update({
   id: '/billing',
   path: '/billing',
-  getParentRoute: () => AppAdminRoute,
+  getParentRoute: () => AppStaffRoute,
 } as any)
-const AppAdminClassEditorRoute = AppAdminClassEditorRouteImport.update({
+const AppStaffClassEditorRoute = AppStaffClassEditorRouteImport.update({
   id: '/class-editor',
   path: '/class-editor',
-  getParentRoute: () => AppAdminRoute,
+  getParentRoute: () => AppStaffRoute,
 } as any)
-const AppAdminClassesRoute = AppAdminClassesRouteImport.update({
+const AppStaffClassesRoute = AppStaffClassesRouteImport.update({
   id: '/classes',
   path: '/classes',
-  getParentRoute: () => AppAdminRoute,
+  getParentRoute: () => AppStaffRoute,
 } as any)
-const AppAdminMediaRoute = AppAdminMediaRouteImport.update({
+const AppStaffGradebookRoute = AppStaffGradebookRouteImport.update({
+  id: '/gradebook',
+  path: '/gradebook',
+  getParentRoute: () => AppStaffRoute,
+} as any)
+const AppStaffGradingRoute = AppStaffGradingRouteImport.update({
+  id: '/grading',
+  path: '/grading',
+  getParentRoute: () => AppStaffRoute,
+} as any)
+const AppStaffLessonEditorRoute = AppStaffLessonEditorRouteImport.update({
+  id: '/lesson-editor',
+  path: '/lesson-editor',
+  getParentRoute: () => AppStaffRoute,
+} as any)
+const AppStaffMediaRoute = AppStaffMediaRouteImport.update({
   id: '/media',
   path: '/media',
-  getParentRoute: () => AppAdminRoute,
+  getParentRoute: () => AppStaffRoute,
 } as any)
-const AppAdminMessagesRoute = AppAdminMessagesRouteImport.update({
+const AppStaffMessagesRoute = AppStaffMessagesRouteImport.update({
   id: '/messages',
   path: '/messages',
-  getParentRoute: () => AppAdminRoute,
+  getParentRoute: () => AppStaffRoute,
 } as any)
-const AppAdminNotificationAuditRoute =
-  AppAdminNotificationAuditRouteImport.update({
+const AppStaffModuleEditorRoute = AppStaffModuleEditorRouteImport.update({
+  id: '/module-editor',
+  path: '/module-editor',
+  getParentRoute: () => AppStaffRoute,
+} as any)
+const AppStaffModulePlanRoute = AppStaffModulePlanRouteImport.update({
+  id: '/module-plan',
+  path: '/module-plan',
+  getParentRoute: () => AppStaffRoute,
+} as any)
+const AppStaffModulesRoute = AppStaffModulesRouteImport.update({
+  id: '/modules',
+  path: '/modules',
+  getParentRoute: () => AppStaffRoute,
+} as any)
+const AppStaffNotificationAuditRoute =
+  AppStaffNotificationAuditRouteImport.update({
     id: '/notification-audit',
     path: '/notification-audit',
-    getParentRoute: () => AppAdminRoute,
+    getParentRoute: () => AppStaffRoute,
   } as any)
-const AppAdminRolloverRoute = AppAdminRolloverRouteImport.update({
+const AppStaffRolloverRoute = AppStaffRolloverRouteImport.update({
   id: '/rollover',
   path: '/rollover',
-  getParentRoute: () => AppAdminRoute,
+  getParentRoute: () => AppStaffRoute,
 } as any)
-const AppAdminSettingsRoute = AppAdminSettingsRouteImport.update({
+const AppStaffSettingsRoute = AppStaffSettingsRouteImport.update({
   id: '/settings',
   path: '/settings',
-  getParentRoute: () => AppAdminRoute,
+  getParentRoute: () => AppStaffRoute,
 } as any)
-const AppAdminSiteRoute = AppAdminSiteRouteImport.update({
-  id: '/site',
-  path: '/site',
-  getParentRoute: () => AppAdminRoute,
-} as any)
-const AppAdminSitePageEditorRoute = AppAdminSitePageEditorRouteImport.update({
+const AppStaffSitePageEditorRoute = AppStaffSitePageEditorRouteImport.update({
   id: '/site-page-editor',
   path: '/site-page-editor',
-  getParentRoute: () => AppAdminRoute,
+  getParentRoute: () => AppStaffRoute,
 } as any)
-const AppAdminStaffRoute = AppAdminStaffRouteImport.update({
+const AppStaffStaffRoute = AppStaffStaffRouteImport.update({
   id: '/staff',
   path: '/staff',
-  getParentRoute: () => AppAdminRoute,
+  getParentRoute: () => AppStaffRoute,
 } as any)
-const AppAdminStudentsRoute = AppAdminStudentsRouteImport.update({
+const AppStaffStudentsRoute = AppStaffStudentsRouteImport.update({
   id: '/students',
   path: '/students',
-  getParentRoute: () => AppAdminRoute,
+  getParentRoute: () => AppStaffRoute,
 } as any)
-const AppAdminTimetableRoute = AppAdminTimetableRouteImport.update({
+const AppStaffTimetableRoute = AppStaffTimetableRouteImport.update({
   id: '/timetable',
   path: '/timetable',
-  getParentRoute: () => AppAdminRoute,
+  getParentRoute: () => AppStaffRoute,
+} as any)
+const AppStaffTodayRoute = AppStaffTodayRouteImport.update({
+  id: '/today',
+  path: '/today',
+  getParentRoute: () => AppStaffRoute,
+} as any)
+const AppStaffWebsiteRoute = AppStaffWebsiteRouteImport.update({
+  id: '/website',
+  path: '/website',
+  getParentRoute: () => AppStaffRoute,
+} as any)
+const AppStaffYearMapRoute = AppStaffYearMapRouteImport.update({
+  id: '/year-map',
+  path: '/year-map',
+  getParentRoute: () => AppStaffRoute,
 } as any)
 const AppAdmissionsFormEditorRoute = AppAdmissionsFormEditorRouteImport.update({
   id: '/admissions/form-editor',
@@ -639,77 +685,6 @@ const AppStudentsStudentIdRoute = AppStudentsStudentIdRouteImport.update({
   path: '/students/$studentId',
   getParentRoute: () => AppRoute,
 } as any)
-const AppTeachIndexRoute = AppTeachIndexRouteImport.update({
-  id: '/',
-  path: '/',
-  getParentRoute: () => AppTeachRoute,
-} as any)
-const AppTeachAssignmentEditorRoute =
-  AppTeachAssignmentEditorRouteImport.update({
-    id: '/assignment-editor',
-    path: '/assignment-editor',
-    getParentRoute: () => AppTeachRoute,
-  } as any)
-const AppTeachAssignmentsRoute = AppTeachAssignmentsRouteImport.update({
-  id: '/assignments',
-  path: '/assignments',
-  getParentRoute: () => AppTeachRoute,
-} as any)
-const AppTeachAttendanceRoute = AppTeachAttendanceRouteImport.update({
-  id: '/attendance',
-  path: '/attendance',
-  getParentRoute: () => AppTeachRoute,
-} as any)
-const AppTeachClassesRoute = AppTeachClassesRouteImport.update({
-  id: '/classes',
-  path: '/classes',
-  getParentRoute: () => AppTeachRoute,
-} as any)
-const AppTeachGradebookRoute = AppTeachGradebookRouteImport.update({
-  id: '/gradebook',
-  path: '/gradebook',
-  getParentRoute: () => AppTeachRoute,
-} as any)
-const AppTeachGradingRoute = AppTeachGradingRouteImport.update({
-  id: '/grading',
-  path: '/grading',
-  getParentRoute: () => AppTeachRoute,
-} as any)
-const AppTeachLessonEditorRoute = AppTeachLessonEditorRouteImport.update({
-  id: '/lesson-editor',
-  path: '/lesson-editor',
-  getParentRoute: () => AppTeachRoute,
-} as any)
-const AppTeachMessagesRoute = AppTeachMessagesRouteImport.update({
-  id: '/messages',
-  path: '/messages',
-  getParentRoute: () => AppTeachRoute,
-} as any)
-const AppTeachModuleEditorRoute = AppTeachModuleEditorRouteImport.update({
-  id: '/module-editor',
-  path: '/module-editor',
-  getParentRoute: () => AppTeachRoute,
-} as any)
-const AppTeachModulePlanRoute = AppTeachModulePlanRouteImport.update({
-  id: '/module-plan',
-  path: '/module-plan',
-  getParentRoute: () => AppTeachRoute,
-} as any)
-const AppTeachModulesRoute = AppTeachModulesRouteImport.update({
-  id: '/modules',
-  path: '/modules',
-  getParentRoute: () => AppTeachRoute,
-} as any)
-const AppTeachTimetableRoute = AppTeachTimetableRouteImport.update({
-  id: '/timetable',
-  path: '/timetable',
-  getParentRoute: () => AppTeachRoute,
-} as any)
-const AppTeachYearMapRoute = AppTeachYearMapRouteImport.update({
-  id: '/year-map',
-  path: '/year-map',
-  getParentRoute: () => AppTeachRoute,
-} as any)
 const AppYearsYearIdRoute = AppYearsYearIdRouteImport.update({
   id: '/years/$yearId',
   path: '/years/$yearId',
@@ -782,6 +757,16 @@ const SiteSchoolSitemapDotxmlRoute = SiteSchoolSitemapDotxmlRouteImport.update({
   path: '/sitemap.xml',
   getParentRoute: () => SiteSchoolRoute,
 } as any)
+const AppStaffBoardPacedIdRoute = AppStaffBoardPacedIdRouteImport.update({
+  id: '/board/$pacedId',
+  path: '/board/$pacedId',
+  getParentRoute: () => AppStaffRoute,
+} as any)
+const AppStaffLivePacedIdRoute = AppStaffLivePacedIdRouteImport.update({
+  id: '/live/$pacedId',
+  path: '/live/$pacedId',
+  getParentRoute: () => AppStaffRoute,
+} as any)
 const AppAdmissionsApplicationsIndexRoute =
   AppAdmissionsApplicationsIndexRouteImport.update({
     id: '/admissions/applications/',
@@ -818,16 +803,6 @@ const AppAdmissionsIntakesIntakeIdRoute =
     path: '/admissions/intakes/$intakeId',
     getParentRoute: () => AppRoute,
   } as any)
-const AppTeachBoardPacedIdRoute = AppTeachBoardPacedIdRouteImport.update({
-  id: '/board/$pacedId',
-  path: '/board/$pacedId',
-  getParentRoute: () => AppTeachRoute,
-} as any)
-const AppTeachLivePacedIdRoute = AppTeachLivePacedIdRouteImport.update({
-  id: '/live/$pacedId',
-  path: '/live/$pacedId',
-  getParentRoute: () => AppTeachRoute,
-} as any)
 const FilesFileIdPartsPartRoute = FilesFileIdPartsPartRouteImport.update({
   id: '/$part',
   path: '/$part',
@@ -860,7 +835,6 @@ export interface FileRoutesByFullPath {
   '/apply': typeof ApplyRoute
   '/badge': typeof BadgeRoute
   '/welcome': typeof WelcomeRoute
-  '/admin': typeof AppAdminRouteWithChildren
   '/consent-form-editor': typeof AppConsentFormEditorRoute
   '/event-editor': typeof AppEventEditorRoute
   '/exams': typeof AppExamsRoute
@@ -875,10 +849,10 @@ export interface FileRoutesByFullPath {
   '/search': typeof AppSearchRoute
   '/staff-editor': typeof AppStaffEditorRoute
   '/student-editor': typeof AppStudentEditorRoute
-  '/teach': typeof AppTeachRouteWithChildren
   '/forgot-password': typeof AuthForgotPasswordRoute
   '/register': typeof AuthRegisterRoute
   '/sign-in': typeof AuthSignInRoute
+  '/admin/$': typeof AdminSplatRoute
   '/api/health': typeof ApiHealthRoute
   '/files/$fileId': typeof FilesFileIdRouteWithChildren
   '/lti/auth': typeof LtiAuthRoute
@@ -888,23 +862,34 @@ export interface FileRoutesByFullPath {
   '/lti/pick': typeof LtiPickRoute
   '/lti/token': typeof LtiTokenRoute
   '/site/$school': typeof SiteSchoolRouteWithChildren
-  '/admin/academic-year-editor': typeof AppAdminAcademicYearEditorRoute
-  '/admin/academic-years': typeof AppAdminAcademicYearsRoute
-  '/admin/announcement-editor': typeof AppAdminAnnouncementEditorRoute
-  '/admin/attendance': typeof AppAdminAttendanceRoute
-  '/admin/billing': typeof AppAdminBillingRoute
-  '/admin/class-editor': typeof AppAdminClassEditorRoute
-  '/admin/classes': typeof AppAdminClassesRoute
-  '/admin/media': typeof AppAdminMediaRoute
-  '/admin/messages': typeof AppAdminMessagesRoute
-  '/admin/notification-audit': typeof AppAdminNotificationAuditRoute
-  '/admin/rollover': typeof AppAdminRolloverRoute
-  '/admin/settings': typeof AppAdminSettingsRoute
-  '/admin/site': typeof AppAdminSiteRoute
-  '/admin/site-page-editor': typeof AppAdminSitePageEditorRoute
-  '/admin/staff': typeof AppAdminStaffRoute
-  '/admin/students': typeof AppAdminStudentsRoute
-  '/admin/timetable': typeof AppAdminTimetableRoute
+  '/teach/$': typeof TeachSplatRoute
+  '/academic-year-editor': typeof AppStaffAcademicYearEditorRoute
+  '/academic-years': typeof AppStaffAcademicYearsRoute
+  '/announcement-editor': typeof AppStaffAnnouncementEditorRoute
+  '/assignment-editor': typeof AppStaffAssignmentEditorRoute
+  '/assignments': typeof AppStaffAssignmentsRoute
+  '/attendance': typeof AppStaffAttendanceRoute
+  '/billing': typeof AppStaffBillingRoute
+  '/class-editor': typeof AppStaffClassEditorRoute
+  '/classes': typeof AppStaffClassesRoute
+  '/gradebook': typeof AppStaffGradebookRoute
+  '/grading': typeof AppStaffGradingRoute
+  '/lesson-editor': typeof AppStaffLessonEditorRoute
+  '/media': typeof AppStaffMediaRoute
+  '/messages': typeof AppStaffMessagesRoute
+  '/module-editor': typeof AppStaffModuleEditorRoute
+  '/module-plan': typeof AppStaffModulePlanRoute
+  '/modules': typeof AppStaffModulesRoute
+  '/notification-audit': typeof AppStaffNotificationAuditRoute
+  '/rollover': typeof AppStaffRolloverRoute
+  '/settings': typeof AppStaffSettingsRoute
+  '/site-page-editor': typeof AppStaffSitePageEditorRoute
+  '/staff': typeof AppStaffStaffRoute
+  '/students': typeof AppStaffStudentsRoute
+  '/timetable': typeof AppStaffTimetableRoute
+  '/today': typeof AppStaffTodayRoute
+  '/website': typeof AppStaffWebsiteRoute
+  '/year-map': typeof AppStaffYearMapRoute
   '/admissions/form-editor': typeof AppAdmissionsFormEditorRoute
   '/admissions/intake-editor': typeof AppAdmissionsIntakeEditorRoute
   '/admissions/letter-editor': typeof AppAdmissionsLetterEditorRoute
@@ -943,19 +928,6 @@ export interface FileRoutesByFullPath {
   '/standards/$frameworkId': typeof AppStandardsFrameworkIdRoute
   '/standards/map': typeof AppStandardsMapRoute
   '/students/$studentId': typeof AppStudentsStudentIdRoute
-  '/teach/assignment-editor': typeof AppTeachAssignmentEditorRoute
-  '/teach/assignments': typeof AppTeachAssignmentsRoute
-  '/teach/attendance': typeof AppTeachAttendanceRoute
-  '/teach/classes': typeof AppTeachClassesRoute
-  '/teach/gradebook': typeof AppTeachGradebookRoute
-  '/teach/grading': typeof AppTeachGradingRoute
-  '/teach/lesson-editor': typeof AppTeachLessonEditorRoute
-  '/teach/messages': typeof AppTeachMessagesRoute
-  '/teach/module-editor': typeof AppTeachModuleEditorRoute
-  '/teach/module-plan': typeof AppTeachModulePlanRoute
-  '/teach/modules': typeof AppTeachModulesRoute
-  '/teach/timetable': typeof AppTeachTimetableRoute
-  '/teach/year-map': typeof AppTeachYearMapRoute
   '/years/$yearId': typeof AppYearsYearIdRoute
   '/auth/handoff': typeof AuthAuthHandoffRoute
   '/exports/assignments/$assignmentId': typeof ExportsAssignmentsAssignmentIdRoute
@@ -969,20 +941,18 @@ export interface FileRoutesByFullPath {
   '/site/$school/$': typeof SiteSchoolSplatRoute
   '/site/$school/robots.txt': typeof SiteSchoolRobotsDottxtRoute
   '/site/$school/sitemap.xml': typeof SiteSchoolSitemapDotxmlRoute
-  '/admin/': typeof AppAdminIndexRoute
   '/announcements/': typeof AppAnnouncementsIndexRoute
   '/calendar/': typeof AppCalendarIndexRoute
   '/family/': typeof AppFamilyIndexRoute
   '/me/': typeof AppMeIndexRoute
   '/news/': typeof AppNewsIndexRoute
   '/standards/': typeof AppStandardsIndexRoute
-  '/teach/': typeof AppTeachIndexRoute
   '/site/$school/': typeof SiteSchoolIndexRoute
+  '/board/$pacedId': typeof AppStaffBoardPacedIdRoute
+  '/live/$pacedId': typeof AppStaffLivePacedIdRoute
   '/admissions/applications/$applicationId': typeof AppAdmissionsApplicationsApplicationIdRoute
   '/admissions/enquiries/$enquiryId': typeof AppAdmissionsEnquiriesEnquiryIdRoute
   '/admissions/intakes/$intakeId': typeof AppAdmissionsIntakesIntakeIdRoute
-  '/teach/board/$pacedId': typeof AppTeachBoardPacedIdRoute
-  '/teach/live/$pacedId': typeof AppTeachLivePacedIdRoute
   '/files/$fileId/parts/$part': typeof FilesFileIdPartsPartRoute
   '/public-media/p/$token/$name': typeof PublicMediaPTokenNameRoute
   '/site/$school/news/$slug': typeof SiteSchoolNewsSlugRoute
@@ -1013,6 +983,7 @@ export interface FileRoutesByTo {
   '/forgot-password': typeof AuthForgotPasswordRoute
   '/register': typeof AuthRegisterRoute
   '/sign-in': typeof AuthSignInRoute
+  '/admin/$': typeof AdminSplatRoute
   '/api/health': typeof ApiHealthRoute
   '/files/$fileId': typeof FilesFileIdRouteWithChildren
   '/lti/auth': typeof LtiAuthRoute
@@ -1021,23 +992,34 @@ export interface FileRoutesByTo {
   '/lti/launch': typeof LtiLaunchRoute
   '/lti/pick': typeof LtiPickRoute
   '/lti/token': typeof LtiTokenRoute
-  '/admin/academic-year-editor': typeof AppAdminAcademicYearEditorRoute
-  '/admin/academic-years': typeof AppAdminAcademicYearsRoute
-  '/admin/announcement-editor': typeof AppAdminAnnouncementEditorRoute
-  '/admin/attendance': typeof AppAdminAttendanceRoute
-  '/admin/billing': typeof AppAdminBillingRoute
-  '/admin/class-editor': typeof AppAdminClassEditorRoute
-  '/admin/classes': typeof AppAdminClassesRoute
-  '/admin/media': typeof AppAdminMediaRoute
-  '/admin/messages': typeof AppAdminMessagesRoute
-  '/admin/notification-audit': typeof AppAdminNotificationAuditRoute
-  '/admin/rollover': typeof AppAdminRolloverRoute
-  '/admin/settings': typeof AppAdminSettingsRoute
-  '/admin/site': typeof AppAdminSiteRoute
-  '/admin/site-page-editor': typeof AppAdminSitePageEditorRoute
-  '/admin/staff': typeof AppAdminStaffRoute
-  '/admin/students': typeof AppAdminStudentsRoute
-  '/admin/timetable': typeof AppAdminTimetableRoute
+  '/teach/$': typeof TeachSplatRoute
+  '/academic-year-editor': typeof AppStaffAcademicYearEditorRoute
+  '/academic-years': typeof AppStaffAcademicYearsRoute
+  '/announcement-editor': typeof AppStaffAnnouncementEditorRoute
+  '/assignment-editor': typeof AppStaffAssignmentEditorRoute
+  '/assignments': typeof AppStaffAssignmentsRoute
+  '/attendance': typeof AppStaffAttendanceRoute
+  '/billing': typeof AppStaffBillingRoute
+  '/class-editor': typeof AppStaffClassEditorRoute
+  '/classes': typeof AppStaffClassesRoute
+  '/gradebook': typeof AppStaffGradebookRoute
+  '/grading': typeof AppStaffGradingRoute
+  '/lesson-editor': typeof AppStaffLessonEditorRoute
+  '/media': typeof AppStaffMediaRoute
+  '/messages': typeof AppStaffMessagesRoute
+  '/module-editor': typeof AppStaffModuleEditorRoute
+  '/module-plan': typeof AppStaffModulePlanRoute
+  '/modules': typeof AppStaffModulesRoute
+  '/notification-audit': typeof AppStaffNotificationAuditRoute
+  '/rollover': typeof AppStaffRolloverRoute
+  '/settings': typeof AppStaffSettingsRoute
+  '/site-page-editor': typeof AppStaffSitePageEditorRoute
+  '/staff': typeof AppStaffStaffRoute
+  '/students': typeof AppStaffStudentsRoute
+  '/timetable': typeof AppStaffTimetableRoute
+  '/today': typeof AppStaffTodayRoute
+  '/website': typeof AppStaffWebsiteRoute
+  '/year-map': typeof AppStaffYearMapRoute
   '/admissions/form-editor': typeof AppAdmissionsFormEditorRoute
   '/admissions/intake-editor': typeof AppAdmissionsIntakeEditorRoute
   '/admissions/letter-editor': typeof AppAdmissionsLetterEditorRoute
@@ -1076,19 +1058,6 @@ export interface FileRoutesByTo {
   '/standards/$frameworkId': typeof AppStandardsFrameworkIdRoute
   '/standards/map': typeof AppStandardsMapRoute
   '/students/$studentId': typeof AppStudentsStudentIdRoute
-  '/teach/assignment-editor': typeof AppTeachAssignmentEditorRoute
-  '/teach/assignments': typeof AppTeachAssignmentsRoute
-  '/teach/attendance': typeof AppTeachAttendanceRoute
-  '/teach/classes': typeof AppTeachClassesRoute
-  '/teach/gradebook': typeof AppTeachGradebookRoute
-  '/teach/grading': typeof AppTeachGradingRoute
-  '/teach/lesson-editor': typeof AppTeachLessonEditorRoute
-  '/teach/messages': typeof AppTeachMessagesRoute
-  '/teach/module-editor': typeof AppTeachModuleEditorRoute
-  '/teach/module-plan': typeof AppTeachModulePlanRoute
-  '/teach/modules': typeof AppTeachModulesRoute
-  '/teach/timetable': typeof AppTeachTimetableRoute
-  '/teach/year-map': typeof AppTeachYearMapRoute
   '/years/$yearId': typeof AppYearsYearIdRoute
   '/auth/handoff': typeof AuthAuthHandoffRoute
   '/exports/assignments/$assignmentId': typeof ExportsAssignmentsAssignmentIdRoute
@@ -1102,20 +1071,18 @@ export interface FileRoutesByTo {
   '/site/$school/$': typeof SiteSchoolSplatRoute
   '/site/$school/robots.txt': typeof SiteSchoolRobotsDottxtRoute
   '/site/$school/sitemap.xml': typeof SiteSchoolSitemapDotxmlRoute
-  '/admin': typeof AppAdminIndexRoute
   '/announcements': typeof AppAnnouncementsIndexRoute
   '/calendar': typeof AppCalendarIndexRoute
   '/family': typeof AppFamilyIndexRoute
   '/me': typeof AppMeIndexRoute
   '/news': typeof AppNewsIndexRoute
   '/standards': typeof AppStandardsIndexRoute
-  '/teach': typeof AppTeachIndexRoute
   '/site/$school': typeof SiteSchoolIndexRoute
+  '/board/$pacedId': typeof AppStaffBoardPacedIdRoute
+  '/live/$pacedId': typeof AppStaffLivePacedIdRoute
   '/admissions/applications/$applicationId': typeof AppAdmissionsApplicationsApplicationIdRoute
   '/admissions/enquiries/$enquiryId': typeof AppAdmissionsEnquiriesEnquiryIdRoute
   '/admissions/intakes/$intakeId': typeof AppAdmissionsIntakesIntakeIdRoute
-  '/teach/board/$pacedId': typeof AppTeachBoardPacedIdRoute
-  '/teach/live/$pacedId': typeof AppTeachLivePacedIdRoute
   '/files/$fileId/parts/$part': typeof FilesFileIdPartsPartRoute
   '/public-media/p/$token/$name': typeof PublicMediaPTokenNameRoute
   '/site/$school/news/$slug': typeof SiteSchoolNewsSlugRoute
@@ -1134,7 +1101,7 @@ export interface FileRoutesById {
   '/apply': typeof ApplyRoute
   '/badge': typeof BadgeRoute
   '/welcome': typeof WelcomeRoute
-  '/_app/admin': typeof AppAdminRouteWithChildren
+  '/_app/_staff': typeof AppStaffRouteWithChildren
   '/_app/consent-form-editor': typeof AppConsentFormEditorRoute
   '/_app/event-editor': typeof AppEventEditorRoute
   '/_app/exams': typeof AppExamsRoute
@@ -1149,10 +1116,10 @@ export interface FileRoutesById {
   '/_app/search': typeof AppSearchRoute
   '/_app/staff-editor': typeof AppStaffEditorRoute
   '/_app/student-editor': typeof AppStudentEditorRoute
-  '/_app/teach': typeof AppTeachRouteWithChildren
   '/_auth/forgot-password': typeof AuthForgotPasswordRoute
   '/_auth/register': typeof AuthRegisterRoute
   '/_auth/sign-in': typeof AuthSignInRoute
+  '/admin/$': typeof AdminSplatRoute
   '/api/health': typeof ApiHealthRoute
   '/files/$fileId': typeof FilesFileIdRouteWithChildren
   '/lti/auth': typeof LtiAuthRoute
@@ -1162,23 +1129,34 @@ export interface FileRoutesById {
   '/lti/pick': typeof LtiPickRoute
   '/lti/token': typeof LtiTokenRoute
   '/site/$school': typeof SiteSchoolRouteWithChildren
-  '/_app/admin/academic-year-editor': typeof AppAdminAcademicYearEditorRoute
-  '/_app/admin/academic-years': typeof AppAdminAcademicYearsRoute
-  '/_app/admin/announcement-editor': typeof AppAdminAnnouncementEditorRoute
-  '/_app/admin/attendance': typeof AppAdminAttendanceRoute
-  '/_app/admin/billing': typeof AppAdminBillingRoute
-  '/_app/admin/class-editor': typeof AppAdminClassEditorRoute
-  '/_app/admin/classes': typeof AppAdminClassesRoute
-  '/_app/admin/media': typeof AppAdminMediaRoute
-  '/_app/admin/messages': typeof AppAdminMessagesRoute
-  '/_app/admin/notification-audit': typeof AppAdminNotificationAuditRoute
-  '/_app/admin/rollover': typeof AppAdminRolloverRoute
-  '/_app/admin/settings': typeof AppAdminSettingsRoute
-  '/_app/admin/site': typeof AppAdminSiteRoute
-  '/_app/admin/site-page-editor': typeof AppAdminSitePageEditorRoute
-  '/_app/admin/staff': typeof AppAdminStaffRoute
-  '/_app/admin/students': typeof AppAdminStudentsRoute
-  '/_app/admin/timetable': typeof AppAdminTimetableRoute
+  '/teach/$': typeof TeachSplatRoute
+  '/_app/_staff/academic-year-editor': typeof AppStaffAcademicYearEditorRoute
+  '/_app/_staff/academic-years': typeof AppStaffAcademicYearsRoute
+  '/_app/_staff/announcement-editor': typeof AppStaffAnnouncementEditorRoute
+  '/_app/_staff/assignment-editor': typeof AppStaffAssignmentEditorRoute
+  '/_app/_staff/assignments': typeof AppStaffAssignmentsRoute
+  '/_app/_staff/attendance': typeof AppStaffAttendanceRoute
+  '/_app/_staff/billing': typeof AppStaffBillingRoute
+  '/_app/_staff/class-editor': typeof AppStaffClassEditorRoute
+  '/_app/_staff/classes': typeof AppStaffClassesRoute
+  '/_app/_staff/gradebook': typeof AppStaffGradebookRoute
+  '/_app/_staff/grading': typeof AppStaffGradingRoute
+  '/_app/_staff/lesson-editor': typeof AppStaffLessonEditorRoute
+  '/_app/_staff/media': typeof AppStaffMediaRoute
+  '/_app/_staff/messages': typeof AppStaffMessagesRoute
+  '/_app/_staff/module-editor': typeof AppStaffModuleEditorRoute
+  '/_app/_staff/module-plan': typeof AppStaffModulePlanRoute
+  '/_app/_staff/modules': typeof AppStaffModulesRoute
+  '/_app/_staff/notification-audit': typeof AppStaffNotificationAuditRoute
+  '/_app/_staff/rollover': typeof AppStaffRolloverRoute
+  '/_app/_staff/settings': typeof AppStaffSettingsRoute
+  '/_app/_staff/site-page-editor': typeof AppStaffSitePageEditorRoute
+  '/_app/_staff/staff': typeof AppStaffStaffRoute
+  '/_app/_staff/students': typeof AppStaffStudentsRoute
+  '/_app/_staff/timetable': typeof AppStaffTimetableRoute
+  '/_app/_staff/today': typeof AppStaffTodayRoute
+  '/_app/_staff/website': typeof AppStaffWebsiteRoute
+  '/_app/_staff/year-map': typeof AppStaffYearMapRoute
   '/_app/admissions/form-editor': typeof AppAdmissionsFormEditorRoute
   '/_app/admissions/intake-editor': typeof AppAdmissionsIntakeEditorRoute
   '/_app/admissions/letter-editor': typeof AppAdmissionsLetterEditorRoute
@@ -1217,19 +1195,6 @@ export interface FileRoutesById {
   '/_app/standards/$frameworkId': typeof AppStandardsFrameworkIdRoute
   '/_app/standards/map': typeof AppStandardsMapRoute
   '/_app/students/$studentId': typeof AppStudentsStudentIdRoute
-  '/_app/teach/assignment-editor': typeof AppTeachAssignmentEditorRoute
-  '/_app/teach/assignments': typeof AppTeachAssignmentsRoute
-  '/_app/teach/attendance': typeof AppTeachAttendanceRoute
-  '/_app/teach/classes': typeof AppTeachClassesRoute
-  '/_app/teach/gradebook': typeof AppTeachGradebookRoute
-  '/_app/teach/grading': typeof AppTeachGradingRoute
-  '/_app/teach/lesson-editor': typeof AppTeachLessonEditorRoute
-  '/_app/teach/messages': typeof AppTeachMessagesRoute
-  '/_app/teach/module-editor': typeof AppTeachModuleEditorRoute
-  '/_app/teach/module-plan': typeof AppTeachModulePlanRoute
-  '/_app/teach/modules': typeof AppTeachModulesRoute
-  '/_app/teach/timetable': typeof AppTeachTimetableRoute
-  '/_app/teach/year-map': typeof AppTeachYearMapRoute
   '/_app/years/$yearId': typeof AppYearsYearIdRoute
   '/_auth/auth/handoff': typeof AuthAuthHandoffRoute
   '/exports/assignments/$assignmentId': typeof ExportsAssignmentsAssignmentIdRoute
@@ -1243,20 +1208,18 @@ export interface FileRoutesById {
   '/site/$school/$': typeof SiteSchoolSplatRoute
   '/site/$school/robots.txt': typeof SiteSchoolRobotsDottxtRoute
   '/site/$school/sitemap.xml': typeof SiteSchoolSitemapDotxmlRoute
-  '/_app/admin/': typeof AppAdminIndexRoute
   '/_app/announcements/': typeof AppAnnouncementsIndexRoute
   '/_app/calendar/': typeof AppCalendarIndexRoute
   '/_app/family/': typeof AppFamilyIndexRoute
   '/_app/me/': typeof AppMeIndexRoute
   '/_app/news/': typeof AppNewsIndexRoute
   '/_app/standards/': typeof AppStandardsIndexRoute
-  '/_app/teach/': typeof AppTeachIndexRoute
   '/site/$school/': typeof SiteSchoolIndexRoute
+  '/_app/_staff/board/$pacedId': typeof AppStaffBoardPacedIdRoute
+  '/_app/_staff/live/$pacedId': typeof AppStaffLivePacedIdRoute
   '/_app/admissions/applications/$applicationId': typeof AppAdmissionsApplicationsApplicationIdRoute
   '/_app/admissions/enquiries/$enquiryId': typeof AppAdmissionsEnquiriesEnquiryIdRoute
   '/_app/admissions/intakes/$intakeId': typeof AppAdmissionsIntakesIntakeIdRoute
-  '/_app/teach/board/$pacedId': typeof AppTeachBoardPacedIdRoute
-  '/_app/teach/live/$pacedId': typeof AppTeachLivePacedIdRoute
   '/files/$fileId/parts/$part': typeof FilesFileIdPartsPartRoute
   '/public-media/p/$token/$name': typeof PublicMediaPTokenNameRoute
   '/site/$school/news/$slug': typeof SiteSchoolNewsSlugRoute
@@ -1274,7 +1237,6 @@ export interface FileRouteTypes {
     | '/apply'
     | '/badge'
     | '/welcome'
-    | '/admin'
     | '/consent-form-editor'
     | '/event-editor'
     | '/exams'
@@ -1289,10 +1251,10 @@ export interface FileRouteTypes {
     | '/search'
     | '/staff-editor'
     | '/student-editor'
-    | '/teach'
     | '/forgot-password'
     | '/register'
     | '/sign-in'
+    | '/admin/$'
     | '/api/health'
     | '/files/$fileId'
     | '/lti/auth'
@@ -1302,23 +1264,34 @@ export interface FileRouteTypes {
     | '/lti/pick'
     | '/lti/token'
     | '/site/$school'
-    | '/admin/academic-year-editor'
-    | '/admin/academic-years'
-    | '/admin/announcement-editor'
-    | '/admin/attendance'
-    | '/admin/billing'
-    | '/admin/class-editor'
-    | '/admin/classes'
-    | '/admin/media'
-    | '/admin/messages'
-    | '/admin/notification-audit'
-    | '/admin/rollover'
-    | '/admin/settings'
-    | '/admin/site'
-    | '/admin/site-page-editor'
-    | '/admin/staff'
-    | '/admin/students'
-    | '/admin/timetable'
+    | '/teach/$'
+    | '/academic-year-editor'
+    | '/academic-years'
+    | '/announcement-editor'
+    | '/assignment-editor'
+    | '/assignments'
+    | '/attendance'
+    | '/billing'
+    | '/class-editor'
+    | '/classes'
+    | '/gradebook'
+    | '/grading'
+    | '/lesson-editor'
+    | '/media'
+    | '/messages'
+    | '/module-editor'
+    | '/module-plan'
+    | '/modules'
+    | '/notification-audit'
+    | '/rollover'
+    | '/settings'
+    | '/site-page-editor'
+    | '/staff'
+    | '/students'
+    | '/timetable'
+    | '/today'
+    | '/website'
+    | '/year-map'
     | '/admissions/form-editor'
     | '/admissions/intake-editor'
     | '/admissions/letter-editor'
@@ -1357,19 +1330,6 @@ export interface FileRouteTypes {
     | '/standards/$frameworkId'
     | '/standards/map'
     | '/students/$studentId'
-    | '/teach/assignment-editor'
-    | '/teach/assignments'
-    | '/teach/attendance'
-    | '/teach/classes'
-    | '/teach/gradebook'
-    | '/teach/grading'
-    | '/teach/lesson-editor'
-    | '/teach/messages'
-    | '/teach/module-editor'
-    | '/teach/module-plan'
-    | '/teach/modules'
-    | '/teach/timetable'
-    | '/teach/year-map'
     | '/years/$yearId'
     | '/auth/handoff'
     | '/exports/assignments/$assignmentId'
@@ -1383,20 +1343,18 @@ export interface FileRouteTypes {
     | '/site/$school/$'
     | '/site/$school/robots.txt'
     | '/site/$school/sitemap.xml'
-    | '/admin/'
     | '/announcements/'
     | '/calendar/'
     | '/family/'
     | '/me/'
     | '/news/'
     | '/standards/'
-    | '/teach/'
     | '/site/$school/'
+    | '/board/$pacedId'
+    | '/live/$pacedId'
     | '/admissions/applications/$applicationId'
     | '/admissions/enquiries/$enquiryId'
     | '/admissions/intakes/$intakeId'
-    | '/teach/board/$pacedId'
-    | '/teach/live/$pacedId'
     | '/files/$fileId/parts/$part'
     | '/public-media/p/$token/$name'
     | '/site/$school/news/$slug'
@@ -1427,6 +1385,7 @@ export interface FileRouteTypes {
     | '/forgot-password'
     | '/register'
     | '/sign-in'
+    | '/admin/$'
     | '/api/health'
     | '/files/$fileId'
     | '/lti/auth'
@@ -1435,23 +1394,34 @@ export interface FileRouteTypes {
     | '/lti/launch'
     | '/lti/pick'
     | '/lti/token'
-    | '/admin/academic-year-editor'
-    | '/admin/academic-years'
-    | '/admin/announcement-editor'
-    | '/admin/attendance'
-    | '/admin/billing'
-    | '/admin/class-editor'
-    | '/admin/classes'
-    | '/admin/media'
-    | '/admin/messages'
-    | '/admin/notification-audit'
-    | '/admin/rollover'
-    | '/admin/settings'
-    | '/admin/site'
-    | '/admin/site-page-editor'
-    | '/admin/staff'
-    | '/admin/students'
-    | '/admin/timetable'
+    | '/teach/$'
+    | '/academic-year-editor'
+    | '/academic-years'
+    | '/announcement-editor'
+    | '/assignment-editor'
+    | '/assignments'
+    | '/attendance'
+    | '/billing'
+    | '/class-editor'
+    | '/classes'
+    | '/gradebook'
+    | '/grading'
+    | '/lesson-editor'
+    | '/media'
+    | '/messages'
+    | '/module-editor'
+    | '/module-plan'
+    | '/modules'
+    | '/notification-audit'
+    | '/rollover'
+    | '/settings'
+    | '/site-page-editor'
+    | '/staff'
+    | '/students'
+    | '/timetable'
+    | '/today'
+    | '/website'
+    | '/year-map'
     | '/admissions/form-editor'
     | '/admissions/intake-editor'
     | '/admissions/letter-editor'
@@ -1490,19 +1460,6 @@ export interface FileRouteTypes {
     | '/standards/$frameworkId'
     | '/standards/map'
     | '/students/$studentId'
-    | '/teach/assignment-editor'
-    | '/teach/assignments'
-    | '/teach/attendance'
-    | '/teach/classes'
-    | '/teach/gradebook'
-    | '/teach/grading'
-    | '/teach/lesson-editor'
-    | '/teach/messages'
-    | '/teach/module-editor'
-    | '/teach/module-plan'
-    | '/teach/modules'
-    | '/teach/timetable'
-    | '/teach/year-map'
     | '/years/$yearId'
     | '/auth/handoff'
     | '/exports/assignments/$assignmentId'
@@ -1516,20 +1473,18 @@ export interface FileRouteTypes {
     | '/site/$school/$'
     | '/site/$school/robots.txt'
     | '/site/$school/sitemap.xml'
-    | '/admin'
     | '/announcements'
     | '/calendar'
     | '/family'
     | '/me'
     | '/news'
     | '/standards'
-    | '/teach'
     | '/site/$school'
+    | '/board/$pacedId'
+    | '/live/$pacedId'
     | '/admissions/applications/$applicationId'
     | '/admissions/enquiries/$enquiryId'
     | '/admissions/intakes/$intakeId'
-    | '/teach/board/$pacedId'
-    | '/teach/live/$pacedId'
     | '/files/$fileId/parts/$part'
     | '/public-media/p/$token/$name'
     | '/site/$school/news/$slug'
@@ -1547,7 +1502,7 @@ export interface FileRouteTypes {
     | '/apply'
     | '/badge'
     | '/welcome'
-    | '/_app/admin'
+    | '/_app/_staff'
     | '/_app/consent-form-editor'
     | '/_app/event-editor'
     | '/_app/exams'
@@ -1562,10 +1517,10 @@ export interface FileRouteTypes {
     | '/_app/search'
     | '/_app/staff-editor'
     | '/_app/student-editor'
-    | '/_app/teach'
     | '/_auth/forgot-password'
     | '/_auth/register'
     | '/_auth/sign-in'
+    | '/admin/$'
     | '/api/health'
     | '/files/$fileId'
     | '/lti/auth'
@@ -1575,23 +1530,34 @@ export interface FileRouteTypes {
     | '/lti/pick'
     | '/lti/token'
     | '/site/$school'
-    | '/_app/admin/academic-year-editor'
-    | '/_app/admin/academic-years'
-    | '/_app/admin/announcement-editor'
-    | '/_app/admin/attendance'
-    | '/_app/admin/billing'
-    | '/_app/admin/class-editor'
-    | '/_app/admin/classes'
-    | '/_app/admin/media'
-    | '/_app/admin/messages'
-    | '/_app/admin/notification-audit'
-    | '/_app/admin/rollover'
-    | '/_app/admin/settings'
-    | '/_app/admin/site'
-    | '/_app/admin/site-page-editor'
-    | '/_app/admin/staff'
-    | '/_app/admin/students'
-    | '/_app/admin/timetable'
+    | '/teach/$'
+    | '/_app/_staff/academic-year-editor'
+    | '/_app/_staff/academic-years'
+    | '/_app/_staff/announcement-editor'
+    | '/_app/_staff/assignment-editor'
+    | '/_app/_staff/assignments'
+    | '/_app/_staff/attendance'
+    | '/_app/_staff/billing'
+    | '/_app/_staff/class-editor'
+    | '/_app/_staff/classes'
+    | '/_app/_staff/gradebook'
+    | '/_app/_staff/grading'
+    | '/_app/_staff/lesson-editor'
+    | '/_app/_staff/media'
+    | '/_app/_staff/messages'
+    | '/_app/_staff/module-editor'
+    | '/_app/_staff/module-plan'
+    | '/_app/_staff/modules'
+    | '/_app/_staff/notification-audit'
+    | '/_app/_staff/rollover'
+    | '/_app/_staff/settings'
+    | '/_app/_staff/site-page-editor'
+    | '/_app/_staff/staff'
+    | '/_app/_staff/students'
+    | '/_app/_staff/timetable'
+    | '/_app/_staff/today'
+    | '/_app/_staff/website'
+    | '/_app/_staff/year-map'
     | '/_app/admissions/form-editor'
     | '/_app/admissions/intake-editor'
     | '/_app/admissions/letter-editor'
@@ -1630,19 +1596,6 @@ export interface FileRouteTypes {
     | '/_app/standards/$frameworkId'
     | '/_app/standards/map'
     | '/_app/students/$studentId'
-    | '/_app/teach/assignment-editor'
-    | '/_app/teach/assignments'
-    | '/_app/teach/attendance'
-    | '/_app/teach/classes'
-    | '/_app/teach/gradebook'
-    | '/_app/teach/grading'
-    | '/_app/teach/lesson-editor'
-    | '/_app/teach/messages'
-    | '/_app/teach/module-editor'
-    | '/_app/teach/module-plan'
-    | '/_app/teach/modules'
-    | '/_app/teach/timetable'
-    | '/_app/teach/year-map'
     | '/_app/years/$yearId'
     | '/_auth/auth/handoff'
     | '/exports/assignments/$assignmentId'
@@ -1656,20 +1609,18 @@ export interface FileRouteTypes {
     | '/site/$school/$'
     | '/site/$school/robots.txt'
     | '/site/$school/sitemap.xml'
-    | '/_app/admin/'
     | '/_app/announcements/'
     | '/_app/calendar/'
     | '/_app/family/'
     | '/_app/me/'
     | '/_app/news/'
     | '/_app/standards/'
-    | '/_app/teach/'
     | '/site/$school/'
+    | '/_app/_staff/board/$pacedId'
+    | '/_app/_staff/live/$pacedId'
     | '/_app/admissions/applications/$applicationId'
     | '/_app/admissions/enquiries/$enquiryId'
     | '/_app/admissions/intakes/$intakeId'
-    | '/_app/teach/board/$pacedId'
-    | '/_app/teach/live/$pacedId'
     | '/files/$fileId/parts/$part'
     | '/public-media/p/$token/$name'
     | '/site/$school/news/$slug'
@@ -1688,6 +1639,7 @@ export interface RootRouteChildren {
   ApplyRoute: typeof ApplyRoute
   BadgeRoute: typeof BadgeRoute
   WelcomeRoute: typeof WelcomeRoute
+  AdminSplatRoute: typeof AdminSplatRoute
   ApiHealthRoute: typeof ApiHealthRoute
   FilesFileIdRoute: typeof FilesFileIdRouteWithChildren
   LtiAuthRoute: typeof LtiAuthRoute
@@ -1697,6 +1649,7 @@ export interface RootRouteChildren {
   LtiPickRoute: typeof LtiPickRoute
   LtiTokenRoute: typeof LtiTokenRoute
   SiteSchoolRoute: typeof SiteSchoolRouteWithChildren
+  TeachSplatRoute: typeof TeachSplatRoute
   ExportsAssignmentsAssignmentIdRoute: typeof ExportsAssignmentsAssignmentIdRoute
   ExportsClassesClassIdRoute: typeof ExportsClassesClassIdRoute
   ExportsModulesModuleIdRoute: typeof ExportsModulesModuleIdRoute
@@ -1757,11 +1710,11 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof WelcomeRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/_app/admin': {
-      id: '/_app/admin'
-      path: '/admin'
-      fullPath: '/admin'
-      preLoaderRoute: typeof AppAdminRouteImport
+    '/_app/_staff': {
+      id: '/_app/_staff'
+      path: ''
+      fullPath: '/'
+      preLoaderRoute: typeof AppStaffRouteImport
       parentRoute: typeof AppRoute
     }
     '/_app/consent-form-editor': {
@@ -1862,13 +1815,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppStudentEditorRouteImport
       parentRoute: typeof AppRoute
     }
-    '/_app/teach': {
-      id: '/_app/teach'
-      path: '/teach'
-      fullPath: '/teach'
-      preLoaderRoute: typeof AppTeachRouteImport
-      parentRoute: typeof AppRoute
-    }
     '/_auth/forgot-password': {
       id: '/_auth/forgot-password'
       path: '/forgot-password'
@@ -1889,6 +1835,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/sign-in'
       preLoaderRoute: typeof AuthSignInRouteImport
       parentRoute: typeof AuthRoute
+    }
+    '/admin/$': {
+      id: '/admin/$'
+      path: '/admin/$'
+      fullPath: '/admin/$'
+      preLoaderRoute: typeof AdminSplatRouteImport
+      parentRoute: typeof rootRouteImport
     }
     '/api/health': {
       id: '/api/health'
@@ -1953,131 +1906,201 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof SiteSchoolRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/_app/admin/': {
-      id: '/_app/admin/'
-      path: '/'
-      fullPath: '/admin/'
-      preLoaderRoute: typeof AppAdminIndexRouteImport
-      parentRoute: typeof AppAdminRoute
+    '/teach/$': {
+      id: '/teach/$'
+      path: '/teach/$'
+      fullPath: '/teach/$'
+      preLoaderRoute: typeof TeachSplatRouteImport
+      parentRoute: typeof rootRouteImport
     }
-    '/_app/admin/academic-year-editor': {
-      id: '/_app/admin/academic-year-editor'
+    '/_app/_staff/academic-year-editor': {
+      id: '/_app/_staff/academic-year-editor'
       path: '/academic-year-editor'
-      fullPath: '/admin/academic-year-editor'
-      preLoaderRoute: typeof AppAdminAcademicYearEditorRouteImport
-      parentRoute: typeof AppAdminRoute
+      fullPath: '/academic-year-editor'
+      preLoaderRoute: typeof AppStaffAcademicYearEditorRouteImport
+      parentRoute: typeof AppStaffRoute
     }
-    '/_app/admin/academic-years': {
-      id: '/_app/admin/academic-years'
+    '/_app/_staff/academic-years': {
+      id: '/_app/_staff/academic-years'
       path: '/academic-years'
-      fullPath: '/admin/academic-years'
-      preLoaderRoute: typeof AppAdminAcademicYearsRouteImport
-      parentRoute: typeof AppAdminRoute
+      fullPath: '/academic-years'
+      preLoaderRoute: typeof AppStaffAcademicYearsRouteImport
+      parentRoute: typeof AppStaffRoute
     }
-    '/_app/admin/announcement-editor': {
-      id: '/_app/admin/announcement-editor'
+    '/_app/_staff/announcement-editor': {
+      id: '/_app/_staff/announcement-editor'
       path: '/announcement-editor'
-      fullPath: '/admin/announcement-editor'
-      preLoaderRoute: typeof AppAdminAnnouncementEditorRouteImport
-      parentRoute: typeof AppAdminRoute
+      fullPath: '/announcement-editor'
+      preLoaderRoute: typeof AppStaffAnnouncementEditorRouteImport
+      parentRoute: typeof AppStaffRoute
     }
-    '/_app/admin/attendance': {
-      id: '/_app/admin/attendance'
+    '/_app/_staff/assignment-editor': {
+      id: '/_app/_staff/assignment-editor'
+      path: '/assignment-editor'
+      fullPath: '/assignment-editor'
+      preLoaderRoute: typeof AppStaffAssignmentEditorRouteImport
+      parentRoute: typeof AppStaffRoute
+    }
+    '/_app/_staff/assignments': {
+      id: '/_app/_staff/assignments'
+      path: '/assignments'
+      fullPath: '/assignments'
+      preLoaderRoute: typeof AppStaffAssignmentsRouteImport
+      parentRoute: typeof AppStaffRoute
+    }
+    '/_app/_staff/attendance': {
+      id: '/_app/_staff/attendance'
       path: '/attendance'
-      fullPath: '/admin/attendance'
-      preLoaderRoute: typeof AppAdminAttendanceRouteImport
-      parentRoute: typeof AppAdminRoute
+      fullPath: '/attendance'
+      preLoaderRoute: typeof AppStaffAttendanceRouteImport
+      parentRoute: typeof AppStaffRoute
     }
-    '/_app/admin/billing': {
-      id: '/_app/admin/billing'
+    '/_app/_staff/billing': {
+      id: '/_app/_staff/billing'
       path: '/billing'
-      fullPath: '/admin/billing'
-      preLoaderRoute: typeof AppAdminBillingRouteImport
-      parentRoute: typeof AppAdminRoute
+      fullPath: '/billing'
+      preLoaderRoute: typeof AppStaffBillingRouteImport
+      parentRoute: typeof AppStaffRoute
     }
-    '/_app/admin/class-editor': {
-      id: '/_app/admin/class-editor'
+    '/_app/_staff/class-editor': {
+      id: '/_app/_staff/class-editor'
       path: '/class-editor'
-      fullPath: '/admin/class-editor'
-      preLoaderRoute: typeof AppAdminClassEditorRouteImport
-      parentRoute: typeof AppAdminRoute
+      fullPath: '/class-editor'
+      preLoaderRoute: typeof AppStaffClassEditorRouteImport
+      parentRoute: typeof AppStaffRoute
     }
-    '/_app/admin/classes': {
-      id: '/_app/admin/classes'
+    '/_app/_staff/classes': {
+      id: '/_app/_staff/classes'
       path: '/classes'
-      fullPath: '/admin/classes'
-      preLoaderRoute: typeof AppAdminClassesRouteImport
-      parentRoute: typeof AppAdminRoute
+      fullPath: '/classes'
+      preLoaderRoute: typeof AppStaffClassesRouteImport
+      parentRoute: typeof AppStaffRoute
     }
-    '/_app/admin/media': {
-      id: '/_app/admin/media'
+    '/_app/_staff/gradebook': {
+      id: '/_app/_staff/gradebook'
+      path: '/gradebook'
+      fullPath: '/gradebook'
+      preLoaderRoute: typeof AppStaffGradebookRouteImport
+      parentRoute: typeof AppStaffRoute
+    }
+    '/_app/_staff/grading': {
+      id: '/_app/_staff/grading'
+      path: '/grading'
+      fullPath: '/grading'
+      preLoaderRoute: typeof AppStaffGradingRouteImport
+      parentRoute: typeof AppStaffRoute
+    }
+    '/_app/_staff/lesson-editor': {
+      id: '/_app/_staff/lesson-editor'
+      path: '/lesson-editor'
+      fullPath: '/lesson-editor'
+      preLoaderRoute: typeof AppStaffLessonEditorRouteImport
+      parentRoute: typeof AppStaffRoute
+    }
+    '/_app/_staff/media': {
+      id: '/_app/_staff/media'
       path: '/media'
-      fullPath: '/admin/media'
-      preLoaderRoute: typeof AppAdminMediaRouteImport
-      parentRoute: typeof AppAdminRoute
+      fullPath: '/media'
+      preLoaderRoute: typeof AppStaffMediaRouteImport
+      parentRoute: typeof AppStaffRoute
     }
-    '/_app/admin/messages': {
-      id: '/_app/admin/messages'
+    '/_app/_staff/messages': {
+      id: '/_app/_staff/messages'
       path: '/messages'
-      fullPath: '/admin/messages'
-      preLoaderRoute: typeof AppAdminMessagesRouteImport
-      parentRoute: typeof AppAdminRoute
+      fullPath: '/messages'
+      preLoaderRoute: typeof AppStaffMessagesRouteImport
+      parentRoute: typeof AppStaffRoute
     }
-    '/_app/admin/notification-audit': {
-      id: '/_app/admin/notification-audit'
+    '/_app/_staff/module-editor': {
+      id: '/_app/_staff/module-editor'
+      path: '/module-editor'
+      fullPath: '/module-editor'
+      preLoaderRoute: typeof AppStaffModuleEditorRouteImport
+      parentRoute: typeof AppStaffRoute
+    }
+    '/_app/_staff/module-plan': {
+      id: '/_app/_staff/module-plan'
+      path: '/module-plan'
+      fullPath: '/module-plan'
+      preLoaderRoute: typeof AppStaffModulePlanRouteImport
+      parentRoute: typeof AppStaffRoute
+    }
+    '/_app/_staff/modules': {
+      id: '/_app/_staff/modules'
+      path: '/modules'
+      fullPath: '/modules'
+      preLoaderRoute: typeof AppStaffModulesRouteImport
+      parentRoute: typeof AppStaffRoute
+    }
+    '/_app/_staff/notification-audit': {
+      id: '/_app/_staff/notification-audit'
       path: '/notification-audit'
-      fullPath: '/admin/notification-audit'
-      preLoaderRoute: typeof AppAdminNotificationAuditRouteImport
-      parentRoute: typeof AppAdminRoute
+      fullPath: '/notification-audit'
+      preLoaderRoute: typeof AppStaffNotificationAuditRouteImport
+      parentRoute: typeof AppStaffRoute
     }
-    '/_app/admin/rollover': {
-      id: '/_app/admin/rollover'
+    '/_app/_staff/rollover': {
+      id: '/_app/_staff/rollover'
       path: '/rollover'
-      fullPath: '/admin/rollover'
-      preLoaderRoute: typeof AppAdminRolloverRouteImport
-      parentRoute: typeof AppAdminRoute
+      fullPath: '/rollover'
+      preLoaderRoute: typeof AppStaffRolloverRouteImport
+      parentRoute: typeof AppStaffRoute
     }
-    '/_app/admin/settings': {
-      id: '/_app/admin/settings'
+    '/_app/_staff/settings': {
+      id: '/_app/_staff/settings'
       path: '/settings'
-      fullPath: '/admin/settings'
-      preLoaderRoute: typeof AppAdminSettingsRouteImport
-      parentRoute: typeof AppAdminRoute
+      fullPath: '/settings'
+      preLoaderRoute: typeof AppStaffSettingsRouteImport
+      parentRoute: typeof AppStaffRoute
     }
-    '/_app/admin/site': {
-      id: '/_app/admin/site'
-      path: '/site'
-      fullPath: '/admin/site'
-      preLoaderRoute: typeof AppAdminSiteRouteImport
-      parentRoute: typeof AppAdminRoute
-    }
-    '/_app/admin/site-page-editor': {
-      id: '/_app/admin/site-page-editor'
+    '/_app/_staff/site-page-editor': {
+      id: '/_app/_staff/site-page-editor'
       path: '/site-page-editor'
-      fullPath: '/admin/site-page-editor'
-      preLoaderRoute: typeof AppAdminSitePageEditorRouteImport
-      parentRoute: typeof AppAdminRoute
+      fullPath: '/site-page-editor'
+      preLoaderRoute: typeof AppStaffSitePageEditorRouteImport
+      parentRoute: typeof AppStaffRoute
     }
-    '/_app/admin/staff': {
-      id: '/_app/admin/staff'
+    '/_app/_staff/staff': {
+      id: '/_app/_staff/staff'
       path: '/staff'
-      fullPath: '/admin/staff'
-      preLoaderRoute: typeof AppAdminStaffRouteImport
-      parentRoute: typeof AppAdminRoute
+      fullPath: '/staff'
+      preLoaderRoute: typeof AppStaffStaffRouteImport
+      parentRoute: typeof AppStaffRoute
     }
-    '/_app/admin/students': {
-      id: '/_app/admin/students'
+    '/_app/_staff/students': {
+      id: '/_app/_staff/students'
       path: '/students'
-      fullPath: '/admin/students'
-      preLoaderRoute: typeof AppAdminStudentsRouteImport
-      parentRoute: typeof AppAdminRoute
+      fullPath: '/students'
+      preLoaderRoute: typeof AppStaffStudentsRouteImport
+      parentRoute: typeof AppStaffRoute
     }
-    '/_app/admin/timetable': {
-      id: '/_app/admin/timetable'
+    '/_app/_staff/timetable': {
+      id: '/_app/_staff/timetable'
       path: '/timetable'
-      fullPath: '/admin/timetable'
-      preLoaderRoute: typeof AppAdminTimetableRouteImport
-      parentRoute: typeof AppAdminRoute
+      fullPath: '/timetable'
+      preLoaderRoute: typeof AppStaffTimetableRouteImport
+      parentRoute: typeof AppStaffRoute
+    }
+    '/_app/_staff/today': {
+      id: '/_app/_staff/today'
+      path: '/today'
+      fullPath: '/today'
+      preLoaderRoute: typeof AppStaffTodayRouteImport
+      parentRoute: typeof AppStaffRoute
+    }
+    '/_app/_staff/website': {
+      id: '/_app/_staff/website'
+      path: '/website'
+      fullPath: '/website'
+      preLoaderRoute: typeof AppStaffWebsiteRouteImport
+      parentRoute: typeof AppStaffRoute
+    }
+    '/_app/_staff/year-map': {
+      id: '/_app/_staff/year-map'
+      path: '/year-map'
+      fullPath: '/year-map'
+      preLoaderRoute: typeof AppStaffYearMapRouteImport
+      parentRoute: typeof AppStaffRoute
     }
     '/_app/admissions/form-editor': {
       id: '/_app/admissions/form-editor'
@@ -2387,104 +2410,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppStudentsStudentIdRouteImport
       parentRoute: typeof AppRoute
     }
-    '/_app/teach/': {
-      id: '/_app/teach/'
-      path: '/'
-      fullPath: '/teach/'
-      preLoaderRoute: typeof AppTeachIndexRouteImport
-      parentRoute: typeof AppTeachRoute
-    }
-    '/_app/teach/assignment-editor': {
-      id: '/_app/teach/assignment-editor'
-      path: '/assignment-editor'
-      fullPath: '/teach/assignment-editor'
-      preLoaderRoute: typeof AppTeachAssignmentEditorRouteImport
-      parentRoute: typeof AppTeachRoute
-    }
-    '/_app/teach/assignments': {
-      id: '/_app/teach/assignments'
-      path: '/assignments'
-      fullPath: '/teach/assignments'
-      preLoaderRoute: typeof AppTeachAssignmentsRouteImport
-      parentRoute: typeof AppTeachRoute
-    }
-    '/_app/teach/attendance': {
-      id: '/_app/teach/attendance'
-      path: '/attendance'
-      fullPath: '/teach/attendance'
-      preLoaderRoute: typeof AppTeachAttendanceRouteImport
-      parentRoute: typeof AppTeachRoute
-    }
-    '/_app/teach/classes': {
-      id: '/_app/teach/classes'
-      path: '/classes'
-      fullPath: '/teach/classes'
-      preLoaderRoute: typeof AppTeachClassesRouteImport
-      parentRoute: typeof AppTeachRoute
-    }
-    '/_app/teach/gradebook': {
-      id: '/_app/teach/gradebook'
-      path: '/gradebook'
-      fullPath: '/teach/gradebook'
-      preLoaderRoute: typeof AppTeachGradebookRouteImport
-      parentRoute: typeof AppTeachRoute
-    }
-    '/_app/teach/grading': {
-      id: '/_app/teach/grading'
-      path: '/grading'
-      fullPath: '/teach/grading'
-      preLoaderRoute: typeof AppTeachGradingRouteImport
-      parentRoute: typeof AppTeachRoute
-    }
-    '/_app/teach/lesson-editor': {
-      id: '/_app/teach/lesson-editor'
-      path: '/lesson-editor'
-      fullPath: '/teach/lesson-editor'
-      preLoaderRoute: typeof AppTeachLessonEditorRouteImport
-      parentRoute: typeof AppTeachRoute
-    }
-    '/_app/teach/messages': {
-      id: '/_app/teach/messages'
-      path: '/messages'
-      fullPath: '/teach/messages'
-      preLoaderRoute: typeof AppTeachMessagesRouteImport
-      parentRoute: typeof AppTeachRoute
-    }
-    '/_app/teach/module-editor': {
-      id: '/_app/teach/module-editor'
-      path: '/module-editor'
-      fullPath: '/teach/module-editor'
-      preLoaderRoute: typeof AppTeachModuleEditorRouteImport
-      parentRoute: typeof AppTeachRoute
-    }
-    '/_app/teach/module-plan': {
-      id: '/_app/teach/module-plan'
-      path: '/module-plan'
-      fullPath: '/teach/module-plan'
-      preLoaderRoute: typeof AppTeachModulePlanRouteImport
-      parentRoute: typeof AppTeachRoute
-    }
-    '/_app/teach/modules': {
-      id: '/_app/teach/modules'
-      path: '/modules'
-      fullPath: '/teach/modules'
-      preLoaderRoute: typeof AppTeachModulesRouteImport
-      parentRoute: typeof AppTeachRoute
-    }
-    '/_app/teach/timetable': {
-      id: '/_app/teach/timetable'
-      path: '/timetable'
-      fullPath: '/teach/timetable'
-      preLoaderRoute: typeof AppTeachTimetableRouteImport
-      parentRoute: typeof AppTeachRoute
-    }
-    '/_app/teach/year-map': {
-      id: '/_app/teach/year-map'
-      path: '/year-map'
-      fullPath: '/teach/year-map'
-      preLoaderRoute: typeof AppTeachYearMapRouteImport
-      parentRoute: typeof AppTeachRoute
-    }
     '/_app/years/$yearId': {
       id: '/_app/years/$yearId'
       path: '/years/$yearId'
@@ -2583,6 +2508,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof SiteSchoolSitemapDotxmlRouteImport
       parentRoute: typeof SiteSchoolRoute
     }
+    '/_app/_staff/board/$pacedId': {
+      id: '/_app/_staff/board/$pacedId'
+      path: '/board/$pacedId'
+      fullPath: '/board/$pacedId'
+      preLoaderRoute: typeof AppStaffBoardPacedIdRouteImport
+      parentRoute: typeof AppStaffRoute
+    }
+    '/_app/_staff/live/$pacedId': {
+      id: '/_app/_staff/live/$pacedId'
+      path: '/live/$pacedId'
+      fullPath: '/live/$pacedId'
+      preLoaderRoute: typeof AppStaffLivePacedIdRouteImport
+      parentRoute: typeof AppStaffRoute
+    }
     '/_app/admissions/applications/': {
       id: '/_app/admissions/applications/'
       path: '/admissions/applications'
@@ -2625,20 +2564,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppAdmissionsIntakesIntakeIdRouteImport
       parentRoute: typeof AppRoute
     }
-    '/_app/teach/board/$pacedId': {
-      id: '/_app/teach/board/$pacedId'
-      path: '/board/$pacedId'
-      fullPath: '/teach/board/$pacedId'
-      preLoaderRoute: typeof AppTeachBoardPacedIdRouteImport
-      parentRoute: typeof AppTeachRoute
-    }
-    '/_app/teach/live/$pacedId': {
-      id: '/_app/teach/live/$pacedId'
-      path: '/live/$pacedId'
-      fullPath: '/teach/live/$pacedId'
-      preLoaderRoute: typeof AppTeachLivePacedIdRouteImport
-      parentRoute: typeof AppTeachRoute
-    }
     '/files/$fileId/parts/$part': {
       id: '/files/$fileId/parts/$part'
       path: '/$part'
@@ -2677,50 +2602,72 @@ declare module '@tanstack/react-router' {
   }
 }
 
-interface AppAdminRouteChildren {
-  AppAdminAcademicYearEditorRoute: typeof AppAdminAcademicYearEditorRoute
-  AppAdminAcademicYearsRoute: typeof AppAdminAcademicYearsRoute
-  AppAdminAnnouncementEditorRoute: typeof AppAdminAnnouncementEditorRoute
-  AppAdminAttendanceRoute: typeof AppAdminAttendanceRoute
-  AppAdminBillingRoute: typeof AppAdminBillingRoute
-  AppAdminClassEditorRoute: typeof AppAdminClassEditorRoute
-  AppAdminClassesRoute: typeof AppAdminClassesRoute
-  AppAdminMediaRoute: typeof AppAdminMediaRoute
-  AppAdminMessagesRoute: typeof AppAdminMessagesRoute
-  AppAdminNotificationAuditRoute: typeof AppAdminNotificationAuditRoute
-  AppAdminRolloverRoute: typeof AppAdminRolloverRoute
-  AppAdminSettingsRoute: typeof AppAdminSettingsRoute
-  AppAdminSiteRoute: typeof AppAdminSiteRoute
-  AppAdminSitePageEditorRoute: typeof AppAdminSitePageEditorRoute
-  AppAdminStaffRoute: typeof AppAdminStaffRoute
-  AppAdminStudentsRoute: typeof AppAdminStudentsRoute
-  AppAdminTimetableRoute: typeof AppAdminTimetableRoute
-  AppAdminIndexRoute: typeof AppAdminIndexRoute
+interface AppStaffRouteChildren {
+  AppStaffAcademicYearEditorRoute: typeof AppStaffAcademicYearEditorRoute
+  AppStaffAcademicYearsRoute: typeof AppStaffAcademicYearsRoute
+  AppStaffAnnouncementEditorRoute: typeof AppStaffAnnouncementEditorRoute
+  AppStaffAssignmentEditorRoute: typeof AppStaffAssignmentEditorRoute
+  AppStaffAssignmentsRoute: typeof AppStaffAssignmentsRoute
+  AppStaffAttendanceRoute: typeof AppStaffAttendanceRoute
+  AppStaffBillingRoute: typeof AppStaffBillingRoute
+  AppStaffClassEditorRoute: typeof AppStaffClassEditorRoute
+  AppStaffClassesRoute: typeof AppStaffClassesRoute
+  AppStaffGradebookRoute: typeof AppStaffGradebookRoute
+  AppStaffGradingRoute: typeof AppStaffGradingRoute
+  AppStaffLessonEditorRoute: typeof AppStaffLessonEditorRoute
+  AppStaffMediaRoute: typeof AppStaffMediaRoute
+  AppStaffMessagesRoute: typeof AppStaffMessagesRoute
+  AppStaffModuleEditorRoute: typeof AppStaffModuleEditorRoute
+  AppStaffModulePlanRoute: typeof AppStaffModulePlanRoute
+  AppStaffModulesRoute: typeof AppStaffModulesRoute
+  AppStaffNotificationAuditRoute: typeof AppStaffNotificationAuditRoute
+  AppStaffRolloverRoute: typeof AppStaffRolloverRoute
+  AppStaffSettingsRoute: typeof AppStaffSettingsRoute
+  AppStaffSitePageEditorRoute: typeof AppStaffSitePageEditorRoute
+  AppStaffStaffRoute: typeof AppStaffStaffRoute
+  AppStaffStudentsRoute: typeof AppStaffStudentsRoute
+  AppStaffTimetableRoute: typeof AppStaffTimetableRoute
+  AppStaffTodayRoute: typeof AppStaffTodayRoute
+  AppStaffWebsiteRoute: typeof AppStaffWebsiteRoute
+  AppStaffYearMapRoute: typeof AppStaffYearMapRoute
+  AppStaffBoardPacedIdRoute: typeof AppStaffBoardPacedIdRoute
+  AppStaffLivePacedIdRoute: typeof AppStaffLivePacedIdRoute
 }
 
-const AppAdminRouteChildren: AppAdminRouteChildren = {
-  AppAdminAcademicYearEditorRoute: AppAdminAcademicYearEditorRoute,
-  AppAdminAcademicYearsRoute: AppAdminAcademicYearsRoute,
-  AppAdminAnnouncementEditorRoute: AppAdminAnnouncementEditorRoute,
-  AppAdminAttendanceRoute: AppAdminAttendanceRoute,
-  AppAdminBillingRoute: AppAdminBillingRoute,
-  AppAdminClassEditorRoute: AppAdminClassEditorRoute,
-  AppAdminClassesRoute: AppAdminClassesRoute,
-  AppAdminMediaRoute: AppAdminMediaRoute,
-  AppAdminMessagesRoute: AppAdminMessagesRoute,
-  AppAdminNotificationAuditRoute: AppAdminNotificationAuditRoute,
-  AppAdminRolloverRoute: AppAdminRolloverRoute,
-  AppAdminSettingsRoute: AppAdminSettingsRoute,
-  AppAdminSiteRoute: AppAdminSiteRoute,
-  AppAdminSitePageEditorRoute: AppAdminSitePageEditorRoute,
-  AppAdminStaffRoute: AppAdminStaffRoute,
-  AppAdminStudentsRoute: AppAdminStudentsRoute,
-  AppAdminTimetableRoute: AppAdminTimetableRoute,
-  AppAdminIndexRoute: AppAdminIndexRoute,
+const AppStaffRouteChildren: AppStaffRouteChildren = {
+  AppStaffAcademicYearEditorRoute: AppStaffAcademicYearEditorRoute,
+  AppStaffAcademicYearsRoute: AppStaffAcademicYearsRoute,
+  AppStaffAnnouncementEditorRoute: AppStaffAnnouncementEditorRoute,
+  AppStaffAssignmentEditorRoute: AppStaffAssignmentEditorRoute,
+  AppStaffAssignmentsRoute: AppStaffAssignmentsRoute,
+  AppStaffAttendanceRoute: AppStaffAttendanceRoute,
+  AppStaffBillingRoute: AppStaffBillingRoute,
+  AppStaffClassEditorRoute: AppStaffClassEditorRoute,
+  AppStaffClassesRoute: AppStaffClassesRoute,
+  AppStaffGradebookRoute: AppStaffGradebookRoute,
+  AppStaffGradingRoute: AppStaffGradingRoute,
+  AppStaffLessonEditorRoute: AppStaffLessonEditorRoute,
+  AppStaffMediaRoute: AppStaffMediaRoute,
+  AppStaffMessagesRoute: AppStaffMessagesRoute,
+  AppStaffModuleEditorRoute: AppStaffModuleEditorRoute,
+  AppStaffModulePlanRoute: AppStaffModulePlanRoute,
+  AppStaffModulesRoute: AppStaffModulesRoute,
+  AppStaffNotificationAuditRoute: AppStaffNotificationAuditRoute,
+  AppStaffRolloverRoute: AppStaffRolloverRoute,
+  AppStaffSettingsRoute: AppStaffSettingsRoute,
+  AppStaffSitePageEditorRoute: AppStaffSitePageEditorRoute,
+  AppStaffStaffRoute: AppStaffStaffRoute,
+  AppStaffStudentsRoute: AppStaffStudentsRoute,
+  AppStaffTimetableRoute: AppStaffTimetableRoute,
+  AppStaffTodayRoute: AppStaffTodayRoute,
+  AppStaffWebsiteRoute: AppStaffWebsiteRoute,
+  AppStaffYearMapRoute: AppStaffYearMapRoute,
+  AppStaffBoardPacedIdRoute: AppStaffBoardPacedIdRoute,
+  AppStaffLivePacedIdRoute: AppStaffLivePacedIdRoute,
 }
 
-const AppAdminRouteWithChildren = AppAdminRoute._addFileChildren(
-  AppAdminRouteChildren,
+const AppStaffRouteWithChildren = AppStaffRoute._addFileChildren(
+  AppStaffRouteChildren,
 )
 
 interface AppFamilyRouteChildren {
@@ -2779,50 +2726,8 @@ const AppMeRouteChildren: AppMeRouteChildren = {
 
 const AppMeRouteWithChildren = AppMeRoute._addFileChildren(AppMeRouteChildren)
 
-interface AppTeachRouteChildren {
-  AppTeachAssignmentEditorRoute: typeof AppTeachAssignmentEditorRoute
-  AppTeachAssignmentsRoute: typeof AppTeachAssignmentsRoute
-  AppTeachAttendanceRoute: typeof AppTeachAttendanceRoute
-  AppTeachClassesRoute: typeof AppTeachClassesRoute
-  AppTeachGradebookRoute: typeof AppTeachGradebookRoute
-  AppTeachGradingRoute: typeof AppTeachGradingRoute
-  AppTeachLessonEditorRoute: typeof AppTeachLessonEditorRoute
-  AppTeachMessagesRoute: typeof AppTeachMessagesRoute
-  AppTeachModuleEditorRoute: typeof AppTeachModuleEditorRoute
-  AppTeachModulePlanRoute: typeof AppTeachModulePlanRoute
-  AppTeachModulesRoute: typeof AppTeachModulesRoute
-  AppTeachTimetableRoute: typeof AppTeachTimetableRoute
-  AppTeachYearMapRoute: typeof AppTeachYearMapRoute
-  AppTeachIndexRoute: typeof AppTeachIndexRoute
-  AppTeachBoardPacedIdRoute: typeof AppTeachBoardPacedIdRoute
-  AppTeachLivePacedIdRoute: typeof AppTeachLivePacedIdRoute
-}
-
-const AppTeachRouteChildren: AppTeachRouteChildren = {
-  AppTeachAssignmentEditorRoute: AppTeachAssignmentEditorRoute,
-  AppTeachAssignmentsRoute: AppTeachAssignmentsRoute,
-  AppTeachAttendanceRoute: AppTeachAttendanceRoute,
-  AppTeachClassesRoute: AppTeachClassesRoute,
-  AppTeachGradebookRoute: AppTeachGradebookRoute,
-  AppTeachGradingRoute: AppTeachGradingRoute,
-  AppTeachLessonEditorRoute: AppTeachLessonEditorRoute,
-  AppTeachMessagesRoute: AppTeachMessagesRoute,
-  AppTeachModuleEditorRoute: AppTeachModuleEditorRoute,
-  AppTeachModulePlanRoute: AppTeachModulePlanRoute,
-  AppTeachModulesRoute: AppTeachModulesRoute,
-  AppTeachTimetableRoute: AppTeachTimetableRoute,
-  AppTeachYearMapRoute: AppTeachYearMapRoute,
-  AppTeachIndexRoute: AppTeachIndexRoute,
-  AppTeachBoardPacedIdRoute: AppTeachBoardPacedIdRoute,
-  AppTeachLivePacedIdRoute: AppTeachLivePacedIdRoute,
-}
-
-const AppTeachRouteWithChildren = AppTeachRoute._addFileChildren(
-  AppTeachRouteChildren,
-)
-
 interface AppRouteChildren {
-  AppAdminRoute: typeof AppAdminRouteWithChildren
+  AppStaffRoute: typeof AppStaffRouteWithChildren
   AppConsentFormEditorRoute: typeof AppConsentFormEditorRoute
   AppEventEditorRoute: typeof AppEventEditorRoute
   AppExamsRoute: typeof AppExamsRoute
@@ -2837,7 +2742,6 @@ interface AppRouteChildren {
   AppSearchRoute: typeof AppSearchRoute
   AppStaffEditorRoute: typeof AppStaffEditorRoute
   AppStudentEditorRoute: typeof AppStudentEditorRoute
-  AppTeachRoute: typeof AppTeachRouteWithChildren
   AppAdmissionsFormEditorRoute: typeof AppAdmissionsFormEditorRoute
   AppAdmissionsIntakeEditorRoute: typeof AppAdmissionsIntakeEditorRoute
   AppAdmissionsLetterEditorRoute: typeof AppAdmissionsLetterEditorRoute
@@ -2873,7 +2777,7 @@ interface AppRouteChildren {
 }
 
 const AppRouteChildren: AppRouteChildren = {
-  AppAdminRoute: AppAdminRouteWithChildren,
+  AppStaffRoute: AppStaffRouteWithChildren,
   AppConsentFormEditorRoute: AppConsentFormEditorRoute,
   AppEventEditorRoute: AppEventEditorRoute,
   AppExamsRoute: AppExamsRoute,
@@ -2888,7 +2792,6 @@ const AppRouteChildren: AppRouteChildren = {
   AppSearchRoute: AppSearchRoute,
   AppStaffEditorRoute: AppStaffEditorRoute,
   AppStudentEditorRoute: AppStudentEditorRoute,
-  AppTeachRoute: AppTeachRouteWithChildren,
   AppAdmissionsFormEditorRoute: AppAdmissionsFormEditorRoute,
   AppAdmissionsIntakeEditorRoute: AppAdmissionsIntakeEditorRoute,
   AppAdmissionsLetterEditorRoute: AppAdmissionsLetterEditorRoute,
@@ -2999,6 +2902,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApplyRoute: ApplyRoute,
   BadgeRoute: BadgeRoute,
   WelcomeRoute: WelcomeRoute,
+  AdminSplatRoute: AdminSplatRoute,
   ApiHealthRoute: ApiHealthRoute,
   FilesFileIdRoute: FilesFileIdRouteWithChildren,
   LtiAuthRoute: LtiAuthRoute,
@@ -3008,6 +2912,7 @@ const rootRouteChildren: RootRouteChildren = {
   LtiPickRoute: LtiPickRoute,
   LtiTokenRoute: LtiTokenRoute,
   SiteSchoolRoute: SiteSchoolRouteWithChildren,
+  TeachSplatRoute: TeachSplatRoute,
   ExportsAssignmentsAssignmentIdRoute: ExportsAssignmentsAssignmentIdRoute,
   ExportsClassesClassIdRoute: ExportsClassesClassIdRoute,
   ExportsModulesModuleIdRoute: ExportsModulesModuleIdRoute,

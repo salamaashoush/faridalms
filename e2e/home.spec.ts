@@ -9,7 +9,7 @@ test("a teacher's day lists their classes and opens one", async ({ page }) => {
     page,
     "teacher2.northwind@northwind.example.com",
     PASSWORD,
-    "/teach",
+    "/today",
   );
   const classes = page.getByRole("region", { name: "Classes" });
   await expect(classes).toBeVisible();

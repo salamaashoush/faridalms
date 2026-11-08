@@ -702,7 +702,7 @@ export function FramePanel({
             ) : null}
           </div>
           <ButtonLink
-            to="/admin/settings"
+            to="/settings"
             search={{ section: "school" }}
             variant="outline"
             size="sm"

@@ -76,7 +76,7 @@ export function UseAgainSheet({
             toast.success(m.courseworkUsedAgain());
             onClose();
             await navigate({
-              to: "/teach/assignment-editor",
+              to: "/assignment-editor",
               search: { id: done.id },
             });
           },

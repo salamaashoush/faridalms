@@ -18,8 +18,8 @@ test("a teacher builds a module, a student answers its lesson, and the teacher m
   page,
 }) => {
   const title = `Letters ${crypto.randomUUID().slice(0, 6)}`;
-  await signInWith(page, TEACHER, PASSWORD, "/teach");
-  await page.goto("/teach/module-editor");
+  await signInWith(page, TEACHER, PASSWORD, "/today");
+  await page.goto("/module-editor");
   await untilHydrated(page);
   await page.getByRole("textbox", { name: "Module title" }).fill(title);
   await page.getByRole("combobox", { name: "Classes" }).click();
@@ -33,7 +33,7 @@ test("a teacher builds a module, a student answers its lesson, and the teacher m
   const recordUrl = page.url().split("?")[0] ?? "";
 
   await page.getByRole("link", { name: "Add lesson" }).click();
-  await expect(page).toHaveURL(/\/teach\/lesson-editor/);
+  await expect(page).toHaveURL(/\/lesson-editor/);
   await untilHydrated(page);
   await page.getByRole("textbox", { name: "Lesson title" }).fill("Greetings");
   // The lesson is one document: questions are blocks written in its text.

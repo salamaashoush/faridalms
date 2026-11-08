@@ -18,7 +18,7 @@ import {
 export const Route = createFileRoute("/_app/students/$studentId")({
   staticData: {
     breadcrumb: m.studentRecordBreadcrumb,
-    section: "/admin/students",
+    section: "/students",
   },
   validateSearch: v.object({
     // Old links named tabs that no longer exist; they open the overview.

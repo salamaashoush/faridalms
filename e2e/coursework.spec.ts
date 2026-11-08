@@ -20,8 +20,8 @@ test("a teacher assigns work, a student hands it in, and the returned grade reac
   page,
 }) => {
   const title = `Letter ${crypto.randomUUID().slice(0, 6)}`;
-  await signInWith(page, TEACHER, PASSWORD, "/teach");
-  await page.goto("/teach/assignment-editor");
+  await signInWith(page, TEACHER, PASSWORD, "/today");
+  await page.goto("/assignment-editor");
   await untilHydrated(page);
   await page.locator("#work-class").click();
   await page.getByRole("option", { name: "8A Arabic", exact: true }).click();
@@ -92,7 +92,7 @@ test("a teacher assigns work, a student hands it in, and the returned grade reac
     .getByRole("row", { name: /Yasmin Sabry/ });
   await expect(row.getByText("Handed in", { exact: true })).toBeVisible();
   await row.getByRole("button", { name: "Grade", exact: true }).click();
-  await expect(page).toHaveURL(/\/teach\/grading/);
+  await expect(page).toHaveURL(/\/grading/);
   await untilHydrated(page);
   // A passage selected in the work is offered a comment.
   await page.locator("article").evaluate((article, words) => {
@@ -178,8 +178,8 @@ test("a teacher writes a rubric, grades by its levels, and the student reads wha
 }) => {
   const title = `Essay ${crypto.randomUUID().slice(0, 6)}`;
   const meaning = "Backs the point with one fitting example.";
-  await signInWith(page, TEACHER, PASSWORD, "/teach");
-  await page.goto("/teach/assignment-editor");
+  await signInWith(page, TEACHER, PASSWORD, "/today");
+  await page.goto("/assignment-editor");
   await untilHydrated(page);
   await page.locator("#work-class").click();
   await page.getByRole("option", { name: "8A Arabic", exact: true }).click();
@@ -234,7 +234,7 @@ test("a teacher writes a rubric, grades by its levels, and the student reads wha
     .getByRole("row", { name: /Yasmin Sabry/ })
     .getByRole("button", { name: "Grade", exact: true })
     .click();
-  await expect(page).toHaveURL(/\/teach\/grading/);
+  await expect(page).toHaveURL(/\/grading/);
   await untilHydrated(page);
   const level = page.getByRole("combobox", { name: /Use of evidence/ });
   await openWith(
@@ -259,8 +259,8 @@ test("a teacher writes a rubric, grades by its levels, and the student reads wha
 test("a teacher's gradebook shows the class's work and term grades", async ({
   page,
 }) => {
-  await signInWith(page, TEACHER, PASSWORD, "/teach");
-  await page.goto("/teach/gradebook");
+  await signInWith(page, TEACHER, PASSWORD, "/today");
+  await page.goto("/gradebook");
   await untilHydrated(page);
   await expect(
     page.getByRole("heading", { level: 1, name: "Gradebook" }),
@@ -279,8 +279,8 @@ test("a quiz is answered question by question, marked at hand-in, and its result
   page,
 }) => {
   const title = `Nouns ${crypto.randomUUID().slice(0, 6)}`;
-  await signInWith(page, TEACHER, PASSWORD, "/teach");
-  await page.goto("/teach/assignment-editor");
+  await signInWith(page, TEACHER, PASSWORD, "/today");
+  await page.goto("/assignment-editor");
   await untilHydrated(page);
   await page.locator("#work-class").click();
   await page.getByRole("option", { name: "8A Arabic", exact: true }).click();
@@ -362,8 +362,8 @@ test("a teacher marks one quiz question for several students at once", async ({
 }) => {
   const title = `Characters ${crypto.randomUUID().slice(0, 6)}`;
   const brief = "Answer in a sentence, then hand the quiz in.";
-  await signInWith(page, TEACHER, PASSWORD, "/teach");
-  await page.goto("/teach/assignment-editor");
+  await signInWith(page, TEACHER, PASSWORD, "/today");
+  await page.goto("/assignment-editor");
   await untilHydrated(page);
   await page.locator("#work-class").click();
   await page.getByRole("option", { name: "8A Arabic", exact: true }).click();
@@ -427,8 +427,8 @@ test("a discussion opens classmates' posts once a student answers, and counts th
   page,
 }) => {
   const title = `Nile ${crypto.randomUUID().slice(0, 6)}`;
-  await signInWith(page, TEACHER, PASSWORD, "/teach");
-  await page.goto("/teach/assignment-editor");
+  await signInWith(page, TEACHER, PASSWORD, "/today");
+  await page.goto("/assignment-editor");
   await untilHydrated(page);
   await page.locator("#work-class").click();
   await page.getByRole("option", { name: "8A Arabic", exact: true }).click();
@@ -500,7 +500,7 @@ test("a discussion opens classmates' posts once a student answers, and counts th
     .getByRole("row", { name: /Yasmin Sabry/ })
     .getByRole("button", { name: "Grade", exact: true })
     .click();
-  await expect(page).toHaveURL(/\/teach\/grading/);
+  await expect(page).toHaveURL(/\/grading/);
   await expect(page.getByText(/^Replying to /)).toBeVisible();
   await expect(
     page.getByText("But the same floods made the soil rich."),
@@ -512,8 +512,8 @@ test("classmates review each other's work unnamed, and read the reviews once the
   page,
 }) => {
   const title = `Letters ${crypto.randomUUID().slice(0, 6)}`;
-  await signInWith(page, TEACHER, PASSWORD, "/teach");
-  await page.goto("/teach/assignment-editor");
+  await signInWith(page, TEACHER, PASSWORD, "/today");
+  await page.goto("/assignment-editor");
   await untilHydrated(page);
   await page.locator("#work-class").click();
   await page.getByRole("option", { name: "8A Arabic", exact: true }).click();
@@ -605,8 +605,8 @@ test("a brief written in two languages opens in the reader's own", async ({
   page,
 }) => {
   const title = `River ${crypto.randomUUID().slice(0, 6)}`;
-  await signInWith(page, TEACHER, PASSWORD, "/teach");
-  await page.goto("/teach/assignment-editor");
+  await signInWith(page, TEACHER, PASSWORD, "/today");
+  await page.goto("/assignment-editor");
   await untilHydrated(page);
   await page.locator("#work-class").click();
   await page.getByRole("option", { name: "8A Arabic", exact: true }).click();

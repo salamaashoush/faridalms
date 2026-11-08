@@ -5,10 +5,10 @@ import { expect } from "@playwright/test";
 export const PASSWORD = "farida-development-password";
 
 export const ACCOUNTS = {
-  admin: { email: "principal.northwind@northwind.example.com", home: "/admin" },
+  admin: { email: "principal.northwind@northwind.example.com", home: "/today" },
   teacher: {
     email: "teacher1.northwind@northwind.example.com",
-    home: "/teach",
+    home: "/today",
   },
   parent: { email: "parent1001@northwind.example.com", home: "/family" },
   student: { email: "student1007@northwind.example.com", home: "/me" },

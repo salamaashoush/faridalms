@@ -19,7 +19,7 @@ const MOVED = {
 } as const;
 
 async function openClass(page: Page, name: string) {
-  await page.goto("/admin/classes");
+  await page.goto("/classes");
   await untilHydrated(page);
   await page
     .getByRole("table")
@@ -38,10 +38,10 @@ test("an administrator adds a class and a student from another class joins it", 
   const unique = crypto.randomUUID().slice(0, 8);
   const title = `Test ${unique}`;
   await signIn(page, "admin");
-  await page.goto("/admin/classes");
+  await page.goto("/classes");
   await untilHydrated(page);
   await page.getByRole("link", { name: "Add class", exact: true }).click();
-  await expect(page).toHaveURL(/\/admin\/class-editor/);
+  await expect(page).toHaveURL(/\/class-editor/);
 
   await page
     .getByRole("textbox", { name: "Class name in Arabic" })
@@ -56,7 +56,7 @@ test("an administrator adds a class and a student from another class joins it", 
   await page.getByRole("combobox", { name: "Subject", exact: true }).click();
   await page.getByRole("option", { name: "Arabic", exact: true }).click();
   await page.getByRole("button", { name: "Save", exact: true }).click();
-  await expect(page).toHaveURL(/\/admin\/classes/);
+  await expect(page).toHaveURL(/\/classes/);
 
   await page.getByRole("searchbox").fill(`T-${unique}`);
   await expect(page).toHaveURL(new RegExp(`q=T-${unique}`));
@@ -148,7 +148,7 @@ test("a class code already used this year is refused with its reason", async ({
   page,
 }) => {
   await signIn(page, "admin");
-  await page.goto("/admin/classes");
+  await page.goto("/classes");
   await untilHydrated(page);
   await page.getByRole("link", { name: "Add class", exact: true }).click();
   await page
@@ -161,14 +161,14 @@ test("a class code already used this year is refused with its reason", async ({
       exact: true,
     }),
   ).toBeVisible();
-  await expect(page).toHaveURL(/\/admin\/class-editor/);
+  await expect(page).toHaveURL(/\/class-editor/);
 });
 
 test("a teacher opens their class without enrolment or editing controls", async ({
   page,
 }) => {
   await signIn(page, "teacher");
-  await page.goto("/teach/classes");
+  await page.goto("/classes");
   await untilHydrated(page);
   await page
     .getByRole("table")
@@ -196,7 +196,7 @@ test("a teacher finds a class's file by its name and its kind", async ({
   const notes = `notes-${unique}.txt`;
   const picture = `board-${unique}.png`;
   await signIn(page, "teacher");
-  await page.goto("/teach/classes");
+  await page.goto("/classes");
   await untilHydrated(page);
   await page
     .getByRole("table")
