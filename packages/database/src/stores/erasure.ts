@@ -613,7 +613,7 @@ export async function eraseSubject(
   await run(
     "quiz_answers",
     sql`update core.quiz_answers set status = 'tobedeleted', metadata = '{}', response = '{}',
-          feedback = null
+          feedback = null, fluency = null
         where tenant_id = ${t}::uuid and student_user_id = ${s}::uuid returning 1`,
   );
   await run(

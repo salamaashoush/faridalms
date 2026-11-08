@@ -1041,6 +1041,8 @@ export const quizAnswers = core.table.withRLS(
     state: text("state").$type<QuizAnswerState>().notNull().default("draft"),
     feedback: text("feedback"),
     markedByUserId: uuid("marked_by_user_id"),
+    /** For a passage read aloud, how its teacher marked the reading word by word. */
+    fluency: jsonb("fluency").$type<Record<string, unknown>>(),
     ...entityColumns(),
   },
   (t): PgTableExtraConfigValue[] => [
@@ -1071,6 +1073,11 @@ export const quizAnswers = core.table.withRLS(
       "quiz_answers",
       "state",
       sql`state in ('draft', 'marked', 'needs_marking') and (state <> 'draft' or fraction is null)`,
+    ),
+    ck(
+      "quiz_answers",
+      "fluency",
+      sql`fluency is null or (jsonb_typeof(fluency) = 'object' and octet_length(fluency::text) <= 16384)`,
     ),
     ck(
       "quiz_answers",

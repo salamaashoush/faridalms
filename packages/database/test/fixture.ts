@@ -48,6 +48,7 @@ import {
   examBoards,
   examSessions,
   gradeScales,
+  readingNorms,
   gradeScaleVersions,
   programmeCategories,
   breaches,
@@ -969,6 +970,22 @@ export async function completeFixture(
       { labelEn: "F", labelAr: "F", minPercent: 0, gpa: null },
     ],
     createdByUserId: userId,
+  });
+  await tx.insert(readingNorms).values({
+    tenantId,
+    orgId: schoolId,
+    language: "ar",
+    rows: [
+      {
+        grade: "grade_2",
+        season: "spring",
+        p10: 30,
+        p25: 45,
+        p50: 60,
+        p75: 75,
+        p90: 90,
+      },
+    ],
   });
   const [programme] = await tx
     .insert(programmes)

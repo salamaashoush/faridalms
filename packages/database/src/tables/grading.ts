@@ -1,8 +1,16 @@
 import type { GradeBand, GradeDisplay } from "@faridalms/domain/grading";
+import type { NormRow } from "@faridalms/domain/reading";
 import type { PgTableExtraConfigValue } from "drizzle-orm/pg-core";
 
 import { sql } from "drizzle-orm";
-import { date, index, jsonb, text, uuid } from "drizzle-orm/pg-core";
+import {
+  date,
+  index,
+  jsonb,
+  text,
+  uniqueIndex,
+  uuid,
+} from "drizzle-orm/pg-core";
 
 import {
   baseConstraints,
@@ -95,6 +103,38 @@ export const gradeScaleVersions = core.table.withRLS(
     ),
     index("grade_scale_versions_scale_idx")
       .on(t.tenantId, t.scaleId, t.effectiveFrom)
+      .where(sql`status = 'active'`),
+    ...entityProfile(),
+  ],
+);
+
+/**
+ * The words correct per minute a school expects of a grade at each time of
+ * year when reading aloud in one language, by percentile. A school without
+ * its own reads the published defaults; Arabic has none until it writes
+ * them.
+ */
+export const readingNorms = core.table.withRLS(
+  "reading_norms",
+  {
+    ...tenantColumns(),
+    orgId: uuid("org_id").notNull(),
+    language: text("language").$type<"en" | "ar">().notNull(),
+    rows: jsonb("rows").$type<NormRow[]>().notNull(),
+    ...entityColumns(),
+  },
+  (t): PgTableExtraConfigValue[] => [
+    pk("reading_norms", t.tenantId, t.id),
+    ...baseConstraints("reading_norms", t, tenants),
+    fk("reading_norms", [t.tenantId, t.orgId], [orgs.tenantId, orgs.id]),
+    ck("reading_norms", "language", sql`language in ('en', 'ar')`),
+    ck(
+      "reading_norms",
+      "rows",
+      sql`jsonb_typeof(rows) = 'array' and jsonb_array_length(rows) <= 60`,
+    ),
+    uniqueIndex("reading_norms_key")
+      .on(t.tenantId, t.orgId, t.language)
       .where(sql`status = 'active'`),
     ...entityProfile(),
   ],

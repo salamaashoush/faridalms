@@ -59,6 +59,7 @@ export const CONFLICTS: Record<string, string> = {
   goal_reports_key: "standards.report_exists",
   peer_reviews_key: "coursework.peer_exists",
   discussion_likes_key: "conflict.version",
+  reading_norms_key: "conflict.version",
   lti_tools_client_key: "lti.client_exists",
   lti_keys_kid_key: "lti.key_exists",
   lti_keys_active_key: "lti.key_exists",
