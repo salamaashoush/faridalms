@@ -1,6 +1,7 @@
 export * from "./access";
 export * from "./admissions";
 export * from "./accounts";
+export * from "./assistant";
 export * from "./assessed";
 export * from "./attendance";
 export * from "./broadcasts";

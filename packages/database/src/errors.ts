@@ -69,6 +69,7 @@ export const CONFLICTS: Record<string, string> = {
   lti_line_items_assignment_link_key: "lti.line_item_exists",
   lti_scores_key: "lti.score_exists",
   xapi_stores_org_key: "xapi.store_exists",
+  assistant_settings_org_key: "conflict.version",
   xapi_statements_key: "xapi.statement_exists",
   cmi5_registrations_key: "cmi5.registration_exists",
   cmi5_states_key: "cmi5.state_exists",

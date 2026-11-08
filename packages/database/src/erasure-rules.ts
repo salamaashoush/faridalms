@@ -54,6 +54,11 @@ export const ERASURE_RULES: Record<string, ErasureRule> = {
     why: "Names the member of staff who did it; the record belongs to the school.",
     reviewed: false,
   },
+  "core.assistant_requests": {
+    rule: "kept",
+    why: "Who sent a document's words to the school's language model, and how much; the school's record of what left it, without the words.",
+    reviewed: false,
+  },
   "core.attempt_authentications": {
     rule: "kept",
     why: "Names the member of staff who did it; the record belongs to the school.",

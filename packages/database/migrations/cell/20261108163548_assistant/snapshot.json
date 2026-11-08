@@ -1,0 +1,1524 @@
+{
+  "type": "diff",
+  "version": "9",
+  "dialect": "postgres",
+  "id": "cb24b845-f3bb-4da1-9527-3f7f8cd52ebf",
+  "prevIds": [
+    "efe10147-ba7f-475d-9513-170eb7ee1143"
+  ],
+  "footprints": [
+    {
+      "statementType": "create_table",
+      "statementTarget": [
+        "table",
+        "core",
+        "assistant_requests"
+      ],
+      "writes": [
+        "s|tbl|core.assistant_requests",
+        "n|tbl|core.assistant_requests",
+        "e|tbl|core.assistant_requests",
+        "n|rel|core.assistant_requests",
+        "n|type|core.assistant_requests",
+        "n|rel|core.assistant_requests_pkey"
+      ],
+      "reads": [
+        "n|sch|core"
+      ]
+    },
+    {
+      "statementType": "create_table",
+      "statementTarget": [
+        "table",
+        "core",
+        "assistant_settings"
+      ],
+      "writes": [
+        "s|tbl|core.assistant_settings",
+        "n|tbl|core.assistant_settings",
+        "e|tbl|core.assistant_settings",
+        "n|rel|core.assistant_settings",
+        "n|type|core.assistant_settings",
+        "n|rel|core.assistant_settings_pkey"
+      ],
+      "reads": [
+        "n|sch|core"
+      ]
+    },
+    {
+      "statementType": "create_index",
+      "statementTarget": [
+        "index",
+        "core",
+        "assistant_requests",
+        "assistant_requests_day_idx"
+      ],
+      "writes": [
+        "s|idx|core.assistant_requests_day_idx",
+        "n|idx|core.assistant_requests_day_idx",
+        "e|idx|core.assistant_requests_day_idx",
+        "n|rel|core.assistant_requests_day_idx"
+      ],
+      "reads": [
+        "n|tbl|core.assistant_requests",
+        "n|sch|core",
+        "n|col|core.assistant_requests.tenant_id",
+        "n|col|core.assistant_requests.org_id",
+        "n|col|core.assistant_requests.day"
+      ]
+    },
+    {
+      "statementType": "create_index",
+      "statementTarget": [
+        "index",
+        "core",
+        "assistant_requests",
+        "assistant_requests_host_idx"
+      ],
+      "writes": [
+        "s|idx|core.assistant_requests_host_idx",
+        "n|idx|core.assistant_requests_host_idx",
+        "e|idx|core.assistant_requests_host_idx",
+        "n|rel|core.assistant_requests_host_idx"
+      ],
+      "reads": [
+        "n|tbl|core.assistant_requests",
+        "n|sch|core",
+        "n|col|core.assistant_requests.tenant_id",
+        "n|col|core.assistant_requests.host_type",
+        "n|col|core.assistant_requests.host_id"
+      ]
+    },
+    {
+      "statementType": "create_index",
+      "statementTarget": [
+        "index",
+        "core",
+        "assistant_settings",
+        "assistant_settings_org_key"
+      ],
+      "writes": [
+        "s|idx|core.assistant_settings_org_key",
+        "n|idx|core.assistant_settings_org_key",
+        "e|idx|core.assistant_settings_org_key",
+        "n|rel|core.assistant_settings_org_key"
+      ],
+      "reads": [
+        "n|tbl|core.assistant_settings",
+        "n|sch|core",
+        "n|col|core.assistant_settings.tenant_id",
+        "n|col|core.assistant_settings.org_id"
+      ]
+    },
+    {
+      "statementType": "create_fk",
+      "statementTarget": [
+        "table",
+        "core",
+        "assistant_requests"
+      ],
+      "writes": [
+        "s|fk|core.assistant_requests.assistant_requests_tenant_id_fkey",
+        "n|fk|core.assistant_requests.assistant_requests_tenant_id_fkey",
+        "e|fk|core.assistant_requests.assistant_requests_tenant_id_fkey",
+        "n|con|core.assistant_requests.assistant_requests_tenant_id_fkey"
+      ],
+      "reads": [
+        "n|tbl|core.assistant_requests",
+        "n|sch|core",
+        "n|tbl|core.tenants",
+        "n|sch|core",
+        "n|col|core.assistant_requests.tenant_id",
+        "n|col|core.tenants.tenant_id",
+        "e|uniqueness|core.tenants.tenant_id"
+      ]
+    },
+    {
+      "statementType": "create_fk",
+      "statementTarget": [
+        "table",
+        "core",
+        "assistant_requests"
+      ],
+      "writes": [
+        "s|fk|core.assistant_requests.assistant_requests_tenant_id_org_id_fkey",
+        "n|fk|core.assistant_requests.assistant_requests_tenant_id_org_id_fkey",
+        "e|fk|core.assistant_requests.assistant_requests_tenant_id_org_id_fkey",
+        "n|con|core.assistant_requests.assistant_requests_tenant_id_org_id_fkey"
+      ],
+      "reads": [
+        "n|tbl|core.assistant_requests",
+        "n|sch|core",
+        "n|tbl|core.orgs",
+        "n|sch|core",
+        "n|col|core.assistant_requests.tenant_id",
+        "n|col|core.assistant_requests.org_id",
+        "n|col|core.orgs.tenant_id",
+        "n|col|core.orgs.id",
+        "e|uniqueness|core.orgs.id.tenant_id"
+      ]
+    },
+    {
+      "statementType": "create_fk",
+      "statementTarget": [
+        "table",
+        "core",
+        "assistant_requests"
+      ],
+      "writes": [
+        "s|fk|core.assistant_requests.assistant_requests_tenant_id_user_id_fkey",
+        "n|fk|core.assistant_requests.assistant_requests_tenant_id_user_id_fkey",
+        "e|fk|core.assistant_requests.assistant_requests_tenant_id_user_id_fkey",
+        "n|con|core.assistant_requests.assistant_requests_tenant_id_user_id_fkey"
+      ],
+      "reads": [
+        "n|tbl|core.assistant_requests",
+        "n|sch|core",
+        "n|tbl|core.users",
+        "n|sch|core",
+        "n|col|core.assistant_requests.tenant_id",
+        "n|col|core.assistant_requests.user_id",
+        "n|col|core.users.tenant_id",
+        "n|col|core.users.id",
+        "e|uniqueness|core.users.id.tenant_id"
+      ]
+    },
+    {
+      "statementType": "create_fk",
+      "statementTarget": [
+        "table",
+        "core",
+        "assistant_settings"
+      ],
+      "writes": [
+        "s|fk|core.assistant_settings.assistant_settings_tenant_id_fkey",
+        "n|fk|core.assistant_settings.assistant_settings_tenant_id_fkey",
+        "e|fk|core.assistant_settings.assistant_settings_tenant_id_fkey",
+        "n|con|core.assistant_settings.assistant_settings_tenant_id_fkey"
+      ],
+      "reads": [
+        "n|tbl|core.assistant_settings",
+        "n|sch|core",
+        "n|tbl|core.tenants",
+        "n|sch|core",
+        "n|col|core.assistant_settings.tenant_id",
+        "n|col|core.tenants.tenant_id",
+        "e|uniqueness|core.tenants.tenant_id"
+      ]
+    },
+    {
+      "statementType": "create_fk",
+      "statementTarget": [
+        "table",
+        "core",
+        "assistant_settings"
+      ],
+      "writes": [
+        "s|fk|core.assistant_settings.assistant_settings_tenant_id_org_id_fkey",
+        "n|fk|core.assistant_settings.assistant_settings_tenant_id_org_id_fkey",
+        "e|fk|core.assistant_settings.assistant_settings_tenant_id_org_id_fkey",
+        "n|con|core.assistant_settings.assistant_settings_tenant_id_org_id_fkey"
+      ],
+      "reads": [
+        "n|tbl|core.assistant_settings",
+        "n|sch|core",
+        "n|tbl|core.orgs",
+        "n|sch|core",
+        "n|col|core.assistant_settings.tenant_id",
+        "n|col|core.assistant_settings.org_id",
+        "n|col|core.orgs.tenant_id",
+        "n|col|core.orgs.id",
+        "e|uniqueness|core.orgs.id.tenant_id"
+      ]
+    },
+    {
+      "statementType": "create_policy",
+      "statementTarget": [
+        "table",
+        "core",
+        "assistant_requests"
+      ],
+      "writes": [
+        "s|pol|core.assistant_requests.tenant_isolation",
+        "n|pol|core.assistant_requests.tenant_isolation",
+        "e|pol|core.assistant_requests.tenant_isolation"
+      ],
+      "reads": [
+        "n|tbl|core.assistant_requests",
+        "n|sch|core",
+        "e|rls|core.assistant_requests"
+      ]
+    },
+    {
+      "statementType": "create_policy",
+      "statementTarget": [
+        "table",
+        "core",
+        "assistant_requests"
+      ],
+      "writes": [
+        "s|pol|core.assistant_requests.owner_all",
+        "n|pol|core.assistant_requests.owner_all",
+        "e|pol|core.assistant_requests.owner_all"
+      ],
+      "reads": [
+        "n|tbl|core.assistant_requests",
+        "n|sch|core",
+        "n|role|cell_owner",
+        "e|rls|core.assistant_requests"
+      ]
+    },
+    {
+      "statementType": "create_policy",
+      "statementTarget": [
+        "table",
+        "core",
+        "assistant_requests"
+      ],
+      "writes": [
+        "s|pol|core.assistant_requests.p_select",
+        "n|pol|core.assistant_requests.p_select",
+        "e|pol|core.assistant_requests.p_select"
+      ],
+      "reads": [
+        "n|tbl|core.assistant_requests",
+        "n|sch|core",
+        "n|role|app",
+        "n|role|cell_io",
+        "n|role|retention",
+        "n|role|worker",
+        "e|rls|core.assistant_requests"
+      ]
+    },
+    {
+      "statementType": "create_policy",
+      "statementTarget": [
+        "table",
+        "core",
+        "assistant_requests"
+      ],
+      "writes": [
+        "s|pol|core.assistant_requests.p_insert",
+        "n|pol|core.assistant_requests.p_insert",
+        "e|pol|core.assistant_requests.p_insert"
+      ],
+      "reads": [
+        "n|tbl|core.assistant_requests",
+        "n|sch|core",
+        "n|role|app",
+        "n|role|cell_io",
+        "n|role|worker",
+        "e|rls|core.assistant_requests"
+      ]
+    },
+    {
+      "statementType": "create_policy",
+      "statementTarget": [
+        "table",
+        "core",
+        "assistant_requests"
+      ],
+      "writes": [
+        "s|pol|core.assistant_requests.p_update",
+        "n|pol|core.assistant_requests.p_update",
+        "e|pol|core.assistant_requests.p_update"
+      ],
+      "reads": [
+        "n|tbl|core.assistant_requests",
+        "n|sch|core",
+        "n|role|app",
+        "n|role|cell_io",
+        "n|role|worker",
+        "e|rls|core.assistant_requests"
+      ]
+    },
+    {
+      "statementType": "create_policy",
+      "statementTarget": [
+        "table",
+        "core",
+        "assistant_settings"
+      ],
+      "writes": [
+        "s|pol|core.assistant_settings.tenant_isolation",
+        "n|pol|core.assistant_settings.tenant_isolation",
+        "e|pol|core.assistant_settings.tenant_isolation"
+      ],
+      "reads": [
+        "n|tbl|core.assistant_settings",
+        "n|sch|core",
+        "e|rls|core.assistant_settings"
+      ]
+    },
+    {
+      "statementType": "create_policy",
+      "statementTarget": [
+        "table",
+        "core",
+        "assistant_settings"
+      ],
+      "writes": [
+        "s|pol|core.assistant_settings.owner_all",
+        "n|pol|core.assistant_settings.owner_all",
+        "e|pol|core.assistant_settings.owner_all"
+      ],
+      "reads": [
+        "n|tbl|core.assistant_settings",
+        "n|sch|core",
+        "n|role|cell_owner",
+        "e|rls|core.assistant_settings"
+      ]
+    },
+    {
+      "statementType": "create_policy",
+      "statementTarget": [
+        "table",
+        "core",
+        "assistant_settings"
+      ],
+      "writes": [
+        "s|pol|core.assistant_settings.p_select",
+        "n|pol|core.assistant_settings.p_select",
+        "e|pol|core.assistant_settings.p_select"
+      ],
+      "reads": [
+        "n|tbl|core.assistant_settings",
+        "n|sch|core",
+        "n|role|app",
+        "n|role|cell_io",
+        "n|role|retention",
+        "n|role|worker",
+        "e|rls|core.assistant_settings"
+      ]
+    },
+    {
+      "statementType": "create_policy",
+      "statementTarget": [
+        "table",
+        "core",
+        "assistant_settings"
+      ],
+      "writes": [
+        "s|pol|core.assistant_settings.p_insert",
+        "n|pol|core.assistant_settings.p_insert",
+        "e|pol|core.assistant_settings.p_insert"
+      ],
+      "reads": [
+        "n|tbl|core.assistant_settings",
+        "n|sch|core",
+        "n|role|app",
+        "n|role|cell_io",
+        "n|role|worker",
+        "e|rls|core.assistant_settings"
+      ]
+    },
+    {
+      "statementType": "create_policy",
+      "statementTarget": [
+        "table",
+        "core",
+        "assistant_settings"
+      ],
+      "writes": [
+        "s|pol|core.assistant_settings.p_update",
+        "n|pol|core.assistant_settings.p_update",
+        "e|pol|core.assistant_settings.p_update"
+      ],
+      "reads": [
+        "n|tbl|core.assistant_settings",
+        "n|sch|core",
+        "n|role|app",
+        "n|role|cell_io",
+        "n|role|worker",
+        "e|rls|core.assistant_settings"
+      ]
+    }
+  ],
+  "deltas": [
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "name": "assistant_requests",
+        "isRlsEnabled": true,
+        "entityType": "tables"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "name": "assistant_settings",
+        "isRlsEnabled": true,
+        "entityType": "tables"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "assistant_requests",
+        "name": "tenant_id",
+        "type": "uuid",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "assistant_requests",
+        "name": "id",
+        "type": "uuid",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": "uuidv7()",
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "assistant_requests",
+        "name": "org_id",
+        "type": "uuid",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "assistant_requests",
+        "name": "user_id",
+        "type": "uuid",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "assistant_requests",
+        "name": "task",
+        "type": "text",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "assistant_requests",
+        "name": "host_type",
+        "type": "text",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "assistant_requests",
+        "name": "host_id",
+        "type": "uuid",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "assistant_requests",
+        "name": "provider",
+        "type": "text",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "assistant_requests",
+        "name": "model",
+        "type": "text",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "assistant_requests",
+        "name": "day",
+        "type": "date",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "assistant_requests",
+        "name": "sent_characters",
+        "type": "integer",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "assistant_requests",
+        "name": "received_characters",
+        "type": "integer",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": "0",
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "assistant_requests",
+        "name": "input_tokens",
+        "type": "integer",
+        "typeSchema": null,
+        "notNull": false,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "assistant_requests",
+        "name": "output_tokens",
+        "type": "integer",
+        "typeSchema": null,
+        "notNull": false,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "assistant_requests",
+        "name": "outcome",
+        "type": "text",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": "'running'",
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "assistant_requests",
+        "name": "finished_at",
+        "type": "timestamp with time zone",
+        "typeSchema": null,
+        "notNull": false,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "assistant_requests",
+        "name": "status",
+        "type": "text",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": "'active'",
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "assistant_requests",
+        "name": "date_last_modified",
+        "type": "timestamp with time zone",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": "statement_timestamp()",
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "assistant_requests",
+        "name": "version",
+        "type": "integer",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": "1",
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "assistant_requests",
+        "name": "metadata",
+        "type": "jsonb",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": "'{}'",
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "assistant_requests",
+        "name": "created_at",
+        "type": "timestamp with time zone",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": "statement_timestamp()",
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "assistant_settings",
+        "name": "tenant_id",
+        "type": "uuid",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "assistant_settings",
+        "name": "id",
+        "type": "uuid",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": "uuidv7()",
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "assistant_settings",
+        "name": "org_id",
+        "type": "uuid",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "assistant_settings",
+        "name": "enabled",
+        "type": "boolean",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": "false",
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "assistant_settings",
+        "name": "provider",
+        "type": "text",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "assistant_settings",
+        "name": "daily_limit",
+        "type": "integer",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "assistant_settings",
+        "name": "status",
+        "type": "text",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": "'active'",
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "assistant_settings",
+        "name": "date_last_modified",
+        "type": "timestamp with time zone",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": "statement_timestamp()",
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "assistant_settings",
+        "name": "version",
+        "type": "integer",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": "1",
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "assistant_settings",
+        "name": "metadata",
+        "type": "jsonb",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": "'{}'",
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "assistant_settings",
+        "name": "created_at",
+        "type": "timestamp with time zone",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": "statement_timestamp()",
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "assistant_requests",
+        "name": "assistant_requests_day_idx",
+        "nameExplicit": true,
+        "columns": [
+          {
+            "value": "tenant_id",
+            "isExpression": false,
+            "asc": true,
+            "nullsFirst": false,
+            "opclass": null
+          },
+          {
+            "value": "org_id",
+            "isExpression": false,
+            "asc": true,
+            "nullsFirst": false,
+            "opclass": null
+          },
+          {
+            "value": "day",
+            "isExpression": false,
+            "asc": true,
+            "nullsFirst": false,
+            "opclass": null
+          }
+        ],
+        "isUnique": false,
+        "where": null,
+        "with": "",
+        "method": "btree",
+        "concurrently": false,
+        "entityType": "indexes"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "assistant_requests",
+        "name": "assistant_requests_host_idx",
+        "nameExplicit": true,
+        "columns": [
+          {
+            "value": "tenant_id",
+            "isExpression": false,
+            "asc": true,
+            "nullsFirst": false,
+            "opclass": null
+          },
+          {
+            "value": "host_type",
+            "isExpression": false,
+            "asc": true,
+            "nullsFirst": false,
+            "opclass": null
+          },
+          {
+            "value": "host_id",
+            "isExpression": false,
+            "asc": true,
+            "nullsFirst": false,
+            "opclass": null
+          }
+        ],
+        "isUnique": false,
+        "where": null,
+        "with": "",
+        "method": "btree",
+        "concurrently": false,
+        "entityType": "indexes"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "assistant_settings",
+        "name": "assistant_settings_org_key",
+        "nameExplicit": true,
+        "columns": [
+          {
+            "value": "tenant_id",
+            "isExpression": false,
+            "asc": true,
+            "nullsFirst": false,
+            "opclass": null
+          },
+          {
+            "value": "org_id",
+            "isExpression": false,
+            "asc": true,
+            "nullsFirst": false,
+            "opclass": null
+          }
+        ],
+        "isUnique": true,
+        "where": "status = 'active'",
+        "with": "",
+        "method": "btree",
+        "concurrently": false,
+        "entityType": "indexes"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "assistant_requests",
+        "name": "assistant_requests_tenant_id_fkey",
+        "nameExplicit": true,
+        "columns": [
+          "tenant_id"
+        ],
+        "schemaTo": "core",
+        "tableTo": "tenants",
+        "columnsTo": [
+          "tenant_id"
+        ],
+        "onUpdate": "NO ACTION",
+        "onDelete": "NO ACTION",
+        "entityType": "fks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "assistant_requests",
+        "name": "assistant_requests_tenant_id_org_id_fkey",
+        "nameExplicit": true,
+        "columns": [
+          "tenant_id",
+          "org_id"
+        ],
+        "schemaTo": "core",
+        "tableTo": "orgs",
+        "columnsTo": [
+          "tenant_id",
+          "id"
+        ],
+        "onUpdate": "NO ACTION",
+        "onDelete": "NO ACTION",
+        "entityType": "fks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "assistant_requests",
+        "name": "assistant_requests_tenant_id_user_id_fkey",
+        "nameExplicit": true,
+        "columns": [
+          "tenant_id",
+          "user_id"
+        ],
+        "schemaTo": "core",
+        "tableTo": "users",
+        "columnsTo": [
+          "tenant_id",
+          "id"
+        ],
+        "onUpdate": "NO ACTION",
+        "onDelete": "NO ACTION",
+        "entityType": "fks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "assistant_settings",
+        "name": "assistant_settings_tenant_id_fkey",
+        "nameExplicit": true,
+        "columns": [
+          "tenant_id"
+        ],
+        "schemaTo": "core",
+        "tableTo": "tenants",
+        "columnsTo": [
+          "tenant_id"
+        ],
+        "onUpdate": "NO ACTION",
+        "onDelete": "NO ACTION",
+        "entityType": "fks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "assistant_settings",
+        "name": "assistant_settings_tenant_id_org_id_fkey",
+        "nameExplicit": true,
+        "columns": [
+          "tenant_id",
+          "org_id"
+        ],
+        "schemaTo": "core",
+        "tableTo": "orgs",
+        "columnsTo": [
+          "tenant_id",
+          "id"
+        ],
+        "onUpdate": "NO ACTION",
+        "onDelete": "NO ACTION",
+        "entityType": "fks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "assistant_requests",
+        "name": "assistant_requests_pkey",
+        "columns": [
+          "tenant_id",
+          "id"
+        ],
+        "nameExplicit": true,
+        "entityType": "pks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "assistant_settings",
+        "name": "assistant_settings_pkey",
+        "columns": [
+          "tenant_id",
+          "id"
+        ],
+        "nameExplicit": true,
+        "entityType": "pks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "assistant_requests",
+        "name": "assistant_requests_status_check",
+        "value": "status in ('active', 'tobedeleted')",
+        "entityType": "checks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "assistant_requests",
+        "name": "assistant_requests_version_check",
+        "value": "version > 0",
+        "entityType": "checks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "assistant_requests",
+        "name": "assistant_requests_metadata_check",
+        "value": "jsonb_typeof(metadata) = 'object' and octet_length(metadata::text) <= 16384",
+        "entityType": "checks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "assistant_requests",
+        "name": "assistant_requests_task_check",
+        "value": "task in ('questions', 'level', 'translate')",
+        "entityType": "checks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "assistant_requests",
+        "name": "assistant_requests_host_type_check",
+        "value": "host_type in ('lesson', 'assignment')",
+        "entityType": "checks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "assistant_requests",
+        "name": "assistant_requests_provider_check",
+        "value": "provider in ('anthropic')",
+        "entityType": "checks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "assistant_requests",
+        "name": "assistant_requests_model_check",
+        "value": "char_length(model) between 1 and 100",
+        "entityType": "checks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "assistant_requests",
+        "name": "assistant_requests_counts_check",
+        "value": "sent_characters >= 0 and received_characters >= 0\n        and coalesce(input_tokens, 0) >= 0 and coalesce(output_tokens, 0) >= 0",
+        "entityType": "checks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "assistant_requests",
+        "name": "assistant_requests_outcome_check",
+        "value": "outcome in ('running', 'done', 'failed', 'cancelled')\n        and (outcome = 'running') = (finished_at is null)",
+        "entityType": "checks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "assistant_settings",
+        "name": "assistant_settings_status_check",
+        "value": "status in ('active', 'tobedeleted')",
+        "entityType": "checks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "assistant_settings",
+        "name": "assistant_settings_version_check",
+        "value": "version > 0",
+        "entityType": "checks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "assistant_settings",
+        "name": "assistant_settings_metadata_check",
+        "value": "jsonb_typeof(metadata) = 'object' and octet_length(metadata::text) <= 16384",
+        "entityType": "checks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "assistant_settings",
+        "name": "assistant_settings_provider_check",
+        "value": "provider in ('anthropic')",
+        "entityType": "checks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "assistant_settings",
+        "name": "assistant_settings_daily_limit_check",
+        "value": "daily_limit between 1 and 10000",
+        "entityType": "checks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "assistant_requests",
+        "name": "tenant_isolation",
+        "as": "RESTRICTIVE",
+        "for": "ALL",
+        "roles": [
+          "public"
+        ],
+        "using": "tenant_id = (select app.tenant_id())",
+        "withCheck": "tenant_id = (select app.tenant_id())",
+        "entityType": "policies"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "assistant_requests",
+        "name": "owner_all",
+        "as": "PERMISSIVE",
+        "for": "ALL",
+        "roles": [
+          "cell_owner"
+        ],
+        "using": "true",
+        "withCheck": "true",
+        "entityType": "policies"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "assistant_requests",
+        "name": "p_select",
+        "as": "PERMISSIVE",
+        "for": "SELECT",
+        "roles": [
+          "app",
+          "cell_io",
+          "retention",
+          "worker"
+        ],
+        "using": "true",
+        "withCheck": null,
+        "entityType": "policies"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "assistant_requests",
+        "name": "p_insert",
+        "as": "PERMISSIVE",
+        "for": "INSERT",
+        "roles": [
+          "app",
+          "cell_io",
+          "worker"
+        ],
+        "using": null,
+        "withCheck": "true",
+        "entityType": "policies"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "assistant_requests",
+        "name": "p_update",
+        "as": "PERMISSIVE",
+        "for": "UPDATE",
+        "roles": [
+          "app",
+          "cell_io",
+          "worker"
+        ],
+        "using": "true",
+        "withCheck": "true",
+        "entityType": "policies"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "assistant_settings",
+        "name": "tenant_isolation",
+        "as": "RESTRICTIVE",
+        "for": "ALL",
+        "roles": [
+          "public"
+        ],
+        "using": "tenant_id = (select app.tenant_id())",
+        "withCheck": "tenant_id = (select app.tenant_id())",
+        "entityType": "policies"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "assistant_settings",
+        "name": "owner_all",
+        "as": "PERMISSIVE",
+        "for": "ALL",
+        "roles": [
+          "cell_owner"
+        ],
+        "using": "true",
+        "withCheck": "true",
+        "entityType": "policies"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "assistant_settings",
+        "name": "p_select",
+        "as": "PERMISSIVE",
+        "for": "SELECT",
+        "roles": [
+          "app",
+          "cell_io",
+          "retention",
+          "worker"
+        ],
+        "using": "true",
+        "withCheck": null,
+        "entityType": "policies"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "assistant_settings",
+        "name": "p_insert",
+        "as": "PERMISSIVE",
+        "for": "INSERT",
+        "roles": [
+          "app",
+          "cell_io",
+          "worker"
+        ],
+        "using": null,
+        "withCheck": "true",
+        "entityType": "policies"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "assistant_settings",
+        "name": "p_update",
+        "as": "PERMISSIVE",
+        "for": "UPDATE",
+        "roles": [
+          "app",
+          "cell_io",
+          "worker"
+        ],
+        "using": "true",
+        "withCheck": "true",
+        "entityType": "policies"
+      }
+    }
+  ]
+}

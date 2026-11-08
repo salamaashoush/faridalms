@@ -110,6 +110,8 @@ import {
   ltiScores,
   xapiStatements,
   xapiStores,
+  assistantSettings,
+  assistantRequests,
   cmi5Registrations,
   cmi5Sessions,
   cmi5States,
@@ -809,6 +811,30 @@ export async function completeFixture(
     statementId: id(),
     studentUserId: userId,
     statement: { verb: { id: "http://adlnet.gov/expapi/verbs/completed" } },
+  });
+  await tx.insert(assistantSettings).values({
+    tenantId,
+    orgId: schoolId,
+    enabled: true,
+    provider: "anthropic",
+    dailyLimit: 50,
+  });
+  await tx.insert(assistantRequests).values({
+    tenantId,
+    orgId: schoolId,
+    userId,
+    task: "translate",
+    hostType: "lesson",
+    hostId: lesson.id,
+    provider: "anthropic",
+    model: "claude-opus-5-5",
+    day: "2026-09-22",
+    sentCharacters: 1200,
+    receivedCharacters: 1300,
+    inputTokens: 600,
+    outputTokens: 700,
+    outcome: "done",
+    finishedAt: new Date("2026-09-22T10:00:00Z"),
   });
   await tx.insert(ltiKeys).values({
     tenantId,
