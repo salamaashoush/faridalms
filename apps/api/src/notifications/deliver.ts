@@ -161,6 +161,7 @@ async function conversationEmail(
     ...(replyTo ? { replyTo } : {}),
     ...(row.inReplyTo ? { inReplyTo: row.inReplyTo } : {}),
     ...(attachments.length ? { attachments } : {}),
+    tags: { tenant: tenantId },
   };
 }
 
@@ -223,6 +224,7 @@ export async function deliverTenant(
               to: head.address,
               ...message,
               reference: group.map((row) => row.id).join(","),
+              tags: { tenant: tenantId },
             },
           })
         )

@@ -77,6 +77,14 @@ export class ResendProvider implements Provider {
             })),
           }
         : {}),
+      ...(message.tags
+        ? {
+            tags: Object.entries(message.tags).map(([name, value]) => ({
+              name,
+              value,
+            })),
+          }
+        : {}),
     });
     const idempotencyKey = `farida/${createHash("sha256")
       .update(message.reference ?? "")

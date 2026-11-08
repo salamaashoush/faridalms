@@ -252,6 +252,8 @@ export const thread = readProcedure
         role: member.role,
         outside: member.contactId !== null,
         email: team ? member.email : null,
+        /** Why mail no longer reaches a contact, for the team that writes to it. */
+        unreachable: team ? member.unreachable : null,
         lastReadAt: staff ? member.lastReadAt : null,
         link: linkOf(member.userId),
       })),

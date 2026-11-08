@@ -91,6 +91,16 @@ export function MembersSheet({ thread, onClose }: MembersSheetProps) {
                       <bdi dir="ltr">{row.email}</bdi>
                     </>
                   ) : null}
+                  {row.unreachable ? (
+                    <>
+                      {" · "}
+                      <span className="text-warning-foreground dark:text-warning">
+                        {row.unreachable === "complained"
+                          ? m.msgMemberComplained()
+                          : m.msgMemberBounced()}
+                      </span>
+                    </>
+                  ) : null}
                 </span>
               ) : null}
             </span>

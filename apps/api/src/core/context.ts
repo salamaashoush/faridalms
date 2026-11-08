@@ -93,6 +93,12 @@ export interface ApiDependencies {
    * on the internal network; none leaves a led lesson's students asking.
    */
   signalUrl?: string | null;
+  /**
+   * The secret Resend signs its webhooks with, for what becomes of the
+   * mail the platform sent: a bounce or a complaint marks the address
+   * unreachable. Null where email does not go through Resend.
+   */
+  mailEvents?: { webhookSecret: string } | null;
 }
 
 export interface RequestContext extends ApiDependencies {

@@ -13,6 +13,12 @@ export interface OutboundMessage {
   /** The message this answers, so the recipient's mail program threads it. */
   inReplyTo?: string;
   attachments?: { filename: string; content: Uint8Array }[];
+  /**
+   * Names the provider keeps with the message and hands back with what
+   * becomes of it, such as a bounce: the tenant it was sent for. Letters,
+   * digits, `_` and `-` only.
+   */
+  tags?: Record<string, string>;
 }
 
 export interface Provider {

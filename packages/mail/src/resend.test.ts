@@ -58,6 +58,19 @@ describe("ResendProvider", () => {
     });
   });
 
+  it("sends the tags Resend hands back with a bounce or complaint", async () => {
+    const { provider, requests } = resend([{ status: 200, body: { id: "a" } }]);
+    await provider.send({
+      ...message,
+      tags: { tenant: "0195f1c2-7d3a-7b4e-9a10-2f6c8d4e5a01" },
+    });
+    const [request] = requests;
+    if (!request) throw new Error("nothing was sent");
+    expect(((await request.json()) as { tags?: unknown }).tags).toEqual([
+      { name: "tenant", value: "0195f1c2-7d3a-7b4e-9a10-2f6c8d4e5a01" },
+    ]);
+  });
+
   it("sends a retry under the same idempotency key, and another delivery under its own", async () => {
     const { provider, requests } = resend([]);
     await provider.send({ ...message, reference: "a" });

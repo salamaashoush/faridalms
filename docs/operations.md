@@ -926,6 +926,19 @@ What the endpoint does with an email:
   through the same checks as an upload (type, size, `CLAMD_ADDRESS`) and
   counted against the school's storage; the rest are named in the entry.
 
+The same endpoint takes `email.bounced` and `email.complained` for the mail
+the platform sends, with or without `INBOUND_EMAIL_DOMAIN`: subscribe the
+endpoint to both events and set `RESEND_WEBHOOK_SECRET` beside
+`RESEND_API_KEY`. Every email carries a `tenant` tag, which Resend hands
+back with the report, so a report reaches only that tenant of this cell.
+A bounce Resend calls `Permanent`, or a complaint, stamps every outside
+contact and person's email at that address (`bounced_at`,
+`complaint_at`), audited; delivery skips it from then on with the reason
+`unreachable` in the notification log, and staff writing to such a contact
+see why in the conversation. A transient bounce changes nothing. A family
+that writes in again from the address, passing its checks, lifts a bounce;
+a complaint stays. The API logs `{"reported":"unreachable"}` or why not.
+
 `RESEND_API_URL` sends Resend's API calls to another server (an egress proxy,
 or the end-to-end suite's stand-in in `scripts/e2e-resend.ts`).
 

@@ -152,6 +152,10 @@ const inbound =
           : null,
       }
     : null;
+const mailEvents =
+  env.RESEND_API_KEY && env.RESEND_WEBHOOK_SECRET
+    ? { webhookSecret: env.RESEND_WEBHOOK_SECRET }
+    : null;
 const runners = {
   python: createPythonRunner(
     env.PYTHON_DIR ?? join(process.cwd(), "vendor", "python"),
@@ -197,6 +201,7 @@ const server = Bun.serve({
     turnstile: turnstileFrom(env),
     inbound,
     signalUrl: env.COLLAB_SIGNAL_URL ?? null,
+    mailEvents,
   }),
 });
 console.info(

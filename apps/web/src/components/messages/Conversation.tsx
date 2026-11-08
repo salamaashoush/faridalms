@@ -316,6 +316,11 @@ function Composer({ thread, fields }: ComposerProps) {
       );
   };
   const outside = thread.members.find((member) => member.outside);
+  // A contact with no account is reached only by email, so the team hears
+  // where that no longer works before it writes.
+  const unreachable = thread.members.filter(
+    (member) => member.outside && !member.userId && member.unreachable,
+  );
   const insert = (template: ContentDocument) => {
     const locale = /[؀-ۿ]/.test(contentPlainText(template)) ? "ar" : "en";
     const filled = fillFields(
@@ -393,6 +398,21 @@ function Composer({ thread, fields }: ComposerProps) {
           {m.msgGoesByEmail()}
         </p>
       ) : null}
+      {mode === "message"
+        ? unreachable.map((member) => (
+            <p
+              key={member.contactId}
+              className="text-[13px] leading-[18px] text-warning-foreground dark:text-warning"
+            >
+              {(member.unreachable === "complained"
+                ? m.msgUnreachableComplained
+                : m.msgUnreachableBounced)({
+                name: nameOf(member),
+                email: member.email ?? "",
+              })}
+            </p>
+          ))
+        : null}
       {mode !== "message" ? (
         <p className="text-[13px] leading-[18px] text-muted-foreground">
           {m.msgInternalHint()}

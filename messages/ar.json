@@ -9833,5 +9833,9 @@
   "cmtEdited": "معدّل",
   "cmtActions": "تعليق {name}",
   "cmtResolvedBy": "حلّه {name}، {when}",
-  "cmtSomeone": "زميل"
+  "cmtSomeone": "زميل",
+  "msgUnreachableBounced": "ارتدّ البريد المرسل إلى {email}، لذا لن تصل هذه الرسالة إلى {name} بالبريد الإلكتروني. تواصلوا معهم بطريقة أخرى.",
+  "msgUnreachableComplained": "أبلغ {name} عن بريد المدرسة بأنه رسائل مزعجة، لذا لن تُرسل هذه الرسالة إلى {email}.",
+  "msgMemberBounced": "ارتدّ البريد",
+  "msgMemberComplained": "أبلغ عن البريد كرسائل مزعجة"
 }

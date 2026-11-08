@@ -10,6 +10,7 @@ import {
   settleFile,
 } from "@faridalms/database/stores/files";
 import {
+  clearBounce,
   mailTaken,
   recentMail,
   replyTarget,
@@ -45,6 +46,7 @@ import { fileKeys } from "../files/sealed";
 import { verifyWebhook } from "../notifications/resend-inbox";
 import { writeEntry } from "./conversations";
 import { replyKey } from "./reply";
+import { takeDeliveryReport } from "./unreachable";
 
 /** Where Resend posts the mail it received for the platform (platform foundation 7.1). */
 export const INBOUND_PATH = "/callbacks/resend";
@@ -276,6 +278,10 @@ async function takeMail(
             }),
           );
           const carried = ready.filter((file) => hosted.has(file.id));
+          await clearBounce(tx, {
+            tenantId: routed.tenantId,
+            contactId: target.contactId,
+          });
           const content: ContentDocument = withFileBlocks(
             prepared.text
               ? plainContent(prepared.text)
@@ -323,9 +329,10 @@ async function takeMail(
 }
 
 /**
- * Resend's webhook for received mail. It is answered 401 unless Resend
- * signed it, and 200 once handled, whatever became of the mail, so Resend
- * stops retrying; a failure on our side answers 500, and Resend tries
+ * Resend's webhook for received mail, and for bounces and complaints of
+ * the mail the platform sent. It is answered 401 unless Resend signed it,
+ * and 200 once handled, whatever became of the mail, so Resend stops
+ * retrying; a failure on our side answers 500, and Resend tries
  * again later with the same email, which is then taken once.
  */
 export async function handleInboundMail(
@@ -334,8 +341,10 @@ export async function handleInboundMail(
   context: RequestContext,
 ): Promise<Response | null> {
   if (url.pathname !== INBOUND_PATH) return null;
-  const inbound = context.inbound;
-  if (!inbound) return Response.json({ code: "NOT_FOUND" }, { status: 404 });
+  const inbound = context.inbound ?? null;
+  const secret =
+    inbound?.webhookSecret ?? context.mailEvents?.webhookSecret ?? null;
+  if (!secret) return Response.json({ code: "NOT_FOUND" }, { status: 404 });
   if (request.method !== "POST")
     return Response.json({ code: "METHOD_NOT_ALLOWED" }, { status: 405 });
   const declared = Number(request.headers.get("content-length"));
@@ -346,7 +355,7 @@ export async function handleInboundMail(
     return Response.json({ code: "TOO_LARGE" }, { status: 413 });
   if (
     !verifyWebhook({
-      secret: inbound.webhookSecret,
+      secret,
       id: request.headers.get("svix-id"),
       timestamp: request.headers.get("svix-timestamp"),
       signature: request.headers.get("svix-signature"),
@@ -363,8 +372,13 @@ export async function handleInboundMail(
   }
   const data = event.data ?? {};
   const emailId = typeof data.email_id === "string" ? data.email_id : "";
+  if (event.type === "email.bounced" || event.type === "email.complained") {
+    const reported = await takeDeliveryReport(context, event.type, data);
+    console.info(JSON.stringify({ requestId: context.requestId, reported }));
+    return Response.json({ outcome: reported });
+  }
   const outcome: InboundOutcome =
-    event.type !== "email.received" || !emailId
+    event.type !== "email.received" || !emailId || !inbound
       ? "ignored"
       : await takeMail(
           context,

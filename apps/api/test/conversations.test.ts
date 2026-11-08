@@ -94,14 +94,25 @@ async function webhook(
     id,
   };
   inbox.emails.set(id, received);
-  const body = JSON.stringify({
-    type: "email.received",
-    created_at: new Date().toISOString(),
-    data: { email_id: id, to: received.to, cc: [], from: received.from },
-  });
+  return signedEvent(
+    {
+      type: "email.received",
+      created_at: new Date().toISOString(),
+      data: { email_id: id, to: received.to, cc: [], from: received.from },
+    },
+    options,
+  );
+}
+
+/** A webhook Resend signed, or one that only claims to be, to the handler given. */
+async function signedEvent(
+  event: object,
+  options: { signed?: boolean; handler?: ReturnType<typeof app> } = {},
+) {
+  const body = JSON.stringify(event);
   const timestamp = Math.floor(Date.now() / 1000);
   const svixId = `msg_${crypto.randomUUID()}`;
-  const response = await app()(
+  const response = await (options.handler ?? app())(
     new Request(`http://api.test${INBOUND_PATH}`, {
       method: "POST",
       headers: {
@@ -439,6 +450,115 @@ describe("email to and from an outside contact", () => {
     ).toBe("flood");
     const after = (await api.messages.thread({ id: threadId })).messages;
     expect(after.length).toBe(before + MAIL_PER_HOUR);
+  });
+});
+
+/** Resend reporting what became of mail the platform sent for a tenant. */
+const report = (
+  type: "email.bounced" | "email.complained",
+  to: string,
+  options: {
+    tenant?: string;
+    bounce?: string;
+    handler?: ReturnType<typeof app>;
+  } = {},
+) =>
+  signedEvent(
+    {
+      type,
+      created_at: new Date().toISOString(),
+      data: {
+        email_id: crypto.randomUUID(),
+        from: "Northwind <no-reply@mail.example.com>",
+        to: [to],
+        subject: "Your enquiry",
+        tags: { tenant: options.tenant ?? tenantId() },
+        ...(type === "email.bounced"
+          ? {
+              bounce: {
+                type: options.bounce ?? "Permanent",
+                subType: "General",
+              },
+            }
+          : {}),
+      },
+    },
+    { handler: options.handler },
+  );
+
+describe("mail that cannot reach a contact", () => {
+  test("each email names its tenant, so its bounce reaches only that tenant", async () => {
+    const address = "salama.tagged@example.com";
+    const { api, threadId } = await enquiryFrom(address);
+    const { email } = await replyAddressOf(api, threadId, address, "Hello.");
+    expect(email.tags).toEqual({ tenant: tenantId() });
+    const elsewhere = await report("email.bounced", address, {
+      tenant: crypto.randomUUID(),
+    });
+    expect(elsewhere.outcome).toBe("unknown_tenant");
+    const passing = await report("email.bounced", address, {
+      bounce: "Transient",
+    });
+    expect(passing.outcome).toBe("transient");
+    const opened = await api.messages.thread({ id: threadId });
+    expect(
+      opened.members.find((member) => member.outside)?.unreachable,
+    ).toBeNull();
+  });
+
+  test("a permanent bounce stops email to the contact and tells the team why", async () => {
+    const address = "salama.bounced@example.com";
+    const { api, threadId } = await enquiryFrom(address);
+    await replyAddressOf(api, threadId, address, "Hello.");
+    expect(
+      (await report("email.bounced", address, { handler: handlerWith({}) }))
+        .status,
+    ).toBe(404);
+    const marked = await report("email.bounced", address.toUpperCase(), {
+      handler: handlerWith({ mailEvents: { webhookSecret: SECRET } }),
+    });
+    expect(marked).toEqual({ status: 200, outcome: "unreachable" });
+    const opened = await api.messages.thread({ id: threadId });
+    expect(opened.members.find((member) => member.outside)?.unreachable).toBe(
+      "bounced",
+    );
+    const before = seeded().mail.sent.length;
+    await api.messages.send({
+      threadId,
+      content: plainContent("Are you still there?"),
+      force: true,
+    });
+    await deliver();
+    expect(
+      seeded()
+        .mail.sent.slice(before)
+        .some((item) => item.to === address),
+    ).toBeFalse();
+  });
+
+  test("a complaint outlasts the family writing again; a bounce does not", async () => {
+    const address = "salama.complains@example.com";
+    const { api, threadId } = await enquiryFrom(address);
+    const { replyTo } = await replyAddressOf(api, threadId, address, "Hello.");
+    await report("email.bounced", address);
+    expect(
+      (await webhook({ from: address, to: [replyTo], text: "We are here." }))
+        .outcome,
+    ).toBe("posted");
+    const member = async () =>
+      (await api.messages.thread({ id: threadId })).members.find(
+        (row) => row.outside,
+      )?.unreachable;
+    expect(await member()).toBeNull();
+    expect((await report("email.complained", address)).outcome).toBe(
+      "unreachable",
+    );
+    await webhook({ from: address, to: [replyTo], text: "Still here." });
+    expect(await member()).toBe("complained");
+    expect(
+      (await report("email.complained", address, { tenant: "not-a-tenant" }))
+        .outcome,
+    ).toBe("unknown_tenant");
   });
 });
 

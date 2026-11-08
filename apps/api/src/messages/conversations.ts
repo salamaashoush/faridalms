@@ -188,8 +188,13 @@ export async function writeEntry(
         contactId: member.contactId,
         address: member.email,
         locale: member.locale,
-        state: scope.channels.email ? "pending" : "skipped",
-        reason: scope.channels.email ? null : "no_provider",
+        state:
+          scope.channels.email && !member.unreachable ? "pending" : "skipped",
+        reason: !scope.channels.email
+          ? "no_provider"
+          : member.unreachable
+            ? "unreachable"
+            : null,
       })),
     });
   }

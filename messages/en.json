@@ -9409,5 +9409,9 @@
   "cmtEdited": "edited",
   "cmtActions": "Comment by {name}",
   "cmtResolvedBy": "Resolved by {name}, {when}",
-  "cmtSomeone": "A colleague"
+  "cmtSomeone": "A colleague",
+  "msgUnreachableBounced": "Mail to {email} bounced, so {name} will not get this by email. Reach them another way.",
+  "msgUnreachableComplained": "{name} reported the school's mail as spam, so this will not be emailed to {email}.",
+  "msgMemberBounced": "Mail bounced",
+  "msgMemberComplained": "Reported mail as spam"
 }

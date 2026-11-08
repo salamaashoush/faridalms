@@ -125,7 +125,9 @@ export const env = v.parse(
       // receiving at r+<tenant>.<token>@<INBOUND_EMAIL_DOMAIN>, a subdomain
       // whose MX points at Resend, and its webhook is signed with
       // RESEND_WEBHOOK_SECRET. Unset, families answer the school's own
-      // address and the conversation continues only in the app.
+      // address and the conversation continues only in the app. The same
+      // webhook reports bounces and complaints, which stop mail to an
+      // address, wherever RESEND_API_KEY and the secret are set.
       INBOUND_EMAIL_DOMAIN: v.optional(domain),
       // Another server answering as Resend's API: an egress proxy, or the
       // end-to-end gate's stand-in. Unset, Resend's own.

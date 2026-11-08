@@ -812,3 +812,35 @@ export async function noticesAbout(
     })),
   }));
 }
+
+/** Why mail no longer goes to an address: it bounced for good, or its reader reported it as spam. */
+export type Unreachable = "bounced" | "complained";
+
+/**
+ * Stops mail to an address the provider reported: every outside contact
+ * and every person's email at it is stamped, the first report kept, so
+ * delivery skips it from now and staff see why. Answers the contacts and
+ * the people stamped.
+ */
+export async function markAddressUnreachable(
+  tx: Tx,
+  input: { tenantId: string; address: string; reason: Unreachable },
+): Promise<{ contactIds: string[]; people: string[] }> {
+  const address = input.address.trim().toLowerCase();
+  const column =
+    input.reason === "bounced" ? sql`bounced_at` : sql`complaint_at`;
+  const contacts = await tx.execute<{ id: string }>(sql`
+    update core.message_contacts set ${column} = statement_timestamp()
+    where tenant_id = ${input.tenantId}::uuid and email = ${address} and status = 'active'
+      and ${column} is null
+    returning id`);
+  const people = await tx.execute<{ user_id: string }>(sql`
+    update core.contact_points set ${column} = statement_timestamp()
+    where tenant_id = ${input.tenantId}::uuid and kind = 'email' and status = 'active'
+      and lower(coalesce(normalized, value)) = ${address} and ${column} is null
+    returning user_id`);
+  return {
+    contactIds: contacts.map((row) => row.id),
+    people: [...new Set(people.map((row) => row.user_id))],
+  };
+}

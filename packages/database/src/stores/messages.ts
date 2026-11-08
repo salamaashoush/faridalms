@@ -16,6 +16,7 @@ import type {
   ThreadKind,
   ThreadRole,
 } from "../tables/messaging";
+import type { Unreachable } from "./notifications";
 import type { Scope } from "./students";
 
 import { holds, isoOf, textArray, uuidArray } from "./sql";
@@ -545,7 +546,13 @@ export interface MemberRow extends Named {
   lastReadAt: string | null;
   /** A contact's address, which only the team that shares the mailbox reads. */
   email: string | null;
+  /** Why mail no longer reaches a contact's address, if it does not. */
+  unreachable: Unreachable | null;
 }
+
+/** Why mail no longer reaches contact `c`, the worse reason first. */
+const unreachableOf = sql`case when c.complaint_at is not null then 'complained'
+  when c.bounced_at is not null then 'bounced' end`;
 
 export async function membersOf(
   tx: Tx,
@@ -561,11 +568,13 @@ export async function membersOf(
     email: string | null;
     role: ThreadRole;
     last_read_at: string | null;
+    unreachable: Unreachable | null;
   }>(sql`
     select m.id, m.user_id, m.contact_id,
            coalesce(u.full_name_en, case when u.id is null then c.display_name end) as full_name_en,
            coalesce(u.full_name_ar, case when u.id is null then c.display_name end) as full_name_ar,
-           c.email, m.role, ${isoOf(sql`m.last_read_at`)} as last_read_at
+           c.email, m.role, ${isoOf(sql`m.last_read_at`)} as last_read_at,
+           ${unreachableOf} as unreachable
     from core.thread_members m
     left join core.message_contacts c on c.tenant_id = m.tenant_id and c.id = m.contact_id
     left join core.users u on u.tenant_id = m.tenant_id and u.id = m.user_id
@@ -581,6 +590,7 @@ export async function membersOf(
     email: row.email,
     role: row.role,
     lastReadAt: row.last_read_at,
+    unreachable: row.unreachable,
   }));
 }
 
@@ -1348,6 +1358,7 @@ export interface OutsideMember {
   contactId: string;
   email: string;
   locale: "en" | "ar";
+  unreachable: Unreachable | null;
 }
 
 /** The outside contacts of a conversation who are reached by email: none linked to a person yet. */
@@ -1360,8 +1371,9 @@ export async function mailedMembers(
     contact_id: string;
     email: string;
     locale: "en" | "ar";
+    unreachable: Unreachable | null;
   }>(sql`
-    select m.id as member_id, c.id as contact_id, c.email, c.locale
+    select m.id as member_id, c.id as contact_id, c.email, c.locale, ${unreachableOf} as unreachable
     from core.thread_members m
     join core.message_contacts c on c.tenant_id = m.tenant_id and c.id = m.contact_id
       and c.status = 'active' and c.email is not null and c.user_id is null
@@ -1373,7 +1385,23 @@ export async function mailedMembers(
     contactId: row.contact_id,
     email: row.email,
     locale: row.locale,
+    unreachable: row.unreachable,
   }));
+}
+
+/**
+ * Mail came from a contact's address and passed its checks, so the
+ * address takes mail again after a bounce. A complaint stays: the family
+ * asked for no more of it.
+ */
+export async function clearBounce(
+  tx: Tx,
+  input: { tenantId: string; contactId: string },
+): Promise<void> {
+  await tx.execute(sql`
+    update core.message_contacts set bounced_at = null
+    where tenant_id = ${input.tenantId}::uuid and id = ${input.contactId}::uuid
+      and bounced_at is not null`);
 }
 
 /** Keeps the digest of a contact's reply token the first time mail carries it. */
