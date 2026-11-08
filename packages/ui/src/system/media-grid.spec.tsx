@@ -172,8 +172,8 @@ describe("a media grid", () => {
       screen.getByRole("checkbox", { name: "Select Timetable.pdf" }),
     );
     expect(
-      screen.getByText("2 selected", { selector: "p:not(.sr-only)" }),
-    ).toBeInTheDocument();
+      screen.getByRole("group", { name: "Actions for the selected rows" }),
+    ).toHaveTextContent("2 selected");
     await userEvent.click(screen.getByRole("button", { name: "Delete" }));
     expect(onDelete).toHaveBeenCalledWith(items);
     await userEvent.click(screen.getByRole("button", { name: /Timetable/ }));
@@ -181,7 +181,7 @@ describe("a media grid", () => {
     // Escape lets the selection go.
     await userEvent.keyboard("{Escape}");
     expect(
-      screen.queryByText("2 selected", { selector: "p:not(.sr-only)" }),
+      screen.queryByRole("group", { name: "Actions for the selected rows" }),
     ).toBeNull();
   });
 });
