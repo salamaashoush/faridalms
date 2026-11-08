@@ -159,6 +159,21 @@ export const env = v.parse(
       // such as http://collab:3002/signal: a lesson led live is pushed to
       // its students through it. Unset, their players keep asking.
       COLLAB_SIGNAL_URL: v.optional(v.pipe(v.string(), v.url())),
+      // The deployment's key for Anthropic's API, which schools that turn
+      // on the language model for their teachers use; it is never shown to
+      // a school. ANTHROPIC_API_URL points it at another server answering
+      // as Anthropic's API: an egress proxy, or the end-to-end stand-in.
+      ANTHROPIC_API_KEY: v.optional(
+        v.pipe(v.string(), v.trim(), v.minLength(1)),
+      ),
+      ANTHROPIC_API_URL: v.optional(v.pipe(v.string(), v.url())),
+      ASSISTANT_MODEL: v.optional(
+        v.pipe(v.string(), v.trim(), v.regex(/^[a-z0-9][a-z0-9.-]{0,99}$/)),
+        "claude-opus-5-5",
+      ),
+      // The most requests a day any school may allow its teachers, however
+      // high it sets its own limit.
+      ASSISTANT_DAILY_CEILING: v.optional(positiveInteger, "500"),
     }),
     v.check(
       (value) =>

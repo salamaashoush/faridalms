@@ -10,6 +10,7 @@ import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { createApp } from "./app";
+import { assistantFrom } from "./assistant/anthropic";
 import { startProgramReruns } from "./coding/rerun";
 import { createJavaScriptRunner, createPythonRunner } from "./coding/run";
 import { startAdmissionsClock } from "./core/admissions-clock";
@@ -204,6 +205,7 @@ const server = Bun.serve({
     inbound,
     signalUrl: env.COLLAB_SIGNAL_URL ?? null,
     mailEvents,
+    assistant: assistantFrom(env),
   }),
 });
 console.info(

@@ -22,6 +22,7 @@ import type { ContentLocale } from "@faridalms/domain/translations";
 
 import { changeOf } from "@faridalms/database/audit";
 import { arrangementsOf } from "@faridalms/database/stores/arrangements";
+import { machineTranslationUnchecked } from "@faridalms/database/stores/assistant";
 import { bankTagCounts } from "@faridalms/database/stores/bank";
 import {
   classById,
@@ -388,6 +389,17 @@ async function readersTranslation(
     ? await translationOf(context.tx, context.tenantId, document.id)
     : null;
   if (!translated) return null;
+  // Students and their families read a drafted translation only once a
+  // person has checked it against the original; until then, the original.
+  if (
+    reader !== "editor" &&
+    (await machineTranslationUnchecked(context.tx, {
+      tenantId: context.tenantId,
+      host: "assignment",
+      id: assignment.id,
+    }))
+  )
+    return null;
   const written = translated.content as unknown as ContentDocument;
   // As with the original, a quiz's readers get the words before its first
   // question; the questions come in the quiz, the original's answers kept.

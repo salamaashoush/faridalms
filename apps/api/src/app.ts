@@ -6,6 +6,7 @@ import { experimental_ValibotToJsonSchemaConverter as ValibotToJsonSchemaConvert
 
 import type { ApiDependencies, RequestContext } from "./core/context";
 
+import { handleAssistantRequest } from "./assistant/routes";
 import { handleCalendarFeed } from "./calendar/feed";
 import { handleCmi5Request } from "./cmi5/routes";
 import { handleWorkExport } from "./files/exports";
@@ -95,6 +96,7 @@ export function createApp(dependencies: ApiDependencies) {
           (await handleMediaRequest(request, url, context)) ??
           (await handleLtiRequest(request, url, context)) ??
           (await handleCmi5Request(request, url, context)) ??
+          (await handleAssistantRequest(request, url, context)) ??
           (await handleFileRequest(request, url, context));
         if (file) response = file;
         else {

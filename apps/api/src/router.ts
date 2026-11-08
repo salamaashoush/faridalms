@@ -14,6 +14,7 @@ import * as admissionsSystem from "./systems/admissions";
 import * as announcementsSystem from "./systems/announcements";
 import * as applicationsSystem from "./systems/applications";
 import * as applyingSystem from "./systems/applying";
+import * as assistantSystem from "./systems/assistant";
 import * as attendanceSystem from "./systems/attendance";
 import * as badgesSystem from "./systems/badges";
 import * as bankSystem from "./systems/bank";
@@ -129,6 +130,7 @@ export const router = {
   templates: owned("templates", templatesSystem),
   bank: owned("bank", bankSystem),
   shared: owned("shared", sharedSystem),
+  assistant: owned("assistant", assistantSystem),
   standards: owned("standards", standardsSystem),
   coursework: owned("coursework", courseworkSystem),
   peer: owned("peer", peerSystem),

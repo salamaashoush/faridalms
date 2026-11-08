@@ -9,6 +9,7 @@ import type { PlatformDomains } from "@faridalms/domain/hosts";
 import type { SessionContext, Workspace } from "@faridalms/domain/workspace";
 import type { Provider } from "@faridalms/mail/providers";
 
+import type { AssistantService } from "../assistant/provider";
 import type { CodeRunner } from "../coding/run";
 import type { FileScanner } from "../files/scan";
 import type { FileStore } from "../files/store";
@@ -99,6 +100,11 @@ export interface ApiDependencies {
    * unreachable. Null where email does not go through Resend.
    */
   mailEvents?: { webhookSecret: string } | null;
+  /**
+   * The language model services this deployment holds keys for, which a
+   * school may choose to let its teachers use; none where it holds none.
+   */
+  assistant?: AssistantService | null;
 }
 
 export interface RequestContext extends ApiDependencies {

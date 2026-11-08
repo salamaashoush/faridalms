@@ -169,6 +169,9 @@ export const CORE_SYSTEMS = [
   "library",
   "mediaLibrary",
   "shared",
+  // The language model helps write whatever document a teacher may change,
+  // lessons and briefs alike; the record's own module still decides that.
+  "assistant",
   "privacy",
   "rollover",
   "messages",

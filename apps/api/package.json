@@ -13,6 +13,7 @@
     "build": "bun build src/index.ts src/admin.ts --target=bun --outdir=dist && bun build src/coding/python-worker.ts src/coding/javascript-worker.ts --target=bun --outdir=dist"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^1.6.0",
     "@bjorn3/browser_wasi_shim": "0.4.2",
     "@faridalms/database": "workspace:*",
     "@faridalms/domain": "workspace:*",

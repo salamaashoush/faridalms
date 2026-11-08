@@ -19,6 +19,7 @@ import type { ScratchFeature } from "@faridalms/domain/scratch-project";
 
 import { changeOf } from "@faridalms/database/audit";
 import { arrangementsOf } from "@faridalms/database/stores/arrangements";
+import { machineTranslationUnchecked } from "@faridalms/database/stores/assistant";
 import { reachOf } from "@faridalms/database/stores/audiences";
 import { classesTaughtBy, rosterOf } from "@faridalms/database/stores/classes";
 import { groupsOf, namesOf } from "@faridalms/database/stores/coursework";
@@ -496,6 +497,19 @@ async function publishLessons(context: UnitContext, lessonIds: string[]) {
       context.tenantId,
       document.id,
     );
+    // A translation the model drafted goes to students only once a person
+    // has checked it against the original.
+    if (
+      translation &&
+      (await machineTranslationUnchecked(context.tx, {
+        tenantId: context.tenantId,
+        host: "lesson",
+        id: lessonId,
+      }))
+    )
+      throw new ORPCError("CONFLICT", {
+        message: "assistant.translation_unchecked",
+      });
     if (translation)
       await snapshotPublish(context.tx, {
         tenantId: context.tenantId,
