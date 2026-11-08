@@ -1,7 +1,10 @@
 import type { CasePackage } from "@faridalms/domain/standards";
 import type { ActionItem } from "@faridalms/ui/system/action-menu";
 
-import { EYFS_GOALS } from "@faridalms/domain/early-goals";
+import {
+  DEVELOPMENT_MATTERS_IDENTIFIER,
+  EYFS_GOALS,
+} from "@faridalms/domain/early-goals";
 import { IB_CONCEPTS } from "@faridalms/domain/ib-concepts";
 import {
   casePackageSchema,
@@ -53,15 +56,20 @@ type FrameworkData = Awaited<
 export type StandardRow = FrameworkData["standards"][number];
 type FrameworkRow = FrameworkData["framework"];
 
-/** Where a framework came from: the EYFS goals, the IB's concepts, a CASE package, or the school. */
+/**
+ * Where a framework came from: the EYFS goals, Development Matters, the
+ * IB's concepts, a CASE package, or the school.
+ */
 export const sourceOf = (framework: { caseIdentifier: string | null }) =>
   framework.caseIdentifier === EYFS_GOALS.identifier
     ? m.standardsSourceEyfs()
-    : IB_CONCEPTS.some((row) => row.identifier === framework.caseIdentifier)
-      ? m.standardsSourceIb()
-      : framework.caseIdentifier
-        ? m.standardsSourceCase()
-        : m.standardsSourceOwn();
+    : framework.caseIdentifier === DEVELOPMENT_MATTERS_IDENTIFIER
+      ? m.standardsSourceMatters()
+      : IB_CONCEPTS.some((row) => row.identifier === framework.caseIdentifier)
+        ? m.standardsSourceIb()
+        : framework.caseIdentifier
+          ? m.standardsSourceCase()
+          : m.standardsSourceOwn();
 
 export interface FrameworkSheetProps {
   open: boolean;

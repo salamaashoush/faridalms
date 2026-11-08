@@ -3,6 +3,8 @@ import {
   classProgressSchema,
   curriculumMapSchema,
   describeStandardsSchema,
+  goalsReportSchema,
+  goalsReturnSchema,
   importCaseSchema,
   judgeGoalSchema,
   moveStandardSchema,
@@ -11,6 +13,7 @@ import {
   saveFrameworkSchema,
   saveStandardSchema,
   searchStandardsSchema,
+  shareGoalsReportSchema,
   sittingsSchema,
   studentProgressSchema,
 } from "@faridalms/domain/standards";
@@ -98,3 +101,19 @@ export const judgeGoal = createServerFn({ method: "POST" })
 export const addEarlyGoals = createServerFn({ method: "POST" }).handler(() =>
   backend().standards.addEarlyGoals(),
 );
+
+export const addDevelopmentMatters = createServerFn({
+  method: "POST",
+}).handler(() => backend().standards.addDevelopmentMatters());
+
+export const shareGoalsReport = createServerFn({ method: "POST" })
+  .validator(checked(shareGoalsReportSchema))
+  .handler(({ data }) => backend().standards.shareGoalsReport(data));
+
+export const getGoalsReport = createServerFn({ method: "GET" })
+  .validator(checked(goalsReportSchema))
+  .handler(({ data }) => record(backend().standards.goalsReport(data)));
+
+export const makeGoalsReturn = createServerFn({ method: "POST" })
+  .validator(checked(goalsReturnSchema))
+  .handler(({ data }) => backend().standards.goalsReturn(data));

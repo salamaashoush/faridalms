@@ -182,3 +182,142 @@ test("a Reception teacher judges each child against an early learning goal", asy
   await expect(section).toContainText(/0 expected, 0 emerging/);
   await context.close();
 });
+
+test("a Reception teacher records an exemption, shares the goals report and makes the return", async ({
+  browser,
+  page,
+}, testInfo) => {
+  const school = "northwind-east";
+  // Each browser takes its own goal, so none reads another's.
+  const goal =
+    { firefox: "Managing Self", webkit: "Building Relationships" }[
+      testInfo.project.name
+    ] ?? "Self-Regulation";
+  await signInWith(
+    page,
+    `principal.${school}@northwind.example.com`,
+    PASSWORD,
+    "/today",
+    school,
+  );
+  await page.goto(`${portal(school)}/standards`);
+  await untilHydrated(page);
+  await page.getByRole("button", { name: "More actions" }).click();
+  await page
+    .getByRole("menuitem", { name: "Add the EYFS early learning goals" })
+    .click();
+  await expect(
+    page.getByRole("heading", { name: "EYFS early learning goals", level: 1 }),
+  ).toBeVisible();
+
+  const context = await browser.newContext();
+  const teacher = await context.newPage();
+  await signInWith(
+    teacher,
+    `teacher1.${school}@northwind.example.com`,
+    PASSWORD,
+    "/today",
+    school,
+  );
+  await teacher
+    .getByRole("region", { name: "Classes" })
+    .getByRole("link")
+    .filter({ hasNotText: "All classes" })
+    .first()
+    .click();
+  await untilHydrated(teacher);
+  await teacher.getByRole("tab", { name: "Goals" }).click();
+  await teacher.getByRole("combobox", { name: /^Goal/ }).click();
+  await teacher.getByRole("option", { name: new RegExp(`^${goal}`) }).click();
+  const section = teacher.getByRole("region", { name: goal });
+
+  // An exemption sits behind the note, never beside expected and emerging.
+  await section
+    .getByRole("button", { name: /^Note or exemption for / })
+    .first()
+    .click();
+  const exempt = section
+    .getByRole("checkbox", { name: /^Exemption applies: / })
+    .first();
+  await exempt.check();
+  await expect(section).toContainText(/1 exempt/);
+
+  await teacher
+    .getByRole("button", { name: "Share the report with families" })
+    .click();
+  await expect(
+    teacher.getByText(/^Families of \d+ of \d+ children see this report/),
+  ).toBeVisible();
+
+  await teacher.getByRole("button", { name: "End-of-year return" }).click();
+  const sheet = teacher.getByRole("dialog", { name: "EYFS profile return" });
+  await sheet
+    .getByRole("textbox", { name: "Local authority number" })
+    .fill("801");
+  await sheet
+    .getByRole("textbox", { name: "Establishment number" })
+    .fill("2000");
+  const download = teacher.waitForEvent("download");
+  await sheet.getByRole("button", { name: "Download the return" }).click();
+  expect((await download).suggestedFilename()).toBe(
+    "8012000_FSP_801LLLL_001.xml",
+  );
+  await expect(sheet.getByRole("status")).toBeVisible();
+  await teacher.keyboard.press("Escape");
+
+  // The family reads the report, in the goals' own words, without the notes.
+  const home = await browser.newContext();
+  const family = await home.newPage();
+  await signInWith(
+    family,
+    "parent1020@northwind.example.com",
+    PASSWORD,
+    "/family",
+    school,
+  );
+  await family.goto(`${portal(school)}/family/grades`);
+  await untilHydrated(family);
+  await expect(
+    family.getByRole("heading", { name: "Early learning goals", level: 2 }),
+  ).toBeVisible();
+  await expect(
+    family.getByRole("region", { name: "EYFS early learning goals" }),
+  ).toContainText(goal);
+
+  await teacher.getByRole("button", { name: "Stop sharing" }).click();
+  await expect(
+    teacher.getByRole("button", { name: "Share the report with families" }),
+  ).toBeVisible();
+  await section
+    .getByRole("button", { name: /^Note or exemption for / })
+    .first()
+    .click();
+  await section
+    .getByRole("checkbox", { name: /^Exemption applies: / })
+    .first()
+    .uncheck();
+  await expect(section).toContainText(/0 expected, 0 emerging/);
+  await home.close();
+  await context.close();
+});
+
+test("a school adds Development Matters to follow younger children", async ({
+  page,
+}) => {
+  await signInWith(
+    page,
+    "principal.northwind@northwind.example.com",
+    PASSWORD,
+    "/today",
+  );
+  await page.goto("/standards");
+  await untilHydrated(page);
+  await page.getByRole("button", { name: "More actions" }).click();
+  await page.getByRole("menuitem", { name: "Add Development Matters" }).click();
+  await expect(
+    page.getByRole("heading", { name: "Development Matters", level: 1 }),
+  ).toBeVisible();
+  await expect(
+    page.getByText("Development Matters, the DfE's guidance"),
+  ).toBeVisible();
+});

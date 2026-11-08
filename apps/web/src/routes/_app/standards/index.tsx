@@ -6,7 +6,15 @@ import { PageHeader } from "@faridalms/ui/system/page-header";
 import { useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
-import { FileUp, Flag, Grid3x3, Lightbulb, ListTree, Plus } from "lucide-react";
+import {
+  FileUp,
+  Flag,
+  Grid3x3,
+  Lightbulb,
+  ListTree,
+  Plus,
+  Sprout,
+} from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 
@@ -17,7 +25,11 @@ import {
 } from "~/components/standards/Standards";
 import * as m from "~/i18n/messages";
 import { frameworksQuery } from "~/queries/standards";
-import { addEarlyGoals, addIbConcepts } from "~/server/standards";
+import {
+  addDevelopmentMatters,
+  addEarlyGoals,
+  addIbConcepts,
+} from "~/server/standards";
 import { formatNumber } from "~/utils/datetime";
 
 type Data = Awaited<
@@ -83,6 +95,7 @@ function FrameworksPage() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const addGoals = useServerFn(addEarlyGoals);
+  const addMatters = useServerFn(addDevelopmentMatters);
   const addConcepts = useServerFn(addIbConcepts);
   const [sheet, setSheet] = useState<"new" | "import" | null>(null);
   const [key, setKey] = useState(0);
@@ -128,6 +141,17 @@ function FrameworksPage() {
                   icon: Flag,
                   onSelect: async () => {
                     const added = await addGoals();
+                    await queryClient.invalidateQueries({
+                      queryKey: ["standards"],
+                    });
+                    await go(added.id);
+                  },
+                },
+                {
+                  label: m.goalsAddMatters(),
+                  icon: Sprout,
+                  onSelect: async () => {
+                    const added = await addMatters();
                     await queryClient.invalidateQueries({
                       queryKey: ["standards"],
                     });

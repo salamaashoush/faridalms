@@ -23,7 +23,7 @@ import { ProjectChecks, ProjectNotes } from "~/components/coding/ProjectChecks";
 import { ProjectStudio } from "~/components/coding/ProjectStudio";
 import { WebProjectView } from "~/components/coding/WebProjectView";
 import { displayName } from "~/components/people/format";
-import { GOAL_LEVEL, goalName } from "~/components/standards/Goals";
+import { GOAL_LEVEL, GoalMark, goalName } from "~/components/standards/Goals";
 import * as m from "~/i18n/messages";
 import { getLocale } from "~/i18n/runtime";
 import { writtenAnswersQuery } from "~/queries/learning";
@@ -89,17 +89,22 @@ function GoalJudge({ goal, level, name, onJudge }: GoalJudgeProps) {
       <span dir="auto" className="min-w-0 flex-1 basis-48 text-sm leading-5">
         {goalName(goal)}
       </span>
-      <Segmented<LevelChoice>
-        label={m.goalsLevelOn({ name, goal: goal.statement })}
-        value={shown ?? "none"}
-        options={LEVEL_CHOICES.map((value) => ({
-          value,
-          label:
-            value === "none" ? m.goalsNotJudged() : GOAL_LEVEL[value].label(),
-        }))}
-        onChange={(picked) => save.mutate(picked === "none" ? null : picked)}
-        className="w-full flex-nowrap sm:w-80"
-      />
+      {shown === "exempt" ? (
+        // An exemption is recorded on the class's Goals tab, never from an answer.
+        <GoalMark level={shown} />
+      ) : (
+        <Segmented<LevelChoice>
+          label={m.goalsLevelOn({ name, goal: goal.statement })}
+          value={shown ?? "none"}
+          options={LEVEL_CHOICES.map((value) => ({
+            value,
+            label:
+              value === "none" ? m.goalsNotJudged() : GOAL_LEVEL[value].label(),
+          }))}
+          onChange={(picked) => save.mutate(picked === "none" ? null : picked)}
+          className="w-full flex-nowrap sm:w-80"
+        />
+      )}
     </li>
   );
 }

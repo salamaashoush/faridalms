@@ -236,6 +236,8 @@ export function getMessageFromError(error: unknown): string {
         return m.errorStandardsEvidence();
       case "standards.judgement_exists":
         return m.errorStandardsJudgement();
+      case "standards.report_exists":
+        return m.errorStandardsReport();
       case "learning.audience":
         return m.errorLearningAudience();
       case "learning.targets_needed":

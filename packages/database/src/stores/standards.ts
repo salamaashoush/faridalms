@@ -146,6 +146,8 @@ export interface StandardRow {
   statement: string;
   itemType: string;
   position: number;
+  /** The CASE identifier of an imported or ready-made item. */
+  caseIdentifier: string | null;
 }
 
 type StandardRecord = {
@@ -157,6 +159,7 @@ type StandardRecord = {
   statement: string;
   item_type: string;
   position: number;
+  case_identifier: string | null;
 };
 
 const standardOf = (row: StandardRecord): StandardRow => ({
@@ -168,9 +171,11 @@ const standardOf = (row: StandardRecord): StandardRow => ({
   statement: row.statement,
   itemType: row.item_type,
   position: row.position,
+  caseIdentifier: row.case_identifier,
 });
 
-const standardColumns = sql`id, version, framework_id, parent_id, code, statement, item_type, position`;
+const standardColumns = sql`id, version, framework_id, parent_id, code, statement, item_type, position,
+  case_identifier`;
 
 /** Every standard of a framework, siblings in order. */
 export async function standardsOf(
@@ -633,6 +638,103 @@ export async function evidenceOfStudents(
   return rows.map(evidenceOf);
 }
 
+/** The work a judgement or a right answer came from: a lesson's question or a quiz's. */
+export type GoalWork =
+  | { lessonId: string; blockId: string }
+  | { submissionId: string; blockId: string };
+
+/** A student's latest right answer to a question tagged with a standard. */
+export interface RightAnswerRow {
+  studentId: string;
+  standardId: string;
+  work: GoalWork;
+  /** The lesson's title, or the quiz's. */
+  title: string;
+  answeredAt: string;
+}
+
+/**
+ * Each student's latest full-marks answer on each standard named, from a
+ * lesson of one of the class's modules or a quiz set to the class.
+ */
+export async function rightAnswersOf(
+  tx: Tx,
+  input: {
+    tenantId: string;
+    classId: string;
+    studentIds: readonly string[];
+    standardIds: readonly string[];
+  },
+): Promise<RightAnswerRow[]> {
+  if (input.studentIds.length === 0 || input.standardIds.length === 0)
+    return [];
+  const rows = await tx.execute<{
+    student_user_id: string;
+    standard_id: string;
+    lesson_id: string | null;
+    submission_id: string | null;
+    block_id: string;
+    title: string;
+    answered_at: string;
+  }>(sql`
+    select distinct on (e.student_user_id, e.standard_id)
+      e.student_user_id, e.standard_id, e.lesson_id, e.submission_id, e.block_id,
+      coalesce(l.title, a.title) as title, ${isoOf(sql`e.answered_at`)} as answered_at
+    from core.standard_evidence e
+    left join core.lessons l on l.tenant_id = e.tenant_id and l.id = e.lesson_id
+      and l.status = 'active'
+      and exists (select 1 from core.module_classes mc
+        where mc.tenant_id = l.tenant_id and mc.module_id = l.module_id
+          and mc.class_id = ${input.classId}::uuid and mc.status = 'active')
+    left join core.submissions sb on sb.tenant_id = e.tenant_id and sb.id = e.submission_id
+    left join core.assignments a on a.tenant_id = sb.tenant_id and a.id = sb.assignment_id
+      and a.class_id = ${input.classId}::uuid and a.status = 'active'
+    where e.tenant_id = ${input.tenantId}::uuid and e.status = 'active'
+      and e.source in ('lesson', 'quiz') and e.fraction >= 1
+      and e.student_user_id = any(${uuidArray(input.studentIds)})
+      and e.standard_id = any(${uuidArray(input.standardIds)})
+      and coalesce(l.id, a.id) is not null
+    order by e.student_user_id, e.standard_id, e.answered_at desc`);
+  return rows.flatMap((row) => {
+    const work: GoalWork | null = row.lesson_id
+      ? { lessonId: row.lesson_id, blockId: row.block_id }
+      : row.submission_id
+        ? { submissionId: row.submission_id, blockId: row.block_id }
+        : null;
+    return work
+      ? [
+          {
+            studentId: row.student_user_id,
+            standardId: row.standard_id,
+            work,
+            title: row.title,
+            answeredAt: row.answered_at,
+          },
+        ]
+      : [];
+  });
+}
+
+/** Whether a submission is the student's, to a quiz set to the class. */
+export async function isClassQuizOf(
+  tx: Tx,
+  input: {
+    tenantId: string;
+    submissionId: string;
+    studentId: string;
+    classId: string;
+  },
+): Promise<boolean> {
+  const [row] = await tx.execute<{ id: string }>(sql`
+    select sb.id from core.submissions sb
+    join core.assignments a on a.tenant_id = sb.tenant_id and a.id = sb.assignment_id
+      and a.class_id = ${input.classId}::uuid and a.status = 'active'
+      and a.submission_format = 'quiz'
+    where sb.tenant_id = ${input.tenantId}::uuid and sb.id = ${input.submissionId}::uuid
+      and sb.student_user_id = ${input.studentId}::uuid`);
+  return row !== undefined;
+}
+
 /** One sitting a student's mastery of a standard was worked out from. */
 export interface SittingRow {
   source: EvidenceSource;
@@ -804,6 +906,13 @@ export interface JudgementRow {
   level: GoalLevel;
   note: string;
   lesson: { id: string; title: string; blockId: string } | null;
+  /** The quiz it was judged from, with the child's submission to it. */
+  quiz: {
+    id: string;
+    title: string;
+    submissionId: string;
+    blockId: string;
+  } | null;
   judgedByUserId: string;
   judgedAt: string;
 }
@@ -816,6 +925,9 @@ type JudgementRecord = {
   note: string;
   lesson_id: string | null;
   lesson_title: string | null;
+  submission_id: string | null;
+  assignment_id: string | null;
+  assignment_title: string | null;
   block_id: string | null;
   judged_by_user_id: string;
   judged_at: string;
@@ -830,6 +942,18 @@ const judgementOf = (row: JudgementRecord): JudgementRow => ({
   lesson:
     row.lesson_id && row.lesson_title !== null && row.block_id
       ? { id: row.lesson_id, title: row.lesson_title, blockId: row.block_id }
+      : null,
+  quiz:
+    row.submission_id &&
+    row.assignment_id &&
+    row.assignment_title !== null &&
+    row.block_id
+      ? {
+          id: row.assignment_id,
+          title: row.assignment_title,
+          submissionId: row.submission_id,
+          blockId: row.block_id,
+        }
       : null,
   judgedByUserId: row.judged_by_user_id,
   judgedAt: row.judged_at,
@@ -852,7 +976,8 @@ export async function judgementsOf(
     return [];
   const rows = await tx.execute<JudgementRecord>(sql`
     select j.student_user_id, j.standard_id, s.framework_id, j.level, j.note, j.lesson_id,
-      l.title as lesson_title, j.block_id, j.judged_by_user_id,
+      l.title as lesson_title, j.submission_id, a.id as assignment_id,
+      a.title as assignment_title, j.block_id, j.judged_by_user_id,
       ${isoOf(sql`j.judged_at`)} as judged_at
     from core.goal_judgements j
     join core.standards s on s.tenant_id = j.tenant_id and s.id = j.standard_id and s.status = 'active'
@@ -860,6 +985,9 @@ export async function judgementsOf(
       and f.status = 'active' and f.org_id = ${input.orgId}::uuid
     left join core.lessons l on l.tenant_id = j.tenant_id and l.id = j.lesson_id
       and l.status = 'active'
+    left join core.submissions sb on sb.tenant_id = j.tenant_id and sb.id = j.submission_id
+    left join core.assignments a on a.tenant_id = sb.tenant_id and a.id = sb.assignment_id
+      and a.status = 'active'
     where j.tenant_id = ${input.tenantId}::uuid and j.status = 'active'
       and j.student_user_id = any(${uuidArray(input.studentIds)})
       ${input.standardIds ? sql`and j.standard_id = any(${uuidArray(input.standardIds)})` : sql``}
@@ -881,22 +1009,27 @@ export async function judgeGoal(
     standardId: string;
     level: GoalLevel;
     note?: string;
-    from?: { lessonId: string; blockId: string };
+    from?: GoalWork;
     judgedByUserId: string;
   },
 ): Promise<void> {
   const keep = input.from === undefined;
   const keepNote = input.note === undefined;
+  const lessonId =
+    input.from && "lessonId" in input.from ? input.from.lessonId : null;
+  const submissionId =
+    input.from && "submissionId" in input.from ? input.from.submissionId : null;
   await tx.execute(sql`
     insert into core.goal_judgements (tenant_id, student_user_id, standard_id, level, note,
-      lesson_id, block_id, judged_by_user_id, judged_at)
+      lesson_id, submission_id, block_id, judged_by_user_id, judged_at)
     values (${input.tenantId}::uuid, ${input.studentId}::uuid, ${input.standardId}::uuid,
-      ${input.level}, ${input.note ?? ""}, ${input.from?.lessonId ?? null}::uuid,
+      ${input.level}, ${input.note ?? ""}, ${lessonId}::uuid, ${submissionId}::uuid,
       ${input.from?.blockId ?? null}::uuid, ${input.judgedByUserId}::uuid, statement_timestamp())
     on conflict (tenant_id, student_user_id, standard_id) where status = 'active'
     do update set level = excluded.level,
       note = ${keepNote ? sql`core.goal_judgements.note` : sql`excluded.note`},
       lesson_id = ${keep ? sql`core.goal_judgements.lesson_id` : sql`excluded.lesson_id`},
+      submission_id = ${keep ? sql`core.goal_judgements.submission_id` : sql`excluded.submission_id`},
       block_id = ${keep ? sql`core.goal_judgements.block_id` : sql`excluded.block_id`},
       judged_by_user_id = excluded.judged_by_user_id, judged_at = excluded.judged_at`);
 }
@@ -910,4 +1043,129 @@ export async function clearJudgement(
     update core.goal_judgements set status = 'tobedeleted'
     where tenant_id = ${input.tenantId}::uuid and student_user_id = ${input.studentId}::uuid
       and standard_id = ${input.standardId}::uuid and status = 'active'`);
+}
+
+/** A framework's goals report as shared with one child's family. */
+export interface GoalReportRow {
+  studentId: string;
+  frameworkId: string;
+  sharedAt: string;
+}
+
+/**
+ * Shares the students' reports against a framework with their families,
+ * or shares them again, which moves when they were shared to now.
+ */
+export async function shareReports(
+  tx: Tx,
+  input: {
+    tenantId: string;
+    frameworkId: string;
+    studentIds: readonly string[];
+    sharedByUserId: string;
+  },
+): Promise<void> {
+  if (input.studentIds.length === 0) return;
+  await tx.execute(sql`
+    insert into core.goal_reports (tenant_id, student_user_id, framework_id, shared_by_user_id,
+      shared_at)
+    select ${input.tenantId}::uuid, student, ${input.frameworkId}::uuid,
+      ${input.sharedByUserId}::uuid, statement_timestamp()
+    from unnest(${uuidArray(input.studentIds)}) as student
+    on conflict (tenant_id, student_user_id, framework_id) where status = 'active'
+    do update set shared_by_user_id = excluded.shared_by_user_id,
+      shared_at = excluded.shared_at`);
+}
+
+/** Takes the students' reports against a framework back from their families. */
+export async function withdrawReports(
+  tx: Tx,
+  input: {
+    tenantId: string;
+    frameworkId: string;
+    studentIds: readonly string[];
+  },
+): Promise<void> {
+  if (input.studentIds.length === 0) return;
+  await tx.execute(sql`
+    update core.goal_reports set status = 'tobedeleted'
+    where tenant_id = ${input.tenantId}::uuid and framework_id = ${input.frameworkId}::uuid
+      and student_user_id = any(${uuidArray(input.studentIds)}) and status = 'active'`);
+}
+
+/** The reports shared with the students' families, against the school's frameworks. */
+export async function reportsOf(
+  tx: Tx,
+  input: {
+    tenantId: string;
+    orgId: string;
+    studentIds: readonly string[];
+  },
+): Promise<GoalReportRow[]> {
+  if (input.studentIds.length === 0) return [];
+  const rows = await tx.execute<{
+    student_user_id: string;
+    framework_id: string;
+    shared_at: string;
+  }>(sql`
+    select r.student_user_id, r.framework_id, ${isoOf(sql`r.shared_at`)} as shared_at
+    from core.goal_reports r
+    join core.standard_frameworks f on f.tenant_id = r.tenant_id and f.id = r.framework_id
+      and f.status = 'active' and f.org_id = ${input.orgId}::uuid
+    where r.tenant_id = ${input.tenantId}::uuid and r.status = 'active'
+      and r.student_user_id = any(${uuidArray(input.studentIds)})
+    order by f.title, r.framework_id`);
+  return rows.map((row) => ({
+    studentId: row.student_user_id,
+    frameworkId: row.framework_id,
+    sharedAt: row.shared_at,
+  }));
+}
+
+/** What the EYFS profile return carries of a child, as their record holds it. */
+export interface ReturnPupilRow {
+  id: string;
+  givenName: string | null;
+  familyName: string | null;
+  fullName: string | null;
+  birthDate: string | null;
+  /** female, male or not_selected, as the sex descriptor means it. */
+  sex: string | null;
+  /** The number the education ministry gives them: in England, the UPN. */
+  ministryId: string | null;
+}
+
+export async function returnPupilsOf(
+  tx: Tx,
+  input: { tenantId: string; studentIds: readonly string[]; on: string },
+): Promise<ReturnPupilRow[]> {
+  if (input.studentIds.length === 0) return [];
+  const rows = await tx.execute<{
+    id: string;
+    given_name_en: string | null;
+    family_name_en: string | null;
+    full_name_en: string | null;
+    birth_date: string | null;
+    sex: string | null;
+    ministry_id: string | null;
+  }>(sql`
+    select u.id, u.given_name_en, u.family_name_en, u.full_name_en,
+      u.birth_date::text as birth_date, d.system_meaning as sex,
+      (select x.identifier from core.external_ids x
+        where x.tenant_id = u.tenant_id and x.user_id = u.id and x.status = 'active'
+          and x.system_meaning = 'ministry_id' and x.valid_during @> ${input.on}::date
+        order by lower(x.valid_during) desc limit 1) as ministry_id
+    from core.users u
+    left join core.descriptors d on d.tenant_id = u.tenant_id and d.id = u.sex_descriptor_id
+    where u.tenant_id = ${input.tenantId}::uuid and u.id = any(${uuidArray(input.studentIds)})
+    order by u.family_name_en, u.given_name_en, u.full_name_en, u.id`);
+  return rows.map((row) => ({
+    id: row.id,
+    givenName: row.given_name_en,
+    familyName: row.family_name_en,
+    fullName: row.full_name_en,
+    birthDate: row.birth_date,
+    sex: row.sex,
+    ministryId: row.ministry_id,
+  }));
 }

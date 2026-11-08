@@ -1,8 +1,17 @@
+import type { GoalLevel } from "@faridalms/domain/standards";
+
 import { plainContent } from "@faridalms/domain/content-conversion";
 import { contentOfLesson } from "@faridalms/domain/lesson-content";
 import { describe, expect, test } from "bun:test";
 
-import { client, login, rejection, seeded, signedIn } from "./harness";
+import {
+  client,
+  login,
+  rejection,
+  seeded,
+  sessionFor,
+  signedIn,
+} from "./harness";
 
 const principal = () => signedIn("northwind", login("principal"));
 const teacher = () => signedIn("northwind", login("teacher", 0, 1));
@@ -697,5 +706,306 @@ describe("early learning goals", () => {
       standardId: writing,
       level: null,
     });
+  });
+
+  test("a right answer to a quiz question tagged with a goal waits for its teacher to confirm", async () => {
+    const school = seeded().tenants[0]?.schools.find(
+      (row) => row.slug === YOUNG,
+    );
+    const logins = seeded().tenants[0]?.logins ?? [];
+    const head = logins.find(
+      (row) => row.role === "principal" && row.schoolId === school?.id,
+    )?.loginName;
+    const name = logins.find(
+      (row) => row.role === "teacher" && row.schoolId === school?.id,
+    )?.loginName;
+    if (!head || !name) throw new Error("the seed lacks the young school");
+    const { added, goal } = await earlyGoals(YOUNG, head);
+    const number = goal("Number").id;
+
+    const staff = await signedIn(YOUNG, name);
+    const homeroom = (await staff.classes.mine({})).rows.find(
+      (row) => row.classType === "homeroom",
+    );
+    if (!homeroom) throw new Error("the young teacher keeps no homeroom");
+    const { students } = await staff.badges.classBadges({
+      classId: homeroom.id,
+    });
+    const child = students[0];
+    if (!child) throw new Error("an empty young homeroom");
+    const { badges } = await staff.badges.issueBadges({
+      classId: homeroom.id,
+      studentIds: [child.userId],
+    });
+    const { token } = await client(YOUNG).identity.badgeSignIn({
+      secret: badges[0]?.secret ?? "",
+    });
+    const pupil = client(YOUNG, token);
+
+    const saved = await staff.learning.saveModule({
+      id: "",
+      expectedVersion: 0,
+      title: `Counting ${crypto.randomUUID().slice(0, 6)}`,
+      summary: "",
+      classIds: [homeroom.id],
+      prerequisiteId: "",
+      sequential: false,
+    });
+    const three = crypto.randomUUID();
+    const question = {
+      id: crypto.randomUUID(),
+      type: "choice" as const,
+      prompt: "How many ducks?",
+      points: 1,
+      hints: [],
+      explanation: "",
+      tries: null,
+      options: [
+        { id: three, text: "3", feedback: "" },
+        { id: crypto.randomUUID(), text: "5", feedback: "" },
+      ],
+      correctOptionIds: [three],
+      multiple: false,
+      shuffle: false,
+      standards: [number],
+    };
+    const content = contentOfLesson({ version: 2, blocks: [question] });
+    if (!content) throw new Error("the lesson could not be written");
+    const lesson = await staff.learning.saveLesson({
+      id: "",
+      moduleId: saved.id,
+      expectedVersion: 0,
+      title: "Ducks on the pond",
+      completion: "view",
+      passScore: null,
+      content,
+      publish: false,
+    });
+    await staff.learning.publishModule({
+      id: saved.id,
+      expectedVersion: saved.version,
+    });
+    const goals = () =>
+      staff.standards.classGoals({
+        classId: homeroom.id,
+        frameworkId: added.id,
+      });
+    expect((await goals()).evidence).toEqual([]);
+
+    await pupil.learning.playLesson({ id: lesson.id });
+    await pupil.learning.respond({
+      lessonId: lesson.id,
+      blockId: question.id,
+      response: { type: "choice", optionIds: [three] },
+    });
+    // The right answer is evidence only: nothing is judged until the
+    // teacher confirms it.
+    const waiting = await goals();
+    expect(waiting.evidence).toEqual([
+      {
+        studentId: child.userId,
+        standardId: number,
+        work: { lessonId: lesson.id, blockId: question.id },
+        title: "Ducks on the pond",
+        answeredAt: expect.any(String),
+      },
+    ]);
+    expect(
+      waiting.judgements.filter((row) => row.studentId === child.userId),
+    ).toEqual([]);
+
+    await staff.standards.judgeGoal({
+      classId: homeroom.id,
+      studentId: child.userId,
+      standardId: number,
+      level: "expected",
+      from: { lessonId: lesson.id, blockId: question.id },
+    });
+    const confirmed = await goals();
+    expect(confirmed.evidence).toEqual([]);
+    expect(
+      confirmed.judgements.find((row) => row.standardId === number),
+    ).toMatchObject({
+      level: "expected",
+      lesson: { id: lesson.id, title: "Ducks on the pond" },
+      quiz: null,
+    });
+    // Judged emerging after it, the answer is not offered again.
+    await staff.standards.judgeGoal({
+      classId: homeroom.id,
+      studentId: child.userId,
+      standardId: number,
+      level: "emerging",
+    });
+    expect((await goals()).evidence).toEqual([]);
+    // Only a quiz set to the class is what a judgement is from.
+    expect(
+      await rejection(
+        staff.standards.judgeGoal({
+          classId: homeroom.id,
+          studentId: child.userId,
+          standardId: number,
+          level: "expected",
+          from: { submissionId: crypto.randomUUID(), blockId: question.id },
+        }),
+      ),
+    ).toMatchObject({ code: "NOT_FOUND" });
+
+    await staff.standards.judgeGoal({
+      classId: homeroom.id,
+      studentId: child.userId,
+      standardId: number,
+      level: null,
+    });
+  });
+
+  test("an exemption, a report the family reads in their language, and the end-of-year return", async () => {
+    const { office, added, goal } = await earlyGoals(
+      "northwind",
+      login("principal"),
+    );
+    const family = await sessionFor("northwind", login("parent"));
+    const own = (await family.api.home.family({})).children[0]?.studentId ?? "";
+    let theirs = "";
+    for (const row of (await office.classes.directory({})).rows)
+      if (
+        (await office.classes.record({ id: row.id, on: "" })).roster.some(
+          (sitting) => sitting.userId === own,
+        )
+      )
+        theirs = row.id;
+    const speaking = goal("Speaking").id;
+    const writing = goal("Writing").id;
+    const judge = (standardId: string, level: GoalLevel | null) =>
+      office.standards.judgeGoal({
+        classId: theirs,
+        studentId: own,
+        standardId,
+        level,
+        ...(level === "expected" ? { note: "Talks in full sentences." } : {}),
+      });
+    await judge(speaking, "expected");
+    await judge(writing, "exempt");
+    const goals = () =>
+      office.standards.classGoals({ classId: theirs, frameworkId: added.id });
+    const before = await goals();
+    expect(before).toMatchObject({
+      returnable: true,
+      report: { shared: 0, sharedAt: null },
+    });
+    expect(
+      before.judgements.find((row) => row.standardId === writing),
+    ).toMatchObject({ level: "exempt" });
+
+    // Nothing reaches the family until a teacher shares it.
+    expect(await family.api.standards.goalsReport({ studentId: own })).toEqual({
+      reports: [],
+    });
+    await office.standards.shareGoalsReport({
+      classId: theirs,
+      frameworkId: added.id,
+      shared: true,
+    });
+    const shared = await goals();
+    expect(shared.report.shared).toBe(shared.students.length);
+    expect(shared.report.sharedAt).toEqual(expect.any(String));
+
+    const report = await family.api.standards.goalsReport({ studentId: own });
+    expect(report.reports).toHaveLength(1);
+    expect(report.reports[0]).toMatchObject({
+      id: added.id,
+      title: "EYFS early learning goals",
+    });
+    expect(report.reports[0]?.goals).toHaveLength(24);
+    expect(report.reports[0]?.levels).toEqual(
+      expect.arrayContaining([
+        { standardId: speaking, level: "expected" },
+        { standardId: writing, level: "exempt" },
+      ]),
+    );
+    // The teacher's notes stay with staff.
+    expect(JSON.stringify(report)).not.toContain("full sentences");
+    const arabic = await client(
+      "northwind",
+      family.token,
+      "ar",
+    ).standards.goalsReport({ studentId: own });
+    expect(arabic.reports[0]?.title).toBe("أهداف التعلّم المبكر في EYFS");
+    expect(
+      arabic.reports[0]?.goals.find((row) => row.id === speaking)?.statement,
+    ).toBe("التحدّث");
+
+    // The return codes each goal as the local authority reads it.
+    const made = await office.standards.goalsReturn({
+      classId: theirs,
+      la: "801",
+      estab: "2000",
+      urn: "",
+    });
+    expect(made.fileName).toBe("8012000_FSP_801LLLL_001.xml");
+    expect(made.file).toContain("<DataQualifier>FSP</DataQualifier>");
+    expect(made.file).toMatch(
+      /<Component>E02<\/Component>\s*<ResultStatus>R<\/ResultStatus>\s*<ResultQualifier>FD<\/ResultQualifier>\s*<Result>2<\/Result>/,
+    );
+    expect(made.file).toMatch(
+      /<Component>E10<\/Component>[\s\S]*?<Result>A<\/Result>/,
+    );
+    expect(made.gaps.find((row) => row.studentId === own)?.gaps).toContain(
+      "results",
+    );
+    expect(
+      await rejection(
+        office.standards.goalsReturn({
+          classId: theirs,
+          la: "80",
+          estab: "2000",
+          urn: "",
+        }),
+      ),
+    ).toMatchObject({ code: "BAD_REQUEST" });
+
+    await office.standards.shareGoalsReport({
+      classId: theirs,
+      frameworkId: added.id,
+      shared: false,
+    });
+    expect(await family.api.standards.goalsReport({ studentId: own })).toEqual({
+      reports: [],
+    });
+    expect(
+      await rejection(
+        family.api.standards.shareGoalsReport({
+          classId: theirs,
+          frameworkId: added.id,
+          shared: true,
+        }),
+      ),
+    ).toMatchObject({ code: "FORBIDDEN" });
+    await judge(speaking, null);
+    await judge(writing, null);
+  });
+
+  test("a school adds Development Matters to follow younger children", async () => {
+    const office = await principal();
+    const added = await office.standards.addDevelopmentMatters();
+    expect((await office.standards.addDevelopmentMatters()).id).toBe(added.id);
+    const { framework, standards } = await office.standards.framework({
+      id: added.id,
+    });
+    expect(framework.title).toBe("Development Matters");
+    const kinds = (itemType: string) =>
+      standards.filter((row) => row.itemType === itemType);
+    expect(kinds("Area of learning")).toHaveLength(7);
+    expect(kinds("Age band")).toHaveLength(21);
+    expect(kinds("Statement")).toHaveLength(298);
+    const reception = kinds("Age band").find(
+      (row) =>
+        row.statement === "Children in reception" &&
+        row.parentId === kinds("Area of learning")[0]?.id,
+    );
+    expect(
+      standards.filter((row) => row.parentId === reception?.id),
+    ).toHaveLength(17);
+    await office.standards.removeFramework({ id: added.id });
   });
 });

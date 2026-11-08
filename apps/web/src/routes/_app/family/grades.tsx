@@ -10,11 +10,12 @@ import * as v from "valibot";
 
 import { StudentGrades } from "~/components/coursework/StudentGrades";
 import { displayName } from "~/components/people/format";
+import { GoalsReport } from "~/components/standards/Goals";
 import { SkillsSection } from "~/components/standards/Progress";
 import { useCurrentUser } from "~/hooks/useCurrentUser";
 import * as m from "~/i18n/messages";
 import { studentGradesQuery } from "~/queries/gradebook";
-import { studentProgressQuery } from "~/queries/standards";
+import { goalsReportQuery, studentProgressQuery } from "~/queries/standards";
 import { personRecordQuery } from "~/queries/students";
 import { currentUserQuery } from "~/queries/user";
 
@@ -34,6 +35,9 @@ export const Route = createFileRoute("/_app/family/grades")({
         context.queryClient.ensureQueryData(studentGradesQuery(child)),
         user.modules.standards
           ? context.queryClient.ensureQueryData(studentProgressQuery(child))
+          : null,
+        user.modules.standards
+          ? context.queryClient.ensureQueryData(goalsReportQuery(child))
           : null,
       ]);
   },
@@ -67,6 +71,9 @@ function FamilyGradesPage() {
         <div className="grid gap-6">
           {children.length > 1 ? <IndexToolbar facets={[childFacet]} /> : null}
           <div className="grid gap-10">
+            {user.modules.standards ? (
+              <GoalsReport studentId={current} />
+            ) : null}
             <StudentGrades studentId={current} />
             {user.modules.standards ? (
               <SkillsSection studentId={current} />

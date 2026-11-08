@@ -6,6 +6,7 @@ import {
   getCurriculumMap,
   getFramework,
   getFrameworks,
+  getGoalsReport,
   getStandardSittings,
   getStudentProgress,
 } from "~/server/standards";
@@ -46,6 +47,13 @@ export const standardSittingsQuery = (studentId: string, standardId: string) =>
   queryOptions({
     queryKey: ["standards", "sittings", studentId, standardId],
     queryFn: () => getStandardSittings({ data: { studentId, standardId } }),
+  });
+
+/** One child's goals reports, as their family reads them. */
+export const goalsReportQuery = (studentId: string) =>
+  queryOptions({
+    queryKey: ["standards", "report", studentId],
+    queryFn: () => getGoalsReport({ data: { studentId } }),
   });
 
 export const classGoalsQuery = (classId: string, frameworkId: string) =>

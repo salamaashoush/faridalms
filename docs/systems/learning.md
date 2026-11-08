@@ -249,6 +249,45 @@ From [../research/early-years.md](../research/early-years.md).
   they are; the settings can still change, and a clock already running
   keeps the time it began with.
 
+## Early learning goals
+
+- A school adds a ready-made framework of goals in one step, from
+  Standards or a young class's empty Goals tab: the seventeen EYFS early
+  learning goals under their seven areas, or Development Matters, the
+  Department for Education's guidance for younger children, as its seven
+  areas, three age bands each (birth to three, three and four, Reception)
+  and the 298 "children will be learning to" statements worded as printed
+  (September 2023 revision, Crown copyright under the Open Government
+  Licence v3.0, the guidance's page 128). Adding either again brings the
+  school's copy back to it.
+- A young class's teacher judges each child expected or emerging per goal
+  on the Goals tab, best fit from all they know of the child. Behind the
+  note button sits "Exemption applies", the profile's code A: only for an
+  individual exemption on religious or philosophical grounds, never for
+  absence, illness or special needs, which are judged emerging.
+- A question tagged with a goal gives evidence, never a judgement. A
+  child's latest full-marks answer to one, in a lesson of the class's
+  modules or a quiz set to the class, shows under them on that goal with
+  "Confirm expected"; confirming records the judgement linked to the answer
+  (the lesson, or the child's own quiz submission). The answer is offered
+  until the goal is judged expected or exempt, or judged emerging after it.
+- The teacher shares the class's report on a framework with its families,
+  and may take it back. While shared, a guardian reads it on the family
+  Grades page: every goal with where the child stands, never the notes or
+  the work behind a judgement; in Arabic, the EYFS goals and Development
+  Matters' areas and bands read in Arabic, its statements in the guidance's
+  English. Sharing again reaches children who joined since.
+- On the EYFS goals the Goals tab makes the end-of-year return: the
+  partial Common Transfer File (data type FSP, CTF 25 for 2026, 26 from 2027) a school gives its local authority, each child's goals as
+  stage assessments (stage EYF, method FA, qualifier FD, result 1, 2 or A,
+  components E01 to E17 as the A_comp file gives them). The teacher enters
+  the authority and establishment numbers; the UPN is the child's ministry
+  number, names, date of birth and sex come from their record, and what a
+  child still lacks for the authority to accept it is listed. Each export
+  is audited.
+- Judgements, the reports shared and their links are erased with the
+  child.
+
 ## Next
 
 What lessons, quizzes and the editor still lack, and the order of work, is

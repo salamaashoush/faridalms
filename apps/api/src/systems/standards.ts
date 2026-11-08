@@ -1,4 +1,6 @@
 import type { ContentDocument } from "@faridalms/domain/content";
+import type { GoalItem } from "@faridalms/domain/early-goals";
+import type { GoalLevel } from "@faridalms/domain/standards";
 
 import { changeOf } from "@faridalms/database/audit";
 import { classById, rosterOf } from "@faridalms/database/stores/classes";
@@ -19,6 +21,7 @@ import {
   insertFramework,
   insertObservation,
   insertStandard,
+  isClassQuizOf,
   isWithin,
   judgeGoal as recordJudgement,
   judgementsOf,
@@ -27,27 +30,44 @@ import {
   removeFramework as dropFramework,
   removeObservation as dropObservation,
   removeStandard,
+  reportsOf,
+  returnPupilsOf,
+  rightAnswersOf,
   searchStandards,
+  shareReports,
   sittingsOfStandard,
   standardById,
   standardsByIds,
   standardsOf,
   updateFramework,
   updateStandard,
+  withdrawReports,
 } from "@faridalms/database/stores/standards";
 import {
   dayIn,
   schoolYears,
   workingYear,
 } from "@faridalms/database/stores/years";
-import { EYFS_GOALS } from "@faridalms/domain/early-goals";
+import {
+  DEVELOPMENT_MATTERS,
+  DEVELOPMENT_MATTERS_ARABIC,
+} from "@faridalms/domain/development-matters";
+import { EYFS_GOALS, EYFS_GOALS_ARABIC } from "@faridalms/domain/early-goals";
+import {
+  eyfspReturn,
+  returnFileName,
+  returnGaps,
+} from "@faridalms/domain/eyfsp";
 import { IB_CONCEPTS } from "@faridalms/domain/ib-concepts";
 import {
+  awaitsConfirming,
   caseOutline,
   classGoalsSchema,
   classProgressSchema,
   curriculumMapSchema,
   describeStandardsSchema,
+  goalsReportSchema,
+  goalsReturnSchema,
   importCaseSchema,
   judgeGoalSchema,
   masteryOf,
@@ -59,6 +79,7 @@ import {
   saveFrameworkSchema,
   saveStandardSchema,
   searchStandardsSchema,
+  shareGoalsReportSchema,
   sittingsSchema,
   studentProgressSchema,
 } from "@faridalms/domain/standards";
@@ -69,6 +90,7 @@ import type { UnitContext } from "../core/context";
 import {
   audit,
   can,
+  localeOf,
   readProcedure,
   requireCapability,
   writeProcedure,
@@ -343,39 +365,57 @@ export const importCase = writeProcedure
   });
 
 /**
- * Adds the EYFS early learning goals as one of the school's frameworks, or
- * brings the copy it has back to them.
+ * Adds a ready-made framework of goals as one of the school's, or brings
+ * the copy it has back to it.
  */
-export const addEarlyGoals = writeProcedure.handler(async ({ context }) => {
+async function addReadyGoals(
+  context: UnitContext,
+  ready: {
+    identifier: string;
+    title: string;
+    description: string;
+    items: readonly GoalItem[];
+  },
+) {
   requireCapability(context, "standards:manage");
   const scope = { tenantId: context.tenantId, orgId: context.schoolId };
   const target =
     (await frameworkOfCase(context.tx, {
       ...scope,
-      caseIdentifier: EYFS_GOALS.identifier,
+      caseIdentifier: ready.identifier,
     })) ??
     (
       await insertFramework(context.tx, {
         ...scope,
-        title: EYFS_GOALS.title,
-        description: EYFS_GOALS.description,
-        caseIdentifier: EYFS_GOALS.identifier,
+        title: ready.title,
+        description: ready.description,
+        caseIdentifier: ready.identifier,
         assessed: true,
       })
     ).id;
   const imported = await importStandards(context.tx, {
     tenantId: context.tenantId,
     frameworkId: target,
-    items: EYFS_GOALS.items,
+    items: ready.items,
   });
   await audit(context, {
     action: "standards.import",
     objectType: "standard_framework",
     objectId: target,
-    details: { caseIdentifier: EYFS_GOALS.identifier, items: imported },
+    details: { caseIdentifier: ready.identifier, items: imported },
   });
   return { id: target };
-});
+}
+
+/** Adds the EYFS early learning goals, judged at the end of Reception. */
+export const addEarlyGoals = writeProcedure.handler(({ context }) =>
+  addReadyGoals(context, EYFS_GOALS),
+);
+
+/** Adds Development Matters, to follow younger children from birth to Reception. */
+export const addDevelopmentMatters = writeProcedure.handler(({ context }) =>
+  addReadyGoals(context, DEVELOPMENT_MATTERS),
+);
 
 /**
  * Adds the IB's planning concepts as frameworks of the school's, each
@@ -845,28 +885,247 @@ export const classGoals = readProcedure
     const wanted = input.frameworkId || judged.at(-1)?.frameworkId;
     const shown =
       choices.find((row) => row.id === wanted) ?? choices[0] ?? null;
+    const goals = shown
+      ? await standardsOf(context.tx, {
+          tenantId: context.tenantId,
+          frameworkId: shown.id,
+        })
+      : [];
+    const judgements = judged.filter((row) => row.frameworkId === shown?.id);
+    const latest = new Map(
+      judgements.map((row) => [`${row.studentId}:${row.standardId}`, row]),
+    );
+    const [answered, reports] = await Promise.all([
+      rightAnswersOf(context.tx, {
+        tenantId: context.tenantId,
+        classId: input.classId,
+        studentIds: roster,
+        standardIds: goals.map((row) => row.id),
+      }),
+      reportsOf(context.tx, {
+        tenantId: context.tenantId,
+        orgId: context.schoolId,
+        studentIds: roster,
+      }),
+    ]);
+    const shared = reports
+      .filter((row) => row.frameworkId === shown?.id)
+      .map((row) => row.sharedAt)
+      .toSorted();
     return {
       frameworks: choices.map((row) => ({ id: row.id, title: row.title })),
       frameworkId: shown?.id ?? null,
-      goals: shown
-        ? await standardsOf(context.tx, {
-            tenantId: context.tenantId,
-            frameworkId: shown.id,
-          })
-        : [],
+      goals,
       students,
-      judgements: await withJudges(
-        context,
-        judged.filter((row) => row.frameworkId === shown?.id),
+      judgements: await withJudges(context, judgements),
+      /** Right answers on the goals, waiting for their teacher to confirm. */
+      evidence: answered.filter((row) =>
+        awaitsConfirming(
+          row.answeredAt,
+          latest.get(`${row.studentId}:${row.standardId}`),
+        ),
       ),
+      /** How many of the class's families see the report, and when it was last shared. */
+      report: { shared: shared.length, sharedAt: shared.at(-1) ?? null },
+      /** The EYFS goals, which the end-of-year return is made from. */
+      returnable: shown?.caseIdentifier === EYFS_GOALS.identifier,
       canJudge: year.lifecycle !== "closed",
       canAddGoals: can(context, "standards:manage"),
     };
   });
 
 /**
+ * A class teacher shares the children's report against a framework with
+ * their families, or takes it back. Shared again, it reaches children who
+ * joined since.
+ */
+export const shareGoalsReport = writeProcedure
+  .input(shareGoalsReportSchema)
+  .handler(async ({ input, context }) => {
+    const { roster } = await taughtClass(context, input.classId);
+    const found = await ownFramework(context, input.frameworkId);
+    const scope = {
+      tenantId: context.tenantId,
+      frameworkId: found.id,
+      studentIds: roster,
+    };
+    if (input.shared)
+      await shareReports(context.tx, {
+        ...scope,
+        sharedByUserId: context.actor.userId,
+      });
+    else await withdrawReports(context.tx, scope);
+    await audit(context, {
+      action: input.shared
+        ? "standards.goals_report_share"
+        : "standards.goals_report_withdraw",
+      objectType: "class",
+      objectId: input.classId,
+      details: { frameworkId: found.id, children: roster.length },
+    });
+    return {};
+  });
+
+const ARABIC_NAMES: Readonly<Record<string, string>> = {
+  ...EYFS_GOALS_ARABIC,
+  ...DEVELOPMENT_MATTERS_ARABIC,
+};
+
+/**
+ * One child's goals reports, as their family reads them: each framework a
+ * teacher shared, every goal of it with where the child stands, in Arabic
+ * where the family reads it and the framework is one Farida ships. A
+ * teacher's notes, and the work a judgement came from, stay with staff.
+ */
+export const goalsReport = readProcedure
+  .input(goalsReportSchema)
+  .handler(async ({ input, context }) => {
+    const studentId = await progressStudent(context, input.studentId);
+    const scope = {
+      tenantId: context.tenantId,
+      orgId: context.schoolId,
+      studentIds: [studentId],
+    };
+    const reports = await reportsOf(context.tx, scope);
+    if (reports.length === 0) return { reports: [] };
+    const judged = await judgementsOf(context.tx, scope);
+    const arabic = localeOf(context) === "ar";
+    const named = (row: { caseIdentifier: string | null }, english: string) =>
+      (arabic && row.caseIdentifier && ARABIC_NAMES[row.caseIdentifier]) ||
+      english;
+    return {
+      reports: (
+        await Promise.all(
+          reports.map(async (report) => {
+            const found = await frameworkById(context.tx, {
+              ...scope,
+              id: report.frameworkId,
+            });
+            if (!found) return [];
+            const goals = await standardsOf(context.tx, {
+              tenantId: context.tenantId,
+              frameworkId: found.id,
+            });
+            return [
+              {
+                id: found.id,
+                title: named(found, found.title),
+                sharedAt: report.sharedAt,
+                goals: goals.map((goal) => ({
+                  id: goal.id,
+                  parentId: goal.parentId,
+                  code: goal.code,
+                  statement: named(goal, goal.statement),
+                })),
+                levels: judged
+                  .filter((row) => row.frameworkId === found.id)
+                  .map((row) => ({
+                    standardId: row.standardId,
+                    level: row.level,
+                  })),
+              },
+            ];
+          }),
+        )
+      ).flat(),
+    };
+  });
+
+const SEX_CODE: Readonly<Record<string, "F" | "M">> = {
+  female: "F",
+  male: "M",
+};
+
+/**
+ * The class's end-of-year EYFS profile return, as the partial transfer file
+ * the local authority takes, made from its teachers' judgements on the
+ * school's EYFS goals; with what each child's record still lacks for the
+ * authority to accept it.
+ */
+export const goalsReturn = writeProcedure
+  .input(goalsReturnSchema)
+  .handler(async ({ input, context }) => {
+    const { year, roster } = await taughtClass(context, input.classId);
+    const scope = { tenantId: context.tenantId, orgId: context.schoolId };
+    const frameworkId = await frameworkOfCase(context.tx, {
+      ...scope,
+      caseIdentifier: EYFS_GOALS.identifier,
+    });
+    if (!frameworkId) throw new ORPCError("NOT_FOUND");
+    const goals = await standardsOf(context.tx, {
+      tenantId: context.tenantId,
+      frameworkId,
+    });
+    const goalOf = new Map(
+      goals.flatMap((row) =>
+        row.caseIdentifier ? [[row.id, row.caseIdentifier]] : [],
+      ),
+    );
+    const [people, judged] = await Promise.all([
+      returnPupilsOf(context.tx, {
+        tenantId: context.tenantId,
+        studentIds: roster,
+        on: dayIn(year, context.today),
+      }),
+      judgementsOf(context.tx, {
+        ...scope,
+        studentIds: roster,
+        standardIds: goals.map((row) => row.id),
+      }),
+    ]);
+    const pupils = people.map((person) => {
+      const levels = new Map<string, GoalLevel>();
+      for (const row of judged) {
+        const goal = goalOf.get(row.standardId);
+        if (row.studentId === person.id && goal) levels.set(goal, row.level);
+      }
+      const pupil = {
+        upn: person.ministryId?.trim().toUpperCase() || null,
+        surname: person.familyName,
+        forename: person.givenName,
+        dob: person.birthDate,
+        sex: SEX_CODE[person.sex ?? ""] ?? ("U" as const),
+        levels,
+      };
+      return { person, pupil, gaps: returnGaps(pupil) };
+    });
+    const lastDay = new Date(`${year.endsBefore}T00:00:00Z`);
+    lastDay.setUTCDate(lastDay.getUTCDate() - 1);
+    const school = {
+      la: input.la,
+      estab: input.estab,
+      urn: input.urn,
+      name: context.school.nameEn ?? context.school.slug,
+      academicYear: Number(year.startsOn.slice(0, 4)),
+    };
+    await audit(context, {
+      action: "standards.goals_return_exported",
+      objectType: "class",
+      objectId: input.classId,
+      details: { children: pupils.length },
+    });
+    return {
+      fileName: returnFileName(school),
+      file: eyfspReturn({
+        school,
+        year: lastDay.getUTCFullYear(),
+        at: context.now.toISOString(),
+        pupils: pupils.map((row) => row.pupil),
+      }),
+      gaps: pupils
+        .filter((row) => row.gaps.length > 0)
+        .map((row) => ({
+          studentId: row.person.id,
+          name: row.person.fullName,
+          gaps: row.gaps,
+        })),
+    };
+  });
+
+/**
  * A class teacher judges where one of their children stands against a goal,
- * or takes the judgement back; from an answer, the lesson it was set in.
+ * or takes the judgement back; from an answer, the lesson it was set in or
+ * the child's submission to the class's quiz.
  */
 export const judgeGoal = writeProcedure
   .input(judgeGoalSchema)
@@ -876,7 +1135,7 @@ export const judgeGoal = writeProcedure
       throw new ORPCError("CONFLICT", { message: "school_year.closed" });
     if (!roster.includes(input.studentId)) throw new ORPCError("NOT_FOUND");
     await ownStandard(context, input.standardId);
-    if (input.from) {
+    if (input.from && "lessonId" in input.from) {
       const lesson = await lessonById(
         context.tx,
         context.tenantId,
@@ -888,6 +1147,17 @@ export const judgeGoal = writeProcedure
       if (!classes.some((row) => row.id === input.classId))
         throw new ORPCError("NOT_FOUND");
     }
+    if (
+      input.from &&
+      "submissionId" in input.from &&
+      !(await isClassQuizOf(context.tx, {
+        tenantId: context.tenantId,
+        submissionId: input.from.submissionId,
+        studentId: input.studentId,
+        classId: input.classId,
+      }))
+    )
+      throw new ORPCError("NOT_FOUND");
     const key = {
       tenantId: context.tenantId,
       studentId: input.studentId,

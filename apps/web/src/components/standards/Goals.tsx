@@ -1,8 +1,10 @@
+import type { ReturnGap } from "@faridalms/domain/eyfsp";
 import type { GoalLevel } from "@faridalms/domain/standards";
 import type { LucideIcon } from "lucide-react";
 
-import { goalGroups } from "@faridalms/domain/standards";
+import { ancestorsOf, goalGroups } from "@faridalms/domain/standards";
 import { Button } from "@faridalms/ui/button";
+import { Checkbox } from "@faridalms/ui/checkbox";
 import { cn } from "@faridalms/ui/cn";
 import {
   Select,
@@ -14,7 +16,11 @@ import {
   SelectValue,
 } from "@faridalms/ui/select";
 import { EmptyState } from "@faridalms/ui/system/empty-state";
-import { FormField, SelectField } from "@faridalms/ui/system/form-field";
+import {
+  FormField,
+  SelectField,
+  TextField,
+} from "@faridalms/ui/system/form-field";
 import { Segmented } from "@faridalms/ui/system/panel";
 import {
   phoneLink,
@@ -22,6 +28,8 @@ import {
   RecordList,
   RecordSection,
 } from "@faridalms/ui/system/record-page";
+import { SheetForm, useSheet } from "@faridalms/ui/system/sheet-form";
+import { Value } from "@faridalms/ui/system/value";
 import { Textarea } from "@faridalms/ui/textarea";
 import {
   useMutation,
@@ -35,8 +43,12 @@ import {
   ChevronRight,
   CircleCheck,
   CircleDashed,
+  CircleSlash,
+  FileDown,
   Flag,
   NotebookPen,
+  Share2,
+  Sparkles,
 } from "lucide-react";
 import { useId, useState } from "react";
 import { toast } from "sonner";
@@ -45,8 +57,14 @@ import type { studentProgressQuery } from "~/queries/standards";
 
 import { displayName } from "~/components/people/format";
 import * as m from "~/i18n/messages";
-import { classGoalsQuery } from "~/queries/standards";
-import { addEarlyGoals, judgeGoal } from "~/server/standards";
+import { classGoalsQuery, goalsReportQuery } from "~/queries/standards";
+import {
+  addDevelopmentMatters,
+  addEarlyGoals,
+  judgeGoal,
+  makeGoalsReturn,
+  shareGoalsReport,
+} from "~/server/standards";
 import { formatAgo, formatNumber } from "~/utils/datetime";
 import { getMessageFromError } from "~/utils/error";
 
@@ -56,6 +74,22 @@ type GoalsData = Awaited<
 type Goal = GoalsData["goals"][number];
 type Student = GoalsData["students"][number];
 type Judgement = GoalsData["judgements"][number];
+type RightAnswer = GoalsData["evidence"][number];
+
+/** What a judgement was made from, as it reads under the child or goal. */
+export const judgedLine = (judgement: {
+  judgedAt: string;
+  lesson: { title: string } | null;
+  quiz: { title: string } | null;
+}) => {
+  const work = judgement.lesson ?? judgement.quiz;
+  return work
+    ? m.goalsJudgedFrom({
+        lesson: work.title,
+        when: formatAgo(judgement.judgedAt),
+      })
+    : m.goalsJudgedWhen({ when: formatAgo(judgement.judgedAt) });
+};
 
 export const GOAL_LEVEL: Record<
   GoalLevel,
@@ -70,6 +104,11 @@ export const GOAL_LEVEL: Record<
     icon: CircleDashed,
     tone: "text-warning-foreground dark:text-warning",
     label: m.goalsEmerging,
+  },
+  exempt: {
+    icon: CircleSlash,
+    tone: "text-muted-foreground",
+    label: m.goalsExempt,
   },
 };
 
@@ -102,15 +141,48 @@ interface GoalGroup {
 export const goalName = (goal: Pick<Goal, "code" | "statement">) =>
   goal.code ? `${goal.code} ${goal.statement}` : goal.statement;
 
+interface Named {
+  id: string;
+  parentId: string | null;
+  code: string;
+  statement: string;
+}
+
+/** A group of goals by the whole way down to it: an area and its age band. */
+const groupName = <T extends Named>(standards: readonly T[], area: T) =>
+  [...ancestorsOf(standards, area.id), area].map(goalName).join(" · ");
+
+/** How many goals or children stand where, exemptions only when there are any. */
+function countsLine(levels: readonly (GoalLevel | null)[]) {
+  const count = (level: GoalLevel | null) =>
+    levels.filter((row) => row === level).length;
+  const values = {
+    expected: formatNumber(count("expected")),
+    emerging: formatNumber(count("emerging")),
+    none: formatNumber(count(null)),
+  };
+  return count("exempt") > 0
+    ? m.goalsCountsExempt({ ...values, exempt: formatNumber(count("exempt")) })
+    : m.goalsCounts(values);
+}
+
 interface GoalPickerProps {
   groups: readonly GoalGroup[];
+  /** What a group is called, from the top of the framework down. */
+  areaName: (area: Goal) => string;
   value: string;
   /** How many children each goal is judged for, of how many. */
   judged: (goalId: string) => string;
   onChange: (id: string) => void;
 }
 
-function GoalPicker({ groups, value, judged, onChange }: GoalPickerProps) {
+function GoalPicker({
+  groups,
+  areaName,
+  value,
+  judged,
+  onChange,
+}: GoalPickerProps) {
   const goals = groups.flatMap((group) => group.goals);
   const at = goals.findIndex((goal) => goal.id === value);
   const previous = goals[at - 1];
@@ -144,7 +216,7 @@ function GoalPicker({ groups, value, judged, onChange }: GoalPickerProps) {
               {groups.map((group) => (
                 <SelectGroup key={group.area?.id ?? "top"}>
                   {group.area ? (
-                    <SelectLabel>{goalName(group.area)}</SelectLabel>
+                    <SelectLabel>{areaName(group.area)}</SelectLabel>
                   ) : null}
                   {group.goals.map((goal) => (
                     <SelectItem key={goal.id} value={goal.id}>
@@ -196,6 +268,8 @@ interface ChildRowProps {
   student: Student;
   goal: Goal;
   judgement: Judgement | undefined;
+  /** Their latest right answer on the goal, waiting to be confirmed. */
+  evidence: RightAnswer | undefined;
   canJudge: boolean;
 }
 
@@ -204,14 +278,20 @@ function ChildRow({
   student,
   goal,
   judgement,
+  evidence,
   canJudge,
 }: ChildRowProps) {
   const queryClient = useQueryClient();
   const judge = useServerFn(judgeGoal);
   const noteId = useId();
+  const exemptId = useId();
   const [noting, setNoting] = useState(false);
   const save = useMutation({
-    mutationFn: (next: { level: GoalLevel | null; note?: string }) =>
+    mutationFn: (next: {
+      level: GoalLevel | null;
+      note?: string;
+      from?: RightAnswer["work"];
+    }) =>
       judge({
         data: {
           classId,
@@ -255,26 +335,27 @@ function ChildRow({
           </Link>
           {judgement ? (
             <span className="text-[13px] leading-[18px] text-muted-foreground">
-              {judgement.lesson
-                ? m.goalsJudgedFrom({
-                    lesson: judgement.lesson.title,
-                    when: formatAgo(judgement.judgedAt),
-                  })
-                : m.goalsJudgedWhen({ when: formatAgo(judgement.judgedAt) })}
+              {judgedLine(judgement)}
             </span>
           ) : null}
         </div>
         {canJudge ? (
           <div className="flex w-full items-center gap-1 sm:w-auto">
-            <Segmented<LevelChoice>
-              label={m.goalsLevelOf({ name })}
-              value={level ?? "none"}
-              options={options}
-              onChange={(picked) =>
-                save.mutate({ level: picked === "none" ? null : picked })
-              }
-              className="flex-1 flex-nowrap sm:w-80"
-            />
+            {level === "exempt" ? (
+              <div className="flex flex-1 items-center sm:w-80">
+                <GoalMark level={level} />
+              </div>
+            ) : (
+              <Segmented<LevelChoice>
+                label={m.goalsLevelOf({ name })}
+                value={level ?? "none"}
+                options={options}
+                onChange={(picked) =>
+                  save.mutate({ level: picked === "none" ? null : picked })
+                }
+                className="flex-1 flex-nowrap sm:w-80"
+              />
+            )}
             <Button
               type="button"
               variant="ghost"
@@ -282,7 +363,6 @@ function ChildRow({
               aria-label={m.goalsNoteOf({ name })}
               aria-expanded={noting}
               aria-controls={noting ? noteId : undefined}
-              disabled={!level}
               onClick={() => setNoting((open) => !open)}
               className={cn(
                 "max-md:size-10",
@@ -296,6 +376,35 @@ function ChildRow({
           <GoalMark level={level} />
         )}
       </div>
+      {evidence && canJudge && !save.isPending ? (
+        <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 rounded-md bg-muted/60 px-3 py-2">
+          <span className="inline-flex min-w-0 flex-1 basis-56 items-start gap-1.5 text-[13px] leading-[18px]">
+            <Sparkles
+              aria-hidden
+              className="mt-px size-4 shrink-0 text-muted-foreground"
+            />
+            <span>
+              {m.goalsAnsweredRight({
+                work: evidence.title,
+                when: formatAgo(evidence.answeredAt),
+              })}
+            </span>
+          </span>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            aria-label={m.goalsConfirmExpectedOf({ name })}
+            className="max-md:h-10"
+            onClick={() =>
+              save.mutate({ level: "expected", from: evidence.work })
+            }
+          >
+            <CircleCheck aria-hidden />
+            {m.goalsConfirmExpected()}
+          </Button>
+        </div>
+      ) : null}
       {note && !noting ? (
         <p
           dir="auto"
@@ -304,26 +413,50 @@ function ChildRow({
           {note}
         </p>
       ) : null}
-      {noting && level ? (
-        <FormField
-          id={noteId}
-          label={m.goalsNote()}
-          optional
-          hint={m.goalsNoteHint()}
-        >
-          {(control) => (
-            <Textarea
-              {...control}
-              dir="auto"
-              defaultValue={note}
-              maxLength={1000}
-              onBlur={(event) => {
-                const written = event.currentTarget.value.trim();
-                if (written !== note) save.mutate({ level, note: written });
-              }}
+      {noting ? (
+        <div id={noteId} className="grid gap-3">
+          {level ? (
+            <FormField label={m.goalsNote()} optional hint={m.goalsNoteHint()}>
+              {(control) => (
+                <Textarea
+                  {...control}
+                  dir="auto"
+                  defaultValue={note}
+                  maxLength={1000}
+                  onBlur={(event) => {
+                    const written = event.currentTarget.value.trim();
+                    if (written !== note) save.mutate({ level, note: written });
+                  }}
+                />
+              )}
+            </FormField>
+          ) : null}
+          <div className="flex items-start gap-3">
+            <Checkbox
+              id={exemptId}
+              aria-describedby={`${exemptId}-hint`}
+              className="mt-0.5"
+              checked={level === "exempt"}
+              onCheckedChange={(checked) =>
+                save.mutate({ level: checked ? "exempt" : null })
+              }
             />
-          )}
-        </FormField>
+            <div className="grid gap-0.5">
+              <label
+                htmlFor={exemptId}
+                className="text-sm leading-5 font-medium"
+              >
+                {m.goalsExemptFrom({ name })}
+              </label>
+              <p
+                id={`${exemptId}-hint`}
+                className="text-[13px] leading-[18px] text-muted-foreground"
+              >
+                {m.goalsExemptHint()}
+              </p>
+            </div>
+          </div>
+        </div>
       ) : null}
     </li>
   );
@@ -336,9 +469,11 @@ interface NoGoalsProps {
 
 function NoGoals({ canAdd, classId }: NoGoalsProps) {
   const queryClient = useQueryClient();
-  const add = useServerFn(addEarlyGoals);
+  const addEyfs = useServerFn(addEarlyGoals);
+  const addMatters = useServerFn(addDevelopmentMatters);
   const adding = useMutation({
-    mutationFn: () => add(),
+    mutationFn: (which: "eyfs" | "matters") =>
+      which === "eyfs" ? addEyfs() : addMatters(),
     onSuccess: () =>
       Promise.all([
         queryClient.invalidateQueries({
@@ -357,16 +492,219 @@ function NoGoals({ canAdd, classId }: NoGoalsProps) {
       description={canAdd ? m.goalsEmptyAdd() : m.goalsEmptyAsk()}
       action={
         canAdd ? (
-          <Button
-            type="button"
-            disabled={adding.isPending}
-            onClick={() => adding.mutate()}
-          >
-            {m.goalsAddEyfs()}
-          </Button>
+          <div className="flex flex-wrap justify-center gap-2">
+            <Button
+              type="button"
+              disabled={adding.isPending}
+              onClick={() => adding.mutate("eyfs")}
+            >
+              {m.goalsAddEyfs()}
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              disabled={adding.isPending}
+              onClick={() => adding.mutate("matters")}
+            >
+              {m.goalsAddMatters()}
+            </Button>
+          </div>
         ) : undefined
       }
     />
+  );
+}
+
+interface ShareReportProps {
+  classId: string;
+  frameworkId: string;
+  report: GoalsData["report"];
+  total: number;
+}
+
+/**
+ * Shares the class's report on these goals with its families, or takes it
+ * back: they then read where their child stands on each goal, never the
+ * notes behind it.
+ */
+function ShareReport({
+  classId,
+  frameworkId,
+  report,
+  total,
+}: ShareReportProps) {
+  const queryClient = useQueryClient();
+  const share = useServerFn(shareGoalsReport);
+  const sharing = useMutation({
+    mutationFn: (shared: boolean) =>
+      share({ data: { classId, frameworkId, shared } }),
+    onSuccess: async (_, shared) => {
+      await queryClient.invalidateQueries({
+        queryKey: ["standards", "goals", classId],
+      });
+      toast.success(
+        shared ? m.goalsReportSharedDone() : m.goalsReportWithdrawn(),
+      );
+    },
+    onError: (error) => toast.error(getMessageFromError(error)),
+  });
+  if (report.shared === 0 || !report.sharedAt)
+    return (
+      <Button
+        type="button"
+        variant="outline"
+        size="sm"
+        className="max-md:h-10"
+        disabled={sharing.isPending || total === 0}
+        onClick={() => sharing.mutate(true)}
+      >
+        <Share2 aria-hidden />
+        {m.goalsReportShare()}
+      </Button>
+    );
+  return (
+    <div className="flex flex-wrap items-center gap-2">
+      <span className="text-[13px] leading-[18px] text-muted-foreground">
+        {m.goalsReportSharedWith({
+          count: formatNumber(report.shared),
+          total: formatNumber(total),
+          when: formatAgo(report.sharedAt),
+        })}
+      </span>
+      {report.shared < total ? (
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          className="max-md:h-10"
+          disabled={sharing.isPending}
+          onClick={() => sharing.mutate(true)}
+        >
+          {m.goalsReportShareAgain()}
+        </Button>
+      ) : null}
+      <Button
+        type="button"
+        variant="ghost"
+        size="sm"
+        className="max-md:h-10"
+        disabled={sharing.isPending}
+        onClick={() => sharing.mutate(false)}
+      >
+        {m.goalsReportWithdraw()}
+      </Button>
+    </div>
+  );
+}
+
+const GAP_LABEL: Record<ReturnGap, () => string> = {
+  upn: m.goalsReturnNoUpn,
+  surname: m.goalsReturnNoSurname,
+  forename: m.goalsReturnNoForename,
+  dob: m.goalsReturnNoBirthDate,
+  results: m.goalsReturnNoResults,
+};
+
+/** Saves text as a file on the teacher's device. */
+function saveFile(fileName: string, text: string, type: string) {
+  const url = URL.createObjectURL(new Blob([text], { type }));
+  const anchor = document.createElement("a");
+  anchor.href = url;
+  anchor.download = fileName;
+  anchor.click();
+  setTimeout(() => URL.revokeObjectURL(url), 0);
+}
+
+interface GoalsReturnSheetProps {
+  classId: string;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+}
+
+/**
+ * The end-of-year EYFS profile return: where the local authority knows the
+ * school from, then the transfer file it takes, with what each child's
+ * record still lacks for it to be accepted.
+ */
+function GoalsReturnSheet({
+  classId,
+  open,
+  onOpenChange,
+}: GoalsReturnSheetProps) {
+  const make = useServerFn(makeGoalsReturn);
+  const [la, setLa] = useState("");
+  const [estab, setEstab] = useState("");
+  const [urn, setUrn] = useState("");
+  const making = useMutation({
+    mutationFn: () => make({ data: { classId, la, estab, urn } }),
+    onSuccess: (made) => saveFile(made.fileName, made.file, "application/xml"),
+  });
+  const gaps = making.data?.gaps ?? [];
+  return (
+    <SheetForm
+      open={open}
+      onOpenChange={onOpenChange}
+      title={m.goalsReturnTitle()}
+      submitLabel={m.goalsReturnDownload()}
+      pending={making.isPending}
+      error={making.error ? getMessageFromError(making.error) : null}
+      onSubmit={() => making.mutate()}
+    >
+      <p className="text-sm leading-5 text-muted-foreground">
+        {m.goalsReturnHint()}
+      </p>
+      <TextField
+        label={m.goalsReturnLa()}
+        hint={m.goalsReturnLaHint()}
+        dir="ltr"
+        inputMode="numeric"
+        maxLength={3}
+        value={la}
+        onChange={(event) => setLa(event.target.value)}
+      />
+      <TextField
+        label={m.goalsReturnEstab()}
+        hint={m.goalsReturnEstabHint()}
+        dir="ltr"
+        inputMode="numeric"
+        maxLength={4}
+        value={estab}
+        onChange={(event) => setEstab(event.target.value)}
+      />
+      <TextField
+        label={m.goalsReturnUrn()}
+        optional
+        dir="ltr"
+        inputMode="numeric"
+        maxLength={6}
+        value={urn}
+        onChange={(event) => setUrn(event.target.value)}
+      />
+      {making.isSuccess ? (
+        <output className="grid gap-2">
+          <p className="text-sm leading-5 font-medium">
+            {gaps.length === 0
+              ? m.goalsReturnComplete()
+              : m.goalsReturnGaps({ count: formatNumber(gaps.length) })}
+          </p>
+          {gaps.length > 0 ? (
+            <ul className="grid gap-1.5">
+              {gaps.map((row) => (
+                <li key={row.studentId} className="text-sm leading-5">
+                  <bdi className="font-medium">
+                    <Value>{row.name}</Value>
+                  </bdi>
+                  <span className="text-muted-foreground">
+                    {" · "}
+                    {row.gaps.map((gap) => GAP_LABEL[gap]()).join(", ")}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          ) : null}
+        </output>
+      ) : null}
+    </SheetForm>
   );
 }
 
@@ -385,6 +723,7 @@ export function ClassGoals({ classId }: ClassGoalsProps) {
   const groups = goalGroups(data.goals);
   const goals = groups.flatMap((group) => group.goals);
   const [picked, setPicked] = useState("");
+  const returning = useSheet();
   const goal = goals.find((row) => row.id === picked) ?? goals[0];
   if (!data.frameworkId || !goal)
     return <NoGoals canAdd={data.canAddGoals} classId={classId} />;
@@ -394,12 +733,21 @@ export function ClassGoals({ classId }: ClassGoalsProps) {
       .filter((row) => row.standardId === goal.id)
       .map((row) => [row.studentId, row]),
   );
-  const count = (level: GoalLevel) =>
-    formatNumber(
-      [...judged.values()].filter((row) => row.level === level).length,
-    );
+  const answered = new Map(
+    data.evidence
+      .filter((row) => row.standardId === goal.id)
+      .map((row) => [row.studentId, row]),
+  );
   return (
     <div className="grid gap-4">
+      {data.returnable ? (
+        <GoalsReturnSheet
+          key={returning.key}
+          classId={classId}
+          open={returning.open}
+          onOpenChange={returning.onOpenChange}
+        />
+      ) : null}
       <div className="flex flex-wrap items-end gap-x-4 gap-y-3">
         {data.frameworks.length > 1 ? (
           <SelectField
@@ -418,6 +766,7 @@ export function ClassGoals({ classId }: ClassGoalsProps) {
         ) : null}
         <GoalPicker
           groups={groups}
+          areaName={(group) => groupName(data.goals, group)}
           value={goal.id}
           judged={(id) =>
             m.goalsJudgedOf({
@@ -430,20 +779,44 @@ export function ClassGoals({ classId }: ClassGoalsProps) {
           onChange={setPicked}
         />
       </div>
-      <p className="text-[13px] leading-[18px] text-muted-foreground">
-        {m.goalsHow()}
-      </p>
+      <div className="flex flex-wrap items-center justify-between gap-x-6 gap-y-3">
+        <p className="min-w-0 flex-1 basis-72 text-[13px] leading-[18px] text-muted-foreground">
+          {m.goalsHow()}
+        </p>
+        <div className="flex flex-wrap items-center gap-2">
+          <ShareReport
+            classId={classId}
+            frameworkId={data.frameworkId}
+            report={data.report}
+            total={data.students.length}
+          />
+          {data.returnable ? (
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="max-md:h-10"
+              onClick={returning.show}
+            >
+              <FileDown aria-hidden />
+              {m.goalsReturnOpen()}
+            </Button>
+          ) : null}
+        </div>
+      </div>
       <RecordSection
         title={goal.statement}
         description={
           <>
-            {area ? <span dir="auto">{area.statement}</span> : null}
+            {area ? (
+              <span dir="auto">{groupName(data.goals, area)}</span>
+            ) : null}
             {area ? " · " : null}
-            {m.goalsCounts({
-              expected: count("expected"),
-              emerging: count("emerging"),
-              none: formatNumber(data.students.length - judged.size),
-            })}
+            {countsLine(
+              data.students.map(
+                (student) => judged.get(student.id)?.level ?? null,
+              ),
+            )}
           </>
         }
       >
@@ -458,6 +831,7 @@ export function ClassGoals({ classId }: ClassGoalsProps) {
                 student={student}
                 goal={goal}
                 judgement={judged.get(student.id)}
+                evidence={answered.get(student.id)}
                 canJudge={data.canJudge}
               />
             ))}
@@ -486,21 +860,13 @@ export function StudentGoals({ frameworks, judgements }: StudentGoalsProps) {
   return frameworks.map((framework) => {
     const groups = goalGroups(framework.goals);
     const goals = groups.flatMap((group) => group.goals);
-    const count = (level: GoalLevel) =>
-      formatNumber(
-        goals.filter((goal) => judged.get(goal.id)?.level === level).length,
-      );
     return (
       <RecordSection
         key={framework.id}
         title={framework.title}
-        description={m.goalsCounts({
-          expected: count("expected"),
-          emerging: count("emerging"),
-          none: formatNumber(
-            goals.filter((goal) => !judged.has(goal.id)).length,
-          ),
-        })}
+        description={countsLine(
+          goals.map((goal) => judged.get(goal.id)?.level ?? null),
+        )}
       >
         <div className="grid gap-5">
           {groups.map((group) => (
@@ -510,7 +876,7 @@ export function StudentGoals({ frameworks, judgements }: StudentGoalsProps) {
                   dir="auto"
                   className="text-[13px] leading-[18px] font-medium text-muted-foreground"
                 >
-                  {goalName(group.area)}
+                  {groupName(framework.goals, group.area)}
                 </h3>
               ) : null}
               <ul className="grid divide-y">
@@ -540,14 +906,7 @@ export function StudentGoals({ frameworks, judgements }: StudentGoalsProps) {
                       ) : null}
                       {judgement ? (
                         <p className="text-[13px] leading-[18px] text-muted-foreground">
-                          {judgement.lesson
-                            ? m.goalsJudgedFrom({
-                                lesson: judgement.lesson.title,
-                                when: formatAgo(judgement.judgedAt),
-                              })
-                            : m.goalsJudgedWhen({
-                                when: formatAgo(judgement.judgedAt),
-                              })}
+                          {judgedLine(judgement)}
                           {judgement.judgedBy
                             ? ` · ${displayName(judgement.judgedBy)}`
                             : null}
@@ -563,4 +922,85 @@ export function StudentGoals({ frameworks, judgements }: StudentGoalsProps) {
       </RecordSection>
     );
   });
+}
+
+export interface GoalsReportProps {
+  studentId: string;
+}
+
+/**
+ * A child's goals reports as their family reads them, once their teacher
+ * shares one: every goal with where the child stands, in the family's
+ * language where Farida has the framework in it; nothing before.
+ */
+export function GoalsReport({ studentId }: GoalsReportProps) {
+  const data = useSuspenseQuery(goalsReportQuery(studentId)).data;
+  const heading = useId();
+  if (data.reports.length === 0) return null;
+  return (
+    <section aria-labelledby={heading} className="grid gap-4">
+      <div className="grid gap-1">
+        <h2 id={heading} className="text-lg leading-7 font-semibold">
+          {m.goalsReportTitle()}
+        </h2>
+        <p className="text-sm leading-5 text-muted-foreground">
+          {m.goalsReportFamilyHint()}
+        </p>
+      </div>
+      {data.reports.map((report) => {
+        const levels = new Map(
+          report.levels.map((row) => [row.standardId, row.level]),
+        );
+        const groups = goalGroups(report.goals);
+        return (
+          <RecordSection
+            key={report.id}
+            title={report.title}
+            description={
+              <>
+                {m.goalsReportSharedOn({ when: formatAgo(report.sharedAt) })}
+                {" · "}
+                {countsLine(
+                  groups.flatMap((group) =>
+                    group.goals.map((goal) => levels.get(goal.id) ?? null),
+                  ),
+                )}
+              </>
+            }
+          >
+            <div className="grid gap-5">
+              {groups.map((group) => (
+                <div key={group.area?.id ?? "top"} className="grid gap-1">
+                  {group.area ? (
+                    <h3
+                      dir="auto"
+                      className="text-[13px] leading-[18px] font-medium text-muted-foreground"
+                    >
+                      {groupName(report.goals, group.area)}
+                    </h3>
+                  ) : null}
+                  <ul className="grid divide-y">
+                    {group.goals.map((goal) => (
+                      <li
+                        key={goal.id}
+                        className="flex flex-wrap items-start justify-between gap-x-6 gap-y-1 py-2.5 first:pt-1 last:pb-0"
+                      >
+                        <span
+                          dir="auto"
+                          className="min-w-0 flex-1 basis-56 text-sm leading-5"
+                        >
+                          {goalName(goal)}
+                        </span>
+                        <GoalMark level={levels.get(goal.id) ?? null} />
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              ))}
+            </div>
+          </RecordSection>
+        );
+      })}
+    </section>
+  );
 }

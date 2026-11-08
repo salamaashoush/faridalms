@@ -3044,6 +3044,131 @@ describe("standards a quiz gives evidence on", () => {
     await office.standards.removeFramework({ id: framework.id });
     expect((await progress())[nouns.id]).toBeUndefined();
   });
+
+  test("a right quiz answer on a goal is evidence the teacher confirms, judged from the child's own submission", async () => {
+    const office = await signedIn("northwind", login("principal"));
+    const framework = await office.standards.saveFramework({
+      id: "",
+      expectedVersion: 0,
+      title: `Goals ${uuid()}`,
+      description: "",
+    });
+    const counting = await office.standards.saveStandard({
+      frameworkId: framework.id,
+      id: "",
+      expectedVersion: 0,
+      parentId: "",
+      code: "",
+      statement: "Count objects to ten.",
+      itemType: "Early learning goal",
+    });
+
+    const teacher = await arabicTeacher();
+    const student = await sessionFor("northwind", login("student"));
+    const me = await student.api.identity.currentUser();
+    const target = await classOfStudent(teacher.api, me.id);
+    const right = uuid();
+    const choice = {
+      hints: [],
+      explanation: "",
+      tries: null,
+      id: uuid(),
+      type: "choice" as const,
+      prompt: "How many apples?",
+      points: 1,
+      options: [
+        { id: right, text: "4", feedback: "" },
+        { id: uuid(), text: "6", feedback: "" },
+      ],
+      correctOptionIds: [right],
+      multiple: false,
+      shuffle: false,
+      standards: [counting.id],
+    };
+    const saved = await teacher.api.coursework.save(
+      draft(target.id, "Apple count", {
+        submissionFormat: "quiz",
+        points: null,
+        brief: briefWithQuiz(plainContent("Count them."), {
+          version: 2,
+          blocks: [choice],
+        }),
+        quiz: {
+          attempts: 1,
+          keep: "highest",
+          reveal: "answers",
+          shuffle: false,
+        },
+      }),
+    );
+    await teacher.api.coursework.publish({
+      id: saved.id,
+      expectedVersion: saved.version,
+    });
+    await student.api.coursework.saveQuizAnswer({
+      assignmentId: saved.id,
+      blockId: choice.id,
+      response: { type: "choice", optionIds: [right] },
+    });
+    const work = await student.api.coursework.work({ id: saved.id });
+    await student.api.coursework.handIn({
+      assignmentId: saved.id,
+      expectedVersion: work.submission.version,
+    });
+
+    const goals = () =>
+      teacher.api.standards.classGoals({
+        classId: target.id,
+        frameworkId: framework.id,
+      });
+    const waiting = (await goals()).evidence.find(
+      (row) => row.studentId === me.id,
+    );
+    if (!waiting || !("submissionId" in waiting.work))
+      throw new Error("no quiz answer waiting");
+    expect(waiting.standardId).toBe(counting.id);
+    expect(waiting.title).toBe("Apple count");
+    expect(waiting.work.blockId).toBe(choice.id);
+    // A submission is only ever evidence for the child who made it.
+    const other = (await goals()).students.find((row) => row.id !== me.id);
+    if (other)
+      expect(
+        await rejection(
+          teacher.api.standards.judgeGoal({
+            classId: target.id,
+            studentId: other.id,
+            standardId: counting.id,
+            level: "expected",
+            from: waiting.work,
+          }),
+        ),
+      ).toMatchObject({ code: "NOT_FOUND" });
+
+    await teacher.api.standards.judgeGoal({
+      classId: target.id,
+      studentId: me.id,
+      standardId: counting.id,
+      level: "expected",
+      from: waiting.work,
+    });
+    const confirmed = await goals();
+    expect(confirmed.evidence.filter((row) => row.studentId === me.id)).toEqual(
+      [],
+    );
+    expect(
+      confirmed.judgements.find((row) => row.studentId === me.id),
+    ).toMatchObject({
+      level: "expected",
+      lesson: null,
+      quiz: {
+        id: saved.id,
+        title: "Apple count",
+        submissionId: waiting.work.submissionId,
+        blockId: choice.id,
+      },
+    });
+    await office.standards.removeFramework({ id: framework.id });
+  });
 });
 
 describe("using an assignment again", () => {
