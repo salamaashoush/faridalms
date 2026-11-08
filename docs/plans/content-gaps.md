@@ -17,15 +17,15 @@ components in `packages/ui` with named props, a spec and a
 
 The question model is one (`docs/systems/questions.md`), the editor holds
 its key-press budget on a 336-block lesson (`docs/content-editor.md`), and
-the picture, file, video, audio and embed bars are exercised with real
-uploads. Left:
+the picture, file, video, audio, embed, maths, question and recording bars
+are exercised in a browser. Each gallery picture says who it shows. Left:
 
-1. Keys typed straight after inserting a formula are lost while its field
-   loads.
-2. Each gallery picture says who it shows, as a single picture does, so
-   the consent check covers galleries (owner's decision).
-3. The maths bar, question blocks' bars and recording capture exercised
-   in a browser.
+1. MathLive takes its own focus about 60ms after a formula field gains
+   it, so a menu opened inside that moment loses keyboard focus.
+2. MathLive's menu keeps its submenu arrows pointing right in Arabic.
+3. The five project blocks and the question-bank picker are not yet
+   exercised in a browser.
+4. The editor keeps a few empty "Typeahead menu" lists in the page.
 
 ## Decided by the owner (2026-11-08)
 
