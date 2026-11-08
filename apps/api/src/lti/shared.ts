@@ -1,7 +1,12 @@
+import type { CellTransaction } from "@faridalms/database/context";
+import type { LtiCourse } from "@faridalms/database/stores/lti";
 import type { ContentNode } from "@faridalms/domain/content";
 import type { LtiLink } from "@faridalms/domain/lti";
 
-import type { RequestContext } from "../core/context";
+import { classById } from "@faridalms/database/stores/classes";
+import { moduleById } from "@faridalms/database/stores/learning";
+
+import type { RequestContext, SchoolContext } from "../core/context";
 import type { LtiSecrets } from "./crypto";
 
 import { ltiSecrets } from "./crypto";
@@ -51,4 +56,28 @@ export function findLink(
     if (node.children) pending.push(...node.children);
   }
   return null;
+}
+
+/** A course's id and title as tools are told them. */
+export async function courseNamed(
+  tx: CellTransaction,
+  context: SchoolContext,
+  course: LtiCourse,
+): Promise<{ id: string; title: string } | null> {
+  if ("moduleId" in course) {
+    const module = await moduleById(
+      tx,
+      context.school.tenantId,
+      course.moduleId,
+    );
+    return module ? { id: module.id, title: module.title } : null;
+  }
+  const taught = await classById(
+    tx,
+    { tenantId: context.school.tenantId, schoolId: context.school.schoolId },
+    course.classId,
+  );
+  return taught
+    ? { id: taught.id, title: taught.titleEn ?? taught.titleAr ?? taught.code }
+    : null;
 }

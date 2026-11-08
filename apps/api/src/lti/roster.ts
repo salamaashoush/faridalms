@@ -1,10 +1,7 @@
-import type { CellTransaction } from "@faridalms/database/context";
 import type { LtiCourse } from "@faridalms/database/stores/lti";
 
 import { writeAudit } from "@faridalms/database/audit";
-import { classById } from "@faridalms/database/stores/classes";
 import { documentOf } from "@faridalms/database/stores/documents";
-import { moduleById } from "@faridalms/database/stores/learning";
 import { courseMembers, toolById } from "@faridalms/database/stores/lti";
 import {
   COURSE_OFFERING,
@@ -27,7 +24,7 @@ import {
   placeOf,
   unauthorized,
 } from "./grades";
-import { findLink, issuerOf, refused, secretsFor } from "./shared";
+import { courseNamed, findLink, issuerOf, refused, secretsFor } from "./shared";
 
 const ID = /^[0-9a-f-]{36}$/;
 const MEMBERSHIPS = "application/vnd.ims.lti-nrps.v2.membershipcontainer+json";
@@ -59,30 +56,6 @@ export async function rosterClaim(
       service_versions: ["2.0"],
     },
   };
-}
-
-/** A course's id and title as tools are told them. */
-export async function courseNamed(
-  tx: CellTransaction,
-  context: SchoolContext,
-  course: LtiCourse,
-): Promise<{ id: string; title: string } | null> {
-  if ("moduleId" in course) {
-    const module = await moduleById(
-      tx,
-      context.school.tenantId,
-      course.moduleId,
-    );
-    return module ? { id: module.id, title: module.title } : null;
-  }
-  const taught = await classById(
-    tx,
-    { tenantId: context.school.tenantId, schoolId: context.school.schoolId },
-    course.classId,
-  );
-  return taught
-    ? { id: taught.id, title: taught.titleEn ?? taught.titleAr ?? taught.code }
-    : null;
 }
 
 /** A role a tool asks for, in full or by its short context name. */

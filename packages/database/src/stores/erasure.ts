@@ -639,6 +639,7 @@ export async function eraseSubject(
     "module_audiences",
     "lesson_openings",
     "lti_scores",
+    "xapi_statements",
   ] as const)
     await remove(
       table,

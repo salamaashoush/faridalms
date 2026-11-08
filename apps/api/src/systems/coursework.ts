@@ -1,5 +1,6 @@
 import type {
   AssignmentRow,
+  ReleasedMark,
   WorkRow,
 } from "@faridalms/database/stores/coursework";
 import type { KeptFiles } from "@faridalms/database/stores/learning";
@@ -307,6 +308,7 @@ import {
   rescoreQuiz,
   responsesOf,
 } from "../quizzes/quiz";
+import { marksReleased } from "../xapi/live";
 
 const AUDIT_ACTIONS = {
   return: "submission.return",
@@ -1579,6 +1581,7 @@ export const act = writeProcedure
     );
     let changed = 0;
     const returned: typeof chosen = [];
+    const released: ReleasedMark[] = [];
     // Assessed coursework goes back with a grade only once its teacher has
     // confirmed it, and confirmed work is final, so it is not sent back.
     let held = 0;
@@ -1651,7 +1654,12 @@ export const act = writeProcedure
             (await unansweredComments(tx, context.tenantId, row.attemptId)) > 0
           )
             await releaseComments(tx, context.tenantId, [row.attemptId]);
-          else await releaseAssessments(tx, context.tenantId, [row.attemptId]);
+          else
+            released.push(
+              ...(await releaseAssessments(tx, context.tenantId, [
+                row.attemptId,
+              ])),
+            );
           await touchSubmission(tx, {
             tenantId: context.tenantId,
             id: row.submissionId,
@@ -1682,6 +1690,7 @@ export const act = writeProcedure
       returned,
       input.action === "revise",
     );
+    await tellMarks(context, assignment, released);
     await audit(context, {
       action: AUDIT_ACTIONS[input.action],
       objectType: "assignment",
@@ -2110,13 +2119,42 @@ async function answerableComment(context: UnitContext, commentId: string) {
   return found;
 }
 
+/** Sends the marks that went out on an assignment to the school's record store. */
+async function tellMarks(
+  context: UnitContext,
+  assignment: {
+    id: string;
+    title: string;
+    points: number | null;
+    classId: string;
+  },
+  released: readonly ReleasedMark[],
+) {
+  const marks = released.flatMap((mark) =>
+    mark.score === null ? [] : [{ ...mark, score: mark.score }],
+  );
+  if (marks.length === 0) return;
+  const taught = await classById(context.tx, context, assignment.classId);
+  if (!taught) return;
+  await marksReleased(context, {
+    assignment,
+    course: {
+      id: taught.id,
+      title: taught.titleEn ?? taught.titleAr ?? taught.code,
+    },
+    marks,
+  });
+}
+
 /** A held grade goes out once every comment on its attempt is answered. */
 /** Shows held grades and tells each student and family theirs is shown. */
 async function showHeld(context: UnitContext, attemptIds: readonly string[]) {
-  if (
-    (await releaseAssessments(context.tx, context.tenantId, attemptIds)) === 0
-  )
-    return;
+  const released = await releaseAssessments(
+    context.tx,
+    context.tenantId,
+    attemptIds,
+  );
+  if (released.length === 0) return;
   for (const attemptId of attemptIds) {
     const attempt = await attemptById(context.tx, context.tenantId, attemptId);
     if (!attempt) continue;
@@ -2126,6 +2164,11 @@ async function showHeld(context: UnitContext, attemptIds: readonly string[]) {
       attempt.assignmentId,
     );
     if (!assignment) continue;
+    await tellMarks(
+      context,
+      assignment,
+      released.filter((mark) => mark.attemptId === attemptId),
+    );
     const learners = (
       await namesOf(context.tx, context.tenantId, [attempt.studentId])
     ).map((row) => ({

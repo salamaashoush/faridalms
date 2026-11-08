@@ -107,6 +107,8 @@ import {
   ltiLineItems,
   ltiReplays,
   ltiScores,
+  xapiStatements,
+  xapiStores,
   ltiTools,
   peerReviewComments,
   peerReviews,
@@ -757,6 +759,21 @@ export async function completeFixture(
     activityProgress: "Completed",
     gradingProgress: "FullyGraded",
     scoredAt: new Date("2026-09-22T10:00:00Z"),
+  });
+  await tx.insert(xapiStores).values({
+    tenantId,
+    orgId: schoolId,
+    endpoint: "https://lrs.example.com/xapi/",
+    username: "school-key",
+    sealedSecret: "sealed",
+    enabled: true,
+  });
+  await tx.insert(xapiStatements).values({
+    tenantId,
+    orgId: schoolId,
+    statementId: id(),
+    studentUserId: userId,
+    statement: { verb: { id: "http://adlnet.gov/expapi/verbs/completed" } },
   });
   await tx.insert(ltiKeys).values({
     tenantId,

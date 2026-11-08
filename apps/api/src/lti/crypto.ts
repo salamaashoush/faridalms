@@ -31,14 +31,12 @@ async function derive(
 }
 
 /**
- * The cell's secrets for outside tools, each derived from the cell secret
- * for one use: sealing the private halves of the schools' signing keys,
- * and signing what tools carry and hand back: a launch's hints, their
- * access tokens, the addresses of their courses' grades.
+ * Seals values a school keeps secret with a key derived from the cell
+ * secret for the one use named, so a value sealed for one use does not
+ * open for another.
  */
-export function ltiSecrets(cellSecret: Uint8Array<ArrayBuffer>) {
-  const sealing = derive(cellSecret, "lti signing keys", "seal");
-  const hints = derive(cellSecret, "lti launch hints", "sign");
+export function sealerOf(cellSecret: Uint8Array<ArrayBuffer>, use: string) {
+  const sealing = derive(cellSecret, use, "seal");
   return {
     async seal(value: unknown): Promise<string> {
       const iv = crypto.getRandomValues(new Uint8Array(12));
@@ -58,6 +56,21 @@ export function ltiSecrets(cellSecret: Uint8Array<ArrayBuffer>) {
       );
       return JSON.parse(decoder.decode(opened)) as T;
     },
+  };
+}
+
+/**
+ * The cell's secrets for outside tools, each derived from the cell secret
+ * for one use: sealing the private halves of the schools' signing keys,
+ * and signing what tools carry and hand back: a launch's hints, their
+ * access tokens, the addresses of their courses' grades.
+ */
+export function ltiSecrets(cellSecret: Uint8Array<ArrayBuffer>) {
+  const hints = derive(cellSecret, "lti launch hints", "sign");
+  return {
+    ...sealerOf(cellSecret, "lti signing keys"),
+    /** Seals a launch shown in the page into its hint. */
+    framed: sealerOf(cellSecret, "lti framed launches"),
     /** A value only this cell can have written, readable until it expires. */
     async sign(value: object, seconds: number): Promise<string> {
       const body = base64url(

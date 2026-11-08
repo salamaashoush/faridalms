@@ -59,6 +59,7 @@ import * as siteSystem from "./systems/site";
 import * as standardsSystem from "./systems/standards";
 import * as templatesSystem from "./systems/templates";
 import * as timetableSystem from "./systems/timetable";
+import * as xapiSystem from "./systems/xapi";
 import * as yearsSystem from "./systems/years";
 
 /**
@@ -156,6 +157,7 @@ export const router = {
   library: owned("library", librarySystem),
   mediaLibrary: owned("mediaLibrary", mediaLibrarySystem),
   lti: owned("lti", ltiSystem),
+  xapi: owned("xapi", xapiSystem),
   site: owned("site", siteSystem),
   admissions: owned("admissions", admissionsSystem),
   intakes: owned("intakes", intakesSystem),

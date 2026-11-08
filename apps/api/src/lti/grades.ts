@@ -37,8 +37,10 @@ import * as v from "valibot";
 
 import type { SchoolContext } from "../core/context";
 
+import { toolScored } from "../xapi/live";
 import { toolKeys } from "./keys";
 import {
+  courseNamed,
   findLink,
   issuerOf,
   refused,
@@ -516,7 +518,7 @@ export async function gradeService(
       )
         return refused(404, "NOT_FOUND");
       // A score older than the one kept changes nothing, and is not an error.
-      await keepScore(tx, {
+      const kept = await keepScore(tx, {
         tenantId,
         lineItemId: item.id,
         studentUserId: score.userId,
@@ -530,6 +532,28 @@ export async function gradeService(
           ? score.scoringUserId
           : null,
       });
+      const course = kept ? await courseNamed(tx, context, item.course) : null;
+      if (
+        course &&
+        score.scoreGiven !== null &&
+        score.scoreMaximum !== null &&
+        score.gradingProgress === "FullyGraded"
+      )
+        await toolScored(
+          { tx, tenantId, school: context.school, domains: context.domains },
+          {
+            column: { id: item.id, label: item.label },
+            toolName: tool.name,
+            course: {
+              kind: "moduleId" in item.course ? "module" : "class",
+              ...course,
+            },
+            studentId: score.userId,
+            scoreGiven: score.scoreGiven,
+            scoreMaximum: score.scoreMaximum,
+            scoredAt: score.timestamp,
+          },
+        );
       return new Response(null, { status: 204 });
     }
 

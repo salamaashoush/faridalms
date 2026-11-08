@@ -276,6 +276,7 @@ import {
 } from "../files/authorize";
 import { copyLesson, copyModule, planHost } from "../learning/module-copy";
 import { resultOf } from "../lti/grades";
+import { lessonFinished, questionAnswered } from "../xapi/live";
 
 const id = v.pipe(v.string(), v.uuid());
 
@@ -2509,12 +2510,23 @@ export const override = writeProcedure
       )
         enrolled = true;
     if (!enrolled) throw new ORPCError("NOT_FOUND");
+    const [before] = await progressIn(context.tx, {
+      tenantId: context.tenantId,
+      lessonIds: [row.id],
+      studentIds: [input.studentId],
+    });
     await recordProgress(context.tx, {
       tenantId: context.tenantId,
       lessonId: row.id,
       studentId: input.studentId,
       completed: input.completed ? { by: "teacher" } : null,
     });
+    if (input.completed)
+      await lessonFinished(context, {
+        lessonId: row.id,
+        studentId: input.studentId,
+        wasFinished: Boolean(before?.completedAt),
+      });
     await audit(context, {
       action: input.completed ? "lesson.override" : "lesson.override_undo",
       objectType: "lesson",
@@ -3035,6 +3047,12 @@ async function settle(context: UnitContext, played: Played) {
     score: best,
     ...(met ? { completed: { by: "student" as const } } : {}),
   });
+  if (met)
+    await lessonFinished(context, {
+      lessonId: played.row.id,
+      studentId: played.studentId,
+      wasFinished: Boolean(played.own?.completedAt),
+    });
   return {
     checks,
     score,
@@ -3711,7 +3729,7 @@ async function recordResponse(
     if (linked.length !== kept.length)
       throw new ORPCError("CONFLICT", { message: "files.not_linkable" });
   }
-  await insertResponse(context.tx, {
+  const answer = await insertResponse(context.tx, {
     tenantId: context.tenantId,
     lessonId: played.row.id,
     documentVersionId: played.versionId,
@@ -3730,6 +3748,20 @@ async function recordResponse(
         ? "needs_marking"
         : "answered",
   });
+  if (marked)
+    await questionAnswered(context, {
+      answerId: answer.id,
+      lessonId: played.row.id,
+      studentId: played.studentId,
+      question: {
+        id: block.id,
+        prompt: block.prompt,
+        kind: block.type,
+        points: block.points > 0 ? block.points : null,
+      },
+      fraction: marked.fraction,
+      answeredAt: answer.createdAt,
+    });
   await keepEvidence(context, {
     lessonId: played.row.id,
     studentId: played.studentId,
@@ -4130,6 +4162,11 @@ export const complete = writeProcedure
       studentId: played.studentId,
       completed: { by: "student" },
     });
+    await lessonFinished(context, {
+      lessonId: played.row.id,
+      studentId: played.studentId,
+      wasFinished: Boolean(played.own?.completedAt),
+    });
     return { completed: true };
   });
 
@@ -4174,13 +4211,19 @@ export const watch = writeProcedure
       played.checks,
       await watchedIn(context, played),
     );
-    if (met)
+    if (met) {
       await recordProgress(context.tx, {
         tenantId: context.tenantId,
         lessonId: played.row.id,
         studentId: played.studentId,
         completed: { by: "student" },
       });
+      await lessonFinished(context, {
+        lessonId: played.row.id,
+        studentId: played.studentId,
+        wasFinished: false,
+      });
+    }
     return { completed: met, watched };
   });
 

@@ -143,7 +143,7 @@ export const MODULES: Record<ModuleId, ModuleSpec> = {
     requires: [],
     basic: false,
     schoolSwitch: false,
-    systems: ["lti"],
+    systems: ["lti", "xapi"],
   },
   sso: { requires: [], basic: false, schoolSwitch: false, systems: [] },
   sms: { requires: [], basic: false, schoolSwitch: false, systems: [] },

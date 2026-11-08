@@ -713,6 +713,13 @@ describe("erasing a student's work", () => {
           select ${t}::uuid, item.id, ${work.student}::uuid, 8, 10, 'Completed', 'FullyGraded',
                  statement_timestamp()
           from item`);
+        // A statement about them waiting for the school's record store.
+        await tx.execute(sql`
+          insert into core.xapi_statements (tenant_id, org_id, statement_id, student_user_id, statement)
+          select ${t}::uuid, m.org_id, gen_random_uuid(), ${work.student}::uuid, '{"verb": {}}'
+          from core.lessons l
+          join core.learning_modules m on m.tenant_id = l.tenant_id and m.id = l.module_id
+          where l.tenant_id = ${t}::uuid and l.id = ${lesson.id}::uuid`);
         // The time and the reader their school gave them.
         await tx.execute(sql`
           insert into core.access_arrangements (tenant_id, org_id, student_user_id, extra_time, read_aloud)
@@ -823,6 +830,7 @@ describe("erasing a student's work", () => {
           reviews: number;
           audiences: number;
           tools: number;
+          statements: number;
         }>(sql`
           select (select count(*)::int from core.lesson_runs where tenant_id = ${t}::uuid
                    and student_user_id = ${work.student}::uuid) as runs,
@@ -855,7 +863,9 @@ describe("erasing a student's work", () => {
                  (select count(*)::int from core.module_audiences where tenant_id = ${t}::uuid
                    and student_user_id = ${work.student}::uuid) as audiences,
                  (select count(*)::int from core.lti_scores where tenant_id = ${t}::uuid
-                   and student_user_id = ${work.student}::uuid) as tools`);
+                   and student_user_id = ${work.student}::uuid) as tools,
+                 (select count(*)::int from core.xapi_statements where tenant_id = ${t}::uuid
+                   and student_user_id = ${work.student}::uuid) as statements`);
         expect(left).toEqual({
           runs: 0,
           code: 0,
@@ -872,6 +882,7 @@ describe("erasing a student's work", () => {
           reviews: 0,
           audiences: 0,
           tools: 0,
+          statements: 0,
         });
         checked = true;
         throw rollback;

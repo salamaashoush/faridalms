@@ -236,6 +236,7 @@ export const ERASURE_RULES: Record<string, ErasureRule> = {
     why: "Names the member of staff who filed a library item under a tag; the library belongs to the school.",
     reviewed: false,
   },
+  "core.xapi_statements": { rule: "erased" },
   "core.message_contacts": { rule: "erased" },
   "core.message_drafts": { rule: "erased" },
   "core.message_threads": { rule: "erased" },

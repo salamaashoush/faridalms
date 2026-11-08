@@ -1745,14 +1745,17 @@ export async function insertResponse(
     feedback?: string | null;
     markedBy?: string | null;
   },
-): Promise<void> {
-  await tx.execute(sql`
+): Promise<{ id: string; createdAt: Date }> {
+  const [row] = await tx.execute<{ id: string; created_at: Date | string }>(sql`
     insert into core.lesson_responses (tenant_id, lesson_id, document_version_id, student_user_id,
       block_id, attempt, try, kind, response, fraction, state, feedback, marked_by_user_id)
     values (${input.tenantId}::uuid, ${input.lessonId}::uuid, ${input.documentVersionId}::uuid,
       ${input.studentId}::uuid, ${input.blockId}::uuid, ${input.attempt}, ${input.try}, ${input.kind},
       ${input.response}::jsonb, ${input.fraction}, ${input.state}, ${input.feedback ?? null},
-      ${input.markedBy ?? null}::uuid)`);
+      ${input.markedBy ?? null}::uuid)
+    returning id, created_at`);
+  if (!row) throw new Error("response not kept");
+  return { id: row.id, createdAt: new Date(row.created_at) };
 }
 
 /** One student's rows for one question, every attempt, in the order given. */

@@ -1,0 +1,1610 @@
+{
+  "type": "diff",
+  "version": "9",
+  "dialect": "postgres",
+  "id": "96947278-496f-473e-a508-21bebaafda07",
+  "prevIds": [
+    "0389ffbb-7d0b-48a2-9218-96a4493d6b57"
+  ],
+  "footprints": [
+    {
+      "statementType": "create_table",
+      "statementTarget": [
+        "table",
+        "core",
+        "xapi_statements"
+      ],
+      "writes": [
+        "s|tbl|core.xapi_statements",
+        "n|tbl|core.xapi_statements",
+        "e|tbl|core.xapi_statements",
+        "n|rel|core.xapi_statements",
+        "n|type|core.xapi_statements",
+        "n|rel|core.xapi_statements_pkey"
+      ],
+      "reads": [
+        "n|sch|core"
+      ]
+    },
+    {
+      "statementType": "create_table",
+      "statementTarget": [
+        "table",
+        "core",
+        "xapi_stores"
+      ],
+      "writes": [
+        "s|tbl|core.xapi_stores",
+        "n|tbl|core.xapi_stores",
+        "e|tbl|core.xapi_stores",
+        "n|rel|core.xapi_stores",
+        "n|type|core.xapi_stores",
+        "n|rel|core.xapi_stores_pkey"
+      ],
+      "reads": [
+        "n|sch|core"
+      ]
+    },
+    {
+      "statementType": "create_index",
+      "statementTarget": [
+        "index",
+        "core",
+        "xapi_statements",
+        "xapi_statements_key"
+      ],
+      "writes": [
+        "s|idx|core.xapi_statements_key",
+        "n|idx|core.xapi_statements_key",
+        "e|idx|core.xapi_statements_key",
+        "n|rel|core.xapi_statements_key"
+      ],
+      "reads": [
+        "n|tbl|core.xapi_statements",
+        "n|sch|core",
+        "n|col|core.xapi_statements.tenant_id",
+        "n|col|core.xapi_statements.org_id",
+        "n|col|core.xapi_statements.statement_id"
+      ]
+    },
+    {
+      "statementType": "create_index",
+      "statementTarget": [
+        "index",
+        "core",
+        "xapi_statements",
+        "xapi_statements_queue_idx"
+      ],
+      "writes": [
+        "s|idx|core.xapi_statements_queue_idx",
+        "n|idx|core.xapi_statements_queue_idx",
+        "e|idx|core.xapi_statements_queue_idx",
+        "n|rel|core.xapi_statements_queue_idx"
+      ],
+      "reads": [
+        "n|tbl|core.xapi_statements",
+        "n|sch|core",
+        "n|col|core.xapi_statements.tenant_id",
+        "n|col|core.xapi_statements.due_at"
+      ]
+    },
+    {
+      "statementType": "create_index",
+      "statementTarget": [
+        "index",
+        "core",
+        "xapi_statements",
+        "xapi_statements_student_idx"
+      ],
+      "writes": [
+        "s|idx|core.xapi_statements_student_idx",
+        "n|idx|core.xapi_statements_student_idx",
+        "e|idx|core.xapi_statements_student_idx",
+        "n|rel|core.xapi_statements_student_idx"
+      ],
+      "reads": [
+        "n|tbl|core.xapi_statements",
+        "n|sch|core",
+        "n|col|core.xapi_statements.tenant_id",
+        "n|col|core.xapi_statements.student_user_id"
+      ]
+    },
+    {
+      "statementType": "create_index",
+      "statementTarget": [
+        "index",
+        "core",
+        "xapi_stores",
+        "xapi_stores_org_key"
+      ],
+      "writes": [
+        "s|idx|core.xapi_stores_org_key",
+        "n|idx|core.xapi_stores_org_key",
+        "e|idx|core.xapi_stores_org_key",
+        "n|rel|core.xapi_stores_org_key"
+      ],
+      "reads": [
+        "n|tbl|core.xapi_stores",
+        "n|sch|core",
+        "n|col|core.xapi_stores.tenant_id",
+        "n|col|core.xapi_stores.org_id"
+      ]
+    },
+    {
+      "statementType": "create_fk",
+      "statementTarget": [
+        "table",
+        "core",
+        "xapi_statements"
+      ],
+      "writes": [
+        "s|fk|core.xapi_statements.xapi_statements_tenant_id_fkey",
+        "n|fk|core.xapi_statements.xapi_statements_tenant_id_fkey",
+        "e|fk|core.xapi_statements.xapi_statements_tenant_id_fkey",
+        "n|con|core.xapi_statements.xapi_statements_tenant_id_fkey"
+      ],
+      "reads": [
+        "n|tbl|core.xapi_statements",
+        "n|sch|core",
+        "n|tbl|core.tenants",
+        "n|sch|core",
+        "n|col|core.xapi_statements.tenant_id",
+        "n|col|core.tenants.tenant_id",
+        "e|uniqueness|core.tenants.tenant_id"
+      ]
+    },
+    {
+      "statementType": "create_fk",
+      "statementTarget": [
+        "table",
+        "core",
+        "xapi_statements"
+      ],
+      "writes": [
+        "s|fk|core.xapi_statements.xapi_statements_tenant_id_org_id_fkey",
+        "n|fk|core.xapi_statements.xapi_statements_tenant_id_org_id_fkey",
+        "e|fk|core.xapi_statements.xapi_statements_tenant_id_org_id_fkey",
+        "n|con|core.xapi_statements.xapi_statements_tenant_id_org_id_fkey"
+      ],
+      "reads": [
+        "n|tbl|core.xapi_statements",
+        "n|sch|core",
+        "n|tbl|core.orgs",
+        "n|sch|core",
+        "n|col|core.xapi_statements.tenant_id",
+        "n|col|core.xapi_statements.org_id",
+        "n|col|core.orgs.tenant_id",
+        "n|col|core.orgs.id",
+        "e|uniqueness|core.orgs.id.tenant_id"
+      ]
+    },
+    {
+      "statementType": "create_fk",
+      "statementTarget": [
+        "table",
+        "core",
+        "xapi_statements"
+      ],
+      "writes": [
+        "s|fk|core.xapi_statements.xapi_statements_tenant_id_student_user_id_fkey",
+        "n|fk|core.xapi_statements.xapi_statements_tenant_id_student_user_id_fkey",
+        "e|fk|core.xapi_statements.xapi_statements_tenant_id_student_user_id_fkey",
+        "n|con|core.xapi_statements.xapi_statements_tenant_id_student_user_id_fkey"
+      ],
+      "reads": [
+        "n|tbl|core.xapi_statements",
+        "n|sch|core",
+        "n|tbl|core.users",
+        "n|sch|core",
+        "n|col|core.xapi_statements.tenant_id",
+        "n|col|core.xapi_statements.student_user_id",
+        "n|col|core.users.tenant_id",
+        "n|col|core.users.id",
+        "e|uniqueness|core.users.id.tenant_id"
+      ]
+    },
+    {
+      "statementType": "create_fk",
+      "statementTarget": [
+        "table",
+        "core",
+        "xapi_stores"
+      ],
+      "writes": [
+        "s|fk|core.xapi_stores.xapi_stores_tenant_id_fkey",
+        "n|fk|core.xapi_stores.xapi_stores_tenant_id_fkey",
+        "e|fk|core.xapi_stores.xapi_stores_tenant_id_fkey",
+        "n|con|core.xapi_stores.xapi_stores_tenant_id_fkey"
+      ],
+      "reads": [
+        "n|tbl|core.xapi_stores",
+        "n|sch|core",
+        "n|tbl|core.tenants",
+        "n|sch|core",
+        "n|col|core.xapi_stores.tenant_id",
+        "n|col|core.tenants.tenant_id",
+        "e|uniqueness|core.tenants.tenant_id"
+      ]
+    },
+    {
+      "statementType": "create_fk",
+      "statementTarget": [
+        "table",
+        "core",
+        "xapi_stores"
+      ],
+      "writes": [
+        "s|fk|core.xapi_stores.xapi_stores_tenant_id_org_id_fkey",
+        "n|fk|core.xapi_stores.xapi_stores_tenant_id_org_id_fkey",
+        "e|fk|core.xapi_stores.xapi_stores_tenant_id_org_id_fkey",
+        "n|con|core.xapi_stores.xapi_stores_tenant_id_org_id_fkey"
+      ],
+      "reads": [
+        "n|tbl|core.xapi_stores",
+        "n|sch|core",
+        "n|tbl|core.orgs",
+        "n|sch|core",
+        "n|col|core.xapi_stores.tenant_id",
+        "n|col|core.xapi_stores.org_id",
+        "n|col|core.orgs.tenant_id",
+        "n|col|core.orgs.id",
+        "e|uniqueness|core.orgs.id.tenant_id"
+      ]
+    },
+    {
+      "statementType": "create_policy",
+      "statementTarget": [
+        "table",
+        "core",
+        "xapi_statements"
+      ],
+      "writes": [
+        "s|pol|core.xapi_statements.tenant_isolation",
+        "n|pol|core.xapi_statements.tenant_isolation",
+        "e|pol|core.xapi_statements.tenant_isolation"
+      ],
+      "reads": [
+        "n|tbl|core.xapi_statements",
+        "n|sch|core",
+        "e|rls|core.xapi_statements"
+      ]
+    },
+    {
+      "statementType": "create_policy",
+      "statementTarget": [
+        "table",
+        "core",
+        "xapi_statements"
+      ],
+      "writes": [
+        "s|pol|core.xapi_statements.owner_all",
+        "n|pol|core.xapi_statements.owner_all",
+        "e|pol|core.xapi_statements.owner_all"
+      ],
+      "reads": [
+        "n|tbl|core.xapi_statements",
+        "n|sch|core",
+        "n|role|cell_owner",
+        "e|rls|core.xapi_statements"
+      ]
+    },
+    {
+      "statementType": "create_policy",
+      "statementTarget": [
+        "table",
+        "core",
+        "xapi_statements"
+      ],
+      "writes": [
+        "s|pol|core.xapi_statements.p_select",
+        "n|pol|core.xapi_statements.p_select",
+        "e|pol|core.xapi_statements.p_select"
+      ],
+      "reads": [
+        "n|tbl|core.xapi_statements",
+        "n|sch|core",
+        "n|role|app",
+        "n|role|cell_io",
+        "n|role|retention",
+        "n|role|worker",
+        "e|rls|core.xapi_statements"
+      ]
+    },
+    {
+      "statementType": "create_policy",
+      "statementTarget": [
+        "table",
+        "core",
+        "xapi_statements"
+      ],
+      "writes": [
+        "s|pol|core.xapi_statements.p_insert",
+        "n|pol|core.xapi_statements.p_insert",
+        "e|pol|core.xapi_statements.p_insert"
+      ],
+      "reads": [
+        "n|tbl|core.xapi_statements",
+        "n|sch|core",
+        "n|role|app",
+        "n|role|cell_io",
+        "n|role|worker",
+        "e|rls|core.xapi_statements"
+      ]
+    },
+    {
+      "statementType": "create_policy",
+      "statementTarget": [
+        "table",
+        "core",
+        "xapi_statements"
+      ],
+      "writes": [
+        "s|pol|core.xapi_statements.p_update",
+        "n|pol|core.xapi_statements.p_update",
+        "e|pol|core.xapi_statements.p_update"
+      ],
+      "reads": [
+        "n|tbl|core.xapi_statements",
+        "n|sch|core",
+        "n|role|app",
+        "n|role|cell_io",
+        "n|role|worker",
+        "e|rls|core.xapi_statements"
+      ]
+    },
+    {
+      "statementType": "create_policy",
+      "statementTarget": [
+        "table",
+        "core",
+        "xapi_statements"
+      ],
+      "writes": [
+        "s|pol|core.xapi_statements.p_erase_update",
+        "n|pol|core.xapi_statements.p_erase_update",
+        "e|pol|core.xapi_statements.p_erase_update"
+      ],
+      "reads": [
+        "n|tbl|core.xapi_statements",
+        "n|sch|core",
+        "n|role|retention",
+        "e|rls|core.xapi_statements"
+      ]
+    },
+    {
+      "statementType": "create_policy",
+      "statementTarget": [
+        "table",
+        "core",
+        "xapi_statements"
+      ],
+      "writes": [
+        "s|pol|core.xapi_statements.p_erase_delete",
+        "n|pol|core.xapi_statements.p_erase_delete",
+        "e|pol|core.xapi_statements.p_erase_delete"
+      ],
+      "reads": [
+        "n|tbl|core.xapi_statements",
+        "n|sch|core",
+        "n|role|retention",
+        "e|rls|core.xapi_statements"
+      ]
+    },
+    {
+      "statementType": "create_policy",
+      "statementTarget": [
+        "table",
+        "core",
+        "xapi_stores"
+      ],
+      "writes": [
+        "s|pol|core.xapi_stores.tenant_isolation",
+        "n|pol|core.xapi_stores.tenant_isolation",
+        "e|pol|core.xapi_stores.tenant_isolation"
+      ],
+      "reads": [
+        "n|tbl|core.xapi_stores",
+        "n|sch|core",
+        "e|rls|core.xapi_stores"
+      ]
+    },
+    {
+      "statementType": "create_policy",
+      "statementTarget": [
+        "table",
+        "core",
+        "xapi_stores"
+      ],
+      "writes": [
+        "s|pol|core.xapi_stores.owner_all",
+        "n|pol|core.xapi_stores.owner_all",
+        "e|pol|core.xapi_stores.owner_all"
+      ],
+      "reads": [
+        "n|tbl|core.xapi_stores",
+        "n|sch|core",
+        "n|role|cell_owner",
+        "e|rls|core.xapi_stores"
+      ]
+    },
+    {
+      "statementType": "create_policy",
+      "statementTarget": [
+        "table",
+        "core",
+        "xapi_stores"
+      ],
+      "writes": [
+        "s|pol|core.xapi_stores.p_select",
+        "n|pol|core.xapi_stores.p_select",
+        "e|pol|core.xapi_stores.p_select"
+      ],
+      "reads": [
+        "n|tbl|core.xapi_stores",
+        "n|sch|core",
+        "n|role|app",
+        "n|role|cell_io",
+        "n|role|retention",
+        "n|role|worker",
+        "e|rls|core.xapi_stores"
+      ]
+    },
+    {
+      "statementType": "create_policy",
+      "statementTarget": [
+        "table",
+        "core",
+        "xapi_stores"
+      ],
+      "writes": [
+        "s|pol|core.xapi_stores.p_insert",
+        "n|pol|core.xapi_stores.p_insert",
+        "e|pol|core.xapi_stores.p_insert"
+      ],
+      "reads": [
+        "n|tbl|core.xapi_stores",
+        "n|sch|core",
+        "n|role|app",
+        "n|role|cell_io",
+        "n|role|worker",
+        "e|rls|core.xapi_stores"
+      ]
+    },
+    {
+      "statementType": "create_policy",
+      "statementTarget": [
+        "table",
+        "core",
+        "xapi_stores"
+      ],
+      "writes": [
+        "s|pol|core.xapi_stores.p_update",
+        "n|pol|core.xapi_stores.p_update",
+        "e|pol|core.xapi_stores.p_update"
+      ],
+      "reads": [
+        "n|tbl|core.xapi_stores",
+        "n|sch|core",
+        "n|role|app",
+        "n|role|cell_io",
+        "n|role|worker",
+        "e|rls|core.xapi_stores"
+      ]
+    }
+  ],
+  "deltas": [
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "name": "xapi_statements",
+        "isRlsEnabled": true,
+        "entityType": "tables"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "name": "xapi_stores",
+        "isRlsEnabled": true,
+        "entityType": "tables"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "xapi_statements",
+        "name": "tenant_id",
+        "type": "uuid",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "xapi_statements",
+        "name": "id",
+        "type": "uuid",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": "uuidv7()",
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "xapi_statements",
+        "name": "org_id",
+        "type": "uuid",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "xapi_statements",
+        "name": "statement_id",
+        "type": "uuid",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "xapi_statements",
+        "name": "student_user_id",
+        "type": "uuid",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "xapi_statements",
+        "name": "statement",
+        "type": "jsonb",
+        "typeSchema": null,
+        "notNull": false,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "xapi_statements",
+        "name": "state",
+        "type": "text",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": "'queued'",
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "xapi_statements",
+        "name": "attempts",
+        "type": "integer",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": "0",
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "xapi_statements",
+        "name": "due_at",
+        "type": "timestamp with time zone",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": "statement_timestamp()",
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "xapi_statements",
+        "name": "leased_until",
+        "type": "timestamp with time zone",
+        "typeSchema": null,
+        "notNull": false,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "xapi_statements",
+        "name": "sent_at",
+        "type": "timestamp with time zone",
+        "typeSchema": null,
+        "notNull": false,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "xapi_statements",
+        "name": "error",
+        "type": "text",
+        "typeSchema": null,
+        "notNull": false,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "xapi_statements",
+        "name": "status",
+        "type": "text",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": "'active'",
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "xapi_statements",
+        "name": "date_last_modified",
+        "type": "timestamp with time zone",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": "statement_timestamp()",
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "xapi_statements",
+        "name": "version",
+        "type": "integer",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": "1",
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "xapi_statements",
+        "name": "metadata",
+        "type": "jsonb",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": "'{}'",
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "xapi_statements",
+        "name": "created_at",
+        "type": "timestamp with time zone",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": "statement_timestamp()",
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "xapi_stores",
+        "name": "tenant_id",
+        "type": "uuid",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "xapi_stores",
+        "name": "id",
+        "type": "uuid",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": "uuidv7()",
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "xapi_stores",
+        "name": "org_id",
+        "type": "uuid",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "xapi_stores",
+        "name": "endpoint",
+        "type": "text",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "xapi_stores",
+        "name": "username",
+        "type": "text",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "xapi_stores",
+        "name": "sealed_secret",
+        "type": "text",
+        "typeSchema": null,
+        "notNull": false,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "xapi_stores",
+        "name": "enabled",
+        "type": "boolean",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": "false",
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "xapi_stores",
+        "name": "status",
+        "type": "text",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": "'active'",
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "xapi_stores",
+        "name": "date_last_modified",
+        "type": "timestamp with time zone",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": "statement_timestamp()",
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "xapi_stores",
+        "name": "version",
+        "type": "integer",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": "1",
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "xapi_stores",
+        "name": "metadata",
+        "type": "jsonb",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": "'{}'",
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "xapi_stores",
+        "name": "created_at",
+        "type": "timestamp with time zone",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": "statement_timestamp()",
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "xapi_statements",
+        "name": "xapi_statements_key",
+        "nameExplicit": true,
+        "columns": [
+          {
+            "value": "tenant_id",
+            "isExpression": false,
+            "asc": true,
+            "nullsFirst": false,
+            "opclass": null
+          },
+          {
+            "value": "org_id",
+            "isExpression": false,
+            "asc": true,
+            "nullsFirst": false,
+            "opclass": null
+          },
+          {
+            "value": "statement_id",
+            "isExpression": false,
+            "asc": true,
+            "nullsFirst": false,
+            "opclass": null
+          }
+        ],
+        "isUnique": true,
+        "where": "status = 'active'",
+        "with": "",
+        "method": "btree",
+        "concurrently": false,
+        "entityType": "indexes"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "xapi_statements",
+        "name": "xapi_statements_queue_idx",
+        "nameExplicit": true,
+        "columns": [
+          {
+            "value": "tenant_id",
+            "isExpression": false,
+            "asc": true,
+            "nullsFirst": false,
+            "opclass": null
+          },
+          {
+            "value": "due_at",
+            "isExpression": false,
+            "asc": true,
+            "nullsFirst": false,
+            "opclass": null
+          }
+        ],
+        "isUnique": false,
+        "where": "status = 'active' and state in ('queued', 'sending')",
+        "with": "",
+        "method": "btree",
+        "concurrently": false,
+        "entityType": "indexes"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "xapi_statements",
+        "name": "xapi_statements_student_idx",
+        "nameExplicit": true,
+        "columns": [
+          {
+            "value": "tenant_id",
+            "isExpression": false,
+            "asc": true,
+            "nullsFirst": false,
+            "opclass": null
+          },
+          {
+            "value": "student_user_id",
+            "isExpression": false,
+            "asc": true,
+            "nullsFirst": false,
+            "opclass": null
+          }
+        ],
+        "isUnique": false,
+        "where": null,
+        "with": "",
+        "method": "btree",
+        "concurrently": false,
+        "entityType": "indexes"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "xapi_stores",
+        "name": "xapi_stores_org_key",
+        "nameExplicit": true,
+        "columns": [
+          {
+            "value": "tenant_id",
+            "isExpression": false,
+            "asc": true,
+            "nullsFirst": false,
+            "opclass": null
+          },
+          {
+            "value": "org_id",
+            "isExpression": false,
+            "asc": true,
+            "nullsFirst": false,
+            "opclass": null
+          }
+        ],
+        "isUnique": true,
+        "where": "status = 'active'",
+        "with": "",
+        "method": "btree",
+        "concurrently": false,
+        "entityType": "indexes"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "xapi_statements",
+        "name": "xapi_statements_tenant_id_fkey",
+        "nameExplicit": true,
+        "columns": [
+          "tenant_id"
+        ],
+        "schemaTo": "core",
+        "tableTo": "tenants",
+        "columnsTo": [
+          "tenant_id"
+        ],
+        "onUpdate": "NO ACTION",
+        "onDelete": "NO ACTION",
+        "entityType": "fks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "xapi_statements",
+        "name": "xapi_statements_tenant_id_org_id_fkey",
+        "nameExplicit": true,
+        "columns": [
+          "tenant_id",
+          "org_id"
+        ],
+        "schemaTo": "core",
+        "tableTo": "orgs",
+        "columnsTo": [
+          "tenant_id",
+          "id"
+        ],
+        "onUpdate": "NO ACTION",
+        "onDelete": "NO ACTION",
+        "entityType": "fks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "xapi_statements",
+        "name": "xapi_statements_tenant_id_student_user_id_fkey",
+        "nameExplicit": true,
+        "columns": [
+          "tenant_id",
+          "student_user_id"
+        ],
+        "schemaTo": "core",
+        "tableTo": "users",
+        "columnsTo": [
+          "tenant_id",
+          "id"
+        ],
+        "onUpdate": "NO ACTION",
+        "onDelete": "NO ACTION",
+        "entityType": "fks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "xapi_stores",
+        "name": "xapi_stores_tenant_id_fkey",
+        "nameExplicit": true,
+        "columns": [
+          "tenant_id"
+        ],
+        "schemaTo": "core",
+        "tableTo": "tenants",
+        "columnsTo": [
+          "tenant_id"
+        ],
+        "onUpdate": "NO ACTION",
+        "onDelete": "NO ACTION",
+        "entityType": "fks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "xapi_stores",
+        "name": "xapi_stores_tenant_id_org_id_fkey",
+        "nameExplicit": true,
+        "columns": [
+          "tenant_id",
+          "org_id"
+        ],
+        "schemaTo": "core",
+        "tableTo": "orgs",
+        "columnsTo": [
+          "tenant_id",
+          "id"
+        ],
+        "onUpdate": "NO ACTION",
+        "onDelete": "NO ACTION",
+        "entityType": "fks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "xapi_statements",
+        "name": "xapi_statements_pkey",
+        "columns": [
+          "tenant_id",
+          "id"
+        ],
+        "nameExplicit": true,
+        "entityType": "pks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "xapi_stores",
+        "name": "xapi_stores_pkey",
+        "columns": [
+          "tenant_id",
+          "id"
+        ],
+        "nameExplicit": true,
+        "entityType": "pks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "xapi_statements",
+        "name": "xapi_statements_status_check",
+        "value": "status in ('active', 'tobedeleted')",
+        "entityType": "checks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "xapi_statements",
+        "name": "xapi_statements_version_check",
+        "value": "version > 0",
+        "entityType": "checks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "xapi_statements",
+        "name": "xapi_statements_metadata_check",
+        "value": "jsonb_typeof(metadata) = 'object' and octet_length(metadata::text) <= 16384",
+        "entityType": "checks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "xapi_statements",
+        "name": "xapi_statements_state_check",
+        "value": "state in ('queued', 'sending', 'sent', 'failed')",
+        "entityType": "checks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "xapi_statements",
+        "name": "xapi_statements_attempts_check",
+        "value": "attempts between 0 and 20",
+        "entityType": "checks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "xapi_statements",
+        "name": "xapi_statements_error_check",
+        "value": "char_length(error) <= 500",
+        "entityType": "checks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "xapi_statements",
+        "name": "xapi_statements_statement_check",
+        "value": "(state = 'sent' or statement is not null)\n        and (statement is null or (jsonb_typeof(statement) = 'object' and octet_length(statement::text) <= 65536))",
+        "entityType": "checks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "xapi_statements",
+        "name": "xapi_statements_lease_check",
+        "value": "(state = 'sending') = (leased_until is not null)",
+        "entityType": "checks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "xapi_statements",
+        "name": "xapi_statements_sent_check",
+        "value": "(state = 'sent') = (sent_at is not null)",
+        "entityType": "checks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "xapi_stores",
+        "name": "xapi_stores_status_check",
+        "value": "status in ('active', 'tobedeleted')",
+        "entityType": "checks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "xapi_stores",
+        "name": "xapi_stores_version_check",
+        "value": "version > 0",
+        "entityType": "checks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "xapi_stores",
+        "name": "xapi_stores_metadata_check",
+        "value": "jsonb_typeof(metadata) = 'object' and octet_length(metadata::text) <= 16384",
+        "entityType": "checks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "xapi_stores",
+        "name": "xapi_stores_endpoint_check",
+        "value": "endpoint like 'https://%/' and char_length(endpoint) <= 500",
+        "entityType": "checks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "xapi_stores",
+        "name": "xapi_stores_username_check",
+        "value": "char_length(username) between 1 and 200",
+        "entityType": "checks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "xapi_stores",
+        "name": "xapi_stores_sealed_secret_check",
+        "value": "char_length(coalesce(sealed_secret, '')) <= 2000",
+        "entityType": "checks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "xapi_stores",
+        "name": "xapi_stores_enabled_check",
+        "value": "not enabled or sealed_secret is not null",
+        "entityType": "checks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "xapi_statements",
+        "name": "tenant_isolation",
+        "as": "RESTRICTIVE",
+        "for": "ALL",
+        "roles": [
+          "public"
+        ],
+        "using": "tenant_id = (select app.tenant_id())",
+        "withCheck": "tenant_id = (select app.tenant_id())",
+        "entityType": "policies"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "xapi_statements",
+        "name": "owner_all",
+        "as": "PERMISSIVE",
+        "for": "ALL",
+        "roles": [
+          "cell_owner"
+        ],
+        "using": "true",
+        "withCheck": "true",
+        "entityType": "policies"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "xapi_statements",
+        "name": "p_select",
+        "as": "PERMISSIVE",
+        "for": "SELECT",
+        "roles": [
+          "app",
+          "cell_io",
+          "retention",
+          "worker"
+        ],
+        "using": "true",
+        "withCheck": null,
+        "entityType": "policies"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "xapi_statements",
+        "name": "p_insert",
+        "as": "PERMISSIVE",
+        "for": "INSERT",
+        "roles": [
+          "app",
+          "cell_io",
+          "worker"
+        ],
+        "using": null,
+        "withCheck": "true",
+        "entityType": "policies"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "xapi_statements",
+        "name": "p_update",
+        "as": "PERMISSIVE",
+        "for": "UPDATE",
+        "roles": [
+          "app",
+          "cell_io",
+          "worker"
+        ],
+        "using": "true",
+        "withCheck": "true",
+        "entityType": "policies"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "xapi_statements",
+        "name": "p_erase_update",
+        "as": "PERMISSIVE",
+        "for": "UPDATE",
+        "roles": [
+          "retention"
+        ],
+        "using": "app.erasure_approved(tenant_id, \"student_user_id\")",
+        "withCheck": "status = 'tobedeleted'",
+        "entityType": "policies"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "xapi_statements",
+        "name": "p_erase_delete",
+        "as": "PERMISSIVE",
+        "for": "DELETE",
+        "roles": [
+          "retention"
+        ],
+        "using": "status = 'tobedeleted' and (app.erasure_approved(tenant_id, \"student_user_id\"))",
+        "withCheck": null,
+        "entityType": "policies"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "xapi_stores",
+        "name": "tenant_isolation",
+        "as": "RESTRICTIVE",
+        "for": "ALL",
+        "roles": [
+          "public"
+        ],
+        "using": "tenant_id = (select app.tenant_id())",
+        "withCheck": "tenant_id = (select app.tenant_id())",
+        "entityType": "policies"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "xapi_stores",
+        "name": "owner_all",
+        "as": "PERMISSIVE",
+        "for": "ALL",
+        "roles": [
+          "cell_owner"
+        ],
+        "using": "true",
+        "withCheck": "true",
+        "entityType": "policies"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "xapi_stores",
+        "name": "p_select",
+        "as": "PERMISSIVE",
+        "for": "SELECT",
+        "roles": [
+          "app",
+          "cell_io",
+          "retention",
+          "worker"
+        ],
+        "using": "true",
+        "withCheck": null,
+        "entityType": "policies"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "xapi_stores",
+        "name": "p_insert",
+        "as": "PERMISSIVE",
+        "for": "INSERT",
+        "roles": [
+          "app",
+          "cell_io",
+          "worker"
+        ],
+        "using": null,
+        "withCheck": "true",
+        "entityType": "policies"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "xapi_stores",
+        "name": "p_update",
+        "as": "PERMISSIVE",
+        "for": "UPDATE",
+        "roles": [
+          "app",
+          "cell_io",
+          "worker"
+        ],
+        "using": "true",
+        "withCheck": "true",
+        "entityType": "policies"
+      }
+    }
+  ]
+}

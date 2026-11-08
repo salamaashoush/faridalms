@@ -32,7 +32,11 @@ import {
   watchRowsIn,
   yearUnitsOf,
 } from "@faridalms/database/stores/learning";
-import { toolById } from "@faridalms/database/stores/lti";
+import {
+  columnScores,
+  columnsOf,
+  toolById,
+} from "@faridalms/database/stores/lti";
 import { libraryItemsByIds } from "@faridalms/database/stores/media-library";
 import { bankQuestionOf } from "@faridalms/domain/bank";
 import {
@@ -93,13 +97,14 @@ import type {
 } from "../core/context";
 
 import { editableModule } from "../core/learning-access";
-import { nameUuid } from "../core/names";
 import { portalOrigin } from "../core/portal";
 import { can, localeOf, openUnit, schoolOf } from "../core/procedure";
 import { reachesStudent, scopeFor, teaches } from "../core/reach";
 import { refusalResponse } from "../core/refusal";
 import { sharedInliner } from "../core/shared";
 import { drawsOf, publishedQuiz } from "../quizzes/quiz";
+import { toolScoreStatement } from "../xapi/live";
+import { statementId } from "../xapi/statements";
 
 const PATH = /^\/v1\/assignments\/([0-9a-f-]{36})\/work\.zip$/;
 const PORTFOLIO = /^\/v1\/students\/([0-9a-f-]{36})\/portfolio\.zip$/;
@@ -1177,14 +1182,6 @@ async function classCartridge(
   return { title, extension: "imscc", entries };
 }
 
-/** The namespace this app's statement ids are made in, so the same record gives the same id. */
-const STATEMENT_NAMESPACE = Buffer.from(
-  "010710a06f1d44adbd941164c94a4add",
-  "hex",
-);
-
-const uuidFor = (name: string) => nameUuid(STATEMENT_NAMESPACE, name);
-
 /** Seconds of a video seen, from the stretches watched. */
 const seenSeconds = (ranges: [number, number][]) =>
   ranges.reduce((sum, [from, to]) => sum + Math.max(0, to - from), 0);
@@ -1271,7 +1268,7 @@ async function moduleStatements(
       started.set(row.studentUserId, row.completedAt ?? row.startedAt);
       statements.push(
         xapiStatement({
-          id: uuidFor(
+          id: statementId(
             `progress:${lesson.id}:${row.studentUserId}:${row.attempts}`,
           ),
           actor: actor(row.studentUserId),
@@ -1314,7 +1311,7 @@ async function moduleStatements(
     for (const row of watches.filter((each) => each.lessonId === lesson.id)) {
       statements.push(
         xapiStatement({
-          id: uuidFor(`watch:${lesson.id}:${row.studentId}:${row.video}`),
+          id: statementId(`watch:${lesson.id}:${row.studentId}:${row.video}`),
           actor: actor(row.studentId),
           verb: "experienced",
           object: xapiActivity(
@@ -1331,6 +1328,38 @@ async function moduleStatements(
         }),
       );
     }
+  }
+  // What outside tools scored the class in the module's columns, once they
+  // had finished marking.
+  const columns = await columnsOf(unit.tx, {
+    tenantId: unit.tenantId,
+    moduleId: module.id,
+  });
+  for (const score of await columnScores(unit.tx, {
+    tenantId: unit.tenantId,
+    lineItemIds: columns.map((column) => column.id),
+    studentIds: students,
+  })) {
+    const column = columns.find((each) => each.id === score.lineItemId);
+    if (
+      !column ||
+      score.scoreGiven === null ||
+      score.scoreMaximum === null ||
+      score.gradingProgress !== "FullyGraded"
+    )
+      continue;
+    statements.push(
+      toolScoreStatement(home, {
+        column,
+        toolName: column.toolName,
+        course: { kind: "module", id: module.id, title: module.title },
+        studentId: score.studentUserId,
+        name: people.get(score.studentUserId) ?? null,
+        scoreGiven: score.scoreGiven,
+        scoreMaximum: score.scoreMaximum,
+        scoredAt: score.scoredAt,
+      }).statement,
+    );
   }
   await writeAudit(unit.tx, unit.tenantId, {
     action: "module.statements_exported",

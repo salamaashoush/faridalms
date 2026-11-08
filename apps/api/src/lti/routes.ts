@@ -46,8 +46,9 @@ import { hostAccess } from "../files/authorize";
 import { gradeService, gradesClaim, issueToken } from "./grades";
 import { schoolSigningKey, signed, toolKeys } from "./keys";
 import { openIdConfiguration, registerTool } from "./registration";
-import { courseNamed, rosterClaim, rosterService } from "./roster";
+import { rosterClaim, rosterService } from "./roster";
 import {
+  courseNamed,
   escape,
   findLink,
   issuerOf,
@@ -759,7 +760,7 @@ async function framedHint(
   };
   return {
     tool: message.tool,
-    hint: `${FRAMED}${await secretsFor(context).seal(framed)}`,
+    hint: `${FRAMED}${await secretsFor(context).framed.seal(framed)}`,
     target: message.claims[LTI_CLAIM.targetLinkUri],
   };
 }
@@ -776,7 +777,7 @@ async function framedAnswer(
   },
 ) {
   const framed = await secretsFor(context)
-    .open<FramedLaunch>(sent.slice(FRAMED.length))
+    .framed.open<FramedLaunch>(sent.slice(FRAMED.length))
     .catch(() => null);
   if (
     framed?.kind !== "framed" ||

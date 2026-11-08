@@ -1,11 +1,14 @@
+import * as v from "valibot";
+
 import type { QuestionKind } from "./content";
 
 /**
  * Results as Experience API statements (xAPI 1.0.3), the shape a learning
  * record store keeps: who did what to which activity, with the score,
  * success, completion and time it took. A school takes them away to an
- * LRS or its own analysis; this app keeps its records in its own form and
- * writes them this way only when asked.
+ * LRS or its own analysis, or has them sent to its own store as they
+ * happen; this app keeps its records in its own form and writes them this
+ * way only for that.
  */
 
 export const XAPI_VERSION = "1.0.3";
@@ -18,6 +21,7 @@ export const XAPI_VERBS = {
   attempted: `${VERB}/attempted`,
   answered: `${VERB}/answered`,
   experienced: `${VERB}/experienced`,
+  scored: `${VERB}/scored`,
 } as const;
 type Verb = keyof typeof XAPI_VERBS;
 
@@ -106,9 +110,12 @@ const named = (name: string, language: string | null) => ({
   [language ?? "und"]: name,
 });
 
-/** What a statement is about: a lesson, its module, a class, a question or a video. */
+/**
+ * What a statement is about: a lesson, its module, a class, a question, a
+ * video, or something marked, an assignment or an outside tool's column.
+ */
 export function xapiActivity(
-  kind: "lesson" | "module" | "course" | "question" | "video",
+  kind: "lesson" | "module" | "course" | "question" | "video" | "assessment",
   id: string,
   name: string,
   language: string | null,
@@ -216,6 +223,49 @@ export function answerResult(
     completion: true,
   };
 }
+
+/**
+ * What a mark says as a result: the points given out of the most there
+ * were, and their share; the work was finished to be marked.
+ */
+export function markResult(given: number, maximum: number): XapiResult {
+  const scaled = maximum > 0 ? Math.min(1, Math.max(0, given / maximum)) : 0;
+  return {
+    score: {
+      scaled: Number(scaled.toFixed(4)),
+      raw: Math.min(Math.max(0, given), maximum),
+      min: 0,
+      max: maximum,
+    },
+    completion: true,
+  };
+}
+
+const https = v.pipe(
+  v.string(),
+  v.trim(),
+  v.maxLength(499),
+  v.url("xapi.url"),
+  v.startsWith("https://", "xapi.https"),
+);
+
+/**
+ * A school's own record store, as its administrator sets it: the address
+ * of its xAPI endpoint, kept ending in a slash so the resources follow
+ * it, the key the store gave and its secret, which is kept when left
+ * empty, and whether statements are sent.
+ */
+export const recordStoreSchema = v.object({
+  expectedVersion: v.optional(v.pipe(v.number(), v.integer()), 0),
+  endpoint: v.pipe(
+    https,
+    v.transform((value) => (value.endsWith("/") ? value : `${value}/`)),
+  ),
+  username: v.pipe(v.string(), v.trim(), v.minLength(1), v.maxLength(200)),
+  secret: v.optional(v.pipe(v.string(), v.maxLength(500)), ""),
+  enabled: v.boolean(),
+});
+export type RecordStoreInput = v.InferOutput<typeof recordStoreSchema>;
 
 /** What watching a video says as a result: how much was seen, for how long, and whether nearly all of it. */
 export function watchResult(

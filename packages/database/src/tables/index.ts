@@ -26,3 +26,4 @@ export * from "./site";
 export * from "./teaching";
 export * from "./tenancy";
 export * from "./timetable";
+export * from "./xapi";
