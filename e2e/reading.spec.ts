@@ -118,7 +118,11 @@ test("a reading marked in a quiz reaches the student's words to practise and the
     mine.getByRole("heading", { name: "Words to practise" }),
   ).toBeVisible();
   await expect(mine.getByText("sail", { exact: true })).toBeVisible();
-  await expect(mine.getByText("54 words a minute")).toBeVisible();
+  // Every browser reads to the one seeded student, so this run's reading
+  // is the one under its own title.
+  await expect(
+    mine.getByRole("listitem").filter({ hasText: title }),
+  ).toContainText("54 words a minute");
   await studentContext.close();
 
   const me = await pupil.identity.currentUser();
@@ -128,7 +132,12 @@ test("a reading marked in a quiz reaches the student's words to practise and the
   await expect(
     record.getByRole("img", { name: /Words correct a minute in English/ }),
   ).toBeVisible();
-  await expect(record.getByRole("cell", { name: "54" })).toBeVisible();
+  await expect(
+    record
+      .getByRole("row")
+      .filter({ hasText: title })
+      .getByRole("cell", { name: "54", exact: true }),
+  ).toBeVisible();
 });
 
 test("a school writes its own Arabic reading norms in its settings", async ({

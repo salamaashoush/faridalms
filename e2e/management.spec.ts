@@ -411,7 +411,8 @@ test("the student index opens records, exports a selection and filters on a phon
   page,
 }) => {
   await signIn(page, "admin");
-  await page.goto("/students");
+  // Other specs add students, who may fill the first page before her.
+  await page.goto("/students?q=Sabry");
   await untilHydrated(page);
   await page
     .getByRole("table")

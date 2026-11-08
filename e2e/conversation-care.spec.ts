@@ -190,6 +190,11 @@ test("a team finds a conversation by its own note", async ({
   await page.locator("form [contenteditable=true]").last().click();
   await page.keyboard.type(`Wants the ${tag} orchard tour.`);
   await page.getByRole("button", { name: "Save", exact: true }).click();
+  const note = page
+    .getByRole("list", { name: "Messages" })
+    .getByText(`Wants the ${tag} orchard tour.`);
+  // Leaving before the note is saved would cut its request off.
+  await expect(note).toBeVisible();
   await page.goto(`/search?q=${tag}&kind=notes`);
   await untilHydrated(page);
   // A team conversation is titled by its subject; the note that matched
@@ -198,9 +203,5 @@ test("a team finds a conversation by its own note", async ({
     .getByRole("link", { name: new RegExp(`Wants the ${tag} orchard tour`) })
     .click();
   await expect(page).toHaveURL(/\/messages\?thread=/);
-  await expect(
-    page
-      .getByRole("list", { name: "Messages" })
-      .getByText(`Wants the ${tag} orchard tour.`),
-  ).toBeVisible();
+  await expect(note).toBeVisible();
 });
