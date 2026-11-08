@@ -7,6 +7,7 @@ import type {
 } from "lexical";
 
 import {
+  contentNodeTypes,
   isSafeContentUrl,
   MAX_PANELS,
   TEXT_SIZES,
@@ -41,6 +42,7 @@ import {
   BEFORE_INPUT_COMMAND,
   COMMAND_PRIORITY_LOW,
   defineExtension,
+  getRegisteredNode,
   INSERT_PARAGRAPH_COMMAND,
   KEY_DOWN_COMMAND,
   KEY_ARROW_DOWN_COMMAND,
@@ -127,6 +129,15 @@ import {
 } from "./nodes";
 import { $insertFootnote } from "./nodes/footnote";
 import { $uniqueLinkIds } from "./nodes/lti";
+
+/** The root, which is never new, and the leaves typing makes and remakes. */
+const UNWATCHED = new Set<string>([
+  "root",
+  "text",
+  "code-highlight",
+  "linebreak",
+  "tab",
+]);
 
 const escapable = (node: LexicalNode | null | undefined): node is ElementNode =>
   $isCalloutNode(node) ||
@@ -593,9 +604,30 @@ export const BlocksExtension = defineExtension({
   name: "faridalms/blocks",
   dependencies: [LinkExtension, AutoLinkExtension],
   nodes: blockNodes,
-  register: (editor) =>
-    mergeRegister(
+  register: (editor) => {
+    // Lexical runs the root's transform at the end of every update, a key
+    // press included, and the passes below walk the whole document. An id
+    // goes missing or is shared only when a node joins the document, and
+    // typed text never carries one, so the passes wait for such a node.
+    let joined = false;
+    const $noteJoined = (node: LexicalNode) => {
+      if (joined) return;
+      const key = node.getKey();
+      joined = editor.getEditorState().read(() => $getNodeByKey(key) === null);
+    };
+    const watched = contentNodeTypes.flatMap((type) => {
+      const registered = UNWATCHED.has(type)
+        ? undefined
+        : getRegisteredNode(editor, type);
+      return registered
+        ? [editor.registerNodeTransform(registered.klass, $noteJoined)]
+        : [];
+    });
+    return mergeRegister(
+      ...watched,
       editor.registerNodeTransform(RootNode, (root) => {
+        if (!joined) return;
+        joined = false;
         $assignBlockIds(root, new Set());
         $uniqueAnswerIds(root, editor.getEditorState());
         $uniqueLinkIds(root, editor.getEditorState());
@@ -714,7 +746,8 @@ export const BlocksExtension = defineExtension({
         (event) => $onEscapeUp(escapable, event),
         COMMAND_PRIORITY_LOW,
       ),
-    ),
+    );
+  },
 });
 
 const headingKeys: Record<string, BlockType> = {

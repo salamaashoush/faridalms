@@ -118,11 +118,17 @@ function CommentMarks({ comments }: { comments: EditorComments }) {
       registry.set("fe-comment", new Highlight(...quiet));
       registry.set("fe-comment-active", new Highlight(...strong));
     };
-    const schedule = () => {
-      if (!frame) frame = requestAnimationFrame(draw);
-    };
     draw();
-    const stop = editor.registerUpdateListener(schedule);
+    // Without threads there is nothing to place, and moving the caret moves
+    // no passage, so only a change to the words places them again.
+    const stop =
+      threads.length === 0
+        ? () => {}
+        : editor.registerUpdateListener(({ dirtyElements, dirtyLeaves }) => {
+            if (frame || (dirtyElements.size === 0 && dirtyLeaves.size === 0))
+              return;
+            frame = requestAnimationFrame(draw);
+          });
     return () => {
       stop();
       cancelAnimationFrame(frame);

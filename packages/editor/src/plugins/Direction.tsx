@@ -11,7 +11,11 @@ const strong = /[A-Za-zÀ-ɏͰ-ԯ֐-ࣿיִ-﷿ﹰ-﻿]/;
 const NEUTRAL = '[dir="auto"], [data-neutral-dir]';
 
 function $ownDirection() {
-  for (const block of $getRoot().getChildren()) {
+  for (
+    let block = $getRoot().getFirstChild();
+    block;
+    block = block.getNextSibling()
+  ) {
     const found = textDirection(block.getTextContent());
     if (found) return found;
   }

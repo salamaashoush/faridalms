@@ -3,6 +3,7 @@ import type { NodeKey } from "lexical";
 import { NARRATION_MS, spokenWords } from "@faridalms/domain/content";
 import { useLexicalComposerContext } from "@lexical/react/LexicalComposerContext";
 import {
+  $getNodeByKey,
   $getRoot,
   $isElementNode,
   createCommand,
@@ -40,19 +41,16 @@ export function NarrationMarksPlugin() {
   const { narration } = useEditorEnvironment();
   useEffect(() => {
     if (!narration) return undefined;
+    // Narrated nodes, by key: found by a walk once, then kept up to date
+    // from the nodes each update changed, which are the only ones whose
+    // narration can have changed.
+    const narrated = new Set<NodeKey>();
     let marked = new Set<HTMLElement>();
-    const mark = () => {
-      const keys = editor.getEditorState().read(() => {
-        const found: NodeKey[] = [];
-        const pending = [...$getRoot().getChildren()];
-        for (let node = pending.pop(); node; node = pending.pop()) {
-          if ($narrationOf(node)) found.push(node.getKey());
-          if ($isElementNode(node)) pending.push(...node.getChildren());
-        }
-        return found;
-      });
+    const draw = () => {
       const now = new Set(
-        keys.map((key) => editor.getElementByKey(key)).filter(isHTMLElement),
+        [...narrated]
+          .map((key) => editor.getElementByKey(key))
+          .filter(isHTMLElement),
       );
       for (const element of marked)
         if (!now.has(element)) delete element.dataset.narrated;
@@ -61,8 +59,29 @@ export function NarrationMarksPlugin() {
           element.dataset.narrated = "";
       marked = now;
     };
-    mark();
-    return editor.registerUpdateListener(mark);
+    editor.getEditorState().read(() => {
+      const pending = [...$getRoot().getChildren()];
+      for (let node = pending.pop(); node; node = pending.pop()) {
+        if ($narrationOf(node)) narrated.add(node.getKey());
+        if ($isElementNode(node)) pending.push(...node.getChildren());
+      }
+    });
+    draw();
+    return editor.registerUpdateListener(
+      ({ editorState, dirtyElements, dirtyLeaves }) => {
+        if (dirtyElements.size === 0 && dirtyLeaves.size === 0) return;
+        editorState.read(() => {
+          for (const key of narrated)
+            if (!$getNodeByKey(key)?.isAttached()) narrated.delete(key);
+          for (const key of [...dirtyElements.keys(), ...dirtyLeaves]) {
+            const node = $getNodeByKey(key);
+            if (node?.isAttached() && $narrationOf(node)) narrated.add(key);
+            else narrated.delete(key);
+          }
+        });
+        draw();
+      },
+    );
   }, [editor, narration]);
   return null;
 }

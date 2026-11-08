@@ -179,11 +179,15 @@ function $locate(
 export function $placeAnchors(
   anchors: readonly { id: string; anchor: Anchor }[],
 ): { id: string; placement: Placement }[] {
-  const order = $blockOrder();
+  if (anchors.length === 0) return [];
+  const order = new Map<string, number>();
   const blocks = new Map<string, LexicalNode>();
   for (const { node } of $dfs($getRoot())) {
     const id = $getState(node, blockIdState);
-    if (id && !blocks.has(id)) blocks.set(id, node);
+    if (id && !blocks.has(id)) {
+      order.set(id, order.size);
+      blocks.set(id, node);
+    }
   }
   const placed: { id: string; anchor: Anchor; placement: Placement }[] = [];
   for (const { id, anchor } of anchors) {
