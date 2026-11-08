@@ -11,6 +11,8 @@ export interface SentEmail {
   text?: string;
   reply_to?: string[];
   subject?: string;
+  /** What Resend hands back with a bounce or complaint, such as the tenant. */
+  tags?: { name: string; value: string }[];
 }
 
 /** The email sent to an address with these words, once whoever sends it has. */
