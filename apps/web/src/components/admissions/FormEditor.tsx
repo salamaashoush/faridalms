@@ -8,7 +8,7 @@ import { SelectField, TextField } from "@faridalms/ui/system/form-field";
 import { FormSection, RecordForm } from "@faridalms/ui/system/record-form";
 import { Tabs, TabsList, TabsTrigger } from "@faridalms/ui/tabs";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { toast } from "sonner";
 
 import { ContentEditor } from "~/components/content/ContentEditor";
@@ -39,6 +39,7 @@ export interface FormEditorProps {
 export function FormEditor({ initial, onDone }: FormEditorProps) {
   const queryClient = useQueryClient();
   const [draft, setDraft] = useState(initial);
+  const leaving = useRef(false);
   const [writing, setWriting] = useState<ContentLocale>(initial.primaryLocale);
   const [tried, setTried] = useState(false);
   const other = otherLocale(draft.primaryLocale);
@@ -77,7 +78,9 @@ export function FormEditor({ initial, onDone }: FormEditorProps) {
     <RecordForm
       title={draft.id ? m.afmEditTitle() : m.afmNewTitle()}
       description={m.afmEditorHint()}
-      isDirty={() => JSON.stringify(draft) !== JSON.stringify(initial)}
+      isDirty={() =>
+        !leaving.current && JSON.stringify(draft) !== JSON.stringify(initial)
+      }
       pending={save.isPending}
       error={save.error ? getMessageFromError(save.error) : null}
       secondary={{ label: m.afmSavePublish(), intent: "publish" }}
@@ -88,6 +91,7 @@ export function FormEditor({ initial, onDone }: FormEditorProps) {
         if (intent === "publish" && unready) return;
         await save.mutateAsync(intent);
         await queryClient.invalidateQueries({ queryKey: ["admissions"] });
+        leaving.current = true;
         toast.success(intent === "publish" ? m.afmPublished() : m.afmSaved());
         onDone();
       }}

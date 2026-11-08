@@ -25,7 +25,7 @@ import {
 import { FormSection, RecordForm } from "@faridalms/ui/system/record-form";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { ArrowDown, ArrowUp, Plus, Trash2 } from "lucide-react";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { toast } from "sonner";
 
 import type { intakeOptionsQuery } from "~/queries/admissions";
@@ -190,6 +190,7 @@ export interface IntakeEditorProps {
 export function IntakeEditor({ options, initial, onDone }: IntakeEditorProps) {
   const queryClient = useQueryClient();
   const [draft, setDraft] = useState(initial);
+  const leaving = useRef(false);
   const [tried, setTried] = useState(false);
   const set = <K extends keyof IntakeDraft>(key: K, value: IntakeDraft[K]) =>
     setDraft((current) => ({ ...current, [key]: value }));
@@ -290,7 +291,9 @@ export function IntakeEditor({ options, initial, onDone }: IntakeEditorProps) {
             })
       }
       description={m.itkEditorHint()}
-      isDirty={() => JSON.stringify(draft) !== JSON.stringify(initial)}
+      isDirty={() =>
+        !leaving.current && JSON.stringify(draft) !== JSON.stringify(initial)
+      }
       pending={mutation.isPending}
       error={mutation.error ? getMessageFromError(mutation.error) : null}
       onCancel={onDone}
@@ -299,6 +302,7 @@ export function IntakeEditor({ options, initial, onDone }: IntakeEditorProps) {
         if (Object.values(errors).some(Boolean)) return;
         await mutation.mutateAsync();
         await queryClient.invalidateQueries({ queryKey: ["admissions"] });
+        leaving.current = true;
         toast.success(m.itkSaved());
         onDone();
       }}
