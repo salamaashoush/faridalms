@@ -431,6 +431,11 @@ interface BlockFacts {
   rtl: boolean;
 }
 
+// A bar wraps its controls onto another row where the screen is too narrow
+// for them, a phone's or a long Arabic label's, rather than running off it,
+// and a control's own label never breaks inside it.
+const BAR = "flex flex-wrap items-center gap-0.5 p-1 **:whitespace-nowrap";
+
 const separator = <span className="mx-0.5 h-5 w-px bg-border" aria-hidden />;
 
 /** A setting picked from a short list, shown by its current value. */
@@ -1577,7 +1582,7 @@ export function SelectionToolbarPlugin() {
         reference={reference}
         placement="top"
         boundary={boundary}
-        className="flex items-center gap-0.5 p-1"
+        className={BAR}
         keepFocus
         role="toolbar"
         label={strings.blockOptions}
@@ -2004,7 +2009,7 @@ export function SelectionToolbarPlugin() {
         reference={reference}
         placement="top-start"
         boundary={boundary}
-        className="flex flex-wrap items-center gap-0.5 p-1"
+        className={BAR}
         keepFocus
         role="toolbar"
         label={strings.questionOptions}
@@ -2841,7 +2846,7 @@ export function SelectionToolbarPlugin() {
         reference={reference}
         placement="top"
         boundary={boundary}
-        className="flex items-center gap-0.5 p-1"
+        className={BAR}
         keepFocus
         role="toolbar"
         label={strings.standardsBlockOptions}
@@ -3432,7 +3437,7 @@ export function SelectionToolbarPlugin() {
         reference={reference}
         placement="top"
         boundary={boundary}
-        className="flex flex-wrap items-center gap-0.5 p-1"
+        className={BAR}
         keepFocus
         role="toolbar"
         label={strings.drawOptions}
@@ -3487,7 +3492,7 @@ export function SelectionToolbarPlugin() {
         reference={reference}
         placement="top"
         boundary={boundary}
-        className="flex items-center gap-0.5 p-1"
+        className={BAR}
         keepFocus
         role="toolbar"
         label={strings.ltiOptions}
@@ -3653,7 +3658,7 @@ export function SelectionToolbarPlugin() {
         reference={reference}
         placement="top"
         boundary={boundary}
-        className="flex items-center gap-0.5 p-1"
+        className={BAR}
         keepFocus
         role="toolbar"
         label={strings.fileOptions}
@@ -3941,7 +3946,7 @@ export function SelectionToolbarPlugin() {
       reference={reference}
       placement="top"
       boundary={boundary}
-      className="flex items-center gap-0.5 p-1"
+      className={BAR}
       keepFocus
       role="toolbar"
       label={strings.formatting}

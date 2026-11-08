@@ -15,7 +15,8 @@ const unique = (label: string, browserName: string) =>
 
 async function newPost(page: Page, title: string) {
   await page.goto("/news-editor");
-  await untilHydrated(page);
+  // The editor takes over from the server's copy once the page has hydrated.
+  await expect(page.locator("#news-body[contenteditable=true]")).toBeVisible();
   await page.getByRole("textbox", { name: "Title" }).fill(title);
   const body = page.locator("#news-body");
   await body.click();
@@ -78,6 +79,32 @@ test("a picture's bar is reached, used and left with the keyboard alone", async 
   await page.getByRole("menuitem", { name: "Medium" }).press("Enter");
   await expect(page.locator("#news-body figure")).toHaveClass(/sm:w-1\/2/);
   await expect(page.locator("#news-body")).toBeFocused();
+});
+
+test.describe("on a phone", () => {
+  test.use({ viewport: { width: 390, height: 844 } });
+
+  test("every control on a picture's bar stays on the screen", async ({
+    page,
+    browserName,
+  }) => {
+    await signIn(page, "admin");
+    await newPost(page, unique("Phone", browserName));
+    await page.keyboard.type("Above the picture.");
+    await page.keyboard.press("Enter");
+    await insertPicture(page);
+    await page.locator("#news-body img").click();
+    const bar = page.getByRole("toolbar", { name: "Block options" });
+    await expect(bar).toBeVisible();
+    for (const control of await bar.locator("a[href], button").all()) {
+      const box = await control.boundingBox();
+      expect(box).not.toBeNull();
+      expect(box?.x ?? -1).toBeGreaterThanOrEqual(0);
+      expect((box?.x ?? 0) + (box?.width ?? 0)).toBeLessThanOrEqual(390);
+      // A label wraps with its control onto a row of its own, never inside it.
+      expect(box?.height ?? 99).toBeLessThanOrEqual(40);
+    }
+  });
 });
 
 test("a draft titled like a post already written still saves its words", async ({
