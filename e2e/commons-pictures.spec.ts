@@ -10,7 +10,7 @@ test("a school turns on Wikimedia Commons for its staff's picture search, and of
   await untilHydrated(page);
   const section = page
     .locator("form")
-    .filter({ hasText: "Pictures from Wikimedia Commons" });
+    .filter({ hasText: "Let staff search Wikimedia Commons" });
   const allow = section.getByRole("checkbox", {
     name: "Let staff search Wikimedia Commons",
   });
