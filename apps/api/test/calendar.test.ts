@@ -2,7 +2,7 @@ import {
   plainContent,
   withFileBlocks,
 } from "@faridalms/domain/content-conversion";
-import { describe, expect, test } from "bun:test";
+import { describe, expect, setSystemTime, test } from "bun:test";
 
 import { login, raw, rejection, seeded, sessionFor, signedIn } from "./harness";
 
@@ -276,10 +276,18 @@ describe("calendar links", () => {
     await family.notifications.savePreferences({ ...before, locale: "en" });
     expect(await family.calendar.feed()).toBeNull();
     const made = await family.calendar.resetFeed();
-    const fetchFeed = (token: string) =>
-      seeded().handler(
-        new Request(`http://api.test/feeds/${made.school}/${token}.ics`),
-      );
+    // The feed's window runs from the reader's today, and the seeded year is
+    // fixed, so the feed is read on a day inside it.
+    const fetchFeed = async (token: string) => {
+      setSystemTime(new Date("2026-10-20T08:00:00Z"));
+      try {
+        return await seeded().handler(
+          new Request(`http://api.test/feeds/${made.school}/${token}.ics`),
+        );
+      } finally {
+        setSystemTime();
+      }
+    };
     const response = await fetchFeed(made.token);
     expect(response.status).toBe(200);
     expect(response.headers.get("content-type")).toContain("text/calendar");
