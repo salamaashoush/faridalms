@@ -68,3 +68,39 @@ export function fillMask(
   }
   return grown;
 }
+
+/** How far from the tap the farthest pixel a fill colours lies. */
+export function reachOf(
+  mask: Uint8Array,
+  width: number,
+  x: number,
+  y: number,
+): number {
+  let farthest = 0;
+  for (let index = 0; index < mask.length; index += 1) {
+    if (!mask[index]) continue;
+    const across = (index % width) - x;
+    const down = Math.floor(index / width) - y;
+    farthest = Math.max(farthest, across * across + down * down);
+  }
+  return Math.sqrt(farthest);
+}
+
+// Paint spreads at about a screen's width a second, however small the
+// area, so a big one never keeps a child waiting and a small one is seen.
+const SPREAD_SPEED = 1.2;
+const SPREAD_SHORTEST = 300;
+const SPREAD_LONGEST = 900;
+
+/** How long a fill takes to spread to every part of its area, in milliseconds. */
+export const spreadTime = (reach: number) =>
+  Math.min(SPREAD_LONGEST, Math.max(SPREAD_SHORTEST, reach / SPREAD_SPEED));
+
+/**
+ * How far a fill has spread from the tap a while after it, quick at first
+ * and slowing as it reaches the edges, as poured paint does.
+ */
+export function spreadRadius(elapsed: number, reach: number): number {
+  const done = Math.min(1, Math.max(0, elapsed / spreadTime(reach)));
+  return reach * (1 - (1 - done) ** 2);
+}

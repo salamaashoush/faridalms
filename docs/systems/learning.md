@@ -81,7 +81,11 @@ From [../research/early-years.md](../research/early-years.md).
   "Show me" lays out the answer after two tries. Questions with pictures on
   their parts work this way for older students as well.
 - A written question can be answered by speaking, by drawing on the screen
-  with eight colours, two pens, an eraser and undo, or with a photo, which is
+  with eight colours, two pens, a paint bucket, an eraser and undo, over a
+  picture the teacher chose as a colouring page or on a blank one, or with
+  a photo. The bucket's colour spreads out from the child's tap to the
+  picture's lines and their own strokes in under a second; a device that
+  asks for reduced motion gets the whole area at once. A photo is
   shrunk and re-encoded so it carries no location. The teacher sees and marks
   each in the Answers tab.
 - A find-on-a-picture question has the teacher drag a box over each thing to
@@ -93,7 +97,11 @@ From [../research/early-years.md](../research/early-years.md).
   emoji. A picked picture is copied into the school as the teacher's own
   upload, with its words as the description, and the credit both sources ask
   for sits under the results. `bun scripts/picture-library.ts` rebuilds the
-  index; ARASAAC's violent and sexual pictograms are left out.
+  index; ARASAAC's violent and sexual pictograms are left out. For a
+  question answered by drawing, the search offers line drawings to colour
+  first, with the coloured pictures a tap away: ARASAAC's black and white
+  pictograms (from its API, `color=false`) and OpenMoji's black set, under
+  the same licences and credit as their coloured versions.
 - A young lesson's "Start from a template" menu offers ready-made
   activities, one of each kind (picture choice, counting, memory pairs,
   sorting, tracing, word builder, drawing), worded in the teacher's language

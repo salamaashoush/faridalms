@@ -25,7 +25,8 @@ import { shrunkImage } from "~/utils/images";
 
 import type { CheckDriver } from "./Checks";
 
-import { fillMask } from "./fill";
+import { fillMask, reachOf, spreadRadius } from "./fill";
+import { calm } from "./young/motion";
 import { playSound } from "./young/sounds";
 
 type Written = Extract<StudentBlock, { type: "written" }>;
@@ -124,23 +125,32 @@ function compose(
   context.drawImage(layer, 0, 0);
 }
 
-/** Colours the area around a tap on the child's own layer, bounded by the page as it looks. */
-function fillOn(
-  canvas: HTMLCanvasElement,
-  layer: HTMLCanvasElement,
-  fill: Fill,
-) {
+const sheet = () => {
+  const made = document.createElement("canvas");
+  made.width = WIDTH;
+  made.height = HEIGHT;
+  return made;
+};
+
+/**
+ * The area around a tap a fill colours, bounded by the page as it looks,
+ * as a sheet of its own to lay over the child's marks, and how far from the
+ * tap it reaches.
+ */
+function fillRegion(canvas: HTMLCanvasElement, fill: Fill) {
   const page = canvas.getContext("2d")?.getImageData(0, 0, WIDTH, HEIGHT);
-  const context = layer.getContext("2d");
-  if (!page || !context) return;
+  const region = sheet();
+  const context = region.getContext("2d");
+  if (!page || !context) return null;
   const mask = fillMask(page.data, WIDTH, HEIGHT, fill.x, fill.y);
-  const drawn = context.getImageData(0, 0, WIDTH, HEIGHT);
+  const coloured = context.createImageData(WIDTH, HEIGHT);
   const red = Number.parseInt(fill.colour.slice(1, 3), 16);
   const green = Number.parseInt(fill.colour.slice(3, 5), 16);
   const blue = Number.parseInt(fill.colour.slice(5, 7), 16);
   for (let index = 0; index < mask.length; index += 1)
-    if (mask[index]) drawn.data.set([red, green, blue, 255], index * 4);
-  context.putImageData(drawn, 0, 0);
+    if (mask[index]) coloured.data.set([red, green, blue, 255], index * 4);
+  context.putImageData(coloured, 0, 0);
+  return { region, reach: reachOf(mask, WIDTH, fill.x, fill.y) };
 }
 
 /** Draws every mark again on the child's layer, as undoing one needs. */
@@ -158,9 +168,69 @@ function redraw(
     if (isFill(mark)) {
       // A fill finds its edges in the page as it looked when it was made.
       compose(canvas, picture, layer);
-      fillOn(canvas, layer, mark);
+      const filled = fillRegion(canvas, mark);
+      context.globalCompositeOperation = "source-over";
+      if (filled) context.drawImage(filled.region, 0, 0);
     } else drawStroke(context, mark);
   compose(canvas, picture, layer);
+}
+
+/**
+ * Lays a new fill over the child's marks a little at a time, spreading out
+ * from where they tapped as paint poured on the page would. Ending it lays
+ * the whole fill at once; cancelling it leaves the page to be drawn again.
+ */
+function spreadFill(
+  canvas: HTMLCanvasElement,
+  picture: HTMLImageElement | null,
+  layer: HTMLCanvasElement,
+  fill: Fill,
+): { end: () => void; cancel: () => void } | null {
+  const context = layer.getContext("2d");
+  const filled = fillRegion(canvas, fill);
+  const before = sheet();
+  before.getContext("2d")?.drawImage(layer, 0, 0);
+  if (!context || !filled) return null;
+  const paint = (radius: number | null) => {
+    context.globalCompositeOperation = "source-over";
+    context.clearRect(0, 0, WIDTH, HEIGHT);
+    context.drawImage(before, 0, 0);
+    context.save();
+    if (radius !== null) {
+      context.beginPath();
+      context.arc(fill.x, fill.y, radius, 0, Math.PI * 2);
+      context.clip();
+    }
+    context.drawImage(filled.region, 0, 0);
+    context.restore();
+    compose(canvas, picture, layer);
+  };
+  const start = performance.now();
+  let frame = 0;
+  let ended = false;
+  const end = () => {
+    if (ended) return;
+    ended = true;
+    cancelAnimationFrame(frame);
+    paint(null);
+  };
+  const step = (now: number) => {
+    const radius = spreadRadius(now - start, filled.reach);
+    if (radius >= filled.reach) {
+      end();
+      return;
+    }
+    paint(radius);
+    frame = requestAnimationFrame(step);
+  };
+  frame = requestAnimationFrame(step);
+  return {
+    end,
+    cancel: () => {
+      ended = true;
+      cancelAnimationFrame(frame);
+    },
+  };
 }
 
 interface DrawingPadProps {
@@ -173,7 +243,9 @@ interface DrawingPadProps {
 
 /**
  * A page to draw on with a finger, a pen or a mouse: eight colours, a thin
- * and a thick pen, a paint bucket that fills an area, an eraser, undo, and
+ * and a thick pen, a paint bucket whose colour spreads out over an area
+ * from the tap (at once where the device asks for less motion), an eraser,
+ * undo, and
  * starting again, which takes a second tap so a slip never wipes a child's
  * picture. A teacher's picture under it makes it a colouring page: the
  * child draws and fills over it, and the eraser takes away only their own
@@ -185,15 +257,14 @@ function DrawingPad({ young, pending, background, onDone }: DrawingPadProps) {
   // the browser once the page is there, as a server has no canvas.
   const layered = useRef<HTMLCanvasElement | null>(null);
   const layerOf = useCallback(() => {
-    if (!layered.current) {
-      const made = document.createElement("canvas");
-      made.width = WIDTH;
-      made.height = HEIGHT;
-      layered.current = made;
-    }
+    layered.current ??= sheet();
     return layered.current;
   }, []);
   const drawing = useRef<Stroke | null>(null);
+  // The fill just tapped, which spreads in rather than appearing at once,
+  // and how to finish it early when the child draws again or sends.
+  const fresh = useRef<Fill | null>(null);
+  const settle = useRef<(() => void) | null>(null);
   const [marks, setMarks] = useState<Mark[]>([]);
   const [picture, setPicture] = useState<HTMLImageElement | null>(null);
   const [colour, setColour] = useState(COLOURS[0]?.value ?? "#000000");
@@ -220,10 +291,24 @@ function DrawingPad({ young, pending, background, onDone }: DrawingPadProps) {
       current = false;
     };
   }, [src]);
-  useEffect(
-    () => redraw(canvas.current, picture, layerOf(), marks),
-    [picture, marks, layerOf],
-  );
+  useEffect(() => {
+    const layer = layerOf();
+    const last = marks.at(-1);
+    const tapped = last && isFill(last) && last === fresh.current ? last : null;
+    fresh.current = null;
+    if (!tapped || !canvas.current || calm()) {
+      redraw(canvas.current, picture, layer, marks);
+      return undefined;
+    }
+    redraw(canvas.current, picture, layer, marks.slice(0, -1));
+    const spreading = spreadFill(canvas.current, picture, layer, tapped);
+    if (!spreading) return undefined;
+    settle.current = spreading.end;
+    return () => {
+      settle.current = null;
+      spreading.cancel();
+    };
+  }, [picture, marks, layerOf]);
   useEffect(() => {
     const timer = clearing
       ? setTimeout(() => setClearing(false), 3000)
@@ -283,9 +368,12 @@ function DrawingPad({ young, pending, background, onDone }: DrawingPadProps) {
         className="aspect-[4/3] w-[min(100%,calc(50dvh*4/3))] touch-none justify-self-center rounded-2xl border-2 bg-white shadow-sm"
         onPointerDown={(event) => {
           if (pending) return;
+          settle.current?.();
           const [x = 0, y = 0] = pointOf(event);
           if (tool === "fill") {
-            setMarks((current) => [...current, { fill: true, colour, x, y }]);
+            const fill: Fill = { fill: true, colour, x, y };
+            fresh.current = fill;
+            setMarks((current) => [...current, fill]);
             return;
           }
           event.currentTarget.setPointerCapture(event.pointerId);
@@ -430,14 +518,15 @@ function DrawingPad({ young, pending, background, onDone }: DrawingPadProps) {
               young ? "h-16 px-8 text-xl" : "h-11 px-5",
             )}
             disabled={marks.length === 0 || pending}
-            onClick={() =>
+            onClick={() => {
+              settle.current?.();
               canvas.current?.toBlob((blob) => {
                 if (blob)
                   onDone(
                     new File([blob], "drawing.png", { type: "image/png" }),
                   );
-              }, "image/png")
-            }
+              }, "image/png");
+            }}
           >
             {pending ? (
               <LoaderCircle aria-hidden className="animate-spin" />

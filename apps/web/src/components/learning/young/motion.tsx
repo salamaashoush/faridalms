@@ -1,6 +1,7 @@
 import { useEffect, useRef } from "react";
 
-const calm = () =>
+/** Whether the child's device asks for stillness rather than movement. */
+export const calm = () =>
   typeof window !== "undefined" &&
   window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
