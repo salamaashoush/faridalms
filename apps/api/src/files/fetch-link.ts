@@ -120,6 +120,16 @@ export function isPrivateAddress(address: string): boolean {
   return true;
 }
 
+/**
+ * Whether an address names the server or a private network outright, by a
+ * literal address or a local name, before any lookup is made.
+ */
+export function namesPrivateHost(link: URL): boolean {
+  const host = link.hostname.replace(/^\[|\]$/g, "").toLowerCase();
+  if (host === "localhost" || host.endsWith(".localhost")) return true;
+  return isIP(host) !== 0 && isPrivateAddress(host);
+}
+
 /** The ports a link may name; a service on any other is not for the web. */
 const PORTS = new Set(["", "80", "443"]);
 

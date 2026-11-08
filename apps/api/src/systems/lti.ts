@@ -24,6 +24,7 @@ import {
   requireCapability,
   writeProcedure,
 } from "../core/procedure";
+import { namesPrivateHost } from "../files/fetch-link";
 import { registrationAddress } from "../lti/registration";
 import { issuerOf } from "../lti/shared";
 
@@ -77,6 +78,9 @@ export const saveTool = writeProcedure
   .input(saveToolSchema)
   .handler(async ({ input, context }) => {
     requireCapability(context, "school:manage");
+    // The server fetches the tool's keys, so they must be on the public web.
+    if (namesPrivateHost(new URL(input.jwksUrl)))
+      throw new ORPCError("BAD_REQUEST", { message: "lti.key_address" });
     const fields = {
       name: input.name,
       loginUrl: input.loginUrl,

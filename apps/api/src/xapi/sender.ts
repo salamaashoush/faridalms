@@ -10,6 +10,9 @@ import {
 import { retryDelayMs } from "@faridalms/domain/notifications";
 import { XAPI_VERSION } from "@faridalms/domain/xapi";
 
+import type { Resolve } from "../files/fetch-link";
+
+import { LinkError, publicTarget } from "../files/fetch-link";
 import { recordStoreSecrets } from "./statements";
 
 /** How many statements one pass takes for a tenant, and how long it holds them. */
@@ -56,16 +59,44 @@ function outcomeOf(response: Response): Outcome {
   return { kind: "retry", error: statusError(response) };
 }
 
+/** A store that could not be asked: worth trying again, or never to be. */
+interface Unasked {
+  error: string;
+  final: boolean;
+}
+
+/**
+ * Asks the store. The address a school gave is checked as a link the
+ * school imports is, before every request, and the request is pinned to
+ * the address the check approved, so a store's name that resolves into
+ * the server's own network, then or later, is never reached.
+ */
 async function post(
   destination: { endpoint: string; authorization: string },
   path: string,
   method: "POST" | "PUT",
   body: unknown,
-): Promise<Response | string> {
+  resolve?: Resolve,
+): Promise<Response | Unasked> {
+  const target = new URL(`${destination.endpoint}${path}`);
+  let address: string;
   try {
-    return await fetch(`${destination.endpoint}${path}`, {
+    address = await publicTarget(target, resolve);
+  } catch (error) {
+    if (error instanceof LinkError)
+      return {
+        error: error.code,
+        final: error.code === "media.link_address",
+      };
+    throw error;
+  }
+  const pinned = new URL(target);
+  pinned.hostname = address.includes(":") ? `[${address}]` : address;
+  try {
+    return await fetch(pinned, {
       method,
       headers: {
+        host: target.host,
         authorization: destination.authorization,
         "content-type": "application/json",
         "x-experience-api-version": XAPI_VERSION,
@@ -73,17 +104,25 @@ async function post(
       body: JSON.stringify(body),
       redirect: "error",
       signal: AbortSignal.timeout(TIMEOUT_MS),
+      ...(target.protocol === "https:"
+        ? { tls: { serverName: target.hostname } }
+        : {}),
     });
   } catch (error) {
-    return error instanceof Error ? error.name : "network";
+    return {
+      error: error instanceof Error ? error.name : "network",
+      final: false,
+    };
   }
 }
 
 /** What a store's answer, or the failure to reach it, means. */
-const answered = (answer: Response | string): Outcome =>
-  typeof answer === "string"
-    ? { kind: "retry", error: answer }
-    : outcomeOf(answer);
+const answered = (answer: Response | Unasked): Outcome =>
+  answer instanceof Response
+    ? outcomeOf(answer)
+    : answer.final
+      ? { kind: "failed", error: answer.error }
+      : { kind: "retry", error: answer.error };
 
 /**
  * Sends one school's statements: all at once, and, when the store refuses
@@ -93,6 +132,7 @@ const answered = (answer: Response | string): Outcome =>
 async function deliver(
   destination: { endpoint: string; authorization: string },
   rows: ClaimedStatement[],
+  resolve?: Resolve,
 ): Promise<Map<string, Outcome>> {
   const outcomes = new Map<string, Outcome>();
   const batch = await post(
@@ -100,9 +140,10 @@ async function deliver(
     "statements",
     "POST",
     rows.map((row) => row.statement),
+    resolve,
   );
-  if (typeof batch !== "string") await batch.body?.cancel();
-  if (typeof batch === "string" || !BATCH_REFUSED.has(batch.status)) {
+  if (batch instanceof Response) await batch.body?.cancel();
+  if (!(batch instanceof Response) || !BATCH_REFUSED.has(batch.status)) {
     for (const row of rows) outcomes.set(row.id, answered(batch));
     return outcomes;
   }
@@ -112,8 +153,9 @@ async function deliver(
       `statements?statementId=${encodeURIComponent(row.statementId)}`,
       "PUT",
       row.statement,
+      resolve,
     );
-    if (typeof each !== "string") await each.body?.cancel();
+    if (each instanceof Response) await each.body?.cancel();
     outcomes.set(row.id, answered(each));
   }
   return outcomes;
@@ -129,6 +171,7 @@ export async function sendTenantStatements(
   cell: Cell,
   cellSecret: Uint8Array<ArrayBuffer>,
   tenantId: string,
+  resolve?: Resolve,
 ): Promise<number> {
   const secrets = recordStoreSecrets(cellSecret);
   const { rows, destinations } = await cell.withWorker(
@@ -172,7 +215,7 @@ export async function sendTenantStatements(
         outcomes.set(row.id, { kind: "failed", error: destination.off });
       continue;
     }
-    for (const [id, outcome] of await deliver(destination, theirs))
+    for (const [id, outcome] of await deliver(destination, theirs, resolve))
       outcomes.set(id, outcome);
   }
   const now = Date.now();

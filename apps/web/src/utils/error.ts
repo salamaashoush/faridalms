@@ -1110,6 +1110,12 @@ export function getMessageFromError(error: unknown): string {
         return m.xapiErrUrl();
       case "xapi.secret_needed":
         return m.xapiErrSecret();
+      case "lti.key_address":
+        return m.ltiErrKeyAddress();
+      case "xapi.store_address":
+        return m.xapiErrStoreAddress();
+      case "xapi.store_unavailable":
+        return m.xapiErrStoreUnavailable();
       case "lti.client_exists":
       case "lti.key_exists":
         return m.ltiErrRace();

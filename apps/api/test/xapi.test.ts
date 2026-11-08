@@ -7,6 +7,8 @@ import { describe, expect, spyOn, test } from "bun:test";
 import { sql } from "drizzle-orm";
 import { decodeJwt, exportJWK, generateKeyPair } from "jose";
 
+import type { Resolve } from "../src/files/fetch-link";
+
 import { sendTenantStatements } from "../src/xapi/sender";
 import {
   DOMAINS,
@@ -79,8 +81,12 @@ function recordStore(published: Map<string, unknown> = new Map()) {
   const fetched = spyOn(globalThis, "fetch").mockImplementation(
     Object.assign(
       async (input: string | URL | Request, init?: RequestInit) => {
-        const url = input instanceof Request ? input.url : input.toString();
+        const asked = input instanceof Request ? input.url : input.toString();
         const method = init?.method ?? "GET";
+        // A send is pinned to the address its name resolved to; the store
+        // sees its own name, which the request carries as its host.
+        const host = new Headers(init?.headers).get("host");
+        const url = host ? asked.replace(new URL(asked).host, host) : asked;
         const keys = published.get(url);
         if (keys) return Response.json(keys);
         calls.push({
@@ -109,8 +115,11 @@ function recordStore(published: Map<string, unknown> = new Map()) {
 const tenantId = () => seeded().tenants[0]?.tenantId ?? "";
 
 /** One pass of the sender over the school's tenant. */
-const send = () =>
-  sendTenantStatements(seeded().cell, seeded().cellSecret, tenantId());
+const send = (resolve: Resolve = publicStore) =>
+  sendTenantStatements(seeded().cell, seeded().cellSecret, tenantId(), resolve);
+
+/** The record store's name, resolved as the public web would. */
+const publicStore: Resolve = () => Promise.resolve(["93.184.215.14"]);
 
 /** Makes every waiting statement due now, as time passing would. */
 const dueNow = () =>
@@ -159,6 +168,24 @@ describe("a school's learning sent to its own record store", () => {
         }),
       ),
     ).toMatchObject({ code: "BAD_REQUEST" });
+    // Statements go from the server, so a store inside its network is refused.
+    for (const endpoint of [
+      "https://127.0.0.1/xapi",
+      "https://10.0.0.5/xapi",
+      "https://[::1]/xapi",
+      "https://metadata.localhost/xapi",
+    ])
+      expect(
+        await rejection(
+          office.xapi.saveRecordStoreSettings({
+            expectedVersion: version,
+            endpoint,
+            username: "school-key",
+            secret: "s3cret",
+            enabled: true,
+          }),
+        ),
+      ).toMatchObject({ message: "xapi.store_address" });
     const saved = await office.xapi.saveRecordStoreSettings({
       expectedVersion: version,
       endpoint: "https://lrs.example.com/xapi",
@@ -401,6 +428,16 @@ describe("a school's learning sent to its own record store", () => {
       });
       expect((await office.xapi.retryRecordStore()).queued).toBe(1);
       store.answer(took);
+      // A store whose name resolves into the server's own network is never
+      // asked, and what was for it fails rather than waiting to go again.
+      const asked = store.calls.length;
+      expect(await send(() => Promise.resolve(["10.0.0.7"]))).toBe(0);
+      expect(store.calls).toHaveLength(asked);
+      expect((await office.xapi.recordStore()).sending).toMatchObject({
+        failed: 1,
+        lastError: "media.link_address",
+      });
+      expect((await office.xapi.retryRecordStore()).queued).toBe(1);
       expect(await send()).toBe(1);
       expect((await office.xapi.recordStore()).sending.failed).toBe(0);
     } finally {

@@ -12,6 +12,7 @@ import {
 
 import type { RequestContext, SchoolContext } from "../core/context";
 
+import { namesPrivateHost } from "../files/fetch-link";
 import { asSystem } from "./grades";
 import { issuerOf, secretsFor } from "./shared";
 
@@ -128,6 +129,9 @@ export async function registerTool(
   }
   const read = toolRegistrationOf(body);
   if ("error" in read) return json({ error: read.error }, 400);
+  // The server fetches the tool's keys, so they must be on the public web.
+  if (namesPrivateHost(new URL(read.tool.jwksUrl)))
+    return json({ error: "invalid_client_metadata" }, 400);
   const tenantId = context.school.tenantId;
   const clientId = crypto.randomUUID();
   const deploymentId = crypto.randomUUID();

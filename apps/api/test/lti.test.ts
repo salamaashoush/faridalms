@@ -58,6 +58,19 @@ describe("outside tools by LTI 1.3", () => {
         }),
       ),
     ).toMatchObject({ code: "FORBIDDEN" });
+    // The server fetches a tool's keys, so they cannot sit in its network.
+    expect(
+      await rejection(
+        office.lti.saveTool({
+          name: "Inside",
+          loginUrl: `${TOOL}/login`,
+          launchUrl: `${TOOL}/launch`,
+          redirectUrls: [`${TOOL}/launch`],
+          jwksUrl: "https://169.254.169.254/jwks",
+          sendNames: false,
+        }),
+      ),
+    ).toMatchObject({ message: "lti.key_address" });
 
     const { keeper, lessonId, linkId } = await lessonWithLink(tool.id);
     const pupil = await sessionFor("northwind", login("student"));

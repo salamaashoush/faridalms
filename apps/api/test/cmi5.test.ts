@@ -117,6 +117,9 @@ const local = (url: string) => {
   return `${parsed.pathname}${parsed.search}`;
 };
 
+/** The record store's name, resolved as the public web would. */
+const publicStore = () => Promise.resolve(["93.184.215.14"]);
+
 describe("course packages in the cmi5 profile", () => {
   test("a student launches a unit, which reports to the school by cmi5's rules", async () => {
     const office = await signedIn("northwind", login("principal"));
@@ -408,6 +411,7 @@ describe("course packages in the cmi5 profile", () => {
         seeded().cell,
         seeded().cellSecret,
         seeded().tenants[0]?.tenantId ?? "",
+        publicStore,
       );
       const verbs = sent.map((statement) => statement.verb.id);
       for (const verb of [

@@ -9941,5 +9941,8 @@
   "readingNormsResetTitle": "Go back to the default norms in {language}?",
   "readingNormsResetBodyEn": "The school's own figures go, and readings are set against Hasbrouck and Tindal's 2017 norms again.",
   "readingNormsResetBodyAr": "The school's own figures go, and Arabic readings are set against no norm until new ones are written.",
-  "readingErrNormRepeated": "Each grade appears once for each time of year."
+  "readingErrNormRepeated": "Each grade appears once for each time of year.",
+  "xapiErrStoreAddress": "That address is on a private network. Give the record store's address on the public web.",
+  "xapiErrStoreUnavailable": "That address could not be found. Check the record store's address.",
+  "ltiErrKeyAddress": "That key set address is on a private network. Give the tool's address on the public web."
 }

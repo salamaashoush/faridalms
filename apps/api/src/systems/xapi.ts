@@ -13,6 +13,7 @@ import {
   requireCapability,
   writeProcedure,
 } from "../core/procedure";
+import { namesPrivateHost } from "../files/fetch-link";
 import { recordStoreSecrets } from "../xapi/statements";
 
 /**
@@ -50,6 +51,10 @@ export const saveRecordStoreSettings = writeProcedure
     const before = await recordStoreOf(context.tx, scope);
     if (input.enabled && !input.secret && !before?.sealedSecret)
       throw new ORPCError("BAD_REQUEST", { message: "xapi.secret_needed" });
+    // Statements go from the server, so the store must be on the public
+    // web; a name is checked again, resolved, before every send.
+    if (namesPrivateHost(new URL(input.endpoint)))
+      throw new ORPCError("BAD_REQUEST", { message: "xapi.store_address" });
     const saved = await saveRecordStore(context.tx, {
       ...scope,
       expectedVersion: input.expectedVersion,
