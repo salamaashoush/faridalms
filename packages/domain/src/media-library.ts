@@ -43,6 +43,11 @@ export const keepsLibrary = (capabilities: readonly Capability[]) =>
 
 export const MAX_FOLDER_NAME = 80;
 export const MAX_DESCRIPTION = 300;
+export const MAX_TITLE = 200;
+export const MAX_CAPTION = 500;
+export const MAX_TAG = 40;
+/** The most tags one change adds or takes off. */
+export const MAX_ITEM_TAGS = 20;
 /** The most items one request adds, moves or offers to choose. */
 export const MAX_LIBRARY_BATCH = 50;
 
@@ -56,15 +61,28 @@ export const folderNameSchema = v.pipe(
   v.maxLength(MAX_FOLDER_NAME),
 );
 
+/** A month items were added in, as `2026-11`. */
+export const LIBRARY_MONTH = /^\d{4}-(0[1-9]|1[0-2])$/;
+
 /**
- * A page of the library: one folder's items, or, while searching, the
- * matches in every folder, by name or description.
+ * A page of the library: one folder's items, or, while searching or
+ * filtering by month, uploader or tag, the matches in every folder, by
+ * name, title, description or caption.
  */
 export const libraryQuerySchema = v.object({
   folderId: v.optional(folderId, null),
   trashed: v.optional(v.boolean(), false),
   q: v.optional(v.pipe(v.string(), v.trim(), v.maxLength(100)), ""),
   kinds: v.optional(v.array(v.picklist(FILE_KINDS)), []),
+  months: v.optional(
+    v.pipe(
+      v.array(v.pipe(v.string(), v.regex(LIBRARY_MONTH))),
+      v.maxLength(24),
+    ),
+    [],
+  ),
+  uploaders: v.optional(v.pipe(v.array(id), v.maxLength(50)), []),
+  tags: v.optional(v.pipe(v.array(id), v.maxLength(50)), []),
   sort: v.optional(v.picklist(AREA_SORTS), "added"),
   order: v.optional(v.picklist(["asc", "desc"]), "desc"),
   page: pageField,
@@ -101,18 +119,87 @@ export const keepInLibrarySchema = v.object({
 export const describeItemSchema = v.object({
   id,
   name: v.pipe(v.string(), v.trim(), v.minLength(1), v.maxLength(255)),
+  title: v.optional(v.pipe(v.string(), v.trim(), v.maxLength(MAX_TITLE)), ""),
   description,
+  caption: v.optional(
+    v.pipe(v.string(), v.trim(), v.maxLength(MAX_CAPTION)),
+    "",
+  ),
   credit: v.nullable(pictureCreditSchema),
 });
 
-export const moveItemsSchema = v.object({
-  ids: v.pipe(v.array(id), v.minLength(1), v.maxLength(MAX_LIBRARY_BATCH)),
-  folderId,
-});
+const batch = v.pipe(
+  v.array(id),
+  v.minLength(1),
+  v.maxLength(MAX_LIBRARY_BATCH),
+);
+
+export const moveItemsSchema = v.object({ ids: batch, folderId });
 
 export const trashItemSchema = v.object({ id, trashed: v.boolean() });
 
+/** Several items into the trash at once, or back out of it. */
+export const trashItemsSchema = v.object({ ids: batch, trashed: v.boolean() });
+
 export const itemRefSchema = v.object({ id });
+
+export const tagNameSchema = v.pipe(
+  v.string(),
+  v.trim(),
+  v.minLength(1),
+  v.maxLength(MAX_TAG),
+);
+
+/**
+ * Files items under tags, by name, making any the school does not have
+ * yet, and takes them out from under others, by id.
+ */
+export const tagItemsSchema = v.object({
+  ids: batch,
+  add: v.optional(
+    v.pipe(v.array(tagNameSchema), v.maxLength(MAX_ITEM_TAGS)),
+    [],
+  ),
+  remove: v.optional(v.pipe(v.array(id), v.maxLength(MAX_ITEM_TAGS)), []),
+});
+
+export const renameTagSchema = v.object({ id, name: tagNameSchema });
+
+export const tagRefSchema = v.object({ id });
+
+/** Puts a new upload's bytes under an item, or brings back one of its versions. */
+export const replaceItemSchema = v.object({ id, sourceId: id });
+
+/** A page of the staff's uploads in documents not yet kept in the library. */
+export const inDocumentsQuerySchema = v.object({
+  q: v.optional(v.pipe(v.string(), v.trim(), v.maxLength(100)), ""),
+  page: pageField,
+});
+export type InDocumentsQuery = v.InferInput<typeof inDocumentsQuerySchema>;
+
+export const MAX_LINK = 2048;
+
+/** A file on the web, fetched by the server into the library. */
+export const importLinkSchema = v.object({
+  url: v.pipe(
+    v.string(),
+    v.trim(),
+    v.maxLength(MAX_LINK),
+    v.url(),
+    v.check((value) => /^https?:\/\//i.test(value), "media.link_scheme"),
+  ),
+  folderId: v.optional(folderId, null),
+});
+
+/** A month items were added in, as the date filter names it. */
+export function monthLabel(month: string, locale: string): string {
+  const [year = "2000", index = "01"] = month.split("-");
+  return new Intl.DateTimeFormat(locale, {
+    month: "long",
+    year: "numeric",
+    timeZone: "UTC",
+  }).format(new Date(Date.UTC(Number(year), Number(index) - 1, 1)));
+}
 
 /** The shapes a picture may be cut to; "original" keeps the picture's own. */
 export const CROP_RATIOS = [

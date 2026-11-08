@@ -2,23 +2,36 @@ import {
   adoptFiles,
   copyIntoHost,
   fileById,
+  initiateFile,
+  schoolStorage,
   trashAreaFile,
 } from "@faridalms/database/stores/files";
 import {
+  copyLibraryTexts,
   copySubjects,
-  insertMediaFolder,
   deriveLibraryItem,
   describeLibraryItem,
+  documentUploads,
   fileUses,
+  insertMediaFolder,
   libraryArea,
+  libraryFacets,
   libraryFolders,
   libraryItems,
   libraryItemsByIds,
   libraryKindCounts,
+  libraryTwins,
   moveLibraryItems,
-  retireMediaFolder,
   renameMediaFolder,
+  renameMediaTag,
+  retireMediaFolder,
+  retireMediaTag,
+  schoolStorageBreakdown,
+  setLibraryTexts,
   setLibraryWords,
+  tagLibraryItems,
+  trashLibraryItems,
+  untagLibraryItems,
 } from "@faridalms/database/stores/media-library";
 import { safeFilename } from "@faridalms/domain/file";
 import {
@@ -28,6 +41,8 @@ import {
   cropItemSchema,
   describeItemSchema,
   folderRefSchema,
+  importLinkSchema,
+  inDocumentsQuerySchema,
   itemRefSchema,
   keepInLibrarySchema,
   LIBRARY_AREA,
@@ -36,16 +51,33 @@ import {
   libraryQuerySchema,
   moveItemsSchema,
   renameFolderSchema,
+  renameTagSchema,
+  replaceItemSchema,
+  tagItemsSchema,
+  tagRefSchema,
   trashItemSchema,
+  trashItemsSchema,
 } from "@faridalms/domain/media-library";
 import { paged, pageWindow } from "@faridalms/domain/paging";
+import { limitsOf } from "@faridalms/domain/plans";
 import { ORPCError } from "@orpc/server";
 import * as v from "valibot";
 
-import type { UnitContext } from "../core/context";
+import type { SchoolContext, UnitContext } from "../core/context";
 
-import { audit, can, readProcedure, writeProcedure } from "../core/procedure";
+import {
+  audit,
+  can,
+  openUnit,
+  readProcedure,
+  schoolProcedure,
+  schoolZone,
+  writeProcedure,
+} from "../core/procedure";
 import { canReadFile, registerArea } from "../files/authorize";
+import { fetchLink, LinkError } from "../files/fetch-link";
+import { replaceBytes, roomFor, versionsOf } from "../files/keeping";
+import { takeUpload } from "../files/routes";
 
 const usesLibrary = (context: UnitContext) =>
   LIBRARY_USERS.some((capability) => can(context, capability));
@@ -72,6 +104,25 @@ function requireUser(context: UnitContext) {
 
 function requireKeeper(context: UnitContext) {
   if (!keepsLibrary(context)) throw new ORPCError("FORBIDDEN");
+}
+
+/** Records one change to each of several library items. */
+async function auditItems(
+  context: UnitContext,
+  entry: {
+    action: string;
+    ids: readonly string[];
+    details?: Record<string, unknown>;
+  },
+) {
+  const { action, ids, details = {} } = entry;
+  for (const id of ids)
+    await audit(context, {
+      action,
+      objectType: "file",
+      objectId: id,
+      details: { hostType: LIBRARY_AREA, ...details },
+    });
 }
 
 /** The folders from the top down to one, for the way back up. */
@@ -105,15 +156,22 @@ export const list = readProcedure
     const path = pathTo(folders, input.folderId);
     if (input.folderId && path.at(-1)?.id !== input.folderId)
       throw new ORPCError("NOT_FOUND");
-    const view = { ...input, folderId: input.folderId ?? null };
-    const [{ rows, total }, kinds] = await Promise.all([
+    const zone = await schoolZone(context.tx, context.schoolId);
+    const view = { ...input, folderId: input.folderId ?? null, zone };
+    const [{ rows, total }, kinds, facets] = await Promise.all([
       libraryItems(context.tx, context.tenantId, context.schoolId, {
         ...view,
         ...pageWindow(input.page),
       }),
       libraryKindCounts(context.tx, context.tenantId, context.schoolId, view),
+      libraryFacets(context.tx, context.tenantId, context.schoolId, zone),
     ]);
-    const searching = input.trashed || input.q !== "";
+    const searching =
+      input.trashed ||
+      input.q !== "" ||
+      input.months.length > 0 ||
+      input.uploaders.length > 0 ||
+      input.tags.length > 0;
     return {
       path,
       folders,
@@ -122,6 +180,7 @@ export const list = readProcedure
         : folders.filter((folder) => folder.parentId === view.folderId),
       items: paged(rows, total, input.page),
       kinds,
+      facets,
       keeper: keepsLibrary(context),
     };
   });
@@ -196,6 +255,12 @@ export const renameFolder = writeProcedure
       }))
     )
       throw new ORPCError("NOT_FOUND");
+    await audit(context, {
+      action: "media.folder_rename",
+      objectType: "media_folder",
+      objectId: input.id,
+      details: {},
+    });
     return { ok: true };
   });
 
@@ -242,7 +307,22 @@ export const add = writeProcedure
       });
       if (filed.length < added.length) throw new ORPCError("NOT_FOUND");
     }
-    return { ids: added };
+    await auditItems(context, {
+      action: "media.item_add",
+      ids: added,
+      details: {
+        folderId: input.folderId ?? null,
+      },
+    });
+    return {
+      ids: added,
+      twins: await libraryTwins(
+        context.tx,
+        context.tenantId,
+        context.schoolId,
+        added,
+      ),
+    };
   });
 
 /**
@@ -288,6 +368,13 @@ export const keep = writeProcedure
       to: id,
       taggedBy: context.actor.userId,
     });
+    await auditItems(context, {
+      action: "media.item_add",
+      ids: [id],
+      details: {
+        keptFrom: file.id,
+      },
+    });
     return { id };
   });
 
@@ -299,17 +386,61 @@ export const describe = writeProcedure
   .input(describeItemSchema)
   .handler(async ({ input, context }) => {
     requireKeeper(context);
+    const [before] = await libraryItemsByIds(
+      context.tx,
+      context.tenantId,
+      context.schoolId,
+      [input.id],
+    );
+    const name = safeFilename(input.name);
     if (
+      !before ||
       !(await describeLibraryItem(context.tx, {
         tenantId: context.tenantId,
         orgId: context.schoolId,
         id: input.id,
-        name: safeFilename(input.name),
+        name,
         description: input.description,
         credit: input.credit,
       }))
     )
       throw new ORPCError("NOT_FOUND");
+    await setLibraryTexts(context.tx, {
+      tenantId: context.tenantId,
+      orgId: context.schoolId,
+      id: input.id,
+      title: input.title,
+      caption: input.caption,
+    });
+    const changed = {
+      name: before.name !== name,
+      title: before.title !== input.title,
+      description: before.description !== input.description,
+      caption: before.caption !== input.caption,
+      credit:
+        JSON.stringify(before.credit ?? null) !==
+        JSON.stringify(input.credit ?? null),
+    };
+    if (changed.name)
+      await auditItems(context, {
+        action: "media.item_rename",
+        ids: [input.id],
+      });
+    if (
+      changed.title ||
+      changed.description ||
+      changed.caption ||
+      changed.credit
+    )
+      await auditItems(context, {
+        action: "media.item_describe",
+        ids: [input.id],
+        details: {
+          fields: Object.entries(changed)
+            .filter(([field, did]) => did && field !== "name")
+            .map(([field]) => field),
+        },
+      });
     return { ok: true };
   });
 
@@ -324,6 +455,13 @@ export const move = writeProcedure
       folderId: input.folderId,
     });
     if (moved.length === 0) throw new ORPCError("NOT_FOUND");
+    await auditItems(context, {
+      action: "media.item_move",
+      ids: moved,
+      details: {
+        folderId: input.folderId,
+      },
+    });
     return { ids: moved };
   });
 
@@ -399,5 +537,315 @@ export const crop = writeProcedure
       to: adopted,
       taggedBy: context.actor.userId,
     });
+    await copyLibraryTexts(context.tx, {
+      tenantId: context.tenantId,
+      from: source.id,
+      to: adopted,
+      taggedBy: context.actor.userId,
+    });
+    await auditItems(context, {
+      action: "media.item_crop",
+      ids: [adopted],
+      details: {
+        sourceId: source.id,
+        ratio: input.ratio,
+      },
+    });
     return { id: adopted };
+  });
+
+/** Deletes several items into the trash at once, or restores them. */
+export const trashMany = writeProcedure
+  .input(trashItemsSchema)
+  .handler(async ({ input, context }) => {
+    requireKeeper(context);
+    const changed = await trashLibraryItems(context.tx, {
+      tenantId: context.tenantId,
+      orgId: context.schoolId,
+      ids: input.ids,
+      trashed: input.trashed,
+    });
+    if (changed.length === 0) throw new ORPCError("NOT_FOUND");
+    await auditItems(context, {
+      action: input.trashed ? "file.trashed" : "file.restored",
+      ids: changed,
+    });
+    return { ids: changed };
+  });
+
+/**
+ * Files items under tags by name, making any the school lacks, and takes
+ * them out from under others.
+ */
+export const tag = writeProcedure
+  .input(tagItemsSchema)
+  .handler(async ({ input, context }) => {
+    requireKeeper(context);
+    const found = await libraryItemsByIds(
+      context.tx,
+      context.tenantId,
+      context.schoolId,
+      input.ids,
+    );
+    if (found.length === 0) throw new ORPCError("NOT_FOUND");
+    const ids = found.map((item) => item.id);
+    const added = await tagLibraryItems(context.tx, {
+      tenantId: context.tenantId,
+      orgId: context.schoolId,
+      ids,
+      names: input.add,
+      taggedBy: context.actor.userId,
+    });
+    await untagLibraryItems(context.tx, {
+      tenantId: context.tenantId,
+      orgId: context.schoolId,
+      ids,
+      tagIds: input.remove,
+    });
+    await auditItems(context, {
+      action: "media.item_tag",
+      ids,
+      details: {
+        added: added.map((each) => each.name),
+        removed: input.remove.length,
+      },
+    });
+    return { tags: added };
+  });
+
+export const renameTag = writeProcedure
+  .input(renameTagSchema)
+  .handler(async ({ input, context }) => {
+    requireKeeper(context);
+    if (
+      !(await renameMediaTag(context.tx, {
+        tenantId: context.tenantId,
+        orgId: context.schoolId,
+        id: input.id,
+        name: input.name,
+      }))
+    )
+      throw new ORPCError("NOT_FOUND");
+    await audit(context, {
+      action: "media.tag_rename",
+      objectType: "media_tag",
+      objectId: input.id,
+      details: {},
+    });
+    return { ok: true };
+  });
+
+/** Takes a tag away, and off every item filed under it; the items stay. */
+export const removeTag = writeProcedure
+  .input(tagRefSchema)
+  .handler(async ({ input, context }) => {
+    requireKeeper(context);
+    if (
+      !(await retireMediaTag(context.tx, {
+        tenantId: context.tenantId,
+        orgId: context.schoolId,
+        id: input.id,
+      }))
+    )
+      throw new ORPCError("NOT_FOUND");
+    await audit(context, {
+      action: "media.tag_remove",
+      objectType: "media_tag",
+      objectId: input.id,
+      details: {},
+    });
+    return { ok: true };
+  });
+
+/** An item of the library, outside its trash, for a change to its file. */
+async function libraryFile(context: UnitContext, id: string) {
+  const file = await fileById(context.tx, context.tenantId, id);
+  const area = libraryArea(context.schoolId);
+  if (
+    !file ||
+    file.state !== "ready" ||
+    file.trashedAt ||
+    file.hostType !== area.type ||
+    file.hostId !== area.id
+  )
+    throw new ORPCError("NOT_FOUND");
+  return file;
+}
+
+/** An item's previous files, while the trash keeps them. */
+export const versions = readProcedure
+  .input(itemRefSchema)
+  .handler(async ({ input, context }) => {
+    requireKeeper(context);
+    await libraryFile(context, input.id);
+    return { versions: await versionsOf(context, input.id) };
+  });
+
+/**
+ * Puts a new upload under an item, or brings back one of its previous
+ * files: every document and page showing the item shows the new one, and
+ * the one it had stays a previous version for 30 days.
+ */
+export const replace = writeProcedure
+  .input(replaceItemSchema)
+  .handler(async ({ input, context }) => {
+    requireKeeper(context);
+    const target = await libraryFile(context, input.id);
+    await replaceBytes(context, target, input.sourceId, {
+      hostType: LIBRARY_AREA,
+    });
+    return { ok: true };
+  });
+
+/** The most uploads in documents the library looks through at once. */
+const DOCUMENT_UPLOADS = 200;
+
+/**
+ * What staff put straight into the documents they wrote, which the library
+ * does not hold yet, for keeping there in one step; only those the viewer
+ * may open are listed, and never a student's work or a conversation's.
+ */
+export const inDocuments = readProcedure
+  .input(inDocumentsQuerySchema)
+  .handler(async ({ input, context }) => {
+    requireUser(context);
+    const found = await documentUploads(context.tx, {
+      tenantId: context.tenantId,
+      orgId: context.schoolId,
+      q: input.q,
+      limit: DOCUMENT_UPLOADS,
+    });
+    const files = await Promise.all(
+      found.map((row) => fileById(context.tx, context.tenantId, row.id)),
+    );
+    const readable = await Promise.all(
+      files.map(async (file) =>
+        file ? await canReadFile(context, file) : false,
+      ),
+    );
+    const rows = found.filter((_row, index) => readable[index]);
+    const window = pageWindow(input.page);
+    return {
+      items: paged(
+        rows.slice(window.offset, window.offset + window.limit),
+        rows.length,
+        input.page,
+      ),
+    };
+  });
+
+/** Where the school's storage goes, by kind of file and by person, for those who keep the library. */
+export const storage = readProcedure.handler(async ({ context }) => {
+  requireKeeper(context);
+  const [used, breakdown] = await Promise.all([
+    schoolStorage(context.tx, context.tenantId, context.schoolId),
+    schoolStorageBreakdown(context.tx, context.tenantId, context.schoolId),
+  ]);
+  return {
+    ...used,
+    limitBytes: limitsOf(context.school.entitlements).poolBytes,
+    ...breakdown,
+  };
+});
+
+/** How long a link may take to answer, all of it, redirects included. */
+const LINK_SECONDS = 20;
+
+/**
+ * Brings a file on the web into the library: the server fetches it, never
+ * from a private, loopback, link-local or metadata address and never past
+ * the upload limit or its time, and it is checked by its bytes and scanned
+ * as any upload is. No transaction is held while it arrives.
+ */
+export const importLink = schoolProcedure
+  .input(importLinkSchema)
+  .handler(async ({ input, context }) => {
+    const school: SchoolContext = context;
+    await openUnit(school, "read", async (unit) => {
+      const scoped = { ...school, ...unit };
+      requireUser(scoped);
+      if (input.folderId) {
+        const folders = await libraryFolders(
+          unit.tx,
+          unit.tenantId,
+          unit.schoolId,
+        );
+        if (!folders.some((folder) => folder.id === input.folderId))
+          throw new ORPCError("NOT_FOUND");
+      }
+    });
+    let fetched;
+    try {
+      fetched = await fetchLink(input.url, {
+        maxBytes: school.maxUploadBytes,
+        timeoutMs: LINK_SECONDS * 1000,
+      });
+    } catch (error) {
+      if (error instanceof LinkError)
+        throw new ORPCError("BAD_REQUEST", { message: error.code });
+      throw error;
+    }
+    const file = await openUnit(school, "write", async (unit) => {
+      const scoped = { ...school, ...unit };
+      await roomFor(scoped, {
+        purpose: "document_media",
+        name: fetched.name,
+        mediaType: fetched.mediaType,
+        sizeBytes: fetched.bytes.byteLength,
+        destination: undefined,
+        trim: undefined,
+      });
+      return initiateFile(unit.tx, {
+        tenantId: unit.tenantId,
+        userId: unit.actor.userId,
+        orgId: unit.schoolId,
+        purpose: "document_media",
+        name: fetched.name,
+        mediaType: fetched.mediaType,
+        sizeBytes: fetched.bytes.byteLength,
+      });
+    });
+    const taken = await takeUpload(
+      school,
+      file,
+      new Blob([fetched.bytes]).stream(),
+    );
+    if (!taken.ok)
+      throw new ORPCError(
+        taken.status === 503 ? "SERVICE_UNAVAILABLE" : "BAD_REQUEST",
+        {
+          message: taken.code,
+        },
+      );
+    return openUnit(school, "write", async (unit) => {
+      const scoped = { ...school, ...unit };
+      const [added] = await adoptFiles(unit.tx, {
+        tenantId: unit.tenantId,
+        userId: unit.actor.userId,
+        host: libraryArea(unit.schoolId),
+        ids: [file.id],
+      });
+      if (!added) throw new ORPCError("CONFLICT");
+      if (input.folderId)
+        await moveLibraryItems(unit.tx, {
+          tenantId: unit.tenantId,
+          orgId: unit.schoolId,
+          ids: [added],
+          folderId: input.folderId,
+        });
+      await auditItems(scoped, {
+        action: "media.item_add",
+        ids: [added],
+        details: {
+          link: new URL(input.url).hostname,
+        },
+      });
+      return {
+        id: added,
+        name: file.name,
+        twins: await libraryTwins(unit.tx, unit.tenantId, unit.schoolId, [
+          added,
+        ]),
+      };
+    });
   });

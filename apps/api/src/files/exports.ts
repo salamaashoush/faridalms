@@ -33,6 +33,7 @@ import {
   yearUnitsOf,
 } from "@faridalms/database/stores/learning";
 import { toolById } from "@faridalms/database/stores/lti";
+import { libraryItemsByIds } from "@faridalms/database/stores/media-library";
 import { bankQuestionOf } from "@faridalms/domain/bank";
 import {
   canvasAssessment,
@@ -65,6 +66,10 @@ import {
   questionBlock,
   quizOfBrief,
 } from "@faridalms/domain/lesson-content";
+import {
+  MAX_LIBRARY_BATCH,
+  usesLibrary,
+} from "@faridalms/domain/media-library";
 import {
   qtiItem,
   qtiManifest,
@@ -104,6 +109,8 @@ const MODULE_CARTRIDGE = /^\/v1\/modules\/([0-9a-f-]{36})\/cartridge\.imscc$/;
 const CLASS_CARTRIDGE = /^\/v1\/classes\/([0-9a-f-]{36})\/course\.imscc$/;
 const MODULE_CANVAS_QUIZZES =
   /^\/v1\/modules\/([0-9a-f-]{36})\/canvas-quizzes\.zip$/;
+const LIBRARY_ITEMS = /^\/v1\/media\/library\.zip$/;
+const ID = /^[0-9a-f-]{36}$/;
 
 /** As much of a picture as is read for its size. */
 const HEAD_BYTES = 64 * 1024;
@@ -1338,6 +1345,39 @@ async function moduleStatements(
   };
 }
 
+/**
+ * Items of the school's media library as one zip, for those who use it,
+ * each under its name; items in the trash are left out.
+ */
+async function libraryItemsZip(
+  unit: UnitContext,
+  ids: readonly string[],
+): Promise<{ title: string; entries: Entry[] } | null> {
+  if (!usesLibrary([...unit.actor.capabilities])) return null;
+  const items = await libraryItemsByIds(
+    unit.tx,
+    unit.tenantId,
+    unit.schoolId,
+    ids,
+  );
+  const files = await filesByIds(
+    unit.tx,
+    unit.tenantId,
+    items.filter((item) => !item.trashedAt).map((item) => item.id),
+  );
+  if (files.length === 0) return null;
+  const names = new Set<string>();
+  return {
+    title: "media",
+    entries: files
+      .filter((file) => file.state === "ready" && file.keyVersion === null)
+      .map((file) => ({
+        path: unique(file.name, names),
+        storageKey: file.storageKey,
+      })),
+  };
+}
+
 /** The exports this handler answers, by path. */
 export async function handleWorkExport(
   request: Request,
@@ -1363,6 +1403,14 @@ export async function handleWorkExport(
     return exported(context, (unit) => moduleCartridge(unit, cartridge));
   const course = CLASS_CARTRIDGE.exec(url.pathname)?.[1];
   if (course) return exported(context, (unit) => classCartridge(unit, course));
+  if (LIBRARY_ITEMS.test(url.pathname)) {
+    const ids = [
+      ...new Set((url.searchParams.get("ids") ?? "").split(",")),
+    ].filter((id) => ID.test(id));
+    if (ids.length === 0 || ids.length > MAX_LIBRARY_BATCH)
+      return problem(400, "BAD_REQUEST", context.requestId);
+    return exported(context, (unit) => libraryItemsZip(unit, ids));
+  }
   const canvas = MODULE_CANVAS_QUIZZES.exec(url.pathname)?.[1];
   if (canvas)
     return exported(context, (unit) => moduleCanvasQuizzes(unit, canvas));

@@ -7,6 +7,7 @@ import {
   describeItemSchema,
   initialView,
   largestFrame,
+  importLinkSchema,
   libraryQuerySchema,
   ratioValue,
 } from "./media-library";
@@ -80,10 +81,36 @@ describe("library requests", () => {
       trashed: false,
       q: "",
       kinds: [],
+      months: [],
+      uploaders: [],
+      tags: [],
       sort: "added",
       order: "desc",
       page: 1,
     });
+  });
+
+  test("a month filter names a real month", () => {
+    expect(
+      v.safeParse(libraryQuerySchema, { months: ["2026-11"] }).success,
+    ).toBe(true);
+    for (const month of ["2026-13", "2026-1", "November"])
+      expect(v.safeParse(libraryQuerySchema, { months: [month] }).success).toBe(
+        false,
+      );
+  });
+
+  test("a link to bring in is a web address", () => {
+    expect(
+      v.safeParse(importLinkSchema, { url: "https://example.com/a.png" })
+        .success,
+    ).toBe(true);
+    for (const url of [
+      "ftp://example.com/a.png",
+      "file:///etc/passwd",
+      "a.png",
+    ])
+      expect(v.safeParse(importLinkSchema, { url }).success).toBe(false);
   });
 
   test("a description longer than a picture's words may be is refused", () => {

@@ -1,10 +1,5 @@
-import type { StorageUse } from "@faridalms/database/stores/files";
 import type { Capability } from "@faridalms/domain/capabilities";
-import type {
-  FilePurpose,
-  InitiateUploadInput,
-  StorageScope,
-} from "@faridalms/domain/file";
+import type { FilePurpose } from "@faridalms/domain/file";
 
 import {
   adoptFiles,
@@ -14,13 +9,9 @@ import {
   areaStorage,
   fileById,
   filesByIds,
-  fileVersions,
   initiateFile,
-  personStorage,
   renameAreaFile,
-  replaceFileBytes,
   requestCaptionDraft,
-  schoolStorage,
   setSubjects,
   subjectsOf,
   trashAreaFile,
@@ -39,7 +30,7 @@ import {
   UPLOAD_PART_BYTES,
 } from "@faridalms/domain/file";
 import { paged, pageWindow } from "@faridalms/domain/paging";
-import { limitsOf, WARN_SHARE } from "@faridalms/domain/plans";
+import { limitsOf } from "@faridalms/domain/plans";
 import { ORPCError } from "@orpc/server";
 import * as v from "valibot";
 
@@ -53,18 +44,12 @@ import {
   writeProcedure,
 } from "../core/procedure";
 import { studentsReached } from "../core/reach";
-import { canReadFile, mayKeepArea, mayWorkOn } from "../files/authorize";
+import { canReadFile, mayKeepArea } from "../files/authorize";
 import { withFileGate } from "../files/gate";
+import { replaceBytes, roomFor, versionsOf } from "../files/keeping";
 import { hasVideo, streamsMore, uploadLimit } from "../files/limit";
 
 /** Who may upload for each purpose; none, anyone signed in, its use checked where it is put. */
-const FULL: Record<StorageScope, string> = {
-  school: "file.quota_school",
-  class: "file.quota_class",
-  module: "file.quota_module",
-  person: "file.quota_person",
-};
-
 const UPLOADERS: Record<FilePurpose, Capability[] | null> = {
   attachment: ["assignments:author", "messages:send"],
   submission: ["own-work:submit"],
@@ -155,68 +140,6 @@ export const initiate = writeProcedure
       videoHoursReached,
     };
   });
-
-/**
- * Checks the storage an upload counts against, refusing one that would not
- * fit, and names the fullest past the warning share. A student's work on an
- * assignment still open to them is never refused, only counted.
- */
-async function roomFor(
-  context: UnitContext,
-  input: InitiateUploadInput,
-): Promise<{
-  scope: StorageScope;
-  usedBytes: number;
-  limitBytes: number;
-} | null> {
-  const destination = input.destination;
-  if (
-    destination?.type === "work" &&
-    (await mayWorkOn(context, destination.id))
-  )
-    return null;
-  const limits = limitsOf(context.school.entitlements);
-  const scopes: { scope: StorageScope; used: StorageUse; limit: number }[] = [
-    {
-      scope: "school",
-      used: await schoolStorage(context.tx, context.tenantId, context.schoolId),
-      limit: limits.poolBytes,
-    },
-  ];
-  if (destination?.type === "class" || destination?.type === "module") {
-    const area = { type: destination.type, id: destination.id };
-    if (!(await mayKeepArea(context, area))) throw new ORPCError("NOT_FOUND");
-    scopes.push({
-      scope: destination.type,
-      used: await areaStorage(context.tx, context.tenantId, area),
-      limit:
-        destination.type === "class" ? limits.classBytes : limits.moduleBytes,
-    });
-  } else if (destination?.type === "work" || input.purpose !== "document_media")
-    scopes.push({
-      scope: "person",
-      used: await personStorage(
-        context.tx,
-        context.tenantId,
-        context.actor.userId,
-      ),
-      limit: limits.personBytes,
-    });
-  for (const { scope, used, limit } of scopes)
-    if (used.usedBytes + input.sizeBytes > limit)
-      throw new ORPCError("FORBIDDEN", { message: FULL[scope] });
-  const fullest = scopes
-    .map(({ scope, used, limit }) => ({
-      scope,
-      usedBytes: used.usedBytes + input.sizeBytes,
-      limitBytes: limit,
-    }))
-    .toSorted((a, b) => b.usedBytes / b.limitBytes - a.usedBytes / a.limitBytes)
-    .at(0);
-  return fullest && fullest.usedBytes >= fullest.limitBytes * WARN_SHARE
-    ? fullest
-    : null;
-}
 
 async function keptArea(
   context: UnitContext,
@@ -449,23 +372,12 @@ export const versions = readProcedure
   .input(v.object(areaFileSchema.entries))
   .handler(async ({ input, context }) => {
     await areaFile(context, input.area, input.id);
-    const rows = await fileVersions(context.tx, context.tenantId, input.id);
-    return {
-      versions: rows.map((row) => ({
-        id: row.id,
-        name: row.name,
-        mediaType: row.mediaType,
-        sizeBytes: row.sizeBytes,
-        replacedAt: row.trashedAt ?? "",
-      })),
-    };
+    return { versions: await versionsOf(context, input.id) };
   });
 
 /**
  * Replaces a file's bytes with the viewer's new upload, or with one of its
- * previous versions, so every document showing it shows the new ones. Only
- * the same kind of file may stand in, so a picture block never receives a
- * spreadsheet. What it held stays as a previous version for 30 days.
+ * previous versions, as `replaceBytes` does.
  */
 export const replaceInArea = writeProcedure
   .input(
@@ -476,44 +388,9 @@ export const replaceInArea = writeProcedure
   )
   .handler(async ({ input, context }) => {
     const target = await areaFile(context, input.area, input.id);
-    const source = await fileById(context.tx, context.tenantId, input.sourceId);
-    const usable =
-      source?.state === "ready" &&
-      ((source.hostType === null &&
-        source.uploadedByUserId === context.actor.userId &&
-        source.purpose === target.purpose) ||
-        (source.hostType === "file_version" && source.hostId === target.id));
-    if (!source || !usable) throw new ORPCError("NOT_FOUND");
-    if (
-      fileFamily(source.name, source.mediaType) !==
-      fileFamily(target.name, target.mediaType)
-    )
-      throw new ORPCError("BAD_REQUEST", { message: "file.replace_kind" });
-    const replaced = await context.cell.withWorker(
-      {
-        tenantId: context.tenantId,
-        requestId: context.requestId,
-        actor: { kind: "system" },
-      },
-      "write",
-      (tx) =>
-        replaceFileBytes(tx, {
-          tenantId: context.tenantId,
-          targetId: target.id,
-          sourceId: source.id,
-          userId: context.actor.userId,
-        }),
-    );
-    if (!replaced) throw new ORPCError("CONFLICT");
-    await audit(context, {
-      action: "file.replaced",
-      objectType: "file",
-      objectId: target.id,
-      details: {
-        hostType: input.area.type,
-        hostId: input.area.id,
-        restored: source.hostType === "file_version",
-      },
+    await replaceBytes(context, target, input.sourceId, {
+      hostType: input.area.type,
+      hostId: input.area.id,
     });
     return { ok: true };
   });
