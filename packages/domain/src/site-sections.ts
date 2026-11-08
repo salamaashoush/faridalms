@@ -720,6 +720,11 @@ export type PageSection = {
     variant: SectionVariant<T>;
     style: SectionStyle;
     data: SectionData<T>;
+    /**
+     * The shared section a page draws here, kept once and shown on every
+     * page that names it; what the page holds beside is its last copy.
+     */
+    shared?: string;
   };
 }[SectionType];
 export type SectionOf<T extends SectionType> = Extract<
@@ -855,6 +860,7 @@ const sectionSchemas = SECTION_TYPES.map((type) => {
     variant: v.picklist(spec.variants),
     style: v.optional(sectionStyleSchema, defaultStyle),
     data: dataSchema(spec.fields),
+    shared: v.optional(id),
   });
 });
 

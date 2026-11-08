@@ -223,6 +223,39 @@ in both languages and no stock photographs.
   footer groups pages under "Explore" and "Join us". The domain tests refuse
   a starter link whose page or anchor does not exist.
 
+## Saved sections
+
+A finished section is kept to use again through the school's two reuse
+systems, in both languages (`packages/domain/src/saved-sections.ts`), from
+the save button on a section's settings:
+
+- **As a section template**: a library piece of kind `section`
+  (`templates.saveSection`), held by whoever manages the website, reviewed
+  as any library piece is and listed in the library. The gallery's Saved
+  group offers it, and choosing it puts a copy on the page with new ids,
+  changed freely there. A template kept while the site's first language was
+  the other one turns round to match.
+- **As a shared section**: a shared block of kind `section`
+  (`shared.saveSection`), kept once with its pictures and files and shown
+  wherever a page names it. A page names it by a section carrying
+  `shared`, beside a copy of how it stood; reading the page draws the
+  shared section as it stands now, and saving the page keeps the shared
+  one's words, so only the shared section itself changes them. In the
+  builder its settings say so, list the pages showing it, and offer to save
+  a change to every page, to put it back, or to keep a copy on this page
+  only. As with shared blocks, only whoever kept it changes or takes it
+  out, and one kept for the school may be shown by anyone who manages the
+  website, who sees its settings without changing them.
+- **Published pages follow it.** A saved change, or taking it out, draws
+  every published page showing it again from the words that page was last
+  published with (so none of the page's own waiting changes go out),
+  checked as publishing checks them, and refused if a published page could
+  not carry it. The copy's `revised_at` moves the sitemap's `lastmod`. A
+  page publishing later draws it as it stands, and one taken out leaves
+  nothing; the builder shows such a section as gone, to remove.
+- Taking one out names the pages that show it first, published ones
+  marked, as taking out a shared block names its documents.
+
 ## Enquiries
 
 The site role may add an enquiry, only as an unworked website one, and read
@@ -288,20 +321,20 @@ unpublished pages, a language without a search description.
 
 Builder work still to do, most useful first:
 
-1. **Saved sections.** A school saves a finished section and inserts it on
-   other pages, as a copy or kept in step everywhere it appears.
-2. **Visibility by screen.** A section can be hidden on phones or on larger
+1. **Visibility by screen.** A section can be hidden on phones or on larger
    screens, shown in the builder with a marker.
-3. **Events from the calendar.** The events section lists the school's public
+2. **Events from the calendar.** The events section lists the school's public
    calendar events instead of items typed by hand.
-4. **Consent on forms.** A form asks for a consent (marketing, the privacy
+3. **Consent on forms.** A form asks for a consent (marketing, the privacy
    notice) through the consents system, with its wording version.
-5. **Copy and paste sections** between pages and languages, and drag to
+4. **Copy and paste sections** between pages and languages, and drag to
    reorder on the canvas as well as in the outline.
-6. **Heritage ornament.** Crest and girih patterns as section textures, a motto
+5. **Heritage ornament.** Crest and girih patterns as section textures, a motto
    footer, a film that grows to full width as it scrolls in, and a statement
    whose words fill in as it scrolls.
-7. **Focal point on video posters.**
+6. **Focal point on video posters.**
+7. **History of a shared section.** Its versions are kept on every save, as
+   a shared block's are, but the builder offers no history to restore one.
 
 Later: social feed, approval
 workflow, page permissions, host-based routing, Hijri dates.

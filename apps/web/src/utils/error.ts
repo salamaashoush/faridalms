@@ -163,6 +163,7 @@ const INTERNAL_CODES: ReadonlySet<string> = new Set([
   "site.batch_duplicate",
   "site.colour",
   "site.duplicate_section",
+  "site.saved_section",
   "site_post_recipient.exists",
   "submission.exists",
   "templates.exists",

@@ -1,6 +1,6 @@
 import type { ContentDocument } from "@faridalms/domain/content";
 import type { Keyset } from "@faridalms/domain/paging";
-import type { SharedScope } from "@faridalms/domain/shared";
+import type { SharedKind, SharedScope } from "@faridalms/domain/shared";
 import type { EditorShared } from "@faridalms/editor";
 import type { ReactNode } from "react";
 
@@ -58,13 +58,36 @@ import { ContentEditor } from "./ContentEditor";
 import { ContentView, SharedBlock } from "./ContentView";
 import { DocumentHistory } from "./DocumentHistory";
 
-interface ScopeFieldProps {
+export interface ScopeFieldProps {
   scope: SharedScope;
   onChange: (scope: SharedScope) => void;
+  /** A website section is shared among those who manage the website, not teachers. */
+  kind?: SharedKind;
 }
 
-/** Who may use a shared block: only its teacher, or any at the school. */
-function ScopeField({ scope, onChange }: ScopeFieldProps) {
+const SCOPE_WORDS: Record<
+  SharedKind,
+  Record<SharedScope, { name: () => string; hint: () => string }>
+> = {
+  block: {
+    mine: { name: m.sharedKeepMine, hint: m.sharedMineHint },
+    school: { name: m.sharedKeepSchool, hint: m.sharedSchoolHint },
+  },
+  section: {
+    mine: { name: m.sharedKeepMine, hint: m.sharedSectionMineHint },
+    school: {
+      name: m.sharedSectionKeepSchool,
+      hint: m.sharedSectionSchoolHint,
+    },
+  },
+};
+
+/** Who may use a shared block or section: only whoever kept it, or anyone who writes that kind of thing. */
+export function ScopeField({
+  scope,
+  onChange,
+  kind = "block",
+}: ScopeFieldProps) {
   return (
     <fieldset className="grid gap-2">
       <legend className="mb-2 text-sm font-medium">{m.sharedKeepIn()}</legend>
@@ -78,10 +101,10 @@ function ScopeField({ scope, onChange }: ScopeFieldProps) {
             <RadioGroupItem value={value} className="mt-0.5" />
             <span className="grid gap-0.5">
               <span className="text-sm font-medium">
-                {value === "mine" ? m.sharedKeepMine() : m.sharedKeepSchool()}
+                {SCOPE_WORDS[kind][value].name()}
               </span>
               <span className="text-[13px] leading-[18px] text-muted-foreground">
-                {value === "mine" ? m.sharedMineHint() : m.sharedSchoolHint()}
+                {SCOPE_WORDS[kind][value].hint()}
               </span>
             </span>
           </Label>
@@ -195,12 +218,14 @@ const USE_KIND: Record<Use["hostType"], () => string> = {
 
 const WEBSITE = new Set<Use["hostType"]>(["site_page", "news"]);
 
-interface SharedUsesProps {
+export interface SharedUsesProps {
   id: string;
+  /** A shared section's changes reach published pages at once, a block's at their next publication. */
+  kind?: SharedKind;
 }
 
-/** Which documents show a shared block, named on request, so a change is made knowing what it reaches. */
-function SharedUses({ id }: SharedUsesProps) {
+/** Which documents show a shared block, or pages a shared section, named on request, so a change is made knowing what it reaches. */
+export function SharedUses({ id, kind = "block" }: SharedUsesProps) {
   const uses = useQuery(usesQuery(id));
   const [open, setOpen] = useState(false);
   const rows = uses.data ?? [];
@@ -208,7 +233,9 @@ function SharedUses({ id }: SharedUsesProps) {
   if (rows.length === 0)
     return (
       <p className="text-[13px] leading-[18px] text-muted-foreground">
-        {m.sharedUsedNowhere()}
+        {kind === "section"
+          ? m.sharedSectionUsedNowhere()
+          : m.sharedUsedNowhere()}
       </p>
     );
   return (
@@ -230,7 +257,9 @@ function SharedUses({ id }: SharedUsesProps) {
       </button>
       {open && rows.some((row) => WEBSITE.has(row.hostType)) ? (
         <p className="ps-[18px] text-[13px] leading-[18px] text-muted-foreground">
-          {m.sharedUsesWebsite()}
+          {kind === "section"
+            ? m.sharedSectionUsesWebsite()
+            : m.sharedUsesWebsite()}
         </p>
       ) : null}
       {open ? (
@@ -246,6 +275,12 @@ function SharedUses({ id }: SharedUsesProps) {
                   <span className="text-muted-foreground">
                     {" · "}
                     <bdi>{inLocale(row.placeEn, row.placeAr)}</bdi>
+                  </span>
+                ) : null}
+                {kind === "section" && row.live ? (
+                  <span className="text-muted-foreground">
+                    {" · "}
+                    {m.sharedSectionLive()}
                   </span>
                 ) : null}
               </span>

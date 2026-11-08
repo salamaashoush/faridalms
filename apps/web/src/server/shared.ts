@@ -1,5 +1,6 @@
 import {
   saveSharedSchema,
+  saveSharedSectionSchema,
   sharedQuerySchema,
   sharedRefSchema,
 } from "@faridalms/domain/shared";
@@ -19,6 +20,14 @@ export const readShared = createServerFn({ method: "GET" })
 export const saveShared = createServerFn({ method: "POST" })
   .validator(checked(saveSharedSchema))
   .handler(({ data }) => backend().shared.save(data));
+
+export const readSharedSection = createServerFn({ method: "GET" })
+  .validator(checked(sharedRefSchema))
+  .handler(({ data }) => backend().shared.section(data));
+
+export const saveSharedSection = createServerFn({ method: "POST" })
+  .validator(checked(saveSharedSectionSchema))
+  .handler(({ data }) => backend().shared.saveSection(data));
 
 export const removeShared = createServerFn({ method: "POST" })
   .validator(checked(sharedRefSchema))

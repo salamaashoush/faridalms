@@ -10,6 +10,7 @@ import { holds, isoOf, uuidArray } from "./sql";
 type Tx = CellTransaction;
 
 export type SharedScope = "mine" | "school";
+export type SharedKind = "block" | "section";
 
 export interface SharedBlockRow {
   id: string;
@@ -18,6 +19,7 @@ export interface SharedBlockRow {
   ownerNameEn: string | null;
   ownerNameAr: string | null;
   scope: SharedScope;
+  kind: SharedKind;
   title: string;
   version: number;
   updatedAt: string;
@@ -30,6 +32,7 @@ type SharedRecord = {
   name_en: string | null;
   name_ar: string | null;
   scope: SharedScope;
+  kind: SharedKind;
   title: string;
   version: number;
   updated_at: string;
@@ -42,13 +45,14 @@ const sharedOf = (row: SharedRecord): SharedBlockRow => ({
   ownerNameEn: row.name_en,
   ownerNameAr: row.name_ar,
   scope: row.scope,
+  kind: row.kind,
   title: row.title,
   version: row.version,
   updatedAt: row.updated_at,
 });
 
 const columns = sql`b.id, b.org_id, b.owner_user_id, u.full_name_en as name_en,
-  u.full_name_ar as name_ar, b.scope, b.title, b.version,
+  u.full_name_ar as name_ar, b.scope, b.kind, b.title, b.version,
   ${isoOf(sql`b.date_last_modified`)} as updated_at`;
 
 /**
@@ -61,6 +65,7 @@ export async function sharedBlocksOf(
     tenantId: string;
     orgId: string;
     userId: string;
+    kind: SharedKind;
     search: string;
     scope: "all" | SharedScope;
     limit: number;
@@ -74,7 +79,7 @@ export async function sharedBlocksOf(
     from core.shared_blocks b
     left join core.users u on u.tenant_id = b.tenant_id and u.id = b.owner_user_id
     where b.tenant_id = ${input.tenantId}::uuid and b.org_id = ${input.orgId}::uuid
-      and b.status = 'active'
+      and b.status = 'active' and b.kind = ${input.kind}
       and (b.scope = 'school' or b.owner_user_id = ${input.userId}::uuid)
       ${input.scope === "mine" ? sql`and b.owner_user_id = ${input.userId}::uuid` : sql``}
       ${input.scope === "school" ? sql`and b.scope = 'school'` : sql``}
@@ -106,7 +111,12 @@ export async function sharedBlockById(
 /** Shared blocks with the document each holds, for drawing many at once. */
 export async function sharedContents(
   tx: Tx,
-  input: { tenantId: string; orgId: string; ids: readonly string[] },
+  input: {
+    tenantId: string;
+    orgId: string;
+    ids: readonly string[];
+    kind?: SharedKind;
+  },
 ): Promise<{ id: string; title: string; content: Record<string, unknown> }[]> {
   if (input.ids.length === 0) return [];
   return tx.execute<{
@@ -119,7 +129,8 @@ export async function sharedContents(
     join core.documents d on d.tenant_id = b.tenant_id
       and d.host_type = 'shared_block' and d.host_id = b.id and d.status = 'active'
     where b.tenant_id = ${input.tenantId}::uuid and b.org_id = ${input.orgId}::uuid
-      and b.status = 'active' and b.id = any(${uuidArray(input.ids)})`);
+      and b.status = 'active' and b.kind = ${input.kind ?? "block"}
+      and b.id = any(${uuidArray(input.ids)})`);
 }
 
 export type SharedUseHost =
@@ -138,6 +149,8 @@ export interface SharedUse {
   /** Where it sits: a lesson's module, an assignment's class. */
   placeEn: string | null;
   placeAr: string | null;
+  /** Whether visitors read it now: a published website page or post. */
+  live: boolean;
 }
 
 /**
@@ -147,8 +160,18 @@ export interface SharedUse {
  */
 export async function sharedBlockUses(
   tx: Tx,
-  input: { tenantId: string; orgId: string; id: string },
+  input: { tenantId: string; orgId: string; id: string; kind?: SharedKind },
 ): Promise<SharedUse[]> {
+  // A page names a shared section as one of its sections; a document shows
+  // a shared block as a node anywhere in it.
+  const named =
+    input.kind === "section"
+      ? sql`d.host_type = 'site_page' and jsonb_path_exists(d.content,
+        'lax $.sections[*] ? (@.shared == $id)',
+        jsonb_build_object('id', ${input.id}::text))`
+      : sql`jsonb_path_exists(d.content,
+        'lax $.** ? (@.type == "shared" && @.sharedId == $id)',
+        jsonb_build_object('id', ${input.id}::text))`;
   const rows = await tx.execute<{
     host_type: SharedUseHost;
     host_id: string;
@@ -156,8 +179,11 @@ export async function sharedBlockUses(
     title_ar: string | null;
     place_en: string | null;
     place_ar: string | null;
+    live: boolean;
   }>(sql`
     select d.host_type, d.host_id,
+      coalesce(sp.state = 'published', n.visibility = 'public' and n.state = 'published', false)
+        as live,
       coalesce(l.title, a.title, m.title, nullif(n.title_en, ''), nullif(sp.title_en, ''))
         as title_en,
       coalesce(l.title, a.title, m.title, nullif(n.title_ar, ''), nullif(sp.title_ar, ''))
@@ -181,9 +207,7 @@ export async function sharedBlockUses(
       and d.host_type in ('lesson', 'assignment', 'module_plan', 'announcement',
         'news', 'site_page')
       and coalesce(l.id, a.id, m.id, n.id, sp.id) is not null
-      and jsonb_path_exists(d.content,
-        'lax $.** ? (@.type == "shared" && @.sharedId == $id)',
-        jsonb_build_object('id', ${input.id}::text))
+      and ${named}
     order by title_en, place_en, d.host_id
     limit 200`);
   return rows.map((row) => ({
@@ -193,6 +217,7 @@ export async function sharedBlockUses(
     titleAr: row.title_ar,
     placeEn: row.place_en,
     placeAr: row.place_ar,
+    live: row.live,
   }));
 }
 
@@ -203,13 +228,14 @@ export async function insertSharedBlock(
     orgId: string;
     ownerUserId: string;
     scope: SharedScope;
+    kind?: SharedKind;
     title: string;
   },
 ): Promise<{ id: string; version: number }> {
   const [row] = await tx.execute<{ id: string; version: number }>(sql`
-    insert into core.shared_blocks (tenant_id, org_id, owner_user_id, scope, title)
+    insert into core.shared_blocks (tenant_id, org_id, owner_user_id, scope, kind, title)
     values (${input.tenantId}::uuid, ${input.orgId}::uuid, ${input.ownerUserId}::uuid,
-      ${input.scope}, ${input.title})
+      ${input.scope}, ${input.kind ?? "block"}, ${input.title})
     returning id, version`);
   if (!row) throw new Error("shared block not written");
   return row;

@@ -1,5 +1,6 @@
 import type { Capability } from "@faridalms/domain/capabilities";
 import type { ContentDocument } from "@faridalms/domain/content";
+import type { SavedSection } from "@faridalms/domain/saved-sections";
 
 import { changeOf } from "@faridalms/database/audit";
 import {
@@ -18,7 +19,12 @@ import {
 import { contentFileIds, contentPlainText } from "@faridalms/domain/content";
 import { PAGE_SIZE } from "@faridalms/domain/paging";
 import {
+  savedSectionFileIds,
+  savedSectionPlainText,
+} from "@faridalms/domain/saved-sections";
+import {
   saveSharedSchema,
+  saveSharedSectionSchema,
   sharedQuerySchema,
   sharedRefSchema,
 } from "@faridalms/domain/shared";
@@ -26,7 +32,14 @@ import { ORPCError } from "@orpc/server";
 
 import type { UnitContext } from "../core/context";
 
-import { audit, can, readProcedure, writeProcedure } from "../core/procedure";
+import {
+  audit,
+  can,
+  readProcedure,
+  requireCapability,
+  writeProcedure,
+} from "../core/procedure";
+import { reviseLivePages } from "../core/shared";
 import {
   placeMedia,
   registerHostReader,
@@ -49,11 +62,15 @@ function requireAuthor(context: UnitContext) {
     throw new ORPCError("FORBIDDEN");
 }
 
-/** A shared block of the viewer's school, or nothing. */
+/** A shared block or section of the viewer's school, or nothing. */
 async function ofSchool(context: UnitContext, id: string) {
   const row = await sharedBlockById(context.tx, context.tenantId, id);
   return row?.orgId === context.schoolId ? row : null;
 }
+
+/** Whoever manages the website keeps sections for its pages and uses the school's. */
+const requireSectionAuthor = (context: UnitContext) =>
+  requireCapability(context, "site:manage");
 
 /** A shared block the viewer may put in a document: their own, or the school's. */
 async function usable(context: UnitContext, id: string) {
@@ -80,7 +97,8 @@ registerHostWriter(
 export const list = readProcedure
   .input(sharedQuerySchema)
   .handler(async ({ input, context }) => {
-    requireAuthor(context);
+    if (input.kind === "section") requireSectionAuthor(context);
+    else requireAuthor(context);
     const { rows, next } = await sharedBlocksOf(context.tx, {
       tenantId: context.tenantId,
       orgId: context.schoolId,
@@ -109,7 +127,7 @@ export const read = readProcedure
   .input(sharedRefSchema)
   .handler(async ({ input, context }) => {
     const row = await ofSchool(context, input.id);
-    if (!row) throw new ORPCError("NOT_FOUND");
+    if (row?.kind !== "block") throw new ORPCError("NOT_FOUND");
     const document = await documentOf(
       context.tx,
       context.tenantId,
@@ -123,6 +141,29 @@ export const read = readProcedure
       scope: row.scope,
       editable: row.ownerUserId === context.actor.userId,
       content: document.content as unknown as ContentDocument,
+    };
+  });
+
+/** A shared section in both its languages, as a page draws it, for whoever manages the website. */
+export const section = readProcedure
+  .input(sharedRefSchema)
+  .handler(async ({ input, context }) => {
+    requireSectionAuthor(context);
+    const row = await ofSchool(context, input.id);
+    if (row?.kind !== "section") throw new ORPCError("NOT_FOUND");
+    const document = await documentOf(
+      context.tx,
+      context.tenantId,
+      hostOf(row.id),
+    );
+    if (!document) throw new ORPCError("NOT_FOUND");
+    return {
+      id: row.id,
+      version: row.version,
+      title: row.title,
+      scope: row.scope,
+      editable: row.ownerUserId === context.actor.userId,
+      section: document.content as unknown as SavedSection,
     };
   });
 
@@ -144,7 +185,7 @@ export const save = writeProcedure
     const before = input.id ? await usable(context, input.id) : null;
     if (input.id) {
       const row = before;
-      if (!row) throw new ORPCError("NOT_FOUND");
+      if (row?.kind !== "block") throw new ORPCError("NOT_FOUND");
       if (row.ownerUserId !== context.actor.userId)
         throw new ORPCError("FORBIDDEN", { message: "shared.not_owner" });
       const version = await updateSharedBlock(context.tx, {
@@ -195,19 +236,96 @@ export const save = writeProcedure
   });
 
 /**
- * The documents showing a shared block, for its teacher to see what a
- * change or taking it out reaches before they make it.
+ * Keeps a website section, in both languages, to show on many pages, or
+ * changes one, which every page showing it then shows: in the builder at
+ * once, and to visitors of every published page showing it, drawn again
+ * from what that page last published. Its pictures and files are copied
+ * in, so it stays whole whatever becomes of the page it came from. A change
+ * that would put something on a published page publishing refuses is
+ * refused here too.
+ */
+export const saveSection = writeProcedure
+  .input(saveSharedSectionSchema)
+  .handler(async ({ input, context }) => {
+    requireSectionAuthor(context);
+    const fields = {
+      tenantId: context.tenantId,
+      scope: input.scope,
+      title: input.title,
+    };
+    let saved: { id: string; version: number };
+    const before = input.id ? await usable(context, input.id) : null;
+    if (input.id) {
+      if (before?.kind !== "section") throw new ORPCError("NOT_FOUND");
+      if (before.ownerUserId !== context.actor.userId)
+        throw new ORPCError("FORBIDDEN", { message: "shared.not_owner" });
+      const version = await updateSharedBlock(context.tx, {
+        ...fields,
+        id: before.id,
+        expectedVersion: input.expectedVersion,
+      });
+      if (version === null)
+        throw new ORPCError("CONFLICT", { message: "conflict.version" });
+      saved = { id: before.id, version };
+    } else
+      saved = await insertSharedBlock(context.tx, {
+        ...fields,
+        kind: "section",
+        orgId: context.schoolId,
+        ownerUserId: context.actor.userId,
+      });
+    const host = hostOf(saved.id);
+    const document = await saveDocument(context.tx, {
+      tenantId: context.tenantId,
+      orgId: context.schoolId,
+      host,
+      kind: "section",
+      locale: input.section.locale,
+      ...(await placeMedia(
+        context,
+        host,
+        input.section,
+        savedSectionFileIds(input.section),
+      )),
+      plainText: savedSectionPlainText(input.section),
+      userId: context.actor.userId,
+    });
+    await snapshotPublish(context.tx, {
+      tenantId: context.tenantId,
+      documentId: document.id,
+      userId: context.actor.userId,
+    });
+    const pages = input.id ? await reviseLivePages(context, saved.id) : 0;
+    await audit(context, {
+      action: input.id ? "shared_section.update" : "shared_section.create",
+      objectType: "shared_block",
+      objectId: saved.id,
+      details: { scope: input.scope, livePages: pages },
+      change: changeOf("core.shared_blocks", before, {
+        scope: input.scope,
+        title: input.title,
+      }),
+    });
+    return saved;
+  });
+
+/**
+ * The documents showing a shared block, or the pages showing a shared
+ * section, for its writer to see what a change or taking it out reaches
+ * before they make it.
  */
 export const uses = readProcedure
   .input(sharedRefSchema)
   .handler(async ({ input, context }) => {
-    requireAuthor(context);
     const row = await usable(context, input.id);
     if (!row) throw new ORPCError("NOT_FOUND");
+    if (row.kind === "section") requireSectionAuthor(context);
+    else requireAuthor(context);
     return sharedBlockUses(context.tx, {
       tenantId: context.tenantId,
       orgId: context.schoolId,
       id: row.id,
+      kind: row.kind,
     });
   });
 
@@ -223,10 +341,20 @@ export const remove = writeProcedure
       tenantId: context.tenantId,
       id: row.id,
     });
-    await audit(context, {
-      action: "shared_block.remove",
-      objectType: "shared_block",
-      objectId: row.id,
-    });
+    // Published pages leave a section taken out at once, as its changes
+    // reach them; drafts show it gone until they publish again.
+    if (row.kind === "section")
+      await audit(context, {
+        action: "shared_section.remove",
+        objectType: "shared_block",
+        objectId: row.id,
+        details: { livePages: await reviseLivePages(context, row.id) },
+      });
+    else
+      await audit(context, {
+        action: "shared_block.remove",
+        objectType: "shared_block",
+        objectId: row.id,
+      });
     return { removed: true };
   });

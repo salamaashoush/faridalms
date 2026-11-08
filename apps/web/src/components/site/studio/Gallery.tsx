@@ -1,5 +1,4 @@
 import type {
-  PageSection,
   SectionCategory,
   SectionType,
   SiteLocale,
@@ -31,9 +30,9 @@ import { useMemo, useState } from "react";
 import * as m from "~/i18n/messages";
 
 import type { RenderContext } from "../render/parts";
+import type { Inserted } from "./SavedSections";
 
 import { PageSections } from "../render/page";
-import { SiteSection } from "../render/sections";
 import { Viewport } from "./Canvas";
 import {
   CATEGORY_LABEL,
@@ -43,42 +42,11 @@ import {
   TEMPLATE_LABEL,
   VARIANT_LABEL,
 } from "./labels";
+import { SavedSections, SectionThumbnail } from "./SavedSections";
 
 const THUMB_WIDTH = 1200;
 
-interface ThumbnailProps {
-  section: PageSection;
-  context: RenderContext;
-}
-
-/** A section drawn small, for choosing; it cannot be focused or clicked into. */
-function Thumbnail({ section, context }: ThumbnailProps) {
-  return (
-    <div
-      aria-hidden
-      inert
-      className="pointer-events-none max-h-56 overflow-hidden bg-white"
-    >
-      <Viewport
-        width={THUMB_WIDTH}
-        theme={context.theme}
-        locale={context.locale}
-      >
-        <SiteSection
-          section={section}
-          shownIn={context.locale}
-          context={context}
-          first={false}
-        />
-      </Viewport>
-    </div>
-  );
-}
-
-export interface Inserted {
-  content: PageSection;
-  translation: PageSection;
-}
+export type { Inserted } from "./SavedSections";
 
 interface TypeCardProps {
   type: SectionType;
@@ -112,7 +80,7 @@ function TypeCard({ type, context, primary, onPick }: TypeCardProps) {
           })}
         />
         <div className="border-b transition-opacity group-hover:opacity-90">
-          <Thumbnail section={sample.content} context={context} />
+          <SectionThumbnail section={sample.content} context={context} />
         </div>
         <span className="grid gap-0.5 px-3 pt-3">
           <span className="text-sm font-semibold">{SECTION_LABEL[type]()}</span>
@@ -161,11 +129,14 @@ export function SectionGallery({
   primary,
   onPick,
 }: SectionGalleryProps) {
-  const [category, setCategory] = useState<SectionCategory | "all">("all");
+  const [category, setCategory] = useState<SectionCategory | "all" | "saved">(
+    "all",
+  );
   const [query, setQuery] = useState("");
   const needle = query.trim().toLocaleLowerCase();
   const types = SECTION_TYPES.filter(
     (type) =>
+      category !== "saved" &&
       (category === "all" || SECTION_SPECS[type].category === category) &&
       (!needle ||
         `${SECTION_LABEL[type]()} ${SECTION_HINT[type]()}`
@@ -195,24 +166,35 @@ export function SectionGallery({
             </div>
             <fieldset className="flex flex-wrap gap-1">
               <legend className="sr-only">{m.siteSectionGroups()}</legend>
-              {(["all", ...SECTION_CATEGORIES] as const).map((option) => (
-                <button
-                  key={option}
-                  type="button"
-                  aria-pressed={category === option}
-                  onClick={() => setCategory(option)}
-                  className="rounded-full px-3 py-1.5 text-sm font-medium text-muted-foreground hover:bg-muted aria-pressed:bg-foreground aria-pressed:text-background"
-                >
-                  {option === "all"
-                    ? m.siteAllSections()
-                    : CATEGORY_LABEL[option]()}
-                </button>
-              ))}
+              {(["all", ...SECTION_CATEGORIES, "saved"] as const).map(
+                (option) => (
+                  <button
+                    key={option}
+                    type="button"
+                    aria-pressed={category === option}
+                    onClick={() => setCategory(option)}
+                    className="rounded-full px-3 py-1.5 text-sm font-medium text-muted-foreground hover:bg-muted aria-pressed:bg-foreground aria-pressed:text-background"
+                  >
+                    {option === "all"
+                      ? m.siteAllSections()
+                      : option === "saved"
+                        ? m.siteSavedSections()
+                        : CATEGORY_LABEL[option]()}
+                  </button>
+                ),
+              )}
             </fieldset>
           </div>
         </DialogHeader>
         <div className="min-h-0 flex-1 overflow-y-auto bg-muted/40 p-5">
-          {types.length === 0 ? (
+          {category === "saved" ? (
+            <SavedSections
+              context={context}
+              primary={primary}
+              search={query}
+              onPick={onPick}
+            />
+          ) : types.length === 0 ? (
             <p className="text-sm text-muted-foreground">
               {m.siteNoSectionsFound()}
             </p>

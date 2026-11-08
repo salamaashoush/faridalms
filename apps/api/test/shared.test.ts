@@ -149,6 +149,7 @@ describe("shared blocks", () => {
         titleAr: "Before we go",
         placeEn: "Rivers outdoors",
         placeAr: "Rivers outdoors",
+        live: false,
       },
     ]);
     // Any teacher who may show it sees where it already shows.

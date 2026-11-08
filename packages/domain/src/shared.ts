@@ -4,8 +4,12 @@ import type { ContentDocument, ContentNode } from "./content";
 
 import { contentDocumentSchema } from "./content";
 import { keysetField } from "./paging";
+import { savedSectionSchema } from "./saved-sections";
 
 export const SHARED_SCOPES = ["mine", "school"] as const;
+/** What is kept to show in many places: blocks of a document, or a website section. */
+export const SHARED_KINDS = ["block", "section"] as const;
+export type SharedKind = (typeof SHARED_KINDS)[number];
 export type SharedScope = (typeof SHARED_SCOPES)[number];
 export const MAX_SHARED_TITLE = 120;
 
@@ -84,7 +88,25 @@ export const saveSharedSchema = v.object({
 });
 export type SaveShared = v.InferOutput<typeof saveSharedSchema>;
 
+const sharedTitle = v.pipe(
+  v.string(),
+  v.trim(),
+  v.minLength(1, "shared.title_needed"),
+  v.maxLength(MAX_SHARED_TITLE),
+);
+
+/** A website section kept once for pages to show, in both languages, or one being changed. */
+export const saveSharedSectionSchema = v.object({
+  id: v.optional(v.union([v.literal(""), id]), ""),
+  expectedVersion: v.pipe(v.number(), v.integer(), v.minValue(0)),
+  title: sharedTitle,
+  scope: v.picklist(SHARED_SCOPES),
+  section: savedSectionSchema,
+});
+export type SaveSharedSection = v.InferOutput<typeof saveSharedSectionSchema>;
+
 export const sharedQuerySchema = v.object({
+  kind: v.optional(v.picklist(SHARED_KINDS), "block"),
   search: v.optional(v.pipe(v.string(), v.trim(), v.maxLength(100)), ""),
   scope: v.optional(v.picklist(["all", ...SHARED_SCOPES]), "all"),
   after: keysetField,

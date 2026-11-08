@@ -21,13 +21,14 @@ import type { libraryQuery } from "~/queries/library";
 
 import { classTitle } from "~/components/classes/format";
 import { ContentView } from "~/components/content/ContentView";
+import { SavedSectionPreview } from "~/components/site/studio/SavedSections";
 import { inLocale, useCapability } from "~/hooks/useCurrentUser";
 import * as m from "~/i18n/messages";
 import { getLocale, getTextDirection } from "~/i18n/runtime";
 import { consentFormsQuery } from "~/queries/consents";
 import { courseworkOptionsQuery } from "~/queries/coursework";
 import { learningOptionsQuery } from "~/queries/learning";
-import { templateQuery } from "~/queries/library";
+import { sectionTemplateQuery, templateQuery } from "~/queries/library";
 import { moduleFromLibrary } from "~/server/learning";
 import { reviewTemplate } from "~/server/templates";
 import { getMessageFromError } from "~/utils/error";
@@ -43,6 +44,7 @@ export const KIND_LABEL: Record<TemplateKind, () => string> = {
   module: m.libraryKindModule,
   message: m.libraryKindMessage,
   admission_letter: m.libraryKindAdmissionLetter,
+  section: m.libraryKindSection,
 };
 
 export type Piece = Awaited<
@@ -70,7 +72,12 @@ export function PieceSheet({
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const reviews = useCapability("library:review");
-  const opened = useQuery(templateQuery(piece.id));
+  const section = piece.kind === "section";
+  const opened = useQuery({ ...templateQuery(piece.id), enabled: !section });
+  const kept = useQuery({
+    ...sectionTemplateQuery(piece.id),
+    enabled: section,
+  }).data;
   const [target, setTarget] = useState("");
   const [note, setNote] = useState("");
   const modules = useQuery({
@@ -189,7 +196,13 @@ export function PieceSheet({
           ) : null}
         </SheetHeader>
         <div className="min-h-0 flex-1 overflow-y-auto px-6 py-6">
-          {opened.data ? (
+          {section ? (
+            kept ? (
+              <SavedSectionPreview saved={kept.section} />
+            ) : (
+              <div aria-busy="true" className="min-h-40" />
+            )
+          ) : opened.data ? (
             <ContentView document={opened.data.content} />
           ) : (
             <div aria-busy="true" className="min-h-40" />
@@ -267,22 +280,29 @@ export function PieceSheet({
                   onChange={setTarget}
                 />
               ) : null}
+              {section ? (
+                <p className="text-sm leading-5 text-muted-foreground">
+                  {m.librarySectionHint()}
+                </p>
+              ) : null}
               <div className="flex flex-wrap gap-2">
-                <Button
-                  type="button"
-                  className="max-md:h-10"
-                  disabled={
-                    startModule.isPending ||
-                    ((piece.kind === "lesson" ||
-                      piece.kind === "unit_plan" ||
-                      piece.kind === "consent_form" ||
-                      piece.kind === "module") &&
-                      !chosen)
-                  }
-                  onClick={use}
-                >
-                  {m.libraryUse()}
-                </Button>
+                {section ? null : (
+                  <Button
+                    type="button"
+                    className="max-md:h-10"
+                    disabled={
+                      startModule.isPending ||
+                      ((piece.kind === "lesson" ||
+                        piece.kind === "unit_plan" ||
+                        piece.kind === "consent_form" ||
+                        piece.kind === "module") &&
+                        !chosen)
+                    }
+                    onClick={use}
+                  >
+                    {m.libraryUse()}
+                  </Button>
+                )}
                 <Button
                   type="button"
                   variant="outline"

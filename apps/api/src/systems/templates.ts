@@ -1,5 +1,6 @@
 import type { TemplateRow } from "@faridalms/database/stores/templates";
 import type { ContentDocument } from "@faridalms/domain/content";
+import type { SavedSection } from "@faridalms/domain/saved-sections";
 
 import { changeOf } from "@faridalms/database/audit";
 import { namesOf } from "@faridalms/database/stores/coursework";
@@ -15,9 +16,14 @@ import {
 } from "@faridalms/database/stores/templates";
 import { contentFileIds, contentPlainText } from "@faridalms/domain/content";
 import {
+  savedSectionFileIds,
+  savedSectionPlainText,
+} from "@faridalms/domain/saved-sections";
+import {
   KEPT_BUILTIN_KINDS,
   librarySchema,
   reviewTemplateSchema,
+  saveSectionTemplateSchema,
   saveTemplateSchema,
   TEMPLATE_AUTHORS,
   TEMPLATE_KINDS,
@@ -170,7 +176,8 @@ export const open = readProcedure
   .input(templateRefSchema)
   .handler(async ({ input, context }) => {
     const row = await usableTemplate(context, input.id);
-    if (!row) throw new ORPCError("NOT_FOUND");
+    // A section is not a document; the builder opens it with openSection.
+    if (!row || row.kind === "section") throw new ORPCError("NOT_FOUND");
     const document = await documentOf(
       context.tx,
       context.tenantId,
@@ -229,6 +236,70 @@ export const save = writeProcedure
   });
 
 /**
+ * Keeps a website section, in both languages, in the school's library, to
+ * start new sections from on any page. Its pictures and files are copied
+ * in, so it stays whole whatever becomes of the page it came from, and it
+ * waits for a reviewer as any other piece does.
+ */
+export const saveSection = writeProcedure
+  .input(saveSectionTemplateSchema)
+  .handler(async ({ input, context }) => {
+    requireCapability(context, ...TEMPLATE_AUTHORS.section);
+    const state = can(context, "library:review") ? "shared" : "pending";
+    const created = await insertTemplate(context.tx, {
+      tenantId: context.tenantId,
+      orgId: context.schoolId,
+      ownerUserId: context.actor.userId,
+      kind: "section",
+      title: input.title,
+      description: input.description,
+      subjectId: null,
+      state,
+    });
+    const host = templateHost(created.id);
+    await saveDocument(context.tx, {
+      tenantId: context.tenantId,
+      orgId: context.schoolId,
+      host,
+      kind: "section",
+      locale: input.section.locale,
+      ...(await placeMedia(
+        context,
+        host,
+        input.section,
+        savedSectionFileIds(input.section),
+      )),
+      plainText: savedSectionPlainText(input.section),
+      userId: context.actor.userId,
+    });
+    await audit(context, {
+      action: "template.create",
+      objectType: "document_template",
+      objectId: created.id,
+      details: { kind: "section", title: input.title },
+    });
+    return { ...created, state };
+  });
+
+/** A section template in both its languages, to start a new section on a page from. */
+export const openSection = readProcedure
+  .input(templateRefSchema)
+  .handler(async ({ input, context }) => {
+    const row = await usableTemplate(context, input.id);
+    if (row?.kind !== "section") throw new ORPCError("NOT_FOUND");
+    const document = await documentOf(
+      context.tx,
+      context.tenantId,
+      templateHost(row.id),
+    );
+    if (!document) throw new ORPCError("NOT_FOUND");
+    return {
+      title: row.title,
+      section: document.content as unknown as SavedSection,
+    };
+  });
+
+/**
  * Changes a template's words in place: its owner's or a reviewer's, or one
  * the school was given, which those who write its kind keep up to date.
  */
@@ -236,7 +307,7 @@ export const update = writeProcedure
   .input(updateTemplateSchema)
   .handler(async ({ input, context }) => {
     const row = await usableTemplate(context, input.id);
-    if (!row) throw new ORPCError("NOT_FOUND");
+    if (!row || row.kind === "section") throw new ORPCError("NOT_FOUND");
     if (!mayChange(context, row))
       throw new ORPCError("FORBIDDEN", { message: "templates.not_owner" });
     await refuseIfHeld(context, templateHost(row.id));

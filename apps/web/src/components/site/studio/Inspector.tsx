@@ -5,6 +5,7 @@ import type {
   SiteLocale,
 } from "@faridalms/domain/site-sections";
 import type { SchemeId } from "@faridalms/domain/site-theme";
+import type { ReactNode } from "react";
 
 import {
   fitColumns,
@@ -18,7 +19,13 @@ import { cn } from "@faridalms/ui/cn";
 import { Input } from "@faridalms/ui/input";
 import { PanelGroup, Segmented } from "@faridalms/ui/system/panel";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@faridalms/ui/tabs";
-import { AlignCenter, AlignLeft, CircleAlert, X } from "lucide-react";
+import {
+  AlignCenter,
+  AlignLeft,
+  BookmarkPlus,
+  CircleAlert,
+  X,
+} from "lucide-react";
 
 import { LOCALE_NAME } from "~/components/content/languages";
 import { CheckboxRow } from "~/components/people/fields";
@@ -146,6 +153,12 @@ export interface InspectorProps {
   onWords: (next: PageSection, key?: string) => void;
   onReviewed: (reviewed: boolean) => void;
   onClose: () => void;
+  /** Shown above the settings, such as what a shared section is and where it shows. */
+  notice?: ReactNode;
+  /** The settings show but cannot change, as for a shared section kept by someone else. */
+  readOnly?: boolean;
+  /** Keeps the section to use again; offered where it is not shared already. */
+  onKeep?: () => void;
 }
 
 /**
@@ -166,6 +179,9 @@ export function Inspector({
   onWords,
   onReviewed,
   onClose,
+  notice,
+  readOnly = false,
+  onKeep,
 }: InspectorProps) {
   const uploading = useUpload(fieldContext.media);
   const wordsOnly = fieldContext.wordsOnly;
@@ -233,6 +249,19 @@ export function Inspector({
             {SECTION_HINT[section.type]()}
           </p>
         </div>
+        {onKeep ? (
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon-sm"
+            className="max-md:size-10"
+            aria-label={m.siteSaveSectionTitle()}
+            title={m.siteSaveSectionTitle()}
+            onClick={onKeep}
+          >
+            <BookmarkPlus aria-hidden />
+          </Button>
+        ) : null}
         <Button
           type="button"
           variant="ghost"
@@ -244,6 +273,7 @@ export function Inspector({
           <X aria-hidden />
         </Button>
       </div>
+      {notice}
       {issues.length ? (
         <ul className="grid gap-1 border-b bg-destructive/5 px-4 py-2.5 text-[13px] leading-[18px] text-destructive">
           {issues.map((code) => (
@@ -255,7 +285,13 @@ export function Inspector({
         </ul>
       ) : null}
       {wordsOnly ? (
-        <div className="min-h-0 flex-1 overflow-y-auto">{content}</div>
+        <div inert={readOnly} className="min-h-0 flex-1 overflow-y-auto">
+          {content}
+        </div>
+      ) : readOnly ? (
+        <div inert className="min-h-0 flex-1 overflow-y-auto">
+          {content}
+        </div>
       ) : (
         <Tabs
           defaultValue="content"

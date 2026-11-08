@@ -17,7 +17,8 @@ export type TemplateKind =
   | "consent_form"
   | "module"
   | "message"
-  | "admission_letter";
+  | "admission_letter"
+  | "section";
 
 export interface TemplateRow {
   id: string;

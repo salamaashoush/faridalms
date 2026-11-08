@@ -3,6 +3,7 @@ import * as v from "valibot";
 import type { Capability } from "./capabilities";
 
 import { contentDocumentSchema } from "./content";
+import { savedSectionSchema } from "./saved-sections";
 
 /** What a school keeps templates for: documents its staff start often. */
 export const TEMPLATE_KINDS = [
@@ -16,6 +17,7 @@ export const TEMPLATE_KINDS = [
   "module",
   "message",
   "admission_letter",
+  "section",
 ] as const;
 export type TemplateKind = (typeof TEMPLATE_KINDS)[number];
 
@@ -31,6 +33,7 @@ export const TEMPLATE_AUTHORS: Record<TemplateKind, readonly Capability[]> = {
   module: ["learning:author"],
   message: ["admissions:manage", "attendance:manage"],
   admission_letter: ["admissions:configure"],
+  section: ["site:manage"],
 };
 
 /** The kinds of document someone holding these capabilities writes. */
@@ -69,6 +72,16 @@ export const saveTemplateSchema = v.object({
   content: contentDocumentSchema,
 });
 export type SaveTemplate = v.InferOutput<typeof saveTemplateSchema>;
+
+/** A website section kept in the library, in both languages, to start new sections from. */
+export const saveSectionTemplateSchema = v.object({
+  title: v.pipe(v.string(), v.trim(), v.minLength(1), v.maxLength(120)),
+  description: note,
+  section: savedSectionSchema,
+});
+export type SaveSectionTemplate = v.InferOutput<
+  typeof saveSectionTemplateSchema
+>;
 
 /**
  * Kinds whose templates the school was given are what the product sends

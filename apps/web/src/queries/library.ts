@@ -2,7 +2,12 @@ import type { TemplateKind } from "@faridalms/domain/templates";
 
 import { queryOptions } from "@tanstack/react-query";
 
-import { getLibrary, getLibraryQueue, openTemplate } from "~/server/templates";
+import {
+  getLibrary,
+  getLibraryQueue,
+  openSectionTemplate,
+  openTemplate,
+} from "~/server/templates";
 
 export const libraryQuery = (input: {
   kind: TemplateKind | "";
@@ -24,4 +29,10 @@ export const templateQuery = (id: string) =>
   queryOptions({
     queryKey: ["templates", "open", id],
     queryFn: () => openTemplate({ data: { id } }),
+  });
+
+export const sectionTemplateQuery = (id: string) =>
+  queryOptions({
+    queryKey: ["templates", "section", id],
+    queryFn: () => openSectionTemplate({ data: { id } }),
   });

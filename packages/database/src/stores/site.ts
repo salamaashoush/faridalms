@@ -362,7 +362,7 @@ export async function writePublishedPage(
     set slug = ${page.slug}, parent_id = ${page.parentId}::uuid, position = ${page.position},
         is_home = ${page.isHome}, in_menu = ${page.inMenu}, indexed = ${page.indexed}, title = ${input.title},
         content = ${input.content}::jsonb, media = ${input.media}::jsonb,
-        visible_from = ${input.visibleFrom}::timestamptz
+        visible_from = ${input.visibleFrom}::timestamptz, revised_at = null
     where tenant_id = ${input.tenantId}::uuid and page_id = ${page.id}::uuid
       and locale = ${input.locale} and status = 'active'
     returning id`);
@@ -375,6 +375,42 @@ export async function writePublishedPage(
       ${page.slug}, ${page.parentId}::uuid, ${page.position}, ${page.isHome}, ${page.inMenu}, ${page.indexed},
       ${input.title}, ${input.content}::jsonb, ${input.media}::jsonb,
       ${input.visibleFrom}::timestamptz)`);
+}
+
+/** The pages whose published copies show a shared section. */
+export async function pagesShowingShared(
+  tx: Tx,
+  input: { tenantId: string; orgId: string; sharedId: string },
+): Promise<string[]> {
+  const rows = await tx.execute<{ page_id: string }>(sql`
+    select distinct page_id from core.site_published_pages
+    where tenant_id = ${input.tenantId}::uuid and org_id = ${input.orgId}::uuid
+      and status = 'active'
+      and jsonb_path_exists(content, 'lax $.sections[*].section ? (@.shared == $id)',
+        jsonb_build_object('id', ${input.sharedId}::text))`);
+  return rows.map((row) => row.page_id);
+}
+
+/**
+ * Rewrites what visitors read of a published page in one language when a
+ * shared section it shows changes, leaving when it was published as it was.
+ */
+export async function revisePublishedPage(
+  tx: Tx,
+  input: {
+    tenantId: string;
+    pageId: string;
+    locale: SiteLocale;
+    content: Record<string, unknown>;
+    media: Record<string, string>;
+  },
+): Promise<void> {
+  await tx.execute(sql`
+    update core.site_published_pages
+    set content = ${input.content}::jsonb, media = ${input.media}::jsonb,
+      revised_at = statement_timestamp()
+    where tenant_id = ${input.tenantId}::uuid and page_id = ${input.pageId}::uuid
+      and locale = ${input.locale} and status = 'active'`);
 }
 
 /** Keeps the published copies' place in the menu in step with the page tree. */
@@ -897,7 +933,7 @@ export async function sitemapEntries(
     lastmod: string;
   }>(sql`
     select 'page' as kind, p.slug, p.is_home, p.locale,
-      ${isoOf(sql`p.visible_from`)} as lastmod, p.position as place
+      ${isoOf(sql`greatest(p.visible_from, p.revised_at)`)} as lastmod, p.position as place
     from core.site_published_pages p
     where p.org_id = ${orgId}::uuid and p.indexed and ${speaks("p")}
     union all

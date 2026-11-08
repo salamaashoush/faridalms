@@ -20,6 +20,8 @@ import {
 } from "@faridalms/domain/website";
 import { useCallback, useState } from "react";
 
+import type { SharedInfo } from "./SavedSections";
+
 export interface Languages {
   primary: SiteLocale;
   /** The other language when the site is bilingual. */
@@ -54,6 +56,67 @@ export interface SiteDraft {
 export interface StudioDraft {
   page: PageDraft;
   site: SiteDraft;
+}
+
+/** A shared section as the page last read or saved it, which the page's copy is compared with. */
+export interface SharedCopy {
+  section: PageSection;
+  translation: PageSection | null;
+}
+
+/** The shared sections a page names, what each stood as, and the page's sections whose shared section is gone. */
+export interface SharedState {
+  info: Record<string, SharedInfo>;
+  base: Record<string, SharedCopy>;
+  gone: string[];
+}
+
+export function sharedStateOf(
+  sections: readonly PageSection[],
+  translated: Record<string, PageSection>,
+  shared: { sections: SharedInfo[]; gone: string[] } | undefined,
+): SharedState {
+  const base: Record<string, SharedCopy> = {};
+  for (const section of sections)
+    if (section.shared && !base[section.shared])
+      base[section.shared] = {
+        section,
+        translation: translated[section.id] ?? null,
+      };
+  return {
+    info: Object.fromEntries(
+      (shared?.sections ?? []).map((info) => [info.id, info]),
+    ),
+    base,
+    gone: shared?.gone ?? [],
+  };
+}
+
+const shapeOf = (section: PageSection | null | undefined) =>
+  section
+    ? JSON.stringify([
+        section.type,
+        section.variant,
+        section.style,
+        section.data,
+      ])
+    : "";
+
+/** Whether the page holds changes to a shared section not yet saved where it is shared. */
+export function sharedChanged(
+  draft: PageDraft,
+  state: SharedState,
+  sharedId: string,
+): boolean {
+  const base = state.base[sharedId];
+  if (!base) return false;
+  return draft.sections.some(
+    (section) =>
+      section.shared === sharedId &&
+      (shapeOf(section) !== shapeOf(base.section) ||
+        JSON.stringify(draft.translated[section.id]?.data ?? null) !==
+          JSON.stringify(base.translation?.data ?? null)),
+  );
 }
 
 /** The other language of a section, always in the section's current shape. */

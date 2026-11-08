@@ -2,6 +2,7 @@ import type { PageSection, SiteLocale } from "@faridalms/domain/site-sections";
 import type { PageTemplate } from "@faridalms/domain/site-templates";
 
 import { Tabs } from "@base-ui/react/tabs";
+import { savedSectionOf } from "@faridalms/domain/saved-sections";
 import { buildTemplate } from "@faridalms/domain/site-templates";
 import { resolveTheme } from "@faridalms/domain/site-theme";
 import {
@@ -85,6 +86,7 @@ import {
 import { useCurrentUser } from "~/hooks/useCurrentUser";
 import { useDocumentMedia } from "~/hooks/useDocumentMedia";
 import * as m from "~/i18n/messages";
+import { saveSharedSection } from "~/server/shared";
 import {
   getSitePage,
   publishSitePage,
@@ -98,8 +100,8 @@ import { getMessageFromError } from "~/utils/error";
 import type { SiteFrameModel } from "../render/frame";
 import type { RenderContext } from "../render/parts";
 import type { Device } from "./Canvas";
-import type { Languages, PageDraft, StudioDraft } from "./draft";
-import type { Inserted } from "./Gallery";
+import type { Languages, PageDraft, SharedState, StudioDraft } from "./draft";
+import type { Inserted, SharedInfo } from "./SavedSections";
 
 import { STATE_LABEL, STATE_TONE } from "../format";
 import { withNews } from "../render/frame-model";
@@ -111,6 +113,8 @@ import {
   contentOf,
   issuesOf,
   otherOf,
+  sharedChanged,
+  sharedStateOf,
   slugOf,
   useUndoable,
   warningsOf,
@@ -120,6 +124,7 @@ import { Inspector } from "./Inspector";
 import { ISSUE_LABEL, SECTION_LABEL } from "./labels";
 import { Outline } from "./Outline";
 import { PagePanel } from "./PagePanel";
+import { SaveSectionDialog, SharedSectionBar } from "./SavedSections";
 import { FramePanel, StylesPanel } from "./SitePanels";
 
 type Existing = Awaited<
@@ -192,6 +197,12 @@ function pageDraftOf(
   };
 }
 
+/** A section as a page holds it on its own, no longer naming a shared section. */
+function own(section: PageSection): PageSection {
+  const { shared: _shared, ...rest } = section;
+  return rest;
+}
+
 const editableTarget = (target: EventTarget | null) =>
   target instanceof HTMLElement &&
   (target.isContentEditable ||
@@ -254,6 +265,11 @@ export function SiteStudio({
     site: { theme: settings.theme, chrome: settings.chrome },
   }));
   const draft = history.value;
+  const [shared, setShared] = useState<SharedState>(() =>
+    sharedStateOf(draft.page.sections, draft.page.translated, existing?.shared),
+  );
+  const [keeping, setKeeping] = useState<string | null>(null);
+  const [savingShared, setSavingShared] = useState(false);
   const [savedSite, setSavedSite] = useState(draft.site);
   const [pageId, setPageId] = useState(existing?.id ?? null);
   // What the server holds, read by saves that run one after another before
@@ -454,10 +470,28 @@ export function SiteStudio({
           ? ""
           : value,
       ) as PageSection;
-    const inserted = {
-      content: prune(sample.content),
-      translation: prune(sample.translation),
-    };
+    // A shared section is shown as it is kept; only a copy is fitted to this site.
+    const inserted = sample.shared
+      ? sample
+      : {
+          content: prune(sample.content),
+          translation: prune(sample.translation),
+        };
+    const sharing = sample.shared;
+    if (sharing)
+      setShared((current) => ({
+        ...current,
+        info: { ...current.info, [sharing.id]: sharing },
+        base: current.base[sharing.id]
+          ? current.base
+          : {
+              ...current.base,
+              [sharing.id]: {
+                section: sample.content,
+                translation: languages.other ? sample.translation : null,
+              },
+            },
+      }));
     const at = galleryAt ?? page.sections.length;
     updatePage((current) => ({
       ...current,
@@ -634,6 +668,7 @@ export function SiteStudio({
     adopt: ({ value, version, data }) => {
       versions.current.page = version;
       history.reset((current) => ({ ...current, page: value }));
+      setShared(sharedStateOf(value.sections, value.translated, data.shared));
       setShownState(data.shown);
       setWaiting(data.revisedAt !== null);
     },
@@ -779,6 +814,143 @@ export function SiteStudio({
       }),
     })),
   };
+  const sharedWaiting = Object.keys(shared.base).some((id) =>
+    sharedChanged(page, shared, id),
+  );
+  const selectedShared = selectedSection?.shared ?? null;
+  const selectedInfo =
+    selectedSection &&
+    selectedShared &&
+    !shared.gone.includes(selectedSection.id)
+      ? (shared.info[selectedShared] ?? null)
+      : null;
+  const fixed = (section: PageSection) =>
+    Boolean(section.shared) &&
+    (shared.gone.includes(section.id) ||
+      !shared.info[section.shared ?? ""]?.editable);
+
+  /** Puts a shared section's words back as they were kept, wherever the page shows it. */
+  const discardShared = (sharedId: string) => {
+    const base = shared.base[sharedId];
+    if (!base) return;
+    updatePage((current) => {
+      const translated = { ...current.translated };
+      const restored = current.sections.map((section) => {
+        if (section.shared !== sharedId) return section;
+        if (base.translation)
+          translated[section.id] = {
+            ...base.translation,
+            id: section.id,
+            shared: sharedId,
+          };
+        return {
+          ...base.section,
+          id: section.id,
+          shared: sharedId,
+        };
+      });
+      return { ...current, sections: restored, translated };
+    });
+  };
+
+  /** Saves a shared section as the page now shows it, so every page shows the change. */
+  const saveShared = async (section: PageSection) => {
+    const sharedId = section.shared;
+    const info = sharedId ? shared.info[sharedId] : undefined;
+    if (!sharedId || !info) return;
+    setSavingShared(true);
+    try {
+      const translation = languages.other ? otherOf(page, section) : null;
+      const saved = await saveSharedSection({
+        data: {
+          id: sharedId,
+          expectedVersion: info.version,
+          title: info.title,
+          scope: info.scope,
+          section: savedSectionOf(section, translation, languages.primary),
+        },
+      });
+      setShared((current) => ({
+        ...current,
+        info: {
+          ...current.info,
+          [sharedId]: { ...info, version: saved.version },
+        },
+        base: {
+          ...current.base,
+          [sharedId]: { section, translation },
+        },
+      }));
+      // Another place on this page showing it shows the change too.
+      updatePage((current) => ({
+        ...current,
+        sections: current.sections.map((other) =>
+          other.shared === sharedId && other.id !== section.id
+            ? { ...section, id: other.id }
+            : other,
+        ),
+      }));
+      await queryClient.invalidateQueries({ queryKey: ["shared"] });
+      await invalidate();
+      toast.success(m.siteSharedSectionSaved());
+    } catch (error) {
+      toast.error(getMessageFromError(error));
+    } finally {
+      setSavingShared(false);
+    }
+  };
+
+  const keptSection = keeping
+    ? page.sections.find((section) => section.id === keeping)
+    : undefined;
+
+  /** The page now shows a section it just kept as a shared section. */
+  const markShared = (section: PageSection, info: SharedInfo) => {
+    const mark = (from: PageSection): PageSection => ({
+      ...from,
+      shared: info.id,
+    });
+    const words = page.translated[section.id];
+    setShared((current) => ({
+      ...current,
+      info: { ...current.info, [info.id]: info },
+      base: {
+        ...current.base,
+        [info.id]: {
+          section: mark(section),
+          translation: words ? mark(words) : null,
+        },
+      },
+    }));
+    updatePage((current) => {
+      const theirs = current.translated[section.id];
+      return {
+        ...current,
+        sections: current.sections.map((item) =>
+          item.id === section.id ? mark(item) : item,
+        ),
+        translated: theirs
+          ? { ...current.translated, [section.id]: mark(theirs) }
+          : current.translated,
+      };
+    });
+  };
+
+  /** Keeps a shared section on this page as its own copy, no longer kept in step. */
+  const detach = (sectionId: string) =>
+    updatePage((current) => {
+      const words = current.translated[sectionId];
+      return {
+        ...current,
+        sections: current.sections.map((section) =>
+          section.id === sectionId ? own(section) : section,
+        ),
+        translated: words
+          ? { ...current.translated, [sectionId]: own(words) }
+          : current.translated,
+      };
+    });
+
   const inspector = selectedSection ? (
     <Inspector
       key={`${selectedSection.id}-${locale}`}
@@ -824,6 +996,21 @@ export function SiteStudio({
         setSelected(null);
         setSheet(null);
       }}
+      readOnly={fixed(selectedSection)}
+      onKeep={selectedShared ? undefined : () => setKeeping(selectedSection.id)}
+      notice={
+        selectedShared ? (
+          <SharedSectionBar
+            shared={selectedInfo}
+            dirty={sharedChanged(page, shared, selectedShared)}
+            saving={savingShared}
+            onSave={() => void saveShared(selectedSection)}
+            onDiscard={() => discardShared(selectedShared)}
+            onDetach={() => detach(selectedSection.id)}
+            onRemove={() => remove(selectedSection.id)}
+          />
+        ) : undefined
+      }
     />
   ) : (
     <div className="grid content-start gap-4 p-4">
@@ -1044,7 +1231,9 @@ export function SiteStudio({
   return (
     <div className="flex h-dvh flex-col bg-background">
       <UnsavedChangesGuard
-        isDirty={() => autosave.busy() || autosave.dirty || siteDirty}
+        isDirty={() =>
+          autosave.busy() || autosave.dirty || siteDirty || sharedWaiting
+        }
         pending={busy}
       />
       <header className="flex h-14 shrink-0 items-center gap-2 border-b px-2 lg:px-3">
@@ -1327,7 +1516,7 @@ export function SiteStudio({
             readOnly={reading}
             onText={(id, field, value) => {
               const section = page.sections.find((item) => item.id === id);
-              if (!section) return;
+              if (!section || fixed(section)) return;
               const target = editingOther ? otherOf(page, section) : section;
               const next = {
                 ...target,
@@ -1458,6 +1647,15 @@ export function SiteStudio({
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      {keptSection ? (
+        <SaveSectionDialog
+          section={keptSection}
+          translation={languages.other ? otherOf(page, keptSection) : null}
+          primary={languages.primary}
+          onClose={() => setKeeping(null)}
+          onShared={(info) => markShared(keptSection, info)}
+        />
+      ) : null}
       {pictured.sheet}
       {editing.compare}
       {pageId ? (

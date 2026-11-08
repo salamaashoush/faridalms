@@ -12,6 +12,7 @@ import { publicIntakes } from "@faridalms/database/stores/admissions";
 import {
   documentOf,
   dropTranslation,
+  publishedVersion,
   saveDocument,
   saveTranslation,
   snapshotPublish,
@@ -19,10 +20,12 @@ import {
 } from "@faridalms/database/stores/documents";
 import { publicEvents } from "@faridalms/database/stores/events";
 import { schoolProfile } from "@faridalms/database/stores/identity";
+import { sharedBlockById } from "@faridalms/database/stores/shared";
 import {
   insertEnquiry,
   insertPage,
   pageById,
+  pagesShowingShared,
   placePage,
   publicCategories,
   publicMenu,
@@ -36,6 +39,7 @@ import {
   removeCategory,
   removePage,
   removeRedirect,
+  revisePublishedPage,
   saveCategory,
   saveRedirect,
   saveSiteSettings,
@@ -57,6 +61,7 @@ import { paged, pageWindow } from "@faridalms/domain/paging";
 import { publishedPictures } from "@faridalms/domain/previews";
 import { phaseOf } from "@faridalms/domain/publication";
 import { formQuestions, readFormAnswers } from "@faridalms/domain/questions";
+import { withoutSections } from "@faridalms/domain/saved-sections";
 import {
   redirectPath,
   sitePagePath,
@@ -121,7 +126,11 @@ import {
   writeProcedure,
 } from "../core/procedure";
 import { attemptKey, ipPrefix } from "../core/session";
-import { inlinePageShared } from "../core/shared";
+import {
+  inlinePageShared,
+  registerLiveReviser,
+  withSharedSections,
+} from "../core/shared";
 import {
   logoKey,
   publishMedia,
@@ -380,11 +389,22 @@ export const page = readProcedure
   .input(v.object({ id }))
   .handler(async ({ input, context }) => {
     const row = await pageOfSchool(context, input.id);
-    const [settings, documents, pages] = await Promise.all([
+    const [settings, stored, pages] = await Promise.all([
       settingsFor(context),
       pageDocuments(context, row.id),
       sitePages(context.tx, context.tenantId, context.schoolId),
     ]);
+    const resolved = await withSharedSections(
+      context,
+      stored.content,
+      stored.translation,
+      settings.primaryLocale,
+    );
+    const documents = {
+      ...stored,
+      content: resolved.content,
+      translation: resolved.translation,
+    };
     const below = new Set([row.id]);
     for (let grew = true; grew;) {
       grew = false;
@@ -420,6 +440,7 @@ export const page = readProcedure
         localesOf(settings),
         settings.primaryLocale,
       ),
+      shared: await sharedOnPage(context, documents.content, resolved.gone),
       parents: pages
         .filter((other) => !below.has(other.id) && !other.isHome)
         .map((other) => ({
@@ -510,6 +531,14 @@ export const savePage = writeProcedure
       version = created.version;
     }
     const host = pageHost(pageId);
+    // A shared section is changed only where it is shared: the page keeps a
+    // copy of it as it stands, whose files stay the shared section's.
+    const kept = await withSharedSections(
+      context,
+      input.content,
+      input.translation,
+      settings.primaryLocale,
+    );
     const original = await saveDocument(context.tx, {
       tenantId: context.tenantId,
       orgId: context.schoolId,
@@ -519,14 +548,14 @@ export const savePage = writeProcedure
       ...(await placeMedia(
         context,
         host,
-        input.content,
-        pageFileIds(input.content),
+        kept.content,
+        ownFileIds(kept.content),
       )),
-      plainText: pagePlainText(input.content),
+      plainText: pagePlainText(kept.content),
       userId: context.actor.userId,
     });
-    if (settings.bilingual && input.translation) {
-      const aligned = alignTranslation(input.content, input.translation);
+    if (settings.bilingual && kept.translation) {
+      const aligned = alignTranslation(kept.content, kept.translation);
       await saveTranslation(context.tx, {
         tenantId: context.tenantId,
         orgId: context.schoolId,
@@ -534,7 +563,7 @@ export const savePage = writeProcedure
         originalId: original.id,
         locale: otherLocale(settings.primaryLocale),
         kind: "page",
-        ...(await placeMedia(context, host, aligned, pageFileIds(aligned))),
+        ...(await placeMedia(context, host, aligned, ownFileIds(aligned))),
         plainText: pagePlainText(aligned),
         userId: context.actor.userId,
       });
@@ -570,32 +599,19 @@ async function publishOne(
   const documents = await pageDocuments(context, row.id);
   if (!documents.originalId || documents.content.sections.length === 0)
     throw new ORPCError("CONFLICT", { message: "site.empty" });
-  // Visitors read a copy that stands on its own, so the shared blocks the
-  // page shows go out as they read now, checked and their pictures public.
-  const content = await inlinePageShared(context, documents.content);
-  const written = documents.translation
-    ? await inlinePageShared(context, documents.translation)
-    : null;
-  const issues = issuesByLocale(content, written, settings);
-  if (issues.en.length + issues.ar.length > 0)
-    throw new ORPCError("CONFLICT", { message: "site.issues" });
-  const translation = settings.bilingual ? written : null;
-  const { media, pictures } = await publishMedia(
+  const copies = await visitorCopies(
     context,
-    { tenantId: context.tenantId, hostType: "site_page", hostId: row.id },
-    [
-      ...new Set([
-        ...pageFileIds(content),
-        ...(translation ? pageFileIds(translation) : []),
-      ]),
-    ],
+    row,
+    settings,
+    documents.content,
+    documents.translation,
   );
   await snapshotPublish(context.tx, {
     tenantId: context.tenantId,
     documentId: documents.originalId,
     userId: context.actor.userId,
   });
-  if (translation && documents.translationId)
+  if (settings.bilingual && documents.translation && documents.translationId)
     await snapshotPublish(context.tx, {
       tenantId: context.tenantId,
       documentId: documents.translationId,
@@ -614,14 +630,78 @@ async function publishOne(
     tenantId: context.tenantId,
     pageId: row.id,
   });
-  for (const locale of localesOf(settings)) {
-    const own = locale === settings.primaryLocale ? content : translation;
+  for (const copy of copies)
     await writePublishedPage(context.tx, {
       tenantId: context.tenantId,
       orgId: context.schoolId,
       page: row,
+      locale: copy.locale,
+      title: titleIn(row, copy.locale, settings.primaryLocale),
+      content: copy.content,
+      media: copy.media,
+      visibleFrom: publishedAt,
+    });
+  await audit(context, {
+    action: "site.page_publish",
+    objectType: "site_page",
+    objectId: row.id,
+    details: { publishedAt },
+  });
+  return { version };
+}
+
+/**
+ * What visitors read of a page in each language the site speaks, from its
+ * words as given: shared sections as they stand now (one since taken out
+ * leaves nothing) and shared blocks written out, checked, and their
+ * pictures made public.
+ */
+async function visitorCopies(
+  context: UnitContext,
+  row: PageRow,
+  settings: { primaryLocale: SiteLocale; bilingual: boolean },
+  stored: PageContent,
+  storedTranslation: PageContent | null,
+) {
+  const resolved = await withSharedSections(
+    context,
+    stored,
+    storedTranslation,
+    settings.primaryLocale,
+  );
+  const left = withoutSections(
+    resolved.content,
+    resolved.translation,
+    resolved.gone,
+  );
+  // Visitors read a copy that stands on its own, so the shared blocks the
+  // page shows go out as they read now, checked and their pictures public.
+  const content = await inlinePageShared(context, left.content);
+  const written = left.translation
+    ? await inlinePageShared(context, left.translation)
+    : null;
+  const issues = issuesByLocale(content, written, settings);
+  if (issues.en.length + issues.ar.length > 0)
+    throw new ORPCError("CONFLICT", {
+      message: "site.issues",
+      data: { pageId: row.id },
+    });
+  const translation = settings.bilingual ? written : null;
+  const { media, pictures } = await publishMedia(
+    context,
+    { tenantId: context.tenantId, hostType: "site_page", hostId: row.id },
+    [
+      ...new Set([
+        ...pageFileIds(content),
+        ...(translation ? pageFileIds(translation) : []),
+      ]),
+    ],
+  );
+  return localesOf(settings).map((locale) => {
+    const own = locale === settings.primaryLocale ? content : translation;
+    return {
       locale,
-      title: titleIn(row, locale, settings.primaryLocale),
+      media,
       content: {
         sections: localizedSections(
           content,
@@ -636,17 +716,106 @@ async function publishOne(
         canonical: own?.canonical ?? "",
         pictures,
       },
-      media,
-      visibleFrom: publishedAt,
-    });
-  }
-  await audit(context, {
-    action: "site.page_publish",
-    objectType: "site_page",
-    objectId: row.id,
-    details: { publishedAt },
+    };
   });
-  return { version };
+}
+
+/**
+ * Brings what visitors read up to date where a shared section changed or
+ * went: every published page showing it is drawn again from the words it
+ * was last published with, so none of a page's own waiting changes go out
+ * with it.
+ */
+async function reviseLivePages(context: UnitContext, sharedId: string) {
+  const pageIds = await pagesShowingShared(context.tx, {
+    tenantId: context.tenantId,
+    orgId: context.schoolId,
+    sharedId,
+  });
+  if (pageIds.length === 0) return 0;
+  const settings = await settingsFor(context);
+  for (const pageId of pageIds) {
+    const row = await pageById(context.tx, context.tenantId, pageId);
+    const original = row
+      ? await documentOf(context.tx, context.tenantId, pageHost(row.id))
+      : null;
+    const published = original
+      ? await publishedVersion(context.tx, context.tenantId, original.id)
+      : null;
+    if (!row || !original || !published) continue;
+    const translation = await translationOf(
+      context.tx,
+      context.tenantId,
+      original.id,
+    );
+    const publishedTranslation = translation
+      ? await publishedVersion(context.tx, context.tenantId, translation.id)
+      : null;
+    const copies = await visitorCopies(
+      context,
+      row,
+      settings,
+      parsed(pageContentSchema, published.content, EMPTY_PAGE),
+      publishedTranslation
+        ? parsed(pageContentSchema, publishedTranslation.content, EMPTY_PAGE)
+        : null,
+    );
+    for (const copy of copies)
+      await revisePublishedPage(context.tx, {
+        tenantId: context.tenantId,
+        pageId: row.id,
+        locale: copy.locale,
+        content: copy.content,
+        media: copy.media,
+      });
+  }
+  return pageIds.length;
+}
+registerLiveReviser(reviseLivePages);
+
+/** The files a page's own sections show; a shared section's stay its own. */
+const ownFileIds = (content: PageContent) =>
+  pageFileIds({
+    ...content,
+    sections: content.sections.filter((section) => !section.shared),
+  });
+
+/**
+ * The shared sections a page names, for the builder: what each is called,
+ * whose it is and whether the viewer may change it, and the page's
+ * sections whose shared section was taken out.
+ */
+async function sharedOnPage(
+  context: UnitContext,
+  content: PageContent,
+  gone: readonly string[],
+) {
+  const ids = [
+    ...new Set(content.sections.flatMap((section) => section.shared ?? [])),
+  ];
+  const rows = await Promise.all(
+    ids.map((sharedId) =>
+      sharedBlockById(context.tx, context.tenantId, sharedId),
+    ),
+  );
+  return {
+    sections: rows.flatMap((row) =>
+      row?.orgId === context.schoolId && row.kind === "section"
+        ? [
+            {
+              id: row.id,
+              version: row.version,
+              title: row.title,
+              scope: row.scope,
+              editable: row.ownerUserId === context.actor.userId,
+              ownerNameEn: row.ownerNameEn,
+              ownerNameAr: row.ownerNameAr,
+            },
+          ]
+        : [],
+    ),
+    gone: [...gone],
+  };
 }
 
 export const unpublishPage = writeProcedure

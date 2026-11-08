@@ -1,6 +1,7 @@
 import {
   librarySchema,
   reviewTemplateSchema,
+  saveSectionTemplateSchema,
   saveTemplateSchema,
   templateKindSchema,
   templateRefSchema,
@@ -22,6 +23,14 @@ export const openTemplate = createServerFn({ method: "GET" })
 export const saveTemplate = createServerFn({ method: "POST" })
   .validator(checked(saveTemplateSchema))
   .handler(({ data }) => backend().templates.save(data));
+
+export const saveSectionTemplate = createServerFn({ method: "POST" })
+  .validator(checked(saveSectionTemplateSchema))
+  .handler(({ data }) => backend().templates.saveSection(data));
+
+export const openSectionTemplate = createServerFn({ method: "GET" })
+  .validator(checked(templateRefSchema))
+  .handler(({ data }) => backend().templates.openSection(data));
 
 export const removeTemplate = createServerFn({ method: "POST" })
   .validator(checked(templateRefSchema))
