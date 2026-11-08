@@ -169,9 +169,10 @@ the work a key press does must not grow with the document:
 - Layout is read in the animation frame that draws a change, once, never
   inside an update listener, and a measured position is set as state only
   when it moved (`plugins/Table.tsx`, `plugins/code-block.tsx`).
-- The host is handed the document in a task of its own once typing pauses
-  (200ms, at most a second into a burst), validated, and draws it as a React
-  transition; blur, Escape and shortcuts hand it over at once. The surface
+- The host is handed the document in a task of its own, validated, and
+  draws it as a React transition: the first change after a quiet second
+  once its letter is drawn, the rest of a burst when typing pauses (200ms,
+  at most a second in); blur, Escape and shortcuts hand it over at once. The surface
   and its plugins are memoised against the host's redraw, and the word
   count is a store only the footer reads.
 - Undo keeps the last 200 steps (`UNDO_STEPS` in `Editor.tsx`). Each step

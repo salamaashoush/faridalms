@@ -551,21 +551,28 @@ const Surface = memo(function Surface({
 
   // Each change is checked against the content schema and handed to the
   // host, which draws its whole page again. Neither may stand between a
-  // key and its letter on screen: a change goes in a task of its own once
-  // typing pauses, or a second into a burst that does not, and the host
-  // draws it as a transition that a key pressed meanwhile interrupts.
-  // Leaving the editor, Escape and shortcuts hand it over at once, so a
-  // save never misses the last words typed.
+  // key and its letter on screen, so a change goes in a task of its own,
+  // and the host draws it as a transition a key pressed meanwhile
+  // interrupts. The first change after a quiet second goes once its letter
+  // is drawn, so the host's page takes the new words before the writer's
+  // next click; the rest of a burst goes when typing pauses, or a second
+  // in. Leaving the editor, Escape and shortcuts hand it over at once, so
+  // a save never misses the last words typed.
   useEffect(() => {
     let pending: { state: EditorState; quiet: boolean; since: number } | null =
       null;
     let timer: ReturnType<typeof setTimeout> | undefined;
+    let frame = 0;
+    let handed = -Infinity;
     const settle = (urgent: boolean) => {
       clearTimeout(timer);
+      cancelAnimationFrame(frame);
       timer = undefined;
+      frame = 0;
       if (!pending) return;
       const { state, quiet } = pending;
       pending = null;
+      handed = performance.now();
       const result = v.safeParse(contentDocumentSchema, state.toJSON());
       if (result.success) stats.set(statsOf(result.output));
       const hand = () => {
@@ -586,6 +593,14 @@ const Surface = memo(function Surface({
             quiet: (pending?.quiet ?? true) && tags.has(QUIET_REPLACE),
             since: pending?.since ?? now,
           };
+          if (frame) return;
+          if (now - handed >= MAX_TYPING_WAIT_MS) {
+            clearTimeout(timer);
+            frame = requestAnimationFrame(() => {
+              timer = setTimeout(() => settle(false), 0);
+            });
+            return;
+          }
           clearTimeout(timer);
           timer = setTimeout(
             () => settle(false),
