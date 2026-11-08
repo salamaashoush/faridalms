@@ -30,8 +30,17 @@ async function write(page: Page, studio: Locator, program: string) {
   // keys pressed before it has focus go astray.
   await expect(lines).not.toBeEmpty();
   await lines.click();
-  await expect(editor.locator(".monaco-editor textarea")).toBeFocused();
-  await page.keyboard.press("ControlOrMeta+a");
+  const input = editor.locator(".monaco-editor textarea");
+  await expect(input).toBeFocused();
+  // The editor binds Command or Control by the platform its user agent
+  // names, which is the emulated device's, while ControlOrMeta follows the
+  // machine running the browser: Desktop Chrome on a Mac would press
+  // Command in an editor expecting Control, and the Mac's own select-all
+  // would then swallow the first key typed.
+  const mac = await input.evaluate(() =>
+    navigator.userAgent.includes("Macintosh"),
+  );
+  await page.keyboard.press(mac ? "Meta+a" : "Control+a");
   await page.keyboard.type(program);
   await expect(lines).toContainText(program);
 }
