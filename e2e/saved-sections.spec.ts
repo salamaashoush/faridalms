@@ -124,5 +124,5 @@ test("a section kept as a template starts a copy on another page", async ({
 
   await page.goto("/library");
   await untilHydrated(page);
-  await expect(page.getByText(name)).toBeVisible();
+  await expect(page.getByRole("button", { name, exact: true })).toBeVisible();
 });

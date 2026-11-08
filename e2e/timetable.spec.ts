@@ -158,6 +158,8 @@ test("an administrator runs a day on a bell schedule", async ({
   await expect(page.getByText("09:00–09:45")).toBeVisible();
 });
 
+// The day comes before the A/B weeks another spec adds from June 6, so it
+// is offered one Sunday, not a Sunday of each week.
 test("an administrator runs a Tuesday as a Sunday, then puts it back", async ({
   page,
   browserName,
@@ -169,22 +171,22 @@ test("an administrator runs a Tuesday as a Sunday, then puts it back", async ({
   await page.getByRole("link", { name: "2026–2027" }).first().click();
   await page.getByRole("tab", { name: "School days" }).click();
   await untilHydrated(page);
-  await page.getByRole("button", { name: /^Tuesday, June 15/ }).click();
+  await page.getByRole("button", { name: /^Tuesday, June 1,/ }).click();
   await page.getByRole("combobox", { name: /^Runs as/ }).click();
   await page.getByRole("option", { name: /^Sunday/ }).click();
   await page.getByRole("button", { name: "Run this day so" }).click();
   await expect(page.getByText("Day saved")).toBeVisible();
   await expect(
-    page.getByRole("button", { name: /^Tuesday, June 15, .*runs as Sunday/ }),
+    page.getByRole("button", { name: /^Tuesday, June 1, .*runs as Sunday/ }),
   ).toBeVisible();
   const list = page.getByRole("region", { name: "Days run as another" });
   await expect(list.getByText(/runs as Sunday/)).toBeVisible();
 
-  await page.goto("/timetable?view=teachers&from=2027-06-15");
+  await page.goto("/timetable?view=teachers&from=2027-06-01");
   await untilHydrated(page);
   await expect(
     page.getByRole("columnheader", {
-      name: /Tuesday Jun 15\s*Runs as Sunday/,
+      name: /Tuesday Jun 1\s*Runs as Sunday/,
     }),
   ).toBeVisible();
 
@@ -238,7 +240,9 @@ test("a bell schedule adds an assembly that a class can have a lesson in for tha
   const arrange = page.getByRole("dialog");
   await arrange.getByRole("radio").nth(1).click();
   await arrange.getByRole("button", { name: "Save" }).click();
-  await expect(page.getByText(/^This day only, with /)).toBeVisible();
+  await expect(
+    page.getByRole("table").getByText(/^This day only, with /),
+  ).toBeVisible();
 
   await page.goto("/timetable?view=teachers&from=2027-06-16");
   await untilHydrated(page);

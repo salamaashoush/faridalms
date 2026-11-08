@@ -336,6 +336,11 @@ test("a school adds Development Matters to follow younger children", async ({
     .fill("ينظر إلى وجه من يتحدّث إليه.");
   await sheet.getByRole("button", { name: "Save" }).click();
   await expect(sheet).toBeHidden();
-  await expect(page.getByText("ينظر إلى وجه من يتحدّث إليه.")).toBeVisible();
-  await expect(page.getByText(statement)).toBeVisible();
+  const standards = page.getByRole("list", {
+    name: "Standards in this framework",
+  });
+  await expect(
+    standards.getByText("ينظر إلى وجه من يتحدّث إليه."),
+  ).toBeVisible();
+  await expect(standards.getByText(statement)).toBeVisible();
 });
