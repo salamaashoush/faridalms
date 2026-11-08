@@ -150,6 +150,36 @@ OpenID Connect provider:
    the internal `intake` network; the edge never serves `/intake/` itself.
 4. `docker compose up -d`.
 
+**Office files previewed as PDFs.** CI's `media` image leaves LibreOffice
+out, so a Word, Excel, PowerPoint or OpenDocument file is downloaded only.
+To read them in the viewer instead, on the server, from the commit you run:
+
+1. Build the media image with LibreOffice's writer, calc and impress, under
+   its own tag:
+   `docker build --target media --build-arg MEDIA_OFFICE=true -t faridalms-media:office .`
+2. Point the stack at it and give it the memory a large spreadsheet takes,
+   in a `compose.override.yaml` beside `compose.yaml`:
+
+   ```yaml
+   services:
+     media:
+       image: faridalms-media:office
+       deploy:
+         resources:
+           limits:
+             memory: 3g
+   ```
+
+3. Set `MEDIA_OFFICE_CONVERTER=/usr/bin/soffice` in `.env`, then
+   `docker compose up -d media`.
+4. Check it: `docker compose exec media soffice --version` names
+   LibreOffice, and the service refuses to start if the converter it is
+   given will not run. Office files uploaded before wait for a service
+   that converts, and are converted once it runs.
+
+Rebuild the image at each upgrade, from that commit, as CI does not
+publish it.
+
 ## Routing
 
 | Name                                | Service         |

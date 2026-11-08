@@ -702,7 +702,11 @@ like the file itself, sealed and private:
   and impress, and set `MEDIA_OFFICE_CONVERTER=/usr/bin/soffice`; give the
   container another gigabyte of memory, as a large spreadsheet takes it.
   Unset, office files are downloaded only. Named but not runnable, the
-  service refuses to start.
+  service refuses to start. `cargo test` converts a real OpenDocument
+  file through it wherever LibreOffice is installed (`MEDIA_OFFICE_CONVERTER`,
+  `soffice` on the path, or the macOS application), and says it skipped
+  that test, and why, where it is not; a stand-in converter checks the
+  arguments everywhere. `deploy/single-server/README.md` sets it up.
 
 The API removes a picture's location, camera and editing records before it
 keeps the upload anywhere, whether or not the media service runs. Files

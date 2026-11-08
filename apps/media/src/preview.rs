@@ -1101,6 +1101,155 @@ mod tests {
     Ok(())
   }
 
+  /// LibreOffice where this machine has it: the converter the service is
+  /// given, or `soffice` on the path or in its macOS application.
+  fn libreoffice() -> Option<PathBuf> {
+    if let Some(named) = std::env::var_os("MEDIA_OFFICE_CONVERTER").filter(|named| !named.is_empty()) {
+      return Some(PathBuf::from(named));
+    }
+    let on_path = std::env::var_os("PATH")
+      .map(|path| std::env::split_paths(&path).collect::<Vec<_>>())
+      .unwrap_or_default()
+      .into_iter()
+      .flat_map(|dir| [dir.join("soffice"), dir.join("libreoffice")]);
+    let app = PathBuf::from("/Applications/LibreOffice.app/Contents/MacOS/soffice");
+    on_path
+      .chain(std::iter::once(app))
+      .find(|candidate| candidate.is_file())
+  }
+
+  /// CRC-32 as zip files check their entries by.
+  fn crc32(bytes: &[u8]) -> u32 {
+    let mut crc = !0u32;
+    for byte in bytes {
+      crc ^= u32::from(*byte);
+      for _ in 0..8 {
+        crc = if crc & 1 == 1 {
+          (crc >> 1) ^ 0xEDB8_8320
+        } else {
+          crc >> 1
+        };
+      }
+    }
+    !crc
+  }
+
+  /// A zip of these files, stored without compression, `mimetype` first as
+  /// `OpenDocument` asks.
+  fn stored_zip(files: &[(&str, &[u8])]) -> Result<Vec<u8>> {
+    let mut zip = Vec::new();
+    let mut central = Vec::new();
+    for (name, body) in files {
+      let offset = u32::try_from(zip.len())?;
+      let size = u32::try_from(body.len())?;
+      let crc = crc32(body);
+      let name_length = u16::try_from(name.len())?;
+      let header = |signature: u32, central_entry: bool| {
+        let mut entry = signature.to_le_bytes().to_vec();
+        if central_entry {
+          entry.extend(20u16.to_le_bytes());
+        }
+        entry.extend(20u16.to_le_bytes());
+        entry.extend([0u8; 6]); // flags, stored, time
+        entry.extend(0u16.to_le_bytes()); // date
+        entry.extend(crc.to_le_bytes());
+        entry.extend(size.to_le_bytes());
+        entry.extend(size.to_le_bytes());
+        entry.extend(name_length.to_le_bytes());
+        entry.extend(0u16.to_le_bytes());
+        if central_entry {
+          entry.extend([0u8; 10]); // comment, disk, attributes
+          entry.extend(offset.to_le_bytes());
+        }
+        entry.extend(name.as_bytes());
+        entry
+      };
+      zip.extend(header(0x0403_4b50, false));
+      zip.extend(*body);
+      central.extend(header(0x0201_4b50, true));
+    }
+    let start = u32::try_from(zip.len())?;
+    let count = u16::try_from(files.len())?;
+    let central_size = u32::try_from(central.len())?;
+    zip.extend(central);
+    zip.extend(0x0605_4b50u32.to_le_bytes());
+    zip.extend([0u8; 4]);
+    zip.extend(count.to_le_bytes());
+    zip.extend(count.to_le_bytes());
+    zip.extend(central_size.to_le_bytes());
+    zip.extend(start.to_le_bytes());
+    zip.extend(0u16.to_le_bytes());
+    Ok(zip)
+  }
+
+  /// A one-page `OpenDocument` text, as a word processor saves one.
+  fn odt(words: &str) -> Result<Vec<u8>> {
+    let content = format!(
+      "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n\
+       <office:document-content xmlns:office=\"urn:oasis:names:tc:opendocument:xmlns:office:1.0\" \
+       xmlns:text=\"urn:oasis:names:tc:opendocument:xmlns:text:1.0\" office:version=\"1.3\">\
+       <office:body><office:text><text:p>{words}</text:p></office:text></office:body>\
+       </office:document-content>"
+    );
+    let manifest = "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n\
+       <manifest:manifest xmlns:manifest=\"urn:oasis:names:tc:opendocument:xmlns:manifest:1.0\" manifest:version=\"1.3\">\
+       <manifest:file-entry manifest:full-path=\"/\" manifest:media-type=\"application/vnd.oasis.opendocument.text\"/>\
+       <manifest:file-entry manifest:full-path=\"content.xml\" manifest:media-type=\"text/xml\"/>\
+       </manifest:manifest>";
+    stored_zip(&[
+      ("mimetype", b"application/vnd.oasis.opendocument.text"),
+      ("content.xml", content.as_bytes()),
+      ("META-INF/manifest.xml", manifest.as_bytes()),
+    ])
+  }
+
+  /// The converter itself, not a stand-in: run wherever LibreOffice is
+  /// installed, and said to be skipped, with why, where it is not, as on a
+  /// machine set up for video alone.
+  #[tokio::test]
+  async fn libreoffice_turns_an_office_file_into_a_pdf() -> Result<()> {
+    let Some(converter) = libreoffice() else {
+      eprintln!(
+        "skipped libreoffice_turns_an_office_file_into_a_pdf: LibreOffice (soffice) is not installed; \
+         install it or set MEDIA_OFFICE_CONVERTER to run it"
+      );
+      return Ok(());
+    };
+    let dir = tempfile::tempdir()?;
+    let previews = checked(Previews {
+      office: Some(converter),
+      ..previews()
+    })
+    .await?;
+    let made = preview_of(
+      dir.path(),
+      &previews,
+      "application/vnd.oasis.opendocument.text",
+      &odt("A letter home about the trip to the museum.")?,
+      true,
+    )
+    .await?;
+    let kept = std::fs::read(dir.path().join("out/document.pdf"))?;
+    assert!(kept.starts_with(b"%PDF-"), "LibreOffice did not write a PDF");
+    assert_eq!(
+      made.preview.document,
+      Some(Document {
+        name: "document.pdf",
+        bytes: kept.len() as u64,
+      })
+    );
+    // Its first page drawn, whatever paper the machine's locale prints on.
+    assert_eq!(made.preview.pages, Some(1));
+    assert_eq!(made.preview.height, Some(1600));
+    assert!(made.preview.placeholder.is_some());
+    assert_ne!(names(&made.preview), Vec::<&str>::new());
+    for name in names(&made.preview) {
+      assert!(name.starts_with("page1-w"), "{name}");
+      assert!(dir.path().join("out").join(name).is_file(), "{name} was not written");
+    }
+    Ok(())
+  }
+
   #[test]
   fn reads_how_many_pages_pdfinfo_counts() {
     assert_eq!(
