@@ -41,6 +41,7 @@ import {
   projectLanguages,
   starterFilesSchema,
 } from "./project";
+import { prosodySchema } from "./reading";
 import { scratchChecksSchema, scratchNotesSchema } from "./scratch-project";
 import { seededRandom } from "./seeded";
 import { MAX_QUESTION_STANDARDS } from "./standards";
@@ -3259,6 +3260,8 @@ export const fluencyMarkSchema = v.object({
     v.pipe(v.number(), v.integer(), v.minValue(0), v.maxValue(2000)),
   ),
   seconds: v.pipe(v.number(), v.integer(), v.minValue(1), v.maxValue(600)),
+  /** How it sounded, on the prosody rubric, as far as the teacher scored it. */
+  prosody: v.optional(prosodySchema),
 });
 export type FluencyMark = v.InferOutput<typeof fluencyMarkSchema>;
 
