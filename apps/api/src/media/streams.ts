@@ -290,6 +290,8 @@ async function report(
       height: manifest.height,
       durationMs: Math.round(manifest.durationSeconds * 1000),
       cut: source ?? undefined,
+      // A worker that does not weigh its streams leaves them for the sweep.
+      streamBytes: bytes > 0 ? bytes : null,
       derivatives: {
         hls: {
           key: folder,

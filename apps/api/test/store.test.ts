@@ -54,12 +54,24 @@ function fakeS3() {
         return new Response(null, { status: 204 });
       }
       if (request.method === "GET" && url.searchParams.has("list-type")) {
+        // Two keys a page, so a listing has to follow its continuation.
         const prefix = url.searchParams.get("prefix") ?? "";
-        const listed = [...objects.keys()]
-          .filter((each) => each.startsWith(prefix))
-          .map((each) => `<Contents><Key>${each}</Key></Contents>`);
+        const after = url.searchParams.get("continuation-token") ?? "";
+        const matching = [...objects.keys()]
+          .filter((each) => each.startsWith(prefix) && each > after)
+          .toSorted();
+        const page = matching.slice(0, 2);
+        const listed = page.map(
+          (each) =>
+            `<Contents><Key>${each}</Key><Size>${objects.get(each)?.byteLength ?? 0}</Size></Contents>`,
+        );
+        const more = matching.length > page.length;
         return new Response(
-          `<ListBucketResult><IsTruncated>false</IsTruncated>${listed.join("")}</ListBucketResult>`,
+          `<ListBucketResult><IsTruncated>${more}</IsTruncated>${
+            more
+              ? `<NextContinuationToken>${page.at(-1) ?? ""}</NextContinuationToken>`
+              : ""
+          }${listed.join("")}</ListBucketResult>`,
           { headers: { "content-type": "application/xml" } },
         );
       }
@@ -237,6 +249,34 @@ describe.each(stores)("%s file store", (name, store) => {
     expect(store.removeFolder(`t/${tenant}`)).rejects.toEqual(
       new StoreError("invalid_key"),
     );
+  });
+
+  test("weighs a video's streams, every file of them, and nothing beside", async () => {
+    const folder = `t/${tenant}/v/${crypto.randomUUID()}`;
+    const parts = {
+      "master.m3u8": 7,
+      "poster.jpg": 300,
+      "720p/seg_000.m4s": 1000,
+      "720p/seg_001.m4s": 1200,
+      "thumbs/thumbs.vtt": 40,
+    };
+    for (const [part, size] of Object.entries(parts)) {
+      if (name === "disk") {
+        await mkdir(join(diskRoot, folder, part, ".."), { recursive: true });
+        await writeFile(join(diskRoot, folder, part), new Uint8Array(size));
+      } else s3.objects.set(`${folder}/${part}`, new Uint8Array(size));
+    }
+    const kept = keyOf("f");
+    await store.write(kept, streamOf(new Uint8Array(5000)), 6000);
+
+    expect(await store.folderBytes(folder)).toBe(2547);
+    expect(
+      await store.folderBytes(`t/${tenant}/v/${crypto.randomUUID()}`),
+    ).toBe(0);
+    expect(store.folderBytes(`t/${tenant}`)).rejects.toEqual(
+      new StoreError("invalid_key"),
+    );
+    await store.removeFolder(folder);
   });
 
   test("refuses a key outside the school's prefixes", async () => {

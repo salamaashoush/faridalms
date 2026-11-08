@@ -1,4 +1,4 @@
-import { mkdir, rename, rm } from "node:fs/promises";
+import { mkdir, readdir, rename, rm, stat } from "node:fs/promises";
 import { dirname, join, resolve } from "node:path";
 
 export interface StoredObject {
@@ -36,6 +36,8 @@ export interface FileStore {
    * wrote, or the parts of an upload.
    */
   removeFolder(folder: string): Promise<void>;
+  /** What everything under a folder weighs together, 0 for none. */
+  folderBytes(folder: string): Promise<number>;
 }
 
 /**
@@ -123,6 +125,18 @@ export class DiskFileStore implements FileStore {
   async removeFolder(folder: string) {
     if (!FOLDER.test(folder)) throw new StoreError("invalid_key");
     await rm(join(this.root, folder), { recursive: true, force: true });
+  }
+
+  async folderBytes(folder: string) {
+    if (!FOLDER.test(folder)) throw new StoreError("invalid_key");
+    const root = join(this.root, folder);
+    const names = await readdir(root, { recursive: true }).catch(() => []);
+    let bytes = 0;
+    for (const name of names) {
+      const found = await stat(join(root, name));
+      if (found.isFile()) bytes += found.size;
+    }
+    return bytes;
   }
 }
 
@@ -219,6 +233,23 @@ export class S3FileStore implements FileStore {
       if (keys.length === 0) return;
       await Promise.all(keys.map((key) => this.client.delete(key)));
     }
+  }
+
+  async folderBytes(folder: string) {
+    if (!FOLDER.test(folder)) throw new StoreError("invalid_key");
+    let bytes = 0;
+    let continuationToken: string | undefined;
+    do {
+      const page = await this.client.list({
+        prefix: `${folder}/`,
+        ...(continuationToken ? { continuationToken } : {}),
+      });
+      for (const object of page.contents ?? []) bytes += object.size ?? 0;
+      continuationToken = page.isTruncated
+        ? page.nextContinuationToken
+        : undefined;
+    } while (continuationToken);
+    return bytes;
   }
 }
 

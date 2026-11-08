@@ -550,6 +550,7 @@ describe("the sweep", () => {
       has: (at) => files.has(at),
       move: (from, to) => files.move(from, to),
       remove: (at) => files.remove(at),
+      folderBytes: (folder) => files.folderBytes(folder),
       removeFolder: async (folder) => {
         removed.push(folder);
         await files.removeFolder(folder);

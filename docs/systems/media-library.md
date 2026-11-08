@@ -226,7 +226,12 @@ special-category purpose, never shares bytes either way. An object goes
 only when no active row points at it, which erasure now respects too.
 Adding an item whose bytes the library already holds says so.
 
-Storage is counted once per stored object. Keepers see on the library page
+Storage is counted once per stored object. A video's streams (its
+renditions, playlists, poster and thumbnails) count too, once per folder
+of them, under the video's kind and its uploader: the media service
+reports what a folder weighs when it finishes (`files.stream_bytes`, which
+copies and versions carry with the file), and the files sweep weighs, a
+few a pass, the folders of streams made before it did. Keepers see on the library page
 the pool used against the plan's limit, by kind of file and by the ten
 staff who uploaded most, with students, families and arriving mail counted
 together (`mediaLibrary.storage`).

@@ -42,6 +42,10 @@ class MemoryStore implements FileStore {
   }
 
   async removeFolder() {}
+
+  async folderBytes() {
+    return 0;
+  }
 }
 
 const dataKey = () => ({

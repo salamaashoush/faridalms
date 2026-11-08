@@ -198,6 +198,7 @@ describe("video streams", () => {
       has: (key) => files.has(key),
       move: (from, to) => files.move(from, to),
       remove: (key) => files.remove(key),
+      folderBytes: (folder) => files.folderBytes(folder),
       removeFolder: async (folder) => {
         removed.push(folder);
         await files.removeFolder(folder);
@@ -221,6 +222,70 @@ describe("video streams", () => {
     removed.length = 0;
     await sweepTenantFiles(cell, store, tenantId, later);
     expect(removed).not.toContain(job.outputPrefix);
+  });
+
+  test("a video's streams count against the school's storage, weighed by the service or the sweep", async () => {
+    const office = await sessionFor("northwind", login("principal"));
+    const teacher = await sessionFor("northwind", login("teacher"));
+    const used = async () => (await office.api.school.storage()).usedBytes;
+    const library = async () => {
+      const storage = await office.api.mediaLibrary.storage();
+      return {
+        total: storage.usedBytes,
+        byKind: storage.kinds.reduce((sum, kind) => sum + kind.usedBytes, 0),
+      };
+    };
+
+    const weighed = await uploadVideo(teacher, "weighed.mp4");
+    const before = await used();
+    const job = await claimVideo(weighed);
+    if (!job) throw new Error("the video was never offered");
+    expect(
+      (
+        await call(`/v1/media/jobs/${job.id}/done`, {
+          manifest: MANIFEST,
+          bytes: 5000,
+        })
+      ).status,
+    ).toBe(204);
+    expect((await used()) - before).toBe(5000);
+    const shown = await library();
+    expect(shown.byKind).toBe(shown.total);
+    expect(shown.total).toBe(await used());
+
+    // A worker that did not say what its streams weigh leaves them to the
+    // sweep, which weighs the folder in the store once.
+    const unweighed = await uploadVideo(teacher, "unweighed.mp4");
+    const second = await claimVideo(unweighed);
+    if (!second) throw new Error("the video was never offered");
+    const { cell, files, tenants } = seeded();
+    const weighing: string[] = [];
+    const store: FileStore = {
+      write: (key, body, limit) => files.write(key, body, limit),
+      open: (key, range) => files.open(key, range),
+      has: (key) => files.has(key),
+      move: (from, to) => files.move(from, to),
+      remove: (key) => files.remove(key),
+      removeFolder: (folder) => files.removeFolder(folder),
+      folderBytes: (folder) => {
+        weighing.push(folder);
+        return Promise.resolve(folder === second.outputPrefix ? 708 : 0);
+      },
+    };
+    const waiting = await used();
+    expect(
+      (await call(`/v1/media/jobs/${second.id}/done`, { manifest: MANIFEST }))
+        .status,
+    ).toBe(204);
+    expect(await used()).toBe(waiting);
+    const tenantId = tenants[0]?.tenantId ?? "";
+    await sweepTenantFiles(cell, store, tenantId, new Date());
+    expect(weighing).toContain(second.outputPrefix);
+    expect(weighing).not.toContain(job.outputPrefix);
+    expect((await used()) - waiting).toBe(708);
+    weighing.length = 0;
+    await sweepTenantFiles(cell, store, tenantId, new Date());
+    expect(weighing).not.toContain(second.outputPrefix);
   });
 
   test("a video that keeps failing is left playing as uploaded", async () => {

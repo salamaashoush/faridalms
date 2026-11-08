@@ -196,6 +196,12 @@ export const files = core.table.withRLS(
     streamLeasedUntil: instant("stream_leased_until"),
     streamProgress: real("stream_progress"),
     streamError: text("stream_error"),
+    /**
+     * What a video's streams weigh in the store, playlists, renditions,
+     * poster and thumbnails together, counted against the school's storage
+     * once per stream folder. Null until measured.
+     */
+    streamBytes: bigint("stream_bytes", { mode: "number" }),
     /** The folder of the media library a library file sits in; none at its top. */
     folderId: uuid("folder_id"),
     /** What a library picture shows, for those who cannot see it; a use may say it otherwise. */
@@ -250,6 +256,7 @@ export const files = core.table.withRLS(
     ck("files", "stream_attempts", sql`stream_attempts between 0 and 10`),
     ck("files", "stream_progress", sql`stream_progress between 0 and 1`),
     ck("files", "stream_error", sql`char_length(stream_error) <= 2000`),
+    ck("files", "stream_bytes", sql`stream_bytes >= 0`),
     ck(
       "files",
       "stream_lease",
@@ -321,6 +328,11 @@ export const files = core.table.withRLS(
     index("files_stream_queue_idx")
       .on(t.tenantId, t.readyAt)
       .where(sql`status = 'active' and stream_state in ('queued', 'encoding')`),
+    index("files_stream_unmeasured_idx")
+      .on(t.tenantId, t.id)
+      .where(
+        sql`status = 'active' and stream_state = 'ready' and stream_bytes is null`,
+      ),
     index("files_library_idx")
       .on(t.tenantId, t.hostId, t.folderId)
       .where(sql`status = 'active' and host_type = 'media_library'`),

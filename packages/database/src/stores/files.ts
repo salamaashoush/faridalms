@@ -644,11 +644,11 @@ export async function copyIntoHost(
     insert into core.files (tenant_id, uploaded_by_user_id, org_id, purpose, name, media_type,
       size_bytes, sha256, state, storage_key, encryption, key_version, scanned_at,
       scan_engine, ready_at, linked_at, width, height, duration_ms, derivatives,
-      host_type, host_id, metadata)
+      stream_bytes, host_type, host_id, metadata)
     select tenant_id, ${input.userId}::uuid, ${input.orgId}::uuid, 'document_media', name, media_type,
       size_bytes, sha256, state, storage_key, encryption, key_version, scanned_at,
       scan_engine, ready_at, statement_timestamp(), width, height, duration_ms, derivatives,
-      ${input.host.type}, ${input.host.id}::uuid,
+      stream_bytes, ${input.host.type}, ${input.host.id}::uuid,
       jsonb_build_object('copiedFrom', id::text)
     from core.files
     where tenant_id = ${input.tenantId}::uuid and id = ${input.sourceId}::uuid
@@ -897,11 +897,11 @@ export async function replaceFileBytes(
       insert into core.files (tenant_id, uploaded_by_user_id, org_id, purpose, name, media_type,
         size_bytes, sha256, state, storage_key, encryption, key_version, scanned_at,
         scan_engine, ready_at, linked_at, width, height, duration_ms, derivatives,
-        host_type, host_id, trashed_at, metadata)
+        stream_bytes, host_type, host_id, trashed_at, metadata)
       select t.tenant_id, t.uploaded_by_user_id, t.org_id, t.purpose, t.name, t.media_type,
         t.size_bytes, t.sha256, t.state, t.storage_key, t.encryption, t.key_version,
         t.scanned_at, t.scan_engine, t.ready_at, statement_timestamp(), t.width, t.height,
-        t.duration_ms, t.derivatives, 'file_version', t.id, statement_timestamp(),
+        t.duration_ms, t.derivatives, t.stream_bytes, 'file_version', t.id, statement_timestamp(),
         jsonb_build_object('replacedBy', ${input.userId}::text)
       from target t, source
       returning id)
@@ -910,7 +910,8 @@ export async function replaceFileBytes(
       sha256 = s.sha256, storage_key = s.storage_key, encryption = s.encryption,
       key_version = s.key_version, scanned_at = s.scanned_at, scan_engine = s.scan_engine,
       ready_at = s.ready_at, width = s.width, height = s.height,
-      duration_ms = s.duration_ms, derivatives = s.derivatives
+      duration_ms = s.duration_ms, derivatives = s.derivatives,
+      stream_bytes = s.stream_bytes
     from source s, kept
     where f.tenant_id = ${input.tenantId}::uuid and f.id = ${input.targetId}::uuid
     returning f.id`);
@@ -942,14 +943,25 @@ export interface StorageUse {
 
 /**
  * Storage counted once per stored object, since copies and versions share
- * bytes; uploads still arriving count by their declared size.
+ * bytes; uploads still arriving count by their declared size. A video's
+ * streams count once per folder of them, which its copies share; a second
+ * upload of the same video shares its object but has streams of its own.
  */
 const counted = (where: ReturnType<typeof sql>) => sql`
-  select coalesce(sum(size_bytes), 0) as used_bytes, count(*) as file_count from (
-    select distinct on (storage_key) size_bytes from core.files f
+  with held as (
+    select f.storage_key, f.size_bytes, f.derivatives -> 'hls' ->> 'key' as stream_key,
+      f.stream_bytes
+    from core.files f
     where f.status = 'active' and f.state in ('initiated', 'quarantined', 'ready')
-      and ${where}
-    order by storage_key) objects`;
+      and ${where})
+  select
+    (select coalesce(sum(size_bytes), 0) from (
+      select distinct on (storage_key) size_bytes from held order by storage_key) objects)
+    + (select coalesce(sum(stream_bytes), 0) from (
+      select distinct on (stream_key) stream_bytes from held
+      where stream_key is not null and stream_bytes is not null
+      order by stream_key) streams) as used_bytes,
+    (select count(distinct storage_key) from held) as file_count`;
 
 async function measure(
   tx: Tx,
@@ -1269,6 +1281,8 @@ export async function streamReady(
     height: number;
     durationMs: number;
     derivatives: Record<string, FileDerivative>;
+    /** What the streams weigh in the store; null when the worker did not say. */
+    streamBytes: number | null;
     /** The cut that took the upload's place, an MP4 whatever was uploaded. */
     cut?: CutSource | undefined;
   },
@@ -1279,6 +1293,7 @@ export async function streamReady(
     set stream_state = 'ready', stream_progress = 1, stream_leased_until = null, stream_error = null,
         width = ${input.width}, height = ${input.height}, duration_ms = ${input.durationMs},
         derivatives = derivatives || ${input.derivatives}::jsonb,
+        stream_bytes = ${input.streamBytes}::bigint,
         size_bytes = coalesce(${cut?.sizeBytes ?? null}::bigint, size_bytes),
         sha256 = coalesce(decode(${cut?.sha256 ?? null}::text, 'hex'), sha256),
         media_type = case when ${cut !== null} then 'video/mp4' else media_type end,
@@ -1348,10 +1363,39 @@ export async function retireStreams(
     )
     update core.files f
     set derivatives = f.derivatives - 'hls' - 'poster' - 'thumbnails',
-        stream_state = null, stream_leased_until = null, stream_progress = null
+        stream_state = null, stream_leased_until = null, stream_progress = null,
+        stream_bytes = null
     from gone where f.tenant_id = ${tenantId}::uuid and f.id = gone.id
     returning gone.folder`);
   return rows.map((row) => row.folder);
+}
+
+/**
+ * Stream folders whose weight is not known yet, for the sweep to measure:
+ * those made before the media service reported it.
+ */
+export async function unmeasuredStreams(
+  tx: Tx,
+  tenantId: string,
+  limit: number,
+): Promise<string[]> {
+  const rows = await tx.execute<{ folder: string }>(sql`
+    select distinct derivatives -> 'hls' ->> 'key' as folder from core.files
+    where tenant_id = ${tenantId}::uuid and status = 'active' and stream_state = 'ready'
+      and stream_bytes is null and derivatives ? 'hls'
+    limit ${limit}`);
+  return rows.map((row) => row.folder);
+}
+
+/** Records what a folder of streams weighs, on every file that shows it. */
+export async function streamMeasured(
+  tx: Tx,
+  input: { tenantId: string; folder: string; bytes: number },
+): Promise<void> {
+  await tx.execute(sql`
+    update core.files set stream_bytes = ${input.bytes}
+    where tenant_id = ${input.tenantId}::uuid and status = 'active'
+      and stream_bytes is null and derivatives -> 'hls' ->> 'key' = ${input.folder}`);
 }
 
 /** A video's streams, as a player asks for them. */

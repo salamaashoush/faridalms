@@ -8,6 +8,8 @@ import {
   retireTrashedFiles,
   retireTrashedMedia,
   retireUnlinkedFiles,
+  streamMeasured,
+  unmeasuredStreams,
 } from "@faridalms/database/stores/files";
 import { retirePreviews } from "@faridalms/database/stores/previews";
 import {
@@ -34,7 +36,9 @@ import { backfillPreviews } from "./previews";
  * special-category purpose hides are swept behind each purpose in turn.
  * Records change first and bytes second, so a failure in between leaves
  * stray bytes rather than a record pointing at nothing. Last, a few files
- * stored before previews were made on upload are cleaned and queued.
+ * stored before previews were made on upload are cleaned and queued, and
+ * a few videos streamed before the media service weighed its streams have
+ * them weighed, so they count against the school's storage.
  */
 export async function sweepTenantFiles(
   cell: Cell,
@@ -113,6 +117,7 @@ export async function sweepTenantFiles(
   for (const folder of [...keys.streams, ...keys.previews])
     await store.removeFolder(folder);
   const backfilled = await backfillPreviews(cell, store, tenantId, limit);
+  const measured = await measureStreams(cell, store, tenantId, limit);
   return {
     abandoned: keys.abandoned.length,
     retired: keys.retired.length,
@@ -121,5 +126,29 @@ export async function sweepTenantFiles(
     streams: keys.streams.length,
     previews: keys.previews.length,
     backfilled,
+    measured,
   };
+}
+
+async function measureStreams(
+  cell: Cell,
+  store: FileStore,
+  tenantId: string,
+  limit: number,
+): Promise<number> {
+  const work = () => ({
+    tenantId,
+    requestId: crypto.randomUUID(),
+    actor: { kind: "system" as const },
+  });
+  const folders = await cell.withWorker(work(), "read", (tx) =>
+    unmeasuredStreams(tx, tenantId, limit),
+  );
+  for (const folder of folders) {
+    const bytes = await store.folderBytes(folder);
+    await cell.withWorker(work(), "write", (tx) =>
+      streamMeasured(tx, { tenantId, folder, bytes }),
+    );
+  }
+  return folders.length;
 }

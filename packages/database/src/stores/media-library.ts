@@ -876,26 +876,33 @@ export interface SchoolStorageBreakdown {
 /**
  * Where a school's storage goes, by kind of file and by who uploaded it,
  * each stored object counted once and to whoever first uploaded it, as
- * the pool counts it.
+ * the pool counts it. A video's streams count with it, once per folder.
  */
 export async function schoolStorageBreakdown(
   tx: Tx,
   tenantId: string,
   orgId: string,
 ): Promise<SchoolStorageBreakdown> {
-  const objects = sql`(
-    select distinct on (f.storage_key) f.size_bytes, f.uploaded_by_user_id, ${kindOfFile} as kind
-    from core.files f
+  const held = sql`core.files f
     where f.tenant_id = ${tenantId}::uuid and f.org_id = ${orgId}::uuid and f.status = 'active'
-      and f.state in ('initiated', 'quarantined', 'ready')
-    order by f.storage_key, f.created_at) objects`;
+      and f.state in ('initiated', 'quarantined', 'ready')`;
+  const objects = sql`(
+    (select distinct on (f.storage_key) f.size_bytes, f.uploaded_by_user_id,
+      ${kindOfFile} as kind, 1 as object
+    from ${held}
+    order by f.storage_key, f.created_at)
+    union all
+    (select distinct on (f.derivatives -> 'hls' ->> 'key') f.stream_bytes,
+      f.uploaded_by_user_id, ${kindOfFile}, 0
+    from ${held} and f.derivatives ? 'hls' and f.stream_bytes is not null
+    order by f.derivatives -> 'hls' ->> 'key', f.created_at)) objects`;
   const [kinds, people] = await Promise.all([
     tx.execute<{
       kind: FileKind;
       used_bytes: string | number;
       file_count: number;
     }>(sql`
-      select kind, coalesce(sum(size_bytes), 0) as used_bytes, count(*)::int as file_count
+      select kind, coalesce(sum(size_bytes), 0) as used_bytes, sum(object)::int as file_count
       from ${objects} group by kind order by 2 desc`),
     tx.execute<{
       user_id: string | null;
@@ -911,7 +918,7 @@ export async function schoolStorageBreakdown(
       counted as (
         select case when uploaded_by_user_id in (select user_id from staff)
             then uploaded_by_user_id end as user_id,
-          sum(size_bytes) as used_bytes, count(*)::int as file_count
+          sum(size_bytes) as used_bytes, sum(object)::int as file_count
         from ${objects} group by 1)
       select c.user_id, u.full_name_en, u.full_name_ar, c.used_bytes, c.file_count
       from counted c
