@@ -224,6 +224,16 @@ export function TablePlugin({ anchor }: { anchor: HTMLElement | null }) {
     menuOpen.current = menu !== null;
   }, [menu]);
 
+  // Most measures find the table where it was, and drawing its grips
+  // again for that would redraw them on every key typed in a cell.
+  const keep = useCallback((next: Target) => {
+    setTarget((current) =>
+      current && JSON.stringify(current) === JSON.stringify(next)
+        ? current
+        : next,
+    );
+  }, []);
+
   const measure = useCallback(() => {
     if (!anchor || !editor.isEditable()) {
       setTarget(null);
@@ -316,7 +326,7 @@ export function TablePlugin({ anchor }: { anchor: HTMLElement | null }) {
     const cellElement = found.cell
       ? editor.getElementByKey(found.cell.key)
       : null;
-    setTarget({
+    keep({
       tableKey: found.tableKey,
       table,
       rtl,
@@ -334,14 +344,26 @@ export function TablePlugin({ anchor }: { anchor: HTMLElement | null }) {
             }
           : null,
     });
-  }, [anchor, editor]);
+  }, [anchor, editor, keep]);
 
+  // An update has changed the page but not yet laid it out; measuring in
+  // the frame that draws it reads the layout the browser makes anyway,
+  // once, however many updates came before it.
   useEffect(() => {
-    const unregister = editor.registerUpdateListener(() => measure());
-    window.addEventListener("resize", measure);
+    let frame = 0;
+    const later = () => {
+      if (frame) return;
+      frame = requestAnimationFrame(() => {
+        frame = 0;
+        measure();
+      });
+    };
+    const unregister = editor.registerUpdateListener(later);
+    window.addEventListener("resize", later);
     return () => {
       unregister();
-      window.removeEventListener("resize", measure);
+      cancelAnimationFrame(frame);
+      window.removeEventListener("resize", later);
     };
   }, [editor, measure]);
 

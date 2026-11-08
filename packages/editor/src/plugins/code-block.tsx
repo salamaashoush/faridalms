@@ -58,70 +58,86 @@ export function CodeBlockPlugin({ anchor }: { anchor: HTMLElement | null }) {
     [],
   );
 
-  useEffect(
-    () =>
-      mergeRegister(
-        editor.registerMutationListener(
-          CodeNode,
-          (mutations) => {
-            editor.getEditorState().read(() => {
-              for (const [key, mutation] of mutations) {
-                if (mutation === "destroyed") continue;
-                const node = $getNodeByKey(key);
-                const element = editor.getElementByKey(key);
-                if (!$isCodeNode(node) || !element) continue;
-                const run = runnableLanguage(node.getLanguage())
-                  ? $codeRunOf(node)
-                  : null;
-                element.dataset.label = codeLabel(
-                  node.getLanguage(),
-                  run,
-                  strings,
-                );
-                element.dataset.gutter = codeGutter(node.getTextContent());
-                if (run) element.dataset.run = run;
-                else delete element.dataset.run;
-              }
-            });
-          },
-          { skipInitialization: false },
-        ),
-        editor.registerUpdateListener(({ editorState }) => {
-          const found = editorState.read(() => {
-            const block = $currentBlock();
-            return $isCodeNode(block)
-              ? {
-                  key: block.getKey(),
-                  language: block.getLanguage() ?? "",
-                  run: $codeRunOf(block),
-                }
-              : null;
+  useEffect(() => {
+    let marked: HTMLElement | null = null;
+    let frame = 0;
+    return mergeRegister(
+      editor.registerMutationListener(
+        CodeNode,
+        (mutations) => {
+          editor.getEditorState().read(() => {
+            for (const [key, mutation] of mutations) {
+              if (mutation === "destroyed") continue;
+              const node = $getNodeByKey(key);
+              const element = editor.getElementByKey(key);
+              if (!$isCodeNode(node) || !element) continue;
+              const run = runnableLanguage(node.getLanguage())
+                ? $codeRunOf(node)
+                : null;
+              element.dataset.label = codeLabel(
+                node.getLanguage(),
+                run,
+                strings,
+              );
+              element.dataset.gutter = codeGutter(node.getTextContent());
+              if (run) element.dataset.run = run;
+              else delete element.dataset.run;
+            }
           });
-          for (const element of anchor?.querySelectorAll(
-            ".fe-code-block[data-active]",
-          ) ?? [])
-            if (element !== (found && editor.getElementByKey(found.key)))
-              delete (element as HTMLElement).dataset.active;
-          const element = found ? editor.getElementByKey(found.key) : null;
-          if (!found || !element || !anchor || !editor.isEditable()) {
-            setActive(null);
-            return;
-          }
-          element.dataset.active = "";
+        },
+        { skipInitialization: false },
+      ),
+      // The block the caret is in is marked at once; where its header
+      // goes is read in the frame that draws the change, once, and drawn
+      // again only when it moved.
+      editor.registerUpdateListener(({ editorState }) => {
+        const found = editorState.read(() => {
+          const block = $currentBlock();
+          return $isCodeNode(block)
+            ? {
+                key: block.getKey(),
+                language: block.getLanguage() ?? "",
+                run: $codeRunOf(block),
+              }
+            : null;
+        });
+        const element = found ? editor.getElementByKey(found.key) : null;
+        if (marked && marked !== element) delete marked.dataset.active;
+        marked = null;
+        cancelAnimationFrame(frame);
+        if (!found || !element || !anchor || !editor.isEditable()) {
+          setActive(null);
+          return;
+        }
+        element.dataset.active = "";
+        marked = element;
+        frame = requestAnimationFrame(() => {
           const box = anchor.getBoundingClientRect();
           const rect = element.getBoundingClientRect();
+          const next = {
+            ...found,
+            top: Math.round(rect.top - box.top + anchor.scrollTop + 4),
+            right: Math.round(box.right - rect.right + 6),
+          };
           setActive((current) => {
-            if (current?.key !== found.key) setCopied(false);
-            return {
-              ...found,
-              top: Math.round(rect.top - box.top + anchor.scrollTop + 4),
-              right: Math.round(box.right - rect.right + 6),
-            };
+            if (current?.key !== next.key) setCopied(false);
+            return current &&
+              current.key === next.key &&
+              current.language === next.language &&
+              current.run === next.run &&
+              current.top === next.top &&
+              current.right === next.right
+              ? current
+              : next;
           });
-        }),
-      ),
-    [editor, anchor, strings],
-  );
+        });
+      }),
+      () => {
+        cancelAnimationFrame(frame);
+        if (marked) delete marked.dataset.active;
+      },
+    );
+  }, [editor, anchor, strings]);
 
   if (!active) return null;
   const change = (apply: (node: CodeNode) => void) =>
