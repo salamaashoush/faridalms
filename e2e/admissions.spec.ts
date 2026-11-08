@@ -151,8 +151,9 @@ test("a school adds its own question to the form, and families answer it", async
   await questions.click();
   await page.keyboard.press("ControlOrMeta+End");
   await page.keyboard.press("Enter");
+  // "date" also finds a timeline, which lists dates, so the block is picked by name.
   await page.keyboard.type("/date");
-  await page.keyboard.press("Enter");
+  await page.getByRole("option", { name: /^Date/ }).click();
   await page.keyboard.type(question);
   await expect(questions.locator("[data-question]").last()).toHaveAttribute(
     "data-kind",

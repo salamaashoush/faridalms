@@ -17,9 +17,11 @@ What modules and lessons do, built from
   watching counts like an upload's.
 - Questions come in seventeen kinds. Multiple choice has one or several
   right options, feedback per option and shuffling; true or false is its
-  short form. A typed answer, blanks in a passage (typed or chosen from a
+  short form. A typed answer (a day chosen from a calendar, where the
+  teacher asks for one), blanks in a passage (typed or chosen from a
   list) and a number (exact give or take, or a range) check what students
-  write. Matching pairs prompts with answers, extra answers included.
+  write. The same blocks ask a family's forms, unmarked
+  ([questions.md](questions.md)). Matching pairs prompts with answers, extra answers included.
   Ordering gives credit for the whole order or for each neighbouring pair.
   Sorting puts items into two to four groups. A written answer goes to the
   teacher and may be spoken, filmed, drawn or photographed. For young

@@ -162,10 +162,11 @@ dates, contact, enquiry form, quick links and embed.
   general message. Its fixed core is a name and a way to reply: email and
   phone are each required, optional or hidden, never both hidden. The
   child's name, year and a message are asked or hidden. The school adds up
-  to ten questions of its own, each optional or required: short or long
-  text, a choice of options one per line, a date or a number. Each answer
-  is kept with the enquiry in the words the family saw, so editing the
-  form later changes no enquiry. Enquiries land in the admissions inbox.
+  to ten questions of its own as question blocks in the editor, each
+  optional or required: a typed answer or a day, words, a choice or a
+  number ([questions.md](questions.md)). Each answer is kept with the
+  enquiry in the words the family saw, so editing the form later changes
+  no enquiry. Enquiries land in the admissions inbox.
 - **Admissions:** the intakes still to close, read from the admissions
   system: each grade and year, when families apply, when decisions come
   and the fees, with the way in to applying for an open one. The site

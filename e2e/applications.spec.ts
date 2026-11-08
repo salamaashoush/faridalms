@@ -225,8 +225,9 @@ test("the office writes an application form's questions as blocks and publishes 
   await page.keyboard.press("ControlOrMeta+End");
   await page.keyboard.press("Enter");
   await page.keyboard.press("Enter");
+  // "date" also finds a timeline, which lists dates, so the block is picked by name.
   await page.keyboard.type("/date");
-  await page.keyboard.press("Enter");
+  await page.getByRole("option", { name: /^Date/ }).click();
   await page.keyboard.type("When could your child start?");
   await expect(questions.locator("[data-question]")).toHaveCount(2);
   await expect(questions.locator("[data-question][data-asked]")).toHaveCount(2);

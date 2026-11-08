@@ -23,12 +23,16 @@ each grade after. A child outside the range cannot be sent.
 
 ## Forms
 
-A form (`core.admission_forms`) holds the school's own questions, each in
-both languages, of the kinds the website's enquiry form asks (short, long,
-choice, date, number); a family reads them in their language and answers
-are checked by the same code. Publishing copies the form into a numbered,
-unchanging version (`core.admission_form_versions`). An application is
-answered against the version current when it started.
+A form (`core.admission_forms`) holds the school's own questions as
+question blocks written in the editor, in the language the school chose
+first with their translation beside it, of the kinds the website's
+enquiry form asks (a typed answer or a day, words, a choice, a number),
+each optional or required ([questions.md](questions.md)). A family reads
+them in their language; their answers are responses checked by the same
+code as an enquiry's and kept in the words they read. Publishing copies
+the form into a numbered, unchanging version
+(`core.admission_form_versions`). An application is answered against the
+version current when it started.
 
 Every application also asks the fixed blocks: the child, the family, the
 schools before, health and needs, and consents.

@@ -24,12 +24,12 @@ Before this model, questions were written down three ways.
   (`lesson_responses`), quizzes (`quiz_answers`), bank questions
   (`bank_questions`, a document of one question, `bank.ts`), the quiz's
   draws from the bank (`quiz_draws`, each the drawn node), mixed reviews
-  (`practice.ts`), the reader's printed paper (`print/PaperQuestion.tsx`),
-  QTI 2.1 and 1.2 and Common Cartridge (`qti.ts`, `qti12.ts`,
-  `qti-read.ts`, `cartridge*.ts`), the xAPI statements of an answer
-  (`xapi.ts`, `interactionType`), the teacher's answer boards and the
-  Right now view all read it this way. Grading scales (`grading.ts`) are
-  grades, not questions.
+  (`practice.ts`), the printed paper (`print/PaperQuestion.tsx`), QTI 3.0
+  and 1.2 and Common Cartridge (`qti.ts`, `qti12.ts`, `qti-read.ts`,
+  `cartridge*.ts`), the xAPI statements of an answer (`xapi.ts`,
+  `interactionType`), the teacher's answer boards and the Right now view
+  all read it this way. Grading scales (`grading.ts`) are grades, not
+  questions.
 - **Website form questions.** Items of the `form` site section
   (`site-sections.ts`): a label, a hint, `required`, a kind of `short`,
   `long`, `choice`, `date` or `number`, and a choice's options typed one
@@ -44,90 +44,125 @@ Before this model, questions were written down three ways.
   kept `EnquiryAnswer` rows in `admission_applications.answers`.
 
 Consent forms are documents (`consent_form`) a family agrees to or
-refuses; the decision is a consent record with its legal basis, not an
-answer, and stays one. A consent form asks no questions.
+refuses. The decision is a consent record with its legal basis, method and
+evidence, not an answer, and stays one. A consent form asks no questions
+of its own; when one does, it is a form surface like the two below, its
+answers kept beside the consent record.
 
 ## The model
 
 **A question is an editor question block.** Whatever asks it, it is
 written in the editor as a `question` node and read by `questionBlock` as
 one of the check shapes of `learning.ts`: its kind, prompt, parts and
-their pictures and recordings (the accessibility text: every picture's
-description, every recording), points, hints, explanation, tries and its
-key. Two settings serve forms and are open to every kind that takes them:
+their pictures and recordings (every picture's description, every
+recording that reads it aloud), points, hints, explanation, tries and its
+key. Two settings serve forms and are open to every surface:
 
-- `required` on any question: a form will not take the answers without
-  one to it. Lessons and quizzes, which never take an empty answer, do
-  not read it.
-- `date` on a typed answer: the answer is a day, chosen from a calendar
-  and kept as `YYYY-MM-DD`; a lesson's key is typed the same way.
+- `required`, on any question: a form will not take the answers without
+  one to it. Lessons and quizzes, which take answers one at a time, do not
+  read it.
+- `date`, on a typed answer: the answer is a day, chosen from a calendar
+  and kept as `YYYY-MM-DD`. A lesson's key is typed the same way, and the
+  player offers the calendar.
 
 **The key belongs to marking, not to the question's shape.** A choice's
-right options and a typed answer's accepted words may be absent from the
-shape; `questionShapes` in `learning.ts` declares every kind without
-requiring one. `lessonBlockSchema` is those shapes holding a key where the
-kind is marked by its key, which is what lessons, quizzes, the bank and
-the exports read. A form's questions are read with `questionShapes` and
-their keys left out.
+right options and a typed answer's accepted words may be absent from its
+shape: `choiceShape` and `textShape` in `learning.ts` declare those kinds
+without one, beside `numberSchema` and `writtenSchema`.
+`lessonBlockSchema`, which lessons, quizzes, the bank and the exports
+read, is the same shapes holding a key where the kind is marked by one,
+and no more than eight options to a choice. A form asks with
+`formQuestionSchema` in `questions.ts`, those four shapes with up to
+twenty options, and leaves any key a block carries out.
 
 **An answer is a response.** `responseSchema` has one shape per kind;
 `responseIssue` says whether a response fits its question; `markResponse`
-marks it. A form's answer to a choice is the option's id, never its
+marks it. A form's answer to a choice names the option's id, never its
 words, so the same answer reads in either language.
 
 **A form keeps what the family saw.** `questions.ts` reads a form's
 document (`formQuestions`), checks a family's responses against it
-(`readFormAnswers`: the kind's response, the question's options, a
-required question answered, a day that exists, a number that reads, and
-the form's limits on length) and keeps each answer as `FormAnswer`: the
-question's id and kind, its prompt and the answer in the words the
-family read, beside the response itself. Editing the form afterwards
-changes no enquiry or application.
+(`readFormAnswers`: the kind's response, an option the question offers,
+one unless it takes several, a required question answered, a day that
+exists, a number that reads, and the form's limits on length) and keeps
+each answer as `FormAnswer`: the question's id and kind, its prompt, the
+response and the answer in the words the family read, marked `date` for
+a day. Editing the form afterwards changes no enquiry or application.
+`formResponse` and `formValue` turn a form's inputs into responses and
+back, for the website's form and the family's application alike.
+
+**What a form may hold.** `formIssue` refuses a question of a kind a form
+does not ask (anything but typed, written, choice and number), a written
+answer spoken or drawn, a draw or a gate, a question with words but not
+finished (a choice of fewer than two options), and any picture or file,
+which a visitor who is not signed in cannot open. A question with no
+words yet is not asked and holds nothing up.
 
 ## Surfaces
 
-| Surface       | Marks | Kinds asked                               | Required | Answers kept in                                        | Read by               |
-| ------------- | ----- | ----------------------------------------- | -------- | ------------------------------------------------------ | --------------------- |
-| Lesson        | yes   | every kind                                | no       | `lesson_responses`                                     | the student, teachers |
-| Quiz          | yes   | every kind but gates                      | no       | `quiz_answers`, draws in `quiz_draws`                  | the student, teachers |
-| Question bank | yes   | every kind                                | no       | none                                                   | teachers              |
-| Enquiry form  | no    | typed (or a day), written, choice, number | yes      | `site_enquiries.answers` as `FormAnswer[]`             | the admissions office |
-| Application   | no    | typed (or a day), written, choice, number | yes      | draft `form.answers`, sent `answers` as `FormAnswer[]` | the admissions office |
+- **Lesson.** Marks; every kind; answers in `lesson_responses`, read by
+  the student and the module's teachers.
+- **Quiz.** Marks; every kind but gates; answers in `quiz_answers`, draws
+  in `quiz_draws`; read by the student and teachers.
+- **Question bank.** Marks; every kind; keeps no answers.
+- **Enquiry form.** Marks nothing; typed (or a day), written, choice and
+  number; a question may be required; answers kept in
+  `site_enquiries.answers` as `FormAnswer[]`, read by the admissions
+  office.
+- **Application form.** As the enquiry form; a draft keeps responses in
+  `admission_applications.form.answers`, a sent application `FormAnswer[]`
+  in `admission_applications.answers`, read by the admissions office.
 
-`FORM_SURFACE` in `questions.ts` is the form's settings; the editor takes
-it as `questions="form"`, which offers only those kinds, hides points,
-tries, keys and feedback, and offers Required. A form's written answer is
-words alone, and a form's question carries no pictures, since a visitor
-who is not signed in reads it.
+The editor takes a form surface as `forms` beside `questions`: its slash
+menu offers only a form's kinds (and a day), a new question is worth
+nothing and has no key, the floating bar offers Required and Answer is a
+date but no points, tries, keys, feedback or explanation, and an option
+cannot be marked right (`setQuestionsAsked`, `data-asked`).
 
 A form is written in the language the school chose first, with its
 translation beside it, as a lesson is: the original decides the questions,
 their kinds, options and order, and the translation gives their words
-(`translatedContent` in `lesson-translation.ts`). The website's form
-section holds its questions as a `questions` field, the original's
-document in the original section and the translation's in the
-translation, read through the same merge. An application form keeps its
-`body`, `primary_locale` and `translation` on the form and on each
-published version.
+(`translatedContent` in `lesson-translation.ts`, which `translatedLesson`
+and `translatedQuiz` read through too). The website's form section holds
+its questions as a rich field with `questions` set: the original's
+document in the original section, the translation's in the translation,
+merged by `overlay`, and a translation starts from the original's words.
+An application form keeps `primary_locale`, `body` and `translation` on
+the form and on each published version; `questionsIn` gives a family the
+document in their language.
 
-## Stored answers and questions that moved
+## Stored questions and answers that moved
 
-The migration `form_questions` rewrote every stored form question and
-answer in place, inside the migration's transaction:
+Three migrations moved every stored form question and answer, in place
+and in one transaction: `form_questions` added the application form's
+documents, `form_questions_data` rewrote the data, and
+`form_questions_columns` dropped the old question rows.
 
-- each website form section's items, in page documents, their
-  translations, their versions and the published pages, became a document
-  of question blocks; an option's id is derived from its question's id and
-  its place (`md5(question || ':' || place)`), so the original and its
-  translation, built separately, name each option alike;
-- each application form and published version became its English
-  document as the original and its Arabic as the translation, or the
-  other way round where only Arabic was written, with the same ids;
-- each draft's answers became responses, a choice found among the
-  version's options in the family's language;
-- each kept answer (`EnquiryAnswer`) became a `FormAnswer` with the same
-  words. An enquiry's choice names the option by its place on the form
-  as published when the family wrote, or by its words where that page no
-  longer offers it.
+- Each website form section's items, in page documents, their
+  translations and versions, and the published pages, became a document
+  of question blocks. An option's id is its question's id and its place
+  (`md5(question || ':' || place)`), so the original and its translation,
+  moved separately, name each option alike.
+- Each application form and published version became its English
+  document as the original and its Arabic as the translation (Arabic the
+  original where no question had English words), each field borrowing the
+  other language's words where it had none, as `questionIn` read them.
+- Each draft's answers became responses, a choice found by its words
+  among the version's options in the family's language; empty answers and
+  answers to questions the version no longer asks were dropped, as
+  sending would have dropped them.
+- Each kept answer became a `FormAnswer` in the same words. An enquiry's
+  choice names its option by its place on the page as published when the
+  family wrote, or, where that page no longer offers it, by an id made
+  from its words.
 
-Nothing reads the old shapes any more, so nothing converts them.
+The move was checked on a seeded cell holding every kind in both
+languages, inside a transaction rolled back afterwards: every page,
+published page, form, draft and kept answer read by the new schemas, both
+languages asked the same questions, and every question and answer turned
+back into its old shape matched what was there before, short and date
+answers aside, which the old shape told apart only by `date`. Nothing
+reads the old shapes any more, so nothing converts them.
+
+A quiz's marks, scores, views, draws and exports were written down before
+the move (`marks.test.ts`) and read the same after it.
