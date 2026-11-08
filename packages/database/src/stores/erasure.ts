@@ -630,6 +630,7 @@ export async function eraseSubject(
     "quiz_sittings",
     "standard_evidence",
     "goal_judgements",
+    "goal_reports",
     "module_audiences",
     "lesson_openings",
     "lti_scores",

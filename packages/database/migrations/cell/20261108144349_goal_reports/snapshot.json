@@ -1,0 +1,901 @@
+{
+  "type": "diff",
+  "version": "9",
+  "dialect": "postgres",
+  "id": "948bbc13-e4e6-4b3e-aabe-1cdaa3a37013",
+  "prevIds": [
+    "7410ed4d-9d41-46c2-9388-63e7de2a62c4"
+  ],
+  "footprints": [
+    {
+      "statementType": "create_table",
+      "statementTarget": [
+        "table",
+        "core",
+        "goal_reports"
+      ],
+      "writes": [
+        "s|tbl|core.goal_reports",
+        "n|tbl|core.goal_reports",
+        "e|tbl|core.goal_reports",
+        "n|rel|core.goal_reports",
+        "n|type|core.goal_reports",
+        "n|rel|core.goal_reports_pkey"
+      ],
+      "reads": [
+        "n|sch|core"
+      ]
+    },
+    {
+      "statementType": "add_column",
+      "statementTarget": [
+        "column",
+        "core",
+        "goal_judgements",
+        "submission_id"
+      ],
+      "writes": [
+        "s|col|core.goal_judgements.submission_id",
+        "n|col|core.goal_judgements.submission_id",
+        "e|col|core.goal_judgements.submission_id"
+      ],
+      "reads": [
+        "n|tbl|core.goal_judgements",
+        "n|sch|core"
+      ]
+    },
+    {
+      "statementType": "create_index",
+      "statementTarget": [
+        "index",
+        "core",
+        "goal_reports",
+        "goal_reports_key"
+      ],
+      "writes": [
+        "s|idx|core.goal_reports_key",
+        "n|idx|core.goal_reports_key",
+        "e|idx|core.goal_reports_key",
+        "n|rel|core.goal_reports_key"
+      ],
+      "reads": [
+        "n|tbl|core.goal_reports",
+        "n|sch|core",
+        "n|col|core.goal_reports.tenant_id",
+        "n|col|core.goal_reports.student_user_id",
+        "n|col|core.goal_reports.framework_id"
+      ]
+    },
+    {
+      "statementType": "create_fk",
+      "statementTarget": [
+        "table",
+        "core",
+        "goal_judgements"
+      ],
+      "writes": [
+        "s|fk|core.goal_judgements.goal_judgements_tenant_id_submission_id_student_user_id_fkey",
+        "n|fk|core.goal_judgements.goal_judgements_tenant_id_submission_id_student_user_id_fkey",
+        "e|fk|core.goal_judgements.goal_judgements_tenant_id_submission_id_student_user_id_fkey",
+        "n|con|core.goal_judgements.goal_judgements_tenant_id_submission_id_student_user_id_fkey"
+      ],
+      "reads": [
+        "n|tbl|core.goal_judgements",
+        "n|sch|core",
+        "n|tbl|core.submissions",
+        "n|sch|core",
+        "n|col|core.goal_judgements.tenant_id",
+        "n|col|core.goal_judgements.submission_id",
+        "n|col|core.goal_judgements.student_user_id",
+        "n|col|core.submissions.tenant_id",
+        "n|col|core.submissions.id",
+        "n|col|core.submissions.student_user_id",
+        "e|uniqueness|core.submissions.id.student_user_id.tenant_id"
+      ]
+    },
+    {
+      "statementType": "create_fk",
+      "statementTarget": [
+        "table",
+        "core",
+        "goal_reports"
+      ],
+      "writes": [
+        "s|fk|core.goal_reports.goal_reports_tenant_id_fkey",
+        "n|fk|core.goal_reports.goal_reports_tenant_id_fkey",
+        "e|fk|core.goal_reports.goal_reports_tenant_id_fkey",
+        "n|con|core.goal_reports.goal_reports_tenant_id_fkey"
+      ],
+      "reads": [
+        "n|tbl|core.goal_reports",
+        "n|sch|core",
+        "n|tbl|core.tenants",
+        "n|sch|core",
+        "n|col|core.goal_reports.tenant_id",
+        "n|col|core.tenants.tenant_id",
+        "e|uniqueness|core.tenants.tenant_id"
+      ]
+    },
+    {
+      "statementType": "create_fk",
+      "statementTarget": [
+        "table",
+        "core",
+        "goal_reports"
+      ],
+      "writes": [
+        "s|fk|core.goal_reports.goal_reports_tenant_id_student_user_id_fkey",
+        "n|fk|core.goal_reports.goal_reports_tenant_id_student_user_id_fkey",
+        "e|fk|core.goal_reports.goal_reports_tenant_id_student_user_id_fkey",
+        "n|con|core.goal_reports.goal_reports_tenant_id_student_user_id_fkey"
+      ],
+      "reads": [
+        "n|tbl|core.goal_reports",
+        "n|sch|core",
+        "n|tbl|core.users",
+        "n|sch|core",
+        "n|col|core.goal_reports.tenant_id",
+        "n|col|core.goal_reports.student_user_id",
+        "n|col|core.users.tenant_id",
+        "n|col|core.users.id",
+        "e|uniqueness|core.users.id.tenant_id"
+      ]
+    },
+    {
+      "statementType": "create_fk",
+      "statementTarget": [
+        "table",
+        "core",
+        "goal_reports"
+      ],
+      "writes": [
+        "s|fk|core.goal_reports.goal_reports_tenant_id_framework_id_fkey",
+        "n|fk|core.goal_reports.goal_reports_tenant_id_framework_id_fkey",
+        "e|fk|core.goal_reports.goal_reports_tenant_id_framework_id_fkey",
+        "n|con|core.goal_reports.goal_reports_tenant_id_framework_id_fkey"
+      ],
+      "reads": [
+        "n|tbl|core.goal_reports",
+        "n|sch|core",
+        "n|tbl|core.standard_frameworks",
+        "n|sch|core",
+        "n|col|core.goal_reports.tenant_id",
+        "n|col|core.goal_reports.framework_id",
+        "n|col|core.standard_frameworks.tenant_id",
+        "n|col|core.standard_frameworks.id",
+        "e|uniqueness|core.standard_frameworks.id.tenant_id"
+      ]
+    },
+    {
+      "statementType": "create_fk",
+      "statementTarget": [
+        "table",
+        "core",
+        "goal_reports"
+      ],
+      "writes": [
+        "s|fk|core.goal_reports.goal_reports_tenant_id_shared_by_user_id_fkey",
+        "n|fk|core.goal_reports.goal_reports_tenant_id_shared_by_user_id_fkey",
+        "e|fk|core.goal_reports.goal_reports_tenant_id_shared_by_user_id_fkey",
+        "n|con|core.goal_reports.goal_reports_tenant_id_shared_by_user_id_fkey"
+      ],
+      "reads": [
+        "n|tbl|core.goal_reports",
+        "n|sch|core",
+        "n|tbl|core.users",
+        "n|sch|core",
+        "n|col|core.goal_reports.tenant_id",
+        "n|col|core.goal_reports.shared_by_user_id",
+        "n|col|core.users.tenant_id",
+        "n|col|core.users.id",
+        "e|uniqueness|core.users.id.tenant_id"
+      ]
+    },
+    {
+      "statementType": "alter_check",
+      "statementTarget": [
+        "table",
+        "core",
+        "goal_judgements"
+      ],
+      "writes": [
+        "s|ck|core.goal_judgements.goal_judgements_level_check"
+      ],
+      "reads": [
+        "n|tbl|core.goal_judgements",
+        "n|sch|core",
+        "n|col|core.goal_judgements.level",
+        "e|col|core.goal_judgements.level"
+      ],
+      "sqlHash": "284ddd254460221c"
+    },
+    {
+      "statementType": "alter_check",
+      "statementTarget": [
+        "table",
+        "core",
+        "goal_judgements"
+      ],
+      "writes": [
+        "s|ck|core.goal_judgements.goal_judgements_work_check"
+      ],
+      "reads": [
+        "n|tbl|core.goal_judgements",
+        "n|sch|core",
+        "n|col|core.goal_judgements.lesson_id",
+        "n|col|core.goal_judgements.submission_id",
+        "n|col|core.goal_judgements.block_id",
+        "e|col|core.goal_judgements.lesson_id",
+        "e|col|core.goal_judgements.block_id"
+      ],
+      "sqlHash": "8d0b1dc0f3e19dcb"
+    },
+    {
+      "statementType": "create_policy",
+      "statementTarget": [
+        "table",
+        "core",
+        "goal_reports"
+      ],
+      "writes": [
+        "s|pol|core.goal_reports.tenant_isolation",
+        "n|pol|core.goal_reports.tenant_isolation",
+        "e|pol|core.goal_reports.tenant_isolation"
+      ],
+      "reads": [
+        "n|tbl|core.goal_reports",
+        "n|sch|core",
+        "e|rls|core.goal_reports"
+      ]
+    },
+    {
+      "statementType": "create_policy",
+      "statementTarget": [
+        "table",
+        "core",
+        "goal_reports"
+      ],
+      "writes": [
+        "s|pol|core.goal_reports.owner_all",
+        "n|pol|core.goal_reports.owner_all",
+        "e|pol|core.goal_reports.owner_all"
+      ],
+      "reads": [
+        "n|tbl|core.goal_reports",
+        "n|sch|core",
+        "n|role|cell_owner",
+        "e|rls|core.goal_reports"
+      ]
+    },
+    {
+      "statementType": "create_policy",
+      "statementTarget": [
+        "table",
+        "core",
+        "goal_reports"
+      ],
+      "writes": [
+        "s|pol|core.goal_reports.p_select",
+        "n|pol|core.goal_reports.p_select",
+        "e|pol|core.goal_reports.p_select"
+      ],
+      "reads": [
+        "n|tbl|core.goal_reports",
+        "n|sch|core",
+        "n|role|app",
+        "n|role|cell_io",
+        "n|role|retention",
+        "n|role|worker",
+        "e|rls|core.goal_reports"
+      ]
+    },
+    {
+      "statementType": "create_policy",
+      "statementTarget": [
+        "table",
+        "core",
+        "goal_reports"
+      ],
+      "writes": [
+        "s|pol|core.goal_reports.p_insert",
+        "n|pol|core.goal_reports.p_insert",
+        "e|pol|core.goal_reports.p_insert"
+      ],
+      "reads": [
+        "n|tbl|core.goal_reports",
+        "n|sch|core",
+        "n|role|app",
+        "n|role|cell_io",
+        "n|role|worker",
+        "e|rls|core.goal_reports"
+      ]
+    },
+    {
+      "statementType": "create_policy",
+      "statementTarget": [
+        "table",
+        "core",
+        "goal_reports"
+      ],
+      "writes": [
+        "s|pol|core.goal_reports.p_update",
+        "n|pol|core.goal_reports.p_update",
+        "e|pol|core.goal_reports.p_update"
+      ],
+      "reads": [
+        "n|tbl|core.goal_reports",
+        "n|sch|core",
+        "n|role|app",
+        "n|role|cell_io",
+        "n|role|worker",
+        "e|rls|core.goal_reports"
+      ]
+    },
+    {
+      "statementType": "create_policy",
+      "statementTarget": [
+        "table",
+        "core",
+        "goal_reports"
+      ],
+      "writes": [
+        "s|pol|core.goal_reports.p_erase_update",
+        "n|pol|core.goal_reports.p_erase_update",
+        "e|pol|core.goal_reports.p_erase_update"
+      ],
+      "reads": [
+        "n|tbl|core.goal_reports",
+        "n|sch|core",
+        "n|role|retention",
+        "e|rls|core.goal_reports"
+      ]
+    },
+    {
+      "statementType": "create_policy",
+      "statementTarget": [
+        "table",
+        "core",
+        "goal_reports"
+      ],
+      "writes": [
+        "s|pol|core.goal_reports.p_erase_delete",
+        "n|pol|core.goal_reports.p_erase_delete",
+        "e|pol|core.goal_reports.p_erase_delete"
+      ],
+      "reads": [
+        "n|tbl|core.goal_reports",
+        "n|sch|core",
+        "n|role|retention",
+        "e|rls|core.goal_reports"
+      ]
+    }
+  ],
+  "deltas": [
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "name": "goal_reports",
+        "isRlsEnabled": true,
+        "entityType": "tables"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "goal_judgements",
+        "name": "submission_id",
+        "type": "uuid",
+        "typeSchema": null,
+        "notNull": false,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "goal_reports",
+        "name": "tenant_id",
+        "type": "uuid",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "goal_reports",
+        "name": "id",
+        "type": "uuid",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": "uuidv7()",
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "goal_reports",
+        "name": "student_user_id",
+        "type": "uuid",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "goal_reports",
+        "name": "framework_id",
+        "type": "uuid",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "goal_reports",
+        "name": "shared_by_user_id",
+        "type": "uuid",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "goal_reports",
+        "name": "shared_at",
+        "type": "timestamp with time zone",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "goal_reports",
+        "name": "status",
+        "type": "text",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": "'active'",
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "goal_reports",
+        "name": "date_last_modified",
+        "type": "timestamp with time zone",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": "statement_timestamp()",
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "goal_reports",
+        "name": "version",
+        "type": "integer",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": "1",
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "goal_reports",
+        "name": "metadata",
+        "type": "jsonb",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": "'{}'",
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "goal_reports",
+        "name": "created_at",
+        "type": "timestamp with time zone",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": "statement_timestamp()",
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "goal_reports",
+        "name": "goal_reports_key",
+        "nameExplicit": true,
+        "columns": [
+          {
+            "value": "tenant_id",
+            "isExpression": false,
+            "asc": true,
+            "nullsFirst": false,
+            "opclass": null
+          },
+          {
+            "value": "student_user_id",
+            "isExpression": false,
+            "asc": true,
+            "nullsFirst": false,
+            "opclass": null
+          },
+          {
+            "value": "framework_id",
+            "isExpression": false,
+            "asc": true,
+            "nullsFirst": false,
+            "opclass": null
+          }
+        ],
+        "isUnique": true,
+        "where": "status = 'active'",
+        "with": "",
+        "method": "btree",
+        "concurrently": false,
+        "entityType": "indexes"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "goal_judgements",
+        "name": "goal_judgements_tenant_id_submission_id_student_user_id_fkey",
+        "nameExplicit": true,
+        "columns": [
+          "tenant_id",
+          "submission_id",
+          "student_user_id"
+        ],
+        "schemaTo": "core",
+        "tableTo": "submissions",
+        "columnsTo": [
+          "tenant_id",
+          "id",
+          "student_user_id"
+        ],
+        "onUpdate": "NO ACTION",
+        "onDelete": "NO ACTION",
+        "entityType": "fks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "goal_reports",
+        "name": "goal_reports_tenant_id_fkey",
+        "nameExplicit": true,
+        "columns": [
+          "tenant_id"
+        ],
+        "schemaTo": "core",
+        "tableTo": "tenants",
+        "columnsTo": [
+          "tenant_id"
+        ],
+        "onUpdate": "NO ACTION",
+        "onDelete": "NO ACTION",
+        "entityType": "fks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "goal_reports",
+        "name": "goal_reports_tenant_id_student_user_id_fkey",
+        "nameExplicit": true,
+        "columns": [
+          "tenant_id",
+          "student_user_id"
+        ],
+        "schemaTo": "core",
+        "tableTo": "users",
+        "columnsTo": [
+          "tenant_id",
+          "id"
+        ],
+        "onUpdate": "NO ACTION",
+        "onDelete": "NO ACTION",
+        "entityType": "fks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "goal_reports",
+        "name": "goal_reports_tenant_id_framework_id_fkey",
+        "nameExplicit": true,
+        "columns": [
+          "tenant_id",
+          "framework_id"
+        ],
+        "schemaTo": "core",
+        "tableTo": "standard_frameworks",
+        "columnsTo": [
+          "tenant_id",
+          "id"
+        ],
+        "onUpdate": "NO ACTION",
+        "onDelete": "NO ACTION",
+        "entityType": "fks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "goal_reports",
+        "name": "goal_reports_tenant_id_shared_by_user_id_fkey",
+        "nameExplicit": true,
+        "columns": [
+          "tenant_id",
+          "shared_by_user_id"
+        ],
+        "schemaTo": "core",
+        "tableTo": "users",
+        "columnsTo": [
+          "tenant_id",
+          "id"
+        ],
+        "onUpdate": "NO ACTION",
+        "onDelete": "NO ACTION",
+        "entityType": "fks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "goal_reports",
+        "name": "goal_reports_pkey",
+        "columns": [
+          "tenant_id",
+          "id"
+        ],
+        "nameExplicit": true,
+        "entityType": "pks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "goal_reports",
+        "name": "goal_reports_status_check",
+        "value": "status in ('active', 'tobedeleted')",
+        "entityType": "checks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "goal_reports",
+        "name": "goal_reports_version_check",
+        "value": "version > 0",
+        "entityType": "checks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "goal_reports",
+        "name": "goal_reports_metadata_check",
+        "value": "jsonb_typeof(metadata) = 'object' and octet_length(metadata::text) <= 16384",
+        "entityType": "checks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "goal_reports",
+        "name": "tenant_isolation",
+        "as": "RESTRICTIVE",
+        "for": "ALL",
+        "roles": [
+          "public"
+        ],
+        "using": "tenant_id = (select app.tenant_id())",
+        "withCheck": "tenant_id = (select app.tenant_id())",
+        "entityType": "policies"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "goal_reports",
+        "name": "owner_all",
+        "as": "PERMISSIVE",
+        "for": "ALL",
+        "roles": [
+          "cell_owner"
+        ],
+        "using": "true",
+        "withCheck": "true",
+        "entityType": "policies"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "goal_reports",
+        "name": "p_select",
+        "as": "PERMISSIVE",
+        "for": "SELECT",
+        "roles": [
+          "app",
+          "cell_io",
+          "retention",
+          "worker"
+        ],
+        "using": "true",
+        "withCheck": null,
+        "entityType": "policies"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "goal_reports",
+        "name": "p_insert",
+        "as": "PERMISSIVE",
+        "for": "INSERT",
+        "roles": [
+          "app",
+          "cell_io",
+          "worker"
+        ],
+        "using": null,
+        "withCheck": "true",
+        "entityType": "policies"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "goal_reports",
+        "name": "p_update",
+        "as": "PERMISSIVE",
+        "for": "UPDATE",
+        "roles": [
+          "app",
+          "cell_io",
+          "worker"
+        ],
+        "using": "true",
+        "withCheck": "true",
+        "entityType": "policies"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "goal_reports",
+        "name": "p_erase_update",
+        "as": "PERMISSIVE",
+        "for": "UPDATE",
+        "roles": [
+          "retention"
+        ],
+        "using": "app.erasure_approved(tenant_id, \"student_user_id\")",
+        "withCheck": "status = 'tobedeleted'",
+        "entityType": "policies"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "goal_reports",
+        "name": "p_erase_delete",
+        "as": "PERMISSIVE",
+        "for": "DELETE",
+        "roles": [
+          "retention"
+        ],
+        "using": "status = 'tobedeleted' and (app.erasure_approved(tenant_id, \"student_user_id\"))",
+        "withCheck": null,
+        "entityType": "policies"
+      }
+    },
+    {
+      "op": "alter",
+      "key": "checks\u0000[\"core\",\"goal_judgements\",\"goal_judgements_level_check\"]",
+      "set": {
+        "value": "level in ('emerging', 'expected', 'exempt')"
+      }
+    },
+    {
+      "op": "alter",
+      "key": "checks\u0000[\"core\",\"goal_judgements\",\"goal_judgements_work_check\"]",
+      "set": {
+        "value": "(lesson_id is null or submission_id is null) and (block_id is null) = (lesson_id is null and submission_id is null)"
+      }
+    }
+  ]
+}

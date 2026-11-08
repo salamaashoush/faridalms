@@ -27,6 +27,7 @@ delete_allowed(name, role) as (values
   ('core.lesson_shares', 'retention'), ('core.access_arrangements', 'retention'),
   ('core.quiz_draws', 'retention'), ('core.quiz_sittings', 'retention'),
   ('core.standard_evidence', 'retention'), ('core.goal_judgements', 'retention'),
+  ('core.goal_reports', 'retention'),
   ('core.standard_observations', 'retention'),
   ('core.peer_reviews', 'retention'), ('core.lti_replays', 'retention'), ('core.lti_scores', 'retention'),
   ('core.module_audiences', 'retention'), ('core.lesson_openings', 'retention'),

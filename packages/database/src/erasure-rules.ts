@@ -172,6 +172,7 @@ export const ERASURE_RULES: Record<string, ErasureRule> = {
   "core.file_subjects": { rule: "erased" },
   "core.files": { rule: "erased" },
   "core.goal_judgements": { rule: "erased" },
+  "core.goal_reports": { rule: "erased" },
   "core.grade_scale_versions": {
     rule: "kept",
     why: "Names the member of staff who did it; the record belongs to the school.",

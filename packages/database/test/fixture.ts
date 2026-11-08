@@ -39,6 +39,7 @@ import {
   standardEvidence,
   standards,
   goalJudgements,
+  goalReports,
   healthChanges,
   standardObservations,
   attemptAuthentications,
@@ -892,8 +893,17 @@ export async function completeFixture(
     standardId: standard.id,
     level: "expected",
     note: "Retold the story in order with the pictures.",
+    submissionId: submission.id,
+    blockId: id(),
     judgedByUserId: userId,
     judgedAt: new Date("2026-09-21T10:00:00Z"),
+  });
+  await tx.insert(goalReports).values({
+    tenantId,
+    studentUserId: submission.studentUserId,
+    frameworkId: framework.id,
+    sharedByUserId: userId,
+    sharedAt: new Date("2026-09-23T15:00:00Z"),
   });
   await tx.insert(standardObservations).values({
     tenantId,

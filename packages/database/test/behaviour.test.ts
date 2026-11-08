@@ -673,6 +673,16 @@ describe("erasing a student's work", () => {
           join core.enrollments e on e.tenant_id = s.tenant_id and e.role = 'teacher'
           where s.tenant_id = ${t}::uuid and s.statement = 'Read aloud.'
           limit 1`);
+        // And the report of those goals their family was shown.
+        await tx.execute(sql`
+          insert into core.goal_reports (tenant_id, student_user_id, framework_id,
+                                         shared_by_user_id, shared_at)
+          select ${t}::uuid, ${work.student}::uuid, s.framework_id, e.user_id,
+                 statement_timestamp()
+          from core.standards s
+          join core.enrollments e on e.tenant_id = s.tenant_id and e.role = 'teacher'
+          where s.tenant_id = ${t}::uuid and s.statement = 'Read aloud.'
+          limit 1`);
         // Named for a module set for only some of a class.
         await tx.execute(sql`
           insert into core.module_audiences (tenant_id, module_id, class_id, student_user_id)
@@ -809,6 +819,7 @@ describe("erasing a student's work", () => {
           draws: number;
           evidence: number;
           judgements: number;
+          reports: number;
           reviews: number;
           audiences: number;
           tools: number;
@@ -836,6 +847,8 @@ describe("erasing a student's work", () => {
                    and student_user_id = ${work.student}::uuid) as evidence,
                  (select count(*)::int from core.goal_judgements where tenant_id = ${t}::uuid
                    and student_user_id = ${work.student}::uuid) as judgements,
+                 (select count(*)::int from core.goal_reports where tenant_id = ${t}::uuid
+                   and student_user_id = ${work.student}::uuid) as reports,
                  (select count(*)::int from core.peer_reviews where tenant_id = ${t}::uuid
                    and (author_user_id = ${work.student}::uuid
                      or reviewer_user_id = ${work.student}::uuid)) as reviews,
@@ -855,6 +868,7 @@ describe("erasing a student's work", () => {
           draws: 0,
           evidence: 0,
           judgements: 0,
+          reports: 0,
           reviews: 0,
           audiences: 0,
           tools: 0,

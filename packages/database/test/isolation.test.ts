@@ -27,6 +27,7 @@ const DELETE_ALLOWED = new Set([
   "core.quiz_sittings",
   "core.standard_evidence",
   "core.goal_judgements",
+  "core.goal_reports",
   "core.standard_observations",
   "core.peer_reviews",
   "core.lti_replays",

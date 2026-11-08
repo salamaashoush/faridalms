@@ -1302,8 +1302,8 @@ export const standardObservations = core.table.withRLS(
  * A teacher's judgement of where a child stands against an early learning
  * goal, made from what they know of the child, as the EYFS profile asks:
  * best fit, never worked out from what the child did on a screen. One a
- * child and goal, the latest; the lesson answer it was made from, when it
- * was made from one.
+ * child and goal, the latest; the lesson or quiz answer it was made from,
+ * when the teacher made it from one.
  */
 export const goalJudgements = core.table.withRLS(
   "goal_judgements",
@@ -1314,6 +1314,7 @@ export const goalJudgements = core.table.withRLS(
     level: text("level").$type<GoalLevel>().notNull(),
     note: text("note").notNull().default(""),
     lessonId: uuid("lesson_id"),
+    submissionId: uuid("submission_id"),
     blockId: uuid("block_id"),
     judgedByUserId: uuid("judged_by_user_id").notNull(),
     judgedAt: instant("judged_at").notNull(),
@@ -1337,23 +1338,75 @@ export const goalJudgements = core.table.withRLS(
       [t.tenantId, t.lessonId],
       [lessons.tenantId, lessons.id],
     ),
+    // A quiz answer a judgement came from is the same child's.
+    fk(
+      "goal_judgements",
+      [t.tenantId, t.submissionId, t.studentUserId],
+      [submissions.tenantId, submissions.id, submissions.studentUserId],
+    ),
     fk(
       "goal_judgements",
       [t.tenantId, t.judgedByUserId],
       [users.tenantId, users.id],
     ),
-    ck("goal_judgements", "level", sql`level in ('emerging', 'expected')`),
+    ck(
+      "goal_judgements",
+      "level",
+      sql`level in ('emerging', 'expected', 'exempt')`,
+    ),
     ck("goal_judgements", "note", sql`char_length(note) <= 1000`),
     ck(
       "goal_judgements",
       "work",
-      sql`(lesson_id is null) = (block_id is null)`,
+      sql`(lesson_id is null or submission_id is null) and (block_id is null) = (lesson_id is null and submission_id is null)`,
     ),
     uniqueIndex("goal_judgements_key")
       .on(t.tenantId, t.studentUserId, t.standardId)
       .where(sql`status = 'active'`),
     ...entityProfile(),
     // A judgement is only ever about the child it was made of.
+    ...eraseAndDelete(erasureOf("student_user_id")),
+  ],
+);
+
+/**
+ * A child's report against one framework's goals, shared with their
+ * family by a teacher: while it stands, the family reads where the child
+ * stands on each goal, as the judgements are now. Taking it back hides
+ * them again.
+ */
+export const goalReports = core.table.withRLS(
+  "goal_reports",
+  {
+    ...tenantColumns(),
+    studentUserId: uuid("student_user_id").notNull(),
+    frameworkId: uuid("framework_id").notNull(),
+    sharedByUserId: uuid("shared_by_user_id").notNull(),
+    sharedAt: instant("shared_at").notNull(),
+    ...entityColumns(),
+  },
+  (t): PgTableExtraConfigValue[] => [
+    pk("goal_reports", t.tenantId, t.id),
+    ...baseConstraints("goal_reports", t, tenants),
+    fk(
+      "goal_reports",
+      [t.tenantId, t.studentUserId],
+      [users.tenantId, users.id],
+    ),
+    fk(
+      "goal_reports",
+      [t.tenantId, t.frameworkId],
+      [standardFrameworks.tenantId, standardFrameworks.id],
+    ),
+    fk(
+      "goal_reports",
+      [t.tenantId, t.sharedByUserId],
+      [users.tenantId, users.id],
+    ),
+    uniqueIndex("goal_reports_key")
+      .on(t.tenantId, t.studentUserId, t.frameworkId)
+      .where(sql`status = 'active'`),
+    ...entityProfile(),
     ...eraseAndDelete(erasureOf("student_user_id")),
   ],
 );
