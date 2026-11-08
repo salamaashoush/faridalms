@@ -300,6 +300,16 @@ From [../research/early-years.md](../research/early-years.md).
   back; nobody likes their own, and a hidden post takes no likes. Students
   see how many like a post; its teacher also sees who.
 
+## Each student's copy
+
+- A file put in a brief's "Each student's copy" becomes each student's own
+  when they first save. "Upload a new version" puts their version in the
+  block's place and the block remembers the file it began as, so the
+  work's Students tab shows, for a brief with such files, a "Their copy"
+  column: not uploaded yet, how many of several are uploaded, or when the
+  last version was uploaded, read from the latest handed-in attempt or
+  else the draft. A file a student adds beside their copy does not count.
+
 ## Peer review
 
 - Written work, files, a quiz and a discussion can be set for peer review.

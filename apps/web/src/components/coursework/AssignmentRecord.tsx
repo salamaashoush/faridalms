@@ -339,11 +339,40 @@ function HandedAt({ row }: HandedAtProps) {
   );
 }
 
+/** Whether a student has put their own version in place of the files copied to them. */
+function copyText(row: WorkRow, files: number) {
+  const copy = row.copy;
+  if (!copy || copy.uploaded === 0) return m.courseworkCopyNotYet();
+  if (copy.uploaded < files)
+    return m.courseworkCopySome({
+      count: formatNumber(copy.uploaded),
+      total: formatNumber(files),
+    });
+  return copy.at
+    ? m.courseworkCopyUploadedOn({ date: formatInstant(copy.at) })
+    : m.courseworkCopyUploaded();
+}
+
+interface CopyCellProps {
+  row: WorkRow;
+  files: number;
+}
+
+function CopyCell({ row, files }: CopyCellProps) {
+  const done = (row.copy?.uploaded ?? 0) >= files;
+  return (
+    <StatusText tone={done ? "success" : "neutral"}>
+      {copyText(row, files)}
+    </StatusText>
+  );
+}
+
 // Built per render: headers read the request's locale, which a module-level
 // array would fix at whichever language first loaded the module on the server.
 function workColumns(
   points: number | null,
   assessed: { declarationRequired: boolean } | null,
+  copyFiles: number | null,
 ): Column<WorkRow>[] {
   return [
     {
@@ -362,6 +391,15 @@ function workColumns(
       header: m.courseworkHandedInAt(),
       cell: (row) => <HandedAt row={row} />,
     },
+    ...(copyFiles
+      ? [
+          {
+            id: "copy",
+            header: m.courseworkCopyColumn(),
+            cell: (row: WorkRow) => <CopyCell row={row} files={copyFiles} />,
+          },
+        ]
+      : []),
     {
       id: "score",
       header: m.courseworkScore(),
@@ -391,12 +429,14 @@ function workColumns(
 function workCard(
   points: number | null,
   assessed: { declarationRequired: boolean } | null,
+  copyFiles: number | null,
 ) {
   return {
     title: (row: WorkRow) => <StudentName row={row} />,
     status: (row: WorkRow) => <StateCell row={row} />,
     fact: (row: WorkRow) => {
       const facts = [
+        copyFiles ? copyText(row, copyFiles) : null,
         row.score === null
           ? null
           : resultText(
@@ -586,11 +626,11 @@ function Work({ data }: WorkProps) {
       <DataTable
         caption={m.courseworkWorkCaption()}
         rows={rows}
-        columns={workColumns(data.points, data.assessed)}
+        columns={workColumns(data.points, data.assessed, data.copyFiles)}
         rowLabel={(row) => displayName(row)}
         rowActions={rowActions}
         batchActions={batch}
-        card={workCard(data.points, data.assessed)}
+        card={workCard(data.points, data.assessed, data.copyFiles)}
         empty={{
           title: m.courseworkNoRecipients(),
           description: m.courseworkNoRecipientsBody(),

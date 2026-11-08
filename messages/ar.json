@@ -10236,5 +10236,10 @@
   "peerPostAnswer": "إجابة",
   "peerPostReply": "رد على زميل",
   "courseworkErrPeerDueEarly": "لا يمكن أن يسبق موعد المراجعات موعد تسليم العمل نفسه.",
-  "peerErrNoPassage": "لا يُعلَّق على المقاطع إلا في العمل المكتوب في الصفحة."
+  "peerErrNoPassage": "لا يُعلَّق على المقاطع إلا في العمل المكتوب في الصفحة.",
+  "courseworkCopyColumn": "نسخته",
+  "courseworkCopyNotYet": "لم يرفع نسخته بعد",
+  "courseworkCopySome": "رُفع {count} من {total}",
+  "courseworkCopyUploaded": "رُفعت",
+  "courseworkCopyUploadedOn": "رُفعت {date}"
 }

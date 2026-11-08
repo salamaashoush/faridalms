@@ -1093,6 +1093,18 @@ describe("handing in and returning work", () => {
       (await raw("northwind", student.token, `/v1/files/${copy}/content`))
         .status,
     ).toBe(200);
+    // Their teacher sees the copy is still the one they were given.
+    const standing = async () => {
+      const record = await teacher.api.coursework.record({ id: saved.id });
+      return {
+        files: record.copyFiles,
+        copy: record.work.find((row) => row.studentId === me.id)?.copy,
+      };
+    };
+    expect(await standing()).toEqual({
+      files: 1,
+      copy: { uploaded: 0, at: null },
+    });
     // The version they worked on goes back in its place.
     const theirs = await upload(student, "document_media", "my-map.txt");
     const again = await student.api.coursework.saveDraft({
@@ -1101,10 +1113,11 @@ describe("handing in and returning work", () => {
       content: {
         root: {
           ...intro.root,
-          children: [fileNode(theirs, "my-map.txt")],
+          children: [{ ...fileNode(theirs, "my-map.txt"), origin: copy }],
         },
       },
     });
+    expect((await standing()).copy).toMatchObject({ uploaded: 1 });
     await student.api.coursework.handIn({
       assignmentId: saved.id,
       expectedVersion: again.version,
@@ -1116,6 +1129,11 @@ describe("handing in and returning work", () => {
     expect(JSON.stringify(grading.attempts[0]?.content)).toContain(
       "my-map.txt",
     );
+    // Handed in, the attempt's own copies still trace back to the worksheet.
+    expect((await standing()).copy).toMatchObject({
+      uploaded: 1,
+      at: expect.any(String),
+    });
     // The teacher's own file is untouched by any student's work.
     expect(
       (await raw("northwind", teacher.token, `/v1/files/${original}/content`))

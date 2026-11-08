@@ -1,7 +1,7 @@
 import { plainContent } from "@faridalms/domain/content-conversion";
 import { expect, test } from "@playwright/test";
 
-import { signedInApi } from "./fixtures/api";
+import { API_ORIGIN, signedInApi } from "./fixtures/api";
 import {
   ACCOUNTS,
   openWith,
@@ -761,6 +761,125 @@ test("a reviewer comments on a passage by its review date, and the author says h
   await helpful.click();
   await expect(helpful).toHaveAttribute("aria-pressed", "true");
   await authorContext.close();
+});
+
+test("a teacher sees at a glance which students uploaded their own version of the worksheet", async ({
+  browser,
+  page,
+}) => {
+  const { api: teacher, token } = await signedInApi(TEACHER);
+  const { classes } = await teacher.coursework.options();
+  const arabic = classes.find((row) => row.titleEn === "8A Arabic");
+  if (!arabic) throw new Error("the seed has no 8A Arabic");
+  const words = new TextEncoder().encode("Label the river.");
+  const sheet = await teacher.files.initiate({
+    purpose: "document_media",
+    name: "worksheet.txt",
+    mediaType: "text/plain",
+    sizeBytes: words.byteLength,
+  });
+  const put = await fetch(`${API_ORIGIN}/v1/files/${sheet.id}/content`, {
+    method: "PUT",
+    headers: {
+      authorization: `Bearer ${token}`,
+      "x-farida-school": "northwind",
+    },
+    body: words,
+  });
+  expect(put.ok).toBe(true);
+  const title = `River sheet ${crypto.randomUUID().slice(0, 6)}`;
+  const intro = plainContent("Fill in the sheet and hand it back.");
+  const saved = await teacher.coursework.save({
+    classId: arabic.id,
+    title,
+    brief: {
+      root: {
+        ...intro.root,
+        children: [
+          ...(intro.root.children ?? []),
+          {
+            type: "starter",
+            version: 1,
+            format: "",
+            indent: 0,
+            direction: null,
+            children: [
+              {
+                type: "file",
+                version: 1,
+                format: "",
+                fileId: sheet.id,
+                name: "worksheet.txt",
+                mime: "text/plain",
+                bytes: words.byteLength,
+              },
+            ],
+          },
+        ],
+      },
+    },
+    audience: "class",
+    latePolicy: "accept",
+    submissionFormat: "online",
+    points: 10,
+    rubric: null,
+  });
+  await teacher.coursework.publish({
+    id: saved.id,
+    expectedVersion: saved.version,
+  });
+
+  const studentContext = await browser.newContext();
+  const student = await studentContext.newPage();
+  await signInWith(
+    student,
+    ACCOUNTS.student.email,
+    PASSWORD,
+    ACCOUNTS.student.home,
+  );
+  await student.goto(`/assignments/${saved.id}`);
+  await untilHydrated(student);
+  await student.getByRole("button", { name: /^Open: worksheet\.txt/ }).focus();
+  await student.getByRole("button", { name: /^Open: worksheet\.txt/ }).click();
+  await student.keyboard.press("Escape");
+  await student
+    .getByRole("toolbar", { name: "File options" })
+    .locator("input[type=file]")
+    .setInputFiles({
+      name: "my-worksheet.txt",
+      mimeType: "text/plain",
+      buffer: Buffer.from("The Nile, the delta, the sea."),
+    });
+  await expect(student.getByText("my-worksheet.txt")).toBeVisible();
+  await student.getByRole("button", { name: "Hand in", exact: true }).click();
+  await student
+    .getByRole("dialog")
+    .getByRole("button", { name: "Hand in", exact: true })
+    .click();
+  await expect(
+    student.getByRole("region", { name: "Handed in" }).getByText("Attempt 1"),
+  ).toBeVisible();
+  await studentContext.close();
+
+  await signInWith(page, TEACHER, PASSWORD, "/today");
+  await page.goto(`/assignments/${saved.id}?tab=work`);
+  await untilHydrated(page);
+  await expect(
+    page.getByRole("columnheader", { name: "Their copy" }),
+  ).toBeVisible();
+  await expect(
+    page
+      .getByRole("tabpanel")
+      .getByRole("row", { name: /Yasmin Sabry/ })
+      .getByText(/^Uploaded /),
+  ).toBeVisible();
+  await expect(
+    page
+      .getByRole("tabpanel")
+      .getByRole("row", { name: /^(?!.*Yasmin Sabry)/ })
+      .getByText("Not uploaded yet")
+      .first(),
+  ).toBeVisible();
 });
 
 test("a brief written in two languages opens in the reader's own", async ({

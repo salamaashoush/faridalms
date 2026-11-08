@@ -5,11 +5,48 @@ import { $getRoot } from "lexical";
 import * as v from "valibot";
 import { describe, expect, it } from "vitest";
 
-import type { ImageNode } from "./nodes";
+import type { FileNode, ImageNode } from "./nodes";
 
 import { buildContentEditor } from "./headless";
-import { $createImageNode, EmbedNode } from "./nodes";
+import { $createFileNode, $createImageNode, EmbedNode } from "./nodes";
 import { creditOf } from "./picture-credit-fields";
+
+describe("file versions", () => {
+  it("remembers the first file a block held through every new version", () => {
+    const given = crypto.randomUUID();
+    const target = buildContentEditor();
+    target.update(
+      () => {
+        $getRoot()
+          .clear()
+          .append(
+            $createFileNode(given, "Worksheet.pdf", "application/pdf", 10),
+          );
+      },
+      { discrete: true },
+    );
+    for (const name of ["Mine.pdf", "Mine again.pdf"])
+      target.update(
+        () => {
+          ($getRoot().getFirstChild() as FileNode).setFile({
+            fileId: crypto.randomUUID(),
+            name,
+            mime: "application/pdf",
+            bytes: 12,
+          });
+        },
+        { discrete: true },
+      );
+    const document = target
+      .getEditorState()
+      .toJSON() as unknown as ContentDocument;
+    expect(v.safeParse(contentDocumentSchema, document).success).toBe(true);
+    expect(document.root.children?.[0]).toMatchObject({
+      name: "Mine again.pdf",
+      origin: given,
+    });
+  });
+});
 
 describe("pictures", () => {
   it("keeps a picture marked decorative through saving and opening", () => {

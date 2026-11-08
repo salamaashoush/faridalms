@@ -146,6 +146,33 @@ export async function filesByIds(
   return rows.map(fileOf);
 }
 
+/**
+ * Where each of these files came from, when it is a copy of another made
+ * for a document, and when it was stored: what tells a student's own
+ * version of a worksheet from the copy they were given.
+ */
+export async function fileLineage(
+  tx: Tx,
+  tenantId: string,
+  ids: readonly string[],
+): Promise<Map<string, { copiedFrom: string | null; createdAt: string }>> {
+  if (ids.length === 0) return new Map();
+  const rows = await tx.execute<{
+    id: string;
+    copied_from: string | null;
+    created_at: string;
+  }>(sql`
+    select id, metadata->>'copiedFrom' as copied_from, ${isoOf(sql`created_at`)} as created_at
+    from core.files
+    where tenant_id = ${tenantId}::uuid and id = any(${uuidArray(ids)})`);
+  return new Map(
+    rows.map((row) => [
+      row.id,
+      { copiedFrom: row.copied_from, createdAt: row.created_at },
+    ]),
+  );
+}
+
 export async function filesOfHost(
   tx: Tx,
   tenantId: string,

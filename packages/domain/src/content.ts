@@ -329,6 +329,12 @@ export interface ContentNode {
   open?: boolean;
   layout?: ColumnLayout | PanelLayout;
   fileId?: string;
+  /**
+   * The file a file block's file is a new version of, kept when a version
+   * is uploaded in its place: how a student's own worksheet is told from
+   * the copy they were given. Never read as a file the document shows.
+   */
+  origin?: string;
   alt?: string;
   /** A picture that only decorates, so screen readers pass it by. */
   decorative?: boolean;
@@ -620,6 +626,7 @@ const nodeShape: v.GenericSchema<ContentNode> = v.pipe(
     open: v.optional(v.boolean()),
     layout: v.optional(v.picklist([...columnLayouts, ...panelLayouts])),
     fileId: v.optional(v.pipe(v.string(), v.uuid())),
+    origin: v.optional(v.pipe(v.string(), v.uuid())),
     alt: v.optional(v.pipe(v.string(), v.maxLength(500))),
     decorative: v.optional(v.boolean()),
     credit: v.optional(pictureCreditSchema),
@@ -1458,6 +1465,20 @@ export function contentMentions(document: ContentDocument): Mention[] {
     else if (node.children) pending.unshift(...node.children);
   }
   return [...found.values()];
+}
+
+/** A document's file blocks, each with the file it is a new version of, if any. */
+export function fileBlocksOf(
+  document: ContentDocument,
+): { fileId: string; origin: string | null }[] {
+  const found: { fileId: string; origin: string | null }[] = [];
+  const pending = [document.root];
+  for (let node = pending.shift(); node; node = pending.shift()) {
+    if (node.type === "file" && node.fileId)
+      found.push({ fileId: node.fileId, origin: node.origin ?? null });
+    if (node.children) pending.unshift(...node.children);
+  }
+  return found;
 }
 
 export function contentFileIds(document: ContentDocument): string[] {

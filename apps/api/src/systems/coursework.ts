@@ -104,6 +104,7 @@ import {
 } from "@faridalms/database/stores/exams";
 import {
   adoptFiles,
+  fileLineage,
   filesOfHost,
   linkFiles,
   rehostFiles,
@@ -149,6 +150,7 @@ import {
 } from "@faridalms/domain/arrangements";
 import {
   contentFileIds,
+  fileBlocksOf,
   contentPlainText,
   starterOf,
   withBlockIds,
@@ -164,6 +166,7 @@ import {
   canHandIn,
   attemptScore,
   canTakeQuiz,
+  copyStanding,
   discussionPostSchema,
   editDiscussionPostSchema,
   hideDiscussionPostSchema,
@@ -1276,6 +1279,84 @@ export const reviewBriefTranslation = writeProcedure
     });
   });
 
+/**
+ * For a brief that sets files aside as each student's copy, how far each
+ * student has put their own version in place of theirs, read from their
+ * latest handed-in work or else their draft. Null when nothing is set aside.
+ */
+async function copiesOf(
+  context: UnitContext,
+  brief: ContentDocument | null,
+  work: readonly {
+    studentId: string;
+    attemptId: string | null;
+    submissionId: string | null;
+  }[],
+) {
+  const starter = brief ? starterOf(brief) : null;
+  const starters = starter
+    ? fileBlocksOf(starter).map((block) => block.fileId)
+    : [];
+  if (starters.length === 0) return null;
+  const blocks = new Map(
+    await Promise.all(
+      work.map(async (row) => {
+        const host = row.attemptId
+          ? { type: "submission_attempt", id: row.attemptId }
+          : row.submissionId
+            ? { type: "submission", id: row.submissionId }
+            : null;
+        const document = host
+          ? await documentOf(context.tx, context.tenantId, host)
+          : null;
+        return [
+          row.studentId,
+          document
+            ? fileBlocksOf(document.content as unknown as ContentDocument)
+            : [],
+        ] as const;
+      }),
+    ),
+  );
+  // Copies are made of copies as work is saved and handed in, so a file is
+  // followed back a few steps to the teacher's own.
+  const lineage = new Map<
+    string,
+    { copiedFrom: string | null; createdAt: string }
+  >();
+  let asking = [
+    ...new Set(
+      [...blocks.values()].flatMap((rows) =>
+        rows.flatMap((block) =>
+          block.origin ? [block.fileId, block.origin] : [block.fileId],
+        ),
+      ),
+    ),
+  ];
+  for (let step = 0; step < 4 && asking.length > 0; step++) {
+    const found = await fileLineage(context.tx, context.tenantId, asking);
+    for (const [fileId, row] of found) lineage.set(fileId, row);
+    asking = [
+      ...new Set(
+        [...found.values()].flatMap((row) =>
+          row.copiedFrom && !lineage.has(row.copiedFrom)
+            ? [row.copiedFrom]
+            : [],
+        ),
+      ),
+    ];
+  }
+  return {
+    files: starters.length,
+    students: Object.fromEntries(
+      [...blocks].map(([studentId, rows]) => [
+        studentId,
+        copyStanding({ starters, blocks: rows, lineage }),
+      ]),
+    ),
+  };
+}
+
 /** The assignment as its teacher reads it: brief and everyone's standing. */
 export const record = readProcedure
   .input(v.object({ id }))
@@ -1307,8 +1388,11 @@ export const record = readProcedure
           work.flatMap((row) => (row.attemptId ? [row.attemptId] : [])),
         )
       : null;
+    const copies = await copiesOf(context, brief, work);
     return {
       ...assignment,
+      /** How many files the brief sets aside as each student's copy, when it does. */
+      copyFiles: copies?.files ?? null,
       assessed: rules
         ? { declarationRequired: rules.declarationRequired }
         : null,
@@ -1335,6 +1419,7 @@ export const record = readProcedure
         ),
         coursework:
           marks && row.attemptId ? (marks.get(row.attemptId) ?? null) : null,
+        copy: copies?.students[row.studentId] ?? null,
         learnerState: learnerState(
           {
             availableFrom: assignment.availableFrom,

@@ -9784,5 +9784,10 @@
   "peerPostAnswer": "Answer",
   "peerPostReply": "Reply to a classmate",
   "courseworkErrPeerDueEarly": "Reviews cannot be due before the work itself.",
-  "peerErrNoPassage": "Only work written on the page takes comments on its passages."
+  "peerErrNoPassage": "Only work written on the page takes comments on its passages.",
+  "courseworkCopyColumn": "Their copy",
+  "courseworkCopyNotYet": "Not uploaded yet",
+  "courseworkCopySome": "{count} of {total} uploaded",
+  "courseworkCopyUploaded": "Uploaded",
+  "courseworkCopyUploadedOn": "Uploaded {date}"
 }

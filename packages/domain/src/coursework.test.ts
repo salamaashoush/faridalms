@@ -4,6 +4,7 @@ import { describe, expect, it } from "vitest";
 import {
   assignmentPhase,
   canHandIn,
+  copyStanding,
   effectiveScore,
   GRACE_MS,
   handInIssue,
@@ -245,5 +246,50 @@ describe("rubricEvidence", () => {
     };
     expect(v.safeParse(rubricSchema, twice).success).toBe(false);
     expect(v.safeParse(rubricSchema, rubric).success).toBe(true);
+  });
+});
+
+describe("copyStanding", () => {
+  const lineage = new Map([
+    ["copy", { copiedFrom: "sheet", createdAt: "2026-10-01T08:00:00.000Z" }],
+    ["frozen", { copiedFrom: "copy", createdAt: "2026-10-02T08:00:00.000Z" }],
+    ["mine", { copiedFrom: null, createdAt: "2026-10-03T08:00:00.000Z" }],
+    ["map", { copiedFrom: null, createdAt: "2026-10-04T08:00:00.000Z" }],
+  ]);
+
+  it("counts nothing while the student still holds the copy they were given", () => {
+    expect(
+      copyStanding({
+        starters: ["sheet"],
+        blocks: [{ fileId: "copy", origin: null }],
+        lineage,
+      }),
+    ).toEqual({ uploaded: 0, at: null });
+  });
+
+  it("counts a version put in place of the copy, followed back through copies", () => {
+    expect(
+      copyStanding({
+        starters: ["sheet", "chart"],
+        blocks: [
+          { fileId: "mine", origin: "frozen" },
+          { fileId: "map", origin: null },
+        ],
+        lineage,
+      }),
+    ).toEqual({ uploaded: 1, at: "2026-10-03T08:00:00.000Z" });
+  });
+
+  it("does not count a file of the student's own added beside the copy", () => {
+    expect(
+      copyStanding({
+        starters: ["sheet"],
+        blocks: [
+          { fileId: "copy", origin: null },
+          { fileId: "map", origin: "map" },
+        ],
+        lineage,
+      }),
+    ).toEqual({ uploaded: 0, at: null });
   });
 });

@@ -76,6 +76,8 @@ export type SerializedFileNode = Spread<
     bytes: number;
     caption?: string;
     display?: FileDisplay;
+    /** The file this one is a new version of, once a version replaced it. */
+    origin?: string;
   },
   SerializedDecoratorBlockNode
 >;
@@ -505,6 +507,7 @@ export class FileNode extends DecoratorBlockNode {
   __bytes: number;
   __caption: string;
   __display: FileDisplay;
+  __origin = "";
 
   constructor(
     fileId = "",
@@ -530,7 +533,7 @@ export class FileNode extends DecoratorBlockNode {
   }
 
   static clone(node: FileNode): FileNode {
-    return new FileNode(
+    const copy = new FileNode(
       node.__fileId,
       node.__name,
       node.__mime,
@@ -540,6 +543,8 @@ export class FileNode extends DecoratorBlockNode {
       node.__format,
       node.__key,
     );
+    copy.__origin = node.__origin;
+    return copy;
   }
 
   // A link to a file brought in from another document, once it is stored
@@ -577,6 +582,7 @@ export class FileNode extends DecoratorBlockNode {
     node.__bytes = json.bytes;
     node.__caption = json.caption ?? "";
     node.__display = json.display ?? "card";
+    node.__origin = json.origin ?? "";
     return node;
   }
 
@@ -590,6 +596,7 @@ export class FileNode extends DecoratorBlockNode {
       bytes: node.__bytes,
       ...(node.__caption ? { caption: node.__caption } : {}),
       ...(node.__display === "card" ? {} : { display: node.__display }),
+      ...(node.__origin ? { origin: node.__origin } : {}),
     };
   }
 
@@ -622,9 +629,14 @@ export class FileNode extends DecoratorBlockNode {
     this.getWritable().__display = display;
   }
 
-  /** Puts a new version of the file in its place, caption and display kept. */
+  /**
+   * Puts a new version of the file in its place, caption and display kept,
+   * remembering the first file the block held: a student's own worksheet
+   * is told from the copy they were given by it.
+   */
   setFile(file: { fileId: string; name: string; mime: string; bytes: number }) {
     const writable = this.getWritable();
+    writable.__origin = writable.__origin || writable.__fileId;
     writable.__fileId = file.fileId;
     writable.__name = file.name;
     writable.__mime = file.mime;

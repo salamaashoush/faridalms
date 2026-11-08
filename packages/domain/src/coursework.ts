@@ -969,3 +969,43 @@ export const sharedWorkQuerySchema = v.object({
   studentId: id,
   after: keysetField,
 });
+
+export interface CopyStanding {
+  /** How many of the files set aside for each student they put their own version in place of. */
+  uploaded: number;
+  /** When the last of those versions was stored. */
+  at: string | null;
+}
+
+/**
+ * How far a student has made the brief's files their own: for each file set
+ * aside as each student's copy, whether a block of their work holds a
+ * version uploaded in place of their copy of it. A file is followed back
+ * through the copies made of it to the teacher's own.
+ */
+export function copyStanding(input: {
+  starters: readonly string[];
+  blocks: readonly { fileId: string; origin: string | null }[];
+  lineage: ReadonlyMap<
+    string,
+    { copiedFrom: string | null; createdAt: string }
+  >;
+}): CopyStanding {
+  const starters = new Set(input.starters);
+  const rootOf = (fileId: string | null) => {
+    for (let step = 0, at = fileId; at && step < 10; step++) {
+      if (starters.has(at)) return at;
+      at = input.lineage.get(at)?.copiedFrom ?? null;
+    }
+    return null;
+  };
+  const versions = new Map<string, string>();
+  for (const block of input.blocks) {
+    const source = rootOf(block.origin);
+    if (!source || rootOf(block.fileId) === source) continue;
+    const at = input.lineage.get(block.fileId)?.createdAt ?? "";
+    if (at > (versions.get(source) ?? "")) versions.set(source, at);
+  }
+  const times = [...versions.values()].filter(Boolean).toSorted();
+  return { uploaded: versions.size, at: times.at(-1) ?? null };
+}
