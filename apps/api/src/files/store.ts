@@ -38,14 +38,17 @@ export interface FileStore {
   removeFolder(folder: string): Promise<void>;
 }
 
-/** A file waiting, ready or held, or one part of an upload on its way. */
-const PRIVATE_KEY =
-  /^t\/[0-9a-f-]{36}\/(?:[qfh]\/[0-9a-f-]{36}|u\/[0-9a-f-]{36}\/\d{1,4})$/;
 /**
- * A video's stream folder (playlists, segments, poster and thumbnails) or
- * the folder an upload's parts wait in.
+ * A file waiting, ready or held, one part of an upload on its way, or a
+ * picture or document the media service made from a file.
  */
-const FOLDER = /^t\/[0-9a-f-]{36}\/[uv]\/[0-9a-f-]{36}$/;
+const PRIVATE_KEY =
+  /^t\/[0-9a-f-]{36}\/(?:[qfh]\/[0-9a-f-]{36}|u\/[0-9a-f-]{36}\/\d{1,4}|r\/[0-9a-f-]{36}\/[a-z0-9-]{1,40}\.(?:webp|avif|pdf))$/;
+/**
+ * A video's stream folder (playlists, segments, poster and thumbnails), a
+ * file's previews, or the folder an upload's parts wait in.
+ */
+const FOLDER = /^t\/[0-9a-f-]{36}\/[uvr]\/[0-9a-f-]{36}$/;
 /** Objects in the public-media bucket, under a published file's public key. */
 export const PUBLIC_KEY = /^p\/[a-z0-9]{26}\/[A-Za-z0-9._-]{1,120}$/;
 
@@ -70,7 +73,11 @@ export class DiskFileStore implements FileStore {
   ): Promise<StoredObject> {
     const path = this.path(key);
     await mkdir(dirname(path), { recursive: true });
-    const sink = Bun.file(path).writer();
+    // Bun's file writer does not truncate, so writing over a longer object
+    // in place would leave its tail behind. The bytes go to a file of their
+    // own and take the key's place whole, as an S3 put does.
+    const writing = `${path}.${crypto.randomUUID()}.writing`;
+    const sink = Bun.file(writing).writer();
     const hasher = new Bun.CryptoHasher("sha256");
     let sizeBytes = 0;
     try {
@@ -83,9 +90,11 @@ export class DiskFileStore implements FileStore {
       await sink.end();
     } catch (error) {
       await sink.end();
+      await rm(writing, { force: true });
       await rm(path, { force: true });
       throw error;
     }
+    await rename(writing, path);
     return { sizeBytes, sha256: hasher.digest("hex") };
   }
 

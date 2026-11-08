@@ -11,10 +11,12 @@ import {
   contentMatchesName,
   fileGate,
 } from "@faridalms/domain/file";
+import { stripPictureMetadata } from "@faridalms/domain/picture-metadata";
+import { isCleanablePicture } from "@faridalms/domain/previews";
 
 import type { FileScanner } from "./scan";
 import type { FileKeys } from "./sealed";
-import type { FileStore } from "./store";
+import type { FileStore, StoredObject } from "./store";
 
 import { ScanUnavailableError } from "./scan";
 import { sealObject } from "./sealed";
@@ -28,7 +30,13 @@ export type Rejection =
   | "scan_unavailable";
 
 export type Checked =
-  | { ok: true; sha256: string; keyVersion: number | null }
+  | {
+      ok: true;
+      sha256: string;
+      keyVersion: number | null;
+      /** What the bytes weigh as kept, less any metadata a picture lost. */
+      sizeBytes: number;
+    }
   | { ok: false; reason: Rejection };
 
 /**
@@ -37,9 +45,10 @@ export type Checked =
  * scanner's verdict. A file that passes moves to its final key; one of a
  * purpose the cell hides behind a special-category purpose is sealed there
  * under the school's files key instead, and its plaintext removed. One that
- * fails leaves nothing behind. Uploads and the attachments of mail that
- * arrived both come in here, so they are held to the same checks; the
- * caller records the verdict as the worker.
+ * fails leaves nothing behind. A picture loses its location, camera and
+ * editing records before it is kept anywhere. Uploads and the attachments
+ * of mail that arrived both come in here, so they are held to the same
+ * checks; the caller records the verdict as the worker.
  */
 export async function takeChecked(
   stores: {
@@ -104,6 +113,8 @@ export async function takeChecked(
       return refuse("scan_unavailable");
     }
   }
+  stored =
+    (await cleanPicture(stores.files, waiting, file.mediaType)) ?? stored;
   const keyVersion = fileGate(file.purpose)
     ? await sealObject(stores.files, stores.keys, {
         tenantId,
@@ -115,5 +126,28 @@ export async function takeChecked(
   if (keyVersion === null)
     await stores.files.move(waiting, readyKey(tenantId, file.id));
   await stores.files.removeFolder(partsFolder(tenantId, file.id));
-  return { ok: true, sha256: stored.sha256, keyVersion };
+  return {
+    ok: true,
+    sha256: stored.sha256,
+    keyVersion,
+    sizeBytes: stored.sizeBytes,
+  };
+}
+
+/**
+ * Removes a stored picture's metadata in place, answering what the bytes
+ * now weigh and hash to, or null when there was nothing to remove.
+ */
+export async function cleanPicture(
+  files: FileStore,
+  key: string,
+  mediaType: string,
+): Promise<StoredObject | null> {
+  if (!isCleanablePicture(mediaType)) return null;
+  const body = await files.open(key);
+  if (!body) return null;
+  const bytes = await new Response(body).bytes();
+  const cleaned = stripPictureMetadata(bytes, mediaType);
+  if (!cleaned) return null;
+  return files.write(key, new Blob([cleaned]).stream(), cleaned.length);
 }
