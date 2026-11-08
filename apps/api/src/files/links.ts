@@ -4,6 +4,7 @@ import { createCipheriv, createDecipheriv, createHmac } from "node:crypto";
 import type { FileKeys } from "./sealed";
 import type { FileStore } from "./store";
 
+import { packageResponse } from "./packages";
 import { libraryResponse, playResponse } from "./play";
 import { openSealedObject } from "./sealed";
 
@@ -167,6 +168,13 @@ export function createFilesHost(dependencies: {
     if (studio) return studio;
     const makecode = await dependencies.makecode?.(request);
     if (makecode) return makecode;
+    const page = await packageResponse(url, {
+      files: dependencies.files,
+      keys: dependencies.keys,
+      open: (sealed) => openLink(dependencies.key, sealed, now()),
+      headers: shared,
+    });
+    if (page) return page;
     const token = LINK_PATH.exec(url.pathname)?.[1];
     const grant = token ? openLink(dependencies.key, token, now()) : null;
     if (!grant || (grant.sealed && !dependencies.keys))
