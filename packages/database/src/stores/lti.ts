@@ -1,3 +1,5 @@
+import type { ToolRegistration } from "@faridalms/domain/lti";
+
 import { sql } from "drizzle-orm";
 import { createHash } from "node:crypto";
 
@@ -18,8 +20,14 @@ export interface ToolRow {
   redirectUrls: string[];
   jwksUrl: string;
   deepLinkUrl: string | null;
+  reviewUrl: string | null;
   sendNames: boolean;
+  grades: boolean;
+  roster: boolean;
   custom: Record<string, string>;
+  /** Pending while a tool that registered itself waits for the school. */
+  state: "pending" | "active";
+  registration: ToolRegistration | null;
 }
 
 type ToolRecord = {
@@ -33,8 +41,13 @@ type ToolRecord = {
   redirect_urls: string[];
   jwks_url: string;
   deep_link_url: string | null;
+  review_url: string | null;
   send_names: boolean;
+  grades: boolean;
+  roster: boolean;
   custom: Record<string, string>;
+  state: "pending" | "active";
+  registration: ToolRegistration | null;
 };
 
 const toolOf = (row: ToolRecord): ToolRow => ({
@@ -48,14 +61,20 @@ const toolOf = (row: ToolRecord): ToolRow => ({
   redirectUrls: row.redirect_urls,
   jwksUrl: row.jwks_url,
   deepLinkUrl: row.deep_link_url,
+  reviewUrl: row.review_url,
   sendNames: row.send_names,
+  grades: row.grades,
+  roster: row.roster,
   custom: row.custom,
+  state: row.state,
+  registration: row.registration,
 });
 
 const toolColumns = sql`id, version, name, client_id, deployment_id, login_url, launch_url,
-  redirect_urls, jwks_url, deep_link_url, send_names, custom`;
+  redirect_urls, jwks_url, deep_link_url, review_url, send_names, grades, roster, custom, state,
+  registration`;
 
-/** A school's outside tools, by name. */
+/** A school's outside tools, by name, those waiting for the school among them. */
 export async function toolsOf(
   tx: Tx,
   input: { tenantId: string; orgId: string },
@@ -68,18 +87,23 @@ export async function toolsOf(
   return rows.map(toolOf);
 }
 
+/**
+ * A school's tool in use, by its id; one still waiting for the school only
+ * when asked for, as its settings do.
+ */
 export async function toolById(
   tx: Tx,
-  input: { tenantId: string; orgId: string; id: string },
+  input: { tenantId: string; orgId: string; id: string; pending?: boolean },
 ): Promise<ToolRow | null> {
   const [row] = await tx.execute<ToolRecord>(sql`
     select ${toolColumns} from core.lti_tools
     where tenant_id = ${input.tenantId}::uuid and org_id = ${input.orgId}::uuid
-      and id = ${input.id}::uuid and status = 'active'`);
+      and id = ${input.id}::uuid and status = 'active'
+      ${input.pending ? sql`` : sql`and state = 'active'`}`);
   return row ? toolOf(row) : null;
 }
 
-/** A school's tool by the client id it calls itself by. */
+/** A school's tool in use by the client id it calls itself by. */
 export async function toolByClientId(
   tx: Tx,
   input: { tenantId: string; orgId: string; clientId: string },
@@ -87,7 +111,7 @@ export async function toolByClientId(
   const [row] = await tx.execute<ToolRecord>(sql`
     select ${toolColumns} from core.lti_tools
     where tenant_id = ${input.tenantId}::uuid and org_id = ${input.orgId}::uuid
-      and client_id = ${input.clientId} and status = 'active'`);
+      and client_id = ${input.clientId} and status = 'active' and state = 'active'`);
   return row ? toolOf(row) : null;
 }
 
@@ -98,11 +122,17 @@ export interface ToolFields {
   redirectUrls: string[];
   jwksUrl: string;
   deepLinkUrl: string | null;
+  reviewUrl: string | null;
   sendNames: boolean;
+  grades: boolean;
+  roster: boolean;
   custom: Record<string, string>;
 }
 
-/** Registers a tool, with the client and deployment ids the school gives it. */
+/**
+ * Registers a tool, with the client and deployment ids the school gives it;
+ * one that registered itself waits for the school, with what it said.
+ */
 export async function insertTool(
   tx: Tx,
   input: ToolFields & {
@@ -110,18 +140,42 @@ export async function insertTool(
     orgId: string;
     clientId: string;
     deploymentId: string;
+    registration?: ToolRegistration;
   },
 ): Promise<{ id: string; version: number }> {
+  const registration = input.registration ?? null;
   const [row] = await tx.execute<{ id: string; version: number }>(sql`
     insert into core.lti_tools (tenant_id, org_id, name, client_id, deployment_id, login_url,
-      launch_url, redirect_urls, jwks_url, deep_link_url, send_names, custom)
+      launch_url, redirect_urls, jwks_url, deep_link_url, review_url, send_names, grades, roster,
+      custom, state, registration)
     values (${input.tenantId}::uuid, ${input.orgId}::uuid, ${input.name}, ${input.clientId},
       ${input.deploymentId}, ${input.loginUrl}, ${input.launchUrl},
       ${JSON.stringify(input.redirectUrls)}::text::jsonb, ${input.jwksUrl}, ${input.deepLinkUrl},
-      ${input.sendNames}, ${JSON.stringify(input.custom)}::text::jsonb)
+      ${input.reviewUrl}, ${input.sendNames}, ${input.grades}, ${input.roster},
+      ${JSON.stringify(input.custom)}::text::jsonb, ${registration ? "pending" : "active"},
+      ${registration === null ? null : JSON.stringify(registration)}::text::jsonb)
     returning id, version`);
   if (!row) throw new Error("tool was not registered");
   return row;
+}
+
+/** Puts a tool that registered itself to use; null when it changed since it was read. */
+export async function activateTool(
+  tx: Tx,
+  input: {
+    tenantId: string;
+    orgId: string;
+    id: string;
+    expectedVersion: number;
+  },
+): Promise<{ version: number } | null> {
+  const [row] = await tx.execute<{ version: number }>(sql`
+    update core.lti_tools set state = 'active'
+    where tenant_id = ${input.tenantId}::uuid and org_id = ${input.orgId}::uuid
+      and id = ${input.id}::uuid and version = ${input.expectedVersion}
+      and status = 'active' and state = 'pending'
+    returning version`);
+  return row ?? null;
 }
 
 /** Null when the tool changed since the version the caller read. */
@@ -139,7 +193,9 @@ export async function updateTool(
     set name = ${input.name}, login_url = ${input.loginUrl}, launch_url = ${input.launchUrl},
         redirect_urls = ${JSON.stringify(input.redirectUrls)}::text::jsonb,
         jwks_url = ${input.jwksUrl}, deep_link_url = ${input.deepLinkUrl},
-        send_names = ${input.sendNames}, custom = ${JSON.stringify(input.custom)}::text::jsonb
+        review_url = ${input.reviewUrl}, send_names = ${input.sendNames},
+        grades = ${input.grades}, roster = ${input.roster},
+        custom = ${JSON.stringify(input.custom)}::text::jsonb
     where tenant_id = ${input.tenantId}::uuid and org_id = ${input.orgId}::uuid
       and id = ${input.id}::uuid and version = ${input.expectedVersion} and status = 'active'
     returning version`);
@@ -262,6 +318,14 @@ export interface LineItemRow {
   startsAt: Date | null;
   endsAt: Date | null;
   gradesReleased: boolean | null;
+  submissionReview: SubmissionReviewFields | null;
+}
+
+/** That a tool can show the work behind a score in a column, and how. */
+export interface SubmissionReviewFields {
+  label?: string;
+  url?: string;
+  custom?: Record<string, string>;
 }
 
 type LineItemRecord = {
@@ -280,6 +344,7 @@ type LineItemRecord = {
   starts_at: Date | string | null;
   ends_at: Date | string | null;
   grades_released: boolean | null;
+  submission_review: SubmissionReviewFields | null;
 };
 
 const when = (value: Date | string | null) =>
@@ -306,11 +371,15 @@ const lineItemOf = (row: LineItemRecord): LineItemRow => ({
   startsAt: when(row.starts_at),
   endsAt: when(row.ends_at),
   gradesReleased: row.grades_released,
+  submissionReview: row.submission_review,
 });
 
 const lineItemColumns = sql`i.id, i.tool_id, i.module_id, i.class_id, i.lesson_id, i.assignment_id,
   i.link_id, i.declared, i.label, i.score_maximum, i.resource_id, i.tag, i.starts_at, i.ends_at,
-  i.grades_released`;
+  i.grades_released, i.submission_review`;
+
+const reviewJson = (review: SubmissionReviewFields | null) =>
+  review === null ? null : JSON.stringify(review);
 
 const inCourse = (course: LtiCourse) =>
   "moduleId" in course
@@ -370,6 +439,7 @@ export interface LineItemFields {
   startsAt: Date | null;
   endsAt: Date | null;
   gradesReleased: boolean | null;
+  submissionReview: SubmissionReviewFields | null;
 }
 
 const isoOrNull = (value: Date | null) => value?.toISOString() ?? null;
@@ -387,14 +457,15 @@ export async function insertLineItem(
   const [row] = await tx.execute<{ id: string }>(sql`
     insert into core.lti_line_items (tenant_id, tool_id, module_id, class_id, lesson_id,
       assignment_id, link_id, label, score_maximum, resource_id, tag, starts_at, ends_at,
-      grades_released)
+      grades_released, submission_review)
     values (${input.tenantId}::uuid, ${input.toolId}::uuid,
       ${"moduleId" in course ? course.moduleId : null}::uuid,
       ${"classId" in course ? course.classId : null}::uuid,
       ${input.link?.lessonId ?? null}::uuid, ${input.link?.assignmentId ?? null}::uuid,
       ${input.link?.linkId ?? null}::uuid, ${input.label}, ${input.scoreMaximum},
       ${input.resourceId}, ${input.tag}, ${isoOrNull(input.startsAt)}::timestamptz,
-      ${isoOrNull(input.endsAt)}::timestamptz, ${input.gradesReleased})
+      ${isoOrNull(input.endsAt)}::timestamptz, ${input.gradesReleased},
+      ${reviewJson(input.submissionReview)}::text::jsonb)
     returning id`);
   if (!row) throw new Error("line item not inserted");
   return row.id;
@@ -415,6 +486,7 @@ export async function declaredLineItem(
     scoreMaximum: number;
     resourceId: string | null;
     tag: string | null;
+    submissionReview: SubmissionReviewFields | null;
   },
 ): Promise<string> {
   const { link, course } = input;
@@ -430,12 +502,13 @@ export async function declaredLineItem(
   if (found) return found.id;
   const [made] = await tx.execute<{ id: string }>(sql`
     insert into core.lti_line_items (tenant_id, tool_id, module_id, class_id, lesson_id,
-      assignment_id, link_id, declared, label, score_maximum, resource_id, tag)
+      assignment_id, link_id, declared, label, score_maximum, resource_id, tag, submission_review)
     values (${input.tenantId}::uuid, ${input.toolId}::uuid,
       ${"moduleId" in course ? course.moduleId : null}::uuid,
       ${"classId" in course ? course.classId : null}::uuid,
       ${link.lessonId ?? null}::uuid, ${link.assignmentId ?? null}::uuid, ${link.linkId}::uuid,
-      true, ${input.label}, ${input.scoreMaximum}, ${input.resourceId}, ${input.tag})
+      true, ${input.label}, ${input.scoreMaximum}, ${input.resourceId}, ${input.tag},
+      ${reviewJson(input.submissionReview)}::text::jsonb)
     on conflict do nothing
     returning id`);
   if (made) return made.id;
@@ -453,7 +526,8 @@ export async function updateLineItem(
     update core.lti_line_items set label = ${input.label},
       score_maximum = ${input.scoreMaximum}, resource_id = ${input.resourceId},
       tag = ${input.tag}, starts_at = ${isoOrNull(input.startsAt)}::timestamptz,
-      ends_at = ${isoOrNull(input.endsAt)}::timestamptz, grades_released = ${input.gradesReleased}
+      ends_at = ${isoOrNull(input.endsAt)}::timestamptz, grades_released = ${input.gradesReleased},
+      submission_review = ${reviewJson(input.submissionReview)}::text::jsonb
     where tenant_id = ${input.tenantId}::uuid and id = ${input.id}::uuid and status = 'active'
     returning id`);
   return rows.length > 0;
@@ -493,6 +567,75 @@ export async function learnsIn(
         and e.role = 'student' and e.status = 'active' and e.valid_during @> current_date
         and c.id in (${classes})) as learns`);
   return row?.learns ?? false;
+}
+
+/** Someone in a course as a tool reads its class list. */
+export interface CourseMember {
+  userId: string;
+  roles: ("Learner" | "Instructor")[];
+  name: string | null;
+  givenName: string | null;
+  familyName: string | null;
+}
+
+/**
+ * Who is in a course today, by id from after the one named: the students
+ * of the class, or of the classes the module is set for, as learners, and
+ * those who teach them as instructors; only those of the role asked for
+ * when one is.
+ */
+export async function courseMembers(
+  tx: Tx,
+  input: {
+    tenantId: string;
+    course: LtiCourse;
+    role?: "Learner" | "Instructor";
+    after?: string;
+    limit: number;
+  },
+): Promise<CourseMember[]> {
+  const classes =
+    "classId" in input.course
+      ? sql`select ${input.course.classId}::uuid`
+      : sql`select x.class_id from core.module_classes x
+          where x.tenant_id = ${input.tenantId}::uuid
+            and x.module_id = ${input.course.moduleId}::uuid and x.status = 'active'`;
+  const rows = await tx.execute<{
+    user_id: string;
+    roles: ("Learner" | "Instructor")[];
+    full_name: string | null;
+    given_name: string | null;
+    family_name: string | null;
+  }>(sql`
+    with taught as (
+      select c.id, coalesce(c.homeroom_class_id, c.id) as roster_id from core.classes c
+      where c.tenant_id = ${input.tenantId}::uuid and c.status = 'active' and c.id in (${classes})),
+    members as (
+      select e.user_id, case when e.role = 'student' then 'Learner' else 'Instructor' end as role
+      from core.enrollments e
+      join taught t on (e.role = 'student' and e.class_id = t.roster_id)
+        or (e.role in ('teacher', 'aide') and e.class_id = t.id)
+      where e.tenant_id = ${input.tenantId}::uuid and e.status = 'active'
+        and e.valid_during @> current_date)
+    select m.user_id, array_agg(distinct m.role order by m.role) as roles,
+      coalesce(u.full_name_en, u.full_name_ar) as full_name,
+      coalesce(u.given_name_en, u.given_name_ar) as given_name,
+      coalesce(u.family_name_en, u.family_name_ar) as family_name
+    from members m
+    join core.users u on u.tenant_id = ${input.tenantId}::uuid and u.id = m.user_id
+    ${input.after ? sql`where m.user_id > ${input.after}::uuid` : sql``}
+    group by m.user_id, u.full_name_en, u.full_name_ar, u.given_name_en, u.given_name_ar,
+      u.family_name_en, u.family_name_ar
+    ${input.role ? sql`having ${input.role} = any(array_agg(m.role))` : sql``}
+    order by m.user_id
+    limit ${input.limit}`);
+  return rows.map((row) => ({
+    userId: row.user_id,
+    roles: row.roles,
+    name: row.full_name,
+    givenName: row.given_name,
+    familyName: row.family_name,
+  }));
 }
 
 export type ActivityProgress =
@@ -609,42 +752,61 @@ export interface ToolColumn {
   label: string;
   toolName: string;
   scoreMaximum: number;
+  moduleId: string | null;
   lessonId: string | null;
   assignmentId: string | null;
+  /** Whether a teacher can launch from a score here to the work behind it. */
+  reviewable: boolean;
 }
 
 /**
- * The tools' columns teachers see: all of a module's, or those for the
- * links in one brief, oldest first. A removed tool's columns go with it.
+ * The tools' columns teachers see: all of a module's, those for the links
+ * in one brief, or a class's, its own and those of the modules set for it,
+ * oldest first. A removed tool's columns go with it.
  */
 export async function columnsOf(
   tx: Tx,
   input: { tenantId: string } & (
     | { moduleId: string }
     | { assignmentId: string }
+    | { classId: string }
   ),
 ): Promise<ToolColumn[]> {
+  const where =
+    "moduleId" in input
+      ? sql`i.module_id = ${input.moduleId}::uuid`
+      : "assignmentId" in input
+        ? sql`i.assignment_id = ${input.assignmentId}::uuid`
+        : sql`(i.class_id = ${input.classId}::uuid or i.module_id in (
+            select x.module_id from core.module_classes x
+            where x.tenant_id = ${input.tenantId}::uuid and x.class_id = ${input.classId}::uuid
+              and x.status = 'active'))`;
   const rows = await tx.execute<{
     id: string;
     label: string;
     tool_name: string;
     score_maximum: string;
+    module_id: string | null;
     lesson_id: string | null;
     assignment_id: string | null;
+    reviewable: boolean;
   }>(sql`
-    select i.id, i.label, t.name as tool_name, i.score_maximum, i.lesson_id, i.assignment_id
+    select i.id, i.label, t.name as tool_name, i.score_maximum, i.module_id, i.lesson_id,
+      i.assignment_id, i.submission_review is not null as reviewable
     from core.lti_line_items i
-    join core.lti_tools t on t.tenant_id = i.tenant_id and t.id = i.tool_id and t.status = 'active'
-    where i.tenant_id = ${input.tenantId}::uuid and i.status = 'active'
-      and ${"moduleId" in input ? sql`i.module_id = ${input.moduleId}::uuid` : sql`i.assignment_id = ${input.assignmentId}::uuid`}
+    join core.lti_tools t on t.tenant_id = i.tenant_id and t.id = i.tool_id
+      and t.status = 'active' and t.state = 'active'
+    where i.tenant_id = ${input.tenantId}::uuid and i.status = 'active' and ${where}
     order by i.id`);
   return rows.map((row) => ({
     id: row.id,
     label: row.label,
     toolName: row.tool_name,
     scoreMaximum: Number(row.score_maximum),
+    moduleId: row.module_id,
     lessonId: row.lesson_id,
     assignmentId: row.assignment_id,
+    reviewable: row.reviewable,
   }));
 }
 

@@ -1,0 +1,333 @@
+{
+  "type": "diff",
+  "version": "9",
+  "dialect": "postgres",
+  "id": "b847e18e-c316-4fe2-9be7-3befd96e8d1c",
+  "prevIds": [
+    "7410ed4d-9d41-46c2-9388-63e7de2a62c4"
+  ],
+  "footprints": [
+    {
+      "statementType": "add_column",
+      "statementTarget": [
+        "column",
+        "core",
+        "lti_line_items",
+        "submission_review"
+      ],
+      "writes": [
+        "s|col|core.lti_line_items.submission_review",
+        "n|col|core.lti_line_items.submission_review",
+        "e|col|core.lti_line_items.submission_review"
+      ],
+      "reads": [
+        "n|tbl|core.lti_line_items",
+        "n|sch|core"
+      ]
+    },
+    {
+      "statementType": "add_column",
+      "statementTarget": [
+        "column",
+        "core",
+        "lti_tools",
+        "review_url"
+      ],
+      "writes": [
+        "s|col|core.lti_tools.review_url",
+        "n|col|core.lti_tools.review_url",
+        "e|col|core.lti_tools.review_url"
+      ],
+      "reads": [
+        "n|tbl|core.lti_tools",
+        "n|sch|core"
+      ]
+    },
+    {
+      "statementType": "add_column",
+      "statementTarget": [
+        "column",
+        "core",
+        "lti_tools",
+        "grades"
+      ],
+      "writes": [
+        "s|col|core.lti_tools.grades",
+        "n|col|core.lti_tools.grades",
+        "e|col|core.lti_tools.grades"
+      ],
+      "reads": [
+        "n|tbl|core.lti_tools",
+        "n|sch|core"
+      ]
+    },
+    {
+      "statementType": "add_column",
+      "statementTarget": [
+        "column",
+        "core",
+        "lti_tools",
+        "roster"
+      ],
+      "writes": [
+        "s|col|core.lti_tools.roster",
+        "n|col|core.lti_tools.roster",
+        "e|col|core.lti_tools.roster"
+      ],
+      "reads": [
+        "n|tbl|core.lti_tools",
+        "n|sch|core"
+      ]
+    },
+    {
+      "statementType": "add_column",
+      "statementTarget": [
+        "column",
+        "core",
+        "lti_tools",
+        "state"
+      ],
+      "writes": [
+        "s|col|core.lti_tools.state",
+        "n|col|core.lti_tools.state",
+        "e|col|core.lti_tools.state"
+      ],
+      "reads": [
+        "n|tbl|core.lti_tools",
+        "n|sch|core"
+      ]
+    },
+    {
+      "statementType": "add_column",
+      "statementTarget": [
+        "column",
+        "core",
+        "lti_tools",
+        "registration"
+      ],
+      "writes": [
+        "s|col|core.lti_tools.registration",
+        "n|col|core.lti_tools.registration",
+        "e|col|core.lti_tools.registration"
+      ],
+      "reads": [
+        "n|tbl|core.lti_tools",
+        "n|sch|core"
+      ]
+    },
+    {
+      "statementType": "add_check",
+      "statementTarget": [
+        "table",
+        "core",
+        "lti_line_items"
+      ],
+      "writes": [
+        "s|ck|core.lti_line_items.lti_line_items_submission_review_check",
+        "n|ck|core.lti_line_items.lti_line_items_submission_review_check",
+        "e|ck|core.lti_line_items.lti_line_items_submission_review_check",
+        "n|con|core.lti_line_items.lti_line_items_submission_review_check"
+      ],
+      "reads": [
+        "n|tbl|core.lti_line_items",
+        "n|sch|core",
+        "n|col|core.lti_line_items.submission_review"
+      ]
+    },
+    {
+      "statementType": "add_check",
+      "statementTarget": [
+        "table",
+        "core",
+        "lti_tools"
+      ],
+      "writes": [
+        "s|ck|core.lti_tools.lti_tools_review_url_check",
+        "n|ck|core.lti_tools.lti_tools_review_url_check",
+        "e|ck|core.lti_tools.lti_tools_review_url_check",
+        "n|con|core.lti_tools.lti_tools_review_url_check"
+      ],
+      "reads": [
+        "n|tbl|core.lti_tools",
+        "n|sch|core",
+        "n|col|core.lti_tools.review_url"
+      ]
+    },
+    {
+      "statementType": "add_check",
+      "statementTarget": [
+        "table",
+        "core",
+        "lti_tools"
+      ],
+      "writes": [
+        "s|ck|core.lti_tools.lti_tools_state_check",
+        "n|ck|core.lti_tools.lti_tools_state_check",
+        "e|ck|core.lti_tools.lti_tools_state_check",
+        "n|con|core.lti_tools.lti_tools_state_check"
+      ],
+      "reads": [
+        "n|tbl|core.lti_tools",
+        "n|sch|core",
+        "n|col|core.lti_tools.state"
+      ]
+    },
+    {
+      "statementType": "add_check",
+      "statementTarget": [
+        "table",
+        "core",
+        "lti_tools"
+      ],
+      "writes": [
+        "s|ck|core.lti_tools.lti_tools_registration_check",
+        "n|ck|core.lti_tools.lti_tools_registration_check",
+        "e|ck|core.lti_tools.lti_tools_registration_check",
+        "n|con|core.lti_tools.lti_tools_registration_check"
+      ],
+      "reads": [
+        "n|tbl|core.lti_tools",
+        "n|sch|core",
+        "n|col|core.lti_tools.registration"
+      ]
+    }
+  ],
+  "deltas": [
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "lti_line_items",
+        "name": "submission_review",
+        "type": "jsonb",
+        "typeSchema": null,
+        "notNull": false,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "lti_tools",
+        "name": "review_url",
+        "type": "text",
+        "typeSchema": null,
+        "notNull": false,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "lti_tools",
+        "name": "grades",
+        "type": "boolean",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": "true",
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "lti_tools",
+        "name": "roster",
+        "type": "boolean",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": "false",
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "lti_tools",
+        "name": "state",
+        "type": "text",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": "'active'",
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "lti_tools",
+        "name": "registration",
+        "type": "jsonb",
+        "typeSchema": null,
+        "notNull": false,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "lti_line_items",
+        "name": "lti_line_items_submission_review_check",
+        "value": "submission_review is null or (jsonb_typeof(submission_review) = 'object' and octet_length(submission_review::text) <= 16384)",
+        "entityType": "checks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "lti_tools",
+        "name": "lti_tools_review_url_check",
+        "value": "review_url is null or (review_url like 'https://%' and char_length(review_url) <= 500)",
+        "entityType": "checks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "lti_tools",
+        "name": "lti_tools_state_check",
+        "value": "state in ('pending', 'active')",
+        "entityType": "checks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "lti_tools",
+        "name": "lti_tools_registration_check",
+        "value": "registration is null or (jsonb_typeof(registration) = 'object' and octet_length(registration::text) <= 16384)",
+        "entityType": "checks"
+      }
+    }
+  ]
+}

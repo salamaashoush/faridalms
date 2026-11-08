@@ -34,9 +34,11 @@ import { orgs, tenants } from "./tenancy";
 
 /**
  * An outside tool a school has registered to launch by LTI 1.3: where it
- * starts a sign-in, where launches may be posted back, its keys, and the
- * client and deployment ids the school gave it. A school registers each
- * tool once, so a tool has one deployment there.
+ * starts a sign-in, where launches may be posted back, its keys, the
+ * client and deployment ids the school gave it, and the services it may
+ * use. A school registers each tool once, so a tool has one deployment
+ * there. A tool that registered itself waits, `pending`, until the school
+ * has looked at it, and nothing launches or serves it until then.
  */
 export const ltiTools = core.table.withRLS(
   "lti_tools",
@@ -51,11 +53,17 @@ export const ltiTools = core.table.withRLS(
     redirectUrls: jsonb("redirect_urls").$type<string[]>().notNull(),
     jwksUrl: text("jwks_url").notNull(),
     deepLinkUrl: text("deep_link_url"),
+    reviewUrl: text("review_url"),
     sendNames: boolean("send_names").notNull().default(false),
+    grades: boolean("grades").notNull().default(true),
+    roster: boolean("roster").notNull().default(false),
     custom: jsonb("custom")
       .$type<Record<string, string>>()
       .notNull()
       .default({}),
+    state: text("state").notNull().default("active"),
+    /** What a tool that registered itself said of itself. */
+    registration: jsonb("registration").$type<Record<string, unknown>>(),
     ...entityColumns(),
   },
   (t): PgTableExtraConfigValue[] => [
@@ -67,6 +75,17 @@ export const ltiTools = core.table.withRLS(
       "lti_tools",
       "urls",
       sql`login_url like 'https://%' and launch_url like 'https://%' and jwks_url like 'https://%' and (deep_link_url is null or deep_link_url like 'https://%') and char_length(login_url) <= 500 and char_length(launch_url) <= 500 and char_length(jwks_url) <= 500 and char_length(coalesce(deep_link_url, '')) <= 500`,
+    ),
+    ck(
+      "lti_tools",
+      "review_url",
+      sql`review_url is null or (review_url like 'https://%' and char_length(review_url) <= 500)`,
+    ),
+    ck("lti_tools", "state", sql`state in ('pending', 'active')`),
+    ck(
+      "lti_tools",
+      "registration",
+      sql`registration is null or (jsonb_typeof(registration) = 'object' and octet_length(registration::text) <= 16384)`,
     ),
     ck(
       "lti_tools",
@@ -170,6 +189,12 @@ export const ltiLineItems = core.table.withRLS(
     startsAt: instant("starts_at"),
     endsAt: instant("ends_at"),
     gradesReleased: boolean("grades_released"),
+    /** That the tool can show the work behind a score, and how, LTI's Submission Review. */
+    submissionReview: jsonb("submission_review").$type<{
+      label?: string;
+      url?: string;
+      custom?: Record<string, string>;
+    }>(),
     ...entityColumns(),
   },
   (t): PgTableExtraConfigValue[] => [
@@ -219,6 +244,11 @@ export const ltiLineItems = core.table.withRLS(
       sql`char_length(label) between 1 and 200 and score_maximum > 0
         and char_length(coalesce(resource_id, '')) <= 255 and char_length(coalesce(tag, '')) <= 255
         and (starts_at is null or ends_at is null or starts_at <= ends_at)`,
+    ),
+    ck(
+      "lti_line_items",
+      "submission_review",
+      sql`submission_review is null or (jsonb_typeof(submission_review) = 'object' and octet_length(submission_review::text) <= 16384)`,
     ),
     uniqueIndex("lti_line_items_lesson_link_key")
       .on(t.tenantId, t.toolId, t.lessonId, t.linkId)
