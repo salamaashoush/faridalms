@@ -130,4 +130,37 @@ describe("a media grid", () => {
     );
     expect(onReset).toHaveBeenCalled();
   });
+
+  it("selects several tiles for an action on all of them, keeping each tile's opening", async () => {
+    const onOpen = vi.fn<(item: Item) => void>();
+    const onDelete = vi.fn<(rows: Item[]) => void>();
+    renderWithSystem(
+      <MediaGrid
+        caption="Media library"
+        items={items}
+        tile={tile}
+        onOpen={onOpen}
+        batchActions={[{ label: "Delete", onSelect: onDelete }]}
+        empty={empty}
+      />,
+    );
+    await userEvent.click(
+      screen.getByRole("checkbox", { name: "Select Sports day.jpg" }),
+    );
+    await userEvent.click(
+      screen.getByRole("checkbox", { name: "Select Timetable.pdf" }),
+    );
+    expect(
+      screen.getByText("2 selected", { selector: "p:not(.sr-only)" }),
+    ).toBeInTheDocument();
+    await userEvent.click(screen.getByRole("button", { name: "Delete" }));
+    expect(onDelete).toHaveBeenCalledWith(items);
+    await userEvent.click(screen.getByRole("button", { name: /Timetable/ }));
+    expect(onOpen).toHaveBeenCalledWith(items[1]);
+    // Escape lets the selection go.
+    await userEvent.keyboard("{Escape}");
+    expect(
+      screen.queryByText("2 selected", { selector: "p:not(.sr-only)" }),
+    ).toBeNull();
+  });
 });

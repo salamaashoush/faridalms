@@ -9393,7 +9393,7 @@
   "mediaEmptyBody": "What you upload here can be chosen in any document or website page.",
   "mediaEmptyChoose": "Add pictures to the library first",
   "mediaEmptyChooseBody": "Upload from this device instead, or ask whoever keeps the library to add them.",
-  "mediaSearch": "Search by name or description",
+  "mediaSearch": "Search by name, title or words",
   "mediaLayout": "Show as",
   "mediaLayoutGrid": "Grid",
   "mediaLayoutList": "List",
@@ -9539,5 +9539,146 @@
   "auditMessageContactMerge": "Two contacts of a family merged",
   "auditMessageContactUnreachable": "Mail to a contact stopped after a bounce or complaint",
   "auditMessageAcceptHeld": "Held email accepted as the family's message",
-  "auditContactPointUnreachable": "Mail to an address stopped after a bounce or complaint"
+  "auditContactPointUnreachable": "Mail to an address stopped after a bounce or complaint",
+  "uploadDrop": "Drop to upload",
+  "uploadCancel": "Stop uploading {name}",
+  "uploadDismiss": "Remove {name} from the list",
+  "uploadProgress": "Uploading {name}, {percent}",
+  "uploadRetry": "Try again",
+  "uploadWaiting": "Waiting",
+  "uploadElsewhere": "This file is being uploaded in another tab.",
+  "filesUploading": "Uploading",
+  "filesDropHere": "Drop to add to the files of {title}",
+  "siteDropPicture": "Drop a picture for {label}",
+  "mediaSource": "Show",
+  "mediaSourceLibrary": "In the library",
+  "mediaInDocuments": "In documents",
+  "mediaInDocumentsEmpty": "Nothing in documents to keep",
+  "mediaInDocumentsEmptyBody": "Pictures and files staff put straight into lessons, news and pages appear here until they are kept in the library.",
+  "mediaFoundIn": "Found in",
+  "mediaUploadedBy": "Uploaded by",
+  "mediaAddedIn": "Added in",
+  "mediaKeep": "Keep in library",
+  "mediaKeptMany": [
+    {
+      "declarations": [
+        "input count",
+        "input value",
+        "local countPlural = count: plural"
+      ],
+      "selectors": ["countPlural"],
+      "match": {
+        "countPlural=one": "Kept {value} item in the library",
+        "countPlural=*": "Kept {value} items in the library"
+      }
+    }
+  ],
+  "mediaDropHere": "Drop to add to the library",
+  "mediaDropInto": "Drop to add to {name}",
+  "mediaTwin": "{name} was already in the library; both now share the same file.",
+  "mediaDownloadZip": "Download as zip",
+  "mediaDeleteMany": [
+    {
+      "declarations": [
+        "input count",
+        "input value",
+        "local countPlural = count: plural"
+      ],
+      "selectors": ["countPlural"],
+      "match": {
+        "countPlural=one": "Delete {value} item?",
+        "countPlural=*": "Delete {value} items?"
+      }
+    }
+  ],
+  "mediaDeleteManyUsed": [
+    {
+      "declarations": [
+        "input count",
+        "input value",
+        "local countPlural = count: plural"
+      ],
+      "selectors": ["countPlural"],
+      "match": {
+        "countPlural=one": "{value} of them is shown in documents, which will show it as removed until you restore it. They stay in the trash for 30 days.",
+        "countPlural=*": "{value} of them are shown in documents, which will show them as removed until you restore them. They stay in the trash for 30 days."
+      }
+    }
+  ],
+  "mediaItemTitle": "Title",
+  "mediaItemTitleHint": "What people call it, shown in place of the file name.",
+  "mediaFileName": "File name",
+  "mediaCaption": "Caption",
+  "mediaCaptionHint": "Shown under the picture where a document places it. Each document starts from these words and may say it otherwise.",
+  "mediaTags": "Tags",
+  "mediaTagsHint": "Words the library's items are filed under. Taking a tag away keeps its items.",
+  "mediaTagsNone": "No tags yet. Tag items from their menu.",
+  "mediaNoTags": "No tags",
+  "mediaTagFilter": "Filter by tag",
+  "mediaTagAction": "Tags",
+  "mediaTagTitle": "Tags of {name}",
+  "mediaTagMany": [
+    {
+      "declarations": [
+        "input count",
+        "input value",
+        "local countPlural = count: plural"
+      ],
+      "selectors": ["countPlural"],
+      "match": {
+        "countPlural=one": "Tag {value} item",
+        "countPlural=*": "Tag {value} items"
+      }
+    }
+  ],
+  "mediaTagAdd": "Add tags",
+  "mediaTagAddHint": "Separate tags with commas. A new tag is made for the school.",
+  "mediaTagCarried": "Keep these tags",
+  "mediaTagged": "Tags saved",
+  "mediaTagItems": [
+    {
+      "declarations": [
+        "input count",
+        "input value",
+        "local countPlural = count: plural"
+      ],
+      "selectors": ["countPlural"],
+      "match": {
+        "countPlural=one": "{value} item",
+        "countPlural=*": "{value} items"
+      }
+    }
+  ],
+  "mediaTagName": "Tag",
+  "mediaTagRenameNamed": "Rename {name}",
+  "mediaTagRemoveNamed": "Remove the tag {name}",
+  "mediaImportTitle": "Add from a link",
+  "mediaImport": "Add to library",
+  "mediaImportLink": "Link to the file",
+  "mediaImportHint": "A picture, recording or document on the web. The school fetches it and checks it as it checks any upload.",
+  "mediaImported": "{name} added to the library",
+  "mediaPictureSearch": "Find a free picture",
+  "mediaPictureSearchHint": "Symbols and emoji from open collections, copied into the school when you pick one.",
+  "mediaStorage": "Storage",
+  "mediaStorageHint": "What the school's files take of its storage, each file counted once however many places show it.",
+  "mediaStorageTotal": "Used",
+  "mediaStorageByKind": "By kind of file",
+  "mediaStorageByPerson": "By who uploaded",
+  "mediaStorageOthers": "Students, families and email",
+  "mediaStorageOf": "of {limit}",
+  "errorMediaLinkAddress": "That link points somewhere the school cannot fetch from. Use a public http or https address.",
+  "errorMediaLinkUnavailable": "The file at that link could not be fetched. Check the link opens in your browser.",
+  "errorMediaLinkTooLarge": "The file at that link is larger than the school accepts.",
+  "errorMediaLinkType": "The file at that link is not a kind the school can keep.",
+  "errorMediaLinkSlow": "The link took too long to answer. Try again later.",
+  "auditMediaFolderRename": "Media folder renamed",
+  "auditMediaItemAdd": "Added to the media library",
+  "auditMediaItemRename": "Library item renamed",
+  "auditMediaItemDescribe": "Library item described",
+  "auditMediaItemMove": "Library item moved",
+  "auditMediaItemCrop": "Library picture cropped",
+  "auditMediaItemTag": "Library item tagged",
+  "auditMediaTagRename": "Library tag renamed",
+  "auditMediaTagRemove": "Library tag removed",
+  "errorMediaTagTaken": "The school already has a tag of that name."
 }

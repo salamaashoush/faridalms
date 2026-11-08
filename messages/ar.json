@@ -9811,7 +9811,7 @@
   "mediaEmptyBody": "ما ترفعه هنا يمكن اختياره في أي مستند أو صفحة من صفحات الموقع.",
   "mediaEmptyChoose": "أضف الصور إلى المكتبة أولًا",
   "mediaEmptyChooseBody": "ارفع من هذا الجهاز بدلًا من ذلك، أو اطلب ممن يدير المكتبة إضافتها.",
-  "mediaSearch": "ابحث بالاسم أو الوصف",
+  "mediaSearch": "ابحث بالاسم أو العنوان أو الكلمات",
   "mediaLayout": "طريقة العرض",
   "mediaLayoutGrid": "شبكة",
   "mediaLayoutList": "قائمة",
@@ -9967,5 +9967,166 @@
   "auditMessageContactMerge": "دُمجت جهتا اتصال لأسرة واحدة",
   "auditMessageContactUnreachable": "أُوقف البريد إلى جهة اتصال بعد ارتداد أو شكوى",
   "auditMessageAcceptHeld": "قُبل بريد محتجز كرسالة من الأسرة",
-  "auditContactPointUnreachable": "أُوقف البريد إلى عنوان بعد ارتداد أو شكوى"
+  "auditContactPointUnreachable": "أُوقف البريد إلى عنوان بعد ارتداد أو شكوى",
+  "uploadDrop": "أفلِت الملفات هنا لرفعها",
+  "uploadCancel": "إيقاف رفع {name}",
+  "uploadDismiss": "إزالة {name} من القائمة",
+  "uploadProgress": "جارٍ رفع {name}، {percent}",
+  "uploadRetry": "أعد المحاولة",
+  "uploadWaiting": "في الانتظار",
+  "uploadElsewhere": "يُرفع هذا الملف في علامة تبويب أخرى.",
+  "filesUploading": "جارٍ الرفع",
+  "filesDropHere": "أفلِت الملفات لإضافتها إلى ملفات {title}",
+  "siteDropPicture": "أفلِت صورة لـ{label}",
+  "mediaSource": "اعرض",
+  "mediaSourceLibrary": "في المكتبة",
+  "mediaInDocuments": "في المستندات",
+  "mediaInDocumentsEmpty": "لا شيء في المستندات لحفظه",
+  "mediaInDocumentsEmptyBody": "تظهر هنا الصور والملفات التي وضعها الموظفون مباشرة في الدروس والأخبار والصفحات، حتى تُحفظ في المكتبة.",
+  "mediaFoundIn": "موجود في",
+  "mediaUploadedBy": "رفعه",
+  "mediaAddedIn": "أُضيف في",
+  "mediaKeep": "احفظ في المكتبة",
+  "mediaKeptMany": [
+    {
+      "declarations": [
+        "input count",
+        "input value",
+        "local countPlural = count: plural"
+      ],
+      "selectors": ["countPlural"],
+      "match": {
+        "countPlural=zero": "لم يُحفظ أي عنصر في المكتبة",
+        "countPlural=one": "حُفظ عنصر واحد في المكتبة",
+        "countPlural=two": "حُفظ عنصران في المكتبة",
+        "countPlural=few": "حُفظت {value} عناصر في المكتبة",
+        "countPlural=many": "حُفظ {value} عنصرًا في المكتبة",
+        "countPlural=*": "حُفظ {value} عنصر في المكتبة"
+      }
+    }
+  ],
+  "mediaDropHere": "أفلِت الملفات لإضافتها إلى المكتبة",
+  "mediaDropInto": "أفلِت الملفات لإضافتها إلى {name}",
+  "mediaTwin": "كان {name} في المكتبة من قبل، ويتشارك الاثنان الآن الملف نفسه.",
+  "mediaDownloadZip": "تنزيل كملف مضغوط",
+  "mediaDeleteMany": [
+    {
+      "declarations": [
+        "input count",
+        "input value",
+        "local countPlural = count: plural"
+      ],
+      "selectors": ["countPlural"],
+      "match": {
+        "countPlural=zero": "حذف لا شيء؟",
+        "countPlural=one": "حذف عنصر واحد؟",
+        "countPlural=two": "حذف عنصرين؟",
+        "countPlural=few": "حذف {value} عناصر؟",
+        "countPlural=many": "حذف {value} عنصرًا؟",
+        "countPlural=*": "حذف {value} عنصر؟"
+      }
+    }
+  ],
+  "mediaDeleteManyUsed": [
+    {
+      "declarations": [
+        "input count",
+        "input value",
+        "local countPlural = count: plural"
+      ],
+      "selectors": ["countPlural"],
+      "match": {
+        "countPlural=zero": "لا يظهر أي منها في مستند. تبقى في المحذوفات ٣٠ يومًا.",
+        "countPlural=one": "يظهر واحد منها في مستندات ستعرضه محذوفًا حتى تستعيده. تبقى في المحذوفات ٣٠ يومًا.",
+        "countPlural=two": "يظهر اثنان منها في مستندات ستعرضهما محذوفين حتى تستعيدهما. تبقى في المحذوفات ٣٠ يومًا.",
+        "countPlural=few": "تظهر {value} منها في مستندات ستعرضها محذوفة حتى تستعيدها. تبقى في المحذوفات ٣٠ يومًا.",
+        "countPlural=many": "يظهر {value} منها في مستندات ستعرضها محذوفة حتى تستعيدها. تبقى في المحذوفات ٣٠ يومًا.",
+        "countPlural=*": "يظهر {value} منها في مستندات ستعرضها محذوفة حتى تستعيدها. تبقى في المحذوفات ٣٠ يومًا."
+      }
+    }
+  ],
+  "mediaItemTitle": "العنوان",
+  "mediaItemTitleHint": "ما يسمّيه به الناس، ويظهر بدل اسم الملف.",
+  "mediaFileName": "اسم الملف",
+  "mediaCaption": "التعليق",
+  "mediaCaptionHint": "يظهر أسفل الصورة حيث يضعها المستند. يبدأ كل مستند بهذه الكلمات ويمكنه أن يقولها بغيرها.",
+  "mediaTags": "الوسوم",
+  "mediaTagsHint": "كلمات تُصنَّف تحتها عناصر المكتبة. حذف الوسم يُبقي عناصره.",
+  "mediaTagsNone": "لا وسوم بعد. أضف الوسوم من قائمة كل عنصر.",
+  "mediaNoTags": "بلا وسوم",
+  "mediaTagFilter": "التصفية حسب الوسم",
+  "mediaTagAction": "الوسوم",
+  "mediaTagTitle": "وسوم {name}",
+  "mediaTagMany": [
+    {
+      "declarations": [
+        "input count",
+        "input value",
+        "local countPlural = count: plural"
+      ],
+      "selectors": ["countPlural"],
+      "match": {
+        "countPlural=zero": "وسم لا شيء",
+        "countPlural=one": "وسم عنصر واحد",
+        "countPlural=two": "وسم عنصرين",
+        "countPlural=few": "وسم {value} عناصر",
+        "countPlural=many": "وسم {value} عنصرًا",
+        "countPlural=*": "وسم {value} عنصر"
+      }
+    }
+  ],
+  "mediaTagAdd": "أضف وسومًا",
+  "mediaTagAddHint": "افصل بين الوسوم بفواصل. يُنشأ الوسم الجديد للمدرسة.",
+  "mediaTagCarried": "أبقِ هذه الوسوم",
+  "mediaTagged": "حُفظت الوسوم",
+  "mediaTagItems": [
+    {
+      "declarations": [
+        "input count",
+        "input value",
+        "local countPlural = count: plural"
+      ],
+      "selectors": ["countPlural"],
+      "match": {
+        "countPlural=zero": "لا عناصر",
+        "countPlural=one": "عنصر واحد",
+        "countPlural=two": "عنصران",
+        "countPlural=few": "{value} عناصر",
+        "countPlural=many": "{value} عنصرًا",
+        "countPlural=*": "{value} عنصر"
+      }
+    }
+  ],
+  "mediaTagName": "الوسم",
+  "mediaTagRenameNamed": "إعادة تسمية {name}",
+  "mediaTagRemoveNamed": "حذف الوسم {name}",
+  "mediaImportTitle": "أضف من رابط",
+  "mediaImport": "أضف إلى المكتبة",
+  "mediaImportLink": "رابط الملف",
+  "mediaImportHint": "صورة أو تسجيل أو مستند على الويب. تجلبه المدرسة وتفحصه كما تفحص أي ملف مرفوع.",
+  "mediaImported": "أُضيف {name} إلى المكتبة",
+  "mediaPictureSearch": "ابحث عن صورة مجانية",
+  "mediaPictureSearchHint": "رموز وأيقونات تعبيرية من مجموعات مفتوحة، تُنسخ إلى المدرسة عند اختيارها.",
+  "mediaStorage": "مساحة التخزين",
+  "mediaStorageHint": "ما تشغله ملفات المدرسة من مساحتها، ويُحسب كل ملف مرة واحدة مهما تعددت أماكن ظهوره.",
+  "mediaStorageTotal": "المستخدم",
+  "mediaStorageByKind": "حسب نوع الملف",
+  "mediaStorageByPerson": "حسب من رفعه",
+  "mediaStorageOthers": "الطلاب والأسر والبريد",
+  "mediaStorageOf": "من {limit}",
+  "errorMediaLinkAddress": "يشير هذا الرابط إلى مكان لا يمكن للمدرسة الجلب منه. استخدم عنوان http أو https عامًا.",
+  "errorMediaLinkUnavailable": "تعذّر جلب الملف من هذا الرابط. تأكد من أن الرابط يفتح في متصفحك.",
+  "errorMediaLinkTooLarge": "الملف في هذا الرابط أكبر مما تقبله المدرسة.",
+  "errorMediaLinkType": "الملف في هذا الرابط ليس من الأنواع التي يمكن للمدرسة حفظها.",
+  "errorMediaLinkSlow": "استغرق الرابط وقتًا طويلًا للرد. أعد المحاولة لاحقًا.",
+  "auditMediaFolderRename": "أُعيدت تسمية مجلد في مكتبة الوسائط",
+  "auditMediaItemAdd": "أُضيف إلى مكتبة الوسائط",
+  "auditMediaItemRename": "أُعيدت تسمية عنصر في المكتبة",
+  "auditMediaItemDescribe": "عُدّل وصف عنصر في المكتبة",
+  "auditMediaItemMove": "نُقل عنصر في المكتبة",
+  "auditMediaItemCrop": "قُصّت صورة في المكتبة",
+  "auditMediaItemTag": "وُسم عنصر في المكتبة",
+  "auditMediaTagRename": "أُعيدت تسمية وسم في المكتبة",
+  "auditMediaTagRemove": "حُذف وسم من المكتبة",
+  "errorMediaTagTaken": "لدى المدرسة وسم بهذا الاسم بالفعل."
 }

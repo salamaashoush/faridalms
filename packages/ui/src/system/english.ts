@@ -30,6 +30,7 @@ export const ENGLISH_STRINGS: SystemStrings = {
   descending: "Descending",
   discardChanges: "Discard changes",
   done: "Done",
+  dropFiles: "Drop to upload",
   edit: "Edit",
   emptyBody: "When there is something to show, it will appear here.",
   emptyTitle: "Nothing here yet",
@@ -100,6 +101,11 @@ export const ENGLISH_STRINGS: SystemStrings = {
   themeDark: "Dark",
   themeLight: "Light",
   themeSystem: "Match device",
+  uploadCancel: (name) => `Stop uploading ${name}`,
+  uploadDismiss: (name) => `Remove ${name} from the list`,
+  uploadProgress: (name, percent) => `Uploading ${name}, ${percent}`,
+  uploadRetry: "Try again",
+  uploadWaiting: "Waiting",
   view: "View",
 };
 

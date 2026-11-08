@@ -31,7 +31,7 @@ package gains it first, with a test and a line in this table.
 | Feedback       | `action-menu` (`ActionMenu`, `useRunAndReport`), `confirm-dialog`, `dialog`                                                                                                                                         |
 | Comments       | `comment-thread` (`CommentThread`, `CommentComposer`), `side-panel` (`SidePanel`)                                                                                                                                   |
 | Side panels    | `panel` (`PanelGroup`, `Segmented`)                                                                                                                                                                                 |
-| Media          | `media-grid` (`MediaGrid`, pictures and files as tiles that open or are chosen), `crop-frame` (`CropFrame`)                                                                                                         |
+| Media          | `media-grid` (`MediaGrid`, pictures and files as tiles that open, are chosen or are selected for a batch), `crop-frame` (`CropFrame`), `upload-queue` (`UploadQueue`, `FileDropZone`)                               |
 | Metrics        | `metrics` (`MetricGrid`, `Metric`)                                                                                                                                                                                  |
 | Steps          | `step-nav` (`StepNav`), `form-footer` (`FormFooter`)                                                                                                                                                                |
 | Status pages   | `status-page` (`StatusPage`, `ErrorPage`, `NotFoundPage`)                                                                                                                                                           |
@@ -530,6 +530,20 @@ never the browser's own.
   chooser each tile is a toggle (`aria-pressed`) with a check on the chosen,
   one or several at a time. A page offering both says which with a
   `Segmented` switch at the toolbar's end, kept in the address.
+- **Uploading** reads alike wherever files are given: the media library,
+  the editor, a class's or module's files and a picture field. Each file on
+  its way is a row of `UploadQueue` with its name, kind and size, a
+  progress bar and its percentage, and a Stop button; one that failed says
+  why in red, offers Try again only where a second try can help, and is
+  taken off the list by hand (Uppy, Polaris DropZone). `FileDropZone` takes
+  files dragged onto its area, outlining it with what a drop will do, and
+  files pasted into it; a page whose purpose is uploading, such as the
+  library, also takes files pasted anywhere outside a field. A paste into
+  a field is always the field's.
+- **A grid selects like a table**: given batch actions, each tile carries
+  a checkbox at its top start (desktop only, as with tables), and while
+  any are selected the same `SelectionBar` floats at the grid's foot; the
+  toolbar stays.
 - **Cropping** (`CropFrame`) shades what a crop leaves out and draws the
   frame clear over the picture; dragging or the arrow keys move it (Shift
   for finer steps), and its shape and size are the caller's controls. The

@@ -43,6 +43,7 @@ export interface SystemStrings {
   descending: string;
   discardChanges: string;
   done: string;
+  dropFiles: string;
   edit: string;
   emptyBody: string;
   emptyTitle: string;
@@ -104,6 +105,11 @@ export interface SystemStrings {
   themeDark: string;
   themeLight: string;
   themeSystem: string;
+  uploadCancel: (name: string) => string;
+  uploadDismiss: (name: string) => string;
+  uploadProgress: (name: string, percent: string) => string;
+  uploadRetry: string;
+  uploadWaiting: string;
   view: string;
 }
 
