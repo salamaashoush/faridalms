@@ -229,9 +229,17 @@ describe("reading aloud over the year", () => {
       ).answers.find((answer) => answer.studentId === me.id)?.fluency,
     ).toEqual(quizMark);
 
+    // Other suites mark readings for the same seeded student, so only this
+    // lesson's and this quiz's are counted.
+    const ours = <T extends { sourceId: string }>(readings: T[]) =>
+      readings.filter(
+        (reading) =>
+          reading.sourceId === lesson.id || reading.sourceId === quiz.id,
+      );
+
     // The student reads their own figures and words to practise.
     const mine = await student.api.reading.mine();
-    expect(mine.readings).toMatchObject([
+    expect(ours(mine.readings)).toMatchObject([
       // Eight words read, two wrong, in twelve seconds.
       { source: "lesson", perMinute: 30, practise: ["long", "on"] },
       // Ten words read, one wrong, in ten seconds.
@@ -241,10 +249,12 @@ describe("reading aloud over the year", () => {
 
     // Staff read them against the norm for the student's grade, once the
     // school writes one for it.
-    const before = await teacher.api.reading.student({ studentId: me.id });
-    const grade = before.readings[0]?.grade;
+    const before = ours(
+      (await teacher.api.reading.student({ studentId: me.id })).readings,
+    );
+    const grade = before[0]?.grade;
     if (!grade) throw new Error("the student has no grade");
-    expect(before.readings[0]).toMatchObject({
+    expect(before[0]).toMatchObject({
       prosody,
       prosodyTotal: 11,
       language: "en",
@@ -267,9 +277,11 @@ describe("reading aloud over the year", () => {
       ],
       expectedVersion: norms.en.version,
     });
-    const after = await teacher.api.reading.student({ studentId: me.id });
+    const after = ours(
+      (await teacher.api.reading.student({ studentId: me.id })).readings,
+    );
     expect(
-      after.readings.map((reading) => [reading.norm?.p50, reading.standing]),
+      after.map((reading) => [reading.norm?.p50, reading.standing]),
     ).toEqual([
       [50, "below"],
       [50, "near"],
