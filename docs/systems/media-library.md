@@ -204,9 +204,13 @@ once.
   (169.254.169.254, fd00:ec2::254), multicast and reserved ranges, and
   IPv6 forms carrying one of those, are refused; the request is pinned to
   the address the check approved, so a second lookup cannot point it
-  elsewhere. It stops at five redirects, the upload limit and 20 seconds.
-  The bytes then go through the same quarantine, type check by content and
-  scan as an upload (`takeUpload`), and land in the open folder.
+  elsewhere. It stops at five redirects and at the limit an upload of the
+  file's type has (`uploadLimit`): a video up to the school's video limit
+  where the school has video, anything else the ordinary limit. It has 20
+  seconds, or three minutes at a school with video. The bytes are set down
+  on disk as they arrive, never held whole in memory, then go through the
+  same quarantine, type check by content and scan as an upload
+  (`takeUpload`), and land in the open folder.
 - **Free pictures**: the open symbol and emoji collections the editor
   offers a question (ARASAAC, OpenMoji) are searched from the library page
   too; a picked one is copied into the school as an upload.

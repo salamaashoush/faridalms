@@ -67,6 +67,7 @@ import { ORPCError } from "@orpc/server";
 import * as v from "valibot";
 
 import type { SchoolContext, UnitContext } from "../core/context";
+import type { FetchedLink } from "../files/fetch-link";
 
 import {
   audit,
@@ -80,6 +81,7 @@ import {
 import { canReadFile, registerArea } from "../files/authorize";
 import { fetchLink, LinkError } from "../files/fetch-link";
 import { replaceBytes, roomFor, versionsOf } from "../files/keeping";
+import { hasVideo, uploadLimit } from "../files/limit";
 import { takeUpload } from "../files/routes";
 
 const usesLibrary = (context: UnitContext) =>
@@ -753,14 +755,21 @@ export const storage = readProcedure.handler(async ({ context }) => {
   };
 });
 
-/** How long a link may take to answer, all of it, redirects included. */
+/**
+ * How long a link may take to answer, all of it, redirects included; a
+ * school with video may bring in a video at its video limit, which takes
+ * longer to arrive.
+ */
 const LINK_SECONDS = 20;
+const VIDEO_LINK_SECONDS = 180;
 
 /**
  * Brings a file on the web into the library: the server fetches it, never
  * from a private, loopback, link-local or metadata address and never past
- * the upload limit or its time, and it is checked by its bytes and scanned
- * as any upload is. No transaction is held while it arrives.
+ * its time or the limit an upload of its type has here, so a video comes
+ * in up to the school's video limit where the school has video; and it is
+ * checked by its bytes and scanned as any upload is. No transaction is
+ * held while it arrives.
  */
 export const importLink = schoolProcedure
   .input(importLinkSchema)
@@ -782,78 +791,89 @@ export const importLink = schoolProcedure
     let fetched;
     try {
       fetched = await fetchLink(input.url, {
-        maxBytes: school.maxUploadBytes,
-        timeoutMs: LINK_SECONDS * 1000,
+        maxBytes: (mediaType) =>
+          uploadLimit(school, { purpose: "document_media", mediaType }),
+        timeoutMs:
+          (hasVideo(school.school.entitlements)
+            ? VIDEO_LINK_SECONDS
+            : LINK_SECONDS) * 1000,
       });
     } catch (error) {
       if (error instanceof LinkError)
         throw new ORPCError("BAD_REQUEST", { message: error.code });
       throw error;
     }
-    const file = await openUnit(school, "write", async (unit) => {
-      const scoped = { ...school, ...unit };
-      await roomFor(scoped, {
-        purpose: "document_media",
-        name: fetched.name,
-        mediaType: fetched.mediaType,
-        sizeBytes: fetched.bytes.byteLength,
-        destination: undefined,
-        trim: undefined,
-      });
-      return initiateFile(unit.tx, {
-        tenantId: unit.tenantId,
-        userId: unit.actor.userId,
-        orgId: unit.schoolId,
-        purpose: "document_media",
-        name: fetched.name,
-        mediaType: fetched.mediaType,
-        sizeBytes: fetched.bytes.byteLength,
-      });
+    try {
+      return await keepLinked(school, input, fetched);
+    } finally {
+      await fetched.discard();
+    }
+  });
+
+/** A file fetched from a link, taken as an upload and put in the library. */
+async function keepLinked(
+  school: SchoolContext,
+  input: { url: string; folderId: string | null },
+  fetched: FetchedLink,
+) {
+  const file = await openUnit(school, "write", async (unit) => {
+    const scoped = { ...school, ...unit };
+    await roomFor(scoped, {
+      purpose: "document_media",
+      name: fetched.name,
+      mediaType: fetched.mediaType,
+      sizeBytes: fetched.sizeBytes,
+      destination: undefined,
+      trim: undefined,
     });
-    const taken = await takeUpload(
-      school,
-      file,
-      new Blob([fetched.bytes]).stream(),
-    );
-    if (!taken.ok)
-      throw new ORPCError(
-        taken.status === 503 ? "SERVICE_UNAVAILABLE" : "BAD_REQUEST",
-        {
-          message: taken.code,
-        },
-      );
-    return openUnit(school, "write", async (unit) => {
-      const scoped = { ...school, ...unit };
-      const [added] = await adoptFiles(unit.tx, {
-        tenantId: unit.tenantId,
-        userId: unit.actor.userId,
-        host: libraryArea(unit.schoolId),
-        ids: [file.id],
-      });
-      if (!added) throw new ORPCError("CONFLICT");
-      if (input.folderId)
-        await moveLibraryItems(unit.tx, {
-          tenantId: unit.tenantId,
-          orgId: unit.schoolId,
-          ids: [added],
-          folderId: input.folderId,
-        });
-      await auditItems(scoped, {
-        action: "media.item_add",
-        ids: [added],
-        details: {
-          link: new URL(input.url).hostname,
-        },
-      });
-      return {
-        id: added,
-        name: file.name,
-        twins: await libraryTwins(unit.tx, unit.tenantId, unit.schoolId, [
-          added,
-        ]),
-      };
+    return initiateFile(unit.tx, {
+      tenantId: unit.tenantId,
+      userId: unit.actor.userId,
+      orgId: unit.schoolId,
+      purpose: "document_media",
+      name: fetched.name,
+      mediaType: fetched.mediaType,
+      sizeBytes: fetched.sizeBytes,
     });
   });
+  const taken = await takeUpload(school, file, fetched.body());
+  if (!taken.ok)
+    throw new ORPCError(
+      taken.status === 503 ? "SERVICE_UNAVAILABLE" : "BAD_REQUEST",
+      {
+        message: taken.code,
+      },
+    );
+  return openUnit(school, "write", async (unit) => {
+    const scoped = { ...school, ...unit };
+    const [added] = await adoptFiles(unit.tx, {
+      tenantId: unit.tenantId,
+      userId: unit.actor.userId,
+      host: libraryArea(unit.schoolId),
+      ids: [file.id],
+    });
+    if (!added) throw new ORPCError("CONFLICT");
+    if (input.folderId)
+      await moveLibraryItems(unit.tx, {
+        tenantId: unit.tenantId,
+        orgId: unit.schoolId,
+        ids: [added],
+        folderId: input.folderId,
+      });
+    await auditItems(scoped, {
+      action: "media.item_add",
+      ids: [added],
+      details: {
+        link: new URL(input.url).hostname,
+      },
+    });
+    return {
+      id: added,
+      name: file.name,
+      twins: await libraryTwins(unit.tx, unit.tenantId, unit.schoolId, [added]),
+    };
+  });
+}
 
 /**
  * Sets where a picture's subject sits, or forgets it: crops start from it,

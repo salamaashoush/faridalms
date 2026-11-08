@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import {
   fetchLink,
@@ -116,14 +116,77 @@ describe("the name a fetched file is kept under", () => {
   });
 });
 
+/** A server answering a file of this type and size, in chunks, without saying how long. */
+const serving = (mediaType: string, size: number) =>
+  vi.spyOn(globalThis, "fetch").mockImplementation(() => {
+    let sent = 0;
+    const body = new ReadableStream<Uint8Array>({
+      pull(controller) {
+        if (sent >= size) {
+          controller.close();
+          return;
+        }
+        const chunk = Math.min(64 * 1024, size - sent);
+        controller.enqueue(new Uint8Array(chunk).fill(7));
+        sent += chunk;
+      },
+    });
+    return Promise.resolve(
+      new Response(body, { headers: { "content-type": mediaType } }),
+    );
+  });
+
 describe("fetching a link", () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
   it("never asks a public name that points back at the server", async () => {
     await expect(
       fetchLink(
         "http://example.com/a.png",
-        { maxBytes: 1024, timeoutMs: 1000 },
+        { maxBytes: () => 1024, timeoutMs: 1000 },
         () => Promise.resolve(["127.0.0.1"]),
       ),
     ).rejects.toThrow("media.link_address");
+  });
+
+  /** The limits a school with video gives: a video may be larger than any other file. */
+  const limits = {
+    maxBytes: (mediaType: string) =>
+      mediaType.startsWith("video/") ? 1024 * 1024 : 64 * 1024,
+    timeoutMs: 5000,
+  };
+
+  it("takes a video up to the limit its type has", async () => {
+    serving("video/mp4", 512 * 1024);
+    const fetched = await fetchLink(
+      "https://example.com/assembly.mp4",
+      limits,
+      publicOnly,
+    );
+    try {
+      expect(fetched).toMatchObject({
+        name: "assembly.mp4",
+        mediaType: "video/mp4",
+        sizeBytes: 512 * 1024,
+      });
+      const read = await new Response(fetched.body()).arrayBuffer();
+      expect(read.byteLength).toBe(512 * 1024);
+    } finally {
+      await fetched.discard();
+    }
+  });
+
+  it("refuses any other file past the ordinary limit, and a video past its own", async () => {
+    serving("application/pdf", 128 * 1024);
+    await expect(
+      fetchLink("https://example.com/plan.pdf", limits, publicOnly),
+    ).rejects.toThrow("media.link_too_large");
+    vi.restoreAllMocks();
+    serving("video/mp4", 2 * 1024 * 1024);
+    await expect(
+      fetchLink("https://example.com/long.mp4", limits, publicOnly),
+    ).rejects.toThrow("media.link_too_large");
   });
 });

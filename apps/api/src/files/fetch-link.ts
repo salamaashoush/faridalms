@@ -6,7 +6,12 @@ import {
   safeFilename,
 } from "@faridalms/domain/file";
 import { lookup } from "node:dns/promises";
+import { createReadStream } from "node:fs";
+import { mkdtemp, open, rm } from "node:fs/promises";
 import { isIP } from "node:net";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { Readable } from "node:stream";
 
 /** Why a link could not be brought in, as the code the reader is given. */
 export type LinkRefusal =
@@ -201,7 +206,43 @@ export function linkedName(
 export interface FetchedLink {
   name: string;
   mediaType: string;
-  bytes: Uint8Array<ArrayBuffer>;
+  sizeBytes: number;
+  /** The bytes, read back from where they were set down as they came. */
+  body: () => ReadableStream<Uint8Array>;
+  /** Removes the bytes, once they are taken or refused. */
+  discard: () => Promise<void>;
+}
+
+/**
+ * Sets an answer's bytes down on disk as they come, so a large file never
+ * sits whole in memory, and stops past `maxBytes`.
+ */
+async function spool(
+  body: ReadableStream<Uint8Array>,
+  maxBytes: number,
+  signal: AbortSignal,
+): Promise<{ path: string; size: number; discard: () => Promise<void> }> {
+  const dir = await mkdtemp(join(tmpdir(), "farida-link-"));
+  const discard = () => rm(dir, { recursive: true, force: true });
+  const path = join(dir, "body");
+  const handle = await open(path, "w");
+  let size = 0;
+  try {
+    for await (const chunk of body) {
+      size += chunk.byteLength;
+      if (size > maxBytes) throw new LinkError("media.link_too_large");
+      await handle.write(chunk);
+    }
+  } catch (error) {
+    await handle.close();
+    await discard();
+    if (error instanceof LinkError) throw error;
+    throw new LinkError(
+      signal.aborted ? "media.link_slow" : "media.link_unavailable",
+    );
+  }
+  await handle.close();
+  return { path, size, discard };
 }
 
 const REDIRECTS = 5;
@@ -210,12 +251,13 @@ const REDIRECTS = 5;
  * Fetches a file from the web for the school, as a browser would but with
  * none of the server's reach: each address, the first and every redirect,
  * is checked before it is asked, the request is pinned to the address the
- * check approved, and the answer is cut off past `maxBytes` or `timeoutMs`.
- * The bytes are still to be checked as any upload is.
+ * check approved, and the answer is cut off past `timeoutMs` or the most
+ * `maxBytes` allows a file of its type. The bytes are still to be checked
+ * as any upload is, and discarded by the caller once they have been.
  */
 export async function fetchLink(
   url: string,
-  limits: { maxBytes: number; timeoutMs: number },
+  limits: { maxBytes: (mediaType: string) => number; timeoutMs: number },
   resolve: Resolve = resolveHost,
 ): Promise<FetchedLink> {
   const signal = AbortSignal.timeout(limits.timeoutMs);
@@ -253,43 +295,38 @@ export async function fetchLink(
       await response.body?.cancel();
       throw new LinkError("media.link_unavailable");
     }
-    const declared = Number(response.headers.get("content-length"));
-    if (Number.isFinite(declared) && declared > limits.maxBytes) {
-      await response.body.cancel();
-      throw new LinkError("media.link_too_large");
-    }
-    const mediaType = response.headers.get("content-type") ?? "";
+    const given = response.headers.get("content-type") ?? "";
     const name = linkedName(
       link,
       response.headers.get("content-disposition"),
-      mediaType,
+      given,
     );
     if (!name) {
       await response.body.cancel();
       throw new LinkError("media.link_type");
     }
-    const chunks: Uint8Array[] = [];
-    let size = 0;
-    try {
-      for await (const chunk of response.body) {
-        size += chunk.byteLength;
-        if (size > limits.maxBytes) throw new LinkError("media.link_too_large");
-        chunks.push(chunk);
-      }
-    } catch (error) {
-      if (error instanceof LinkError) throw error;
-      throw new LinkError(
-        signal.aborted ? "media.link_slow" : "media.link_unavailable",
-      );
+    const mediaType = mediaTypeFor(name) ?? given;
+    const most = limits.maxBytes(mediaType);
+    const declared = Number(response.headers.get("content-length"));
+    if (Number.isFinite(declared) && declared > most) {
+      await response.body.cancel();
+      throw new LinkError("media.link_too_large");
     }
-    if (size === 0) throw new LinkError("media.link_unavailable");
-    const bytes = new Uint8Array(size);
-    let offset = 0;
-    for (const chunk of chunks) {
-      bytes.set(chunk, offset);
-      offset += chunk.byteLength;
+    const kept = await spool(response.body, most, signal);
+    if (kept.size === 0) {
+      await kept.discard();
+      throw new LinkError("media.link_unavailable");
     }
-    return { name, mediaType: mediaTypeFor(name) ?? mediaType, bytes };
+    return {
+      name,
+      mediaType,
+      sizeBytes: kept.size,
+      body: () =>
+        Readable.toWeb(
+          createReadStream(kept.path),
+        ) as unknown as ReadableStream<Uint8Array>,
+      discard: kept.discard,
+    };
   }
   throw new LinkError("media.link_unavailable");
 }
