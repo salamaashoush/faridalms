@@ -20,7 +20,6 @@ import {
   embedProviderNames,
   parseEmbedUrl,
 } from "@faridalms/domain/embed";
-import { BlockWithAlignableContents } from "@lexical/react/LexicalBlockWithAlignableContents";
 import { useLexicalComposerContext } from "@lexical/react/LexicalComposerContext";
 import { DecoratorBlockNode } from "@lexical/react/LexicalDecoratorBlockNode";
 import { useLexicalEditable } from "@lexical/react/useLexicalEditable";
@@ -48,6 +47,7 @@ import { useEditorEnvironment } from "../context";
 import { StoredImage } from "../files";
 import { blockAlignClass, diagramImageClass, imageSizeClass } from "../format";
 import { EmbedFrame, MediaPlayer, MediaTranscript } from "../media-view";
+import { AlignableBlock } from "./alignable";
 import { $createQuestionNode, $isQuestionNode } from "./question";
 import { ownKeys, useSelectOnClick } from "./select";
 import { STORED_FILE } from "./stored";
@@ -230,11 +230,7 @@ function MediaBlock({
   useSelectOnClick(nodeKey);
   const video = mime.startsWith("video/");
   return (
-    <BlockWithAlignableContents
-      className={blockClass}
-      format={format}
-      nodeKey={nodeKey}
-    >
+    <AlignableBlock className={blockClass} format={format} nodeKey={nodeKey}>
       <figure
         ref={ownKeys}
         className={`grid gap-1.5 ${imageSizeClass[size]} ${blockAlignClass(format)}`}
@@ -301,7 +297,7 @@ function MediaBlock({
           </>
         )}
       </figure>
-    </BlockWithAlignableContents>
+    </AlignableBlock>
   );
 }
 
@@ -362,11 +358,7 @@ function EmbedBlock({
     [editor, nodeKey],
   );
   return (
-    <BlockWithAlignableContents
-      className={blockClass}
-      format={format}
-      nodeKey={nodeKey}
-    >
+    <AlignableBlock className={blockClass} format={format} nodeKey={nodeKey}>
       <figure
         className={`grid gap-1.5 ${imageSizeClass[size]} ${blockAlignClass(format)}`}
       >
@@ -423,7 +415,7 @@ function EmbedBlock({
           </a>
         </div>
       </figure>
-    </BlockWithAlignableContents>
+    </AlignableBlock>
   );
 }
 
@@ -445,11 +437,7 @@ function DiagramBlock({
   const update = useNodeUpdate(nodeKey, $isDiagramNode);
   useSelectOnClick(nodeKey);
   return (
-    <BlockWithAlignableContents
-      className={blockClass}
-      format={format}
-      nodeKey={nodeKey}
-    >
+    <AlignableBlock className={blockClass} format={format} nodeKey={nodeKey}>
       <figure className={`${imageSizeClass[size]} ${blockAlignClass(format)}`}>
         <StoredImage
           src={media?.url(fileId)}
@@ -469,7 +457,7 @@ function DiagramBlock({
           </figcaption>
         ) : null}
       </figure>
-    </BlockWithAlignableContents>
+    </AlignableBlock>
   );
 }
 

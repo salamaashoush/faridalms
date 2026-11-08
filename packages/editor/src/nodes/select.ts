@@ -1,9 +1,72 @@
 import type { NodeKey } from "lexical";
 
 import { useLexicalComposerContext } from "@lexical/react/LexicalComposerContext";
-import { useLexicalNodeSelection } from "@lexical/react/useLexicalNodeSelection";
-import { CLICK_COMMAND, COMMAND_PRIORITY_LOW } from "lexical";
-import { useEffect } from "react";
+import {
+  $createNodeSelection,
+  $getNodeByKey,
+  $getSelection,
+  $isNodeSelection,
+  $setSelection,
+  CLICK_COMMAND,
+  COMMAND_PRIORITY_LOW,
+} from "lexical";
+import { useCallback, useEffect, useSyncExternalStore } from "react";
+
+/**
+ * Whether a block is chosen, with ways to choose it and let it go, as
+ * Lexical's `useLexicalNodeSelection` gives them. That hook sets React state
+ * on every update of the editor; React keeps each such update queued on a
+ * block that does not draw again, which while someone types elsewhere is
+ * every picture and formula, so the queues grew by megabytes a minute in a
+ * long lesson. React reads a store here and draws, and queues, on a change.
+ */
+export function useNodeSelection(
+  key: NodeKey,
+): [boolean, (selected: boolean) => void, () => void] {
+  const [editor] = useLexicalComposerContext();
+  const subscribe = useCallback(
+    (changed: () => void) => editor.registerUpdateListener(changed),
+    [editor],
+  );
+  const read = useCallback(
+    () =>
+      editor
+        .getEditorState()
+        .read(() => $getNodeByKey(key)?.isSelected() ?? false),
+    [editor, key],
+  );
+  const selected = useSyncExternalStore(subscribe, read, read);
+  const setSelected = useCallback(
+    (next: boolean) =>
+      editor.update(() => {
+        const current = $getSelection();
+        // Letting go of a block the selection does not hold would only throw
+        // away the caret.
+        if (
+          !$isNodeSelection(current) &&
+          !next &&
+          !$getNodeByKey(key)?.isSelected()
+        )
+          return;
+        const selection = $isNodeSelection(current)
+          ? current
+          : $createNodeSelection();
+        if (selection !== current) $setSelection(selection);
+        if (next) selection.add(key);
+        else selection.delete(key);
+      }),
+    [editor, key],
+  );
+  const clearSelection = useCallback(
+    () =>
+      editor.update(() => {
+        const selection = $getSelection();
+        if ($isNodeSelection(selection)) selection.clear();
+      }),
+    [editor],
+  );
+  return [selected, setSelected, clearSelection];
+}
 
 /**
  * Controls inside a block that keep their own click: the block stays
@@ -21,8 +84,7 @@ const OWN_CLICK = "input, textarea, select, button, a";
  */
 export function useSelectOnClick(nodeKey: NodeKey) {
   const [editor] = useLexicalComposerContext();
-  const [selected, setSelected, clearSelection] =
-    useLexicalNodeSelection(nodeKey);
+  const [selected, setSelected, clearSelection] = useNodeSelection(nodeKey);
   useEffect(
     () =>
       editor.registerCommand(

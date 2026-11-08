@@ -19,7 +19,6 @@ import type {
 import type { JSX } from "react";
 
 import { imageSizes } from "@faridalms/domain/content";
-import { BlockWithAlignableContents } from "@lexical/react/LexicalBlockWithAlignableContents";
 import { useLexicalComposerContext } from "@lexical/react/LexicalComposerContext";
 import { DecoratorBlockNode } from "@lexical/react/LexicalDecoratorBlockNode";
 import { useLexicalEditable } from "@lexical/react/useLexicalEditable";
@@ -42,6 +41,7 @@ import {
 import { PictureCreditLine } from "../picture-credit";
 import { CreditFields } from "../picture-credit-fields";
 import { LabelsEditor } from "../picture-labels";
+import { AlignableBlock } from "./alignable";
 import { ownKeys, useSelectOnClick } from "./select";
 import { STORED_FILE } from "./stored";
 
@@ -136,11 +136,7 @@ function ImageBlock({
     />
   );
   return (
-    <BlockWithAlignableContents
-      className={blockClass}
-      format={format}
-      nodeKey={nodeKey}
-    >
+    <AlignableBlock className={blockClass} format={format} nodeKey={nodeKey}>
       <figure
         ref={ownKeys}
         className={`${imageSizeClass[size]} ${blockAlignClass(format)}`}
@@ -231,7 +227,7 @@ function ImageBlock({
         ) : null}
         {credit ? <PictureCreditLine credit={credit} /> : null}
       </figure>
-    </BlockWithAlignableContents>
+    </AlignableBlock>
   );
 }
 
@@ -279,11 +275,7 @@ function FileBlock({
   const url = media?.url(fileId);
   const file = useFileFacts(fileId, { name, mime, bytes });
   return (
-    <BlockWithAlignableContents
-      className={blockClass}
-      format={format}
-      nodeKey={nodeKey}
-    >
+    <AlignableBlock className={blockClass} format={format} nodeKey={nodeKey}>
       <div ref={ownKeys} onDoubleClick={() => setViewing(true)}>
         <FileCard
           file={file}
@@ -321,7 +313,7 @@ function FileBlock({
           locale={locale}
         />
       ) : null}
-    </BlockWithAlignableContents>
+    </AlignableBlock>
   );
 }
 

@@ -13,7 +13,6 @@ import type {
 import type { JSX } from "react";
 
 import { MAX_GALLERY_PICTURES } from "@faridalms/domain/content";
-import { BlockWithAlignableContents } from "@lexical/react/LexicalBlockWithAlignableContents";
 import { useLexicalComposerContext } from "@lexical/react/LexicalComposerContext";
 import { DecoratorBlockNode } from "@lexical/react/LexicalDecoratorBlockNode";
 import { useLexicalEditable } from "@lexical/react/useLexicalEditable";
@@ -23,6 +22,7 @@ import { useRef, useState } from "react";
 
 import { useEditorEnvironment } from "../context";
 import { StoredImage } from "../files";
+import { AlignableBlock } from "./alignable";
 import { ownKeys, useSelectOnClick } from "./select";
 
 export type SerializedPicturesNode = Spread<
@@ -147,11 +147,7 @@ function GalleryBlock({
     });
   const room = pictures.length + uploading < MAX_GALLERY_PICTURES;
   return (
-    <BlockWithAlignableContents
-      className={blockClass}
-      format={format}
-      nodeKey={nodeKey}
-    >
+    <AlignableBlock className={blockClass} format={format} nodeKey={nodeKey}>
       <div ref={ownKeys} className="fe-gallery-edit">
         {pictures.length > 0 ? (
           <ul className="fe-gallery">
@@ -284,7 +280,7 @@ function GalleryBlock({
           </div>
         ) : null}
       </div>
-    </BlockWithAlignableContents>
+    </AlignableBlock>
   );
 }
 
@@ -393,11 +389,7 @@ function CompareBlock({
       return next.filter((item): item is SetPicture => Boolean(item));
     });
   return (
-    <BlockWithAlignableContents
-      className={blockClass}
-      format={format}
-      nodeKey={nodeKey}
-    >
+    <AlignableBlock className={blockClass} format={format} nodeKey={nodeKey}>
       <div ref={ownKeys} className="fe-compare-edit">
         {[strings.compareBefore, strings.compareAfter].map((label, index) => (
           <CompareSlot
@@ -414,7 +406,7 @@ function CompareBlock({
           />
         ))}
       </div>
-    </BlockWithAlignableContents>
+    </AlignableBlock>
   );
 }
 

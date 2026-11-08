@@ -236,6 +236,7 @@ import {
   selectionReference,
   shortcutLabel,
   TOOLBAR_CONTROLS,
+  useListenerState,
 } from "../ui";
 import { AssistantTool } from "./assistant";
 import { CommentTool } from "./comments";
@@ -642,7 +643,7 @@ export function SelectionToolbarPlugin() {
   const [tagging, setTagging] = useState<"question" | "block">("question");
   const tags = useBankTags(mode === "draw" ? bank : undefined);
   const [reference, setReference] = useState<ReferenceElement | null>(null);
-  const [facts, setFacts] = useState<Facts>(empty);
+  const [facts, setFacts] = useListenerState<Facts>(empty, sameFacts);
   const [layout, setLayout] = useState<BlockFacts | null>(null);
   // A selected video's bar offers a question at the moment it is paused on,
   // so the bar follows its player while it shows.
@@ -984,7 +985,10 @@ export function SelectionToolbarPlugin() {
   };
 
   const modeRef = useRef<Mode>("hidden");
+  // Every update of the editor shows a mode, mostly the one it has; React
+  // would queue each unchanged one until the bar next drew.
   const show = (next: Mode) => {
+    if (modeRef.current === next) return;
     modeRef.current = next;
     setMode(next);
   };
@@ -1072,9 +1076,7 @@ export function SelectionToolbarPlugin() {
     if (!state) return show("hidden");
     // Typing reads the same facts on every key; new ones only when they
     // differ, or the whole bar would draw again with each letter.
-    setFacts((current) =>
-      sameFacts(current, state.facts) ? current : state.facts,
-    );
+    setFacts(state.facts);
     if (!state.collapsed && !state.code && state.text.trim()) {
       setReference(selectionReference(root));
       return show("format");

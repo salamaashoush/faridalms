@@ -77,7 +77,15 @@ import { useEditorEnvironment } from "../context";
 import { $activeFormats, OPEN_LINK_EDITOR_COMMAND } from "../formatting";
 import { markdownTransformers } from "../markdown";
 import { textFocus, updateFromOutside } from "../outside";
-import { Tip, ToolButton, cx, menuItemClass, menuPopupClass } from "../ui";
+import {
+  Tip,
+  ToolButton,
+  cx,
+  menuItemClass,
+  menuPopupClass,
+  sameJson,
+  useListenerState,
+} from "../ui";
 import { FindTool } from "./find";
 import { $runBlock } from "./insert";
 import { InsertTool } from "./insert-tool";
@@ -253,9 +261,9 @@ export function ToolbarPlugin({ disabled }: { disabled: boolean }) {
   const { strings } = environment;
   const [undo, setUndo] = useState(false);
   const [redo, setRedo] = useState(false);
-  const [formats, setFormats] = useState<MarkFormat[]>([]);
-  const [block, setBlock] = useState<BlockType | null>(null);
-  const [inTable, setInTable] = useState(false);
+  const [formats, setFormats] = useListenerState<MarkFormat[]>([], sameJson);
+  const [block, setBlock] = useListenerState<BlockType | null>(null);
+  const [inTable, setInTable] = useListenerState(false);
   const [tableOpen, setTableOpen] = useState(false);
   const [markdownOpen, setMarkdownOpen] = useState(false);
   const [suggestOpen, setSuggestOpen] = useState(false);
@@ -304,14 +312,7 @@ export function ToolbarPlugin({ disabled }: { disabled: boolean }) {
           editorState.read(() => {
             const selection = $getSelection();
             if (!$isRangeSelection(selection)) return;
-            // A new list on every key pressed would draw the whole row again.
-            const next = $activeFormats();
-            setFormats((current) =>
-              current.length === next.length &&
-              current.every((format, index) => format === next[index])
-                ? current
-                : next,
-            );
+            setFormats($activeFormats());
             setBlock($blockTypeOf($anchorFor("paragraph")));
             setInTable(
               Boolean(
@@ -324,7 +325,7 @@ export function ToolbarPlugin({ disabled }: { disabled: boolean }) {
           }),
         ),
       ),
-    [editor],
+    [editor, setFormats, setBlock, setInTable],
   );
 
   const remember = () => {

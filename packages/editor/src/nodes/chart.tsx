@@ -17,7 +17,6 @@ import {
   MAX_CHART_LABELS,
   MAX_CHART_SERIES,
 } from "@faridalms/domain/content";
-import { BlockWithAlignableContents } from "@lexical/react/LexicalBlockWithAlignableContents";
 import { useLexicalComposerContext } from "@lexical/react/LexicalComposerContext";
 import { DecoratorBlockNode } from "@lexical/react/LexicalDecoratorBlockNode";
 import { useLexicalEditable } from "@lexical/react/useLexicalEditable";
@@ -27,6 +26,7 @@ import { Plus, X } from "lucide-react";
 import { gridOf, pasteIntoChart } from "../chart-paste";
 import { ChartView } from "../chart-view";
 import { useEditorEnvironment } from "../context";
+import { AlignableBlock } from "./alignable";
 import { ownKeys, useSelectOnClick } from "./select";
 
 export type SerializedChartNode = Spread<
@@ -368,11 +368,7 @@ function ChartBlock({
       { discrete: true },
     );
   return (
-    <BlockWithAlignableContents
-      className={blockClass}
-      format={format}
-      nodeKey={nodeKey}
-    >
+    <AlignableBlock className={blockClass} format={format} nodeKey={nodeKey}>
       <div ref={ownKeys}>
         {editable && selected ? (
           <ChartEditor chart={chart} onChange={change} />
@@ -385,7 +381,7 @@ function ChartBlock({
           />
         )}
       </div>
-    </BlockWithAlignableContents>
+    </AlignableBlock>
   );
 }
 

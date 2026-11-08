@@ -69,6 +69,10 @@ const GUARDIAN_RULE =
 const STAFF_LIST = /'teacher',\s*'aide',\s*'counselor'/;
 const REACH_FLAG = /\bschoolWide\s*:/;
 const PAGE_GATE = /capabilities\.includes\([^)]*\)\s*\)?\s*throw\s+redirect/;
+// Lexical's hook sets React state on every editor update, which React keeps
+// queued on a block that does not draw again: a leak of megabytes a minute.
+const NODE_SELECTION_HOOK =
+  /@lexical\/react\/(useLexicalNodeSelection|LexicalBlockWithAlignableContents)/;
 const REACH_STORE =
   /\b(?:isVisibleStudent|reachedStudents|personReach|reachesClass|teachesClass)\b[^;]*from\s+["']@faridalms\/database\/stores\//;
 
@@ -114,6 +118,10 @@ for (const { path, text } of files) {
     (REACH_FLAG.test(text) || REACH_STORE.test(text))
   )
     problems.push(`${path}: decides reach outside core/reach.ts`);
+  if (path.startsWith("packages/editor/") && NODE_SELECTION_HOOK.test(text))
+    problems.push(
+      `${path}: tracks a block's selection through Lexical's hook; use useNodeSelection or AlignableBlock`,
+    );
   if (path.startsWith("apps/web/src/routes/") && PAGE_GATE.test(text))
     problems.push(`${path}: gates a page by hand; use requirePage`);
   if (

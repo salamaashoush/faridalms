@@ -11,7 +11,6 @@ import type {
 import type { JSX } from "react";
 
 import { useLexicalComposerContext } from "@lexical/react/LexicalComposerContext";
-import { useLexicalNodeSelection } from "@lexical/react/useLexicalNodeSelection";
 import {
   $createNodeSelection,
   $getDocument,
@@ -26,6 +25,7 @@ import { useEffect, useRef } from "react";
 
 import { useEditorEnvironment } from "../context";
 import { cx } from "../ui";
+import { useNodeSelection } from "./select";
 
 export type SerializedFootnoteNode = Spread<
   { note: string; source?: FootnoteSource },
@@ -35,7 +35,7 @@ export type SerializedFootnoteNode = Spread<
 function FootnoteMark({ nodeKey }: { nodeKey: NodeKey }) {
   const [editor] = useLexicalComposerContext();
   const { strings } = useEditorEnvironment();
-  const [selected, select, clear] = useLexicalNodeSelection(nodeKey);
+  const [selected, select, clear] = useNodeSelection(nodeKey);
   const mark = useRef<HTMLElement>(null);
   useEffect(
     () =>

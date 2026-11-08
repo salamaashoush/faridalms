@@ -1,3 +1,5 @@
+import type { NodeKey } from "lexical";
+
 import { Menu } from "@base-ui/react/menu";
 import { $isCodeNode, CodeNode } from "@lexical/code";
 import { getCodeLanguageOptions } from "@lexical/code-prism";
@@ -14,7 +16,14 @@ import { $currentBlock } from "../blocks";
 import { codeGutter, codeLanguageName } from "../code-language";
 import { useEditorEnvironment } from "../context";
 import { $codeRunOf, $setCodeRun, runnableLanguage } from "../nodes";
-import { cx, menuItemClass, menuPopupClass, Tip } from "../ui";
+import {
+  cx,
+  menuItemClass,
+  menuPopupClass,
+  sameJson,
+  Tip,
+  useListenerState,
+} from "../ui";
 
 /** What the block's header says: its language, and whether students run it. */
 export function codeLabel(
@@ -51,7 +60,7 @@ const trigger =
 export function CodeBlockPlugin({ anchor }: { anchor: HTMLElement | null }) {
   const [editor] = useLexicalComposerContext();
   const { strings } = useEditorEnvironment();
-  const [active, setActive] = useState<Active | null>(null);
+  const [active, setActive] = useListenerState<Active | null>(null, sameJson);
   const [copied, setCopied] = useState(false);
   const options = useMemo(
     () => getCodeLanguageOptions().filter(([value]) => value !== "plain"),
@@ -60,6 +69,7 @@ export function CodeBlockPlugin({ anchor }: { anchor: HTMLElement | null }) {
 
   useEffect(() => {
     let marked: HTMLElement | null = null;
+    let shown: NodeKey | null = null;
     let frame = 0;
     return mergeRegister(
       editor.registerMutationListener(
@@ -106,6 +116,7 @@ export function CodeBlockPlugin({ anchor }: { anchor: HTMLElement | null }) {
         marked = null;
         cancelAnimationFrame(frame);
         if (!found || !element || !anchor || !editor.isEditable()) {
+          shown = null;
           setActive(null);
           return;
         }
@@ -119,17 +130,9 @@ export function CodeBlockPlugin({ anchor }: { anchor: HTMLElement | null }) {
             top: Math.round(rect.top - box.top + anchor.scrollTop + 4),
             right: Math.round(box.right - rect.right + 6),
           };
-          setActive((current) => {
-            if (current?.key !== next.key) setCopied(false);
-            return current &&
-              current.key === next.key &&
-              current.language === next.language &&
-              current.run === next.run &&
-              current.top === next.top &&
-              current.right === next.right
-              ? current
-              : next;
-          });
+          if (shown !== next.key) setCopied(false);
+          shown = next.key;
+          setActive(next);
         });
       }),
       () => {
@@ -137,7 +140,7 @@ export function CodeBlockPlugin({ anchor }: { anchor: HTMLElement | null }) {
         if (marked) delete marked.dataset.active;
       },
     );
-  }, [editor, anchor, strings]);
+  }, [editor, anchor, strings, setActive]);
 
   if (!active) return null;
   const change = (apply: (node: CodeNode) => void) =>

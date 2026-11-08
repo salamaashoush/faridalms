@@ -11,8 +11,34 @@ import {
   shift,
   size,
 } from "@floating-ui/dom";
-import { useCallback, useEffect, useRef } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
+
+/**
+ * State an editor listener sets on every update. React queues a set state
+ * even when the value is unchanged, on a component that may not draw again
+ * for as long as someone types, and the queue empties only when it draws;
+ * this sets state only when the value changed.
+ */
+export function useListenerState<T>(
+  initial: T,
+  same: (a: T, b: T) => boolean = Object.is,
+): [T, (next: T) => void] {
+  const [value, setValue] = useState(initial);
+  const last = useRef(initial);
+  const set = useCallback(
+    (next: T) => {
+      if (same(last.current, next)) return;
+      last.current = next;
+      setValue(next);
+    },
+    [same],
+  );
+  return [value, set];
+}
+
+export const sameJson = <T,>(a: T, b: T) =>
+  a === b || JSON.stringify(a) === JSON.stringify(b);
 
 export function cx(...names: (string | false | null | undefined)[]): string {
   return names.filter(Boolean).join(" ");

@@ -13,7 +13,6 @@ import type { JSX } from "react";
 
 import { mathText, textDirection } from "@faridalms/domain/content";
 import { useLexicalComposerContext } from "@lexical/react/LexicalComposerContext";
-import { useLexicalNodeSelection } from "@lexical/react/useLexicalNodeSelection";
 import {
   $createNodeSelection,
   $findMatchingParent,
@@ -33,6 +32,7 @@ import { useEffect, useRef } from "react";
 import { useEditorEnvironment } from "../context";
 import { MathText } from "../math";
 import { cx } from "../ui";
+import { useNodeSelection } from "./select";
 
 export type SerializedMathNode = Spread<
   { latex: string; block?: boolean; direction?: "rtl" | null },
@@ -54,7 +54,7 @@ function MathChip({
 }) {
   const [editor] = useLexicalComposerContext();
   const { strings, digits } = useEditorEnvironment();
-  const [selected, select, clear] = useLexicalNodeSelection(nodeKey);
+  const [selected, select, clear] = useNodeSelection(nodeKey);
   const chip = useRef<HTMLSpanElement>(null);
   useEffect(
     () =>

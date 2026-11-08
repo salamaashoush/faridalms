@@ -68,7 +68,13 @@ import { useEditorEnvironment } from "../context";
 import { backgroundColors } from "../formatting";
 import { textFocus, updateFromOutside } from "../outside";
 import { editorColors } from "../strings";
-import { cx, menuItemClass, menuPopupClass } from "../ui";
+import {
+  cx,
+  menuItemClass,
+  menuPopupClass,
+  sameJson,
+  useListenerState,
+} from "../ui";
 import { $addRowFromLastCell, $lineBeside } from "./table-grid";
 
 const MIN_COLUMN = 48;
@@ -211,7 +217,9 @@ function $selectLine(table: TableNode, scope: Scope) {
 export function TablePlugin({ anchor }: { anchor: HTMLElement | null }) {
   const [editor] = useLexicalComposerContext();
   const { strings } = useEditorEnvironment();
-  const [target, setTarget] = useState<Target | null>(null);
+  // Most measures find the table where it was; its grips draw again only
+  // when it moved.
+  const [target, setTarget] = useListenerState<Target | null>(null, sameJson);
   const hovered = useRef<string | null>(null);
   const [menu, setMenu] = useState<{ scope: Scope; at: HTMLElement } | null>(
     null,
@@ -223,16 +231,6 @@ export function TablePlugin({ anchor }: { anchor: HTMLElement | null }) {
   useEffect(() => {
     menuOpen.current = menu !== null;
   }, [menu]);
-
-  // Most measures find the table where it was, and drawing its grips
-  // again for that would redraw them on every key typed in a cell.
-  const keep = useCallback((next: Target) => {
-    setTarget((current) =>
-      current && JSON.stringify(current) === JSON.stringify(next)
-        ? current
-        : next,
-    );
-  }, []);
 
   const measure = useCallback(() => {
     if (!anchor || !editor.isEditable()) {
@@ -326,7 +324,7 @@ export function TablePlugin({ anchor }: { anchor: HTMLElement | null }) {
     const cellElement = found.cell
       ? editor.getElementByKey(found.cell.key)
       : null;
-    keep({
+    setTarget({
       tableKey: found.tableKey,
       table,
       rtl,
@@ -344,7 +342,7 @@ export function TablePlugin({ anchor }: { anchor: HTMLElement | null }) {
             }
           : null,
     });
-  }, [anchor, editor, keep]);
+  }, [anchor, editor, setTarget]);
 
   // An update has changed the page but not yet laid it out; measuring in
   // the frame that draws it reads the layout the browser makes anyway,
