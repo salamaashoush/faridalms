@@ -10,16 +10,18 @@ import {
   RecordHeader,
   RecordList,
   RecordSection,
+  RecordStack,
 } from "@faridalms/ui/system/record-page";
 import { StatusText } from "@faridalms/ui/system/status";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { Link, useNavigate } from "@tanstack/react-router";
-import { CircleCheck, Lock, Play, Shuffle } from "lucide-react";
+import { CircleCheck, Lock, MessagesSquare, Play, Shuffle } from "lucide-react";
 
-import { inLocale } from "~/hooks/useCurrentUser";
+import { inLocale, useCurrentUser } from "~/hooks/useCurrentUser";
 import * as m from "~/i18n/messages";
+import { moduleDiscussionsQuery } from "~/queries/coursework";
 import { moduleOutlineQuery, myModulesQuery } from "~/queries/learning";
-import { formatNumber } from "~/utils/datetime";
+import { formatInstant, formatNumber } from "~/utils/datetime";
 
 import { LESSON_STATE_LABEL, lockedText } from "./format";
 import { ModuleGlossary } from "./ModuleGlossary";
@@ -133,9 +135,65 @@ export interface ModuleOutlineProps {
   studentId: string;
 }
 
+interface OutlineDiscussionsProps {
+  moduleId: string;
+  studentId: string;
+}
+
+/** The discussions a module holds for the student, each opening as their work. */
+function OutlineDiscussions({ moduleId, studentId }: OutlineDiscussionsProps) {
+  const rows = useSuspenseQuery(
+    moduleDiscussionsQuery(moduleId, studentId),
+  ).data;
+  if (rows.length === 0) return null;
+  return (
+    <RecordSection title={m.discussionsTab()}>
+      <ul className="-my-3 divide-y">
+        {rows.map((row) => (
+          <li
+            key={row.id}
+            className="flex items-center justify-between gap-4 py-3"
+          >
+            <span className="flex min-w-0 items-center gap-3">
+              <MessagesSquare
+                aria-hidden
+                className="size-4 shrink-0 text-muted-foreground"
+              />
+              {/* A family follows along; the posts are the class's own. */}
+              {studentId ? (
+                <bdi className="min-w-0 text-sm leading-5 font-medium">
+                  {row.title}
+                </bdi>
+              ) : (
+                <Link
+                  to="/assignments/$assignmentId"
+                  params={{ assignmentId: row.id }}
+                  search={{}}
+                  className={cn(
+                    "min-w-0 text-sm leading-5 font-medium hover:text-primary hover:underline",
+                    phoneLink,
+                  )}
+                >
+                  <bdi>{row.title}</bdi>
+                </Link>
+              )}
+            </span>
+            <span className="shrink-0 text-[13px] leading-[18px] text-muted-foreground">
+              {row.dueAt
+                ? m.discussionDue({ date: formatInstant(row.dueAt) })
+                : m.courseworkNoDueDate()}
+            </span>
+          </li>
+        ))}
+      </ul>
+    </RecordSection>
+  );
+}
+
 /** A module as its student meets it: which lessons are done, which open, which wait. */
 export function ModuleOutline({ moduleId, studentId }: ModuleOutlineProps) {
   const data = useSuspenseQuery(moduleOutlineQuery(moduleId, studentId)).data;
+  const { modules } = useCurrentUser();
   const navigate = useNavigate();
   const done = data.lessons.filter((lesson) => lesson.state === "done").length;
   const next = data.lessons.find((lesson) => lesson.state === "open");
@@ -181,83 +239,88 @@ export function ModuleOutline({ moduleId, studentId }: ModuleOutlineProps) {
       />
       <RecordColumns
         main={
-          <RecordSection
-            title={m.lrnLessons()}
-            description={
-              data.locked
-                ? lockedText(data)
-                : data.sequential
-                  ? m.lrnInOrderHint()
-                  : undefined
-            }
-          >
-            <ol className="-my-3 divide-y">
-              {data.lessons.map((lesson, index) => {
-                const Icon = STATE_ICON[lesson.state];
-                const linked = data.own && lesson.state !== "locked";
-                return (
-                  <li
-                    key={lesson.id}
-                    className="flex items-center justify-between gap-4 py-3"
-                  >
-                    <div className="flex min-w-0 items-center gap-3">
-                      <span
-                        aria-hidden
-                        className={cn(
-                          "grid size-8 shrink-0 place-items-center rounded-full border text-sm tabular-nums",
-                          lesson.state === "done" &&
-                            "border-success/30 bg-success/12 text-success",
-                        )}
-                      >
-                        {lesson.state === "done" ? (
-                          <CircleCheck className="size-4" />
-                        ) : (
-                          formatNumber(index + 1)
-                        )}
+          <RecordStack>
+            <RecordSection
+              title={m.lrnLessons()}
+              description={
+                data.locked
+                  ? lockedText(data)
+                  : data.sequential
+                    ? m.lrnInOrderHint()
+                    : undefined
+              }
+            >
+              <ol className="-my-3 divide-y">
+                {data.lessons.map((lesson, index) => {
+                  const Icon = STATE_ICON[lesson.state];
+                  const linked = data.own && lesson.state !== "locked";
+                  return (
+                    <li
+                      key={lesson.id}
+                      className="flex items-center justify-between gap-4 py-3"
+                    >
+                      <div className="flex min-w-0 items-center gap-3">
+                        <span
+                          aria-hidden
+                          className={cn(
+                            "grid size-8 shrink-0 place-items-center rounded-full border text-sm tabular-nums",
+                            lesson.state === "done" &&
+                              "border-success/30 bg-success/12 text-success",
+                          )}
+                        >
+                          {lesson.state === "done" ? (
+                            <CircleCheck className="size-4" />
+                          ) : (
+                            formatNumber(index + 1)
+                          )}
+                        </span>
+                        <span className="grid min-w-0 gap-0.5">
+                          {linked ? (
+                            <Link
+                              to="/lessons/$lessonId"
+                              params={{ lessonId: lesson.id }}
+                              search={{}}
+                              className={cn(
+                                "min-w-0 text-sm leading-5 font-medium hover:text-primary hover:underline",
+                                phoneLink,
+                              )}
+                            >
+                              <bdi>{lesson.title}</bdi>
+                            </Link>
+                          ) : (
+                            <bdi
+                              className={cn(
+                                "min-w-0 text-sm leading-5 font-medium",
+                                lesson.state === "locked" &&
+                                  "text-muted-foreground",
+                              )}
+                            >
+                              {lesson.title}
+                            </bdi>
+                          )}
+                          {lesson.from ? (
+                            <span className="text-[13px] leading-[18px] text-muted-foreground">
+                              {m.lrnFromLesson({
+                                lesson: lesson.from.title,
+                                module: lesson.from.moduleTitle,
+                              })}
+                            </span>
+                          ) : null}
+                        </span>
+                      </div>
+                      <span className="inline-flex shrink-0 items-center gap-1.5 text-[13px] leading-[18px] text-muted-foreground">
+                        <Icon aria-hidden className="size-3.5" />
+                        {LESSON_STATE_LABEL[lesson.state]()}
                       </span>
-                      <span className="grid min-w-0 gap-0.5">
-                        {linked ? (
-                          <Link
-                            to="/lessons/$lessonId"
-                            params={{ lessonId: lesson.id }}
-                            search={{}}
-                            className={cn(
-                              "min-w-0 text-sm leading-5 font-medium hover:text-primary hover:underline",
-                              phoneLink,
-                            )}
-                          >
-                            <bdi>{lesson.title}</bdi>
-                          </Link>
-                        ) : (
-                          <bdi
-                            className={cn(
-                              "min-w-0 text-sm leading-5 font-medium",
-                              lesson.state === "locked" &&
-                                "text-muted-foreground",
-                            )}
-                          >
-                            {lesson.title}
-                          </bdi>
-                        )}
-                        {lesson.from ? (
-                          <span className="text-[13px] leading-[18px] text-muted-foreground">
-                            {m.lrnFromLesson({
-                              lesson: lesson.from.title,
-                              module: lesson.from.moduleTitle,
-                            })}
-                          </span>
-                        ) : null}
-                      </span>
-                    </div>
-                    <span className="inline-flex shrink-0 items-center gap-1.5 text-[13px] leading-[18px] text-muted-foreground">
-                      <Icon aria-hidden className="size-3.5" />
-                      {LESSON_STATE_LABEL[lesson.state]()}
-                    </span>
-                  </li>
-                );
-              })}
-            </ol>
-          </RecordSection>
+                    </li>
+                  );
+                })}
+              </ol>
+            </RecordSection>
+            {modules.coursework ? (
+              <OutlineDiscussions moduleId={moduleId} studentId={studentId} />
+            ) : null}
+          </RecordStack>
         }
         aside={
           <>

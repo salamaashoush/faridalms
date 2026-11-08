@@ -13,6 +13,7 @@ import {
   Circle,
   Eye,
   EyeOff,
+  Heart,
   MessageSquareReply,
   Pencil,
   Plus,
@@ -29,9 +30,10 @@ import { discussionQuery } from "~/queries/coursework";
 import {
   editDiscussionPost,
   hideDiscussionPost,
+  likeDiscussionPost,
   postInDiscussion,
 } from "~/server/coursework";
-import { formatInstant, formatNumber } from "~/utils/datetime";
+import { formatInstant, formatList, formatNumber } from "~/utils/datetime";
 import { getMessageFromError } from "~/utils/error";
 
 import { displayName } from "../people/format";
@@ -118,6 +120,66 @@ function PostEditor({
         ) : null}
       </div>
     </form>
+  );
+}
+
+interface LikesProps {
+  post: Post;
+  closed: boolean;
+}
+
+/**
+ * A post's likes: a button to like it, with how many do, and for its
+ * teacher the names of those who liked it. A writer cannot like their own.
+ */
+function Likes({ post, closed }: LikesProps) {
+  const queryClient = useQueryClient();
+  const like = useMutation({
+    mutationFn: (liked: boolean) =>
+      likeDiscussionPost({ data: { id: post.id, liked } }),
+    onSuccess: () =>
+      queryClient.invalidateQueries({ queryKey: ["coursework"] }),
+    onError: (failure) => toast.error(getMessageFromError(failure)),
+  });
+  if (!post.content || post.hidden) return null;
+  const count = m.discussionLikes({
+    count: post.likes,
+    value: formatNumber(post.likes),
+  });
+  const names = post.likedBy?.map((person) => displayName(person)) ?? [];
+  return (
+    <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+      {post.mine || closed ? (
+        post.likes > 0 ? (
+          <span className="inline-flex items-center gap-1.5 text-[13px] leading-[18px] text-muted-foreground">
+            <Heart aria-hidden className="size-4" />
+            {count}
+          </span>
+        ) : null
+      ) : (
+        <Button
+          type="button"
+          variant="ghost"
+          size="sm"
+          className="-ms-2 max-md:h-10"
+          aria-pressed={post.likedByMe}
+          aria-label={m.discussionLikePost({ name: nameOf(post) })}
+          disabled={like.isPending}
+          onClick={() => like.mutate(!post.likedByMe)}
+        >
+          <Heart
+            aria-hidden
+            className={post.likedByMe ? "fill-current text-destructive" : ""}
+          />
+          {post.likes > 0 ? count : m.discussionLike()}
+        </Button>
+      )}
+      {names.length ? (
+        <p className="text-[13px] leading-[18px] text-muted-foreground">
+          {m.discussionLikedBy({ names: formatList(names) })}
+        </p>
+      ) : null}
+    </div>
   );
 }
 
@@ -208,6 +270,7 @@ function PostItem({ post, data, assignmentId }: PostItemProps) {
             {post.mine ? m.discussionHiddenMine() : m.discussionHidden()}
           </p>
         ) : null}
+        {editing ? null : <Likes post={post} closed={data.closed} />}
       </div>
     </article>
   );

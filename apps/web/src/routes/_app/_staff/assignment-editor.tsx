@@ -28,6 +28,8 @@ export const Route = createFileRoute("/_app/_staff/assignment-editor")({
   validateSearch: v.object({
     id: v.optional(v.pipe(v.string(), v.uuid())),
     classId: v.optional(v.pipe(v.string(), v.uuid())),
+    /** The module a new discussion starts in. */
+    moduleId: v.optional(v.pipe(v.string(), v.uuid())),
     /** A library piece a new assignment starts from. */
     template: v.optional(v.pipe(v.string(), v.uuid())),
   }),
@@ -125,7 +127,7 @@ function NewEditor({ classId, template, onClose, onCreated }: NewEditorProps) {
 }
 
 function EditorPage() {
-  const { id, classId, template } = Route.useSearch();
+  const { id, classId, moduleId, template } = Route.useSearch();
   const navigate = Route.useNavigate();
   const router = useRouter();
   const canGoBack = useCanGoBack();
@@ -168,6 +170,7 @@ function EditorPage() {
     <AssignmentEditor
       existing={null}
       classId={classId}
+      moduleId={moduleId}
       onClose={close}
       onCreated={onCreated}
     />

@@ -48,6 +48,11 @@ export const discussionSchema = v.object({
     v.minValue(0),
     v.maxValue(MAX_DISCUSSION_REPLIES),
   ),
+  /** The module it stands in among the lessons, one set for its class; empty for none. */
+  moduleId: v.optional(
+    v.union([v.literal(""), v.pipe(v.string(), v.uuid())]),
+    "",
+  ),
 });
 export type DiscussionSettings = v.InferOutput<typeof discussionSchema>;
 
@@ -917,6 +922,12 @@ export const editDiscussionPostSchema = v.object({
 export const hideDiscussionPostSchema = v.object({
   id,
   hidden: v.boolean(),
+});
+
+/** Someone likes a post, or takes their like back. */
+export const likeDiscussionPostSchema = v.object({
+  id,
+  liked: v.boolean(),
 });
 
 export const sharedWorkQuerySchema = v.object({

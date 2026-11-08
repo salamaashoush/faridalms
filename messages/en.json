@@ -9735,5 +9735,34 @@
   "auditMediaItemTag": "Library item tagged",
   "auditMediaTagRename": "Library tag renamed",
   "auditMediaTagRemove": "Library tag removed",
-  "errorMediaTagTaken": "The school already has a tag of that name."
+  "errorMediaTagTaken": "The school already has a tag of that name.",
+  "discussionLike": "Like",
+  "discussionLikes": [
+    {
+      "declarations": [
+        "input count",
+        "input value",
+        "local countPlural = count: plural"
+      ],
+      "selectors": ["countPlural"],
+      "match": {
+        "countPlural=one": "{value} like",
+        "countPlural=*": "{value} likes"
+      }
+    }
+  ],
+  "discussionLikePost": "Like the post by {name}",
+  "discussionLikedBy": "Liked by {names}",
+  "discussionModule": "Module",
+  "discussionModuleHint": "Students find the discussion in the module, beside its lessons.",
+  "discussionNoModule": "In the class only",
+  "discussionsTab": "Discussions",
+  "discussionNewInModule": "New discussion",
+  "discussionModuleCaption": "Discussions in this module",
+  "discussionColumn": "Discussion",
+  "discussionModuleEmpty": "Start a discussion in this module",
+  "discussionModuleEmptyBody": "A discussion set for one of the module's classes stands here, beside its lessons, and is marked like any other work.",
+  "discussionDue": "Due {date}",
+  "courseworkErrModuleUnknown": "That module is not set for this class. Choose one of the class's modules.",
+  "discussionErrLikeOwn": "You cannot like your own post."
 }

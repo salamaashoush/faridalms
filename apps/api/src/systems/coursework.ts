@@ -44,6 +44,7 @@ import {
   commentById,
   commentsOf,
   courseworkHost,
+  discussionLikesOf,
   discussionPostById,
   discussionPostsOf,
   ensureSubmission,
@@ -70,7 +71,9 @@ import {
   saveGroup,
   saveRubric,
   selectionOf,
+  moduleDiscussions,
   setAssignmentState,
+  setDiscussionLike,
   setCommentState,
   setRecipientDue,
   setRecipients,
@@ -107,6 +110,10 @@ import {
   unlinkFiles,
 } from "@faridalms/database/stores/files";
 import { classCategories } from "@faridalms/database/stores/grading";
+import {
+  classesOfModule,
+  moduleById,
+} from "@faridalms/database/stores/learning";
 import { columnScores, columnsOf } from "@faridalms/database/stores/lti";
 import {
   attemptUnderReview,
@@ -160,6 +167,7 @@ import {
   discussionPostSchema,
   editDiscussionPostSchema,
   hideDiscussionPostSchema,
+  likeDiscussionPostSchema,
   sittingEnds,
   timeIsUp,
   effectiveScore,
@@ -690,6 +698,7 @@ export const editor = readProcedure
           ? {
               postFirst: assignment.discussionPostFirst,
               replies: assignment.discussionReplies,
+              moduleId: assignment.moduleId ?? "",
             }
           : null,
       peer: peerSettingsOf(assignment),
@@ -739,6 +748,7 @@ function fieldsOf(input: SaveAssignment) {
     gradeAfterAnswers: !input.quiz && input.gradeAfterAnswers,
     discussionPostFirst: input.discussion?.postFirst ?? null,
     discussionReplies: input.discussion?.replies ?? null,
+    moduleId: input.discussion?.moduleId || null,
     peerReviews: input.peer?.reviews ?? null,
     peerAnonymous: input.peer?.anonymous ?? null,
   };
@@ -813,6 +823,14 @@ export const reuse = writeProcedure
       gradeAfterAnswers: source.gradeAfterAnswers,
       discussionPostFirst: source.discussionPostFirst,
       discussionReplies: source.discussionReplies,
+      // The module stays only where it is set for the new class too.
+      moduleId:
+        source.moduleId &&
+        (await classesOfModule(tx, context.tenantId, source.moduleId)).some(
+          (row) => row.id === classRow.id,
+        )
+          ? source.moduleId
+          : null,
       peerReviews: source.peerReviews,
       peerAnonymous: source.peerAnonymous,
       language: source.language,
@@ -898,6 +916,23 @@ export const save = writeProcedure
       throw new ORPCError("BAD_REQUEST", {
         message: "coursework.category_unknown",
       });
+    if (input.discussion?.moduleId) {
+      const placed = await moduleById(
+        tx,
+        context.tenantId,
+        input.discussion.moduleId,
+      );
+      if (
+        !placed ||
+        placed.orgId !== context.schoolId ||
+        !(await classesOfModule(tx, context.tenantId, placed.id)).some(
+          (row) => row.id === classRow.id,
+        )
+      )
+        throw new ORPCError("BAD_REQUEST", {
+          message: "coursework.module_unknown",
+        });
+    }
     let assignmentId: string;
     let version: number;
     let published = false;
@@ -3774,12 +3809,16 @@ async function discussionView(
   assignment: AssignmentRow,
   viewer: Viewer,
 ) {
-  const [posts, roster] = await Promise.all([
+  const [posts, roster, likes] = await Promise.all([
     discussionPostsOf(context.tx, {
       tenantId: context.tenantId,
       assignmentId: assignment.id,
     }),
     studentWork(context.tx, {
+      tenantId: context.tenantId,
+      assignmentId: assignment.id,
+    }),
+    discussionLikesOf(context.tx, {
       tenantId: context.tenantId,
       assignmentId: assignment.id,
     }),
@@ -3820,6 +3859,7 @@ async function discussionView(
       const withheld =
         post.redacted ||
         (post.hidden && !viewer.teacher && post.authorUserId !== me);
+      const liked = likes.filter((like) => like.postId === post.id);
       return {
         id: post.id,
         parentId: post.parentPostId,
@@ -3833,6 +3873,16 @@ async function discussionView(
         editedAt: post.editedAt,
         hidden: post.hidden,
         removed: post.redacted,
+        likes: liked.length,
+        likedByMe: liked.some((like) => like.userId === context.actor.userId),
+        // Students see how many like a post; its teacher sees who.
+        likedBy: viewer.teacher
+          ? liked.map((like) => ({
+              id: like.userId,
+              fullNameEn: like.fullNameEn,
+              fullNameAr: like.fullNameAr,
+            }))
+          : null,
       };
     }),
   };
@@ -4070,6 +4120,116 @@ export const editPost = writeProcedure
     if (!changed)
       throw new ORPCError("CONFLICT", { message: "coursework.post_hidden" });
     return { edited: true };
+  });
+
+/**
+ * Someone taking part likes a post they can read, or takes the like back:
+ * one like a person a post, never their own, and only while the post shows.
+ */
+export const likePost = writeProcedure
+  .input(likeDiscussionPostSchema)
+  .handler(async ({ input, context }) => {
+    const found = await discussionPostById(
+      context.tx,
+      context.tenantId,
+      input.id,
+    );
+    if (!found) throw new ORPCError("NOT_FOUND");
+    const { assignment, viewer } = await discussionOf(
+      context,
+      found.assignmentId,
+    );
+    const view = await discussionView(context, assignment, viewer);
+    const shown = view.posts.find((item) => item.id === found.id);
+    if (!shown?.content || shown.hidden) throw new ORPCError("NOT_FOUND");
+    if (shown.authorId === context.actor.userId)
+      throw new ORPCError("BAD_REQUEST", { message: "coursework.like_own" });
+    await setDiscussionLike(context.tx, {
+      tenantId: context.tenantId,
+      postId: found.id,
+      userId: context.actor.userId,
+      liked: input.liked,
+    });
+    return { liked: input.liked };
+  });
+
+/**
+ * The discussions a module holds, for whoever reads the module: those who
+ * teach any of their classes see each with its class, a student those set
+ * for them and open, a family those of the child they follow.
+ */
+export const moduleDiscussionsOf = readProcedure
+  .input(
+    v.object({
+      moduleId: id,
+      studentId: v.optional(v.union([v.literal(""), id]), ""),
+    }),
+  )
+  .handler(async ({ input, context }) => {
+    const all = (
+      await moduleDiscussions(context.tx, {
+        tenantId: context.tenantId,
+        moduleId: input.moduleId,
+      })
+    ).filter((assignment) => assignment.orgId === context.schoolId);
+    if (can(context, "submissions:grade")) {
+      const rows = [];
+      for (const assignment of all) {
+        if (!(await teaches(context, "teaching", assignment.classId))) continue;
+        const classRow = await classById(
+          context.tx,
+          context,
+          assignment.classId,
+        );
+        rows.push({
+          id: assignment.id,
+          title: assignment.title,
+          dueAt: assignment.dueAt,
+          state: assignment.state,
+          class: classRow && {
+            id: classRow.id,
+            code: classRow.code,
+            titleEn: classRow.titleEn,
+            titleAr: classRow.titleAr,
+          },
+        });
+      }
+      return rows;
+    }
+    const studentId = input.studentId || context.actor.userId;
+    if (studentId === context.actor.userId)
+      requireCapability(context, "own-work:read");
+    else {
+      requireCapability(context, "children:read");
+      await requireStudent(context, "teaching", studentId);
+    }
+    const rows = [];
+    for (const assignment of all) {
+      const recipient =
+        assignment.state === "published"
+          ? await isRecipient(
+              context.tx,
+              context.tenantId,
+              assignment.id,
+              studentId,
+            )
+          : null;
+      if (!recipient) continue;
+      const own = ownSchedule(assignment, recipient);
+      if (
+        own.assignment.availableFrom &&
+        Date.parse(own.assignment.availableFrom) > context.now.getTime()
+      )
+        continue;
+      rows.push({
+        id: assignment.id,
+        title: assignment.title,
+        dueAt: own.dueAt,
+        state: assignment.state,
+        class: null,
+      });
+    }
+    return rows;
   });
 
 /** A teacher hides a post from the class, or shows it again; its author still reads it. */

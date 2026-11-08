@@ -59,7 +59,7 @@ import { toolGrading } from "~/components/content/lti";
 import { SaveTemplateDialog } from "~/components/content/Templates";
 import { AreaFiles } from "~/components/files/AreaFiles";
 import { displayName } from "~/components/people/format";
-import { inLocale } from "~/hooks/useCurrentUser";
+import { inLocale, useCurrentUser } from "~/hooks/useCurrentUser";
 import * as m from "~/i18n/messages";
 import {
   moduleProgressQuery,
@@ -89,6 +89,7 @@ import {
   STATE_TONE,
 } from "./format";
 import { ClassLive } from "./Live";
+import { ModuleDiscussions } from "./ModuleDiscussions";
 import { ModuleGlossary } from "./ModuleGlossary";
 import { TeachLiveDialog } from "./PacedLesson";
 import { PlanCoverage } from "./PlanEditor";
@@ -103,6 +104,7 @@ export const MODULE_TABS = [
   "questions",
   "videos",
   "answers",
+  "discussions",
   "files",
 ] as const;
 export type ModuleTab = (typeof MODULE_TABS)[number];
@@ -927,6 +929,11 @@ export function ModuleRecord({
   const navigate = useNavigate();
   const refresh = useRefresh();
   const [sharing, setSharing] = useState(false);
+  const user = useCurrentUser();
+  // Its discussions are coursework, there where the school sets coursework.
+  const discusses =
+    user.modules.coursework && user.capabilities.includes("assignments:author");
+  const shown = tab === "discussions" && !discusses ? "lessons" : tab;
   const state = shownState(data);
   // The word that it worked comes as the server says so, not once the
   // page has read everything again, which a busy school can make slow.
@@ -968,6 +975,9 @@ export function ModuleRecord({
     { value: "questions", label: m.lrnQuestionsTab() },
     { value: "videos", label: m.lrnVideosTab() },
     { value: "answers", label: m.lrnAnswersTab() },
+    ...(discusses
+      ? [{ value: "discussions" as const, label: m.discussionsTab() }]
+      : []),
     { value: "files", label: m.filesTab() },
   ];
   const ref = { id: data.id, expectedVersion: data.version };
@@ -1091,10 +1101,10 @@ export function ModuleRecord({
       <RecordTabs
         label={m.lrnSections()}
         tabs={tabs}
-        value={tab}
+        value={shown}
         onChange={onTab}
       >
-        {tab === "lessons" ? (
+        {shown === "lessons" ? (
           <RecordColumns
             main={<Lessons data={data} />}
             aside={
@@ -1104,9 +1114,18 @@ export function ModuleRecord({
               </>
             }
           />
-        ) : tab === "plan" ? (
+        ) : shown === "plan" ? (
           <ModulePlan moduleId={data.id} />
-        ) : tab === "files" ? (
+        ) : shown === "discussions" ? (
+          <ModuleDiscussions
+            moduleId={data.id}
+            classId={
+              data.classes.some((row) => row.id === classId)
+                ? classId
+                : (data.classes[0]?.id ?? "")
+            }
+          />
+        ) : shown === "files" ? (
           <AreaFiles
             area={{ type: "module", id: data.id }}
             title={data.title}
@@ -1119,13 +1138,13 @@ export function ModuleRecord({
             classId={classId}
             onClass={onClass}
             view={
-              tab === "live"
+              shown === "live"
                 ? ClassLive
-                : tab === "progress"
+                : shown === "progress"
                   ? Matrix
-                  : tab === "questions"
+                  : shown === "questions"
                     ? ClassQuestions
-                    : tab === "videos"
+                    : shown === "videos"
                       ? ClassVideos
                       : Answers
             }

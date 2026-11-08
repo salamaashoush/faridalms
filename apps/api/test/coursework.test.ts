@@ -3363,6 +3363,119 @@ describe("discussions", () => {
     ).toMatchObject({ message: "coursework.format_fixed" });
     expect(classmate).not.toBe("");
   });
+
+  test("a discussion stands in a module set for its class, and its posts are liked once each", async () => {
+    const teacher = await arabicTeacher();
+    const student = await sessionFor("northwind", login("student"));
+    const me = await student.api.identity.currentUser();
+    const target = await classOfStudent(teacher.api, me.id);
+    const { classes } = await teacher.api.coursework.options();
+    const elsewhere = classes.find(
+      (row) => row.id !== target.id && row.classType === "scheduled",
+    );
+    if (!elsewhere) throw new Error("the teacher teaches one class");
+    const module = await teacher.api.learning.saveModule({
+      id: "",
+      expectedVersion: 0,
+      title: "Rivers of the world",
+      summary: "",
+      classIds: [target.id],
+      prerequisiteId: "",
+      sequential: false,
+    });
+    // A module the class does not take is refused.
+    expect(
+      await rejection(
+        teacher.api.coursework.save(
+          draft(elsewhere.id, "Which river would you visit?", {
+            submissionFormat: "discussion",
+            discussion: { postFirst: false, replies: 0, moduleId: module.id },
+          }),
+        ),
+      ),
+    ).toMatchObject({ message: "coursework.module_unknown" });
+    const saved = await teacher.api.coursework.save(
+      draft(target.id, "Which river would you visit?", {
+        submissionFormat: "discussion",
+        discussion: { postFirst: false, replies: 0, moduleId: module.id },
+      }),
+    );
+    expect(
+      (await teacher.api.coursework.editor({ id: saved.id })).discussion,
+    ).toMatchObject({ moduleId: module.id });
+    // Unpublished, the module lists it for its teacher and not its students.
+    expect(
+      (
+        await teacher.api.coursework.moduleDiscussionsOf({
+          moduleId: module.id,
+        })
+      ).map((row) => [row.id, row.class?.id]),
+    ).toEqual([[saved.id, target.id]]);
+    expect(
+      await student.api.coursework.moduleDiscussionsOf({ moduleId: module.id }),
+    ).toEqual([]);
+    await teacher.api.coursework.publish({
+      id: saved.id,
+      expectedVersion: saved.version,
+    });
+    expect(
+      (
+        await student.api.coursework.moduleDiscussionsOf({
+          moduleId: module.id,
+        })
+      ).map((row) => row.title),
+    ).toEqual(["Which river would you visit?"]);
+    const opening = await teacher.api.coursework.post({
+      assignmentId: saved.id,
+      content: plainContent("Tell us why."),
+    });
+    const mine = await student.api.coursework.post({
+      assignmentId: saved.id,
+      content: plainContent("The Amazon, for the forest."),
+    });
+    expect(
+      await rejection(
+        student.api.coursework.likePost({ id: mine.id, liked: true }),
+      ),
+    ).toMatchObject({ message: "coursework.like_own" });
+    await student.api.coursework.likePost({ id: opening.id, liked: true });
+    // Liking twice keeps one like.
+    await student.api.coursework.likePost({ id: opening.id, liked: true });
+    await teacher.api.coursework.likePost({ id: mine.id, liked: true });
+    const seen = await student.api.coursework.discussion({
+      assignmentId: saved.id,
+    });
+    expect(seen.posts.find((item) => item.id === opening.id)).toMatchObject({
+      likes: 1,
+      likedByMe: true,
+      likedBy: null,
+    });
+    expect(seen.posts.find((item) => item.id === mine.id)).toMatchObject({
+      likes: 1,
+      likedByMe: false,
+    });
+    const moderated = await teacher.api.coursework.discussion({
+      assignmentId: saved.id,
+    });
+    expect(
+      moderated.posts
+        .find((item) => item.id === opening.id)
+        ?.likedBy?.map((person) => person.id),
+    ).toEqual([me.id]);
+    await student.api.coursework.likePost({ id: opening.id, liked: false });
+    expect(
+      (
+        await teacher.api.coursework.discussion({ assignmentId: saved.id })
+      ).posts.find((item) => item.id === opening.id),
+    ).toMatchObject({ likes: 0, likedBy: [] });
+    // A hidden post cannot be liked.
+    await teacher.api.coursework.hidePost({ id: mine.id, hidden: true });
+    expect(
+      await rejection(
+        teacher.api.coursework.likePost({ id: mine.id, liked: false }),
+      ),
+    ).toMatchObject({ code: "NOT_FOUND" });
+  });
 });
 
 describe("a brief in two languages", () => {

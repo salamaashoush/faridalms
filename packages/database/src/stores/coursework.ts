@@ -57,6 +57,7 @@ export interface AssignmentRow {
   gradeAfterAnswers: boolean;
   discussionPostFirst: boolean | null;
   discussionReplies: number | null;
+  moduleId: string | null;
   peerReviews: number | null;
   peerAnonymous: boolean | null;
   peerStartedAt: string | null;
@@ -99,6 +100,7 @@ type AssignmentRecord = {
   grade_after_answers: boolean;
   discussion_post_first: boolean | null;
   discussion_replies: number | null;
+  module_id: string | null;
   peer_reviews: number | null;
   peer_anonymous: boolean | null;
   peer_started_at: string | null;
@@ -116,7 +118,7 @@ const assignmentColumns = sql`a.id, a.version, a.org_id, a.class_id, a.class_typ
   a.late_policy, a.late_deduction_percent, a.submission_format, a.max_files, a.resubmission,
   a.points::text as points, a.rubric, a.quiz_attempts, a.quiz_keep, a.quiz_reveal, a.quiz_shuffle,
   a.quiz_time_limit, a.quiz_practice, a.quiz_bands, a.grade_after_answers, a.discussion_post_first, a.discussion_replies,
-  a.peer_reviews, a.peer_anonymous,
+  a.module_id, a.peer_reviews, a.peer_anonymous,
   to_char(a.peer_started_at at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS"Z"') as peer_started_at,
   to_char(a.peer_released_at at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS"Z"') as peer_released_at,
   a.language, a.translation_title,
@@ -156,6 +158,7 @@ function assignmentOf(row: AssignmentRecord): AssignmentRow {
     gradeAfterAnswers: row.grade_after_answers,
     discussionPostFirst: row.discussion_post_first,
     discussionReplies: row.discussion_replies,
+    moduleId: row.module_id,
     peerReviews: row.peer_reviews,
     peerAnonymous: row.peer_anonymous,
     peerStartedAt: row.peer_started_at,
@@ -239,6 +242,7 @@ export interface AssignmentFields {
   gradeAfterAnswers: boolean;
   discussionPostFirst: boolean | null;
   discussionReplies: number | null;
+  moduleId: string | null;
   peerReviews: number | null;
   peerAnonymous: boolean | null;
   language: ContentLocale | null;
@@ -259,8 +263,8 @@ export async function insertAssignment(
       grading_period_id, author_user_id, title, audience, available_from, due_at, closes_at,
       late_policy, late_deduction_percent, submission_format, max_files, resubmission, points, rubric,
       quiz_attempts, quiz_keep, quiz_reveal, quiz_shuffle, quiz_time_limit, quiz_practice, quiz_bands, category_id,
-      grade_after_answers, discussion_post_first, discussion_replies, peer_reviews, peer_anonymous,
-      language, translation_title)
+      grade_after_answers, discussion_post_first, discussion_replies, module_id, peer_reviews,
+      peer_anonymous, language, translation_title)
     values (${input.tenantId}::uuid, ${input.orgId}::uuid, ${input.classRow.id}::uuid,
       ${input.classRow.classType}, ${input.classRow.schoolYearId}::uuid,
       ${input.gradingPeriodId}::uuid, ${input.authorUserId}::uuid, ${input.title},
@@ -271,7 +275,8 @@ export async function insertAssignment(
       ${input.quizShuffle}, ${input.quizTimeLimit}, ${input.quizPractice},
       ${JSON.stringify(input.quizBands)}::text::jsonb, ${input.categoryId}::uuid,
       ${input.gradeAfterAnswers}, ${input.discussionPostFirst}, ${input.discussionReplies},
-      ${input.peerReviews}, ${input.peerAnonymous}, ${input.language}, ${input.translationTitle})
+      ${input.moduleId}::uuid, ${input.peerReviews}, ${input.peerAnonymous}, ${input.language},
+      ${input.translationTitle})
     returning id, version`);
   if (!row) throw new Error("assignment was not created");
   return row;
@@ -307,6 +312,7 @@ export async function updateAssignment(
         grade_after_answers = ${input.gradeAfterAnswers},
         discussion_post_first = ${input.discussionPostFirst},
         discussion_replies = ${input.discussionReplies},
+        module_id = ${input.moduleId}::uuid,
         peer_reviews = ${input.peerReviews}, peer_anonymous = ${input.peerAnonymous},
         language = ${input.language}, translation_title = ${input.translationTitle}
     where tenant_id = ${input.tenantId}::uuid and id = ${input.id}::uuid
@@ -2162,4 +2168,67 @@ export async function hideDiscussionPost(
     set hidden_at = ${input.hidden ? sql`coalesce(hidden_at, statement_timestamp())` : sql`null`},
         hidden_by_user_id = ${input.hidden ? sql`coalesce(hidden_by_user_id, ${input.userId}::uuid)` : sql`null`}
     where tenant_id = ${input.tenantId}::uuid and id = ${input.id}::uuid and status = 'active'`);
+}
+
+export interface PostLikeRow {
+  postId: string;
+  userId: string;
+  fullNameEn: string | null;
+  fullNameAr: string | null;
+}
+
+/** Who likes each post of a discussion, in the order they liked it. */
+export async function discussionLikesOf(
+  tx: Tx,
+  input: { tenantId: string; assignmentId: string },
+): Promise<PostLikeRow[]> {
+  const rows = await tx.execute<{
+    post_id: string;
+    user_id: string;
+    full_name_en: string | null;
+    full_name_ar: string | null;
+  }>(sql`
+    select l.post_id, l.user_id, u.full_name_en, u.full_name_ar
+    from core.discussion_likes l
+    join core.discussion_posts p on p.tenant_id = l.tenant_id and p.id = l.post_id
+    join core.users u on u.tenant_id = l.tenant_id and u.id = l.user_id
+    where l.tenant_id = ${input.tenantId}::uuid and p.assignment_id = ${input.assignmentId}::uuid
+      and l.status = 'active' and p.status = 'active'
+    order by l.created_at, l.id`);
+  return rows.map((row) => ({
+    postId: row.post_id,
+    userId: row.user_id,
+    fullNameEn: row.full_name_en,
+    fullNameAr: row.full_name_ar,
+  }));
+}
+
+/** Likes a post once, or takes the like back; either is a no-op when already so. */
+export async function setDiscussionLike(
+  tx: Tx,
+  input: { tenantId: string; postId: string; userId: string; liked: boolean },
+): Promise<void> {
+  if (input.liked)
+    await tx.execute(sql`
+      insert into core.discussion_likes (tenant_id, post_id, user_id)
+      values (${input.tenantId}::uuid, ${input.postId}::uuid, ${input.userId}::uuid)
+      on conflict (tenant_id, post_id, user_id) where status = 'active' do nothing`);
+  else
+    await tx.execute(sql`
+      update core.discussion_likes set status = 'tobedeleted'
+      where tenant_id = ${input.tenantId}::uuid and post_id = ${input.postId}::uuid
+        and user_id = ${input.userId}::uuid and status = 'active'`);
+}
+
+/** The discussions a module holds, in any of its classes, in the order they fall due. */
+export async function moduleDiscussions(
+  tx: Tx,
+  input: { tenantId: string; moduleId: string },
+): Promise<AssignmentRow[]> {
+  const rows = await tx.execute<AssignmentRecord>(sql`
+    select ${assignmentColumns} from core.assignments a
+    where a.tenant_id = ${input.tenantId}::uuid and a.module_id = ${input.moduleId}::uuid
+      and a.status = 'active' and a.state <> 'archived'
+    order by a.due_at nulls last, a.created_at, a.id`);
+  return rows.map(assignmentOf);
 }

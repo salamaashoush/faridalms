@@ -288,6 +288,18 @@ From [../research/early-years.md](../research/early-years.md).
 - Judgements, the reports shared and their links are erased with the
   child.
 
+## Discussions
+
+- A discussion is coursework set for one class. Its teacher may stand it
+  in a module set for that class: the module's Discussions tab lists the
+  discussions of the classes its teacher teaches, with New discussion
+  opening the editor for that module, and a student meets it in the
+  module beside its lessons. A family sees its title there and nothing of
+  the posts.
+- Anyone taking part likes a post they can read, once, and takes the like
+  back; nobody likes their own, and a hidden post takes no likes. Students
+  see how many like a post; its teacher also sees who.
+
 ## Next
 
 What lessons, quizzes and the editor still lack, and the order of work, is

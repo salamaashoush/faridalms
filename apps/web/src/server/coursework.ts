@@ -4,6 +4,7 @@ import {
   discussionPostSchema,
   editDiscussionPostSchema,
   hideDiscussionPostSchema,
+  likeDiscussionPostSchema,
   hidePeerReviewSchema,
   peerReviewInputSchema,
   extendSchema,
@@ -251,6 +252,23 @@ export const editDiscussionPost = createServerFn({ method: "POST" })
 export const hideDiscussionPost = createServerFn({ method: "POST" })
   .validator(checked(hideDiscussionPostSchema))
   .handler(({ data }) => backend().coursework.hidePost(data));
+
+export const likeDiscussionPost = createServerFn({ method: "POST" })
+  .validator(checked(likeDiscussionPostSchema))
+  .handler(({ data }) => backend().coursework.likePost(data));
+
+export const getModuleDiscussions = createServerFn({ method: "GET" })
+  .validator(
+    checked(
+      v.object({
+        moduleId: uuid,
+        studentId: v.union([v.literal(""), uuid]),
+      }),
+    ),
+  )
+  .handler(({ data }) =>
+    record(backend().coursework.moduleDiscussionsOf(data)),
+  );
 
 export const saveRubric = createServerFn({ method: "POST" })
   .validator(checked(saveRubricSchema))

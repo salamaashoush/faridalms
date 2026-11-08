@@ -15,6 +15,7 @@ import {
   getCourseworkOptions,
   getCommentBank,
   getDiscussion,
+  getModuleDiscussions,
   getGrading,
   getQuizAnswers,
   getQuizPollResults,
@@ -87,6 +88,12 @@ export const discussionQuery = (assignmentId: string) =>
   queryOptions({
     queryKey: ["coursework", "discussion", assignmentId],
     queryFn: () => getDiscussion({ data: { assignmentId } }),
+  });
+
+export const moduleDiscussionsQuery = (moduleId: string, studentId = "") =>
+  queryOptions({
+    queryKey: ["coursework", "module-discussions", moduleId, studentId],
+    queryFn: () => getModuleDiscussions({ data: { moduleId, studentId } }),
   });
 
 export const myWorkQuery = (id: string) =>

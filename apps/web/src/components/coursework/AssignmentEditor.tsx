@@ -70,11 +70,12 @@ import {
   DocumentTitle,
 } from "~/components/system/DocumentPage";
 import { useAutosave } from "~/hooks/useAutosave";
-import { inLocale } from "~/hooks/useCurrentUser";
+import { inLocale, useCurrentUser } from "~/hooks/useCurrentUser";
 import { useDocumentMedia } from "~/hooks/useDocumentMedia";
 import * as m from "~/i18n/messages";
 import { classGroupsQuery, courseworkOptionsQuery } from "~/queries/coursework";
 import { classPlanQuery } from "~/queries/grading";
+import { teachingModulesQuery } from "~/queries/learning";
 import {
   archiveAssignment,
   publishAssignment,
@@ -124,7 +125,8 @@ interface Draft {
   resubmission: boolean;
   gradeAfterAnswers: boolean;
   quiz: QuizDraft;
-  discussion: { postFirst: boolean; replies: string };
+  /** The module it stands in, empty for none. */
+  discussion: { postFirst: boolean; replies: string; moduleId: string };
   peer: { on: boolean; reviews: string; anonymous: boolean };
   language: ContentLocale | "auto";
   /** The brief in the other language: its title, empty for the original's, and its words. */
@@ -258,7 +260,11 @@ const newQuiz = (): QuizDraft => ({
   bands: [],
 });
 
-function initialDraft(existing: Existing | null, classId: string): Draft {
+function initialDraft(
+  existing: Existing | null,
+  classId: string,
+  moduleId: string,
+): Draft {
   if (!existing)
     return {
       classId,
@@ -276,14 +282,15 @@ function initialDraft(existing: Existing | null, classId: string): Draft {
       rubric: null,
       gradingPeriodId: "",
       categoryId: "",
-      submissionFormat: "both",
+      // Started from a module, it is that module's discussion.
+      submissionFormat: moduleId ? "discussion" : "both",
       maxFiles: "5",
       latePolicy: "accept",
       deduction: "10",
       resubmission: false,
       gradeAfterAnswers: false,
       quiz: newQuiz(),
-      discussion: { postFirst: true, replies: "2" },
+      discussion: { postFirst: true, replies: "2", moduleId },
       peer: NO_PEER,
       language: "auto",
       translation: null,
@@ -331,8 +338,9 @@ function initialDraft(existing: Existing | null, classId: string): Draft {
       ? {
           postFirst: existing.discussion.postFirst,
           replies: String(existing.discussion.replies),
+          moduleId: existing.discussion.moduleId,
         }
-      : { postFirst: true, replies: "2" },
+      : { postFirst: true, replies: "2", moduleId: "" },
     peer: existing.peer
       ? {
           on: true,
@@ -446,6 +454,8 @@ const fieldsOf = (value: Draft) => JSON.stringify({ ...value, brief: null });
 export interface AssignmentEditorProps {
   existing: Existing | null;
   classId?: string;
+  /** The module a new discussion is started from. */
+  moduleId?: string;
   /** The library piece a new assignment starts from. */
   template?: StartingPiece;
   onClose: (id?: string) => void;
@@ -461,6 +471,7 @@ export interface AssignmentEditorProps {
 export function AssignmentEditor({
   existing,
   classId = "",
+  moduleId = "",
   template,
   onClose,
   onCreated,
@@ -480,7 +491,11 @@ export function AssignmentEditor({
   // Whether the work is still to come is judged from when the page opened.
   const [openedAt] = useState(() => Date.now());
   const [start] = useState(() =>
-    initialDraft(existing, classId || defaultClass(options.classes)?.id || ""),
+    initialDraft(
+      existing,
+      classId || defaultClass(options.classes)?.id || "",
+      moduleId,
+    ),
   );
   const [draft, setDraft] = useState(start);
   const media = useDocumentMedia(
@@ -529,6 +544,19 @@ export function AssignmentEditor({
     ...classPlanQuery(draft.classId),
     enabled: Boolean(draft.classId),
   }).data;
+  const user = useCurrentUser();
+  // A discussion may stand in a module set for its class, where modules are on.
+  const placeable =
+    user.modules.elearning && user.capabilities.includes("learning:author");
+  const classModules = useQuery({
+    ...teachingModulesQuery(draft.classId),
+    enabled:
+      placeable &&
+      Boolean(draft.classId) &&
+      draft.submissionFormat === "discussion",
+  }).data?.rows.filter((row) =>
+    row.classes.some((item) => item.id === draft.classId),
+  );
 
   const published = state === "published";
   const archived = state === "archived";
@@ -591,6 +619,7 @@ export function AssignmentEditor({
           ? {
               postFirst: value.discussion.postFirst,
               replies: Number(value.discussion.replies),
+              moduleId: value.discussion.moduleId,
             }
           : null,
         peer:
@@ -1379,6 +1408,28 @@ export function AssignmentEditor({
                     set("discussion", { ...draft.discussion, replies })
                   }
                 />
+                {placeable ? (
+                  <SelectField
+                    id="discussion-module"
+                    label={m.discussionModule()}
+                    hint={m.discussionModuleHint()}
+                    optional
+                    value={draft.discussion.moduleId || "none"}
+                    options={[
+                      { value: "none", label: m.discussionNoModule() },
+                      ...(classModules ?? []).map((row) => ({
+                        value: row.id,
+                        label: row.title,
+                      })),
+                    ]}
+                    onChange={(value) =>
+                      set("discussion", {
+                        ...draft.discussion,
+                        moduleId: value === "none" ? "" : value,
+                      })
+                    }
+                  />
+                ) : null}
               </DetailsSection>
             ) : null}
             <DetailsSection title={m.contentLanguage()}>

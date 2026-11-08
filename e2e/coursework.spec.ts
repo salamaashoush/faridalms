@@ -507,6 +507,77 @@ test("a discussion opens classmates' posts once a student answers, and counts th
   ).toBeVisible();
 });
 
+test("a module holds its class's discussion, and a post's likes are counted and named to the teacher", async ({
+  browser,
+  page,
+}) => {
+  const title = `Oases ${crypto.randomUUID().slice(0, 6)}`;
+  const { api } = await signedInApi(TEACHER);
+  const { classes } = await api.coursework.options();
+  const arabic = classes.find((row) => row.titleEn === "8A Arabic");
+  if (!arabic) throw new Error("the seed has no 8A Arabic");
+  const module = await api.learning.saveModule({
+    id: "",
+    expectedVersion: 0,
+    title: `Deserts ${title}`,
+    summary: "",
+    classIds: [arabic.id],
+    prerequisiteId: "",
+    sequential: false,
+  });
+
+  await signInWith(page, TEACHER, PASSWORD, "/today");
+  await page.goto(`/modules/${module.id}?tab=discussions`);
+  await untilHydrated(page);
+  await page.getByRole("link", { name: "New discussion" }).first().click();
+  await expect(page).toHaveURL(/\/assignment-editor\?.*moduleId=/);
+  await untilHydrated(page);
+  await page.getByRole("textbox", { name: "Assignment title" }).fill(title);
+  await page.locator("[contenteditable=true]").first().click();
+  await page.keyboard.type("Which oasis would you cross the desert for?");
+  await expect(page.locator("#discussion-module")).toContainText(
+    `Deserts ${title}`,
+  );
+  await page.getByRole("button", { name: "Assign", exact: true }).click();
+  await expect(page).toHaveURL(/\/assignments\/[a-f0-9-]+/);
+  const address = new URL(page.url()).pathname;
+  await page.goto(`${address}?tab=discussion`);
+  await untilHydrated(page);
+  await page.getByRole("button", { name: "New post" }).click();
+  await page.getByRole("textbox", { name: "New post" }).click();
+  await page.keyboard.type("Think of water and shade.");
+  await page.getByRole("button", { name: "Post", exact: true }).click();
+
+  const studentContext = await browser.newContext();
+  const student = await studentContext.newPage();
+  await signInWith(
+    student,
+    ACCOUNTS.student.email,
+    PASSWORD,
+    ACCOUNTS.student.home,
+  );
+  await student.goto(`/modules/${module.id}`);
+  await untilHydrated(student);
+  await student
+    .getByRole("region", { name: "Discussions" })
+    .getByRole("link", { name: title })
+    .click();
+  await expect(student).toHaveURL(new RegExp(address));
+  await untilHydrated(student);
+  await student.getByRole("textbox", { name: "Your answer" }).click();
+  await student.keyboard.type("Siwa, for its springs.");
+  await student.getByRole("button", { name: "Post", exact: true }).click();
+  const like = student.getByRole("button", { name: /^Like the post by / });
+  await like.click();
+  await expect(like).toHaveAttribute("aria-pressed", "true");
+  await expect(like).toContainText("1 like");
+  await studentContext.close();
+
+  await page.goto(`${address}?tab=discussion`);
+  await untilHydrated(page);
+  await expect(page.getByText(/^Liked by Yasmin/)).toBeVisible();
+});
+
 test("classmates review each other's work unnamed, and read the reviews once the teacher releases them", async ({
   browser,
   page,

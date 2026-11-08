@@ -10183,5 +10183,38 @@
   "auditMediaItemTag": "وُسم عنصر في المكتبة",
   "auditMediaTagRename": "أُعيدت تسمية وسم في المكتبة",
   "auditMediaTagRemove": "حُذف وسم من المكتبة",
-  "errorMediaTagTaken": "لدى المدرسة وسم بهذا الاسم بالفعل."
+  "errorMediaTagTaken": "لدى المدرسة وسم بهذا الاسم بالفعل.",
+  "discussionLike": "إعجاب",
+  "discussionLikes": [
+    {
+      "declarations": [
+        "input count",
+        "input value",
+        "local countPlural = count: plural"
+      ],
+      "selectors": ["countPlural"],
+      "match": {
+        "countPlural=zero": "{value} إعجاب",
+        "countPlural=one": "إعجاب واحد",
+        "countPlural=two": "إعجابان",
+        "countPlural=few": "{value} إعجابات",
+        "countPlural=many": "{value} إعجابًا",
+        "countPlural=*": "{value} إعجاب"
+      }
+    }
+  ],
+  "discussionLikePost": "الإعجاب بمنشور {name}",
+  "discussionLikedBy": "أعجب به: {names}",
+  "discussionModule": "الوحدة",
+  "discussionModuleHint": "يجد الطلاب النقاش في الوحدة إلى جانب دروسها.",
+  "discussionNoModule": "في الصف فقط",
+  "discussionsTab": "النقاشات",
+  "discussionNewInModule": "نقاش جديد",
+  "discussionModuleCaption": "النقاشات في هذه الوحدة",
+  "discussionColumn": "النقاش",
+  "discussionModuleEmpty": "ابدأ نقاشًا في هذه الوحدة",
+  "discussionModuleEmptyBody": "النقاش الذي تضعه لأحد صفوف الوحدة يظهر هنا إلى جانب دروسها، ويُصحَّح كأي عمل آخر.",
+  "discussionDue": "موعده {date}",
+  "courseworkErrModuleUnknown": "هذه الوحدة غير مقررة لهذا الصف. اختر إحدى وحدات الصف.",
+  "discussionErrLikeOwn": "لا يمكنك الإعجاب بمنشورك."
 }

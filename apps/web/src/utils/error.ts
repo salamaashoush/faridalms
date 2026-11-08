@@ -694,6 +694,10 @@ export function getMessageFromError(error: unknown): string {
         return m.gradingNoFloor();
       case "coursework.category_unknown":
         return m.courseworkErrCategoryUnknown();
+      case "coursework.module_unknown":
+        return m.courseworkErrModuleUnknown();
+      case "coursework.like_own":
+        return m.discussionErrLikeOwn();
       case "grading.weights_total":
         return m.gradingCategoryIncomplete();
       case "grading.level_repeated":

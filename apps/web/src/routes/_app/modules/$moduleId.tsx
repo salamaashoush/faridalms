@@ -6,7 +6,9 @@ import * as v from "valibot";
 import { areaViewSearch } from "~/components/files/AreaFiles";
 import { MODULE_TABS, ModuleRecord } from "~/components/learning/ModuleRecord";
 import { ModuleOutline } from "~/components/learning/StudentModules";
+import { moduleDiscussionsQuery } from "~/queries/coursework";
 import { moduleOutlineQuery, moduleRecordQuery } from "~/queries/learning";
+import { currentUserQuery } from "~/queries/user";
 
 const searchSchema = v.object({
   tab: v.fallback(v.optional(v.picklist(MODULE_TABS), "lessons"), "lessons"),
@@ -38,11 +40,19 @@ export const Route = createFileRoute("/_app/modules/$moduleId")({
   search: { middlewares: [stripSearchParams(DEFAULT_SEARCH)] },
   loaderDeps: ({ search }) => ({ studentId: search.studentId }),
   loader: async ({ context, params, deps }) => {
-    if (learns(context.auth.workspace))
-      await context.queryClient.ensureQueryData(
-        moduleOutlineQuery(params.moduleId, deps.studentId),
-      );
-    else
+    if (learns(context.auth.workspace)) {
+      const user = await context.queryClient.ensureQueryData(currentUserQuery);
+      await Promise.all([
+        context.queryClient.ensureQueryData(
+          moduleOutlineQuery(params.moduleId, deps.studentId),
+        ),
+        user.modules.coursework
+          ? context.queryClient.ensureQueryData(
+              moduleDiscussionsQuery(params.moduleId, deps.studentId),
+            )
+          : null,
+      ]);
+    } else
       await context.queryClient.ensureQueryData(
         moduleRecordQuery(params.moduleId),
       );
