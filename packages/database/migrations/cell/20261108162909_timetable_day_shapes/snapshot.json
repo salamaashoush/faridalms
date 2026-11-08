@@ -1,0 +1,225 @@
+{
+  "type": "diff",
+  "version": "9",
+  "dialect": "postgres",
+  "id": "90833b35-f1df-41b6-bcf9-9ced5ba036c9",
+  "prevIds": [
+    "efe10147-ba7f-475d-9513-170eb7ee1143"
+  ],
+  "footprints": [
+    {
+      "statementType": "add_column",
+      "statementTarget": [
+        "column",
+        "core",
+        "calendar_dates",
+        "runs_as"
+      ],
+      "writes": [
+        "s|col|core.calendar_dates.runs_as",
+        "n|col|core.calendar_dates.runs_as",
+        "e|col|core.calendar_dates.runs_as"
+      ],
+      "reads": [
+        "n|tbl|core.calendar_dates",
+        "n|sch|core"
+      ]
+    },
+    {
+      "statementType": "add_column",
+      "statementTarget": [
+        "column",
+        "core",
+        "class_periods",
+        "bell_schedule_id"
+      ],
+      "writes": [
+        "s|col|core.class_periods.bell_schedule_id",
+        "n|col|core.class_periods.bell_schedule_id",
+        "e|col|core.class_periods.bell_schedule_id"
+      ],
+      "reads": [
+        "n|tbl|core.class_periods",
+        "n|sch|core"
+      ]
+    },
+    {
+      "statementType": "create_index",
+      "statementTarget": [
+        "index",
+        "core",
+        "class_periods",
+        "class_periods_extra_code_key"
+      ],
+      "writes": [
+        "s|idx|core.class_periods_extra_code_key",
+        "n|idx|core.class_periods_extra_code_key",
+        "e|idx|core.class_periods_extra_code_key",
+        "n|rel|core.class_periods_extra_code_key"
+      ],
+      "reads": [
+        "n|tbl|core.class_periods",
+        "n|sch|core",
+        "n|col|core.class_periods.tenant_id",
+        "n|col|core.class_periods.bell_schedule_id",
+        "n|col|core.class_periods.code"
+      ]
+    },
+    {
+      "statementType": "add_check",
+      "statementTarget": [
+        "table",
+        "core",
+        "calendar_dates"
+      ],
+      "writes": [
+        "s|ck|core.calendar_dates.calendar_dates_runs_as_check",
+        "n|ck|core.calendar_dates.calendar_dates_runs_as_check",
+        "e|ck|core.calendar_dates.calendar_dates_runs_as_check",
+        "n|con|core.calendar_dates.calendar_dates_runs_as_check"
+      ],
+      "reads": [
+        "n|tbl|core.calendar_dates",
+        "n|sch|core",
+        "n|col|core.calendar_dates.runs_as"
+      ]
+    },
+    {
+      "statementType": "add_check",
+      "statementTarget": [
+        "table",
+        "core",
+        "class_periods"
+      ],
+      "writes": [
+        "s|ck|core.class_periods.class_periods_extra_check",
+        "n|ck|core.class_periods.class_periods_extra_check",
+        "e|ck|core.class_periods.class_periods_extra_check",
+        "n|con|core.class_periods.class_periods_extra_check"
+      ],
+      "reads": [
+        "n|tbl|core.class_periods",
+        "n|sch|core",
+        "n|col|core.class_periods.bell_schedule_id",
+        "n|col|core.class_periods.official_attendance"
+      ]
+    },
+    {
+      "statementType": "alter_check",
+      "statementTarget": [
+        "table",
+        "core",
+        "bell_schedules"
+      ],
+      "writes": [
+        "s|ck|core.bell_schedules.bell_schedules_times_check"
+      ],
+      "reads": [
+        "n|tbl|core.bell_schedules",
+        "n|sch|core",
+        "n|col|core.bell_schedules.times",
+        "e|col|core.bell_schedules.times"
+      ],
+      "sqlHash": "451ba801b729be93"
+    }
+  ],
+  "deltas": [
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "calendar_dates",
+        "name": "runs_as",
+        "type": "smallint",
+        "typeSchema": null,
+        "notNull": false,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "class_periods",
+        "name": "bell_schedule_id",
+        "type": "uuid",
+        "typeSchema": null,
+        "notNull": false,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "class_periods",
+        "name": "class_periods_extra_code_key",
+        "nameExplicit": true,
+        "columns": [
+          {
+            "value": "tenant_id",
+            "isExpression": false,
+            "asc": true,
+            "nullsFirst": false,
+            "opclass": null
+          },
+          {
+            "value": "bell_schedule_id",
+            "isExpression": false,
+            "asc": true,
+            "nullsFirst": false,
+            "opclass": null
+          },
+          {
+            "value": "code",
+            "isExpression": false,
+            "asc": true,
+            "nullsFirst": false,
+            "opclass": null
+          }
+        ],
+        "isUnique": true,
+        "where": "status = 'active' and bell_schedule_id is not null",
+        "with": "",
+        "method": "btree",
+        "concurrently": false,
+        "entityType": "indexes"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "calendar_dates",
+        "name": "calendar_dates_runs_as_check",
+        "value": "runs_as between 1 and 28",
+        "entityType": "checks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "class_periods",
+        "name": "class_periods_extra_check",
+        "value": "bell_schedule_id is null or not official_attendance",
+        "entityType": "checks"
+      }
+    },
+    {
+      "op": "alter",
+      "key": "checks\u0000[\"core\",\"bell_schedules\",\"bell_schedules_times_check\"]",
+      "set": {
+        "value": "jsonb_typeof(times) = 'array' and jsonb_array_length(times) between 0 and 50"
+      }
+    }
+  ]
+}

@@ -293,7 +293,7 @@ export const bellSchedules = core.table.withRLS(
     ck(
       "bell_schedules",
       "times",
-      sql`jsonb_typeof(times) = 'array' and jsonb_array_length(times) between 1 and 50`,
+      sql`jsonb_typeof(times) = 'array' and jsonb_array_length(times) between 0 and 50`,
     ),
     index("bell_schedules_year_idx")
       .on(t.tenantId, t.schoolYearId)
@@ -326,6 +326,8 @@ export const calendarDates = core.table.withRLS(
     // writes a key on an existing table as validated, and validating reads
     // the table under forced row security, where a migration has no tenant.
     bellScheduleId: uuid("bell_schedule_id"),
+    /** The day of the timetable's cycle it runs as instead of its own. */
+    runsAs: smallint("runs_as"),
     ...entityColumns(),
   },
   (t): PgTableExtraConfigValue[] => [
@@ -356,6 +358,7 @@ export const calendarDates = core.table.withRLS(
       "note_ar",
       sql`char_length(note_ar) between 1 and 200`,
     ),
+    ck("calendar_dates", "runs_as", sql`runs_as between 1 and 28`),
     uniqueIndex("calendar_dates_day_key")
       .on(t.tenantId, t.calendarId, t.dayOn)
       .where(sql`status = 'active'`),
@@ -434,6 +437,10 @@ export const classPeriods = core.table.withRLS(
       .notNull()
       .default(sql`'[]'::jsonb`),
     validDuring: daterange("valid_during").notNull(),
+    /** The bell schedule whose days alone hold it, beyond the year's own periods. */
+    // Keyed to bell_schedules NOT VALID by the custom migration, as
+    // calendar_dates.bell_schedule_id.
+    bellScheduleId: uuid("bell_schedule_id"),
     ...entityColumns(),
   },
   (t): PgTableExtraConfigValue[] => [
@@ -482,6 +489,14 @@ export const classPeriods = core.table.withRLS(
       sql`jsonb_typeof(day_times) = 'array' and jsonb_array_length(day_times) <= 6`,
     ),
     ck("class_periods", "valid_during", range.bounded("valid_during")),
+    ck(
+      "class_periods",
+      "extra",
+      sql`bell_schedule_id is null or not official_attendance`,
+    ),
+    uniqueIndex("class_periods_extra_code_key")
+      .on(t.tenantId, t.bellScheduleId, t.code)
+      .where(sql`status = 'active' and bell_schedule_id is not null`),
     ...entityProfile({ integration: true }),
   ],
 );
