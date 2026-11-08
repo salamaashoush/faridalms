@@ -155,6 +155,34 @@ kept. Answers stream to the panel and stop when it closes. Requests are
 paced from Anthropic's `anthropic-ratelimit-*` headers and `retry-after`,
 never a guessed interval.
 
+## Keeping a key press cheap
+
+Teachers write lessons of several hundred blocks on school Chromebooks, so
+the work a key press does must not grow with the document:
+
+- Nothing that runs on every update walks the whole document. Lexical runs
+  the root's transform at the end of every update; the block, answer and
+  link id passes there wait for a node to join the document. Update
+  listeners revisit the nodes the update marked dirty (`dirtyElements`,
+  `dirtyLeaves`), and an update that only moved the selection changes no
+  marks.
+- Layout is read in the animation frame that draws a change, once, never
+  inside an update listener, and a measured position is set as state only
+  when it moved (`plugins/Table.tsx`, `plugins/code-block.tsx`).
+- The host is handed the document in a task of its own once typing pauses
+  (200ms, at most a second into a burst), validated, and draws it as a React
+  transition; blur, Escape and shortcuts hand it over at once. The surface
+  and its plugins are memoised against the host's redraw, and the word
+  count is a store only the footer reads.
+
+`apps/web/src/components/content/editor-performance.spec.tsx` holds the
+budget, on the 336-block lesson in `packages/editor/src/large-document.ts`:
+a key in it may cost at most two and a half times a key in a 24-block one,
+typing draws nothing in React, and the host hears of it once, after the
+pause. A walk of the document on each key fails the first. In Chromium with
+the CPU slowed fourfold, a key in that lesson reaches the screen in about
+15ms (170ms before the budget existed).
+
 ## Remaining work
 
 What the editor and the teaching tools on it still lack, with the order of

@@ -30,6 +30,7 @@
     "./editor.css": "./src/editor.css",
     "./Editor": "./src/Editor.tsx",
     "./headless": "./src/headless.ts",
+    "./large-document": "./src/large-document.ts",
     "./html-import": "./src/html-import.ts",
     "./packages": "./src/packages.ts"
   },
