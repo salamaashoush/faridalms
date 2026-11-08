@@ -348,7 +348,12 @@ handed to someone. Staff therefore read one timeline, and the record it
 belongs to (an enquiry, an application) keeps only its workflow and draws
 the conversation with the Messages component. A reply someone else
 overtook is refused until its writer has read what came in, or sends it
-anyway.
+anyway. Before that, staff who may write in a conversation see that a
+colleague is replying: each joins the conversation's presence room on the
+collaboration server (`messages.presence` signs a read-only ticket whose
+room names the conversation) and says, as awareness, only whether they
+are typing, set as they start and when they stop or go idle. Nothing in
+the room is stored, nothing polls, and a family is never in it.
 
 Telling people goes through one function, `notify` in
 `apps/api/src/core/notify.ts`, inside the same transaction as the change

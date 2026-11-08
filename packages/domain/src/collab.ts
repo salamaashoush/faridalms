@@ -3,7 +3,9 @@ import * as v from "valibot";
 /**
  * What the API vouches for when it lets someone open a document for live
  * editing: which tenant and document, who, and whether they may write. The
- * collaboration server trusts nothing else a client sends.
+ * collaboration server trusts nothing else a client sends. A `presence`
+ * room is no document: `documentId` names a conversation, nothing is
+ * stored, and those in it only say whether they are writing a reply.
  */
 const documentTicketSchema = v.object({
   tenantId: v.pipe(v.string(), v.uuid()),
@@ -11,6 +13,7 @@ const documentTicketSchema = v.object({
   userId: v.pipe(v.string(), v.uuid()),
   access: v.picklist(["read", "write"]),
   expiresAt: v.pipe(v.number(), v.integer()),
+  room: v.optional(v.picklist(["document", "presence"]), "document"),
 });
 export type DocumentTicket = v.InferOutput<typeof documentTicketSchema>;
 
@@ -30,6 +33,7 @@ export type PacingTicket = v.InferOutput<typeof pacingTicketSchema>;
 
 export const ticketSchema = v.union([pacingTicketSchema, documentTicketSchema]);
 export type Ticket = DocumentTicket | PacingTicket;
+export type TicketInput = v.InferInput<typeof ticketSchema>;
 
 /** How long a ticket stays good for opening a connection. */
 export const TICKET_TTL_SECONDS = 120;
@@ -39,12 +43,16 @@ export const isPacing = (ticket: Ticket): ticket is PacingTicket =>
 
 export const roomOf = (
   ticket:
-    | Pick<DocumentTicket, "tenantId" | "documentId">
+    | (Pick<DocumentTicket, "tenantId" | "documentId"> & {
+        room?: DocumentTicket["room"];
+      })
     | Pick<PacingTicket, "kind" | "tenantId" | "lessonId">,
 ) =>
   "lessonId" in ticket
     ? pacingRoom(ticket.tenantId, ticket.lessonId)
-    : `${ticket.tenantId}:${ticket.documentId}`;
+    : ticket.room === "presence"
+      ? `${ticket.tenantId}:presence:${ticket.documentId}`
+      : `${ticket.tenantId}:${ticket.documentId}`;
 
 /** The room a lesson's students listen in for its teacher moving the class. */
 export const pacingRoom = (tenantId: string, lessonId: string) =>
@@ -145,7 +153,7 @@ async function verify<T extends { expiresAt: number }>(
 }
 
 export async function signTicket(
-  ticket: Ticket,
+  ticket: TicketInput,
   cellSecret: Uint8Array<ArrayBuffer>,
 ): Promise<string> {
   return sign(ticket, await derivedKey(cellSecret, "collaboration-ticket"));

@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  isPacing,
   pacingRoom,
   roomOf,
   signSignal,
@@ -21,8 +22,26 @@ const ticket = {
 describe("collaboration tickets", () => {
   it("carry what the API signed, for one room", async () => {
     const token = await signTicket(ticket, secret);
-    expect(await verifyTicket(token, secret)).toEqual(ticket);
+    expect(await verifyTicket(token, secret)).toEqual({
+      ...ticket,
+      room: "document",
+    });
     expect(roomOf(ticket)).toBe(`${ticket.tenantId}:${ticket.documentId}`);
+  });
+
+  it("name a conversation's presence room apart from any document's", async () => {
+    const presence = {
+      ...ticket,
+      access: "read" as const,
+      room: "presence" as const,
+    };
+    const token = await signTicket(presence, secret);
+    const read = await verifyTicket(token, secret);
+    expect(read && !isPacing(read) ? read.room : null).toBe("presence");
+    expect(read ? roomOf(read) : null).toBe(
+      `${ticket.tenantId}:presence:${ticket.documentId}`,
+    );
+    expect(roomOf(presence)).not.toBe(roomOf(ticket));
   });
 
   it("refuse a changed body, another key and an expired ticket", async () => {

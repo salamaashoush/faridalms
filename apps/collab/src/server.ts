@@ -152,10 +152,12 @@ function derive(live: Live) {
 }
 
 /**
- * Live editing for collaborative documents. A connection is let in only
- * with a ticket the API signed for that very document; a reader's connection
- * is read-only. The shared state and the validated content derived from it
- * are stored together as the `collab` role, which can touch nothing else.
+ * Live editing for collaborative documents, and presence in conversations.
+ * A connection is let in only with a ticket the API signed for that very
+ * room; a reader's connection, and every presence connection, is
+ * read-only. The shared state and the validated content derived from it
+ * are stored together as the `collab` role, which can touch nothing else;
+ * a presence room stores nothing.
  *
  * A lesson's pacing room holds no document: its students and teacher only
  * listen, and hear a signal whenever the API says the teacher moved the
@@ -177,7 +179,13 @@ export function createCollab(input: {
       const ticket = await verifyTicket(token, input.cellSecret);
       if (!ticket || roomOf(ticket) !== documentName)
         throw new Error("collab.forbidden");
-      if (isPacing(ticket) || ticket.access === "read")
+      // Presence carries only who is writing, as awareness, which a
+      // read-only connection still shares; its document never changes.
+      if (
+        isPacing(ticket) ||
+        ticket.access === "read" ||
+        ticket.room === "presence"
+      )
         connectionConfig.readOnly = true;
       return ticket;
     },
@@ -185,7 +193,7 @@ export function createCollab(input: {
       if (context && isPacing(context)) states.clear();
     },
     async onLoadDocument({ document, documentName, context }) {
-      if (isPacing(context)) return document;
+      if (isPacing(context) || context.room === "presence") return document;
       const row = await input.collab.withCollab(unit(context), "read", (tx) =>
         liveDocument(tx, context.tenantId, context.documentId),
       );
@@ -205,7 +213,13 @@ export function createCollab(input: {
     }) {
       const context = lastContext;
       const state = live.get(documentName);
-      if (!state || isPacing(context) || context.access !== "write") return;
+      if (
+        !state ||
+        isPacing(context) ||
+        context.access !== "write" ||
+        context.room === "presence"
+      )
+        return;
       const derived = derive(state);
       if (!derived)
         console.warn(

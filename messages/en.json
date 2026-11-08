@@ -9430,5 +9430,7 @@
   "msgMergeGone": "That contact is no longer separate. Search again.",
   "msgMergeLinkedApart": "These contacts belong to two different accounts, so they cannot be merged.",
   "msgMergeAliases": "Also writes from {addresses}",
-  "searchKindNotes": "Team notes"
+  "searchKindNotes": "Team notes",
+  "msgReplyingOne": "{name} is replying…",
+  "msgReplyingMany": "{names} are replying…"
 }

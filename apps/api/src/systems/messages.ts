@@ -34,6 +34,11 @@ import {
   writtenSince,
 } from "@faridalms/database/stores/messages";
 import { readSubject } from "@faridalms/database/stores/notifications";
+import {
+  roomOf,
+  signTicket,
+  TICKET_TTL_SECONDS,
+} from "@faridalms/domain/collab";
 import { contentFileIds, contentPlainText } from "@faridalms/domain/content";
 import { plainContent } from "@faridalms/domain/content-conversion";
 import {
@@ -890,4 +895,29 @@ export const mergeContacts = writeProcedure
       },
     });
     return { conversations: merged.conversations, entries: merged.entries };
+  });
+
+/**
+ * A ticket to the conversation's presence room, where staff who may write
+ * in it say whether they are writing a reply, so a colleague sees someone
+ * is replying before answering too. Nothing is stored, and a family is
+ * never in the room.
+ */
+export const presence = writeProcedure
+  .input(v.object({ threadId: id }))
+  .handler(async ({ input, context }) => {
+    const { thread: row, writes } = await openThread(context, input.threadId);
+    if (!writes || !isStaff(context)) throw new ORPCError("NOT_FOUND");
+    const ticket = {
+      tenantId: context.tenantId,
+      documentId: row.id,
+      userId: context.actor.userId,
+      access: "read" as const,
+      room: "presence" as const,
+      expiresAt: Math.floor(context.now.getTime() / 1000) + TICKET_TTL_SECONDS,
+    };
+    return {
+      room: roomOf(ticket),
+      token: await signTicket(ticket, context.cellSecret),
+    };
   });

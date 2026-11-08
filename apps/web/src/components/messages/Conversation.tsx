@@ -44,13 +44,14 @@ import { useDocumentMedia } from "~/hooks/useDocumentMedia";
 import * as m from "~/i18n/messages";
 import { earlierEntriesQuery, threadQuery } from "~/queries/messages";
 import { acceptHeldMail, markThreadRead, sendMessage } from "~/server/messages";
-import { formatInstant, schoolDayOf } from "~/utils/datetime";
+import { formatInstant, formatList, schoolDayOf } from "~/utils/datetime";
 import { getMessageFromError } from "~/utils/error";
 
 import { useMessageDraft } from "./draft";
 import { ENTRY_ICON, entryTitle, NameLink } from "./entries";
 import { dayHeading, nameOf, threadTitle } from "./format";
 import { MembersSheet } from "./MembersSheet";
+import { useReplying } from "./presence";
 
 type Thread = Awaited<
   ReturnType<NonNullable<ReturnType<typeof threadQuery>["queryFn"]>>
@@ -373,7 +374,12 @@ function Composer({ thread, fields }: ComposerProps) {
   });
   const { flush } = draft;
   useEffect(() => () => void flush(), [flush]);
+  const replying = useReplying(
+    thread.id,
+    hydrated && user.workspace === "staff",
+  );
   const clear = () => {
+    replying.wrote(false);
     const empty = emptyContent();
     draft.sent(empty);
     setContent(empty);
@@ -499,12 +505,25 @@ function Composer({ thread, fields }: ComposerProps) {
           {m.msgInternalHint()}
         </p>
       ) : null}
+      {replying.others.length > 0 ? (
+        <p
+          aria-live="polite"
+          className="text-[13px] leading-[18px] text-muted-foreground italic"
+        >
+          {replying.others.length === 1
+            ? m.msgReplyingOne({ name: replying.others[0] ?? "" })
+            : m.msgReplyingMany({ names: formatList(replying.others) })}
+        </p>
+      ) : null}
       <ContentEditor
         id={`${id}-body`}
         label={label}
         placeholder={mode === "message" ? m.msgWritePlaceholder() : label}
         value={content}
-        onChange={setContent}
+        onChange={(value) => {
+          setContent(value);
+          replying.wrote(hasWords(value));
+        }}
         onUploadingChange={setUploading}
         media={media}
         replace={replace}

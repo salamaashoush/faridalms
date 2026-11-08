@@ -15,6 +15,8 @@ import {
 import { createServerFn } from "@tanstack/react-start";
 import * as v from "valibot";
 
+import { env } from "~/env";
+
 import { backend, record } from "./backend";
 import { checked } from "./input";
 
@@ -80,3 +82,20 @@ export const getMessageContacts = createServerFn({ method: "GET" })
 export const mergeMessageContacts = createServerFn({ method: "POST" })
   .validator(checked(mergeContactsSchema))
   .handler(({ data }) => backend().messages.mergeContacts(data));
+
+/**
+ * A ticket to a conversation's presence room, with the server to join.
+ * Null when live collaboration is not set up or the viewer is not one who
+ * replies there; the conversation then simply shows no one replying.
+ */
+export const replyPresence = createServerFn({ method: "POST" })
+  .validator(checked(threadId))
+  .handler(async ({ data }) => {
+    const url = env.COLLAB_URL;
+    if (!url) return null;
+    try {
+      return { ...(await backend().messages.presence(data)), url };
+    } catch {
+      return null;
+    }
+  });

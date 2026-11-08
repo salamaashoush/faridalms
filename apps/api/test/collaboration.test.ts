@@ -331,3 +331,71 @@ describe("editing an assignment brief together", () => {
     forged.provider.destroy();
   });
 });
+
+/** A conversation's presence room as the web joins it: awareness alone. */
+function present(room: string, token: string) {
+  const failed: string[] = [];
+  const provider = new HocuspocusProvider({
+    url: `ws://127.0.0.1:${server.port}`,
+    name: room,
+    token,
+    document: new Y.Doc(),
+    onAuthenticationFailed: ({ reason }) => failed.push(reason),
+  });
+  const replying = () =>
+    [...(provider.awareness?.getStates() ?? new Map()).entries()]
+      .filter(
+        ([clientId, state]) =>
+          clientId !== provider.awareness?.clientID &&
+          (state as { typing?: unknown }).typing === true,
+      )
+      .map(([, state]) => (state as { name: string }).name);
+  return { provider, failed, replying };
+}
+
+describe("someone replying in a conversation", () => {
+  test("a colleague sees it while another writes, and nothing is stored", async () => {
+    const office = await sessionFor("northwind", login("staff"));
+    const head = await sessionFor("northwind", login("principal"));
+    const logged = await office.api.admissions.logEnquiry({
+      source: "walk_in",
+      purpose: "enquiry",
+      locale: "en",
+      name: "Salama Ashoush",
+      email: "salama.presence@example.com",
+      phone: "",
+      childName: "",
+      childYear: "",
+      message: "",
+      assigneeId: "",
+    });
+    const threadId = logged.threadId ?? "";
+    const mine = await office.api.messages.presence({ threadId });
+    const theirs = await head.api.messages.presence({ threadId });
+    expect(mine.room).toBe(theirs.room);
+    expect(mine.room).toContain(":presence:");
+    expect(
+      await rejection((await englishTeacher()).messages.presence({ threadId })),
+    ).toMatchObject({ code: "NOT_FOUND" });
+
+    const writer = present(mine.room, mine.token);
+    const colleague = present(theirs.room, theirs.token);
+    writer.provider.awareness?.setLocalState({
+      userId: "writer",
+      name: "Salama Ashoush",
+      typing: true,
+    });
+    await until(() => colleague.replying().includes("Salama Ashoush"));
+    writer.provider.awareness?.setLocalStateField("typing", false);
+    await until(() => colleague.replying().length === 0);
+
+    // A presence room holds no document: what a client writes is refused.
+    writer.provider.document.getText("words").insert(0, "hidden");
+    await Bun.sleep(200);
+    expect(colleague.provider.document.getText("words").length).toBe(0);
+
+    const wrongRoom = present(`${mine.room}x`, mine.token);
+    await until(() => wrongRoom.failed.length > 0);
+    for (const one of [writer, colleague, wrongRoom]) one.provider.destroy();
+  });
+});
