@@ -50,4 +50,47 @@ describe("picture library", () => {
       await rejection(student.library.pictures({ q: "cat" })),
     ).toMatchObject({ code: "FORBIDDEN" });
   });
+  test("staff search Wikimedia Commons only once their school turns it on, and students never", async () => {
+    const principal = await signedIn("northwind", login("principal"));
+    const teacher = await signedIn("northwind", login("teacher"));
+    const student = await signedIn("northwind", login("student"));
+    const commons = { q: "camel", collection: "commons" } as const;
+    expect(await principal.school.pictureSources()).toEqual({ commons: false });
+    expect(await rejection(teacher.library.pictures(commons))).toMatchObject({
+      code: "FORBIDDEN",
+    });
+    expect((await teacher.identity.currentUser()).commonsPictures).toBe(false);
+    expect(
+      await rejection(teacher.school.setCommonsPictures({ enabled: true })),
+    ).toMatchObject({ code: "FORBIDDEN" });
+
+    await principal.school.setCommonsPictures({ enabled: true });
+    try {
+      expect((await teacher.identity.currentUser()).commonsPictures).toBe(true);
+      const found = await teacher.library.pictures(commons);
+      expect(found.pictures).toEqual([
+        {
+          source: "commons",
+          id: "File:Camel in the desert.jpg",
+          label: "A camel resting in the desert",
+          alt: "A camel resting in the desert",
+          thumb:
+            "https://upload.wikimedia.org/wikipedia/commons/thumb/a/ab/Camel.jpg/330px-Camel.jpg",
+          full: "https://upload.wikimedia.org/wikipedia/commons/thumb/a/ab/Camel.jpg/1280px-Camel.jpg",
+          credit: expect.objectContaining({ licence: "CC BY-SA 4.0" }),
+        },
+      ]);
+      expect((await student.identity.currentUser()).commonsPictures).toBe(
+        false,
+      );
+      expect(await rejection(student.library.pictures(commons))).toMatchObject({
+        code: "FORBIDDEN",
+      });
+    } finally {
+      await principal.school.setCommonsPictures({ enabled: false });
+    }
+    expect(await rejection(teacher.library.pictures(commons))).toMatchObject({
+      code: "FORBIDDEN",
+    });
+  });
 });

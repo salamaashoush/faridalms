@@ -7,6 +7,7 @@ import type {
 } from "@faridalms/ui/system/data-table";
 import type { IndexToolbarProps } from "@faridalms/ui/system/index-toolbar";
 
+import { pictureCreditSchema } from "@faridalms/domain/commons";
 import { FILE_KINDS } from "@faridalms/domain/file";
 import { monthLabel } from "@faridalms/domain/media-library";
 import { FileIcon, FileViewer } from "@faridalms/editor/files";
@@ -42,6 +43,7 @@ import {
 } from "lucide-react";
 import { Suspense, useRef, useState } from "react";
 import { toast } from "sonner";
+import * as v from "valibot";
 
 import { fileStrings } from "~/components/content/strings";
 import { usePicturePeople } from "~/components/files/PicturedPeople";
@@ -91,6 +93,21 @@ import {
   TagItemsSheet,
   TagsSheet,
 } from "./LibraryTools";
+
+const foundSchema = v.object({
+  description: v.string(),
+  credit: pictureCreditSchema,
+});
+
+/** What a found picture said of itself, kept as text with its upload across a reload. */
+function foundOf(kept: string) {
+  try {
+    const parsed = v.safeParse(foundSchema, JSON.parse(kept));
+    return parsed.success ? parsed.output : null;
+  } catch {
+    return null;
+  }
+}
 
 export const LIBRARY_LAYOUTS = ["grid", "list"] as const;
 export type LibraryLayout = (typeof LIBRARY_LAYOUTS)[number];
@@ -339,7 +356,11 @@ export function MediaLibrary({ view, onView }: MediaLibraryProps) {
         toast.success(m.filesReplaced());
       } else {
         const added = await add({
-          data: { ids: [sent.fileId], folderId: meta.folderId ?? null },
+          data: {
+            ids: [sent.fileId],
+            folderId: meta.folderId ?? null,
+            found: meta.found ? foundOf(meta.found) : null,
+          },
         });
         for (const twin of added.twins)
           toast.info(m.mediaTwin({ name: twin.twinName }));
@@ -901,7 +922,17 @@ export function MediaLibrary({ view, onView }: MediaLibraryProps) {
       <PictureSearchSheet
         open={searching}
         onOpenChange={setSearching}
-        onPick={(file) => upload([file])}
+        onPick={(file, picture) =>
+          queue.add([file], {
+            folderId,
+            found: picture.credit
+              ? JSON.stringify({
+                  description: picture.alt ?? "",
+                  credit: picture.credit,
+                })
+              : null,
+          })
+        }
         onUpload={() => input.current?.click()}
       />
       <UsesSheet

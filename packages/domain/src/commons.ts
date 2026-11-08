@@ -153,6 +153,10 @@ export function commonsFile(input: string): CommonsFile | null {
   return title ? { api, title } : null;
 }
 
+/** What a file page says that a kept picture needs: its words, its author and its licence. */
+const EXTMETADATA =
+  "ImageDescription|ObjectName|Artist|LicenseShortName|LicenseUrl|License|NonFree";
+
 /** The address that asks a wiki for a file's picture, at a size a lesson shows, and its credit. */
 export function commonsInfoUrl(file: CommonsFile, language: string): string {
   const query = new URLSearchParams({
@@ -165,8 +169,7 @@ export function commonsInfoUrl(file: CommonsFile, language: string): string {
     iiurlwidth: "1600",
     iiextmetadatalanguage: language,
     iiextmetadatamultilang: "1",
-    iiextmetadatafilter:
-      "ImageDescription|ObjectName|Artist|LicenseShortName|LicenseUrl",
+    iiextmetadatafilter: EXTMETADATA,
     titles: file.title,
   });
   return `${file.api}?${query.toString()}`;
@@ -202,33 +205,35 @@ function plain(html: string): string {
 
 const field = v.optional(v.object({ value: v.unknown() }));
 
-const infoSchema = v.object({
-  query: v.object({
-    pages: v.array(
+const pageSchema = v.object({
+  title: v.optional(v.string()),
+  missing: v.optional(v.boolean()),
+  /** Where a search placed the page among its results. */
+  index: v.optional(v.number()),
+  imageinfo: v.optional(
+    v.array(
       v.object({
-        title: v.optional(v.string()),
-        missing: v.optional(v.boolean()),
-        imageinfo: v.optional(
-          v.array(
-            v.object({
-              url: v.string(),
-              thumburl: v.optional(v.string()),
-              descriptionurl: v.string(),
-              extmetadata: v.optional(
-                v.object({
-                  ImageDescription: field,
-                  ObjectName: field,
-                  Artist: field,
-                  LicenseShortName: field,
-                  LicenseUrl: field,
-                }),
-              ),
-            }),
-          ),
+        url: v.string(),
+        thumburl: v.optional(v.string()),
+        descriptionurl: v.string(),
+        extmetadata: v.optional(
+          v.object({
+            ImageDescription: field,
+            ObjectName: field,
+            Artist: field,
+            LicenseShortName: field,
+            LicenseUrl: field,
+            License: field,
+            NonFree: field,
+          }),
         ),
       }),
     ),
-  }),
+  ),
+});
+
+const infoSchema = v.object({
+  query: v.object({ pages: v.array(pageSchema) }),
 });
 
 /** What the MediaWiki API names a field's one value among its languages. */
@@ -253,19 +258,44 @@ const upto = (value: string, length: number) =>
   value.length <= length ? value : `${value.slice(0, length - 1)}…`;
 
 /**
- * The picture a wiki's answer points to, with words to describe it and the
- * credit its licence asks for; null when the file is missing, is not on
- * Wikimedia's servers, or carries no licence to keep.
+ * Licences a school may not reuse a picture under: those forbidding
+ * commercial use or changes, and a wiki's own fair-use files.
  */
-export function commonsPicture(
-  answer: unknown,
+const NOT_FREE =
+  /(?:^|[\s-])(?:nc|nd)(?:[\s-]|$)|non-?commercial|no ?deriv|fair use|non-?free|all rights reserved/iu;
+
+/** Whether a file's licence lets a school keep and reuse it, as its page says. */
+export function freeLicence(meta: {
+  License?: string;
+  LicenseShortName: string;
+  NonFree?: string;
+}): boolean {
+  // A wiki marks a file it holds under fair use alone as non-free.
+  if (meta.NonFree?.trim().toLowerCase() === "true") return false;
+  return ![meta.License ?? "", meta.LicenseShortName].some((licence) =>
+    NOT_FREE.test(licence),
+  );
+}
+
+export interface CommonsPicture {
+  /** The file's title on the wiki, as a search names it. */
+  title: string;
+  image: string;
+  alt: string;
+  credit: PictureCredit;
+}
+
+/**
+ * A wiki page's picture, with words to describe it and the credit its
+ * licence asks for; null when the file is missing, is not on Wikimedia's
+ * servers, carries no licence to keep, or a licence a school may not reuse.
+ */
+function pagePicture(
+  page: v.InferOutput<typeof pageSchema>,
   language: string,
-): { image: string; alt: string; credit: PictureCredit } | null {
-  const parsed = v.safeParse(infoSchema, answer);
-  if (!parsed.success) return null;
-  const [page] = parsed.output.query.pages;
-  const [info] = page?.imageinfo ?? [];
-  if (!page || page.missing || !info) return null;
+): CommonsPicture | null {
+  const [info] = page.imageinfo ?? [];
+  if (page.missing || !info) return null;
   const image = info.thumburl ?? info.url;
   // Wikimedia serves pictures, and their scaled copies, from these hosts alone.
   if (!/^https:\/\/(?:upload|thumb)\.wikimedia\.org\//u.test(image))
@@ -274,6 +304,14 @@ export function commonsPicture(
   const licence = upto(text(meta?.LicenseShortName, language), 120);
   // A picture taken from Commons is kept only under a licence it names.
   if (!licence) return null;
+  if (
+    !freeLicence({
+      License: text(meta?.License, language),
+      LicenseShortName: licence,
+      NonFree: text(meta?.NonFree, language),
+    })
+  )
+    return null;
   const licenceUrl = text(meta?.LicenseUrl, language);
   const credit = {
     author: upto(text(meta?.Artist, language), 300),
@@ -282,12 +320,84 @@ export function commonsPicture(
     source: info.descriptionurl,
   };
   if (!v.is(pictureCreditSchema, credit)) return null;
+  const title = page.title ?? "";
   const named =
-    text(meta?.ObjectName, language) ||
-    (page.title ?? "").replace(/^File:|\.\w+$/gu, "");
+    text(meta?.ObjectName, language) || title.replace(/^File:|\.\w+$/gu, "");
   return {
+    title,
     image,
     alt: upto(text(meta?.ImageDescription, language) || named, 300),
     credit,
   };
+}
+
+/** The picture a wiki's answer about one file points to, or null; see `pagePicture`. */
+export function commonsPicture(
+  answer: unknown,
+  language: string,
+): CommonsPicture | null {
+  const parsed = v.safeParse(infoSchema, answer);
+  if (!parsed.success) return null;
+  const [page] = parsed.output.query.pages;
+  return page ? pagePicture(page, language) : null;
+}
+
+/** The size Commons draws a found picture at to be kept, one of the sizes it makes ahead. */
+export const COMMONS_KEPT_WIDTH = 1280;
+/** The size a found picture is shown at to be chosen. */
+export const COMMONS_THUMB_WIDTH = 330;
+
+/**
+ * The address that searches Wikimedia Commons for pictures by what they
+ * show: files (namespace 6) that are photographs or drawings, each with a
+ * copy at the size a document keeps and the words of its page.
+ */
+export function commonsSearchUrl(
+  words: string,
+  language: string,
+  limit: number,
+): string {
+  const query = new URLSearchParams({
+    action: "query",
+    format: "json",
+    formatversion: "2",
+    generator: "search",
+    gsrsearch: `${words} filetype:bitmap|drawing`,
+    gsrnamespace: "6",
+    gsrlimit: String(limit),
+    prop: "imageinfo",
+    iiprop: "url|extmetadata",
+    iiurlwidth: String(COMMONS_KEPT_WIDTH),
+    iiextmetadatalanguage: language,
+    iiextmetadatamultilang: "1",
+    iiextmetadatafilter: EXTMETADATA,
+  });
+  return `https://commons.wikimedia.org/w/api.php?${query.toString()}`;
+}
+
+/** The pictures a Commons search found, in the order it ranked them, each free to keep. */
+export function commonsResults(
+  answer: unknown,
+  language: string,
+): CommonsPicture[] {
+  const parsed = v.safeParse(
+    v.object({ query: v.optional(v.object({ pages: v.array(pageSchema) })) }),
+    answer,
+  );
+  if (!parsed.success) return [];
+  return (parsed.output.query?.pages ?? [])
+    .toSorted((a, b) => (a.index ?? 0) - (b.index ?? 0))
+    .flatMap((page) => pagePicture(page, language) ?? []);
+}
+
+/**
+ * A smaller copy of a found picture to choose from. Commons names scaled
+ * copies by their width, so the kept copy's address gives the smaller one;
+ * a picture smaller than both is its own.
+ */
+export function commonsThumb(image: string): string {
+  return image.replace(
+    `/${COMMONS_KEPT_WIDTH}px-`,
+    `/${COMMONS_THUMB_WIDTH}px-`,
+  );
 }

@@ -536,6 +536,33 @@ describe("the media library", () => {
     ).toMatchObject({ code: "FORBIDDEN" });
   });
 
+  test("a picture found on Wikimedia Commons comes in with its words and credit", async () => {
+    const office = await sessionFor("northwind", login("principal"));
+    const id = await uploadPicture(office, "camel.png", uniquePng());
+    const credit = {
+      author: "A. Photographer",
+      licence: "CC BY-SA 4.0",
+      source: "https://commons.wikimedia.org/wiki/File:Camel.jpg",
+    };
+    expect(
+      await rejection(
+        office.api.mediaLibrary.add({
+          ids: [id, id],
+          found: { description: "A camel", credit },
+        }),
+      ),
+    ).toMatchObject({ code: "BAD_REQUEST" });
+    await office.api.mediaLibrary.add({
+      ids: [id],
+      found: { description: "A camel resting in the desert", credit },
+    });
+    const found = await office.api.mediaLibrary.list({ q: "camel" });
+    expect(found.items.rows.find((row) => row.id === id)).toMatchObject({
+      description: "A camel resting in the desert",
+      credit,
+    });
+  });
+
   test("storage is shown by kind and by person to those who keep the library", async () => {
     const office = await sessionFor("northwind", login("principal"));
     const storage = await office.api.mediaLibrary.storage();

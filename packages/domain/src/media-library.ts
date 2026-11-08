@@ -101,12 +101,23 @@ export const renameFolderSchema = v.object({
 
 export const folderRefSchema = v.object({ id });
 
-export const addToLibrarySchema = v.object({
-  ids: v.pipe(v.array(id), v.minLength(1), v.maxLength(MAX_LIBRARY_BATCH)),
-  folderId: v.optional(folderId, null),
-});
-
 const description = v.pipe(v.string(), v.trim(), v.maxLength(MAX_DESCRIPTION));
+
+export const addToLibrarySchema = v.pipe(
+  v.object({
+    ids: v.pipe(v.array(id), v.minLength(1), v.maxLength(MAX_LIBRARY_BATCH)),
+    folderId: v.optional(folderId, null),
+    /**
+     * What a picture found in an open collection says of itself, and the
+     * credit its licence asks be kept with it; for one picture at a time.
+     */
+    found: v.optional(
+      v.nullable(v.object({ description, credit: pictureCreditSchema })),
+      null,
+    ),
+  }),
+  v.check((input) => !input.found || input.ids.length === 1),
+);
 
 /** A picture shown somewhere, kept in the library with the words it was shown with. */
 export const keepInLibrarySchema = v.object({

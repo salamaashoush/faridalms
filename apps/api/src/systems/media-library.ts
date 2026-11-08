@@ -9,6 +9,7 @@ import {
 import {
   copyLibraryTexts,
   copySubjects,
+  creditLibraryItem,
   deriveLibraryItem,
   describeLibraryItem,
   documentUploads,
@@ -312,6 +313,14 @@ export const add = writeProcedure
       });
       if (filed.length < added.length) throw new ORPCError("NOT_FOUND");
     }
+    const [found] = added;
+    if (input.found && found)
+      await creditLibraryItem(context.tx, {
+        tenantId: context.tenantId,
+        orgId: context.schoolId,
+        id: found,
+        ...input.found,
+      });
     await auditItems(context, {
       action: "media.item_add",
       ids: added,

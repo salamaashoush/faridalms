@@ -4,7 +4,11 @@ import { describe, expect, it } from "vitest";
 import {
   commonsFile,
   commonsPicture,
+  commonsResults,
+  commonsSearchUrl,
+  commonsThumb,
   creditText,
+  freeLicence,
   pictureCreditSchema,
 } from "./commons";
 
@@ -118,6 +122,81 @@ describe("a picture from Wikimedia Commons", () => {
     expect(
       commonsPicture({ query: { pages: [{ missing: true }] } }, "en"),
     ).toBeNull();
+  });
+});
+
+describe("pictures a school may not reuse", () => {
+  it("are refused when non-commercial, unchangeable or held under fair use", () => {
+    for (const refused of [
+      { ...giza, LicenseShortName: { value: "CC BY-NC-SA 4.0" } },
+      { ...giza, License: { value: "cc-by-nd-4.0" } },
+      { ...giza, NonFree: { value: "true" } },
+      { ...giza, LicenseShortName: { value: "Fair use" } },
+    ])
+      expect(commonsPicture(answer(refused), "en")).toBeNull();
+    expect(
+      commonsPicture(
+        answer({
+          ...giza,
+          License: { value: "cc0" },
+          LicenseShortName: { value: "CC0" },
+        }),
+        "en",
+      ),
+    ).not.toBeNull();
+    expect(
+      freeLicence({ License: "pd", LicenseShortName: "Public domain" }),
+    ).toBe(true);
+  });
+});
+
+const found = (title: string, index: number, licence: string) => ({
+  ...answer({ ...giza, LicenseShortName: { value: licence } }).query.pages[0],
+  title,
+  index,
+});
+
+describe("a search of Wikimedia Commons", () => {
+  it("asks for photographs and drawings among the files, with their credit", () => {
+    const url = new URL(commonsSearchUrl("camel", "ar", 30));
+    expect(url.origin).toBe("https://commons.wikimedia.org");
+    expect(url.searchParams.get("generator")).toBe("search");
+    expect(url.searchParams.get("gsrnamespace")).toBe("6");
+    expect(url.searchParams.get("gsrsearch")).toBe(
+      "camel filetype:bitmap|drawing",
+    );
+    expect(url.searchParams.get("iiextmetadatafilter")).toContain("Artist");
+    expect(url.searchParams.get("iiextmetadatalanguage")).toBe("ar");
+  });
+
+  it("keeps the found pictures in the order it ranked them, leaving out those not free", () => {
+    const results = commonsResults(
+      {
+        query: {
+          pages: [
+            found("File:Second.jpg", 2, "CC BY 4.0"),
+            found("File:Kept back.jpg", 1, "CC BY-NC 2.0"),
+            found("File:First.jpg", 0, "CC BY-SA 3.0"),
+          ],
+        },
+      },
+      "en",
+    );
+    expect(results.map((picture) => picture.title)).toEqual([
+      "File:First.jpg",
+      "File:Second.jpg",
+    ]);
+    expect(commonsResults({ batchcomplete: true }, "en")).toEqual([]);
+  });
+
+  it("shows a smaller copy of a picture to choose from", () => {
+    expect(
+      commonsThumb(
+        "https://upload.wikimedia.org/wikipedia/commons/thumb/a/af/X.jpg/1280px-X.jpg",
+      ),
+    ).toBe(
+      "https://upload.wikimedia.org/wikipedia/commons/thumb/a/af/X.jpg/330px-X.jpg",
+    );
   });
 });
 

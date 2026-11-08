@@ -9,18 +9,29 @@ import { useEditorEnvironment } from "../context";
 // largest a young child's card shows it, and small to store.
 const SIDE = 512;
 
+const KEPT_AS_IS: Record<string, string> = {
+  "image/png": "png",
+  "image/jpeg": "jpg",
+  "image/webp": "webp",
+  "image/gif": "gif",
+};
+
 /**
- * A picked picture as a PNG to upload. Emoji arrive as SVG, which the
- * upload check refuses, so they are drawn onto a canvas first; their
- * sources allow it.
+ * A picked picture as a file to upload. A picture in a format the upload
+ * check takes goes as it is; emoji arrive as SVG, which it refuses, so they
+ * are drawn onto a canvas first; their sources allow it.
  */
 export async function pictureFile(picture: LibraryPicture): Promise<File> {
   const response = await fetch(picture.full);
   if (!response.ok) throw new Error("file.failed");
   const blob = await response.blob();
-  const name = `${picture.source}-${picture.id}.png`;
-  if (blob.type === "image/png")
-    return new File([blob], name, { type: blob.type });
+  const kept = KEPT_AS_IS[blob.type];
+  const stem =
+    picture.source === "commons"
+      ? picture.id.replace(/^File:/u, "").replace(/\.\w+$/u, "")
+      : `${picture.source}-${picture.id}`;
+  if (kept) return new File([blob], `${stem}.${kept}`, { type: blob.type });
+  const name = `${stem}.png`;
   const url = URL.createObjectURL(blob);
   try {
     const image = new Image();
@@ -41,6 +52,7 @@ export async function pictureFile(picture: LibraryPicture): Promise<File> {
 }
 
 type PictureStyle = "colour" | "lines";
+type Collection = "symbols" | "commons";
 
 export interface PictureLibraryProps {
   onPick: (picture: LibraryPicture) => Promise<void>;
@@ -48,6 +60,11 @@ export interface PictureLibraryProps {
   onClose: () => void;
   /** For a colouring page: line drawings first, with the coloured ones a tap away. */
   colouring?: boolean;
+  /**
+   * Whether the place a picked picture goes keeps its credit, which a
+   * picture from Wikimedia Commons must carry; only then is it offered.
+   */
+  credited?: boolean;
 }
 
 /**
@@ -60,6 +77,7 @@ export function PictureLibrary({
   onUpload,
   onClose,
   colouring = false,
+  credited = false,
 }: PictureLibraryProps) {
   const { strings, media } = useEditorEnvironment();
   const field = useId();
@@ -67,14 +85,17 @@ export function PictureLibrary({
   const [style, setStyle] = useState<PictureStyle>(
     colouring ? "lines" : "colour",
   );
+  const [collection, setCollection] = useState<Collection>("symbols");
   const [found, setFound] = useState<{
     query: string;
     style: PictureStyle;
+    collection: Collection;
     pictures: LibraryPicture[];
   } | null>(null);
   const [picking, setPicking] = useState<string | null>(null);
   const [failed, setFailed] = useState(false);
   const library = media?.pictures;
+  const commons = credited && !colouring ? library?.commons : undefined;
   const input = useRef<HTMLInputElement>(null);
   // A panel opened to search starts with the caret in its box.
   useEffect(() => input.current?.focus(), []);
@@ -84,12 +105,13 @@ export function PictureLibrary({
     if (!library || !wanted) return undefined;
     let current = true;
     const timer = setTimeout(() => {
-      void library.search(wanted, style).then(
+      void library.search(wanted, style, collection).then(
         (pictures) => {
-          if (current) setFound({ query: wanted, style, pictures });
+          if (current) setFound({ query: wanted, style, collection, pictures });
         },
         () => {
-          if (current) setFound({ query: wanted, style, pictures: [] });
+          if (current)
+            setFound({ query: wanted, style, collection, pictures: [] });
         },
       );
     }, 250);
@@ -97,9 +119,11 @@ export function PictureLibrary({
       current = false;
       clearTimeout(timer);
     };
-  }, [library, query, style]);
+  }, [library, query, style, collection]);
 
-  const shown = query.trim() && found?.style === style ? found.pictures : [];
+  const current = (value: typeof found) =>
+    value?.style === style && value.collection === collection;
+  const shown = query.trim() && current(found) ? (found?.pictures ?? []) : [];
   return (
     <div className="grid gap-3">
       <div className="flex items-center gap-2">
@@ -148,6 +172,24 @@ export function PictureLibrary({
           ))}
         </fieldset>
       ) : null}
+      {commons ? (
+        <fieldset className="grid grid-cols-2 gap-1 rounded-md bg-muted p-0.5">
+          <legend className="sr-only">{strings.pictureCollection}</legend>
+          {(["symbols", "commons"] as const).map((value) => (
+            <button
+              key={value}
+              type="button"
+              aria-pressed={collection === value}
+              onClick={() => setCollection(value)}
+              className="h-7 rounded px-2 text-xs font-medium text-muted-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring/50 aria-pressed:bg-background aria-pressed:text-foreground aria-pressed:shadow-sm max-md:h-10"
+            >
+              {value === "symbols"
+                ? strings.pictureSymbols
+                : strings.pictureCommons}
+            </button>
+          ))}
+        </fieldset>
+      ) : null}
       {shown.length > 0 ? (
         <ul className="grid max-h-72 grid-cols-4 gap-2 overflow-y-auto sm:grid-cols-6">
           {shown.map((picture) => {
@@ -190,9 +232,7 @@ export function PictureLibrary({
             );
           })}
         </ul>
-      ) : query.trim() &&
-        found?.query === query.trim() &&
-        found.style === style ? (
+      ) : query.trim() && found?.query === query.trim() && current(found) ? (
         <p className="text-sm text-muted-foreground">{strings.pictureNone}</p>
       ) : null}
       {failed ? (
@@ -212,7 +252,9 @@ export function PictureLibrary({
       </div>
       {library ? (
         <p className="text-[11px] leading-4 text-muted-foreground">
-          {library.credits}
+          {collection === "commons" && commons
+            ? commons.credits
+            : library.credits}
         </p>
       ) : null}
     </div>

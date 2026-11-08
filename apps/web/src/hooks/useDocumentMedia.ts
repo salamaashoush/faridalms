@@ -13,6 +13,7 @@ import type {
 } from "@faridalms/editor";
 
 import { ATTACHABLE_EXTENSIONS, mediaTypeFor } from "@faridalms/domain/file";
+import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { useMemo } from "react";
 import { toast } from "sonner";
@@ -22,6 +23,7 @@ import type { KeptUpload } from "~/utils/upload-store";
 import { useMediaLibrary } from "~/components/media/LibraryPicker";
 import { fileSizeLabel } from "~/components/system/FileList";
 import * as m from "~/i18n/messages";
+import { currentUserQuery } from "~/queries/user";
 import {
   draftCaptions,
   getCaptionDraft,
@@ -243,6 +245,8 @@ export function useDocumentMedia(
   const draftOf = useServerFn(getCaptionDraft);
   const abilities = useServerFn(getFileAbilities);
   const library = useMediaLibrary();
+  // Read without suspending, so an editor outside the signed-in app still mounts.
+  const commons = useQuery(currentUserQuery).data?.commonsPictures ?? false;
   const type = destination?.type;
   const id = destination?.id;
   // An editor's uploads are picked up on the page that began them.
@@ -279,9 +283,10 @@ export function useDocumentMedia(
           }
         : {}),
       pictures: {
-        search: async (query: string, style = "colour") =>
-          (await search({ data: { q: query, style } })).pictures,
+        search: async (query: string, style = "colour", collection) =>
+          (await search({ data: { q: query, style, collection } })).pictures,
         credits: m.pictureCredits(),
+        ...(commons ? { commons: { credits: m.pictureCommonsCredits() } } : {}),
       },
       // The editor places a file as soon as it is in, so it is let go then.
       upload: async (file: File, kind, options = {}) => {
@@ -325,6 +330,7 @@ export function useDocumentMedia(
       draftOf,
       abilities,
       library,
+      commons,
       type,
       id,
       purpose,

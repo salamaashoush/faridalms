@@ -57,6 +57,7 @@ import * as v from "valibot";
 
 import type { SchoolContext, UnitContext } from "../core/context";
 
+import { searchesCommons } from "../core/library";
 import { modulesOf } from "../core/modules";
 import { sendPasswordReset } from "../core/password-reset";
 import {
@@ -582,6 +583,8 @@ export const currentUser = readProcedure.handler(async ({ context }) => {
     },
     // What the platform says about the school's contract is for those who run it.
     contract: can(context, "school:manage") ? contractOf(context.school) : null,
+    /** Whether the picture search offers Wikimedia Commons to this person. */
+    commonsPictures: await searchesCommons(context),
     paused: context.paused,
     today: context.today,
   };

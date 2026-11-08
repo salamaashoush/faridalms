@@ -216,6 +216,27 @@ export async function setUp() {
     channels: { email: true, sms: false },
     mail,
     productInbox: "sales@example.com",
+    // Commons is never asked from a test: one camel, found in either language.
+    commons: (words) =>
+      Promise.resolve(
+        words.includes("camel")
+          ? [
+              {
+                title: "File:Camel in the desert.jpg",
+                image:
+                  "https://upload.wikimedia.org/wikipedia/commons/thumb/a/ab/Camel.jpg/1280px-Camel.jpg",
+                alt: "A camel resting in the desert",
+                credit: {
+                  author: "A. Photographer",
+                  licence: "CC BY-SA 4.0",
+                  licenceUrl: "https://creativecommons.org/licenses/by-sa/4.0",
+                  source:
+                    "https://commons.wikimedia.org/wiki/File:Camel_in_the_desert.jpg",
+                },
+              },
+            ]
+          : [],
+      ),
   };
   const handler = createApp(dependencies);
   const provisioning = openOwner(urlFor(cellName, "provisioner"));

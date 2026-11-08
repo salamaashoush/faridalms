@@ -329,7 +329,9 @@ export interface PictureSearchSheetProps {
 
 /**
  * The free picture collections the editor offers a question, searched from
- * the library: a picked picture is copied into the school like any upload.
+ * the library, and Wikimedia Commons where the school allows it: a picked
+ * picture is copied into the school like any upload, a Commons one with
+ * its description and the credit its licence asks for.
  */
 export function PictureSearchSheet({
   open,
@@ -350,6 +352,7 @@ export function PictureSearchSheet({
           value={{ strings: editorStrings(), media, locale: getLocale() }}
         >
           <PictureLibrary
+            credited
             onPick={async (picture) => {
               onPick(await pictureFile(picture), picture);
               onOpenChange(false);

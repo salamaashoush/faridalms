@@ -1,3 +1,4 @@
+import { commonsSwitchSchema } from "@faridalms/domain/library";
 import { MODULE_IDS } from "@faridalms/domain/modules";
 import { saveSchoolSchema, setFeatureSchema } from "@faridalms/domain/people";
 import { createServerFn } from "@tanstack/react-start";
@@ -25,6 +26,14 @@ export const setSchoolFeature = createServerFn({ method: "POST" })
 export const getSchoolStorage = createServerFn({ method: "GET" }).handler(() =>
   backend().school.storage(),
 );
+
+export const getPictureSources = createServerFn({ method: "GET" }).handler(() =>
+  backend().school.pictureSources(),
+);
+
+export const setCommonsPictures = createServerFn({ method: "POST" })
+  .validator(checked(commonsSwitchSchema))
+  .handler(({ data }) => backend().school.setCommonsPictures(data));
 
 const askSchema = v.object({ module: v.picklist(MODULE_IDS) });
 

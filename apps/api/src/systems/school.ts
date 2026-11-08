@@ -4,13 +4,18 @@ import {
   linkFiles,
   schoolStorage,
 } from "@faridalms/database/stores/files";
-import { schoolFeatures, viewer } from "@faridalms/database/stores/identity";
+import {
+  schoolFeatures,
+  schoolSwitch,
+  viewer,
+} from "@faridalms/database/stores/identity";
 import { contactsOf } from "@faridalms/database/stores/persons";
 import {
   schoolSettings,
   setOrgFeature,
   updateSchool,
 } from "@faridalms/database/stores/school";
+import { COMMONS_SWITCH, commonsSwitchSchema } from "@faridalms/domain/library";
 import { MODULE_IDS } from "@faridalms/domain/modules";
 import { saveSchoolSchema, setFeatureSchema } from "@faridalms/domain/people";
 import { availableModules, limitsOf } from "@faridalms/domain/plans";
@@ -217,6 +222,53 @@ export const setFeature = writeProcedure
       available: availableModules(context.school.entitlements),
       canAsk: Boolean(context.intake),
     };
+  });
+
+/** Where the school's staff may look for pictures beyond the sets the product carries. */
+export const pictureSources = readProcedure.handler(async ({ context }) => {
+  requireCapability(context, "school:manage");
+  return {
+    commons: await schoolSwitch(
+      context.tx,
+      context.tenantId,
+      context.schoolId,
+      COMMONS_SWITCH,
+    ),
+  };
+});
+
+/**
+ * Lets the school's staff search Wikimedia Commons for pictures, or stops
+ * them. Pictures already kept stay, with their credit.
+ */
+export const setCommonsPictures = writeProcedure
+  .input(commonsSwitchSchema)
+  .handler(async ({ input, context }) => {
+    requireCapability(context, "school:manage");
+    const before = await schoolSwitch(
+      context.tx,
+      context.tenantId,
+      context.schoolId,
+      COMMONS_SWITCH,
+    );
+    await setOrgFeature(context.tx, {
+      tenantId: context.tenantId,
+      orgId: context.schoolId,
+      feature: COMMONS_SWITCH,
+      enabled: input.enabled,
+    });
+    await audit(context, {
+      action: "feature.set",
+      objectType: "org",
+      objectId: context.schoolId,
+      details: { feature: COMMONS_SWITCH, enabled: input.enabled },
+      change: changeOf(
+        "core.org_features",
+        { enabled: before },
+        { enabled: input.enabled },
+      ),
+    });
+    return { commons: input.enabled };
   });
 
 /** How much of the school's storage pool is used, for its administrators. */

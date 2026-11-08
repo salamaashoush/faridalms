@@ -24,6 +24,7 @@ import {
   RoleSheet,
 } from "~/components/admin/AccessRolesPanel";
 import { AssistantSettings } from "~/components/admin/AssistantSettings";
+import { CommonsPictures } from "~/components/admin/CommonsPictures";
 import { OutsideTools } from "~/components/admin/OutsideTools";
 import { RecordStore } from "~/components/admin/RecordStore";
 import { SchoolProfileSection } from "~/components/admin/SchoolEditors";
@@ -48,6 +49,7 @@ import { subjectsQuery } from "~/queries/classes";
 import { ltiToolsQuery } from "~/queries/lti";
 import { readingNormsQuery } from "~/queries/reading";
 import {
+  pictureSourcesQuery,
   schoolFeaturesQuery,
   schoolProfileQuery,
   schoolStorageQuery,
@@ -95,6 +97,7 @@ export const Route = createFileRoute("/_app/_staff/settings")({
       await Promise.all([
         queryClient.ensureQueryData(schoolProfileQuery),
         queryClient.ensureQueryData(schoolFeaturesQuery),
+        queryClient.ensureQueryData(pictureSourcesQuery),
         queryClient.ensureQueryData(peopleOptionsQuery),
       ]);
     else if (deps.section === "subjects")
@@ -247,6 +250,7 @@ function SchoolTab() {
         )}
       </SettingsSection>
       <FeaturesCard />
+      <CommonsPictures />
       <StorageSection />
     </SettingsPage>
   );

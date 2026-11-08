@@ -1,3 +1,4 @@
+import type { PictureCredit } from "@faridalms/domain/commons";
 import type { PictureSource, PictureStyle } from "@faridalms/domain/library";
 
 import { foldAnswer } from "@faridalms/domain/answers";
@@ -6,13 +7,17 @@ import { libraryPictureUrls } from "@faridalms/domain/library";
 import index from "./pictures.json" with { type: "json" };
 
 export interface LibraryPicture {
-  source: PictureSource;
+  source: PictureSource | "commons";
   id: string;
   /** What it shows, in the reader's language when the source has it. */
   label: string;
   /** A small copy to choose from, and the copy a lesson keeps. */
   thumb: string;
   full: string;
+  /** Words for those who cannot see it, where its page gives them. */
+  alt?: string;
+  /** Who made it and under which licence, where it must be kept with it. */
+  credit?: PictureCredit;
 }
 
 interface Entry {

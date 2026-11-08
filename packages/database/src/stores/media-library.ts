@@ -489,6 +489,25 @@ export async function describeLibraryItem(
   return rows.length > 0;
 }
 
+/** Sets what a newly added item says of itself and whose it is, as the page it was found on gave them. */
+export async function creditLibraryItem(
+  tx: Tx,
+  input: {
+    tenantId: string;
+    orgId: string;
+    id: string;
+    description: string;
+    credit: PictureCredit;
+  },
+): Promise<boolean> {
+  const rows = await tx.execute(sql`
+    update core.files f
+    set description = nullif(${input.description}, ''), credit = ${input.credit}::jsonb
+    where ${inLibrary(input.tenantId, input.orgId)} and f.id = ${input.id}::uuid
+    returning f.id`);
+  return rows.length > 0;
+}
+
 /**
  * Files library items in a folder, or at the top for none; a folder of
  * another school is refused. Answers the ids moved.

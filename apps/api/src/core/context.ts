@@ -14,6 +14,7 @@ import type { CodeRunner } from "../coding/run";
 import type { FileScanner } from "../files/scan";
 import type { FileStore } from "../files/store";
 import type { HostChecks } from "../hosts/checks";
+import type { CommonsSearch } from "../library/commons";
 import type { InboundMail } from "../messages/inbound";
 import type { Intake } from "./intake";
 import type { KeyRing } from "./keys";
@@ -74,6 +75,11 @@ export interface ApiDependencies {
    * product site takes none.
    */
   productInbox?: string | null;
+  /**
+   * Searches Wikimedia Commons for pictures, for staff at a school that
+   * turned it on; none where the deployment reaches no outside service.
+   */
+  commons?: CommonsSearch | null;
   /**
    * The operator console's lead intake: demonstration requests and a
    * school's questions about a module go there too; null where it is not.

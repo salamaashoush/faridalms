@@ -527,3 +527,28 @@ export async function schoolFeatures(
   }
   return result;
 }
+
+/** One of a school's switches that is not a module, as the nearest org sets it; off when none does. */
+export async function schoolSwitch(
+  tx: Tx,
+  tenantId: string,
+  schoolId: string,
+  feature: string,
+): Promise<boolean> {
+  const path = await orgPath(tx, tenantId, schoolId);
+  if (path.length === 0) return false;
+  const rows = await tx
+    .select({ orgId: orgFeatures.orgId, enabled: orgFeatures.enabled })
+    .from(orgFeatures)
+    .where(
+      and(
+        eq(orgFeatures.status, "active"),
+        eq(orgFeatures.feature, feature),
+        inArray(orgFeatures.orgId, path),
+      ),
+    );
+  return (
+    rows.toSorted((a, b) => path.indexOf(a.orgId) - path.indexOf(b.orgId))[0]
+      ?.enabled ?? false
+  );
+}

@@ -8,10 +8,24 @@ import * as v from "valibot";
 export const PICTURE_STYLES = ["colour", "lines"] as const;
 export type PictureStyle = (typeof PICTURE_STYLES)[number];
 
+/**
+ * Where a picture search looks: the open symbol and emoji sets the product
+ * carries, or photographs and drawings on Wikimedia Commons, which a school
+ * turns on for its staff.
+ */
+export const PICTURE_COLLECTIONS = ["symbols", "commons"] as const;
+export type PictureCollection = (typeof PICTURE_COLLECTIONS)[number];
+
+/** The school's switch for searching Wikimedia Commons, off until it is turned on. */
+export const COMMONS_SWITCH = "commons_pictures";
+
 export const pictureSearchSchema = v.object({
   q: v.pipe(v.string(), v.trim(), v.minLength(1), v.maxLength(60)),
   style: v.optional(v.picklist(PICTURE_STYLES), "colour"),
+  collection: v.optional(v.picklist(PICTURE_COLLECTIONS), "symbols"),
 });
+
+export const commonsSwitchSchema = v.object({ enabled: v.boolean() });
 
 export type PictureSource = "arasaac" | "openmoji";
 

@@ -34,6 +34,7 @@ import {
 import { createStudio } from "./files/studio";
 import { startFileUpkeep } from "./files/upkeep";
 import { createHostChecks } from "./hosts/checks";
+import { commonsSearcher } from "./library/commons";
 import { streamLinkKey } from "./media/streams";
 import { resendInbox } from "./notifications/gateway";
 import { startDelivery } from "./notifications/scheduler";
@@ -197,6 +198,7 @@ const server = Bun.serve({
     },
     mail: gateways.email,
     productInbox: env.PRODUCT_INBOX ?? null,
+    commons: commonsSearcher(`https://${domains.portal}/`),
     intake:
       env.INTAKE_URL && env.INTAKE_SECRET
         ? { url: env.INTAKE_URL, secret: env.INTAKE_SECRET }

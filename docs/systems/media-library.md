@@ -214,6 +214,21 @@ once.
 - **Free pictures**: the open symbol and emoji collections the editor
   offers a question (ARASAAC, OpenMoji) are searched from the library page
   too; a picked one is copied into the school as an upload.
+- **Wikimedia Commons**: a school that turns it on in Settings (the
+  `commons_pictures` switch, off by default) lets its staff search Commons
+  from the same sheet. Only someone signed in as staff who writes for
+  others reaches the search (`library.pictures` with `collection:
+  "commons"`); students and families never see it. The API asks Commons
+  (`generator=search` over files, namespace 6, with `imageinfo` and its
+  `extmetadata`) one request at a time with a gap between them, under a
+  User-Agent naming the platform and the deployment's site, holds off as
+  long as a `429` or `503` says, and keeps recent answers for ten minutes
+  (`apps/api/src/library/commons.ts`). A picture under a non-commercial,
+  no-derivatives or fair-use licence is left out, as it is when pasted.
+  A picked one comes into the library with its description and its
+  credit (author, licence and page), which every use then starts from.
+  It is offered only where a picked picture keeps its credit, so a
+  question's picture, which keeps none, does not offer it.
 
 ## Duplicates and storage
 

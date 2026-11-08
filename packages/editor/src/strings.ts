@@ -315,6 +315,9 @@ export interface EditorStrings
   pictureStyle: string;
   pictureLines: string;
   pictureColour: string;
+  pictureCollection: string;
+  pictureSymbols: string;
+  pictureCommons: string;
   libraryChoose: string;
   libraryKeep: string;
   libraryKept: string;

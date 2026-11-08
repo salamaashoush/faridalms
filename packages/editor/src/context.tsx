@@ -85,6 +85,10 @@ export interface LibraryPicture {
   label: string;
   thumb: string;
   full: string;
+  /** Words for those who cannot see it, where its page gives them. */
+  alt?: string;
+  /** Who made it and under which licence, where it must be kept with it. */
+  credit?: PictureCredit;
 }
 
 /**
@@ -117,8 +121,14 @@ export interface EditorMedia {
     search: (
       query: string,
       style?: "colour" | "lines",
+      collection?: "symbols" | "commons",
     ) => Promise<LibraryPicture[]>;
     credits: string;
+    /**
+     * Photographs and drawings from Wikimedia Commons, offered where the
+     * school allows it and the place a picture goes keeps its credit.
+     */
+    commons?: { credits: string };
   };
   /**
    * Who a picture shows, where it matters who appears: the host names the
