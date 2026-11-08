@@ -91,11 +91,14 @@ export function createQueryClient(): QueryClient {
         }
         onError(error);
       },
-      onSettled: () => {
-        if (queryClient.isMutating() === 1) {
-          return queryClient.invalidateQueries();
-        }
-        return undefined;
+      onSettled: (_data, _error, _variables, _context, mutation) => {
+        if (queryClient.isMutating() !== 1) return undefined;
+        const refreshed = queryClient.invalidateQueries();
+        // A mutation that puts its own answer on screen (a child's try at a
+        // question) is over once it has; held through the page's refetch,
+        // it would turn away the next try the screen already invites.
+        if (mutation.meta?.settlesAtOnce === true) return undefined;
+        return refreshed;
       },
     }),
   });

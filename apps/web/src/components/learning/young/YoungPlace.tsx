@@ -79,6 +79,7 @@ function usePlacing({
   // What the latest try sent, which its marks are read against.
   const [sent, setSent] = useState<Placement>({});
   const respond = useMutation({
+    meta: { settlesAtOnce: true },
     mutationFn: (response: LessonResponse) =>
       driver.respond(block.id, response),
     onError: (error) => toast.error(getMessageFromError(error)),

@@ -46,6 +46,7 @@ export function YoungSpelling({ block, view, driver }: YoungSpellingProps) {
   const [seenTries, setSeenTries] = useState(view?.tries ?? 0);
   const row = useRef<HTMLDivElement>(null);
   const respond = useMutation({
+    meta: { settlesAtOnce: true },
     mutationFn: (tiles: string[]) =>
       driver.respond(block.id, { type: "spelling", tiles }),
     onError: (error) => toast.error(getMessageFromError(error)),

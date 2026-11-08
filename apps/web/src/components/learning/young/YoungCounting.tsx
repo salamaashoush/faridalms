@@ -145,6 +145,7 @@ export function YoungCounting({ block, view, driver }: YoungCountingProps) {
   const tiles = useRef(new Map<number, HTMLElement>());
   const board = useRef<HTMLDivElement>(null);
   const respond = useMutation({
+    meta: { settlesAtOnce: true },
     mutationFn: (value: number) =>
       driver.respond(block.id, { type: "counting", value }),
     onError: (error) => toast.error(getMessageFromError(error)),

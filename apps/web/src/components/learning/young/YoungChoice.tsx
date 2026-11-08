@@ -220,6 +220,7 @@ export function YoungChoice({ block, view, driver }: YoungChoiceProps) {
     view?.response?.type === "choice" ? view.response.optionIds : [],
   );
   const respond = useMutation({
+    meta: { settlesAtOnce: true },
     mutationFn: (optionIds: string[]) =>
       driver.respond(block.id, { type: "choice", optionIds }),
     onError: (error) => toast.error(getMessageFromError(error)),

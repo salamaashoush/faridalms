@@ -61,6 +61,7 @@ export function YoungTracing({ block, view, driver }: YoungTracingProps) {
   const [showing, setShowing] = useState(false);
   const board = useRef<SVGSVGElement>(null);
   const respond = useMutation({
+    meta: { settlesAtOnce: true },
     mutationFn: (strokes: Stroke[]) =>
       driver.respond(block.id, { type: "tracing", strokes }),
     onSuccess: () => {

@@ -73,6 +73,7 @@ export function YoungHotspot({ block, view, driver }: YoungHotspotProps) {
   const [miss, setMiss] = useState<Point | null>(null);
   const picture = useRef<HTMLDivElement>(null);
   const respond = useMutation({
+    meta: { settlesAtOnce: true },
     mutationFn: (taps: Point[]) =>
       driver.respond(block.id, { type: "hotspot", taps }),
     onError: (error) => toast.error(getMessageFromError(error)),

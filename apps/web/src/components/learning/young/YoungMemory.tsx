@@ -73,6 +73,7 @@ export function YoungMemory({ block, view, driver }: YoungMemoryProps) {
   const [open, setOpen] = useState<string[]>([]);
   const elements = useRef(new Map<string, HTMLElement>());
   const respond = useMutation({
+    meta: { settlesAtOnce: true },
     mutationFn: () =>
       driver.respond(block.id, {
         type: "matching",
