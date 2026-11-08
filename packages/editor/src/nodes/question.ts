@@ -262,6 +262,10 @@ export interface QuestionLabels {
   microbitProject?: string;
   /** A puzzle answered with a row of arrows rather than with blocks. */
   arrowsPuzzle?: string;
+  /** A typed answer that is a day. */
+  date?: string;
+  /** A question a form will not take without an answer. */
+  required?: string;
   /** A question asked at a time in the video above it. */
   videoAt?: (time: string) => string;
   /** A question tagged with some of the school's standards. */
@@ -302,6 +306,16 @@ export interface QuestionLabels {
 
 const labels = new WeakMap<LexicalEditor, QuestionLabels>();
 const locked = new WeakSet<LexicalEditor>();
+const asked = new WeakSet<LexicalEditor>();
+
+/**
+ * Makes an editor's questions those of a form a family fills in: nothing
+ * is marked, so a new question has no key and no worth, and none is shown.
+ */
+export function setQuestionsAsked(editor: LexicalEditor, value: boolean) {
+  if (value) asked.add(editor);
+  else asked.delete(editor);
+}
 
 /**
  * Keeps an editor's questions from change once students have started
@@ -346,6 +360,10 @@ export interface QuestionSettings {
   feedbackAt: FeedbackTime;
   /** Suggested from the document, and not yet kept by its teacher. */
   suggested: boolean;
+  /** A form will not take its answers without one to this question. */
+  required: boolean;
+  /** A typed answer that is a day, chosen from a calendar. */
+  date: boolean;
   /** Gaps filled from a word bank: its extra words; none when each gap is typed or chosen alone. */
   bank: string[] | null;
   /** A number answered on a number line, from and to, in steps; none for a typed one. */
@@ -434,6 +452,8 @@ export function defaultSettings(kind: QuestionKind): QuestionSettings {
     tries: null,
     feedbackAt: "now",
     suggested: false,
+    required: false,
+    date: false,
     bank: null,
     line: null,
     multiple: false,
@@ -507,6 +527,8 @@ function questionSettings(stored: StoredSettings): QuestionSettings {
     tries: stored.tries ?? null,
     feedbackAt: stored.feedbackAt ?? "now",
     suggested: stored.suggested ?? false,
+    required: stored.required ?? false,
+    date: stored.date ?? false,
     bank: stored.bank ?? null,
     line: stored.line ?? null,
     multiple: stored.multiple ?? base.multiple,
@@ -572,25 +594,28 @@ function label(editor: LexicalEditor, settings: QuestionSettings): string {
   const text = labels.get(editor);
   if (!text) return "";
   const kind =
-    settings.kind === "written" && settings.recordSeconds !== null
-      ? ((settings.reading
-          ? text.reading
-          : settings.recordVideo
-            ? text.filmed
-            : text.spoken) ?? text.kinds.written)
-      : settings.kind === "written" && settings.answerWith
-        ? (text.pictured?.[settings.answerWith] ?? text.kinds.written)
-        : settings.kind === "counting" && text.count
-          ? text.count(settings.count, settings.countMode === "make")
-          : settings.kind === "project" && settings.projectLanguage === "python"
-            ? (text.pythonProject ?? text.kinds.project)
+    settings.kind === "text" && settings.date && text.date
+      ? text.date
+      : settings.kind === "written" && settings.recordSeconds !== null
+        ? ((settings.reading
+            ? text.reading
+            : settings.recordVideo
+              ? text.filmed
+              : text.spoken) ?? text.kinds.written)
+        : settings.kind === "written" && settings.answerWith
+          ? (text.pictured?.[settings.answerWith] ?? text.kinds.written)
+          : settings.kind === "counting" && text.count
+            ? text.count(settings.count, settings.countMode === "make")
             : settings.kind === "project" &&
-                settings.projectLanguage === "microbit"
-              ? (text.microbitProject ?? text.kinds.project)
-              : settings.kind === "puzzle" &&
-                  settings.puzzle?.style === "arrows"
-                ? (text.arrowsPuzzle ?? text.kinds.puzzle)
-                : text.kinds[settings.kind];
+                settings.projectLanguage === "python"
+              ? (text.pythonProject ?? text.kinds.project)
+              : settings.kind === "project" &&
+                  settings.projectLanguage === "microbit"
+                ? (text.microbitProject ?? text.kinds.project)
+                : settings.kind === "puzzle" &&
+                    settings.puzzle?.style === "arrows"
+                  ? (text.arrowsPuzzle ?? text.kinds.puzzle)
+                  : text.kinds[settings.kind];
   const lock =
     settings.kind === "project" && settings.projectLanguage === "microbit"
       ? lockOf(settings.projectFiles)
@@ -618,7 +643,7 @@ function label(editor: LexicalEditor, settings: QuestionSettings): string {
     text.checks
       ? ` · ${text.checks(settings.projectChecks.length)}`
       : "";
-  const asked =
+  const at =
     settings.videoAt !== null && text.videoAt
       ? ` · ${text.videoAt(mediaClock(settings.videoAt))}`
       : "";
@@ -628,10 +653,15 @@ function label(editor: LexicalEditor, settings: QuestionSettings): string {
       : "";
   const waits =
     settings.suggested && text.suggested ? `${text.suggested} · ` : "";
-  // A poll is worth nothing by its nature, so its worth goes unsaid.
+  const needed =
+    settings.required && text.required ? ` · ${text.required}` : "";
+  // A poll is worth nothing by its nature, and a form marks nothing, so
+  // their worth goes unsaid.
   const worth =
-    settings.kind === "poll" ? "" : ` · ${text.points(settings.points)}`;
-  return `${waits}${kind}${starts}${held}${checked}${asked}${tagged}${worth}`;
+    settings.kind === "poll" || asked.has(editor)
+      ? ""
+      : ` · ${text.points(settings.points)}`;
+  return `${waits}${kind}${starts}${held}${checked}${at}${tagged}${needed}${worth}`;
 }
 
 /**
@@ -700,6 +730,8 @@ export class QuestionNode extends ElementNode {
       standards,
       feedbackAt,
       suggested,
+      required,
+      date,
       bank,
       line,
       classResults,
@@ -714,6 +746,8 @@ export class QuestionNode extends ElementNode {
       ...settings,
       ...(feedbackAt === "now" ? {} : { feedbackAt }),
       ...(suggested ? { suggested } : {}),
+      ...(required ? { required } : {}),
+      ...(settings.kind === "text" && date ? { date } : {}),
       ...((settings.kind === "gaps" || settings.kind === "labelling") &&
       bank !== null
         ? { bank }
@@ -778,6 +812,7 @@ export class QuestionNode extends ElementNode {
     dom.dataset.kind = settings.kind;
     dom.dataset.multiple = String(settings.multiple);
     dom.dataset.label = label(editor, settings);
+    if (asked.has(editor)) dom.dataset.asked = "";
     if (settings.suggested) dom.dataset.suggested = "";
     if (settings.reading) dom.dataset.reading = "";
     if (locked.has(editor)) lockElement(dom, true);
@@ -810,6 +845,8 @@ export class QuestionNode extends ElementNode {
       before.kind !== settings.kind ||
       before.points !== settings.points ||
       before.suggested !== settings.suggested ||
+      before.required !== settings.required ||
+      before.date !== settings.date ||
       before.recordSeconds !== settings.recordSeconds ||
       before.recordVideo !== settings.recordVideo ||
       before.reading !== settings.reading ||
@@ -1606,7 +1643,7 @@ export function $markableAtCaret(): QuestionOptionNode | null {
  */
 export function $toggleMark(option: QuestionOptionNode) {
   const question = option.getParent();
-  if (!$isQuestionNode(question)) return;
+  if (!$isQuestionNode(question) || asked.has($getEditor())) return;
   const kind = question.getSettings().kind;
   if (kind === "choice") $toggleCorrect(option);
   if (kind === "parsons") option.setCorrect(!option.isCorrect());
@@ -1614,7 +1651,12 @@ export function $toggleMark(option: QuestionOptionNode) {
 
 /** A new question of a kind, with its prompt and the parts it starts with. */
 export function $createQuestionNode(kind: QuestionKind): QuestionNode {
-  const question = new QuestionNode(defaultSettings(kind));
+  // A form's question is worth nothing and has no key to type.
+  const form = asked.has($getEditor());
+  const question = new QuestionNode({
+    ...defaultSettings(kind),
+    ...(form ? { points: 0, shuffle: false } : {}),
+  });
   question.append(new QuestionPromptNode());
   if (kind === "choice" || kind === "poll")
     question.append(new QuestionOptionNode(), new QuestionOptionNode());
@@ -1633,7 +1675,7 @@ export function $createQuestionNode(kind: QuestionKind): QuestionNode {
   // A code exercise: its starter code a line at a time, then a test.
   if (kind === "program")
     question.append(new QuestionOptionNode(), $createQuestionPair());
-  if (kind === "text") question.append(new QuestionAnswerNode());
+  if (kind === "text" && !form) question.append(new QuestionAnswerNode());
   // A formula is the answer, written as one, though LaTeX typed as words reads too.
   if (kind === "math")
     question.append(new QuestionAnswerNode().append($createMathNode()));
@@ -1704,6 +1746,13 @@ export function $createSketchQuestion(): QuestionNode {
  * answer for the teacher to hear, worth no points, as Seesaw's young
  * activities end with "tap the mic and tell me".
  */
+/** A typed answer that is a day, chosen from a calendar. */
+export function $createDateQuestion(): QuestionNode {
+  const question = $createQuestionNode("text");
+  question.setSettings({ date: true });
+  return question;
+}
+
 export function $createWhyQuestion(): QuestionNode {
   const text = labels.get($getEditor());
   const question = new QuestionNode({

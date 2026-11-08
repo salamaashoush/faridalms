@@ -1325,9 +1325,13 @@
 .fe .fe-question[data-multiple="true"] > .fe-question-option::before {
   border-radius: 0.25rem;
 }
-/* A poll has no right option to mark. */
-.fe .fe-question[data-kind="poll"] > .fe-question-option::before {
+/* A poll has no right option to mark, nor has any question of a form. */
+.fe .fe-question[data-kind="poll"] > .fe-question-option::before,
+.fe .fe-question[data-asked] > .fe-question-option::before {
   cursor: default;
+}
+.fe .fe-question[data-asked][data-kind="number"]::after {
+  display: none;
 }
 .fe .fe-question-option[data-correct="true"] {
   background: color-mix(in oklab, var(--fe-success) 10%, transparent);

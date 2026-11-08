@@ -252,6 +252,12 @@ export interface EditorStrings
   questionPollHint: string;
   questionTyped: string;
   questionTypedHint: string;
+  questionDate: string;
+  questionDateHint: string;
+  /** Turns a typed answer into a day chosen from a calendar. */
+  questionDated: string;
+  /** A question a form will not take without an answer. */
+  questionRequired: string;
   questionMath: string;
   questionMathHint: string;
   bankInsert: string;

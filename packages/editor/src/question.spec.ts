@@ -11,6 +11,7 @@ import {
   contentOfLesson,
   lessonOfContent,
 } from "@faridalms/domain/lesson-content";
+import { formIssue, formQuestions } from "@faridalms/domain/questions";
 import { suggestedChecks } from "@faridalms/domain/suggest";
 import { PACKS } from "@faridalms/puzzles/levels";
 import { buildEditorFromExtensions } from "@lexical/extension";
@@ -50,6 +51,7 @@ import {
   $toggleMark,
   QuestionOptionNode,
   setQuestionLabels,
+  setQuestionsAsked,
 } from "./nodes";
 import { $setNarration } from "./nodes/narration";
 
@@ -1236,5 +1238,75 @@ describe("questions suggested from the document", () => {
       { discrete: true },
     );
     expect(question()).not.toHaveProperty("suggested");
+  });
+});
+
+/** An editor writing a family's form, with one block of a kind inserted. */
+function inForm(kind: "choiceQuestion" | "typedQuestion" | "dateQuestion") {
+  const target = buildContentEditor();
+  setQuestionsAsked(target, true);
+  target.update(
+    () => {
+      const paragraph = $createParagraphNode();
+      $getRoot().clear().append(paragraph);
+      paragraph.select();
+      $insertBlock(kind);
+    },
+    { discrete: true },
+  );
+  return target;
+}
+
+describe("questions in a family's form", () => {
+  it("starts a question worth nothing, with no key to type or mark", () => {
+    const target = inForm("typedQuestion");
+    target.update(
+      () => {
+        const question = $getRoot().getChildren().find($isQuestionNode);
+        expect(question?.getChildren().map((part) => part.getType())).toEqual([
+          "question-prompt",
+        ]);
+        write(element(question?.getFirstChild()), "Your child's nickname");
+        question?.setSettings({ required: true });
+      },
+      { discrete: true },
+    );
+    const [question] = formQuestions(json(target));
+    expect(question).toMatchObject({
+      type: "text",
+      points: 0,
+      required: true,
+      answers: [],
+    });
+  });
+
+  it("asks for a day, and keeps a choice from being marked", () => {
+    const day = inForm("dateQuestion");
+    day.update(
+      () => {
+        const question = $getRoot().getChildren().find($isQuestionNode);
+        write(element(question?.getFirstChild()), "Hoped-for start");
+      },
+      { discrete: true },
+    );
+    expect(formQuestions(json(day))[0]).toMatchObject({
+      type: "text",
+      date: true,
+    });
+    const choice = inForm("choiceQuestion");
+    choice.update(
+      () => {
+        const question = $getRoot().getChildren().find($isQuestionNode);
+        const [prompt, first, second] = question?.getChildren() ?? [];
+        write(element(prompt), "How did you hear about us?");
+        write(element(first), "A friend");
+        write(element(second), "The press");
+        if ($isQuestionOptionNode(first)) $toggleMark(first);
+      },
+      { discrete: true },
+    );
+    const document = json(choice);
+    expect(JSON.stringify(document)).not.toContain('"correct":true');
+    expect(formIssue(document)).toBeNull();
   });
 });

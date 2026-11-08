@@ -53,6 +53,7 @@ import {
   setArabicNotation,
   setPartPictureUrl,
   setQuestionLabels,
+  setQuestionsAsked,
 } from "./nodes";
 import { BankPlugin } from "./plugins/bank";
 import { BlockHandlePlugin } from "./plugins/BlockHandle";
@@ -148,6 +149,8 @@ export interface EditorProps {
   onUploadingChange?: (uploading: boolean) => void;
   /** The document may ask questions, as a lesson or quiz does. */
   questions?: boolean;
+  /** The document is a form a family fills in, whose questions mark nothing. */
+  forms?: boolean;
   /** The document may stop at continue gates; a lesson may, a quiz may not. */
   gates?: boolean;
   /** Each attempt at the quiz may draw questions from the bank. */
@@ -190,7 +193,8 @@ export default function Editor({
   value,
   collaboration,
   questions = false,
-  gates = questions,
+  forms = false,
+  gates = questions && !forms,
   draws = false,
   lockQuestions = false,
   starter = false,
@@ -236,6 +240,7 @@ export default function Editor({
           ? "en"
           : document.documentElement.lang || "en"),
       questions,
+      forms,
       gates,
       draws,
       lockQuestions,
@@ -260,6 +265,7 @@ export default function Editor({
       comments,
       locale,
       questions,
+      forms,
       gates,
       draws,
       lockQuestions,
@@ -332,7 +338,7 @@ function Surface({
   synced: boolean;
 }) {
   const [editor] = useLexicalComposerContext();
-  const { strings, media, arabicMath, digits } = useEditorEnvironment();
+  const { strings, media, arabicMath, digits, forms } = useEditorEnvironment();
   useEffect(
     () => setArabicNotation(editor, arabicMath === "rtl"),
     [editor, arabicMath],
@@ -342,6 +348,7 @@ function Surface({
   useState(() =>
     setPartPictureUrl(editor, (fileId) => media?.url(fileId) ?? ""),
   );
+  useState(() => setQuestionsAsked(editor, Boolean(forms)));
   // Question nodes draw their labels as they are first created, before any
   // effect could run, so the words are in place from the first render.
   useState(() =>
@@ -391,6 +398,8 @@ function Surface({
       videoAt: strings.questionVideoAt,
       standards: strings.questionStandardsCount,
       suggested: strings.questionSuggested,
+      date: strings.questionDate,
+      required: strings.questionRequired,
       codeLine: strings.questionCodeLine,
       distractor: strings.questionDistractor,
       testInput: strings.questionTestInput,

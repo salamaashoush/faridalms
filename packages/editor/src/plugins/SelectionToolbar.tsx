@@ -77,6 +77,7 @@ import {
   Bold,
   Boxes,
   Captions,
+  CalendarDays,
   CaseSensitive,
   Check,
   ChevronDown,
@@ -610,6 +611,7 @@ export function SelectionToolbarPlugin() {
     feedbackTiming,
     locale,
     questions,
+    forms,
     tools,
     comments,
   } = useEditorEnvironment();
@@ -1761,7 +1763,9 @@ export function SelectionToolbarPlugin() {
         | "backwards"
         | "anonymous"
         | "gallery"
-        | "classResults",
+        | "classResults"
+        | "required"
+        | "date",
       label: string,
       icon: React.ReactNode,
     ) => (
@@ -1936,8 +1940,8 @@ export function SelectionToolbarPlugin() {
               <Check aria-hidden />
             </ToolButton>
           ) : null}
-          {/* A poll counts for nothing, and is answered once. */}
-          {settings.kind === "poll" ? null : (
+          {/* A poll counts for nothing, and is answered once; a form marks nothing. */}
+          {settings.kind === "poll" || forms ? null : (
             <BarMenu
               label={strings.questionPoints(settings.points)}
               current={strings.questionPoints(settings.points)}
@@ -2177,7 +2181,8 @@ export function SelectionToolbarPlugin() {
               ) : null}
               {/* An answer whose feedback waits is one go, changed until then. */}
               {(feedbackTiming && settings.feedbackAt !== "now") ||
-              settings.kind === "poll" ? null : (
+              settings.kind === "poll" ||
+              forms ? null : (
                 <BarMenu
                   label={strings.questionTries}
                   current={triesText(settings.tries)}
@@ -2385,7 +2390,7 @@ export function SelectionToolbarPlugin() {
               <Signature aria-hidden />
             </ToolButton>
           ) : null}
-          {settings.kind === "number" ? (
+          {settings.kind === "number" && !forms ? (
             <button
               type="button"
               onMouseDown={(event) => event.preventDefault()}
@@ -2422,11 +2427,13 @@ export function SelectionToolbarPlugin() {
                 strings.questionSeveral,
                 <ListChecks aria-hidden />,
               )}
-              {toggle(
-                "shuffle",
-                strings.questionShuffle,
-                <Shuffle aria-hidden />,
-              )}
+              {forms
+                ? null
+                : toggle(
+                    "shuffle",
+                    strings.questionShuffle,
+                    <Shuffle aria-hidden />,
+                  )}
             </>
           ) : null}
           {settings.kind === "poll" ? (
@@ -2448,7 +2455,22 @@ export function SelectionToolbarPlugin() {
               )}
             </>
           ) : null}
-          {settings.kind === "text" || settings.kind === "gaps" ? (
+          {settings.kind === "text"
+            ? toggle(
+                "date",
+                strings.questionDated,
+                <CalendarDays aria-hidden />,
+              )
+            : null}
+          {forms
+            ? toggle(
+                "required",
+                strings.questionRequired,
+                <Asterisk aria-hidden />,
+              )
+            : null}
+          {(settings.kind === "text" && !settings.date && !forms) ||
+          settings.kind === "gaps" ? (
             <>
               {toggle(
                 "caseSensitive",
@@ -2499,13 +2521,15 @@ export function SelectionToolbarPlugin() {
               <Lightbulb aria-hidden />
             </ToolButton>
           )}
-          <ToolButton
-            label={strings.questionExplanation}
-            active={Boolean(settings.explanation)}
-            onClick={() => write("explanation")}
-          >
-            <MessageCircleQuestion aria-hidden />
-          </ToolButton>
+          {forms ? null : (
+            <ToolButton
+              label={strings.questionExplanation}
+              active={Boolean(settings.explanation)}
+              onClick={() => write("explanation")}
+            >
+              <MessageCircleQuestion aria-hidden />
+            </ToolButton>
+          )}
           {standards && settings.kind !== "poll" ? (
             <ToolButton
               label={strings.questionStandards}
@@ -2521,7 +2545,7 @@ export function SelectionToolbarPlugin() {
               <Target aria-hidden />
             </ToolButton>
           ) : null}
-          {question.mark ? (
+          {question.mark && !forms ? (
             <ToolButton
               label={
                 settings.kind === "parsons"
@@ -2546,7 +2570,7 @@ export function SelectionToolbarPlugin() {
               )}
             </ToolButton>
           ) : null}
-          {question.option ? (
+          {question.option && !forms ? (
             <ToolButton
               label={strings.questionFeedback}
               active={Boolean(question.option.feedback)}

@@ -66,6 +66,7 @@ import {
   Grid3x3,
   TextSearch,
   Vote,
+  CalendarDays,
   ChevronRight,
   CircleCheck,
   CircuitBoard,
@@ -133,6 +134,7 @@ import {
   $selectLti,
   $createReadingQuestion,
   $createWhyQuestion,
+  $createDateQuestion,
   $createColumnsNode,
   $createToggleContentNode,
   $createToggleNode,
@@ -199,6 +201,7 @@ export type BlockType =
   | "diagram"
   | "choiceQuestion"
   | "typedQuestion"
+  | "dateQuestion"
   | "mathQuestion"
   | "writtenQuestion"
   | "numberQuestion"
@@ -271,6 +274,7 @@ const QUESTION_KIND: Partial<Record<BlockType, QuestionKind>> = {
   whyQuestion: "written",
   readingQuestion: "written",
   typedQuestion: "text",
+  dateQuestion: "text",
   mathQuestion: "math",
   writtenQuestion: "written",
   numberQuestion: "number",
@@ -310,6 +314,8 @@ export interface BlockDefinition {
   prompt?: boolean;
   /** Offered only where the document may ask questions, such as a lesson. */
   question?: boolean;
+  /** A question a family's form may ask, which marks nothing. */
+  form?: boolean;
   /** Offered only in a brief, whose students each get a copy to work in. */
   starter?: boolean;
   /** Offered only in a student's own work. */
@@ -336,6 +342,8 @@ export interface BlockDefinition {
 export interface BlockScope {
   media: boolean;
   questions: boolean;
+  /** A family's form, which asks only the questions a form may. */
+  forms: boolean;
   gates: boolean;
   starter: boolean;
   aiUse: boolean;
@@ -352,6 +360,7 @@ export interface BlockScope {
 export function blockScope(environment: {
   media?: unknown;
   questions?: boolean;
+  forms?: boolean;
   gates?: boolean;
   starter?: boolean;
   aiUse?: boolean;
@@ -368,6 +377,7 @@ export function blockScope(environment: {
   return {
     media: Boolean(environment.media),
     questions,
+    forms: Boolean(environment.forms),
     gates: environment.gates ?? questions,
     starter: Boolean(environment.starter),
     aiUse: Boolean(environment.aiUse),
@@ -385,6 +395,7 @@ export function blockScope(environment: {
 export const offered = (block: BlockDefinition, scope: BlockScope) =>
   (scope.media || !block.media) &&
   (scope.questions || !block.question) &&
+  (!scope.forms || !block.question || Boolean(block.form)) &&
   (scope.gates || block.type !== "gate") &&
   (scope.starter || !block.starter) &&
   (scope.aiUse || !block.aiUse) &&
@@ -857,6 +868,7 @@ export const blockDefinitions: BlockDefinition[] = [
     hint: (s) => s.questionChoiceHint,
     keywords: ["question", "choice", "quiz", "mcq", "سؤال", "اختيار"],
     question: true,
+    form: true,
   },
   {
     type: "trueFalseQuestion",
@@ -884,6 +896,17 @@ export const blockDefinitions: BlockDefinition[] = [
     hint: (s) => s.questionTypedHint,
     keywords: ["question", "typed", "answer", "short", "سؤال", "إجابة"],
     question: true,
+    form: true,
+  },
+  {
+    type: "dateQuestion",
+    group: "questions",
+    icon: CalendarDays,
+    label: (s) => s.questionDate,
+    hint: (s) => s.questionDateHint,
+    keywords: ["question", "date", "day", "calendar", "سؤال", "تاريخ", "يوم"],
+    question: true,
+    form: true,
   },
   {
     type: "sharedBlock",
@@ -968,6 +991,7 @@ export const blockDefinitions: BlockDefinition[] = [
     hint: (s) => s.questionWrittenHint,
     keywords: ["question", "written", "essay", "long", "سؤال", "مقال"],
     question: true,
+    form: true,
   },
   {
     type: "numberQuestion",
@@ -977,6 +1001,7 @@ export const blockDefinitions: BlockDefinition[] = [
     hint: (s) => s.questionNumberHint,
     keywords: ["question", "number", "numeric", "maths", "سؤال", "رقم"],
     question: true,
+    form: true,
   },
   {
     type: "orderingQuestion",
@@ -1639,6 +1664,7 @@ function $createStructure(type: BlockType): LexicalNode | null {
   if (type === "chart") return $createChartNode();
   if (type === "trueFalseQuestion") return $createTrueFalseQuestion();
   if (type === "whyQuestion") return $createWhyQuestion();
+  if (type === "dateQuestion") return $createDateQuestion();
   if (type === "readingQuestion") return $createReadingQuestion();
   if (type === "outsideTool") return $createLtiNode("", "");
   if (type === "sketchQuestion") return $createSketchQuestion();

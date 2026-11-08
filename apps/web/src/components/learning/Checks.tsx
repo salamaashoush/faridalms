@@ -1160,6 +1160,7 @@ function TypedCheck({ block, view, driver }: TypedCheckProps) {
   );
   const settled = answerFinal(block, view);
   const numeric = block.type === "number";
+  const date = block.type === "text" && Boolean(block.date);
   const notNumber = numeric && text.trim() !== "" && parseNumber(text) === null;
   const canCheck = text.trim() !== "" && !notNumber;
   const check = () => {
@@ -1214,20 +1215,21 @@ function TypedCheck({ block, view, driver }: TypedCheckProps) {
           <Input
             ref={input}
             id={field}
+            type={date ? "date" : "text"}
             value={text}
             onChange={(event) => setText(event.target.value)}
             disabled={!editing || settled}
             autoComplete="off"
             spellCheck={false}
             maxLength={numeric ? 60 : 500}
-            dir={numeric ? "ltr" : "auto"}
+            dir={numeric || date ? "ltr" : "auto"}
             inputMode={numeric ? "decimal" : undefined}
             aria-invalid={notNumber || undefined}
             aria-describedby={notNumber ? `${field}-error` : undefined}
             placeholder={m.lrnYourAnswer()}
             className={cn(
               "max-md:h-10",
-              numeric ? "w-48 tabular-nums" : "w-full max-w-md",
+              numeric || date ? "w-48 tabular-nums" : "w-full max-w-md",
               !editing &&
                 view &&
                 (view.correct ? "border-success/60" : "border-destructive/50"),

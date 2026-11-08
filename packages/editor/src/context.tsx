@@ -302,6 +302,11 @@ export interface EditorEnvironment {
   digits?: Digits;
   /** The document may ask questions, as a lesson or quiz does. */
   questions?: boolean;
+  /**
+   * The document is a form a family fills in: it asks only a form's kinds
+   * of question, marks nothing, and a question may be required.
+   */
+  forms?: boolean;
   /** The document may stop at continue gates. */
   gates?: boolean;
   /** The document is a quiz, whose attempts may each draw questions from the bank. */

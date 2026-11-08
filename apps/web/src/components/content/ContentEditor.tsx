@@ -47,6 +47,8 @@ export interface ContentEditorProps {
   replace?: { to: ContentDocument; at: number; quiet?: boolean };
   onUploadingChange?: (uploading: boolean) => void;
   questions?: boolean;
+  /** A family's form: it asks only a form's questions, which mark nothing. */
+  forms?: boolean;
   gates?: boolean;
   draws?: boolean;
   lockQuestions?: boolean;
@@ -84,6 +86,7 @@ export function ContentEditor({
   replace,
   onUploadingChange,
   questions,
+  forms,
   gates,
   draws,
   lockQuestions,
@@ -100,13 +103,13 @@ export function ContentEditor({
 }: ContentEditorProps) {
   const strings = useMemo(() => editorStrings(), []);
   const hydrated = useHydrated();
-  const coding = useEditorStudio(questions ? media : undefined);
-  const designing = useEditorPuzzles(Boolean(questions));
-  const banking = useEditorBank(Boolean(questions));
-  const tagging = useEditorStandards(Boolean(questions) || standards);
-  const sharing = useEditorShared(
-    sharedBlocks ?? (Boolean(questions) || standards),
-  );
+  // A form asks only what a family answers in words, a choice or a number.
+  const teaching = Boolean(questions) && !forms;
+  const coding = useEditorStudio(teaching ? media : undefined);
+  const designing = useEditorPuzzles(teaching);
+  const banking = useEditorBank(teaching);
+  const tagging = useEditorStandards(teaching || standards);
+  const sharing = useEditorShared(sharedBlocks ?? (teaching || standards));
   const mentions = useEditorMentions(useMentionNames(value));
   const tools = useEditorTools();
   const comments = useEditorComments(id);
@@ -168,6 +171,7 @@ export function ContentEditor({
           replace={replace}
           onUploadingChange={onUploadingChange}
           questions={questions}
+          forms={forms}
           gates={gates}
           draws={draws}
           lockQuestions={lockQuestions}
