@@ -1,23 +1,17 @@
 import { addDays } from "@faridalms/domain/school";
 import { describe, expect, test } from "bun:test";
 
-import { login, rejection, seeded, sessionFor, signedIn } from "./harness";
+import {
+  login,
+  rejection,
+  runDay,
+  schoolDayBack,
+  seeded,
+  sessionFor,
+  signedIn,
+} from "./harness";
 
 const principal = () => signedIn("northwind", login("principal"));
-
-/**
- * The latest school day up to today after the seeded registers: not a
- * Friday or Saturday, and not the seeded Armed Forces Day holiday.
- */
-function schoolDay(today: string) {
-  let day = today;
-  while (
-    [5, 6].includes(new Date(`${day}T00:00:00Z`).getUTCDay()) ||
-    day === "2026-10-06"
-  )
-    day = addDays(day, -1);
-  return day;
-}
 
 type Api = Awaited<ReturnType<typeof principal>>;
 
@@ -72,7 +66,7 @@ describe("taking a register", () => {
     const student = await sessionFor("northwind", login("student"));
     const me = await student.api.identity.currentUser();
     const probe = await office.attendance.day({});
-    const date = schoolDay(probe.today);
+    const date = schoolDayBack(runDay(probe.today), 1);
     const opened = await homeroomOf(office, me.id, date);
     const { keeper: teacher } = await teachersOf(opened.class.id);
 
@@ -186,7 +180,7 @@ describe("taking a register", () => {
     const student = await sessionFor("northwind", login("student"));
     const me = await student.api.identity.currentUser();
     const probe = await office.attendance.day({});
-    const date = schoolDay(probe.today);
+    const date = schoolDayBack(runDay(probe.today), 1);
     const opened = await homeroomOf(office, me.id, date);
     const { keeper: teacher, stranger } = await teachersOf(opened.class.id);
     expect(
@@ -407,8 +401,9 @@ describe("classroom check-in", () => {
     const me = await student.api.identity.currentUser();
     // A day before today: today's check-in is late or not by the clock the
     // test runs at, and another day's is always on time.
-    const date = schoolDay(
-      addDays((await office.attendance.day({})).today, -1),
+    const date = schoolDayBack(
+      addDays(runDay((await office.attendance.day({})).today), -1),
+      1,
     );
     const opened = await homeroomOf(office, me.id, date);
     const { keeper: teacher, stranger } = await teachersOf(opened.class.id);

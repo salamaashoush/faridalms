@@ -1,26 +1,18 @@
-import { addDays } from "@faridalms/domain/school";
 import { describe, expect, test } from "bun:test";
 
-import { login, rejection, sessionFor, signedIn } from "./harness";
+import {
+  login,
+  rejection,
+  runDay,
+  schoolDayBack,
+  sessionFor,
+  signedIn,
+} from "./harness";
 
 const principal = () => signedIn("northwind", login("principal"));
 
-function offDay(day: string) {
-  return (
-    [5, 6].includes(new Date(`${day}T00:00:00Z`).getUTCDay()) ||
-    day === "2026-10-06"
-  );
-}
-
 /** The fourth school day back: the register, notice and report suites take the three after it. */
-function fourthSchoolDay(today: string) {
-  let day = today;
-  for (let step = 0; step < 4; step += 1) {
-    if (step > 0) day = addDays(day, -1);
-    while (offDay(day)) day = addDays(day, -1);
-  }
-  return day;
-}
+const fourthSchoolDay = (today: string) => schoolDayBack(runDay(today), 4);
 
 describe("following up absences", () => {
   test("an unexplained absence puts the child on the call list until a reason arrives", async () => {

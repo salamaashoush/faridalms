@@ -1,11 +1,18 @@
 import { plainContent } from "@faridalms/domain/content-conversion";
 import { DEFAULT_PREFERENCES } from "@faridalms/domain/notifications";
-import { addDays } from "@faridalms/domain/school";
 import { MemoryProvider } from "@faridalms/mail/providers";
 import { describe, expect, test } from "bun:test";
 
 import { deliverTenant } from "../src/notifications/deliver";
-import { login, rejection, seeded, sessionFor, signedIn } from "./harness";
+import {
+  login,
+  rejection,
+  runDay,
+  schoolDayBack,
+  seeded,
+  sessionFor,
+  signedIn,
+} from "./harness";
 
 const principal = () => signedIn("northwind", login("principal"));
 const mother = () =>
@@ -37,14 +44,6 @@ const announce = async (
   });
   return saved.id;
 };
-
-/** A weekend or the seeded holiday, when no register is taken. */
-function offDay(day: string) {
-  return (
-    [5, 6].includes(new Date(`${day}T00:00:00Z`).getUTCDay()) ||
-    day === "2026-10-06"
-  );
-}
 
 describe("the notification centre", () => {
   test("a notice that asks for acknowledgement waits under action until given", async () => {
@@ -186,10 +185,7 @@ describe("absence notices", () => {
     const probe = await office.attendance.day({});
     // The school day before the latest one, which the register test takes:
     // on a weekend both would otherwise walk back to the same day.
-    let date = probe.today;
-    while (offDay(date)) date = addDays(date, -1);
-    date = addDays(date, -1);
-    while (offDay(date)) date = addDays(date, -1);
+    const date = schoolDayBack(runDay(probe.today), 2);
     const { rows } = await office.attendance.board({ date });
     const registers = await Promise.all(
       rows
@@ -271,11 +267,7 @@ describe("absence notices", () => {
     const probe = await office.attendance.day({});
     // The fifth school day back: the register, notice, report and follow-up
     // suites take the four after it.
-    let date = probe.today;
-    for (let back = 0; back < 5; back += 1) {
-      if (back > 0) date = addDays(date, -1);
-      while (offDay(date)) date = addDays(date, -1);
-    }
+    const date = schoolDayBack(runDay(probe.today), 5);
     const { rows } = await office.attendance.board({ date });
     const registers = await Promise.all(
       rows

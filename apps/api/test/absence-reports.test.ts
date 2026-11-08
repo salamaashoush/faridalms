@@ -3,31 +3,26 @@ import { addDays } from "@faridalms/domain/school";
 import { describe, expect, test } from "bun:test";
 import { sql } from "drizzle-orm";
 
-import { login, raw, rejection, seeded, sessionFor, signedIn } from "./harness";
+import {
+  login,
+  raw,
+  rejection,
+  runDay,
+  schoolDayBack,
+  seeded,
+  sessionFor,
+  signedIn,
+} from "./harness";
 
 const principal = () => signedIn("northwind", login("principal"));
 const mother = () =>
   signedIn("northwind", login("student").replace("student", "parent"));
 
-function offDay(day: string) {
-  return (
-    [5, 6].includes(new Date(`${day}T00:00:00Z`).getUTCDay()) ||
-    day === "2026-10-06"
-  );
-}
-
 /**
  * The third school day back from today: the register and notice suites
  * take the two after it.
  */
-function thirdSchoolDay(today: string) {
-  let day = today;
-  for (let step = 0; step < 3; step += 1) {
-    if (step > 0) day = addDays(day, -1);
-    while (offDay(day)) day = addDays(day, -1);
-  }
-  return day;
-}
+const thirdSchoolDay = (today: string) => schoolDayBack(runDay(today), 3);
 
 describe("absences families report", () => {
   test("a reported absence spares the alarm, and once accepted explains the mark", async () => {

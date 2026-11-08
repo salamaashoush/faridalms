@@ -23,6 +23,7 @@ import {
 import { SEED_PASSWORD, seedCell } from "@faridalms/database/seed";
 import { MODULE_IDS } from "@faridalms/domain/modules";
 import { DEFAULT_LIMITS } from "@faridalms/domain/plans";
+import { addDays } from "@faridalms/domain/school";
 import { MemoryProvider } from "@faridalms/mail/providers";
 import { createORPCClient } from "@orpc/client";
 import { RPCLink } from "@orpc/client/fetch";
@@ -400,6 +401,36 @@ export async function signedIn(school: string, loginName: string) {
     password: SEED_PASSWORD,
   });
   return client(school, session.token);
+}
+
+let firstToday: string | undefined;
+
+/**
+ * The school's today as the run first saw it. The suites that take
+ * registers count their days back from it, each its own number of days, so
+ * a run that crosses midnight cannot hand two of them the same register.
+ */
+export function runDay(today: string) {
+  firstToday ??= today;
+  return firstToday;
+}
+
+/** Fridays and Saturdays, and the seeded Armed Forces Day holiday. */
+function offDay(day: string) {
+  return (
+    [5, 6].includes(new Date(`${day}T00:00:00Z`).getUTCDay()) ||
+    day === "2026-10-06"
+  );
+}
+
+/** The `nth` school day back from `day`, counting `day` when it is one. */
+export function schoolDayBack(day: string, nth: number) {
+  let found = day;
+  for (let step = 0; step < nth; step += 1) {
+    if (step > 0) found = addDays(found, -1);
+    while (offDay(found)) found = addDays(found, -1);
+  }
+  return found;
 }
 
 export function login(role: string, tenant = 0, index = 0) {
