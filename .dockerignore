@@ -1,6 +1,8 @@
 # Keep the build context small and never ship secrets or host artefacts.
 .git
 .github
+# Agent worktrees: whole checkouts of the repo, gigabytes each.
+.claude
 node_modules
 .output
 .nitro
