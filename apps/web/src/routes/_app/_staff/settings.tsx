@@ -24,6 +24,7 @@ import {
   RoleSheet,
 } from "~/components/admin/AccessRolesPanel";
 import { OutsideTools } from "~/components/admin/OutsideTools";
+import { RecordStore } from "~/components/admin/RecordStore";
 import { SchoolProfileSection } from "~/components/admin/SchoolEditors";
 import {
   filterSubjects,
@@ -51,6 +52,7 @@ import {
 } from "~/queries/school-settings";
 import { peopleOptionsQuery } from "~/queries/students";
 import { currentUserQuery } from "~/queries/user";
+import { recordStoreQuery } from "~/queries/xapi";
 import { formatDate } from "~/utils/datetime";
 import { requirePage } from "~/utils/page-access";
 
@@ -63,6 +65,7 @@ const searchSchema = v.object({
       "reading",
       "access",
       "tools",
+      "records",
     ]),
     "school",
   ),
@@ -99,6 +102,8 @@ export const Route = createFileRoute("/_app/_staff/settings")({
       await queryClient.ensureQueryData(ltiToolsQuery);
     else if (deps.section === "reading")
       await queryClient.ensureQueryData(readingNormsQuery);
+    else if (deps.section === "records")
+      await queryClient.ensureQueryData(recordStoreQuery);
     else
       await Promise.all([
         queryClient.ensureQueryData(accessRolesQuery),
@@ -167,6 +172,7 @@ function SettingsRoute() {
           { value: "reading", label: m.readingSettingsTab() },
           { value: "access", label: m.adminPermissionsSection() },
           { value: "tools", label: m.ltiTools() },
+          { value: "records", label: m.settingsRecordsTab() },
         ]}
         value={search.section}
         onChange={(section) => void navigate({ search: { section } })}
@@ -185,6 +191,8 @@ function SettingsRoute() {
           </SettingsPage>
         ) : search.section === "tools" ? (
           <OutsideTools />
+        ) : search.section === "records" ? (
+          <RecordStore />
         ) : (
           <Suspense fallback={<Skeleton className="h-40 w-full" />}>
             <AccessTab search={search} patch={patch} />

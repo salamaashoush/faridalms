@@ -1100,6 +1100,11 @@ export function getMessageFromError(error: unknown): string {
         return m.ltiErrUrl();
       case "lti.custom_too_many":
         return m.ltiErrCustom();
+      case "xapi.url":
+      case "xapi.https":
+        return m.xapiErrUrl();
+      case "xapi.secret_needed":
+        return m.xapiErrSecret();
       case "lti.client_exists":
       case "lti.key_exists":
         return m.ltiErrRace();
