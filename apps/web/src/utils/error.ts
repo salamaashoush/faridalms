@@ -701,6 +701,8 @@ export function getMessageFromError(error: unknown): string {
         return m.courseworkErrCategoryUnknown();
       case "coursework.module_unknown":
         return m.courseworkErrModuleUnknown();
+      case "coursework.module_fixed":
+        return m.courseworkErrModuleFixed();
       case "coursework.like_own":
         return m.discussionErrLikeOwn();
       case "reading.norm_repeated":

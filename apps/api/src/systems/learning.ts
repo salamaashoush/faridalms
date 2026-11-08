@@ -253,6 +253,7 @@ import {
 } from "../core/learning-access";
 import { templateHost, usableTemplate } from "../core/library";
 import { publishTelling } from "../core/mentions";
+import { spreadModuleDiscussions } from "../core/module-discussions";
 import { modulesOf } from "../core/modules";
 import {
   audit,
@@ -1104,6 +1105,8 @@ export const saveModule = writeProcedure
       moduleId,
       audiences: await checkedAudiences(context, input),
     });
+    // Its discussions reach the classes it is set for now.
+    await spreadModuleDiscussions(context, moduleId);
     await audit(context, {
       action: input.id ? "module.update" : "module.create",
       objectType: "learning_module",

@@ -1,0 +1,137 @@
+{
+  "type": "diff",
+  "version": "9",
+  "dialect": "postgres",
+  "id": "c4b45b49-33b4-4841-a6b9-aa23a8b337f5",
+  "prevIds": [
+    "58090849-6c35-4e94-b4b2-a2eeadccba9a"
+  ],
+  "footprints": [
+    {
+      "statementType": "add_column",
+      "statementTarget": [
+        "column",
+        "core",
+        "assignments",
+        "discussion_group"
+      ],
+      "writes": [
+        "s|col|core.assignments.discussion_group",
+        "n|col|core.assignments.discussion_group",
+        "e|col|core.assignments.discussion_group"
+      ],
+      "reads": [
+        "n|tbl|core.assignments",
+        "n|sch|core"
+      ]
+    },
+    {
+      "statementType": "create_index",
+      "statementTarget": [
+        "index",
+        "core",
+        "assignments",
+        "assignments_discussion_class_key"
+      ],
+      "writes": [
+        "s|idx|core.assignments_discussion_class_key",
+        "n|idx|core.assignments_discussion_class_key",
+        "e|idx|core.assignments_discussion_class_key",
+        "n|rel|core.assignments_discussion_class_key"
+      ],
+      "reads": [
+        "n|tbl|core.assignments",
+        "n|sch|core",
+        "n|col|core.assignments.tenant_id",
+        "n|col|core.assignments.discussion_group",
+        "n|col|core.assignments.class_id"
+      ]
+    },
+    {
+      "statementType": "add_check",
+      "statementTarget": [
+        "table",
+        "core",
+        "assignments"
+      ],
+      "writes": [
+        "s|ck|core.assignments.assignments_discussion_group_check",
+        "n|ck|core.assignments.assignments_discussion_group_check",
+        "e|ck|core.assignments.assignments_discussion_group_check",
+        "n|con|core.assignments.assignments_discussion_group_check"
+      ],
+      "reads": [
+        "n|tbl|core.assignments",
+        "n|sch|core",
+        "n|col|core.assignments.discussion_group",
+        "n|col|core.assignments.module_id"
+      ]
+    }
+  ],
+  "deltas": [
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "assignments",
+        "name": "discussion_group",
+        "type": "uuid",
+        "typeSchema": null,
+        "notNull": false,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "assignments",
+        "name": "assignments_discussion_class_key",
+        "nameExplicit": true,
+        "columns": [
+          {
+            "value": "tenant_id",
+            "isExpression": false,
+            "asc": true,
+            "nullsFirst": false,
+            "opclass": null
+          },
+          {
+            "value": "discussion_group",
+            "isExpression": false,
+            "asc": true,
+            "nullsFirst": false,
+            "opclass": null
+          },
+          {
+            "value": "class_id",
+            "isExpression": false,
+            "asc": true,
+            "nullsFirst": false,
+            "opclass": null
+          }
+        ],
+        "isUnique": true,
+        "where": "status = 'active' and discussion_group is not null",
+        "with": "",
+        "method": "btree",
+        "concurrently": false,
+        "entityType": "indexes"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "core",
+        "table": "assignments",
+        "name": "assignments_discussion_group_check",
+        "value": "discussion_group is null or module_id is not null",
+        "entityType": "checks"
+      }
+    }
+  ]
+}

@@ -186,6 +186,12 @@ export const assignments = core.table.withRLS(
     /** The module a discussion sits in, beside its lessons, when its teacher puts it there. */
     moduleId: uuid("module_id"),
     /**
+     * A module's discussion is one discussion across every class the
+     * module is set for: a row per class, each its class's conversation
+     * and grade, sharing this key, the id of the part made first.
+     */
+    discussionGroup: uuid("discussion_group"),
+    /**
      * For peer review: how many classmates' work each student reviews,
      * whether reviewers and authors stay unnamed to each other, when the
      * reviews were handed out, and when the authors were let read them.
@@ -274,6 +280,14 @@ export const assignments = core.table.withRLS(
       "module",
       sql`module_id is null or submission_format = 'discussion'`,
     ),
+    ck(
+      "assignments",
+      "discussion_group",
+      sql`discussion_group is null or module_id is not null`,
+    ),
+    uniqueIndex("assignments_discussion_class_key")
+      .on(t.tenantId, t.discussionGroup, t.classId)
+      .where(sql`status = 'active' and discussion_group is not null`),
     ck("assignments", "language", sql`language in ('en', 'ar')`),
     ck(
       "assignments",

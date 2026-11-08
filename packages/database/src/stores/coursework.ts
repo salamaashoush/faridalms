@@ -58,6 +58,8 @@ export interface AssignmentRow {
   discussionPostFirst: boolean | null;
   discussionReplies: number | null;
   moduleId: string | null;
+  /** The module discussion this is one class's part of, by its first part's id. */
+  discussionGroup: string | null;
   peerReviews: number | null;
   peerAnonymous: boolean | null;
   peerStartedAt: string | null;
@@ -103,6 +105,7 @@ type AssignmentRecord = {
   discussion_post_first: boolean | null;
   discussion_replies: number | null;
   module_id: string | null;
+  discussion_group: string | null;
   peer_reviews: number | null;
   peer_anonymous: boolean | null;
   peer_started_at: string | null;
@@ -122,7 +125,7 @@ const assignmentColumns = sql`a.id, a.version, a.org_id, a.class_id, a.class_typ
   a.late_policy, a.late_deduction_percent, a.submission_format, a.max_files, a.resubmission,
   a.points::text as points, a.rubric, a.quiz_attempts, a.quiz_keep, a.quiz_reveal, a.quiz_shuffle,
   a.quiz_time_limit, a.quiz_practice, a.quiz_bands, a.grade_after_answers, a.discussion_post_first, a.discussion_replies,
-  a.module_id, a.peer_reviews, a.peer_anonymous,
+  a.module_id, a.discussion_group, a.peer_reviews, a.peer_anonymous,
   to_char(a.peer_started_at at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS"Z"') as peer_started_at,
   to_char(a.peer_released_at at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS"Z"') as peer_released_at,
   to_char(a.peer_due_at at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS"Z"') as peer_due_at,
@@ -165,6 +168,7 @@ function assignmentOf(row: AssignmentRecord): AssignmentRow {
     discussionPostFirst: row.discussion_post_first,
     discussionReplies: row.discussion_replies,
     moduleId: row.module_id,
+    discussionGroup: row.discussion_group,
     peerReviews: row.peer_reviews,
     peerAnonymous: row.peer_anonymous,
     peerStartedAt: row.peer_started_at,
@@ -2251,6 +2255,41 @@ export async function setDiscussionLike(
       update core.discussion_likes set status = 'tobedeleted'
       where tenant_id = ${input.tenantId}::uuid and post_id = ${input.postId}::uuid
         and user_id = ${input.userId}::uuid and status = 'active'`);
+}
+
+/** Makes a discussion one class's part of a module discussion, or takes it out of one. */
+export async function setDiscussionGroup(
+  tx: Tx,
+  input: { tenantId: string; id: string; group: string | null },
+): Promise<void> {
+  await tx.execute(sql`
+    update core.assignments set discussion_group = ${input.group}::uuid
+    where tenant_id = ${input.tenantId}::uuid and id = ${input.id}::uuid and status = 'active'`);
+}
+
+/** Every class's part of a module discussion, archived ones included, first made first. */
+export async function discussionParts(
+  tx: Tx,
+  input: { tenantId: string; group: string },
+): Promise<AssignmentRow[]> {
+  const rows = await tx.execute<AssignmentRecord>(sql`
+    select ${assignmentColumns} from core.assignments a
+    where a.tenant_id = ${input.tenantId}::uuid and a.discussion_group = ${input.group}::uuid
+      and a.status = 'active'
+    order by a.created_at, a.id`);
+  return rows.map(assignmentOf);
+}
+
+/** The module discussions a module holds, by group. */
+export async function discussionGroupsOf(
+  tx: Tx,
+  input: { tenantId: string; moduleId: string },
+): Promise<string[]> {
+  const rows = await tx.execute<{ discussion_group: string }>(sql`
+    select distinct discussion_group from core.assignments
+    where tenant_id = ${input.tenantId}::uuid and module_id = ${input.moduleId}::uuid
+      and discussion_group is not null and status = 'active' and state <> 'archived'`);
+  return rows.map((row) => row.discussion_group);
 }
 
 /** The discussions a module holds, in any of its classes, in the order they fall due. */

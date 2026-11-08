@@ -1096,18 +1096,28 @@ export function AssignmentEditor({
                 }
                 errors={errorOf("classId")}
               />
-              <SelectField
-                id="work-audience"
-                label={m.courseworkAudience()}
-                value={draft.audience}
-                options={[
-                  { value: "class", label: m.courseworkAudienceClass() },
-                  { value: "selected", label: m.courseworkAudienceSelected() },
-                ]}
-                onChange={(value) => set("audience", value)}
-                errors={errorOf("audience")}
-              />
-              {draft.audience === "selected" ? (
+              {isDiscussion && draft.discussion.moduleId ? (
+                <p className="text-[13px] leading-[18px] text-muted-foreground">
+                  {m.courseworkModuleDiscussionReach()}
+                </p>
+              ) : (
+                <SelectField
+                  id="work-audience"
+                  label={m.courseworkAudience()}
+                  value={draft.audience}
+                  options={[
+                    { value: "class", label: m.courseworkAudienceClass() },
+                    {
+                      value: "selected",
+                      label: m.courseworkAudienceSelected(),
+                    },
+                  ]}
+                  onChange={(value) => set("audience", value)}
+                  errors={errorOf("audience")}
+                />
+              )}
+              {draft.audience === "selected" &&
+              !(isDiscussion && draft.discussion.moduleId) ? (
                 <>
                   <ComboboxField
                     label={m.courseworkGroups()}

@@ -74,6 +74,7 @@ import {
   selectionOf,
   moduleDiscussions,
   setAssignmentState,
+  setDiscussionGroup,
   setDiscussionLike,
   setCommentState,
   setRecipientDue,
@@ -254,7 +255,9 @@ import {
   taughtAssignment,
 } from "../core/coursework-access";
 import { gradeReader } from "../core/grades";
+import { mayEditModule } from "../core/learning-access";
 import { publishTelling } from "../core/mentions";
+import { audienceIn, spreadDiscussion } from "../core/module-discussions";
 import { nameUuid } from "../core/names";
 import { notify } from "../core/notify";
 import { reviewerReads } from "../core/peer-work";
@@ -904,7 +907,8 @@ export const reuse = writeProcedure
  */
 export const save = writeProcedure
   .input(saveAssignmentSchema)
-  .handler(async ({ input, context }) => {
+  .handler(async ({ input: asked, context }) => {
+    let input = asked;
     requireCapability(context, "assignments:author");
     const issue = assignmentIssue(input);
     if (issue) throw new ORPCError("BAD_REQUEST", { message: issue });
@@ -942,6 +946,7 @@ export const save = writeProcedure
       if (
         !placed ||
         placed.orgId !== context.schoolId ||
+        !(await mayEditModule(context, placed)) ||
         !(await classesOfModule(tx, context.tenantId, placed.id)).some(
           (row) => row.id === classRow.id,
         )
@@ -949,6 +954,14 @@ export const save = writeProcedure
         throw new ORPCError("BAD_REQUEST", {
           message: "coursework.module_unknown",
         });
+      // Who takes part in each class is who the module reaches there.
+      const reached = await audienceIn(context, placed.id, classRow.id);
+      input = {
+        ...input,
+        audience: reached.audience,
+        groupIds: reached.selection.groupIds,
+        studentIds: reached.selection.studentIds,
+      };
     }
     let assignmentId: string;
     let version: number;
@@ -992,10 +1005,22 @@ export const save = writeProcedure
     if (stored) {
       const existing = stored;
       // A draft saves itself as it is written, so its class may still change;
-      // once assigned, students and their work belong to that class.
-      if (existing.classId !== classRow.id && existing.state !== "draft")
+      // once assigned, students and their work belong to that class. A
+      // class's part of a module discussion stays that class's.
+      if (
+        existing.classId !== classRow.id &&
+        (existing.state !== "draft" || existing.discussionGroup)
+      )
         throw new ORPCError("BAD_REQUEST", {
           message: "coursework.class_fixed",
+        });
+      // A module discussion stays in its module, across its classes.
+      if (
+        existing.discussionGroup &&
+        existing.moduleId !== (input.discussion?.moduleId || null)
+      )
+        throw new ORPCError("CONFLICT", {
+          message: "coursework.module_fixed",
         });
       // Once out, a quiz's answers and a discussion's posts belong to it.
       if (
@@ -1124,6 +1149,21 @@ export const save = writeProcedure
         on: year ? dayIn(year, context.today) : context.today,
       });
     }
+    if (input.discussion?.moduleId) {
+      // One discussion across the module's classes: this part leads, the
+      // others take its words and settings, and classes without one get one.
+      if (!stored?.discussionGroup)
+        await setDiscussionGroup(tx, {
+          tenantId: context.tenantId,
+          id: assignmentId,
+          group: assignmentId,
+        });
+      const lead = await assignmentById(tx, context.tenantId, assignmentId);
+      if (lead) {
+        await spreadDiscussion(context, lead);
+        version = lead.version;
+      }
+    }
     await audit(context, {
       action: input.id ? "assignment.update" : "assignment.create",
       objectType: "assignment",
@@ -1235,6 +1275,13 @@ export const publish = writeProcedure
     if (!saved)
       throw new ORPCError("CONFLICT", { message: "conflict.version" });
     if (!opensLater) await tellAssigned(teachingScope(context), assignment);
+    // A module discussion goes out to every class of the module at once.
+    if (assignment.discussionGroup)
+      await spreadDiscussion(context, {
+        ...assignment,
+        state: "published",
+        version: saved.version,
+      });
     await audit(context, {
       action: "assignment.publish",
       objectType: "assignment",

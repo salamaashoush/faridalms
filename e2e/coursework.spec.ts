@@ -578,6 +578,53 @@ test("a module holds its class's discussion, and a post's likes are counted and 
   await expect(page.getByText(/^Liked by Yasmin/)).toBeVisible();
 });
 
+test("a module's discussion is set once and taken by every class of the module", async ({
+  page,
+}) => {
+  const title = `Wadis ${crypto.randomUUID().slice(0, 6)}`;
+  const { api } = await signedInApi(TEACHER);
+  const { classes } = await api.coursework.options();
+  const arabic = classes.find((row) => row.titleEn === "8A Arabic");
+  const other = classes.find(
+    (row) => row.id !== arabic?.id && row.classType === "scheduled",
+  );
+  if (!arabic || !other) throw new Error("the teacher needs two classes");
+  const module = await api.learning.saveModule({
+    id: "",
+    expectedVersion: 0,
+    title: `Valleys ${title}`,
+    summary: "",
+    classIds: [arabic.id, other.id],
+    prerequisiteId: "",
+    sequential: false,
+  });
+
+  await signInWith(page, TEACHER, PASSWORD, "/today");
+  await page.goto(`/modules/${module.id}?tab=discussions`);
+  await untilHydrated(page);
+  await page.getByRole("link", { name: "New discussion" }).first().click();
+  await expect(page).toHaveURL(/\/assignment-editor\?.*moduleId=/);
+  await untilHydrated(page);
+  await page.getByRole("textbox", { name: "Assignment title" }).fill(title);
+  await page.locator("[contenteditable=true]").first().click();
+  await page.keyboard.type("Where does the water of a wadi go?");
+  // Who takes part is who the module reaches in each class.
+  await expect(
+    page.getByText("One discussion across every class the module is set for."),
+  ).toBeVisible();
+  await expect(page.locator("#work-audience")).toHaveCount(0);
+  await page.getByRole("button", { name: "Assign", exact: true }).click();
+  await expect(page).toHaveURL(/\/assignments\/[a-f0-9-]+/);
+
+  await page.goto(`/modules/${module.id}?tab=discussions`);
+  await untilHydrated(page);
+  await expect(
+    page
+      .getByRole("region", { name: "Discussions" })
+      .getByRole("link", { name: title }),
+  ).toHaveCount(2);
+});
+
 test("classmates review each other's work unnamed, and read the reviews once the teacher releases them", async ({
   browser,
   page,

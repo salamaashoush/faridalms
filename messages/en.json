@@ -9832,6 +9832,8 @@
   "discussionModuleEmptyBody": "A discussion set for one of the module's classes stands here, beside its lessons, and is marked like any other work.",
   "discussionDue": "Due {date}",
   "courseworkErrModuleUnknown": "That module is not set for this class. Choose one of the class's modules.",
+  "courseworkErrModuleFixed": "This discussion belongs to its module in every one of the module's classes, so it stays in that module.",
+  "courseworkModuleDiscussionReach": "One discussion across every class the module is set for. Each class talks among itself, with whoever the module reaches there, and its teachers moderate it.",
   "discussionErrLikeOwn": "You cannot like your own post.",
   "ntfPeerHandedOut": "Classmates' work to review",
   "ntfPeerDue": "Your reviews are due soon",

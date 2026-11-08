@@ -3496,6 +3496,145 @@ describe("discussions", () => {
   });
 });
 
+describe("a module's discussion", () => {
+  test("is one discussion across every class the module is set for, each class's posts its own", async () => {
+    const teacher = await arabicTeacher();
+    const student = await sessionFor("northwind", login("student"));
+    const me = await student.api.identity.currentUser();
+    const target = await classOfStudent(teacher.api, me.id);
+    const { classes } = await teacher.api.coursework.options();
+    const elsewhere = classes.find(
+      (row) => row.id !== target.id && row.classType === "scheduled",
+    );
+    if (!elsewhere) throw new Error("the teacher teaches one class");
+    const module = await teacher.api.learning.saveModule({
+      id: "",
+      expectedVersion: 0,
+      title: "Rivers across the classes",
+      summary: "",
+      classIds: [target.id],
+      prerequisiteId: "",
+      sequential: false,
+    });
+    const asked = draft(target.id, "Where does a river begin?", {
+      submissionFormat: "discussion",
+      discussion: { postFirst: false, replies: 0, moduleId: module.id },
+    });
+    const saved = await teacher.api.coursework.save(asked);
+    const listed = async () =>
+      (
+        await teacher.api.coursework.moduleDiscussionsOf({
+          moduleId: module.id,
+        })
+      ).map((row) => ({
+        id: row.id,
+        title: row.title,
+        state: row.state,
+        classId: row.class?.id,
+      }));
+    expect(await listed()).toEqual([
+      {
+        id: saved.id,
+        title: "Where does a river begin?",
+        state: "draft",
+        classId: target.id,
+      },
+    ]);
+
+    // A class joining the module joins its discussion.
+    await teacher.api.learning.saveModule({
+      id: module.id,
+      expectedVersion: module.version,
+      title: "Rivers across the classes",
+      summary: "",
+      classIds: [target.id, elsewhere.id],
+      prerequisiteId: "",
+      sequential: false,
+    });
+    const parts = await listed();
+    expect(parts).toHaveLength(2);
+    const other = parts.find((row) => row.classId === elsewhere.id);
+    if (!other) throw new Error("the new class has no part");
+    expect(other).toMatchObject({
+      title: "Where does a river begin?",
+      state: "draft",
+    });
+
+    // Put out once, it is out in every class; changed once, it reads the
+    // same in every class.
+    const lead = await teacher.api.coursework.editor({ id: saved.id });
+    await teacher.api.coursework.publish({
+      id: saved.id,
+      expectedVersion: lead.version,
+    });
+    expect((await listed()).map((row) => row.state)).toEqual([
+      "published",
+      "published",
+    ]);
+    const again = await teacher.api.coursework.editor({ id: saved.id });
+    await teacher.api.coursework.save({
+      ...asked,
+      id: saved.id,
+      expectedVersion: again.version,
+      title: "Where does a river really begin?",
+      brief: plainContent("Think of a spring, a lake or a glacier."),
+    });
+    expect((await listed()).map((row) => row.title)).toEqual([
+      "Where does a river really begin?",
+      "Where does a river really begin?",
+    ]);
+    const words = await teacher.api.coursework.editor({ id: other.id });
+    expect(JSON.stringify(words.brief)).toContain("a lake or a glacier");
+
+    // A student reads their own class's part, and their class's posts stay
+    // in it; the other class's part, and its teacher's moderating, is its own.
+    expect(
+      (
+        await student.api.coursework.moduleDiscussionsOf({
+          moduleId: module.id,
+        })
+      ).map((row) => row.id),
+    ).toEqual([saved.id]);
+    const posted = await student.api.coursework.post({
+      assignmentId: saved.id,
+      content: plainContent("From a spring in the hills."),
+    });
+    expect(
+      (
+        await teacher.api.coursework.discussion({ assignmentId: other.id })
+      ).posts.map((item) => item.id),
+    ).not.toContain(posted.id);
+    expect(
+      await rejection(
+        student.api.coursework.discussion({ assignmentId: other.id }),
+      ),
+    ).toMatchObject({ code: "NOT_FOUND" });
+    const answer = await teacher.api.coursework.post({
+      assignmentId: other.id,
+      content: plainContent("Where do you think, class?"),
+    });
+    await teacher.api.coursework.hidePost({ id: answer.id, hidden: true });
+    expect(
+      (
+        await teacher.api.coursework.discussion({ assignmentId: saved.id })
+      ).posts.map((item) => item.id),
+    ).toEqual([posted.id]);
+
+    // It stays in its module.
+    const latest = await teacher.api.coursework.editor({ id: saved.id });
+    expect(
+      await rejection(
+        teacher.api.coursework.save({
+          ...asked,
+          id: saved.id,
+          expectedVersion: latest.version,
+          discussion: { postFirst: false, replies: 0, moduleId: "" },
+        }),
+      ),
+    ).toMatchObject({ message: "coursework.module_fixed" });
+  });
+});
+
 describe("a brief in two languages", () => {
   test("a brief carries a translation students read, which the teacher checks and keeps", async () => {
     const teacher = await arabicTeacher();

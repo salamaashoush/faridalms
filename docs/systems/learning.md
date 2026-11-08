@@ -330,6 +330,18 @@ From [../research/early-years.md](../research/early-years.md).
   opening the editor for that module, and a student meets it in the
   module beside its lessons. A family sees its title there and nothing of
   the posts.
+- A module's discussion is one discussion across every class the module
+  is set for (`core/module-discussions.ts`): a part per class, sharing
+  `assignments.discussion_group`, each its class's conversation and grade
+  line. Each class talks among itself, as a module's audiences are set
+  class by class, and the teachers of a class moderate its part. Whoever
+  may edit the module writes it; saving or putting out any part brings
+  every other part to the same words, settings and dates, and a class
+  joining the module gets its part then. Who takes part in a class is who
+  the module reaches there. A part keeps its own class, grade category
+  and term, and a module's discussion stays in its module. Discussions
+  set class by class before were joined by author and title, each class
+  keeping its posts and grades.
 - Anyone taking part likes a post they can read, once, and takes the like
   back; nobody likes their own, and a hidden post takes no likes. Students
   see how many like a post; its teacher also sees who.
